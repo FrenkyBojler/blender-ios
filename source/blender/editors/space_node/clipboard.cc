@@ -35,7 +35,9 @@
 
 #include "node_intern.hh"
 
-namespace blender::ed::space_node {
+namespace blender {
+
+namespace ed::space_node {
 
 /* -------------------------------------------------------------------- */
 /** \name Local Utilities
@@ -111,20 +113,20 @@ static bool node_copy_local(bNodeTree &from_tree,
   remap_node_pairing(to_tree, node_map);
 
   /* Copy links between selected nodes. */
-  LISTBASE_FOREACH (bNodeLink *, link, &from_tree.links) {
-    if (link->tonode->flag & NODE_SELECT && link->fromnode->flag & NODE_SELECT) {
-      BLI_assert(node_map.contains(link->tonode) && node_map.contains(link->fromnode));
-      bNode *from_node = node_map.lookup(link->fromnode);
-      bNode *to_node = node_map.lookup(link->tonode);
+  for (bNodeLink &link : from_tree.links) {
+    if (link.tonode->flag & NODE_SELECT && link.fromnode->flag & NODE_SELECT) {
+      BLI_assert(node_map.contains(link.tonode) && node_map.contains(link.fromnode));
+      bNode *from_node = node_map.lookup(link.fromnode);
+      bNode *to_node = node_map.lookup(link.tonode);
 
-      bNodeSocket *from = bke::node_find_socket(*from_node, SOCK_OUT, link->fromsock->identifier);
-      bNodeSocket *to = bke::node_find_socket(*to_node, SOCK_IN, link->tosock->identifier);
+      bNodeSocket *from = bke::node_find_socket(*from_node, SOCK_OUT, link.fromsock->identifier);
+      bNodeSocket *to = bke::node_find_socket(*to_node, SOCK_IN, link.tosock->identifier);
       if (!from || !to) {
         continue;
       }
 
       bNodeLink &new_link = bke::node_add_link(to_tree, *from_node, *from, *to_node, *to);
-      new_link.multi_input_sort_id = link->multi_input_sort_id;
+      new_link.multi_input_sort_id = link.multi_input_sort_id;
     }
 
     to_tree.ensure_topology_cache();
@@ -275,23 +277,23 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
    * destination bmain. Because #BKE_main_merge() frees bmain_src, we need to keep track of them
    * separately.  */
   Set<StringRef> src_scenes;
-  LISTBASE_FOREACH (Scene *, scene, &bmain_src->scenes) {
-    src_scenes.add(scene->id.name);
+  for (Scene &scene : bmain_src->scenes) {
+    src_scenes.add(scene.id.name);
   }
   Main *bmain_dst = CTX_data_main(C);
   Set<StringRef> dst_scenes;
-  LISTBASE_FOREACH (Scene *, scene, &bmain_dst->scenes) {
-    dst_scenes.add(scene->id.name);
+  for (Scene &scene : bmain_dst->scenes) {
+    dst_scenes.add(scene.id.name);
   }
 
   MainMergeReport merge_reports = {};
   /* Frees bmain_src. */
   BKE_main_merge(bmain_dst, &bmain_src, merge_reports);
 
-  LISTBASE_FOREACH (Scene *, scene, &bmain_dst->scenes) {
+  for (Scene &scene : bmain_dst->scenes) {
     /* All scenes added through merging the two bmains are removed. */
-    if (src_scenes.contains(scene->id.name) && !dst_scenes.contains(scene->id.name)) {
-      BKE_id_delete(bmain_dst, &scene->id);
+    if (src_scenes.contains(scene.id.name) && !dst_scenes.contains(scene.id.name)) {
+      BKE_id_delete(bmain_dst, &scene.id);
     }
   }
 
@@ -382,4 +384,5 @@ void NODE_OT_clipboard_paste(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+}  // namespace blender
