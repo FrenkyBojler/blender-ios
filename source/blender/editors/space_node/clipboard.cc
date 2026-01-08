@@ -276,7 +276,9 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   /* We don't want to paste scenes referenced by the Render Layers node if they don't exist in the
    * destination bmain. Because #BKE_main_merge() frees bmain_src, we need to keep track of them
    * separately.  */
-  Set<StringRef> src_scenes;
+  /* NOTE: Cannot use a stringref here, as some source scenes may be deleted when source bmain is
+   * freed by BKE_main_merge. */
+  Set<std::string> src_scenes;
   for (Scene &scene : bmain_src->scenes) {
     src_scenes.add(scene.id.name);
   }
@@ -290,7 +292,7 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   /* Frees bmain_src. */
   BKE_main_merge(bmain_dst, &bmain_src, merge_reports);
 
-  for (Scene &scene : bmain_dst->scenes) {
+  for (Scene &scene : bmain_dst->scenes.items_mutable()) {
     /* All scenes added through merging the two bmains are removed. */
     if (src_scenes.contains(scene.id.name) && !dst_scenes.contains(scene.id.name)) {
       BKE_id_delete(bmain_dst, &scene.id);
