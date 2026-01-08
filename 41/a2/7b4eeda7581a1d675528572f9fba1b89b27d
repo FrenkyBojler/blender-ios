@@ -1,1 +1,2 @@
 Referenced by commit 1d786e4f21a17074dc61f35fc69e59fb702c6650, Fix: DRW: Broken compilation after recent namespace changes
+Referenced by commit a2f667ddb2ddcb4849e5399742db354d94f49b65, Fix: GPU: Broken Shader C++ compilation
