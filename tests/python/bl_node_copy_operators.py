@@ -228,7 +228,8 @@ def execute_ungroup(test_case, test_tree, expected_tree=None):
     internal_nodes = [node for node in test_tree.nodes if node.select]
     # Re-attach to the parent frame to identify the operator result.
     for node in internal_nodes:
-        node.parent = find_test_frame(test_tree, test_case)
+        if node.parent is None:
+            node.parent = find_test_frame(test_tree, test_case)
 
     if expected_tree:
         # Map resulting nodes to expected nodes.
@@ -258,7 +259,8 @@ def execute_group_separate(type, test_case, test_tree, expected_tree=None):
         # Select all nodes for separating.
         select_nodes(group_node.node_tree, selected_nodes=group_node.node_tree.nodes)
         bpy.ops.node.group_separate(type=type)
-    separated_nodes = [node for node in test_tree.nodes if node.select]
+
+    separated_nodes = [node for node in test_tree.nodes if node.select and node.parent is None]
     centroid = node_centroid(separated_nodes)
     # Re-attach to the parent frame to identify the operator result.
     for node in separated_nodes:
