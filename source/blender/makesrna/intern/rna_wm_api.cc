@@ -80,8 +80,6 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 
 #  include "UI_interface_c.hh"
 
-#  include "AS_disk_file_hash_service.hh"
-
 #  include "WM_types.hh"
 
 namespace blender {
@@ -710,32 +708,6 @@ static PointerRNA rna_WindoManager_operator_properties_last(const char *idname)
   return PointerRNA_NULL;
 }
 
-static const char *rna_WindoManager_disk_file_hash_get(bContext *C,
-                                                       const char *storage_path,
-                                                       const char *file_path,
-                                                       const char *hash_algorithm)
-{
-  static std::string hash;
-  using namespace blender::asset_system;
-
-  std::unique_ptr<DiskFileHashService> service = disk_file_hash_service_get(storage_path);
-  hash = service->get_hash(*C, file_path, hash_algorithm);
-  return hash.c_str();
-}
-
-static bool rna_WindoManager_disk_file_hash_matches(bContext *C,
-                                                    const char *storage_path,
-                                                    const char *file_path,
-                                                    const char *hash_algorithm,
-                                                    const char *hexhash,
-                                                    const int size_in_bytes)
-{
-  using namespace blender::asset_system;
-
-  std::unique_ptr<DiskFileHashService> service = disk_file_hash_service_get(storage_path);
-  return service->file_matches(*C, file_path, hash_algorithm, hexhash, size_in_bytes);
-}
-
 static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
                                               ReportList *reports,
                                               int type,
@@ -1139,42 +1111,6 @@ void RNA_api_wm(StructRNA *srna)
       "modified from application timers. Otherwise, the running job might conflict with the "
       "handler causing unexpected results or even crashes.");
   RNA_def_property_clear_flag(parm, PROP_EDITABLE);
-
-#  ifndef NDEBUG
-  // BIG HACK just for testing. This must not land in main.
-  func = RNA_def_function(srna, "disk_file_hash_get", "rna_WindoManager_disk_file_hash_get");
-  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
-  parm = RNA_def_string(func, "storage_path", nullptr, 0, "", "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(func, "file_path", nullptr, 0, "", "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(func, "hash_algorithm", nullptr, 0, "", "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  /* return */
-  parm = RNA_def_string(func, "hash", nullptr, 0, "", "");
-  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, ParameterFlag(0));
-  RNA_def_function_return(func, parm);
-
-  // BIG HACK just for testing. This must not land in main.
-  func = RNA_def_function(
-      srna, "disk_file_hash_matches", "rna_WindoManager_disk_file_hash_matches");
-  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
-  parm = RNA_def_string(func, "storage_path", nullptr, 0, "", "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(func, "file_path", nullptr, 0, "", "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(func, "hash_algorithm", nullptr, 0, "", "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(func, "hexhash", nullptr, 0, "", "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_int(func, "size_in_bytes", 0, 0, INT_MAX, "", "", 0, INT_MAX);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  /* return */
-  parm = RNA_def_boolean(func, "matches", false, "", "");
-  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, ParameterFlag(0));
-  RNA_def_function_return(func, parm);
-
-#  endif
 }
 
 void RNA_api_operator(StructRNA *srna)

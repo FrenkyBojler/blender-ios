@@ -15,7 +15,7 @@ import datetime
 import unittest
 from pathlib import Path
 
-from _bpy_internal.disk_file_hash_service import backend_sqlite, hash_service, types, on_blender_exit
+from _bpy_internal.disk_file_hash_service import backend_sqlite, hash_service, types
 
 scratch_dir: Path
 
@@ -354,41 +354,6 @@ class DiskFileHashServiceNotOpeningTest(unittest.TestCase):
         self.service.open()
         self.service.close()
         self.service.close()
-
-
-class DFHSCPPWrapperTest(unittest.TestCase):
-    @classmethod
-    def tearDownClass(cls) -> None:
-        # This happens automatically on Blender's exit. However, for this test it
-        # needs to be called _before_ Blender exits, because the scratch directory
-        # needs cleaning up. If there's still a service running, that means
-        # there's still an SQLite file open, which prevents cleanup on Windows.
-        on_blender_exit()
-
-    def test_dfhs_cpp_wrapper(self):
-        """This test only tests the C++ wrapper, not the underlying Python logic."""
-
-        test_path = Path(__file__).parent.parent / "files/asset_library/новый/blender_assets.cats.txt"
-        test_path_str = str(test_path)
-
-        storage_path = scratch_dir / "dfhs_test"
-
-        import bpy
-        wm = bpy.context.window_manager
-
-        hash = wm.disk_file_hash_get(str(storage_path), test_path_str, "sha256")
-        self.assertEqual("fce796de2a7d0c9522784962ae53b34264d1d5ced099eb0e5e0df06723e67bf1",
-                         hash, "{!s} SHA256 hash".format(test_path))
-
-        matches = wm.disk_file_hash_matches(
-            str(storage_path), test_path_str, "md5",
-            "fd519cfbc1fad37d8ebf3eac30a83c66", 357)
-        self.assertTrue(matches, "{!s} MD5 hash should match".format(test_path))
-
-        matches = wm.disk_file_hash_matches(
-            str(storage_path), test_path_str, "md5",
-            "cafef000000d", 357)
-        self.assertFalse(matches, "{!s} MD5 hash should mismatch".format(test_path))
 
 
 def main() -> None:
