@@ -298,15 +298,20 @@ class SubdivisionSet(Operator):
                         elif obj.mode == 'OBJECT':
                             if mod.levels != level:
                                 mod.levels = level
-                        return
+                        return True
                     else:
                         if obj.mode == 'SCULPT':
-                            if mod.sculpt_levels + level <= mod.total_levels:
-                                mod.sculpt_levels += level
+                            if mod.sculpt_levels + level > mod.total_levels:
+                                return False
+
+                            mod.sculpt_levels += level
+
                         elif obj.mode == 'OBJECT':
-                            if mod.levels + level <= mod.total_levels:
-                                mod.levels += level
-                        return
+                            if mod.levels + level > mod.total_levels:
+                                return False
+
+                            mod.levels += level
+                        return True
 
                 elif mod.type == 'SUBSURF':
                     if relative:
@@ -315,7 +320,7 @@ class SubdivisionSet(Operator):
                         if mod.levels != level:
                             mod.levels = level
 
-                    return
+                    return True
 
             # add a new modifier
             if ensure_modifier:
@@ -328,12 +333,18 @@ class SubdivisionSet(Operator):
                     else:
                         mod = obj.modifiers.new("Subdivision", 'SUBSURF')
                         mod.levels = level
+                    return True
                 except Exception:
                     self.report({'WARNING'}, rpt_("Modifiers cannot be added to object: {:s}").format(obj.name))
+                    return False
 
+        ok = True
         for obj in objs:
-            set_object_subd(obj)
+            ret_val = set_object_subd(obj)
+            ok = ok and ret_val
 
+        if not ok:
+            return {'CANCELLED'}
         return {'FINISHED'}
 
 
