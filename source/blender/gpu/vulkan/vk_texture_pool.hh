@@ -18,7 +18,7 @@ class VKTexturePool : public TexturePool {
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
 
-  /* All performed allocations are multiplied by this factor as a temporary metric. */
+  /* All performed allocations are minimum 65kb as a temporary metric. */
   static constexpr VkDeviceSize allocation_size = 67108864;
 
   struct Segment {
@@ -112,7 +112,10 @@ class VKTexturePool : public TexturePool {
   void offset_users_count(Texture *tex, int offset) override;
 
 #ifndef NDEBUG
-  void debug_usage_log() const;
+  uint debug_usage_counter = 0;
+  VkDeviceSize acquired_segment_size_ = 0;
+  VkDeviceSize acquired_segment_max_ = 0;
+  void debug_usage_log();
 #endif
 };
 

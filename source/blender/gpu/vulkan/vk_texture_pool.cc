@@ -14,6 +14,10 @@
 
 #include "fmt/format.h"
 
+#include "BKE_global.hh"
+
+#include "CLG_log.h"
+
 namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
@@ -278,8 +282,12 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   device.resources.add_aliased_image(
       texture_handle.texture->vk_image_, false, texture_handle.texture->name_.c_str());
 
-  acquired_.add(texture_handle);
+#ifndef NDEBUG
+  acquired_segment_size_ += texture_handle.segment.size;
+  acquired_segment_max_ = std::max(acquired_segment_max_, acquired_segment_size_);
+#endif
 
+  acquired_.add(texture_handle);
   return wrap(texture_handle.texture);
 }
 
@@ -288,6 +296,10 @@ void VKTexturePool::release_texture(Texture *tex)
   BLI_assert_msg(acquired_.contains({unwrap(tex)}),
                  "Unacquired texture passed to VKTexturePool::offset_users_count()");
   TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex)});
+
+#ifndef NDEBUG
+  acquired_segment_size_ -= texture_handle.segment.size;
+#endif
 
   /* Move allocation back to `pool_`. */
   auto page_handle = allocations_.lookup_key(texture_handle.allocation_handle);
@@ -321,72 +333,53 @@ void VKTexturePool::reset(bool force_free)
   }
 #endif
 
-  VkDeviceSize total_pool_usage = 0;
-  VkDeviceSize used_pool_usage = 0;
-
-  uint texture_i = 0;
-  for (TextureHandle texture : acquired_) {
-    std::printf("Texture %d\n", texture_i);
-    std::printf(
-        "\tRegion 0 (offset=%zu, size=%zu)\n", texture.segment.offset, texture.segment.size);
-    used_pool_usage += texture.segment.size;
-    texture_i++;
-  }
-
-  uint page_i = 0;
-
   /* Reverse iterate unused allocations, to make sure we only reorder known good handles. */
   for (AllocationHandle handle : allocations_) {
     if (handle.is_unused() && (handle.unused_cycles_count >= max_unused_cycles_ || force_free)) {
       handle.free();
       allocations_.remove(handle);
+#ifndef NDEBUG
+      acquired_segment_max_ = 0;
+#endif
     }
     else {
       handle.unused_cycles_count++;
       allocations_.add_overwrite(handle);
     }
-
-    total_pool_usage += handle.allocation_info.size;
-
-    uint list_i = 0;
-    std::printf("Page %d (size=%zu, type=%d)\n",
-                page_i,
-                handle.allocation_info.size,
-                handle.allocation_info.memoryType);
-    for (auto region : handle.segments) {
-      std::printf("\tRegion %d (start=%zu, end=%zu)\n",
-                  list_i,
-                  region.offset,
-                  region.offset + region.size);
-      list_i++;
-    }
-    page_i++;
   }
 
-  std::printf("Pool allocation: used=%zumb, total=%zumb\n",
-              used_pool_usage / 1024 / 1024,
-              total_pool_usage / 1024 / 1024);
+#ifndef NDEBUG
+  debug_usage_log();
+  acquired_segment_size_ = 0;
+#endif
 }
 
 #ifndef NDEBUG
-void VKTexturePool::debug_usage_log() const
+void VKTexturePool::debug_usage_log()
 {
+  /* Restrict debug output to once every N resets to avoid flooding. */
+  debug_usage_counter = ++debug_usage_counter % 16u;
+  if (debug_usage_counter != 0) {
+    return;
+  }
+
   /* Usage log is only output when --debug-gpu is specified. */
   if (!(G.debug & G_DEBUG_GPU)) {
     return;
   }
 
-  VkDeviceSize usage = 0;
-  VkDeviceSize total = 0;
+  VkDeviceSize total_allocation_size = 0;
   for (const auto &handle : allocations_) {
-    total += handle.allocation_info.size;
+    total_allocation_size += handle.allocation_info.size;
   }
-  for (const auto &handle : acquired_) {
-    usage += handle.segment.size;
-  }
-  float perc = static_cast<float>(usage) / static_cast<float>(total);
+  float ratio = static_cast<float>(acquired_segment_max_) /
+                static_cast<float>(total_allocation_size) * 100.0f;
 
-  CLOG_DEBUG(LOG_)
+  CLOG_TRACE(&LOG,
+             "VKTexturePool uses %u allocations of %zumb, %f%% max usage.",
+             static_cast<uint>(allocations_.size()),
+             total_allocation_size / 1024 / 1024,
+             ratio);
 }
 #endif
 
