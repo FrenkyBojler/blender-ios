@@ -274,7 +274,8 @@ static bool assigned_action_has_keyframe_at(AnimData &adt, const float frame)
   }
 
   const Span<FCurve *> fcurves = animrig::legacy::fcurves_for_assigned_action(&adt);
-  /* 1024 is a common value for memory bandwidth limited tasks. The number isn't critical: 512 works fine here, but 128 and 4096 seem to work equally well in testing. */
+  /* 1024 is a common value for memory bandwidth limited tasks. The number isn't critical: 512
+   * works fine here, but 128 and 4096 seem to work equally well in testing. */
   return threading::parallel_reduce<bool>(
       fcurves.index_range(),
       512,
