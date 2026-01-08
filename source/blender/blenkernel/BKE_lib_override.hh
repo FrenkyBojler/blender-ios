@@ -28,6 +28,8 @@
 
 #include <optional>
 
+namespace blender {
+
 struct BlendFileReadReport;
 struct Collection;
 struct ID;
@@ -43,11 +45,11 @@ struct ReportList;
 struct Scene;
 struct ViewLayer;
 
-namespace blender::bke::liboverride {
+namespace bke::liboverride {
 
 bool is_auto_resync_enabled();
 
-}  // namespace blender::bke::liboverride
+}  // namespace bke::liboverride
 
 /**
  * Initialize empty overriding of \a reference_id by \a local_id.
@@ -308,7 +310,7 @@ bool BKE_lib_override_library_resync(Main *bmain,
  */
 void BKE_lib_override_library_main_resync(
     Main *bmain,
-    const blender::Map<Library *, Library *> *new_to_old_libraries_map,
+    const Map<Library *, Library *> *new_to_old_libraries_map,
     Scene *scene,
     ViewLayer *view_layer,
     BlendFileReadReport *reports);
@@ -580,3 +582,5 @@ bool BKE_lib_override_library_id_is_user_deletable(Main *bmain, ID *id);
  * Debugging helper to show content of given liboverride data.
  */
 void BKE_lib_override_debug_print(IDOverrideLibrary *liboverride, const char *intro_txt);
+
+}  // namespace blender
