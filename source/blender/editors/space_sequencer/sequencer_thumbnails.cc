@@ -143,12 +143,11 @@ static bool add_thumbnail_at_frame(float timeline_frame,
   return true;
 };
 
-static bool is_thumbnail_in_view(float timeline_frame,
-                                 float thumb_width,
-                                 float content_start,
-                                 float content_end)
+static bool is_thumbnail_in_view(const float timeline_frame,
+                                 const float thumb_width,
+                                 const View2D *v2d)
 {
-  if (timeline_frame < content_end && timeline_frame + thumb_width > content_start) {
+  if (timeline_frame < v2d->cur.xmax && timeline_frame + thumb_width > v2d->cur.xmin) {
     return true;
   }
   return false;
@@ -163,7 +162,7 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
                                           bool is_muted,
                                           Vector<SeqThumbInfo> &r_thumbs)
 {
-  const float upper_thumb_bound = strip.right_handle;
+  const float upper_thumb_bound = min_ff(strip.right_handle, strip.content_end);
   const float strip_width = (strip.right_handle - strip.left_handle);
   const bool overlap = (2.0f * thumb_width > strip_width);
   const bool only_right_handle_selected = ((strip.strip->flag & SEQ_RIGHTSEL) &&
@@ -185,9 +184,7 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
     show_right_thumb = true;
   }
 
-  if (show_left_thumb &&
-      is_thumbnail_in_view(strip.left_handle, thumb_width, strip.content_start, strip.content_end))
-  {
+  if (show_left_thumb && is_thumbnail_in_view(strip.left_handle, thumb_width, v2d)) {
     add_thumbnail_at_frame(strip.left_handle,
                            C,
                            v2d,
@@ -204,10 +201,8 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
   /* Offset the start of thumbnail. */
   const float display_offset = -thumb_width;
 
-  if (show_right_thumb && is_thumbnail_in_view(strip.right_handle + display_offset,
-                                               thumb_width,
-                                               strip.content_start,
-                                               strip.content_start + strip.strip_length))
+  if (show_right_thumb &&
+      is_thumbnail_in_view(strip.right_handle + display_offset, thumb_width, v2d))
   {
     add_thumbnail_at_frame(strip.right_handle,
                            C,
