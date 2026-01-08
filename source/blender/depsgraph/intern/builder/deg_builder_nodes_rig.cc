@@ -207,7 +207,7 @@ void DepsgraphNodeBuilder::build_rig(Object *object)
 
     /* Add a separate node for bone visibility. Getting the visibility doesn't need the pose of the
      * bone to be evaluated, so drivers that target the bone's "hide" RNA property can depend on
-     * this operation, rather than the BONE_DONE node. See #152121. */
+     * this operation, rather than the BONE_LOCAL node. See #152121. */
     add_operation_node(&object->id, NodeType::BONE, pchan.name, OperationCode::BONE_VISIBILITY);
 
     add_operation_node(&object->id,
