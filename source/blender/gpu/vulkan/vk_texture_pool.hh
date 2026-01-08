@@ -13,20 +13,12 @@
 
 namespace blender::gpu {
 
-/*
-- Create a PageHandle
-- Which contains an allocation and such
-- And also contains a list of Allocations
-  - Which are offsets, sizes, properly aligned if necessary.
--
-
-
-*/
-
 class VKTexturePool : public TexturePool {
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
+
+  /* TODO(not_mark): surely this is an existing type already? Maybe Span. */
   struct PageRegion {
     VkDeviceSize offset;
     VkDeviceSize size;
@@ -37,7 +29,7 @@ class VKTexturePool : public TexturePool {
     VmaAllocation allocation = VK_NULL_HANDLE;
     VmaAllocationInfo allocation_info = {};
 
-    /* List of unused regions of the allocation. */
+    /* Linked list of unused regions of the allocation. */
     std::list<PageRegion> regions;
 
     /* Counter to track the number of unused cycles before deallocation in `pool_`. */
@@ -47,18 +39,16 @@ class VKTexturePool : public TexturePool {
     bool alloc(VkMemoryRequirements memory_requirements);
     void free();
 
-    /* Extract the first available region of the allocation, if it is compatible */
+    /* Extract an available region of the allocation, if it is compatible */
     std::optional<PageRegion> acquire_region(VkMemoryRequirements memory_requirements);
 
-    /* Return a region to the allocation as available for reuse. */
+    /* Return a region to the allocation for reuse. */
     void release_region(PageRegion region);
 
+    /* Check if the allocation is entirely unused. */
     bool is_unused() const
     {
-      if (regions.size() == 1u) {
-        return regions.front().size == allocation_info.size;
-      }
-      return false;
+      return !regions.empty() && regions.front().size == allocation_info.size;
     }
 
     /* We use the pointer as hash/comparator, as a VmaAllocation is unique.

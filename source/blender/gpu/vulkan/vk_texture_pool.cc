@@ -19,10 +19,11 @@ namespace blender::gpu {
 std::optional<VKTexturePool::PageRegion> VKTexturePool::PageHandle::acquire_region(
     VkMemoryRequirements memory_requirements)
 {
-  /* First check if a compatible and sized region exists.  */
   if (!bool(memory_requirements.memoryTypeBits & allocation_info.memoryType)) {
     return {};
   }
+
+  /* Find the first region of compatible size. */
   auto it = std::find_if(regions.begin(), regions.end(), [memory_requirements](PageRegion region) {
     return region.size >= memory_requirements.size;
   });
@@ -32,13 +33,14 @@ std::optional<VKTexturePool::PageRegion> VKTexturePool::PageHandle::acquire_regi
 
   PageRegion region = *it;
 
-  /* If the region can be split, acquire the first part. */
-  if (it->size < memory_requirements.size) {
+  if (region.size > memory_requirements.size) {
+    /* If the region is larger than required, split it. */
     it->offset = region.offset + memory_requirements.size;
     it->size = region.size - memory_requirements.size;
     region.size = memory_requirements.size;
   }
   else {
+    /* Otherwise, remove the region from the list. */
     regions.erase(it);
   }
 
@@ -47,31 +49,53 @@ std::optional<VKTexturePool::PageRegion> VKTexturePool::PageHandle::acquire_regi
 
 void VKTexturePool::PageHandle::release_region(PageRegion region)
 {
-  /* Find first region before the region we are trying to return */
-  auto it = std::find_if(regions.begin(), regions.end(), [region](PageRegion other) {
-    return other.offset > region.offset;
-  });
+  /* Find the region before the region we are trying to release. */
+  auto it = regions.begin();
+  while (it != regions.end()) {
+    if (it->offset > region.offset) {
+      break;
+    }
+    it++;
+  }
   if (it != regions.begin()) {
     it--;
   }
 
   if (it == regions.end()) {
-    /* No prior region found, insert at end. */
-    regions.push_back(region);
+    /* No prior region found, insert at front. */
+    regions.push_front(region);
   }
-  else if (it->offset + it->size < region.offset) {
-    /* Prior region does not connect, insert after. */
-    regions.emplace(it++, region);
+  else if (region.offset + region.size == it->offset) {
+    /* Next region connects to the released region, and can be merged. */
+    it->offset -= region.size;
+
+    /* Check if the region before is connected, and can be merged. */
+    auto it_prev = it;
+    if (it_prev != regions.begin()) {
+      --it_prev;
+      if (it_prev->offset + it_prev->size == it->offset) {
+        it->offset -= it_prev->size;
+        regions.erase(it_prev);
+      }
+    }
   }
-  else {
-    /* Prior region connects, merge. */
+  else if (it->offset + it->size == region.offset) {
+    /* Prior region connects to the released region, and can be merged. */
     it->size += region.size;
-    /* Check if next region can be merged as well. */
-    auto it_next = it++;
-    if (it_next != regions.end() && it_next->offset == it->offset + it->size) {
+
+    /* Check if the region after is connected, and can be merged. */
+    auto it_next = ++it;
+    if (it_next != regions.end() && it_next->offset == (it->offset + it->size)) {
       it->size += it_next->size;
       regions.erase(it_next);
     }
+  }
+  else if (region.offset > (it->offset + it->size)) {
+    /* Prior region does not connect, insert after. */
+    regions.insert(++it, region);
+  }
+  else {
+    regions.push_front(region);
   }
 }
 
@@ -102,30 +126,6 @@ void VKTexturePool::PageHandle::free()
   vmaFreeMemory(device.mem_allocator_get(), allocation);
   regions.clear();
 }
-
-// bool VKTexturePool::AllocationHandle::init(VkMemoryRequirements memory_requirements)
-// {
-//   VKDevice &device = VKBackend::get().device;
-//   VmaAllocationCreateInfo create_info = {};
-//   create_info.priority = 0.5f;  // memory_priority(usage); /* TODO export function */
-//   create_info.memoryTypeBits = memory_requirements.memoryTypeBits;
-//   create_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-//   VkResult result = vmaAllocateMemory(device.mem_allocator_get(),
-//                                       &memory_requirements,
-//                                       &create_info,
-//                                       &allocation,
-//                                       &allocation_info);
-//   return result == VK_SUCCESS;
-// }
-
-// void VKTexturePool::AllocationHandle::free()
-// {
-//   VKDevice &device = VKBackend::get().device;
-//   /* TODO(not_mark): allocation needs to go to discard pool, but for that it needs to be
-//   tracked.
-//    * This is only OK right now because `max_unused_cycles_` is sufficiently large. */
-//   vmaFreeMemory(device.mem_allocator_get(), allocation);
-// }
 
 bool VKTexturePool::TextureHandle::init(int2 extent,
                                         TextureFormat format,
@@ -220,26 +220,33 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   vkGetImageMemoryRequirements(
       device.vk_handle(), texture_handle.texture->vk_image_, &memory_requirements);
 
-  /* Find a compatible allocation and get a region. */
-  texture_handle.page_handle = {};
-  texture_handle.page_region = {};
+  /* Find a compatible region of allocated memory. */
   for (auto page : pages_) {
-    auto region = page.acquire_region(memory_requirements);
-    if (region) {
+    auto region_opt = page.acquire_region(memory_requirements);
+    if (region_opt) {
       texture_handle.page_handle = page;
-      texture_handle.page_region = *region;
+      texture_handle.page_region = *region_opt;
       pages_.add_overwrite(page);
+      break;
     }
-    break;
   }
 
-  /* If no allocation is available, create a new one. */
+  /* If no compatible region was found, allocate new memory. */
   if (texture_handle.page_handle.allocation == VK_NULL_HANDLE) {
+    /* TODO(not_mark): add some heuristic instead of just over-allocating by 4x. */
     VkMemoryRequirements allocation_requirements = memory_requirements;
-    allocation_requirements.size *= 4;
-    texture_handle.page_handle.init(allocation_requirements);
-    texture_handle.page_region = *texture_handle.page_handle.acquire_region(memory_requirements);
-    pages_.add_overwrite(texture_handle.page_handle);
+    allocation_requirements.size *= 4u;
+
+    PageHandle page_handle;
+    page_handle.init(allocation_requirements);
+    auto region_opt = page_handle.acquire_region(memory_requirements);
+
+    pages_.add(page_handle);
+    texture_handle.page_handle = page_handle;
+    texture_handle.page_region = *region_opt;
+
+    /* TODO(not_mark): remove */
+    std::printf("Allocated %zu\n", texture_handle.page_handle.allocation_info.size);
   }
 
   /* Compute the necessary offset into the allocation to satisfy alignment requirements. */
@@ -264,6 +271,11 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   device.resources.add_aliased_image(
       texture_handle.texture->vk_image_, false, texture_handle.texture->name_.c_str());
 
+  /* TODO(not_mark): remove */
+  std::printf("Acquired (start=%zu, end=%zu)\n",
+              texture_handle.page_region.offset,
+              texture_handle.page_region.offset + texture_handle.page_region.size);
+
   acquired_.add(texture_handle);
   return wrap(texture_handle.texture);
 }
@@ -279,6 +291,11 @@ void VKTexturePool::release_texture(Texture *tex)
   page_handle.release_region(texture_handle.page_region);
   page_handle.unused_cycles_count = 0;
   pages_.add_overwrite(page_handle);
+
+  /* TODO(not_mark): remove */
+  std::printf("Released (start=%zu, end=%zu)\n",
+              texture_handle.page_region.offset,
+              texture_handle.page_region.offset + texture_handle.page_region.size);
 
   /* Clear out acquired texture object. */
   acquired_.remove(texture_handle);
@@ -306,6 +323,17 @@ void VKTexturePool::reset(bool force_free)
   }
 #endif
 
+  uint texture_i = 0;
+  for (TextureHandle texture : acquired_) {
+    std::printf("Texture %d\n", texture_i);
+    std::printf("\tRegion 0 (offset=%zu, size=%zu)\n",
+                texture.page_region.offset,
+                texture.page_region.size);
+    texture_i++;
+  }
+
+  uint page_i = 0;
+
   /* Reverse iterate unused allocations, to make sure we only reorder known good handles. */
   for (PageHandle handle : pages_) {
     if (handle.is_unused() && (handle.unused_cycles_count >= max_unused_cycles_) || force_free) {
@@ -316,6 +344,17 @@ void VKTexturePool::reset(bool force_free)
       handle.unused_cycles_count++;
       pages_.add_overwrite(handle);
     }
+
+    uint list_i = 0;
+    std::printf("Page %d (size=%zu)\n", page_i, handle.allocation_info.size);
+    for (auto region : handle.regions) {
+      std::printf("\tRegion %d (start=%zu, end=%zu)\n",
+                  list_i,
+                  region.offset,
+                  region.offset + region.size);
+      list_i++;
+    }
+    page_i++;
   }
 }
 
