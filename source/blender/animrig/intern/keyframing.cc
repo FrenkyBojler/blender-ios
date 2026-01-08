@@ -273,7 +273,8 @@ static bool assigned_action_has_keyframe_at(AnimData &adt, const float frame)
     return false;
   }
 
-  const Span<FCurve *> fcurves = blender::animrig::legacy::fcurves_for_assigned_action(&adt);
+  const Span<FCurve *> fcurves = animrig::legacy::fcurves_for_assigned_action(&adt);
+  /* 1024 is a common value for memory bandwidth limited tasks. The number isn't critical: 512 works fine here, but 128 and 4096 seem to work equally well in testing. */
   return threading::parallel_reduce<bool>(
       fcurves.index_range(),
       512,
@@ -325,7 +326,7 @@ bool id_frame_has_keyframe(ID *id, float frame)
   /* Perform special checks for 'macro' types. */
   switch (GS(id->name)) {
     case ID_OB:
-      return object_frame_has_keyframe((Object *)id, frame);
+      return object_frame_has_keyframe(id_cast<Object *>(id), frame);
 
     default: {
       AnimData *adt = BKE_animdata_from_id(id);
@@ -435,7 +436,7 @@ static float nla_time_remap(float time,
                             PointerRNA *id_ptr,
                             AnimData *adt,
                             bAction *act,
-                            ListBase *nla_cache,
+                            ListBaseT<NlaKeyframingContext> *nla_cache,
                             NlaKeyframingContext **r_nla_context)
 {
   if (adt && adt->action == act) {
@@ -849,7 +850,7 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
   key_settings.keyframe_type = key_type;
 
   /* NOTE: keyframing functions can deal with the nla_context being a nullptr. */
-  ListBase nla_cache = {nullptr, nullptr};
+  ListBaseT<NlaKeyframingContext> nla_cache = {nullptr, nullptr};
   NlaKeyframingContext *nla_context = nullptr;
   const float nla_frame = nla_time_remap(scene_frame.value_or(anim_eval_context.eval_time),
                                          &anim_eval_context,
