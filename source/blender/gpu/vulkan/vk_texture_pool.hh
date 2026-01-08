@@ -17,7 +17,7 @@ class VKTexturePool : public TexturePool {
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
-
+  
   /* TODO(not_mark): surely this is an existing type already? Maybe Span. */
   struct PageRegion {
     VkDeviceSize offset;

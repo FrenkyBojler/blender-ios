@@ -16,6 +16,11 @@
 
 namespace blender::gpu {
 
+static VkDeviceSize align_size(VkDeviceSize offset, VkDeviceSize alignment)
+{
+  return (offset - 1u + alignment) & -alignment;
+}
+
 std::optional<VKTexturePool::PageRegion> VKTexturePool::PageHandle::acquire_region(
     VkMemoryRequirements memory_requirements)
 {
@@ -23,10 +28,23 @@ std::optional<VKTexturePool::PageRegion> VKTexturePool::PageHandle::acquire_regi
     return {};
   }
 
-  /* Find the first region of compatible size. */
-  auto it = std::find_if(regions.begin(), regions.end(), [memory_requirements](PageRegion region) {
-    return region.size >= memory_requirements.size;
-  });
+  /* Modify size up to alignment requirements. We always extend at the end 
+   * so a segment after our acquisition remains aligned. */
+  memory_requirements.size = align_size(memory_requirements.size, memory_requirements.alignment);
+
+  /* Find the smallest region of compatible size. */
+  auto it = regions.end();
+  for (auto iter = regions.begin(); iter != regions.end(); ++iter) {
+    if (iter->size < memory_requirements.size) {
+      continue;
+    }
+    if (it == regions.end() || it->size > iter->size) {
+      it = iter;
+      if (it->size == memory_requirements.size) {
+        break;
+      }
+    }
+  }
   if (it == regions.end()) {
     return {};
   }
@@ -54,19 +72,19 @@ void VKTexturePool::PageHandle::release_region(PageRegion region)
   while (it_next != regions.end() && it_next->offset < region.offset) {
     ++it_next;
   }
-  
   /* Find the last region before the released region. */
   auto it_prev = it_next;
   if (it_prev != regions.begin()) {
     --it_prev;
   }
 
+  /* Extend the previous region, if it connects to the released region. */
   bool extended_prev = false;
   if (it_prev != regions.end() && (it_prev->offset + it_prev->size) == region.offset) {
     extended_prev = true;
     it_prev->size += region.size;
   } 
-
+  /* Extend the next region, if it connects to the released region. */
   bool extended_next = false;
   if (it_next != regions.end() && it_next->offset == (region.offset + region.size)) {
     extended_next = true;  
@@ -75,63 +93,14 @@ void VKTexturePool::PageHandle::release_region(PageRegion region)
   } 
 
   if (extended_prev && extended_next) {
-    /* Both prev/next can be connected. Extend previous, erase next. */
+    /* If both previous/next regions were extended, we can merge them. */
     it_prev->size += it_next->size - region.size;
     regions.erase(it_next);
   }
   else if (!(extended_prev || extended_next)) {
-    /* Neither prev/next could be connected. Insert in the middle. */
+    /* If neither regions were extended, they do not connect. Insert in the middle. */
     regions.insert(it_next, region);
   }
-
-  // /* Find the region before the region we are trying to release. */
-  // auto it = regions.begin();
-  // while (it != regions.end()) {
-  //   if (it->offset > region.offset) {
-  //     break;
-  //   }
-  //   it++;
-  // }
-  // if (it != regions.begin()) {
-  //   it--;
-  // }
-
-  // if (it == regions.end()) {
-  //   /* No prior region found, insert at front. */
-  //   regions.push_front(region);
-  // }
-  // else if (region.offset + region.size == it->offset) {
-  //   /* Next region connects to the released region, and can be merged. */
-  //   it->offset -= region.size;
-
-  //   /* Check if the region before is connected, and can be merged. */
-  //   auto it_prev = it;
-  //   if (it_prev != regions.begin()) {
-  //     --it_prev;
-  //     if (it_prev->offset + it_prev->size == it->offset) {
-  //       it->offset -= it_prev->size;
-  //       regions.erase(it_prev);
-  //     }
-  //   }
-  // }
-  // else if (it->offset + it->size == region.offset) {
-  //   /* Prior region connects to the released region, and can be merged. */
-  //   it->size += region.size;
-
-  //   /* Check if the region after is connected, and can be merged. */
-  //   auto it_next = ++it;
-  //   if (it_next != regions.end() && it_next->offset == (it->offset + it->size)) {
-  //     it->size += it_next->size;
-  //     regions.erase(it_next);
-  //   }
-  // }
-  // else if (region.offset > (it->offset + it->size)) {
-  //   /* Prior region does not connect, insert after. */
-  //   regions.insert(++it, region);
-  // }
-  // else {
-  //   regions.push_front(region);
-  // }
 }
 
 bool VKTexturePool::PageHandle::init(VkMemoryRequirements memory_requirements)
