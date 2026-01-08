@@ -208,6 +208,7 @@ static always_inline TokenType to_type(const char c)
 static always_inline bool always_split_token(const TokenType c, bool is_preprocessor = false)
 {
   switch (c) {
+    case TokenType::Dot: /* For variadic macros. */
     case TokenType::Number:
     case TokenType::Word:
     case TokenType::Space:

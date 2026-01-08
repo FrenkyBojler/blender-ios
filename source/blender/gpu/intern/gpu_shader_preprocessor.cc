@@ -91,7 +91,7 @@ struct Preprocessor {
     return tok;
   }
 
-  static Token get_end_of_parameter(Token tok)
+  static Token get_end_of_parameter(Token tok, bool skip_to_end = false)
   {
     /* Avoid matching coma inside parameter function calls. */
     int stack = 1;
@@ -106,7 +106,7 @@ struct Preprocessor {
       if (stack == 0) {
         return tok;
       }
-      if (stack == 1 && tok == ',') {
+      if (stack == 1 && tok == ',' && !skip_to_end) {
         return tok;
       }
       tok = tok.next();
@@ -169,9 +169,14 @@ struct Preprocessor {
         Token param_start = param;
         Token param_end = get_end_of_parameter(param_start);
 
-        Token argument_name = tok;
+        StringRef argument_name = str(tok);
+        if (argument_name == "...") {
+          param_end = get_end_of_parameter(param_start, true);
+          argument_name = "__VA_ARGS__";
+        }
+
         macro_parameters.add(
-            str(argument_name),
+            argument_name,
             {skip_whitespace(param_start.next()), skip_whitespace_backward(param_end.prev())});
 
         /* Continue to the next separator. */
