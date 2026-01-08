@@ -2142,7 +2142,7 @@ void IDP_TryConvertProperty(IDProperty *src,
       const int int_value = int(value);
       if (type == IDP_ARRAY) {
         src->len = std::max(3, src->len);
-        src->data.pointer = MEM_callocN(sizeof(int) * src->len, __func__);
+        src->data.pointer = MEM_calloc_arrayN<int>(size_t(src->len), __func__);
         for (int i = 0; i < src->len; i++) {
           static_cast<int *>(src->data.pointer)[i] = int_value;
         }
@@ -2156,7 +2156,7 @@ void IDP_TryConvertProperty(IDProperty *src,
       const int8_t bool_value = int8_t(value);
       if (type == IDP_ARRAY) {
         src->len = std::max(3, src->len);
-        src->data.pointer = MEM_callocN(sizeof(int8_t) * src->len, __func__);
+        src->data.pointer = MEM_calloc_arrayN<int8_t>(size_t(src->len), __func__);
         for (int i = 0; i < src->len; i++) {
           static_cast<int8_t *>(src->data.pointer)[i] = bool_value;
         }
@@ -2169,7 +2169,7 @@ void IDP_TryConvertProperty(IDProperty *src,
     case IDP_UI_DATA_TYPE_FLOAT: {
       if (type == IDP_ARRAY) {
         src->len = std::max(3, src->len);
-        src->data.pointer = MEM_callocN(sizeof(double) * src->len, __func__);
+        src->data.pointer = MEM_calloc_arrayN<double>(size_t(src->len), __func__);
         for (int i = 0; i < src->len; i++) {
           static_cast<double *>(src->data.pointer)[i] = value;
         }

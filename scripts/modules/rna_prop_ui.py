@@ -89,6 +89,7 @@ def rna_idprop_ui_create(
 
     # Assign the value
     item[prop] = default
+    item.idprop_active_index = len(item.items()) - 1
 
     rna_idprop_ui_prop_update(item, prop)
     ui_data = item.id_properties_ui(prop)

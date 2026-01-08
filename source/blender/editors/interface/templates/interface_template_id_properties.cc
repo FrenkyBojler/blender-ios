@@ -264,8 +264,10 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id)
       case IDP_ID:
         return &RNA_IDPropertyUIDataID;
       default:
-        BLI_assert_unreachable();
+        break;
     }
+    /* Not required (remove later), added to silent the warning. */
+    return &RNA_IDPropertyUIDataFloat;
   };
 
   StructRNA *srna = active_prop->type == IDP_ARRAY ? get_prop_type(active_prop->subtype) :

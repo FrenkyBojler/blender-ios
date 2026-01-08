@@ -1117,7 +1117,6 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
   if (prop_exist->ui_data) {
     /* Take ownership of the existing property's UI data. */
     const eIDPropertyUIDataType src_type = IDP_ui_data_type(prop_exist);
-    IDPropertyUIData *ui_data = prop_exist->ui_data;
     prop_exist->ui_data = nullptr;
 
     new_prop->ui_data = IDP_TryConvertUIData(prop_exist, src_type, IDP_ui_data_type(new_prop));
