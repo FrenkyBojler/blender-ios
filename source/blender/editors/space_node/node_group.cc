@@ -64,6 +64,61 @@
 
 #include "node_intern.hh" /* own include */
 
+namespace blender {
+
+/* Utility for referencing a const socket and its owner node. */
+struct NodeSocketRef {
+  const bNode &node;
+  const bNodeSocket &socket;
+
+  friend bool operator==(const NodeSocketRef &a, const NodeSocketRef &b)
+  {
+    return (&a.node == &b.node) && (&a.socket == &b.socket);
+  }
+  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(NodeSocketRef)
+};
+
+/* Utility for referencing a mutable socket and its owner node. */
+struct MutableNodeSocketRef {
+  bNode &node;
+  bNodeSocket &socket;
+
+  NodeSocketRef operator()() const
+  {
+    return {node, socket};
+  }
+
+  friend bool operator==(const MutableNodeSocketRef &a, const MutableNodeSocketRef &b)
+  {
+    return (&a.node == &b.node) && (&a.socket == &b.socket);
+  }
+  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(MutableNodeSocketRef)
+};
+
+template<> struct DefaultHash<NodeSocketRef> {
+  uint64_t operator()(const NodeSocketRef &value) const
+  {
+    return get_default_hash(&value.socket);
+  }
+  uint64_t operator()(const bNodeSocket &socket) const
+  {
+    return get_default_hash(&socket);
+  }
+};
+
+template<> struct DefaultHash<MutableNodeSocketRef> {
+  uint64_t operator()(const MutableNodeSocketRef &value) const
+  {
+    return get_default_hash(&value.socket);
+  }
+  uint64_t operator()(const bNodeSocket &socket) const
+  {
+    return get_default_hash(&socket);
+  }
+};
+
+}  // namespace blender
+
 namespace blender::ed::space_node {
 
 /* -------------------------------------------------------------------- */
@@ -169,6 +224,397 @@ static std::string node_basepath(const bNodeTree &tree, const bNode &node)
   const PointerRNA ptr = RNA_pointer_create_discrete(
       &const_cast<bNodeTree &>(tree).id, &RNA_Node, &const_cast<bNode &>(node));
   return *RNA_path_from_ID_to_struct(&ptr);
+}
+
+template<typename ContainerT> std::optional<Bounds<float2>> node_bounds(const ContainerT &nodes)
+{
+  std::optional<Bounds<float2>> result = std::nullopt;
+  for (const bNode *node : nodes) {
+    const float2 loc(node->location);
+    const Bounds<float2> box(loc, loc + float2(node->width, -node->height));
+    result = bounds::merge<float2>(result, box);
+  }
+  return result;
+}
+
+template<typename ContainerT>
+std::optional<Bounds<float2>> node_location_bounds(const ContainerT &nodes)
+{
+  std::optional<Bounds<float2>> result = std::nullopt;
+  for (const bNode *node : nodes) {
+    const float2 loc(node->location);
+    result = bounds::min_max(result, loc);
+  }
+  return result;
+}
+
+namespace util {
+
+using NodeFilterFn = FunctionRef<bool(const bNode &)>;
+static bool default_link_filter(const bNode & /*node*/)
+{
+  return true;
+}
+
+/* Links between nodes that should be copied.
+ * Contains only links between nodes of this set. */
+static Vector<const bNodeLink *> find_internal_links(
+    const bNodeTree &tree,
+    const Span<const bNode *> nodes,
+    NodeFilterFn link_filter = default_link_filter)
+{
+  tree.ensure_topology_cache();
+
+  Vector<const bNodeLink *> internal_links;
+  const Set<const bNode *> nodes_set(nodes);
+  for (const bNode *node : nodes) {
+    for (const bNodeSocket *socket : node->input_sockets()) {
+      if (!socket->is_visible()) {
+        continue;
+      }
+
+      for (const bNodeLink *link : socket->directly_linked_links()) {
+        if (bke::node_link_is_hidden(*link) || !link_filter(*link->fromnode)) {
+          continue;
+        }
+
+        /* Use only internal links. */
+        if (nodes_set.contains(link->fromnode)) {
+          internal_links.append(link);
+        }
+      }
+    }
+    for (const bNodeSocket *socket : node->output_sockets()) {
+      if (!socket->is_visible()) {
+        continue;
+      }
+
+      for (const bNodeLink *link : socket->directly_linked_links()) {
+        if (bke::node_link_is_hidden(*link) || !link_filter(*link->tonode)) {
+          continue;
+        }
+
+        /* Use only internal links. */
+        if (nodes_set.contains(link->tonode)) {
+          internal_links.append(link);
+        }
+      }
+    }
+  }
+  return internal_links;
+}
+
+Vector<MutableNodeSocketRef> get_external_links(const bNodeSocket &socket,
+                                                NodeFilterFn link_filter = default_link_filter)
+{
+  Vector<MutableNodeSocketRef> result;
+  for (const bNodeLink *link : socket.directly_linked_links()) {
+    if (bke::node_link_is_hidden(*link)) {
+      continue;
+    }
+    bNode *link_node = socket.is_input() ? link->fromnode : link->tonode;
+    bNodeSocket *link_socket = socket.is_input() ? link->fromsock : link->tosock;
+    if (!link_filter(*link_node)) {
+      continue;
+    }
+    result.append({*link_node, *link_socket});
+  }
+  return result;
+}
+
+}  // namespace util
+
+/**
+ * Describes tree interface items generated from a node subset.
+ */
+class NodeSetInterface {
+ public:
+  struct InterfaceSocketData {
+    VectorSet<NodeSocketRef> internal_sockets;
+    VectorSet<MutableNodeSocketRef> external_sockets;
+    bool hidden = false;
+    bool collapsed = false;
+  };
+  struct InterfacePanelData {
+    bool collapsed = false;
+  };
+
+ private:
+  Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> socket_data_;
+  Map<const bNodeTreeInterfacePanel *, InterfacePanelData> panel_data_;
+
+ public:
+  const Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> &socket_data() const;
+  const Map<const bNodeTreeInterfacePanel *, InterfacePanelData> &panel_data() const;
+
+  static NodeSetInterface from_nodes(const bNodeTree &tree,
+                                     const Span<const bNode *> nodes,
+                                     bNodeTree &dst_tree,
+                                     const bool expose_visible);
+
+  static NodeSetInterface from_node_declaration(const bNode &src_node, bNodeTree &dst_tree);
+
+  /* Connect the group node to external sockets. */
+  void connect_group_node(bNode &group_node) const;
+
+ private:
+  /**
+   * Skip reroute nodes when finding the socket to use as an example for a new group interface
+   * item. This moves "inward" into nodes selected for grouping to find properties like whether a
+   * connected socket has a hidden value. It only works in trivial situations-- a single line of
+   * connected reroutes with no branching.
+   */
+  static const bNodeSocket &find_socket_to_use_for_interface(const bNodeTree &node_tree,
+                                                             const bNodeSocket &socket);
+
+  static bNodeTreeInterfaceSocket *add_interface_from_socket(const bNodeTree &original_tree,
+                                                             bNodeTree &tree_for_interface,
+                                                             const bNodeSocket &socket);
+
+  void add_declaration_item_recursive(bNodeTree &dst_tree,
+                                      const bNode &src_node,
+                                      const nodes::ItemDeclaration &item_decl,
+                                      bNodeTreeInterfacePanel *parent);
+};
+
+const Map<const bNodeTreeInterfaceSocket *, NodeSetInterface::InterfaceSocketData> &
+NodeSetInterface::socket_data() const
+{
+  return socket_data_;
+}
+const Map<const bNodeTreeInterfacePanel *, NodeSetInterface::InterfacePanelData> &
+NodeSetInterface::panel_data() const
+{
+  return panel_data_;
+}
+
+NodeSetInterface NodeSetInterface::from_nodes(const bNodeTree &tree,
+                                              const Span<const bNode *> nodes,
+                                              bNodeTree &dst_tree,
+                                              const bool expose_visible)
+{
+  NodeSetInterface result;
+  /* Multiple internal or external sockets may be mapped to the same interface item. */
+  Map<const bNodeSocket *, InterfaceSocketData *> data_by_socket;
+  auto add_unique_interface = [&](const bNodeSocket &key,
+                                  const bNodeSocket &template_socket,
+                                  const NodeSocketRef &origin,
+                                  const Span<MutableNodeSocketRef> links) {
+    InterfaceSocketData &data = *data_by_socket.lookup_or_add_cb(&key, [&]() {
+      const bNodeTreeInterfaceSocket *interface = add_interface_from_socket(
+          tree, dst_tree, template_socket);
+      BLI_assert(interface != nullptr);
+      InterfaceSocketData &data = result.socket_data_.lookup_or_add(interface, {});
+      return &data;
+    });
+
+    data.internal_sockets.add_new(origin);
+    data.external_sockets.add_multiple(links);
+  };
+
+  tree.ensure_topology_cache();
+
+  const Set<const bNode *> nodes_set(nodes);
+  const std::function link_filter = [&](const bNode &link) { return !nodes_set.contains(&link); };
+  for (const bNode *node : nodes) {
+    for (const bNodeSocket *socket : node->input_sockets()) {
+      if (!socket->is_available()) {
+        continue;
+      }
+
+      const Vector<MutableNodeSocketRef> links = util::get_external_links(*socket, link_filter);
+      const bool expose = !links.is_empty() || (expose_visible && socket->is_visible());
+      if (!expose) {
+        continue;
+      }
+
+      /* Inputs generate an interface socket for each unique input link. */
+      const bNodeSocket &key = links.is_empty() ? *socket : links.first().socket;
+      add_unique_interface(key, *socket, {*node, *socket}, links);
+    }
+    for (const bNodeSocket *socket : node->output_sockets()) {
+      if (!socket->is_available()) {
+        continue;
+      }
+
+      const Vector<MutableNodeSocketRef> links = util::get_external_links(*socket, link_filter);
+      const bool expose = !links.is_empty() || (expose_visible && socket->is_visible());
+      if (!expose) {
+        continue;
+      }
+
+      /* Outputs generate an interface socket for each unique output link. */
+      /* XXX This generates redundant sockets all based on the same internal socket.
+       * It would make more sense to just create a single group socket just like the input
+       * case.
+       */
+      const bNodeSocket &key = links.is_empty() ? *socket : links.first().socket;
+      add_unique_interface(key, *socket, {*node, *socket}, links);
+    }
+  }
+  return result;
+}
+
+NodeSetInterface NodeSetInterface::from_node_declaration(const bNode &src_node,
+                                                         bNodeTree &dst_tree)
+{
+  BLI_assert(src_node.declaration() != nullptr);
+  const nodes::NodeDeclaration &node_decl = *src_node.declaration();
+
+  NodeSetInterface result;
+  for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
+    result.add_declaration_item_recursive(dst_tree, src_node, *item_decl, nullptr);
+  }
+
+  return result;
+}
+
+/* Connect the group node to external sockets. */
+void NodeSetInterface::connect_group_node(bNode &group_node) const
+{
+  bNodeTree &owner_tree = group_node.owner_tree();
+  const bNodeTree &group_tree = *reinterpret_cast<bNodeTree *>(group_node.id);
+
+  /* Cache node socket lists to avoid invalid topology cache after linking. */
+  owner_tree.ensure_topology_cache();
+  const Span<bNodeSocket *> group_node_inputs = group_node.input_sockets();
+  const Span<bNodeSocket *> group_node_outputs = group_node.output_sockets();
+
+  for (bNodeSocket *group_node_input : group_node_inputs) {
+    const bNodeTreeInterfaceSocket *interface = bke::node_find_interface_input_by_identifier(
+        group_tree, group_node_input->identifier);
+    if (!interface) {
+      continue;
+    }
+    const InterfaceSocketData *data = socket_data_.lookup_ptr(interface);
+    BLI_assert(data);
+    for (const MutableNodeSocketRef &link : data->external_sockets) {
+      bke::node_add_link(owner_tree, link.node, link.socket, group_node, *group_node_input);
+    }
+    /* Keep old socket visibility. */
+    SET_FLAG_FROM_TEST(group_node_input->flag, data->hidden, SOCK_HIDDEN);
+    SET_FLAG_FROM_TEST(group_node_input->flag, data->collapsed, SOCK_COLLAPSED);
+  }
+  for (bNodeSocket *group_node_output : group_node_outputs) {
+    const bNodeTreeInterfaceSocket *interface = bke::node_find_interface_output_by_identifier(
+        group_tree, group_node_output->identifier);
+    if (!interface) {
+      continue;
+    }
+    const InterfaceSocketData *data = socket_data_.lookup_ptr(interface);
+    BLI_assert(data);
+    for (const MutableNodeSocketRef &link : data->external_sockets) {
+      bke::node_add_link(owner_tree, group_node, *group_node_output, link.node, link.socket);
+    }
+    /* Keep old socket visibility. */
+    SET_FLAG_FROM_TEST(group_node_output->flag, data->hidden, SOCK_HIDDEN);
+    SET_FLAG_FROM_TEST(group_node_output->flag, data->collapsed, SOCK_COLLAPSED);
+  }
+
+  /* Keep old panel collapse status. */
+  MutableSpan<bNodePanelState> panel_states = group_node.panel_states();
+  for (const auto &item : panel_data_.items()) {
+    for (bNodePanelState &new_panel_state : panel_states) {
+      if (new_panel_state.identifier == item.key->identifier) {
+        SET_FLAG_FROM_TEST(new_panel_state.flag, item.value.collapsed, NODE_PANEL_COLLAPSED);
+      }
+    }
+  }
+}
+
+/**
+ * Skip reroute nodes when finding the socket to use as an example for a new group interface
+ * item. This moves "inward" into nodes selected for grouping to find properties like whether a
+ * connected socket has a hidden value. It only works in trivial situations-- a single line of
+ * connected reroutes with no branching.
+ */
+const bNodeSocket &NodeSetInterface::find_socket_to_use_for_interface(const bNodeTree &node_tree,
+                                                                      const bNodeSocket &socket)
+{
+  if (node_tree.has_available_link_cycle()) {
+    return socket;
+  }
+  const bNode &node = socket.owner_node();
+  if (!node.is_reroute()) {
+    return socket;
+  }
+  const bNodeSocket &other_socket = socket.in_out == SOCK_IN ? node.output_socket(0) :
+                                                               node.input_socket(0);
+  if (!other_socket.is_logically_linked()) {
+    return socket;
+  }
+  return *other_socket.logically_linked_sockets().first();
+}
+
+bNodeTreeInterfaceSocket *NodeSetInterface::add_interface_from_socket(
+    const bNodeTree &original_tree, bNodeTree &tree_for_interface, const bNodeSocket &socket)
+{
+  const bNode &node = socket.owner_node();
+  /* The output sockets of group nodes usually have consciously given names so they have
+   * precedence over socket names the link points to. */
+  const bool prefer_node_for_interface_name = node.is_group() || node.is_group_input() ||
+                                              node.is_group_output();
+
+  /* The "example socket" has to have the same `in_out` status as the new interface socket. */
+  const bNodeSocket &socket_for_io = find_socket_to_use_for_interface(original_tree, socket);
+  const bNode &node_for_io = socket_for_io.owner_node();
+  const bNodeSocket &socket_for_name = prefer_node_for_interface_name ? socket : socket_for_io;
+  return bke::node_interface::add_interface_socket_from_node(
+      tree_for_interface, node_for_io, socket_for_io, socket_for_io.idname, socket_for_name.name);
+}
+
+void NodeSetInterface::add_declaration_item_recursive(bNodeTree &dst_tree,
+                                                      const bNode &src_node,
+                                                      const nodes::ItemDeclaration &item_decl,
+                                                      bNodeTreeInterfacePanel *parent)
+{
+  const Span<bNodePanelState> panel_states = src_node.panel_states();
+
+  if (const nodes::SocketDeclaration *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(
+          &item_decl))
+  {
+    const bNodeSocket &socket = src_node.socket_by_decl(*socket_decl);
+    if (!socket.is_available()) {
+      return;
+    }
+    bNodeTreeInterfaceSocket *io_socket = bke::node_interface::add_interface_socket_from_node(
+        dst_tree, src_node, socket);
+    if (io_socket) {
+      dst_tree.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
+
+      const NodeSocketRef origin = {src_node, socket};
+      const bool hidden = socket.flag & SOCK_HIDDEN;
+      const bool collapsed = socket.flag & SOCK_COLLAPSED;
+      VectorSet<NodeSocketRef> internal_sockets = {origin};
+      VectorSet<MutableNodeSocketRef> external_sockets = {util::get_external_links(socket)};
+      socket_data_.add(
+          io_socket,
+          {std::move(internal_sockets), std::move(external_sockets), hidden, collapsed});
+    }
+  }
+  else if (const nodes::PanelDeclaration *panel_decl =
+               dynamic_cast<const nodes::PanelDeclaration *>(&item_decl))
+  {
+    NodeTreeInterfacePanelFlag flag{};
+    if (panel_decl->default_collapsed) {
+      flag |= NODE_INTERFACE_PANEL_DEFAULT_CLOSED;
+    }
+    bNodeTreeInterfacePanel *io_panel = dst_tree.tree_interface.add_panel(
+        panel_decl->name, panel_decl->description, flag, parent);
+    if (io_panel) {
+      bool collapsed = false;
+      for (const bNodePanelState panel_state : panel_states) {
+        if (panel_state.identifier == panel_decl->identifier) {
+          collapsed = panel_state.is_collapsed();
+        }
+      }
+      panel_data_.add(io_panel, {collapsed});
+
+      for (const nodes::ItemDeclaration *child_item_decl : panel_decl->items) {
+        add_declaration_item_recursive(dst_tree, src_node, *child_item_decl, io_panel);
+      }
+    }
+  }
 }
 
 /** \} */
@@ -718,424 +1164,6 @@ void NODE_OT_group_separate(wmOperatorType *ot)
  * \{ */
 
 /**
- * Skip reroute nodes when finding the socket to use as an example for a new group interface
- * item. This moves "inward" into nodes selected for grouping to find properties like whether a
- * connected socket has a hidden value. It only works in trivial situations-- a single line of
- * connected reroutes with no branching.
- */
-static const bNodeSocket &find_socket_to_use_for_interface(const bNodeTree &node_tree,
-                                                           const bNodeSocket &socket)
-{
-  if (node_tree.has_available_link_cycle()) {
-    return socket;
-  }
-  const bNode &node = socket.owner_node();
-  if (!node.is_reroute()) {
-    return socket;
-  }
-  const bNodeSocket &other_socket = socket.in_out == SOCK_IN ? node.output_socket(0) :
-                                                               node.input_socket(0);
-  if (!other_socket.is_logically_linked()) {
-    return socket;
-  }
-  return *other_socket.logically_linked_sockets().first();
-}
-
-/**
- * The output sockets of group nodes usually have consciously given names so they have
- * precedence over socket names the link points to.
- */
-static bool prefer_node_for_interface_name(const bNode &node)
-{
-  return node.is_group() || node.is_group_input() || node.is_group_output();
-}
-
-static bNodeTreeInterfaceSocket *add_interface_from_socket(const bNodeTree &original_tree,
-                                                           bNodeTree &tree_for_interface,
-                                                           const bNodeSocket &socket)
-{
-  /* The "example socket" has to have the same `in_out` status as the new interface socket. */
-  const bNodeSocket &socket_for_io = find_socket_to_use_for_interface(original_tree, socket);
-  const bNode &node_for_io = socket_for_io.owner_node();
-  const bNodeSocket &socket_for_name = prefer_node_for_interface_name(socket.owner_node()) ?
-                                           socket :
-                                           socket_for_io;
-  return bke::node_interface::add_interface_socket_from_node(
-      tree_for_interface, node_for_io, socket_for_io, socket_for_io.idname, socket_for_name.name);
-}
-
-template<typename ContainerT> std::optional<Bounds<float2>> node_bounds(const ContainerT &nodes)
-{
-  std::optional<Bounds<float2>> result = std::nullopt;
-  for (const bNode *node : nodes) {
-    const float2 loc(node->location);
-    const Bounds<float2> box(loc, loc + float2(node->width, -node->height));
-    result = bounds::merge<float2>(result, box);
-  }
-  return result;
-}
-
-template<typename ContainerT>
-std::optional<Bounds<float2>> node_location_bounds(const ContainerT &nodes)
-{
-  std::optional<Bounds<float2>> result = std::nullopt;
-  for (const bNode *node : nodes) {
-    const float2 loc(node->location);
-    result = bounds::min_max(result, loc);
-  }
-  return result;
-}
-
-struct NodeSocketPair {
-  const bNode &node;
-  const bNodeSocket &socket;
-
-  friend bool operator==(const NodeSocketPair &a, const NodeSocketPair &b)
-  {
-    return (&a.node == &b.node) && (&a.socket == &b.socket);
-  }
-  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(NodeSocketPair)
-};
-
-struct MutableNodeSocketPair {
-  bNode &node;
-  bNodeSocket &socket;
-
-  NodeSocketPair operator()() const
-  {
-    return {node, socket};
-  }
-
-  friend bool operator==(const MutableNodeSocketPair &a, const MutableNodeSocketPair &b)
-  {
-    return (&a.node == &b.node) && (&a.socket == &b.socket);
-  }
-  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(MutableNodeSocketPair)
-};
-
-}  // namespace blender::ed::space_node
-
-namespace blender {
-
-template<> struct DefaultHash<ed::space_node::NodeSocketPair> {
-  using NodeSocketPair = ed::space_node::NodeSocketPair;
-  uint64_t operator()(const NodeSocketPair &value) const
-  {
-    return get_default_hash(&value.socket);
-  }
-  uint64_t operator()(const bNodeSocket &socket) const
-  {
-    return get_default_hash(&socket);
-  }
-};
-
-template<> struct DefaultHash<ed::space_node::MutableNodeSocketPair> {
-  using MutableNodeSocketPair = ed::space_node::MutableNodeSocketPair;
-  uint64_t operator()(const MutableNodeSocketPair &value) const
-  {
-    return get_default_hash(&value.socket);
-  }
-  uint64_t operator()(const bNodeSocket &socket) const
-  {
-    return get_default_hash(&socket);
-  }
-};
-
-}  // namespace blender
-
-namespace blender::ed::space_node {
-
-using NodeFilterFn = FunctionRef<bool(const bNode &)>;
-static bool default_link_filter(const bNode & /*node*/)
-{
-  return true;
-}
-
-/* Links between nodes that should be copied.
- * Contains only links between nodes of this set. */
-static Vector<const bNodeLink *> find_internal_links(
-    const bNodeTree &tree,
-    const Span<const bNode *> nodes,
-    NodeFilterFn link_filter = default_link_filter)
-{
-  tree.ensure_topology_cache();
-
-  Vector<const bNodeLink *> internal_links;
-  const Set<const bNode *> nodes_set(nodes);
-  for (const bNode *node : nodes) {
-    for (const bNodeSocket *socket : node->input_sockets()) {
-      if (!socket->is_visible()) {
-        continue;
-      }
-
-      for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (bke::node_link_is_hidden(*link) || !link_filter(*link->fromnode)) {
-          continue;
-        }
-
-        /* Use only internal links. */
-        if (nodes_set.contains(link->fromnode)) {
-          internal_links.append(link);
-        }
-      }
-    }
-    for (const bNodeSocket *socket : node->output_sockets()) {
-      if (!socket->is_visible()) {
-        continue;
-      }
-
-      for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (bke::node_link_is_hidden(*link) || !link_filter(*link->tonode)) {
-          continue;
-        }
-
-        /* Use only internal links. */
-        if (nodes_set.contains(link->tonode)) {
-          internal_links.append(link);
-        }
-      }
-    }
-  }
-  return internal_links;
-}
-
-class NodeSetInterface {
- public:
-  struct InterfaceSocketData {
-    VectorSet<NodeSocketPair> internal_sockets;
-    VectorSet<MutableNodeSocketPair> external_sockets;
-    bool hidden = false;
-    bool collapsed = false;
-  };
-  struct InterfacePanelData {
-    bool collapsed = false;
-  };
-
- private:
-  Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> socket_data_;
-  Map<const bNodeTreeInterfacePanel *, InterfacePanelData> panel_data_;
-
- public:
-  const Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> &socket_data() const
-  {
-    return socket_data_;
-  }
-  const Map<const bNodeTreeInterfacePanel *, InterfacePanelData> &panel_data() const
-  {
-    return panel_data_;
-  }
-
-  static NodeSetInterface from_nodes(const bNodeTree &tree,
-                                     const Span<const bNode *> nodes,
-                                     bNodeTree &dst_tree,
-                                     const bool expose_visible)
-  {
-    NodeSetInterface result;
-    /* Multiple internal or external sockets may be mapped to the same interface item. */
-    Map<const bNodeSocket *, InterfaceSocketData *> data_by_socket;
-    auto add_unique_interface = [&](const bNodeSocket &key,
-                                    const bNodeSocket &template_socket,
-                                    const NodeSocketPair &origin,
-                                    const Span<MutableNodeSocketPair> links) {
-      InterfaceSocketData &data = *data_by_socket.lookup_or_add_cb(&key, [&]() {
-        const bNodeTreeInterfaceSocket *interface = add_interface_from_socket(
-            tree, dst_tree, template_socket);
-        BLI_assert(interface != nullptr);
-        InterfaceSocketData &data = result.socket_data_.lookup_or_add(interface, {});
-        return &data;
-      });
-
-      data.internal_sockets.add_new(origin);
-      data.external_sockets.add_multiple(links);
-    };
-
-    tree.ensure_topology_cache();
-
-    const Set<const bNode *> nodes_set(nodes);
-    const std::function link_filter = [&](const bNode &link) {
-      return !nodes_set.contains(&link);
-    };
-    for (const bNode *node : nodes) {
-      for (const bNodeSocket *socket : node->input_sockets()) {
-        if (!socket->is_available()) {
-          continue;
-        }
-
-        const Vector<MutableNodeSocketPair> links = get_external_links(*socket, link_filter);
-        const bool expose = !links.is_empty() || (expose_visible && socket->is_visible());
-        if (!expose) {
-          continue;
-        }
-
-        /* Inputs generate an interface socket for each unique input link. */
-        const bNodeSocket &key = links.is_empty() ? *socket : links.first().socket;
-        add_unique_interface(key, *socket, {*node, *socket}, links);
-      }
-      for (const bNodeSocket *socket : node->output_sockets()) {
-        if (!socket->is_available()) {
-          continue;
-        }
-
-        const Vector<MutableNodeSocketPair> links = get_external_links(*socket, link_filter);
-        const bool expose = !links.is_empty() || (expose_visible && socket->is_visible());
-        if (!expose) {
-          continue;
-        }
-
-        /* Outputs generate an interface socket for each unique output link. */
-        /* XXX This generates redundant sockets all based on the same internal socket.
-         * It would make more sense to just create a single group socket just like the input
-         * case.
-         */
-        const bNodeSocket &key = links.is_empty() ? *socket : links.first().socket;
-        add_unique_interface(key, *socket, {*node, *socket}, links);
-      }
-    }
-    return result;
-  }
-
-  static NodeSetInterface from_node_declaration(const bNode &src_node, bNodeTree &dst_tree)
-  {
-    BLI_assert(src_node.declaration() != nullptr);
-    const nodes::NodeDeclaration &node_decl = *src_node.declaration();
-
-    NodeSetInterface result;
-    for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
-      result.add_declaration_item_recursive(dst_tree, src_node, *item_decl, nullptr);
-    }
-
-    return result;
-  }
-
-  /* Connect the group node to external sockets. */
-  void connect_group_node(bNode &group_node) const
-  {
-    bNodeTree &owner_tree = group_node.owner_tree();
-    const bNodeTree &group_tree = *reinterpret_cast<bNodeTree *>(group_node.id);
-
-    /* Cache node socket lists to avoid invalid topology cache after linking. */
-    owner_tree.ensure_topology_cache();
-    const Span<bNodeSocket *> group_node_inputs = group_node.input_sockets();
-    const Span<bNodeSocket *> group_node_outputs = group_node.output_sockets();
-
-    for (bNodeSocket *group_node_input : group_node_inputs) {
-      const bNodeTreeInterfaceSocket *interface = bke::node_find_interface_input_by_identifier(
-          group_tree, group_node_input->identifier);
-      if (!interface) {
-        continue;
-      }
-      const InterfaceSocketData *data = socket_data_.lookup_ptr(interface);
-      BLI_assert(data);
-      for (const MutableNodeSocketPair &link : data->external_sockets) {
-        bke::node_add_link(owner_tree, link.node, link.socket, group_node, *group_node_input);
-      }
-      /* Keep old socket visibility. */
-      SET_FLAG_FROM_TEST(group_node_input->flag, data->hidden, SOCK_HIDDEN);
-      SET_FLAG_FROM_TEST(group_node_input->flag, data->collapsed, SOCK_COLLAPSED);
-    }
-    for (bNodeSocket *group_node_output : group_node_outputs) {
-      const bNodeTreeInterfaceSocket *interface = bke::node_find_interface_output_by_identifier(
-          group_tree, group_node_output->identifier);
-      if (!interface) {
-        continue;
-      }
-      const InterfaceSocketData *data = socket_data_.lookup_ptr(interface);
-      BLI_assert(data);
-      for (const MutableNodeSocketPair &link : data->external_sockets) {
-        bke::node_add_link(owner_tree, group_node, *group_node_output, link.node, link.socket);
-      }
-      /* Keep old socket visibility. */
-      SET_FLAG_FROM_TEST(group_node_output->flag, data->hidden, SOCK_HIDDEN);
-      SET_FLAG_FROM_TEST(group_node_output->flag, data->collapsed, SOCK_COLLAPSED);
-    }
-
-    /* Keep old panel collapse status. */
-    MutableSpan<bNodePanelState> panel_states = group_node.panel_states();
-    for (const auto &item : panel_data_.items()) {
-      for (bNodePanelState &new_panel_state : panel_states) {
-        if (new_panel_state.identifier == item.key->identifier) {
-          SET_FLAG_FROM_TEST(new_panel_state.flag, item.value.collapsed, NODE_PANEL_COLLAPSED);
-        }
-      }
-    }
-  }
-
- private:
-  static Vector<MutableNodeSocketPair> get_external_links(const bNodeSocket &socket,
-                                                          NodeFilterFn link_filter)
-  {
-    Vector<MutableNodeSocketPair> result;
-    for (const bNodeLink *link : socket.directly_linked_links()) {
-      if (bke::node_link_is_hidden(*link)) {
-        continue;
-      }
-      bNode *link_node = socket.is_input() ? link->fromnode : link->tonode;
-      bNodeSocket *link_socket = socket.is_input() ? link->fromsock : link->tosock;
-      if (!link_filter(*link_node)) {
-        continue;
-      }
-      result.append({*link_node, *link_socket});
-    }
-    return result;
-  }
-
-  void add_declaration_item_recursive(bNodeTree &dst_tree,
-                                      const bNode &src_node,
-                                      const nodes::ItemDeclaration &item_decl,
-                                      bNodeTreeInterfacePanel *parent)
-  {
-    const Span<bNodePanelState> panel_states = src_node.panel_states();
-
-    if (const nodes::SocketDeclaration *socket_decl =
-            dynamic_cast<const nodes::SocketDeclaration *>(&item_decl))
-    {
-      const bNodeSocket &socket = src_node.socket_by_decl(*socket_decl);
-      if (!socket.is_available()) {
-        return;
-      }
-      bNodeTreeInterfaceSocket *io_socket = bke::node_interface::add_interface_socket_from_node(
-          dst_tree, src_node, socket);
-      if (io_socket) {
-        dst_tree.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
-
-        const NodeSocketPair origin = {src_node, socket};
-        const bool hidden = socket.flag & SOCK_HIDDEN;
-        const bool collapsed = socket.flag & SOCK_COLLAPSED;
-        VectorSet<NodeSocketPair> internal_sockets = {origin};
-        VectorSet<MutableNodeSocketPair> external_sockets = {
-            get_external_links(socket, default_link_filter)};
-        socket_data_.add(
-            io_socket,
-            {std::move(internal_sockets), std::move(external_sockets), hidden, collapsed});
-      }
-    }
-    else if (const nodes::PanelDeclaration *panel_decl =
-                 dynamic_cast<const nodes::PanelDeclaration *>(&item_decl))
-    {
-      NodeTreeInterfacePanelFlag flag{};
-      if (panel_decl->default_collapsed) {
-        flag |= NODE_INTERFACE_PANEL_DEFAULT_CLOSED;
-      }
-      bNodeTreeInterfacePanel *io_panel = dst_tree.tree_interface.add_panel(
-          panel_decl->name, panel_decl->description, flag, parent);
-      if (io_panel) {
-        bool collapsed = false;
-        for (const bNodePanelState panel_state : panel_states) {
-          if (panel_state.identifier == panel_decl->identifier) {
-            collapsed = panel_state.is_collapsed();
-          }
-        }
-        panel_data_.add(io_panel, {collapsed});
-
-        for (const nodes::ItemDeclaration *child_item_decl : panel_decl->items) {
-          add_declaration_item_recursive(dst_tree, src_node, *child_item_decl, io_panel);
-        }
-      }
-    }
-  }
-};
-
-/**
  * Set of nodes that are copied from other nodes and can be mapped to the original nodes.
  */
 class NodeSetCopy {
@@ -1196,7 +1224,8 @@ class NodeSetCopy {
     }
 
     /* Recreate internal links. */
-    const Vector<const bNodeLink *> internal_links = find_internal_links(src_tree, src_nodes);
+    const Vector<const bNodeLink *> internal_links = util::find_internal_links(src_tree,
+                                                                               src_nodes);
     for (const bNodeLink *src_link : internal_links) {
       bke::node_add_link(dst_tree,
                          *result.node_map_.lookup(src_link->fromnode),
@@ -1242,7 +1271,7 @@ class NodeSetCopy {
     BKE_main_ensure_invariants(bmain, tree_.id);
 
     for (const auto &item : node_set_io.socket_data().items()) {
-      for (const NodeSocketPair &origin : item.value.internal_sockets) {
+      for (const NodeSocketRef &origin : item.value.internal_sockets) {
         bNode *new_node = node_map_.lookup(&origin.node);
         bNodeSocket *new_socket = socket_map_.lookup(&origin.socket);
         if (origin.socket.is_input()) {
