@@ -446,6 +446,18 @@ struct Preprocessor {
 
   int process_conditional(const Token hash_tok, const Token dir_end)
   {
+    /* If this is part of an already evaluated statement. */
+    if (!jump_stack.is_empty() && hash_tok == jump_stack.last()) {
+      jump_stack.pop_last();
+      Token endif_hash = hash_tok;
+      while (directive_identifier(endif_hash) != "endif") {
+        endif_hash = find_next_matching_conditional_directive(endif_hash);
+      }
+      Token endif_end = end_of_directive(endif_hash);
+      parser.replace(hash_tok, endif_end, new_lines(hash_tok, endif_end));
+      return endif_end.index;
+    }
+
     /* Evaluate condition. */
     const Token condition_type = skip_space(hash_tok.next());
     const Token condition_start = condition_type.next().next();
@@ -475,29 +487,34 @@ struct Preprocessor {
     }
   }
 
+#ifndef NDEBUG
+#  define CHECK(cond) \
+    if (cond) { \
+      return; /* TODO(fclem): Error. */ \
+    }
+#else
+#  define CHECK(cond)
+#endif
+
   void process_directives(Token hash_tok)
   {
     Token prev = hash_tok.prev();
-    if (!ELEM(prev, Invalid /* Start of file. */, NewLine, Space)) {
-      /* All directives must start with a hash token at the start of the line. */
-      return; /* TODO(fclem): Error. */
-    }
+    /* All directives must start with a hash token at the start of the line. */
+    CHECK(!ELEM(prev, Invalid /* Start of file. */, NewLine, Space));
 
     Token dir_tok = skip_space(hash_tok.next());
 
-    if (dir_tok != Word) {
-      return; /* TODO(fclem): Error. */
-    }
+    CHECK(dir_tok != Word);
 
     Token dir_end = end_of_directive(dir_tok);
     StringRef dir_str = str(dir_tok);
 
+    cursor = dir_end.index;
+
     if (dir_str == "define") {
       /* Macro definition. */
       Token macro_name = skip_space(dir_tok.next());
-      if (macro_name != Word) {
-        return; /* TODO(fclem): Error. */
-      }
+      CHECK(macro_name != Word);
       /* Store the name token of the declaration.
        * The actual parsing of the definition happens during expansion. */
       defines.add_overwrite(str(macro_name), macro_name);
@@ -506,30 +523,12 @@ struct Preprocessor {
     else if (dir_str == "undef") {
       /* Macro undefine. */
       Token macro_name = skip_space(dir_tok.next());
-      if (macro_name != Word) {
-        return; /* TODO(fclem): Error. */
-      }
+      CHECK(macro_name != Word); /* TODO(fclem): Error. */
       defines.remove(str(macro_name));
       parser.replace(hash_tok, dir_end, "");
     }
     else if (ELEM(dir_str, "if", "ifdef", "ifndef", "elif", "else")) {
-      /* Conditional. */
-
-      /* If this is part of an already evaluated statement. */
-      if (!jump_stack.is_empty() && hash_tok == jump_stack.last()) {
-        jump_stack.pop_last();
-        Token endif_hash = hash_tok;
-        while (directive_identifier(endif_hash) != "endif") {
-          endif_hash = find_next_matching_conditional_directive(endif_hash);
-        }
-        Token endif_end = end_of_directive(endif_hash);
-        cursor = endif_end.index;
-        parser.replace(hash_tok, endif_end, new_lines(hash_tok, endif_end));
-        return;
-      }
-
       cursor = process_conditional(hash_tok, dir_end);
-      return;
     }
     else if (dir_str == "line") {
       parser.replace(hash_tok, dir_end, "");
@@ -537,7 +536,6 @@ struct Preprocessor {
     else if (dir_str == "endif") {
       parser.replace(hash_tok, dir_end, "");
     }
-    cursor = dir_end.index;
   }
 
   void preprocess()
