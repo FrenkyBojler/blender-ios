@@ -646,6 +646,20 @@ A)";
   }
   {
     std::string input = R"(
+#define A(a, b)  C(a[b])[(b)]
+#define B(a, b) (A(a, b) != 0u)
+B(foo, bar);
+)";
+    std::string expect = R"(
+
+
+(C(foo[bar])[(bar)] != 0u);
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    std::string input = R"(
 #define A(a,b) a##b
 A( , )
 A(,2)
@@ -773,6 +787,18 @@ _suffix
     Success
   
 
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    std::string input = R"(
+#define saturate(a) clamp(a, 0.0f, 1.0f)
+float s = saturate(pow5f(1.0f - saturate(HV)));
+)";
+    std::string expect = R"(
+
+float s = clamp(pow5f(1.0f - clamp(HV, 0.0f, 1.0f)), 0.0f, 1.0f);
 )";
     std::string result = blender::gpu::Shader::run_preprocessor(input);
     EXPECT_EQ(expect, result);
