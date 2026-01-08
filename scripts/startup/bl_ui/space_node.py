@@ -748,6 +748,11 @@ class NODE_MT_context_menu(Menu):
 
             if active_node and active_node.type == 'GROUP':
                 layout.operator("node.group_edit").exit = False
+
+                tree = active_node.node_tree
+                if tree.library or tree.override_library:
+                    layout.operator("node.make_local")
+
                 layout.operator("node.group_ungroup", text="Ungroup")
 
             if is_nested:
