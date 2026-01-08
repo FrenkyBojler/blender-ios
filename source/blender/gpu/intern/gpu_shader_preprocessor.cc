@@ -26,7 +26,6 @@ struct Preprocessor {
   Vector<Token, 8> jump_stack;
   Map<StringRef, Token> defines;
   Set<StringRef> visited_macros;
-  Map<StringRef, TokenRange> macro_parameters;
   /* Token cursor. */
   int cursor;
 
@@ -151,6 +150,7 @@ struct Preprocessor {
       return {macro_name_str, end_of_expansion};
     }
 
+    Map<StringRef, TokenRange> macro_parameters;
     if (is_function) {
       /* This is a functional macro. */
 
