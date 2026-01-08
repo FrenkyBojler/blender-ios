@@ -602,18 +602,18 @@ static void ui_colorpicker_circle(Block *block,
 
   /* Slider (Lightness or Value, depending on color picker type) */
   hsv_but = static_cast<ButtonHSVCube *>(uiDefButR_prop(block,
-                                                      ButtonType::HsvCube,
-                                                      "",
-                                                      PICKER_W + PICKER_SPACE,
-                                                      0,
-                                                      PICKER_BAR,
-                                                      PICKER_H,
-                                                      ptr,
-                                                      prop,
-                                                      -1,
-                                                      0.0,
-                                                      0.0,
-                                                      slider_tooltip));
+                                                        ButtonType::HsvCube,
+                                                        "",
+                                                        PICKER_W + PICKER_SPACE,
+                                                        0,
+                                                        PICKER_BAR,
+                                                        PICKER_H,
+                                                        ptr,
+                                                        prop,
+                                                        -1,
+                                                        0.0,
+                                                        0.0,
+                                                        slider_tooltip));
   hsv_but->gradient_type = (U.color_picker_type == USER_CP_CIRCLE_HSL) ? GRAD_L_ALT : GRAD_V_ALT;
   button_func_set(hsv_but, ui_colorpicker_rgba_update_cb, hsv_but, hsv_but);
   hsv_but->custom_data = cpicker;
