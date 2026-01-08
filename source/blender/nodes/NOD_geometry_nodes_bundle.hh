@@ -90,6 +90,8 @@ class Bundle : public ImplicitSharingMixin {
   const BundleItemValue *lookup_path(StringRef path) const;
   template<typename T> std::optional<T> lookup(StringRef key) const;
   template<typename T> std::optional<T> lookup_path(StringRef path) const;
+  template<typename T> T *lookup_ptr(StringRef key);
+  template<typename T> const T *lookup_ptr(StringRef key) const;
 
   bool is_empty() const;
   int64_t size() const;
@@ -229,6 +231,24 @@ template<typename T> inline std::optional<T> Bundle::lookup(const StringRef key)
     return std::nullopt;
   }
   return item->as<T>();
+}
+
+template<typename T> inline T *Bundle::lookup_ptr(StringRef key)
+{
+  BundleItemValue *item = items_.lookup_ptr_as(key);
+  if (!item) {
+    return nullptr;
+  }
+  return item->as_pointer<T>();
+}
+
+template<typename T> inline const T *Bundle::lookup_ptr(StringRef key) const
+{
+  const BundleItemValue *item = this->lookup(key);
+  if (!item) {
+    return nullptr;
+  }
+  return item->as_pointer<T>();
 }
 
 template<typename T> inline std::optional<T> Bundle::lookup_path(const StringRef path) const

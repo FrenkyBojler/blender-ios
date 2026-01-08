@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_mesh.h"
-#include "DNA_mesh_types.h"
+
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
@@ -56,15 +56,15 @@ class SimDataCleaner {
       const StringRef key = item.key;
       BundleItemValue &value = item.value;
       if (BundlePtr *child_bundle_ptr = value.as_pointer<BundlePtr>()) {
-        Bundle &child_bundle = child_bundle_ptr->ensure_mutable_inplace();
-        this->clean_bundle(child_bundle);
-        if (child_bundle.is_empty()) {
-          keys_to_remove.append(key);
+        if (*child_bundle_ptr) {
+          Bundle &child_bundle = child_bundle_ptr->ensure_mutable_inplace();
+          this->clean_bundle(child_bundle);
+          if (!child_bundle.is_empty()) {
+            continue;
+          }
         }
       }
-      else {
-        keys_to_remove.append(key);
-      }
+      keys_to_remove.append(key);
     }
     for (const StringRef key : keys_to_remove) {
       bundle.remove(key);
@@ -96,6 +96,8 @@ class SimDataCleaner {
 
   void clean_geometry(GeometrySet &main_geometry)
   {
+    /* TODO: Referenced instance data could actually be fully removed. */
+    /* TODO: Could also remove mesh topology data in many cases. */
     geometry::foreach_real_geometry(main_geometry, [&](GeometrySet &geometry) {
       if (geometry.has_mesh()) {
         Mesh *mesh = geometry.get_mesh_for_write();
