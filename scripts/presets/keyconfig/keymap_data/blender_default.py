@@ -4028,6 +4028,20 @@ def km_grease_pencil_brush_stroke(_params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
+    ])
+
+    return keymap
+
+
+def km_grease_pencil_guide_settings(_params):
+    items = []
+    keymap = (
+        "Grease Pencil Guide Settings",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
+        {"items": items},
+    )
+
+    items.extend([
         # Guide - Pop up settings
         op_panel("VIEW3D_PT_grease_pencil_guide", {"type": 'P', "value": 'PRESS'}, [("keep_open", False)],),
         # Guide Angle - Secondary path so it can be used with use_guide property
@@ -8887,6 +8901,7 @@ def generate_keymaps(params=None):
         km_grease_pencil_weight_paint(params),
         km_grease_pencil_vertex_paint(params),
         km_grease_pencil_brush_stroke(params),
+        km_grease_pencil_guide_settings(params),
         km_grease_pencil_fill_tool(params),
         # Object mode.
         km_object_mode(params),

@@ -283,6 +283,42 @@ static void keymap_grease_pencil_brush_stroke(wmKeyConfig *keyconf)
   keymap->poll = keymap_grease_pencil_brush_stroke_poll;
 }
 
+static bool keymap_grease_pencil_guide_settings_poll(bContext *C)
+{
+  if (!grease_pencil_painting_poll(C)) {
+    return false;
+  }
+  if (!WM_toolsystem_active_tool_is_brush(C)) {
+    return false;
+  }
+
+  /* Exclude primitives, see keymap_grease_pencil_brush_stroke_poll for notes. */
+  if (const bToolRef *tref = WM_toolsystem_ref_from_context(C)) {
+    const Set<StringRef> primitive_tools = {
+        "builtin.line",
+        "builtin.polyline",
+        "builtin.arc",
+        "builtin.curve",
+        "builtin.box",
+        "builtin.circle",
+    };
+    if (primitive_tools.contains(tref->idname)) {
+      return false;
+    }
+  }
+
+  ToolSettings *ts = CTX_data_tool_settings(C);
+  Brush *brush = BKE_paint_brush(&ts->gp_paint->paint);
+  return brush && brush->gpencil_settings && brush->gpencil_brush_type == GPAINT_BRUSH_TYPE_DRAW;
+}
+
+static void keymap_grease_pencil_guide_settings(wmKeyConfig *keyconf)
+{
+  wmKeyMap *keymap = WM_keymap_ensure(
+      keyconf, "Grease Pencil Guide Settings", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap->poll = keymap_grease_pencil_guide_settings_poll;
+}
+
 /* Enabled only for the fill tool. */
 static bool keymap_grease_pencil_fill_tool_poll(bContext *C)
 {
@@ -372,6 +408,7 @@ void ED_keymap_grease_pencil(wmKeyConfig *keyconf)
   keymap_grease_pencil_vertex_paint_mode(keyconf);
   keymap_grease_pencil_brush_stroke(keyconf);
   keymap_grease_pencil_fill_tool(keyconf);
+  keymap_grease_pencil_guide_settings(keyconf);
 
   ED_primitivetool_modal_keymap(keyconf);
   ED_filltool_modal_keymap(keyconf);
