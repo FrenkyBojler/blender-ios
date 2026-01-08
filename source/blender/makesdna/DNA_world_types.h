@@ -13,6 +13,8 @@
 #include "DNA_ID.h"
 #include "DNA_defs.h"
 
+namespace blender {
+
 struct AnimData;
 struct LightgroupMembership;
 struct bNodeTree;
@@ -138,7 +140,9 @@ struct World {
   void *_pad1 = nullptr;
 
   /** Runtime. */
-  ListBase gpumaterial = {nullptr, nullptr};
+  ListBaseT<LinkData> gpumaterial = {nullptr, nullptr};
   /* The Depsgraph::update_count when this World was last updated. */
   uint64_t last_update = 0;
 };
+
+}  // namespace blender

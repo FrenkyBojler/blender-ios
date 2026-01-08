@@ -13,6 +13,8 @@
 
 #include "DNA_listBase.h"
 
+namespace blender {
+
 struct Text;
 
 #define CON_SHRINKWRAP_PROJECT_CULL_MASK \
@@ -788,7 +790,7 @@ struct bArmatureConstraint {
   char _pad[4] = {};
 
   /** A list of targets that this constraint has (bConstraintTarget-s). */
-  ListBase targets = {nullptr, nullptr};
+  ListBaseT<bConstraintTarget> targets = {nullptr, nullptr};
 };
 
 /* Single-target sub-object constraints --------------------- */
@@ -1174,3 +1176,5 @@ struct bGeometryAttributeConstraint {
 /* ------------------------------------------ */
 
 /* -------------------------------------- */
+
+}  // namespace blender

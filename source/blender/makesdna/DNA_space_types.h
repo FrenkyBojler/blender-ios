@@ -24,6 +24,8 @@
 #include "DNA_view2d_types.h"
 #include "DNA_viewer_path_types.h"
 
+namespace blender {
+
 struct BLI_mempool;
 struct FileLayout;
 struct FileList;
@@ -44,57 +46,38 @@ struct bNodeTree;
 struct wmOperator;
 struct wmTimer;
 
-#ifdef __cplusplus
-namespace blender::asset_system {
+namespace asset_system {
 class AssetRepresentation;
 }
-using AssetRepresentationHandle = blender::asset_system::AssetRepresentation;
-#else
-struct AssetRepresentationHandle;
-#endif
 
 /** Defined in `buttons_intern.hh`. */
 struct SpaceProperties_Runtime;
 
-#ifdef __cplusplus
-namespace blender::ed::space_node {
+namespace ed::space_node {
 struct SpaceNode_Runtime;
-}  // namespace blender::ed::space_node
-using SpaceNode_Runtime = blender::ed::space_node::SpaceNode_Runtime;
+}  // namespace ed::space_node
 
-namespace blender::ed::outliner {
-
+namespace ed::outliner {
 struct SpaceOutliner_Runtime;
-}  // namespace blender::ed::outliner
-using SpaceOutliner_Runtime = blender::ed::outliner::SpaceOutliner_Runtime;
+}  // namespace ed::outliner
 
-namespace blender::ed::vse {
+namespace ed::vse {
 struct SpaceSeq_Runtime;
-}  // namespace blender::ed::vse
-using SpaceSeq_Runtime = blender::ed::vse::SpaceSeq_Runtime;
+}  // namespace ed::vse
 
-namespace blender::ed::text {
+namespace ed::text {
 
 struct SpaceText_Runtime;
-}  // namespace blender::ed::text
-using SpaceText_Runtime = blender::ed::text::SpaceText_Runtime;
+}  // namespace ed::text
 
-namespace blender::ed::spreadsheet {
+namespace ed::spreadsheet {
 struct SpaceSpreadsheet_Runtime;
 struct SpreadsheetColumnRuntime;
-}  // namespace blender::ed::spreadsheet
-using SpaceSpreadsheet_Runtime = blender::ed::spreadsheet::SpaceSpreadsheet_Runtime;
+}  // namespace ed::spreadsheet
 
-using SpreadsheetColumnRuntime = blender::ed::spreadsheet::SpreadsheetColumnRuntime;
-#else
-
-struct SpaceNode_Runtime;
-struct SpaceOutliner_Runtime;
-struct SpaceSeq_Runtime;
-struct SpaceText_Runtime;
-struct SpaceSpreadsheet_Runtime;
-struct SpreadsheetColumnRuntime;
-#endif
+namespace ed::outliner {
+struct TreeElement;
+}
 
 /** Defined in `file_intern.hh`. */
 struct SpaceFile_Runtime;
@@ -111,7 +94,7 @@ struct SpaceFile_Runtime;
 struct SpaceLink {
   struct SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -127,7 +110,7 @@ struct SpaceLink {
 struct SpaceInfo {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -149,7 +132,7 @@ struct SpaceProperties {
 
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -193,7 +176,7 @@ struct SpaceProperties {
 struct SpaceOutliner {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -202,7 +185,7 @@ struct SpaceOutliner {
   /** Deprecated, copied to region. */
   DNA_DEPRECATED View2D v2d;
 
-  ListBase tree = {nullptr, nullptr};
+  ListBaseT<ed::outliner::TreeElement> tree = {nullptr, nullptr};
 
   /**
    * Treestore is an ordered list of TreeStoreElem's from outliner tree;
@@ -230,7 +213,7 @@ struct SpaceOutliner {
   char show_restrict_flags = 0;
   short filter_id_type = 0;
 
-  SpaceOutliner_Runtime *runtime = nullptr;
+  ed::outliner::SpaceOutliner_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -244,7 +227,7 @@ struct SpaceGraph_Runtime {
   char flag = 0;
   char _pad[7] = {};
   /** Sampled snapshots of F-Curves used as in-session guides */
-  ListBase ghost_curves = {nullptr, nullptr};
+  ListBaseT<FCurve> ghost_curves = {nullptr, nullptr};
 };
 
 /** 'Graph' Editor (formerly known as the IPO Editor). */
@@ -253,7 +236,7 @@ struct SpaceGraph {
 
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -296,7 +279,7 @@ struct SpaceNla {
 
   struct SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -339,7 +322,7 @@ struct SpaceSeq {
 
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -380,7 +363,7 @@ struct SpaceSeq {
   char multiview_eye = 0;
   char _pad2[7] = {};
 
-  SpaceSeq_Runtime *runtime = nullptr;
+  ed::vse::SpaceSeq_Runtime *runtime = nullptr;
 };
 
 struct MaskSpaceInfo {
@@ -493,16 +476,16 @@ struct FileFolderHistory {
   char _pad[7] = {};
 
   /** Holds the list of previous directories to show. */
-  ListBase folders_prev = {nullptr, nullptr};
+  ListBaseT<struct FolderList> folders_prev = {nullptr, nullptr};
   /** Holds the list of next directories (pushed from previous) to show. */
-  ListBase folders_next = {nullptr, nullptr};
+  ListBaseT<struct FolderList> folders_next = {nullptr, nullptr};
 };
 
 /** File Browser. */
 struct SpaceFile {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -531,18 +514,18 @@ struct SpaceFile {
   /**
    * Holds the list of previous directories to show. Owned by `folder_histories` below.
    */
-  ListBase *folders_prev = nullptr;
+  ListBaseT<struct FolderList> *folders_prev = nullptr;
   /**
    * Holds the list of next directories (pushed from previous) to show. Owned by
    * `folder_histories` below.
    */
-  ListBase *folders_next = nullptr;
+  ListBaseT<struct FolderList> *folders_next = nullptr;
 
   /**
    * This actually owns the prev/next folder-lists above. On browse-mode change, the lists of the
    * new mode get assigned to the above.
    */
-  ListBase folder_histories = {nullptr, nullptr}; /* FileFolderHistory */
+  ListBaseT<FileFolderHistory> folder_histories = {nullptr, nullptr};
 
   /**
    * The operator that is invoking file-select `op->exec()` will be called on the 'Load' button.
@@ -599,7 +582,7 @@ struct FileDirEntry {
   /** If this file represents an asset, its asset data is here. Note that we may show assets of
    * external files in which case this is set but not the id above.
    * Note comment for FileListInternEntry.local_data, the same applies here! */
-  AssetRepresentationHandle *asset = nullptr;
+  asset_system::AssetRepresentation *asset = nullptr;
 
   /* The icon_id for the preview image. */
   int preview_icon_id = 0;
@@ -618,7 +601,7 @@ struct FileDirEntry {
 #
 #
 struct FileDirEntryArr {
-  ListBase entries = {nullptr, nullptr};
+  ListBaseT<struct FileListInternEntry> entries = {nullptr, nullptr};
   int entries_num = 0;
   int entries_filtered_num = 0;
 
@@ -641,7 +624,7 @@ struct SpaceImageOverlay {
 struct SpaceImage {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -717,7 +700,7 @@ struct SpaceImage {
 struct SpaceText {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -758,7 +741,7 @@ struct SpaceText {
   char _pad3[2] = {};
 
   /** Keep last. */
-  SpaceText_Runtime *runtime = nullptr;
+  ed::text::SpaceText_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -794,7 +777,7 @@ struct Script {
 struct SpaceScript {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -840,7 +823,7 @@ struct SpaceNode {
 
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -870,7 +853,7 @@ struct SpaceNode {
    * from path stack, to avoid having to update all the functions and operators.
    * Can be done when design is accepted and everything is properly tested.
    */
-  ListBase treepath = {nullptr, nullptr};
+  ListBaseT<bNodeTreePath> treepath = {nullptr, nullptr};
 
   /* The tree farthest down in the group hierarchy. */
   struct bNodeTree *edittree = nullptr;
@@ -908,7 +891,7 @@ struct SpaceNode {
 
   SpaceNodeOverlay overlay;
 
-  SpaceNode_Runtime *runtime = nullptr;
+  ed::space_node::SpaceNode_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -937,7 +920,7 @@ struct ConsoleLine {
 struct SpaceConsole {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -946,9 +929,9 @@ struct SpaceConsole {
   /* Space variables. */
 
   /** ConsoleLine; output. */
-  ListBase scrollback = {nullptr, nullptr};
+  ListBaseT<ConsoleLine> scrollback = {nullptr, nullptr};
   /** ConsoleLine; command history, current edited line is the first. */
-  ListBase history = {nullptr, nullptr};
+  ListBaseT<ConsoleLine> history = {nullptr, nullptr};
   char prompt[256] = "";
   /** Multiple consoles are possible, not just python. */
   char language[32] = "";
@@ -972,7 +955,7 @@ struct SpaceConsole {
 struct SpaceUserPref {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -1000,7 +983,7 @@ struct SpaceClipOverlay {
 struct SpaceClip {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = SPACE_CLIP;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -1072,7 +1055,7 @@ struct SpaceClip {
 struct SpaceTopBar {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -1088,7 +1071,7 @@ struct SpaceTopBar {
 struct SpaceStatusBar {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -1142,7 +1125,7 @@ struct SpreadsheetColumn {
    */
   char *display_name = nullptr;
 
-  SpreadsheetColumnRuntime *runtime = nullptr;
+  ed::spreadsheet::SpreadsheetColumnRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
   bool is_available() const
@@ -1235,7 +1218,7 @@ struct SpreadsheetTable {
 struct SpaceSpreadsheet {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -1249,8 +1232,7 @@ struct SpaceSpreadsheet {
   /** #eSpaceSpreadsheet_FilterFlag. */
   uint8_t filter_flag = 0;
 
-  /** #SpreadsheetRowFilter. */
-  ListBase row_filters = {nullptr, nullptr};
+  ListBaseT<struct SpreadsheetRowFilter> row_filters = {nullptr, nullptr};
 
   /** The currently active geometry data. This is used to look up the active table from #tables. */
   SpreadsheetTableIDGeometry geometry_id;
@@ -1267,7 +1249,7 @@ struct SpaceSpreadsheet {
   int active_viewer_path_index = 0;
   char _pad2[4] = {};
 
-  SpaceSpreadsheet_Runtime *runtime = nullptr;
+  ed::spreadsheet::SpaceSpreadsheet_Runtime *runtime = nullptr;
 };
 
 struct SpreadsheetRowFilter {
@@ -1295,3 +1277,5 @@ struct SpreadsheetRowFilter {
 };
 
 /** \} */
+
+}  // namespace blender

@@ -12,6 +12,8 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 #ifndef MAX_MTEX
 #  define MAX_MTEX 18
 #endif
@@ -412,9 +414,11 @@ struct Material {
   struct TexPaintSlot *texpaintslot = nullptr;
 
   /** Runtime cache for GLSL materials. */
-  ListBase gpumaterial = {nullptr, nullptr};
+  ListBaseT<LinkData> gpumaterial = {nullptr, nullptr};
 
   /** Grease pencil color. */
   struct MaterialGPencilStyle *gp_style = nullptr;
   struct MaterialLineArt lineart;
 };
+
+}  // namespace blender

@@ -15,6 +15,8 @@
 #include "DNA_object_enums.h"
 #include "DNA_texture_types.h" /* for MTex */
 
+namespace blender {
+
 struct CurveMapping;
 struct Image;
 struct MTex;
@@ -464,7 +466,7 @@ struct Palette {
   ID id;
 
   /** Pointer to individual colors. */
-  ListBase colors = {nullptr, nullptr};
+  ListBaseT<PaletteColor> colors = {nullptr, nullptr};
 
   int active_color = 0;
   char _pad[4] = {};
@@ -490,3 +492,5 @@ struct PaintCurve {
   /** Index where next point will be added. */
   int add_index = 0;
 };
+
+}  // namespace blender
