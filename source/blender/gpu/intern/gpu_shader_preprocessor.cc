@@ -69,7 +69,7 @@ struct Preprocessor {
 
   static Token skip_whitespace(Token tok)
   {
-    while (tok == Space) {
+    while (tok == Space && tok != Invalid) {
       tok = tok.next();
     }
     return tok;
@@ -77,7 +77,7 @@ struct Preprocessor {
 
   static Token skip_whitespace_backward(Token tok)
   {
-    while (tok == Space) {
+    while (tok == Space && tok != Invalid) {
       tok = tok.prev();
     }
     return tok;
@@ -89,6 +89,16 @@ struct Preprocessor {
       tok = tok.next().next();
     }
     return tok;
+  }
+
+  static Token directive_identifier_token(Token hash_token)
+  {
+    return skip_whitespace(hash_token.next());
+  }
+
+  static StringRef directive_identifier(Token hash_token)
+  {
+    return str(directive_identifier_token(hash_token));
   }
 
   static Token get_end_of_parameter(Token tok, bool skip_to_end = false)
@@ -277,10 +287,10 @@ struct Preprocessor {
     while (true) {
       hash_tok = hash_tok.find_next(Hash);
       if (hash_tok == Invalid) {
+        BLI_assert_unreachable();
         return hash_tok;
       }
-      Token dir_tok = skip_whitespace(hash_tok.next());
-      StringRef dir_str = str(dir_tok);
+      StringRef dir_str = directive_identifier(hash_tok);
       if (ELEM(dir_str, "if", "ifdef", "ifndef", "else", "elif", "endif")) {
         return hash_tok;
       }
@@ -296,7 +306,10 @@ struct Preprocessor {
     Token tok = hash_tok;
     while (tok.is_valid()) {
       tok = find_next_conditional_directive(tok);
-      StringRef dir_str = str(skip_whitespace(tok.next()));
+      if (tok.next() == Invalid) {
+        break;
+      }
+      StringRef dir_str = directive_identifier(tok);
       if (ELEM(dir_str, "if", "ifdef", "ifndef")) {
         stack++;
       }
@@ -369,7 +382,6 @@ struct Preprocessor {
       IntermediateForm parser(expand, report, ParserStage::MergeTokens);
 
       value = ExpressionParser(parser()[0]).eval();
-      std::cout << "Result = " << value << "\n";
     }
     catch (const std::exception &e) {
       std::cerr << "Error: " << e.what() << "\n";
@@ -406,20 +418,20 @@ struct Preprocessor {
     bool condition_result = evaluate_condition(condition_type, condition_start, condition_end);
 
     /* Find matching endif or else. */
-    const Token next_dir = find_next_matching_conditional_directive(hash_tok);
+    const Token next_hash = find_next_matching_conditional_directive(hash_tok);
 
     if (condition_result == false) {
       /* Erase the content and jump to next condition. */
-      parser.replace(hash_tok, next_dir.prev(), new_lines(hash_tok, next_dir.prev()));
-      return next_dir.prev().index;
+      parser.replace(hash_tok, next_hash.prev(), new_lines(hash_tok, next_hash.prev()));
+      return next_hash.prev().index;
     }
     /* If condition is true. */
     {
       /* If is followed by else statement. */
-      StringRef next_dir_str = str(next_dir);
+      StringRef next_dir_str = directive_identifier(next_hash);
       if (ELEM(next_dir_str, "elif", "else")) {
         /* Record a jump statement at the next #else statement to jump & erase to the #endif. */
-        jump_stack.append(next_dir);
+        jump_stack.append(next_hash);
       }
       /* Erase condition and continue parsing content.
        * The #endif will just be erased later. */
@@ -477,10 +489,10 @@ struct Preprocessor {
       /* Conditional. */
 
       /* If this is part of an already evaluated statement. */
-      if (!jump_stack.is_empty() && dir_tok == jump_stack.last()) {
+      if (!jump_stack.is_empty() && hash_tok == jump_stack.last()) {
         jump_stack.pop_last();
         Token endif_hash = hash_tok;
-        while (str(endif_hash) != "endif") {
+        while (directive_identifier(endif_hash) != "endif") {
           endif_hash = find_next_matching_conditional_directive(endif_hash);
         }
         Token endif_end = end_of_directive(endif_hash);

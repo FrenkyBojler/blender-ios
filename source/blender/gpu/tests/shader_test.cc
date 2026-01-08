@@ -25,6 +25,7 @@
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_create_info_private.hh"
 #include "gpu_shader_dependency_private.hh"
+#include "gpu_shader_private.hh"
 #include "gpu_testing.hh"
 
 /* GTest expects operator<< and Print to be defined in the same namespace as the type itself. */
@@ -612,6 +613,29 @@ static void test_eevee_lib()
 #endif
 }
 GPU_TEST(eevee_lib)
+
+static void test_shader_preprocessor()
+{
+  {
+    std::string input = R"(
+# if 1
+#  define drw_view_id 0
+# else
+uint drw_view_id = 0;
+# endif
+    )";
+    std::string expect = R"(
+
+
+
+
+
+    )";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+}
+GPU_TEST(shader_preprocessor)
 
 }  // namespace gpu::tests
 }  // namespace blender
