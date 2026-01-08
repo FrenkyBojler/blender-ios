@@ -49,54 +49,89 @@ std::optional<VKTexturePool::PageRegion> VKTexturePool::PageHandle::acquire_regi
 
 void VKTexturePool::PageHandle::release_region(PageRegion region)
 {
-  /* Find the region before the region we are trying to release. */
-  auto it = regions.begin();
-  while (it != regions.end()) {
-    if (it->offset > region.offset) {
-      break;
-    }
-    it++;
+  /* Find the first region after the released region. */
+  auto it_next = regions.begin();
+  while (it_next != regions.end() && it_next->offset < region.offset) {
+    ++it_next;
   }
-  if (it != regions.begin()) {
-    it--;
+  
+  /* Find the last region before the released region. */
+  auto it_prev = it_next;
+  if (it_prev != regions.begin()) {
+    --it_prev;
   }
 
-  if (it == regions.end()) {
-    /* No prior region found, insert at front. */
-    regions.push_front(region);
-  }
-  else if (region.offset + region.size == it->offset) {
-    /* Next region connects to the released region, and can be merged. */
-    it->offset -= region.size;
+  bool extended_prev = false;
+  if (it_prev != regions.end() && (it_prev->offset + it_prev->size) == region.offset) {
+    extended_prev = true;
+    it_prev->size += region.size;
+  } 
 
-    /* Check if the region before is connected, and can be merged. */
-    auto it_prev = it;
-    if (it_prev != regions.begin()) {
-      --it_prev;
-      if (it_prev->offset + it_prev->size == it->offset) {
-        it->offset -= it_prev->size;
-        regions.erase(it_prev);
-      }
-    }
-  }
-  else if (it->offset + it->size == region.offset) {
-    /* Prior region connects to the released region, and can be merged. */
-    it->size += region.size;
+  bool extended_next = false;
+  if (it_next != regions.end() && it_next->offset == (region.offset + region.size)) {
+    extended_next = true;  
+    it_next->offset = region.offset;
+    it_next->size += region.size;
+  } 
 
-    /* Check if the region after is connected, and can be merged. */
-    auto it_next = ++it;
-    if (it_next != regions.end() && it_next->offset == (it->offset + it->size)) {
-      it->size += it_next->size;
-      regions.erase(it_next);
-    }
+  if (extended_prev && extended_next) {
+    /* Both prev/next can be connected. Extend previous, erase next. */
+    it_prev->size += it_next->size - region.size;
+    regions.erase(it_next);
   }
-  else if (region.offset > (it->offset + it->size)) {
-    /* Prior region does not connect, insert after. */
-    regions.insert(++it, region);
+  else if (!(extended_prev || extended_next)) {
+    /* Neither prev/next could be connected. Insert in the middle. */
+    regions.insert(it_next, region);
   }
-  else {
-    regions.push_front(region);
-  }
+
+  // /* Find the region before the region we are trying to release. */
+  // auto it = regions.begin();
+  // while (it != regions.end()) {
+  //   if (it->offset > region.offset) {
+  //     break;
+  //   }
+  //   it++;
+  // }
+  // if (it != regions.begin()) {
+  //   it--;
+  // }
+
+  // if (it == regions.end()) {
+  //   /* No prior region found, insert at front. */
+  //   regions.push_front(region);
+  // }
+  // else if (region.offset + region.size == it->offset) {
+  //   /* Next region connects to the released region, and can be merged. */
+  //   it->offset -= region.size;
+
+  //   /* Check if the region before is connected, and can be merged. */
+  //   auto it_prev = it;
+  //   if (it_prev != regions.begin()) {
+  //     --it_prev;
+  //     if (it_prev->offset + it_prev->size == it->offset) {
+  //       it->offset -= it_prev->size;
+  //       regions.erase(it_prev);
+  //     }
+  //   }
+  // }
+  // else if (it->offset + it->size == region.offset) {
+  //   /* Prior region connects to the released region, and can be merged. */
+  //   it->size += region.size;
+
+  //   /* Check if the region after is connected, and can be merged. */
+  //   auto it_next = ++it;
+  //   if (it_next != regions.end() && it_next->offset == (it->offset + it->size)) {
+  //     it->size += it_next->size;
+  //     regions.erase(it_next);
+  //   }
+  // }
+  // else if (region.offset > (it->offset + it->size)) {
+  //   /* Prior region does not connect, insert after. */
+  //   regions.insert(++it, region);
+  // }
+  // else {
+  //   regions.push_front(region);
+  // }
 }
 
 bool VKTexturePool::PageHandle::init(VkMemoryRequirements memory_requirements)
@@ -235,7 +270,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   if (texture_handle.page_handle.allocation == VK_NULL_HANDLE) {
     /* TODO(not_mark): add some heuristic instead of just over-allocating by 4x. */
     VkMemoryRequirements allocation_requirements = memory_requirements;
-    allocation_requirements.size *= 4u;
+    allocation_requirements.size *= 2u;
 
     PageHandle page_handle;
     page_handle.init(allocation_requirements);
@@ -246,7 +281,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
     texture_handle.page_region = *region_opt;
 
     /* TODO(not_mark): remove */
-    std::printf("Allocated %zu\n", texture_handle.page_handle.allocation_info.size);
+    // std::printf("Allocated %zu\n", texture_handle.page_handle.allocation_info.size);
   }
 
   /* Compute the necessary offset into the allocation to satisfy alignment requirements. */
@@ -272,9 +307,9 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
       texture_handle.texture->vk_image_, false, texture_handle.texture->name_.c_str());
 
   /* TODO(not_mark): remove */
-  std::printf("Acquired (start=%zu, end=%zu)\n",
-              texture_handle.page_region.offset,
-              texture_handle.page_region.offset + texture_handle.page_region.size);
+  // std::printf("Acquired (start=%zu, end=%zu)\n",
+  //             texture_handle.page_region.offset,
+  //             texture_handle.page_region.offset + texture_handle.page_region.size);
 
   acquired_.add(texture_handle);
   return wrap(texture_handle.texture);
@@ -293,9 +328,9 @@ void VKTexturePool::release_texture(Texture *tex)
   pages_.add_overwrite(page_handle);
 
   /* TODO(not_mark): remove */
-  std::printf("Released (start=%zu, end=%zu)\n",
-              texture_handle.page_region.offset,
-              texture_handle.page_region.offset + texture_handle.page_region.size);
+  // std::printf("Released (start=%zu, end=%zu)\n",
+  //             texture_handle.page_region.offset,
+  //             texture_handle.page_region.offset + texture_handle.page_region.size);
 
   /* Clear out acquired texture object. */
   acquired_.remove(texture_handle);
@@ -323,16 +358,21 @@ void VKTexturePool::reset(bool force_free)
   }
 #endif
 
+  VkDeviceSize total_pool_usage = 0;
+  VkDeviceSize used_pool_usage = 0;
+
   uint texture_i = 0;
   for (TextureHandle texture : acquired_) {
     std::printf("Texture %d\n", texture_i);
     std::printf("\tRegion 0 (offset=%zu, size=%zu)\n",
                 texture.page_region.offset,
                 texture.page_region.size);
+    used_pool_usage += texture.page_region.size;
     texture_i++;
   }
 
   uint page_i = 0;
+
 
   /* Reverse iterate unused allocations, to make sure we only reorder known good handles. */
   for (PageHandle handle : pages_) {
@@ -345,6 +385,8 @@ void VKTexturePool::reset(bool force_free)
       pages_.add_overwrite(handle);
     }
 
+    total_pool_usage += handle.allocation_info.size;
+
     uint list_i = 0;
     std::printf("Page %d (size=%zu)\n", page_i, handle.allocation_info.size);
     for (auto region : handle.regions) {
@@ -356,6 +398,8 @@ void VKTexturePool::reset(bool force_free)
     }
     page_i++;
   }
+
+  std::printf("Pool allocation: used=%zumb, total=%zumb\n", used_pool_usage / 1024 / 1024, total_pool_usage / 1024 / 1024);
 }
 
 }  // namespace blender::gpu
