@@ -269,6 +269,7 @@ void main()
              (size_boundary * min(abs_constant_part_size.y / abs_constant_part_size.x, 1.0f))));
   }
   if (rotation != 0.0f) {
+    /* Rotate bounding box. */
     float2 rotated_top_right_corner = rotate_vector_2d(
         float2(bounding_box_top_right_corner_relative_to_pixel.x,
                bounding_box_top_right_corner_relative_to_pixel.y),
@@ -311,25 +312,59 @@ void main()
       (texel.x <= bounding_box_top_right_corner.x) && (texel.y <= bounding_box_top_right_corner.y))
   {
     /* The pixel that the operation is evaluated on is inside the bounding box. */
-    /* Start left of the bounding box. */
-    chosen_pixel_coordinates = float2(bounding_box_bottom_left_corner.x - 1, texel.y);
-    int smallest_distance = texel.x - bounding_box_bottom_left_corner.x + 1;
+    if (keep_seamless) {
+      /* Start left of the bounding box. */
+      chosen_pixel_coordinates = float2(bounding_box_bottom_left_corner.x - 1, texel.y);
+      int smallest_distance = texel.x - bounding_box_bottom_left_corner.x + 1;
 
-    /* Check below the bounding box. */
-    if (smallest_distance > (texel.y - bounding_box_bottom_left_corner.y + 1)) {
-      chosen_pixel_coordinates = float2(texel.x, bounding_box_bottom_left_corner.y - 1);
-      smallest_distance = texel.y - bounding_box_bottom_left_corner.y + 1;
+      /* Check below the bounding box. */
+      if (smallest_distance > (texel.y - bounding_box_bottom_left_corner.y + 1)) {
+        chosen_pixel_coordinates = float2(texel.x, bounding_box_bottom_left_corner.y - 1);
+        smallest_distance = texel.y - bounding_box_bottom_left_corner.y + 1;
+      }
+
+      /* Check right of the bounding box. */
+      if (smallest_distance > (bounding_box_top_right_corner.x + 1 - texel.x)) {
+        chosen_pixel_coordinates = float2(bounding_box_top_right_corner.x + 1, texel.y);
+        smallest_distance = bounding_box_top_right_corner.x + 1 - texel.x;
+      }
+
+      /* Check above the bounding box. */
+      if (smallest_distance > (bounding_box_top_right_corner.y + 1 - texel.y)) {
+        chosen_pixel_coordinates = float2(texel.x, bounding_box_top_right_corner.y + 1);
+      }
     }
+    else {
+      /* Initial pixel must be inside the domain. */
+      int smallest_distance = INT_MAX;
+      /* Check left of the bounding box. */
+      if (bounding_box_bottom_left_corner.x >= 1) {
+        chosen_pixel_coordinates = float2(bounding_box_bottom_left_corner.x - 1, texel.y);
+        smallest_distance = texel.x - bounding_box_bottom_left_corner.x + 1;
+      }
 
-    /* Check right of the bounding box. */
-    if (smallest_distance > (bounding_box_top_right_corner.x + 1 - texel.x)) {
-      chosen_pixel_coordinates = float2(bounding_box_top_right_corner.x + 1, texel.y);
-      smallest_distance = bounding_box_top_right_corner.x + 1 - texel.x;
-    }
+      /* Check below the bounding box. */
+      if ((bounding_box_bottom_left_corner.y >= 1) &&
+          (smallest_distance > (texel.y - bounding_box_bottom_left_corner.y + 1)))
+      {
+        chosen_pixel_coordinates = float2(texel.x, bounding_box_bottom_left_corner.y - 1);
+        smallest_distance = texel.y - bounding_box_bottom_left_corner.y + 1;
+      }
 
-    /* Check above the bounding box. */
-    if (smallest_distance > (bounding_box_top_right_corner.y + 1 - texel.y)) {
-      chosen_pixel_coordinates = float2(texel.x, bounding_box_top_right_corner.y + 1);
+      /* Check right of the bounding box. */
+      if ((bounding_box_top_right_corner.x <= (domain_data_size.x - 2)) &&
+          (smallest_distance > (bounding_box_top_right_corner.x + 1 - texel.x)))
+      {
+        chosen_pixel_coordinates = float2(bounding_box_top_right_corner.x + 1, texel.y);
+        smallest_distance = bounding_box_top_right_corner.x + 1 - texel.x;
+      }
+
+      /* Check above the bounding box. */
+      if ((bounding_box_top_right_corner.y <= (domain_data_size.y - 2)) &&
+          (smallest_distance > (bounding_box_top_right_corner.y + 1 - texel.y)))
+      {
+        chosen_pixel_coordinates = float2(texel.x, bounding_box_top_right_corner.y + 1);
+      }
     }
   }
   float chosen_mask_value = 0.0f;
