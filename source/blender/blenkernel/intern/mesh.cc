@@ -2007,9 +2007,6 @@ void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys)
   transform_custom_normal_attribute(transform, attributes, &mesh);
 
   math::transform_points(transform, mesh.vert_positions_for_write());
-  if (math::determinant(transform) < 0.0f) {
-    bke::mesh_flip_faces(mesh, IndexMask(mesh.faces_num));
-  }
 
   if (do_shape_keys && mesh.key) {
     for (KeyBlock &kb : mesh.key->block) {
