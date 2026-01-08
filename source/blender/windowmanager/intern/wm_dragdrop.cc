@@ -69,6 +69,8 @@
 
 namespace blender {
 
+#define TREE_VIEW_DRAG_SCROLL_SPEED 0.001
+
 /* ****************************************************** */
 
 struct wmDropBoxMap;
@@ -622,7 +624,7 @@ void wm_drags_handle_events(bContext *C, const wmEvent *event)
       any_active = true;
       if (region && drag.drop_state.active_dropbox->on_hover) {
         if (drag.timer == nullptr) {
-          drag.timer = WM_event_timer_add(wm, CTX_wm_window(C), TIMER, 0.001);
+          drag.timer = WM_event_timer_add(wm, CTX_wm_window(C), TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
         }
         if (drag.timer == event->customdata) {
           WM_event_timer_remove(wm, CTX_wm_window(C), drag.timer);
