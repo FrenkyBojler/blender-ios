@@ -17,38 +17,40 @@ class VKTexturePool : public TexturePool {
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
-  
-  /* TODO(not_mark): surely this is an existing type already? Maybe Span. */
-  struct PageRegion {
+
+  /* All performed allocations are multiplied by this factor as a temporary metric. */
+  static constexpr VkDeviceSize allocation_size = 67108864;
+
+  struct Segment {
     VkDeviceSize offset;
     VkDeviceSize size;
   };
 
-  /* Struct to store a memory allocation, and available regions of the allocation. */
-  struct PageHandle {
+  /* Struct to manage a memory allocation and its unused segments. */
+  struct AllocationHandle {
     VmaAllocation allocation = VK_NULL_HANDLE;
     VmaAllocationInfo allocation_info = {};
 
-    /* Linked list of unused regions of the allocation. */
-    std::list<PageRegion> regions;
-
     /* Counter to track the number of unused cycles before deallocation in `pool_`. */
     int unused_cycles_count = 0;
+
+    /* Linked list of unused segments of the allocation. */
+    std::list<Segment> segments;
 
     /* Allocate/deallocate the handle internals. */
     bool alloc(VkMemoryRequirements memory_requirements);
     void free();
 
-    /* Extract an available region of the allocation, if it is compatible */
-    std::optional<PageRegion> acquire_region(VkMemoryRequirements memory_requirements);
+    /* Extract a segment of the allocation, if compatible. */
+    std::optional<Segment> acquire(VkMemoryRequirements memory_requirements);
 
-    /* Return a region to the allocation for reuse. */
-    void release_region(PageRegion region);
+    /* Return a segment to the allocation for reuse. */
+    void release(Segment region);
 
     /* Check if the allocation is entirely unused. */
     bool is_unused() const
     {
-      return !regions.empty() && regions.front().size == allocation_info.size;
+      return !segments.empty() && segments.front().size == allocation_info.size;
     }
 
     /* We use the pointer as hash/comparator, as a VmaAllocation is unique.
@@ -58,7 +60,7 @@ class VKTexturePool : public TexturePool {
       return get_default_hash(allocation);
     }
 
-    bool operator==(const PageHandle &o) const
+    bool operator==(const AllocationHandle &o) const
     {
       return allocation == o.allocation;
     }
@@ -67,8 +69,8 @@ class VKTexturePool : public TexturePool {
   /* Struct to store an acquired texture and its backing allocation. */
   struct TextureHandle {
     VKTexture *texture = nullptr;
-    PageHandle page_handle = {};
-    PageRegion page_region = {};
+    AllocationHandle allocation_handle = {};
+    Segment segment = {};
 
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;
@@ -91,7 +93,7 @@ class VKTexturePool : public TexturePool {
   };
 
   /* Store of allocated blocks, potentially partially in use. */
-  Set<PageHandle> pages_;
+  Set<AllocationHandle> allocations_;
   /* Store of acquired textures. */
   Set<TextureHandle> acquired_;
 
@@ -108,6 +110,10 @@ class VKTexturePool : public TexturePool {
   void reset(bool force_free = false) override;
 
   void offset_users_count(Texture *tex, int offset) override;
+
+#ifndef NDEBUG
+  void debug_usage_log() const;
+#endif
 };
 
 }  // namespace blender::gpu
