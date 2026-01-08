@@ -8,6 +8,7 @@
 
 #include "session/display_driver.h"
 
+#include "util/thread.h"
 #include "util/unique_ptr.h"
 
 struct GPUContext;
@@ -152,6 +153,9 @@ class BlenderDisplayDriver : public DisplayDriver {
   GPUFence *gpu_upload_sync_ = nullptr;
 
   float2 zoom_ = make_float2(1.0f, 1.0f);
+
+  thread_condition_variable has_update_cond_;
+  thread_mutex has_update_mutex_;
 };
 
 CCL_NAMESPACE_END

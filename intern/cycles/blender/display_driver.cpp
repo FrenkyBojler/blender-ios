@@ -600,6 +600,8 @@ void BlenderDisplayDriver::update_end()
   GPU_flush();
 
   gpu_context_disable();
+
+  has_update_cond_.notify_all();
 }
 
 /* --------------------------------------------------------------------
@@ -820,6 +822,13 @@ void BlenderDisplayDriver::flush()
 
 void BlenderDisplayDriver::draw(const Params &params)
 {
+  /* Before drawing, wait that an update to the texture has actually occured, to synchronize
+   * rendering of Cycles with Blender. Use a timeout to prevent user interface in the main thread
+   * from becoming unresponsive when rendering is too heavy. */
+  thread_scoped_lock lock(has_update_mutex_);
+  has_update_cond_.wait_for(lock, std::chrono::milliseconds(100));
+  lock.unlock();
+
   gpu_context_lock();
 
   if (need_zero_) {
