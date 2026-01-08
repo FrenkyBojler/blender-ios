@@ -680,11 +680,11 @@ ID *BKE_id_copy_in_lib(Main *bmain,
                        const int flag)
 {
   ID *newid = (new_id_p != nullptr) ? *new_id_p : nullptr;
-  BLI_assert_msg(newid || (flag & LIB_ID_CREATE_NO_ALLOCATE) == 0,
+  BLI_assert_msg(newid || (flag & LIB_ID_COPY_NO_ALLOCATE) == 0,
                  "Copying with 'no allocate' behavior should always get a non-null new ID buffer");
 
   /* Make sure destination pointer is all good. */
-  if ((flag & LIB_ID_CREATE_NO_ALLOCATE) == 0) {
+  if ((flag & LIB_ID_COPY_NO_ALLOCATE) == 0) {
     newid = nullptr;
   }
   else {
@@ -1370,7 +1370,6 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
                                 const char *name,
                                 const int flag)
 {
-  BLI_assert((flag & LIB_ID_CREATE_NO_ALLOCATE) == 0);
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || bmain != nullptr);
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
 
@@ -1451,9 +1450,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
     /* We also need to ensure a valid `session_uid` for some non-main data (like embedded IDs).
      * IDs not allocated however should not need those (this would e.g. avoid generating session
      * UIDs for depsgraph evaluated IDs, if it was using this function). */
-    if ((flag & LIB_ID_CREATE_NO_ALLOCATE) == 0) {
-      BKE_lib_libblock_session_uid_ensure(id);
-    }
+    BKE_lib_libblock_session_uid_ensure(id);
   }
 
   return id;
@@ -1560,7 +1557,7 @@ void BKE_libblock_copy_in_lib(Main *bmain,
   const bool is_embedded_id = (id->flag & ID_FLAG_EMBEDDED_DATA) != 0;
 
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || bmain != nullptr);
-  BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_NO_ALLOCATE) == 0);
+  BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_COPY_NO_ALLOCATE) == 0);
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
 
   /* Embedded ID handling.
@@ -1582,7 +1579,7 @@ void BKE_libblock_copy_in_lib(Main *bmain,
        */
       ((owner_library && *owner_library) ? (ID_TAG_EXTERN | ID_TAG_INDIRECT) : 0);
 
-  if ((flag & LIB_ID_CREATE_NO_ALLOCATE) != 0) {
+  if ((flag & LIB_ID_COPY_NO_ALLOCATE) != 0) {
     /* `new_id_p` already contains pointer to allocated memory.
      * Clear and initialize it similar to BKE_libblock_alloc_in_lib. */
     const size_t size = BKE_libblock_get_alloc_info(GS(id->name), nullptr);

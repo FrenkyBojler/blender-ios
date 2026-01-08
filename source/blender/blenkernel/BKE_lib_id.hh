@@ -247,7 +247,7 @@ enum {
    * (ID + data) - USE WITH CAUTION!
    * Implies LIB_ID_CREATE_NO_MAIN.
    */
-  LIB_ID_CREATE_NO_ALLOCATE = 1 << 2,
+  LIB_ID_COPY_NO_ALLOCATE = 1 << 2,
 
   /** Do not tag new ID for update in depsgraph. */
   LIB_ID_CREATE_NO_DEG_TAG = 1 << 8,
@@ -347,7 +347,7 @@ void BKE_libblock_copy_in_lib(Main *bmain,
  *
  * \note Typically, the newly copied ID will be a local data (its `lib` pointer will be `nullptr`).
  * In practice, ID copying follows the same behavior as ID creation (see #BKE_libblock_alloc
- * documentation), with one special case: when the special flag #LIB_ID_CREATE_NO_ALLOCATE is
+ * documentation), with one special case: when the special flag #LIB_ID_COPY_NO_ALLOCATE is
  * specified, the copied ID will have the same library as the source ID.
  *
  */
@@ -771,7 +771,7 @@ bool BKE_id_copy_is_allowed(const ID *id);
  *
  * \note Typically, the newly copied ID will be a local data (its `lib` pointer will be `nullptr`).
  * In practice, ID copying follows the same behavior as ID creation (see #BKE_libblock_alloc
- * documentation), with one special case: when the special flag #LIB_ID_CREATE_NO_ALLOCATE is
+ * documentation), with one special case: when the special flag #LIB_ID_COPY_NO_ALLOCATE is
  * specified, the copied ID will have the same library as the source ID.
  *
  * \param bmain: Main database, may be NULL only if LIB_ID_CREATE_NO_MAIN is specified.
