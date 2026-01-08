@@ -123,6 +123,32 @@ struct Preprocessor {
     return tok;
   }
 
+  /* Parse and expand with the current set of macro identifier. */
+  std::string parse_and_expand(StringRef input)
+  {
+    if (input.is_empty()) {
+      return "";
+    }
+    report_callback report = [](int, int, std::string, const char *) {};
+    IntermediateForm parser(input, report, ParserStage::TokenizePreprocessor);
+
+    const TokenStream &data = parser.data_get();
+
+    for (int cursor = 0; cursor < data.token_types.size(); cursor++) {
+      TokenType tok_type = TokenType(data.token_types[cursor]);
+      if (tok_type == Word) {
+        Token tok = Token::from_position(&data, cursor);
+        Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
+        if (macro_tok.is_valid()) {
+          auto [replacement, end] = expand_macro(tok, macro_tok);
+          parser.replace(tok, end, replacement);
+          cursor = end.index;
+        }
+      }
+    }
+    return parser.result_get();
+  }
+
   struct ExpandedResult {
     /* Replacement content. */
     std::string str;
@@ -255,26 +281,7 @@ struct Preprocessor {
             TokenRange &macro_value = *macro_value_ptr;
 
             /* Expand argument. Can expand to the same macro (finite recursion). */
-            {
-              report_callback report = [](int, int, std::string, const char *) {};
-              IntermediateForm parser(str(macro_value), report, ParserStage::TokenizePreprocessor);
-
-              const TokenStream &data = parser.data_get();
-
-              for (int cursor = 0; cursor < data.token_types.size(); cursor++) {
-                TokenType tok_type = TokenType(data.token_types[cursor]);
-                if (tok_type == Word) {
-                  Token tok = Token::from_position(&data, cursor);
-                  Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
-                  if (macro_tok.is_valid()) {
-                    auto [replacement, end] = expand_macro(tok, macro_tok);
-                    parser.replace(tok, end, replacement);
-                    cursor = end.index;
-                  }
-                }
-              }
-              expanded += parser.result_get();
-            }
+            expanded += parse_and_expand(str(macro_value));
             replaced = true;
           }
         }
@@ -295,26 +302,7 @@ struct Preprocessor {
     /* Add to the set to avoid infinite recursion. */
     visited_macros.add(macro_name_str);
 
-    if (!expanded.empty()) {
-      report_callback report = [](int, int, std::string, const char *) {};
-      IntermediateForm parser(expanded, report, ParserStage::TokenizePreprocessor);
-
-      const TokenStream &data = parser.data_get();
-
-      for (int cursor = 0; cursor < data.token_types.size(); cursor++) {
-        TokenType tok_type = TokenType(data.token_types[cursor]);
-        if (tok_type == Word) {
-          Token tok = Token::from_position(&data, cursor);
-          Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
-          if (macro_tok.is_valid()) {
-            auto [replacement, end] = expand_macro(tok, macro_tok);
-            parser.replace(tok, end, replacement);
-            cursor = end.index;
-          }
-        }
-      }
-      expanded = parser.result_get();
-    }
+    expanded = parse_and_expand(expanded);
 
     visited_macros.remove(macro_name_str);
     return {expanded, end_of_expansion};
