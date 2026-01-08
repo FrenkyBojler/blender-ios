@@ -38,6 +38,10 @@
 
 namespace blender::ed::vse {
 
+/*-------------------------------------------------------------------- */
+/** \name Retiming Generic Functions
+ * \{ */
+
 bool sequencer_retiming_mode_is_active(const Scene *scene)
 {
   if (!scene) {
@@ -61,6 +65,29 @@ bool sequencer_retiming_mode_is_active(const Scene *scene)
 
   return false;
 }
+
+static bool retiming_poll(bContext *C)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return false;
+  }
+  Editing *ed = seq::editing_get(scene);
+  if (!ed) {
+    return false;
+  }
+  Strip *strip = ed->act_strip;
+  if (strip == nullptr) {
+    return false;
+  }
+  if (!seq::retiming_is_allowed(strip)) {
+    CTX_wm_operator_poll_msg_set(C, "This strip type cannot be retimed");
+    return false;
+  }
+  return true;
+}
+
+/** \} */
 
 /*-------------------------------------------------------------------- */
 /** \name Retiming Data Show
@@ -140,27 +167,6 @@ void SEQUENCER_OT_retiming_show(wmOperatorType *ot)
 
 /** \} */
 
-static bool retiming_poll(bContext *C)
-{
-  Scene *scene = CTX_data_sequencer_scene(C);
-  if (!scene) {
-    return false;
-  }
-  Editing *ed = seq::editing_get(scene);
-  if (!ed) {
-    return false;
-  }
-  Strip *strip = ed->act_strip;
-  if (strip == nullptr) {
-    return false;
-  }
-  if (!seq::retiming_is_allowed(strip)) {
-    CTX_wm_operator_poll_msg_set(C, "This strip type cannot be retimed");
-    return false;
-  }
-  return true;
-}
-
 /*-------------------------------------------------------------------- */
 /** \name Retiming Reset
  * \{ */
@@ -195,16 +201,16 @@ void SEQUENCER_OT_retiming_reset(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Retiming Add Key
+ * \{ */
+
 static SeqRetimingKey *ensure_left_and_right_keys(const Scene *scene, Strip *strip)
 {
   seq::retiming_data_ensure(strip);
   seq::retiming_add_key(scene, strip, left_fake_key_frame_get(scene, strip));
   return seq::retiming_add_key(scene, strip, right_fake_key_frame_get(scene, strip));
 }
-
-/* -------------------------------------------------------------------- */
-/** \name Retiming Add Key
- * \{ */
 
 static bool retiming_key_add_new_for_strip(const Scene *scene,
                                            wmOperator *op,
@@ -778,6 +784,10 @@ void SEQUENCER_OT_retiming_segment_speed_set(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Retiming Select Key
+ * \{ */
+
 static bool select_key(const Editing *ed,
                        SeqRetimingKey *key,
                        const bool toggle,
@@ -1031,5 +1041,7 @@ wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   return OPERATOR_FINISHED;
 }
+
+/** \} */
 
 }  // namespace blender::ed::vse
