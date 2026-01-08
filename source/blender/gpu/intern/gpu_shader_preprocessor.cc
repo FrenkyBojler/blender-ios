@@ -27,6 +27,54 @@ struct Preprocessor {
   Map<StringRef, Token> defines;
   Set<StringRef> visited_macros;
 
+  enum DirectiveType {
+    /* Any other unhandled directives (warnings / errors / pragma etc...). */
+    Other,
+    Define,
+    Undef,
+    Line,
+    If,
+    Ifdef,
+    Ifndef,
+    Elif,
+    Else,
+    Endif,
+  };
+  enum ConditionType {};
+
+  static DirectiveType to_directive_type(const StringRef str)
+  {
+    if (str.size() < 2) {
+      return Other;
+    }
+    /* Switch on the second character as there is no overlap
+     * between "Other" and the directives we care about.  */
+    switch (str[1]) {
+      default:
+      case 'a': /* warning */
+      case 'r': /* error, pragma */
+        return Other;
+      case 'e': /* define */
+        return Define;
+      case 'n': /* undef */
+        return Undef;
+      case 'i': /* line */
+        return Line;
+      case 'l': /* else, elif */
+        return str[2] == 'i' ? Elif : Else;
+      case 'f': /* if, ifdef, ifndef */
+        switch (str.size()) {
+          default:
+          case 2:
+            return If;
+          case 5:
+            return Ifdef;
+          case 6:
+            return Ifndef;
+        }
+    }
+  }
+
   static StringRef str(const Token t)
   {
     /* Note: Whitespaces where not merged (because of TokenizePreprocessor), so using
@@ -518,7 +566,7 @@ struct Preprocessor {
     parser.replace(hash_tok, dir_end, "");
   }
 
-  void process_directives(IntermediateForm &parser, const TokenStream &data, int &cursor)
+  void process_directives(const TokenStream &data, int &cursor)
   {
     Token hash_tok = Token::from_position(&data, cursor);
     Token prev = hash_tok.prev();
@@ -532,22 +580,30 @@ struct Preprocessor {
     Token dir_end = end_of_directive(dir_tok);
     StringRef dir_str = str(dir_tok);
 
+    DirectiveType type = to_directive_type(dir_str);
+
     cursor = dir_end.index;
 
-    if (dir_str == "define") {
-      define_macro(hash_tok, dir_tok, dir_end);
-    }
-    else if (dir_str == "undef") {
-      undefine_macro(hash_tok, dir_tok, dir_end);
-    }
-    else if (ELEM(dir_str, "if", "ifdef", "ifndef", "elif", "else")) {
-      cursor = process_conditional(hash_tok, dir_end);
-    }
-    else if (dir_str == "line") {
-      parser.replace(hash_tok, dir_end, "");
-    }
-    else if (dir_str == "endif") {
-      parser.replace(hash_tok, dir_end, "");
+    switch (type) {
+      case Define:
+        define_macro(hash_tok, dir_tok, dir_end);
+        break;
+      case Undef:
+        undefine_macro(hash_tok, dir_tok, dir_end);
+        break;
+      case If:
+      case Ifdef:
+      case Ifndef:
+      case Elif:
+      case Else:
+        cursor = process_conditional(hash_tok, dir_end);
+        break;
+      case Endif:
+      case Line:
+        erase_single_line_directive(hash_tok, dir_end);
+        break;
+      case Other:
+        break;
     }
   }
 
@@ -562,7 +618,7 @@ struct Preprocessor {
         try_expand(parser, data, cursor);
       }
       else if (tok_type == Hash) {
-        process_directives(parser, data, cursor);
+        process_directives(data, cursor);
       }
     }
   }
