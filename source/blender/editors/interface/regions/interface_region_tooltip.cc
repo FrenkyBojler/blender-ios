@@ -1472,13 +1472,24 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
   data->toth = fonth;
   data->lineh = h;
 
+  const bool is_tablet = (win->runtime->eventstate->tablet.active != EVT_TABLET_NONE);
+//  const bool is_tablet = true;
+
   /* Compute position. */
   {
     rctf rect_fl;
     rect_fl.xmin = init_position[0] - (h * 0.2f) - (pad_x * 0.5f);
     rect_fl.xmax = rect_fl.xmin + fontw;
-    rect_fl.ymax = init_position[1] - (h * 0.2f) - (pad_y * 0.5f);
-    rect_fl.ymin = rect_fl.ymax - fonth;
+
+    if (is_tablet) {
+      rect_fl.ymin = init_position[1] + (h * 0.2f) + pad_y + UI_UNIT_Y;
+      rect_fl.ymax = rect_fl.ymin + fonth;
+    }
+    else {
+      rect_fl.ymax = init_position[1] - (h * 0.2f) - (pad_y * 0.5f);
+      rect_fl.ymin = rect_fl.ymax - fonth;
+    }
+
     BLI_rcti_rctf_copy(&rect_i, &rect_fl);
   }
 
@@ -1592,15 +1603,31 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
 
 #undef USE_ALIGN_Y_CENTER
 
-  if (BLI_rcti_isect_pt(&rect_i, init_position[0], init_position[1]) &&
-      rect_i.ymin < (win_size[1] / 4))
-  {
-    /* Near bottom and overlapping mouse and highlighted item. */
-    BLI_rcti_translate(&rect_i, 0, h * 3);
+  if (is_tablet) {
+    /* Tooltip is below cursor for conflict with top edge. */
+    if (BLI_rcti_isect_pt(&rect_i, init_position[0], init_position[1]) &&
+        rect_i.ymax > (win_size[1] * 3 / 4))
+    {
+      /* Near top and overlapping cursor and highlighted item. */
+      BLI_rcti_translate(&rect_i, 0, -(h * 3));
+    }
+    else if (init_position[1] > (win_size[1] - UI_UNIT_Y)) {
+      /* At the very top. */
+      BLI_rcti_translate(&rect_i, 0, (win_size[1] - UI_UNIT_Y) - init_position[1]);
+    }
   }
-  else if (init_position[1] < UI_UNIT_Y) {
-    /* At the very bottom. */
-    BLI_rcti_translate(&rect_i, 0, UI_UNIT_Y - init_position[1]);
+  else {
+    /* Tooltip is below cursor for conflict with bottom edge. */
+    if (BLI_rcti_isect_pt(&rect_i, init_position[0], init_position[1]) &&
+        rect_i.ymin < (win_size[1] / 4))
+    {
+      /* Near bottom and overlapping mouse and highlighted item. */
+      BLI_rcti_translate(&rect_i, 0, h * 3);
+    }
+    else if (init_position[1] < UI_UNIT_Y) {
+      /* At the very bottom. */
+      BLI_rcti_translate(&rect_i, 0, UI_UNIT_Y - init_position[1]);
+    }
   }
 
   /* add padding */
