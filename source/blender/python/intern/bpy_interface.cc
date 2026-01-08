@@ -166,7 +166,7 @@ void bpy_context_clear(bContext *C, const PyGILState_STATE *gilstate)
     BPY_context_set(nullptr);
 #endif
 
-    /* In rare situation, a nullptr context may be set. See check in #bpy_context_set. */
+    /* See previous comment regarding nullptr check in #bpy_context_set. */
     if (C != nullptr) {
       pyrna_context_clear(C);
     }
