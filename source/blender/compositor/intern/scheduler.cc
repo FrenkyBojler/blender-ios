@@ -84,7 +84,8 @@ static bool has_viewer_recursive(const bNodeTree &node_group,
  * Output or Viewer nodes. */
 static void add_output_nodes(const Context &context,
                              const bNodeTree &node_group,
-                             NodeGroupOutputTypes needed_outputs,
+                             NodeGroupOutputTypes needed_outputs_types,
+                             const Set<StringRef> &needed_outputs,
                              const bNodeInstanceKey instance_key,
                              const bNodeInstanceKey active_node_group_instance_key,
                              Stack<const bNode *> &node_stack)
@@ -101,7 +102,7 @@ static void add_output_nodes(const Context &context,
     const bNodeTree &child_tree = *reinterpret_cast<const bNodeTree *>(group_node->id);
     const bNodeInstanceKey child_instance_key = bke::node_instance_key(
         instance_key, &node_group, group_node);
-    if (flag_is_set(needed_outputs, NodeGroupOutputTypes::ViewerNode) &&
+    if (flag_is_set(needed_outputs_types, NodeGroupOutputTypes::ViewerNode) &&
         has_viewer_recursive(child_tree, child_instance_key, active_node_group_instance_key))
     {
       node_stack.push(group_node);
@@ -109,7 +110,7 @@ static void add_output_nodes(const Context &context,
       continue;
     }
 
-    if (flag_is_set(needed_outputs, NodeGroupOutputTypes::FileOutputNode) &&
+    if (flag_is_set(needed_outputs_types, NodeGroupOutputTypes::FileOutputNode) &&
         has_file_output_recursive(child_tree))
     {
       node_stack.push(group_node);
@@ -117,7 +118,7 @@ static void add_output_nodes(const Context &context,
   }
 
   /* Add File Output nodes. */
-  if (flag_is_set(needed_outputs, NodeGroupOutputTypes::FileOutputNode)) {
+  if (flag_is_set(needed_outputs_types, NodeGroupOutputTypes::FileOutputNode)) {
     for (const bNode *node : node_group.nodes_by_type("CompositorNodeOutputFile")) {
       if (!node->is_muted()) {
         node_stack.push(node);
@@ -130,7 +131,7 @@ static void add_output_nodes(const Context &context,
   const bool is_active_node_group = active_node_group_instance_key == instance_key;
   const bool is_root_node_group = instance_key == bke::NODE_INSTANCE_KEY_BASE;
   const bool should_add_viewer = is_active_node_group || (is_root_node_group && !viewer_exists);
-  if (flag_is_set(needed_outputs, NodeGroupOutputTypes::ViewerNode) && should_add_viewer) {
+  if (flag_is_set(needed_outputs_types, NodeGroupOutputTypes::ViewerNode) && should_add_viewer) {
     for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer")) {
       if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
         node_stack.push(node);
@@ -140,12 +141,18 @@ static void add_output_nodes(const Context &context,
     }
   }
 
+  /* None of the node groups outputs are needed, so no need to add the Group Output node. */
+  if (needed_outputs.is_empty()) {
+    return;
+  }
+
   /* Add Group Output node. None root node groups should always had a group output node. If the
    * context is treating viewer nodes as group outputs, then the group output should be ignored
    * even if needed. */
   const bool context_ignores_output = context.treat_viewer_as_group_output() && viewer_exists;
-  if (!is_root_node_group || (flag_is_set(needed_outputs, NodeGroupOutputTypes::GroupOutputNode) &&
-                              !context_ignores_output))
+  if (!is_root_node_group ||
+      (flag_is_set(needed_outputs_types, NodeGroupOutputTypes::GroupOutputNode) &&
+       !context_ignores_output))
   {
     const bNode *output_node = node_group.group_output_node();
     if (output_node && !output_node->is_muted()) {
@@ -370,6 +377,7 @@ VectorSet<const bNode *> compute_schedule(const Context &context,
   add_output_nodes(context,
                    node_group,
                    needed_outputs_types,
+                   needed_outputs,
                    instance_key,
                    active_node_group_instance_key,
                    node_stack);
