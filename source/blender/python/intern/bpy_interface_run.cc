@@ -321,7 +321,7 @@ static IDProperty *pyobject_to_idprop(const blender::StringRefNull prop_name, Py
   if (py_object == Py_None) {
     return nullptr;
   }
-  return idp_from_PyObject(nullptr, prop_name.c_str(), py_object, false, true);
+  return BPy_IDProperty_FromPyObject(nullptr, prop_name.c_str(), py_object, false, true);
 }
 
 /**

@@ -119,7 +119,7 @@ void IDProp_Init_Types();
  *
  * \return the existing/created IDProperty if the value was set on it, and `nullptr` otherwise.
  */
-IDProperty *idp_from_PyObject(
+IDProperty *BPy_IDProperty_FromPyObject(
     IDProperty *prop_exist, const char *name, PyObject *ob, bool do_conversion, bool can_create);
 
 }  // namespace blender
