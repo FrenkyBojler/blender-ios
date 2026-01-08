@@ -21,6 +21,8 @@
 
 #include "bmesh_edgeloop.hh" /* own include */
 
+namespace blender {
+
 struct BMEdgeLoopStore {
   BMEdgeLoopStore *next, *prev;
   ListBaseT<LinkData> verts;
@@ -129,7 +131,7 @@ int BM_mesh_edgeloops_find(BMesh *bm,
       BM_elem_flag_enable(e, BM_ELEM_INTERNAL_TAG);
       BM_elem_flag_enable(e->v1, BM_ELEM_INTERNAL_TAG);
       BM_elem_flag_enable(e->v2, BM_ELEM_INTERNAL_TAG);
-      BLI_stack_push(edge_stack, (void *)&e);
+      BLI_stack_push(edge_stack, static_cast<void *>(&e));
     }
     else {
       BM_elem_flag_disable(e, BM_ELEM_INTERNAL_TAG);
@@ -292,7 +294,7 @@ bool BM_mesh_edgeloops_find_path(BMesh *bm,
         BM_elem_flag_enable(e, BM_ELEM_INTERNAL_TAG);
         BM_elem_flag_enable(e->v1, BM_ELEM_INTERNAL_TAG);
         BM_elem_flag_enable(e->v2, BM_ELEM_INTERNAL_TAG);
-        BLI_stack_push(edge_stack, (void *)&e);
+        BLI_stack_push(edge_stack, static_cast<void *>(&e));
       }
       else {
         BM_elem_flag_disable(e, BM_ELEM_INTERNAL_TAG);
@@ -454,8 +456,8 @@ void BM_mesh_edgeloops_calc_order(BMesh * /*bm*/,
   /* not so efficient re-ordering */
   while (eloops->first) {
     BMEdgeLoopStore *el_store_best = nullptr;
-    const float *co = ((BMEdgeLoopStore *)eloops_ordered.last)->co;
-    const float *no = ((BMEdgeLoopStore *)eloops_ordered.last)->no;
+    const float *co = (static_cast<BMEdgeLoopStore *>(eloops_ordered.last))->co;
+    const float *no = (static_cast<BMEdgeLoopStore *>(eloops_ordered.last))->no;
     float len_best_sq = FLT_MAX;
 
     if (use_normals) {
@@ -494,8 +496,7 @@ void BM_mesh_edgeloops_calc_order(BMesh * /*bm*/,
 
 BMEdgeLoopStore *BM_edgeloop_copy(BMEdgeLoopStore *el_store)
 {
-  BMEdgeLoopStore *el_store_copy = static_cast<BMEdgeLoopStore *>(
-      MEM_mallocN(sizeof(*el_store), __func__));
+  BMEdgeLoopStore *el_store_copy = MEM_mallocN<BMEdgeLoopStore>(__func__);
   *el_store_copy = *el_store;
   BLI_duplicatelist(&el_store_copy->verts, &el_store->verts);
   return el_store_copy;
@@ -503,8 +504,7 @@ BMEdgeLoopStore *BM_edgeloop_copy(BMEdgeLoopStore *el_store)
 
 BMEdgeLoopStore *BM_edgeloop_from_verts(BMVert **v_arr, const int v_arr_tot, bool is_closed)
 {
-  BMEdgeLoopStore *el_store = static_cast<BMEdgeLoopStore *>(
-      MEM_callocN(sizeof(*el_store), __func__));
+  BMEdgeLoopStore *el_store = MEM_callocN<BMEdgeLoopStore>(__func__);
   int i;
   for (i = 0; i < v_arr_tot; i++) {
     LinkData *node = MEM_callocN<LinkData>(__func__);
@@ -573,7 +573,7 @@ void BM_edgeloop_edges_get(BMEdgeLoopStore *el_store, BMEdge **e_arr)
 void BM_edgeloop_calc_center(BMesh * /*bm*/, BMEdgeLoopStore *el_store)
 {
   LinkData *node_curr = static_cast<LinkData *>(el_store->verts.last);
-  LinkData *node_prev = ((LinkData *)el_store->verts.last)->prev;
+  LinkData *node_prev = (static_cast<LinkData *>(el_store->verts.last))->prev;
   LinkData *node_first = static_cast<LinkData *>(el_store->verts.first);
   LinkData *node_next = node_first;
 
@@ -679,11 +679,8 @@ void BM_edgeloop_flip(BMesh * /*bm*/, BMEdgeLoopStore *el_store)
   BLI_listbase_reverse(&el_store->verts);
 }
 
-void BM_edgeloop_expand(BMesh *bm,
-                        BMEdgeLoopStore *el_store,
-                        int el_store_len,
-                        bool split,
-                        blender::Set<BMEdge *> *split_edges)
+void BM_edgeloop_expand(
+    BMesh *bm, BMEdgeLoopStore *el_store, int el_store_len, bool split, Set<BMEdge *> *split_edges)
 {
   bool split_swap = true;
 
@@ -802,3 +799,5 @@ bool BM_edgeloop_overlap_check(BMEdgeLoopStore *el_store_a, BMEdgeLoopStore *el_
   }
   return false;
 }
+
+}  // namespace blender
