@@ -12,6 +12,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_ID_enums.h"
+#include "DNA_layer_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
@@ -107,8 +108,7 @@ class Context : public compositor::Context {
         int2(int(camera_border.xmax), int(camera_border.ymax)));
 
     const Bounds<int2> render_region = Bounds<int2>(int2(0), int2(draw_ctx->viewport_size_get()));
-    const Bounds<int2> border_region =
-        blender::bounds::intersect(render_region, camera_region).value();
+    const Bounds<int2> border_region = bounds::intersect(render_region, camera_region).value();
 
     compositor::Domain domain = compositor::Domain(camera_region.size());
     domain.data_size = border_region.size();
@@ -142,8 +142,7 @@ class Context : public compositor::Context {
         int2(int(camera_border.xmin), int(camera_border.ymin)),
         int2(int(camera_border.xmax), int(camera_border.ymax)));
 
-    return blender::bounds::intersect(render_region, camera_region)
-        .value_or(Bounds<int2>(int2(0)));
+    return bounds::intersect(render_region, camera_region).value_or(Bounds<int2>(int2(0)));
   }
 
   Bounds<int2> get_input_region() const override
@@ -269,8 +268,7 @@ class Instance : public DrawEngine {
 
   void init() final {};
   void begin_sync() final {};
-  void object_sync(blender::draw::ObjectRef & /*ob_ref*/,
-                   blender::draw::Manager & /*manager*/) final {};
+  void object_sync(draw::ObjectRef & /*ob_ref*/, draw::Manager & /*manager*/) final {};
   void end_sync() final {};
 
   void draw(Manager & /*manager*/) final
@@ -295,6 +293,7 @@ class Instance : public DrawEngine {
     {
       compositor::Evaluator evaluator(context);
       evaluator.evaluate();
+      context.cache_manager().reset();
     }
 
 #if defined(__APPLE__)
