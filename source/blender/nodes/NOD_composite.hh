@@ -10,13 +10,15 @@
 
 #include "BKE_node.hh"
 
+namespace blender {
+
 struct CryptomatteSession;
 struct Scene;
 
-extern blender::bke::bNodeTreeType *ntreeType_Composite;
+extern bke::bNodeTreeType *ntreeType_Composite;
 
 void register_node_tree_type_cmp();
-void register_node_type_cmp_custom_group(blender::bke::bNodeType *ntype);
+void register_node_type_cmp_custom_group(bke::bNodeType *ntype);
 
 void node_cmp_rlayers_outputs(bNodeTree *ntree, bNode *node);
 
@@ -42,3 +44,5 @@ void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size
  */
 void ntreeCompositCryptomatteUpdateLayerNames(bNode *node);
 CryptomatteSession *ntreeCompositCryptomatteSession(bNode *node);
+
+}  // namespace blender
