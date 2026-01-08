@@ -1110,16 +1110,25 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
   /* Property was created with no existing counterpart, just insert it in the group container. */
   if (!prop_exist) {
     IDP_ReplaceInGroup_ex(group, new_prop, nullptr, 0);
+    if (IDP_ui_data_supported(new_prop)) {
+      /* Allocate UI data for supported property types. */
+      new_prop->ui_data = IDP_ui_data_ensure(new_prop);
+    }
     return true;
   }
 
-  /* Try to preserve UI data from the existing, replaced property. See: #37073. */
-  if (prop_exist->ui_data) {
-    /* Take ownership of the existing property's UI data. */
-    const eIDPropertyUIDataType src_type = IDP_ui_data_type(prop_exist);
-    prop_exist->ui_data = nullptr;
+  if (IDP_ui_data_supported(new_prop)) {
+    /* Try to preserve UI data from the existing, replaced property. See: #37073. */
+    if (prop_exist->ui_data) {
+      /* Take ownership of the existing property's UI data. */
+      const eIDPropertyUIDataType src_type = IDP_ui_data_type(prop_exist);
+      prop_exist->ui_data = nullptr;
 
-    new_prop->ui_data = IDP_TryConvertUIData(prop_exist, src_type, IDP_ui_data_type(new_prop));
+      new_prop->ui_data = IDP_TryConvertUIData(prop_exist, src_type, IDP_ui_data_type(new_prop));
+    }
+    else {
+      new_prop->ui_data = IDP_ui_data_ensure(new_prop);
+    }
   }
   /* Copy over the 'overridable' flag from existing property. */
   new_prop->flag |= (prop_exist->flag & IDP_FLAG_OVERRIDABLE_LIBRARY);

@@ -250,6 +250,10 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id)
   IDProperty *active_prop = static_cast<IDProperty *>(
       BLI_findlink(&id->properties->data.group, id->idprop_active_index));
 
+  if (!IDP_ui_data_supported(active_prop)) {
+    return;
+  }
+
   auto get_prop_type = [&](const char type) {
     switch (type) {
       case IDP_INT:

@@ -2158,6 +2158,7 @@ class WM_OT_property_python_add(Operator):
             self.report({'ERROR'}, "Failed to assign value: " + str(ex))
             return {'CANCELLED'}
 
+        item.idprop_active_index = len(item.items()) - 1
         return {'FINISHED'}
 
     def invoke(self, context, _event):
@@ -2172,7 +2173,7 @@ class WM_OT_property_python_add(Operator):
         layout.prop(self, "property_name")
         layout.prop(self, "eval_string")
 
-
+# Experimenting to pass data_path argument inside panel/menu drawing to later use in operator.
 class WM_OT_context_property(Operator):
     bl_idname = "wm.context_property"
     bl_label = "Context menu for properties"

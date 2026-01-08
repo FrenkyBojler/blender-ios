@@ -214,7 +214,6 @@ enum idpropertyui_types {
   IDP_UI_DATA_BOOL_ARRAY,
   IDP_UI_DATA_STRING,
   IDP_UI_DATA_DATABLOCK,
-  IDP_UI_DATA_PYTHON,
 };
 
 const EnumPropertyItem rna_enum_idproperty_types_items[] = {
@@ -230,11 +229,6 @@ const EnumPropertyItem rna_enum_idproperty_types_items[] = {
     {IDP_UI_DATA_BOOL_ARRAY, "BOOL_ARRAY", 0, "Boolean Array", "An array of true or false values"},
     {IDP_UI_DATA_STRING, "STRING", 0, "String", "A string value"},
     {IDP_UI_DATA_DATABLOCK, "DATA_BLOCK", 0, "Data-Block", "A data-block value"},
-    {IDP_UI_DATA_PYTHON,
-     "PYTHON",
-     0,
-     "Python",
-     "Edit a Python value directly, for unsupported property types"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
