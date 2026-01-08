@@ -12,11 +12,13 @@
 
 #include <stdbool.h>
 
+namespace blender {
+
 struct ScanFillVert;
 struct ScanFillEdge;
 struct ScanFillFace;
 
-typedef struct ScanFillContext {
+struct ScanFillContext {
   ListBaseT<ScanFillVert> fillvertbase;
   ListBaseT<ScanFillEdge> filledgebase;
   ListBaseT<ScanFillFace> fillfacebase;
@@ -27,7 +29,7 @@ typedef struct ScanFillContext {
 
   /* private */
   struct MemArena *arena;
-} ScanFillContext;
+};
 
 #define BLI_SCANFILL_ARENA_SIZE MEM_SIZE_OPTIMAL(1 << 14)
 
@@ -38,7 +40,7 @@ typedef struct ScanFillContext {
  */
 #define SF_POLY_UNSET ((unsigned short)-1)
 
-typedef struct ScanFillVert {
+struct ScanFillVert {
   struct ScanFillVert *next, *prev;
   union {
     struct ScanFillVert *v;
@@ -59,9 +61,9 @@ typedef struct ScanFillVert {
   unsigned int f : 4;
   /** flag callers can use as they like */
   unsigned int user_flag : 4;
-} ScanFillVert;
+};
 
-typedef struct ScanFillEdge {
+struct ScanFillEdge {
   struct ScanFillEdge *next, *prev;
   struct ScanFillVert *v1, *v2;
   unsigned short poly_nr;
@@ -70,12 +72,12 @@ typedef struct ScanFillEdge {
   union {
     unsigned char c;
   } tmp;
-} ScanFillEdge;
+};
 
-typedef struct ScanFillFace {
+struct ScanFillFace {
   struct ScanFillFace *next, *prev;
   struct ScanFillVert *v1, *v2, *v3;
-} ScanFillFace;
+};
 
 /* scanfill.c */
 
@@ -118,3 +120,5 @@ void BLI_scanfill_end_arena(ScanFillContext *sf_ctx, struct MemArena *arena);
 bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
                                   ListBaseT<ScanFillVert> *remvertbase,
                                   ListBaseT<ScanFillEdge> *remedgebase);
+
+}  // namespace blender
