@@ -26,8 +26,6 @@ struct Preprocessor {
   Vector<Token, 8> jump_stack;
   Map<StringRef, Token> defines;
   Set<StringRef> visited_macros;
-  /* Token cursor. */
-  int cursor;
 
   static StringRef str(const Token t)
   {
@@ -496,8 +494,33 @@ struct Preprocessor {
 #  define CHECK(cond)
 #endif
 
-  void process_directives(Token hash_tok)
+  void define_macro(Token hash_tok, Token dir_tok, Token dir_end)
   {
+    Token macro_name = skip_space(dir_tok.next());
+    CHECK(macro_name != Word);
+    /* Store the name token of the declaration.
+     * The actual parsing of the definition happens during expansion. */
+    defines.add_overwrite(str(macro_name), macro_name);
+    parser.replace(hash_tok, dir_end, new_lines(hash_tok, dir_end));
+  }
+
+  void undefine_macro(Token hash_tok, Token dir_tok, Token dir_end)
+  {
+    Token macro_name = skip_space(dir_tok.next());
+    CHECK(macro_name != Word);
+    defines.remove(str(macro_name));
+    erase_single_line_directive(hash_tok, dir_end);
+  }
+
+  void erase_single_line_directive(Token hash_tok, Token dir_end)
+  {
+    /* Don't need new_lines in this case. */
+    parser.replace(hash_tok, dir_end, "");
+  }
+
+  void process_directives(IntermediateForm &parser, const TokenStream &data, int &cursor)
+  {
+    Token hash_tok = Token::from_position(&data, cursor);
     Token prev = hash_tok.prev();
     /* All directives must start with a hash token at the start of the line. */
     CHECK(!ELEM(prev, Invalid /* Start of file. */, NewLine, Space));
@@ -512,20 +535,10 @@ struct Preprocessor {
     cursor = dir_end.index;
 
     if (dir_str == "define") {
-      /* Macro definition. */
-      Token macro_name = skip_space(dir_tok.next());
-      CHECK(macro_name != Word);
-      /* Store the name token of the declaration.
-       * The actual parsing of the definition happens during expansion. */
-      defines.add_overwrite(str(macro_name), macro_name);
-      parser.replace(hash_tok, dir_end, new_lines(hash_tok, dir_end));
+      define_macro(hash_tok, dir_tok, dir_end);
     }
     else if (dir_str == "undef") {
-      /* Macro undefine. */
-      Token macro_name = skip_space(dir_tok.next());
-      CHECK(macro_name != Word); /* TODO(fclem): Error. */
-      defines.remove(str(macro_name));
-      parser.replace(hash_tok, dir_end, "");
+      undefine_macro(hash_tok, dir_tok, dir_end);
     }
     else if (ELEM(dir_str, "if", "ifdef", "ifndef", "elif", "else")) {
       cursor = process_conditional(hash_tok, dir_end);
@@ -542,14 +555,14 @@ struct Preprocessor {
   {
     const TokenStream &data = parser.data_get();
 
-    cursor = 0;
+    int cursor = 0;
     for (; cursor < data.token_types.size(); cursor++) {
       TokenType tok_type = TokenType(data.token_types[cursor]);
       if (tok_type == Word) {
         try_expand(parser, data, cursor);
       }
       else if (tok_type == Hash) {
-        process_directives(Token::from_position(&data, cursor));
+        process_directives(parser, data, cursor);
       }
     }
   }
