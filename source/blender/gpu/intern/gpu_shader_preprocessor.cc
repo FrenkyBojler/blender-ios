@@ -123,6 +123,19 @@ struct Preprocessor {
     return tok;
   }
 
+  /* Try to match the token pointed at by cursor with a defined macro.
+   * If that happen advance the cursor to the end of the macro (in case of functional macro). */
+  void try_expand(IntermediateForm &parser, const TokenStream &data, int &cursor)
+  {
+    Token tok = Token::from_position(&data, cursor);
+    Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
+    if (macro_tok.is_valid()) {
+      auto [replacement, end] = expand_macro(tok, macro_tok);
+      parser.replace(tok, end, replacement);
+      cursor = end.index;
+    }
+  }
+
   /* Parse and expand with the current set of macro identifier. */
   std::string parse_and_expand(StringRef input)
   {
@@ -137,13 +150,7 @@ struct Preprocessor {
     for (int cursor = 0; cursor < data.token_types.size(); cursor++) {
       TokenType tok_type = TokenType(data.token_types[cursor]);
       if (tok_type == Word) {
-        Token tok = Token::from_position(&data, cursor);
-        Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
-        if (macro_tok.is_valid()) {
-          auto [replacement, end] = expand_macro(tok, macro_tok);
-          parser.replace(tok, end, replacement);
-          cursor = end.index;
-        }
+        try_expand(parser, data, cursor);
       }
     }
     return parser.result_get();
@@ -541,13 +548,7 @@ struct Preprocessor {
     for (; cursor < data.token_types.size(); cursor++) {
       TokenType tok_type = TokenType(data.token_types[cursor]);
       if (tok_type == Word) {
-        Token tok = Token::from_position(&data, cursor);
-        Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
-        if (macro_tok.is_valid()) {
-          auto [replacement, end] = expand_macro(tok, macro_tok);
-          parser.replace(tok, end, replacement);
-          cursor = end.index;
-        }
+        try_expand(parser, data, cursor);
       }
       else if (tok_type == Hash) {
         process_directives(Token::from_position(&data, cursor));
