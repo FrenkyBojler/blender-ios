@@ -400,12 +400,12 @@ std::optional<eWM_DragDataType> NodeTreeInterfaceDragController::get_drag_type()
   return WM_DRAG_NODE_TREE_INTERFACE;
 }
 
-void gather_moved_items_recursive(bNodeTreeInterfacePanel &panel,
+void gather_drag_items_recursive(bNodeTreeInterfacePanel &panel,
                                   Vector<bNodeTreeInterfaceItem *> &r_items,
                                   const bool parent_selected)
 {
   for (bNodeTreeInterfaceItem *item : panel.items()) {
-    /* If the parent is selected, the children will be moved implicitly. */
+    /* If the parent is selected, the children will be dragged implicitly. */
     if (parent_selected) {
       continue;
     }
@@ -416,7 +416,7 @@ void gather_moved_items_recursive(bNodeTreeInterfacePanel &panel,
         bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
             item);
         is_selected = (panel->flag & NODE_INTERFACE_PANEL_SELECT);
-        gather_moved_items_recursive(*panel, r_items, is_selected);
+        gather_drag_items_recursive(*panel, r_items, is_selected);
         break;
       }
       case NODE_INTERFACE_SOCKET: {
@@ -435,17 +435,17 @@ void gather_moved_items_recursive(bNodeTreeInterfacePanel &panel,
 
 void *NodeTreeInterfaceDragController::create_drag_data() const
 {
-  Vector<bNodeTreeInterfaceItem *> moved_items;
-  gather_moved_items_recursive(tree_.tree_interface.root_panel, moved_items, false);
+  Vector<bNodeTreeInterfaceItem *> drag_items;
+  gather_drag_items_recursive(tree_.tree_interface.root_panel, drag_items, false);
 
   bNodeTreeInterfaceItemReference *drag_data = MEM_callocN<bNodeTreeInterfaceItemReference>(
       __func__);
   drag_data->item = &item_;
   drag_data->tree = &tree_;
-  drag_data->items_count = moved_items.size();
+  drag_data->items_count = drag_items.size();
   drag_data->items = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(drag_data->items_count,
                                                                  "drag items");
-  std::copy(moved_items.begin(), moved_items.end(), drag_data->items);
+  std::copy(drag_items.begin(), drag_items.end(), drag_data->items);
   return drag_data;
 }
 
