@@ -13,7 +13,9 @@
 #include <memory>
 #include <string>
 
+namespace blender {
 struct bContext;
+}
 
 namespace blender::asset_system {
 
