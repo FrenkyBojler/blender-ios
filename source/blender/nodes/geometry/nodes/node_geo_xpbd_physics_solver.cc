@@ -1722,23 +1722,22 @@ PROFILE_FUNCTION static void gather_sphere_contacts(const SimPoints &sim_points,
     const float3 &position = sim_points.positions[i];
     const float radius = radii[i];
     const float query_radius = radius + max_radius;
-    kdtree_3d_range_search_cb_cpp(
-        kdtree,
-        position,
-        query_radius,
-        [&](const int other_i, const float * /*co*/, const float dist_sq) {
-          if (i >= other_i) {
-            return true;
-          }
-          const float other_radius = radii[other_i];
-          const float min_distance = radius + other_radius;
-          if (dist_sq >= pow2f(min_distance)) {
-            return true;
-          }
-          r_contacts.indices.append({i, other_i});
-          r_contacts.min_distance.append(min_distance);
-          return true;
-        });
+    kdtree_range_search_cb_cpp(kdtree,
+                               position,
+                               query_radius,
+                               [&](const int other_i, const float * /*co*/, const float dist_sq) {
+                                 if (i >= other_i) {
+                                   return true;
+                                 }
+                                 const float other_radius = radii[other_i];
+                                 const float min_distance = radius + other_radius;
+                                 if (dist_sq >= pow2f(min_distance)) {
+                                   return true;
+                                 }
+                                 r_contacts.indices.append({i, other_i});
+                                 r_contacts.min_distance.append(min_distance);
+                                 return true;
+                               });
   }
 }
 
