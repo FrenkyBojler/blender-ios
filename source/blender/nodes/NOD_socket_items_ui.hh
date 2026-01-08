@@ -42,7 +42,7 @@ static void draw_item_in_list(uiList * /*ui_list*/,
     template_node_socket(&row, const_cast<bContext *>(C), color);
   }
   row.emboss_set(blender::ui::EmbossType::None);
-  row.prop(itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
+  row.prop(itemptr, "name", blender::UI_ITEM_NONE, "", ICON_NONE);
 }
 
 /**
@@ -80,7 +80,6 @@ static void draw_items_list_with_operators(const bContext *C,
                 3,
                 5,
                 UILST_LAYOUT_DEFAULT,
-                0,
                 blender::ui::TEMPLATE_LIST_FLAG_NONE);
 
   blender::ui::Layout *ops_col = &row->column(false);

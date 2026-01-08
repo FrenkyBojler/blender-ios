@@ -23,6 +23,8 @@
 
 #include <optional>
 
+namespace blender {
+
 enum class PaintMode : int8_t;
 
 struct ARegion;
@@ -53,7 +55,6 @@ struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperator;
 struct wmOperatorType;
-namespace blender {
 
 namespace bke::pbvh {
 class Node;
@@ -69,8 +70,7 @@ struct StrokeCache;
 namespace ocio {
 class Display;
 }
-}  // namespace blender
-using ColorManagedDisplay = blender::ocio::Display;
+using ColorManagedDisplay = ocio::Display;
 
 /* paint_stroke.cc */
 
@@ -81,7 +81,7 @@ enum BrushStrokeMode {
   BRUSH_STROKE_ERASE,
 };
 
-namespace blender::ed::sculpt_paint {
+namespace ed::sculpt_paint {
 
 using StrokeDone = void (*)(PaintStroke *stroke, bool is_cancel);
 
@@ -108,6 +108,7 @@ struct PaintStroke : NonCopyable, NonMovable {
 
   /* Cached values */
   ViewContext vc = {};
+  Object *object = nullptr;
   Paint *paint = nullptr;
   Brush *brush = nullptr;
   UnifiedPaintSettings *ups = nullptr;
@@ -333,7 +334,7 @@ void BRUSH_OT_asset_delete(wmOperatorType *ot);
 void BRUSH_OT_asset_save(wmOperatorType *ot);
 void BRUSH_OT_asset_revert(wmOperatorType *ot);
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
 
 /**
  * Delete overlay cursor textures to preserve memory and invalidate all overlay flags.
@@ -425,8 +426,8 @@ void PAINT_OT_weight_sample_group(wmOperatorType *ot);
 VertProjHandle *ED_vpaint_proj_handle_create(Depsgraph &depsgraph,
                                              Scene &scene,
                                              Object &ob,
-                                             blender::Span<blender::float3> &r_vert_positions,
-                                             blender::Span<blender::float3> &r_vert_normals);
+                                             Span<float3> &r_vert_positions,
+                                             Span<float3> &r_vert_normals);
 void ED_vpaint_proj_handle_update(Depsgraph *depsgraph,
                                   VertProjHandle *vp_handle,
                                   /* runtime vars */
@@ -484,7 +485,7 @@ void paint_proj_stroke_done(void *ps_handle_p);
 
 void paint_brush_color_get(const Paint *paint,
                            Brush *br,
-                           std::optional<blender::float3> &initial_hsv_jitter,
+                           std::optional<float3> &initial_hsv_jitter,
                            bool invert,
                            float distance,
                            float pressure,
@@ -494,7 +495,9 @@ void paint_brush_init_tex(Brush *brush);
 void paint_brush_exit_tex(Brush *brush);
 
 void PAINT_OT_grab_clone(wmOperatorType *ot);
+namespace ed::sculpt_paint {
 void PAINT_OT_sample_color(wmOperatorType *ot);
+}
 void PAINT_OT_brush_colors_flip(wmOperatorType *ot);
 void PAINT_OT_texture_paint_toggle(wmOperatorType *ot);
 void PAINT_OT_project_image(wmOperatorType *ot);
@@ -564,7 +567,7 @@ bool paint_convert_bb_to_rect(rcti *rect,
                               const Object &ob);
 
 float paint_calc_object_space_radius(const ViewContext &vc,
-                                     const blender::float3 &center,
+                                     const float3 &center,
                                      float pixel_radius);
 
 /**
@@ -607,7 +610,7 @@ bool paint_curve_poll(bContext *C);
 
 bool facemask_paint_poll(bContext *C);
 
-namespace blender::ed::sculpt_paint {
+namespace ed::sculpt_paint {
 
 /**
  * Determines whether a given symmetry pass is valid.
@@ -646,7 +649,7 @@ inline float3 symmetry_flip(const float3 &src, const ePaintSymmetryFlags symm)
   return dst;
 }
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
 
 /* `paint_curve.cc` */
 
@@ -679,7 +682,7 @@ void paint_init_pivot(Object *ob, Scene *scene, Paint *paint);
 /* paint curve defines */
 #define PAINT_CURVE_NUM_SEGMENTS 40
 
-namespace blender::ed::sculpt_paint::vwpaint {
+namespace ed::sculpt_paint::vwpaint {
 struct NormalAnglePrecalc {
   bool do_mask_normal;
   /* what angle to mask at */
@@ -740,4 +743,6 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
 void update_cache_invariants(
     bContext *C, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2]);
 void last_stroke_update(const float location[3], Paint &paint);
-}  // namespace blender::ed::sculpt_paint::vwpaint
+}  // namespace ed::sculpt_paint::vwpaint
+
+}  // namespace blender

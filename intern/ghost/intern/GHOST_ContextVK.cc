@@ -161,7 +161,7 @@ struct GHOST_ExtensionsVK {
   bool is_supported(const char *extension_name) const
   {
     for (const VkExtensionProperties &extension : extensions) {
-      if (strcmp(extension.extensionName, extension_name) == 0) {
+      if (STREQ(extension.extensionName, extension_name)) {
         return true;
       }
     }
@@ -224,7 +224,7 @@ struct GHOST_ExtensionsVK {
   bool is_enabled(const char *extension_name) const
   {
     for (const char *enabled_extension_name : enabled) {
-      if (strcmp(enabled_extension_name, extension_name) == 0) {
+      if (STREQ(enabled_extension_name, extension_name)) {
         return true;
       }
     }
@@ -456,11 +456,11 @@ struct GHOST_InstanceVK {
       if (
 #ifndef __APPLE__
           !device_vk.features.features.geometryShader ||
+          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
+#endif
           !device_vk.features.features.multiViewport ||
           !device_vk.features.features.shaderClipDistance ||
           !device_vk.features.features.fragmentStoresAndAtomics ||
-          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
-#endif
           !device_vk.features.features.multiDrawIndirect ||
           !device_vk.features.features.imageCubeArray ||
           !device_vk.features.features.dualSrcBlend || !device_vk.features.features.logicOp ||
@@ -557,11 +557,11 @@ struct GHOST_InstanceVK {
     VkPhysicalDeviceFeatures device_features = {};
 #ifndef __APPLE__
     device_features.geometryShader = VK_TRUE;
+    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
+#endif
     device_features.multiViewport = VK_TRUE;
     device_features.shaderClipDistance = VK_TRUE;
     device_features.fragmentStoresAndAtomics = VK_TRUE;
-    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
-#endif
     device_features.logicOp = VK_TRUE;
     device_features.dualSrcBlend = VK_TRUE;
     device_features.imageCubeArray = VK_TRUE;
@@ -708,6 +708,13 @@ struct GHOST_InstanceVK {
         VK_TRUE};
     if (device.extensions.is_enabled(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&vertex_input_dynamic_state);
+    }
+
+    /* VK_EXT_host_image_copy */
+    VkPhysicalDeviceHostImageCopyFeaturesEXT host_image_copy = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES_EXT, nullptr, VK_TRUE};
+    if (device.extensions.is_enabled(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&host_image_copy);
     }
 
     /* Link all registered feature structs. */
@@ -883,7 +890,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
      * swapchain image. Other do it when calling vkQueuePresent. */
     VkResult acquire_result = VK_ERROR_OUT_OF_DATE_KHR;
     while (swapchain_ != VK_NULL_HANDLE &&
-           (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR))
+           (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)))
     {
       acquire_result = vkAcquireNextImageKHR(vk_device,
                                              swapchain_,
@@ -891,7 +898,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
                                              submission_frame_data.acquire_semaphore,
                                              VK_NULL_HANDLE,
                                              &image_index);
-      if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR) {
+      if (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
         recreateSwapchain(use_hdr_swapchain);
       }
     }
@@ -1027,7 +1034,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   }
   acquired_swapchain_image_index_.reset();
 
-  if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
+  if (ELEM(present_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
     recreateSwapchain(use_hdr_swapchain);
     return GHOST_kSuccess;
   }
@@ -1656,6 +1663,12 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     optional_device_extensions.append(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
 #endif
     optional_device_extensions.append(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_COPY_COMMANDS_2_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME);
+#if 0
+    /* VK_EXT_host_image_copy isn't supported by Renderdoc and also isn't working as expected. */
+    optional_device_extensions.append(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);
+#endif
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {
       return GHOST_kFailure;
