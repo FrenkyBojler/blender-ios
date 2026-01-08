@@ -16,6 +16,7 @@
 
 #include "devices/I3DDevice.h"
 #include "devices/DeviceManager.h"
+#include "IReader.h"
 #include "sequence/Sequence.h"
 #include "Exception.h"
 
@@ -158,6 +159,19 @@ AUD_API void AUD_Sequence_setSpeedOfSound(AUD_Sound* sequence, float value)
 	dynamic_cast<Sequence *>(sequence->get())->setSpeedOfSound(value);
 }
 
+AUD_API int AUD_Sequence_read(AUD_Sound* sequence, int start, int length, sample_t *buffer) {
+	assert(sequence);
+	assert(buffer);
+	assert(length);
+	assert(start >= 0);
+
+	auto reader = dynamic_cast<Sequence *>(sequence->get())->createReader();
+	reader->seek(start);
+	bool eos = false;
+	reader->read(length, eos, buffer);
+
+	return length;
+}
 
 
 AUD_API void AUD_SequenceEntry_move(AUD_SequenceEntry* entry, double begin, double end, double skip)

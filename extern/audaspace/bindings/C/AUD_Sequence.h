@@ -158,6 +158,16 @@ extern AUD_API float AUD_Sequence_getSpeedOfSound(AUD_Sound* sequence);
  */
 extern AUD_API void AUD_Sequence_setSpeedOfSound(AUD_Sound* sequence, float value);
 
+/**
+ * Get the samples from a sequence.
+ * \param sequence The sequence to read samples from.
+ * \param start The first sample to read.
+ * \param length The number of samples to read.
+ * \param buffer The buffer to store the samples.
+ * \return The length of samples read.
+ */
+extern AUD_API int AUD_Sequence_read(AUD_Sound* sequence, int start, int length, sample_t *buffer);
+
 
 
 /**

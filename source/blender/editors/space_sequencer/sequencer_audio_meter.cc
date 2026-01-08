@@ -206,12 +206,12 @@ static Vector<float> read_scene_sound_samples(Scene *scene, int &length_out, int
   const int sample_start = static_cast<const int>((current_frame - start_frame) *
                                                   samples_per_frame);
 
-  int samples_read = static_cast<int>(samples_per_frame);
+  int samples_count = static_cast<int>(samples_per_frame);
 
   Vector<float> buffer(static_cast<int>(samples_per_frame * specs.channels));
-  AUD_Sequence_read(scene_sound, sample_start, samples_read, (sample_t *)buffer.data());
+  length_out = AUD_Sequence_read(
+      scene_sound, sample_start, samples_count, (sample_t *)buffer.data());
 
-  length_out = samples_read;
   channels_out = specs.channels;
   return std::move(buffer);
 
