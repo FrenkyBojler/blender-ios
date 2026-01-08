@@ -112,6 +112,7 @@ static void snapsource_confirm(TransInfo *t)
   snapsource_end(t);
   transform_input_reset(t, mval);
 
+  t->flag &= ~T_RELEASE_CONFIRM;
   /* Remote individual snap projection since this mode does not use the new `snap_source`. */
   t->tsnap.mode &= ~(SCE_SNAP_INDIVIDUAL_PROJECT | SCE_SNAP_INDIVIDUAL_NEAREST);
 }
