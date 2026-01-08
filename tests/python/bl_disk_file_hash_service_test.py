@@ -15,7 +15,7 @@ import datetime
 import unittest
 from pathlib import Path
 
-from _bpy_internal.disk_file_hash_service import backend_sqlite, hash_service, types
+from _bpy_internal.disk_file_hash_service import backend_sqlite, hash_service, types, on_blender_exit
 
 scratch_dir: Path
 
@@ -357,6 +357,14 @@ class DiskFileHashServiceNotOpeningTest(unittest.TestCase):
 
 
 class DFHSCPPWrapperTest(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls) -> None:
+        # This happens automatically on Blender's exit. However, for this test it
+        # needs to be called _before_ Blender exits, because the scratch directory
+        # needs cleaning up. If there's still a service running, that means
+        # there's still an SQLite file open, which prevents cleanup on Windows.
+        on_blender_exit()
+
     def test_dfhs_cpp_wrapper(self):
         """This test only tests the C++ wrapper, not the underlying Python logic."""
 
