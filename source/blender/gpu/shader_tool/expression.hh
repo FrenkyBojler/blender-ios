@@ -12,6 +12,8 @@
 
 #include "token.hh"
 
+#include <stdexcept>
+
 namespace blender::gpu::shader::parser {
 
 /**
