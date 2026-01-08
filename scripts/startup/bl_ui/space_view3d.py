@@ -7918,10 +7918,11 @@ class VIEW3D_PT_grease_pencil_guide(Panel):
         layout.label(text="Guides")
 
         col = layout.column()
+        col.prop(settings, "use_guide")
         col.active = settings.use_guide
         col.prop(settings, "type", expand=True)
 
-        if settings.type in {'ISO', 'PARALLEL'}:
+        if settings.type in {'ISO', 'PARALLEL', 'GRID'}:
             col.prop(settings, "angle")
             row = col.row(align=True)
 

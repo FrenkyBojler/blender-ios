@@ -4436,6 +4436,7 @@ static void gesture_box_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "IMAGE_OT_render_border");
   WM_modalkeymap_assign(keymap, "IMAGE_OT_view_zoom_border");
   WM_modalkeymap_assign(keymap, "GREASE_PENCIL_OT_erase_box");
+  WM_modalkeymap_assign(keymap, "GREASE_PENCIL_OT_guide_settings");
 }
 
 /* Lasso modal operators. */

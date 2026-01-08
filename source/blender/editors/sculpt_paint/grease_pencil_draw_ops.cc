@@ -28,6 +28,7 @@
 #include "BLI_kdtree.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_rect.h"
@@ -2078,6 +2079,73 @@ static void GREASE_PENCIL_OT_erase_box(wmOperatorType *ot)
   WM_operator_properties_border(ot);
 }
 
+/* Additional OPs. */
+
+/* Flip or rotate drawing guide. */
+static wmOperatorStatus grease_pencil_guide_settings(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  GP_Sculpt_Guide *guide_settings = &scene->toolsettings->gp_sculpt.guide;
+
+  const bool toggle_guide = RNA_boolean_get(op->ptr, "toggle_guide");
+  if (toggle_guide) {
+    guide_settings->use_guide = guide_settings->use_guide ? 0 : 1;
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+    return OPERATOR_FINISHED;
+  }
+
+  if (!guide_settings->use_guide) {
+    return OPERATOR_FINISHED;
+  }
+
+  /* Flip guide, Circular <> Radial, Grid rotates 45 degrees, Parallel rotates 90 degrees. */
+  const bool flip = RNA_boolean_get(op->ptr, "flip");
+  if (flip) {
+    if (guide_settings->type == GP_GUIDE_CIRCULAR) {
+      guide_settings->type = GP_GUIDE_RADIAL;
+    }
+    else if (guide_settings->type == GP_GUIDE_RADIAL) {
+      guide_settings->type = GP_GUIDE_CIRCULAR;
+    }
+    else if (guide_settings->type == GP_GUIDE_GRID) {
+      guide_settings->angle = angle_wrap_rad(guide_settings->angle + DEG2RADF(45));
+    }
+    else if (guide_settings->type == GP_GUIDE_PARALLEL) {
+      guide_settings->angle = angle_wrap_rad(guide_settings->angle + DEG2RADF(90));
+    }
+  }
+
+  /* Offset guide angle. */
+  if (ELEM(guide_settings->type, GP_GUIDE_GRID, GP_GUIDE_ISO, GP_GUIDE_PARALLEL)) {
+    const float angle = RNA_float_get(op->ptr, "angle");
+    if (!math::is_zero(angle)) {
+      guide_settings->angle = angle_wrap_rad(guide_settings->angle + DEG2RADF(angle));
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_guide_settings(wmOperatorType *ot)
+{
+  ot->name = "Guide Settings";
+  ot->idname = "GREASE_PENCIL_OT_guide_settings";
+  ot->description = "Flip, rotate, or enable guide settings";
+
+  ot->exec = grease_pencil_guide_settings;
+
+  ot->flag = 0;
+
+  PropertyRNA *prop;
+  prop = RNA_def_boolean(ot->srna, "flip", false, "Flip", "Flip guide or angle");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna, "toggle_guide", false, "Toggle", "Toggle guide on or off");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  prop = RNA_def_float(
+      ot->srna, "angle", 0.0f, -FLT_MAX, FLT_MAX, "Angle", "Angle in degrees", -FLT_MAX, FLT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+}
+
 /** \} */
 
 }  // namespace blender::ed::sculpt_paint
@@ -2096,6 +2164,7 @@ void ED_operatortypes_grease_pencil_draw()
   WM_operatortype_append(GREASE_PENCIL_OT_fill);
   WM_operatortype_append(GREASE_PENCIL_OT_erase_lasso);
   WM_operatortype_append(GREASE_PENCIL_OT_erase_box);
+  WM_operatortype_append(GREASE_PENCIL_OT_guide_settings);
 }
 
 void ED_filltool_modal_keymap(wmKeyConfig *keyconf)
