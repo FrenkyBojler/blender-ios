@@ -19,6 +19,8 @@ namespace blender::gpu::shader::parser {
 /**
  * Simple expression parsing and evaluation.
  * Will evaluate starting the given token until the end of the token stream.
+ * As this is supposed to be use for preprocessor directives, unknown identifiers (words) will
+ * evaluate to 0.
  */
 class ExpressionParser {
  private:
@@ -58,6 +60,9 @@ class ExpressionParser {
     static constexpr int parenthesis_binding_power = 0;
 
     switch (t.type()) {
+      case Word:
+        /* Undefined identifier (not macro substituted). Evaluate to 0. */
+        return 0;
       case Number:
         return std::stol(t.str());
       case Plus:
@@ -89,9 +94,20 @@ class ExpressionParser {
     switch (t.type()) {
       case Multiply:
         return left * expr(left_binding_power(Multiply));
-      case Divide:
-        return left / expr(left_binding_power(Divide));
-      case Modulo:
+      case Divide: {
+        int64_t right = expr(left_binding_power(Divide));
+        if (right == 0) {
+          throw std::runtime_error("Division by zero");
+        }
+        return left / right;
+      }
+      case Modulo: {
+        int64_t right = expr(left_binding_power(Modulo));
+        if (right == 0) {
+          throw std::runtime_error("Modulo by zero");
+        }
+        return left % right;
+      }
         return left % expr(left_binding_power(Modulo));
       case Plus:
         return left + expr(left_binding_power(Plus));

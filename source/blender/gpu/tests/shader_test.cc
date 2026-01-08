@@ -634,6 +634,65 @@ uint drw_view_id = 0;
     std::string result = blender::gpu::Shader::run_preprocessor(input);
     EXPECT_EQ(expect, result);
   }
+  {
+    std::string input = R"(
+#define A() B
+A)";
+    std::string expect = R"(
+
+A)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    std::string input = R"(
+#define A(a,b) a##b
+A( , )
+A(,2)
+A(1, )
+A(1,2)
+)";
+    std::string expect = R"(
+
+  
+2
+1 
+12
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    std::string input = R"(
+#define A
+#if defined(A) && !defined ( B ) && defined A && !defined  B 
+High there!
+#endif
+)";
+    std::string expect = R"(
+
+
+High there!
+
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    /* Undefined identifier should evaluated to 0. */
+    std::string input = R"(
+#if !A
+A
+#endif
+)";
+    std::string expect = R"(
+
+A
+
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
 }
 GPU_TEST(shader_preprocessor)
 

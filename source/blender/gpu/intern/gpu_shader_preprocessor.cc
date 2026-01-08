@@ -69,7 +69,7 @@ struct Preprocessor {
 
   static Token skip_space(Token tok)
   {
-    while (tok == Space && tok != Invalid) {
+    while (tok == Space) {
       tok = tok.next();
     }
     return tok;
@@ -77,7 +77,7 @@ struct Preprocessor {
 
   static Token skip_space_backward(Token tok)
   {
-    while (tok == Space && tok != Invalid) {
+    while (tok == Space) {
       tok = tok.prev();
     }
     return tok;
@@ -103,7 +103,7 @@ struct Preprocessor {
 
   static Token get_end_of_parameter(Token tok, bool skip_to_end = false)
   {
-    /* Avoid matching coma inside parameter function calls. */
+    /* Avoid matching comma inside parameter function calls. */
     int stack = 1;
     tok = tok.next();
     while (tok.is_valid()) {
@@ -170,8 +170,15 @@ struct Preprocessor {
         if (tok == ')') {
           /* Function with no arguments. */
           param = get_end_of_parameter(param);
+          if (param == Invalid) {
+            /* Error: missing closing parenthesis. */
+            /* Cancel expansion. */
+            return {macro_name_str, expanded_tok};
+          }
           if (param != ')') {
-            /* Error. There are parameters inside the function call. */
+            /* Error: too many arguments provided to function-like macro invocation. */
+            /* Cancel expansion. */
+            return {macro_name_str, expanded_tok};
           }
           break;
         }
@@ -185,9 +192,15 @@ struct Preprocessor {
           argument_name = "__VA_ARGS__";
         }
 
-        macro_parameters.add(
-            argument_name,
-            {skip_space(param_start.next()), skip_space_backward(param_end.prev())});
+        /* If there is only token for parameters (it could be empty string). */
+        if (param_start.next() == param_end.prev()) {
+          macro_parameters.add(argument_name, {param_start.next(), param_start.next()});
+        }
+        else {
+          macro_parameters.add(
+              argument_name,
+              {skip_space(param_start.next()), skip_space_backward(param_end.prev())});
+        }
 
         /* Continue to the next separator. */
         tok = skip_space(tok.next());
@@ -346,14 +359,16 @@ struct Preprocessor {
       }
       else if (tok_str == "defined") {
         /* Parenthesis or space */
-        tok = tok.next();
+        tok = skip_space(tok.next());
         const bool is_function = (tok == '(');
         /* Token to search. */
-        tok = tok.next();
+        if (is_function) {
+          tok = skip_space(tok.next());
+        }
         expand += (defines.contains(str(tok)) ? "1" : "0");
         if (is_function) {
           /* End parenthesis. */
-          tok = tok.next();
+          tok = skip_space(tok.next());
         }
       }
       else {
@@ -396,10 +411,10 @@ struct Preprocessor {
       return true;
     }
     if (type_str == "ifdef") {
-      return defines.contains(str(end));
+      return defines.contains(str(start));
     }
     if (type_str == "ifndef") {
-      return !defines.contains(str(end));
+      return !defines.contains(str(start));
     }
     if (ELEM(type_str, "if", "elif")) {
       return evaluate_expression(start, end);
@@ -441,13 +456,11 @@ struct Preprocessor {
 
   void process_directives(Token hash_tok)
   {
-#ifndef NDEBUG
     Token prev = hash_tok.prev();
     if (!ELEM(prev, Invalid /* Start of file. */, NewLine, Space)) {
       /* All directives must start with a hash token at the start of the line. */
       return; /* TODO(fclem): Error. */
     }
-#endif
 
     Token dir_tok = skip_space(hash_tok.next());
 
@@ -460,24 +473,18 @@ struct Preprocessor {
 
     if (dir_str == "define") {
       /* Macro definition. */
-      Token space = dir_tok.next();
-      if (space != Space) {
-        return; /* TODO(fclem): Error. */
-      }
-      Token macro_name = space.next();
+      Token macro_name = skip_space(dir_tok.next());
       if (macro_name != Word) {
         return; /* TODO(fclem): Error. */
       }
+      /* Store the name token of the declaration.
+       * The actual parsing of the definition happens during expansion. */
       defines.add_overwrite(str(macro_name), macro_name);
       parser.replace(hash_tok, dir_end, new_lines(hash_tok, dir_end));
     }
     else if (dir_str == "undef") {
       /* Macro undefine. */
-      Token space = dir_tok.next();
-      if (space != Space) {
-        return; /* TODO(fclem): Error. */
-      }
-      Token macro_name = space.next();
+      Token macro_name = skip_space(dir_tok.next());
       if (macro_name != Word) {
         return; /* TODO(fclem): Error. */
       }

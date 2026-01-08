@@ -2764,7 +2764,7 @@ match([a], , int, , bar, [0], ;)
 }
 GPU_TEST(preprocess_parser);
 
-int test_expression(std::string str)
+static int test_expression(std::string str)
 {
   using namespace shader::parser;
   report_callback no_err_report = [](int, int, std::string, const char *) {};
