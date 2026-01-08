@@ -155,7 +155,7 @@ struct Preprocessor {
     if (is_function) {
       /* This is a functional macro. */
 
-      Token param = expanded_tok.next();
+      Token param = skip_whitespace(expanded_tok.next());
       if (param != '(') {
         /* Error, macro doesn't have parameters. */
         visited_macros.remove(macro_name_str);
@@ -373,9 +373,6 @@ struct Preprocessor {
       return true;
     }
 
-    std::cout << "\"" << parser.substr_range_inclusive_view(start, end) << "\" > \"" << expand
-              << "\" ";
-
     int value = 0;
     try {
       report_callback report = [](int, int, std::string, const char *) {};
@@ -384,6 +381,8 @@ struct Preprocessor {
       value = ExpressionParser(parser()[0]).eval();
     }
     catch (const std::exception &e) {
+      std::cout << "\"" << parser.substr_range_inclusive_view(start, end) << "\" > \"" << expand
+                << "\" ";
       std::cerr << "Error: " << e.what() << "\n";
     }
 
@@ -533,7 +532,6 @@ struct Preprocessor {
         process_directives(Token::from_position(&data, cursor));
       }
     }
-    // std::cout << "Macro def " << defines.size() << std::endl;
   }
 };
 
