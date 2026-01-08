@@ -1461,7 +1461,7 @@ static_assert_align(KernelLight, 16);
 struct KernelLightDistribution {
   float totarea;
   int prim;
-  int shader_flag;
+  int visibility_flag;
   int object_id;
 };
 static_assert_align(KernelLightDistribution, 16);
@@ -1572,7 +1572,7 @@ struct KernelLightTreeEmitter {
 
   /* Object and shader. */
   int object_id;
-  int shader_flag;
+  int visibility_flag;
 
   /* Bit trail from root node to leaf node containing emitter. */
   int bit_trail;
