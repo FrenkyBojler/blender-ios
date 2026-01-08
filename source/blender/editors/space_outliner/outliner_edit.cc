@@ -62,6 +62,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
@@ -874,6 +875,13 @@ static const EnumPropertyItem *outliner_id_itemf(bContext *C,
   return item;
 }
 
+static void outliner_id_remap_ui(bContext *C, wmOperator *op)
+{
+  ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+  ui::template_enum_id(layout, C, op->ptr, "new_id", ID_OB);
+}
+
 void OUTLINER_OT_id_remap(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -884,6 +892,7 @@ void OUTLINER_OT_id_remap(wmOperatorType *ot)
 
   /* callbacks */
   ot->invoke = outliner_id_remap_invoke;
+  ot->ui = outliner_id_remap_ui;
   ot->exec = outliner_id_remap_exec;
   ot->poll = ED_operator_region_outliner_active;
 

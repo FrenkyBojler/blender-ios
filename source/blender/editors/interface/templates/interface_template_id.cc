@@ -73,6 +73,22 @@ static void template_ID_set_property_exec_fn(bContext *C, void *arg_template, vo
   }
 }
 
+/* Search browse menu, assign. */
+static void template_ID_set_property_enum_exec_fn(bContext *C, void *arg_template, void *item)
+{
+  TemplateID *template_ui = static_cast<TemplateID *>(arg_template);
+  if (!item) {
+    return;
+  }
+  int value;
+  const bool found = RNA_property_enum_value(
+      C, &template_ui->ptr, template_ui->prop, static_cast<ID *>(item)->name + 2, &value);
+  if (!found) {
+    return;
+  }
+  RNA_property_enum_set(&template_ui->ptr, template_ui->prop, value);
+}
+
 static bool id_search_allows_id(TemplateID *template_ui, const int flag, ID *id, const char *query)
 {
   ID *id_from = template_ui->ptr.owner_id;
@@ -258,6 +274,41 @@ static Block *id_search_menu(bContext *C, ARegion *region, void *arg_litem)
                                      &template_ui,
                                      template_ID_set_property_exec_fn,
                                      active_item_ptr.data,
+                                     template_ID_search_menu_item_tooltip,
+                                     template_ui.prv_rows,
+                                     template_ui.prv_cols,
+                                     template_ui.scale);
+}
+
+static Block *id_search_menu_enum(bContext *C, ARegion *region, void *arg_litem)
+{
+  static TemplateID template_ui;
+  void (*id_search_update_fn)(
+      const bContext *, void *, const char *, SearchItems *, const bool) = id_search_cb;
+
+  template_ui = *(static_cast<TemplateID *>(arg_litem));
+  int active_item = RNA_property_enum_get(&template_ui.ptr, template_ui.prop);
+  EnumPropertyItem item;
+  const bool found = RNA_property_enum_item_from_value(
+      C, &template_ui.ptr, template_ui.prop, active_item, &item);
+
+  void *active = found ? BLI_findstring(template_ui.idlb, item.name, offsetof(ID, name) + 2) :
+                         nullptr;
+  if (template_ui.filter) {
+    /* Currently only used for objects. */
+    if (template_ui.idcode == ID_OB) {
+      if (template_ui.filter == TEMPLATE_ID_FILTER_AVAILABLE) {
+        id_search_update_fn = id_search_cb_objects_from_scene;
+      }
+    }
+  }
+
+  return template_common_search_menu(C,
+                                     region,
+                                     id_search_update_fn,
+                                     &template_ui,
+                                     template_ID_set_property_enum_exec_fn,
+                                     active,
                                      template_ID_search_menu_item_tooltip,
                                      template_ui.prv_rows,
                                      template_ui.prv_cols,
@@ -1580,6 +1631,57 @@ static void ui_template_id(Layout &layout,
           C, row, template_ui, type, flag, newop, openop, unlinkop, text, live_icon, hide_buttons);
     }
   }
+}
+
+void template_enum_id(
+    Layout &layout, bContext *C, PointerRNA *ptr, const StringRefNull propname, short idcode)
+{
+  PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
+
+  if (!prop || RNA_property_type(prop) != PROP_ENUM) {
+    RNA_warning(
+        "enum property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    return;
+  }
+  ListBaseT<ID> *lb = which_libbase(CTX_data_main(C), idcode);
+  if (!lb) {
+    RNA_warning("idcode is not an ID type: %d.", idcode);
+    return;
+  }
+  StructRNA *type = ID_code_to_RNA_type(idcode);
+  TemplateID template_ui = {};
+  template_ui.ptr = *ptr;
+  template_ui.prop = prop;
+  template_ui.prv_rows = 0;
+  template_ui.prv_cols = 0;
+  template_ui.scale = 1.0f;
+
+  Block *block = layout.block();
+  template_ui.idcode = idcode;
+  template_ui.idlb = lb;
+  Layout &row = layout.row(true);
+  if (layout.use_property_split()) {
+    PropertySplitWrapper split = uiItemPropertySplitWrapperCreate(&row);
+    split.label_column->label(RNA_property_ui_name(prop), 0);
+    block_layout_set_current(block, split.property_row);
+  }
+  const int active_item = RNA_property_enum_get(ptr, prop);
+  EnumPropertyItem item = {};
+  [[maybe_unused]] const bool found = RNA_property_enum_item_from_value(
+      C, ptr, prop, active_item, &item);
+  blender::ui::Button *but = uiDefBlockButN(block,
+                                            id_search_menu_enum,
+                                            MEM_new<TemplateID>(__func__, template_ui),
+                                            item.name,
+                                            0,
+                                            0,
+                                            UI_UNIT_X * 1.6,
+                                            UI_UNIT_Y,
+                                            nullptr,
+                                            but_func_argN_free<TemplateID>,
+                                            but_func_argN_copy<TemplateID>);
+
+  def_but_icon(but, RNA_struct_ui_icon(type), UI_HAS_ICON);
 }
 
 void template_id(Layout *layout,
