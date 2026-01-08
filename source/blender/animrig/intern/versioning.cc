@@ -56,7 +56,7 @@ bool action_is_layered(const bAction &dna_action)
 void convert_legacy_animato_actions(Main &bmain)
 {
   for (bAction &dna_action : bmain.actions) {
-    blender::animrig::Action &action = dna_action.wrap();
+    animrig::Action &action = dna_action.wrap();
 
     if (action_is_layered(action) && !action.is_empty()) {
       /* This is just a safety net. Blender files that trigger this versioning code are not
@@ -94,8 +94,7 @@ void convert_legacy_animato_action(bAction &dna_action)
   action.slot_identifier_define(slot, slot_identifier);
 
   Layer &layer = action.layer_add(DATA_(legacy::DEFAULT_LEGACY_LAYER_NAME));
-  blender::animrig::Strip &strip = layer.strip_add(action,
-                                                   blender::animrig::Strip::Type::Keyframe);
+  animrig::Strip &strip = layer.strip_add(action, animrig::Strip::Type::Keyframe);
   Channelbag &bag = strip.data<StripKeyframeData>(action).channelbag_for_slot_ensure(slot);
   const int fcu_count = BLI_listbase_count(&action.curves);
   const int group_count = BLI_listbase_count(&action.groups);
@@ -164,7 +163,7 @@ void tag_action_users_for_slotted_actions_conversion(Main &bmain)
      * have their own Action+Slot. Unfortunately there is no generic looper
      * for embedded IDs. At this moment the only animatable embedded ID is a
      * node tree. */
-    bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
+    bNodeTree *node_tree = bke::node_tree_from_id(id);
     if (node_tree) {
       foreach_action_slot_use_with_references(node_tree->id, flag_adt);
     }
@@ -256,12 +255,44 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports)
      * have their own Action+Slot. Unfortunately there is no generic looper
      * for embedded IDs. At this moment the only animatable embedded ID is a
      * node tree. */
-    bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
+    bNodeTree *node_tree = bke::node_tree_from_id(id);
     if (node_tree && BLO_readfile_id_runtime_tags(node_tree->id).action_assignment_needs_slot) {
       foreach_action_slot_use_with_rna(node_tree->id, version_slot_assignment);
     }
   }
   FOREACH_MAIN_ID_END;
+}
+
+void action_groups_reconstruct(bAction *act)
+{
+  if (!act) {
+    return;
+  }
+  BLI_assert(act->wrap().is_action_legacy());
+  /* Clear out all group channels. Channels that are actually in use are
+   * reconstructed below; this step is necessary to clear out unused groups. */
+  for (bActionGroup &group : act->groups) {
+    BLI_listbase_clear(&group.channels);
+  }
+  /* Sort the channels into the group lists, destroying the act->curves list. */
+  ListBaseT<FCurve> ungrouped = {nullptr, nullptr};
+  for (FCurve &fcurve : act->curves.items_mutable()) {
+    if (fcurve.grp) {
+      BLI_assert(BLI_findindex(&act->groups, fcurve.grp) >= 0);
+      BLI_addtail(&fcurve.grp->channels, &fcurve);
+    }
+    else {
+      BLI_addtail(&ungrouped, &fcurve);
+    }
+  }
+  /* Recombine into the main list. */
+  BLI_listbase_clear(&act->curves);
+  for (bActionGroup &group : act->groups) {
+    /* Copy the list header to preserve the pointers in the group. */
+    ListBase tmp = group.channels;
+    BLI_movelisttolist(&act->curves, &tmp);
+  }
+  BLI_movelisttolist(&act->curves, &ungrouped);
 }
 
 }  // namespace blender::animrig::versioning

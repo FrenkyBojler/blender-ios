@@ -26,6 +26,8 @@
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 struct ReportList;
 struct Text;
 struct bContext;
@@ -246,3 +248,5 @@ struct BPy_RunErrInfo {
                                                     char **r_value) ATTR_NONNULL(1, 3, 5);
 
 /** \} */
+
+}  // namespace blender

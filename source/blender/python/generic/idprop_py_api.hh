@@ -10,6 +10,8 @@
 
 #include <Python.h>
 
+namespace blender {
+
 struct BPy_IDGroup_Iter;
 struct ID;
 struct IDProperty;
@@ -119,3 +121,5 @@ void IDProp_Init_Types();
  */
 IDProperty *idp_from_PyObject(
     IDProperty *prop_exist, const char *name, PyObject *ob, bool do_conversion, bool can_create);
+
+}  // namespace blender
