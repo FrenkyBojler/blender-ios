@@ -64,13 +64,14 @@ static void world_free_data(ID *id)
   MEM_SAFE_DELETE(wrld->lightgroup);
 }
 
-static void world_init_data(ID *id)
+static ID *world_new_data()
 {
-  World *wrld = id_cast<World *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(wrld, id);
-
+  World *wrld = MEM_new<World>("World");
+  /* Set ID type before creating embedded data that depends on it. */
+  *(reinterpret_cast<short *>(wrld->id.name)) = ID_WO;
   wrld->nodetree = bke::node_tree_add_tree_embedded(
       nullptr, &wrld->id, "World Nodetree", ntreeType_Shader->idname.ref());
+  return &wrld->id;
 }
 
 /**
@@ -198,7 +199,7 @@ IDTypeInfo IDType_ID_WO = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = world_init_data,
+    .new_data = world_new_data,
     .copy_data = world_copy_data,
     .free_data = world_free_data,
     .make_local = nullptr,
@@ -207,7 +208,6 @@ IDTypeInfo IDType_ID_WO = {
     .foreach_path = nullptr,
     .foreach_working_space_color = world_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = world_blend_write,
     .blend_read_data = world_blend_read_data,
     .blend_read_after_liblink = nullptr,

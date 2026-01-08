@@ -86,6 +86,12 @@ using namespace bke::id;
 
 static CLG_LogRef LOG = {"lib.id"};
 
+static ID *link_placeholder_new_data()
+{
+  ID *id = MEM_new<ID>("LinkPlaceholder");
+  return id;
+}
+
 IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
     .id_code = ID_LINK_PLACEHOLDER,
     .id_filter = 0,
@@ -98,7 +104,7 @@ IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
     .flags = IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING,
     .asset_type_info = nullptr,
 
-    .init_data = nullptr,
+    .new_data = link_placeholder_new_data,
     .copy_data = nullptr,
     .free_data = nullptr,
     .make_local = nullptr,
@@ -107,7 +113,6 @@ IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = nullptr,
     .blend_read_data = nullptr,
     .blend_read_after_liblink = nullptr,
@@ -1323,7 +1328,7 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
  * BKE_libblock_free(ListBaseT<ID> *lb, ID *id )
  * provide a list-basis and data-block, but only ID is read
  *
- * void *BKE_libblock_new(ListBaseT<ID> *lb, type, name)
+ * void *BKE_libblock_alloc(ListBaseT<ID> *lb, type, name)
  * inserts in list and returns a new ID
  *
  * **************************** */
@@ -1360,13 +1365,9 @@ static ID *libblock_new(short type)
     BLI_assert_msg(0, "Request to allocate unknown data type");
     return nullptr;
   }
-
-  ID *id = static_cast<ID *>(MEM_new_zeroed(type_info->struct_size, type_info->name));
+  ID *id = type_info->new_data();
   if (id) {
     BKE_libblock_runtime_ensure(*id);
-    if (type_info->init_data) {
-      type_info->init_data(id);
-    }
   }
   return id;
 }

@@ -62,7 +62,11 @@ static PackedFile *packedfile_new_from_builtin();
 const void *builtin_font_data = nullptr;
 int builtin_font_size = 0;
 
-static void vfont_init_data(ID * /*id*/) {}
+static ID *vfont_new_data()
+{
+  VFont *vfont = MEM_new<VFont>("VFont");
+  return &vfont->id;
+}
 
 static void vfont_copy_data(Main * /*bmain*/,
                             std::optional<Library *> /*owner_library*/,
@@ -158,7 +162,7 @@ IDTypeInfo IDType_ID_VF = {
     .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = vfont_init_data,
+    .new_data = vfont_new_data,
     .copy_data = vfont_copy_data,
     .free_data = vfont_free_data,
     .make_local = nullptr,
@@ -167,7 +171,6 @@ IDTypeInfo IDType_ID_VF = {
     .foreach_path = vfont_foreach_path,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = vfont_blend_write,
     .blend_read_data = vfont_blend_read_data,
     .blend_read_after_liblink = nullptr,

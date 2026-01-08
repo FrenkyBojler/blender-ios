@@ -49,12 +49,13 @@ namespace blender {
 
 using dna::sdna_struct_id_get;
 
-static void linestyle_init_data(ID *id)
+static ID *linestyle_new_data()
 {
-  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(linestyle, id);
+  FreestyleLineStyle *linestyle = MEM_new<FreestyleLineStyle>("FreestyleLineStyle");
 
   BKE_linestyle_geometry_modifier_add(linestyle, nullptr, LS_MODIFIER_SAMPLING);
+
+  return &linestyle->id;
 }
 
 static void linestyle_copy_data(Main *bmain,
@@ -703,7 +704,7 @@ IDTypeInfo IDType_ID_LS = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = linestyle_init_data,
+    .new_data = linestyle_new_data,
     .copy_data = linestyle_copy_data,
     .free_data = linestyle_free_data,
     .make_local = nullptr,
@@ -712,7 +713,6 @@ IDTypeInfo IDType_ID_LS = {
     .foreach_path = nullptr,
     .foreach_working_space_color = linestyle_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = linestyle_blend_write,
     .blend_read_data = linestyle_blend_read_data,
     .blend_read_after_liblink = nullptr,

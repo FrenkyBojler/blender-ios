@@ -43,13 +43,15 @@ namespace blender {
 
 /* -------------------------------------------------------------------- */
 
-static void workspace_init_data(ID *id)
+static ID *workspace_new_data()
 {
-  WorkSpace *workspace = id_cast<WorkSpace *>(id);
+  WorkSpace *workspace = MEM_new<WorkSpace>("WorkSpace");
 
   workspace->runtime = MEM_new<bke::WorkSpaceRuntime>(__func__);
 
   BKE_asset_library_reference_init_default(&workspace->asset_library_ref);
+
+  return &workspace->id;
 }
 
 static void workspace_free_data(ID *id)
@@ -236,7 +238,7 @@ IDTypeInfo IDType_ID_WS = {
              IDTYPE_FLAGS_NEVER_UNUSED,
     .asset_type_info = nullptr,
 
-    .init_data = workspace_init_data,
+    .new_data = workspace_new_data,
     .copy_data = workspace_copy_data,
     .free_data = workspace_free_data,
     .make_local = nullptr,
@@ -245,7 +247,6 @@ IDTypeInfo IDType_ID_WS = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = workspace_blend_write,
     .blend_read_data = workspace_blend_read_data,
     .blend_read_after_liblink = workspace_blend_read_after_liblink,

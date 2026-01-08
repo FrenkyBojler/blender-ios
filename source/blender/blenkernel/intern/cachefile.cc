@@ -51,13 +51,15 @@ namespace blender {
 
 static void cachefile_handle_free(CacheFile *cache_file);
 
-static void cache_file_init_data(ID *id)
+static ID *cache_file_new_data()
 {
-  CacheFile *cache_file = id_cast<CacheFile *>(id);
+  CacheFile *cache_file = MEM_new<CacheFile>("CacheFile");
 
   cache_file->scale = 1.0f;
   cache_file->velocity_unit = CACHEFILE_VELOCITY_UNIT_SECOND;
   STRNCPY(cache_file->velocity_name, ".velocities");
+
+  return &cache_file->id;
 }
 
 static void cache_file_copy_data(Main * /*bmain*/,
@@ -133,7 +135,7 @@ IDTypeInfo IDType_ID_CF = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = cache_file_init_data,
+    .new_data = cache_file_new_data,
     .copy_data = cache_file_copy_data,
     .free_data = cache_file_free_data,
     .make_local = nullptr,
@@ -142,7 +144,6 @@ IDTypeInfo IDType_ID_CF = {
     .foreach_path = cache_file_foreach_path,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = cache_file_blend_write,
     .blend_read_data = cache_file_blend_read_data,
     .blend_read_after_liblink = nullptr,

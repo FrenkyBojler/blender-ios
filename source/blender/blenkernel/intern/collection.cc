@@ -124,11 +124,11 @@ static void collection_exporter_copy(Collection *collection, CollectionExport *d
 /** \name Collection Data-Block
  * \{ */
 
-static void collection_init_data(ID *id)
+static ID *collection_new_data()
 {
-  Collection *collection = id_cast<Collection *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(collection, id);
+  Collection *collection = MEM_new<Collection>("Collection");
   collection->runtime = MEM_new<bke::CollectionRuntime>(__func__);
+  return &collection->id;
 }
 
 /**
@@ -425,7 +425,7 @@ IDTypeInfo IDType_ID_GR = {
     .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = collection_init_data,
+    .new_data = collection_new_data,
     .copy_data = collection_copy_data,
     .free_data = collection_free_data,
     .make_local = nullptr,
@@ -434,7 +434,6 @@ IDTypeInfo IDType_ID_GR = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = collection_owner_pointer_get,
-
     .blend_write = collection_blend_write,
     .blend_read_data = collection_blend_read_data,
     .blend_read_after_liblink = collection_blend_read_after_liblink,

@@ -24,11 +24,10 @@
 
 namespace blender {
 
-static void speaker_init_data(ID *id)
+static ID *speaker_new_data()
 {
-  Speaker *speaker = id_cast<Speaker *>(id);
-
-  INIT_DEFAULT_STRUCT_AFTER(speaker, id);
+  Speaker *speaker = MEM_new<Speaker>("Speaker");
+  return &speaker->id;
 }
 
 static void speaker_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -59,7 +58,7 @@ IDTypeInfo IDType_ID_SPK = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = speaker_init_data,
+    .new_data = speaker_new_data,
     .copy_data = nullptr,
     .free_data = nullptr,
     .make_local = nullptr,
@@ -68,7 +67,6 @@ IDTypeInfo IDType_ID_SPK = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = speaker_blend_write,
     .blend_read_data = nullptr,
     .blend_read_after_liblink = nullptr,

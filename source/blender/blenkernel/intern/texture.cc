@@ -57,12 +57,13 @@
 
 namespace blender {
 
-static void texture_init_data(ID *id)
+static ID *texture_new_data()
 {
-  Tex *texture = id_cast<Tex *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(texture, id);
+  Tex *texture = MEM_new<Tex>("Texture");
 
   BKE_imageuser_default(&texture->iuser);
+
+  return &texture->id;
 }
 
 static void texture_copy_data(Main *bmain,
@@ -192,7 +193,7 @@ IDTypeInfo IDType_ID_TE = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = texture_init_data,
+    .new_data = texture_new_data,
     .copy_data = texture_copy_data,
     .free_data = texture_free_data,
     .make_local = nullptr,
@@ -201,7 +202,6 @@ IDTypeInfo IDType_ID_TE = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = texture_blend_write,
     .blend_read_data = texture_blend_read_data,
     .blend_read_after_liblink = nullptr,

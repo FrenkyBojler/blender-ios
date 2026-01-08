@@ -174,10 +174,9 @@ static_assert(sizeof(blender::bke::ObjectRuntime::contained_geometry_types) * 8 
 
 static void copy_object_pose(Object *obn, const Object *ob, const int flag);
 
-static void object_init_data(ID *id)
+static ID *object_new_data()
 {
-  Object *ob = id_cast<Object *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(ob, id);
+  Object *ob = MEM_new<Object>("Object");
 
   ob->type = OB_EMPTY;
 
@@ -187,6 +186,8 @@ static void object_init_data(ID *id)
 
   /* Animation Visualization defaults */
   animviz_settings_init(&ob->avs);
+
+  return &ob->id;
 }
 
 static void object_copy_data(Main *bmain,
@@ -1261,7 +1262,7 @@ IDTypeInfo IDType_ID_OB = {
     .flags = 0,
     .asset_type_info = &AssetType_OB,
 
-    .init_data = object_init_data,
+    .new_data = object_new_data,
     .copy_data = object_copy_data,
     .free_data = object_free_data,
     .make_local = nullptr,
@@ -1270,7 +1271,6 @@ IDTypeInfo IDType_ID_OB = {
     .foreach_path = object_foreach_path,
     .foreach_working_space_color = object_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = object_blend_write,
     .blend_read_data = object_blend_read_data,
     .blend_read_after_liblink = object_blend_read_after_liblink,

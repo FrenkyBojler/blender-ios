@@ -21,10 +21,10 @@
 namespace blender::bke::tests {
 
 struct LatticeDeformTestContext {
-  Lattice lattice;
-  Object ob_lattice;
-  Mesh mesh;
-  Object ob_mesh;
+  Lattice *lattice;
+  Object *ob_lattice;
+  Mesh *mesh;
+  Object *ob_mesh;
   float (*coords)[3];
   LatticeDeformData *ldd;
 };
@@ -40,17 +40,16 @@ static void test_lattice_deform_init(LatticeDeformTestContext *ctx,
     ctx->coords[index][1] = (rng->get_float() - 0.5f) * 10;
     ctx->coords[index][2] = (rng->get_float() - 0.5f) * 10;
   }
-  IDType_ID_LT.init_data(&ctx->lattice.id);
-  STRNCPY(ctx->lattice.id.name, "LTLattice");
-  IDType_ID_OB.init_data(&ctx->ob_lattice.id);
-  ctx->ob_lattice.type = OB_LATTICE;
-  ctx->ob_lattice.data = &ctx->lattice;
-  IDType_ID_OB.init_data(&ctx->ob_mesh.id);
-  IDType_ID_ME.init_data(&ctx->mesh.id);
-  ctx->ob_mesh.type = OB_MESH;
-  ctx->ob_mesh.data = &ctx->mesh;
+  ctx->lattice = BKE_id_new_nomain<Lattice>("LTLattice");
+  ctx->ob_lattice = BKE_id_new_nomain<Object>("OBLattice");
+  ctx->ob_lattice->type = OB_LATTICE;
+  ctx->ob_lattice->data = ctx->lattice;
+  ctx->mesh = BKE_id_new_nomain<Mesh>("MEMesh");
+  ctx->ob_mesh = BKE_id_new_nomain<Object>("OBMesh");
+  ctx->ob_mesh->type = OB_MESH;
+  ctx->ob_mesh->data = ctx->mesh;
 
-  ctx->ldd = BKE_lattice_deform_data_create(&ctx->ob_lattice, &ctx->ob_mesh);
+  ctx->ldd = BKE_lattice_deform_data_create(ctx->ob_lattice, ctx->ob_mesh);
 }
 
 static void test_lattice_deform(LatticeDeformTestContext *ctx, int32_t num_items)
@@ -65,16 +64,16 @@ static void test_lattice_deform_free(LatticeDeformTestContext *ctx)
 {
   BKE_lattice_deform_data_destroy(ctx->ldd);
   MEM_delete(ctx->coords);
-  IDType_ID_LT.free_data(&ctx->lattice.id);
-  IDType_ID_OB.free_data(&ctx->ob_lattice.id);
-  IDType_ID_OB.free_data(&ctx->ob_mesh.id);
-  IDType_ID_ME.free_data(&ctx->mesh.id);
+  BKE_id_free(nullptr, ctx->lattice);
+  BKE_id_free(nullptr, ctx->ob_lattice);
+  BKE_id_free(nullptr, ctx->ob_mesh);
+  BKE_id_free(nullptr, ctx->mesh);
 }
 
 TEST(lattice_deform_performance, performance_no_dvert_1)
 {
   const int32_t num_items = 1;
-  LatticeDeformTestContext ctx = {dna::shallow_zero_initialize()};
+  LatticeDeformTestContext ctx = {nullptr};
   RandomNumberGenerator rng;
   test_lattice_deform_init(&ctx, &rng, num_items);
   test_lattice_deform(&ctx, num_items);
@@ -83,7 +82,7 @@ TEST(lattice_deform_performance, performance_no_dvert_1)
 TEST(lattice_deform_performance, performance_no_dvert_1000)
 {
   const int32_t num_items = 1000;
-  LatticeDeformTestContext ctx = {dna::shallow_zero_initialize()};
+  LatticeDeformTestContext ctx = {nullptr};
   RandomNumberGenerator rng;
   test_lattice_deform_init(&ctx, &rng, num_items);
   test_lattice_deform(&ctx, num_items);
@@ -92,7 +91,7 @@ TEST(lattice_deform_performance, performance_no_dvert_1000)
 TEST(lattice_deform_performance, performance_no_dvert_10000)
 {
   const int32_t num_items = 10000;
-  LatticeDeformTestContext ctx = {dna::shallow_zero_initialize()};
+  LatticeDeformTestContext ctx = {nullptr};
   RandomNumberGenerator rng;
   test_lattice_deform_init(&ctx, &rng, num_items);
   test_lattice_deform(&ctx, num_items);
@@ -101,7 +100,7 @@ TEST(lattice_deform_performance, performance_no_dvert_10000)
 TEST(lattice_deform_performance, performance_no_dvert_100000)
 {
   const int32_t num_items = 100000;
-  LatticeDeformTestContext ctx = {dna::shallow_zero_initialize()};
+  LatticeDeformTestContext ctx = {nullptr};
   RandomNumberGenerator rng;
   test_lattice_deform_init(&ctx, &rng, num_items);
   test_lattice_deform(&ctx, num_items);
@@ -110,7 +109,7 @@ TEST(lattice_deform_performance, performance_no_dvert_100000)
 TEST(lattice_deform_performance, performance_no_dvert_1000000)
 {
   const int32_t num_items = 1000000;
-  LatticeDeformTestContext ctx = {dna::shallow_zero_initialize()};
+  LatticeDeformTestContext ctx = {nullptr};
   RandomNumberGenerator rng;
   test_lattice_deform_init(&ctx, &rng, num_items);
   test_lattice_deform(&ctx, num_items);
@@ -119,7 +118,7 @@ TEST(lattice_deform_performance, performance_no_dvert_1000000)
 TEST(lattice_deform_performance, performance_no_dvert_10000000)
 {
   const int32_t num_items = 10000000;
-  LatticeDeformTestContext ctx = {dna::shallow_zero_initialize()};
+  LatticeDeformTestContext ctx = {nullptr};
   RandomNumberGenerator rng;
   test_lattice_deform_init(&ctx, &rng, num_items);
   test_lattice_deform(&ctx, num_items);

@@ -138,10 +138,9 @@ static void image_runtime_free_data(Image *image)
   BKE_image_partial_update_register_free(image);
 }
 
-static void image_init_data(ID *id)
+static ID *image_new_data()
 {
-  Image *image = id_cast<Image *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(image, id);
+  Image *image = MEM_new<Image>("Image");
 
   ImageTile *tile = imagetile_alloc(1001);
   BLI_addtail(&image->tiles, tile);
@@ -152,6 +151,8 @@ static void image_init_data(ID *id)
   image->stereo3d_format = MEM_new<Stereo3dFormat>("Image Stereo Format");
 
   image_init_source_type(image, IMA_SRC_GENERATED, IMA_TYPE_UV_TEST);
+
+  return &image->id;
 }
 
 static void image_copy_data(Main * /*bmain*/,
@@ -442,7 +443,7 @@ IDTypeInfo IDType_ID_IM = {
     .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = image_init_data,
+    .new_data = image_new_data,
     .copy_data = image_copy_data,
     .free_data = image_free_data,
     .make_local = nullptr,
@@ -451,7 +452,6 @@ IDTypeInfo IDType_ID_IM = {
     .foreach_path = image_foreach_path,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = image_blend_write,
     .blend_read_data = image_blend_read_data,
     .blend_read_after_liblink = image_blend_read_after_liblink,

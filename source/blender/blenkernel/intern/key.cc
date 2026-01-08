@@ -166,6 +166,12 @@ static void shapekey_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *i
   UNUSED_VARS_NDEBUG(id);
 }
 
+static ID *key_new_data()
+{
+  Key *key = MEM_new<Key>("Key");
+  return &key->id;
+}
+
 IDTypeInfo IDType_ID_KE = {
     .id_code = Key::id_type,
     .id_filter = FILTER_ID_KE,
@@ -179,7 +185,7 @@ IDTypeInfo IDType_ID_KE = {
     .flags = IDTYPE_FLAGS_NO_LIBLINKING,
     .asset_type_info = nullptr,
 
-    .init_data = nullptr,
+    .new_data = key_new_data,
     .copy_data = shapekey_copy_data,
     .free_data = shapekey_free_data,
     .make_local = nullptr,

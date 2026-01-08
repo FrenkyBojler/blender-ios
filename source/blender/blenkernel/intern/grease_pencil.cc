@@ -97,12 +97,11 @@ static void free_drawing_array(GreasePencil &grease_pencil);
 static void read_layer_tree(GreasePencil &grease_pencil, BlendDataReader *reader);
 static void write_layer_tree(GreasePencil &grease_pencil, BlendWriter *writer);
 
-static void grease_pencil_init_data(ID *id)
+static ID *grease_pencil_new_data()
 {
   using namespace blender::bke;
 
-  GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(grease_pencil, id);
+  GreasePencil *grease_pencil = MEM_new<GreasePencil>("GreasePencil");
 
   grease_pencil->root_group_ptr = MEM_new<greasepencil::LayerGroup>(__func__);
   grease_pencil->set_active_node(nullptr);
@@ -111,6 +110,8 @@ static void grease_pencil_init_data(ID *id)
   new (&grease_pencil->attribute_storage.wrap()) bke::AttributeStorage();
 
   grease_pencil->runtime = MEM_new<GreasePencilRuntime>(__func__);
+
+  return &grease_pencil->id;
 }
 
 /* See if the layer visibility is animated. This is determined whenever a copy is made, so that
@@ -358,7 +359,7 @@ IDTypeInfo IDType_ID_GP = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = grease_pencil_init_data,
+    .new_data = grease_pencil_new_data,
     .copy_data = grease_pencil_copy_data,
     .free_data = grease_pencil_free_data,
     .make_local = nullptr,
@@ -367,7 +368,6 @@ IDTypeInfo IDType_ID_GP = {
     .foreach_path = nullptr,
     .foreach_working_space_color = grease_pencil_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = grease_pencil_blend_write,
     .blend_read_data = grease_pencil_blend_read_data,
     .blend_read_after_liblink = nullptr,

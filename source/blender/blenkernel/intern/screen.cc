@@ -66,13 +66,15 @@ static CLG_LogRef LOG_BLEND_DOVERSION = {"blend.doversion"};
 /** \name ID Type Implementation
  * \{ */
 
-static void screen_init_data(ID *id)
+static ID *screen_new_data()
 {
-  bScreen *screen = id_cast<bScreen *>(id);
+  bScreen *screen = MEM_new<bScreen>("bScreen");
 
   screen->do_draw = true;
   screen->do_refresh = true;
   screen->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
+
+  return &screen->id;
 }
 
 static void screen_free_data(ID *id)
@@ -257,7 +259,7 @@ IDTypeInfo IDType_ID_SCR = {
     .flags = IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO,
     .asset_type_info = nullptr,
 
-    .init_data = screen_init_data,
+    .new_data = screen_new_data,
     .copy_data = screen_copy_data,
     .free_data = screen_free_data,
     .make_local = nullptr,
@@ -266,7 +268,6 @@ IDTypeInfo IDType_ID_SCR = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = screen_blend_write,
     /* Cannot be used yet, because #direct_link_screen has a return value. */
     .blend_read_data = nullptr,

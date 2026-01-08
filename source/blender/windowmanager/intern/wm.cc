@@ -215,6 +215,12 @@ static void window_manager_blend_read_after_liblink(BlendLibReader *reader, ID *
   }
 }
 
+static ID *window_manager_new_data()
+{
+  wmWindowManager *wm = MEM_new<wmWindowManager>(__func__);
+  return &wm->id;
+}
+
 IDTypeInfo IDType_ID_WM = {
     .id_code = wmWindowManager::id_type,
     .id_filter = FILTER_ID_WM,
@@ -228,7 +234,7 @@ IDTypeInfo IDType_ID_WM = {
              IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
     .asset_type_info = nullptr,
 
-    .init_data = nullptr,
+    .new_data = window_manager_new_data,
     .copy_data = nullptr,
     .free_data = window_manager_free_data,
     .make_local = nullptr,
@@ -237,7 +243,6 @@ IDTypeInfo IDType_ID_WM = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = window_manager_blend_write,
     .blend_read_data = window_manager_blend_read_data,
     .blend_read_after_liblink = window_manager_blend_read_after_liblink,

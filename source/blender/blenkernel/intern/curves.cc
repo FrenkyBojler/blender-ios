@@ -47,12 +47,13 @@ namespace blender {
 
 static const char *ATTR_POSITION = "position";
 
-static void curves_init_data(ID *id)
+static ID *curves_new_data()
 {
-  Curves *curves = id_cast<Curves *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(curves, id);
+  Curves *curves = MEM_new<Curves>("Curves");
 
   new (&curves->geometry) bke::CurvesGeometry();
+
+  return &curves->id;
 }
 
 static void curves_copy_data(Main * /*bmain*/,
@@ -151,7 +152,7 @@ IDTypeInfo IDType_ID_CV = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = curves_init_data,
+    .new_data = curves_new_data,
     .copy_data = curves_copy_data,
     .free_data = curves_free_data,
     .make_local = nullptr,
@@ -160,7 +161,6 @@ IDTypeInfo IDType_ID_CV = {
     .foreach_path = nullptr,
     .foreach_working_space_color = curves_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = curves_blend_write,
     .blend_read_data = curves_blend_read_data,
     .blend_read_after_liblink = nullptr,

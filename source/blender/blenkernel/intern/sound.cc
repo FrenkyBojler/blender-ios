@@ -244,6 +244,12 @@ static void sound_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_packedfile_blend_read(reader, &sound->newpackedfile, sound->filepath);
 }
 
+static ID *sound_new_data()
+{
+  bSound *sound = MEM_new<bSound>(__func__);
+  return &sound->id;
+}
+
 IDTypeInfo IDType_ID_SO = {
     .id_code = bSound::id_type,
     .id_filter = FILTER_ID_SO,
@@ -257,7 +263,7 @@ IDTypeInfo IDType_ID_SO = {
     .asset_type_info = nullptr,
 
     /* A fuzzy case, think NULLified content is OK here... */
-    .init_data = nullptr,
+    .new_data = sound_new_data,
     .copy_data = sound_copy_data,
     .free_data = sound_free_data,
     .make_local = nullptr,
@@ -266,7 +272,6 @@ IDTypeInfo IDType_ID_SO = {
     .foreach_path = sound_foreach_path,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = sound_blend_write,
     .blend_read_data = sound_blend_read_data,
     .blend_read_after_liblink = nullptr,

@@ -88,14 +88,15 @@ namespace blender {
 
 static void fluid_free_settings(SPHFluidSettings *fluid);
 
-static void particle_settings_init(ID *id)
+static ID *particle_settings_new()
 {
-  ParticleSettings *particle_settings = id_cast<ParticleSettings *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(particle_settings, id);
+  ParticleSettings *particle_settings = MEM_new<ParticleSettings>("ParticleSettings");
 
   particle_settings->effector_weights = BKE_effector_add_weights(nullptr);
   particle_settings->pd = BKE_partdeflect_new(PFIELD_NULL);
   particle_settings->pd2 = BKE_partdeflect_new(PFIELD_NULL);
+
+  return &particle_settings->id;
 }
 
 static void particle_settings_copy_data(Main * /*bmain*/,
@@ -389,7 +390,7 @@ IDTypeInfo IDType_ID_PA = {
     .flags = 0,
     .asset_type_info = nullptr,
 
-    .init_data = particle_settings_init,
+    .new_data = particle_settings_new,
     .copy_data = particle_settings_copy_data,
     .free_data = particle_settings_free_data,
     .make_local = nullptr,
@@ -398,7 +399,6 @@ IDTypeInfo IDType_ID_PA = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = particle_settings_blend_write,
     .blend_read_data = particle_settings_blend_read_data,
     .blend_read_after_liblink = particle_settings_blend_read_after_liblink,

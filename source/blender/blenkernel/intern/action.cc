@@ -96,12 +96,10 @@ static CLG_LogRef LOG = {"anim.action"};
 /*********************** Armature Datablock ***********************/
 namespace bke {
 
-static void action_init_data(ID *action_id)
+static ID *action_new_data()
 {
-  BLI_assert(GS(action_id->name) == ID_AC);
-  bAction *action = reinterpret_cast<bAction *>(action_id);
-
-  INIT_DEFAULT_STRUCT_AFTER(action, id);
+  bAction *action = MEM_new<bAction>("Action");
+  return &action->id;
 }
 
 /**
@@ -752,7 +750,7 @@ IDTypeInfo IDType_ID_AC = {
     .flags = IDTYPE_FLAGS_NO_ANIMDATA,
     .asset_type_info = &bke::AssetType_AC,
 
-    .init_data = bke::action_init_data,
+    .new_data = bke::action_new_data,
     .copy_data = bke::action_copy_data,
     .free_data = bke::action_free_data,
     .make_local = nullptr,
@@ -761,7 +759,6 @@ IDTypeInfo IDType_ID_AC = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = bke::action_blend_write,
     .blend_read_data = bke::action_blend_read_data,
     .blend_read_after_liblink = nullptr,

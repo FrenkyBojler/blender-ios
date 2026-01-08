@@ -126,17 +126,17 @@ void BKE_volumes_init()
 
 /* Volume datablock */
 
-static void volume_init_data(ID *id)
+static ID *volume_new_data()
 {
-  Volume *volume = id_cast<Volume *>(id);
-
-  INIT_DEFAULT_STRUCT_AFTER(volume, id);
+  Volume *volume = MEM_new<Volume>("Volume");
 
   volume->runtime = MEM_new<bke::VolumeRuntime>(__func__);
 
   BKE_volume_init_grids(volume);
 
   STRNCPY(volume->velocity_grid, "velocity");
+
+  return &volume->id;
 }
 
 static void volume_copy_data(Main * /*bmain*/,
@@ -281,7 +281,7 @@ IDTypeInfo IDType_ID_VO = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = volume_init_data,
+    .new_data = volume_new_data,
     .copy_data = volume_copy_data,
     .free_data = volume_free_data,
     .make_local = nullptr,
@@ -290,7 +290,6 @@ IDTypeInfo IDType_ID_VO = {
     .foreach_path = volume_foreach_path,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = volume_blend_write,
     .blend_read_data = volume_blend_read_data,
     .blend_read_after_liblink = volume_blend_read_after_liblink,

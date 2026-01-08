@@ -17,6 +17,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
@@ -52,9 +53,6 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "BLI_math_color.h"
-#include "BLI_string_utf8.h"
-
 #include "BLO_read_write.hh"
 
 #include "IMB_colormanagement.hh"
@@ -63,9 +61,9 @@ namespace blender {
 
 static CLG_LogRef LOG = {"geom.gpencil"};
 
-static void greasepencil_init_data(ID *id)
+static ID *greasepencil_new_data()
 {
-  bGPdata *gpd = id_cast<bGPdata *>(id);
+  bGPdata *gpd = MEM_new<bGPdata>("Annotation");
 
   /* initial settings */
   gpd->flag = (GP_DATA_DISPINFO | GP_DATA_EXPAND);
@@ -103,6 +101,8 @@ static void greasepencil_init_data(ID *id)
   ARRAY_SET_ITEMS(gpd->gcolor_next, 0.125490f, 0.082353f, 0.529412f); /* blue */
   gpd->gstep = 1;
   gpd->gstep_next = 1;
+
+  return &gpd->id;
 }
 
 static void greasepencil_copy_data(Main * /*bmain*/,
@@ -318,7 +318,7 @@ IDTypeInfo IDType_ID_GD_LEGACY = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = greasepencil_init_data,
+    .new_data = greasepencil_new_data,
     .copy_data = greasepencil_copy_data,
     .free_data = greasepencil_free_data,
     .make_local = nullptr,
@@ -327,7 +327,6 @@ IDTypeInfo IDType_ID_GD_LEGACY = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = greasepencil_blend_write,
     .blend_read_data = greasepencil_blend_read_data,
     .blend_read_after_liblink = nullptr,

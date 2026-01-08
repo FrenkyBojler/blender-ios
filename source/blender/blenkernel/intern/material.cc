@@ -82,13 +82,14 @@ namespace blender {
 
 static CLG_LogRef LOG = {"material"};
 
-static void material_init_data(ID *id)
+static ID *material_new_data()
 {
-  Material *material = id_cast<Material *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(material, id);
-
+  Material *material = MEM_new<Material>("Material");
+  /* Set ID type before creating embedded data that depends on it. */
+  *(reinterpret_cast<short *>(material->id.name)) = ID_MA;
   material->nodetree = bke::node_tree_add_tree_embedded(
       nullptr, &material->id, "Shader Nodetree", "ShaderNodeTree");
+  return &material->id;
 }
 
 static void material_copy_data(Main *bmain,
@@ -256,7 +257,7 @@ IDTypeInfo IDType_ID_MA = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = material_init_data,
+    .new_data = material_new_data,
     .copy_data = material_copy_data,
     .free_data = material_free_data,
     .make_local = nullptr,
@@ -265,7 +266,6 @@ IDTypeInfo IDType_ID_MA = {
     .foreach_path = nullptr,
     .foreach_working_space_color = material_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = material_blend_write,
     .blend_read_data = material_blend_read_data,
     .blend_read_after_liblink = nullptr,

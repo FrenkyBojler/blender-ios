@@ -73,7 +73,7 @@ static bool id_type_is_valid(const IDTypeInfo &id_type)
   if (id_type.asset_type_info == id_type.InvalidPointer<AssetTypeInfo *>()) {
     return false;
   }
-  if (id_type.init_data == id_type.InvalidPointer<IDTypeInitDataFunction>()) {
+  if (id_type.new_data == id_type.InvalidPointer<IDTypeNewDataFunction>()) {
     return false;
   }
   if (id_type.copy_data == id_type.InvalidPointer<IDTypeCopyDataFunction>()) {

@@ -184,6 +184,12 @@ static void mask_blend_read_data(BlendDataReader *reader, ID *id)
   mask_runtime_reset(mask);
 }
 
+static ID *mask_new_data()
+{
+  Mask *mask = MEM_new<Mask>("Mask");
+  return &mask->id;
+}
+
 IDTypeInfo IDType_ID_MSK = {
     .id_code = Mask::id_type,
     .id_filter = FILTER_ID_MSK,
@@ -196,7 +202,7 @@ IDTypeInfo IDType_ID_MSK = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = nullptr,
+    .new_data = mask_new_data,
     .copy_data = mask_copy_data,
     .free_data = mask_free_data,
     .make_local = nullptr,
@@ -205,7 +211,6 @@ IDTypeInfo IDType_ID_MSK = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = mask_blend_write,
     .blend_read_data = mask_blend_read_data,
     .blend_read_after_liblink = nullptr,

@@ -84,14 +84,14 @@ namespace blender {
 
 using bke::AttrDomain;
 
-static void palette_init_data(ID *id)
+static ID *palette_new_data()
 {
-  Palette *palette = id_cast<Palette *>(id);
-
-  INIT_DEFAULT_STRUCT_AFTER(palette, id);
+  Palette *palette = MEM_new<Palette>("Palette");
 
   /* Enable fake user by default. */
   id_fake_user_set(&palette->id);
+
+  return &palette->id;
 }
 
 static void palette_copy_data(Main * /*bmain*/,
@@ -163,7 +163,7 @@ IDTypeInfo IDType_ID_PAL = {
     .flags = IDTYPE_FLAGS_NO_ANIMDATA,
     .asset_type_info = nullptr,
 
-    .init_data = palette_init_data,
+    .new_data = palette_new_data,
     .copy_data = palette_copy_data,
     .free_data = palette_free_data,
     .make_local = nullptr,
@@ -172,7 +172,6 @@ IDTypeInfo IDType_ID_PAL = {
     .foreach_path = nullptr,
     .foreach_working_space_color = palette_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = palette_blend_write,
     .blend_read_data = palette_blend_read_data,
     .blend_read_after_liblink = nullptr,
@@ -221,6 +220,12 @@ static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_array(reader, PaintCurvePoint, pc->tot_points, &pc->points);
 }
 
+static ID *paint_curve_new_data()
+{
+  PaintCurve *pc = static_cast<PaintCurve *>(MEM_new_zeroed(sizeof(PaintCurve), "PaintCurve"));
+  return &pc->id;
+}
+
 IDTypeInfo IDType_ID_PC = {
     .id_code = PaintCurve::id_type,
     .id_filter = FILTER_ID_PC,
@@ -233,7 +238,7 @@ IDTypeInfo IDType_ID_PC = {
     .flags = IDTYPE_FLAGS_NO_ANIMDATA,
     .asset_type_info = nullptr,
 
-    .init_data = nullptr,
+    .new_data = paint_curve_new_data,
     .copy_data = paint_curve_copy_data,
     .free_data = paint_curve_free_data,
     .make_local = nullptr,

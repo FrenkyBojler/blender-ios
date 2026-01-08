@@ -83,11 +83,11 @@ static void copy_bonechildren_custom_handles(Bone *bone_dst, bArmature *arm_dst)
 /** \name Armature Data-block
  * \{ */
 
-static void armature_init_data(ID *id)
+static ID *armature_new_data()
 {
-  bArmature *armature = id_cast<bArmature *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(armature, id);
+  bArmature *armature = MEM_new<bArmature>("Armature");
   armature->runtime = MEM_new<bke::bArmature_Runtime>(__func__);
+  return &armature->id;
 }
 
 /**
@@ -516,7 +516,7 @@ IDTypeInfo IDType_ID_AR = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = armature_init_data,
+    .new_data = armature_new_data,
     .copy_data = armature_copy_data,
     .free_data = armature_free_data,
     .make_local = nullptr,
@@ -525,7 +525,6 @@ IDTypeInfo IDType_ID_AR = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = armature_blend_write,
     .blend_read_data = armature_blend_read_data,
     .blend_read_after_liblink = nullptr,

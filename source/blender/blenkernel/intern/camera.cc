@@ -53,10 +53,10 @@ namespace blender {
 /** \name Camera Data-Block
  * \{ */
 
-static void camera_init_data(ID *id)
+static ID *camera_new_data()
 {
-  Camera *cam = id_cast<Camera *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(cam, id);
+  Camera *cam = MEM_new<Camera>("Camera");
+  return &cam->id;
 }
 
 /**
@@ -261,7 +261,7 @@ IDTypeInfo IDType_ID_CA = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = camera_init_data,
+    .new_data = camera_new_data,
     .copy_data = camera_copy_data,
     .free_data = camera_free_data,
     .make_local = nullptr,
@@ -270,7 +270,6 @@ IDTypeInfo IDType_ID_CA = {
     .foreach_path = camera_foreach_path,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = camera_blend_write,
     .blend_read_data = camera_blend_read_data,
     .blend_read_after_liblink = nullptr,

@@ -70,11 +70,10 @@ enum class NURBSValidationStatus {
   MorePointsForBezierRequired
 };
 
-static void curve_init_data(ID *id)
+static ID *curve_new_data()
 {
-  Curve *curve = id_cast<Curve *>(id);
-
-  INIT_DEFAULT_STRUCT_AFTER(curve, id);
+  Curve *curve = MEM_new<Curve>("Curve");
+  return &curve->id;
 }
 
 static void curve_copy_data(Main *bmain,
@@ -286,7 +285,7 @@ IDTypeInfo IDType_ID_CU_LEGACY = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = curve_init_data,
+    .new_data = curve_new_data,
     .copy_data = curve_copy_data,
     .free_data = curve_free_data,
     .make_local = nullptr,
@@ -295,7 +294,6 @@ IDTypeInfo IDType_ID_CU_LEGACY = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = curve_blend_write,
     .blend_read_data = curve_blend_read_data,
     .blend_read_after_liblink = nullptr,

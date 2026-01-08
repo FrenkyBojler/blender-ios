@@ -59,10 +59,11 @@ static void library_runtime_reset(Library *lib)
   BKE_main_namemap_destroy(&lib->runtime->name_map);
 }
 
-static void library_init_data(ID *id)
+static ID *library_new_data()
 {
-  Library *library = reinterpret_cast<Library *>(id);
+  Library *library = MEM_new<Library>("Library");
   library->runtime = MEM_new<LibraryRuntime>(__func__);
+  return &library->id;
 }
 
 static void library_free_data(ID *id)
@@ -223,7 +224,7 @@ IDTypeInfo IDType_ID_LI = {
     .flags = IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NEVER_UNUSED,
     .asset_type_info = nullptr,
 
-    .init_data = library_init_data,
+    .new_data = library_new_data,
     .copy_data = library_copy_data,
     .free_data = library_free_data,
     .make_local = nullptr,
@@ -232,7 +233,6 @@ IDTypeInfo IDType_ID_LI = {
     .foreach_path = library_foreach_path,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = library_blend_write_data,
     .blend_read_data = library_blend_read_data,
     .blend_read_after_liblink = library_blend_read_after_liblink,

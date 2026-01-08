@@ -142,13 +142,14 @@ static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src,
 static void free_localized_node_groups(bNodeTree *ntree);
 static bool socket_id_user_decrement(bNodeSocket *sock);
 
-static void ntree_init_data(ID *id)
+static ID *ntree_new_data()
 {
-  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
+  bNodeTree *ntree = MEM_new<bNodeTree>("NodeTree");
   ntree->tree_interface.init_data();
   ntree->runtime = MEM_new<bNodeTreeRuntime>(__func__);
   ntree->default_group_node_width = GROUP_NODE_DEFAULT_WIDTH;
   ntree_set_typeinfo(ntree, nullptr);
+  return &ntree->id;
 }
 
 static void ntree_copy_data(Main * /*bmain*/,
@@ -2334,7 +2335,7 @@ IDTypeInfo IDType_ID_NT = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = &AssetType_NT,
 
-    .init_data = bke::ntree_init_data,
+    .new_data = bke::ntree_new_data,
     .copy_data = bke::ntree_copy_data,
     .free_data = bke::ntree_free_data,
     .make_local = nullptr,
@@ -2343,7 +2344,6 @@ IDTypeInfo IDType_ID_NT = {
     .foreach_path = bke::node_foreach_path,
     .foreach_working_space_color = bke::node_foreach_working_space_color,
     .owner_pointer_get = bke::node_owner_pointer_get,
-
     .blend_write = bke::ntree_blend_write,
     .blend_read_data = bke::ntree_blend_read_data,
     .blend_read_after_liblink = bke::ntree_blend_read_after_liblink,

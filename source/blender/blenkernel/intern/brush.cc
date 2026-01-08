@@ -53,10 +53,9 @@
 
 namespace blender {
 
-static void brush_init_data(ID *id)
+static ID *brush_new_data()
 {
-  Brush *brush = reinterpret_cast<Brush *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(brush, id);
+  Brush *brush = MEM_new<Brush>("Brush");
 
   /* enable fake user by default */
   id_fake_user_set(&brush->id);
@@ -71,6 +70,8 @@ static void brush_init_data(ID *id)
   brush->curve_size = BKE_paint_default_curve();
   brush->curve_strength = BKE_paint_default_curve();
   brush->curve_jitter = BKE_paint_default_curve();
+
+  return &brush->id;
 }
 
 static void brush_copy_data(Main * /*bmain*/,
@@ -556,7 +557,7 @@ IDTypeInfo IDType_ID_BR = {
     .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO,
     .asset_type_info = &AssetType_BR,
 
-    .init_data = brush_init_data,
+    .new_data = brush_new_data,
     .copy_data = brush_copy_data,
     .free_data = brush_free_data,
     .make_local = brush_make_local,
@@ -565,7 +566,6 @@ IDTypeInfo IDType_ID_BR = {
     .foreach_path = nullptr,
     .foreach_working_space_color = brush_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = brush_blend_write,
     .blend_read_data = brush_blend_read_data,
     .blend_read_after_liblink = brush_blend_read_after_liblink,

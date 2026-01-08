@@ -49,13 +49,14 @@ namespace blender {
 
 constexpr StringRef ATTR_POSITION = "position";
 
-static void pointcloud_init_data(ID *id)
+static ID *pointcloud_new_data()
 {
-  PointCloud *pointcloud = id_cast<PointCloud *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(pointcloud, id);
+  PointCloud *pointcloud = MEM_new<PointCloud>("PointCloud");
 
   new (&pointcloud->attribute_storage.wrap()) bke::AttributeStorage();
   pointcloud->runtime = new bke::PointCloudRuntime();
+
+  return &pointcloud->id;
 }
 
 static void pointcloud_copy_data(Main * /*bmain*/,
@@ -170,7 +171,7 @@ IDTypeInfo IDType_ID_PT = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = pointcloud_init_data,
+    .new_data = pointcloud_new_data,
     .copy_data = pointcloud_copy_data,
     .free_data = pointcloud_free_data,
     .make_local = nullptr,
@@ -179,7 +180,6 @@ IDTypeInfo IDType_ID_PT = {
     .foreach_path = nullptr,
     .foreach_working_space_color = pointcloud_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = pointcloud_blend_write,
     .blend_read_data = pointcloud_blend_read_data,
     .blend_read_after_liblink = nullptr,

@@ -59,10 +59,10 @@
 
 namespace blender {
 
-static void metaball_init_data(ID *id)
+static ID *metaball_new_data()
 {
-  MetaBall *metaball = id_cast<MetaBall *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(metaball, id);
+  MetaBall *metaball = MEM_new<MetaBall>("Metaball");
+  return &metaball->id;
 }
 
 static void metaball_copy_data(Main * /*bmain*/,
@@ -148,7 +148,7 @@ IDTypeInfo IDType_ID_MB = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = metaball_init_data,
+    .new_data = metaball_new_data,
     .copy_data = metaball_copy_data,
     .free_data = metaball_free_data,
     .make_local = nullptr,
@@ -157,7 +157,6 @@ IDTypeInfo IDType_ID_MB = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = metaball_blend_write,
     .blend_read_data = metaball_blend_read_data,
     .blend_read_after_liblink = nullptr,

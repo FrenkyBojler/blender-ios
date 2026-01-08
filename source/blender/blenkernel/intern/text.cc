@@ -61,11 +61,9 @@ static TextLine *txt_line_malloc() ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 /** \name Text Data-Block
  * \{ */
 
-static void text_init_data(ID *id)
+static ID *text_new_data()
 {
-  Text *text = id_cast<Text *>(id);
-
-  INIT_DEFAULT_STRUCT_AFTER(text, id);
+  Text *text = MEM_new<Text>("Text");
 
   text->filepath = nullptr;
 
@@ -92,6 +90,8 @@ static void text_init_data(ID *id)
   text->curc = 0;
   text->sell = static_cast<TextLine *>(text->lines.first);
   text->selc = 0;
+
+  return &text->id;
 }
 
 /**
@@ -238,7 +238,7 @@ IDTypeInfo IDType_ID_TXT = {
     .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = text_init_data,
+    .new_data = text_new_data,
     .copy_data = text_copy_data,
     .free_data = text_free_data,
     .make_local = nullptr,
@@ -247,7 +247,6 @@ IDTypeInfo IDType_ID_TXT = {
     .foreach_path = text_foreach_path,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = text_blend_write,
     .blend_read_data = text_blend_read_data,
     .blend_read_after_liblink = nullptr,

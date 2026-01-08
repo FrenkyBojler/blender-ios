@@ -87,7 +87,7 @@ bool BKE_idtype_cache_key_cmp(const void *key_a_v, const void *key_b_v);
 
 /* ********** Prototypes for #IDTypeInfo callbacks. ********** */
 
-using IDTypeInitDataFunction = void (*)(ID *id);
+using IDTypeNewDataFunction = ID *(*)();
 
 /** \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more). */
 using IDTypeCopyDataFunction = void (*)(
@@ -204,9 +204,11 @@ struct IDTypeInfo {
   /* ********** ID management callbacks ********** */
 
   /**
-   * Initialize a new, empty calloc'ed data-block. May be NULL if there is nothing to do.
+   * Allocate and default initialize a new data-block.
+   *
+   * The allocation must use MEM_new to ensure memory is initialized to defaults.
    */
-  IDTypeInitDataFunction init_data = InvalidPointer<IDTypeInitDataFunction>();
+  IDTypeNewDataFunction new_data = InvalidPointer<IDTypeNewDataFunction>();
 
   /**
    * Copy the given data-block's data from source to destination.

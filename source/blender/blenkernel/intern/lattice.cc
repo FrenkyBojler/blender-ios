@@ -45,14 +45,14 @@
 
 namespace blender {
 
-static void lattice_init_data(ID *id)
+static ID *lattice_new_data()
 {
-  Lattice *lattice = id_cast<Lattice *>(id);
-
-  INIT_DEFAULT_STRUCT_AFTER(lattice, id);
+  Lattice *lattice = MEM_new<Lattice>("Lattice");
 
   lattice->def = MEM_new_zeroed<BPoint>("lattvert"); /* temporary */
   BKE_lattice_resize(lattice, 2, 2, 2, nullptr);     /* creates a uniform lattice */
+
+  return &lattice->id;
 }
 
 static void lattice_copy_data(Main *bmain,
@@ -167,7 +167,7 @@ IDTypeInfo IDType_ID_LT = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = lattice_init_data,
+    .new_data = lattice_new_data,
     .copy_data = lattice_copy_data,
     .free_data = lattice_free_data,
     .make_local = nullptr,
@@ -176,7 +176,6 @@ IDTypeInfo IDType_ID_LT = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = lattice_blend_write,
     .blend_read_data = lattice_blend_read_data,
     .blend_read_after_liblink = nullptr,

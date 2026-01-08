@@ -156,14 +156,12 @@ CurveMapping *BKE_paint_default_curve()
   return cumap;
 }
 
-static void scene_init_data(ID *id)
+static ID *scene_new_data()
 {
-  Scene *scene = id_cast<Scene *>(id);
+  Scene *scene = MEM_new<Scene>("Scene");
   const char *colorspace_name;
   SceneRenderView *srv;
   CurveMapping *mblur_shutter_curve;
-
-  INIT_DEFAULT_STRUCT_AFTER(scene, id);
 
   STRNCPY(scene->r.bake.filepath, U.renderdir);
 
@@ -259,6 +257,8 @@ static void scene_init_data(ID *id)
   BKE_view_layer_add(nullptr, scene, DATA_("ViewLayer"), nullptr, VIEWLAYER_ADD_NEW);
 
   scene->runtime = MEM_new<SceneRuntime>(__func__);
+
+  return &scene->id;
 }
 
 static void scene_copy_data(Main *bmain,
@@ -1618,7 +1618,7 @@ IDTypeInfo IDType_ID_SCE = {
     .flags = IDTYPE_FLAGS_NEVER_UNUSED,
     .asset_type_info = nullptr,
 
-    .init_data = scene_init_data,
+    .new_data = scene_new_data,
     .copy_data = scene_copy_data,
     .free_data = scene_free_data,
     /* For now default `BKE_lib_id_make_local_generic()` should work, may need more work though to

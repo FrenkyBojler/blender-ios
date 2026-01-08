@@ -87,10 +87,9 @@ static CLG_LogRef LOG = {"geom.mesh"};
 
 static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata);
 
-static void mesh_init_data(ID *id)
+static ID *mesh_new_data()
 {
-  Mesh *mesh = reinterpret_cast<Mesh *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(mesh, id);
+  Mesh *mesh = MEM_new<Mesh>("Mesh");
 
   CustomData_reset(&mesh->vert_data);
   CustomData_reset(&mesh->edge_data);
@@ -102,6 +101,8 @@ static void mesh_init_data(ID *id)
   mesh->runtime = new bke::MeshRuntime();
 
   mesh->face_sets_color_seed = BLI_hash_int(BLI_time_now_seconds_i() & UINT_MAX);
+
+  return &mesh->id;
 }
 
 static void mesh_copy_data(Main *bmain,
@@ -500,7 +501,7 @@ IDTypeInfo IDType_ID_ME = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = mesh_init_data,
+    .new_data = mesh_new_data,
     .copy_data = mesh_copy_data,
     .free_data = mesh_free_data,
     .make_local = nullptr,
@@ -509,7 +510,6 @@ IDTypeInfo IDType_ID_ME = {
     .foreach_path = mesh_foreach_path,
     .foreach_working_space_color = mesh_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = mesh_blend_write,
     .blend_read_data = mesh_blend_read_data,
     .blend_read_after_liblink = nullptr,

@@ -85,13 +85,14 @@ static void movie_clip_runtime_reset(MovieClip *clip)
   clip->runtime.last_update = 0;
 }
 
-static void movie_clip_init_data(ID *id)
+static ID *movie_clip_new_data()
 {
-  MovieClip *movie_clip = id_cast<MovieClip *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(movie_clip, id);
+  MovieClip *movie_clip = MEM_new<MovieClip>("MovieClip");
 
   BKE_tracking_settings_init(&movie_clip->tracking);
   BKE_color_managed_colorspace_settings_init(&movie_clip->colorspace_settings);
+
+  return &movie_clip->id;
 }
 
 static void movie_clip_copy_data(Main * /*bmain*/,
@@ -304,7 +305,7 @@ IDTypeInfo IDType_ID_MC = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = movie_clip_init_data,
+    .new_data = movie_clip_new_data,
     .copy_data = movie_clip_copy_data,
     .free_data = movie_clip_free_data,
     .make_local = nullptr,
@@ -313,7 +314,6 @@ IDTypeInfo IDType_ID_MC = {
     .foreach_path = movie_clip_foreach_path,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = movieclip_blend_write,
     .blend_read_data = movieclip_blend_read_data,
     .blend_read_after_liblink = nullptr,

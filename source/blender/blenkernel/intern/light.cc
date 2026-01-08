@@ -43,10 +43,10 @@
 
 namespace blender {
 
-static void light_init_data(ID *id)
+static ID *light_new_data()
 {
-  Light *la = id_cast<Light *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(la, id);
+  Light *la = MEM_new<Light>("Light");
+  return &la->id;
 }
 
 /**
@@ -179,7 +179,7 @@ IDTypeInfo IDType_ID_LA = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = light_init_data,
+    .new_data = light_new_data,
     .copy_data = light_copy_data,
     .free_data = light_free_data,
     .make_local = nullptr,
@@ -188,7 +188,6 @@ IDTypeInfo IDType_ID_LA = {
     .foreach_path = nullptr,
     .foreach_working_space_color = light_foreach_working_space_color,
     .owner_pointer_get = nullptr,
-
     .blend_write = light_blend_write,
     .blend_read_data = light_blend_read_data,
     .blend_read_after_liblink = nullptr,

@@ -26,10 +26,10 @@
 
 namespace blender {
 
-static void lightprobe_init_data(ID *id)
+static ID *lightprobe_new_data()
 {
-  LightProbe *probe = id_cast<LightProbe *>(id);
-  INIT_DEFAULT_STRUCT_AFTER(probe, id);
+  LightProbe *probe = MEM_new<LightProbe>("LightProbe");
+  return &probe->id;
 }
 
 static void lightprobe_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -60,7 +60,7 @@ IDTypeInfo IDType_ID_LP = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = lightprobe_init_data,
+    .new_data = lightprobe_new_data,
     .copy_data = nullptr,
     .free_data = nullptr,
     .make_local = nullptr,
@@ -69,7 +69,6 @@ IDTypeInfo IDType_ID_LP = {
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
-
     .blend_write = lightprobe_blend_write,
     .blend_read_data = nullptr,
     .blend_read_after_liblink = nullptr,
