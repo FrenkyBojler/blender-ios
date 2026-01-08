@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -30,30 +30,30 @@ struct Preprocessor {
   /* Token cursor. */
   int cursor;
 
-  static StringRef str(Token t)
+  static StringRef str(const Token t)
   {
     /* Note: Whitespaces where not merged (because of TokenizePreprocessor), so using
      * str_view_with_whitespace will be faster.  */
     return t.str_view_with_whitespace();
   }
 
-  static StringRef str(TokenRange range)
+  static StringRef str(const TokenRange &range)
   {
     /* Note: Whitespaces where not merged (because of TokenizePreprocessor), so using
      * str_view_with_whitespace will be faster.  */
     StringRef start = range.start.str_view_with_whitespace();
     StringRef end = range.end.str_view_with_whitespace();
-    return {start.data(), end.data() - start.data() + end.size()};
+    return StringRef(start.data(), end.data() + end.size());
   }
 
-  std::string new_lines(Token start, Token end)
+  std::string new_lines(const Token start, const Token end)
   {
     std::string_view dir_str = parser.substr_range_inclusive_view(start, end);
     int line_count = std::count(dir_str.begin(), dir_str.end(), '\n');
     return std::string(line_count, '\n');
   }
 
-  static Token end_of_directive(Token dir_tok)
+  static Token end_of_directive(const Token dir_tok)
   {
     Token tok = dir_tok;
 
@@ -67,7 +67,7 @@ struct Preprocessor {
     return tok.prev();
   }
 
-  static Token skip_whitespace(Token tok)
+  static Token skip_space(Token tok)
   {
     while (tok == Space && tok != Invalid) {
       tok = tok.next();
@@ -75,7 +75,7 @@ struct Preprocessor {
     return tok;
   }
 
-  static Token skip_whitespace_backward(Token tok)
+  static Token skip_space_backward(Token tok)
   {
     while (tok == Space && tok != Invalid) {
       tok = tok.prev();
@@ -93,7 +93,7 @@ struct Preprocessor {
 
   static Token directive_identifier_token(Token hash_token)
   {
-    return skip_whitespace(hash_token.next());
+    return skip_space(hash_token.next());
   }
 
   static StringRef directive_identifier(Token hash_token)
@@ -138,7 +138,7 @@ struct Preprocessor {
 
     Token end_of_expansion = expanded_tok;
 
-    tok = skip_whitespace(tok);
+    tok = skip_space(tok);
 
     /* Empty definition. */
     if (tok == '\n') {
@@ -155,9 +155,9 @@ struct Preprocessor {
     if (is_function) {
       /* This is a functional macro. */
 
-      Token param = skip_whitespace(expanded_tok.next());
+      Token param = skip_space(expanded_tok.next());
       if (param != '(') {
-        /* Error, macro doesn't have parameters. */
+        /* Macro doesn't have parameters. It should not expand. */
         visited_macros.remove(macro_name_str);
         return {macro_name_str, end_of_expansion};
       }
@@ -166,7 +166,7 @@ struct Preprocessor {
       macro_parameters.clear_and_keep_capacity();
       while (tok != ')') {
         /* Continue to the next name. */
-        tok = skip_whitespace(tok.next());
+        tok = skip_space(tok.next());
         if (tok == ')') {
           /* Function with no arguments. */
           param = get_end_of_parameter(param);
@@ -187,10 +187,10 @@ struct Preprocessor {
 
         macro_parameters.add(
             argument_name,
-            {skip_whitespace(param_start.next()), skip_whitespace_backward(param_end.prev())});
+            {skip_space(param_start.next()), skip_space_backward(param_end.prev())});
 
         /* Continue to the next separator. */
-        tok = skip_whitespace(tok.next());
+        tok = skip_space(tok.next());
         param = param_end;
 
         if (tok == Invalid) {
@@ -198,7 +198,7 @@ struct Preprocessor {
         }
       }
       /* Skip closing parenthesis. */
-      tok = skip_whitespace(tok.next());
+      tok = skip_space(tok.next());
       /* Make sure to replace the whole call. */
       end_of_expansion = param;
     }
@@ -411,7 +411,7 @@ struct Preprocessor {
   int process_conditional(const Token hash_tok, const Token dir_end)
   {
     /* Evaluate condition. */
-    const Token condition_type = skip_whitespace(hash_tok.next());
+    const Token condition_type = skip_space(hash_tok.next());
     const Token condition_start = condition_type.next().next();
     const Token condition_end = dir_end;
     bool condition_result = evaluate_condition(condition_type, condition_start, condition_end);
@@ -449,7 +449,7 @@ struct Preprocessor {
     }
 #endif
 
-    Token dir_tok = skip_whitespace(hash_tok.next());
+    Token dir_tok = skip_space(hash_tok.next());
 
     if (dir_tok != Word) {
       return; /* TODO(fclem): Error. */
