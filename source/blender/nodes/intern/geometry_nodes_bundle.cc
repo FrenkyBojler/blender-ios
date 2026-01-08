@@ -252,6 +252,11 @@ void Bundle::delete_self()
   MEM_delete(this);
 }
 
+void Bundle::clear()
+{
+  items_.clear();
+}
+
 NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
     const bNodeSocket &socket,
     const NodeSocketInterfaceStructureType stored_structure_type,
