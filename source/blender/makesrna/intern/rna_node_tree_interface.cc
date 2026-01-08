@@ -6,7 +6,9 @@
  * \ingroup RNA
  */
 
+#include "BKE_node.hh"
 #include "DNA_node_tree_interface_types.h"
+#include "DNA_node_types.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -708,6 +710,18 @@ static bNodeTreeInterfaceItem *rna_NodeTreeInterfaceItems_copy_to_parent(
   if (parent != nullptr) {
     if (!interface->find_item(parent->item)) {
       BKE_report(reports, RPT_ERROR_INVALID_INPUT, "Parent is not part of the interface");
+      return nullptr;
+    }
+  }
+
+  const bNodeTree &interface_node_tree = *reinterpret_cast<bNodeTree *>(id);
+  if (bNodeTreeInterfaceSocket *socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
+          item))
+  {
+    if (!is_socket_type_supported(interface_node_tree.typeinfo, socket->socket_typeinfo())) {
+      BKE_report(reports,
+                 RPT_ERROR_INVALID_INPUT,
+                 "Item to be copied to this interface is of an unsupported socket type");
       return nullptr;
     }
   }
