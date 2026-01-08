@@ -170,8 +170,9 @@ struct Preprocessor {
         Token param_end = get_end_of_parameter(param_start);
 
         Token argument_name = tok;
-        macro_parameters.add(str(argument_name),
-                             {param_start.next(), skip_whitespace_backward(param_end.prev())});
+        macro_parameters.add(
+            str(argument_name),
+            {skip_whitespace(param_start.next()), skip_whitespace_backward(param_end.prev())});
 
         /* Continue to the next separator. */
         tok = skip_whitespace(tok.next());
@@ -223,28 +224,7 @@ struct Preprocessor {
           if (macro_value_ptr) {
             TokenRange &macro_value = *macro_value_ptr;
             /* Expand argument. */
-            /* FIXME(fclem): For correctness, we should re-parse and expand the result of the
-             * expansion and not the input. Moreover, this only expand the first token in the
-             * case there are many tokens for a parameter. But this is simple enough to get it
-             * working with our codebase. */
-            Token macro_tok = defines.lookup_default(str(macro_value), Token::invalid());
-            if (macro_tok.is_valid()) {
-              expanded += expand_macro(macro_value.start, macro_tok).str;
-            }
-            else {
-              expanded += str(macro_value);
-            }
-            replaced = true;
-          }
-        }
-
-        if (!replaced) {
-          /* Try recursive expansion. */
-          Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
-          if (macro_tok.is_valid()) {
-            auto [str, end_of_expand] = expand_macro(tok, macro_tok);
-            tok = end_of_expand;
-            expanded += str;
+            expanded += str(macro_value);
             replaced = true;
           }
         }
@@ -259,6 +239,27 @@ struct Preprocessor {
       }
 
       tok = tok.next();
+    }
+
+    if (!expanded.empty()) {
+      report_callback report = [](int, int, std::string, const char *) {};
+      IntermediateForm parser(expanded, report, ParserStage::TokenizePreprocessor);
+
+      const TokenStream &data = parser.data_get();
+
+      for (int cursor = 0; cursor < data.token_types.size(); cursor++) {
+        TokenType tok_type = TokenType(data.token_types[cursor]);
+        if (tok_type == Word) {
+          Token tok = Token::from_position(&data, cursor);
+          Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
+          if (macro_tok.is_valid()) {
+            auto [replacement, end] = expand_macro(tok, macro_tok);
+            parser.replace(tok, end, replacement);
+            cursor = end.index;
+          }
+        }
+      }
+      expanded = parser.result_get();
     }
 
     visited_macros.remove(macro_name_str);
@@ -497,7 +498,6 @@ struct Preprocessor {
 
   void preprocess()
   {
-    int macro_replacement_count = 0;
     const TokenStream &data = parser.data_get();
 
     cursor = 0;
@@ -510,14 +510,12 @@ struct Preprocessor {
           auto [replacement, end] = expand_macro(tok, macro_tok);
           parser.replace(tok, end, replacement);
           cursor = end.index;
-          macro_replacement_count++;
         }
       }
       else if (tok_type == Hash) {
         process_directives(Token::from_position(&data, cursor));
       }
     }
-    // std::cout << "Macro hit " << macro_replacement_count << std::endl;
     // std::cout << "Macro def " << defines.size() << std::endl;
   }
 };
