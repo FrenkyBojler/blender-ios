@@ -263,49 +263,26 @@ static Vector<const bNodeLink *> find_internal_links(
     const Span<const bNode *> nodes,
     NodeFilterFn link_filter = default_link_filter)
 {
-  tree.ensure_topology_cache();
-
   Vector<const bNodeLink *> internal_links;
   const Set<const bNode *> nodes_set(nodes);
-  for (const bNode *node : nodes) {
-    for (const bNodeSocket *socket : node->input_sockets()) {
-      if (!socket->is_visible()) {
-        continue;
-      }
-
-      for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (bke::node_link_is_hidden(*link) || !link_filter(*link->fromnode)) {
-          continue;
-        }
-
-        /* Use only internal links. */
-        if (nodes_set.contains(link->fromnode)) {
-          internal_links.append(link);
-        }
-      }
+  for (const bNodeLink &link : tree.links) {
+    if (!link.is_available() || bke::node_link_is_hidden(link)) {
+      continue;
     }
-    for (const bNodeSocket *socket : node->output_sockets()) {
-      if (!socket->is_visible()) {
-        continue;
-      }
-
-      for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (bke::node_link_is_hidden(*link) || !link_filter(*link->tonode)) {
-          continue;
-        }
-
-        /* Use only internal links. */
-        if (nodes_set.contains(link->tonode)) {
-          internal_links.append(link);
-        }
-      }
+    if (!link_filter(*link.fromnode) || !link_filter(*link.tonode)) {
+      continue;
     }
+    if (!nodes_set.contains(link.fromnode) || !nodes_set.contains(link.tonode)) {
+      continue;
+    }
+
+    internal_links.append(&link);
   }
   return internal_links;
 }
 
-Vector<MutableNodeSocketRef> get_external_links(const bNodeSocket &socket,
-                                                NodeFilterFn link_filter = default_link_filter)
+static Vector<MutableNodeSocketRef> get_external_links(
+    const bNodeSocket &socket, NodeFilterFn link_filter = default_link_filter)
 {
   Vector<MutableNodeSocketRef> result;
   for (const bNodeLink *link : socket.directly_linked_links()) {
