@@ -60,8 +60,8 @@ static BaseSocketDeclarationBuilder &declare_existing_output(NodeDeclarationBuil
 static void declare_existing(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
-  LISTBASE_FOREACH (const bNodeSocket *, output, &node->outputs) {
-    declare_existing_output(b, output);
+  for (const bNodeSocket &output : node->outputs) {
+    declare_existing_output(b, &output);
   }
 }
 
@@ -114,20 +114,20 @@ static void node_declare_multi_layer(NodeDeclarationBuilder &b,
   }
 
   bool has_alpha_pass = false;
-  LISTBASE_FOREACH (RenderPass *, pass, &render_layer->passes) {
-    if (StringRef(pass->name) == "Alpha") {
+  for (RenderPass &pass : render_layer->passes) {
+    if (StringRef(pass.name) == "Alpha") {
       has_alpha_pass = true;
       break;
     }
   }
 
-  LISTBASE_FOREACH (RenderPass *, pass, &render_layer->passes) {
-    declare_pass(b, *pass);
+  for (RenderPass &pass : render_layer->passes) {
+    declare_pass(b, pass);
 
     /* If the image does not have an alpha pass add an extra alpha pass that is generated based on
      * the combined pass, if the combined pass is an RGBA pass. */
-    if (!has_alpha_pass && StringRef(pass->name) == RE_PASSNAME_COMBINED && pass->channels == 4 &&
-        StringRef(pass->chan_id) == "RGBA")
+    if (!has_alpha_pass && StringRef(pass.name) == RE_PASSNAME_COMBINED && pass.channels == 4 &&
+        StringRef(pass.chan_id) == "RGBA")
     {
       b.add_output<decl::Float>("Alpha").structure_type(StructureType::Dynamic);
     }
@@ -326,7 +326,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 static void register_node()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeImage", CMP_NODE_IMAGE);
   ntype.ui_name = "Image";
@@ -335,13 +335,13 @@ static void register_node()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = get_compositor_operation;
   ntype.labelfunc = node_image_label;
   ntype.flag |= NODE_PREVIEW;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node)
 

@@ -16,6 +16,8 @@
 #include "UI_interface.hh"
 #include "UI_interface_types.hh"
 
+namespace blender {
+
 struct bContext;
 struct bContextStore;
 struct EnumPropertyItem;
@@ -40,7 +42,7 @@ struct wmOperatorType;
  *   operator, label or menu. Also regular buttons can be used when setting
  *   uiBlockCurLayout. */
 
-namespace blender::ui {
+namespace ui {
 enum class ItemType : int8_t;
 enum class ItemInternalFlag : uint8_t;
 enum class EmbossType : uint8_t;
@@ -53,13 +55,13 @@ struct ItemInternal;
 struct LayoutInternal;
 struct Layout;
 struct LayoutRoot;
-}  // namespace blender::ui
+}  // namespace ui
 
-namespace blender::wm {
+namespace wm {
 enum class OpCallContext : int8_t;
 }
 
-namespace blender::ui {
+namespace ui {
 
 struct PanelLayout {
   Layout *header;
@@ -77,8 +79,8 @@ struct Item {
 
   [[nodiscard]] ItemType type() const;
 
-  [[nodiscard]] blender::int2 size() const;
-  [[nodiscard]] blender::int2 offset() const;
+  [[nodiscard]] int2 size() const;
+  [[nodiscard]] int2 offset() const;
 
  protected:
   ItemInternalFlag flag_ = {};
@@ -888,7 +890,7 @@ enum eUI_Item_Flag : uint16_t {
   ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE = 1 << 15,
 };
 ENUM_OPERATORS(eUI_Item_Flag)
-#define UI_ITEM_NONE blender::ui::eUI_Item_Flag(0)
+#define UI_ITEM_NONE ui::eUI_Item_Flag(0)
 
 /**
  * Apply property search behavior, setting panel flags and deactivating buttons that don't match.
@@ -987,4 +989,5 @@ Layout *uiItemsAlertBox(Block *block,
                         const int icon_size);
 Layout *uiItemsAlertBox(Block *block, const int size, const AlertIcon icon);
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender
