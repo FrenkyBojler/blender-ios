@@ -574,15 +574,6 @@ ccl_device_intersect bool scene_intersect_material_raycast(KernelGlobals kg,
                                                            const uint visibility,
                                                            ccl_private Intersection *isect)
 {
-  uint p0 = 0;
-  uint p1 = 0;
-  uint p2 = 0;
-  uint p3 = 0;
-  uint p4 = visibility;
-  uint p5 = PRIMITIVE_NONE;
-  uint p6 = pointer_pack_to_uint_0(ray);
-  uint p7 = pointer_pack_to_uint_1(ray);
-
   uint ray_mask = visibility & 0xFF;
   uint ray_flags = OPTIX_RAY_FLAG_ENFORCE_ANYHIT;
   if (0 == ray_mask && (visibility & ~0xFF) != 0) {
@@ -602,26 +593,46 @@ ccl_device_intersect bool scene_intersect_material_raycast(KernelGlobals kg,
                 ray_flags,
                 0, /* SBT offset for PG_HITD */
                 0,
-                0,
-                p0,
-                p1,
-                p2,
-                p3,
-                p4,
-                p5,
-                p6,
-                p7);
+                0);
+
+  if (!optixHitObjectIsHit()) {
+    return false;
+  }
 
   isect->t = optixHitObjectGetRayTmax();
-#if 0
-  isect->u = __uint_as_float(p1);
-  isect->v = __uint_as_float(p2);
-  isect->prim = p3;
-  isect->object = p4;
-  isect->type = p5;
-#endif
 
-  return optixHitObjectIsHit();
+#ifdef __OBJECT_MOTION__
+  /* Always get the instance ID from the TLAS
+   * There might be a motion transform node between TLAS and BLAS which does not have one. */
+  const int object = optixGetInstanceIdFromHandle(optixHitObjectGetTransformListHandle(0));
+#else
+  const int object = optixHitObjectGetInstanceId();
+#endif
+  const int prim = optixHitObjectGetPrimitiveIndex();
+
+  uint hit_kind = optixHitObjectGetHitKind();
+  if (optixGetPrimitiveType(hit_kind) == OPTIX_PRIMITIVE_TYPE_TRIANGLE) {
+    const float2 barycentrics = optixHitObjectGetTriangleBarycentrics();
+    isect->u = barycentrics.x;
+    isect->v = barycentrics.y;
+    isect->prim = prim;
+    isect->type = kernel_data_fetch(objects, object).primitive_type;
+  }
+  else if ((hit_kind & (~PRIMITIVE_MOTION)) != PRIMITIVE_POINT) {
+    const KernelCurveSegment segment = kernel_data_fetch(curve_segments, prim);
+    isect->u = optixHitObjectGetAttribute_0();
+    isect->v = optixHitObjectGetAttribute_1();
+    isect->prim = segment.prim;
+    isect->type = segment.type;
+  }
+  else {
+    isect->u = 0;
+    isect->v = 0;
+    isect->prim = prim;
+    isect->type = kernel_data_fetch(objects, object).primitive_type;
+  }
+
+  return isect->prim != PRIMITIVE_NONE;
 }
 
 #ifdef __BVH_LOCAL__
