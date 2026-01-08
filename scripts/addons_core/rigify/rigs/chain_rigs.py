@@ -154,9 +154,16 @@ class TweakChainRig(SimpleChainRig):
         self.bones.ctrl.tweak = map_list(self.make_tweak_bone, count(0), orgs + orgs[-1:])
 
     def make_tweak_bone(self, i: int, org: str):
-        name = self.copy_bone(org, strip_org(org) + '_tweak', parent=False, scale=0.5)
+        n = len(self.bones.org)
+        if i < n - 1:
+            suffix = '_tweak'
+        elif i == n: # last
+            suffix = '_02_tweak'
+        else: # 2nd last
+            suffix = '_01_tweak'
+        name = self.copy_bone(org, strip_org(org) + suffix, parent=False, scale=0.5)
 
-        if i == len(self.bones.org):
+        if i == n:
             put_bone(self.obj, name, self.get_bone(org).tail)
 
         return name
