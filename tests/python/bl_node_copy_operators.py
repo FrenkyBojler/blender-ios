@@ -65,6 +65,7 @@ class NodeMapping:
         # Should map all expected nodes.
         assert not expected_nodes_map
 
+
 def open_test_file():
     bpy.ops.wm.open_mainfile(filepath=str(args.testdir / testfile))
 
