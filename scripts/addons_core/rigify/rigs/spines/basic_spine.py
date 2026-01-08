@@ -147,7 +147,7 @@ class Rig(BaseSpineRig):
 
     # noinspection PyMethodOverriding
     def make_control_bone(self, i: int, org: str, is_hip: bool):
-        name = self.copy_bone(org, make_derived_name(org, 'ctrl', '_fk'), parent=False)
+        name = self.copy_bone(org, make_derived_name(org, 'ctrl', '_FK'), parent=False)
         if is_hip:
             put_bone(self.obj, name, self.get_bone(name).tail)
         return name
