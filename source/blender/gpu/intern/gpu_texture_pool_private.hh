@@ -30,12 +30,12 @@ class TexturePoolImpl : public TexturePool {
     int unused_cycles_count = 0;
 
     /* We use the pointer as hash/comparator, as a texture cannot be acquired twice. */
-    inline uint64_t hash() const
+    uint64_t hash() const
     {
       return get_default_hash(texture);
     }
 
-    inline bool operator==(const TextureHandle &o) const
+    bool operator==(const TextureHandle &o) const
     {
       return texture == o.texture;
     }
@@ -47,17 +47,17 @@ class TexturePoolImpl : public TexturePool {
   Set<TextureHandle> acquired_;
 
  public:
-  ~TexturePoolImpl() final;
+  ~TexturePoolImpl();
 
   Texture *acquire_texture(int2 extent,
                            TextureFormat format,
-                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) final;
+                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) override;
 
-  void release_texture(Texture *tex) final;
+  void release_texture(Texture *tex) override;
 
-  void reset(bool force_free = false) final;
+  void reset(bool force_free = false) override;
 
-  void offset_users_count(Texture *tex, int offset) final;
+  void offset_users_count(Texture *tex, int offset) override;
 };
 
 }  // namespace blender::gpu
