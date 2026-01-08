@@ -636,6 +636,18 @@ uint drw_view_id = 0;
   }
   {
     std::string input = R"(
+#define mad(a, b, c) (a * b + c)
+mad(-(255.0f / 127.0f), SMAASearchLength(SMAATexturePass2D(searchTex), e, 0.0f), 3.25f);
+)";
+    std::string expect = R"(
+
+(-(255.0f / 127.0f) * SMAASearchLength(searchTex, e, 0.0f) + 3.25f)
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    std::string input = R"(
 #define A() B
 A)";
     std::string expect = R"(
