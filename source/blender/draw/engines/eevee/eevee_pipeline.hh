@@ -151,7 +151,7 @@ class Prepass : public PassMain {
  public:
   Prepass(const char *name) : PassMain(name) {};
   void setup_subpasses(DRWState common_state);
-  PassMain::Sub *add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
+  PassMain::Sub *add(blender::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
 };
 
 /** \} */

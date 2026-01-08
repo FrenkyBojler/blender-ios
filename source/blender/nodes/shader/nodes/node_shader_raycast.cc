@@ -9,7 +9,9 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-namespace blender::nodes::node_shader_raycast_cc {
+namespace blender {
+
+namespace nodes::node_shader_raycast_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -62,7 +64,7 @@ NODE_SHADER_MATERIALX_BEGIN
 #endif
 NODE_SHADER_MATERIALX_END
 
-}  // namespace blender::nodes::node_shader_raycast_cc
+}  // namespace nodes::node_shader_raycast_cc
 
 /* node type definition */
 void register_node_type_sh_raycast()
@@ -84,3 +86,5 @@ void register_node_type_sh_raycast()
 
   blender::bke::node_register_type(ntype);
 }
+
+}  // namespace blender
