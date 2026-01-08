@@ -2805,10 +2805,12 @@ static void test_preprocess_expression_parser()
   EXPECT_EQ(test_expression("1|2"), 3);
   EXPECT_EQ(test_expression("3&1"), 1);
   EXPECT_EQ(test_expression("1^3"), 2);
+  /* Not supported yet. */
   // EXPECT_EQ(test_expression("1 << 3"), 8);
   // EXPECT_EQ(test_expression("8 >> 2"), 2);
 
   /* --- Bitwise vs arithmetic precedence --- */
+  /* Not supported yet. */
   // EXPECT_EQ(test_expression("1 + 2 << 2"), 12); /* (1+2)<<2 */
   // EXPECT_EQ(test_expression("1 << 2 + 1"), 8);  /* 1<<(2+1) */
 
@@ -2824,6 +2826,7 @@ static void test_preprocess_expression_parser()
   EXPECT_EQ(test_expression("1 && 0"), 0);
   EXPECT_EQ(test_expression("0 || 1"), 1);
   EXPECT_EQ(test_expression("0 || 0"), 0);
+  EXPECT_EQ(test_expression("0 || 0 || 1"), 1);
 
   /* --- Logical precedence --- */
   EXPECT_EQ(test_expression("0 || 1 && 0"), 0); /* && before || */
@@ -2841,6 +2844,27 @@ static void test_preprocess_expression_parser()
   EXPECT_EQ(test_expression("!0 && !0"), 1);
   EXPECT_EQ(test_expression("!1 && !0"), 0);
   EXPECT_EQ(test_expression("!!1 && !0"), 1);
+
+  /* --- Deep Ternary Nesting --- */
+  EXPECT_EQ(test_expression("1 ? 10 + 5 : 20"), 15);
+  EXPECT_EQ(test_expression("0 ? 1 : 0 ? 2 : 3"), 3);
+  EXPECT_EQ(test_expression("1 ? (0 ? 1 : 2) : 3"), 2);
+  EXPECT_EQ(test_expression("10 + (1 ? 5 : 0) * 2"), 20);
+
+  /* --- Unary Chains --- */
+  EXPECT_EQ(test_expression("! ~ -1"), 1);
+  EXPECT_EQ(test_expression("-5 * -2"), 10);
+
+  /* --- Precedence Boundary Tests --- */
+  EXPECT_EQ(test_expression("1 == 1 | 2"), 3);
+  EXPECT_EQ(test_expression("1 + 2 < 4"), 1);
+  EXPECT_EQ(test_expression("1 | 2 && 0"), 0);
+
+  /* --- Complex Boolean Logic --- */
+  EXPECT_EQ(test_expression("!((1 + 2 == 3) && (4 * 5 <= 20) || (0 ? 1 : 0))"), 0);
+
+  /* --- The Kitchen Sink --- */
+  EXPECT_EQ(test_expression("(10 - 2 * 3 == 4) ? 50 : 100 + !0"), 50);
 }
 GPU_TEST(preprocess_expression_parser);
 
