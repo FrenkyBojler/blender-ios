@@ -82,24 +82,25 @@ static Domain compute_output_domain(MovieDistortion *distortion,
                                     const Domain &domain)
 {
   auto distortion_function = [&](const float2 &coordinates) {
-    const float2 normalized_coordinates = coordinates / float2(domain.data_size);
+    const float2 display_coordinates = coordinates - float2(domain.data_offset);
+    const float2 normalized_coordinates = display_coordinates / float2(domain.display_size);
     const float2 calibrated_coordinates = normalized_coordinates * float2(calibration_size);
 
     float2 distorted_coordinates;
     if (type == DistortionType::Undistort) {
-      BKE_tracking_distortion_distort_v2(
+      BKE_tracking_distortion_undistort_v2(
           distortion, calibrated_coordinates, distorted_coordinates);
     }
     else {
-      BKE_tracking_distortion_undistort_v2(
+      BKE_tracking_distortion_distort_v2(
           distortion, calibrated_coordinates, distorted_coordinates);
     }
 
     const float2 distorted_normalized_coordinates = distorted_coordinates /
                                                     float2(calibration_size);
-    const float2 distorted_data_coordinates = distorted_normalized_coordinates *
-                                              float2(domain.data_size);
-    return distorted_data_coordinates;
+    const float2 distorted_display_coordinates = distorted_normalized_coordinates *
+                                                 float2(domain.display_size);
+    return distorted_display_coordinates;
   };
 
   /* Maximum distorted x location along the right edge of the image. */
@@ -178,13 +179,15 @@ DistortionGrid::DistortionGrid(Context &context,
     const float2 normalized_coordinates = display_coordinates / float2(domain.display_size);
     const float2 calibrated_coordinates = normalized_coordinates * float2(calibration_size);
 
+    /* Notice that if we are undo storing the image, we need to distort the coordinates space and
+     * vice versa, hence the inverted condition. */
     float2 distorted_coordinates;
     if (type == DistortionType::Undistort) {
-      BKE_tracking_distortion_undistort_v2(
+      BKE_tracking_distortion_distort_v2(
           distortion, calibrated_coordinates, distorted_coordinates);
     }
     else {
-      BKE_tracking_distortion_distort_v2(
+      BKE_tracking_distortion_undistort_v2(
           distortion, calibrated_coordinates, distorted_coordinates);
     }
 

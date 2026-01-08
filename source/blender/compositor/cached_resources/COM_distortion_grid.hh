@@ -20,8 +20,8 @@ namespace blender::compositor {
 class Context;
 
 enum class DistortionType : uint8_t {
-  Distort = 0,
-  Undistort = 1,
+  Undistort = 0,
+  Distort = 1,
 };
 
 /* ------------------------------------------------------------------------------------------------

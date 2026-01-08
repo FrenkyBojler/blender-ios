@@ -30,8 +30,8 @@ namespace blender {
 namespace nodes::node_composite_moviedistortion_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {int(compositor::DistortionType::Distort), "UNDISTORT", 0, N_("Undistort"), ""},
-    {int(compositor::DistortionType::Undistort), "DISTORT", 0, N_("Distort"), ""},
+    {int(compositor::DistortionType::Undistort), "UNDISTORT", 0, N_("Undistort"), ""},
+    {int(compositor::DistortionType::Distort), "DISTORT", 0, N_("Distort"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -41,7 +41,7 @@ static void cmp_node_moviedistortion_declare(NodeDeclarationBuilder &b)
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Menu>("Type")
-      .default_value(compositor::DistortionType::Distort)
+      .default_value(compositor::DistortionType::Undistort)
       .static_items(type_items)
       .optional_label();
 
