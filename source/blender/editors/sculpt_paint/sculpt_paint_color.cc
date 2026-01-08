@@ -579,8 +579,6 @@ void do_paint_brush(const Depsgraph &depsgraph,
     return;
   }
 
-  BKE_curvemapping_init(brush.curve_distance_falloff);
-
   float4x4 mat;
 
   /* If the brush is round the tip does not need to be aligned to the surface, so this saves a
@@ -593,7 +591,7 @@ void do_paint_brush(const Depsgraph &depsgraph,
     }
   }
 
-  Mesh &mesh = *static_cast<Mesh *>(ob.data);
+  Mesh &mesh = *id_cast<Mesh *>(ob.data);
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
   const OffsetIndices<int> faces = mesh.faces();
@@ -877,7 +875,7 @@ void do_smear_brush(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
-  Mesh &mesh = *static_cast<Mesh *>(ob.data);
+  Mesh &mesh = *id_cast<Mesh *>(ob.data);
   if (ss.cache->bstrength == 0.0f) {
     return;
   }
@@ -907,8 +905,6 @@ void do_smear_brush(const Depsgraph &depsgraph,
       }
     });
   }
-
-  BKE_curvemapping_init(brush.curve_distance_falloff);
 
   /* Smooth colors mode. */
   if (ss.cache->alt_smooth) {
