@@ -104,7 +104,7 @@ rctf strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const St
 
 int left_fake_key_frame_get(const Scene *scene, const Strip *strip)
 {
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   const int content_start = strip->content_start() + sound_offset;
   return max_ii(content_start, strip->left_handle());
@@ -112,7 +112,7 @@ int left_fake_key_frame_get(const Scene *scene, const Strip *strip)
 
 int right_fake_key_frame_get(const Scene *scene, const Strip *strip)
 {
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   const int content_end = strip->content_end(scene) + sound_offset;
   return min_ii(content_end, strip->right_handle(scene));
@@ -352,7 +352,7 @@ void sequencer_retiming_draw_continuity(const TimelineDrawContext &ctx,
 
 static SeqRetimingKey fake_retiming_key_init(const Scene *scene, const Strip *strip, int key_x)
 {
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   SeqRetimingKey fake_key = {0};
   fake_key.strip_frame_index = (key_x - strip->content_start() - sound_offset) *

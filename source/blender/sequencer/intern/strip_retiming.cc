@@ -64,7 +64,7 @@ static int content_frame_index_get(const Scene *scene,
                                    const Strip *strip,
                                    const int timeline_frame)
 {
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   return (timeline_frame - strip->content_start() - sound_offset) *
          strip->media_playback_rate_factor(scene_fps);
@@ -155,7 +155,7 @@ int retiming_key_timeline_frame_get(const Scene *scene,
                                     const Strip *strip,
                                     const SeqRetimingKey *key)
 {
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   return round_fl_to_int(strip->content_start() + sound_offset +
                          key->strip_frame_index / strip->media_playback_rate_factor(scene_fps));
@@ -203,7 +203,7 @@ static std::pair<SeqRetimingKey *, SeqRetimingKey *> freeze_key_pair_create(cons
   /* Offset last key first, then add a freeze start key before it, because it is not possible to
    * add keys after last one. */
   if (retiming_is_last_key(strip, key)) {
-    const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+    const float scene_fps = float(scene->frames_per_second());
     const float frame_index_offset = tml_frame_offset *
                                      strip->media_playback_rate_factor(scene_fps);
     key->strip_frame_index += frame_index_offset;
@@ -704,7 +704,7 @@ static float strip_retiming_clamp_transition_offset(const Scene *scene,
   SeqRetimingKey *next_key = start_key + 2;
   const float prev_max_offset = prev_key->strip_frame_index - start_key->strip_frame_index;
   const float next_max_offset = next_key->strip_frame_index - end_key->strip_frame_index;
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const float min_step = strip->media_playback_rate_factor(scene_fps);
 
   return std::clamp(offset, prev_max_offset + min_step, next_max_offset - min_step);
@@ -716,7 +716,7 @@ static void strip_retiming_transition_offset(const Scene *scene,
                                              const float offset)
 {
   float clamped_offset = strip_retiming_clamp_transition_offset(scene, strip, key, offset);
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const float duration = (key->original_strip_frame_index - key->strip_frame_index) /
                          strip->media_playback_rate_factor(scene_fps);
   const bool was_selected = retiming_selection_contains(editing_get(scene), key);
@@ -764,7 +764,7 @@ static int strip_retiming_clamp_timeline_frame(const Scene *scene,
 static void strip_retiming_fix_transition(const Scene *scene, Strip *strip, SeqRetimingKey *key)
 {
   const int keys_num = strip->retiming_keys_num;
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const float transition_duration = (key->original_strip_frame_index - key->strip_frame_index) /
                                     strip->media_playback_rate_factor(scene_fps);
   SeqRetimingKey *orig_key = strip_retiming_remove_transition(strip, key);
@@ -823,7 +823,7 @@ void retiming_key_timeline_frame_set(
   const int orig_timeline_frame = retiming_key_timeline_frame_get(scene, strip, key);
   const int clamped_timeline_frame = strip_retiming_clamp_timeline_frame(
       scene, strip, key, timeline_frame);
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const float offset = (clamped_timeline_frame - orig_timeline_frame) *
                        strip->media_playback_rate_factor(scene_fps);
 
@@ -865,7 +865,7 @@ void retiming_key_speed_set(
   const float frame_index_prev = round_fl_to_int(key_prev->retiming_factor * frame_index_max);
   const float frame_index = round_fl_to_int(key->retiming_factor * frame_index_max);
 
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const float segment_timeline_duration = (frame_index - frame_index_prev) /
                                           strip->media_playback_rate_factor(scene_fps);
   const float new_timeline_duration = segment_timeline_duration / speed;
@@ -1118,7 +1118,7 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
 #endif
 
   void *sound_handle = BKE_sound_playback_handle_get(strip->sound);
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   if (correct_pitch) {
     sound_handle = BKE_sound_ensure_time_stretch_effect(
         sound_handle, strip->runtime->scene_sound, scene_fps);

@@ -217,7 +217,7 @@ static bool retiming_key_add_new_for_strip(const Scene *scene,
                                            Strip *strip,
                                            const int timeline_frame)
 {
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const float frame_index = (BKE_scene_frame_get(scene) - strip->content_start()) *
                             strip->media_playback_rate_factor(scene_fps);
   const SeqRetimingKey *key = seq::retiming_find_segment_start_key(strip, frame_index);
