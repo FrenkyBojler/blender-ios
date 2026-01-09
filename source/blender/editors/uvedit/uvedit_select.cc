@@ -3378,6 +3378,12 @@ static bool uv_mouse_select_multi(bContext *C,
        * see face selection comment for details. */
       hit.dist_sq = FLT_MAX;
       found_item = uv_find_nearest_face_multi_ex(scene, objects, co, &hit, true);
+
+      if (found_item && selectmode == UV_SELECT_EDGE) {
+        /* Edge select mode, but we found a face.
+         * Just pick the first edge of the face. */
+        hit.l = BM_FACE_FIRST_LOOP(hit.efa);
+      }
     }
   }
   else if (selectmode == UV_SELECT_VERT) {
