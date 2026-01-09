@@ -9,6 +9,7 @@
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_span.hh"
 
 #include "DNA_pointcloud_types.h"
@@ -57,7 +58,7 @@ static void createTransPointCloudVerts(bContext * /*C*/, TransInfo *t)
 
   for (const int i : trans_data_contrainers.index_range()) {
     TransDataContainer &tc = trans_data_contrainers[i];
-    PointCloud &pointcloud = *static_cast<PointCloud *>(tc.obedit->data);
+    PointCloud &pointcloud = *id_cast<PointCloud *>(tc.obedit->data);
     bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
     PointCloudTransformData &transform_data = *create_transform_custom_data(tc.custom.type);
     const VArray selection_attr = *attributes.lookup_or_default<bool>(
@@ -130,7 +131,7 @@ static void recalcData_pointcloud(TransInfo *t)
   for (const TransDataContainer &tc : trans_data_contrainers) {
     const PointCloudTransformData &transform_data = *static_cast<PointCloudTransformData *>(
         tc.custom.type.data);
-    PointCloud &pointcloud = *static_cast<PointCloud *>(tc.obedit->data);
+    PointCloud &pointcloud = *id_cast<PointCloud *>(tc.obedit->data);
     if (t->mode == TFM_CURVE_SHRINKFATTEN) {
       array_utils::scatter(
           transform_data.radii.as_span(), transform_data.selection, pointcloud.radius_for_write());

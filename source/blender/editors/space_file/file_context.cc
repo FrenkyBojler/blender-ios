@@ -16,6 +16,8 @@
 #include "file_intern.hh"
 #include "filelist.hh"
 
+namespace blender {
+
 const char *file_context_dir[] = {
     "active_file",
     "selected_files",
@@ -66,7 +68,7 @@ int /*eContextResult*/ file_context(const bContext *C,
       }
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
 
@@ -102,7 +104,7 @@ int /*eContextResult*/ file_context(const bContext *C,
       }
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "id")) {
@@ -134,9 +136,11 @@ int /*eContextResult*/ file_context(const bContext *C,
       CTX_data_id_list_add(result, id);
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
 
   return CTX_RESULT_MEMBER_NOT_FOUND;
 }
+
+}  // namespace blender

@@ -27,13 +27,15 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_dilate_cc {
+namespace blender {
+
+namespace nodes::node_composite_dilate_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_DILATE_ERODE_STEP, "STEP", 0, "Steps", ""},
-    {CMP_NODE_DILATE_ERODE_DISTANCE_THRESHOLD, "THRESHOLD", 0, "Threshold", ""},
-    {CMP_NODE_DILATE_ERODE_DISTANCE, "DISTANCE", 0, "Distance", ""},
-    {CMP_NODE_DILATE_ERODE_DISTANCE_FEATHER, "FEATHER", 0, "Feather", ""},
+    {CMP_NODE_DILATE_ERODE_STEP, "STEP", 0, N_("Steps"), ""},
+    {CMP_NODE_DILATE_ERODE_DISTANCE_THRESHOLD, "THRESHOLD", 0, N_("Threshold"), ""},
+    {CMP_NODE_DILATE_ERODE_DISTANCE, "DISTANCE", 0, N_("Distance"), ""},
+    {CMP_NODE_DILATE_ERODE_DISTANCE_FEATHER, "FEATHER", 0, N_("Feather"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -46,7 +48,8 @@ static void cmp_node_dilate_declare(NodeDeclarationBuilder &b)
       "erodes");
   b.add_input<decl::Menu>("Type")
       .default_value(CMP_NODE_DILATE_ERODE_STEP)
-      .static_items(type_items);
+      .static_items(type_items)
+      .optional_label();
   b.add_input<decl::Float>("Falloff Size")
       .default_value(0.0f)
       .min(0.0f)
@@ -57,7 +60,9 @@ static void cmp_node_dilate_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Menu>("Falloff")
       .default_value(PROP_SMOOTH)
       .static_items(rna_enum_proportional_falloff_curve_only_items)
-      .usage_by_menu("Type", CMP_NODE_DILATE_ERODE_DISTANCE_FEATHER);
+      .optional_label()
+      .usage_by_menu("Type", CMP_NODE_DILATE_ERODE_DISTANCE_FEATHER)
+      .translation_context(BLT_I18NCONTEXT_ID_CURVE_LEGACY);
 
   b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 }
@@ -65,7 +70,7 @@ static void cmp_node_dilate_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_dilateerode(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused but kept for forward compatibility. */
-  NodeDilateErode *data = MEM_callocN<NodeDilateErode>(__func__);
+  NodeDilateErode *data = MEM_new_for_free<NodeDilateErode>(__func__);
   node->storage = data;
 }
 
@@ -141,13 +146,13 @@ class DilateErodeOperation : public NodeOperation {
      * spatial cache locality in the shader and to avoid having two separate shaders for each of
      * the passes. */
     const Domain domain = compute_domain();
-    const int2 transposed_domain = int2(domain.size.y, domain.size.x);
+    const int2 transposed_domain = int2(domain.data_size.y, domain.data_size.x);
 
     Result horizontal_pass_result = context().create_result(ResultType::Float);
     horizontal_pass_result.allocate_texture(transposed_domain);
     horizontal_pass_result.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     input_mask.unbind_as_texture();
@@ -169,7 +174,7 @@ class DilateErodeOperation : public NodeOperation {
      * spatial cache locality in the shader and to avoid having two separate shaders for each of
      * the passes. */
     const Domain domain = compute_domain();
-    const int2 transposed_domain = int2(domain.size.y, domain.size.x);
+    const int2 transposed_domain = int2(domain.data_size.y, domain.data_size.x);
 
     Result horizontal_pass_result = context().create_result(ResultType::Float);
     horizontal_pass_result.allocate_texture(transposed_domain);
@@ -210,7 +215,7 @@ class DilateErodeOperation : public NodeOperation {
 
     /* Notice that the domain is transposed, see the note on the horizontal pass method for more
      * information on the reasoning behind this. */
-    compute_dispatch_threads_at_least(shader, int2(domain.size.y, domain.size.x));
+    compute_dispatch_threads_at_least(shader, int2(domain.data_size.y, domain.data_size.x));
 
     GPU_shader_unbind();
     horizontal_pass_result.unbind_as_texture();
@@ -262,7 +267,7 @@ class DilateErodeOperation : public NodeOperation {
 
     /* Notice that the domain is transposed, see the note on the horizontal pass method for more
      * information on the reasoning behind this. */
-    const int2 image_size = int2(output.domain().size.y, output.domain().size.x);
+    const int2 image_size = int2(output.domain().data_size.y, output.domain().data_size.x);
 
     /* We process rows in tiles whose size is the same as the structuring element size. So we
      * compute the number of tiles using ceiling division, noting that the last tile might not be
@@ -372,7 +377,7 @@ class DilateErodeOperation : public NodeOperation {
     output.allocate_texture(domain);
     output.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output.unbind_as_image();
@@ -386,7 +391,7 @@ class DilateErodeOperation : public NodeOperation {
     const Domain domain = compute_domain();
     output.allocate_texture(domain);
 
-    const int2 image_size = input.domain().size;
+    const int2 image_size = input.domain().data_size;
 
     const float inset = math::max(this->get_falloff_size(), 10e-6f);
     const int radius = this->get_morphological_distance_threshold_radius();
@@ -440,7 +445,7 @@ class DilateErodeOperation : public NodeOperation {
      *
      * Since the erode/dilate distance is already signed appropriately as described before, we just
      * add it in both cases. */
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       /* Apply a threshold operation on the center pixel, where the threshold is currently
        * hard-coded at 0.5. The pixels with values larger than the threshold are said to be
        * masked. */
@@ -537,43 +542,38 @@ class DilateErodeOperation : public NodeOperation {
    * sign indicates either dilation or erosion, where negative values means erosion. */
   int get_size()
   {
-    return this->get_input("Size").get_single_value_default(0);
+    return this->get_input("Size").get_single_value_default<int>();
   }
 
   float get_falloff_size()
   {
-    return math::max(0.0f, this->get_input("Falloff Size").get_single_value_default(0.0f));
+    return math::max(0.0f, this->get_input("Falloff Size").get_single_value_default<float>());
   }
 
   CMPNodeDilateErodeMethod get_type()
   {
-    const Result &input = this->get_input("Type");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_DILATE_ERODE_STEP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeDilateErodeMethod>(menu_value.value);
+    return CMPNodeDilateErodeMethod(
+        this->get_input("Type").get_single_value_default<MenuValue>().value);
   }
 
   int get_falloff()
   {
-    const Result &input = this->get_input("Falloff");
-    const MenuValue default_menu_value = MenuValue(PROP_SMOOTH);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return menu_value.value;
+    return this->get_input("Falloff").get_single_value_default<MenuValue>().value;
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new DilateErodeOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_dilate_cc
+}  // namespace nodes::node_composite_dilate_cc
 
 static void register_node_type_cmp_dilateerode()
 {
-  namespace file_ns = blender::nodes::node_composite_dilate_cc;
+  namespace file_ns = nodes::node_composite_dilate_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeDilateErode", CMP_NODE_DILATEERODE);
   ntype.ui_name = "Dilate/Erode";
@@ -582,10 +582,12 @@ static void register_node_type_cmp_dilateerode()
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_dilate_declare;
   ntype.initfunc = file_ns::node_composit_init_dilateerode;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeDilateErode", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_dilateerode)
+
+}  // namespace blender

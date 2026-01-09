@@ -169,8 +169,11 @@ static void calc_faces(const Depsgraph &depsgraph,
   calc_brush_cube_distances<float2>(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -221,8 +224,11 @@ static void calc_grids(const Depsgraph &depsgraph,
   calc_brush_cube_distances<float2>(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
@@ -272,8 +278,11 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   calc_brush_cube_distances<float2>(brush, xy_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -313,7 +322,7 @@ void do_clay_strips_brush(const Depsgraph &depsgraph,
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       const PositionDeformData position_data(depsgraph, object);
       const MeshAttributeData attribute_data(mesh);

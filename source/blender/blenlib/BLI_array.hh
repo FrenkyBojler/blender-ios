@@ -7,13 +7,13 @@
 /** \file
  * \ingroup bli
  *
- * A `blender::Array<T>` is a container for a fixed size array the size of which is NOT known at
+ * A `Array<T>` is a container for a fixed size array the size of which is NOT known at
  * compile time.
  *
  * If the size is known at compile time, `std::array<T, N>` should be used instead.
  *
- * blender::Array should usually be used instead of blender::Vector whenever the number of elements
- * is known at construction time. Note however, that blender::Array will default construct all
+ * Array should usually be used instead of Vector whenever the number of elements
+ * is known at construction time. Note however, that Array will default construct all
  * elements when initialized with the size-constructor. For trivial types, this does nothing. In
  * all other cases, this adds overhead.
  *
@@ -21,7 +21,7 @@
  * better. It indicates that the size of the data structure is not expected to change. Furthermore,
  * you can be more certain that an array does not over-allocate.
  *
- * blender::Array supports small object optimization to improve performance when the size turns out
+ * Array supports small object optimization to improve performance when the size turns out
  * to be small at run-time.
  */
 
@@ -133,7 +133,14 @@ class Array {
   {
     BLI_assert(size >= 0);
     data_ = this->get_buffer_for_size(size);
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
     uninitialized_fill_n(data_, size, value);
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
     size_ = size;
   }
 

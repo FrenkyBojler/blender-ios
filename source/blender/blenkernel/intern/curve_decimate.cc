@@ -14,6 +14,8 @@
 
 #include "BKE_curve.hh"
 
+namespace blender {
+
 extern "C" {
 #include "curve_fit_nd.h"
 }
@@ -88,7 +90,7 @@ static void knot_remove_error_recalculate(
   BLI_assert(equals_v3v3(points[k->next->point_index], k->next->co));
 #endif
 
-  const float(*points_offset)[3];
+  const float (*points_offset)[3];
   uint points_offset_len;
 
   if (k->prev->point_index < k->next->point_index) {
@@ -196,7 +198,7 @@ uint BKE_curve_decimate_bezt_array(BezTriple *bezt_array,
   const uint bezt_array_last = bezt_array_len - 1;
   const uint points_len = BKE_curve_calc_coords_axis_len(bezt_array_len, resolu, is_cyclic, true);
 
-  float(*points)[3] = MEM_malloc_arrayN<float[3]>(points_len * (is_cyclic ? 2 : 1), __func__);
+  float (*points)[3] = MEM_malloc_arrayN<float[3]>(points_len * (is_cyclic ? 2 : 1), __func__);
 
   BKE_curve_calc_coords_axis(
       bezt_array, bezt_array_len, resolu, is_cyclic, false, 0, sizeof(float[3]), &points[0][0]);
@@ -341,3 +343,5 @@ void BKE_curve_decimate_nurb(Nurb *nu,
   nu->bezt = bezt_dst;
   nu->pntsu = i_dst;
 }
+
+}  // namespace blender

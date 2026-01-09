@@ -32,31 +32,9 @@
 
 #include "atomic_ops.h"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"image.buffer"};
-
-#ifndef WIN32
-static SpinLock mmap_spin;
-
-void imb_mmap_lock_init()
-{
-  BLI_spin_init(&mmap_spin);
-}
-
-void imb_mmap_lock_exit()
-{
-  BLI_spin_end(&mmap_spin);
-}
-
-void imb_mmap_lock()
-{
-  BLI_spin_lock(&mmap_spin);
-}
-
-void imb_mmap_unlock()
-{
-  BLI_spin_unlock(&mmap_spin);
-}
-#endif
 
 /* Free the specified buffer storage, freeing memory when needed and restoring the state of the
  * buffer to its defaults. */
@@ -524,7 +502,7 @@ ImBuf *IMB_allocFromBuffer(
 
 ImBuf *IMB_allocImBuf(uint x, uint y, uchar planes, uint flags)
 {
-  ImBuf *ibuf = MEM_callocN<ImBuf>("ImBuf_struct");
+  ImBuf *ibuf = MEM_new_for_free<ImBuf>("ImBuf_struct");
 
   if (ibuf) {
     if (!IMB_initImBuf(ibuf, x, y, planes, flags)) {
@@ -674,3 +652,5 @@ size_t IMB_get_size_in_memory(const ImBuf *ibuf)
 
   return size;
 }
+
+}  // namespace blender

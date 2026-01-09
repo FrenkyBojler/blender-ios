@@ -22,10 +22,9 @@
 #include "eevee_thickness_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
 
 /* Inputs expected to be in view-space. */
-void raytrace_clip_ray_to_near_plane(inout Ray ray)
+void raytrace_clip_ray_to_near_plane(Ray &ray)
 {
   float near_dist = drw_view_near();
   if ((ray.origin.z + ray.direction.z * ray.max_time) > near_dist) {

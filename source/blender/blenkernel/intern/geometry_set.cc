@@ -117,16 +117,7 @@ GeometryComponent &GeometrySet::get_component_for_write(GeometryComponent::Type 
     /* If the component did not exist before, create a new one. */
     component_ptr = GeometryComponent::create(component_type);
   }
-  else if (component_ptr->is_mutable()) {
-    /* If the referenced component is already mutable, return it directly. */
-    component_ptr->tag_ensured_mutable();
-  }
-  else {
-    /* If the referenced component is shared, make a copy. The copy is not shared and is
-     * therefore mutable. */
-    component_ptr = component_ptr->copy();
-  }
-  return const_cast<GeometryComponent &>(*component_ptr);
+  return component_ptr.ensure_mutable_inplace();
 }
 
 GeometryComponent *GeometrySet::get_component_ptr(GeometryComponent::Type type)
@@ -404,7 +395,10 @@ bool GeometrySet::has_realized_data() const
 {
   for (const GeometryComponentPtr &component_ptr : components_) {
     if (component_ptr) {
-      if (component_ptr->type() != GeometryComponent::Type::Instance) {
+      if (!ELEM(component_ptr->type(),
+                GeometryComponent::Type::Instance,
+                GeometryComponent::Type::Edit))
+      {
         return true;
       }
     }

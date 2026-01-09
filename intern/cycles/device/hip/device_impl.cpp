@@ -262,7 +262,7 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   const string kernel_md5 = util_md5_string(source_md5 + common_cflags);
 
   const char *const kernel_ext = "genco";
-  std::string options = "-Wno-parentheses-equality -Wno-unused-value -ffast-math";
+  std::string options = "-Wno-parentheses-equality -Wno-unused-value -ffast-math -std=c++17";
 
 #  ifndef NDEBUG
   options.append(" -save-temps");
@@ -332,7 +332,7 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
                                  common_cflags.c_str());
 
   LOG_INFO_IMPORTANT << "Compiling " << ((use_adaptive_compilation()) ? "adaptive " : "")
-                     << "HIP kernel ...";
+                     << "HIP kernel ... " << command;
 
 #  ifdef _WIN32
   command = "call " + command;
@@ -407,7 +407,7 @@ bool HIPDevice::load_kernels(const uint kernel_features)
   }
 
   if (result == hipSuccess) {
-    kernels.load(this);
+    kernels.load_all(this, hipModule);
     reserve_local_memory(kernel_features);
   }
 
@@ -437,16 +437,16 @@ void HIPDevice::reserve_local_memory(const uint kernel_features)
     /* Launch kernel, using just 1 block appears sufficient to reserve memory for all
      * multiprocessors. It would be good to do this in parallel for the multi GPU case
      * still to make it faster. */
-    HIPDeviceQueue queue(this);
+    unique_ptr<DeviceQueue> queue = gpu_queue_create();
 
     device_ptr d_path_index = 0;
     device_ptr d_render_buffer = 0;
     int d_work_size = 0;
     DeviceKernelArguments args(&d_path_index, &d_render_buffer, &d_work_size);
 
-    queue.init_execution();
-    queue.enqueue(test_kernel, 1, args);
-    queue.synchronize();
+    queue->init_execution();
+    queue->enqueue(test_kernel, 1, args);
+    queue->synchronize();
   }
 
   {

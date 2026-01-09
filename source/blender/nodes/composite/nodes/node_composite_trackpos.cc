@@ -10,14 +10,13 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_utf8.h"
 
-#include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -30,7 +29,9 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_trackpos_cc {
+namespace blender {
+
+namespace nodes::node_composite_trackpos_cc {
 
 NODE_STORAGE_FUNCS(NodeTrackPosData)
 
@@ -38,26 +39,26 @@ static const EnumPropertyItem mode_items[] = {
     {CMP_NODE_TRACK_POSITION_ABSOLUTE,
      "ABSOLUTE",
      0,
-     "Absolute",
-     "Returns the position and speed of the marker at the current scene frame relative to the "
-     "zero origin of the tracking space"},
+     N_("Absolute"),
+     N_("Returns the position and speed of the marker at the current scene frame relative to the "
+        "zero origin of the tracking space")},
     {CMP_NODE_TRACK_POSITION_RELATIVE_START,
      "RELATIVE_START",
      0,
-     "Relative Start",
-     "Returns the position and speed of the marker at the current scene frame relative to the "
-     "position of the first non-disabled marker in the track"},
+     N_("Relative Start"),
+     N_("Returns the position and speed of the marker at the current scene frame relative to the "
+        "position of the first non-disabled marker in the track")},
     {CMP_NODE_TRACK_POSITION_RELATIVE_FRAME,
      "RELATIVE_FRAME",
      0,
-     "Relative Frame",
-     "Returns the position and speed of the marker at the current scene frame relative to the "
-     "position of the marker at the current scene frame plus the user given relative frame"},
+     N_("Relative Frame"),
+     N_("Returns the position and speed of the marker at the current scene frame relative to the "
+        "position of the marker at the current scene frame plus the user given relative frame")},
     {CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME,
      "ABSOLUTE_FRAME",
      0,
-     "Absolute Frame",
-     "Returns the position and speed of the marker at the given absolute frame"},
+     N_("Absolute Frame"),
+     N_("Returns the position and speed of the marker at the given absolute frame")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -65,7 +66,8 @@ static void cmp_node_trackpos_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Menu>("Mode")
       .default_value(CMP_NODE_TRACK_POSITION_ABSOLUTE)
-      .static_items(mode_items);
+      .static_items(mode_items)
+      .optional_label();
   b.add_input<decl::Int>("Frame").usage_by_menu(
       "Mode", {CMP_NODE_TRACK_POSITION_RELATIVE_FRAME, CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME});
 
@@ -76,9 +78,9 @@ static void cmp_node_trackpos_declare(NodeDeclarationBuilder &b)
 
 static void init(const bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
 
-  NodeTrackPosData *data = MEM_callocN<NodeTrackPosData>(__func__);
+  NodeTrackPosData *data = MEM_new_for_free<NodeTrackPosData>(__func__);
   node->storage = data;
 
   const Scene *scene = CTX_data_scene(C);
@@ -98,32 +100,31 @@ static void init(const bContext *C, PointerRNA *ptr)
   }
 }
 
-static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_trackpos(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
 
-  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+  template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
   if (node->id) {
-    MovieClip *clip = (MovieClip *)node->id;
+    MovieClip *clip = id_cast<MovieClip *>(node->id);
     MovieTracking *tracking = &clip->tracking;
     MovieTrackingObject *tracking_object;
-    uiLayout *col;
     NodeTrackPosData *data = (NodeTrackPosData *)node->storage;
     PointerRNA tracking_ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTracking, tracking);
 
-    col = &layout->column(false);
-    col->prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
+    ui::Layout &col = layout.column(false);
+    col.prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
 
     tracking_object = BKE_tracking_object_get_named(tracking, data->tracking_object);
     if (tracking_object) {
       PointerRNA object_ptr = RNA_pointer_create_discrete(
           &clip->id, &RNA_MovieTrackingObject, tracking_object);
 
-      col->prop_search(ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA);
+      col.prop_search(ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA);
     }
     else {
-      layout->prop(ptr, "track_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
+      layout.prop(ptr, "track_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
     }
   }
 }
@@ -299,20 +300,20 @@ class TrackPositionOperation : public NodeOperation {
     MovieTracking *movie_tracking = &movie_clip->tracking;
 
     MovieTrackingObject *movie_tracking_object = BKE_tracking_object_get_named(
-        movie_tracking, node_storage(bnode()).tracking_object);
+        movie_tracking, node_storage(node()).tracking_object);
     if (!movie_tracking_object) {
       return nullptr;
     }
 
     return BKE_tracking_object_find_track_with_name(movie_tracking_object,
-                                                    node_storage(bnode()).track_name);
+                                                    node_storage(node()).track_name);
   }
 
   /* Get the size of the movie clip at the evaluation frame. This is constant for all frames in
    * most cases. */
   int2 get_size()
   {
-    MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+    MovieClipUser user = {};
     BKE_movieclip_user_set_frame(&user, get_frame());
 
     int2 size;
@@ -325,7 +326,7 @@ class TrackPositionOperation : public NodeOperation {
    * added to the current scene frame. See the get_mode() method for more information. */
   int get_relative_frame()
   {
-    return this->get_input("Frame").get_single_value_default(0);
+    return this->get_input("Frame").get_single_value_default<int>();
   }
 
   /* Get the frame where the marker will be retrieved. This is the absolute frame for the absolute
@@ -343,35 +344,33 @@ class TrackPositionOperation : public NodeOperation {
    * will be retrieved. See the get_mode() method for more information. */
   int get_absolute_frame()
   {
-    return this->get_input("Frame").get_single_value_default(0);
+    return this->get_input("Frame").get_single_value_default<int>();
   }
 
   CMPNodeTrackPositionMode get_mode()
   {
-    const Result &input = this->get_input("Mode");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_TRACK_POSITION_ABSOLUTE);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeTrackPositionMode>(menu_value.value);
+    return CMPNodeTrackPositionMode(
+        this->get_input("Mode").get_single_value_default<MenuValue>().value);
   }
 
   MovieClip *get_movie_clip()
   {
-    return (MovieClip *)bnode().id;
+    return id_cast<MovieClip *>(node().id);
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new TrackPositionOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_trackpos_cc
+}  // namespace nodes::node_composite_trackpos_cc
 
 static void register_node_type_cmp_trackpos()
 {
-  namespace file_ns = blender::nodes::node_composite_trackpos_cc;
+  namespace file_ns = nodes::node_composite_trackpos_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeTrackPos", CMP_NODE_TRACKPOS);
   ntype.ui_name = "Track Position";
@@ -382,10 +381,12 @@ static void register_node_type_cmp_trackpos()
   ntype.declare = file_ns::cmp_node_trackpos_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_trackpos;
   ntype.initfunc_api = file_ns::init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeTrackPosData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_trackpos)
+
+}  // namespace blender

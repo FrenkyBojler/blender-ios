@@ -8,6 +8,7 @@ set(INC
   gizmo/intern
   ../compositor
   ../editors/include
+  ../gpu
   ../makesrna
   ../../../intern/memutil
 
@@ -25,8 +26,8 @@ set(SRC
   intern/wm_event_query.cc
   intern/wm_event_system.cc
   intern/wm_files.cc
-  intern/wm_files_link.cc
   intern/wm_files_colorspace.cc
+  intern/wm_files_link.cc
   intern/wm_gesture.cc
   intern/wm_gesture_ops.cc
   intern/wm_init_exit.cc
@@ -125,6 +126,14 @@ else()
     PRIVATE bf::extern::nanosvg
     PRIVATE bf::editor::datafiles
   )
+endif()
+
+if(WITH_GHOST_CSD)
+  list(APPEND SRC
+    intern/wm_window_csd_draw.cc
+    intern/wm_window_csd_layout.cc
+  )
+  add_definitions(-DWITH_GHOST_CSD)
 endif()
 
 if(WITH_AUDASPACE)

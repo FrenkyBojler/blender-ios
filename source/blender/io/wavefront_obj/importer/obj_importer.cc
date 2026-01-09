@@ -56,11 +56,11 @@ static Collection *find_or_create_collection(Main *bmain,
     if (sep_pos > subname_start) {
       std::string subname = geom_name.substr(subname_start, sep_pos - subname_start);
       bool found = false;
-      LISTBASE_FOREACH (CollectionChild *, child, &target->children) {
-        if (GS(child->collection->id.name) == ID_GR &&
-            STREQ(child->collection->id.name + 2, subname.c_str()))
+      for (CollectionChild &child : target->children) {
+        if (GS(child.collection->id.name) == ID_GR &&
+            STREQ(child.collection->id.name + 2, subname.c_str()))
         {
-          target = child->collection;
+          target = child.collection;
           found = true;
           break;
         }
@@ -95,12 +95,8 @@ static void geometry_to_blender_geometry_set(const OBJImportParams &import_param
     }
     else if (geometry->geom_type_ == GEOM_CURVE) {
       CurveFromGeometry curve_ob_from_geometry(*geometry, global_vertices);
-      Curve *curve = curve_ob_from_geometry.create_curve(import_params);
-      Curves *curves_id = bke::curve_legacy_to_curves(*curve);
+      Curves *curves_id = curve_ob_from_geometry.create_curve(import_params);
       geometry_set = bke::GeometrySet::from_curves(curves_id);
-
-      /* Free temporary legacy curve object. */
-      BKE_id_free(nullptr, curve);
     }
 
     geometry_set.name = geometry->geometry_name_;
@@ -124,12 +120,11 @@ static void geometry_to_blender_objects(Main *bmain,
 
   /* Sort objects by name: creating many objects is much faster if the creation
    * order is sorted by name. */
-  blender::parallel_sort(
-      all_geometries.begin(), all_geometries.end(), [](const auto &a, const auto &b) {
-        const char *na = a ? a->geometry_name_.c_str() : "";
-        const char *nb = b ? b->geometry_name_.c_str() : "";
-        return BLI_strcasecmp(na, nb) < 0;
-      });
+  parallel_sort(all_geometries.begin(), all_geometries.end(), [](const auto &a, const auto &b) {
+    const char *na = a ? a->geometry_name_.c_str() : "";
+    const char *nb = b ? b->geometry_name_.c_str() : "";
+    return BLI_strcasecmp(na, nb) < 0;
+  });
 
   /* Create all the objects. */
   Vector<Object *> objects;
@@ -160,7 +155,7 @@ static void geometry_to_blender_objects(Main *bmain,
   if (import_params.clamp_size > 0.0f) {
     std::optional<Bounds<float3>> bounds = std::nullopt;
     for (Object *obj : objects) {
-      bounds = blender::bounds::merge(bounds, BKE_object_boundbox_get(obj));
+      bounds = bounds::merge(bounds, BKE_object_boundbox_get(obj));
     }
     if (bounds.has_value()) {
       const float max_diff = math::reduce_max(bounds->max - bounds->min);

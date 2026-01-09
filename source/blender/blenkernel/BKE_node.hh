@@ -24,6 +24,8 @@
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
 
+namespace blender {
+
 /* not very important, but the stack solver likes to know a maximum */
 #define MAX_SOCKET 512
 
@@ -53,12 +55,9 @@ struct bNodeSocket;
 struct bNodeStack;
 struct bNodeTree;
 struct bNodeTreeExec;
-struct uiLayout;
 
-namespace blender {
 class CPPType;
 namespace nodes {
-class DNode;
 class NodeMultiFunctionBuilder;
 class GeoNodeExecParams;
 class NodeDeclaration;
@@ -78,9 +77,12 @@ namespace compositor {
 class Context;
 class NodeOperation;
 }  // namespace compositor
-}  // namespace blender
 
-namespace blender::bke {
+namespace ui {
+struct Layout;
+}  // namespace ui
+
+namespace bke {
 
 /* -------------------------------------------------------------------- */
 /** \name Node Type Definitions
@@ -117,31 +119,28 @@ struct bNodeSocketTemplate {
 /* Use `void *` for callbacks that require C++. This is rather ugly, but works well for now. This
  * would not be necessary if we would use bNodeSocketType and bNodeType only in C++ code.
  * However, achieving this requires quite a few changes currently. */
-using NodeMultiFunctionBuildFunction = void (*)(blender::nodes::NodeMultiFunctionBuilder &builder);
-using NodeGeometryExecFunction = void (*)(blender::nodes::GeoNodeExecParams params);
-using NodeDeclareFunction = void (*)(blender::nodes::NodeDeclarationBuilder &builder);
+using NodeMultiFunctionBuildFunction = void (*)(nodes::NodeMultiFunctionBuilder &builder);
+using NodeGeometryExecFunction = void (*)(nodes::GeoNodeExecParams params);
+using NodeDeclareFunction = void (*)(nodes::NodeDeclarationBuilder &builder);
 using NodeDeclareDynamicFunction = void (*)(const bNodeTree &tree,
                                             const bNode &node,
-                                            blender::nodes::NodeDeclarationBuilder &builder);
+                                            nodes::NodeDeclarationBuilder &builder);
 using SocketGetCPPValueFunction = void (*)(const void *socket_value, void *r_value);
 using SocketGetGeometryNodesCPPValueFunction = SocketValueVariant (*)(const void *socket_value);
 
 /* Adds socket link operations that are specific to this node type. */
-using NodeGatherSocketLinkOperationsFunction =
-    void (*)(blender::nodes::GatherLinkSearchOpParams &params);
+using NodeGatherSocketLinkOperationsFunction = void (*)(nodes::GatherLinkSearchOpParams &params);
 
 /* Adds node add menu operations that are specific to this node type. */
-using NodeGatherAddOperationsFunction =
-    void (*)(blender::nodes::GatherAddNodeSearchParams &params);
+using NodeGatherAddOperationsFunction = void (*)(nodes::GatherAddNodeSearchParams &params);
 
 using NodeGetCompositorOperationFunction =
-    blender::compositor::NodeOperation *(*)(blender::compositor::Context &context,
-                                            blender::nodes::DNode node);
-using NodeExtraInfoFunction = void (*)(blender::nodes::NodeExtraInfoParams &params);
-using NodeInverseElemEvalFunction =
-    void (*)(blender::nodes::value_elem::InverseElemEvalParams &params);
-using NodeElemEvalFunction = void (*)(blender::nodes::value_elem::ElemEvalParams &params);
-using NodeInverseEvalFunction = void (*)(blender::nodes::inverse_eval::InverseEvalParams &params);
+    blender::compositor::NodeOperation *(*)(blender::compositor::Context & context,
+                                            const bNode &node);
+using NodeExtraInfoFunction = void (*)(nodes::NodeExtraInfoParams &params);
+using NodeInverseElemEvalFunction = void (*)(nodes::value_elem::InverseElemEvalParams &params);
+using NodeElemEvalFunction = void (*)(nodes::value_elem::ElemEvalParams &params);
+using NodeInverseEvalFunction = void (*)(nodes::inverse_eval::InverseEvalParams &params);
 using NodeInternallyLinkedInputFunction = const bNodeSocket *(*)(const bNodeTree &tree,
                                                                  const bNode &node,
                                                                  const bNodeSocket &output_socket);
@@ -164,17 +163,17 @@ struct bNodeSocketType {
   std::string subtype_label;
 
   void (*draw)(bContext *C,
-               uiLayout *layout,
+               ui::Layout *layout,
                PointerRNA *ptr,
                PointerRNA *node_ptr,
-               StringRefNull text) = nullptr;
+               StringRef text) = nullptr;
   void (*draw_color)(bContext *C, PointerRNA *ptr, PointerRNA *node_ptr, float *r_color) = nullptr;
   void (*draw_color_simple)(const bNodeSocketType *socket_type, float *r_color) = nullptr;
 
   void (*interface_draw)(ID *id,
                          bNodeTreeInterfaceSocket *socket,
                          bContext *C,
-                         uiLayout *layout) = nullptr;
+                         ui::Layout *layout) = nullptr;
   void (*interface_init_socket)(ID *id,
                                 const bNodeTreeInterfaceSocket *interface_socket,
                                 bNode *node,
@@ -202,7 +201,7 @@ struct bNodeSocketType {
   void (*free_self)(bNodeSocketType *stype) = nullptr;
 
   /* Return the CPPType of this socket. */
-  const blender::CPPType *base_cpp_type = nullptr;
+  const CPPType *base_cpp_type = nullptr;
   /* Get the value of this socket in a generic way. */
   SocketGetCPPValueFunction get_base_cpp_value = nullptr;
   /* Get geometry nodes cpp value. */
@@ -211,7 +210,7 @@ struct bNodeSocketType {
   const SocketValueVariant *geometry_nodes_default_value = nullptr;
 };
 
-using NodeInitExecFunction = void *(*)(bNodeExecContext *context,
+using NodeInitExecFunction = void *(*)(bNodeExecContext * context,
                                        bNode *node,
                                        bNodeInstanceKey key);
 using NodeFreeExecFunction = void (*)(void *nodedata);
@@ -256,9 +255,9 @@ struct bNodeType {
   std::string storagename; /* struct name for DNA */
 
   /* Draw the option buttons on the node */
-  void (*draw_buttons)(uiLayout *, bContext *C, PointerRNA *ptr) = nullptr;
+  void (*draw_buttons)(ui::Layout &, bContext *C, PointerRNA *ptr) = nullptr;
   /* Additional parameters in the side panel */
-  void (*draw_buttons_ex)(uiLayout *, bContext *C, PointerRNA *ptr) = nullptr;
+  void (*draw_buttons_ex)(ui::Layout &, bContext *C, PointerRNA *ptr) = nullptr;
 
   /* Additional drawing on backdrop */
   void (*draw_backdrop)(SpaceNode *snode, ImBuf *backdrop, bNode *node, int x, int y) = nullptr;
@@ -368,7 +367,7 @@ struct bNodeType {
    * the node. In this case, the static declaration is mostly just a hint, and does not have to
    * match with the final node.
    */
-  blender::nodes::NodeDeclaration *static_declaration = nullptr;
+  nodes::NodeDeclaration *static_declaration = nullptr;
 
   /**
    * Add to the list of search names and operations gathered by node link drag searching.
@@ -547,11 +546,15 @@ struct bNodeTreeType {
  * \{ */
 
 bNodeTreeType *node_tree_type_find(StringRef idname);
+bNodeTreeType *node_tree_type_find_builtin(const int tree_type);
 void node_tree_type_add(bNodeTreeType &nt);
 void node_tree_type_free_link(const bNodeTreeType &nt);
 bool node_tree_is_registered(const bNodeTree &ntree);
 
 Span<bNodeTreeType *> node_tree_types_get();
+
+bool node_tree_type_supports_socket_type_static(const int ntree_type,
+                                                const eNodeSocketDatatype socket_type);
 
 /**
  * Try to initialize all type-info in a node tree.
@@ -591,8 +594,6 @@ bNodeTree **node_tree_ptr_from_id(ID *id);
  * Returns the private NodeTree object of the data-block, if it has one.
  */
 bNodeTree *node_tree_from_id(ID *id);
-
-void node_tree_free_local_tree(bNodeTree *ntree);
 
 /**
  * Check recursively if a node tree contains another.
@@ -678,7 +679,10 @@ void node_remove_socket(bNodeTree &ntree, bNode &node, bNodeSocket &sock);
 void node_modify_socket_type_static(
     bNodeTree *ntree, bNode *node, bNodeSocket *sock, int type, int subtype);
 
-bNode *node_add_node(const bContext *C, bNodeTree &ntree, StringRef idname);
+bNode *node_add_node(const bContext *C,
+                     bNodeTree &ntree,
+                     StringRef idname,
+                     std::optional<int> unique_identifier = std::nullopt);
 bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, int type);
 
 /**
@@ -694,7 +698,8 @@ void node_unique_id(bNodeTree &ntree, bNode &node);
 /**
  * Delete node, associated animation data and ID user count.
  */
-void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, bool do_id_user);
+void node_remove_node(
+    Main *bmain, bNodeTree &ntree, bNode &node, bool do_id_user, bool remove_animation = true);
 
 float2 node_dimensions_get(const bNode &node);
 void node_tag_update_id(bNode &node);
@@ -869,12 +874,12 @@ bool node_tree_iterator_step(NodeTreeIterStore *ntreeiter, bNodeTree **r_nodetre
 
 #define FOREACH_NODETREE_BEGIN(bmain, _nodetree, _id) \
   { \
-    blender::bke::NodeTreeIterStore _nstore; \
+    bke::NodeTreeIterStore _nstore; \
     bNodeTree *_nodetree; \
     ID *_id; \
     /* avoid compiler warning about unused variables */ \
-    blender::bke::node_tree_iterator_init(&_nstore, bmain); \
-    while (blender::bke::node_tree_iterator_step(&_nstore, &_nodetree, &_id) == true) { \
+    bke::node_tree_iterator_init(&_nstore, bmain); \
+    while (bke::node_tree_iterator_step(&_nstore, &_nodetree, &_id) == true) { \
       if (_nodetree) {
 
 #define FOREACH_NODETREE_END \
@@ -1047,7 +1052,7 @@ void node_chain_iterator(const bNodeTree *ntree,
  * \note Recursive
  */
 void node_chain_iterator_backwards(const bNodeTree *ntree,
-                                   const bNode *node_start,
+                                   bNode *node_start,
                                    bool (*callback)(bNode *, bNode *, void *),
                                    void *userdata,
                                    int recursion_lvl);
@@ -1135,6 +1140,11 @@ StringRefNull node_socket_label(const bNodeSocket &sock);
  * It is used when grouping sockets under panels, to avoid redundancy in the label.
  */
 std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock);
+
+/**
+ * Get node socket translation context if it is set.
+ */
+const char *node_socket_translation_context(const bNodeSocket &sock);
 
 NodeColorTag node_color_tag(const bNode &node);
 
@@ -1228,7 +1238,7 @@ inline bool bNodeType::is_type(const StringRef query_idname) const
   return this->idname == query_idname;
 }
 
-}  // namespace blender::bke
+}  // namespace bke
 
 #define NODE_STORAGE_FUNCS(StorageT) \
   [[maybe_unused]] static StorageT &node_storage(bNode &node) \
@@ -1244,3 +1254,5 @@ constexpr int NODE_DEFAULT_MAX_WIDTH = 700;
 constexpr int GROUP_NODE_DEFAULT_WIDTH = 140;
 constexpr int GROUP_NODE_MAX_WIDTH = NODE_DEFAULT_MAX_WIDTH;
 constexpr int GROUP_NODE_MIN_WIDTH = 60;
+
+}  // namespace blender

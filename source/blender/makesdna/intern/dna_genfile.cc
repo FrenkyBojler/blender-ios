@@ -32,7 +32,10 @@
 
 #include "DNA_genfile.h"
 #include "DNA_print.hh"
+#include "DNA_sdna_pointers.hh"
 #include "DNA_sdna_types.h" /* for SDNA ;-) */
+
+namespace blender {
 
 /**
  * \section dna_genfile Overview
@@ -310,7 +313,7 @@ bool DNA_struct_exists_with_alias(const SDNA *sdna, const char *str)
 
 BLI_INLINE const char *pad_up_4(const char *ptr)
 {
-  return (const char *)((uintptr_t(ptr) + 3) & ~3);
+  return reinterpret_cast<const char *>((uintptr_t(ptr) + 3) & ~3);
 }
 
 /**
@@ -320,7 +323,7 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
 {
   int member_index_gravity_fix = -1;
 
-  int *data = (int *)sdna->data;
+  int *data = reinterpret_cast<int *>(const_cast<char *>(sdna->data));
 
   /* Clear pointers in case of error. */
   sdna->types = nullptr;
@@ -364,7 +367,7 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
     return false;
   }
 
-  cp = (char *)data;
+  cp = reinterpret_cast<char *>(data);
   for (int member_index = 0; member_index < sdna->members_num; member_index++) {
     sdna->members[member_index] = cp;
 
@@ -386,7 +389,7 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
   cp = pad_up_4(cp);
 
   /* Type names array ('TYPE') */
-  data = (int *)cp;
+  data = reinterpret_cast<int *>(const_cast<char *>(cp));
   if (*data == MAKE_ID('T', 'Y', 'P', 'E')) {
     data++;
 
@@ -401,7 +404,7 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
     return false;
   }
 
-  cp = (char *)data;
+  cp = reinterpret_cast<char *>(data);
   for (int type_index = 0; type_index < sdna->types_num; type_index++) {
     /* WARNING! See: DNA_struct_rename_legacy_hack_static_from_alias docs. */
     sdna->types[type_index] = DNA_struct_rename_legacy_hack_static_from_alias(cp);
@@ -414,12 +417,12 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
   cp = pad_up_4(cp);
 
   /* Type lengths array ('TLEN') */
-  data = (int *)cp;
+  data = reinterpret_cast<int *>(const_cast<char *>(cp));
   short *sp;
   if (*data == MAKE_ID('T', 'L', 'E', 'N')) {
     data++;
     /* NOTE: this is endianness-sensitive. */
-    sp = (short *)data;
+    sp = reinterpret_cast<short *>(data);
     sdna->types_size = sp;
 
     sp += sdna->types_num;
@@ -434,7 +437,7 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
   }
 
   /* Struct array ('STRC') */
-  data = (int *)sp;
+  data = reinterpret_cast<int *>(sp);
   if (*data == MAKE_ID('S', 'T', 'R', 'C')) {
     data++;
 
@@ -450,11 +453,11 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
   }
 
   /* Safety check, to ensure that there is no multiple usages of a same struct index. */
-  blender::Set<short> struct_indices;
-  sp = (short *)data;
+  Set<short> struct_indices;
+  sp = reinterpret_cast<short *>(data);
   for (int struct_index = 0; struct_index < sdna->structs_num; struct_index++) {
     /* NOTE: this is endianness-sensitive. */
-    SDNA_Struct *struct_info = (SDNA_Struct *)sp;
+    SDNA_Struct *struct_info = reinterpret_cast<SDNA_Struct *>(sp);
     sdna->structs[struct_index] = struct_info;
 
     if (!struct_indices.add(struct_info->type_index)) {
@@ -469,7 +472,7 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
     /* second part of gravity problem, setting "gravity" type to void */
     if (member_index_gravity_fix > -1) {
       for (int struct_index = 0; struct_index < sdna->structs_num; struct_index++) {
-        sp = (short *)sdna->structs[struct_index];
+        sp = reinterpret_cast<short *>(sdna->structs[struct_index]);
         if (STREQ(sdna->types[sp[0]], "ClothSimSettings")) {
           sp[10] = SDNA_TYPE_VOID;
         }
@@ -539,7 +542,7 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
     if (mat4x4f_struct_index > 0) {
       const SDNA_Struct *struct_info = sdna->structs[mat4x4f_struct_index];
       const int mat4x4f_type_index = struct_info->type_index;
-      sdna->types_alignment[mat4x4f_type_index] = alignof(blender::float4x4);
+      sdna->types_alignment[mat4x4f_type_index] = alignof(float4x4);
     }
   }
 
@@ -1180,14 +1183,16 @@ static void reconstruct_struct(const DNA_ReconstructInfo *reconstruct_info,
                             new_block + step->data.cast_primitive.new_offset);
         break;
       case RECONSTRUCT_STEP_CAST_POINTER_TO_32:
-        cast_pointer_64_to_32(step->data.cast_pointer.array_len,
-                              (const uint64_t *)(old_block + step->data.cast_pointer.old_offset),
-                              (uint32_t *)(new_block + step->data.cast_pointer.new_offset));
+        cast_pointer_64_to_32(
+            step->data.cast_pointer.array_len,
+            reinterpret_cast<const uint64_t *>(old_block + step->data.cast_pointer.old_offset),
+            reinterpret_cast<uint32_t *>(new_block + step->data.cast_pointer.new_offset));
         break;
       case RECONSTRUCT_STEP_CAST_POINTER_TO_64:
-        cast_pointer_32_to_64(step->data.cast_pointer.array_len,
-                              (const uint32_t *)(old_block + step->data.cast_pointer.old_offset),
-                              (uint64_t *)(new_block + step->data.cast_pointer.new_offset));
+        cast_pointer_32_to_64(
+            step->data.cast_pointer.array_len,
+            reinterpret_cast<const uint32_t *>(old_block + step->data.cast_pointer.old_offset),
+            reinterpret_cast<uint64_t *>(new_block + step->data.cast_pointer.new_offset));
         break;
       case RECONSTRUCT_STEP_SUBSTRUCT:
         reconstruct_structs(reconstruct_info,
@@ -1962,6 +1967,58 @@ void DNA_sdna_alias_data_ensure_structs_map(SDNA *sdna)
 #endif
 }
 
+namespace dna::pointers {
+
+PointersInDNA::PointersInDNA(const SDNA &sdna) : sdna_(sdna)
+{
+  structs_.resize(sdna.structs_num);
+  for (const int struct_i : IndexRange(sdna.structs_num)) {
+    const SDNA_Struct &sdna_struct = *sdna.structs[struct_i];
+    StructInfo &struct_info = structs_[struct_i];
+
+    struct_info.size_in_bytes = 0;
+    for (const int member_i : IndexRange(sdna_struct.members_num)) {
+      struct_info.size_in_bytes += get_member_size_in_bytes(&sdna_,
+                                                            &sdna_struct.members[member_i]);
+    }
+
+    this->gather_pointer_members_recursive(sdna_struct, 0, structs_[struct_i]);
+  }
+}
+
+void PointersInDNA::gather_pointer_members_recursive(const SDNA_Struct &sdna_struct,
+                                                     int initial_offset,
+                                                     StructInfo &r_struct_info) const
+{
+  int offset = initial_offset;
+  for (const int member_i : IndexRange(sdna_struct.members_num)) {
+    const SDNA_StructMember &member = sdna_struct.members[member_i];
+    const char *member_type_name = sdna_.types[member.type_index];
+    const eStructMemberCategory member_category = get_struct_member_category(&sdna_, &member);
+    const int array_elem_num = sdna_.members_array_num[member.member_index];
+
+    if (member_category == STRUCT_MEMBER_CATEGORY_POINTER) {
+      for (int elem_i = 0; elem_i < array_elem_num; elem_i++) {
+        const char *member_name = sdna_.members[member.member_index];
+        r_struct_info.pointers.append(
+            {offset + elem_i * sdna_.pointer_size, member_type_name, member_name});
+      }
+    }
+    else if (member_category == STRUCT_MEMBER_CATEGORY_STRUCT) {
+      const int substruct_i = DNA_struct_find_index_without_alias(&sdna_, member_type_name);
+      const SDNA_Struct &sub_sdna_struct = *sdna_.structs[substruct_i];
+      int substruct_size = sdna_.types_size[member.type_index];
+      for (int elem_i = 0; elem_i < array_elem_num; elem_i++) {
+        this->gather_pointer_members_recursive(
+            sub_sdna_struct, offset + elem_i * substruct_size, r_struct_info);
+      }
+    }
+    offset += get_member_size_in_bytes(&sdna_, &member);
+  }
+}
+
+}  // namespace dna::pointers
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1969,7 +2026,7 @@ void DNA_sdna_alias_data_ensure_structs_map(SDNA *sdna)
  *
  * \{ */
 
-namespace blender::dna {
+namespace dna {
 
 static void print_struct_array_recursive(const SDNA &sdna,
                                          const SDNA_Struct &sdna_struct,
@@ -2031,7 +2088,6 @@ static void print_single_struct_recursive(const SDNA &sdna,
                                           const int indent,
                                           fmt::appender &dst)
 {
-  using namespace blender;
   const void *data = initial_data;
 
   for (const int member_i : IndexRange(sdna_struct.members_num)) {
@@ -2167,6 +2223,8 @@ void print_struct_by_id(const int struct_id, const void *data)
   print_structs_at_address(sdna, struct_id, data, data, 1, std::cout);
 }
 
-}  // namespace blender::dna
+}  // namespace dna
 
 /** \} */
+
+}  // namespace blender
