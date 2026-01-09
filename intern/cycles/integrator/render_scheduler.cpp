@@ -302,7 +302,7 @@ RenderWork RenderScheduler::get_render_work()
     render_work.resolution_divider = state_.resolution_divider;
     render_work.denoised_resolution_divider = state_.resolution_divider;
     if (denoiser_params_.use) {
-      render_work.resolution_divider *= denoiser_params_.upscale;
+      render_work.resolution_divider *= denoiser_params_.upscale_factor;
     }
 
     if (!set_postprocess_render_work(&render_work)) {
@@ -343,7 +343,7 @@ RenderWork RenderScheduler::get_render_work()
   render_work.resolution_divider = state_.resolution_divider;
   render_work.denoised_resolution_divider = state_.resolution_divider;
   if (denoiser_params_.use) {
-    render_work.resolution_divider *= denoiser_params_.upscale;
+    render_work.resolution_divider *= denoiser_params_.upscale_factor;
   }
 
   render_work.path_trace.start_sample = get_start_sample_to_path_trace();

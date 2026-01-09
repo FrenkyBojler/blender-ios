@@ -161,7 +161,7 @@ NODE_DEFINE(Integrator)
               DENOISER_PREFILTER_ACCURATE);
   SOCKET_BOOLEAN(denoise_use_gpu, "Denoise on GPU", true);
   SOCKET_ENUM(denoiser_quality, "Denoiser Quality", denoiser_quality_enum, DENOISER_QUALITY_HIGH);
-  SOCKET_FLOAT(denoiser_upscale, "Denoiser Upscale", 1.0f);
+  SOCKET_FLOAT(denoiser_upscale_factor, "Denoiser Upscale Factor", 1.0f);
 
   return type;
 }
@@ -461,7 +461,7 @@ DenoiseParams Integrator::get_denoise_params() const
 
   denoise_params.prefilter = denoiser_prefilter;
   denoise_params.quality = denoiser_quality;
-  denoise_params.upscale = denoiser_upscale;
+  denoise_params.upscale_factor = denoiser_upscale_factor;
 
   return denoise_params;
 }

@@ -1145,7 +1145,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
                              const int pass_sample_count,
                              const int num_components,
                              const int use_compositing,
-                             const float upscale,
+                             const float upscale_factor,
                              const int input_stride)
 {
   const int work_index = ccl_gpu_global_id_x();
@@ -1177,8 +1177,8 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
     /* Pass without alpha channel. */
   }
   else if (!use_compositing) {
-    const uint64_t input_render_pixel_index = offset + (int)((x + full_x) / upscale) +
-                                              (int)((y + full_y) / upscale) * input_stride;
+    const uint64_t input_render_pixel_index = offset + (int)((x + full_x) / upscale_factor) +
+                                              (int)((y + full_y) / upscale_factor) * input_stride;
     ccl_global float *input_buffer = render_buffer + input_render_pixel_index * pass_stride;
 
     /* Currently compositing passes are either 3-component (derived by dividing light passes)

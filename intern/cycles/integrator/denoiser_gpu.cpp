@@ -257,7 +257,7 @@ bool DenoiserGPU::denoise_filter_color_postprocess(const DenoiseContext &context
                                    &context.pass_sample_count,
                                    &pass.num_components,
                                    &pass.use_compositing,
-                                   &params_.upscale,
+                                   &params_.upscale_factor,
                                    &context.buffer_params.stride);
 
   return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_COLOR_POSTPROCESS, work_size, args);

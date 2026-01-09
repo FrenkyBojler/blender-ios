@@ -60,7 +60,7 @@ bool OptiXDenoiser::denoise_buffer(const BufferParams &buffer_params,
 
 bool OptiXDenoiser::denoise_create_if_needed(DenoiseContext &context)
 {
-  const bool use_upscale_model = context.denoise_params.upscale == 2.0f;
+  const bool use_upscale_model = context.denoise_params.upscale_factor == 2.0f;
 
   const bool recreate_denoiser = (optix_denoiser_ == nullptr) ||
                                  (use_pass_albedo_ != context.use_pass_albedo) ||
