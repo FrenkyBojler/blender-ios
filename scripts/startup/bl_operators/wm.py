@@ -2125,6 +2125,16 @@ class WM_OT_properties_edit_value(Operator):
             col.prop(rna_item, '["{:s}"]'.format(escape_identifier(self.property_name)), text="")
 
 
+def unique_name(names):
+    prop = "prop"
+    prop_new = prop
+    i = 1
+    while prop_new in names:
+        prop_new = prop + str(i)
+        i += 1
+    return prop_new
+
+
 class WM_OT_property_python_add(Operator):
     """Add a Python property to the data-block"""
     bl_idname = "wm.property_python_add"
@@ -2152,6 +2162,8 @@ class WM_OT_property_python_add(Operator):
             self.report({'WARNING'}, "Python evaluation failed: " + str(ex))
             return {'CANCELLED'}
 
+        self.property_name = unique_name({*item.keys(), *type(item).bl_rna.properties.keys(),})
+
         try:
             item[self.property_name] = new_value
         except Exception as ex:
@@ -2162,6 +2174,7 @@ class WM_OT_property_python_add(Operator):
         return {'FINISHED'}
 
     def invoke(self, context, _event):
+        self.property_name = "prop"
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
 
@@ -2208,16 +2221,6 @@ class WM_OT_properties_add(Operator):
         if (item.id_data and item.id_data.override_library and item.id_data.override_library.reference):
             self.report({'ERROR'}, "Cannot add properties to override data")
             return {'CANCELLED'}
-
-        def unique_name(names):
-            prop = "prop"
-            prop_new = prop
-            i = 1
-            while prop_new in names:
-                prop_new = prop + str(i)
-                i += 1
-
-            return prop_new
 
         prop = unique_name({
             *item.keys(),

@@ -2135,12 +2135,17 @@ void IDP_TryConvertProperty(IDProperty *src,
     return 0;
   }();
 
+  if (src->type == IDP_ID) {
+    src->data.pointer = nullptr;
+  }
+  else {
+    MEM_SAFE_FREE(src->data.pointer);
+  }
   const int len = (src->type == IDP_STRING) ? 0 : src->len;
   src->type = type;
   src->subtype = sub_type;
   src->len = 0;
   src->totallen = 0;
-  MEM_SAFE_FREE(src->data.pointer);
 
   switch (dst_type) {
     case IDP_UI_DATA_TYPE_INT: {

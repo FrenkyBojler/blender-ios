@@ -10,6 +10,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utils.hh"
 
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
@@ -172,6 +173,8 @@ class IDPropertyItem : public AbstractTreeViewItem {
   bool rename(const bContext &C, StringRefNull new_name) override
   {
     STRNCPY(property_->name, new_name.c_str());
+    BLI_uniquename(
+        &id_->properties->data.group, property_, "prop", '.', offsetof(IDProperty, name), sizeof(property_->name));
     ED_undo_push(&const_cast<bContext &>(C), new_name.c_str());
     DEG_id_tag_update(id_, ID_RECALC_ALL);
     WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
@@ -311,6 +314,7 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id)
   }
 
   layout->prop(&propui_ptr, "description", UI_ITEM_NONE, "Description", ICON_NONE);
+  layout->prop(&prop_ptr, "is_overridable_library", UI_ITEM_NONE, "Library Overridable", ICON_NONE);
 }
 
 }  // namespace blender::ui::id_properties
