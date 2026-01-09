@@ -345,67 +345,67 @@ def create_sample(obj):
 
     bones = {}
 
-    bone = arm.edit_bones.new('spine')
+    bone = arm.edit_bones.new('Pelvis')
     bone.head[:] = 0.0000, 0.0552, 1.0099
     bone.tail[:] = 0.0000, 0.0172, 1.1573
     bone.roll = 0.0000
     bone.use_connect = False
     bones['spine'] = bone.name
 
-    bone = arm.edit_bones.new('spine.001')
+    bone = arm.edit_bones.new('Spine_01')
     bone.head[:] = 0.0000, 0.0172, 1.1573
     bone.tail[:] = 0.0000, 0.0004, 1.2929
     bone.roll = 0.0000
     bone.use_connect = True
-    bone.parent = arm.edit_bones[bones['spine']]
-    bones['spine.001'] = bone.name
+    bone.parent = arm.edit_bones[bones['Pelvis']]
+    bones['Spine_01'] = bone.name
 
-    bone = arm.edit_bones.new('spine.002')
+    bone = arm.edit_bones.new('Spine_02')
     bone.head[:] = 0.0000, 0.0004, 1.2929
     bone.tail[:] = 0.0000, 0.0059, 1.4657
     bone.roll = 0.0000
     bone.use_connect = True
-    bone.parent = arm.edit_bones[bones['spine.001']]
-    bones['spine.002'] = bone.name
+    bone.parent = arm.edit_bones[bones['Spine_01']]
+    bones['Spine_02'] = bone.name
 
-    bone = arm.edit_bones.new('spine.003')
+    bone = arm.edit_bones.new('Chest')
     bone.head[:] = 0.0000, 0.0059, 1.4657
     bone.tail[:] = 0.0000, 0.0114, 1.6582
     bone.roll = 0.0000
     bone.use_connect = True
-    bone.parent = arm.edit_bones[bones['spine.002']]
-    bones['spine.003'] = bone.name
+    bone.parent = arm.edit_bones[bones['Spine_02']]
+    bones['Chest'] = bone.name
 
     bpy.ops.object.mode_set(mode='OBJECT')
-    pbone = obj.pose.bones[bones['spine']]
+    pbone = obj.pose.bones[bones['Pelvis']]
     pbone.rigify_type = 'spines.basic_spine'
     pbone.lock_location = (False, False, False)
     pbone.lock_rotation = (False, False, False)
     pbone.lock_rotation_w = False
     pbone.lock_scale = (False, False, False)
-    pbone.rotation_mode = 'QUATERNION'
+    pbone.rotation_mode = 'EULER_XYZ'
 
-    pbone = obj.pose.bones[bones['spine.001']]
+    pbone = obj.pose.bones[bones['Spine_01']]
     pbone.rigify_type = ''
     pbone.lock_location = (False, False, False)
     pbone.lock_rotation = (False, False, False)
     pbone.lock_rotation_w = False
     pbone.lock_scale = (False, False, False)
-    pbone.rotation_mode = 'QUATERNION'
-    pbone = obj.pose.bones[bones['spine.002']]
+    pbone.rotation_mode = 'EULER_XYZ'
+    pbone = obj.pose.bones[bones['Spine_02']]
     pbone.rigify_type = ''
     pbone.lock_location = (False, False, False)
     pbone.lock_rotation = (False, False, False)
     pbone.lock_rotation_w = False
     pbone.lock_scale = (False, False, False)
-    pbone.rotation_mode = 'QUATERNION'
-    pbone = obj.pose.bones[bones['spine.003']]
+    pbone.rotation_mode = 'EULER_XYZ'
+    pbone = obj.pose.bones[bones['Spine_03']]
     pbone.rigify_type = ''
     pbone.lock_location = (False, False, False)
     pbone.lock_rotation = (False, False, False)
     pbone.lock_rotation_w = False
     pbone.lock_scale = (False, False, False)
-    pbone.rotation_mode = 'QUATERNION'
+    pbone.rotation_mode = 'EULER_XYZ'
 
     bpy.ops.object.mode_set(mode='EDIT')
     for bone in arm.edit_bones:
