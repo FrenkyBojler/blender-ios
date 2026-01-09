@@ -2632,6 +2632,8 @@ static void test_preprocess_parser()
   using namespace std;
   using namespace shader::parser;
 
+  using IntermediateForm = IntermediateForm<FullLexer, FullParser>;
+
   report_callback no_err_report = [](int, int, string, const char *) {};
 
   {
@@ -2768,7 +2770,7 @@ static int test_expression(std::string str)
 {
   using namespace shader::parser;
   report_callback no_err_report = [](int, int, std::string, const char *) {};
-  IntermediateForm lexer(str, no_err_report, ParserStage::MergeTokens);
+  IntermediateForm<ExpressionLexer, DummyParser> lexer(str, no_err_report);
   try {
     return ExpressionParser(lexer()[0]).eval();
   }

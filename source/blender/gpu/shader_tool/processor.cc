@@ -249,7 +249,7 @@ string SourceProcessor::remove_comments(const string &str)
 }
 
 /* Remove trailing white spaces. */
-void SourceProcessor::cleanup_whitespace(Parser &parser)
+void SourceProcessor::cleanup_whitespace(parser::MutableString &parser)
 {
   const string &str = parser.str();
 
@@ -267,7 +267,7 @@ void SourceProcessor::cleanup_whitespace(Parser &parser)
 string SourceProcessor::cleanup_whitespace(const string &str)
 {
   /* Remove trailing white space as they make the subsequent regex much slower. */
-  Parser parser(str, report_error_, ParserStage::MergeTokens);
+  IntermediateForm<ExpressionLexer, DummyParser> parser(str, report_error_);
   cleanup_whitespace(parser);
   return parser.result_get();
 }
@@ -1404,7 +1404,7 @@ string SourceProcessor::matrix_constructor_mutation(const string &str)
     return str;
   }
 
-  Parser parser(str, report_error_, ParserStage::MergeTokens);
+  IntermediateForm<ExpressionLexer, DummyParser> parser(str, report_error_);
   parser().foreach_token(ParOpen, [&](const Token t) {
     if (t.prev() == Word) {
       Token fn_name = t.prev();
@@ -1582,7 +1582,7 @@ void SourceProcessor::lower_argument_qualifiers(Parser &parser)
 
 string SourceProcessor::argument_decorator_macro_injection(const string &str)
 {
-  Parser parser(str, report_error_, ParserStage::MergeTokens);
+  IntermediateForm<ExpressionLexer, DummyParser> parser(str, report_error_);
   /* Example: `out float foo` > `out float _out_sta foo _out_end` */
   parser().foreach_match("www", [&](const Tokens &t) {
     string_view qualifier = t[0].str_view();
@@ -1596,7 +1596,7 @@ string SourceProcessor::argument_decorator_macro_injection(const string &str)
 
 string SourceProcessor::array_constructor_macro_injection(const string &str)
 {
-  Parser parser(str, report_error_, ParserStage::MergeTokens);
+  IntermediateForm<ExpressionLexer, DummyParser> parser(str, report_error_);
   parser().foreach_match("=w[", [&](const Tokens toks) {
     Token array_len_start = toks.back();
     Token array_len_end = array_len_start.find_next(SquareClose);

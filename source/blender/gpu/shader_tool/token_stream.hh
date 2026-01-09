@@ -147,7 +147,8 @@ struct ParserBase {
 
 /* Do not parse. Creates a single global scope containing all tokens. */
 struct DummyParser : ParserBase {
-  DummyParser(LexerBase &lex, ParserData &data) : ParserBase(lex, data)
+  DummyParser(const LexerBase &lex, ParserData &data, report_callback & /*report_error*/)
+      : ParserBase(lex, data)
   {
     *scope_types = {ScopeType::Global};
     *scope_ranges = {IndexRange(0, lex.token_types.size())};
@@ -156,7 +157,7 @@ struct DummyParser : ParserBase {
 };
 
 struct FullParser : ParserBase {
-  FullParser(LexerBase &lex, ParserData &data, report_callback &report_error)
+  FullParser(const LexerBase &lex, ParserData &data, report_callback &report_error)
       : ParserBase(lex, data)
   {
     build_scope_tree(report_error);

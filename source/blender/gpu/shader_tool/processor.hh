@@ -50,7 +50,7 @@ static inline Language language_from_filename(const std::string &filename)
 class SourceProcessor {
  public:
   using report_callback = parser::report_callback;
-  using Parser = parser::IntermediateForm;
+  using Parser = parser::IntermediateForm<parser::FullLexer, parser::FullParser>;
   using Scope = parser::Scope;
   using Token = parser::Token;
   using Tokens = std::vector<parser::Token>;
@@ -115,7 +115,7 @@ class SourceProcessor {
    * syntax. */
   std::string disabled_code_mutation(const std::string &str);
   /* Remove trailing white spaces. */
-  void cleanup_whitespace(Parser &parser);
+  void cleanup_whitespace(parser::MutableString &parser);
   /* Remove trailing white spaces. Version without Parser. */
   std::string cleanup_whitespace(const std::string &str);
   /* Successive mutations can introduce a lot of unneeded line directives. */

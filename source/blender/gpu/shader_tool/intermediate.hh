@@ -40,14 +40,8 @@
 
 namespace blender::gpu::shader::parser {
 
-/* Structure holding an intermediate form of the source code.
- * It is made for fast traversal and mutation of source code. */
-struct IntermediateForm {
- private:
+struct MutableString {
   std::string str_;
-  LexerParserData parser_data_;
-  FullLexer lex_;
-  FullParser data_;
 
   struct Mutation {
     /* Range of the original string to replace. */
@@ -71,34 +65,7 @@ struct IntermediateForm {
   };
   std::vector<Mutation> mutations_;
 
-  report_callback &report_error;
-
-  ParserStage stop_parser_after_stage;
-
-  bool with_timer;
-
- public:
-  IntermediateForm(const std::string &input,
-                   report_callback &report_error,
-                   ParserStage stop_parser_after_stage = ParserStage::BuildScopeTree,
-                   bool with_timer = true)
-      : str_(input),
-        lex_(input, parser_data_.lexer_data),
-        data_(lex_, parser_data_.parser_data, report_error),
-        report_error(report_error),
-        stop_parser_after_stage(stop_parser_after_stage),
-        with_timer(with_timer)
-  {
-  }
-
-  /* Main access operator. Returns the root scope (aka global scope). */
-  Scope operator()() const
-  {
-    if ((*data_.scope_types).empty()) {
-      return Scope::invalid();
-    }
-    return Scope::from_position(data_, 0);
-  }
+  MutableString(const std::string &input) : str_(input) {}
 
   /* Access internal string without applying pending mutations. */
   std::string substr_range_inclusive(size_t start, size_t end)
@@ -289,36 +256,12 @@ struct IntermediateForm {
   }
 
   /* Return true if any mutation was applied. */
-  bool only_apply_mutations(const bool all_mutation_ordered = false);
-
-  /* Apply pending mutation and parse the resulting string.
-   * Return true if any mutation was applied. */
-  bool apply_mutations(const bool all_mutation_ordered = false)
-  {
-    bool applied = only_apply_mutations(all_mutation_ordered);
-    if (applied) {
-      this->parse(report_error);
-    }
-    return applied;
-  }
-
-  /* Apply mutations if any and get resulting string. */
-  const std::string &result_get(const bool all_mutation_ordered = false)
-  {
-    only_apply_mutations(all_mutation_ordered);
-    return str_;
-  }
+  bool apply_mutations(const bool all_mutation_ordered = false);
 
   /* Get internal string. Does not apply pending mutation. */
   const std::string &str()
   {
     return str_;
-  }
-
-  /* For testing. */
-  const ParserBase &data_get()
-  {
-    return data_;
   }
 
   /* For testing. */
@@ -338,24 +281,74 @@ struct IntermediateForm {
     }
     return out;
   }
+};
 
+/* Structure holding an intermediate form of the source code.
+ * It is made for fast traversal and mutation of source code. */
+template<typename LexerClass, typename ParserClass> struct IntermediateForm : MutableString {
  private:
-  uint64_t lexical_time = 0;
-  uint64_t semantic_time = 0;
+  LexerParserData parser_data_;
+  LexerClass lex_;
+  ParserClass data_;
 
-  void parse(report_callback &report_error);
-  void parse_timed(report_callback &report_error);
+  report_callback &report_error;
 
  public:
-  void print_stats()
+  IntermediateForm(const std::string &input, report_callback &report_error)
+      : MutableString(input),
+        lex_(input, parser_data_.lexer_data),
+        data_(lex_, parser_data_.parser_data, report_error),
+        report_error(report_error)
   {
-    std::cout << "Lexical Analysis time: " << lexical_time << " µs" << std::endl;
-    std::cout << "Semantic Analysis time:   " << semantic_time << " µs" << std::endl;
-    std::cout << "String len: " << std::to_string(str_.size()) << std::endl;
-    std::cout << "Token len:  " << std::to_string(lex_.token_types.size()) << std::endl;
-    std::cout << "Scope len:  " << std::to_string((*data_.scope_types).size()) << std::endl;
   }
 
+  /* Main access operator. Returns the root scope (aka global scope). */
+  Scope operator()() const
+  {
+    if ((*data_.scope_types).empty()) {
+      return Scope::invalid();
+    }
+    return Scope::from_position(data_, 0);
+  }
+
+  /* Return true if any mutation was applied. */
+  bool only_apply_mutations(const bool all_mutation_ordered = false)
+  {
+    return static_cast<MutableString *>(this)->apply_mutations(all_mutation_ordered);
+  }
+
+  /* Apply pending mutation and parse the resulting string.
+   * Return true if any mutation was applied. */
+  bool apply_mutations(const bool all_mutation_ordered = false)
+  {
+    bool applied = only_apply_mutations(all_mutation_ordered);
+    if (applied) {
+      parse(report_error);
+    }
+    return applied;
+  }
+
+  /* Apply mutations if any and get resulting string. */
+  const std::string &result_get(const bool all_mutation_ordered = false)
+  {
+    only_apply_mutations(all_mutation_ordered);
+    return str_;
+  }
+
+  /* For testing. */
+  const ParserBase &data_get()
+  {
+    return data_;
+  }
+
+ private:
+  void parse(report_callback &report_error)
+  {
+    lex_ = FullLexer(str_, parser_data_.lexer_data);
+    data_ = FullParser(lex_, parser_data_.parser_data, report_error);
+  }
+
+ public:
   void debug_print()
   {
     std::cout << "Input: \n" << str_ << " \nEnd of Input\n" << std::endl;

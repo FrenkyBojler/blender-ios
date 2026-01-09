@@ -1024,8 +1024,7 @@ void ParserBase::update_string_view()
                                            (*this->scope_types).size());
 }
 
-/* Return true if any mutation was applied. */
-bool IntermediateForm::only_apply_mutations(const bool all_mutation_ordered)
+bool MutableString::apply_mutations(const bool all_mutation_ordered)
 {
   if (mutations_.empty()) {
     return false;
@@ -1071,31 +1070,6 @@ bool IntermediateForm::only_apply_mutations(const bool all_mutation_ordered)
     str_.pop_back();
   }
   return true;
-}
-
-void IntermediateForm::parse_timed(report_callback &report_error)
-{
-  TimeIt::Duration lex_time, sem_time;
-  {
-    TimeIt time_it(lex_time);
-    lex_ = FullLexer(str_, parser_data_.lexer_data);
-  }
-  {
-    TimeIt time_it(sem_time);
-    data_ = FullParser(lex_, parser_data_.parser_data, report_error);
-  }
-  lexical_time = lex_time.count();
-  semantic_time = sem_time.count();
-}
-
-void IntermediateForm::parse(report_callback &report_error)
-{
-  if (with_timer) {
-    parse_timed(report_error);
-    return;
-  }
-  lex_ = FullLexer(str_, parser_data_.lexer_data);
-  data_ = FullParser(lex_, parser_data_.parser_data, report_error);
 }
 
 }  // namespace blender::gpu::shader::parser
