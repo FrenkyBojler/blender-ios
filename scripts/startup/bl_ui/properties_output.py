@@ -62,7 +62,11 @@ class RENDER_PT_format(RenderOutputButtonsPanel, Panel):
     _preset_class = None
 
     def draw_header_preset(self, _context):
-        RENDER_PT_format_presets.draw_panel_header(self.layout)
+        layout = self.layout
+        row = layout.row(align=True)
+        row.operator('render.swap_dimensions', text="", icon='RENDER_SWAP_DIMENSIONS', emboss=False)
+
+        RENDER_PT_format_presets.draw_panel_header(row)
 
     @staticmethod
     def _draw_framerate_label(*args):
@@ -114,26 +118,8 @@ class RENDER_PT_format(RenderOutputButtonsPanel, Panel):
         rd = context.scene.render
 
         col = layout.column(align=True)
-
-        split = col.split(factor=0.4, align=True)
-
-        labelcol = split.column(align=True)
-        sub = labelcol.row()
-        sub.alignment = "RIGHT"
-        sub.label(text="Resolution X")
-        sub = labelcol.row()
-        sub.alignment = "RIGHT"
-        sub.label(text="Y")
-
-        row = split.row(align=True)
-        sub = row.column(align=True)
-        sub.prop(rd, "resolution_x", text="")
-        sub.prop(rd, "resolution_y", text="")
-
-        sub = row.column(align=True)
-        sub.scale_y = 2
-        sub.operator('render.swap_dimensions', text="", icon='RENDER_XY_SWAP')
-
+        col.prop(rd, "resolution_x", text="Resolution X")
+        col.prop(rd, "resolution_y", text="Y")
         col.prop(rd, "resolution_percentage", text="%")
 
         col = layout.column(align=True)
