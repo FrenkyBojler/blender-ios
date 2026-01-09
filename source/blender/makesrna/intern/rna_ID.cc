@@ -3092,10 +3092,9 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "is_overridable_library", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", IDP_FLAG_OVERRIDABLE_LIBRARY);
-  RNA_def_property_ui_text(
-      prop,
-      "Library Overridable",
-      "Allow the property to be overridden when the data-block is linked");
+  RNA_def_property_ui_text(prop,
+                           "Library Overridable",
+                           "Allow the property to be overridden when the data-block is linked");
 
   /* Float UI Data. */
   srna = RNA_def_struct(brna, "IDPropertyUIDataFloat", nullptr);
