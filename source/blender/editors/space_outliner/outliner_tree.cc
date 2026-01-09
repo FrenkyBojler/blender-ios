@@ -576,10 +576,12 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
   TreeStoreElem *last_tselem = TREESTORE(last_te);
 
   /* Check if we are expanding Armature data and if there are bone collections. */
-  TreeElement *first_te = static_cast<TreeElement *>(lb->first);
-  TreeStoreElem *first_tselem = TREESTORE(first_te);
-  const bool inside_armature_data = ELEM(first_tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL);
-  const bool has_armature_data_bone_collections = ELEM(last_tselem->type, TSE_BONE_COLLECTION_BASE);
+  const TreeElement *first_te = static_cast<TreeElement *>(lb->first);
+  const TreeStoreElem *first_tselem = TREESTORE(first_te);
+  const bool inside_armature_data = ELEM(
+      first_tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL);
+  const bool has_armature_data_bone_collections = ELEM(last_tselem->type,
+                                                       TSE_BONE_COLLECTION_BASE);
 
   /* Sorting rules; only object lists, ID lists, bones or deform-groups. */
   if (inside_armature_data || ELEM(last_tselem->type, TSE_DEFGROUP, TSE_ID_BASE) ||
@@ -607,8 +609,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
         if (tselem->type == TSE_BONE_COLLECTION_BASE) {
           tp->idcode = 0; /* Don't sort this. */
         }
-        else if (ELEM(tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL))
-        {
+        else if (ELEM(tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
           tp->idcode = 1; /* Do sort this. */
         }
 
