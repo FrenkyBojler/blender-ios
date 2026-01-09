@@ -972,7 +972,6 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             else:
                 interface.move_to_parent(item, active_item.parent, active_pos + 1)
         interface.active = item
-        item.select = True
 
         return {'FINISHED'}
 
@@ -1051,7 +1050,6 @@ class NODE_OT_interface_item_duplicate(NodeInterfaceOperator, Operator):
         if item:
             item_copy = interface.copy(item)
             interface.active = item_copy
-            item_copy.select = True
 
         return {'FINISHED'}
 
@@ -1085,7 +1083,6 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
         new_active = interface.active
         if isinstance(new_active, bpy.types.NodeTreeInterfaceSocket) and new_active.is_panel_toggle:
             interface.active_index = new_active.parent.index
-        interface.active.select = True
 
         return {'FINISHED'}
 
@@ -1144,7 +1141,6 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         interface.move_to_parent(active_item, parent_panel, 0)
         # Make the panel active.
         interface.active = parent_panel
-        parent_panel.select = True
 
         return {'FINISHED'}
 
@@ -1193,7 +1189,6 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
 
         # Make the socket active.
         interface.active = first_item
-        first_item.select = True
 
         return {'FINISHED'}
 
