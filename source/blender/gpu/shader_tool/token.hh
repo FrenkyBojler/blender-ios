@@ -31,7 +31,7 @@ struct Token {
 
   static Token from_position(const ParserBase *data, int64_t index)
   {
-    if (data == nullptr || index < 0 || index > (data->lex->token_offsets.size() - 1)) {
+    if (data == nullptr || index < 0 || index >= data->lex->token_offsets.size()) {
       return invalid();
     }
 #ifndef NDEBUG
@@ -152,7 +152,7 @@ struct Token {
     if (is_invalid()) {
       return "";
     }
-    return std::string_view(data->lex->str).substr(index_range().start, index_range().size);
+    return data->lex->str.substr(index_range().start, index_range().size);
   }
 
   std::string str_with_whitespace() const

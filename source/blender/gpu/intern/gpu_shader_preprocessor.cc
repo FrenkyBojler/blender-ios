@@ -172,13 +172,13 @@ struct Preprocessor {
 
   /* Try to match the token pointed at by cursor with a defined macro.
    * If that happen advance the cursor to the end of the macro (in case of functional macro). */
-  void try_expand(IntermediateForm &parser, const ParserBase &data, int &cursor)
+  void try_expand(MutableString &mut_str, const ParserBase &data, int &cursor)
   {
     Token tok = Token::from_position(&data, cursor);
     Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
     if (macro_tok.is_valid()) {
       auto [replacement, end] = expand_macro(tok, macro_tok);
-      parser.replace(tok, end, replacement);
+      mut_str.replace(tok, end, replacement);
       cursor = end.index;
     }
   }
@@ -190,17 +190,17 @@ struct Preprocessor {
       return "";
     }
     report_callback report = [](int, int, std::string, const char *) {};
-    IntermediateForm parser(input, report);
+    IntermediateForm recursive_parser(input, report);
 
-    const ParserBase &data = parser.data_get();
+    const ParserBase &data = recursive_parser.data_get();
 
     for (int cursor = 0; cursor < data.lex->token_types.size(); cursor++) {
       TokenType tok_type = TokenType(data.lex->token_types[cursor]);
       if (tok_type == Word) {
-        try_expand(parser, data, cursor);
+        try_expand(recursive_parser, data, cursor);
       }
     }
-    return parser.result_get();
+    return recursive_parser.result_get(true);
   }
 
   struct ExpandedResult {
@@ -472,26 +472,25 @@ struct Preprocessor {
     return value != 0;
   }
 
-  bool evaluate_condition(Token type, Token start, Token end)
+  bool evaluate_condition(const DirectiveType dir_type, Token start, Token end)
   {
-    StringRef type_str = str(type);
-    if (type_str == "else") {
-      return true;
+    switch (dir_type) {
+      case Else:
+        return true;
+      case Ifdef:
+        return defines.contains(str(start));
+      case Ifndef:
+        return !defines.contains(str(start));
+      case If:
+      case Elif:
+        return evaluate_expression(start, end);
+      default:
+        BLI_assert_unreachable();
+        return true;
     }
-    if (type_str == "ifdef") {
-      return defines.contains(str(start));
-    }
-    if (type_str == "ifndef") {
-      return !defines.contains(str(start));
-    }
-    if (ELEM(type_str, "if", "elif")) {
-      return evaluate_expression(start, end);
-    }
-    BLI_assert_unreachable();
-    return true;
   }
 
-  int process_conditional(const Token hash_tok, const Token dir_end)
+  int process_conditional(const DirectiveType dir_type, const Token hash_tok, const Token dir_end)
   {
     /* If this is part of an already evaluated statement. */
     if (!jump_stack.is_empty() && hash_tok == jump_stack.last()) {
@@ -509,7 +508,7 @@ struct Preprocessor {
     const Token condition_type = skip_space(hash_tok.next());
     const Token condition_start = condition_type.next().next();
     const Token condition_end = dir_end;
-    bool condition_result = evaluate_condition(condition_type, condition_start, condition_end);
+    bool condition_result = evaluate_condition(dir_type, condition_start, condition_end);
 
     /* Find matching endif or else. */
     const Token next_hash = find_next_matching_conditional_directive(hash_tok);
@@ -523,7 +522,7 @@ struct Preprocessor {
     {
       /* If is followed by else statement. */
       StringRef next_dir_str = directive_identifier(next_hash);
-      if (ELEM(next_dir_str, "elif", "else")) {
+      if (next_dir_str.size() == 4 && ELEM(next_dir_str, "elif", "else")) {
         /* Record a jump statement at the next #else statement to jump & erase to the #endif. */
         jump_stack.append(next_hash);
       }
@@ -596,7 +595,7 @@ struct Preprocessor {
       case Ifndef:
       case Elif:
       case Else:
-        cursor = process_conditional(hash_tok, dir_end);
+        cursor = process_conditional(type, hash_tok, dir_end);
         break;
       case Endif:
       case Line:

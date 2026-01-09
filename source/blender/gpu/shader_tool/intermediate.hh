@@ -65,7 +65,14 @@ struct MutableString {
   };
   std::vector<Mutation> mutations_;
 
-  MutableString(const std::string &input) : str_(input) {}
+  MutableString(const std::string_view input) : str_(input) {}
+
+  /* Disable copy construction and assignment. */
+  MutableString(const MutableString &other) = delete;
+  MutableString &operator=(const MutableString &other) = delete;
+  /* Explicitly enable default construction, move construction and move assignment. */
+  MutableString(MutableString &&other) = default;
+  MutableString &operator=(MutableString &&other) = default;
 
   /* Access internal string without applying pending mutations. */
   std::string substr_range_inclusive(size_t start, size_t end)
@@ -294,7 +301,7 @@ template<typename LexerClass, typename ParserClass> struct IntermediateForm : Mu
   report_callback &report_error;
 
  public:
-  IntermediateForm(const std::string &input, report_callback &report_error)
+  IntermediateForm(const std::string_view input, report_callback &report_error)
       : MutableString(input),
         lex_(input, parser_data_.lexer_data),
         data_(lex_, parser_data_.parser_data, report_error),

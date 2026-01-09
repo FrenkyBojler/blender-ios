@@ -259,6 +259,7 @@ void LexerBase::tokenize(bool only_preprocessor_tokens)
   offsets_raw[cursor] = offset++;
   /* Resize to the actual usage. */
   token_types.shrink(cursor);
+  token_sizes.shrink(cursor);
   token_offsets.offsets.shrink(cursor + 1);
 
   update_string_view();
