@@ -79,6 +79,8 @@ struct wmXrSessionState {
 
   /** The current view vignette aperture, appears on movement. */
   float vignette_aperture;
+  /** Timestamp of last vignette update, used for delta time calculation. */
+  double vignette_last_update_time;
 };
 
 struct wmXrRuntimeData {

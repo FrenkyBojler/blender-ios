@@ -76,6 +76,7 @@ static void wm_xr_session_create_cb()
 
   /* Initialize vignette. */
   state->vignette_aperture = 1.0f;
+  state->vignette_last_update_time = BLI_time_now_seconds();
 }
 
 static void wm_xr_session_controller_data_free(wmXrSessionState *state)
@@ -634,10 +635,14 @@ void WM_xr_session_state_vignette_activate(wmXrData *xr)
 
 void WM_xr_session_state_vignette_update(wmXrSessionState *state)
 {
-  constexpr float aperture_velocity = 0.002f; /* TODO: Currently FPS dependent. */
+  const double current_time = BLI_time_now_seconds();
+  const double delta_time = current_time - state->vignette_last_update_time;
+  constexpr float aperture_velocity_per_second = 0.3f;
 
   /* Aperture fully opened at 1.0f, and fully closed at 0.0f. */
-  state->vignette_aperture = clamp_f(state->vignette_aperture + aperture_velocity, 0.0f, 1.0f);
+  const float aperture_delta = float(delta_time) * aperture_velocity_per_second;
+  state->vignette_aperture = clamp_f(state->vignette_aperture + aperture_delta, 0.0f, 1.0f);
+  state->vignette_last_update_time = current_time;
 }
 
 /* -------------------------------------------------------------------- */
