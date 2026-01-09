@@ -1362,8 +1362,6 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_MOVIE, nullptr);
-
   VectorSet<Strip *> movie_strips;
   const int tot_files = RNA_property_collection_length(op->ptr,
                                                        RNA_struct_find_property(op->ptr, "files"));
