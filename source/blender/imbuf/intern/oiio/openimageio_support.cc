@@ -2,9 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <OpenImageIO/filter.h>
 #include "openimageio_support.hh"
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
+#include <OpenImageIO/imagecache.h>
 
 #include <algorithm>
 
@@ -295,6 +297,97 @@ ImBuf *imb_oiio_read(const ReadContext &ctx,
   }
 
   return get_oiio_ibuf(in.get(), ctx, r_colorspace);
+}
+
+ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
+                                        const int flags,
+                                        const size_t max_thumb_size,
+                                        ImFileColorSpace &r_colorspace,
+                                        size_t *r_width,
+                                        size_t *r_height)
+{
+  unique_ptr<ImageInput> in = ImageInput::open(filepath);
+  if (!in) {
+    return nullptr;
+  }
+
+  const ImageSpec &spec = in->spec();
+  /* Only a maximum of 4 channels are supported by ImBuf. */
+  const int channels = spec.nchannels <= 4 ? spec.nchannels : 4;
+  if (channels < 1) {
+    return nullptr;
+  }
+
+  const float scale = float(max_thumb_size) / std::max(spec.width, spec.height);
+  const int width = int(spec.width * scale);
+  const int height = int(spec.height * scale);
+
+  if (r_width) {
+    *r_width = width;
+  }
+  if (r_height) {
+    *r_height = height;
+  }
+
+  ImBuf *ibuf = nullptr;
+  if (spec.height < (max_thumb_size * 3) || spec.tile_width != 0) {
+    /* TODO: Images with tiles could be read and scaled one-by-one. */
+    /* TODO: Images with mipmaps could request an ideal level. */
+    ibuf = load_pixels<uint8_t>(in.get(), spec.width, spec.height, channels, flags, true);
+  }
+  else {
+    const uint format_flag = IB_byte_data | IB_uninitialized_pixels;
+    const int planes = 32;
+    const float oversample = 2.0f;
+    const int imb_w = width * oversample;
+    const int imb_h = height * oversample;
+    const float imb_scale = scale * oversample;
+    ibuf = IMB_allocImBuf(imb_w, imb_h, planes, format_flag);
+
+    /* Single row of pixels. */
+    blender::Vector<uint8_t> pixels(spec.width * 4);
+
+    for (int h = 0; h < imb_h; h++) {
+      const int source_y = int(float(h) / imb_scale);
+      /* Do not read with negative ystride to avoid the later flip.
+       * Scanline reading is not nearly as fast in reserved order. */
+      in->read_scanlines(0,
+                          0,
+                          source_y,
+                          source_y + 1,
+                          0,
+                          0,
+                          channels,
+                          TypeDesc::UINT8,
+                          pixels.data());
+
+      for (int w = 0; w < imb_w; w++) {
+        /* For each destination pixel find single corresponding source pixel. */
+        int source_x = int(std::min<int>((w / imb_scale), spec.width - 1)) * channels;
+        uint8_t *dest_px = &ibuf->byte_buffer.data[(h * imb_w + w) * 4];
+        dest_px[0] = pixels[source_x];
+        dest_px[1] = pixels[source_x + 1];
+        dest_px[2] = pixels[source_x + 2];
+        dest_px[3] = (channels == 4) ? pixels[source_x + 3] : 255;
+      }
+    }
+
+    /* ImBuf always needs 4 channels */
+    fill_all_channels<uint8_t>(ibuf->byte_buffer.data, imb_w, imb_h,
+                               channels,
+                               255);
+    IMB_flipy(ibuf);
+  }
+
+  in->close();
+
+  if (ibuf) {
+    ibuf->ftype = IMB_FTYPE_PNG;
+    ReadContext ctx{nullptr, 0, "png", IMB_FTYPE_PNG, flags};
+    set_file_colorspace(r_colorspace, ctx, spec, false);
+  }
+
+  return ibuf;
 }
 
 bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSpec &file_spec)
