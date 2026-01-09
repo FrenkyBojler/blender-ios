@@ -341,9 +341,13 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
     const int imb_h = height * oversample;
     const float imb_scale = scale * oversample;
     ibuf = IMB_allocImBuf(imb_w, imb_h, planes, format_flag);
+    if (!ibuf) {
+      in->close();
+      return nullptr;
+    }
 
     /* Single row of pixels. */
-    blender::Vector<uint8_t> pixels(spec.width * 4);
+    blender::Vector<uint8_t> pixels(spec.width * channels);
 
     for (int h = 0; h < imb_h; h++) {
       const int source_y = int(float(h) / imb_scale);
@@ -357,8 +361,8 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
         int source_x = int(std::min<int>((w / imb_scale), spec.width - 1)) * channels;
         uint8_t *dest_px = &ibuf->byte_buffer.data[(h * imb_w + w) * 4];
         dest_px[0] = pixels[source_x];
-        dest_px[1] = pixels[source_x + 1];
-        dest_px[2] = pixels[source_x + 2];
+        dest_px[1] = (channels > 1) ? pixels[source_x + 1] : pixels[source_x];
+        dest_px[2] = (channels > 2) ? pixels[source_x + 2] : pixels[source_x];
         dest_px[3] = (channels == 4) ? pixels[source_x + 3] : 255;
       }
     }
@@ -369,6 +373,8 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
   }
 
   in->close();
+
+  IMB_scale(ibuf, width, height, IMBScaleFilter::Box, true);
 
   if (ibuf) {
     ibuf->ftype = IMB_FTYPE_PNG;
