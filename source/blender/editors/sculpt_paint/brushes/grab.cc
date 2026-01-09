@@ -4,7 +4,7 @@
 
 #include <queue>
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
@@ -28,8 +28,9 @@
 
 #include "bmesh.hh"
 
-namespace blender::ed::sculpt_paint {
+namespace blender {
 
+namespace ed::sculpt_paint::brushes {
 inline namespace grab_cc {
 
 struct LocalData {
@@ -182,7 +183,7 @@ void do_grab_brush(const Depsgraph &depsgraph,
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      const Mesh &mesh = *static_cast<Mesh *>(object.data);
+      const Mesh &mesh = *id_cast<Mesh *>(object.data);
       const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -225,6 +226,9 @@ void do_grab_brush(const Depsgraph &depsgraph,
   pbvh.tag_positions_changed(node_mask);
   pbvh.flush_bounds_to_parents();
 }
+}  // namespace ed::sculpt_paint::brushes
+
+namespace ed::sculpt_paint {
 
 void geometry_preview_lines_update(Depsgraph &depsgraph,
                                    Object &object,
@@ -249,7 +253,7 @@ void geometry_preview_lines_update(Depsgraph &depsgraph,
 
   BKE_sculpt_update_object_for_edit(&depsgraph, &object, false);
 
-  const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+  const Mesh &mesh = *id_cast<const Mesh *>(object.data);
   /* Always grab active shape key if the sculpt happens on shapekey. */
   const Span<float3> positions = ss.shapekey_active ?
                                      bke::pbvh::vert_positions_eval(depsgraph, object) :
@@ -292,4 +296,6 @@ void geometry_preview_lines_update(Depsgraph &depsgraph,
   ss.preview_verts = preview_verts.as_span();
 }
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
+
+}  // namespace blender

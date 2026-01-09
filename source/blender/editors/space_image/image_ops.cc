@@ -39,7 +39,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BKE_image_save.hh"
@@ -47,7 +47,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -79,6 +79,7 @@
 #include "ED_uvedit.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -89,7 +90,7 @@
 
 #include "image_intern.hh"
 
-using blender::Vector;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name View Navigation Utilities
@@ -103,22 +104,28 @@ static void sima_zoom_set(
 
   sima->zoom = zoom;
 
-  if (sima->zoom < 0.1f || sima->zoom > 4.0f) {
-    /* check zoom limits */
-    ED_space_image_get_size(sima, &width, &height);
+  ED_space_image_get_size(sima, &width, &height);
 
-    width *= sima->zoom;
-    height *= sima->zoom;
-
-    if ((width < 4) && (height < 4) && sima->zoom < oldzoom) {
-      sima->zoom = oldzoom;
-    }
-    else if (BLI_rcti_size_x(&region->winrct) <= sima->zoom) {
-      sima->zoom = oldzoom;
-    }
-    else if (BLI_rcti_size_y(&region->winrct) <= sima->zoom) {
-      sima->zoom = oldzoom;
-    }
+  /* Preset zoom limits.
+   *   Zoom `min` is based on ratio of apparent image size to largest screen dimension.
+   *   Zoom `max` is based on ratio of apparent pixel size to largest screen dimension.
+   *      (The reason being so the user can still zoom in on very large images.)
+   */
+  const float sima_minzoom_image_over_screen = 1.0f / 100.0f;
+  const float sima_maxzoom_pixel_over_screen = 10.0f / 1.0f;
+  /* Check zoom limits. */
+  /* Get largest dimensions for image and workspace for comparison. */
+  float comp_image = std::max(width, height);
+  float comp_screen = std::max(BLI_rcti_size_x(&region->winrct), BLI_rcti_size_y(&region->winrct));
+  /* Stop when image size is less than minzoom ratio compared to screen size. */
+  if (comp_image * sima->zoom < comp_screen * sima_minzoom_image_over_screen &&
+      sima->zoom < oldzoom)
+  {
+    sima->zoom = oldzoom;
+  }
+  /* Stop when max relative screen bounds is smaller than apparent pixel size. */
+  else if (comp_screen * sima_maxzoom_pixel_over_screen <= sima->zoom && sima->zoom > oldzoom) {
+    sima->zoom = oldzoom;
   }
 
   if (zoom_to_pos && location) {
@@ -217,8 +224,10 @@ static ImageUser image_user_from_context_and_active_tile(const bContext *C, Imag
 
   /* Use the file associated with the active tile. Otherwise use the first tile. */
   if (ima && ima->source == IMA_SRC_TILED) {
-    const ImageTile *active = (ImageTile *)BLI_findlink(&ima->tiles, ima->active_tile_index);
-    iuser.tile = active ? active->tile_number : ((ImageTile *)ima->tiles.first)->tile_number;
+    const ImageTile *active = static_cast<ImageTile *>(
+        BLI_findlink(&ima->tiles, ima->active_tile_index));
+    iuser.tile = active ? active->tile_number :
+                          (static_cast<ImageTile *>(ima->tiles.first))->tile_number;
   }
 
   return iuser;
@@ -286,9 +295,9 @@ static void image_view_all(SpaceImage *sima, ARegion *region, wmOperator *op)
     }
     else {
       x_tiles = y_tiles = 1;
-      LISTBASE_FOREACH (ImageTile *, tile, &sima->image->tiles) {
-        int tile_x = (tile->tile_number - 1001) % 10;
-        int tile_y = (tile->tile_number - 1001) / 10;
+      for (ImageTile &tile : sima->image->tiles) {
+        int tile_x = (tile.tile_number - 1001) % 10;
+        int tile_y = (tile.tile_number - 1001) / 10;
         x_tiles = max_ii(x_tiles, tile_x + 1);
         y_tiles = max_ii(y_tiles, tile_y + 1);
       }
@@ -339,7 +348,7 @@ bool space_image_main_region_poll(bContext *C)
   return false;
 }
 
-/* For IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode or editmode */
+/** For #IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode or edit-mode. */
 static bool space_image_main_area_not_uv_brush_poll(bContext *C)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
@@ -374,11 +383,10 @@ static void image_view_pan_init(bContext *C, wmOperator *op, const wmEvent *even
   SpaceImage *sima = CTX_wm_space_image(C);
   ViewPanData *vpd;
 
-  op->customdata = vpd = static_cast<ViewPanData *>(
-      MEM_callocN(sizeof(ViewPanData), "ImageViewPanData"));
+  op->customdata = vpd = MEM_callocN<ViewPanData>("ImageViewPanData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -406,7 +414,7 @@ static void image_view_pan_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(op->customdata);
+  MEM_freeN(vpd);
 }
 
 static wmOperatorStatus image_view_pan_exec(bContext *C, wmOperator *op)
@@ -479,7 +487,7 @@ void IMAGE_OT_view_pan(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_view_pan";
   ot->description = "Pan the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_view_pan_exec;
   ot->invoke = image_view_pan_invoke;
   ot->modal = image_view_pan_modal;
@@ -523,6 +531,7 @@ struct ViewZoomData {
 
   /* */
   SpaceImage *sima;
+  ScrArea *area;
   ARegion *region;
 };
 
@@ -535,11 +544,10 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   ARegion *region = CTX_wm_region(C);
   ViewZoomData *vpd;
 
-  op->customdata = vpd = static_cast<ViewZoomData *>(
-      MEM_callocN(sizeof(ViewZoomData), "ImageViewZoomData"));
+  op->customdata = vpd = MEM_callocN<ViewZoomData>("ImageViewZoomData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -549,7 +557,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   vpd->zoom = sima->zoom;
   vpd->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
-  UI_view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &vpd->location[0], &vpd->location[1]);
 
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
@@ -559,6 +567,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   }
 
   vpd->sima = sima;
+  vpd->area = CTX_wm_area(C);
   vpd->region = region;
 
   WM_event_add_modal_handler(C, op);
@@ -574,6 +583,9 @@ static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
     ED_region_tag_redraw(CTX_wm_region(C));
   }
 
+  ED_area_status_text(vpd->area, nullptr);
+  ED_workspace_status_text(C, nullptr);
+
   if (vpd->timer) {
     WM_event_timer_remove(CTX_wm_manager(C), vpd->timer->win, vpd->timer);
   }
@@ -581,7 +593,7 @@ static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(op->customdata);
+  MEM_freeN(vpd);
 }
 
 static wmOperatorStatus image_view_zoom_exec(bContext *C, wmOperator *op)
@@ -609,7 +621,7 @@ static wmOperatorStatus image_view_zoom_invoke(bContext *C, wmOperator *op, cons
     ARegion *region = CTX_wm_region(C);
     float delta, factor, location[2];
 
-    UI_view2d_region_to_view(
+    ui::view2d_region_to_view(
         &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
 
     delta = event->prev_xy[0] - event->xy[0] + event->prev_xy[1] - event->xy[1];
@@ -641,7 +653,9 @@ static void image_zoom_apply(ViewZoomData *vpd,
                              const int y,
                              const short viewzoom,
                              const short zoom_invert,
-                             const bool zoom_to_pos)
+                             const bool zoom_to_pos,
+                             const bool snap,
+                             const bool precision)
 {
   float factor;
   float delta;
@@ -664,6 +678,10 @@ static void image_zoom_apply(ViewZoomData *vpd,
     delta = -delta;
   }
 
+  if (precision) {
+    delta /= 10.0f;
+  }
+
   if (viewzoom == USER_ZOOM_CONTINUE) {
     double time = BLI_time_now_seconds();
     float time_step = float(time - vpd->timer_lastdraw);
@@ -677,8 +695,22 @@ static void image_zoom_apply(ViewZoomData *vpd,
     factor = 1.0f + delta / 300.0f;
   }
 
+  float zoom = vpd->zoom * factor;
+  if (snap) {
+    zoom = round(zoom * 10.0f) / 10.0f;
+  }
+  char str[10];
+  if (precision) {
+    SNPRINTF(str, "%4.2f%%", vpd->sima->zoom * 100.0f);
+  }
+  else {
+    SNPRINTF(str, "%i%%", int(round(vpd->sima->zoom * 100.0f)));
+  }
+
+  ED_area_status_text(vpd->area, str);
+
   RNA_float_set(op->ptr, "factor", factor);
-  sima_zoom_set(vpd->sima, vpd->region, vpd->zoom * factor, vpd->location, zoom_to_pos);
+  sima_zoom_set(vpd->sima, vpd->region, zoom, vpd->location, zoom_to_pos);
   ED_region_tag_redraw(vpd->region);
 }
 
@@ -687,6 +719,10 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
   ViewZoomData *vpd = static_cast<ViewZoomData *>(op->customdata);
   short event_code = VIEW_PASS;
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
+
+  WorkspaceStatus status(C);
+  status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
+  status.item_bool(IFACE_("Precision"), event->modifier & KM_SHIFT, ICON_EVENT_SHIFT);
 
   /* Execute the events. */
   if (event->type == MOUSEMOVE) {
@@ -713,7 +749,9 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
                        event->xy[1],
                        U.viewzoom,
                        (U.uiflag & USER_ZOOM_INVERT) != 0,
-                       (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)));
+                       (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)),
+                       event->modifier & KM_CTRL,
+                       event->modifier & KM_SHIFT);
       break;
     }
     case VIEW_CONFIRM: {
@@ -743,7 +781,7 @@ void IMAGE_OT_view_zoom(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_view_zoom";
   ot->description = "Zoom in/out the image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_view_zoom_exec;
   ot->invoke = image_view_zoom_invoke;
   ot->modal = image_view_zoom_modal;
@@ -792,14 +830,12 @@ static wmOperatorStatus image_view_ndof_invoke(bContext *C,
 
   SpaceImage *sima = CTX_wm_space_image(C);
   ARegion *region = CTX_wm_region(C);
-  float pan_vec[3];
 
-  const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
+  const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(event->customdata);
   const float pan_speed = NDOF_PIXELS_PER_SECOND;
 
-  WM_event_ndof_pan_get(ndof, pan_vec, true);
+  float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get_for_navigation(ndof);
 
-  mul_v3_fl(pan_vec, ndof->dt);
   mul_v2_fl(pan_vec, pan_speed / sima->zoom);
 
   sima_zoom_set_factor(sima, region, max_ff(0.0f, 1.0f - pan_vec[2]), nullptr, false);
@@ -818,7 +854,7 @@ void IMAGE_OT_view_ndof(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_view_ndof";
   ot->description = "Use a 3D mouse device to pan/zoom the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = image_view_ndof_invoke;
   ot->poll = space_image_main_region_poll;
 
@@ -863,7 +899,7 @@ void IMAGE_OT_view_all(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_view_all";
   ot->description = "View the entire image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_view_all_exec;
   ot->poll = space_image_main_region_poll;
 
@@ -909,7 +945,7 @@ void IMAGE_OT_view_cursor_center(wmOperatorType *ot)
   ot->description = "Set 2D Cursor To Center View location";
   ot->idname = "IMAGE_OT_view_cursor_center";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_cursor_center_exec;
   ot->poll = ED_space_image_cursor_poll;
 
@@ -943,7 +979,7 @@ void IMAGE_OT_view_center_cursor(wmOperatorType *ot)
   ot->description = "Center the view so that the cursor is in the middle of the view";
   ot->idname = "IMAGE_OT_view_center_cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_center_cursor_exec;
   ot->poll = ED_space_image_cursor_poll;
 }
@@ -1014,7 +1050,7 @@ void IMAGE_OT_view_selected(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_view_selected";
   ot->description = "View all selected UVs";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_view_selected_exec;
   ot->poll = image_view_selected_poll;
 }
@@ -1048,7 +1084,7 @@ static wmOperatorStatus image_view_zoom_in_invoke(bContext *C,
   ARegion *region = CTX_wm_region(C);
   float location[2];
 
-  UI_view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
   RNA_float_set_array(op->ptr, "location", location);
 
@@ -1064,7 +1100,7 @@ void IMAGE_OT_view_zoom_in(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_view_zoom_in";
   ot->description = "Zoom in the image (centered around 2D cursor)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = image_view_zoom_in_invoke;
   ot->exec = image_view_zoom_in_exec;
   ot->poll = space_image_main_region_poll;
@@ -1109,7 +1145,7 @@ static wmOperatorStatus image_view_zoom_out_invoke(bContext *C,
   ARegion *region = CTX_wm_region(C);
   float location[2];
 
-  UI_view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
   RNA_float_set_array(op->ptr, "location", location);
 
@@ -1125,7 +1161,7 @@ void IMAGE_OT_view_zoom_out(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_view_zoom_out";
   ot->description = "Zoom out the image (centered around 2D cursor)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = image_view_zoom_out_invoke;
   ot->exec = image_view_zoom_out_exec;
   ot->poll = space_image_main_region_poll;
@@ -1176,7 +1212,7 @@ void IMAGE_OT_view_zoom_ratio(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_view_zoom_ratio";
   ot->description = "Set zoom ratio of the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_view_zoom_ratio_exec;
   ot->poll = space_image_main_region_poll;
 
@@ -1210,7 +1246,7 @@ static wmOperatorStatus image_view_zoom_border_exec(bContext *C, wmOperator *op)
 
   WM_operator_properties_border_to_rctf(op, &bounds);
 
-  UI_view2d_region_to_view_rctf(&region->v2d, &bounds, &bounds);
+  ui::view2d_region_to_view_rctf(&region->v2d, &bounds, &bounds);
 
   struct {
     float xof;
@@ -1242,7 +1278,7 @@ void IMAGE_OT_view_zoom_border(wmOperatorType *ot)
   ot->description = "Zoom in the view to the nearest item contained in the border";
   ot->idname = "IMAGE_OT_view_zoom_border";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = image_view_zoom_border_exec;
   ot->modal = WM_gesture_box_modal;
@@ -1279,7 +1315,7 @@ static void image_open_init(bContext *C, wmOperator *op)
   op->customdata = iod = MEM_new<ImageOpenData>(__func__);
   iod->iuser = static_cast<ImageUser *>(
       CTX_data_pointer_get_type(C, "image_user", &RNA_ImageUser).data);
-  UI_context_active_but_prop_get_templateID(C, &iod->pprop.ptr, &iod->pprop.prop);
+  ui::context_active_but_prop_get_templateID(C, &iod->pprop.ptr, &iod->pprop.prop);
 }
 
 static void image_open_cancel(bContext * /*C*/, wmOperator *op)
@@ -1339,8 +1375,8 @@ static Image *image_open_single(Main *bmain,
       ima->source = IMA_SRC_TILED;
       ImageTile *first_tile = static_cast<ImageTile *>(ima->tiles.first);
       first_tile->tile_number = range->offset;
-      LISTBASE_FOREACH (LinkData *, node, &range->udim_tiles) {
-        BKE_image_add_tile(ima, POINTER_AS_INT(node->data), nullptr);
+      for (LinkData &node : range->udim_tiles) {
+        BKE_image_add_tile(ima, POINTER_AS_INT(node.data), nullptr);
       }
     }
     else if (range->length > 1) {
@@ -1371,21 +1407,23 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ID *owner_id = iod->pprop.ptr.owner_id;
   Library *owner_library = owner_id ? owner_id->lib : nullptr;
-  blender::StringRefNull root_path = owner_library ? owner_library->runtime->filepath_abs :
-                                                     BKE_main_blendfile_path(bmain);
+  StringRefNull blendfile_path = BKE_main_blendfile_path(bmain);
+  StringRefNull root_path = owner_library ? owner_library->runtime->filepath_abs : blendfile_path;
 
-  ListBase ranges = ED_image_filesel_detect_sequences(root_path, op, use_udim);
-  LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
-    Image *ima_range = image_open_single(bmain, owner_library, op, range, use_multiview);
+  ListBaseT<ImageFrameRange> ranges = ED_image_filesel_detect_sequences(
+      blendfile_path, root_path, op, use_udim);
+  for (ImageFrameRange &range : ranges) {
+    Image *ima_range = image_open_single(bmain, owner_library, op, &range, use_multiview);
 
     /* take the first image */
     if ((ima == nullptr) && ima_range) {
       ima = ima_range;
-      frame_seq_len = range->length;
-      frame_ofs = range->offset;
+      frame_seq_len = range.length;
+      frame_ofs = range.offset;
     }
 
-    BLI_freelistN(&range->udim_tiles);
+    BLI_freelistN(&range.udim_tiles);
+    BLI_freelistN(&range.frames);
   }
   BLI_freelistN(&ranges);
 
@@ -1426,9 +1464,9 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
       Camera *cam = static_cast<Camera *>(
           CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
       if (cam) {
-        LISTBASE_FOREACH (CameraBGImage *, bgpic, &cam->bg_images) {
-          if (bgpic->ima == ima) {
-            iuser = &bgpic->iuser;
+        for (CameraBGImage &bgpic : cam->bg_images) {
+          if (bgpic.ima == ima) {
+            iuser = &bgpic.iuser;
             break;
           }
         }
@@ -1487,14 +1525,14 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
     PropertyRNA *prop;
 
     /* hook into UI */
-    UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+    ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
     if (prop) {
       PointerRNA oldptr;
       Image *oldima;
 
       oldptr = RNA_property_pointer_get(&ptr, prop);
-      oldima = (Image *)oldptr.owner_id;
+      oldima = id_cast<Image *>(oldptr.owner_id);
       /* unlikely to fail but better avoid strange crash */
       if (oldima && GS(oldima->id.name) == ID_IM) {
         ima = oldima;
@@ -1533,17 +1571,17 @@ static bool image_open_draw_check_prop(PointerRNA * /*ptr*/,
 
 static void image_open_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ImageFormatData *imf = &iod->im_format;
 
   /* main draw call */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    op->ptr,
                    image_open_draw_check_prop,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   ui::BUT_LABEL_ALIGN_NONE,
                    false);
 
   /* image template */
@@ -1551,7 +1589,7 @@ static void image_open_draw(bContext * /*C*/, wmOperator *op)
 
   /* multiview template */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
-    uiTemplateImageFormatViews(layout, &imf_ptr, op->ptr);
+    uiTemplateImageFormatViews(&layout, &imf_ptr, op->ptr);
   }
 }
 
@@ -1569,7 +1607,7 @@ void IMAGE_OT_open(wmOperatorType *ot)
   ot->description = "Open image";
   ot->idname = "IMAGE_OT_open";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_open_exec;
   ot->invoke = image_open_invoke;
   ot->cancel = image_open_cancel;
@@ -1618,15 +1656,14 @@ static wmOperatorStatus image_file_browse_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
   if (BLI_path_is_rel(filepath)) {
-    /* Relative path created by the file-browser are always relative to the current blendfile, need
-     * to be made relative to the library blendfile path in case image is an editable linked data.
-     */
-    BLI_path_abs(filepath, BKE_main_blendfile_path(CTX_data_main(C)));
-    /* TODO: make this a BKE_lib_id helper (already a static function in BKE_image too), we likely
-     * need this in more places in the future. ~~mont29 */
-    BLI_path_rel(filepath,
-                 ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
-                                          BKE_main_blendfile_path(CTX_data_main(C)));
+    Main *bmain = CTX_data_main(C);
+    /* Relative path created by the file-browser are always relative to the current blend-file,
+     * need to be made relative to the library blend-file path in case image is an editable
+     * linked data. */
+    BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
+    /* TODO(@mont29): make this a BKE_lib_id helper (already a static function in BKE_image too),
+     * we likely need this in more places in the future. */
+    BLI_path_rel(filepath, ID_BLEND_PATH(bmain, &ima->id));
   }
 
   /* If loading into a tiled texture, ensure that the filename is tokenized. */
@@ -1651,19 +1688,17 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
     return OPERATOR_CANCELLED;
   }
 
+  Main *bmain = CTX_data_main(C);
   char filepath[FILE_MAX];
   STRNCPY(filepath, ima->filepath);
-  BLI_path_abs(filepath,
-               ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
-                                        BKE_main_blendfile_path(CTX_data_main(C)));
+  BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &ima->id));
 
   /* Shift+Click to open the file, Alt+Click to browse a folder in the OS's browser. */
   if (event->modifier & (KM_SHIFT | KM_ALT)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
-    PointerRNA props_ptr;
 
     if (event->modifier & KM_ALT) {
-      char *lslash = (char *)BLI_path_slash_rfind(filepath);
+      char *lslash = const_cast<char *>(BLI_path_slash_rfind(filepath));
       if (lslash) {
         *lslash = '\0';
       }
@@ -1673,17 +1708,18 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
       BKE_image_user_file_path(&iuser, ima, filepath);
     }
 
-    WM_operator_properties_create_ptr(&props_ptr, ot);
+    PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_string_set(&props_ptr, "filepath", filepath);
-    WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     return OPERATOR_CANCELLED;
   }
 
   /* The image is typically passed to the operator via layout/button context (e.g.
-   * #uiLayoutSetContextPointer()). The File Browser doesn't support restoring this context
-   * when calling `exec()` though, so we have to pass it the image via custom data. */
+   * # ui::Layout::context_ptr_set. The File Browser doesn't support
+   * restoring this context when calling `exec()` though, so we have to pass it the image via
+   * custom data. */
   op->customdata = ima;
 
   image_filesel(C, op, filepath);
@@ -1706,7 +1742,7 @@ void IMAGE_OT_file_browse(wmOperatorType *ot)
       "directory";
   ot->idname = "IMAGE_OT_file_browse";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_file_browse_exec;
   ot->invoke = image_file_browse_invoke;
   ot->poll = image_file_browse_poll;
@@ -1749,7 +1785,7 @@ static wmOperatorStatus image_match_len_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
+  MovieReader *anim = (static_cast<ImageAnim *>(ima->anims.first))->anim;
   if (!anim) {
     return OPERATOR_CANCELLED;
   }
@@ -1766,7 +1802,7 @@ void IMAGE_OT_match_movie_length(wmOperatorType *ot)
   ot->description = "Set image's user's length to the one of this video";
   ot->idname = "IMAGE_OT_match_movie_length";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_match_len_exec;
 
   /* flags */
@@ -1848,7 +1884,7 @@ void IMAGE_OT_replace(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_replace";
   ot->description = "Replace current image by another one from disk";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_replace_exec;
   ot->invoke = image_replace_invoke;
   ot->poll = image_not_packed_poll;
@@ -1917,7 +1953,7 @@ static ImageSaveData *image_save_as_init(bContext *C, wmOperator *op)
   ImageUser *iuser = image_user_from_context(C);
   Scene *scene = CTX_data_scene(C);
 
-  ImageSaveData *isd = static_cast<ImageSaveData *>(MEM_callocN(sizeof(*isd), __func__));
+  ImageSaveData *isd = MEM_new_for_free<ImageSaveData>(__func__);
   isd->image = image;
   isd->iuser = iuser;
 
@@ -1960,7 +1996,7 @@ static void image_save_as_free(wmOperator *op)
     ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
     BKE_image_save_options_free(&isd->opts);
 
-    MEM_freeN(op->customdata);
+    MEM_freeN(isd);
     op->customdata = nullptr;
   }
 }
@@ -2040,42 +2076,42 @@ static bool image_save_as_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop, vo
            (STREQ(prop_id, "save_as_render") && isd->image->source == IMA_SRC_VIEWER));
 }
 
-static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
+static void image_save_as_draw(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
   ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
   const bool is_multiview = RNA_boolean_get(op->ptr, "show_multiview");
   const bool save_as_render = RNA_boolean_get(op->ptr, "save_as_render");
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   /* Operator settings. */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    op->ptr,
                    image_save_as_draw_check_prop,
                    isd,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   ui::BUT_LABEL_ALIGN_NONE,
                    false);
 
-  uiItemS(layout);
+  layout.separator();
 
   /* Image format settings. */
   PointerRNA imf_ptr = RNA_pointer_create_discrete(
       nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
-  uiTemplateImageSettings(layout, &imf_ptr, save_as_render);
+  uiTemplateImageSettings(&layout, C, &imf_ptr, save_as_render);
 
   if (!save_as_render) {
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imf_ptr, "linear_colorspace_settings");
-    uiLayout *col = uiLayoutColumn(layout, true);
-    uiItemS(col);
-    uiItemR(col, &linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+    ui::Layout &col = layout.column(true);
+    col.separator();
+    col.prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
   }
 
   /* Multiview settings. */
   if (is_multiview) {
-    uiTemplateImageFormatViews(layout, &imf_ptr, op->ptr);
+    uiTemplateImageFormatViews(&layout, &imf_ptr, op->ptr);
   }
 }
 
@@ -2090,7 +2126,7 @@ static bool image_save_as_poll(bContext *C)
     Image *ima = image_from_context(C);
 
     if (ima->source == IMA_SRC_VIEWER) {
-      CTX_wm_operator_poll_msg_set(C, "can't save image while rendering");
+      CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
       return false;
     }
   }
@@ -2105,7 +2141,7 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_save_as";
   ot->description = "Save the image with another name and/or settings";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_save_as_exec;
   ot->check = image_save_as_check;
   ot->invoke = image_save_as_invoke;
@@ -2174,6 +2210,16 @@ static bool image_save_poll(bContext *C)
     return false;
   }
 
+  if (G.is_rendering) {
+    /* no need to nullptr check here */
+    Image *ima = image_from_context(C);
+
+    if (ima->source == IMA_SRC_VIEWER) {
+      CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
+      return false;
+    }
+  }
+
   /* Check if there is a valid file path and image format we can write
    * outside of the 'poll' so we can show a report with a pop-up. */
 
@@ -2234,7 +2280,7 @@ static wmOperatorStatus image_save_invoke(bContext *C, wmOperator *op, const wmE
   if (!BKE_image_has_packedfile(ima) &&
       (!BKE_image_has_filepath(ima) || !image_file_format_writable(ima, iuser)))
   {
-    WM_operator_name_call(C, "IMAGE_OT_save_as", WM_OP_INVOKE_DEFAULT, nullptr, event);
+    WM_operator_name_call(C, "IMAGE_OT_save_as", wm::OpCallContext::InvokeDefault, nullptr, event);
     return OPERATOR_CANCELLED;
   }
   return image_save_exec(C, op);
@@ -2247,7 +2293,7 @@ void IMAGE_OT_save(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_save";
   ot->description = "Save the image with current name and settings";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_save_exec;
   ot->invoke = image_save_invoke;
   ot->poll = image_save_poll;
@@ -2286,8 +2332,8 @@ static wmOperatorStatus image_save_sequence_exec(bContext *C, wmOperator *op)
 
   /* get total dirty buffers and first dirty buffer which is used for menu */
   ibuf = nullptr;
-  if (image->cache != nullptr) {
-    iter = IMB_moviecacheIter_new(image->cache);
+  if (image->runtime->cache != nullptr) {
+    iter = IMB_moviecacheIter_new(image->runtime->cache);
     while (!IMB_moviecacheIter_done(iter)) {
       ibuf = IMB_moviecacheIter_getImBuf(iter);
       if (ibuf != nullptr && ibuf->userflags & IB_BITMAPDIRTY) {
@@ -2310,7 +2356,7 @@ static wmOperatorStatus image_save_sequence_exec(bContext *C, wmOperator *op)
   BLI_path_split_dir_part(first_ibuf->filepath, di, sizeof(di));
   BKE_reportf(op->reports, RPT_INFO, "%d image(s) will be saved in %s", tot, di);
 
-  iter = IMB_moviecacheIter_new(image->cache);
+  iter = IMB_moviecacheIter_new(image->runtime->cache);
   while (!IMB_moviecacheIter_done(iter)) {
     ibuf = IMB_moviecacheIter_getImBuf(iter);
 
@@ -2338,7 +2384,7 @@ void IMAGE_OT_save_sequence(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_save_sequence";
   ot->description = "Save a sequence of images";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_save_sequence_exec;
   ot->poll = image_from_context_has_data_poll;
 
@@ -2395,7 +2441,7 @@ bool ED_image_should_save_modified(const Main *bmain)
 
 int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
 {
-  blender::Set<std::string> unique_paths;
+  Set<std::string> unique_paths;
 
   int num_saveable_images = 0;
 
@@ -2412,7 +2458,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
         else {
           BKE_reportf(reports,
                       RPT_WARNING,
-                      "Packed library image can't be saved: \"%s\" from \"%s\"",
+                      "Packed library image cannot be saved: \"%s\" from \"%s\"",
                       ima->id.name + 2,
                       ima->id.lib->filepath);
         }
@@ -2420,7 +2466,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
       else if (!is_format_writable) {
         BKE_reportf(reports,
                     RPT_WARNING,
-                    "Image can't be saved, use a different file format: \"%s\"",
+                    "Image cannot be saved, use a different file format: \"%s\"",
                     ima->id.name + 2);
       }
       else {
@@ -2429,7 +2475,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
           if (unique_paths.contains_as(ima->filepath)) {
             BKE_reportf(reports,
                         RPT_WARNING,
-                        "Multiple images can't be saved to an identical path: \"%s\"",
+                        "Multiple images cannot be saved to an identical path: \"%s\"",
                         ima->filepath);
           }
           else {
@@ -2439,7 +2485,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
         else {
           BKE_reportf(reports,
                       RPT_WARNING,
-                      "Image can't be saved, no valid file path: \"%s\"",
+                      "Image cannot be saved, no valid file path: \"%s\"",
                       ima->filepath);
         }
       }
@@ -2501,7 +2547,7 @@ void IMAGE_OT_save_all_modified(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_save_all_modified";
   ot->description = "Save all modified images";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_save_all_modified_exec;
   ot->poll = image_save_all_modified_poll;
 
@@ -2544,7 +2590,7 @@ void IMAGE_OT_reload(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_reload";
   ot->description = "Reload current image from disk";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_reload_exec;
 
   /* flags */
@@ -2576,7 +2622,7 @@ static ImageNewData *image_new_init(bContext *C, wmOperator *op)
   }
 
   ImageNewData *data = MEM_new<ImageNewData>(__func__);
-  UI_context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
+  ui::context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
   op->customdata = data;
   return data;
 }
@@ -2682,7 +2728,7 @@ static wmOperatorStatus image_new_invoke(bContext *C, wmOperator *op, const wmEv
   /* Get property in advance, it doesn't work after WM_operator_props_dialog_popup. */
   ImageNewData *data;
   op->customdata = data = MEM_new<ImageNewData>(__func__);
-  UI_context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
+  ui::context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
 
   /* Better for user feedback. */
   RNA_string_set(op->ptr, "name", DATA_(IMA_DEF_NAME));
@@ -2692,34 +2738,22 @@ static wmOperatorStatus image_new_invoke(bContext *C, wmOperator *op, const wmEv
 
 static void image_new_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *col;
-  uiLayout *layout = op->layout;
-#if 0
-  Scene *scene = CTX_data_scene(C);
-  const bool is_multiview = (scene->r.scemode & R_MULTIVIEW) != 0;
-#endif
+  ui::Layout &layout = *op->layout;
 
   /* copy of WM_operator_props_dialog_popup() layout */
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, op->ptr, "tiled", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-#if 0
-  if (is_multiview) {
-    uiItemL(col[0], "", ICON_NONE);
-    uiItemR(col[1], op->ptr, "use_stereo_3d", 0, std::nullopt, ICON_NONE);
-  }
-#endif
+  ui::Layout &col = layout.column(false);
+  col.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "tiled", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void image_new_cancel(bContext * /*C*/, wmOperator *op)
@@ -2737,7 +2771,7 @@ void IMAGE_OT_new(wmOperatorType *ot)
   ot->description = "Create a new image";
   ot->idname = "IMAGE_OT_new";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_new_exec;
   ot->invoke = image_new_invoke;
   ot->ui = image_new_draw;
@@ -2862,10 +2896,6 @@ static wmOperatorStatus image_flip_exec(bContext *C, wmOperator *op)
   ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
   BKE_image_mark_dirty(ima, ibuf);
 
-  if (ibuf->mipmap[0]) {
-    ibuf->userflags |= IB_MIPMAP_INVALID;
-  }
-
   ED_image_undo_push_end();
 
   BKE_image_partial_update_mark_full_update(ima);
@@ -2885,7 +2915,7 @@ void IMAGE_OT_flip(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_flip";
   ot->description = "Flip the image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_flip_exec;
   ot->poll = image_from_context_editable_has_data_poll_active_tile;
 
@@ -2936,10 +2966,6 @@ static wmOperatorStatus image_rotate_orthogonal_exec(bContext *C, wmOperator *op
   ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
   BKE_image_mark_dirty(ima, ibuf);
 
-  if (ibuf->mipmap[0]) {
-    ibuf->userflags |= IB_MIPMAP_INVALID;
-  }
-
   ED_image_undo_push_end();
 
   BKE_image_partial_update_mark_full_update(ima);
@@ -2966,7 +2992,7 @@ void IMAGE_OT_rotate_orthogonal(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_rotate_orthogonal";
   ot->description = "Rotate the image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_rotate_orthogonal_exec;
   ot->poll = image_from_context_editable_has_data_poll_active_tile;
 
@@ -3052,7 +3078,7 @@ void IMAGE_OT_clipboard_copy(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_clipboard_copy";
   ot->description = "Copy the image to the clipboard";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_clipboard_copy_exec;
   ot->poll = image_clipboard_copy_poll;
 
@@ -3113,7 +3139,7 @@ void IMAGE_OT_clipboard_paste(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_clipboard_paste";
   ot->description = "Paste new image from the clipboard";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_clipboard_paste_exec;
   ot->poll = image_clipboard_paste_poll;
 
@@ -3203,10 +3229,6 @@ static wmOperatorStatus image_invert_exec(bContext *C, wmOperator *op)
   ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
   BKE_image_mark_dirty(ima, ibuf);
 
-  if (ibuf->mipmap[0]) {
-    ibuf->userflags |= IB_MIPMAP_INVALID;
-  }
-
   ED_image_undo_push_end();
 
   BKE_image_partial_update_mark_full_update(ima);
@@ -3229,7 +3251,7 @@ void IMAGE_OT_invert(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_invert";
   ot->description = "Invert image's channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_invert_exec;
   ot->poll = image_from_context_editable_has_data_poll_active_tile;
 
@@ -3308,9 +3330,9 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
     ED_image_undo_push_end();
   }
   else {
-    // Ensure that an image buffer can be aquired for all UDIM tiles
-    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
-      iuser.tile = current_tile->tile_number;
+    /* Ensure that an image buffer can be acquired for all UDIM tiles. */
+    for (ImageTile &current_tile : ima->tiles) {
+      iuser.tile = current_tile.tile_number;
 
       ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
 
@@ -3323,8 +3345,8 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
     }
 
     ED_image_undo_push_begin_with_image_all_udims(op->type->name, ima, &iuser);
-    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
-      iuser.tile = current_tile->tile_number;
+    for (ImageTile &current_tile : ima->tiles) {
+      iuser.tile = current_tile.tile_number;
 
       ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
 
@@ -3362,7 +3384,7 @@ void IMAGE_OT_resize(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_resize";
   ot->description = "Resize the image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = image_scale_invoke;
   ot->exec = image_scale_exec;
   ot->poll = image_from_context_editable_has_data_poll_active_tile;
@@ -3448,7 +3470,7 @@ void IMAGE_OT_pack(wmOperatorType *ot)
   ot->description = "Pack an image as embedded data into the .blend file";
   ot->idname = "IMAGE_OT_pack";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_pack_exec;
   ot->poll = image_pack_poll;
 
@@ -3542,7 +3564,7 @@ static wmOperatorStatus image_unpack_invoke(bContext *C, wmOperator *op, const w
               ima->filepath,
               "textures",
               BKE_image_has_packedfile(ima) ?
-                  ((ImagePackedFile *)ima->packedfiles.first)->packedfile :
+                  (static_cast<ImagePackedFile *>(ima->packedfiles.first))->packedfile :
                   nullptr);
 
   return OPERATOR_FINISHED;
@@ -3555,7 +3577,7 @@ void IMAGE_OT_unpack(wmOperatorType *ot)
   ot->description = "Save an image packed in the .blend file to disk";
   ot->idname = "IMAGE_OT_unpack";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_unpack_exec;
   ot->invoke = image_unpack_invoke;
   ot->poll = image_pack_poll;
@@ -3590,7 +3612,7 @@ bool ED_space_image_get_position(SpaceImage *sima,
     return false;
   }
 
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &r_fpos[0], &r_fpos[1]);
+  ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &r_fpos[0], &r_fpos[1]);
 
   ED_space_image_release_buffer(sima, ibuf, lock);
   return true;
@@ -3606,7 +3628,7 @@ bool ED_space_image_color_sample(
     return false;
   }
   float uv[2];
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &uv[0], &uv[1]);
+  ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &uv[0], &uv[1]);
   int tile = BKE_image_get_tile_from_pos(sima->image, uv, uv, nullptr);
 
   void *lock;
@@ -3654,7 +3676,7 @@ void IMAGE_OT_sample(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_sample";
   ot->description = "Use mouse to sample a color in current image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = ED_imbuf_sample_invoke;
   ot->modal = ED_imbuf_sample_modal;
   ot->cancel = ED_imbuf_sample_cancel;
@@ -3688,8 +3710,8 @@ static wmOperatorStatus image_sample_line_exec(bContext *C, wmOperator *op)
   int y_end = RNA_int_get(op->ptr, "yend");
 
   float uv1[2], uv2[2], ofs[2];
-  UI_view2d_region_to_view(&region->v2d, x_start, y_start, &uv1[0], &uv1[1]);
-  UI_view2d_region_to_view(&region->v2d, x_end, y_end, &uv2[0], &uv2[1]);
+  ui::view2d_region_to_view(&region->v2d, x_start, y_start, &uv1[0], &uv1[1]);
+  ui::view2d_region_to_view(&region->v2d, x_end, y_end, &uv2[0], &uv2[1]);
 
   /* If the image has tiles, shift the positions accordingly. */
   int tile = BKE_image_get_tile_from_pos(ima, uv1, uv1, ofs);
@@ -3748,7 +3770,7 @@ void IMAGE_OT_sample_line(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_sample_line";
   ot->description = "Sample a line and show it in Scope panels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = image_sample_line_invoke;
   ot->modal = WM_gesture_straightline_modal;
   ot->exec = image_sample_line_exec;
@@ -3783,7 +3805,7 @@ void IMAGE_OT_curves_point_set(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = ED_imbuf_sample_invoke;
   ot->modal = ED_imbuf_sample_modal;
   ot->cancel = ED_imbuf_sample_cancel;
@@ -3839,7 +3861,7 @@ void IMAGE_OT_cycle_render_slot(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_cycle_render_slot";
   ot->description = "Cycle through all non-void render slots";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_cycle_render_slot_exec;
   ot->poll = image_cycle_render_slot_poll;
 
@@ -3876,7 +3898,7 @@ void IMAGE_OT_clear_render_slot(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_clear_render_slot";
   ot->description = "Clear the currently selected render slot";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_clear_render_slot_exec;
   ot->poll = image_cycle_render_slot_poll;
 
@@ -3909,7 +3931,7 @@ void IMAGE_OT_add_render_slot(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_add_render_slot";
   ot->description = "Add a new render slot";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_add_render_slot_exec;
   ot->poll = image_cycle_render_slot_poll;
 
@@ -3944,7 +3966,7 @@ void IMAGE_OT_remove_render_slot(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_remove_render_slot";
   ot->description = "Remove the current render slot";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = image_remove_render_slot_exec;
   ot->poll = image_cycle_render_slot_poll;
 
@@ -4003,7 +4025,7 @@ static int frame_from_event(bContext *C, const wmEvent *event)
   else {
     float viewx, viewy;
 
-    UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
+    ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
 
     framenr = round_fl_to_int(viewx);
   }
@@ -4064,7 +4086,7 @@ void IMAGE_OT_change_frame(wmOperatorType *ot)
   ot->idname = "IMAGE_OT_change_frame";
   ot->description = "Interactively change the current frame number";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = change_frame_exec;
   ot->invoke = change_frame_invoke;
   ot->modal = change_frame_modal;
@@ -4137,7 +4159,7 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
   /* Get rectangle from the operator. */
   rctf border;
   WM_operator_properties_border_to_rctf(op, &border);
-  UI_view2d_region_to_view_rctf(&region->v2d, &border, &border);
+  ui::view2d_region_to_view_rctf(&region->v2d, &border, &border);
 
   /* Adjust for cropping. */
   if ((rd->mode & (R_BORDER | R_CROP)) == (R_BORDER | R_CROP)) {
@@ -4184,7 +4206,7 @@ void IMAGE_OT_render_border(wmOperatorType *ot)
   ot->description = "Set the boundaries of the render region and enable render region";
   ot->idname = "IMAGE_OT_render_border";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = render_border_exec;
   ot->modal = WM_gesture_box_modal;
@@ -4220,7 +4242,7 @@ void IMAGE_OT_clear_render_border(wmOperatorType *ot)
   ot->description = "Clear the boundaries of the render region and disable render region";
   ot->idname = "IMAGE_OT_clear_render_border";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = clear_render_border_exec;
   ot->poll = image_cycle_render_slot_poll;
 
@@ -4248,18 +4270,18 @@ static bool do_fill_tile(PointerRNA *ptr, Image *ima, ImageTile *tile)
   return BKE_image_fill_tile(ima, tile);
 }
 
-static void draw_fill_tile(PointerRNA *ptr, uiLayout *layout)
+static void draw_fill_tile(PointerRNA *ptr, ui::Layout &layout)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  uiLayout *col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &col = layout.column(false);
+  col.prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void tile_fill_init(PointerRNA *ptr, Image *ima, ImageTile *tile)
@@ -4334,14 +4356,14 @@ static wmOperatorStatus tile_add_exec(bContext *C, wmOperator *op)
   }
 
   bool fill_tile = RNA_boolean_get(op->ptr, "fill");
-  char *label = RNA_string_get_alloc(op->ptr, "label", nullptr, 0, nullptr);
+  std::string label = RNA_string_get(op->ptr, "label");
 
   /* BKE_image_add_tile assumes a pre-sorted list of tiles. */
   BKE_image_sort_tiles(ima);
 
   ImageTile *last_tile_created = nullptr;
   for (int tile_number = start_tile; tile_number <= end_tile; tile_number++) {
-    ImageTile *tile = BKE_image_add_tile(ima, tile_number, label);
+    ImageTile *tile = BKE_image_add_tile(ima, tile_number, label.c_str());
 
     if (tile != nullptr) {
       if (fill_tile) {
@@ -4351,7 +4373,6 @@ static wmOperatorStatus tile_add_exec(bContext *C, wmOperator *op)
       last_tile_created = tile;
     }
   }
-  MEM_freeN(label);
 
   if (!last_tile_created) {
     BKE_report(op->reports, RPT_WARNING, "No UDIM tiles were created");
@@ -4371,9 +4392,9 @@ static wmOperatorStatus tile_add_invoke(bContext *C, wmOperator *op, const wmEve
   /* Find the first gap in tile numbers or the number after the last if
    * no gap exists. */
   int next_number = 0;
-  LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
-    next_number = tile->tile_number + 1;
-    if (tile->next == nullptr || tile->next->tile_number > next_number) {
+  for (ImageTile &tile : ima->tiles) {
+    next_number = tile.tile_number + 1;
+    if (tile.next == nullptr || tile.next->tile_number > next_number) {
       break;
     }
   }
@@ -4394,17 +4415,16 @@ static wmOperatorStatus tile_add_invoke(bContext *C, wmOperator *op, const wmEve
 
 static void tile_add_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *col;
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, op->ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, op->ptr, "label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &col = layout.column(false);
+  col.prop(op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_boolean_get(op->ptr, "fill")) {
     draw_fill_tile(op->ptr, layout);
@@ -4420,7 +4440,7 @@ void IMAGE_OT_tile_add(wmOperatorType *ot)
   ot->description = "Adds a tile to the image";
   ot->idname = "IMAGE_OT_tile_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = tile_add_poll;
   ot->exec = tile_add_exec;
   ot->invoke = tile_add_invoke;
@@ -4482,7 +4502,7 @@ void IMAGE_OT_tile_remove(wmOperatorType *ot)
   ot->description = "Removes a tile from the image";
   ot->idname = "IMAGE_OT_tile_remove";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = tile_remove_poll;
   ot->exec = tile_remove_exec;
 
@@ -4534,7 +4554,7 @@ static wmOperatorStatus tile_fill_invoke(bContext *C, wmOperator *op, const wmEv
 
 static void tile_fill_draw(bContext * /*C*/, wmOperator *op)
 {
-  draw_fill_tile(op->ptr, op->layout);
+  draw_fill_tile(op->ptr, *op->layout);
 }
 
 void IMAGE_OT_tile_fill(wmOperatorType *ot)
@@ -4544,7 +4564,7 @@ void IMAGE_OT_tile_fill(wmOperatorType *ot)
   ot->description = "Fill the current tile with a generated image";
   ot->idname = "IMAGE_OT_tile_fill";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = tile_fill_poll;
   ot->exec = tile_fill_exec;
   ot->invoke = tile_fill_invoke;
@@ -4557,3 +4577,5 @@ void IMAGE_OT_tile_fill(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

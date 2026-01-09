@@ -7,10 +7,10 @@
 /** \file
  * \ingroup bli
  *
- * This is a generic counterpart to #blender::Array, used when the type is not known at runtime.
+ * This is a generic counterpart to #Array, used when the type is not known at runtime.
  *
  * `GArray` should generally only be used for passing data around in dynamic contexts.
- * It does not support a few things that #blender::Array supports:
+ * It does not support a few things that #Array supports:
  *  - Small object optimization / inline buffer.
  *  - Exception safety and various more specific constructors.
  */
@@ -158,13 +158,13 @@ class GArray {
   const void *operator[](int64_t index) const
   {
     BLI_assert(index < size_);
-    return POINTER_OFFSET(data_, type_->size() * index);
+    return POINTER_OFFSET(data_, type_->size * index);
   }
 
   void *operator[](int64_t index)
   {
     BLI_assert(index < size_);
-    return POINTER_OFFSET(data_, type_->size() * index);
+    return POINTER_OFFSET(data_, type_->size * index);
   }
 
   operator GSpan() const
@@ -237,8 +237,8 @@ class GArray {
  private:
   void *allocate(int64_t size)
   {
-    const int64_t item_size = type_->size();
-    const int64_t alignment = type_->alignment();
+    const int64_t item_size = type_->size;
+    const int64_t alignment = type_->alignment;
     return allocator_.allocate(size_t(size) * item_size, alignment, AT);
   }
 

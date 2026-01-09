@@ -50,7 +50,7 @@ void write_mask_mesh(const Depsgraph &depsgraph,
                      const IndexMask &node_mask,
                      FunctionRef<void(MutableSpan<float>, Span<int>)> write_fn)
 {
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
 
@@ -141,7 +141,7 @@ static wmOperatorStatus sculpt_mask_init_exec(bContext *C, wmOperator *op)
           });
           break;
         case InitMode::FaceSet: {
-          const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
+          const Mesh &mesh = *id_cast<const Mesh *>(ob.data);
           const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
           const bke::AttributeAccessor attributes = mesh.attributes();
           const VArraySpan face_sets = *attributes.lookup_or_default<int>(
@@ -191,7 +191,7 @@ static wmOperatorStatus sculpt_mask_init_exec(bContext *C, wmOperator *op)
           break;
         }
         case InitMode::FaceSet: {
-          const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
+          const Mesh &mesh = *id_cast<const Mesh *>(ob.data);
           const bke::AttributeAccessor attributes = mesh.attributes();
           const VArraySpan face_sets = *attributes.lookup_or_default<int>(
               ".sculpt_face_set", bke::AttrDomain::Face, 1);
@@ -237,6 +237,7 @@ static wmOperatorStatus sculpt_mask_init_exec(bContext *C, wmOperator *op)
     case bke::pbvh::Type::BMesh: {
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       const int offset = CustomData_get_offset_named(&ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+      undo::push_nodes(depsgraph, ob, node_mask, undo::Type::Mask);
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(&nodes[i])) {
           if (BM_elem_flag_test(vert, BM_ELEM_HIDDEN)) {

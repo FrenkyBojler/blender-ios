@@ -20,6 +20,8 @@
 #include "intern/bmesh_query.hh"
 #include "intern/bmesh_query_uv.hh"
 
+namespace blender {
+
 #define COST_INIT_MAX FLT_MAX
 
 /* -------------------------------------------------------------------- */
@@ -140,8 +142,8 @@ LinkNode *BM_mesh_calc_path_uv_vert(BMesh *bm,
 
   /* Allocate. */
   totloop = bm->totloop;
-  loops_prev = static_cast<BMLoop **>(MEM_callocN(sizeof(*loops_prev) * totloop, __func__));
-  cost = static_cast<float *>(MEM_mallocN(sizeof(*cost) * totloop, __func__));
+  loops_prev = MEM_calloc_arrayN<BMLoop *>(totloop, __func__);
+  cost = MEM_malloc_arrayN<float>(totloop, __func__);
 
   copy_vn_fl(cost, totloop, COST_INIT_MAX);
 
@@ -344,8 +346,8 @@ LinkNode *BM_mesh_calc_path_uv_edge(BMesh *bm,
   bm->elem_index_dirty &= ~BM_LOOP;
 
   totloop = bm->totloop;
-  loops_prev = static_cast<BMLoop **>(MEM_callocN(sizeof(*loops_prev) * totloop, __func__));
-  cost = static_cast<float *>(MEM_mallocN(sizeof(*cost) * totloop, __func__));
+  loops_prev = MEM_calloc_arrayN<BMLoop *>(totloop, __func__);
+  cost = MEM_malloc_arrayN<float>(totloop, __func__);
 
   copy_vn_fl(cost, totloop, COST_INIT_MAX);
 
@@ -572,8 +574,8 @@ LinkNode *BM_mesh_calc_path_uv_face(BMesh *bm,
 
   /* Allocate. */
   totface = bm->totface;
-  faces_prev = static_cast<BMFace **>(MEM_callocN(sizeof(*faces_prev) * totface, __func__));
-  cost = static_cast<float *>(MEM_mallocN(sizeof(*cost) * totface, __func__));
+  faces_prev = MEM_calloc_arrayN<BMFace *>(totface, __func__);
+  cost = MEM_malloc_arrayN<float>(totface, __func__);
 
   copy_vn_fl(cost, totface, COST_INIT_MAX);
 
@@ -611,3 +613,5 @@ LinkNode *BM_mesh_calc_path_uv_face(BMesh *bm,
 }
 
 /** \} */
+
+}  // namespace blender

@@ -53,13 +53,6 @@ if(WIN32 AND NOT UNIX)
   endif()
 endif()
 
-# Jemalloc 5.0.0+ needs extra configuration.
-if(WITH_MEM_JEMALLOC)
-  if(NOT ("${JEMALLOC_VERSION}" VERSION_LESS "5.0.0"))
-    add_definitions(-DWITH_JEMALLOC_CONF)
-  endif()
-endif()
-
 blender_add_lib(bf_intern_guardedalloc "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::intern::guardedalloc ALIAS bf_intern_guardedalloc)
 

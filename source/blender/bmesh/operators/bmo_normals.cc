@@ -17,6 +17,8 @@
 
 #include "intern/bmesh_operators_private.hh" /* own include */
 
+namespace blender {
+
 /********* Right-hand faces implementation ****** */
 
 #define FACE_FLAG (1 << 0)
@@ -255,12 +257,10 @@ static void bmo_recalc_face_normals_array(BMesh *bm,
 
 void bmo_recalc_face_normals_exec(BMesh *bm, BMOperator *op)
 {
-  int *groups_array = static_cast<int *>(
-      MEM_mallocN(sizeof(*groups_array) * bm->totface, __func__));
-  BMFace **faces_grp = static_cast<BMFace **>(
-      MEM_mallocN(sizeof(*faces_grp) * bm->totface, __func__));
+  int *groups_array = MEM_malloc_arrayN<int>(bm->totface, __func__);
+  BMFace **faces_grp = MEM_malloc_arrayN<BMFace *>(bm->totface, __func__);
 
-  int(*group_index)[2];
+  int (*group_index)[2];
   const int group_tot = BM_mesh_calc_face_groups(bm,
                                                  groups_array,
                                                  &group_index,
@@ -299,3 +299,5 @@ void bmo_recalc_face_normals_exec(BMesh *bm, BMOperator *op)
   MEM_freeN(groups_array);
   MEM_freeN(group_index);
 }
+
+}  // namespace blender

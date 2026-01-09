@@ -8,6 +8,8 @@
 
 #pragma once
 
+namespace blender {
+
 struct ReportList;
 struct Scene;
 struct ScrArea;
@@ -24,6 +26,7 @@ void OBJECT_OT_material_slot_deselect(wmOperatorType *ot);
 void OBJECT_OT_material_slot_copy(wmOperatorType *ot);
 void OBJECT_OT_material_slot_move(wmOperatorType *ot);
 void OBJECT_OT_material_slot_remove_unused(wmOperatorType *ot);
+void OBJECT_OT_material_slot_remove_all(wmOperatorType *ot);
 
 void MATERIAL_OT_new(wmOperatorType *ot);
 void TEXTURE_OT_new(wmOperatorType *ot);
@@ -98,3 +101,5 @@ void RENDER_OT_view_cancel(wmOperatorType *ot);
 /* `render_opengl.cc` */
 
 void RENDER_OT_opengl(wmOperatorType *ot);
+
+}  // namespace blender

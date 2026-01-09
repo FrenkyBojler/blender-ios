@@ -19,6 +19,8 @@
 
 #include "MEM_guardedalloc.h"
 
+namespace blender {
+
 static ImBuf *imb_load_dpx_cineon(
     const uchar *mem, size_t size, int use_cineon, int flags, ImFileColorSpace &r_colorspace)
 {
@@ -85,17 +87,23 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
     return 0;
   }
 
-  if (ibuf->foptions.flag & CINEON_10BIT) {
+  if (use_cineon) {
+    /* Only 10bit is supported. */
     bitspersample = 10;
   }
-  else if (ibuf->foptions.flag & CINEON_12BIT) {
-    bitspersample = 12;
-  }
-  else if (ibuf->foptions.flag & CINEON_16BIT) {
-    bitspersample = 16;
-  }
   else {
-    bitspersample = 8;
+    if (ibuf->foptions.flag & CINEON_10BIT) {
+      bitspersample = 10;
+    }
+    else if (ibuf->foptions.flag & CINEON_12BIT) {
+      bitspersample = 12;
+    }
+    else if (ibuf->foptions.flag & CINEON_16BIT) {
+      bitspersample = 16;
+    }
+    else {
+      bitspersample = 8;
+    }
   }
 
   logImage = logImageCreate(filepath,
@@ -123,8 +131,8 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
                                     "fbuf in imb_save_dpx_cineon");
 
     for (y = 0; y < ibuf->y; y++) {
-      float *dst_ptr = fbuf + 4 * ((ibuf->y - y - 1) * ibuf->x);
-      const float *src_ptr = ibuf->float_buffer.data + 4 * (y * ibuf->x);
+      float *dst_ptr = fbuf + (4 * (size_t(ibuf->y - y - 1) * size_t(ibuf->x)));
+      const float *src_ptr = ibuf->float_buffer.data + (4 * (size_t(y) * size_t(ibuf->x)));
 
       memcpy(dst_ptr, src_ptr, 4 * ibuf->x * sizeof(float));
     }
@@ -146,13 +154,15 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
       return 0;
     }
     for (y = 0; y < ibuf->y; y++) {
+      fbuf_ptr = fbuf + (4 * (size_t(ibuf->y - y - 1) * size_t(ibuf->x)));
+      rect_ptr = ibuf->byte_buffer.data + (4 * (size_t(y) * size_t(ibuf->x)));
       for (x = 0; x < ibuf->x; x++) {
-        fbuf_ptr = fbuf + 4 * ((ibuf->y - y - 1) * ibuf->x + x);
-        rect_ptr = ibuf->byte_buffer.data + 4 * (y * ibuf->x + x);
         fbuf_ptr[0] = float(rect_ptr[0]) / 255.0f;
         fbuf_ptr[1] = float(rect_ptr[1]) / 255.0f;
         fbuf_ptr[2] = float(rect_ptr[2]) / 255.0f;
         fbuf_ptr[3] = (depth == 4) ? (float(rect_ptr[3]) / 255.0f) : 1.0f;
+        fbuf_ptr += 4;
+        rect_ptr += 4;
       }
     }
     rvalue = (logImageSetDataRGBA(logImage, fbuf, 0) == 0);
@@ -180,3 +190,5 @@ ImBuf *imb_load_cineon(const uchar *mem, size_t size, int flags, ImFileColorSpac
   }
   return imb_load_dpx_cineon(mem, size, 1, flags, r_colorspace);
 }
+
+}  // namespace blender

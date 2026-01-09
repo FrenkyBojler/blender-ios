@@ -14,14 +14,15 @@
 #include "blender/session.h"
 
 #include "util/half.h"
+#include "util/transform.h"
 #include "util/types_float4.h"
 
 CCL_NAMESPACE_BEGIN
 
 /* Packed Images */
 
-BlenderImageLoader::BlenderImageLoader(Image *b_image,
-                                       ImageUser *b_iuser,
+BlenderImageLoader::BlenderImageLoader(blender::Image *b_image,
+                                       blender::ImageUser *b_iuser,
                                        const int frame,
                                        const int tile_number,
                                        const bool is_preview_render)
@@ -32,9 +33,9 @@ BlenderImageLoader::BlenderImageLoader(Image *b_image,
       free_cache(!is_preview_render && !BKE_image_has_loaded_ibuf(b_image))
 {
   this->b_iuser.framenr = frame;
-  if (b_image->source != IMA_SRC_TILED) {
+  if (b_image->source != blender::IMA_SRC_TILED) {
     /* Image sequences currently not supported by this image loader. */
-    assert(b_image->source != IMA_SRC_SEQUENCE);
+    assert(b_image->source != blender::IMA_SRC_SEQUENCE);
   }
   else {
     /* Set UDIM tile, each can have different resolution. */
@@ -49,7 +50,7 @@ bool BlenderImageLoader::load_metadata(const ImageDeviceFeatures & /*features*/,
 
   {
     void *lock;
-    ImBuf *ibuf = BKE_image_acquire_ibuf(b_image, &b_iuser, &lock);
+    blender::ImBuf *ibuf = BKE_image_acquire_ibuf(b_image, &b_iuser, &lock);
     if (ibuf) {
       is_float = ibuf->float_buffer.data != nullptr;
       metadata.width = ibuf->x;
@@ -63,8 +64,6 @@ bool BlenderImageLoader::load_metadata(const ImageDeviceFeatures & /*features*/,
     }
     BKE_image_release_ibuf(b_image, ibuf, lock);
   }
-
-  metadata.depth = 1;
 
   if (is_float) {
     if (metadata.channels == 1) {
@@ -89,7 +88,9 @@ bool BlenderImageLoader::load_metadata(const ImageDeviceFeatures & /*features*/,
   return true;
 }
 
-static void load_float_pixels(const ImBuf *ibuf, const ImageMetaData &metadata, float *out_pixels)
+static void load_float_pixels(const blender::ImBuf *ibuf,
+                              const ImageMetaData &metadata,
+                              float *out_pixels)
 {
   const size_t num_pixels = ((size_t)metadata.width) * metadata.height;
   const int out_channels = metadata.channels;
@@ -126,7 +127,7 @@ static void load_float_pixels(const ImBuf *ibuf, const ImageMetaData &metadata, 
   }
 }
 
-static void load_half_pixels(const ImBuf *ibuf,
+static void load_half_pixels(const blender::ImBuf *ibuf,
                              const ImageMetaData &metadata,
                              half *out_pixels,
                              const bool associate_alpha)
@@ -173,7 +174,7 @@ static void load_half_pixels(const ImBuf *ibuf,
   }
 }
 
-static void load_byte_pixels(const ImBuf *ibuf,
+static void load_byte_pixels(const blender::ImBuf *ibuf,
                              const ImageMetaData &metadata,
                              uchar *out_pixels,
                              const bool associate_alpha)
@@ -215,7 +216,7 @@ bool BlenderImageLoader::load_pixels(const ImageMetaData &metadata,
                                      const bool associate_alpha)
 {
   void *lock;
-  ImBuf *ibuf = BKE_image_acquire_ibuf(b_image, &b_iuser, &lock);
+  blender::ImBuf *ibuf = BKE_image_acquire_ibuf(b_image, &b_iuser, &lock);
 
   /* Image changed since we requested metadata, assume we'll get a signal to reload it later. */
   const bool mismatch = (ibuf == nullptr || ibuf->x != metadata.width ||
@@ -260,35 +261,6 @@ int BlenderImageLoader::get_tile_number() const
   return b_iuser.tile;
 }
 
-/* Point Density */
-
-BlenderPointDensityLoader::BlenderPointDensityLoader(BL::Depsgraph b_depsgraph,
-                                                     BL::ShaderNodeTexPointDensity b_node)
-    : b_depsgraph(b_depsgraph), b_node(b_node)
-{
-}
-
-bool BlenderPointDensityLoader::load_metadata(const ImageDeviceFeatures & /*features*/,
-                                              ImageMetaData &metadata)
-{
-  metadata.channels = 4;
-  metadata.width = b_node.resolution();
-  metadata.height = metadata.width;
-  metadata.depth = metadata.width;
-  metadata.type = IMAGE_DATA_TYPE_FLOAT4;
-  return true;
-}
-
-bool BlenderPointDensityLoader::load_pixels(const ImageMetaData & /*metadata*/,
-                                            void *pixels,
-                                            const size_t /*pixels_size*/,
-                                            const bool /*associate_alpha*/)
-{
-  int length;
-  b_node.calc_point_density(b_depsgraph, &length, (float **)&pixels);
-  return true;
-}
-
 void BlenderSession::builtin_images_load()
 {
   /* Force builtin images to be loaded along with Blender data sync. This
@@ -302,17 +274,6 @@ void BlenderSession::builtin_images_load()
   ImageManager *manager = session->scene->image_manager.get();
   Device *device = session->device.get();
   manager->device_load_builtin(device, session->scene.get(), session->progress);
-}
-
-string BlenderPointDensityLoader::name() const
-{
-  return BL::ShaderNodeTexPointDensity(b_node).name();
-}
-
-bool BlenderPointDensityLoader::equals(const ImageLoader &other) const
-{
-  const BlenderPointDensityLoader &other_loader = (const BlenderPointDensityLoader &)other;
-  return b_node == other_loader.b_node && b_depsgraph == other_loader.b_depsgraph;
 }
 
 CCL_NAMESPACE_END

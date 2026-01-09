@@ -10,14 +10,14 @@
 
 #include "select_engine.hh"
 
-#include "../overlay/overlay_next_instance.hh"
+#include "../overlay/overlay_instance.hh"
 #include "select_instance.hh"
 
 namespace blender::draw::select {
 
 class Instance : public overlay::Instance {
  public:
-  Instance() : overlay::Instance(SelectionType::ENABLED){};
+  Instance() : overlay::Instance(SelectionType::ENABLED) {};
 };
 
 DrawEngine *Engine::create_instance()

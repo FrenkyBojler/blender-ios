@@ -60,7 +60,7 @@ ccl_device_inline
   }
   kernel_assert((local_isect == nullptr) == (max_hits == 0));
 
-  const int object_flag = kernel_data_fetch(object_flag, local_object);
+  const uint object_flag = kernel_data_fetch(object_flag, local_object);
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
 #if BVH_FEATURE(BVH_MOTION)
     bvh_instance_motion_push(kg, local_object, ray, &P, &dir, &idir);
@@ -159,7 +159,6 @@ ccl_device_inline
                                            dir,
                                            local_object,
                                            prim,
-                                           prim_addr,
                                            tmin,
                                            isect_t,
                                            lcg_state,
@@ -197,7 +196,6 @@ ccl_device_inline
                                                   ray->time,
                                                   local_object,
                                                   prim,
-                                                  prim_addr,
                                                   tmin,
                                                   isect_t,
                                                   lcg_state,

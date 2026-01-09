@@ -20,6 +20,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 
@@ -35,9 +36,12 @@
 #include "stl_export_writer.hh"
 
 #include "CLG_log.h"
+
+namespace blender {
+
 static CLG_LogRef LOG = {"io.stl"};
 
-namespace blender::io::stl {
+namespace io::stl {
 
 void export_frame(Depsgraph *depsgraph,
                   float scene_unit_scale,
@@ -112,7 +116,7 @@ void export_frame(Depsgraph *depsgraph,
       }
     }
 
-    Object *obj_eval = DEG_get_evaluated_object(depsgraph, object);
+    Object *obj_eval = DEG_get_evaluated(depsgraph, object);
     const Mesh *mesh = export_params.apply_modifiers ? BKE_object_get_evaluated_mesh(obj_eval) :
                                                        BKE_object_get_pre_modified_mesh(obj_eval);
 
@@ -195,4 +199,5 @@ void exporter_main(const bContext *C, const STLExportParams &export_params)
   }
 }
 
-}  // namespace blender::io::stl
+}  // namespace io::stl
+}  // namespace blender

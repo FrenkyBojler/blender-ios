@@ -39,29 +39,23 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 #ifdef WITH_ASAN
 #  define POISON_REDZONE_SIZE 32
 #else
 #  define POISON_REDZONE_SIZE 0
 #endif
 
-/* NOTE: copied from BLO_blend_defs.hh, don't use here because we're in BLI. */
-#ifdef __BIG_ENDIAN__
-/* Big Endian */
-#  define MAKE_ID(a, b, c, d) ((int)(a) << 24 | (int)(b) << 16 | (c) << 8 | (d))
-#  define MAKE_ID_8(a, b, c, d, e, f, g, h) \
-    ((int64_t)(a) << 56 | (int64_t)(b) << 48 | (int64_t)(c) << 40 | (int64_t)(d) << 32 | \
-     (int64_t)(e) << 24 | (int64_t)(f) << 16 | (int64_t)(g) << 8 | (h))
-#else
-/* Little Endian */
-#  define MAKE_ID(a, b, c, d) (int(d) << 24 | int(c) << 16 | (b) << 8 | (a))
-#  define MAKE_ID_8(a, b, c, d, e, f, g, h) \
-    (int64_t(h) << 56 | int64_t(g) << 48 | int64_t(f) << 40 | int64_t(e) << 32 | \
-     int64_t(d) << 24 | int64_t(c) << 16 | int64_t(b) << 8 | (a))
-#endif
+/* NOTE: copied from BLO_core_bhead.hh, don't use here because we're in BLI. */
+/* NOTE: this is endianness-sensitive. */
+#define MAKE_ID(a, b, c, d) (int(d) << 24 | int(c) << 16 | (b) << 8 | (a))
+#define MAKE_ID_8(a, b, c, d, e, f, g, h) \
+  (int64_t(h) << 56 | int64_t(g) << 48 | int64_t(f) << 40 | int64_t(e) << 32 | int64_t(d) << 24 | \
+   int64_t(c) << 16 | int64_t(b) << 8 | (a))
 
 /**
- * Important that this value is an is _not_  aligned with `sizeof(void *)`.
+ * Important that this value is not aligned with `sizeof(void *)`.
  * So having a pointer to 2/4/8... aligned memory is enough to ensure
  * the `freeword` will never be used.
  * To be safe, use a word that's the same in both directions.
@@ -138,7 +132,7 @@ struct BLI_mempool {
   ((BLI_freenode *)(CHECK_TYPE_INLINE(chunk, BLI_mempool_chunk *), (void *)((chunk) + 1)))
 
 #define NODE_STEP_NEXT(node) ((BLI_freenode *)((char *)(node) + esize))
-#define NODE_STEP_PREV(node) ((BLI_freenode *)((char *)(node)-esize))
+#define NODE_STEP_PREV(node) ((BLI_freenode *)((char *)(node) - esize))
 
 /** Extra bytes implicitly used for every chunk alloc. */
 #define CHUNK_OVERHEAD uint(MEM_SIZE_OVERHEAD + sizeof(BLI_mempool_chunk))
@@ -362,8 +356,8 @@ BLI_mempool *BLI_mempool_create(uint esize, uint elem_num, uint pchunk, uint fla
   /* Ensure this is a power of 2, minus the rounding by element size. */
 #if defined(USE_CHUNK_POW2) && !defined(NDEBUG)
   {
-    uint final_size = (uint)MEM_SIZE_OVERHEAD + (uint)sizeof(BLI_mempool_chunk) + pool->csize;
-    BLI_assert(((uint)power_of_2_max_u(final_size) - final_size) < pool->esize);
+    uint final_size = uint(MEM_SIZE_OVERHEAD) + uint(sizeof(BLI_mempool_chunk)) + pool->csize;
+    BLI_assert((uint(power_of_2_max_u(final_size)) - final_size) < pool->esize);
   }
 #endif
 
@@ -426,7 +420,7 @@ void *BLI_mempool_alloc(BLI_mempool *pool)
   VALGRIND_MAKE_MEM_UNDEFINED(free_pop, pool->esize - POISON_REDZONE_SIZE);
 #endif
 
-  return (void *)free_pop;
+  return static_cast<void *>(free_pop);
 }
 
 void *BLI_mempool_calloc(BLI_mempool *pool)
@@ -438,11 +432,6 @@ void *BLI_mempool_calloc(BLI_mempool *pool)
   return retval;
 }
 
-/**
- * Free an element from the mempool.
- *
- * \note doesn't protect against double frees, take care!
- */
 void BLI_mempool_free(BLI_mempool *pool, void *addr)
 {
   BLI_freenode *newhead = static_cast<BLI_freenode *>(addr);
@@ -742,7 +731,7 @@ void *mempool_iter_threadsafe_step(BLI_mempool_threadsafe_iter *ts_iter)
       /* Begin unique to the `threadsafe` version of this function. */
       for (iter->curchunk = *ts_iter->curchunk_threaded_shared;
            (iter->curchunk != nullptr) &&
-           (atomic_cas_ptr((void **)ts_iter->curchunk_threaded_shared,
+           (atomic_cas_ptr(reinterpret_cast<void **>(ts_iter->curchunk_threaded_shared),
                            iter->curchunk,
                            iter->curchunk->next) != iter->curchunk);
            iter->curchunk = *ts_iter->curchunk_threaded_shared)
@@ -867,3 +856,5 @@ void BLI_mempool_set_memory_debug()
   mempool_debug_memset = true;
 }
 #endif
+
+}  // namespace blender

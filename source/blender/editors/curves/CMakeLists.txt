@@ -22,6 +22,7 @@ set(SRC
   intern/curves_extrude.cc
   intern/curves_masks.cc
   intern/curves_ops.cc
+  intern/curves_pen.cc
   intern/curves_selection.cc
   intern/curves_undo.cc
   intern/join.cc
@@ -43,6 +44,7 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
   PRIVATE bf::windowmanager
 )
 

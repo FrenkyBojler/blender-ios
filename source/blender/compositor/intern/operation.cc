@@ -36,6 +36,11 @@ void Operation::evaluate()
   context().evaluate_operation_post();
 }
 
+Result &Operation::get_input(StringRef identifier) const
+{
+  return *results_mapped_to_inputs_.lookup(identifier);
+}
+
 Result &Operation::get_result(StringRef identifier)
 {
   return results_.lookup(identifier);
@@ -133,12 +138,7 @@ void Operation::add_and_evaluate_input_processor(StringRef identifier, SimpleOpe
   processor->evaluate();
 }
 
-void Operation::compute_preview(){};
-
-Result &Operation::get_input(StringRef identifier) const
-{
-  return *results_mapped_to_inputs_.lookup(identifier);
-}
+void Operation::compute_preview() {};
 
 void Operation::switch_result_mapped_to_input(StringRef identifier, Result *result)
 {

@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_mutex.hh"
 #include "BLI_sub_frame.hh"
 
 #include "BKE_bake_items.hh"
@@ -16,12 +17,14 @@
 
 #include "DNA_modifier_types.h"
 
+namespace blender {
+
 struct NodesModifierData;
 struct Main;
 struct Object;
 struct Scene;
 
-namespace blender::bke::bake {
+namespace bke::bake {
 
 enum class CacheStatus {
   /** The cache is up-to-date with the inputs. */
@@ -98,7 +101,7 @@ struct BakeNodeCache {
 };
 
 struct ModifierCache {
-  mutable std::mutex mutex;
+  mutable Mutex mutex;
   /**
    * Set of nested node IDs (see #bNestedNodeRef) that is expected to be baked in the next
    * evaluation. This is filled and cleared by the bake operator.
@@ -146,4 +149,5 @@ std::string get_default_node_bake_directory(const Main &bmain,
                                             const NodesModifierData &nmd,
                                             int node_id);
 
-}  // namespace blender::bke::bake
+}  // namespace bke::bake
+}  // namespace blender

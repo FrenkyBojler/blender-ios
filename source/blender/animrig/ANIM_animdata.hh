@@ -13,6 +13,8 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+namespace blender {
+
 struct ID;
 struct Main;
 
@@ -20,7 +22,7 @@ struct AnimData;
 struct FCurve;
 struct bAction;
 
-namespace blender::animrig {
+namespace animrig {
 
 class Action;
 
@@ -33,6 +35,8 @@ bAction *id_action_ensure(Main *bmain, ID *id);
 /**
  * Delete the F-Curve from the given AnimData block (if possible),
  * as appropriate according to animation context.
+ *
+ * \note This function cannot be used to delete F-Curves from an NLA strip's Action.
  */
 void animdata_fcurve_delete(AnimData *adt, FCurve *fcu);
 
@@ -77,4 +81,5 @@ const FCurve *fcurve_find_by_rna_path(const AnimData &adt,
                                       StringRefNull rna_path,
                                       int array_index);
 
-}  // namespace blender::animrig
+}  // namespace animrig
+}  // namespace blender

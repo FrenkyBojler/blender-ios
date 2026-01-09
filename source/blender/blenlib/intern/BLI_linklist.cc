@@ -7,7 +7,7 @@
  *
  * Routines for working with single linked lists of 'links' - pointers to other data.
  *
- * For double linked lists see 'BLI_listbase.h'.
+ * For double linked lists see `BLI_listbase.h`.
  */
 
 #include <cstdlib>
@@ -20,6 +20,8 @@
 #include "BLI_mempool.h"
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+
+namespace blender {
 
 int BLI_linklist_count(const LinkNode *list)
 {
@@ -336,3 +338,5 @@ LinkNode *BLI_linklist_sort_r(LinkNode *list,
   }
   return list;
 }
+
+}  // namespace blender

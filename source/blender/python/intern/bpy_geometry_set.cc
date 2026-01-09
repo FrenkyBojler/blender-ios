@@ -40,7 +40,9 @@
 
 #include "../generic/py_capi_utils.hh"
 
-using blender::bke::GeometrySet;
+namespace blender {
+
+using bke::GeometrySet;
 
 extern PyTypeObject bpy_geometry_set_Type;
 
@@ -98,7 +100,6 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
                                                                      PyObject *args,
                                                                      PyObject *kwds)
 {
-  using namespace blender;
   static const char *kwlist[] = {"evaluated_object", nullptr};
   PyObject *py_evaluated_object;
   if (!PyArg_ParseTupleAndKeywords(
@@ -120,7 +121,7 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
     return nullptr;
   }
   Object *evaluated_object = reinterpret_cast<Object *>(evaluated_object_id);
-  if (!DEG_is_evaluated_object(evaluated_object)) {
+  if (!DEG_is_evaluated(evaluated_object)) {
     PyErr_SetString(PyExc_TypeError, "Expected an evaluated object");
     return nullptr;
   }
@@ -188,7 +189,6 @@ PyDoc_STRVAR(
     "   :rtype: bpy.types.PointCloud\n");
 static PyObject *BPy_GeometrySet_get_instances_pointcloud(BPy_GeometrySet *self)
 {
-  using namespace blender;
   const bke::Instances *instances = self->geometry.get_instances();
   if (!instances) {
     Py_RETURN_NONE;
@@ -220,7 +220,6 @@ PyDoc_STRVAR(
     "   :rtype: list[None | bpy.types.Object | bpy.types.Collection | bpy.types.GeometrySet]\n");
 static PyObject *BPy_GeometrySet_get_instance_references(BPy_GeometrySet *self)
 {
-  using namespace blender;
   const bke::Instances *instances = self->geometry.get_instances();
   if (!instances) {
     return PyList_New(0);
@@ -343,7 +342,7 @@ PyDoc_STRVAR(
     bpy_geometry_set_grease_pencil_doc,
     "The Grease Pencil data-block in the geometry set.\n"
     "\n"
-    ":type: :class:`bpy.types.GreasePencilv3`\n");
+    ":type: :class:`bpy.types.GreasePencil`\n");
 static PyObject *BPy_GeometrySet_get_grease_pencil(BPy_GeometrySet *self, void * /*closure*/)
 {
   return pyrna_id_CreatePyObject(
@@ -491,3 +490,5 @@ PyObject *BPyInit_geometry_set_type()
   }
   return reinterpret_cast<PyObject *>(&bpy_geometry_set_Type);
 }
+
+}  // namespace blender

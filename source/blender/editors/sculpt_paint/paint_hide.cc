@@ -26,7 +26,6 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "BKE_subsurf.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -42,7 +41,6 @@
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
-#include "sculpt_automask.hh"
 #include "sculpt_gesture.hh"
 #include "sculpt_intern.hh"
 #include "sculpt_islands.hh"
@@ -57,7 +55,7 @@ namespace blender::ed::sculpt_paint::hide {
 void sync_all_from_faces(Object &object)
 {
   SculptSession &ss = *object.sculpt;
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
 
   islands::invalidate(ss);
 
@@ -125,7 +123,7 @@ void mesh_show_all(const Depsgraph &depsgraph, Object &object, const IndexMask &
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
 
@@ -286,7 +284,7 @@ static void vert_hide_update(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter<bool> hide_vert = attributes.lookup_or_add_for_write_span<bool>(
       ".hide_vert", bke::AttrDomain::Point);
@@ -458,7 +456,7 @@ static void partialvis_all_update_mesh(const Depsgraph &depsgraph,
                                        const VisAction action,
                                        const IndexMask &node_mask)
 {
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (action == VisAction::Show && !attributes.contains(".hide_vert")) {
     /* If everything is already visible, don't do anything. */
@@ -554,7 +552,7 @@ static void partialvis_masked_update_mesh(const Depsgraph &depsgraph,
                                           const VisAction action,
                                           const IndexMask &node_mask)
 {
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (action == VisAction::Show && !attributes.contains(".hide_vert")) {
     /* If everything is already visible, don't do anything. */
@@ -719,7 +717,7 @@ static void invert_visibility_mesh(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_span<bool>(
       ".hide_poly", bke::AttrDomain::Face);
@@ -957,7 +955,7 @@ static void grow_shrink_visibility_mesh(const Depsgraph &depsgraph,
                                         const VisAction action,
                                         const int iterations)
 {
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (!attributes.contains(".hide_vert")) {
     /* If the entire mesh is visible, we can neither grow nor shrink the boundary. */
@@ -1085,7 +1083,7 @@ static Array<bool> duplicate_visibility_bmesh(const Object &object)
   const SculptSession &ss = *object.sculpt;
   BMesh &bm = *ss.bm;
   Array<bool> result(bm.totvert);
-  BM_mesh_elem_table_ensure(&bm, BM_VERT);
+  vert_random_access_ensure(const_cast<Object &>(object));
   for (const int i : result.index_range()) {
     result[i] = BM_elem_flag_test_bool(BM_vert_at_index(&bm, i), BM_ELEM_HIDDEN);
   }
@@ -1221,7 +1219,7 @@ static void partialvis_gesture_update_mesh(gesture::GestureData &gesture_data)
   const VisAction action = operation->action;
   const IndexMask &node_mask = gesture_data.node_mask;
 
-  Mesh *mesh = static_cast<Mesh *>(object->data);
+  Mesh *mesh = id_cast<Mesh *>(object->data);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   if (action == VisAction::Show && !attributes.contains(".hide_vert")) {
     /* If everything is already visible, don't do anything. */

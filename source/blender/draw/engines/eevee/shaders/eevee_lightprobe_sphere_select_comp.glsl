@@ -7,7 +7,7 @@
  * irradiance cache from each spherical probe location except for the world probe.
  */
 
-#include "infos/eevee_lightprobe_sphere_info.hh"
+#include "infos/eevee_lightprobe_sphere_infos.hh"
 
 #ifdef GLSL_CPP_STUBS
 #  define SPHERE_PROBE_SELECT
@@ -30,7 +30,7 @@ void main()
     sh = lightprobe_volume_world();
   }
   else {
-    vec3 probe_center = lightprobe_sphere_buf[idx].location;
+    float3 probe_center = lightprobe_sphere_buf[idx].location;
     sh = lightprobe_volume_sample(probe_center);
   }
 

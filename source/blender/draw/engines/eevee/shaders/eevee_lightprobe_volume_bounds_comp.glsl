@@ -9,13 +9,11 @@
  * - capture_info_buf
  */
 
-#include "infos/eevee_lightprobe_volume_info.hh"
+#include "infos/eevee_lightprobe_volume_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_lightprobe_volume_bounds)
 
 #include "draw_intersect_lib.glsl"
-#include "eevee_light_iter_lib.glsl"
-#include "eevee_shadow_tilemap_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 void main()
@@ -35,8 +33,8 @@ void main()
                                  bounds.bounding_corners[2].xyz,
                                  bounds.bounding_corners[3].xyz);
 
-  vec3 local_min = vec3(FLT_MAX);
-  vec3 local_max = vec3(-FLT_MAX);
+  float3 local_min = float3(FLT_MAX);
+  float3 local_max = float3(-FLT_MAX);
   for (int i = 0; i < 8; i++) {
     local_min = min(local_min, box.corners[i].xyz);
     local_max = max(local_max, box.corners[i].xyz);

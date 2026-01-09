@@ -5,7 +5,7 @@
 /* Sum all spherical harmonic coefficients extracting during remapping to octahedral map.
  * Dispatch only one thread-group that sums. */
 
-#include "infos/eevee_lightprobe_sphere_info.hh"
+#include "infos/eevee_lightprobe_sphere_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_lightprobe_sphere_irradiance)
 
@@ -14,19 +14,19 @@ COMPUTE_SHADER_CREATE_INFO(eevee_lightprobe_sphere_irradiance)
 #include "eevee_sampling_lib.glsl"
 #include "eevee_spherical_harmonics_lib.glsl"
 
-shared vec4 local_sh_coefs[gl_WorkGroupSize.x][4];
+shared float4 local_sh_coefs[gl_WorkGroupSize.x][4];
 
 void main()
 {
   SphericalHarmonicL1 sh;
-  sh.L0.M0 = vec4(0.0);
-  sh.L1.Mn1 = vec4(0.0);
-  sh.L1.M0 = vec4(0.0);
-  sh.L1.Mp1 = vec4(0.0);
+  sh.L0.M0 = float4(0.0f);
+  sh.L1.Mn1 = float4(0.0f);
+  sh.L1.M0 = float4(0.0f);
+  sh.L1.Mp1 = float4(0.0f);
 
   /* First sum onto the local memory. */
-  uint valid_data_len = probe_remap_dispatch_size.x * probe_remap_dispatch_size.y;
-  const uint iter_count = uint(SPHERE_PROBE_MAX_HARMONIC) / gl_WorkGroupSize.x;
+  uint valid_data_len = uint(probe_remap_dispatch_size.x * probe_remap_dispatch_size.y);
+  constexpr uint iter_count = uint(SPHERE_PROBE_MAX_HARMONIC) / gl_WorkGroupSize.x;
   for (uint i = 0; i < iter_count; i++) {
     uint index = gl_WorkGroupSize.x * i + gl_LocalInvocationIndex;
     if (index >= valid_data_len) {
@@ -48,7 +48,7 @@ void main()
   local_sh_coefs[local_index][3] = sh.L1.Mp1;
 
   /* Parallel sum. */
-  const uint group_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
+  constexpr uint group_size = gl_WorkGroupSize.x;
   uint stride = group_size / 2;
   for (int i = 0; i < 10; i++) {
     barrier();

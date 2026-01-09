@@ -43,11 +43,13 @@
 
 #include "grease_pencil_trace_util.hh"
 
+namespace blender {
+
 #ifdef WITH_POTRACE
 #  include "potracelib.h"
 #endif
 
-namespace blender::ed::sculpt_paint::greasepencil {
+namespace ed::sculpt_paint::greasepencil {
 
 /* -------------------------------------------------------------------- */
 /** \name Trace Image Operator
@@ -98,6 +100,8 @@ struct TraceJob {
   TraceMode mode;
   /* Custom source frame, allows overriding the default scene frame. */
   int frame_number;
+  int foreground_material_index;
+  int background_material_index;
 
   bool success;
   bool was_canceled;
@@ -127,7 +131,7 @@ void TraceJob::ensure_output_object()
   }
 
   /* Create Layer. */
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(this->ob_grease_pencil->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(this->ob_grease_pencil->data);
   this->layer = grease_pencil.get_active_layer();
   if (this->layer == nullptr) {
     Layer &new_layer = grease_pencil.add_layer(DATA_("Trace"));
@@ -207,17 +211,18 @@ static bke::CurvesGeometry grease_pencil_trace_image(TraceJob &trace_job, const 
 
   /* Assign different materials to foreground curves and hole curves. */
   bke::MutableAttributeAccessor attributes = trace_curves.attributes_for_write();
-  const int material_fg = ensure_foreground_material(
-      trace_job.bmain, trace_job.ob_grease_pencil, "Stroke");
-  const int material_bg = ensure_background_material(
-      trace_job.bmain, trace_job.ob_grease_pencil, "Holdout");
+  BLI_assert_msg(trace_job.foreground_material_index >= 0,
+                 "ensure_foreground_material must be called on the main thread");
+  BLI_assert_msg(trace_job.background_material_index >= 0,
+                 "ensure_background_material must be called on the main thread");
   const VArraySpan<bool> holes = *attributes.lookup<bool>(hole_attribute_id);
   bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
   threading::parallel_for(trace_curves.curves_range(), 4096, [&](const IndexRange range) {
     for (const int curve_i : range) {
       const bool is_hole = holes[curve_i];
-      material_indices.span[curve_i] = (is_hole ? material_bg : material_fg);
+      material_indices.span[curve_i] = (is_hole ? trace_job.background_material_index :
+                                                  trace_job.foreground_material_index);
     }
   });
   material_indices.finish();
@@ -298,7 +303,7 @@ static void trace_start_job(void *customdata, wmJobWorkerStatus *worker_status)
 static void trace_end_job(void *customdata)
 {
   TraceJob &trace_job = *static_cast<TraceJob *>(customdata);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(trace_job.ob_grease_pencil->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(trace_job.ob_grease_pencil->data);
 
   auto ensure_drawing_at_frame = [&](const int frame_number) {
     const std::optional<int> start_frame = trace_job.layer->start_frame_at(frame_number);
@@ -368,7 +373,7 @@ static bool grease_pencil_trace_image_poll(bContext *C)
     return false;
   }
 
-  Image *image = static_cast<Image *>(ob->data);
+  Image *image = id_cast<Image *>(ob->data);
   if (!ELEM(image->source, IMA_SRC_FILE, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
     CTX_wm_operator_poll_msg_set(C, "No valid image format selected");
     return false;
@@ -389,7 +394,7 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
   job->v3d = CTX_wm_view3d(C);
   job->base_active = CTX_data_active_base(C);
   job->ob_active = job->base_active->object;
-  job->image = static_cast<Image *>(job->ob_active->data);
+  job->image = id_cast<Image *>(job->ob_active->data);
   job->frame_target = scene->r.cfra;
   job->use_current_frame = RNA_boolean_get(op->ptr, "use_current_frame");
 
@@ -422,7 +427,13 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
   job->ensure_output_object();
 
   /* Back to active base. */
-  blender::ed::object::base_activate(job->C, job->base_active);
+  ed::object::base_activate(job->C, job->base_active);
+
+  /* Create materials on the main thread before starting the job. */
+  job->foreground_material_index = ensure_foreground_material(
+      job->bmain, job->ob_grease_pencil, "Stroke");
+  job->background_material_index = ensure_background_material(
+      job->bmain, job->ob_grease_pencil, "Holdout");
 
   if ((job->image->source == IMA_SRC_FILE) || (job->frame_number > 0)) {
     wmJobWorkerStatus worker_status = {};
@@ -434,7 +445,7 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
     wmJob *wm_job = WM_jobs_get(job->wm,
                                 CTX_wm_window(C),
                                 job->scene,
-                                "Trace Image",
+                                "Tracing image...",
                                 WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_TRACE_IMAGE);
 
@@ -569,7 +580,7 @@ static void GREASE_PENCIL_OT_trace_image(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace blender::ed::sculpt_paint::greasepencil
+}  // namespace ed::sculpt_paint::greasepencil
 
 /* -------------------------------------------------------------------- */
 /** \name Registration
@@ -585,3 +596,5 @@ void ED_operatortypes_grease_pencil_trace()
 }
 
 /** \} */
+
+}  // namespace blender

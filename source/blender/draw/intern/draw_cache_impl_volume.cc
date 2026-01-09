@@ -44,7 +44,7 @@ static void volume_batch_cache_clear(Volume *volume);
 
 struct VolumeBatchCache {
   /* 3D textures */
-  ListBase grids;
+  ListBaseT<DRWVolumeGrid> grids;
 
   /* Wireframe */
   struct {
@@ -117,9 +117,9 @@ static void volume_batch_cache_clear(Volume *volume)
     return;
   }
 
-  LISTBASE_FOREACH (DRWVolumeGrid *, grid, &cache->grids) {
-    MEM_SAFE_FREE(grid->name);
-    GPU_TEXTURE_FREE_SAFE(grid->texture);
+  for (DRWVolumeGrid &grid : cache->grids) {
+    MEM_SAFE_FREE(grid.name);
+    GPU_TEXTURE_FREE_SAFE(grid.texture);
   }
   BLI_freelistN(&cache->grids);
 
@@ -156,17 +156,17 @@ static void drw_volume_wireframe_cb(
 
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
-    attr_id.pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    attr_id.nor_id = GPU_vertformat_attr_add(
-        &format, "nor", GPU_COMP_I10, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+    attr_id.pos_id = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+    attr_id.nor_id = GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SNORM_10_10_10_2);
     return format;
   }();
 
   static const GPUVertFormat format_hq = [&]() {
     GPUVertFormat format{};
-    attr_id.pos_hq_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    attr_id.pos_hq_id = GPU_vertformat_attr_add(
+        &format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
     attr_id.nor_hq_id = GPU_vertformat_attr_add(
-        &format, "nor", GPU_COMP_I16, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+        &format, "nor", gpu::VertAttrType::SNORM_16_16_16_16);
     return format;
   }();
 
@@ -247,7 +247,7 @@ static void drw_volume_selection_surface_cb(
   static uint pos_id;
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
-    pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    pos_id = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
     return format;
   }();
 
@@ -289,9 +289,9 @@ static DRWVolumeGrid *volume_grid_cache_get(const Volume *volume,
   const std::string name = bke::volume_grid::get_name(*grid);
 
   /* Return cached grid. */
-  LISTBASE_FOREACH (DRWVolumeGrid *, cache_grid, &cache->grids) {
-    if (cache_grid->name == name) {
-      return cache_grid;
+  for (DRWVolumeGrid &cache_grid : cache->grids) {
+    if (cache_grid.name == name) {
+      return &cache_grid;
     }
   }
 
@@ -316,7 +316,8 @@ static DRWVolumeGrid *volume_grid_cache_get(const Volume *volume,
     cache_grid->object_to_texture = math::invert(cache_grid->texture_to_object);
 
     /* Create GPU texture. */
-    eGPUTextureFormat format = (channels == 3) ? GPU_RGB16F : GPU_R16F;
+    gpu::TextureFormat format = (channels == 3) ? gpu::TextureFormat::SFLOAT_16_16_16 :
+                                                  gpu::TextureFormat::SFLOAT_16;
     cache_grid->texture = GPU_texture_create_3d("volume_grid",
                                                 UNPACK3(dense_grid.resolution),
                                                 1,

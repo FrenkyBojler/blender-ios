@@ -7,17 +7,21 @@
  * This mask is then processed by the compaction phase.
  */
 
-#include "infos/eevee_tracing_info.hh"
+#include "infos/eevee_tracing_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_ray_tile_classify)
 
 #include "eevee_closure_lib.glsl"
-#include "eevee_gbuffer_lib.glsl"
+#include "eevee_gbuffer_read_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-shared uint tile_contains_ray_tracing[GBUFFER_LAYER_MAX];
+#if GBUFFER_LAYER_MAX > 3
+/* WORKAROUND: We can't use define inside shared variable definitions. */
+#  error Resize the array below
+#endif
+shared uint tile_contains_ray_tracing[4];
 shared uint tile_contains_horizon_scan;
 
 /* Returns a blend factor between different tracing method. */
@@ -38,15 +42,15 @@ void main()
 
   barrier();
 
-  ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
+  int2 texel = int2(gl_GlobalInvocationID.xy);
 
   bool valid_texel = in_texture_range(texel, gbuf_header_tx);
 
   if (valid_texel) {
-    GBufferReader gbuf = gbuffer_read(gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel);
+    gbuffer::Header header = gbuffer::read_header(texel);
 
     for (uchar i = 0; i < GBUFFER_LAYER_MAX; i++) {
-      ClosureUndetermined cl = gbuffer_closure_get_by_bin(gbuf, i);
+      ClosureUndetermined cl = gbuffer::read_bin(header, texel, i);
       if (cl.type == CLOSURE_NONE_ID) {
         continue;
       }
@@ -54,10 +58,10 @@ void main()
       float ray_roughness_fac = ray_roughness_factor(uniform_buf.raytrace, roughness);
 
       /* We don't care about race condition here. */
-      if (ray_roughness_fac > 0.0) {
+      if (ray_roughness_fac > 0.0f) {
         tile_contains_horizon_scan = 1;
       }
-      if (ray_roughness_fac < 1.0) {
+      if (ray_roughness_fac < 1.0f) {
         tile_contains_ray_tracing[i] = 1;
       }
     }
@@ -66,20 +70,20 @@ void main()
   barrier();
 
   if (gl_LocalInvocationIndex == 0u) {
-    ivec2 denoise_tile_co = ivec2(gl_WorkGroupID.xy);
-    ivec2 tracing_tile_co = denoise_tile_co / uniform_buf.raytrace.resolution_scale;
+    int2 denoise_tile_co = int2(gl_WorkGroupID.xy);
+    int2 tracing_tile_co = denoise_tile_co / uniform_buf.raytrace.resolution_scale;
 
     for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
       if (tile_contains_ray_tracing[i] > 0) {
-        imageStoreFast(tile_raytrace_denoise_img, ivec3(denoise_tile_co, i), uvec4(1));
-        imageStoreFast(tile_raytrace_tracing_img, ivec3(tracing_tile_co, i), uvec4(1));
+        imageStoreFast(tile_raytrace_denoise_img, int3(denoise_tile_co, i), uint4(1));
+        imageStoreFast(tile_raytrace_tracing_img, int3(tracing_tile_co, i), uint4(1));
       }
     }
 
     if (tile_contains_horizon_scan > 0) {
-      ivec2 tracing_tile_co = denoise_tile_co / uniform_buf.raytrace.horizon_resolution_scale;
-      imageStoreFast(tile_horizon_denoise_img, ivec3(denoise_tile_co, 0), uvec4(1));
-      imageStoreFast(tile_horizon_tracing_img, ivec3(tracing_tile_co, 0), uvec4(1));
+      int2 tracing_tile_co = denoise_tile_co / uniform_buf.raytrace.horizon_resolution_scale;
+      imageStoreFast(tile_horizon_denoise_img, int3(denoise_tile_co, 0), uint4(1));
+      imageStoreFast(tile_horizon_tracing_img, int3(tracing_tile_co, 0), uint4(1));
     }
   }
 }

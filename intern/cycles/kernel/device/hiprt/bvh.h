@@ -106,7 +106,7 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
   float3 dir = bvh_clamp_direction(ray->D);
   float3 idir = bvh_inverse_direction(dir);
 
-  const int object_flag = kernel_data_fetch(object_flag, local_object);
+  const uint object_flag = kernel_data_fetch(object_flag, local_object);
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
 #  if BVH_FEATURE(BVH_MOTION)
     bvh_instance_motion_push(kg, local_object, ray, &P, &dir, &idir);
@@ -161,12 +161,12 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
 }
 #endif /*__BVH_LOCAL__ */
 
-#ifdef __SHADOW_RECORD_ALL__
+#ifdef __TRANSPARENT_SHADOWS__
 ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals kg,
                                                      IntegratorShadowState state,
                                                      const ccl_private Ray *ray,
                                                      const uint visibility,
-                                                     const uint max_hits,
+                                                     const uint max_transparent_hits,
                                                      ccl_private uint *num_recorded_hits,
                                                      ccl_private float *throughput)
 {
@@ -187,8 +187,8 @@ ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals kg,
   payload.prim_type = PRIMITIVE_NONE;
   payload.ray_time = ray->time;
   payload.in_state = state;
-  payload.max_hits = max_hits;
-  payload.num_hits = 0;
+  payload.max_transparent_hits = max_transparent_hits;
+  payload.num_transparent_hits = 0;
   payload.r_num_recorded_hits = num_recorded_hits;
   payload.r_throughput = throughput;
 
@@ -198,7 +198,7 @@ ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals kg,
   const hiprtHit hit = traversal.getNextHit();
   return hit.hasHit();
 }
-#endif /* __SHADOW_RECORD_ALL__ */
+#endif /* __TRANSPARENT_SHADOWS__ */
 
 #ifdef __VOLUME__
 ccl_device_intersect bool scene_intersect_volume(KernelGlobals kg,

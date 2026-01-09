@@ -44,8 +44,7 @@
 
 #include "lattice_intern.hh"
 
-using blender::Span;
-using blender::Vector;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Utility Functions
@@ -101,7 +100,7 @@ static wmOperatorStatus lattice_select_random_exec(bContext *C, wmOperator *op)
       scene, view_layer, CTX_wm_view3d(C));
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
-    Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
+    Lattice *lt = (id_cast<Lattice *>(obedit->data))->editlatt->latt;
     int seed_iter = seed;
 
     /* This gives a consistent result regardless of object order. */
@@ -111,7 +110,7 @@ static wmOperatorStatus lattice_select_random_exec(bContext *C, wmOperator *op)
 
     int a = lt->pntsu * lt->pntsv * lt->pntsw;
     int elem_map_len = 0;
-    BPoint **elem_map = static_cast<BPoint **>(MEM_mallocN(sizeof(*elem_map) * a, __func__));
+    BPoint **elem_map = MEM_malloc_arrayN<BPoint *>(a, __func__);
     BPoint *bp = lt->def;
 
     while (a--) {
@@ -146,7 +145,7 @@ void LATTICE_OT_select_random(wmOperatorType *ot)
   ot->description = "Randomly select UVW control points";
   ot->idname = "LATTICE_OT_select_random";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lattice_select_random_exec;
   ot->poll = ED_operator_editlattice;
 
@@ -209,7 +208,7 @@ static wmOperatorStatus lattice_select_mirror_exec(bContext *C, wmOperator *op)
       scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
-    Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
+    Lattice *lt = (id_cast<Lattice *>(obedit->data))->editlatt->latt;
 
     for (int axis = 0; axis < 3; axis++) {
       if ((1 << axis) & axis_flag) {
@@ -232,7 +231,7 @@ void LATTICE_OT_select_mirror(wmOperatorType *ot)
   ot->description = "Select mirrored lattice points";
   ot->idname = "LATTICE_OT_select_mirror";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lattice_select_mirror_exec;
   ot->poll = ED_operator_editlattice;
 
@@ -274,7 +273,7 @@ static wmOperatorStatus lattice_select_more_less(bContext *C, const bool select)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
+    Lattice *lt = (id_cast<Lattice *>(obedit->data))->editlatt->latt;
     BPoint *bp;
     const int tot = lt->pntsu * lt->pntsv * lt->pntsw;
     int u, v, w;
@@ -332,7 +331,7 @@ void LATTICE_OT_select_more(wmOperatorType *ot)
   ot->description = "Select vertex directly linked to already selected ones";
   ot->idname = "LATTICE_OT_select_more";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lattice_select_more_exec;
   ot->poll = ED_operator_editlattice;
 
@@ -347,7 +346,7 @@ void LATTICE_OT_select_less(wmOperatorType *ot)
   ot->description = "Deselect vertices at the boundary of each selection region";
   ot->idname = "LATTICE_OT_select_less";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lattice_select_less_exec;
   ot->poll = ED_operator_editlattice;
 
@@ -363,7 +362,7 @@ void LATTICE_OT_select_less(wmOperatorType *ot)
 
 bool ED_lattice_flags_set(Object *obedit, int flag)
 {
-  Lattice *lt = static_cast<Lattice *>(obedit->data);
+  Lattice *lt = id_cast<Lattice *>(obedit->data);
   BPoint *bp;
   int a;
   bool changed = false;
@@ -401,7 +400,7 @@ static wmOperatorStatus lattice_select_all_exec(bContext *C, wmOperator *op)
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;
     for (Object *obedit : objects) {
-      Lattice *lt = static_cast<Lattice *>(obedit->data);
+      Lattice *lt = id_cast<Lattice *>(obedit->data);
       if (BKE_lattice_is_any_selected(lt->editlatt->latt)) {
         action = SEL_DESELECT;
         break;
@@ -424,7 +423,7 @@ static wmOperatorStatus lattice_select_all_exec(bContext *C, wmOperator *op)
         changed = ED_lattice_flags_set(obedit, 0);
         break;
       case SEL_INVERT:
-        lt = static_cast<Lattice *>(obedit->data);
+        lt = id_cast<Lattice *>(obedit->data);
         bp = lt->editlatt->latt->def;
         a = lt->editlatt->latt->pntsu * lt->editlatt->latt->pntsv * lt->editlatt->latt->pntsw;
         lt->editlatt->latt->actbp = LT_ACTBP_NONE;
@@ -458,7 +457,7 @@ void LATTICE_OT_select_all(wmOperatorType *ot)
   ot->description = "Change selection of all UVW control points";
   ot->idname = "LATTICE_OT_select_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lattice_select_all_exec;
   ot->poll = ED_operator_editlattice;
 
@@ -484,7 +483,7 @@ static wmOperatorStatus lattice_select_ungrouped_exec(bContext *C, wmOperator *o
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
+    Lattice *lt = (id_cast<Lattice *>(obedit->data))->editlatt->latt;
     MDeformVert *dv;
     BPoint *bp;
     int a, tot;
@@ -527,7 +526,7 @@ void LATTICE_OT_select_ungrouped(wmOperatorType *ot)
   ot->idname = "LATTICE_OT_select_ungrouped";
   ot->description = "Select vertices without a group";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lattice_select_ungrouped_exec;
   ot->poll = ED_operator_editlattice;
 
@@ -597,7 +596,7 @@ static BPoint *findnearestLattvert(ViewContext *vc, bool select, Base **r_base)
   return data.bp;
 }
 
-bool ED_lattice_select_pick(bContext *C, const int mval[2], const SelectPick_Params *params)
+bool ED_lattice_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   BPoint *bp = nullptr;
@@ -611,11 +610,11 @@ bool ED_lattice_select_pick(bContext *C, const int mval[2], const SelectPick_Par
   bp = findnearestLattvert(&vc, true, &basact);
   bool found = (bp != nullptr);
 
-  if (params->sel_op == SEL_OP_SET) {
-    if ((found && params->select_passthrough) && (bp->f1 & SELECT)) {
+  if (params.sel_op == SEL_OP_SET) {
+    if ((found && params.select_passthrough) && (bp->f1 & SELECT)) {
       found = false;
     }
-    else if (found || params->deselect_all) {
+    else if (found || params.deselect_all) {
       /* Deselect everything. */
       Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
           vc.scene, vc.view_layer, vc.v3d);
@@ -631,9 +630,9 @@ bool ED_lattice_select_pick(bContext *C, const int mval[2], const SelectPick_Par
 
   if (found) {
     ED_view3d_viewcontext_init_object(&vc, basact->object);
-    Lattice *lt = ((Lattice *)vc.obedit->data)->editlatt->latt;
+    Lattice *lt = (id_cast<Lattice *>(vc.obedit->data))->editlatt->latt;
 
-    switch (params->sel_op) {
+    switch (params.sel_op) {
       case SEL_OP_ADD: {
         bp->f1 |= SELECT;
         break;
@@ -665,7 +664,7 @@ bool ED_lattice_select_pick(bContext *C, const int mval[2], const SelectPick_Par
 
     BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
     if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-      blender::ed::object::base_activate(C, basact);
+      ed::object::base_activate(C, basact);
     }
 
     DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_SELECT);
@@ -678,3 +677,5 @@ bool ED_lattice_select_pick(bContext *C, const int mval[2], const SelectPick_Par
 }
 
 /** \} */
+
+}  // namespace blender

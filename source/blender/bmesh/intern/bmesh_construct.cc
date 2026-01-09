@@ -8,12 +8,12 @@
  * BM construction functions.
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_sort_utils.h"
 
 #include "BKE_customdata.hh"
 
@@ -21,6 +21,8 @@
 
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
+
+namespace blender {
 
 bool BM_verts_from_edges(BMVert **vert_arr, BMEdge **edge_arr, const int len)
 {
@@ -209,13 +211,13 @@ BMFace *BM_face_create_ngon(BMesh *bm,
                             const BMFace *f_example,
                             const eBMCreateFlag create_flag)
 {
-  BMEdge **edges_sort = BLI_array_alloca(edges_sort, len);
-  BMVert **verts_sort = BLI_array_alloca(verts_sort, len);
+  Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edges_sort(len);
+  Array<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> verts_sort(len);
 
   BLI_assert(len && v1 && v2 && edges && bm);
 
-  if (bm_edges_sort_winding(v1, v2, edges, len, edges_sort, verts_sort)) {
-    return BM_face_create(bm, verts_sort, edges_sort, len, f_example, create_flag);
+  if (bm_edges_sort_winding(v1, v2, edges, len, edges_sort.data(), verts_sort.data())) {
+    return BM_face_create(bm, verts_sort.data(), edges_sort.data(), len, f_example, create_flag);
   }
 
   return nullptr;
@@ -229,7 +231,8 @@ BMFace *BM_face_create_ngon_verts(BMesh *bm,
                                   const bool calc_winding,
                                   const bool create_edges)
 {
-  BMEdge **edge_arr = BLI_array_alloca(edge_arr, len);
+  Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edge_arr(len);
+
   uint winding[2] = {0, 0};
   int i, i_prev = len - 1;
   BMVert *v_winding[2] = {vert_arr[i_prev], vert_arr[0]};
@@ -283,14 +286,20 @@ BMFace *BM_face_create_ngon_verts(BMesh *bm,
   /* --- */
 
   /* create the face */
-  return BM_face_create_ngon(
-      bm, v_winding[winding[0]], v_winding[winding[1]], edge_arr, len, f_example, create_flag);
+  return BM_face_create_ngon(bm,
+                             v_winding[winding[0]],
+                             v_winding[winding[1]],
+                             edge_arr.data(),
+                             len,
+                             f_example,
+                             create_flag);
 }
 
 void BM_verts_sort_radial_plane(BMVert **vert_arr, int len)
 {
-  SortIntByFloat *vang = BLI_array_alloca(vang, len);
-  BMVert **vert_arr_map = BLI_array_alloca(vert_arr_map, len);
+  using AngleIndex = std::pair<float, int>;
+  Array<AngleIndex, BM_DEFAULT_NGON_STACK_SIZE> vang(len);
+  Array<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> vert_arr_map(len);
 
   float nor[3], cent[3];
   int index_tangent = 0;
@@ -299,18 +308,20 @@ void BM_verts_sort_radial_plane(BMVert **vert_arr, int len)
 
   /* Now calculate every points angle around the normal (signed). */
   for (int i = 0; i < len; i++) {
-    vang[i].sort_value = angle_signed_on_axis_v3v3v3_v3(far, cent, vert_arr[i]->co, nor);
-    vang[i].data = i;
+    vang[i].first = angle_signed_on_axis_v3v3v3_v3(far, cent, vert_arr[i]->co, nor);
+    vang[i].second = i;
     vert_arr_map[i] = vert_arr[i];
   }
 
   /* sort by angle and magic! - we have our ngon */
-  qsort(vang, len, sizeof(*vang), BLI_sortutil_cmp_float);
+  std::sort(vang.begin(), vang.end(), [](const AngleIndex &a, const AngleIndex &b) {
+    return a.first < b.first;
+  });
 
   /* --- */
 
   for (int i = 0; i < len; i++) {
-    vert_arr[i] = vert_arr_map[vang[i].data];
+    vert_arr[i] = vert_arr_map[vang[i].second];
   }
 }
 
@@ -320,20 +331,23 @@ void BM_elem_attrs_copy(BMesh *bm, const BMCustomDataCopyMap &map, const BMVert 
 {
   BLI_assert(src != dst);
   CustomData_bmesh_copy_block(bm->vdata, map, src->head.data, &dst->head.data);
-  dst->head.hflag = (dst->head.hflag & BM_ELEM_SELECT) | (src->head.hflag & ~BM_ELEM_SELECT);
+  constexpr char hflag_mask = BM_ELEM_SELECT;
+  dst->head.hflag = (dst->head.hflag & hflag_mask) | (src->head.hflag & ~hflag_mask);
   copy_v3_v3(dst->no, src->no);
 }
 void BM_elem_attrs_copy(BMesh *bm, const BMCustomDataCopyMap &map, const BMEdge *src, BMEdge *dst)
 {
   BLI_assert(src != dst);
   CustomData_bmesh_copy_block(bm->edata, map, src->head.data, &dst->head.data);
-  dst->head.hflag = (dst->head.hflag & BM_ELEM_SELECT) | (src->head.hflag & ~BM_ELEM_SELECT);
+  constexpr char hflag_mask = BM_ELEM_SELECT;
+  dst->head.hflag = (dst->head.hflag & hflag_mask) | (src->head.hflag & ~hflag_mask);
 }
 void BM_elem_attrs_copy(BMesh *bm, const BMCustomDataCopyMap &map, const BMFace *src, BMFace *dst)
 {
   BLI_assert(src != dst);
   CustomData_bmesh_copy_block(bm->pdata, map, src->head.data, &dst->head.data);
-  dst->head.hflag = (dst->head.hflag & BM_ELEM_SELECT) | (src->head.hflag & ~BM_ELEM_SELECT);
+  constexpr char hflag_mask = BM_ELEM_SELECT | BM_ELEM_SELECT_UV;
+  dst->head.hflag = (dst->head.hflag & hflag_mask) | (src->head.hflag & ~hflag_mask);
   copy_v3_v3(dst->no, src->no);
   dst->mat_nr = src->mat_nr;
 }
@@ -341,35 +355,40 @@ void BM_elem_attrs_copy(BMesh *bm, const BMCustomDataCopyMap &map, const BMLoop 
 {
   BLI_assert(src != dst);
   CustomData_bmesh_copy_block(bm->ldata, map, src->head.data, &dst->head.data);
-  dst->head.hflag = (dst->head.hflag & BM_ELEM_SELECT) | (src->head.hflag & ~BM_ELEM_SELECT);
+  constexpr char hflag_mask = BM_ELEM_SELECT | BM_ELEM_SELECT_UV | BM_ELEM_SELECT_UV_EDGE;
+  dst->head.hflag = (dst->head.hflag & hflag_mask) | (src->head.hflag & ~hflag_mask);
 }
 
 void BM_elem_attrs_copy(BMesh *bm, const BMVert *src, BMVert *dst)
 {
   BLI_assert(src != dst);
   CustomData_bmesh_copy_block(bm->vdata, src->head.data, &dst->head.data);
-  dst->head.hflag = (dst->head.hflag & BM_ELEM_SELECT) | (src->head.hflag & ~BM_ELEM_SELECT);
+  constexpr char hflag_mask = BM_ELEM_SELECT;
+  dst->head.hflag = (dst->head.hflag & hflag_mask) | (src->head.hflag & ~hflag_mask);
   copy_v3_v3(dst->no, src->no);
 }
 void BM_elem_attrs_copy(BMesh *bm, const BMEdge *src, BMEdge *dst)
 {
   BLI_assert(src != dst);
   CustomData_bmesh_copy_block(bm->edata, src->head.data, &dst->head.data);
-  dst->head.hflag = (dst->head.hflag & BM_ELEM_SELECT) | (src->head.hflag & ~BM_ELEM_SELECT);
+  constexpr char hflag_mask = BM_ELEM_SELECT;
+  dst->head.hflag = (dst->head.hflag & hflag_mask) | (src->head.hflag & ~hflag_mask);
 }
 void BM_elem_attrs_copy(BMesh *bm, const BMFace *src, BMFace *dst)
 {
   BLI_assert(src != dst);
+  constexpr char hflag_mask = BM_ELEM_SELECT | BM_ELEM_SELECT_UV;
   CustomData_bmesh_copy_block(bm->pdata, src->head.data, &dst->head.data);
-  dst->head.hflag = (dst->head.hflag & BM_ELEM_SELECT) | (src->head.hflag & ~BM_ELEM_SELECT);
+  dst->head.hflag = (dst->head.hflag & hflag_mask) | (src->head.hflag & ~hflag_mask);
   copy_v3_v3(dst->no, src->no);
   dst->mat_nr = src->mat_nr;
 }
 void BM_elem_attrs_copy(BMesh *bm, const BMLoop *src, BMLoop *dst)
 {
   BLI_assert(src != dst);
+  constexpr char hflag_mask = BM_ELEM_SELECT | BM_ELEM_SELECT_UV | BM_ELEM_SELECT_UV_EDGE;
   CustomData_bmesh_copy_block(bm->ldata, src->head.data, &dst->head.data);
-  dst->head.hflag = (dst->head.hflag & BM_ELEM_SELECT) | (src->head.hflag & ~BM_ELEM_SELECT);
+  dst->head.hflag = (dst->head.hflag & hflag_mask) | (src->head.hflag & ~hflag_mask);
 }
 
 void BM_elem_select_copy(BMesh *bm_dst, void *ele_dst_v, const void *ele_src_v)
@@ -380,7 +399,8 @@ void BM_elem_select_copy(BMesh *bm_dst, void *ele_dst_v, const void *ele_src_v)
   BLI_assert(ele_src->htype == ele_dst->htype);
 
   if ((ele_src->hflag & BM_ELEM_SELECT) != (ele_dst->hflag & BM_ELEM_SELECT)) {
-    BM_elem_select_set(bm_dst, (BMElem *)ele_dst, (ele_src->hflag & BM_ELEM_SELECT) != 0);
+    BM_elem_select_set(
+        bm_dst, reinterpret_cast<BMElem *>(ele_dst), (ele_src->hflag & BM_ELEM_SELECT) != 0);
   }
 }
 
@@ -392,9 +412,9 @@ static BMFace *bm_mesh_copy_new_face(BMesh *bm_new,
                                      BMEdge **etable,
                                      BMFace *f)
 {
-  BMLoop **loops = BLI_array_alloca(loops, f->len);
-  BMVert **verts = BLI_array_alloca(verts, f->len);
-  BMEdge **edges = BLI_array_alloca(edges, f->len);
+  Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops(f->len);
+  Array<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> verts(f->len);
+  Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edges(f->len);
 
   BMFace *f_new;
   BMLoop *l_iter, *l_first;
@@ -409,7 +429,7 @@ static BMFace *bm_mesh_copy_new_face(BMesh *bm_new,
     j++;
   } while ((l_iter = l_iter->next) != l_first);
 
-  f_new = BM_face_create(bm_new, verts, edges, f->len, nullptr, BM_CREATE_SKIP_CD);
+  f_new = BM_face_create(bm_new, verts.data(), edges.data(), f->len, nullptr, BM_CREATE_SKIP_CD);
 
   if (UNLIKELY(f_new == nullptr)) {
     return nullptr;
@@ -421,7 +441,7 @@ static BMFace *bm_mesh_copy_new_face(BMesh *bm_new,
   CustomData_bmesh_copy_block(bm_new->pdata, face_map, f->head.data, &f_new->head.data);
   copy_v3_v3(f_new->no, f->no);
   f_new->mat_nr = f->mat_nr;
-  f_new->head.hflag = f->head.hflag; /* low level! don't do this for normal api use */
+  f_new->head.hflag = f->head.hflag; /* Low level! don't do this for normal API use. */
 
   j = 0;
   l_iter = l_first = BM_FACE_FIRST_LOOP(f_new);
@@ -572,19 +592,16 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
   const BMCustomDataCopyMap loop_map = CustomData_bmesh_copy_map_calc(bm_old->ldata,
                                                                       bm_new->ldata);
 
-  vtable = static_cast<BMVert **>(
-      MEM_mallocN(sizeof(BMVert *) * bm_old->totvert, "BM_mesh_copy vtable"));
-  etable = static_cast<BMEdge **>(
-      MEM_mallocN(sizeof(BMEdge *) * bm_old->totedge, "BM_mesh_copy etable"));
-  ftable = static_cast<BMFace **>(
-      MEM_mallocN(sizeof(BMFace *) * bm_old->totface, "BM_mesh_copy ftable"));
+  vtable = MEM_malloc_arrayN<BMVert *>(bm_old->totvert, "BM_mesh_copy vtable");
+  etable = MEM_malloc_arrayN<BMEdge *>(bm_old->totedge, "BM_mesh_copy etable");
+  ftable = MEM_malloc_arrayN<BMFace *>(bm_old->totface, "BM_mesh_copy ftable");
 
   BM_ITER_MESH_INDEX (v, &iter, bm_old, BM_VERTS_OF_MESH, i) {
     /* copy between meshes so can't use 'example' argument */
     v_new = BM_vert_create(bm_new, v->co, nullptr, BM_CREATE_SKIP_CD);
     CustomData_bmesh_copy_block(bm_new->vdata, vert_map, v->head.data, &v_new->head.data);
     copy_v3_v3(v_new->no, v->no);
-    v_new->head.hflag = v->head.hflag; /* low level! don't do this for normal api use */
+    v_new->head.hflag = v->head.hflag; /* Low level! don't do this for normal API use. */
     vtable[i] = v_new;
     BM_elem_index_set(v, i);     /* set_inline */
     BM_elem_index_set(v_new, i); /* set_inline */
@@ -603,7 +620,7 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
                            BM_CREATE_SKIP_CD);
 
     CustomData_bmesh_copy_block(bm_new->edata, edge_map, e->head.data, &e_new->head.data);
-    e_new->head.hflag = e->head.hflag; /* low level! don't do this for normal api use */
+    e_new->head.hflag = e->head.hflag; /* Low level! don't do this for normal API use. */
     etable[i] = e_new;
     BM_elem_index_set(e, i);     /* set_inline */
     BM_elem_index_set(e_new, i); /* set_inline */
@@ -628,7 +645,7 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
   bm_old->elem_index_dirty &= ~BM_FACE;
   bm_new->elem_index_dirty &= ~BM_FACE;
 
-  /* low level! don't do this for normal api use */
+  /* Low level! don't do this for normal API use. */
   bm_new->totvertsel = bm_old->totvertsel;
   bm_new->totedgesel = bm_old->totedgesel;
   bm_new->totfacesel = bm_old->totfacesel;
@@ -637,18 +654,18 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
   BLI_assert(i == bm_old->totface);
 
   /* copy over edit selection history */
-  LISTBASE_FOREACH (BMEditSelection *, ese, &bm_old->selected) {
+  for (BMEditSelection &ese : bm_old->selected) {
     BMElem *ele = nullptr;
 
-    switch (ese->htype) {
+    switch (ese.htype) {
       case BM_VERT:
-        eletable = (BMElem **)vtable;
+        eletable = reinterpret_cast<BMElem **>(vtable);
         break;
       case BM_EDGE:
-        eletable = (BMElem **)etable;
+        eletable = reinterpret_cast<BMElem **>(etable);
         break;
       case BM_FACE:
-        eletable = (BMElem **)ftable;
+        eletable = reinterpret_cast<BMElem **>(ftable);
         break;
       default:
         eletable = nullptr;
@@ -656,7 +673,7 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
     }
 
     if (eletable) {
-      ele = eletable[BM_elem_index_get(ese->ele)];
+      ele = eletable[BM_elem_index_get(ese.ele)];
       if (ele) {
         BM_select_history_store(bm_new, ele);
       }
@@ -673,3 +690,5 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
 
   return bm_new;
 }
+
+}  // namespace blender

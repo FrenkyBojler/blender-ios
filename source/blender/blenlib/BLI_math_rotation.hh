@@ -16,7 +16,9 @@
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_vector.hh"
 
-namespace blender::math {
+namespace blender {
+
+namespace math {
 
 /* -------------------------------------------------------------------- */
 /** \name Rotation helpers
@@ -59,7 +61,7 @@ template<typename T, typename RotT>
 [[nodiscard]] Euler3Base<T> rotate(const Euler3Base<T> &a, const RotT &b);
 
 /**
- * Return rotation from orientation \a a  to orientation \a b into another quaternion.
+ * Return rotation from orientation \a a to orientation \a b into another quaternion.
  */
 template<typename T>
 [[nodiscard]] QuaternionBase<T> rotation_between(const QuaternionBase<T> &a,
@@ -455,9 +457,9 @@ template<typename T> QuaternionBase<T> to_quaternion(const CartesianBasis &rotat
 
 /** \} */
 
-}  // namespace blender::math
+}  // namespace math
 
-namespace blender::math {
+namespace math {
 
 /* -------------------------------------------------------------------- */
 /** \name Explicit Template Instantiations
@@ -483,4 +485,5 @@ extern template AxisAngle to_axis_angle(const Quaternion &);
 
 /** \} */
 
-}  // namespace blender::math
+}  // namespace math
+}  // namespace blender

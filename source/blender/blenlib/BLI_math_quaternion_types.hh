@@ -24,10 +24,10 @@ namespace blender::math {
  * \{ */
 
 /**
- * A `blender::math::QuaternionBase<T>` represents either an orientation or a rotation.
+ * A `math::QuaternionBase<T>` represents either an orientation or a rotation.
  *
  * Mainly used for rigging and armature deformations as they have nice mathematical properties
- * (eg: smooth shortest path interpolation). A `blender::math::QuaternionBase<T>` is cheaper to
+ * (eg: smooth shortest path interpolation). A `math::QuaternionBase<T>` is cheaper to
  * combine than `MatBase<T, 3, 3>`. However, transforming points is slower. Consider converting to
  * a rotation matrix if you are rotating many points.
  *
@@ -40,19 +40,19 @@ template<typename T> struct QuaternionBase {
   QuaternionBase() = default;
 
   QuaternionBase(const T &new_w, const T &new_x, const T &new_y, const T &new_z)
-      : w(new_w), x(new_x), y(new_y), z(new_z){};
+      : w(new_w), x(new_x), y(new_y), z(new_z) {};
 
   /**
    * Creates a quaternion from an vector without reordering the components.
    * \note Component order must follow the scalar constructor (w, x, y, z).
    */
-  explicit QuaternionBase(const VecBase<T, 4> &vec) : QuaternionBase(UNPACK4(vec)){};
+  explicit QuaternionBase(const VecBase<T, 4> &vec) : QuaternionBase(UNPACK4(vec)) {};
 
   /**
    * Creates a quaternion from real (w) and imaginary parts (x, y, z).
    */
   QuaternionBase(const T &real, const VecBase<T, 3> &imaginary)
-      : QuaternionBase(real, UNPACK3(imaginary)){};
+      : QuaternionBase(real, UNPACK3(imaginary)) {};
 
   /** Static functions. */
 
@@ -140,7 +140,7 @@ template<typename T> struct QuaternionBase {
             a.w * b.z + a.z * b.w + a.x * b.y - a.y * b.x};
   }
 
-  QuaternionBase &operator*=(const QuaternionBase &b)
+  QuaternionBase &operator*=(const QuaternionBase &b) &
   {
     *this = *this * b;
     return *this;
@@ -178,10 +178,10 @@ template<typename T> struct QuaternionBase {
  * \{ */
 
 /**
- * A `blender::math::DualQuaternionBase<T>` implements dual-quaternion skinning with scale aware
+ * A `math::DualQuaternionBase<T>` implements dual-quaternion skinning with scale aware
  * transformation. It allows volume preserving deformation for skinning.
  *
- * The type is implemented so that multiple weighted `blender::math::DualQuaternionBase<T>`
+ * The type is implemented so that multiple weighted `math::DualQuaternionBase<T>`
  * can be aggregated into a final rotation. Calling `normalize(dual_quat)` is mandatory before
  * trying to transform points with it.
  */
@@ -233,10 +233,10 @@ template<typename T> struct DualQuaternionBase {
   /** Operators. */
 
   /** Apply a scalar weight to a dual quaternion. */
-  DualQuaternionBase &operator*=(const T &t);
+  DualQuaternionBase &operator*=(const T &t) &;
 
   /** Add two weighted dual-quaternions rotations. */
-  DualQuaternionBase &operator+=(const DualQuaternionBase &b);
+  DualQuaternionBase &operator+=(const DualQuaternionBase &b) &;
 
   /** Apply a scalar weight to a dual quaternion. */
   friend DualQuaternionBase operator*(const DualQuaternionBase &a, const T &t)

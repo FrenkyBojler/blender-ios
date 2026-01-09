@@ -10,6 +10,8 @@
 
 #include "DNA_space_types.h"
 
+namespace blender {
+
 struct ARegion;
 struct AZone;
 struct ReportList;
@@ -80,6 +82,14 @@ enum class AreaDockTarget {
 /* Less expansion needed for global edges. */
 #define BORDERPADDING_GLOBAL (3.0f * UI_SCALE_FAC)
 
+#define AREA_CLOSE_FADEOUT 0.15f     /* seconds */
+#define AREA_DOCK_FADEOUT 0.15f      /* seconds */
+#define AREA_DOCK_FADEIN 0.15f       /* seconds */
+#define AREA_JOIN_FADEOUT 0.15f      /* seconds */
+#define AREA_SPLIT_FADEOUT 0.15f     /* seconds */
+#define AREA_MOVE_LINE_FADEIN 0.1f   /* seconds */
+#define AREA_MOVE_LINE_FADEOUT 0.15f /* seconds */
+
 /* `area.cc` */
 
 /**
@@ -98,19 +108,31 @@ void region_toggle_hidden(bContext *C, ARegion *region, bool do_fade);
  * \param sa1: Area from which the resultant originates.
  * \param sa2: Target area that will be replaced.
  */
-void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir);
+void screen_draw_join_highlight(
+    const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir, float anim_factor);
 void screen_draw_dock_preview(const wmWindow *win,
                               ScrArea *source,
                               ScrArea *target,
                               AreaDockTarget dock_target,
                               float factor,
                               int x,
-                              int y);
+                              int y,
+                              float anim_factor);
 void screen_draw_split_preview(ScrArea *area, eScreenAxis dir_axis, float factor);
 
-void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxis dir_axis);
+void screen_draw_move_highlight(const wmWindow *win,
+                                bScreen *screen,
+                                eScreenAxis dir_axis,
+                                float anim_factor);
 
 void screen_draw_region_scale_highlight(ARegion *region);
+
+void screen_animate_area_highlight(wmWindow *win,
+                                   bScreen *screen,
+                                   const rcti *rect,
+                                   float inner[4],
+                                   float outline[4],
+                                   float seconds);
 
 /* `screen_edit.cc` */
 
@@ -118,7 +140,6 @@ void screen_draw_region_scale_highlight(ARegion *region);
  * Empty screen, with 1 dummy area without space-data. Uses window size.
  */
 bScreen *screen_add(Main *bmain, const char *name, const rcti *rect);
-void screen_data_copy(bScreen *to, bScreen *from);
 /**
  * Prepare a newly created screen for initializing it as active screen.
  */
@@ -158,6 +179,9 @@ bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrAre
 void screen_area_spacelink_add(const Scene *scene, ScrArea *area, eSpace_Type space_type);
 AZone *ED_area_actionzone_find_xy(ScrArea *area, const int xy[2]);
 
+/**
+ * \return true if any region polling state changed, and an area re-init is needed.
+ */
 bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area);
 
 /* `screen_geometry.cc` */
@@ -222,3 +246,5 @@ void SCREEN_OT_screenshot_area(wmOperatorType *ot);
 /* `workspace_layout_edit.cc` */
 
 bool workspace_layout_set_poll(const WorkSpaceLayout *layout);
+
+}  // namespace blender

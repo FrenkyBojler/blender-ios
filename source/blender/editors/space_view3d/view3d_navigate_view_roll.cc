@@ -23,6 +23,8 @@
 #include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name View Roll Operator
  * \{ */
@@ -99,11 +101,13 @@ static wmOperatorStatus viewroll_modal(bContext *C, wmOperator *op, const wmEven
         event_code = VIEW_CANCEL;
         break;
       case VIEWROT_MODAL_SWITCH_MOVE:
-        WM_operator_name_call(C, "VIEW3D_OT_move", WM_OP_INVOKE_DEFAULT, nullptr, event);
+        WM_operator_name_call(
+            C, "VIEW3D_OT_move", wm::OpCallContext::InvokeDefault, nullptr, event);
         event_code = VIEW_CONFIRM;
         break;
       case VIEWROT_MODAL_SWITCH_ROTATE:
-        WM_operator_name_call(C, "VIEW3D_OT_rotate", WM_OP_INVOKE_DEFAULT, nullptr, event);
+        WM_operator_name_call(
+            C, "VIEW3D_OT_rotate", wm::OpCallContext::InvokeDefault, nullptr, event);
         event_code = VIEW_CONFIRM;
         break;
     }
@@ -238,7 +242,7 @@ static wmOperatorStatus viewroll_invoke(bContext *C, wmOperator *op, const wmEve
     viewroll_exec(C, op);
   }
   else {
-    /* The equivalent functionality for orbiting the view: VIEW3D_OT_orbit & VIEW3D_OT_rotate are
+    /* The equivalent functionality for orbiting the view: #VIEW3D_OT_orbit & #VIEW3D_OT_rotate are
      * separate operators with different poll functions [which are only permissive for non-locked
      * views]. This operator however mixes modal-interaction & instant-stepping into the same
      * operator and its current poll function permissively finds the non-locked region in quad
@@ -294,7 +298,7 @@ void VIEW3D_OT_view_roll(wmOperatorType *ot)
   ot->description = "Roll the view";
   ot->idname = ViewOpsType_roll.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = viewroll_invoke;
   ot->exec = viewroll_exec;
   ot->modal = viewroll_modal;
@@ -326,3 +330,5 @@ const ViewOpsType ViewOpsType_roll = {
     /*init_fn*/ nullptr,
     /*apply_fn*/ nullptr,
 };
+
+}  // namespace blender

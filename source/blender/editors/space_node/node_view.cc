@@ -37,7 +37,9 @@
 
 #include "node_intern.hh" /* own include */
 
-namespace blender::ed::space_node {
+namespace blender {
+
+namespace ed::space_node {
 
 /* -------------------------------------------------------------------- */
 /** \name Local Functions
@@ -116,20 +118,20 @@ bool space_node_view_flag(
   else {
     if (old_aspect < new_aspect) {
       const float height_new = width / old_aspect;
-      cur_new.ymin = cur_new.ymin - height_new / 2.0f;
-      cur_new.ymax = cur_new.ymax + height_new / 2.0f;
+      cur_new.ymin = cur_new.ymin - height_new / 4.0f;
+      cur_new.ymax = cur_new.ymax + height_new / 4.0f;
     }
     else {
       const float width_new = height * old_aspect;
-      cur_new.xmin = cur_new.xmin - width_new / 2.0f;
-      cur_new.xmax = cur_new.xmax + width_new / 2.0f;
+      cur_new.xmin = cur_new.xmin - width_new / 4.0f;
+      cur_new.xmax = cur_new.xmax + width_new / 4.0f;
     }
 
     /* add some padding */
     BLI_rctf_scale(&cur_new, 1.1f);
   }
 
-  UI_view2d_smooth_view(&C, &region, &cur_new, smooth_viewtx);
+  ui::view2d_smooth_view(&C, &region, &cur_new, smooth_viewtx);
 
   return true;
 }
@@ -157,7 +159,7 @@ void NODE_OT_view_all(wmOperatorType *ot)
   ot->idname = "NODE_OT_view_all";
   ot->description = "Resize view so you can see all nodes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_view_all_exec;
   ot->poll = space_node_active_view_poll;
 
@@ -190,7 +192,7 @@ void NODE_OT_view_selected(wmOperatorType *ot)
   ot->idname = "NODE_OT_view_selected";
   ot->description = "Resize view so you can see selected nodes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_view_selected_exec;
   ot->poll = space_node_active_view_poll;
 
@@ -215,7 +217,7 @@ static wmOperatorStatus snode_bg_viewmove_modal(bContext *C, wmOperator *op, con
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
-  NodeViewMove *nvm = (NodeViewMove *)op->customdata;
+  NodeViewMove *nvm = static_cast<NodeViewMove *>(op->customdata);
 
   switch (event->type) {
     case MOUSEMOVE:
@@ -306,7 +308,8 @@ static wmOperatorStatus snode_bg_viewmove_invoke(bContext *C, wmOperator *op, co
 
 static void snode_bg_viewmove_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
+  NodeViewMove *nvm = static_cast<NodeViewMove *>(op->customdata);
+  MEM_freeN(nvm);
   op->customdata = nullptr;
 }
 
@@ -317,7 +320,7 @@ void NODE_OT_backimage_move(wmOperatorType *ot)
   ot->description = "Move node backdrop";
   ot->idname = "NODE_OT_backimage_move";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = snode_bg_viewmove_invoke;
   ot->modal = snode_bg_viewmove_modal;
   ot->poll = space_node_composite_active_view_poll;
@@ -355,7 +358,7 @@ void NODE_OT_backimage_zoom(wmOperatorType *ot)
   ot->idname = "NODE_OT_backimage_zoom";
   ot->description = "Zoom in/out the background image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = backimage_zoom_exec;
   ot->poll = space_node_composite_active_view_poll;
 
@@ -420,7 +423,7 @@ void NODE_OT_backimage_fit(wmOperatorType *ot)
   ot->idname = "NODE_OT_backimage_fit";
   ot->description = "Fit the background image to the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = backimage_fit_exec;
   ot->poll = space_node_composite_active_view_poll;
 
@@ -451,7 +454,7 @@ struct ImageSampleInfo {
 static void sample_draw(const bContext *C, ARegion *region, void *arg_info)
 {
   Scene *scene = CTX_data_scene(C);
-  ImageSampleInfo *info = (ImageSampleInfo *)arg_info;
+  ImageSampleInfo *info = static_cast<ImageSampleInfo *>(arg_info);
 
   if (info->draw) {
     ED_image_draw_info(scene,
@@ -467,7 +470,7 @@ static void sample_draw(const bContext *C, ARegion *region, void *arg_info)
   }
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 bool ED_space_node_get_position(
     Main *bmain, SpaceNode *snode, ARegion *region, const int mval[2], float fpos[2])
@@ -551,14 +554,14 @@ bool ED_space_node_color_sample(
   return ret;
 }
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 
 static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
-  ImageSampleInfo *info = (ImageSampleInfo *)op->customdata;
+  ImageSampleInfo *info = static_cast<ImageSampleInfo *>(op->customdata);
   void *lock;
   Image *ima;
   ImBuf *ibuf;
@@ -640,7 +643,7 @@ static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 
 static void sample_exit(bContext *C, wmOperator *op)
 {
-  ImageSampleInfo *info = (ImageSampleInfo *)op->customdata;
+  ImageSampleInfo *info = static_cast<ImageSampleInfo *>(op->customdata);
 
   ED_node_sample_set(nullptr);
   ED_region_draw_cb_exit(info->art, info->draw_handle);
@@ -710,7 +713,7 @@ void NODE_OT_backimage_sample(wmOperatorType *ot)
   ot->idname = "NODE_OT_backimage_sample";
   ot->description = "Use mouse to sample background image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = sample_invoke;
   ot->modal = sample_modal;
   ot->cancel = sample_cancel;
@@ -722,4 +725,6 @@ void NODE_OT_backimage_sample(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

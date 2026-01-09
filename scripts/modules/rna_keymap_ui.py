@@ -16,7 +16,19 @@ import bpy
 from bpy.app.translations import (
     contexts as i18n_contexts,
     pgettext_iface as iface_,
+    pgettext_rpt as rpt_,
 )
+
+
+def _is_operator_available(idname):
+    module, _, operator = idname.partition(".")
+
+    # Check if the module and operator exist.
+    return (
+        module and
+        operator and
+        getattr(getattr(bpy.ops, module, None), operator, None) is not None
+    )
 
 
 def _indented_layout(layout, level):
@@ -95,9 +107,12 @@ def draw_km(display_keymaps, kc, km, children, layout, level):
             # "Add New" at end of keymap item list
             subcol = _indented_layout(col, kmi_level)
             subcol = subcol.split(factor=0.2).column()
-            subcol.operator("preferences.keyitem_add", text="Add New", text_ctxt=i18n_contexts.id_windowmanager,
-                            icon='ADD')
-
+            subcol.operator(
+                "preferences.keyitem_add",
+                text="Add New",
+                text_ctxt=i18n_contexts.id_windowmanager,
+                icon='ADD',
+            )
             col.separator()
 
         # Child key maps
@@ -110,6 +125,7 @@ def draw_km(display_keymaps, kc, km, children, layout, level):
 
 def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
     map_type = kmi.map_type
+    is_op_available = _is_operator_available(kmi.idname)
 
     col = _indented_layout(layout, level)
 
@@ -128,9 +144,19 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
 
     if km.is_modal:
         row.separator()
+        row.alert = not kmi.propvalue
         row.prop(kmi, "propvalue", text="")
     else:
-        row.label(text=kmi.name)
+        if is_op_available:
+            row.label(text=kmi.name)
+        # The default item when adding a new item is "none"
+        # so consider this unassigned along with an empty string.
+        elif kmi.idname in {"none", ""}:
+            row.alert = True
+            row.label(text="(Unassigned)")
+        else:
+            row.alert = True
+            row.label(text=rpt_("{:s} (unavailable)").format(kmi.idname), icon='WARNING_LARGE', translate=False)
 
     row = split.row()
     row.prop(kmi, "map_type", text="")
@@ -173,9 +199,12 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
         sub = split.row()
 
         if km.is_modal:
+            sub.alert = not kmi.propvalue
             sub.prop(kmi, "propvalue", text="")
         else:
-            sub.prop(kmi, "idname", text="")
+            subrow = sub.row()
+            subrow.alert = not is_op_available
+            subrow.prop(kmi, "idname", text="", placeholder="Operator")
 
         if map_type not in {'TEXTINPUT', 'TIMER'}:
             from sys import platform
@@ -249,8 +278,10 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
         if not _EVENT_TYPES:
             enum = bpy.types.Event.bl_rna.properties["type"].enum_items
             _EVENT_TYPES.update(enum.keys())
-            _EVENT_TYPE_MAP.update({item.name.replace(" ", "_").upper(): key
-                                    for key, item in enum.items()})
+            _EVENT_TYPE_MAP.update({
+                item.name.replace(" ", "_").upper(): key
+                for key, item in enum.items()
+            })
 
             del enum
             _EVENT_TYPE_MAP_EXTRA.update({
@@ -369,9 +400,11 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
             col = layout.column()
 
             row = col.row(align=True)
-            row.label(text=km.name, icon='DOT',
-                      text_ctxt=i18n_contexts.id_windowmanager)
-
+            row.label(
+                text=km.name,
+                icon='DOT',
+                text_ctxt=i18n_contexts.id_windowmanager,
+            )
             if km.is_user_modified:
                 subrow = row.row()
                 subrow.alignment = 'RIGHT'

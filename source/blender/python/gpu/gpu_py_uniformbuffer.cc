@@ -13,18 +13,20 @@
 
 #include <Python.h>
 
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "GPU_context.hh"
 #include "GPU_uniform_buffer.hh"
 
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "gpu_py.hh"
 #include "gpu_py_uniformbuffer.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
-/** \name GPUUniformBuf Common Utilities
+/** \name gpu::UniformBuf Common Utilities
  * \{ */
 
 static int pygpu_uniformbuffer_valid_check(BPyGPUUniformBuf *bpygpu_ub)
@@ -53,7 +55,7 @@ static int pygpu_uniformbuffer_valid_check(BPyGPUUniformBuf *bpygpu_ub)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name GPUUniformBuf Type
+/** \name gpu::UniformBuf Type
  * \{ */
 
 static PyObject *pygpu_uniformbuffer__tp_new(PyTypeObject * /*self*/,
@@ -62,7 +64,7 @@ static PyObject *pygpu_uniformbuffer__tp_new(PyTypeObject * /*self*/,
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
 
-  GPUUniformBuf *ubo = nullptr;
+  gpu::UniformBuf *ubo = nullptr;
   PyObject *pybuffer_obj;
   char err_out[256] = "unknown error. See console";
 
@@ -79,7 +81,7 @@ static PyObject *pygpu_uniformbuffer__tp_new(PyTypeObject * /*self*/,
   }
 
   if (!GPU_context_active_get()) {
-    STRNCPY(err_out, "No active GPU context found");
+    STRNCPY_UTF8(err_out, "No active GPU context found");
   }
   else {
     Py_buffer pybuffer;
@@ -89,7 +91,7 @@ static PyObject *pygpu_uniformbuffer__tp_new(PyTypeObject * /*self*/,
     }
 
     if ((pybuffer.len % 16) != 0) {
-      STRNCPY(err_out, "UBO is not padded to size of vec4");
+      STRNCPY_UTF8(err_out, "UBO is not padded to size of vec4");
     }
     else {
       ubo = GPU_uniformbuf_create_ex(pybuffer.len, pybuffer.buf, "python_uniformbuffer");
@@ -130,7 +132,7 @@ static PyObject *pygpu_uniformbuffer_update(BPyGPUUniformBuf *self, PyObject *ob
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_uniformbuffer_free_doc,
-    ".. method::free()\n"
+    ".. method:: free()\n"
     "\n"
     "   Free the uniform buffer object.\n"
     "   The uniform buffer object will no longer be accessible.\n");
@@ -149,7 +151,7 @@ static void BPyGPUUniformBuf__tp_dealloc(BPyGPUUniformBuf *self)
   if (self->ubo) {
     GPU_uniformbuf_free(self->ubo);
   }
-  Py_TYPE(self)->tp_free((PyObject *)self);
+  Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
 }
 
 static PyGetSetDef pygpu_uniformbuffer__tp_getseters[] = {
@@ -157,7 +159,10 @@ static PyGetSetDef pygpu_uniformbuffer__tp_getseters[] = {
 };
 
 static PyMethodDef pygpu_uniformbuffer__tp_methods[] = {
-    {"update", (PyCFunction)pygpu_uniformbuffer_update, METH_O, pygpu_uniformbuffer_update_doc},
+    {"update",
+     reinterpret_cast<PyCFunction>(pygpu_uniformbuffer_update),
+     METH_O,
+     pygpu_uniformbuffer_update_doc},
 #ifdef BPYGPU_USE_GPUOBJ_FREE_METHOD
     {"free", (PyCFunction)pygpu_uniformbuffer_free, METH_NOARGS, pygpu_uniformbuffer_free_doc},
 #endif
@@ -178,7 +183,7 @@ PyTypeObject BPyGPUUniformBuf_Type = {
     /*tp_name*/ "GPUUniformBuf",
     /*tp_basicsize*/ sizeof(BPyGPUUniformBuf),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)BPyGPUUniformBuf__tp_dealloc,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(BPyGPUUniformBuf__tp_dealloc),
     /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -231,16 +236,18 @@ PyTypeObject BPyGPUUniformBuf_Type = {
 /** \name Public API
  * \{ */
 
-PyObject *BPyGPUUniformBuf_CreatePyObject(GPUUniformBuf *ubo)
+PyObject *BPyGPUUniformBuf_CreatePyObject(gpu::UniformBuf *ubo)
 {
   BPyGPUUniformBuf *self;
 
   self = PyObject_New(BPyGPUUniformBuf, &BPyGPUUniformBuf_Type);
   self->ubo = ubo;
 
-  return (PyObject *)self;
+  return reinterpret_cast<PyObject *>(self);
 }
 
 /** \} */
 
 #undef BPYGPU_UNIFORMBUF_CHECK_OBJ
+
+}  // namespace blender

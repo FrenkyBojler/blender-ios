@@ -9,7 +9,7 @@
  *
  * We should avoid adding code here, and prefer:
  * - `source/blender/makesrna/intern/rna_context.cc` using the RNA C API.
- * - `scripts/modules/bpy_types.py` when additions c an be written in Python.
+ * - `scripts/modules/_bpy_types.py` when additions can be written in Python.
  *
  * Otherwise functions can be added here as a last resort.
  */
@@ -39,6 +39,8 @@
 
 #include "WM_api.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Blend Data
  * \{ */
@@ -46,6 +48,7 @@
 static PyMethodDef pyrna_blenddata_methods[] = {
     {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_id_collection_user_map_method_def */
     {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_id_collection_file_path_map_method_def */
+    {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_id_collection_file_path_foreach_method_def */
     {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_id_collection_batch_remove_method_def */
     {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_id_collection_orphans_purge_method_def */
     {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_data_context_method_def */
@@ -112,7 +115,7 @@ PyDoc_STRVAR(
     pyrna_WindowManager_clipboard_doc,
     "Clipboard text storage.\n"
     "\n"
-    ":type: str");
+    ":type: str\n");
 static PyObject *pyrna_WindowManager_clipboard_get(PyObject * /*self*/, void * /*flag*/)
 {
   int text_len = 0;
@@ -155,9 +158,9 @@ PyDoc_STRVAR(
     "\n"
     "   :arg callback:\n"
     "      A function that will be called when the cursor is drawn.\n"
-    "      It gets the specified arguments as input with the mouse position (tuple) as last "
-    "argument.\n"
-    "   :type callback: Callable[[Any, ..., tuple[int, int]], Any]\n"
+    "      It gets the specified arguments as input with the mouse position "
+    "(``tuple[int, int]``) as last argument.\n"
+    "   :type callback: Callable[..., Any]\n"
     "   :arg args: Arguments that will be passed to the callback.\n"
     "   :type args: tuple[Any, ...]\n"
     "   :arg space_type: The space type the callback draws in; for example ``VIEW_3D``. "
@@ -168,7 +171,6 @@ PyDoc_STRVAR(
     "   :type region_type: str\n"
     "   :return: Handler that can be removed later on.\n"
     "   :rtype: object\n");
-
 PyDoc_STRVAR(
     /* Wrap. */
     pyrna_draw_cursor_remove_doc,
@@ -181,11 +183,11 @@ PyDoc_STRVAR(
 
 static PyMethodDef pyrna_windowmanager_methods[] = {
     {"draw_cursor_add",
-     (PyCFunction)pyrna_callback_classmethod_add,
+     static_cast<PyCFunction>(pyrna_callback_classmethod_add),
      METH_VARARGS | METH_CLASS,
      pyrna_draw_cursor_add_doc},
     {"draw_cursor_remove",
-     (PyCFunction)pyrna_callback_classmethod_remove,
+     static_cast<PyCFunction>(pyrna_callback_classmethod_remove),
      METH_VARARGS | METH_CLASS,
      pyrna_draw_cursor_remove_doc},
     {nullptr, nullptr, 0, nullptr},
@@ -229,7 +231,7 @@ PyDoc_STRVAR(
     "   :arg callback:\n"
     "      A function that will be called when the region is drawn.\n"
     "      It gets the specified arguments as input, it's return value is ignored.\n"
-    "   :type callback: Callable[[Any, ...], Any]\n"
+    "   :type callback: Callable[..., Any]\n"
     "   :arg args: Arguments that will be passed to the callback.\n"
     "   :type args: tuple[Any, ...]\n"
     "   :arg region_type: The region type the callback draws in; usually ``WINDOW``. "
@@ -240,8 +242,7 @@ PyDoc_STRVAR(
     "editor.\n"
     "   :type draw_type: str\n"
     "   :return: Handler that can be removed later on.\n"
-    "   :rtype: object");
-
+    "   :rtype: object\n");
 PyDoc_STRVAR(
     /* Wrap. */
     pyrna_draw_handler_remove_doc,
@@ -256,11 +257,11 @@ PyDoc_STRVAR(
 
 static PyMethodDef pyrna_space_methods[] = {
     {"draw_handler_add",
-     (PyCFunction)pyrna_callback_classmethod_add,
+     static_cast<PyCFunction>(pyrna_callback_classmethod_add),
      METH_VARARGS | METH_CLASS,
      pyrna_draw_handler_add_doc},
     {"draw_handler_remove",
-     (PyCFunction)pyrna_callback_classmethod_remove,
+     static_cast<PyCFunction>(pyrna_callback_classmethod_remove),
      METH_VARARGS | METH_CLASS,
      pyrna_draw_handler_remove_doc},
     {nullptr, nullptr, 0, nullptr},
@@ -278,10 +279,11 @@ void BPY_rna_types_extend_capi()
   ARRAY_SET_ITEMS(pyrna_blenddata_methods,
                   BPY_rna_id_collection_user_map_method_def,
                   BPY_rna_id_collection_file_path_map_method_def,
+                  BPY_rna_id_collection_file_path_foreach_method_def,
                   BPY_rna_id_collection_batch_remove_method_def,
                   BPY_rna_id_collection_orphans_purge_method_def,
                   BPY_rna_data_context_method_def);
-  BLI_STATIC_ASSERT(ARRAY_SIZE(pyrna_blenddata_methods) == 6, "Unexpected number of methods")
+  BLI_STATIC_ASSERT(ARRAY_SIZE(pyrna_blenddata_methods) == 7, "Unexpected number of methods")
   pyrna_struct_type_extend_capi(&RNA_BlendData, pyrna_blenddata_methods, nullptr);
 
   /* BlendDataLibraries */
@@ -292,7 +294,7 @@ void BPY_rna_types_extend_capi()
   pyrna_struct_type_extend_capi(
       &RNA_BlendDataLibraries, pyrna_blenddatalibraries_methods, nullptr);
 
-  /* uiLayout */
+  /* ui::Layout */
   ARRAY_SET_ITEMS(pyrna_uilayout_methods, BPY_rna_uilayout_introspect_method_def);
   BLI_STATIC_ASSERT(ARRAY_SIZE(pyrna_uilayout_methods) == 2, "Unexpected number of methods")
   pyrna_struct_type_extend_capi(&RNA_UILayout, pyrna_uilayout_methods, nullptr);
@@ -324,3 +326,5 @@ void BPY_rna_types_extend_capi()
 }
 
 /** \} */
+
+}  // namespace blender

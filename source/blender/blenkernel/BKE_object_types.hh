@@ -17,13 +17,15 @@
 
 #include "DNA_customdata_types.h" /* #CustomData_MeshMasks. */
 
+namespace blender {
+
 struct Curve;
 struct CurveCache;
 struct ID;
 struct Mesh;
 struct PoseBackup;
 
-namespace blender::bke {
+namespace bke {
 
 struct GeometrySet;
 
@@ -56,9 +58,6 @@ struct ObjectRuntime {
    */
   char is_data_eval_owned = false;
 
-  /** Start time of the mode transfer overlay animation. */
-  double overlay_mode_transfer_start_time = 0.0f;
-
   /**
    * The bounding box of the object's evaluated geometry in the active dependency graph. The bounds
    * are copied back to the original object for the RNA API and for display in the interface.
@@ -86,6 +85,13 @@ struct ObjectRuntime {
    * the data.
    */
   GeometrySet *geometry_set_eval = nullptr;
+
+  /**
+   * Bitflag where each bit at an index corresponds to a `GeometryComponent::Type`. When a bit is
+   * set, the geometry type is contained within #geometry_set_eval. This includes referenced
+   * geometry in instances.
+   */
+  uint16_t contained_geometry_types = 0;
 
   /**
    * Mesh structure created during object evaluation.
@@ -121,7 +127,7 @@ struct ObjectRuntime {
    * This is a curve representation of corresponding object.
    * It created when Python calls `object.to_curve()`.
    */
-  ::Curve *object_as_temp_curve = nullptr;
+  Curve *object_as_temp_curve = nullptr;
 
   /** Runtime evaluated curve-specific data, not stored in the file. */
   CurveCache *curve_cache = nullptr;
@@ -137,4 +143,5 @@ struct ObjectRuntime {
   uint64_t last_update_shading = 0;
 };
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender

@@ -5,7 +5,7 @@
 /** \file
  * \ingroup pythonintern
  *
- * This file defines the 'BPY_driver_exec' to execute python driver expressions,
+ * This file defines the #BPY_driver_exec to execute python driver expressions,
  * called by the animation system, there are also some utility functions
  * to deal with the name-space used for driver execution.
  */
@@ -15,7 +15,7 @@
 #include "DNA_anim_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_animsys.h"
 #include "BKE_fcurve_driver.h"
@@ -33,6 +33,8 @@
 #include "bpy_rna.hh"
 
 #include "BPY_extern.hh"
+
+namespace blender {
 
 #define USE_RNA_AS_PYOBJECT
 
@@ -234,7 +236,7 @@ static void bpy_pydriver_namespace_update_depsgraph(Depsgraph *depsgraph)
     PyDict_SetItem(bpy_pydriver_Dict, bpy_intern_str_depsgraph, item);
     Py_DECREF(item);
 
-    g_pydriver_state_prev.depsgraph = (BPy_StructRNA *)item;
+    g_pydriver_state_prev.depsgraph = reinterpret_cast<BPy_StructRNA *>(item);
   }
 }
 
@@ -301,14 +303,13 @@ static void pydriver_error(ChannelDriver *driver, const PathResolvedRNA *anim_rn
 
   // BPy_errors_to_report(nullptr); /* TODO: reports. */
   PyErr_Print();
-  PyErr_Clear();
 }
 
 #ifdef USE_BYTECODE_WHITELIST
 
 static bool is_opcode_secure(const int opcode)
 {
-  /* TODO(@ideasman42): Handle intrinsic opcodes (`CALL_INTRINSIC_1` & `CALL_INTRINSIC_2`).
+  /* TODO(@ideasman42): Handle intrinsic opcodes (`CALL_INTRINSIC_2`).
    * For Python 3.12. */
 
 #  define OK_OP(op) \
@@ -320,13 +321,18 @@ static bool is_opcode_secure(const int opcode)
     OK_OP(POP_TOP)
     OK_OP(PUSH_NULL)
     OK_OP(NOP)
+#  if PY_VERSION_HEX >= 0x030e0000
+    OK_OP(NOT_TAKEN)
+#  endif
 #  if PY_VERSION_HEX < 0x030c0000
     OK_OP(UNARY_POSITIVE)
 #  endif
     OK_OP(UNARY_NEGATIVE)
     OK_OP(UNARY_NOT)
     OK_OP(UNARY_INVERT)
-    OK_OP(BINARY_SUBSCR)
+#  if PY_VERSION_HEX < 0x030e0000
+    OK_OP(BINARY_SUBSCR) /* Replaced with existing `BINARY_OP`. */
+#  endif
     OK_OP(GET_LEN)
 #  if PY_VERSION_HEX < 0x030c0000
     OK_OP(LIST_TO_TUPLE)
@@ -376,10 +382,20 @@ static bool is_opcode_secure(const int opcode)
     OK_OP(POP_JUMP_BACKWARD_IF_TRUE)
 #  endif
 
+#  if PY_VERSION_HEX >= 0x030c0000
+#    if PY_VERSION_HEX < 0x030e0000
+    OK_OP(RETURN_CONST)
+#    endif
+    OK_OP(POP_JUMP_IF_FALSE)
+    OK_OP(CALL_INTRINSIC_1)
+#  endif
     /* Special cases. */
     OK_OP(LOAD_CONST) /* Ok because constants are accepted. */
     OK_OP(LOAD_NAME)  /* Ok, because `PyCodeObject.names` is checked. */
-    OK_OP(CALL)       /* Ok, because we check its "name" before calling. */
+#  if PY_VERSION_HEX >= 0x030e0000
+    OK_OP(LOAD_SMALL_INT)
+#  endif
+    OK_OP(CALL) /* Ok, because we check its "name" before calling. */
 #  if PY_VERSION_HEX >= 0x030d0000
     OK_OP(CALL_KW) /* Ok, because it's used for calling functions with keyword arguments. */
 
@@ -424,7 +440,7 @@ bool BPY_driver_secure_bytecode_test_ex(PyObject *expr_code,
                                         const bool verbose,
                                         const char *error_prefix)
 {
-  PyCodeObject *py_code = (PyCodeObject *)expr_code;
+  PyCodeObject *py_code = reinterpret_cast<PyCodeObject *>(expr_code);
 
   /* Check names. */
   {
@@ -462,7 +478,6 @@ bool BPY_driver_secure_bytecode_test_ex(PyObject *expr_code,
     co_code = PyCode_GetCode(py_code);
     if (UNLIKELY(!co_code)) {
       PyErr_Print();
-      PyErr_Clear();
       return false;
     }
 
@@ -556,7 +571,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
   if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC)) {
     if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
       G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL;
-      SNPRINTF(G.autoexec_fail, "Driver '%s'", expr);
+      SNPRINTF_UTF8(G.autoexec_fail, "Driver '%s'", expr);
 
       printf("skipping driver '%s', automatic scripts are disabled\n", expr);
     }
@@ -700,7 +715,6 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
       fprintf(stderr, "\t%s: couldn't add variable '%s' to namespace\n", __func__, dvar->name);
       // BPy_errors_to_report(nullptr); /* TODO: reports. */
       PyErr_Print();
-      PyErr_Clear();
     }
     Py_DECREF(driver_arg);
   }
@@ -719,7 +733,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
       {
         if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
           G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL;
-          SNPRINTF(G.autoexec_fail, "Driver '%s'", expr);
+          SNPRINTF_UTF8(G.autoexec_fail, "Driver '%s'", expr);
         }
 
         Py_DECREF(expr_code);
@@ -738,7 +752,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
   /* Evaluate the compiled expression. */
   if (expr_code) {
     retval = PyEval_EvalCode(
-        static_cast<PyObject *>((void *)expr_code), bpy_pydriver_Dict, driver_vars);
+        static_cast<PyObject *>(static_cast<void *>(expr_code)), bpy_pydriver_Dict, driver_vars);
   }
 #endif
 
@@ -772,3 +786,5 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
 
   return float(result);
 }
+
+}  // namespace blender

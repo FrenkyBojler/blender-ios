@@ -32,9 +32,11 @@
 #include "bpy_rna.hh"
 #include "bpy_rna_callback.hh" /* Own include. */
 
+namespace blender {
+
 /* Use this to stop other capsules from being mis-used. */
-static const char *rna_capsual_id = "RNA_HANDLE";
-static const char *rna_capsual_id_invalid = "RNA_HANDLE_REMOVED";
+static const char *rna_capsule_id = "RNA_HANDLE";
+static const char *rna_capsule_id_invalid = "RNA_HANDLE_REMOVED";
 
 static const EnumPropertyItem region_draw_mode_items[] = {
     {REGION_DRAW_POST_PIXEL, "POST_PIXEL", 0, "Post Pixel", ""},
@@ -47,7 +49,7 @@ static const EnumPropertyItem region_draw_mode_items[] = {
 static void cb_region_draw(const bContext *C, ARegion * /*region*/, void *customdata)
 {
   PyGILState_STATE gilstate;
-  bpy_context_set((bContext *)C, &gilstate);
+  bpy_context_set(const_cast<bContext *>(C), &gilstate);
 
   PyObject *cb_func, *cb_args, *result;
 
@@ -60,10 +62,9 @@ static void cb_region_draw(const bContext *C, ARegion * /*region*/, void *custom
   }
   else {
     PyErr_Print();
-    PyErr_Clear();
   }
 
-  bpy_context_clear((bContext *)C, &gilstate);
+  bpy_context_clear(const_cast<bContext *>(C), &gilstate);
 }
 
 /* We could make generic utility */
@@ -80,7 +81,10 @@ static PyObject *PyC_Tuple_CopySized(PyObject *src, int len_dst)
   return dst;
 }
 
-static void cb_wm_cursor_draw(bContext *C, int x, int y, void *customdata)
+static void cb_wm_cursor_draw(bContext *C,
+                              const int2 &xy,
+                              const float2 & /*tilt*/,
+                              void *customdata)
 {
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
@@ -92,7 +96,7 @@ static void cb_wm_cursor_draw(bContext *C, int x, int y, void *customdata)
   const int cb_args_len = PyTuple_GET_SIZE(cb_args);
 
   PyObject *cb_args_xy = PyTuple_New(2);
-  PyTuple_SET_ITEMS(cb_args_xy, PyLong_FromLong(x), PyLong_FromLong(y));
+  PyTuple_SET_ITEMS(cb_args_xy, PyLong_FromLong(xy.x), PyLong_FromLong(xy.y));
 
   PyObject *cb_args_with_xy = PyC_Tuple_CopySized(cb_args, cb_args_len + 1);
   PyTuple_SET_ITEM(cb_args_with_xy, cb_args_len, cb_args_xy);
@@ -106,7 +110,6 @@ static void cb_wm_cursor_draw(bContext *C, int x, int y, void *customdata)
   }
   else {
     PyErr_Print();
-    PyErr_Clear();
   }
 
   bpy_context_clear(C, &gilstate);
@@ -153,7 +156,7 @@ PyObject *pyrna_callback_add(BPy_StructRNA *self, PyObject *args)
     return nullptr;
   }
 
-  return PyCapsule_New((void *)handle, rna_capsual_id, nullptr);
+  return PyCapsule_New((void *)handle, rna_capsule_id, nullptr);
 }
 
 PyObject *pyrna_callback_remove(BPy_StructRNA *self, PyObject *args)
@@ -166,11 +169,11 @@ PyObject *pyrna_callback_remove(BPy_StructRNA *self, PyObject *args)
     return nullptr;
   }
 
-  handle = PyCapsule_GetPointer(py_handle, rna_capsual_id);
+  handle = PyCapsule_GetPointer(py_handle, rna_capsule_id);
 
   if (handle == nullptr) {
     PyErr_SetString(PyExc_ValueError,
-                    "callback_remove(handle): nullptr handle given, invalid or already removed");
+                    "callback_remove(handle): null handle given, invalid or already removed");
     return nullptr;
   }
 
@@ -186,7 +189,7 @@ PyObject *pyrna_callback_remove(BPy_StructRNA *self, PyObject *args)
   }
 
   /* don't allow reuse */
-  PyCapsule_SetName(py_handle, rna_capsual_id_invalid);
+  PyCapsule_SetName(py_handle, rna_capsule_id_invalid);
 
   Py_RETURN_NONE;
 }
@@ -304,7 +307,7 @@ PyObject *pyrna_callback_classmethod_add(PyObject * /*self*/, PyObject *args)
                                       params.region_type_enum.value,
                                       nullptr,
                                       cb_wm_cursor_draw,
-                                      (void *)args);
+                                      static_cast<void *>(args));
   }
   else if (RNA_struct_is_a(srna, &RNA_Space)) {
     struct {
@@ -342,7 +345,7 @@ PyObject *pyrna_callback_classmethod_add(PyObject * /*self*/, PyObject *args)
       return nullptr;
     }
     handle = ED_region_draw_cb_activate(
-        art, cb_region_draw, (void *)args, params.event_enum.value);
+        art, cb_region_draw, static_cast<void *>(args), params.event_enum.value);
   }
   else {
     PyErr_SetString(PyExc_TypeError, "callback_add(): type does not support callbacks");
@@ -353,7 +356,7 @@ PyObject *pyrna_callback_classmethod_add(PyObject * /*self*/, PyObject *args)
    * This reference is decremented in #BPY_callback_screen_free and #BPY_callback_wm_free. */
   Py_INCREF(args);
 
-  PyObject *ret = PyCapsule_New(handle, rna_capsual_id, nullptr);
+  PyObject *ret = PyCapsule_New(handle, rna_capsule_id, nullptr);
 
   /* Store 'args' in context as well for simple access. */
   PyCapsule_SetDestructor(ret, cb_rna_capsule_destructor);
@@ -382,10 +385,10 @@ PyObject *pyrna_callback_classmethod_remove(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
   py_handle = PyTuple_GET_ITEM(args, 1);
-  handle = PyCapsule_GetPointer(py_handle, rna_capsual_id);
+  handle = PyCapsule_GetPointer(py_handle, rna_capsule_id);
   if (handle == nullptr) {
     PyErr_SetString(PyExc_ValueError,
-                    "callback_remove(handler): nullptr handler given, invalid or already removed");
+                    "callback_remove(handler): null handler given, invalid or already removed");
     return nullptr;
   }
 
@@ -458,7 +461,7 @@ PyObject *pyrna_callback_classmethod_remove(PyObject * /*self*/, PyObject *args)
       destructor_fn(py_handle);
       PyCapsule_SetDestructor(py_handle, nullptr);
     }
-    PyCapsule_SetName(py_handle, rna_capsual_id_invalid);
+    PyCapsule_SetName(py_handle, rna_capsule_id_invalid);
   }
 
   Py_RETURN_NONE;
@@ -491,3 +494,5 @@ void BPY_callback_wm_free(wmWindowManager *wm)
 }
 
 /** \} */
+
+}  // namespace blender

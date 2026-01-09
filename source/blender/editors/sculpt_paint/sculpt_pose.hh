@@ -11,10 +11,11 @@
 #include <array>
 
 #include "BLI_array.hh"
-#include "BLI_index_mask.hh"
 #include "BLI_math_matrix_types.hh"
 
 #include "BKE_paint.hh"
+
+namespace blender {
 
 struct Brush;
 struct Depsgraph;
@@ -22,11 +23,11 @@ struct Object;
 struct Sculpt;
 struct SculptPoseIKChainPreview;
 struct SculptSession;
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 class Node;
 }
 
-namespace blender::ed::sculpt_paint::pose {
+namespace ed::sculpt_paint::pose {
 
 /** Pose Brush IK Chain. */
 struct IKChainSegment {
@@ -48,7 +49,7 @@ struct IKChainSegment {
 };
 
 struct IKChain {
-  Array<IKChainSegment> segments;
+  Vector<IKChainSegment> segments;
   float3 grab_delta_offset;
 };
 
@@ -59,17 +60,7 @@ void do_pose_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &ob,
                    const IndexMask &node_mask);
-/**
- * Calculate the pose origin and (Optionally the pose factor)
- * that is used when using the pose brush.
- *
- * \param r_pose_origin: Must be a valid pointer.
- * \param r_pose_factor: Optional, when set to NULL it won't be calculated.
- */
-void pose_brush_init(const Depsgraph &depsgraph,
-                     Object &ob,
-                     SculptSession &ss,
-                     const Brush &brush);
+
 std::unique_ptr<SculptPoseIKChainPreview> preview_ik_chain_init(const Depsgraph &depsgraph,
                                                                 Object &ob,
                                                                 SculptSession &ss,
@@ -77,4 +68,6 @@ std::unique_ptr<SculptPoseIKChainPreview> preview_ik_chain_init(const Depsgraph 
                                                                 const float3 &initial_location,
                                                                 float radius);
 
-}  // namespace blender::ed::sculpt_paint::pose
+}  // namespace ed::sculpt_paint::pose
+
+}  // namespace blender

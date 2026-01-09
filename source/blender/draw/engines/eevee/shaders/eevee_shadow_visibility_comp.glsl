@@ -8,13 +8,11 @@
  */
 /* TODO(fclem): Could reject bounding boxes that are covering only invalid tiles. */
 
-#include "infos/eevee_shadow_info.hh"
+#include "infos/eevee_shadow_pipeline_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_shadow_view_visibility)
 
 #include "draw_intersect_lib.glsl"
-#include "draw_view_lib.glsl"
-#include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 bool shadow_linking_affects_caster(uint view_id, uint resource_id)
@@ -42,7 +40,7 @@ bool non_culling_tests(uint view_id, uint resource_id)
     /* Object doesn't cast shadow from this light. */
     return true;
   }
-  else if (drw_view_culling().bound_sphere.w == -1.0) {
+  else if (drw_view_culling().bound_sphere.w == -1.0f) {
     /* View disabled. */
     return true;
   }
@@ -70,7 +68,7 @@ void main()
       if (non_culling_tests(drw_view_id, gl_GlobalInvocationID.x)) {
         mask_visibility_bit(drw_view_id);
       }
-      else if (drw_view_culling().bound_sphere.w == -1.0) {
+      else if (drw_view_culling().bound_sphere.w == -1.0f) {
         /* View disabled. */
         mask_visibility_bit(drw_view_id);
       }

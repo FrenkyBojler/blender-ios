@@ -20,7 +20,7 @@
 #include "BKE_layer.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -34,6 +34,8 @@
 #include "RNA_define.hh"
 
 #include "clip_intern.hh"
+
+namespace blender {
 
 /********************** set origin operator *********************/
 
@@ -109,8 +111,8 @@ static int count_selected_bundles(bContext *C)
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   int tot = 0;
-  LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
-    if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_HAS_BUNDLE)) {
+  for (MovieTrackingTrack &track : tracking_object->tracks) {
+    if (TRACK_VIEW_SELECTED(sc, &track) && (track.flag & TRACK_HAS_BUNDLE)) {
       tot++;
     }
   }
@@ -120,13 +122,13 @@ static int count_selected_bundles(bContext *C)
 static void object_solver_inverted_matrix(Scene *scene, Object *ob, float invmat[4][4])
 {
   bool found = false;
-  LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
-    const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+  for (bConstraint &con : ob->constraints) {
+    const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(&con);
     if (cti == nullptr) {
       continue;
     }
     if (cti->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
-      bObjectSolverConstraint *data = (bObjectSolverConstraint *)con->data;
+      bObjectSolverConstraint *data = static_cast<bObjectSolverConstraint *>(con.data);
       if (!found) {
         Object *cam = data->camera ? data->camera : scene->camera;
         BKE_object_where_is_calc_mat4(cam, invmat);
@@ -145,13 +147,13 @@ static void object_solver_inverted_matrix(Scene *scene, Object *ob, float invmat
 
 static Object *object_solver_camera(Scene *scene, Object *ob)
 {
-  LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
-    const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+  for (bConstraint &con : ob->constraints) {
+    const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(&con);
     if (cti == nullptr) {
       continue;
     }
     if (cti->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
-      bObjectSolverConstraint *data = (bObjectSolverConstraint *)con->data;
+      bObjectSolverConstraint *data = static_cast<bObjectSolverConstraint *>(con.data);
       return (data->camera != nullptr) ? data->camera : scene->camera;
     }
   }
@@ -186,9 +188,9 @@ static wmOperatorStatus set_origin_exec(bContext *C, wmOperator *op)
 
   float median[3] = {0.0f, 0.0f, 0.0f};
   zero_v3(median);
-  LISTBASE_FOREACH (const MovieTrackingTrack *, track, &tracking_object->tracks) {
-    if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_HAS_BUNDLE)) {
-      add_v3_v3(median, track->bundle_pos);
+  for (const MovieTrackingTrack &track : tracking_object->tracks) {
+    if (TRACK_VIEW_SELECTED(sc, &track) && (track.flag & TRACK_HAS_BUNDLE)) {
+      add_v3_v3(median, track.bundle_pos);
     }
   }
   mul_v3_fl(median, 1.0f / selected_count);
@@ -223,7 +225,7 @@ void CLIP_OT_set_origin(wmOperatorType *ot)
       "Set active marker as origin by moving camera (or its parent if present) in 3D space";
   ot->idname = "CLIP_OT_set_origin";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = set_origin_exec;
   ot->poll = set_orientation_poll;
 
@@ -471,7 +473,7 @@ static wmOperatorStatus set_plane_exec(bContext *C, wmOperator *op)
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+  Object *object_eval = DEG_get_evaluated(depsgraph, object);
   BKE_object_transform_copy(object_eval, object);
   BKE_object_where_is_calc(depsgraph, scene_eval, object_eval);
   BKE_object_transform_copy(object, object_eval);
@@ -502,7 +504,7 @@ void CLIP_OT_set_plane(wmOperatorType *ot)
       "(or its parent if present) in 3D space";
   ot->idname = "CLIP_OT_set_plane";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = set_plane_exec;
   ot->poll = set_orientation_poll;
 
@@ -573,7 +575,7 @@ void CLIP_OT_set_axis(wmOperatorType *ot)
       "track lies on a real axis connecting it to the origin";
   ot->idname = "CLIP_OT_set_axis";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = set_axis_exec;
   ot->poll = set_orientation_poll;
 
@@ -617,9 +619,9 @@ static wmOperatorStatus do_set_scale(bContext *C,
 
   BKE_tracking_get_camera_object_matrix(camera, mat);
 
-  LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
-    if (TRACK_VIEW_SELECTED(sc, track)) {
-      mul_v3_m4v3(vec[tot], mat, track->bundle_pos);
+  for (MovieTrackingTrack &track : tracking_object->tracks) {
+    if (TRACK_VIEW_SELECTED(sc, &track)) {
+      mul_v3_m4v3(vec[tot], mat, track.bundle_pos);
       tot++;
     }
   }
@@ -634,8 +636,8 @@ static wmOperatorStatus do_set_scale(bContext *C,
       MovieReconstructedCamera *reconstructed_cameras;
       int i;
 
-      LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
-        mul_v3_fl(track->bundle_pos, scale);
+      for (MovieTrackingTrack &track : tracking_object->tracks) {
+        mul_v3_fl(track.bundle_pos, scale);
       }
 
       reconstructed_cameras = reconstruction->cameras;
@@ -706,7 +708,7 @@ void CLIP_OT_set_scale(wmOperatorType *ot)
   ot->description = "Set scale of scene by scaling camera (or its parent if present)";
   ot->idname = "CLIP_OT_set_scale";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = set_scale_exec;
   ot->invoke = set_scale_invoke;
   ot->poll = set_orientation_poll;
@@ -770,7 +772,7 @@ void CLIP_OT_set_solution_scale(wmOperatorType *ot)
       "two selected tracks";
   ot->idname = "CLIP_OT_set_solution_scale";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = set_solution_scale_exec;
   ot->invoke = set_solution_scale_invoke;
   ot->poll = set_solution_scale_poll;
@@ -832,7 +834,7 @@ void CLIP_OT_apply_solution_scale(wmOperatorType *ot)
       "selected tracks equals to desired";
   ot->idname = "CLIP_OT_apply_solution_scale";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = apply_solution_scale_exec;
   ot->invoke = apply_solution_scale_invoke;
   ot->poll = apply_solution_scale_poll;
@@ -851,3 +853,5 @@ void CLIP_OT_apply_solution_scale(wmOperatorType *ot)
                 -100.0f,
                 100.0f);
 }
+
+}  // namespace blender

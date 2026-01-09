@@ -6,13 +6,15 @@
 #include "usd.hh"
 #include "usd_reader_xform.hh"
 
+namespace blender {
+
 struct Mesh;
 
-namespace blender::bke {
+namespace bke {
 struct GeometrySet;
 }
 
-namespace blender::io::usd {
+namespace io::usd {
 
 class USDGeomReader : public USDXformReader {
 
@@ -28,7 +30,7 @@ class USDGeomReader : public USDXformReader {
                              USDMeshReadParams params,
                              const char **r_err_str) = 0;
 
-  virtual bool topology_changed(const Mesh * /*existing_mesh*/, double /*motionSampleTime*/)
+  virtual bool topology_changed(const Mesh * /*existing_mesh*/, pxr::UsdTimeCode /*time*/)
   {
     return true;
   }
@@ -37,4 +39,5 @@ class USDGeomReader : public USDXformReader {
   void add_subdiv_modifier();
 };
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender

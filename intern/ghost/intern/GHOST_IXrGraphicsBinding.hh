@@ -13,23 +13,34 @@
 #include <string>
 #include <vector>
 
+#include "GHOST_Types.h"
 #include "GHOST_Xr_openxr_includes.hh"
 
 class GHOST_IXrGraphicsBinding {
  public:
   union {
 #if defined(WITH_GHOST_X11)
+#  if defined(WITH_OPENGL_BACKEND)
     XrGraphicsBindingEGLMNDX egl;
     XrGraphicsBindingOpenGLXlibKHR glx;
-#elif defined(WIN32)
+#  endif
+#endif
+#if defined(WIN32)
+#  if defined(WITH_OPENGL_BACKEND)
     XrGraphicsBindingOpenGLWin32KHR wgl;
+#  endif
     XrGraphicsBindingD3D11KHR d3d11;
 #endif
 #if defined(WITH_GHOST_WAYLAND)
+#  if defined(WITH_OPENGL_BACKEND)
     XrGraphicsBindingOpenGLWaylandKHR wl;
+#  endif
 #endif
 #ifdef WITH_VULKAN_BACKEND
     XrGraphicsBindingVulkanKHR vk;
+#endif
+#ifdef WITH_METAL_BACKEND
+    XrGraphicsBindingMetalKHR metal;
 #endif
   } oxr_binding;
 
@@ -54,8 +65,10 @@ class GHOST_IXrGraphicsBinding {
                                                        bool &r_is_rgb_format) const = 0;
   virtual std::vector<XrSwapchainImageBaseHeader *> createSwapchainImages(
       uint32_t image_count) = 0;
+  virtual void submitToSwapchainBegin() = 0;
   virtual void submitToSwapchainImage(XrSwapchainImageBaseHeader &swapchain_image,
                                       const GHOST_XrDrawViewInfo &draw_info) = 0;
+  virtual void submitToSwapchainEnd() = 0;
   virtual bool needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const = 0;
 
  protected:

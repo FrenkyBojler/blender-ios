@@ -30,12 +30,12 @@ def link_samplers(animation: gltf2_io.Animation, export_settings):
     # TODO: move this to some util module and update gltf2 exporter also
     T = typing.TypeVar('T')
 
-    def __append_unique_and_get_index(l: typing.List[T], item: T):
-        if item in l:
-            return l.index(item)
+    def __append_unique_and_get_index(list_items: typing.List[T], item: T):
+        if item in list_items:
+            return list_items.index(item)
         else:
-            index = len(l)
-            l.append(item)
+            index = len(list_items)
+            list_items.append(item)
             return index
 
     for i, channel in enumerate(animation.channels):
@@ -174,7 +174,7 @@ def merge_tracks_perform(merged_tracks, animations, export_settings):
     for anim in new_animations:
         new_samplers = []
         for s in anim.samplers:
-            if type(s) == int:
+            if type(s) is int:
                 new_samplers.append(anim.samplers[s])
             else:
                 new_samplers.append(s)
@@ -287,7 +287,10 @@ def bake_data_animation(blender_type_data, blender_id, animation_key, slot_ident
             or export_settings['gltf_animation_mode'] == "NLA_TRACKS"):
 
         if blender_type_data == "materials":
-            blender_data_object = [i for i in bpy.data.materials if id(i) == blender_id][0]
+            if export_settings['gltf_animation_mode'] == "NLA_TRACKS" and export_settings['gltf_apply'] is True:
+                blender_data_object = export_settings['material_identifiers'][blender_id]
+            else:
+                blender_data_object = [i for i in bpy.data.materials if id(i) == blender_id][0]
         elif blender_type_data == "cameras":
             blender_data_object = [i for i in bpy.data.cameras if id(i) == blender_id][0]
         elif blender_type_data == "lights":

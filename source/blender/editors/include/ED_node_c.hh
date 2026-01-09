@@ -8,6 +8,8 @@
 
 #pragma once
 
+namespace blender {
+
 struct ARegion;
 struct ID;
 struct Main;
@@ -18,11 +20,11 @@ struct View2D;
 struct bContext;
 struct bNode;
 struct bNodeTree;
-namespace blender::bke {
+namespace bke {
 struct bNodeTreeType;
 struct bNodeType;
 struct bNodeSocketType;
-}  // namespace blender::bke
+}  // namespace bke
 
 #define NODE_GRID_STEP_SIZE (20.0f * UI_SCALE_FAC) /* Based on the grid nodes snap to. */
 #define NODE_EDGE_PAN_INSIDE_PAD 2
@@ -47,9 +49,9 @@ int ED_node_tree_path_length(SpaceNode *snode);
  */
 void ED_node_tree_path_get(SpaceNode *snode, char *value);
 
-void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from);
-void ED_node_tree_push(SpaceNode *snode, bNodeTree *ntree, bNode *gnode);
-void ED_node_tree_pop(SpaceNode *snode);
+void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from);
+void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNode *gnode);
+void ED_node_tree_pop(ARegion *region, SpaceNode *snode);
 int ED_node_tree_depth(SpaceNode *snode);
 bNodeTree *ED_node_tree_get(SpaceNode *snode, int level);
 
@@ -58,32 +60,22 @@ void ED_node_set_active_viewer_key(SpaceNode *snode);
 /* `drawnode.cc` */
 
 void ED_node_init_butfuncs();
-void ED_init_custom_node_type(blender::bke::bNodeType *ntype);
-void ED_init_custom_node_socket_type(blender::bke::bNodeSocketType *stype);
-void ED_init_standard_node_socket_type(blender::bke::bNodeSocketType *stype);
-void ED_init_node_socket_type_virtual(blender::bke::bNodeSocketType *stype);
+void ED_init_custom_node_type(bke::bNodeType *ntype);
+void ED_init_custom_node_socket_type(bke::bNodeSocketType *stype);
+void ED_init_standard_node_socket_type(bke::bNodeSocketType *stype);
+void ED_init_node_socket_type_virtual(bke::bNodeSocketType *stype);
 void ED_node_sample_set(const float col[4]);
 void ED_node_type_draw_color(const char *idname, float *r_color);
 
 /* `node_edit.cc` */
 
-void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typeinfo);
+void ED_node_set_tree_type(SpaceNode *snode, bke::bNodeTreeType *typeinfo);
 bool ED_node_is_compositor(const SpaceNode *snode);
 bool ED_node_is_shader(SpaceNode *snode);
 bool ED_node_is_texture(SpaceNode *snode);
-bool ED_node_is_geometry(SpaceNode *snode);
+bool ED_node_is_geometry(const SpaceNode *snode);
 bool ED_node_supports_preview(SpaceNode *snode);
 
-/**
- * Assumes nothing being done in ntree yet, sets the default in/out node.
- * Called from shading buttons or header.
- */
-void ED_node_shader_default(const bContext *C, ID *id);
-/**
- * Assumes nothing being done in ntree yet, sets the default in/out node.
- * Called from shading buttons or header.
- */
-void ED_node_composit_default(const bContext *C, Scene *scene);
 /**
  * Assumes nothing being done in ntree yet, sets the default in/out node.
  * Called from shading buttons or header.
@@ -119,3 +111,5 @@ bool ED_space_node_get_position(
  */
 bool ED_space_node_color_sample(
     Main *bmain, SpaceNode *snode, ARegion *region, const int mval[2], float r_col[3]);
+
+}  // namespace blender

@@ -8,6 +8,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_armature.hh"
 #include "BKE_fcurve.hh"
@@ -21,9 +22,11 @@
 
 #include "ED_keyframes_edit.hh"
 
+namespace blender {
+
 using namespace blender::animrig;
 
-namespace blender::ed::animation::tests {
+namespace ed::animation::tests {
 
 namespace {
 
@@ -521,14 +524,13 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
 
     bArmature *armature = BKE_armature_add(bmain, "Armature");
     for (const auto &bone_name : {"hand.L", "hand.R", "middle"}) {
-      Bone *bone = static_cast<Bone *>(MEM_mallocN(sizeof(Bone), __func__));
-      memset(bone, 0, sizeof(Bone));
-      STRNCPY(bone->name, bone_name);
+      Bone *bone = MEM_new_for_free<Bone>(__func__);
+      STRNCPY_UTF8(bone->name, bone_name);
       BLI_addtail(&armature->bonebase, bone);
     }
 
     Object *armature_object = BKE_object_add_only_object(bmain, OB_ARMATURE, "Armature");
-    armature_object->data = armature;
+    armature_object->data = id_cast<ID *>(armature);
     BKE_pose_ensure(bmain, armature_object, armature, false);
 
     arm_ob_id = &armature_object->id;
@@ -748,4 +750,5 @@ TEST_F(keyframes_paste, pastebuf_match_index_only)
                                          false));
 }
 
-}  // namespace blender::ed::animation::tests
+}  // namespace ed::animation::tests
+}  // namespace blender

@@ -21,6 +21,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -32,7 +33,7 @@
 
 #include "DEG_depsgraph.hh"
 
-using namespace blender;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Flip the Action (Armature/Pose Objects)
@@ -171,9 +172,10 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
   /* Use a fixed buffer size as it's known this can only be at most:
    * `pose.bones["{MAXBONENAME}"].rotation_quaternion`. */
   char path_xform[256];
-  char pchan_name_esc[sizeof(bActionChannel::name) * 2];
+  char pchan_name_esc[sizeof(pchan->name) * 2];
   BLI_str_escape(pchan_name_esc, pchan->name, sizeof(pchan_name_esc));
-  const int path_xform_prefix_len = SNPRINTF(path_xform, "pose.bones[\"%s\"]", pchan_name_esc);
+  const int path_xform_prefix_len = SNPRINTF_UTF8(
+      path_xform, "pose.bones[\"%s\"]", pchan_name_esc);
   char *path_xform_suffix = path_xform + path_xform_prefix_len;
   const int path_xform_suffix_maxncpy = sizeof(path_xform) - path_xform_prefix_len;
 
@@ -222,7 +224,7 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
   int fcurve_array_len = 0;
 
   for (int chan = 0; chan < FCURVE_CHANNEL_LEN; chan++) {
-    FCurve_KeyCache *fkc = (FCurve_KeyCache *)(&fkc_pchan) + chan;
+    FCurve_KeyCache *fkc = reinterpret_cast<FCurve_KeyCache *>(&fkc_pchan) + chan;
     if (fkc->fcurve != nullptr) {
       fcurve_array[fcurve_array_len++] = fkc->fcurve;
     }
@@ -240,7 +242,7 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
 
   /* Initialize the pose channel curve cache from the F-Curve. */
   for (int chan = 0; chan < FCURVE_CHANNEL_LEN; chan++) {
-    FCurve_KeyCache *fkc = (FCurve_KeyCache *)(&fkc_pchan) + chan;
+    FCurve_KeyCache *fkc = reinterpret_cast<FCurve_KeyCache *>(&fkc_pchan) + chan;
     if (fkc->fcurve == nullptr) {
       continue;
     }
@@ -268,7 +270,7 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
 
     /* Temporary pose channel to write values into,
      * using the `fkc_pchan` values, falling back to the values in the pose channel. */
-    bPoseChannel pchan_temp = blender::dna::shallow_copy(*pchan);
+    bPoseChannel pchan_temp = dna::shallow_copy(*pchan);
 
 /* Load the values into the channel. */
 #define READ_VALUE_FLT(id) \
@@ -372,10 +374,10 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
     BKE_fcurve_handles_recalc_ex(fcurve_array[i], eBezTriple_Flag(0));
   }
 
-  MEM_freeN((void *)keyed_frames);
+  MEM_freeN(keyed_frames);
 
   for (int chan = 0; chan < FCURVE_CHANNEL_LEN; chan++) {
-    FCurve_KeyCache *fkc = (FCurve_KeyCache *)(&fkc_pchan) + chan;
+    FCurve_KeyCache *fkc = reinterpret_cast<FCurve_KeyCache *>(&fkc_pchan) + chan;
     if (fkc->fcurve_eval) {
       MEM_freeN(fkc->fcurve_eval);
     }
@@ -394,11 +396,11 @@ static void action_flip_pchan_rna_paths(bAction *act)
   const int path_pose_prefix_len = strlen(path_pose_prefix);
 
   /* Tag curves that have renamed f-curves. */
-  for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
+  for (bActionGroup *agrp : animrig::legacy::channel_groups_all(act)) {
     agrp->flag &= ~AGRP_TEMP;
   }
 
-  for (FCurve *fcu : blender::animrig::legacy::fcurves_all(act)) {
+  for (FCurve *fcu : animrig::legacy::fcurves_all(act)) {
     if (!STRPREFIX(fcu->rna_path, path_pose_prefix)) {
       continue;
     }
@@ -438,7 +440,7 @@ static void action_flip_pchan_rna_paths(bAction *act)
   }
 
   /* Rename tagged groups. */
-  for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
+  for (bActionGroup *agrp : animrig::legacy::channel_groups_all(act)) {
     if ((agrp->flag & AGRP_TEMP) == 0) {
       continue;
     }
@@ -446,19 +448,19 @@ static void action_flip_pchan_rna_paths(bAction *act)
     char name_flip[MAXBONENAME];
     BLI_string_flip_side_name(name_flip, agrp->name, false, sizeof(name_flip));
     if (!STREQ(name_flip, agrp->name)) {
-      STRNCPY(agrp->name, name_flip);
+      STRNCPY_UTF8(agrp->name, name_flip);
     }
   }
 }
 
-void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
+void BKE_action_flip_with_pose(bAction *act, Span<Object *> objects)
 {
   animrig::Action &action = act->wrap();
   if (action.slot_array_num == 0) {
     /* Cannot flip an empty action. */
     return;
   }
-  blender::Set<animrig::Slot *> flipped_slots;
+  Set<animrig::Slot *> flipped_slots;
   for (Object *object : objects) {
     animrig::Slot *slot = animrig::generic_slot_for_autoassign(object->id, action, "");
     if (!slot) {
@@ -469,8 +471,8 @@ void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
     }
     Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, slot->handle);
     FCurvePathCache *fcache = BKE_fcurve_pathcache_create(fcurves);
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
-      action_flip_pchan(object, pchan, fcache);
+    for (bPoseChannel &pchan : object->pose->chanbase) {
+      action_flip_pchan(object, &pchan, fcache);
     }
     BKE_fcurve_pathcache_destroy(fcache);
   }
@@ -481,3 +483,5 @@ void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
 }
 
 /** \} */
+
+}  // namespace blender

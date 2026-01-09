@@ -20,24 +20,25 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
-#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "ED_view3d.hh"
 
 #include "paint_intern.hh" /* own include */
 
+namespace blender {
+
 /* Opaque Structs for internal use */
 
 /* stored while painting */
 struct VertProjHandle {
-  blender::Array<blender::float3> vert_positions;
-  blender::Array<blender::float3> vert_normals;
+  Array<float3> vert_positions;
+  Array<float3> vert_normals;
 
   bool use_update;
 
   /* use for update */
-  blender::Array<float> dists_sq;
+  Array<float> dists_sq;
 
   Object *ob;
   Scene *scene;
@@ -63,7 +64,7 @@ static void vpaint_proj_dm_map_cosnos_init__map_cb(void *user_data,
   VertProjHandle *vp_handle = static_cast<VertProjHandle *>(user_data);
 
   /* check if we've been here before (normal should not be 0) */
-  if (!blender::math::is_zero(vp_handle->vert_normals[index])) {
+  if (!math::is_zero(vp_handle->vert_normals[index])) {
     /* remember that multiple dm verts share the same source vert */
     vp_handle->use_update = true;
     return;
@@ -78,10 +79,10 @@ static void vpaint_proj_dm_map_cosnos_init(Depsgraph &depsgraph,
                                            Object &ob,
                                            VertProjHandle &vp_handle)
 {
-  const Object *ob_eval = DEG_get_evaluated_object(&depsgraph, &ob);
+  const Object *ob_eval = DEG_get_evaluated(&depsgraph, &ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
-  vp_handle.vert_normals.fill(blender::float3(0));
+  vp_handle.vert_normals.fill(float3(0));
   BKE_mesh_foreach_mapped_vert(
       mesh_eval, vpaint_proj_dm_map_cosnos_init__map_cb, &vp_handle, MESH_FOREACH_USE_NORMAL);
 }
@@ -136,7 +137,7 @@ static void vpaint_proj_dm_map_cosnos_update(Depsgraph *depsgraph,
 
   Object &ob = *vp_handle->ob;
 
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, &ob);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, &ob);
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
   /* quick sanity check - we shouldn't have to run this if there are no modifiers */
@@ -153,11 +154,11 @@ static void vpaint_proj_dm_map_cosnos_update(Depsgraph *depsgraph,
 VertProjHandle *ED_vpaint_proj_handle_create(Depsgraph &depsgraph,
                                              Scene &scene,
                                              Object &ob,
-                                             blender::Span<blender::float3> &r_vert_positions,
-                                             blender::Span<blender::float3> &r_vert_normals)
+                                             Span<float3> &r_vert_positions,
+                                             Span<float3> &r_vert_normals)
 {
   VertProjHandle *vp_handle = MEM_new<VertProjHandle>(__func__);
-  Mesh *mesh = static_cast<Mesh *>(ob.data);
+  Mesh *mesh = id_cast<Mesh *>(ob.data);
 
   /* setup the handle */
   vp_handle->vert_positions.reinitialize(mesh->verts_num);
@@ -196,3 +197,5 @@ void ED_vpaint_proj_handle_free(VertProjHandle *vp_handle)
 {
   MEM_delete(vp_handle);
 }
+
+}  // namespace blender

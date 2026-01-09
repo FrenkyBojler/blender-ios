@@ -14,6 +14,8 @@
 #include "eigen_utils.h"
 #include "implicit.h"
 
+namespace blender {
+
 /* ================ Volumetric Hair Interaction ================
  * adapted from
  *
@@ -1149,7 +1151,7 @@ HairGrid *SIM_hair_volume_create_vertex_grid(float cellsize,
   copy_v3_v3(grid->gmax, gmax_margin);
   grid->cellsize = cellsize;
   grid->inv_cellsize = scale;
-  grid->verts = MEM_calloc_arrayN<HairGridVert>(size_t(size), "hair voxel data");
+  grid->verts = MEM_calloc_arrayN<HairGridVert>(size, "hair voxel data");
 
   return grid;
 }
@@ -1189,7 +1191,7 @@ static HairGridVert *hair_volume_create_collision_grid(ClothModifierData *clmd,
   int res = hair_grid_res;
   int size = hair_grid_size(res);
   HairGridVert *collgrid;
-  ListBase *colliders;
+  ListBaseT<ColliderCache> *colliders;
   ColliderCache *col = nullptr;
   float gmin[3], gmax[3], scale[3];
   /* 2.0f is an experimental value that seems to give good results */
@@ -1256,3 +1258,5 @@ static HairGridVert *hair_volume_create_collision_grid(ClothModifierData *clmd,
   return collgrid;
 }
 #endif
+
+}  // namespace blender

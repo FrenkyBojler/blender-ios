@@ -15,6 +15,8 @@
 #include "bmesh_tools.hh"
 #include "intern/bmesh_operators_private.hh"
 
+namespace blender {
+
 #define ELE_NEW 1
 #define FACE_MARK 2
 
@@ -44,8 +46,8 @@ void bmo_beautify_fill_exec(BMesh *bm, BMOperator *op)
   }
 
   /* will over alloc if some edges can't be rotated */
-  edge_array = static_cast<BMEdge **>(MEM_mallocN(
-      sizeof(*edge_array) * size_t(BMO_slot_buffer_len(op->slots_in, "edges")), __func__));
+  edge_array = MEM_malloc_arrayN<BMEdge *>(size_t(BMO_slot_buffer_len(op->slots_in, "edges")),
+                                           __func__);
 
   BMO_ITER (e, &siter, op->slots_in, "edges", BM_EDGE) {
 
@@ -67,3 +69,5 @@ void bmo_beautify_fill_exec(BMesh *bm, BMOperator *op)
 
   BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "geom.out", BM_EDGE | BM_FACE, ELE_NEW);
 }
+
+}  // namespace blender

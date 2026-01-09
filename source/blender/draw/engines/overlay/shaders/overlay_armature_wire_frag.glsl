@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_armature_info.hh"
+#include "infos/overlay_armature_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_armature_wire)
 
@@ -11,7 +11,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_armature_wire)
 
 void main()
 {
-  lineOutput = pack_line_data(gl_FragCoord.xy, edgeStart, edgePos);
-  fragColor = vec4(finalColor.rgb, finalColor.a * alpha);
+  line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
+  frag_color = float4(final_color.rgb, final_color.a * alpha);
   select_id_output(select_id);
 }

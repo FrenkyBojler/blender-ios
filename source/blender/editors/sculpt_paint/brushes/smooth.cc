@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
@@ -26,7 +26,7 @@
 
 #include "bmesh.hh"
 
-namespace blender::ed::sculpt_paint {
+namespace blender::ed::sculpt_paint::brushes {
 
 inline namespace smooth_cc {
 
@@ -87,7 +87,7 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
   const SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
@@ -125,15 +125,17 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
           node_factors,
           all_distances.as_mutable_span().slice(node_vert_offsets[pos]));
       scale_factors(node_factors, strength);
-      const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(faces,
-                                                                      corner_verts,
-                                                                      vert_to_face_map,
-                                                                      ss.vertex_info.boundary,
-                                                                      attribute_data.hide_poly,
-                                                                      verts,
-                                                                      node_factors,
-                                                                      tls.neighbor_offsets,
-                                                                      tls.neighbor_data);
+      const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(
+          faces,
+          corner_verts,
+          vert_to_face_map,
+          ss.boundary_info_cache->verts,
+          ss.boundary_info_cache->edges,
+          attribute_data.hide_poly,
+          verts,
+          node_factors,
+          tls.neighbor_offsets,
+          tls.neighbor_data);
       smooth::neighbor_data_average_mesh_check_loose(
           position_data.eval,
           verts,
@@ -159,6 +161,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        const OffsetIndices<int> faces,
                        const Span<int> corner_verts,
                        const BitSpan boundary_verts,
+                       const Set<OrderedEdge> &boundary_edges,
                        Object &object,
                        const Brush &brush,
                        const float strength,
@@ -177,8 +180,14 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.new_positions.resize(positions.size());
   const MutableSpan<float3> new_positions = tls.new_positions;
-  smooth::neighbor_position_average_interior_grids(
-      faces, corner_verts, boundary_verts, subdiv_ccg, grids, tls.factors, new_positions);
+  smooth::neighbor_position_average_interior_grids(faces,
+                                                   corner_verts,
+                                                   boundary_verts,
+                                                   boundary_edges,
+                                                   subdiv_ccg,
+                                                   grids,
+                                                   tls.factors,
+                                                   new_positions);
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -238,7 +247,7 @@ void do_smooth_brush(const Depsgraph &depsgraph,
       do_smooth_brush_mesh(depsgraph, sd, brush, object, node_mask, brush_strength);
       break;
     case bke::pbvh::Type::Grids: {
-      const Mesh &base_mesh = *static_cast<const Mesh *>(object.data);
+      const Mesh &base_mesh = *id_cast<const Mesh *>(object.data);
       const OffsetIndices faces = base_mesh.faces();
       const Span<int> corner_verts = base_mesh.corner_verts();
 
@@ -251,7 +260,8 @@ void do_smooth_brush(const Depsgraph &depsgraph,
                      sd,
                      faces,
                      corner_verts,
-                     ss.vertex_info.boundary,
+                     ss.boundary_info_cache->verts,
+                     ss.boundary_info_cache->edges,
                      object,
                      brush,
                      strength,
@@ -262,8 +272,7 @@ void do_smooth_brush(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BM_mesh_elem_index_ensure(ss.bm, BM_VERT);
-      BM_mesh_elem_table_ensure(ss.bm, BM_VERT);
+      vert_random_access_ensure(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       for (const float strength : iteration_strengths(brush_strength)) {
         MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
@@ -279,4 +288,4 @@ void do_smooth_brush(const Depsgraph &depsgraph,
   pbvh.update_bounds(depsgraph, object);
 }
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace blender::ed::sculpt_paint::brushes

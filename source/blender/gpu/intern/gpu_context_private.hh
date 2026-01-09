@@ -24,9 +24,11 @@
 
 #include <pthread.h>
 
+namespace blender {
+
 struct GPUMatrixState;
 
-namespace blender::gpu {
+namespace gpu {
 
 class Context {
  public:
@@ -51,6 +53,7 @@ class Context {
 
   DebugStack debug_stack;
   bool debug_is_capturing = false;
+  bool debug_pipeline_creation = false;
 
   /* GPUContext counter used to assign a unique ID to each GPUContext.
    * NOTE(Metal): This is required by the Metal Backend, as a bug exists in the global OS shader
@@ -61,7 +64,7 @@ class Context {
   int context_id = 0;
 
   /* Used as a stack. Each render_begin/end pair will push pop from the stack. */
-  Vector<GPUStorageBuf *> printf_buf;
+  Vector<StorageBuf *> printf_buf;
 
   /** Dummy VBO to feed the procedural batches. */
   VertBuf *dummy_vbo = nullptr;
@@ -73,6 +76,10 @@ class Context {
 
   /** Texture pool used to recycle temporary texture (or render target) memory. */
   TexturePool *texture_pool = nullptr;
+
+  /** Global state to avoid setting the srgb builtin uniform for every shader bind. */
+  int shader_builtin_srgb_transform = 0;
+  bool shader_builtin_srgb_is_dirty = false;
 
  protected:
   /** Thread on which this context is active. */
@@ -97,12 +104,10 @@ class Context {
   /* Will wait until the GPU has finished executing all command. */
   virtual void finish() = 0;
 
-  virtual ShaderCompiler *get_compiler() = 0;
-
   virtual void memory_statistics_get(int *r_total_mem, int *r_free_mem) = 0;
 
-  virtual void debug_group_begin(const char * /*name*/, int /*index*/){};
-  virtual void debug_group_end(){};
+  virtual void debug_group_begin(const char * /*name*/, int /*index*/) {};
+  virtual void debug_group_end() {};
 
   /* Returns true if capture successfully started. */
   virtual bool debug_capture_begin(const char *title) = 0;
@@ -132,7 +137,7 @@ class Context {
       return;
     }
 
-    if (!(state_manager->state.write_mask & eGPUWriteMask::GPU_WRITE_COLOR)) {
+    if (!(state_manager->state.write_mask & GPUWriteMask::GPU_WRITE_COLOR)) {
       return;
     }
 
@@ -170,4 +175,5 @@ static inline const Context *unwrap(const GPUContext *ctx)
   return reinterpret_cast<const Context *>(ctx);
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

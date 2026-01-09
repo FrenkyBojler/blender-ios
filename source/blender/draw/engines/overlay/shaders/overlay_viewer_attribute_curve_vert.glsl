@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_viewer_attribute_info.hh"
+#include "infos/overlay_viewer_attribute_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_viewer_attribute_curve)
 
@@ -12,7 +12,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_viewer_attribute_curve)
 
 void main()
 {
-  vec3 world_pos = drw_point_object_to_world(pos);
+  float3 world_pos = drw_point_object_to_world(pos);
   gl_Position = drw_point_world_to_homogenous(world_pos);
-  finalColor = attribute_value;
+  final_color = attribute_value;
 }

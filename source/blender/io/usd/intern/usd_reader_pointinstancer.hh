@@ -7,9 +7,11 @@
 
 #include <pxr/usd/usdGeom/pointInstancer.h>
 
+namespace blender {
+
 struct Collection;
 
-namespace blender::io::usd {
+namespace io::usd {
 
 /* Wraps the UsdGeomPointInstancer schema. Creates a Blender point cloud object. */
 
@@ -32,7 +34,7 @@ class USDPointInstancerReader : public USDGeomReader {
 
   void create_object(Main *bmain) override;
 
-  void read_object_data(Main *bmain, double motionSampleTime) override;
+  void read_object_data(Main *bmain, pxr::UsdTimeCode time) override;
 
   /* This may be called by the cache modifier to update animated geometry. */
   void read_geometry(bke::GeometrySet &geometry_set,
@@ -57,4 +59,5 @@ class USDPointInstancerReader : public USDGeomReader {
   bool is_animated() const;
 };
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender

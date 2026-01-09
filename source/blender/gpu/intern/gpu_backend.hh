@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_string_ref.hh"
 #include "GPU_vertex_buffer.hh"
 
@@ -25,12 +25,16 @@ class IndexBuf;
 class PixelBuffer;
 class QueryPool;
 class Shader;
+class ShaderCompiler;
 class Texture;
 class UniformBuf;
 class StorageBuf;
 class VertBuf;
 
 class GPUBackend {
+ protected:
+  ShaderCompiler *compiler_;
+
  public:
   virtual ~GPUBackend() = default;
 
@@ -40,6 +44,11 @@ class GPUBackend {
   virtual void delete_resources() = 0;
 
   static GPUBackend *get();
+
+  ShaderCompiler *get_compiler()
+  {
+    return compiler_;
+  }
 
   virtual void samplers_update() = 0;
   virtual void compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len) = 0;
@@ -68,7 +77,7 @@ class GPUBackend {
 };
 
 namespace debug {
-static blender::ColorTheme4f GPU_DEBUG_GROUP_COLOR_DEFAULT = {};
+static ColorTheme4f GPU_DEBUG_GROUP_COLOR_DEFAULT = {};
 
 static inline ColorTheme4f get_debug_group_color(StringRefNull name)
 {
@@ -102,5 +111,4 @@ static inline ColorTheme4f get_debug_group_color(StringRefNull name)
   return GPU_DEBUG_GROUP_COLOR_DEFAULT;
 }
 }  // namespace debug
-
 }  // namespace blender::gpu
