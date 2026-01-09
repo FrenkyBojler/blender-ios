@@ -43,10 +43,12 @@ class SimDataCleaner {
     }
     if (type == physics_bundles::XPBDGeometryBundle::name) {
       this->clean_xpbd_geometry_bundle(bundle);
+      return;
     }
-    else {
-      bundle.clear();
+    if (type == "blender.XpbdSolverState") {
+      return;
     }
+    bundle.clear();
   }
 
   void clean_bundle_items(Bundle &bundle)
@@ -107,7 +109,6 @@ class SimDataCleaner {
           if (BKE_mesh_attribute_required(iter.name)) {
             return;
           }
-          attributes_to_remove.append(iter.name);
         });
         for (const StringRef attribute : attributes_to_remove) {
           attributes.remove(attribute);

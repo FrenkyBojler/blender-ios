@@ -34,7 +34,13 @@ class SimDataApplier {
 
   void apply()
   {
+    // TODO: Figure out how to keep the solver state generically.
     this->apply_bundle(root_world_bundle_, root_sim_data_bundle_);
+    const StringRef solver_state_path = "solvers/xpbd";
+    if (const BundleItemValue *solver_state = root_sim_data_bundle_.lookup_path(solver_state_path))
+    {
+      root_world_bundle_.add_path_override(solver_state_path, *solver_state);
+    }
   }
 
   void apply_bundle(Bundle &world, const Bundle &sim_data)

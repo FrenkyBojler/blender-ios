@@ -86,12 +86,16 @@ class Bundle : public ImplicitSharingMixin {
   bool contains_path(Span<StringRef> path) const;
 
   const BundleItemValue *lookup(StringRef key) const;
+  BundleItemValue *lookup(StringRef key);
   const BundleItemValue *lookup_path(Span<StringRef> path) const;
   const BundleItemValue *lookup_path(StringRef path) const;
+  BundleItemValue *lookup_path_for_write(Span<StringRef> path);
+  BundleItemValue *lookup_path_for_write(StringRef path);
   template<typename T> std::optional<T> lookup(StringRef key) const;
   template<typename T> std::optional<T> lookup_path(StringRef path) const;
   template<typename T> T *lookup_ptr(StringRef key);
   template<typename T> const T *lookup_ptr(StringRef key) const;
+  template<typename T> T *lookup_path_for_write_ptr(StringRef path);
 
   bool is_empty() const;
   int64_t size() const;
@@ -235,7 +239,7 @@ template<typename T> inline std::optional<T> Bundle::lookup(const StringRef key)
 
 template<typename T> inline T *Bundle::lookup_ptr(StringRef key)
 {
-  BundleItemValue *item = items_.lookup_ptr_as(key);
+  BundleItemValue *item = this->lookup(key);
   if (!item) {
     return nullptr;
   }
@@ -245,6 +249,15 @@ template<typename T> inline T *Bundle::lookup_ptr(StringRef key)
 template<typename T> inline const T *Bundle::lookup_ptr(StringRef key) const
 {
   const BundleItemValue *item = this->lookup(key);
+  if (!item) {
+    return nullptr;
+  }
+  return item->as_pointer<T>();
+}
+
+template<typename T> inline T *Bundle::lookup_path_for_write_ptr(StringRef path)
+{
+  BundleItemValue *item = this->lookup_path_for_write(path);
   if (!item) {
     return nullptr;
   }

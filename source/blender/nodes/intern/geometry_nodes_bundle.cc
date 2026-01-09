@@ -47,6 +47,9 @@ bool Bundle::is_valid_path(const StringRef path)
 
 std::optional<Vector<StringRef>> Bundle::split_path(const StringRef path)
 {
+  if (path.is_empty()) {
+    return std::nullopt;
+  }
   Vector<StringRef> path_elems;
   StringRef remaining = path;
   while (!remaining.is_empty()) {
@@ -142,6 +145,11 @@ const BundleItemValue *Bundle::lookup(const StringRef key) const
   return items_.lookup_ptr_as(key);
 }
 
+BundleItemValue *Bundle::lookup(const StringRef key)
+{
+  return items_.lookup_ptr_as(key);
+}
+
 const BundleItemValue *Bundle::lookup_path(const Span<StringRef> path) const
 {
   BLI_assert(!path.is_empty());
@@ -165,6 +173,35 @@ const BundleItemValue *Bundle::lookup_path(const StringRef path) const
   BLI_assert(is_valid_path(path));
   const Vector<StringRef> path_elems = *split_path(path);
   return this->lookup_path(path_elems);
+}
+
+BundleItemValue *Bundle::lookup_path_for_write(Span<StringRef> path)
+{
+  BLI_assert(!path.is_empty());
+  const StringRef first_elem = path[0];
+  BundleItemValue *item = this->lookup(first_elem);
+  if (!item) {
+    return nullptr;
+  }
+  if (path.size() == 1) {
+    return item;
+  }
+  BundlePtr *child_bundle_ptr = item->as_pointer<BundlePtr>();
+  if (!child_bundle_ptr) {
+    return nullptr;
+  }
+  if (!*child_bundle_ptr) {
+    return nullptr;
+  }
+  Bundle &child_bundle = child_bundle_ptr->ensure_mutable_inplace();
+  return child_bundle.lookup_path_for_write(path.drop_front(1));
+}
+
+BundleItemValue *Bundle::lookup_path_for_write(StringRef path)
+{
+  BLI_assert(is_valid_path(path));
+  const Vector<StringRef> path_elems = *split_path(path);
+  return this->lookup_path_for_write(path_elems);
 }
 
 void Bundle::ensure_owns_direct_data()
