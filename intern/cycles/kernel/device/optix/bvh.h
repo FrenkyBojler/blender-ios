@@ -575,7 +575,9 @@ ccl_device_intersect bool scene_intersect_material_raycast(KernelGlobals kg,
                                                            ccl_private Intersection *isect)
 {
   uint ray_mask = visibility & 0xFF;
-  uint ray_flags = OPTIX_RAY_FLAG_ENFORCE_ANYHIT;
+  /* TODO: Check. When enabling OPTIX_RAY_FLAG_ENFORCE_ANYHIT as the other intersect functions do,
+   * the optixHit functions don't always return the info from the closest hit. */
+  uint ray_flags = 0;
   if (0 == ray_mask && (visibility & ~0xFF) != 0) {
     ray_mask = 0xFF;
   }
