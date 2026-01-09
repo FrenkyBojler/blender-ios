@@ -103,7 +103,7 @@ endif()
 if(WITH_USD)
   list(APPEND LIB
     bf_io_usd
-    bf::dependencies::optional::usd
+    PRIVATE bf::dependencies::optional::usd
   )
   add_definitions(-DWITH_USD)
 endif()

@@ -160,7 +160,7 @@ if(WITH_MATERIALX)
   if(WITH_USD)
     add_definitions(-DWITH_USD)
     list(APPEND LIB
-      bf::dependencies::optional::usd
+      PRIVATE bf::dependencies::optional::usd
     )
   endif()
 endif()

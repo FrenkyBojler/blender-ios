@@ -69,7 +69,7 @@ set(LIB
   cycles_subd
   cycles_util
 
-  bf::dependencies::optional::epoxy
+  bf::dependencies::epoxy
   bf::dependencies::optional::python
   bf::dependencies::optional::openimagedenoise
   bf::dependencies::optional::openvdb

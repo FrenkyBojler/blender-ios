@@ -208,12 +208,9 @@ set(LIB
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
   PRIVATE bf::windowmanager
-)
-
-list(APPEND LIB
-  bf::dependencies::optional::python
-  bf::dependencies::optional::usd
-  bf::dependencies::optional::tbb
+  PRIVATE bf::dependencies::optional::python
+  PRIVATE bf::dependencies::optional::usd
+  PRIVATE bf::dependencies::optional::tbb
 )
 
 if(WITH_MATERIALX)

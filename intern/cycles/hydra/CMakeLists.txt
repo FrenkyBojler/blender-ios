@@ -16,7 +16,7 @@ set(LIB
   cycles_scene
   cycles_session
   cycles_graph
-  bf::dependencies::optional::epoxy
+  bf::dependencies::epoxy
   ${BOOST_PYTHON_LIBRARIES}
 )
 cycles_external_libraries_append(LIB)

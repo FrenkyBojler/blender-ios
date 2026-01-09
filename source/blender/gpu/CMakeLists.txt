@@ -423,7 +423,7 @@ if(WITH_OPENGL_BACKEND)
     ${OPENGL_SRC}
   )
   list(APPEND LIB
-    bf::dependencies::optional::epoxy
+    PRIVATE bf::dependencies::epoxy
   )
   add_definitions(-DWITH_OPENGL_BACKEND)
 endif()

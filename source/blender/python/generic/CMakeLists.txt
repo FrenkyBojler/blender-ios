@@ -42,7 +42,7 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::dependencies::optional::python
-  PRIVATE bf::dependencies::optional::epoxy
+  PRIVATE bf::dependencies::epoxy
 )
 
 if(WITH_PYTHON_MODULE)

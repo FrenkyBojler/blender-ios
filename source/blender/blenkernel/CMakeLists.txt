@@ -601,7 +601,7 @@ set(LIB
 
 if(WITH_BINRELOC)
   list(APPEND LIB
-    bf::extern::binreloc
+    PRIVATE bf::extern::binreloc
   )
   add_definitions(-DWITH_BINRELOC)
 endif()
@@ -613,19 +613,13 @@ if(WIN32)
   )
 endif()
 
-if(WITH_AUDASPACE)
-  if(WITH_RUBBERBAND)
-    add_definitions(-DWITH_RUBBERBAND)
-  endif()
-endif()
-
 if(WITH_BULLET)
   list(APPEND INC
     ../../../intern/rigidbody
   )
   list(APPEND LIB
     bf_intern_rigidbody
-    bf::dependencies::optional::bullet
+    PRIVATE bf::dependencies::optional::bullet
   )
 endif()
 

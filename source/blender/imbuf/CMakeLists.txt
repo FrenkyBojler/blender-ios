@@ -103,7 +103,7 @@ if(WITH_IMAGE_OPENJPEG)
     intern/format_jp2.cc
   )
   list(APPEND LIB
-    bf::dependencies::optional::openjpeg
+    PRIVATE bf::dependencies::optional::openjpeg
   )
 endif()
 
@@ -122,7 +122,7 @@ if(WITH_IMAGE_WEBP)
     intern/format_webp.cc
   )
   list(APPEND LIB
-    bf::dependencies::optional::webp
+    PRIVATE bf::dependencies::optional::webp
   )
 endif()
 

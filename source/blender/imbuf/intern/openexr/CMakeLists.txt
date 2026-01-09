@@ -27,7 +27,7 @@ set(LIB
 
 if(WITH_IMAGE_OPENEXR)
   list(APPEND LIB
-    bf::dependencies::optional::openexr
+    PRIVATE bf::dependencies::optional::openexr
   )
   add_definitions(-DWITH_IMAGE_OPENEXR)
   if(WIN32)

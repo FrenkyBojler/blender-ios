@@ -72,7 +72,7 @@ if(WITH_OPENSUBDIV)
 
   list(APPEND LIB
     bf::dependencies::optional::opensubdiv
-    bf::dependencies::optional::epoxy
+    bf::dependencies::epoxy
   )
 
   if(WIN32)

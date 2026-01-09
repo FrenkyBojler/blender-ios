@@ -72,8 +72,7 @@ set(LIB
   PRIVATE bf::dependencies::optional::python
   PRIVATE bf::dependencies::optional::usd
   PRIVATE bf::dependencies::optional::tbb
-  PRIVATE bf::dependencies::optional::epoxy
-  PRIVATE bf::dependencies::eigen
+  PRIVATE bf::dependencies::epoxy
   PRIVATE bf::dependencies::gflags
   PRIVATE bf::dependencies::eigen
 )

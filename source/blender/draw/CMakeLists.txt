@@ -923,7 +923,7 @@ if(WITH_GTESTS)
     if(WITH_VULKAN_BACKEND)
       add_definitions(-DWITH_VULKAN_BACKEND)
       list(APPEND LIB
-        bf::dependencies::optional::vulkan
+        PRIVATE bf::dependencies::optional::vulkan
       )
     endif()
   endif()

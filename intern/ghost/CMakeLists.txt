@@ -81,7 +81,7 @@ endif()
 
 if(WITH_OPENGL_BACKEND)
   list(APPEND LIB
-    bf::dependencies::optional::epoxy
+    PRIVATE bf::dependencies::epoxy
   )
   add_definitions(-DWITH_OPENGL_BACKEND)
 endif()
@@ -94,7 +94,7 @@ if(WITH_VULKAN_BACKEND)
   )
   list(APPEND LIB
     PUBLIC bf::dependencies::optional::vulkan
-    bf::extern::vulkan_memory_allocator
+    PRIVATE bf::extern::vulkan_memory_allocator
   )
 
   add_definitions(-DWITH_VULKAN_BACKEND)

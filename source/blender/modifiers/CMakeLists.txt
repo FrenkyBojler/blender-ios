@@ -149,6 +149,7 @@ set(LIB
   PRIVATE bf::dependencies::zlib
   PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::dependencies::optional::bullet
+  PRIVATE bf::dependencies::optional::opensubdiv
 )
 
 if(WITH_ALEMBIC)
@@ -187,10 +188,6 @@ endif()
 
 if(WITH_MOD_OCEANSIM)
   add_definitions(-DWITH_OCEANSIM)
-endif()
-
-if(WITH_OPENSUBDIV)
-  add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
 # To disable adaptive subdivision test in subdivision-surface UI without cycles.

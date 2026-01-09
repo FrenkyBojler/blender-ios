@@ -320,6 +320,7 @@ add_library(bf_deps_optional_shaderc INTERFACE)
 add_library(bf::dependencies::optional::shaderc ALIAS bf_deps_optional_shaderc)
 
 if(WITH_VULKAN_BACKEND)
+  target_compile_definitions(bf_deps_optional_shaderc INTERFACE WITH_SHADERC)
   target_include_directories(bf_deps_optional_shaderc SYSTEM INTERFACE ${SHADERC_INCLUDE_DIRS})
   target_link_libraries(bf_deps_optional_shaderc INTERFACE ${SHADERC_LIBRARIES})
 endif()
@@ -327,11 +328,11 @@ endif()
 # -----------------------------------------------------------------------------
 # Configure Epoxy
 
-add_library(bf_deps_optional_epoxy INTERFACE)
-add_library(bf::dependencies::optional::epoxy ALIAS bf_deps_optional_epoxy)
+add_library(bf_deps_epoxy INTERFACE)
+add_library(bf::dependencies::epoxy ALIAS bf_deps_epoxy)
 
-target_include_directories(bf_deps_optional_epoxy SYSTEM INTERFACE ${Epoxy_INCLUDE_DIRS})
-target_link_libraries(bf_deps_optional_epoxy INTERFACE ${Epoxy_LIBRARIES})
+target_include_directories(bf_deps_epoxy SYSTEM INTERFACE ${Epoxy_INCLUDE_DIRS})
+target_link_libraries(bf_deps_epoxy INTERFACE ${Epoxy_LIBRARIES})
 
 # -----------------------------------------------------------------------------
 # Configure Gflags
@@ -398,6 +399,9 @@ add_library(bf::dependencies::optional::audaspace ALIAS bf_deps_optional_audaspa
 
 if(WITH_AUDASPACE)
   target_compile_definitions(bf_deps_optional_audaspace INTERFACE WITH_AUDASPACE)
+  if(WITH_RUBBERBAND)
+    target_compile_definitions(bf_deps_optional_audaspace INTERFACE WITH_RUBBERBAND)
+  endif()
   target_include_directories(bf_deps_optional_audaspace SYSTEM INTERFACE ${AUDASPACE_C_INCLUDE_DIRS} ${AUDASPACE_PY_INCLUDE_DIRS})
   if(WITH_SYSTEM_AUDASPACE)
     target_link_libraries(bf_deps_optional_audaspace INTERFACE ${AUDASPACE_C_LIBRARIES} ${AUDASPACE_PY_LIBRARIES})

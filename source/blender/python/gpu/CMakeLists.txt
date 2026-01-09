@@ -65,7 +65,7 @@ set(LIB
 
 if(WITH_OPENGL_BACKEND)
   list(APPEND LIB
-    bf::dependencies::optional::epoxy
+    PRIVATE bf::dependencies::epoxy
   )
 endif()
 
