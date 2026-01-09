@@ -74,7 +74,7 @@ static Value parallel_reduce(const int range,
 }
 
 /* Given the domain of an image, compute its domain after distortion by the given distortion
- * parameters. The data window if the domain will likely grow or shrink depending on the
+ * parameters. The data window of the domain will likely grow or shrink depending on the
  * distortion, while the display window will stay the same. */
 static Domain compute_output_domain(MovieDistortion *distortion,
                                     const int2 &calibration_size,
@@ -82,6 +82,9 @@ static Domain compute_output_domain(MovieDistortion *distortion,
                                     const Domain &domain)
 {
   auto distortion_function = [&](const float2 &coordinates) {
+    /* We are looping over the data space, so transfer to the display space by subtracting the data
+     * offset. Finally, transform to the calibration space since this is what the distortion
+     * functions expect. */
     const float2 display_coordinates = coordinates - float2(domain.data_offset);
     const float2 normalized_coordinates = display_coordinates / float2(domain.display_size);
     const float2 calibrated_coordinates = normalized_coordinates * float2(calibration_size);
@@ -96,6 +99,8 @@ static Domain compute_output_domain(MovieDistortion *distortion,
           distortion, calibrated_coordinates, distorted_coordinates);
     }
 
+    /* Undo the space transformations into the data space and finally into the normalized sampling
+     * coordinates. */
     const float2 distorted_normalized_coordinates = distorted_coordinates /
                                                     float2(calibration_size);
     const float2 distorted_display_coordinates = distorted_normalized_coordinates *
@@ -111,7 +116,7 @@ static Domain compute_output_domain(MovieDistortion *distortion,
         const float2 position = float2(domain.data_size.x, i);
         accumulated_value = math::max(accumulated_value, distortion_function(position).x);
       },
-      [&](const float &a, const float &b) { return math::max(a, b); });
+      math::max<float>);
 
   /* Minimum distorted x location along the left edge of the image. */
   const float minimum_x = parallel_reduce(
@@ -121,7 +126,7 @@ static Domain compute_output_domain(MovieDistortion *distortion,
         const float2 position = float2(0.0f, i);
         accumulated_value = math::min(accumulated_value, distortion_function(position).x);
       },
-      [&](const float &a, const float &b) { return math::min(a, b); });
+      math::min<float>);
 
   /* Minimum distorted y location along the bottom edge of the image. */
   const float minimum_y = parallel_reduce(
@@ -131,7 +136,7 @@ static Domain compute_output_domain(MovieDistortion *distortion,
         const float2 position = float2(i, 0.0f);
         accumulated_value = math::min(accumulated_value, distortion_function(position).y);
       },
-      [&](const float &a, const float &b) { return math::min(a, b); });
+      math::min<float>);
 
   /* Maximum distorted y location along the top edge of the image. */
   const float maximum_y = parallel_reduce(
@@ -141,7 +146,7 @@ static Domain compute_output_domain(MovieDistortion *distortion,
         const float2 position = float2(i, domain.data_size.y);
         accumulated_value = math::max(accumulated_value, distortion_function(position).y);
       },
-      [&](const float &a, const float &b) { return math::max(a, b); });
+      math::max<float>);
 
   /* Compute the deltas from the image edges to the maximum/minimum distorted location along the
    * direction of that edge. */
@@ -175,11 +180,14 @@ DistortionGrid::DistortionGrid(Context &context,
   this->result.allocate_texture(output_domain, false, ResultStorageType::CPU);
 
   parallel_for(this->result.domain().data_size, [&](const int2 texel) {
+    /* We are looping over the data space, so transfer to the display space by subtracting the data
+     * offset. Add 0.5 to distort at the pixel centers. Finally, transform to the calibration space
+     * since this is what the distortion functions expect. */
     const float2 display_coordinates = float2(texel - output_domain.data_offset) + 0.5f;
     const float2 normalized_coordinates = display_coordinates / float2(domain.display_size);
     const float2 calibrated_coordinates = normalized_coordinates * float2(calibration_size);
 
-    /* Notice that if we are undo storing the image, we need to distort the coordinates space and
+    /* Notice that if we are undistorting the image, we need to distort the coordinates space and
      * vice versa, hence the inverted condition. */
     float2 distorted_coordinates;
     if (type == DistortionType::Undistort) {
@@ -191,6 +199,8 @@ DistortionGrid::DistortionGrid(Context &context,
           distortion, calibrated_coordinates, distorted_coordinates);
     }
 
+    /* Undo the space transformations into the data space and finally into the normalized sampling
+     * coordinates. */
     const float2 distorted_normalized_coordinates = distorted_coordinates /
                                                     float2(calibration_size);
     const float2 distorted_display_coordinates = distorted_normalized_coordinates *
