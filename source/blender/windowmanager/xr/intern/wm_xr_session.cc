@@ -624,7 +624,7 @@ void WM_xr_session_state_vignette_activate(wmXrData *xr)
     const float intensity_pref = U.xr_navigation.vignette_intensity * 0.01f; /* 0.0 -> 1.0f. */
 
     constexpr float min_aperture = M_SQRT1_2; /* Intensity at 0%, aperture out of view square. */
-    constexpr float max_aperture = 0.01f;     /* Intensity at 100%, aperture closed. */
+    constexpr float max_aperture = 0.0f;      /* Intensity at 100%, aperture fully closed. */
 
     const float initial_aperture = interpf(max_aperture, min_aperture, intensity_pref);
 
