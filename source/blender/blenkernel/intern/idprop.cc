@@ -1739,10 +1739,10 @@ static IDPropertyUIData *ui_data_alloc(const eIDPropertyUIDataType type)
     }
     case IDP_UI_DATA_TYPE_INT: {
       IDPropertyUIDataInt *ui_data = MEM_new_for_free<IDPropertyUIDataInt>(__func__);
-      ui_data->min = 0;
-      ui_data->max = 1;
-      ui_data->soft_min = 0;
-      ui_data->soft_max = 1;
+      ui_data->min = INT_MIN;
+      ui_data->max = INT_MAX;
+      ui_data->soft_min = -100000;
+      ui_data->soft_max = 100000;
       ui_data->step = 1;
       return &ui_data->base;
     }
@@ -1752,10 +1752,10 @@ static IDPropertyUIData *ui_data_alloc(const eIDPropertyUIDataType type)
     }
     case IDP_UI_DATA_TYPE_FLOAT: {
       IDPropertyUIDataFloat *ui_data = MEM_new_for_free<IDPropertyUIDataFloat>(__func__);
-      ui_data->min = 0.0f;
-      ui_data->max = 1.0f;
-      ui_data->soft_min = 0.0f;
-      ui_data->soft_max = 1.0f;
+      ui_data->min = -FLT_MAX;
+      ui_data->max = FLT_MAX;
+      ui_data->soft_min = -100000.0f;
+      ui_data->soft_max = 100000.0f;
       ui_data->step = 1.0f;
       ui_data->precision = 3;
       return &ui_data->base;

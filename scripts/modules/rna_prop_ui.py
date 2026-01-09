@@ -100,57 +100,17 @@ def rna_idprop_ui_create(
     if soft_max is None:
         soft_max = max
 
-    if (proptype is bool) or (proptype is str):
-        ui_data.update(
-            description=description,
-            default=default,
-        )
-    elif proptype is type(None) or issubclass(proptype, bpy.types.ID):
-        ui_data.update(
-            description=description,
-            id_type=id_type,
-        )
-    elif proptype is float:
-        if step is None:
-            step = 0.1
-        if precision is None:
-            precision = 3
-
-        ui_data.update(
-            subtype=subtype,
-            min=min,
-            max=max,
-            soft_min=soft_min,
-            soft_max=soft_max,
-            step=step,
-            precision=precision,
-            description=description,
-            default=default,
-        )
-    elif proptype is int:
+    if proptype is int:
         if step is None:
             step = 1
 
-        if items is None:
-            ui_data.update(
-                subtype=subtype,
-                min=min,
-                max=max,
-                soft_min=soft_min,
-                soft_max=soft_max,
-                step=step,
-                description=description,
-                default=default,
-            )
-        else:
+        if items is not None:
             ui_data.update(
                 subtype=subtype,
                 description=description,
                 default=default,
                 items=items,
             )
-    else:
-        raise TypeError("Unexpected value type")
 
     prop_path = rna_idprop_quote_path(prop)
 
