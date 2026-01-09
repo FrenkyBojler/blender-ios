@@ -31,8 +31,7 @@ ccl_device_inline float2 distant_light_uv(KernelGlobals kg,
   return make_float2(v_ + 0.5f, -u_ - v_);
 }
 
-ccl_device_inline bool distant_light_sample(KernelGlobals kg,
-                                            const ccl_global KernelLight *klight,
+ccl_device_inline bool distant_light_sample(const ccl_global KernelLight *klight,
                                             const float2 rand,
                                             ccl_private LightSample *ls)
 {
@@ -46,24 +45,18 @@ ccl_device_inline bool distant_light_sample(KernelGlobals kg,
 
   ls->eval_fac = klight->distant.eval_fac;
 
-  const float2 uv = distant_light_uv(kg, klight, ls->D);
-  ls->u = uv.x;
-  ls->v = uv.y;
-
   return true;
 }
 
 /* Special intersection check.
- * Returns true if the distant_light_sample_from_intersection() for this light would return true.
+ * Returns true if the distant_light_pdf_from_intersection() for this light would return true.
  *
  * The intersection parameters t, u, v are optimized for the shadow ray towards a dedicated light:
  * u = v = 0, t = FLT_MAX.
  */
 ccl_device bool distant_light_intersect(const ccl_global KernelLight *klight,
                                         const ccl_private Ray *ccl_restrict ray,
-                                        ccl_private float *t,
-                                        ccl_private float *u,
-                                        ccl_private float *v)
+                                        ccl_private float *t)
 {
   kernel_assert(klight->type == LIGHT_DISTANT);
 
@@ -76,57 +69,27 @@ ccl_device bool distant_light_intersect(const ccl_global KernelLight *klight,
   }
 
   *t = FLT_MAX;
-  *u = 0.0f;
-  *v = 0.0f;
 
   return true;
 }
 
-ccl_device bool distant_light_sample_from_intersection(KernelGlobals kg,
-                                                       const float3 ray_D,
-                                                       const int lamp,
-                                                       ccl_private LightSample *ccl_restrict ls)
+ccl_device LightPdf distant_light_pdf_from_intersection(const ccl_global KernelLight *klight,
+                                                        const float3 ray_D)
 {
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
   const LightType type = (LightType)klight->type;
 
   if (type != LIGHT_DISTANT) {
-    return false;
+    return LightPdf{};
   }
   if (klight->distant.angle == 0.0f) {
-    return false;
+    return LightPdf{};
   }
-
-  /* Workaround to prevent a hang in the classroom scene with AMD HIP drivers 22.10,
-   * Remove when a compiler fix is available. */
-#ifdef __HIP__
-  ls->shader = klight->shader_id;
-#endif
 
   if (vector_angle(-klight->co, ray_D) > klight->distant.angle) {
-    return false;
+    return LightPdf{};
   }
 
-  ls->type = type;
-#ifndef __HIP__
-  ls->shader = klight->shader_id;
-#endif
-  ls->object = klight->object_id;
-  ls->prim = lamp;
-  ls->t = FLT_MAX;
-  ls->P = -ray_D;
-  ls->Ng = -ray_D;
-  ls->D = ray_D;
-  ls->group = object_lightgroup(kg, ls->object);
-
-  ls->pdf = klight->distant.pdf;
-  ls->eval_fac = klight->distant.eval_fac;
-
-  const float2 uv = distant_light_uv(kg, klight, ls->D);
-  ls->u = uv.x;
-  ls->v = uv.y;
-
-  return true;
+  return LightPdf{klight->distant.eval_fac, klight->distant.pdf};
 }
 
 template<bool in_volume_segment>

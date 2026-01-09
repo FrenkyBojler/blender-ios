@@ -9,6 +9,8 @@
 #include "kernel/light/light.h"
 #include "kernel/light/sample.h"
 
+#include "kernel/geom/object.h"
+
 CCL_NAMESPACE_BEGIN
 
 ccl_device_inline void integrate_light(KernelGlobals kg,
@@ -30,36 +32,38 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
   /* Advance ray to new start distance. */
   INTEGRATOR_STATE_WRITE(state, ray, tmin) = intersection_t_offset(isect.t);
 
-  LightSample ls ccl_optional_struct_init;
-  const bool use_light_sample = light_sample_from_intersection(
-      kg, &isect, ray_P, ray_D, N, path_flag, &ls);
-
-  if (!use_light_sample) {
+  const LightPdf lp = light_pdf_from_intersection(kg, &isect, ray_P, ray_D, N, path_flag);
+  if (lp.eval_fac == 0.0f) {
     return;
   }
 
   /* Use visibility flag to skip lights. */
 #ifdef __PASSES__
-  if (!is_light_shader_visible_to_path(ls.shader, path_flag)) {
-    return;
+  {
+    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
+    if (!is_light_shader_visible_to_path(klight->shader_id, path_flag)) {
+      return;
+    }
   }
 #endif
 
   /* Evaluate light shader. */
-  /* TODO: does aliasing like this break automatic SoA in CUDA? */
-  ShaderDataTinyStorage emission_sd_storage;
-  ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-  const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
+  Spectrum light_eval = light_sample_shader_eval(
+      kg, state, isect.prim, ray_P, ray_D, isect.t, ray_time);
+  light_eval *= lp.eval_fac;
   if (is_zero(light_eval)) {
     return;
   }
 
   /* MIS weighting. */
-  const float mis_weight = light_sample_mis_weight_forward_lamp(kg, state, path_flag, &ls, ray_P);
+  const float mis_weight = light_sample_mis_weight_forward_lamp(
+      kg, state, path_flag, isect.prim, lp.pdf, ray_P);
 
   /* Write to render buffer. */
   guiding_record_surface_emission(kg, state, light_eval, mis_weight);
-  film_write_surface_emission(kg, state, light_eval, mis_weight, render_buffer, ls.group);
+  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
+  film_write_surface_emission(
+      kg, state, light_eval, mis_weight, render_buffer, object_lightgroup(kg, klight->object_id));
 }
 
 ccl_device void integrator_shade_light(KernelGlobals kg,

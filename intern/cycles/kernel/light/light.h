@@ -126,8 +126,6 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
   ls->shader = klight->shader_id;
   ls->object = klight->object_id;
   ls->prim = lamp;
-  ls->u = rand.x;
-  ls->v = rand.y;
   ls->group = object_lightgroup(kg, ls->object);
 
   if (in_volume_segment && (type == LIGHT_DISTANT || type == LIGHT_BACKGROUND)) {
@@ -144,7 +142,7 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
   }
 
   if (type == LIGHT_DISTANT) {
-    if (!distant_light_sample(kg, klight, rand, ls)) {
+    if (!distant_light_sample(klight, rand, ls)) {
       return false;
     }
   }
@@ -164,7 +162,7 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
     }
   }
   else if (type == LIGHT_POINT) {
-    if (!point_light_sample(kg, klight, rand, P, N, shader_flags, ls)) {
+    if (!point_light_sample(klight, rand, P, N, shader_flags, ls)) {
       return false;
     }
   }
@@ -330,8 +328,6 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
 
     const LightType type = (LightType)klight->type;
     float t = 0.0f;
-    float u = 0.0f;
-    float v = 0.0f;
 
     if (type == LIGHT_SPOT) {
       if (!spot_light_intersect(klight, ray, &t)) {
@@ -344,7 +340,7 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
       }
     }
     else if (type == LIGHT_AREA) {
-      if (!area_light_intersect(klight, ray, &t, &u, &v)) {
+      if (!area_light_intersect(klight, ray, &t)) {
         continue;
       }
     }
@@ -352,7 +348,7 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
       if (is_main_path || ray->tmax != FLT_MAX) {
         continue;
       }
-      if (!distant_light_intersect(klight, ray, &t, &u, &v)) {
+      if (!distant_light_intersect(klight, ray, &t)) {
         continue;
       }
     }
@@ -385,8 +381,8 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
     }
 
     isect->t = t;
-    isect->u = u;
-    isect->v = v;
+    isect->u = 0.0f;
+    isect->v = 0.0f;
     isect->type = PRIMITIVE_LAMP;
     isect->prim = lamp;
     isect->object = object;
@@ -455,46 +451,28 @@ ccl_device int lights_intersect_shadow_linked(KernelGlobals kg,
 
 /* Setup light sample from intersection. */
 
-ccl_device bool light_sample_from_intersection(KernelGlobals kg,
-                                               const ccl_private Intersection *ccl_restrict isect,
-                                               const float3 ray_P,
-                                               const float3 ray_D,
-                                               const float3 N,
-                                               const uint32_t path_flag,
-                                               ccl_private LightSample *ccl_restrict ls)
+ccl_device LightPdf light_pdf_from_intersection(KernelGlobals kg,
+                                                const ccl_private Intersection *ccl_restrict isect,
+                                                const float3 ray_P,
+                                                const float3 ray_D,
+                                                const float3 N,
+                                                const uint32_t path_flag)
 {
   const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect->prim);
   const LightType type = (LightType)klight->type;
-  ls->type = type;
-  ls->shader = klight->shader_id;
-  ls->object = isect->object;
-  ls->prim = isect->prim;
-  ls->t = isect->t;
-  ls->P = ray_P + ray_D * ls->t;
-  ls->D = ray_D;
-  ls->group = object_lightgroup(kg, ls->object);
 
   if (type == LIGHT_SPOT) {
-    if (!spot_light_sample_from_intersection(kg, klight, ray_P, ray_D, N, path_flag, ls)) {
-      return false;
-    }
+    return spot_light_pdf_from_intersection(kg, klight, ray_P, ray_D, isect->t, N, path_flag);
   }
-  else if (type == LIGHT_POINT) {
-    if (!point_light_sample_from_intersection(kg, klight, ray_P, ray_D, N, path_flag, ls)) {
-      return false;
-    }
+  if (type == LIGHT_POINT) {
+    return point_light_pdf_from_intersection(klight, ray_P, ray_D, isect->t, N, path_flag);
   }
-  else if (type == LIGHT_AREA) {
-    if (!area_light_sample_from_intersection(klight, isect, ray_P, ray_D, ls)) {
-      return false;
-    }
-  }
-  else {
-    kernel_assert(!"Invalid lamp type in light_sample_from_intersection");
-    return false;
+  if (type == LIGHT_AREA) {
+    return area_light_pdf_from_intersection(klight, ray_P, ray_D, isect->t);
   }
 
-  return true;
+  kernel_assert(!"Invalid lamp type in light_pdf_from_intersection");
+  return LightPdf{};
 }
 
 /* Get light coordinates from position on light. */

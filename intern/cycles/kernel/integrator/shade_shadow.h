@@ -175,6 +175,9 @@ ccl_device bool integrator_shade_direct_light(KernelGlobals kg, IntegratorShadow
   isect.type = kernel_data_fetch(objects, isect.object).primitive_type;
   isect.t = ray.tmax;
 
+  kernel_assert(isect.object != OBJECT_NONE);
+  kernel_assert(isect.prim != PRIM_NONE);
+
   const int shader = (isect.type == PRIMITIVE_LAMP) ?
                          kernel_data_fetch(lights, isect.prim).shader_id :
                          intersection_get_shader(kg, &isect);
@@ -201,14 +204,14 @@ ccl_device bool integrator_shade_direct_light(KernelGlobals kg, IntegratorShadow
       else {
         /* Other light types.
          * Compute Ng and UV on demand so we don't have to store it in integrator state. */
-        const float3 P = ray.P + ray.tmax * ray.D;
+        const float3 P = (ray.tmax == FLT_MAX) ? -ray.D : ray.P + ray.tmax * ray.D;
         float3 Ng = zero_float3();
         float2 uv = zero_float2();
         light_normal_uv_from_position(kg, klight, P, ray.D, Ng, uv);
 
         shader_setup_from_sample(kg,
                                  emission_sd,
-                                 ray.P + ray.tmax * ray.D,
+                                 P,
                                  Ng,
                                  -ray.D,
                                  klight->shader_id,

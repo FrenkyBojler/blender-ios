@@ -21,33 +21,43 @@
 CCL_NAMESPACE_BEGIN
 
 /* Evaluate shader on light. */
-ccl_device_noinline_cpu Spectrum
-light_sample_shader_eval(KernelGlobals kg,
-                         IntegratorState state,
-                         ccl_private ShaderData *ccl_restrict emission_sd,
-                         ccl_private LightSample *ccl_restrict ls,
-                         const float time)
+ccl_device_noinline_cpu Spectrum light_sample_shader_eval(KernelGlobals kg,
+                                                          IntegratorState state,
+                                                          const int light_id,
+                                                          const float3 ray_P,
+                                                          const float3 ray_D,
+                                                          const float t,
+                                                          const float time)
 {
-  kernel_assert(ls->type != LIGHT_BACKGROUND && ls->type != LIGHT_TRIANGLE);
+  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, light_id);
 
   /* setup shading at emitter */
   Spectrum eval = zero_spectrum();
 
-  if (!surface_shader_constant_emission(kg, ls->shader, &eval)) {
+  if (!surface_shader_constant_emission(kg, klight->shader_id, &eval)) {
     /* Setup shader data and call surface_shader_eval once, better
      * for GPU coherence and compile times. */
     PROFILING_INIT_FOR_SHADER(kg, PROFILING_SHADE_LIGHT_SETUP);
+
+    ShaderDataTinyStorage emission_sd_storage;
+    ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
+
+    const float3 P = (t == FLT_MAX) ? -ray_D : ray_P + ray_D * t;
+    float3 Ng = zero_float3();
+    float2 uv = zero_float2();
+    light_normal_uv_from_position(kg, klight, P, ray_D, Ng, uv);
+
     shader_setup_from_sample(kg,
                              emission_sd,
-                             ls->P,
-                             ls->Ng,
-                             -ls->D,
-                             ls->shader,
-                             ls->object,
-                             ls->prim,
-                             ls->u,
-                             ls->v,
-                             ls->t,
+                             P,
+                             Ng,
+                             -ray_D,
+                             klight->shader_id,
+                             klight->object_id,
+                             light_id,
+                             uv.x,
+                             uv.y,
+                             t,
                              time,
                              false,
                              true);
@@ -64,11 +74,11 @@ light_sample_shader_eval(KernelGlobals kg,
     eval = surface_shader_emission(emission_sd);
   }
 
-  eval *= ls->eval_fac;
-
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
-  eval *= rgb_to_spectrum(
-      make_float3(klight->strength[0], klight->strength[1], klight->strength[2]));
+  {
+    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, light_id);
+    eval *= rgb_to_spectrum(
+        make_float3(klight->strength[0], klight->strength[1], klight->strength[2]));
+  }
 
   return eval;
 }
@@ -356,7 +366,7 @@ ccl_device_forceinline void light_sample_update(KernelGlobals kg,
   const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
 
   if (ls->type == LIGHT_POINT) {
-    point_light_mnee_sample_update(kg, klight, ls, P, N, path_flag);
+    point_light_mnee_sample_update(klight, ls, P, N, path_flag);
   }
   else if (ls->type == LIGHT_SPOT) {
     spot_light_mnee_sample_update(kg, klight, ls, P, N, path_flag);
@@ -427,7 +437,8 @@ ccl_device_inline float light_sample_mis_weight_forward_surface(KernelGlobals kg
 ccl_device_inline float light_sample_mis_weight_forward_lamp(KernelGlobals kg,
                                                              IntegratorState state,
                                                              const uint32_t path_flag,
-                                                             const ccl_private LightSample *ls,
+                                                             const int light_id,
+                                                             const float light_sample_pdf,
                                                              const float3 P)
 {
   if (path_flag & PATH_RAY_MIS_SKIP) {
@@ -435,7 +446,7 @@ ccl_device_inline float light_sample_mis_weight_forward_lamp(KernelGlobals kg,
   }
 
   const float mis_ray_pdf = INTEGRATOR_STATE(state, path, mis_ray_pdf);
-  float pdf = ls->pdf;
+  float pdf = light_sample_pdf;
 
   /* Light selection pdf. */
 #ifdef __LIGHT_TREE__
@@ -448,7 +459,7 @@ ccl_device_inline float light_sample_mis_weight_forward_lamp(KernelGlobals kg,
                           dt,
                           path_flag,
                           0,
-                          kernel_data_fetch(light_to_tree, ls->prim),
+                          kernel_data_fetch(light_to_tree, light_id),
                           light_link_receiver_forward(kg, state));
   }
   else
@@ -463,10 +474,12 @@ ccl_device_inline float light_sample_mis_weight_forward_lamp(KernelGlobals kg,
 ccl_device_inline float light_sample_mis_weight_forward_distant(KernelGlobals kg,
                                                                 IntegratorState state,
                                                                 const uint32_t path_flag,
-                                                                const ccl_private LightSample *ls)
+                                                                const int light_id,
+                                                                const float light_sample_pdf)
 {
   const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
-  return light_sample_mis_weight_forward_lamp(kg, state, path_flag, ls, ray_P);
+  return light_sample_mis_weight_forward_lamp(
+      kg, state, path_flag, light_id, light_sample_pdf, ray_P);
 }
 
 ccl_device_inline float light_sample_mis_weight_forward_background(KernelGlobals kg,

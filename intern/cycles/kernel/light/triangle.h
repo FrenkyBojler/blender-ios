@@ -217,7 +217,9 @@ ccl_device_forceinline bool triangle_light_sample(KernelGlobals kg,
     ls->D = z * B + sin_from_cos(z) * safe_normalize(C_ - dot(C_, B) * B);
 
     /* calculate intersection with the planar triangle */
-    if (!ray_triangle_intersect(P, ls->D, 0.0f, FLT_MAX, V[0], V[1], V[2], &ls->u, &ls->v, &ls->t))
+    float unused_u, unused_v;
+    if (!ray_triangle_intersect(
+            P, ls->D, 0.0f, FLT_MAX, V[0], V[1], V[2], &unused_u, &unused_v, &ls->t))
     {
       ls->pdf = 0.0f;
       return false;
@@ -256,8 +258,6 @@ ccl_device_forceinline bool triangle_light_sample(KernelGlobals kg,
     /* compute incoming direction, distance and pdf */
     ls->D = normalize_len(ls->P - P, &ls->t);
     ls->pdf = triangle_light_pdf_area_sampling(ls->Ng, -ls->D, ls->t) / area;
-    ls->u = u;
-    ls->v = v;
   }
 
   /* Belongs in distribution.h but can reuse computations here. */

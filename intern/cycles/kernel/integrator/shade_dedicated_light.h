@@ -14,37 +14,36 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __SHADOW_LINKING__
 
-ccl_device_inline bool shadow_linking_light_sample_from_intersection(
-    KernelGlobals kg,
-    const ccl_private Intersection &ccl_restrict isect,
-    const ccl_private Ray &ccl_restrict ray,
-    const float3 N,
-    const uint32_t path_flag,
-    ccl_private LightSample *ccl_restrict ls)
+ccl_device_inline LightPdf
+shadow_linking_light_pdf_from_intersection(KernelGlobals kg,
+                                           const ccl_private Intersection &ccl_restrict isect,
+                                           const ccl_private Ray &ccl_restrict ray,
+                                           const float3 N,
+                                           const uint32_t path_flag)
 {
-  const int lamp = isect.prim;
-
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
+  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
   const LightType type = LightType(klight->type);
 
   if (type == LIGHT_DISTANT) {
-    return distant_light_sample_from_intersection(kg, ray.D, lamp, ls);
+    return distant_light_pdf_from_intersection(klight, ray.D);
   }
 
-  return light_sample_from_intersection(kg, &isect, ray.P, ray.D, N, path_flag, ls);
+  return light_pdf_from_intersection(kg, &isect, ray.P, ray.D, N, path_flag);
 }
 
 ccl_device_inline float shadow_linking_light_sample_mis_weight(KernelGlobals kg,
                                                                IntegratorState state,
                                                                const uint32_t path_flag,
-                                                               const ccl_private LightSample *ls,
+                                                               const int light_id,
+                                                               const float light_sample_pdf,
                                                                const float3 P)
 {
-  if (ls->type == LIGHT_DISTANT) {
-    return light_sample_mis_weight_forward_distant(kg, state, path_flag, ls);
+  if (kernel_data_fetch(lights, light_id).type == LIGHT_DISTANT) {
+    return light_sample_mis_weight_forward_distant(
+        kg, state, path_flag, light_id, light_sample_pdf);
   }
 
-  return light_sample_mis_weight_forward_lamp(kg, state, path_flag, ls, P);
+  return light_sample_mis_weight_forward_lamp(kg, state, path_flag, light_id, light_sample_pdf, P);
 }
 
 /* Setup ray for the shadow path.
@@ -81,24 +80,25 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
 {
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
   const float3 N = INTEGRATOR_STATE(state, path, mis_origin_n);
-  LightSample ls ccl_optional_struct_init;
-  const bool use_light_sample = shadow_linking_light_sample_from_intersection(
-      kg, isect, ray, N, path_flag, &ls);
-  if (!use_light_sample) {
+  const LightPdf lp = shadow_linking_light_pdf_from_intersection(kg, isect, ray, N, path_flag);
+  if (lp.eval_fac == 0.0f) {
     /* No light to be sampled, so no direct light contribution either. */
     return false;
   }
 
-  if (!is_light_shader_visible_to_path(ls.shader, path_flag)) {
+  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
+
+  if (!is_light_shader_visible_to_path(klight->shader_id, path_flag)) {
     return false;
   }
 
   /* MIS weighting. */
-  mis_weight = shadow_linking_light_sample_mis_weight(kg, state, path_flag, &ls, ray.P);
+  mis_weight = shadow_linking_light_sample_mis_weight(
+      kg, state, path_flag, isect.prim, lp.pdf, ray.P);
 
-  light_weight = ls.eval_fac * mis_weight *
+  light_weight = lp.eval_fac * mis_weight *
                  INTEGRATOR_STATE(state, shadow_link, dedicated_light_weight);
-  light_group = ls.group;
+  light_group = object_lightgroup(kg, klight->object_id);
 
   return true;
 }

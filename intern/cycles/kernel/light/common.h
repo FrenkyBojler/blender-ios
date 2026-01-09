@@ -17,7 +17,6 @@ struct LightSample {
   packed_float3 Ng;    /* normal on light */
   float t;             /* distance to light (FLT_MAX for distant light) */
   float3 D;            /* direction from shading point to light */
-  float u, v;          /* parametric coordinate on primitive */
   float pdf;           /* pdf for selecting light and point on light */
   float pdf_selection; /* pdf for selecting light */
   float eval_fac;      /* intensity multiplier */
@@ -27,6 +26,11 @@ struct LightSample {
   int group;           /* lightgroup */
   LightType type;      /* type of light */
   int emitter_id;      /* index in the emitter array */
+};
+
+struct LightPdf {
+  float eval_fac = 0.0f;
+  float pdf = 0.0f;
 };
 
 /* Utilities */
