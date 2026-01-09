@@ -2770,9 +2770,10 @@ static int test_expression(std::string str)
 {
   using namespace shader::parser;
   report_callback no_err_report = [](int, int, std::string, const char *) {};
-  IntermediateForm<ExpressionLexer, DummyParser> lexer(str, no_err_report);
+  ExpressionLexer lexer;
+  lexer.lexical_analysis(str);
   try {
-    return ExpressionParser(lexer()[0]).eval();
+    return ExpressionParser(lexer).eval();
   }
   catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";

@@ -345,14 +345,12 @@ template<typename LexerClass, typename ParserClass> struct IntermediateForm : Mu
     return parser_;
   }
 
- private:
   void parse(report_callback &report_error)
   {
     lex_.lexical_analysis(str_);
     parser_.semantic_analysis(report_error);
   }
 
- public:
   void debug_print()
   {
     std::cout << "Input: \n" << str_ << " \nEnd of Input\n" << std::endl;

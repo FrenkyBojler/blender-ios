@@ -11,6 +11,7 @@
 #pragma once
 
 #include "token.hh"
+#include "token_stream.hh"
 
 #include <stdexcept>
 
@@ -22,15 +23,17 @@ namespace blender::gpu::shader::parser {
  * As this is supposed to be use for preprocessor directives, unknown identifiers (words) will
  * evaluate to 0.
  */
-class ExpressionParser {
+class ExpressionParser : ParserBase {
  private:
   Token tok;
 
  public:
-  explicit ExpressionParser(Token start) : tok(start) {}
+  explicit ExpressionParser(const ExpressionLexer &lex) : ParserBase(lex) {}
 
   int64_t eval()
   {
+    tok = (*this)[0];
+
     int64_t v = expr(0);
     if (peek() != Invalid) {
       throw std::runtime_error("Trailing input");

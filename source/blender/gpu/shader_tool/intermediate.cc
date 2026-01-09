@@ -97,17 +97,19 @@ struct TokenData {
 
 void LexerBase::ensure_memory()
 {
+  size_t input_size = str.size();
   if (str.empty()) {
-    return;
+    /* Avoid no allocation. */
+    input_size = 1;
   }
 
   /* Make sure there is enough reserved space inside the data structures.
    * We need at least as many token as there is character.
    * Note: Never shrinks. */
-  if (token_types_data.size() < str.size()) {
-    token_types_data.resize(str.size());
-    token_sizes_data.resize(str.size());
-    token_offsets_data.resize(str.size() + 1);
+  if (token_types_data.size() < input_size) {
+    token_types_data.resize(input_size);
+    token_sizes_data.resize(input_size);
+    token_offsets_data.resize(input_size + 1);
   }
 
   token_types = {token_types_data.data(), token_types_data.size()};

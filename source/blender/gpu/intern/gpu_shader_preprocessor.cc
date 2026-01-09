@@ -15,10 +15,21 @@ namespace blender::gpu {
 
 using namespace shader::parser;
 
+/* TODO(fclem): Meh find a better way. Exceptions? */
+void report_fn(int /*error_line*/,
+               int /*error_char*/,
+               std::string /*error_line_string*/,
+               const char * /*error_str*/)
+{
+  BLI_assert_unreachable();
+}
+
+report_callback report_fn_ptr = report_fn;
+
 /* Fast C (incomplete) preprocessor implementation.  */
 struct Preprocessor {
-  using IntermediateForm = IntermediateForm<PreprocessorLexer, DummyParser>;
-  IntermediateForm &parser;
+  using PreprocessorParser = IntermediateForm<PreprocessorLexer, DummyParser>;
+  PreprocessorParser &parser;
 
   struct TokenRange {
     Token start, end;
@@ -27,6 +38,33 @@ struct Preprocessor {
   Vector<Token, 8> jump_stack;
   Map<StringRef, Token> defines;
   Set<StringRef> visited_macros;
+
+  /* Own stack to avoid memory allocation during recursive expansion parsing. */
+  struct ParserStack {
+    int allocated = 0;
+    int used = 0;
+    std::deque<PreprocessorParser> parser_pool;
+
+    PreprocessorParser &alloc()
+    {
+      if (used == allocated) {
+        parser_pool.emplace_back("", report_fn_ptr);
+        allocated++;
+        used++;
+        return parser_pool.back();
+      }
+      return parser_pool[used++];
+    }
+
+    void release(PreprocessorParser & /*parser*/)
+    {
+      used--;
+    }
+  } recursive_parser_stack;
+
+  /* Cache the expression lexer to avoid memory allocations. */
+  ExpressionLexer expression_lexer;
+  ExpressionParser expression_parser = ExpressionParser(expression_lexer);
 
   enum DirectiveType {
     /* Any other unhandled directives (warnings / errors / pragma etc...). */
@@ -189,8 +227,11 @@ struct Preprocessor {
     if (input.is_empty()) {
       return "";
     }
-    report_callback report = [](int, int, std::string, const char *) {};
-    IntermediateForm recursive_parser(input, report);
+
+    PreprocessorParser &recursive_parser = recursive_parser_stack.alloc();
+
+    recursive_parser.str_ = input;
+    recursive_parser.parse(report_fn_ptr);
 
     const ParserBase &data = recursive_parser.data_get();
 
@@ -200,7 +241,12 @@ struct Preprocessor {
         try_expand(recursive_parser, data, cursor);
       }
     }
-    return recursive_parser.result_get(true);
+
+    std::string result = recursive_parser.result_get(true);
+
+    recursive_parser_stack.release(recursive_parser);
+
+    return result;
   }
 
   struct ExpandedResult {
@@ -458,10 +504,8 @@ struct Preprocessor {
 
     int value = 0;
     try {
-      report_callback report = [](int, int, std::string, const char *) {};
-      shader::parser::IntermediateForm<ExpressionLexer, DummyParser> parser(expand, report);
-
-      value = ExpressionParser(parser()[0]).eval();
+      expression_lexer.lexical_analysis(expand);
+      value = expression_parser.eval();
     }
     catch (const std::exception &e) {
       std::cout << "\"" << parser.substr_range_inclusive_view(start, end) << "\" > \"" << expand
@@ -625,9 +669,7 @@ struct Preprocessor {
 
 std::string Shader::run_preprocessor(StringRef source)
 {
-  report_callback report = [](int, int, std::string, const char *) {};
-
-  Preprocessor::IntermediateForm parser(source, report);
+  Preprocessor::PreprocessorParser parser(source, report_fn_ptr);
 
   Preprocessor processor{parser};
   processor.preprocess();
