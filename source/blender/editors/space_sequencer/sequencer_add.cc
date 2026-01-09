@@ -157,7 +157,7 @@ static bool sequencer_add_draw_check_fn(PointerRNA *ptr, PropertyRNA *prop, void
                    "use_sequence_detection");
 }
 
-static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
+static void sequencer_add_ui(bContext * /*C*/, wmOperator *op)
 {
   ui::Layout &layout = *op->layout;
   SequencerAddData *sad = static_cast<SequencerAddData *>(op->customdata);
@@ -1460,7 +1460,7 @@ void SEQUENCER_OT_movie_strip_add(wmOperatorType *ot)
   ot->invoke = sequencer_add_movie_strip_invoke;
   ot->exec = sequencer_add_movie_strip_exec;
   ot->cancel = sequencer_add_free;
-  ot->ui = sequencer_add_draw;
+  ot->ui = sequencer_add_ui;
   ot->poll = ED_operator_sequencer_active_editable;
 
   /* Flags. */
@@ -1610,6 +1610,7 @@ void SEQUENCER_OT_sound_strip_add(wmOperatorType *ot)
   /* API callbacks. */
   ot->invoke = sequencer_add_sound_strip_invoke;
   ot->exec = sequencer_add_sound_strip_exec;
+  ot->ui = sequencer_add_ui;
   ot->poll = ED_operator_sequencer_active_editable;
   ot->cancel = sequencer_add_free;
 
@@ -1916,7 +1917,7 @@ void SEQUENCER_OT_image_strip_add(wmOperatorType *ot)
   ot->invoke = sequencer_add_image_strip_invoke;
   ot->exec = sequencer_add_image_strip_exec;
   ot->cancel = sequencer_add_free;
-  ot->ui = sequencer_add_draw;
+  ot->ui = sequencer_add_ui;
   ot->poll = ED_operator_sequencer_active_editable;
 
   /* Flags. */
