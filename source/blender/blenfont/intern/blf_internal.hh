@@ -153,6 +153,13 @@ void blf_font_width_and_height(FontBLF *font,
                                float *r_height,
                                ResultBLF *r_info);
 float blf_font_width(FontBLF *font, const char *str, size_t str_len, ResultBLF *r_info);
+
+namespace blf {
+void font_width(const FontBLF &font,
+                StringRefNull text,
+                MutableSpan<Bounds<float>> r_symbol_widths);
+}
+
 float blf_font_height(FontBLF *font, const char *str, size_t str_len, ResultBLF *r_info);
 float blf_font_fixed_width(FontBLF *font);
 int blf_font_glyph_advance(FontBLF *font, const char *str);

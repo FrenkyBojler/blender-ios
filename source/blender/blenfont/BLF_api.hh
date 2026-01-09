@@ -293,6 +293,10 @@ float BLF_width(int fontid, const char *str, size_t str_len, ResultBLF *r_info =
 float BLF_height(int fontid, const char *str, size_t str_len, ResultBLF *r_info = nullptr)
     ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(2);
 
+namespace blf {
+void text_width(int fontid, StringRefNull text, MutableSpan<Bounds<float>> r_symbol_widths);
+}
+
 /**
  * Return dimensions of the font without any sample text.
  */

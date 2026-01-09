@@ -814,6 +814,21 @@ float BLF_width(int fontid, const char *str, const size_t str_len, ResultBLF *r_
   return 0.0f;
 }
 
+namespace blf {
+void text_width(const int fontid,
+                const StringRefNull text,
+                MutableSpan<Bounds<float>> r_symbol_widths)
+{
+  const FontBLF *font = blf_get(fontid);
+
+  if (font == nullptr) {
+    return;
+  }
+
+  font_width(*font, text, r_symbol_widths);
+}
+}  // namespace blf
+
 float BLF_fixed_width(int fontid)
 {
   FontBLF *font = blf_get(fontid);

@@ -998,17 +998,17 @@ void blf_font_width_and_height(FontBLF *font,
   *r_height = (float(BLI_rcti_size_y(&box)) * ya);
 }
 
+static float aspect_factor(const FontBLF &font)
+{
+  if (font.flags & BLF_ASPECT) {
+    return font.aspect[0];
+  }
+  return 1.0f;
+}
+
 float blf_font_width(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
 {
-  float xa;
   rcti box;
-
-  if (font->flags & BLF_ASPECT) {
-    xa = font->aspect[0];
-  }
-  else {
-    xa = 1.0f;
-  }
 
   if (font->flags & BLF_WORD_WRAP) {
     blf_font_boundbox__wrap(font, str, str_len, &box, r_info);
@@ -1016,8 +1016,85 @@ float blf_font_width(FontBLF *font, const char *str, const size_t str_len, Resul
   else {
     blf_font_boundbox(font, str, str_len, &box, r_info);
   }
-  return float(BLI_rcti_size_x(&box)) * xa;
+
+  return float(BLI_rcti_size_x(&box)) * aspect_factor(*font);
 }
+
+namespace blf {
+
+static const GlyphBLF *blf_glyph_from_utf8_and_step(const FontBLF &font,
+                                                    GlyphCacheBLF &glyph_cache,
+                                                    const GlyphBLF *prev_glyph,
+                                                    const uint charcode,
+                                                    int32_t &pen_x)
+{
+  /* Invalid unicode sequences return the byte value, stepping forward one.
+   * This allows `latin1` to display (which is sometimes used for file-paths). */
+  BLI_assert(charcode != BLI_UTF8_ERR);
+  const GlyphBLF *g = blf_glyph_ensure(const_cast<FontBLF *>(&font), &glyph_cache, charcode);
+  if (g == nullptr) {
+    return nullptr;
+  }
+
+  if ((font.flags & BLF_MONOSPACED)) {
+    return g;
+  }
+
+  pen_x += blf_kerning(const_cast<FontBLF *>(&font), prev_glyph, g);
+
+#ifdef BLF_SUBPIXEL_POSITION
+  if (!(font.flags & BLF_RENDER_SUBPIXELAA)) {
+    pen_x = FT_PIX_ROUND(pen_x);
+  }
+#else
+  pen_x = FT_PIX_ROUND(pen_x);
+#endif
+
+#ifdef BLF_SUBPIXEL_AA
+  g = blf_glyph_ensure_subpixel(
+      const_cast<FontBLF *>(&font), &glyph_cache, const_cast<GlyphBLF *>(g), pen_x);
+#endif
+  return g;
+}
+
+void font_width(const FontBLF &font,
+                const StringRefNull text,
+                MutableSpan<Bounds<float>> r_symbol_widths)
+{
+  BLI_assert(!bool(font.flags & BLF_WORD_WRAP));
+  BLI_assert(r_symbol_widths.size() == BLI_strlen_utf8(text.c_str()));
+
+  GlyphCacheBLF &glyph_cache = *blf_glyph_cache_acquire(const_cast<FontBLF *>(&font));
+
+  const bool is_monospace(font.flags & BLF_MONOSPACED);
+
+  size_t sumbol_pos = 0;
+  ft_pix pen_x_iter = 0;
+  GlyphBLF *prev_glyph = nullptr;
+  for (const int symbol_index : IndexRange(BLI_strlen_utf8(text.c_str()))) {
+    const uint charcode = BLI_str_utf8_as_unicode_step_safe(
+        text.c_str(), text.size(), &sumbol_pos);
+
+    const GlyphBLF *glyph = blf_glyph_from_utf8_and_step(
+        font, glyph_cache, prev_glyph, charcode, pen_x_iter);
+    if (UNLIKELY(glyph == nullptr)) {
+      r_symbol_widths[symbol_index] = {};
+      continue;
+    }
+
+    const ft_pix pen_x_next = pen_x_iter + glyph->advance_x;
+
+    const ft_pix gbox_xmin = std::min(pen_x_iter, pen_x_iter + glyph->box_xmin);
+    /* Mono-spaced characters should only use advance. See #130385. */
+    const ft_pix gbox_xmax = is_monospace ? pen_x_next :
+                                            std::max(pen_x_next, pen_x_iter + glyph->box_xmax);
+
+    r_symbol_widths[symbol_index] = {gbox_xmin * aspect_factor(font),
+                                     gbox_xmax * aspect_factor(font)};
+    pen_x_iter = pen_x_next;
+  }
+}
+}  // namespace blf
 
 float blf_font_height(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
 {

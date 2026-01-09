@@ -1791,58 +1791,88 @@ Vector<StringRef> text_clip_multiline_middle(const uiFontStyle *fstyle,
   return clipped_lines;
 }
 
+template<typename T> static Bounds<T> merge_bounds(const Span<Bounds<T>> values)
+{
+  Bounds<T> value = values.first();
+  for (const Bounds<T> &item : values.drop_front(1)) {
+    value = bounds::merge(value, item);
+  }
+  return value;
+}
+
+static int total_symbols(const StringRefNull text)
+{
+  return BLI_strlen_utf8(text.c_str());
+}
+
 /**
  * Cut off the text, taking into account the cursor location (text display while editing).
  */
 static void ui_text_clip_cursor(const uiFontStyle *fstyle, Button *but, const rcti *rect)
 {
-  const int border = int(UI_TEXT_CLIP_MARGIN + 0.5f);
-  const int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
-
   BLI_assert(but->editstr && but->pos >= 0);
 
   /* need to set this first */
   fontstyle_set(fstyle);
 
+  const StringRefNull text(but->editstr);
+
+  const int border = int(UI_TEXT_CLIP_MARGIN + 0.5f);
+  const int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
+  const int editstr_len = strlen(but->editstr);
+
+  Array<Bounds<float>, 32> symbol_widths(BLI_strlen_utf8(text.c_str()));
+  blf::text_width(fstyle->uifont_id, text, symbol_widths.as_mutable_span());
+
   /* define ofs dynamically */
   but->ofs = std::min(but->ofs, but->pos);
 
-  if (BLF_width(fstyle->uifont_id, but->editstr, INT_MAX) <= okwidth) {
+  if (merge_bounds<float>(symbol_widths).size() <= okwidth) {
     but->ofs = 0;
   }
 
-  but->strwidth = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, INT_MAX);
-
-  if (but->strwidth > okwidth) {
-    const int editstr_len = strlen(but->editstr);
-    int len = editstr_len;
-
-    while (but->strwidth > okwidth) {
-      float width;
-
-      /* string position of cursor */
-      width = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, (but->pos - but->ofs));
-
-      /* if cursor is at 20 pixels of right side button we clip left */
-      if (width > okwidth - 20) {
-        ui_text_clip_give_next_off(but, but->editstr, but->editstr + editstr_len);
-      }
-      else {
-        /* shift string to the left */
-        if (width < 20 && but->ofs > 0) {
-          ui_text_clip_give_prev_off(but, but->editstr);
-        }
-        len -= BLI_str_utf8_size_safe(
-            BLI_str_find_prev_char_utf8(but->editstr + len, but->editstr));
-      }
-
-      but->strwidth = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, len - but->ofs);
-
-      if (but->strwidth < 10) {
-        break;
-      }
+  const int min_offset_index = total_symbols(text.substr(but->ofs, text.size()));
+  {
+    const float rest_length =
+        merge_bounds<float>(symbol_widths.drop_front(min_offset_index)).size();
+    but->strwidth = rest_length;
+    if (but->strwidth <= okwidth) {
+      return;
     }
   }
+
+  for (const int symbol_index : symbol_widths.index_range().drop_front(min_offset_index)) {
+    const Bounds<float> symbol_width = symbol_widths[symbol_index];
+  }
+
+  int count = 0;
+  int len = editstr_len;
+  while (but->strwidth > okwidth) {
+    count++;
+    float width;
+
+    /* string position of cursor */
+    width = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, (but->pos - but->ofs));
+
+    /* if cursor is at 20 pixels of right side button we clip left */
+    if (width > okwidth - 20) {
+      ui_text_clip_give_next_off(but, but->editstr, but->editstr + editstr_len);
+    }
+    else {
+      /* shift string to the left */
+      if (width < 20 && but->ofs > 0) {
+        ui_text_clip_give_prev_off(but, but->editstr);
+      }
+      len -= BLI_str_utf8_size_safe(BLI_str_find_prev_char_utf8(but->editstr + len, but->editstr));
+    }
+
+    but->strwidth = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, len - but->ofs);
+
+    if (but->strwidth < 10) {
+      break;
+    }
+  }
+  printf("%s: %d;\n", AT, count);
 }
 
 /**
