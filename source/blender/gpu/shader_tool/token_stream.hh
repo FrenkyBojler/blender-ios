@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "enums.hh"
 #include "utils.hh"
 
 namespace blender::gpu::shader::parser {
@@ -30,15 +31,24 @@ enum ParserStage {
 struct TokenStream {
   /** The lexer's input string. */
   std::string str;
+  /** Compact visualization of token_types.  */
+  std::string_view token_types_str;
+  /** Compact visualization of scope_types.  */
+  std::string_view scope_types_str;
 
-  /** Actually contains a sequence of #TokenType. */
-  std::string token_types;
-  /** Actually contains a sequence of #ScopeType. */
-  std::string scope_types;
+  /* Structure of Array style data for tokens. */
+  /** Token type per token. */
+  std::vector<TokenType> token_types;
   /** Ranges of characters per token. */
   OffsetIndices token_offsets;
+  /** Container of offsets for each token. */
+  std::vector<uint32_t> offset_buf;
   /** Index of bottom most scope per token. */
   std::vector<int> token_scope;
+
+  /* Structure of Array style data for scopes. */
+  /** Range of token per scope. */
+  std::vector<ScopeType> scope_types;
   /** Range of token per scope. */
   std::vector<IndexRange> scope_ranges;
 

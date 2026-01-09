@@ -124,8 +124,11 @@ void TokenStream::lexical_analysis(ParserStage stop_after)
 end:
   /* TODO(fclem): Get rid of this.*/
   /* Convert vector of char to string for faster lookups. */
-  this->token_types = std::string(reinterpret_cast<char *>(data.types.data()), data.types.size());
+  this->token_types = std::move(data.types);
   this->token_offsets = std::move(data.offsets);
+
+  this->token_types_str = std::string_view(reinterpret_cast<char *>(this->token_types.data()),
+                                           this->token_types.size());
 }
 
 static always_inline TokenType to_type(const char c)
@@ -679,10 +682,13 @@ void TokenStream::semantic_analysis(ParserStage stop_after, report_callback &rep
     build_scope_tree(report_error);
   }
   else {
-    this->scope_types = "G";
+    this->scope_types = {ScopeType::Global};
     this->scope_ranges = {IndexRange(0, token_types.size())};
   }
   build_token_to_scope_map();
+
+  this->scope_types_str = std::string_view(reinterpret_cast<char *>(this->scope_types.data()),
+                                           this->scope_types.size());
 }
 
 struct ScopeStack {
@@ -749,13 +755,13 @@ void TokenStream::build_scope_tree(report_callback &report_error)
   int in_template = 0;
 
   int tok_id = -1;
-  for (const char &c : token_types) {
+  for (const TokenType &type : token_types) {
     tok_id++;
 
     const ScopeType current_scope = stack.back().type;
 
     if (stack.back().type == ScopeType::Preprocessor) {  // Here
-      if (TokenType(c) == NewLine) {
+      if (type == NewLine) {
         stack.exit_scope(tok_id);
       }
       else {
@@ -764,7 +770,7 @@ void TokenStream::build_scope_tree(report_callback &report_error)
       }
     }
 
-    switch (TokenType(c)) {
+    switch (type) {
       case Hash:
         stack.enter_scope(ScopeType::Preprocessor, tok_id);
         break;
@@ -999,8 +1005,7 @@ void TokenStream::build_scope_tree(report_callback &report_error)
   stack.exit_scope(tok_id);
 
   /* Convert vector of char to string for faster lookups. */
-  this->scope_types = std::string(reinterpret_cast<char *>(stack.types.data()),
-                                  stack.types.size());
+  this->scope_types = std::move(stack.types);
   this->scope_ranges = std::move(stack.ranges);
   return;
 

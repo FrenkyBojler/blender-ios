@@ -16,37 +16,6 @@
 
 namespace blender::gpu::shader::parser {
 
-enum class ScopeType : char {
-  Invalid = 0,
-  /* Use ascii chars to store them in string, and for easy debugging / testing. */
-  Global = 'G',
-  Namespace = 'N',
-  Struct = 'S',
-  Function = 'F',
-  LoopArgs = 'l',
-  LoopBody = 'p',
-  SwitchArg = 'w',
-  SwitchBody = 'W',
-  FunctionArgs = 'f',
-  FunctionCall = 'c',
-  Template = 'T',
-  TemplateArg = 't',
-  Subscript = 'A',
-  Preprocessor = 'P',
-  Assignment = 'a',
-  Attributes = 'B',
-  Attribute = 'b',
-  /* Added scope inside function body. */
-  Local = 'L',
-  /* Added scope inside FunctionArgs. */
-  FunctionArg = 'g',
-  /* Added scope inside FunctionCall. */
-  FunctionParam = 'm',
-  /* Added scope inside LoopArgs. */
-  LoopArg = 'r',
-
-};
-
 struct Scope {
 #ifndef NDEBUG
   /* String view for nicer debugging experience. Isn't actually used. */
@@ -63,7 +32,7 @@ struct Scope {
     IndexRange index_range = data->scope_ranges[index];
     int str_start = data->token_offsets[index_range.start].start;
     int str_end = data->token_offsets[index_range.last()].last();
-    return {std::string_view(data->token_types).substr(index_range.start, index_range.size),
+    return {data->token_types_str.substr(index_range.start, index_range.size),
             std::string_view(data->str).substr(str_start, str_end - str_start + 1),
             data,
             index};
@@ -131,7 +100,7 @@ struct Scope {
    * The type is only retained until the next parsing pass. */
   void set_type(ScopeType type)
   {
-    const_cast<TokenStream *>(data)->scope_types[index] = char(type);
+    const_cast<TokenStream *>(data)->scope_types[index] = type;
   }
 
   /* Returns the scope that contains this scope. */
@@ -215,7 +184,7 @@ struct Scope {
     if (this->is_invalid()) {
       return Token::invalid();
     }
-    size_t pos = data->token_types.substr(range().start, range().size).find(token_type);
+    size_t pos = data->token_types_str.substr(range().start, range().size).find(token_type);
     return (pos != std::string::npos) ? Token::from_position(data, range().start + pos) :
                                         Token::invalid();
   }
@@ -256,8 +225,8 @@ struct Scope {
       return;
     }
 
-    const std::string_view scope_tokens =
-        std::string_view(data->token_types).substr(range().start, range().size);
+    const std::string_view scope_tokens = data->token_types_str.substr(range().start,
+                                                                       range().size);
 
     auto count_match = [](const std::string_view &s, const std::string_view &pattern) {
       size_t pos = 0, occurrences = 0;
@@ -333,7 +302,7 @@ struct Scope {
       return;
     }
     size_t pos = this->index;
-    while ((pos = data->scope_types.find(char(type), pos)) != std::string::npos) {
+    while ((pos = data->scope_types_str.find(char(type), pos)) != std::string::npos) {
       Scope scope = Scope::from_position(data, pos);
       if (scope.front().index > this->back().index) {
         /* Found scope starts after this scope. End iteration. */
@@ -362,7 +331,7 @@ struct Scope {
   void foreach_token(const TokenType token_type, Callback callback) const
   {
     IndexRange index_range = data->scope_ranges[index];
-    std::string_view view(data->token_types);
+    std::string_view view(data->token_types_str);
 
     size_t offset = index_range.start;
     for (const char c : view.substr(index_range.start, index_range.size)) {

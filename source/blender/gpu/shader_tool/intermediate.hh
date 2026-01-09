@@ -355,8 +355,8 @@ struct IntermediateForm {
   void debug_print()
   {
     std::cout << "Input: \n" << data_.str << " \nEnd of Input\n" << std::endl;
-    std::cout << "Token Types: \"" << data_.token_types << "\"" << std::endl;
-    std::cout << "Scope Types: \"" << data_.scope_types << "\"" << std::endl;
+    std::cout << "Token Types: \"" << data_.token_types_str << "\"" << std::endl;
+    std::cout << "Scope Types: \"" << data_.scope_types_str << "\"" << std::endl;
   }
 };
 
