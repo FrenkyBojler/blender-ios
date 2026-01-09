@@ -22,7 +22,7 @@ class OptiXDenoiser : public DenoiserGPU {
                               const BufferParams &denoised_buffer_params,
                               RenderBuffers *render_buffers,
                               const int num_samples,
-                              bool allow_inplace_modification) override;
+                              const bool allow_inplace_modification) override;
 
   static bool is_device_supported(const DeviceInfo &device);
 

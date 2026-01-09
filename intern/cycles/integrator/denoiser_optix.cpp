@@ -46,7 +46,7 @@ bool OptiXDenoiser::denoise_buffer(const BufferParams &buffer_params,
                                    const BufferParams &denoised_buffer_params,
                                    RenderBuffers *render_buffers,
                                    const int num_samples,
-                                   bool allow_inplace_modification)
+                                   const bool allow_inplace_modification)
 {
   OptiXDevice *const optix_device = static_cast<OptiXDevice *>(denoiser_device_);
   const CUDAContextScope scope(optix_device);

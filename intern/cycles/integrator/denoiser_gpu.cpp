@@ -33,7 +33,7 @@ bool DenoiserGPU::denoise_buffer(const BufferParams &buffer_params,
                                  const BufferParams &denoised_buffer_params,
                                  RenderBuffers *render_buffers,
                                  const int num_samples,
-                                 bool allow_inplace_modification)
+                                 const bool allow_inplace_modification)
 {
   Device *denoiser_device = get_denoiser_device();
   if (!denoiser_device) {
@@ -160,8 +160,8 @@ DenoiserGPU::DenoiseContext::DenoiseContext(Device *device,
                                             const BufferParams &buffer_params,
                                             const BufferParams &denoised_buffer_params,
                                             RenderBuffers *render_buffers,
-                                            int num_samples,
-                                            bool allow_inplace_modification)
+                                            const int num_samples,
+                                            const bool allow_inplace_modification)
     : denoise_params(params),
       render_buffers(render_buffers),
       buffer_params(buffer_params),

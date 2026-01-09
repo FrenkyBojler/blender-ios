@@ -22,7 +22,7 @@ class DenoiserGPU : public Denoiser {
                       const BufferParams &denoised_buffer_params,
                       RenderBuffers *render_buffers,
                       const int num_samples,
-                      bool allow_inplace_modification) override;
+                      const bool allow_inplace_modification) override;
 
  protected:
   class DenoisePass;
@@ -48,7 +48,9 @@ class DenoiserGPU : public Denoiser {
    * denoiser result to the render buffer. */
   bool denoise_filter_color_preprocess(const DenoiseContext &context, const DenoisePass &pass);
   bool denoise_filter_color_postprocess(const DenoiseContext &context, const DenoisePass &pass);
-  bool denoise_filter_color_flip_y(const DenoiseContext &context, const BufferParams &buffer_params, const DenoisePass &pass);
+  bool denoise_filter_color_flip_y(const DenoiseContext &context,
+                                   const BufferParams &buffer_params,
+                                   const DenoisePass &pass);
   bool denoise_filter_guiding_flip_y(const DenoiseContext &context);
   bool denoise_filter_guiding_set_fake_albedo(const DenoiseContext &context);
 
