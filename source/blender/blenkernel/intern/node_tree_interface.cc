@@ -1514,9 +1514,14 @@ void bNodeTreeInterface::active_item_set(bNodeTreeInterfaceItem *item)
 {
   this->active_index = 0;
   int count = 0;
+
+  if (bNodeTreeInterfaceItem *original_active = this->active_item()) {
+    original_active->set_selected(false);
+  }
   this->foreach_item([&](bNodeTreeInterfaceItem &titem) {
     if (&titem == item) {
       this->active_index = count;
+      item->set_selected(true);
       return false;
     }
     ++count;
