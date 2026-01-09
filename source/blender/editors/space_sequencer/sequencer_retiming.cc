@@ -666,12 +666,8 @@ static float strip_speed_get(const Scene *scene)
   return 1.0f;
 }
 
-static void strip_speed_set_exec(bContext *C, const float speed)
+static void strip_speed_set(Scene *scene, VectorSet<Strip *> strips, const float speed)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
-  VectorSet<Strip *> strips = selected_strips_from_context(C);
-  strips.remove_if([&](Strip *strip) { return !seq::retiming_is_allowed(strip); });
-
   for (Strip *strip : strips) {
     SeqRetimingKey *key = ensure_left_and_right_keys(scene, strip);
 
@@ -691,10 +687,10 @@ static void strip_speed_set_exec(bContext *C, const float speed)
   }
 }
 
-static void segment_speed_set_exec(Scene *scene,
-                                   Map<SeqRetimingKey *, Strip *> selection,
-                                   const float speed,
-                                   const bool keep_retiming)
+static void segment_speed_set(Scene *scene,
+                              Map<SeqRetimingKey *, Strip *> selection,
+                              const float speed,
+                              const bool keep_retiming)
 {
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
 
@@ -717,7 +713,9 @@ static wmOperatorStatus sequencer_retiming_segment_speed_set_exec(bContext *C, w
 
   /* Strip mode. */
   if (!sequencer_retiming_mode_is_active(scene)) {
-    strip_speed_set_exec(C, speed);
+    VectorSet<Strip *> strips = selected_strips_from_context(C);
+    strips.remove_if([&](Strip *strip) { return !seq::retiming_is_allowed(strip); });
+    strip_speed_set(scene, strips, speed);
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     return OPERATOR_FINISHED;
   }
@@ -726,7 +724,7 @@ static wmOperatorStatus sequencer_retiming_segment_speed_set_exec(bContext *C, w
 
   /* Retiming mode. */
   if (selection.size() > 0) {
-    segment_speed_set_exec(scene, selection, speed, keep_retiming);
+    segment_speed_set(scene, selection, speed, keep_retiming);
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     return OPERATOR_FINISHED;
   }
