@@ -277,13 +277,15 @@ class NodeSetInterfaceBuilder {
 
   void expose_socket(const bNodeSocket &src_socket,
                      bNodeTreeInterfacePanel *parent,
-                     const bool add_external_links,
-                     const bool skip_hidden_links);
+                     bool add_external_links,
+                     bool skip_hidden_links,
+                     bool skip_unconnected);
   void expose_socket(const bNode &src_node,
                      const nodes::SocketDeclaration &socket_decl,
                      bNodeTreeInterfacePanel *parent,
-                     const bool add_external_links,
-                     const bool skip_hidden_links);
+                     bool add_external_links,
+                     bool skip_hidden_links,
+                     bool skip_unconnected);
   bNodeTreeInterfacePanel *expose_panel(const bNode &src_node,
                                         const nodes::PanelDeclaration &panel_decl,
                                         bNodeTreeInterfacePanel *parent);
@@ -305,27 +307,24 @@ NodeSetInterface NodeSetInterface::from_nodes(const bNodeTree &src_tree,
                                               bNodeTree &dst_tree,
                                               const bool expose_visible)
 {
+  constexpr bool add_external_links = true;
+  constexpr bool skip_hidden_links = true;
+  const bool skip_unconnected = !expose_visible;
+
   NodeSetInterface result;
   NodeSetInterfaceBuilder builder(dst_tree, result, src_nodes);
 
   src_tree.ensure_topology_cache();
 
   const Set<const bNode *> nodes_set(src_nodes);
-  const std::function link_filter = [&](const bNode &link) { return !nodes_set.contains(&link); };
   for (const bNode *node : src_nodes) {
     for (const bNodeSocket *socket : node->input_sockets()) {
-      const bool expose = socket->is_directly_linked() || (expose_visible && socket->is_visible());
-      if (!expose) {
-        continue;
-      }
-      builder.expose_socket(*socket, nullptr, true, true);
+      builder.expose_socket(
+          *socket, nullptr, add_external_links, skip_hidden_links, skip_unconnected);
     }
     for (const bNodeSocket *socket : node->output_sockets()) {
-      const bool expose = socket->is_directly_linked() || (expose_visible && socket->is_visible());
-      if (!expose) {
-        continue;
-      }
-      builder.expose_socket(*socket, nullptr, true, true);
+      builder.expose_socket(
+          *socket, nullptr, add_external_links, skip_hidden_links, skip_unconnected);
     }
   }
   return result;
@@ -351,10 +350,15 @@ void NodeSetInterface::add_declaration_item_recursive(NodeSetInterfaceBuilder &b
                                                       const nodes::ItemDeclaration &item_decl,
                                                       bNodeTreeInterfacePanel *parent)
 {
+  constexpr bool add_external_links = true;
+  constexpr bool skip_hidden_links = false;
+  constexpr bool skip_unconnected = false;
+
   if (const nodes::SocketDeclaration *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(
           &item_decl))
   {
-    builder.expose_socket(src_node, *socket_decl, parent, true, false);
+    builder.expose_socket(
+        src_node, *socket_decl, parent, add_external_links, skip_hidden_links, skip_unconnected);
   }
   else if (const nodes::PanelDeclaration *panel_decl =
                dynamic_cast<const nodes::PanelDeclaration *>(&item_decl))
@@ -480,7 +484,8 @@ NodeSetInterfaceBuilder::NodeSetInterfaceBuilder(bNodeTree &dst_tree,
 void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
                                             bNodeTreeInterfacePanel *parent,
                                             const bool add_external_links,
-                                            const bool skip_hidden_links)
+                                            const bool skip_hidden_links,
+                                            const bool skip_unconnected)
 {
   if (!src_socket.is_available()) {
     return;
@@ -491,6 +496,9 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
     external_links = util::get_socket_links(src_socket, skip_hidden_links, [&](const bNode &node) {
       return !src_nodes_set_.contains(&node);
     });
+  }
+  if (skip_unconnected && external_links.is_empty()) {
+    return;
   }
 
   /* Use the same interface for each unique external socket. */
@@ -519,10 +527,11 @@ void NodeSetInterfaceBuilder::expose_socket(const bNode &src_node,
                                             const nodes::SocketDeclaration &socket_decl,
                                             bNodeTreeInterfacePanel *parent,
                                             const bool add_external_links,
-                                            const bool skip_hidden_links)
+                                            const bool skip_hidden_links,
+                                            const bool skip_unconnected)
 {
   const bNodeSocket &socket = src_node.socket_by_decl(socket_decl);
-  this->expose_socket(socket, parent, add_external_links, skip_hidden_links);
+  this->expose_socket(socket, parent, add_external_links, skip_hidden_links, skip_unconnected);
 }
 
 bNodeTreeInterfacePanel *NodeSetInterfaceBuilder::expose_panel(
