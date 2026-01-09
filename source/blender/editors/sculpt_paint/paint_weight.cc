@@ -860,15 +860,15 @@ static void do_weight_paint_vertex(const VPaint &wp,
 
 struct WeightPaintStroke final : public PaintStroke {
   Main *bmain_;
+  ToolSettings *tool_settings_;
   VPaint *weight_paint_;
 
   WeightPaintStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
   {
     bmain_ = CTX_data_main(C);
-    ToolSettings* ts = CTX_data_tool_settings(C);
-    weight_paint_ = ts->wpaint;
-
+    tool_settings_ = CTX_data_tool_settings(C);
+    weight_paint_ = tool_settings_->wpaint;
   }
 
   bool get_location(float out[3], const float mouse[2], bool force_original) override;
@@ -1715,7 +1715,7 @@ void PAINT_OT_weight_paint_toggle(wmOperatorType *ot)
 /** \name Weight Paint Operator
  * \{ */
 
-static void wpaint_do_paint(const Depsgraph& depsgraph,
+static void wpaint_do_paint(const Depsgraph &depsgraph,
                             Object &ob,
                             VPaint &wp,
                             WPaintData &wpd,
@@ -1809,6 +1809,7 @@ static void wpaint_do_symmetrical_brush_actions(
 void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
 {
   VPaint &wp = *weight_paint_;
+  const ToolSettings &ts = *tool_settings_;
   const Brush &brush = *BKE_paint_brush(&wp.paint);
   WPaintData *wpd = static_cast<WPaintData *>(mode_data_.get());
   ViewContext *vc;

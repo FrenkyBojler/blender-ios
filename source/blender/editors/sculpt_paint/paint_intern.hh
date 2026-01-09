@@ -746,7 +746,7 @@ void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache);
 void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache);
 
 /** Initialize the stroke cache variants from operator properties. */
-void update_cache_variants(const Depsgraph& depsgraph, VPaint &vp, Object &ob, PointerRNA *ptr);
+void update_cache_variants(const Depsgraph &depsgraph, VPaint &vp, Object &ob, PointerRNA *ptr);
 /** Initialize the stroke cache invariants from operator properties. */
 void update_cache_invariants(
     Main *bmain, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2]);
