@@ -97,6 +97,27 @@ class VKTexturePool : public TexturePool {
   /* Store of acquired textures. */
   Set<TextureHandle> acquired_;
 
+  /* Debug storage to identify effective memory reuse. Log is only output
+   * if values have changed since the last `::reset()`. */
+#ifndef NDEBUG
+  struct UsageData {
+    int64_t allocation_count = 0;
+    VkDeviceSize acquired_segment_size = 0;
+    VkDeviceSize acquired_segment_size_max = 0;
+
+    bool operator==(const UsageData &o) const
+    {
+      return allocation_count == o.allocation_count &&
+             acquired_segment_size == o.acquired_segment_size &&
+             acquired_segment_size_max == o.acquired_segment_size_max;
+    }
+  };
+
+  UsageData previous_usage_data_, current_usage_data_;
+
+  void log_usage_data();
+#endif
+
  public:
   ~VKTexturePool();
 
@@ -110,13 +131,6 @@ class VKTexturePool : public TexturePool {
   void reset(bool force_free = false) override;
 
   void offset_users_count(Texture *tex, int offset) override;
-
-#ifndef NDEBUG
-  uint debug_usage_counter = 0;
-  VkDeviceSize acquired_segment_size_ = 0;
-  VkDeviceSize acquired_segment_max_ = 0;
-  void debug_usage_log();
-#endif
 };
 
 }  // namespace blender::gpu

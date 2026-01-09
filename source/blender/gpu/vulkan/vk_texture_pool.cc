@@ -283,8 +283,9 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
       texture_handle.texture->vk_image_, false, texture_handle.texture->name_.c_str());
 
 #ifndef NDEBUG
-  acquired_segment_size_ += texture_handle.segment.size;
-  acquired_segment_max_ = std::max(acquired_segment_max_, acquired_segment_size_);
+  current_usage_data_.acquired_segment_size += texture_handle.segment.size;
+  current_usage_data_.acquired_segment_size_max = std::max(
+      current_usage_data_.acquired_segment_size_max, current_usage_data_.acquired_segment_size);
 #endif
 
   acquired_.add(texture_handle);
@@ -298,7 +299,7 @@ void VKTexturePool::release_texture(Texture *tex)
   TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex)});
 
 #ifndef NDEBUG
-  acquired_segment_size_ -= texture_handle.segment.size;
+  current_usage_data_.acquired_segment_size -= texture_handle.segment.size;
 #endif
 
   /* Move allocation back to `pool_`. */
@@ -338,9 +339,6 @@ void VKTexturePool::reset(bool force_free)
     if (handle.is_unused() && (handle.unused_cycles_count >= max_unused_cycles_ || force_free)) {
       handle.free();
       allocations_.remove(handle);
-#ifndef NDEBUG
-      acquired_segment_max_ = 0;
-#endif
     }
     else {
       handle.unused_cycles_count++;
@@ -349,20 +347,19 @@ void VKTexturePool::reset(bool force_free)
   }
 
 #ifndef NDEBUG
-  debug_usage_log();
-  acquired_segment_size_ = 0;
+  /* Log debug usage data if it differs from the last `::reset()`. */
+  current_usage_data_.allocation_count = allocations_.size();
+  if (!(previous_usage_data_ == current_usage_data_)) {
+    log_usage_data();
+  }
+  previous_usage_data_ = current_usage_data_;
+  current_usage_data_ = {};
 #endif
 }
 
 #ifndef NDEBUG
-void VKTexturePool::debug_usage_log()
+void VKTexturePool::log_usage_data()
 {
-  /* Restrict debug output to once every N resets to avoid flooding. */
-  debug_usage_counter = ++debug_usage_counter % 16u;
-  if (debug_usage_counter != 0) {
-    return;
-  }
-
   /* Usage log is only output when --debug-gpu is specified. */
   if (!(G.debug & G_DEBUG_GPU)) {
     return;
@@ -372,14 +369,15 @@ void VKTexturePool::debug_usage_log()
   for (const auto &handle : allocations_) {
     total_allocation_size += handle.allocation_info.size;
   }
-  float ratio = static_cast<float>(acquired_segment_max_) /
-                static_cast<float>(total_allocation_size) * 100.0f;
+
+  float ratio = static_cast<float>(current_usage_data_.acquired_segment_size_max) /
+                static_cast<float>(total_allocation_size);
 
   CLOG_TRACE(&LOG,
-             "VKTexturePool uses %u allocations of %zumb, %f%% max usage.",
-             static_cast<uint>(allocations_.size()),
-             total_allocation_size / 1024 / 1024,
-             ratio);
+             "VKTexturePool uses %f%% of %li allocations, %zumb",
+             ratio * 100.0f,
+             current_usage_data_.allocation_count,
+             total_allocation_size >> 20);
 }
 #endif
 
