@@ -2,11 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <OpenImageIO/filter.h>
 #include "openimageio_support.hh"
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
-#include <OpenImageIO/imagecache.h>
 
 #include <algorithm>
 
@@ -351,15 +349,8 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
       const int source_y = int(float(h) / imb_scale);
       /* Do not read with negative ystride to avoid the later flip.
        * Scanline reading is not nearly as fast in reserved order. */
-      in->read_scanlines(0,
-                          0,
-                          source_y,
-                          source_y + 1,
-                          0,
-                          0,
-                          channels,
-                          TypeDesc::UINT8,
-                          pixels.data());
+      in->read_scanlines(
+          0, 0, source_y, source_y + 1, 0, 0, channels, TypeDesc::UINT8, pixels.data());
 
       for (int w = 0; w < imb_w; w++) {
         /* For each destination pixel find single corresponding source pixel. */
@@ -373,9 +364,7 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
     }
 
     /* ImBuf always needs 4 channels */
-    fill_all_channels<uint8_t>(ibuf->byte_buffer.data, imb_w, imb_h,
-                               channels,
-                               255);
+    fill_all_channels<uint8_t>(ibuf->byte_buffer.data, imb_w, imb_h, channels, 255);
     IMB_flipy(ibuf);
   }
 

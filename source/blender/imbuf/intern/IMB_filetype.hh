@@ -92,11 +92,11 @@ ImBuf *imb_load_png(const unsigned char *mem,
                     ImFileColorSpace &r_colorspace);
 bool imb_save_png(ImBuf *ibuf, const char *filepath, int flags);
 ImBuf *imb_thumbnail_png(const char *filepath,
-                          int flags,
-                          size_t max_thumb_size,
-                          ImFileColorSpace &r_colorspace,
-                          size_t *r_width,
-                          size_t *r_height);
+                         int flags,
+                         size_t max_thumb_size,
+                         ImFileColorSpace &r_colorspace,
+                         size_t *r_width,
+                         size_t *r_height);
 
 /** \} */
 
