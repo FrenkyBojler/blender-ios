@@ -171,7 +171,7 @@ struct Preprocessor {
 
   /* Try to match the token pointed at by cursor with a defined macro.
    * If that happen advance the cursor to the end of the macro (in case of functional macro). */
-  void try_expand(IntermediateForm &parser, const TokenStream &data, int &cursor)
+  void try_expand(IntermediateForm &parser, const ParserBase &data, int &cursor)
   {
     Token tok = Token::from_position(&data, cursor);
     Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
@@ -191,10 +191,10 @@ struct Preprocessor {
     report_callback report = [](int, int, std::string, const char *) {};
     IntermediateForm parser(input, report, ParserStage::TokenizePreprocessor, false);
 
-    const TokenStream &data = parser.data_get();
+    const ParserBase &data = parser.data_get();
 
-    for (int cursor = 0; cursor < data.token_types.size(); cursor++) {
-      TokenType tok_type = TokenType(data.token_types[cursor]);
+    for (int cursor = 0; cursor < data.lex->token_types.size(); cursor++) {
+      TokenType tok_type = TokenType(data.lex->token_types[cursor]);
       if (tok_type == Word) {
         try_expand(parser, data, cursor);
       }
@@ -566,7 +566,7 @@ struct Preprocessor {
     parser.replace(hash_tok, dir_end, "");
   }
 
-  void process_directives(const TokenStream &data, int &cursor)
+  void process_directives(const ParserBase &data, int &cursor)
   {
     Token hash_tok = Token::from_position(&data, cursor);
     /* All directives must start with a hash token at the start of the line. */
@@ -608,11 +608,11 @@ struct Preprocessor {
 
   void preprocess()
   {
-    const TokenStream &data = parser.data_get();
+    const ParserBase &data = parser.data_get();
 
     int cursor = 0;
-    for (; cursor < data.token_types.size(); cursor++) {
-      TokenType tok_type = TokenType(data.token_types[cursor]);
+    for (; cursor < data.lex->token_types.size(); cursor++) {
+      TokenType tok_type = TokenType(data.lex->token_types[cursor]);
       if (tok_type == Word) {
         try_expand(parser, data, cursor);
       }

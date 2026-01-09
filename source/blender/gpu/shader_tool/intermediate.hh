@@ -44,7 +44,10 @@ namespace blender::gpu::shader::parser {
  * It is made for fast traversal and mutation of source code. */
 struct IntermediateForm {
  private:
-  TokenStream data_;
+  std::string str_;
+  LexerParserData parser_data_;
+  FullLexer lex_;
+  FullParser data_;
 
   struct Mutation {
     /* Range of the original string to replace. */
@@ -79,27 +82,28 @@ struct IntermediateForm {
                    report_callback &report_error,
                    ParserStage stop_parser_after_stage = ParserStage::BuildScopeTree,
                    bool with_timer = true)
-      : report_error(report_error),
+      : str_(input),
+        lex_(input, parser_data_.lexer_data),
+        data_(lex_, parser_data_.parser_data, report_error),
+        report_error(report_error),
         stop_parser_after_stage(stop_parser_after_stage),
         with_timer(with_timer)
   {
-    data_.str = input;
-    parse(stop_parser_after_stage, report_error);
   }
 
   /* Main access operator. Returns the root scope (aka global scope). */
   Scope operator()() const
   {
-    if (data_.scope_types.empty()) {
+    if ((*data_.scope_types).empty()) {
       return Scope::invalid();
     }
-    return Scope::from_position(&data_, 0);
+    return Scope::from_position(data_, 0);
   }
 
   /* Access internal string without applying pending mutations. */
   std::string substr_range_inclusive(size_t start, size_t end)
   {
-    return data_.str.substr(start, end - start + 1);
+    return str_.substr(start, end - start + 1);
   }
   /* Access internal string without applying pending mutations. */
   std::string substr_range_inclusive(Token start, Token end)
@@ -110,7 +114,7 @@ struct IntermediateForm {
   /* Access internal string without applying pending mutations. */
   std::string_view substr_range_inclusive_view(size_t start, size_t end)
   {
-    return std::string_view(data_.str).substr(start, end - start + 1);
+    return std::string_view(str_).substr(start, end - start + 1);
   }
   /* Access internal string without applying pending mutations. */
   std::string_view substr_range_inclusive_view(Token start, Token end)
@@ -198,7 +202,7 @@ struct IntermediateForm {
   void erase(size_t from, size_t to)
   {
     IndexRange range = IndexRange(from, to + 1 - from);
-    std::string content = data_.str.substr(range.start, range.size);
+    std::string content = str_.substr(range.start, range.size);
     size_t lines = std::count(content.begin(), content.end(), '\n');
     size_t spaces = content.find_last_of("\n");
     if (spaces != std::string::npos) {
@@ -279,7 +283,7 @@ struct IntermediateForm {
     std::string_view content = at.str_view_with_whitespace();
     size_t lines = std::count(content.begin(), content.end(), '\n');
     insert_line_number(at, at.line_number() + lines);
-    size_t line_break = data_.str.find_last_of("\n", at.str_index_last() + 1);
+    size_t line_break = str_.find_last_of("\n", at.str_index_last() + 1);
     size_t spaces = at.str_index_last() - line_break;
     insert_after(at, std::string(spaces, ' '));
   }
@@ -293,7 +297,7 @@ struct IntermediateForm {
   {
     bool applied = only_apply_mutations(all_mutation_ordered);
     if (applied) {
-      this->parse(stop_parser_after_stage, report_error);
+      this->parse(report_error);
     }
     return applied;
   }
@@ -302,17 +306,17 @@ struct IntermediateForm {
   const std::string &result_get(const bool all_mutation_ordered = false)
   {
     only_apply_mutations(all_mutation_ordered);
-    return data_.str;
+    return str_;
   }
 
   /* Get internal string. Does not apply pending mutation. */
   const std::string &str()
   {
-    return data_.str;
+    return str_;
   }
 
   /* For testing. */
-  const TokenStream &data_get()
+  const ParserBase &data_get()
   {
     return data_;
   }
@@ -327,7 +331,7 @@ struct IntermediateForm {
       out += " - ";
       out += std::to_string(mut.src_range.size);
       out += " \"";
-      out += data_.str.substr(mut.src_range.start, mut.src_range.size);
+      out += str_.substr(mut.src_range.start, mut.src_range.size);
       out += "\" by \"";
       out += mut.replacement;
       out += "\"\n";
@@ -339,23 +343,23 @@ struct IntermediateForm {
   uint64_t lexical_time = 0;
   uint64_t semantic_time = 0;
 
-  void parse(ParserStage stop_after, report_callback &report_error);
-  void parse_timed(ParserStage stop_after, report_callback &report_error);
+  void parse(report_callback &report_error);
+  void parse_timed(report_callback &report_error);
 
  public:
   void print_stats()
   {
     std::cout << "Lexical Analysis time: " << lexical_time << " µs" << std::endl;
     std::cout << "Semantic Analysis time:   " << semantic_time << " µs" << std::endl;
-    std::cout << "String len: " << std::to_string(data_.str.size()) << std::endl;
-    std::cout << "Token len:  " << std::to_string(data_.token_types.size()) << std::endl;
-    std::cout << "Scope len:  " << std::to_string(data_.scope_types.size()) << std::endl;
+    std::cout << "String len: " << std::to_string(str_.size()) << std::endl;
+    std::cout << "Token len:  " << std::to_string(lex_.token_types.size()) << std::endl;
+    std::cout << "Scope len:  " << std::to_string((*data_.scope_types).size()) << std::endl;
   }
 
   void debug_print()
   {
-    std::cout << "Input: \n" << data_.str << " \nEnd of Input\n" << std::endl;
-    std::cout << "Token Types: \"" << data_.token_types_str << "\"" << std::endl;
+    std::cout << "Input: \n" << str_ << " \nEnd of Input\n" << std::endl;
+    std::cout << "Token Types: \"" << lex_.token_types_str << "\"" << std::endl;
     std::cout << "Scope Types: \"" << data_.scope_types_str << "\"" << std::endl;
   }
 };

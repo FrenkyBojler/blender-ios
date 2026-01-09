@@ -81,6 +81,15 @@ template<typename T> struct MutableSpan {
     return data_ + size_;
   }
 
+  const T *begin() const
+  {
+    return data_;
+  }
+  const T *end() const
+  {
+    return data_ + size_;
+  }
+
   /**
    * Set span size to a smaller size, this invokes undefined behavior when n is negative or bigger
    * than the current span.
@@ -112,10 +121,10 @@ struct OffsetIndices {
 };
 
 /** Return the line number this token is found at. Take into account the #line directives. */
-size_t line_number(const std::string &str, size_t pos);
+size_t line_number(const std::string_view &str, size_t pos);
 /** Return the offset to the start of the line. */
-size_t char_number(const std::string &str, size_t pos);
+size_t char_number(const std::string_view &str, size_t pos);
 /** Returns a string of the line containing the character at the given position. */
-std::string line_str(const std::string &str, size_t pos);
+std::string line_str(const std::string_view &str, size_t pos);
 
 }  // namespace blender::gpu::shader::parser
