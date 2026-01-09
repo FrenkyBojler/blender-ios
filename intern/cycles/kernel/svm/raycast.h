@@ -109,6 +109,9 @@ ccl_device RaycastResult svm_raycast(
     }
 #  endif /* __OBJECT_MOTION__ */
   }
+  else {
+    result.normal = Ng;
+  }
 
   /* Transform normals to world space. */
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
