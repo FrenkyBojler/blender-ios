@@ -22,9 +22,9 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-static VkDeviceSize align_size(VkDeviceSize size, VkDeviceSize alignment)
+static void align_requirements_size(VkMemoryRequirements &requirements)
 {
-  return (size - 1u + alignment) & -alignment;
+  requirements.size = (requirements.size - 1u + requirements.alignment) & -requirements.alignment;
 }
 
 std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
@@ -33,10 +33,6 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
   if (!bool(requirements.memoryTypeBits & allocation_info.memoryType)) {
     return {};
   }
-
-  /* Expand size up to alignment. We always extend at the end
-   * so the segment after our acquisition is aligned at its start. */
-  requirements.size = align_size(requirements.size, requirements.alignment);
 
   /* Find the smallest segment of compatible size. */
   auto it = segments.end();
@@ -226,10 +222,12 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   TextureHandle texture_handle;
   texture_handle.alloc(extent, format, usage, name_str.c_str());
 
-  /* Query the requirements for this specific image */
+  /* Query the requirements for this specific image. We expand size up to alignment,
+   * so the segment after our acquired segment is also aligned at the start. */
   VkMemoryRequirements memory_requirements;
   vkGetImageMemoryRequirements(
       device.vk_handle(), texture_handle.texture->vk_image_, &memory_requirements);
+  align_requirements_size(memory_requirements);
 
   /* Find a compatible region of allocated memory. */
   for (auto handle : allocations_) {
@@ -244,12 +242,8 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
   /* If no compatible region was found, allocate new memory. */
   if (texture_handle.allocation_handle.allocation == VK_NULL_HANDLE) {
-    /* TODO(not_mark): add some heuristic instead of just over-allocating blindly. */
     VkMemoryRequirements allocation_requirements = memory_requirements;
-    // allocation_requirements.size *= allocation_multipler_;
-    allocation_requirements.size = std::max(
-        allocation_size,
-        align_size(allocation_requirements.size, allocation_requirements.alignment));
+    allocation_requirements.size = std::max(allocation_size, allocation_requirements.size);
 
     AllocationHandle handle;
     handle.init(allocation_requirements);
@@ -283,6 +277,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
       texture_handle.texture->vk_image_, false, texture_handle.texture->name_.c_str());
 
 #ifndef NDEBUG
+  /* Accumulate usage data for debug log. Maximum is stored. */
   current_usage_data_.acquired_segment_size += texture_handle.segment.size;
   current_usage_data_.acquired_segment_size_max = std::max(
       current_usage_data_.acquired_segment_size_max, current_usage_data_.acquired_segment_size);
@@ -356,7 +351,7 @@ void VKTexturePool::reset(bool force_free)
   current_usage_data_ = {};
   for (const TextureHandle &tex : acquired_) {
     current_usage_data_.acquired_segment_size += tex.segment.size;
-  }  
+  }
 #endif
 }
 
@@ -372,15 +367,15 @@ void VKTexturePool::log_usage_data()
   for (const auto &handle : allocations_) {
     total_allocation_size += handle.allocation_info.size;
   }
-
   float ratio = static_cast<float>(current_usage_data_.acquired_segment_size_max) /
                 static_cast<float>(total_allocation_size);
 
   CLOG_TRACE(&LOG,
-             "VKTexturePool uses %f%% of %li allocations, %zumb",
+             "VKTexturePool uses %zu/%zu mb (%.1f%% of %li allocations)",
+             current_usage_data_.acquired_segment_size_max >> 20,
+             total_allocation_size >> 20,
              ratio * 100.0f,
-             current_usage_data_.allocation_count,
-             total_allocation_size >> 20);
+             current_usage_data_.allocation_count);
 }
 #endif
 
