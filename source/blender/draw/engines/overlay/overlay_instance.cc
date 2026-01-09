@@ -66,7 +66,6 @@ void Instance::init()
     state.xray_opacity = state.xray_enabled ? XRAY_ALPHA(state.v3d) : 1.0f;
     state.xray_flag_enabled = SHADING_XRAY_FLAG_ENABLED(state.v3d->shading) &&
                               !state.is_depth_only_drawing;
-    /* 1/sqrt(2) corresponds to the center-to-corner distance of a 1x1 square, with center at 0.5. */
     state.xr_vignette_enabled = ctx->mode == DRWContext::VIEWPORT_XR &&
                                 state.v3d->xr_vignette_aperture < M_SQRT1_2;
 

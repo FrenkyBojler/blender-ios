@@ -15,8 +15,8 @@
 #include "BLI_function_ref.hh"
 
 #include "DNA_space_types.h"
-#include "DNA_world_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_world_types.h"
 
 #include "GPU_matrix.hh"
 
