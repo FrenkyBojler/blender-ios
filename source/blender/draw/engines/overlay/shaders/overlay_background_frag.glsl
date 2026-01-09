@@ -35,9 +35,10 @@ void main()
   float alpha;
   float depth;
 
-  if (vignette_enabled) {
+  if (is_xr_vignette_pass) {
     const float dist = length(screen_uv - 0.5f);
-    alpha = smoothstep(vignette_aperture, vignette_aperture + vignette_falloff, dist);
+    const float falloff = 0.15f;
+    alpha = smoothstep(xr_vignette_aperture, xr_vignette_aperture + falloff, dist);
     depth = 0.0f;
   }
   else {
@@ -101,7 +102,7 @@ void main()
 
   bg_col = mix(bg_col, color_override.rgb, color_override.a);
 
-  if (vignette_enabled) {
+  if (is_xr_vignette_pass) {
     frag_color = float4(bg_col, alpha);
   }
   else {
