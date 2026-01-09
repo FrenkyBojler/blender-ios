@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-11-11 12:13+0000\n"
 "Last-Translator: Rafael Teixeira de Avila Soares <rafaeltas@gmail.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -21231,6 +21231,54 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
+msgid "Show/Hide"
+msgstr "Mostrar ou ocultar"
+
+
+msgid "Names"
+msgstr "Nomes"
+
+
+msgid "Bone Roll"
+msgstr "Rolagem dos ossos"
+
+
+msgid "Math"
+msgstr "Matemática"
+
+
+msgid "Clean Up"
+msgstr "Limpeza"
+
+
+msgid "Pivot Point"
+msgstr "Pontos de pivô"
+
+
+msgid "Snap"
+msgstr "Atrair"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Tipo de decaimento para edição proporcional"
+
+
+msgid "Instances"
+msgstr "Instâncias"
+
+
+msgid "Import"
+msgstr "Importar"
+
+
+msgid "Mirror"
+msgstr "Espelhar"
+
+
+msgid "UV Mapping"
+msgstr "Mapeamento UV"
+
+
 msgid "Local View"
 msgstr "Visão local"
 
@@ -21257,6 +21305,10 @@ msgstr "Visualizar Regiões"
 
 msgid "Select More/Less"
 msgstr "Selecionar mais ou menos"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -21287,10 +21339,6 @@ msgid "Light Probe"
 msgstr "Sonda de Luz"
 
 
-msgid "Layout"
-msgstr "Organizar"
-
-
 msgid "Add Image"
 msgstr "Adicionar Imagem"
 
@@ -21315,24 +21363,8 @@ msgid "Quick Effects"
 msgstr "Efeitos instantâneos"
 
 
-msgid "Show/Hide"
-msgstr "Mostrar ou ocultar"
-
-
-msgid "Clean Up"
-msgstr "Limpeza"
-
-
-msgid "Keying"
-msgstr "Inserção de chaves"
-
-
 msgid "Make Single User"
 msgstr "Tornar usuário único"
-
-
-msgid "Tracking"
-msgstr "Rastreamento"
 
 
 msgid "Convert"
@@ -21343,8 +21375,8 @@ msgid "Hooks"
 msgstr "Ganchos"
 
 
-msgid "Math"
-msgstr "Matemática"
+msgid "Layout"
+msgstr "Organizar"
 
 
 msgid "Random Mask"
@@ -21363,10 +21395,6 @@ msgid "Propagate"
 msgstr "Propagar"
 
 
-msgid "Names"
-msgstr "Nomes"
-
-
 msgid "Toggle Bone Options"
 msgstr "Alternar opções de ossos"
 
@@ -21375,8 +21403,16 @@ msgid "Enable Bone Options"
 msgstr "Habilitar opções de ossos"
 
 
+msgid "Keying"
+msgstr "Inserção de chaves"
+
+
 msgid "Disable Bone Options"
 msgstr "Desabilitar as opções de ossos"
+
+
+msgid "Tracking"
+msgstr "Rastreamento"
 
 
 msgid "Mesh Select Mode"
@@ -21393,42 +21429,6 @@ msgstr "Fundir"
 
 msgid "Special Characters"
 msgstr "Caracteres especiais"
-
-
-msgid "Bone Roll"
-msgstr "Rolagem dos ossos"
-
-
-msgid "Instances"
-msgstr "Instâncias"
-
-
-msgid "Import"
-msgstr "Importar"
-
-
-msgid "Pivot Point"
-msgstr "Pontos de pivô"
-
-
-msgid "Snap"
-msgstr "Atrair"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Tipo de decaimento para edição proporcional"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Espelhar"
-
-
-msgid "UV Mapping"
-msgstr "Mapeamento UV"
 
 
 msgid "Basic"
@@ -48295,6 +48295,14 @@ msgid "Active Palette Color"
 msgstr "Cor ativa da paleta"
 
 
+msgid "Render Pass"
+msgstr "Passo de renderização"
+
+
+msgid "Motion Tracking"
+msgstr "Captura de movimentos"
+
+
 msgid "Transform Orientations"
 msgstr "Orientações de transformação"
 
@@ -48305,14 +48313,6 @@ msgstr "Exibição Quadrante"
 
 msgid "Stereoscopy"
 msgstr "Estereoscopia"
-
-
-msgid "Render Pass"
-msgstr "Passo de renderização"
-
-
-msgid "Motion Tracking"
-msgstr "Captura de movimentos"
 
 
 msgid "Bone Constraints"
