@@ -95,10 +95,13 @@ void ShadingView::render()
 
   combined_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                       GPU_ATTACHMENT_TEXTURE(rbufs.combined_tx));
-  prepass_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
-                     GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx),
-                     GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx),
-                     GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx));
+
+  const bool with_raycast = inst_.pipelines.has_raycast;
+  prepass_fb_.ensure(
+      GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
+      with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
+      GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx),
+      with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE);
 
   GBuffer &gbuf = inst_.gbuffer;
   gbuf.acquire(extent_,
@@ -118,10 +121,12 @@ void ShadingView::render()
   /* TODO: Clear using GPU_framebuffer? */
   float4 clear_velocity = float4(inst_.velocity.camera_has_motion() ? VELOCITY_INVALID : 0.0f);
   GPU_texture_clear(rbufs.vector_tx, GPU_DATA_FLOAT, &clear_velocity);
-  uint clear_id = 0;
-  GPU_texture_clear(rbufs.object_id_tx, GPU_DATA_UINT, &clear_id);
-  float4 clear_normal = float4(0.0f);
-  GPU_texture_clear(rbufs.prepass_normal_tx, GPU_DATA_FLOAT, &clear_normal);
+  if (with_raycast) {
+    uint clear_id = 0;
+    GPU_texture_clear(rbufs.object_id_tx, GPU_DATA_UINT, &clear_id);
+    float4 clear_normal = float4(0.0f);
+    GPU_texture_clear(rbufs.prepass_normal_tx, GPU_DATA_FLOAT, &clear_normal);
+  }
 
   /* Alpha stores transmittance. So start at 1. */
   float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};

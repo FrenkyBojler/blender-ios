@@ -83,6 +83,12 @@ void RenderBuffers::acquire(int2 extent)
     object_id_tx.acquire(extent, gpu::TextureFormat::UINT_16, usage_attachment_read);
     prepass_normal_tx.acquire(extent, gpu::TextureFormat::UFLOAT_11_11_10, usage_attachment_read);
   }
+  else {
+    /* Still acquire them, since the passes can't conditionally attach textures. */
+    object_id_tx.acquire(int2(1), gpu::TextureFormat::UINT_16, GPU_TEXTURE_USAGE_SHADER_READ);
+    prepass_normal_tx.acquire(
+        int2(1), gpu::TextureFormat::UFLOAT_11_11_10, GPU_TEXTURE_USAGE_SHADER_READ);
+  }
 
   const bool do_motion_vectors_swizzle = vector_tx_format() == gpu::TextureFormat::SFLOAT_16_16;
   if (do_motion_vectors_swizzle) {

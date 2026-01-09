@@ -298,10 +298,11 @@ void Prepass::setup_subpasses(DRWState common_state)
         PassMain::Sub *&subpass = prepass_subpasses[double_sided][moving][write_id];
         subpass = &this->sub(double_sided_name + moving_name + write_id_name);
         subpass->state_set(common_state | double_sided_state | moving_state | write_id_state);
-        subpass->subpass_transition(GPU_ATTACHMENT_WRITE,
-                                    {GPU_ATTACHMENT_WRITE, /* normal */
-                                     moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
-                                     write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
+        subpass->subpass_transition(
+            GPU_ATTACHMENT_WRITE,
+            {GPU_ATTACHMENT_WRITE_OPTIONAL, /* normal */
+             moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
+             write_id ? GPU_ATTACHMENT_WRITE_OPTIONAL : GPU_ATTACHMENT_IGNORE});
       }
     }
   }
