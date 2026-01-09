@@ -194,8 +194,8 @@ struct Preprocessor {
 
     const ParserBase &data = recursive_parser.data_get();
 
-    for (int cursor = 0; cursor < data.lex->token_types.size(); cursor++) {
-      TokenType tok_type = TokenType(data.lex->token_types[cursor]);
+    for (int cursor = 0; cursor < data.lex.token_types.size(); cursor++) {
+      TokenType tok_type = TokenType(data.lex.token_types[cursor]);
       if (tok_type == Word) {
         try_expand(recursive_parser, data, cursor);
       }
@@ -611,8 +611,8 @@ struct Preprocessor {
     const ParserBase &data = parser.data_get();
 
     int cursor = 0;
-    for (; cursor < data.lex->token_types.size(); cursor++) {
-      TokenType tok_type = TokenType(data.lex->token_types[cursor]);
+    for (; cursor < data.lex.token_types.size(); cursor++) {
+      TokenType tok_type = TokenType(data.lex.token_types[cursor]);
       if (tok_type == Word) {
         try_expand(parser, data, cursor);
       }

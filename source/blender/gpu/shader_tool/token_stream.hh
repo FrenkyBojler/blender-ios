@@ -16,23 +16,6 @@ namespace blender::gpu::shader::parser {
 
 struct Token;
 
-/* Used to select at which stage to stop.
- *  */
-enum ParserStage {
-  TokenizePreprocessor,
-  Tokenize,
-  MergeTokens,
-  IdentifyKeywords,
-  BuildScopeTree,
-};
-
-struct LexerData {
-  /** Token Data. Backing memory for the spans. */
-  std::vector<TokenType> token_types_data;
-  std::vector<uint32_t> token_sizes_data;
-  std::vector<uint32_t> token_offsets_data;
-};
-
 /**
  * Turns string into token.
  */
@@ -52,10 +35,13 @@ struct LexerBase {
   /** Ranges of characters per token. */
   OffsetIndices token_offsets;
 
-  /* Note: This binds the data to this lexer until it is freed. */
-  LexerBase(std::string_view input, LexerData &data);
+  /** Token Data. Backing memory for the spans. */
+  std::vector<TokenType> token_types_data;
+  std::vector<uint32_t> token_sizes_data;
+  std::vector<uint32_t> token_offsets_data;
 
  protected:
+  void ensure_memory();
   /* Create tokens based on character stream. */
   void tokenize(bool only_preprocessor_tokens);
   /* Merge tokens (ex: '2','.','e','-','3` into '2.e-3`). */
@@ -72,8 +58,10 @@ struct LexerBase {
  * Does not merge newlines and spaces.
  */
 struct PreprocessorLexer : LexerBase {
-  PreprocessorLexer(std::string_view input, LexerData &data) : LexerBase(input, data)
+  void lexical_analysis(std::string_view input)
   {
+    str = input;
+    ensure_memory();
     tokenize(true);
   }
 };
@@ -82,29 +70,24 @@ struct PreprocessorLexer : LexerBase {
  * Allow recognition of common operators and numbers. Merge whitespaces.
  */
 struct ExpressionLexer : LexerBase {
-  ExpressionLexer(std::string_view input, LexerData &data) : LexerBase(input, data)
+  void lexical_analysis(std::string_view input)
   {
+    str = input;
+    ensure_memory();
     tokenize(false);
     merge_tokens();
   }
 };
 
 struct FullLexer : LexerBase {
-  FullLexer(std::string_view input, LexerData &data) : LexerBase(input, data)
+  void lexical_analysis(std::string_view input)
   {
+    str = input;
+    ensure_memory();
     tokenize(false);
     merge_tokens();
     identify_keywords();
   }
-};
-
-struct ParserData {
-  /** Range of token per scope. */
-  std::vector<ScopeType> scope_types;
-  /** Range of token per scope. */
-  std::vector<IndexRange> scope_ranges;
-  /** Index of bottom most scope per token. */
-  std::vector<int> token_scope;
 };
 
 /**
@@ -112,7 +95,7 @@ struct ParserData {
  * Also creates mapping table from token to scope to have bi-directional mapping.
  */
 struct ParserBase {
-  const LexerBase *lex;
+  const LexerBase &lex;
 
   /** Compact visualization of scope_types.  */
   std::string_view scope_types_str;
@@ -120,19 +103,13 @@ struct ParserBase {
   /* --- Structure of Array style data for scopes. --- */
 
   /** Range of token per scope. */
-  std::vector<ScopeType> *scope_types;
+  std::vector<ScopeType> scope_types;
   /** Range of token per scope. */
-  std::vector<IndexRange> *scope_ranges;
+  std::vector<IndexRange> scope_ranges;
   /** Index of bottom most scope per token. */
-  std::vector<int> *token_scope;
+  std::vector<int> token_scope;
 
-  ParserBase(const LexerBase &lex, ParserData &data)
-      : lex(&lex),
-        scope_types(&data.scope_types),
-        scope_ranges(&data.scope_ranges),
-        token_scope(&data.token_scope)
-  {
-  }
+  ParserBase(const LexerBase &lex) : lex(lex) {}
 
   /* Return the i'th token. */
   Token operator[](int i) const;
@@ -147,27 +124,24 @@ struct ParserBase {
 
 /* Do not parse. Creates a single global scope containing all tokens. */
 struct DummyParser : ParserBase {
-  DummyParser(const LexerBase &lex, ParserData &data, report_callback & /*report_error*/)
-      : ParserBase(lex, data)
+  DummyParser(const LexerBase &lex) : ParserBase(lex) {}
+
+  void semantic_analysis(report_callback & /*report_error*/)
   {
-    *scope_types = {ScopeType::Global};
-    *scope_ranges = {IndexRange(0, lex.token_types.size())};
+    scope_types = {ScopeType::Global};
+    scope_ranges = {IndexRange(0, lex.token_types.size())};
     build_token_to_scope_map();
   }
 };
 
 struct FullParser : ParserBase {
-  FullParser(const LexerBase &lex, ParserData &data, report_callback &report_error)
-      : ParserBase(lex, data)
+  FullParser(const LexerBase &lex) : ParserBase(lex) {}
+
+  void semantic_analysis(report_callback &report_error)
   {
     build_scope_tree(report_error);
     build_token_to_scope_map();
   }
-};
-
-struct LexerParserData {
-  LexerData lexer_data;
-  ParserData parser_data;
 };
 
 }  // namespace blender::gpu::shader::parser

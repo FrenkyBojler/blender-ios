@@ -294,28 +294,25 @@ struct MutableString {
  * It is made for fast traversal and mutation of source code. */
 template<typename LexerClass, typename ParserClass> struct IntermediateForm : MutableString {
  private:
-  LexerParserData parser_data_;
   LexerClass lex_;
-  ParserClass data_;
+  ParserClass parser_;
 
   report_callback &report_error;
 
  public:
   IntermediateForm(const std::string_view input, report_callback &report_error)
-      : MutableString(input),
-        lex_(input, parser_data_.lexer_data),
-        data_(lex_, parser_data_.parser_data, report_error),
-        report_error(report_error)
+      : MutableString(input), parser_(lex_), report_error(report_error)
   {
+    parse(report_error);
   }
 
   /* Main access operator. Returns the root scope (aka global scope). */
   Scope operator()() const
   {
-    if ((*data_.scope_types).empty()) {
+    if (parser_.scope_types.empty()) {
       return Scope::invalid();
     }
-    return Scope::from_position(data_, 0);
+    return Scope::from_position(parser_, 0);
   }
 
   /* Return true if any mutation was applied. */
@@ -345,14 +342,14 @@ template<typename LexerClass, typename ParserClass> struct IntermediateForm : Mu
   /* For testing. */
   const ParserBase &data_get()
   {
-    return data_;
+    return parser_;
   }
 
  private:
   void parse(report_callback &report_error)
   {
-    lex_ = FullLexer(str_, parser_data_.lexer_data);
-    data_ = FullParser(lex_, parser_data_.parser_data, report_error);
+    lex_.lexical_analysis(str_);
+    parser_.semantic_analysis(report_error);
   }
 
  public:
@@ -360,7 +357,7 @@ template<typename LexerClass, typename ParserClass> struct IntermediateForm : Mu
   {
     std::cout << "Input: \n" << str_ << " \nEnd of Input\n" << std::endl;
     std::cout << "Token Types: \"" << lex_.token_types_str << "\"" << std::endl;
-    std::cout << "Scope Types: \"" << data_.scope_types_str << "\"" << std::endl;
+    std::cout << "Scope Types: \"" << parser_.scope_types_str << "\"" << std::endl;
   }
 };
 
