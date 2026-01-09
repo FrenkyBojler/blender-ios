@@ -3852,6 +3852,4 @@ typedef struct NodeGetBundleItem {
   short socket_type;
 } NodeGetBundleItem;
 
-
-
 }  // namespace blender
