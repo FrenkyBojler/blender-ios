@@ -31,7 +31,7 @@ struct Token {
 
   static Token from_position(const TokenStream *data, int64_t index)
   {
-    if (data == nullptr || index < 0 || index > (data->token_offsets.offsets.size() - 2)) {
+    if (data == nullptr || index < 0 || index > (data->token_offsets.size() - 1)) {
       return invalid();
     }
 #ifndef NDEBUG

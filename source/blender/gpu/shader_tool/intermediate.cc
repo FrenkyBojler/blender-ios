@@ -102,31 +102,34 @@ void TokenStream::lexical_analysis(ParserStage stop_after)
     return;
   }
 
-  TokenData data;
+  /* Make sure there is enough reserved space inside the data structures.
+   * We need at least as many token as there is character. */
+  token_types_data.resize(str.size());
+  token_sizes_data.resize(str.size());
+  token_offsets_data.resize(str.size() + 1);
+
+  token_types = {token_types_data.data(), token_types_data.size()};
+  token_sizes = {token_sizes_data.data(), token_sizes_data.size()};
+  token_offsets = {token_offsets_data.data(), token_offsets_data.size()};
 
   if (stop_after == TokenizePreprocessor) {
-    tokenize(data, true);
+    tokenize(true);
   }
   else {
-    tokenize(data, false);
+    tokenize(false);
   }
   if (stop_after <= Tokenize) {
     goto end;
   }
 
-  merge_tokens(data);
+  merge_tokens();
   if (stop_after <= MergeTokens) {
     goto end;
   }
 
-  identify_keywords(data);
+  identify_keywords();
 
 end:
-  /* TODO(fclem): Get rid of this.*/
-  /* Convert vector of char to string for faster lookups. */
-  this->token_types = std::move(data.types);
-  this->token_offsets = std::move(data.offsets);
-
   this->token_types_str = std::string_view(reinterpret_cast<char *>(this->token_types.data()),
                                            this->token_types.size());
 }
@@ -246,21 +249,16 @@ static const std::array<std::pair<TokenType, bool>, 256> token_table_preprocesso
   return t;
 }();
 
-void TokenStream::tokenize(TokenData &tokens, bool only_preprocessor_tokens)
+void TokenStream::tokenize(bool only_preprocessor_tokens)
 {
-  /* Reserve space inside the data structures. Allocate 1 token per char as we do not want to
-   * resize or check for size inside the hot loop. */
-  tokens.types.resize(str.size());
-  tokens.offsets.offsets.resize(str.size() + 1);
-
   TokenType type = TokenType::Invalid;
 
   const std::array<std::pair<TokenType, bool>, 256> &token_table = only_preprocessor_tokens ?
                                                                        token_table_preprocessor :
                                                                        token_table_full;
 
-  TokenType *types_raw = tokens.types.data();
-  uint32_t *offsets_raw = tokens.offsets.offsets.data();
+  TokenType *types_raw = token_types.data();
+  uint32_t *offsets_raw = token_offsets.data();
 
   int offset = 0, cursor = 0;
   for (const char c : str) {
@@ -277,8 +275,8 @@ void TokenStream::tokenize(TokenData &tokens, bool only_preprocessor_tokens)
   /* Set end of last token. */
   offsets_raw[cursor] = offset++;
   /* Resize to the actual usage. */
-  tokens.types.resize(cursor);
-  tokens.offsets.offsets.resize(cursor + 1);
+  token_types.shrink(cursor);
+  token_offsets.offsets.shrink(cursor + 1);
 }
 
 static const std::array<bool, 256> num_literal_table = [] {
@@ -333,18 +331,16 @@ static always_inline bool is_whitespace(TokenType t)
   return (t == ' ') || (t == '\n');
 }
 
-void TokenStream::merge_tokens(TokenData &tokens)
+void TokenStream::merge_tokens()
 {
-  tokens.sizes.resize(tokens.types.size());
-
   const char *str_raw = str.data();
-  TokenType *types_raw = tokens.types.data();
-  uint32_t *offsets_raw = tokens.offsets.offsets.data();
-  uint32_t *sizes_raw = tokens.sizes.data();
+  TokenType *types_raw = token_types.data();
+  uint32_t *offsets_raw = token_offsets.data();
+  uint32_t *sizes_raw = token_sizes.data();
 
   /* Never merge the first token. We don't want to loose it. */
   TokenType prev = types_raw[0];
-  sizes_raw[0] = tokens.offsets[0].size;
+  sizes_raw[0] = token_offsets[0].size;
 
   /* State. */
   bool after_whitespace = is_whitespace(prev);
@@ -354,7 +350,7 @@ void TokenStream::merge_tokens(TokenData &tokens)
   bool inside_number = false;
 
   uint32_t cursor = 1;
-  for (uint32_t i = 1; i < tokens.types.size(); i++) {
+  for (uint32_t i = 1; i < token_types.size(); i++) {
     bool emit = true;
 #define merge_if(a) emit &= !(a)
 
@@ -506,11 +502,11 @@ void TokenStream::merge_tokens(TokenData &tokens)
       cursor += 1;
     }
   }
-
-  tokens.types.resize(cursor);
-
-  tokens.offsets.offsets[cursor] = tokens.offsets.offsets.back();
-  tokens.offsets.offsets.resize(cursor + 1);
+  /* Make sure the last token extend to the end of the string. */
+  token_offsets.offsets[cursor] = token_offsets.offsets.back();
+  /* Shrink spans to new number of tokens. */
+  token_types.shrink(cursor);
+  token_offsets.offsets.shrink(cursor + 1);
 }
 
 static always_inline TokenType type_lookup(std::string_view s)
@@ -664,14 +660,14 @@ static always_inline TokenType type_lookup(std::string_view s)
   return Word;
 }
 
-void TokenStream::identify_keywords(TokenData &tokens)
+void TokenStream::identify_keywords()
 {
   int tok_id = -1;
-  for (TokenType &type : tokens.types) {
+  for (TokenType &type : token_types) {
     tok_id++;
     if (type == Word) {
-      IndexRange range = tokens.offsets[tok_id];
-      type = type_lookup({str.data() + range.start, size_t(tokens.sizes[tok_id])});
+      IndexRange range = token_offsets[tok_id];
+      type = type_lookup({str.data() + range.start, size_t(token_sizes[tok_id])});
     }
   }
 }

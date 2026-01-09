@@ -15,7 +15,6 @@
 #include <cstdint>
 #include <functional>
 #include <string>
-#include <vector>
 
 namespace blender::gpu::shader::parser {
 
@@ -44,19 +43,72 @@ struct IndexRange {
   }
 };
 
+/** Poor man's MutableSpan. */
+template<typename T> struct MutableSpan {
+  T *data_;
+  uint64_t size_;
+
+  T &operator[](const int64_t index)
+  {
+    return data_[index];
+  }
+  const T &operator[](const int64_t index) const
+  {
+    return data_[index];
+  }
+
+  T *data()
+  {
+    return data_;
+  }
+
+  uint64_t size() const
+  {
+    return size_;
+  }
+
+  T back() const
+  {
+    return (*this)[size_ - 1];
+  }
+
+  T *begin()
+  {
+    return data_;
+  }
+  T *end()
+  {
+    return data_ + size_;
+  }
+
+  /**
+   * Set span size to a smaller size, this invokes undefined behavior when n is negative or bigger
+   * than the current span.
+   */
+  void shrink(int64_t new_size)
+  {
+    size_ = new_size;
+  }
+};
+
 /** Poor man's OffsetIndices. */
 struct OffsetIndices {
-  std::vector<uint32_t> offsets;
+  MutableSpan<uint32_t> offsets;
 
   IndexRange operator[](const int64_t index) const
   {
     return {int64_t(offsets[index]), int64_t(offsets[index + 1] - offsets[index])};
   }
 
-  void clear()
+  uint32_t *data()
   {
-    offsets.clear();
-  };
+    return offsets.data();
+  }
+
+  uint32_t size() const
+  {
+    return offsets.size() - 1;
+  }
 };
 
 /** Return the line number this token is found at. Take into account the #line directives. */

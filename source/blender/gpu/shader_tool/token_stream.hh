@@ -38,19 +38,24 @@ struct TokenStream {
 
   /* Structure of Array style data for tokens. */
   /** Token type per token. */
-  std::vector<TokenType> token_types;
+  MutableSpan<TokenType> token_types;
+  /** Size of the raw token before token merging. */
+  MutableSpan<uint32_t> token_sizes;
   /** Ranges of characters per token. */
   OffsetIndices token_offsets;
-  /** Container of offsets for each token. */
-  std::vector<uint32_t> offset_buf;
-  /** Index of bottom most scope per token. */
-  std::vector<int> token_scope;
 
   /* Structure of Array style data for scopes. */
   /** Range of token per scope. */
   std::vector<ScopeType> scope_types;
   /** Range of token per scope. */
   std::vector<IndexRange> scope_ranges;
+  /** Index of bottom most scope per token. */
+  std::vector<int> token_scope;
+
+  /** Token Data. Backing memory for the span above. TODO(fclem): Move it out of here. */
+  std::vector<TokenType> token_types_data;
+  std::vector<uint32_t> token_sizes_data;
+  std::vector<uint32_t> token_offsets_data;
 
   void lexical_analysis(ParserStage stop_after);
 
@@ -58,11 +63,11 @@ struct TokenStream {
 
  private:
   /* Create tokens based on character stream. */
-  void tokenize(struct TokenData &tokens, bool only_preprocessor_tokens);
+  void tokenize(bool only_preprocessor_tokens);
   /* Merge tokens (ex: '2','.','e','-','3` into '2.e-3`). */
-  void merge_tokens(struct TokenData &tokens);
+  void merge_tokens();
 
-  void identify_keywords(struct TokenData &tokens);
+  void identify_keywords();
 
   void build_scope_tree(report_callback &report_error);
 
