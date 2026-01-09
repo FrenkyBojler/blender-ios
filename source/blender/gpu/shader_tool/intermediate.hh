@@ -285,13 +285,13 @@ struct IntermediateForm {
   }
 
   /* Return true if any mutation was applied. */
-  bool only_apply_mutations();
+  bool only_apply_mutations(const bool all_mutation_ordered = false);
 
   /* Apply pending mutation and parse the resulting string.
    * Return true if any mutation was applied. */
-  bool apply_mutations()
+  bool apply_mutations(const bool all_mutation_ordered = false)
   {
-    bool applied = only_apply_mutations();
+    bool applied = only_apply_mutations(all_mutation_ordered);
     if (applied) {
       this->parse(stop_parser_after_stage, report_error);
     }
@@ -299,9 +299,9 @@ struct IntermediateForm {
   }
 
   /* Apply mutations if any and get resulting string. */
-  const std::string &result_get()
+  const std::string &result_get(const bool all_mutation_ordered = false)
   {
-    only_apply_mutations();
+    only_apply_mutations(all_mutation_ordered);
     return data_.str;
   }
 

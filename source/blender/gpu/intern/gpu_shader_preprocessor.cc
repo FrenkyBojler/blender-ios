@@ -632,7 +632,7 @@ std::string Shader::run_preprocessor(StringRef source)
   Preprocessor processor{parser};
   processor.preprocess();
 
-  return parser.result_get();
+  return parser.result_get(true);
 }
 
 }  // namespace blender::gpu

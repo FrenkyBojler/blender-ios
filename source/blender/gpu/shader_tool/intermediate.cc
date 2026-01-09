@@ -1028,14 +1028,21 @@ void TokenStream::build_token_to_scope_map()
 }
 
 /* Return true if any mutation was applied. */
-bool IntermediateForm::only_apply_mutations()
+bool IntermediateForm::only_apply_mutations(const bool all_mutation_ordered)
 {
   if (mutations_.empty()) {
     return false;
   }
 
-  /* Order mutations so that they can be applied in one pass. */
-  std::stable_sort(mutations_.begin(), mutations_.end());
+  if (!all_mutation_ordered) {
+    /* Order mutations so that they can be applied in one pass. */
+    std::stable_sort(mutations_.begin(), mutations_.end());
+  }
+#ifndef NDEBUG
+  else {
+    assert(std::is_sorted(mutations_.begin(), mutations_.end()));
+  }
+#endif
 
   /* Make sure to pad the input string in case of insertion after the last char. */
   bool added_trailing_new_line = false;
