@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "BLI_bounds.hh"
 #include "BLI_compute_context.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
@@ -13,9 +14,7 @@
 
 #include "BKE_compute_context_cache_fwd.hh"
 
-#include "NOD_geometry_nodes_bundle_signature.hh"
 #include "NOD_geometry_nodes_closure_location.hh"
-#include "NOD_geometry_nodes_closure_signature.hh"
 #include "NOD_nested_node_id.hh"
 
 #include "ED_node_c.hh"
@@ -30,6 +29,8 @@ struct Main;
 struct bContext;
 struct bNodeSocket;
 struct bNodeTree;
+struct bNodeTreeInterfacePanel;
+struct bNodeTreeInterfaceSocket;
 struct Object;
 struct rcti;
 struct rctf;
@@ -42,6 +43,61 @@ class bNodeTreeZone;
 namespace ui {
 struct Layout;
 }  // namespace ui
+
+namespace nodes {
+class ItemDeclaration;
+}
+
+/* Utility for referencing a const socket and its owner node. */
+struct NodeSocketRef {
+  const bNode &node;
+  const bNodeSocket &socket;
+
+  friend bool operator==(const NodeSocketRef &a, const NodeSocketRef &b)
+  {
+    return (&a.node == &b.node) && (&a.socket == &b.socket);
+  }
+  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(NodeSocketRef)
+};
+
+/* Utility for referencing a mutable socket and its owner node. */
+struct MutableNodeSocketRef {
+  bNode &node;
+  bNodeSocket &socket;
+
+  NodeSocketRef operator()() const
+  {
+    return {node, socket};
+  }
+
+  friend bool operator==(const MutableNodeSocketRef &a, const MutableNodeSocketRef &b)
+  {
+    return (&a.node == &b.node) && (&a.socket == &b.socket);
+  }
+  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(MutableNodeSocketRef)
+};
+
+template<> struct DefaultHash<NodeSocketRef> {
+  uint64_t operator()(const NodeSocketRef &value) const
+  {
+    return get_default_hash(&value.socket);
+  }
+  uint64_t operator()(const bNodeSocket &socket) const
+  {
+    return get_default_hash(&socket);
+  }
+};
+
+template<> struct DefaultHash<MutableNodeSocketRef> {
+  uint64_t operator()(const MutableNodeSocketRef &value) const
+  {
+    return get_default_hash(&value.socket);
+  }
+  uint64_t operator()(const bNodeSocket &socket) const
+  {
+    return get_default_hash(&socket);
+  }
+};
 
 namespace ed::space_node {
 
@@ -153,6 +209,99 @@ void node_tree_interface_draw(bContext &C, ui::Layout &layout, bNodeTree &tree);
 const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_label = nullptr);
 
 const char *node_socket_get_description(const bNodeSocket *socket);
+
+std::optional<Bounds<float2>> node_bounds(Span<const bNode *> nodes);
+std::optional<Bounds<float2>> node_location_bounds(Span<const bNode *> nodes);
+
+/* -------------------------------------------------------------------- */
+/** \name Utilities for copying node sets
+ * \{ */
+
+class NodeSetInterfaceBuilder;
+
+/**
+ * Maps a subset of tree interface items to internal and external sockets.
+ */
+class NodeSetInterface {
+ public:
+  struct InterfaceSocketData {
+    VectorSet<NodeSocketRef> internal_sockets;
+    VectorSet<MutableNodeSocketRef> external_sockets;
+    bool hidden = false;
+    bool collapsed = false;
+  };
+  struct InterfacePanelData {
+    bool collapsed = false;
+  };
+
+ private:
+  Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> socket_data_;
+  Map<const bNodeTreeInterfacePanel *, InterfacePanelData> panel_data_;
+
+ public:
+  const Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> &socket_data() const;
+  const Map<const bNodeTreeInterfacePanel *, InterfacePanelData> &panel_data() const;
+
+  static NodeSetInterface from_nodes(const bNodeTree &src_tree,
+                                     const Span<const bNode *> src_nodes,
+                                     bNodeTree &dst_tree,
+                                     const bool expose_visible);
+
+  static NodeSetInterface from_node_declaration(const bNode &src_node, bNodeTree &dst_tree);
+
+  static NodeSetInterface from_group_node(const bNode &group_node, const bool skip_hidden_sockets);
+
+  /* Connect the group node to external sockets. */
+  void connect_group_node(bNode &group_node) const;
+
+ private:
+  void add_declaration_item_recursive(NodeSetInterfaceBuilder &builder,
+                                      const bNode &src_node,
+                                      const nodes::ItemDeclaration &item_decl,
+                                      bNodeTreeInterfacePanel *parent);
+
+  friend class NodeSetInterfaceBuilder;
+};
+
+/**
+ * Set of nodes that are copied from other nodes and can be mapped to the original nodes.
+ */
+class NodeSetCopy {
+ public:
+  struct GroupInputOutputNodes {
+    bNode *input_node;
+    bNode *output_node;
+  };
+
+ private:
+  bNodeTree &tree_;
+  Map<const bNode *, bNode *> node_map_;
+  Map<const bNodeSocket *, bNodeSocket *> socket_map_;
+  Map<int32_t, int32_t> node_identifier_map_;
+
+ public:
+  const Map<int32_t, int32_t> &node_identifier_map() const;
+
+  static NodeSetCopy from_nodes(Main &bmain,
+                                const bNodeTree &src_tree,
+                                const Span<const bNode *> src_nodes,
+                                bNodeTree &dst_tree);
+  static NodeSetCopy from_predicate(Main &bmain,
+                                    const bNodeTree &src_tree,
+                                    FunctionRef<bool(const bNode &node)> node_predicate,
+                                    bNodeTree &dst_tree);
+
+  GroupInputOutputNodes connect_sockets_to_interface(const bContext &C,
+                                                     const NodeSetInterface &node_set_io) const;
+  void connect_sockets_to_external_nodes(const NodeSetInterface &node_set_io) const;
+
+  void translate_nodes(const float2 &offset) const;
+
+ private:
+  NodeSetCopy(bNodeTree &tree) : tree_(tree) {}
+};
+
+/** \} */
 
 }  // namespace ed::space_node
 
