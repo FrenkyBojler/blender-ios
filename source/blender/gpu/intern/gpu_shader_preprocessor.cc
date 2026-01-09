@@ -40,7 +40,6 @@ struct Preprocessor {
     Else,
     Endif,
   };
-  enum ConditionType {};
 
   static DirectiveType to_directive_type(const StringRef str)
   {
@@ -51,13 +50,14 @@ struct Preprocessor {
      * between "Other" and the directives we care about.  */
     switch (str[1]) {
       default:
+      case 'x': /* extension */
       case 'a': /* warning */
       case 'r': /* error, pragma */
         return Other;
-      case 'e': /* define */
-        return Define;
-      case 'n': /* undef */
-        return Undef;
+      case 'e': /* define, version */
+        return str[0] == 'd' ? Define : Other;
+      case 'n': /* undef, endif */
+        return str[0] == 'u' ? Undef : Endif;
       case 'i': /* line */
         return Line;
       case 'l': /* else, elif */
