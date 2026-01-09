@@ -45,6 +45,9 @@
 #include "GEO_join_geometries.hh"
 #include "GEO_smooth_curves.hh"
 
+#include "GPU_immediate.hh"
+#include "GPU_state.hh"
+
 #include "ED_grease_pencil.hh"
 #include "ED_image.hh"
 #include "ED_object.hh"
@@ -2081,7 +2084,7 @@ static void GREASE_PENCIL_OT_erase_box(wmOperatorType *ot)
   WM_operator_properties_border(ot);
 }
 
-/* Additional OPs. */
+/* Additional OPs for Drawing Guides. */
 
 /* Flip or rotate drawing guide. */
 static wmOperatorStatus grease_pencil_guide_settings(bContext *C, wmOperator *op)
@@ -2148,6 +2151,202 @@ static void GREASE_PENCIL_OT_guide_settings(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
+struct GuideOriginData {
+  void *draw_handle;
+  Scene *scene;
+  ViewContext vc;
+  ARegion *region;
+  ed::greasepencil::DrawingPlacement placement;
+  float3 original_location;
+};
+
+static void guide_origin_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
+{
+  GuideOriginData &data = *reinterpret_cast<GuideOriginData *>(arg);
+  Scene *scene = data.scene;
+  const GP_Sculpt_Guide guide = scene->toolsettings->gp_sculpt.guide;
+
+  ColorGeometry4f color_gizmo_b;
+  ui::theme::get_color_4fv(TH_GIZMO_B, color_gizmo_b);
+  color_gizmo_b.a = 0.5f;
+  static constexpr float ui_primary_point_draw_size_px = 16.0f;
+  static constexpr float ui_guide_line_length = 200.0f;
+  /* Draw reference point. */
+  ColorGeometry4f color_gizmo_primary;
+  switch (guide.reference_point) {
+    case GP_GUIDE_REF_CUSTOM:
+      ui::theme::get_color_4fv(TH_GIZMO_PRIMARY, color_gizmo_primary);
+      break;
+    case GP_GUIDE_REF_OBJECT:
+      ui::theme::get_color_4fv(TH_GIZMO_SECONDARY, color_gizmo_primary);
+      break;
+    case GP_GUIDE_REF_CURSOR:
+      ui::theme::get_color_4fv(TH_REDALERT, color_gizmo_primary);
+      break;
+  }
+  float3 location;
+  if (guide.reference_point == GP_GUIDE_REF_CUSTOM) {
+    location = guide.location;
+  }
+  else if (guide.reference_point == GP_GUIDE_REF_OBJECT && guide.reference_object != nullptr) {
+    location = guide.reference_object->loc;
+  }
+  else {
+    const View3DCursor cursor = scene->cursor;
+    location = cursor.location;
+  }
+  GPUVertFormat *format3d = immVertexFormat();
+  const uint pos3d = GPU_vertformat_attr_add(
+      format3d, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint col3d = GPU_vertformat_attr_add(
+      format3d, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+  const uint siz3d = GPU_vertformat_attr_add(
+      format3d, "size", blender::gpu::VertAttrType::SFLOAT_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+  GPU_program_point_size(true);
+  immBegin(GPU_PRIM_POINTS, 1);
+  immAttr4fv(col3d, color_gizmo_primary);
+  immAttr1f(siz3d, ui_primary_point_draw_size_px);
+  immVertex3fv(pos3d, location);
+  immEnd();
+  immUnbindProgram();
+  GPU_program_point_size(false);
+}
+
+static void guide_origin_set(GuideOriginData data, const float2 coords)
+{
+  GP_Sculpt_Guide *guide = &data.scene->toolsettings->gp_sculpt.guide;
+  const ed::greasepencil::DrawingPlacement placement = data.placement;
+  const float3 position = placement.project(coords);
+
+  if (guide->reference_point == GP_GUIDE_REF_CUSTOM) {
+    copy_v3_v3(guide->location, position);
+  }
+  else if (guide->reference_point == GP_GUIDE_REF_CURSOR) {
+    copy_v3_v3(data.scene->cursor.location, position);
+  }
+}
+
+static void grease_pencil_guide_origin_exit(wmOperator *op, const bool cancelled)
+{
+  GuideOriginData &data = *static_cast<GuideOriginData *>(op->customdata);
+
+  if (cancelled) {
+    GP_Sculpt_Guide *guide = &data.scene->toolsettings->gp_sculpt.guide;
+
+    if (guide->reference_point == GP_GUIDE_REF_CUSTOM) {
+      copy_v3_v3(guide->location, data.original_location);
+    }
+    else if (guide->reference_point == GP_GUIDE_REF_CURSOR) {
+      copy_v3_v3(data.scene->cursor.location, data.original_location);
+    }
+    ED_region_tag_redraw(data.region);
+  }
+
+  ED_region_draw_cb_exit(data.region->runtime->type, data.draw_handle);
+  WM_cursor_modal_restore(data.vc.win);
+  MEM_delete<GuideOriginData>(&data);
+  op->customdata = nullptr;
+}
+
+static wmOperatorStatus grease_pencil_guide_origin_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent * /*event*/)
+{
+
+  /* If in tools region, wait till we get to the main (3D-space)
+   * region before allowing drawing to take place. */
+  op->flag |= OP_IS_MODAL_CURSOR_REGION;
+
+  wmWindow *win = CTX_wm_window(C);
+  WM_cursor_modal_set(win, WM_CURSOR_CROSS);
+
+  GuideOriginData *data_pointer = MEM_new<GuideOriginData>(__func__);
+  op->customdata = data_pointer;
+
+  GuideOriginData &data = *data_pointer;
+
+  const ARegion *region = CTX_wm_region(C);
+  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+
+  data.draw_handle = ED_region_draw_cb_activate(
+      region->runtime->type, guide_origin_draw, data_pointer, REGION_DRAW_POST_VIEW);
+
+  data.vc = vc;
+  data.region = vc.region;
+  data.scene = vc.scene;
+  View3D *view3d = CTX_wm_view3d(C);
+
+  GreasePencil *grease_pencil = id_cast<GreasePencil *>(vc.obact->data);
+
+  /* Initialize helper class for projecting screen space coordinates. */
+  ed::greasepencil::DrawingPlacement placement = ed::greasepencil::DrawingPlacement(
+      *vc.scene, *vc.region, *view3d, *vc.obact, grease_pencil->get_active_layer());
+  if (placement.use_project_to_surface()) {
+    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
+  }
+  else if (placement.use_project_to_stroke()) {
+    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
+  }
+
+  data.placement = placement;
+
+  GP_Sculpt_Guide guide = data.scene->toolsettings->gp_sculpt.guide;
+
+  if (guide.reference_point == GP_GUIDE_REF_CUSTOM) {
+    data.original_location = guide.location;
+  }
+  else {
+    const View3DCursor cursor = data.scene->cursor;
+    data.original_location = cursor.location;
+  }
+
+  ED_region_tag_redraw(data.region);
+
+  /* Add a modal handler for this operator. */
+  WM_event_add_modal_handler(C, op);
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static wmOperatorStatus grease_pencil_guide_origin_modal(bContext * /*C*/,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
+{
+  GuideOriginData *data = static_cast<GuideOriginData *>(op->customdata);
+
+  if (event->type == EVT_ESCKEY || (event->type == RIGHTMOUSE && event->val == KM_RELEASE)) {
+    grease_pencil_guide_origin_exit(op, true);
+    return OPERATOR_CANCELLED;
+  }
+  if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+    grease_pencil_guide_origin_exit(op, false);
+    return OPERATOR_FINISHED;
+  }
+
+  guide_origin_set(*data, float2(event->mval));
+  ED_region_tag_redraw(data->region);
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static void grease_pencil_guide_origin_cancel(bContext * /*C*/, wmOperator *op)
+{
+  grease_pencil_guide_origin_exit(op, true);
+}
+
+static void GREASE_PENCIL_OT_guide_origin(wmOperatorType *ot)
+{
+  ot->name = "Guide Origin";
+  ot->idname = "GREASE_PENCIL_OT_guide_origin";
+  ot->description = "Set guide origin";
+
+  ot->invoke = grease_pencil_guide_origin_invoke;
+  ot->modal = grease_pencil_guide_origin_modal;
+  ot->cancel = grease_pencil_guide_origin_cancel;
+
+  ot->flag = OPTYPE_BLOCKING;
+}
+
 /** \} */
 
 }  // namespace ed::sculpt_paint
@@ -2167,6 +2366,7 @@ void ED_operatortypes_grease_pencil_draw()
   WM_operatortype_append(GREASE_PENCIL_OT_erase_lasso);
   WM_operatortype_append(GREASE_PENCIL_OT_erase_box);
   WM_operatortype_append(GREASE_PENCIL_OT_guide_settings);
+  WM_operatortype_append(GREASE_PENCIL_OT_guide_origin);
 }
 
 void ED_filltool_modal_keymap(wmKeyConfig *keyconf)
