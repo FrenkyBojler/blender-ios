@@ -354,6 +354,9 @@ void VKTexturePool::reset(bool force_free)
   }
   previous_usage_data_ = current_usage_data_;
   current_usage_data_ = {};
+  for (const TextureHandle &tex : acquired_) {
+    current_usage_data_.acquired_segment_size += tex.segment.size;
+  }  
 #endif
 }
 
