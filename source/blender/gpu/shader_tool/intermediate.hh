@@ -72,11 +72,16 @@ struct IntermediateForm {
 
   ParserStage stop_parser_after_stage;
 
+  bool with_timer;
+
  public:
   IntermediateForm(const std::string &input,
                    report_callback &report_error,
-                   ParserStage stop_parser_after_stage = ParserStage::BuildScopeTree)
-      : report_error(report_error), stop_parser_after_stage(stop_parser_after_stage)
+                   ParserStage stop_parser_after_stage = ParserStage::BuildScopeTree,
+                   bool with_timer = true)
+      : report_error(report_error),
+        stop_parser_after_stage(stop_parser_after_stage),
+        with_timer(with_timer)
   {
     data_.str = input;
     parse(stop_parser_after_stage, report_error);
@@ -331,10 +336,11 @@ struct IntermediateForm {
   }
 
  private:
-  uint64_t lexical_time;
-  uint64_t semantic_time;
+  uint64_t lexical_time = 0;
+  uint64_t semantic_time = 0;
 
   void parse(ParserStage stop_after, report_callback &report_error);
+  void parse_timed(ParserStage stop_after, report_callback &report_error);
 
  public:
   void print_stats()

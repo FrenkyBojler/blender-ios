@@ -1069,7 +1069,7 @@ bool IntermediateForm::only_apply_mutations()
   return true;
 }
 
-void IntermediateForm::parse(ParserStage stop_after, report_callback &report_error)
+void IntermediateForm::parse_timed(ParserStage stop_after, report_callback &report_error)
 {
   TimeIt::Duration lex_time, sem_time;
   {
@@ -1082,6 +1082,18 @@ void IntermediateForm::parse(ParserStage stop_after, report_callback &report_err
   }
   lexical_time = lex_time.count();
   semantic_time = sem_time.count();
+}
+
+void IntermediateForm::parse(ParserStage stop_after, report_callback &report_error)
+{
+  if (with_timer) {
+    parse_timed(stop_after, report_error);
+    return;
+  }
+
+  /* Fast path. */
+  data_.lexical_analysis(stop_after);
+  data_.semantic_analysis(stop_after, report_error);
 }
 
 }  // namespace blender::gpu::shader::parser

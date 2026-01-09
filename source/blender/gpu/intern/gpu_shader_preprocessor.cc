@@ -189,7 +189,7 @@ struct Preprocessor {
       return "";
     }
     report_callback report = [](int, int, std::string, const char *) {};
-    IntermediateForm parser(input, report, ParserStage::TokenizePreprocessor);
+    IntermediateForm parser(input, report, ParserStage::TokenizePreprocessor, false);
 
     const TokenStream &data = parser.data_get();
 
@@ -458,7 +458,7 @@ struct Preprocessor {
     int value = 0;
     try {
       report_callback report = [](int, int, std::string, const char *) {};
-      IntermediateForm parser(expand, report, ParserStage::MergeTokens);
+      IntermediateForm parser(expand, report, ParserStage::MergeTokens, false);
 
       value = ExpressionParser(parser()[0]).eval();
     }
@@ -627,7 +627,7 @@ std::string Shader::run_preprocessor(StringRef source)
 {
   report_callback report = [](int, int, std::string, const char *) {};
 
-  IntermediateForm parser(source, report, ParserStage::TokenizePreprocessor);
+  IntermediateForm parser(source, report, ParserStage::TokenizePreprocessor, false);
 
   Preprocessor processor{parser};
   processor.preprocess();
