@@ -685,9 +685,6 @@ bool BM_face_split_edgenet(
 
   if (!face_arr.is_empty()) {
     bmesh_face_swap_data(f, face_arr[0]);
-    if (face_arr[0]->head.hflag & BM_ELEM_SELECT) {
-      bm->totfacesel--;
-    }
     BM_face_kill(bm, face_arr[0]);
     face_arr[0] = f;
   }
