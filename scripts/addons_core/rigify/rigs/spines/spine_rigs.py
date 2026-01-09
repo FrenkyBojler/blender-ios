@@ -122,11 +122,15 @@ class BaseSpineRig(TweakChainRig):
         bone_list = [ctrl.master] + ctrl.tweak + ctrl.fk.hips + ctrl.fk.chest + [ ctrl.hips] + [ctrl.chest]
         panel = self.script.panel_with_selected_check(self, bone_list)
 
-        # Euler Control bones
-        bones_to_euler = [ctrl.master, ctrl.hips ,ctrl.chest]
-        for bone in bones_to_euler:
+        # Copy Rotation Order from metarig bones to main control bones
+        set_rotation_order_start = [ctrl.master, ctrl.hips] # The Torso and Hips will copy the first org bone
+        for bone in set_rotation_order_start:
             pose_bone = self.get_bone(bone)
-            pose_bone.rotation_mode = 'XYZ'
+            pose_bone.rotation_mode = self.get_bone(self.bones.org[0]).rotation_mode
+        
+        # The Chest will copy the last org bone
+        pose_bone = self.get_bone(ctrl.chest)
+        pose_bone.rotation_mode = self.get_bone(self.bones.org[-1]).rotation_mode
 
         if self.params.make_preserve_volume:
             self.make_property(self.bones.ctrl.master, 'volume_preserve', 0.0, description='Preserve volume when stretching')
