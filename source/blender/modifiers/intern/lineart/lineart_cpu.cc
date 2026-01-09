@@ -5433,7 +5433,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   };
 
   bool skip_weight_transfer = false;
-  if (drawing.geometry.vertex_group_names.begin() == nullptr) {
+  if (BLI_listbase_is_empty(&drawing.geometry.vertex_group_names)) {
     skip_weight_transfer = true;
   }
 
