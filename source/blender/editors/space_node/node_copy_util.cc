@@ -210,9 +210,10 @@ static const bNodeSocket &find_socket_to_use_for_interface(const bNodeTree &node
   return *other_socket.logically_linked_sockets().first();
 }
 
-static bNodeTreeInterfaceSocket *add_interface_from_socket(const bNodeTree &original_tree,
+static bNodeTreeInterfaceSocket &add_interface_from_socket(const bNodeTree &original_tree,
+                                                           const bNodeSocket &socket,
                                                            bNodeTree &tree_for_interface,
-                                                           const bNodeSocket &socket)
+                                                           bNodeTreeInterfacePanel *parent)
 {
   const bNode &node = socket.owner_node();
   /* The output sockets of group nodes usually have consciously given names so they have
@@ -224,8 +225,11 @@ static bNodeTreeInterfaceSocket *add_interface_from_socket(const bNodeTree &orig
   const bNodeSocket &socket_for_io = find_socket_to_use_for_interface(original_tree, socket);
   const bNode &node_for_io = socket_for_io.owner_node();
   const bNodeSocket &socket_for_name = prefer_node_for_interface_name ? socket : socket_for_io;
-  return bke::node_interface::add_interface_socket_from_node(
+  bNodeTreeInterfaceSocket *io_socket = bke::node_interface::add_interface_socket_from_node(
       tree_for_interface, node_for_io, socket_for_io, socket_for_io.idname, socket_for_name.name);
+  BLI_assert(io_socket != nullptr);
+  tree_for_interface.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
+  return *io_socket;
 }
 
 static std::string node_basepath(const bNodeTree &tree, const bNode &node)
@@ -487,6 +491,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
                                             const bool skip_hidden_links,
                                             const bool skip_unconnected)
 {
+  const bNodeTree &src_tree = src_socket.owner_tree();
   if (!src_socket.is_available()) {
     return;
   }
@@ -497,30 +502,40 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
       return !src_nodes_set_.contains(&node);
     });
   }
-  if (skip_unconnected && external_links.is_empty()) {
+
+  if (external_links.is_empty()) {
+    if (!skip_unconnected) {
+      InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(&src_socket, [&]() {
+        bNodeTreeInterfaceSocket &io_socket = util::add_interface_from_socket(
+            src_tree, src_socket, dst_tree_, parent);
+        InterfaceSocketData &data = interface_.socket_data_.lookup_or_add(&io_socket, {});
+        return &data;
+      });
+      data.internal_sockets.add({src_socket.owner_node(), src_socket});
+      data.hidden = src_socket.flag & SOCK_HIDDEN;
+      data.collapsed = src_socket.flag & SOCK_COLLAPSED;
+    }
+
     return;
   }
 
   /* Use the same interface for each unique external socket. */
   /* TODO this should be changed to use the same interface socket for outputs. */
-  const bNodeSocket &key = external_links.is_empty() ? src_socket : external_links.first().socket;
-
-  InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(&key, [&]() {
-    const bNodeTree &src_tree = src_socket.owner_tree();
-    /* TODO this should use the external linked socket as template for inputs to avoid implicit
-     * type conversion when an external socket is linked to multiple internal inputs. */
-    bNodeTreeInterfaceSocket *io_socket = util::add_interface_from_socket(
-        src_tree, dst_tree_, src_socket);
-    BLI_assert(io_socket != nullptr);
-    dst_tree_.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
-    InterfaceSocketData &data = interface_.socket_data_.lookup_or_add(io_socket, {});
-    return &data;
-  });
-
-  data.internal_sockets.add({src_socket.owner_node(), src_socket});
-  data.external_sockets.add_multiple(external_links);
-  data.hidden = src_socket.flag & SOCK_HIDDEN;
-  data.collapsed = src_socket.flag & SOCK_COLLAPSED;
+  for (const MutableNodeSocketRef &external_socket : external_links) {
+    InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(&external_socket.socket, [&]() {
+      /* TODO this should use the external linked socket as template for inputs to avoid implicit
+       * type conversion when an external socket is linked to multiple internal inputs. */
+      bNodeTreeInterfaceSocket &io_socket = util::add_interface_from_socket(
+          src_tree, src_socket, dst_tree_, parent);
+      InterfaceSocketData &data = interface_.socket_data_.lookup_or_add(&io_socket, {});
+      return &data;
+    });
+    data.internal_sockets.add({src_socket.owner_node(), src_socket});
+    data.external_sockets.add(external_socket);
+    /* TODO this is ambiguous when using the external sockets as keys. */
+    // data.hidden = src_socket.flag & SOCK_HIDDEN;
+    // data.collapsed = src_socket.flag & SOCK_COLLAPSED;
+  }
 }
 
 void NodeSetInterfaceBuilder::expose_socket(const bNode &src_node,
