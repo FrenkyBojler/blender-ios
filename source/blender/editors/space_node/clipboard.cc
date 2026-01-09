@@ -115,7 +115,10 @@ static bool node_copy_local(bNodeTree &from_tree,
   /* Copy links between selected nodes. */
   for (bNodeLink &link : from_tree.links) {
     if (link.tonode->flag & NODE_SELECT && link.fromnode->flag & NODE_SELECT) {
-      BLI_assert(node_map.contains(link.tonode) && node_map.contains(link.fromnode));
+      if (!node_map.contains(link.tonode) || !node_map.contains(link.fromnode)) {
+        /* If copying a node fails, skip copying their links. */
+        continue;
+      };
       bNode *from_node = node_map.lookup(link.fromnode);
       bNode *to_node = node_map.lookup(link.tonode);
 
