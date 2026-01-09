@@ -569,9 +569,8 @@ struct Preprocessor {
   void process_directives(const TokenStream &data, int &cursor)
   {
     Token hash_tok = Token::from_position(&data, cursor);
-    Token prev = hash_tok.prev();
     /* All directives must start with a hash token at the start of the line. */
-    CHECK(!ELEM(prev, Invalid /* Start of file. */, NewLine, Space));
+    CHECK(!ELEM(hash_tok.prev(), Invalid /* Start of file. */, NewLine, Space));
 
     Token dir_tok = skip_space(hash_tok.next());
 
