@@ -288,6 +288,9 @@ static Vector<MutableNodeSocketRef> get_socket_links(
 {
   Vector<MutableNodeSocketRef> result;
   for (const bNodeLink *link : socket.directly_linked_links()) {
+    if (!link->is_available()) {
+      continue;
+    }
     if (skip_hidden && bke::node_link_is_hidden(*link)) {
       continue;
     }
@@ -419,6 +422,37 @@ class NodeSetInterfaceBuilder {
   bNodeTreeInterfacePanel *expose_panel(const bNode &src_node,
                                         const nodes::PanelDeclaration &panel_decl,
                                         bNodeTreeInterfacePanel *parent);
+};
+
+/**
+ * Set of nodes that are copied from other nodes and can be mapped to the original nodes.
+ */
+class NodeSetCopy {
+ public:
+  struct GroupInputOutputNodes {
+    bNode *input_node;
+    bNode *output_node;
+  };
+
+ private:
+  bNodeTree &tree_;
+  Map<const bNode *, bNode *> node_map_;
+  Map<const bNodeSocket *, bNodeSocket *> socket_map_;
+  Map<int32_t, int32_t> node_identifier_map_;
+
+ public:
+  const Map<int32_t, int32_t> &node_identifier_map() const;
+
+  static NodeSetCopy from_nodes(Main &bmain,
+                                const bNodeTree &src_tree,
+                                const Span<const bNode *> src_nodes,
+                                bNodeTree &dst_tree);
+
+  GroupInputOutputNodes expose_sockets_to_interface(const bContext &C,
+                                                    const NodeSetInterface &node_set_io) const;
+
+ private:
+  NodeSetCopy(bNodeTree &tree) : tree_(tree) {}
 };
 
 const Map<const bNodeTreeInterfaceSocket *, NodeSetInterface::InterfaceSocketData> &
@@ -629,6 +663,127 @@ bNodeTreeInterfacePanel *NodeSetInterfaceBuilder::expose_panel(
   }
 
   return io_panel;
+}
+
+const Map<int32_t, int32_t> &NodeSetCopy::node_identifier_map() const
+{
+  return node_identifier_map_;
+}
+
+NodeSetCopy NodeSetCopy::from_nodes(Main &bmain,
+                                    const bNodeTree &src_tree,
+                                    const Span<const bNode *> src_nodes,
+                                    bNodeTree &dst_tree)
+{
+  node_deselect_all(dst_tree);
+
+  NodeSetCopy result(dst_tree);
+  Vector<AnimationBasePathChange> anim_basepaths;
+  for (const bNode *src_node : src_nodes) {
+    bNode *dst_node = bke::node_copy_with_mapping(
+        &dst_tree, *src_node, LIB_ID_COPY_DEFAULT, std::nullopt, std::nullopt, result.socket_map_);
+
+    result.node_map_.add(src_node, dst_node);
+    result.node_identifier_map_.add(src_node->identifier, dst_node->identifier);
+
+    anim_basepaths.append(
+        {node_basepath(src_tree, *src_node), node_basepath(dst_tree, *dst_node)});
+  }
+
+  /* Recreate parent/child relationship of nodes. */
+  for (const auto &item : result.node_map_.items()) {
+    const bNode *node = item.key;
+    bNode *new_node = item.value;
+    if (node->parent) {
+      if (bNode *new_parent = result.node_map_.lookup_default(node->parent, nullptr)) {
+        bke::node_attach_node(dst_tree, *new_node, *new_parent);
+      }
+      else {
+        bke::node_detach_node(dst_tree, *new_node);
+      }
+    }
+  }
+
+  /* Recreate internal links. */
+  const Vector<const bNodeLink *> internal_links = util::find_internal_links(src_tree, src_nodes);
+  for (const bNodeLink *src_link : internal_links) {
+    bke::node_add_link(dst_tree,
+                       *result.node_map_.lookup(src_link->fromnode),
+                       *result.socket_map_.lookup(src_link->fromsock),
+                       *result.node_map_.lookup(src_link->tonode),
+                       *result.socket_map_.lookup(src_link->tosock));
+  }
+
+  /* Recreate zone pairing between new nodes. */
+  const Vector<bNode *> new_nodes(result.node_map_.values().begin(),
+                                  result.node_map_.values().end());
+  remap_pairing(dst_tree, new_nodes, result.node_identifier_map_);
+
+  /* Copy animation data of source nodes. */
+  BKE_animdata_copy_by_basepath(bmain, src_tree.id, dst_tree.id, anim_basepaths);
+
+  /* Move nodes in the group to the center */
+  if (const std::optional<Bounds<float2>> bounds = node_location_bounds(src_nodes)) {
+    const float2 center = bounds->center();
+    for (bNode *node : new_nodes) {
+      node->location[0] -= center[0];
+      node->location[1] -= center[1];
+    }
+  }
+
+  return result;
+}
+
+NodeSetCopy::GroupInputOutputNodes NodeSetCopy::expose_sockets_to_interface(
+    const bContext &C, const NodeSetInterface &node_set_io) const
+{
+  Main &bmain = *CTX_data_main(&C);
+  tree_.ensure_topology_cache();
+
+  GroupInputOutputNodes io_nodes;
+  io_nodes.output_node = tree_.group_output_node();
+  if (!io_nodes.output_node) {
+    io_nodes.output_node = bke::node_add_static_node(&C, tree_, NODE_GROUP_OUTPUT);
+  }
+  io_nodes.input_node = bke::node_add_static_node(&C, tree_, NODE_GROUP_INPUT);
+
+  /* This makes sure that all nodes have the correct sockets so that we can link. */
+  BKE_main_ensure_invariants(bmain, tree_.id);
+
+  for (const auto &item : node_set_io.socket_data().items()) {
+    for (const NodeSocketRef &origin : item.value.internal_sockets) {
+      bNode *new_node = node_map_.lookup(&origin.node);
+      bNodeSocket *new_socket = socket_map_.lookup(&origin.socket);
+      if (origin.socket.is_input()) {
+        bNodeSocket *group_input_socket = node_group_input_find_socket(io_nodes.input_node,
+                                                                       item.key->identifier);
+        BLI_assert(group_input_socket);
+        bke::node_add_link(
+            tree_, *io_nodes.input_node, *group_input_socket, *new_node, *new_socket);
+      }
+      else {
+        bNodeSocket *group_output_socket = node_group_output_find_socket(io_nodes.output_node,
+                                                                         item.key->identifier);
+        BLI_assert(group_output_socket);
+        bke::node_add_link(
+            tree_, *new_node, *new_socket, *io_nodes.output_node, *group_output_socket);
+      }
+    }
+  }
+
+  /* Make sure group input/output node sockets match the tree interface. */
+  nodes::update_node_declaration_and_sockets(tree_, *io_nodes.input_node);
+  nodes::update_node_declaration_and_sockets(tree_, *io_nodes.output_node);
+
+  /* Move group input/output nodes to the edges of the bounding box. */
+  if (const std::optional<Bounds<float2>> bounds = node_bounds(node_map_.values())) {
+    io_nodes.input_node->location[0] = bounds->min[0] - 200.0f;
+    io_nodes.input_node->location[1] = bounds->center()[1];
+    io_nodes.output_node->location[0] = bounds->max[0] + 50.0f;
+    io_nodes.output_node->location[1] = bounds->center()[1];
+  }
+
+  return io_nodes;
 }
 
 /** \} */
@@ -1177,153 +1332,6 @@ void NODE_OT_group_separate(wmOperatorType *ot)
 /** \name Make Group Operator
  * \{ */
 
-/**
- * Set of nodes that are copied from other nodes and can be mapped to the original nodes.
- */
-class NodeSetCopy {
- public:
-  struct GroupInputOutputNodes {
-    bNode *input_node;
-    bNode *output_node;
-  };
-
- private:
-  bNodeTree &tree_;
-  Map<const bNode *, bNode *> node_map_;
-  Map<const bNodeSocket *, bNodeSocket *> socket_map_;
-  Map<int32_t, int32_t> node_identifier_map_;
-
- public:
-  const Map<int32_t, int32_t> &node_identifier_map() const
-  {
-    return node_identifier_map_;
-  }
-
-  static NodeSetCopy from_nodes(Main &bmain,
-                                const bNodeTree &src_tree,
-                                const Span<const bNode *> src_nodes,
-                                bNodeTree &dst_tree)
-  {
-    node_deselect_all(dst_tree);
-
-    NodeSetCopy result(dst_tree);
-    Vector<AnimationBasePathChange> anim_basepaths;
-    for (const bNode *src_node : src_nodes) {
-      bNode *dst_node = bke::node_copy_with_mapping(&dst_tree,
-                                                    *src_node,
-                                                    LIB_ID_COPY_DEFAULT,
-                                                    std::nullopt,
-                                                    std::nullopt,
-                                                    result.socket_map_);
-
-      result.node_map_.add(src_node, dst_node);
-      result.node_identifier_map_.add(src_node->identifier, dst_node->identifier);
-
-      anim_basepaths.append(
-          {node_basepath(src_tree, *src_node), node_basepath(dst_tree, *dst_node)});
-    }
-
-    /* Recreate parent/child relationship of nodes. */
-    for (const auto &item : result.node_map_.items()) {
-      const bNode *node = item.key;
-      bNode *new_node = item.value;
-      if (node->parent) {
-        if (bNode *new_parent = result.node_map_.lookup_default(node->parent, nullptr)) {
-          bke::node_attach_node(dst_tree, *new_node, *new_parent);
-        }
-        else {
-          bke::node_detach_node(dst_tree, *new_node);
-        }
-      }
-    }
-
-    /* Recreate internal links. */
-    const Vector<const bNodeLink *> internal_links = util::find_internal_links(src_tree,
-                                                                               src_nodes);
-    for (const bNodeLink *src_link : internal_links) {
-      bke::node_add_link(dst_tree,
-                         *result.node_map_.lookup(src_link->fromnode),
-                         *result.socket_map_.lookup(src_link->fromsock),
-                         *result.node_map_.lookup(src_link->tonode),
-                         *result.socket_map_.lookup(src_link->tosock));
-    }
-
-    /* Recreate zone pairing between new nodes. */
-    const Vector<bNode *> new_nodes(result.node_map_.values().begin(),
-                                    result.node_map_.values().end());
-    remap_pairing(dst_tree, new_nodes, result.node_identifier_map_);
-
-    /* Copy animation data of source nodes. */
-    BKE_animdata_copy_by_basepath(bmain, src_tree.id, dst_tree.id, anim_basepaths);
-
-    /* Move nodes in the group to the center */
-    if (const std::optional<Bounds<float2>> bounds = node_location_bounds(src_nodes)) {
-      const float2 center = bounds->center();
-      for (bNode *node : new_nodes) {
-        node->location[0] -= center[0];
-        node->location[1] -= center[1];
-      }
-    }
-
-    return result;
-  }
-
-  GroupInputOutputNodes expose_sockets_to_interface(const bContext &C,
-                                                    const NodeSetInterface &node_set_io) const
-  {
-    Main &bmain = *CTX_data_main(&C);
-    tree_.ensure_topology_cache();
-
-    GroupInputOutputNodes io_nodes;
-    io_nodes.output_node = tree_.group_output_node();
-    if (!io_nodes.output_node) {
-      io_nodes.output_node = bke::node_add_static_node(&C, tree_, NODE_GROUP_OUTPUT);
-    }
-    io_nodes.input_node = bke::node_add_static_node(&C, tree_, NODE_GROUP_INPUT);
-
-    /* This makes sure that all nodes have the correct sockets so that we can link. */
-    BKE_main_ensure_invariants(bmain, tree_.id);
-
-    for (const auto &item : node_set_io.socket_data().items()) {
-      for (const NodeSocketRef &origin : item.value.internal_sockets) {
-        bNode *new_node = node_map_.lookup(&origin.node);
-        bNodeSocket *new_socket = socket_map_.lookup(&origin.socket);
-        if (origin.socket.is_input()) {
-          bNodeSocket *group_input_socket = node_group_input_find_socket(io_nodes.input_node,
-                                                                         item.key->identifier);
-          BLI_assert(group_input_socket);
-          bke::node_add_link(
-              tree_, *io_nodes.input_node, *group_input_socket, *new_node, *new_socket);
-        }
-        else {
-          bNodeSocket *group_output_socket = node_group_output_find_socket(io_nodes.output_node,
-                                                                           item.key->identifier);
-          BLI_assert(group_output_socket);
-          bke::node_add_link(
-              tree_, *new_node, *new_socket, *io_nodes.output_node, *group_output_socket);
-        }
-      }
-    }
-
-    /* Make sure group input/output node sockets match the tree interface. */
-    nodes::update_node_declaration_and_sockets(tree_, *io_nodes.input_node);
-    nodes::update_node_declaration_and_sockets(tree_, *io_nodes.output_node);
-
-    /* Move group input/output nodes to the edges of the bounding box. */
-    if (const std::optional<Bounds<float2>> bounds = node_bounds(node_map_.values())) {
-      io_nodes.input_node->location[0] = bounds->min[0] - 200.0f;
-      io_nodes.input_node->location[1] = bounds->center()[1];
-      io_nodes.output_node->location[0] = bounds->max[0] + 50.0f;
-      io_nodes.output_node->location[1] = bounds->center()[1];
-    }
-
-    return io_nodes;
-  }
-
- private:
-  NodeSetCopy(bNodeTree &tree) : tree_(tree) {}
-};
-
 static VectorSet<bNode *> get_nodes_to_group(bNodeTree &node_tree, bNode *group_node)
 {
   VectorSet<bNode *> nodes_to_group = get_selected_nodes(node_tree);
@@ -1526,26 +1534,6 @@ static bNode *node_group_make_from_nodes(const bContext &C,
   return gnode;
 }
 
-static std::tuple<bNodeTree *, const NodeSetInterface, const NodeSetCopy> node_group_make_wrapper(
-    const bContext &C, const bNodeTree &src_tree, const bNode &src_node)
-{
-  Main &bmain = *CTX_data_main(&C);
-
-  bNodeTree *dst_group = bke::node_tree_add_tree(
-      &bmain, bke::node_label(src_tree, src_node), src_tree.idname);
-  dst_group->color_tag = int(bke::node_color_tag(src_node));
-
-  const NodeSetInterface node_set_io = NodeSetInterface::from_node_declaration(src_node,
-                                                                               *dst_group);
-
-  const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(
-      bmain, src_tree, {&src_node}, *dst_group);
-  node_set_copy.expose_sockets_to_interface(C, node_set_io);
-
-  BKE_main_ensure_invariants(bmain, dst_group->id);
-  return {dst_group, std::move(node_set_io), std::move(node_set_copy)};
-}
-
 static bNode *node_group_make_from_node_declaration(bContext &C,
                                                     bNodeTree &ntree,
                                                     bNode &src_node,
@@ -1553,7 +1541,17 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
 {
   Main &bmain = *CTX_data_main(&C);
 
-  auto [wrapper_group, node_set_io, node_set_copy] = node_group_make_wrapper(C, ntree, src_node);
+  bNodeTree *wrapper_group = bke::node_tree_add_tree(
+      &bmain, bke::node_label(ntree, src_node), ntree.idname);
+  wrapper_group->color_tag = int(bke::node_color_tag(src_node));
+  const NodeSetInterface node_set_io = NodeSetInterface::from_node_declaration(src_node,
+                                                                               *wrapper_group);
+
+  const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(
+      bmain, ntree, {&src_node}, *wrapper_group);
+  node_set_copy.expose_sockets_to_interface(C, node_set_io);
+
+  BKE_main_ensure_invariants(bmain, wrapper_group->id);
 
   /* Create a group node. */
   bNode *gnode = bke::node_add_node(&C, ntree, node_idname);
