@@ -4042,6 +4042,8 @@ def km_grease_pencil_guide_settings(_params):
     )
 
     items.extend([
+        # Guide - Origin
+        ("grease_pencil.guide_origin", {"type": 'O', "value": 'PRESS'}, None),
         # Guide - Pop up settings
         op_panel("VIEW3D_PT_grease_pencil_guide", {"type": 'P', "value": 'PRESS'}, [("keep_open", False)],),
         # Guide Angle - Secondary path so it can be used with use_guide property
