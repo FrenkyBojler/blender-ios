@@ -21,6 +21,7 @@
 #include "vk_shader_interface.hh"
 #include "vk_state_manager.hh"
 #include "vk_texture.hh"
+#include "vk_vertex_attribute_object.hh"
 
 #include "GHOST_C-api.h"
 
@@ -60,7 +61,8 @@ void VKContext::sync_backbuffer()
 {
   if (ghost_window_) {
     GHOST_VulkanSwapChainData swap_chain_data = {};
-    GHOST_GetVulkanSwapChainFormat((GHOST_WindowHandle)ghost_window_, &swap_chain_data);
+    GHOST_GetVulkanSwapChainFormat(static_cast<GHOST_WindowHandle>(ghost_window_),
+                                   &swap_chain_data);
 
     const bool reset_framebuffer = swap_chain_format_.format !=
                                        swap_chain_data.surface_format.format ||
@@ -341,10 +343,17 @@ void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
                                      VK_FRONT_FACE_CLOCKWISE;
   }
 
-  update_pipeline_data(vk_shader,
-                       vk_shader.ensure_and_get_graphics_pipeline(
-                           primitive, vao, state_manager, framebuffer, constants_state_),
-                       r_pipeline_data.pipeline_data);
+  VKVertexInputDescriptionPool::Key vertex_input_description_key =
+      device.vertex_input_descriptions.get_or_insert(vao.vertex_input);
+  if (extensions.vertex_input_dynamic_state) {
+    r_pipeline_data.vertex_input_description = vertex_input_description_key;
+  }
+
+  update_pipeline_data(
+      vk_shader,
+      vk_shader.ensure_and_get_graphics_pipeline(
+          primitive, vertex_input_description_key, state_manager, framebuffer, constants_state_),
+      r_pipeline_data.pipeline_data);
 }
 
 void VKContext::update_pipeline_data(render_graph::VKPipelineData &r_pipeline_data)

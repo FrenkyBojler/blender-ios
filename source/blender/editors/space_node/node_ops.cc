@@ -18,7 +18,9 @@
 
 #include "node_intern.hh" /* own include */
 
-namespace blender::ed::space_node {
+namespace blender {
+
+namespace ed::space_node {
 
 void node_operatortypes()
 {
@@ -97,6 +99,7 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_new_node_tree);
   WM_operatortype_append(NODE_OT_new_compositing_node_group);
   WM_operatortype_append(NODE_OT_duplicate_compositing_node_group);
+  WM_operatortype_append(NODE_OT_duplicate_compositing_modifier_node_group);
   WM_operatortype_append(NODE_OT_new_compositor_sequencer_node_group);
 
   WM_operatortype_append(NODE_OT_parent_set);
@@ -137,7 +140,7 @@ void node_keymap(wmKeyConfig *keyconf)
   node_resize_modal_keymap(keyconf);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 void ED_operatormacros_node()
 {
@@ -233,3 +236,5 @@ void ED_operatormacros_node()
   WM_operatortype_macro_define(ot, "NODE_OT_links_detach");
   WM_operatortype_macro_define(ot, "NODE_OT_translate_attach");
 }
+
+}  // namespace blender
