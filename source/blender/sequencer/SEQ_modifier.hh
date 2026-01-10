@@ -79,7 +79,7 @@ struct StripModifierDataRuntime {
   /* Hash to detect change in modifier state. */
   uint64_t params_hash = 0;
 
-  int flag = 0; /* eStripModifierFlag */
+  eStripModifierFlag flag = STRIP_MODIFIER_FLAG_NONE;
 };
 
 void modifiers_init();

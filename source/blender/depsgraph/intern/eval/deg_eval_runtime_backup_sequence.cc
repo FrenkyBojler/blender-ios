@@ -26,7 +26,7 @@ void StripModifierDataBackup::reset()
 {
   sound_in = nullptr;
   sound_out = nullptr;
-  flag = 0;
+  flag = STRIP_MODIFIER_FLAG_NONE;
   params_hash = 0;
 }
 

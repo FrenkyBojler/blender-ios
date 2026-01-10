@@ -872,6 +872,7 @@ enum eStripModifierType {
 
 /** #StripModifierData.flag */
 enum eStripModifierFlag {
+  STRIP_MODIFIER_FLAG_NONE = 0,
   STRIP_MODIFIER_FLAG_MUTE = (1 << 0),
   STRIP_MODIFIER_FLAG_EXPANDED = (1 << 1),
   STRIP_MODIFIER_FLAG_ACTIVE = (1 << 2),

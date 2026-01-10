@@ -19,6 +19,8 @@ struct MovieReader;
 struct Strip;
 struct StripModifierData;
 
+enum eStripModifierFlag;
+
 namespace deg {
 
 struct Depsgraph;
@@ -37,7 +39,7 @@ class StripModifierDataBackup {
   /* For Sound Modifiers. */
   void *sound_in;
   void *sound_out;
-  int flag;
+  eStripModifierFlag flag;
   uint64_t params_hash;
 };
 
