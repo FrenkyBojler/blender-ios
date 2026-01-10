@@ -336,7 +336,7 @@ void sequencer_retiming_draw_continuity(const TimelineDrawContext &ctx,
 
 static SeqRetimingKey fake_retiming_key_init(const Scene *scene, const Strip *strip, int key_x)
 {
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->frames_per_second());
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   SeqRetimingKey fake_key = {0};
   fake_key.strip_frame_index = (key_x - strip->content_start() - sound_offset) *
