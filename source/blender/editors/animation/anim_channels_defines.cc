@@ -5541,7 +5541,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   bAnimListElem *ale_setting = static_cast<bAnimListElem *>(ale_npoin);
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  int filter;
+  const eAnimFilter_Flags animFilterChannelsDef = eAnimFilter_Flags(ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS);
   const eAnimChannel_Settings setting = eAnimChannel_Settings(POINTER_AS_INT(setting_wrap));
   short on = 0;
 
@@ -5592,9 +5592,8 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
     bool any_unrelated_visible = false;
 
     /* 1. Get List of all channels */
-    filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS;
     ANIM_animdata_filter(
-        &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
+        &ac, &anim_data, animFilterChannelsDef, ac.data, eAnimCont_Types(ac.datatype));
 
     /* 2. Pass 1: Check the state of UNRELATED channels */
     /* If we find visible unrelated items, we want to ISOLATE (Hide them).
@@ -5632,7 +5631,6 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
     }
 
     ANIM_animdata_freelist(&anim_data);
-    return;
   }
 
   /* check if the setting is on... */
@@ -5644,9 +5642,8 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   }
 
   /* get all channels that can possibly be chosen - but ignore hierarchy */
-  filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS;
   ANIM_animdata_filter(
-      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
+      &ac, &anim_data, animFilterChannelsDef, ac.data, eAnimCont_Types(ac.datatype));
 
   /* call API method to flush the setting */
   ANIM_flush_setting_anim_channels(
