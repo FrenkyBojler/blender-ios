@@ -5501,12 +5501,14 @@ static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setti
 static bool anim_list_el_is_related_or_self(bAnimListElem *target, bAnimListElem *iter)
 {
   /* 1. Self */
-  if (target->data == iter->data)
+  if (target->data == iter->data) {
     return true;
+  }
 
   /* 2. Hierarchy Roots (Summary/Scene) - Always keep structure visible */
-  if (iter->type == ANIMTYPE_SUMMARY || iter->type == ANIMTYPE_SCENE)
+  if (iter->type == ANIMTYPE_SUMMARY || iter->type == ANIMTYPE_SCENE) {
     return true;
+  }
 
   /* 3. Parent Containers
      If the iterator is an Expander (like Object, Material) and shares the ID of the target,
@@ -5514,22 +5516,25 @@ static bool anim_list_el_is_related_or_self(bAnimListElem *target, bAnimListElem
   const bAnimChannelType *acf_iter = ANIM_channel_get_typeinfo(iter);
   if (acf_iter && acf_iter->channel_role == ACHANNEL_ROLE_EXPANDER) {
     /* Check if they belong to the same ID */
-    if (target->id && iter->id && target->id == iter->id)
+    if (target->id && iter->id && target->id == iter->id) {
       return true;
+    }
   }
 
   /* 4. Group / F-Curve Relationships */
   /* Target is FCurve, Iter is its Parent Group */
   if (target->type == ANIMTYPE_FCURVE && iter->type == ANIMTYPE_GROUP) {
     FCurve *fcu = (FCurve *)target->data;
-    if (fcu->grp == iter->data)
+    if (fcu->grp == iter->data) {
       return true;
+    }
   }
   /* Target is Group, Iter is its Child FCurve */
   if (target->type == ANIMTYPE_GROUP && iter->type == ANIMTYPE_FCURVE) {
     FCurve *fcu = (FCurve *)iter->data;
-    if (fcu->grp == target->data)
+    if (fcu->grp == target->data) {
       return true;
+    }
   }
 
   return false;
