@@ -276,26 +276,9 @@ void sound_equalizermodifier_copy_data(StripModifierData *target, StripModifierD
   }
 }
 
-static const uint64_t sound_equalizermodifier_get_params_hash(float *buf)
+static uint64_t sound_equalizermodifier_get_params_hash(float *buf)
 {
-  XXH3_state_t *state = XXH3_createState();
-  XXH3_64bits_reset(state);
-
-  XXH3_64bits_update(state, buf, sizeof(float) * SOUND_EQUALIZER_SIZE_DEFINITION);
-
-  const uint64_t hash = XXH3_64bits_digest(state);
-  XXH3_freeState(state);
-  return hash;
-}
-
-static bool sound_equalizermodifier_data_changed(StripModifierData *smd, float *buf)
-{
-  uint64_t old_params_hash = smd->runtime->params_hash;
-
-  if (old_params_hash == sound_equalizermodifier_get_params_hash(buf)) {
-    return false;
-  }
-  return true;
+  return XXH3_64bits(buf, sizeof(float) * SOUND_EQUALIZER_SIZE_DEFINITION);
 }
 
 void *sound_equalizermodifier_recreator(Strip *strip,
@@ -348,9 +331,10 @@ void *sound_equalizermodifier_recreator(Strip *strip,
     }
   }
 
+  const uint64_t curr_params_hash = sound_equalizermodifier_get_params_hash(buf);
   /* Only make new sound when necessary. It is faster and it prevents audio glitches. */
   if (!needs_update && smd->runtime->last_sound_in == sound_in &&
-      !sound_equalizermodifier_data_changed(smd, buf))
+      curr_params_hash == smd->runtime->params_hash)
   {
     MEM_freeN(buf);
     return smd->runtime->last_sound_out;
@@ -365,7 +349,7 @@ void *sound_equalizermodifier_recreator(Strip *strip,
   needs_update = true;
   smd->runtime->last_sound_in = sound_in;
   smd->runtime->last_sound_out = sound_out;
-  smd->runtime->params_hash = sound_equalizermodifier_get_params_hash(buf);
+  smd->runtime->params_hash = curr_params_hash;
   MEM_freeN(buf);
 
   return sound_out;
@@ -375,7 +359,7 @@ void *sound_equalizermodifier_recreator(Strip *strip,
 #endif
 }
 
-static const uint64_t pitchmodifier_get_params_hash(PitchModifierData *pmd)
+static uint64_t pitchmodifier_get_params_hash(PitchModifierData *pmd)
 {
   XXH3_state_t *state = XXH3_createState();
   XXH3_64bits_reset(state);
@@ -387,20 +371,9 @@ static const uint64_t pitchmodifier_get_params_hash(PitchModifierData *pmd)
   XXH3_64bits_update(state, &pmd->ratio, sizeof(pmd->ratio));
   XXH3_64bits_update(state, &pmd->preserve_formant, sizeof(pmd->preserve_formant));
 
-  const uint64_t hash = XXH3_64bits_digest(state);
+  uint64_t hash = XXH3_64bits_digest(state);
   XXH3_freeState(state);
   return hash;
-}
-
-static bool pitchmodifier_data_changed(StripModifierData *smd)
-{
-  PitchModifierData *pmd = (PitchModifierData *)smd;
-  uint64_t old_params_hash = smd->runtime->params_hash;
-
-  if (old_params_hash == pitchmodifier_get_params_hash(pmd)) {
-    return false;
-  }
-  return true;
 }
 
 void *pitchmodifier_recreator(Strip * /*strip*/,
@@ -408,7 +381,9 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
                               void *sound_in,
                               bool &needs_update)
 {
-  if (!needs_update && smd->runtime->last_sound_in == sound_in && !pitchmodifier_data_changed(smd))
+  const uint64_t curr_params_hash = pitchmodifier_get_params_hash((PitchModifierData *)smd);
+  if (!needs_update && smd->runtime->last_sound_in == sound_in &&
+      curr_params_hash == smd->runtime->params_hash)
   {
     return smd->runtime->last_sound_out;
   }
@@ -459,7 +434,7 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
   needs_update = true;
   smd->runtime->last_sound_in = sound_in;
   smd->runtime->last_sound_out = sound_out;
-  smd->runtime->params_hash = pitchmodifier_get_params_hash(pmd);
+  smd->runtime->params_hash = curr_params_hash;
 
   return sound_out;
 #else
@@ -472,7 +447,7 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
 #endif
 }
 
-static const uint64_t echomodifier_get_params_hash(EchoModifierData *emd)
+static uint64_t echomodifier_get_params_hash(EchoModifierData *emd)
 {
   XXH3_state_t *state = XXH3_createState();
   XXH3_64bits_reset(state);
@@ -481,20 +456,9 @@ static const uint64_t echomodifier_get_params_hash(EchoModifierData *emd)
   XXH3_64bits_update(state, &emd->feedback, sizeof(emd->feedback));
   XXH3_64bits_update(state, &emd->mix, sizeof(emd->mix));
 
-  const uint64_t hash = XXH3_64bits_digest(state);
+  uint64_t hash = XXH3_64bits_digest(state);
   XXH3_freeState(state);
   return hash;
-}
-
-static bool echomodifier_data_changed(StripModifierData *smd)
-{
-  EchoModifierData *emd = (EchoModifierData *)smd;
-  uint64_t old_params_hash = smd->runtime->params_hash;
-
-  if (old_params_hash == echomodifier_get_params_hash(emd)) {
-    return false;
-  }
-  return true;
 }
 
 void *echomodifier_recreator(Strip * /*strip*/,
@@ -503,7 +467,9 @@ void *echomodifier_recreator(Strip * /*strip*/,
                              bool &needs_update)
 {
 #if defined(WITH_AUDASPACE)
-  if (!needs_update && smd->runtime->last_sound_in == sound_in && !echomodifier_data_changed(smd))
+  const uint64_t curr_params_hash = echomodifier_get_params_hash((EchoModifierData *)smd);
+  if (!needs_update && smd->runtime->last_sound_in == sound_in &&
+      curr_params_hash == smd->runtime->params_hash)
   {
     return smd->runtime->last_sound_out;
   }
@@ -513,7 +479,7 @@ void *echomodifier_recreator(Strip * /*strip*/,
   needs_update = true;
   smd->runtime->last_sound_in = sound_in;
   smd->runtime->last_sound_out = sound_out;
-  smd->runtime->params_hash = echomodifier_get_params_hash(emd);
+  smd->runtime->params_hash = curr_params_hash;
   return sound_out;
 #else
   UNUSED_VARS(smd, sound_in, needs_update);
