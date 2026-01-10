@@ -5511,8 +5511,8 @@ static bool anim_list_el_is_related_or_self(bAnimListElem *target, bAnimListElem
   }
 
   /* 3. Parent Containers
-     If the iterator is an Expander (like Object, Material) and shares the ID of the target,
-     it is the parent container. Keep it visible. */
+   * If the iterator is an Expander (like Object, Material) and shares the ID of the target,
+   * it is the parent container. Keep it visible. */
   const bAnimChannelType *acf_iter = ANIM_channel_get_typeinfo(iter);
   if (acf_iter && acf_iter->channel_role == ACHANNEL_ROLE_EXPANDER) {
     /* Check if they belong to the same ID */
@@ -5521,8 +5521,8 @@ static bool anim_list_el_is_related_or_self(bAnimListElem *target, bAnimListElem
     }
   }
 
-  /* 4. Group / F-Curve Relationships */
-  /* Target is FCurve, Iter is its Parent Group */
+  /* 4. Group / F-Curve Relationships
+   * Target is FCurve, Iter is its Parent Group */
   if (target->type == ANIMTYPE_FCURVE && iter->type == ANIMTYPE_GROUP) {
     FCurve *fcu = (FCurve *)target->data;
     if (fcu->grp == iter->data) {
@@ -5601,10 +5601,9 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
     ANIM_animdata_filter(
         &ac, &anim_data, animFilterChannelsDef, ac.data, eAnimCont_Types(ac.datatype));
 
-    /* 2. Pass 1: Check the state of UNRELATED channels */
-    /* If we find visible unrelated items, we want to ISOLATE (Hide them).
-       If we find NO visible unrelated items, we are already isolated, so UN-ISOLATE (Show them).
-     */
+    /* 2. Pass 1: Check the state of UNRELATED channels
+     * If we find visible unrelated items, we want to ISOLATE (Hide them).
+     * If we find NO visible unrelated items, we are already isolated, so UN-ISOLATE (Show them).*/
     for (bAnimListElem &ale_it : anim_data) {
 
       if (anim_list_el_is_related_or_self(ale_setting, &ale_it)) {
