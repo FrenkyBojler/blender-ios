@@ -45,6 +45,8 @@
 
 #  include "wm_event_system.hh"
 
+namespace blender {
+
 static const EnumPropertyItem event_mouse_type_items[] = {
     {LEFTMOUSE, "LEFTMOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Left"), ""},
     {MIDDLEMOUSE, "MIDDLEMOUSE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Middle"), ""},
@@ -195,7 +197,10 @@ static const EnumPropertyItem event_ndof_type_items[] = {
 #  endif
     {0, nullptr, 0, nullptr, nullptr},
 };
+}  // namespace blender
 #endif /* RNA_RUNTIME */
+
+namespace blender {
 
 /**
  * Job types for use in the `bpy.app.is_job_running(job_type)` call.
@@ -295,6 +300,11 @@ const EnumPropertyItem rna_enum_event_type_items[] = {
     {EVT_APPKEY, "APP", 0, "Application", "App"},
     {EVT_GRLESSKEY, "GRLESS", 0, "<", ""},
     {EVT_CIRCUMFLEXKEY, "CIRCUMFLEX", 0, "^", ""},
+    {EVT_UMLAUTAKEY, "UMLAOUTA", 0, BLI_STR_UTF8_A_DIAERESIS, ""},
+    {EVT_UMLAUTOKEY, "UMLAOUTO", 0, BLI_STR_UTF8_O_DIAERESIS, ""},
+    {EVT_UMLAUTUKEY, "UMLAOUTU", 0, BLI_STR_UTF8_U_DIAERESIS, ""},
+    {EVT_ESZETTKEY, "ESZETT", 0, BLI_STR_UTF8_SMALL_ESZETT, ""},
+    {EVT_NUMBERKEY, "NUMBER", 0, "#", ""},
     {EVT_SECTIONKEY, "SECTION", 0, BLI_STR_UTF8_SECTION_SIGN, ""},
     {EVT_ESCKEY, "ESC", 0, "Esc", ""},
     {EVT_TABKEY, "TAB", 0, "Tab", ""},
@@ -632,6 +642,8 @@ const EnumPropertyItem rna_enum_wm_report_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include "BLI_string_utils.hh"
@@ -653,13 +665,15 @@ const EnumPropertyItem rna_enum_wm_report_items[] = {
 #    include "BPY_extern.hh"
 #  endif
 
+namespace blender {
+
 static wmOperator *rna_OperatorProperties_find_operator(PointerRNA *ptr)
 {
   if (ptr->owner_id == nullptr || GS(ptr->owner_id->name) != ID_WM) {
     return nullptr;
   }
 
-  wmWindowManager *wm = blender::id_cast<wmWindowManager *>(ptr->owner_id);
+  wmWindowManager *wm = id_cast<wmWindowManager *>(ptr->owner_id);
 
   IDProperty *properties = static_cast<IDProperty *>(ptr->data);
   for (wmOperator *op = static_cast<wmOperator *>(wm->runtime->operators.last); op; op = op->prev)
@@ -886,8 +900,8 @@ static PointerRNA rna_Event_xr_get(PointerRNA *ptr)
 
 static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
 {
-  blender::ui::PopupMenu *pup = static_cast<blender::ui::PopupMenu *>(ptr->data);
-  blender::ui::Layout *layout = blender::ui::popup_menu_layout(pup);
+  ui::PopupMenu *pup = static_cast<ui::PopupMenu *>(ptr->data);
+  ui::Layout *layout = ui::popup_menu_layout(pup);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
   return rptr;
@@ -895,8 +909,8 @@ static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
 
 static PointerRNA rna_PopoverMenu_layout_get(PointerRNA *ptr)
 {
-  blender::ui::Popover *pup = static_cast<blender::ui::Popover *>(ptr->data);
-  blender::ui::Layout *layout = blender::ui::popover_layout(pup);
+  ui::Popover *pup = static_cast<ui::Popover *>(ptr->data);
+  ui::Layout *layout = ui::popover_layout(pup);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
   return rptr;
@@ -904,8 +918,8 @@ static PointerRNA rna_PopoverMenu_layout_get(PointerRNA *ptr)
 
 static PointerRNA rna_PieMenu_layout_get(PointerRNA *ptr)
 {
-  blender::ui::PieMenu *pie = static_cast<blender::ui::PieMenu *>(ptr->data);
-  blender::ui::Layout *layout = blender::ui::pie_menu_layout(pie);
+  ui::PieMenu *pie = static_cast<ui::PieMenu *>(ptr->data);
+  ui::Layout *layout = ui::pie_menu_layout(pie);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
   return rptr;
@@ -1018,7 +1032,7 @@ static void rna_Window_screen_set(PointerRNA *ptr, PointerRNA value, ReportList 
 
 static bool rna_Window_screen_assign_poll(PointerRNA * /*ptr*/, PointerRNA value)
 {
-  bScreen *screen = blender::id_cast<bScreen *>(value.owner_id);
+  bScreen *screen = id_cast<bScreen *>(value.owner_id);
   return !screen->temp;
 }
 
@@ -2131,7 +2145,11 @@ static void rna_KeyMapItem_update(Main * /*bmain*/, Scene * /*scene*/, PointerRN
   WM_keyconfig_update_tag(nullptr, kmi);
 }
 
+}  // namespace blender
+
 #else /* RNA_RUNTIME */
+
+namespace blender {
 
 /**
  * expose `Operator.options` as its own type so we can control each flags use
@@ -2676,19 +2694,17 @@ static void rna_def_popup_menu_wrapper(BlenderRNA *brna,
 
 static void rna_def_popupmenu(BlenderRNA *brna)
 {
-  rna_def_popup_menu_wrapper(
-      brna, "UIPopupMenu", "blender::ui::PopupMenu", "rna_PopupMenu_layout_get");
+  rna_def_popup_menu_wrapper(brna, "UIPopupMenu", "ui::PopupMenu", "rna_PopupMenu_layout_get");
 }
 
 static void rna_def_popovermenu(BlenderRNA *brna)
 {
-  rna_def_popup_menu_wrapper(
-      brna, "UIPopover", "blender::ui::Popover", "rna_PopoverMenu_layout_get");
+  rna_def_popup_menu_wrapper(brna, "UIPopover", "ui::Popover", "rna_PopoverMenu_layout_get");
 }
 
 static void rna_def_piemenu(BlenderRNA *brna)
 {
-  rna_def_popup_menu_wrapper(brna, "UIPieMenu", "blender::ui::PieMenu", "rna_PieMenu_layout_get");
+  rna_def_popup_menu_wrapper(brna, "UIPieMenu", "ui::PieMenu", "rna_PieMenu_layout_get");
 }
 
 static void rna_def_window_stereo3d(BlenderRNA *brna)
@@ -3327,5 +3343,7 @@ void RNA_def_wm(BlenderRNA *brna)
   rna_def_keyconfig_prefs(brna);
   rna_def_keyconfig(brna);
 }
+
+}  // namespace blender
 
 #endif /* RNA_RUNTIME */

@@ -535,6 +535,11 @@ typedef enum {
   GHOST_kKeyGrLess,     /* German keyboard and others. */
   GHOST_kKeyCircumflex, /* German keyboard and others. */
   GHOST_kKeySection,    /* Swedish keyboard and others. */
+  GHOST_kKeyUmlautA,    /* German keyboard. */
+  GHOST_kKeyUmlautO,    /* German keyboard. */
+  GHOST_kKeyUmlautU,    /* German keyboard. */
+  GHOST_kKeyEszett,     /* German keyboard. */
+  GHOST_kKeyNumber,     /* German keyboard. */
   GHOST_kKeyApp,        /* Also known as menu key. */
 
   GHOST_kKeyCapsLock,

@@ -44,6 +44,8 @@
 #include "wm_cursors.hh"
 #include "wm_window.hh"
 
+namespace blender {
+
 /**
  * Currently using the WIN32 limit of 255 for RGBA cursors,
  * Wayland has a similar limit.
@@ -68,7 +70,7 @@ struct BCursor {
   /**
    * A factor (0-1) from the top-left corner of the image (not of the document size).
    */
-  blender::float2 hotspot;
+  float2 hotspot;
   /**
    * By default cursors are "light", allow dark themes to invert.
    */
@@ -972,8 +974,8 @@ void WM_cursor_progress(wmWindow *win, float progress_factor)
 #ifndef WITH_HEADLESS
 static void wm_add_cursor(WMCursorType cursor,
                           const char *svg_source,
-                          const blender::float2 &hotspot,
-                          bool can_invert = true)
+                          const float2 &hotspot,
+                          bool can_invert = false)
 {
   g_cursors[cursor].svg_source = svg_source;
   g_cursors[cursor].hotspot = hotspot;
@@ -984,10 +986,10 @@ static void wm_add_cursor(WMCursorType cursor,
 void wm_init_cursor_data()
 {
 #ifndef WITH_HEADLESS
-  wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
+  wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
+  wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
+  wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
+  wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
   wm_add_cursor(WM_CURSOR_TEXT_EDIT, datatoc_cursor_text_edit_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_WAIT, datatoc_cursor_wait_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_STOP, datatoc_cursor_stop_svg, {0.5f, 0.5f});
@@ -1029,3 +1031,5 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_SLIP, datatoc_cursor_slip_svg, {0.5f, 0.5f});
 #endif /* !WITH_HEADLESS */
 }
+
+}  // namespace blender

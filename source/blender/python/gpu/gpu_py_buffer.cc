@@ -5,7 +5,7 @@
 /** \file
  * \ingroup bpygpu
  *
- * This file defines the gpu.state API.
+ * This file defines the gpu.types.Buffer API.
  *
  * - Use `bpygpu_` for local API.
  * - Use `BPyGPU` for public API.
@@ -26,6 +26,8 @@
 #include "gpu_py.hh"
 
 #include "gpu_py_buffer.hh"
+
+namespace blender {
 
 #define PYGPU_BUFFER_PROTOCOL
 #define MAX_DIMENSIONS 64
@@ -770,3 +772,5 @@ BPyGPUBuffer *BPyGPU_Buffer_CreatePyObject(const int format,
 }
 
 /** \} */
+
+}  // namespace blender

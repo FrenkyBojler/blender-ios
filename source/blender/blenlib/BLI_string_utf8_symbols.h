@@ -25,8 +25,16 @@
 #define BLI_STR_UTF8_SUPERSCRIPT_2 "\xc2\xb2"
 /** u00B3: `³` */
 #define BLI_STR_UTF8_SUPERSCRIPT_3 "\xc2\xb3"
+/** u00C4: `Ä` */
+#define BLI_STR_UTF8_A_DIAERESIS "\xc3\x84"
 /** u00D7: `×`. */
 #define BLI_STR_UTF8_MULTIPLICATION_SIGN "\xc3\x97"
+/** u00DF: `ß`. */
+#define BLI_STR_UTF8_SMALL_ESZETT "\xc3\x9f"
+/** u00DC: `Ü`. */
+#define BLI_STR_UTF8_U_DIAERESIS "\xc3\x9c"
+/** u00F6: `ö`. */
+#define BLI_STR_UTF8_O_DIAERESIS "\xc3\xb6"
 /** u2014: `—` */
 #define BLI_STR_UTF8_EM_DASH "\xe2\x80\x94"
 /** u2022: `•` */

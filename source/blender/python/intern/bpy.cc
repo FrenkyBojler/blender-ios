@@ -61,6 +61,8 @@
 #  include "BPy_Freestyle.h"
 #endif
 
+namespace blender {
+
 PyObject *bpy_package_py = nullptr;
 
 PyDoc_STRVAR(
@@ -108,7 +110,7 @@ PyDoc_STRVAR(
     "\n"
     "   :arg absolute: When true the paths returned are made absolute.\n"
     "   :type absolute: bool\n"
-    "   :arg packed: When true skip file paths for packed data.\n"
+    "   :arg packed: When true include file paths for packed data.\n"
     "   :type packed: bool\n"
     "   :arg local: When true skip linked library paths.\n"
     "   :type local: bool\n"
@@ -324,7 +326,7 @@ PyDoc_STRVAR(
     "   :arg major: major version, defaults to current.\n"
     "   :type major: int\n"
     "   :arg minor: minor version, defaults to current.\n"
-    "   :type minor: str\n"
+    "   :type minor: int\n"
     "   :return: the resource path (not necessarily existing).\n"
     "   :rtype: str\n");
 static PyObject *bpy_resource_path(PyObject * /*self*/, PyObject *args, PyObject *kw)
@@ -837,3 +839,5 @@ void BPy_init_modules(bContext *C)
   /* add our own modules dir, this is a python package */
   bpy_package_py = bpy_import_test("bpy");
 }
+
+}  // namespace blender

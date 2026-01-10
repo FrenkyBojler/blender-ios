@@ -15,6 +15,8 @@
 
 #include <cstdint>
 
+namespace blender {
+
 /** #wmEvent.customdata type. */
 enum {
   EVT_DATA_TIMER = 2,
@@ -189,6 +191,11 @@ enum wmEventType : int16_t {
   /** Only on some keyboards. */
   EVT_CIRCUMFLEXKEY = 0x00b4, /* 180 */
   EVT_SECTIONKEY = 0x00b5,    /* 181 */
+  EVT_UMLAUTAKEY = 0x00b6,    /* 182 */
+  EVT_UMLAUTOKEY = 0x00b7,    /* 183 */
+  EVT_UMLAUTUKEY = 0x00b8,    /* 184 */
+  EVT_ESZETTKEY = 0x00b9,     /* 185 */
+  EVT_NUMBERKEY = 0x00ba,     /* 186 */
 
   EVT_PADPERIOD = 0x00c7, /* 199 */
 
@@ -547,3 +554,5 @@ enum {
 };
 
 /** \} */
+
+}  // namespace blender
