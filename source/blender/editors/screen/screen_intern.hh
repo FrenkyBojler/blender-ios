@@ -10,6 +10,8 @@
 
 #include "DNA_space_types.h"
 
+namespace blender {
+
 struct ARegion;
 struct AZone;
 struct ReportList;
@@ -262,3 +264,5 @@ void SCREEN_OT_screenshot_area(wmOperatorType *ot);
 /* `workspace_layout_edit.cc` */
 
 bool workspace_layout_set_poll(const WorkSpaceLayout *layout);
+
+}  // namespace blender

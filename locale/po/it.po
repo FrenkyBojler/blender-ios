@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-11-12 16:04+0000\n"
 "Last-Translator: blend-it <blend-it@users.noreply.translate.blender.org>\n"
 "Language-Team: Italian <https://translate.blender.org/projects/blender-ui/ui/it/>\n"
@@ -24582,6 +24582,90 @@ msgid "Material slot name"
 msgstr "Nome dello slot materiale"
 
 
+msgid "Show/Hide"
+msgstr "Mostra/Nascondi"
+
+
+msgid "Names"
+msgstr "Nomi"
+
+
+msgid "Bone Roll"
+msgstr "Rollio Osso"
+
+
+msgid "Math"
+msgstr "Matematica"
+
+
+msgid "Utilities"
+msgstr "Utilità"
+
+
+msgid "Clean Up"
+msgstr "Ripulisci"
+
+
+msgid "Pivot Point"
+msgstr "Punto di Perno"
+
+
+msgid "Snap"
+msgstr "Aggancia"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Decadimento Modifica Proporzionale"
+
+
+msgid "Mask Edit"
+msgstr "Modifica Maschera"
+
+
+msgid "Automasking"
+msgstr "Automascheramento"
+
+
+msgid "Read"
+msgstr "Lettura"
+
+
+msgid "Sample"
+msgstr "Campione"
+
+
+msgid "Face Sets Edit"
+msgstr "Modifica Sets di Facce"
+
+
+msgid "Write"
+msgstr "Scrittura"
+
+
+msgid "Vertex Group Locks"
+msgstr "Blocchi del Gruppo di Vertici"
+
+
+msgid "Primitives"
+msgstr "Primitive"
+
+
+msgid "Instances"
+msgstr "Istanze"
+
+
+msgid "Import"
+msgstr "Importa"
+
+
+msgid "Mirror"
+msgstr "Specchia"
+
+
+msgid "UV Mapping"
+msgstr "Mappatura UV"
+
+
 msgid "Local View"
 msgstr "Vista Locale"
 
@@ -24608,6 +24692,10 @@ msgstr "Regione Vista"
 
 msgid "Select More/Less"
 msgstr "Seleziona Più/Meno"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -24642,10 +24730,6 @@ msgid "Light Probe"
 msgstr "Sensore di Luce"
 
 
-msgid "Layout"
-msgstr "Layout"
-
-
 msgid "Add Image"
 msgstr "Aggiungi Immagine"
 
@@ -24666,24 +24750,8 @@ msgid "Track"
 msgstr "Traccia"
 
 
-msgid "Adjust"
-msgstr "Regola"
-
-
 msgid "Quick Effects"
 msgstr "Effetti Veloci"
-
-
-msgid "Show/Hide"
-msgstr "Mostra/Nascondi"
-
-
-msgid "Clean Up"
-msgstr "Ripulisci"
-
-
-msgid "Keying"
-msgstr "Keying"
 
 
 msgid "Asset"
@@ -24694,10 +24762,6 @@ msgid "Make Single User"
 msgstr "Rendi Utilizzatore Singolo"
 
 
-msgid "Tracking"
-msgstr "Tracciamento"
-
-
 msgid "Convert"
 msgstr "Converti"
 
@@ -24706,24 +24770,16 @@ msgid "Link/Transfer Data"
 msgstr "Collega/Trasferisci Dati"
 
 
-msgid "Utilities"
-msgstr "Utilità"
-
-
 msgid "Hooks"
 msgstr "Ganci"
 
 
-msgid "Math"
-msgstr "Matematica"
-
-
-msgid "Vertex Group Locks"
-msgstr "Blocchi del Gruppo di Vertici"
-
-
 msgid "Face Sets Init"
 msgstr "Init Sets di Facce"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Random Mask"
@@ -24746,8 +24802,8 @@ msgid "Bone Collections"
 msgstr "Raccolte di Ossa"
 
 
-msgid "Names"
-msgstr "Nomi"
+msgid "Adjust"
+msgstr "Regola"
 
 
 msgid "Toggle Bone Options"
@@ -24758,8 +24814,16 @@ msgid "Enable Bone Options"
 msgstr "Abilita Opzioni Osso"
 
 
+msgid "Keying"
+msgstr "Keying"
+
+
 msgid "Disable Bone Options"
 msgstr "Disabilita Opzioni Osso"
+
+
+msgid "Tracking"
+msgstr "Tracciamento"
 
 
 msgid "Mesh Select Mode"
@@ -24782,76 +24846,12 @@ msgid "Merge"
 msgstr "Unisci"
 
 
-msgid "Read"
-msgstr "Lettura"
-
-
 msgid "Special Characters"
 msgstr "Caratteri Speciali"
 
 
-msgid "Sample"
-msgstr "Campione"
-
-
 msgid "Kerning"
 msgstr "Crenatura"
-
-
-msgid "Write"
-msgstr "Scrittura"
-
-
-msgid "Primitives"
-msgstr "Primitive"
-
-
-msgid "Bone Roll"
-msgstr "Rollio Osso"
-
-
-msgid "Instances"
-msgstr "Istanze"
-
-
-msgid "Import"
-msgstr "Importa"
-
-
-msgid "Pivot Point"
-msgstr "Punto di Perno"
-
-
-msgid "Snap"
-msgstr "Aggancia"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Decadimento Modifica Proporzionale"
-
-
-msgid "Mask Edit"
-msgstr "Modifica Maschera"
-
-
-msgid "Automasking"
-msgstr "Automascheramento"
-
-
-msgid "Face Sets Edit"
-msgstr "Modifica Sets di Facce"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Specchia"
-
-
-msgid "UV Mapping"
-msgstr "Mappatura UV"
 
 
 msgid "Keyframe Insert Pie"
@@ -50304,26 +50304,6 @@ msgid "Active Palette Color"
 msgstr "Colore Tavolozza Attivo"
 
 
-msgid "Transform Orientations"
-msgstr "Assi (Orientamenti Trasformazione)"
-
-
-msgid "Stroke Placement"
-msgstr "Giacitura Tratto"
-
-
-msgid "Guides"
-msgstr "Guide"
-
-
-msgid "Stereoscopy"
-msgstr "Stereoscopia"
-
-
-msgid "Auto-Masking"
-msgstr "Auto-Mascheramento"
-
-
 msgid "Selectability & Visibility"
 msgstr "Selezionabilità e Visibilità"
 
@@ -50352,6 +50332,10 @@ msgid "Overlays"
 msgstr "Sovrapposizioni"
 
 
+msgid "Guides"
+msgstr "Guide"
+
+
 msgid "Motion Tracking"
 msgstr "Tracciatura Movimento"
 
@@ -50362,6 +50346,22 @@ msgstr "Modalità Modifica Mesh"
 
 msgid "Measurement"
 msgstr "Misurazione"
+
+
+msgid "Transform Orientations"
+msgstr "Assi (Orientamenti Trasformazione)"
+
+
+msgid "Stroke Placement"
+msgstr "Giacitura Tratto"
+
+
+msgid "Stereoscopy"
+msgstr "Stereoscopia"
+
+
+msgid "Auto-Masking"
+msgstr "Auto-Mascheramento"
 
 
 msgid "Chain Scaling"
