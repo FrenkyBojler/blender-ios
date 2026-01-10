@@ -2810,8 +2810,7 @@ static void rna_def_window(BlenderRNA *brna)
   prop = RNA_def_property(srna, "is_fullscreen", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(prop, "rna_Window_fullscreen_get", nullptr);
-  RNA_def_property_ui_text(
-      prop, "Is Fullscreen", "Whether the window is in fullscreen mode");
+  RNA_def_property_ui_text(prop, "Is Fullscreen", "Whether the window is in fullscreen mode");
 
   prop = RNA_def_property(srna, "stereo_3d_display", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "stereo3d_format");
