@@ -36,10 +36,6 @@
 
 namespace blender::ed::vse {
 
-#define KEY_SIZE (10 * U.pixelsize)
-#define KEY_CENTER \
-  (ui::view2d_view_to_region_y(v2d, strip_y_rescale(strip, 0.0f)) + 4 + KEY_SIZE / 2)
-
 bool retiming_keys_can_be_displayed(const SpaceSeq *sseq)
 {
   return (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_RETIMING) &&
@@ -50,6 +46,23 @@ static float strip_y_rescale(const Strip *strip, const float y_value)
 {
   const float y_range = STRIP_OFSTOP - STRIP_OFSBOTTOM;
   return (y_value * y_range) + strip->channel + STRIP_OFSBOTTOM;
+}
+
+inline float retiming_key_size()
+{
+  return 10 * U.pixelsize;
+}
+
+inline float retiming_key_center(const View2D *v2d, const Strip *strip)
+{
+  return (ui::view2d_view_to_region_y(v2d, strip_y_rescale(strip, 0.0f)) + 4 +
+          retiming_key_size() / 2);
+}
+
+inline float retiming_key_mouseover_threshold()
+{
+  /** Size in pixels. */
+  return (16.0f * UI_SCALE_FAC);
 }
 
 static float key_x_get(const Scene *scene, const Strip *strip, const SeqRetimingKey *key)
@@ -91,14 +104,11 @@ static rctf strip_box_get(const Scene *scene, const View2D *v2d, const Strip *st
   return rect;
 }
 
-/** Size in pixels. */
-#define RETIME_KEY_MOUSEOVER_THRESHOLD (16.0f * UI_SCALE_FAC)
-
 rctf strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip)
 {
   rctf rect = strip_box_get(scene, v2d, strip);
-  rect.ymax = KEY_CENTER + KEY_SIZE / 2;
-  rect.ymin = KEY_CENTER - KEY_SIZE / 2;
+  rect.ymax = retiming_key_center(v2d, strip) + retiming_key_size() / 2;
+  rect.ymin = retiming_key_center(v2d, strip) - retiming_key_size() / 2;
   return rect;
 }
 
@@ -125,7 +135,7 @@ static bool retiming_fake_key_frame_clicked(const bContext *C,
   r_frame = (left_distance < right_distance) ? left_frame : right_frame;
 
   /* Fake key threshold is doubled to make them easier to select. */
-  return min_ff(left_distance, right_distance) < RETIME_KEY_MOUSEOVER_THRESHOLD * 2;
+  return min_ff(left_distance, right_distance) < retiming_key_mouseover_threshold() * 2;
 }
 
 void realize_fake_keys(const Scene *scene, Strip *strip)
@@ -162,7 +172,7 @@ static SeqRetimingKey *mouse_over_key_get_from_strip(const bContext *C,
     int distance = round_fl_to_int(
         fabsf(ui::view2d_view_to_region_x(v2d, key_x_get(scene, strip, &key)) - mval[0]));
 
-    int threshold = RETIME_KEY_MOUSEOVER_THRESHOLD;
+    int threshold = retiming_key_mouseover_threshold();
     if (key_x_get(scene, strip, &key) == strip->left_handle() ||
         key_x_get(scene, strip, &key) == strip->right_handle(scene))
     {
@@ -257,8 +267,8 @@ static void retime_key_draw(const TimelineDrawContext &ctx,
   }
 
   const bool is_selected = ctx.retiming_selection.contains(const_cast<SeqRetimingKey *>(key));
-  const int size = KEY_SIZE;
-  const float bottom = KEY_CENTER;
+  const int size = retiming_key_size();
+  const float bottom = retiming_key_center(v2d, strip);
 
   /* Ensure, that key is always inside of strip. */
   const float right_pos_max = ui::view2d_view_to_region_x(v2d, strip_ctx.right_handle) -
@@ -307,8 +317,8 @@ void sequencer_retiming_draw_continuity(const TimelineDrawContext &ctx,
     prev_key_position = max_ff(prev_key_position, left_handle_position);
     key_position = min_ff(key_position, right_handle_position);
 
-    const int size = KEY_SIZE;
-    const float y_center = KEY_CENTER;
+    const int size = retiming_key_size();
+    const float y_center = retiming_key_center(v2d, strip);
 
     const float width_fac = 0.5f;
     const float bottom = y_center - size * width_fac;
@@ -480,7 +490,7 @@ static bool label_rect_get(const TimelineDrawContext &ctx,
   rect->ymin = strip_y_rescale(strip_ctx.strip, 0) + pixels_to_view_height(C, 5);
   rect->ymax = rect->ymin + height;
 
-  return width < xmax - xmin - pixels_to_view_width(C, KEY_SIZE);
+  return width < xmax - xmin - pixels_to_view_width(C, retiming_key_size());
 }
 
 static void retime_speed_text_draw(const TimelineDrawContext &ctx,
