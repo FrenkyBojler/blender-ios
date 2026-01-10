@@ -294,6 +294,18 @@ class GREASE_PENCIL_MT_layer_group(Menu):
     def draw(self, context):
         layout = self.layout
 
+        if layout.operator_context == 'EXEC_REGION_WIN':
+            layout.operator_context = 'INVOKE_REGION_WIN'
+            layout.operator("WM_OT_search_single_menu", text="Search...",
+                            icon='VIEWZOOM').menu_idname = "GREASE_PENCIL_MT_move_to_layer"
+            layout.separator()
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+
+        layout.operator("grease_pencil.move_to_layer", text="New Layer", icon='ADD').add_new_layer = True
+
+        layout.separator()
+
         target_group = getattr(context, "active_gpencil_layer_group", None)
         if not target_group:
             return
