@@ -143,33 +143,6 @@ static bNode *node_group_get_active(bContext *C, const StringRef node_idname)
   return nullptr;
 }
 
-/* Maps old to new identifiers for simulation input node pairing. */
-static void remap_pairing(bNodeTree &dst_tree,
-                          Span<bNode *> nodes,
-                          const Map<int32_t, int32_t> &identifier_map)
-{
-  for (bNode *dst_node : nodes) {
-    if (bke::all_zone_input_node_types().contains(dst_node->type_legacy)) {
-      const bke::bNodeZoneType &zone_type = *bke::zone_type_by_node_type(dst_node->type_legacy);
-      int &output_node_id = zone_type.get_corresponding_output_id(*dst_node);
-      if (output_node_id == 0) {
-        continue;
-      }
-      output_node_id = identifier_map.lookup_default(output_node_id, 0);
-      if (output_node_id == 0) {
-        nodes::update_node_declaration_and_sockets(dst_tree, *dst_node);
-      }
-    }
-  }
-}
-
-static std::string node_basepath(const bNodeTree &tree, const bNode &node)
-{
-  const PointerRNA ptr = RNA_pointer_create_discrete(
-      &const_cast<bNodeTree &>(tree).id, &RNA_Node, &const_cast<bNode &>(node));
-  return *RNA_path_from_ID_to_struct(&ptr);
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -397,102 +370,19 @@ static bool node_group_separate_selected(
 {
   node_deselect_all(ntree);
 
-  Vector<AnimationBasePathChange> anim_basepaths;
-  Map<bNode *, bNode *> node_map;
-  Map<const bNodeSocket *, bNodeSocket *> socket_map;
-  Map<int32_t, int32_t> node_identifier_map;
-
   /* Add selected nodes into the ntree, ignoring interface nodes. */
   VectorSet<bNode *> nodes_to_move = get_selected_nodes(ngroup);
   nodes_to_move.remove_if(
       [](const bNode *node) { return node->is_group_input() || node->is_group_output(); });
 
-  for (bNode *node : nodes_to_move) {
-    const std::string old_basepath = node_basepath(ngroup, *node);
-    bNode *newnode;
-    if (make_copy) {
-      newnode = bke::node_copy_with_mapping(
-          &ntree, *node, LIB_ID_COPY_DEFAULT, std::nullopt, std::nullopt, socket_map);
-      node_identifier_map.add(node->identifier, newnode->identifier);
-    }
-    else {
-      newnode = node;
-      BLI_remlink(&ngroup.nodes, newnode);
-      BLI_addtail(&ntree.nodes, newnode);
-      const int32_t old_identifier = node->identifier;
-      bke::node_unique_id(ntree, *newnode);
-      bke::node_unique_name(ntree, *newnode);
-      node_identifier_map.add(old_identifier, newnode->identifier);
-    }
-    node_map.add_new(node, newnode);
+  NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(
+      bmain, ngroup, nodes_to_move.as_span(), ntree);
+  node_set_copy.translate_nodes(offset);
 
-    /* Keep track of this node's RNA "base" path (the part of the path identifying the node). */
-    const std::string new_basepath = node_basepath(ngroup, *newnode);
-    anim_basepaths.append({old_basepath, new_basepath});
-
-    newnode->location[0] += offset.x;
-    newnode->location[1] += offset.y;
-  }
-  for (bNode *newnode : node_map.values()) {
-    /* Ensure valid parent pointers. Detach if parent stays inside the group. */
-    if (newnode->parent) {
-      if (newnode->parent->flag & NODE_SELECT) {
-        newnode->parent = node_map.lookup(newnode->parent);
-      }
-      else {
-        bke::node_detach_node(ngroup, *newnode);
-      }
-    }
-  }
   if (!make_copy) {
-    bke::node_rebuild_id_vector(ngroup);
-  }
-
-  /* add internal links to the ntree */
-  for (bNodeLink &link : ngroup.links.items_mutable()) {
-    const bool fromselect = (link.fromnode && nodes_to_move.contains(link.fromnode));
-    const bool toselect = (link.tonode && nodes_to_move.contains(link.tonode));
-
-    if (make_copy) {
-      /* make a copy of internal links */
-      if (fromselect && toselect) {
-        bke::node_add_link(ntree,
-                           *node_map.lookup(link.fromnode),
-                           *socket_map.lookup(link.fromsock),
-                           *node_map.lookup(link.tonode),
-                           *socket_map.lookup(link.tosock));
-      }
+    for (bNode *node : nodes_to_move) {
+      bke::node_remove_node(&bmain, ngroup, *node, true);
     }
-    else {
-      /* move valid links over, delete broken links */
-      if (fromselect && toselect) {
-        BLI_remlink(&ngroup.links, &link);
-        BLI_addtail(&ntree.links, &link);
-      }
-      else if (fromselect || toselect) {
-        bke::node_remove_link(&ngroup, link);
-      }
-    }
-  }
-
-  remap_pairing(ntree, nodes_to_move, node_identifier_map);
-
-  for (bNode *node : node_map.values()) {
-    bke::node_declaration_ensure(ntree, *node);
-  }
-
-  /* and copy across the animation,
-   * note that the animation data's action can be nullptr here */
-  if (make_copy) {
-    BKE_animdata_copy_by_basepath(bmain, ngroup.id, ntree.id, anim_basepaths);
-  }
-  else {
-    BKE_animdata_move_by_basepath(bmain, ngroup.id, ntree.id, anim_basepaths);
-  }
-
-  BKE_ntree_update_tag_all(&ntree);
-  if (!make_copy) {
-    BKE_ntree_update_tag_all(&ngroup);
   }
 
   return true;
