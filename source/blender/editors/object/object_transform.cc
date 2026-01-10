@@ -658,7 +658,8 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
                                                bool apply_rot,
                                                bool apply_scale,
                                                bool do_props,
-                                               bool do_single_user)
+                                               bool do_single_user,
+                                               bool corrective_flip_normals)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -870,6 +871,9 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
 
       /* adjust data */
       bke::mesh_transform(*mesh, float4x4(mat), true);
+      if (corrective_flip_normals && math::determinant(float4x4(mat)) < 0.0f) {
+        bke::mesh_flip_faces(*mesh, IndexMask(mesh->faces_num));
+      }
     }
     else if (ob->type == OB_ARMATURE) {
       bArmature *arm = id_cast<bArmature *>(ob->data);
@@ -1141,9 +1145,11 @@ static wmOperatorStatus object_transform_apply_exec(bContext *C, wmOperator *op)
   const bool sca = RNA_boolean_get(op->ptr, "scale");
   const bool do_props = RNA_boolean_get(op->ptr, "properties");
   const bool do_single_user = RNA_boolean_get(op->ptr, "isolate_users");
+  const bool corrective_flip_normals = RNA_boolean_get(op->ptr, "corrective_flip_normals");
 
   if (loc || rot || sca) {
-    return apply_objects_internal(C, op->reports, loc, rot, sca, do_props, do_single_user);
+    return apply_objects_internal(
+        C, op->reports, loc, rot, sca, do_props, do_single_user, corrective_flip_normals);
   }
   /* allow for redo */
   return OPERATOR_FINISHED;
@@ -1200,6 +1206,11 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
                   true,
                   "Apply Properties",
                   "Modify properties such as curve vertex radius, font size and bone envelope");
+  RNA_def_boolean(ot->srna,
+                  "corrective_flip_normals",
+                  false,
+                  "Corrective Flip Normals",
+                  "Invert normals for negative scaled objects.");
   PropertyRNA *prop = RNA_def_boolean(ot->srna,
                                       "isolate_users",
                                       false,
