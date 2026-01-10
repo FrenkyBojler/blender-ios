@@ -41,7 +41,7 @@ BLI_INLINE ColorTheme4b to_byte(const ColorTheme4f &theme4f)
   return theme4b;
 }
 
-BLI_INLINE ColorTheme4b to_byte(const ColorTheme4b &theme4b)
+[[nodiscard]] BLI_INLINE ColorTheme4b to_byte(const ColorTheme4b &theme4b)
 {
   return theme4b;
 }
@@ -68,7 +68,7 @@ BLI_INLINE ColorTheme4f to_float(const ColorTheme4b &theme4b)
   return theme4f;
 }
 
-BLI_INLINE ColorTheme4f to_float(const ColorTheme4f &theme4f)
+[[nodiscard]] BLI_INLINE ColorTheme4f to_float(const ColorTheme4f &theme4f)
 {
   return theme4f;
 }
