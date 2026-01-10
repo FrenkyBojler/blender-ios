@@ -106,12 +106,11 @@ static bool add_thumbnail_at_frame(float timeline_frame,
 
   /* Clip if full thumbnail cannot be displayed. */
   if (thumb_x_end > upper_thumb_bound) {
-    thumb_x_end = strip.right_handle;
+    thumb_x_end = upper_thumb_bound;
     clipped = true;
   }
 
-  float cropx_min = crop_x_multiplier;
-  float cropx_max = (thumb_x_end - display_frame) * crop_x_multiplier;
+  float cropx_max = (thumb_x_end - timeline_frame) * crop_x_multiplier;
   if (cropx_max < 1.0f) {
     return false;
   }
@@ -128,7 +127,6 @@ static bool add_thumbnail_at_frame(float timeline_frame,
   thumb.cropx_min = 0;
   thumb.cropx_max = ibuf->x - 1;
   if (clipped) {
-    thumb.cropx_min = clamp_f(cropx_min, 0, ibuf->x - 1);
     thumb.cropx_max = clamp_f(cropx_max - 1 * 0, 0, ibuf->x - 1);
   }
   thumb.left_handle = strip.left_handle;
