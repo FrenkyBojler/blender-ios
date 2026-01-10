@@ -114,6 +114,8 @@ static bool node_copy_local(bNodeTree &from_tree,
 
   /* Copy links between selected nodes. */
   for (bNodeLink &link : from_tree.links) {
+    BLI_assert(link.tonode);
+    BLI_assert(link.fromnode);
     if (link.tonode->flag & NODE_SELECT && link.fromnode->flag & NODE_SELECT) {
       if (!node_map.contains(link.tonode) || !node_map.contains(link.fromnode)) {
         /* If copying a node fails, skip copying their links. */
@@ -190,30 +192,28 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
     }
 
     ID *id_dst = nullptr;
-    const ID_Type id_type = GS((id_src)->name);
 
     if (id_src == &copy_tree->id) {
       /* #copy_tree is just a container for the copied nodes, so it can be safely ignored. */
       return IDWALK_RET_NOP;
     }
 
-    auto partial_write_dependencies_filter_cb =
-        [&copy_tree](LibraryIDLinkCallbackData *cb_deps_data,
-                     PartialWriteContext::IDAddOptions /*options*/) {
-          ID *id_deps_src = *cb_deps_data->id_pointer;
-          const ID_Type id_type = GS((id_deps_src)->name);
-          if (id_type == ID_SCE) {
-            /* Note: Scenes referenced in the Render Layers node are cleared. At this stage, we
-             * don't know if the target blender instance will have a scene with identical name, so
-             * they are saved in the copy buffer as empty scenes. The pasting code deletes the
-             * extra scenes, see #node_clipboard_paste_exec(). */
-            return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
-          }
-          else {
-            /* All ID datablocks exposed through nodes are added here. */
-            return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
-          }
-        };
+    auto partial_write_dependencies_filter_cb = [](LibraryIDLinkCallbackData *cb_deps_data,
+                                                   PartialWriteContext::IDAddOptions /*options*/) {
+      ID *id_deps_src = *cb_deps_data->id_pointer;
+      const ID_Type id_type = GS((id_deps_src)->name);
+      if (id_type == ID_SCE) {
+        /* Note: Scenes referenced in the Render Layers node are cleared. At this stage, we
+         * don't know if the target blender instance will have a scene with identical name, so
+         * they are saved in the copy buffer as empty scenes. The pasting code deletes the
+         * extra scenes, see #node_clipboard_paste_exec(). */
+        return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
+      }
+      else {
+        /* All ID datablocks exposed through nodes are added here. */
+        return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
+      }
+    };
 
     id_dst = copy_buffer.id_add(
         id_src, {PartialWriteContext::IDAddOperations::NOP}, partial_write_dependencies_filter_cb);
