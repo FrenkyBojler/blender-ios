@@ -103,18 +103,29 @@ void LexerBase::ensure_memory()
     input_size = 1;
   }
 
+  /* Round to 128 for easy alignment of types and allocations. */
+  input_size += (input_size + 127) & ~127;
+
+  size_t needed_size = 0;
+  needed_size += sizeof(*token_types.data_) * input_size;
+  needed_size += sizeof(*token_sizes.data_) * input_size;
+  needed_size += sizeof(*token_offsets.data()) * input_size;
+
   /* Make sure there is enough reserved space inside the data structures.
    * We need at least as many token as there is character.
    * Note: Never shrinks. */
-  if (token_types_data.size() < input_size) {
-    token_types_data.resize(input_size);
-    token_sizes_data.resize(input_size);
-    token_offsets_data.resize(input_size + 1);
+  if (alloc_size < needed_size) {
+    std::free(memory);
+    memory = static_cast<char *>(std::malloc(needed_size));
+    alloc_size = needed_size;
   }
 
-  token_types = {token_types_data.data(), token_types_data.size()};
-  token_sizes = {token_sizes_data.data(), token_sizes_data.size()};
-  token_offsets = {token_offsets_data.data(), token_offsets_data.size()};
+  char *ptr = memory;
+  token_types = {reinterpret_cast<TokenType *>(ptr), input_size};
+  ptr += sizeof(*token_types.data_) * input_size;
+  token_sizes = {reinterpret_cast<uint32_t *>(ptr), input_size};
+  ptr += sizeof(*token_sizes.data_) * input_size;
+  token_offsets = {reinterpret_cast<uint32_t *>(ptr), input_size};
 
   update_string_view();
 }

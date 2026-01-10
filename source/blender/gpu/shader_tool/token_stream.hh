@@ -36,9 +36,13 @@ struct LexerBase {
   OffsetIndices token_offsets;
 
   /** Token Data. Backing memory for the spans. */
-  std::vector<TokenType> token_types_data;
-  std::vector<uint32_t> token_sizes_data;
-  std::vector<uint32_t> token_offsets_data;
+  size_t alloc_size = 0;
+  char *memory = nullptr;
+
+  ~LexerBase()
+  {
+    std::free(memory);
+  }
 
  protected:
   void ensure_memory();
