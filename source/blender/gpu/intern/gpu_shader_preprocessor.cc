@@ -642,16 +642,16 @@ struct Preprocessor {
       case Else:
         cursor = process_conditional(type, hash_tok, dir_end);
         break;
-        // #ifndef __APPLE__ /* TODO(fclem): Not working. DCE is confused by numbers being treated
-        // as types. */
+#ifndef __APPLE__ /* Line directives are supported on MSL. */
+                  /* TODO(fclem): Should be a runtime switch for VK. */
       case Line:
-        // #endif
+#endif
       case Endif:
         erase_single_line_directive(hash_tok, dir_end);
         break;
-        // #ifdef __APPLE__
-        //       case Line:
-        // #endif
+#ifdef __APPLE__
+      case Line:
+#endif
       case Other:
         break;
     }
@@ -840,13 +840,23 @@ struct DeadCodeEliminator {
       if (tok_type == ParOpen) {
         Token parenthesis_tok = data[cursor];
         Token name_tok = prev(parenthesis_tok);
+        /* WATCH(fclem): It could be that a line directive is put between the return type and the
+         * function name (which would mess up the). This is currently not happening with the
+         * current codebase but might in the future. Checking for it would be quite expensive. */
         if (name_tok != Word) {
           continue;
         }
         Token type_tok = prev(name_tok);
         StringRef type_str = Preprocessor::str(type_tok);
 
-        if (type_tok == Word && type_str != "return" && type_str != "else") {
+        TokenType type_tok_type = type_tok.type();
+        if (type_str[0] >= '0' && type_str[0] <= '9') {
+          /* Case where a function is called just after a line directive. The type token was not
+           * recognized as a Number token from the tokenizer rules. */
+          type_tok_type = Number;
+        }
+
+        if (type_tok_type == Word && type_str != "return" && type_str != "else") {
           if (parsing_enabled) {
             function_definition(name_tok, parenthesis_tok);
           }
@@ -919,7 +929,25 @@ struct DeadCodeEliminator {
 
   void prune_unused_functions()
   {
-    Set<FnId> used = compute_used_functions({graph.names.lookup("main")});
+    Vector<FnId> entry_points{graph.names.lookup("main")};
+    /* TODO(fclem): Properly support forward declaration. */
+    if (graph.names.contains("nodetree_displacement")) {
+      entry_points.append(graph.names.lookup("nodetree_displacement"));
+    }
+    if (graph.names.contains("nodetree_surface")) {
+      entry_points.append(graph.names.lookup("nodetree_surface"));
+    }
+    if (graph.names.contains("nodetree_volume")) {
+      entry_points.append(graph.names.lookup("nodetree_volume"));
+    }
+    if (graph.names.contains("nodetree_thickness")) {
+      entry_points.append(graph.names.lookup("nodetree_thickness"));
+    }
+    if (graph.names.contains("derivative_scale_get")) {
+      entry_points.append(graph.names.lookup("derivative_scale_get"));
+    }
+
+    Set<FnId> used = compute_used_functions(entry_points);
 
     for (auto [name_tok, id] : graph.declarations) {
       if (used.contains(id)) {
