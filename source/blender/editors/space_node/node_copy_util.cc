@@ -290,25 +290,6 @@ class NodeSetInterfaceBuilder {
                                         bNodeTreeInterfacePanel *parent);
 };
 
-/* Utility for mapping existing interface sockets and panels. */
-class NodeSetInterfaceMapper {
- private:
-  using InterfaceSocketData = NodeSetInterface::InterfaceSocketData;
-  using InterfacePanelData = NodeSetInterface::InterfacePanelData;
-
-  NodeSetInterfaceParams params_;
-  NodeSetInterface &interface_;
-  const bNode &group_node_;
-
- public:
-  NodeSetInterfaceMapper(NodeSetInterfaceParams params,
-                         NodeSetInterface &interface,
-                         const bNode &group_node);
-
-  void map_panel(const bNodeTreeInterfacePanel &io_panel);
-  void map_socket(const bNodeTreeInterfaceSocket &io_socket);
-};
-
 NodeSetInterfaceBuilder::NodeSetInterfaceBuilder(NodeSetInterfaceParams params,
                                                  NodeSetInterface &interface,
                                                  bNodeTree &dst_tree,
@@ -433,50 +414,6 @@ bNodeTreeInterfacePanel *NodeSetInterfaceBuilder::expose_panel(
   return io_panel;
 }
 
-NodeSetInterfaceMapper::NodeSetInterfaceMapper(NodeSetInterfaceParams params,
-                                               NodeSetInterface &interface,
-                                               const bNode &group_node)
-    : params_(std::move(params)), interface_(interface), group_node_(group_node)
-{
-}
-
-void NodeSetInterfaceMapper::map_socket(const bNodeTreeInterfaceSocket &io_socket)
-{
-  const bNodeTree &group_tree = *reinterpret_cast<const bNodeTree *>(group_node_.id);
-  const bool is_input = (io_socket.flag & NODE_INTERFACE_SOCKET_INPUT);
-  const bNodeSocket *group_socket = is_input ?
-                                        group_node_.input_by_identifier(io_socket.identifier) :
-                                        group_node_.output_by_identifier(io_socket.identifier);
-  BLI_assert(group_socket);
-  if (!group_socket->is_available()) {
-    return;
-  }
-  if (params_.skip_hidden && !group_socket->is_visible()) {
-    return;
-  }
-
-  InterfaceSocketData data;
-  data.internal_sockets.add_multiple(
-      util::get_internal_group_links(group_tree, io_socket, params_.skip_hidden)
-          .as_span()
-          .cast<NodeSocketRef>());
-  data.external_sockets.add_multiple(util::get_socket_links(*group_socket, false));
-  data.hidden = group_socket->flag & SOCK_HIDDEN;
-  data.collapsed = group_socket->flag & SOCK_COLLAPSED;
-  interface_.socket_data.add(&io_socket, std::move(data));
-}
-
-void NodeSetInterfaceMapper::map_panel(const bNodeTreeInterfacePanel &io_panel)
-{
-  InterfacePanelData data;
-  for (const bNodePanelState &panel_state : group_node_.panel_states()) {
-    if (panel_state.identifier == io_panel.identifier) {
-      data.collapsed = panel_state.is_collapsed();
-    }
-  }
-  interface_.panel_data.add(&io_panel, std::move(data));
-}
-
 NodeSetInterface build_node_set_interface(const NodeSetInterfaceParams &params,
                                           const bNodeTree &src_tree,
                                           const Span<bNode *> src_nodes,
@@ -537,6 +474,49 @@ NodeSetInterface build_node_declaration_interface(const NodeSetInterfaceParams &
   return result;
 }
 
+static void map_socket(NodeSetInterface &node_set_io,
+                       const NodeSetInterfaceParams &params,
+                       const bNode &group_node,
+                       const bNodeTreeInterfaceSocket &io_socket)
+{
+  const bNodeTree &group_tree = *reinterpret_cast<const bNodeTree *>(group_node.id);
+  const bool is_input = (io_socket.flag & NODE_INTERFACE_SOCKET_INPUT);
+  const bNodeSocket *group_socket = is_input ?
+                                        group_node.input_by_identifier(io_socket.identifier) :
+                                        group_node.output_by_identifier(io_socket.identifier);
+  BLI_assert(group_socket);
+  if (!group_socket->is_available()) {
+    return;
+  }
+  if (params.skip_hidden && !group_socket->is_visible()) {
+    return;
+  }
+
+  NodeSetInterface::InterfaceSocketData data;
+  data.internal_sockets.add_multiple(
+      util::get_internal_group_links(group_tree, io_socket, params.skip_hidden)
+          .as_span()
+          .cast<NodeSocketRef>());
+  data.external_sockets.add_multiple(util::get_socket_links(*group_socket, false));
+  data.hidden = group_socket->flag & SOCK_HIDDEN;
+  data.collapsed = group_socket->flag & SOCK_COLLAPSED;
+  node_set_io.socket_data.add(&io_socket, std::move(data));
+}
+
+static void map_panel(NodeSetInterface &node_set_io,
+                      const NodeSetInterfaceParams & /*params*/,
+                      const bNode &group_node,
+                      const bNodeTreeInterfacePanel &io_panel)
+{
+  NodeSetInterface::InterfacePanelData data;
+  for (const bNodePanelState &panel_state : group_node.panel_states()) {
+    if (panel_state.identifier == io_panel.identifier) {
+      data.collapsed = panel_state.is_collapsed();
+    }
+  }
+  node_set_io.panel_data.add(&io_panel, std::move(data));
+}
+
 NodeSetInterface map_group_node_interface(const NodeSetInterfaceParams &params,
                                           const bNode &group_node)
 {
@@ -544,17 +524,16 @@ NodeSetInterface map_group_node_interface(const NodeSetInterfaceParams &params,
   const bNodeTree &group_tree = *reinterpret_cast<const bNodeTree *>(group_node.id);
 
   NodeSetInterface result;
-  NodeSetInterfaceMapper mapper(params, result, group_node);
   for (const bNodeTreeInterfaceItem *io_item : group_tree.interface_items()) {
     switch (io_item->item_type) {
       case NODE_INTERFACE_PANEL: {
         const auto *io_panel = reinterpret_cast<const bNodeTreeInterfacePanel *>(io_item);
-        mapper.map_panel(*io_panel);
+        map_panel(result, params, group_node, *io_panel);
         break;
       }
       case NODE_INTERFACE_SOCKET: {
         const auto *io_socket = reinterpret_cast<const bNodeTreeInterfaceSocket *>(io_item);
-        mapper.map_socket(*io_socket);
+        map_socket(result, params, group_node, *io_socket);
       }
     }
   }
