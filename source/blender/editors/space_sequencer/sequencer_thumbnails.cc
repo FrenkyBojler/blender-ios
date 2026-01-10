@@ -87,6 +87,8 @@ static bool add_thumbnail_at_frame(float timeline_frame,
                                    const StripDrawContext &strip,
                                    Scene *scene,
                                    float thumb_width,
+                                   float crop_left,
+                                   float crop_right,
                                    float crop_x_multiplier,
                                    float upper_thumb_bound,
                                    float display_offset,
@@ -110,8 +112,17 @@ static bool add_thumbnail_at_frame(float timeline_frame,
     clipped = true;
   }
 
-  float cropx_max = (thumb_x_end - timeline_frame) * crop_x_multiplier;
-  if (cropx_max < 1.0f) {
+  crop_left = max_ff(crop_left, 0.0f);
+  crop_right = max_ff(crop_right, 0.0f);
+
+  if (crop_left > 0.0f || crop_right > 0.0f) {
+    clipped = true;
+  }
+
+  float cropx_min = crop_left * crop_x_multiplier;
+  float cropx_max = min_ff(thumb_width - crop_right, (thumb_x_end - display_frame)) *
+                    crop_x_multiplier;
+  if (cropx_max - cropx_min < 1.0f) {
     return false;
   }
 
@@ -127,15 +138,16 @@ static bool add_thumbnail_at_frame(float timeline_frame,
   thumb.cropx_min = 0;
   thumb.cropx_max = ibuf->x - 1;
   if (clipped) {
-    thumb.cropx_max = clamp_f(cropx_max - 1 * 0, 0, ibuf->x - 1);
+    thumb.cropx_min = clamp_f(cropx_min, 0, ibuf->x - 1);
+    thumb.cropx_max = clamp_f(cropx_max, 0, ibuf->x - 1);
   }
   thumb.left_handle = strip.left_handle;
   thumb.right_handle = strip.right_handle;
   thumb.is_muted = is_muted;
   thumb.bottom = strip.bottom;
   thumb.top = strip.top;
-  thumb.x1 = display_frame;
-  thumb.x2 = thumb_x_end;
+  thumb.x1 = display_frame + crop_left;
+  thumb.x2 = min_ff(thumb_x_end, display_frame + thumb_width - crop_right);
   thumb.y1 = strip.bottom;
   thumb.y2 = strip.strip_content_top;
   r_thumbs.append(thumb);
@@ -157,59 +169,59 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
                                           const bContext *C,
                                           const StripDrawContext &strip,
                                           Scene *scene,
-                                          float thumb_width,
-                                          float crop_x_multiplier,
+                                          const float thumb_width,
+                                          const float crop_x_multiplier,
+                                          const float pixelx,
+                                          const float upper_thumb_bound,
                                           bool is_muted,
                                           Vector<SeqThumbInfo> &r_thumbs)
 {
-  const float upper_thumb_bound = min_ff(strip.right_handle, strip.content_end);
   const float strip_width = (strip.right_handle - strip.left_handle);
-  const bool overlap = (2.0f * thumb_width > strip_width);
+  const float overlap = max_ff(0.0f, 2.0f * thumb_width - strip_width);
   const bool only_right_handle_selected = ((strip.strip->flag & SEQ_RIGHTSEL) &&
                                            !(strip.strip->flag & SEQ_LEFTSEL));
+  /* Offset the start of last thumbnail. */
+  const float display_offset = -thumb_width;
+  const float gap = 1.5f * pixelx * UI_SCALE_FAC;
 
-  bool show_left_thumb = false;
-  bool show_right_thumb = false;
-  if (overlap && only_right_handle_selected) {
-    /* Show only right thumbnail. */
-    show_right_thumb = true;
+  float crop_left = 0.0;
+  float crop_right = 0.0;
+
+  if (overlap > 0.0f && only_right_handle_selected) {
+    /* Crop left thumbnail from right. */
+    crop_right = overlap + gap;
   }
-  else if (overlap) {
-    /* Show only left thumbnail. */
-    show_left_thumb = true;
-  }
-  else {
-    /* Show both thumbnails. */
-    show_left_thumb = true;
-    show_right_thumb = true;
+  else if (overlap > 0.0f) {
+    /* Crop right thumbnail from left. */
+    crop_left = overlap + gap;
   }
 
-  if (show_left_thumb && is_thumbnail_in_view(strip.left_handle, thumb_width, v2d)) {
+  if (is_thumbnail_in_view(strip.left_handle, thumb_width, v2d)) {
+    /* Draw left thumbnail. */
     add_thumbnail_at_frame(strip.left_handle,
                            C,
                            v2d,
                            strip,
                            scene,
                            thumb_width,
+                           0.0f,
+                           crop_right,
                            crop_x_multiplier,
                            upper_thumb_bound,
                            0.0f,
                            is_muted,
                            r_thumbs);
   }
-
-  /* Offset the start of thumbnail. */
-  const float display_offset = -thumb_width;
-
-  if (show_right_thumb &&
-      is_thumbnail_in_view(strip.right_handle + display_offset, thumb_width, v2d))
-  {
+  if (is_thumbnail_in_view(strip.right_handle + display_offset, thumb_width, v2d)) {
+    /* Draw right thumbnail. */
     add_thumbnail_at_frame(strip.right_handle,
                            C,
                            v2d,
                            strip,
                            scene,
                            thumb_width,
+                           crop_left,
+                           0.0f,
                            crop_x_multiplier,
                            upper_thumb_bound,
                            display_offset,
@@ -250,8 +262,16 @@ static void get_seq_strip_thumbnails(const View2D *v2d,
   }
 
   if (show_only_at_strip_ends) {
-    get_seq_strip_ends_thumbnails(
-        v2d, C, strip, scene, thumb_width, crop_x_multiplier, is_muted, r_thumbs);
+    get_seq_strip_ends_thumbnails(v2d,
+                                  C,
+                                  strip,
+                                  scene,
+                                  thumb_width,
+                                  crop_x_multiplier,
+                                  pixelx,
+                                  upper_thumb_bound,
+                                  is_muted,
+                                  r_thumbs);
     return;
   }
 
@@ -283,6 +303,8 @@ static void get_seq_strip_thumbnails(const View2D *v2d,
                                                                   strip,
                                                                   scene,
                                                                   thumb_width,
+                                                                  0.0f,
+                                                                  0.0f,
                                                                   crop_x_multiplier,
                                                                   upper_thumb_bound,
                                                                   0.0f,
