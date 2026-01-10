@@ -5587,7 +5587,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   }
 
   wmWindow *win = CTX_wm_window(C);
-  if ((setting == ACHANNEL_SETTING_VISIBLE) && (win->eventstate->modifier & KM_CTRL)) {
+  if ((setting == ACHANNEL_SETTING_VISIBLE) && (win->runtime->eventstate->modifier & KM_CTRL)) {
 
     bool any_unrelated_visible = false;
 
