@@ -744,7 +744,7 @@ void connect_group_node_to_external_sockets(bNode &group_node,
     const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(interface);
     BLI_assert(data);
     for (const MutableNodeSocketRef &link : data->external_sockets) {
-      BLI_assert(&link.node.owner_tree() == &owner_tree);
+      BLI_assert(owner_tree.all_nodes().contains(&link.node));
       bke::node_add_link(owner_tree, link.node, link.socket, group_node, *group_node_input);
     }
     /* Keep old socket visibility. */
@@ -760,7 +760,7 @@ void connect_group_node_to_external_sockets(bNode &group_node,
     const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(interface);
     BLI_assert(data);
     for (const MutableNodeSocketRef &link : data->external_sockets) {
-      BLI_assert(&link.node.owner_tree() == &owner_tree);
+      BLI_assert(owner_tree.all_nodes().contains(&link.node));
       bke::node_add_link(owner_tree, group_node, *group_node_output, link.node, link.socket);
     }
     /* Keep old socket visibility. */
