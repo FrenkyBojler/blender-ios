@@ -15,6 +15,8 @@ namespace blender::gpu {
 
 using namespace shader::parser;
 
+using PreprocessorParser = IntermediateForm<PreprocessorLexer, DummyParser>;
+
 /* TODO(fclem): Meh find a better way. Exceptions? */
 void report_fn(int /*error_line*/,
                int /*error_char*/,
@@ -28,7 +30,6 @@ report_callback report_fn_ptr = report_fn;
 
 /* Fast C (incomplete) preprocessor implementation.  */
 struct Preprocessor {
-  using PreprocessorParser = IntermediateForm<PreprocessorLexer, DummyParser>;
   PreprocessorParser &parser;
 
   struct TokenRange {
@@ -641,21 +642,58 @@ struct Preprocessor {
       case Else:
         cursor = process_conditional(type, hash_tok, dir_end);
         break;
-      case Endif:
+        // #ifndef __APPLE__ /* TODO(fclem): Not working. DCE is confused by numbers being treated
+        // as types. */
       case Line:
+        // #endif
+      case Endif:
         erase_single_line_directive(hash_tok, dir_end);
         break;
+        // #ifdef __APPLE__
+        //       case Line:
+        // #endif
       case Other:
         break;
     }
+  }
+
+  /* Check if '/' token is the start of a comment and remove the comment if it is.
+   * Some runtime sources could still contain comments. */
+  void process_comment(const ParserBase &data, int &cursor)
+  {
+    TokenType next_type = data[cursor].next().type();
+    size_t end;
+
+    if (next_type == '*') {
+      /* Multiline line. */
+      end = data.lex.token_types_str.find("*/", cursor);
+      if (end == std::string::npos) {
+        /* Extend until end of file. */
+        end = data.lex.token_types_str.size() - 2;
+      }
+      end += 1;
+    }
+    else if (next_type == '/') {
+      /* Single line. */
+      end = data.lex.token_types_str.find('\n', cursor);
+      if (end == std::string::npos) {
+        /* Extend until end of file. */
+        end = data.lex.token_types_str.size() - 1;
+      }
+    }
+    else {
+      return;
+    }
+
+    parser.erase(data[cursor], data[end]);
+    cursor = end;
   }
 
   void preprocess()
   {
     const ParserBase &data = parser.data_get();
 
-    int cursor = 0;
-    for (; cursor < data.lex.token_types.size(); cursor++) {
+    for (int cursor = 0; cursor < data.lex.token_types.size(); cursor++) {
       TokenType tok_type = TokenType(data.lex.token_types[cursor]);
       if (tok_type == Word) {
         try_expand(parser, data, cursor);
@@ -663,16 +701,271 @@ struct Preprocessor {
       else if (tok_type == Hash) {
         process_directives(data, cursor);
       }
+      else if (tok_type == Divide) {
+        process_comment(data, cursor);
+      }
     }
+  }
+};
+
+struct DeadCodeEliminator {
+  PreprocessorParser &parser;
+
+  /* Function ID that is unique for each function and all its overloads. */
+  using FnId = int;
+
+  struct FunctionGraph {
+    /* Counter to assign unique IDs to functions. */
+    int counter = 0;
+    /* Map declarations (name token) to a function id. */
+    Vector<std::pair<Token, FnId>> declarations;
+    /* Map identifier to id. */
+    Map<StringRef, FnId> names;
+    /* Function call (from, to). */
+    Vector<std::pair<FnId, FnId>> edges;
+  } graph;
+
+  FnId current_fn_id;
+
+  /* Disable function declaration processing.
+   * However, still process function calls. */
+  bool parsing_enabled;
+
+  /* Fetch previous token skipping whitespace. */
+  static Token prev(Token tok)
+  {
+    tok = tok.prev();
+    while (tok == Space || tok == NewLine) {
+      tok = tok.prev();
+    }
+    return tok;
+  }
+
+  /* Fetch next token skipping whitespace. */
+  static Token next(Token tok)
+  {
+    tok = tok.next();
+    while (tok == Space || tok == NewLine) {
+      tok = tok.next();
+    }
+    return tok;
+  }
+
+  static Token find_matching_pair(Token start, TokenType scope_open, TokenType scope_close)
+  {
+    int stack = 1;
+    Token tok = start;
+    while (tok.is_valid()) {
+      tok = next(tok);
+      if (tok == scope_open) {
+        stack++;
+        continue;
+      }
+      if (tok == scope_close) {
+        stack--;
+        if (stack == 0) {
+          return tok;
+        }
+      }
+    }
+    BLI_assert_unreachable();
+    return Token::invalid();
+  }
+
+  void function_definition(Token name_tok, Token par_tok)
+  {
+    StringRef name = Preprocessor::str(name_tok);
+    FnId &id = graph.names.lookup_or_add(name, -1);
+
+    if (id == -1) {
+      id = graph.counter++;
+    }
+
+    graph.declarations.append_as(name_tok, id);
+
+    Token end_of_args = find_matching_pair(par_tok, ParOpen, ParClose);
+
+    if (next(end_of_args) == '{') {
+      current_fn_id = id;
+    }
+  }
+
+  void function_call(Token name_tok)
+  {
+    if (current_fn_id == -1) {
+      return;
+    }
+
+    StringRef name = Preprocessor::str(name_tok);
+
+    int fn_id = graph.names.lookup_default(name, -1);
+    /* TODO(fclem): On Metal, the function prototypes are removed, which means they can be defined
+     * later on.  */
+    if (fn_id == -1) {
+      /* Functions is not defined. Can be builtin function. */
+      return;
+    }
+    graph.edges.append_as(current_fn_id, fn_id);
+  }
+
+  /* There can be a few remaining directive. Avoid parsing them as functions. */
+  void process_directives(const ParserBase &data, int &cursor)
+  {
+    Token hash_tok = data[cursor];
+    Token dir_name = next(hash_tok);
+    Token end_tok = Preprocessor::end_of_directive(dir_name);
+    cursor = end_tok.index;
+
+    StringRef whole_dir_str = parser.substr_range_inclusive_view(dir_name, end_tok);
+
+    if (whole_dir_str == "pragma blender dead_code_elimination off") {
+      parsing_enabled = false;
+    }
+    else if (whole_dir_str == "pragma blender dead_code_elimination on") {
+      parsing_enabled = true;
+    }
+  }
+
+  void parse_source()
+  {
+    const ParserBase &data = parser.data_get();
+
+    current_fn_id = -1;
+    parsing_enabled = true;
+
+    int stack_depth = 0;
+
+    for (int cursor = 0; cursor < data.lex.token_types.size(); cursor++) {
+      TokenType tok_type = TokenType(data.lex.token_types[cursor]);
+      if (tok_type == ParOpen) {
+        Token parenthesis_tok = data[cursor];
+        Token name_tok = prev(parenthesis_tok);
+        if (name_tok != Word) {
+          continue;
+        }
+        Token type_tok = prev(name_tok);
+        StringRef type_str = Preprocessor::str(type_tok);
+
+        if (type_tok == Word && type_str != "return" && type_str != "else") {
+          if (parsing_enabled) {
+            function_definition(name_tok, parenthesis_tok);
+          }
+        }
+        else {
+          function_call(name_tok);
+        }
+      }
+      else if (tok_type == Hash) {
+        process_directives(data, cursor);
+      }
+      else if (current_fn_id != -1) {
+        if (tok_type == BracketOpen) {
+          stack_depth++;
+        }
+        else if (tok_type == BracketClose) {
+          stack_depth--;
+          if (stack_depth == 0) {
+            current_fn_id = -1;
+          }
+        }
+      }
+    }
+  }
+
+  Map<FnId, Vector<FnId>> build_adjacency()
+  {
+    Map<FnId, Vector<FnId>> adj;
+    adj.reserve(graph.counter);
+    for (const auto &[from, to] : graph.edges) {
+      adj.lookup_or_add_default(from).append(to);
+    }
+    return adj;
+  }
+
+  Set<FnId> compute_used_functions(const Vector<FnId> &roots)
+  {
+    Set<FnId> used;
+    used.reserve(graph.counter);
+
+    auto adj = build_adjacency();
+
+    std::vector<FnId> stack;
+    stack.reserve(64);
+
+    for (FnId root : roots) {
+      if (used.add(root)) {
+        stack.push_back(root);
+      }
+
+      while (!stack.empty()) {
+        FnId f = stack.back();
+        stack.pop_back();
+
+        const auto *calls = adj.lookup_ptr(f);
+        if (calls == nullptr) {
+          continue;
+        }
+
+        for (FnId callee : *calls) {
+          if (used.add(callee)) {
+            stack.push_back(callee);
+          }
+        }
+      }
+    }
+
+    return used;
+  }
+
+  void prune_unused_functions()
+  {
+    Set<FnId> used = compute_used_functions({graph.names.lookup("main")});
+
+    for (auto [name_tok, id] : graph.declarations) {
+      if (used.contains(id)) {
+        continue;
+      }
+      Token type = prev(name_tok);
+      Token parenthesis = next(name_tok);
+      Token end_of_args = find_matching_pair(parenthesis, ParOpen, ParClose);
+      Token body_start = next(end_of_args);
+      if (body_start == '{') {
+        /* Full definition. */
+        Token body_end = find_matching_pair(body_start, BracketOpen, BracketClose);
+        parser.erase(type, body_end);
+      }
+      else {
+        /* Prototype. */
+#ifdef __APPLE__
+        /* Filter MSL specific identifiers that could have confused the parser. */
+        StringRef type_str = Preprocessor::str(type);
+        if (type_str == "thread" || type_str == "device") {
+          continue;
+        }
+#endif
+        parser.erase(type, end_of_args);
+      }
+    }
+  }
+
+  void optimize()
+  {
+    parse_source();
+    prune_unused_functions();
   }
 };
 
 std::string Shader::run_preprocessor(StringRef source)
 {
-  Preprocessor::PreprocessorParser parser(source, report_fn_ptr);
+  PreprocessorParser parser(source, report_fn_ptr);
 
   Preprocessor processor{parser};
   processor.preprocess();
+
+  parser.apply_mutations(true);
+
+  DeadCodeEliminator dce{parser};
+  dce.optimize();
 
   return parser.result_get(true);
 }

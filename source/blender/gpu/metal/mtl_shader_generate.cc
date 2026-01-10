@@ -1362,6 +1362,7 @@ std::pair<std::string, std::string> generate_entry_point(const ShaderCreateInfo 
    * case they are used inside resources declaration. */
   out << "#undef color\n";
   out << "#undef user\n";
+  out << "#pragma blender dead_code_elimination off\n";
 
   out << generated.wrapper_class_members.str();
   out << "\n";
