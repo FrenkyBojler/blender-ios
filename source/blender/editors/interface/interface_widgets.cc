@@ -23,6 +23,7 @@
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
+#include "BLI_bounds.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -1831,10 +1832,10 @@ static void ui_text_clip_cursor(const uiFontStyle *fstyle, Button *but, const rc
     but->ofs = 0;
   }
 
-  const int min_offset_index = total_symbols(text.substr(but->ofs, text.size()));
+  const int min_offset_index = total_symbols(std::string(text.substr(but->ofs, text.size())));
   {
     const float rest_length =
-        merge_bounds<float>(symbol_widths.drop_front(min_offset_index)).size();
+        merge_bounds<float>(symbol_widths.as_span().drop_front(min_offset_index)).size();
     but->strwidth = rest_length;
     if (but->strwidth <= okwidth) {
       return;
@@ -1847,26 +1848,36 @@ static void ui_text_clip_cursor(const uiFontStyle *fstyle, Button *but, const rc
 
   int count = 0;
   int len = editstr_len;
+
+  StringRef text_slice = text;
+  BLI_assert(len == text_slice.size());
+
+  const char *text_begin = but->editstr;
+  BLI_assert(text_slice.data() == text_begin);
+
   while (but->strwidth > okwidth) {
     count++;
     float width;
 
     /* string position of cursor */
-    width = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, (but->pos - but->ofs));
+    // text_slice.substr(but->ofs, but->pos - but->ofs);
+    width = BLF_width(fstyle->uifont_id, text_begin + but->ofs, (but->pos - but->ofs));
 
     /* if cursor is at 20 pixels of right side button we clip left */
     if (width > okwidth - 20) {
-      ui_text_clip_give_next_off(but, but->editstr, but->editstr + editstr_len);
+      const StringRef rest_line = text_slice.substr(but->ofs, editstr_len - but->ofs);
+      but->ofs = BLI_str_find_next_char_utf8(rest_line.begin(), rest_line.end()) - rest_line.begin();
     }
     else {
       /* shift string to the left */
       if (width < 20 && but->ofs > 0) {
-        ui_text_clip_give_prev_off(but, but->editstr);
+        const StringRef rest_line = text_slice.substr(0, but->ofs);
+        but->ofs = text_begin - BLI_str_find_prev_char_utf8(rest_line.end(), rest_line.begin());
       }
-      len -= BLI_str_utf8_size_safe(BLI_str_find_prev_char_utf8(but->editstr + len, but->editstr));
+      len -= BLI_str_utf8_size_safe(BLI_str_find_prev_char_utf8(text_begin + len, text_begin));
     }
 
-    but->strwidth = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, len - but->ofs);
+    but->strwidth = BLF_width(fstyle->uifont_id, text_begin + but->ofs, len - but->ofs);
 
     if (but->strwidth < 10) {
       break;
