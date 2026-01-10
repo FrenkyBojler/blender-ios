@@ -5600,32 +5600,33 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
     /* If we find visible unrelated items, we want to ISOLATE (Hide them).
        If we find NO visible unrelated items, we are already isolated, so UN-ISOLATE (Show them).
      */
-    LISTBASE_FOREACH (bAnimListElem *, ale_iter, &anim_data) {
-      if (anim_list_el_is_related_or_self(ale_setting, ale_iter)) {
+    for (bAnimListElem& ale_it : anim_data) {
+
+      if (anim_list_el_is_related_or_self(ale_setting, &ale_it)) {
         continue;
       }
 
-      if (ANIM_channel_setting_get(&ac, ale_iter, setting) == 1) {
+      if (ANIM_channel_setting_get(&ac, &ale_it, setting) == 1) {
         any_unrelated_visible = true;
         break;
       }
     }
 
     /* 3. Pass 2: Apply Visibility */
-    LISTBASE_FOREACH (bAnimListElem *, ale_iter, &anim_data) {
+    for (bAnimListElem& ale_it : anim_data) {
 
-      if (is_related_or_self(ale_setting, ale_iter)) {
+      if (anim_list_el_is_related_or_self(ale_setting, &ale_it)) {
         /* Parents/Children/Self are ALWAYS forced Visible */
-        ANIM_channel_setting_set(&ac, ale_iter, setting, ACHANNEL_SETFLAG_ADD);
+        ANIM_channel_setting_set(&ac, &ale_it, setting, ACHANNEL_SETFLAG_ADD);
       }
       else {
         if (any_unrelated_visible) {
           /* Case A: Isolating. Hide the siblings/unrelated items. */
-          ANIM_channel_setting_set(&ac, ale_iter, setting, ACHANNEL_SETFLAG_CLEAR);
+          ANIM_channel_setting_set(&ac, &ale_it, setting, ACHANNEL_SETFLAG_CLEAR);
         }
         else {
           /* Case B: Un-Isolating. Show everything. */
-          ANIM_channel_setting_set(&ac, ale_iter, setting, ACHANNEL_SETFLAG_ADD);
+          ANIM_channel_setting_set(&ac, &ale_it, setting, ACHANNEL_SETFLAG_ADD);
         }
       }
     }
