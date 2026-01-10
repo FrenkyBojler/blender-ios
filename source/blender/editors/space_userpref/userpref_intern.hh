@@ -10,6 +10,10 @@
 
 #include "BLI_bitmap.h"
 
+namespace blender {
+
+struct wmOperatorType;
+
 /* internal exports only */
 
 /* `userpref_ops.cc` */
@@ -24,5 +28,7 @@ struct SpaceUserPref_Runtime {
    * Bit-field (in the same order as the tabs) for whether each tab has properties
    * that match the search filter. Only valid when #search_string is set.
    */
-  BLI_bitmap *tab_search_results;
+  blender::BLI_bitmap *tab_search_results;
 };
+
+}  // namespace blender

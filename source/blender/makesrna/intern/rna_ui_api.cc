@@ -23,10 +23,15 @@
 #define DEF_ICON_VECTOR(name) {ICON_##name, (#name), 0, (#name), ""},
 #define DEF_ICON_COLOR(name) {ICON_##name, (#name), 0, (#name), ""},
 #define DEF_ICON_BLANK(name)
+
+namespace blender {
+
 const EnumPropertyItem rna_enum_icon_items[] = {
 #include "UI_icons.hh"
     {0, nullptr, 0, nullptr, nullptr},
 };
+
+}  // namespace blender
 
 #ifdef RNA_RUNTIME
 
@@ -43,8 +48,9 @@ const EnumPropertyItem rna_enum_icon_items[] = {
 
 #  include "WM_api.hh"
 
-using blender::StringRefNull;
-using blender::ui::Layout;
+namespace blender {
+
+using ui::Layout;
 
 std::optional<StringRefNull> rna_translate_ui_text(
     const char *text, const char *text_ctxt, StructRNA *type, PropertyRNA *prop, bool translate)
@@ -105,7 +111,7 @@ static void rna_uiItemR(Layout *layout,
                         bool invert_checkbox)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
-  blender::ui::eUI_Item_Flag flag = UI_ITEM_NONE;
+  ui::eUI_Item_Flag flag = UI_ITEM_NONE;
 
   if (!prop) {
     RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
@@ -123,33 +129,33 @@ static void rna_uiItemR(Layout *layout,
       placeholder, text_ctxt, nullptr, prop, translate);
 
   if (slider) {
-    flag |= blender::ui::ITEM_R_SLIDER;
+    flag |= ui::ITEM_R_SLIDER;
   }
   if (expand) {
-    flag |= blender::ui::ITEM_R_EXPAND;
+    flag |= ui::ITEM_R_EXPAND;
   }
 
   if (toggle == 1) {
-    flag |= blender::ui::ITEM_R_TOGGLE;
+    flag |= ui::ITEM_R_TOGGLE;
   }
   else if (toggle == 0) {
-    flag |= blender::ui::ITEM_R_ICON_NEVER;
+    flag |= ui::ITEM_R_ICON_NEVER;
   }
 
   if (icon_only) {
-    flag |= blender::ui::ITEM_R_ICON_ONLY;
+    flag |= ui::ITEM_R_ICON_ONLY;
   }
   if (event) {
-    flag |= blender::ui::ITEM_R_EVENT;
+    flag |= ui::ITEM_R_EVENT;
   }
   if (full_event) {
-    flag |= blender::ui::ITEM_R_FULL_EVENT;
+    flag |= ui::ITEM_R_FULL_EVENT;
   }
   if (emboss == false) {
-    flag |= blender::ui::ITEM_R_NO_BG;
+    flag |= ui::ITEM_R_NO_BG;
   }
   if (invert_checkbox) {
-    flag |= blender::ui::ITEM_R_CHECKBOX_INVERT;
+    flag |= ui::ITEM_R_CHECKBOX_INVERT;
   }
 
   layout->prop(ptr, prop, index, 0, flag, text, icon, placeholder_str);
@@ -178,9 +184,9 @@ static void rna_uiItemR_with_popover(Layout *layout,
         "property is not an enum or color: %s.%s", RNA_struct_identifier(ptr->type), propname);
     return;
   }
-  blender::ui::eUI_Item_Flag flag = UI_ITEM_NONE;
+  ui::eUI_Item_Flag flag = UI_ITEM_NONE;
   if (icon_only) {
-    flag |= blender::ui::ITEM_R_ICON_ONLY;
+    flag |= ui::ITEM_R_ICON_ONLY;
   }
 
   /* Get translated name (label). */
@@ -209,9 +215,9 @@ static void rna_uiItemR_with_menu(Layout *layout,
     RNA_warning("property is not an enum: %s.%s", RNA_struct_identifier(ptr->type), propname);
     return;
   }
-  blender::ui::eUI_Item_Flag flag = UI_ITEM_NONE;
+  ui::eUI_Item_Flag flag = UI_ITEM_NONE;
   if (icon_only) {
-    flag |= blender::ui::ITEM_R_ICON_ONLY;
+    flag |= ui::ITEM_R_ICON_ONLY;
   }
 
   /* Get translated name (label). */
@@ -396,12 +402,12 @@ static PointerRNA rna_uiItemO(Layout *layout,
   if (icon_value && !icon) {
     icon = icon_value;
   }
-  blender::ui::eUI_Item_Flag flag = UI_ITEM_NONE;
+  ui::eUI_Item_Flag flag = UI_ITEM_NONE;
   if (emboss == false) {
-    flag |= blender::ui::ITEM_R_NO_BG;
+    flag |= ui::ITEM_R_NO_BG;
   }
   if (depress) {
-    flag |= blender::ui::ITEM_O_DEPRESS;
+    flag |= ui::ITEM_O_DEPRESS;
   }
 
   const float prev_weight = layout->search_weight();
@@ -436,12 +442,12 @@ static PointerRNA rna_uiItemOMenuHold(Layout *layout,
   if (icon_value && !icon) {
     icon = icon_value;
   }
-  blender::ui::eUI_Item_Flag flag = UI_ITEM_NONE;
+  ui::eUI_Item_Flag flag = UI_ITEM_NONE;
   if (emboss == false) {
-    flag |= blender::ui::ITEM_R_NO_BG;
+    flag |= ui::ITEM_R_NO_BG;
   }
   if (depress) {
-    flag |= blender::ui::ITEM_O_DEPRESS;
+    flag |= ui::ITEM_O_DEPRESS;
   }
 
   return layout->op_menu_hold(ot, text, icon, layout->operator_context(), flag, menu);
@@ -452,7 +458,7 @@ static void rna_uiItemsEnumO(Layout *layout,
                              const char *propname,
                              const bool icon_only)
 {
-  blender::ui::eUI_Item_Flag flag = icon_only ? blender::ui::ITEM_R_ICON_ONLY : UI_ITEM_NONE;
+  ui::eUI_Item_Flag flag = icon_only ? ui::ITEM_R_ICON_ONLY : UI_ITEM_NONE;
   layout->op_enum(opname, propname, nullptr, layout->operator_context(), flag);
 }
 
@@ -562,12 +568,12 @@ static void rna_uiItemProgress(Layout *layout,
     text = BLT_pgettext((text_ctxt && text_ctxt[0]) ? text_ctxt : BLT_I18NCONTEXT_DEFAULT, text);
   }
 
-  layout->progress_indicator(text, factor, blender::ui::ButProgressType(progress_type));
+  layout->progress_indicator(text, factor, ui::ButProgressType(progress_type));
 }
 
 static void rna_uiItemSeparator(Layout *layout, float factor, int type)
 {
-  layout->separator(factor, blender::ui::LayoutSeparatorType(type));
+  layout->separator(factor, ui::LayoutSeparatorType(type));
 }
 
 static void rna_uiLayoutContextPointerSet(Layout *layout, const char *name, PointerRNA *ptr)
@@ -720,27 +726,27 @@ void rna_template_list(Layout *layout,
                        const bool sort_reverse,
                        const bool sort_lock)
 {
-  blender::ui::TemplateListFlags flags = blender::ui::TEMPLATE_LIST_FLAG_NONE;
+  ui::TemplateListFlags flags = ui::TEMPLATE_LIST_FLAG_NONE;
   if (sort_reverse) {
-    flags |= blender::ui::TEMPLATE_LIST_SORT_REVERSE;
+    flags |= ui::TEMPLATE_LIST_SORT_REVERSE;
   }
   if (sort_lock) {
-    flags |= blender::ui::TEMPLATE_LIST_SORT_LOCK;
+    flags |= ui::TEMPLATE_LIST_SORT_LOCK;
   }
 
-  blender::ui::template_list(layout,
-                             C,
-                             listtype_name,
-                             list_id,
-                             dataptr,
-                             propname,
-                             active_dataptr,
-                             active_propname,
-                             item_dyntip_propname,
-                             rows,
-                             maxrows,
-                             layout_type,
-                             flags);
+  ui::template_list(layout,
+                    C,
+                    listtype_name,
+                    list_id,
+                    dataptr,
+                    propname,
+                    active_dataptr,
+                    active_propname,
+                    item_dyntip_propname,
+                    rows,
+                    maxrows,
+                    layout_type,
+                    flags);
 }
 
 static void rna_template_cache_file(Layout *layout,
@@ -755,17 +761,17 @@ static void rna_template_cache_file(Layout *layout,
     return;
   }
 
-  blender::ui::template_cache_file(layout, C, ptr, propname);
+  ui::template_cache_file(layout, C, ptr, propname);
 }
 
 static void rna_template_cache_file_velocity(Layout *layout, PointerRNA *ptr, const char *propname)
 {
   PointerRNA fileptr;
-  if (!blender::ui::template_cache_file_pointer(ptr, propname, &fileptr)) {
+  if (!ui::template_cache_file_pointer(ptr, propname, &fileptr)) {
     return;
   }
 
-  blender::ui::template_cache_file_velocity(layout, &fileptr);
+  ui::template_cache_file_velocity(layout, &fileptr);
 }
 
 static void rna_template_cache_file_time_settings(Layout *layout,
@@ -773,11 +779,11 @@ static void rna_template_cache_file_time_settings(Layout *layout,
                                                   const char *propname)
 {
   PointerRNA fileptr;
-  if (!blender::ui::template_cache_file_pointer(ptr, propname, &fileptr)) {
+  if (!ui::template_cache_file_pointer(ptr, propname, &fileptr)) {
     return;
   }
 
-  blender::ui::template_cache_file_time_settings(layout, &fileptr);
+  ui::template_cache_file_time_settings(layout, &fileptr);
 }
 
 static void rna_template_list_flags(Layout *layout,
@@ -786,11 +792,11 @@ static void rna_template_list_flags(Layout *layout,
                                     const char *propname)
 {
   PointerRNA fileptr;
-  if (!blender::ui::template_cache_file_pointer(ptr, propname, &fileptr)) {
+  if (!ui::template_cache_file_pointer(ptr, propname, &fileptr)) {
     return;
   }
 
-  blender::ui::template_list_flags(layout, C, &fileptr);
+  ui::template_list_flags(layout, C, &fileptr);
 }
 
 static void rna_uiTemplatePathBuilder(Layout *layout,
@@ -813,7 +819,7 @@ static void rna_uiTemplatePathBuilder(Layout *layout,
       name, text_ctxt, nullptr, prop, translate);
 
   /* XXX This will search property again :( */
-  blender::ui::template_path_builder(layout, ptr, propname, root_ptr, text);
+  ui::template_path_builder(layout, ptr, propname, root_ptr, text);
 }
 
 static void rna_template_event_from_keymap_item(
@@ -822,7 +828,7 @@ static void rna_template_event_from_keymap_item(
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, nullptr, translate);
-  blender::ui::template_event_from_keymap_item(layout, text.value_or(""), kmi, true);
+  ui::template_event_from_keymap_item(layout, text.value_or(""), kmi, true);
 }
 
 static Layout *rna_uiLayoutBox(Layout *layout)
@@ -885,7 +891,7 @@ void rna_uiLayoutPanelProp(Layout *layout,
     return;
   }
 
-  blender::ui::PanelLayout panel_layout = layout->panel_prop(C, data, property);
+  ui::PanelLayout panel_layout = layout->panel_prop(C, data, property);
   *r_layout_header = panel_layout.header;
   *r_layout_body = panel_layout.body;
 }
@@ -905,7 +911,7 @@ void rna_uiLayoutPanel(Layout *layout,
     *r_layout_body = nullptr;
     return;
   }
-  blender::ui::PanelLayout panel_layout = layout->panel(C, idname, default_closed);
+  ui::PanelLayout panel_layout = layout->panel(C, idname, default_closed);
   *r_layout_header = panel_layout.header;
   *r_layout_body = panel_layout.body;
 }
@@ -913,7 +919,6 @@ void rna_uiLayoutPanel(Layout *layout,
 static void rna_uiLayout_template_node_operator_registration_errors(Layout *layout,
                                                                     const char *idname)
 {
-  using namespace blender;
   if (!idname) {
     return;
   }
@@ -925,16 +930,14 @@ static void rna_uiLayout_template_node_asset_menu_items(Layout *layout,
                                                         const char *catalog_path,
                                                         const int operator_type)
 {
-  using namespace blender;
   ed::space_node::ui_template_node_asset_menu_items(
-      *layout, *C, StringRef(catalog_path), blender::ui::NodeAssetMenuOperatorType(operator_type));
+      *layout, *C, StringRef(catalog_path), ui::NodeAssetMenuOperatorType(operator_type));
 }
 
 static void rna_uiLayout_template_node_operator_asset_menu_items(Layout *layout,
                                                                  bContext *C,
                                                                  const char *catalog_path)
 {
-  using namespace blender;
   ed::geometry::ui_template_node_operator_asset_menu_items(*layout, *C, StringRef(catalog_path));
 }
 
@@ -942,19 +945,18 @@ static void rna_uiLayout_template_modifier_asset_menu_items(Layout *layout,
                                                             const char *catalog_path,
                                                             const bool skip_essentials)
 {
-  using namespace blender;
   ed::object::ui_template_modifier_asset_menu_items(
       *layout, StringRef(catalog_path), skip_essentials);
 }
 
 static void rna_uiLayout_template_node_operator_root_items(Layout *layout, bContext *C)
 {
-  blender::ed::geometry::ui_template_node_operator_asset_root_items(*layout, *C);
+  ed::geometry::ui_template_node_operator_asset_root_items(*layout, *C);
 }
 
 static int rna_ui_get_rnaptr_icon(bContext *C, PointerRNA *ptr_icon)
 {
-  return blender::ui::icon_from_rnaptr(C, ptr_icon, RNA_struct_ui_icon(ptr_icon->type), false);
+  return ui::icon_from_rnaptr(C, ptr_icon, RNA_struct_ui_icon(ptr_icon->type), false);
 }
 
 static const char *rna_ui_get_enum_name(bContext *C,
@@ -1064,7 +1066,7 @@ void rna_uiTemplateAssetShelfPopover(Layout *layout,
     icon = icon_value;
   }
 
-  blender::ui::template_asset_shelf_popover(*layout, *C, asset_shelf_id, name ? name : "", icon);
+  ui::template_asset_shelf_popover(*layout, *C, asset_shelf_id, name ? name : "", icon);
 }
 
 PointerRNA rna_uiTemplatePopupConfirm(Layout *layout,
@@ -1111,7 +1113,11 @@ PointerRNA rna_uiTemplatePopupConfirm(Layout *layout,
   return opptr;
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void api_ui_item_common_heading(FunctionRNA *func)
 {
@@ -1201,29 +1207,29 @@ void RNA_api_ui_layout(StructRNA *srna)
   };
 
   static const EnumPropertyItem id_template_filter_items[] = {
-      {blender::ui::TEMPLATE_ID_FILTER_ALL, "ALL", 0, "All", ""},
-      {blender::ui::TEMPLATE_ID_FILTER_AVAILABLE, "AVAILABLE", 0, "Available", ""},
+      {ui::TEMPLATE_ID_FILTER_ALL, "ALL", 0, "All", ""},
+      {ui::TEMPLATE_ID_FILTER_AVAILABLE, "AVAILABLE", 0, "Available", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem progress_type_items[] = {
-      {int(blender::ui::ButProgressType::Bar), "BAR", 0, "Bar", ""},
-      {int(blender::ui::ButProgressType::Ring), "RING", 0, "Ring", ""},
+      {int(ui::ButProgressType::Bar), "BAR", 0, "Bar", ""},
+      {int(ui::ButProgressType::Ring), "RING", 0, "Ring", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem rna_enum_separator_type_items[] = {
-      {int(blender::ui::LayoutSeparatorType::Auto),
+      {int(ui::LayoutSeparatorType::Auto),
        "AUTO",
        0,
        "Auto",
        "Best guess at what type of separator is needed."},
-      {int(blender::ui::LayoutSeparatorType::Space),
+      {int(ui::LayoutSeparatorType::Space),
        "SPACE",
        0,
        "Empty space",
        "Horizontal or Vertical empty space, depending on layout direction."},
-      {int(blender::ui::LayoutSeparatorType::Line),
+      {int(ui::LayoutSeparatorType::Line),
        "LINE",
        0,
        "Line",
@@ -1232,12 +1238,12 @@ void RNA_api_ui_layout(StructRNA *srna)
   };
 
   static const EnumPropertyItem rna_enum_template_node_operator_type[] = {
-      {int(blender::ui::NodeAssetMenuOperatorType::Add),
+      {int(ui::NodeAssetMenuOperatorType::Add),
        "ADD",
        0,
        "Add Node",
        "Add a node to the active tree."},
-      {int(blender::ui::NodeAssetMenuOperatorType::Swap),
+      {int(ui::NodeAssetMenuOperatorType::Swap),
        "SWAP",
        0,
        "Swap Node",
@@ -1647,7 +1653,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_enum(func,
                "type",
                rna_enum_separator_type_items,
-               int(blender::ui::LayoutSeparatorType::Auto),
+               int(ui::LayoutSeparatorType::Auto),
                "Type",
                "The type of the separator");
 
@@ -1670,7 +1676,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_enum(func,
                "type",
                progress_type_items,
-               int(blender::ui::ButProgressType::Bar),
+               int(ui::ButProgressType::Bar),
                "Type",
                "The type of progress indicator");
 
@@ -1706,7 +1712,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_enum(func,
                "filter",
                id_template_filter_items,
-               blender::ui::TEMPLATE_ID_FILTER_ALL,
+               ui::TEMPLATE_ID_FILTER_ALL,
                "",
                "Optionally limit the items which can be selected");
   RNA_def_boolean(func, "live_icon", false, "", "Show preview instead of fixed icon");
@@ -1737,7 +1743,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_enum(func,
                "filter",
                id_template_filter_items,
-               blender::ui::TEMPLATE_ID_FILTER_ALL,
+               ui::TEMPLATE_ID_FILTER_ALL,
                "",
                "Optionally limit the items which can be selected");
   RNA_def_boolean(func, "hide_buttons", false, "", "Show only list, no buttons");
@@ -1773,7 +1779,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_enum(func,
                "filter",
                id_template_filter_items,
-               blender::ui::TEMPLATE_ID_FILTER_ALL,
+               ui::TEMPLATE_ID_FILTER_ALL,
                "",
                "Optionally limit the items which can be selected");
 
@@ -1889,7 +1895,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_enum(func,
                "filter",
                id_template_filter_items,
-               blender::ui::TEMPLATE_ID_FILTER_ALL,
+               ui::TEMPLATE_ID_FILTER_ALL,
                "",
                "Optionally limit the items which can be selected");
 
@@ -2210,7 +2216,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   parm = RNA_def_enum(func,
                       "operator",
                       rna_enum_template_node_operator_type,
-                      int(blender::ui::NodeAssetMenuOperatorType::Add),
+                      int(ui::NodeAssetMenuOperatorType::Add),
                       "Operator",
                       "The operator the asset menu will use");
 
@@ -2391,10 +2397,11 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  func = RNA_def_function(
-      srna, "template_shape_key_tree", "blender::ed::object::shapekey::template_tree");
+  func = RNA_def_function(srna, "template_shape_key_tree", "ed::object::shapekey::template_tree");
   RNA_def_function_ui_description(func, "Shape Key tree view");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 }
+
+}  // namespace blender
 
 #endif
