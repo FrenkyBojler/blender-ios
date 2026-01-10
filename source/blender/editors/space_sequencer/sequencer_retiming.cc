@@ -205,20 +205,18 @@ void SEQUENCER_OT_retiming_reset(wmOperatorType *ot)
 /** \name Retiming Add Key
  * \{ */
 
-
 static wmOperatorStatus retiming_key_add_from_selection(const Scene *scene,
                                                         wmOperator *op,
                                                         Span<Strip *> strips,
                                                         const int timeline_frame)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
   bool inserted = false;
 
   for (Strip *strip : strips) {
     if (!seq::retiming_is_allowed(strip)) {
       continue;
     }
-    if (seq::retiming_key_add_new_for_strip(scene, op->reports, strip, timeline_frame) != nullptr) {
+    if (seq::retiming_key_add_new_for_strip(scene, op->reports, strip, timeline_frame)) {
       inserted = true;
     }
   }
@@ -239,7 +237,7 @@ static wmOperatorStatus retiming_key_add_to_editable_strips(const Scene *scene,
   }
 
   for (Strip *strip : selection.values()) {
-    if (seq::retiming_key_add_new_for_strip(scene, op->reports, strip, timeline_frame) != nullptr) {
+    if (seq::retiming_key_add_new_for_strip(scene, op->reports, strip, timeline_frame)) {
       inserted = true;
     }
   }
@@ -622,16 +620,11 @@ void SEQUENCER_OT_retiming_key_delete(wmOperatorType *ot)
 /* Return speed of existing segment or active strip. */
 static float strip_speed_get(const Scene *scene)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
-
   /* Strip mode. */
-  if (!sequencer_retiming_mode_is_active(C)) {
-    VectorSet<Strip *> strips = selected_strips_from_context(C);
-    if (strips.size() == 1) {
-      Strip *strip = strips[0];
-      SeqRetimingKey *key = seq::ensure_left_and_right_keys(scene, strip);
-      return seq::retiming_key_speed_get(strip, key);
-    }
+  if (!sequencer_retiming_mode_is_active(scene)) {
+    Strip *strip = seq::editing_get(scene)->act_strip;
+    SeqRetimingKey *key = seq::ensure_left_and_right_keys(scene, strip);
+    return seq::retiming_key_speed_get(strip, key);
   }
 
   Map selection = seq::retiming_selection_get(seq::editing_get(scene));
