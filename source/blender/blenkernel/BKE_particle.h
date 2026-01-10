@@ -20,6 +20,8 @@
 
 #include "DNA_particle_types.h"
 
+namespace blender {
+
 struct ParticleKey;
 struct ParticleSettings;
 struct ParticleSystem;
@@ -66,7 +68,7 @@ struct Scene;
   ParticleSystemModifierData *psmd = sim->psmd ? sim->psmd : psys_get_modifier(sim->ob, sim->psys)
 
 /* common stuff that many particle functions need */
-typedef struct ParticleSimulationData {
+struct ParticleSimulationData {
   struct Depsgraph *depsgraph;
   struct Scene *scene;
   struct Object *ob;
@@ -79,13 +81,13 @@ typedef struct ParticleSimulationData {
   float courant_num;
   /* Only valid during dynamics_step(). */
   struct RNG *rng;
-} ParticleSimulationData;
+};
 
-typedef struct SPHData {
+struct SPHData {
   ParticleSystem *psys[10];
   ParticleData *pa;
   float mass;
-  const blender::Map<blender::OrderedEdge, int> *eh;
+  const Map<OrderedEdge, int> *eh;
 
   /** The gravity as a `float[3]`, may also be null when the simulation doesn't use gravity. */
   const float *gravity;
@@ -98,38 +100,38 @@ typedef struct SPHData {
   float flow[3];
 
   /* Temporary thread-local buffer for springs created during this step. */
-  blender::Vector<ParticleSpring> new_springs;
+  Vector<ParticleSpring> new_springs;
 
   /* Integrator callbacks. This allows different SPH implementations. */
   void (*force_cb)(void *sphdata_v, ParticleKey *state, float *force, float *impulse);
   void (*density_cb)(void *rangedata_v, int index, const float co[3], float squared_dist);
-} SPHData;
+};
 
-typedef struct ParticleTexture {
+struct ParticleTexture {
   float ivel;                                         /* used in reset */
   float time, life, exist, size;                      /* used in init */
   float damp, gravity, field;                         /* used in physics */
   float length, clump, kink_freq, kink_amp, effector; /* used in path caching */
   float rough1, rough2, roughe;                       /* used in path caching */
   float twist;                                        /* used in path caching */
-} ParticleTexture;
+};
 
-typedef struct ParticleSeam {
+struct ParticleSeam {
   float v0[3], v1[3];
   float nor[3], dir[3], tan[3];
   float length2;
-} ParticleSeam;
+};
 
-typedef struct ParticleCacheKey {
+struct ParticleCacheKey {
   float co[3];
   float vel[3];
   float rot[4];
   float col[3];
   float time;
   int segments;
-} ParticleCacheKey;
+};
 
-typedef struct ParticleThreadContext {
+struct ParticleThreadContext {
   /* shared */
   struct ParticleSimulationData sim;
   struct Mesh *mesh;
@@ -164,15 +166,15 @@ typedef struct ParticleThreadContext {
   struct CurveMapping *clumpcurve;
   struct CurveMapping *roughcurve;
   struct CurveMapping *twistcurve;
-} ParticleThreadContext;
+};
 
-typedef struct ParticleTask {
+struct ParticleTask {
   ParticleThreadContext *ctx = nullptr;
   struct RNG *rng = nullptr, *rng_path = nullptr;
   int begin = 0, end = 0;
-} ParticleTask;
+};
 
-typedef struct ParticleCollisionElement {
+struct ParticleCollisionElement {
   /* pointers to original data */
   float *x[3], *v[3];
 
@@ -190,10 +192,10 @@ typedef struct ParticleCollisionElement {
 
   /* flags for inversed normal / particle already inside element at start */
   short inv_nor, inside;
-} ParticleCollisionElement;
+};
 
 /** Container for moving data between deflet_particle and particle_intersect_face. */
-typedef struct ParticleCollision {
+struct ParticleCollision {
   struct Object *current;
   struct Object *hit;
   struct Object *skip[PARTICLE_COLLISION_MAX_COLLISIONS + 1];
@@ -229,9 +231,9 @@ typedef struct ParticleCollision {
   float acc[3], boid_z;
 
   int boid;
-} ParticleCollision;
+};
 
-typedef struct ParticleDrawData {
+struct ParticleDrawData {
   float *vdata, *vd;   /* vertex data */
   float *ndata, *nd;   /* normal data */
   float *cdata, *cd;   /* color data */
@@ -240,7 +242,7 @@ typedef struct ParticleDrawData {
   int totpart, partsize;
   int flag;
   int totpoint, totve;
-} ParticleDrawData;
+};
 
 #define PARTICLE_DRAW_DATA_UPDATED 1
 
@@ -478,10 +480,10 @@ void psys_get_dupli_path_transform(struct ParticleSimulationData *sim,
 void psys_thread_context_init(struct ParticleThreadContext *ctx,
                               struct ParticleSimulationData *sim);
 void psys_thread_context_free(struct ParticleThreadContext *ctx);
-blender::Vector<ParticleTask> psys_tasks_create(struct ParticleThreadContext *ctx,
-                                                int startpart,
-                                                int endpart);
-void psys_tasks_free(blender::Vector<ParticleTask> &tasks);
+Vector<ParticleTask> psys_tasks_create(struct ParticleThreadContext *ctx,
+                                       int startpart,
+                                       int endpart);
+void psys_tasks_free(Vector<ParticleTask> &tasks);
 
 void psys_apply_hair_lattice(struct Depsgraph *depsgraph,
                              struct Scene *scene,
@@ -700,8 +702,6 @@ void BKE_particle_mcol_on_emitter(ParticleSystem *particlesystem,
 
 /* **** Depsgraph evaluation **** */
 
-struct Depsgraph;
-
 void BKE_particle_settings_eval_reset(struct Depsgraph *depsgraph,
                                       struct ParticleSettings *particle_settings);
 
@@ -729,3 +729,5 @@ void BKE_particle_system_blend_read_after_liblink(struct BlendLibReader *reader,
                                                   struct Object *ob,
                                                   struct ID *id,
                                                   ListBaseT<ParticleSystem> *particles);
+
+}  // namespace blender

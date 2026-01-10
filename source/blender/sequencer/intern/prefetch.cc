@@ -47,11 +47,13 @@
 #include "prefetch.hh"
 #include "render.hh"
 
+namespace blender {
+
 struct RenderResult;
 struct Scene;
 struct ThreadSlot;
 
-namespace blender::seq {
+namespace seq {
 
 struct PrefetchJob {
   PrefetchJob *next = nullptr;
@@ -416,7 +418,7 @@ static VectorSet<Strip *> query_scene_strips(Editing *ed)
   Map<const Scene *, VectorSet<Strip *>> &strips_by_scene = lookup_strips_by_scene_map_get(ed);
 
   VectorSet<Strip *> scene_strips;
-  for (VectorSet<Strip *> strips : strips_by_scene.values()) {
+  for (const VectorSet<Strip *> &strips : strips_by_scene.values()) {
     scene_strips.add_multiple(strips);
   }
   return scene_strips;
@@ -525,7 +527,7 @@ static void seq_prefetch_do_suspend(PrefetchJob *pfjob)
 
 static void *seq_prefetch_frames(void *job)
 {
-  PrefetchJob *pfjob = (PrefetchJob *)job;
+  PrefetchJob *pfjob = static_cast<PrefetchJob *>(job);
 
   while (true) {
     if (pfjob->cfra < pfjob->timeline_start || pfjob->cfra > pfjob->timeline_end) {
@@ -675,4 +677,5 @@ bool prefetch_need_redraw(const bContext *C, Scene *scene)
   return false;
 }
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

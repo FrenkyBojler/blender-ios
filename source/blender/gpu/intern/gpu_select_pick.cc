@@ -27,6 +27,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 // #define DEBUG_PRINT
 
 /* Alloc number for depths */
@@ -367,8 +369,7 @@ void gpu_select_pick_begin(GPUSelectBuffer *buffer, const rcti *input, GPUSelect
   }
 
   if (mode == GPU_SELECT_PICK_ALL) {
-    ps->all.hits = static_cast<DepthID *>(
-        MEM_mallocN(sizeof(*ps->all.hits) * ALLOC_DEPTHS, __func__));
+    ps->all.hits = MEM_malloc_arrayN<DepthID>(ALLOC_DEPTHS, __func__);
     ps->all.hits_len = 0;
     ps->all.hits_len_alloc = ALLOC_DEPTHS;
   }
@@ -486,7 +487,7 @@ bool gpu_select_pick_load_id(uint id, bool end)
     }
 
     const uint rect_len = ps->src.rect_len;
-    blender::gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
+    gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
     GPU_framebuffer_read_depth(
         fb, UNPACK4(ps->gpu.clip_readpixels), GPU_DATA_UINT, ps->gpu.rect_depth_test->buf);
     /* Perform initial check since most cases the array remains unchanged. */
@@ -587,8 +588,7 @@ uint gpu_select_pick_end()
 
     /* Over allocate (unlikely we have as many depths as pixels). */
     uint depth_data_len_first_pass = 0;
-    depth_data = static_cast<DepthID *>(
-        MEM_mallocN(ps->dst.rect_len * sizeof(*depth_data), __func__));
+    depth_data = MEM_malloc_arrayN<DepthID>(ps->dst.rect_len, __func__);
 
     /* Partially de-duplicating copy,
      * when contiguous ID's are found - update their closest depth.
@@ -751,3 +751,5 @@ void gpu_select_pick_cache_load_id()
 }
 
 /** \} */
+
+}  // namespace blender
