@@ -772,7 +772,7 @@ static void node_group_make_insert_selected(const bContext &C,
   BKE_main_ensure_invariants(bmain, Span<ID *>{&group.id});
 
   /* Connect the group node to external sockets. */
-  node_set_io.connect_group_node(*gnode);
+  connect_group_node_to_external_sockets(*gnode, node_set_io);
 
   /* Remove original nodes from the tree, everything has been copied to the group. */
   for (bNode *node : nodes) {
@@ -849,7 +849,7 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   BKE_main_ensure_invariants(bmain);
   ntree.ensure_topology_cache();
 
-  node_set_io.connect_group_node(*gnode);
+  connect_group_node_to_external_sockets(*gnode, node_set_io);
 
   /* Remove the old node because it has been replaced. Use the name of the removed node for the
    * new group node. This also keeps animation data working. */

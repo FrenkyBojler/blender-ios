@@ -218,9 +218,6 @@ std::optional<Bounds<float2>> node_location_bounds(Span<const bNode *> nodes);
 /** \name Utilities for copying node sets
  * \{ */
 
-class NodeSetInterfaceBuilder;
-class NodeSetInterfaceMapper;
-
 struct NodeSetInterfaceParams {
   /* Hidden sockets are not added to the interface. */
   bool skip_hidden = false;
@@ -252,20 +249,8 @@ class NodeSetInterface {
     bool collapsed = false;
   };
 
- private:
-  Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> socket_data_;
-  Map<const bNodeTreeInterfacePanel *, InterfacePanelData> panel_data_;
-
- public:
-  const Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> &socket_data() const;
-  const Map<const bNodeTreeInterfacePanel *, InterfacePanelData> &panel_data() const;
-
-  /* Connect the group node to external sockets. */
-  void connect_group_node(bNode &group_node) const;
-
- private:
-  friend class NodeSetInterfaceBuilder;
-  friend class NodeSetInterfaceMapper;
+  Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> socket_data;
+  Map<const bNodeTreeInterfacePanel *, InterfacePanelData> panel_data;
 };
 
 NodeSetInterface build_node_set_interface(const NodeSetInterfaceParams &params,
@@ -315,6 +300,10 @@ class NodeSetCopy {
  private:
   NodeSetCopy(bNodeTree &tree) : tree_(tree) {}
 };
+
+/* Connect the group node to external sockets. */
+void connect_group_node_to_external_sockets(bNode &group_node,
+                                            const NodeSetInterface &node_set_io);
 
 /** \} */
 
