@@ -5541,7 +5541,8 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   bAnimListElem *ale_setting = static_cast<bAnimListElem *>(ale_npoin);
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  const eAnimFilter_Flags animFilterChannelsDef = eAnimFilter_Flags(ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS);
+  const eAnimFilter_Flags animFilterChannelsDef = eAnimFilter_Flags(ANIMFILTER_DATA_VISIBLE |
+                                                                    ANIMFILTER_LIST_CHANNELS);
   const eAnimChannel_Settings setting = eAnimChannel_Settings(POINTER_AS_INT(setting_wrap));
   short on = 0;
 
@@ -5599,7 +5600,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
     /* If we find visible unrelated items, we want to ISOLATE (Hide them).
        If we find NO visible unrelated items, we are already isolated, so UN-ISOLATE (Show them).
      */
-    for (bAnimListElem& ale_it : anim_data) {
+    for (bAnimListElem &ale_it : anim_data) {
 
       if (anim_list_el_is_related_or_self(ale_setting, &ale_it)) {
         continue;
@@ -5612,7 +5613,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
     }
 
     /* 3. Pass 2: Apply Visibility */
-    for (bAnimListElem& ale_it : anim_data) {
+    for (bAnimListElem &ale_it : anim_data) {
 
       if (anim_list_el_is_related_or_self(ale_setting, &ale_it)) {
         /* Parents/Children/Self are ALWAYS forced Visible */
