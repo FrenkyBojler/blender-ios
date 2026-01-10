@@ -1452,7 +1452,7 @@ class VIEW3D_MT_view(Menu):
         layout.separator()
 
         if context.mode in {'PAINT_TEXTURE', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT'}:
-            layout.operator("view3d.view_selected", text="Frame Last Stroke")
+            layout.operator("view3d.view_selected", text="Center Last Stroke")
         else:
             layout.operator("view3d.view_selected", text="Frame Selected")
         if view.region_quadviews:
@@ -3715,7 +3715,7 @@ class VIEW3D_MT_sculpt(Menu):
 
         layout.separator()
 
-        layout.operator("sculpt.sample_color", text="Sample Color")
+        layout.operator("paint.sample_color", text="Sample Color")
 
         layout.separator()
 
@@ -7882,7 +7882,7 @@ class VIEW3D_PT_grease_pencil_origin(Panel):
             row = layout.row()
             row.prop(tool_settings, "use_gpencil_project_only_selected")
 
-        if tool_settings.gpencil_stroke_placement_view3d == 'STROKE':
+        if tool_settings.gpencil_stroke_placement_view3d in {'STROKE', 'SURFACE'}:
             row = layout.row()
             row.label(text="Target")
             row = layout.row()
