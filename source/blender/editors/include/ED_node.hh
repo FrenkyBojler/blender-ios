@@ -9,6 +9,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_compute_context.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -218,6 +219,23 @@ std::optional<Bounds<float2>> node_location_bounds(Span<const bNode *> nodes);
  * \{ */
 
 class NodeSetInterfaceBuilder;
+class NodeSetInterfaceMapper;
+
+struct NodeSetInterfaceParams {
+  /* Hidden sockets are not added to the interface. */
+  bool skip_hidden = false;
+  /* Only sockets with external connections are added to the interface. */
+  bool skip_unconnected = true;
+  /* Register links of the group node as external links.
+   * Otherwise interface sockets are externally disconnected. */
+  bool add_external_links = true;
+  /* Create a unique interface for every exposed input.
+   * Otherwise inputs linked to the same socket use the same interface. */
+  bool use_unique_input = true;
+  /* Create a unique interface for every output connection.
+   * Otherwise outputs with multiple connections create a single interface. */
+  bool use_unique_output = false;
+};
 
 /**
  * Maps a subset of tree interface items to internal and external sockets.
@@ -242,26 +260,23 @@ class NodeSetInterface {
   const Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> &socket_data() const;
   const Map<const bNodeTreeInterfacePanel *, InterfacePanelData> &panel_data() const;
 
-  static NodeSetInterface from_nodes(const bNodeTree &src_tree,
-                                     const Span<const bNode *> src_nodes,
-                                     bNodeTree &dst_tree,
-                                     const bool expose_visible);
-
-  static NodeSetInterface from_node_declaration(const bNode &src_node, bNodeTree &dst_tree);
-
-  static NodeSetInterface from_group_node(const bNode &group_node, const bool skip_hidden_sockets);
-
   /* Connect the group node to external sockets. */
   void connect_group_node(bNode &group_node) const;
 
  private:
-  void add_declaration_item_recursive(NodeSetInterfaceBuilder &builder,
-                                      const bNode &src_node,
-                                      const nodes::ItemDeclaration &item_decl,
-                                      bNodeTreeInterfacePanel *parent);
-
   friend class NodeSetInterfaceBuilder;
+  friend class NodeSetInterfaceMapper;
 };
+
+NodeSetInterface build_node_set_interface(const NodeSetInterfaceParams &params,
+                                          const bNodeTree &src_tree,
+                                          const Span<bNode *> src_nodes,
+                                          bNodeTree &dst_tree);
+NodeSetInterface build_node_declaration_interface(const NodeSetInterfaceParams &params,
+                                                  const bNode &src_node,
+                                                  bNodeTree &dst_tree);
+NodeSetInterface map_group_node_interface(const NodeSetInterfaceParams &params,
+                                          const bNode &group_node);
 
 /**
  * Set of nodes that are copied from other nodes and can be mapped to the original nodes.

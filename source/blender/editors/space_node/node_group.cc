@@ -309,8 +309,11 @@ static void update_nested_node_refs_after_ungroup(bNodeTree &ntree,
  */
 static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
 {
+  NodeSetInterfaceParams params;
+  params.skip_hidden = false;
+
   const bNodeTree &ngroup = *reinterpret_cast<const bNodeTree *>(group_node.id);
-  const NodeSetInterface node_set_io = NodeSetInterface::from_group_node(group_node, false);
+  const NodeSetInterface node_set_io = map_group_node_interface(params, group_node);
 
   const NodeSetCopy node_set_copy = NodeSetCopy::from_predicate(
       bmain,
@@ -744,10 +747,21 @@ static void node_group_make_insert_selected(const bContext &C,
   Main &bmain = *CTX_data_main(&C);
   bNodeTree &group = *reinterpret_cast<bNodeTree *>(gnode->id);
 
-  /* If only one node is selected expose all its sockets regardless of links. */
-  const bool expose_visible = nodes.size() == 1;
-  const NodeSetInterface node_set_io = NodeSetInterface::from_nodes(
-      ntree, nodes, group, expose_visible);
+  NodeSetInterfaceParams params;
+  /* TODO This is inconsistent with the single-node wrapper case, which does expose hidden sockets
+   * and only hides them on the group node instance. */
+  params.skip_hidden = true;
+  /* Expose only connected sockets if there is more than one node. */
+  params.skip_unconnected = (nodes.size() > 1);
+  /* TODO Shared external connection will only create a single interface socket, but its type is
+   * based on the first internal socket. This creates potential conversion conflicts.
+   * (see also NodeSetInterfaceBuilder::expose_socket). */
+  params.use_unique_input = false;
+  /* TODO Unique output interface sockets are redundant and all use the same internal socket
+   * template. (see also NodeSetInterfaceBuilder::expose_socket). */
+  params.use_unique_output = true;
+  const NodeSetInterface node_set_io = build_node_set_interface(params, ntree, nodes, group);
+
   /* Copy nodes into the group. */
   const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(bmain, ntree, nodes, group);
   /* Connect exposed sockets to group input/output nodes. */
@@ -804,8 +818,14 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   bNodeTree *wrapper_group = bke::node_tree_add_tree(
       &bmain, bke::node_label(ntree, src_node), ntree.idname);
   wrapper_group->color_tag = int(bke::node_color_tag(src_node));
-  const NodeSetInterface node_set_io = NodeSetInterface::from_node_declaration(src_node,
-                                                                               *wrapper_group);
+
+  NodeSetInterfaceParams params;
+  /* Hidden sockets are exposed but hidden on the group node instance. */
+  params.skip_hidden = false;
+  /* Expose all sockets even if unconnected. */
+  params.skip_unconnected = false;
+  const NodeSetInterface node_set_io = build_node_declaration_interface(
+      params, src_node, *wrapper_group);
 
   const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(
       bmain, ntree, {&src_node}, *wrapper_group);
