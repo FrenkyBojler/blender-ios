@@ -1211,7 +1211,7 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
                   "Modify properties such as curve vertex radius, font size and bone envelope");
   RNA_def_boolean(ot->srna,
                   "corrective_flip_normals",
-                  false,
+                  true,
                   "Corrective Flip Normals",
                   "Invert normals for negative scaled objects.");
   PropertyRNA *prop = RNA_def_boolean(ot->srna,
