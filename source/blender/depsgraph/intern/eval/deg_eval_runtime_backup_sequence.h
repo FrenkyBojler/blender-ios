@@ -11,11 +11,15 @@
 #include "DNA_listBase.h"
 
 #include "BLI_map.hh"
+#include "BLI_vector.hh"
 
+namespace blender {
+
+struct MovieReader;
 struct Strip;
 struct StripModifierData;
 
-namespace blender::deg {
+namespace deg {
 
 struct Depsgraph;
 
@@ -48,8 +52,9 @@ class StripBackup {
   bool isEmpty() const;
 
   void *scene_sound;
-  ListBase anims;
+  Vector<MovieReader *, 1> movie_readers;
   Map<int, StripModifierDataBackup> modifiers;
 };
 
-}  // namespace blender::deg
+}  // namespace deg
+}  // namespace blender

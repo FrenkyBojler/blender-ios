@@ -259,22 +259,6 @@ void mesh_convert_storage_to_customdata(Mesh &mesh)
                                  {AttrDomain::Edge, {mesh.edge_data, mesh.edges_num}},
                                  {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
                                  {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}});
-  if (const char *name = mesh.active_uv_map_attribute) {
-    const int layer_n = CustomData_get_named_layer(&mesh.corner_data, CD_PROP_FLOAT2, name);
-    if (layer_n != -1) {
-      CustomData_set_layer_active(&mesh.corner_data, CD_PROP_FLOAT2, layer_n);
-    }
-    MEM_freeN(mesh.active_uv_map_attribute);
-    mesh.active_uv_map_attribute = nullptr;
-  }
-  if (const char *name = mesh.default_uv_map_attribute) {
-    const int layer_n = CustomData_get_named_layer(&mesh.corner_data, CD_PROP_FLOAT2, name);
-    if (layer_n != -1) {
-      CustomData_set_layer_render(&mesh.corner_data, CD_PROP_FLOAT2, layer_n);
-    }
-    MEM_freeN(mesh.default_uv_map_attribute);
-    mesh.default_uv_map_attribute = nullptr;
-  }
 }
 void mesh_convert_customdata_to_storage(Mesh &mesh)
 {
@@ -313,6 +297,50 @@ void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
         {grease_pencil.layers_data_legacy, int(grease_pencil.layers().size())}}},
       grease_pencil.attribute_storage.wrap());
   CustomData_reset(&grease_pencil.layers_data_legacy);
+}
+
+static const CustomData &get_custom_data(const Mesh &mesh, const AttrDomain domain)
+{
+  switch (domain) {
+    case AttrDomain::Point:
+      return mesh.vert_data;
+    case AttrDomain::Edge:
+      return mesh.edge_data;
+    case AttrDomain::Face:
+      return mesh.face_data;
+    case AttrDomain::Corner:
+      return mesh.corner_data;
+    default:
+      BLI_assert_unreachable();
+      return mesh.vert_data;
+  }
+}
+
+static CustomData &get_custom_data(Mesh &mesh, const AttrDomain domain)
+{
+  return const_cast<CustomData &>(get_custom_data(std::as_const(mesh), domain));
+}
+
+LegacyMeshInterpolator::LegacyMeshInterpolator(const Mesh &src, Mesh &dst, const AttrDomain domain)
+    : cd_src_(get_custom_data(src, domain)), cd_dst_(get_custom_data(dst, domain))
+{
+}
+
+void LegacyMeshInterpolator::copy(const int src_index, const int dst_index, const int count) const
+{
+  CustomData_copy_data(&cd_src_, &cd_dst_, src_index, dst_index, count);
+}
+
+void LegacyMeshInterpolator::mix(Span<int> src_indices,
+                                 const std::optional<Span<float>> weights,
+                                 const int dst_index) const
+{
+  CustomData_interp(&cd_src_,
+                    &cd_dst_,
+                    src_indices.data(),
+                    weights ? weights->data() : nullptr,
+                    src_indices.size(),
+                    dst_index);
 }
 
 }  // namespace blender::bke

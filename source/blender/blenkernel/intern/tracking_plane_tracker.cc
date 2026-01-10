@@ -15,9 +15,11 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "libmv-capi.h"
+
+namespace blender {
 
 typedef double Vec2[2];
 
@@ -223,3 +225,5 @@ void BKE_tracking_homography_between_two_quads(/*const*/ float reference_corners
 
   copy_m3_m3d(H, H_double);
 }
+
+}  // namespace blender

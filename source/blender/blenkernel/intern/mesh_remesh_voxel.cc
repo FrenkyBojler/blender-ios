@@ -25,6 +25,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_bvhutils.hh"
+#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_remesh_voxel.hh" /* own include */
 #include "BKE_mesh_sample.hh"
@@ -44,12 +45,7 @@
 #  include "quadriflow_capi.hpp"
 #endif
 
-using blender::Array;
-using blender::float3;
-using blender::IndexRange;
-using blender::int3;
-using blender::MutableSpan;
-using blender::Span;
+namespace blender {
 
 #ifdef WITH_QUADRIFLOW
 static Mesh *remesh_quadriflow(const Mesh *input_mesh,
@@ -61,7 +57,6 @@ static Mesh *remesh_quadriflow(const Mesh *input_mesh,
                                void (*update_cb)(void *, float progress, int *cancel),
                                void *update_cb_data)
 {
-  using namespace blender;
   using namespace blender::bke;
   const Span<float3> input_positions = input_mesh->vert_positions();
   const Span<int> input_corner_verts = input_mesh->corner_verts();
@@ -110,7 +105,7 @@ static Mesh *remesh_quadriflow(const Mesh *input_mesh,
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
 
-  blender::offset_indices::fill_constant_group_size(4, 0, face_offsets);
+  offset_indices::fill_constant_group_size(4, 0, face_offsets);
 
   mesh->vert_positions_for_write().copy_from(
       Span(reinterpret_cast<float3 *>(qrd.out_verts), qrd.out_totverts));
@@ -199,7 +194,6 @@ static Mesh *remesh_voxel_volume_to_mesh(const openvdb::FloatGrid::Ptr level_set
                                          const float adaptivity,
                                          const bool relax_disoriented_triangles)
 {
-  using namespace blender;
   using namespace blender::bke;
   std::vector<openvdb::Vec3s> vertices;
   std::vector<openvdb::Vec4I> quads;
@@ -215,8 +209,8 @@ static Mesh *remesh_voxel_volume_to_mesh(const openvdb::FloatGrid::Ptr level_set
 
   const int triangle_loop_start = quads.size() * 4;
   if (!face_offsets.is_empty()) {
-    blender::offset_indices::fill_constant_group_size(4, 0, face_offsets.take_front(quads.size()));
-    blender::offset_indices::fill_constant_group_size(
+    offset_indices::fill_constant_group_size(4, 0, face_offsets.take_front(quads.size()));
+    offset_indices::fill_constant_group_size(
         3, triangle_loop_start, face_offsets.drop_front(quads.size()));
   }
 
@@ -303,7 +297,7 @@ Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
 #endif
 }
 
-namespace blender::bke {
+namespace bke {
 
 static void calc_edge_centers(const Span<float3> positions,
                               const Span<int2> edges,
@@ -573,6 +567,10 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
       Array<int> map(dst.verts_num);
       find_nearest_verts(
           src_positions, src_corner_verts, src_corner_tris, dst_positions, vert_nearest_tris, map);
+      /* Copy vertex group names (otherwise `MeshVertexGroupsAttributeProvider` wont find them -
+       * and these would show up as regular attributes afterwards). "vertex_group_active_index" is
+       * taken care of via #BKE_mesh_copy_parameters(). */
+      BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
       gather_attributes(point_ids, src_attributes, AttrDomain::Point, map, dst_attributes);
     }
 
@@ -622,9 +620,15 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
   if (src.default_color_attribute) {
     BKE_id_attributes_default_color_set(&dst.id, src.default_color_attribute);
   }
+  if (!src.active_uv_map_name().is_empty()) {
+    dst.uv_maps_active_set(src.active_uv_map_name());
+  }
+  if (!src.default_uv_map_name().is_empty()) {
+    dst.uv_maps_default_set(src.default_uv_map_name());
+  }
 }
 
-}  // namespace blender::bke
+}  // namespace bke
 
 Mesh *BKE_mesh_remesh_voxel_fix_poles(const Mesh *mesh)
 {
@@ -731,3 +735,5 @@ Mesh *BKE_mesh_remesh_voxel_fix_poles(const Mesh *mesh)
   BM_mesh_free(bm);
   return result;
 }
+
+}  // namespace blender

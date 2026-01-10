@@ -23,6 +23,8 @@
 
 #include "gpu_state_private.hh"
 
+namespace blender {
+
 using namespace blender::gpu;
 
 #define SET_STATE(_prefix, _state, _value) \
@@ -52,7 +54,7 @@ void GPU_face_culling(GPUFaceCullTest culling)
 GPUFaceCullTest GPU_face_culling_get()
 {
   GPUState &state = Context::get()->state_manager->state;
-  return (GPUFaceCullTest)state.culling_test;
+  return GPUFaceCullTest(state.culling_test);
 }
 
 void GPU_front_facing(bool invert)
@@ -114,11 +116,6 @@ void GPU_depth_mask(bool depth)
   uint32_t write_mask = state.write_mask;
   SET_FLAG_FROM_TEST(write_mask, depth, uint32_t(GPU_WRITE_DEPTH));
   state.write_mask = write_mask;
-}
-
-void GPU_shadow_offset(bool enable)
-{
-  SET_IMMUTABLE_STATE(shadow_bias, enable);
 }
 
 void GPU_clip_distances(int distances_enabled)
@@ -219,13 +216,13 @@ void GPU_stencil_compare_mask_set(uint compare_mask)
 GPUBlend GPU_blend_get()
 {
   GPUState &state = Context::get()->state_manager->state;
-  return (GPUBlend)state.blend;
+  return GPUBlend(state.blend);
 }
 
 GPUWriteMask GPU_write_mask_get()
 {
   GPUState &state = Context::get()->state_manager->state;
-  return (GPUWriteMask)state.write_mask;
+  return GPUWriteMask(state.write_mask);
 }
 
 uint GPU_stencil_mask_get()
@@ -237,13 +234,13 @@ uint GPU_stencil_mask_get()
 GPUDepthTest GPU_depth_test_get()
 {
   GPUState &state = Context::get()->state_manager->state;
-  return (GPUDepthTest)state.depth_test;
+  return GPUDepthTest(state.depth_test);
 }
 
 GPUStencilTest GPU_stencil_test_get()
 {
   GPUState &state = Context::get()->state_manager->state;
-  return (GPUStencilTest)state.stencil_test;
+  return GPUStencilTest(state.stencil_test);
 }
 
 float GPU_line_width_get()
@@ -360,7 +357,6 @@ StateManager::StateManager()
   state.provoking_vert = GPU_VERTEX_LAST;
   state.logic_op_xor = false;
   state.invert_facing = false;
-  state.shadow_bias = false;
   state.clip_distances = 0;
   state.clip_control = false;
   state.polygon_smooth = false;
@@ -376,3 +372,5 @@ StateManager::StateManager()
 }
 
 /** \} */
+
+}  // namespace blender

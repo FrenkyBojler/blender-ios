@@ -18,6 +18,8 @@
 typedef void AUD_Sound;
 #endif
 
+namespace blender {
+
 struct Depsgraph;
 struct Main;
 struct Scene;
@@ -102,13 +104,13 @@ void BKE_sound_update_fps(Main *bmain, Scene *scene);
 void BKE_sound_update_scene_listener(Scene *scene);
 
 void *BKE_sound_scene_add_scene_sound(
-    Scene *scene, Strip *sequence, int startframe, int endframe, int frameskip);
+    Scene *scene, Strip *strip, int startframe, int endframe, int frameskip);
 
-void *BKE_sound_scene_add_scene_sound_defaults(Scene *scene, Strip *sequence);
+void *BKE_sound_scene_add_scene_sound_defaults(Scene *scene, Strip *strip);
 
 void *BKE_sound_add_scene_sound(
-    Scene *scene, Strip *sequence, int startframe, int endframe, int frameskip);
-void *BKE_sound_add_scene_sound_defaults(Scene *scene, Strip *sequence);
+    Scene *scene, Strip *strip, int startframe, int endframe, int frameskip);
+void *BKE_sound_add_scene_sound_defaults(Scene *scene, Strip *strip);
 
 void BKE_sound_remove_scene_sound(Scene *scene, void *handle);
 
@@ -120,7 +122,7 @@ void BKE_sound_move_scene_sound(const Scene *scene,
                                 int endframe,
                                 int frameskip,
                                 double audio_offset);
-void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *sequence);
+void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *strip);
 
 /** Join the Sequence with the structure in Audaspace, the second parameter is a #bSound. */
 void BKE_sound_update_scene_sound(void *handle, bSound *sound);
@@ -190,14 +192,16 @@ void *BKE_sound_ensure_time_stretch_effect(void *sound_handle, void *sequence_ha
 void BKE_sound_runtime_state_get_and_clear(const bSound *sound,
                                            AUD_Sound **r_cache,
                                            AUD_Sound **r_playback_handle,
-                                           blender::Vector<float> **r_waveform);
+                                           Vector<float> **r_waveform);
 void BKE_sound_runtime_state_set(const bSound *sound,
                                  AUD_Sound *cache,
                                  AUD_Sound *playback_handle,
-                                 blender::Vector<float> *waveform);
+                                 Vector<float> *waveform);
 
 AUD_Sound *BKE_sound_playback_handle_get(const bSound *sound);
 
 void BKE_sound_runtime_clear_waveform_loading_tag(bSound *sound);
 bool BKE_sound_runtime_start_waveform_loading(bSound *sound);
-const blender::Vector<float> *BKE_sound_runtime_get_waveform(const bSound *sound);
+const Vector<float> *BKE_sound_runtime_get_waveform(const bSound *sound);
+
+}  // namespace blender
