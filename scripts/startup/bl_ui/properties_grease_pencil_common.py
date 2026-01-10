@@ -214,13 +214,110 @@ class GREASE_PENCIL_MT_move_to_layer(Menu):
 
         layout.separator()
 
-        for i in range(len(grease_pencil.layers) - 1, -1, -1):
-            layer = grease_pencil.layers[i]
-            if layer == grease_pencil.layers.active:
-                icon = 'GREASEPENCIL'
-            else:
-                icon = 'NONE'
-            layout.operator("grease_pencil.move_to_layer", text=layer.name, icon=icon).target_layer_name = layer.name
+        root_nodes = build_layer_tree(grease_pencil)
+        for node in root_nodes:
+            draw_node(layout, node, grease_pencil)
+
+
+class GPNode:
+    def __init__(self, data, is_group=False):
+        self.data = data
+        self.name = data.name
+        self.is_group = is_group
+        self.children = []
+        self.parent = None
+
+    def add_child(self, node):
+        self.children.append(node)
+        node.parent = self
+
+    def __repr__(self):
+        return f"<Node: {self.name} ({'Group' if self.is_group else 'Layer'})>"
+    
+
+def build_layer_tree(gpencil_obj: bpy.types.GreasePencil):
+    root_nodes = []    
+    group_map: dict[bpy.types.GreasePencilLayerGroup, GPNode] = {} 
+
+    for group in gpencil_obj.layer_groups:
+        group_node = GPNode(group, is_group=True)
+        group_map[group] = group_node
+
+    for group_obj, group_node in group_map.items():
+        parent_group = group_obj.parent_group
+        
+        if parent_group and parent_group in group_map:
+            parent_node = group_map[parent_group]
+            parent_node.add_child(group_node)
+        else:
+            if parent_group is None:
+                pass
+    
+    for layer in gpencil_obj.layers:
+        layer_node = GPNode(layer, is_group=False)
+        
+        parent = layer.parent_group
+        
+        if parent and parent in group_map:
+            group_node = group_map[parent]
+            group_node.add_child(layer_node)
+        else:
+            root_nodes.append(layer_node)
+
+    for group_obj, group_node in group_map.items():
+        parent_group = group_obj.parent_group
+        if parent_group is None:
+            root_nodes.append(group_node)
+
+    root_nodes.reverse() 
+    
+    return root_nodes
+
+
+def draw_node(layout: bpy.types.UILayout, node: GPNode, gpencil_obj: bpy.types.GreasePencil):
+    if node.is_group:
+        if len(node.children) == 0:
+            return
+        layout.context_pointer_set("active_gpencil_layer_group", node.data)
+        layout.menu("GREASE_PENCIL_MT_layer_group", text=node.data.name)
+    else:
+        if node.data == gpencil_obj.layers.active:
+            icon = 'GREASEPENCIL'
+        else:
+            icon = 'NONE'
+        layout.operator("grease_pencil.move_to_layer", text=node.data.name, icon=icon).target_layer_name = node.data.name
+
+
+class GREASE_PENCIL_MT_layer_group(Menu):
+    bl_label = "Layer Group"
+
+    def draw(self, context):
+        layout = self.layout
+
+        target_group = getattr(context, "active_gpencil_layer_group", None)
+        if not target_group:
+            return
+
+        grease_pencil = context.active_object.data
+        
+        root_nodes = build_layer_tree(grease_pencil)
+        
+        active_node = self.find_node(root_nodes, target_group)
+
+        if active_node:
+            for node in active_node.children:
+                draw_node(layout, node, grease_pencil)
+
+    def find_node(self, nodes, target_data):
+        for node in nodes:
+            if node.data == target_data:
+                return node
+            
+            if node.children:
+                found = self.find_node(node.children, target_data)
+                if found:
+                    return found
+        return None
 
 
 class GREASE_PENCIL_MT_layer_active(Menu):
@@ -601,6 +698,7 @@ classes = (
     GPENCIL_UL_annotation_layer,
 
     GREASE_PENCIL_MT_move_to_layer,
+    GREASE_PENCIL_MT_layer_group,
     GREASE_PENCIL_MT_layer_active,
 
     GREASE_PENCIL_MT_snap,
