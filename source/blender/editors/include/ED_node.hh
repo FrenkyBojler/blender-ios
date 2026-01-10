@@ -237,7 +237,7 @@ struct NodeSetInterfaceParams {
 /**
  * Maps a subset of tree interface items to internal and external sockets.
  */
-class NodeSetInterface {
+class NodeTreeInterfaceMapping {
  public:
   struct InterfaceSocketData {
     VectorSet<NodeSocketRef> internal_sockets;
@@ -253,15 +253,15 @@ class NodeSetInterface {
   Map<const bNodeTreeInterfacePanel *, InterfacePanelData> panel_data;
 };
 
-NodeSetInterface build_node_set_interface(const NodeSetInterfaceParams &params,
-                                          const bNodeTree &src_tree,
-                                          const Span<bNode *> src_nodes,
-                                          bNodeTree &dst_tree);
-NodeSetInterface build_node_declaration_interface(const NodeSetInterfaceParams &params,
-                                                  const bNode &src_node,
+NodeTreeInterfaceMapping build_node_set_interface(const NodeSetInterfaceParams &params,
+                                                  const bNodeTree &src_tree,
+                                                  const Span<bNode *> src_nodes,
                                                   bNodeTree &dst_tree);
-NodeSetInterface map_group_node_interface(const NodeSetInterfaceParams &params,
-                                          const bNode &group_node);
+NodeTreeInterfaceMapping build_node_declaration_interface(const NodeSetInterfaceParams &params,
+                                                          const bNode &src_node,
+                                                          bNodeTree &dst_tree);
+NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &params,
+                                                  const bNode &group_node);
 
 /**
  * Set of nodes that are copied from other nodes and can be mapped to the original nodes.
@@ -291,9 +291,9 @@ class NodeSetCopy {
                                     FunctionRef<bool(const bNode &node)> node_predicate,
                                     bNodeTree &dst_tree);
 
-  GroupInputOutputNodes connect_sockets_to_interface(const bContext &C,
-                                                     const NodeSetInterface &node_set_io) const;
-  void connect_sockets_to_external_nodes(const NodeSetInterface &node_set_io) const;
+  GroupInputOutputNodes connect_sockets_to_interface(
+      const bContext &C, const NodeTreeInterfaceMapping &io_mapping) const;
+  void connect_sockets_to_external_nodes(const NodeTreeInterfaceMapping &io_mapping) const;
 
   void translate_nodes(const float2 &offset) const;
 
@@ -303,7 +303,7 @@ class NodeSetCopy {
 
 /* Connect the group node to external sockets. */
 void connect_group_node_to_external_sockets(bNode &group_node,
-                                            const NodeSetInterface &node_set_io);
+                                            const NodeTreeInterfaceMapping &io_mapping);
 
 /** \} */
 

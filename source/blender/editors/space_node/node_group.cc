@@ -286,7 +286,7 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
   params.skip_hidden = false;
 
   const bNodeTree &ngroup = *reinterpret_cast<const bNodeTree *>(group_node.id);
-  const NodeSetInterface node_set_io = map_group_node_interface(params, group_node);
+  const NodeTreeInterfaceMapping io_mapping = map_group_node_interface(params, group_node);
 
   const NodeSetCopy node_set_copy = NodeSetCopy::from_predicate(
       bmain,
@@ -298,7 +298,7 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
         return true;
       },
       ntree);
-  node_set_copy.connect_sockets_to_external_nodes(node_set_io);
+  node_set_copy.connect_sockets_to_external_nodes(io_mapping);
 
   /* Center nodes on the bounds of the original group node. */
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(Span{&group_node})) {
@@ -650,19 +650,20 @@ static void node_group_make_insert_selected(const bContext &C,
   /* TODO Unique output interface sockets are redundant and all use the same internal socket
    * template. (see also NodeSetInterfaceBuilder::expose_socket). */
   params.use_unique_output = true;
-  const NodeSetInterface node_set_io = build_node_set_interface(params, ntree, nodes, group);
+  const NodeTreeInterfaceMapping io_mapping = build_node_set_interface(
+      params, ntree, nodes, group);
 
   /* Copy nodes into the group. */
   const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(bmain, ntree, nodes, group);
   /* Connect exposed sockets to group input/output nodes. */
-  node_set_copy.connect_sockets_to_interface(C, node_set_io);
+  node_set_copy.connect_sockets_to_interface(C, io_mapping);
 
   update_nested_node_refs_after_moving_nodes_into_group(
       ntree, group, *gnode, node_set_copy.node_identifier_map());
   BKE_main_ensure_invariants(bmain, Span<ID *>{&group.id});
 
   /* Connect the group node to external sockets. */
-  connect_group_node_to_external_sockets(*gnode, node_set_io);
+  connect_group_node_to_external_sockets(*gnode, io_mapping);
 
   /* Remove original nodes from the tree, everything has been copied to the group. */
   for (bNode *node : nodes) {
@@ -714,12 +715,12 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   params.skip_hidden = false;
   /* Expose all sockets even if unconnected. */
   params.skip_unconnected = false;
-  const NodeSetInterface node_set_io = build_node_declaration_interface(
+  const NodeTreeInterfaceMapping io_mapping = build_node_declaration_interface(
       params, src_node, *wrapper_group);
 
   const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(
       bmain, ntree, {&src_node}, *wrapper_group);
-  node_set_copy.connect_sockets_to_interface(C, node_set_io);
+  node_set_copy.connect_sockets_to_interface(C, io_mapping);
 
   BKE_main_ensure_invariants(bmain, wrapper_group->id);
 
@@ -739,7 +740,7 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   BKE_main_ensure_invariants(bmain);
   ntree.ensure_topology_cache();
 
-  connect_group_node_to_external_sockets(*gnode, node_set_io);
+  connect_group_node_to_external_sockets(*gnode, io_mapping);
 
   /* Remove the old node because it has been replaced. Use the name of the removed node for the
    * new group node. This also keeps animation data working. */

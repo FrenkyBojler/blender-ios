@@ -264,11 +264,11 @@ static void remap_pairing(bNodeTree &dst_tree,
 /* Utility for sequentially adding interface sockets and panels. */
 class NodeSetInterfaceBuilder {
  private:
-  using InterfaceSocketData = NodeSetInterface::InterfaceSocketData;
-  using InterfacePanelData = NodeSetInterface::InterfacePanelData;
+  using InterfaceSocketData = NodeTreeInterfaceMapping::InterfaceSocketData;
+  using InterfacePanelData = NodeTreeInterfaceMapping::InterfacePanelData;
 
   NodeSetInterfaceParams params_;
-  NodeSetInterface &interface_;
+  NodeTreeInterfaceMapping &io_mapping_;
   bNodeTree &dst_tree_;
   Set<const bNode *> src_nodes_set_;
   /* Multiple internal or external sockets may be mapped to the same interface item.
@@ -277,7 +277,7 @@ class NodeSetInterfaceBuilder {
 
  public:
   NodeSetInterfaceBuilder(NodeSetInterfaceParams params,
-                          NodeSetInterface &interface,
+                          NodeTreeInterfaceMapping &io_mapping,
                           bNodeTree &dst_tree,
                           const Span<const bNode *> src_nodes);
 
@@ -291,11 +291,11 @@ class NodeSetInterfaceBuilder {
 };
 
 NodeSetInterfaceBuilder::NodeSetInterfaceBuilder(NodeSetInterfaceParams params,
-                                                 NodeSetInterface &interface,
+                                                 NodeTreeInterfaceMapping &io_mapping,
                                                  bNodeTree &dst_tree,
                                                  const Span<const bNode *> src_nodes)
     : params_(std::move(params)),
-      interface_(interface),
+      io_mapping_(io_mapping),
       dst_tree_(dst_tree),
       src_nodes_set_(src_nodes)
 {
@@ -325,7 +325,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
       InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(&src_socket, [&]() {
         bNodeTreeInterfaceSocket &io_socket = util::add_interface_from_socket(
             src_tree, src_socket, dst_tree_, parent);
-        InterfaceSocketData &data = interface_.socket_data.lookup_or_add(&io_socket, {});
+        InterfaceSocketData &data = io_mapping_.socket_data.lookup_or_add(&io_socket, {});
         return &data;
       });
       data.internal_sockets.add({src_socket.owner_node(), src_socket});
@@ -356,7 +356,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
             /* Generated interface socket is based on the internal socket. */
             bNodeTreeInterfaceSocket &io_socket = util::add_interface_from_socket(
                 src_tree, src_socket, dst_tree_, parent);
-            InterfaceSocketData &data = interface_.socket_data.lookup_or_add(&io_socket, {});
+            InterfaceSocketData &data = io_mapping_.socket_data.lookup_or_add(&io_socket, {});
             /* First internal socket defines the socket state. */
             data.hidden = src_socket.flag & SOCK_HIDDEN;
             data.collapsed = src_socket.flag & SOCK_COLLAPSED;
@@ -372,7 +372,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
       /* Generated interface socket is based on the internal socket. */
       bNodeTreeInterfaceSocket &io_socket = util::add_interface_from_socket(
           src_tree, src_socket, dst_tree_, parent);
-      InterfaceSocketData &data = interface_.socket_data.lookup_or_add(&io_socket, {});
+      InterfaceSocketData &data = io_mapping_.socket_data.lookup_or_add(&io_socket, {});
       data.hidden = src_socket.flag & SOCK_HIDDEN;
       data.collapsed = src_socket.flag & SOCK_COLLAPSED;
       return &data;
@@ -401,7 +401,7 @@ bNodeTreeInterfacePanel *NodeSetInterfaceBuilder::expose_panel(
   }
   bNodeTreeInterfacePanel *io_panel = dst_tree_.tree_interface.add_panel(
       panel_decl.name, panel_decl.description, flag, parent);
-  InterfacePanelData &data = interface_.panel_data.lookup_or_add(io_panel, {});
+  InterfacePanelData &data = io_mapping_.panel_data.lookup_or_add(io_panel, {});
 
   const Span<bNodePanelState> panel_states = src_node.panel_states();
   for (const bNodePanelState panel_state : panel_states) {
@@ -414,12 +414,12 @@ bNodeTreeInterfacePanel *NodeSetInterfaceBuilder::expose_panel(
   return io_panel;
 }
 
-NodeSetInterface build_node_set_interface(const NodeSetInterfaceParams &params,
-                                          const bNodeTree &src_tree,
-                                          const Span<bNode *> src_nodes,
-                                          bNodeTree &dst_tree)
+NodeTreeInterfaceMapping build_node_set_interface(const NodeSetInterfaceParams &params,
+                                                  const bNodeTree &src_tree,
+                                                  const Span<bNode *> src_nodes,
+                                                  bNodeTree &dst_tree)
 {
-  NodeSetInterface result;
+  NodeTreeInterfaceMapping result;
   NodeSetInterfaceBuilder builder(params, result, dst_tree, src_nodes);
 
   src_tree.ensure_topology_cache();
@@ -458,14 +458,14 @@ static void expose_declaration_item_recursive(NodeSetInterfaceBuilder &builder,
   }
 }
 
-NodeSetInterface build_node_declaration_interface(const NodeSetInterfaceParams &params,
-                                                  const bNode &src_node,
-                                                  bNodeTree &dst_tree)
+NodeTreeInterfaceMapping build_node_declaration_interface(const NodeSetInterfaceParams &params,
+                                                          const bNode &src_node,
+                                                          bNodeTree &dst_tree)
 {
   BLI_assert(src_node.declaration() != nullptr);
   const nodes::NodeDeclaration &node_decl = *src_node.declaration();
 
-  NodeSetInterface result;
+  NodeTreeInterfaceMapping result;
   NodeSetInterfaceBuilder builder(params, result, dst_tree, {&src_node});
   for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
     expose_declaration_item_recursive(builder, src_node, *item_decl, nullptr);
@@ -474,7 +474,7 @@ NodeSetInterface build_node_declaration_interface(const NodeSetInterfaceParams &
   return result;
 }
 
-static void map_socket(NodeSetInterface &node_set_io,
+static void map_socket(NodeTreeInterfaceMapping &io_mapping,
                        const NodeSetInterfaceParams &params,
                        const bNode &group_node,
                        const bNodeTreeInterfaceSocket &io_socket)
@@ -492,7 +492,7 @@ static void map_socket(NodeSetInterface &node_set_io,
     return;
   }
 
-  NodeSetInterface::InterfaceSocketData data;
+  NodeTreeInterfaceMapping::InterfaceSocketData data;
   data.internal_sockets.add_multiple(
       util::get_internal_group_links(group_tree, io_socket, params.skip_hidden)
           .as_span()
@@ -500,30 +500,30 @@ static void map_socket(NodeSetInterface &node_set_io,
   data.external_sockets.add_multiple(util::get_socket_links(*group_socket, false));
   data.hidden = group_socket->flag & SOCK_HIDDEN;
   data.collapsed = group_socket->flag & SOCK_COLLAPSED;
-  node_set_io.socket_data.add(&io_socket, std::move(data));
+  io_mapping.socket_data.add(&io_socket, std::move(data));
 }
 
-static void map_panel(NodeSetInterface &node_set_io,
+static void map_panel(NodeTreeInterfaceMapping &io_mapping,
                       const NodeSetInterfaceParams & /*params*/,
                       const bNode &group_node,
                       const bNodeTreeInterfacePanel &io_panel)
 {
-  NodeSetInterface::InterfacePanelData data;
+  NodeTreeInterfaceMapping::InterfacePanelData data;
   for (const bNodePanelState &panel_state : group_node.panel_states()) {
     if (panel_state.identifier == io_panel.identifier) {
       data.collapsed = panel_state.is_collapsed();
     }
   }
-  node_set_io.panel_data.add(&io_panel, std::move(data));
+  io_mapping.panel_data.add(&io_panel, std::move(data));
 }
 
-NodeSetInterface map_group_node_interface(const NodeSetInterfaceParams &params,
-                                          const bNode &group_node)
+NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &params,
+                                                  const bNode &group_node)
 {
   BLI_assert(group_node.is_group());
   const bNodeTree &group_tree = *reinterpret_cast<const bNodeTree *>(group_node.id);
 
-  NodeSetInterface result;
+  NodeTreeInterfaceMapping result;
   for (const bNodeTreeInterfaceItem *io_item : group_tree.interface_items()) {
     switch (io_item->item_type) {
       case NODE_INTERFACE_PANEL: {
@@ -624,7 +624,7 @@ NodeSetCopy NodeSetCopy::from_predicate(Main &bmain,
 }
 
 NodeSetCopy::GroupInputOutputNodes NodeSetCopy::connect_sockets_to_interface(
-    const bContext &C, const NodeSetInterface &node_set_io) const
+    const bContext &C, const NodeTreeInterfaceMapping &io_mapping) const
 {
   Main &bmain = *CTX_data_main(&C);
   tree_.ensure_topology_cache();
@@ -639,7 +639,7 @@ NodeSetCopy::GroupInputOutputNodes NodeSetCopy::connect_sockets_to_interface(
   /* This makes sure that all nodes have the correct sockets so that we can link. */
   BKE_main_ensure_invariants(bmain, tree_.id);
 
-  for (const auto &item : node_set_io.socket_data.items()) {
+  for (const auto &item : io_mapping.socket_data.items()) {
     for (const NodeSocketRef &origin : item.value.internal_sockets) {
       bNode *new_node = node_map_.lookup(&origin.node);
       bNodeSocket *new_socket = socket_map_.lookup(&origin.socket);
@@ -675,9 +675,10 @@ NodeSetCopy::GroupInputOutputNodes NodeSetCopy::connect_sockets_to_interface(
   return io_nodes;
 }
 
-void NodeSetCopy::connect_sockets_to_external_nodes(const NodeSetInterface &node_set_io) const
+void NodeSetCopy::connect_sockets_to_external_nodes(
+    const NodeTreeInterfaceMapping &io_mapping) const
 {
-  for (const auto &item : node_set_io.socket_data.items()) {
+  for (const auto &item : io_mapping.socket_data.items()) {
     for (const NodeSocketRef &origin : item.value.internal_sockets) {
       bNode *new_node = node_map_.lookup(&origin.node);
       bNodeSocket *new_socket = socket_map_.lookup(&origin.socket);
@@ -702,9 +703,10 @@ void NodeSetCopy::translate_nodes(const float2 &offset) const
 }
 
 /* Connect the group node to external sockets. */
-void connect_group_node_to_external_sockets(bNode &group_node, const NodeSetInterface &node_set_io)
+void connect_group_node_to_external_sockets(bNode &group_node,
+                                            const NodeTreeInterfaceMapping &io_mapping)
 {
-  using InterfaceSocketData = NodeSetInterface::InterfaceSocketData;
+  using InterfaceSocketData = NodeTreeInterfaceMapping::InterfaceSocketData;
 
   bNodeTree &owner_tree = group_node.owner_tree();
   const bNodeTree &group_tree = *reinterpret_cast<bNodeTree *>(group_node.id);
@@ -720,7 +722,7 @@ void connect_group_node_to_external_sockets(bNode &group_node, const NodeSetInte
     if (!interface) {
       continue;
     }
-    const InterfaceSocketData *data = node_set_io.socket_data.lookup_ptr(interface);
+    const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(interface);
     BLI_assert(data);
     for (const MutableNodeSocketRef &link : data->external_sockets) {
       bke::node_add_link(owner_tree, link.node, link.socket, group_node, *group_node_input);
@@ -735,7 +737,7 @@ void connect_group_node_to_external_sockets(bNode &group_node, const NodeSetInte
     if (!interface) {
       continue;
     }
-    const InterfaceSocketData *data = node_set_io.socket_data.lookup_ptr(interface);
+    const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(interface);
     BLI_assert(data);
     for (const MutableNodeSocketRef &link : data->external_sockets) {
       bke::node_add_link(owner_tree, group_node, *group_node_output, link.node, link.socket);
@@ -747,7 +749,7 @@ void connect_group_node_to_external_sockets(bNode &group_node, const NodeSetInte
 
   /* Keep old panel collapse status. */
   MutableSpan<bNodePanelState> panel_states = group_node.panel_states();
-  for (const auto &item : node_set_io.panel_data.items()) {
+  for (const auto &item : io_mapping.panel_data.items()) {
     for (bNodePanelState &new_panel_state : panel_states) {
       if (new_panel_state.identifier == item.key->identifier) {
         SET_FLAG_FROM_TEST(new_panel_state.flag, item.value.collapsed, NODE_PANEL_COLLAPSED);
