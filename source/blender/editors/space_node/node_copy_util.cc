@@ -540,6 +540,21 @@ NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &
   return result;
 }
 
+bNodeTree &NodeSetCopy::tree() const
+{
+  return tree_;
+}
+
+const Map<const bNode *, bNode *> &NodeSetCopy::node_map() const
+{
+  return node_map_;
+}
+
+const Map<const bNodeSocket *, bNodeSocket *> &NodeSetCopy::socket_map() const
+{
+  return socket_map_;
+}
+
 const Map<int32_t, int32_t> &NodeSetCopy::node_identifier_map() const
 {
   return node_identifier_map_;
@@ -623,49 +638,61 @@ NodeSetCopy NodeSetCopy::from_predicate(Main &bmain,
   return from_nodes(bmain, src_tree, nodes, dst_tree);
 }
 
-NodeSetCopy::GroupInputOutputNodes NodeSetCopy::connect_sockets_to_interface(
-    const bContext &C, const NodeTreeInterfaceMapping &io_mapping) const
+void NodeSetCopy::translate_nodes(const float2 &offset) const
+{
+  for (bNode *node : node_map_.values()) {
+    node->location[0] += offset[0];
+    node->location[1] += offset[1];
+  }
+}
+
+GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
+                                                        const NodeSetCopy &copied_nodes,
+                                                        const NodeTreeInterfaceMapping &io_mapping)
 {
   Main &bmain = *CTX_data_main(&C);
-  tree_.ensure_topology_cache();
+  bNodeTree &tree = copied_nodes.tree();
+  tree.ensure_topology_cache();
 
   GroupInputOutputNodes io_nodes;
-  io_nodes.output_node = tree_.group_output_node();
+  io_nodes.output_node = tree.group_output_node();
   if (!io_nodes.output_node) {
-    io_nodes.output_node = bke::node_add_static_node(&C, tree_, NODE_GROUP_OUTPUT);
+    io_nodes.output_node = bke::node_add_static_node(&C, tree, NODE_GROUP_OUTPUT);
   }
-  io_nodes.input_node = bke::node_add_static_node(&C, tree_, NODE_GROUP_INPUT);
+  io_nodes.input_node = bke::node_add_static_node(&C, tree, NODE_GROUP_INPUT);
 
   /* This makes sure that all nodes have the correct sockets so that we can link. */
-  BKE_main_ensure_invariants(bmain, tree_.id);
+  BKE_main_ensure_invariants(bmain, tree.id);
 
   for (const auto &item : io_mapping.socket_data.items()) {
     for (const NodeSocketRef &origin : item.value.internal_sockets) {
-      bNode *new_node = node_map_.lookup(&origin.node);
-      bNodeSocket *new_socket = socket_map_.lookup(&origin.socket);
-      if (origin.socket.is_input()) {
+      bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
+      bNodeSocket *new_socket = copied_nodes.socket_map().lookup(&origin.socket);
+      if (new_socket->is_input()) {
         bNodeSocket *group_input_socket = node_group_input_find_socket(io_nodes.input_node,
                                                                        item.key->identifier);
         BLI_assert(group_input_socket);
         bke::node_add_link(
-            tree_, *io_nodes.input_node, *group_input_socket, *new_node, *new_socket);
+            tree, *io_nodes.input_node, *group_input_socket, *new_node, *new_socket);
       }
       else {
         bNodeSocket *group_output_socket = node_group_output_find_socket(io_nodes.output_node,
                                                                          item.key->identifier);
         BLI_assert(group_output_socket);
         bke::node_add_link(
-            tree_, *new_node, *new_socket, *io_nodes.output_node, *group_output_socket);
+            tree, *new_node, *new_socket, *io_nodes.output_node, *group_output_socket);
       }
     }
   }
 
   /* Make sure group input/output node sockets match the tree interface. */
-  nodes::update_node_declaration_and_sockets(tree_, *io_nodes.input_node);
-  nodes::update_node_declaration_and_sockets(tree_, *io_nodes.output_node);
+  nodes::update_node_declaration_and_sockets(tree, *io_nodes.input_node);
+  nodes::update_node_declaration_and_sockets(tree, *io_nodes.output_node);
 
   /* Move group input/output nodes to the edges of the bounding box. */
-  if (const std::optional<Bounds<float2>> bounds = node_bounds_ex(node_map_.values())) {
+  if (const std::optional<Bounds<float2>> bounds = node_bounds_ex(
+          copied_nodes.node_map().values()))
+  {
     io_nodes.input_node->location[0] = bounds->min[0] - 200.0f;
     io_nodes.input_node->location[1] = bounds->center()[1];
     io_nodes.output_node->location[0] = bounds->max[0] + 50.0f;
@@ -675,34 +702,26 @@ NodeSetCopy::GroupInputOutputNodes NodeSetCopy::connect_sockets_to_interface(
   return io_nodes;
 }
 
-void NodeSetCopy::connect_sockets_to_external_nodes(
-    const NodeTreeInterfaceMapping &io_mapping) const
+void connect_copied_nodes_to_external_sockets(const NodeSetCopy &copied_nodes,
+                                              const NodeTreeInterfaceMapping &io_mapping)
 {
+  bNodeTree &tree = copied_nodes.tree();
   for (const auto &item : io_mapping.socket_data.items()) {
     for (const NodeSocketRef &origin : item.value.internal_sockets) {
-      bNode *new_node = node_map_.lookup(&origin.node);
-      bNodeSocket *new_socket = socket_map_.lookup(&origin.socket);
+      bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
+      bNodeSocket *new_socket = copied_nodes.socket_map().lookup(&origin.socket);
       for (const MutableNodeSocketRef &target : item.value.external_sockets) {
         if (origin.socket.is_input()) {
-          bke::node_add_link(tree_, target.node, target.socket, *new_node, *new_socket);
+          bke::node_add_link(tree, target.node, target.socket, *new_node, *new_socket);
         }
         else {
-          bke::node_add_link(tree_, *new_node, *new_socket, target.node, target.socket);
+          bke::node_add_link(tree, *new_node, *new_socket, target.node, target.socket);
         }
       }
     }
   }
 }
 
-void NodeSetCopy::translate_nodes(const float2 &offset) const
-{
-  for (bNode *node : node_map_.values()) {
-    node->location[0] += offset[0];
-    node->location[1] += offset[1];
-  }
-}
-
-/* Connect the group node to external sockets. */
 void connect_group_node_to_external_sockets(bNode &group_node,
                                             const NodeTreeInterfaceMapping &io_mapping)
 {
@@ -725,6 +744,7 @@ void connect_group_node_to_external_sockets(bNode &group_node,
     const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(interface);
     BLI_assert(data);
     for (const MutableNodeSocketRef &link : data->external_sockets) {
+      BLI_assert(&link.node.owner_tree() == &owner_tree);
       bke::node_add_link(owner_tree, link.node, link.socket, group_node, *group_node_input);
     }
     /* Keep old socket visibility. */
@@ -740,6 +760,7 @@ void connect_group_node_to_external_sockets(bNode &group_node,
     const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(interface);
     BLI_assert(data);
     for (const MutableNodeSocketRef &link : data->external_sockets) {
+      BLI_assert(&link.node.owner_tree() == &owner_tree);
       bke::node_add_link(owner_tree, group_node, *group_node_output, link.node, link.socket);
     }
     /* Keep old socket visibility. */

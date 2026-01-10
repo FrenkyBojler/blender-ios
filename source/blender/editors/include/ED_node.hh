@@ -267,12 +267,6 @@ NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &
  * Set of nodes that are copied from other nodes and can be mapped to the original nodes.
  */
 class NodeSetCopy {
- public:
-  struct GroupInputOutputNodes {
-    bNode *input_node;
-    bNode *output_node;
-  };
-
  private:
   bNodeTree &tree_;
   Map<const bNode *, bNode *> node_map_;
@@ -280,6 +274,9 @@ class NodeSetCopy {
   Map<int32_t, int32_t> node_identifier_map_;
 
  public:
+  bNodeTree &tree() const;
+  const Map<const bNode *, bNode *> &node_map() const;
+  const Map<const bNodeSocket *, bNodeSocket *> &socket_map() const;
   const Map<int32_t, int32_t> &node_identifier_map() const;
 
   static NodeSetCopy from_nodes(Main &bmain,
@@ -291,17 +288,36 @@ class NodeSetCopy {
                                     FunctionRef<bool(const bNode &node)> node_predicate,
                                     bNodeTree &dst_tree);
 
-  GroupInputOutputNodes connect_sockets_to_interface(
-      const bContext &C, const NodeTreeInterfaceMapping &io_mapping) const;
-  void connect_sockets_to_external_nodes(const NodeTreeInterfaceMapping &io_mapping) const;
-
   void translate_nodes(const float2 &offset) const;
 
  private:
   NodeSetCopy(bNodeTree &tree) : tree_(tree) {}
 };
 
-/* Connect the group node to external sockets. */
+struct GroupInputOutputNodes {
+  bNode *input_node;
+  bNode *output_node;
+};
+
+/**
+ * Connect copied node sockets to group node input/output nodes, recreating the interface mapping
+ * of original nodes. The owner tree of the copied nodes must be the same as the interface tree.
+ */
+GroupInputOutputNodes connect_copied_nodes_to_interface(
+    const bContext &C,
+    const NodeSetCopy &copied_nodes,
+    const NodeTreeInterfaceMapping &io_mapping);
+
+/**
+ * Connect copied node sockets to external nodes in the interface mapping.
+ */
+void connect_copied_nodes_to_external_sockets(const NodeSetCopy &copied_nodes,
+                                              const NodeTreeInterfaceMapping &io_mapping);
+
+/**
+ * Connect the group node to external sockets in the interface mapping.
+ * The group node must be in the same node tree as the mapped external sockets.
+ */
 void connect_group_node_to_external_sockets(bNode &group_node,
                                             const NodeTreeInterfaceMapping &io_mapping);
 

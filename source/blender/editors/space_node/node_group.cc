@@ -288,7 +288,7 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
   const bNodeTree &ngroup = *reinterpret_cast<const bNodeTree *>(group_node.id);
   const NodeTreeInterfaceMapping io_mapping = map_group_node_interface(params, group_node);
 
-  const NodeSetCopy node_set_copy = NodeSetCopy::from_predicate(
+  const NodeSetCopy copied_nodes = NodeSetCopy::from_predicate(
       bmain,
       ngroup,
       [&](const bNode &node) {
@@ -298,16 +298,16 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
         return true;
       },
       ntree);
-  node_set_copy.connect_sockets_to_external_nodes(io_mapping);
+  connect_copied_nodes_to_external_sockets(copied_nodes, io_mapping);
 
   /* Center nodes on the bounds of the original group node. */
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(Span{&group_node})) {
     const float2 center = bounds->center();
-    node_set_copy.translate_nodes(center);
+    copied_nodes.translate_nodes(center);
   }
 
   update_nested_node_refs_after_ungroup(
-      ntree, ngroup, group_node, node_set_copy.node_identifier_map());
+      ntree, ngroup, group_node, copied_nodes.node_identifier_map());
 
   /* Delete the original group instance. */
   bke::node_remove_node(&bmain, ntree, group_node, true);
@@ -375,9 +375,9 @@ static bool node_group_separate_selected(
   nodes_to_move.remove_if(
       [](const bNode *node) { return node->is_group_input() || node->is_group_output(); });
 
-  NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(
+  NodeSetCopy copied_nodes = NodeSetCopy::from_nodes(
       bmain, ngroup, nodes_to_move.as_span(), ntree);
-  node_set_copy.translate_nodes(offset);
+  copied_nodes.translate_nodes(offset);
 
   if (!make_copy) {
     for (bNode *node : nodes_to_move) {
@@ -654,12 +654,12 @@ static void node_group_make_insert_selected(const bContext &C,
       params, ntree, nodes, group);
 
   /* Copy nodes into the group. */
-  const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(bmain, ntree, nodes, group);
+  const NodeSetCopy copied_nodes = NodeSetCopy::from_nodes(bmain, ntree, nodes, group);
   /* Connect exposed sockets to group input/output nodes. */
-  node_set_copy.connect_sockets_to_interface(C, io_mapping);
+  connect_copied_nodes_to_interface(C, copied_nodes, io_mapping);
 
   update_nested_node_refs_after_moving_nodes_into_group(
-      ntree, group, *gnode, node_set_copy.node_identifier_map());
+      ntree, group, *gnode, copied_nodes.node_identifier_map());
   BKE_main_ensure_invariants(bmain, Span<ID *>{&group.id});
 
   /* Connect the group node to external sockets. */
@@ -718,9 +718,9 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   const NodeTreeInterfaceMapping io_mapping = build_node_declaration_interface(
       params, src_node, *wrapper_group);
 
-  const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(
+  const NodeSetCopy copied_nodes = NodeSetCopy::from_nodes(
       bmain, ntree, {&src_node}, *wrapper_group);
-  node_set_copy.connect_sockets_to_interface(C, io_mapping);
+  connect_copied_nodes_to_interface(C, copied_nodes, io_mapping);
 
   BKE_main_ensure_invariants(bmain, wrapper_group->id);
 
@@ -752,7 +752,7 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   MEM_SAFE_FREE(wrapper_group->nested_node_refs);
   wrapper_group->nested_node_refs_num = 0;
   update_nested_node_refs_after_moving_nodes_into_group(
-      ntree, *wrapper_group, *gnode, node_set_copy.node_identifier_map());
+      ntree, *wrapper_group, *gnode, copied_nodes.node_identifier_map());
 
   BKE_ntree_update_tag_node_property(&ntree, gnode);
   BKE_main_ensure_invariants(bmain);
