@@ -659,134 +659,90 @@ GHOST_TKey GHOST_SystemWin32::hardKey(RAWINPUT const &raw, bool *r_key_down)
  */
 GHOST_TKey GHOST_SystemWin32::processSpecialKey(short vKey, short scanCode) const
 {
-  GHOST_TKey key = GHOST_kKeyUnknown;
   if (vKey == 0xFF) {
     /* 0xFF is not a valid virtual key code. */
-    return key;
+    return GHOST_kKeyUnknown;
   }
 
   char ch = char(MapVirtualKeyA(vKey, MAPVK_VK_TO_CHAR));
+
   switch (ch) {
     case u'\"':
     case u'\'':
-      /* VK_OEM_7 on US Keyboard. */
-      key = GHOST_kKeyQuote;
-      break;
+      return GHOST_kKeyQuote;
     case u'.':
-      key = GHOST_kKeyNumpadPeriod;
-      break;
+      return GHOST_kKeyNumpadPeriod;
     case u';':
-      /* VK_OEM_1 on US Keyboard. */
-      key = GHOST_kKeySemicolon;
-      break;
+      return GHOST_kKeySemicolon;
     case u'/':
-      /* VK_OEM_2 on US Keyboard. */
-      key = GHOST_kKeySlash;
-      break;
+      return GHOST_kKeySlash;
     case u'\\':
-      /* VK_OEM_5 on US Keyboard. */
-      key = GHOST_kKeyBackslash;
-      break;
+      return GHOST_kKeyBackslash;
     case u'^':
-      /* VK_OEM_5 on German Keyboard. */
-      key = GHOST_kKeyCircumflex;
-      break;
+      return GHOST_kKeyCircumflex;
     case u'#':
-      /* VK_OEM_2 on German Keyboard. */
-      key = GHOST_kKeyNumber;
-      break;
+      return GHOST_kKeyNumber;
     case u'`':
     case u'²':
-      /* VK_OEM_3 on US keyboard. */
-      key = GHOST_kKeyAccentGrave;
-      break;
+      return GHOST_kKeyAccentGrave;
     case u'[':
-      /* VK_OEM_4 on US keyboard. */
-      key = GHOST_kKeyLeftBracket;
-      break;
+      return GHOST_kKeyLeftBracket;
     case u']':
-      /* VK_OEM_6 on US keyboard. */
-      key = GHOST_kKeyRightBracket;
-      break;
-    case u'<':
-      /* VK_OEM_102 on German keyboard. */
-      key = GHOST_kKeyGrLess;
-      break;
+      return GHOST_kKeyRightBracket;
     case u'i':
-      /* `i` key on Turkish keyboard. */
-      key = GHOST_kKeyI;
-      break;
-    default:
-      if (vKey == VK_OEM_1) {
-        if (ch == 0 && scanCode == 0x1A) {
-          /* `ü` on German keyboard. */
-          key = GHOST_kKeyUmlautU;
-        }
-        else {
-          key = GHOST_kKeySemicolon;
-        }
-      }
-      else if (vKey == VK_OEM_2) {
-        key = GHOST_kKeySlash;
-      }
-      else if (vKey == VK_OEM_3) {
-        if (ch == 0 && scanCode == 0x27) {
-          /* `Ö` on German keyboard. */
-          key = GHOST_kKeyUmlautO;
-        }
-        else {
-          key = GHOST_kKeyAccentGrave;
-        }
-      }
-      else if (vKey == VK_OEM_4) {
-        if (ch == 0 && scanCode == 0x0C) {
-          /* `ß` key on German keyboard. */
-          key = GHOST_kKeyEszett;
-        }
-        else {
-          key = GHOST_kKeyLeftBracket;
-        }
-      }
-      else if (vKey == VK_OEM_5) {
-        if (ch == 0 && scanCode == 0x29) {
-          /* `§` key on Swedish keyboard. */
-          key = GHOST_kKeySection;
-        }
-        else {
-          key = GHOST_kKeyBackslash;
-        }
-      }
-      else if (vKey == VK_OEM_6) {
-        key = GHOST_kKeyRightBracket;
-      }
-      else if (vKey == VK_OEM_7) {
-        key = GHOST_kKeyQuote;
-      }
-      else if (vKey == VK_OEM_8) {
-        key = GHOST_kKeyQuote;
-      }
-      else if (vKey == VK_OEM_7) {
-        if (ch == 0 && scanCode == 0x28) {
-          /* ` Ä` key on German keyboard. */
-          key = GHOST_kKeyUmlautA;
-        }
-        else {
-          key = GHOST_kKeyQuote;
-        }
-      }
-      else if (vKey == VK_OEM_8) {
-        if (PRIMARYLANGID(lang_id_) == LANG_FRENCH) {
-          /* OEM key; used purely for shortcuts. */
-          key = GHOST_kKeyF13;
-        }
-      }
-      else if (vKey == VK_OEM_102) {
-        key = GHOST_kKeyBackslash;
-      }
-      break;
+      return GHOST_kKeyI;
   }
 
-  return key;
+  switch (vKey) {
+    case VK_OEM_1:
+      if (ch == 0 && scanCode == 0x1A) {
+        /* `ü` on German keyboard. */
+        return GHOST_kKeyUmlautU;
+      }
+      return GHOST_kKeySemicolon;
+    case VK_OEM_2:
+      return GHOST_kKeySlash;
+    case VK_OEM_3:
+      if (ch == 0 && scanCode == 0x27) {
+        /* `Ö` on German keyboard. */
+        return GHOST_kKeyUmlautO;
+      }
+      return GHOST_kKeyAccentGrave;
+    case VK_OEM_4:
+      if (ch == 0 && scanCode == 0x0C) {
+        /* `ß` key on German keyboard. */
+        return GHOST_kKeyEszett;
+      }
+      return GHOST_kKeyLeftBracket;
+    case VK_OEM_5:
+      if (ch == 0 && scanCode == 0x29) {
+        /* `§` key on Swedish keyboard. */
+        return GHOST_kKeySection;
+      }
+      return GHOST_kKeyBackslash;
+    case VK_OEM_6:
+      return GHOST_kKeyRightBracket;
+    case VK_OEM_7:
+      if (ch == 0 && scanCode == 0x28) {
+        /* `Ä` key on German keyboard. */
+        return GHOST_kKeyUmlautA;
+      }
+      return GHOST_kKeyQuote;
+    case VK_OEM_8:
+      if (PRIMARYLANGID(lang_id_) == LANG_FRENCH) {
+        /* OEM key; used purely for shortcuts. */
+        return GHOST_kKeyF13;
+      }
+      return GHOST_kKeyQuote;
+    case VK_OEM_102:
+      if (ch == '<') {
+        /* `Ä` key on German keyboard. */
+        return GHOST_kKeyUmlautA;
+      }
+      return GHOST_kKeyBackslash;
+  }
+
+  return GHOST_kKeyUnknown;
 }
 
 GHOST_TKey GHOST_SystemWin32::convertKey(short vKey, short scanCode, short extend) const
