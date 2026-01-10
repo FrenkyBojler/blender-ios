@@ -146,12 +146,12 @@ const char *ED_userpref_search_string_get(SpaceUserPref *spref)
 
 int ED_userpref_search_string_length(SpaceUserPref *spref)
 {
-  return blender::BLI_strnlen(spref->runtime->search_string, sizeof(spref->runtime->search_string));
+  return BLI_strnlen(spref->runtime->search_string, sizeof(spref->runtime->search_string));
 }
 
 void ED_userpref_search_string_set(SpaceUserPref *spref, const char *value)
 {
-  blender::STRNCPY(spref->runtime->search_string, value);
+  STRNCPY(spref->runtime->search_string, value);
 }
 
 bool ED_userpref_tab_has_search_result(SpaceUserPref *spref, const int index)
@@ -161,9 +161,9 @@ bool ED_userpref_tab_has_search_result(SpaceUserPref *spref, const int index)
 
 /** \} */
 
-blender::Vector<int> ED_userpref_tabs_list(SpaceUserPref * /*prefs*/)
+Vector<int> ED_userpref_tabs_list(SpaceUserPref * /*prefs*/)
 {
-  blender::Vector<int> result;
+  Vector<int> result;
   for (const EnumPropertyItem *it = rna_enum_preference_section_items; it->identifier != nullptr;
        it++)
   {
@@ -193,8 +193,8 @@ static bool property_search_for_context(const bContext *C, ARegion *region, shor
       C, region, &region->runtime->type->paneltypes, contexts, nullptr);
 }
 
-static void userpref_search_move_to_next_tab_with_results(
-    SpaceUserPref *sbuts, const blender::Span<int> context_tabs_array)
+static void userpref_search_move_to_next_tab_with_results(SpaceUserPref *sbuts,
+                                                          const Span<int> context_tabs_array)
 {
   int current_tab_index = 0;
   for (const int i : context_tabs_array.index_range()) {
@@ -222,12 +222,12 @@ static void userpref_search_move_to_next_tab_with_results(
 static void userpref_search_all_tabs(const bContext *C,
                                      SpaceUserPref *sprefs,
                                      ARegion *region_original,
-                                     const blender::Span<int> context_tabs_array)
+                                     const Span<int> context_tabs_array)
 {
   /* Use local copies of the area and duplicate the region as a mainly-paranoid protection
    * against changing any of the space / region data while running the search. */
   ScrArea *area_original = CTX_wm_area(C);
-  ScrArea area_copy = blender::dna::shallow_copy(*area_original);
+  ScrArea area_copy = dna::shallow_copy(*area_original);
   ARegion *region_copy = BKE_area_region_copy(area_copy.type, region_original);
   /* Set the region visible field. Otherwise some layout code thinks we're drawing in a popup.
    * This likely isn't necessary, but it's nice to emulate a "real" region where possible. */
@@ -255,7 +255,7 @@ static void userpref_search_all_tabs(const bContext *C,
     /* Actually do the search and store the result in the bitmap. */
     const bool found = property_search_for_context(C, region_copy, context_tabs_array[i]);
     BLI_BITMAP_SET(sprefs->runtime->tab_search_results, i, found);
-    blender::ui::blocklist_free(C, region_copy);
+    ui::blocklist_free(C, region_copy);
   }
   BKE_area_region_free(area_copy.type, region_copy);
   MEM_freeN(region_copy);
@@ -272,13 +272,13 @@ static void userpref_main_region_property_search(const bContext *C,
                                                  SpaceUserPref *sprefs,
                                                  ARegion *region)
 {
-  blender::Vector<int> tabs = ED_userpref_tabs_list(sprefs);
+  Vector<int> tabs = ED_userpref_tabs_list(sprefs);
   // BLI_bitmap_set_all(sprefs->runtime->tab_search_results, false, tabs.size());
   userpref_search_all_tabs(C, sprefs, region, tabs);
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
   for (Panel &panel : region->panels) {
-    if (blender::ui::panel_is_active(&panel) && blender::ui::panel_matches_search_filter(&panel)) {
+    if (ui::panel_is_active(&panel) && ui::panel_matches_search_filter(&panel)) {
       current_tab_has_search_match = true;
     }
   }

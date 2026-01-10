@@ -1101,7 +1101,7 @@ static wmOperatorStatus preferences_start_filter_exec(bContext *C, wmOperator * 
   SpaceUserPref *space = CTX_wm_space_userpref(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
-  blender::ui::textbutton_activate_rna(C, region, space, "search_filter");
+  ui::textbutton_activate_rna(C, region, space, "search_filter");
   return OPERATOR_FINISHED;
 }
 

@@ -291,13 +291,8 @@ static void rna_uiItemTabsEnumR(Layout *layout,
     }
   }
 
-  layout->prop_tabs_enum(C,
-                         ptr,
-                         prop,
-                         ptr_highlight,
-                         prop_highlight,
-                         icon_only,
-                         blender::ui::EnumTabExpand(expand_as));
+  layout->prop_tabs_enum(
+      C, ptr, prop, ptr_highlight, prop_highlight, icon_only, ui::EnumTabExpand(expand_as));
 }
 
 static void rna_uiItemEnumR_string(Layout *layout,
@@ -1501,14 +1496,14 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_boolean(func, "icon_only", false, "", "Draw only icons in tabs, no text");
 
   static const EnumPropertyItem rna_enum_prop_tabs_enum_expand_as[] = {
-      {int(blender::ui::EnumTabExpand::Default), "DEFAULT", 0, "", ""},
-      {int(blender::ui::EnumTabExpand::Row), "ROW", 0, "", ""},
+      {int(ui::EnumTabExpand::Default), "DEFAULT", 0, "", ""},
+      {int(ui::EnumTabExpand::Row), "ROW", 0, "", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
   parm = RNA_def_enum(func,
                       "expand_as",
                       rna_enum_prop_tabs_enum_expand_as,
-                      int(blender::ui::EnumTabExpand::Default),
+                      int(ui::EnumTabExpand::Default),
                       "",
                       "");
 

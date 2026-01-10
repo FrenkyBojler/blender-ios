@@ -28,7 +28,7 @@ struct SpaceUserPref_Runtime {
    * Bit-field (in the same order as the tabs) for whether each tab has properties
    * that match the search filter. Only valid when #search_string is set.
    */
-  blender::BLI_bitmap *tab_search_results;
+  BLI_bitmap *tab_search_results;
 };
 
 }  // namespace blender
