@@ -905,15 +905,6 @@ GHOST_TKey GHOST_SystemWin32::convertKey(short vKey, short scanCode, short exten
       case VK_OEM_PERIOD:
         key = GHOST_kKeyPeriod;
         break;
-      case VK_OEM_1:
-      case VK_OEM_2:
-      case VK_OEM_3:
-      case VK_OEM_4:
-      case VK_OEM_5:
-      case VK_OEM_6:
-      case VK_OEM_7:
-      case VK_OEM_8:
-      case VK_OEM_102:
       default:
         key = ((GHOST_SystemWin32 *)getSystem())->processSpecialKey(vKey, scanCode);
         break;
