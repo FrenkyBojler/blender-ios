@@ -24,6 +24,8 @@
 
 #include "sequencer_scopes.hh"
 
+namespace blender {
+
 /* Internal exports only. */
 
 struct ARegion;
@@ -45,11 +47,11 @@ struct wmOperatorType;
 struct ScrArea;
 struct Editing;
 
-namespace blender::ed::asset {
+namespace ed::asset {
 struct AssetItemTree;
 }
 
-namespace blender::ed::vse {
+namespace ed::vse {
 
 class SeqQuadsBatch;
 class StripsDrawBatch;
@@ -387,8 +389,6 @@ void sequencer_retiming_speed_draw(const TimelineDrawContext &ctx,
 void realize_fake_keys(const Scene *scene, Strip *strip);
 SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const int mval[2]);
 SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2], Strip **r_strip);
-int left_fake_key_frame_get(const bContext *C, const Strip *strip);
-int right_fake_key_frame_get(const bContext *C, const Strip *strip);
 bool retiming_keys_can_be_displayed(const SpaceSeq *sseq);
 rctf strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip);
 
@@ -424,4 +424,5 @@ MenuType add_catalog_assets_menu_type();
 MenuType add_unassigned_assets_menu_type();
 MenuType add_scene_menu_type();
 
-}  // namespace blender::ed::vse
+}  // namespace ed::vse
+}  // namespace blender

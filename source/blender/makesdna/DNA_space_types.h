@@ -24,6 +24,8 @@
 #include "DNA_view2d_types.h"
 #include "DNA_viewer_path_types.h"
 
+namespace blender {
+
 struct BLI_mempool;
 struct FileLayout;
 struct FileList;
@@ -44,36 +46,36 @@ struct bNodeTree;
 struct wmOperator;
 struct wmTimer;
 
-namespace blender::asset_system {
+namespace asset_system {
 class AssetRepresentation;
 }
 
 /** Defined in `buttons_intern.hh`. */
 struct SpaceProperties_Runtime;
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 struct SpaceNode_Runtime;
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
-namespace blender::ed::outliner {
+namespace ed::outliner {
 struct SpaceOutliner_Runtime;
-}  // namespace blender::ed::outliner
+}  // namespace ed::outliner
 
-namespace blender::ed::vse {
+namespace ed::vse {
 struct SpaceSeq_Runtime;
-}  // namespace blender::ed::vse
+}  // namespace ed::vse
 
-namespace blender::ed::text {
+namespace ed::text {
 
 struct SpaceText_Runtime;
-}  // namespace blender::ed::text
+}  // namespace ed::text
 
-namespace blender::ed::spreadsheet {
+namespace ed::spreadsheet {
 struct SpaceSpreadsheet_Runtime;
 struct SpreadsheetColumnRuntime;
-}  // namespace blender::ed::spreadsheet
+}  // namespace ed::spreadsheet
 
-namespace blender::ed::outliner {
+namespace ed::outliner {
 struct TreeElement;
 }
 
@@ -183,7 +185,7 @@ struct SpaceOutliner {
   /** Deprecated, copied to region. */
   DNA_DEPRECATED View2D v2d;
 
-  ListBaseT<blender::ed::outliner::TreeElement> tree = {nullptr, nullptr};
+  ListBaseT<ed::outliner::TreeElement> tree = {nullptr, nullptr};
 
   /**
    * Treestore is an ordered list of TreeStoreElem's from outliner tree;
@@ -213,7 +215,7 @@ struct SpaceOutliner {
   short sort_method = 0;
   char _pad1[6] = {};
 
-  blender::ed::outliner::SpaceOutliner_Runtime *runtime = nullptr;
+  ed::outliner::SpaceOutliner_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -363,7 +365,7 @@ struct SpaceSeq {
   char multiview_eye = 0;
   char _pad2[7] = {};
 
-  blender::ed::vse::SpaceSeq_Runtime *runtime = nullptr;
+  ed::vse::SpaceSeq_Runtime *runtime = nullptr;
 };
 
 struct MaskSpaceInfo {
@@ -582,7 +584,7 @@ struct FileDirEntry {
   /** If this file represents an asset, its asset data is here. Note that we may show assets of
    * external files in which case this is set but not the id above.
    * Note comment for FileListInternEntry.local_data, the same applies here! */
-  blender::asset_system::AssetRepresentation *asset = nullptr;
+  asset_system::AssetRepresentation *asset = nullptr;
 
   /* The icon_id for the preview image. */
   int preview_icon_id = 0;
@@ -741,7 +743,7 @@ struct SpaceText {
   char _pad3[2] = {};
 
   /** Keep last. */
-  blender::ed::text::SpaceText_Runtime *runtime = nullptr;
+  ed::text::SpaceText_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -891,7 +893,7 @@ struct SpaceNode {
 
   SpaceNodeOverlay overlay;
 
-  blender::ed::space_node::SpaceNode_Runtime *runtime = nullptr;
+  ed::space_node::SpaceNode_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -1125,7 +1127,7 @@ struct SpreadsheetColumn {
    */
   char *display_name = nullptr;
 
-  blender::ed::spreadsheet::SpreadsheetColumnRuntime *runtime = nullptr;
+  ed::spreadsheet::SpreadsheetColumnRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
   bool is_available() const
@@ -1249,7 +1251,7 @@ struct SpaceSpreadsheet {
   int active_viewer_path_index = 0;
   char _pad2[4] = {};
 
-  blender::ed::spreadsheet::SpaceSpreadsheet_Runtime *runtime = nullptr;
+  ed::spreadsheet::SpaceSpreadsheet_Runtime *runtime = nullptr;
 };
 
 struct SpreadsheetRowFilter {
@@ -1277,3 +1279,5 @@ struct SpreadsheetRowFilter {
 };
 
 /** \} */
+
+}  // namespace blender
