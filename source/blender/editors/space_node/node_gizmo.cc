@@ -553,12 +553,11 @@ static void gizmo_node_box_mask_prop_matrix_set(const wmGizmo *gz,
   BLI_rctf_recenter(
       &rct, ((loc[0] - offset.x) / dims.x) + 0.5, ((loc[1] - offset.y) / dims.y) + 0.5);
 
-  const float width = size[0];
-  const float height = size[1] / aspect;
-  size_input->default_value_typed<bNodeSocketValueVector>()->value[0] = width;
-  size_input->default_value_typed<bNodeSocketValueVector>()->value[1] = height;
-  position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = rct.xmin + width / 2;
-  position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = rct.ymin + height / 2;
+  size_input->default_value_typed<bNodeSocketValueVector>()->value[0] = size[0];
+  size_input->default_value_typed<bNodeSocketValueVector>()->value[1] = size[1] / aspect;
+  position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = rct.xmin + size[0] / 2;
+  position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = rct.ymin +
+                                                                            size[1] / aspect / 2;
 
   gizmo_node_bbox_update(mask_group);
 }
