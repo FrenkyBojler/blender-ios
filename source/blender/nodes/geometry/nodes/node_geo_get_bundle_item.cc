@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -97,6 +97,8 @@ static void node_geo_exec(GeoNodeExecParams params)
       output_value = std::move(*converted_value);
     }
     else {
+      params.error_message_add(NodeWarningType::Error,
+                               "Cannot implicitly convert item to the selected type");
       params.set_output("Bundle", std::move(bundle));
       params.set_default_remaining_outputs();
       return;
@@ -118,7 +120,7 @@ static void node_rna(StructRNA *srna)
       srna,
       "socket_type",
       "Socket Type",
-      "",
+      "Value may be implicitly converted if the type does not match",
       rna_enum_node_socket_data_type_items,
       NOD_storage_enum_accessors(socket_type),
       SOCK_FLOAT,
@@ -137,7 +139,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "NodeGetBundleItem");
   ntype.ui_name = "Get Bundle Item";
-  ntype.ui_description = "Retrieve a bundle item by path and data type.";
+  ntype.ui_description = "Retrieve a bundle item by path.";
   ntype.nclass = NODE_CLASS_CONVERTER;
   blender::bke::node_type_storage(
       ntype, "NodeGetBundleItem", node_free_standard_storage, node_copy_standard_storage);

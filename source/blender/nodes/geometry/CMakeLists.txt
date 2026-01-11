@@ -92,6 +92,7 @@ set(SRC
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
+  nodes/node_geo_get_bundle_item.cc
   nodes/node_geo_get_named_grid.cc
   nodes/node_geo_gizmo_dial.cc
   nodes/node_geo_gizmo_linear.cc
@@ -220,8 +221,6 @@ set(SRC
   nodes/node_geo_sdf_grid_offset.cc
   nodes/node_geo_self_object.cc
   nodes/node_geo_separate_bundle.cc
-  nodes/node_geo_get_bundle_item.cc
-  nodes/node_geo_store_bundle_item.cc
   nodes/node_geo_separate_components.cc
   nodes/node_geo_separate_geometry.cc
   nodes/node_geo_set_curve_handles.cc
@@ -247,6 +246,7 @@ set(SRC
   nodes/node_geo_simulation.cc
   nodes/node_geo_sort_elements.cc
   nodes/node_geo_split_to_instances.cc
+  nodes/node_geo_store_bundle_item.cc
   nodes/node_geo_store_named_attribute.cc
   nodes/node_geo_store_named_grid.cc
   nodes/node_geo_string_join.cc
