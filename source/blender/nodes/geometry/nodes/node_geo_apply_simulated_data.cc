@@ -4,6 +4,7 @@
 
 #include "BKE_mesh.h"
 
+#include "BLI_array_utils.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
@@ -91,6 +92,16 @@ class SimDataApplier {
       if (world_mesh->verts_num == sim_data_mesh->verts_num) {
         world_mesh->vert_positions_for_write().copy_from(sim_data_mesh->vert_positions());
         world_mesh->tag_positions_changed();
+
+        if (const bke::AttributeReader<float3> sim_velocities =
+                sim_data_mesh->attributes().lookup<float3>("velocity", bke::AttrDomain::Point))
+        {
+          bke::SpanAttributeWriter<float3> world_velocities =
+              world_mesh->attributes_for_write().lookup_or_add_for_write_span<float3>(
+                  "velocity", bke::AttrDomain::Point);
+          array_utils::copy(sim_velocities.varray, world_velocities.span);
+          world_velocities.finish();
+        }
       }
     }
   }

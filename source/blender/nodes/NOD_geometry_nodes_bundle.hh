@@ -97,6 +97,8 @@ class Bundle : public ImplicitSharingMixin {
   template<typename T> const T *lookup_ptr(StringRef key) const;
   template<typename T> T *lookup_path_for_write_ptr(StringRef path);
 
+  Bundle &ensure_nested_bundle(StringRef path);
+
   bool is_empty() const;
   int64_t size() const;
 

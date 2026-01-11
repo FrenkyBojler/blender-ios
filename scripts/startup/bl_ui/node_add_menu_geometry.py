@@ -637,7 +637,8 @@ class NODE_MT_gn_simulation_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeApplySimulatedData")
         layout.separator()
         self.node_operator(layout, "GeometryNodeXPBDDebugExtract")
-        self.node_operator(layout, "GeometryNodeXPBDPhysicsSolver")
+        self.node_operator(layout, "GeometryNodeXPBDPhysicsSolver", label="XPBD Physics Solver (old)")
+        self.node_operator(layout, "GeometryNodeXPBDSolver")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 

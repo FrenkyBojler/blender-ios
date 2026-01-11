@@ -140,6 +140,18 @@ void Bundle::add_path_new(StringRef path, const BundleItemValue &value)
   this->add_path_override(path, value);
 }
 
+Bundle &Bundle::ensure_nested_bundle(const StringRef path)
+{
+  BundlePtr *bundle_ptr = this->lookup_path_for_write_ptr<BundlePtr>(path);
+  if (bundle_ptr && *bundle_ptr) {
+    return bundle_ptr->ensure_mutable_inplace();
+  }
+  BundlePtr new_bundle = Bundle::create();
+  Bundle &new_bundle_ref = new_bundle.ensure_mutable_inplace();
+  this->add_path_override(path, std::move(new_bundle));
+  return new_bundle_ref;
+}
+
 const BundleItemValue *Bundle::lookup(const StringRef key) const
 {
   return items_.lookup_ptr_as(key);

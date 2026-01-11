@@ -273,6 +273,7 @@ set(SRC
   nodes/node_geo_warning.cc
   nodes/node_geo_xpbd_physics_debug_extract.cc
   nodes/node_geo_xpbd_physics_solver.cc
+  nodes/node_geo_xpbd_solver.cc
 
   include/NOD_geo_bake.hh
   include/NOD_geo_bundle.hh
