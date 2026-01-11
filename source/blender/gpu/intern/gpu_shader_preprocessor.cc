@@ -37,7 +37,8 @@ struct Preprocessor {
   };
 
   Vector<Token, 8> jump_stack;
-  Map<StringRef, Token> defines;
+  /* Maps macro names to definition name token index. */
+  Map<StringRef, int> defines;
   Set<StringRef> visited_macros;
 
   /* Own stack to avoid memory allocation during recursive expansion parsing. */
@@ -222,8 +223,9 @@ struct Preprocessor {
       return;
     }
 
-    Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
-    if (macro_tok.is_valid()) {
+    int macro_id = defines.lookup_default(str(tok), -1);
+    if (macro_id != -1) {
+      Token macro_tok = parser.data_get()[macro_id];
       auto [replacement, end] = expand_macro(tok, macro_tok);
       mut_str.replace(tok, end, replacement);
       cursor = end.index;
@@ -474,8 +476,9 @@ struct Preprocessor {
     while (true) {
       StringRef tok_str = str(tok);
 
-      Token macro_tok = defines.lookup_default(tok_str, Token::invalid());
-      if (macro_tok.is_valid()) {
+      int macro_id = defines.lookup_default(tok_str, -1);
+      if (macro_id != -1) {
+        Token macro_tok = parser.data_get()[macro_id];
         auto [replacement, macro_end] = expand_macro(tok, macro_tok);
         expand += replacement;
         tok = macro_end;
@@ -601,7 +604,7 @@ struct Preprocessor {
     CHECK(macro_name != Word);
     /* Store the name token of the declaration.
      * The actual parsing of the definition happens during expansion. */
-    defines.add_overwrite(str(macro_name), macro_name);
+    defines.add_overwrite(str(macro_name), macro_name.index);
     parser.replace(hash_tok, dir_end, new_lines(hash_tok, dir_end));
   }
 
