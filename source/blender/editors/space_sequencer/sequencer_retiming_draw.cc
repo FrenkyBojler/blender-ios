@@ -86,11 +86,6 @@ inline float retiming_key_mouseover_threshold()
   return (16.0f * UI_SCALE_FAC);
 }
 
-static float key_x_get(const Scene *scene, const Strip *strip, const SeqRetimingKey *key)
-{
-  return seq::retiming_key_frame_get(scene, strip, key);
-}
-
 static float pixels_to_view_width(const bContext *C, const float width)
 {
   const View2D *v2d = ui::view2d_fromcontext(C);
@@ -191,11 +186,12 @@ static SeqRetimingKey *mouse_over_key_get_from_strip(const bContext *C,
 
   for (SeqRetimingKey &key : seq::retiming_keys_get(strip)) {
     int distance = round_fl_to_int(
-        fabsf(ui::view2d_view_to_region_x(v2d, key_x_get(scene, strip, &key)) - mval[0]));
+        fabsf(ui::view2d_view_to_region_x(v2d, seq::retiming_key_frame_get(scene, strip, &key)) -
+              mval[0]));
 
     int threshold = retiming_key_mouseover_threshold();
-    if (key_x_get(scene, strip, &key) == strip->left_handle() ||
-        key_x_get(scene, strip, &key) == strip->right_handle(scene))
+    if (seq::retiming_key_frame_get(scene, strip, &key) == strip->left_handle() ||
+        seq::retiming_key_frame_get(scene, strip, &key) == strip->right_handle(scene))
     {
       threshold *= 2; /* Make first and last key easier to select. */
     }
@@ -252,7 +248,7 @@ static void retime_key_draw(const TimelineDrawContext &ctx,
   const View2D *v2d = ctx.v2d;
   Strip *strip = strip_ctx.strip;
 
-  const float key_x = key_x_get(scene, strip, key);
+  const float key_x = seq::retiming_key_frame_get(scene, strip, key);
   const rctf strip_box = strip_box_get(scene, v2d, strip);
   if (!BLI_rctf_isect_x(&strip_box, ui::view2d_view_to_region_x(v2d, key_x))) {
     return; /* Key out of the strip bounds. */
@@ -304,12 +300,16 @@ void sequencer_retiming_draw_continuity(const TimelineDrawContext &ctx,
   const float right_handle_position = ui::view2d_view_to_region_x(v2d, strip_ctx.right_handle);
 
   for (const SeqRetimingKey &key : seq::retiming_keys_get(strip)) {
-    if (key_x_get(scene, strip, &key) == strip_ctx.left_handle || key.strip_frame_index == 0) {
+    if (seq::retiming_key_frame_get(scene, strip, &key) == strip_ctx.left_handle ||
+        key.strip_frame_index == 0)
+    {
       continue;
     }
 
-    float key_position = ui::view2d_view_to_region_x(v2d, key_x_get(scene, strip, &key));
-    float prev_key_position = ui::view2d_view_to_region_x(v2d, key_x_get(scene, strip, &key - 1));
+    float key_position = ui::view2d_view_to_region_x(
+        v2d, seq::retiming_key_frame_get(scene, strip, &key));
+    float prev_key_position = ui::view2d_view_to_region_x(
+        v2d, seq::retiming_key_frame_get(scene, strip, &key - 1));
     if (prev_key_position > right_handle_position || key_position < left_handle_position) {
       /* Don't draw highlights for out of bounds retiming keys. */
       continue;
@@ -482,8 +482,10 @@ static bool label_rect_get(const TimelineDrawContext &ctx,
   const SeqRetimingKey *next_key = key + 1;
   const float width = pixels_to_view_width(C, BLF_width(BLF_default(), label_str, label_len));
   const float height = pixels_to_view_height(C, BLF_height(BLF_default(), label_str, label_len));
-  const float xmin = max_ff(strip_ctx.left_handle, key_x_get(scene, strip_ctx.strip, key));
-  const float xmax = min_ff(strip_ctx.right_handle, key_x_get(scene, strip_ctx.strip, next_key));
+  const float xmin = max_ff(strip_ctx.left_handle,
+                            seq::retiming_key_frame_get(scene, strip_ctx.strip, key));
+  const float xmax = min_ff(strip_ctx.right_handle,
+                            seq::retiming_key_frame_get(scene, strip_ctx.strip, next_key));
 
   rect->xmin = (xmin + xmax - width) / 2;
   rect->xmax = rect->xmin + width;
@@ -505,8 +507,8 @@ static void retime_speed_text_draw(const TimelineDrawContext &ctx,
   }
 
   const SeqRetimingKey *next_key = key + 1;
-  if (key_x_get(scene, strip, next_key) < strip_ctx.left_handle ||
-      key_x_get(scene, strip, key) > strip_ctx.right_handle)
+  if (seq::retiming_key_frame_get(scene, strip, next_key) < strip_ctx.left_handle ||
+      seq::retiming_key_frame_get(scene, strip, key) > strip_ctx.right_handle)
   {
     return; /* Label out of strip bounds. */
   }
