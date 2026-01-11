@@ -14,6 +14,8 @@
 #include "DNA_listBase.h"
 #include "DNA_texture_types.h"
 
+namespace blender {
+
 #ifndef MAX_MTEX
 #  define MAX_MTEX 18
 #endif
@@ -677,8 +679,10 @@ struct FreestyleLineStyle {
   /* nodes */
   struct bNodeTree *nodetree = nullptr;
 
-  ListBase color_modifiers = {nullptr, nullptr};
-  ListBase alpha_modifiers = {nullptr, nullptr};
-  ListBase thickness_modifiers = {nullptr, nullptr};
-  ListBase geometry_modifiers = {nullptr, nullptr};
+  ListBaseT<LineStyleModifier> color_modifiers = {nullptr, nullptr};
+  ListBaseT<LineStyleModifier> alpha_modifiers = {nullptr, nullptr};
+  ListBaseT<LineStyleModifier> thickness_modifiers = {nullptr, nullptr};
+  ListBaseT<LineStyleModifier> geometry_modifiers = {nullptr, nullptr};
 };
+
+}  // namespace blender

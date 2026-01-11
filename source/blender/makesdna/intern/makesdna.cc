@@ -48,12 +48,15 @@
 #include "DNA_sdna_types.h"
 #include "dna_utils.h"
 
+namespace blender {
+
 #define SDNA_MAX_FILENAME_LENGTH 255
 
 /* The include files that are needed to generate full Blender DNA.
  *
  * The include file below is automatically generated from the `SRC_DNA_INC`
  * variable in `source/blender/CMakeLists.txt`. */
+
 static const char *blender_includefiles[] = {
 #include "dna_includes_as_strings.h"
 
@@ -650,6 +653,7 @@ static int preprocess_include(char *maindata, const int maindata_len)
   int newlen = 0;
   bool skip_until_closing_brace = false;
   int square_bracket_level = 0;
+  int angle_bracket_level = 0;
   for (char *cp = temp; cp < temp + maindata_len; cp++) {
     if (cp[0] == '[') {
       square_bracket_level++;
@@ -696,6 +700,20 @@ static int preprocess_include(char *maindata, const int maindata_len)
       else {
         const int skip_offset = end_ptr - cp + strlen(cpp_block_end);
         cp += skip_offset;
+      }
+    }
+    /* Assume that type names ending with `T<` are templated types of legacy types. This is used to
+     * treat `ListBaseT<Type>` as `ListBase` in SDNA. */
+    else if (cp[0] == 'T' && cp[1] == '<') {
+      angle_bracket_level = 1;
+      cp++;
+    }
+    else if (angle_bracket_level >= 1) {
+      if (cp[0] == '<') {
+        angle_bracket_level++;
+      }
+      else if (cp[0] == '>') {
+        angle_bracket_level--;
       }
     }
     else {
@@ -1034,6 +1052,8 @@ static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char
   }
   fprintf(file_verify, "#undef assert_line_\n");
   fprintf(file_verify, "\n");
+  fprintf(file_verify, "using namespace blender;\n");
+  fprintf(file_verify, "\n");
 
   /* Multiple iterations to handle nested structs. */
   /* 'raw data' SDNA_RAW_DATA_STRUCT_INDEX fake struct should be ignored here. */
@@ -1310,7 +1330,7 @@ static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char
 static void dna_write(FILE *file, const void *pntr, const int size)
 {
   static int linelength = 0;
-  const char *data = (const char *)pntr;
+  const char *data = static_cast<const char *>(pntr);
 
   for (int i = 0; i < size; i++) {
     fprintf(file, "%d, ", data[i]);
@@ -1540,7 +1560,8 @@ static int make_structDNA(const char *base_directory,
     /* calc datablock size */
     const short *sp = structs[structs_num - 1];
     sp += 2 + 2 * (sp[1]);
-    len = intptr_t((char *)sp - (char *)structs[0]);
+    len = intptr_t(reinterpret_cast<char *>(const_cast<short *>(sp)) -
+                   reinterpret_cast<char *>(structs[0]));
     len = (len + 3) & ~3;
 
     dna_write(file, structs[0], len);
@@ -1565,7 +1586,8 @@ static int make_structDNA(const char *base_directory,
   }
 
   {
-    fprintf(file_ids, "\n\nnamespace blender::dna {\n\n");
+    fprintf(file_ids, "namespace blender {\n");
+    fprintf(file_ids, "namespace dna {\n\n");
     fprintf(file_ids, "template<typename T> int sdna_struct_id_get();\n\n");
     fprintf(file_ids, "int sdna_struct_id_get_max();\n");
     fprintf(file_ids, "int sdna_struct_id_get_max() { return %d; }\n", structs_num - 1);
@@ -1577,11 +1599,10 @@ static int make_structDNA(const char *base_directory,
       const int struct_type_index = structpoin[0];
       const char *name = version_struct_alias_from_static(types[struct_type_index]);
       fprintf(file_ids, "struct %s;\n", name);
-      fprintf(file_ids,
-              "template<> int blender::dna::sdna_struct_id_get<%s>() { return %d; }\n",
-              name,
-              i);
+      fprintf(file_ids, "template<> int dna::sdna_struct_id_get<%s>() { return %d; }\n", name, i);
     }
+
+    fprintf(file_ids, "\n}\n");
   }
 
   {
@@ -1592,6 +1613,7 @@ static int make_structDNA(const char *base_directory,
     for (int i = 0; *(includefiles[i]) != '\0'; i++) {
       fprintf(file_defaults, "#include \"%s%s\"\n", base_directory, includefiles[i]);
     }
+    fprintf(file_defaults, "using namespace blender;\n");
     /* Starting at 1, because 0 is "raw data". */
     for (int i = 1; i < structs_num; i++) {
       const short *structpoin = structs[i];
@@ -1630,7 +1652,7 @@ static int make_structDNA(const char *base_directory,
       const char *type = types[sp[0]];
       const int len = sp[1];
       sp += 2;
-      blender::Set<blender::StringRef> members_unique;
+      Set<StringRef> members_unique;
       members_unique.reserve(len);
       for (int a = 0; a < len; a++, sp += 2) {
         char *member = members[sp[1]];
@@ -1700,9 +1722,12 @@ static void print_usage(const char *argv0)
       argv0);
 }
 
+}  // namespace blender
+
 int main(int argc, char **argv)
 {
-  blender::Vector<const char *> cli_include_files;
+  using namespace blender;
+  Vector<const char *> cli_include_files;
 
   /* There is a number of non-optional arguments that must be provided to the executable. */
   if (argc < 6) {
@@ -1860,6 +1885,7 @@ int main(int argc, char **argv)
 
 static void UNUSED_FUNCTION(dna_rename_defs_ensure)()
 {
+  using namespace blender;
 #define DNA_STRUCT_RENAME(old, new) (void)sizeof(new);
 #define DNA_STRUCT_RENAME_MEMBER(struct_name, old, new) (void)offsetof(struct_name, new);
 #include "dna_rename_defs.h"

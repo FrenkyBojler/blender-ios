@@ -15,6 +15,8 @@
 #include "DNA_curve_types.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 enum MaskParentType {
   MASK_PARENT_POINT_TRACK = 0, /* parenting happens to point track */
   MASK_PARENT_PLANE_TRACK = 1, /* parenting happens to plane track */
@@ -113,8 +115,8 @@ struct Mask {
 
   ID id;
   struct AnimData *adt = nullptr;
-  /** Mask layers (#MaskLayer). */
-  ListBase masklayers = {nullptr, nullptr};
+  /** Mask layers. */
+  ListBaseT<struct MaskLayer> masklayers = {nullptr, nullptr};
   /** Index of active mask layer (-1 == None). */
   int masklay_act = 0;
   /** Total number of mask layers. */
@@ -213,11 +215,11 @@ struct MaskLayerShape {
 #ifdef __cplusplus
   const MaskLayerShapeElem *vertices() const
   {
-    return (const MaskLayerShapeElem *)this->data;
+    return reinterpret_cast<const MaskLayerShapeElem *>(this->data);
   }
   MaskLayerShapeElem *vertices()
   {
-    return (MaskLayerShapeElem *)this->data;
+    return reinterpret_cast<MaskLayerShapeElem *>(this->data);
   }
 #endif
 };
@@ -229,8 +231,8 @@ struct MaskLayer {
   char name[/*MAX_NAME*/ 64] = "";
 
   /** List of splines which defines this mask layer. */
-  ListBase splines = {nullptr, nullptr};
-  ListBase splines_shapes = {nullptr, nullptr};
+  ListBaseT<MaskSpline> splines = {nullptr, nullptr};
+  ListBaseT<MaskLayerShape> splines_shapes = {nullptr, nullptr};
 
   /** Active spline. */
   struct MaskSpline *act_spline = nullptr;
@@ -254,3 +256,5 @@ struct MaskLayer {
    * (#MaskLayerVisibility). */
   char visibility_flag = 0;
 };
+
+}  // namespace blender

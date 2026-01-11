@@ -14,14 +14,11 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
-#ifdef __cplusplus
-namespace blender::bke {
+namespace blender {
+
+namespace bke {
 struct CollectionRuntime;
-}  // namespace blender::bke
-using CollectionRuntimeHandle = blender::bke::CollectionRuntime;
-#else
-struct CollectionRuntimeHandle;
-#endif
+}  // namespace bke
 
 struct Collection;
 struct Object;
@@ -157,14 +154,14 @@ struct Collection {
   ID *owner_id = nullptr;
 
   /** CollectionObject. */
-  ListBase gobject = {nullptr, nullptr};
+  ListBaseT<CollectionObject> gobject = {nullptr, nullptr};
   /** CollectionChild. */
-  ListBase children = {nullptr, nullptr};
+  ListBaseT<CollectionChild> children = {nullptr, nullptr};
 
   char _pad0[4] = {};
 
   int active_exporter_index = 0;
-  ListBase exporters = {nullptr, nullptr};
+  ListBaseT<CollectionExport> exporters = {nullptr, nullptr};
 
   struct PreviewImage *preview = nullptr;
 
@@ -184,5 +181,7 @@ struct Collection {
   DNA_DEPRECATED struct ViewLayer *view_layer = nullptr;
 
   /* Keep last. */
-  CollectionRuntimeHandle *runtime = nullptr;
+  bke::CollectionRuntime *runtime = nullptr;
 };
+
+}  // namespace blender
