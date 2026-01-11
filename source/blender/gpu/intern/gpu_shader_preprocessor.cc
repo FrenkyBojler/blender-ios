@@ -214,6 +214,14 @@ struct Preprocessor {
   void try_expand(MutableString &mut_str, const ParserBase &data, int &cursor)
   {
     Token tok = Token::from_position(&data, cursor);
+    StringRef tok_str = str(tok);
+    /* Early out number literals.
+     * Anything below '0' is not an alphabetical character and thus cannot start a word.
+     * Saves one comparison. */
+    if (tok_str[0] <= '9') {
+      return;
+    }
+
     Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
     if (macro_tok.is_valid()) {
       auto [replacement, end] = expand_macro(tok, macro_tok);
