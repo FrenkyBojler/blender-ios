@@ -817,6 +817,37 @@ struct DeadCodeEliminator {
   }
 
   /* There can be a few remaining directive. Avoid parsing them as functions. */
+  void process_function(const ParserBase &data, int &cursor)
+  {
+    Token parenthesis_tok = data[cursor];
+    Token name_tok = prev(parenthesis_tok);
+    /* WATCH(fclem): It could be that a line directive is put between the return type and the
+     * function name (which would mess up the). This is currently not happening with the
+     * current codebase but might in the future. Checking for it would be quite expensive. */
+    if (name_tok != Word) {
+      return;
+    }
+    Token type_tok = prev(name_tok);
+    StringRef type_str = Preprocessor::str(type_tok);
+
+    TokenType type_tok_type = type_tok.type();
+    if (type_str[0] >= '0' && type_str[0] <= '9') {
+      /* Case where a function is called just after a line directive. The type token was not
+       * recognized as a Number token from the tokenizer rules. */
+      type_tok_type = Number;
+    }
+
+    if (type_tok_type == Word && type_str != "return" && type_str != "else") {
+      if (parsing_enabled) {
+        function_definition(name_tok, parenthesis_tok);
+      }
+    }
+    else {
+      function_call(name_tok);
+    }
+  }
+
+  /* There can be a few remaining directive. Avoid parsing them as functions. */
   void process_directives(const ParserBase &data, int &cursor)
   {
     Token hash_tok = data[cursor];
@@ -846,32 +877,7 @@ struct DeadCodeEliminator {
     for (int cursor = 0; cursor < data.lex.token_types.size(); cursor++) {
       TokenType tok_type = TokenType(data.lex.token_types[cursor]);
       if (tok_type == ParOpen) {
-        Token parenthesis_tok = data[cursor];
-        Token name_tok = prev(parenthesis_tok);
-        /* WATCH(fclem): It could be that a line directive is put between the return type and the
-         * function name (which would mess up the). This is currently not happening with the
-         * current codebase but might in the future. Checking for it would be quite expensive. */
-        if (name_tok != Word) {
-          continue;
-        }
-        Token type_tok = prev(name_tok);
-        StringRef type_str = Preprocessor::str(type_tok);
-
-        TokenType type_tok_type = type_tok.type();
-        if (type_str[0] >= '0' && type_str[0] <= '9') {
-          /* Case where a function is called just after a line directive. The type token was not
-           * recognized as a Number token from the tokenizer rules. */
-          type_tok_type = Number;
-        }
-
-        if (type_tok_type == Word && type_str != "return" && type_str != "else") {
-          if (parsing_enabled) {
-            function_definition(name_tok, parenthesis_tok);
-          }
-        }
-        else {
-          function_call(name_tok);
-        }
+        process_function(data, cursor);
       }
       else if (tok_type == Hash) {
         process_directives(data, cursor);
