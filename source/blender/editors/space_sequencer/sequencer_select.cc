@@ -1209,7 +1209,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
       }
       /* Attempt to realize any other connected strips' fake keys. */
       if (seq::is_strip_connected(strip_key_owner)) {
-        const int key_frame = seq::retiming_key_timeline_frame_get(scene, strip_key_owner, key);
+        const int key_frame = seq::retiming_key_frame_get(scene, strip_key_owner, key);
         VectorSet<Strip *> connections = seq::connected_strips_get(strip_key_owner);
         for (Strip *connection : connections) {
           if (key_frame == seq::left_fake_key_frame_get(scene, connection) ||

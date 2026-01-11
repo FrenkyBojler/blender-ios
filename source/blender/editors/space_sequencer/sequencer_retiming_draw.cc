@@ -88,7 +88,7 @@ inline float retiming_key_mouseover_threshold()
 
 static float key_x_get(const Scene *scene, const Strip *strip, const SeqRetimingKey *key)
 {
-  return seq::retiming_key_timeline_frame_get(scene, strip, key);
+  return seq::retiming_key_frame_get(scene, strip, key);
 }
 
 static float pixels_to_view_width(const bContext *C, const float width)

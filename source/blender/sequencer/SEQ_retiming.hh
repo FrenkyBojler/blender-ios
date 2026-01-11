@@ -66,11 +66,9 @@ SeqRetimingKey *retiming_key_get_by_timeline_frame(const Scene *scene,
                                                    const Strip *strip,
                                                    int timeline_frame);
 void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip);
-int retiming_key_timeline_frame_get(const Scene *scene,
-                                    const Strip *strip,
-                                    const SeqRetimingKey *key);
-void retiming_key_timeline_frame_set(
-    const Scene *scene, Strip *strip, SeqRetimingKey *key, int timeline_frame, bool keep_retiming);
+int retiming_key_frame_get(const Scene *scene, const Strip *strip, const SeqRetimingKey *key);
+void retiming_key_frame_set(
+    const Scene *scene, Strip *strip, SeqRetimingKey *key, int frame, bool keep_retiming);
 SeqRetimingKey *retiming_find_segment_start_key(const Strip *strip, float frame_index);
 bool retiming_key_is_transition_type(const SeqRetimingKey *key);
 bool retiming_key_is_transition_start(const SeqRetimingKey *key);

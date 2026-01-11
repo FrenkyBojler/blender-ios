@@ -367,7 +367,7 @@ static bool freeze_frame_add_from_retiming_selection(const bContext *C,
   Map selection = seq::retiming_selection_get(seq::editing_get(scene));
 
   for (auto item : selection.items()) {
-    const int timeline_frame = seq::retiming_key_timeline_frame_get(scene, item.value, item.key);
+    const int timeline_frame = seq::retiming_key_frame_get(scene, item.value, item.key);
     success |= freeze_frame_add_new_for_strip(C, op, item.value, timeline_frame, duration);
     seq::relations_invalidate_cache_raw(scene, item.value);
   }
@@ -476,7 +476,7 @@ static bool transition_add_from_retiming_selection(const bContext *C,
   Map selection = seq::retiming_selection_get(seq::editing_get(scene));
 
   for (auto item : selection.items()) {
-    const int timeline_frame = seq::retiming_key_timeline_frame_get(scene, item.value, item.key);
+    const int timeline_frame = seq::retiming_key_frame_get(scene, item.value, item.key);
     success |= transition_add_new_for_strip(C, op, item.value, timeline_frame, duration);
   }
   return success;
@@ -791,7 +791,7 @@ static bool select_connected_keys(const Scene *scene,
     return false;
   }
 
-  const int frame = seq::retiming_key_timeline_frame_get(scene, source_owner, source);
+  const int frame = seq::retiming_key_frame_get(scene, source_owner, source);
   bool changed = false;
   VectorSet<Strip *> connections = seq::connected_strips_get(source_owner);
   for (Strip *connection : connections) {
@@ -911,7 +911,7 @@ wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op)
     realize_fake_keys_in_rect(scene, strip, rectf);
 
     for (SeqRetimingKey &key : seq::retiming_keys_get(strip)) {
-      const int key_frame = seq::retiming_key_timeline_frame_get(scene, strip, &key);
+      const int key_frame = seq::retiming_key_frame_get(scene, strip, &key);
       const int strip_start = strip->left_handle();
       const int strip_end = strip->right_handle(scene);
       if (key_frame < strip_start || key_frame > strip_end) {
