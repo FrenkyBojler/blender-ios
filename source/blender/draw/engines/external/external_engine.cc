@@ -460,7 +460,8 @@ RenderEngineType DRW_engine_viewport_external_type = {
     },
 };
 
-bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx, bool &r_draw_previous)
+bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx,
+                                                  bool &r_draw_previous)
 {
   /* Get scene from the render job, to show progress for scenes render as part
    * of compositor or sequencer. */

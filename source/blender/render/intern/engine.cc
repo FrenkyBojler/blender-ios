@@ -329,9 +329,6 @@ RenderResult *RE_engine_begin_result(
   }
 
   Render *re = engine->re;
-  if ((re->result) && (re->r.mode & R_BORDER) && (re->r.mode & R_BORDER_OVERLAY)) {
-  }
-
   RenderResult *result;
   rcti disprect;
 
