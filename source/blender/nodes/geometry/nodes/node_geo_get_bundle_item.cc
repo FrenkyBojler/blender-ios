@@ -17,8 +17,6 @@
 
 namespace blender::nodes::node_geo_get_bundle_item_cc {
 
-NODE_STORAGE_FUNCS(NodeGetBundleItem)
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -29,8 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bundle>("Bundle");
   b.add_output<decl::Bundle>("Bundle").align_with_previous();
   if (node != nullptr) {
-    const NodeGetBundleItem &storage = node_storage(*node);
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(storage.socket_type);
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(node->custom1);
     b.add_output(socket_type, "Item");
   }
   b.add_output<decl::Bool>("Exists");
@@ -47,15 +44,12 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGetBundleItem *data = MEM_callocN<NodeGetBundleItem>(__func__);
-  data->socket_type = SOCK_FLOAT;
-  node->storage = data;
+  node->custom1 = SOCK_FLOAT;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
-  const NodeGetBundleItem &storage = node_storage(node);
 
   nodes::BundlePtr bundle = params.extract_input<nodes::BundlePtr>("Bundle");
   if (!bundle) {
@@ -88,7 +82,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(storage.socket_type, 0);
+  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(node.custom1, 0);
   SocketValueVariant output_value = socket_value->value;
   if (socket_value->type->type != stype->type) {
     if (std::optional<SocketValueVariant> converted_value = implicitly_convert_socket_value(
@@ -122,7 +116,7 @@ static void node_rna(StructRNA *srna)
       "Socket Type",
       "Value may be implicitly converted if the type does not match",
       rna_enum_node_socket_data_type_items,
-      NOD_storage_enum_accessors(socket_type),
+      NOD_inline_enum_accessors(custom1),
       SOCK_FLOAT,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
