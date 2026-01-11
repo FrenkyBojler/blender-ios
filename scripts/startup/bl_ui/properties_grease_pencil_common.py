@@ -192,21 +192,19 @@ class GreasePencilBrushFalloff:
                 )
 
 class GREASE_PENCIL_MT_move_to_layer_submenu(bpy.types.Menu):
-    bl_label = "Move to Group"
+    bl_label = "Move to Layer Group"
 
     def draw(self, context):
         layout = self.layout
         obd = context.active_object.data
         parent_group = getattr(context, "gpencil_menu_group", None)
+        op = layout.operator("grease_pencil.move_to_layer", text="New Layer", icon='ADD')
+        op.add_new_layer = True
+        op.target_layer_group = parent_group.name if parent_group else ""
 
         # Gather all children (layers AND groups) for this specific parent
         child_layers = [l for l in obd.layers if l.parent_group == parent_group]
         child_groups = [g for g in obd.layer_groups if g.parent_group == parent_group]
-
-        layout.operator("grease_pencil.move_to_layer", text="New Layer", icon='ADD').add_new_layer = True
-        
-        if not (child_groups or child_layers):
-            return
         
         layout.separator()
 

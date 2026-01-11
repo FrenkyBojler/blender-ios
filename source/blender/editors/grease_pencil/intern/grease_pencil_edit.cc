@@ -1909,8 +1909,30 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
   TreeNode *target_node = nullptr;
 
   if (add_new_layer) {
-    target_node = &grease_pencil.add_layer(target_layer_name).as_node();
+    char *group_name = RNA_string_get_alloc(
+        op->ptr, "target_layer_group", nullptr, 0, nullptr);
+
+    LayerGroup *group_dst = nullptr;
+
+    if (group_name && group_name[0] != '\0') {
+      if (TreeNode *node = grease_pencil.find_node_by_name(group_name)) {
+        if (node->is_group()) {
+          group_dst = &node->as_group();
+        }
+      }
+    }
+
+    if (group_dst) {
+      target_node = &grease_pencil
+                        .add_layer(*group_dst, target_layer_name)
+                        .as_node();
+    }
+    else {
+      target_node = &grease_pencil.add_layer(target_layer_name).as_node();
+    }
+    MEM_freeN(group_name);
   }
+
   else {
     target_node = grease_pencil.find_node_by_name(target_layer_name);
   }
@@ -2036,6 +2058,9 @@ static void GREASE_PENCIL_OT_move_to_layer(wmOperatorType *ot)
   prop = RNA_def_boolean(
       ot->srna, "add_new_layer", false, "New Layer", "Move selection to a new layer");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  prop = RNA_def_string(
+    ot->srna, "target_layer_group", nullptr, INT16_MAX, "Group", "Target Layer Group");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
