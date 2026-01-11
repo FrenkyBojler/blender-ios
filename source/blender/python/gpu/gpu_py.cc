@@ -59,7 +59,7 @@ bool bpygpu_is_init_or_error()
 {
   if (!GPU_is_init()) {
     PyErr_SetString(PyExc_SystemError,
-                    "GPU functions for drawing are not available in background mode");
+                    "GPU functions for drawing requires the gpu module to be initialized. See gpu.init.");
     return false;
   }
 

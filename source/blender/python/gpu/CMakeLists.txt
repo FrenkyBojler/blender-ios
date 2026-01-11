@@ -5,6 +5,7 @@
 set(INC
   .
   ../../editors/include
+  ../../makesrna
 )
 
 set(INC_SYS
@@ -63,6 +64,8 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::draw
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_OPENGL_BACKEND)
