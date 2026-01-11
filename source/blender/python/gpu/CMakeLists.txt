@@ -5,6 +5,7 @@
 set(INC
   .
   ../../editors/include
+  ../../makesrna
 )
 
 set(INC_SYS

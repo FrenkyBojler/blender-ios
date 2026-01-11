@@ -24,13 +24,40 @@
 #include "gpu_py_state.hh"
 #include "gpu_py_types.hh"
 
+#include "BKE_global.hh"
+#include "DRW_engine.hh"
+#include "WM_api.hh"
+
 #include "gpu_py_api.hh" /* Own include. */
+
 
 namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name GPU Module
  * \{ */
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_init_doc,
+    ".. function:: init()\n"
+    "\n"
+    "   Initializes the GPU module for background use.\n"
+    "   When using the OpenGL backend, a display server is required.\n");
+
+static PyObject *pygpu_init(PyObject * /*self*/)
+{
+  if (G.background && !DRW_gpu_context_is_enabled()) {
+      WM_init_gpu();
+  }
+
+  Py_RETURN_NONE;
+}
+
+static PyMethodDef pygpu_tp_methods[] = {
+    {"init", reinterpret_cast<PyCFunction>(pygpu_init), METH_NOARGS, pygpu_init_doc},
+    {nullptr, nullptr, 0, nullptr},
+};
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -42,7 +69,7 @@ static PyModuleDef pygpu_module_def = {
     /*m_name*/ "gpu",
     /*m_doc*/ pygpu_doc,
     /*m_size*/ 0,
-    /*m_methods*/ nullptr,
+    /*m_methods*/ pygpu_tp_methods,
     /*m_slots*/ nullptr,
     /*m_traverse*/ nullptr,
     /*m_clear*/ nullptr,
