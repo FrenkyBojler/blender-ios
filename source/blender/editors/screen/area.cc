@@ -2944,7 +2944,7 @@ int ED_area_header_switchbutton(const bContext *C, ui::Block *block, int yco)
 
   xco += 1.6 * U.widget_unit;
 
-  block_emboss_set(block, blender::ui::EmbossType::None);
+  block_emboss_set(block, ui::EmbossType::None);
 
   for (SpaceLink &sl : area->spacedata) {
     if (sl.is_tab) {
@@ -2955,17 +2955,8 @@ int ED_area_header_switchbutton(const bContext *C, ui::Block *block, int yco)
       const char *name = item.name;
       int icon = item.icon;
 
-      ui::Button *add_but = uiDefIconBut(block,
-                                                  ui::ButtonType::But,
-                                                  icon,
-                                                  xco,
-                                                  yco,
-                                                  UI_UNIT_Y,
-                                                  UI_UNIT_Y,
-                                                  nullptr,
-                                                  0,
-                                                  0,
-                                                  name);
+      ui::Button *add_but = uiDefIconBut(
+          block, ui::ButtonType::But, icon, xco, yco, UI_UNIT_Y, UI_UNIT_Y, nullptr, 0, 0, name);
       uchar color[4];
       ui::theme::get_color_4ubv(TH_TEXT, color);
       color[3] = 160;

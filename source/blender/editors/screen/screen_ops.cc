@@ -4824,7 +4824,7 @@ static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
     std::string name;
   };
 
-  blender::Vector<editor> editors;
+  Vector<editor> editors;
   for (SpaceLink &sl : area->spacedata) {
     const int index = RNA_enum_from_value(rna_enum_space_type_items, sl.spacetype);
     const EnumPropertyItem item = rna_enum_space_type_items[index];
@@ -4863,7 +4863,7 @@ static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
   ptr = layout.op("SCREEN_OT_area_split",
                   IFACE_("Horizontal Split"),
                   ICON_SPLIT_HORIZONTAL,
-                  blender::wm::OpCallContext::ExecDefault,
+                  wm::OpCallContext::ExecDefault,
                   UI_ITEM_NONE);
 
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_H);
