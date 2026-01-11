@@ -81,32 +81,15 @@ inline float retiming_key_mouseover_threshold()
   return (16.0f * UI_SCALE_FAC);
 }
 
-static float strip_start_screenspace_get(const View2D *v2d, const Strip *strip)
+static rcti strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip)
 {
-  return ui::view2d_view_to_region_x(v2d, strip->left_handle());
-}
+  rctf strip_bounds = strip_bounds_get(scene, strip);
+  rcti key_bounds;
+  ui::view2d_view_to_region_rcti(v2d, &strip_bounds, &key_bounds);
 
-static float strip_end_screenspace_get(const Scene *scene, const View2D *v2d, const Strip *strip)
-{
-  return ui::view2d_view_to_region_x(v2d, strip->right_handle(scene));
-}
-
-static rctf strip_box_get(const Scene *scene, const View2D *v2d, const Strip *strip)
-{
-  rctf rect;
-  rect.xmin = strip_start_screenspace_get(v2d, strip);
-  rect.xmax = strip_end_screenspace_get(scene, v2d, strip);
-  rect.ymin = ui::view2d_view_to_region_y(v2d, strip->channel + STRIP_OFSBOTTOM);
-  rect.ymax = ui::view2d_view_to_region_y(v2d, strip->channel + STRIP_OFSTOP);
-  return rect;
-}
-
-rctf strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip)
-{
-  rctf rect = strip_box_get(scene, v2d, strip);
-  rect.ymax = retiming_key_center(v2d, strip) + retiming_key_size() / 2;
-  rect.ymin = retiming_key_center(v2d, strip) - retiming_key_size() / 2;
-  return rect;
+  key_bounds.ymax = retiming_key_center(v2d, strip) + retiming_key_size() / 2;
+  key_bounds.ymin = retiming_key_center(v2d, strip) - retiming_key_size() / 2;
+  return key_bounds;
 }
 
 static bool retiming_fake_key_frame_clicked(const bContext *C,
@@ -117,8 +100,8 @@ static bool retiming_fake_key_frame_clicked(const bContext *C,
   const Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = ui::view2d_fromcontext(C);
 
-  rctf box = strip_retiming_keys_box_get(scene, v2d, strip);
-  if (!BLI_rctf_isect_pt(&box, mval[0], mval[1])) {
+  rcti box = strip_retiming_keys_box_get(scene, v2d, strip);
+  if (!BLI_rcti_isect_pt(&box, mval[0], mval[1])) {
     return false;
   }
 
@@ -195,8 +178,8 @@ SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2],
       continue;
     }
 
-    rctf box = strip_retiming_keys_box_get(scene, v2d, strip);
-    if (!BLI_rctf_isect_pt(&box, mval[0], mval[1])) {
+    rcti box = strip_retiming_keys_box_get(scene, v2d, strip);
+    if (!BLI_rcti_isect_pt(&box, mval[0], mval[1])) {
       continue;
     }
 
@@ -216,6 +199,20 @@ SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2],
   return nullptr;
 }
 
+bool is_mouse_over_retiming_keys_box(const Scene *scene,
+                                     const Strip *strip,
+                                     const View2D *v2d,
+                                     const SpaceSeq *sseq,
+                                     int mouse_co_region[2])
+{
+  if (!seq::retiming_data_is_editable(strip) || !retiming_overlay_enabled(sseq)) {
+    return false;
+  }
+
+  rcti retiming_keys_box = strip_retiming_keys_box_get(scene, v2d, strip);
+  return BLI_rcti_isect_pt_v(&retiming_keys_box, mouse_co_region);
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Retiming Key
  * \{ */
@@ -230,8 +227,8 @@ static void retime_key_draw(const TimelineDrawContext &ctx,
   Strip *strip = strip_ctx.strip;
 
   const float key_x = seq::retiming_key_frame_get(scene, strip, key);
-  const rctf strip_box = strip_box_get(scene, v2d, strip);
-  if (!BLI_rctf_isect_x(&strip_box, ui::view2d_view_to_region_x(v2d, key_x))) {
+  const rctf strip_bounds = strip_bounds_get(scene, strip);
+  if (!BLI_rctf_isect_x(&strip_bounds, key_x)) {
     return; /* Key out of the strip bounds. */
   }
 

@@ -104,8 +104,7 @@ Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mv
     if (strip->channel != mouse_channel) {
       continue;
     }
-    rctf body;
-    strip_rectf(scene, strip, &body);
+    rctf body = strip_bounds_get(scene, strip);
     if (BLI_rctf_isect_pt_v(&body, mouse_co)) {
       return strip;
     }
@@ -293,12 +292,14 @@ void select_strip_single(Scene *scene, Strip *strip, bool deselect_all)
   recurs_sel_strip(strip);
 }
 
-void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect)
+rctf strip_bounds_get(const Scene *scene, const Strip *strip)
 {
-  r_rect->xmin = strip->left_handle();
-  r_rect->xmax = strip->right_handle(scene);
-  r_rect->ymin = strip->channel + STRIP_OFSBOTTOM;
-  r_rect->ymax = strip->channel + STRIP_OFSTOP;
+  rctf bounds;
+  bounds.xmin = strip->left_handle();
+  bounds.xmax = strip->right_handle(scene);
+  bounds.ymin = strip->channel + STRIP_OFSBOTTOM;
+  bounds.ymax = strip->channel + STRIP_OFSTOP;
+  return bounds;
 }
 
 Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel)
@@ -1003,7 +1004,7 @@ static void strip_clickable_areas_get(const Scene *scene,
                                       rctf *r_left_handle,
                                       rctf *r_right_handle)
 {
-  strip_rectf(scene, strip, r_body);
+  *r_body = strip_bounds_get(scene, strip);
   *r_left_handle = *r_body;
   *r_right_handle = *r_body;
 
@@ -2151,8 +2152,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
   }
 
   for (Strip &strip : *ed->current_strips()) {
-    rctf rq;
-    strip_rectf(scene, &strip, &rq);
+    rctf rq = strip_bounds_get(scene, &strip);
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
       if (handles) {
         /* Get the clickable handle size, ignoring padding. */
@@ -2346,9 +2346,8 @@ static bool do_lasso_select_timeline(bContext *C,
   const bool select = (sel_op != SEL_OP_SUB);
 
   for (Strip &strip : ed->seqbase) {
-    rctf strip_rct;
+    rctf strip_rct = strip_bounds_get(scene, &strip);
     rcti region_rct;
-    strip_rectf(scene, &strip, &strip_rct);
     ui::view2d_view_to_region_clip(
         &region->v2d, strip_rct.xmin, strip_rct.ymin, &region_rct.xmin, &region_rct.ymin);
     ui::view2d_view_to_region_clip(
@@ -2561,8 +2560,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
   float y_radius = radius / ui::view2d_scale_get_y(v2d);
   bool changed = false;
   for (Strip &strip : *ed->current_strips()) {
-    rctf rq;
-    strip_rectf(scene, &strip, &rq);
+    rctf rq = strip_bounds_get(scene, &strip);
     /* Use custom function to check the distance because in timeline the circle is a ellipse. */
     if (check_circle_intersection_in_timeline(&rq, view_mval, x_radius, y_radius)) {
       if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {
