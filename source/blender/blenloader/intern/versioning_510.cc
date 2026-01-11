@@ -450,38 +450,6 @@ static void do_version_light_remove_use_nodes(Main *bmain, Light *light)
   new_output.location[1] = emission.location[1];
 }
 
-static void merge_by_distance_node_replace(Main &bmain)
-{
-  // struct NewNodes {
-  //   bNode &cluster;
-  //   bNode &merge;
-  //   bNode *island_index;
-  // };
-  // 
-  // Map<const bNode *, std::pair<bNode *, bNode *>> old_to_new_node;
-  // 
-  // LISTBASE_FOREACH (bNodeTree *, node_tree, &bmain.nodetrees) {
-  //   if (node_tree->type != NTREE_GEOMETRY) {
-  //     continue;
-  //   }
-  //   LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-  //     if (node->type_legacy != GEO_NODE_MERGE_BY_DISTANCE) {
-  //       continue;
-  //     }
-  // 
-  //     bNode &cluster_node = version_node_add_empty(*node_tree, "GeometryNodeClusterField");
-  //     bNodeSocket &cluster_id_input = version_node_add_socket(*node_tree, cluster_node, SOCK_IN, "NodeSocketFloat", "Group ID");
-  //     bNodeSocket &cluster_distance_input = version_node_add_socket(*node_tree, cluster_node, SOCK_IN, "NodeSocketFloat", "Distance");
-  //     bNodeSocket &cluster_ = version_node_add_socket(*node_tree, cluster_node, SOCK_IN, "NodeSocketFloat", "Selection");
-  //     bNodeSocket &output_surface_input = version_node_add_socket(*node_tree, cluster_node, SOCK_OUT, "NodeSocketFloat", "Cluster ID");
-  //     
-  //     bNode &merge_node = version_node_add_empty(*node_tree, "GeometryNodeMergeGeometry");
-  //     new_output.flag |= NODE_DO_OUTPUT;
-  //     
-  //   }
-  // }
-}
-
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
@@ -646,10 +614,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     for (Light &light : bmain->lights) {
       do_version_light_remove_use_nodes(bmain, &light);
     }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 16)) {
-    merge_by_distance_node_replace(*bmain);
   }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
