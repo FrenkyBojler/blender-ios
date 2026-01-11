@@ -38,9 +38,9 @@
 
 #include <fmt/format.h>
 
-using blender::IndexRange;
-using blender::StringRef;
-using blender::bke::AttrDomain;
+namespace blender {
+
+using bke::AttrDomain;
 
 AttributeOwner AttributeOwner::from_id(ID *id)
 {
@@ -106,7 +106,7 @@ GreasePencilDrawing *AttributeOwner::get_grease_pencil_drawing() const
   return reinterpret_cast<GreasePencilDrawing *>(ptr_);
 }
 
-blender::bke::AttributeStorage *AttributeOwner::get_storage() const
+bke::AttributeStorage *AttributeOwner::get_storage() const
 {
   switch (type_) {
     case AttributeOwnerType::Mesh:
@@ -124,7 +124,7 @@ blender::bke::AttributeStorage *AttributeOwner::get_storage() const
   return nullptr;
 }
 
-std::optional<blender::bke::MutableAttributeAccessor> AttributeOwner::get_accessor() const
+std::optional<bke::MutableAttributeAccessor> AttributeOwner::get_accessor() const
 {
   switch (type_) {
     case AttributeOwnerType::Mesh:
@@ -189,12 +189,11 @@ static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
   return BKE_attribute_rename(owner, old_name, new_name, reports);
 }
 
-static bool name_valid_for_builtin_domain_and_type(
-    const blender::bke::AttributeAccessor attributes,
-    const StringRef name,
-    const AttrDomain domain,
-    const blender::bke::AttrType data_type,
-    ReportList *reports)
+static bool name_valid_for_builtin_domain_and_type(const bke::AttributeAccessor attributes,
+                                                   const StringRef name,
+                                                   const AttrDomain domain,
+                                                   const bke::AttrType data_type,
+                                                   ReportList *reports)
 {
   if (const std::optional metadata = attributes.get_builtin_domain_and_type(name)) {
     if (domain != metadata->domain) {
@@ -216,10 +215,9 @@ static bool name_valid_for_builtin_domain_and_type(
 static bool mesh_attribute_valid(const Mesh &mesh,
                                  const StringRef name,
                                  const AttrDomain domain,
-                                 const blender::bke::AttrType data_type,
+                                 const bke::AttrType data_type,
                                  ReportList *reports)
 {
-  using namespace blender;
   if (mesh.runtime->edit_mesh) {
     if (BM_attribute_stored_in_bmesh_builtin(name)) {
       BKE_report(reports, RPT_ERROR, "Unable to create attribute in edit mode");
@@ -238,7 +236,6 @@ bool BKE_attribute_rename(AttributeOwner &owner,
                           const StringRef new_name,
                           ReportList *reports)
 {
-  using namespace blender;
   if (BKE_attribute_required(owner, old_name)) {
     BLI_assert_msg(0, "Required attribute name is not editable");
     return false;
@@ -370,7 +367,7 @@ std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const St
     }
   }
 
-  blender::bke::AttributeStorage &storage = *owner.get_storage();
+  bke::AttributeStorage &storage = *owner.get_storage();
   return storage.unique_name_calc(name);
 }
 
@@ -438,7 +435,6 @@ static StringRef uv_name_from_index(AttributeOwner &owner, int index)
 
 bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportList *reports)
 {
-  using namespace blender;
   using namespace blender::bke;
   if (name.is_empty()) {
     BKE_report(reports, RPT_ERROR, "The attribute name must not be empty");
@@ -515,8 +511,7 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
 
   if (owner.type() == AttributeOwnerType::Mesh) {
     const std::string name_copy = name;
-    std::optional<blender::bke::AttributeMetaData> metadata = attributes->lookup_meta_data(
-        name_copy);
+    std::optional<bke::AttributeMetaData> metadata = attributes->lookup_meta_data(name_copy);
     if (!metadata) {
       return false;
     }
@@ -566,7 +561,6 @@ int BKE_attributes_length(const AttributeOwner &owner,
                           const eCustomDataMask mask,
                           const bool include_anonymous)
 {
-  using namespace blender;
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh &mesh = *owner.get_mesh();
     if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
@@ -624,7 +618,7 @@ AttrDomain BKE_attribute_domain(const Mesh &mesh, const BMesh &bm, const CustomD
     if (customdata == nullptr) {
       continue;
     }
-    if (blender::Span(customdata->layers, customdata->totlayer).contains_ptr(layer)) {
+    if (Span(customdata->layers, customdata->totlayer).contains_ptr(layer)) {
       return AttrDomain(domain);
     }
   }
@@ -665,9 +659,8 @@ bool BKE_attribute_required(const AttributeOwner &owner, const StringRef name)
   return false;
 }
 
-std::optional<blender::StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owner)
+std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owner)
 {
-  using namespace blender;
   using namespace blender::bke;
   int active_index = *BKE_attributes_active_index_p(owner);
   if (active_index == -1) {
@@ -712,7 +705,6 @@ std::optional<blender::StringRefNull> BKE_attributes_active_name_get(AttributeOw
 
 void BKE_attributes_active_set(AttributeOwner &owner, const StringRef name)
 {
-  using namespace blender;
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (mesh->runtime->edit_mesh) {
@@ -754,13 +746,12 @@ int *BKE_attributes_active_index_p(AttributeOwner &owner)
   return nullptr;
 }
 
-std::optional<blender::StringRef> BKE_attribute_from_index(AttributeOwner &owner,
-                                                           const int lookup_index,
-                                                           const AttrDomainMask domain_mask,
-                                                           const eCustomDataMask layer_mask,
-                                                           const bool include_anonymous)
+std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
+                                                  const int lookup_index,
+                                                  const AttrDomainMask domain_mask,
+                                                  const eCustomDataMask layer_mask,
+                                                  const bool include_anonymous)
 {
-  using namespace blender;
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh &mesh = *owner.get_mesh();
     if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
@@ -822,7 +813,6 @@ int BKE_attribute_to_index(const AttributeOwner &owner,
                            eCustomDataMask layer_mask,
                            const bool include_anonymous)
 {
-  using namespace blender;
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh &mesh = *owner.get_mesh();
     if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
@@ -949,3 +939,5 @@ StringRef BKE_uv_map_pin_name_get(const StringRef uv_map_name, char *buffer)
       buffer, MAX_CUSTOMDATA_LAYER_NAME, ".{}.{}", UV_PINNED_NAME, uv_map_name);
   return StringRef(buffer, result.size);
 }
+
+}  // namespace blender
