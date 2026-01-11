@@ -86,16 +86,16 @@ inline float retiming_key_mouseover_threshold()
   return (16.0f * UI_SCALE_FAC);
 }
 
-static float pixels_to_view_width(const bContext *C, const float width)
+static float pixels_to_view_width(const View2D *v2d, const float width)
 {
-  const View2D *v2d = ui::view2d_fromcontext(C);
+  /* Pixels per frame. */
   float scale_x = ui::view2d_view_to_region_x(v2d, 1) - ui::view2d_view_to_region_x(v2d, 0.0f);
   return width / scale_x;
 }
 
-static float pixels_to_view_height(const bContext *C, const float height)
+static float pixels_to_view_height(const View2D *v2d, const float height)
 {
-  const View2D *v2d = ui::view2d_fromcontext(C);
+  /* Pixels per channel. */
   float scale_y = ui::view2d_view_to_region_y(v2d, 1) - ui::view2d_view_to_region_y(v2d, 0.0f);
   return height / scale_y;
 }
@@ -470,29 +470,32 @@ static size_t label_str_get(const Strip *strip,
       r_label_str, label_str_maxncpy, "%d%%", round_fl_to_int(speed * 100.0f));
 }
 
-static bool label_rect_get(const TimelineDrawContext &ctx,
-                           const StripDrawContext &strip_ctx,
-                           const SeqRetimingKey *key,
-                           const char *label_str,
-                           const size_t label_len,
-                           rctf *rect)
+static std::optional<float2> label_pos_get(const TimelineDrawContext &ctx,
+                                           const StripDrawContext &strip_ctx,
+                                           const SeqRetimingKey *key,
+                                           const char *label_str,
+                                           const size_t label_len)
 {
-  const bContext *C = ctx.C;
   const Scene *scene = ctx.scene;
-  const SeqRetimingKey *next_key = key + 1;
-  const float width = pixels_to_view_width(C, BLF_width(BLF_default(), label_str, label_len));
-  const float height = pixels_to_view_height(C, BLF_height(BLF_default(), label_str, label_len));
-  const float xmin = max_ff(strip_ctx.left_handle,
-                            seq::retiming_key_frame_get(scene, strip_ctx.strip, key));
-  const float xmax = min_ff(strip_ctx.right_handle,
-                            seq::retiming_key_frame_get(scene, strip_ctx.strip, next_key));
 
-  rect->xmin = (xmin + xmax - width) / 2;
-  rect->xmax = rect->xmin + width;
-  rect->ymin = strip_y_rescale(strip_ctx.strip, 0) + pixels_to_view_height(C, 5);
-  rect->ymax = rect->ymin + height;
+  const float key_x = max_ff(strip_ctx.left_handle,
+                             seq::retiming_key_frame_get(scene, strip_ctx.strip, key));
+  const float next_x = min_ff(strip_ctx.right_handle,
+                              seq::retiming_key_frame_get(scene, strip_ctx.strip, key + 1));
 
-  return width < xmax - xmin - pixels_to_view_width(C, retiming_key_size());
+  const float label_width = pixels_to_view_width(ctx.v2d,
+                                                 BLF_width(BLF_default(), label_str, label_len));
+
+  /* Available space for text is segment width minus two "half" keys (one key width in total). */
+  const float available_width = (next_x - key_x) -
+                                pixels_to_view_width(ctx.v2d, retiming_key_size());
+  if (available_width < label_width) {
+    return std::nullopt;
+  }
+
+  const float x = 0.5f * (key_x + next_x - label_width); /* Left edge of centered label. */
+  const float y = strip_y_rescale(strip_ctx.strip, 0) + pixels_to_view_height(ctx.v2d, 5);
+  return float2{x, y};
 }
 
 static void retime_speed_text_draw(const TimelineDrawContext &ctx,
@@ -514,10 +517,10 @@ static void retime_speed_text_draw(const TimelineDrawContext &ctx,
   }
 
   char label_str[40];
-  rctf label_rect;
   size_t label_len = label_str_get(strip, key, label_str, sizeof(label_str));
 
-  if (!label_rect_get(ctx, strip_ctx, key, label_str, label_len, &label_rect)) {
+  const std::optional<float2> pos = label_pos_get(ctx, strip_ctx, key, label_str, label_len);
+  if (!pos) {
     return; /* Not enough space to draw the label. */
   }
 
@@ -527,7 +530,7 @@ static void retime_speed_text_draw(const TimelineDrawContext &ctx,
     col[3] = 255;
   }
 
-  ui::view2d_text_cache_add(ctx.v2d, label_rect.xmin, label_rect.ymin, label_str, label_len, col);
+  ui::view2d_text_cache_add(ctx.v2d, pos->x, pos->y, label_str, label_len, col);
 }
 
 void sequencer_retiming_speed_draw(const TimelineDrawContext &ctx,
