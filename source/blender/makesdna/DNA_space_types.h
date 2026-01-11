@@ -210,6 +210,8 @@ struct SpaceOutliner {
   char filter_state = 0;
   char show_restrict_flags = 0;
   short filter_id_type = 0;
+  short sort_method = 0;
+  char _pad1[6] = {};
 
   blender::ed::outliner::SpaceOutliner_Runtime *runtime = nullptr;
 };

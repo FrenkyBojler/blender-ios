@@ -616,7 +616,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
         tp->name = te.name;
         tp->idcode = te.idcode;
 
-        short idcode = te->idcode;
+        short idcode = te.idcode;
         if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP)) {
           tp->idcode = 0; /* Don't sort this. */
         }
@@ -657,7 +657,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
   }
 }
 
-static void outliner_collections_children_sort(ListBaseT<TreeElement> *lb)
+static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
 {
   TreeElement *last_te = static_cast<TreeElement *>(lb->last);
   if (last_te == nullptr) {
@@ -665,10 +665,14 @@ static void outliner_collections_children_sort(ListBaseT<TreeElement> *lb)
   }
   TreeStoreElem *last_tselem = TREESTORE(last_te);
 
-  if ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)) {
+  /* Sorting rules; only object lists, ID lists, or deform-groups. */
+  const short last_idcode = last_te->idcode;
+  if (ELEM(last_tselem->type, TSE_DEFGROUP, TSE_ID_BASE) ||
+      ((last_tselem->type == TSE_SOME_ID) && (last_idcode == ID_OB)))
+  {
     const int totelem = BLI_listbase_count(lb);
     if (totelem > 1) {
-      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array (type)");
+      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
       tTreeSort *tp = tear;
 
       for (TreeElement &te : *lb) {
@@ -676,24 +680,110 @@ static void outliner_collections_children_sort(ListBaseT<TreeElement> *lb)
         tp->te = &te;
         tp->name = te.name;
         tp->idcode = te.idcode;
-        tp->id = tselem->id;
+
+        short idcode = te.idcode;
+        if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP)) {
+          tp->idcode = 0; /* Don't sort this. */
+        }
+        if (ELEM(tselem->type, TSE_ID_BASE, TSE_DEFGROUP)) {
+          tp->idcode = 1; /* Do sort this. */
+        }
+        tp->idcode = idcode;
         tp++;
       }
 
-      qsort(tear, totelem, sizeof(tTreeSort), treesort_type_ob);
+      if (tear->idcode == 1) {
+        qsort(tear, totelem, sizeof(tTreeSort), treesort_custom);
+      }
+      else {
+        /* Keep any non sortable prefix, sort the rest as objects. */
+        int skip = 0;
+        for (tp = tear; skip < totelem; skip++, tp++) {
+          if (tp->idcode) {
+            break;
+          }
+        }
+        if (skip < totelem) {
+          qsort(tear + skip, totelem - skip, sizeof(tTreeSort), treesort_custom);
+        }
+      }
 
       BLI_listbase_clear(lb);
       tp = tear;
       for (int i = 0; i < totelem; i++, tp++) {
         BLI_addtail(lb, tp->te);
       }
-
       MEM_freeN(tear);
     }
   }
 
   for (TreeElement &te_iter : *lb) {
-    outliner_collections_children_sort(&te_iter.subtree);
+    outliner_sort_custom(&te_iter.subtree);
+  }
+}
+
+static void outliner_sort_type(ListBaseT<TreeElement> *lb)
+{
+  TreeElement *last_te = static_cast<TreeElement *>(lb->last);
+  if (last_te == nullptr) {
+    return;
+  }
+  TreeStoreElem *last_tselem = TREESTORE(last_te);
+
+  /* Sorting rules; only object lists, ID lists, or deform-groups. */
+  const short last_idcode = last_te->idcode;
+  if (ELEM(last_tselem->type, TSE_DEFGROUP, TSE_ID_BASE) ||
+      ((last_tselem->type == TSE_SOME_ID) && (last_idcode == ID_OB)))
+  {
+    const int totelem = BLI_listbase_count(lb);
+    if (totelem > 1) {
+      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
+      tTreeSort *tp = tear;
+
+      for (TreeElement &te : *lb) {
+        TreeStoreElem *tselem = TREESTORE(&te);
+        tp->te = &te;
+        tp->name = te.name;
+        tp->idcode = te.idcode;
+
+        short idcode = te.idcode;
+        if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP)) {
+          tp->idcode = 0; /* Don't sort this. */
+        }
+        if (ELEM(tselem->type, TSE_ID_BASE, TSE_DEFGROUP)) {
+          tp->idcode = 1; /* Do sort this. */
+        }
+        tp->idcode = idcode;
+        tp++;
+      }
+
+      if (tear->idcode == 1) {
+        qsort(tear, totelem, sizeof(tTreeSort), treesort_type_ob);
+      }
+      else {
+        /* Keep any non sortable prefix, sort the rest as objects. */
+        int skip = 0;
+        for (tp = tear; skip < totelem; skip++, tp++) {
+          if (tp->idcode) {
+            break;
+          }
+        }
+        if (skip < totelem) {
+          qsort(tear + skip, totelem - skip, sizeof(tTreeSort), treesort_type_ob);
+        }
+      }
+
+      BLI_listbase_clear(lb);
+      tp = tear;
+      for (int i = 0; i < totelem; i++, tp++) {
+        BLI_addtail(lb, tp->te);
+      }
+      MEM_freeN(tear);
+    }
+  }
+
+  for (TreeElement &te_iter : *lb) {
+    outliner_sort_type(&te_iter.subtree);
   }
 }
 

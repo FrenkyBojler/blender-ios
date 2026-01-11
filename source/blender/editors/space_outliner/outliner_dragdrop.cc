@@ -1363,6 +1363,21 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     TREESTORE(data.te)->flag &= ~TSE_CLOSED;
   }
 
+  blender::Vector<CollectionObject *> cobs;
+  blender::Vector<CollectionObject *> dragged_cobs;
+  bool is_custom_sort_move = false;
+
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  if (space_outliner->sort_method == SO_SORT_CUSTOM) {
+    is_custom_sort_move = true;
+    for (CollectionObject &cob : data.to->gobject) {
+      cobs.append(&cob);
+    }
+    std::sort(cobs.begin(), cobs.end(), [](const CollectionObject *a, const CollectionObject *b) {
+      return a->sort_index < b->sort_index;
+    });
+  }
+
   if (relative_after) {
     BLI_listbase_reverse(&drag->ids);
   }
@@ -1378,7 +1393,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
       Object *object = (Object *)drag_id.id;
 
       const bool link_only = (event->modifier & KM_CTRL);
-      Collection *from = link_only ? nullptr : collection_parent_from_ID(drag_id->from_parent);
+      from = link_only ? nullptr : collection_parent_from_ID(drag_id.from_parent);
 
       if (from) {
         BKE_collection_object_move(bmain, scene, data.to, from, object);
@@ -1387,9 +1402,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
         BKE_collection_object_add(bmain, data.to, object);
       }
 
-      SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-      if (space_outliner->sort_method == SO_SORT_CUSTOM) {
-        is_custom_sort_move = true;
+      if (is_custom_sort_move) {
         CollectionObject *cob = BKE_collection_object_find_in(data.to, object);
         if (cob) {
           dragged_cobs.append(cob);
@@ -1408,36 +1421,24 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   }
 
   if (is_custom_sort_move) {
-    Object *relative_ob = nullptr;
+    int insert_index = cobs.size();
+
     TreeStoreElem *drop_tselem = TREESTORE(data.te);
     if (drop_tselem && drop_tselem->type == TSE_SOME_ID && data.te->idcode == ID_OB) {
-      relative_ob = reinterpret_cast<Object *>(drop_tselem->id);
-    }
-
-    int new_index = 0;
-    if (relative_ob) {
+      Object *relative_ob = (Object *)drop_tselem->id;
       CollectionObject *rel_cob = BKE_collection_object_find_in(data.to, relative_ob);
-      new_index = -1;
-      for (int i = 0; i < cobs.size(); i++) {
-        if (cobs[i] == rel_cob) {
-          new_index = i;
-          break;
-        }
-      }
-      if (new_index == -1) {
-        new_index = cobs.size();
-      }
-      else if (data.insert_type == TE_INSERT_AFTER) {
-        new_index++;
+      const int found_index = cobs.as_span().first_index_try(rel_cob);
+      if (found_index != -1) {
+        insert_index = (data.insert_type == TE_INSERT_AFTER) ? found_index + 1 : found_index;
       }
     }
-    else {
-      new_index = (data.insert_type == TE_INSERT_BEFORE) ? 0 : cobs.size();
+    else if (data.insert_type == TE_INSERT_BEFORE) {
+      insert_index = 0;
     }
 
-    cobs.insert(new_index, dragged_cobs.as_span());
+    cobs.insert(insert_index, dragged_cobs.as_span());
 
-    for (int i = 0; i < cobs.size(); i++) {
+    for (const int i : cobs.index_range()) {
       cobs[i]->sort_index = i;
     }
   }

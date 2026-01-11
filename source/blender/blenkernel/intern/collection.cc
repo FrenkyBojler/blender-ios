@@ -1401,9 +1401,9 @@ CollectionObject *BKE_collection_object_find_in(Collection *collection, Object *
   if (ELEM(nullptr, collection, ob)) {
     return nullptr;
   }
-  LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
-    if (cob->ob == ob) {
-      return cob;
+  for (CollectionObject &cob : collection->gobject) {
+    if (cob.ob == ob) {
+      return &cob;
     }
   }
   return nullptr;
