@@ -36,10 +36,31 @@
 
 namespace blender::ed::vse {
 
-bool retiming_keys_can_be_displayed(const SpaceSeq *sseq)
+bool retiming_overlay_enabled(const SpaceSeq *sseq)
 {
   return (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_RETIMING) &&
          (sseq->flag & SEQ_SHOW_OVERLAY);
+}
+
+static bool can_draw_retiming(const TimelineDrawContext &ctx, const StripDrawContext &strip_ctx)
+{
+  if (ctx.ed == nullptr) {
+    return false;
+  }
+
+  if (!retiming_overlay_enabled(ctx.sseq)) {
+    return false;
+  }
+
+  if (!strip_ctx.can_draw_retiming_overlay) {
+    return false;
+  }
+
+  if (!seq::retiming_is_allowed(strip_ctx.strip)) {
+    return false;
+  }
+
+  return true;
 }
 
 static float strip_y_rescale(const Strip *strip, const float y_value)
@@ -218,27 +239,6 @@ SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2],
   return nullptr;
 }
 
-static bool can_draw_retiming(const TimelineDrawContext &ctx, const StripDrawContext &strip_ctx)
-{
-  if (ctx.ed == nullptr) {
-    return false;
-  }
-
-  if (!retiming_keys_can_be_displayed(ctx.sseq)) {
-    return false;
-  }
-
-  if (!seq::retiming_is_allowed(strip_ctx.strip)) {
-    return false;
-  }
-
-  if (!strip_ctx.can_draw_retiming_overlay) {
-    return false;
-  }
-
-  return true;
-}
-
 /* -------------------------------------------------------------------- */
 /** \name Retiming Key
  * \{ */
@@ -387,7 +387,7 @@ void sequencer_retiming_keys_draw(const TimelineDrawContext &ctx, Span<StripDraw
   if (strips.is_empty()) {
     return;
   }
-  if (ctx.ed == nullptr || !retiming_keys_can_be_displayed(ctx.sseq)) {
+  if (ctx.ed == nullptr || !retiming_overlay_enabled(ctx.sseq)) {
     return;
   }
 

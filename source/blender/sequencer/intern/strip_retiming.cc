@@ -131,7 +131,8 @@ bool retiming_data_is_editable(const Strip *strip)
 
 bool retiming_is_allowed(const Strip *strip)
 {
-  if (strip->len < 2) {
+  /* Note that this disallows non-sequence image strips. */
+  if (strip->len <= 1) {
     return false;
   }
 

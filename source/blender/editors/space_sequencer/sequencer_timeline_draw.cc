@@ -191,7 +191,7 @@ static void strip_draw_context_set_retiming_overlay_visibility(const TimelineDra
   strip_ctx.can_draw_retiming_overlay = (strip_ctx.top - strip_ctx.bottom) / ctx.pixely >=
                                         threshold.y;
   strip_ctx.can_draw_retiming_overlay &= strip_ctx.strip_length / ctx.pixelx >= threshold.x;
-  strip_ctx.can_draw_retiming_overlay &= retiming_keys_can_be_displayed(ctx.sseq);
+  strip_ctx.can_draw_retiming_overlay &= retiming_overlay_enabled(ctx.sseq);
 }
 
 static float strip_header_size_get(const TimelineDrawContext &ctx)

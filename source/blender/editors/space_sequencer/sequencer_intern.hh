@@ -389,7 +389,7 @@ void sequencer_retiming_speed_draw(const TimelineDrawContext &ctx,
 void realize_fake_keys(const Scene *scene, Strip *strip);
 SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const int mval[2]);
 SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2], Strip **r_strip);
-bool retiming_keys_can_be_displayed(const SpaceSeq *sseq);
+bool retiming_overlay_enabled(const SpaceSeq *sseq);
 rctf strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip);
 
 /* `sequencer_text_edit.cc` */
