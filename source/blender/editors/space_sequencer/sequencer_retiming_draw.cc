@@ -63,20 +63,15 @@ static bool can_draw_retiming(const TimelineDrawContext &ctx, const StripDrawCon
   return true;
 }
 
-static float strip_y_rescale(const Strip *strip, const float y_value)
-{
-  const float y_range = STRIP_OFSTOP - STRIP_OFSBOTTOM;
-  return (y_value * y_range) + strip->channel + STRIP_OFSBOTTOM;
-}
-
 inline float retiming_key_size()
 {
-  return 10 * U.pixelsize;
+  /* Pixel size of whole retiming key, from left side to right side. */
+  return 10.0f * U.pixelsize;
 }
 
 inline float retiming_key_center(const View2D *v2d, const Strip *strip)
 {
-  return (ui::view2d_view_to_region_y(v2d, strip_y_rescale(strip, 0.0f)) + 4 +
+  return (ui::view2d_view_to_region_y(v2d, strip->channel + STRIP_OFSBOTTOM) + 4 +
           retiming_key_size() / 2);
 }
 
@@ -84,20 +79,6 @@ inline float retiming_key_mouseover_threshold()
 {
   /** Size in pixels. */
   return (16.0f * UI_SCALE_FAC);
-}
-
-static float pixels_to_view_width(const View2D *v2d, const float width)
-{
-  /* Pixels per frame. */
-  float scale_x = ui::view2d_view_to_region_x(v2d, 1) - ui::view2d_view_to_region_x(v2d, 0.0f);
-  return width / scale_x;
-}
-
-static float pixels_to_view_height(const View2D *v2d, const float height)
-{
-  /* Pixels per channel. */
-  float scale_y = ui::view2d_view_to_region_y(v2d, 1) - ui::view2d_view_to_region_y(v2d, 0.0f);
-  return height / scale_y;
 }
 
 static float strip_start_screenspace_get(const View2D *v2d, const Strip *strip)
@@ -115,8 +96,8 @@ static rctf strip_box_get(const Scene *scene, const View2D *v2d, const Strip *st
   rctf rect;
   rect.xmin = strip_start_screenspace_get(v2d, strip);
   rect.xmax = strip_end_screenspace_get(scene, v2d, strip);
-  rect.ymin = ui::view2d_view_to_region_y(v2d, strip_y_rescale(strip, 0));
-  rect.ymax = ui::view2d_view_to_region_y(v2d, strip_y_rescale(strip, 1));
+  rect.ymin = ui::view2d_view_to_region_y(v2d, strip->channel + STRIP_OFSBOTTOM);
+  rect.ymax = ui::view2d_view_to_region_y(v2d, strip->channel + STRIP_OFSTOP);
   return rect;
 }
 
@@ -483,18 +464,19 @@ static std::optional<float2> label_pos_get(const TimelineDrawContext &ctx,
   const float next_x = min_ff(strip_ctx.right_handle,
                               seq::retiming_key_frame_get(scene, strip_ctx.strip, key + 1));
 
-  const float label_width = pixels_to_view_width(ctx.v2d,
-                                                 BLF_width(BLF_default(), label_str, label_len));
+  const float label_width = ctx.pixelx * BLF_width(BLF_default(), label_str, label_len);
 
   /* Available space for text is segment width minus two "half" keys (one key width in total). */
-  const float available_width = (next_x - key_x) -
-                                pixels_to_view_width(ctx.v2d, retiming_key_size());
+  const float available_width = (next_x - key_x) - (ctx.pixelx * retiming_key_size());
   if (available_width < label_width) {
     return std::nullopt;
   }
 
+  /* Label rests 5px above bottom of strip. */
+  const float bottom_pad = (ctx.pixely * 5.0f);
+
   const float x = 0.5f * (key_x + next_x - label_width); /* Left edge of centered label. */
-  const float y = strip_y_rescale(strip_ctx.strip, 0) + pixels_to_view_height(ctx.v2d, 5);
+  const float y = (strip_ctx.strip->channel + STRIP_OFSBOTTOM) + bottom_pad;
   return float2{x, y};
 }
 
