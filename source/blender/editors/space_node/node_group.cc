@@ -275,7 +275,10 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
   /* Center nodes on the bounds of the original group node. */
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(Span{&group_node})) {
     const float2 center = bounds->center();
-    copied_nodes.translate_nodes(center);
+    for (bNode *node : copied_nodes.node_map().values()) {
+      node->location[0] += center[0];
+      node->location[1] += center[1];
+    }
   }
 
   update_nested_node_refs_after_ungroup(
@@ -349,7 +352,10 @@ static bool node_group_separate_selected(
 
   NodeSetCopy copied_nodes = NodeSetCopy::from_nodes(
       bmain, ngroup, nodes_to_move.as_span(), ntree);
-  copied_nodes.translate_nodes(offset);
+  for (bNode *node : copied_nodes.node_map().values()) {
+    node->location[0] += offset[0];
+    node->location[1] += offset[1];
+  }
 
   if (!make_copy) {
     for (bNode *node : nodes_to_move) {

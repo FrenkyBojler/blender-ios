@@ -639,14 +639,6 @@ NodeSetCopy NodeSetCopy::from_predicate(Main &bmain,
   return from_nodes(bmain, src_tree, nodes, dst_tree);
 }
 
-void NodeSetCopy::translate_nodes(const float2 &offset) const
-{
-  for (bNode *node : node_map_.values()) {
-    node->location[0] += offset[0];
-    node->location[1] += offset[1];
-  }
-}
-
 GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
                                                         const NodeSetCopy &copied_nodes,
                                                         const NodeTreeInterfaceMapping &io_mapping)

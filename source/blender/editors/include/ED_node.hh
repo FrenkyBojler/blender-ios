@@ -288,8 +288,6 @@ class NodeSetCopy {
                                     FunctionRef<bool(const bNode &node)> node_predicate,
                                     bNodeTree &dst_tree);
 
-  void translate_nodes(const float2 &offset) const;
-
  private:
   NodeSetCopy(bNodeTree &tree) : tree_(tree) {}
 };
