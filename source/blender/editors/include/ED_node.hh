@@ -321,6 +321,16 @@ void connect_copied_nodes_to_external_sockets(const NodeSetCopy &copied_nodes,
 void connect_group_node_to_external_sockets(bNode &group_node,
                                             const NodeTreeInterfaceMapping &io_mapping);
 
+void update_nested_node_refs_after_moving_nodes_into_group(
+    bNodeTree &ntree,
+    bNodeTree &group,
+    bNode &gnode,
+    const Map<int32_t, int32_t> &node_identifier_map);
+void update_nested_node_refs_after_ungroup(bNodeTree &ntree,
+                                           const bNodeTree &ngroup,
+                                           const bNode &gnode,
+                                           const Map<int32_t, int32_t> &node_identifier_map);
+
 /** \} */
 
 }  // namespace ed::space_node

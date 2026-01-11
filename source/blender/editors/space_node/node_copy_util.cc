@@ -13,6 +13,7 @@
 #include "BLI_listbase_iterator.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_rand.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_action.hh"
@@ -776,6 +777,107 @@ void connect_group_node_to_external_sockets(bNode &group_node,
         SET_FLAG_FROM_TEST(new_panel_state.flag, item.value.collapsed, NODE_PANEL_COLLAPSED);
       }
     }
+  }
+}
+
+struct NestedNodeRefIDGenerator {
+ private:
+  Set<int32_t> used_ref_ids_;
+  RandomNumberGenerator rng_;
+
+ public:
+  NestedNodeRefIDGenerator(const Span<bNestedNodeRef> used_nested_node_refs)
+      : rng_(RandomNumberGenerator::from_random_seed())
+  {
+    for (const bNestedNodeRef &ref : used_nested_node_refs) {
+      used_ref_ids_.add(ref.id);
+    }
+  }
+
+  int32_t operator()()
+  {
+    /* Find new unique identifier for the nested node ref. */
+    while (true) {
+      const int32_t new_id = rng_.get_int32(INT32_MAX);
+      if (used_ref_ids_.add(new_id)) {
+        return new_id;
+      }
+    }
+    BLI_assert_unreachable();
+    return 0;
+  }
+};
+
+static void append_nested_node_refs(bNodeTree &ntree, const Span<bNestedNodeRef> nested_node_refs)
+{
+  const int new_nested_node_refs_num = ntree.nested_node_refs_num + nested_node_refs.size();
+  bNestedNodeRef *new_nested_node_refs = MEM_new_array_for_free<bNestedNodeRef>(
+      new_nested_node_refs_num, __func__);
+  uninitialized_copy_n(ntree.nested_node_refs, ntree.nested_node_refs_num, new_nested_node_refs);
+  uninitialized_copy_n(nested_node_refs.data(),
+                       nested_node_refs.size(),
+                       new_nested_node_refs + ntree.nested_node_refs_num);
+
+  MEM_SAFE_FREE(ntree.nested_node_refs);
+  ntree.nested_node_refs = new_nested_node_refs;
+  ntree.nested_node_refs_num = new_nested_node_refs_num;
+}
+
+void update_nested_node_refs_after_moving_nodes_into_group(
+    bNodeTree &ntree,
+    bNodeTree &group,
+    bNode &gnode,
+    const Map<int32_t, int32_t> &node_identifier_map)
+{
+  /* Update nested node references in the parent and child node tree. */
+  NestedNodeRefIDGenerator ref_id_gen(group.nested_node_refs_span());
+
+  Vector<bNestedNodeRef> new_group_refs;
+  for (bNestedNodeRef &ref : ntree.nested_node_refs_span()) {
+    const std::optional<int32_t> new_node_id = node_identifier_map.lookup_try(ref.path.node_id);
+    if (!new_node_id) {
+      /* The node was not moved between node groups. */
+      continue;
+    }
+    /* Find new unique identifier for the nested node ref. */
+    const int32_t new_ref_id = ref_id_gen();
+
+    /* Updated the nested node ref in the parent so that it points to the same node that is now
+     * inside of a nested group. */
+    ref.path.node_id = gnode.identifier;
+    ref.path.id_in_node = new_ref_id;
+
+    /* Add a new nested node ref inside the group. */
+    bNestedNodeRef new_ref = ref;
+    new_ref.id = new_ref_id;
+    new_ref.path.node_id = *new_node_id;
+    new_group_refs.append(new_ref);
+  }
+
+  append_nested_node_refs(group, new_group_refs);
+}
+
+void update_nested_node_refs_after_ungroup(bNodeTree &ntree,
+                                           const bNodeTree &ngroup,
+                                           const bNode &gnode,
+                                           const Map<int32_t, int32_t> &node_identifier_map)
+{
+  for (bNestedNodeRef &ref : ntree.nested_node_refs_span()) {
+    if (ref.path.node_id != gnode.identifier) {
+      continue;
+    }
+    const bNestedNodeRef *child_ref = ngroup.find_nested_node_ref(ref.path.id_in_node);
+    if (!child_ref) {
+      continue;
+    }
+    constexpr int32_t missing_id = -1;
+    const int32_t new_node_id = node_identifier_map.lookup_default(child_ref->path.node_id,
+                                                                   missing_id);
+    if (new_node_id == missing_id) {
+      continue;
+    }
+    ref.path.node_id = new_node_id;
+    ref.path.id_in_node = child_ref->path.id_in_node;
   }
 }
 

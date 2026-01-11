@@ -12,11 +12,8 @@
 
 #include "DNA_node_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
@@ -45,7 +42,6 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
@@ -252,30 +248,6 @@ void NODE_OT_group_enter_exit(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Ungroup Operator
  * \{ */
-
-static void update_nested_node_refs_after_ungroup(bNodeTree &ntree,
-                                                  const bNodeTree &ngroup,
-                                                  const bNode &gnode,
-                                                  const Map<int32_t, int32_t> &node_identifier_map)
-{
-  for (bNestedNodeRef &ref : ntree.nested_node_refs_span()) {
-    if (ref.path.node_id != gnode.identifier) {
-      continue;
-    }
-    const bNestedNodeRef *child_ref = ngroup.find_nested_node_ref(ref.path.id_in_node);
-    if (!child_ref) {
-      continue;
-    }
-    constexpr int32_t missing_id = -1;
-    const int32_t new_node_id = node_identifier_map.lookup_default(child_ref->path.node_id,
-                                                                   missing_id);
-    if (new_node_id == missing_id) {
-      continue;
-    }
-    ref.path.node_id = new_node_id;
-    ref.path.id_in_node = child_ref->path.id_in_node;
-  }
-}
 
 /**
  * \return True if successful.
@@ -582,53 +554,6 @@ static bool node_group_make_test_selected(bNodeTree &ntree,
   return true;
 }
 
-static void update_nested_node_refs_after_moving_nodes_into_group(
-    bNodeTree &ntree,
-    bNodeTree &group,
-    bNode &gnode,
-    const Map<int32_t, int32_t> &node_identifier_map)
-{
-  /* Update nested node references in the parent and child node tree. */
-  RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
-  Vector<bNestedNodeRef> new_nested_node_refs;
-  /* Keep all nested node references that were in the group before. */
-  for (const bNestedNodeRef &ref : group.nested_node_refs_span()) {
-    new_nested_node_refs.append(ref);
-  }
-  Set<int32_t> used_nested_node_ref_ids;
-  for (const bNestedNodeRef &ref : group.nested_node_refs_span()) {
-    used_nested_node_ref_ids.add(ref.id);
-  }
-  for (bNestedNodeRef &ref : ntree.nested_node_refs_span()) {
-    const int32_t new_node_id = node_identifier_map.lookup_default(ref.path.node_id, -1);
-    if (new_node_id == -1) {
-      /* The node was not moved between node groups. */
-      continue;
-    }
-    bNestedNodeRef new_ref = ref;
-    new_ref.path.node_id = new_node_id;
-    /* Find new unique identifier for the nested node ref. */
-    while (true) {
-      const int32_t new_id = rng.get_int32(INT32_MAX);
-      if (used_nested_node_ref_ids.add(new_id)) {
-        new_ref.id = new_id;
-        break;
-      }
-    }
-    new_nested_node_refs.append(new_ref);
-    /* Updated the nested node ref in the parent so that it points to the same node that is now
-     * inside of a nested group. */
-    ref.path.node_id = gnode.identifier;
-    ref.path.id_in_node = new_ref.id;
-  }
-  MEM_SAFE_FREE(group.nested_node_refs);
-  group.nested_node_refs = MEM_new_array_for_free<bNestedNodeRef>(new_nested_node_refs.size(),
-                                                                  __func__);
-  uninitialized_copy_n(
-      new_nested_node_refs.data(), new_nested_node_refs.size(), group.nested_node_refs);
-  group.nested_node_refs_num = new_nested_node_refs.size();
-}
-
 static void node_group_make_insert_selected(const bContext &C,
                                             bNodeTree &ntree,
                                             bNode *gnode,
@@ -638,8 +563,8 @@ static void node_group_make_insert_selected(const bContext &C,
   bNodeTree &group = *reinterpret_cast<bNodeTree *>(gnode->id);
 
   NodeSetInterfaceParams params;
-  /* TODO This is inconsistent with the single-node wrapper case, which does expose hidden sockets
-   * and only hides them on the group node instance. */
+  /* TODO This is inconsistent with the single-node wrapper case, which does expose hidden
+   * sockets and only hides them on the group node instance. */
   params.skip_hidden = true;
   /* Expose only connected sockets if there is more than one node. */
   params.skip_unconnected = (nodes.size() > 1);
