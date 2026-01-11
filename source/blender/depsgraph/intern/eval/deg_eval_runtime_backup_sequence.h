@@ -13,13 +13,13 @@
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
 
+#include "SEQ_modifier.hh"
+
 namespace blender {
 
 struct MovieReader;
 struct Strip;
 struct StripModifierData;
-
-enum eStripModifierFlag;
 
 namespace deg {
 

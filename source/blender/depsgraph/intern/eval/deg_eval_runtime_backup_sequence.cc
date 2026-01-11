@@ -107,7 +107,7 @@ void StripBackup::restore_to_strip(Strip *strip)
 
   for (StripModifierData &smd : strip->modifiers) {
     std::optional<StripModifierDataBackup> backup = modifiers.pop_try(smd.persistent_uid);
-    if (backup.has_value()) {
+    if (backup) {
       backup->restore_to_modifier(&smd);
     }
   }
