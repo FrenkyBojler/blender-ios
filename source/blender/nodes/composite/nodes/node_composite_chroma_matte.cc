@@ -22,16 +22,25 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
+
+namespace blender {
 
 /* ******************* Chroma Key ********************************************************** */
 
-namespace blender::nodes::node_composite_chroma_matte_cc {
+namespace nodes::node_composite_chroma_matte_cc {
 
 static void cmp_node_chroma_matte_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.is_function_node();
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f}).hide_value();
+  b.add_output<decl::Color>("Image").align_with_previous();
+  b.add_output<decl::Float>("Matte");
+
   b.add_input<decl::Color>("Key Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Minimum")
       .default_value(DEG2RADF(10.0f))
@@ -53,9 +62,6 @@ static void cmp_node_chroma_matte_declare(NodeDeclarationBuilder &b)
       .description(
           "Controls the falloff between keyed and non-keyed values. 0 means completely sharp and "
           "1 means completely smooth");
-
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Matte");
 }
 
 using namespace blender::compositor;
@@ -113,31 +119,36 @@ static void chroma_matte(const float4 &color,
   result = color * matte;
 }
 
-static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+using compositor::Color;
+
+static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
 {
   builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::SI5_SO2<float4, float4, float, float, float, float4, float>(
+    return mf::build::SI5_SO2<Color, Color, float, float, float, Color, float>(
         "Chroma Key",
-        [=](const float4 &color,
-            const float4 &key_color,
+        [=](const Color &color,
+            const Color &key_color,
             const float &minimum,
             const float &maximum,
             const float &falloff,
-            float4 &output_color,
+            Color &output_color,
             float &matte) -> void {
-          chroma_matte(color, key_color, minimum, maximum, falloff, output_color, matte);
+          float4 out_color;
+          chroma_matte(
+              float4(color), float4(key_color), minimum, maximum, falloff, out_color, matte);
+          output_color = Color(out_color);
         },
         mf::build::exec_presets::SomeSpanOrSingle<0, 1>());
   });
 }
 
-}  // namespace blender::nodes::node_composite_chroma_matte_cc
+}  // namespace nodes::node_composite_chroma_matte_cc
 
 static void register_node_type_cmp_chroma_matte()
 {
-  namespace file_ns = blender::nodes::node_composite_chroma_matte_cc;
+  namespace file_ns = nodes::node_composite_chroma_matte_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeChromaMatte", CMP_NODE_CHROMA_MATTE);
   ntype.ui_name = "Chroma Key";
@@ -148,8 +159,10 @@ static void register_node_type_cmp_chroma_matte()
   ntype.flag |= NODE_PREVIEW;
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
-  blender::bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
+  bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_chroma_matte)
+
+}  // namespace blender

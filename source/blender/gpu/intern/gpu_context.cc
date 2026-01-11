@@ -50,11 +50,13 @@
 
 #include <mutex>
 
+namespace blender {
+
 using namespace blender::gpu;
 
 static thread_local Context *active_ctx = nullptr;
 
-static blender::Mutex backend_users_mutex;
+static Mutex backend_users_mutex;
 static int num_backend_users = 0;
 
 static void gpu_backend_create();
@@ -64,7 +66,7 @@ static void gpu_backend_discard();
 /** \name gpu::Context methods
  * \{ */
 
-namespace blender::gpu {
+namespace gpu {
 
 int Context::context_counter = 0;
 Context::Context()
@@ -87,12 +89,10 @@ Context::~Context()
   BLI_assert(back_right == nullptr);
   BLI_assert(texture_pool == nullptr);
 
+  /** IMPORTANT: Do not free resources (texture, batch, buffers) in this function. These objects
+   * are likely to reference the GL/VK/MTLContext which is already destroyed at this point. */
+
   GPU_matrix_state_discard(matrix_state);
-  GPU_BATCH_DISCARD_SAFE(procedural_points_batch);
-  GPU_BATCH_DISCARD_SAFE(procedural_lines_batch);
-  GPU_BATCH_DISCARD_SAFE(procedural_triangles_batch);
-  GPU_BATCH_DISCARD_SAFE(procedural_triangle_strips_batch);
-  GPU_VERTBUF_DISCARD_SAFE(dummy_vbo);
   delete state_manager;
   delete imm;
 }
@@ -107,6 +107,12 @@ void Context::free_resources()
   back_left = nullptr;
   front_right = nullptr;
   back_right = nullptr;
+
+  GPU_BATCH_DISCARD_SAFE(procedural_points_batch);
+  GPU_BATCH_DISCARD_SAFE(procedural_lines_batch);
+  GPU_BATCH_DISCARD_SAFE(procedural_triangles_batch);
+  GPU_BATCH_DISCARD_SAFE(procedural_triangle_strips_batch);
+  GPU_VERTBUF_DISCARD_SAFE(dummy_vbo);
 
   delete texture_pool;
   texture_pool = nullptr;
@@ -177,7 +183,7 @@ Batch *Context::procedural_triangle_strips_batch_get()
   return procedural_triangle_strips_batch;
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
 
 /** \} */
 
@@ -198,7 +204,7 @@ GPUContext *GPU_context_create(void *ghost_window, void *ghost_context)
 
   GPU_context_active_set(wrap(ctx));
 
-  blender::draw::DebugDraw::get().acquire();
+  draw::DebugDraw::get().acquire();
 
   return wrap(ctx);
 }
@@ -208,7 +214,7 @@ void GPU_context_discard(GPUContext *ctx_)
   Context *ctx = unwrap(ctx_);
   BLI_assert(active_ctx == ctx);
 
-  blender::draw::DebugDraw::get().release();
+  draw::DebugDraw::get().release();
 
   GPUBackend *backend = GPUBackend::get();
   /* Flush any remaining printf while making sure we are inside render boundaries. */
@@ -260,7 +266,7 @@ GPUContext *GPU_context_active_get()
 
 void GPU_context_begin_frame(GPUContext *ctx)
 {
-  blender::gpu::Context *_ctx = unwrap(ctx);
+  gpu::Context *_ctx = unwrap(ctx);
   if (_ctx) {
     _ctx->begin_frame();
   }
@@ -268,9 +274,17 @@ void GPU_context_begin_frame(GPUContext *ctx)
 
 void GPU_context_end_frame(GPUContext *ctx)
 {
-  blender::gpu::Context *_ctx = unwrap(ctx);
+  gpu::Context *_ctx = unwrap(ctx);
   if (_ctx) {
     _ctx->end_frame();
+  }
+}
+
+void GPU_context_debug_pipeline_creation(GPUContext *ctx, bool enable)
+{
+  gpu::Context *_ctx = unwrap(ctx);
+  if (_ctx) {
+    _ctx->debug_pipeline_creation = enable;
   }
 }
 
@@ -280,7 +294,7 @@ void GPU_context_end_frame(GPUContext *ctx)
  * Used to avoid crash on some old drivers.
  * \{ */
 
-static blender::Mutex main_context_mutex;
+static Mutex main_context_mutex;
 
 void GPU_context_main_lock()
 {
@@ -340,8 +354,8 @@ void GPU_render_step(bool force_resource_release)
 /** \name Backend selection
  * \{ */
 
-static eGPUBackendType g_backend_type = GPU_BACKEND_OPENGL;
-static std::optional<eGPUBackendType> g_backend_type_override = std::nullopt;
+static GPUBackendType g_backend_type = GPU_BACKEND_OPENGL;
+static std::optional<GPUBackendType> g_backend_type_override = std::nullopt;
 static std::optional<bool> g_backend_type_supported = std::nullopt;
 static std::optional<int> g_vsync_override = std::nullopt;
 static GPUBackend *g_backend = nullptr;
@@ -357,7 +371,7 @@ void *GPU_backend_ghost_system_get()
   return g_ghost_system;
 }
 
-void GPU_backend_type_selection_set(const eGPUBackendType backend)
+void GPU_backend_type_selection_set(const GPUBackendType backend)
 {
   g_backend_type = backend;
   g_backend_type_supported = std::nullopt;
@@ -378,12 +392,12 @@ bool GPU_backend_vsync_is_overridden()
   return g_vsync_override.has_value();
 }
 
-eGPUBackendType GPU_backend_type_selection_get()
+GPUBackendType GPU_backend_type_selection_get()
 {
   return g_backend_type;
 }
 
-void GPU_backend_type_selection_set_override(const eGPUBackendType backend_type)
+void GPU_backend_type_selection_set_override(const GPUBackendType backend_type)
 {
   g_backend_type_override = backend_type;
 }
@@ -395,7 +409,7 @@ bool GPU_backend_type_selection_is_overridden()
 
 bool GPU_backend_type_selection_detect()
 {
-  blender::VectorSet<eGPUBackendType> backends_to_check;
+  VectorSet<GPUBackendType> backends_to_check;
   if (g_backend_type_override.has_value()) {
     backends_to_check.add(*g_backend_type_override);
   }
@@ -409,7 +423,7 @@ bool GPU_backend_type_selection_detect()
   backends_to_check.add(GPU_BACKEND_VULKAN);
 #endif
 
-  for (const eGPUBackendType backend_type : backends_to_check) {
+  for (const GPUBackendType backend_type : backends_to_check) {
     GPU_backend_type_selection_set(backend_type);
     if (GPU_backend_supported()) {
       return true;
@@ -507,7 +521,7 @@ void gpu_backend_discard()
   g_backend = nullptr;
 }
 
-eGPUBackendType GPU_backend_get_type()
+GPUBackendType GPU_backend_get_type()
 {
 
 #ifdef WITH_OPENGL_BACKEND
@@ -652,3 +666,5 @@ void GPUSecondaryContext::activate()
 }
 
 /** \} */
+
+}  // namespace blender

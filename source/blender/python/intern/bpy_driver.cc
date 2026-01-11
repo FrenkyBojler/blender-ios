@@ -34,6 +34,8 @@
 
 #include "BPY_extern.hh"
 
+namespace blender {
+
 #define USE_RNA_AS_PYOBJECT
 
 #define USE_BYTECODE_WHITELIST
@@ -234,7 +236,7 @@ static void bpy_pydriver_namespace_update_depsgraph(Depsgraph *depsgraph)
     PyDict_SetItem(bpy_pydriver_Dict, bpy_intern_str_depsgraph, item);
     Py_DECREF(item);
 
-    g_pydriver_state_prev.depsgraph = (BPy_StructRNA *)item;
+    g_pydriver_state_prev.depsgraph = reinterpret_cast<BPy_StructRNA *>(item);
   }
 }
 
@@ -307,7 +309,7 @@ static void pydriver_error(ChannelDriver *driver, const PathResolvedRNA *anim_rn
 
 static bool is_opcode_secure(const int opcode)
 {
-  /* TODO(@ideasman42): Handle intrinsic opcodes (`CALL_INTRINSIC_1` & `CALL_INTRINSIC_2`).
+  /* TODO(@ideasman42): Handle intrinsic opcodes (`CALL_INTRINSIC_2`).
    * For Python 3.12. */
 
 #  define OK_OP(op) \
@@ -319,6 +321,9 @@ static bool is_opcode_secure(const int opcode)
     OK_OP(POP_TOP)
     OK_OP(PUSH_NULL)
     OK_OP(NOP)
+#  if PY_VERSION_HEX >= 0x030e0000
+    OK_OP(NOT_TAKEN)
+#  endif
 #  if PY_VERSION_HEX < 0x030c0000
     OK_OP(UNARY_POSITIVE)
 #  endif
@@ -377,10 +382,20 @@ static bool is_opcode_secure(const int opcode)
     OK_OP(POP_JUMP_BACKWARD_IF_TRUE)
 #  endif
 
+#  if PY_VERSION_HEX >= 0x030c0000
+#    if PY_VERSION_HEX < 0x030e0000
+    OK_OP(RETURN_CONST)
+#    endif
+    OK_OP(POP_JUMP_IF_FALSE)
+    OK_OP(CALL_INTRINSIC_1)
+#  endif
     /* Special cases. */
     OK_OP(LOAD_CONST) /* Ok because constants are accepted. */
     OK_OP(LOAD_NAME)  /* Ok, because `PyCodeObject.names` is checked. */
-    OK_OP(CALL)       /* Ok, because we check its "name" before calling. */
+#  if PY_VERSION_HEX >= 0x030e0000
+    OK_OP(LOAD_SMALL_INT)
+#  endif
+    OK_OP(CALL) /* Ok, because we check its "name" before calling. */
 #  if PY_VERSION_HEX >= 0x030d0000
     OK_OP(CALL_KW) /* Ok, because it's used for calling functions with keyword arguments. */
 
@@ -425,7 +440,7 @@ bool BPY_driver_secure_bytecode_test_ex(PyObject *expr_code,
                                         const bool verbose,
                                         const char *error_prefix)
 {
-  PyCodeObject *py_code = (PyCodeObject *)expr_code;
+  PyCodeObject *py_code = reinterpret_cast<PyCodeObject *>(expr_code);
 
   /* Check names. */
   {
@@ -737,7 +752,7 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
   /* Evaluate the compiled expression. */
   if (expr_code) {
     retval = PyEval_EvalCode(
-        static_cast<PyObject *>((void *)expr_code), bpy_pydriver_Dict, driver_vars);
+        static_cast<PyObject *>(static_cast<void *>(expr_code)), bpy_pydriver_Dict, driver_vars);
   }
 #endif
 
@@ -771,3 +786,5 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
 
   return float(result);
 }
+
+}  // namespace blender

@@ -23,6 +23,8 @@
 
 #include "rna_internal.hh"
 
+namespace blender {
+
 /* enum of ID-block types
  * NOTE: need to keep this in line with the other defines for these
  */
@@ -126,15 +128,16 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
     {FILTER_ID_CF, "filter_cachefile", ICON_FILE, "Cache Files", "Show Cache File data-blocks"},
     {FILTER_ID_CU_LEGACY, "filter_curve", ICON_CURVE_DATA, "Curves", "Show Curve data-blocks"},
     {FILTER_ID_GD_LEGACY,
+     "filter_annotations",
+     ICON_OUTLINER_DATA_GREASEPENCIL,
+     "Annotations",
+     "Show Annotation data-blocks"},
+    {FILTER_ID_GP,
      "filter_grease_pencil",
      ICON_GREASEPENCIL,
      "Grease Pencil",
      "Show Grease Pencil data-blocks"},
-    {FILTER_ID_GR,
-     "filter_group",
-     ICON_OUTLINER_COLLECTION,
-     "Collections",
-     "Show Collection data-blocks"},
+    {FILTER_ID_GR, "filter_group", ICON_GROUP, "Collections", "Show Collection data-blocks"},
     {FILTER_ID_CV,
      "filter_curves",
      ICON_CURVES_DATA,
@@ -200,12 +203,15 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include "DNA_anim_types.h"
 
 #  include "BLI_listbase.h"
 #  include "BLI_math_base.h"
+#  include "BLI_string.h"
 
 #  include "BLT_translation.hh"
 
@@ -213,7 +219,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_global.hh" /* XXX, remove me */
-#  include "BKE_icons.h"
+#  include "BKE_icons.hh"
 #  include "BKE_idprop.hh"
 #  include "BKE_idtype.hh"
 #  include "BKE_lib_override.hh"
@@ -236,6 +242,8 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 #  ifdef WITH_PYTHON
 #    include "BPY_extern.hh"
 #  endif
+
+namespace blender {
 
 void rna_ID_override_library_property_operation_refname_get(PointerRNA *ptr, char *value)
 {
@@ -268,13 +276,13 @@ int rna_ID_override_library_property_operation_locname_length(PointerRNA *ptr)
 /* name functions that ignore the first two ID characters */
 void rna_ID_name_get(PointerRNA *ptr, char *value)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   strcpy(value, id->name + 2);
 }
 
 int rna_ID_name_length(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   return strlen(id->name + 2);
 }
 
@@ -286,27 +294,32 @@ static int rna_ID_rename(ID *self, Main *bmain, const char *new_name, const int 
 
 void rna_ID_name_set(PointerRNA *ptr, const char *value)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
 
   rna_ID_rename(id, G_MAIN, value, int(IDNewNameMode::RenameExistingNever));
 }
 
 static int rna_ID_name_editable(const PointerRNA *ptr, const char **r_info)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
 
   /* NOTE: For the time being, allow rename of local liboverrides from the RNA API.
    *       While this is not allowed from the UI, this should work with modern liboverride code,
    *       and could be useful in some cases. */
   if (!ID_IS_EDITABLE(id)) {
     if (r_info) {
-      *r_info = N_("Linked data-blocks cannot be renamed");
+      if (ID_IS_PACKED(id)) {
+        *r_info = N_("Packed data-blocks cannot be renamed");
+      }
+      else {
+        *r_info = N_("Linked data-blocks cannot be renamed");
+      }
     }
     return 0;
   }
 
   if (GS(id->name) == ID_VF) {
-    VFont *vfont = (VFont *)id;
+    VFont *vfont = reinterpret_cast<VFont *>(id);
     if (BKE_vfont_is_builtin(vfont)) {
       if (r_info) {
         *r_info = N_("Built-in fonts cannot be renamed");
@@ -326,13 +339,13 @@ static int rna_ID_name_editable(const PointerRNA *ptr, const char **r_info)
 
 void rna_ID_name_full_get(PointerRNA *ptr, char *value)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   BKE_id_full_name_get(value, id, 0);
 }
 
 int rna_ID_name_full_length(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   char name[MAX_ID_FULL_NAME];
   BKE_id_full_name_get(name, id, 0);
   return strlen(name);
@@ -346,14 +359,14 @@ static int rna_ID_type_get(PointerRNA *ptr)
 
 static bool rna_ID_is_evaluated_get(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
 
   return DEG_get_original(id) != id;
 }
 
 static PointerRNA rna_ID_original_get(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
 
   return RNA_id_pointer_create(DEG_get_original(id));
 }
@@ -385,7 +398,7 @@ short RNA_type_to_ID_code(const StructRNA *type)
   if (base_type == &RNA_Annotation) {
     return ID_GD_LEGACY;
   }
-  if (base_type == &RNA_GreasePencilv3) {
+  if (base_type == &RNA_GreasePencil) {
     return ID_GP;
   }
   if (base_type == &RNA_Collection) {
@@ -489,7 +502,7 @@ StructRNA *ID_code_to_RNA_type(short idcode)
 {
   /* NOTE: this switch doesn't use a 'default',
    * so adding new ID's causes a warning. */
-  switch ((ID_Type)idcode) {
+  switch (ID_Type(idcode)) {
     case ID_AC:
       return &RNA_Action;
     case ID_AR:
@@ -505,7 +518,7 @@ StructRNA *ID_code_to_RNA_type(short idcode)
     case ID_GD_LEGACY:
       return &RNA_Annotation;
     case ID_GP:
-      return &RNA_GreasePencilv3;
+      return &RNA_GreasePencil;
     case ID_GR:
       return &RNA_Collection;
     case ID_CV:
@@ -568,10 +581,6 @@ StructRNA *ID_code_to_RNA_type(short idcode)
       return &RNA_World;
     case ID_WS:
       return &RNA_WorkSpace;
-
-    /* deprecated */
-    case ID_IP:
-      break;
   }
 
   return &RNA_ID;
@@ -579,26 +588,26 @@ StructRNA *ID_code_to_RNA_type(short idcode)
 
 StructRNA *rna_ID_refine(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
 
   return ID_code_to_RNA_type(GS(id->name));
 }
 
 IDProperty **rna_ID_idprops(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   return &id->properties;
 }
 
 IDProperty **rna_ID_system_idprops(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   return &id->system_properties;
 }
 
 int rna_ID_is_runtime_editable(const PointerRNA *ptr, const char **r_info)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   /* TODO: This should be abstracted in a BKE function or define, somewhat related to #88555. */
   if (id->tag & (ID_TAG_NO_MAIN | ID_TAG_TEMP_MAIN | ID_TAG_LOCALIZED |
                  ID_TAG_COPIED_ON_EVAL_FINAL_RESULT | ID_TAG_COPIED_ON_EVAL))
@@ -614,7 +623,7 @@ int rna_ID_is_runtime_editable(const PointerRNA *ptr, const char **r_info)
 
 bool rna_ID_is_runtime_get(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   /* TODO: This should be abstracted in a BKE function or define, somewhat related to #88555. */
   if (id->tag & (ID_TAG_NO_MAIN | ID_TAG_TEMP_MAIN | ID_TAG_LOCALIZED |
                  ID_TAG_COPIED_ON_EVAL_FINAL_RESULT | ID_TAG_COPIED_ON_EVAL))
@@ -627,13 +636,13 @@ bool rna_ID_is_runtime_get(PointerRNA *ptr)
 
 bool rna_ID_is_editable_get(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   return ID_IS_EDITABLE(id);
 }
 
 void rna_ID_fake_user_set(PointerRNA *ptr, bool value)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
 
   if (value) {
     id_fake_user_set(id);
@@ -645,7 +654,7 @@ void rna_ID_fake_user_set(PointerRNA *ptr, bool value)
 
 void rna_ID_extra_user_set(PointerRNA *ptr, bool value)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
 
   if (value) {
     id_us_ensure_real(id);
@@ -657,7 +666,7 @@ void rna_ID_extra_user_set(PointerRNA *ptr, bool value)
 
 IDProperty **rna_PropertyGroup_idprops(PointerRNA *ptr)
 {
-  return (IDProperty **)&ptr->data;
+  return reinterpret_cast<IDProperty **>(&ptr->data);
 }
 
 bool rna_PropertyGroup_unregister(Main * /*bmain*/, StructRNA *type)
@@ -667,7 +676,7 @@ bool rna_PropertyGroup_unregister(Main * /*bmain*/, StructRNA *type)
   BPY_free_srna_pytype(type);
 #  endif
 
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
   return true;
 }
 
@@ -700,7 +709,7 @@ StructRNA *rna_PropertyGroup_register(Main * /*bmain*/,
     return nullptr;
   }
 
-  return RNA_def_struct_ptr(&BLENDER_RNA, identifier, &RNA_PropertyGroup); /* XXX */
+  return RNA_def_struct_ptr(&RNA_blender_rna_get(), identifier, &RNA_PropertyGroup); /* XXX */
 }
 
 StructRNA *rna_PropertyGroup_refine(PointerRNA *ptr)
@@ -719,17 +728,17 @@ static ID *rna_ID_copy(ID *id, Main *bmain)
 
   if (newid != nullptr) {
     id_us_min(newid);
+    BKE_main_ensure_invariants(*bmain, *newid);
   }
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
-  BKE_main_ensure_invariants(*bmain, *newid);
 
   return newid;
 }
 
 static void rna_ID_asset_mark(ID *id)
 {
-  if (blender::ed::asset::mark_id(id)) {
+  if (ed::asset::mark_id(id)) {
     WM_main_add_notifier(NC_ID | NA_EDITED, nullptr);
     WM_main_add_notifier(NC_ASSET | NA_ADDED, nullptr);
   }
@@ -737,7 +746,7 @@ static void rna_ID_asset_mark(ID *id)
 
 static void rna_ID_asset_generate_preview(ID *id, bContext *C)
 {
-  blender::ed::asset::generate_preview(C, id);
+  ed::asset::generate_preview(C, id);
 
   WM_main_add_notifier(NC_ID | NA_EDITED, nullptr);
   WM_main_add_notifier(NC_ASSET | NA_EDITED, nullptr);
@@ -745,7 +754,7 @@ static void rna_ID_asset_generate_preview(ID *id, bContext *C)
 
 static void rna_ID_asset_clear(ID *id)
 {
-  if (blender::ed::asset::clear_id(id)) {
+  if (ed::asset::clear_id(id)) {
     WM_main_add_notifier(NC_ID | NA_EDITED, nullptr);
     WM_main_add_notifier(NC_ASSET | NA_REMOVED, nullptr);
   }
@@ -772,7 +781,7 @@ static void rna_ID_asset_data_set(PointerRNA *ptr, PointerRNA value, ReportList 
     return;
   }
 
-  const bool assigned_ok = blender::ed::asset::copy_to_id(asset_data, destination);
+  const bool assigned_ok = ed::asset::copy_to_id(asset_data, destination);
   if (!assigned_ok) {
     BKE_reportf(
         reports, RPT_ERROR, "'%s' is of a type that cannot be an asset", destination->name + 2);
@@ -1147,21 +1156,21 @@ static void rna_ID_animation_data_free(ID *id, Main *bmain)
 #  ifdef WITH_PYTHON
 void **rna_ID_instance(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   return &id->py_instance;
 }
 #  endif
 
 static void rna_IDPArray_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  IDProperty *prop = (IDProperty *)ptr->data;
+  IDProperty *prop = static_cast<IDProperty *>(ptr->data);
   rna_iterator_array_begin(
-      iter, ptr, IDP_IDPArray(prop), sizeof(IDProperty), prop->len, 0, nullptr);
+      iter, ptr, IDP_property_array_get(prop), sizeof(IDProperty), prop->len, 0, nullptr);
 }
 
 static int rna_IDPArray_length(PointerRNA *ptr)
 {
-  IDProperty *prop = (IDProperty *)ptr->data;
+  IDProperty *prop = static_cast<IDProperty *>(ptr->data);
   return prop->len;
 }
 
@@ -1169,7 +1178,7 @@ bool rna_IDMaterials_assign_int(PointerRNA *ptr, int key, const PointerRNA *assi
 {
   ID *id = ptr->owner_id;
   short *totcol = BKE_id_material_len_p(id);
-  Material *mat_id = (Material *)assign_ptr->owner_id;
+  Material *mat_id = id_cast<Material *>(assign_ptr->owner_id);
   if (totcol && (key >= 0 && key < *totcol)) {
     BLI_assert(BKE_id_is_in_global_main(id));
     BLI_assert(BKE_id_is_in_global_main(&mat_id->id));
@@ -1228,7 +1237,7 @@ static void rna_IDMaterials_clear_id(ID *id, Main *bmain)
 
 static void rna_Library_filepath_set(PointerRNA *ptr, const char *value)
 {
-  Library *lib = (Library *)ptr->data;
+  Library *lib = static_cast<Library *>(ptr->data);
   BLI_assert(BKE_id_is_in_global_main(&lib->id));
   BKE_library_filepath_set(G_MAIN, lib, value);
 }
@@ -1238,7 +1247,7 @@ static void rna_Library_filepath_set(PointerRNA *ptr, const char *value)
 static void rna_ImagePreview_is_custom_set(PointerRNA *ptr, int value, enum eIconSizes size)
 {
   ID *id = ptr->owner_id;
-  PreviewImage *prv_img = (PreviewImage *)ptr->data;
+  PreviewImage *prv_img = static_cast<PreviewImage *>(ptr->data);
 
   if (id != nullptr) {
     BLI_assert(prv_img == BKE_previewimg_id_ensure(id));
@@ -1265,7 +1274,7 @@ static void rna_ImagePreview_is_custom_set(PointerRNA *ptr, int value, enum eIco
 static void rna_ImagePreview_size_get(PointerRNA *ptr, int *values, enum eIconSizes size)
 {
   ID *id = ptr->owner_id;
-  PreviewImage *prv_img = (PreviewImage *)ptr->data;
+  PreviewImage *prv_img = static_cast<PreviewImage *>(ptr->data);
 
   if (id != nullptr) {
     BLI_assert(prv_img == BKE_previewimg_id_ensure(id));
@@ -1280,7 +1289,7 @@ static void rna_ImagePreview_size_get(PointerRNA *ptr, int *values, enum eIconSi
 static void rna_ImagePreview_size_set(PointerRNA *ptr, const int *values, enum eIconSizes size)
 {
   ID *id = ptr->owner_id;
-  PreviewImage *prv_img = (PreviewImage *)ptr->data;
+  PreviewImage *prv_img = static_cast<PreviewImage *>(ptr->data);
 
   if (id != nullptr) {
     BLI_assert(prv_img == BKE_previewimg_id_ensure(id));
@@ -1304,7 +1313,7 @@ static int rna_ImagePreview_pixels_get_length(const PointerRNA *ptr,
                                               enum eIconSizes size)
 {
   ID *id = ptr->owner_id;
-  PreviewImage *prv_img = (PreviewImage *)ptr->data;
+  PreviewImage *prv_img = static_cast<PreviewImage *>(ptr->data);
 
   if (id != nullptr) {
     BLI_assert(prv_img == BKE_previewimg_id_ensure(id));
@@ -1320,7 +1329,7 @@ static int rna_ImagePreview_pixels_get_length(const PointerRNA *ptr,
 static void rna_ImagePreview_pixels_get(PointerRNA *ptr, int *values, enum eIconSizes size)
 {
   ID *id = ptr->owner_id;
-  PreviewImage *prv_img = (PreviewImage *)ptr->data;
+  PreviewImage *prv_img = static_cast<PreviewImage *>(ptr->data);
 
   if (id != nullptr) {
     BLI_assert(prv_img == BKE_previewimg_id_ensure(id));
@@ -1334,7 +1343,7 @@ static void rna_ImagePreview_pixels_get(PointerRNA *ptr, int *values, enum eIcon
 static void rna_ImagePreview_pixels_set(PointerRNA *ptr, const int *values, enum eIconSizes size)
 {
   ID *id = ptr->owner_id;
-  PreviewImage *prv_img = (PreviewImage *)ptr->data;
+  PreviewImage *prv_img = static_cast<PreviewImage *>(ptr->data);
 
   if (id != nullptr) {
     BLI_assert(prv_img == BKE_previewimg_id_ensure(id));
@@ -1349,7 +1358,7 @@ static int rna_ImagePreview_pixels_float_get_length(const PointerRNA *ptr,
                                                     enum eIconSizes size)
 {
   ID *id = ptr->owner_id;
-  PreviewImage *prv_img = (PreviewImage *)ptr->data;
+  PreviewImage *prv_img = static_cast<PreviewImage *>(ptr->data);
 
   BLI_assert(sizeof(uint) == 4);
 
@@ -1367,9 +1376,9 @@ static int rna_ImagePreview_pixels_float_get_length(const PointerRNA *ptr,
 static void rna_ImagePreview_pixels_float_get(PointerRNA *ptr, float *values, enum eIconSizes size)
 {
   ID *id = ptr->owner_id;
-  PreviewImage *prv_img = (PreviewImage *)ptr->data;
+  PreviewImage *prv_img = static_cast<PreviewImage *>(ptr->data);
 
-  uchar *data = (uchar *)prv_img->rect[size];
+  uchar *data = reinterpret_cast<uchar *>(prv_img->rect[size]);
   const size_t len = prv_img->w[size] * prv_img->h[size] * 4;
   size_t i;
 
@@ -1391,9 +1400,9 @@ static void rna_ImagePreview_pixels_float_set(PointerRNA *ptr,
                                               enum eIconSizes size)
 {
   ID *id = ptr->owner_id;
-  PreviewImage *prv_img = (PreviewImage *)ptr->data;
+  PreviewImage *prv_img = static_cast<PreviewImage *>(ptr->data);
 
-  uchar *data = (uchar *)prv_img->rect[size];
+  uchar *data = reinterpret_cast<uchar *>(prv_img->rect[size]);
   const size_t len = prv_img->w[size] * prv_img->h[size] * 4;
   size_t i;
 
@@ -1507,7 +1516,7 @@ static int rna_ImagePreview_icon_id_get(PointerRNA *ptr)
 {
   /* Using a callback here allows us to only generate icon matching
    * that preview when icon_id is requested. */
-  return BKE_icon_preview_ensure(ptr->owner_id, (PreviewImage *)(ptr->data));
+  return BKE_icon_preview_ensure(ptr->owner_id, static_cast<PreviewImage *>(ptr->data));
 }
 static void rna_ImagePreview_icon_reload(PreviewImage *prv)
 {
@@ -1521,7 +1530,7 @@ static void rna_ImagePreview_icon_reload(PreviewImage *prv)
 
 static PointerRNA rna_IDPreview_get(PointerRNA *ptr)
 {
-  ID *id = (ID *)ptr->data;
+  ID *id = static_cast<ID *>(ptr->data);
   PreviewImage *prv_img = BKE_previewimg_id_get(id);
 
   return RNA_pointer_create_with_parent(*ptr, &RNA_ImagePreview, prv_img);
@@ -1532,15 +1541,61 @@ static IDProperty **rna_IDPropertyWrapPtr_idprops(PointerRNA *ptr)
   if (ptr == nullptr) {
     return nullptr;
   }
-  return (IDProperty **)&ptr->data;
+  return reinterpret_cast<IDProperty **>(&ptr->data);
 }
 
 static void rna_Library_version_get(PointerRNA *ptr, int *value)
 {
-  Library *lib = (Library *)ptr->data;
+  Library *lib = static_cast<Library *>(ptr->data);
   value[0] = lib->runtime->versionfile / 100;
   value[1] = lib->runtime->versionfile % 100;
   value[2] = lib->runtime->subversionfile;
+}
+
+static void rna_Library_archive_libraries_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  iter->parent = *ptr;
+  Library *lib = static_cast<Library *>(ptr->data);
+
+  Library **archive_libraries_iter = lib->runtime->archived_libraries.begin();
+  iter->internal.custom = archive_libraries_iter;
+
+  iter->valid = archive_libraries_iter != lib->runtime->archived_libraries.end();
+}
+
+static void rna_Library_archive_libraries_next(CollectionPropertyIterator *iter)
+{
+  Library *lib = static_cast<Library *>(iter->parent.data);
+  Library **archive_libraries_iter = static_cast<Library **>(iter->internal.custom);
+
+  archive_libraries_iter++;
+  iter->internal.custom = archive_libraries_iter;
+
+  iter->valid = archive_libraries_iter != lib->runtime->archived_libraries.end();
+}
+
+static PointerRNA rna_Library_archive_libraries_get(CollectionPropertyIterator *iter)
+{
+  Library **archive_libraries_iter = static_cast<Library **>(iter->internal.custom);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_Library, *archive_libraries_iter);
+}
+
+static int rna_Library_archive_libraries_length(PointerRNA *ptr)
+{
+  Library *lib = static_cast<Library *>(ptr->data);
+  return int(lib->runtime->archived_libraries.size());
+}
+
+static bool rna_Library_archive_libraries_lookupint(PointerRNA *ptr, int key, PointerRNA *r_ptr)
+{
+  Library *lib = static_cast<Library *>(ptr->data);
+  if (key < 0 || key >= lib->runtime->archived_libraries.size()) {
+    return false;
+  }
+
+  Library *archive_library = lib->runtime->archived_libraries[key];
+  rna_pointer_create_with_ancestors(*ptr, &RNA_Library, archive_library, *r_ptr);
+  return true;
 }
 
 static PointerRNA rna_Library_parent_get(PointerRNA *ptr)
@@ -1563,7 +1618,11 @@ static void rna_Library_reload(Library *lib, bContext *C, ReportList *reports)
 #  endif
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_ID_properties(BlenderRNA *brna)
 {
@@ -1669,13 +1728,18 @@ static void rna_def_ID_properties(BlenderRNA *brna)
       srna, "rna_PropertyGroup_register", "rna_PropertyGroup_unregister", nullptr);
   RNA_def_struct_refine_func(srna, "rna_PropertyGroup_refine");
 
-  /* important so python types can have their name used in list views
-   * however this isn't perfect because it overrides how python would set the name
-   * when we only really want this so RNA_def_struct_name_property() is set to something useful */
+  /* Important so that python types can have their name used in list views.
+   *
+   * Note that python types can override this by defining their own `name` string property, see
+   * also #pyrna_register_class.
+   */
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
   // RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Name", "Unique name used in the code and scripting");
+  RNA_def_property_ui_text(prop,
+                           "Name",
+                           "Unique name used in the code and scripting, can be re-defined in "
+                           "Python sub-classes if needed");
   RNA_def_struct_name_property(srna, prop);
 }
 
@@ -2182,7 +2246,7 @@ static void rna_def_ID_override_library(BlenderRNA *brna)
                   "",
                   "Enforce restoring the dependency hierarchy between data-blocks to match the "
                   "one from the reference linked hierarchy (WARNING: if some ID pointers have "
-                  "been purposedly overridden, these will be reset to their default value)");
+                  "been purposely overridden, these will be reset to their default value)");
   RNA_def_boolean(
       func,
       "do_whole_hierarchy",
@@ -2211,19 +2275,19 @@ static void rna_def_ID(BlenderRNA *brna)
        "NEVER",
        0,
        "Never Rename",
-       "Never rename an exisitng ID whose name would conflict, the currently renamed ID will get "
+       "Never rename an existing ID whose name would conflict, the currently renamed ID will get "
        "a numeric suffix appended to its new name"},
       {int(IDNewNameMode::RenameExistingAlways),
        "ALWAYS",
        0,
        "Always Rename",
-       "Always rename an exisitng ID whose name would conflict, ensuring that the currently "
+       "Always rename an existing ID whose name would conflict, ensuring that the currently "
        "renamed ID will get requested name"},
       {int(IDNewNameMode::RenameExistingSameRoot),
        "SAME_ROOT",
        0,
        "Rename If Same Root",
-       "Only rename an exisitng ID whose name would conflict if its name root (everything besides "
+       "Only rename an existing ID whose name would conflict if its name root (everything besides "
        "the numerical suffix) is the same as the existing name of the currently renamed ID"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -2249,7 +2313,7 @@ static void rna_def_ID(BlenderRNA *brna)
        "RENAMED_COLLISION_ADJUSTED",
        0,
        "Renamed With Collision",
-       "The ID was renamed with adjustement of the requested name, to avoid a name collision"},
+       "The ID was renamed with adjustment of the requested name, to avoid a name collision"},
       {int(IDNewNameResult::Action::RENAMED_COLLISION_FORCED),
        "RENAMED_COLLISION_FORCED",
        0,
@@ -2348,6 +2412,12 @@ static void rna_def_ID(BlenderRNA *brna)
       "Embedded Data",
       "This data-block is not an independent one, but is actually a sub-data of another ID "
       "(typical example: root node trees or master collections)");
+
+  prop = RNA_def_property(srna, "is_linked_packed", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", ID_FLAG_LINKED_AND_PACKED);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "Linked Packed", "This data-block is linked and packed into the .blend file");
 
   prop = RNA_def_property(srna, "is_missing", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "tag", ID_TAG_MISSING);
@@ -2671,6 +2741,39 @@ static void rna_def_library(BlenderRNA *brna)
                            "Data-blocks in this library are editable despite being linked. "
                            "Used by brush assets and their dependencies.");
 
+  prop = RNA_def_property(srna, "is_archive", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", LIBRARY_FLAG_IS_ARCHIVE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Is Archive",
+                           "This library is an 'archive' storage for packed linked IDs "
+                           "originally linked from its 'archive parent' library.");
+
+  prop = RNA_def_property(srna, "archive_parent_library", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "archive_parent_library");
+  RNA_def_property_struct_type(prop, "Library");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+  RNA_def_property_ui_text(prop,
+                           "Parent Archive Library",
+                           "Source library from which this archive of packed IDs was generated");
+
+  prop = RNA_def_property(srna, "archive_libraries", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Library");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_Library_archive_libraries_begin",
+                                    "rna_Library_archive_libraries_next",
+                                    nullptr,
+                                    "rna_Library_archive_libraries_get",
+                                    "rna_Library_archive_libraries_length",
+                                    "rna_Library_archive_libraries_lookupint",
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+  RNA_def_property_ui_text(
+      prop,
+      "Archive Libraries",
+      "Archive libraries of packed IDs, generated (and owned) by this source library");
+
   func = RNA_def_function(srna, "reload", "rna_Library_reload");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_CONTEXT);
   RNA_def_function_ui_description(func, "Reload this library and all its linked data-blocks");
@@ -2738,5 +2841,7 @@ void RNA_def_ID(BlenderRNA *brna)
   rna_def_library_weak_reference(brna);
   rna_def_idproperty_wrap_ptr(brna);
 }
+
+}  // namespace blender
 
 #endif

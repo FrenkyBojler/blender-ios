@@ -184,6 +184,15 @@ extern void *(*MEM_calloc_arrayN_aligned)(
         (v) = nullptr; \
       } \
     } while (0)
+
+/** Wrapper for MEM_SAFE_FREE() as deallocator for std::unique_ptr. */
+struct MEM_freeN_smart_ptr_deleter {
+  void operator()(void *pointer) const noexcept
+  {
+    MEM_SAFE_FREE(pointer);
+  }
+};
+
 #else
 #  define MEM_SAFE_FREE(v) \
     do { \
@@ -248,7 +257,7 @@ extern size_t (*MEM_get_peak_memory)(void) ATTR_WARN_UNUSED_RESULT;
 
 /** Overhead for lockfree allocator (use to avoid slop-space). */
 #define MEM_SIZE_OVERHEAD sizeof(size_t)
-#define MEM_SIZE_OPTIMAL(size) ((size)-MEM_SIZE_OVERHEAD)
+#define MEM_SIZE_OPTIMAL(size) ((size) - MEM_SIZE_OVERHEAD)
 
 #ifndef NDEBUG
 extern const char *(*MEM_name_ptr)(void *vmemh);
@@ -382,19 +391,26 @@ inline T *MEM_new(const char *allocation_name, Args &&...args)
  *
  * \note This function uses 'default initialization' on zero-initialized memory, _not_ 'value
  * initialization'. This means that even if a user-defined default constructor is provided,
- * non-explicitely initialized data will be zero-initialized. For POD types (e.g. pure C-style
- * structs), its behavior is functionnally identical to using `MEM_callocN<T>()`.
+ * non-explicitly initialized data will be zero-initialized. For POD types (e.g. pure C-style
+ * structs), its behavior is functionally identical to using `MEM_callocN<T>()`.
  *
  * \warning This function is intended as a temporary work-around during the process of converting
  * Blender data management from C-style (alloc/free) to C++-style (new/delete). It will be removed
  * once not needed anymore (i.e. mainly when there is no more need to dupalloc and free untyped
  * data stored in void pointers).
  */
-template<typename T> inline T *MEM_new_for_free(const char *allocation_name)
+template<typename T, typename... Args>
+inline T *MEM_new_for_free(const char *allocation_name, Args &&...args)
 {
+#  ifdef _MSC_VER
+  static_assert(std::is_trivially_destructible_v<T>,
+                "MEM_new_for_free can only construct types that are trivially copyable and "
+                "destructible, use MEM_new instead.");
+#  else
   static_assert(mem_guarded::internal::is_trivial_after_construction<T>,
                 "MEM_new_for_free can only construct types that are trivially copyable and "
                 "destructible, use MEM_new instead.");
+#  endif
   void *buffer;
   /* There is no lower level #calloc with an alignment parameter, so unless the alignment is less
    * than or equal to what we'd get by default, we have to fall back to #memset unfortunately. */
@@ -406,7 +422,35 @@ template<typename T> inline T *MEM_new_for_free(const char *allocation_name)
         sizeof(T), alignof(T), allocation_name, mem_guarded::internal::AllocationType::ALLOC_FREE);
     memset(buffer, 0, sizeof(T));
   }
-  return new (buffer) T;
+  return new (buffer) T(std::forward<Args>(args)...);
+}
+
+/**
+ * Allocate new memory for an array of objects with type #T, and construct them.
+ *
+ * See #MEM_new_for_free for initialization logic.
+ *
+ * This is only supported for trivially destructible types. For other types, use
+ * a data structure like Vector instead.
+ */
+template<typename T>
+inline T *MEM_new_array_for_free(const size_t length, const char *allocation_name)
+{
+#  ifdef _MSC_VER
+  static_assert(
+      std::is_trivially_destructible_v<T>,
+      "For non-trivially copyable and destructible types, use higher level types like Vector.");
+#  else
+  static_assert(
+      mem_guarded::internal::is_trivial_after_construction<T>,
+      "For non-trivially copyable and destructible types, use higher level types like Vector.");
+#  endif
+  T *buffer = static_cast<T *>(
+      MEM_malloc_arrayN_aligned(length, sizeof(T), alignof(T), allocation_name));
+  for (size_t i = 0; i < length; i++) {
+    new (buffer + i) T();
+  }
+  return buffer;
 }
 
 /**
@@ -426,9 +470,23 @@ template<typename T> inline void MEM_delete(const T *ptr)
   if (ptr == nullptr) {
     return;
   }
+  const void *complete_ptr = [ptr]() {
+    if constexpr (std::is_polymorphic_v<T>) {
+      /* Polymorphic objects lifetime can be managed with pointers to their most derived type or
+       * with pointers to any of their ancestor types in their hierarchy tree that define a virtual
+       * destructor, however ancestor pointers may differ in a offset from the same derived object.
+       * For freeing the correct memory allocated with #MEM_new, we need to ensure that the given
+       * pointer is equal to the pointer to the most derived object, which can be obtained with
+       * `dynamic_cast<void *>(ptr)`. */
+      return dynamic_cast<const void *>(ptr);
+    }
+    else {
+      return static_cast<const void *>(ptr);
+    }
+  }();
   /* C++ allows destruction of `const` objects, so the pointer is allowed to be `const`. */
   ptr->~T();
-  mem_guarded::internal::mem_freeN_ex(const_cast<T *>(ptr),
+  mem_guarded::internal::mem_freeN_ex(const_cast<void *>(complete_ptr),
                                       mem_guarded::internal::AllocationType::NEW_DELETE);
 }
 

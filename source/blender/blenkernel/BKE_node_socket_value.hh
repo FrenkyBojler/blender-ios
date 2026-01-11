@@ -93,10 +93,10 @@ class SocketValueVariant {
 
   /**
    * Create a variant based on the given value. This works for primitive types. For more complex
-   * types use #set explicity. Alternatively, one can use the #From or #ConstructIn utilities.
+   * types use #set explicitly. Alternatively, one can use the #From or #ConstructIn utilities.
    */
   template<typename T,
-           /* The enable-if is necessary to avoid overridding the copy/moveconstructors. */
+           /* The enable-if is necessary to avoid overriding the copy/moveconstructors. */
            BLI_ENABLE_IF((std::is_trivial_v<std::decay_t<T>> ||
                           is_same_any_v<std::decay_t<T>, std::string>))>
   explicit SocketValueVariant(T &&value)
@@ -143,6 +143,11 @@ class SocketValueVariant {
   bool is_context_dependent_field() const;
 
   /**
+   * If true, the value is stored as a #GField.
+   */
+  bool is_field() const;
+
+  /**
    * The stored value is a volume grid.
    */
   bool is_volume_grid() const;
@@ -179,6 +184,10 @@ class SocketValueVariant {
    * because the corresponding #CPPType does not have to be looked up based on the socket type.
    */
   const void *get_single_ptr_raw() const;
+
+  /** Also see GeomtrySet::ensure_owns_direct_data. */
+  void ensure_owns_direct_data();
+  bool owns_direct_data() const;
 
   /**
    * Replace the stored value with the given single value.

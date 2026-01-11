@@ -12,7 +12,12 @@
 
 #include <optional>
 
+#include "BLI_color_types.hh"
+#include "BLI_function_ref.hh"
+#include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_sys_types.h"
+
+namespace blender {
 
 struct AssetTypeInfo;
 struct BPathForeachPathData;
@@ -46,8 +51,6 @@ enum {
   IDTYPE_FLAGS_NO_ANIMDATA = 1 << 4,
   /**
    * Indicates that the given IDType is not handled through memfile (aka global) undo.
-   *
-   * \note This currently only affect local data-blocks.
    *
    * \note Current readfile undo code expects these data-blocks to not be used by any 'regular'
    * data-blocks.
@@ -112,6 +115,15 @@ using IDTypeForeachCacheFunction = void (*)(ID *id,
 
 using IDTypeForeachPathFunction = void (*)(ID *id, BPathForeachPathData *bpath_data);
 
+/* Foreach scene linear color can do either a single color, or an implicitly shared array
+ * for geometry attributes. */
+struct IDTypeForeachColorFunctionCallback {
+  const FunctionRef<void(float rgb[3])> single;
+  const FunctionRef<void(ImplicitSharingPtr<> &sharing_info, ColorGeometry4f *&data, size_t size)>
+      implicit_sharing_array;
+};
+using IDTypeForeachColorFunction = void (*)(ID *id, const IDTypeForeachColorFunctionCallback &cb);
+
 /**
  * Callback returning the address of the pointer to the owner ID,
  * for embedded (and Shape-key) ones.
@@ -120,7 +132,7 @@ using IDTypeForeachPathFunction = void (*)(ID *id, BPathForeachPathData *bpath_d
  * fully valid, and can be asserted on. But in some cases, they are not (fully) valid, e.g when
  * copying an ID and all of its embedded data.
  */
-using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID *id, bool debug_relationship_assert);
+using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID * id, bool debug_relationship_assert);
 
 using IDTypeBlendWriteFunction = void (*)(BlendWriter *writer, ID *id, const void *id_address);
 using IDTypeBlendReadDataFunction = void (*)(BlendDataReader *reader, ID *id);
@@ -224,6 +236,12 @@ struct IDTypeInfo {
   IDTypeForeachPathFunction foreach_path;
 
   /**
+   * Iterator to edit all scene linear RGB colors of given ID.
+   * Alpha should not be premultiplied in the RGB values.
+   */
+  IDTypeForeachColorFunction foreach_working_space_color;
+
+  /**
    * For embedded IDs, return the address of the pointer to their owner ID.
    */
   IDTypeEmbeddedOwnerPointerGetFunction owner_pointer_get;
@@ -282,7 +300,6 @@ extern IDTypeInfo IDType_ID_IM;
 extern IDTypeInfo IDType_ID_LT;
 extern IDTypeInfo IDType_ID_LA;
 extern IDTypeInfo IDType_ID_CA;
-extern IDTypeInfo IDType_ID_IP;
 extern IDTypeInfo IDType_ID_KE;
 extern IDTypeInfo IDType_ID_WO;
 extern IDTypeInfo IDType_ID_SCR;
@@ -431,3 +448,5 @@ short BKE_idtype_idcode_iter_step(int *idtype_index);
 void BKE_idtype_id_foreach_cache(ID *id,
                                  IDTypeForeachCacheFunctionCallback function_callback,
                                  void *user_data);
+
+}  // namespace blender

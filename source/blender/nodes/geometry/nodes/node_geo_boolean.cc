@@ -78,10 +78,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "solver", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "solver", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 struct AttributeOutputs {
@@ -182,8 +182,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  if (solver == geometry::boolean::Solver::Manifold) {
-    /* Manifold remaps materials using realize_instances. */
+  if (ELEM(solver, geometry::boolean::Solver::MeshArr, geometry::boolean::Solver::Manifold)) {
+    /* These solvers remap materials using realize_instances. */
     material_remaps.resize(0);
   }
 
@@ -317,7 +317,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeMeshBoolean", GEO_NODE_MESH_BOOLEAN);
   ntype.ui_name = "Mesh Boolean";
   ntype.ui_description = "Cut, subtract, or join multiple mesh inputs";
@@ -327,7 +327,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -22,6 +22,7 @@ set(INC_SYS
 set(SRC
   intern/BLI_assert.cc
   intern/BLI_color.cc
+  intern/BLI_colorspace.cc
   intern/BLI_dial_2d.cc
   intern/BLI_dynstr.cc
   intern/BLI_filelist.cc
@@ -85,10 +86,6 @@ set(SRC
   intern/index_mask_expression.cc
   intern/index_range.cc
   intern/jitter_2d.cc
-  intern/kdtree_1d.cc
-  intern/kdtree_2d.cc
-  intern/kdtree_3d.cc
-  intern/kdtree_4d.cc
   intern/lasso_2d.cc
   intern/lazy_threading.cc
   intern/length_parameterize.cc
@@ -102,6 +99,7 @@ set(SRC
   intern/math_color.cc
   intern/math_color_blend_inline.cc
   intern/math_color_inline.cc
+  intern/math_filter.cc
   intern/math_geom.cc
   intern/math_geom_inline.cc
   intern/math_half.cc
@@ -130,6 +128,7 @@ set(SRC
   intern/polyfill_2d.cc
   intern/polyfill_2d_beautify.cc
   intern/quadric.cc
+  intern/radial_tiling_wrapper.cc
   intern/rand.cc
   intern/rct.cc
   intern/resource_scope.cc
@@ -170,9 +169,8 @@ set(SRC
   intern/BLI_mempool_private.h
 
   # Header as source (included in C files above).
-  intern/kdtree_impl.h
   intern/list_sort_impl.h
-
+  intern/radial_tiling_shared.hh
 
   BLI_alloca.h
   BLI_allocator.hh
@@ -204,6 +202,7 @@ set(SRC
   BLI_cache_mutex.hh
   BLI_color.hh
   BLI_color_mix.hh
+  BLI_colorspace.hh
   BLI_compiler_attrs.h
   BLI_compiler_compat.h
   BLI_compiler_typecheck.h
@@ -228,6 +227,7 @@ set(SRC
   BLI_endian_defines.h
   BLI_endian_switch.h
   BLI_endian_switch_inline.h
+  BLI_enum_flags.hh
   BLI_enumerable_thread_specific.hh
   BLI_expr_pylike_eval.h
   BLI_fftw.hh
@@ -272,8 +272,8 @@ set(SRC
   BLI_iterator.h
   BLI_jitter_2d.h
   BLI_kdopbvh.hh
-  BLI_kdtree.h
-  BLI_kdtree_impl.h
+  BLI_kdtree.hh
+  BLI_kdtree_types.hh
   BLI_lasso_2d.hh
   BLI_lazy_threading.hh
   BLI_length_parameterize.hh
@@ -284,6 +284,7 @@ set(SRC
   BLI_linklist_lockfree.h
   BLI_linklist_stack.h
   BLI_listbase.h
+  BLI_listbase_iterator.hh
   BLI_listbase_wrapper.hh
   BLI_map.hh
   BLI_map_slots.hh
@@ -302,6 +303,7 @@ set(SRC
   BLI_math_constants.h
   BLI_math_euler.hh
   BLI_math_euler_types.hh
+  BLI_math_filter.hh
   BLI_math_geom.h
   BLI_math_half.hh
   BLI_math_inline.h
@@ -352,6 +354,7 @@ set(SRC
   BLI_pool.hh
   BLI_probing_strategies.hh
   BLI_quadric.h
+  BLI_radial_tiling.hh
   BLI_rand.h
   BLI_rand.hh
   BLI_random_access_iterator_mixin.hh

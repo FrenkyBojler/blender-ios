@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_string_ref.hh"
 #include "GPU_vertex_buffer.hh"
 
@@ -77,7 +77,7 @@ class GPUBackend {
 };
 
 namespace debug {
-static blender::ColorTheme4f GPU_DEBUG_GROUP_COLOR_DEFAULT = {};
+static ColorTheme4f GPU_DEBUG_GROUP_COLOR_DEFAULT = {};
 
 static inline ColorTheme4f get_debug_group_color(StringRefNull name)
 {
@@ -111,5 +111,4 @@ static inline ColorTheme4f get_debug_group_color(StringRefNull name)
   return GPU_DEBUG_GROUP_COLOR_DEFAULT;
 }
 }  // namespace debug
-
 }  // namespace blender::gpu

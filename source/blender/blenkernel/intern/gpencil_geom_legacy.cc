@@ -25,8 +25,7 @@
 #include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 
-using blender::float3;
-using blender::Span;
+namespace blender {
 
 void BKE_gpencil_stroke_2d_flat(const bGPDspoint *points,
                                 int totpoints,
@@ -79,7 +78,7 @@ void BKE_gpencil_stroke_2d_flat(const bGPDspoint *points,
   /* Calculate the scalar cross product of the 2d points. */
   float cross = 0.0f;
   float *co_curr;
-  float *co_prev = (float *)&points2d[totpoints - 1];
+  float *co_prev = reinterpret_cast<float *>(&points2d[totpoints - 1]);
 
   /* Get all points in local space */
   for (int i = 0; i < totpoints - 1; i++) {
@@ -155,9 +154,10 @@ void BKE_gpencil_stroke_fill_triangulate(bGPDstroke *gps)
   gps->tot_triangles = gps->totpoints - 2;
   uint(*tmp_triangles)[3] = MEM_malloc_arrayN<uint[3]>(size_t(gps->tot_triangles),
                                                        "GP Stroke temp triangulation");
-  float(*points2d)[2] = MEM_malloc_arrayN<float[2]>(size_t(gps->totpoints),
-                                                    "GP Stroke temp 2d points");
-  float(*uv)[2] = MEM_malloc_arrayN<float[2]>(size_t(gps->totpoints), "GP Stroke temp 2d uv data");
+  float (*points2d)[2] = MEM_malloc_arrayN<float[2]>(size_t(gps->totpoints),
+                                                     "GP Stroke temp 2d points");
+  float (*uv)[2] = MEM_malloc_arrayN<float[2]>(size_t(gps->totpoints),
+                                               "GP Stroke temp 2d uv data");
 
   int direction = 0;
 
@@ -178,8 +178,8 @@ void BKE_gpencil_stroke_fill_triangulate(bGPDstroke *gps)
   /* Save triangulation data. */
   if (gps->tot_triangles > 0) {
     MEM_SAFE_FREE(gps->triangles);
-    gps->triangles = MEM_calloc_arrayN<bGPDtriangle>(gps->tot_triangles,
-                                                     "GP Stroke triangulation");
+    gps->triangles = MEM_new_array_for_free<bGPDtriangle>(gps->tot_triangles,
+                                                          "GP Stroke triangulation");
 
     for (int i = 0; i < gps->tot_triangles; i++) {
       memcpy(gps->triangles[i].verts, tmp_triangles[i], sizeof(uint[3]));
@@ -259,7 +259,7 @@ static void gpencil_stroke_join_islands(bGPdata *gpd,
   /* create new stroke */
   bGPDstroke *join_stroke = BKE_gpencil_stroke_duplicate(gps_first, false, true);
 
-  join_stroke->points = MEM_calloc_arrayN<bGPDspoint>(totpoints, __func__);
+  join_stroke->points = MEM_new_array_for_free<bGPDspoint>(totpoints, __func__);
   join_stroke->totpoints = totpoints;
   join_stroke->flag &= ~GP_STROKE_CYCLIC;
 
@@ -317,7 +317,7 @@ static void gpencil_stroke_join_islands(bGPdata *gpd,
       }
 
       if ((dvert_src) && (dvert_src->dw)) {
-        dvert_dst->dw = (MDeformWeight *)MEM_dupallocN(dvert_src->dw);
+        dvert_dst->dw = static_cast<MDeformWeight *>(MEM_dupallocN(dvert_src->dw));
       }
     }
   }
@@ -416,8 +416,8 @@ bGPDstroke *BKE_gpencil_stroke_delete_tagged_points(bGPdata *gpd,
       new_stroke->totpoints = island->end_idx - island->start_idx + 1;
 
       /* Copy over the relevant point data */
-      new_stroke->points = MEM_calloc_arrayN<bGPDspoint>(new_stroke->totpoints,
-                                                         "gp delete stroke fragment");
+      new_stroke->points = MEM_new_array_for_free<bGPDspoint>(new_stroke->totpoints,
+                                                              "gp delete stroke fragment");
       memcpy(static_cast<void *>(new_stroke->points),
              gps->points + island->start_idx,
              sizeof(bGPDspoint) * new_stroke->totpoints);
@@ -437,7 +437,7 @@ bGPDstroke *BKE_gpencil_stroke_delete_tagged_points(bGPdata *gpd,
           MDeformVert *dvert_src = &gps->dvert[e];
           MDeformVert *dvert_dst = &new_stroke->dvert[i];
           if (dvert_src->dw) {
-            dvert_dst->dw = (MDeformWeight *)MEM_dupallocN(dvert_src->dw);
+            dvert_dst->dw = static_cast<MDeformWeight *>(MEM_dupallocN(dvert_src->dw));
           }
           e++;
         }
@@ -503,3 +503,5 @@ bGPDstroke *BKE_gpencil_stroke_delete_tagged_points(bGPdata *gpd,
 
   return new_stroke;
 }
+
+}  // namespace blender

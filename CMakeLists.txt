@@ -51,7 +51,7 @@ if(NOT DEFINED CMAKE_INSTALL_MESSAGE)
   set(CMAKE_INSTALL_MESSAGE "LAZY")
 endif()
 
-# quiet output for Makefiles, 'make -s' helps too
+# quiet output for Makefiles, `make -s` helps too
 # set_property(GLOBAL PROPERTY RULE_MESSAGES OFF)
 
 # -----------------------------------------------------------------------------
@@ -100,6 +100,9 @@ if(POLICY CMP0177)
   cmake_policy(SET CMP0177 NEW)
 endif()
 
+# The target_sources() command converts relative paths to absolute.
+cmake_policy(SET CMP0076 NEW)
+
 # -----------------------------------------------------------------------------
 # Load Blender's Local Macros
 
@@ -115,6 +118,20 @@ project(Blender)
 blender_project_hack_post()
 
 enable_testing()
+
+# There are some circumstances where the git checkout doesn't grab
+# the files from LFS but produces small pointer files. The build system
+# does not pick up on this, and at runtime blender will throw a strange
+# error while it is trying to load the startup.blend file. For now just
+# check this file is over 1KB in size, and throw out a fatal error otherwise.
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/release/datafiles/startup.blend)
+  file(SIZE ${CMAKE_SOURCE_DIR}/release/datafiles/startup.blend startup_size)
+  if(${startup_size} LESS 1024)
+    message(FATAL_ERROR "Detected incomplete startup blend, likely due to missing Git LFS checkout.\nRunning \"make update\" or \"git lfs pull\" may resolve the issue.")
+  endif()
+  unset(startup_size)
+endif()
 
 
 # -----------------------------------------------------------------------------
@@ -381,8 +398,8 @@ if(UNIX AND NOT (APPLE OR HAIKU))
   mark_as_advanced(WITH_GHOST_WAYLAND)
 
   if(WITH_GHOST_WAYLAND)
-    option(WITH_GHOST_WAYLAND_LIBDECOR "Optionally build with LibDecor window decorations" ON)
-    mark_as_advanced(WITH_GHOST_WAYLAND_LIBDECOR)
+    option(WITH_GHOST_CSD "Enable client side decorations with Wayland" ON)
+    mark_as_advanced(WITH_GHOST_CSD)
 
     option(WITH_GHOST_WAYLAND_DYNLOAD "Enable runtime dynamic WAYLAND libraries loading" ON)
     mark_as_advanced(WITH_GHOST_WAYLAND_DYNLOAD)
@@ -393,6 +410,11 @@ this can be used to differentiate Blender instances by version or branch for exa
     )
     mark_as_advanced(WITH_GHOST_WAYLAND_APP_ID)
   endif()
+endif()
+
+# Only used for WAYLAND, avoid having to check for WAYLAND everywhere by setting as disabled.
+if(NOT DEFINED WITH_GHOST_CSD)
+  set(WITH_GHOST_CSD OFF)
 endif()
 
 if(WITH_GHOST_X11)
@@ -414,10 +436,17 @@ Build with external audaspace library installed on the system \
 (only enable if you know what you're doing!)"
   OFF
 )
+option(WITH_RUBBERBAND "\
+Build with Rubber Band for audio time-stretching and pitch-scaling (used by Audaspace)"
+  ON
+)
 mark_as_advanced(WITH_AUDASPACE)
 mark_as_advanced(WITH_SYSTEM_AUDASPACE)
+mark_as_advanced(WITH_RUBBERBAND)
 
 set_and_warn_dependency(WITH_AUDASPACE WITH_SYSTEM_AUDASPACE OFF)
+set_and_warn_dependency(WITH_AUDASPACE WITH_RUBBERBAND OFF)
+set_and_warn_incompatible(WITH_SYSTEM_AUDASPACE WITH_RUBBERBAND OFF)
 
 if(WITH_GHOST_X11)
   option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)" ON)
@@ -521,11 +550,6 @@ else()
 endif()
 
 # Compression
-option(WITH_LZO "Enable fast LZO compression (used for pointcache)" ON)
-option(WITH_LZMA "Enable best LZMA compression, (used for pointcache)" ON)
-if(UNIX AND NOT APPLE)
-  option(WITH_SYSTEM_LZO "Use the system LZO library" OFF)
-endif()
 option(WITH_DRACO "Enable Draco mesh compression Python module (used for glTF)" ON)
 
 # Camera/motion tracking
@@ -533,7 +557,7 @@ option(WITH_LIBMV "Enable Libmv structure from motion library" ON)
 option(WITH_LIBMV_SCHUR_SPECIALIZATIONS "Enable fixed-size schur specializations." ON)
 mark_as_advanced(WITH_LIBMV_SCHUR_SPECIALIZATIONS)
 
-# Logging/unbit test libraries.
+# Logging/unit test libraries.
 option(WITH_SYSTEM_GFLAGS "Use system-wide Gflags instead of a bundled one" OFF)
 option(WITH_SYSTEM_GLOG "Use system-wide Glog instead of a bundled one" OFF)
 mark_as_advanced(WITH_SYSTEM_GFLAGS)
@@ -621,8 +645,8 @@ Path to python site-packages or dist-packages containing 'zstandard' module"
   mark_as_advanced(PYTHON_ZSTANDARD_PATH)
 endif()
 
-option(WITH_CPU_SIMD "Enable SIMD instruction if they're detected on the host machine" ON)
-mark_as_advanced(WITH_CPU_SIMD)
+option(WITH_COMPILER_SIMD "Add the recommended Blender default SIMD flags to the compiler's C_FLAGS/CXX_FLAGS" ON)
+mark_as_advanced(WITH_COMPILER_SIMD)
 
 # Cycles
 option(WITH_CYCLES "Enable Cycles Render Engine" ON)
@@ -636,6 +660,10 @@ option(WITH_CYCLES_STANDALONE_GUI "Build Cycles standalone with GUI" OFF)
 option(WITH_CYCLES_PRECOMPUTE "Build Cycles data precomputation tool" OFF)
 
 option(WITH_CYCLES_HYDRA_RENDER_DELEGATE "Build Cycles Hydra render delegate" OFF)
+
+option(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD
+       "Build Cycles kernels of difference devices in parallel (faster, but uses more memory)" OFF)
+mark_as_advanced(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD)
 
 option(WITH_CYCLES_DEBUG_NAN "\
 Build Cycles with additional asserts for detecting NaNs and invalid values"
@@ -742,7 +770,7 @@ This option is only for debugging purposes."
   # `ocloc compile --help`.
   # If you have completed optimization work and now want to enable AoT for new Intel devices,
   # update the optimization status in OneapiDevice::architecture_information.
-  set(CYCLES_ONEAPI_INTEL_BINARIES_ARCH dg2 mtl lnl bmg CACHE STRING "\
+  set(CYCLES_ONEAPI_INTEL_BINARIES_ARCH dg2 mtl lnl bmg ptl CACHE STRING "\
 oneAPI Intel GPU architectures to build binaries for"
   )
   set(CYCLES_ONEAPI_SYCL_TARGETS spir64 spir64_gen CACHE STRING "\
@@ -763,9 +791,6 @@ option(WITH_LLVM "Use LLVM" OFF)
 option(LLVM_STATIC "Link with LLVM static libraries" OFF)
 mark_as_advanced(LLVM_STATIC)
 option(WITH_CLANG "Use Clang" OFF)
-
-option(WITH_MEM_JEMALLOC "Enable malloc replacement (http://www.canonware.com/jemalloc)" ON)
-mark_as_advanced(WITH_MEM_JEMALLOC)
 
 # currently only used for BLI_mempool
 option(WITH_MEM_VALGRIND "Enable extended valgrind support for better reporting" OFF)
@@ -792,8 +817,10 @@ Enable multi-threading. TBB is also required for features such as Cycles, OpenVD
   ON
 )
 
-# TBB malloc is only supported on for windows currently
-if(WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+# TBB malloc is only supported:
+# - On MS-Windows.
+# - On Unix/Linux.
+if((WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64") OR (UNIX AND NOT APPLE))
   option(WITH_TBB_MALLOC_PROXY "Enable the TBB malloc replacement" ON)
 endif()
 
@@ -908,7 +935,7 @@ mark_as_advanced(WITH_SYSTEM_PYTHON_TESTS)
 # We could use `find_package (Python3 COMPONENTS Interpreter)` to set that value automatically.
 # However, on some buildbots this will give the default Python version of the current virtual
 # environment, which may differ from the OS default Python version.
-# And it would set that global 'python3 exec path' CMake value for all CMake scripts,
+# And it would set that global `python3 exec path` CMake value for all CMake scripts,
 # which could have unexpected and dangerous side effects.
 # So this has to be set explicitly for all builders.
 set(TEST_SYSTEM_PYTHON_EXE "" CACHE PATH "Python executable used to run 'system python' tests")
@@ -960,7 +987,8 @@ if(NOT APPLE)
   option(WITH_VULKAN_BACKEND "Enable Vulkan as graphics backend" ON)
   mark_as_advanced(WITH_VULKAN_BACKEND)
 else()
-  set(WITH_VULKAN_BACKEND OFF)
+  option(WITH_VULKAN_BACKEND "Enable Vulkan as graphics backend (development option)" OFF)
+  mark_as_advanced(WITH_VULKAN_BACKEND)
 endif()
 
 # Metal
@@ -1010,9 +1038,9 @@ Can cause linking issues due to too large binary size."
   OFF
 )
 mark_as_advanced(WITH_COMPILER_ASAN_EXTERN)
-set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_JEMALLOC OFF)
+set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_TBB_MALLOC_PROXY OFF) # TODO: seems to cause issues.
 set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_VALGRIND OFF)
-set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_JEMALLOC OFF)
+set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_TBB_MALLOC_PROXY OFF)
 set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_VALGRIND OFF)
 
 option(WITH_COMPILER_CODE_COVERAGE "\
@@ -1179,7 +1207,12 @@ if(WIN32)
 
   option(WITH_WINDOWS_BUNDLE_CRT "Bundle the C runtime for install free distribution." ON)
   mark_as_advanced(WITH_WINDOWS_BUNDLE_CRT)
-
+  if(WITH_WINDOWS_BUNDLE_CRT AND
+     CMAKE_VERSION VERSION_LESS "4.2.0" AND
+     MSVC_VERSION GREATER_EQUAL 1950)
+    message(WARNING "VS2026 not supported on this CMAKE version: WITH_WINDOWS_BUNDLE_CRT will be disabled")
+    set(WITH_WINDOWS_BUNDLE_CRT OFF)
+  endif()
   option(WITH_WINDOWS_EXTERNAL_MANIFEST "Use external manifest files" OFF)
   mark_as_advanced(WITH_WINDOWS_EXTERNAL_MANIFEST)
 
@@ -1309,6 +1342,10 @@ if(NOT WITH_BLENDER AND NOT WITH_CYCLES_STANDALONE AND NOT WITH_CYCLES_HYDRA_REN
   )
 endif()
 
+# Doesn't make too much sense to check if the CPU supports our default SIMD options if they are
+# turned off.
+set_and_warn_dependency(WITH_COMPILER_SIMD WITH_CPU_CHECK OFF)
+
 set_and_warn_dependency(WITH_AUDASPACE WITH_OPENAL OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_COREAUDIO OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_JACK OFF)
@@ -1348,7 +1385,7 @@ set_and_warn_dependency(WITH_TBB WITH_MOD_FLUID         OFF)
 # NanoVDB requires OpenVDB to convert the data structure
 set_and_warn_dependency(WITH_OPENVDB WITH_NANOVDB       OFF)
 
-# OpenVDB, Alembic and OSL uses 'half' or 'imath' from OpenEXR
+# OpenVDB, Alembic and OSL uses `half` or `imath` from OpenEXR
 set_and_warn_dependency(WITH_IMAGE_OPENEXR WITH_OPENVDB OFF)
 set_and_warn_dependency(WITH_IMAGE_OPENEXR WITH_ALEMBIC OFF)
 set_and_warn_dependency(WITH_IMAGE_OPENEXR WITH_CYCLES_OSL OFF)
@@ -1356,8 +1393,9 @@ set_and_warn_dependency(WITH_IMAGE_OPENEXR WITH_CYCLES_OSL OFF)
 # Hydra requires USD.
 set_and_warn_dependency(WITH_USD WITH_HYDRA OFF)
 
-# The Ocean modifier requires FFTW3.
+# Ocean modifier and Rubberband require FFTW3.
 set_and_warn_dependency(WITH_FFTW3 WITH_MOD_OCEANSIM OFF)
+set_and_warn_dependency(WITH_FFTW3 WITH_RUBBERBAND OFF)
 
 if(NOT WITH_CYCLES)
   set(WITH_CYCLES_OSL OFF)
@@ -1543,17 +1581,6 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
   endif()
 endif()
 
-# Test SIMD support, before platform includes to determine if sse2neon is needed.
-if(WITH_CPU_SIMD)
-  set(COMPILER_SSE42_FLAG)
-
-  # Test Neon first since macOS Arm can compile and run x86-64 SSE binaries.
-  test_neon_support()
-  if(NOT SUPPORT_NEON_BUILD)
-    test_sse_support(COMPILER_SSE42_FLAG)
-  endif()
-endif()
-
 
 # ----------------------------------------------------------------------------
 # Main Platform Checks
@@ -1574,53 +1601,20 @@ endif()
 # -----------------------------------------------------------------------------
 # Common Checks for Compatible Options
 
-# Enable SIMD support if detected by `test_sse_support()` or `test_neon_support()`.
+# Add the default compiler SIMD flags if enabled
 #
-if(WITH_CPU_SIMD)
-  if(SUPPORT_NEON_BUILD)
-    # Neon
-    if(SSE2NEON_FOUND)
-      include_directories(SYSTEM "${SSE2NEON_INCLUDE_DIRS}")
-      add_definitions(-DWITH_SSE2NEON)
-    endif()
-  else()
-    # SSE
-    if(SUPPORT_SSE42_BUILD)
-      string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_SSE42_FLAG}")
-      string(APPEND CMAKE_C_FLAGS " ${COMPILER_SSE42_FLAG}")
-      # MSVC doesn't define any of these and only does the AVX and higher flags.
-      # For consistency we define these flags for MSVC.
-      if(WIN32)
-        add_compile_definitions(
-          __MMX__
-          __SSE__
-          __SSE2__
-          __SSE3__
-          __SSE4_1__
-          __SSE4_2__
-        )
-      endif()
-    endif()
-  endif()
+if(WITH_COMPILER_SIMD)
+  set(COMPILER_SSE42_FLAG)
+  get_sse_flags(COMPILER_SSE42_FLAG)
+  string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_SSE42_FLAG}")
+  string(APPEND CMAKE_C_FLAGS " ${COMPILER_SSE42_FLAG}")
 endif()
 
-# Print instructions used on first run.
-if(FIRST_RUN)
-  if(WITH_CPU_SIMD)
-    if(SUPPORT_NEON_BUILD)
-      if(SSE2NEON_FOUND)
-        message(STATUS "Neon SIMD instructions enabled")
-      else()
-        message(STATUS "Neon SIMD instructions detected but unused, requires sse2neon")
-      endif()
-    elseif(SUPPORT_SSE42_BUILD)
-      message(STATUS "SSE42 SIMD instructions enabled")
-    else()
-      message(STATUS "No SIMD instructions detected")
-    endif()
-  else()
-    message(STATUS "SIMD instructions disabled")
-  endif()
+# Enable SSE2NEON SIMD support if found.
+#
+if(SUPPORTS_NEON_BUILD AND SSE2NEON_FOUND)
+  include_directories(SYSTEM "${SSE2NEON_INCLUDE_DIRS}")
+  add_definitions(-DWITH_SSE2NEON)
 endif()
 
 # Test endianness and set the endian define.
@@ -1645,6 +1639,17 @@ endif()
 if(NOT WITH_SYSTEM_EIGEN3)
   set(EIGEN3_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/Eigen3)
 endif()
+if (WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
+  # See also:
+  #   - `EIGEN_MALLOC_ALREADY_ALIGNED` definition and usages in extern/Eigen3/Eigen/src/Core/util/Memory.h
+  #   - Report: https://projects.blender.org/blender/blender/issues/152010
+  #
+  # NOTE: It seems to only affect GCC and its sanitizer library - but best be on the safe side here,
+  #       and do that for all compilers and systems.
+  message(DEBUG "Forcing Eigen to use their own allocator code because `WITH_COMPILER_ASAN` is enabled but "
+                "`WITH_COMPILER_ASAN_EXTERN` is disabled, which can cause mismatch usages of Eigen allocators." )
+  add_definitions(-DEIGEN_MALLOC_ALREADY_ALIGNED=0)
+endif()
 
 # -----------------------------------------------------------------------------
 # Configure Metal
@@ -1653,8 +1658,8 @@ if(WITH_METAL_BACKEND)
   add_definitions(-DWITH_METAL_BACKEND)
 
   # No need to add frameworks here, all the ones we need for Metal and
-  # Metal-OpenGL Interop are already being added by
-  # build_files/cmake/platform/platform_apple.cmake
+  # Metal-OpenGL Interoperability are already being added by
+  # `build_files/cmake/platform/platform_apple.cmake`.
 endif()
 
 
@@ -1729,7 +1734,7 @@ include(dependency_targets)
 # -----------------------------------------------------------------------------
 # Ninja Job Limiting
 
-# Extra limits to number of jobs running in parallel for some kind os tasks.
+# Extra limits to number of jobs running in parallel for some kind OS tasks.
 # Only supported by Ninja build system currently.
 
 if("${CMAKE_GENERATOR}" MATCHES "Ninja" AND WITH_NINJA_POOL_JOBS)
@@ -1779,7 +1784,7 @@ Keep at '0' to automatically compute optimal values for each build."
   endif()
   if(${_link_jobs} LESS 1)
     # Heuristics: Maximum amount of memory needed per linking task.
-    # Note: These values are purposedly over-estimated by 10-15% at least, to account
+    # Note: These values are purposely over-estimated by 10-15% at least, to account
     #       for other types of jobs' memory usage, other system memory usages, etc.
     set(_link_mem 10000)
     if(WITH_COMPILER_ASAN)
@@ -1826,7 +1831,7 @@ Keep at '0' to automatically compute optimal values for each build."
   endif()
   if(${_compile_heavy_jobs} LESS 1)
     # Heuristics: Maximum amount of memory needed per heavy compile task.
-    # Note: These values are purposedly over-estimated by 10-15% at least, to account
+    # Note: These values are purposely over-estimated by 10-15% at least, to account
     #       for other types of jobs' memory usage, other system memory usages, etc.
     set(_compile_heavy_mem 2000)
     if(WITH_COMPILER_ASAN)
@@ -1977,8 +1982,8 @@ if(CMAKE_COMPILER_IS_GNUCC)
     C_WARN_REDUNDANT_DECLS -Wredundant-decls
     C_WARN_SHADOW -Wshadow
 
-    # Disable because it gives warnings for printf() & friends.
-    # C_WARN_DOUBLE_PROMOTION "-Wdouble-promotion -Wno-error=double-promotion"
+    # Disable because it gives warnings for `printf()` & friends.
+    # C_WARN_DOUBLE_PROMOTION `-Wdouble-promotion -Wno-error=double-promotion`
 
     # Use `ATTR_FALLTHROUGH` macro to suppress.
     C_WARN_IMPLICIT_FALLTHROUGH -Wimplicit-fallthrough=5
@@ -2037,6 +2042,14 @@ if(CMAKE_COMPILER_IS_GNUCC)
     # Use `[[fallthrough]]` or `ATTR_FALLTHROUGH` macro to suppress.
     CXX_WARN_IMPLICIT_FALLTHROUGH -Wimplicit-fallthrough=5
   )
+
+  if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+    # Silence warnings about GCC ABI breaking bug fixes on arm64
+    add_check_cxx_compiler_flags(
+      CXX_WARNINGS
+      CXX_WARN_NO_PSABI -Wno-psabi
+    )
+  endif()
 
   # causes too many warnings
   if(NOT APPLE)
@@ -2127,7 +2140,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CXX_WARN_NO_UNKNOWN_PRAGMAS -Wno-unknown-pragmas
     CXX_WARN_NO_CHAR_SUBSCRIPTS -Wno-char-subscripts
 
-    # We get a lot of these, if its a problem a dev needs to look into it.
+    # We get a lot of these, if its a problem a developer needs to look into it.
     CXX_WARN_NO_OVERLOADED_VIRTUAL -Wno-overloaded-virtual
 
     CXX_WARN_NO_SIGN_COMPARE -Wno-sign-compare
@@ -2150,7 +2163,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CXX_WARN_ERROR_UNGUARDED_AVAILABILITY_NEW -Werror=unguarded-availability-new
   )
   if(MSVC_CLANG)
-    # clang-cl produces an unhealthy ammount of warnings in its default
+    # clang-cl produces an unhealthy amount of warnings in its default
     # configuration as it for reasons unknown decided to enable all
     # warnings known to mankind. Resulting in a 5.5GB build log containing
     # well over 11 million warnings. The code below disables every single
@@ -2165,7 +2178,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     # /W3 is being removed, then added back again, this is because order
     # matters for clang and these flags are being placed before the
     # CMAKE_[LANGUAGE]_FLAGS which normally contain /W3, so we would
-    # disable certain warings here only for them to be re-enabled by /W3
+    # disable certain warnings here only for them to be re-enabled by /W3
     # later on.
     remove_cc_flag("/W3")
 
@@ -2623,7 +2636,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR
 endif()
 
 if(WITH_COMPILER_SHORT_FILE_MACRO)
-  # Use '-fmacro-prefix-map' for Clang and GCC (MSVC doesn't support this).
+  # Use `-fmacro-prefix-map` for Clang and GCC (MSVC doesn't support this).
   set(C_PREFIX_MAP_FLAGS "")
   set(CXX_PREFIX_MAP_FLAGS "")
   add_check_c_compiler_flags(
@@ -2792,7 +2805,7 @@ if(FIRST_RUN)
 
     set(_msg "  - ${_setting}")
     string(LENGTH "${_msg}" _len)
-    while("36" GREATER "${_len}")
+    while("40" GREATER "${_len}")
       string(APPEND _msg " ")
       math(EXPR _len "${_len} + 1")
     endwhile()
@@ -2843,7 +2856,7 @@ if(FIRST_RUN)
 
   info_cfg_text("System Options:")
   info_cfg_option(WITH_INSTALL_PORTABLE)
-  info_cfg_option(WITH_MEM_JEMALLOC)
+  info_cfg_option(WITH_TBB_MALLOC_PROXY)
   info_cfg_option(WITH_MEM_VALGRIND)
 
   info_cfg_text("GHOST Options:")
@@ -2859,7 +2872,6 @@ if(FIRST_RUN)
     endif()
     if(WITH_GHOST_WAYLAND)
       info_cfg_option(WITH_GHOST_WAYLAND_DYNLOAD)
-      info_cfg_option(WITH_GHOST_WAYLAND_LIBDECOR)
     endif()
   endif()
 
@@ -2870,6 +2882,7 @@ if(FIRST_RUN)
 
   info_cfg_text("Audio:")
   info_cfg_option(WITH_AUDASPACE)
+  info_cfg_option(WITH_RUBBERBAND)
   info_cfg_option(WITH_CODEC_FFMPEG)
   info_cfg_option(WITH_CODEC_SNDFILE)
   info_cfg_option(WITH_COREAUDIO)
@@ -2880,10 +2893,6 @@ if(FIRST_RUN)
   info_cfg_option(WITH_PULSEAUDIO_DYNLOAD)
   info_cfg_option(WITH_SDL)
   info_cfg_option(WITH_WASAPI)
-
-  info_cfg_text("Compression:")
-  info_cfg_option(WITH_LZMA)
-  info_cfg_option(WITH_LZO)
 
   if(WITH_PYTHON)
     info_cfg_text("Python:")
@@ -2918,6 +2927,20 @@ if(FIRST_RUN)
       info_cfg_option(WITH_CYCLES_DEVICE_HIPRT)
     endif()
   endif()
+
+  info_cfg_text("Tests:")
+  info_cfg_option(WITH_GTESTS)
+  info_cfg_option(CYCLES_TEST_DEVICES)
+  info_cfg_option(WITH_CYCLES_TEST_OSL)
+  info_cfg_option(WITH_GPU_RENDER_TESTS)
+  info_cfg_option(WITH_GPU_BACKEND_TESTS)
+  info_cfg_option(WITH_GPU_DRAW_TESTS)
+  info_cfg_option(WITH_GPU_COMPOSITOR_TESTS)
+  info_cfg_option(WITH_GPU_MESH_PAINT_TESTS)
+  info_cfg_option(WITH_UI_TESTS)
+  info_cfg_option(WITH_UI_TESTS_HEADLESS)
+  info_cfg_option(WITH_GPU_RENDER_TESTS_VULKAN)
+  info_cfg_option(WITH_LINUX_OFFICIAL_RELEASE_TESTS)
 
   info_cfg_text("")
 
