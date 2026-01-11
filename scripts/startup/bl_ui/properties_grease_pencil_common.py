@@ -191,6 +191,33 @@ class GreasePencilBrushFalloff:
                     show_presets=True,
                 )
 
+class GREASE_PENCIL_MT_move_to_layer_submenu(bpy.types.Menu):
+    bl_label = "Move to Group"
+
+    def draw(self, context):
+        layout = self.layout
+        obd = context.active_object.data
+        parent_group = getattr(context, "gpencil_menu_group", None)
+
+        # Gather all children (layers AND groups) for this specific parent
+        child_layers = [l for l in obd.layers if l.parent_group == parent_group]
+        child_groups = [g for g in obd.layer_groups if g.parent_group == parent_group]
+
+        layout.operator("grease_pencil.move_to_layer", text="New Layer", icon='ADD').add_new_layer = True
+        
+        if not (child_groups or child_layers):
+            return
+        
+        layout.separator()
+
+        for group in reversed(child_groups):
+            layout.context_pointer_set("gpencil_menu_group", group)
+            layout.menu("GREASE_PENCIL_MT_move_to_layer_submenu", text=group.name, icon='GREASEPENCIL_LAYER_GROUP')
+
+        for layer in reversed(child_layers):
+            icon = 'GREASEPENCIL' if obd.layers.active == layer else 'NONE'
+            op = layout.operator("grease_pencil.move_to_layer", text=layer.name, icon=icon)
+            op.target_layer_name = layer.name
 
 class GREASE_PENCIL_MT_move_to_layer(Menu):
     bl_label = "Move to Layer"
@@ -214,13 +241,17 @@ class GREASE_PENCIL_MT_move_to_layer(Menu):
 
         layout.separator()
 
-        for i in range(len(grease_pencil.layers) - 1, -1, -1):
-            layer = grease_pencil.layers[i]
-            if layer == grease_pencil.layers.active:
-                icon = 'GREASEPENCIL'
-            else:
-                icon = 'NONE'
-            layout.operator("grease_pencil.move_to_layer", text=layer.name, icon=icon).target_layer_name = layer.name
+        root_layers = [l for l in grease_pencil.layers if l.parent_group is None]
+        root_groups = [g for g in grease_pencil.layer_groups if g.parent_group is None]
+
+        for group in reversed(root_groups):
+            layout.context_pointer_set("gpencil_menu_group", group)
+            layout.menu("GREASE_PENCIL_MT_move_to_layer_submenu", text=group.name, icon='GREASEPENCIL_LAYER_GROUP')
+
+        for layer in reversed(root_layers):
+            icon = 'GREASEPENCIL' if grease_pencil.layers.active == layer else 'NONE'
+            op = layout.operator("grease_pencil.move_to_layer", text=layer.name, icon=icon)
+            op.target_layer_name = layer.name
 
 
 class GREASE_PENCIL_MT_layer_active(Menu):
@@ -601,6 +632,7 @@ classes = (
     GPENCIL_UL_annotation_layer,
 
     GREASE_PENCIL_MT_move_to_layer,
+    GREASE_PENCIL_MT_move_to_layer_submenu,
     GREASE_PENCIL_MT_layer_active,
 
     GREASE_PENCIL_MT_snap,
