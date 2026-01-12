@@ -96,7 +96,7 @@ void shaderfx_panel_end(ui::Layout &layout, PointerRNA *ptr)
 PointerRNA *shaderfx_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_ptr)
 {
   PointerRNA *ptr = ui::panel_custom_data_get(panel);
-  BLI_assert(RNA_struct_is_a(ptr->type, &RNA_ShaderFx));
+  BLI_assert(RNA_struct_is_a(ptr->type, RNA_ShaderFx));
 
   if (r_ob_ptr != nullptr) {
     *r_ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, RNA_Object, ptr->owner_id);
