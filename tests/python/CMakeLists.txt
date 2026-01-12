@@ -233,6 +233,11 @@ endif()
 # ------------------------------------------------------------------------------
 
 add_blender_test(
+  script_pyapi_gpu
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_gpu.py
+)
+
+add_blender_test(
   script_pyapi_bpy_app_tempdir
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app_tempdir.py
 )
