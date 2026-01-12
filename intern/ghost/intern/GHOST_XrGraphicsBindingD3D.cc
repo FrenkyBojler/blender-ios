@@ -77,6 +77,19 @@ GHOST_XrGraphicsBindingD3D::~GHOST_XrGraphicsBindingD3D()
   }
 }
 
+bool GHOST_XrGraphicsBindingD3D::loadExtensionFunctions(XrInstance instance)
+{
+#define LOAD_FUNCTION(name, fn_ptr) \
+  if (XR_FAILED(xrGetInstanceProcAddr(instance, name, (PFN_xrVoidFunction *)&fn_ptr))) { \
+    return false; \
+  }
+
+  LOAD_FUNCTION(xrGetD3D11GraphicsRequirementsKHR_, "xrGetD3D11GraphicsRequirementsKHR");
+
+#undef LOAD_FUNCTION
+  return true;
+}
+
 bool GHOST_XrGraphicsBindingD3D::checkVersionRequirements(
     GHOST_Context & /*ghost_ctx*/, /* Remember: This is the OpenGL context! */
     XrInstance instance,
