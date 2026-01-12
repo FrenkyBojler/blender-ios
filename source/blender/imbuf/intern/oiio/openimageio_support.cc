@@ -342,42 +342,70 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
     }
   }
   else {
-    const uint format_flag = IB_byte_data | IB_uninitialized_pixels;
-    const int planes = 32;
     const float oversample = 1.5f;
     const int imb_w = width * oversample;
     const int imb_h = height * oversample;
     const float imb_scale = scale * oversample;
-    ibuf = IMB_allocImBuf(imb_w, imb_h, planes, format_flag);
+    ibuf = IMB_allocImBuf(imb_w, imb_h, 32, IB_byte_data | IB_uninitialized_pixels);
     if (!ibuf) {
       in->close();
       return nullptr;
     }
 
-    /* Single row of pixels. */
-    Array<uint8_t> pixels(spec.width * channels);
+    if (spec.format.basetype == TypeDesc::UINT8) {
+      /* Single row of pixels. */
+      Array<uint8_t> pixels(spec.width * channels);
 
-    const int color_channels = has_alpha ? channels - 1 : channels;
-    const int g_offset = color_channels > 1 ? 1 : 0;
-    const int b_offset = color_channels > 2 ? 2 : 0;
+      const int color_channels = has_alpha ? channels - 1 : channels;
+      const int g_offset = color_channels > 1 ? 1 : 0;
+      const int b_offset = color_channels > 2 ? 2 : 0;
 
-    for (int h = 0; h < imb_h; h++) {
-      const int source_y = int(float(h) / imb_scale);
-      /* Scanlines must be read in forward order, otherwise it is very slow. */
-      if (!in->read_scanlines(
-              0, 0, source_y, source_y + 1, 0, 0, channels, TypeDesc::UINT8, pixels.data()))
-      {
-        break;
+      for (int h = 0; h < imb_h; h++) {
+        const int source_y = int(float(h) / imb_scale);
+        /* Scanlines must be read in forward order, otherwise it is very slow. */
+        if (!in->read_scanlines(
+                0, 0, source_y, source_y + 1, 0, 0, channels, TypeDesc::UINT8, pixels.data()))
+        {
+          break;
+        }
+        for (int w = 0; w < imb_w; w++) {
+          /* For each destination pixel find single corresponding source pixel. */
+          int source_x = int(std::min<int>((w / imb_scale), spec.width - 1)) * channels;
+          /* Save to the target ImBuf bottom to top as the origins differ. */
+          uint8_t *dest_px = &ibuf->byte_buffer.data[((imb_h - h - 1) * imb_w + w) * 4];
+          dest_px[0] = pixels[source_x];
+          dest_px[1] = pixels[source_x + g_offset];
+          dest_px[2] = pixels[source_x + b_offset];
+          dest_px[3] = has_alpha ? pixels[source_x + alpha_channel] : 255;
+        }
       }
-      for (int w = 0; w < imb_w; w++) {
-        /* For each destination pixel find single corresponding source pixel. */
-        int source_x = int(std::min<int>((w / imb_scale), spec.width - 1)) * channels;
-        /* Save to the target ImBuf bottom to top as the origins differ. */
-        uint8_t *dest_px = &ibuf->byte_buffer.data[((imb_h - h - 1) * imb_w + w) * 4];
-        dest_px[0] = pixels[source_x];
-        dest_px[1] = pixels[source_x + g_offset];
-        dest_px[2] = pixels[source_x + b_offset];
-        dest_px[3] = has_alpha ? pixels[source_x + alpha_channel] : 255;
+    }
+    else if (spec.format.basetype == TypeDesc::UINT16) {
+      /* Single row of 2-byte pixels. */
+      Array<uint16_t> pixels(spec.width * channels);
+
+      const int color_channels = has_alpha ? channels - 1 : channels;
+      const int g_offset = color_channels > 1 ? 1 : 0;
+      const int b_offset = color_channels > 2 ? 2 : 0;
+
+      for (int h = 0; h < imb_h; h++) {
+        const int source_y = int(float(h) / imb_scale);
+        /* Scanlines must be read in forward order, otherwise it is very slow. */
+        if (!in->read_scanlines(
+                0, 0, source_y, source_y + 1, 0, 0, channels, TypeDesc::UINT16, pixels.data()))
+        {
+          break;
+        }
+        for (int w = 0; w < imb_w; w++) {
+          /* For each destination pixel find single corresponding source pixel. */
+          int source_x = int(std::min<int>((w / imb_scale), spec.width - 1)) * channels;
+          /* Save to the target ImBuf bottom to top as the origins differ. */
+          uint8_t *dest_px = &ibuf->byte_buffer.data[((imb_h - h - 1) * imb_w + w) * 4];
+          dest_px[0] = char(pixels[source_x] >> 8);
+          dest_px[1] = char(pixels[source_x + g_offset] >> 8);
+          dest_px[2] = char(pixels[source_x + b_offset] >> 8);
+          dest_px[3] = has_alpha ? char(pixels[source_x + alpha_channel] >> 8) : 255;
+        }
       }
     }
   }
