@@ -331,16 +331,7 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
     object->set_color(make_float3(object_color[0], object_color[1], object_color[2]));
     object->set_alpha(object_color[3]);
 
-    /* Slightly offset vertex coordinates to avoid overlapping faces with other volumes or meshes.
-     * The proper solution would be to improve intersection in the kernel to support robust
-     * handling of multiple overlapping faces or use an all-hit intersection similar to shadows. */
-    if (object->get_geometry() && object->get_geometry()->is_volume()) {
-      const float3 offset = transform_direction(
-          &tfm, make_float3(hash_uint_to_float(hash_string(object->name.c_str())) * 0.001f));
-      transform_translate(tfm, offset);
-    }
-
-    object->set_tfm(tfm);
+    object->set_transform_normalized(tfm);
 
     /* dupli texture coordinates and random_id */
     if (is_instance) {

@@ -123,6 +123,9 @@ class Object : public Node {
   bool has_light_linking() const;
   bool has_shadow_linking() const;
 
+  /* Transform of some object types need to be modified to prevent render issues. */
+  void set_transform_normalized(Transform tfm_);
+
  protected:
   /* Reference to the attribute map with object attributes,
    * or 0 if none. Set in update_svm_attributes. */
