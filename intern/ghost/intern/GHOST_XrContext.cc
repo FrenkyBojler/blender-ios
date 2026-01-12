@@ -526,8 +526,7 @@ std::vector<GHOST_TXrGraphicsBinding> GHOST_XrContext::determineGraphicsBindingT
     assert(create_info->gpu_binding_candidates[i] != GHOST_kXrGraphicsUnknown);
     blender::Vector<blender::StringRefNull> extension_names = openxr_ext_names_from_wm_gpu_binding(
         create_info->gpu_binding_candidates[i]);
-    /* Vulkan contains has 2 extensions if any of these are available we should select the
-     * binding.*/
+    /* Vulkan has 2 extensions if any of these are available we should select the binding. */
     for (blender::StringRefNull extension_name : extension_names) {
       if (openxr_extension_is_available(oxr_->extensions, extension_name)) {
         result.push_back(create_info->gpu_binding_candidates[i]);
