@@ -473,7 +473,7 @@ static void map_socket(NodeTreeInterfaceMapping &io_mapping,
                        const bNode &group_node,
                        const bNodeTreeInterfaceSocket &io_socket)
 {
-  const bNodeTree &group_tree = *reinterpret_cast<const bNodeTree *>(group_node.id);
+  const bNodeTree &group_tree = *id_cast<const bNodeTree *>(group_node.id);
   const bool is_input = (io_socket.flag & NODE_INTERFACE_SOCKET_INPUT);
   const bNodeSocket *group_socket = is_input ?
                                         group_node.input_by_identifier(io_socket.identifier) :
@@ -515,7 +515,7 @@ NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &
                                                   const bNode &group_node)
 {
   BLI_assert(group_node.is_group());
-  const bNodeTree &group_tree = *reinterpret_cast<const bNodeTree *>(group_node.id);
+  const bNodeTree &group_tree = *id_cast<const bNodeTree *>(group_node.id);
 
   NodeTreeInterfaceMapping result;
   for (const bNodeTreeInterfaceItem *io_item : group_tree.interface_items()) {
@@ -747,7 +747,7 @@ void connect_group_node_to_external_sockets(bNode &group_node,
   using InterfaceSocketData = NodeTreeInterfaceMapping::InterfaceSocketData;
 
   bNodeTree &owner_tree = group_node.owner_tree();
-  const bNodeTree &group_tree = *reinterpret_cast<bNodeTree *>(group_node.id);
+  const bNodeTree &group_tree = *id_cast<bNodeTree *>(group_node.id);
 
   /* Cache node socket lists to avoid invalid topology cache after linking. */
   owner_tree.ensure_topology_cache();
@@ -848,7 +848,7 @@ void update_nested_node_refs_after_moving_nodes_into_group(bNodeTree &src_tree,
   BLI_assert(group_node.is_group());
   BLI_assert(group_node.id == &node_set_copy.dst_tree().id);
 
-  bNodeTree &dst_tree = *reinterpret_cast<bNodeTree *>(group_node.id);
+  bNodeTree &dst_tree = *id_cast<bNodeTree *>(group_node.id);
   /* Update nested node references in the parent and child node tree. */
   NestedNodeRefIDGenerator ref_id_gen(dst_tree.nested_node_refs_span());
 
@@ -886,7 +886,7 @@ void update_nested_node_refs_after_ungroup(bNodeTree &dst_tree,
   BLI_assert(group_node.id != nullptr);
   BLI_assert(&dst_tree == &node_set_copy.dst_tree());
 
-  const bNodeTree &src_tree = *reinterpret_cast<const bNodeTree *>(group_node.id);
+  const bNodeTree &src_tree = *id_cast<const bNodeTree *>(group_node.id);
   for (bNestedNodeRef &dst_ref : dst_tree.nested_node_refs_span()) {
     if (dst_ref.path.node_id != group_node.identifier) {
       continue;
