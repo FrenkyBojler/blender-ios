@@ -19,6 +19,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
@@ -717,6 +718,10 @@ static void graph_refresh_fcurve_colors(const bContext *C)
     BLI_assert_msg(ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE),
                    "Expecting only FCurves when using the ANIMFILTER_FCURVESONLY filter");
     FCurve *fcu = static_cast<FCurve *>(ale->data);
+    char fcu_rna_path[64];
+    STRNCPY(fcu_rna_path, fcu->rna_path ? fcu->rna_path : "");
+    /* Fallback 'unknown' color. Bluish so as to not conflict with axes or handles. */
+    const float col_fallback[3] = {0.3f, 0.8f, 1.0f};
 
     /* set color of curve here */
     switch (fcu->color_mode) {
@@ -734,51 +739,98 @@ static void graph_refresh_fcurve_colors(const bContext *C)
          */
         float *col = fcu->color;
 
-        switch (fcu->array_index) {
-          case 0:
-            ui::theme::get_color_3fv(TH_AXIS_X, col);
-            break;
-          case 1:
-            ui::theme::get_color_3fv(TH_AXIS_Y, col);
-            break;
-          case 2:
-            ui::theme::get_color_3fv(TH_AXIS_Z, col);
-            break;
-          default:
-            /* 'unknown' color - bluish so as to not conflict with handles */
-            col[0] = 0.3f;
-            col[1] = 0.8f;
-            col[2] = 1.0f;
-            break;
+        if (BLI_str_endswith(fcu_rna_path, "scale")) {
+          switch (fcu->array_index) {
+            default:
+            case 0:
+              ui::theme::get_color_3fv(TH_AXIS_X_SCALE, col);
+              break;
+            case 1:
+              ui::theme::get_color_3fv(TH_AXIS_Y_SCALE, col);
+              break;
+            case 2:
+              ui::theme::get_color_3fv(TH_AXIS_Z_SCALE, col);
+              break;
+          }
         }
+        else if (BLI_str_endswith(fcu_rna_path, "euler")) {
+          switch (fcu->array_index) {
+            default:
+            case 0:
+              ui::theme::get_color_3fv(TH_AXIS_X_ROTATION, col);
+              break;
+            case 1:
+              ui::theme::get_color_3fv(TH_AXIS_Y_ROTATION, col);
+              break;
+            case 2:
+              ui::theme::get_color_3fv(TH_AXIS_Z_ROTATION, col);
+              break;
+          }
+        }
+        else {
+          switch (fcu->array_index) {
+            case 0:
+              ui::theme::get_color_3fv(TH_AXIS_X, col);
+              break;
+            case 1:
+              ui::theme::get_color_3fv(TH_AXIS_Y, col);
+              break;
+            case 2:
+              ui::theme::get_color_3fv(TH_AXIS_Z, col);
+              break;
+            default:
+              col[0] = col_fallback[0];
+              col[1] = col_fallback[1];
+              col[2] = col_fallback[2];
+              break;
+          }
+        }
+
         break;
       }
       case FCURVE_COLOR_AUTO_YRGB: {
         /* Like FCURVE_COLOR_AUTO_RGB, except this is for quaternions... */
         float *col = fcu->color;
 
-        switch (fcu->array_index) {
-          case 1:
-            ui::theme::get_color_3fv(TH_AXIS_X, col);
-            break;
-          case 2:
-            ui::theme::get_color_3fv(TH_AXIS_Y, col);
-            break;
-          case 3:
-            ui::theme::get_color_3fv(TH_AXIS_Z, col);
-            break;
-
-          case 0: {
-            ui::theme::get_color_3fv(TH_AXIS_W, col);
-            break;
+        if (BLI_str_endswith(fcu_rna_path, "quaternion")) {
+          switch (fcu->array_index) {
+            case 1:
+              ui::theme::get_color_3fv(TH_AXIS_X_ROTATION, col);
+              break;
+            case 2:
+              ui::theme::get_color_3fv(TH_AXIS_Y_ROTATION, col);
+              break;
+            case 3:
+              ui::theme::get_color_3fv(TH_AXIS_Z_ROTATION, col);
+              break;
+            default:
+            case 0: {
+              ui::theme::get_color_3fv(TH_AXIS_W, col);
+              break;
+            }
           }
-
-          default:
-            /* 'unknown' color - bluish so as to not conflict with handles */
-            col[0] = 0.3f;
-            col[1] = 0.8f;
-            col[2] = 1.0f;
-            break;
+        }
+        else {
+          switch (fcu->array_index) {
+            case 1:
+              ui::theme::get_color_3fv(TH_AXIS_X, col);
+              break;
+            case 2:
+              ui::theme::get_color_3fv(TH_AXIS_Y, col);
+              break;
+            case 3:
+              ui::theme::get_color_3fv(TH_AXIS_Z, col);
+              break;
+            case 0: {
+              ui::theme::get_color_3fv(TH_AXIS_W, col);
+              break;
+            }
+            default:
+              col[0] = col_fallback[0];
+              col[1] = col_fallback[1];
+              col[2] = col_fallback[2];
+              break;
+          }
         }
         break;
       }

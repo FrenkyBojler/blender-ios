@@ -2149,11 +2149,47 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Z Axis", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
+  prop = RNA_def_property(srna, "axis_x_rot", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "xaxis_rot");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Rotation X Axis", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+
+  prop = RNA_def_property(srna, "axis_y_rot", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "yaxis_rot");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Rotation Y Axis", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+
+  prop = RNA_def_property(srna, "axis_z_rot", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "zaxis_rot");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Rotation Z Axis", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+
   prop = RNA_def_property(srna, "axis_w", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "waxis");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "W Axis", "W-axis for quaternion and axis-angle rotations");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "axis_x_scale", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "xaxis_scale");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Scale X Axis", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+
+  prop = RNA_def_property(srna, "axis_y_scale", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "yaxis_scale");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Scale Y Axis", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+
+  prop = RNA_def_property(srna, "axis_z_scale", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "zaxis_scale");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Scale Z Axis", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   /* Generic gizmo colors. */
   prop = RNA_def_property(srna, "gizmo_hi", PROP_FLOAT, PROP_COLOR_GAMMA);

@@ -1265,20 +1265,34 @@ class USERPREF_PT_theme_interface_gizmos(ThemePanel, CenterAlignMixIn, Panel):
         theme = context.preferences.themes[0]
         ui = theme.user_interface
 
-        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=True, align=False)
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
         col = flow.column(align=True)
-        col.prop(ui, "axis_x", text="Axis X")
+        col.prop(ui, "axis_x", text="Location Axis X")
         col.prop(ui, "axis_y", text="Y")
         col.prop(ui, "axis_z", text="Z")
-        col.prop(ui, "axis_w", text="W")
+        col.separator()
 
-        col = flow.column()
+        col = flow.column(align=True)
+        col.prop(ui, "axis_w", text="Rotation Axis W")
+        col.prop(ui, "axis_x_rot", text="X")
+        col.prop(ui, "axis_y_rot", text="Y")
+        col.prop(ui, "axis_z_rot", text="Z")
+        col.separator()
+
+        col = flow.column(align=True)
+        col.prop(ui, "axis_x_scale", text="Scale Axis X")
+        col.prop(ui, "axis_y_scale", text="Y")
+        col.prop(ui, "axis_z_scale", text="Z")
+        col.separator()
+
+        col = flow.column(align=True)
         col.prop(ui, "gizmo_primary")
         col.prop(ui, "gizmo_secondary", text="Secondary")
         col.prop(ui, "gizmo_view_align", text="View Align")
+        col.separator()
 
-        col = flow.column()
+        col = flow.column(align=True)
         col.prop(ui, "gizmo_a")
         col.prop(ui, "gizmo_b", text="B")
 

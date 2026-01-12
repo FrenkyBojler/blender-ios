@@ -1020,6 +1020,24 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
         case TH_AXIS_W:
           cp = btheme->tui.waxis;
           break;
+        case TH_AXIS_X_ROTATION:
+          cp = btheme->tui.xaxis_rot;
+          break;
+        case TH_AXIS_Y_ROTATION:
+          cp = btheme->tui.yaxis_rot;
+          break;
+        case TH_AXIS_Z_ROTATION:
+          cp = btheme->tui.zaxis_rot;
+          break;
+        case TH_AXIS_X_SCALE:
+          cp = btheme->tui.xaxis_scale;
+          break;
+        case TH_AXIS_Y_SCALE:
+          cp = btheme->tui.yaxis_scale;
+          break;
+        case TH_AXIS_Z_SCALE:
+          cp = btheme->tui.zaxis_scale;
+          break;
 
         case TH_GIZMO_HI:
           cp = btheme->tui.gizmo_hi;

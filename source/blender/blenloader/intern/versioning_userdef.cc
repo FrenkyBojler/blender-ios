@@ -419,6 +419,15 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_linear);
   }
 
+  if (!USER_VERSION_ATLEAST(501, 17)) {
+    copy_v4_v4_uchar(btheme->tui.xaxis_rot, U_theme_default.tui.xaxis);
+    copy_v4_v4_uchar(btheme->tui.xaxis_scale, U_theme_default.tui.xaxis);
+    copy_v4_v4_uchar(btheme->tui.yaxis_rot, U_theme_default.tui.yaxis);
+    copy_v4_v4_uchar(btheme->tui.yaxis_scale, U_theme_default.tui.yaxis);
+    copy_v4_v4_uchar(btheme->tui.zaxis_rot, U_theme_default.tui.zaxis);
+    copy_v4_v4_uchar(btheme->tui.zaxis_scale, U_theme_default.tui.zaxis);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

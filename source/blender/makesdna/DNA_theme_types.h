@@ -245,6 +245,8 @@ typedef struct ThemeUI {
 
   /* Axis Colors */
   unsigned char xaxis[4], yaxis[4], zaxis[4], waxis[4];
+  unsigned char xaxis_rot[4], yaxis_rot[4], zaxis_rot[4];
+  unsigned char xaxis_scale[4], yaxis_scale[4], zaxis_scale[4];
 
   /* Gizmo Colors. */
   unsigned char gizmo_hi[4];
