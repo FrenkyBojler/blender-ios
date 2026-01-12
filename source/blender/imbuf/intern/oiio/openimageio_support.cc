@@ -347,7 +347,7 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
     }
 
     /* Single row of pixels. */
-    blender::Vector<uint8_t> pixels(spec.width * channels);
+    Array<uint8_t> pixels(spec.width * channels);
 
     for (int h = 0; h < imb_h; h++) {
       const int source_y = int(float(h) / imb_scale);
