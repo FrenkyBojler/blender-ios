@@ -5432,10 +5432,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
     return -1;
   };
 
-  bool skip_weight_transfer = false;
-  if (BLI_listbase_is_empty(&drawing.geometry.vertex_group_names)) {
-    skip_weight_transfer = true;
-  }
+  const bool skip_weight_transfer = BLI_listbase_is_empty(&drawing.geometry.vertex_group_names);
 
   int up_to_point = 0;
   for (int chain_i : writer.index_range()) {
