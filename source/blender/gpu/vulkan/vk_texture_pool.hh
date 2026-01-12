@@ -45,7 +45,7 @@ class VKTexturePool : public TexturePool {
     std::optional<Segment> acquire(VkMemoryRequirements memory_requirements);
 
     /* Return a segment to the allocation for reuse. */
-    void release(Segment region);
+    void release(Segment segment);
 
     /* Check if the allocation is entirely unused. */
     bool is_unused() const
@@ -99,7 +99,6 @@ class VKTexturePool : public TexturePool {
 
   /* Debug storage to identify effective memory reuse. Log is only output
    * if values have changed since the last `::reset()`. */
-#ifndef NDEBUG
   struct UsageData {
     int64_t allocation_count = 0;
     VkDeviceSize acquired_segment_size = 0;
@@ -112,11 +111,11 @@ class VKTexturePool : public TexturePool {
              acquired_segment_size_max == o.acquired_segment_size_max;
     }
   };
+  UsageData previous_usage_data_ = {};
+  UsageData current_usage_data_ = {};
 
-  UsageData previous_usage_data_, current_usage_data_;
-
+  /* Output usage data to debug log. Called on `--debug-gpu` */
   void log_usage_data();
-#endif
 
  public:
   ~VKTexturePool();

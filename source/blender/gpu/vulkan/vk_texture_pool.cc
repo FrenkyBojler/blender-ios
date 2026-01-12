@@ -229,7 +229,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
       device.vk_handle(), texture_handle.texture->vk_image_, &memory_requirements);
   align_requirements_size(memory_requirements);
 
-  /* Find a compatible region of allocated memory. */
+  /* Find a compatible segment of allocated memory. */
   for (auto handle : allocations_) {
     auto segment_opt = handle.acquire(memory_requirements);
     if (segment_opt) {
@@ -276,12 +276,12 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   device.resources.add_aliased_image(
       texture_handle.texture->vk_image_, false, texture_handle.texture->name_.c_str());
 
-#ifndef NDEBUG
-  /* Accumulate usage data for debug log. Maximum is stored. */
-  current_usage_data_.acquired_segment_size += texture_handle.segment.size;
-  current_usage_data_.acquired_segment_size_max = std::max(
-      current_usage_data_.acquired_segment_size_max, current_usage_data_.acquired_segment_size);
-#endif
+  if (G.debug & G_DEBUG_GPU) {
+    /* Accumulate usage data for debug log. Maximum is stored. */
+    current_usage_data_.acquired_segment_size += texture_handle.segment.size;
+    current_usage_data_.acquired_segment_size_max = std::max(
+        current_usage_data_.acquired_segment_size_max, current_usage_data_.acquired_segment_size);
+  }
 
   acquired_.add(texture_handle);
   return wrap(texture_handle.texture);
@@ -293,9 +293,9 @@ void VKTexturePool::release_texture(Texture *tex)
                  "Unacquired texture passed to VKTexturePool::offset_users_count()");
   TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex)});
 
-#ifndef NDEBUG
-  current_usage_data_.acquired_segment_size -= texture_handle.segment.size;
-#endif
+  if (G.debug & G_DEBUG_GPU) {
+    current_usage_data_.acquired_segment_size -= texture_handle.segment.size;
+  }
 
   /* Move allocation back to `pool_`. */
   auto page_handle = allocations_.lookup_key(texture_handle.allocation_handle);
@@ -341,28 +341,24 @@ void VKTexturePool::reset(bool force_free)
     }
   }
 
-#ifndef NDEBUG
-  /* Log debug usage data if it differs from the last `::reset()`. */
-  current_usage_data_.allocation_count = allocations_.size();
-  if (!(previous_usage_data_ == current_usage_data_)) {
-    log_usage_data();
+  if (G.debug & G_DEBUG_GPU) {
+    /* Log debug usage data if it differs from the last `::reset()`. */
+    current_usage_data_.allocation_count = allocations_.size();
+    if (!(previous_usage_data_ == current_usage_data_)) {
+      log_usage_data();
+    }
+
+    /* Reset usage data; don't forget to add up persistent textures to current usage. */
+    previous_usage_data_ = current_usage_data_;
+    current_usage_data_ = {};
+    for (const TextureHandle &tex : acquired_) {
+      current_usage_data_.acquired_segment_size += tex.segment.size;
+    }
   }
-  previous_usage_data_ = current_usage_data_;
-  current_usage_data_ = {};
-  for (const TextureHandle &tex : acquired_) {
-    current_usage_data_.acquired_segment_size += tex.segment.size;
-  }
-#endif
 }
 
-#ifndef NDEBUG
 void VKTexturePool::log_usage_data()
 {
-  /* Usage log is only output when --debug-gpu is specified. */
-  if (!(G.debug & G_DEBUG_GPU)) {
-    return;
-  }
-
   VkDeviceSize total_allocation_size = 0;
   for (const auto &handle : allocations_) {
     total_allocation_size += handle.allocation_info.size;
@@ -377,6 +373,5 @@ void VKTexturePool::log_usage_data()
              ratio * 100.0f,
              current_usage_data_.allocation_count);
 }
-#endif
 
 }  // namespace blender::gpu
