@@ -975,7 +975,7 @@ static void engine_render_add_result_pass_cb(void *user_data,
 
 static RenderResult *engine_render_create_result(Render *re)
 {
-  // If in border stamp mode, we need a render result in the size of the full canvas.
+  /* If in border overlay mode, we need a render result in the size of the full canvas. */
   RenderResult *rr = nullptr;
   if (re->r.mode & R_BORDER_OVERLAY) {
     rcti disprect = {0, re->winx, 0, re->winy};
