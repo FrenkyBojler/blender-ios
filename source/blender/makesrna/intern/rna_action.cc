@@ -2406,7 +2406,7 @@ static void rna_def_action(BlenderRNA *brna)
                            "Is Legacy Action",
                            "Return whether this is a legacy Action. Legacy Actions have no layers "
                            "or slots. Since Blender 4.4 actions are automatically updated to "
-                           "layered actions. This will only return true on empty actions.");
+                           "layered actions. This will only return true on empty actions");
   RNA_def_property_boolean_funcs(prop, "rna_Action_is_action_legacy_get", nullptr);
 
   prop = RNA_def_property(srna, "is_action_layered", PROP_BOOLEAN, PROP_NONE);
