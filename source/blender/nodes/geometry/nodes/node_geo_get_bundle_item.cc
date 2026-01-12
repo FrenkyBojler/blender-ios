@@ -60,7 +60,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const std::string path = params.extract_input<std::string>("Path");
   const bool remove = params.extract_input<bool>("Remove");
 
-  if (path.empty()) {
+  if (!Bundle::is_valid_path(path)) {
     params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
     return;
@@ -100,7 +100,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (remove) {
-    const_cast<Bundle &>(*bundle).remove_path(path);
+    bundle.ensure_mutable_inplace().remove_path(path);
   }
 
   params.set_output("Bundle", std::move(bundle));
@@ -122,14 +122,14 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         return enum_items_filter(
             rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 0);  // todo
+              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 3);  // todo
             });
       });
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "NodeGetBundleItem");
   ntype.ui_name = "Get Bundle Item";

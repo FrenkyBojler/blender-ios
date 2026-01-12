@@ -57,11 +57,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     bundle_ptr->tag_ensured_mutable();
   }
 
-  Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);
+  Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
 
   const std::string path = params.extract_input<std::string>("Path");
-  if (path.empty()) {
-    params.set_output("Bundle", std::move(bundle_ptr));
+  if (!Bundle::is_valid_path(path)) {
+    params.set_default_remaining_outputs();
     return;
   }
 
@@ -97,7 +97,7 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         return enum_items_filter(
             rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 0);  // todo
+              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 3);  // todo
             });
       });
 }
