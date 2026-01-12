@@ -104,19 +104,19 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "NodeStoreBundleItem");
   ntype.ui_name = "Store Bundle Item";
   ntype.ui_description = "Store a bundle item by path and data type.";
   ntype.nclass = NODE_CLASS_CONVERTER;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeStoreBundleItem", node_free_standard_storage, node_copy_standard_storage);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
