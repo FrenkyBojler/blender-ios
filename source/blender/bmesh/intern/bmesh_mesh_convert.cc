@@ -1503,6 +1503,7 @@ static void add_bm_cd_to_mesh(const BMesh &bm,
   const CustomData &bm_data = get_bm_custom_data(bm, domain);
   CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
   bke::MutableAttributeAccessor attrs = mesh.attributes_for_write();
+  const int domain_size = attrs.domain_size(domain);
   for (const CustomDataLayer &layer : Span(bm_data.layers, bm_data.totlayer)) {
     if (layer.flag & CD_FLAG_NOCOPY) {
       continue;
@@ -1516,7 +1517,7 @@ static void add_bm_cd_to_mesh(const BMesh &bm,
       if ((CD_TYPE_AS_MASK(cd_type) & cd_type_mask) == 0) {
         continue;
       }
-      CustomData_add_layer_named(&mesh_data, cd_type, CD_CONSTRUCT, 0, layer.name);
+      CustomData_add_layer_named(&mesh_data, cd_type, CD_CONSTRUCT, domain_size, layer.name);
     }
   }
 }
