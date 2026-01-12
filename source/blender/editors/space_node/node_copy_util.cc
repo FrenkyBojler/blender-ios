@@ -85,8 +85,6 @@ std::optional<Bounds<float2>> node_location_bounds(Span<const bNode *> nodes)
 /** \name Utilities for copying node sets
  * \{ */
 
-namespace util {
-
 using NodeFilterFn = FunctionRef<bool(const bNode &)>;
 static bool default_link_filter(const bNode & /*node*/)
 {
@@ -260,8 +258,6 @@ static void remap_pairing(bNodeTree &dst_tree,
   }
 }
 
-}  // namespace util
-
 /* Utility for sequentially adding interface sockets and panels. */
 class NodeSetInterfaceBuilder {
  private:
@@ -315,16 +311,15 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
 
   Vector<MutableNodeSocketRef> external_links;
   if (params_.add_external_links) {
-    external_links = util::get_socket_links(
-        src_socket, params_.skip_hidden, [&](const bNode &node) {
-          return !src_nodes_set_.contains(&node);
-        });
+    external_links = get_socket_links(src_socket, params_.skip_hidden, [&](const bNode &node) {
+      return !src_nodes_set_.contains(&node);
+    });
   }
 
   if (external_links.is_empty()) {
     if (!params_.skip_unconnected) {
       InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(&src_socket, [&]() {
-        bNodeTreeInterfaceSocket &io_socket = util::add_interface_from_socket(
+        bNodeTreeInterfaceSocket &io_socket = add_interface_from_socket(
             src_tree, src_socket, dst_tree_, parent);
         InterfaceSocketData &data = io_mapping_.socket_data.lookup_or_add(&io_socket, {});
         return &data;
@@ -355,7 +350,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
       InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(
           &external_socket.socket, [&]() {
             /* Generated interface socket is based on the internal socket. */
-            bNodeTreeInterfaceSocket &io_socket = util::add_interface_from_socket(
+            bNodeTreeInterfaceSocket &io_socket = add_interface_from_socket(
                 src_tree, src_socket, dst_tree_, parent);
             InterfaceSocketData &data = io_mapping_.socket_data.lookup_or_add(&io_socket, {});
             /* First internal socket defines the socket state. */
@@ -371,7 +366,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
     /* Create interface based on the internal socket. */
     InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(&src_socket, [&]() {
       /* Generated interface socket is based on the internal socket. */
-      bNodeTreeInterfaceSocket &io_socket = util::add_interface_from_socket(
+      bNodeTreeInterfaceSocket &io_socket = add_interface_from_socket(
           src_tree, src_socket, dst_tree_, parent);
       InterfaceSocketData &data = io_mapping_.socket_data.lookup_or_add(&io_socket, {});
       data.hidden = src_socket.flag & SOCK_HIDDEN;
@@ -495,10 +490,10 @@ static void map_socket(NodeTreeInterfaceMapping &io_mapping,
 
   NodeTreeInterfaceMapping::InterfaceSocketData data;
   data.internal_sockets.add_multiple(
-      util::get_internal_group_links(group_tree, io_socket, params.skip_hidden)
+      get_internal_group_links(group_tree, io_socket, params.skip_hidden)
           .as_span()
           .cast<NodeSocketRef>());
-  data.external_sockets.add_multiple(util::get_socket_links(*group_socket, false));
+  data.external_sockets.add_multiple(get_socket_links(*group_socket, false));
   data.hidden = group_socket->flag & SOCK_HIDDEN;
   data.collapsed = group_socket->flag & SOCK_COLLAPSED;
   io_mapping.socket_data.add(&io_socket, std::move(data));
@@ -578,7 +573,7 @@ NodeSetCopy NodeSetCopy::from_nodes(Main &bmain,
     result.node_identifier_map_.add(src_node->identifier, dst_node->identifier);
 
     anim_basepaths.append(
-        {util::node_basepath(src_tree, *src_node), util::node_basepath(dst_tree, *dst_node)});
+        {node_basepath(src_tree, *src_node), node_basepath(dst_tree, *dst_node)});
   }
 
   /* Recreate parent/child relationship of nodes. */
@@ -596,7 +591,7 @@ NodeSetCopy NodeSetCopy::from_nodes(Main &bmain,
   }
 
   /* Recreate internal links. */
-  const Vector<const bNodeLink *> internal_links = util::find_internal_links(src_tree, src_nodes);
+  const Vector<const bNodeLink *> internal_links = find_internal_links(src_tree, src_nodes);
   for (const bNodeLink *src_link : internal_links) {
     bke::node_add_link(dst_tree,
                        *result.node_map_.lookup(src_link->fromnode),
@@ -608,7 +603,7 @@ NodeSetCopy NodeSetCopy::from_nodes(Main &bmain,
   /* Recreate zone pairing between new nodes. */
   const Vector<bNode *> new_nodes(result.node_map_.values().begin(),
                                   result.node_map_.values().end());
-  util::remap_pairing(dst_tree, new_nodes, result.node_identifier_map_);
+  remap_pairing(dst_tree, new_nodes, result.node_identifier_map_);
 
   /* Copy animation data of source nodes. */
   BKE_animdata_copy_by_basepath(bmain, src_tree.id, dst_tree.id, anim_basepaths);
