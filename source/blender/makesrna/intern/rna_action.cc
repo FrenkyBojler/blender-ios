@@ -987,7 +987,7 @@ static bool rna_Action_is_empty_get(PointerRNA *ptr)
   animrig::Action &action = rna_action(ptr);
   return action.is_empty();
 }
-static bool rna_Action_is_action_legacy_get(PointerRNA * /* ptr */)
+static bool rna_Action_is_action_legacy_get(PointerRNA *ptr)
 {
   /* All actions are versioned so legacy actions no longer exist. This RNA function should be
    * removed at the next opportunity. */
