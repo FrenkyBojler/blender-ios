@@ -47,11 +47,6 @@ static void rna_BlenderProject_update(Main * /*bmain*/, Scene * /*scene*/, Point
 static void rna_BlenderProjectData_name_get(PointerRNA *ptr, char *value)
 {
   const bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
-  BLI_assert(project_data != nullptr);
-  if (!project_data) {
-    value[0] = '\0';
-    return;
-  }
 
   strcpy(value, project_data->get_name().c_str());
 }
@@ -59,10 +54,6 @@ static void rna_BlenderProjectData_name_get(PointerRNA *ptr, char *value)
 static int rna_BlenderProjectData_name_length(PointerRNA *ptr)
 {
   const bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
-  BLI_assert(project_data != nullptr);
-  if (!project_data) {
-    return 0;
-  }
 
   return project_data->get_name().size();
 }
@@ -70,10 +61,6 @@ static int rna_BlenderProjectData_name_length(PointerRNA *ptr)
 static void rna_BlenderProjectData_name_set(PointerRNA *ptr, const char *value)
 {
   bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
-  BLI_assert(project_data != nullptr);
-  if (!project_data) {
-    return;
-  }
 
   project_data->set_name(value);
 }
@@ -81,11 +68,6 @@ static void rna_BlenderProjectData_name_set(PointerRNA *ptr, const char *value)
 static void rna_BlenderProjectData_root_path_get(PointerRNA *ptr, char *value)
 {
   const bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
-  BLI_assert(project_data != nullptr);
-  if (!project_data) {
-    value[0] = '\0';
-    return;
-  }
 
   strcpy(value, project_data->get_root_path().c_str());
 }
@@ -93,10 +75,6 @@ static void rna_BlenderProjectData_root_path_get(PointerRNA *ptr, char *value)
 static int rna_BlenderProjectData_root_path_length(PointerRNA *ptr)
 {
   const bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
-  BLI_assert(project_data != nullptr);
-  if (!project_data) {
-    return 0;
-  }
 
   return project_data->get_root_path().size();
 }
@@ -116,8 +94,7 @@ static void rna_BlenderProject_is_dirty_set(PointerRNA *ptr, bool value)
 static PointerRNA rna_BlenderProject_data_get(PointerRNA *ptr)
 {
   bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-  BLI_assert(project != nullptr);
-  if (!project || !project->data.has_value()) {
+  if (!project->data.has_value()) {
     return RNA_pointer_create_discrete(nullptr, &RNA_BlenderProjectData, nullptr);
   }
 
@@ -130,10 +107,6 @@ static void rna_BlenderProject_init(PointerRNA ptr,
                                     const char *project_root)
 {
   bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr.data);
-  BLI_assert(project != nullptr);
-  if (!project) {
-    return;
-  }
 
   if (!project->init(name, project_root)) {
     BKE_reportf(reports,
@@ -149,10 +122,6 @@ static void rna_BlenderProject_init(PointerRNA ptr,
 static void rna_BlenderProject_clear(PointerRNA ptr)
 {
   bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr.data);
-  BLI_assert(project != nullptr);
-  if (!project) {
-    return;
-  }
 
   project->clear();
 

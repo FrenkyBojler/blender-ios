@@ -20,16 +20,11 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "BLT_translation.hh"
-
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
-#include "UI_resources.hh"
 #include "UI_view2d.hh"
 
 #include "BLO_read_write.hh"
-
-#include <sstream>
 
 namespace blender {
 
@@ -79,14 +74,11 @@ static SpaceLink *project_create(const ScrArea * /*area*/, const Scene * /*scene
 
 static void project_free(SpaceLink * /*sl*/) {}
 
-/* spacetype; init callback */
 static void project_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *project_duplicate(SpaceLink *sl)
 {
   SpaceProject *space_project = static_cast<SpaceProject *>(MEM_dupallocN(sl));
-
-  /* clear or remove stuff from old */
 
   return (SpaceLink *)space_project;
 }

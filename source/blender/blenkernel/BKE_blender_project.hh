@@ -14,6 +14,13 @@
 
 namespace blender::bke {
 
+/**
+ * The actual data of a project.
+ *
+ * Effectively, this is the actual project, and `BlenderProject` below is a
+ * container that allows this to either exist or not depending on whether a
+ * project is loaded or not.
+ */
 class BlenderProjectData {
   /* The name and root path should never be empty. */
   std::string name_;
@@ -41,9 +48,16 @@ class BlenderProjectData {
   StringRefNull get_root_path() const;
 };
 
+/**
+ * Container for `BlenderProjectData` that always exists.
+ *
+ * Also contains metadata about the state of project data, such as whether it's
+ * dirty or not.
+ */
 class BlenderProject {
  public:
-  /* If the project is not initialized, it has no data. */
+  /* Actual project data. When this is null, it means there is currently no
+   * project. */
   std::optional<BlenderProjectData> data = std::nullopt;
 
   /* Whether the project has unsaved changes. */

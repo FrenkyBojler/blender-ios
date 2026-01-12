@@ -6741,7 +6741,7 @@ static wmOperatorStatus project_setup_show_exec(bContext *C, wmOperator *op)
 static void SCREEN_OT_project_setup_show(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Open Preferences...";
+  ot->name = "Open Project Setup...";
   ot->description = "Create and manage projects";
   ot->idname = "SCREEN_OT_project_setup_show";
 
