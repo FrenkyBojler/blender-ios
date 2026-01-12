@@ -15,6 +15,10 @@
 #include "GHOST_XrGraphicsBindingVulkan.hh"
 #include "GHOST_Xr_intern.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"ghost.xr"};
+
 #ifdef _WIN32
 #  include <vulkan/vulkan_win32.h>
 #endif
@@ -88,19 +92,32 @@ GHOST_XrGraphicsBindingVulkan::~GHOST_XrGraphicsBindingVulkan()
 bool GHOST_XrGraphicsBindingVulkan::loadExtensionFunctions(XrInstance instance)
 {
 #define LOAD_FUNCTION(fn_ptr, name) \
-  if (XR_FAILED(xrGetInstanceProcAddr(instance, #name, (PFN_xrVoidFunction *)&fn_ptr))) { \
-    return false; \
-  }
+  XR_SUCCEEDED(xrGetInstanceProcAddr(instance, #name, (PFN_xrVoidFunction *)&fn_ptr))
 
-  /* XR_KHR_vulkan_enable2 */
-  LOAD_FUNCTION(functions_.xrGetVulkanGraphicsRequirements2KHR,
-                xrGetVulkanGraphicsRequirements2KHR);
-  LOAD_FUNCTION(functions_.xrGetVulkanGraphicsDevice2KHR, xrGetVulkanGraphicsDevice2KHR);
-  LOAD_FUNCTION(functions_.xrCreateVulkanInstanceKHR, xrCreateVulkanInstanceKHR);
-  LOAD_FUNCTION(functions_.xrCreateVulkanDeviceKHR, xrCreateVulkanDeviceKHR);
+  extensions_.vulkan_enable = LOAD_FUNCTION(functions_.xrGetVulkanInstanceExtensionsKHR,
+                                            xrGetVulkanInstanceExtensionsKHR) &&
+                              LOAD_FUNCTION(functions_.xrGetVulkanDeviceExtensionsKHR,
+                                            xrGetVulkanDeviceExtensionsKHR) &&
+                              LOAD_FUNCTION(functions_.xrGetVulkanGraphicsDeviceKHR,
+                                            xrGetVulkanGraphicsDeviceKHR) &&
+                              LOAD_FUNCTION(functions_.xrGetVulkanGraphicsRequirementsKHR,
+                                            xrGetVulkanGraphicsRequirementsKHR);
+  extensions_.vulkan_enable2 =
+      LOAD_FUNCTION(functions_.xrGetVulkanGraphicsRequirements2KHR,
+                    xrGetVulkanGraphicsRequirements2KHR) &&
+      LOAD_FUNCTION(functions_.xrGetVulkanGraphicsDevice2KHR, xrGetVulkanGraphicsDevice2KHR) &&
+      LOAD_FUNCTION(functions_.xrCreateVulkanInstanceKHR, xrCreateVulkanInstanceKHR) &&
+      LOAD_FUNCTION(functions_.xrCreateVulkanDeviceKHR, xrCreateVulkanDeviceKHR);
 
 #undef LOAD_FUNCTION
-  return true;
+
+  CLOG_INFO(&LOG,
+            "XR/Vulkan graphics extensions:\n"
+            "- [%c] XR_KHR_vulkan_enable\n"
+            "- [%c] XR_KHR_vulkan_enable2",
+            extensions_.vulkan_enable ? 'X' : ' ',
+            extensions_.vulkan_enable2 ? 'X' : ' ');
+  return extensions_.vulkan_enable || extensions_.vulkan_enable2;
 }
 
 bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghost_ctx,
@@ -108,31 +125,66 @@ bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghos
                                                              XrSystemId system_id,
                                                              std::string *r_requirement_info) const
 {
-  XrGraphicsRequirementsVulkanKHR xr_graphics_requirements{
-      /*type*/ XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR,
-  };
-  if (XR_FAILED(functions_.xrGetVulkanGraphicsRequirements2KHR(
-          instance, system_id, &xr_graphics_requirements)))
-  {
-    *r_requirement_info = std::string("Unable to retrieve Xr version requirements for Vulkan");
-    return false;
-  }
+  std::ostringstream strstream;
 
-  /* Check if the Vulkan API instance version is supported. */
   GHOST_ContextVK &context_vk = static_cast<GHOST_ContextVK &>(ghost_ctx);
   const XrVersion vk_version = XR_MAKE_VERSION(
       context_vk.context_major_version_, context_vk.context_minor_version_, 0);
-  if (vk_version < xr_graphics_requirements.minApiVersionSupported ||
-      vk_version > xr_graphics_requirements.maxApiVersionSupported)
-  {
-    std::ostringstream strstream;
-    strstream << "Min Vulkan version "
-              << XR_VERSION_MAJOR(xr_graphics_requirements.minApiVersionSupported) << "."
-              << XR_VERSION_MINOR(xr_graphics_requirements.minApiVersionSupported) << std::endl;
-    strstream << "Max Vulkan version "
-              << XR_VERSION_MAJOR(xr_graphics_requirements.maxApiVersionSupported) << "."
-              << XR_VERSION_MINOR(xr_graphics_requirements.maxApiVersionSupported) << std::endl;
 
+  if (extensions_.vulkan_enable) {
+    XrGraphicsRequirementsVulkanKHR xr_graphics_requirements{
+        /*type*/ XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR,
+    };
+
+    if (XR_FAILED(functions_.xrGetVulkanGraphicsRequirementsKHR(
+            instance, system_id, &xr_graphics_requirements)))
+    {
+      *r_requirement_info = std::string("Unable to retrieve Xr version requirements for Vulkan");
+      return false;
+    }
+
+    /* Check if the Vulkan API instance version is supported. */
+    if (vk_version < xr_graphics_requirements.minApiVersionSupported ||
+        vk_version > xr_graphics_requirements.maxApiVersionSupported)
+    {
+      strstream.clear();
+      strstream << "Min Vulkan version "
+                << XR_VERSION_MAJOR(xr_graphics_requirements.minApiVersionSupported) << "."
+                << XR_VERSION_MINOR(xr_graphics_requirements.minApiVersionSupported) << std::endl;
+      strstream << "Max Vulkan version "
+                << XR_VERSION_MAJOR(xr_graphics_requirements.maxApiVersionSupported) << "."
+                << XR_VERSION_MINOR(xr_graphics_requirements.maxApiVersionSupported) << std::endl;
+    }
+  }
+
+  if (extensions_.vulkan_enable2) {
+    XrGraphicsRequirementsVulkanKHR xr_graphics_requirements2{
+        /*type*/ XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR,
+    };
+
+    if (XR_FAILED(functions_.xrGetVulkanGraphicsRequirements2KHR(
+            instance, system_id, &xr_graphics_requirements2)))
+    {
+      *r_requirement_info = std::string("Unable to retrieve Xr version requirements for Vulkan");
+      return false;
+    }
+
+    if (vk_version < xr_graphics_requirements2.minApiVersionSupported ||
+        vk_version > xr_graphics_requirements2.maxApiVersionSupported)
+    {
+      strstream.clear();
+      strstream << "Min Vulkan version "
+                << XR_VERSION_MAJOR(xr_graphics_requirements2.minApiVersionSupported) << "."
+                << XR_VERSION_MINOR(xr_graphics_requirements2.minApiVersionSupported) << std::endl;
+      strstream << "Max Vulkan version "
+                << XR_VERSION_MAJOR(xr_graphics_requirements2.maxApiVersionSupported) << "."
+                << XR_VERSION_MINOR(xr_graphics_requirements2.maxApiVersionSupported) << std::endl;
+    }
+  }
+
+  /* When one of the version doesn't match we will error out. We assume when both extensions are
+   * supported that both will use the same requirements. */
+  if (!strstream.str().empty()) {
     *r_requirement_info = strstream.str();
     return false;
   }
