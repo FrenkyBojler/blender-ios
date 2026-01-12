@@ -351,18 +351,18 @@ void connect_group_node_to_external_sockets(bNode &group_node,
                                             const NodeTreeInterfaceMapping &io_mapping);
 
 /**
- * Move nested node refs from nodes in \a ntree into the \a group_node tree.
- * Any reference to copied nodes is recreated inside the group. The original node refs in \a ntree
- * are replaced by nested node refs pointing to the \a group_node.
+ * Move nested node refs from nodes in \a src_tree into the \a group_node tree.
+ * Any reference to copied nodes is recreated inside the group. The original node refs in \a
+ * src_tree are replaced by nested node refs pointing to the \a group_node.
  */
 void update_nested_node_refs_after_moving_nodes_into_group(bNodeTree &src_tree,
                                                            const bNode &group_node,
                                                            const NodeSetCopy &node_set_copy);
 
 /**
- * Copy nested node refs from nodes in \a group_node into \a tree.
- * Any reference to copied nodes is recreated inside \a tree, pointing to nested node refs inside
- * \a group_node.
+ * Copy nested node refs from nodes in \a group_node into \a dst_tree.
+ * Any reference to copied nodes is recreated inside \a dst_tree, pointing to nested node refs
+ * inside \a group_node.
  */
 void update_nested_node_refs_after_ungroup(bNodeTree &dst_tree,
                                            const bNode &group_node,
