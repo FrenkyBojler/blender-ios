@@ -256,7 +256,7 @@ struct RNAStructsFilterParams {
 /**
  * Return a set containing all RNA structs definitions matching the given filtering parameters.
  */
-blender::Set<StructRNA *> RNA_structs_filter_get(RNAStructsFilterParams &params);
+Set<StructRNA *> RNA_structs_filter_get(RNAStructsFilterParams &params);
 
 /* Properties
  *

@@ -290,6 +290,9 @@ IDProperty **RNA_struct_idprops_p(PointerRNA *ptr)
 
 IDProperty *RNA_struct_idprops(PointerRNA *ptr, bool create)
 {
+  if (ptr->data == nullptr) {
+    return nullptr;
+  }
   IDProperty **property_ptr = RNA_struct_idprops_p(ptr);
   if (property_ptr == nullptr) {
     return nullptr;
@@ -1241,11 +1244,11 @@ static bool struct_filter_match(StructRNA *srna, RNAStructsFilterParams &params)
   return true;
 }
 
-blender::Set<StructRNA *> RNA_structs_filter_get(RNAStructsFilterParams &params)
+Set<StructRNA *> RNA_structs_filter_get(RNAStructsFilterParams &params)
 {
   BlenderRNA &brna = RNA_blender_rna_get();
 
-  blender::Set<StructRNA *> result;
+  Set<StructRNA *> result;
 
   for (StructRNA *srna : brna.structs) {
     if (struct_filter_match(srna, params)) {
@@ -2268,7 +2271,7 @@ const char *RNA_property_ui_description(const PropertyRNA *prop, const PointerRN
       return description;
     }
   }
-  return CTX_IFACE_(RNA_property_translation_context(prop), rna_ensure_property_description(prop));
+  return CTX_TIP_(RNA_property_translation_context(prop), rna_ensure_property_description(prop));
 }
 
 const char *RNA_property_ui_description_raw(const PropertyRNA *prop, const PointerRNA *ptr)

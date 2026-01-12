@@ -1125,6 +1125,13 @@ IDProperty *IDP_New(const char type,
   return prop;
 }
 
+IDProperty *IDP_NewInt(const int value, const blender::StringRef name, const eIDPropertyFlag flags)
+{
+  IDPropertyTemplate prop_template{0};
+  prop_template.i = value;
+  return IDP_New(IDP_INT, &prop_template, name, flags);
+}
+
 void IDP_ui_data_free_unique_contents(IDPropertyUIData *ui_data,
                                       const eIDPropertyUIDataType type,
                                       const IDPropertyUIData *other)
@@ -2032,7 +2039,7 @@ void foreach_main_idproperty_container(Main &bmain,
 
 void id_property_cleanup_from_known_rna_types(IDProperty **idproperty_p,
                                               StructRNA &owner_data_rna_type,
-                                              Set<StructRNA *> known_rna_types,
+                                              Set<StructRNA *> &known_rna_types,
                                               const bool do_invert,
                                               IDPropertyCleanupReport *reports)
 {
@@ -2056,7 +2063,7 @@ void id_property_cleanup_from_known_rna_types(IDProperty **idproperty_p,
       is_matching = false;
     }
 
-    if (!is_matching && idp_iter.type == IDP_GROUP) {
+    if (is_matching && idp_iter.type == IDP_GROUP) {
       if (RNA_property_type(idp_rna_prop) != PROP_POINTER) {
         is_matching = false;
       }

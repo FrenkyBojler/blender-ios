@@ -281,6 +281,12 @@ IDProperty *IDP_New(char type,
                     StringRef name,
                     eIDPropertyFlag flags = {}) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
+/* ----------- Allocators for simple types ----------- */
+
+[[nodiscard]] IDProperty *IDP_NewInt(int value,
+                                     blender::StringRef name,
+                                     eIDPropertyFlag flags = {});
+
 /**
  * \note This will free allocated data, all child properties of arrays and groups, and unlink IDs!
  * But it does not free the actual #IDProperty struct itself.
@@ -596,7 +602,7 @@ struct IDPropertyCleanupReport {
  */
 void id_property_cleanup_from_known_rna_types(IDProperty **idproperty_p,
                                               StructRNA &owner_data_rna_type,
-                                              Set<StructRNA *> known_rna_types,
+                                              Set<StructRNA *> &known_rna_types,
                                               const bool do_invert = false,
                                               IDPropertyCleanupReport *reports = nullptr);
 
