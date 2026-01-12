@@ -79,8 +79,8 @@ GHOST_XrGraphicsBindingD3D::~GHOST_XrGraphicsBindingD3D()
 
 bool GHOST_XrGraphicsBindingD3D::loadExtensionFunctions(XrInstance instance)
 {
-#define LOAD_FUNCTION(name, fn_ptr) \
-  if (XR_FAILED(xrGetInstanceProcAddr(instance, name, (PFN_xrVoidFunction *)&fn_ptr))) { \
+#define LOAD_FUNCTION(fn_ptr, name) \
+  if (XR_FAILED(xrGetInstanceProcAddr(instance, #name, (PFN_xrVoidFunction *)&fn_ptr))) { \
     return false; \
   }
 
