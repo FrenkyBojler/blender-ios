@@ -21,7 +21,7 @@
 
 #ifdef RNA_RUNTIME
 
-using namespace blender;
+namespace blender {
 
 static void project_mark_dirty()
 {
@@ -160,7 +160,11 @@ static void rna_BlenderProject_clear(PointerRNA ptr)
   WM_main_add_notifier(NC_WINDOW, nullptr);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void rna_def_blender_project_data(BlenderRNA *brna)
 {
@@ -226,5 +230,7 @@ void RNA_def_blender_project(BlenderRNA *brna)
   rna_def_blender_project(brna);
   rna_def_blender_project_data(brna);
 }
+
+}  // namespace blender
 
 #endif

@@ -31,6 +31,8 @@
 
 #include <sstream>
 
+namespace blender {
+
 static SpaceLink *project_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
   SpaceProject *project_space = MEM_new_for_free<SpaceProject>("project space");
@@ -232,3 +234,5 @@ void ED_spacetype_project()
 
   BKE_spacetype_register(std::move(st));
 }
+
+}  // namespace blender

@@ -20,10 +20,17 @@
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_rotation.h"
 #  include "BLI_math_vector.h"
+#  include "BLI_string.h"
+
+#  include "BKE_context.hh"
+#  include "BKE_main.hh"
 
 #  include "WM_api.hh"
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 
@@ -1335,7 +1342,11 @@ static bool rna_XrEventData_bimanual_get(PointerRNA *ptr)
 
 /** \} */
 
+}  // namespace blender
+
 #else /* RNA_RUNTIME */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 
@@ -2560,5 +2571,7 @@ void RNA_def_xr(BlenderRNA *brna)
 
   RNA_define_animate_sdna(true);
 }
+
+}  // namespace blender
 
 #endif /* RNA_RUNTIME */
