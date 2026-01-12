@@ -343,6 +343,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
 
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const StringRef name)
 {
+  const StringRef name_final = name.is_empty() ? DATA_("Attribute") : name;
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh &mesh = *owner.get_mesh();
     if (mesh.runtime->edit_mesh) {
@@ -359,14 +360,13 @@ std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const St
       add_names(bm.edata);
       add_names(bm.pdata);
       add_names(bm.ldata);
-      return BLI_uniquename_cb([&](const StringRef new_name) { return names.contains(new_name); },
-                               '.',
-                               name.is_empty() ? DATA_("Attribute") : name);
+      return BLI_uniquename_cb(
+          [&](const StringRef new_name) { return names.contains(new_name); }, '.', name_final);
     }
   }
 
   bke::AttributeStorage &storage = *owner.get_storage();
-  return storage.unique_name_calc(name);
+  return storage.unique_name_calc(name_final);
 }
 
 CustomDataLayer *BKE_attribute_new(Mesh &mesh,
@@ -842,7 +842,7 @@ int BKE_attribute_to_index(const AttributeOwner &owner,
     return storage.index_of(name);
   }
   int index = 0;
-bool found = false;
+  bool found = false;
   storage.foreach_with_stop([&](const bke::Attribute &attr) {
     if (!(ATTR_DOMAIN_AS_MASK(attr.domain()) & domain_mask)) {
       return true;
@@ -854,7 +854,7 @@ bool found = false;
       return true;
     }
     if (attr.name() == name) {
-found = true;
+      found = true;
       return false;
     }
     index++;
