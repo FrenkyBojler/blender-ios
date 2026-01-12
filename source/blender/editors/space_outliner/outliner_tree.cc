@@ -607,7 +607,8 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
   {
     const int totelem = BLI_listbase_count(lb);
     if (totelem > 1) {
-      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
+      Vector<tTreeSort> tear_vec(totelem);
+      tTreeSort *tear = tear_vec.data();
       tTreeSort *tp = tear;
 
       for (TreeElement &te : *lb) {
@@ -648,7 +649,6 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
       for (int i = 0; i < totelem; i++, tp++) {
         BLI_addtail(lb, tp->te);
       }
-      MEM_freeN(tear);
     }
   }
 
@@ -672,7 +672,8 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
   {
     const int totelem = BLI_listbase_count(lb);
     if (totelem > 1) {
-      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
+      Vector<tTreeSort> tear_vec(totelem);
+      tTreeSort *tear = tear_vec.data();
       tTreeSort *tp = tear;
 
       for (TreeElement &te : *lb) {
@@ -713,7 +714,6 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
       for (int i = 0; i < totelem; i++, tp++) {
         BLI_addtail(lb, tp->te);
       }
-      MEM_freeN(tear);
     }
   }
 
@@ -737,7 +737,8 @@ static void outliner_sort_type(ListBaseT<TreeElement> *lb)
   {
     const int totelem = BLI_listbase_count(lb);
     if (totelem > 1) {
-      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
+      Vector<tTreeSort> tear_vec(totelem);
+      tTreeSort *tear = tear_vec.data();
       tTreeSort *tp = tear;
 
       for (TreeElement &te : *lb) {
@@ -778,7 +779,6 @@ static void outliner_sort_type(ListBaseT<TreeElement> *lb)
       for (int i = 0; i < totelem; i++, tp++) {
         BLI_addtail(lb, tp->te);
       }
-      MEM_freeN(tear);
     }
   }
 
