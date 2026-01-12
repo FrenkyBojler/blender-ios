@@ -369,12 +369,6 @@ def on_blend_save(blend_path):
     # location, load the project there (if any).
     find_and_load_project_for_blend_path(bpy.context, blend_path)
 
-    # NOTE: in the future we may also want to load projects when saving an
-    # existing on-disk file to a new location. However, this callback can't
-    # distinguish between "save as..." and "save copy...", and in the latter
-    # case we definitely *don't* want to load the project at the save location.
-    # So for now we're playing it safe and not loading projects in either case.
-
 
 def on_exit():
     if not bpy.context.preferences.experimental.use_blender_projects:
@@ -417,7 +411,7 @@ def register():
 
 def unregister():
     bpy.app.handlers.load_pre.remove(on_blend_load)
-    bpy.app.handlers.save_post.append(on_blend_save)
+    bpy.app.handlers.save_post.remove(on_blend_save)
 
     # Note: we intentionally *don't* call `atexit.unregister()`, because then
     # the callback gets removed before Python exits and thus doesn't run,
