@@ -112,7 +112,7 @@ void retiming_data_ensure(Strip *strip)
     return;
   }
 
-  strip->retiming_keys = MEM_calloc_arrayN<SeqRetimingKey>(2, __func__);
+  strip->retiming_keys = MEM_new_array_for_free<SeqRetimingKey>(2, __func__);
   SeqRetimingKey *key = strip->retiming_keys + 1;
   key->strip_frame_index = strip->len;
   key->retiming_factor = 1.0f;
@@ -131,7 +131,7 @@ void retiming_data_clear(Strip *strip)
 
 static void retiming_key_overlap(Scene *scene, Strip *strip)
 {
-  ListBase *seqbase = active_seqbase_get(editing_get(scene));
+  ListBaseT<Strip> *seqbase = active_seqbase_get(editing_get(scene));
   VectorSet<Strip *> strips;
   VectorSet<Strip *> dependant;
   dependant.add(strip);
@@ -211,7 +211,7 @@ static void strip_retiming_line_segments_tangent_circle(const SeqRetimingKey *st
                                                         double r_center[2],
                                                         double *radius)
 {
-  blender::double2 s1_1, s1_2, s2_1, s2_2, p1_2;
+  double2 s1_1, s1_2, s2_1, s2_2, p1_2;
 
   /* Get 2 segments. */
   strip_retiming_segment_as_line_segment(start_key - 1, s1_1, s1_2);
@@ -219,7 +219,7 @@ static void strip_retiming_line_segments_tangent_circle(const SeqRetimingKey *st
   /* Backup first segment end point - needed to calculate arc radius. */
   copy_v2_v2_db(p1_2, s1_2);
   /* Convert segments to vectors. */
-  blender::double2 v1, v2;
+  double2 v1, v2;
   sub_v2_v2v2_db(v1, s1_1, s1_2);
   sub_v2_v2v2_db(v2, s2_1, s2_2);
   /* Rotate segments by 90 degrees around seg. 1 end and seg. 2 start point. */
@@ -346,7 +346,7 @@ static SeqRetimingKey *strip_retiming_add_key(Strip *strip, float frame_index)
   BLI_assert(new_key_index >= 0);
   BLI_assert(new_key_index < keys_count);
 
-  SeqRetimingKey *new_keys = MEM_calloc_arrayN<SeqRetimingKey>(keys_count + 1, __func__);
+  SeqRetimingKey *new_keys = MEM_new_array_for_free<SeqRetimingKey>(keys_count + 1, __func__);
   if (new_key_index > 0) {
     memcpy(new_keys, keys, new_key_index * sizeof(SeqRetimingKey));
   }
@@ -443,7 +443,7 @@ void retiming_remove_multiple_keys(Strip *strip, Vector<SeqRetimingKey *> &keys_
 
   const size_t keys_count = retiming_keys_count(strip);
   size_t new_keys_count = keys_count - keys_to_remove.size() - transitions.size() / 2;
-  SeqRetimingKey *new_keys = MEM_calloc_arrayN<SeqRetimingKey>(new_keys_count, __func__);
+  SeqRetimingKey *new_keys = MEM_new_array_for_free<SeqRetimingKey>(new_keys_count, __func__);
   int keys_copied = 0;
 
   /* Copy keys to new array. */
@@ -479,7 +479,7 @@ static void strip_retiming_remove_key_ex(Strip *strip, SeqRetimingKey *key)
   }
 
   size_t keys_count = retiming_keys_count(strip);
-  SeqRetimingKey *keys = MEM_calloc_arrayN<SeqRetimingKey>(keys_count - 1, __func__);
+  SeqRetimingKey *keys = MEM_new_array_for_free<SeqRetimingKey>(keys_count - 1, __func__);
 
   const int key_index = key - strip->retiming_keys;
   memcpy(keys, strip->retiming_keys, (key_index) * sizeof(SeqRetimingKey));
@@ -1142,8 +1142,8 @@ bool retiming_selection_clear(const Editing *ed)
 {
   bool was_empty = true;
 
-  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-    for (SeqRetimingKey &key : retiming_keys_get(strip)) {
+  for (Strip &strip : *ed->current_strips()) {
+    for (SeqRetimingKey &key : retiming_keys_get(&strip)) {
       was_empty &= (key.flag & SEQ_KEY_SELECTED) == 0;
       key.flag &= ~SEQ_KEY_SELECTED;
     }
@@ -1175,10 +1175,10 @@ Map<SeqRetimingKey *, Strip *> retiming_selection_get(const Editing *ed)
   if (!ed) {
     return selection;
   }
-  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-    for (SeqRetimingKey &key : retiming_keys_get(strip)) {
+  for (Strip &strip : *ed->current_strips()) {
+    for (SeqRetimingKey &key : retiming_keys_get(&strip)) {
       if ((key.flag & SEQ_KEY_SELECTED) != 0) {
-        selection.add(&key, strip);
+        selection.add(&key, &strip);
       }
     }
   }
@@ -1187,8 +1187,8 @@ Map<SeqRetimingKey *, Strip *> retiming_selection_get(const Editing *ed)
 
 bool retiming_selection_contains(const Editing *ed, const SeqRetimingKey *key)
 {
-  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-    for (const SeqRetimingKey &key_iter : retiming_keys_get(strip)) {
+  for (Strip &strip : *ed->current_strips()) {
+    for (const SeqRetimingKey &key_iter : retiming_keys_get(&strip)) {
       if ((key_iter.flag & SEQ_KEY_SELECTED) != 0 && &key_iter == key) {
         return true;
       }
