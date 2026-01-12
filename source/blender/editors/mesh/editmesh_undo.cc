@@ -444,12 +444,14 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
     if (bcd->non_trivial_arrays.contains(type)) {
       const ImplicitSharingInfoAndData &state = bcd->non_trivial_arrays.lookup(type)[i];
       array_data.data = const_cast<void *>(state.data);
+array_data.size = data_len;
       array_data.sharing_info = ImplicitSharingPtr<>(state.sharing_info);
       array_data.sharing_info->add_user();
     }
     else {
       const BArrayState *state = bcd->trivial_arrays.lookup(type)[i];
       array_data.data = get_arraystore_data(state, data_len, type);
+array_data.size = data_len;
       array_data.sharing_info = ImplicitSharingPtr<>(
           implicit_sharing::info_for_mem_free(array_data.data));
     }
