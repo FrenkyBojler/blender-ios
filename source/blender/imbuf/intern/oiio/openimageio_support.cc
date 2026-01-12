@@ -351,15 +351,15 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
 
     for (int h = 0; h < imb_h; h++) {
       const int source_y = int(float(h) / imb_scale);
-      /* Do not read with negative ystride to avoid the later flip.
-       * Scanline reading is not nearly as fast in reserved order. */
+      /* Scanlines must be read in forward order, otherwise it is very slow. */
       in->read_scanlines(
           0, 0, source_y, source_y + 1, 0, 0, channels, TypeDesc::UINT8, pixels.data());
 
       for (int w = 0; w < imb_w; w++) {
         /* For each destination pixel find single corresponding source pixel. */
         int source_x = int(std::min<int>((w / imb_scale), spec.width - 1)) * channels;
-        uint8_t *dest_px = &ibuf->byte_buffer.data[(h * imb_w + w) * 4];
+        /* Save to the target ImBuf bottom to top as the origins differ. */
+        uint8_t *dest_px = &ibuf->byte_buffer.data[((imb_h - h - 1) * imb_w + w) * 4];
         dest_px[0] = pixels[source_x];
         dest_px[1] = (channels > 1) ? pixels[source_x + 1] : pixels[source_x];
         dest_px[2] = (channels > 2) ? pixels[source_x + 2] : pixels[source_x];
@@ -369,7 +369,6 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
 
     /* ImBuf always needs 4 channels */
     fill_all_channels<uint8_t>(ibuf->byte_buffer.data, imb_w, imb_h, channels, 255);
-    IMB_flipy(ibuf);
   }
 
   in->close();
