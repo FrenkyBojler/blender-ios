@@ -401,8 +401,8 @@ void GHOST_XrContext::getAPILayersToEnable(std::vector<const char *> &r_ext_name
 }
 
 /**
- * \brief Return a list of extension names where at least one extension must be available to use
- * a graphics binding.
+ * \brief Return a list of extension names where at least one must be available to use a graphics
+ * binding.
  */
 static blender::Vector<blender::StringRefNull> openxr_ext_names_from_wm_gpu_binding(
     GHOST_TXrGraphicsBinding binding)
