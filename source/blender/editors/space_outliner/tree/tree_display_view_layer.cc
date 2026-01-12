@@ -180,7 +180,7 @@ void TreeDisplayViewLayer::add_layer_collection_objects(ListBaseT<TreeElement> &
 {
   BKE_view_layer_synced_ensure(scene_, view_layer_);
 
-  blender::Vector<CollectionObject *> cobs;
+  Vector<CollectionObject *> cobs;
   for (CollectionObject &cob : lc.collection->gobject) {
     cobs.append(&cob);
   }
