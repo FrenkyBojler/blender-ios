@@ -1256,8 +1256,6 @@ static std::string collection_drop_tooltip(bContext *C,
     TreeElement *te = data.te;
 
     const bool target_is_object_row = is_object_element(te);
-    wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
-    const bool dragging_object = drag_id && (GS(drag_id->id->name) == ID_OB);
     const bool tooltip_link = (is_link && !same_level);
 
     /* Tooltips now adapt to the hovered row. Whether
