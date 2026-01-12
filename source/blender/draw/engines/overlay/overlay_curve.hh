@@ -29,7 +29,7 @@ class Curves : Overlay {
   PassSimple edit_curves_ps_ = {"Curve Edit"};
   PassSimple::Sub *edit_curves_lines_ = nullptr;
 
-  PassSimple edit_legacy_curve_handles_ps_ = {"Curve Edit Handles"};
+  PassSimple edit_curves_handles_ps_ = {"Curve Edit Handles"};
   PassSimple::Sub *edit_curves_points_ = nullptr;
   PassSimple::Sub *edit_curves_handles_ = nullptr;
 
@@ -37,7 +37,7 @@ class Curves : Overlay {
   PassSimple::Sub *edit_legacy_curve_wires_ = nullptr;
   PassSimple::Sub *edit_legacy_curve_normals_ = nullptr;
 
-  PassSimple edit_curves_handles_ps_ = {"Legacy Curve Edit Handles"};
+  PassSimple edit_legacy_curve_handles_ps_ = {"Legacy Curve Edit Handles"};
   PassSimple::Sub *edit_legacy_curve_points_ = nullptr;
   PassSimple::Sub *edit_legacy_curve_handles_ = nullptr;
 
