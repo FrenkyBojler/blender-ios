@@ -1,2 +1,3 @@
 Referenced by issue #93683, Spreadsheet doesn't refresh after instance collection's names are changed in 3.0 stable.
 Referenced by issue #92323, Sorted Collection info Instance - update problem
+Referenced by issue #152701, collection info objects are not sorted alphabetical - as it is described in the manual
