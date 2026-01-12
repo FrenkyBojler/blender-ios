@@ -2422,16 +2422,26 @@ ccl_device_forceinline void integrate_volume_direct_light(
     return;
   }
 
+  /* Evaluate constant part of light shader, rest will optionally be done in another kernel. */
+  Spectrum light_eval ccl_optional_struct_init;
+  const bool is_constant_light_shader = light_sample_shader_eval_direct_constant(
+      kg, ls.shader, ls.prim, ls.type != LIGHT_TRIANGLE, light_eval);
+
   /* Evaluate BSDF. */
   BsdfEval phase_eval ccl_optional_struct_init;
   const float phase_pdf = volume_shader_phase_eval(
       kg, state, sd, phases, ls.D, &phase_eval, ls.shader);
   const float mis_weight = light_sample_mis_weight_nee(kg, ls.pdf, phase_pdf);
-  bsdf_eval_mul(&phase_eval, ls.eval_fac / ls.pdf * mis_weight);
+  bsdf_eval_mul(&phase_eval, light_eval * ls.eval_fac / ls.pdf * mis_weight);
 
-  if (bsdf_eval_is_zero(&phase_eval)) {
+  /* TODO: broken? */
+#  if 0
+  /* Path termination. */
+  const float terminate = path_state_rng_light_termination(kg, rng_state);
+  if (light_sample_terminate(kg, &phase_eval, terminate)) {
     return;
   }
+#  endif
 
   /* Create shadow ray. */
   Ray ray ccl_optional_struct_init;
@@ -2439,7 +2449,11 @@ ccl_device_forceinline void integrate_volume_direct_light(
 
   /* Branch off shadow kernel. */
   IntegratorShadowState shadow_state = integrator_shadow_path_init(
-      kg, state, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW, false);
+      kg,
+      state,
+      (is_constant_light_shader) ? DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW :
+                                   DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_NEE,
+      false);
 
   /* Write shadow ray and associated state to global memory. */
   integrator_state_write_shadow_ray(shadow_state, &ray);

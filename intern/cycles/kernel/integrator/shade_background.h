@@ -175,7 +175,7 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
 #endif /* __MNEE__ */
 
     /* Evaluate light shader. */
-    Spectrum light_eval = light_sample_shader_eval(
+    Spectrum light_eval = light_sample_shader_eval_indirect(
         kg, state, lamp, zero_float3(), ray_D, FLT_MAX, ray_time);
     light_eval *= lp.eval_fac;
     if (is_zero(light_eval)) {

@@ -208,12 +208,17 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
                                           const ccl_private Ray *ccl_restrict ray,
                                           const Spectrum bsdf_spectrum,
                                           const int light_group,
-                                          const int mnee_vertex_count)
+                                          const int mnee_vertex_count,
+                                          const bool constant_light_shader)
 {
 
   /* Branch off shadow kernel. */
   IntegratorShadowState shadow_state = integrator_shadow_path_init(
-      kg, state, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW, false);
+      kg,
+      state,
+      (constant_light_shader) ? DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW :
+                                DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_NEE,
+      false);
 
 #ifdef __VOLUME__
   /* Copy volume stack and enter/exit volume. */
@@ -375,14 +380,24 @@ ccl_device
       }
     }
   }
+#endif
 
-  if (mnee_vertex_count == 0)
+  /* Evaluate constant part of light shader, rest will optionally be done in another kernel. */
+  Spectrum light_eval ccl_optional_struct_init;
+  const bool is_constant_light_shader = light_sample_shader_eval_direct_constant(
+      kg, ls.shader, ls.prim, ls.type != LIGHT_TRIANGLE, light_eval);
+
+#ifdef __MNEE__
+  if (mnee_vertex_count > 0) {
+    bsdf_eval_mul(&bsdf_eval, light_eval);
+  }
+  else
 #endif /* __MNEE__ */
   {
     /* Evaluate BSDF. */
     const float bsdf_pdf = surface_shader_bsdf_eval(kg, state, sd, ls.D, &bsdf_eval, ls.shader);
     const float mis_weight = light_sample_mis_weight_nee(kg, ls.pdf, bsdf_pdf);
-    bsdf_eval_mul(&bsdf_eval, ls.eval_fac / ls.pdf * mis_weight);
+    bsdf_eval_mul(&bsdf_eval, light_eval * ls.eval_fac / ls.pdf * mis_weight);
 
     if (bsdf_eval_is_zero(&bsdf_eval)) {
       return;
@@ -398,7 +413,13 @@ ccl_device
 
   /* Branch off shadow kernel. */
   IntegratorShadowState shadow_state = integrate_direct_light_shadow_init_common(
-      kg, state, &ray, bsdf_eval_sum(&bsdf_eval), ls.group, mnee_vertex_count);
+      kg,
+      state,
+      &ray,
+      bsdf_eval_sum(&bsdf_eval),
+      ls.group,
+      mnee_vertex_count,
+      is_constant_light_shader);
 
   if (is_transmission) {
 #ifdef __VOLUME__

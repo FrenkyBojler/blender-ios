@@ -76,7 +76,8 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
                                            ccl_private Intersection &ccl_restrict isect,
                                            ccl_private float &ccl_restrict light_weight,
                                            ccl_private float &mis_weight,
-                                           ccl_private int &ccl_restrict light_group)
+                                           ccl_private int &ccl_restrict light_group,
+                                           ccl_private int &ccl_restrict shader_id)
 {
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
   const float3 N = INTEGRATOR_STATE(state, path, mis_origin_n);
@@ -99,17 +100,21 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
   light_weight = lp.eval_fac * mis_weight *
                  INTEGRATOR_STATE(state, shadow_link, dedicated_light_weight);
   light_group = object_lightgroup(kg, klight->object_id);
+  shader_id = klight->shader_id;
 
   return true;
 }
 
 ccl_device bool shadow_linking_shade_surface_emission(KernelGlobals kg,
                                                       IntegratorState state,
-                                                      ccl_private ShaderData *emission_sd,
                                                       ccl_private float &ccl_restrict light_weight,
                                                       ccl_private float &mis_weight,
-                                                      ccl_private int &ccl_restrict light_group)
+                                                      ccl_private int &ccl_restrict light_group,
+                                                      ccl_private int &ccl_restrict shader_id)
 {
+  ShaderDataTinyStorage emission_sd_storage;
+  ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
+
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
   integrate_surface_shader_setup(kg, state, emission_sd);
@@ -124,6 +129,7 @@ ccl_device bool shadow_linking_shade_surface_emission(KernelGlobals kg,
 
   light_weight = mis_weight * INTEGRATOR_STATE(state, shadow_link, dedicated_light_weight);
   light_group = object_lightgroup(kg, emission_sd->object);
+  shader_id = emission_sd->shader;
 
   return true;
 }
@@ -138,27 +144,33 @@ ccl_device void shadow_linking_shade(KernelGlobals kg, IntegratorState state)
   Ray ray ccl_optional_struct_init;
   integrator_state_read_ray(state, &ray);
 
-  float light_weight;
+  float light_weight = 0.0f;
   float mis_weight = 1.0f;
   int light_group = LIGHTGROUP_NONE;
+  int shader_id = SHADER_NONE;
 
   if (isect.type == PRIMITIVE_LAMP) {
-    if (!shadow_linking_shade_light(kg, state, ray, isect, light_weight, mis_weight, light_group))
+    if (!shadow_linking_shade_light(
+            kg, state, ray, isect, light_weight, mis_weight, light_group, shader_id))
     {
       return;
     }
   }
   else {
-    ShaderDataTinyStorage emission_sd_storage;
-    ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
     if (!shadow_linking_shade_surface_emission(
-            kg, state, emission_sd, light_weight, mis_weight, light_group))
+            kg, state, light_weight, mis_weight, light_group, shader_id))
     {
       return;
     }
   }
 
-  if (light_weight == 0.0f) {
+  /* Evaluate constant part of light shader, rest will optionally be done in another kernel. */
+  Spectrum light_eval;
+  const bool is_constant_light_shader = light_sample_shader_eval_direct_constant(
+      kg, shader_id, isect.prim, isect.type == PRIMITIVE_LAMP, light_eval);
+  light_eval *= light_weight;
+
+  if (is_zero(light_eval)) {
     return;
   }
 
@@ -166,7 +178,7 @@ ccl_device void shadow_linking_shade(KernelGlobals kg, IntegratorState state)
 
   /* Branch off shadow kernel. */
   IntegratorShadowState shadow_state = integrate_direct_light_shadow_init_common(
-      kg, state, &ray, make_spectrum(light_weight), light_group, 0);
+      kg, state, &ray, light_eval, light_group, 0, is_constant_light_shader);
 
   /* The light is accumulated from the shade_surface kernel, which will make the clamping decision
    * based on the actual value of the bounce. For the dedicated shadow ray we want to follow the
