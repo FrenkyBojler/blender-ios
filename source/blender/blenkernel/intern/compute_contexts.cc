@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
 #include <ostream>
 
 #include "DNA_modifier_types.h"
@@ -212,6 +213,28 @@ void ShaderComputeContext::print_current_in_line(std::ostream &stream) const
   if (tree_) {
     stream << BKE_id_name(tree_->id);
   }
+}
+
+UpdateBundleComputeContext::UpdateBundleComputeContext(const ComputeContext *parent,
+                                                       int32_t node_id,
+                                                       const std::string &bundle_path)
+    : ComputeContext(parent), node_id_(node_id), bundle_path_(bundle_path)
+{
+}
+
+ComputeContextHash UpdateBundleComputeContext::compute_hash() const
+{
+  fmt::memory_buffer buf;
+  fmt::appender out(buf);
+  const ComputeContextHash parent_hash = parent_ ? parent_->hash() : ComputeContextHash{};
+  fmt::format_to(
+      out, "UPDATE_BUNDLE:{}{}:{}:{}", parent_hash.v1, parent_hash.v2, node_id_, bundle_path_);
+  return ComputeContextHash::from_bytes(buf.data(), buf.size());
+}
+
+void UpdateBundleComputeContext::print_current_in_line(std::ostream &stream) const
+{
+  stream << "Update Bundle: " << node_id_ << ", " << bundle_path_;
 }
 
 const ModifierComputeContext &ComputeContextCache::for_modifier(const ComputeContext *parent,

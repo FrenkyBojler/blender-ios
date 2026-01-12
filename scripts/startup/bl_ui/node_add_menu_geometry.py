@@ -799,6 +799,7 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
         self.node_operator(layout, "NodeJoinBundle")
+        self.node_operator(layout, "NodeUpdateBundle")
         self.node_operator(layout, "GeometryNodeGatherBundleGeometries")
         self.typed_bundle(layout, label="Typed Bundle")
         self.draw_assets_for_catalog(layout, "Utilities/Bundle")

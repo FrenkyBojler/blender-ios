@@ -219,5 +219,20 @@ class ShaderComputeContext : public ComputeContext {
   void print_current_in_line(std::ostream &stream) const override;
 };
 
+class UpdateBundleComputeContext : public ComputeContext {
+ private:
+  int32_t node_id_;
+  std::string bundle_path_;
+
+ public:
+  UpdateBundleComputeContext(const ComputeContext *parent,
+                             int32_t node_id,
+                             const std::string &bundle_path);
+
+ private:
+  ComputeContextHash compute_hash() const override;
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
 }  // namespace bke
 }  // namespace blender

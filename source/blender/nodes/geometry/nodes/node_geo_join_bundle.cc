@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <fmt/format.h>
+#include <iostream>
 
 #include "NOD_geometry_nodes_bundle.hh"
 
@@ -29,6 +30,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
+  params.user_data()->compute_context->print_stack(std::cout, "Join Bundle");
 
   BundlePtr output_bundle;
   int bundle_i = 0;
