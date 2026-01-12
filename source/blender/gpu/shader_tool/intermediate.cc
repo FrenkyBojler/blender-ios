@@ -114,7 +114,6 @@ void LexerBase::ensure_memory()
   needed_size += sizeof(*token_types.data_) * input_size;
   needed_size += sizeof(*token_sizes.data_) * input_size;
   needed_size += sizeof(*token_offsets.data()) * input_size;
-  needed_size += sizeof(*token_atoms.data()) * input_size;
 
   /* Make sure there is enough reserved space inside the data structures.
    * We need at least as many token as there is character.
@@ -131,8 +130,6 @@ void LexerBase::ensure_memory()
   token_sizes = {reinterpret_cast<uint32_t *>(ptr), input_size};
   ptr += sizeof(*token_sizes.data_) * input_size;
   token_offsets = {reinterpret_cast<uint32_t *>(ptr), input_size};
-  ptr += sizeof(*token_offsets.offsets.data_) * input_size;
-  token_atoms = {reinterpret_cast<AtomT *>(ptr), input_size};
 
   update_string_view();
 }
