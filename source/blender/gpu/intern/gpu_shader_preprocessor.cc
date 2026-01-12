@@ -11,11 +11,90 @@
 
 #include "gpu_shader_private.hh"
 
+#define XXH_INLINE_ALL
+#include "shader_tool/xxhash.hh"
+
 namespace blender::gpu {
 
 using namespace shader::parser;
 
-using PreprocessorParser = IntermediateForm<PreprocessorLexer, DummyParser>;
+uint32_t XXH3_str(StringRef str)
+{
+  return XXH3_64bits(str.data(), str.size());
+}
+
+/**
+ * Consider numbers as words (to avoid splitting identifiers).
+ * Does not merge newlines and spaces.
+ * Convert all identifier strings (words) into unique identifiers (HashT) for fast comparison.
+ */
+struct AtomicLexer : LexerBase {
+  Map<uint32_t, HashT> atomization_map;
+
+  void lexical_analysis(std::string_view input)
+  {
+    str = input;
+    ensure_memory();
+    tokenize(true);
+    if (str.size() > 1000) {
+      atomize_words();
+      build_line_structure();
+    }
+  }
+
+  void atomize_words()
+  {
+    /* From checking our statistics. This heuristic should be enough for 99% of our cases. */
+    atomization_map.reserve(token_types.size() / 10);
+
+    for (int tok_id : blender::IndexRange(token_types.size())) {
+      if (token_types[tok_id] == Word) {
+        IndexRange range = token_offsets[tok_id];
+        /* TODO(fclem): Detect collision. */
+        uint32_t hash = XXH3_str({str.data() + range.start, range.size});
+        token_hashes[tok_id] = atomization_map.lookup_or_add(hash, atomization_map.size());
+      }
+    }
+    token_hashes.shrink(token_types.size());
+  }
+
+  /* OffsetIndices in tokens. */
+  Vector<int> line_offsets_buf;
+  blender::OffsetIndices<int> line_offsets;
+
+  /* Line index */
+  Vector<int> directive_lines;
+
+  void build_line_structure()
+  {
+    /* From checking our statistics. This heuristic should be enough for 100% of our cases. */
+    line_offsets_buf.reserve(token_types.size() / 7);
+    directive_lines.reserve(line_offsets_buf.size() / 2);
+
+    line_offsets_buf.append(0);
+    int tok_id = 0;
+    for (TokenType type : blender::Span<TokenType>(token_types.data(), token_types.size())) {
+      tok_id++;
+      if (type == NewLine) {
+        line_offsets_buf.append(tok_id);
+      }
+      else if (type == Hash) {
+        int line_start = line_offsets_buf.last();
+        /* Directive can only start with a hash token (+ optional space).
+         * If there is more token before the hash token it cannot be a preprocessor directive. */
+        if (tok_id - line_start <= 1) {
+          int line_index = line_offsets_buf.size() - 1;
+          if (directive_lines.is_empty() || directive_lines.last() != line_index) {
+            directive_lines.append(line_index);
+          }
+        }
+      }
+    }
+    line_offsets_buf.append(tok_id);
+
+    line_offsets = line_offsets_buf.as_span();
+  }
+};
 
 /* TODO(fclem): Meh find a better way. Exceptions? */
 void report_fn(int /*error_line*/,
@@ -29,14 +108,23 @@ void report_fn(int /*error_line*/,
 report_callback report_fn_ptr = report_fn;
 
 /* Fast C (incomplete) preprocessor implementation.  */
-struct Preprocessor {
-  PreprocessorParser &parser;
+struct Preprocessor : IntermediateForm<AtomicLexer, DummyParser> {
+  using ExpansionParser = IntermediateForm<ExpansionLexer, DummyParser>;
+
+  using TokenID = int;
+  using LineID = int;
+  using DirectiveID = int;
+
+  Preprocessor(const std::string_view str)
+      : IntermediateForm<AtomicLexer, DummyParser>(str, report_fn_ptr)
+  {
+  }
 
   struct TokenRange {
     Token start, end;
   };
 
-  Vector<Token, 8> jump_stack;
+  Vector<TokenID, 8> jump_stack;
   /* Maps macro names to definition name token index. */
   Map<StringRef, int> defines;
   Set<StringRef> visited_macros;
@@ -45,9 +133,9 @@ struct Preprocessor {
   struct ParserStack {
     int allocated = 0;
     int used = 0;
-    std::deque<PreprocessorParser> parser_pool;
+    std::deque<ExpansionParser> parser_pool;
 
-    PreprocessorParser &alloc()
+    ExpansionParser &alloc()
     {
       if (used == allocated) {
         parser_pool.emplace_back("", report_fn_ptr);
@@ -58,7 +146,7 @@ struct Preprocessor {
       return parser_pool[used++];
     }
 
-    void release(PreprocessorParser & /*parser*/)
+    void release(ExpansionParser & /*parser*/)
     {
       used--;
     }
@@ -68,10 +156,9 @@ struct Preprocessor {
   ExpressionLexer expression_lexer;
   ExpressionParser expression_parser = ExpressionParser(expression_lexer);
 
-  enum DirectiveType {
+  enum DirectiveType : char {
     /* Any other unhandled directives (warnings / errors / pragma etc...). */
-    Other,
-    Define,
+    Define = 0,
     Undef,
     Line,
     If,
@@ -80,6 +167,7 @@ struct Preprocessor {
     Elif,
     Else,
     Endif,
+    Other,
   };
 
   static DirectiveType to_directive_type(const StringRef str)
@@ -116,6 +204,30 @@ struct Preprocessor {
     }
   }
 
+  using HashT = AtomicLexer::HashT;
+
+  HashT directive_type_table[Other] = {
+      [Define] = HashT(lex_.atomization_map.lookup_default(XXH3_str("define"), -1)),
+      [Undef] = HashT(lex_.atomization_map.lookup_default(XXH3_str("undef"), -1)),
+      [Line] = HashT(lex_.atomization_map.lookup_default(XXH3_str("line"), -1)),
+      [If] = HashT(lex_.atomization_map.lookup_default(XXH3_str("if"), -1)),
+      [Ifdef] = HashT(lex_.atomization_map.lookup_default(XXH3_str("ifdef"), -1)),
+      [Ifndef] = HashT(lex_.atomization_map.lookup_default(XXH3_str("ifndef"), -1)),
+      [Elif] = HashT(lex_.atomization_map.lookup_default(XXH3_str("elif"), -1)),
+      [Else] = HashT(lex_.atomization_map.lookup_default(XXH3_str("else"), -1)),
+      [Endif] = HashT(lex_.atomization_map.lookup_default(XXH3_str("endif"), -1)),
+  };
+
+  DirectiveType to_directive_type(const HashT id_hash)
+  {
+    for (int i : blender::IndexRange(Other)) {
+      if (directive_type_table[i] == id_hash) {
+        return DirectiveType(i);
+      }
+    }
+    return Other;
+  }
+
   static StringRef str(const Token t)
   {
     /* Note: Whitespaces where not merged (because of TokenizePreprocessor), so using
@@ -132,11 +244,9 @@ struct Preprocessor {
     return StringRef(start.data(), end.data() + end.size());
   }
 
-  std::string new_lines(const Token start, const Token end)
+  std::string new_lines(LineID line_start, LineID line_end)
   {
-    std::string_view dir_str = parser.substr_range_inclusive_view(start, end);
-    int line_count = std::count(dir_str.begin(), dir_str.end(), '\n');
-    return std::string(line_count, '\n');
+    return std::string(line_end - line_start, '\n');
   }
 
   static Token end_of_directive(const Token dir_tok)
@@ -173,6 +283,14 @@ struct Preprocessor {
   {
     while (tok == '\\' && tok.next() == '\n') {
       tok = tok.next().next();
+    }
+    return tok;
+  }
+
+  TokenID skip_directive_newlines(TokenID tok)
+  {
+    while (lex_.token_types[tok] == '\\' && lex_.token_types[tok + 1] == '\n') {
+      tok = tok + 2;
     }
     return tok;
   }
@@ -225,7 +343,7 @@ struct Preprocessor {
 
     int macro_id = defines.lookup_default(str(tok), -1);
     if (macro_id != -1) {
-      Token macro_tok = parser.data_get()[macro_id];
+      Token macro_tok = parser_[macro_id];
       auto [replacement, end] = expand_macro(tok, macro_tok);
       mut_str.replace(tok, end, replacement);
       cursor = end.index;
@@ -239,7 +357,7 @@ struct Preprocessor {
       return "";
     }
 
-    PreprocessorParser &recursive_parser = recursive_parser_stack.alloc();
+    ExpansionParser &recursive_parser = recursive_parser_stack.alloc();
 
     recursive_parser.str_ = input;
     recursive_parser.parse(report_fn_ptr);
@@ -420,90 +538,88 @@ struct Preprocessor {
   }
 
   /* Returns the hash token. */
-  static Token find_next_conditional_directive(Token hash_tok)
+  DirectiveType increment_to_next_conditional(DirectiveID &dir)
   {
-    while (true) {
-      hash_tok = hash_tok.find_next(Hash);
-      if (hash_tok == Invalid) {
-        BLI_assert_unreachable();
-        return hash_tok;
+    dir++;
+    while (dir < lex_.directive_lines.size()) {
+      DirectiveType type = get_directive_type(dir);
+      if (ELEM(type, If, Ifdef, Ifndef, Else, Elif, Endif)) {
+        return type;
       }
-      StringRef dir_str = directive_identifier(hash_tok);
-      if (ELEM(dir_str, "if", "ifdef", "ifndef", "else", "elif", "endif")) {
-        return hash_tok;
-      }
+      dir++;
     }
+    /* Missing matching #endif. */
+    // TODO exception?
     BLI_assert_unreachable();
-    return Token::invalid();
+    return Other;
   }
 
   /* Returns the hash token. */
-  static Token find_next_matching_conditional_directive(Token hash_tok)
+  DirectiveID find_next_matching_conditional(DirectiveID dir)
   {
     int stack = 1;
-    Token tok = hash_tok;
-    while (tok.is_valid()) {
-      tok = find_next_conditional_directive(tok);
-      if (tok.next() == Invalid) {
-        break;
-      }
-      StringRef dir_str = directive_identifier(tok);
-      if (ELEM(dir_str, "if", "ifdef", "ifndef")) {
+    while (dir < lex_.directive_lines.size()) {
+      DirectiveType type = increment_to_next_conditional(dir);
+      if (ELEM(type, If, Ifdef, Ifndef)) {
         stack++;
       }
-      else if (ELEM(dir_str, "endif")) {
+      else if (ELEM(type, Endif)) {
         stack--;
       }
 
       if (stack == 0) {
-        return tok;
+        return dir; /* Endif. */
       }
-      if (stack == 1 && ELEM(dir_str, "else", "elif")) {
-        return tok;
+      if (stack == 1 && ELEM(type, Else, Elif)) {
+        return dir;
       }
     }
     BLI_assert_unreachable();
-    return Token::invalid();
+    return -1;
   }
 
-  bool evaluate_expression(const Token start, const Token end)
+  HashT defined_hash = lex_.atomization_map.lookup_default(XXH3_str("defined"), -1);
+
+  bool evaluate_expression(const TokenID start, const TokenID end)
   {
     /* Expand expression into integer ops string. */
     std::string expand;
     expand.reserve(256);
 
-    Token tok = start;
-    while (true) {
-      StringRef tok_str = str(tok);
+    std::string_view s = substr_range_inclusive_view(parser_[start], parser_[end]);
 
-      int macro_id = defines.lookup_default(tok_str, -1);
+    TokenID tok = start;
+    while (true) {
+      HashT tok_hash = lex_.token_hashes[tok];
+
+      TokenID macro_id = defines_tok.lookup_default(tok_hash, -1);
       if (macro_id != -1) {
-        Token macro_tok = parser.data_get()[macro_id];
-        auto [replacement, macro_end] = expand_macro(tok, macro_tok);
+        auto [replacement, macro_end] = expand_macro(parser_[tok], parser_[macro_id]);
         expand += replacement;
-        tok = macro_end;
+        tok = macro_end.index;
       }
-      else if (tok_str == "defined") {
+      else if (tok_hash == defined_hash) {
         /* Parenthesis or space */
-        tok = skip_space(tok.next());
-        const bool is_function = (tok == '(');
+        tok = skip_space(tok + 1);
+        const bool is_function = (lex_.token_types[tok] == '(');
         /* Token to search. */
         if (is_function) {
-          tok = skip_space(tok.next());
+          tok = skip_space(tok + 1);
         }
-        expand += (defines.contains(str(tok)) ? "1" : "0");
+        Token t = parser_[tok];
+        expand += (defines_tok.contains(lex_.token_hashes[tok]) ? "1" : "0");
         if (is_function) {
           /* End parenthesis. */
-          tok = skip_space(tok.next());
+          tok = skip_space(tok + 1);
         }
       }
       else {
-        expand += tok_str;
+        expand += str(parser_[macro_id]);
       }
       if (tok == end) {
         break;
       }
-      tok = skip_directive_newlines(tok.next());
+      tok = skip_directive_newlines(tok + 1);
     }
 
     /* Early out simple cases. */
@@ -520,23 +636,22 @@ struct Preprocessor {
       value = expression_parser.eval();
     }
     catch (const std::exception &e) {
-      std::cout << "\"" << parser.substr_range_inclusive_view(start, end) << "\" > \"" << expand
-                << "\" ";
+      std::cout << "\"" << substr_range_inclusive_view(start, end) << "\" > \"" << expand << "\" ";
       std::cerr << "Error: " << e.what() << "\n";
     }
 
     return value != 0;
   }
 
-  bool evaluate_condition(const DirectiveType dir_type, Token start, Token end)
+  bool evaluate_condition(const DirectiveType dir_type, TokenID start, TokenID end)
   {
     switch (dir_type) {
       case Else:
         return true;
       case Ifdef:
-        return defines.contains(str(start));
+        return defines_tok.contains(lex_.token_hashes[start]);
       case Ifndef:
-        return !defines.contains(str(start));
+        return !defines_tok.contains(lex_.token_hashes[start]);
       case If:
       case Elif:
         return evaluate_expression(start, end);
@@ -546,46 +661,72 @@ struct Preprocessor {
     }
   }
 
-  int process_conditional(const DirectiveType dir_type, const Token hash_tok, const Token dir_end)
+  DirectiveType get_directive_type(DirectiveID dir)
+  {
+    LineID line = lex_.directive_lines[dir];
+    TokenID hash_tok = skip_space(lex_.line_offsets[line].start());
+    TokenID dir_tok = skip_space(hash_tok + 1);
+    Token hash_t = parser_[hash_tok];
+    Token dir_t = parser_[dir_tok];
+    return to_directive_type(lex_.token_hashes[dir_tok]);
+  }
+
+  StringRef get_directive_str(DirectiveID dir)
+  {
+    LineID start = lex_.directive_lines[dir];
+    LineID end = get_end_of_directive(start);
+    Token tok_start = parser_[lex_.line_offsets[start].first()];
+    Token tok_end = parser_[lex_.line_offsets[end].last()];
+    return substr_range_inclusive_view(tok_start, tok_end);
+  }
+
+  void process_conditional(const DirectiveID dir,
+                           const DirectiveType dir_type,
+                           const TokenID dir_tok,
+                           const LineID dir_line_start,
+                           const LineID dir_line_end)
   {
     /* If this is part of an already evaluated statement. */
-    if (!jump_stack.is_empty() && hash_tok == jump_stack.last()) {
+    if (!jump_stack.is_empty() && jump_stack.last() == dir_line_start) {
       jump_stack.pop_last();
-      Token endif_hash = hash_tok;
-      while (directive_identifier(endif_hash) != "endif") {
-        endif_hash = find_next_matching_conditional_directive(endif_hash);
+
+      DirectiveID endif_id = next_directive_line_id;
+      while (get_directive_type(endif_id) != Endif) {
+        endif_id = find_next_matching_conditional(endif_id);
       }
-      Token endif_end = end_of_directive(endif_hash);
-      parser.replace(hash_tok, endif_end, new_lines(hash_tok, endif_end));
-      return endif_end.index;
+      LineID endif_end_line = lex_.directive_lines[endif_id];
+      /* Erase everything between this directive and the #endif (inclusive). */
+      erase_lines(dir_line_start, endif_end_line);
+      /* Evaluate after the endif */
+      next_directive_line_id = endif_id + 1;
+      return;
     }
 
     /* Evaluate condition. */
-    const Token condition_type = skip_space(hash_tok.next());
-    const Token condition_start = condition_type.next().next();
-    const Token condition_end = dir_end;
-    bool condition_result = evaluate_condition(dir_type, condition_start, condition_end);
+    const TokenID cond_start = skip_space(dir_tok + 1);
+    const TokenID cond_end = lex_.line_offsets[dir_line_end].last(1);
+    bool condition_result = evaluate_condition(dir_type, cond_start, cond_end);
 
     /* Find matching endif or else. */
-    const Token next_hash = find_next_matching_conditional_directive(hash_tok);
+    DirectiveID next_directive = find_next_matching_conditional(dir);
+    LineID next_dir_line = lex_.directive_lines[next_directive];
 
-    if (condition_result == false) {
-      /* Erase the content and jump to next condition. */
-      parser.replace(hash_tok, next_hash.prev(), new_lines(hash_tok, next_hash.prev()));
-      return next_hash.prev().index;
-    }
-    /* If condition is true. */
-    {
+    if (condition_result) {
       /* If is followed by else statement. */
-      StringRef next_dir_str = directive_identifier(next_hash);
-      if (next_dir_str.size() == 4 && ELEM(next_dir_str, "elif", "else")) {
+      DirectiveType next_dir_type = get_directive_type(next_directive);
+      if (ELEM(next_dir_type, Elif, Else)) {
         /* Record a jump statement at the next #else statement to jump & erase to the #endif. */
-        jump_stack.append(next_hash);
+        jump_stack.append(next_dir_line);
       }
       /* Erase condition and continue parsing content.
        * The #endif will just be erased later. */
-      parser.replace(hash_tok, dir_end, new_lines(hash_tok, dir_end));
-      return dir_end.index;
+      erase_lines(dir_line_start, dir_line_end);
+    }
+    else {
+      /* Erase the content and jump to next condition. */
+      next_directive_line_id = next_directive;
+      /* Erase everything until next condition (this directive included). */
+      erase_lines(dir_line_start, next_dir_line - 1);
     }
   }
 
@@ -598,127 +739,157 @@ struct Preprocessor {
 #  define CHECK(cond)
 #endif
 
-  void define_macro(Token hash_tok, Token dir_tok, Token dir_end)
+  // /* Check if '/' token is the start of a comment and remove the comment if it is.
+  //  * Some runtime sources could still contain comments. */
+  // void process_comment(const ParserBase &data, int &cursor)
+  // {
+  //   TokenType next_type = data[cursor].next().type();
+  //   size_t end;
+
+  //   if (next_type == '*') {
+  //     /* Multiline line. */
+  //     end = data.lex.token_types_str.find("*/", cursor);
+  //     if (end == std::string::npos) {
+  //       /* Extend until end of file. */
+  //       end = data.lex.token_types_str.size() - 2;
+  //     }
+  //     end += 1;
+  //   }
+  //   else if (next_type == '/') {
+  //     /* Single line. */
+  //     end = data.lex.token_types_str.find('\n', cursor);
+  //     if (end == std::string::npos) {
+  //       /* Extend until end of file. */
+  //       end = data.lex.token_types_str.size() - 1;
+  //     }
+  //   }
+  //   else {
+  //     return;
+  //   }
+
+  //   parser.erase(data[cursor], data[end]);
+  //   cursor = end;
+  // }
+
+  DirectiveID next_directive_line_id = 0;
+
+  Map<HashT, TokenID> defines_tok;
+
+  void define_macro(TokenID dir_tok)
   {
-    Token macro_name = skip_space(dir_tok.next());
-    CHECK(macro_name != Word);
+    TokenID macro_name = skip_space(dir_tok + 1);
+    BLI_assert(lex_.token_types[macro_name] == Word);
     /* Store the name token of the declaration.
      * The actual parsing of the definition happens during expansion. */
-    defines.add_overwrite(str(macro_name), macro_name.index);
-    parser.replace(hash_tok, dir_end, new_lines(hash_tok, dir_end));
+    defines_tok.add_overwrite(lex_.token_hashes[macro_name], macro_name);
   }
 
-  void undefine_macro(Token hash_tok, Token dir_tok, Token dir_end)
+  void undefine_macro(TokenID dir_tok)
   {
-    Token macro_name = skip_space(dir_tok.next());
-    CHECK(macro_name != Word);
-    defines.remove(str(macro_name));
-    erase_single_line_directive(hash_tok, dir_end);
+    TokenID macro_name = skip_space(dir_tok + 1);
+    BLI_assert(lex_.token_types[macro_name] == Word);
+    defines_tok.remove(lex_.token_hashes[macro_name]);
   }
 
-  void erase_single_line_directive(Token hash_tok, Token dir_end)
+  TokenID skip_space(TokenID tok)
   {
-    /* Don't need new_lines in this case. */
-    parser.replace(hash_tok, dir_end, "");
+    return (lex_.token_types[tok] == Space) ? tok + 1 : tok;
   }
 
-  void process_directives(const ParserBase &data, int &cursor)
+  LineID get_end_of_directive(LineID dir_line)
   {
-    Token hash_tok = Token::from_position(&data, cursor);
-    /* All directives must start with a hash token at the start of the line. */
-    CHECK(!ELEM(hash_tok.prev(), Invalid /* Start of file. */, NewLine, Space));
+    while (true) {
+      if (lex_.token_types[lex_.line_offsets[dir_line].last(1)] != Backslash) {
+        return dir_line;
+      }
+      dir_line++;
+    }
+  }
 
-    Token dir_tok = skip_space(hash_tok.next());
+  void evaluate_directive(DirectiveID dir)
+  {
+    LineID dir_line_start = lex_.directive_lines[dir];
 
-    CHECK(dir_tok != Word);
+    TokenID hash_tok = skip_space(lex_.line_offsets[dir_line_start].first());
+    TokenID dir_tok = skip_space(hash_tok + 1);
 
-    Token dir_end = end_of_directive(dir_tok);
-    StringRef dir_str = str(dir_tok);
+    // CHECK(hash_tok != Word);
 
-    DirectiveType type = to_directive_type(dir_str);
+    Token dir_t = parser_[dir_tok];
+    // StringRef str = get_directive_str(dir);
+    // std::cout << str;
 
-    cursor = dir_end.index;
+    /* Find directive end. */
+    LineID dir_line_end = get_end_of_directive(dir_line_start);
 
-    switch (type) {
+    bool erase_directive = true;
+    DirectiveType dir_type = to_directive_type(lex_.token_hashes[dir_tok]);
+    switch (dir_type) {
       case Define:
-        define_macro(hash_tok, dir_tok, dir_end);
+        define_macro(dir_tok);
+        erase_directive = false;
         break;
       case Undef:
-        undefine_macro(hash_tok, dir_tok, dir_end);
+        undefine_macro(dir_tok);
+        erase_directive = false;
         break;
       case If:
       case Ifdef:
       case Ifndef:
       case Elif:
       case Else:
-        cursor = process_conditional(type, hash_tok, dir_end);
+        process_conditional(dir, dir_type, dir_tok, dir_line_start, dir_line_end);
+        erase_directive = false; /* Erases itself. */
         break;
-#ifndef __APPLE__ /* Line directives are supported on MSL. */
-                  /* TODO(fclem): Should be a runtime switch for VK. */
       case Line:
-#endif
+        break;
       case Endif:
-        erase_single_line_directive(hash_tok, dir_end);
+        // erase_single_line_directive(hash_tok, dir_end);
+        // erase_directive = false;
         break;
-#ifdef __APPLE__
-      case Line:
-#endif
       case Other:
+        erase_directive = false;
         break;
+    }
+
+    if (erase_directive == true) {
+      erase_lines(dir_line_start, dir_line_end);
     }
   }
 
-  /* Check if '/' token is the start of a comment and remove the comment if it is.
-   * Some runtime sources could still contain comments. */
-  void process_comment(const ParserBase &data, int &cursor)
+  void erase_lines(LineID start, LineID end)
   {
-    TokenType next_type = data[cursor].next().type();
-    size_t end;
+    /* Last char is newline. Don't remove it. */
+    Token tok_end = parser_[lex_.line_offsets[end].last() - 1];
+    Token tok_start = parser_[lex_.line_offsets[start].start()];
 
-    if (next_type == '*') {
-      /* Multiline line. */
-      end = data.lex.token_types_str.find("*/", cursor);
-      if (end == std::string::npos) {
-        /* Extend until end of file. */
-        end = data.lex.token_types_str.size() - 2;
-      }
-      end += 1;
-    }
-    else if (next_type == '/') {
-      /* Single line. */
-      end = data.lex.token_types_str.find('\n', cursor);
-      if (end == std::string::npos) {
-        /* Extend until end of file. */
-        end = data.lex.token_types_str.size() - 1;
-      }
-    }
-    else {
-      return;
-    }
-
-    parser.erase(data[cursor], data[end]);
-    cursor = end;
+    replace(tok_start, tok_end, new_lines(start, end));
   }
 
   void preprocess()
   {
-    const ParserBase &data = parser.data_get();
-
-    for (int cursor = 0; cursor < data.lex.token_types.size(); cursor++) {
-      TokenType tok_type = TokenType(data.lex.token_types[cursor]);
-      if (tok_type == Word) {
-        try_expand(parser, data, cursor);
-      }
-      else if (tok_type == Hash) {
-        process_directives(data, cursor);
-      }
-      else if (tok_type == Divide) {
-        process_comment(data, cursor);
-      }
+    next_directive_line_id = 0;
+    while (next_directive_line_id < lex_.directive_lines.size()) {
+      evaluate_directive(next_directive_line_id++);
     }
+
+    // for (int cursor = 0; cursor < data.lex.token_types.size(); cursor++) {
+    //   TokenType tok_type = TokenType(data.lex.token_types[cursor]);
+    // if (tok_type == Word) {
+    // try_expand(parser, data, cursor);
+    // }
+    // else
+    // if (tok_type == Hash) {
+    //   process_directives(data, cursor);
+    // }
+    // else if (tok_type == Divide) {
+    //   process_comment(data, cursor);
+    // }
+    // }
   }
 };
 
+#if 0
 struct DeadCodeEliminator {
   PreprocessorParser &parser;
 
@@ -981,13 +1152,13 @@ struct DeadCodeEliminator {
       }
       else {
         /* Prototype. */
-#ifdef __APPLE__
+#  ifdef __APPLE__
         /* Filter MSL specific identifiers that could have confused the parser. */
         StringRef type_str = Preprocessor::str(type);
         if (type_str == "thread" || type_str == "device") {
           continue;
         }
-#endif
+#  endif
         parser.erase(type, end_of_args);
       }
     }
@@ -999,20 +1170,19 @@ struct DeadCodeEliminator {
     prune_unused_functions();
   }
 };
+#endif
 
 std::string Shader::run_preprocessor(StringRef source)
 {
-  PreprocessorParser parser(source, report_fn_ptr);
-
-  Preprocessor processor{parser};
+  Preprocessor processor(source);
   processor.preprocess();
 
-  parser.apply_mutations(true);
+  // parser.apply_mutations(true);
 
-  DeadCodeEliminator dce{parser};
-  dce.optimize();
+  // DeadCodeEliminator dce{parser};
+  // dce.optimize();
 
-  return parser.result_get(true);
+  return processor.result_get(true);
 }
 
 }  // namespace blender::gpu

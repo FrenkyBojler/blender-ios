@@ -13,6 +13,9 @@
 #include "token.hh"
 #include "token_stream.hh"
 
+#define XXH_INLINE_ALL
+#include "xxhash.hh"
+
 #include <algorithm>
 #include <array>
 #include <stack>
@@ -102,7 +105,8 @@ void LexerBase::ensure_memory()
     /* Avoid no allocation. */
     input_size = 1;
   }
-
+  /* Add one for offsets. */
+  input_size += 1;
   /* Round to 128 for easy alignment of types and allocations. */
   input_size += (input_size + 127) & ~127;
 
@@ -110,6 +114,7 @@ void LexerBase::ensure_memory()
   needed_size += sizeof(*token_types.data_) * input_size;
   needed_size += sizeof(*token_sizes.data_) * input_size;
   needed_size += sizeof(*token_offsets.data()) * input_size;
+  needed_size += sizeof(*token_hashes.data()) * input_size;
 
   /* Make sure there is enough reserved space inside the data structures.
    * We need at least as many token as there is character.
@@ -126,6 +131,8 @@ void LexerBase::ensure_memory()
   token_sizes = {reinterpret_cast<uint32_t *>(ptr), input_size};
   ptr += sizeof(*token_sizes.data_) * input_size;
   token_offsets = {reinterpret_cast<uint32_t *>(ptr), input_size};
+  ptr += sizeof(*token_offsets.offsets.data_) * input_size;
+  token_hashes = {reinterpret_cast<uint16_t *>(ptr), input_size};
 
   update_string_view();
 }

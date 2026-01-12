@@ -293,7 +293,7 @@ struct MutableString {
 /* Structure holding an intermediate form of the source code.
  * It is made for fast traversal and mutation of source code. */
 template<typename LexerClass, typename ParserClass> struct IntermediateForm : MutableString {
- private:
+ protected:
   LexerClass lex_;
   ParserClass parser_;
 

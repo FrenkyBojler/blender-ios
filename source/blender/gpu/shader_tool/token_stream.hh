@@ -20,6 +20,8 @@ struct Token;
  * Turns string into token.
  */
 struct LexerBase {
+  using HashT = uint16_t;
+
   /** The lexer's input string. */
   std::string_view str;
 
@@ -34,6 +36,8 @@ struct LexerBase {
   MutableSpan<uint32_t> token_sizes;
   /** Ranges of characters per token. */
   OffsetIndices token_offsets;
+  /** Size of the raw token before token merging. */
+  MutableSpan<HashT> token_hashes;
 
   /** Token Data. Backing memory for the spans. */
   size_t alloc_size = 0;
@@ -61,7 +65,7 @@ struct LexerBase {
  * Consider numbers as words (to avoid splitting identifiers).
  * Does not merge newlines and spaces.
  */
-struct PreprocessorLexer : LexerBase {
+struct ExpansionLexer : LexerBase {
   void lexical_analysis(std::string_view input)
   {
     str = input;
