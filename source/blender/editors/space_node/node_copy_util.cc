@@ -688,22 +688,55 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
   return io_nodes;
 }
 
+/* Connect one set of sockets to all sockets in the other set.
+ * One set must contain inputs and the other outputs, it doesn't matter which is which.
+ * In principle can add N * M links.
+ * In practice the "from_sockets" list is generally limited to a single socket. */
+static void connect_socket_lists(bNodeTree &tree,
+                                 const Span<MutableNodeAndSocket> sockets1,
+                                 const Span<MutableNodeAndSocket> sockets2)
+{
+  for (const MutableNodeAndSocket &socket1 : sockets1) {
+    for (const MutableNodeAndSocket &socket2 : sockets2) {
+      bke::node_add_link(tree, socket1.node, socket1.socket, socket2.node, socket2.socket);
+    }
+  }
+}
+
 void connect_copied_nodes_to_external_sockets(const NodeSetCopy &copied_nodes,
                                               const NodeTreeInterfaceMapping &io_mapping)
 {
+  using InterfaceSocketData = NodeTreeInterfaceMapping::InterfaceSocketData;
+
   bNodeTree &tree = copied_nodes.dst_tree();
+
   for (const auto &item : io_mapping.socket_data.items()) {
     for (const NodeAndSocket &origin : item.value.internal_sockets) {
+      if (origin.node.is_group_input()) {
+        /* Directly connect external inputs to external outputs. */
+        const bNodeTreeInterfaceSocket *io_socket = bke::node_find_interface_input_by_identifier(
+            tree, origin.socket.identifier);
+        BLI_assert(io_socket);
+        if (const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(io_socket)) {
+          connect_socket_lists(tree, data->external_sockets, item.value.external_sockets);
+        }
+        continue;
+      }
+      if (origin.node.is_group_output()) {
+        /* Directly connect external inputs to external outputs. */
+        const bNodeTreeInterfaceSocket *io_socket = bke::node_find_interface_output_by_identifier(
+            tree, origin.socket.identifier);
+        BLI_assert(io_socket);
+        if (const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(io_socket)) {
+          connect_socket_lists(tree, data->external_sockets, item.value.external_sockets);
+        }
+        continue;
+      }
+
       bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
       bNodeSocket *new_socket = copied_nodes.socket_map().lookup(&origin.socket);
-      for (const MutableNodeAndSocket &target : item.value.external_sockets) {
-        if (origin.socket.is_input()) {
-          bke::node_add_link(tree, target.node, target.socket, *new_node, *new_socket);
-        }
-        else {
-          bke::node_add_link(tree, *new_node, *new_socket, target.node, target.socket);
-        }
-      }
+      MutableNodeAndSocket new_target = {*new_node, *new_socket};
+      connect_socket_lists(tree, {new_target}, item.value.external_sockets);
     }
   }
 }
