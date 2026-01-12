@@ -34,7 +34,98 @@
 
 #define MAX_ARRAY_DIMENSION 10
 
+extern PyTypeObject pyrna_prop_array_Type;
+
 namespace blender {
+
+/**
+ * Check if the source is a compatible #BPy_PropertyArrayRNA for fast buffer copy.
+ * Returns true if fast path can be used.
+ */
+static bool pyrna_array_is_compatible_prop_array(PyObject *seq,
+                                                 PointerRNA *dst_ptr,
+                                                 PropertyRNA *dst_prop)
+{
+  if (!PyType_IsSubtype(Py_TYPE(seq), &pyrna_prop_array_Type)) {
+    return false;
+  }
+
+  BPy_PropertyArrayRNA *src = reinterpret_cast<BPy_PropertyArrayRNA *>(seq);
+
+  /* Check source pointer is valid (destination is guaranteed valid by caller). */
+  if (!src->ptr.has_value() || src->ptr->type == nullptr) {
+    return false;
+  }
+
+  /* Check property types match. */
+  if (RNA_property_type(src->prop) != RNA_property_type(dst_prop)) {
+    return false;
+  }
+
+  /* Only support flat arrays (not sub-indexed like matrix[0]). */
+  if (src->arraydim != 0) {
+    return false;
+  }
+
+  /* Check array dimensions match. */
+  int src_dimsize[MAX_ARRAY_DIMENSION];
+  int dst_dimsize[MAX_ARRAY_DIMENSION];
+  const int src_totdim = RNA_property_array_dimension(&src->ptr.value(), src->prop, src_dimsize);
+  const int dst_totdim = RNA_property_array_dimension(dst_ptr, dst_prop, dst_dimsize);
+
+  if (src_totdim != dst_totdim) {
+    return false;
+  }
+  for (int i = 0; i < src_totdim; i++) {
+    if (src_dimsize[i] != dst_dimsize[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Fast path for copying from one RNA array property to another.
+ * Assumes compatibility has already been verified.
+ */
+static int pyrna_array_copy_from_prop_array(PyObject *seq,
+                                            PointerRNA *dst_ptr,
+                                            PropertyRNA *dst_prop)
+{
+  BPy_PropertyArrayRNA *src = reinterpret_cast<BPy_PropertyArrayRNA *>(seq);
+  const int len = RNA_property_array_length(dst_ptr, dst_prop);
+
+  switch (RNA_property_type(dst_prop)) {
+    case PROP_FLOAT: {
+      float *buffer = static_cast<float *>(PyMem_MALLOC(sizeof(float) * len));
+      RNA_property_float_get_array(&src->ptr.value(), src->prop, buffer);
+      RNA_property_float_set_array(dst_ptr, dst_prop, buffer);
+      PyMem_FREE(buffer);
+      break;
+    }
+    case PROP_INT: {
+      int *buffer = static_cast<int *>(PyMem_MALLOC(sizeof(int) * len));
+      RNA_property_int_get_array(&src->ptr.value(), src->prop, buffer);
+      RNA_property_int_set_array(dst_ptr, dst_prop, buffer);
+      PyMem_FREE(buffer);
+      break;
+    }
+    case PROP_BOOLEAN: {
+      bool *buffer = static_cast<bool *>(PyMem_MALLOC(sizeof(bool) * len));
+      RNA_property_boolean_get_array(&src->ptr.value(), src->prop, buffer);
+      RNA_property_boolean_set_array(dst_ptr, dst_prop, buffer);
+      PyMem_FREE(buffer);
+      break;
+    }
+    default:
+      /* Should never be reached, compatibility check prevents other types. */
+      BLI_assert(0);
+      return -1;
+  }
+
+  return 0;
+}
 
 struct ItemConvertArgData;
 
@@ -525,6 +616,14 @@ static int py_to_array(PyObject *seq,
 
   /* Use #ParameterDynAlloc which defines its own array length. */
   const bool prop_is_param_dyn_alloc = param_data && (flag & PROP_DYNAMIC);
+
+  /* Fast path: if source is a compatible RNA array property, use buffer copy,
+   * bypassing the overhead of Python object conversion. */
+  if (!prop_is_param_dyn_alloc && param_data == nullptr) {
+    if (pyrna_array_is_compatible_prop_array(seq, ptr, prop)) {
+      return pyrna_array_copy_from_prop_array(seq, ptr, prop);
+    }
+  }
 
   if (validate_array(seq,
                      ptr,
