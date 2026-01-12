@@ -37,4 +37,3 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
 
 }  // namespace geometry
 }  // namespace blender
->>>>>>> main

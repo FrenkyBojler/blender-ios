@@ -30,17 +30,18 @@ static int roots_by_distance(const Span<float3> positions,
       [&](const int64_t i) { kdtree_3d_insert(tree, i, positions[i]); });
   kdtree_3d_balance(tree);
 
-#ifndef NDEBUG
   r_root_indices.fill(-1);
-#endif
-
   const int total_merge_ops = kdtree_3d_calc_duplicates_fast(
       tree, merge_distance, false, r_root_indices.data());
   kdtree_3d_free(tree);
 
-  selection.foreach_index(GrainSize(1024), [&](const int i) { r_root_indices[i] = i; });
-
-  BLI_assert(!r_root_indices.as_span().contains(-1));
+  threading::parallel_for(r_root_indices.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      if (r_root_indices[i] == -1) {
+        r_root_indices[i] = i;
+      }
+    }
+  });
 
   return total_merge_ops;
 }
