@@ -1145,8 +1145,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
                              const int pass_sample_count,
                              const int num_components,
                              const int use_compositing,
-                             const float upscale_factor,
-                             const int input_stride)
+                             const float upscale_factor)
 {
   const int work_index = ccl_gpu_global_id_x();
   const int y = work_index / width;
@@ -1156,13 +1155,12 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
     return;
   }
 
-  const uint64_t render_pixel_index = offset + int((x + full_x) / upscale_factor) +
-                                      int((y + full_y) / upscale_factor) * input_stride;
-  const uint64_t denoised_render_pixel_index = offset + (x + full_x) + (y + full_y) * stride;
-  ccl_global float *buffer = render_buffer + render_pixel_index * pass_stride;
-  ccl_global float *denoised_buffer = render_buffer + denoised_render_pixel_index * pass_stride;
+  const uint64_t render_pixel_index = offset + (x + full_x) + (y + full_y) * stride;
+  ccl_global float *buffer = render_buffer +
+                             uint64_t(render_pixel_index / upscale_factor) * pass_stride;
 
-  ccl_global float *denoised_pixel = denoised_buffer + pass_denoised;
+  ccl_global float *denoised_pixel = render_buffer + render_pixel_index * pass_stride +
+                                     pass_denoised;
 
   if (num_components == 3) {
     /* Pass without alpha channel. */
