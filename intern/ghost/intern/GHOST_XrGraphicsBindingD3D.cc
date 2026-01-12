@@ -96,6 +96,7 @@ bool GHOST_XrGraphicsBindingD3D::checkVersionRequirements(
     XrSystemId system_id,
     std::string *r_requirement_info) const
 {
+  XrGraphicsRequirementsD3D11KHR gpu_requirements = {XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR};
   xrGetD3D11GraphicsRequirementsKHR_(instance, system_id, &gpu_requirements);
 
   if (r_requirement_info) {
