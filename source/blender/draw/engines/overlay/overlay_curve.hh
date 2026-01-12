@@ -87,7 +87,9 @@ class Curves : Overlay {
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       {
         auto &sub = pass.sub("Handles");
-        sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
+        sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA |
+                          DRW_STATE_WRITE_DEPTH,
+                      state.clipping_plane_count);
         sub.shader_set(res.shaders->curve_edit_handles.get());
         sub.push_constant("curve_handle_display", int(state.overlay.handle_display));
         edit_curves_handles_ = &sub;
@@ -265,6 +267,7 @@ class Curves : Overlay {
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_legacy_curve_ps_, view);
     manager.submit(edit_curves_ps_, view_edit_cage);
+    manager.submit(edit_curves_handles_ps_, view_edit_cage);
     manager.submit(edit_legacy_surface_handles_ps, view);
   }
 
@@ -278,7 +281,6 @@ class Curves : Overlay {
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_legacy_curve_handles_ps_, view);
-    manager.submit(edit_curves_handles_ps_, view_edit_cage);
   }
 };
 
