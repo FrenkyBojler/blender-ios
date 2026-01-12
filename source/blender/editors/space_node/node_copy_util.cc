@@ -116,12 +116,12 @@ static Vector<const bNodeLink *> find_internal_links(
   return internal_links;
 }
 
-static Vector<MutableNodeSocketRef> get_socket_links(
+static Vector<MutableNodeAndSocket> get_socket_links(
     const bNodeSocket &socket,
     const bool skip_hidden,
     NodeFilterFn link_filter = default_link_filter)
 {
-  Vector<MutableNodeSocketRef> result;
+  Vector<MutableNodeAndSocket> result;
   for (const bNodeLink *link : socket.directly_linked_links()) {
     if (!link->is_available()) {
       continue;
@@ -139,13 +139,13 @@ static Vector<MutableNodeSocketRef> get_socket_links(
   return result;
 }
 
-static Vector<MutableNodeSocketRef> get_internal_group_links(
+static Vector<MutableNodeAndSocket> get_internal_group_links(
     const bNodeTree &tree,
     const bNodeTreeInterfaceSocket &io_socket,
     const bool skip_hidden,
     NodeFilterFn link_filter = default_link_filter)
 {
-  Vector<MutableNodeSocketRef> result;
+  Vector<MutableNodeAndSocket> result;
   if (io_socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
     for (const bNode *group_input_node : tree.group_input_nodes()) {
       const bNodeSocket *socket = group_input_node->output_by_identifier(io_socket.identifier);
@@ -309,7 +309,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
     return;
   }
 
-  Vector<MutableNodeSocketRef> external_links;
+  Vector<MutableNodeAndSocket> external_links;
   if (params_.add_external_links) {
     external_links = get_socket_links(src_socket, params_.skip_hidden, [&](const bNode &node) {
       return !src_nodes_set_.contains(&node);
@@ -346,7 +346,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
      *   used as the interface template.
      *   Outputs should not create unique interface sockets for each link.
      */
-    for (const MutableNodeSocketRef &external_socket : external_links) {
+    for (const MutableNodeAndSocket &external_socket : external_links) {
       InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(
           &external_socket.socket, [&]() {
             /* Generated interface socket is based on the internal socket. */
@@ -492,7 +492,7 @@ static void map_socket(NodeTreeInterfaceMapping &io_mapping,
   data.internal_sockets.add_multiple(
       get_internal_group_links(group_tree, io_socket, params.skip_hidden)
           .as_span()
-          .cast<NodeSocketRef>());
+          .cast<NodeAndSocket>());
   data.external_sockets.add_multiple(get_socket_links(*group_socket, false));
   data.hidden = group_socket->flag & SOCK_HIDDEN;
   data.collapsed = group_socket->flag & SOCK_COLLAPSED;
@@ -653,7 +653,7 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
   BKE_main_ensure_invariants(bmain, tree.id);
 
   for (const auto &item : io_mapping.socket_data.items()) {
-    for (const NodeSocketRef &origin : item.value.internal_sockets) {
+    for (const NodeAndSocket &origin : item.value.internal_sockets) {
       bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
       bNodeSocket *new_socket = copied_nodes.socket_map().lookup(&origin.socket);
       if (new_socket->is_input()) {
@@ -695,10 +695,10 @@ void connect_copied_nodes_to_external_sockets(const NodeSetCopy &copied_nodes,
 {
   bNodeTree &tree = copied_nodes.tree();
   for (const auto &item : io_mapping.socket_data.items()) {
-    for (const NodeSocketRef &origin : item.value.internal_sockets) {
+    for (const NodeAndSocket &origin : item.value.internal_sockets) {
       bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
       bNodeSocket *new_socket = copied_nodes.socket_map().lookup(&origin.socket);
-      for (const MutableNodeSocketRef &target : item.value.external_sockets) {
+      for (const MutableNodeAndSocket &target : item.value.external_sockets) {
         if (origin.socket.is_input()) {
           bke::node_add_link(tree, target.node, target.socket, *new_node, *new_socket);
         }
@@ -731,7 +731,7 @@ void connect_group_node_to_external_sockets(bNode &group_node,
     }
     const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(interface);
     BLI_assert(data);
-    for (const MutableNodeSocketRef &link : data->external_sockets) {
+    for (const MutableNodeAndSocket &link : data->external_sockets) {
       BLI_assert(owner_tree.all_nodes().contains(&link.node));
       bke::node_add_link(owner_tree, link.node, link.socket, group_node, *group_node_input);
     }
@@ -747,7 +747,7 @@ void connect_group_node_to_external_sockets(bNode &group_node,
     }
     const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(interface);
     BLI_assert(data);
-    for (const MutableNodeSocketRef &link : data->external_sockets) {
+    for (const MutableNodeAndSocket &link : data->external_sockets) {
       BLI_assert(owner_tree.all_nodes().contains(&link.node));
       bke::node_add_link(owner_tree, group_node, *group_node_output, link.node, link.socket);
     }

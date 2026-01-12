@@ -49,37 +49,45 @@ namespace nodes {
 class ItemDeclaration;
 }
 
-/* Utility for referencing a const socket and its owner node. */
-struct NodeSocketRef {
+/**
+ * Utility for referencing a const socket and its owner node.
+ * \note This is needed because the socket \a owner_node pointer depends on topology cache, which
+ * becomes invalid by adding new links.
+ */
+struct NodeAndSocket {
   const bNode &node;
   const bNodeSocket &socket;
 
-  friend bool operator==(const NodeSocketRef &a, const NodeSocketRef &b)
+  friend bool operator==(const NodeAndSocket &a, const NodeAndSocket &b)
   {
     return (&a.node == &b.node) && (&a.socket == &b.socket);
   }
-  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(NodeSocketRef)
+  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(NodeAndSocket)
 };
 
-/* Utility for referencing a mutable socket and its owner node. */
-struct MutableNodeSocketRef {
+/**
+ * Utility for referencing a mutable socket and its owner node.
+ * \note This is needed because the socket \a owner_node pointer depends on topology cache, which
+ * becomes invalid by adding new links.
+ */
+struct MutableNodeAndSocket {
   bNode &node;
   bNodeSocket &socket;
 
-  NodeSocketRef operator()() const
+  NodeAndSocket operator()() const
   {
     return {node, socket};
   }
 
-  friend bool operator==(const MutableNodeSocketRef &a, const MutableNodeSocketRef &b)
+  friend bool operator==(const MutableNodeAndSocket &a, const MutableNodeAndSocket &b)
   {
     return (&a.node == &b.node) && (&a.socket == &b.socket);
   }
-  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(MutableNodeSocketRef)
+  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(MutableNodeAndSocket)
 };
 
-template<> struct DefaultHash<NodeSocketRef> {
-  uint64_t operator()(const NodeSocketRef &value) const
+template<> struct DefaultHash<NodeAndSocket> {
+  uint64_t operator()(const NodeAndSocket &value) const
   {
     return get_default_hash(&value.socket);
   }
@@ -89,8 +97,8 @@ template<> struct DefaultHash<NodeSocketRef> {
   }
 };
 
-template<> struct DefaultHash<MutableNodeSocketRef> {
-  uint64_t operator()(const MutableNodeSocketRef &value) const
+template<> struct DefaultHash<MutableNodeAndSocket> {
+  uint64_t operator()(const MutableNodeAndSocket &value) const
   {
     return get_default_hash(&value.socket);
   }
@@ -244,9 +252,9 @@ class NodeTreeInterfaceMapping {
  public:
   struct InterfaceSocketData {
     /* Sockets inside the group node tree. */
-    VectorSet<NodeSocketRef> internal_sockets;
+    VectorSet<NodeAndSocket> internal_sockets;
     /* External sockets to connect the interface. */
-    VectorSet<MutableNodeSocketRef> external_sockets;
+    VectorSet<MutableNodeAndSocket> external_sockets;
     /* New group node socket is hidden. */
     bool hidden = false;
     /* New group node socket is collapsed in tree view UI. */
