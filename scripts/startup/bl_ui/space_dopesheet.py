@@ -1064,11 +1064,15 @@ class DOPESHEET_PT_overlay(Panel):
         st = context.space_data
         overlay_settings = st.overlays
         layout = self.layout
-        layout.use_property_split = True
         layout.use_property_decorate = False
-
         layout.active = overlay_settings.show_overlays
+
         row = layout.row()
+        row.label(text="Dopesheet Overlays")
+        row.separator()
+
+        row = layout.row()
+        row.alignment = 'LEFT'
         row.active = context.workspace.use_scene_time_sync
         row.prop(overlay_settings, "show_scene_strip_range")
 
