@@ -365,10 +365,9 @@ def on_blend_save(blend_path):
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
         save_project(bpy.context.project)
 
-    # If we're saving the blend to disk for the first time, load the project
-    # there (if any).
-    if bpy.data.filepath == "":
-        find_and_load_project_for_blend_path(bpy.context, blend_path)
+    # In case we're saving the blend to disk for the first time or to a new
+    # location, load the project there (if any).
+    find_and_load_project_for_blend_path(bpy.context, blend_path)
 
     # NOTE: in the future we may also want to load projects when saving an
     # existing on-disk file to a new location. However, this callback can't
