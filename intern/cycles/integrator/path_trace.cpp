@@ -360,6 +360,9 @@ void PathTrace::update_effective_work_buffer_params(const RenderWork &render_wor
       denoised_big_tile_params,
       overscan,
       [&](PathTraceWork *path_trace_work, const BufferParams params) {
+        /* Scale down the sliced buffer parameters again that were scaled by denoising upscale
+         * factor above. This should match the values that would occur when slicing
+         * 'scaled_big_tile_params' directly. */
         const BufferParams scaled_params = scale_buffer_params(
             params, float(denoised_big_tile_params.width) / float(scaled_big_tile_params.width));
         path_trace_work->set_effective_buffer_params(
