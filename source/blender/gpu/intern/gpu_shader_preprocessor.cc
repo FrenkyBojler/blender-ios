@@ -115,7 +115,10 @@ struct AtomicLexer : LexerBase {
       }
       tok_id++;
     }
-    line_offsets_buf.append(tok_id);
+    /* Finish last line. But only do so if it contains at least one character. */
+    if (line_offsets_buf.last() != tok_id) {
+      line_offsets_buf.append(tok_id);
+    }
 
     line_offsets = line_offsets_buf.as_span();
   }
@@ -266,12 +269,18 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
   {
     return make_token(lex_.line_offsets[int(line)].start());
   }
-  /* NOTE: Return the token before \n. */
+  /* NOTE: Return the token before \n or \n if line is empty. */
   TokenID get_end(LineID line)
   {
     blender::IndexRange range = lex_.line_offsets[int(line)];
     return make_token(range.size() > 1 ? range.last(1) : range.first());
   }
+  /* NOTE: Return the end of line character '\n'. */
+  TokenID get_true_end(LineID line)
+  {
+    return make_token(lex_.line_offsets[int(line)].last());
+  }
+
   TokenType get_type(TokenID tok)
   {
     return lex_.token_types[int(tok)];
@@ -280,6 +289,11 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
   bool is_last(DirectiveID dir)
   {
     return (lex_.directive_lines.size() - 1) == int(dir);
+  }
+
+  bool is_last(LineID line)
+  {
+    return (lex_.line_offsets.size() - 1) == int(line);
   }
 
   StringRef str(DirectiveID dir)
@@ -464,9 +478,11 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
     return t.str_view_with_whitespace();
   }
 
-  StringRef str(const TokenRange &range)
+  static StringRef str(const TokenRange &range)
   {
-    return substr_range_inclusive_view(range.start.str_index_start(), range.end.str_index_last());
+    int start = range.start.str_index_start();
+    int end = range.end.str_index_last();
+    return StringRef(range.start.data->lex.str.data() + start, end - start + 1);
   }
 
   std::string new_lines(LineID line_start, LineID line_end)
@@ -638,6 +654,7 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
       return {str(macro_name), end_of_expansion};
     }
 
+    /* TODO: Avoid StringRef in map. */
     Map<StringRef, TokenRange> macro_parameters;
     if (is_function) {
       /* This is a functional macro. */
@@ -916,20 +933,26 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
     if (!jump_stack.is_empty() && jump_stack.last() == dir) {
       jump_stack.pop_last();
       /* Find matching endif. */
-      DirectiveID endif = next_directive;
+      DirectiveID endif = next(dir);
       while (get_type(endif) != Endif) {
         endif = find_next_matching_conditional(endif);
       }
       if (is_last(endif)) {
         /* Erase everything this and the last directive. */
-        erase_lines(get_start(dir), prev(get_start(endif)));
+        LineID last_before_endif = prev(get_start(endif));
+        erase_lines(get_start(dir), last_before_endif);
         next_directive = endif;
+        /* Don't expand inside this section. */
+        last_directive_end = last_before_endif;
       }
       else {
         /* Erase everything between this directive and the #endif (inclusive). */
-        erase_lines(get_start(dir), get_end(endif));
-        /* Evaluate after the endif */
+        LineID endif_end = get_end(endif);
+        erase_lines(get_start(dir), endif_end);
+        /* Evaluate after the endif. */
         next_directive = next(endif);
+        /* Don't expand inside this section. */
+        last_directive_end = endif_end;
       }
       return;
     }
@@ -957,10 +980,13 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
       erase_lines(dir_line_start, dir_line_end);
     }
     else {
-      /* Erase the content and jump to next condition. */
-      next_directive = next_condition;
+      LineID last_before_next_dir = prev(get_start(next_directive));
       /* Erase everything until next condition (this directive included). */
-      erase_lines(dir_line_start, prev(get_start(next_directive)));
+      erase_lines(dir_line_start, last_before_next_dir);
+      /* Jump to next condition. */
+      next_directive = next_condition;
+      /* Don't expand inside this section. */
+      last_directive_end = last_before_next_dir;
     }
   }
 
@@ -1026,15 +1052,16 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
   {
     DirectiveType dir_type = get_type(dir);
 
+    /* Note: gets overwritten by conditional processing. */
+    last_directive_end = get_end(dir);
+
     bool erase_directive = true;
     switch (dir_type) {
       case Define:
         define_macro(dir);
-        erase_directive = false;
         break;
       case Undef:
         undefine_macro(dir);
-        erase_directive = false;
         break;
       case If:
       case Ifdef:
@@ -1058,11 +1085,37 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
     }
   }
 
+  LineID last_directive_end = LineID::invalid();
   void erase_lines(LineID start, LineID end)
   {
     Token tok_end = parser_[int(get_end(end))];
     Token tok_start = parser_[int(get_start(start))];
     replace(tok_start, tok_end, new_lines(start, end));
+  }
+
+  void expand_macros_in_range(const LineID start_line, const LineID end_line)
+  {
+    int start = int(get_start(start_line));
+    int end = int(get_end(end_line));
+    if (start >= end) {
+      return;
+    }
+
+    TokenID end_tok = make_token(end);
+    for (TokenID tok = make_token(start); tok != end_tok; tok = next(tok)) {
+      if (get_type(tok) == Word) {
+        DirectiveID macro_id = defines.lookup_default(get_atom(tok), DirectiveID::invalid());
+        if (is_valid(macro_id)) {
+          Token token = parser_[int(tok)];
+          auto [replacement, end] = expand_macro(token, macro_id);
+          replace(token, end, replacement);
+          tok = make_token(end.index);
+          if (tok == end_tok) {
+            break;
+          }
+        }
+      }
+    }
   }
 
   void preprocess()
@@ -1071,15 +1124,28 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
       return;
     }
 
+    last_directive_end = make_line(0);
     next_directive = make_directive(0);
+    /* Expand until the first directive. */
+    if (make_line(0) != get_start(next_directive)) {
+      expand_macros_in_range(make_line(0), prev(get_start(next_directive)));
+    }
+
     while (!is_last(next_directive)) {
       DirectiveID id = next_directive;
       /* The next directive might be overwritten by evaluate_directive. Increment before call. */
       next_directive = next(id);
       evaluate_directive(id);
+
+      expand_macros_in_range(next(last_directive_end), prev(get_start(next_directive)));
     }
     /* Evaluate last directive without calling next and creating an invalid ID. */
     evaluate_directive(next_directive);
+
+    if (!is_last(last_directive_end)) {
+      LineID last_line = make_line(lex_.line_offsets.size() - 1);
+      expand_macros_in_range(next(last_directive_end), last_line);
+    }
 
     // for (int cursor = 0; cursor < data.lex.token_types.size(); cursor++) {
     //   TokenType tok_type = TokenType(data.lex.token_types[cursor]);
