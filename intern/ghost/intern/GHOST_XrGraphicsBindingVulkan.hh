@@ -23,7 +23,7 @@
 
 class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   struct {
-    /* XR_KHR_enable_vulkan2 */
+    /* XR_KHR_vulkan_enable2 */
     PFN_xrGetVulkanGraphicsRequirements2KHR xrGetVulkanGraphicsRequirements2KHR = nullptr;
     PFN_xrGetVulkanGraphicsDevice2KHR xrGetVulkanGraphicsDevice2KHR = nullptr;
     PFN_xrCreateVulkanInstanceKHR xrCreateVulkanInstanceKHR = nullptr;
