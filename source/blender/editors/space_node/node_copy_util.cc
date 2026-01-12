@@ -209,7 +209,7 @@ static const bNodeSocket &find_socket_to_use_for_interface(const bNodeTree &node
   return *other_socket.logically_linked_sockets().first();
 }
 
-static bNodeTreeInterfaceSocket &add_interface_from_socket(const bNodeTree &original_tree,
+static bNodeTreeInterfaceSocket *add_interface_from_socket(const bNodeTree &original_tree,
                                                            const bNodeSocket &socket,
                                                            bNodeTree &tree_for_interface,
                                                            bNodeTreeInterfacePanel *parent)
@@ -226,9 +226,10 @@ static bNodeTreeInterfaceSocket &add_interface_from_socket(const bNodeTree &orig
   const bNodeSocket &socket_for_name = prefer_node_for_interface_name ? socket : socket_for_io;
   bNodeTreeInterfaceSocket *io_socket = bke::node_interface::add_interface_socket_from_node(
       tree_for_interface, node_for_io, socket_for_io, socket_for_io.idname, socket_for_name.name);
-  BLI_assert(io_socket != nullptr);
-  tree_for_interface.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
-  return *io_socket;
+  if (io_socket) {
+    tree_for_interface.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
+  }
+  return io_socket;
 }
 
 static std::string node_basepath(const bNodeTree &tree, const bNode &node)
@@ -309,6 +310,25 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
     return;
   }
 
+  auto try_add_socket_data = [&](const bNodeSocket &key,
+                                 const bNodeSocket &template_socket) -> InterfaceSocketData * {
+    InterfaceSocketData *data = data_by_socket_.lookup_default(&key, nullptr);
+    if (data) {
+      return data;
+    }
+    bNodeTreeInterfaceSocket *io_socket = add_interface_from_socket(
+        src_tree, template_socket, dst_tree_, parent);
+    if (io_socket) {
+      data = &io_mapping_.socket_data.lookup_or_add(io_socket, {});
+      data_by_socket_.add_new(&key, data);
+
+      data->hidden = template_socket.flag & SOCK_HIDDEN;
+      data->collapsed = template_socket.flag & SOCK_COLLAPSED;
+      return data;
+    }
+    return nullptr;
+  };
+
   Vector<MutableNodeAndSocket> external_links;
   if (params_.add_external_links) {
     external_links = get_socket_links(src_socket, params_.skip_hidden, [&](const bNode &node) {
@@ -318,15 +338,9 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
 
   if (external_links.is_empty()) {
     if (!params_.skip_unconnected) {
-      InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(&src_socket, [&]() {
-        bNodeTreeInterfaceSocket &io_socket = add_interface_from_socket(
-            src_tree, src_socket, dst_tree_, parent);
-        InterfaceSocketData &data = io_mapping_.socket_data.lookup_or_add(&io_socket, {});
-        return &data;
-      });
-      data.internal_sockets.add({src_socket.owner_node(), src_socket});
-      data.hidden = src_socket.flag & SOCK_HIDDEN;
-      data.collapsed = src_socket.flag & SOCK_COLLAPSED;
+      if (InterfaceSocketData *data = try_add_socket_data(src_socket, src_socket)) {
+        data->internal_sockets.add({src_socket.owner_node(), src_socket});
+      }
     }
 
     return;
@@ -347,34 +361,18 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
      *   Outputs should not create unique interface sockets for each link.
      */
     for (const MutableNodeAndSocket &external_socket : external_links) {
-      InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(
-          &external_socket.socket, [&]() {
-            /* Generated interface socket is based on the internal socket. */
-            bNodeTreeInterfaceSocket &io_socket = add_interface_from_socket(
-                src_tree, src_socket, dst_tree_, parent);
-            InterfaceSocketData &data = io_mapping_.socket_data.lookup_or_add(&io_socket, {});
-            /* First internal socket defines the socket state. */
-            data.hidden = src_socket.flag & SOCK_HIDDEN;
-            data.collapsed = src_socket.flag & SOCK_COLLAPSED;
-            return &data;
-          });
-      data.internal_sockets.add({src_socket.owner_node(), src_socket});
-      data.external_sockets.add(external_socket);
+      if (InterfaceSocketData *data = try_add_socket_data(external_socket.socket, src_socket)) {
+        data->internal_sockets.add({src_socket.owner_node(), src_socket});
+        data->external_sockets.add(external_socket);
+      }
     }
   }
   else {
     /* Create interface based on the internal socket. */
-    InterfaceSocketData &data = *data_by_socket_.lookup_or_add_cb(&src_socket, [&]() {
-      /* Generated interface socket is based on the internal socket. */
-      bNodeTreeInterfaceSocket &io_socket = add_interface_from_socket(
-          src_tree, src_socket, dst_tree_, parent);
-      InterfaceSocketData &data = io_mapping_.socket_data.lookup_or_add(&io_socket, {});
-      data.hidden = src_socket.flag & SOCK_HIDDEN;
-      data.collapsed = src_socket.flag & SOCK_COLLAPSED;
-      return &data;
-    });
-    data.internal_sockets.add({src_socket.owner_node(), src_socket});
-    data.external_sockets.add_multiple(external_links);
+    if (InterfaceSocketData *data = try_add_socket_data(src_socket, src_socket)) {
+      data->internal_sockets.add({src_socket.owner_node(), src_socket});
+      data->external_sockets.add_multiple(external_links);
+    }
   }
 }
 
