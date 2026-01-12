@@ -654,9 +654,6 @@ static void select_similar_by_value(Scene *scene,
   }
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    IndexMaskMemory memory;
-    const IndexMask mask = ed::greasepencil::retrieve_editable_points(
-        *object, info.drawing, info.layer_index, memory);
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
         attribute_id, selection_domain, default_value);
@@ -667,6 +664,10 @@ static void select_similar_by_value(Scene *scene,
       bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
           curves, selection_domain, bke::AttrType::Bool, selection_attribute_names[i]);
       MutableSpan<bool> selection = selection_writer.span.typed<bool>();
+
+      IndexMaskMemory memory;
+      const IndexMask mask = ed::greasepencil::retrieve_editable_elements(
+          *object, info, selection_domain, memory);
 
       mask.foreach_index(GrainSize(1024), [&](const int index) {
         if (selection[index]) {
