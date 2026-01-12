@@ -143,6 +143,7 @@
 #define filter reserved_keyword("filter")
 #define sizeof reserved_keyword("sizeof")
 #define cast reserved_keyword("cast")
+#define vector reserved_keyword("vector")
 // #define namespace /* Needed for Stubs. */
 // #define using /* Needed for Stubs. */
 #define row_major reserved_keyword("row_major")
