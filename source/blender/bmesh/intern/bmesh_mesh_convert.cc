@@ -1871,12 +1871,12 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
       });
   bm.elem_index_dirty &= ~(BM_VERT | BM_EDGE | BM_FACE | BM_LOOP);
 
-  if (mask) {
-    CustomData_merge_layout(&bm.vdata, &mesh.vert_data, mask->vmask, CD_CONSTRUCT, mesh.verts_num);
-    CustomData_merge_layout(&bm.edata, &mesh.edge_data, mask->emask, CD_CONSTRUCT, mesh.edges_num);
-    CustomData_merge_layout(
-        &bm.ldata, &mesh.corner_data, mask->lmask, CD_CONSTRUCT, mesh.corners_num);
-    CustomData_merge_layout(&bm.pdata, &mesh.face_data, mask->pmask, CD_CONSTRUCT, mesh.faces_num);
+  if (add_mesh_attributes) {
+    const CustomData_MeshMasks &mask_final = mask ? *mask : CD_MASK_DERIVEDMESH;
+    add_bm_cd_to_mesh(bm, bke::AttrDomain::Point, mask_final.vmask, mesh);
+    add_bm_cd_to_mesh(bm, bke::AttrDomain::Edge, mask_final.emask, mesh);
+    add_bm_cd_to_mesh(bm, bke::AttrDomain::Face, mask_final.pmask, mesh);
+    add_bm_cd_to_mesh(bm, bke::AttrDomain::Corner, mask_final.lmask, mesh);
   }
 
   {
