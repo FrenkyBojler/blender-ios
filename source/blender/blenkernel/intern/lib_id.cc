@@ -1327,9 +1327,6 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
 void BKE_libblock_runtime_ensure(ID &id)
 {
   if (!id.runtime) {
-    if (GS(id.name) == ID_MA) {
-      printf("inside BKE_libblock_runtime_ensure\n");
-    }
     id.runtime = MEM_new<bke::id::ID_Runtime>(__func__);
   }
 }

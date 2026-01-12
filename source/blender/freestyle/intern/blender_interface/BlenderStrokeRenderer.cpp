@@ -235,6 +235,9 @@ Material *BlenderStrokeRenderer::GetStrokeShader(blender::Main *bmain,
     }
     ma->nodetree = ntree;
   }
+  else {
+    ntree = ma->nodetree;
+  }
   ma->blend_method = MA_BM_HASHED;
 
   bNode *input_attr_color = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_ATTRIBUTE);
