@@ -375,7 +375,7 @@ static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*g
       return false;
     }
     else if (STREQ(input.name, "Alpha Crop") && !input.is_directly_linked()) {
-      PointerRNA input_rna_pointer = RNA_pointer_create_discrete(nullptr, &RNA_NodeSocket, &input);
+      PointerRNA input_rna_pointer = RNA_pointer_create_discrete(nullptr, RNA_NodeSocket, &input);
       if (RNA_boolean_get(&input_rna_pointer, "default_value")) {
         /* If Alpha Crop is not set, the image size changes depending on the input parameters,
          * so we can't usefully edit the crop in this case. */
@@ -954,7 +954,7 @@ static void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup 
       wmGizmo *gz = cpin_group->gizmos[i++];
 
       PointerRNA sockptr = RNA_pointer_create_discrete(
-          id_cast<ID *>(snode->edittree), &RNA_NodeSocket, sock);
+          id_cast<ID *>(snode->edittree), RNA_NodeSocket, sock);
       WM_gizmo_target_property_def_rna(gz, "offset", &sockptr, "default_value", -1);
 
       WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_MODAL, true);

@@ -3251,7 +3251,7 @@ static StructRNA *rna_FileBrowser_params_typef(PointerRNA *ptr)
     return RNA_FileSelectParams;
   }
   if (params == static_cast<void *>(ED_fileselect_get_asset_params(sfile))) {
-    return &RNA_FileAssetSelectParams;
+    return RNA_FileAssetSelectParams;
   }
 
   BLI_assert_msg(0, "Could not identify file select parameters");
@@ -3734,7 +3734,7 @@ static PointerRNA rna_SpreadsheetTables_active_get(PointerRNA *ptr)
 {
   SpaceSpreadsheet *sspreadsheet = ptr->data_as<SpaceSpreadsheet>();
   SpreadsheetTable *table = ed::spreadsheet::get_active_table(*sspreadsheet);
-  return RNA_pointer_create_discrete(ptr->owner_id, &RNA_SpreadsheetTable, table);
+  return RNA_pointer_create_discrete(ptr->owner_id, RNA_SpreadsheetTable, table);
 }
 
 static StructRNA *rna_viewer_path_elem_refine(PointerRNA *ptr)

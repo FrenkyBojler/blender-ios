@@ -718,7 +718,7 @@ static PointerRNA rna_Operator_layout_get(PointerRNA *ptr)
 {
   /* Operator owner is not inherited, layout is owned by WM. */
   wmOperator *op = static_cast<wmOperator *>(ptr->data);
-  return RNA_pointer_create_discrete(nullptr, &RNA_UILayout, op->layout);
+  return RNA_pointer_create_discrete(nullptr, RNA_UILayout, op->layout);
 }
 
 static PointerRNA rna_Operator_options_get(PointerRNA *ptr)
@@ -2060,13 +2060,13 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
 static StructRNA *rna_Operator_refine(PointerRNA *opr)
 {
   wmOperator *op = static_cast<wmOperator *>(opr->data);
-  return (op->type && op->type->rna_ext.srna) ? op->type->rna_ext.srna : &RNA_Operator;
+  return (op->type && op->type->rna_ext.srna) ? op->type->rna_ext.srna : RNA_Operator;
 }
 
 static StructRNA *rna_MacroOperator_refine(PointerRNA *opr)
 {
   wmOperator *op = static_cast<wmOperator *>(opr->data);
-  return (op->type && op->type->rna_ext.srna) ? op->type->rna_ext.srna : &RNA_Macro;
+  return (op->type && op->type->rna_ext.srna) ? op->type->rna_ext.srna : RNA_Macro;
 }
 
 /* just to work around 'const char *' warning and to ensure this is a python op */

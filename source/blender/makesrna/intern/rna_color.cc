@@ -318,7 +318,7 @@ static std::optional<std::string> rna_ColorRampElement_path(const PointerRNA *pt
 
         BKE_linestyle_modifier_list_color_ramps(id_cast<FreestyleLineStyle *>(id), &listbase);
         for (link = static_cast<LinkData *>(listbase.first); link; link = link->next) {
-          ramp_ptr = RNA_pointer_create_discrete(id, &RNA_ColorRamp, link->data);
+          ramp_ptr = RNA_pointer_create_discrete(id, RNA_ColorRamp, link->data);
           COLRAMP_GETPATH;
         }
         BLI_freelistN(&listbase);

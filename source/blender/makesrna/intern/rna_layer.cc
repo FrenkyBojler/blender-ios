@@ -421,7 +421,7 @@ static bool rna_LayerCollection_children_lookupstring(PointerRNA *ptr,
 
   for (LayerCollection &child : lc->layer_collections) {
     if (STREQ(child.collection->id.name + 2, key)) {
-      rna_pointer_create_with_ancestors(*ptr, &RNA_LayerCollection, &child, *r_ptr);
+      rna_pointer_create_with_ancestors(*ptr, RNA_LayerCollection, &child, *r_ptr);
       return true;
     }
   }

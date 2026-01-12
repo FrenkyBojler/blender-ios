@@ -631,7 +631,7 @@ static bool edit_constraint_invoke_properties(bContext *C,
                                               const wmEvent *event,
                                               wmOperatorStatus *r_retval)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", RNA_Constraint);
   Object *ob = (ptr.owner_id) ? id_cast<Object *>(ptr.owner_id) : context_active_object(C);
   bConstraint *con;
   ListBaseT<bConstraint> *list;
@@ -1749,7 +1749,7 @@ static wmOperatorStatus constraint_copy_to_selected_invoke(bContext *C,
 
 static bool constraint_copy_to_selected_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", RNA_Constraint);
   Object *obact = (ptr.owner_id) ? id_cast<Object *>(ptr.owner_id) : context_active_object(C);
   bConstraint *con = static_cast<bConstraint *>(ptr.data);
   bPoseChannel *pchan;

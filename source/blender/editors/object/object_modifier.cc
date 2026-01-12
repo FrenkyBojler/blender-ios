@@ -1949,7 +1949,7 @@ static bool modifier_apply_poll(bContext *C)
   }
 
   Scene *scene = CTX_data_scene(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_Modifier);
   Object *ob = (ptr.owner_id != nullptr) ? id_cast<Object *>(ptr.owner_id) :
                                            context_active_object(C);
   ModifierData *md = static_cast<ModifierData *>(ptr.data); /* May be nullptr. */
@@ -2062,7 +2062,7 @@ static wmOperatorStatus modifier_apply_invoke(bContext *C, wmOperator *op, const
 {
   wmOperatorStatus retval;
   if (edit_modifier_invoke_properties_with_hover(C, op, event, &retval)) {
-    PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+    PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_Modifier);
     Object *ob = (ptr.owner_id != nullptr) ? id_cast<Object *>(ptr.owner_id) :
                                              context_active_object(C);
 
@@ -2402,7 +2402,7 @@ static wmOperatorStatus modifier_copy_to_selected_invoke(bContext *C,
 
 static bool modifier_copy_to_selected_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_Modifier);
   Object *obact = (ptr.owner_id) ? id_cast<Object *>(ptr.owner_id) : context_active_object(C);
   ModifierData *md = static_cast<ModifierData *>(ptr.data);
 

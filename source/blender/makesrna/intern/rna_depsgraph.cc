@@ -503,7 +503,7 @@ static void rna_Depsgraph_updates_begin(CollectionPropertyIterator *iter, Pointe
 static PointerRNA rna_Depsgraph_updates_get(CollectionPropertyIterator *iter)
 {
   ID *id = static_cast<ID *>((static_cast<BLI_Iterator *>(iter->internal.custom))->current);
-  return RNA_pointer_create_with_parent(iter->parent, &RNA_DepsgraphUpdate, id);
+  return RNA_pointer_create_with_parent(iter->parent, RNA_DepsgraphUpdate, id);
 }
 
 static ID *rna_Depsgraph_id_eval_get(Depsgraph *depsgraph, ID *id_orig)

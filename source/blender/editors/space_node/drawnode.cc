@@ -163,7 +163,7 @@ static void node_buts_normal(ui::Layout &layout, bContext * /*C*/, PointerRNA *p
   bNode *node = static_cast<bNode *>(ptr->data);
   /* first output stores normal */
   bNodeSocket *output = static_cast<bNodeSocket *>(node->outputs.first);
-  PointerRNA sockptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodeSocket, output);
+  PointerRNA sockptr = RNA_pointer_create_discrete(ptr->owner_id, RNA_NodeSocket, output);
 
   layout.prop(&sockptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
 }
@@ -781,7 +781,7 @@ static void node_texture_buts_image(ui::Layout &layout, bContext *C, PointerRNA 
 static void node_texture_buts_image_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
-  PointerRNA iuserptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_ImageUser, node->storage);
+  PointerRNA iuserptr = RNA_pointer_create_discrete(ptr->owner_id, RNA_ImageUser, node->storage);
   uiTemplateImage(&layout, C, ptr, "image", &iuserptr, false, false);
 }
 

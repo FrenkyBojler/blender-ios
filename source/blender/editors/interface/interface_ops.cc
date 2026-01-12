@@ -1014,7 +1014,7 @@ static void ui_context_fcurve_modifiers_via_fcurve(bContext *C,
     const FCurve *fcu = static_cast<const FCurve *>(ptr.data);
     for (FModifier &mod : fcu->modifiers) {
       if (STREQ(mod.name, source->name) && mod.type == source->type) {
-        r_lb->append(RNA_pointer_create_discrete(ptr.owner_id, &RNA_FModifier, &mod));
+        r_lb->append(RNA_pointer_create_discrete(ptr.owner_id, RNA_FModifier, &mod));
         /* Since names are unique it is safe to break here. */
         break;
       }
@@ -1033,7 +1033,7 @@ static void ui_context_selected_key_blocks(ID *owner_id_key, Vector<PointerRNA> 
     /* This does not use the function `shape_key_is_selected` since that would include the active
      * shapekey which is not required for this function to work. */
     if (key_block.flag & KEYBLOCK_SEL) {
-      r_lb->append(RNA_pointer_create_discrete(owner_id_key, &RNA_ShapeKey, &key_block));
+      r_lb->append(RNA_pointer_create_discrete(owner_id_key, RNA_ShapeKey, &key_block));
     }
   }
 }
@@ -1214,7 +1214,7 @@ bool context_copy_to_selected_list(bContext *C,
     bNode *node = nullptr;
 
     /* Get the node we're editing */
-    if (RNA_struct_is_a(ptr->type, &RNA_NodeSocket)) {
+    if (RNA_struct_is_a(ptr->type, RNA_NodeSocket)) {
       bNodeTree *ntree = id_cast<bNodeTree *>(ptr->owner_id);
       bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
       node = &bke::node_find_node(*ntree, *sock);
@@ -1905,10 +1905,10 @@ static bool jump_to_target_ptr(bContext *C, PointerRNA ptr, const bool poll)
     /* Make optional. */
     const bool reveal_hidden = true;
     /* Select and activate the target. */
-    if (target_type == &RNA_Bone) {
+    if (target_type == RNA_Bone) {
       ok = ed::object::jump_to_bone(C, base->object, bone_name, reveal_hidden);
     }
-    else if (target_type == &RNA_Object) {
+    else if (target_type == RNA_Object) {
       ok = ed::object::jump_to_object(C, base->object, reveal_hidden);
     }
     else {

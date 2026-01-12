@@ -139,7 +139,7 @@ static blender::animrig::Action &extract_pose(Main &bmain, const Span<Object *> 
         continue;
       }
       PointerRNA bone_pointer = RNA_pointer_create_discrete(
-          &pose_object->id, &RNA_PoseBone, &pose_bone);
+          &pose_object->id, RNA_PoseBone, &pose_bone);
       Vector<RNAPath> rna_paths = construct_pose_rna_paths(bone_pointer);
       for (const RNAPath &rna_path : rna_paths) {
         PointerRNA resolved_pointer;
@@ -558,7 +558,7 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
       continue;
     }
     PointerRNA bone_pointer = RNA_pointer_create_discrete(
-        &pose_object.id, &RNA_PoseBone, &pose_bone);
+        &pose_object.id, RNA_PoseBone, &pose_bone);
     Vector<RNAPath> rna_paths = construct_pose_rna_paths(bone_pointer);
 
     for (RNAPath &rna_path : rna_paths) {

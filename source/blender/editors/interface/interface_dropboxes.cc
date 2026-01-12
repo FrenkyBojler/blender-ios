@@ -121,7 +121,7 @@ static std::string ui_drop_material_tooltip(bContext *C,
                                             const int /*xy*/[2],
                                             wmDropBox * /*drop*/)
 {
-  PointerRNA rna_ptr = CTX_data_pointer_get_type(C, "object", &RNA_Object);
+  PointerRNA rna_ptr = CTX_data_pointer_get_type(C, "object", RNA_Object);
   Object *ob = static_cast<Object *>(rna_ptr.data);
   BLI_assert(ob);
 

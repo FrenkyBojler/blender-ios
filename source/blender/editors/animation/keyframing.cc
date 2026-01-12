@@ -842,7 +842,7 @@ static Vector<std::string> get_selected_strips_rna_paths(Vector<PointerRNA> &sel
 static void invalidate_strip_caches(Vector<PointerRNA> selection, Scene *scene)
 {
   for (PointerRNA &id_ptr : selection) {
-    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+    if (RNA_struct_is_a(id_ptr.type, RNA_Strip)) {
       blender::Strip *strip = static_cast<blender::Strip *>(id_ptr.data);
       seq::relations_invalidate_cache(scene, strip);
     }

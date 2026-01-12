@@ -286,7 +286,7 @@ static void outliner_object_set_flag_recursive_fn(bContext *C,
 
   /* Create PointerRNA and PropertyRNA for either Object or Base. */
   ID *id = ob ? &ob->id : &scene->id;
-  StructRNA *struct_rna = ob ? &RNA_Object : &RNA_ObjectBase;
+  StructRNA *struct_rna = ob ? RNA_Object : RNA_ObjectBase;
   void *data = ob ? static_cast<void *>(ob) : static_cast<void *>(base);
 
   PointerRNA ptr = RNA_pointer_create_discrete(id, struct_rna, data);
@@ -652,7 +652,7 @@ static void outliner_collection_set_flag_recursive_fn(bContext *C,
 
   /* Create PointerRNA and PropertyRNA for either Collection or LayerCollection. */
   ID *id = collection ? &collection->id : &scene->id;
-  StructRNA *struct_rna = collection ? &RNA_Collection : &RNA_LayerCollection;
+  StructRNA *struct_rna = collection ? RNA_Collection : RNA_LayerCollection;
   void *data = collection ? static_cast<void *>(collection) :
                             static_cast<void *>(layer_collection);
 

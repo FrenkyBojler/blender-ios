@@ -362,19 +362,19 @@ static int rna_Struct_translation_context_length(PointerRNA *ptr)
 static PointerRNA rna_Struct_base_get(PointerRNA *ptr)
 {
   return RNA_pointer_create_discrete(
-      nullptr, &RNA_Struct, (static_cast<StructRNA *>(ptr->data))->base);
+      nullptr, RNA_Struct, (static_cast<StructRNA *>(ptr->data))->base);
 }
 
 static PointerRNA rna_Struct_nested_get(PointerRNA *ptr)
 {
   return RNA_pointer_create_discrete(
-      nullptr, &RNA_Struct, (static_cast<StructRNA *>(ptr->data))->nested);
+      nullptr, RNA_Struct, (static_cast<StructRNA *>(ptr->data))->nested);
 }
 
 static PointerRNA rna_Struct_name_property_get(PointerRNA *ptr)
 {
   return RNA_pointer_create_discrete(
-      nullptr, &RNA_Property, (static_cast<StructRNA *>(ptr->data))->nameproperty);
+      nullptr, RNA_Property, (static_cast<StructRNA *>(ptr->data))->nameproperty);
 }
 
 /* Struct property iteration. This is quite complicated, the purpose is to

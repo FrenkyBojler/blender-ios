@@ -114,7 +114,7 @@ namespace blender {
 
 static void rna_Boids_reset(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  if (ptr->type == &RNA_ParticleSystem) {
+  if (ptr->type == RNA_ParticleSystem) {
     ParticleSystem *psys = static_cast<ParticleSystem *>(ptr->data);
 
     psys->recalc = ID_RECALC_PSYS_RESET;
@@ -129,7 +129,7 @@ static void rna_Boids_reset(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr
 }
 static void rna_Boids_reset_deps(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  if (ptr->type == &RNA_ParticleSystem) {
+  if (ptr->type == RNA_ParticleSystem) {
     ParticleSystem *psys = static_cast<ParticleSystem *>(ptr->data);
 
     psys->recalc = ID_RECALC_PSYS_RESET;

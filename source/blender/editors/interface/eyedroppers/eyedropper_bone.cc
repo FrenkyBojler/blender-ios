@@ -200,7 +200,7 @@ static BoneSampleData sample_data_from_3d_view(bContext *C,
       }
       Object *ob = base->object;
       bArmature *armature = id_cast<bArmature *>(ob->data);
-      if (bdr.search_ptr.type == &RNA_Pose && &ob->id != bdr.search_ptr.owner_id) {
+      if (bdr.search_ptr.type == RNA_Pose && &ob->id != bdr.search_ptr.owner_id) {
         return {SampleResult::WRONG_ARMATURE};
       }
       if (bdr.search_ptr.type == RNA_Armature &&
@@ -278,7 +278,7 @@ static BoneSampleData sample_data_from_outliner(bContext *C,
     return sample_data;
   }
 
-  if (sample_data.bone_rna.type == &RNA_PoseBone) {
+  if (sample_data.bone_rna.type == RNA_PoseBone) {
     bPoseChannel *pose_bone = static_cast<bPoseChannel *>(sample_data.bone_rna.data);
     /* Special case for pose bones. Because they are not stored in the Armature, the IDs of the
      * search property and the picked result might not match since the comparison would be between

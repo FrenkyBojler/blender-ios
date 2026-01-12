@@ -82,7 +82,7 @@ static void gizmo_spot_blend_foreach_rna_prop(
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Light *la = id_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
-  PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
+  PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, RNA_Light, la);
   PropertyRNA *spot_blend_prop = RNA_struct_find_property(&light_ptr, "spot_blend");
 
   callback(light_ptr, spot_blend_prop, 0);
@@ -124,7 +124,7 @@ static void gizmo_light_radius_foreach_rna_prop(
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Light *la = id_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
-  PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
+  PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, RNA_Light, la);
   PropertyRNA *radius_prop = RNA_struct_find_property(&light_ptr, "shadow_soft_size");
 
   callback(light_ptr, radius_prop, 0);

@@ -2131,7 +2131,7 @@ static bool node_shader_script_update_poll(bContext *C)
 
   /* See if we have a shader script node in context. */
   bNode *node = static_cast<bNode *>(
-      CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript).data);
+      CTX_data_pointer_get_type(C, "node", RNA_ShaderNodeScript).data);
 
   if (!node && snode && snode->edittree) {
     node = bke::node_get_active(*snode->edittree);

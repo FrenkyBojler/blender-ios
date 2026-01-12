@@ -234,7 +234,7 @@ static void engine_update_script_node(RenderEngine *engine, bNodeTree *ntree, bN
   FunctionRNA *func;
 
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
-  PointerRNA nodeptr = RNA_pointer_create_discrete(id_cast<ID *>(ntree), &RNA_Node, node);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(id_cast<ID *>(ntree), RNA_Node, node);
   func = &rna_RenderEngine_update_script_node_func;
 
   RNA_parameter_list_create(&list, &ptr, func);

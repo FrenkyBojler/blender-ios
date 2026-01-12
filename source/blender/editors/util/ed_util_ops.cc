@@ -46,7 +46,7 @@ namespace blender {
 Vector<PointerRNA> ED_operator_single_id_from_context_as_vec(const bContext *C)
 {
   Vector<PointerRNA> ids;
-  PointerRNA idptr = CTX_data_pointer_get_type(C, "id", &RNA_ID);
+  PointerRNA idptr = CTX_data_pointer_get_type(C, "id", RNA_ID);
   if (idptr.data) {
     ids.append(idptr);
   }

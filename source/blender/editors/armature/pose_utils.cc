@@ -421,7 +421,7 @@ void poseAnim_mapping_autoKeyframe(bContext *C,
     }
 
     /* Add data-source override for the PoseChannel, to be used later. */
-    animrig::relative_keyingset_add_source(sources, &pfl.ob->id, &RNA_PoseBone, pchan);
+    animrig::relative_keyingset_add_source(sources, &pfl.ob->id, RNA_PoseBone, pchan);
   }
 
   /* insert keyframes for all relevant bones in one go */

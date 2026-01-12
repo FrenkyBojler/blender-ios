@@ -1525,7 +1525,7 @@ void node_socket_color_get(const bContext &C,
 
   BLI_assert(RNA_struct_is_a(node_ptr.type, RNA_Node));
   PointerRNA ptr = RNA_pointer_create_discrete(
-      &const_cast<ID &>(ntree.id), &RNA_NodeSocket, &const_cast<bNodeSocket &>(sock));
+      &const_cast<ID &>(ntree.id), RNA_NodeSocket, &const_cast<bNodeSocket &>(sock));
   sock.typeinfo->draw_color(const_cast<bContext *>(&C), &ptr, &node_ptr, r_color);
 }
 

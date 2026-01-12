@@ -197,12 +197,12 @@ static void buttons_texture_modifier_geonodes_users_add(Object *ob,
       if (socket.type != SOCK_TEXTURE) {
         continue;
       }
-      PointerRNA ptr = RNA_pointer_create_discrete(&node_tree->id, &RNA_NodeSocket, &socket);
+      PointerRNA ptr = RNA_pointer_create_discrete(&node_tree->id, RNA_NodeSocket, &socket);
       prop = RNA_struct_find_property(&ptr, "default_value");
 
       PointerRNA texptr = RNA_property_pointer_get(&ptr, prop);
-      Tex *tex = RNA_struct_is_a(texptr.type, &RNA_Texture) ? static_cast<Tex *>(texptr.data) :
-                                                              nullptr;
+      Tex *tex = RNA_struct_is_a(texptr.type, RNA_Texture) ? static_cast<Tex *>(texptr.data) :
+                                                             nullptr;
       if (tex != nullptr) {
         buttons_texture_user_socket_property_add(users,
                                                  &ob->id,

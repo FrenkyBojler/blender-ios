@@ -114,7 +114,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, ui::Layout *layout, voi
   ShaderFxData *fx = static_cast<ShaderFxData *>(fx_v);
 
   Object *ob = ed::object::context_active_object(C);
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_ShaderFx, fx);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_ShaderFx, fx);
   layout->context_ptr_set("shaderfx", &ptr);
   layout->operator_context_set(wm::OpCallContext::InvokeDefault);
 

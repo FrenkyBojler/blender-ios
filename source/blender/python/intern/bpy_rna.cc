@@ -4543,7 +4543,7 @@ static PyObject *pyrna_struct_dir(BPy_StructRNA *self)
 
   pyrna_dir_members_rna(ret, &self->ptr.value());
 
-  if (self->ptr->type == &RNA_Context) {
+  if (self->ptr->type == RNA_Context) {
     ListBaseT<LinkData> lb = CTX_data_dir_get(static_cast<const bContext *>(self->ptr->data));
 
     for (LinkData &link : lb) {
@@ -8232,7 +8232,7 @@ static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
    * function that takes the type is preferable. */
   {
     BLI_assert(RNA_struct_instance(&ptr) == nullptr);
-    PyTypeObject *tp = reinterpret_cast<PyTypeObject *>(pyrna_srna_Subtype(&RNA_Struct));
+    PyTypeObject *tp = reinterpret_cast<PyTypeObject *>(pyrna_srna_Subtype(RNA_Struct));
     PyObject *item = pyrna_struct_CreatePyObject_from_type(&ptr, tp, nullptr);
     Py_DECREF(tp); /* `srna` owns, can't hold a reference. */
 
@@ -10285,7 +10285,7 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
      * meaning a new Python instance is returned on each attribute access.
      * It may be useful to include other classes in this check - extend as needed.
      * See #141948. */
-    if (RNA_struct_is_a(srna, &RNA_PropertyGroup)) {
+    if (RNA_struct_is_a(srna, RNA_PropertyGroup)) {
       if (!PyDict_GetItem((reinterpret_cast<PyTypeObject *>(py_class))->tp_dict,
                           bpy_intern_str___slots__))
       {

@@ -325,7 +325,7 @@ static StructRNA *rna_IKParam_refine(PointerRNA *ptr)
 static PointerRNA rna_Pose_ikparam_get(PointerRNA *ptr)
 {
   bPose *pose = static_cast<bPose *>(ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_IKParam, pose->ikparam);
+  return RNA_pointer_create_with_parent(*ptr, RNA_IKParam, pose->ikparam);
 }
 
 static StructRNA *rna_Pose_ikparam_typef(PointerRNA *ptr)

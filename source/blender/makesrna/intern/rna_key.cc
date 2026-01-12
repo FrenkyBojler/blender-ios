@@ -861,7 +861,7 @@ static bool rna_KeyBlock_lookup_string(PointerRNA *ptr, const char *name, Pointe
     if (!STREQ(kb.name, name)) {
       continue;
     }
-    *r_ptr = RNA_pointer_create_with_parent(*ptr, &RNA_ShapeKey, &kb);
+    *r_ptr = RNA_pointer_create_with_parent(*ptr, RNA_ShapeKey, &kb);
     return true;
   }
   return false;

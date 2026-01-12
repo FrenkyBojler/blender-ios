@@ -1051,7 +1051,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
         /* Keep aligned with rna_Object_material_slots_get. */
         CTX_data_pointer_set(result,
                              &ob->id,
-                             &RNA_MaterialSlot,
+                             RNA_MaterialSlot,
                              reinterpret_cast<void *>(matnr + uintptr_t(&ob->id)));
       }
     }
@@ -1104,7 +1104,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     PointerRNA *ptr;
 
     /* Particles slots are used in both old and new textures handling. */
-    if ((ptr = get_pointer_type(path, &RNA_ParticleSystem))) {
+    if ((ptr = get_pointer_type(path, RNA_ParticleSystem))) {
       ParticleSettings *part = (static_cast<ParticleSystem *>(ptr->data))->part;
 
       if (part) {
@@ -1143,7 +1143,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
   }
   if (CTX_data_equals(member, "particle_system_editable")) {
     if (PE_poll(const_cast<bContext *>(C))) {
-      set_pointer_type(path, result, &RNA_ParticleSystem);
+      set_pointer_type(path, result, RNA_ParticleSystem);
     }
     else {
       CTX_data_pointer_set(result, nullptr, RNA_ParticleSystem, nullptr);
@@ -1164,7 +1164,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
 
     if (ptr && ptr->data) {
       ParticleSettings *part = (static_cast<ParticleSystem *>(ptr->data))->part;
-      CTX_data_pointer_set(result, ptr->owner_id, &RNA_ParticleSettings, part);
+      CTX_data_pointer_set(result, ptr->owner_id, RNA_ParticleSettings, part);
       return CTX_RESULT_OK;
     }
 

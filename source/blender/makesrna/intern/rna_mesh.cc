@@ -311,7 +311,7 @@ bool rna_Mesh_loop_triangles_lookup_int(PointerRNA *ptr, int index, PointerRNA *
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshLoopTriangle, const_cast<int3 *>(&mesh->corner_tris()[index]), *r_ptr);
+      *ptr, RNA_MeshLoopTriangle, const_cast<int3 *>(&mesh->corner_tris()[index]), *r_ptr);
   return true;
 }
 
@@ -1512,7 +1512,7 @@ bool rna_Mesh_edges_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
     return false;
   }
   MutableSpan<int2> edges = mesh->edges_for_write();
-  rna_pointer_create_with_ancestors(*ptr, &RNA_MeshEdge, &edges[index], *r_ptr);
+  rna_pointer_create_with_ancestors(*ptr, RNA_MeshEdge, &edges[index], *r_ptr);
   return true;
 }
 
@@ -1602,7 +1602,7 @@ bool rna_Mesh_vertex_normals_lookup_int(PointerRNA *ptr, int index, PointerRNA *
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshNormalValue, const_cast<float3 *>(&mesh->vert_normals()[index]), *r_ptr);
+      *ptr, RNA_MeshNormalValue, const_cast<float3 *>(&mesh->vert_normals()[index]), *r_ptr);
   return true;
 }
 
@@ -1633,7 +1633,7 @@ bool rna_Mesh_poly_normals_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshNormalValue, const_cast<float3 *>(&mesh->face_normals()[index]), *r_ptr);
+      *ptr, RNA_MeshNormalValue, const_cast<float3 *>(&mesh->face_normals()[index]), *r_ptr);
   return true;
 }
 
@@ -1664,7 +1664,7 @@ bool rna_Mesh_corner_normals_lookup_int(PointerRNA *ptr, int index, PointerRNA *
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshNormalValue, const_cast<float3 *>(&normals[index]), *r_ptr);
+      *ptr, RNA_MeshNormalValue, const_cast<float3 *>(&normals[index]), *r_ptr);
   return true;
 }
 

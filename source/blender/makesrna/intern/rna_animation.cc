@@ -546,7 +546,7 @@ static void RKS_GEN_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks,
 static StructRNA *rna_KeyingSetInfo_refine(PointerRNA *ptr)
 {
   KeyingSetInfo *ksi = static_cast<KeyingSetInfo *>(ptr->data);
-  return (ksi->rna_ext.srna) ? ksi->rna_ext.srna : &RNA_KeyingSetInfo;
+  return (ksi->rna_ext.srna) ? ksi->rna_ext.srna : RNA_KeyingSetInfo;
 }
 
 static bool rna_KeyingSetInfo_unregister(Main *bmain, StructRNA *type)

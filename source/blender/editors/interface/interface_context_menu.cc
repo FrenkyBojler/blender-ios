@@ -995,7 +995,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   {
     /* If the button represents an id, it can set the "id" context pointer. */
     if (ed::asset::can_mark_single_from_context(C)) {
-      const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(C, "id", &RNA_ID).data);
+      const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(C, "id", RNA_ID).data);
 
       /* Gray out items depending on if data-block is an asset. Preferably this could be done via
        * operator poll, but that doesn't work since the operator also works with "selected_ids",

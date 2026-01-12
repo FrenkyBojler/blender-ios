@@ -1112,7 +1112,7 @@ static void graph_draw_driver_settings_panel(ui::Layout &layout,
 
     /* 1) header panel */
     ui::Layout &header_box = col.box();
-    PointerRNA dvar_ptr = RNA_pointer_create_discrete(id, &RNA_DriverVariable, &dvar);
+    PointerRNA dvar_ptr = RNA_pointer_create_discrete(id, RNA_DriverVariable, &dvar);
 
     /* 1.1) variable type and name */
     ui::Layout &sub = header_box.row(false).row(true);

@@ -27,7 +27,7 @@ using namespace io::usd;
 static StructRNA *rna_USDHook_refine(PointerRNA *ptr)
 {
   USDHook *hook = static_cast<USDHook *>(ptr->data);
-  return (hook->rna_ext.srna) ? hook->rna_ext.srna : &RNA_USDHook;
+  return (hook->rna_ext.srna) ? hook->rna_ext.srna : RNA_USDHook;
 }
 
 static bool rna_USDHook_unregister(Main * /*bmain*/, StructRNA *type)

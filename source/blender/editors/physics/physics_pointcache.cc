@@ -397,7 +397,7 @@ void PTCACHE_OT_bake_from_cache(wmOperatorType *ot)
 static wmOperatorStatus ptcache_add_new_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "point_cache", RNA_PointCache);
   Object *ob = id_cast<Object *>(ptr.owner_id);
   PointCache *cache = static_cast<PointCache *>(ptr.data);
   PTCacheID pid = BKE_ptcache_id_find(ob, scene, cache);

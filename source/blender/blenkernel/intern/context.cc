@@ -798,7 +798,7 @@ ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
 
     PropertyRNA *iterprop;
     PointerRNA ctx_ptr = RNA_pointer_create_discrete(
-        nullptr, &RNA_Context, const_cast<bContext *>(C));
+        nullptr, RNA_Context, const_cast<bContext *>(C));
 
     iterprop = RNA_struct_iterator_property(ctx_ptr.type);
 

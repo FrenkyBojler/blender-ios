@@ -342,7 +342,7 @@ static PointerRNA rna_SequenceEditor_strips_all_get(CollectionPropertyIterator *
 {
   Strip *strip = static_cast<Strip *>(
       (static_cast<BLI_Iterator *>(iter->internal.custom))->current);
-  return RNA_pointer_create_with_parent(iter->parent, &RNA_Strip, strip);
+  return RNA_pointer_create_with_parent(iter->parent, RNA_Strip, strip);
 }
 
 static void rna_SequenceEditor_strips_all_end(CollectionPropertyIterator *iter)
@@ -700,7 +700,7 @@ static PointerRNA rna_Strip_active_modifier_get(PointerRNA *ptr)
 {
   const Strip *strip = ptr->data_as<Strip>();
   StripModifierData *smd = seq::modifier_get_active(strip);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_StripModifier, smd);
+  return RNA_pointer_create_with_parent(*ptr, RNA_StripModifier, smd);
 }
 
 static void rna_Strip_active_modifier_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
@@ -1167,7 +1167,7 @@ static void rna_Strip_reopen_files_update(Main *bmain, Scene * /*scene*/, Pointe
   seq::relations_free_imbuf(scene, &ed->seqbase, false);
   rna_Strip_invalidate_raw_update(bmain, scene, ptr);
 
-  if (RNA_struct_is_a(ptr->type, &RNA_SoundStrip)) {
+  if (RNA_struct_is_a(ptr->type, RNA_SoundStrip)) {
     seq::sound_update_bounds(scene, static_cast<Strip *>(ptr->data));
   }
 }

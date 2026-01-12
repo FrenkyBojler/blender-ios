@@ -1366,19 +1366,19 @@ static bool rna_MeshDeformModifier_is_bound_get(PointerRNA *ptr)
 static PointerRNA rna_SoftBodyModifier_settings_get(PointerRNA *ptr)
 {
   Object *ob = id_cast<Object *>(ptr->owner_id);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SoftBodySettings, ob->soft);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SoftBodySettings, ob->soft);
 }
 
 static PointerRNA rna_SoftBodyModifier_point_cache_get(PointerRNA *ptr)
 {
   Object *ob = id_cast<Object *>(ptr->owner_id);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_PointCache, ob->soft->shared->pointcache);
+  return RNA_pointer_create_with_parent(*ptr, RNA_PointCache, ob->soft->shared->pointcache);
 }
 
 static PointerRNA rna_CollisionModifier_settings_get(PointerRNA *ptr)
 {
   Object *ob = id_cast<Object *>(ptr->owner_id);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_CollisionSettings, ob->pd);
+  return RNA_pointer_create_with_parent(*ptr, RNA_CollisionSettings, ob->pd);
 }
 
 /* Special update function for setting the number of segments of the modifier that also resamples
@@ -1864,8 +1864,7 @@ static PointerRNA rna_ParticleInstanceModifier_particle_system_get(PointerRNA *p
   }
 
   psys = static_cast<ParticleSystem *>(BLI_findlink(&psmd->ob->particlesystem, psmd->psys - 1));
-  PointerRNA rptr = RNA_pointer_create_discrete(
-      id_cast<ID *>(psmd->ob), &RNA_ParticleSystem, psys);
+  PointerRNA rptr = RNA_pointer_create_discrete(id_cast<ID *>(psmd->ob), RNA_ParticleSystem, psys);
   return rptr;
 }
 

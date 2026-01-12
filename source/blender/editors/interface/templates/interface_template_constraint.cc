@@ -336,7 +336,7 @@ void template_constraints(Layout * /*layout*/, bContext *C, bool use_bone_constr
       }
 
       PointerRNA *con_ptr = MEM_new<PointerRNA>(__func__);
-      *con_ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, &con);
+      *con_ptr = RNA_pointer_create_discrete(&ob->id, RNA_Constraint, &con);
       panel_custom_data_set(panel, con_ptr);
 
       panel = panel->next;

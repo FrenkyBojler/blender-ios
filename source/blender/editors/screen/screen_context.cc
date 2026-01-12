@@ -294,7 +294,7 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
           if (editable_bones) {
             /* only selected + editable */
             if (EBONE_EDITABLE(&ebone)) {
-              CTX_data_list_add(result, &arm->id, &RNA_EditBone, &ebone);
+              CTX_data_list_add(result, &arm->id, RNA_EditBone, &ebone);
 
               if ((flipbone) && !(flipbone->flag & BONE_SELECTED)) {
                 CTX_data_list_add(result, &arm->id, RNA_EditBone, flipbone);
@@ -303,10 +303,10 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
           }
           else {
             /* only include bones if visible */
-            CTX_data_list_add(result, &arm->id, &RNA_EditBone, &ebone);
+            CTX_data_list_add(result, &arm->id, RNA_EditBone, &ebone);
 
             if ((flipbone) && animrig::bone_is_visible(arm, flipbone) == 0) {
-              CTX_data_list_add(result, &arm->id, &RNA_EditBone, flipbone);
+              CTX_data_list_add(result, &arm->id, RNA_EditBone, flipbone);
             }
           }
         }
@@ -364,7 +364,7 @@ static eContextResult screen_ctx_selected_bones_(const bContext *C,
           if (selected_editable_bones) {
             /* only selected + editable */
             if (EBONE_EDITABLE(&ebone)) {
-              CTX_data_list_add(result, &arm->id, &RNA_EditBone, &ebone);
+              CTX_data_list_add(result, &arm->id, RNA_EditBone, &ebone);
 
               if ((flipbone) && !(flipbone->flag & BONE_SELECTED)) {
                 CTX_data_list_add(result, &arm->id, RNA_EditBone, flipbone);
@@ -373,7 +373,7 @@ static eContextResult screen_ctx_selected_bones_(const bContext *C,
           }
           else {
             /* only include bones if selected */
-            CTX_data_list_add(result, &arm->id, &RNA_EditBone, &ebone);
+            CTX_data_list_add(result, &arm->id, RNA_EditBone, &ebone);
 
             if ((flipbone) && !(flipbone->flag & BONE_SELECTED)) {
               CTX_data_list_add(result, &arm->id, RNA_EditBone, flipbone);
@@ -706,7 +706,7 @@ static eContextResult screen_ctx_selected_nla_strips(const bContext *C, bContext
       NlaTrack *nlt = static_cast<NlaTrack *>(ale.data);
       for (NlaStrip &strip : nlt->strips) {
         if (strip.flag & NLASTRIP_FLAG_SELECT) {
-          CTX_data_list_add(result, ale.id, &RNA_NlaStrip, &strip);
+          CTX_data_list_add(result, ale.id, RNA_NlaStrip, &strip);
         }
       }
     }
@@ -734,7 +734,7 @@ static eContextResult screen_ctx_selected_movieclip_tracks(const bContext *C,
     if (!TRACK_SELECTED(&track)) {
       continue;
     }
-    CTX_data_list_add(result, &clip->id, &RNA_MovieTrackingTrack, &track);
+    CTX_data_list_add(result, &clip->id, RNA_MovieTrackingTrack, &track);
   }
 
   CTX_data_type_set(result, ContextDataType::Collection);
@@ -956,7 +956,7 @@ static eContextResult screen_ctx_sel_edit_fcurves_(const bContext *C,
 
     for (bAnimListElem &ale : anim_data) {
       if (ELEM(ale.type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
-        CTX_data_list_add(result, ale.fcurve_owner_id, &RNA_FCurve, ale.data);
+        CTX_data_list_add(result, ale.fcurve_owner_id, RNA_FCurve, ale.data);
       }
     }
 
@@ -1000,7 +1000,7 @@ static eContextResult screen_ctx_active_editable_fcurve(const bContext *C,
 
     for (bAnimListElem &ale : anim_data) {
       if (ELEM(ale.type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
-        CTX_data_pointer_set(result, ale.fcurve_owner_id, &RNA_FCurve, ale.data);
+        CTX_data_pointer_set(result, ale.fcurve_owner_id, RNA_FCurve, ale.data);
         break;
       }
     }
@@ -1046,7 +1046,7 @@ static eContextResult screen_ctx_selected_editable_keyframes(const bContext *C,
           continue;
         }
 
-        CTX_data_list_add(result, ale.fcurve_owner_id, &RNA_Keyframe, bezt);
+        CTX_data_list_add(result, ale.fcurve_owner_id, RNA_Keyframe, bezt);
       }
     }
 
@@ -1102,7 +1102,7 @@ static eContextResult screen_ctx_strips(const bContext *C, bContextDataResult *r
   Editing *ed = seq::editing_get(scene);
   if (ed) {
     for (Strip &strip : *ed->current_strips()) {
-      CTX_data_list_add(result, &scene->id, &RNA_Strip, &strip);
+      CTX_data_list_add(result, &scene->id, RNA_Strip, &strip);
     }
     CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
@@ -1119,7 +1119,7 @@ static eContextResult screen_ctx_selected_strips(const bContext *C, bContextData
   if (ed) {
     for (Strip &strip : *ed->current_strips()) {
       if (strip.flag & SEQ_SELECT) {
-        CTX_data_list_add(result, &scene->id, &RNA_Strip, &strip);
+        CTX_data_list_add(result, &scene->id, RNA_Strip, &strip);
       }
     }
     CTX_data_type_set(result, ContextDataType::Collection);
@@ -1142,7 +1142,7 @@ static eContextResult screen_ctx_selected_editable_strips(const bContext *C,
   const ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
   for (Strip &strip : *ed->current_strips()) {
     if (strip.flag & SEQ_SELECT && !seq::transform_is_locked(channels, &strip)) {
-      CTX_data_list_add(result, &scene->id, &RNA_Strip, &strip);
+      CTX_data_list_add(result, &scene->id, RNA_Strip, &strip);
     }
   }
   CTX_data_type_set(result, ContextDataType::Collection);

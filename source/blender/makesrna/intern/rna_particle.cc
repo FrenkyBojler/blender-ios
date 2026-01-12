@@ -499,7 +499,7 @@ static const EnumPropertyItem *rna_Particle_Material_itemf(bContext *C,
 
 static void particle_recalc(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr, short flag)
 {
-  if (ptr->type == &RNA_ParticleSystem) {
+  if (ptr->type == RNA_ParticleSystem) {
     Object *ob = id_cast<Object *>(ptr->owner_id);
     ParticleSystem *psys = static_cast<ParticleSystem *>(ptr->data);
 
@@ -624,7 +624,7 @@ static ParticleSystem *rna_particle_system_for_target(Object *ob, ParticleTarget
 
 static void rna_Particle_target_reset(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  if (ptr->type == &RNA_ParticleTarget) {
+  if (ptr->type == RNA_ParticleTarget) {
     Object *ob = id_cast<Object *>(ptr->owner_id);
     ParticleTarget *pt = static_cast<ParticleTarget *>(ptr->data);
     ParticleSystem *kpsys = nullptr, *psys = rna_particle_system_for_target(ob, pt);
@@ -663,7 +663,7 @@ static void rna_Particle_target_reset(Main *bmain, Scene * /*scene*/, PointerRNA
 
 static void rna_Particle_target_redo(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  if (ptr->type == &RNA_ParticleTarget) {
+  if (ptr->type == RNA_ParticleTarget) {
     Object *ob = id_cast<Object *>(ptr->owner_id);
     ParticleTarget *pt = static_cast<ParticleTarget *>(ptr->data);
     ParticleSystem *psys = rna_particle_system_for_target(ob, pt);
@@ -1206,13 +1206,13 @@ static const EnumPropertyItem *rna_Particle_ren_as_itemf(bContext * /*C*/,
 static PointerRNA rna_Particle_field1_get(PointerRNA *ptr)
 {
   ParticleSettings *part = id_cast<ParticleSettings *>(ptr->owner_id);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_FieldSettings, part->pd);
+  return RNA_pointer_create_with_parent(*ptr, RNA_FieldSettings, part->pd);
 }
 
 static PointerRNA rna_Particle_field2_get(PointerRNA *ptr)
 {
   ParticleSettings *part = id_cast<ParticleSettings *>(ptr->owner_id);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_FieldSettings, part->pd2);
+  return RNA_pointer_create_with_parent(*ptr, RNA_FieldSettings, part->pd2);
 }
 
 static void psys_vg_name_get__internal(PointerRNA *ptr, char *value, int index)

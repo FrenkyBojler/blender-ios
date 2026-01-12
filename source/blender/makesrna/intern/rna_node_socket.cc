@@ -276,7 +276,7 @@ static PointerRNA rna_NodeSocket_node_get(PointerRNA *ptr)
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
   bNode &node = bke::node_find_node(*ntree, *sock);
-  return RNA_pointer_create_discrete(&ntree->id, &RNA_Node, &node);
+  return RNA_pointer_create_discrete(&ntree->id, RNA_Node, &node);
 }
 
 static void rna_NodeSocket_type_set(PointerRNA *ptr, int value)

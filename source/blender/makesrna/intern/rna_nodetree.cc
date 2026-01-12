@@ -1339,7 +1339,7 @@ static PointerRNA rna_NodeTree_active_node_get(PointerRNA *ptr)
 {
   bNodeTree *ntree = ptr->data_as<bNodeTree>();
   bNode *node = bke::node_get_active(*ntree);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_Node, node);
+  return RNA_pointer_create_with_parent(*ptr, RNA_Node, node);
 }
 
 static void rna_NodeTree_active_node_set(PointerRNA *ptr,
@@ -2123,7 +2123,7 @@ static StructRNA *rna_Node_register(Main *bmain,
                                     StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, &RNA_Node, data, identifier, validate, call, free);
+      bmain, reports, RNA_Node, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -2387,7 +2387,7 @@ static StructRNA *rna_ShaderNode_register(Main *bmain,
                                           StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, &RNA_ShaderNode, data, identifier, validate, call, free);
+      bmain, reports, RNA_ShaderNode, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -2409,7 +2409,7 @@ static StructRNA *rna_CompositorNode_register(Main *bmain,
                                               StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, &RNA_CompositorNode, data, identifier, validate, call, free);
+      bmain, reports, RNA_CompositorNode, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -2431,7 +2431,7 @@ static StructRNA *rna_TextureNode_register(Main *bmain,
                                            StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, &RNA_TextureNode, data, identifier, validate, call, free);
+      bmain, reports, RNA_TextureNode, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -2453,7 +2453,7 @@ static StructRNA *rna_GeometryNode_register(Main *bmain,
                                             StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, &RNA_GeometryNode, data, identifier, validate, call, free);
+      bmain, reports, RNA_GeometryNode, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -2475,7 +2475,7 @@ static StructRNA *rna_FunctionNode_register(Main *bmain,
                                             StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, &RNA_FunctionNode, data, identifier, validate, call, free);
+      bmain, reports, RNA_FunctionNode, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -3046,7 +3046,7 @@ static StructRNA *rna_NodeCustomGroup_register(Main *bmain,
                                                StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, &RNA_NodeCustomGroup, data, identifier, validate, call, free);
+      bmain, reports, RNA_NodeCustomGroup, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }
@@ -3068,7 +3068,7 @@ static StructRNA *rna_GeometryNodeCustomGroup_register(Main *bmain,
                                                        StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, &RNA_GeometryNodeCustomGroup, data, identifier, validate, call, free);
+      bmain, reports, RNA_GeometryNodeCustomGroup, data, identifier, validate, call, free);
 
   if (!nt) {
     return nullptr;
@@ -3097,7 +3097,7 @@ static StructRNA *rna_ShaderNodeCustomGroup_register(Main *bmain,
                                                      StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, &RNA_ShaderNodeCustomGroup, data, identifier, validate, call, free);
+      bmain, reports, RNA_ShaderNodeCustomGroup, data, identifier, validate, call, free);
 
   if (!nt) {
     return nullptr;
@@ -3124,7 +3124,7 @@ static StructRNA *rna_CompositorNodeCustomGroup_register(Main *bmain,
                                                          StructFreeFunc free)
 {
   bke::bNodeType *nt = rna_Node_register_base(
-      bmain, reports, &RNA_CompositorNodeCustomGroup, data, identifier, validate, call, free);
+      bmain, reports, RNA_CompositorNodeCustomGroup, data, identifier, validate, call, free);
   if (!nt) {
     return nullptr;
   }

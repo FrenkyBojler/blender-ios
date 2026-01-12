@@ -1314,7 +1314,7 @@ static void image_open_init(bContext *C, wmOperator *op)
   ImageOpenData *iod;
   op->customdata = iod = MEM_new<ImageOpenData>(__func__);
   iod->iuser = static_cast<ImageUser *>(
-      CTX_data_pointer_get_type(C, "image_user", &RNA_ImageUser).data);
+      CTX_data_pointer_get_type(C, "image_user", RNA_ImageUser).data);
   ui::context_active_but_prop_get_templateID(C, &iod->pprop.ptr, &iod->pprop.prop);
 }
 

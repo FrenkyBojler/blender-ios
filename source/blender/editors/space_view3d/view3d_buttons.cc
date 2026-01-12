@@ -1750,7 +1750,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
     bcol = &panel->layout->column(true);
     row = &bcol->row(true); /* The filter button row */
 
-    PointerRNA tools_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ToolSettings, ts);
+    PointerRNA tools_ptr = RNA_pointer_create_discrete(nullptr, RNA_ToolSettings, ts);
     row->prop(&tools_ptr, "vertex_group_subset", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
     col = &bcol->column(true);

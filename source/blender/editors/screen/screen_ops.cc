@@ -5764,7 +5764,7 @@ void ED_screens_header_tools_menu_create(bContext *C, ui::Layout *layout, void *
   ScrArea *area = CTX_wm_area(C);
   {
     PointerRNA ptr = RNA_pointer_create_discrete(
-        id_cast<ID *>(CTX_wm_screen(C)), &RNA_Space, area->spacedata.first);
+        id_cast<ID *>(CTX_wm_screen(C)), RNA_Space, area->spacedata.first);
     if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
       layout->prop(&ptr, "show_region_header", UI_ITEM_NONE, IFACE_("Show Header"), ICON_NONE);
     }
@@ -5797,7 +5797,7 @@ void ED_screens_footer_tools_menu_create(bContext *C, ui::Layout *layout, void *
 
   {
     PointerRNA ptr = RNA_pointer_create_discrete(
-        id_cast<ID *>(CTX_wm_screen(C)), &RNA_Space, area->spacedata.first);
+        id_cast<ID *>(CTX_wm_screen(C)), RNA_Space, area->spacedata.first);
     layout->prop(&ptr, "show_region_footer", UI_ITEM_NONE, IFACE_("Show Footer"), ICON_NONE);
   }
 
@@ -7039,7 +7039,7 @@ static wmOperatorStatus space_type_set_or_cycle_exec(bContext *C, wmOperator *op
   const int space_type = RNA_enum_get(op->ptr, "space_type");
 
   ScrArea *area = CTX_wm_area(C);
-  PointerRNA ptr = RNA_pointer_create_discrete(id_cast<ID *>(CTX_wm_screen(C)), &RNA_Area, area);
+  PointerRNA ptr = RNA_pointer_create_discrete(id_cast<ID *>(CTX_wm_screen(C)), RNA_Area, area);
   PropertyRNA *prop_type = RNA_struct_find_property(&ptr, "type");
   PropertyRNA *prop_ui_type = RNA_struct_find_property(&ptr, "ui_type");
 

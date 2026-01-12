@@ -3860,13 +3860,11 @@ static void rna_generate_struct_register_func(BlenderRNA * /*brna*/, StructRNA *
           srna->identifier,
           srna->identifier);
 
-  int i;
-  LISTBASE_FOREACH_INDEX(PropertyRNA *, prop, &srna->cont.properties, i)
-  {
+  for (const auto [i, prop] : srna->cont.properties.enumerate()) {
     if (i != 0) {
       fprintf(f, "\n");
     }
-    rna_generate_property(f, srna, nullptr, prop);
+    rna_generate_property(f, srna, nullptr, &prop);
   }
 
   for (func = static_cast<FunctionRNA *>(srna->functions.first); func;

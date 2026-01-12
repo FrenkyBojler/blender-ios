@@ -806,7 +806,7 @@ void BPy_init_modules(bContext *C)
   PyModule_AddObject(mod, "_utils_previews", BPY_utils_previews_module());
   PyModule_AddObject(mod, "msgbus", BPY_msgbus_module());
 
-  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, RNA_Context, C);
   bpy_context_module = reinterpret_cast<BPy_StructRNA *>(pyrna_struct_CreatePyObject(&ctx_ptr));
   PyModule_AddObject(mod, "context", reinterpret_cast<PyObject *>(bpy_context_module));
 

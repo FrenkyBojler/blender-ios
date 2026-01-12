@@ -456,7 +456,7 @@ static StructRNA *rna_Panel_register(Main *bmain,
 static StructRNA *rna_Panel_refine(PointerRNA *ptr)
 {
   Panel *menu = static_cast<Panel *>(ptr->data);
-  return (menu->type && menu->type->rna_ext.srna) ? menu->type->rna_ext.srna : &RNA_Panel;
+  return (menu->type && menu->type->rna_ext.srna) ? menu->type->rna_ext.srna : RNA_Panel;
 }
 
 static StructRNA *rna_Panel_custom_data_typef(PointerRNA *ptr)
@@ -793,8 +793,7 @@ static StructRNA *rna_UIList_register(Main *bmain,
 static StructRNA *rna_UIList_refine(PointerRNA *ptr)
 {
   uiList *ui_list = static_cast<uiList *>(ptr->data);
-  return (ui_list->type && ui_list->type->rna_ext.srna) ? ui_list->type->rna_ext.srna :
-                                                          &RNA_UIList;
+  return (ui_list->type && ui_list->type->rna_ext.srna) ? ui_list->type->rna_ext.srna : RNA_UIList;
 }
 
 /* Header */
@@ -931,7 +930,7 @@ static StructRNA *rna_Header_register(Main *bmain,
 static StructRNA *rna_Header_refine(PointerRNA *htr)
 {
   Header *hdr = static_cast<Header *>(htr->data);
-  return (hdr->type && hdr->type->rna_ext.srna) ? hdr->type->rna_ext.srna : &RNA_Header;
+  return (hdr->type && hdr->type->rna_ext.srna) ? hdr->type->rna_ext.srna : RNA_Header;
 }
 
 /* Menu */
@@ -1112,7 +1111,7 @@ static StructRNA *rna_Menu_register(Main *bmain,
 static StructRNA *rna_Menu_refine(PointerRNA *mtr)
 {
   Menu *menu = static_cast<Menu *>(mtr->data);
-  return (menu->type && menu->type->rna_ext.srna) ? menu->type->rna_ext.srna : &RNA_Menu;
+  return (menu->type && menu->type->rna_ext.srna) ? menu->type->rna_ext.srna : RNA_Menu;
 }
 
 /* Asset Shelf */
@@ -1347,7 +1346,7 @@ static void rna_AssetShelf_drag_operator_set(PointerRNA *ptr, const char *value)
 static StructRNA *rna_AssetShelf_refine(PointerRNA *shelf_ptr)
 {
   AssetShelf *shelf = static_cast<AssetShelf *>(shelf_ptr->data);
-  return (shelf->type && shelf->type->rna_ext.srna) ? shelf->type->rna_ext.srna : &RNA_AssetShelf;
+  return (shelf->type && shelf->type->rna_ext.srna) ? shelf->type->rna_ext.srna : RNA_AssetShelf;
 }
 
 static int rna_AssetShelf_asset_library_get(PointerRNA *ptr)
