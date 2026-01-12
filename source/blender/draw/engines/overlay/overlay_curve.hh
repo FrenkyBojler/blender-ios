@@ -266,7 +266,7 @@ class Curves : Overlay {
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_legacy_curve_ps_, view);
-    manager.submit(edit_curves_ps_, view_edit_cage);
+    manager.submit(edit_curves_ps_, view);
     manager.submit(edit_curves_handles_ps_, view_edit_cage);
     manager.submit(edit_legacy_surface_handles_ps, view);
   }
