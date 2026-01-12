@@ -319,6 +319,8 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
   const float scale = float(max_thumb_size) / std::max(spec.width, spec.height);
   const int width = int(spec.width * scale);
   const int height = int(spec.height * scale);
+  const int alpha_channel = spec.alpha_channel;
+  const bool has_alpha = alpha_channel != -1;
 
   if (r_width) {
     *r_width = width;
@@ -328,6 +330,8 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
   }
 
   ImBuf *ibuf = nullptr;
+  /* The value of 3 is arbitrary. We'll have to determine a threshold
+   * under which it is more efficient to just read the entire file. */
   if (spec.height < (max_thumb_size * 3) || spec.tile_width != 0) {
     /* TODO: Images with tiles could be read and scaled one-by-one. */
     /* TODO: Images with mipmaps could request an ideal level. */
@@ -336,7 +340,7 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
   else {
     const uint format_flag = IB_byte_data | IB_uninitialized_pixels;
     const int planes = 32;
-    const float oversample = 2.0f;
+    const float oversample = 1.5f;
     const int imb_w = width * oversample;
     const int imb_h = height * oversample;
     const float imb_scale = scale * oversample;
@@ -348,6 +352,10 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
 
     /* Single row of pixels. */
     Array<uint8_t> pixels(spec.width * channels);
+
+    const int color_channels = has_alpha ? channels - 1 : channels;
+    const int g_offset = color_channels > 1 ? 1 : 0;
+    const int b_offset = color_channels > 2 ? 2 : 0;
 
     for (int h = 0; h < imb_h; h++) {
       const int source_y = int(float(h) / imb_scale);
@@ -361,14 +369,11 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
         /* Save to the target ImBuf bottom to top as the origins differ. */
         uint8_t *dest_px = &ibuf->byte_buffer.data[((imb_h - h - 1) * imb_w + w) * 4];
         dest_px[0] = pixels[source_x];
-        dest_px[1] = (channels > 1) ? pixels[source_x + 1] : pixels[source_x];
-        dest_px[2] = (channels > 2) ? pixels[source_x + 2] : pixels[source_x];
-        dest_px[3] = (channels == 4) ? pixels[source_x + 3] : 255;
+        dest_px[1] = pixels[source_x + g_offset];
+        dest_px[2] = pixels[source_x + b_offset];
+        dest_px[3] = has_alpha ? pixels[source_x + alpha_channel] : 255;
       }
     }
-
-    /* ImBuf always needs 4 channels */
-    fill_all_channels<uint8_t>(ibuf->byte_buffer.data, imb_w, imb_h, channels, 255);
   }
 
   in->close();
