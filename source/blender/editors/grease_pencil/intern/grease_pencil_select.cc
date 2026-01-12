@@ -655,17 +655,44 @@ static void select_similar_by_value(Scene *scene,
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
-    const IndexMask mask = ed::greasepencil::retrieve_editable_points(
-        *object, info.drawing, info.layer_index, memory);
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-    const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
-        attribute_id, selection_domain, default_value);
+    if (selection_domain == bke::AttrDomain::Point) {
+      const IndexMask mask = ed::greasepencil::retrieve_editable_points(
+          *object, info.drawing, info.layer_index, memory);
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
+          attribute_id, selection_domain, default_value);
 
-    Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
-        curves);
-    for (const int i : selection_attribute_names.index_range()) {
+      Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
+          curves);
+      for (const int i : selection_attribute_names.index_range()) {
+        bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+            curves, selection_domain, bke::AttrType::Bool, selection_attribute_names[i]);
+        MutableSpan<bool> selection = selection_writer.span.typed<bool>();
+
+        mask.foreach_index(GrainSize(1024), [&](const int index) {
+          if (selection[index]) {
+            return;
+          }
+          for (const T &test_value : selected_values) {
+            if (distance_fn(values[index], test_value) <= threshold) {
+              selection[index] = true;
+            }
+          }
+        });
+
+        selection_writer.finish();
+      }
+    }
+    else {
+      ed::greasepencil::ensure_selection_domain(scene->toolsettings, object);
+      const IndexMask mask = ed::greasepencil::retrieve_editable_elements(
+          *object, info, selection_domain, memory);
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
+          attribute_id, selection_domain, default_value);
+
       bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
-          curves, selection_domain, bke::AttrType::Bool, selection_attribute_names[i]);
+          curves, selection_domain, bke::AttrType::Bool, ".selection");
       MutableSpan<bool> selection = selection_writer.span.typed<bool>();
 
       mask.foreach_index(GrainSize(1024), [&](const int index) {
@@ -678,7 +705,6 @@ static void select_similar_by_value(Scene *scene,
           }
         }
       });
-
       selection_writer.finish();
     }
   });
