@@ -748,7 +748,7 @@ static void rna_FCurve_update_data_ex(ID *id, FCurve *fcu, Main *bmain)
 /* RNA update callback for F-Curves after curve shape changes */
 static void rna_FCurve_update_data(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  BLI_assert(ptr->type == &RNA_FCurve);
+  BLI_assert(ptr->type == RNA_FCurve);
   rna_FCurve_update_data_ex(ptr->owner_id, static_cast<FCurve *>(ptr->data), bmain);
 }
 
