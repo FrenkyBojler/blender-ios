@@ -40,7 +40,7 @@ bool GHOST_XrGraphicsBindingMetal::loadExtensionFunctions(XrInstance instance)
     return false; \
   }
 
-  LOAD_FUNCTION(xrGetMetalGraphicsRequirementsKHR_, "xrGetMetalGraphicsRequirementsKHR");
+  LOAD_FUNCTION(xrGetMetalGraphicsRequirementsKHR_, xrGetMetalGraphicsRequirementsKHR);
 
 #undef LOAD_FUNCTION
   return true;

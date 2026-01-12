@@ -79,7 +79,7 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
       return false; \
     }
 
-    LOAD_FUNCTION(xrGetOpenGLGraphicsRequirementsKHR_, "xrGetOpenGLGraphicsRequirementsKHR");
+    LOAD_FUNCTION(xrGetOpenGLGraphicsRequirementsKHR_, xrGetOpenGLGraphicsRequirementsKHR);
 
 #  undef LOAD_FUNCTION
     return true;

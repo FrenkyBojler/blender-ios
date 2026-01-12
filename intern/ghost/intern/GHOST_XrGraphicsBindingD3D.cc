@@ -84,7 +84,7 @@ bool GHOST_XrGraphicsBindingD3D::loadExtensionFunctions(XrInstance instance)
     return false; \
   }
 
-  LOAD_FUNCTION(xrGetD3D11GraphicsRequirementsKHR_, "xrGetD3D11GraphicsRequirementsKHR");
+  LOAD_FUNCTION(xrGetD3D11GraphicsRequirementsKHR_, xrGetD3D11GraphicsRequirementsKHR);
 
 #undef LOAD_FUNCTION
   return true;
