@@ -394,6 +394,12 @@ PassInfo Pass::get_info(const PassType type,
       break;
   }
 
+  if (pass_info.support_denoise && mode == PassMode::DENOISED) {
+    /* Filter is already applied in 'PassAccessor::get_render_tile_pixels' when denoiser reads the
+     * input passes, no need to apply again on the output. */
+    pass_info.use_filter = false;
+  }
+
   return pass_info;
 }
 

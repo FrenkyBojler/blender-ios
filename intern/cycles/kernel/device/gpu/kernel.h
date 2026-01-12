@@ -1156,36 +1156,27 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
     return;
   }
 
-  const uint64_t render_pixel_index = offset + (x + full_x) + (y + full_y) * stride;
+  const uint64_t render_pixel_index = offset + int((x + full_x) / upscale_factor) +
+                                      int((y + full_y) / upscale_factor) * input_stride;
+  const uint64_t denoised_render_pixel_index = offset + (x + full_x) + (y + full_y) * stride;
   ccl_global float *buffer = render_buffer + render_pixel_index * pass_stride;
+  ccl_global float *denoised_buffer = render_buffer + denoised_render_pixel_index * pass_stride;
 
-  float pixel_scale;
-  if (pass_sample_count == PASS_UNUSED) {
-    pixel_scale = num_samples;
-  }
-  else {
-    pixel_scale = __float_as_uint(buffer[pass_sample_count]);
-  }
-
-  ccl_global float *denoised_pixel = buffer + pass_denoised;
-
-  denoised_pixel[0] *= pixel_scale;
-  denoised_pixel[1] *= pixel_scale;
-  denoised_pixel[2] *= pixel_scale;
+  ccl_global float *denoised_pixel = denoised_buffer + pass_denoised;
 
   if (num_components == 3) {
     /* Pass without alpha channel. */
   }
   else if (!use_compositing) {
-    const uint64_t input_render_pixel_index = offset + (int)((x + full_x) / upscale_factor) +
-                                              (int)((y + full_y) / upscale_factor) * input_stride;
-    ccl_global float *input_buffer = render_buffer + input_render_pixel_index * pass_stride;
+    const float pixel_scale = (pass_sample_count != PASS_UNUSED) ?
+                                  __float_as_uint(buffer[pass_sample_count]) :
+                                  num_samples;
 
     /* Currently compositing passes are either 3-component (derived by dividing light passes)
      * or do not have transparency (shadow catcher). Implicitly rely on this logic, as it
      * simplifies logic and avoids extra memory allocation. */
-    const ccl_global float *noisy_pixel = input_buffer + pass_noisy;
-    denoised_pixel[3] = noisy_pixel[3];
+    const ccl_global float *noisy_pixel = buffer + pass_noisy;
+    denoised_pixel[3] = noisy_pixel[3] / pixel_scale;
   }
   else {
     /* Assigning to zero since this is a default alpha value for 3-component passes, and it
