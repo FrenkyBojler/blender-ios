@@ -1060,20 +1060,12 @@ class DOPESHEET_PT_overlay(Panel):
     bl_label = "Overlays"
     bl_ui_units_x = 13
 
-    def draw(self, _context):
-        pass
-
-
-class DOPESHEET_PT_dopesheet_overlay(Panel):
-    bl_space_type = 'DOPESHEET_EDITOR'
-    bl_region_type = 'HEADER'
-    bl_parent_id = "DOPESHEET_PT_overlay"
-    bl_label = "Dope Sheet Overlays"
-
     def draw(self, context):
         st = context.space_data
         overlay_settings = st.overlays
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         layout.active = overlay_settings.show_overlays
         row = layout.row()
@@ -1114,7 +1106,6 @@ classes = (
     DOPESHEET_PT_ShapeKey,
 
     DOPESHEET_PT_overlay,
-    DOPESHEET_PT_dopesheet_overlay,
 )
 
 if __name__ == "__main__":  # only for live edit.
