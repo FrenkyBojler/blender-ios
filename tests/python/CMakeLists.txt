@@ -265,10 +265,30 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app.py
 )
 
-add_blender_test(
-  script_pyapi_gpu
+if(WITH_OPENGL_BACKEND)
+  add_blender_test(
+  script_pyapi_gpu_opengl
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_gpu.py
+  --gpu-backend opengl
 )
+endif()
+
+if(WITH_METAL_BACKEND)
+  add_blender_test(
+  script_pyapi_gpu_metal
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_gpu.py
+  --gpu-backend metal
+)
+endif()
+
+if(WITH_VULKAN_BACKEND)
+  add_blender_test(
+  script_pyapi_gpu_vulkan
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_gpu.py
+  --gpu-backend vulkan
+)
+endif()
+
 
 add_blender_test(
   script_pyapi_bpy_app_tempdir
