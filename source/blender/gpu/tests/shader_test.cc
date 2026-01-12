@@ -790,16 +790,20 @@ _suffix
   #else
     Success
   #endif
+#else
+Success
 #endif
 )";
     std::string expect = R"(
 
 
-  
+
 
 
     Success
-  
+
+
+
 
 )";
     std::string result = blender::gpu::Shader::run_preprocessor(input);
