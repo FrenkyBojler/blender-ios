@@ -88,28 +88,6 @@ Domain Operation::compute_domain()
   return operation_domain;
 }
 
-void Operation::compute_preview() {};
-
-void Operation::populate_result(StringRef identifier, Result result)
-{
-  results_.add_new(identifier, result);
-}
-
-void Operation::declare_input_descriptor(StringRef identifier, InputDescriptor descriptor)
-{
-  input_descriptors_.add_new(identifier, descriptor);
-}
-
-InputDescriptor &Operation::get_input_descriptor(StringRef identifier)
-{
-  return input_descriptors_.lookup(identifier);
-}
-
-Context &Operation::context() const
-{
-  return context_;
-}
-
 void Operation::evaluate_input_processors()
 {
   /* Each input processor type is added to all inputs entirely before the next type. This is done
@@ -132,6 +110,28 @@ void Operation::evaluate_input_processors()
         this->compute_domain());
     this->add_and_evaluate_input_processor(identifier, realize_on_domain);
   }
+}
+
+void Operation::compute_preview() {};
+
+void Operation::populate_result(StringRef identifier, Result result)
+{
+  results_.add_new(identifier, result);
+}
+
+void Operation::declare_input_descriptor(StringRef identifier, InputDescriptor descriptor)
+{
+  input_descriptors_.add_new(identifier, descriptor);
+}
+
+InputDescriptor &Operation::get_input_descriptor(StringRef identifier)
+{
+  return input_descriptors_.lookup(identifier);
+}
+
+Context &Operation::context() const
+{
+  return context_;
 }
 
 void Operation::add_and_evaluate_input_processor(StringRef identifier, SimpleOperation *processor)
