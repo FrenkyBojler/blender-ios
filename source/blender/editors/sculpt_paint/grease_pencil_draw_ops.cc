@@ -2169,8 +2169,7 @@ static void guide_origin_draw(const bContext * /*C*/, ARegion * /*region*/, void
   ColorGeometry4f color_gizmo_b;
   ui::theme::get_color_4fv(TH_GIZMO_B, color_gizmo_b);
   color_gizmo_b.a = 0.5f;
-  static constexpr float ui_primary_point_draw_size_px = 16.0f;
-  static constexpr float ui_guide_line_length = 200.0f;
+  constexpr float ui_primary_point_draw_size_px = 16.0f;
   /* Draw reference point. */
   ColorGeometry4f color_gizmo_primary;
   switch (guide.reference_point) {

@@ -114,12 +114,8 @@ struct GreasePencilDrawGuide {
   float2 ref_vector;
   /* Line direction. */
   float2 direction;
-  /* Flag to enable/disable resampling. */
-  bool resample;
   /* Angle from guide settings. */
   float user_angle;
-  /* Angle offset from guide settings. */
-  float user_angle_offset;
   /* Reference iso vectors. */
   float2 iso_vector_a;
   float2 iso_vector_b;
@@ -445,6 +441,7 @@ struct PaintOperationExecutor {
     self.screen_space_jitter_offsets_.append(float2(0.0f));
     self.screen_space_smoothed_coords_.append(start_coords);
     self.screen_space_final_coords_.append(start_coords);
+    self.deferred_input_samples_.clear();
 
     /* Resize the curves geometry so there is one more curve with a single point. */
     ed::greasepencil::add_single_curve(*self.drawing_, on_back == false);
@@ -736,72 +733,13 @@ struct PaintOperationExecutor {
 
   void process_extension_sample(PaintOperation &self,
                                 const bContext &C,
-                                const InputSample &extension_sample,
-                                const bool on_stroke_done)
+                                const InputSample &extension_sample)
   {
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
     const bool on_back = (scene_->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
-    float2 coords = extension_sample.mouse_position;
-
-    /* Use drawing guide. */
-    if (self.guide_.use_guides == true) {
-      if (on_stroke_done) {
-        const InputSample last_sample = self.deferred_input_samples_.last();
-        self.guide_set_direction(last_sample.mouse_position);
-      }
-      else {
-        /* Determine dominant stroke direction using distance metric. */
-        constexpr float defer_distance = 32.0f;
-        const float current_distance = math::distance(coords, self.guide_.start_coords);
-        /* Defer samples until stroke direction is determined. */
-        if (ELEM(self.guide_.type, GP_GUIDE_GRID, GP_GUIDE_ISO) &&
-            current_distance < defer_distance && self.screen_space_coords_orig_.size() == 1)
-        {
-          self.deferred_input_samples_.append(extension_sample);
-          return;
-        }
-        self.guide_set_direction(coords);
-
-        /* Process deferred samples. */
-        if (self.deferred_input_samples_.size() > 0) {
-          for (InputSample deferred_sample : self.deferred_input_samples_) {
-            process_extension_sample(self, C, deferred_sample, false);
-          }
-          self.deferred_input_samples_.clear();
-        }
-      }
-
-      /* Apply guide to sample point. */
-      coords = self.guide_apply(coords);
-
-      /* Resample circular guide. */
-      if (self.guide_.type == GP_GUIDE_CIRCULAR) {
-        if (self.guide_.resample) {
-          const int samples = 24;
-          const float2 prev_coords = self.screen_space_coords_orig_.last();
-          const float distance = math::distance(coords, prev_coords);
-          const float min_distance = self.guide_.radius / samples;
-          if (distance > min_distance) {
-            const float cw = cross_tri_v2(prev_coords, self.guide_.origin, coords);
-            const float angle = angle_v2v2v2(prev_coords, self.guide_.origin, coords);
-            const float step = angle / float(samples + 1) * ((cw < 0.0f) ? -1.0f : 1.0f);
-            for (int i = 1; i < samples; i++) {
-              float2 new_position;
-              rotate_v2_v2v2fl(new_position, prev_coords, self.guide_.origin, -step * i);
-              InputSample new_sample;
-              new_sample.mouse_position = new_position;
-              new_sample.pressure = extension_sample.pressure;
-              /* Turn off resampling to prevent recursive sampling. */
-              self.guide_.resample = false;
-              process_extension_sample(self, C, new_sample, false);
-            }
-          }
-        }
-        self.guide_.resample = true;
-      }
-    }
+    const float2 coords = extension_sample.mouse_position;
 
     float3 position;
     if (self.placement_.use_project_to_stroke() || self.placement_.use_project_to_surface()) {
@@ -1124,6 +1062,72 @@ struct PaintOperationExecutor {
                                         IndexRange::from_single(active_curve));
   }
 
+  void process_guide_sample(PaintOperation &self,
+                            const bContext &C,
+                            const InputSample &extension_sample,
+                            const bool on_stroke_done)
+  {
+    float2 coords = extension_sample.mouse_position;
+
+    if (on_stroke_done) {
+      const InputSample last_sample = self.deferred_input_samples_.last();
+      self.guide_set_direction(last_sample.mouse_position);
+    }
+    else {
+      /* Determine dominant stroke direction using distance metric. */
+      constexpr float defer_distance = 32.0f;
+      constexpr int defer_samples = 24;
+      const float current_distance = math::distance(coords, self.guide_.start_coords);
+      const bool start_sample = self.screen_space_coords_orig_.size() == 1;
+      /* Defer samples until stroke direction is determined or max sample count is reached. */
+      if (start_sample && ELEM(self.guide_.type, GP_GUIDE_GRID, GP_GUIDE_ISO) &&
+          self.guide_.has_initial_direction == false && current_distance < defer_distance &&
+          self.deferred_input_samples_.size() < defer_samples)
+      {
+        self.deferred_input_samples_.append(extension_sample);
+        return;
+      }
+      self.guide_set_direction(extension_sample.mouse_position);
+
+      /* Process deferred samples. */
+      if (self.deferred_input_samples_.size() > 0) {
+        for (InputSample deferred_sample : self.deferred_input_samples_) {
+          deferred_sample.mouse_position = self.guide_apply(coords);
+          process_extension_sample(self, C, deferred_sample);
+        }
+        self.deferred_input_samples_.clear();
+      }
+    }
+
+    /* Apply guide to sample point. */
+    coords = self.guide_apply(coords);
+
+    /* Resample circular guide. */
+    if (self.guide_.type == GP_GUIDE_CIRCULAR) {
+      const int samples = 24;
+      const float2 prev_coords = self.screen_space_coords_orig_.last();
+      const float distance = math::distance(coords, prev_coords);
+      const float min_distance = self.guide_.radius / samples;
+      if (distance > min_distance) {
+        const float cw = cross_tri_v2(prev_coords, self.guide_.origin, coords);
+        const float angle = angle_v2v2v2(prev_coords, self.guide_.origin, coords);
+        const float step = angle / float(samples + 1) * ((cw < 0.0f) ? -1.0f : 1.0f);
+        for (int i = 1; i < samples; i++) {
+          float2 new_position;
+          rotate_v2_v2v2fl(new_position, prev_coords, self.guide_.origin, -step * i);
+          InputSample new_sample;
+          new_sample.mouse_position = new_position;
+          new_sample.pressure = extension_sample.pressure;
+          process_extension_sample(self, C, new_sample);
+        }
+      }
+    }
+
+    InputSample new_sample = extension_sample;
+    new_sample.mouse_position = self.guide_apply(coords);
+    process_extension_sample(self, C, new_sample);
+  }
+
   static void guide_draw(const bContext * /*C*/, ARegion *region, void *arg)
   {
     PaintOperation *pto = reinterpret_cast<PaintOperation *>(arg);
@@ -1131,8 +1135,8 @@ struct PaintOperationExecutor {
     ColorGeometry4f color_gizmo_b;
     ui::theme::get_color_4fv(TH_GIZMO_B, color_gizmo_b);
     color_gizmo_b.a = 0.5f;
-    static constexpr float ui_primary_point_draw_size_px = 16.0f;
-    static constexpr float ui_guide_line_length = 200.0f;
+    constexpr float ui_primary_point_draw_size_px = 16.0f;
+    constexpr float ui_guide_line_length = 200.0f;
     /* Draw reference point. */
     if (ELEM(guide.type, GP_GUIDE_RADIAL, GP_GUIDE_CIRCULAR)) {
       ColorGeometry4f color_gizmo_primary;
@@ -1167,7 +1171,7 @@ struct PaintOperationExecutor {
     }
     /* Guide lines. */
     const uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     GPU_matrix_push_projection();
     GPU_matrix_push();
     GPU_matrix_identity_set();
@@ -1214,7 +1218,6 @@ struct PaintOperationExecutor {
         immVertex2fv(pos, guide.start_coords - cw);
         immVertex2fv(pos, guide.start_coords + ccw);
         immVertex2fv(pos, guide.start_coords - ccw);
-
         immEnd();
         break;
       }
@@ -1236,14 +1239,16 @@ struct PaintOperationExecutor {
     GPU_matrix_pop();
   }
 
-  void execute(PaintOperation &self,
-               const bContext &C,
-               const InputSample &extension_sample,
-               const bool deferred)
+  void execute(PaintOperation &self, const bContext &C, const InputSample &extension_sample)
   {
     const bool on_back = (scene_->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
-    this->process_extension_sample(self, C, extension_sample, deferred);
+    if (self.guide_.use_guides == true) {
+      this->process_guide_sample(self, C, extension_sample, false);
+    }
+    else {
+      this->process_extension_sample(self, C, extension_sample);
+    }
 
     const bke::CurvesGeometry &curves = self.drawing_->strokes();
     const int active_curve = on_back ? curves.curves_range().first() :
@@ -1440,12 +1445,12 @@ void PaintOperation::guide_init(const bContext &C,
   guide_.origin = origin;
   guide_.reference_point = eGPencil_Guide_Reference(guide_settings.reference_point);
   guide_.radius = math::length(start_coords - origin);
-  guide_.resample = true;
   guide_.type = eGPencil_GuideTypes(guide_settings.type);
   guide_.user_angle = guide_settings.angle;
-  guide_.user_angle_offset = guide_settings.angle_snap;
   guide_.ref_vector = float2(1.0f, 0.0f);
   guide_.direction = float2(0.0f, 1.0f);
+  guide_.iso_vector_a = guide_.ref_vector;
+  guide_.iso_vector_b = guide_.ref_vector;
   if (guide_.type == GP_GUIDE_GRID) {
     float2 iso_vector_a;
     float2 iso_vector_b;
@@ -1632,7 +1637,7 @@ void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &ex
   GreasePencil *grease_pencil = id_cast<GreasePencil *>(object_->data);
 
   PaintOperationExecutor executor{*scene_};
-  executor.execute(*this, C, extension_sample, false);
+  executor.execute(*this, C, extension_sample);
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
@@ -2025,12 +2030,15 @@ static void append_stroke_to_multiframe_drawings(
 void PaintOperation::on_stroke_done(const bContext &C)
 {
   /* Process deferred samples. */
-  if (this->deferred_input_samples_.size() > 0) {
-    PaintOperationExecutor executor(*scene_);
-    for (InputSample deferred_sample : this->deferred_input_samples_) {
-      executor.process_extension_sample(*this, C, deferred_sample, true);
+  if (this->guide_.use_guides == true) {
+    if (this->deferred_input_samples_.size() > 0) {
+      BLI_assert(this->deferred_input_samples_.size() > 0);
+      PaintOperationExecutor executor(*scene_);
+      for (InputSample deferred_sample : this->deferred_input_samples_) {
+        executor.process_guide_sample(*this, C, deferred_sample, true);
+      }
+      this->deferred_input_samples_.clear();
     }
-    this->deferred_input_samples_.clear();
   }
 
   using namespace blender::bke;
