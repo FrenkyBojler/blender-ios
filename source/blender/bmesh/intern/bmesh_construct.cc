@@ -481,12 +481,11 @@ void BM_mesh_copy_init_customdata_from_mesh_array(BMesh *bm_dst,
                                                   const BMAllocTemplate *allocsize)
 
 {
-    if (allocsize == nullptr) {
+  if (allocsize == nullptr) {
     allocsize = &bm_mesh_allocsize_default;
   }
 
   bke::GeometrySet::GatheredAttributes attribute_info;
-
   for (int i = 0; i < me_src_array_len; i++) {
     const Mesh *me_src = me_src_array[i];
     me_src->attribute_storage.wrap().foreach([&](const bke::Attribute &attr) {
@@ -508,27 +507,14 @@ void BM_mesh_copy_init_customdata_from_mesh_array(BMesh *bm_dst,
 
   for (int i = 0; i < me_src_array_len; i++) {
     const Mesh *me_src = me_src_array[i];
-
-    if (i == 0) {
-      CustomData_init_layout_from(
-          &me_src->vert_data, &bm_dst->vdata, CD_MASK_BMESH.vmask, CD_SET_DEFAULT, 0);
-      CustomData_init_layout_from(
-          &me_src->edge_data, &bm_dst->edata, CD_MASK_BMESH.emask, CD_SET_DEFAULT, 0);
-      CustomData_init_layout_from(
-          &me_src->face_data, &bm_dst->pdata, CD_MASK_BMESH.pmask, CD_SET_DEFAULT, 0);
-      CustomData_init_layout_from(
-          &me_src->corner_data, &bm_dst->ldata, CD_MASK_BMESH.lmask, CD_SET_DEFAULT, 0);
-    }
-    else {
-      CustomData_merge_layout(
-          &me_src->vert_data, &bm_dst->vdata, CD_MASK_BMESH.vmask, CD_SET_DEFAULT, 0);
-      CustomData_merge_layout(
-          &me_src->edge_data, &bm_dst->edata, CD_MASK_BMESH.emask, CD_SET_DEFAULT, 0);
-      CustomData_merge_layout(
-          &me_src->face_data, &bm_dst->pdata, CD_MASK_BMESH.pmask, CD_SET_DEFAULT, 0);
-      CustomData_merge_layout(
-          &me_src->corner_data, &bm_dst->ldata, CD_MASK_BMESH.lmask, CD_SET_DEFAULT, 0);
-    }
+    CustomData_merge_layout(
+        &me_src->vert_data, &bm_dst->vdata, CD_MASK_BMESH.vmask, CD_SET_DEFAULT, 0);
+    CustomData_merge_layout(
+        &me_src->edge_data, &bm_dst->edata, CD_MASK_BMESH.emask, CD_SET_DEFAULT, 0);
+    CustomData_merge_layout(
+        &me_src->face_data, &bm_dst->pdata, CD_MASK_BMESH.pmask, CD_SET_DEFAULT, 0);
+    CustomData_merge_layout(
+        &me_src->corner_data, &bm_dst->ldata, CD_MASK_BMESH.lmask, CD_SET_DEFAULT, 0);
   }
 
   CustomData_bmesh_init_pool(&bm_dst->vdata, allocsize->totvert, BM_VERT);
