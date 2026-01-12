@@ -746,6 +746,7 @@ static void outliner_sort_type(ListBaseT<TreeElement> *lb)
         tp->te = &te;
         tp->name = te.name;
         tp->idcode = te.idcode;
+        tp->id = tselem->id;
 
         short idcode = te.idcode;
         if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP)) {
