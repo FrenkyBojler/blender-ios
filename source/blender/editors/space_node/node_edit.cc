@@ -233,8 +233,6 @@ static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
           cj->re, &scene->r, scene, ntree, srv.name, nullptr, &cj->profiler, cj->needed_outputs);
     }
   }
-
-  ntree->runtime->test_break = nullptr;
 }
 
 static void compo_canceljob(void *cjv)
