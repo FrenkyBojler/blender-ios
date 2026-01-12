@@ -336,6 +336,10 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
     /* TODO: Images with tiles could be read and scaled one-by-one. */
     /* TODO: Images with mipmaps could request an ideal level. */
     ibuf = load_pixels<uint8_t>(in.get(), spec.width, spec.height, channels, flags, true);
+    if (!ibuf) {
+      in->close();
+      return nullptr;
+    }
   }
   else {
     const uint format_flag = IB_byte_data | IB_uninitialized_pixels;
@@ -360,9 +364,11 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
     for (int h = 0; h < imb_h; h++) {
       const int source_y = int(float(h) / imb_scale);
       /* Scanlines must be read in forward order, otherwise it is very slow. */
-      in->read_scanlines(
-          0, 0, source_y, source_y + 1, 0, 0, channels, TypeDesc::UINT8, pixels.data());
-
+      if (!in->read_scanlines(
+              0, 0, source_y, source_y + 1, 0, 0, channels, TypeDesc::UINT8, pixels.data()))
+      {
+        break;
+      }
       for (int w = 0; w < imb_w; w++) {
         /* For each destination pixel find single corresponding source pixel. */
         int source_x = int(std::min<int>((w / imb_scale), spec.width - 1)) * channels;
