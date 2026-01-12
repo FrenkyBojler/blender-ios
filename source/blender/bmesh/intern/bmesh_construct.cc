@@ -481,8 +481,7 @@ void BM_mesh_copy_init_customdata_from_mesh_array(BMesh *bm_dst,
                                                   const BMAllocTemplate *allocsize)
 
 {
-  using namespace blender;
-  if (allocsize == nullptr) {
+    if (allocsize == nullptr) {
     allocsize = &bm_mesh_allocsize_default;
   }
 

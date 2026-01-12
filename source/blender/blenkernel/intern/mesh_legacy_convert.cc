@@ -2634,7 +2634,6 @@ void mesh_uv_select_to_single_attribute(Mesh &mesh)
 
 void BKE_mesh_calc_edges_tessface(Mesh *mesh)
 {
-  using namespace blender;
   const int nulegacy_faces = mesh->totface_legacy;
   VectorSet<OrderedEdge> eh;
   eh.reserve(nulegacy_faces);

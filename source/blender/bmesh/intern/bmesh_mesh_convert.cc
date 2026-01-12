@@ -209,7 +209,6 @@ struct MeshToBMeshLayerInfo {
 static Vector<MeshToBMeshLayerInfo> mesh_to_bm_copy_info_calc(
     const Mesh &mesh, const blender::bke::AttrDomain domain, CustomData &bm_data)
 {
-  using namespace blender;
   const bke::AttributeStorage &storage = mesh.attribute_storage.wrap();
   const CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
 
@@ -278,7 +277,6 @@ static CustomData get_mesh_to_bm_custom_data(const Mesh &mesh,
                                              const blender::bke::AttrDomain domain,
                                              const uint64_t cd_type_mask)
 {
-  using namespace blender;
   CustomData custom_data;
   CustomData_reset(&custom_data);
   mesh.attribute_storage.wrap().foreach([&](const bke::Attribute &attr) {
@@ -1181,7 +1179,6 @@ struct BMeshToMeshLayerInfo {
 static Vector<BMeshToMeshLayerInfo> bm_to_mesh_copy_info_calc(
     const CustomData &bm_data, const blender::bke::AttrDomain domain, Mesh &mesh)
 {
-  using namespace blender;
   bke::AttributeStorage &storage = mesh.attribute_storage.wrap();
   CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
   Vector<BMeshToMeshLayerInfo> infos;
@@ -1499,7 +1496,6 @@ static void add_bm_cd_to_mesh(const BMesh &bm,
                               const uint64_t cd_type_mask,
                               Mesh &mesh)
 {
-  using namespace blender;
   const CustomData &bm_data = get_bm_custom_data(bm, domain);
   CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
   bke::MutableAttributeAccessor attrs = mesh.attributes_for_write();

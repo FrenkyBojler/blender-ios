@@ -230,7 +230,6 @@ static void store_layer(const eCustomDataType type,
                         blender::Map<eCustomDataType, int> &index_in_type,
                         BArrayCustomData &bcd)
 {
-  using namespace blender;
   int &i = index_in_type.lookup_or_add(type, 0);
   BLI_SCOPED_DEFER([&]() { i++; });
 
@@ -444,14 +443,14 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
     if (bcd->non_trivial_arrays.contains(type)) {
       const ImplicitSharingInfoAndData &state = bcd->non_trivial_arrays.lookup(type)[i];
       array_data.data = const_cast<void *>(state.data);
-array_data.size = data_len;
+      array_data.size = data_len;
       array_data.sharing_info = ImplicitSharingPtr<>(state.sharing_info);
       array_data.sharing_info->add_user();
     }
     else {
       const BArrayState *state = bcd->trivial_arrays.lookup(type)[i];
       array_data.data = get_arraystore_data(state, data_len, type);
-array_data.size = data_len;
+      array_data.size = data_len;
       array_data.sharing_info = ImplicitSharingPtr<>(
           implicit_sharing::info_for_mem_free(array_data.data));
     }
@@ -498,7 +497,6 @@ get_attributes_by_domain(Mesh &mesh)
  */
 static void um_arraystore_compact(UndoMesh *um, const UndoMesh *um_ref)
 {
-  using namespace blender;
   Mesh *mesh = um->mesh;
 
   /* Compacting can be time consuming, run in parallel.
@@ -617,7 +615,6 @@ static void um_arraystore_compact(UndoMesh *um, const UndoMesh *um_ref)
  */
 static void um_arraystore_expand_clear(UndoMesh *um)
 {
-  using namespace blender;
   Mesh *mesh = um->mesh;
   um_arraystore_cd_clear(&mesh->vert_data);
   um_arraystore_cd_clear(&mesh->edge_data);
@@ -713,7 +710,6 @@ static void um_arraystore_compact_cb(TaskPool *__restrict /*pool*/, void *taskda
 
 static void um_arraystore_expand(UndoMesh *um)
 {
-  using namespace blender;
   Mesh *mesh = um->mesh;
 
   MultiValueMap<bke::AttrDomain, bke::Attribute *> attributes = get_attributes_by_domain(*mesh);

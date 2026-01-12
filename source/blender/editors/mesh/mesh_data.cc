@@ -730,7 +730,6 @@ static void mesh_add_edges(Mesh *mesh, int len)
 
 static void mesh_add_loops(Mesh *mesh, int len)
 {
-  using namespace blender;
   int totloop;
 
   if (len == 0) {

@@ -168,7 +168,6 @@ static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
                                            const StringRef new_name,
                                            ReportList *reports)
 {
-  using namespace blender;
   const bke::AttributeStorage &storage = *owner.get_storage();
   if (!storage.lookup(old_name)) {
     return false;
@@ -344,7 +343,6 @@ bool BKE_attribute_rename(AttributeOwner &owner,
 
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const StringRef name)
 {
-  using namespace blender;
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh &mesh = *owner.get_mesh();
     if (mesh.runtime->edit_mesh) {
@@ -629,7 +627,6 @@ AttrDomain BKE_attribute_domain(const Mesh &mesh, const BMesh &bm, const CustomD
 
 int BKE_attribute_domain_size(const AttributeOwner &owner, const int domain)
 {
-  using namespace blender;
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh &mesh = *owner.get_mesh();
     if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
