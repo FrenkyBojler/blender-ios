@@ -611,10 +611,10 @@ static void rna_uiTemplateID(Layout *layout,
 
   template_id(layout, C, ptr, propname, newop, openop, unlinkop, filter, live_icon, text);
 }
-static void rna_uiTemplateEnumID(
+static void rna_ui_template_ID_session_uid(
     Layout *layout, bContext *C, PointerRNA *ptr, const char *propname, int idcode)
 {
-  template_enum_id(*layout, C, ptr, propname, idcode);
+  template_ID_session_uid(*layout, C, ptr, propname, idcode);
 }
 
 static void rna_uiTemplateAnyID(Layout *layout,
@@ -1705,10 +1705,9 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_boolean(func, "live_icon", false, "", "Show preview instead of fixed icon");
   api_ui_item_common_text(func);
 
-  func = RNA_def_function(srna, "template_enum_ID", "rna_uiTemplateEnumID");
+  func = RNA_def_function(srna, "template_ID_session_uid", "rna_ui_template_ID_session_uid");
   RNA_def_function_ui_description(func,
-                                  "Template ID search menu button for Enum properties with values "
-                                  "generated from an ID list.");
+                                  "Template ID search menu button for session_uid Int properties");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   api_ui_item_rna_common(func);
   parm = RNA_def_enum(func, "id_type", rna_enum_id_type_items, 0, "", "");
