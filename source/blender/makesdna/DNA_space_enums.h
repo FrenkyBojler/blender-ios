@@ -152,7 +152,7 @@ enum eSpaceOutliner_Flag {
   SO_MODE_COLUMN = (1 << 6),
 };
 
-enum eSpaceOutliner_SortMethod { SO_SORT_CUSTOM = 0, SO_SORT_ALPHA = 1, SO_SORT_TYPE = 2 };
+enum eSpaceOutliner_SortMethod { SO_SORT_ALPHA = 0, SO_SORT_CUSTOM = 1, SO_SORT_TYPE = 2 };
 
 /** #SpaceOutliner.filter */
 enum eSpaceOutliner_Filter {
