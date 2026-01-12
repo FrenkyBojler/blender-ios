@@ -23,6 +23,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector_set.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -608,7 +609,41 @@ void layout_panel_popup_scroll_apply(Panel *panel, const float dy)
   }
 }
 
-void popup_dummy_panel_set(ARegion *region, Block *block)
+struct PopupLayoutPanelStates {
+  std::string idname;
+  ListBaseT<LayoutPanelState> states = {};
+
+  PopupLayoutPanelStates(StringRef idname) : idname{idname} {}
+
+  ~PopupLayoutPanelStates()
+  {
+    for (LayoutPanelState &state : states) {
+      BLI_remlink(&states, &state);
+      MEM_freeN(state.idname);
+      MEM_freeN(&state);
+    }
+  }
+};
+
+struct PopupLayoutPanelStatesIDNameGetter {
+  StringRef operator()(const std::unique_ptr<PopupLayoutPanelStates> &value) const
+  {
+    return StringRef(value->idname);
+  }
+};
+
+static ListBaseT<LayoutPanelState> &popup_layout_panel_states(StringRef idname)
+{
+  static CustomIDVectorSet<std::unique_ptr<PopupLayoutPanelStates>,
+                           PopupLayoutPanelStatesIDNameGetter>
+      popup_states;
+  if (!popup_states.contains_as(idname)) {
+    popup_states.add_new(std::make_unique<PopupLayoutPanelStates>(idname));
+  }
+  return popup_states.lookup_key_as(idname)->states;
+}
+
+void popup_dummy_panel_set(ARegion *region, Block *block, StringRef idname)
 {
   Panel *&panel = region->runtime->popup_block_panel;
   if (!panel) {
@@ -621,6 +656,7 @@ void popup_dummy_panel_set(ARegion *region, Block *block)
     panel = BKE_panel_new(&panel_type);
   }
   panel->runtime->layout_panels.clear();
+  panel->runtime->popup_layout_panel_states = &popup_layout_panel_states(idname);
   block->panel = panel;
   panel->runtime->block = block;
 }
@@ -1044,7 +1080,7 @@ static Block *ui_alert_create(bContext *C, ARegion *region, void *user_data)
   block_theme_style_set(block, BLOCK_THEME_STYLE_POPUP);
   block_flag_disable(block, BLOCK_LOOP);
   block_emboss_set(block, EmbossType::Emboss);
-  popup_dummy_panel_set(region, block);
+  popup_dummy_panel_set(region, block, data->title);
 
   block_flag_enable(block, BLOCK_KEEP_OPEN | BLOCK_NUMSELECT);
   if (data->mouse_move_quit) {
