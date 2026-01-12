@@ -620,7 +620,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 17)) {
     for (Mesh &mesh : bmain->meshes) {
       blender::bke::mesh_convert_customdata_to_storage(mesh);
-mesh.corner_verts();
     }
   }
 
