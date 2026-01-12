@@ -376,11 +376,9 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
 
   IMB_scale(ibuf, width, height, IMBScaleFilter::Box, true);
 
-  if (ibuf) {
-    ibuf->ftype = IMB_FTYPE_PNG;
-    ReadContext ctx{nullptr, 0, "png", IMB_FTYPE_PNG, flags};
-    set_file_colorspace(r_colorspace, ctx, spec, false);
-  }
+  ibuf->ftype = IMB_FTYPE_PNG;
+  ReadContext ctx{nullptr, 0, "png", IMB_FTYPE_PNG, flags};
+  set_file_colorspace(r_colorspace, ctx, spec, false);
 
   return ibuf;
 }
