@@ -135,8 +135,6 @@ static void node_register()
   ntype.ui_name = "Get Bundle Item";
   ntype.ui_description = "Retrieve a bundle item by path.";
   ntype.nclass = NODE_CLASS_CONVERTER;
-  bke::node_type_storage(
-      ntype, "NodeGetBundleItem", node_free_standard_storage, node_copy_standard_storage);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
