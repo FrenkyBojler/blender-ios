@@ -45,6 +45,7 @@ struct AtomicLexer : LexerBase {
   using Hash = uint32_t;
   Map<Hash, Atom> atomization_map;
 
+  /* NOTE: Values are undefined for non word token. */
   Vector<Atom> token_atoms;
 
   void lexical_analysis(std::string_view input)
@@ -317,6 +318,7 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
   /* Return valid value if tok is valid and a word token. */
   AtomID get_atom(TokenID tok)
   {
+    BLI_assert(get_type(tok) == Word);
     return AtomID(lex_.token_atoms[int(tok)]);
   }
   /* Return valid value if dir is valid. */
@@ -510,7 +512,7 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
   TokenID skip_directive_newlines(TokenID tok)
   {
     /* TODO make it safe */
-    while (lex_.token_types[int(tok)] == '\\' && lex_.token_types[int(tok) + 1] == '\n') {
+    while (get_type(tok) == '\\' && get_type(next(tok)) == '\n') {
       tok = next(next(tok));
     }
     return tok;
@@ -825,7 +827,8 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
 
     TokenID tok = start;
     while (true) {
-      AtomID tok_atom = get_atom(tok);
+      BLI_assert(is_valid(tok));
+      AtomID tok_atom = get_type(tok) == Word ? get_atom(tok) : AtomID::invalid();
 
       DirectiveID macro = defines.lookup_default(tok_atom, DirectiveID::invalid());
       if (is_valid(macro)) {
@@ -841,7 +844,10 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
         if (is_function) {
           tok = skip_space(next(tok));
         }
-        expand += (defines.contains(get_atom(tok)) ? '1' : '0');
+        else {
+          BLI_assert(get_type(tok) == Word);
+        }
+        expand += (defines.contains(get_atom(tok)) ? "1" : "0");
         if (is_function) {
           /* End parenthesis. */
           tok = skip_space(next(tok));
@@ -905,11 +911,10 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
       while (get_type(endif) != Endif) {
         endif = find_next_matching_conditional(endif);
       }
-      LineID endif_end = get_end(endif);
       /* Erase everything between this directive and the #endif (inclusive). */
-      // erase_lines(get_start(dir), endif_end);
+      erase_lines(get_start(dir), get_end(endif));
       /* Evaluate after the endif */
-      // next_directive = next(endif);
+      next_directive = next(endif);
       return;
     }
 
@@ -933,13 +938,13 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
       }
       /* Erase condition and continue parsing content.
        * The #endif will just be erased later. */
-      // erase_lines(dir_line_start, dir_line_end);
+      erase_lines(dir_line_start, dir_line_end);
     }
     else {
       /* Erase the content and jump to next condition. */
-      // next_directive = next_condition;
+      next_directive = next_condition;
       /* Erase everything until next condition (this directive included). */
-      // erase_lines(dir_line_start, prev(get_start(next_directive)));
+      erase_lines(dir_line_start, prev(get_start(next_directive)));
     }
   }
 
@@ -1026,7 +1031,6 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
       case Line:
         break;
       case Endif:
-        erase_directive = false;
         break;
       case Other:
         erase_directive = false;
