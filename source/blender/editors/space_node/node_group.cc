@@ -281,7 +281,7 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
     }
   }
 
-  update_nested_node_refs_after_ungroup(ntree, group_node, copied_nodes.node_identifier_map());
+  update_nested_node_refs_after_ungroup(ntree, group_node, copied_nodes);
 
   /* Delete the original group instance. */
   bke::node_remove_node(&bmain, ntree, group_node, true);
@@ -588,8 +588,7 @@ static void node_group_make_insert_selected(const bContext &C,
   /* Connect exposed sockets to group input/output nodes. */
   connect_copied_nodes_to_interface(C, copied_nodes, io_mapping);
 
-  update_nested_node_refs_after_moving_nodes_into_group(
-      ntree, *gnode, copied_nodes.node_identifier_map());
+  update_nested_node_refs_after_moving_nodes_into_group(ntree, *gnode, copied_nodes);
   BKE_main_ensure_invariants(bmain, Span<ID *>{&group.id});
 
   /* Connect the group node to external sockets. */
@@ -681,8 +680,7 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   /* Clear already created nested node refs to create new stable ones below. */
   MEM_SAFE_FREE(wrapper_group->nested_node_refs);
   wrapper_group->nested_node_refs_num = 0;
-  update_nested_node_refs_after_moving_nodes_into_group(
-      ntree, *gnode, copied_nodes.node_identifier_map());
+  update_nested_node_refs_after_moving_nodes_into_group(ntree, *gnode, copied_nodes);
 
   BKE_ntree_update_tag_node_property(&ntree, gnode);
   BKE_main_ensure_invariants(bmain);

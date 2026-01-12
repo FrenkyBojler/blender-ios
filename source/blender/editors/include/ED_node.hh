@@ -299,13 +299,13 @@ NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &
  */
 class NodeSetCopy {
  private:
-  bNodeTree &tree_;
+  bNodeTree &dst_tree_;
   Map<const bNode *, bNode *> node_map_;
   Map<const bNodeSocket *, bNodeSocket *> socket_map_;
   Map<int32_t, int32_t> node_identifier_map_;
 
  public:
-  bNodeTree &tree() const;
+  bNodeTree &dst_tree() const;
   const Map<const bNode *, bNode *> &node_map() const;
   const Map<const bNodeSocket *, bNodeSocket *> &socket_map() const;
   const Map<int32_t, int32_t> &node_identifier_map() const;
@@ -320,7 +320,7 @@ class NodeSetCopy {
                                     bNodeTree &dst_tree);
 
  private:
-  NodeSetCopy(bNodeTree &tree) : tree_(tree) {}
+  NodeSetCopy(bNodeTree &tree) : dst_tree_(tree) {}
 };
 
 struct GroupInputOutputNodes {
@@ -352,20 +352,21 @@ void connect_group_node_to_external_sockets(bNode &group_node,
 
 /**
  * Move nested node refs from nodes in \a ntree into the \a group_node tree.
- * Any node ref found in the \a node_identifier_map is recreated inside the group. The original
- * node refs in \a ntree are replaced by nested node refs pointing to the \a group_node.
+ * Any reference to copied nodes is recreated inside the group. The original node refs in \a ntree
+ * are replaced by nested node refs pointing to the \a group_node.
  */
-void update_nested_node_refs_after_moving_nodes_into_group(
-    bNodeTree &tree, bNode &group_node, const Map<int32_t, int32_t> &node_identifier_map);
+void update_nested_node_refs_after_moving_nodes_into_group(bNodeTree &src_tree,
+                                                           const bNode &group_node,
+                                                           const NodeSetCopy &node_set_copy);
 
 /**
  * Copy nested node refs from nodes in \a group_node into \a tree.
- * Any node ref found in the \a node_identifier_map is recreated inside \a tree, pointing to nested
- * node refs inside \a group_node.
+ * Any reference to copied nodes is recreated inside \a tree, pointing to nested node refs inside
+ * \a group_node.
  */
-void update_nested_node_refs_after_ungroup(bNodeTree &tree,
+void update_nested_node_refs_after_ungroup(bNodeTree &dst_tree,
                                            const bNode &group_node,
-                                           const Map<int32_t, int32_t> &node_identifier_map);
+                                           const NodeSetCopy &node_set_copy);
 
 /** \} */
 

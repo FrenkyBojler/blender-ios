@@ -536,9 +536,9 @@ NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &
   return result;
 }
 
-bNodeTree &NodeSetCopy::tree() const
+bNodeTree &NodeSetCopy::dst_tree() const
 {
-  return tree_;
+  return dst_tree_;
 }
 
 const Map<const bNode *, bNode *> &NodeSetCopy::node_map() const
@@ -639,7 +639,7 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
                                                         const NodeTreeInterfaceMapping &io_mapping)
 {
   Main &bmain = *CTX_data_main(&C);
-  bNodeTree &tree = copied_nodes.tree();
+  bNodeTree &tree = copied_nodes.dst_tree();
   tree.ensure_topology_cache();
 
   GroupInputOutputNodes io_nodes;
@@ -693,7 +693,7 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
 void connect_copied_nodes_to_external_sockets(const NodeSetCopy &copied_nodes,
                                               const NodeTreeInterfaceMapping &io_mapping)
 {
-  bNodeTree &tree = copied_nodes.tree();
+  bNodeTree &tree = copied_nodes.dst_tree();
   for (const auto &item : io_mapping.socket_data.items()) {
     for (const NodeAndSocket &origin : item.value.internal_sockets) {
       bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
@@ -810,19 +810,21 @@ static void append_nested_node_refs(bNodeTree &ntree, const Span<bNestedNodeRef>
   ntree.nested_node_refs_num = new_nested_node_refs_num;
 }
 
-void update_nested_node_refs_after_moving_nodes_into_group(
-    bNodeTree &tree, bNode &group_node, const Map<int32_t, int32_t> &node_identifier_map)
+void update_nested_node_refs_after_moving_nodes_into_group(bNodeTree &src_tree,
+                                                           const bNode &group_node,
+                                                           const NodeSetCopy &node_set_copy)
 {
   BLI_assert(group_node.is_group());
-  BLI_assert(group_node.id);
+  BLI_assert(group_node.id == &node_set_copy.dst_tree().id);
 
-  bNodeTree &group_tree = *reinterpret_cast<bNodeTree *>(group_node.id);
+  bNodeTree &dst_tree = *reinterpret_cast<bNodeTree *>(group_node.id);
   /* Update nested node references in the parent and child node tree. */
-  NestedNodeRefIDGenerator ref_id_gen(group_tree.nested_node_refs_span());
+  NestedNodeRefIDGenerator ref_id_gen(dst_tree.nested_node_refs_span());
 
   Vector<bNestedNodeRef> new_group_refs;
-  for (bNestedNodeRef &ref : tree.nested_node_refs_span()) {
-    const std::optional<int32_t> new_node_id = node_identifier_map.lookup_try(ref.path.node_id);
+  for (bNestedNodeRef &ref : src_tree.nested_node_refs_span()) {
+    const std::optional<int32_t> new_node_id = node_set_copy.node_identifier_map().lookup_try(
+        ref.path.node_id);
     if (!new_node_id) {
       /* The node was not moved between node groups. */
       continue;
@@ -842,33 +844,34 @@ void update_nested_node_refs_after_moving_nodes_into_group(
     new_group_refs.append(new_ref);
   }
 
-  append_nested_node_refs(group_tree, new_group_refs);
+  append_nested_node_refs(dst_tree, new_group_refs);
 }
 
-void update_nested_node_refs_after_ungroup(bNodeTree &tree,
+void update_nested_node_refs_after_ungroup(bNodeTree &dst_tree,
                                            const bNode &group_node,
-                                           const Map<int32_t, int32_t> &node_identifier_map)
+                                           const NodeSetCopy &node_set_copy)
 {
   BLI_assert(group_node.is_group());
-  BLI_assert(group_node.id);
+  BLI_assert(group_node.id != nullptr);
+  BLI_assert(&dst_tree == &node_set_copy.dst_tree());
 
-  const bNodeTree &group_tree = *reinterpret_cast<const bNodeTree *>(group_node.id);
-  for (bNestedNodeRef &ref : tree.nested_node_refs_span()) {
-    if (ref.path.node_id != group_node.identifier) {
+  const bNodeTree &src_tree = *reinterpret_cast<const bNodeTree *>(group_node.id);
+  for (bNestedNodeRef &dst_ref : dst_tree.nested_node_refs_span()) {
+    if (dst_ref.path.node_id != group_node.identifier) {
       continue;
     }
-    const bNestedNodeRef *child_ref = group_tree.find_nested_node_ref(ref.path.id_in_node);
-    if (!child_ref) {
+    const bNestedNodeRef *src_ref = src_tree.find_nested_node_ref(dst_ref.path.id_in_node);
+    if (!src_ref) {
       continue;
     }
     constexpr int32_t missing_id = -1;
-    const int32_t new_node_id = node_identifier_map.lookup_default(child_ref->path.node_id,
-                                                                   missing_id);
-    if (new_node_id == missing_id) {
+    const int32_t dst_node_id = node_set_copy.node_identifier_map().lookup_default(
+        src_ref->path.node_id, missing_id);
+    if (dst_node_id == missing_id) {
       continue;
     }
-    ref.path.node_id = new_node_id;
-    ref.path.id_in_node = child_ref->path.id_in_node;
+    dst_ref.path.node_id = dst_node_id;
+    dst_ref.path.id_in_node = src_ref->path.id_in_node;
   }
 }
 
