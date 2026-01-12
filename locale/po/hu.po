@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'12e628ea43f8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-12 15:09+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -6577,6 +6577,26 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
+
+
+msgid "Metaball"
+msgstr "Meta test"
+
+
+msgid "Clean Up"
+msgstr "Tisztítás"
+
+
+msgid "Import"
+msgstr "Importálás"
+
+
+msgid "Mirror"
+msgstr "Tükrözés"
+
+
 msgid "Local View"
 msgstr "Helyi nézet"
 
@@ -6585,12 +6605,12 @@ msgid "Navigation"
 msgstr "Navigáció"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Align View"
 msgstr "Nézet igazítása"
-
-
-msgid "Metaball"
-msgstr "Meta test"
 
 
 msgid "Light"
@@ -6613,14 +6633,6 @@ msgid "Track"
 msgstr "Nyom"
 
 
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
-msgid "Clean Up"
-msgstr "Tisztítás"
-
-
 msgid "Keying"
 msgstr "Kulcsozás"
 
@@ -6631,18 +6643,6 @@ msgstr "Követés"
 
 msgid "Merge"
 msgstr "Összefésülés"
-
-
-msgid "Import"
-msgstr "Importálás"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Tükrözés"
 
 
 msgctxt "MovieClip"
@@ -13338,10 +13338,6 @@ msgstr "Az egér alatti mélység használata a pásztázás/forgatás/zoomolás
 
 msgid "Emulate 3 Button Mouse"
 msgstr "3 gombos egér emulálása"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Kijelölés használata a nézetforgatás középpontjaként"
 
 
 msgid "Zoom in towards the mouse pointer's position in the 3D view, rather than the 2D window center"

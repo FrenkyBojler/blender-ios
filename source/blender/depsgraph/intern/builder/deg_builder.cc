@@ -125,8 +125,8 @@ bool DepsgraphBuilder::check_pchan_has_bbone(const Object *object, const bPoseCh
   if (pchan->bone->segments > 1) {
     return true;
   }
-  bArmature *armature = static_cast<bArmature *>(object->data);
-  AnimatedPropertyID property_id(&armature->id, RNA_Bone, pchan->bone, "bbone_segments");
+  bArmature *armature = id_cast<bArmature *>(object->data);
+  AnimatedPropertyID property_id(&armature->id, &RNA_Bone, pchan->bone, "bbone_segments");
   /* Check both Object and Armature animation data, because drivers modifying Armature
    * state could easily be created in the Object AnimData. */
   return cache_->isPropertyAnimated(&object->id, property_id) ||
