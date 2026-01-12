@@ -25,7 +25,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
 
   b.add_input<decl::Bundle>("Bundle");
-  b.add_output<decl::Bundle>("Bundle").align_with_previous();
+  b.add_output<decl::Bundle>("Bundle").align_with_previous().propagate_all().reference_pass_all();
   if (node != nullptr) {
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(node->custom1);
     b.add_output(socket_type, "Item");

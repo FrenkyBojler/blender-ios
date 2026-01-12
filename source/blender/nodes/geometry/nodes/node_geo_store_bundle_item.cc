@@ -23,7 +23,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
 
   b.add_input<decl::Bundle>("Bundle");
-  b.add_output<decl::Bundle>("Bundle").align_with_previous();
+  b.add_output<decl::Bundle>("Bundle").align_with_previous().propagate_all().reference_pass_all();
   b.add_input<decl::String>("Path").optional_label();
 
   if (node != nullptr) {
@@ -61,7 +61,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const std::string path = params.extract_input<std::string>("Path");
   if (!Bundle::is_valid_path(path)) {
-    params.set_default_remaining_outputs();
+    params.set_output("Bundle", std::move(bundle_ptr));
     return;
   }
 
