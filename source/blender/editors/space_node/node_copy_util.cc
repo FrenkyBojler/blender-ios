@@ -863,16 +863,16 @@ void update_nested_node_refs_after_moving_nodes_into_group(bNodeTree &src_tree,
     /* Find new unique identifier for the nested node ref. */
     const int32_t new_ref_id = ref_id_gen();
 
-    /* Updated the nested node ref in the parent so that it points to the same node that is now
-     * inside of a nested group. */
-    ref.path.node_id = group_node.identifier;
-    ref.path.id_in_node = new_ref_id;
-
     /* Add a new nested node ref inside the group. */
     bNestedNodeRef new_ref = ref;
     new_ref.id = new_ref_id;
     new_ref.path.node_id = *new_node_id;
     new_group_refs.append(new_ref);
+
+    /* Update the nested node ref in the parent so that it points to the same node that is now
+     * inside of a nested group. */
+    ref.path.node_id = group_node.identifier;
+    ref.path.id_in_node = new_ref_id;
   }
 
   append_nested_node_refs(dst_tree, new_group_refs);
