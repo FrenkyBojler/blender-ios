@@ -4,3 +4,4 @@ Referenced by commit 442463239b7769fbb6f17a72b0d26fceb516db77, Mesh: Store clone
 Referenced by pull request #152387, Fix: Use unique name for active UV map set in ED_mesh_uv_add function
 Referenced by issue #152517, FBX import Blender 5.1 UV maps are not active
 Referenced by pull request #152527, Fix #152517: FBX import Blender 5.1 UV maps are not active
+Referenced by commit e83b5645badcd2f5d4ed5c477c219f4a74937407, Fix #152517: FBX import Blender 5.1 UV maps are not active
