@@ -218,6 +218,9 @@ std::optional<Bounds<float2>> node_location_bounds(Span<const bNode *> nodes);
 /** \name Utilities for copying node sets
  * \{ */
 
+/**
+ * Controls the behavior of interface generator functions.
+ */
 struct NodeSetInterfaceParams {
   /* Hidden sockets are not added to the interface. */
   bool skip_hidden = false;
@@ -240,12 +243,17 @@ struct NodeSetInterfaceParams {
 class NodeTreeInterfaceMapping {
  public:
   struct InterfaceSocketData {
+    /* Sockets inside the group node tree. */
     VectorSet<NodeSocketRef> internal_sockets;
+    /* External sockets to connect the interface. */
     VectorSet<MutableNodeSocketRef> external_sockets;
+    /* New group node socket is hidden. */
     bool hidden = false;
+    /* New group node socket is collapsed in tree view UI. */
     bool collapsed = false;
   };
   struct InterfacePanelData {
+    /* New group node panel is collapsed. */
     bool collapsed = false;
   };
 
@@ -253,13 +261,28 @@ class NodeTreeInterfaceMapping {
   Map<const bNodeTreeInterfacePanel *, InterfacePanelData> panel_data;
 };
 
+/**
+ * Construct new interface sockets between internal and external nodes.
+ * Sockets inside the \a src_nodes set are exposed if they have a link to an external node, or if
+ * \a params.skip_unconnected is false.
+ * Sockets outside the \a src_nodes set with links to internal sockets are connected to the new
+ * interface sockets.
+ */
 NodeTreeInterfaceMapping build_node_set_interface(const NodeSetInterfaceParams &params,
                                                   const bNodeTree &src_tree,
                                                   const Span<bNode *> src_nodes,
                                                   bNodeTree &dst_tree);
+/**
+ * Construct new interface sockets based on the declaration of a single node.
+ * This recreates the layout of the \a src_node exactly, including the panel structure.
+ */
 NodeTreeInterfaceMapping build_node_declaration_interface(const NodeSetInterfaceParams &params,
                                                           const bNode &src_node,
                                                           bNodeTree &dst_tree);
+/**
+ * Map the existing node group interface to internal nodes and external connections of the group
+ * node. No new sockets are added to the interface.
+ */
 NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &params,
                                                   const bNode &group_node);
 
@@ -319,14 +342,21 @@ void connect_copied_nodes_to_external_sockets(const NodeSetCopy &copied_nodes,
 void connect_group_node_to_external_sockets(bNode &group_node,
                                             const NodeTreeInterfaceMapping &io_mapping);
 
+/**
+ * Move nested node refs from nodes in \a ntree into the \a group_node tree.
+ * Any node ref found in the \a node_identifier_map is recreated inside the group. The original
+ * node refs in \a ntree are replaced by nested node refs pointing to the \a group_node.
+ */
 void update_nested_node_refs_after_moving_nodes_into_group(
-    bNodeTree &ntree,
-    bNodeTree &group,
-    bNode &gnode,
-    const Map<int32_t, int32_t> &node_identifier_map);
-void update_nested_node_refs_after_ungroup(bNodeTree &ntree,
-                                           const bNodeTree &ngroup,
-                                           const bNode &gnode,
+    bNodeTree &tree, bNode &group_node, const Map<int32_t, int32_t> &node_identifier_map);
+
+/**
+ * Copy nested node refs from nodes in \a group_node into \a tree.
+ * Any node ref found in the \a node_identifier_map is recreated inside \a tree, pointing to nested
+ * node refs inside \a group_node.
+ */
+void update_nested_node_refs_after_ungroup(bNodeTree &tree,
+                                           const bNode &group_node,
                                            const Map<int32_t, int32_t> &node_identifier_map);
 
 /** \} */

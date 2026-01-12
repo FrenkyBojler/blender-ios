@@ -811,16 +811,17 @@ static void append_nested_node_refs(bNodeTree &ntree, const Span<bNestedNodeRef>
 }
 
 void update_nested_node_refs_after_moving_nodes_into_group(
-    bNodeTree &ntree,
-    bNodeTree &group,
-    bNode &gnode,
-    const Map<int32_t, int32_t> &node_identifier_map)
+    bNodeTree &tree, bNode &group_node, const Map<int32_t, int32_t> &node_identifier_map)
 {
+  BLI_assert(group_node.is_group());
+  BLI_assert(group_node.id);
+
+  bNodeTree &group_tree = *reinterpret_cast<bNodeTree *>(group_node.id);
   /* Update nested node references in the parent and child node tree. */
-  NestedNodeRefIDGenerator ref_id_gen(group.nested_node_refs_span());
+  NestedNodeRefIDGenerator ref_id_gen(group_tree.nested_node_refs_span());
 
   Vector<bNestedNodeRef> new_group_refs;
-  for (bNestedNodeRef &ref : ntree.nested_node_refs_span()) {
+  for (bNestedNodeRef &ref : tree.nested_node_refs_span()) {
     const std::optional<int32_t> new_node_id = node_identifier_map.lookup_try(ref.path.node_id);
     if (!new_node_id) {
       /* The node was not moved between node groups. */
@@ -831,7 +832,7 @@ void update_nested_node_refs_after_moving_nodes_into_group(
 
     /* Updated the nested node ref in the parent so that it points to the same node that is now
      * inside of a nested group. */
-    ref.path.node_id = gnode.identifier;
+    ref.path.node_id = group_node.identifier;
     ref.path.id_in_node = new_ref_id;
 
     /* Add a new nested node ref inside the group. */
@@ -841,19 +842,22 @@ void update_nested_node_refs_after_moving_nodes_into_group(
     new_group_refs.append(new_ref);
   }
 
-  append_nested_node_refs(group, new_group_refs);
+  append_nested_node_refs(group_tree, new_group_refs);
 }
 
-void update_nested_node_refs_after_ungroup(bNodeTree &ntree,
-                                           const bNodeTree &ngroup,
-                                           const bNode &gnode,
+void update_nested_node_refs_after_ungroup(bNodeTree &tree,
+                                           const bNode &group_node,
                                            const Map<int32_t, int32_t> &node_identifier_map)
 {
-  for (bNestedNodeRef &ref : ntree.nested_node_refs_span()) {
-    if (ref.path.node_id != gnode.identifier) {
+  BLI_assert(group_node.is_group());
+  BLI_assert(group_node.id);
+
+  const bNodeTree &group_tree = *reinterpret_cast<const bNodeTree *>(group_node.id);
+  for (bNestedNodeRef &ref : tree.nested_node_refs_span()) {
+    if (ref.path.node_id != group_node.identifier) {
       continue;
     }
-    const bNestedNodeRef *child_ref = ngroup.find_nested_node_ref(ref.path.id_in_node);
+    const bNestedNodeRef *child_ref = group_tree.find_nested_node_ref(ref.path.id_in_node);
     if (!child_ref) {
       continue;
     }
