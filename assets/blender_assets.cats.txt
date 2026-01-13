@@ -52,6 +52,7 @@ c676fe02-8d25-49a1-b672-11aee0918221:Hair/Read:Hair-Read
 9dedc75a-afe5-472a-9e3f-a555a8df3dff:Hair/Utility:Hair-Utility
 63a83f9c-5a95-476a-9bd5-fcb72414ea0b:Hair/Write:Hair-Write
 a01301f0-5ae0-4627-91a4-b7fde91e5c5a:Instances:Instances
+94965f0a-6bb9-4e79-a200-50dab8a92c6e:Mask:Mask
 b9d488d7-441e-4f1a-905a-64ab84c31706:Mesh:Mesh
 b6bb38bb-bfe1-4a12-b2bc-fc87d060864f:Mesh/Read:Mesh-Read
 9e98eca8-e987-44d3-88a1-6633d0a8ad82:Normals:Normals
