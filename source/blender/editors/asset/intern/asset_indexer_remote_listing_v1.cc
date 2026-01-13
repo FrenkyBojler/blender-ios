@@ -83,15 +83,14 @@ static std::optional<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
         *r_failure_reason = "asset has a non-string entry in its 'files' list";
         return {};
       }
-      file.local_path = file_path_string->value();
-      if (file.local_path.empty()) {
+      file.path = file_path_string->value();
+      if (file.path.empty()) {
         /* TODO: use CLOG to have _some_ logging of this dubious empty file entry. */
         continue;
       }
 
       /* Look up the file URL and hash from the <files> section of the JSON. */
-      if (const RemoteListingFileEntry *file_entry = file_path_to_entry_map.lookup_ptr(
-              file.local_path))
+      if (const RemoteListingFileEntry *file_entry = file_path_to_entry_map.lookup_ptr(file.path))
       {
         file.url = file_entry->download_url;
       }

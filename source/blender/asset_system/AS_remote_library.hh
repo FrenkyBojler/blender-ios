@@ -41,7 +41,7 @@ struct URLWithHash {
 struct OnlineAssetInfo {
   struct File {
     /** The path this file should be downloaded to. Relative to the library root. */
-    std::string local_path;
+    std::string path;
     /** The URL the asset should be downloaded from. */
     URLWithHash url;
   };

@@ -448,7 +448,7 @@ StringRefNull OnlineAssetInfo::asset_file() const
   if (this->files.is_empty()) {
     return {};
   }
-  return this->files[0].local_path;
+  return this->files[0].path;
 }
 
 /* -------------------------------------------------------------------- */
