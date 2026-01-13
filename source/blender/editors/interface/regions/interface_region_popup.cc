@@ -640,7 +640,7 @@ struct PopupLayoutPanelStatesIDNameGetter {
   }
 };
 
-static ListBaseT<LayoutPanelState> &popup_layout_panel_states(StringRef idname)
+ListBaseT<LayoutPanelState> &popup_persistent_layout_panel_states(StringRef idname)
 {
   static CustomIDVectorSet<std::unique_ptr<PopupLayoutPanelStates>,
                            PopupLayoutPanelStatesIDNameGetter>
@@ -664,7 +664,7 @@ void popup_dummy_panel_set(ARegion *region, Block *block, StringRef idname)
     panel = BKE_panel_new(&panel_type);
   }
   panel->runtime->layout_panels.clear();
-  panel->runtime->popup_layout_panel_states = &popup_layout_panel_states(idname);
+  panel->runtime->popup_layout_panel_states = &popup_persistent_layout_panel_states(idname);
   block->panel = panel;
   panel->runtime->block = block;
 }

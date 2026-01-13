@@ -789,6 +789,11 @@ void popup_menu_retval_set(const Block *block, int retval, bool enable);
  */
 void popup_dummy_panel_set(ARegion *region, Block *block, StringRef idname);
 /**
+ * Gets the persistent layout panels state storage in popups.
+ * \param idname: Active #PanelType::idname or #OperatorType::idname in the popup.
+ */
+ListBaseT<LayoutPanelState> &popup_persistent_layout_panel_states(StringRef idname);
+/**
  * Setting the button makes the popup open from the button instead of the cursor.
  */
 void popup_menu_but_set(PopupMenu *pup, ARegion *butregion, Button *but);
