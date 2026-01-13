@@ -609,7 +609,15 @@ void layout_panel_popup_scroll_apply(Panel *panel, const float dy)
   }
 }
 
+/**
+ * Persistent storage of open-close-state of layout panels in popups.
+ *
+ * Usually this state is stored in each region's panels, however since these regions are
+ * temporally allocated this state is lost when the popup is closed and the region is freed.
+ * See #152631.
+ */
 struct PopupLayoutPanelStates {
+  /** #PanelType::idname or #OperatorType::idname. */
   std::string idname;
   ListBaseT<LayoutPanelState> states = {};
 
@@ -617,7 +625,7 @@ struct PopupLayoutPanelStates {
 
   ~PopupLayoutPanelStates()
   {
-    for (LayoutPanelState &state : states) {
+    for (LayoutPanelState &state : states.items_mutable()) {
       BLI_remlink(&states, &state);
       MEM_freeN(state.idname);
       MEM_freeN(&state);

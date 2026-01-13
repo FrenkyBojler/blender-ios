@@ -784,7 +784,8 @@ void popup_menu_close_from_but(const Button *but, bool is_cancel = false);
 void popup_menu_retval_set(const Block *block, int retval, bool enable);
 /**
  * Set a dummy panel in the popup `block` to support using layout panels.
- * \param idname: popup identifier for storing layout panel state at runtime.
+ * \param idname: Active #PanelType::idname or #OperatorType::idname in the popup for persistent
+ * layout panel state storage at runtime.
  */
 void popup_dummy_panel_set(ARegion *region, Block *block, StringRef idname);
 /**
