@@ -124,6 +124,7 @@ static PyStructSequence_Field app_cb_info_fields[] = {
      "remove files from the repository directory (uses as a string argument)"},
     {"blend_import_pre", "on linking or appending data (before). " BLENDIMPORT_ARG},
     {"blend_import_post", "on linking or appending data (after). " BLENDIMPORT_ARG},
+    {"exit_pre", "just before Blender shuts down, while all data is still valid."},
 
 /* sets the permanent tag */
 #define APP_CB_OTHER_FIELDS 1

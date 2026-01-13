@@ -35,6 +35,7 @@
 
 #include "BKE_blender.hh"
 #include "BKE_blendfile.hh"
+#include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_icons.hh"
@@ -463,6 +464,9 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   /* Modal handlers are on window level freed, others too? */
   /* NOTE: same code copied in `wm_files.cc`. */
   if (C && wm) {
+    /* Run `exit_pre` Python handlers. */
+    BKE_callback_exec_null(CTX_data_main(C), BKE_CB_EVT_EXIT_PRE);
+
     if (do_user_exit_actions) {
       /* Save quit.blend. */
       Main *bmain = CTX_data_main(C);
