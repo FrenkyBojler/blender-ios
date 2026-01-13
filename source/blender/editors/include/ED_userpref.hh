@@ -8,7 +8,12 @@
 
 #pragma once
 
+#include "BLI_vector.hh"
+
 namespace blender {
+
+/* Structs */
+struct SpaceUserPref;
 
 void ED_operatortypes_userpref();
 
