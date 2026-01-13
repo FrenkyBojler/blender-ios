@@ -51,11 +51,9 @@ def paginate_asset_list(
 
     pages = []
     for asset_batch in batched(assets, num_assets_per_page):
-        used_file_paths = {asset.file for asset in asset_batch if asset.file}
-        used_file_paths |= {
+        used_file_paths = {
             file
             for asset in asset_batch
-            if asset.files
             for file in asset.files
         }
         file_batch = [file for file in files

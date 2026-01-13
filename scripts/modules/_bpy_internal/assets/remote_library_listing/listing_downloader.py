@@ -527,7 +527,6 @@ class RemoteAssetListingDownloader:
 
         return download_to_path
 
-            assert asset.file is not None, "This code only supports the 'file' attr, not 'files'"
     # TODO: implement this in a more useful way:
     def report(self, level: set[str], message: str) -> None:
         # logger.info("Report: {:s}: {:s}".format("/".join(level), message))
