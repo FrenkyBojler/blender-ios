@@ -22,8 +22,6 @@
 #include "DNA_ID_enums.h"
 #include "DNA_node_types.h"
 
-using namespace blender::math;
-
 namespace blender {
 
 namespace bke::path_templates {
@@ -338,7 +336,8 @@ void BKE_add_template_variables_for_node(bke::path_templates::VariableMap &varia
 
 /* -------------------------------------------------------------------- */
 
-#define FORMAT_BUFFER_SIZE 512
+/* Set to FILE_MAX to ensure that it can handle all path variables. */
+#define FORMAT_BUFFER_SIZE FILE_MAX
 
 namespace {
 
@@ -813,55 +812,36 @@ bool BKE_path_contains_template_syntax(StringRef path)
 }
 
 /**
- * Evaluates the path template in `in_path` and writes the result to `out_path`
+ * Evaluates the path template in `in_path` and writes the result to `r_out_path`
  * if provided.
  *
- * \param out_path: buffer to write the evaluated path to. May be null, in which
+ * \param r_out_path: string to write the evaluated path to. May be null, in which
  * case writing is skipped, and this function just acts to validate the
  * templating in the path. If there are errors returned, there are no guarantees
- * about its contents aside from it being a valid string.
- *
- * \param out_path_maxncpy: The maximum length that template expansion is
- * allowed to make the template-expanded path (in bytes), including the null
- * terminator. In general, this should be the size of the underlying allocation
- * of `out_path`. Only used when `out_path` is provided.
+ * about the string's contents.
  *
  * \param template_variables: map of variables and their values to use during
  * template substitution.
- *
- * \param r_out_path_length: optional pointer to an integer to store the output
- * path length in. This is computed even when `out_path` is not provided, and
- * thus can be used as a pre-pass to determine how much space to allocate for
- * the `out_path` buffer. If errors are returned, this number is invalid.
  *
  * \return An empty vector on success, or a vector of templating errors on
  * failure. Note that even if there are errors, `out_path` may get modified, and
  * it should be treated as bogus data in that case.
  */
-static Vector<Error> eval_template(char *out_path,
-                                   const int out_path_maxncpy,
+static Vector<Error> eval_template(std::string *r_out_path,
                                    StringRef in_path,
-                                   const VariableMap &template_variables,
-                                   int *r_out_length)
+                                   const VariableMap &template_variables)
 {
-  if (out_path) {
+  if (r_out_path) {
     /* Just in case. */
-    out_path[0] = '\0';
+    r_out_path->clear();
   }
 
   const Vector<Token> tokens = parse_template(in_path);
 
   if (tokens.is_empty()) {
-    /* No tokens found, so the output is the same as the input (but possibly
-     * truncated). */
-    if (out_path) {
-      in_path.copy_bytes_truncated(out_path, out_path_maxncpy);
-      if (r_out_length) {
-        *r_out_length = strlen(out_path);
-      }
-    }
-    else if (r_out_length) {
-      *r_out_length = in_path.size();
+    /* No tokens found, so the output is the same as the input. */
+    if (r_out_path) {
+      r_out_path->append(in_path);
     }
     return {};
   }
@@ -869,10 +849,9 @@ static Vector<Error> eval_template(char *out_path,
   /* Accumulates errors as we process the tokens. */
   Vector<Error> errors;
 
-  /* Byte indices that track where we are in the input and output while copying
-   * things over. */
+  /* Byte index of our position in the input path, to track where we are while
+   * copying things over. */
   int in_head = 0;
-  int out_head = 0;
 
   for (const Token &token : tokens) {
     /* Syntax errors. */
@@ -949,37 +928,19 @@ static Vector<Error> eval_template(char *out_path,
       }
     }
 
-    /* Copy over any non-token text that precedes the token. */
-    if (out_path && out_head < out_path_maxncpy) {
-      in_path.substr(in_head, token.byte_range.start())
-          .copy_bytes_truncated(out_path + out_head, out_path_maxncpy - out_head);
-    }
-    out_head += token.byte_range.start() - in_head;
-    in_head = token.byte_range.start();
+    if (r_out_path) {
+      /* Copy over any non-token text that precedes the token. */
+      r_out_path->append(in_path.substr(in_head, token.byte_range.start() - in_head));
 
-    /* Copy over the token replacement text. */
-    StringRef replacement = StringRef(replacement_string);
-    if (out_path && out_head < out_path_maxncpy) {
-      replacement.copy_bytes_truncated(out_path + out_head, out_path_maxncpy - out_head);
+      /* Copy over the token replacement text. */
+      r_out_path->append(StringRef(replacement_string));
     }
-    out_head += replacement.size();
-    in_head += token.byte_range.size();
+    in_head = token.byte_range.one_after_last();
   }
 
   /* Copy any remaining non-token text after the last token. */
-  if (out_path && out_head < out_path_maxncpy) {
-    in_path.substr(in_head).copy_bytes_truncated(out_path + out_head, out_path_maxncpy - out_head);
-  }
-  out_head += in_path.size() - in_head;
-
-  /* Compute final output length. */
-  if (errors.is_empty() && r_out_length) {
-    if (out_path) {
-      *r_out_length = strlen(out_path);
-    }
-    else {
-      *r_out_length = out_head;
-    }
+  if (r_out_path) {
+    r_out_path->append(in_path.substr(in_head));
   }
 
   return errors;
@@ -988,7 +949,7 @@ static Vector<Error> eval_template(char *out_path,
 Vector<Error> BKE_path_validate_template(
     StringRef path, const bke::path_templates::VariableMap &template_variables)
 {
-  return eval_template(nullptr, 0, path, template_variables, nullptr);
+  return eval_template(nullptr, path, template_variables);
 }
 
 Vector<Error> BKE_path_apply_template(char *path,
@@ -997,14 +958,12 @@ Vector<Error> BKE_path_apply_template(char *path,
 {
   BLI_assert(path != nullptr);
 
-  Vector<char> path_buffer(path_maxncpy);
-
-  const Vector<Error> errors = eval_template(
-      path_buffer.data(), path_buffer.size(), path, template_variables, nullptr);
+  std::string evaluated_path;
+  const Vector<Error> errors = eval_template(&evaluated_path, path, template_variables);
 
   if (errors.is_empty()) {
     /* No errors, so copy the modified path back to the original. */
-    BLI_strncpy(path, path_buffer.data(), path_maxncpy);
+    BLI_strncpy(path, evaluated_path.c_str(), path_maxncpy);
   }
   return errors;
 }
@@ -1016,23 +975,16 @@ Vector<Error> BKE_path_apply_template_alloc(char **path,
   BLI_assert(path != nullptr);
   BLI_assert(*path != nullptr);
 
-  /* Get the needed length and check for errors at the same time. */
-  int length_after_application = 0;
-  {
-    const Vector<Error> errors = eval_template(
-        nullptr, 0, *path, template_variables, &length_after_application);
+  std::string evaluated_path;
+  const Vector<Error> errors = eval_template(&evaluated_path, *path, template_variables);
 
-    if (!errors.is_empty()) {
-      return errors;
-    }
+  if (!errors.is_empty()) {
+    return errors;
   }
 
-  const int buffer_size = min(length_after_application + 1, path_maxncpy);
+  const int buffer_size = math::min(int(evaluated_path.size()) + 1, path_maxncpy);
   char *buffer = MEM_malloc_arrayN<char>(buffer_size, __func__);
-
-  const Vector<Error> errors = eval_template(
-      buffer, buffer_size, *path, template_variables, nullptr);
-  BLI_assert(errors.is_empty());
+  BLI_strncpy(buffer, evaluated_path.c_str(), path_maxncpy);
 
   MEM_freeN(*path);
   *path = buffer;
