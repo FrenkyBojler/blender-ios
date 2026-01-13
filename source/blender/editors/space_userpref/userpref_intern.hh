@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_bitmap.h"
+#include "BLI_bit_vector.hh"
 
 namespace blender {
 
@@ -23,12 +23,12 @@ void PREFERENCES_OT_clear_filter(wmOperatorType *ot);
 
 struct SpaceUserPref_Runtime {
   /** For filtering properties displayed in the space. */
-  char search_string[128];
+  char search_string[128] = {};
   /**
    * Bit-field (in the same order as the tabs) for whether each tab has properties
    * that match the search filter. Only valid when #search_string is set.
    */
-  BLI_bitmap *tab_search_results;
+  BitVector<> tab_search_results;
 };
 
 }  // namespace blender

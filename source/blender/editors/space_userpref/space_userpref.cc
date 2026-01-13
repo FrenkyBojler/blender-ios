@@ -10,7 +10,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_bitmap.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -87,7 +86,6 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
 static void userpref_free(SpaceLink *sl)
 {
   SpaceUserPref *spref = (SpaceUserPref *)sl;
-  MEM_SAFE_FREE(spref->runtime->tab_search_results);
   MEM_delete(spref->runtime);
 }
 
@@ -98,8 +96,7 @@ static void userpref_init(wmWindowManager * /*wm*/, ScrArea *area)
   if (spref->runtime == nullptr) {
     spref->runtime = MEM_new<SpaceUserPref_Runtime>(__func__);
     spref->runtime->search_string[0] = '\0';
-    spref->runtime->tab_search_results = BLI_BITMAP_NEW(USER_SECTION_DEVELOPER_TOOLS * 2,
-                                                        __func__);
+    spref->runtime->tab_search_results.resize(USER_SECTION_DEVELOPER_TOOLS * 2, false);
   }
 }
 
@@ -111,8 +108,7 @@ static SpaceLink *userpref_duplicate(SpaceLink *sl)
   if (sprefn_old->runtime != nullptr) {
     sprefn->runtime = static_cast<SpaceUserPref_Runtime *>(MEM_dupallocN(sprefn_old->runtime));
     sprefn->runtime->search_string[0] = '\0';
-    sprefn->runtime->tab_search_results = BLI_BITMAP_NEW(USER_SECTION_DEVELOPER_TOOLS * 2,
-                                                         __func__);
+    sprefn->runtime->tab_search_results.resize(USER_SECTION_DEVELOPER_TOOLS * 2, false);
   }
 
   /* clear or remove stuff from old */
@@ -155,7 +151,7 @@ void ED_userpref_search_string_set(SpaceUserPref *spref, const char *value)
 
 bool ED_userpref_tab_has_search_result(SpaceUserPref *spref, const int index)
 {
-  return BLI_BITMAP_TEST(spref->runtime->tab_search_results, index);
+  return spref->runtime->tab_search_results[index];
 }
 
 /** \} */
@@ -204,14 +200,14 @@ static void userpref_search_move_to_next_tab_with_results(SpaceUserPref *sbuts,
   }
   /* Try the tabs after the current tab. */
   for (int i = current_tab_index + 1; i < context_tabs_array.size(); i++) {
-    if (BLI_BITMAP_TEST(sbuts->runtime->tab_search_results, i)) {
+    if (sbuts->runtime->tab_search_results[i]) {
       U.space_data.section_active = context_tabs_array[i];
       return;
     }
   }
   /* Try the tabs before the current tab. */
   for (int i = 0; i < current_tab_index; i++) {
-    if (BLI_BITMAP_TEST(sbuts->runtime->tab_search_results, i)) {
+    if (sbuts->runtime->tab_search_results[i]) {
       U.space_data.section_active = context_tabs_array[i];
       return;
     }
@@ -235,7 +231,7 @@ static void userpref_search_all_tabs(const bContext *C,
   CTX_wm_region_set(const_cast<bContext *>(C), region_copy);
   SpaceUserPref sprefs_copy = blender::dna::shallow_copy(*sprefs);
   sprefs_copy.runtime = MEM_new<SpaceUserPref_Runtime>(__func__, *sprefs->runtime);
-  sprefs_copy.runtime->tab_search_results = nullptr;
+  sprefs_copy.runtime->tab_search_results.fill(false);
   BLI_listbase_clear(&area_copy.spacedata);
   BLI_addtail(&area_copy.spacedata, &sprefs_copy);
   /* Loop through the tabs. */
@@ -253,7 +249,7 @@ static void userpref_search_all_tabs(const bContext *C,
     }
     /* Actually do the search and store the result in the bitmap. */
     const bool found = property_search_for_context(C, region_copy, context_tabs_array[i]);
-    BLI_BITMAP_SET(sprefs->runtime->tab_search_results, i, found);
+    sprefs->runtime->tab_search_results[i].set(found);
     ui::blocklist_free(C, region_copy);
   }
   BKE_area_region_free(area_copy.type, region_copy);
@@ -289,8 +285,7 @@ static void userpref_main_region_property_search(const bContext *C,
   }
   BLI_assert(current_tab_index != -1);
   /* Update the tab search match flag for the current tab. */
-  BLI_BITMAP_SET(
-      sprefs->runtime->tab_search_results, current_tab_index, current_tab_has_search_match);
+  sprefs->runtime->tab_search_results[current_tab_index].set(current_tab_has_search_match);
   /* Move to the next tab with a result */
   if (!current_tab_has_search_match) {
     if (region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE) {
