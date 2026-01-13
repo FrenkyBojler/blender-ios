@@ -22,9 +22,9 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-static void align_requirements_size(VkMemoryRequirements &requirements)
+static VkDeviceSize align_size(VkDeviceSize size, VkDeviceSize alignment)
 {
-  requirements.size = (requirements.size - 1u + requirements.alignment) & -requirements.alignment;
+  return (size - 1u + alignment) & -alignment;
 }
 
 std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
@@ -38,32 +38,45 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     return {};
   }
 
+  /* Memory alignment can vary between images, and segments offset into the
+   * allocation likewise influence this. */
+
   /* Find the smallest segment of compatible size. */
   auto it = segments.end();
   for (auto iter = segments.begin(); iter != segments.end(); ++iter) {
-    if (iter->size < requirements.size) {
+    /* Align to segment at start. */
+    VkDeviceSize aligned_offset = align_size(iter->offset, requirements.alignment);
+    VkDeviceSize remaining_size = iter->size - (aligned_offset - iter->offset);
+    if (remaining_size < requirements.size) {
       continue;
     }
     if (it == segments.end() || it->size > iter->size) {
       it = iter;
-      if (it->size == requirements.size) {
-        break;
-      }
     }
   }
   if (it == segments.end()) {
     return {};
   }
+  
+  // if (segment.size > requirements.size) {
+  /* Alignment can lead to an offset to the segment interior. */
+  VkDeviceSize aligned_offset = align_size(it->offset, requirements.alignment);
+  VkDeviceSize remaining_size = it->size - (aligned_offset - it->offset);
 
-  Segment segment = *it;
-  if (segment.size > requirements.size) {
-    /* If the segment is larger than required, split it. */
-    it->offset = segment.offset + requirements.size;
-    it->size = segment.size - requirements.size;
-    segment.size = requirements.size;
-  }
-  else {
-    /* Otherwise, remove the segment from the list. */
+  /* Identify segments before/at/after the acquired segment. */
+  Segment segment_prev = {it->offset, aligned_offset - it->offset};
+  Segment segment = { aligned_offset, requirements.size };
+  Segment segment_next = {aligned_offset + requirements.size,
+                          remaining_size - requirements.size};
+
+  if (segment_prev.size > 0 && segment_next.size > 0) {
+    *it = segment_next;
+    segments.insert(it, segment_prev);
+  } else if (segment_prev.size > 0) {
+    *it = segment_prev;
+  } else if (segment_next.size > 0) {
+    *it = segment_next;
+  } else {
     segments.erase(it);
   }
 
@@ -116,7 +129,7 @@ bool VKTexturePool::AllocationHandle::init(VkMemoryRequirements memory_requireme
   create_info.priority = 1.0f;
   create_info.memoryTypeBits = memory_requirements.memoryTypeBits;
   create_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-  
+
   VkResult result = vmaAllocateMemory(device.mem_allocator_get(),
                                       &memory_requirements,
                                       &create_info,
@@ -231,7 +244,6 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   VkMemoryRequirements memory_requirements;
   vkGetImageMemoryRequirements(
       device.vk_handle(), texture_handle.texture->vk_image_, &memory_requirements);
-  align_requirements_size(memory_requirements);
 
   /* Find a compatible segment of allocated memory. */
   for (auto handle : allocations_) {
