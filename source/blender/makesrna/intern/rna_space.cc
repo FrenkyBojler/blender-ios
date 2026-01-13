@@ -6859,8 +6859,6 @@ static void rna_def_space_captions(BlenderRNA *brna)
 
 
   rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI));
-
-  //RNA_api_space_captions(srna); // TODO: Probbably should be removed
 }
 
 static void rna_def_space_dopesheet_overlays(BlenderRNA *brna)
