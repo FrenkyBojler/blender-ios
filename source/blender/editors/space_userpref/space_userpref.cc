@@ -96,8 +96,7 @@ static void userpref_init(wmWindowManager * /*wm*/, ScrArea *area)
 {
   SpaceUserPref *spref = (SpaceUserPref *)area->spacedata.first;
   if (spref->runtime == nullptr) {
-    spref->runtime = static_cast<SpaceUserPref_Runtime *>(
-        MEM_mallocN(sizeof(SpaceUserPref_Runtime), __func__));
+    spref->runtime = MEM_new<SpaceUserPref_Runtime>(__func__);
     spref->runtime->search_string[0] = '\0';
     spref->runtime->tab_search_results = BLI_BITMAP_NEW(USER_SECTION_DEVELOPER_TOOLS * 2,
                                                         __func__);
@@ -183,11 +182,11 @@ Vector<int> ED_userpref_tabs_list(SpaceUserPref * /*prefs*/)
 
 static bool property_search_for_context(const bContext *C, ARegion *region, short section)
 {
-  char lower[64];
+  char lower[64] = {0};
   const char *name = nullptr;
   RNA_enum_id_from_value(rna_enum_preference_section_items, section, &name);
   STRNCPY(lower, name);
-  BLI_str_tolower_ascii(lower, strlen(lower));
+  BLI_str_tolower_ascii(lower, sizeof(lower));
   const char *contexts[2] = {lower, nullptr};
   return ED_region_property_search(
       C, region, &region->runtime->type->paneltypes, contexts, nullptr);
@@ -235,7 +234,7 @@ static void userpref_search_all_tabs(const bContext *C,
   CTX_wm_area_set(const_cast<bContext *>(C), &area_copy);
   CTX_wm_region_set(const_cast<bContext *>(C), region_copy);
   SpaceUserPref sprefs_copy = blender::dna::shallow_copy(*sprefs);
-  sprefs_copy.runtime = static_cast<SpaceUserPref_Runtime *>(MEM_dupallocN(sprefs->runtime));
+  sprefs_copy.runtime = MEM_new<SpaceUserPref_Runtime>(__func__, *sprefs->runtime);
   sprefs_copy.runtime->tab_search_results = nullptr;
   BLI_listbase_clear(&area_copy.spacedata);
   BLI_addtail(&area_copy.spacedata, &sprefs_copy);
