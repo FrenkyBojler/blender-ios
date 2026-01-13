@@ -109,7 +109,7 @@ void VKDevice::wait_for_timeline(TimelineValue timeline)
   VkResult wait_result = vkWaitSemaphores(vk_device_, &vk_semaphore_wait_info, UINT64_MAX);
   if (wait_result != VK_SUCCESS) {
     CLOG_ERROR(
-        &LOG, "Vulkan: failed to wait for render graph submission : %s", to_string(wait_result));
+        &LOG, "Vulkan: failed to wait for synchronization timeline [%s]", to_string(wait_result));
   }
 }
 
