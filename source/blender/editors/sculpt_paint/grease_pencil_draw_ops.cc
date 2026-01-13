@@ -2087,8 +2087,11 @@ static void GREASE_PENCIL_OT_erase_box(wmOperatorType *ot)
 /* Additional OPs for Drawing Guides. */
 
 /* Flip or rotate drawing guide. */
-static wmOperatorStatus grease_pencil_guide_settings(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_guide_settings_invoke(bContext *C,
+                                                            wmOperator *op,
+                                                            const wmEvent *event)
 {
+
   Scene *scene = CTX_data_scene(C);
   GP_Sculpt_Guide *guide_settings = &scene->toolsettings->gp_sculpt.guide;
 
@@ -2103,31 +2106,64 @@ static wmOperatorStatus grease_pencil_guide_settings(bContext *C, wmOperator *op
     return OPERATOR_FINISHED;
   }
 
-  /* Flip guide, Circular <> Radial, Grid rotates 45 degrees, Parallel rotates 90 degrees. */
-  const bool flip = RNA_boolean_get(op->ptr, "flip");
-  if (flip) {
-    if (guide_settings->type == GP_GUIDE_CIRCULAR) {
-      guide_settings->type = GP_GUIDE_RADIAL;
+  if (guide_settings->use_guide) {
+
+    const eGPencil_GuideTypes type = eGPencil_GuideTypes(guide_settings->type);
+    const bool set_angle = RNA_boolean_get(op->ptr, "angle_control");
+    if (set_angle && ELEM(type, GP_GUIDE_GRID, GP_GUIDE_ISO, GP_GUIDE_PARALLEL)) {
+      wmOperatorType *ot = WM_operatortype_find("WM_OT_radial_control", true);
+      PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
+
+      switch (type) {
+        case GP_GUIDE_ISO: {
+          RNA_string_set(&props_ptr,
+                         "data_path_primary",
+                         "scene.tool_settings.gpencil_sculpt.guide.angle_iso");
+          WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, event);
+          break;
+        }
+        default: {
+          RNA_string_set(
+              &props_ptr, "data_path_primary", "scene.tool_settings.gpencil_sculpt.guide.angle");
+          WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, event);
+          break;
+        }
+      }
+      WM_operator_properties_free(&props_ptr);
+      return OPERATOR_FINISHED;
     }
-    else if (guide_settings->type == GP_GUIDE_RADIAL) {
-      guide_settings->type = GP_GUIDE_CIRCULAR;
+
+    /* Flip guide, Circular <> Radial, Grid rotates 45 degrees, Parallel rotates 90 degrees. */
+    const bool flip = RNA_boolean_get(op->ptr, "flip");
+    if (flip) {
+      if (type == GP_GUIDE_CIRCULAR) {
+        guide_settings->type = GP_GUIDE_RADIAL;
+      }
+      else if (type == GP_GUIDE_RADIAL) {
+        guide_settings->type = GP_GUIDE_CIRCULAR;
+      }
+      else if (type == GP_GUIDE_GRID) {
+        guide_settings->angle = angle_wrap_rad(guide_settings->angle + DEG2RADF(45));
+      }
+      else if (type == GP_GUIDE_PARALLEL) {
+        guide_settings->angle = angle_wrap_rad(guide_settings->angle + DEG2RADF(90));
+      }
     }
-    else if (guide_settings->type == GP_GUIDE_GRID) {
-      guide_settings->angle = angle_wrap_rad(guide_settings->angle + DEG2RADF(45));
-    }
-    else if (guide_settings->type == GP_GUIDE_PARALLEL) {
-      guide_settings->angle = angle_wrap_rad(guide_settings->angle + DEG2RADF(90));
+
+    /* Offset guide angle. */
+    if (ELEM(type, GP_GUIDE_GRID, GP_GUIDE_ISO, GP_GUIDE_PARALLEL)) {
+      const float angle_offset = RNA_float_get(op->ptr, "angle_offset");
+      if (!math::is_zero(angle_offset)) {
+        if (type == GP_GUIDE_ISO) {
+          guide_settings->angle_iso = angle_wrap_rad(guide_settings->angle_iso +
+                                                     DEG2RADF(angle_offset));
+        }
+        else {
+          guide_settings->angle = angle_wrap_rad(guide_settings->angle + DEG2RADF(angle_offset));
+        }
+      }
     }
   }
-
-  /* Offset guide angle. */
-  if (ELEM(guide_settings->type, GP_GUIDE_GRID, GP_GUIDE_ISO, GP_GUIDE_PARALLEL)) {
-    const float angle = RNA_float_get(op->ptr, "angle");
-    if (!math::is_zero(angle)) {
-      guide_settings->angle = angle_wrap_rad(guide_settings->angle + DEG2RADF(angle));
-    }
-  }
-
   return OPERATOR_FINISHED;
 }
 
@@ -2137,17 +2173,27 @@ static void GREASE_PENCIL_OT_guide_settings(wmOperatorType *ot)
   ot->idname = "GREASE_PENCIL_OT_guide_settings";
   ot->description = "Flip, rotate, or enable guide settings";
 
-  ot->exec = grease_pencil_guide_settings;
+  ot->invoke = grease_pencil_guide_settings_invoke;
 
   ot->flag = 0;
 
   PropertyRNA *prop;
+  prop = RNA_def_boolean(
+      ot->srna, "angle_control", false, "Angle", "Set angle with radial control");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna, "flip", false, "Flip", "Flip guide or angle");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna, "toggle_guide", false, "Toggle", "Toggle guide on or off");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-  prop = RNA_def_float(
-      ot->srna, "angle", 0.0f, -FLT_MAX, FLT_MAX, "Angle", "Angle in degrees", -FLT_MAX, FLT_MAX);
+  prop = RNA_def_float(ot->srna,
+                       "angle_offset",
+                       0.0f,
+                       -FLT_MAX,
+                       FLT_MAX,
+                       "Angle Offset",
+                       "Angle offfst in degrees",
+                       -FLT_MAX,
+                       FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 

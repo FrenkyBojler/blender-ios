@@ -4042,24 +4042,21 @@ def km_grease_pencil_guide_settings(_params):
     )
 
     items.extend([
-        # Guide - Origin
+        # Guide - Set origin
         ("grease_pencil.guide_origin", {"type": 'O', "value": 'PRESS'}, None),
-        # Guide - Pop up settings
+        # Guide - Pop up panel
         op_panel("VIEW3D_PT_grease_pencil_guide", {"type": 'P', "value": 'PRESS'}, [("keep_open", False)],),
-        # Guide Angle - Secondary path so it can be used with use_guide property
-        ("wm.radial_control", {"type": 'L', "value": 'PRESS'},
-         {"properties": [
-             ("data_path_secondary", "scene.tool_settings.gpencil_sculpt.guide.angle"),
-             ("use_secondary", "scene.tool_settings.gpencil_sculpt.guide.use_guide")]}),
         # Guide - Settings
+        ("grease_pencil.guide_settings", {"type": 'L', "value": 'PRESS'},
+         {"properties": [("angle_control", True)]}),
         ("grease_pencil.guide_settings", {"type": 'D', "value": 'PRESS'},
          {"properties": [("toggle_guide", True)]}),
         ("grease_pencil.guide_settings", {"type": 'M', "value": 'PRESS'},
          {"properties": [("flip", True)]}),
         ("grease_pencil.guide_settings", {"type": 'J', "value": 'PRESS'},
-         {"properties": [("angle", -15.0)]}),
+         {"properties": [("angle_offset", -15.0)]}),
         ("grease_pencil.guide_settings", {"type": 'K', "value": 'PRESS'},
-         {"properties": [("angle", 15.0)]}),
+         {"properties": [("angle_offset", 15.0)]}),
     ])
 
     return keymap

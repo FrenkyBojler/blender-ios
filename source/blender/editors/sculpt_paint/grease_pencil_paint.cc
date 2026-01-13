@@ -116,6 +116,8 @@ struct GreasePencilDrawGuide {
   float2 direction;
   /* Angle from guide settings. */
   float user_angle;
+  /* Angle from guide settings for ISO. */
+  float user_angle_iso;
   /* Reference iso vectors. */
   float2 iso_vector_a;
   float2 iso_vector_b;
@@ -1447,6 +1449,7 @@ void PaintOperation::guide_init(const bContext &C,
   guide_.radius = math::length(start_coords - origin);
   guide_.type = eGPencil_GuideTypes(guide_settings.type);
   guide_.user_angle = guide_settings.angle;
+  guide_.user_angle_iso = guide_settings.angle_iso;
   guide_.ref_vector = float2(1.0f, 0.0f);
   guide_.direction = float2(0.0f, 1.0f);
   guide_.iso_vector_a = guide_.ref_vector;
@@ -1464,7 +1467,7 @@ void PaintOperation::guide_init(const bContext &C,
   }
   else if (guide_.type == GP_GUIDE_ISO) {
     float2 iso_vector_a;
-    rotate_v2_v2v2fl(iso_vector_a, guide_.ref_vector, float2(0.0f), guide_settings.angle);
+    rotate_v2_v2v2fl(iso_vector_a, guide_.ref_vector, float2(0.0f), guide_settings.angle_iso);
     guide_.iso_vector_a = iso_vector_a;
     guide_.iso_vector_b = float2(iso_vector_a.x, -iso_vector_a.y);
   }
@@ -1519,7 +1522,6 @@ void PaintOperation::guide_set_direction(const float2 coords)
   guide_.is_horizontal_stroke = (math::distance(guide_.start_coords.x, coords.x) >=
                                  math::distance(guide_.start_coords.y, coords.y));
   float angle = guide_.user_angle;
-
   if (ELEM(guide_.type, GP_GUIDE_GRID) && !math::is_zero(guide_.user_angle)) {
     /* Determine grid angle, choose best match. */
     const float2 dir = math::normalize(coords - guide_.start_coords);
@@ -1540,7 +1542,7 @@ void PaintOperation::guide_set_direction(const float2 coords)
       return;
     }
     else {
-      angle = (angle_a >= angle_b) ? guide_.user_angle : -guide_.user_angle;
+      angle = (angle_a >= angle_b) ? guide_.user_angle_iso : -guide_.user_angle_iso;
     }
   }
   rotate_v2_v2v2fl(guide_.direction, guide_.ref_vector, float2(0.0f), angle);

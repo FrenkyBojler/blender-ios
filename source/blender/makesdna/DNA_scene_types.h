@@ -1634,7 +1634,7 @@ struct GP_Sculpt_Guide {
   char use_snapping = 0;
   char reference_point = 0;
   char type = 0;
-  char _pad2[4] = {};
+  float angle_iso = DEG2RADF(30.0f);
   float angle = 0;
   float angle_snap = 0;
   float spacing = 20.0f;

@@ -1866,6 +1866,13 @@ static void rna_def_gpencil_guides(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
+    prop = RNA_def_property(srna, "angle_iso", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, nullptr, "angle_iso");
+  RNA_def_property_range(prop, -(M_PI * 2.0f), (M_PI * 2.0f));
+  RNA_def_property_ui_text(prop, "Angle", "Angle of ISO lines");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
   prop = RNA_def_property(srna, "spacing", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, nullptr, "spacing");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
