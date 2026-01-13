@@ -85,21 +85,22 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_rna(StructRNA *srna)
 {
-  RNA_def_node_enum(
-      srna,
-      "socket_type",
-      "Socket Type",
-      "",
-      rna_enum_node_socket_data_type_items,
-      NOD_inline_enum_accessors(custom1),
-      SOCK_FLOAT,
-      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
-        *r_free = true;
-        return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 3);  // todo
-            });
-      });
+  RNA_def_node_enum(srna,
+                    "socket_type",
+                    "Socket Type",
+                    "",
+                    rna_enum_node_socket_data_type_items,
+                    NOD_inline_enum_accessors(custom1),
+                    SOCK_FLOAT,
+                    [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
+                      *r_free = true;
+                      const bNodeTree &ntree = *id_cast<const bNodeTree *>(ptr->owner_id);
+                      return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                               [&](const EnumPropertyItem &item) -> bool {
+                                                 return socket_type_supported_in_bundle(
+                                                     eNodeSocketDatatype(item.value), ntree.type);
+                                               });
+                    });
 }
 
 static void node_register()
