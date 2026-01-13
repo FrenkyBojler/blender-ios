@@ -38,7 +38,6 @@
 
 #include "kernel/svm/ao.h"
 #include "kernel/svm/bevel.h"
-#include "kernel/svm/raycast.h"
 
 #include "kernel/util/ies.h"
 #include "kernel/util/texture_3d.h"
@@ -110,8 +109,10 @@ ustring OSLRenderServices::u_path_transparent_depth("path:transparent_depth");
 ustring OSLRenderServices::u_path_transmission_depth("path:transmission_depth");
 ustring OSLRenderServices::u_path_portal_depth("path:portal_depth");
 ustring OSLRenderServices::u_trace("trace");
+ustring OSLRenderServices::u_traceset_only_local("__only_local__");
 ustring OSLRenderServices::u_hit("hit");
 ustring OSLRenderServices::u_hitdist("hitdist");
+ustring OSLRenderServices::u_hitself("hitself");
 ustring OSLRenderServices::u_N("N");
 ustring OSLRenderServices::u_Ng("Ng");
 ustring OSLRenderServices::u_P("P");
@@ -1042,13 +1043,10 @@ OSL::TextureSystem::TextureHandle *OSLRenderServices::get_texture_handle(
                                                                      it->second.svm_slots[0].y);
       case OSLTextureHandle::AO:
         return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(
-            OSL_TEXTURE_HANDLE_TYPE_AO_BEVEL_OR_RAYCAST | 1);
+            OSL_TEXTURE_HANDLE_TYPE_AO_OR_BEVEL | 1);
       case OSLTextureHandle::BEVEL:
         return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(
-            OSL_TEXTURE_HANDLE_TYPE_AO_BEVEL_OR_RAYCAST | 2);
-      case OSLTextureHandle::RAYCAST:
-        return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(
-            OSL_TEXTURE_HANDLE_TYPE_AO_BEVEL_OR_RAYCAST | 3);
+            OSL_TEXTURE_HANDLE_TYPE_AO_OR_BEVEL | 2);
     }
   }
 
@@ -1140,23 +1138,6 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
           flags |= NODE_AO_GLOBAL_RADIUS;
         }
         result[0] = svm_ao(kernel_globals, state, sd, N, radius, num_samples, flags);
-        status = true;
-      }
-#endif
-      break;
-    }
-    case OSLTextureHandle::RAYCAST: {
-#ifdef __SHADER_RAYTRACE__
-      /* Raycast shader hack. */
-      if (state != nullptr) {
-        const float3 position = make_float3(s, t, dsdx);
-        const float3 direction = make_float3(dtdx, dsdy, dtdy);
-        const float max_distance = options.sblur;
-        const bool local_only = (int)options.tblur;
-        RaycastResult raycast_result = svm_raycast(
-            kernel_globals, state, sd, position, direction, max_distance, local_only);
-        result[0] = raycast_result.distance;
-        // TODO: How do we pack Hit Normal and Self Hit?
         status = true;
       }
 #endif
@@ -1371,8 +1352,7 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
     }
     case OSLTextureHandle::IES:
     case OSLTextureHandle::AO:
-    case OSLTextureHandle::BEVEL:
-    case OSLTextureHandle::RAYCAST: {
+    case OSLTextureHandle::BEVEL: {
       status = false;
       break;
     }
@@ -1595,9 +1575,19 @@ bool OSLRenderServices::trace(TraceOpt &options,
     return false;
   }
 
-  /* Ray-trace, leaving out shadow opaque to avoid early exit. */
-  const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
-  tracedata->hit = scene_intersect(kg, &ray, visibility, &tracedata->isect);
+  if (options.traceset == u_traceset_only_local) {
+    LocalIntersection local_isect;
+    scene_intersect_local(kg, &ray, &local_isect, sd->object, nullptr, 1);
+    if (local_isect.num_hits > 0) {
+      tracedata->isect = local_isect.hits[0];
+      tracedata->hit = true;
+    }
+  }
+  else {
+    /* Ray-trace, leaving out shadow opaque to avoid early exit. */
+    const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
+    tracedata->hit = scene_intersect(kg, &ray, visibility, &tracedata->isect);
+  }
   return tracedata->hit;
 }
 
@@ -1629,6 +1619,9 @@ bool OSLRenderServices::getmessage(OSL::ShaderGlobals *sg,
         tracedata->setup = true;
       }
 
+      if (name == u_hitself) {
+        return set_attribute(float(sd->object == tracedata->isect.object), type, derivatives, val);
+      }
       if (name == u_N) {
         return set_attribute(sd->N, type, derivatives, val);
       }

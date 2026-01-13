@@ -45,7 +45,7 @@ struct ThreadKernelGlobalsCPU;
  * stored as follows: x:tile_a, y:svm_slot_a, z:tile_b, w:svm_slot_b etc. */
 
 struct OSLTextureHandle {
-  enum Type { OIIO, SVM, IES, BEVEL, AO, RAYCAST };
+  enum Type { OIIO, SVM, IES, BEVEL, AO };
 
   OSLTextureHandle(Type type, const vector<int4> &svm_slots) : type(type), svm_slots(svm_slots) {}
 
@@ -311,8 +311,10 @@ class OSLRenderServices : public OSL::RendererServices {
   static ustring u_path_transmission_depth;
   static ustring u_path_portal_depth;
   static ustring u_trace;
+  static ustring u_traceset_only_local;
   static ustring u_hit;
   static ustring u_hitdist;
+  static ustring u_hitself;
   static ustring u_N;
   static ustring u_Ng;
   static ustring u_P;

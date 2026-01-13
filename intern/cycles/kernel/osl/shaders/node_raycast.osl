@@ -7,30 +7,20 @@
 shader node_raycast(point Position = P,
                     normal Direction = N,
                     float Length = 1.0,
-                    int OnlyLocal = 0,
+                    int only_local = 0,
                     output float IsHit = 0.0,
                     output float SelfHit = 0.0,
                     output float HitDistance = Length,
                     output point HitPosition = point(0.0, 0.0, 0.0),
-                    output normal HitNormal = normal(0.0, 0.0, 0.0)
-                    )
+                    output normal HitNormal = normal(0.0, 0.0, 0.0))
 {
-  /* Abuse texture call with special @raycast token. */
-  float result = texture("@raycast",
-                         Position[0],
-                         Position[1],
-                         Position[2],
-                         Direction[0],
-                         Direction[1],
-                         Direction[2],
-                         "sblur",
-                         Length,
-                         "tblur",
-                         OnlyLocal);
-
-  if (result >= 0.0) {
+  if (trace(
+          Position, Direction, "maxdist", Length, "traceset", only_local ? "__only_local__" : ""))
+  {
     IsHit = 1.0;
-    HitDistance = result;
-    HitPosition = Position + Direction * HitDistance;
+    getmessage("trace", "hitself", SelfHit);
+    getmessage("trace", "hitdist", HitDistance);
+    getmessage("trace", "P", HitPosition);
+    getmessage("trace", "N", HitNormal);
   }
 }
