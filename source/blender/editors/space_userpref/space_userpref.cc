@@ -232,8 +232,8 @@ static void userpref_search_all_tabs(const bContext *C,
   /* Set the region visible field. Otherwise some layout code thinks we're drawing in a popup.
    * This likely isn't necessary, but it's nice to emulate a "real" region where possible. */
   region_copy->runtime->visible = true;
-  CTX_wm_area_set((bContext *)C, &area_copy);
-  CTX_wm_region_set((bContext *)C, region_copy);
+  CTX_wm_area_set(const_cast<bContext *>(C), &area_copy);
+  CTX_wm_region_set(const_cast<bContext *>(C), region_copy);
   SpaceUserPref sprefs_copy = blender::dna::shallow_copy(*sprefs);
   sprefs_copy.runtime = static_cast<SpaceUserPref_Runtime *>(MEM_dupallocN(sprefs->runtime));
   sprefs_copy.runtime->tab_search_results = nullptr;
@@ -259,9 +259,9 @@ static void userpref_search_all_tabs(const bContext *C,
   }
   BKE_area_region_free(area_copy.type, region_copy);
   MEM_freeN(region_copy);
-  userpref_free((SpaceLink *)&sprefs_copy);
-  CTX_wm_area_set((bContext *)C, area_original);
-  CTX_wm_region_set((bContext *)C, region_original);
+  userpref_free(reinterpret_cast<SpaceLink *>(&sprefs_copy));
+  CTX_wm_area_set(const_cast<bContext *>(C), area_original);
+  CTX_wm_region_set(const_cast<bContext *>(C), region_original);
 }
 
 /**
