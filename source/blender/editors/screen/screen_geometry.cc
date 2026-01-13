@@ -412,15 +412,8 @@ bool screen_geom_edge_can_extend(const wmWindow *win, ScrEdge *edge)
 {
   bScreen *screen = WM_window_get_active_screen(win);
   bool can_extend = false;
-
-  eScreenAxis dir_axis;
-  if (edge->v1->vec.x == edge->v2->vec.x) {
-    dir_axis = SCREEN_AXIS_V;
-  }
-  else {
-    dir_axis = SCREEN_AXIS_H;
-  }
-
+  const eScreenAxis dir_axis = (edge->v1->vec.x == edge->v2->vec.x) ? SCREEN_AXIS_V :
+                                                                      SCREEN_AXIS_H;
   screen_geom_select_connected_edge(win, edge);
 
   for (ScrEdge &se : screen->edgebase) {
@@ -498,16 +491,8 @@ bool screen_geom_edge_can_extend(const wmWindow *win, ScrEdge *edge)
 void screen_geom_select_extended_edge(const wmWindow *win, ScrEdge *edge)
 {
   bScreen *screen = WM_window_get_active_screen(win);
-
-  /* 'dir_axis' is the direction of EDGE */
-  eScreenAxis dir_axis;
-  if (edge->v1->vec.x == edge->v2->vec.x) {
-    dir_axis = SCREEN_AXIS_V;
-  }
-  else {
-    dir_axis = SCREEN_AXIS_H;
-  }
-
+  const eScreenAxis dir_axis = (edge->v1->vec.x == edge->v2->vec.x) ? SCREEN_AXIS_V :
+                                                                      SCREEN_AXIS_H;
   ED_screen_verts_iter(win, screen, sv)
   {
     sv->flag = 0;
@@ -531,14 +516,8 @@ void screen_geom_edge_aligned_merge(const wmWindow *win, ScrEdge *edge)
 {
   bScreen *screen = WM_window_get_active_screen(win);
   screen_geom_select_extended_edge(win, edge);
-  eScreenAxis dir_axis;
-  if (edge->v1->vec.x == edge->v2->vec.x) {
-    dir_axis = SCREEN_AXIS_V;
-  }
-  else {
-    dir_axis = SCREEN_AXIS_H;
-  }
-
+  const eScreenAxis dir_axis = (edge->v1->vec.x == edge->v2->vec.x) ? SCREEN_AXIS_V :
+                                                                      SCREEN_AXIS_H;
   /* Align the vertices if close. */
   for (ScrVert &verg : screen->vertbase) {
     if (dir_axis == SCREEN_AXIS_V && abs(verg.vec.x - edge->v2->vec.x) < EDGE_ALIGN_TOLERANCE) {
