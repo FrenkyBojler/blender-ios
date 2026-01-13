@@ -71,6 +71,7 @@ class USERPREF_PT_navigation_bar(Panel):
         prefs = context.preferences
 
         layout.prop(view, "search_filter", icon='VIEWZOOM', text="")
+        layout.separator(factor=0.1)
 
         col = layout.column()
 
