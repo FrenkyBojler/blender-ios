@@ -963,7 +963,7 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
     if (!jump_stack.is_empty() && jump_stack.last() == dir) {
       jump_stack.pop_last();
       /* Find matching endif. */
-      DirectiveID endif = next(dir);
+      DirectiveID endif = find_next_matching_conditional(dir);
       while (get_type(endif) != Endif) {
         endif = find_next_matching_conditional(endif);
       }
@@ -1010,13 +1010,13 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
       erase_lines(dir_line_start, dir_line_end);
     }
     else {
-      LineID last_before_next_dir = prev(get_start(next_directive));
+      LineID last_before_next_cond = prev(get_start(next_condition));
       /* Erase everything until next condition (this directive included). */
-      erase_lines(dir_line_start, last_before_next_dir);
+      erase_lines(dir_line_start, last_before_next_cond);
       /* Jump to next condition. */
       next_directive = next_condition;
       /* Don't expand inside this section. */
-      last_directive_end = last_before_next_dir;
+      last_directive_end = last_before_next_cond;
     }
   }
 

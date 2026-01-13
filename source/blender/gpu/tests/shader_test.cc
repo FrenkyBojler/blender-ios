@@ -837,6 +837,38 @@ float s = clamp(pow5f(1.0f - clamp(HV, 0.0f, 1.0f)), 0.0f, 1.0f);
     std::string result = blender::gpu::Shader::run_preprocessor(input);
     EXPECT_EQ(expect, result);
   }
+  {
+    std::string input = R"(
+#define POINTS
+H
+#if defined(POINTS)
+I
+#else
+J
+#  if !defined(SELECT_ENABLE)
+K
+#  endif
+P
+#endif
+Q
+)";
+    std::string expect = R"(
+
+H
+
+I
+
+
+
+
+
+
+
+Q
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
 }
 GPU_TEST(shader_preprocessor)
 
