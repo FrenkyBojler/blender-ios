@@ -443,6 +443,14 @@ void remote_library_request_preview_download(bContext &C,
 
 /** \} */
 
+StringRefNull OnlineAssetInfo::asset_file() const
+{
+  if (this->files.is_empty()) {
+    return {};
+  }
+  return this->files[0].local_path;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Preview Images
  * \{ */

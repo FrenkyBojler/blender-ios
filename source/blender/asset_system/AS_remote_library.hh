@@ -13,6 +13,7 @@
 #include <optional>
 
 #include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 
 namespace blender {
 struct bContext;
@@ -38,11 +39,31 @@ struct URLWithHash {
  * verify related fragments. #AssetRepresentation stores this for online assets.
  */
 struct OnlineAssetInfo {
-  /** The path this file should be downloaded to. Relative to the library root. */
-  std::string download_dst_filepath;
-  /** The URL the asset should be downloaded from. */
-  URLWithHash asset_url;
+  struct File {
+    /** The path this file should be downloaded to. Relative to the library root. */
+    std::string local_path;
+    /** The URL the asset should be downloaded from. */
+    URLWithHash url;
+  };
+  /**
+   * The files for this asset.
+   * The first one contains the asset data-blocks, and subsequent files are dependencies.
+   */
+  Vector<File> files;
   std::optional<URLWithHash> preview_url;
+
+  /**
+   * Return the main asset file, i.e. the file containing the asset data-block.
+   *
+   * This can only return an empty string in error cases, i.e. when the `files`
+   * vector (see above) is empty. This should never happen; file-less assets
+   * should be rejected when loading the listing.
+   *
+   * NOTE: This function should only be used when it is semantically the correct
+   * function. It should never be used as a generic short-hand avoid having to
+   * loop over multiple files.
+   */
+  StringRefNull asset_file() const;
 };
 
 class AssetRepresentation;
