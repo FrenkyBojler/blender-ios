@@ -141,6 +141,8 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
                                  const GHOST_XrDrawViewInfo &draw_info);
   void submitToSwapchainImageGpu(XrSwapchainImageVulkan2KHR &swapchain_image,
                                  const GHOST_XrDrawViewInfo &draw_info);
+  void submitToSwapchainImageRenderGraph(XrSwapchainImageVulkan2KHR &swapchain_image,
+                                         const GHOST_XrDrawViewInfo &draw_info);
 
   /**
    * Single VkCommandBuffer that is used for all views/swap-chains.

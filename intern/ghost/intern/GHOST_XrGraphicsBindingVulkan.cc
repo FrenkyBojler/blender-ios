@@ -325,6 +325,49 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
   oxr_binding.vk.queueIndex = 0;
 }
 
+bool GHOST_XrGraphicsBindingVulkan::tryReuseVulkanInstance(GHOST_ContextVK &ghost_ctx,
+                                                           XrInstance instance,
+                                                           XrSystemId system_id)
+{
+  if (!extensions_.vulkan_enable) {
+    CLOG_INFO(&LOG, "Unable to reuse vulkan instance: XR_KHR_vulkan_enable isn't supported");
+    return false;
+  }
+
+  GHOST_VulkanHandles context_handles;
+  if (ghost_ctx.getVulkanHandles(context_handles) == GHOST_kFailure) {
+    return false;
+  }
+
+  /* Check if required instance extensions are enabled in GHOST_ContextVK. */
+  if (!are_required_instance_extensions_enabled(instance, system_id)) {
+    return false;
+  }
+
+  /* Check if required device extensions are enabled in GHOST_ContextVK. */
+  if (!are_required_device_extensions_enabled(instance, system_id)) {
+    return false;
+  }
+
+  /* Check if the physical device requested by OpenXR matches the one used by GHOST_ContextVK. */
+  if (!is_same_physical_device_selected(instance, system_id, context_handles)) {
+    return false;
+  }
+
+  CLOG_INFO(&LOG, "Reusing vulkan instance.");
+  data_transfer_mode_ = GHOST_kVulkanXRModeRenderGraph;
+
+  /* Initialize binding struct */
+  oxr_binding.vk.type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
+  oxr_binding.vk.next = nullptr;
+  oxr_binding.vk.instance = context_handles.instance;
+  oxr_binding.vk.physicalDevice = context_handles.physical_device;
+  oxr_binding.vk.device = context_handles.device;
+  oxr_binding.vk.queueFamilyIndex = context_handles.graphic_queue_family;
+  oxr_binding.vk.queueIndex = 0;
+  return true;
+}
+
 static blender::Vector<std::string> split_extension_names(blender::StringRef extension_names)
 {
   blender::Vector<std::string> result;
@@ -395,6 +438,7 @@ bool GHOST_XrGraphicsBindingVulkan::are_required_device_extensions_enabled(
 
   return true;
 }
+
 bool GHOST_XrGraphicsBindingVulkan::is_same_physical_device_selected(
     XrInstance instance, XrSystemId system_id, const GHOST_VulkanHandles &context_handles) const
 {
@@ -414,49 +458,6 @@ bool GHOST_XrGraphicsBindingVulkan::is_same_physical_device_selected(
               context_physical_device_properties.deviceName);
     return false;
   }
-  return true;
-}
-
-bool GHOST_XrGraphicsBindingVulkan::tryReuseVulkanInstance(GHOST_ContextVK &ghost_ctx,
-                                                           XrInstance instance,
-                                                           XrSystemId system_id)
-{
-  if (!extensions_.vulkan_enable) {
-    CLOG_INFO(&LOG, "Unable to reuse vulkan instance: XR_KHR_vulkan_enable isn't supported");
-    return false;
-  }
-
-  GHOST_VulkanHandles context_handles;
-  if (ghost_ctx.getVulkanHandles(context_handles) == GHOST_kFailure) {
-    return false;
-  }
-
-  /* Check if required instance extensions are enabled in GHOST_ContextVK. */
-  if (!are_required_instance_extensions_enabled(instance, system_id)) {
-    return false;
-  }
-
-  /* Check if the physical device requested by OpenXR matches the one used by GHOST_ContextVK. */
-  if (!is_same_physical_device_selected(instance, system_id, context_handles)) {
-    return false;
-  }
-
-  /* Check if required device extensions are enabled in GHOST_ContextVK. */
-  if (!are_required_device_extensions_enabled(instance, system_id)) {
-    return false;
-  }
-
-  CLOG_INFO(&LOG, "Reusing vulkan instance.");
-  data_transfer_mode_ = GHOST_kVulkanXRModeRenderGraph;
-
-  /* Initialize binding struct */
-  oxr_binding.vk.type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
-  oxr_binding.vk.next = nullptr;
-  oxr_binding.vk.instance = context_handles.instance;
-  oxr_binding.vk.physicalDevice = context_handles.physical_device;
-  oxr_binding.vk.device = context_handles.device;
-  oxr_binding.vk.queueFamilyIndex = context_handles.graphic_queue_family;
-  oxr_binding.vk.queueIndex = 0;
   return true;
 }
 
@@ -622,6 +623,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
       break;
 
     case GHOST_kVulkanXRModeRenderGraph:
+      submitToSwapchainImageRenderGraph(vulkan_image, draw_info);
       break;
   }
 }
@@ -741,6 +743,25 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
 
   /* Release frame buffer image. */
   ghost_ctx_.openxr_release_framebuffer_image_callback_(&openxr_data);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Data transfer render graph
+ * \{ */
+
+void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageRenderGraph(
+    XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
+{
+  GHOST_VulkanSwapChainData swap_chain_data = {};
+  swap_chain_data.image = swapchain_image.image;
+  swap_chain_data.extent = {uint32_t(draw_info.width), uint32_t(draw_info.height)};
+  // TODO: this should be dynamic.
+  swap_chain_data.surface_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+  swap_chain_data.surface_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+
+  ghost_ctx_.swap_buffer_draw_callback_(&swap_chain_data);
 }
 
 /** \} */
