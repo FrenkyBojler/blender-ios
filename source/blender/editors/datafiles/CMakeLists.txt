@@ -331,8 +331,6 @@ if(WITH_BLENDER)
       edgesel
       edge_bevel
       edge_crease
-      edge_join_h
-      edge_join_v
       edge_seam
       edge_sharp
       editmode_hlt
