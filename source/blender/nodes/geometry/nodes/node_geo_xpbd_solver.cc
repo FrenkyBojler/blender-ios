@@ -66,6 +66,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<XPBDGeometryBundle> geometry_bundles;
 
+  float3 gravity{};
   nested_bundle_foreach(world, [&](HandleNestedBundleParams &p) {
     if (p.type == XPBDGeometryBundle::name) {
       BundleParseErrors errors;
@@ -74,6 +75,12 @@ static void node_geo_exec(GeoNodeExecParams params)
       {
         geometry_bundle->self_path = Bundle::combine_path(p.path);
         geometry_bundles.append(std::move(*geometry_bundle));
+      }
+    }
+    if (p.type == GravityBundle::name) {
+      BundleParseErrors errors;
+      if (std::optional<GravityBundle> gravity_bundle = GravityBundle::parse(p.bundle, errors)) {
+        gravity += gravity_bundle->gravity;
       }
     }
   });
@@ -91,8 +98,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                                                                          AttrDomain::Point);
 
     for (const int i : IndexRange(mesh.verts_num)) {
+      velocities.span[i] += gravity * delta_time;
       positions.span[i] += velocities.span[i] * delta_time;
-      velocities.span[i].z -= 9.81f * delta_time;
     }
     mesh.tag_positions_changed();
     velocities.finish();
