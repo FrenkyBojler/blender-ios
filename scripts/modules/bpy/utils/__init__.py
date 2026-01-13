@@ -878,7 +878,7 @@ def user_resource(resource_type, *, path="", create=False):
     """
     Return a user resource path (normally from the users home directory).
 
-    :arg resource_type: Resource type in ['DATAFILES', 'CONFIG', 'SCRIPTS', 'EXTENSIONS'].
+    :arg resource_type: Resource type in ['DATAFILES', 'CONFIG', 'SCRIPTS', 'EXTENSIONS', 'CACHES'].
     :type resource_type: str
     :arg path: Optional subdirectory.
     :type path: str
