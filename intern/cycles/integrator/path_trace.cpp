@@ -344,13 +344,13 @@ static BufferParams scale_buffer_params(const BufferParams &params, const float 
 
 void PathTrace::update_effective_work_buffer_params(const RenderWork &render_work)
 {
-  const float resolution_divider = render_work.resolution_divider;
   const float denoised_resolution_divider = render_work.denoised_resolution_divider;
+  const float resolution_divider = render_work.resolution_divider / denoised_resolution_divider;
 
-  const BufferParams scaled_big_tile_params = scale_buffer_params(big_tile_params_,
-                                                                  resolution_divider);
   const BufferParams denoised_big_tile_params = scale_buffer_params(big_tile_params_,
                                                                     denoised_resolution_divider);
+  const BufferParams scaled_big_tile_params = scale_buffer_params(denoised_big_tile_params,
+                                                                  resolution_divider);
 
   const int overscan = tile_manager_.get_tile_overscan();
 
@@ -363,8 +363,7 @@ void PathTrace::update_effective_work_buffer_params(const RenderWork &render_wor
         /* Scale down the sliced buffer parameters again that were scaled by denoising upscale
          * factor above. This should match the values that would occur when slicing
          * 'scaled_big_tile_params' directly. */
-        const BufferParams scaled_params = scale_buffer_params(
-            params, float(denoised_big_tile_params.width) / float(scaled_big_tile_params.width));
+        const BufferParams scaled_params = scale_buffer_params(params, resolution_divider);
         path_trace_work->set_effective_buffer_params(
             scaled_big_tile_params, scaled_params, denoised_big_tile_params, params);
       });
