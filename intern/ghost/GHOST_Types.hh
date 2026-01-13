@@ -894,6 +894,12 @@ enum GHOST_TVulkanXRModes {
    * GHOST_XrGraphicsBindingVulkan will import the memory and copy the image to the swapchain.
    */
   GHOST_kVulkanXRModeWin32,
+
+  /**
+   * OpenXR and GHOST_ContextVK uses the same vulkan instance. The OpenXR swapchain will be updated
+   * directly in the render graph.
+   */
+  GHOST_kVulkanXRModeRenderGraph,
 };
 
 struct GHOST_VulkanOpenXRData {

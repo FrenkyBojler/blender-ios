@@ -15,6 +15,9 @@
 #include "GHOST_XrGraphicsBindingVulkan.hh"
 #include "GHOST_Xr_intern.hh"
 
+#include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
+
 #include "CLG_log.h"
 
 static CLG_LogRef LOG = {"ghost.xr"};
@@ -192,10 +195,13 @@ bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghos
   return true;
 }
 
-void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context & /*ghost_ctx*/,
+void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ctx,
                                                          XrInstance instance,
                                                          XrSystemId system_id)
 {
+  if (tryReuseVulkanInstance(static_cast<GHOST_ContextVK &>(ghost_ctx), instance, system_id)) {
+    return;
+  }
   /* Create a new VkInstance that is compatible with OpenXR */
   VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO,
                                            nullptr,
@@ -317,6 +323,141 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context & /*ghost
   oxr_binding.vk.device = vk_device_;
   oxr_binding.vk.queueFamilyIndex = graphics_queue_family_;
   oxr_binding.vk.queueIndex = 0;
+}
+
+static blender::Vector<std::string> split_extension_names(blender::StringRef extension_names)
+{
+  blender::Vector<std::string> result;
+  std::stringstream ss(extension_names);
+  std::string extension_name;
+
+  while (std::getline(ss, extension_name, ' ')) {
+    if (!extension_name.empty()) {
+      result.append(extension_name);
+    }
+  }
+
+  return result;
+}
+
+bool GHOST_XrGraphicsBindingVulkan::are_required_instance_extensions_enabled(
+    XrInstance instance, XrSystemId system_id) const
+{
+  uint32_t buffer_count = 0;
+  functions_.xrGetVulkanInstanceExtensionsKHR(instance, system_id, 0, &buffer_count, nullptr);
+  std::string buffer(buffer_count, '\0');
+  functions_.xrGetVulkanInstanceExtensionsKHR(
+      instance, system_id, uint32_t(buffer.size()), &buffer_count, buffer.data());
+  blender::Vector<std::string> instance_extension_names = split_extension_names(buffer);
+  bool all_extensions_enabled = true;
+  std::stringstream log_ss;
+  log_ss << "Required vulkan instance extensions:";
+  for (const std::string &extension_name : instance_extension_names) {
+    bool is_extension_enabled = GHOST_ContextVK::is_instance_extension_enabled(
+        extension_name.c_str());
+    log_ss << "\n - [" << (is_extension_enabled ? 'X' : ' ') << "] " << extension_name;
+    all_extensions_enabled &= is_extension_enabled;
+  }
+  CLOG_DEBUG(&LOG, "%s", log_ss.str().c_str());
+  if (!all_extensions_enabled) {
+    CLOG_INFO(&LOG,
+              "Unable to reuse vulkan instance: not all required instance extensions are enabled");
+    return false;
+  }
+
+  return true;
+}
+
+bool GHOST_XrGraphicsBindingVulkan::are_required_device_extensions_enabled(
+    XrInstance instance, XrSystemId system_id) const
+{
+  uint32_t buffer_count = 0;
+  functions_.xrGetVulkanDeviceExtensionsKHR(instance, system_id, 0, &buffer_count, nullptr);
+  std::string buffer(buffer_count, '\0');
+  functions_.xrGetVulkanDeviceExtensionsKHR(
+      instance, system_id, uint32_t(buffer.size()), &buffer_count, buffer.data());
+  blender::Vector<std::string> instance_extension_names = split_extension_names(buffer);
+  bool all_extensions_enabled = true;
+  std::stringstream log_ss;
+  log_ss << "Required vulkan device extensions:";
+  for (const std::string &extension_name : instance_extension_names) {
+    bool is_extension_enabled = GHOST_ContextVK::is_device_extension_enabled(
+        extension_name.c_str());
+    log_ss << "\n - [" << (is_extension_enabled ? 'X' : ' ') << "] " << extension_name;
+    all_extensions_enabled &= is_extension_enabled;
+  }
+  CLOG_DEBUG(&LOG, "%s", log_ss.str().c_str());
+  if (!all_extensions_enabled) {
+    CLOG_INFO(&LOG,
+              "Unable to reuse vulkan instance: not all required device extensions are enabled");
+    return false;
+  }
+
+  return true;
+}
+bool GHOST_XrGraphicsBindingVulkan::is_same_physical_device_selected(
+    XrInstance instance, XrSystemId system_id, const GHOST_VulkanHandles &context_handles) const
+{
+  VkPhysicalDevice openxr_physical_device = VK_NULL_HANDLE;
+  functions_.xrGetVulkanGraphicsDeviceKHR(
+      instance, system_id, context_handles.instance, &openxr_physical_device);
+  if (context_handles.physical_device != openxr_physical_device) {
+    VkPhysicalDeviceProperties openxr_physical_device_properties = {};
+    vkGetPhysicalDeviceProperties(openxr_physical_device, &openxr_physical_device_properties);
+    VkPhysicalDeviceProperties context_physical_device_properties = {};
+    vkGetPhysicalDeviceProperties(context_handles.physical_device,
+                                  &context_physical_device_properties);
+    CLOG_INFO(&LOG,
+              "Unable to reuse vulkan instance: OpenXR requires to use a different GPU [%s] than "
+              "currently in used [%s].",
+              openxr_physical_device_properties.deviceName,
+              context_physical_device_properties.deviceName);
+    return false;
+  }
+  return true;
+}
+
+bool GHOST_XrGraphicsBindingVulkan::tryReuseVulkanInstance(GHOST_ContextVK &ghost_ctx,
+                                                           XrInstance instance,
+                                                           XrSystemId system_id)
+{
+  if (!extensions_.vulkan_enable) {
+    CLOG_INFO(&LOG, "Unable to reuse vulkan instance: XR_KHR_vulkan_enable isn't supported");
+    return false;
+  }
+
+  GHOST_VulkanHandles context_handles;
+  if (ghost_ctx.getVulkanHandles(context_handles) == GHOST_kFailure) {
+    return false;
+  }
+
+  /* Check if required instance extensions are enabled in GHOST_ContextVK. */
+  if (!are_required_instance_extensions_enabled(instance, system_id)) {
+    return false;
+  }
+
+  /* Check if the physical device requested by OpenXR matches the one used by GHOST_ContextVK. */
+  if (!is_same_physical_device_selected(instance, system_id, context_handles)) {
+    return false;
+  }
+
+  /* Check if required device extensions are enabled in GHOST_ContextVK. */
+  if (!are_required_device_extensions_enabled(instance, system_id)) {
+    return false;
+  }
+
+  CLOG_INFO(&LOG, "Reusing vulkan instance.");
+  data_transfer_mode_ = GHOST_kVulkanXRModeRenderGraph;
+
+  /* Initialize binding struct */
+  oxr_binding.vk.type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
+  oxr_binding.vk.next = nullptr;
+  oxr_binding.vk.instance = context_handles.instance;
+  oxr_binding.vk.physicalDevice = context_handles.physical_device;
+  oxr_binding.vk.device = context_handles.device;
+  oxr_binding.vk.queueFamilyIndex = context_handles.graphic_queue_family;
+  oxr_binding.vk.queueIndex = 0;
+  return true;
 }
 
 GHOST_TVulkanXRModes GHOST_XrGraphicsBindingVulkan::choseDataTransferMode()
@@ -478,6 +619,9 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
 
     case GHOST_kVulkanXRModeCPU:
       submitToSwapchainImageCpu(vulkan_image, draw_info);
+      break;
+
+    case GHOST_kVulkanXRModeRenderGraph:
       break;
   }
 }
@@ -648,6 +792,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
             VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
         break;
       case GHOST_kVulkanXRModeCPU:
+      case GHOST_kVulkanXRModeRenderGraph:
         break;
     }
 
@@ -711,6 +856,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
       }
 
       case GHOST_kVulkanXRModeCPU:
+      case GHOST_kVulkanXRModeRenderGraph:
         break;
     }
 
