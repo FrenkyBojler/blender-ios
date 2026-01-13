@@ -36,9 +36,11 @@
 
 #include "vk_backend.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 static const char *vk_extension_get(int index)
 {
@@ -468,7 +470,9 @@ void VKBackend::detect_workarounds(VKDevice &device)
       VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
   extensions.vertex_input_dynamic_state = device.supports_extension(
       VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
+#if 0
   extensions.host_image_copy = device.supports_extension(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);
+#endif
 #ifdef _WIN32
   extensions.external_memory = device.supports_extension(
       VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
@@ -587,7 +591,7 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
 {
   if (ghost_window) {
     BLI_assert(ghost_context == nullptr);
-    ghost_context = GHOST_GetDrawingContext((GHOST_WindowHandle)ghost_window);
+    ghost_context = GHOST_GetDrawingContext(static_cast<GHOST_WindowHandle>(ghost_window));
   }
 
   BLI_assert(ghost_context != nullptr);
@@ -595,12 +599,12 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
     device.init(ghost_context);
     device.extensions_get().log();
     device.workarounds_get().log();
-    init_device_list((GHOST_ContextHandle)ghost_context);
+    init_device_list(static_cast<GHOST_ContextHandle>(ghost_context));
   }
 
   VKContext *context = new VKContext(ghost_window, ghost_context);
   device.context_register(*context);
-  GHOST_SetVulkanSwapBuffersCallbacks((GHOST_ContextHandle)ghost_context,
+  GHOST_SetVulkanSwapBuffersCallbacks(static_cast<GHOST_ContextHandle>(ghost_context),
                                       VKContext::swap_buffer_draw_callback,
                                       VKContext::swap_buffer_acquired_callback,
                                       VKContext::openxr_acquire_framebuffer_image_callback,
@@ -755,4 +759,5 @@ void VKBackend::capabilities_init(VKDevice &device)
   detect_workarounds(device);
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

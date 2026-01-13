@@ -12,11 +12,12 @@
 #include "mtl_backend.hh"
 #include "mtl_shader_generate.hh"
 
-using namespace blender;
+namespace blender {
+
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
 
-namespace blender::gpu {
+namespace gpu {
 
 struct Separator {};
 
@@ -729,7 +730,7 @@ static void generate_resource(GeneratedStreams &generated,
     case ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
       generate_buffer(generated,
                       false,
-                      info.buffer_typename(res.uniformbuf.type_name),
+                      info.buffer_typename(res.uniformbuf.type_name, true),
                       res.uniformbuf.name,
                       MTL_UBO_SLOT_OFFSET + res.slot,
                       stage);
@@ -751,7 +752,7 @@ static void generate_compilation_constant(GeneratedStreams &generated,
   /* Global scope definition before the wrapper class. */
   auto &out = generated.wrapper_class_prefix;
   out << "constant " << constant.type << " " << constant.name;
-  out << " = " << to_string(constant.type, constant.value) << ";\n";
+  out << " [[maybe_unused]] = " << to_string(constant.type, constant.value) << ";\n";
 }
 
 static void generate_specialization_constant(GeneratedStreams &generated,
@@ -1516,4 +1517,5 @@ void patch_create_info_atomic_workaround(std::unique_ptr<PatchedShaderCreateInfo
   }
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

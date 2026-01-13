@@ -13,6 +13,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
+#include "BLI_string.h"
 
 #include "NOD_menu_value.hh"
 #include "NOD_multi_function.hh"
@@ -282,10 +283,10 @@ class ShaderNodesInliner {
     this->find_trees_potentially_containing_shader_outputs_recursive(nullptr, src_tree_, trees);
 
     auto get_engine_target = [](const bNode *output_node) {
-      if (ELEM(output_node->idname,
-               "ShaderNodeOutputMaterial",
-               "ShaderNodeOutputLight",
-               "ShaderNodeOutputWorld"))
+      if (STR_ELEM(output_node->idname,
+                   "ShaderNodeOutputMaterial",
+                   "ShaderNodeOutputLight",
+                   "ShaderNodeOutputWorld"))
       {
         return NodeShaderOutputTarget(output_node->custom1);
       }
@@ -1438,19 +1439,19 @@ bool inline_shader_node_tree(const bNodeTree &src_tree,
 
   if (inliner.do_inline()) {
     /* Update deprecated bNodeSocket.link pointers because some code still depends on it. */
-    LISTBASE_FOREACH (bNode *, node, &dst_tree.nodes) {
-      LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-        sock->link = nullptr;
+    for (bNode &node : dst_tree.nodes) {
+      for (bNodeSocket &sock : node.inputs) {
+        sock.link = nullptr;
       }
-      LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-        sock->link = nullptr;
+      for (bNodeSocket &sock : node.outputs) {
+        sock.link = nullptr;
       }
     }
-    LISTBASE_FOREACH (bNodeLink *, link, &dst_tree.links) {
-      link->tosock->link = link;
-      BLI_assert(dst_tree.typeinfo->validate_link(link->fromsock->typeinfo->type,
-                                                  link->tosock->typeinfo->type));
-      link->flag |= NODE_LINK_VALID;
+    for (bNodeLink &link : dst_tree.links) {
+      link.tosock->link = &link;
+      BLI_assert(dst_tree.typeinfo->validate_link(link.fromsock->typeinfo->type,
+                                                  link.tosock->typeinfo->type));
+      link.flag |= NODE_LINK_VALID;
     }
     return true;
   }
