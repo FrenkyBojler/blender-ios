@@ -22,11 +22,14 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
+/* Compute the nearest `offset` that is aligned up to `alignment`. */
 static VkDeviceSize align_offset(VkDeviceSize offset, VkDeviceSize alignment)
 {
   return (offset - 1ul + alignment) & -alignment;
 }
 
+/* Compute the nearest `offset` that is aligned up to `alignment`, but with
+ * respect to `allocation_offset` from which `offset` is based. */
 static VkDeviceSize align_offset(VkDeviceSize offset,
                                  VkDeviceSize allocation_offset,
                                  VkDeviceSize alignment)
@@ -79,7 +82,7 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
   Segment segment_next = {segment.offset + segment.size,
                           it->size - segment.size - segment_prev.size};
 
-  /* Update stored segments dependent on the above. */
+  /* Update current stored segments dependent on the above. */
   if (segment_prev.size > 0 && segment_next.size > 0) {
     *it = segment_next;
     segments.insert(it, segment_prev);
@@ -125,7 +128,7 @@ void VKTexturePool::AllocationHandle::release(Segment segment)
   }
 
   if (extended_prev && extended_next) {
-    /* If both previous/next segment were extended, we can merge them. */
+    /* If both previous/next segments were extended, we can simply merge them. */
     it_prev->size += it_next->size - segment.size;
     segments.erase(it_next);
   }
@@ -143,7 +146,6 @@ bool VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirem
   create_info.priority = 1.0f;
   create_info.memoryTypeBits = memory_requirements.memoryTypeBits;
   create_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
   VkResult result = vmaAllocateMemory(device.mem_allocator_get(),
                                       &memory_requirements,
                                       &create_info,
