@@ -21,9 +21,9 @@ class UserResourceTest(unittest.TestCase):
 
         match sys.platform:
             case 'darwin':
-                expect = '/Library/Caches/Blender/'
+                expect = '$HOME/Library/Caches/Blender/'
             case 'win32':
-                expect = '%USERPROFILE%\\AppData\\Local\\Blender Foundation\\Blender\\'
+                expect = '%USERPROFILE%\\AppData\\Local\\Blender Foundation\\Blender\\Cache\\'
             case _:  # Linux or other POSIX-ish system.
                 expect = '$HOME/.cache/blender/'
         expect = os.path.expandvars(expect)
@@ -35,9 +35,9 @@ class UserResourceTest(unittest.TestCase):
 
         match sys.platform:
             case 'darwin':
-                expect = '/Library/Caches/Blender/subdir/'
+                expect = '$HOME/Library/Caches/Blender/subdir/'
             case 'win32':
-                expect = '%USERPROFILE%\\AppData\\Local\\Blender Foundation\\Blender\\subdir\\'
+                expect = '%USERPROFILE%\\AppData\\Local\\Blender Foundation\\Blender\\Cache\\subdir\\'
             case _:  # Linux or other POSIX-ish system.
                 expect = '$HOME/.cache/blender/subdir/'
         expect = os.path.expandvars(expect)

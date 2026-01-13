@@ -58,8 +58,8 @@ bool BKE_appdir_folder_documents(char *dir) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RES
 /**
  * Get the user's cache directory, i.e.
  * - Linux: `$HOME/.cache/blender/`
- * - Windows: `%USERPROFILE%\AppData\Local\Blender Foundation\Blender\`
- * - MacOS: `/Library/Caches/Blender/`
+ * - Windows: `%USERPROFILE%\AppData\Local\Blender Foundation\Blender\Cache\`
+ * - MacOS: `$HOME/Library/Caches/Blender/`
  *
  * \returns True if the path is valid. It doesn't create or checks format
  * if the `blender` folder exists. It does check if the parent of the path exists.
@@ -69,8 +69,8 @@ bool BKE_appdir_folder_caches(char *path, size_t path_maxncpy) ATTR_NONNULL(1);
 /**
  * Get the user's cache directory, i.e.
  * - Linux: `$HOME/.cache/blender/${subdirectory}/`
- * - Windows: `%USERPROFILE%\AppData\Local\Blender Foundation\Blender\${subdirectory}\`
- * - MacOS: `/Library/Caches/Blender/${subdirectory}/`
+ * - Windows: `%USERPROFILE%\AppData\Local\Blender Foundation\Blender\Cache\${subdirectory}\`
+ * - MacOS: `$HOME/Library/Caches/Blender/${subdirectory}/`
  *
  * \param subdirectory If not the empty string, this is appended as path
  * component, using the platform-specific path separator.
