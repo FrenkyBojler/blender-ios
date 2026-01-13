@@ -273,7 +273,6 @@ static void userpref_main_region_property_search(const bContext *C,
                                                  ARegion *region)
 {
   Vector<int> tabs = ED_userpref_tabs_list(sprefs);
-  // BLI_bitmap_set_all(sprefs->runtime->tab_search_results, false, tabs.size());
   userpref_search_all_tabs(C, sprefs, region, tabs);
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
