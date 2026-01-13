@@ -7,8 +7,9 @@
 shader node_raycast(point Position = P,
                     normal Direction = N,
                     float Length = 1.0,
-                    int only_local = 0,
+                    int OnlyLocal = 0,
                     output float IsHit = 0.0,
+                    output float SelfHit = 0.0,
                     output float HitDistance = Length,
                     output point HitPosition = point(0.0, 0.0, 0.0),
                     output normal HitNormal = normal(0.0, 0.0, 0.0)
@@ -25,7 +26,7 @@ shader node_raycast(point Position = P,
                          "sblur",
                          Length,
                          "tblur",
-                         only_local);
+                         OnlyLocal);
 
   if (result >= 0.0) {
     IsHit = 1.0;

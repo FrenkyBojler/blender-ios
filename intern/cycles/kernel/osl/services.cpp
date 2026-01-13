@@ -1156,7 +1156,7 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
         RaycastResult raycast_result = svm_raycast(
             kernel_globals, state, sd, position, direction, max_distance, local_only);
         result[0] = raycast_result.distance;
-        // TODO: How do we pack the normal?
+        // TODO: How do we pack Hit Normal and Self Hit?
         status = true;
       }
 #endif
