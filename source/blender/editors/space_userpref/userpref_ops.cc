@@ -1122,7 +1122,8 @@ static wmOperatorStatus preferences_clear_filter_exec(bContext *C, wmOperator * 
   SpaceUserPref *space = CTX_wm_space_userpref(C);
   space->runtime->search_string[0] = '\0';
   ScrArea *area = CTX_wm_area(C);
-  ED_region_search_filter_update(area, CTX_wm_region(C));
+  ARegion *main_region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  ED_region_search_filter_update(area, main_region);
   ED_area_tag_redraw(area);
   return OPERATOR_FINISHED;
 }
