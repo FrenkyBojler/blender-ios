@@ -270,7 +270,7 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
         return true;
       },
       ntree);
-  connect_copied_nodes_to_external_sockets(copied_nodes, io_mapping);
+  connect_copied_nodes_to_external_sockets(ngroup, copied_nodes, io_mapping);
 
   /* Center nodes on the bounds of the original group node. */
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(Span{&group_node})) {

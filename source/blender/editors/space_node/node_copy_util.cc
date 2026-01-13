@@ -688,47 +688,56 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
   return io_nodes;
 }
 
-/* Connect one set of sockets to all sockets in the other set.
- * One set must contain inputs and the other outputs, it doesn't matter which is which.
- * In principle can add N * M links.
- * In practice the "from_sockets" list is generally limited to a single socket. */
-static void connect_socket_lists(bNodeTree &tree,
-                                 const Span<MutableNodeAndSocket> sockets1,
-                                 const Span<MutableNodeAndSocket> sockets2)
-{
-  for (const MutableNodeAndSocket &socket1 : sockets1) {
-    for (const MutableNodeAndSocket &socket2 : sockets2) {
-      bke::node_add_link(tree, socket1.node, socket1.socket, socket2.node, socket2.socket);
-    }
-  }
-}
-
-void connect_copied_nodes_to_external_sockets(const NodeSetCopy &copied_nodes,
+void connect_copied_nodes_to_external_sockets(const bNodeTree &src_tree,
+                                              const NodeSetCopy &copied_nodes,
                                               const NodeTreeInterfaceMapping &io_mapping)
 {
   using InterfaceSocketData = NodeTreeInterfaceMapping::InterfaceSocketData;
 
-  bNodeTree &tree = copied_nodes.dst_tree();
+  bNodeTree &dst_tree = copied_nodes.dst_tree();
+
+  /* Deduplicate links in case multiple connects get merged. This can happen because input and
+   * output sockets are connected, potentially adding redundant links. */
+  Set<std::pair<MutableNodeAndSocket, MutableNodeAndSocket>> unique_links;
+  /* Connect one set of sockets to all sockets in the other set.
+   * One set must contain inputs and the other outputs, it doesn't matter which is which.
+   * In principle can add N * M links.
+   * In practice the "from_sockets" list is generally limited to a single socket. */
+  auto connect_socket_lists = [&](const Span<MutableNodeAndSocket> sockets1,
+                                  const Span<MutableNodeAndSocket> sockets2) {
+    for (const MutableNodeAndSocket &socket1 : sockets1) {
+      for (const MutableNodeAndSocket &socket2 : sockets2) {
+        if (socket1.socket.is_input()) {
+          BLI_assert(socket2.socket.is_output());
+          unique_links.add({socket2, socket1});
+        }
+        else {
+          BLI_assert(socket2.socket.is_input());
+          unique_links.add({socket1, socket2});
+        }
+      }
+    }
+  };
 
   for (const auto &item : io_mapping.socket_data.items()) {
     for (const NodeAndSocket &origin : item.value.internal_sockets) {
       if (origin.node.is_group_input()) {
         /* Directly connect external inputs to external outputs. */
         const bNodeTreeInterfaceSocket *io_socket = bke::node_find_interface_input_by_identifier(
-            tree, origin.socket.identifier);
+            src_tree, origin.socket.identifier);
         BLI_assert(io_socket);
         if (const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(io_socket)) {
-          connect_socket_lists(tree, data->external_sockets, item.value.external_sockets);
+          connect_socket_lists(data->external_sockets, item.value.external_sockets);
         }
         continue;
       }
       if (origin.node.is_group_output()) {
         /* Directly connect external inputs to external outputs. */
         const bNodeTreeInterfaceSocket *io_socket = bke::node_find_interface_output_by_identifier(
-            tree, origin.socket.identifier);
+            src_tree, origin.socket.identifier);
         BLI_assert(io_socket);
         if (const InterfaceSocketData *data = io_mapping.socket_data.lookup_ptr(io_socket)) {
-          connect_socket_lists(tree, data->external_sockets, item.value.external_sockets);
+          connect_socket_lists(data->external_sockets, item.value.external_sockets);
         }
         continue;
       }
@@ -736,8 +745,14 @@ void connect_copied_nodes_to_external_sockets(const NodeSetCopy &copied_nodes,
       bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
       bNodeSocket *new_socket = copied_nodes.socket_map().lookup(&origin.socket);
       MutableNodeAndSocket new_target = {*new_node, *new_socket};
-      connect_socket_lists(tree, {new_target}, item.value.external_sockets);
+      connect_socket_lists({new_target}, item.value.external_sockets);
     }
+  }
+
+  /* Actually add deduplicated links to the tree. */
+  for (const std::pair<MutableNodeAndSocket, MutableNodeAndSocket> &item : unique_links) {
+    bke::node_add_link(
+        dst_tree, item.first.node, item.first.socket, item.second.node, item.second.socket);
   }
 }
 

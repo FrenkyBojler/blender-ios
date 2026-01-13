@@ -340,7 +340,8 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(
 /**
  * Connect copied node sockets to external nodes in the interface mapping.
  */
-void connect_copied_nodes_to_external_sockets(const NodeSetCopy &copied_nodes,
+void connect_copied_nodes_to_external_sockets(const bNodeTree &src_tree,
+                                              const NodeSetCopy &copied_nodes,
                                               const NodeTreeInterfaceMapping &io_mapping);
 
 /**
