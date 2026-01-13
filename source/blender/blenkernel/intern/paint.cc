@@ -2945,7 +2945,8 @@ static bool check_sculpt_object_deformed(Object *object, const bool for_construc
     /* As in case with modifiers, we can't synchronize deformation made against
      * pbvh::Tree and non-locked keyblock, so also use pbvh::Tree only for brushes and
      * final DM to give final result to user. */
-    deformed |= object->runtime->sculpt_session->shapekey_active && (object->shapeflag & OB_SHAPE_LOCK) == 0;
+    deformed |= object->runtime->sculpt_session->shapekey_active &&
+                (object->shapeflag & OB_SHAPE_LOCK) == 0;
   }
 
   return deformed;

@@ -892,7 +892,8 @@ static int gizmo_3d_foreach_selected(const bContext *C,
   else if (ob && (ob->mode & OB_MODE_ALL_PAINT)) {
     if (ob->mode & OB_MODE_SCULPT) {
       totsel = 1;
-      run_coord_with_matrix(ob->runtime->sculpt_session->pivot_pos, false, ob->object_to_world().ptr());
+      run_coord_with_matrix(
+          ob->runtime->sculpt_session->pivot_pos, false, ob->object_to_world().ptr());
     }
   }
   else if (ob && ob->mode & OB_MODE_PARTICLE_EDIT) {

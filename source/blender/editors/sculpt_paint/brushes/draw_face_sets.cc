@@ -436,11 +436,13 @@ void do_draw_face_sets_brush(const Depsgraph &depsgraph,
   if (object.runtime->sculpt_session->cache->paint_face_set == SCULPT_FACE_SET_NONE) {
     if (object.runtime->sculpt_session->cache->invert) {
       /* When inverting the brush, pick the paint face mask ID from the mesh. */
-      object.runtime->sculpt_session->cache->paint_face_set = face_set::active_face_set_get(object);
+      object.runtime->sculpt_session->cache->paint_face_set = face_set::active_face_set_get(
+          object);
     }
     else {
       /* By default, create a new Face Sets. */
-      object.runtime->sculpt_session->cache->paint_face_set = face_set::find_next_available_id(object);
+      object.runtime->sculpt_session->cache->paint_face_set = face_set::find_next_available_id(
+          object);
     }
   }
 

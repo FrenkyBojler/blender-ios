@@ -85,7 +85,7 @@ void ED_paint_brush_type_update_sticky_shading_color(bContext *C, Object *ob)
   }
 
   ob->runtime->sculpt_session->sticky_shading_color = paint_tool_uses_canvas(tref->idname) ||
-                                     paint_brush_uses_canvas(C);
+                                                      paint_brush_uses_canvas(C);
 }
 
 static bool paint_brush_type_shading_color_follows_last_used_tool(bContext *C, Object *ob)

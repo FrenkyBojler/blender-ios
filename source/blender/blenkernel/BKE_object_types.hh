@@ -143,8 +143,8 @@ struct ObjectRuntime {
   uint64_t last_update_geometry = 0;
   uint64_t last_update_shading = 0;
 
-  /* Runtime data used by mesh painting modes (Sculpt, Vertex, Weight) */
-  /* TODO: Rename... */
+  /* Runtime data used by mesh painting modes (Sculpt, Vertex, Weight). */
+  /* TODO: Rename the struct and the variable to better indicate its wider usage */
   SculptSession *sculpt_session = nullptr;
 };
 

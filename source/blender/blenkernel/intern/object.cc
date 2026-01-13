@@ -1843,17 +1843,22 @@ bool BKE_object_has_mode_data(const Object *ob, eObjectMode object_mode)
     }
   }
   else if (object_mode & OB_MODE_VERTEX_PAINT) {
-    if (ob->runtime->sculpt_session && (ob->runtime->sculpt_session->mode_type == OB_MODE_VERTEX_PAINT)) {
+    if (ob->runtime->sculpt_session &&
+        (ob->runtime->sculpt_session->mode_type == OB_MODE_VERTEX_PAINT))
+    {
       return true;
     }
   }
   else if (object_mode & OB_MODE_WEIGHT_PAINT) {
-    if (ob->runtime->sculpt_session && (ob->runtime->sculpt_session->mode_type == OB_MODE_WEIGHT_PAINT)) {
+    if (ob->runtime->sculpt_session &&
+        (ob->runtime->sculpt_session->mode_type == OB_MODE_WEIGHT_PAINT))
+    {
       return true;
     }
   }
   else if (object_mode & OB_MODE_SCULPT) {
-    if (ob->runtime->sculpt_session && (ob->runtime->sculpt_session->mode_type == OB_MODE_SCULPT)) {
+    if (ob->runtime->sculpt_session && (ob->runtime->sculpt_session->mode_type == OB_MODE_SCULPT))
+    {
       return true;
     }
   }
@@ -4894,6 +4899,7 @@ void BKE_object_runtime_reset_on_copy(Object *object, const int /*flag*/)
   runtime->object_as_temp_curve = nullptr;
   runtime->geometry_set_eval = nullptr;
   runtime->contained_geometry_types = 0;
+  runtime->sculpt_session = nullptr;
 
   runtime->crazyspace_deform_imats = {};
   runtime->crazyspace_deform_cos = {};
@@ -4901,8 +4907,8 @@ void BKE_object_runtime_reset_on_copy(Object *object, const int /*flag*/)
 
 void BKE_object_runtime_free_data(Object *object)
 {
-  /* Currently this is all that's needed. */
   BKE_object_free_derived_caches(object);
+  BKE_sculptsession_free(object);
 
   BKE_object_runtime_reset(object);
 }

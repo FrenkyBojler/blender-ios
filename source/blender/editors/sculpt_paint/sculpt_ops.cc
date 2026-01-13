@@ -496,7 +496,8 @@ void object_sculpt_mode_exit(Main &bmain, Depsgraph &depsgraph, Scene &scene, Ob
 
   /* Always for now, so leaving sculpt mode always ensures scene is in
    * a consistent state. */
-  if (true || /* flush_recalc || */ (ob.runtime->sculpt_session && ob.runtime->sculpt_session->bm)) {
+  if (true || /* flush_recalc || */ (ob.runtime->sculpt_session && ob.runtime->sculpt_session->bm))
+  {
     DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
   }
 
