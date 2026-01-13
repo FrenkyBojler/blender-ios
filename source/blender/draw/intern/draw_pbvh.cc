@@ -1067,7 +1067,8 @@ BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
   }
 
   if (!attr) {
-    ensure_vbos_allocated_bmesh(object, attribute_format(orig_mesh_data, name, bke::AttrType::Float3), node_mask, vbos);
+    ensure_vbos_allocated_bmesh(
+        object, attribute_format(orig_mesh_data, name, bke::AttrType::Float3), node_mask, vbos);
     node_mask.foreach_index(GrainSize(1),
                             [&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); });
     return;
