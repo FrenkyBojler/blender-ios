@@ -1198,6 +1198,9 @@ struct Preprocessor : IntermediateFormWithIDs {
 
 std::string Shader::run_preprocessor(StringRef source)
 {
+  BLI_assert_msg(source.find("//") == std::string::npos && source.find("/*") == std::string::npos,
+                 "Input source to the preprocessor should have no comments.");
+
   Preprocessor processor(source);
   processor.preprocess();
   /* For testing without DCE. */

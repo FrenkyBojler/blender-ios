@@ -97,6 +97,12 @@ class SourceProcessor {
   /* Lightweight parsing. Only Source::dependencies and Source::symbol_table are populated. */
   metadata::Source parse_include_and_symbols();
 
+  /* Return the input string with comments removed. */
+  std::string remove_comments()
+  {
+    return remove_comments(source_);
+  }
+
   /* String hash are outputted inside GLSL and needs to fit 32 bits. */
   static uint32_t hash_string(const std::string &str)
   {
