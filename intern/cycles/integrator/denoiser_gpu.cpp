@@ -174,23 +174,24 @@ DenoiserGPU::DenoiseContext::DenoiseContext(Device *device,
     num_input_passes += 1;
     use_pass_albedo = true;
     pass_denoising_albedo = buffer_params.get_pass_offset(PASS_DENOISING_ALBEDO);
+    if (denoise_params.use_pass_normal) {
+      num_input_passes += 1;
+      use_pass_normal = true;
+      pass_denoising_normal = buffer_params.get_pass_offset(PASS_DENOISING_NORMAL);
+    }
   }
-  if (denoise_params.use_pass_normal) {
-    num_input_passes += 1;
-    use_pass_normal = true;
-    pass_denoising_normal = buffer_params.get_pass_offset(PASS_DENOISING_NORMAL);
-  }
-  if (denoise_params.temporally_stable) {
-    num_input_passes += 1;
-    use_pass_motion = true;
-    pass_motion = buffer_params.get_pass_offset(PASS_MOTION);
 
+  if (denoise_params.temporally_stable) {
     prev_output.device_pointer = render_buffers->buffer.device_pointer;
 
     prev_output.offset = buffer_params.get_pass_offset(PASS_DENOISING_PREVIOUS);
 
     prev_output.stride = buffer_params.stride;
     prev_output.pass_stride = buffer_params.pass_stride;
+
+    num_input_passes += 1;
+    use_pass_motion = true;
+    pass_motion = buffer_params.get_pass_offset(PASS_MOTION);
   }
 
   use_guiding_passes = (num_input_passes - 1) > 0;

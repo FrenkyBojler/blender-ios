@@ -1130,10 +1130,6 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
         denoising.use = false;
       }
     }
-
-    if (denoising.type == DENOISER_OPTIX && get_enum(cscene, "preview_denoising_upscale", 2, 0)) {
-      denoising.upscale_factor = 2.0f;
-    }
   }
 
   switch (input_passes) {
