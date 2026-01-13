@@ -1686,7 +1686,7 @@ static void walker_select_count(BMEditMesh *em,
   BMW_end(&walker);
 }
 
-static bool walker_select(BMEditMesh *em, int walkercode, void *start, const bool select)
+static bool walker_select(BMEditMesh *em, int walkercode, void *start, const bool select, BMWFlag flags = BMW_FLAG_TEST_HIDDEN)
 {
   BMesh *bm = em->bm;
   BMElem *ele;
@@ -1699,7 +1699,7 @@ static bool walker_select(BMEditMesh *em, int walkercode, void *start, const boo
            BMW_MASK_NOP,
            BMW_MASK_NOP,
            BMW_MASK_NOP,
-           BMW_FLAG_TEST_HIDDEN,
+           flags,
            BMW_NIL_LAY);
 
   for (ele = static_cast<BMElem *>(BMW_begin(&walker, start)); ele;
@@ -1718,6 +1718,11 @@ static bool walker_select(BMEditMesh *em, int walkercode, void *start, const boo
 static wmOperatorStatus edbm_loop_multiselect_exec(bContext *C, wmOperator *op)
 {
   const bool is_ring = RNA_boolean_get(op->ptr, "ring");
+  const bool test_concave_corners = RNA_boolean_get(op->ptr, "test_concave_corners");
+  BMWFlag flags = BMW_FLAG_TEST_HIDDEN;
+  if (test_concave_corners) {
+    flags = BMWFlag(flags | BMW_FLAG_TEST_CONCAVE_CORNERS);
+  }
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
@@ -1766,10 +1771,10 @@ static wmOperatorStatus edbm_loop_multiselect_exec(bContext *C, wmOperator *op)
         eed = edarray[edindex];
         bool non_manifold = BM_edge_face_count_is_over(eed, 2);
         if (non_manifold) {
-          changed |= walker_select(em, BMW_EDGELOOP_NONMANIFOLD, eed, true);
+          changed |= walker_select(em, BMW_EDGELOOP_NONMANIFOLD, eed, true, flags);
         }
         else {
-          changed |= walker_select(em, BMW_EDGELOOP, eed, true);
+          changed |= walker_select(em, BMW_EDGELOOP, eed, true, flags);
         }
       }
       if (changed) {
@@ -1804,6 +1809,7 @@ void MESH_OT_loop_multi_select(wmOperatorType *ot)
 
   /* Properties. */
   RNA_def_boolean(ot->srna, "ring", false, "Ring", "");
+  RNA_def_boolean(ot->srna, "test_concave_corners", false, "Stop at Concave Corners", "Stop selection at vertices with more than three connected edges");
 }
 
 /** \} */
@@ -1831,7 +1837,7 @@ static void mouse_mesh_loop_edge_ring(BMEditMesh *em, BMEdge *eed, bool select, 
 }
 
 static void mouse_mesh_loop_edge(
-    BMEditMesh *em, BMEdge *eed, bool select, bool select_clear, bool select_cycle)
+    BMEditMesh *em, BMEdge *eed, bool select, bool select_clear, bool select_cycle, bool test_concave_corners)
 {
   bool edge_boundary = false;
   bool non_manifold = BM_edge_face_count_is_over(eed, 2);
@@ -1857,19 +1863,24 @@ static void mouse_mesh_loop_edge(
     EDBM_flag_disable_all(em, BM_ELEM_SELECT);
   }
 
+  BMWFlag flags = BMW_FLAG_TEST_HIDDEN;
+  if (test_concave_corners) {
+    flags = BMWFlag(flags |BMW_FLAG_TEST_CONCAVE_CORNERS);
+  }
+
   if (edge_boundary) {
-    walker_select(em, BMW_EDGEBOUNDARY, eed, select);
+    walker_select(em, BMW_EDGEBOUNDARY, eed, select, flags);
   }
   else if (non_manifold) {
-    walker_select(em, BMW_EDGELOOP_NONMANIFOLD, eed, select);
+    walker_select(em, BMW_EDGELOOP_NONMANIFOLD, eed, select, flags);
   }
   else {
-    walker_select(em, BMW_EDGELOOP, eed, select);
+    walker_select(em, BMW_EDGELOOP, eed, select, flags);
   }
 }
 
 static bool mouse_mesh_loop(
-    bContext *C, const int mval[2], bool extend, bool deselect, bool toggle, bool ring)
+    bContext *C, const int mval[2], bool extend, bool deselect, bool toggle, bool ring, bool test_concave_corners)
 {
   Base *basact = nullptr;
   BMVert *eve = nullptr;
@@ -1955,7 +1966,7 @@ static bool mouse_mesh_loop(
       mouse_mesh_loop_edge_ring(em, eed, select, select_clear);
     }
     else {
-      mouse_mesh_loop_edge(em, eed, select, select_clear, select_cycle);
+      mouse_mesh_loop_edge(em, eed, select, select_clear, select_cycle, test_concave_corners);
     }
   }
 
@@ -2046,7 +2057,8 @@ static wmOperatorStatus edbm_select_loop_invoke(bContext *C, wmOperator *op, con
                       RNA_boolean_get(op->ptr, "extend"),
                       RNA_boolean_get(op->ptr, "deselect"),
                       RNA_boolean_get(op->ptr, "toggle"),
-                      RNA_boolean_get(op->ptr, "ring")))
+                      RNA_boolean_get(op->ptr, "ring"),
+                      RNA_boolean_get(op->ptr, "test_concave_corners")))
   {
     return OPERATOR_FINISHED;
   }
@@ -2077,6 +2089,8 @@ void MESH_OT_loop_select(wmOperatorType *ot)
   prop = RNA_def_boolean(ot->srna, "toggle", false, "Toggle Select", "Toggle the selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna, "ring", false, "Select Ring", "Select ring");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna, "test_concave_corners", false, "Concave Corner Delimit", "Stop selection at corners with more than 3 vertices");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 

@@ -1100,9 +1100,11 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
     vert_edge_tot = BM_vert_edge_count_nonwire(v);
 
     /* Check if we should step, this is fairly involved. */
+    bool test_concave_corners = (walker->flag & BMW_FLAG_TEST_CONCAVE_CORNERS) != 0;
     if (
         /* Walk over boundary of faces but stop at corners. */
-        (owalk.is_single == false && vert_edge_tot > 2) ||
+        (owalk.is_single == false && test_concave_corners == true && vert_edge_tot == 3) ||
+        (owalk.is_single == false && test_concave_corners == false && vert_edge_tot > 2) ||
 
         /* Initial edge was a boundary, so is this edge and vertex is only a part of this face
          * this lets us walk over the boundary of an ngon which is handy. */
