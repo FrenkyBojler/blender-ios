@@ -10,14 +10,18 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 
+#include "DNA_layer_types.h"
+#include "DNA_node_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_space_types.h"
+
 #include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_scene.hh"
-
-#include "DNA_scene_types.h"
-#include "DNA_space_types.h"
 
 #include "RE_engine.h"
 
@@ -76,8 +80,8 @@ static BaseSocketDeclarationBuilder &declare_existing_output(NodeDeclarationBuil
 static void declare_existing(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
-  LISTBASE_FOREACH (const bNodeSocket *, output, &node->outputs) {
-    declare_existing_output(b, output);
+  for (const bNodeSocket &output : node->outputs) {
+    declare_existing_output(b, &output);
   }
 }
 
@@ -281,8 +285,8 @@ class RenderLayerOperation : public NodeOperation {
 
   void execute() override
   {
-    const Scene *scene = reinterpret_cast<const Scene *>(this->bnode().id);
-    const int view_layer = this->bnode().custom1;
+    const Scene *scene = reinterpret_cast<const Scene *>(this->node().id);
+    const int view_layer = this->node().custom1;
 
     Result &image_result = this->get_result("Image");
     Result &alpha_result = this->get_result("Alpha");
@@ -298,7 +302,7 @@ class RenderLayerOperation : public NodeOperation {
       }
     }
 
-    for (const bNodeSocket *output : this->node()->output_sockets()) {
+    for (const bNodeSocket *output : this->node().output_sockets()) {
       if (!is_socket_available(output)) {
         continue;
       }
@@ -329,11 +333,6 @@ class RenderLayerOperation : public NodeOperation {
       return;
     }
 
-    /* Vector sockets are 3D by default, so we need to overwrite the type if the pass turned out to
-     * be 4D. */
-    if (result.type() == ResultType::Float3 && pass.type() == ResultType::Float4) {
-      result.set_type(pass.type());
-    }
     result.set_precision(pass.precision());
 
     if (this->context().use_gpu()) {
@@ -407,28 +406,44 @@ class RenderLayerOperation : public NodeOperation {
 
     result.allocate_texture(this->context().get_compositing_domain());
 
-    /* Special case for alpha output. */
     if (pass.type() == ResultType::Color && result.type() == ResultType::Float) {
+      /* Special case for alpha output. */
       parallel_for(result.domain().data_size, [&](const int2 texel) {
         result.store_pixel(texel, pass.load_pixel<Color>(texel + lower_bound).a);
       });
     }
-    else {
+    else if (pass.type() == ResultType::Float3 && result.type() == ResultType::Color) {
+      /* Color passes with no alpha could be stored in a Float3 type. */
       parallel_for(result.domain().data_size, [&](const int2 texel) {
-        result.store_pixel_generic_type(texel, pass.load_pixel_generic_type(texel + lower_bound));
+        result.store_pixel(texel,
+                           Color(float4(pass.load_pixel<float3>(texel + lower_bound), 1.0f)));
+      });
+    }
+    else {
+      pass.get_cpp_type().to_static_type_tag<float, float3, float4, Color>([&](auto type_tag) {
+        using T = typename decltype(type_tag)::type;
+        if constexpr (std::is_same_v<T, void>) {
+          /* Unsupported type. */
+          BLI_assert_unreachable();
+        }
+        else {
+          parallel_for(result.domain().data_size, [&](const int2 texel) {
+            result.store_pixel(texel, pass.load_pixel<T>(texel + lower_bound));
+          });
+        }
       });
     }
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new RenderLayerOperation(context, node);
 }
 
 static void register_node()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeRLayers", CMP_NODE_R_LAYERS);
   ntype.ui_name = "Render Layers";
@@ -441,9 +456,9 @@ static void register_node()
   ntype.draw_buttons = node_draw;
   ntype.get_compositor_operation = get_compositor_operation;
   ntype.get_extra_info = node_extra_info;
-  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
+  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node)
 
