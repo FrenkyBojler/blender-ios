@@ -34,7 +34,8 @@ namespace blender::ui::id_properties {
 
 class IDPropertyView : public AbstractTreeView {
  public:
-  IDPropertyView(ID *id) : id_(id)
+  const char *data_path_;
+  IDPropertyView(ID *id, const char *data_path) : data_path_(data_path), id_(id)
   {
     is_flat_ = true;
   }
@@ -188,6 +189,25 @@ class IDPropertyItem : public AbstractTreeViewItem {
   void build_row(ui::Layout &row) override
   {
     uiItemL_ex(&row, property_->name, ICON_NONE, false, false);
+    ui::Layout &sub = row.split(0.90f, true);
+    const EmbossType emboss = property_->type == IDP_BOOLEAN ? EmbossType::Emboss :
+                                                               EmbossType::Pulldown;
+    sub.emboss_set(emboss);
+    sub.alignment_set(LayoutAlign::Right);
+
+    PointerRNA prop_ptr = RNA_pointer_create_discrete(id_, &RNA_ID, id_);
+    std::string prop_name = "[\"" + std::string(property_->name) + "\"]";
+
+    if ((property_->type == IDP_ARRAY) || !IDP_ui_data_supported(property_)) {
+      /* Use edit value operator to tweak array and python properties. */
+      IDPropertyView &view = static_cast<IDPropertyView &>(get_tree_view());
+      PointerRNA op_ptr = sub.op("WM_OT_properties_edit_value", "Edit value", ICON_NONE);
+      RNA_string_set(&op_ptr, "data_path", view.data_path_);
+      RNA_string_set(&op_ptr, "property_name", property_->name);
+    }
+    else {
+      sub.prop(&prop_ptr, prop_name, UI_ITEM_NONE, "", ICON_NONE);
+    }
   }
 
   std::optional<bool> should_be_active() const override
@@ -230,7 +250,7 @@ void IDPropertyView::build_tree()
   }
 }
 
-void template_tree(ui::Layout *layout, bContext *C, ID *id)
+void template_tree(ui::Layout *layout, bContext *C, ID *id, const char *data_path)
 {
   if (id == nullptr) {
     return;
@@ -239,7 +259,7 @@ void template_tree(ui::Layout *layout, bContext *C, ID *id)
   Block *block = layout->block();
 
   ui::AbstractTreeView *tree_view = block_add_view(
-      *block, "IDProperty Tree View", std::make_unique<IDPropertyView>(id));
+      *block, "IDProperty Tree View", std::make_unique<IDPropertyView>(id, data_path));
   tree_view->set_context_menu_title("ID Property");
   tree_view->set_default_rows(4);
 

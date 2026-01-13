@@ -134,7 +134,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     rna_properties = {prop.identifier for prop in rna_item.bl_rna.properties if prop.is_runtime} if items else None
 
     row = layout.row()
-    row.template_id_properties_tree(rna_item.id_data)
+    row.template_id_properties_tree(rna_item.id_data, data_path=context_member)
 
     col = row.column(align=True)
     col.operator("wm.properties_add", text="", icon='ADD').data_path = context_member

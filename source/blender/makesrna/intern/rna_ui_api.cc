@@ -2389,6 +2389,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   parm = RNA_def_pointer(
       func, "id", "ID", "", "ID data-block containing the ID properties to display");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_string(func, "data_path", nullptr, 0, "", "ID path in string");
 
   func = RNA_def_function(
       srna, "draw_id_properties_value", "blender::ui::id_properties::draw_id_properties_value");
