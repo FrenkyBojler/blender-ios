@@ -357,6 +357,11 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
                                                     CustomData_number_of_layers(cdata, type));
     for (const int i : layers_with_type.index_range()) {
       CustomDataLayer &layer = layers_with_type[i];
+      if (!states[i].sharing_info) {
+        layer.data = nullptr;
+        layer.sharing_info = nullptr;
+        continue;
+      }
       layer.data = const_cast<void *>(states[i].data);
       layer.sharing_info = states[i].sharing_info;
       layer.sharing_info->add_user();
@@ -415,7 +420,9 @@ static void um_arraystore_cd_free(BArrayCustomData *bcd, const int bs_index)
 
   for (Array<ImplicitSharingInfoAndData> &states : bcd->non_trivial_arrays.values()) {
     for (ImplicitSharingInfoAndData &state : states) {
-      state.sharing_info->remove_user_and_delete_if_last();
+      if (state.sharing_info) {
+        state.sharing_info->remove_user_and_delete_if_last();
+      }
     }
   }
 
