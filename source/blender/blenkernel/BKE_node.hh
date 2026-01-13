@@ -58,7 +58,6 @@ struct bNodeTreeExec;
 
 class CPPType;
 namespace nodes {
-class DNode;
 class NodeMultiFunctionBuilder;
 class GeoNodeExecParams;
 class NodeDeclaration;
@@ -137,7 +136,7 @@ using NodeGatherAddOperationsFunction = void (*)(nodes::GatherAddNodeSearchParam
 
 using NodeGetCompositorOperationFunction =
     blender::compositor::NodeOperation *(*)(blender::compositor::Context & context,
-                                            nodes::DNode node);
+                                            const bNode &node);
 using NodeExtraInfoFunction = void (*)(nodes::NodeExtraInfoParams &params);
 using NodeInverseElemEvalFunction = void (*)(nodes::value_elem::InverseElemEvalParams &params);
 using NodeElemEvalFunction = void (*)(nodes::value_elem::ElemEvalParams &params);
@@ -1113,13 +1112,12 @@ struct bNodePreview {
   ~bNodePreview();
 };
 
-bNodePreview *node_preview_verify(Map<bNodeInstanceKey, bNodePreview> &previews,
+/* Ensure that a node preview of the given size exists in the given previews map for the node with
+ * the given instance key. */
+bNodePreview *node_ensure_preview(Map<bNodeInstanceKey, bNodePreview> &previews,
                                   bNodeInstanceKey key,
                                   int xsize,
-                                  int ysize,
-                                  bool create);
-
-void node_preview_init_tree(bNodeTree *ntree, int xsize, int ysize);
+                                  int ysize);
 
 void node_preview_remove_unused(bNodeTree *ntree);
 

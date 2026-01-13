@@ -69,7 +69,6 @@ set(INC_SYS
 
 set(SRC
   intern/bundle_type.cc
-  intern/derived_node_tree.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_bundle_parse.cc
   intern/geometry_nodes_caller_ui.cc
@@ -113,7 +112,6 @@ set(SRC
   NOD_common.hh
   NOD_composite.hh
   NOD_defaults.hh
-  NOD_derived_node_tree.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
   NOD_geometry_nodes_bundle.hh

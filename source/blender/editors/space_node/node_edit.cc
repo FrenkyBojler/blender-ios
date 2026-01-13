@@ -81,6 +81,7 @@
 
 #include "COM_compositor.hh"
 #include "COM_context.hh"
+#include "COM_node_group_operation.hh"
 #include "COM_profiler.hh"
 
 namespace blender {
@@ -107,11 +108,10 @@ struct CompoJob {
   /* Job system integration. */
   const bool *stop;
   bool *do_update;
-  float *progress;
   bool cancelled;
 
   compositor::Profiler profiler;
-  compositor::OutputTypes needed_outputs;
+  compositor::NodeGroupOutputTypes needed_outputs;
 };
 
 float node_socket_calculate_height(const bNodeSocket &socket)
@@ -144,14 +144,6 @@ static bool compo_breakjob(void *cjv)
           || G.is_break
 #endif
   );
-}
-
-/* Called by compositor, #wmJob sends notifier. */
-static void compo_statsdrawjob(void *cjv, const char * /*str*/)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-
-  *(cj->do_update) = true;
 }
 
 /* Called by compositor, wmJob sends notifier. */
@@ -225,13 +217,6 @@ static void compo_updatejob(void * /*cjv*/)
   WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, nullptr);
 }
 
-static void compo_progressjob(void *cjv, float progress)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-
-  *(cj->progress) = progress;
-}
-
 /* Only this runs inside thread. */
 static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
 {
@@ -241,18 +226,16 @@ static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
 
   cj->stop = &worker_status->stop;
   cj->do_update = &worker_status->do_update;
-  cj->progress = &worker_status->progress;
 
   ntree->runtime->test_break = compo_breakjob;
   ntree->runtime->tbh = cj;
-  ntree->runtime->stats_draw = compo_statsdrawjob;
-  ntree->runtime->sdh = cj;
-  ntree->runtime->progress = compo_progressjob;
-  ntree->runtime->prh = cj;
   ntree->runtime->update_draw = compo_redrawjob;
   ntree->runtime->udh = cj;
 
   BKE_callback_exec_id(cj->bmain, &cj->scene->id, BKE_CB_EVT_COMPOSITE_PRE);
+
+  worker_status->progress = 0.0f;
+  worker_status->do_update = true;
 
   if ((scene->r.scemode & R_MULTIVIEW) == 0) {
     COM_execute(cj->re, &scene->r, scene, ntree, "", nullptr, &cj->profiler, cj->needed_outputs);
@@ -268,8 +251,6 @@ static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
   }
 
   ntree->runtime->test_break = nullptr;
-  ntree->runtime->stats_draw = nullptr;
-  ntree->runtime->progress = nullptr;
 }
 
 static void compo_canceljob(void *cjv)
@@ -323,9 +304,10 @@ static bool is_compositing_possible(const bContext *C)
 
 /* Returns the compositor outputs that need to be computed because their result is visible to the
  * user or required by the render pipeline. */
-static compositor::OutputTypes get_compositor_needed_outputs(const bContext *C, Scene *scene_owner)
+static compositor::NodeGroupOutputTypes get_compositor_needed_outputs(const bContext *C,
+                                                                      Scene *scene_owner)
 {
-  compositor::OutputTypes needed_outputs = compositor::OutputTypes::None;
+  compositor::NodeGroupOutputTypes needed_outputs = compositor::NodeGroupOutputTypes::None;
 
   wmWindowManager *window_manager = CTX_wm_manager(C);
   for (wmWindow &window : window_manager->windows) {
@@ -338,10 +320,10 @@ static compositor::OutputTypes get_compositor_needed_outputs(const bContext *C, 
       if (space_link->spacetype == SPACE_NODE) {
         const SpaceNode *space_node = reinterpret_cast<const SpaceNode *>(space_link);
         if (space_node->flag & SNODE_BACKDRAW) {
-          needed_outputs |= compositor::OutputTypes::Viewer;
+          needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
         }
         if (space_node->overlay.flag & SN_OVERLAY_SHOW_PREVIEWS) {
-          needed_outputs |= compositor::OutputTypes::Previews;
+          needed_outputs |= compositor::NodeGroupOutputTypes::NodePreviews;
         }
       }
       else if (space_link->spacetype == SPACE_IMAGE) {
@@ -355,22 +337,23 @@ static compositor::OutputTypes get_compositor_needed_outputs(const bContext *C, 
         if (image->type == IMA_TYPE_R_RESULT && scene_owner->r.scemode & R_DOCOMP &&
             !RE_seq_render_active(scene_owner, &scene_owner->r))
         {
-          needed_outputs |= compositor::OutputTypes::Composite;
+          needed_outputs |= compositor::NodeGroupOutputTypes::GroupOutputNode;
         }
         else if (image->type == IMA_TYPE_COMPOSITE) {
-          needed_outputs |= compositor::OutputTypes::Viewer;
+          needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
         }
       }
       else if (space_link->spacetype == SPACE_SEQ) {
         const SpaceSeq *space_sequencer = reinterpret_cast<const SpaceSeq *>(space_link);
         if (ELEM(space_sequencer->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
-          needed_outputs |= compositor::OutputTypes::Viewer;
+          needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
         }
       }
 
       /* All outputs are already needed, return early. */
-      if (needed_outputs == (compositor::OutputTypes::Composite | compositor::OutputTypes::Viewer |
-                             compositor::OutputTypes::Previews))
+      if (needed_outputs == (compositor::NodeGroupOutputTypes::GroupOutputNode |
+                             compositor::NodeGroupOutputTypes::ViewerNode |
+                             compositor::NodeGroupOutputTypes::NodePreviews))
       {
         return needed_outputs;
       }
@@ -385,8 +368,11 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
   /* None of the outputs are needed except maybe previews, so no need to execute the compositor.
    * Previews are not considered because they are a secondary output that needs another output to
    * be computed with. */
-  compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(C, scene_owner);
-  if (ELEM(needed_outputs, compositor::OutputTypes::None, compositor::OutputTypes::Previews)) {
+  compositor::NodeGroupOutputTypes needed_outputs = get_compositor_needed_outputs(C, scene_owner);
+  if (ELEM(needed_outputs,
+           compositor::NodeGroupOutputTypes::None,
+           compositor::NodeGroupOutputTypes::NodePreviews))
+  {
     return;
   }
 

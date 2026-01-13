@@ -268,6 +268,7 @@ std::string CombineBundleItemsAccessor::validate_name(const StringRef name)
       result[last_index] = '_';
     }
   }
+  BLI_assert(Bundle::is_valid_key(result));
   return result;
 }
 
