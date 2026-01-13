@@ -58,6 +58,19 @@ struct LexerBase {
 };
 
 /**
+ * Consider numbers as words (to avoid splitting identifiers).
+ * Does not merge newlines and spaces.
+ */
+struct SimpleLexer : LexerBase {
+  void lexical_analysis(std::string_view input)
+  {
+    str = input;
+    ensure_memory();
+    tokenize(true);
+  }
+};
+
+/**
  * Allow recognition of common operators and numbers. Merge whitespaces.
  */
 struct ExpressionLexer : LexerBase {
@@ -111,6 +124,17 @@ struct ParserBase {
 
  private:
   void update_string_view();
+};
+
+/* Don't do anything. No access to scopes is allowed. */
+struct NullParser : ParserBase {
+  NullParser(const LexerBase &lex) : ParserBase(lex) {}
+
+  void semantic_analysis(report_callback & /*report_error*/)
+  {
+    scope_types = {};
+    scope_ranges = {};
+  }
 };
 
 /* Do not parse. Creates a single global scope containing all tokens. */

@@ -11,19 +11,18 @@
 
 #include "BLI_struct_equality_utils.hh"
 
+#include "gpu_shader_dead_code_elimination.hh"
 #include "gpu_shader_private.hh"
 
 #include <xxhash.h>
 
 namespace blender::gpu {
 
-using namespace shader::parser;
-
 /* -------------------------------------------------------------------- */
 /** \name Utilities.
  * \{ */
 
-namespace parser {
+namespace shader::parser {
 
 struct TokenRange {
   Token start, end;
@@ -59,26 +58,15 @@ static Token skip_space_backward(Token tok)
   return tok;
 }
 
-}  // namespace parser
+}  // namespace shader::parser
 
 /** \} */
+
+using namespace shader::parser;
 
 /* -------------------------------------------------------------------- */
 /** \name Parser / Lexer classes.
  * \{ */
-
-/**
- * Consider numbers as words (to avoid splitting identifiers).
- * Does not merge newlines and spaces.
- */
-struct ExpansionLexer : LexerBase {
-  void lexical_analysis(std::string_view input)
-  {
-    str = input;
-    ensure_memory();
-    tokenize(true);
-  }
-};
 
 /**
  * Lexer variant for very fast tokenization for the preprocessor.
@@ -185,17 +173,6 @@ struct AtomicLexer : LexerBase {
     }
 
     line_offsets = line_offsets_buf_.as_span();
-  }
-};
-
-/* Don't do anything. No access to scopes is allowed. */
-struct NullParser : ParserBase {
-  NullParser(const LexerBase &lex) : ParserBase(lex) {}
-
-  void semantic_analysis(report_callback & /*report_error*/)
-  {
-    scope_types = {};
-    scope_ranges = {};
   }
 };
 
@@ -583,8 +560,8 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
 /* Fast C (incomplete) preprocessor implementation.  */
 struct Preprocessor : IntermediateFormWithIDs {
  private:
-  using ExpansionParser = IntermediateForm<ExpansionLexer, DummyParser>;
-  using TokenRange = parser::TokenRange;
+  using ExpansionParser = IntermediateForm<SimpleLexer, DummyParser>;
+  using TokenRange = shader::parser::TokenRange;
 
   /* Cache the expression lexer to avoid memory allocations. */
   ExpressionLexer expression_lexer;
@@ -877,7 +854,7 @@ struct Preprocessor : IntermediateFormWithIDs {
   void try_expand(MutableString &mut_str, const ParserBase &data, int &cursor)
   {
     Token tok = Token::from_position(&data, cursor);
-    StringRef tok_str = parser::str(tok);
+    StringRef tok_str = shader::parser::str(tok);
     /* Early out number literals.
      * Anything below '0' is not an alphabetical character and thus cannot start a word.
      * Saves one comparison. */
@@ -961,7 +938,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     if (is_function) {
       /* This is a functional macro. */
 
-      Token param = parser::skip_space(expanded_tok.next());
+      Token param = shader::parser::skip_space(expanded_tok.next());
       if (param != '(') {
         /* Macro doesn't have parameters. It should not expand. */
         return {str(macro_name), end_of_expansion};
@@ -1003,8 +980,8 @@ struct Preprocessor : IntermediateFormWithIDs {
         }
         else {
           macro_parameters.add(argument_name,
-                               {parser::skip_space(param_start.next()),
-                                parser::skip_space_backward(param_end.prev())});
+                               {shader::parser::skip_space(param_start.next()),
+                                shader::parser::skip_space_backward(param_end.prev())});
         }
 
         /* Continue to the next separator. */
@@ -1076,10 +1053,10 @@ struct Preprocessor : IntermediateFormWithIDs {
 
             if (!next_is_token_pasting && !prev_is_token_pasting) {
               /* Expand argument. Can expand to the same macro (finite recursion). */
-              expanded += parse_and_expand(parser::str(macro_value));
+              expanded += parse_and_expand(shader::parser::str(macro_value));
             }
             else {
-              expanded += parser::str(macro_value);
+              expanded += shader::parser::str(macro_value);
             }
             replaced = true;
           }
@@ -1223,13 +1200,12 @@ std::string Shader::run_preprocessor(StringRef source)
 {
   Preprocessor processor(source);
   processor.preprocess();
+  /* For testing without DCE. */
+  // return processor.result_get(true);
 
-  // parser.apply_mutations(true);
-
-  // DeadCodeEliminator dce{parser};
-  // dce.optimize();
-
-  return processor.result_get(true);
+  DeadCodeEliminator dce(processor.result_get(true));
+  dce.optimize();
+  return dce.result_get(true);
 }
 
 /** \} */
