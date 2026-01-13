@@ -458,16 +458,16 @@ static BMFace *bm_mesh_copy_new_face(BMesh *bm_new,
   return f_new;
 }
 
-static CustomData &get_bmesh_custom_data(BMesh &bm, const blender::bke::AttrDomain domain)
+static CustomData &get_bmesh_custom_data(BMesh &bm, const bke::AttrDomain domain)
 {
   switch (domain) {
-    case blender::bke::AttrDomain::Point:
+    case bke::AttrDomain::Point:
       return bm.vdata;
-    case blender::bke::AttrDomain::Edge:
+    case bke::AttrDomain::Edge:
       return bm.edata;
-    case blender::bke::AttrDomain::Face:
+    case bke::AttrDomain::Face:
       return bm.pdata;
-    case blender::bke::AttrDomain::Corner:
+    case bke::AttrDomain::Corner:
       return bm.ldata;
     default:
       BLI_assert_unreachable();

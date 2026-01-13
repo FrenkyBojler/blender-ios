@@ -153,16 +153,16 @@ static BMFace *bm_face_create_from_mpoly(BMesh &bm,
   return BM_face_create(&bm, verts.data(), edges.data(), size, nullptr, BM_CREATE_SKIP_CD);
 }
 
-static const CustomData &get_bm_custom_data(const BMesh &bm, const blender::bke::AttrDomain domain)
+static const CustomData &get_bm_custom_data(const BMesh &bm, const bke::AttrDomain domain)
 {
   switch (domain) {
-    case blender::bke::AttrDomain::Point:
+    case bke::AttrDomain::Point:
       return bm.vdata;
-    case blender::bke::AttrDomain::Edge:
+    case bke::AttrDomain::Edge:
       return bm.edata;
-    case blender::bke::AttrDomain::Face:
+    case bke::AttrDomain::Face:
       return bm.pdata;
-    case blender::bke::AttrDomain::Corner:
+    case bke::AttrDomain::Corner:
       return bm.ldata;
     default:
       BLI_assert_unreachable();
@@ -170,17 +170,16 @@ static const CustomData &get_bm_custom_data(const BMesh &bm, const blender::bke:
   }
 }
 
-static const CustomData &get_mesh_custom_data(const Mesh &mesh,
-                                              const blender::bke::AttrDomain domain)
+static const CustomData &get_mesh_custom_data(const Mesh &mesh, const bke::AttrDomain domain)
 {
   switch (domain) {
-    case blender::bke::AttrDomain::Point:
+    case bke::AttrDomain::Point:
       return mesh.vert_data;
-    case blender::bke::AttrDomain::Edge:
+    case bke::AttrDomain::Edge:
       return mesh.edge_data;
-    case blender::bke::AttrDomain::Face:
+    case bke::AttrDomain::Face:
       return mesh.face_data;
-    case blender::bke::AttrDomain::Corner:
+    case bke::AttrDomain::Corner:
       return mesh.corner_data;
     default:
       BLI_assert_unreachable();
@@ -188,7 +187,7 @@ static const CustomData &get_mesh_custom_data(const Mesh &mesh,
   }
 }
 
-static CustomData &get_mesh_custom_data(Mesh &mesh, const blender::bke::AttrDomain domain)
+static CustomData &get_mesh_custom_data(Mesh &mesh, const bke::AttrDomain domain)
 {
   return const_cast<CustomData &>(get_mesh_custom_data(const_cast<const Mesh &>(mesh), domain));
 }
@@ -206,8 +205,9 @@ struct MeshToBMeshLayerInfo {
 /**
  * Calculate the necessary information to copy every data layer from the Mesh to the BMesh.
  */
-static Vector<MeshToBMeshLayerInfo> mesh_to_bm_copy_info_calc(
-    const Mesh &mesh, const blender::bke::AttrDomain domain, CustomData &bm_data)
+static Vector<MeshToBMeshLayerInfo> mesh_to_bm_copy_info_calc(const Mesh &mesh,
+                                                              const bke::AttrDomain domain,
+                                                              CustomData &bm_data)
 {
   const bke::AttributeStorage &storage = mesh.attribute_storage.wrap();
   const CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
@@ -223,14 +223,14 @@ static Vector<MeshToBMeshLayerInfo> mesh_to_bm_copy_info_calc(
     MeshToBMeshLayerInfo info{};
     info.type = type;
     info.bmesh_offset = bm_layer.offset;
-    if (const blender::bke::Attribute *attr = storage.lookup(layer_name)) {
+    if (const bke::Attribute *attr = storage.lookup(layer_name)) {
       switch (attr->storage_type()) {
-        case blender::bke::AttrStorageType::Array: {
-          const auto &array_data = std::get<blender::bke::Attribute::ArrayData>(attr->data());
+        case bke::AttrStorageType::Array: {
+          const auto &array_data = std::get<bke::Attribute::ArrayData>(attr->data());
           info.mesh_data = array_data.data;
           break;
         }
-        case blender::bke::AttrStorageType::Single: {
+        case bke::AttrStorageType::Single: {
           BLI_assert_unreachable();
           info.mesh_data = nullptr;
           break;
@@ -274,7 +274,7 @@ static void mesh_attributes_copy_to_bmesh_block(CustomData &data,
 }
 
 static CustomData get_mesh_to_bm_custom_data(const Mesh &mesh,
-                                             const blender::bke::AttrDomain domain,
+                                             const bke::AttrDomain domain,
                                              const uint64_t cd_type_mask)
 {
   CustomData custom_data;
@@ -1176,8 +1176,9 @@ struct BMeshToMeshLayerInfo {
 /**
  * Calculate the necessary information to copy every data layer from the BMesh to the Mesh.
  */
-static Vector<BMeshToMeshLayerInfo> bm_to_mesh_copy_info_calc(
-    const CustomData &bm_data, const blender::bke::AttrDomain domain, Mesh &mesh)
+static Vector<BMeshToMeshLayerInfo> bm_to_mesh_copy_info_calc(const CustomData &bm_data,
+                                                              const bke::AttrDomain domain,
+                                                              Mesh &mesh)
 {
   bke::AttributeStorage &storage = mesh.attribute_storage.wrap();
   CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
@@ -1492,7 +1493,7 @@ static void bm_to_mesh_faces(const BMesh &bm,
 }
 
 static void add_bm_cd_to_mesh(const BMesh &bm,
-                              const blender::bke::AttrDomain domain,
+                              const bke::AttrDomain domain,
                               const uint64_t cd_type_mask,
                               Mesh &mesh)
 {

@@ -739,7 +739,7 @@ void BKE_mesh_convert_mfaces_to_mpolys(Mesh *mesh)
   BKE_mesh_legacy_convert_polys_to_offsets(mesh);
   mesh->attribute_storage.wrap().remove(".corner_vert");
   mesh->attribute_storage.wrap().remove(".corner_edge");
-  blender::bke::mesh_convert_customdata_to_storage(*mesh);
+  bke::mesh_convert_customdata_to_storage(*mesh);
 
   mesh_ensure_tessellation_customdata(mesh);
 }
@@ -789,7 +789,7 @@ void BKE_mesh_do_versions_convert_mfaces_to_mpolys(Mesh *mesh)
                            &mesh->faces_num);
   BKE_mesh_legacy_convert_loops_to_corners(mesh);
   BKE_mesh_legacy_convert_polys_to_offsets(mesh);
-  blender::bke::mesh_convert_customdata_to_storage(*mesh);
+  bke::mesh_convert_customdata_to_storage(*mesh);
 
   CustomData_bmesh_do_versions_update_active_layers(&mesh->fdata_legacy, &mesh->corner_data);
 

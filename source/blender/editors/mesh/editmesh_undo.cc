@@ -8,8 +8,6 @@
 
 #include <algorithm>
 
-#include "BKE_attribute_legacy_convert.hh"
-#include "BLI_multi_value_map.hh"
 #include "MEM_guardedalloc.h"
 
 #include "CLG_log.h"
@@ -25,10 +23,12 @@
 #include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
+#include "BLI_multi_value_map.hh"
 #include "BLI_string.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
@@ -223,11 +223,11 @@ static struct {
 
 static void store_layer(const eCustomDataType type,
                         const void *data,
-                        const blender::ImplicitSharingInfo *sharing_info,
+                        const ImplicitSharingInfo *sharing_info,
                         const size_t data_len,
                         const int bs_index,
                         const BArrayCustomData *bcd_reference,
-                        blender::Map<eCustomDataType, int> &index_in_type,
+                        Map<eCustomDataType, int> &index_in_type,
                         BArrayCustomData &bcd)
 {
   int &i = index_in_type.lookup_or_add(type, 0);
@@ -301,12 +301,11 @@ static void store_layer(const eCustomDataType type,
 #  endif
 }
 
-static BArrayCustomData *um_arraystore_cd_create(
-    CustomData *cdata,
-    blender::Span<blender::bke::Attribute *> attributes,
-    const size_t data_len,
-    const int bs_index,
-    const BArrayCustomData *bcd_reference)
+static BArrayCustomData *um_arraystore_cd_create(CustomData *cdata,
+                                                 Span<bke::Attribute *> attributes,
+                                                 const size_t data_len,
+                                                 const int bs_index,
+                                                 const BArrayCustomData *bcd_reference)
 {
   BArrayCustomData bcd;
 
@@ -399,7 +398,7 @@ static void *get_arraystore_data(const BArrayState *state,
  */
 static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
                                     CustomData *cdata,
-                                    blender::Span<blender::bke::Attribute *> attributes,
+                                    Span<bke::Attribute *> attributes,
                                     const size_t data_len)
 {
   if (bcd == nullptr) {
@@ -483,12 +482,11 @@ static void um_arraystore_cd_free(BArrayCustomData *bcd, const int bs_index)
   MEM_delete(bcd);
 }
 
-static blender::MultiValueMap<blender::bke::AttrDomain, blender::bke::Attribute *>
-get_attributes_by_domain(Mesh &mesh)
+static MultiValueMap<bke::AttrDomain, bke::Attribute *> get_attributes_by_domain(Mesh &mesh)
 {
-  blender::MultiValueMap<blender::bke::AttrDomain, blender::bke::Attribute *> result;
+  MultiValueMap<bke::AttrDomain, bke::Attribute *> result;
   mesh.attribute_storage.wrap().foreach(
-      [&](blender::bke::Attribute &attr) { result.add(attr.domain(), &attr); });
+      [&](bke::Attribute &attr) { result.add(attr.domain(), &attr); });
   return result;
 }
 
@@ -516,7 +514,7 @@ static void um_arraystore_compact(UndoMesh *um, const UndoMesh *um_ref)
 
   MultiValueMap<bke::AttrDomain, bke::Attribute *> attributes = get_attributes_by_domain(*mesh);
 
-  blender::threading::parallel_invoke(
+  threading::parallel_invoke(
       use_threading,
       [&]() {
         um->store.vdata = um_arraystore_cd_create(&mesh->vert_data,

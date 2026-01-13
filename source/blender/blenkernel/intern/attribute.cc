@@ -680,7 +680,7 @@ std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owne
           CustomDataLayer *layer = &customdata->layers[i];
           if (CD_MASK_PROP_ALL & CD_TYPE_AS_MASK(eCustomDataType(layer->type))) {
             if (index == active_index) {
-              if (blender::bke::allow_procedural_attribute_access(layer->name)) {
+              if (bke::allow_procedural_attribute_access(layer->name)) {
                 return layer->name;
               }
               return std::nullopt;
