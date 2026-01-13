@@ -58,19 +58,6 @@ struct LexerBase {
 };
 
 /**
- * Consider numbers as words (to avoid splitting identifiers).
- * Does not merge newlines and spaces.
- */
-struct ExpansionLexer : LexerBase {
-  void lexical_analysis(std::string_view input)
-  {
-    str = input;
-    ensure_memory();
-    tokenize(true);
-  }
-};
-
-/**
  * Allow recognition of common operators and numbers. Merge whitespaces.
  */
 struct ExpressionLexer : LexerBase {
