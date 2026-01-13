@@ -497,16 +497,37 @@ void VKCommandBuilder::add_buffer_read_barriers(VKRenderGraph &render_graph,
     if (!link.is_link_to_buffer()) {
       continue;
     }
+    
     const ResourceWithStamp &versioned_resource = link.resource;
+    
+    if (!render_graph.resources_.resources_.contains(versioned_resource.handle)) {
+      if (G.debug & G_DEBUG_GPU) {
+        fprintf(stderr, 
+                "Warning: Buffer resource handle %llu not found in state tracker (read barrier)\n",
+                static_cast<unsigned long long>(versioned_resource.handle));
+      }
+      continue;
+    }
+    
     VKResourceStateTracker::Resource &resource = render_graph.resources_.resources_.lookup(
         versioned_resource.handle);
+    
+    if (resource.buffer.vk_buffer == VK_NULL_HANDLE) {
+      if (G.debug & G_DEBUG_GPU) {
+        fprintf(stderr,
+                "Warning: Skipping null VkBuffer in read barrier for node %llu\n",
+                static_cast<unsigned long long>(node_handle));
+      }
+      continue;
+    }
+    
     VKResourceBarrierState &resource_state = resource.barrier_state;
     const bool is_first_read = resource_state.is_new_stamp();
+    
     if (!is_first_read &&
         (resource_state.vk_access & link.vk_access_flags) == link.vk_access_flags &&
         (resource_state.vk_pipeline_stages & node_stages) == node_stages)
     {
-      /* Has already been covered in a previous call no need to add this one. */
       continue;
     }
 
@@ -527,7 +548,6 @@ void VKCommandBuilder::add_buffer_read_barriers(VKRenderGraph &render_graph,
     add_buffer_barrier(resource.buffer.vk_buffer, r_barrier, wait_access, link.vk_access_flags);
   }
 }
-
 void VKCommandBuilder::add_buffer_write_barriers(VKRenderGraph &render_graph,
                                                  NodeHandle node_handle,
                                                  VkPipelineStageFlags node_stages,
@@ -537,9 +557,30 @@ void VKCommandBuilder::add_buffer_write_barriers(VKRenderGraph &render_graph,
     if (!link.is_link_to_buffer()) {
       continue;
     }
+    
     const ResourceWithStamp &versioned_resource = link.resource;
+    
+    if (!render_graph.resources_.resources_.contains(versioned_resource.handle)) {
+      if (G.debug & G_DEBUG_GPU) {
+        fprintf(stderr,
+                "Warning: Buffer resource handle %llu not found in state tracker (write barrier)\n",
+                static_cast<unsigned long long>(versioned_resource.handle));
+      }
+      continue;
+    }
+    
     VKResourceStateTracker::Resource &resource = render_graph.resources_.resources_.lookup(
         versioned_resource.handle);
+    
+    if (resource.buffer.vk_buffer == VK_NULL_HANDLE) {
+      if (G.debug & G_DEBUG_GPU) {
+        fprintf(stderr,
+                "Warning: Skipping null VkBuffer in write barrier for node %llu\n",
+                static_cast<unsigned long long>(node_handle));
+      }
+      continue;
+    }
+    
     VKResourceBarrierState &resource_state = resource.barrier_state;
     const VkAccessFlags wait_access = resource_state.vk_access;
 
@@ -554,25 +595,25 @@ void VKCommandBuilder::add_buffer_write_barriers(VKRenderGraph &render_graph,
     }
   }
 }
-
 void VKCommandBuilder::add_buffer_barrier(VkBuffer vk_buffer,
                                           Barrier &r_barrier,
                                           VkAccessFlags src_access_mask,
                                           VkAccessFlags dst_access_mask)
 {
+  if (vk_buffer == VK_NULL_HANDLE) {
+    BLI_assert_msg(false, "Attempted to create barrier for null VkBuffer");
+    return;
+  }
+  
   for (VkBufferMemoryBarrier &vk_buffer_memory_barrier :
        vk_buffer_memory_barriers_.as_mutable_span().drop_front(
            r_barrier.buffer_memory_barriers.start()))
   {
     if (vk_buffer_memory_barrier.buffer == vk_buffer) {
-      /* When registering read/write buffers, it can be that the node internally requires
-       * read/write. In this case we adjust the dstAccessMask of the read barrier. */
       if ((vk_buffer_memory_barrier.dstAccessMask & src_access_mask) == src_access_mask) {
         vk_buffer_memory_barrier.dstAccessMask |= dst_access_mask;
         return;
       }
-      /* When re-registering resources we can skip if access mask already contain all the flags.
-       */
       if ((vk_buffer_memory_barrier.dstAccessMask & dst_access_mask) == dst_access_mask &&
           (vk_buffer_memory_barrier.srcAccessMask & src_access_mask) == src_access_mask)
       {
@@ -619,26 +660,45 @@ void VKCommandBuilder::add_image_read_barriers(VKRenderGraph &render_graph,
     if (link.is_link_to_buffer()) {
       continue;
     }
+    
     const ResourceWithStamp &versioned_resource = link.resource;
+    
+    if (!render_graph.resources_.resources_.contains(versioned_resource.handle)) {
+      if (G.debug & G_DEBUG_GPU) {
+        fprintf(stderr,
+                "Warning: Image resource handle %llu not found in state tracker (read barrier)\n",
+                static_cast<unsigned long long>(versioned_resource.handle));
+      }
+      continue;
+    }
+    
     VKResourceStateTracker::Resource &resource = render_graph.resources_.resources_.lookup(
         versioned_resource.handle);
+    
+    if (resource.image.vk_image == VK_NULL_HANDLE) {
+      if (G.debug & G_DEBUG_GPU) {
+        fprintf(stderr,
+                "Warning: Skipping null VkImage in read barrier for node %llu\n",
+                static_cast<unsigned long long>(node_handle));
+      }
+      continue;
+    }
+    
     VKResourceBarrierState &resource_state = resource.barrier_state;
     const bool is_first_read = resource_state.is_new_stamp();
+    
     if ((!is_first_read) &&
         (resource_state.vk_access & link.vk_access_flags) == link.vk_access_flags &&
         (resource_state.vk_pipeline_stages & node_stages) == node_stages &&
         resource_state.image_layout == link.vk_image_layout)
     {
-      /* Has already been covered in previous barrier no need to add this one. */
       continue;
     }
+    
     if (within_rendering && link.vk_image_layout != VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR) {
-      /* Allow only local read barriers inside rendering scope */
       continue;
     }
 
-    /* Check if this image is being tracked as layered color attachment. In that case we are not
-     * allowed to update the resource state as it will be reverted by the image tracker. */
     if (image_tracker.contains(resource.image.vk_image)) {
       if (resource_state.image_layout != link.vk_image_layout) {
         image_tracker.update(resource.image.vk_image,
@@ -687,18 +747,37 @@ void VKCommandBuilder::add_image_write_barriers(VKRenderGraph &render_graph,
     if (link.is_link_to_buffer()) {
       continue;
     }
+    
     const ResourceWithStamp &versioned_resource = link.resource;
+    
+    if (!render_graph.resources_.resources_.contains(versioned_resource.handle)) {
+      if (G.debug & G_DEBUG_GPU) {
+        fprintf(stderr,
+                "Warning: Image resource handle %llu not found in state tracker (write barrier)\n",
+                static_cast<unsigned long long>(versioned_resource.handle));
+      }
+      continue;
+    }
+    
     VKResourceStateTracker::Resource &resource = render_graph.resources_.resources_.lookup(
         versioned_resource.handle);
+    
+    if (resource.image.vk_image == VK_NULL_HANDLE) {
+      if (G.debug & G_DEBUG_GPU) {
+        fprintf(stderr,
+                "Warning: Skipping null VkImage in write barrier for node %llu\n",
+                static_cast<unsigned long long>(node_handle));
+      }
+      continue;
+    }
+    
     VKResourceBarrierState &resource_state = resource.barrier_state;
     const VkAccessFlags wait_access = resource_state.vk_access;
+    
     if (within_rendering && link.vk_image_layout != VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR) {
-      /* Allow only local read barriers inside rendering scope */
       continue;
     }
 
-    /* Check if this image is being tracked as layered color attachment. In that case we are not
-     * allowed to update the resource state as it will be reverted by the image tracker. */
     if (image_tracker.contains(resource.image.vk_image)) {
       if (resource_state.image_layout != link.vk_image_layout) {
         image_tracker.update(resource.image.vk_image,
