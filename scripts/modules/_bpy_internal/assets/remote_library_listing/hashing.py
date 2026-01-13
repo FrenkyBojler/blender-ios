@@ -2,8 +2,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import functools
 import typing
 from pathlib import Path
+
+import bpy.utils
 
 if typing.TYPE_CHECKING:
     from _bpy_internal.assets.remote_library_listing.blender_asset_library_openapi import URLWithHash as _URLWithHash
@@ -19,18 +22,27 @@ def hash_file(filepath: Path) -> str:
     return 'SHA256:' + _sha256_file(filepath)
 
 
+@functools.lru_cache
+def _dfhs_storage_path() -> Path:
+    """Return the storage path of the disk file hash service."""
+    # NOTE: only land this after https://projects.blender.org/blender/blender/pulls/152779 landed.
+    subdir = "{:d}.{:d}/hashes".format(*bpy.app.version)
+    try:
+        hashes_dir = bpy.utils.user_resource('CACHES', path=subdir, create=True)
+    except ValueError:
+        # Raised when the above PR hasn't landed yet.
+        # THIS CODE SHOULD NOT BE COMMITTED!
+        hashes_dir = Path("~/.cache/blender").expanduser()
+        hashes_dir.mkdir(parents=True, exist_ok=True)
+    return Path(hashes_dir) / "dfhs"
+
+
 def _sha256_file(filepath: Path) -> str:
     """Computes and returns the SHA256 hash of the file."""
-    import hashlib
+    from _bpy_internal import disk_file_hash_service
 
-    sha256_hash = hashlib.sha256()
-
-    file_size_bytes = 0
-    with open(filepath, "rb") as f:
-        for byte_block in iter(lambda: f.read(4096), b""):
-            file_size_bytes += len(byte_block)
-            sha256_hash.update(byte_block)
-    return sha256_hash.hexdigest()
+    dfhs = disk_file_hash_service.get_service(_dfhs_storage_path())
+    return dfhs.get_hash(filepath, 'sha256')
 
 
 def url(url_with_hash: _URLWithHash | tuple[str, str]) -> str:
