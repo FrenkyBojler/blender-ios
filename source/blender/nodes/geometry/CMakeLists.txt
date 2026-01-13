@@ -29,7 +29,6 @@ set(INC_SYS
 
 set(SRC
   nodes/node_geo_accumulate_field.cc
-  nodes/node_geo_apply_simulated_data.cc
   nodes/node_geo_attribute_capture.cc
   nodes/node_geo_attribute_domain_size.cc
   nodes/node_geo_attribute_statistic.cc
@@ -39,7 +38,6 @@ set(SRC
   nodes/node_geo_boolean.cc
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
-  nodes/node_geo_clean_simulated_data.cc
   nodes/node_geo_closure.cc
   nodes/node_geo_collection_info.cc
   nodes/node_geo_combine_bundle.cc

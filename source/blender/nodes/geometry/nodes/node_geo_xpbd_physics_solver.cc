@@ -90,16 +90,21 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.use_custom_socket_order();
   b.allow_any_socket_order();
+  b.add_input<decl::Bundle>("State").description(
+      "Internal solver state. Has to be passed in from the previous iteration");
+  b.add_output<decl::Bundle>("State").align_with_previous();
   b.add_input<decl::Bundle>("World")
       .bundle_type(world_type)
+      .description("Simulation world description that is simulated")
       .field_on_all()
-      .structure_type(StructureType::Single)
-      .description("World state that is updated by the solver");
-  b.add_output<decl::Bundle>("World").pass_through_input_index(0).align_with_previous();
+      .structure_type(StructureType::Single);
+  b.add_output<decl::Bundle>("World")
+      .pass_through_input_index(1)
+      .align_with_previous()
+      .description("Simulated world");
   b.add_input<decl::Float>("Delta Time").min(0).default_value(1 / 25.0f);
 
   auto &panel = b.add_panel("Solver");
-  panel.add_input<decl::String>("Path").default_value("solvers/xpbd");
   panel.add_input<decl::Menu>("Solver Type")
       .static_items(solver_type_items)
       .default_value(SolverType::ParallelGaussSeidel);
@@ -4570,8 +4575,8 @@ static void initialize_state(XPBDState & /*state*/)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  BundlePtr old_state_bundle_ptr = params.extract_input<BundlePtr>("State");
   BundlePtr world_bundle_ptr = params.extract_input<BundlePtr>("World");
-  const std::string solver_path = params.extract_input<std::string>("Path");
   const SolverType solver_type = params.extract_input<SolverType>("Solver Type");
   const float delta_time = std::max(0.0f, params.extract_input<float>("Delta Time"));
   const int substeps = std::max(1, params.extract_input<int>("Substeps"));
@@ -4582,30 +4587,16 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
-  if (!Bundle::is_valid_path(solver_path)) {
-    params.set_output("World", std::move(world_bundle_ptr));
-    params.error_message_add(NodeWarningType::Error, TIP_("Path is invalid"));
-    return;
+
+  int update_counter = 0;
+  if (old_state_bundle_ptr) {
+    update_counter = old_state_bundle_ptr->lookup<int>("counter").value_or(0);
   }
 
-  Bundle &world_bundle = world_bundle_ptr.ensure_mutable_inplace();
-  Bundle &solver_bundle = [&]() -> Bundle & {
-    if (BundlePtr *solver_bundle_ptr = world_bundle.lookup_path_for_write_ptr<BundlePtr>(
-            solver_path))
-    {
-      return solver_bundle_ptr->ensure_mutable_inplace();
-    }
-    BundlePtr solver_bundle_ptr = Bundle::create();
-    Bundle &bundle = solver_bundle_ptr.ensure_mutable_inplace();
-    bundle.add(Bundle::type_item_name, std::string("blender.XpbdSolverState"));
-    world_bundle.add_path_override(solver_path, std::move(solver_bundle_ptr));
-    return bundle;
-  }();
-
-  int update_counter = solver_bundle.lookup<int>("counter").value_or(0);
-
-  XPBDStateOwnerPtr xpbd_state_owner = solver_bundle.lookup<XPBDStateOwnerPtr>("state").value_or(
-      nullptr);
+  XPBDStateOwnerPtr xpbd_state_owner;
+  if (old_state_bundle_ptr) {
+    xpbd_state_owner = old_state_bundle_ptr->lookup<XPBDStateOwnerPtr>("state").value_or(nullptr);
+  }
   if (!xpbd_state_owner) {
     xpbd_state_owner = XPBDStateOwnerPtr{MEM_new<XPBDStateOwner>(__func__)};
     XPBDState &state = xpbd_state_owner->state;
@@ -4620,7 +4611,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   BLI_SCOPED_DEFER([&]() { xpbd_state_owner->mutex.unlock(); });
 
-  WorldBundles world_bundles = parse_world(world_bundle);
+  WorldBundles world_bundles = parse_world(*world_bundle_ptr);
   Array<GeometrySet> applied_geometries = gather_world_geometries(world_bundles);
   XPBDDebugRecorder debug_recorder(substeps);
 
@@ -4640,13 +4631,25 @@ static void node_geo_exec(GeoNodeExecParams params)
     state.update_counter = update_counter;
   }
 
-  solver_bundle.add_override("state", xpbd_state_owner);
-  solver_bundle.add_override("counter", update_counter);
+  BundlePtr new_state_bundle_ptr = Bundle::create();
+  BLI_assert(new_state_bundle_ptr->is_mutable());
+  Bundle &new_state_bundle = const_cast<Bundle &>(*new_state_bundle_ptr);
+  new_state_bundle.add("state", xpbd_state_owner);
+  new_state_bundle.add("counter", update_counter);
+
+  if (!world_bundle_ptr->is_mutable()) {
+    world_bundle_ptr = world_bundle_ptr->copy();
+  }
+  else {
+    world_bundle_ptr->tag_ensured_mutable();
+  }
+  Bundle &world_bundle = const_cast<Bundle &>(*world_bundle_ptr);
 
   apply_state_to_geometries(state, world_bundles, applied_geometries);
   store_constraint_attributes(state, world_bundles, applied_geometries);
   store_world_bundle_overrides(world_bundles, applied_geometries, debug_recorder, world_bundle);
 
+  params.set_output("State", std::move(new_state_bundle_ptr));
   params.set_output("World", std::move(world_bundle_ptr));
 }
 
