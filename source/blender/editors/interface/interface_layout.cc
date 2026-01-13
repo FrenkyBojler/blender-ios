@@ -47,7 +47,9 @@
 #include "fmt/format.h"
 #include "interface_intern.hh"
 
-namespace blender::ui {
+namespace blender {
+
+namespace ui {
 
 struct ButtonItem;
 
@@ -826,7 +828,7 @@ static void ui_item_enum_expand_handle(bContext *C, void *arg1, void *arg2)
   wmWindow *win = CTX_wm_window(C);
 
   if ((win->runtime->eventstate->modifier & KM_SHIFT) == 0) {
-    Button *but = (Button *)arg1;
+    Button *but = static_cast<Button *>(arg1);
     const int enum_value = POINTER_AS_INT(arg2);
 
     int current_value = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
@@ -1045,7 +1047,7 @@ static void ui_keymap_but_cb(bContext * /*C*/, void *but_v, void * /*key_v*/)
 {
   Button *but = static_cast<Button *>(but_v);
   BLI_assert(but->type == ButtonType::HotkeyEvent);
-  const ButtonHotkeyEvent *hotkey_but = (ButtonHotkeyEvent *)but;
+  const ButtonHotkeyEvent *hotkey_but = static_cast<ButtonHotkeyEvent *>(but);
 
   RNA_int_set(
       &but->rnapoin, "shift", (hotkey_but->modifier_key & KM_SHIFT) ? KM_MOD_HELD : KM_NOTHING);
@@ -2622,7 +2624,7 @@ void button_configure_search(Button *but,
     RNACollectionSearch *coll_search = MEM_new<RNACollectionSearch>(__func__);
 
     BLI_assert(but->type == ButtonType::SearchMenu);
-    ButtonSearch *search_but = (ButtonSearch *)but;
+    ButtonSearch *search_but = static_cast<ButtonSearch *>(but);
 
     if (searchptr) {
       search_but->rnasearchpoin = *searchptr;
@@ -2773,13 +2775,13 @@ void Layout::prop_search(PointerRNA *ptr,
 
 void item_menutype_func(bContext *C, Layout *layout, void *arg_mt)
 {
-  MenuType *mt = (MenuType *)arg_mt;
+  MenuType *mt = static_cast<MenuType *>(arg_mt);
   menutype_draw(C, mt, layout);
 }
 
 void item_paneltype_func(bContext *C, Layout *layout, void *arg_pt)
 {
-  PanelType *pt = (PanelType *)arg_pt;
+  PanelType *pt = static_cast<PanelType *>(arg_pt);
   UI_paneltype_draw(C, pt, layout);
 }
 
@@ -2842,7 +2844,7 @@ static Button *ui_item_menu(Layout *layout,
   if (argN) {
     /* ugly! */
     if (arg != argN) {
-      but->poin = (char *)but;
+      but->poin = reinterpret_cast<char *>(but);
     }
     but->func_argN = argN;
     but->func_argN_free_fn = func_argN_free_fn;
@@ -2940,17 +2942,17 @@ void Layout::decorator(PointerRNA *ptr, PropertyRNA *prop, int index)
 
   /* Loop for the array-case, but only do in case of an expanded array. */
   for (int i = 0; i < (is_expand ? RNA_property_array_length(ptr, prop) : 1); i++) {
-    ButtonDecorator *but = (ButtonDecorator *)uiDefIconBut(block,
-                                                           ButtonType::Decorator,
-                                                           ICON_DOT,
-                                                           0,
-                                                           0,
-                                                           UI_UNIT_X,
-                                                           UI_UNIT_Y,
-                                                           nullptr,
-                                                           0.0,
-                                                           0.0,
-                                                           TIP_("Animate property"));
+    ButtonDecorator *but = static_cast<ButtonDecorator *>(uiDefIconBut(block,
+                                                                       ButtonType::Decorator,
+                                                                       ICON_DOT,
+                                                                       0,
+                                                                       0,
+                                                                       UI_UNIT_X,
+                                                                       UI_UNIT_Y,
+                                                                       nullptr,
+                                                                       0.0,
+                                                                       0.0,
+                                                                       TIP_("Animate property")));
 
     button_func_set(but, button_anim_decorate_cb, but, nullptr);
     but->flag |= BUT_UNDO | BUT_DRAG_LOCK;
@@ -3420,7 +3422,8 @@ PointerRNA Layout::op_menu_enum(const bContext *C,
    * individual menu items. */
   but->opptr = MEM_new<PointerRNA>("uiButOpPtr", WM_operator_properties_create_ptr(ot));
   BLI_assert(but->opptr->data == nullptr);
-  WM_operator_properties_alloc(&but->opptr, (IDProperty **)&but->opptr->data, ot->idname);
+  WM_operator_properties_alloc(
+      &but->opptr, reinterpret_cast<IDProperty **>(&but->opptr->data), ot->idname);
 
   /* add hotkey here, lower UI code can't detect it */
   if ((this->block()->flag & BLOCK_LOOP) && (ot->prop && ot->invoke)) {
@@ -3454,7 +3457,7 @@ PointerRNA Layout::op_menu_enum(const bContext *C,
 
 static void menu_item_enum_rna_menu(bContext * /*C*/, Layout *layout, void *arg)
 {
-  MenuItemLevel *lvl = (MenuItemLevel *)(((Button *)arg)->func_argN);
+  MenuItemLevel *lvl = static_cast<MenuItemLevel *>((static_cast<Button *>(arg))->func_argN);
 
   layout->operator_context_set(lvl->opcontext);
   layout->props_enum(&lvl->rnapoin, lvl->propname);
@@ -5115,7 +5118,7 @@ static bool button_matches_search_filter(Button *but, const char *search_filter)
         }
       }
       if (free) {
-        MEM_freeN((EnumPropertyItem *)items_array);
+        MEM_freeN(const_cast<EnumPropertyItem *>(items_array));
       }
       if (found) {
         return true;
@@ -5204,8 +5207,7 @@ bool block_apply_search_filter(Block *block, const char *search_filter)
 
 static void ui_item_scale(Layout *litem, const float scale[2])
 {
-  for (auto riter = litem->items().rbegin(); riter != litem->items().rend(); riter++) {
-    Item *item = *riter;
+  for (Item *item : litem->items()) {
     if (item->type() != ItemType::Button) {
       Layout *subitem = static_cast<Layout *>(item);
       ui_item_scale(subitem, scale);
@@ -5230,40 +5232,36 @@ static void ui_item_scale(Layout *litem, const float scale[2])
 
 void Layout::estimate()
 {
-  if (this->type() != ItemType::Button) {
+  if (this->items().is_empty()) {
+    w_ = 0;
+    h_ = 0;
+    return;
+  }
 
-    if (this->items().is_empty()) {
-      w_ = 0;
-      h_ = 0;
-      return;
+  for (Item *subitem : this->items()) {
+    if (subitem->type() == ItemType::Button) {
+      continue;
     }
+    static_cast<Layout *>(subitem)->estimate();
+  }
 
-    for (Item *subitem : this->items()) {
-      if (subitem->type() == ItemType::Button) {
-        continue;
-      }
-      static_cast<Layout *>(subitem)->estimate();
-    }
+  if (this->scale_x() != 0.0f || this->scale_y() != 0.0f) {
+    ui_item_scale(this, float2{this->scale_x(), this->scale_y()});
+  }
+  this->estimate_impl();
 
-    if (this->scale_x() != 0.0f || this->scale_y() != 0.0f) {
-      ui_item_scale(this, float2{this->scale_x(), this->scale_y()});
-    }
-    this->estimate_impl();
-
-    /* Force fixed size. */
-    if (this->ui_units_x() > 0) {
-      w_ = UI_UNIT_X * this->ui_units_x();
-    }
-    if (this->ui_units_y() > 0) {
-      h_ = UI_UNIT_Y * this->ui_units_y();
-    }
+  /* Force fixed size. */
+  if (this->ui_units_x() > 0) {
+    w_ = UI_UNIT_X * this->ui_units_x();
+  }
+  if (this->ui_units_y() > 0) {
+    h_ = UI_UNIT_Y * this->ui_units_y();
   }
 }
 
 static void ui_item_align(Layout *litem, short nr)
 {
-  for (auto riter = litem->items().rbegin(); riter != litem->items().rend(); riter++) {
-    Item *item = *riter;
+  for (Item *item : litem->items()) {
     if (item->type() == ItemType::Button) {
       ButtonItem *bitem = static_cast<ButtonItem *>(item);
       if (!bitem->but->alignnr) {
@@ -5293,8 +5291,7 @@ static void ui_item_align(Layout *litem, short nr)
 
 static void ui_item_flag(Layout *litem, int flag)
 {
-  for (auto riter = litem->items().rbegin(); riter != litem->items().rend(); riter++) {
-    Item *item = *riter;
+  for (Item *item : litem->items()) {
     if (item->type() == ItemType::Button) {
       ButtonItem *bitem = static_cast<ButtonItem *>(item);
       bitem->but->flag |= flag;
@@ -5754,7 +5751,7 @@ wmOperatorType *button_operatortype_get_from_enum_menu(Button *but, PropertyRNA 
 MenuType *button_menutype_get(const Button *but)
 {
   if (but->menu_create_func == item_menutype_func) {
-    return (MenuType *)but->poin;
+    return reinterpret_cast<MenuType *>(but->poin);
   }
   return nullptr;
 }
@@ -5762,7 +5759,7 @@ MenuType *button_menutype_get(const Button *but)
 PanelType *button_paneltype_get(const Button *but)
 {
   if (but->menu_create_func == item_paneltype_func) {
-    return (PanelType *)but->poin;
+    return reinterpret_cast<PanelType *>(but->poin);
   }
   return nullptr;
 }
@@ -6035,7 +6032,7 @@ Layout *uiItemsAlertBox(Block *block,
   const float split_factor = (float(icon_size) + icon_padding) /
                              float(dialog_width - style->columnspace);
 
-  Layout &block_layout = blender::ui::block_layout(
+  Layout &block_layout = ui::block_layout(
       block, LayoutDirection::Vertical, LayoutType::Panel, 0, 0, dialog_width, 0, 0, style);
 
   if (icon == AlertIcon::Info) {
@@ -6116,4 +6113,5 @@ EmbossType Layout::emboss_or_undefined() const
   return emboss_;
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

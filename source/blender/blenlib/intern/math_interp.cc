@@ -17,7 +17,9 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
-namespace blender::math {
+namespace blender {
+
+namespace math {
 
 enum class eCubicFilter {
   BSpline,
@@ -81,7 +83,7 @@ BLI_INLINE void bicubic_interpolation_uchar_simd(
 
       const uchar *data = src_buffer + (width * y1 + x1) * 4;
       /* Load 4 bytes and expand into 4-lane SIMD. */
-      __m128i sample_i = _mm_castps_si128(_mm_load_ss((const float *)data));
+      __m128i sample_i = _mm_castps_si128(_mm_load_ss(reinterpret_cast<const float *>(data)));
       sample_i = _mm_unpacklo_epi8(sample_i, _mm_setzero_si128());
       sample_i = _mm_unpacklo_epi16(sample_i, _mm_setzero_si128());
 
@@ -97,7 +99,7 @@ BLI_INLINE void bicubic_interpolation_uchar_simd(
   __m128i rgba32 = _mm_cvttps_epi32(out);
   __m128i rgba16 = _mm_packs_epi32(rgba32, _mm_setzero_si128());
   __m128i rgba8 = _mm_packus_epi16(rgba16, _mm_setzero_si128());
-  _mm_store_ss((float *)output, _mm_castsi128_ps(rgba8));
+  _mm_store_ss(reinterpret_cast<float *>(output), _mm_castsi128_ps(rgba8));
 }
 #endif /* BLI_HAVE_SSE4 */
 
@@ -266,12 +268,12 @@ BLI_INLINE uchar4 bilinear_byte_impl(const uchar *buffer, int width, int height,
    * before 4.1 makes it very cumbersome to do full integer multiplies. */
   int xcoord[4];
   int ycoord[4];
-  _mm_storeu_ps((float *)xcoord, _mm_castsi128_ps(x1234));
-  _mm_storeu_ps((float *)ycoord, _mm_castsi128_ps(y1234));
-  int sample1 = ((const int *)buffer)[ycoord[0] * int64_t(width) + xcoord[0]];
-  int sample2 = ((const int *)buffer)[ycoord[1] * int64_t(width) + xcoord[1]];
-  int sample3 = ((const int *)buffer)[ycoord[2] * int64_t(width) + xcoord[2]];
-  int sample4 = ((const int *)buffer)[ycoord[3] * int64_t(width) + xcoord[3]];
+  _mm_storeu_ps(reinterpret_cast<float *>(xcoord), _mm_castsi128_ps(x1234));
+  _mm_storeu_ps(reinterpret_cast<float *>(ycoord), _mm_castsi128_ps(y1234));
+  int sample1 = (reinterpret_cast<const int *>(buffer))[ycoord[0] * int64_t(width) + xcoord[0]];
+  int sample2 = (reinterpret_cast<const int *>(buffer))[ycoord[1] * int64_t(width) + xcoord[1]];
+  int sample3 = (reinterpret_cast<const int *>(buffer))[ycoord[2] * int64_t(width) + xcoord[2]];
+  int sample4 = (reinterpret_cast<const int *>(buffer))[ycoord[3] * int64_t(width) + xcoord[3]];
   __m128i samples1234 = _mm_set_epi32(sample4, sample3, sample2, sample1);
   if constexpr (border) {
     /* Set samples to black for the ones that were actually invalid. */
@@ -309,7 +311,7 @@ BLI_INLINE uchar4 bilinear_byte_impl(const uchar *buffer, int width, int height,
   __m128i rgba32 = _mm_cvttps_epi32(rgba);
   __m128i rgba16 = _mm_packs_epi32(rgba32, _mm_setzero_si128());
   __m128i rgba8 = _mm_packus_epi16(rgba16, _mm_setzero_si128());
-  _mm_store_ss((float *)&res, _mm_castsi128_ps(rgba8));
+  _mm_store_ss(reinterpret_cast<float *>(&res), _mm_castsi128_ps(rgba8));
 
 #else
 
@@ -891,7 +893,7 @@ SampleArea sample_area(const SamplerSource &source)
   }
 }
 
-}  // namespace blender::math
+}  // namespace math
 
 /**************************************************************************
  * Filtering method based on
@@ -1089,3 +1091,5 @@ void BLI_ewa_filter(const int width,
   /* Clipping can be ignored if alpha used, `texr->trgba[3]` already includes filtered edge. */
   result[3] = use_alpha ? result[3] * d : 1.0f;
 }
+
+}  // namespace blender

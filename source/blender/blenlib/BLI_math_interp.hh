@@ -26,7 +26,9 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_simd.hh"
 
-namespace blender::math {
+namespace blender {
+
+namespace math {
 
 /**
  * Texture coordinate wrapping mode.
@@ -540,7 +542,7 @@ using SampleArea = float4 (*)(const SamplerSource &source,
 /** Lookup optimized function to call for \a source. */
 SampleArea sample_area(const SamplerSource &source);
 
-}  // namespace blender::math
+}  // namespace math
 
 /* -------------------------------------------------------------------- */
 /* EWA sampling. */
@@ -569,3 +571,5 @@ void BLI_ewa_filter(int width,
                     void *userdata,
                     float result[4],
                     bool clip = true);
+
+}  // namespace blender
