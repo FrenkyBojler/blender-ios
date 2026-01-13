@@ -146,9 +146,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label();
   {
     auto &p = b.add_panel("Alignment").default_closed(true);
-    p.add_input<decl::Menu>("Overflow")
-        .static_items(rna_node_geometry_string_to_curves_overflow_items)
-        .optional_label();
     p.add_input<decl::Menu>("Align X")
         .static_items(rna_node_geometry_string_to_curves_align_x_items)
         .optional_label();
@@ -166,6 +163,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   {
     auto &p = b.add_panel("Text Box").default_closed(true);
+    p.add_input<decl::Menu>("Overflow")
+        .static_items(rna_node_geometry_string_to_curves_overflow_items)
+        .optional_label();
     p.add_input<decl::Float>("Text Box Width")
         .default_value(0.0f)
         .min(0.0f)
