@@ -68,6 +68,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const BundleItemValue *value = bundle->lookup_path(path);
   if (!value) {
+    if (!params.output_is_required("Exists")) {
+      params.error_message_add(NodeWarningType::Error, "Bundle path not found");
+    }
     params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
     return;
