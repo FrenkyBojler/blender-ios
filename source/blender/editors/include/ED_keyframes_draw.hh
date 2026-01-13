@@ -162,7 +162,10 @@ void ED_add_mask_layer_channel(ChannelDrawList *channel_list,
 
 ChannelDrawList *ED_channel_draw_list_create();
 
-void ED_channel_list_flush(ChannelDrawList *channel_list, View2D *v2d, float cfra);
+/**
+ * \param current_frame any keys on this frame will be highlighted.
+ */
+void ED_channel_list_flush(ChannelDrawList *channel_list, View2D *v2d, float current_frame);
 
 void ED_channel_list_free(ChannelDrawList *channel_list);
 

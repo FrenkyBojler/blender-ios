@@ -12,6 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BKE_fcurve.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_library.hh"
 
@@ -42,10 +43,13 @@ namespace blender {
 
 /* *************************** Keyframe Drawing *************************** */
 
+/**
+ * \param draw_flag specifies how the shape is drawn. See KeyframeDrawFlags.
+ */
 void draw_keyframe_shape(const float x,
                          const float y,
                          float size,
-                         const int8_t flag,
+                         const int8_t draw_flag,
                          const eBezTriple_KeyframeType key_type,
                          const eKeyframeShapeDrawOpts mode,
                          const float alpha,
@@ -87,37 +91,40 @@ void draw_keyframe_shape(const float x,
   uchar fill_col[4];
   uchar outline_col[4];
   uchar highlight_color[4];
+  /* Flags for the keyframe shape. See GPUKeyframeShapes. */
   uint flags = 0;
 
   blender::ui::theme::get_color_4ubv(TH_CFRAME, highlight_color);
   highlight_color[3] = 255;
 
-  const bool sel = flag & KEYFRAME_DRAW_SELECTED;
+  const bool is_selected = draw_flag & KEYFRAME_DRAW_SELECTED;
 
   /* draw! */
   if (draw_fill) {
     /* get interior colors from theme (for selected and unselected only) */
     switch (key_type) {
       case BEZT_KEYTYPE_BREAKDOWN:
-        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_BREAKDOWN_SELECT : TH_KEYTYPE_BREAKDOWN,
+        ui::theme::get_color_3ubv(is_selected ? TH_KEYTYPE_BREAKDOWN_SELECT : TH_KEYTYPE_BREAKDOWN,
                                   fill_col);
         break;
       case BEZT_KEYTYPE_EXTREME:
-        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_EXTREME_SELECT : TH_KEYTYPE_EXTREME, fill_col);
+        ui::theme::get_color_3ubv(is_selected ? TH_KEYTYPE_EXTREME_SELECT : TH_KEYTYPE_EXTREME,
+                                  fill_col);
         break;
       case BEZT_KEYTYPE_JITTER:
-        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_JITTER_SELECT : TH_KEYTYPE_JITTER, fill_col);
+        ui::theme::get_color_3ubv(is_selected ? TH_KEYTYPE_JITTER_SELECT : TH_KEYTYPE_JITTER,
+                                  fill_col);
         break;
       case BEZT_KEYTYPE_MOVEHOLD:
-        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_MOVEHOLD_SELECT : TH_KEYTYPE_MOVEHOLD,
+        ui::theme::get_color_3ubv(is_selected ? TH_KEYTYPE_MOVEHOLD_SELECT : TH_KEYTYPE_MOVEHOLD,
                                   fill_col);
         break;
       case BEZT_KEYTYPE_KEYFRAME:
-        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_KEYFRAME_SELECT : TH_KEYTYPE_KEYFRAME,
+        ui::theme::get_color_3ubv(is_selected ? TH_KEYTYPE_KEYFRAME_SELECT : TH_KEYTYPE_KEYFRAME,
                                   fill_col);
         break;
       case BEZT_KEYTYPE_GENERATED:
-        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_GENERATED_SELECT : TH_KEYTYPE_GENERATED,
+        ui::theme::get_color_3ubv(is_selected ? TH_KEYTYPE_GENERATED_SELECT : TH_KEYTYPE_GENERATED,
                                   fill_col);
         break;
     }
@@ -137,7 +144,7 @@ void draw_keyframe_shape(const float x,
 
   if (draw_outline) {
     /* exterior - black frame */
-    ui::theme::get_color_4ubv(sel ? TH_KEYBORDER_SELECT : TH_KEYBORDER, outline_col);
+    ui::theme::get_color_4ubv(is_selected ? TH_KEYBORDER_SELECT : TH_KEYBORDER, outline_col);
     outline_col[3] *= alpha;
 
     if (!draw_fill) {
@@ -180,7 +187,7 @@ void draw_keyframe_shape(const float x,
     flags |= 0x400;
   }
 
-  if (flag & KEYFRAME_DRAW_HIGHLIGHT) {
+  if (draw_flag & KEYFRAME_DRAW_HIGHLIGHT) {
     flags |= GPU_KEYFRAME_SHAPE_HIGHLIGHT;
   }
 
@@ -390,6 +397,10 @@ static bool draw_keylist_is_visible_key(const View2D *v2d, const ActKeyColumn *a
   return IN_RANGE_INCL(ak->cfra, v2d->cur.xmin, v2d->cur.xmax);
 }
 
+/**
+ * \param highlight_frame any keys on that frame will be highlighted. Usually this is the current
+ * frame.
+ */
 static void draw_keylist_keys(const DrawKeylistUIData *ctx,
                               View2D *v2d,
                               const KeyframeShaderBindings *sh_bindings,
@@ -397,7 +408,7 @@ static void draw_keylist_keys(const DrawKeylistUIData *ctx,
                               const int key_len,
                               float ypos,
                               eSAction_Flag saction_flag,
-                              const float cfra)
+                              const float highlight_frame)
 {
   short handle_type = KEYFRAME_HANDLE_NONE, extreme_type = KEYFRAME_EXTREME_NONE;
 
@@ -411,7 +422,9 @@ static void draw_keylist_keys(const DrawKeylistUIData *ctx,
         extreme_type = ak->extreme_type;
       }
       int8_t draw_flag = 0;
-      if (abs(ak->cfra - cfra) < 0.001) {
+      /* Using BEZT_BINARYSEARCH_THRESH because that is the distance at which keyframes are
+       * considered to be at the same time. */
+      if (abs(ak->cfra - highlight_frame) < BEZT_BINARYSEARCH_THRESH) {
         draw_flag |= KEYFRAME_DRAW_HIGHLIGHT;
       }
 
@@ -586,14 +599,15 @@ static void draw_channel_blocks(ChannelListElement *elem, View2D *v2d)
 static void draw_channel_keys(ChannelListElement *elem,
                               View2D *v2d,
                               const KeyframeShaderBindings *sh_bindings,
-                              const float cfra)
+                              const float current_frame)
 {
   DrawKeylistUIData ctx;
   channel_ui_data_init(&ctx, v2d, elem->yscale_fac, elem->channel_locked, elem->saction_flag);
 
   const int key_len = ED_keylist_array_len(elem->keylist);
   const ActKeyColumn *keys = ED_keylist_array(elem->keylist);
-  draw_keylist_keys(&ctx, v2d, sh_bindings, keys, key_len, elem->ypos, elem->saction_flag, cfra);
+  draw_keylist_keys(
+      &ctx, v2d, sh_bindings, keys, key_len, elem->ypos, elem->saction_flag, current_frame);
 }
 
 static void prepare_channel_for_drawing(ChannelListElement *elem)
@@ -654,7 +668,9 @@ static int channel_list_visible_key_len(const ChannelDrawList *channel_list, con
   return len;
 }
 
-static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d, const float cfra)
+static void channel_list_draw_keys(ChannelDrawList *channel_list,
+                                   View2D *v2d,
+                                   const float current_frame)
 {
   const int visible_key_len = channel_list_visible_key_len(channel_list, v2d);
   if (visible_key_len == 0) {
@@ -683,7 +699,7 @@ static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d, c
   immBegin(GPU_PRIM_POINTS, visible_key_len);
 
   for (ChannelListElement &elem : channel_list->channels) {
-    draw_channel_keys(&elem, v2d, &sh_bindings, cfra);
+    draw_channel_keys(&elem, v2d, &sh_bindings, current_frame);
   }
 
   immEnd();
@@ -693,16 +709,18 @@ static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d, c
   GPU_blend(GPU_BLEND_NONE);
 }
 
-static void channel_list_draw(ChannelDrawList *channel_list, View2D *v2d, const float cfra)
+static void channel_list_draw(ChannelDrawList *channel_list,
+                              View2D *v2d,
+                              const float current_frame)
 {
   channel_list_draw_blocks(channel_list, v2d);
-  channel_list_draw_keys(channel_list, v2d, cfra);
+  channel_list_draw_keys(channel_list, v2d, current_frame);
 }
 
-void ED_channel_list_flush(ChannelDrawList *channel_list, View2D *v2d, const float cfra)
+void ED_channel_list_flush(ChannelDrawList *channel_list, View2D *v2d, const float current_frame)
 {
   channel_list_build_keylists(channel_list, {v2d->cur.xmin, v2d->cur.xmax});
-  channel_list_draw(channel_list, v2d, cfra);
+  channel_list_draw(channel_list, v2d, current_frame);
 }
 
 void ED_channel_list_free(ChannelDrawList *channel_list)

@@ -19,13 +19,26 @@ struct rcti;
 struct wmEvent;
 struct wmWindow;
 
+/**
+ * Draws the vertical line that is part of the playhead.
+ * This line is not in the scrub area itself, but rather in the editor area e.g. the keyframe
+ * area in the Dope Sheet.
+ */
 void ED_time_scrub_draw_current_frame_line(const ARegion *region, const Scene *scene);
 
+/**
+ * Draw a box with the current frame number inside. Optionally draws a vertical line crossing the
+ * editor from top to bottom at the position of the current frame.
+ *
+ * \param display_stalk if true draw a small triangle at the bottom of the playhead.
+ * \param draw_line if true, draw a vertical line indicating the current frame. See
+ * `ED_time_scrub_draw_current_frame_line` for drawing the line separately.
+ */
 void ED_time_scrub_draw_current_frame(const ARegion *region,
                                       const Scene *scene,
                                       bool display_seconds,
                                       bool display_stalk = true,
-                                      bool draw_line = true);
+                                      bool draw_frame_line = true);
 /**
  * Draw the scrub area with numbers inside.
  * \param display_seconds: Defines if the display is in seconds or in frames.
