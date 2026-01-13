@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'edd300f2e755')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'12e628ea43f8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-29 09:32+0000\n"
+"POT-Creation-Date: 2026-01-12 15:09+0000\n"
 "PO-Revision-Date: 2025-12-23 20:36+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -15695,12 +15695,60 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
-msgid "Assign Material"
-msgstr "Tugaskan Bahan"
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Metaball"
 msgstr "Metabola"
+
+
+msgid "Utilities"
+msgstr "Utilitas"
+
+
+msgid "Names"
+msgstr "Nama"
+
+
+msgid "Sample"
+msgstr "Sampel"
+
+
+msgid "Snap"
+msgstr "Jepret"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Contoh-contoh"
+
+
+msgid "Import"
+msgstr "Impor"
+
+
+msgid "Mirror"
+msgstr "Cermin"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Select Linked"
+msgstr "Seleksi yang Terhubung"
+
+
+msgid "Assign Material"
+msgstr "Tugaskan Bahan"
 
 
 msgid "Light"
@@ -15739,56 +15787,8 @@ msgid "Tracking"
 msgstr "Pelacakan"
 
 
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Utilities"
-msgstr "Utilitas"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
 msgid "Merge"
 msgstr "Menggabungkan"
-
-
-msgid "Sample"
-msgstr "Sampel"
-
-
-msgid "Snap"
-msgstr "Jepret"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Contoh-contoh"
-
-
-msgid "Import"
-msgstr "Impor"
-
-
-msgid "Mirror"
-msgstr "Cermin"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Navigation"
-msgstr "Navigasi"
-
-
-msgid "Select Linked"
-msgstr "Seleksi yang Terhubung"
 
 
 msgid "Animals"

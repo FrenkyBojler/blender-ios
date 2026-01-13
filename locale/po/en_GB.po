@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'edd300f2e755')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'12e628ea43f8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-29 09:32+0000\n"
+"POT-Creation-Date: 2026-01-12 15:09+0000\n"
 "PO-Revision-Date: 2025-12-11 18:12+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: English (United Kingdom) <https://translate.blender.org/projects/blender-ui/ui/en_GB/>\n"
@@ -18550,16 +18550,8 @@ msgid "Is Layered Action"
 msgstr "Is Layered Action"
 
 
-msgid "Return whether this is a layered Action. An empty Action is considered as both a 'legacy' and a 'layered' Action."
-msgstr "Return whether this is a layered Action. An empty Action is considered as both a 'legacy' and a 'layered' Action."
-
-
 msgid "Is Legacy Action"
 msgstr "Is Legacy Action"
-
-
-msgid "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An empty Action is considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 actions are automatically updated to layered actions, and thus this will only return True when the action is empty"
-msgstr "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An empty Action is considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 actions are automatically updated to layered actions, and thus this will only return True when the action is empty"
 
 
 msgid "Is Empty"
@@ -20363,18 +20355,6 @@ msgstr "Spacing between brush daubs as a percentage of brush diameter"
 
 msgid "Stabilize Normal"
 msgstr "Stabilise Normal"
-
-
-msgid "Stabilize the orientation of the brush plane."
-msgstr "Stabilise the orientation of the brush plane."
-
-
-msgid "Stabilize Plane"
-msgstr "Stabilise Plane"
-
-
-msgid "Stabilize the center of the brush plane."
-msgstr "Stabilise the centre of the brush plane."
 
 
 msgid "Stencil Dimensions"
@@ -34918,16 +34898,164 @@ msgid "Editor menu containing buttons"
 msgstr "Editor menu containing buttons"
 
 
-msgid "Assign Material"
-msgstr "Assign Material"
+msgid "Show/Hide"
+msgstr "Show/Hide"
+
+
+msgid "Special Characters"
+msgstr "Special Characters"
+
+
+msgid "Kerning"
+msgstr "Kerning"
+
+
+msgid "Math"
+msgstr "Maths"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Utilities"
+msgstr "Utilities"
+
+
+msgid "Names"
+msgstr "Names"
+
+
+msgid "Bone Roll"
+msgstr "Bone Roll"
+
+
+msgid "Clean Up"
+msgstr "Clean Up"
+
+
+msgid "Read"
+msgstr "Read"
+
+
+msgid "Sample"
+msgstr "Sample"
+
+
+msgid "Write"
+msgstr "Write"
+
+
+msgid "Pivot Point"
+msgstr "Pivot Point"
+
+
+msgid "Primitives"
+msgstr "Primitives"
+
+
+msgid "Snap"
+msgstr "Snap"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proportional Editing Falloff"
+
+
+msgid "Mask Edit"
+msgstr "Mask Edit"
+
+
+msgid "Automasking"
+msgstr "Automasking"
+
+
+msgid "Face Sets Edit"
+msgstr "Face Sets Edit"
+
+
+msgid "Vertex Group Locks"
+msgstr "Vertex Group Locks"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Instances"
+
+
+msgid "Import"
+msgstr "Import"
+
+
+msgid "Deprecated"
+msgstr "Deprecated"
+
+
+msgid "Mirror"
+msgstr "Mirror"
+
+
+msgid "UV Mapping"
+msgstr "UV Mapping"
+
+
+msgid "Local View"
+msgstr "Local View"
+
+
+msgid "List"
+msgstr "List"
+
+
+msgid "Viewpoint"
+msgstr "Viewpoint"
+
+
+msgid "Navigation"
+msgstr "Navigation"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Align View"
+msgstr "Align View"
+
+
+msgid "Align View to Active"
+msgstr "Align View to Active"
+
+
+msgid "View Regions"
+msgstr "View Regions"
 
 
 msgid "Select More/Less"
 msgstr "Select More/Less"
 
 
-msgid "Metaball"
-msgstr "Metaball"
+msgid "Select Similar"
+msgstr "Select Similar"
+
+
+msgid "Select All by Trait"
+msgstr "Select All by Trait"
+
+
+msgid "Select Linked"
+msgstr "Select Linked"
+
+
+msgid "Select Loops"
+msgstr "Select Loops"
+
+
+msgid "Assign Material"
+msgstr "Assign Material"
 
 
 msgid "Light"
@@ -34962,14 +35090,6 @@ msgid "Quick Effects"
 msgstr "Quick Effects"
 
 
-msgid "Show/Hide"
-msgstr "Show/Hide"
-
-
-msgid "Clean Up"
-msgstr "Clean Up"
-
-
 msgid "Asset"
 msgstr "Asset"
 
@@ -34994,10 +35114,6 @@ msgid "Layout"
 msgstr "Layout"
 
 
-msgid "Vertex Group Locks"
-msgstr "Vertex Group Locks"
-
-
 msgid "Trim/Add"
 msgstr "Trim/Add"
 
@@ -35014,12 +35130,12 @@ msgid "Random Mask"
 msgstr "Random Mask"
 
 
-msgid "Adjust"
-msgstr "Adjust"
-
-
 msgid "Clear Transform"
 msgstr "Clear Transform"
+
+
+msgid "Adjust"
+msgstr "Adjust"
 
 
 msgid "In-Betweens"
@@ -35030,36 +35146,24 @@ msgid "Propagate"
 msgstr "Propagate"
 
 
-msgid "Keying"
-msgstr "Keying"
-
-
 msgid "Bone Collections"
 msgstr "Bone Collections"
+
+
+msgid "Keying"
+msgstr "Keying"
 
 
 msgid "Tracking"
 msgstr "Tracking"
 
 
-msgid "Names"
-msgstr "Names"
-
-
-msgid "Utilities"
-msgstr "Utilities"
-
-
-msgid "Math"
-msgstr "Maths"
+msgid "Toggle Bone Options"
+msgstr "Toggle Bone Options"
 
 
 msgid "Creative"
 msgstr "Creative"
-
-
-msgid "Toggle Bone Options"
-msgstr "Toggle Bone Options"
 
 
 msgid "Enable Bone Options"
@@ -35092,130 +35196,6 @@ msgstr "Render Preview"
 
 msgid "Merge"
 msgstr "Merge"
-
-
-msgid "Special Characters"
-msgstr "Special Characters"
-
-
-msgid "Kerning"
-msgstr "Kerning"
-
-
-msgid "Bone Roll"
-msgstr "Bone Roll"
-
-
-msgid "Read"
-msgstr "Read"
-
-
-msgid "Sample"
-msgstr "Sample"
-
-
-msgid "Write"
-msgstr "Write"
-
-
-msgid "Primitives"
-msgstr "Primitives"
-
-
-msgid "Pivot Point"
-msgstr "Pivot Point"
-
-
-msgid "Snap"
-msgstr "Snap"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proportional Editing Falloff"
-
-
-msgid "Mask Edit"
-msgstr "Mask Edit"
-
-
-msgid "Automasking"
-msgstr "Automasking"
-
-
-msgid "Face Sets Edit"
-msgstr "Face Sets Edit"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Instances"
-
-
-msgid "Import"
-msgstr "Import"
-
-
-msgid "Deprecated"
-msgstr "Deprecated"
-
-
-msgid "Mirror"
-msgstr "Mirror"
-
-
-msgid "UV Mapping"
-msgstr "UV Mapping"
-
-
-msgid "List"
-msgstr "List"
-
-
-msgid "Local View"
-msgstr "Local View"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Viewpoint"
-msgstr "Viewpoint"
-
-
-msgid "Navigation"
-msgstr "Navigation"
-
-
-msgid "Align View"
-msgstr "Align View"
-
-
-msgid "Align View to Active"
-msgstr "Align View to Active"
-
-
-msgid "View Regions"
-msgstr "View Regions"
-
-
-msgid "Select Similar"
-msgstr "Select Similar"
-
-
-msgid "Select All by Trait"
-msgstr "Select All by Trait"
-
-
-msgid "Select Linked"
-msgstr "Select Linked"
-
-
-msgid "Select Loops"
-msgstr "Select Loops"
 
 
 msgid "Keyframe Insert Pie"
@@ -54056,13 +54036,8 @@ msgstr "Import Image Sequence"
 
 
 msgctxt "Operator"
-msgid "Texture Setup"
-msgstr "Texture Setup"
-
-
-msgctxt "Operator"
-msgid "Principled Texture Setup"
-msgstr "Principled Texture Setup"
+msgid "Add Texture Setup"
+msgstr "Add Texture Setup"
 
 
 msgid "Align selected nodes in a grid pattern"
@@ -82318,10 +82293,6 @@ msgid "Project the geometry onto a plane defined by a line"
 msgstr "Project the geometry onto a plane defined by a line"
 
 
-msgid "Sample the vertex color of the active vertex"
-msgstr "Sample the vertex colour of the active vertex"
-
-
 msgctxt "Operator"
 msgid "Sample Detail Size"
 msgstr "Sample Detail Size"
@@ -91565,34 +91536,6 @@ msgid "Panel containing UI elements"
 msgstr "Panel containing UI elements"
 
 
-msgid "Auto-Masking"
-msgstr "Auto-Masking"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Curves Sculpt Add Curve Options"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Curves Sculpt Parameter Falloff"
-
-
-msgid "Curves Grow/Shrink Scaling"
-msgstr "Curves Grow/Shrink Scaling"
-
-
-msgid "Viewport Debug"
-msgstr "Viewport Debug"
-
-
-msgid "VR"
-msgstr "VR"
-
-
-msgid "VR Info"
-msgstr "VR Info"
-
-
 msgid "glTF Variants"
 msgstr "glTF Variants"
 
@@ -91707,6 +91650,34 @@ msgstr "Stereoscopy"
 
 msgid "Multi Frame"
 msgstr "Multi Frame"
+
+
+msgid "Auto-Masking"
+msgstr "Auto-Masking"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Curves Sculpt Add Curve Options"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Curves Sculpt Parameter Falloff"
+
+
+msgid "Curves Grow/Shrink Scaling"
+msgstr "Curves Grow/Shrink Scaling"
+
+
+msgid "Viewport Debug"
+msgstr "Viewport Debug"
+
+
+msgid "VR"
+msgstr "VR"
+
+
+msgid "VR Info"
+msgstr "VR Info"
 
 
 msgid "Import Settings"
@@ -96033,10 +96004,6 @@ msgid "Orbit Around Selection"
 msgstr "Orbit Around Selection"
 
 
-msgid "Use selection as the pivot point"
-msgstr "Use selection as the pivot point"
-
-
 msgid "Zoom to Mouse Position"
 msgstr "Zoom to Mouse Position"
 
@@ -97049,10 +97016,6 @@ msgid "Indonesian - Bahasa indonesia"
 msgstr "Indonesian - Bahasa indonesia"
 
 
-msgid "Locale code: id_ID. Translation progress: 21%"
-msgstr "Locale code: id_ID. Translation progress: 21%"
-
-
 msgid "Italian - Italiano"
 msgstr "Italian - Italiano"
 
@@ -97111,10 +97074,6 @@ msgstr "Locale code: fa_IR. Translation progress: 3%"
 
 msgid "Polish - Polski"
 msgstr "Polish - Polski"
-
-
-msgid "Locale code: pl_PL. Translation progress: 18%"
-msgstr "Locale code: pl_PL. Translation progress: 18%"
 
 
 msgid "Portuguese (Brazil) - Português brasileiro"
@@ -119902,16 +119861,6 @@ msgid "Image Sequence"
 msgstr "Image Sequence"
 
 
-msgctxt "Operator"
-msgid "Add Texture Setup"
-msgstr "Add Texture Setup"
-
-
-msgctxt "Operator"
-msgid "Add Principled Setup"
-msgstr "Add Principled Setup"
-
-
 msgid "(Quick Access: Shift+W)"
 msgstr "(Quick Access: Shift+W)"
 
@@ -121395,10 +121344,6 @@ msgstr "All bone collections are in use"
 
 msgid "An action slot can only be created when an action is assigned"
 msgstr "An action slot can only be created when an action is assigned"
-
-
-msgid "Action slots are only supported by layered Actions. Upgrade this Action first"
-msgstr "Action slots are only supported by layered Actions. Upgrade this Action first"
 
 
 msgid "Creating a new Slot is not possible on a linked Action"
@@ -128941,11 +128886,6 @@ msgstr "Align to Transform Orientation"
 msgctxt "Operator"
 msgid "Project from View (Bounds)"
 msgstr "Project from View (Bounds)"
-
-
-msgctxt "Operator"
-msgid "Frame Last Stroke"
-msgstr "Frame Last Stroke"
 
 
 msgctxt "Operator"
@@ -140844,12 +140784,12 @@ msgid "Select movie or image strips"
 msgstr "Select movie or image strips"
 
 
-msgid "Cannot create key inside of speed transition"
-msgstr "Cannot create key inside of speed transition"
-
-
 msgid "Cannot create freeze frame"
 msgstr "Cannot create freeze frame"
+
+
+msgid "Cannot create key inside of speed transition"
+msgstr "Cannot create key inside of speed transition"
 
 
 msgid "Cannot create transition from first or last key"
@@ -143044,16 +142984,8 @@ msgid "Cannot return channelbag when slot is None"
 msgstr "Cannot return channelbag when slot is None"
 
 
-msgid "Cannot add slots to a legacy Action '%s'. Convert it to a layered Action first."
-msgstr "Cannot add slots to a legacy Action '%s'. Convert it to a layered Action first."
-
-
 msgid "Invalid slot name '%s': name must not be empty."
 msgstr "Invalid slot name '%s': name must not be empty."
-
-
-msgid "Cannot add layers to a legacy Action '%s'. Convert it to a layered Action first."
-msgstr "Cannot add layers to a legacy Action '%s'. Convert it to a layered Action first."
 
 
 msgid "F-Curve '%s[%d]' already exists in this channelbag"
@@ -146546,54 +146478,6 @@ msgid "The amount of jitter to introduce while computing rays, higher jitter can
 msgstr "The amount of jitter to introduce while computing rays, higher jitter can be faster but can produce grainy or noisy results"
 
 
-msgid "Wrong Image Input Type"
-msgstr "Wrong Image Input Type"
-
-
-msgid "Wrong Mask Input Type"
-msgstr "Wrong Mask Input Type"
-
-
-msgid "Unsupported Inputs"
-msgstr "Unsupported Inputs"
-
-
-msgid "Node group's main Image input should be of type Color"
-msgstr "Node group's main Image input should be of type Colour"
-
-
-msgid "Node group's Mask input should be of type Color"
-msgstr "Node group's Mask input should be of type Colour"
-
-
-msgid "Only a main Image and Mask inputs are supported, the rest are unsupported and will return zero"
-msgstr "Only a main Image and Mask inputs are supported, the rest are unsupported and will return zero"
-
-
-msgid "No Output"
-msgstr "No Output"
-
-
-msgid "Wrong Output Type"
-msgstr "Wrong Output Type"
-
-
-msgid "Ignored Outputs"
-msgstr "Ignored Outputs"
-
-
-msgid "Node group must have a Color output socket"
-msgstr "Node group must have a Colour output socket"
-
-
-msgid "Node group's first output must be a color output"
-msgstr "Node group's first output must be a colour output"
-
-
-msgid "Only the first output is considered while the rest are ignored"
-msgstr "Only the first output is considered while the rest are ignored"
-
-
 msgid "Fac"
 msgstr "Fac"
 
@@ -146955,6 +146839,10 @@ msgstr "Replace Alpha"
 
 msgid "Replace the input image's alpha channel by the alpha input value"
 msgstr "Replace the input image's alpha channel by the alpha input value"
+
+
+msgid "SDF"
+msgstr "SDF"
 
 
 msgid "Line position where the image should be split"
@@ -148540,10 +148428,6 @@ msgstr "Turn inactive voxels and tiles into inactive background tiles"
 
 msgid "Turn regions where all voxels have the same value and active state (within a tolerance threshold) into inactive background tiles"
 msgstr "Turn regions where all voxels have the same value and active state (within a tolerance threshold) into inactive background tiles"
-
-
-msgid "SDF"
-msgstr "SDF"
 
 
 msgid "Replace inactive tiles with inactive nodes. Faster than tolerance-based pruning, useful for cases like narrow-band SDF grids with only inside or outside background values."
@@ -150387,8 +150271,56 @@ msgid "Inspection index is out of range"
 msgstr "Inspection index is out of range"
 
 
+msgid "Wrong Image Input Type"
+msgstr "Wrong Image Input Type"
+
+
+msgid "Wrong Mask Input Type"
+msgstr "Wrong Mask Input Type"
+
+
+msgid "Unsupported Inputs"
+msgstr "Unsupported Inputs"
+
+
+msgid "No Output"
+msgstr "No Output"
+
+
+msgid "Wrong Output Type"
+msgstr "Wrong Output Type"
+
+
+msgid "Ignored Outputs"
+msgstr "Ignored Outputs"
+
+
 msgid "Unused Output"
 msgstr "Unused Output"
+
+
+msgid "Node group's main Image input should be of type Color"
+msgstr "Node group's main Image input should be of type Colour"
+
+
+msgid "Node group's Mask input should be of type Color"
+msgstr "Node group's Mask input should be of type Colour"
+
+
+msgid "Only a main Image and Mask inputs are supported, the rest are unsupported and will return zero"
+msgstr "Only a main Image and Mask inputs are supported, the rest are unsupported and will return zero"
+
+
+msgid "Node group must have a Color output socket"
+msgstr "Node group must have a Colour output socket"
+
+
+msgid "Node group's first output must be a color output"
+msgstr "Node group's first output must be a colour output"
+
+
+msgid "Only the first output is considered while the rest are ignored"
+msgstr "Only the first output is considered while the rest are ignored"
 
 
 msgid "There are multiple group output nodes and this one is not active"

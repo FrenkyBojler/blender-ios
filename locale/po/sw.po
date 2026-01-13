@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'edd300f2e755')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'12e628ea43f8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-29 09:32+0000\n"
+"POT-Creation-Date: 2026-01-12 15:09+0000\n"
 "PO-Revision-Date: 2025-11-14 10:59+0000\n"
 "Last-Translator: Isaac Gicheha <shwaky3@gmail.com>\n"
 "Language-Team: Swahili <https://translate.blender.org/projects/blender-ui/ui/sw/>\n"
@@ -28417,64 +28417,24 @@ msgid "Editor menu containing buttons"
 msgstr "Menyu ya mhariri iliyo na vitufe"
 
 
-msgid "Metaball"
-msgstr "Mpira wa miguu"
-
-
-msgid "Light"
-msgstr "Mwanga"
-
-
-msgid "Light Probe"
-msgstr "Uchunguzi wa Mwanga"
-
-
-msgid "Apply"
-msgstr "Tumia"
-
-
 msgid "Show/Hide"
 msgstr "Onyesha/Ficha"
-
-
-msgid "Clean Up"
-msgstr "Safisha"
-
-
-msgid "Asset"
-msgstr "Mali"
-
-
-msgid "Layout"
-msgstr "Mpangilio"
-
-
-msgid "Adjust"
-msgstr "Rekebisha"
-
-
-msgid "Keying"
-msgstr "Kuweka"
-
-
-msgid "Bone Collections"
-msgstr "Mikusanyo ya Mifupa"
-
-
-msgid "Tracking"
-msgstr "Kufuatilia"
-
-
-msgid "Utilities"
-msgstr "Huduma"
 
 
 msgid "Math"
 msgstr "Hisabati"
 
 
-msgid "Merge"
-msgstr "Unganisha"
+msgid "Metaball"
+msgstr "Mpira wa miguu"
+
+
+msgid "Utilities"
+msgstr "Huduma"
+
+
+msgid "Clean Up"
+msgstr "Safisha"
 
 
 msgid "Read"
@@ -28489,12 +28449,12 @@ msgid "Write"
 msgstr "Andika"
 
 
-msgid "Primitives"
-msgstr "Watu wa kwanza"
-
-
 msgid "Pivot Point"
 msgstr "Egemeo"
+
+
+msgid "Primitives"
+msgstr "Watu wa kwanza"
 
 
 msgid "Snap"
@@ -28523,6 +28483,46 @@ msgstr "Urambazaji"
 
 msgid "Select Linked"
 msgstr "Chagua Imeunganishwa"
+
+
+msgid "Light"
+msgstr "Mwanga"
+
+
+msgid "Light Probe"
+msgstr "Uchunguzi wa Mwanga"
+
+
+msgid "Apply"
+msgstr "Tumia"
+
+
+msgid "Asset"
+msgstr "Mali"
+
+
+msgid "Layout"
+msgstr "Mpangilio"
+
+
+msgid "Adjust"
+msgstr "Rekebisha"
+
+
+msgid "Bone Collections"
+msgstr "Mikusanyo ya Mifupa"
+
+
+msgid "Keying"
+msgstr "Kuweka"
+
+
+msgid "Tracking"
+msgstr "Kufuatilia"
+
+
+msgid "Merge"
+msgstr "Unganisha"
 
 
 msgid "Keyframe Insert Pie"
@@ -66096,10 +66096,6 @@ msgid "Project the geometry onto a plane defined by a line"
 msgstr "Mradi wa jiometri kwenye ndege iliyofafanuliwa kwa mstari"
 
 
-msgid "Sample the vertex color of the active vertex"
-msgstr "Sampuli ya rangi ya kipeo cha kipeo amilifu"
-
-
 msgctxt "Operator"
 msgid "Sample Detail Size"
 msgstr "Ukubwa wa Maelezo ya Mfano"
@@ -72979,22 +72975,6 @@ msgid "Panel containing UI elements"
 msgstr "Paneli iliyo na vipengele vya UI"
 
 
-msgid "Auto-Masking"
-msgstr "Kufunika Masking Kiotomatiki"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Mchoro wa Mikunjo Ongeza Chaguzi za Mviringo"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Curves Sculpt Parameta Falloff"
-
-
-msgid "Viewport Debug"
-msgstr "Utatuzi wa kituo cha kutazama"
-
-
 msgid "View Lock"
 msgstr "Kufuli ya Tazama"
 
@@ -73053,6 +73033,22 @@ msgstr "Mtazamo wa Quad"
 
 msgid "Multi Frame"
 msgstr "Fremu nyingi"
+
+
+msgid "Auto-Masking"
+msgstr "Kufunika Masking Kiotomatiki"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Mchoro wa Mikunjo Ongeza Chaguzi za Mviringo"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Curves Sculpt Parameta Falloff"
+
+
+msgid "Viewport Debug"
+msgstr "Utatuzi wa kituo cha kutazama"
 
 
 msgid "Motion Blur"
@@ -75832,10 +75828,6 @@ msgstr "Wakati wa kuingiza nambari wakati wa kubadilisha, chaguo-msingi hadi hal
 
 msgid "Orbit Around Selection"
 msgstr "Obiti Kuzunguka Uchaguzi"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Tumia uteuzi kama sehemu mhimili"
 
 
 msgid "Zoom to Mouse Position"
@@ -106210,12 +106202,12 @@ msgid "Select movie or image strips"
 msgstr "Chagua filamu au vipande vya picha"
 
 
-msgid "Cannot create key inside of speed transition"
-msgstr "Haiwezi kuunda ufunguo ndani ya mpito wa kasi"
-
-
 msgid "Cannot create freeze frame"
 msgstr "Haiwezi kuunda fremu ya kugandisha"
+
+
+msgid "Cannot create key inside of speed transition"
+msgstr "Haiwezi kuunda ufunguo ndani ya mpito wa kasi"
 
 
 msgid "Cannot create transition from first or last key"
