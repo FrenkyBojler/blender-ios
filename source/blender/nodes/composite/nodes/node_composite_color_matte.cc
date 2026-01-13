@@ -20,11 +20,15 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
+
+namespace blender {
 
 /* ******************* Color Matte ********************************************************** */
 
-namespace blender::nodes::node_composite_color_matte_cc {
+namespace nodes::node_composite_color_matte_cc {
 
 static void cmp_node_color_matte_declare(NodeDeclarationBuilder &b)
 {
@@ -101,31 +105,35 @@ static void color_matte(const float4 color,
   result = color * matte;
 }
 
-static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+using compositor::Color;
+
+static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
 {
   builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::SI5_SO2<float4, float4, float, float, float, float4, float>(
+    return mf::build::SI5_SO2<Color, Color, float, float, float, Color, float>(
         "Color Key",
-        [=](const float4 &color,
-            const float4 &key_color,
+        [=](const Color &color,
+            const Color &key_color,
             const float &hue,
             const float &saturation,
             const float &value,
-            float4 &output_color,
+            Color &output_color,
             float &matte) -> void {
-          color_matte(color, key_color, hue, saturation, value, output_color, matte);
+          float4 out_color;
+          color_matte(float4(color), float4(key_color), hue, saturation, value, out_color, matte);
+          output_color = Color(out_color);
         },
         mf::build::exec_presets::SomeSpanOrSingle<0, 1>());
   });
 }
 
-}  // namespace blender::nodes::node_composite_color_matte_cc
+}  // namespace nodes::node_composite_color_matte_cc
 
 static void register_node_type_cmp_color_matte()
 {
-  namespace file_ns = blender::nodes::node_composite_color_matte_cc;
+  namespace file_ns = nodes::node_composite_color_matte_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeColorMatte", CMP_NODE_COLOR_MATTE);
   ntype.ui_name = "Color Key";
@@ -136,8 +144,10 @@ static void register_node_type_cmp_color_matte()
   ntype.flag |= NODE_PREVIEW;
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
-  blender::bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
+  bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_color_matte)
+
+}  // namespace blender

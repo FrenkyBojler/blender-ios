@@ -15,9 +15,13 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_channel_matte_cc {
+namespace blender {
+
+namespace nodes::node_composite_channel_matte_cc {
 
 static const EnumPropertyItem color_space_items[] = {
     {CMP_NODE_CHANNEL_MATTE_CS_RGB, "RGB", 0, N_("RGB"), N_("RGB (Red, Green, Blue) color space")},
@@ -170,13 +174,11 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
       .expanded()
       .optional_label()
       .make_available([](bNode &node) {
-        bNodeSocket &limit_method_socket = *blender::bke::node_find_socket(
-            node, SOCK_IN, "Limit Method");
+        bNodeSocket &limit_method_socket = *bke::node_find_socket(node, SOCK_IN, "Limit Method");
         limit_method_socket.default_value_typed<bNodeSocketValueMenu>()->value =
             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE;
 
-        bNodeSocket &color_space_socket = *blender::bke::node_find_socket(
-            node, SOCK_IN, "Color Space");
+        bNodeSocket &color_space_socket = *bke::node_find_socket(node, SOCK_IN, "Color Space");
         color_space_socket.default_value_typed<bNodeSocketValueMenu>()->value =
             CMP_NODE_CHANNEL_MATTE_CS_RGB;
       })
@@ -192,13 +194,11 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
       .expanded()
       .optional_label()
       .make_available([](bNode &node) {
-        bNodeSocket &limit_method_socket = *blender::bke::node_find_socket(
-            node, SOCK_IN, "Limit Method");
+        bNodeSocket &limit_method_socket = *bke::node_find_socket(node, SOCK_IN, "Limit Method");
         limit_method_socket.default_value_typed<bNodeSocketValueMenu>()->value =
             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE;
 
-        bNodeSocket &color_space_socket = *blender::bke::node_find_socket(
-            node, SOCK_IN, "Color Space");
+        bNodeSocket &color_space_socket = *bke::node_find_socket(node, SOCK_IN, "Color Space");
         color_space_socket.default_value_typed<bNodeSocketValueMenu>()->value =
             CMP_NODE_CHANNEL_MATTE_CS_HSV;
       })
@@ -214,13 +214,11 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
       .expanded()
       .optional_label()
       .make_available([](bNode &node) {
-        bNodeSocket &limit_method_socket = *blender::bke::node_find_socket(
-            node, SOCK_IN, "Limit Method");
+        bNodeSocket &limit_method_socket = *bke::node_find_socket(node, SOCK_IN, "Limit Method");
         limit_method_socket.default_value_typed<bNodeSocketValueMenu>()->value =
             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE;
 
-        bNodeSocket &color_space_socket = *blender::bke::node_find_socket(
-            node, SOCK_IN, "Color Space");
+        bNodeSocket &color_space_socket = *bke::node_find_socket(node, SOCK_IN, "Color Space");
         color_space_socket.default_value_typed<bNodeSocketValueMenu>()->value =
             CMP_NODE_CHANNEL_MATTE_CS_YUV;
       })
@@ -236,13 +234,11 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
       .expanded()
       .optional_label()
       .make_available([](bNode &node) {
-        bNodeSocket &limit_method_socket = *blender::bke::node_find_socket(
-            node, SOCK_IN, "Limit Method");
+        bNodeSocket &limit_method_socket = *bke::node_find_socket(node, SOCK_IN, "Limit Method");
         limit_method_socket.default_value_typed<bNodeSocketValueMenu>()->value =
             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE;
 
-        bNodeSocket &color_space_socket = *blender::bke::node_find_socket(
-            node, SOCK_IN, "Color Space");
+        bNodeSocket &color_space_socket = *bke::node_find_socket(node, SOCK_IN, "Color Space");
         color_space_socket.default_value_typed<bNodeSocketValueMenu>()->value =
             CMP_NODE_CHANNEL_MATTE_CS_YCC;
       })
@@ -257,7 +253,7 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_channel_matte(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, but allocated for forward compatibility. */
-  node->storage = MEM_callocN<NodeChroma>(__func__);
+  node->storage = MEM_new_for_free<NodeChroma>(__func__);
 }
 
 using namespace blender::compositor;
@@ -376,12 +372,14 @@ static void channel_key(const float4 color,
   output_color = color * matte;
 }
 
-static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+using compositor::Color;
+
+static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
 {
   static auto function =
-      mf::build::detail::build_multi_function_with_n_inputs_two_outputs<float4, float>(
+      mf::build::detail::build_multi_function_with_n_inputs_two_outputs<Color, float>(
           "Channel Key",
-          [=](const float4 &color,
+          [=](const Color &color,
               const float &minimum,
               const float &maximum,
               const MenuValue &color_space,
@@ -394,9 +392,10 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
               const MenuValue &hsv_limit_channel,
               const MenuValue &yuv_limit_channel,
               const MenuValue &ycc_limit_channel,
-              float4 &output_color,
+              Color &output_color,
               float &matte) -> void {
-            channel_key(color,
+            float4 out_color;
+            channel_key(float4(color),
                         minimum,
                         maximum,
                         CMPNodeChannelMatteColorSpace(color_space.value),
@@ -409,11 +408,12 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
                         hsv_limit_channel.value,
                         yuv_limit_channel.value,
                         ycc_limit_channel.value,
-                        output_color,
+                        out_color,
                         matte);
+            output_color = Color(out_color);
           },
           mf::build::exec_presets::SomeSpanOrSingle<0>(),
-          TypeSequence<float4,
+          TypeSequence<Color,
                        float,
                        float,
                        MenuValue,
@@ -430,13 +430,13 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
   builder.set_matching_fn(function);
 }
 
-}  // namespace blender::nodes::node_composite_channel_matte_cc
+}  // namespace nodes::node_composite_channel_matte_cc
 
 static void register_node_type_cmp_channel_matte()
 {
-  namespace file_ns = blender::nodes::node_composite_channel_matte_cc;
+  namespace file_ns = nodes::node_composite_channel_matte_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeChannelMatte", CMP_NODE_CHANNEL_MATTE);
   ntype.ui_name = "Channel Key";
@@ -446,11 +446,13 @@ static void register_node_type_cmp_channel_matte()
   ntype.declare = file_ns::cmp_node_channel_matte_declare;
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = file_ns::node_composit_init_channel_matte;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeChroma", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_channel_matte)
+
+}  // namespace blender

@@ -17,11 +17,15 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
+
+namespace blender {
 
 /* **************** Hue/Saturation/Value ******************** */
 
-namespace blender::nodes::node_composite_hue_sat_val_cc {
+namespace nodes::node_composite_hue_sat_val_cc {
 
 static void cmp_node_huesatval_declare(NodeDeclarationBuilder &b)
 {
@@ -61,39 +65,50 @@ static int node_gpu_material(GPUMaterial *material,
   return GPU_stack_link(material, node, "node_composite_hue_saturation_value", inputs, outputs);
 }
 
-static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+static float4 hue_saturation_value(const float4 &color,
+                                   const float hue,
+                                   const float saturation,
+                                   const float value,
+                                   const float factor)
 {
-  static auto function = mf::build::SI5_SO<float4, float, float, float, float, float4>(
+  float3 hsv;
+  rgb_to_hsv_v(color, hsv);
+
+  hsv.x = math::fract(hsv.x + hue + 0.5f);
+  hsv.y = hsv.y * saturation;
+  hsv.z = hsv.z * value;
+
+  float3 rgb_result;
+  hsv_to_rgb_v(hsv, rgb_result);
+  rgb_result = math::max(rgb_result, float3(0.0f));
+
+  return float4(math::interpolate(color.xyz(), rgb_result, factor), color.w);
+}
+
+using compositor::Color;
+
+static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
+{
+  static auto function = mf::build::SI5_SO<Color, float, float, float, float, Color>(
       "Hue Saturation Value",
-      [](const float4 &color,
+      [](const Color &color,
          const float hue,
          const float saturation,
          const float value,
-         const float factor) -> float4 {
-        float3 hsv;
-        rgb_to_hsv_v(color, hsv);
-
-        hsv.x = math::fract(hsv.x + hue + 0.5f);
-        hsv.y = hsv.y * saturation;
-        hsv.z = hsv.z * value;
-
-        float3 rgb_result;
-        hsv_to_rgb_v(hsv, rgb_result);
-        rgb_result = math::max(rgb_result, float3(0.0f));
-
-        return float4(math::interpolate(color.xyz(), rgb_result, factor), color.w);
+         const float factor) -> Color {
+        return Color(hue_saturation_value(float4(color), hue, saturation, value, factor));
       },
       mf::build::exec_presets::SomeSpanOrSingle<0>());
   builder.set_matching_fn(function);
 }
 
-}  // namespace blender::nodes::node_composite_hue_sat_val_cc
+}  // namespace nodes::node_composite_hue_sat_val_cc
 
 static void register_node_type_cmp_hue_sat()
 {
-  namespace file_ns = blender::nodes::node_composite_hue_sat_val_cc;
+  namespace file_ns = nodes::node_composite_hue_sat_val_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeHueSat", CMP_NODE_HUE_SAT);
   ntype.ui_name = "Hue/Saturation/Value";
@@ -104,6 +119,8 @@ static void register_node_type_cmp_hue_sat()
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_hue_sat)
+
+}  // namespace blender

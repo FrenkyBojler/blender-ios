@@ -8,8 +8,13 @@
 
 #  include "draw_view_infos.hh"
 #  include "eevee_common_infos.hh"
+#  include "eevee_lightprobe_infos.hh"
 #  include "eevee_raytrace_shared.hh"
+#  include "eevee_sampling_infos.hh"
+#  include "eevee_uniform_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define SPHERE_PROBE
 #endif
 
@@ -68,6 +73,8 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_ray_trace_fallback)
 DO_STATIC_COMPILATION()
+/* The use of UTIL_TEXEL doesn't directly pull the builtins from eevee_defines.hh. */
+BUILTINS(BuiltinBits::GLOBAL_INVOCATION_ID)
 LOCAL_GROUP_SIZE(RAYTRACE_GROUP_SIZE, RAYTRACE_GROUP_SIZE)
 TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_gbuffer_data)
@@ -86,6 +93,8 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_ray_trace_planar)
 DO_STATIC_COMPILATION()
+/* The use of UTIL_TEXEL doesn't directly pull the builtins from eevee_defines.hh. */
+BUILTINS(BuiltinBits::GLOBAL_INVOCATION_ID)
 LOCAL_GROUP_SIZE(RAYTRACE_GROUP_SIZE, RAYTRACE_GROUP_SIZE)
 DEFINE("PLANAR_PROBES")
 TYPEDEF_SOURCE("eevee_defines.hh")
@@ -106,6 +115,8 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_ray_trace_screen)
 DO_STATIC_COMPILATION()
+/* The use of UTIL_TEXEL doesn't directly pull the builtins from eevee_defines.hh. */
+BUILTINS(BuiltinBits::GLOBAL_INVOCATION_ID)
 LOCAL_GROUP_SIZE(RAYTRACE_GROUP_SIZE, RAYTRACE_GROUP_SIZE)
 TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_global_ubo)
@@ -260,6 +271,8 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_horizon_resolve)
 DO_STATIC_COMPILATION()
+/* The use of UTIL_TEXEL doesn't directly pull the builtins from eevee_defines.hh. */
+BUILTINS(BuiltinBits::GLOBAL_INVOCATION_ID)
 LOCAL_GROUP_SIZE(RAYTRACE_GROUP_SIZE, RAYTRACE_GROUP_SIZE)
 TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(eevee_gbuffer_data)

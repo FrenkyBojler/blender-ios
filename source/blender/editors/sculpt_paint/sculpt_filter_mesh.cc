@@ -248,7 +248,7 @@ static EnumPropertyItem prop_mesh_filter_types[] = {
      "RELAX_FACE_SETS",
      0,
      "Relax Face Sets",
-     "Smooth the edges of all the Face Sets"},
+     "Smooth the edges of all the face sets"},
     {int(MeshFilterType::SurfaceSmooth),
      "SURFACE_SMOOTH",
      0,
@@ -348,7 +348,7 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       const OffsetIndices faces = mesh.faces();
@@ -371,14 +371,16 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
         scale_factors(factors, strength);
         clamp_factors(factors, -1.0f, 1.0f);
 
-        const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(faces,
-                                                                        corner_verts,
-                                                                        vert_to_face_map,
-                                                                        ss.vertex_info.boundary,
-                                                                        attribute_data.hide_poly,
-                                                                        verts,
-                                                                        tls.neighbor_offsets,
-                                                                        tls.neighbor_data);
+        const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(
+            faces,
+            corner_verts,
+            vert_to_face_map,
+            ss.boundary_info_cache->verts,
+            ss.boundary_info_cache->edges,
+            attribute_data.hide_poly,
+            verts,
+            tls.neighbor_offsets,
+            tls.neighbor_data);
 
         tls.new_positions.resize(verts.size());
         const MutableSpan<float3> new_positions = tls.new_positions;
@@ -405,7 +407,7 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::Grids: {
-      const Mesh &base_mesh = *static_cast<const Mesh *>(object.data);
+      const Mesh &base_mesh = *id_cast<const Mesh *>(object.data);
       const OffsetIndices faces = base_mesh.faces();
       const Span<int> corner_verts = base_mesh.corner_verts();
 
@@ -428,8 +430,13 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
 
         tls.new_positions.resize(positions.size());
         const MutableSpan<float3> new_positions = tls.new_positions;
-        smooth::neighbor_position_average_interior_grids(
-            faces, corner_verts, ss.vertex_info.boundary, subdiv_ccg, grids, new_positions);
+        smooth::neighbor_position_average_interior_grids(faces,
+                                                         corner_verts,
+                                                         ss.boundary_info_cache->verts,
+                                                         ss.boundary_info_cache->edges,
+                                                         subdiv_ccg,
+                                                         grids,
+                                                         new_positions);
 
         tls.translations.resize(positions.size());
         const MutableSpan<float3> translations = tls.translations;
@@ -510,7 +517,7 @@ static void calc_inflate_filter(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       bke::AttributeAccessor attributes = mesh.attributes();
       const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
       const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
@@ -616,7 +623,7 @@ static void calc_scale_filter(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -730,7 +737,7 @@ static void calc_sphere_filter(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const PositionDeformData position_data(depsgraph, object);
       const MeshAttributeData attribute_data(mesh);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -819,7 +826,7 @@ BLI_NOINLINE static void randomize_factors(const Span<float3> positions,
 {
   BLI_assert(positions.size() == factors.size());
   for (const int i : positions.index_range()) {
-    const uint *hash_co = (const uint *)&positions[i];
+    const uint *hash_co = reinterpret_cast<const uint *>(&positions[i]);
     const uint hash = BLI_hash_int_2d(hash_co[0], hash_co[1]) ^ BLI_hash_int_2d(hash_co[2], seed);
     factors[i] *= (hash * (1.0f / float(0xFFFFFFFF)) - 0.5f);
   }
@@ -840,7 +847,7 @@ static void calc_random_filter(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -949,7 +956,7 @@ static void calc_relax_filter(const Depsgraph &depsgraph,
       Vector<float3> translations;
     };
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const PositionDeformData position_data(depsgraph, object);
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
       const OffsetIndices faces = mesh.faces();
@@ -978,7 +985,8 @@ static void calc_relax_filter(const Depsgraph &depsgraph,
                                                 faces,
                                                 corner_verts,
                                                 vert_to_face_map,
-                                                ss.vertex_info.boundary,
+                                                ss.boundary_info_cache->verts,
+                                                ss.boundary_info_cache->edges,
                                                 attribute_data.face_sets,
                                                 attribute_data.hide_poly,
                                                 false,
@@ -998,7 +1006,7 @@ static void calc_relax_filter(const Depsgraph &depsgraph,
         Vector<float3> positions;
         Vector<float3> translations;
       };
-      const Mesh &base_mesh = *static_cast<const Mesh *>(object.data);
+      const Mesh &base_mesh = *id_cast<const Mesh *>(object.data);
       const OffsetIndices faces = base_mesh.faces();
       const Span<int> corner_verts = base_mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = base_mesh.vert_to_face_map();
@@ -1028,7 +1036,8 @@ static void calc_relax_filter(const Depsgraph &depsgraph,
                                                 corner_verts,
                                                 face_sets,
                                                 vert_to_face_map,
-                                                ss.vertex_info.boundary,
+                                                ss.boundary_info_cache->verts,
+                                                ss.boundary_info_cache->edges,
                                                 grids,
                                                 false,
                                                 factors,
@@ -1090,7 +1099,7 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
   bke::pbvh::update_normals(depsgraph, object, pbvh);
 
   /* When using the relax face sets meshes filter, each 3 iterations, do a whole mesh relax to
-   * smooth the contents of the Face Set. This produces better results as the relax operation is no
+   * smooth the contents of the face set. This produces better results as the relax operation is no
    * completely focused on the boundaries. */
   const bool relax_face_sets = !(ss.filter_cache->iteration_count % 3 == 0);
 
@@ -1101,7 +1110,7 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
         Vector<float3> positions;
         Vector<float3> translations;
       };
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const PositionDeformData position_data(depsgraph, object);
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
       const OffsetIndices faces = mesh.faces();
@@ -1133,7 +1142,8 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
                                                 faces,
                                                 corner_verts,
                                                 vert_to_face_map,
-                                                ss.vertex_info.boundary,
+                                                ss.boundary_info_cache->verts,
+                                                ss.boundary_info_cache->edges,
                                                 attribute_data.face_sets,
                                                 attribute_data.hide_poly,
                                                 relax_face_sets,
@@ -1153,7 +1163,7 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
         Vector<float3> positions;
         Vector<float3> translations;
       };
-      const Mesh &base_mesh = *static_cast<const Mesh *>(object.data);
+      const Mesh &base_mesh = *id_cast<const Mesh *>(object.data);
       const OffsetIndices faces = base_mesh.faces();
       const Span<int> corner_verts = base_mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = base_mesh.vert_to_face_map();
@@ -1193,7 +1203,8 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
                                                 corner_verts,
                                                 face_sets,
                                                 vert_to_face_map,
-                                                ss.vertex_info.boundary,
+                                                ss.boundary_info_cache->verts,
+                                                ss.boundary_info_cache->edges,
                                                 grids,
                                                 relax_face_sets,
                                                 factors,
@@ -1268,7 +1279,7 @@ static void calc_surface_smooth_filter(const Depsgraph &depsgraph,
   const MutableSpan<float3> all_laplacian_disp = ss.filter_cache->surface_smooth_laplacian_disp;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       const OffsetIndices faces = mesh.faces();
@@ -1550,7 +1561,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
 
@@ -1802,7 +1813,7 @@ static void calc_enhance_details_filter(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -2004,7 +2015,7 @@ static void mesh_filter_sharpen_init(const Depsgraph &depsgraph,
   {
     switch (pbvh.type()) {
       case bke::pbvh::Type::Mesh: {
-        Mesh &mesh = *static_cast<Mesh *>(object.data);
+        Mesh &mesh = *id_cast<Mesh *>(object.data);
         const OffsetIndices faces = mesh.faces();
         const Span<int> corner_verts = mesh.corner_verts();
         const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
@@ -2527,13 +2538,13 @@ void register_operator_props(wmOperatorType *ot)
 
 static void sculpt_mesh_ui_exec(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout = &layout->row(true);
-  layout->prop(op->ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &row = layout.row(true);
+  row.prop(op->ptr, "deform_axis", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void SCULPT_OT_mesh_filter(wmOperatorType *ot)

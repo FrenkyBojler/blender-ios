@@ -18,6 +18,8 @@
 #include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
+namespace blender {
+
 struct ARegion;
 struct NodeInsertOfsData;
 struct View2D;
@@ -34,11 +36,11 @@ extern "C" {
 extern const char *node_context_dir[];
 };
 
-namespace blender::ed::asset {
+namespace ed::asset {
 struct AssetItemTree;
 }
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 struct NestedTreePreviews;
 
 /** Temporary data used in node link drag modal operator. */
@@ -79,7 +81,7 @@ struct bNodeLinkDrag {
   bool swap_links = false;
 
   /* Data for edge panning */
-  View2DEdgePanData pan_data;
+  ui::View2DEdgePanData pan_data;
 };
 
 struct SpaceNode_Runtime {
@@ -173,7 +175,7 @@ void node_socket_color_get(const bContext &C,
 
 void node_draw_space(const bContext &C, ARegion &region);
 
-void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, uiLayout &layout);
+void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui::Layout &layout);
 
 /**
  * Update node draw order nodes based on selection: unselected nodes first, then selected,
@@ -311,6 +313,7 @@ void NODE_OT_swap_group_asset(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
 void NODE_OT_new_compositing_node_group(wmOperatorType *ot);
 void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot);
+void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot);
 void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type);
 void NODE_OT_add_group_input_node(wmOperatorType *ot);
 
@@ -425,7 +428,7 @@ void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt);
 void node_geometry_add_attribute_search_button(const bContext &C,
                                                const bNode &node,
                                                PointerRNA &socket_ptr,
-                                               uiLayout &layout,
+                                               ui::Layout &layout,
                                                StringRef placeholder = "");
 
 /* `node_geometry_layer_search.cc` */
@@ -433,14 +436,14 @@ void node_geometry_add_attribute_search_button(const bContext &C,
 void node_geometry_add_layer_search_button(const bContext &C,
                                            const bNode &node,
                                            PointerRNA &socket_ptr,
-                                           uiLayout &layout,
+                                           ui::Layout &layout,
                                            StringRef placeholder = "");
 /* `node_geometry_volume_grid_search.cc` */
 
 void node_geometry_add_volume_grid_search_button(const bContext &C,
                                                  const bNode &node,
                                                  PointerRNA &socket_ptr,
-                                                 uiLayout &layout,
+                                                 ui::Layout &layout,
                                                  StringRef placeholder = "");
 
 /* `node_context_path.cc` */
@@ -468,9 +471,9 @@ void NODE_OT_sockets_sync(wmOperatorType *ot);
 
 /* node_socket_tooltip.cc */
 
-void build_socket_tooltip(uiTooltipData &tip_data,
+void build_socket_tooltip(ui::TooltipData &tip_data,
                           bContext &C,
-                          uiBut *but,
+                          ui::Button *but,
                           const bNodeTree &tree,
                           const bNodeSocket &socket);
 
@@ -478,4 +481,6 @@ void build_socket_tooltip(uiTooltipData &tip_data,
 
 void node_tree_interface_panel_register(ARegionType *art);
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

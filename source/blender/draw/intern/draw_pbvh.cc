@@ -51,9 +51,7 @@ template<> struct DefaultHash<draw::pbvh::AttributeRequest> {
   }
 };
 
-}  // namespace blender
-
-namespace blender::draw::pbvh {
+namespace draw::pbvh {
 
 uint64_t ViewportRequest::hash() const
 {
@@ -1571,6 +1569,10 @@ static gpu::IndexBufPtr create_lines_index_grids(const CCGKey &key,
       &builder, GPU_PRIM_LINES, 2 * totgrid * display_gridsize * (display_gridsize - 1), INT_MAX);
 
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
+  /* The buffer might contain hidden elements which are not initialized but still accounted. We
+   * don't count them to skip from allocation, so must fill that gaps by 0 to hide redundant edges.
+   */
+  data.fill(uint2(0));
 
   if (use_flat_layout) {
     create_lines_index_grids_flat_layout(
@@ -1832,7 +1834,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
                                                       const IndexMask &nodes_to_update)
 {
   const Object &object_orig = *DEG_get_original(&object);
-  const OrigMeshData orig_mesh_data{*static_cast<const Mesh *>(object_orig.data)};
+  const OrigMeshData orig_mesh_data{*id_cast<const Mesh *>(object_orig.data)};
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   this->ensure_use_flat_layout(object, orig_mesh_data);
@@ -1876,7 +1878,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_lines_batches(const Object &object,
                                                        const IndexMask &nodes_to_update)
 {
   const Object &object_orig = *DEG_get_original(&object);
-  const OrigMeshData orig_mesh_data(*static_cast<const Mesh *>(object_orig.data));
+  const OrigMeshData orig_mesh_data(*id_cast<const Mesh *>(object_orig.data));
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   this->ensure_use_flat_layout(object, orig_mesh_data);
@@ -1907,10 +1909,11 @@ Span<int> DrawCacheImpl::ensure_material_indices(const Object &object)
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   if (material_indices_.size() != pbvh.nodes_num()) {
     const Object &object_orig = *DEG_get_original(&object);
-    const OrigMeshData orig_mesh_data(*static_cast<const Mesh *>(object_orig.data));
+    const OrigMeshData orig_mesh_data(*id_cast<const Mesh *>(object_orig.data));
     material_indices_ = calc_material_indices(object, orig_mesh_data);
   }
   return material_indices_;
 }
 
-}  // namespace blender::draw::pbvh
+}  // namespace draw::pbvh
+}  // namespace blender

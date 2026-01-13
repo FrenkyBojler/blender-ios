@@ -5,6 +5,7 @@
 #pragma once
 
 #include "infos/eevee_common_infos.hh"
+#include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
@@ -354,7 +355,7 @@ void brdf_f82_tint_lut(float3 F0,
                        float cos_theta,
                        float roughness,
                        bool do_multiscatter,
-                       out float3 reflectance)
+                       float3 &reflectance)
 {
   auto &utility_tx = sampler_get(eevee_utility_texture, utility_tx);
   float3 split_sum = utility_tx_sample_lut(utility_tx, cos_theta, roughness, UTIL_BSDF_LAYER).rgb;
@@ -409,8 +410,8 @@ void bsdf_lut(float3 F0,
               float roughness,
               float ior,
               bool do_multiscatter,
-              out float3 reflectance,
-              out float3 transmittance)
+              float3 &reflectance,
+              float3 &transmittance)
 {
   auto &utility_tx = sampler_get(eevee_utility_texture, utility_tx);
   if (ior == 1.0f) {
@@ -619,7 +620,7 @@ float texture_lod_bias_get()
  */
 float derivative_scale_get()
 {
-  return 1.0 / float(uniform_buf.film.scaling_factor);
+  return 1.0f / float(uniform_buf.film.scaling_factor);
 }
 
 /** \} */
