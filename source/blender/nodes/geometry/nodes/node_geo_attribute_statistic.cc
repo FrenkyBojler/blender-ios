@@ -92,6 +92,7 @@ class SocketSearchOp {
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
+  const bke::bNodeType &node_type = params.node_type();
   const NodeDeclaration &declaration = *params.node_type().static_declaration;
   search_link_ops_for_declarations(params, declaration.inputs);
 
@@ -160,13 +161,12 @@ template<typename T> Vector<T> gather_selected_values(const bNode &node, GeoNode
 
   Vector<T> data;
   for (const GeometryComponent *component : components) {
-    const std::optional<AttributeAccessor> attributes = component->attributes();
-    if (!attributes.has_value()) {
-      continue;
-    }
-    if (attributes->domain_supported(domain)) {
+      const int domain_size = component->attribute_domain_size(domain);
+      if (domain_size == 0) {
+        continue;
+      }
       const bke::GeometryFieldContext field_context{*component, domain};
-      fn::FieldEvaluator data_evaluator{field_context, attributes->domain_size(domain)};
+      fn::FieldEvaluator data_evaluator{field_context, domain_size};
       data_evaluator.add(input_field);
       data_evaluator.set_selection(selection_field);
       data_evaluator.evaluate();
@@ -176,10 +176,9 @@ template<typename T> Vector<T> gather_selected_values(const bNode &node, GeoNode
       const int next_data_index = data.size();
       data.resize(next_data_index + selection.size());
       MutableSpan<T> selected_data = data.as_mutable_span().slice(next_data_index,
-                                                                  selection.size());
+                                                                      selection.size());
       array_utils::gather(component_data, selection, selected_data);
     }
-  }
   return data;
 }
 
@@ -219,7 +218,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           range = max - min;
         }
         if (sum_required || variance_required) {
-          sum = blender::array_utils::compute_sum<float>(data);
+          sum = array_utils::compute_sum<float>(data);
           mean = sum / data.size();
 
           if (variance_required) {
@@ -295,7 +294,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           range = max - min;
         }
         if (sum_required || variance_required) {
-          sum = blender::array_utils::compute_sum(data.as_span());
+          sum = array_utils::compute_sum(data.as_span());
           mean = sum / data.size();
 
           if (variance_required) {
@@ -404,7 +403,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeAttributeStatistic", GEO_NODE_ATTRIBUTE_STATISTIC);
   ntype.ui_name = "Attribute Statistic";
   ntype.ui_description =
@@ -416,7 +415,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
