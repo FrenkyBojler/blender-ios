@@ -11,3 +11,4 @@ Referenced by commit 9d04a8d38e1e50251c1816e1cf0f74ff98ce2c26, Fix #149154: Shad
 Referenced by issue #149965, Tangent problems in Blender 5.0
 Referenced by issue #150306, EEVEE recompiling shaders for every minor adjustment
 Referenced by issue #150373, Material Output inside nested groups no longer overrides main material output in 5.0
+Referenced by issue #152746, Copy Paste From Float Curve to RGB Curve Crashes Blender.
