@@ -24,6 +24,7 @@
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
 
+#include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
@@ -124,6 +125,10 @@ static void userpref_main_region_init(wmWindowManager *wm, ARegion *region)
   // region->v2d.flag &= ~V2D_IS_INIT;
 
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
+
+  wmKeyMap *keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Preferences", SPACE_USERPREF, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   ED_region_panels_init(wm, region);
 }
@@ -332,7 +337,10 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
 
 static void userpref_operatortypes() {}
 
-static void userpref_keymap(wmKeyConfig * /*keyconf*/) {}
+static void userpref_keymap(wmKeyConfig *keyconf)
+{
+  WM_keymap_ensure(keyconf, "Preferences", SPACE_USERPREF, RGN_TYPE_WINDOW);
+}
 
 /* add handlers, stuff you only do once or on area/region changes */
 static void userpref_header_region_init(wmWindowManager * /*wm*/, ARegion *region)
@@ -350,6 +358,10 @@ static void userpref_navigation_region_init(wmWindowManager *wm, ARegion *region
 {
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
+  wmKeyMap *keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Preferences_nav", SPACE_USERPREF, RGN_TYPE_UI);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   ED_region_panels_init(wm, region);
 }
