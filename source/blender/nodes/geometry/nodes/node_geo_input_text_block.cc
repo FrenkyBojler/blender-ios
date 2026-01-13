@@ -26,8 +26,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   fmt::memory_buffer buffer;
-  LISTBASE_FOREACH (const TextLine *, line, &text->lines) {
-    fmt::format_to(fmt::appender(buffer), "{}\n", line->line);
+  for (const TextLine &line : text->lines) {
+    fmt::format_to(fmt::appender(buffer), "{}\n", line.line);
   }
   std::string str = fmt::to_string(buffer);
   params.set_output("String", std::move(str));
