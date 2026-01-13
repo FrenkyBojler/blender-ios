@@ -5308,6 +5308,7 @@ void store_mesh_from_eval(const wmOperator &op,
          * would be called by the attribute API). */
         bke::Attribute::ArrayData data{};
         data.data = const_cast<float3 *>(position.varray.get_internal_span().data());
+        data.size = position.varray.size();
         data.sharing_info = ImplicitSharingPtr<>(position.sharing_info);
         mesh.attribute_storage.wrap().add(
             "position", bke::AttrDomain::Point, bke::AttrType::Float3, std::move(data));
