@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Blender Authors
+# SPDX-FileCopyrightText: 2026 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
@@ -17,6 +17,12 @@ class Contact:
     name: str
     url: Optional[str] = None
     email: Optional[str] = None
+
+
+@dataclass
+class URLWithHash:
+    url: str
+    hash: str
 
 
 class AssetIDTypeV1(Enum):
@@ -57,7 +63,7 @@ class FileV1:
 
 @dataclass
 class AssetLibraryMeta:
-    api_versions: dict[str, str]
+    api_versions: dict[str, URLWithHash]
     name: str
     contact: Contact
 
@@ -68,7 +74,7 @@ class AssetLibraryIndexV1:
     asset_size_bytes: int
     asset_count: int
     file_count: int
-    page_urls: Optional[list[str]] = None
+    pages: list[URLWithHash]
     catalogs: Optional[list[CatalogV1]] = None
 
 
@@ -86,7 +92,7 @@ class AssetV1:
     id_type: AssetIDTypeV1
     file: Optional[str] = None
     files: Optional[list[str]] = None
-    thumbnail_url: Optional[str] = None
+    thumbnail: Optional[URLWithHash] = None
     meta: Optional[AssetMetadataV1] = None
 
 

@@ -31,6 +31,8 @@
 #include "runtime_library.hh"
 #include "utils.hh"
 
+namespace blender {
+
 /* When enabled, use a pre file load handler (#BKE_CB_EVT_LOAD_PRE) callback to destroy the asset
  * library service. Without this an explicit call from the file loading code is needed to do this,
  * which is not as nice.
@@ -44,7 +46,7 @@
 
 static CLG_LogRef LOG = {"asset.library"};
 
-namespace blender::asset_system {
+namespace asset_system {
 
 std::unique_ptr<AssetLibraryService> AssetLibraryService::instance_;
 bool AssetLibraryService::atexit_handler_registered_ = false;
@@ -140,6 +142,7 @@ AssetLibrary *AssetLibraryService::get_remote_asset_library(
 
   std::unique_ptr<RemoteAssetLibrary> lib_uptr = std::make_unique<RemoteAssetLibrary>(
       remote_url,
+      custom_library->name,
       /* Constructor normalizes the path. */
       custom_library->dirpath);
   AssetLibrary *lib = lib_uptr.get();
@@ -652,4 +655,6 @@ void AssetLibraryService::foreach_loaded_asset_library(FunctionRef<void(AssetLib
   }
 }
 
-}  // namespace blender::asset_system
+}  // namespace asset_system
+
+}  // namespace blender

@@ -8,9 +8,7 @@
 
 #pragma once
 
-#include <chrono>
 #include <cstdint>
-#include <map>
 #include <memory>
 
 #include "BLI_fileops.h"
@@ -19,13 +17,14 @@
 #include "DNA_listBase.h"
 #include "DNA_space_enums.h"
 #include "DNA_space_types.h"
+struct BlendHandle;
+namespace blender {
 
 #define FILEDIR_NBR_ENTRIES_UNSET -1
 
 using FileUID = uint32_t;
 
 struct AssetLibraryReference;
-struct BlendHandle;
 struct FileDirEntry;
 struct FileIndexerType;
 struct GHash;
@@ -34,19 +33,13 @@ struct PreviewImage;
 struct ThreadQueue;
 struct TaskPool;
 
-namespace blender {
 namespace asset_system {
 class AssetLibrary;
 class AssetRepresentation;
-class RemoteLibraryLoadingStatus;
 }  // namespace asset_system
 namespace ed::asset_browser {
 class AssetCatalogFilterSettings;
 }
-}  // namespace blender
-
-using RemoteLibraryLoadingStatus = blender::asset_system::RemoteLibraryLoadingStatus;
-using TimePoint = std::chrono::steady_clock::time_point;
 
 /* ------------------FILELIST------------------------ */
 
@@ -87,7 +80,7 @@ struct FileListInternEntry {
    *
    * Weak pointer so access is protected in case the asset library gets destructed externally.
    */
-  std::weak_ptr<blender::asset_system::AssetRepresentation> asset;
+  std::weak_ptr<asset_system::AssetRepresentation> asset;
 
   /* See #FILE_ENTRY_BLENDERLIB_NO_PREVIEW. */
   bool blenderlib_has_no_preview = false;
@@ -100,9 +93,9 @@ struct FileListInternEntry {
    * Be careful not to use the returned asset pointer in a context where it might be dangling, e.g.
    * because the file list or the asset library were destroyed.
    */
-  blender::asset_system::AssetRepresentation *get_asset() const
+  asset_system::AssetRepresentation *get_asset() const
   {
-    if (std::shared_ptr<blender::asset_system::AssetRepresentation> asset_ptr = asset.lock()) {
+    if (std::shared_ptr<asset_system::AssetRepresentation> asset_ptr = asset.lock()) {
       /* Returning a raw pointer from a shared pointer and destructing the shared pointer
        * immediately afterwards isn't entirely clean. But it's just a way to get the raw pointer
        * from the weak pointer. Nothing should free the asset in the asset library meanwhile, so
@@ -116,7 +109,7 @@ struct FileListInternEntry {
 
 struct FileListIntern {
   /** FileListInternEntry items. */
-  ListBase entries;
+  ListBaseT<FileListInternEntry> entries;
   FileListInternEntry **filtered;
 
   FileUID curr_uid; /* Used to generate UID during internal listing. */
@@ -129,7 +122,7 @@ struct FileListEntryCache {
   int flags = 0;
 
   /* This one gathers all entries from both block and misc caches. Used for easy bulk-freeing. */
-  ListBase cached_entries = {};
+  ListBaseT<FileDirEntry> cached_entries = {};
 
   /* Block cache: all entries between start and end index.
    * used for part of the list on display. */
@@ -143,10 +136,10 @@ struct FileListEntryCache {
    * NOTE: Not 100% sure we actually need that, time will say. */
   int misc_cursor = 0;
   int *misc_entries_indices = nullptr;
-  blender::Map<int, FileDirEntry *> misc_entries;
+  Map<int, FileDirEntry *> misc_entries;
 
   /* Allows to quickly get a cached entry from its UID. */
-  blender::Map<int, FileDirEntry *> uids;
+  Map<int, FileDirEntry *> uids;
 
   /* Previews handling. */
   TaskPool *previews_pool = nullptr;
@@ -155,10 +148,6 @@ struct FileListEntryCache {
    * previews either in `previews_pool` or `previews_done`. #filelist_cache_previews_update() makes
    * previews in `preview_done` ready for display, so the counter is decremented there. */
   int previews_todo_count = 0;
-
-  struct RemoteAssetLibraryPreviewLoading {
-    std::map<std::string, TimePoint> last_new_previews_time_by_url;
-  } remote_preview_loading;
 
   FileListEntryCache();
   ~FileListEntryCache();
@@ -175,7 +164,6 @@ struct FileListEntryPreview {
   uint flags;
   int index;
   int icon_id;
-  bool is_invalid;
 };
 
 /* Dummy wrapper around FileListEntryPreview to ensure we do not access freed memory when freeing
@@ -191,7 +179,7 @@ struct FileListFilter {
   char filter_search[66]; /* + 2 for heading/trailing implicit '*' wildcards. */
   short flags;
 
-  blender::ed::asset_browser::AssetCatalogFilterSettings *asset_catalog_filter;
+  ed::asset_browser::AssetCatalogFilterSettings *asset_catalog_filter;
 };
 
 /** #FileListFilter.flags */
@@ -211,7 +199,7 @@ struct FileList {
   eFileSelectType type;
   /* The library this list was created for. Stored here so we know when to re-read. */
   AssetLibraryReference *asset_library_ref;
-  blender::asset_system::AssetLibrary *asset_library; /* Non-owning. */
+  asset_system::AssetLibrary *asset_library; /* Non-owning. */
 
   short flags;
 
@@ -292,6 +280,10 @@ enum {
 enum FileListTags {
   /** The file list has references to main data (IDs) and needs special care. */
   FILELIST_TAGS_USES_MAIN_DATA = (1 << 0),
+  /**
+   * Apply fuzzy search on results left after applying #FileList.filter_fn.
+   */
+  FILELIST_TAGS_APPLY_FUZZY_SEARCH = (1 << 1),
   /** The file list type is not thread-safe. */
   FILELIST_TAGS_NO_THREADS = (1 << 2),
 };
@@ -321,3 +313,5 @@ bool is_filtered_main_assets(FileListInternEntry *file,
 bool is_filtered_asset_library(FileListInternEntry *file,
                                const char *root,
                                FileListFilter *filter);
+
+}  // namespace blender

@@ -12,6 +12,8 @@
 #include "DNA_material_types.h"
 #include "DNA_vec_types.h"
 
+namespace blender {
+
 struct DEGEditorUpdateContext;
 struct Depsgraph;
 struct ID;
@@ -28,6 +30,7 @@ struct ViewLayer;
 struct World;
 struct wmWindow;
 struct wmWindowManager;
+class StringRef;
 
 /* `render_ops.cc` */
 
@@ -117,6 +120,10 @@ void ED_preview_restart_queue_work(const bContext *C);
 void ED_preview_kill_jobs(wmWindowManager *wm, Main *bmain);
 void ED_preview_kill_jobs_for_id(wmWindowManager *wm, const ID *id);
 
+void ED_preview_online_download_requested(blender::StringRef preview_full_filepath);
+void ED_preview_online_download_finished(wmWindowManager *wm,
+                                         blender::StringRef preview_full_filepath);
+
 void ED_preview_draw(
     const bContext *C, void *idp, void *parentp, void *slotp, uiPreview *ui_preview, rcti *rect);
 
@@ -129,3 +136,5 @@ void ED_previews_tag_dirty_by_id(const Main &bmain, const ID &id);
 void ED_render_clear_mtex_copybuf();
 
 void ED_render_internal_init();
+
+}  // namespace blender

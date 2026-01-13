@@ -14,9 +14,12 @@
 
 #include "DNA_ID_enums.h"
 
+namespace blender {
+
 struct BlendDataReader;
 struct BlendWriter;
-namespace blender::gpu {
+class StringRefNull;
+namespace gpu {
 class Texture;
 }
 struct ID;
@@ -25,7 +28,7 @@ struct PreviewImage;
 
 enum ThumbSource : int8_t;
 
-namespace blender::bke {
+namespace bke {
 
 struct PreviewDeferredLoadingData;
 
@@ -34,7 +37,7 @@ struct PreviewImageRuntime {
   int icon_id = 0;
   int16_t tag = 0;
 
-  std::array<blender::gpu::Texture *, NUM_ICON_SIZES> gputexture = {};
+  std::array<gpu::Texture *, NUM_ICON_SIZES> gputexture = {};
 
   /** Used to store data to defer the loading of the preview. If empty, loading is not deferred. */
   std::unique_ptr<PreviewDeferredLoadingData> deferred_loading_data;
@@ -43,7 +46,7 @@ struct PreviewImageRuntime {
   ~PreviewImageRuntime();
 };
 
-}  // namespace blender::bke
+}  // namespace bke
 
 void BKE_preview_images_init();
 void BKE_preview_images_free();
@@ -108,7 +111,17 @@ PreviewImage *BKE_previewimg_id_ensure(ID *id);
  */
 void BKE_previewimg_ensure(PreviewImage *prv, int size);
 
-const char *BKE_previewimg_deferred_filepath_get(const PreviewImage *prv);
+/**
+ * Returns true if the preview image might need downloading before loading.
+ *
+ * This is the case if the preview was created with #BKE_previewimg_online_thumbnail_read().
+ *
+ * Note that the preview might be available on disk already. This is just a hint for the loading.
+ * Managing the downloading and loading is done externally, e.g. with #PreviewLoadJob.
+ */
+bool BKE_previewimg_is_online(const PreviewImage *prv);
+std::optional<blender::StringRefNull> BKE_previewimg_deferred_filepath_get(
+    const PreviewImage *prv);
 std::optional<int> BKE_previewimg_deferred_thumb_source_get(const PreviewImage *prv);
 
 /**
@@ -141,6 +154,9 @@ PreviewImage *BKE_previewimg_cached_thumbnail_read(const char *name,
                                                    const char *filepath,
                                                    int source,
                                                    bool force_update);
+PreviewImage *BKE_previewimg_online_thumbnail_read(const char *name,
+                                                   const char *dst_filepath,
+                                                   const bool force_update);
 
 void BKE_previewimg_cached_release(const char *name);
 
@@ -148,3 +164,5 @@ void BKE_previewimg_deferred_release(PreviewImage *prv);
 
 void BKE_previewimg_blend_write(BlendWriter *writer, const PreviewImage *prv);
 void BKE_previewimg_blend_read(BlendDataReader *reader, PreviewImage *prv);
+
+}  // namespace blender

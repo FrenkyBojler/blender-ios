@@ -20,7 +20,7 @@
 #include "BKE_report.hh"
 
 #include "DNA_material_types.h"
-#include "DNA_windowmanager_types.h"
+#include "DNA_object_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -41,9 +41,11 @@
 #include <pxr/external/boost/python/to_python_converter.hpp>
 #include <pxr/external/boost/python/tuple.hpp>
 
+namespace blender {
+
 using namespace pxr::pxr_boost;
 
-namespace blender::io::usd {
+namespace io::usd {
 
 using USDHookList = std::list<std::unique_ptr<USDHook>>;
 using ImportedPrimMap = Map<pxr::SdfPath, Vector<PointerRNA>>;
@@ -230,7 +232,7 @@ class USDMaterialExportContext {
     std::string asset_path = get_tex_image_asset_filepath(ima, stage_, params_);
 
     if (params_.export_textures) {
-      blender::io::usd::export_texture(ima, stage_, params_.overwrite_textures, reports_);
+      io::usd::export_texture(ima, stage_, params_.overwrite_textures, reports_);
     }
 
     return asset_path;
@@ -628,10 +630,6 @@ void call_import_hooks(USDStageReader *archive, ReportList *reports)
   prim_map.reserve((readers.size() * 2) + settings.usd_path_to_mat.size());
 
   for (const USDPrimReader *reader : readers) {
-    if (!reader) {
-      continue;
-    }
-
     Object *ob = reader->object();
 
     prim_map.lookup_or_add_default(reader->object_prim_path())
@@ -681,4 +679,5 @@ bool call_material_import_hooks(pxr::UsdStageRefPtr stage,
   return on_material_import.result();
 }
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender

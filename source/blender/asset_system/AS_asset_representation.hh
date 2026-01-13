@@ -24,13 +24,19 @@
 #include "DNA_ID_enums.h"
 #include "DNA_asset_types.h"
 
+namespace blender {
+
 struct AssetMetaData;
+struct bContext;
 struct ID;
 struct PreviewImage;
+struct ReportList;
 
-namespace blender::asset_system {
+namespace asset_system {
 
 class AssetLibrary;
+struct OnlineAssetInfo;
+struct URLWithHash;
 
 class AssetRepresentation : NonCopyable, NonMovable {
   /** Pointer back to the asset library that owns this asset representation. */
@@ -42,13 +48,6 @@ class AssetRepresentation : NonCopyable, NonMovable {
   /* Mutable to allow lazy updating on name changes in #library_relative_identifier(). */
   mutable std::string relative_identifier_;
 
-  /** Information specific to online assets. */
-  struct OnlineAssetInfo {
-    /** The path this file should be downloaded to. Usually relative, but isn't required to. The
-     * downloader accepts both cases, see #download_asset_file() in Python. */
-    std::string download_dst_filepath_;
-  };
-
   struct ExternalAsset {
     std::string name;
     int id_type = 0;
@@ -56,7 +55,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
     PreviewImage *preview_ = nullptr;
 
     /** Set if this is an online asset only. */
-    std::unique_ptr<OnlineAssetInfo> online_info_ = nullptr;
+    std::unique_ptr<OnlineAssetInfo> online_info_;
   };
   std::variant<ExternalAsset, ID *> asset_;
 
@@ -77,8 +76,6 @@ class AssetRepresentation : NonCopyable, NonMovable {
   /**
    * Constructs an asset representation for an external ID stored online (requiring download).
    *
-   * Previews will use specialized handling see #THB_SOURCE_ONLINE_ASSET.
-   *
    * \param download_dst_filepath: See #download_dst_filepath() getter.
    */
   AssetRepresentation(StringRef relative_asset_path,
@@ -86,7 +83,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
                       int id_type,
                       std::unique_ptr<AssetMetaData> metadata,
                       AssetLibrary &owner_asset_library,
-                      StringRef download_dst_filepath);
+                      OnlineAssetInfo online_info);
   /**
    * Constructs an asset representation for an ID stored in the current file. This makes the asset
    * local and fully editable.
@@ -108,8 +105,14 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * to the preview but doesn't actually load it. To load it, attach its
    * #PreviewImageRuntime::icon_id to a UI button (UI loads it asynchronously then) or call
    * #BKE_previewimg_ensure() (not asynchronous).
+   *
+   * For online assets this triggers downloading of the preview.
+   *
+   * \param C: Context is needed because this may call into Python to do the downloading.
+   *     Annoyingly this is always non-const, so some callers may have to cast away const. The
+   *     downloader and the APIs it calls could be made to work without context.
    */
-  void ensure_previewable();
+  void ensure_previewable(bContext &C, ReportList *reports = nullptr);
   /**
    * Get the preview of this asset.
    *
@@ -124,7 +127,29 @@ class AssetRepresentation : NonCopyable, NonMovable {
 
   StringRefNull library_relative_identifier() const;
   std::string full_path() const;
+
+  /**
+   * Return the absolute path of the blend file that contains this asset.
+   *
+   * Note that this performs a file-system check to see whether the blend file actually exists.
+   * If it does not, an empty string is returned. This generally shouldn't be an issue, but can
+   * happen, for example when the blend file is deleted and the asset browser not refreshed.
+   *
+   * This check is a necessity because data-blocks may have .blend and slashes in their name, and
+   * directory names may also end in `.blend`, resulting in an identifier like
+   * `directory.blend/Objects/filename.blend/Actions/hand/wave.blend/Actions/hi.blend`.
+   * Here the file is `directory.blend/Objects/filename.blend` and the asset is an Action named
+   * `hand/wave.blend/Actions/hi.blend`)
+   */
   std::string full_library_path() const;
+
+  /**
+   * For online assets (see #is_online()), the URL this file should be downloaded from when
+   * requested.
+   *
+   * Will return an empty value if this is not an online asset.
+   */
+  std::optional<URLWithHash> online_asset_url() const;
 
   /**
    * For online assets (see #is_online()), the path this file should be downloaded to when
@@ -133,7 +158,20 @@ class AssetRepresentation : NonCopyable, NonMovable {
    *
    * Will return an empty value if this is not an online asset.
    */
-  std::optional<StringRef> download_dst_filepath() const;
+  std::optional<StringRefNull> download_dst_filepath() const;
+  /**
+   * For online assets (see #is_online()), the URL the asset's preview should be requested from.
+   *
+   * Will return an empty value if this is not an online asset.
+   */
+  std::optional<StringRefNull> online_asset_preview_url() const;
+  /**
+   * For online assets (see #is_online()), the hash of the asset's preview.
+   *
+   * Will return an empty value if this is not an online asset.
+   */
+  std::optional<StringRefNull> online_asset_preview_hash() const;
+
   /**
    * If the asset is marked as online, removes the online data and marking, turning it into a
    * regular on-disk asset.
@@ -162,7 +200,24 @@ class AssetRepresentation : NonCopyable, NonMovable {
   bool is_local_id() const;
   /** The asset is stored online, not on disk. */
   bool is_online() const;
+  /**
+   * Returns whether the asset is stored in a probably-editable .asset.blend file.
+   *
+   * NOTE: This is suitable for poll functions (which should not open other files). The actual
+   * operator should still check that `G_FILE_ASSET_EDIT_FILE` / `Main::is_asset_edit_file` is set
+   * on the `.asset.blend` file (no utility function for this exists yet).
+   *
+   * NOTE: this function does cause _some_ disk I/O, as it checks one (or more) paths for
+   * existence. See #AssetRepresentation::full_library_path() for more info.
+   *
+   * If the asset is already imported, this check can be done via
+   * `bke::asset_edit_id_is_editable(asset_id)` and `bke::asset_edit_id_is_writable(asset_id)`.
+   */
+  bool is_potentially_editable_asset_blend() const;
+
   AssetLibrary &owner_asset_library() const;
 };
 
-}  // namespace blender::asset_system
+}  // namespace asset_system
+
+}  // namespace blender

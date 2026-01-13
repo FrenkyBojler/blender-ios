@@ -14,12 +14,36 @@
 
 #include "BLI_string_ref.hh"
 
+namespace blender {
 struct bContext;
 struct bUserAssetLibrary;
 struct Main;
 struct ReportList;
 
-namespace blender::asset_system {
+namespace asset_system {
+
+/**
+ * Combination of a URL of a remote resource, and its hash.
+ */
+struct URLWithHash {
+  std::string url;
+  /** String in the form `{HASH_TYPE}:{HASH_VALUE}`. */
+  std::string hash;
+};
+
+/**
+ * Information specific to online assets.
+ *
+ * This is constructed from the remote asset listing and contains all data needed to download and
+ * verify related fragments. #AssetRepresentation stores this for online assets.
+ */
+struct OnlineAssetInfo {
+  /** The path this file should be downloaded to. Relative to the library root. */
+  std::string download_dst_filepath;
+  /** The URL the asset should be downloaded from. */
+  URLWithHash asset_url;
+  std::optional<URLWithHash> preview_url;
+};
 
 class AssetRepresentation;
 
@@ -33,6 +57,30 @@ void remote_library_request_download(Main &bmain, bUserAssetLibrary &library_def
 void remote_library_request_asset_download(bContext &C,
                                            const AssetRepresentation &asset,
                                            ReportList *reports);
+void remote_library_request_preview_download(bContext &C,
+                                             const AssetRepresentation &asset,
+                                             const StringRef dst_filepath,
+                                             ReportList *reports);
+
+/**
+ * Get the absolute file path the preview for \a asset is expected at once downloaded.
+ *
+ * The path is built like this:
+ * - Online library cache directory (e.g.
+ *   `$HOME/.cache/blender/remote-assets/1a2b3c-my.assets.com/`)
+ * - `_thumbs/large/`
+ * - The first two characters of the MD5 hash of the full asset path
+ *   (#AssetRepresentation.full_path()).
+ * - The next 30 characters of the MD5 hash.
+ * - If the download URL of the preview has an extension (some string after a period), up to 6
+ *   characters of that extension. (Previews load fine regardless of the extension. But the
+ *   extension is still a useful indicator, and some file browsers can display previews that way.)
+ *
+ * The reason hashes are used within `_thumbs/large/` instead of the relative path of the asset (or
+ * another relative path derived from the preview URL) is to keep paths short enough to not violate
+ * path length limitations.
+ */
+std::string remote_library_asset_preview_path(const AssetRepresentation &asset);
 
 /**
  * Status information about an externally loaded asset library listing, stored globally.
@@ -64,7 +112,6 @@ class RemoteLibraryLoadingStatus {
   /* See #RemoteLibraryLoadingStatus::handle_timeout(). */
   TimePoint last_timeout_handled_time_point_ = {};
   TimePoint last_new_pages_time_point_ = {};
-  TimePoint last_new_previews_time_point_ = {};
 
   std::optional<Status> status_ = std::nullopt;
   std::optional<StringRefNull> failure_message_ = std::nullopt;
@@ -75,7 +122,9 @@ class RemoteLibraryLoadingStatus {
   /** Let the state know that the loading is still ongoing, resetting the timeout. */
   static void ping_still_loading(StringRef url);
   static void ping_new_pages(StringRef url);
-  static void ping_new_previews(StringRef url);
+  static void ping_new_preview(const bContext &C,
+                               StringRef library_url,
+                               StringRef preview_full_filepath);
   static void ping_new_assets(const bContext &C, StringRef url);
   static void ping_metafiles_in_place(StringRef url);
   static void set_finished(StringRef url);
@@ -86,7 +135,6 @@ class RemoteLibraryLoadingStatus {
   static std::optional<bool> metafiles_in_place(StringRef url);
   static std::optional<FileSystemTimePoint> loading_start_time(const StringRef url);
   static std::optional<TimePoint> last_new_pages_time(StringRef url);
-  static std::optional<TimePoint> last_new_previews_time(StringRef url);
 
   /**
    * Checks if the status storage timed out, because it hasn't received status updates for the
@@ -105,4 +153,5 @@ class RemoteLibraryLoadingStatus {
   void reset_timeout();
 };
 
-}  // namespace blender::asset_system
+}  // namespace asset_system
+}  // namespace blender
