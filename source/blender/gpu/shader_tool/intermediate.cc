@@ -13,9 +13,6 @@
 #include "token.hh"
 #include "token_stream.hh"
 
-#define XXH_INLINE_ALL
-#include "xxhash.hh"
-
 #include <algorithm>
 #include <array>
 #include <stack>

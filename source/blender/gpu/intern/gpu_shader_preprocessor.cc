@@ -12,8 +12,7 @@
 #include "BLI_struct_equality_utils.hh"
 #include "gpu_shader_private.hh"
 
-#define XXH_INLINE_ALL
-#include "shader_tool/xxhash.hh"
+#include <xxhash.h>
 
 namespace blender::gpu {
 
@@ -71,7 +70,7 @@ struct AtomicLexer : LexerBase {
       if (token_types[tok_id] == Word) {
         IndexRange range = token_offsets[tok_id];
         StringRef substr(str.data() + range.start, range.size);
-        uint32_t hash = XXH3_str(substr);
+        Hash hash = XXH3_str(substr);
 #ifndef NDEBUG
         check_map.add_or_modify(
             substr,
