@@ -1138,6 +1138,10 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
                              const int height,
                              const int offset,
                              const int stride,
+                             const int render_full_x,
+                             const int render_full_y,
+                             const int render_offset,
+                             const int render_stride,
                              const int pass_stride,
                              const int num_samples,
                              const int pass_noisy,
@@ -1155,11 +1159,12 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
     return;
   }
 
-  const uint64_t render_pixel_index = offset + (x + full_x) + (y + full_y) * stride;
-  ccl_global float *buffer = render_buffer +
-                             uint64_t(render_pixel_index / upscale_factor) * pass_stride;
+  const uint64_t render_pixel_index = render_offset + (int(x / upscale_factor) + render_full_x) +
+                                      (int(y / upscale_factor) + render_full_y) * render_stride;
+  ccl_global float *buffer = render_buffer + render_pixel_index * pass_stride;
 
-  ccl_global float *denoised_pixel = render_buffer + render_pixel_index * pass_stride +
+  const uint64_t denoised_pixel_index = offset + (x + full_x) + (y + full_y) * stride;
+  ccl_global float *denoised_pixel = render_buffer + denoised_pixel_index * pass_stride +
                                      pass_denoised;
 
   if (num_components == 3) {
