@@ -4048,11 +4048,12 @@ def km_grease_pencil_guide_settings(_params):
         op_panel("VIEW3D_PT_grease_pencil_guide", {"type": 'P', "value": 'PRESS'}, [("keep_open", False)],),
         # Guide Angle - Secondary path so it can be used with use_guide property
         ("wm.radial_control", {"type": 'L', "value": 'PRESS'},
-         {"properties": [("data_path_secondary", "scene.tool_settings.gpencil_sculpt.guide.angle"),
-         ("use_secondary", "scene.tool_settings.gpencil_sculpt.guide.use_guide")]}),
+         {"properties": [
+             ("data_path_secondary", "scene.tool_settings.gpencil_sculpt.guide.angle"),
+             ("use_secondary", "scene.tool_settings.gpencil_sculpt.guide.use_guide")]}),
         # Guide - Settings
         ("grease_pencil.guide_settings", {"type": 'D', "value": 'PRESS'},
-         {"properties": [("toggle_guide", True)]}), 
+         {"properties": [("toggle_guide", True)]}),
         ("grease_pencil.guide_settings", {"type": 'M', "value": 'PRESS'},
          {"properties": [("flip", True)]}),
         ("grease_pencil.guide_settings", {"type": 'J', "value": 'PRESS'},
