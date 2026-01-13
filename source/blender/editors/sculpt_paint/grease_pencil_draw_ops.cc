@@ -2191,7 +2191,7 @@ static void GREASE_PENCIL_OT_guide_settings(wmOperatorType *ot)
                        -FLT_MAX,
                        FLT_MAX,
                        "Angle Offset",
-                       "Angle offfst in degrees",
+                       "Angle offset in degrees",
                        -FLT_MAX,
                        FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
