@@ -18,7 +18,7 @@ bool VKTexturePool::AllocationHandle::init(VkMemoryRequirements memory_requireme
 {
   VKDevice &device = VKBackend::get().device;
   VmaAllocationCreateInfo create_info = {};
-  create_info.priority = 0.5f;  // memory_priority(usage); /* TODO export function */
+  create_info.priority = 1.0f;
   create_info.memoryTypeBits = memory_requirements.memoryTypeBits;
   create_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
   VkResult result = vmaAllocateMemory(device.mem_allocator_get(),
@@ -133,7 +133,9 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
     if (handle.allocation_info.size >= memory_requirements.size) {
       /* `memory_requirements.memoryTypeBits` has bits set for every type of supported memory;
        * only one needs to match for the allocation to be compatible to the image. */
-      if (bool(handle.allocation_info.memoryType & memory_requirements.memoryTypeBits)) {
+      if (handle.allocation_info.memoryType == 0 ||
+          bool(handle.allocation_info.memoryType & memory_requirements.memoryTypeBits))
+      {
         match_index = i;
         break;
       }
