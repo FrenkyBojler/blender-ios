@@ -21,6 +21,7 @@ CCL_NAMESPACE_BEGIN
 struct RaycastResult {
   float distance;
   float3 normal;
+  bool self_hit;
 };
 
 #  ifdef __KERNEL_OPTIX__
@@ -39,6 +40,7 @@ ccl_device RaycastResult svm_raycast(
   RaycastResult result;
   result.distance = -1.0f;
   result.normal = make_float3(0.0f);
+  result.self_hit = false;
 
   /* Early out if no sampling needed. */
   if (distance <= 0.0f || sd->object == OBJECT_NONE) {
@@ -92,6 +94,8 @@ ccl_device RaycastResult svm_raycast(
   const float u = isect.u;
   const float v = isect.v;
 
+  result.self_hit = object == sd->object;
+
   float3 P;
   float3 Ng;
   int shader;
@@ -141,16 +145,19 @@ ccl_device_noinline
   svm_unpack_node_uchar4(
       node.y, &position_offset, &direction_offset, &distance_offset, &is_hit_offset);
 
+  uint is_self_hit_offset;
   uint hit_distance_offset;
   uint hit_position_offset;
   uint hit_normal_offset;
-  uint only_local;
   svm_unpack_node_uchar4(
-      node.z, &hit_distance_offset, &hit_position_offset, &hit_normal_offset, &only_local);
+      node.z, &is_self_hit_offset, &hit_distance_offset, &hit_position_offset, &hit_normal_offset);
+  uint only_local = node.w;
+  (void)only_local; /* Prevent unused warnings. */
 
   float distance = stack_load_float_default(stack, distance_offset, 0.0f);
 
-  float is_hit = 0.0;
+  float is_hit = 0.0f;
+  float is_self_hit = 0.0f;
   float hit_distance = distance;
   float3 hit_position = make_float3(0.0f);
   float3 hit_normal = make_float3(0.0f);
@@ -168,6 +175,7 @@ ccl_device_noinline
 
     if (result.distance >= 0.0f) {
       is_hit = 1.0f;
+      is_self_hit = result.self_hit ? 1.0f : 0.0f;
       hit_distance = result.distance;
       hit_position = position + direction * hit_distance;
       hit_normal = result.normal;
@@ -176,6 +184,9 @@ ccl_device_noinline
 
   if (stack_valid(is_hit_offset)) {
     stack_store_float(stack, is_hit_offset, is_hit);
+  }
+  if (stack_valid(is_self_hit_offset)) {
+    stack_store_float(stack, is_self_hit_offset, is_self_hit);
   }
   if (stack_valid(hit_distance_offset)) {
     stack_store_float(stack, hit_distance_offset, hit_distance);

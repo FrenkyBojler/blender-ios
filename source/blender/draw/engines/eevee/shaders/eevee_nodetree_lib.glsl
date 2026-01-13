@@ -297,11 +297,13 @@ void raycast_eval(float3 position,
                   float max_distance,
                   bool self_only,
                   bool &is_hit,
+                  bool &self_hit,
                   float &hit_distance,
                   float3 &hit_position,
                   float3 &hit_normal)
 {
   is_hit = false;
+  self_hit = false;
   hit_distance = max_distance;
   hit_position = float3(0.0f);
   hit_normal = float3(0.0f);
@@ -325,6 +327,7 @@ void raycast_eval(float3 position,
   float thickness = uniform_buf.raytrace.thickness * thickness_jitter;
 
   float2 hit_uv = float2(0.0f);
+  uint self_id = drw_resource_id() & 0xFFFF;
 
   float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
                                    drw_point_world_to_view(ws_end),
@@ -334,13 +337,16 @@ void raycast_eval(float3 position,
                                    64,
                                    jitter,
                                    object_id_tx,
-                                   self_only ? drw_resource_id() & 0xFFFF : 0,
+                                   self_only ? self_id : 0,
                                    hit_uv);
   if (result >= 0.0f) {
     is_hit = true;
     hit_distance = result;
     hit_position = ws_start + direction * hit_distance;
     hit_normal = normalize(texture(prepass_normal_tx, hit_uv).xyz * 2.0f - 1.0f);
+    int2 hit_texel = int2(hit_uv * float2(uniform_buf.film.render_extent));
+    uint hit_id = texelFetch(object_id_tx, hit_texel, 0).x;
+    self_hit = self_only || (hit_id == self_id);
   }
 #endif
 }

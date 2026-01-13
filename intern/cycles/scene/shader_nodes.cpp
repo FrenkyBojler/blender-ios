@@ -8018,6 +8018,7 @@ NODE_DEFINE(RaycastNode)
   SOCKET_IN_FLOAT(length, "Length", 1.0f);
 
   SOCKET_OUT_FLOAT(is_hit, "Is Hit");
+  SOCKET_OUT_FLOAT(is_self_hit, "Self Hit");
   SOCKET_OUT_FLOAT(hit_distance, "Hit Distance");
   SOCKET_OUT_POINT(hit_position, "Hit Position");
   SOCKET_OUT_NORMAL(hit_position, "Hit Normal");
@@ -8035,6 +8036,7 @@ void RaycastNode::compile(SVMCompiler &compiler)
   ShaderInput *direction_in = input("Direction");
   ShaderInput *length_in = input("Length");
   ShaderOutput *is_hit_out = output("Is Hit");
+  ShaderOutput *is_self_hit_out = output("Self Hit");
   ShaderOutput *hit_distance_out = output("Hit Distance");
   ShaderOutput *hit_position_out = output("Hit Position");
   ShaderOutput *hit_normal_out = output("Hit Normal");
@@ -8044,10 +8046,11 @@ void RaycastNode::compile(SVMCompiler &compiler)
                                            compiler.stack_assign(direction_in),
                                            compiler.stack_assign(length_in),
                                            compiler.stack_assign(is_hit_out)),
-                    compiler.encode_uchar4(compiler.stack_assign(hit_distance_out),
+                    compiler.encode_uchar4(compiler.stack_assign(is_self_hit_out),
+                                           compiler.stack_assign(hit_distance_out),
                                            compiler.stack_assign(hit_position_out),
-                                           compiler.stack_assign(hit_normal_out),
-                                           only_local));
+                                           compiler.stack_assign(hit_normal_out)),
+                    only_local);
 }
 
 void RaycastNode::compile(OSLCompiler &compiler)
