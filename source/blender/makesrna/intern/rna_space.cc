@@ -2415,6 +2415,21 @@ static void rna_SpaceUserPref_search_filter_update(Main * /*bmain*/,
   ED_region_search_filter_update(area, main_region);
 }
 
+static int rna_SpaceUserPref_search_filter_editable(const PointerRNA *ptr, const char **r_info)
+{
+  SpaceUserPref *sprefs = static_cast<SpaceUserPref *>(ptr->data);
+  if (U.space_data.section_active == USER_SECTION_EXTENSIONS)
+  {
+    *r_info = N_("Use the search in Extensions.");
+    return 0;
+  }
+  if (U.space_data.section_active == USER_SECTION_ADDONS) {
+    *r_info = N_("Use the search in Add-ons.");
+    return 0;
+  }
+  return PROP_EDITABLE;
+}
+
 /* Space Console */
 static void rna_ConsoleLine_body_get(PointerRNA *ptr, char *value)
 {
@@ -8047,6 +8062,7 @@ static void rna_def_space_userpref(BlenderRNA *brna)
                                 "rna_SpaceUserPref_search_filter_get",
                                 "rna_SpaceUserPref_search_filter_length",
                                 "rna_SpaceUserPref_search_filter_set");
+  RNA_def_property_editable_func(prop, "rna_SpaceUserPref_search_filter_editable");
   RNA_def_property_ui_text(prop, "Display Filter", "Live search filtering string");
   RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
   RNA_def_property_update(
