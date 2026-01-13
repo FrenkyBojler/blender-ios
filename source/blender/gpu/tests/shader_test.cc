@@ -674,18 +674,34 @@ B(foo, bar);
   }
   {
     std::string input = R"(
+#define B2 5
 #define A(a,b) a##b
+#define B(a,b) a ## b
+#define C 3
+#define D(a,b) B(a,b)
 A( , )
 A(,2)
 A(1, )
 A(1,2)
+A(B,2)
+B(B,2)
+B(C,2)
+D(C,2)
 )";
     std::string expect = R"(
+
+
+
+
 
   
 2
 1 
 12
+5
+5
+C2
+32
 )";
     std::string result = blender::gpu::Shader::run_preprocessor(input);
     EXPECT_EQ(expect, result);

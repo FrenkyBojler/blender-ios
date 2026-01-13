@@ -272,7 +272,7 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
   TokenID get_end(LineID line)
   {
     blender::IndexRange range = lex_.line_offsets[int(line)];
-    return make_token(range.size() > 1 ? range.last(1) : range.first());
+    return make_token(range.size() > 1 ? range.last(1) : range.last());
   }
   /* NOTE: Return the end of line character '\n'. */
   TokenID get_true_end(LineID line)
@@ -293,6 +293,11 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
   bool is_last(LineID line)
   {
     return (lex_.line_offsets.size() - 1) == int(line);
+  }
+
+  bool is_last(TokenID tok)
+  {
+    return (lex_.token_sizes.size() - 1) == int(tok);
   }
 
   StringRef str(DirectiveID dir)
@@ -625,6 +630,17 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
     Token end_of_expansion;
   };
 
+  /* Return N+1. */
+  TokenType look_ahead(TokenID tok)
+  {
+    return is_last(tok) ? Invalid : get_type(next(tok));
+  }
+  /* Return N-1. */
+  TokenType look_behind(TokenID tok)
+  {
+    return int(tok) == 0 ? Invalid : get_type(prev(tok));
+  }
+
   /**
    * IMPORTANT: Because of recursion, expanded_tok can be from another parser.
    * The macro directive however, will always be from the main parser.
@@ -722,15 +738,15 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
     expanded.reserve(256);
 
     while (get_type(tok) != NewLine) {
-      /* TODO(fclem): Unsafe lookahead. */
-      if (get_type(tok) == '#' && get_type(next(tok)) == '#') {
+      TokenType curr_type = get_type(tok);
+      TokenType next_type = look_ahead(tok);
+      /* Skip the token pasting operator. */
+      if (curr_type == '#' && next_type == '#') {
         /* Token concat. */
         tok = next(next(tok));
         continue;
       }
-
-      /* TODO(fclem): Unsafe lookahead. */
-      if (get_type(tok) == '\\' && get_type(next(tok)) == '\n') {
+      if (curr_type == '\\' && next_type == '\n') {
         /* Preprocessor new line. Skip and continue. */
         tok = next(next(tok));
         /* Still insert a space to avoid merging tokens. */
@@ -738,31 +754,46 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
         continue;
       }
 
-      if (get_type(tok) == Invalid) {
-        /* Error. */
-        break;
+      /* Can't theoretically happen.
+       * That would mean a macro is defined and expanded on the last line. */
+      BLI_assert(curr_type != Invalid);
+      BLI_assert_msg(curr_type != '#', "Stringify operator '#' is not supported");
+
+      TokenType next_type2 = (next_type != Invalid) ? look_ahead(next(tok)) : Invalid;
+      TokenType next_type3 = (next_type2 != Invalid) ? look_ahead(next(next(tok))) : Invalid;
+      TokenType prev_type = look_behind(tok);
+      TokenType prev_type2 = (prev_type != Invalid) ? look_behind(prev(tok)) : Invalid;
+      TokenType prev_type3 = (prev_type2 != Invalid) ? look_behind(prev(prev(tok))) : Invalid;
+
+      /* Support spaces around token pasting operator */
+      bool next_is_token_pasting = (next_type == ' ') ? (next_type2 == '#' && next_type3 == '#') :
+                                                        (next_type == '#' && next_type2 == '#');
+      bool prev_is_token_pasting = (prev_type == ' ') ? (prev_type2 == '#' && prev_type3 == '#') :
+                                                        (prev_type == '#' && prev_type2 == '#');
+
+      if (curr_type == ' ' && (next_is_token_pasting || prev_is_token_pasting)) {
+        /* Do not paste spaces around token pasting operator. */
       }
-
-      /* TODO(fclem): Unsafe lookahead. */
-      bool next_is_concat = (get_type(next(tok)) == '#' && get_type(next(next(tok))) == '#');
-      /* TODO(fclem): Unsafe lookbehind. */
-      bool prev_is_concat = (get_type(prev(tok)) == '#' && get_type(prev(prev(tok))) == '#');
-
-      if (get_type(tok) == ' ') {
+      else if (curr_type == ' ') {
         /* Replace multiple spaces by only one. Shrinks final codebase. */
         expanded += ' ';
       }
-      else if (get_type(tok) == Word) {
+      else if (curr_type == Word) {
         bool replaced = false;
 
-        if (is_function && !next_is_concat && !prev_is_concat) {
+        if (is_function) {
           /* Lookup macro arguments. */
           TokenRange *macro_value_ptr = macro_parameters.lookup_ptr(str(tok));
           if (macro_value_ptr) {
             TokenRange &macro_value = *macro_value_ptr;
 
-            /* Expand argument. Can expand to the same macro (finite recursion). */
-            expanded += parse_and_expand(str(macro_value));
+            if (!next_is_token_pasting && !prev_is_token_pasting) {
+              /* Expand argument. Can expand to the same macro (finite recursion). */
+              expanded += parse_and_expand(str(macro_value));
+            }
+            else {
+              expanded += str(macro_value);
+            }
             replaced = true;
           }
         }
@@ -1095,8 +1126,8 @@ struct Preprocessor : IntermediateForm<AtomicLexer, NullParser> {
   void expand_macros_in_range(const LineID start_line, const LineID end_line)
   {
     int start = int(get_start(start_line));
-    int end = int(get_end(end_line));
-    if (start >= end) {
+    int end = int(get_true_end(end_line));
+    if (start > end) {
       return;
     }
 
