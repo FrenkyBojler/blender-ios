@@ -30,7 +30,11 @@ static void align_requirements_size(VkMemoryRequirements &requirements)
 std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
 {
-  if (!bool(requirements.memoryTypeBits & allocation_info.memoryType)) {
+  /* `memoryType` uses 0 as special value to indicate no restrictions.
+   * If there are restrictions, we check against `memoryTypeBits`.  */
+  if (allocation_info.memoryType != 0 &&
+      !bool(requirements.memoryTypeBits & allocation_info.memoryType))
+  {
     return {};
   }
 
@@ -112,7 +116,7 @@ bool VKTexturePool::AllocationHandle::init(VkMemoryRequirements memory_requireme
   create_info.priority = 1.0f;
   create_info.memoryTypeBits = memory_requirements.memoryTypeBits;
   create_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
+  
   VkResult result = vmaAllocateMemory(device.mem_allocator_get(),
                                       &memory_requirements,
                                       &create_info,
