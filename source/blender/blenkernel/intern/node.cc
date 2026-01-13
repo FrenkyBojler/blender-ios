@@ -111,16 +111,18 @@
 
 #include "BLO_read_write.hh"
 
-using blender::nodes::FieldInferencingInterface;
-using blender::nodes::InputSocketFieldType;
-using blender::nodes::NodeDeclaration;
-using blender::nodes::OutputFieldDependency;
-using blender::nodes::OutputSocketFieldType;
-using blender::nodes::SocketDeclaration;
+namespace blender {
+
+using nodes::FieldInferencingInterface;
+using nodes::InputSocketFieldType;
+using nodes::NodeDeclaration;
+using nodes::OutputFieldDependency;
+using nodes::OutputSocketFieldType;
+using nodes::SocketDeclaration;
 
 static CLG_LogRef LOG = {"node"};
 
-namespace blender::bke {
+namespace bke {
 
 /* Forward declaration. */
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock);
@@ -439,24 +441,6 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-static void node_foreach_cache(ID *id,
-                               IDTypeForeachCacheFunctionCallback function_callback,
-                               void *user_data)
-{
-  bNodeTree *nodetree = reinterpret_cast<bNodeTree *>(id);
-  IDCacheKey key = {0};
-  key.id_session_uid = id->session_uid;
-
-  if (nodetree->type == NTREE_COMPOSIT) {
-    for (bNode *node : nodetree->all_nodes()) {
-      if (node->type_legacy == CMP_NODE_MOVIEDISTORTION) {
-        key.identifier = size_t(BLI_ghashutil_strhash_p(node->name));
-        function_callback(id, &key, (&node->storage), 0, user_data);
-      }
-    }
-  }
-}
-
 static void node_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
@@ -537,8 +521,7 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
       {
         bNodeSocketValueVector *vec = static_cast<bNodeSocketValueVector *>(socket->default_value);
         float length;
-        blender::float3 radius = blender::math::normalize_and_get_length(
-            blender::float3(vec->value), length);
+        float3 radius = math::normalize_and_get_length(float3(vec->value), length);
         fn.single(radius);
         copy_v3_v3(vec->value, radius * length);
       }
@@ -563,14 +546,14 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
   }
 
   for (bNodeTreeInterfaceSocket *socket : ntree->interface_inputs()) {
-    const blender::bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
+    const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
     if (typeinfo && typeinfo->type == SOCK_RGBA && socket->socket_data) {
       bNodeSocketValueRGBA *rgba = static_cast<bNodeSocketValueRGBA *>(socket->socket_data);
       fn.single(rgba->value);
     }
   }
   for (bNodeTreeInterfaceSocket *socket : ntree->interface_outputs()) {
-    const blender::bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
+    const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
     if (typeinfo && typeinfo->type == SOCK_RGBA && socket->socket_data) {
       bNodeSocketValueRGBA *rgba = static_cast<bNodeSocketValueRGBA *>(socket->socket_data);
       fn.single(rgba->value);
@@ -1210,9 +1193,6 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
       BLO_write_string(writer, nss->bytecode);
     }
   }
-  else if (node->type_legacy == CMP_NODE_MOVIEDISTORTION) {
-    /* pass */
-  }
   else if (ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY)) {
     NodeCryptomatte *nc = static_cast<NodeCryptomatte *>(node->storage);
     BLO_write_string(writer, nc->matte_id);
@@ -1390,73 +1370,73 @@ constexpr int MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING
  *     2.83 would be totally pointless.
  */
 
-typedef struct bNodeSocketValueInt_404 {
+struct bNodeSocketValueInt_404 {
   /** RNA subtype. */
   int subtype;
   int value;
   int min, max;
-} bNodeSocketValueInt_404;
+};
 
-typedef struct bNodeSocketValueFloat_404 {
+struct bNodeSocketValueFloat_404 {
   /** RNA subtype. */
   int subtype;
   float value;
   float min, max;
-} bNodeSocketValueFloat_404;
+};
 
-typedef struct bNodeSocketValueBoolean_404 {
+struct bNodeSocketValueBoolean_404 {
   char value;
-} bNodeSocketValueBoolean_404;
+};
 
-typedef struct bNodeSocketValueVector_404 {
+struct bNodeSocketValueVector_404 {
   /** RNA subtype. */
   int subtype;
   float value[3];
   float min, max;
-} bNodeSocketValueVector_404;
+};
 
-typedef struct bNodeSocketValueRotation_404 {
+struct bNodeSocketValueRotation_404 {
   float value_euler[3];
-} bNodeSocketValueRotation_404;
+};
 
-typedef struct bNodeSocketValueRGBA_404 {
+struct bNodeSocketValueRGBA_404 {
   float value[4];
-} bNodeSocketValueRGBA_404;
+};
 
-typedef struct bNodeSocketValueString_404 {
+struct bNodeSocketValueString_404 {
   int subtype;
   char _pad[4];
   char value[/*FILE_MAX*/ 1024];
-} bNodeSocketValueString_404;
+};
 
-typedef struct bNodeSocketValueObject_404 {
+struct bNodeSocketValueObject_404 {
   Object *value;
-} bNodeSocketValueObject_404;
+};
 
-typedef struct bNodeSocketValueImage_404 {
+struct bNodeSocketValueImage_404 {
   Image *value;
-} bNodeSocketValueImage_404;
+};
 
-typedef struct bNodeSocketValueCollection_404 {
+struct bNodeSocketValueCollection_404 {
   Collection *value;
-} bNodeSocketValueCollection_404;
+};
 
-typedef struct bNodeSocketValueTexture_404 {
+struct bNodeSocketValueTexture_404 {
   Tex *value;
-} bNodeSocketValueTexture_404;
+};
 
-typedef struct bNodeSocketValueMaterial_404 {
+struct bNodeSocketValueMaterial_404 {
   Material *value;
-} bNodeSocketValueMaterial_404;
+};
 
-typedef struct bNodeSocketValueMenu_404 {
+struct bNodeSocketValueMenu_404 {
   /* Default input enum identifier. */
   int value;
   /* #NodeSocketValueMenuRuntimeFlag */
   int runtime_flag;
   /* Immutable runtime enum definition. */
-  const blender::bke::RuntimeNodeEnumItems *enum_items;
-} bNodeSocketValueMenu_404;
+  const bke::RuntimeNodeEnumItems *enum_items;
+};
 
 /* Generic code handling the conversion between a legacy (pre-2.83) socket data, and its current
  * data. Currently used for `bNodeSocket.default_value`. */
@@ -1837,11 +1817,6 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
   if (!node->storage) {
     return;
   }
-  if (node->type_legacy == CMP_NODE_MOVIEDISTORTION) {
-    /* Do nothing, this is a runtime cache and hence handled by generic code using
-     * `IDTypeInfo.foreach_cache` callback. */
-    return;
-  }
 
   /* This may not always find the type for legacy nodes when the idname did not exist yet or it was
    * changed. Versioning code will update the nodes with unknown types. */
@@ -2154,12 +2129,12 @@ static void node_tree_asset_on_clear_asset(void *asset_ptr, AssetMetaData *asset
   }
 }
 
-}  // namespace blender::bke
+}  // namespace bke
 
 static AssetTypeInfo AssetType_NT = {
-    /*pre_save_fn*/ blender::bke::node_tree_asset_pre_save,
-    /*on_mark_asset_fn*/ blender::bke::node_tree_asset_on_mark_asset,
-    /*on_clear_asset_fn*/ blender::bke::node_tree_asset_on_clear_asset,
+    /*pre_save_fn*/ bke::node_tree_asset_pre_save,
+    /*on_mark_asset_fn*/ bke::node_tree_asset_on_mark_asset,
+    /*on_clear_asset_fn*/ bke::node_tree_asset_on_clear_asset,
 };
 
 IDTypeInfo IDType_ID_NT = {
@@ -2175,26 +2150,26 @@ IDTypeInfo IDType_ID_NT = {
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ &AssetType_NT,
 
-    /*init_data*/ blender::bke::ntree_init_data,
-    /*copy_data*/ blender::bke::ntree_copy_data,
-    /*free_data*/ blender::bke::ntree_free_data,
+    /*init_data*/ bke::ntree_init_data,
+    /*copy_data*/ bke::ntree_copy_data,
+    /*free_data*/ bke::ntree_free_data,
     /*make_local*/ nullptr,
-    /*foreach_id*/ blender::bke::node_foreach_id,
-    /*foreach_cache*/ blender::bke::node_foreach_cache,
-    /*foreach_path*/ blender::bke::node_foreach_path,
-    /*foreach_working_space_color*/ blender::bke::node_foreach_working_space_color,
-    /*owner_pointer_get*/ blender::bke::node_owner_pointer_get,
+    /*foreach_id*/ bke::node_foreach_id,
+    /*foreach_cache*/ nullptr,
+    /*foreach_path*/ bke::node_foreach_path,
+    /*foreach_working_space_color*/ bke::node_foreach_working_space_color,
+    /*owner_pointer_get*/ bke::node_owner_pointer_get,
 
-    /*blend_write*/ blender::bke::ntree_blend_write,
-    /*blend_read_data*/ blender::bke::ntree_blend_read_data,
-    /*blend_read_after_liblink*/ blender::bke::ntree_blend_read_after_liblink,
+    /*blend_write*/ bke::ntree_blend_write,
+    /*blend_read_data*/ bke::ntree_blend_read_data,
+    /*blend_read_after_liblink*/ bke::ntree_blend_read_after_liblink,
 
     /*blend_read_undo_preserve*/ nullptr,
 
     /*lib_override_apply_post*/ nullptr,
 };
 
-namespace blender::bke {
+namespace bke {
 
 static void node_add_sockets_from_type(bNodeTree *ntree, bNode *node, bNodeType *ntype)
 {
@@ -3610,8 +3585,8 @@ static void iter_backwards_ex(const bNodeTree *ntree,
                               void *userdata,
                               const char recursion_mask)
 {
-  blender::Stack<bNode *> stack;
-  blender::Stack<bNode *> zone_stack;
+  Stack<bNode *> stack;
+  Stack<bNode *> zone_stack;
   stack.push(node_start);
 
   while (!stack.is_empty() || !zone_stack.is_empty()) {
@@ -4380,37 +4355,22 @@ bool node_preview_used(const bNode &node)
   return (node.typeinfo->flag & NODE_PREVIEW) != 0;
 }
 
-bNodePreview *node_preview_verify(Map<bNodeInstanceKey, bNodePreview> &previews,
+bNodePreview *node_ensure_preview(Map<bNodeInstanceKey, bNodePreview> &previews,
                                   bNodeInstanceKey key,
                                   const int xsize,
-                                  const int ysize,
-                                  const bool create)
+                                  const int ysize)
 {
-  bNodePreview *preview = create ?
-                              &previews.lookup_or_add_cb(key,
-                                                         [&]() {
-                                                           bNodePreview preview;
-                                                           preview.ibuf = IMB_allocImBuf(
-                                                               xsize, ysize, 32, IB_byte_data);
-                                                           return preview;
-                                                         }) :
-                              previews.lookup_ptr(key);
-  if (!preview) {
-    return nullptr;
-  }
-
-  /* node previews can get added with variable size this way */
-  if (xsize == 0 || ysize == 0) {
+  bNodePreview *preview = &previews.lookup_or_add_cb(key, [&]() {
+    bNodePreview preview;
+    preview.ibuf = IMB_allocImBuf(xsize, ysize, 32, IB_byte_data);
     return preview;
-  }
+  });
 
-  /* sanity checks & initialize */
   const uint size[2] = {uint(xsize), uint(ysize)};
   IMB_rect_size_set(preview->ibuf, size);
   if (preview->ibuf->byte_buffer.data == nullptr) {
     IMB_alloc_byte_pixels(preview->ibuf);
   }
-  /* no clear, makes nicer previews */
 
   return preview;
 }
@@ -4431,32 +4391,6 @@ bNodePreview::~bNodePreview()
   if (this->ibuf) {
     IMB_freeImBuf(this->ibuf);
   }
-}
-
-static void node_preview_init_tree_recursive(Map<bNodeInstanceKey, bNodePreview> &previews,
-                                             bNodeTree *ntree,
-                                             bNodeInstanceKey parent_key,
-                                             const int xsize,
-                                             const int ysize)
-{
-  for (bNode *node : ntree->all_nodes()) {
-    bNodeInstanceKey key = node_instance_key(parent_key, ntree, node);
-
-    if (node_preview_used(*node)) {
-      node_preview_verify(previews, key, xsize, ysize, false);
-    }
-
-    bNodeTree *group = reinterpret_cast<bNodeTree *>(node->id);
-    if (node->is_group() && group != nullptr) {
-      node_preview_init_tree_recursive(previews, group, key, xsize, ysize);
-    }
-  }
-}
-
-void node_preview_init_tree(bNodeTree *ntree, int xsize, int ysize)
-{
-  node_preview_init_tree_recursive(
-      ntree->runtime->previews, ntree, NODE_INSTANCE_KEY_BASE, xsize, ysize);
 }
 
 static void collect_used_previews(Map<bNodeInstanceKey, bNodePreview> &previews,
@@ -4794,7 +4728,7 @@ void node_tree_set_output(bNodeTree &ntree)
 bNodeTree **node_tree_ptr_from_id(ID *id)
 {
   /* If this is ever extended such that a non-animatable ID type can embed a node
-   * tree, update blender::animrig::internal::rebuild_slot_user_cache(). That
+   * tree, update animrig::internal::rebuild_slot_user_cache(). That
    * function assumes that node trees can only be embedded by animatable IDs. */
 
   switch (GS(id->name)) {
@@ -4875,15 +4809,6 @@ bNodeTree *node_tree_localize(bNodeTree *ntree, std::optional<ID *> new_owner_id
   }
 
   return ltree;
-}
-
-void node_tree_local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
-{
-  if (ntree && localtree) {
-    if (ntree->typeinfo->local_merge) {
-      ntree->typeinfo->local_merge(bmain, localtree, ntree);
-    }
-  }
 }
 
 static bool ntree_contains_tree_exec(const bNodeTree &tree_to_search_in,
@@ -5738,13 +5663,13 @@ void node_system_exit()
 
 void node_tree_iterator_init(NodeTreeIterStore *ntreeiter, Main *bmain)
 {
-  ntreeiter->ngroup = (bNodeTree *)bmain->nodetrees.first;
-  ntreeiter->scene = (Scene *)bmain->scenes.first;
-  ntreeiter->mat = (Material *)bmain->materials.first;
-  ntreeiter->tex = (Tex *)bmain->textures.first;
-  ntreeiter->light = (Light *)bmain->lights.first;
-  ntreeiter->world = (World *)bmain->worlds.first;
-  ntreeiter->linestyle = (FreestyleLineStyle *)bmain->linestyles.first;
+  ntreeiter->ngroup = static_cast<bNodeTree *>(bmain->nodetrees.first);
+  ntreeiter->scene = static_cast<Scene *>(bmain->scenes.first);
+  ntreeiter->mat = static_cast<Material *>(bmain->materials.first);
+  ntreeiter->tex = static_cast<Tex *>(bmain->textures.first);
+  ntreeiter->light = static_cast<Light *>(bmain->lights.first);
+  ntreeiter->world = static_cast<World *>(bmain->worlds.first);
+  ntreeiter->linestyle = static_cast<FreestyleLineStyle *>(bmain->linestyles.first);
 }
 bool node_tree_iterator_step(NodeTreeIterStore *ntreeiter, bNodeTree **r_nodetree, ID **r_id)
 {
@@ -5825,4 +5750,5 @@ bool node_tree_type_supports_socket_type_static(const int ntree_type,
   return false;
 }
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender
