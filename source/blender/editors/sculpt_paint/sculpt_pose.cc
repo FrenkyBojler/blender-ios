@@ -2027,7 +2027,8 @@ static void calc_rotate_deform(SculptSession &ss, const Brush &brush)
   IKChain &ik_chain = *ss.cache->pose_ik_chain;
 
   /* Calculate the IK target. */
-  float3 ik_target = ss.cache->location + (ss.cache->grab_delta * ss.cache->bstrength) + ik_chain.grab_delta_offset;
+  float3 ik_target = ss.cache->location + (ss.cache->grab_delta * ss.cache->bstrength) +
+                     ik_chain.grab_delta_offset;
 
   /* Solve the IK positions. */
   solve_ik_chain(ik_chain, ik_target, brush.flag2 & BRUSH_POSE_IK_ANCHORED);
