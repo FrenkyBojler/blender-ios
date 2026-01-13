@@ -22,34 +22,41 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-static VkDeviceSize align_size(VkDeviceSize size, VkDeviceSize alignment)
+static VkDeviceSize align_offset(VkDeviceSize offset, VkDeviceSize alignment)
 {
-  return (size - 1u + alignment) & -alignment;
+  return (offset - 1ul + alignment) & -alignment;
+}
+
+static VkDeviceSize align_offset(VkDeviceSize offset,
+                                 VkDeviceSize allocation_offset,
+                                 VkDeviceSize alignment)
+{
+  return align_offset(allocation_offset + offset, alignment) - allocation_offset;
 }
 
 std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
 {
-  /* `memoryType` uses 0 as special value to indicate no restrictions.
-   * If there are restrictions, we check against `memoryTypeBits`.  */
+  /* `memoryType` uses 0 as special value to indicate no memory type restrictions.
+   * If there are restrictions, we check the memory type against `memoryTypeBits`.  */
   if (allocation_info.memoryType != 0 &&
       !bool(requirements.memoryTypeBits & allocation_info.memoryType))
   {
     return {};
   }
 
-  /* Find the smallest segment of compatible size. */
+  /* Find the smallest segment of sufficient size. */
   auto it = segments.end();
   for (auto iter = segments.begin(); iter != segments.end(); ++iter) {
-    /* Align to segment at start. */
-    VkDeviceSize aligned_offset = align_size(allocation_info.offset + iter->offset,
-                                             requirements.alignment) -
-                                  allocation_info.offset;
-    VkDeviceSize remaining_size = iter->size - (aligned_offset - iter->offset);
-
+    /* Align offset to requirements with respect to allocation start. */
+    VkDeviceSize aligned_offset = align_offset(
+        iter->offset, allocation_info.offset, requirements.alignment);
     if (aligned_offset > iter->offset + iter->size) {
       continue;
     }
+
+    /* Compute remaining size of segment if aligned offset is larger. */
+    VkDeviceSize remaining_size = iter->size - (aligned_offset - iter->offset);
     if (remaining_size < requirements.size) {
       continue;
     }
@@ -62,16 +69,17 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     return {};
   }
 
-  VkDeviceSize aligned_offset = align_size(allocation_info.offset + it->offset,
-                                           requirements.alignment) -
-                                allocation_info.offset;
-  VkDeviceSize remaining_size = it->size - (aligned_offset - it->offset);
+  /* The return segment starts at an alignment-compatible offset. */
+  Segment segment;
+  segment.offset = align_offset(it->offset, allocation_info.offset, requirements.alignment);
+  segment.size = requirements.size;
 
-  /* Identify segments before/at/after the acquired segment. */
-  Segment segment_prev = {it->offset, aligned_offset - it->offset};
-  Segment segment = {aligned_offset, requirements.size};
-  Segment segment_next = {aligned_offset + requirements.size, remaining_size - requirements.size};
+  /* Depending on the return segment, there are now unused segments before/after it. */
+  Segment segment_prev = {it->offset, segment.offset - it->offset};
+  Segment segment_next = {segment.offset + segment.size,
+                          it->size - segment.size - segment_prev.size};
 
+  /* Update stored segments dependent on the above. */
   if (segment_prev.size > 0 && segment_next.size > 0) {
     *it = segment_next;
     segments.insert(it, segment_prev);
@@ -122,7 +130,7 @@ void VKTexturePool::AllocationHandle::release(Segment segment)
     segments.erase(it_next);
   }
   else if (!(extended_prev || extended_next)) {
-    /* If neither segment were extended, they do not connect. Insert in the middle. */
+    /* If neither segment was extended, they do not connect. Insert in the middle. */
     segments.insert(it_next, segment);
   }
 }
@@ -142,7 +150,7 @@ bool VKTexturePool::AllocationHandle::init(VkMemoryRequirements memory_requireme
                                       &allocation,
                                       &allocation_info);
 
-  /* Start with a single, fully sized segment. */
+  /* Start with a single segment, sized to the extent of the allocation. */
   segments = {{0ul, allocation_info.size}};
 
   return result == VK_SUCCESS;

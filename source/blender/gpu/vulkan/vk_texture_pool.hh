@@ -14,19 +14,20 @@
 namespace blender::gpu {
 
 class VKTexturePool : public TexturePool {
+  /* Performed allocation size, current is 64mb. */
+  static constexpr VkDeviceSize allocation_size = 1 << 26;
+
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
-
-  /* All performed allocations are minimum 65kb as a temporary metric. */
-  static constexpr VkDeviceSize allocation_size = 1 << 26;
 
   struct Segment {
     VkDeviceSize offset;
     VkDeviceSize size;
   };
 
-  /* Struct to manage a memory allocation and its unused segments. */
+  /* Struct to manage a memory allocation. This region of memory can be segmented
+   * for binding to multiple supported resources at a time. */
   struct AllocationHandle {
     VmaAllocation allocation = VK_NULL_HANDLE;
     VmaAllocationInfo allocation_info = {};
@@ -41,13 +42,13 @@ class VKTexturePool : public TexturePool {
     bool alloc(VkMemoryRequirements memory_requirements);
     void free();
 
-    /* Extract a segment of the allocation, if compatible. */
+    /* Extract a segment of the allocation for binding, if compatible. */
     std::optional<Segment> acquire(VkMemoryRequirements memory_requirements);
 
     /* Return a segment to the allocation for reuse. */
     void release(Segment segment);
 
-    /* Check if the allocation is entirely unused. */
+    /* Check if no part of the allocation is acuired. */
     bool is_unused() const
     {
       return !segments.empty() && segments.front().size == allocation_info.size;
@@ -66,7 +67,8 @@ class VKTexturePool : public TexturePool {
     }
   };
 
-  /* Struct to store an acquired texture and its backing allocation. */
+  /* Struct to store an acquired texture. The texture image has a backing allocation,
+   * and is bound to a segment of this allocation. */
   struct TextureHandle {
     VKTexture *texture = nullptr;
     AllocationHandle allocation_handle = {};
@@ -75,12 +77,12 @@ class VKTexturePool : public TexturePool {
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;
 
-    /* Create/destroy the VKTexture+VkImage backing the internal pointer. */
-    bool alloc(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
+    /* Create or destroy the VKTexture+VkImage and handle internals. */
+    bool init(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
     void free();
 
     /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
-     * This means we can find the handle without knowing the internal counter. */
+     * This means we can find the handle without knowing other internals */
     uint64_t hash() const
     {
       return get_default_hash(texture);
@@ -92,12 +94,11 @@ class VKTexturePool : public TexturePool {
     }
   };
 
-  /* Store of allocated blocks, potentially partially in use. */
+  /* Stores of allocated memory and textures bound to said memory. */
   Set<AllocationHandle> allocations_;
-  /* Store of acquired textures. */
   Set<TextureHandle> acquired_;
 
-  /* Debug storage to identify effective memory reuse. Log is only output
+  /* Debug storage to log memory usage. Log is only output
    * if values have changed since the last `::reset()`. */
   struct LogUsageData {
     int64_t allocation_count = 0;
