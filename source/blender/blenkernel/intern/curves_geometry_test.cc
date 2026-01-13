@@ -537,7 +537,6 @@ TEST(curves_geometry, NURBSEvaluateZeroOrderBezierDeg3)
   CurvesGeometry curves(4, 1);
   curves.fill_curve_types(CURVE_TYPE_NURBS);
   curves.nurbs_knots_modes_for_write().fill(NURBS_KNOT_MODE_ENDPOINT_BEZIER);
-  curves.nurbs_orders_for_write().fill(4);
   curves.resolution_for_write().fill(10);
   curves.offsets_for_write().last() = 4;
 
@@ -547,8 +546,12 @@ TEST(curves_geometry, NURBSEvaluateZeroOrderBezierDeg3)
   positions[2] = {0, 0, 0};
   positions[3] = {-1, 0, 0};
 
-  Span<float3> evaluated_positions = curves.evaluated_positions();
-  EXPECT_NEAR_SPAN<float>(evaluated_positions.cast<float>(), positions.as_span().cast<float>(), EPSILON_FLT32);
+  for (const int8_t i : IndexRange(-1, 2)) {
+    curves.nurbs_orders_for_write().fill(i);
+    Span<float3> evaluated_positions = curves.evaluated_positions();
+    EXPECT_NEAR_SPAN<float>(
+        evaluated_positions.cast<float>(), positions.as_span().cast<float>(), EPSILON_FLT32);
+  }
 }
 
 TEST(curves_geometry, NURBSEvaluateZeroOrderClampedDeg3)
@@ -556,7 +559,6 @@ TEST(curves_geometry, NURBSEvaluateZeroOrderClampedDeg3)
   CurvesGeometry curves(4, 1);
   curves.fill_curve_types(CURVE_TYPE_NURBS);
   curves.nurbs_knots_modes_for_write().fill(NURBS_KNOT_MODE_ENDPOINT);
-  curves.nurbs_orders_for_write().fill(4);
   curves.resolution_for_write().fill(10);
   curves.offsets_for_write().last() = 4;
 
@@ -566,8 +568,12 @@ TEST(curves_geometry, NURBSEvaluateZeroOrderClampedDeg3)
   positions[2] = {0, 0, 0};
   positions[3] = {-1, 0, 0};
 
-  Span<float3> evaluated_positions = curves.evaluated_positions();
-  EXPECT_NEAR_SPAN<float>(evaluated_positions.cast<float>(), positions.as_span().cast<float>(), EPSILON_FLT32);
+  for (const int8_t i : IndexRange(-1, 2)) {
+    curves.nurbs_orders_for_write().fill(i);
+    Span<float3> evaluated_positions = curves.evaluated_positions();
+    EXPECT_NEAR_SPAN<float>(
+        evaluated_positions.cast<float>(), positions.as_span().cast<float>(), EPSILON_FLT32);
+  }
 }
 
 /** \} */
