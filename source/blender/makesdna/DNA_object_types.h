@@ -458,7 +458,7 @@ struct Object {
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt = nullptr;
 
-  struct SculptSession *sculpt = nullptr;
+  DNA_DEPRECATED struct SculptSession *sculpt = nullptr;
 
   short type = OB_EMPTY; /* #ObjectType */
   short partype = 0;

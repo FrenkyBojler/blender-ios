@@ -236,7 +236,7 @@ static void object_copy_data(Main *bmain,
   BKE_constraints_copy_ex(&ob_dst->constraints, &ob_src->constraints, flag_subdata, true);
 
   ob_dst->mode = OB_MODE_OBJECT;
-  ob_dst->sculpt = nullptr;
+  ob_dst->runtime->sculpt_session = nullptr;
 
   if (ob_src->pd) {
     ob_dst->pd = static_cast<PartDeflect *>(MEM_dupallocN(ob_src->pd));
@@ -618,8 +618,6 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
   ob->runtime = nullptr;
-  /* #Object::sculpt is also a runtime struct that should be stored in #Object::runtime. */
-  ob->sculpt = nullptr;
 
   if (is_undo) {
     /* For undo we stay in object mode during undo presses, so keep edit-mode disabled on save as
@@ -880,7 +878,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   CLAMP(ob->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
 
   /* Some files were incorrectly written with a dangling pointer to this runtime data. */
-  ob->sculpt = nullptr;
+  ob->runtime->sculpt_session = nullptr;
 
   /* When loading undo steps, for objects in modes that use `sculpt`, recreate the mode runtime
    * data. For regular non-undo reading, this is currently handled by mode switching after the
@@ -1845,17 +1843,17 @@ bool BKE_object_has_mode_data(const Object *ob, eObjectMode object_mode)
     }
   }
   else if (object_mode & OB_MODE_VERTEX_PAINT) {
-    if (ob->sculpt && (ob->sculpt->mode_type == OB_MODE_VERTEX_PAINT)) {
+    if (ob->runtime->sculpt_session && (ob->runtime->sculpt_session->mode_type == OB_MODE_VERTEX_PAINT)) {
       return true;
     }
   }
   else if (object_mode & OB_MODE_WEIGHT_PAINT) {
-    if (ob->sculpt && (ob->sculpt->mode_type == OB_MODE_WEIGHT_PAINT)) {
+    if (ob->runtime->sculpt_session && (ob->runtime->sculpt_session->mode_type == OB_MODE_WEIGHT_PAINT)) {
       return true;
     }
   }
   else if (object_mode & OB_MODE_SCULPT) {
-    if (ob->sculpt && (ob->sculpt->mode_type == OB_MODE_SCULPT)) {
+    if (ob->runtime->sculpt_session && (ob->runtime->sculpt_session->mode_type == OB_MODE_SCULPT)) {
       return true;
     }
   }
@@ -4084,9 +4082,9 @@ void BKE_object_handle_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
 void BKE_object_sculpt_data_create(Object *ob)
 {
-  BLI_assert((ob->sculpt == nullptr) && (ob->mode & OB_MODE_ALL_SCULPT));
-  ob->sculpt = MEM_new<SculptSession>(__func__);
-  ob->sculpt->mode_type = eObjectMode(ob->mode);
+  BLI_assert((ob->runtime->sculpt_session == nullptr) && (ob->mode & OB_MODE_ALL_SCULPT));
+  ob->runtime->sculpt_session = MEM_new<SculptSession>(__func__);
+  ob->runtime->sculpt_session->mode_type = eObjectMode(ob->mode);
 }
 
 bool BKE_object_obdata_texspace_get(Object *ob,

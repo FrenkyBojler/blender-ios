@@ -19,6 +19,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_material.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 
 #include "BLI_math_matrix.hh"
@@ -52,7 +53,7 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
                                                  const Span<pbvh::AttributeRequest> attrs)
 {
   /* pbvh::Tree should always exist for non-empty meshes, created by depsgraph eval. */
-  bke::pbvh::Tree *pbvh = ob->sculpt ? const_cast<bke::pbvh::Tree *>(bke::object::pbvh_get(*ob)) :
+  bke::pbvh::Tree *pbvh = ob->runtime->sculpt_session ? const_cast<bke::pbvh::Tree *>(bke::object::pbvh_get(*ob)) :
                                        nullptr;
   if (!pbvh) {
     return {};
@@ -168,7 +169,7 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
 
   const Mesh *mesh = BKE_object_get_original_mesh(ob);
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const SculptSession &ss = *ob->sculpt;
+  const SculptSession &ss = *ob->runtime->sculpt_session;
 
   /* If Dyntopo is enabled, the source of truth for an attribute existing or not is the BMesh, not
    * the Mesh. */
