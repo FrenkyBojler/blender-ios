@@ -695,20 +695,20 @@ static GVArray adapt_mesh_attribute_domain(const Mesh &mesh,
 
 static void tag_positions_changed(void *owner)
 {
-  Mesh &mesh = *static_cast<Mesh *>(owner);
-  mesh.tag_positions_changed();
+  Mesh *mesh = static_cast<Mesh *>(owner);
+  mesh->tag_positions_changed();
 }
 
 static void tag_sharpness_changed(void *owner)
 {
-  Mesh &mesh = *static_cast<Mesh *>(owner);
-  mesh.tag_sharpness_changed();
+  Mesh *mesh = static_cast<Mesh *>(owner);
+  mesh->tag_sharpness_changed();
 }
 
 static void tag_material_index_changed(void *owner)
 {
-  Mesh &mesh = *static_cast<Mesh *>(owner);
-  mesh.tag_material_index_changed();
+  Mesh *mesh = static_cast<Mesh *>(owner);
+  mesh->tag_material_index_changed();
 }
 
 static void tag_visibility_changed(void *owner)
@@ -803,7 +803,7 @@ static bool try_delete_vertex_group(void *owner, const StringRef name)
 
   int index;
   bDeformGroup *group;
-  if (!BKE_defgroup_listbase_name_find(&mesh->vertex_group_names, name, &index, &group)) {
+  if (!BKE_id_defgroup_name_find(&mesh->id, name, &index, &group)) {
     return false;
   }
   BLI_remlink(&mesh->vertex_group_names, group);
