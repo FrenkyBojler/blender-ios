@@ -688,13 +688,150 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
   return io_nodes;
 }
 
-void connect_copied_nodes_to_external_sockets(const bNodeTree &src_tree,
-                                              const NodeSetCopy &copied_nodes,
-                                              const NodeTreeInterfaceMapping &io_mapping)
+namespace detail {
+
+template<typename T> void set_placeholder_default_value_impl(T & /*data*/) {};
+// template<> void socket_data_init_impl(bNodeSocketValueFloat &data)
+// {
+//   data.subtype = PROP_NONE;
+//   data.value = 0.0f;
+//   data.min = -FLT_MAX;
+//   data.max = FLT_MAX;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueInt &data)
+// {
+//   data.subtype = PROP_NONE;
+//   data.value = 0;
+//   data.min = INT_MIN;
+//   data.max = INT_MAX;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueBoolean &data)
+// {
+//   data.value = false;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueRotation & /*data*/) {}
+// template<> void socket_data_init_impl(bNodeSocketValueVector &data)
+// {
+//   static float default_value[] = {0.0f, 0.0f, 0.0f};
+//   data.subtype = PROP_NONE;
+//   data.dimensions = 3;
+//   copy_v3_v3(data.value, default_value);
+//   data.min = -FLT_MAX;
+//   data.max = FLT_MAX;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueRGBA &data)
+// {
+//   static float default_value[] = {0.0f, 0.0f, 0.0f, 1.0f};
+//   copy_v4_v4(data.value, default_value);
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueString &data)
+// {
+//   data.subtype = PROP_NONE;
+//   data.value[0] = '\0';
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueObject &data)
+// {
+//   data.value = nullptr;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueImage &data)
+// {
+//   data.value = nullptr;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueCollection &data)
+// {
+//   data.value = nullptr;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueTexture &data)
+// {
+//   data.value = nullptr;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueMaterial &data)
+// {
+//   data.value = nullptr;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueFont &data)
+// {
+//   data.value = nullptr;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueScene &data)
+// {
+//   data.value = nullptr;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueText &data)
+// {
+//   data.value = nullptr;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueMask &data)
+// {
+//   data.value = nullptr;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueSound &data)
+// {
+//   data.value = nullptr;
+// }
+// template<> void socket_data_init_impl(bNodeSocketValueMenu &data)
+// {
+//   data.value = -1;
+//   data.enum_items = nullptr;
+//   data.runtime_flag = 0;
+// }
+
+}  // namespace detail
+
+static bNode *make_interface_placeholder(bContext &C,
+                                         bNodeTree &tree,
+                                         const bNodeTreeInterfaceSocket &io_socket,
+                                         const bool needs_conversion)
+{
+  bNode *placeholder = bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return placeholder;
+
+  // MutableNodeAndSocket void *socket_data = nullptr;
+  // bke::node_interface::socket_types::socket_data_to_static_type_tag(
+  //     socket_type, [&socket_data](auto type_tag) {
+  //       using SocketDataType = typename decltype(type_tag)::type;
+  //       SocketDataType *new_socket_data = MEM_new_for_free<SocketDataType>(__func__);
+  //       socket_data_init_impl(*new_socket_data);
+  //       socket_data = new_socket_data;
+  //     });
+  // return socket_data;
+}
+
+InterfacePlaceholderNodes connect_copied_nodes_to_external_sockets(
+    bContext &C,
+    const bNodeTree &src_tree,
+    const NodeSetCopy &copied_nodes,
+    const NodeTreeInterfaceMapping &io_mapping)
 {
   using InterfaceSocketData = NodeTreeInterfaceMapping::InterfaceSocketData;
 
   bNodeTree &dst_tree = copied_nodes.dst_tree();
+
+  /* New sockets acting as functional replacements for the previous node group interface. */
+  InterfacePlaceholderNodes interface_placeholders;
+  for (const auto &item : io_mapping.socket_data.items()) {
+    /* Conversion is needed if there is any internal link with a different type AND an external
+     * link with a different type at the same time. In that case the conversion is lost without a
+     * statically typed in-between node. */
+    const StringRefNull interface_socket_type = item.key->socket_type;
+    bool needs_conversion = false;
+    for (const NodeAndSocket &internal_socket : item.value.internal_sockets) {
+      if (internal_socket.socket.idname != interface_socket_type) {
+        needs_conversion = true;
+        break;
+      }
+    }
+    for (const MutableNodeAndSocket &external_socket : item.value.external_sockets) {
+      if (external_socket.socket.idname != interface_socket_type) {
+        needs_conversion = true;
+        break;
+      }
+    }
+
+    interface_placeholders.add(
+        item.key->identifier,
+        make_interface_placeholder(C, dst_tree, *item.key, needs_conversion));
+  }
 
   /* Deduplicate links in case multiple connects get merged. This can happen because input and
    * output sockets are connected, potentially adding redundant links. */
@@ -754,6 +891,8 @@ void connect_copied_nodes_to_external_sockets(const bNodeTree &src_tree,
     bke::node_add_link(
         dst_tree, item.first.node, item.first.socket, item.second.node, item.second.socket);
   }
+
+  return interface_placeholders;
 }
 
 void connect_group_node_to_external_sockets(bNode &group_node,
