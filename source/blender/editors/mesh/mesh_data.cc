@@ -687,7 +687,6 @@ static void mesh_add_verts(Mesh *mesh, int len)
   }
 
   int totvert = mesh->verts_num + len;
-
   mesh->attribute_storage.wrap().resize(bke::AttrDomain::Point, totvert);
   CustomData_realloc(&mesh->vert_data, mesh->verts_num, totvert, CD_SET_DEFAULT);
 
