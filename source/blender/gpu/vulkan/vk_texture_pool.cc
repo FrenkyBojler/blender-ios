@@ -135,7 +135,7 @@ void VKTexturePool::AllocationHandle::release(Segment segment)
   }
 }
 
-bool VKTexturePool::AllocationHandle::init(VkMemoryRequirements memory_requirements)
+bool VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirements)
 {
   VKDevice &device = VKBackend::get().device;
 
@@ -165,10 +165,10 @@ void VKTexturePool::AllocationHandle::free()
   segments = {};
 }
 
-bool VKTexturePool::TextureHandle::init(int2 extent,
-                                        TextureFormat format,
-                                        eGPUTextureUsage usage,
-                                        const char *name)
+bool VKTexturePool::TextureHandle::alloc(int2 extent,
+                                         TextureFormat format,
+                                         eGPUTextureUsage usage,
+                                         const char *name)
 {
   VKDevice &device = VKBackend::get().device;
 
@@ -276,7 +276,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
     allocation_requirements.size = std::max(allocation_size, allocation_requirements.size);
 
     AllocationHandle handle;
-    handle.init(allocation_requirements);
+    handle.alloc(allocation_requirements);
     auto segment_opt = handle.acquire(memory_requirements);
 
     allocations_.add(handle);

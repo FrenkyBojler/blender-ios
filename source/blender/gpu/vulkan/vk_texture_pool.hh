@@ -78,7 +78,7 @@ class VKTexturePool : public TexturePool {
     int users_count = 1;
 
     /* Create or destroy the VKTexture+VkImage and handle internals. */
-    bool init(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
+    bool alloc(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
     void free();
 
     /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
