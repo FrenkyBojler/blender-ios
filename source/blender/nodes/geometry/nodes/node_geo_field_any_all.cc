@@ -75,66 +75,72 @@ class AnyAllInput final : public bke::GeometryFieldInput {
 
     const GVArray g_values = evaluator.get_evaluated(0);
     const VArray<int> group_indices = evaluator.get_evaluated<int>(1);
-    const VArray<bool> values = g_values.typed<bool>();
 
     GVArray g_outputs;
 
-    if (operation_ == Operation::Any) {
-      if (group_indices.is_single()) {
-        bool any = false;
-        for (const int i : values.index_range()) {
-          if (values[i]) {
-            any = true;
-            break;
+    bke::attribute_math::convert_to_static_type(g_values.type(), [&](auto dummy) {
+      using T = decltype(dummy);
+      if constexpr (std::is_same_v<T, bool>) {
+        const VArray<bool> values = g_values.typed<bool>();
+
+        if (operation_ == Operation::Any) {
+          if (group_indices.is_single()) {
+            bool any = false;
+            for (const int i : values.index_range()) {
+              if (values[i]) {
+                any = true;
+                break;
+              }
+            }
+            g_outputs = VArray<bool>::from_single(any, domain_size);
+          }
+          else {
+            Array<bool> outputs(domain_size);
+            Map<int, bool> results;
+
+            for (const int i : values.index_range()) {
+              bool &value = results.lookup_or_add(group_indices[i], false);
+              value |= values[i];
+            }
+
+            for (const int i : outputs.index_range()) {
+              outputs[i] = results.lookup(group_indices[i]);
+            }
+
+            g_outputs = VArray<bool>::from_container(std::move(outputs));
           }
         }
-        return VArray<bool>::from_single(any, domain_size);
-      }
-      else {
-        Array<bool> outputs(domain_size);
-        Set<int> groups;
+        else if (operation_ == Operation::All) {
+          if (group_indices.is_single()) {
+            bool all = true;
+            for (const int i : values.index_range()) {
+              if (!values[i]) {
+                all = false;
+                break;
+              }
+            }
+            g_outputs = VArray<bool>::from_single(all, domain_size);
+          }
+          else {
+            Array<bool> outputs(domain_size);
+            Map<int, bool> results;
 
-        for (const int i : values.index_range()) {
-          if (values[i]) {
-            groups.add(group_indices[i]);
+            for (const int i : values.index_range()) {
+              bool &value = results.lookup_or_add(group_indices[i], true);
+              value &= values[i];
+            }
+
+            for (const int i : outputs.index_range()) {
+              outputs[i] = results.lookup(group_indices[i]);
+            }
+
+            g_outputs = VArray<bool>::from_container(std::move(outputs));
           }
         }
-
-        for (const int i : outputs.index_range()) {
-          outputs[i] = groups.contains(group_indices[i]);
-        }
-
-        return VArray<bool>::from_container(std::move(outputs));
       }
-    }
-    else if (operation_ == Operation::All) {
-      if (group_indices.is_single()) {
-        bool all = true;
-        for (const int i : values.index_range()) {
-          if (!values[i]) {
-            all = false;
-            break;
-          }
-        }
-        return VArray<bool>::from_single(all, domain_size);
-      }
-      else {
-        Array<bool> outputs(domain_size);
-        Set<int> groups;
+    });
 
-        for (const int i : values.index_range()) {
-          if (!values[i]) {
-            groups.add(group_indices[i]);
-          }
-        }
-
-        for (const int i : outputs.index_range()) {
-          outputs[i] = !groups.contains(group_indices[i]);
-        }
-
-        return VArray<bool>::from_container(std::move(outputs));
-      }
-    }
+    return g_outputs;
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
