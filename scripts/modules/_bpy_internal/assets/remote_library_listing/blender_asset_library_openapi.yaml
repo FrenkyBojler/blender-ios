@@ -229,28 +229,22 @@ components:
           type: string
           description: Name of the Blender data-block.
         "id_type": { $ref: "#/components/schemas/AssetIDTypeV1" }
-        "file":
-          type: string
-          description: >
-            Relative path of the file that contains this asset.
-            This relative path is used to look up more file information in the asset library's list of files.
-
-            An asset MUST have either a 'file' or a 'files' property.
         "files":
           type: array
           items: { type: string }
           minItems: 1
           description: >
-            Relative paths of the files that contain this asset.
-            These relative paths are used to look up more file information in the asset library's list of files.
-
-            An asset MUST have either a 'file' or a 'files' property.
+            Relative paths of the files that contain this asset. The first entry
+            in the list MUST contain the asset data-block itself, while the
+            remaining entries can be in any order. These relative paths are used
+            to look up more file information in the asset library's list of
+            files.
         "thumbnail": { $ref: "#/components/schemas/URLWithHash" }
         "meta": { $ref: "#/components/schemas/AssetMetadataV1" }
       required:
         - "name"
         - "id_type"
-
+        - "files"
 
     AssetIDTypeV1:
       type: string
