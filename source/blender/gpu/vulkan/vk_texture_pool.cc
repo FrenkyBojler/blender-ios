@@ -30,6 +30,8 @@ static VkDeviceSize align_size(VkDeviceSize size, VkDeviceSize alignment)
 std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
 {
+  VkDeviceSize allocation_offset = allocation_info.offset;
+
   /* `memoryType` uses 0 as special value to indicate no restrictions.
    * If there are restrictions, we check against `memoryTypeBits`.  */
   if (allocation_info.memoryType != 0 &&
@@ -38,14 +40,13 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     return {};
   }
 
-  /* Memory alignment can vary between images, and segments offset into the
-   * allocation likewise influence this. */
-
   /* Find the smallest segment of compatible size. */
   auto it = segments.end();
   for (auto iter = segments.begin(); iter != segments.end(); ++iter) {
     /* Align to segment at start. */
-    VkDeviceSize aligned_offset = align_size(iter->offset, requirements.alignment);
+    VkDeviceSize aligned_offset = align_size(allocation_offset + iter->offset,
+                                             requirements.alignment) -
+                                  allocation_offset;
     VkDeviceSize remaining_size = iter->size - (aligned_offset - iter->offset);
     if (remaining_size < requirements.size) {
       continue;
@@ -57,26 +58,30 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
   if (it == segments.end()) {
     return {};
   }
-  
+
   // if (segment.size > requirements.size) {
   /* Alignment can lead to an offset to the segment interior. */
-  VkDeviceSize aligned_offset = align_size(it->offset, requirements.alignment);
+  VkDeviceSize aligned_offset = align_size(allocation_offset + it->offset,
+                                           requirements.alignment) -
+                                allocation_offset;
   VkDeviceSize remaining_size = it->size - (aligned_offset - it->offset);
 
   /* Identify segments before/at/after the acquired segment. */
   Segment segment_prev = {it->offset, aligned_offset - it->offset};
-  Segment segment = { aligned_offset, requirements.size };
-  Segment segment_next = {aligned_offset + requirements.size,
-                          remaining_size - requirements.size};
+  Segment segment = {aligned_offset, requirements.size};
+  Segment segment_next = {aligned_offset + requirements.size, remaining_size - requirements.size};
 
   if (segment_prev.size > 0 && segment_next.size > 0) {
     *it = segment_next;
     segments.insert(it, segment_prev);
-  } else if (segment_prev.size > 0) {
+  }
+  else if (segment_prev.size > 0) {
     *it = segment_prev;
-  } else if (segment_next.size > 0) {
+  }
+  else if (segment_next.size > 0) {
     *it = segment_next;
-  } else {
+  }
+  else {
     segments.erase(it);
   }
 
@@ -263,11 +268,11 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
     AllocationHandle handle;
     handle.init(allocation_requirements);
-    auto region_opt = handle.acquire(memory_requirements);
+    auto segment_opt = handle.acquire(memory_requirements);
 
     allocations_.add(handle);
     texture_handle.allocation_handle = handle;
-    texture_handle.segment = *region_opt;
+    texture_handle.segment = *segment_opt;
   }
 
   /* Compute the necessary offset into the allocation to satisfy alignment requirements. */

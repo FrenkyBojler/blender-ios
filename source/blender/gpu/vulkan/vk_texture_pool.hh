@@ -19,7 +19,7 @@ class VKTexturePool : public TexturePool {
   static constexpr int max_unused_cycles_ = 8;
 
   /* All performed allocations are minimum 65kb as a temporary metric. */
-  static constexpr VkDeviceSize allocation_size = 67108864;
+  static constexpr VkDeviceSize allocation_size = 1 << 26;
 
   struct Segment {
     VkDeviceSize offset;
@@ -99,20 +99,20 @@ class VKTexturePool : public TexturePool {
 
   /* Debug storage to identify effective memory reuse. Log is only output
    * if values have changed since the last `::reset()`. */
-  struct UsageData {
+  struct LogUsageData {
     int64_t allocation_count = 0;
     VkDeviceSize acquired_segment_size = 0;
     VkDeviceSize acquired_segment_size_max = 0;
 
-    bool operator==(const UsageData &o) const
+    bool operator==(const LogUsageData &o) const
     {
       return allocation_count == o.allocation_count &&
              acquired_segment_size == o.acquired_segment_size &&
              acquired_segment_size_max == o.acquired_segment_size_max;
     }
   };
-  UsageData previous_usage_data_ = {};
-  UsageData current_usage_data_ = {};
+  LogUsageData previous_usage_data_ = {};
+  LogUsageData current_usage_data_ = {};
 
   /* Output usage data to debug log. Called on `--debug-gpu` */
   void log_usage_data();
