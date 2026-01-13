@@ -48,9 +48,6 @@ void main()
   /* Size-dependent line thickness. */
   float half_width = (0.06f + (size - 10) * 0.04f);
   float line_width = half_width + line_falloff;
-  if (test(GPU_KEYFRAME_SHAPE_HIGHLIGHT)){
-    // line_width *= 1.2;
-  }
 
   /* Outline thresholds. */
   thresholds.xy = line_thresholds(line_width * outline_scale);

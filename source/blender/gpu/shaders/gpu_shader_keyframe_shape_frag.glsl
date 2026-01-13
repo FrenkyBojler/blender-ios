@@ -77,10 +77,17 @@ void main()
 
       alpha = max(alpha, minmax_step * minmax_alpha);
     }
-    fragColor = mix(finalColor, finalOutlineColor, alpha);
-    if (test(GPU_KEYFRAME_SHAPE_HIGHLIGHT)){
-      fragColor = mix(finalColor, finalHighlightColor, alpha);
+
+    float4 color_result = finalColor;
+    /* Add an extra inner border to the shape. */
+    if (test(GPU_KEYFRAME_SHAPE_HIGHLIGHT)) {
+      float offset = 0.08;
+      /* Increase the width of the outline on the inside. */
+      float alpha2 = 1 - smoothstep(thresholds[0] + offset, thresholds[1] + offset, abs(outline_dist));
+      color_result = mix(finalColor, finalHighlightColor, alpha2);
     }
+    fragColor = mix(color_result, finalOutlineColor, alpha);
+
   }
   /* Outside the outline. */
   else {
