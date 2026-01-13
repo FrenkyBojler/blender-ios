@@ -153,7 +153,7 @@ void VKContext::end_frame()
 
 void VKContext::flush()
 {
-  flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
 }
 
 TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
