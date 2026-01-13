@@ -30,8 +30,6 @@ static VkDeviceSize align_size(VkDeviceSize size, VkDeviceSize alignment)
 std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
 {
-  VkDeviceSize allocation_offset = allocation_info.offset;
-
   /* `memoryType` uses 0 as special value to indicate no restrictions.
    * If there are restrictions, we check against `memoryTypeBits`.  */
   if (allocation_info.memoryType != 0 &&
@@ -44,13 +42,18 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
   auto it = segments.end();
   for (auto iter = segments.begin(); iter != segments.end(); ++iter) {
     /* Align to segment at start. */
-    VkDeviceSize aligned_offset = align_size(allocation_offset + iter->offset,
+    VkDeviceSize aligned_offset = align_size(allocation_info.offset + iter->offset,
                                              requirements.alignment) -
-                                  allocation_offset;
+                                  allocation_info.offset;
     VkDeviceSize remaining_size = iter->size - (aligned_offset - iter->offset);
+
+    if (aligned_offset > iter->offset + iter->size) {
+      continue;
+    }
     if (remaining_size < requirements.size) {
       continue;
     }
+
     if (it == segments.end() || it->size > iter->size) {
       it = iter;
     }
@@ -59,11 +62,9 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     return {};
   }
 
-  // if (segment.size > requirements.size) {
-  /* Alignment can lead to an offset to the segment interior. */
-  VkDeviceSize aligned_offset = align_size(allocation_offset + it->offset,
+  VkDeviceSize aligned_offset = align_size(allocation_info.offset + it->offset,
                                            requirements.alignment) -
-                                allocation_offset;
+                                allocation_info.offset;
   VkDeviceSize remaining_size = it->size - (aligned_offset - it->offset);
 
   /* Identify segments before/at/after the acquired segment. */
