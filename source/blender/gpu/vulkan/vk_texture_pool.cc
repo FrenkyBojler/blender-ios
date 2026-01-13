@@ -14,7 +14,7 @@
 
 namespace blender::gpu {
 
-bool VKTexturePool::AllocationHandle::init(VkMemoryRequirements memory_requirements)
+bool VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirements)
 {
   VKDevice &device = VKBackend::get().device;
   VmaAllocationCreateInfo create_info = {};
@@ -37,10 +37,10 @@ void VKTexturePool::AllocationHandle::free()
   vmaFreeMemory(device.mem_allocator_get(), allocation);
 }
 
-bool VKTexturePool::TextureHandle::init(int2 extent,
-                                        TextureFormat format,
-                                        eGPUTextureUsage usage,
-                                        const char *name)
+bool VKTexturePool::TextureHandle::alloc(int2 extent,
+                                         TextureFormat format,
+                                         eGPUTextureUsage usage,
+                                         const char *name)
 {
   VKDevice &device = VKBackend::get().device;
 
@@ -119,7 +119,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
     SNPRINTF(name, "TexFromPool_%d", texture_id);
   }
   TextureHandle texture_handle;
-  texture_handle.init(extent, format, usage, name);
+  texture_handle.alloc(extent, format, usage, name);
 
   /* Query the requirements for this specific image */
   VkMemoryRequirements memory_requirements;
@@ -149,7 +149,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
     pool_.remove_and_reorder(match_index);
   }
   else {
-    allocation_handle.init(memory_requirements);
+    allocation_handle.alloc(memory_requirements);
   }
 
   /* Bind VkImage to allocation. */

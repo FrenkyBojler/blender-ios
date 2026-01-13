@@ -26,7 +26,7 @@ class VKTexturePool : public TexturePool {
     int unused_cycles_count = 0;
 
     /* Allocate/deallocate the handle internals. */
-    bool init(VkMemoryRequirements memory_requirements);
+    bool alloc(VkMemoryRequirements memory_requirements);
     void free();
   };
 
@@ -38,8 +38,8 @@ class VKTexturePool : public TexturePool {
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;
 
-    /* Create or destroy the VKTexture+VkImage backing the internal pointer. */
-    bool init(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
+    /* Create/destroy the VKTexture+VkImage backing the internal pointer. */
+    bool alloc(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
     void free();
 
     /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
