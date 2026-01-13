@@ -60,6 +60,7 @@ class CAPTIONS_PT_list(bpy.types.Panel):
             self.draw_caption(layout, item)
         
         layout.operator("captions.caption_add", text="Add", icon='ADD')
+        
 class CAPTIONS_HT_header(Header):
     bl_space_type = 'CAPTIONS_EDITOR'
     bl_region_type = 'HEADER'
@@ -67,7 +68,6 @@ class CAPTIONS_HT_header(Header):
         layout = self.layout
         st = context.space_data
         layout.template_header()
-        layout.label(text="Hello HEADER region")
         layout.separator_spacer()
 class CAPTIONS_MT_context_menu(Menu):
     bl_label = ""
