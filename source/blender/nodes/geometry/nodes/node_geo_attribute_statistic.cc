@@ -330,11 +330,11 @@ static void node_geo_exec(GeoNodeExecParams params)
       bool any = false;
       bool all = true;
 
-      bool any_required = params.output_is_required("Any");
-      bool all_required = params.output_is_required("All");
+      const bool any_required = params.output_is_required("Any");
+      const bool all_required = params.output_is_required("All");
 
-      if (any_required && all_required) {
-        if (data.size() != 0) {
+      if (data.size() != 0) {
+        if (any_required && all_required) {
           for (const bool value : data) {
             any |= value;
             all &= value;
@@ -343,9 +343,7 @@ static void node_geo_exec(GeoNodeExecParams params)
             }
           }
         }
-      }
-      else if (any_required) {
-        if (data.size() != 0) {
+        else if (any_required) {
           for (const bool value : data) {
             if (value) {
               any = true;
@@ -353,9 +351,7 @@ static void node_geo_exec(GeoNodeExecParams params)
             }
           }
         }
-      }
-      else if (all_required) {
-        if (data.size() != 0) {
+        else if (all_required) {
           for (const bool value : data) {
             if (!value) {
               all = false;
