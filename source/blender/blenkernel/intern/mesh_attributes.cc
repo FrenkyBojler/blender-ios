@@ -740,16 +740,16 @@ static const auto &changed_tags()
 
 static int get_domain_size(const void *owner, const AttrDomain domain)
 {
-  const Mesh &mesh = *static_cast<const Mesh *>(owner);
+  const Mesh *mesh = static_cast<const Mesh *>(owner);
   switch (domain) {
     case AttrDomain::Point:
-      return mesh.verts_num;
+      return mesh->verts_num;
     case AttrDomain::Edge:
-      return mesh.edges_num;
+      return mesh->edges_num;
     case AttrDomain::Face:
-      return mesh.faces_num;
+      return mesh->faces_num;
     case AttrDomain::Corner:
-      return mesh.corners_num;
+      return mesh->corners_num;
     default:
       return 0;
   }
