@@ -13,6 +13,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_threads.h"
 
 #include "BLT_translation.hh"
 
@@ -292,9 +293,10 @@ bool RemoteLibraryLoadingStatus::handle_timeout(const StringRef url)
 /** \name Download Requests
  * \{ */
 
-void remote_library_request_download(Main &bmain, bUserAssetLibrary &library_definition)
+void remote_library_request_download(Main &bmain, const bUserAssetLibrary &library_definition)
 {
   BLI_assert(library_definition.flag & ASSET_LIBRARY_USE_REMOTE_URL);
+  BLI_assert_msg(BLI_thread_is_main(), "Calling into Python from a thread is not save");
   /* Ensure we don't attempt to download anything when online access is disabled. */
   if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
     return;
@@ -312,8 +314,11 @@ void remote_library_request_download(Main &bmain, bUserAssetLibrary &library_def
     return;
   }
 
+  /* TODO: Use a direct Python function call instead of an application handler, and pass the
+   * library URL and location instead of the library object. Then there's no need for casting away
+   * const also. */
   PointerRNA lib_ptr = RNA_pointer_create_discrete(
-      nullptr, &RNA_UserAssetLibrary, &library_definition);
+      nullptr, &RNA_UserAssetLibrary, &const_cast<bUserAssetLibrary &>(library_definition));
   PointerRNA *lib_ptr_arr[] = {&lib_ptr};
   BKE_callback_exec(&bmain, lib_ptr_arr, 1, BKE_CB_EVT_REMOTE_ASSET_LIBRARIES_SYNC);
 }
@@ -487,6 +492,21 @@ std::string remote_library_asset_preview_path(const AssetRepresentation &asset)
   BLI_path_join(thumb_path, sizeof(thumb_path), thumbs_dir_path, thumb_prefix, thumb_name + 2);
 
   return thumb_path;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Other Free Functions
+ * \{ */
+
+void foreach_registered_remote_library(FunctionRef<void(const bUserAssetLibrary &)> fn)
+{
+  for (const bUserAssetLibrary &library : U.asset_libraries) {
+    if ((library.flag & ASSET_LIBRARY_USE_REMOTE_URL) && library.remote_url[0]) {
+      fn(library);
+    }
+  }
 }
 
 /** \} */
