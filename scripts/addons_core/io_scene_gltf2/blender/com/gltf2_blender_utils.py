@@ -68,5 +68,3 @@ def fast_structured_np_unique(arr, *args, **kwargs):
         return (unique,) + result[1:]
     else:
         return unique
-
-
