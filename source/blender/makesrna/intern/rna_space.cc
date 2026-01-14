@@ -524,8 +524,10 @@ const EnumPropertyItem rna_enum_clip_editor_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-/* Actually populated dynamically through a function,
- * but helps for context-less access (e.g. doc, i18n...). */
+/**
+ * Actually populated dynamically through a function,
+ * but helps for contextless access (e.g. doc, i18n...).
+ */
 const EnumPropertyItem buttons_context_items[] = {
     {BCONTEXT_TOOL, "TOOL", ICON_TOOL_SETTINGS, "Tool", "Active Tool and Workspace settings"},
     {BCONTEXT_SCENE, "SCENE", ICON_SCENE_DATA, "Scene", "Scene Properties"},
@@ -985,7 +987,7 @@ static void rna_Space_show_region_ui_set(PointerRNA *ptr, bool value)
                              (BLI_rctf_size_x(&region->v2d.cur) /
                               (BLI_rcti_size_x(&region->v2d.mask) + 1)) :
                              1.0f;
-    if (BKE_regiontype_uses_category_tabs(region->runtime->type) &&
+    if (region->runtime->type && BKE_regiontype_uses_category_tabs(region->runtime->type) &&
         (float(region->sizex) <= (UI_PANEL_CATEGORY_MIN_WIDTH / aspect)))
     {
       /* If the region is showing only tabs, increase to full width. */
@@ -1644,6 +1646,10 @@ static const EnumPropertyItem *rna_3DViewShading_render_pass_itemf(bContext *C,
                                                                    PropertyRNA * /*prop*/,
                                                                    bool *r_free)
 {
+  if (C == nullptr) {
+    return rna_enum_dummy_NULL_items;
+  }
+
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -1754,9 +1760,9 @@ static const EnumPropertyItem *rna_SpaceView3D_stereo3d_camera_itemf(bContext *C
                                                                      PropertyRNA * /*prop*/,
                                                                      bool * /*r_free*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = (C) ? CTX_data_scene(C) : nullptr;
 
-  if (scene->r.views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
+  if (scene && scene->r.views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
     return multiview_camera_items;
   }
   else {
