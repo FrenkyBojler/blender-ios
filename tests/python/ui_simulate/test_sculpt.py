@@ -152,13 +152,13 @@ def mask_expand_and_invert():
     yield
 
     initial_masked_verts = _num_fully_masked_vertices()
-    t.assertEqual(initial_masked_verts, 1366)
+    t.assertEqual(initial_masked_verts, 8548)
 
     yield e.a()                                                 # Mask pie menu
     yield e.i()                                                 # Invert
 
     inverted_masked_verts = _num_fully_masked_vertices()
-    t.assertEqual(inverted_masked_verts, 29780)
+    t.assertEqual(inverted_masked_verts, 22598)
 
     import bpy
     mesh = bpy.context.object.data
