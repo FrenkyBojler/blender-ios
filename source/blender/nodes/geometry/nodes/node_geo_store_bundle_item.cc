@@ -53,7 +53,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     bundle_ptr = Bundle::create();
   }
   if (!bundle_ptr->is_mutable()) {
-    bundle_ptr = bundle_ptr->copy();
     bundle_ptr->tag_ensured_mutable();
   }
 
