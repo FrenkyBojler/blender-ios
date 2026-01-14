@@ -16,6 +16,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
+#include "BLI_string.h"
 #include "BLI_vector.hh"
 
 #include "BKE_action.hh"
@@ -737,7 +738,7 @@ bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketV
 {
   bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputString");
   auto &node_storage = *static_cast<NodeInputString *>(node->storage);
-  node_storage.string = static_cast<char *>(MEM_dupallocN(data.value));
+  node_storage.string = BLI_strdup(data.value);
   return node;
 }
 template<>
@@ -827,6 +828,137 @@ bNode *create_const_value_proxy(bContext &C,
   return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 
+template<typename T> bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const T &data);
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueFloat &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "ShaderNodeMath");
+  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+  *socket->default_value_typed<bNodeSocketValueFloat>() = data;
+  socket->next->flag |= SOCK_HIDDEN;
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueInt &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputInt");
+  auto &node_storage = *static_cast<NodeInputInt *>(node->storage);
+  node_storage.integer = data.value;
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueBoolean &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputBool");
+  auto &node_storage = *static_cast<NodeInputBool *>(node->storage);
+  node_storage.boolean = data.value;
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueRotation &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputRotation");
+  auto &node_storage = *static_cast<NodeInputRotation *>(node->storage);
+  copy_v3_v3(node_storage.rotation_euler, data.value_euler);
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueVector &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputVector");
+  auto &node_storage = *static_cast<NodeInputVector *>(node->storage);
+  copy_v3_v3(node_storage.vector, data.value);
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueRGBA &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputColor");
+  auto &node_storage = *static_cast<NodeInputColor *>(node->storage);
+  copy_v4_v4(node_storage.color, data.value);
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueString &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputString");
+  auto &node_storage = *static_cast<NodeInputString *>(node->storage);
+  node_storage.string = BLI_strdup(data.value);
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueObject &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputObject");
+  node->id = &data.value->id;
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueImage &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputImage");
+  node->id = &data.value->id;
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueCollection &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCollection");
+  node->id = &data.value->id;
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C,
+                              bNodeTree &tree,
+                              const bNodeSocketValueTexture & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMaterial &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputMaterial");
+  node->id = &data.value->id;
+  return node;
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueFont & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueScene & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueText & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMask & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueSound & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMenu & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+
 }  // namespace detail
 
 /* Different ways to replace a tree interface socket with a proxy node. */
@@ -871,8 +1003,19 @@ static bNode *make_interface_proxy(bContext &C,
       return value_node;
     }
     case InterfaceProxyType::Converter:
-      // TODO
-      return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+      if (!group_socket) {
+        return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+      }
+
+      bNode *value_node = nullptr;
+      bke::node_interface::socket_types::socket_data_to_static_type_tag(
+          io_socket.socket_type, [&](auto type_tag) {
+            using SocketDataType = typename decltype(type_tag)::type;
+            const SocketDataType *socket_data = static_cast<const SocketDataType *>(
+                group_socket->default_value);
+            value_node = detail::create_converter_proxy(C, tree, *socket_data);
+          });
+      return value_node;
   }
   BLI_assert_unreachable();
   return nullptr;
