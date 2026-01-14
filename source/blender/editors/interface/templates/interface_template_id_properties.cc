@@ -173,6 +173,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   bool rename(const bContext &C, StringRefNull new_name) override
   {
+    id_->properties->data.children_map->children.remove_contained(property_);
     STRNCPY(property_->name, new_name.c_str());
     BLI_uniquename(&id_->properties->data.group,
                    property_,
@@ -182,6 +183,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
                    sizeof(property_->name));
     ED_undo_push(&const_cast<bContext &>(C), new_name.c_str());
     DEG_id_tag_update(id_, ID_RECALC_ALL);
+    id_->properties->data.children_map->children.add_new(property_);
     WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
     return true;
   }
