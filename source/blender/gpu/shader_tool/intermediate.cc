@@ -115,13 +115,11 @@ void LexerBase::ensure_memory()
   /* Make sure there is enough reserved space inside the data structures.
    * We need at least as many token as there is character.
    * Note: Never shrinks. */
-  if (alloc_size < needed_size) {
-    std::free(memory);
-    memory = static_cast<char *>(std::malloc(needed_size));
-    alloc_size = needed_size;
+  if (memory.size() * sizeof(*memory.data()) < needed_size) {
+    memory.resize(needed_size / sizeof(*memory.data()));
   }
 
-  char *ptr = memory;
+  char *ptr = reinterpret_cast<char *>(memory.data());
   token_types = {reinterpret_cast<TokenType *>(ptr), input_size};
   ptr += sizeof(*token_types.data_) * input_size;
   token_sizes = {reinterpret_cast<uint32_t *>(ptr), input_size};
