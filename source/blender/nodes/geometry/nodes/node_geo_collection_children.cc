@@ -17,13 +17,13 @@
 #include <algorithm>
 
 namespace blender::nodes::node_geo_collection_children_cc {
-  
+
 static void collection_children_recursive(Collection *collection,
                                           Vector<Collection *> &collections,
                                           Set<Collection *> &visited)
 {
-  LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
-    Collection *cc = child->collection;
+  for (CollectionChild &child : collection->children) {
+    Collection *cc = child.collection;
     if (visited.add(cc)) {
       collections.append(cc);
       collection_children_recursive(cc, collections, visited);
@@ -55,8 +55,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     collection_children_recursive(collection, collections->data, visited);
   }
   else {
-    LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
-      collections->data.append(child->collection);
+    for (CollectionChild &child : collection->children) {
+      collections->data.append(child.collection);
     }
   }
 
@@ -81,8 +81,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
   }
   else {
-    LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
-      objects->data.append(cob->ob);
+    for (CollectionObject &cob : collection->gobject) {
+      objects->data.append(cob.ob);
     }
   }
 
