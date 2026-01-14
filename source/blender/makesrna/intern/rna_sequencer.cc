@@ -433,7 +433,7 @@ static Strip *strip_by_key_find(Scene *scene, SeqRetimingKey *key)
 
   for (Strip *strip : strips) {
     const int retiming_keys_count = seq::retiming_keys_count(strip);
-    if (retiming_keys_count > 0) {
+    if (retiming_keys_count >= 2) {
       SeqRetimingKey *first = strip->retiming_keys;
       SeqRetimingKey *last = strip->retiming_keys + retiming_keys_count - 1;
 
