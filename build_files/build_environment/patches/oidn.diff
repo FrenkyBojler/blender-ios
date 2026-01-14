@@ -7,7 +7,7 @@ index 27e2ed3..35a8541 100644
  )
  target_compile_definitions(OpenImageDenoise_core PRIVATE OIDN_LIBRARY_NAME="${OIDN_LIBRARY_NAME}")
 +target_compile_definitions(OpenImageDenoise_core PRIVATE SHARED_POSTFIX=\"$<$<CONFIG:Debug>:$<TARGET_PROPERTY:OpenImageDenoise_core,DEBUG_POSTFIX>>\")
- 
+
  if(OIDN_LIBRARY_VERSIONED)
    set_target_properties(OpenImageDenoise_core PROPERTIES VERSION ${PROJECT_VERSION})
 diff --git a/core/module.cpp b/core/module.cpp
@@ -16,7 +16,7 @@ index 9cd9498..23a5593 100644
 +++ b/core/module.cpp
 @@ -29,7 +29,7 @@ OIDN_NAMESPACE_BEGIN
        return true; // module already loaded
- 
+
      // Get the path of the module to load
 -    std::string filename = OIDN_LIBRARY_NAME "_" + name;
 +    std::string filename = OIDN_LIBRARY_NAME "_" + name + SHARED_POSTFIX;
@@ -34,7 +34,7 @@ index 9cd9498..23a5593 100644
      filename = "lib" + filename + ".so" + versionStr;
    #endif
 diff --git a/devices/CMakeLists.txt b/devices/CMakeLists.txt
-index c2719d8..20e9913 100644
+index a0ea112..c6b31f9 100644
 --- a/devices/CMakeLists.txt
 +++ b/devices/CMakeLists.txt
 @@ -60,6 +60,7 @@ if(OIDN_DEVICE_CUDA)
@@ -45,7 +45,7 @@ index c2719d8..20e9913 100644
    )
    if(DEFINED CUDAToolkit_ROOT)
      list(APPEND _oidn_cuda_cache_args
-@@ -165,6 +166,8 @@ if(OIDN_DEVICE_HIP)
+@@ -170,6 +171,8 @@ if(OIDN_DEVICE_HIP)
        -DOIDN_API_NAMESPACE:STRING=${OIDN_API_NAMESPACE}
        -DOIDN_WARN_AS_ERRORS:BOOL=${OIDN_WARN_AS_ERRORS}
        -DOIDN_SANITIZER:STRING=${OIDN_SANITIZER}
@@ -55,7 +55,7 @@ index c2719d8..20e9913 100644
      DEPENDS
        OpenImageDenoise_core
 diff --git a/devices/hip/hip_device.cpp b/devices/hip/hip_device.cpp
-index 36be418..ff687cf 100644
+index 6093afc..2f0e67f 100644
 --- a/devices/hip/hip_device.cpp
 +++ b/devices/hip/hip_device.cpp
 @@ -96,13 +96,19 @@ OIDN_NAMESPACE_BEGIN
@@ -70,7 +70,7 @@ index 36be418..ff687cf 100644
 +    // BLENDER: this comment is meant to generate a merge conflict if the code
 +    // here changes, so we know that hipSupportsDeviceOIDN should be updated.
      if (name == "gfx1100" || name == "gfx1101" || name == "gfx1102" || name == "gfx1103" ||
-         name == "gfx1150" || name == "gfx1151" || /*name == "gfx1152" ||*/ // FIXME: enable for HIP 6.3+
+         name == "gfx1150" || name == "gfx1151" || name == "gfx1152" ||
          name == "gfx1200" || name == "gfx1201")
        return HIPArch::WMMA;
 +    // BLENDER: this comment is meant to generate a merge conflict if the code
