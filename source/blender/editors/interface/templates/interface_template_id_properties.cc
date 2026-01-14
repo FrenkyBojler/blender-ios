@@ -277,6 +277,9 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id)
   IDProperty *active_prop = static_cast<IDProperty *>(
       BLI_findlink(&id->properties->data.group, id->idprop_active_index));
 
+  PointerRNA prop_ptr = RNA_pointer_create_discrete(id, &RNA_IDProperty, active_prop);
+  layout->prop(&prop_ptr, "type", UI_ITEM_NONE, "Type", ICON_NONE);
+
   if (!IDP_ui_data_supported(active_prop)) {
     return;
   }
@@ -303,9 +306,6 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id)
 
   StructRNA *srna = active_prop->type == IDP_ARRAY ? get_prop_type(active_prop->subtype) :
                                                      get_prop_type(active_prop->type);
-
-  PointerRNA prop_ptr = RNA_pointer_create_discrete(id, &RNA_IDProperty, active_prop);
-  layout->prop(&prop_ptr, "type", UI_ITEM_NONE, "Type", ICON_NONE);
 
   PointerRNA propui_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
 

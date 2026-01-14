@@ -2135,75 +2135,6 @@ def unique_name(names):
     return prop_new
 
 
-class WM_OT_property_python_add(Operator):
-    """Add a Python property to the data-block"""
-    bl_idname = "wm.property_python_add"
-    bl_label = "Add Python Property"
-    bl_options = {'UNDO', 'INTERNAL'}
-
-    data_path: rna_path
-    property_name: rna_custom_property_name
-    eval_string: StringProperty(
-        name="Value",
-        description="Python value for the new custom property",
-    )
-
-    def execute(self, context):
-        data_path = self.data_path
-        item = eval("context.{:s}".format(data_path))
-
-        if (item.id_data and item.id_data.override_library and item.id_data.override_library.reference):
-            self.report({'ERROR'}, "Cannot add properties to override data")
-            return {'CANCELLED'}
-
-        try:
-            new_value = eval(self.eval_string)
-        except Exception as ex:
-            self.report({'WARNING'}, "Python evaluation failed: " + str(ex))
-            return {'CANCELLED'}
-
-        self.property_name = unique_name({*item.keys(), *type(item).bl_rna.properties.keys(), })
-
-        try:
-            item[self.property_name] = new_value
-        except Exception as ex:
-            self.report({'ERROR'}, "Failed to assign value: " + str(ex))
-            return {'CANCELLED'}
-
-        item.idprop_active_index = len(item.items()) - 1
-        return {'FINISHED'}
-
-    def invoke(self, context, _event):
-        self.property_name = "prop"
-        wm = context.window_manager
-        return wm.invoke_props_dialog(self)
-
-    def draw(self, _context):
-        layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        layout.prop(self, "property_name")
-        layout.prop(self, "eval_string")
-
-# Experimenting to pass data_path argument inside panel/menu drawing to later use in operator.
-
-
-class WM_OT_context_property(Operator):
-    bl_idname = "wm.context_property"
-    bl_label = "Context menu for properties"
-
-    data_path: rna_path
-
-    def invoke(self, context, _event):
-        context.window_manager.popup_menu(self.draw_menu, title="Context Menu", icon='QUESTION')
-        return {'FINISHED'}
-
-    def draw_menu(self, popup, _context):
-        layout = popup.layout
-        layout.operator("wm.property_python_add", text="Add Python Property", icon='ADD').data_path = self.data_path
-
-
 class WM_OT_properties_add(Operator):
     """Add your own property to the data-block"""
     bl_idname = "wm.properties_add"
@@ -3766,8 +3697,6 @@ classes = (
     WM_OT_operator_cheat_sheet,
     WM_OT_operator_pie_enum,
     WM_OT_path_open,
-    WM_OT_property_python_add,
-    WM_OT_context_property,
     WM_OT_properties_add,
     WM_OT_properties_context_change,
     WM_OT_properties_edit,

@@ -214,6 +214,7 @@ enum idpropertyui_types {
   IDP_UI_DATA_BOOL_ARRAY,
   IDP_UI_DATA_STRING,
   IDP_UI_DATA_DATABLOCK,
+  IDP_UI_DATA_PYTHON,
 };
 
 const EnumPropertyItem rna_enum_idproperty_types_items[] = {
@@ -229,6 +230,7 @@ const EnumPropertyItem rna_enum_idproperty_types_items[] = {
     {IDP_UI_DATA_BOOL_ARRAY, "BOOL_ARRAY", 0, "Boolean Array", "An array of true or false values"},
     {IDP_UI_DATA_STRING, "STRING", 0, "String", "A string value"},
     {IDP_UI_DATA_DATABLOCK, "DATA_BLOCK", 0, "Data-Block", "A data-block value"},
+    {IDP_UI_DATA_PYTHON, "PYTHON", 0, "Python", "Python value"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1691,8 +1693,7 @@ static int idproperty_type_get(IDProperty *prop)
     case IDP_ID:
       return IDP_UI_DATA_DATABLOCK;
     default:
-      BLI_assert_unreachable();
-      return -1;
+      return IDP_UI_DATA_PYTHON;
   }
 }
 
@@ -1747,12 +1748,16 @@ static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
       type = IDP_ID;
       ui_data_type = IDP_UI_DATA_TYPE_ID;
       break;
+    case IDP_UI_DATA_PYTHON:
+      type = IDP_GROUP;
+      ui_data_type = IDP_UI_DATA_TYPE_UNSUPPORTED;
+      break;
     default:
       BLI_assert_unreachable();
       return;
   }
 
-  IDP_TryConvertProperty(prop, IDP_ui_data_type(prop), ui_data_type, type, subtype);
+  IDP_TryConvertProperty(ptr->owner_id, prop, IDP_ui_data_type(prop), ui_data_type, type, subtype);
 
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }

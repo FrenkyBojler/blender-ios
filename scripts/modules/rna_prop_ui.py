@@ -138,7 +138,6 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
 
     col = row.column(align=True)
     col.operator("wm.properties_add", text="", icon='ADD').data_path = context_member
-    col.operator("wm.property_python_add", text="", icon='CONSOLE').data_path = context_member
 
     if len(items) <= 0:
         return

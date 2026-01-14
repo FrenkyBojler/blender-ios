@@ -2104,13 +2104,40 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
       break;
     }
     case IDP_UI_DATA_TYPE_UNSUPPORTED:
+      IDPropertyUIData *ui_data = ui_data_alloc(dst_type);
+      if (!is_array) {
+        return ui_data;
+      }
+      switch (dst_type) {
+        case IDP_UI_DATA_TYPE_INT: {
+          IDPropertyUIDataInt *dst = reinterpret_cast<IDPropertyUIDataInt *>(ui_data);
+          dst->default_array_len = default_array_len;
+          dst->default_array = MEM_calloc_arrayN<int>(size_t(default_array_len), __func__);
+          return &dst->base;
+        }
+        case IDP_UI_DATA_TYPE_FLOAT: {
+          IDPropertyUIDataFloat *dst = reinterpret_cast<IDPropertyUIDataFloat *>(ui_data);
+          dst->default_array_len = default_array_len;
+          dst->default_array = MEM_calloc_arrayN<double>(size_t(default_array_len), __func__);
+          return &dst->base;
+        }
+        case IDP_UI_DATA_TYPE_BOOLEAN: {
+          IDPropertyUIDataBool *dst = reinterpret_cast<IDPropertyUIDataBool *>(ui_data);
+          dst->default_array_len = default_array_len;
+          dst->default_array = MEM_calloc_arrayN<int8_t>(size_t(default_array_len), __func__);
+          return &dst->base;
+        }
+        default:
+          break;
+      }
       break;
   }
   ui_data_free(src, src_type);
   return nullptr;
 }
 
-void IDP_TryConvertProperty(IDProperty *src,
+void IDP_TryConvertProperty(ID *id,
+                            IDProperty *src,
                             const eIDPropertyUIDataType src_type,
                             const eIDPropertyUIDataType dst_type,
                             const char type,
@@ -2202,6 +2229,14 @@ void IDP_TryConvertProperty(IDProperty *src,
     }
     case IDP_UI_DATA_TYPE_ID:
       src->data.pointer = nullptr;
+      break;
+    case IDP_UI_DATA_TYPE_UNSUPPORTED: {
+      IDPropertyTemplate prop_template{0};
+      IDProperty *new_prop = IDP_New(IDP_GROUP, &prop_template, src->name);
+      BLI_insertlinkreplace(&id->properties->data.group, src, new_prop);
+      IDP_ReplaceInGroup_ex(id->properties, new_prop, src, 0);
+      return;
+    }
     default:
       break;
   }
