@@ -38,7 +38,7 @@ bool Bundle::is_valid_key(const StringRef key)
     return false;
   }
   if (key != key.trim()) {
-    /* Keys must not have leading or trailing whitespace. This simplifies potentially using these
+    /* Keys must not have leading or trailing white-space. This simplifies potentially using these
      * keys in expressions later on (or even just have a comma separated list of keys). */
     return false;
   }
@@ -272,6 +272,13 @@ NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
     return NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
   }
   return NodeSocketInterfaceStructureType(socket.runtime->inferred_structure_type);
+}
+
+void BundleSignature::add(std::string key, const eNodeSocketDatatype socket_type)
+{
+  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(socket_type);
+  BLI_assert(stype);
+  items.add({std::move(key), stype});
 }
 
 BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node,
