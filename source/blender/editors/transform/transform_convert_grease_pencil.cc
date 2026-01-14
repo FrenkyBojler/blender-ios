@@ -61,10 +61,11 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
         const int current_frame = scene->r.cfra;
         std::optional<int> start_frame = target_layer.start_frame_at(current_frame);
         if (start_frame.has_value() && (start_frame.value() != current_frame)) {
-          if( grease_pencil.insert_duplicate_frame(
-              target_layer, *target_layer.start_frame_at(current_frame), current_frame, false)) {
-                t->flag |= T_DUPLICATED_KEYFRAMES;
-              }
+          if (grease_pencil.insert_duplicate_frame(
+                  target_layer, *target_layer.start_frame_at(current_frame), current_frame, false))
+          {
+            t->flag |= T_DUPLICATED_KEYFRAMES;
+          }
         }
       }
       curves_transform_data->drawings = ed::greasepencil::retrieve_editable_drawings_with_falloff(
@@ -291,18 +292,17 @@ static void special_aftertrans_update__grease_pencil(bContext *C, TransInfo *t)
     return;
   }
 
-  if ((t->flag & T_DUPLICATED_KEYFRAMES) == 0)
-  {
+  if ((t->flag & T_DUPLICATED_KEYFRAMES) == 0) {
     return;
   }
-  
 
   for (const int i : trans_data_contrainers.index_range()) {
     TransDataContainer &tc = trans_data_contrainers[i];
     GreasePencil &grease_pencil = *id_cast<GreasePencil *>(tc.obedit->data);
 
     using namespace ed::greasepencil;
-    Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings_with_falloff(*scene, grease_pencil);
+    Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings_with_falloff(*scene,
+                                                                                  grease_pencil);
 
     if (animrig::is_autokey_on(scene)) {
       for (const int info_i : drawings.index_range()) {
