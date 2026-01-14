@@ -441,13 +441,18 @@ TEST(curves_geometry, BezierGenericEvaluation)
 /** \name NURBS: Evaluation
  * \{ */
 
-TEST(curves_geometry, NURBSEvaluation)
+CurvesGeometry create_single_nurbs(const int num_points)
 {
-  CurvesGeometry curves(4, 1);
+  CurvesGeometry curves(num_points, 1);
   curves.fill_curve_types(CURVE_TYPE_NURBS);
   curves.resolution_for_write().fill(10);
-  curves.offsets_for_write().last() = 4;
+  curves.offsets_for_write().last() = num_points;
+  return curves;
+}
 
+TEST(curves_geometry, NURBSEvaluation)
+{
+  CurvesGeometry curves = create_single_nurbs(4);
   MutableSpan<float3> positions = curves.positions_for_write();
   positions[0] = {1, 1, 0};
   positions[1] = {0, 1, 0};
@@ -534,20 +539,18 @@ TEST(curves_geometry, NURBSEvaluation)
 
 TEST(curves_geometry, NURBSEvaluateZeroOrderBezierDeg3)
 {
-  CurvesGeometry curves(4, 1);
-  curves.fill_curve_types(CURVE_TYPE_NURBS);
+  CurvesGeometry curves = create_single_nurbs(4);
   curves.nurbs_knots_modes_for_write().fill(NURBS_KNOT_MODE_ENDPOINT_BEZIER);
-  curves.resolution_for_write().fill(10);
-  curves.offsets_for_write().last() = 4;
 
   MutableSpan<float3> positions = curves.positions_for_write();
-  positions[0] = {1, 1, 0};
-  positions[1] = {0, 1, 0};
-  positions[2] = {0, 0, 0};
-  positions[3] = {-1, 0, 0};
+  positions[0] = {2.33f, 1.45f, -0.4f};
+  positions[1] = {0.03f, 0.78f, -0.3f};
+  positions[2] = {0.0f, -0.29f, -0.2f};
+  positions[3] = {-5.12f, 0.0f, -0.1f};
 
   for (const int8_t i : IndexRange(-1, 2)) {
     curves.nurbs_orders_for_write().fill(i);
+    curves.tag_topology_changed();
     Span<float3> evaluated_positions = curves.evaluated_positions();
     EXPECT_NEAR_SPAN<float>(
         evaluated_positions.cast<float>(), positions.as_span().cast<float>(), EPSILON_FLT32);
@@ -556,20 +559,18 @@ TEST(curves_geometry, NURBSEvaluateZeroOrderBezierDeg3)
 
 TEST(curves_geometry, NURBSEvaluateZeroOrderClampedDeg3)
 {
-  CurvesGeometry curves(4, 1);
-  curves.fill_curve_types(CURVE_TYPE_NURBS);
+  CurvesGeometry curves = create_single_nurbs(4);
   curves.nurbs_knots_modes_for_write().fill(NURBS_KNOT_MODE_ENDPOINT);
-  curves.resolution_for_write().fill(10);
-  curves.offsets_for_write().last() = 4;
 
   MutableSpan<float3> positions = curves.positions_for_write();
-  positions[0] = {1, 1, 0};
-  positions[1] = {0, 1, 0};
-  positions[2] = {0, 0, 0};
-  positions[3] = {-1, 0, 0};
+  positions[0] = {2.33f, 1.45f, 0.4f};
+  positions[1] = {0.03f, 0.78f, 0.3f};
+  positions[2] = {0.0f, -0.29f, 0.2f};
+  positions[3] = {-5.12f, 0.0f, 0.1f};
 
   for (const int8_t i : IndexRange(-1, 2)) {
     curves.nurbs_orders_for_write().fill(i);
+    curves.tag_topology_changed();
     Span<float3> evaluated_positions = curves.evaluated_positions();
     EXPECT_NEAR_SPAN<float>(
         evaluated_positions.cast<float>(), positions.as_span().cast<float>(), EPSILON_FLT32);
