@@ -189,7 +189,8 @@ static void rna_Main_system_idproperties_cleanup(struct BlendData *blenddata, Re
       *bmain,
       [&known_runtime_structs, &cleanup_reports](IDTypeInfoIDPropertyCallbackParams &params) {
         if (*params.idproperty_p) {
-          bke::idprop::id_property_cleanup_from_known_rna_types(params.idproperty_p,
+          bke::idprop::id_property_cleanup_from_known_rna_types(params.id_owner,
+                                                                params.idproperty_p,
                                                                 *params.data_owner_rna_type,
                                                                 known_runtime_structs,
                                                                 false,

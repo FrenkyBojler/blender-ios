@@ -600,7 +600,8 @@ struct IDPropertyCleanupReport {
  * to cleanup some specific extension's data).
  * \param reports If given, data gathering imformation about removed properties.
  */
-void id_property_cleanup_from_known_rna_types(IDProperty **idproperty_p,
+void id_property_cleanup_from_known_rna_types(ID *id_owner,
+                                              IDProperty **idproperty_p,
                                               StructRNA &owner_data_rna_type,
                                               Set<StructRNA *> &known_rna_types,
                                               const bool do_invert = false,

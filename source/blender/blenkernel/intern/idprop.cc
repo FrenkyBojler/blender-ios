@@ -2037,7 +2037,8 @@ void foreach_main_idproperty_container(Main &bmain,
   FOREACH_MAIN_ID_END;
 }
 
-void id_property_cleanup_from_known_rna_types(IDProperty **idproperty_p,
+void id_property_cleanup_from_known_rna_types(ID *id_owner,
+                                              IDProperty **idproperty_p,
                                               StructRNA &owner_data_rna_type,
                                               Set<StructRNA *> &known_rna_types,
                                               const bool do_invert,
@@ -2073,14 +2074,16 @@ void id_property_cleanup_from_known_rna_types(IDProperty **idproperty_p,
         if (is_matching) {
           IDProperty *idp = &idp_iter;
           id_property_cleanup_from_known_rna_types(
-              &idp, *sub_data_rna_type, known_rna_types, do_invert, reports);
+              id_owner, &idp, *sub_data_rna_type, known_rna_types, do_invert, reports);
         }
       }
     }
 
     if (!is_matching) {
-      CLOG_WARN(
-          &LOG, "IDProp %s is detected as not matching any existing RNA property", idp_iter.name);
+      CLOG_WARN(&LOG,
+                "IDProp %s (from ID %s) is detected as not matching any existing RNA property",
+                idp_iter.name,
+                id_owner->name);
     }
   }
 }
