@@ -11,7 +11,6 @@
 
 #pragma once
 
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -28,10 +27,13 @@ struct IndexRange {
   int64_t start;
   int64_t size;
 
-  IndexRange(size_t start, size_t size) : start(start), size(size) {}
+  IndexRange(int64_t start, int64_t size) : start(start), size(size) {}
 
   bool overlaps(IndexRange other) const
   {
+    if (start == other.start && size == other.size) {
+      return true;
+    }
     return ((start < other.start) && (other.start < (start + size))) ||
            ((other.start < start) && (start < (other.start + other.size)));
   }
@@ -44,34 +46,17 @@ struct IndexRange {
 
 /** Poor man's OffsetIndices. */
 struct OffsetIndices {
-  std::vector<size_t> offsets;
+  std::vector<uint32_t> offsets;
 
   IndexRange operator[](const int64_t index) const
   {
-    return {offsets[index], offsets[index + 1] - offsets[index]};
+    return {int64_t(offsets[index]), int64_t(offsets[index + 1] - offsets[index])};
   }
 
   void clear()
   {
     offsets.clear();
   };
-};
-
-struct TimeIt {
-  using Duration = std::chrono::microseconds;
-
-  Duration &time;
-  std::chrono::high_resolution_clock::time_point start;
-
-  TimeIt(Duration &time) : time(time)
-  {
-    start = std::chrono::high_resolution_clock::now();
-  }
-  ~TimeIt()
-  {
-    auto end = std::chrono::high_resolution_clock::now();
-    time = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  }
 };
 
 /** Return the line number this token is found at. Take into account the #line directives. */

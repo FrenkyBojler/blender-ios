@@ -51,9 +51,7 @@ template<> struct DefaultHash<draw::pbvh::AttributeRequest> {
   }
 };
 
-}  // namespace blender
-
-namespace blender::draw::pbvh {
+namespace draw::pbvh {
 
 uint64_t ViewportRequest::hash() const
 {
@@ -1064,9 +1062,18 @@ BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
   const BMesh &bm = *object.sculpt->bm;
   const BMDataLayerLookup attr = BM_data_layer_lookup(bm, name);
-  if (!attr || attr.domain == bke::AttrDomain::Edge) {
+  if (attr.domain == bke::AttrDomain::Edge) {
     return;
   }
+
+  if (!attr) {
+    ensure_vbos_allocated_bmesh(
+        object, attribute_format(orig_mesh_data, name, bke::AttrType::Float3), node_mask, vbos);
+    node_mask.foreach_index(GrainSize(1),
+                            [&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); });
+    return;
+  }
+
   ensure_vbos_allocated_bmesh(
       object, attribute_format(orig_mesh_data, name, attr.type), node_mask, vbos);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -1836,7 +1843,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
                                                       const IndexMask &nodes_to_update)
 {
   const Object &object_orig = *DEG_get_original(&object);
-  const OrigMeshData orig_mesh_data{*static_cast<const Mesh *>(object_orig.data)};
+  const OrigMeshData orig_mesh_data{*id_cast<const Mesh *>(object_orig.data)};
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   this->ensure_use_flat_layout(object, orig_mesh_data);
@@ -1880,7 +1887,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_lines_batches(const Object &object,
                                                        const IndexMask &nodes_to_update)
 {
   const Object &object_orig = *DEG_get_original(&object);
-  const OrigMeshData orig_mesh_data(*static_cast<const Mesh *>(object_orig.data));
+  const OrigMeshData orig_mesh_data(*id_cast<const Mesh *>(object_orig.data));
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   this->ensure_use_flat_layout(object, orig_mesh_data);
@@ -1911,10 +1918,11 @@ Span<int> DrawCacheImpl::ensure_material_indices(const Object &object)
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   if (material_indices_.size() != pbvh.nodes_num()) {
     const Object &object_orig = *DEG_get_original(&object);
-    const OrigMeshData orig_mesh_data(*static_cast<const Mesh *>(object_orig.data));
+    const OrigMeshData orig_mesh_data(*id_cast<const Mesh *>(object_orig.data));
     material_indices_ = calc_material_indices(object, orig_mesh_data);
   }
   return material_indices_;
 }
 
-}  // namespace blender::draw::pbvh
+}  // namespace draw::pbvh
+}  // namespace blender

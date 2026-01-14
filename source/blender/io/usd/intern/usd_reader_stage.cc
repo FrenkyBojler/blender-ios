@@ -19,7 +19,6 @@
 #include "usd_reader_skeleton.hh"
 #include "usd_reader_volume.hh"
 #include "usd_reader_xform.hh"
-#include "usd_utils.hh"
 
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/camera.h>
@@ -62,11 +61,15 @@
 #include "DNA_collection_types.h"
 #include "DNA_material_types.h"
 
+#include "WM_types.hh"
+
 #include <fmt/core.h>
+
+namespace blender {
 
 static CLG_LogRef LOG = {"io.usd"};
 
-namespace blender::io::usd {
+namespace io::usd {
 
 static void decref(USDPrimReader *reader)
 {
@@ -224,6 +227,11 @@ bool USDStageReader::is_primitive_prim(const pxr::UsdPrim &prim) const
           prim.IsA<pxr::UsdGeomCylinder>() || prim.IsA<pxr::UsdGeomCylinder_1>() ||
           prim.IsA<pxr::UsdGeomCone>() || prim.IsA<pxr::UsdGeomCube>() ||
           prim.IsA<pxr::UsdGeomSphere>() || prim.IsA<pxr::UsdGeomPlane>());
+}
+
+ReportList *USDStageReader::reports() const
+{
+  return params_.worker_status ? params_.worker_status->reports : nullptr;
 }
 
 USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim)
@@ -625,7 +633,7 @@ void USDStageReader::import_all_materials(Main *bmain)
       continue;
     }
 
-    if (blender::io::usd::find_existing_material(
+    if (io::usd::find_existing_material(
             prim.GetPath(), params_, settings_.mat_name_to_mat, settings_.usd_path_to_mat))
     {
       /* The material already exists. */
@@ -696,7 +704,7 @@ void USDStageReader::call_material_import_hooks(Main *bmain) const
       continue;
     }
 
-    bool success = blender::io::usd::call_material_import_hooks(
+    bool success = io::usd::call_material_import_hooks(
         stage_, item.value, usd_mtl, params_, reports());
 
     if (!success) {
@@ -741,7 +749,7 @@ void USDStageReader::clear_readers()
 
 void USDStageReader::sort_readers()
 {
-  blender::parallel_sort(
+  parallel_sort(
       readers_.begin(), readers_.end(), [](const USDPrimReader *a, const USDPrimReader *b) {
         int result = BLI_strcasecmp(a->name().c_str(), b->name().c_str());
 
@@ -965,4 +973,5 @@ UsdPathSet USDStageReader::collect_point_instancer_proto_paths() const
   return result;
 }
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender
