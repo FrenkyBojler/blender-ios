@@ -733,7 +733,7 @@ static const auto &changed_tags()
       {".hide_vert", tag_visibility_changed},
       {".hide_edge", tag_visibility_changed},
       {".hide_poly", tag_visibility_changed},
-      {".custom_normal", tag_custom_normals_changed},
+      {"custom_normal", tag_custom_normals_changed},
   };
   return attributes;
 }
