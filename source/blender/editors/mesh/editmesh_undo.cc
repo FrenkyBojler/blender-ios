@@ -340,6 +340,9 @@ static void um_arraystore_cd_clear(CustomData *cdata)
 /**
  * \note There is no room for data going out of sync here.
  * The layers and the states are stored together so this can be kept working.
+ *
+ * \note Non-trivial arrays may have null sharing_info when the mesh has no elements
+ * on the corresponding layer domain.
  */
 static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
                                     CustomData *cdata,
@@ -357,6 +360,7 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
                                                     CustomData_number_of_layers(cdata, type));
     for (const int i : layers_with_type.index_range()) {
       CustomDataLayer &layer = layers_with_type[i];
+      BLI_assert(states[i].sharing_info || (layer.data == nullptr || data_len == 0));
       if (!states[i].sharing_info) {
         layer.data = nullptr;
         layer.sharing_info = nullptr;
