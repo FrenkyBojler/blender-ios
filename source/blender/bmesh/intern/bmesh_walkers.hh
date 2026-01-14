@@ -28,7 +28,9 @@ enum BMWOrder {
 enum BMWFlag {
   BMW_FLAG_NOP = 0,
   BMW_FLAG_TEST_HIDDEN = (1 << 0),
+  /* delimits corners in bmw_EdgeLoopWalker_step only */
   BMW_FLAG_TEST_CONCAVE_CORNERS = (1 << 1),
+  BMW_FLAG_TEST_CONVEX_CORNERS = (1 << 2),
 };
 
 /*Walkers*/
