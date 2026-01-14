@@ -1026,7 +1026,7 @@ find_interface_proxy_sockets(const InterfaceProxyNodes &interface_proxies,
                              const bNodeTreeInterfaceSocket *io_socket)
 {
   const bool is_input = io_socket->flag & NODE_INTERFACE_SOCKET_INPUT;
-  bNode *node = interface_proxies.lookup(io_socket->identifier);
+  bNode *node = interface_proxies.lookup_default(io_socket->identifier, nullptr);
   std::optional<MutableNodeAndSocket> internal, external;
   if (!node) {
     return {internal, external};
@@ -1122,8 +1122,10 @@ static InterfaceProxyNodes create_proxy_nodes_for_interface(
       group_socket = group_socket_by_io_socket.lookup(item.key);
     }
 
-    bNode *proxy_node = make_interface_proxy(C, dst_tree, *item.key, group_socket, proxy_type);
-    interface_proxies.add(item.key->identifier, proxy_node);
+    if (bNode *proxy_node = make_interface_proxy(C, dst_tree, *item.key, group_socket, proxy_type))
+    {
+      interface_proxies.add(item.key->identifier, proxy_node);
+    }
   }
   return interface_proxies;
 }

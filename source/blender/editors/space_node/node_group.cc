@@ -282,10 +282,8 @@ static void node_group_ungroup(bContext &C, bNodeTree &ntree, bNode &group_node)
       node->location[1] += center[1];
     }
     for (bNode *node : proxy_nodes.values()) {
-      if (node) {
-        node->location[0] += center[0];
-        node->location[1] += center[1];
-      }
+      node->location[0] += center[0];
+      node->location[1] += center[1];
     }
   }
 
@@ -299,9 +297,7 @@ static void node_group_ungroup(bContext &C, bNodeTree &ntree, bNode &group_node)
     bke::node_set_selected(*node, true);
   }
   for (bNode *node : proxy_nodes.values()) {
-    if (node) {
-      bke::node_set_selected(*node, true);
-    }
+    bke::node_set_selected(*node, true);
   }
 }
 
