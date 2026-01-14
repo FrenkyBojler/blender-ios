@@ -172,7 +172,6 @@ def autopep8_format(files: list[str]) -> bytes:
     if cmd[0].endswith(".py"):
         cmd = [sys.executable, *cmd]
 
-    print(cmd)
     return subprocess.check_output(cmd, stderr=subprocess.STDOUT)
 
 
