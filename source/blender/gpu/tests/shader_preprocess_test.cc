@@ -1892,6 +1892,7 @@ uint my_func() {
     i += buffer_get(draw_resource_id, resource_id_buf)[0];
 
 #endif
+#line 7
 
 #endif
 #line 7
