@@ -157,7 +157,7 @@ static void render_callback_exec_string(Render *re, Main *bmain, eCbEvent evt, c
   if (re->r.scemode & R_BUTS_PREVIEW) {
     return;
   }
-  BKE_callback_exec_string(bmain, evt, str);
+  BKE_callback_exec_string(bmain, str, evt);
 }
 
 static void render_callback_exec_id(Render *re, Main *bmain, ID *id, eCbEvent evt)
@@ -207,7 +207,7 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
-  BKE_callback_exec_string(G_MAIN, BKE_CB_EVT_RENDER_STATS, rs->infostr);
+  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
 
   if (show_info) {
     fflush(stdout);
@@ -1257,9 +1257,6 @@ static void do_render_compositor(Render *re)
       }
 
       if (!re->display->test_break()) {
-        ntree->runtime->test_break = re->display->test_break_cb;
-        ntree->runtime->tbh = re->display->tbh;
-
         if (update_newframe) {
           /* If we have consistent depsgraph now would be a time to update them. */
         }
@@ -1291,9 +1288,6 @@ static void do_render_compositor(Render *re)
                       needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
-
-        ntree->runtime->test_break = nullptr;
-        ntree->runtime->tbh = nullptr;
       }
     }
   }
