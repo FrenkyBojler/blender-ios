@@ -642,6 +642,8 @@ void modifier_blend_read_data(BlendDataReader *reader, ListBaseT<StripModifierDa
     if (smti && smti->blend_read) {
       smti->blend_read(reader, &smd);
     }
+    smd.runtime = static_cast<StripModifierDataRuntime *>(
+        MEM_callocN(sizeof(StripModifierDataRuntime), "sequence modifier runtime"));
   }
 }
 
