@@ -15,7 +15,8 @@
 
 #include "DNA_windowmanager_types.h"
 
-<<<<<<< HEAD
+namespace blender {
+
 typedef struct {
   PyObject_HEAD
   char idname[OP_MAX_TYPENAME];
@@ -29,9 +30,6 @@ typedef struct {
   BPyOpHandlersActions *modal;
   BPyOpHandlersActions *modal_end;
 } BPyOpHandlers;
-=======
-namespace blender {
->>>>>>> main
 
 /**
  * A callable operator.
@@ -42,12 +40,8 @@ struct BPyOpFunction {
   PyObject_HEAD
   /** Operator ID name (e.g., `OBJECT_OT_select_all`). */
   char idname[OP_MAX_TYPENAME];
-<<<<<<< HEAD
   BPyOpHandlers *handlers;
-} BPyOpFunction;
-=======
 };
->>>>>>> main
 
 extern PyTypeObject BPyOpFunctionType;
 

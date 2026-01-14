@@ -22,6 +22,8 @@
 #include "op_handlers/intern/wm_op_handlers_intern.hh"
 #include "op_handlers/wm_op_handlers.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------------- */
 /** \name Public API
  * \{ */
@@ -237,3 +239,5 @@ void WM_op_handlers_operator_modal_end(
 }
 
 /** \} */
+
+}  // namespace blender

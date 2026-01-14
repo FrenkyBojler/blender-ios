@@ -70,53 +70,6 @@ struct ReportTimerInfo {
 
 /* reports need to be before wmWindowManager */
 
-<<<<<<< HEAD
-/** Window-manager is saved, tag WMAN. */
-typedef struct wmWindowManager {
-#ifdef __cplusplus
-  /** See #ID_Type comment for why this is here. */
-  static constexpr ID_Type id_type = ID_WM;
-#endif
-
-  ID id;
-
-  ListBase windows;
-
-  /** Set on file read. */
-  uint8_t init_flag;
-  char _pad0[1];
-  /** Indicator whether data was saved. */
-  short file_saved;
-  /** Operator stack depth to avoid nested undo pushes. */
-  short op_undo_depth;
-
-  /** Set after selection to notify outliner to sync. Stores type of selection */
-  short outliner_sync_select_dirty;
-
-  /** Available/pending extensions updates. */
-  int extensions_updates;
-  /** Number of blocked & installed extensions. */
-  int extensions_blocked;
-
-  /** Timer for auto save. */
-  struct wmTimer *autosavetimer;
-  /** Auto-save timer was up, but it wasn't possible to auto-save in the current mode. */
-  char autosave_scheduled;
-  char _pad2[7];
-
-  // Initially operator was based on wmMsgBus, wich was removed the definition from here.
-  struct wmOpHandlers *op_handlers;
-
-  // #ifdef WITH_XR_OPENXR
-  wmXrData xr;
-  // #endif
-
-  WindowManagerRuntimeHandle *runtime;
-} wmWindowManager;
-
-#define WM_KEYCONFIG_ARRAY_P(wm) \
-  &(wm)->runtime->defaultconf, &(wm)->runtime->addonconf, &(wm)->runtime->userconf
-=======
 // #ifdef WITH_XR_OPENXR
 struct wmXrData {
   /** Runtime information for managing Blender specific behaviors. */
@@ -126,7 +79,6 @@ struct wmXrData {
   XrSessionSettings session_settings;
 };
 // #endif
->>>>>>> main
 
 /** #wmWindowManager.extensions_updates */
 enum {
@@ -184,6 +136,9 @@ struct wmWindowManager {
   /** Auto-save timer was up, but it wasn't possible to auto-save in the current mode. */
   char autosave_scheduled = 0;
   char _pad2[7] = {};
+
+  // Initially operator was based on wmMsgBus, wich was removed the definition from here.
+  struct wmOpHandlers *op_handlers;
 
   // #ifdef WITH_XR_OPENXR
   wmXrData xr;

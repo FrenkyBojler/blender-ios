@@ -33,15 +33,13 @@
 
 #include "DEG_depsgraph.hh"
 
-<<<<<<< HEAD
 #include "structmember.h"
-=======
-namespace blender {
->>>>>>> main
 
 /* -------------------------------------------------------------------- */
 /** \name Private Utility Functions
  * \{ */
+
+namespace blender {
 
 /**
  * Update view layer dependencies.
@@ -121,12 +119,8 @@ static bool bpy_op_fn_parse_args(PyObject *args, const char **r_context_str, boo
 
 static void bpy_op_fn_dealloc(BPyOpFunction *self)
 {
-<<<<<<< HEAD
   Py_DECREF(self->handlers);
-  Py_TYPE(self)->tp_free((PyObject *)self);
-=======
   Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
->>>>>>> main
 }
 
 static PyObject *bpy_op_fn_call(BPyOpFunction *self, PyObject *args, PyObject *kwargs)
@@ -821,7 +815,6 @@ PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
   /* Prevented by the #OP_MAX_TYPENAME check. */
   BLI_assert(idname_len < sizeof(op_fn->idname));
   UNUSED_VARS_NDEBUG(idname_len);
-<<<<<<< HEAD
 
   if (!create_handler_action(op_fn->handlers->invoke_pre, op_fn->idname, HANDLER_TYPE_PRE_INVOKE))
   {
@@ -842,10 +835,7 @@ PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  return (PyObject *)op_fn;
-=======
   return reinterpret_cast<PyObject *>(op_fn);
->>>>>>> main
 }
 
 /** \} */

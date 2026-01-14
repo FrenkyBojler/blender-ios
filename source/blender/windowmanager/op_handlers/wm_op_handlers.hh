@@ -18,12 +18,14 @@
 extern "C" {
 #endif
 
+namespace blender {
+
 typedef struct wmOpHandlerData {
   char id_name[OP_MAX_TYPENAME];
-  blender::Vector<wmHandlerData> pre_invoke;
-  blender::Vector<wmHandlerData> post_invoke;
-  blender::Vector<wmHandlerData> modal;
-  blender::Vector<wmHandlerData> modal_end;
+  Vector<wmHandlerData> pre_invoke;
+  Vector<wmHandlerData> post_invoke;
+  Vector<wmHandlerData> modal;
+  Vector<wmHandlerData> modal_end;
 } wmOpHandlerData;
 
 struct wmOpHandlers {
@@ -69,6 +71,8 @@ bool WM_op_handlers_operator_modal(
 
 void WM_op_handlers_operator_modal_end(
     bContext *C, const wmEvent *event, wmOpHandlers *op_handlers, wmOperatorType *ot, int retval);
+
+}  // namespace blender
 
 #ifdef __cplusplus
 }
