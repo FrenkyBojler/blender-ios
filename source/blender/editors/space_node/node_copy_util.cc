@@ -797,7 +797,7 @@ static bNode *make_interface_proxy(bContext &C,
                                    const bNodeTreeInterfaceSocket &io_socket,
                                    const InterfaceProxyType proxy_type)
 {
-  if (proxy_type == InterfaceProxyType::Ignore) {
+  if (ELEM(proxy_type, InterfaceProxyType::Ignore, InterfaceProxyType::Direct)) {
     return nullptr;
   }
   if (proxy_type == InterfaceProxyType::Reroute) {
@@ -937,20 +937,23 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
   }
 
   /* Deduplicate links in case multiple connections get merged. This can happen because input and
-   * output sockets are connected, potentially adding redundant links. */
+   * output sockets are connected, potentially adding redundant links.
+   * This can theoretically create N * M links but in practice either N or M is usually 1. */
   Set<std::pair<MutableNodeAndSocket, MutableNodeAndSocket>> unique_links;
-  auto connect_sockets = [&](const MutableNodeAndSocket &socket1,
+  auto connect_sockets = [&](const Span<MutableNodeAndSocket> sockets1,
                              const Span<MutableNodeAndSocket> sockets2) {
-    if (socket1.socket.is_input()) {
-      for (const MutableNodeAndSocket &socket2 : sockets2) {
-        BLI_assert(socket2.socket.is_output());
-        unique_links.add({socket2, socket1});
+    for (const MutableNodeAndSocket &socket1 : sockets1) {
+      if (socket1.socket.is_input()) {
+        for (const MutableNodeAndSocket &socket2 : sockets2) {
+          BLI_assert(socket2.socket.is_output());
+          unique_links.add({socket2, socket1});
+        }
       }
-    }
-    else {
-      for (const MutableNodeAndSocket &socket2 : sockets2) {
-        BLI_assert(socket2.socket.is_input());
-        unique_links.add({socket1, socket2});
+      else {
+        for (const MutableNodeAndSocket &socket2 : sockets2) {
+          BLI_assert(socket2.socket.is_input());
+          unique_links.add({socket1, socket2});
+        }
       }
     }
   };
@@ -959,32 +962,36 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
     const auto [proxy_internal, proxy_external] = find_interface_proxy_sockets(interface_proxies,
                                                                                item.key);
     if (proxy_external) {
-      connect_sockets(*proxy_external, item.value.external_sockets);
+      connect_sockets(item.value.external_sockets, {*proxy_external});
     }
+    const Span<MutableNodeAndSocket> external_sockets = proxy_internal ?
+                                                            Span{&*proxy_internal, 1} :
+                                                            item.value.external_sockets.as_span();
 
-    if (proxy_internal) {
-      for (const NodeAndSocket &origin : item.value.internal_sockets) {
-        if (origin.node.is_group_input() || origin.node.is_group_output()) {
-          /* Directly connect interface inputs to outputs. */
-          const bNodeTreeInterfaceSocket *io_socket =
-              origin.node.is_group_input() ?
-                  bke::node_find_interface_input_by_identifier(src_tree,
-                                                               origin.socket.identifier) :
-                  bke::node_find_interface_output_by_identifier(src_tree,
-                                                                origin.socket.identifier);
-          BLI_assert(io_socket);
-          const auto [passthrough_internal, passthrough_external] = find_interface_proxy_sockets(
-              interface_proxies, io_socket);
-          if (passthrough_internal) {
-            connect_sockets(*proxy_internal, {*passthrough_internal});
-          }
+    for (const NodeAndSocket &origin : item.value.internal_sockets) {
+      if (origin.node.is_group_input() || origin.node.is_group_output()) {
+        /* Directly connect interface inputs to outputs. */
+        const bNodeTreeInterfaceSocket *io_socket =
+            origin.node.is_group_input() ?
+                bke::node_find_interface_input_by_identifier(src_tree, origin.socket.identifier) :
+                bke::node_find_interface_output_by_identifier(src_tree, origin.socket.identifier);
+        BLI_assert(io_socket);
+        const auto [passthrough_internal, passthrough_external] = find_interface_proxy_sockets(
+            interface_proxies, io_socket);
+        if (passthrough_internal) {
+          connect_sockets(external_sockets, {*passthrough_internal});
         }
-        else {
-          bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
-          bNodeSocket *new_socket = copied_nodes.socket_map().lookup(&origin.socket);
-          MutableNodeAndSocket new_target = {*new_node, *new_socket};
-          connect_sockets(*proxy_internal, {new_target});
+        else if (const NodeTreeInterfaceMapping::InterfaceSocketData *passthrough_data =
+                     io_mapping.socket_data.lookup_ptr(io_socket))
+        {
+          connect_sockets(external_sockets, passthrough_data->external_sockets);
         }
+      }
+      else {
+        bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
+        bNodeSocket *new_socket = copied_nodes.socket_map().lookup(&origin.socket);
+        MutableNodeAndSocket new_target = {*new_node, *new_socket};
+        connect_sockets(external_sockets, {new_target});
       }
     }
   }
