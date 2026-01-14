@@ -351,7 +351,8 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
     bContext &C,
     const bNodeTree &src_tree,
     const NodeSetCopy &copied_nodes,
-    const NodeTreeInterfaceMapping &io_mapping);
+    const NodeTreeInterfaceMapping &io_mapping,
+    const bNode *group_node = nullptr);
 
 /**
  * Connect the group node to external sockets in the interface mapping.

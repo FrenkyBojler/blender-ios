@@ -272,7 +272,7 @@ static void node_group_ungroup(bContext &C, bNodeTree &ntree, bNode &group_node)
       },
       ntree);
   const InterfaceProxyNodes proxy_nodes = connect_copied_nodes_to_external_sockets(
-      C, ngroup, copied_nodes, io_mapping);
+      C, ngroup, copied_nodes, io_mapping, &group_node);
 
   /* Center nodes on the bounds of the original group node. */
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(Span{&group_node})) {

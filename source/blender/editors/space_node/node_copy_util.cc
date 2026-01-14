@@ -8,10 +8,12 @@
 
 #include <cstdlib>
 
+#include "DNA_collection_types.h"
 #include "DNA_node_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_map.hh"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
 #include "BLI_vector.hh"
@@ -690,91 +692,149 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
 
 namespace detail {
 
-template<typename T> void set_placeholder_default_value_impl(T & /*data*/) {};
-// template<> void socket_data_init_impl(bNodeSocketValueFloat &data)
-// {
-//   data.subtype = PROP_NONE;
-//   data.value = 0.0f;
-//   data.min = -FLT_MAX;
-//   data.max = FLT_MAX;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueInt &data)
-// {
-//   data.subtype = PROP_NONE;
-//   data.value = 0;
-//   data.min = INT_MIN;
-//   data.max = INT_MAX;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueBoolean &data)
-// {
-//   data.value = false;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueRotation & /*data*/) {}
-// template<> void socket_data_init_impl(bNodeSocketValueVector &data)
-// {
-//   static float default_value[] = {0.0f, 0.0f, 0.0f};
-//   data.subtype = PROP_NONE;
-//   data.dimensions = 3;
-//   copy_v3_v3(data.value, default_value);
-//   data.min = -FLT_MAX;
-//   data.max = FLT_MAX;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueRGBA &data)
-// {
-//   static float default_value[] = {0.0f, 0.0f, 0.0f, 1.0f};
-//   copy_v4_v4(data.value, default_value);
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueString &data)
-// {
-//   data.subtype = PROP_NONE;
-//   data.value[0] = '\0';
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueObject &data)
-// {
-//   data.value = nullptr;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueImage &data)
-// {
-//   data.value = nullptr;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueCollection &data)
-// {
-//   data.value = nullptr;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueTexture &data)
-// {
-//   data.value = nullptr;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueMaterial &data)
-// {
-//   data.value = nullptr;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueFont &data)
-// {
-//   data.value = nullptr;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueScene &data)
-// {
-//   data.value = nullptr;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueText &data)
-// {
-//   data.value = nullptr;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueMask &data)
-// {
-//   data.value = nullptr;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueSound &data)
-// {
-//   data.value = nullptr;
-// }
-// template<> void socket_data_init_impl(bNodeSocketValueMenu &data)
-// {
-//   data.value = -1;
-//   data.enum_items = nullptr;
-//   data.runtime_flag = 0;
-// }
+template<typename T> bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const T &data);
+template<>
+bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueFloat &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "ShaderNodeValue");
+  bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
+  *socket->default_value_typed<bNodeSocketValueFloat>() = data;
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueInt &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputInt");
+  auto &node_storage = *static_cast<NodeInputInt *>(node->storage);
+  node_storage.integer = data.value;
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueBoolean &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputBool");
+  auto &node_storage = *static_cast<NodeInputBool *>(node->storage);
+  node_storage.boolean = data.value;
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueRotation &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputRotation");
+  auto &node_storage = *static_cast<NodeInputRotation *>(node->storage);
+  copy_v3_v3(node_storage.rotation_euler, data.value_euler);
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueVector &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputVector");
+  auto &node_storage = *static_cast<NodeInputVector *>(node->storage);
+  copy_v3_v3(node_storage.vector, data.value);
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueRGBA &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputColor");
+  auto &node_storage = *static_cast<NodeInputColor *>(node->storage);
+  copy_v4_v4(node_storage.color, data.value);
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueString &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputString");
+  auto &node_storage = *static_cast<NodeInputString *>(node->storage);
+  node_storage.string = static_cast<char *>(MEM_dupallocN(data.value));
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueObject &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputObject");
+  node->id = &data.value->id;
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueImage &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputImage");
+  node->id = &data.value->id;
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C,
+                                bNodeTree &tree,
+                                const bNodeSocketValueCollection &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCollection");
+  node->id = &data.value->id;
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C,
+                                bNodeTree &tree,
+                                const bNodeSocketValueTexture & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMaterial &data)
+{
+  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputMaterial");
+  node->id = &data.value->id;
+  return node;
+}
+template<>
+bNode *create_const_value_proxy(bContext &C,
+                                bNodeTree &tree,
+                                const bNodeSocketValueFont & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_const_value_proxy(bContext &C,
+                                bNodeTree &tree,
+                                const bNodeSocketValueScene & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_const_value_proxy(bContext &C,
+                                bNodeTree &tree,
+                                const bNodeSocketValueText & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_const_value_proxy(bContext &C,
+                                bNodeTree &tree,
+                                const bNodeSocketValueMask & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_const_value_proxy(bContext &C,
+                                bNodeTree &tree,
+                                const bNodeSocketValueSound & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
+template<>
+bNode *create_const_value_proxy(bContext &C,
+                                bNodeTree &tree,
+                                const bNodeSocketValueMenu & /*data*/)
+{
+  /* TODO Does not have a constant input node. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+}
 
 }  // namespace detail
 
@@ -795,25 +855,36 @@ enum class InterfaceProxyType {
 static bNode *make_interface_proxy(bContext &C,
                                    bNodeTree &tree,
                                    const bNodeTreeInterfaceSocket &io_socket,
+                                   const bNodeSocket *group_socket,
                                    const InterfaceProxyType proxy_type)
 {
-  if (ELEM(proxy_type, InterfaceProxyType::Ignore, InterfaceProxyType::Direct)) {
-    return nullptr;
-  }
-  if (proxy_type == InterfaceProxyType::Reroute) {
-    return bke::node_add_static_node(&C, tree, NODE_REROUTE);
-  }
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  switch (proxy_type) {
+    case InterfaceProxyType::Ignore:
+    case InterfaceProxyType::Direct:
+      return nullptr;
+    case InterfaceProxyType::Reroute:
+      return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+    case InterfaceProxyType::ConstValue: {
+      if (!group_socket) {
+        return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+      }
 
-  // MutableNodeAndSocket void *socket_data = nullptr;
-  // bke::node_interface::socket_types::socket_data_to_static_type_tag(
-  //     socket_type, [&socket_data](auto type_tag) {
-  //       using SocketDataType = typename decltype(type_tag)::type;
-  //       SocketDataType *new_socket_data = MEM_new_for_free<SocketDataType>(__func__);
-  //       socket_data_init_impl(*new_socket_data);
-  //       socket_data = new_socket_data;
-  //     });
-  // return socket_data;
+      bNode *value_node = nullptr;
+      bke::node_interface::socket_types::socket_data_to_static_type_tag(
+          io_socket.socket_type, [&](auto type_tag) {
+            using SocketDataType = typename decltype(type_tag)::type;
+            const SocketDataType *socket_data = static_cast<const SocketDataType *>(
+                group_socket->default_value);
+            value_node = detail::create_const_value_proxy(C, tree, *socket_data);
+          });
+      return value_node;
+    }
+    case InterfaceProxyType::Converter:
+      // TODO
+      return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  }
+  BLI_assert_unreachable();
+  return nullptr;
 }
 
 static std::pair<std::optional<MutableNodeAndSocket>, std::optional<MutableNodeAndSocket>>
@@ -857,8 +928,32 @@ static bool has_implicit_conversion(const bNodeTreeInterfaceSocket *io_socket,
 }
 
 static InterfaceProxyNodes create_proxy_nodes_for_interface(
-    bContext &C, const NodeTreeInterfaceMapping &io_mapping, bNodeTree &dst_tree)
+    bContext &C,
+    const NodeTreeInterfaceMapping &io_mapping,
+    const bNode *group_node,
+    bNodeTree &dst_tree)
 {
+  /* Cache group sockets for interface identifiers before adding proxy nodes, since the lookup
+   * depends on topology cache which is invalidated by adding nodes. */
+  Map<const bNodeTreeInterfaceSocket *, bNodeSocket *> group_socket_by_io_socket;
+  if (group_node) {
+    const bNodeTree &group_tree = *id_cast<const bNodeTree *>(group_node->id);
+    for (bNodeSocket &group_socket : group_node->inputs) {
+      if (const bNodeTreeInterfaceSocket *io_socket = bke::node_find_interface_input_by_identifier(
+              group_tree, group_socket.identifier))
+      {
+        group_socket_by_io_socket.add_new(io_socket, &group_socket);
+      }
+    }
+    for (bNodeSocket &group_socket : group_node->outputs) {
+      if (const bNodeTreeInterfaceSocket *io_socket =
+              bke::node_find_interface_output_by_identifier(group_tree, group_socket.identifier))
+      {
+        group_socket_by_io_socket.add_new(io_socket, &group_socket);
+      }
+    }
+  }
+
   /* New sockets acting as functional replacements for the previous node group interface. */
   InterfaceProxyNodes interface_proxies;
   for (const auto &item : io_mapping.socket_data.items()) {
@@ -888,7 +983,12 @@ static InterfaceProxyNodes create_proxy_nodes_for_interface(
       proxy_type = InterfaceProxyType::Direct;
     }
 
-    bNode *proxy_node = make_interface_proxy(C, dst_tree, *item.key, proxy_type);
+    const bNodeSocket *group_socket = nullptr;
+    if (group_node) {
+      group_socket = group_socket_by_io_socket.lookup(item.key);
+    }
+
+    bNode *proxy_node = make_interface_proxy(C, dst_tree, *item.key, group_socket, proxy_type);
     interface_proxies.add(item.key->identifier, proxy_node);
   }
   return interface_proxies;
@@ -898,12 +998,13 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
     bContext &C,
     const bNodeTree &src_tree,
     const NodeSetCopy &copied_nodes,
-    const NodeTreeInterfaceMapping &io_mapping)
+    const NodeTreeInterfaceMapping &io_mapping,
+    const bNode *group_node)
 {
   bNodeTree &dst_tree = copied_nodes.dst_tree();
 
   const InterfaceProxyNodes interface_proxies = create_proxy_nodes_for_interface(
-      C, io_mapping, dst_tree);
+      C, io_mapping, group_node, dst_tree);
   /* Set location for proxy nodes, based on drawing order of interface items. */
   float2 location_input = {-50, 0}, location_output = {50, 0};
   if (const std::optional<Bounds<float2>> bounds = node_bounds_ex(
@@ -936,9 +1037,9 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
     }
   }
 
-  /* Deduplicate links in case multiple connections get merged. This can happen because input and
-   * output sockets are connected, potentially adding redundant links.
-   * This can theoretically create N * M links but in practice either N or M is usually 1. */
+  /* Deduplicate links in case multiple connections get merged. This can happen because both input
+   * and output sockets are connected, potentially adding redundant links. This can theoretically
+   * create N * M links but in practice either N or M is usually 1. */
   Set<std::pair<MutableNodeAndSocket, MutableNodeAndSocket>> unique_links;
   auto connect_sockets = [&](const Span<MutableNodeAndSocket> sockets1,
                              const Span<MutableNodeAndSocket> sockets2) {
