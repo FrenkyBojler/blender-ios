@@ -71,6 +71,13 @@ ImBuf *imb_oiio_read(const ReadContext &ctx,
                      ImFileColorSpace &r_colorspace,
                      OIIO::ImageSpec &r_newspec);
 
+ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
+                                        const int flags,
+                                        const size_t max_thumb_size,
+                                        ImFileColorSpace &r_colorspace,
+                                        size_t *r_width,
+                                        size_t *r_height);
+
 /**
  * The primary method for writing data from an #ImBuf to either a physical or in-memory
  * destination.

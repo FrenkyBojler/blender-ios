@@ -42,6 +42,17 @@ ImBuf *imb_load_png(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   return ibuf;
 }
 
+ImBuf *imb_thumbnail_png(const char *filepath,
+                         const int flags,
+                         const size_t max_thumb_size,
+                         ImFileColorSpace &r_colorspace,
+                         size_t *r_width,
+                         size_t *r_height)
+{
+  return imb_oiio_load_filepath_thumbnail(
+      filepath, flags, max_thumb_size, r_colorspace, r_width, r_height);
+}
+
 bool imb_save_png(ImBuf *ibuf, const char *filepath, int flags)
 {
   const bool is_16bit = (ibuf->foptions.flag & PNG_16BIT);

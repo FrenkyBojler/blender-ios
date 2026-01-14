@@ -5,6 +5,7 @@
 #include "openimageio_support.hh"
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
+#include <OpenImageIO/imagecache.h>
 
 #include <algorithm>
 
@@ -295,6 +296,84 @@ ImBuf *imb_oiio_read(const ReadContext &ctx,
   }
 
   return get_oiio_ibuf(in.get(), ctx, r_colorspace);
+}
+
+ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
+                                        const int flags,
+                                        const size_t max_thumb_size,
+                                        ImFileColorSpace & /*r_colorspace*/,
+                                        size_t *r_width,
+                                        size_t *r_height)
+{
+  std::shared_ptr<ImageCache> cache = ImageCache::create(true);
+  /* Generate mipmaps if they don't exist. */
+  cache->attribute("automip", 1);
+  /* Default max memory is 1024 MB. */
+  cache->attribute("max_memory_MB", 500.0f);
+
+  ustring filename(filepath);
+  ImageCache::ImageHandle *handle = cache->get_image_handle(filename);
+
+  const ImageSpec *full_spec = cache->imagespec(handle, 0);
+  if (!full_spec) {
+    return nullptr;
+  }
+
+  /* Find ideal miplevel that is smallest above thumb size. */
+  const float rx = float(full_spec->width) / float(max_thumb_size);
+  const float ry = float(full_spec->height) / float(max_thumb_size);
+  const float r = std::max(rx, ry);
+  const int miplevel = (r > 1.0f) ? static_cast<int>(std::floor(std::log2(r))) : 0;
+
+  ImageSpec mip_spec;
+  if (!cache->get_cache_dimensions(handle, nullptr, mip_spec, 0, miplevel)) {
+    return nullptr;
+  }
+
+  /* Create an IBuf to hold this mipmap. */
+  ImBuf *ibuf = IMB_allocImBuf(
+      mip_spec.width, mip_spec.height, 32, flags | IB_byte_data | IB_uninitialized_pixels);
+  ibuf->ftype = IMB_FTYPE_PNG;
+  const stride_t ibuf_stride = ibuf->x * 4;
+  uint8_t *ibuf_data = ibuf->byte_buffer.data + (mip_spec.height - 1) * ibuf_stride;
+
+  /* Load pixels directly into the ImBuf's byte buffer. Negative stride to flip y. */
+  cache->get_pixels(handle,
+                    nullptr,
+                    0,
+                    miplevel,
+                    0,
+                    mip_spec.width,
+                    0,
+                    mip_spec.height,
+                    0,
+                    1,
+                    0,
+                    4,
+                    TypeDesc::UINT8,
+                    ibuf_data,
+                    4,
+                    -ibuf_stride);
+
+  /* Scaled down this small-ish mipmap to our final thumbnail size. */
+  const float scale = float(max_thumb_size) / float(std::max(ibuf->x, ibuf->y));
+  const int width = std::max(int(mip_spec.width * scale), 1);
+  const int height = std::max(int(mip_spec.height * scale), 1);
+  IMB_scale(ibuf, width, height, IMBScaleFilter::Box, true);
+
+  /* Channels could be in incorrect positions for some formats. */
+  if (mip_spec.nchannels != 4) {
+    fill_all_channels<uint8_t>(ibuf->byte_buffer.data, ibuf->x, ibuf->y, mip_spec.nchannels, 255);
+  }
+
+  if (r_width) {
+    *r_width = width;
+  }
+  if (r_height) {
+    *r_height = height;
+  }
+
+  return ibuf;
 }
 
 bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSpec &file_spec)
