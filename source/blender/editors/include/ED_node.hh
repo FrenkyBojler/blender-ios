@@ -338,15 +338,15 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(
     const NodeTreeInterfaceMapping &io_mapping);
 
 /**
- * Placeholder nodes to replace the original group tree interface after ungrouping.
+ * Proxy nodes to replace the original group tree interface after ungrouping.
  * Keys are the tree interface socket identifiers.
  */
-using InterfacePlaceholderNodes = Map<std::string, bNode *>;
+using InterfaceProxyNodes = Map<std::string, bNode *>;
 
 /**
  * Connect copied node sockets to external nodes in the interface mapping.
  */
-InterfacePlaceholderNodes connect_copied_nodes_to_external_sockets(
+InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
     bContext &C,
     const bNodeTree &src_tree,
     const NodeSetCopy &copied_nodes,

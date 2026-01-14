@@ -271,12 +271,17 @@ static void node_group_ungroup(bContext &C, bNodeTree &ntree, bNode &group_node)
         return true;
       },
       ntree);
-  connect_copied_nodes_to_external_sockets(C, ngroup, copied_nodes, io_mapping);
+  const InterfaceProxyNodes proxy_nodes = connect_copied_nodes_to_external_sockets(
+      C, ngroup, copied_nodes, io_mapping);
 
   /* Center nodes on the bounds of the original group node. */
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(Span{&group_node})) {
     const float2 center = bounds->center();
     for (bNode *node : copied_nodes.node_map().values()) {
+      node->location[0] += center[0];
+      node->location[1] += center[1];
+    }
+    for (bNode *node : proxy_nodes.values()) {
       node->location[0] += center[0];
       node->location[1] += center[1];
     }
