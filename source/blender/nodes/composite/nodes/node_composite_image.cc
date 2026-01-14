@@ -8,12 +8,13 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
 
 #include "BKE_image.hh"
+#include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "DNA_image_types.h"
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
 #include "COM_algorithm_extract_alpha.hh"
@@ -24,7 +25,7 @@
 
 namespace blender::nodes::node_composite_image_cc {
 
-/* Default declaration for contextless static declarations and when the image is not assigned. */
+/** Default declaration for contextless static declarations and when the image is not assigned. */
 static void declare_default(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
@@ -319,7 +320,7 @@ class ImageOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new ImageOperation(context, node);
 }
