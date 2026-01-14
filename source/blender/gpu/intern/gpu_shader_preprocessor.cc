@@ -14,8 +14,6 @@
 #include "gpu_shader_dead_code_elimination.hh"
 #include "gpu_shader_private.hh"
 
-#include <xxhash.h>
-
 namespace blender::gpu {
 
 /* -------------------------------------------------------------------- */
@@ -84,8 +82,6 @@ struct AtomicLexer : LexerBase {
   /** We do not support hash collision yet (for speed). */
   Map<StringRef, Hash> check_map;
 #endif
-  /** Map string hashes to atom value. */
-  Map<Hash, Atom> atomization_map;
   /** Atom per token. NOTE: Values are undefined for non word token. */
   Vector<Atom> token_atoms;
 
@@ -103,38 +99,47 @@ struct AtomicLexer : LexerBase {
     build_line_structure();
   }
 
-  static uint32_t hash_str(StringRef str)
+  Atom hash(StringRef tok_str)
   {
-    return XXH3_64bits(str.data(), str.size());
+    if (tok_str.size() == 1) {
+      /* Reserve [0-127] range for single char token. */
+      return tok_str[0];
+    }
+
+    if (tok_str.size() == 2) {
+      /* Reserve [128-16511] range for double char token. */
+      return tok_str[0] * uint16_t(128) + tok_str[1] + uint16_t(128);
+    }
+    /* Reserve [16512-65536] range for longer token. */
+    Atom id = 16512 + atomization_map_.size();
+    /* Check for overflow. */
+    BLI_assert(id > 16512);
+    /* Long identifier slow path. Do full hash */
+    return atomization_map_.lookup_or_add(tok_str, id);
   }
 
  protected:
+  /** Map string hashes to atom value. */
+  Map<StringRef, Atom> atomization_map_;
+
   void atomize_words()
   {
     token_atoms.resize(token_types.size());
     /* From checking our statistics. This heuristic should be enough for 99% of our cases. */
-    atomization_map.reserve(token_types.size() / 10);
-
-#ifndef NDEBUG
-    /* Atomization doesn't check for hash collision. Detect them in debug build. */
-    Map<StringRef, Hash> check_map;
-    check_map.reserve(token_types.size() / 10);
-#endif
+    atomization_map_.reserve(token_types.size() / 10);
 
     for (int tok_id : blender::IndexRange(token_types.size())) {
       if (token_types[tok_id] == Word) {
         IndexRange range = token_offsets[tok_id];
-        StringRef substr(str.data() + range.start, range.size);
-        Hash hash = hash_str(substr);
-#ifndef NDEBUG
-        check_map.add_or_modify(
-            substr,
-            [hash](Hash *value) { *value = hash; },
-            [hash](const Hash *value) {
-              BLI_assert_msg(*value == hash, "Collision of hash values are not yet supported");
-            });
-#endif
-        token_atoms[tok_id] = atomization_map.lookup_or_add(hash, atomization_map.size());
+        StringRef tok_str(str.data() + range.start, range.size);
+        char alpha1 = tok_str[0] >> 6;
+        /* Check if number. Reduce false negative in dead code elimination. */
+        if (alpha1 == 0) {
+          token_types[tok_id] = Number;
+          continue;
+        }
+
+        token_atoms[tok_id] = hash(tok_str);
       }
     }
   }
@@ -380,15 +385,10 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   {
     return AtomID(lex_.token_atoms[int(get_identifier(dir))]);
   }
-  /* Return valid value if hash is a known hash. Is full hash lookup. */
-  AtomID get_atom(AtomicLexer::Hash hash)
-  {
-    return AtomID(lex_.atomization_map.lookup_default(hash, AtomicLexer::Atom(AtomID::invalid())));
-  }
   /* Return valid value if hash is a known string. Is full hash lookup + hashing. */
   AtomID get_atom(StringRef str)
   {
-    return get_atom(AtomicLexer::hash_str(str));
+    return AtomID(lex_.hash(str));
   }
 
   /**
