@@ -52,10 +52,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!bundle_ptr) {
     bundle_ptr = Bundle::create();
   }
-  if (!bundle_ptr->is_mutable()) {
-    bundle_ptr->tag_ensured_mutable();
-  }
-
   Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
 
   const std::string path = params.extract_input<std::string>("Path");
