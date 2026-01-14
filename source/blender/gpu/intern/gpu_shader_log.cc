@@ -21,9 +21,11 @@
 
 #include "fmt/format.h"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.shader"};
 
-namespace blender::gpu {
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Debug functions
@@ -370,6 +372,9 @@ size_t GPULogParser::source_line_get(StringRefNull source_combined, size_t pos)
 
 void printf_begin(Context *ctx)
 {
+#if GPU_SHADER_PRINTF_ENABLE == 0
+  return;
+#endif
   if (ctx == nullptr) {
     return;
   }
@@ -384,6 +389,9 @@ void printf_begin(Context *ctx)
 
 void printf_end(Context *ctx)
 {
+#if GPU_SHADER_PRINTF_ENABLE == 0
+  return;
+#endif
   if (ctx == nullptr) {
     return;
   }
@@ -445,4 +453,5 @@ void printf_end(Context *ctx)
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

@@ -10,7 +10,13 @@
 
 #include <Python.h>
 
+namespace blender {
+
 [[nodiscard]] PyObject *BPY_operator_module();
 
+<<<<<<< HEAD
 PyObject *op_handler_append(PyObject *self, PyObject *args, PyObject *kw);
 PyObject *op_handler_remove(PyObject *self, PyObject *args, PyObject *kw);
+=======
+}  // namespace blender
+>>>>>>> main

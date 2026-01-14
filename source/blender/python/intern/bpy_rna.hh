@@ -14,6 +14,9 @@
 
 /* --- bpy build options --- */
 #include "intern/rna_internal_types.hh"
+
+namespace blender {
+
 #ifdef WITH_PYTHON_SAFETY
 
 /**
@@ -308,3 +311,5 @@ extern PyMethodDef meth_bpy_owner_id_set;
 extern PyMethodDef meth_bpy_owner_id_get;
 
 extern BPy_StructRNA *bpy_context_module;
+
+}  // namespace blender
