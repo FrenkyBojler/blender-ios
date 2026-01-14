@@ -1,16 +1,3 @@
-diff --git a/CHANGELOG.md b/CHANGELOG.md
-index 9854683..ef0ade4 100644
---- a/CHANGELOG.md
-+++ b/CHANGELOG.md
-@@ -13,6 +13,8 @@ Version History
- -   Added support for compilation with ROCm 7
- -   Removed support for NVIDIA Volta GPUs
-
-+-   Added Intel BMG-G31, Wildcat Lake, Nova Lake, and Crescent Island GPU support
-+
- ### Changes in v2.3.3:
-
- -   Added NVIDIA Blackwell GPU support
 diff --git a/core/CMakeLists.txt b/core/CMakeLists.txt
 index 27e2ed3..35a8541 100644
 --- a/core/CMakeLists.txt
