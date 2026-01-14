@@ -40,7 +40,7 @@ enum class PaintMode : int8_t {
   Invalid = 11,
 };
 
-namespace blender::bke {
+namespace bke {
 
 struct PaintWarningState {
   /** Last time overlay visibility warning was shown. */
