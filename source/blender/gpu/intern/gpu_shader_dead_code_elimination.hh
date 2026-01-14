@@ -282,6 +282,9 @@ struct DeadCodeEliminator
     if (graph.names.contains("derivative_scale_get")) {
       entry_points.append(graph.names.lookup("derivative_scale_get"));
     }
+    if (graph.names.contains("closure_to_rgba")) {
+      entry_points.append(graph.names.lookup("closure_to_rgba"));
+    }
 
     Set<FnId> used = compute_used_functions(entry_points);
 
