@@ -17,6 +17,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
 
 #include "BKE_action.hh"
@@ -833,6 +834,8 @@ template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueFloat &data)
 {
   bNode *node = bke::node_add_node(&C, tree, "ShaderNodeMath");
+  node->flag |= NODE_COLLAPSED;
+  BLI_strncpy_utf8(node->label, IFACE_("To Float"), sizeof(node->label));
   bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
   *socket->default_value_typed<bNodeSocketValueFloat>() = data;
   socket->next->flag |= SOCK_HIDDEN;
@@ -865,9 +868,12 @@ bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketVal
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueVector &data)
 {
-  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputVector");
-  auto &node_storage = *static_cast<NodeInputVector *>(node->storage);
-  copy_v3_v3(node_storage.vector, data.value);
+  bNode *node = bke::node_add_node(&C, tree, "ShaderNodeVectorMath");
+  node->flag |= NODE_COLLAPSED;
+  BLI_strncpy_utf8(node->label, IFACE_("To Vector"), sizeof(node->label));
+  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+  *socket->default_value_typed<bNodeSocketValueVector>() = data;
+  socket->next->flag |= SOCK_HIDDEN;
   return node;
 }
 template<>
@@ -1148,8 +1154,10 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
     nodes_vec.append(node);
   }
   if (const std::optional<Bounds<float2>> bounds = node_bounds(nodes_vec)) {
+    const Bounds<float2> loc_bounds = *node_location_bounds(nodes_vec);
     /* Move outputs to the edge of copied nodes, which are centered at zero. */
-    location_output.x += bounds->size().x;
+    location_input.x += -loc_bounds.size().x * 0.5f;
+    location_output.x += -loc_bounds.size().x * 0.5f + bounds->size().x;
   }
   for (const bNodeTreeInterfaceItem *io_item : src_tree.interface_items()) {
     const bNodeTreeInterfaceSocket *io_socket =
@@ -1162,16 +1170,17 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
       continue;
     }
 
+    const float width = (proxy_node->is_reroute() ? 0.0f : proxy_node->width);
+    const float height = (proxy_node->is_reroute() ? 0.0f : proxy_node->height);
     if (io_socket->flag & NODE_INTERFACE_SOCKET_INPUT) {
-      const float width = (proxy_node->is_reroute() ? 0.0f : proxy_node->width);
       proxy_node->location[0] = location_input[0] - width;
       proxy_node->location[1] = location_input[1];
-      location_input.y -= 40.0f;
+      location_input.y -= height + 20.0f;
     }
     else {
       proxy_node->location[0] = location_output[0];
       proxy_node->location[1] = location_output[1];
-      location_output.y -= 40.0f;
+      location_output.y -= height + 20.0f;
     }
   }
 
