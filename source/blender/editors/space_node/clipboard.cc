@@ -254,6 +254,14 @@ void NODE_OT_clipboard_copy(wmOperatorType *ot)
 /** \name Paste
  * \{ */
 
+static StringRef scene_lib_filepath(const Scene &scene)
+{
+  if (scene.id.lib && scene.id.lib->runtime) {
+    return scene.id.lib->runtime->filepath_abs;
+  }
+  return "";
+}
+
 static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -277,30 +285,27 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   BLO_blendfiledata_free(bfd);
 
   /* We don't want to paste scenes referenced by the Render Layers node if they don't exist in the
-   * destination bmain. Because #BKE_main_merge() frees bmain_src, we need to keep track of them
-   * separately.  */
-  /* NOTE: Cannot use a stringref here, as some source scenes may be deleted when source bmain is
-   * freed by BKE_main_merge. */
-  Set<std::string> src_scenes;
+   * destination bmain. */
+  Set<std::pair<StringRef, StringRef>> src_scenes;
   for (Scene &scene : bmain_src->scenes) {
-    src_scenes.add(scene.id.name);
+    src_scenes.add({scene.id.name, scene_lib_filepath(scene)});
   }
   Main *bmain_dst = CTX_data_main(C);
-  Set<StringRef> dst_scenes;
+  Set<std::pair<StringRef, StringRef>> dst_scenes;
   for (Scene &scene : bmain_dst->scenes) {
-    dst_scenes.add(scene.id.name);
+    dst_scenes.add({scene.id.name, scene_lib_filepath(scene)});
+  }
+
+  for (Scene &scene : bmain_src->scenes.items_mutable()) {
+    /* All scenes that will be added through merging the two bmains are removed. */
+    if (!dst_scenes.contains({scene.id.name, scene_lib_filepath(scene)})) {
+      BKE_id_delete(bmain_src, &scene.id);
+    }
   }
 
   MainMergeReport merge_reports = {};
   /* Frees bmain_src. */
   BKE_main_merge(bmain_dst, &bmain_src, merge_reports);
-
-  for (Scene &scene : bmain_dst->scenes.items_mutable()) {
-    /* All scenes added through merging the two bmains are removed. */
-    if (src_scenes.contains(scene.id.name) && !dst_scenes.contains(scene.id.name)) {
-      BKE_id_delete(bmain_dst, &scene.id);
-    }
-  }
 
   bNodeTree *from_tree = nullptr;
   FOREACH_NODETREE_BEGIN (bmain_dst, node_tree, id) {
