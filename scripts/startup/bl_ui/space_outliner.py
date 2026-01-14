@@ -133,7 +133,7 @@ class OUTLINER_MT_context_menu(Menu):
                         library = data_library
 
             if library is not None:
-                op = layout.operator("outliner.open_library_blend", text="Open Library Blend File", icon='FILE_BLEND')
+                op = layout.operator("outliner.open_library_blend", text="Open Blend File", icon='FILE_BLEND')
                 op.filepath = library.filepath
 
         layout.separator()

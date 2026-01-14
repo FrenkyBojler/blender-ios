@@ -187,10 +187,10 @@ class ASSET_OT_open_containing_blend_file(BlendFileOpenerMixin, Operator):
 
 
 class OUTLINER_OT_open_library_blend(BlendFileOpenerMixin, Operator):
-    """Open the external blend file that contains the selected data-block."""
+    """Open the blend file of the selected library in a new Blender instance."""
 
     bl_idname = "outliner.open_library_blend"
-    bl_label = "Open Library Blend File"
+    bl_label = "Open Blend File"
     bl_options = {'REGISTER'}
 
     filepath: StringProperty(
