@@ -271,7 +271,7 @@ void PassAccessor::init_kernel_film_convert(KernelFilmConvert *kfilm_convert,
   else {
     kfilm_convert->scale = pass_info.scale;
 
-    if (!pass_access_info_.use_filter) {
+    if (!pass_access_info_.use_sample_count) {
       kfilm_convert->pass_use_filter = false;
     }
   }

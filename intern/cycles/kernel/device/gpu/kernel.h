@@ -1175,7 +1175,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
   ccl_global float *denoised_pixel = render_buffer + denoised_pixel_index * pass_stride +
                                      pass_denoised;
 
-  if (upscale_factor == 1.0f) {
+  if (pass_sample_count == PASS_UNUSED || upscale_factor == 1.0f) {
     denoised_pixel[0] *= pixel_scale;
     denoised_pixel[1] *= pixel_scale;
     denoised_pixel[2] *= pixel_scale;
@@ -1191,7 +1191,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
     const ccl_global float *noisy_pixel = buffer + pass_noisy;
     denoised_pixel[3] = noisy_pixel[3];
 
-    if (upscale_factor != 1.0f) {
+    if (pass_sample_count != PASS_UNUSED && upscale_factor != 1.0f) {
       denoised_pixel[3] /= pixel_scale;
     }
   }
