@@ -45,6 +45,9 @@ void main()
 #endif
 
   float3 world_pos = drw_point_object_to_world(pos);
+#ifdef CURVES_POINT
+  world_pos += drw_world_incident_vector(world_pos) * rad;
+#endif
   gl_Position = drw_point_world_to_homogenous(world_pos);
   float end_point_size_factor = 1.0f;
 

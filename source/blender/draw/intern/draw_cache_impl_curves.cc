@@ -71,6 +71,7 @@ struct CurvesBatchCache {
 
   /* Crazy-space point positions for original points. */
   gpu::VertBuf *edit_points_pos;
+  gpu::VertBuf *edit_points_rad;
 
   /* Additional data needed for shader to choose color for each point in edit_points_pos.
    * If first bit is set, then point is NURBS control point. EDIT_CURVES_NURBS_CONTROL_POINT is
@@ -123,6 +124,7 @@ static void clear_edit_data(CurvesBatchCache *cache)
 {
   /* TODO: more granular update tagging. */
   GPU_VERTBUF_DISCARD_SAFE(cache->edit_points_pos);
+  GPU_VERTBUF_DISCARD_SAFE(cache->edit_points_rad);
   GPU_VERTBUF_DISCARD_SAFE(cache->edit_points_data);
   GPU_VERTBUF_DISCARD_SAFE(cache->edit_points_selection);
   GPU_INDEXBUF_DISCARD_SAFE(cache->edit_handles_ibo);
@@ -327,6 +329,39 @@ static void create_edit_points_position(const bke::CurvesGeometry &curves,
           *handles_right,
           data.slice(handle_range_right(points_num, bezier_offsets)));
     }
+  }
+}
+
+static void create_edit_points_radius(const bke::CurvesGeometry &curves,
+                                      const OffsetIndices<int> points_by_curve,
+                                      const IndexMask &bezier_curves,
+                                      const OffsetIndices<int> bezier_offsets,
+                                      gpu::VertBuf &vbo)
+{
+  const VArraySpan<float> radii = curves.radius();
+  const int points_num = radii.size();
+
+  static const GPUVertFormat format = GPU_vertformat_from_attribute("rad",
+                                                                    gpu::VertAttrType::SFLOAT_32);
+  GPU_vertbuf_init_with_format(vbo, format);
+  GPU_vertbuf_data_alloc(vbo, handles_and_points_num(points_num, bezier_offsets));
+
+  MutableSpan<float> data = vbo.data<float>();
+  data.take_front(radii.size()).copy_from(radii);
+
+  if (!bezier_curves.is_empty()) {
+    const VArray zero_varray = VArray<float>(
+        varray_tag::single(), 0.0f, curves.handle_positions_left().value().size());
+    array_utils::gather_group_to_group(points_by_curve,
+                                       bezier_offsets,
+                                       bezier_curves,
+                                       zero_varray,
+                                       data.slice(handle_range_left(points_num, bezier_offsets)));
+    array_utils::gather_group_to_group(points_by_curve,
+                                       bezier_offsets,
+                                       bezier_curves,
+                                       zero_varray,
+                                       data.slice(handle_range_right(points_num, bezier_offsets)));
   }
 }
 
@@ -1043,6 +1078,7 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
 
   if (DRW_batch_requested(cache.edit_points, GPU_PRIM_POINTS)) {
     DRW_vbo_request(cache.edit_points, &cache.edit_points_pos);
+    DRW_vbo_request(cache.edit_points, &cache.edit_points_rad);
     DRW_vbo_request(cache.edit_points, &cache.edit_points_data);
     DRW_vbo_request(cache.edit_points, &cache.edit_points_selection);
     is_edit_data_needed = true;
@@ -1057,6 +1093,7 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
   if (DRW_batch_requested(cache.edit_handles, GPU_PRIM_LINES)) {
     DRW_ibo_request(cache.edit_handles, &cache.edit_handles_ibo);
     DRW_vbo_request(cache.edit_handles, &cache.edit_points_pos);
+    DRW_vbo_request(cache.edit_handles, &cache.edit_points_rad);
     DRW_vbo_request(cache.edit_handles, &cache.edit_points_data);
     DRW_vbo_request(cache.edit_handles, &cache.edit_points_selection);
     is_edit_data_needed = true;
@@ -1117,6 +1154,10 @@ void DRW_curves_batch_cache_create_requested(Object *ob)
                                 bezier_offsets,
                                 deformation,
                                 *cache.edit_points_pos);
+  }
+  if (DRW_vbo_requested(cache.edit_points_rad)) {
+    create_edit_points_radius(
+        curves_orig, points_by_curve, bezier_curves, bezier_offsets, *cache.edit_points_rad);
   }
   if (DRW_vbo_requested(cache.edit_points_data)) {
     create_edit_points_data(points_by_curve,
