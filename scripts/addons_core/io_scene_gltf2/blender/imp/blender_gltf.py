@@ -11,7 +11,6 @@ from .material import BlenderMaterial
 from .image import BlenderImage
 
 
-
 class BlenderGlTF():
     """Main glTF import class."""
     def __new__(cls, *args, **kwargs):
@@ -60,7 +59,6 @@ class BlenderGlTF():
                 BlenderImage.create(gltf, img_idx)
                 # Force image users (fake user)
                 bpy.data.images[gltf.data.images[img_idx].blender_image_name].use_fake_user = True
-
 
     @staticmethod
     def set_convert_functions(gltf):
@@ -590,7 +588,6 @@ class BlenderGlTF():
                                     ].extensions["KHR_materials_anisotropy"]["animations"][anim_idx] = []
             gltf.data.materials[int(pointer_tab[2])
                                 ].extensions["KHR_materials_anisotropy"]["animations"][anim_idx].append(channel_idx)
-
 
     @staticmethod
     def manage_material_variants(gltf):
