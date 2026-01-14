@@ -340,6 +340,7 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(
 /**
  * Proxy nodes to replace the original group tree interface after ungrouping.
  * Keys are the tree interface socket identifiers.
+ * May contain null pointers!
  */
 using InterfaceProxyNodes = Map<std::string, bNode *>;
 

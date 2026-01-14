@@ -282,8 +282,10 @@ static void node_group_ungroup(bContext &C, bNodeTree &ntree, bNode &group_node)
       node->location[1] += center[1];
     }
     for (bNode *node : proxy_nodes.values()) {
-      node->location[0] += center[0];
-      node->location[1] += center[1];
+      if (node) {
+        node->location[0] += center[0];
+        node->location[1] += center[1];
+      }
     }
   }
 
