@@ -207,7 +207,7 @@ static void file_refresh(const bContext *C, ScrArea *area)
   FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
   FSMenu *fsmenu = ED_fsmenu_get();
 
-  if (!params->dir[0]) {
+  if (!params->dir[0] || (params->dir[0] == SEP && !params->dir[1])) {
     params->type = FILE_SYSTEM_ROOT;
   }
   else if (params->type == FILE_SYSTEM_ROOT) {
