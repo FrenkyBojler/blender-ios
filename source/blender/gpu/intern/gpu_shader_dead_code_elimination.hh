@@ -149,7 +149,7 @@ struct DeadCodeEliminator
     StringRef type_str = str(type_tok);
 
     TokenType type_tok_type = type_tok.type();
-    if (type_str[0] >= '0' && type_str[0] <= '9') {
+    if (type_tok == TokenType::Word && type_str[0] >= '0' && type_str[0] <= '9') {
       /* Case where a function is called just after a line directive. The type token was not
        * recognized as a Number token from the tokenizer rules. */
       type_tok_type = TokenType::Number;
