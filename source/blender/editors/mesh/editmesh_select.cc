@@ -1814,7 +1814,7 @@ void MESH_OT_loop_multi_select(wmOperatorType *ot)
   /* Properties. */
   RNA_def_boolean(ot->srna, "ring", false, "Ring", "");
   RNA_def_boolean(ot->srna, "test_concave_corners", false, "Concave Corner Delimit", "Stop boundary selection at vertices with more than three connected edges");
-  RNA_def_boolean(ot->srna, "test_convex_corners", true, "Convex Corner Delimit", "Stop boundaryselection at vertices with two connected edges");
+  RNA_def_boolean(ot->srna, "test_convex_corners", true, "Convex Corner Delimit", "Stop boundary selection at vertices with two connected edges");
 }
 /** \} */
 
