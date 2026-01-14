@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "DNA_material_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_world_types.h"
 
@@ -11,6 +12,7 @@
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "BLI_listbase.h"
@@ -40,6 +42,11 @@ void node_tree_shader_default(const bContext *C, Main *bmain, ID *id)
       ma_default = BKE_material_default_surface();
     }
 
+    if (ma->nodetree) {
+      bke::node_tree_free_embedded_tree(ma->nodetree);
+      MEM_freeN(ma->nodetree);
+      ma->nodetree = nullptr;
+    }
     ma->nodetree = bke::node_tree_copy_tree(bmain, *ma_default->nodetree);
     ma->nodetree->owner_id = &ma->id;
     for (bNode *node_iter : ma->nodetree->all_nodes()) {

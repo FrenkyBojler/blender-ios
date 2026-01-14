@@ -10,25 +10,10 @@
 
 #include "BKE_node.hh"
 
-#include "NOD_derived_node_tree.hh"
-
 namespace blender {
-
-namespace compositor {
-class RenderContext;
-class Profiler;
-class Context;
-class NodeOperation;
-}  // namespace compositor
-namespace bke {
-struct bNodeTreeType;
-}  // namespace bke
 
 struct CryptomatteSession;
 struct Scene;
-struct RenderData;
-struct Render;
-struct ViewLayer;
 
 extern bke::bNodeTreeType *ntreeType_Composite;
 
@@ -43,10 +28,6 @@ void node_cmp_rlayers_outputs(bNodeTree *ntree, bNode *node);
  */
 void ntreeCompositTagRender(Scene *scene);
 
-void ntreeCompositTagNeedExec(bNode *node);
-
-void ntreeCompositClearTags(bNodeTree *ntree);
-
 void ntreeCompositCryptomatteSyncFromAdd(bNode *node);
 void ntreeCompositCryptomatteSyncFromRemove(bNode *node);
 void ntreeCompositCryptomatteAddSocket(bNode *node);
@@ -60,14 +41,4 @@ void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size
 void ntreeCompositCryptomatteUpdateLayerNames(bNode *node);
 CryptomatteSession *ntreeCompositCryptomatteSession(bNode *node);
 
-namespace nodes {
-
-compositor::NodeOperation *get_group_input_compositor_operation(compositor::Context &context,
-                                                                DNode node);
-compositor::NodeOperation *get_group_output_compositor_operation(compositor::Context &context,
-                                                                 DNode node);
-void get_compositor_group_output_extra_info(nodes::NodeExtraInfoParams &parameters);
-void get_compositor_group_input_extra_info(nodes::NodeExtraInfoParams &parameters);
-
-}  // namespace nodes
 }  // namespace blender
