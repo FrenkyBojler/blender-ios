@@ -35,8 +35,15 @@ using namespace blender::gpu;
  * \{ */
 
 GLContext::GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list)
-    : shared_orphan_list_(shared_orphan_list)
+    : shared_orphan_list_(shared_orphan_list), context_lost_(false),
+      state_manager(nullptr), imm(nullptr),
+      front_left(nullptr), back_left(nullptr), front_right(nullptr), back_right(nullptr),
+      active_fb(nullptr), ghost_window_(nullptr),
+      default_attr_vbo_(0), is_active_(false),
+      bound_ubo_slots(0), bound_ssbo_slots(0)
 {
+  ghost_window_ = ghost_window;
+
   if (G.debug & G_DEBUG_GPU) {
     debug::init_gl_callbacks();
   }
@@ -49,27 +56,29 @@ GLContext::GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list
 
   state_manager = new GLStateManager();
   imm = new GLImmediate();
-  ghost_window_ = ghost_window;
 
-  if (ghost_window) {
+  if (ghost_window_) {
     GLuint default_fbo = GHOST_GetDefaultGPUFramebuffer(
-        static_cast<GHOST_WindowHandle>(ghost_window));
-    GHOST_RectangleHandle bounds = GHOST_GetClientBounds(
-        static_cast<GHOST_WindowHandle>(ghost_window));
-    int w = GHOST_GetWidthRectangle(bounds);
-    int h = GHOST_GetHeightRectangle(bounds);
-    GHOST_DisposeRectangle(bounds);
+        static_cast<GHOST_WindowHandle>(ghost_window_));
+    if (default_fbo == 0) {
+      default_fbo = 0; // fallback to system default
+    }
 
-    if (default_fbo != 0) {
-      /* Bind default framebuffer, otherwise state might be undefined. */
-      glBindFramebuffer(GL_FRAMEBUFFER, default_fbo);
-      front_left = new GLFrameBuffer("front_left", this, GL_COLOR_ATTACHMENT0, default_fbo, w, h);
-      back_left = new GLFrameBuffer("back_left", this, GL_COLOR_ATTACHMENT0, default_fbo, w, h);
+    GHOST_RectangleHandle bounds = GHOST_GetClientBounds(
+        static_cast<GHOST_WindowHandle>(ghost_window_));
+    int w = 0, h = 0;
+    if (bounds) {
+      w = GHOST_GetWidthRectangle(bounds);
+      h = GHOST_GetHeightRectangle(bounds);
+      GHOST_DisposeRectangle(bounds);
     }
-    else {
-      front_left = new GLFrameBuffer("front_left", this, GL_FRONT_LEFT, 0, w, h);
-      back_left = new GLFrameBuffer("back_left", this, GL_BACK_LEFT, 0, w, h);
-    }
+
+    front_left = new GLFrameBuffer("front_left", this,
+                                    default_fbo != 0 ? GL_COLOR_ATTACHMENT0 : GL_FRONT_LEFT,
+                                    default_fbo, w, h);
+    back_left = new GLFrameBuffer("back_left", this,
+                                   default_fbo != 0 ? GL_COLOR_ATTACHMENT0 : GL_BACK_LEFT,
+                                   default_fbo, w, h);
 
     GLboolean supports_stereo_quad_buffer = GL_FALSE;
     glGetBooleanv(GL_STEREO, &supports_stereo_quad_buffer);
@@ -79,32 +88,48 @@ GLContext::GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list
     }
   }
   else {
-    /* For off-screen contexts. Default frame-buffer is null. */
     back_left = new GLFrameBuffer("back_left", this, GL_NONE, 0, 0, 0);
   }
 
   active_fb = back_left;
-  static_cast<GLStateManager *>(state_manager)->active_fb = static_cast<GLFrameBuffer *>(
-      active_fb);
+  if (state_manager && active_fb) {
+    static_cast<GLStateManager *>(state_manager)->active_fb =
+        static_cast<GLFrameBuffer *>(active_fb);
+  }
 }
 
 GLContext::~GLContext()
 {
   if (G.profile_gpu) {
-    /* Ensure query results are available. */
     finish();
     process_frame_timings();
   }
+
   free_resources();
+
   BLI_assert(orphaned_framebuffers_.is_empty());
   BLI_assert(orphaned_vertarrays_.is_empty());
-  /* For now don't allow GPUFrameBuffers to be reuse in another context. */
   BLI_assert(framebuffers_.is_empty());
-  /* Delete VAO's so the batch can be reused in another context. */
+
   for (GLVaoCache *cache : vao_caches_) {
-    cache->clear();
+    if (cache) cache->clear();
   }
-  glDeleteBuffers(1, &default_attr_vbo_);
+
+  if (default_attr_vbo_ != 0) {
+    glDeleteBuffers(1, &default_attr_vbo_);
+    default_attr_vbo_ = 0;
+  }
+
+  delete imm;
+  delete state_manager;
+  delete front_left;
+  delete back_left;
+  delete front_right;
+  delete back_right;
+
+  imm = nullptr;
+  state_manager = nullptr;
+  front_left = back_left = front_right = back_right = nullptr;
 }
 
 /** \} */
@@ -115,39 +140,63 @@ GLContext::~GLContext()
 
 void GLContext::activate()
 {
-  /* Make sure no other context is already bound to this thread. */
-  BLI_assert(is_active_ == false);
+  if (is_active_) return;
+
+  GLint major = 0;
+  glGetIntegerv(GL_MAJOR_VERSION, &major);
+
+  if (major == 0) {
+    context_lost_ = true;
+  }
+
+  if (context_lost_) {
+    free_resources();
+
+    {
+      std::scoped_lock lock(lists_mutex_);
+      orphaned_framebuffers_.clear();
+      orphaned_vertarrays_.clear();
+      vao_caches_.clear();
+    }
+
+    shared_orphan_list_.buffers.clear(glDeleteBuffers);
+    shared_orphan_list_.textures.clear(glDeleteTextures);
+    shared_orphan_list_.programs.clear([](GLuint n, GLuint *ids) {
+      for (uint i = 0; i < n; i++) {
+        glDeleteProgram(ids[i]);
+      }
+    });
+
+    float data[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    glGenBuffers(1, &default_attr_vbo_);
+    glBindBuffer(GL_ARRAY_BUFFER, default_attr_vbo_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    context_lost_ = false;
+  }
 
   is_active_ = true;
   thread_ = pthread_self();
 
-  /* Clear accumulated orphans. */
   orphans_clear();
 
   if (ghost_window_) {
-    /* Get the correct framebuffer size for the internal framebuffers. */
-    GHOST_RectangleHandle bounds = GHOST_GetClientBounds(
-        static_cast<GHOST_WindowHandle>(ghost_window_));
-    int w = GHOST_GetWidthRectangle(bounds);
-    int h = GHOST_GetHeightRectangle(bounds);
-    GHOST_DisposeRectangle(bounds);
+    GHOST_RectangleHandle bounds =
+        GHOST_GetClientBounds(static_cast<GHOST_WindowHandle>(ghost_window_));
+    int w = 0, h = 0;
+    if (bounds) {
+      w = GHOST_GetWidthRectangle(bounds);
+      h = GHOST_GetHeightRectangle(bounds);
+      GHOST_DisposeRectangle(bounds);
+    }
 
-    if (front_left) {
-      front_left->size_set(w, h);
-    }
-    if (back_left) {
-      back_left->size_set(w, h);
-    }
-    if (front_right) {
-      front_right->size_set(w, h);
-    }
-    if (back_right) {
-      back_right->size_set(w, h);
-    }
+    if (front_left) front_left->size_set(w, h);
+    if (back_left) back_left->size_set(w, h);
+    if (front_right) front_right->size_set(w, h);
+    if (back_right) back_right->size_set(w, h);
   }
 
-  /* Not really following the state but we should consider
-   * no ubo bound when activating a context. */
   bound_ubo_slots = 0;
   bound_ssbo_slots = 0;
 
@@ -160,15 +209,8 @@ void GLContext::deactivate()
   is_active_ = false;
 }
 
-void GLContext::begin_frame()
-{
-  /* No-op. */
-}
-
-void GLContext::end_frame()
-{
-  process_frame_timings();
-}
+void GLContext::begin_frame() { }
+void GLContext::end_frame() { process_frame_timings(); }
 
 /** \} */
 
@@ -176,23 +218,13 @@ void GLContext::end_frame()
 /** \name Flush, Finish & sync
  * \{ */
 
-void GLContext::flush()
-{
-  glFlush();
-}
-
-void GLContext::finish()
-{
-  glFinish();
-}
+void GLContext::flush() { glFlush(); }
+void GLContext::finish() { glFinish(); }
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Safe object deletion
- *
- * GPU objects can be freed when the context is not bound.
- * In this case we delay the deletion until the context is bound again.
  * \{ */
 
 void GLSharedOrphanLists::OrphanList::clear(FunctionRef<void(GLuint, GLuint *)> free_fn)
@@ -212,29 +244,25 @@ void GLSharedOrphanLists::OrphanList::append(GLuint handle)
 
 void GLSharedOrphanLists::orphans_clear()
 {
-  /* Check if any context is active on this thread! */
-  BLI_assert(GLContext::get());
+  GLContext *ctx = GLContext::get();
+  if (!ctx) return;
 
   buffers.clear(glDeleteBuffers);
   textures.clear(glDeleteTextures);
   shaders.clear([](GLuint size, GLuint *handles) {
-    for (uint i = 0; i < size; i++) {
-      glDeleteShader(handles[i]);
-    }
+    for (uint i = 0; i < size; i++) glDeleteShader(handles[i]);
   });
   programs.clear([](GLuint size, GLuint *handles) {
-    for (uint i = 0; i < size; i++) {
-      glDeleteProgram(handles[i]);
-    }
+    for (uint i = 0; i < size; i++) glDeleteProgram(handles[i]);
   });
 };
 
 void GLContext::orphans_clear()
 {
-  /* Check if context has been activated by another thread! */
-  BLI_assert(this->is_active_on_thread());
+  if (!this || !is_active_on_thread()) return;
 
-  lists_mutex_.lock();
+  std::scoped_lock lock(lists_mutex_);
+
   if (!orphaned_vertarrays_.is_empty()) {
     glDeleteVertexArrays(uint(orphaned_vertarrays_.size()), orphaned_vertarrays_.data());
     orphaned_vertarrays_.clear();
@@ -243,108 +271,81 @@ void GLContext::orphans_clear()
     glDeleteFramebuffers(uint(orphaned_framebuffers_.size()), orphaned_framebuffers_.data());
     orphaned_framebuffers_.clear();
   }
-  lists_mutex_.unlock();
 
   shared_orphan_list_.orphans_clear();
-};
+
+  if (context_lost_) {
+    orphaned_vertarrays_.clear();
+    orphaned_framebuffers_.clear();
+  }
+}
 
 void GLContext::orphans_add(Vector<GLuint> &orphan_list, std::mutex &list_mutex, GLuint id)
 {
-  list_mutex.lock();
+  std::scoped_lock lock(list_mutex);
   orphan_list.append(id);
-  list_mutex.unlock();
 }
 
 void GLContext::vao_free(GLuint vao_id)
 {
-  if (this == GLContext::get()) {
-    glDeleteVertexArrays(1, &vao_id);
-  }
-  else {
-    orphans_add(orphaned_vertarrays_, lists_mutex_, vao_id);
-  }
+  GLContext *ctx = GLContext::get();
+  if (ctx && this == ctx) glDeleteVertexArrays(1, &vao_id);
+  else orphans_add(orphaned_vertarrays_, lists_mutex_, vao_id);
 }
 
 void GLContext::fbo_free(GLuint fbo_id)
 {
-  if (this == GLContext::get()) {
-    glDeleteFramebuffers(1, &fbo_id);
-  }
-  else {
-    orphans_add(orphaned_framebuffers_, lists_mutex_, fbo_id);
-  }
+  GLContext *ctx = GLContext::get();
+  if (ctx && this == ctx) glDeleteFramebuffers(1, &fbo_id);
+  else orphans_add(orphaned_framebuffers_, lists_mutex_, fbo_id);
 }
 
 void GLContext::buffer_free(GLuint buf_id)
 {
-  /* Any context can free. */
-  if (GLContext::get()) {
-    glDeleteBuffers(1, &buf_id);
-  }
-  else {
-    GLSharedOrphanLists &orphan_list = GLBackend::get()->shared_orphan_list_get();
-    orphan_list.buffers.append(buf_id);
-  }
+  GLContext *ctx = GLContext::get();
+  if (ctx) glDeleteBuffers(1, &buf_id);
+  else GLBackend::get()->shared_orphan_list_get().buffers.append(buf_id);
 }
 
 void GLContext::texture_free(GLuint tex_id)
 {
-  /* Any context can free. */
-  if (GLContext::get()) {
-    glDeleteTextures(1, &tex_id);
-  }
-  else {
-    GLSharedOrphanLists &orphan_list = GLBackend::get()->shared_orphan_list_get();
-    orphan_list.textures.append(tex_id);
-  }
+  GLContext *ctx = GLContext::get();
+  if (ctx) glDeleteTextures(1, &tex_id);
+  else GLBackend::get()->shared_orphan_list_get().textures.append(tex_id);
 }
 
 void GLContext::shader_free(GLuint shader_id)
 {
-  /* Any context can free. */
-  if (GLContext::get()) {
-    glDeleteShader(shader_id);
-  }
-  else {
-    GLSharedOrphanLists &orphan_list = GLBackend::get()->shared_orphan_list_get();
-    orphan_list.shaders.append(shader_id);
-  }
+  GLContext *ctx = GLContext::get();
+  if (ctx) glDeleteShader(shader_id);
+  else GLBackend::get()->shared_orphan_list_get().shaders.append(shader_id);
 }
 
 void GLContext::program_free(GLuint program_id)
 {
-  /* Any context can free. */
-  if (GLContext::get()) {
-    glDeleteProgram(program_id);
-  }
-  else {
-    GLSharedOrphanLists &orphan_list = GLBackend::get()->shared_orphan_list_get();
-    orphan_list.programs.append(program_id);
-  }
+  GLContext *ctx = GLContext::get();
+  if (ctx) glDeleteProgram(program_id);
+  else GLBackend::get()->shared_orphan_list_get().programs.append(program_id);
 }
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Linked object deletion
- *
- * These objects contain data that are stored per context. We
- * need to do some cleanup if they are used across context or if context
- * is discarded.
  * \{ */
 
 void GLContext::vao_cache_register(GLVaoCache *cache)
 {
-  lists_mutex_.lock();
+  if (!cache) return;
+  std::scoped_lock lock(lists_mutex_);
   vao_caches_.add(cache);
-  lists_mutex_.unlock();
 }
 
 void GLContext::vao_cache_unregister(GLVaoCache *cache)
 {
-  lists_mutex_.lock();
+  if (!cache) return;
+  std::scoped_lock lock(lists_mutex_);
   vao_caches_.remove(cache);
-  lists_mutex_.unlock();
 }
 
 /** \} */
@@ -355,17 +356,17 @@ void GLContext::vao_cache_unregister(GLVaoCache *cache)
 
 void GLContext::memory_statistics_get(int *r_total_mem, int *r_free_mem)
 {
+  if (!r_total_mem || !r_free_mem) return;
+
   if (epoxy_has_gl_extension("GL_NVX_gpu_memory_info")) {
-    /* Returned value in Kb. */
     glGetIntegerv(GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, r_total_mem);
     glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, r_free_mem);
   }
   else if (epoxy_has_gl_extension("GL_ATI_meminfo")) {
     int stats[4];
     glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, stats);
-
     *r_total_mem = 0;
-    *r_free_mem = stats[0]; /* Total memory free in the pool. */
+    *r_free_mem = stats[0];
   }
   else {
     *r_total_mem = 0;
