@@ -1762,6 +1762,42 @@ static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }
 
+static void rna_idproperty_ui_float_limits_update(Main * /*bmain*/,
+                                                  Scene * /*scene*/,
+                                                  PointerRNA *ptr)
+{
+  IDPropertyUIDataFloat *ui_data = static_cast<IDPropertyUIDataFloat *>(ptr->data);
+
+  ui_data->min = std::min(ui_data->min, ui_data->max);
+  ui_data->max = std::max(ui_data->min, ui_data->max);
+
+  if ((ui_data->base.flag & IDP_UI_USE_SOFT_LIMITS) == 0) {
+    ui_data->soft_min = ui_data->min;
+    ui_data->soft_max = ui_data->max;
+    return;
+  }
+  ui_data->soft_min = std::clamp(ui_data->soft_min, ui_data->min, ui_data->soft_max);
+  ui_data->soft_max = std::clamp(ui_data->soft_max, ui_data->max, ui_data->soft_min);
+}
+
+static void rna_idproperty_ui_int_limits_update(Main * /*bmain*/,
+                                                Scene * /*scene*/,
+                                                PointerRNA *ptr)
+{
+  IDPropertyUIDataInt *ui_data = static_cast<IDPropertyUIDataInt *>(ptr->data);
+
+  ui_data->min = std::min(ui_data->min, ui_data->max);
+  ui_data->max = std::max(ui_data->min, ui_data->max);
+
+  if ((ui_data->base.flag & IDP_UI_USE_SOFT_LIMITS) == 0) {
+    ui_data->soft_min = ui_data->min;
+    ui_data->soft_max = ui_data->max;
+    return;
+  }
+  ui_data->soft_min = std::clamp(ui_data->soft_min, ui_data->min, ui_data->soft_max);
+  ui_data->soft_max = std::clamp(ui_data->soft_max, ui_data->max, ui_data->soft_min);
+}
+
 static int rna_idproperty_ui_default_array_length(const PointerRNA *ptr,
                                                   int length[RNA_MAX_ARRAY_DIMENSION])
 {
@@ -3048,18 +3084,26 @@ static void rna_def_idproperty_wrap_ptr(BlenderRNA *brna)
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
 }
 
-#  define RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, prop_type) \
+#  define RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, prop_type, update_func) \
     prop = RNA_def_property(srna, "min", prop_type, PROP_NONE); \
     RNA_def_property_ui_text(prop, "Min", "Minimum value"); \
+    RNA_def_property_update(prop, 0, update_func); \
 \
     prop = RNA_def_property(srna, "max", prop_type, PROP_NONE); \
     RNA_def_property_ui_text(prop, "Max", "Maximum value"); \
+    RNA_def_property_update(prop, 0, update_func); \
 \
     prop = RNA_def_property(srna, "soft_min", prop_type, PROP_NONE); \
     RNA_def_property_ui_text(prop, "Soft Min", "Soft minimum value in the UI"); \
+    RNA_def_property_update(prop, 0, update_func); \
 \
     prop = RNA_def_property(srna, "soft_max", prop_type, PROP_NONE); \
     RNA_def_property_ui_text(prop, "Soft Max", "Soft maximum value in the UI"); \
+    RNA_def_property_update(prop, 0, update_func); \
+\
+    prop = RNA_def_property(srna, "use_soft_limits", PROP_BOOLEAN, PROP_NONE); \
+    RNA_def_property_ui_text(prop, "Use Soft Limits", "Use soft limits in the UI"); \
+    RNA_def_property_boolean_sdna(prop, nullptr, "base.flag", IDP_UI_USE_SOFT_LIMITS); \
 \
     prop = RNA_def_property(srna, "step", prop_type, PROP_NONE); \
     RNA_def_property_ui_text(prop, "Step", "Step size");
@@ -3105,7 +3149,7 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "IDPropertyUIDataFloat", nullptr);
   RNA_def_struct_ui_text(srna, "float IDProperty UI", "UI data for a float ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
-  RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, PROP_FLOAT);
+  RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, PROP_FLOAT, "rna_idproperty_ui_float_limits_update");
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_FLOAT);
 
   prop = RNA_def_property(srna, "precision", PROP_INT, PROP_NONE);
@@ -3134,7 +3178,7 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "IDPropertyUIDataInt", nullptr);
   RNA_def_struct_ui_text(srna, "int IDProperty UI", "UI data for an int ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
-  RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, PROP_INT);
+  RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, PROP_INT, "rna_idproperty_ui_int_limits_update");
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_INT);
 
   prop = RNA_def_property(srna, "default_array", PROP_INT, PROP_NONE);

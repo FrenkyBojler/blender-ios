@@ -41,13 +41,17 @@ struct Library;
 struct PackedFile;
 struct UniqueName_Map;
 
+enum eIDPUIdataflag {
+  IDP_UI_USE_SOFT_LIMITS = 1,
+};
+
 struct IDPropertyUIData {
   /** Tool-tip / property description pointer. Owned by the #IDProperty. */
   char *description = nullptr;
   /** RNA `subtype`, used for every type except string properties (#PropertySubType). */
   int rna_subtype = 0;
-
-  char _pad[4] = {};
+  /* eIDPUIdataflag */
+  int flag = 0;
 };
 
 /* DNA version of #EnumPropertyItem. */
