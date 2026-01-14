@@ -343,7 +343,8 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   if (!node_copy_local(*from_tree, *snode->edittree, false, offset, op->reports)) {
     BKE_id_delete(bmain_dst, &from_tree->id);
-    return OPERATOR_CANCELLED;
+    /* Note: we don't return OPERATOR_CANCELLED here although the copy fails to avoid corrupting
+     * the undo stack after merging two bmains. */
   };
   BKE_id_delete(bmain_dst, &from_tree->id);
 
