@@ -107,13 +107,13 @@ struct AtomicLexer : LexerBase {
     }
 
     if (tok_str.size() == 2) {
-      /* Reserve [128-16511] range for double char token. */
-      return tok_str[0] * uint16_t(128) + tok_str[1] + uint16_t(128);
+      /* Reserve [128-16511] range for double char token. tok_str[1] cannot be 0. */
+      return tok_str[0] + tok_str[1] * uint16_t(128);
     }
     /* Reserve [16512-65536] range for longer token. */
     Atom id = 16512 + atomization_map_.size();
     /* Check for overflow. */
-    BLI_assert(id > 16512);
+    BLI_assert(id >= 16512);
     /* Long identifier slow path. Do full hash */
     return atomization_map_.lookup_or_add(tok_str, id);
   }
