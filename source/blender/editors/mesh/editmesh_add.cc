@@ -27,6 +27,7 @@
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
+#include "ED_sculpt.hh"
 
 #include "mesh_intern.hh" /* own include */
 
@@ -38,7 +39,7 @@ namespace blender {
 
 struct MakePrimitiveData {
   float mat[4][4];
-  bool was_editmode;
+  int original_ctx_mode;
 };
 
 static Object *make_prim_init(bContext *C,
@@ -53,12 +54,23 @@ static Object *make_prim_init(bContext *C,
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
 
-  r_creation_data->was_editmode = false;
-  if (obedit == nullptr || obedit->type != OB_MESH) {
-    obedit = ed::object::add_type(C, OB_MESH, idname, loc, rot, false, local_view_bits);
-    ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
+  const enum eContextObjectMode original_creation_mode = CTX_data_mode_enum(C);
+  r_creation_data->original_ctx_mode = original_creation_mode;
 
-    r_creation_data->was_editmode = true;
+  if (obedit == nullptr || obedit->type != OB_MESH) {
+    switch (original_creation_mode) {
+      case CTX_MODE_OBJECT:
+        obedit = ed::object::add_type(C, OB_MESH, idname, loc, rot, false, local_view_bits);
+        break;
+      case CTX_MODE_SCULPT:
+        obedit = CTX_data_active_object(C);
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+
+    ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
   }
 
   ed::object::new_primitive_matrix(C, obedit, loc, rot, scale, r_creation_data->mat);
@@ -72,7 +84,7 @@ static void make_prim_finish(bContext *C,
                              int enter_editmode)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
-  const bool exit_editmode = ((creation_data->was_editmode == true) && (enter_editmode == false));
+  const bool exit_editmode = enter_editmode == false;
 
   /* Primitive has all verts selected, use vert select flush
    * to push this up to edges & faces. */
@@ -80,18 +92,23 @@ static void make_prim_finish(bContext *C,
   /* TODO(@ideasman42): maintain UV sync for newly created data. */
   EDBM_uvselect_clear(em);
 
-  /* Only recalculate edit-mode tessellation if we are staying in edit-mode. */
+  /* Only recalculate edit-mode tessellation if we are staying in edit-mode or sculpt-mode. */
   EDBMUpdate_Params params{};
-  params.calc_looptris = !exit_editmode;
+  params.calc_looptris = creation_data->original_ctx_mode != CTX_MODE_OBJECT;
   params.calc_normals = false;
   params.is_destructive = true;
   EDBM_update(id_cast<Mesh *>(obedit->data), &params);
 
-  /* userdef */
-  if (exit_editmode) {
-    ed::object::editmode_exit_ex(
-        CTX_data_main(C), CTX_data_scene(C), obedit, ed::object::EM_FREEDATA);
+  BLI_assert(ELEM(creation_data->original_ctx_mode, CTX_MODE_OBJECT, CTX_MODE_SCULPT, CTX_MODE_EDIT_MESH));
+
+  if (creation_data->original_ctx_mode != CTX_MODE_EDIT_MESH && exit_editmode) {
+    ed::object::editmode_exit_ex(CTX_data_main(C), CTX_data_scene(C), obedit, ed::object::EM_FREEDATA);
   }
+
+  if (creation_data->original_ctx_mode == CTX_MODE_SCULPT && exit_editmode) {
+    ed::sculpt_paint::object_sculpt_mode_enter(*CTX_data_main(C), *CTX_data_depsgraph_pointer(C), *CTX_data_scene(C), *obedit, true, CTX_wm_reports(C));
+  }
+
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
 }
 

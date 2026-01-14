@@ -1304,7 +1304,7 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
 static bool view3d_interactive_add_poll(bContext *C)
 {
   const enum eContextObjectMode mode = CTX_data_mode_enum(C);
-  return ELEM(mode, CTX_MODE_OBJECT, CTX_MODE_EDIT_MESH);
+  return ELEM(mode, CTX_MODE_OBJECT, CTX_MODE_EDIT_MESH, CTX_MODE_SCULPT);
 }
 
 void VIEW3D_OT_interactive_add(wmOperatorType *ot)
