@@ -598,6 +598,9 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx, ListBase *seqbase_dst,
   strip_new->runtime = MEM_new<StripRuntime>(__func__);
   strip_new->runtime->flag = strip->runtime->flag;
 
+  strip_new->runtime->meta_scene_sound = strip->runtime->meta_scene_sound;
+  strip->runtime->last_parent_sound_scene = strip->runtime->last_parent_sound_scene;
+
   ctx.strip_map.add(strip, strip_new);
 
   if ((ctx.copy_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
@@ -1067,11 +1070,22 @@ static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
 /* Adds sound of strip to the `scene->sound_scene` - "sound timeline". */
 static void strip_update_mix_sounds(Scene *scene, Strip *strip)
 {
-  if (strip->runtime->scene_sound != nullptr) {
-    return;
-  }
+  // // Ramon: could it be that this is the place that prevents the strip from getting added to the
+  // // meta after it is first added to the scene?
+  // // printf("---------\n");
+  // // printf("strip %s\n", strip->name);
+  // // printf("strip->runtime->scene_sound  %p\n", strip->runtime->scene_sound);
 
-  if (strip->sound != nullptr) {
+  // Ramon: this is the place that prevents the audio from getting added multible times. Problem is
+  // that when a strip gets grouped into a meta strip this also prevents the handle from getting
+  // moved into this new handle
+  // if (strip->runtime->scene_sound != nullptr) {
+  //   // printf("strip->runtime->scene_sound != nullptr %s\n", strip->name);
+  //   return;
+  // }
+
+  if (strip->sound != nullptr || strip->type == STRIP_TYPE_META) {
+    printf("strip->sound != nullptr %s\n", strip->name);
     /* Adds `strip->sound->playback_handle` to `scene->sound_scene` */
     strip->runtime->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip);
   }
@@ -1086,10 +1100,11 @@ static void strip_update_sound_properties(const Scene *scene, const Strip *strip
 {
   const Strip *meta = lookup_meta_by_strip(editing_get(scene), strip);
   float output_volume = strip->volume;
-  if (meta != nullptr) {
-    output_volume *= meta->volume;
-  }
+  // if (meta != nullptr) {
+  // output_volume *= meta->volume;
+  // }
   const int frame = BKE_scene_frame_get(scene);
+  printf("vol strip %s\n", strip->name);
   BKE_sound_set_scene_sound_volume_at_frame(strip->runtime->scene_sound,
                                             frame,
                                             output_volume,
@@ -1184,6 +1199,7 @@ static bool strip_sound_update_cb(Strip *strip, void *user_data)
   strip_update_mix_sounds(scene, strip);
 
   if (strip->runtime->scene_sound == nullptr) {
+    printf("return strip %s\n", strip->name);
     return true;
   }
 

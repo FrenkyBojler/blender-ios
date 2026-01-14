@@ -122,12 +122,26 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
           offset_time = strip->sound->offset_time + strip->sound_offset;
         }
 
+        Editing *ed = scene->ed;
+        Strip *parent_strip = lookup_meta_by_strip(ed, strip);
+        printf("--\n");
+        //// Ramon: this seems to be the place
+        /* Ramon: Note that the handle that is added to a meta strip does not get moved. This is
+         * because the meta handle needs strip start -meta strip start. Currently the offset is
+         * handled because we recreate the meta handle each time but for a proper implementation we
+         * should do the right calculation of where the strip should be in the sound_move logic. */
+        // if (parent_strip == nullptr) {
+        printf("strip %s\n", strip->name);
+        printf("rararara BKE_sound_move_scene_sound\n");
+        int parent_start = parent_strip == nullptr ? 0 : parent_strip->left_handle();
         BKE_sound_move_scene_sound(scene,
                                    strip->runtime->scene_sound,
-                                   strip->start + startofs,
-                                   strip->start + strip->len - endofs,
+                                   strip->start + startofs - parent_start,
+                                   strip->start + strip->len - endofs - parent_start,
                                    startofs + strip->anim_startofs,
                                    offset_time);
+        printf("--\n");
+        // }
       }
     }
   }

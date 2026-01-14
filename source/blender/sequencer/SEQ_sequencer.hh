@@ -70,6 +70,8 @@ struct StripRuntime {
   SessionUID session_uid = {};
   StripRuntimeFlag flag = StripRuntimeFlag::None;
   void *scene_sound = nullptr; /* AUD_SequenceEntry */
+  void *meta_scene_sound = nullptr; /* AUD_SequenceEntry */
+  int last_parent_sound_scene = 0;
   Vector<MovieReader *, 1> movie_readers;
 
   [[nodiscard]] MovieReader *movie_reader_get(int64_t index = 0) const

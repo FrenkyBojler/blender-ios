@@ -7,6 +7,7 @@
  * \ingroup bke
  */
 
+#include <AUD_Device.h>
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
@@ -851,24 +852,85 @@ void *BKE_sound_add_scene_sound(
     Scene *scene, Strip *strip, int startframe, int endframe, int frameskip)
 {
   sound_verify_evaluated_id(&scene->id);
+  printf("----------------\n");
+  if (strip->seqbase.first != nullptr) {
+    printf("META strip %s\n", strip->name);
+  }
+  if (strip->type == STRIP_TYPE_META) {
+    printf("META strip %s\n", strip->name);
+    LISTBASE_FOREACH (Strip *, strip_child, &strip->seqbase) {
+      printf("strip_child %s\n", strip_child->name);
+      if (strip_child->sound != nullptr) {
+        strip_child->runtime->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip_child);
+      }
+      // BKE_sound_add_scene_sound(scene, strip_child, )
+    }
+  }
+
   /* Happens when sequence's sound data-block was removed. */
-  if (strip->sound == nullptr) {
+  if (strip->sound == nullptr && strip->type != STRIP_TYPE_META) {
     return nullptr;
   }
-  sound_verify_evaluated_id(&strip->sound->id);
+
+  Editing *ed = scene->ed;
+  Strip *parent_strip = blender::seq::lookup_meta_by_strip(ed, strip);
+  int parent_start = parent_strip != nullptr ? parent_strip->left_handle() : 0;
+
+  void *parent_sound_scene = nullptr;
+  AUD_Sound *add_handle = strip->type == STRIP_TYPE_META ? strip->runtime->meta_scene_sound :
+                                                           strip->sound->runtime->playback_handle;
+
+  if (parent_strip != nullptr) {
+    if (parent_strip->runtime->meta_scene_sound == nullptr) {
+      parent_strip->runtime->meta_scene_sound = AUD_Sequence_create(scene->frames_per_second(),
+                                                                    false);
+    }
+    parent_sound_scene = parent_strip->runtime->meta_scene_sound;
+    // printf("add sound to %s\n", parent_strip->name);
+    // parent_sound_scene = parent_strip->sound->runtime->playback_handle;
+  }
+  else {
+    // printf("else\n");
+    parent_sound_scene = scene->runtime->audio.sound_scene;
+  }
+  // AUD_Device_play(g_state.sound_device, parent_sound_scene, 1);
+
   const double fps = scene->frames_per_second();
-  const double offset_time = strip->sound->offset_time + strip->sound_offset - frameskip / fps;
+  double offset_time = 0.0f;
+
+  if (strip->type != STRIP_TYPE_META) {
+    sound_verify_evaluated_id(&strip->sound->id);
+    offset_time = strip->sound->offset_time + strip->sound_offset - frameskip / fps;
+  }
+
+  // to remove the last handle properly
+  if (strip->runtime->scene_sound != nullptr) {
+    if (parent_strip != nullptr && strip->runtime->last_parent_sound_scene == 1) {
+      printf("1\n");
+      AUD_Sequence_remove(parent_sound_scene, strip->runtime->scene_sound);
+    }
+    else {
+      printf("0\n");
+      AUD_Sequence_remove(scene->runtime->audio.sound_scene, strip->runtime->scene_sound);
+    }
+  }
+
+  // store last handle here so it can be properly removed in the next run.
+  strip->runtime->last_parent_sound_scene = parent_strip != nullptr ? 1 : 0;
+
+  printf("strip %s\n", strip->name);
+  printf("startframe - parent_start %d\n", startframe - parent_start);
   if (offset_time >= 0.0f) {
-    return AUD_Sequence_add(scene->runtime->audio.sound_scene,
-                            strip->sound->runtime->playback_handle,
-                            startframe / fps + offset_time,
-                            endframe / fps,
+    return AUD_Sequence_add(parent_sound_scene,
+                            add_handle,
+                            (startframe - parent_start) / fps + offset_time,
+                            (endframe - parent_start) / fps,
                             0.0f);
   }
-  return AUD_Sequence_add(scene->runtime->audio.sound_scene,
-                          strip->sound->runtime->playback_handle,
-                          startframe / fps,
-                          endframe / fps,
+  return AUD_Sequence_add(parent_sound_scene,
+                          add_handle,
+                          (startframe - parent_start) / fps,
+                          (endframe - parent_start) / fps,
                           -offset_time);
 }
 
@@ -898,6 +960,7 @@ void BKE_sound_move_scene_sound(const Scene *scene,
                                 int frameskip,
                                 double audio_offset)
 {
+  printf("BKE_sound_move_scene_sound\n");
   sound_verify_evaluated_id(&scene->id);
   const double fps = scene->frames_per_second();
   const double offset_time = audio_offset - frameskip / fps;
@@ -911,6 +974,10 @@ void BKE_sound_move_scene_sound(const Scene *scene,
 
 void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *strip)
 {
+  // printf("Move strip %s\n", strip->name);
+  Editing *ed = scene->ed;
+  Strip *parent_strip = blender::seq::lookup_meta_by_strip(ed, strip);
+  int parent_start = parent_strip == nullptr ? 0 : parent_strip->left_handle();
   sound_verify_evaluated_id(&scene->id);
   if (strip->runtime->scene_sound) {
     double offset_time = 0.0f;
@@ -919,8 +986,8 @@ void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *strip)
     }
     BKE_sound_move_scene_sound(scene,
                                strip->runtime->scene_sound,
-                               strip->left_handle(),
-                               strip->right_handle(scene),
+                               strip->left_handle() - parent_start,
+                               strip->right_handle(scene) - parent_start,
                                strip->startofs + strip->anim_startofs,
                                offset_time);
   }
