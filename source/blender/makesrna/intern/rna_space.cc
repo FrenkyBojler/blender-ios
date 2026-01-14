@@ -2421,11 +2421,10 @@ static void rna_SpaceUserPref_search_filter_update(Main * /*bmain*/,
   ED_region_search_filter_update(area, main_region);
 }
 
-static int rna_SpaceUserPref_search_filter_editable(const PointerRNA *ptr, const char **r_info)
+static int rna_SpaceUserPref_search_filter_editable(const PointerRNA * /*ptr*/,
+                                                    const char **r_info)
 {
-  SpaceUserPref *sprefs = static_cast<SpaceUserPref *>(ptr->data);
-  if (U.space_data.section_active == USER_SECTION_EXTENSIONS)
-  {
+  if (U.space_data.section_active == USER_SECTION_EXTENSIONS) {
     *r_info = N_("Use the search in Extensions.");
     return 0;
   }
