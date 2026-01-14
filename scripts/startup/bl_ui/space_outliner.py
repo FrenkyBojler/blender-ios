@@ -19,24 +19,6 @@ def has_selected_ids_in_context(context):
     return False
 
 
-def get_library_from_context(context):
-    """Get a Library object from the outliner context"""
-    id_data = getattr(context, "id", None)
-    if id_data is not None:
-        bl_rna = getattr(id_data, "bl_rna", None)
-        if bl_rna is not None and bl_rna.identifier == 'Library':
-            return id_data
-
-    selected_ids = getattr(context, "selected_ids", None)
-    if selected_ids:
-        for selected_id in selected_ids:
-            bl_rna = getattr(selected_id, "bl_rna", None)
-            if bl_rna is not None and bl_rna.identifier == 'Library':
-                return selected_id
-
-    return None
-
-
 class OUTLINER_HT_header(Header):
     bl_space_type = 'OUTLINER'
 
@@ -137,11 +119,22 @@ class OUTLINER_MT_context_menu(Menu):
 
         layout.menu("OUTLINER_MT_liboverride", icon='LIBRARY_DATA_OVERRIDE')
 
-        library = get_library_from_context(context)
-        if library is not None:
-            layout.operator("outliner.library_open_blend_file",
-                            text="Open Blend File",
-                            icon='FILE_BLEND').filepath = library.filepath
+        # Show "Open Library Blend File" operator for linked datablocks
+        id_data = getattr(context, "id", None)
+        if id_data is not None:
+            library = None
+            if isinstance(id_data, bpy.types.Library):
+                library = id_data
+            else:
+                library = getattr(id_data, "library", None)
+                if hasattr(id_data, "data") and id_data.data is not None:
+                    data_library = getattr(id_data.data, "library", None)
+                    if library is None:
+                        library = data_library
+
+            if library is not None:
+                op = layout.operator("outliner.open_library_blend", text="Open Library Blend File", icon='FILE_BLEND')
+                op.filepath = library.filepath
 
         layout.separator()
 

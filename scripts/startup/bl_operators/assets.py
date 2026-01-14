@@ -29,19 +29,18 @@ from bpy_extras.asset_utils import (
 )
 
 
-class BlendFileOpener:
-    """Base class for operators that open blend files in new Blender instances"""
+class BlendFileOpenerMixin:
+    """Mix-in for operators that open blend files in a new Blender instance and monitor it.
+
+    A new Blender process is launched and monitored via a modal timer. When the
+    process exits, `on_process_finished()` is called before cleanup.
+    """
 
     _process = None  # Optional[subprocess.Popen]
-
-    def open_in_new_blender(self, filepath):
-        """Open a blend file in a new Blender instance"""
-        import subprocess
-        cli_args = [bpy.app.binary_path, str(filepath)]
-        self._process = subprocess.Popen(cli_args)
+    _timer = None
 
     def modal(self, context, event):
-        """Monitor the subprocess until it completes"""
+        """Monitor the subprocess until it completes."""
         if event.type != 'TIMER':
             return {'PASS_THROUGH'}
 
@@ -52,27 +51,38 @@ class BlendFileOpener:
 
         returncode = self._process.poll()
         if returncode is None:
-            # Process is still running
+            # Process is still running.
             return {'RUNNING_MODAL'}
 
         if returncode:
             self.report({'WARNING'},
                         rpt_("Blender sub-process exited with error code {:d}").format(returncode))
 
-        # Allow subclasses to add cleanup logic
         self.on_process_finished(context)
-
         self.cancel(context)
         return {'FINISHED'}
 
     def cancel(self, context):
-        """Clean up timer when operation is cancelled"""
+        """Clean up timer when operation is cancelled."""
         wm = context.window_manager
-        wm.event_timer_remove(self._timer)
+        if self._timer is not None:
+            wm.event_timer_remove(self._timer)
+            self._timer = None
+
+    def open_in_new_blender(self, context, filepath):
+        """Launch Blender for the given file and start monitoring until it quits."""
+        import subprocess
+
+        cli_args = [bpy.app.binary_path, str(filepath)]
+        self._process = subprocess.Popen(cli_args)
+
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.1, window=context.window)
+        wm.modal_handler_add(self)
 
     def on_process_finished(self, context):
-        """Override in subclass to add cleanup logic after process finishes"""
-        pass
+        """Override in subclass to add cleanup logic after process finishes."""
+        raise NotImplementedError()
 
 
 class AssetBrowserMetadataOperator:
@@ -91,7 +101,7 @@ class AssetBrowserMetadataOperator:
 
 
 class ASSET_OT_tag_add(AssetBrowserMetadataOperator, Operator):
-    """Add a new keyword tag to the active asset"""
+    """Add a new keyword tag to the active asset."""
 
     bl_idname = "asset.tag_add"
     bl_label = "Add Asset Tag"
@@ -105,7 +115,7 @@ class ASSET_OT_tag_add(AssetBrowserMetadataOperator, Operator):
 
 
 class ASSET_OT_tag_remove(AssetBrowserMetadataOperator, Operator):
-    """Remove an existing keyword tag from the active asset"""
+    """Remove an existing keyword tag from the active asset."""
 
     bl_idname = "asset.tag_remove"
     bl_label = "Remove Asset Tag"
@@ -131,8 +141,8 @@ class ASSET_OT_tag_remove(AssetBrowserMetadataOperator, Operator):
         return {'FINISHED'}
 
 
-class ASSET_OT_open_containing_blend_file(BlendFileOpener, Operator):
-    """Open the blend file that contains the active asset"""
+class ASSET_OT_open_containing_blend_file(BlendFileOpenerMixin, Operator):
+    """Open the blend file that contains the active asset."""
 
     bl_idname = "asset.open_containing_blend_file"
     bl_label = "Open Blend File"
@@ -167,61 +177,53 @@ class ASSET_OT_open_containing_blend_file(BlendFileOpener, Operator):
             return {'CANCELLED'}
 
         asset_lib_path = asset.full_library_path
-        self.open_in_new_blender(asset_lib_path)
-
-        wm = context.window_manager
-        self._timer = wm.event_timer_add(0.1, window=context.window)
-        wm.modal_handler_add(self)
-
+        self.open_in_new_blender(context, asset_lib_path)
         return {'RUNNING_MODAL'}
 
     def on_process_finished(self, context):
-        """Refresh asset library after opening the file"""
+        """Refresh asset library after opening the file."""
         if bpy.ops.asset.library_refresh.poll():
             bpy.ops.asset.library_refresh()
 
 
-class OUTLINER_OT_library_open_blend_file(BlendFileOpener, Operator):
-    """Open the blend file of the selected library in a new Blender instance"""
+class OUTLINER_OT_open_library_blend(BlendFileOpenerMixin, Operator):
+    """Open the external blend file that contains the selected data-block."""
 
-    bl_idname = "outliner.library_open_blend_file"
-    bl_label = "Open Blend File"
-    bl_options = {'REGISTER', 'INTERNAL'}
+    bl_idname = "outliner.open_library_blend"
+    bl_label = "Open Library Blend File"
+    bl_options = {'REGISTER'}
 
     filepath: StringProperty(
         name="Library Path",
         description="Path to the library blend file",
-        subtype='FILE_PATH'
+        subtype='FILE_PATH',
+        options={'PATH_SUPPORTS_BLEND_RELATIVE'},
     )
 
-    @classmethod
-    def poll(cls, context):
-        # Operator is available when called with filepath parameter
-        return True
-
     def execute(self, context):
-        if not self.filepath:
-            self.report({'ERROR'}, "No library filepath provided")
-            return {'CANCELLED'}
+        filepath = bpy.path.abspath(self.filepath)
 
-        # Check if file exists
         import os
-        if not os.path.exists(self.filepath):
-            self.report({'ERROR'}, f"Library file not found: {self.filepath}")
+        if not filepath:
+            self.report({'ERROR'}, f"No library path available: {filepath}")
             return {'CANCELLED'}
 
-        self.open_in_new_blender(self.filepath)
+        if not os.path.exists(filepath):
+            self.report({'ERROR'}, f"Library file not found: {filepath}")
+            return {'CANCELLED'}
 
-        wm = context.window_manager
-        self._timer = wm.event_timer_add(0.1, window=context.window)
-        wm.modal_handler_add(self)
-
+        self.open_in_new_blender(context, filepath)
         return {'RUNNING_MODAL'}
+
+    def on_process_finished(self, context):
+        """Refresh asset libraries after opening the file."""
+        if bpy.ops.asset.library_refresh.poll():
+            bpy.ops.asset.library_refresh()
 
 
 classes = (
     ASSET_OT_tag_add,
     ASSET_OT_tag_remove,
     ASSET_OT_open_containing_blend_file,
-    OUTLINER_OT_library_open_blend_file,
+    OUTLINER_OT_open_library_blend,
 )
