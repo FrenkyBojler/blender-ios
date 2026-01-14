@@ -246,8 +246,6 @@ def ui_layout_buttons():
     t.assertEqual(area.regions[2].type, 'UI')
     area.regions[2].active_panel_category = 'UI Test'
     t.assertEqual(area.regions[2].active_panel_category, 'UI Test')
-    # FIXME: changing #ARegion::active_panel_category do not tags the region to redraw
-    area.regions[2].tag_redraw()
     yield
 
     t.assertEqual(_StaticTestData.panel_draw_once, True)
