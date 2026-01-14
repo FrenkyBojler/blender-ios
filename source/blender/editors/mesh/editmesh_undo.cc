@@ -359,8 +359,8 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
                                                     CustomData_number_of_layers(cdata, type));
     for (const int i : layers_with_type.index_range()) {
       CustomDataLayer &layer = layers_with_type[i];
-      BLI_assert(states[i].data || (layer.data == nullptr || data_len == 0));
       if (!states[i].data) {
+        BLI_assert(data_len == 0);
         layer.data = nullptr;
         layer.sharing_info = nullptr;
         continue;
