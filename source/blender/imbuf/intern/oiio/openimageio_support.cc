@@ -310,6 +310,10 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
   cache->attribute("automip", 1);
   /* Default max memory is 1024 MB. */
   cache->attribute("max_memory_MB", 500.0f);
+  /* Default max open files is 100. */
+  cache->attribute("max_open_files", 50);
+  /* Do not convert images with unassociated alpha. */
+  cache->attribute("unassociatedalpha", 1);
 
   ustring filename(filepath);
   ImageCache::ImageHandle *handle = cache->get_image_handle(filename);
@@ -354,6 +358,8 @@ ImBuf *imb_oiio_load_filepath_thumbnail(const char *filepath,
                     ibuf_data,
                     4,
                     -ibuf_stride);
+
+  cache->invalidate(handle, true);
 
   /* Scaled down this small-ish mipmap to our final thumbnail size. */
   const float scale = float(max_thumb_size) / float(std::max(ibuf->x, ibuf->y));
