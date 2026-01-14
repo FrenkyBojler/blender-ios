@@ -121,15 +121,7 @@ struct CurvesDataPanelState {
 /* temporary struct for storing transform properties */
 
 struct TransformProperties {
-<<<<<<< HEAD
-  blender::Vector<float> vertex_weights;
-=======
-  float ob_obmat_orig[4][4];
-  float ob_dims_orig[3];
-  float ob_scale_orig[3];
-  float ob_dims[3];
   Vector<float> vertex_weights;
->>>>>>> main
 
   CurvesDataPanelState modified, current;
 
@@ -1595,84 +1587,6 @@ static void v3d_editvertex_buts(
 
 #undef TRANSFORM_MEDIAN_ARRAY_LEN
 
-<<<<<<< HEAD
-=======
-static void v3d_object_dimension_buts(bContext *C, ui::Layout *layout, View3D *v3d, Object *ob)
-{
-  ui::Block *block = (layout) ? layout->block() : nullptr;
-  ui::Layout *sub_layout = layout ? &layout->absolute(false) : nullptr;
-  TransformProperties *tfp = v3d_transform_props_ensure(v3d);
-  const bool is_editable = ID_IS_EDITABLE(&ob->id);
-
-  if (block) {
-    BLI_assert(C == nullptr);
-    int yi = 200;
-    const int butw = 200;
-    const int buth = 20 * UI_SCALE_FAC;
-
-    BKE_object_dimensions_eval_cached_get(ob, tfp->ob_dims);
-    copy_v3_v3(tfp->ob_dims_orig, tfp->ob_dims);
-    copy_v3_v3(tfp->ob_scale_orig, ob->scale);
-    copy_m4_m4(tfp->ob_obmat_orig, ob->object_to_world().ptr());
-
-    if (!is_editable && sub_layout) {
-      sub_layout->enabled_set(false);
-    }
-
-    uiDefBut(block,
-             ui::ButtonType::Label,
-             IFACE_("Dimensions:"),
-             0,
-             yi -= buth,
-             butw,
-             buth,
-             nullptr,
-             0,
-             0,
-             "");
-    block_align_begin(block);
-    const float lim = FLT_MAX;
-    for (int i = 0; i < 3; i++) {
-      ui::Button *but;
-      const char text[3] = {char('X' + i), ':', '\0'};
-      but = uiDefButF(block,
-                      ui::ButtonType::Num,
-                      text,
-                      0,
-                      yi -= buth,
-                      butw,
-                      buth,
-                      &(tfp->ob_dims[i]),
-                      0.0f,
-                      lim,
-                      "");
-      button_retval_set(but, B_TRANSFORM_PANEL_DIMS);
-      button_number_step_size_set(but, 10);
-      button_number_precision_set(but, 3);
-      button_unit_type_set(but, PROP_UNIT_LENGTH);
-      if (!is_editable) {
-        button_disable(but, "Cannot edit this property from a linked data-block");
-      }
-    }
-    block_align_end(block);
-  }
-  else { /* apply */
-    int axis_mask = 0;
-    for (int i = 0; i < 3; i++) {
-      if (tfp->ob_dims[i] == tfp->ob_dims_orig[i]) {
-        axis_mask |= (1 << i);
-      }
-    }
-    BKE_object_dimensions_set_ex(
-        ob, tfp->ob_dims, axis_mask, tfp->ob_scale_orig, tfp->ob_obmat_orig);
-
-    PointerRNA obptr = RNA_id_pointer_create(&ob->id);
-    PropertyRNA *prop = RNA_struct_find_property(&obptr, "scale");
-    RNA_property_update(C, &obptr, prop);
-  }
-}
-
->>>>>>> main
 #define B_VGRP_PNL_EDIT_SINGLE 8 /* or greater */
 
 static void do_view3d_vgroup_buttons(bContext *C, void * /*arg*/, int event)
@@ -1886,11 +1800,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
   }
 }
 
-<<<<<<< HEAD
-static void v3d_transform_butsR(blender::ui::Layout &layout, Object *ob, PointerRNA *ptr)
-=======
-static void v3d_transform_butsR(ui::Layout &layout, PointerRNA *ptr)
->>>>>>> main
+static void v3d_transform_butsR(ui::Layout &layout, Object *ob, PointerRNA *ptr)
 {
   ui::Layout *split = &layout.split(0.8f, false);
 
@@ -1978,12 +1888,8 @@ static void v3d_transform_butsR(ui::Layout &layout, PointerRNA *ptr)
   colsub = &split->column(true);
   colsub->emboss_set(ui::EmbossType::NoneOrStatus);
   colsub->label("", ICON_NONE);
-<<<<<<< HEAD
-  colsub->prop(ptr,
-               "lock_scale",
-               blender::ui::ITEM_R_TOGGLE | blender::ui::ITEM_R_ICON_ONLY,
-               "",
-               ICON_DECORATE_UNLOCKED);
+  colsub->prop(
+      ptr, "lock_scale", ui::ITEM_R_TOGGLE | ui::ITEM_R_ICON_ONLY, "", ICON_DECORATE_UNLOCKED);
 
   /* Dimensions and editmode are mostly the same check. */
   if (OB_TYPE_SUPPORT_EDITMODE(ob->type) || ELEM(ob->type, OB_VOLUME, OB_CURVES, OB_POINTCLOUD)) {
@@ -1991,10 +1897,6 @@ static void v3d_transform_butsR(ui::Layout &layout, PointerRNA *ptr)
     colsub = &split->column(true);
     colsub->prop(ptr, "dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-=======
-  colsub->prop(
-      ptr, "lock_scale", ui::ITEM_R_TOGGLE | ui::ITEM_R_ICON_ONLY, "", ICON_DECORATE_UNLOCKED);
->>>>>>> main
 }
 
 static void v3d_posearmature_buts(ui::Layout &layout, Object *ob)
