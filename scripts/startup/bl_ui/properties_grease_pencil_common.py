@@ -201,7 +201,7 @@ class GREASE_PENCIL_MT_move_to_layer(Menu):
         if layout.operator_context == 'EXEC_REGION_WIN':
             layout.operator_context = 'INVOKE_REGION_WIN'
             layout.operator("WM_OT_search_single_menu", text="Search...",
-                            icon='VIEWZOOM').menu_idname = "GREASE_PENCIL_MT_move_to_layer"
+                            icon='VIEWZOOM').menu_idname = "GREASE_PENCIL_MT_move_to_layer_SEARCH"
             layout.separator()
 
         layout.operator_context = 'INVOKE_REGION_WIN'
@@ -298,10 +298,15 @@ def build_layer_tree(gpencil_obj: bpy.types.GreasePencil):
     return root_nodes
 
 
-def draw_node(layout: bpy.types.UILayout, node: GPNode, gpencil_obj: bpy.types.GreasePencil):
+def draw_node(layout: bpy.types.UILayout, node: GPNode, gpencil_obj: bpy.types.GreasePencil, mode="VISUAL"):
     if node.is_group:
-        layout.context_pointer_set("active_gpencil_layer_group", node.data)
-        layout.menu("GREASE_PENCIL_MT_layer_group", text=node.data.name)
+        if mode == "VISUAL":
+            layout.context_pointer_set("active_gpencil_layer_group", node.data)
+            layout.menu("GREASE_PENCIL_MT_layer_group", text=node.data.name)
+        else:
+            layout.label(text=node.data.name, icon='FILE_FOLDER')
+            for child in node.children:
+                 draw_node(layout, child, gpencil_obj, mode='SEARCH')
     else:
         if node.data == gpencil_obj.layers.active:
             icon = 'GREASEPENCIL'
@@ -354,6 +359,19 @@ class GREASE_PENCIL_MT_layer_group(Menu):
                 if found:
                     return found
         return None
+    
+
+class GREASE_PENCIL_MT_move_to_layer_SEARCH(Menu):
+    bl_label = "Search Layer"
+    bl_idname = "GREASE_PENCIL_MT_move_to_layer_SEARCH"
+
+    def draw(self, context):
+        grease_pencil = context.active_object.data
+        
+        root_nodes = build_layer_tree(grease_pencil)
+        
+        for node in root_nodes:
+            draw_node(self.layout, node, grease_pencil, mode='SEARCH')
 
 
 class GREASE_PENCIL_MT_layer_active(Menu):
@@ -734,6 +752,7 @@ classes = (
     GPENCIL_UL_annotation_layer,
 
     GREASE_PENCIL_MT_move_to_layer,
+    GREASE_PENCIL_MT_move_to_layer_SEARCH,
     GREASE_PENCIL_MT_layer_group,
     GREASE_PENCIL_MT_layer_active,
 
