@@ -81,10 +81,11 @@ void main()
     float4 color_result = finalColor;
     /* Add an extra inner border to the shape. */
     if (test(GPU_KEYFRAME_SHAPE_HIGHLIGHT)) {
-      float offset = 0.08;
+      float border_thickness = 0.08;
       /* Increase the width of the outline on the inside. */
-      float alpha2 = 1 -
-                     smoothstep(thresholds[0] + offset, thresholds[1] + offset, abs(outline_dist));
+      float alpha2 = 1 - smoothstep(thresholds[0] + border_thickness,
+                                    thresholds[1] + border_thickness,
+                                    abs(outline_dist));
       color_result = mix(finalColor, finalHighlightColor, alpha2);
     }
     fragColor = mix(color_result, finalOutlineColor, alpha);
