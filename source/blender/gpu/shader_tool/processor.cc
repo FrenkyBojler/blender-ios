@@ -46,7 +46,10 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
     str = disabled_code_mutation(str);
   }
   else {
-    str = cleanup_whitespace(str);
+    IntermediateForm<SimpleLexer, DummyParser> parser(str, report_error_);
+    /* Remove trailing white space as they make the subsequent regex much slower. */
+    cleanup_whitespace(parser);
+    str = parser.result_get();
   }
   str = threadgroup_variables_parse_and_remove(str);
   if (language_ == Language::BLENDER_GLSL || language_ == Language::CPP) {
@@ -249,7 +252,7 @@ string SourceProcessor::remove_comments(const string &str)
 }
 
 /* Remove trailing white spaces. */
-void SourceProcessor::cleanup_whitespace(parser::MutableString &parser)
+template<typename ParserT> void SourceProcessor::cleanup_whitespace(ParserT &parser)
 {
   const string &str = parser.str();
 
@@ -262,14 +265,6 @@ void SourceProcessor::cleanup_whitespace(parser::MutableString &parser)
     parser.replace(first_not_whitespace + 1, last_whitespace, "");
   }
   parser.apply_mutations();
-}
-
-string SourceProcessor::cleanup_whitespace(const string &str)
-{
-  /* Remove trailing white space as they make the subsequent regex much slower. */
-  IntermediateForm<ExpressionLexer, DummyParser> parser(str, report_error_);
-  cleanup_whitespace(parser);
-  return parser.result_get();
 }
 
 /* Parse defines in order to output them with the create infos.

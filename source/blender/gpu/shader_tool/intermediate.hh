@@ -262,8 +262,9 @@ struct MutableString {
     insert_after(at, std::string(spaces, ' '));
   }
 
-  /* Return true if any mutation was applied. */
-  bool apply_mutations(const bool all_mutation_ordered = false);
+  /* Return true if any mutation was applied.
+   * Update lexer string view if needed. */
+  bool apply_mutations(LexerBase &lexer, const bool all_mutation_ordered = false);
 
   /* Get internal string. Does not apply pending mutation. */
   const std::string &str()
@@ -318,7 +319,7 @@ template<typename LexerClass, typename ParserClass> struct IntermediateForm : Mu
   /* Return true if any mutation was applied. */
   bool only_apply_mutations(const bool all_mutation_ordered = false)
   {
-    return static_cast<MutableString *>(this)->apply_mutations(all_mutation_ordered);
+    return static_cast<MutableString *>(this)->apply_mutations(lex_, all_mutation_ordered);
   }
 
   /* Apply pending mutation and parse the resulting string.

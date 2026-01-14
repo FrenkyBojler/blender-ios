@@ -1036,7 +1036,7 @@ void ParserBase::update_string_view()
                                            this->scope_types.size());
 }
 
-bool MutableString::apply_mutations(const bool all_mutation_ordered)
+bool MutableString::apply_mutations(LexerBase &lexer, const bool all_mutation_ordered)
 {
   if (mutations_.empty()) {
     return false;
@@ -1081,6 +1081,8 @@ bool MutableString::apply_mutations(const bool all_mutation_ordered)
   if (added_trailing_new_line) {
     str_.pop_back();
   }
+  /* String have changed. Update string view. */
+  lexer.str = str_;
   return true;
 }
 

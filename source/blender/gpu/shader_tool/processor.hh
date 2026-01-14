@@ -121,9 +121,7 @@ class SourceProcessor {
    * syntax. */
   std::string disabled_code_mutation(const std::string &str);
   /* Remove trailing white spaces. */
-  void cleanup_whitespace(parser::MutableString &parser);
-  /* Remove trailing white spaces. Version without Parser. */
-  std::string cleanup_whitespace(const std::string &str);
+  template<typename ParserT> void cleanup_whitespace(ParserT &parser);
   /* Successive mutations can introduce a lot of unneeded line directives. */
   void cleanup_line_directives(Parser &parser);
   /* Successive mutations can introduce a lot of unneeded blank lines. */
