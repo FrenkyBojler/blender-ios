@@ -39,6 +39,8 @@ class PassAccessor {
     bool use_approximate_shadow_catcher_background = false;
 
     bool show_active_pixels = false;
+
+    bool use_filter = true;
   };
 
   class Destination {

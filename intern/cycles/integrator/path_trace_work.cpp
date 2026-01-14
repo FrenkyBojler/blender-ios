@@ -177,6 +177,14 @@ PassAccessor::PassAccessInfo PathTraceWork::get_display_pass_access_info(PassMod
   if (pass_mode == PassMode::DENOISED) {
     pass_access_info.mode = PassMode::DENOISED;
     pass_access_info.offset = params.get_pass_offset(pass_access_info.type, PassMode::DENOISED);
+
+    if (effective_denoised_buffer_params_.width != effective_buffer_params_.width ||
+        effective_denoised_buffer_params_.height != effective_buffer_params_.height)
+    {
+      /* Avoid using sample count to filter pass after upscaling, since it is stored at a different
+       * resolution. The denoiser should have applied scaling again in this case. */
+      pass_access_info.use_filter = false;
+    }
   }
 
   if (pass_access_info.offset == PASS_UNUSED) {
