@@ -235,6 +235,30 @@ class GPNode:
         return f"<Node: {self.name} ({'Group' if self.is_group else 'Layer'})>"
     
 
+def get_node_sort_weight(node: GPNode, gpencil_obj: bpy.types.GreasePencil):
+    if not node.is_group:
+        return gpencil_obj.layers.find(node.data.name)
+    else:
+        max_weight = -1
+        
+        if not node.children:
+            return -1
+            
+        for child in node.children:
+            weight = get_node_sort_weight(child, gpencil_obj)
+            if weight > max_weight:
+                max_weight = weight
+        
+        return max_weight
+
+def sort_tree_recursive(nodes: list[GPNode], gpencil_obj: bpy.types.GreasePencil):
+    nodes.sort(key=lambda n: get_node_sort_weight(n, gpencil_obj), reverse=True)
+    
+    for node in nodes:
+        if node.is_group and node.children:
+            sort_tree_recursive(node.children, gpencil_obj)
+    
+
 def build_layer_tree(gpencil_obj: bpy.types.GreasePencil):
     root_nodes = []    
     group_map: dict[bpy.types.GreasePencilLayerGroup, GPNode] = {} 
@@ -269,15 +293,13 @@ def build_layer_tree(gpencil_obj: bpy.types.GreasePencil):
         if parent_group is None:
             root_nodes.append(group_node)
 
-    root_nodes.reverse() 
+    sort_tree_recursive(root_nodes, gpencil_obj)
     
     return root_nodes
 
 
 def draw_node(layout: bpy.types.UILayout, node: GPNode, gpencil_obj: bpy.types.GreasePencil):
     if node.is_group:
-        if len(node.children) == 0:
-            return
         layout.context_pointer_set("active_gpencil_layer_group", node.data)
         layout.menu("GREASE_PENCIL_MT_layer_group", text=node.data.name)
     else:
@@ -302,13 +324,15 @@ class GREASE_PENCIL_MT_layer_group(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator("grease_pencil.move_to_layer", text="New Layer", icon='ADD').add_new_layer = True
+        op = layout.operator("grease_pencil.move_to_layer", text="New Layer", icon='ADD')
+        op.add_new_layer = True
 
         layout.separator()
 
         target_group = getattr(context, "active_gpencil_layer_group", None)
         if not target_group:
             return
+        op.target_group_name = target_group.name
 
         grease_pencil = context.active_object.data
         
