@@ -1005,7 +1005,6 @@ static void generate_vertex_out(GeneratedStreams &generated,
     out << "  struct " << out_class_local << " {\n";
     out << builtins_decl;
     for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
-      out << "    /* " << iface->name << " */\n";
       for (const StageInterfaceInfo::InOut &inout : iface->inouts) {
         generate_inout(out, iface->instance_name, inout);
       }
