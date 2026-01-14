@@ -49,7 +49,7 @@
 
 namespace blender::ed::space_node {
 
-template<typename ContainerT> std::optional<Bounds<float2>> node_bounds_ex(const ContainerT &nodes)
+std::optional<Bounds<float2>> node_bounds(Span<const bNode *> nodes)
 {
   std::optional<Bounds<float2>> result = std::nullopt;
   for (const bNode *node : nodes) {
@@ -60,8 +60,7 @@ template<typename ContainerT> std::optional<Bounds<float2>> node_bounds_ex(const
   return result;
 }
 
-template<typename ContainerT>
-std::optional<Bounds<float2>> node_location_bounds_ex(const ContainerT &nodes)
+std::optional<Bounds<float2>> node_location_bounds(Span<const bNode *> nodes)
 {
   std::optional<Bounds<float2>> result = std::nullopt;
   for (const bNode *node : nodes) {
@@ -69,16 +68,6 @@ std::optional<Bounds<float2>> node_location_bounds_ex(const ContainerT &nodes)
     result = bounds::min_max(result, loc);
   }
   return result;
-}
-
-std::optional<Bounds<float2>> node_bounds(Span<const bNode *> nodes)
-{
-  return node_bounds_ex(nodes);
-}
-
-std::optional<Bounds<float2>> node_location_bounds(Span<const bNode *> nodes)
-{
-  return node_location_bounds_ex(nodes);
 }
 
 /* -------------------------------------------------------------------- */
@@ -676,9 +665,11 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
   nodes::update_node_declaration_and_sockets(tree, *io_nodes.output_node);
 
   /* Move group input/output nodes to the edges of the bounding box. */
-  if (const std::optional<Bounds<float2>> bounds = node_bounds_ex(
-          copied_nodes.node_map().values()))
-  {
+  Vector<const bNode *> nodes_vec;
+  for (const bNode *node : copied_nodes.node_map().values()) {
+    nodes_vec.append(node);
+  }
+  if (const std::optional<Bounds<float2>> bounds = node_bounds(nodes_vec)) {
     io_nodes.input_node->location[0] = bounds->min[0] - 200.0f;
     io_nodes.input_node->location[1] = bounds->center()[1];
     io_nodes.output_node->location[0] = bounds->max[0] + 50.0f;
