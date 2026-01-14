@@ -23,7 +23,9 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_keying_cc {
+namespace blender {
+
+namespace nodes::node_composite_keying_cc {
 
 static void cmp_node_keying_declare(NodeDeclarationBuilder &b)
 {
@@ -161,7 +163,7 @@ static void cmp_node_keying_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_keying(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, only kept for forward compatibility. */
-  NodeKeyingData *data = MEM_callocN<NodeKeyingData>(__func__);
+  NodeKeyingData *data = MEM_new_for_free<NodeKeyingData>(__func__);
   node->storage = data;
 }
 
@@ -241,7 +243,7 @@ class KeyingOperation : public NodeOperation {
 
     Result blurred_chroma = context().create_result(ResultType::Color);
     symmetric_separable_blur(
-        context(), chroma, blurred_chroma, float2(blur_size) / 2, R_FILTER_BOX);
+        context(), chroma, blurred_chroma, float2(blur_size) / 2, math::FilterKernel::Box);
     chroma.release();
 
     Result blurred_input = replace_input_chroma(blurred_chroma);
@@ -661,7 +663,7 @@ class KeyingOperation : public NodeOperation {
 
     Result blurred_matte = context().create_result(ResultType::Float);
     symmetric_separable_blur(
-        context(), input_matte, blurred_matte, float2(blur_size) / 2, R_FILTER_BOX);
+        context(), input_matte, blurred_matte, float2(blur_size) / 2, math::FilterKernel::Box);
 
     return blurred_matte;
   }
@@ -811,18 +813,18 @@ class KeyingOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new KeyingOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_keying_cc
+}  // namespace nodes::node_composite_keying_cc
 
 static void register_node_type_cmp_keying()
 {
-  namespace file_ns = blender::nodes::node_composite_keying_cc;
+  namespace file_ns = nodes::node_composite_keying_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeKeying", CMP_NODE_KEYING);
   ntype.ui_name = "Keying";
@@ -833,11 +835,13 @@ static void register_node_type_cmp_keying()
   ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_keying_declare;
   ntype.initfunc = file_ns::node_composit_init_keying;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeKeyingData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  blender::bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
+  bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_keying)
+
+}  // namespace blender

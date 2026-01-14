@@ -228,9 +228,6 @@ set(SRC
   ${DEFSRC}
   ${APISRC}
   ../../../../intern/clog/clog.cc
-  # Needed for defaults.
-  ../../../../release/datafiles/userdef/userdef_default.c
-  ../../../../release/datafiles/userdef/userdef_default_theme.c
 
   makesrna_utils.hh
 )
@@ -415,6 +412,7 @@ target_link_libraries(makesrna PRIVATE bf::intern::atomic)
 target_link_libraries(makesrna PRIVATE bf::intern::guardedalloc)
 target_link_libraries(makesrna PRIVATE bf_dna_blenlib)
 target_link_libraries(makesrna PRIVATE bf::extern::fmtlib)
+target_link_libraries(makesrna PRIVATE bf_dna_defaults)
 target_link_libraries(makesrna PRIVATE bf::dependencies::optional::tbb)
 target_link_libraries(makesrna PRIVATE bf::dependencies::pthreads)
 
@@ -440,6 +438,7 @@ set(SRC
   ${SRC_RNA_INC}
   rna_access_internal.hh
   rna_curves_utils.hh
+  rna_defaults.hh
   rna_internal.hh
   rna_internal_types.hh
   rna_screen_utils.hh
