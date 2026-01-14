@@ -33,7 +33,7 @@ VertIn input_assembly(uint in_vertex_id)
 
   VertIn vert_in;
   vert_in.ls_P = gpu_attr_load_float3(pos, gpu_attr_0, v_i);
-  vert_in.radius = rad[gpu_attr_load_index(v_i, gpu_attr_1)];
+  vert_in.radius = rad[gpu_attr_load_index(v_i, gpu_attr_1)] * 1.5f;
   vert_in.e_data = data[gpu_attr_load_index(v_i, gpu_attr_2)];
   vert_in.sel = selection[gpu_attr_load_index(v_i, gpu_attr_3)];
   return vert_in;
