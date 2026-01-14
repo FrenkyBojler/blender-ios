@@ -45,6 +45,7 @@ struct bGPdata;
 struct bNodeTree;
 struct wmOperator;
 struct wmTimer;
+struct SpaceUserPref_Runtime;
 
 namespace asset_system {
 class AssetRepresentation;
@@ -966,7 +967,7 @@ struct SpaceUserPref {
   char filter_type = 0;
   /** Search term for filtering in the UI. */
   char filter[64] = "";
-  struct SpaceUserPref_Runtime *runtime = nullptr;
+  SpaceUserPref_Runtime *runtime = nullptr;
 };
 
 /** \} */
