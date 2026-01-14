@@ -1032,6 +1032,7 @@ void filelist_settype(FileList *filelist, short type)
     case FILE_ASSET_LIBRARY_ALL:
       filelist->check_dir_fn = filelist_checkdir_return_always_valid;
       filelist->start_job_fn = filelist_start_job_all_asset_library;
+      filelist->timer_step_fn = filelist_timer_step_remote_asset_library;
       filelist->read_job_fn = filelist_readjob_all_asset_library;
       filelist->prepare_filter_fn = prepare_filter_asset_library;
       filelist->filter_fn = is_filtered_asset_library;
@@ -3594,6 +3595,7 @@ static void filelist_start_job_all_asset_library(FileListReadJob *job_params)
   });
 }
 
+/* This may also be called for the "All" asset library. */
 static void filelist_timer_step_remote_asset_library(FileListReadJob *job_params)
 {
   for (auto [url, request] : job_params->remote_library_requests.items()) {
