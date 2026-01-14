@@ -395,6 +395,9 @@ static void *get_arraystore_data(const BArrayState *state,
 /**
  * \note There is no room for data going out of sync here.
  * The layers and the states are stored together so this can be kept working.
+ *
+ * \note Non-trivial arrays may have null sharing_info when the mesh has no elements
+ * on the corresponding layer domain.
  */
 static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
                                     CustomData *cdata,
@@ -415,6 +418,11 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
 
     if (bcd->non_trivial_arrays.contains(type)) {
       const ImplicitSharingInfoAndData &state = bcd->non_trivial_arrays.lookup(type)[i];
+      if (!state.sharing_info) {
+        layer.data = nullptr;
+        layer.sharing_info = nullptr;
+        continue;
+      }
       layer.data = const_cast<void *>(state.data);
       layer.sharing_info = state.sharing_info;
       layer.sharing_info->add_user();
@@ -466,7 +474,9 @@ static void um_arraystore_cd_free(BArrayCustomData *bcd, const int bs_index)
 
   for (Vector<ImplicitSharingInfoAndData> &states : bcd->non_trivial_arrays.values()) {
     for (ImplicitSharingInfoAndData &state : states) {
-      state.sharing_info->remove_user_and_delete_if_last();
+      if (state.sharing_info) {
+        state.sharing_info->remove_user_and_delete_if_last();
+      }
     }
   }
 
