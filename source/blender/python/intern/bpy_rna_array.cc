@@ -71,8 +71,7 @@ static int validate_array_type(PyObject *seq,
                                const char *item_type_str,
                                const char *error_prefix);
 
-static int validate_array_type_fast(PyObject **seq_items,
-                                    int seq_size,
+static int validate_array_type_fast(PyObject *seq_fast,
                                     int dim,
                                     int totdim,
                                     int dimsize[],
@@ -81,6 +80,12 @@ static int validate_array_type_fast(PyObject **seq_items,
                                     const char *item_type_str,
                                     const char *error_prefix)
 {
+  /* Ensure this is the result of `PySequence_Fast`. */
+  BLI_assert(PyList_Check(seq_fast) || PyTuple_Check(seq_fast));
+
+  const int seq_size = PySequence_Fast_GET_SIZE(seq_fast);
+  PyObject **seq_items = PySequence_Fast_ITEMS(seq_fast);
+
   /* not the last dimension */
   if (dim + 1 < totdim) {
     /* check that a sequence contains dimsize[dim] items */
@@ -181,19 +186,8 @@ static int validate_array_type(PyObject *seq,
   if (seq_fast == nullptr) {
     return -1;
   }
-
-  const int seq_size = PySequence_Fast_GET_SIZE(seq_fast);
-  PyObject **seq_items = PySequence_Fast_ITEMS(seq_fast);
-
-  const int result = validate_array_type_fast(seq_items,
-                                              seq_size,
-                                              dim,
-                                              totdim,
-                                              dimsize,
-                                              is_dynamic,
-                                              check_item_type,
-                                              item_type_str,
-                                              error_prefix);
+  const int result = validate_array_type_fast(
+      seq_fast, dim, totdim, dimsize, is_dynamic, check_item_type, item_type_str, error_prefix);
   Py_DECREF(seq_fast);
   return result;
 }
