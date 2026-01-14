@@ -259,6 +259,12 @@ struct DeadCodeEliminator
 
   void prune_unused_functions()
   {
+    FnId main_id = graph.names.lookup_default("main", -1);
+    if (main_id == -1) {
+      /* Can be true inside tests. */
+      return;
+    }
+
     Vector<FnId> entry_points{graph.names.lookup("main")};
     /* TODO(fclem): Properly support forward declaration. */
     if (graph.names.contains("nodetree_displacement")) {
