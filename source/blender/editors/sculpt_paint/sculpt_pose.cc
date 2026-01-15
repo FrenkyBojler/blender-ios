@@ -937,7 +937,7 @@ static std::unique_ptr<IKChain> ik_chain_init_topology(const Depsgraph &depsgrap
                                                           std::numeric_limits<float>::max(),
                                                           true);
       if (nearest) {
-         nearest_vertex_index = *nearest;
+        nearest_vertex_index = *nearest;
       }
       break;
     }
