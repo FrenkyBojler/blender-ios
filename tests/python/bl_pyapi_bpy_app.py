@@ -17,8 +17,6 @@ import bpy
 
 class AppCachedirTest(unittest.TestCase):
     def test_app_cachedir(self) -> None:
-        cache_dir = bpy.app.cachedir
-
         match sys.platform:
             case 'darwin':
                 expect = '$HOME/Library/Caches/Blender/'
@@ -28,7 +26,7 @@ class AppCachedirTest(unittest.TestCase):
                 expect = '$HOME/.cache/blender/'
         expect = os.path.expandvars(expect)
 
-        self.assertEqual(expect, cache_dir)
+        self.assertEqual(expect, bpy.app.cachedir)
 
 
 def main():
