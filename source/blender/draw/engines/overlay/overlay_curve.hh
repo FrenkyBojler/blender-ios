@@ -85,20 +85,18 @@ class Curves : Overlay {
       pass.init();
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
+      DRWState drw_state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | DRW_STATE_WRITE_DEPTH;
+      drw_state |= state.xray_flag_enabled ? DRW_STATE_DEPTH_ALWAYS : DRW_STATE_DEPTH_LESS_EQUAL;
       {
         auto &sub = pass.sub("Handles");
-        sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA |
-                          DRW_STATE_WRITE_DEPTH,
-                      state.clipping_plane_count);
+        sub.state_set(drw_state, state.clipping_plane_count);
         sub.shader_set(res.shaders->curve_edit_handles.get());
         sub.push_constant("curve_handle_display", int(state.overlay.handle_display));
         edit_curves_handles_ = &sub;
       }
       {
         auto &sub = pass.sub("Points");
-        sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA |
-                          DRW_STATE_WRITE_DEPTH,
-                      state.clipping_plane_count);
+        sub.state_set(drw_state, state.clipping_plane_count);
         sub.shader_set(res.shaders->curve_edit_points.get());
         sub.bind_texture("weight_tx", &res.weight_ramp_tx);
         sub.push_constant("use_weight", false);
