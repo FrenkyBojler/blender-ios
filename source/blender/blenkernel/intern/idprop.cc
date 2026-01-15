@@ -2147,35 +2147,77 @@ void IDP_TryConvertProperty(ID *id,
     return;
   }
 
-  double value = [&]() -> double {
+  /* Store single value or entire array then paste them to new idproperty type. */
+  Vector<double> value = [&]() -> Vector<double> {
+    Vector<double> value;
     switch (src_type) {
-      case IDP_UI_DATA_TYPE_INT:
-        return (src->type == IDP_ARRAY) ? *IDP_array_int_get(src) : IDP_int_get(src);
-      case IDP_UI_DATA_TYPE_FLOAT:
-        return (src->type == IDP_ARRAY) ? *IDP_array_double_get(src) : IDP_double_get(src);
-      case IDP_UI_DATA_TYPE_BOOLEAN:
-        return (src->type == IDP_ARRAY) ? *IDP_array_bool_get(src) : IDP_bool_get(src);
+      case IDP_UI_DATA_TYPE_INT: {
+        if (src->type != IDP_ARRAY) {
+          value.append(IDP_int_get(src));
+          return value;
+        }
+        int *int_array = IDP_array_int_get(src);
+        for (int i = 0; i < src->len; i++) {
+          value.append(int_array[i]);
+        }
+        return value;
+      }
+      case IDP_UI_DATA_TYPE_FLOAT: {
+        if (src->type != IDP_ARRAY) {
+          value.append(IDP_double_get(src));
+          return value;
+        }
+        double *double_array = IDP_array_double_get(src);
+        for (int i = 0; i < src->len; i++) {
+          value.append(double_array[i]);
+        }
+        return value;
+      }
+      case IDP_UI_DATA_TYPE_BOOLEAN: {
+        if (src->type != IDP_ARRAY) {
+          value.append(IDP_bool_get(src));
+          return value;
+        }
+        int8_t *bool_array = IDP_array_bool_get(src);
+        for (int i = 0; i < src->len; i++) {
+          value.append(bool_array[i]);
+        }
+        return value;
+      }
       case IDP_UI_DATA_TYPE_STRING: {
         if (const char *str = IDP_string_get(src)) {
-          return std::stod(str);
+          value.append(std::stod(str));
+          return value;
         }
-        return 0;
+        value.append(0);
+        return value;
       }
       case IDP_UI_DATA_TYPE_ID:
-        return 0;
+        value.append(0);
+        return value;
       default:
         break;
     }
-    return 0;
+    return value;
   }();
 
+  /* Free previous pointer before changing the type. */
   if (src->type == IDP_ID) {
     src->data.pointer = nullptr;
   }
   else {
     MEM_SAFE_FREE(src->data.pointer);
   }
-  const int len = (src->type == IDP_STRING) ? 0 : src->len;
+
+
+  const int array_len = [&]() -> int {
+    if (src->type == IDP_STRING) {
+      return std::min(DEFAULT_ARRAY_LENGTH, src->len);
+    }
+    return src->len > 1 ? src->len : DEFAULT_ARRAY_LENGTH;
+  }();
+
+  /* Change property type and reset array length. */
   src->type = type;
   src->subtype = sub_type;
   src->len = 0;
@@ -2183,47 +2225,46 @@ void IDP_TryConvertProperty(ID *id,
 
   switch (dst_type) {
     case IDP_UI_DATA_TYPE_INT: {
-      const int int_value = int(value);
       if (type == IDP_ARRAY) {
-        src->len = std::max(DEFAULT_ARRAY_LENGTH, len);
+        src->len = array_len;
         src->data.pointer = MEM_calloc_arrayN<int>(size_t(src->len), __func__);
         for (int i = 0; i < src->len; i++) {
-          static_cast<int *>(src->data.pointer)[i] = int_value;
+          static_cast<int *>(src->data.pointer)[i] = int((value.size() == 1) ? value[0] : value[i]);
         }
         break;
       }
 
-      IDP_int_set(src, int_value);
+      IDP_int_set(src, int(value[0]));
       break;
     }
     case IDP_UI_DATA_TYPE_BOOLEAN: {
-      const int8_t bool_value = int8_t(value);
       if (type == IDP_ARRAY) {
-        src->len = std::max(DEFAULT_ARRAY_LENGTH, len);
+        src->len = array_len;
         src->data.pointer = MEM_calloc_arrayN<int8_t>(size_t(src->len), __func__);
         for (int i = 0; i < src->len; i++) {
-          static_cast<int8_t *>(src->data.pointer)[i] = bool_value;
+          static_cast<int8_t *>(src->data.pointer)[i] = int8_t((value.size() == 1) ? value[0] :
+                                                                                   value[i]);
         }
         break;
       }
 
-      IDP_bool_set(src, bool_value);
+      IDP_bool_set(src, int8_t(value[0]));
       break;
     }
     case IDP_UI_DATA_TYPE_FLOAT: {
       if (type == IDP_ARRAY) {
-        src->len = std::max(DEFAULT_ARRAY_LENGTH, len);
+        src->len = array_len;
         src->data.pointer = MEM_calloc_arrayN<double>(size_t(src->len), __func__);
         for (int i = 0; i < src->len; i++) {
-          static_cast<double *>(src->data.pointer)[i] = value;
+          static_cast<double *>(src->data.pointer)[i] = (value.size() == 1) ? value[0] : value[i];
         }
         break;
       }
-      IDP_double_set(src, value);
+      IDP_double_set(src, value[0]);
       break;
     }
     case IDP_UI_DATA_TYPE_STRING: {
-      std::string str = std::to_string(value);
+      std::string str = std::to_string(value[0]);
       IDP_AssignString(src, str.c_str());
       break;
     }
