@@ -1144,8 +1144,6 @@ class MetadataProviderFilesystem(MetadataProvider):
 
         try:
             meta_json = meta_path.read_bytes()
-            # FOR TESTING: keep the file open for a bit, to force conflicts.
-            time.sleep(0.3)
         finally:
             unlocker(meta_file)
 
