@@ -68,8 +68,16 @@ void VKRenderGraph::build()
     std::cerr << "[RenderGraph] Success: All cycles removed.\n";
   }
   
-  // Perform topological sort
-  topological_sort_stable();
+  // Perform topological sort - PARALLEL
+  #pragma omp parallel for
+for (int64_t i = 0; i < nodes_.size(); i++) {
+    // Insert nodes[i] into thread-safe DrawTree keyed by node_id
+    draw_tree.insert({nodes_[i], links_[i], i}); 
+}
+draw_tree.traverse_in_order([&](auto &entry){
+    nodes_[entry.orig_idx] = entry.node;
+    links_[entry.orig_idx] = entry.links;
+});
   
   // Final validation
   if (!validate_execution_order()) {
