@@ -67,6 +67,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool remove = params.extract_input<bool>("Remove");
 
   if (!Bundle::is_valid_path(path)) {
+    if (!path.empty()) {
+      params.error_message_add(NodeWarningType::Warning, "Invalid bundle path");
+    }
     params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
     return;
@@ -75,7 +78,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const BundleItemValue *value = bundle->lookup_path(path);
   if (!value) {
     if (!params.output_is_required("Exists")) {
-      params.error_message_add(NodeWarningType::Error, "Bundle path not found");
+      params.error_message_add(NodeWarningType::Warning, "Bundle path not found");
     }
     params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();

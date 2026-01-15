@@ -62,6 +62,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const std::string path = params.extract_input<std::string>("Path");
   if (!Bundle::is_valid_path(path)) {
+    if (!path.empty()) {
+      params.error_message_add(NodeWarningType::Warning, "Invalid bundle path");
+    }
     params.set_output("Bundle", std::move(bundle_ptr));
     return;
   }
