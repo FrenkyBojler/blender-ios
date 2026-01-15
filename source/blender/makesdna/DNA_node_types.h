@@ -3842,4 +3842,12 @@ struct NodeFunctionFormatString {
   char _pad[4] = {};
 };
 
+struct NodeGeometryListGetItem {
+  /** #eNodeSocketDatatype. */
+  int16_t socket_type = SOCK_FLOAT;
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+  char _pad = {};
+};
+
 }  // namespace blender
