@@ -314,6 +314,18 @@ id<MTLTexture> gpu::MTLTexture::get_metal_handle_base()
   return nil;
 }
 
+void gpu::MTLTexture::name_set(const char *name)
+{
+  if (name) {
+    STRNCPY(name_, name);
+  }
+  else {
+    name_[0] = '\0';
+  }
+  texture_.label = [NSString stringWithUTF8String:this->get_name()];
+}
+
+
 void gpu::MTLTexture::blit(id<MTLBlitCommandEncoder> blit_encoder,
                            uint src_x_offset,
                            uint src_y_offset,

@@ -304,6 +304,8 @@ class MTLTexture : public Texture {
     return name_.c_str();
   }
 
+  void name_set(const char *name) override;
+
   bool has_custom_swizzle()
   {
     return (mtl_swizzle_mask_.red != MTLTextureSwizzleRed ||
