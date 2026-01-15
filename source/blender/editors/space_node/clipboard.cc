@@ -289,13 +289,16 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   for (Scene &scene : bmain_dst->scenes) {
     /* Packed scenes are currently not needed so they are skipped.
      * TODO: Support packed scenes. */
-    if (scene.id.lib && scene.id.lib->archive_parent_library) {
+    if (ID_IS_PACKED(&scene.id)) {
       continue;
     }
     dst_scenes.add({scene.id.name, scene_lib_filepath(scene)});
   }
 
   for (Scene &scene : bmain_src->scenes.items_mutable()) {
+    if (ID_IS_PACKED(&scene.id)) {
+      continue;
+    }
     /* All scenes that will be added through merging the two bmains are removed. */
     if (!dst_scenes.contains({scene.id.name, scene_lib_filepath(scene)})) {
       BKE_id_delete(bmain_src, &scene.id);
