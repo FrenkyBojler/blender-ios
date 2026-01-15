@@ -587,40 +587,23 @@ int delete_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna
   }
   bAction *act = adt->action;
   cfra = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
-  int array_index = rna_path.index.value_or(0);
-  int array_index_max = array_index + 1;
-
-  if (!rna_path.index.has_value()) {
-    array_index_max = RNA_property_array_length(&ptr, prop);
-    /* For single properties, increase max_index so that the property itself gets included,
-     * but don't do this for standard arrays since that can cause corruption issues
-     * (extra unused curves).
-     */
-    if (array_index_max == array_index) {
-      array_index_max++;
-    }
-  }
+  const int index = rna_path.index.value_or(-1);
+  const bool modify_all_indices = index == -1;
 
   Action &action = act->wrap();
   Vector<FCurve *> modified_fcurves;
-  /* Just being defensive in the face of the NLA shenanigans above. This
-   * probably isn't necessary, but it doesn't hurt. */
   BLI_assert(adt->action == act && action.slot_for_handle(adt->slot_handle) != nullptr);
-
-  Span<FCurve *> fcurves = fcurves_for_action_slot(action, adt->slot_handle);
-  /* This loop's clause is copied from the pre-existing code for legacy
-   * actions below, to ensure behavioral consistency between the two code
-   * paths. In the future when legacy actions are removed, we can restructure
-   * it to be clearer. */
-  for (; array_index < array_index_max; array_index++) {
-    FCurve *fcurve = fcurve_find(fcurves, {rna_path.path, array_index});
-    if (fcurve == nullptr) {
-      continue;
+  foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+    if (StringRefNull(fcurve.rna_path) != rna_path.path) {
+      return;
     }
-    if (fcurve_delete_keyframe_at_time(fcurve, cfra)) {
-      modified_fcurves.append(fcurve);
+    if (!modify_all_indices && index != fcurve.array_index) {
+      return;
     }
-  }
+    if (fcurve_delete_keyframe_at_time(&fcurve, cfra)) {
+      modified_fcurves.append(&fcurve);
+    }
+  });
 
   if (!modified_fcurves.is_empty()) {
     for (FCurve *fcurve : modified_fcurves) {
