@@ -12,13 +12,16 @@
 
 #include "BKE_context.hh"
 #include "BKE_material.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 
 #include "WM_toolsystem.hh"
 
 #include "ED_paint.hh"
 
-namespace blender::ed::sculpt_paint::canvas {
+namespace blender {
+
+namespace ed::sculpt_paint::canvas {
 static TexPaintSlot *get_active_slot(Object &ob)
 {
   Material *mat = BKE_object_material_get(&ob, ob.actcol);
@@ -36,12 +39,12 @@ static TexPaintSlot *get_active_slot(Object &ob)
   return slot;
 }
 
-}  // namespace blender::ed::sculpt_paint::canvas
+}  // namespace ed::sculpt_paint::canvas
 
 using namespace blender::ed::sculpt_paint::canvas;
 
 /* Does the paint tool with the given idname use a canvas. */
-static bool paint_tool_uses_canvas(blender::StringRef idname)
+static bool paint_tool_uses_canvas(StringRef idname)
 {
   return ELEM(idname, "builtin.color_filter");
 }
@@ -54,10 +57,13 @@ static bool paint_brush_uses_canvas(bContext *C)
     return false;
   }
 
-  return ELEM(brush->sculpt_brush_type, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
+  return ELEM(brush->sculpt_brush_type,
+              SCULPT_BRUSH_TYPE_PAINT,
+              SCULPT_BRUSH_TYPE_SMEAR,
+              SCULPT_BRUSH_TYPE_BLUR);
 }
 
-static bool paint_brush_type_shading_color_follows_last_used(blender::StringRef idname)
+static bool paint_brush_type_shading_color_follows_last_used(StringRef idname)
 {
   /* TODO(jbakker): complete this list. */
   return ELEM(idname, "builtin_brush.Mask");
@@ -65,7 +71,7 @@ static bool paint_brush_type_shading_color_follows_last_used(blender::StringRef 
 
 void ED_paint_brush_type_update_sticky_shading_color(bContext *C, Object *ob)
 {
-  if (ob == nullptr || ob->sculpt == nullptr) {
+  if (ob == nullptr || ob->runtime->sculpt_session == nullptr) {
     return;
   }
 
@@ -78,13 +84,13 @@ void ED_paint_brush_type_update_sticky_shading_color(bContext *C, Object *ob)
     return;
   }
 
-  ob->sculpt->sticky_shading_color = paint_tool_uses_canvas(tref->idname) ||
-                                     paint_brush_uses_canvas(C);
+  ob->runtime->sculpt_session->sticky_shading_color = paint_tool_uses_canvas(tref->idname) ||
+                                                      paint_brush_uses_canvas(C);
 }
 
 static bool paint_brush_type_shading_color_follows_last_used_tool(bContext *C, Object *ob)
 {
-  if (ob == nullptr || ob->sculpt == nullptr) {
+  if (ob == nullptr || ob->runtime->sculpt_session == nullptr) {
     return false;
   }
 
@@ -98,6 +104,8 @@ static bool paint_brush_type_shading_color_follows_last_used_tool(bContext *C, O
 
 bool ED_paint_brush_type_use_canvas(bContext *C, bToolRef *tref)
 {
+  BLI_assert(C || tref);
+
   if (tref == nullptr) {
     tref = WM_toolsystem_ref_from_context(C);
   }
@@ -105,7 +113,7 @@ bool ED_paint_brush_type_use_canvas(bContext *C, bToolRef *tref)
     return false;
   }
 
-  return paint_tool_uses_canvas(tref->idname) || paint_brush_uses_canvas(C);
+  return paint_tool_uses_canvas(tref->idname) || (C && paint_brush_uses_canvas(C));
 }
 
 eV3DShadingColorType ED_paint_shading_color_override(bContext *C,
@@ -122,7 +130,7 @@ eV3DShadingColorType ED_paint_shading_color_override(bContext *C,
    */
   if (!ED_paint_brush_type_use_canvas(C, nullptr) &&
       !(paint_brush_type_shading_color_follows_last_used_tool(C, &ob) &&
-        ob.sculpt->sticky_shading_color))
+        ob.runtime->sculpt_session->sticky_shading_color))
   {
     return orig_color_type;
   }
@@ -154,3 +162,5 @@ eV3DShadingColorType ED_paint_shading_color_override(bContext *C,
 
   return color_type;
 }
+
+}  // namespace blender

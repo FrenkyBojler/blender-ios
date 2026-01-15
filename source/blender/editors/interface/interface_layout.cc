@@ -47,7 +47,9 @@
 #include "fmt/format.h"
 #include "interface_intern.hh"
 
-namespace blender::ui {
+namespace blender {
+
+namespace ui {
 
 struct ButtonItem;
 
@@ -62,10 +64,14 @@ struct ButtonItem;
 /** \name Structs and Defines
  * \{ */
 
-#define UI_OPERATOR_ERROR_RET(_ot, _opname) \
+/**
+ * \param _caller_fn_name: A friendly function name of the caller for tracing layout item operator
+ * warnings, matching the RNA struct function name. For example `"UILayout.operator()"`
+ */
+#define UI_OPERATOR_ERROR_RET(_ot, _opname, _caller_fn_name) \
   if (ot == nullptr) { \
     ui_item_disabled(this, _opname); \
-    RNA_warning("'%s' unknown operator", _opname); \
+    RNA_warning_bare("%s: '%s' unknown operator", _caller_fn_name, _opname); \
     return PointerRNA_NULL; \
   } \
   (void)0
@@ -826,7 +832,7 @@ static void ui_item_enum_expand_handle(bContext *C, void *arg1, void *arg2)
   wmWindow *win = CTX_wm_window(C);
 
   if ((win->runtime->eventstate->modifier & KM_SHIFT) == 0) {
-    Button *but = (Button *)arg1;
+    Button *but = static_cast<Button *>(arg1);
     const int enum_value = POINTER_AS_INT(arg2);
 
     int current_value = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
@@ -1045,7 +1051,7 @@ static void ui_keymap_but_cb(bContext * /*C*/, void *but_v, void * /*key_v*/)
 {
   Button *but = static_cast<Button *>(but_v);
   BLI_assert(but->type == ButtonType::HotkeyEvent);
-  const ButtonHotkeyEvent *hotkey_but = (ButtonHotkeyEvent *)but;
+  const ButtonHotkeyEvent *hotkey_but = static_cast<ButtonHotkeyEvent *>(but);
 
   RNA_int_set(
       &but->rnapoin, "shift", (hotkey_but->modifier_key & KM_SHIFT) ? KM_MOD_HELD : KM_NOTHING);
@@ -1065,6 +1071,8 @@ static void ui_keymap_but_cb(bContext * /*C*/, void *but_v, void * /*key_v*/)
  * \param w_hint: For varying width layout, this becomes the label width.
  *                Otherwise it's used to fit both items into it.
  * \param button_type: Overrides the default button type for \a prop, see #uiDefAutoButR.
+ * \param caller_fn_name: A friendly function name of the caller for tracing keymap item warnings,
+ * matching the RNA struct function name. For example `"UILayout.prop()"`.
  */
 static Button *ui_item_with_label(Layout *layout,
                                   Block *block,
@@ -1078,7 +1086,8 @@ static Button *ui_item_with_label(Layout *layout,
                                   const int w_hint,
                                   const int h,
                                   const int flag,
-                                  std::optional<ButtonType> button_type_override = std::nullopt)
+                                  std::optional<ButtonType> button_type_override,
+                                  const char *caller_fn_name)
 {
   Layout *sub = layout;
   int prop_but_width = w_hint;
@@ -1091,8 +1100,9 @@ static Button *ui_item_with_label(Layout *layout,
 
   const bool is_keymapitem_ptr = RNA_struct_is_a(ptr->type, &RNA_KeyMapItem);
   if ((flag & ITEM_R_FULL_EVENT) && !is_keymapitem_ptr) {
-    RNA_warning("Data is not a keymap item struct: %s. Ignoring 'full_event' option.",
-                RNA_struct_identifier(ptr->type));
+    RNA_warning_bare("%s: Data is not a keymap item struct: %s. Ignoring 'full_event' option.",
+                     caller_fn_name,
+                     RNA_struct_identifier(ptr->type));
   }
 
   block_layout_set_current(block, layout);
@@ -1491,7 +1501,7 @@ PointerRNA Layout::op(const StringRefNull opname,
                       const eUI_Item_Flag flag)
 {
   wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str());
+  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), "UILayout.operator()");
   return this->op(ot, name, icon, context, flag);
 }
 
@@ -1514,7 +1524,9 @@ void Layout::op_enum_items(wmOperatorType *ot,
 {
   const StringRefNull propname = RNA_property_identifier(prop);
   if (RNA_property_type(prop) != PROP_ENUM) {
-    RNA_warning("%s.%s, not an enum type", RNA_struct_identifier(ptr.type), propname.c_str());
+    RNA_warning_bare("UILayout.operator_enum_items(): %s.%s, not an enum type",
+                     RNA_struct_identifier(ptr.type),
+                     propname.c_str());
     return;
   }
 
@@ -1648,7 +1660,9 @@ void Layout::op_enum(const StringRefNull opname,
 
   if (!ot || !ot->srna) {
     ui_item_disabled(this, opname.c_str());
-    RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname.c_str());
+    RNA_warning_bare("UILayout.operator_enum(): %s '%s'",
+                     ot ? "operator missing srna" : "unknown operator",
+                     opname.c_str());
     return;
   }
 
@@ -1696,11 +1710,15 @@ void Layout::op_enum(const StringRefNull opname,
     }
   }
   else if (prop && RNA_property_type(prop) != PROP_ENUM) {
-    RNA_warning("%s.%s, not an enum type", RNA_struct_identifier(ptr.type), propname.c_str());
+    RNA_warning_bare("UILayout.operator_enum() %s.%s, not an enum type",
+                     RNA_struct_identifier(ptr.type),
+                     propname.c_str());
     return;
   }
   else {
-    RNA_warning("%s.%s not found", RNA_struct_identifier(ptr.type), propname.c_str());
+    RNA_warning_bare("UILayout.operator_enum() %s.%s not found",
+                     RNA_struct_identifier(ptr.type),
+                     propname.c_str());
     return;
   }
 }
@@ -2225,7 +2243,20 @@ void Layout::prop(PointerRNA *ptr,
   }
   /* property with separate label */
   else if (ELEM(type, PROP_ENUM, PROP_STRING, PROP_POINTER)) {
-    but = ui_item_with_label(layout, block, name, icon, ptr, prop, index, 0, 0, w, h, flag);
+    but = ui_item_with_label(layout,
+                             block,
+                             name,
+                             icon,
+                             ptr,
+                             prop,
+                             index,
+                             0,
+                             0,
+                             w,
+                             h,
+                             flag,
+                             std::nullopt,
+                             "UILayout.prop()");
 
     if (is_id_name_prop) {
       Main *bmain = CTX_data_main(static_cast<bContext *>(block->evil_C));
@@ -2361,7 +2392,9 @@ void Layout::prop(PointerRNA *ptr,
 
   if (!prop) {
     ui_item_disabled(this, propname.c_str());
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    RNA_warning_bare("UILayout.prop(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname.c_str());
     return;
   }
 
@@ -2390,10 +2423,10 @@ void Layout::prop_with_popover(PointerRNA *ptr,
   if (i == block->buttons.size()) {
     const StringRefNull propname = RNA_property_identifier(prop);
     ui_item_disabled(this, panel_type);
-    RNA_warning("property could not use a popover: %s.%s (%s)",
-                RNA_struct_identifier(ptr->type),
-                propname.c_str(),
-                panel_type);
+    RNA_warning_bare("UILayout.prop_with_popover(): property could not use a popover: %s.%s (%s)",
+                     RNA_struct_identifier(ptr->type),
+                     propname.c_str(),
+                     panel_type);
   }
 }
 
@@ -2420,10 +2453,10 @@ void Layout::prop_with_menu(PointerRNA *ptr,
   if (i == block->buttons.size()) {
     const StringRefNull propname = RNA_property_identifier(prop);
     ui_item_disabled(this, menu_type);
-    RNA_warning("property could not use a menu: %s.%s (%s)",
-                RNA_struct_identifier(ptr->type),
-                propname.c_str(),
-                menu_type);
+    RNA_warning_bare("UILayout.prop_with_menu(): property could not use a menu: %s.%s (%s)",
+                     RNA_struct_identifier(ptr->type),
+                     propname.c_str(),
+                     menu_type);
   }
 }
 
@@ -2436,7 +2469,9 @@ void Layout::prop_enum(PointerRNA *ptr,
   if (RNA_property_type(prop) != PROP_ENUM) {
     const StringRefNull propname = RNA_property_identifier(prop);
     ui_item_disabled(this, propname.c_str());
-    RNA_warning("property not an enum: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    RNA_warning_bare("UILayout.prop_enum(): property not an enum: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname.c_str());
     return;
   }
 
@@ -2452,7 +2487,9 @@ void Layout::prop_enum(PointerRNA *ptr,
   if (UNLIKELY(RNA_property_type(prop) != PROP_ENUM)) {
     const StringRefNull propname = RNA_property_identifier(prop);
     ui_item_disabled(this, propname.c_str());
-    RNA_warning("not an enum property: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    RNA_warning_bare("UILayout.prop_enum(): not an enum property: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname.c_str());
     return;
   }
 
@@ -2468,7 +2505,7 @@ void Layout::prop_enum(PointerRNA *ptr,
       MEM_freeN(item);
     }
     ui_item_disabled(this, propname.c_str());
-    RNA_warning("enum property value not found: %s", value);
+    RNA_warning_bare("UILayout.prop_enum(): enum property value not found: %s", value);
     return;
   }
 
@@ -2501,8 +2538,9 @@ void Layout::prop_enum(PointerRNA *ptr,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
   if (UNLIKELY(prop == nullptr)) {
     ui_item_disabled(this, propname.c_str());
-    RNA_warning(
-        "enum property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    RNA_warning_bare("UILayout.prop_enum(): enum property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname.c_str());
     return;
   }
   this->prop_enum(ptr, prop, value, name, icon);
@@ -2516,13 +2554,16 @@ void Layout::props_enum(PointerRNA *ptr, const StringRefNull propname)
 
   if (!prop) {
     ui_item_disabled(this, propname.c_str());
-    RNA_warning(
-        "enum property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    RNA_warning_bare("UILayout.props_enum(): enum property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname.c_str());
     return;
   }
 
   if (RNA_property_type(prop) != PROP_ENUM) {
-    RNA_warning("not an enum property: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    RNA_warning_bare("UILayout.props_enum(): not an enum property: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname.c_str());
     return;
   }
 
@@ -2622,7 +2663,7 @@ void button_configure_search(Button *but,
     RNACollectionSearch *coll_search = MEM_new<RNACollectionSearch>(__func__);
 
     BLI_assert(but->type == ButtonType::SearchMenu);
-    ButtonSearch *search_but = (ButtonSearch *)but;
+    ButtonSearch *search_but = static_cast<ButtonSearch *>(but);
 
     if (searchptr) {
       search_but->rnasearchpoin = *searchptr;
@@ -2698,21 +2739,23 @@ void Layout::prop_search(PointerRNA *ptr,
 
   const PropertyType type = RNA_property_type(prop);
   if (!ELEM(type, PROP_POINTER, PROP_STRING, PROP_ENUM)) {
-    RNA_warning("Property %s.%s must be a pointer, string or enum",
-                RNA_struct_identifier(ptr->type),
-                RNA_property_identifier(prop));
+    RNA_warning_bare("UILayout.prop_search(): Property %s.%s must be a pointer, string or enum",
+                     RNA_struct_identifier(ptr->type),
+                     RNA_property_identifier(prop));
     return;
   }
   if (RNA_property_type(searchprop) != PROP_COLLECTION) {
-    RNA_warning("search collection property is not a collection type: %s.%s",
-                RNA_struct_identifier(searchptr->type),
-                RNA_property_identifier(searchprop));
+    RNA_warning_bare(
+        "UILayout.prop_search(): search collection property is not a collection type: %s.%s",
+        RNA_struct_identifier(searchptr->type),
+        RNA_property_identifier(searchprop));
     return;
   }
   if (item_searchprop && RNA_property_type(item_searchprop) != PROP_STRING) {
-    RNA_warning("Search collection items' property is not a string type: %s.%s",
-                RNA_struct_identifier(RNA_property_pointer_type(searchptr, searchprop)),
-                RNA_property_identifier(item_searchprop));
+    RNA_warning_bare(
+        "UILayout.prop_search(): Search collection items' property is not a string type: %s.%s",
+        RNA_struct_identifier(RNA_property_pointer_type(searchptr, searchprop)),
+        RNA_property_identifier(item_searchprop));
     return;
   }
 
@@ -2740,8 +2783,20 @@ void Layout::prop_search(PointerRNA *ptr,
   int w, h;
   ui_item_rna_size(this, name, icon, ptr, prop, 0, false, false, &w, &h);
   w += UI_UNIT_X; /* X icon needs more space */
-  Button *but = ui_item_with_label(
-      this, block, name, icon, ptr, prop, 0, 0, 0, w, h, 0, ButtonType::SearchMenu);
+  Button *but = ui_item_with_label(this,
+                                   block,
+                                   name,
+                                   icon,
+                                   ptr,
+                                   prop,
+                                   0,
+                                   0,
+                                   0,
+                                   w,
+                                   h,
+                                   0,
+                                   ButtonType::SearchMenu,
+                                   "UILayout.prop_search()");
   BLI_assert(but->type == ButtonType::SearchMenu);
   button_configure_search(
       but, ptr, prop, searchptr, searchprop, item_searchprop, results_are_suggestions);
@@ -2757,14 +2812,16 @@ void Layout::prop_search(PointerRNA *ptr,
   /* validate arguments */
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    RNA_warning_bare("UILayout.prop_search(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname.c_str());
     return;
   }
   PropertyRNA *searchprop = RNA_struct_find_property(searchptr, searchpropname.c_str());
   if (!searchprop) {
-    RNA_warning("search collection property not found: %s.%s",
-                RNA_struct_identifier(searchptr->type),
-                searchpropname.c_str());
+    RNA_warning_bare("UILayout.prop_search(): search collection property not found: %s.%s",
+                     RNA_struct_identifier(searchptr->type),
+                     searchpropname.c_str());
     return;
   }
 
@@ -2773,13 +2830,13 @@ void Layout::prop_search(PointerRNA *ptr,
 
 void item_menutype_func(bContext *C, Layout *layout, void *arg_mt)
 {
-  MenuType *mt = (MenuType *)arg_mt;
+  MenuType *mt = static_cast<MenuType *>(arg_mt);
   menutype_draw(C, mt, layout);
 }
 
 void item_paneltype_func(bContext *C, Layout *layout, void *arg_pt)
 {
-  PanelType *pt = (PanelType *)arg_pt;
+  PanelType *pt = static_cast<PanelType *>(arg_pt);
   UI_paneltype_draw(C, pt, layout);
 }
 
@@ -2842,7 +2899,7 @@ static Button *ui_item_menu(Layout *layout,
   if (argN) {
     /* ugly! */
     if (arg != argN) {
-      but->poin = (char *)but;
+      but->poin = reinterpret_cast<char *>(but);
     }
     but->func_argN = argN;
     but->func_argN_free_fn = func_argN_free_fn;
@@ -2887,7 +2944,7 @@ void Layout::menu(const StringRef menuname, const std::optional<StringRef> name,
 {
   MenuType *mt = WM_menutype_find(menuname, false);
   if (mt == nullptr) {
-    RNA_warning("not found %s", std::string(menuname).c_str());
+    RNA_warning_bare("UILayout.menu(): not found %s", std::string(menuname).c_str());
     return;
   }
   this->menu(mt, name, icon);
@@ -2897,7 +2954,7 @@ void Layout::menu_contents(const StringRef menuname)
 {
   MenuType *mt = WM_menutype_find(menuname, false);
   if (mt == nullptr) {
-    RNA_warning("not found %s", std::string(menuname).c_str());
+    RNA_warning_bare("UILayout.menu_contents(): not found %s", std::string(menuname).c_str());
     return;
   }
 
@@ -2940,17 +2997,17 @@ void Layout::decorator(PointerRNA *ptr, PropertyRNA *prop, int index)
 
   /* Loop for the array-case, but only do in case of an expanded array. */
   for (int i = 0; i < (is_expand ? RNA_property_array_length(ptr, prop) : 1); i++) {
-    ButtonDecorator *but = (ButtonDecorator *)uiDefIconBut(block,
-                                                           ButtonType::Decorator,
-                                                           ICON_DOT,
-                                                           0,
-                                                           0,
-                                                           UI_UNIT_X,
-                                                           UI_UNIT_Y,
-                                                           nullptr,
-                                                           0.0,
-                                                           0.0,
-                                                           TIP_("Animate property"));
+    ButtonDecorator *but = static_cast<ButtonDecorator *>(uiDefIconBut(block,
+                                                                       ButtonType::Decorator,
+                                                                       ICON_DOT,
+                                                                       0,
+                                                                       0,
+                                                                       UI_UNIT_X,
+                                                                       UI_UNIT_Y,
+                                                                       nullptr,
+                                                                       0.0,
+                                                                       0.0,
+                                                                       TIP_("Animate property")));
 
     button_func_set(but, button_anim_decorate_cb, but, nullptr);
     but->flag |= BUT_UNDO | BUT_DRAG_LOCK;
@@ -2972,8 +3029,9 @@ void Layout::decorator(PointerRNA *ptr, const std::optional<StringRefNull> propn
     prop = RNA_struct_find_property(ptr, propname->c_str());
     if (!prop) {
       ui_item_disabled(this, propname->c_str());
-      RNA_warning(
-          "property not found: %s.%s", RNA_struct_identifier(ptr->type), propname->c_str());
+      RNA_warning_bare("UILayout::decorator(): property not found: %s.%s",
+                       RNA_struct_identifier(ptr->type),
+                       propname->c_str());
       return;
     }
   }
@@ -3033,7 +3091,8 @@ void Layout::popover(const bContext *C,
 {
   PanelType *pt = WM_paneltype_find(panel_type, true);
   if (pt == nullptr) {
-    RNA_warning("Panel type not found '%s'", std::string(panel_type).c_str());
+    RNA_warning_bare("UILayout.popover(): Panel type not found '%s'",
+                     std::string(panel_type).c_str());
     return;
   }
   this->popover(C, pt, name_opt, icon);
@@ -3044,12 +3103,12 @@ void Layout::popover_group(
 {
   SpaceType *st = BKE_spacetype_from_id(space_id);
   if (st == nullptr) {
-    RNA_warning("space type not found %d", space_id);
+    RNA_warning_bare("UILayout.popover(): space type not found %d", space_id);
     return;
   }
   ARegionType *art = BKE_regiontype_from_id(st, region_id);
   if (art == nullptr) {
-    RNA_warning("region type not found %d", region_id);
+    RNA_warning_bare("UILayout.popover(): region type not found %d", region_id);
     return;
   }
 
@@ -3420,7 +3479,8 @@ PointerRNA Layout::op_menu_enum(const bContext *C,
    * individual menu items. */
   but->opptr = MEM_new<PointerRNA>("uiButOpPtr", WM_operator_properties_create_ptr(ot));
   BLI_assert(but->opptr->data == nullptr);
-  WM_operator_properties_alloc(&but->opptr, (IDProperty **)&but->opptr->data, ot->idname);
+  WM_operator_properties_alloc(
+      &but->opptr, reinterpret_cast<IDProperty **>(&but->opptr->data), ot->idname);
 
   /* add hotkey here, lower UI code can't detect it */
   if ((this->block()->flag & BLOCK_LOOP) && (ot->prop && ot->invoke)) {
@@ -3441,11 +3501,11 @@ PointerRNA Layout::op_menu_enum(const bContext *C,
 {
   wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
 
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str());
+  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), "UILayout.operator_menu_enum()");
 
   if (!ot->srna) {
     ui_item_disabled(this, opname.c_str());
-    RNA_warning("operator missing srna '%s'", opname.c_str());
+    RNA_warning_bare("UILayout.operator_menu_enum(): operator missing srna '%s'", opname.c_str());
     return PointerRNA_NULL;
   }
 
@@ -3454,7 +3514,7 @@ PointerRNA Layout::op_menu_enum(const bContext *C,
 
 static void menu_item_enum_rna_menu(bContext * /*C*/, Layout *layout, void *arg)
 {
-  MenuItemLevel *lvl = (MenuItemLevel *)(((Button *)arg)->func_argN);
+  MenuItemLevel *lvl = static_cast<MenuItemLevel *>((static_cast<Button *>(arg))->func_argN);
 
   layout->operator_context_set(lvl->opcontext);
   layout->props_enum(&lvl->rnapoin, lvl->propname);
@@ -5115,7 +5175,7 @@ static bool button_matches_search_filter(Button *but, const char *search_filter)
         }
       }
       if (free) {
-        MEM_freeN((EnumPropertyItem *)items_array);
+        MEM_freeN(const_cast<EnumPropertyItem *>(items_array));
       }
       if (found) {
         return true;
@@ -5204,8 +5264,7 @@ bool block_apply_search_filter(Block *block, const char *search_filter)
 
 static void ui_item_scale(Layout *litem, const float scale[2])
 {
-  for (auto riter = litem->items().rbegin(); riter != litem->items().rend(); riter++) {
-    Item *item = *riter;
+  for (Item *item : litem->items()) {
     if (item->type() != ItemType::Button) {
       Layout *subitem = static_cast<Layout *>(item);
       ui_item_scale(subitem, scale);
@@ -5230,40 +5289,36 @@ static void ui_item_scale(Layout *litem, const float scale[2])
 
 void Layout::estimate()
 {
-  if (this->type() != ItemType::Button) {
+  if (this->items().is_empty()) {
+    w_ = 0;
+    h_ = 0;
+    return;
+  }
 
-    if (this->items().is_empty()) {
-      w_ = 0;
-      h_ = 0;
-      return;
+  for (Item *subitem : this->items()) {
+    if (subitem->type() == ItemType::Button) {
+      continue;
     }
+    static_cast<Layout *>(subitem)->estimate();
+  }
 
-    for (Item *subitem : this->items()) {
-      if (subitem->type() == ItemType::Button) {
-        continue;
-      }
-      static_cast<Layout *>(subitem)->estimate();
-    }
+  if (this->scale_x() != 0.0f || this->scale_y() != 0.0f) {
+    ui_item_scale(this, float2{this->scale_x(), this->scale_y()});
+  }
+  this->estimate_impl();
 
-    if (this->scale_x() != 0.0f || this->scale_y() != 0.0f) {
-      ui_item_scale(this, float2{this->scale_x(), this->scale_y()});
-    }
-    this->estimate_impl();
-
-    /* Force fixed size. */
-    if (this->ui_units_x() > 0) {
-      w_ = UI_UNIT_X * this->ui_units_x();
-    }
-    if (this->ui_units_y() > 0) {
-      h_ = UI_UNIT_Y * this->ui_units_y();
-    }
+  /* Force fixed size. */
+  if (this->ui_units_x() > 0) {
+    w_ = UI_UNIT_X * this->ui_units_x();
+  }
+  if (this->ui_units_y() > 0) {
+    h_ = UI_UNIT_Y * this->ui_units_y();
   }
 }
 
 static void ui_item_align(Layout *litem, short nr)
 {
-  for (auto riter = litem->items().rbegin(); riter != litem->items().rend(); riter++) {
-    Item *item = *riter;
+  for (Item *item : litem->items()) {
     if (item->type() == ItemType::Button) {
       ButtonItem *bitem = static_cast<ButtonItem *>(item);
       if (!bitem->but->alignnr) {
@@ -5293,8 +5348,7 @@ static void ui_item_align(Layout *litem, short nr)
 
 static void ui_item_flag(Layout *litem, int flag)
 {
-  for (auto riter = litem->items().rbegin(); riter != litem->items().rend(); riter++) {
-    Item *item = *riter;
+  for (Item *item : litem->items()) {
     if (item->type() == ItemType::Button) {
       ButtonItem *bitem = static_cast<ButtonItem *>(item);
       bitem->but->flag |= flag;
@@ -5754,7 +5808,7 @@ wmOperatorType *button_operatortype_get_from_enum_menu(Button *but, PropertyRNA 
 MenuType *button_menutype_get(const Button *but)
 {
   if (but->menu_create_func == item_menutype_func) {
-    return (MenuType *)but->poin;
+    return reinterpret_cast<MenuType *>(but->poin);
   }
   return nullptr;
 }
@@ -5762,7 +5816,7 @@ MenuType *button_menutype_get(const Button *but)
 PanelType *button_paneltype_get(const Button *but)
 {
   if (but->menu_create_func == item_paneltype_func) {
-    return (PanelType *)but->poin;
+    return reinterpret_cast<PanelType *>(but->poin);
   }
   return nullptr;
 }
@@ -5842,7 +5896,7 @@ static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, Layout *layout, b
    * in popovers that are not supposed to support refreshing, see #ui_popover_create_block. */
   if (block->handle && block->handle->region) {
     /* Allow popovers to contain collapsible sections, see #Layout::popover. */
-    popup_dummy_panel_set(block->handle->region, block);
+    popup_dummy_panel_set(block->handle->region, block, pt->idname);
   }
 
   Item *item_last = layout->items().is_empty() ? nullptr : layout->items().last();
@@ -6035,7 +6089,7 @@ Layout *uiItemsAlertBox(Block *block,
   const float split_factor = (float(icon_size) + icon_padding) /
                              float(dialog_width - style->columnspace);
 
-  Layout &block_layout = blender::ui::block_layout(
+  Layout &block_layout = ui::block_layout(
       block, LayoutDirection::Vertical, LayoutType::Panel, 0, 0, dialog_width, 0, 0, style);
 
   if (icon == AlertIcon::Info) {
@@ -6116,4 +6170,5 @@ EmbossType Layout::emboss_or_undefined() const
   return emboss_;
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

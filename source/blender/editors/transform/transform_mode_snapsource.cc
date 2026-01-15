@@ -112,6 +112,8 @@ static void snapsource_confirm(TransInfo *t)
   snapsource_end(t);
   transform_input_reset(t, mval);
 
+  /* Avoid premature transform confirmation from snap source clicks. */
+  t->flag &= ~T_RELEASE_CONFIRM;
   /* Remote individual snap projection since this mode does not use the new `snap_source`. */
   t->tsnap.mode &= ~(SCE_SNAP_INDIVIDUAL_PROJECT | SCE_SNAP_INDIVIDUAL_NEAREST);
 }
@@ -220,7 +222,7 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
   }
 
   if (t->data_type == &TransConvertType_Mesh) {
-    blender::ed::transform::snap_object_context_set_editmesh_callbacks(
+    ed::transform::snap_object_context_set_editmesh_callbacks(
         t->tsnap.object_context, nullptr, nullptr, nullptr, nullptr);
   }
 

@@ -23,6 +23,8 @@
 #include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 
+namespace blender {
+
 struct ID;
 struct IDOverrideLibrary;
 struct IDOverrideLibraryProperty;
@@ -533,12 +535,11 @@ eStringPropertySearchFlag RNA_property_string_search_flag(PropertyRNA *prop);
  *
  * See #PropStringSearchFunc for details.
  */
-void RNA_property_string_search(
-    const bContext *C,
-    PointerRNA *ptr,
-    PropertyRNA *prop,
-    const char *edit_text,
-    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
+void RNA_property_string_search(const bContext *C,
+                                PointerRNA *ptr,
+                                PropertyRNA *prop,
+                                const char *edit_text,
+                                FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 
 /**
  * For filepath properties, get a glob pattern to filter possible files.
@@ -903,7 +904,7 @@ void RNA_parameter_dynamic_length_set_data(ParameterList *parms,
 int RNA_function_call(
     bContext *C, ReportList *reports, PointerRNA *ptr, FunctionRNA *func, ParameterList *parms);
 
-std::optional<blender::StringRefNull> RNA_translate_ui_text(
+std::optional<StringRefNull> RNA_translate_ui_text(
     const char *text, const char *text_ctxt, StructRNA *type, PropertyRNA *prop, int translate);
 
 /* ID */
@@ -919,6 +920,16 @@ StructRNA *ID_code_to_RNA_type(short idcode);
 #  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, ##__VA_ARGS__)
 #else
 #  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, __VA_ARGS__)
+#endif
+
+/** A formattable RNA warning, without the default `__func__` trace. */
+#if defined __GNUC__
+#  define RNA_warning_bare(format, args...) _RNA_warning(format "\n", ##args)
+#elif defined(_MSVC_TRADITIONAL) && \
+    !_MSVC_TRADITIONAL /* The "new preprocessor" is enabled via `/Zc:preprocessor`. */
+#  define RNA_warning_bare(format, ...) _RNA_warning(format "\n", ##__VA_ARGS__)
+#else
+#  define RNA_warning_bare(format, ...) _RNA_warning(format "\n", __VA_ARGS__)
 #endif
 
 /** Use to implement the #RNA_warning macro which includes `__func__` suffix. */
@@ -1080,5 +1091,7 @@ eRNAOverrideStatus RNA_property_override_library_status(Main *bmain,
 
 void RNA_struct_state_owner_set(const char *name);
 const char *RNA_struct_state_owner_get();
+
+}  // namespace blender
 
 #endif /* __RNA_ACCESS_H__ */

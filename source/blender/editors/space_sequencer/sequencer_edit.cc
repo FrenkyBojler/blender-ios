@@ -53,7 +53,7 @@
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
-#include "ANIM_action_legacy.hh"
+#include "ANIM_animdata.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -146,7 +146,7 @@ bool has_playback_animation(const Scene *scene)
     return false;
   }
 
-  for (FCurve *fcurve : animrig::legacy::fcurves_for_assigned_action(scene->adt)) {
+  for (FCurve *fcurve : animrig::fcurves_for_assigned_action(scene->adt)) {
     if (sequencer_fcurves_targets_color_strip(fcurve)) {
       return true;
     }
@@ -366,7 +366,6 @@ static Scene *get_sequencer_scene_for_time_sync(const bContext &C)
 
 const Strip *get_scene_strip_for_time_sync(const Scene *sequencer_scene)
 {
-  using namespace blender;
   const Editing *ed = seq::editing_get(sequencer_scene);
   if (!ed) {
     return nullptr;
@@ -396,7 +395,6 @@ const Strip *get_scene_strip_for_time_sync(const Scene *sequencer_scene)
 
 void sync_active_scene_and_time_with_scene_strip(bContext &C)
 {
-  using namespace blender;
   Scene *sequencer_scene = get_sequencer_scene_for_time_sync(C);
   if (!sequencer_scene) {
     return;
@@ -2073,7 +2071,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
     /* Propagate removal to connected strips. */
     if (!ignore_connections) {
-      blender::VectorSet<Strip *> connections = seq::connected_strips_get(strip);
+      VectorSet<Strip *> connections = seq::connected_strips_get(strip);
       for (Strip *connection : connections) {
         seq::edit_flag_for_removal(scene, ed->current_strips(), connection);
       }
@@ -2224,9 +2222,9 @@ void SEQUENCER_OT_box_blade(wmOperatorType *ot)
 
 static void sequencer_report_duplicates(wmOperator *op, ListBaseT<Strip> *duplicated_strips)
 {
-  blender::Set<Scene *> scenes;
-  blender::Set<MovieClip *> movieclips;
-  blender::Set<Mask *> masks;
+  Set<Scene *> scenes;
+  Set<MovieClip *> movieclips;
+  Set<Mask *> masks;
 
   for (Strip &strip : *duplicated_strips) {
     switch (strip.type) {
@@ -3667,7 +3665,7 @@ struct Seq_get_text_cb_data {
 
 static bool strip_get_text_strip_cb(Strip *strip, void *user_data)
 {
-  Seq_get_text_cb_data *cd = (Seq_get_text_cb_data *)user_data;
+  Seq_get_text_cb_data *cd = static_cast<Seq_get_text_cb_data *>(user_data);
   Editing *ed = seq::editing_get(cd->scene);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
   /* Only text strips that are not muted and don't end with negative frame. */

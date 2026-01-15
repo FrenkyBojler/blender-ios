@@ -29,7 +29,9 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_trackpos_cc {
+namespace blender {
+
+namespace nodes::node_composite_trackpos_cc {
 
 NODE_STORAGE_FUNCS(NodeTrackPosData)
 
@@ -76,7 +78,7 @@ static void cmp_node_trackpos_declare(NodeDeclarationBuilder &b)
 
 static void init(const bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
 
   NodeTrackPosData *data = MEM_new_for_free<NodeTrackPosData>(__func__);
   node->storage = data;
@@ -100,12 +102,12 @@ static void init(const bContext *C, PointerRNA *ptr)
 
 static void node_composit_buts_trackpos(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
 
   template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
   if (node->id) {
-    MovieClip *clip = (MovieClip *)node->id;
+    MovieClip *clip = id_cast<MovieClip *>(node->id);
     MovieTracking *tracking = &clip->tracking;
     MovieTrackingObject *tracking_object;
     NodeTrackPosData *data = (NodeTrackPosData *)node->storage;
@@ -151,9 +153,9 @@ class TrackPositionOperation : public NodeOperation {
 
   void execute_position(MovieTrackingTrack *track, float2 current_marker_position, int2 size)
   {
-    const bool should_compute_x = should_compute_output("X");
-    const bool should_compute_y = should_compute_output("Y");
-    if (!should_compute_x && !should_compute_y) {
+    Result &x_result = this->get_result("X");
+    Result &y_result = this->get_result("Y");
+    if (!x_result.should_compute() && !y_result.should_compute()) {
       return;
     }
 
@@ -162,22 +164,21 @@ class TrackPositionOperation : public NodeOperation {
     const float2 reference_marker_position = compute_reference_marker_position(track);
     const float2 position = (current_marker_position - reference_marker_position) * float2(size);
 
-    if (should_compute_x) {
-      Result &result = get_result("X");
-      result.allocate_single_value();
-      result.set_single_value(position.x);
+    if (x_result.should_compute()) {
+      x_result.allocate_single_value();
+      x_result.set_single_value(position.x);
     }
 
-    if (should_compute_y) {
-      Result &result = get_result("Y");
-      result.allocate_single_value();
-      result.set_single_value(position.y);
+    if (y_result.should_compute()) {
+      y_result.allocate_single_value();
+      y_result.set_single_value(position.y);
     }
   }
 
   void execute_speed(MovieTrackingTrack *track, float2 current_marker_position, int2 size)
   {
-    if (!should_compute_output("Speed")) {
+    Result &result = this->get_result("Speed");
+    if (!result.should_compute()) {
       return;
     }
 
@@ -198,27 +199,26 @@ class TrackPositionOperation : public NodeOperation {
     const float4 speed = float4(speed_toward_previous * float2(size),
                                 speed_toward_next * float2(size));
 
-    Result &result = get_result("Speed");
     result.allocate_single_value();
     result.set_single_value(speed);
   }
 
   void execute_invalid()
   {
-    if (should_compute_output("X")) {
-      Result &result = get_result("X");
-      result.allocate_single_value();
-      result.set_single_value(0.0f);
+    Result &x_result = this->get_result("X");
+    if (x_result.should_compute()) {
+      x_result.allocate_single_value();
+      x_result.set_single_value(0.0f);
     }
-    if (should_compute_output("Y")) {
-      Result &result = get_result("Y");
-      result.allocate_single_value();
-      result.set_single_value(0.0f);
+    Result &y_result = this->get_result("Y");
+    if (y_result.should_compute()) {
+      y_result.allocate_single_value();
+      y_result.set_single_value(0.0f);
     }
-    if (should_compute_output("Speed")) {
-      Result &result = get_result("Speed");
-      result.allocate_single_value();
-      result.set_single_value(float4(0.0f));
+    Result &speed_result = this->get_result("Speed");
+    if (speed_result.should_compute()) {
+      speed_result.allocate_single_value();
+      speed_result.set_single_value(float4(0.0f));
     }
   }
 
@@ -353,22 +353,22 @@ class TrackPositionOperation : public NodeOperation {
 
   MovieClip *get_movie_clip()
   {
-    return (MovieClip *)node().id;
+    return id_cast<MovieClip *>(node().id);
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new TrackPositionOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_trackpos_cc
+}  // namespace nodes::node_composite_trackpos_cc
 
 static void register_node_type_cmp_trackpos()
 {
-  namespace file_ns = blender::nodes::node_composite_trackpos_cc;
+  namespace file_ns = nodes::node_composite_trackpos_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeTrackPos", CMP_NODE_TRACKPOS);
   ntype.ui_name = "Track Position";
@@ -379,10 +379,12 @@ static void register_node_type_cmp_trackpos()
   ntype.declare = file_ns::cmp_node_trackpos_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_trackpos;
   ntype.initfunc_api = file_ns::init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeTrackPosData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_trackpos)
+
+}  // namespace blender
