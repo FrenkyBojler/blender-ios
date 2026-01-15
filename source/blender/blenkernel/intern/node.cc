@@ -624,7 +624,7 @@ static void update_node_location_legacy(bNodeTree &ntree)
   }
 }
 
-static void write_legacy_properties(bNodeTree &ntree)
+static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to_restore)
 {
   switch (ntree.type) {
     case NTREE_GEOMETRY: {
@@ -721,6 +721,25 @@ static void write_legacy_properties(bNodeTree &ntree)
         else if (node->is_type("FunctionNodeMatchString")) {
           const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Operation");
           node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == GEO_NODE_STRING_TO_CURVES) {
+          auto &storage = *static_cast<NodeGeometryStringToCurves *>(node->storage);
+          storage.overflow = node_find_socket(*node, SOCK_IN, "Overflow")
+                                 ->default_value_typed<bNodeSocketValueMenu>()
+                                 ->value;
+          storage.align_x = node_find_socket(*node, SOCK_IN, "Align X")
+                                ->default_value_typed<bNodeSocketValueMenu>()
+                                ->value;
+          storage.align_y = node_find_socket(*node, SOCK_IN, "Align Y")
+                                ->default_value_typed<bNodeSocketValueMenu>()
+                                ->value;
+          storage.pivot_mode = node_find_socket(*node, SOCK_IN, "Pivot Point")
+                                   ->default_value_typed<bNodeSocketValueMenu>()
+                                   ->value;
+          r_ids_to_restore.add(&node->id, node->id);
+          node->id = id_cast<ID *>(node_find_socket(*node, SOCK_IN, "Font")
+                                       ->default_value_typed<bNodeSocketValueFont>()
+                                       ->value);
         }
       }
       break;
@@ -1239,9 +1258,11 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   BKE_id_blend_write(writer, &ntree->id);
   BLO_write_string(writer, ntree->description);
 
+  /* Restore IDs overridden for forward compatibility. Otherwise their user count becomes wrong. */
+  Map<ID **, ID *> ids_to_restore;
   if (!BLO_write_is_undo(writer)) {
     forward_compat::update_node_location_legacy(*ntree);
-    forward_compat::write_legacy_properties(*ntree);
+    forward_compat::write_legacy_properties(*ntree, ids_to_restore);
   }
 
   for (bNode *node : ntree->all_nodes()) {
@@ -1310,6 +1331,9 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   if (!BLO_write_is_undo(writer)) {
     for (bNode *node : ntree->all_nodes()) {
       forward_compat::free_legacy_socket_storage(*node);
+    }
+    for (const auto &item : ids_to_restore.items()) {
+      *item.key = item.value;
     }
   }
 }
@@ -2245,7 +2269,7 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
     return;
   }
 
-  node->flag = NODE_SELECT | NODE_OPTIONS | ntype->flag;
+  node->flag = NODE_SELECT | NODE_OPTIONS | (ntype->flag & ~NODE_PREVIEW);
   node->width = ntype->width;
   node->height = ntype->height;
   node->color[0] = node->color[1] = node->color[2] = 0.608; /* default theme color */
@@ -2278,10 +2302,6 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
      * Delayed init is not supported for nodes with context-based `initfunc_api` at the moment. */
     BLI_assert(C != nullptr);
     ntype->initfunc_api(C, &ptr);
-  }
-
-  if (ntree->typeinfo && ntree->typeinfo->node_add_init) {
-    ntree->typeinfo->node_add_init(ntree, node);
   }
 
   if (!add_sockets_before_init) {
@@ -3059,6 +3079,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
           return "NodeSocketFloatPercentage";
         case PROP_FACTOR:
           return "NodeSocketFloatFactor";
+        case PROP_MASS:
+          return "NodeSocketFloatMass";
         case PROP_ANGLE:
           return "NodeSocketFloatAngle";
         case PROP_TIME:
@@ -3226,6 +3248,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
           return "NodeTreeInterfaceSocketFloatPercentage";
         case PROP_FACTOR:
           return "NodeTreeInterfaceSocketFloatFactor";
+        case PROP_MASS:
+          return "NodeTreeInterfaceSocketFloatMass";
         case PROP_ANGLE:
           return "NodeTreeInterfaceSocketFloatAngle";
         case PROP_TIME:
