@@ -1085,7 +1085,7 @@ class TextureFromPool : public Texture, NonMovable {
   {
     if (tx_ == nullptr) {
       pool_ = &gpu::TexturePool::get();
-      tx_ = pool_->acquire_texture(extent, format, usage);
+      tx_ = pool_->acquire_texture(extent, format, usage, name_);
       if (G.debug & G_DEBUG_GPU) {
         debug_clear();
       }
