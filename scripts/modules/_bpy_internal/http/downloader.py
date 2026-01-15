@@ -148,7 +148,7 @@ class ConditionalDownloader:
         # download location. This ensures we can atomically move the file to its
         # final path.
         temp_path = _create_temp_file(
-            dir=download_dir_path,
+            download_dir_path,
             prefix=local_path.stem + "-",
             suffix=local_path.suffix + '.part',
         )
@@ -1420,7 +1420,7 @@ def _cleanup_main_file_attribute() -> Generator[None]:
         main_module.__file__ = old_file
 
 
-def _create_temp_file(dir: Path, prefix: str, suffix: str) -> Path:
+def _create_temp_file(dirpath: Path, prefix: str, suffix: str) -> Path:
     """Create a temporary file on disk, ensuring it is uniquely named.
 
     This is a wrapper around tempfile.mkstemp() that closes the file before
@@ -1432,7 +1432,7 @@ def _create_temp_file(dir: Path, prefix: str, suffix: str) -> Path:
     import os
     import tempfile
 
-    fd, path_as_str = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=dir)
+    fd, path_as_str = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=dirpath)
     os.close(fd)
     return Path(path_as_str)
 
