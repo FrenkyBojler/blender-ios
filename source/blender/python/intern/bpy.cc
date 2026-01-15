@@ -223,16 +223,11 @@ static PyObject *bpy_flip_name(PyObject * /*self*/, PyObject *args, PyObject *kw
 /* `bpy_user_resource_doc`, Now in `bpy/utils/__init__.py`. */
 static PyObject *bpy_user_resource(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
-  /* Special case for this function. It is not available as a parameter to
-   * BKE_appdir_folder_id_user_notest(), so it should not be in the BLENDER_USER_... enum. */
-  const int BLENDER_USER_CACHES = 9999;
-
   const PyC_StringEnumItems type_items[] = {
       {BLENDER_USER_DATAFILES, "DATAFILES"},
       {BLENDER_USER_CONFIG, "CONFIG"},
       {BLENDER_USER_SCRIPTS, "SCRIPTS"},
       {BLENDER_USER_EXTENSIONS, "EXTENSIONS"},
-      {BLENDER_USER_CACHES, "CACHES"},
       {0, nullptr},
   };
   PyC_StringEnum type = {type_items};
@@ -259,16 +254,10 @@ static PyObject *bpy_user_resource(PyObject * /*self*/, PyObject *args, PyObject
     return nullptr;
   }
 
-  std::optional<std::string> path;
-  if (type.value_found == BLENDER_USER_CACHES) {
-    path = BKE_appdir_folder_caches(subdir_data.value);
-  }
-  else {
-    /* Same logic as BKE_appdir_folder_id_create(),
-     * but best leave it up to the script author to create. */
-    path = BKE_appdir_folder_id_user_notest(type.value_found, subdir_data.value);
-  }
-
+  /* same logic as BKE_appdir_folder_id_create(),
+   * but best leave it up to the script author to create */
+  const std::optional<std::string> path = BKE_appdir_folder_id_user_notest(type.value_found,
+                                                                           subdir_data.value);
   Py_XDECREF(subdir_data.value_coerce);
 
   return PyC_UnicodeFromStdStr(path.value_or(""));
