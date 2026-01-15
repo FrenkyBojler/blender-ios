@@ -881,7 +881,6 @@ struct WeightPaintStroke final : public PaintStroke {
   WeightPaintStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
   {
-    printf("%s\n", __func__);
     bmain_ = CTX_data_main(C);
     tool_settings_ = CTX_data_tool_settings(C);
     weight_paint_ = tool_settings_->wpaint;
@@ -1940,7 +1939,6 @@ void WeightPaintStroke::done(bool /*is_cancel*/)
 
   MEM_delete(ob.runtime->sculpt_session->cache);
   ob.runtime->sculpt_session->cache = nullptr;
-  printf("%s\n", __func__);
 }
 
 static wmOperatorStatus wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
