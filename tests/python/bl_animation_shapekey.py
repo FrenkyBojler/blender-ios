@@ -132,6 +132,7 @@ class LatticeShapekeyTest(unittest.TestCase):
 
         # Incomplete test, same issue as CurveShapekeyTest.
 
+
 class ShapekeySelectionTest(unittest.TestCase):
     def setUp(self):
         bpy.ops.wm.read_homefile(use_factory_startup=True)
@@ -159,6 +160,7 @@ class ShapekeySelectionTest(unittest.TestCase):
         self.assertEqual(selected_keys[0].name, "one")
         self.assertEqual(selected_keys[1].name, "two")
         self.assertEqual(selected_keys[2].name, "three")
+
 
 def main():
     global args
