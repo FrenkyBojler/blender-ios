@@ -243,12 +243,33 @@ static void normalize_span(MutableSpan<float3> data)
   }
 }
 
+static void orthonormalize_span(MutableSpan<float3> data, Span<float3> axes_normalized)
+{
+  for (const int i : data.index_range()) {
+    const float3 &axis = axes_normalized[i];
+    BLI_assert(math::is_unit(axis));
+    data[i] = math::normalize(data[i] - axis * math::dot(data[i], axis));
+  }
+}
+
 static void normalize_curve_point_data(const IndexMaskSegment curve_selection,
                                        const OffsetIndices<int> points_by_curve,
                                        MutableSpan<float3> data)
 {
   for (const int i_curve : curve_selection) {
     normalize_span(data.slice(points_by_curve[i_curve]));
+  }
+}
+
+static void orthonormalize_curve_point_data(const IndexMaskSegment curve_selection,
+                                            const OffsetIndices<int> points_by_curve,
+                                            const Span<float3> axes_normalized,
+                                            MutableSpan<float3> data)
+{
+  BLI_assert(data.size() == axes_normalized.size());
+  for (const int i_curve : curve_selection) {
+    const IndexRange points = points_by_curve[i_curve];
+    orthonormalize_span(data.slice(points), axes_normalized.slice(points));
   }
 }
 
@@ -386,7 +407,15 @@ static void resample_to_uniform(const CurvesGeometry &src_curves,
     }
     if (!attributes.dst_normals.is_empty()) {
       interpolate_evaluated_data(attributes.src_evaluated_normals, attributes.dst_normals);
-      normalize_curve_point_data(selection_segment, dst_points_by_curve, attributes.dst_normals);
+      if (!attributes.dst_tangents.is_empty()) {
+        orthonormalize_curve_point_data(selection_segment,
+                                        dst_points_by_curve,
+                                        attributes.dst_tangents,
+                                        attributes.dst_normals);
+      }
+      else {
+        normalize_curve_point_data(selection_segment, dst_points_by_curve, attributes.dst_normals);
+      }
     }
 
     /* Fill the default value for non-interpolating attributes that still must be copied. */
