@@ -961,24 +961,23 @@ static wmOperatorStatus shape_key_apply_to_basis_exec(bContext *C, wmOperator *o
   Array<float3> translations(basis_data.size(), float3(0));
 
   Set<KeyBlock *> processed_keys;
-  int index;
   int locked_count = 0;
-  LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, index) {
-    if (!shape_key_is_selected(*ob, *kb, index)) {
+  for (const auto [index, kb] : key->block.enumerate()) {
+    if (!shape_key_is_selected(*ob, kb, index)) {
       continue;
     }
-    if (kb == basis_key) {
+    if (&kb == basis_key) {
       continue;
     }
-    if (kb->flag & KEYBLOCK_LOCKED_SHAPE) {
+    if (kb.flag & KEYBLOCK_LOCKED_SHAPE) {
       locked_count++;
       continue;
     }
-    const Span kb_data(static_cast<const float3 *>(kb->data), kb->totelem);
+    const Span kb_data(static_cast<const float3 *>(kb.data), kb.totelem);
     for (const int i : kb_data.index_range()) {
       translations[i] += (kb_data[i] - basis_data[i]);
     }
-    processed_keys.add_new(kb);
+    processed_keys.add_new(&kb);
   }
 
   if (locked_count != 0) {
@@ -996,15 +995,14 @@ static wmOperatorStatus shape_key_apply_to_basis_exec(bContext *C, wmOperator *o
   add_arrays(basis_data, translations);
 
   if (const std::optional<Array<bool>> dependent = BKE_keyblock_get_dependent_keys(key, 0)) {
-    int i;
-    LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, i) {
-      if (kb == basis_key) {
+    for (const auto [i, kb] : key->block.enumerate()) {
+      if (&kb == basis_key) {
         continue;
       }
       if (!(*dependent)[i]) {
         continue;
       }
-      MutableSpan<float3> kb_data(static_cast<float3 *>(kb->data), kb->totelem);
+      MutableSpan<float3> kb_data(static_cast<float3 *>(kb.data), kb.totelem);
       add_arrays(kb_data, translations);
     }
   }
