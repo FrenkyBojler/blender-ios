@@ -1070,7 +1070,7 @@ class TextureFromPool : public Texture, NonMovable {
   gpu::TexturePool *pool_ = nullptr;
 
  public:
-  TextureFromPool(const char *name = "gpu::Texture") : Texture(name) {};
+  TextureFromPool(const char *name = "draw::TextureFromPool") : Texture(name) {};
 
   /* On destructor, textures after `::retain()` may need to be released. */
   ~TextureFromPool()
