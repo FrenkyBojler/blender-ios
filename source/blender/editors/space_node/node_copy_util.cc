@@ -1164,6 +1164,9 @@ static InterfaceProxyNodes create_proxy_nodes_for_interface(
       interface_proxies.add(item.key->identifier, proxy_node);
     }
   }
+
+  BKE_ntree_update_after_single_tree_change(*CTX_data_main(&C), dst_tree);
+
   return interface_proxies;
 }
 
