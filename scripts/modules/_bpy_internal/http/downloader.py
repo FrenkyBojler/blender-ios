@@ -1125,12 +1125,19 @@ class MetadataProviderFilesystem(MetadataProvider):
         if not meta_path.exists():
             return None
 
-        import os
+        # Attempt to obtain the mutex 20 times. This will wait for max 2 sec
+        # (20x 0.1 sec), which should be more than long enough for another
+        # process to run the code below and release the mutex, while also not so
+        # long that people think Blender crashed.
         for _ in range(20):
             meta_file, unlocker = mutex_lock_and_open(meta_path, 'rb')
             if meta_file is not None:
                 assert unlocker is not None
                 break
+            # Wait for a considerable amount of time for a machine (so that this
+            # Blender doesn't hog the CPU, so that the other process can do its
+            # work), but a short time for a human (so that an unlock is noticed
+            # relatively quickly and this Blender can move on and do stuff).
             time.sleep(0.1)
         else:
             raise RuntimeError("could not open & lock file {!s}".format(meta_path))
