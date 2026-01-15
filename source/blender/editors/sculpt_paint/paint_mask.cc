@@ -25,6 +25,7 @@
 #include "BKE_context.hh"
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -54,10 +55,10 @@ namespace blender::ed::sculpt_paint::mask {
 
 Array<float> duplicate_mask(const Object &object)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh: {
-      const Mesh &mesh = *static_cast<const Mesh *>(object.data);
+      const Mesh &mesh = *id_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArray mask = *attributes.lookup_or_default<float>(
           ".sculpt_mask", bke::AttrDomain::Point, 0.0f);
@@ -201,7 +202,7 @@ void update_mask_mesh(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
@@ -329,7 +330,7 @@ static bool try_remove_mask_mesh(const Depsgraph &depsgraph,
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
   if (mask.is_empty()) {
@@ -393,7 +394,7 @@ static void fill_mask_mesh(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
   if (value == 0.0f) {
@@ -437,7 +438,7 @@ static void fill_mask_grids(Main &bmain,
                             const float value,
                             const IndexMask &node_mask)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
 
   if (value == 0.0f && ss.subdiv_ccg->masks.is_empty()) {
     /* NOTE: Deleting the mask array would be possible here. */
@@ -502,7 +503,7 @@ static void fill_mask_bmesh(const Depsgraph &depsgraph,
                             const float value,
                             const IndexMask &node_mask)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
 
@@ -572,7 +573,7 @@ static void invert_mask_grids(Main &bmain,
                               Object &object,
                               const IndexMask &node_mask)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
 
   MultiresModifierData &mmd = *BKE_sculpt_multires_active(&scene, &object);
   BKE_sculpt_mask_layers_ensure(&depsgraph, &bmain, &object, &mmd);
@@ -615,7 +616,7 @@ static void invert_mask_bmesh(const Depsgraph &depsgraph,
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  BMesh &bm = *object.sculpt->bm;
+  BMesh &bm = *object.runtime->sculpt_session->bm;
   const int offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
   if (offset == -1) {
     BLI_assert_unreachable();
@@ -860,7 +861,7 @@ static void init_operation(bContext &C, gesture::GestureData &gesture_data, wmOp
   gesture_data.operation = reinterpret_cast<gesture::Operation *>(
       MEM_callocN<MaskOperation>(__func__));
 
-  MaskOperation *mask_operation = (MaskOperation *)gesture_data.operation;
+  MaskOperation *mask_operation = reinterpret_cast<MaskOperation *>(gesture_data.operation);
 
   Object *object = gesture_data.vc.obact;
   MultiresModifierData *mmd = BKE_sculpt_multires_active(gesture_data.vc.scene, object);

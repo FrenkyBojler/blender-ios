@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'edd300f2e755')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'12e628ea43f8')\n"
 "Report-Msgid-Bugs-To: Ivan Paulos Tomé <ivan.paulos.tome@yandex.com>\n"
-"POT-Creation-Date: 2025-12-29 09:32+0000\n"
-"PO-Revision-Date: 2025-12-28 10:00+0000\n"
+"POT-Creation-Date: 2026-01-12 15:09+0000\n"
+"PO-Revision-Date: 2026-01-11 05:41+0000\n"
 "Last-Translator: Duarte Ramos <duarte.framos@gmail.com>\n"
 "Language-Team: Portuguese <https://translate.blender.org/projects/blender-ui/ui/pt/>\n"
 "Language: pt\n"
@@ -18569,16 +18569,8 @@ msgid "Is Layered Action"
 msgstr "É Acção em Camadas"
 
 
-msgid "Return whether this is a layered Action. An empty Action is considered as both a 'legacy' and a 'layered' Action."
-msgstr "Reporta se esta é uma acção com camadas. Uma Acção vazia é considerada tanto 'de legado' como 'em camadas'."
-
-
 msgid "Is Legacy Action"
 msgstr "É Acção de Legado"
-
-
-msgid "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An empty Action is considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 actions are automatically updated to layered actions, and thus this will only return True when the action is empty"
-msgstr "Reporta se esta é uma Acção de legado. Acções de Legado não têm camadas ou compartimentos. Uma Acção vazia é considerada tanto uma Acção de 'legado' como 'em camadas'. Desde o Blender 4.4 acções são automaticamente actualizadas para ter camadas, como tal isto reporta sempre Verdadeiro quando a acção está vazia."
 
 
 msgid "Is Empty"
@@ -20382,18 +20374,6 @@ msgstr "Espaçamento entre rabiscos de pincel como uma porcentagem do diâmetro 
 
 msgid "Stabilize Normal"
 msgstr "Estabilizar Normal"
-
-
-msgid "Stabilize the orientation of the brush plane."
-msgstr "Estabilizar a orientação do plano do pincel."
-
-
-msgid "Stabilize Plane"
-msgstr "Estabilizar Plano"
-
-
-msgid "Stabilize the center of the brush plane."
-msgstr "Estabilizar o centro do plano do pincel."
 
 
 msgid "Stencil Dimensions"
@@ -34953,16 +34933,164 @@ msgid "Editor menu containing buttons"
 msgstr "Menu de editor contendo botões"
 
 
-msgid "Assign Material"
-msgstr "Aplicar Material"
+msgid "Show/Hide"
+msgstr "Mostrar ou ocultar"
+
+
+msgid "Special Characters"
+msgstr "Caracteres especiais"
+
+
+msgid "Kerning"
+msgstr "Kerning"
+
+
+msgid "Math"
+msgstr "Matemática"
+
+
+msgid "Metaball"
+msgstr "Esfera-meta"
+
+
+msgid "Utilities"
+msgstr "Utilidades"
+
+
+msgid "Names"
+msgstr "Nomes"
+
+
+msgid "Bone Roll"
+msgstr "Rolagem do osso"
+
+
+msgid "Clean Up"
+msgstr "Limpeza"
+
+
+msgid "Read"
+msgstr "Ler"
+
+
+msgid "Sample"
+msgstr "Amostrar"
+
+
+msgid "Write"
+msgstr "Escrever"
+
+
+msgid "Pivot Point"
+msgstr "Pontos de pivô"
+
+
+msgid "Primitives"
+msgstr "Primitivas"
+
+
+msgid "Snap"
+msgstr "Atrair"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Tipo de decaimento para edição proporcional"
+
+
+msgid "Mask Edit"
+msgstr "Edição de Máscara"
+
+
+msgid "Automasking"
+msgstr "Auto Máscara"
+
+
+msgid "Face Sets Edit"
+msgstr "Edições de Conjuntos de Faces"
+
+
+msgid "Vertex Group Locks"
+msgstr "Bloqueios de Grupos de Vértices"
+
+
+msgid "Gizmo"
+msgstr "Apetrecho"
+
+
+msgid "Instances"
+msgstr "Instâncias"
+
+
+msgid "Import"
+msgstr "Importar"
+
+
+msgid "Deprecated"
+msgstr "Obsoleto"
+
+
+msgid "Mirror"
+msgstr "Espelhar"
+
+
+msgid "UV Mapping"
+msgstr "Mapeamento UV"
+
+
+msgid "Local View"
+msgstr "Visão local"
+
+
+msgid "List"
+msgstr "Lista"
+
+
+msgid "Viewpoint"
+msgstr "Ponto de Vista"
+
+
+msgid "Navigation"
+msgstr "Navegação"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Align View"
+msgstr "Alinhar visualização"
+
+
+msgid "Align View to Active"
+msgstr "Alinhar vista para o activo"
+
+
+msgid "View Regions"
+msgstr "Regiões de Visualização"
 
 
 msgid "Select More/Less"
 msgstr "Seleccionar mais ou menos"
 
 
-msgid "Metaball"
-msgstr "Esfera-meta"
+msgid "Select Similar"
+msgstr "Seleccionar por similaridades"
+
+
+msgid "Select All by Trait"
+msgstr "Seleccionar todos por características..."
+
+
+msgid "Select Linked"
+msgstr "Seleccionar vinculados(as)"
+
+
+msgid "Select Loops"
+msgstr "Seleccionar Anéis"
+
+
+msgid "Assign Material"
+msgstr "Aplicar Material"
 
 
 msgid "Light"
@@ -34997,14 +35125,6 @@ msgid "Quick Effects"
 msgstr "Efeitos instantâneos"
 
 
-msgid "Show/Hide"
-msgstr "Mostrar ou ocultar"
-
-
-msgid "Clean Up"
-msgstr "Limpeza"
-
-
 msgid "Asset"
 msgstr "Recurso"
 
@@ -35029,10 +35149,6 @@ msgid "Layout"
 msgstr "Organizar"
 
 
-msgid "Vertex Group Locks"
-msgstr "Bloqueios de Grupos de Vértices"
-
-
 msgid "Trim/Add"
 msgstr "Aparar/Adicionar"
 
@@ -35049,12 +35165,12 @@ msgid "Random Mask"
 msgstr "Máscara Aleatória"
 
 
-msgid "Adjust"
-msgstr "Ajustar"
-
-
 msgid "Clear Transform"
 msgstr "Limpar transformações"
+
+
+msgid "Adjust"
+msgstr "Ajustar"
 
 
 msgid "In-Betweens"
@@ -35065,36 +35181,24 @@ msgid "Propagate"
 msgstr "Propagar"
 
 
-msgid "Keying"
-msgstr "Inserção de chaves"
-
-
 msgid "Bone Collections"
 msgstr "Colecções de Ossos"
+
+
+msgid "Keying"
+msgstr "Inserção de chaves"
 
 
 msgid "Tracking"
 msgstr "Rastreamento"
 
 
-msgid "Names"
-msgstr "Nomes"
-
-
-msgid "Utilities"
-msgstr "Utilidades"
-
-
-msgid "Math"
-msgstr "Matemática"
+msgid "Toggle Bone Options"
+msgstr "Alternar opções de ossos"
 
 
 msgid "Creative"
 msgstr "Criativo"
-
-
-msgid "Toggle Bone Options"
-msgstr "Alternar opções de ossos"
 
 
 msgid "Enable Bone Options"
@@ -35127,130 +35231,6 @@ msgstr "Pré-Visualização da Render"
 
 msgid "Merge"
 msgstr "Fundir"
-
-
-msgid "Special Characters"
-msgstr "Caracteres especiais"
-
-
-msgid "Kerning"
-msgstr "Kerning"
-
-
-msgid "Bone Roll"
-msgstr "Rolagem do osso"
-
-
-msgid "Read"
-msgstr "Ler"
-
-
-msgid "Sample"
-msgstr "Amostrar"
-
-
-msgid "Write"
-msgstr "Escrever"
-
-
-msgid "Primitives"
-msgstr "Primitivas"
-
-
-msgid "Pivot Point"
-msgstr "Pontos de pivô"
-
-
-msgid "Snap"
-msgstr "Atrair"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Tipo de decaimento para edição proporcional"
-
-
-msgid "Mask Edit"
-msgstr "Edição de Máscara"
-
-
-msgid "Automasking"
-msgstr "Auto Máscara"
-
-
-msgid "Face Sets Edit"
-msgstr "Edições de Conjuntos de Faces"
-
-
-msgid "Gizmo"
-msgstr "Apetrecho"
-
-
-msgid "Instances"
-msgstr "Instâncias"
-
-
-msgid "Import"
-msgstr "Importar"
-
-
-msgid "Deprecated"
-msgstr "Obsoleto"
-
-
-msgid "Mirror"
-msgstr "Espelhar"
-
-
-msgid "UV Mapping"
-msgstr "Mapeamento UV"
-
-
-msgid "List"
-msgstr "Lista"
-
-
-msgid "Local View"
-msgstr "Visão local"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Viewpoint"
-msgstr "Ponto de Vista"
-
-
-msgid "Navigation"
-msgstr "Navegação"
-
-
-msgid "Align View"
-msgstr "Alinhar visualização"
-
-
-msgid "Align View to Active"
-msgstr "Alinhar vista para o activo"
-
-
-msgid "View Regions"
-msgstr "Regiões de Visualização"
-
-
-msgid "Select Similar"
-msgstr "Seleccionar por similaridades"
-
-
-msgid "Select All by Trait"
-msgstr "Seleccionar todos por características..."
-
-
-msgid "Select Linked"
-msgstr "Seleccionar vinculados(as)"
-
-
-msgid "Select Loops"
-msgstr "Seleccionar Anéis"
 
 
 msgid "Keyframe Insert Pie"
@@ -54169,16 +54149,6 @@ msgid "Import Image Sequence"
 msgstr "Importar Sequência de Imagens"
 
 
-msgctxt "Operator"
-msgid "Texture Setup"
-msgstr "Conjunto de Textura"
-
-
-msgctxt "Operator"
-msgid "Principled Texture Setup"
-msgstr "Conjunto de Textura Principled"
-
-
 msgid "Align selected nodes in a grid pattern"
 msgstr "Alinhar nós seleccionados num alinhamento em grelha"
 
@@ -61473,6 +61443,14 @@ msgstr "Euler (ZYX)"
 
 msgid "Convert rotations to euler ZYX"
 msgstr "Converte rotações para o Euler ZYX."
+
+
+msgid "Sort Children By Name"
+msgstr "Ordenar Descendentes por Nome"
+
+
+msgid "Sort the children of each bone alphabetically"
+msgstr "Ordenar os descendentes de cada osso alfabeticamente"
 
 
 msgid "Add Leaf Bones"
@@ -77042,7 +77020,7 @@ msgstr "Reestruturar Malha por Voxels"
 
 
 msgid "Calculates a new manifold mesh based on the volume of the current mesh. All data layers will be lost"
-msgstr "Calcula uma nova malha manifold baseada no volume da actual malha. Todas as camadas de dados serão perdidas"
+msgstr "Calcula uma nova malha manifold baseada no volume da actual malha. Todas as camadas de dados serão perdidas."
 
 
 msgctxt "Operator"
@@ -82428,10 +82406,6 @@ msgstr "Gesto projectar Linha"
 
 msgid "Project the geometry onto a plane defined by a line"
 msgstr "­"
-
-
-msgid "Sample the vertex color of the active vertex"
-msgstr "Amostrar a cor de vértice do vértice activo"
 
 
 msgctxt "Operator"
@@ -91759,34 +91733,6 @@ msgid "Panel containing UI elements"
 msgstr "Painel contendo elementos do Interface do Utilizador"
 
 
-msgid "Auto-Masking"
-msgstr "Auto-Máscara"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Opções de Adição de Curvas de Escultura de Curvas"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Decaimento de Parâmetros de Escultura de Curva"
-
-
-msgid "Curves Grow/Shrink Scaling"
-msgstr "Escala de Crescimento/Encolhimento de Curva"
-
-
-msgid "Viewport Debug"
-msgstr "Diagnóstico de Janela de Visualização"
-
-
-msgid "VR"
-msgstr "RV"
-
-
-msgid "VR Info"
-msgstr "Informação RV"
-
-
 msgid "glTF Variants"
 msgstr "Variantes glTF"
 
@@ -91901,6 +91847,34 @@ msgstr "Estereoscopia"
 
 msgid "Multi Frame"
 msgstr "Multi Fotograma"
+
+
+msgid "Auto-Masking"
+msgstr "Auto-Máscara"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Opções de Adição de Curvas de Escultura de Curvas"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Decaimento de Parâmetros de Escultura de Curva"
+
+
+msgid "Curves Grow/Shrink Scaling"
+msgstr "Escala de Crescimento/Encolhimento de Curva"
+
+
+msgid "Viewport Debug"
+msgstr "Diagnóstico de Janela de Visualização"
+
+
+msgid "VR"
+msgstr "RV"
+
+
+msgid "VR Info"
+msgstr "Informação RV"
 
 
 msgid "Import Settings"
@@ -96231,10 +96205,6 @@ msgid "Orbit Around Selection"
 msgstr "Orbitar em Torno da Selecção"
 
 
-msgid "Use selection as the pivot point"
-msgstr "Usa a selecção como o ponto de pivô."
-
-
 msgid "Zoom to Mouse Position"
 msgstr "Aproximar para Posição do Cursor"
 
@@ -97139,10 +97109,6 @@ msgid "Chinese (Traditional) - 繁體中文"
 msgstr "Chinês (Tradicional) - 繁體中文"
 
 
-msgid "Locale code: zh_HANT. Translation progress: 51%"
-msgstr "Código de língua: zh_HANT. Progresso de tradução: 51%"
-
-
 msgid "Czech - Čeština"
 msgstr "Checo - Čeština"
 
@@ -97259,8 +97225,8 @@ msgid "Indonesian - Bahasa indonesia"
 msgstr "Indonésio - Bahasa indonesia"
 
 
-msgid "Locale code: id_ID. Translation progress: 21%"
-msgstr "Código de língua: id_ID. Progresso de tradução: 21%"
+msgid "Locale code: id_ID. Translation progress: 22%"
+msgstr "Código de língua: id_ID. Progresso de tradução: 22%"
 
 
 msgid "Italian - Italiano"
@@ -97331,10 +97297,6 @@ msgid "Polish - Polski"
 msgstr "Polaco - Polski"
 
 
-msgid "Locale code: pl_PL. Translation progress: 18%"
-msgstr "Código de língua: pl_PL. Progresso de tradução: 18%"
-
-
 msgid "Portuguese (Brazil) - Português brasileiro"
 msgstr "Português (Brasil) - Português Brasileiro"
 
@@ -97345,6 +97307,10 @@ msgstr "Código de língua: pt_BR. Progresso de tradução: 43%"
 
 msgid "Portuguese (Portugal) - Português europeu"
 msgstr "Português (Portugal) - Português Europeu"
+
+
+msgid "Locale code: pt_PT. Translation progress: 74%"
+msgstr "Código de língua: pt_PT. Progresso de tradução: 74%"
 
 
 msgid "Romanian - Român"
@@ -100484,16 +100450,520 @@ msgid "Toe Tip Roll"
 msgstr "Inclinação da Ponta do Dedo do Pé"
 
 
+msgid "Generate a slider to pivot forward heel roll on the tip rather than the base of the toe"
+msgstr "Gerar um controlo deslizante para pivotar inclinação frontal de calcanhar na ponta, em vez de na base do dedo do pé"
+
+
+msgid "Eyelid Detach Option"
+msgstr "Opção de Soltar Pálpebra"
+
+
+msgid "Create an option to detach eyelids from the eye surface"
+msgstr "Criar opção para soltar pálpebra da superfície do olho"
+
+
+msgid "Eyelids Follow Default"
+msgstr "Pré Definição Pálpebras Seguem"
+
+
+msgid "Default setting for the Eyelids Follow sliders (X and Z)"
+msgstr "Definições padrão para controlos deslizantes Pálpebras Seguem (X e Z)"
+
+
+msgid "Split Eyelid Follow Slider"
+msgstr "Separar Controlos Deslizantes Pálpebras Seguem"
+
+
+msgid "Create separate eyelid follow influence sliders for X and Z"
+msgstr "Criar controlos deslizantes pálpebras seguem separados para X e Z"
+
+
+msgid "Layers for the FK controls to be on"
+msgstr "Camadas nas quais colocar controlos FK"
+
+
+msgid "Assign Fk Collections"
+msgstr "Atribuir Colecções FK"
+
+
+msgid "Foot Pivot"
+msgstr "Pivot de Pé"
+
+
+msgid "Ankle"
+msgstr "Tornozelo"
+
+
+msgid "The foots pivots at the ankle"
+msgstr "O pé roda em torno do tornozelo"
+
+
+msgid "Toe"
+msgstr "Dedo do Pé"
+
+
+msgid "The foot pivots around the base of the toe"
+msgstr "O pé roda em torno da base do dedo do pé"
+
+
+msgid "Ankle and Toe"
+msgstr "Tornozelo e Dedo do Pé"
+
+
+msgid "The foots pivots at the ankle, with extra toe pivot"
+msgstr "O pé roda em torno do tornozelo, com pivot extra no dedo do pé"
+
+
+msgid "Heel IK Influence"
+msgstr "Influência da IK secundária na rotação de controlo do calcanhar"
+
+
+msgid "Influence of the secondary IK on the heel control rotation"
+msgstr "Influência da IK secundária na rotação do controlo de calcanhar"
+
+
+msgid "IK Local Location"
+msgstr "Posição Local IK"
+
+
+msgid "Specifies the value of the Local Location option for IK controls, which decides if the location channels are aligned to the local control orientation or world"
+msgstr "Especifica o valor da opção Posição Local dos controlos IK, que decide se os canais de posição estão alinhados com a orientação de controlo local ou com a cena"
+
+
+msgid "Locked Influence"
+msgstr "Influência Trancada"
+
+
+msgid "Influence of the jaw on the locked mouth"
+msgstr "Influência do maxilar na boca trancada"
+
+
+msgid "Bottom Lip Influence"
+msgstr "Influência do Lábio Inferior"
+
+
+msgid "Influence of the jaw on the bottom lip chains"
+msgstr "Influência do maxilar nas cadeias de lábio inferior"
+
+
+msgid "Secondary Influence Falloff"
+msgstr "Decaimento de Influência Secundária"
+
+
+msgid "Reduction factor for each level of secondary mouth loops"
+msgstr "Factor de redução para cada nível de anéis secundários de boca"
+
+
+msgid "Limb Type"
+msgstr "Tipo de Membro"
+
+
+msgid "Arm"
+msgstr "Braço"
+
+
+msgid "Leg"
+msgstr "Perna"
+
+
+msgid "Paw"
+msgstr "Pata"
+
+
+msgid "Support Uniform Scaling"
+msgstr "Suportar Redimensionamento Uniforme"
+
+
+msgid "Support uniformly scaling the limb via the gear control at the base"
+msgstr "Suportar redimensionar uniformemente o membro através do controlo de engrenagem na base"
+
+
+msgid "Control"
+msgstr "Controlo"
+
+
+msgid "Create a control bone for the copy"
+msgstr "Criar osso de controlo para a cópia"
+
+
+msgid "Controls"
+msgstr "Controlos"
+
+
+msgid "Create control bones for the copy"
+msgstr "Criar ossos de controlo para a cópia"
+
+
+msgid "Custom Pivot Control"
+msgstr "Controlo de Pivot Personalizado"
+
+
+msgid "Create a rotation pivot control that can be repositioned arbitrarily"
+msgstr "Criar pivot de rotação que pode ser reposicionado arbitrariamente"
+
+
+msgid "Create a deform bone for the copy"
+msgstr "Criar um osso de deformação para a cópia"
+
+
+msgid "Create deform bones for the copy"
+msgstr "Criar ossos de deformação para a cópia"
+
+
+msgid "Extra Control"
+msgstr "Controlo Extra"
+
+
+msgid "Create an optional control"
+msgstr "Criar um controlo opcional"
+
+
+msgid "Extra Deform"
+msgstr "Deformação Extra"
+
+
+msgid "Create an optional deform bone"
+msgstr "Criar osso de deformação extra"
+
+
+msgid "Extra IK Control"
+msgstr "Controlo IK Extra"
+
+
+msgid "Create an optional IK control"
+msgstr "Criar um controlo IK opcional"
+
+
+msgid "FK Controls"
+msgstr "Controlos FK"
+
+
+msgid "Generate an FK control chain"
+msgstr "Gerar cadeia de controlo FK"
+
+
+msgid "IK Wrist Pivot"
+msgstr "Picot de Pulso IK"
+
+
+msgid "Make an extra IK hand control pivoting around the tip of the hand"
+msgstr "Criar um controlo IK de mão extra que roda em torno da ponta da mão"
+
+
+msgid "Switchable Parent"
+msgstr "Ascendente Comutável"
+
+
+msgid "Allow switching the parent of the master control"
+msgstr "Permitir mudar o ascendente do controlo mestre"
+
+
+msgid "Widget"
+msgstr "Apetrecho"
+
+
+msgid "Choose a widget for the bone control"
+msgstr "Escolher um apetrecho para o controlo de osso"
+
+
+msgid "Neck Position"
+msgstr "Posição de rastreamento"
+
+
+msgid "Neck start position"
+msgstr "Posição inicial do pescoço"
+
+
+msgid "Widget Type"
+msgstr "Tipo de Apetrecho"
+
+
+msgid "Choose the type of the widget to create"
+msgstr "Escolher tipo de apetrecho a criar"
+
+
+msgid "Both Sides"
+msgstr "Ambos os Lados"
+
+
+msgid "Create controls for both sides of the palm"
+msgstr "Criar controlos para ambos os lados da palma"
+
+
+msgid "Palm Rotation Axis"
+msgstr "Eixo de Rotação da Palma"
+
+
+msgid "Replace the parent with a different bone after all bones are created. Using simply CTRL, DEF or MCH will replace the prefix instead"
+msgstr "Substituir o ascendente por um osso diferente após todos os ossos serem criados. Usar simplesmente CTRL, DEF ou MCH irá substituir o prefixo"
+
+
+msgid "pivot_position"
+msgstr "pivot_position"
+
+
+msgid "Position of the torso control and pivot point"
+msgstr "Posição do controlo do tronco e ponto de pivot"
+
+
+msgid "Layers for the primary controls to be on"
+msgstr "Camadas nas quais colocar os controlos primários"
+
+
+msgid "Assign Primary Collections"
+msgstr "Atribuir Colecções Primárias"
+
+
+msgid "Primary Rotation Axis"
+msgstr "Eixo Primário de Rotação"
+
+
+msgid "X manual"
+msgstr "Manual X"
+
+
+msgid "Y manual"
+msgstr "Manual Y"
+
+
+msgid "Z manual"
+msgstr "Manual Z"
+
+
+msgid "-X manual"
+msgstr "Manual -X"
+
+
+msgid "-Y manual"
+msgstr "Manual -Y"
+
+
+msgid "-Z manual"
+msgstr "Manual -Z"
+
+
+msgid "Register Parent"
+msgstr "Registar Ascendente"
+
+
+msgid "Register the control as a switchable parent candidate"
+msgstr "Registar controlo como candidato a ascendente trocável"
+
+
+msgid "Parent Tags"
+msgstr "Etiquetas Ascendentes"
+
+
+msgid "Comma-separated tags to use for the registered parent"
+msgstr "Etiquetas separadas por vírgulas para o ascendente registado"
+
+
+msgid "Relink Constraints"
+msgstr "Reconectar Restrições"
+
+
+msgid "For constraints with names formed like 'base@bonename', use the part after '@' as the new subtarget after all bones are created. Use '@CTRL', '@DEF' or '@MCH' to simply replace the prefix"
+msgstr "Para restrições com nomes formados como 'base@bonename', usar a parte após '@' como novo como novo sub-alvo após todos os ossos serem criados. Usar '@CTRL', '@DEF' ou '@MCH' para substituir simplesmente o prefixo"
+
+
+msgid "Bone roll alignment"
+msgstr "Alinhamento de inclinação do osso"
+
+
+msgid "Layers for the secondary controls to be on"
+msgstr "Camadas nas quais colocar os controlos secundários"
+
+
+msgid "Assign Secondary Collections"
+msgstr "Atribuir Colecções Secundárias"
+
+
+msgid "Limb Segments"
+msgstr "Segmentos de Membros"
+
+
+msgid "Number of limb segments"
+msgstr "Número de segmentos dos membros"
+
+
+msgid "Extra End Controls"
+msgstr "Controlos de Extremidades Extra"
+
+
+msgid "Number of extra spline control points attached to the end control"
+msgstr "Número de controlos de splines extra ligados ao controlo de extremidade"
+
+
+msgid "Generate an FK control chain for the tentacle"
+msgstr "Gerar um encadeamento de controlo FK para o tentáculo"
+
+
+msgid "Maximum Radius"
+msgstr "Raio Máximo"
+
+
+msgid "Maximum supported scale factor for the spline control bones"
+msgstr "Factor de escala máximo suportado para os ossos de controlo de splines"
+
+
+msgid "Middle Controls"
+msgstr "Controlos Intermédios"
+
+
+msgid "Number of spline control points in the middle"
+msgstr "Número de pontos de controlo de spline no meio"
+
+
+msgid "Radius Scaling"
+msgstr "Redimensionamento de Raio"
+
+
+msgid "Allow scaling the spline control bones to affect the thickness via curve radius"
+msgstr "Permitir redimensionar os ossos de controlo da spline para afectar a espessura através do raio da curva"
+
+
+msgid "Extra Start Controls"
+msgstr "Controlos de Início Extra"
+
+
+msgid "Number of extra spline control points attached to the start control"
+msgstr "Número de pontos de controlo de spline ligados ao controlo de início"
+
+
+msgid "Tip Control"
+msgstr "Controlo de Ponta"
+
+
+msgid "How the stretching of the tentacle is controlled"
+msgstr "Como é controlado o esticar do tentáculo"
+
+
+msgid "Stretch To Fit"
+msgstr "Esticar para Caber"
+
+
+msgid "The tentacle stretches to fit the curve"
+msgstr "Esticar tentáculo para caber sobre a curva"
+
+
+msgid "Direct Tip Control"
+msgstr "Controlo Directo da Ponta"
+
+
+msgid "The last bone of the chain is directly controlled, like the hand in an IK arm, and the middle stretches to reach it"
+msgstr "O último osso da cadeia é controlado directamente, como a mão num braço IK, e o meio estica para alcançá-lo"
+
+
+msgid "Manual Squash & Stretch"
+msgstr "Apertar e Esticar Manual"
+
+
+msgid "The tentacle scaling is manually controlled via twist controls."
+msgstr "A escala do tentáculo é controlada manualmente pelos controlos de torção."
+
+
+msgid "Suppress Control"
+msgstr "Suprimir Controlo"
+
+
+msgid "Make the control bone a mechanism bone invisible to the user and only affected by constraints"
+msgstr "Tornar osso de controlo um osso de mecanismo invisível para o utilizador e apenas afectado por restrições"
+
+
+msgid "Connect Matching Ends"
+msgstr "Conectar Pontas Correspondentes"
+
+
 msgid "Create a smooth B-Bone transition if an end of the chain meets another chain going in the same direction"
 msgstr "Criar uma transição B-Bone suave se um final de uma cadeia encontrar com outra cadeia seguindo na mesma direcção"
+
+
+msgid "Connect With Mirror"
+msgstr "Conectar Com Espelho"
 
 
 msgid "Create a smooth B-Bone transition if an end of the chain meets its mirror"
 msgstr "Criar uma transição B-Bone suave se um final de uma cadeia encontrar com a sua simetria"
 
 
+msgid "Sharpen Corner"
+msgstr "Aguçar Esquina"
+
+
+msgid "Create a mechanism to sharpen a connected corner when the angle is below this value"
+msgstr "Criar mecanismo para aguçar a esquina conectada quando o ângulo for menor que este valor"
+
+
+msgid "Control Falloff"
+msgstr "Controlar Decaimento"
+
+
+msgid "Falloff curve coefficient: 0 is linear, and higher value is wider influence. Set to -10 to disable influence completely"
+msgstr "Coeficiente da curva de decaimento: 0 é linear, e valores mais altos correspondem a maior influência. Colocar a -10 para desactivar influência completamente"
+
+
+msgid "Falloff Along Chain Curve"
+msgstr "Decaimento ao Longo da Curva de Cadeia"
+
+
+msgid "Falloff is computed along the curve of the chain, instead of projecting on the axis connecting the start and end points"
+msgstr "Decaimento é computado ao longo da curva de ua cadeia, em vez de projectar sobre o eixo que conecta as pontas de início e fim"
+
+
+msgid "Propagate Scale"
+msgstr "Propagar Escala"
+
+
+msgid "Propagate scale from main controls throughout the chain"
+msgstr "Propagar a escala dos controlos principais pela cadeia completa"
+
+
+msgid "Spherical Falloff"
+msgstr "Decaimento Esférico"
+
+
+msgid "Falloff curve tries to form a circle at +1 instead of a parabola"
+msgstr "A curva de decaimento tenta formar um círculo a +1 em vez de uma parábola"
+
+
+msgid "Propagate To Controls"
+msgstr "Propagar para Cotrolos"
+
+
+msgid "Expose scale and/or twist propagated to tweak controls to be seen as parent motion by glue or other chains using Merge Parent Rotation And Scale. Otherwise it is only propagated internally within this chain"
+msgstr "Expor escala e/ou torção propagada para controlos de ajuste para ser vista como movimento de ascendente por cola ou outras cadeias que usem Fundir Rotação e Escala de Ascendente. Caso contrário será propagada apenas internamente dentro desta cadeia"
+
+
+msgid "Propagate Twist"
+msgstr "Propagar Torção"
+
+
+msgid "Propagate twist from main controls throughout the chain"
+msgstr "Propagar torção dos controlos principais através da cadeia"
+
+
+msgid "Middle Control Position"
+msgstr "Posição do Controlo do Meio"
+
+
+msgid "Position of the middle control, disabled if zero"
+msgstr "Posição do controlo do meio, desactivado se zero"
+
+
+msgid "Chain Priority"
+msgstr "Prioridade da Cadeia"
+
+
+msgid "When merging controls, chains with higher priority always win"
+msgstr "Ao fundir controlos, cadeias com prioridade mais alta ganham sempre"
+
+
 msgid "Use control scaling to scale the B-Bone"
 msgstr "Usar controlo de redimensionamento para redimensionar B-Bone"
+
+
+msgid "Layers for the tweak controls to be on"
+msgstr "Camadas nas quais colocar os controlos de retoque"
 
 
 msgid "Selected UV Element"
@@ -108852,7 +109322,7 @@ msgstr "Som"
 
 msgctxt "Operator"
 msgid "Stop Tweaking Strip Actions"
-msgstr "Interromper os ajustes de faixa de ações"
+msgstr "Parar de Ajustar Acções de Faixas"
 
 
 msgctxt "Operator"

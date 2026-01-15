@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "shader_tool/shader_tool.hh"
+#include "shader_tool/processor.hh"
 
 #include "gpu_testing.hh"
 
@@ -11,23 +11,20 @@ namespace blender::gpu::tests {
 static std::string process_test_string(std::string str,
                                        std::string &first_error,
                                        shader::metadata::Source *r_metadata = nullptr,
-                                       shader::Preprocessor::SourceLanguage language =
-                                           shader::Preprocessor::SourceLanguage::BLENDER_GLSL)
+                                       shader::Language language = shader::Language::BLENDER_GLSL)
 {
   using namespace shader;
-  Preprocessor preprocessor;
-  shader::metadata::Source metadata;
-  std::string result = preprocessor.process(
-      language,
+  SourceProcessor processor(
       str,
-      "test.glsl",
-      false,
+      "test.bsl",
+      language,
       [&](int /*err_line*/, int /*err_char*/, const std::string & /*line*/, const char *err_msg) {
         if (first_error.empty()) {
           first_error = err_msg;
         }
-      },
-      metadata);
+      });
+
+  auto [result, metadata] = processor.convert();
 
   if (r_metadata != nullptr) {
     *r_metadata = metadata;
@@ -695,6 +692,20 @@ void funcTfloatT1(float a) {
   a;
 }
 #line 7
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+template<enum E e, char i> E func() { return E(e + i); }
+template E func<v, 2>();
+)";
+    string expect = R"(
+E funcTvT2() { return E(v + 2); }
+#line 4
 )";
     string error;
     string output = process_test_string(input, error);
@@ -1425,7 +1436,7 @@ void A_a() {}
 
 void A_B_b() { A_a(); }
 
-void A_f() { B_b(); }
+void A_f() { A_B_b(); }
 
 )";
     string error;
@@ -1761,7 +1772,7 @@ static void test_preprocess_matrix_constructors()
     string input = R"(mat3(a); mat3 a; my_mat4x4(a); mat2x2(a); mat3x2(a);)";
     string expect = R"(__mat3x3(a); mat3 a; my_mat4x4(a); __mat2x2(a); mat3x2(a);)";
     string error;
-    string output = process_test_string(input, error, nullptr, Preprocessor::SourceLanguage::GLSL);
+    string output = process_test_string(input, error, nullptr, Language::GLSL);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
@@ -2489,7 +2500,7 @@ PipelineCompute compute_pipe(compute_func, Type{.a = true, .b = 8, .c = 7u});
 
 
 GPU_SHADER_CREATE_INFO(ns_graphic_pipe)
-GRAPHIC_SOURCE("test.glsl")
+GRAPHIC_SOURCE("test.bsl")
 VERTEX_FUNCTION("vertex_func")
 FRAGMENT_FUNCTION("fragment_func")
 ADDITIONAL_INFO(vertex_func_infos_)
@@ -2501,7 +2512,7 @@ DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(ns_compute_pipe)
-COMPUTE_SOURCE("test.glsl")
+COMPUTE_SOURCE("test.bsl")
 COMPUTE_FUNCTION("compute_func")
 ADDITIONAL_INFO(compute_func_infos_)
 COMPILATION_CONSTANT(bool, a, true)

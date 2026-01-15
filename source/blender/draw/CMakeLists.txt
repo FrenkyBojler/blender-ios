@@ -310,6 +310,7 @@ set(LIB
   PRIVATE bf::windowmanager
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::dependencies::optional::opensubdiv
 )
 
 set(GLSL_SRC
@@ -845,10 +846,49 @@ set(GLSL_SRC
   engines/image/shaders/image_engine_depth_vert.glsl
 )
 
-set(GLSL_C)
+function(make_include_list
+  include_list
+  )
+  foreach(path ${_inc_list})
+    message(WARNING ${path})
+  endforeach()
+endfunction()
 
+set(GLSL_INC
+  ../gpu
+  ../gpu/intern
+  ../gpu/shaders
+  ../gpu/shaders/infos
+  ../gpu/shaders/common
+
+  engines/gpencil
+  engines/gpencil/shaders
+  engines/gpencil/shaders/infos
+  engines/workbench
+  engines/workbench/shaders
+  engines/workbench/shaders/infos
+  engines/eevee
+  engines/eevee/shaders
+  engines/eevee/shaders/infos
+  engines/overlay
+  engines/overlay/shaders
+  engines/overlay/shaders/infos
+  engines/select
+  engines/select/shaders
+  engines/select/shaders/infos
+  engines/image
+  engines/image/shaders
+  engines/image/shaders/infos
+
+  intern
+  intern/shaders
+)
+
+make_include_list(GLSL_INC)
+
+set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
-  glsl_to_c(${GLSL_FILE} GLSL_C)
+  glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
 blender_add_lib(bf_draw_shaders "${GLSL_C}" "" "" "")
@@ -893,13 +933,6 @@ if(WITH_DRAW_DEBUG)
   add_definitions(-DWITH_DRAW_DEBUG)
 endif()
 
-if(WITH_OPENSUBDIV)
-  add_definitions(-DWITH_OPENSUBDIV)
-  list(APPEND INC_SYS
-    ${OPENSUBDIV_INCLUDE_DIRS}
-  )
-endif()
-
 if(WITH_MOD_FLUID)
   list(APPEND INC
     ../../../intern/mantaflow/extern
@@ -926,8 +959,8 @@ if(WITH_GTESTS)
     endif()
     if(WITH_VULKAN_BACKEND)
       add_definitions(-DWITH_VULKAN_BACKEND)
-      list(APPEND INC_SYS
-        PUBLIC ${VULKAN_INCLUDE_DIRS}
+      list(APPEND LIB
+        PRIVATE bf::dependencies::optional::vulkan
       )
     endif()
   endif()
