@@ -325,7 +325,6 @@ void gpu::MTLTexture::name_set(const char *name)
   texture_.label = [NSString stringWithUTF8String:this->get_name()];
 }
 
-
 void gpu::MTLTexture::blit(id<MTLBlitCommandEncoder> blit_encoder,
                            uint src_x_offset,
                            uint src_y_offset,
