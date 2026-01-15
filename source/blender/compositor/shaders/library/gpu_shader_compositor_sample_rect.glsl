@@ -16,7 +16,7 @@ template<enum Sampler sampler> float4 sample(sampler2D source, float2 uv, float2
 
 template <> float4 sample<Bilinear>(sampler2D source, float2 uv, float2 wh)
 {
-  return texture(source, uv / textureSize(source, 0));
+  return texture(source, uv / float2(textureSize(source, 0)));
 }
 
 // Sample orthogonal rectangle of size wh centered on uv.
@@ -26,7 +26,7 @@ template <> float4 sample<Box>(sampler2D source, float2 uv, float2 wh)
   float2 d = ceil(w1 / 8.0f);
   float2 r = (w1 + 1) / 2.0f;
   float2 a = (ceil(uv - r - 0.5f) + 0.5f);                 // first non-zero sample
-  float2 scale = 1.0f / textureSize(source, 0);  // convert to texture coordinates
+  float2 scale = 1.0f / float2(textureSize(source, 0));  // convert to texture coordinates
   // precompute the horizontal filter so it can be reused
   float2 xfilter[33];  // pairs of u,weight
   float divx = 0.0f;
@@ -71,7 +71,7 @@ template <> float4 sample<Bspline>(sampler2D source, float2 uv, float2 wh)
   float2 d = ceil(w1 / 8.0f);
   float2 r = 2 * w1;
   float2 a = (ceil(uv - r - 0.5f) + 0.5f);                 // first non-zero sample
-  float2 scale = 1.0f / textureSize(source, 0);  // convert to texture coordinates
+  float2 scale = 1.0f / float2(textureSize(source, 0));  // convert to texture coordinates
   // precompute the horizontal filter so it can be reused
   float2 xfilter[33];  // pairs of u,weight
   float divx = 0.0f;
@@ -137,7 +137,7 @@ template<enum Sampler sampler> float4 sample_clip(sampler2D source, float2 uv, f
 {
   float m = 1.0f;
   if (bool(clip)) {
-    float2 v = min(uv, textureSize(source, 0) - uv) / wh + 0.5f;
+    float2 v = min(uv, float2(textureSize(source, 0)) - uv) / wh + 0.5f;
     if (bool(clip & 1)) {
       if (v.x <= 0.0f) {
         return float4(0.0f);
