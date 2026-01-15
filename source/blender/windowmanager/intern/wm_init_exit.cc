@@ -88,6 +88,7 @@
 #include "ED_asset.hh"
 #include "ED_gpencil_legacy.hh"
 #include "ED_grease_pencil.hh"
+#include "ED_image.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_keyframing.hh"
 #include "ED_node.hh"
@@ -114,7 +115,6 @@
 #include "ANIM_keyingsets.hh"
 
 #include "DRW_engine.hh"
-#include "ED_image.hh"
 
 namespace blender {
 
