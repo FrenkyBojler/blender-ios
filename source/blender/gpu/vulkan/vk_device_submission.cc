@@ -62,7 +62,7 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
     return timeline_value_;
   }
 
-  /* Sanitize input flags */
+  /* Syncing input flags. */
   /* When we wait for completion/submission we must submit to device. */
   submit_to_device |= wait_for_completion;
   submit_to_device |= wait_for_submission;
