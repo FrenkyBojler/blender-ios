@@ -2226,16 +2226,15 @@ struct RemoteLibraryRequest {
 
   /** Is this asset library tagged as loading externally? Used for remote asset libraries to keep
    * the filelist loading running while the library is being downloaded by other code. */
-  std::atomic<bool> is_asset_library_loading_extern = false;
+  std::atomic<bool> is_downloading = false;
 
   /** When downloading remote library pages, ignore pages older than this. They are from a previous
    * download still. Use the system clock since this is compared against file time-stamps. */
-  std::optional<RemoteLibraryLoadingStatus::FileSystemTimePoint> remote_library_request_time =
-      std::nullopt;
+  std::optional<RemoteLibraryLoadingStatus::FileSystemTimePoint> request_time = std::nullopt;
 
-  std::atomic<bool> is_asset_library_metafiles_in_place = false;
+  std::atomic<bool> metafiles_in_place = false;
   RemoteLibraryLoadingStatus::TimePoint last_new_pages_time;
-  std::atomic<bool> is_asset_library_new_pages_available = false;
+  std::atomic<bool> new_pages_available = false;
 };
 
 struct FileListReadJob {
@@ -3416,9 +3415,7 @@ static void filelist_readjob_remote_asset_library_index_read(
       }
 
       /* Atomically test and reset the new pages flag. */
-      if (request.is_asset_library_new_pages_available.exchange(false) ||
-          !request.is_asset_library_loading_extern)
-      {
+      if (request.new_pages_available.exchange(false) || !request.is_downloading) {
         /* New pages available or loading ended. Done waiting. */
         return true;
       }
@@ -3430,7 +3427,7 @@ static void filelist_readjob_remote_asset_library_index_read(
   };
 
   if (!index::read_remote_listing(
-          dirpath, process_asset_fn, wait_for_pages_fn, request.remote_library_request_time))
+          dirpath, process_asset_fn, wait_for_pages_fn, request.request_time))
   {
     return;
   }
@@ -3470,7 +3467,7 @@ static void remote_asset_library_load(FileListReadJob *job_params,
   BLI_assert(job_params->load_asset_library &&
              (job_params->load_asset_library->library_type() != ASSET_LIBRARY_ALL));
 
-  while (request.is_asset_library_loading_extern && !request.is_asset_library_metafiles_in_place) {
+  while (request.is_downloading && !request.metafiles_in_place) {
     /* Busy waiting for the metafiles, with some sleeping to avoid wasting a lot of CPU
      * cycles. */
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -3538,12 +3535,12 @@ static void filelist_remote_asset_library_update_loading_flags(RemoteLibraryRequ
 
   const auto last_new_pages_time = RemoteLibraryLoadingStatus::last_new_pages_time(remote_url);
   if (last_new_pages_time && *last_new_pages_time != request.last_new_pages_time) {
-    request.is_asset_library_new_pages_available = true;
+    request.new_pages_available = true;
     request.last_new_pages_time = *last_new_pages_time;
   }
-  request.is_asset_library_loading_extern = RemoteLibraryLoadingStatus::status(remote_url) ==
-                                            RemoteLibraryLoadingStatus::Loading;
-  request.is_asset_library_metafiles_in_place =
+  request.is_downloading = RemoteLibraryLoadingStatus::status(remote_url) ==
+                           RemoteLibraryLoadingStatus::Loading;
+  request.metafiles_in_place =
       RemoteLibraryLoadingStatus::metafiles_in_place(remote_url).value_or(false);
 }
 
@@ -3567,8 +3564,7 @@ static void remote_asset_library_request(FileListReadJob *job_params,
 
   std::unique_ptr<RemoteLibraryRequest> request = std::make_unique<RemoteLibraryRequest>();
   request->dirpath = library.dirpath;
-  request->remote_library_request_time = RemoteLibraryLoadingStatus::loading_start_time(
-      library.remote_url);
+  request->request_time = RemoteLibraryLoadingStatus::loading_start_time(library.remote_url);
 
   filelist_remote_asset_library_update_loading_flags(*request, library.remote_url);
 
