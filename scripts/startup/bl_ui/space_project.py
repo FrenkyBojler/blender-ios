@@ -106,6 +106,7 @@ class PROJECT_PT_save_project(Panel):
             layout.operator(
                 "project.save_project",
                 text=("* " if context.project.is_dirty else "") + pgettext_iface("Save Project"),
+                icon='FILE_TICK',
                 translate=False,
             )
 
