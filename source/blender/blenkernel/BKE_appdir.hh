@@ -67,22 +67,6 @@ bool BKE_appdir_folder_documents(char *dir) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RES
 bool BKE_appdir_folder_caches(char *path, size_t path_maxncpy) ATTR_NONNULL(1);
 
 /**
- * Get the user's cache directory, i.e.
- * - Linux: `$HOME/.cache/blender/${subdirectory}/`
- * - Windows: `%USERPROFILE%\AppData\Local\Blender Foundation\Blender\Cache\${subdirectory}\`
- * - MacOS: `$HOME/Library/Caches/Blender/${subdirectory}/`
- *
- * \param subdirectory If not the empty string, this is appended as path
- * component, using the platform-specific path separator.
- *
- * \returns The path as string if it can be constructed, and an empty optional
- * if not. There is only a check for whether the cache directory itself exists;
- * if it does, the 'Blender/${subdirectory}` part is appended without any
- * further checks.
- */
-std::optional<std::string> BKE_appdir_folder_caches(StringRefNull subdirectory = "");
-
-/**
  * Get a folder out of the \a folder_id presets for paths.
  *
  * \param subfolder: The name of a directory to check for,

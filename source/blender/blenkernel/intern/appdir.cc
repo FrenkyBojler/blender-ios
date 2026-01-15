@@ -202,21 +202,6 @@ bool BKE_appdir_folder_documents(char *dir)
   return true;
 }
 
-std::optional<std::string> BKE_appdir_folder_caches(StringRefNull subdirectory)
-{
-  char cache_path[FILE_MAX];
-  if (!BKE_appdir_folder_caches(cache_path, sizeof(cache_path))) {
-    return {};
-  }
-  if (subdirectory.is_empty()) {
-    return cache_path;
-  }
-
-  char with_subdir[FILE_MAX];
-  BLI_path_join(with_subdir, sizeof(with_subdir), cache_path, subdirectory.c_str(), SEP_STR);
-  return with_subdir;
-}
-
 bool BKE_appdir_folder_caches(char *path, const size_t path_maxncpy)
 {
   path[0] = '\0';

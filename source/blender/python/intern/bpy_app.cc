@@ -457,11 +457,9 @@ PyDoc_STRVAR(
     ":type: str\n");
 static PyObject *bpy_app_cachedir_get(PyObject * /*self*/, void * /*closure*/)
 {
-  std::optional<std::string> cache_dir = BKE_appdir_folder_caches();
-  if (!cache_dir) {
-    return PyC_UnicodeFromBytesAndSize("", 0);
-  }
-  return PyC_UnicodeFromStdStr(*cache_dir);
+  char cache_path[FILE_MAX];
+  BKE_appdir_folder_caches(cache_path, sizeof(cache_path));
+  return PyC_UnicodeFromBytes(cache_path);
 }
 
 PyDoc_STRVAR(
