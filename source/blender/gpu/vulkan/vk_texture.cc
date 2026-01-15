@@ -535,6 +535,17 @@ void VKTexture::update_sub(int offset[3],
   update_sub(0, offset, extent, format, nullptr, &pixel_buffer);
 }
 
+void VKTexture::name_set(const char *name)
+{
+  if (name) {
+    STRNCPY(name_, name);
+  }
+  else {
+    name_[0] = '\0';
+  }
+  debug::object_label(vk_image_, name_);
+}
+
 VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handle_type)
 {
   const VKDevice &device = VKBackend::get().device;

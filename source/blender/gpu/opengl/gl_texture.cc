@@ -359,6 +359,17 @@ void GLTexture::update_sub(int offset[3],
   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
+void GLTexture::name_set(const char *name)
+{
+  if (name) {
+    STRNCPY(name_, name);
+  }
+  else {
+    name_[0] = '\0';
+  }
+  debug::object_label(GL_TEXTURE, tex_id_, name_);
+}
+
 void GLTexture::generate_mipmap()
 {
   /* Allow users to provide mipmaps stored in compressed textures.
