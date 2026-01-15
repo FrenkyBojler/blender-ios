@@ -899,12 +899,13 @@ bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketVal
   storage.blend_type = MA_RAMP_ADD;
   node->flag |= NODE_COLLAPSED;
   BLI_strncpy_utf8(node->label, IFACE_("To Color"), sizeof(node->label));
-  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
-  /* First socket is the mix factor. */
-  socket->flag |= SOCK_HIDDEN;
-  socket->default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
-  *socket->next->default_value_typed<bNodeSocketValueRGBA>() = data;
-  socket->next->next->flag |= SOCK_HIDDEN;
+  bNodeSocket *socket_factor = bke::node_find_socket(*node, SOCK_IN, "Factor_Float");
+  bNodeSocket *socket_color_a = bke::node_find_socket(*node, SOCK_IN, "A_Color");
+  bNodeSocket *socket_color_b = bke::node_find_socket(*node, SOCK_IN, "B_Color");
+  socket_factor->flag |= SOCK_HIDDEN;
+  socket_factor->default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
+  *socket_color_a->default_value_typed<bNodeSocketValueRGBA>() = data;
+  socket_color_b->flag |= SOCK_HIDDEN;
   return node;
 }
 template<>
@@ -914,10 +915,11 @@ bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketVal
   bNode *node = bke::node_add_node(&C, tree, "GeometryNodeStringJoin");
   node->flag |= NODE_COLLAPSED;
   BLI_strncpy_utf8(node->label, IFACE_("To String"), sizeof(node->label));
-  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+  bNodeSocket *socket_delim = bke::node_find_socket(*node, SOCK_IN, "Delimiter");
+  bNodeSocket *socket_strings = bke::node_find_socket(*node, SOCK_IN, "Strings");
   /* First socket is the delimiter input. */
-  socket->flag |= SOCK_HIDDEN;
-  *socket->next->default_value_typed<bNodeSocketValueString>() = data;
+  socket_delim->flag |= SOCK_HIDDEN;
+  *socket_strings->default_value_typed<bNodeSocketValueString>() = data;
   return node;
 }
 template<>
@@ -1068,13 +1070,13 @@ find_interface_proxy_sockets(const InterfaceProxyNodes &interface_proxies,
   const ListBaseT<bNodeSocket> &internal_sockets = is_input ? node->outputs : node->inputs;
   const ListBaseT<bNodeSocket> &external_sockets = is_input ? node->inputs : node->outputs;
   for (bNodeSocket &socket : internal_sockets) {
-    if (socket.is_available()) {
+    if (socket.is_available() && !socket.is_user_hidden()) {
       internal.emplace(MutableNodeAndSocket{*node, socket});
       break;
     }
   }
   for (bNodeSocket &socket : external_sockets) {
-    if (socket.is_available()) {
+    if (socket.is_available() && !socket.is_user_hidden()) {
       external.emplace(MutableNodeAndSocket{*node, socket});
       break;
     }
