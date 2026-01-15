@@ -391,7 +391,6 @@ CustomDataLayer *BKE_attribute_new(Mesh &mesh,
   if (!mesh_attribute_valid(mesh, name, domain, *custom_data_type_to_attr_type(type), reports)) {
     return nullptr;
   }
-
   BM_data_layer_add_named(&bm, customdata, type, uniquename.c_str());
   const int index = CustomData_get_named_layer_index(customdata, type, uniquename);
   return (index == -1) ? nullptr : &(customdata->layers[index]);
@@ -833,7 +832,7 @@ int BKE_attribute_to_index(const AttributeOwner &owner,
           index++;
         }
       }
-      return index;
+      return -1;
     }
   }
 
