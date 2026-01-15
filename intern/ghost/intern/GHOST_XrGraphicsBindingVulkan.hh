@@ -61,27 +61,6 @@
  * is using.
  */
 class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
-  struct {
-    /* XR_KHR_vulkan_enable */
-    PFN_xrGetVulkanInstanceExtensionsKHR xrGetVulkanInstanceExtensionsKHR = nullptr;
-    PFN_xrGetVulkanDeviceExtensionsKHR xrGetVulkanDeviceExtensionsKHR = nullptr;
-    PFN_xrGetVulkanGraphicsDeviceKHR xrGetVulkanGraphicsDeviceKHR = nullptr;
-    PFN_xrGetVulkanGraphicsRequirementsKHR xrGetVulkanGraphicsRequirementsKHR = nullptr;
-
-    /* XR_KHR_vulkan_enable2 */
-    PFN_xrGetVulkanGraphicsRequirements2KHR xrGetVulkanGraphicsRequirements2KHR = nullptr;
-    PFN_xrGetVulkanGraphicsDevice2KHR xrGetVulkanGraphicsDevice2KHR = nullptr;
-    PFN_xrCreateVulkanInstanceKHR xrCreateVulkanInstanceKHR = nullptr;
-    PFN_xrCreateVulkanDeviceKHR xrCreateVulkanDeviceKHR = nullptr;
-  } functions_;
-
-  struct {
-    /** Is XK_KHR_vulkan_enable extension available */
-    bool vulkan_enable = false;
-    /** Is XK_KHR_vulkan_enable2 extension available */
-    bool vulkan_enable2 = false;
-  } extensions_;
-
  public:
   GHOST_XrGraphicsBindingVulkan(GHOST_Context &ghost_ctx);
   ~GHOST_XrGraphicsBindingVulkan() override;
@@ -112,6 +91,27 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   bool needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const override;
 
  private:
+  struct {
+    /* XR_KHR_vulkan_enable */
+    PFN_xrGetVulkanInstanceExtensionsKHR xrGetVulkanInstanceExtensionsKHR = nullptr;
+    PFN_xrGetVulkanDeviceExtensionsKHR xrGetVulkanDeviceExtensionsKHR = nullptr;
+    PFN_xrGetVulkanGraphicsDeviceKHR xrGetVulkanGraphicsDeviceKHR = nullptr;
+    PFN_xrGetVulkanGraphicsRequirementsKHR xrGetVulkanGraphicsRequirementsKHR = nullptr;
+
+    /* XR_KHR_vulkan_enable2 */
+    PFN_xrGetVulkanGraphicsRequirements2KHR xrGetVulkanGraphicsRequirements2KHR = nullptr;
+    PFN_xrGetVulkanGraphicsDevice2KHR xrGetVulkanGraphicsDevice2KHR = nullptr;
+    PFN_xrCreateVulkanInstanceKHR xrCreateVulkanInstanceKHR = nullptr;
+    PFN_xrCreateVulkanDeviceKHR xrCreateVulkanDeviceKHR = nullptr;
+  } functions_;
+
+  struct {
+    /** Is XK_KHR_vulkan_enable extension available */
+    bool vulkan_enable = false;
+    /** Is XK_KHR_vulkan_enable2 extension available */
+    bool vulkan_enable2 = false;
+  } extensions_;
+
   GHOST_ContextVK &ghost_ctx_;
 
   VkInstance vk_instance_ = VK_NULL_HANDLE;
