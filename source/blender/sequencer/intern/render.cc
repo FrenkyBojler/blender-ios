@@ -826,7 +826,7 @@ static ImBuf *seq_render_effect_strip_impl(const RenderData *context,
 /** \name Individual strip rendering functions
  * \{ */
 
-static void convert_multilayer_ibuf(ImBuf *ibuf)
+void convert_multilayer_ibuf(ImBuf *ibuf)
 {
   /* Load the combined/RGB layer, if this is a multi-layer image. */
   BKE_movieclip_convert_multilayer_ibuf(ibuf);
@@ -894,12 +894,12 @@ static ImBuf *seq_render_image_strip_view(const RenderData *context,
   return ibuf;
 }
 
-static bool seq_image_strip_is_multiview_render(Scene *scene,
-                                                Strip *strip,
-                                                int totfiles,
-                                                const char *filepath,
-                                                char *r_prefix,
-                                                const char *r_ext)
+bool seq_image_strip_is_multiview_render(const Scene *scene,
+                                         const Strip *strip,
+                                         int totfiles,
+                                         const char *filepath,
+                                         char *r_prefix,
+                                         const char *r_ext)
 {
   if (totfiles > 1) {
     BKE_scene_multiview_view_prefix_get(scene, filepath, r_prefix, &r_ext);
