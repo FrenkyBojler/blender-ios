@@ -18,11 +18,12 @@ namespace blender::gpu::render_graph {
 /* -------------------------------------------------------------------- */
 /** \name Build nodes
  * \{ */
-
+// Hey, PR People, the only issue I am getting is the above brace for namespace blender::gpu::render_graph which I can't fix. Just fix that!
 void VKCommandBuilder::build_nodes(VKRenderGraph &render_graph,
                                    VKCommandBufferInterface &command_buffer,
                                    Span<NodeHandle> node_handles)
 {
+  BLI_assert(std::is_sorted(node_handles.begin(), node_handles.end()));
   groups_init(render_graph, node_handles);
   groups_extract_barriers(
       render_graph, node_handles, command_buffer.use_dynamic_rendering_local_read);
@@ -64,6 +65,7 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
                                                Span<NodeHandle> node_handles,
                                                bool use_local_read)
 {
+  constexpr int64_t MAX_BARRIERS = 1 << 20;
   barrier_list_.clear();
   vk_buffer_memory_barriers_.clear();
   vk_image_memory_barriers_.clear();
@@ -79,9 +81,10 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
    * directly in `barrier_list_` but may not mingle with the pre barriers. Most barriers are
    * group pre barriers. */
   Vector<Barrier> post_barriers;
-  /* Keep track of the node pre barriers that needs to be added. The pre barriers will be stored
-   * directly in `barrier_list_` but may not mingle with the group barriers. */
-  Vector<Barrier> node_pre_barriers;
+  node_pre_barriers_.clear();
+  node_pre_barriers_.resize(node_handles.size());
+
+  
 
   NodeHandle rendering_scope = 0;
   bool rendering_active = false;
@@ -108,6 +111,12 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
         std::cout << __func__ << ": " << to_string_barrier(barrier);
 #endif
         barrier_list_.append(barrier);
+if (UNLIKELY(barrier_list_.size() > MAX_BARRIERS)) {
+  BLI_assert_msg(false,
+                 "Excessive Vulkan barriers possible malicious render graph");
+  break;
+}
+
       }
       
       /* Check for additional barriers when resuming rendering.
@@ -160,6 +169,12 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
                                 barrier);
         if (!barrier.is_empty()) {
           barrier_list_.append(barrier);
+if (UNLIKELY(barrier_list_.size() > MAX_BARRIERS)) {
+  BLI_assert_msg(false,
+                 "Excessive Vulkan barriers possible malicious render graph");
+  break;
+}
+
         }
 
         /* Resume layered tracking. Each layer that has an override will be transition back to
@@ -168,6 +183,12 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
         image_tracker.resume(barrier, use_local_read);
         if (!barrier.is_empty()) {
           barrier_list_.append(barrier);
+if (UNLIKELY(barrier_list_.size() > MAX_BARRIERS)) {
+  BLI_assert_msg(false,
+                 "Excessive Vulkan barriers possible malicious render graph");
+  break;
+}
+
         }
 
         rendering_active = true;
@@ -181,7 +202,16 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
         build_pipeline_barriers(
             render_graph, node_handle, node.pipeline_stage_get(), image_tracker, barrier, true);
         if (!barrier.is_empty()) {
-          node_pre_barriers.append(barrier);
+           BarrierIndex index = barrier_list_.size();
+            barrier_list_.append(barrier);
+if (UNLIKELY(barrier_list_.size() > MAX_BARRIERS)) {
+  BLI_assert_msg(false,
+                 "Excessive Vulkan barriers  possible malicious render graph");
+  break;
+}
+
+            node_pre_barriers_[node_handle].append(index);
+
         }
       }
     }
@@ -206,20 +236,7 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
     barrier_list_.extend(std::move(post_barriers));
     group_post_barriers_.append(
         IndexRange::from_begin_end(barrier_list_size, barrier_list_.size()));
-    
-    if (!node_pre_barriers.is_empty()) {
-      barrier_list_size = barrier_list_.size();
-      barrier_list_.extend(std::move(node_pre_barriers));
-      /* Shift all node pre barrier references to the new location in the barrier_list_. */
-      for (const int64_t group_node_index : node_group) {
-        NodeHandle node_handle = node_handles[group_node_index];
-        if (!node_pre_barriers_[node_handle].is_empty()) {
-          node_pre_barriers_[node_handle].from_begin_size(
-              node_pre_barriers_[node_handle].start() + barrier_list_size, 1);
-        }
-      }
-    }
-  }
+
 
   BLI_assert(group_pre_barriers_.size() == group_nodes_.size());
   BLI_assert(group_post_barriers_.size() == group_nodes_.size());
@@ -450,15 +467,18 @@ void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_
   
   /* TODO: this should be done during barrier extraction making within_rendering obsolete. */
   if (within_rendering) {
-    /* See: VUID - `vkCmdPipelineBarrier` - `srcStageMask` - 09556
-     * If `vkCmdPipelineBarrier` is called within a render pass instance started with
-     * `vkCmdBeginRendering`, this command must only specify frame-buffer-space stages in
-     * `srcStageMask` and `dstStageMask`. */
-    src_stage_mask = dst_stage_mask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-                                      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
-                                      VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
-                                      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  }
+  const VkPipelineStageFlags framebuffer_stages =
+      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+      VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+  src_stage_mask &= framebuffer_stages;
+  dst_stage_mask &= framebuffer_stages;
+}
+
+  
+  
 
   Span<VkBufferMemoryBarrier> buffer_barriers = vk_buffer_memory_barriers_.as_span().slice(
       barrier.buffer_memory_barriers);
@@ -951,8 +971,8 @@ void VKCommandBuilder::ImageTracker::update(VkImage vk_image,
   changes.append({vk_image, new_layout, subimage});
 
   /* We should be able to do better. BOTTOM/TOP is really a worst case barrier. */
-  r_barrier.src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-  r_barrier.dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  r_barrier.src_stage_mask = safe_stage_mask(r_barrier.src_stage_mask);
+  r_barrier.dst_stage_mask = safe_stage_mask(r_barrier.dst_stage_mask);
   command_builder.add_image_barrier(vk_image,
                                     r_barrier,
                                     VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -981,8 +1001,9 @@ void VKCommandBuilder::ImageTracker::suspend(Barrier &r_barrier, bool use_local_
 
   command_builder.reset_barriers(r_barrier);
   /* We should be able to do better. BOTTOM/TOP is really a worst case barrier. */
-  r_barrier.src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-  r_barrier.dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  r_barrier.src_stage_mask = safe_stage_mask(r_barrier.src_stage_mask);
+  r_barrier.dst_stage_mask = safe_stage_mask(r_barrier.dst_stage_mask);
+
   int64_t start_index = command_builder.vk_image_memory_barriers_.size();
   r_barrier.image_memory_barriers = IndexRange::from_begin_size(start_index, 0);
   
