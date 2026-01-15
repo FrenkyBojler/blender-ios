@@ -1104,11 +1104,8 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
     const bool outer_corner_delimit = (walker->flag & BMW_FLAG_DELIMIT_OUTER_CORNERS) != 0;
     if (
         /* Walk over boundary of faces but stop at corners. */
-        (owalk.is_single == false &&
-          (vert_edge_tot == 2 && outer_corner_delimit == false) ||
-          (vert_edge_tot == 3) ||
-          (vert_edge_tot > 3 && inner_corner_delimit == false)
-        ) ||
+        (owalk.is_single == false && (vert_edge_tot == 2 && outer_corner_delimit == false) ||
+         (vert_edge_tot == 3) || (vert_edge_tot > 3 && inner_corner_delimit == false)) ||
 
         /* Initial edge was a boundary, so is this edge and vertex is only a part of this face
          * this lets us walk over the boundary of an ngon which is handy. */
