@@ -2111,20 +2111,26 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
       switch (dst_type) {
         case IDP_UI_DATA_TYPE_INT: {
           IDPropertyUIDataInt *dst = reinterpret_cast<IDPropertyUIDataInt *>(ui_data);
-          dst->default_array_len = default_array_len;
-          dst->default_array = MEM_calloc_arrayN<int>(size_t(default_array_len), __func__);
+          if (is_array) {
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<int>(size_t(default_array_len), __func__);
+          }
           return &dst->base;
         }
         case IDP_UI_DATA_TYPE_FLOAT: {
           IDPropertyUIDataFloat *dst = reinterpret_cast<IDPropertyUIDataFloat *>(ui_data);
-          dst->default_array_len = default_array_len;
-          dst->default_array = MEM_calloc_arrayN<double>(size_t(default_array_len), __func__);
+          if (is_array) {
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<double>(size_t(default_array_len), __func__);
+          }
           return &dst->base;
         }
         case IDP_UI_DATA_TYPE_BOOLEAN: {
           IDPropertyUIDataBool *dst = reinterpret_cast<IDPropertyUIDataBool *>(ui_data);
-          dst->default_array_len = default_array_len;
-          dst->default_array = MEM_calloc_arrayN<int8_t>(size_t(default_array_len), __func__);
+          if (is_array) {
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<int8_t>(size_t(default_array_len), __func__);
+          }
           return &dst->base;
         }
         default:
@@ -2189,15 +2195,14 @@ void IDP_TryConvertProperty(ID *id,
           value.append(std::stod(str));
           return value;
         }
-        value.append(0);
-        return value;
+        break;
       }
       case IDP_UI_DATA_TYPE_ID:
-        value.append(0);
-        return value;
+        break;
       default:
         break;
     }
+    value.append(0);
     return value;
   }();
 
@@ -2208,7 +2213,6 @@ void IDP_TryConvertProperty(ID *id,
   else {
     MEM_SAFE_FREE(src->data.pointer);
   }
-
 
   const int array_len = [&]() -> int {
     if (src->type == IDP_STRING) {
@@ -2229,7 +2233,8 @@ void IDP_TryConvertProperty(ID *id,
         src->len = array_len;
         src->data.pointer = MEM_calloc_arrayN<int>(size_t(src->len), __func__);
         for (int i = 0; i < src->len; i++) {
-          static_cast<int *>(src->data.pointer)[i] = int((value.size() == 1) ? value[0] : value[i]);
+          static_cast<int *>(src->data.pointer)[i] = int((value.size() == 1) ? value[0] :
+                                                                               value[i]);
         }
         break;
       }
@@ -2243,7 +2248,7 @@ void IDP_TryConvertProperty(ID *id,
         src->data.pointer = MEM_calloc_arrayN<int8_t>(size_t(src->len), __func__);
         for (int i = 0; i < src->len; i++) {
           static_cast<int8_t *>(src->data.pointer)[i] = int8_t((value.size() == 1) ? value[0] :
-                                                                                   value[i]);
+                                                                                     value[i]);
         }
         break;
       }
@@ -2273,6 +2278,7 @@ void IDP_TryConvertProperty(ID *id,
       break;
     case IDP_UI_DATA_TYPE_UNSUPPORTED: {
       IDPropertyTemplate prop_template{0};
+      /* Remove existing property to add a new idprop of python type. */
       IDProperty *new_prop = IDP_New(IDP_GROUP, &prop_template, src->name);
       BLI_insertlinkreplace(&id->properties->data.group, src, new_prop);
       IDP_ReplaceInGroup_ex(id->properties, new_prop, src, 0);
