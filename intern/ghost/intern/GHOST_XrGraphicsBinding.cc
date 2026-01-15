@@ -230,6 +230,22 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
 
     if (result) {
       GHOST_XrSwapchainFormat swapchain_format = {};
+      switch (*result) {
+        case GL_RGB10_A2:
+          swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGB10_A2;
+          break;
+        case GL_RGBA16:
+          swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGBA16;
+          break;
+        case GL_RGBA16F:
+          swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGBA16F;
+          break;
+        case GL_RGBA8:
+        case GL_SRGB8_ALPHA8:
+          swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGBA8;
+          break;
+      }
+
       swapchain_format.gpu_format = *result;
       swapchain_format.is_srgb_format = (*result == GL_SRGB8_ALPHA8);
       return swapchain_format;
