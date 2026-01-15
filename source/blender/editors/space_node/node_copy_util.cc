@@ -844,30 +844,41 @@ bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketVal
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueInt &data)
 {
-  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputInt");
-  auto &node_storage = *static_cast<NodeInputInt *>(node->storage);
-  node_storage.integer = data.value;
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeIntegerMath");
+  node->flag |= NODE_COLLAPSED;
+  BLI_strncpy_utf8(node->label, IFACE_("To Integer"), sizeof(node->label));
+  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+  *socket->default_value_typed<bNodeSocketValueInt>() = data;
+  socket->next->flag |= SOCK_HIDDEN;
   return node;
 }
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueBoolean &data)
 {
-  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputBool");
-  auto &node_storage = *static_cast<NodeInputBool *>(node->storage);
-  node_storage.boolean = data.value;
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeBooleanMath");
+  node->custom1 = NodeBooleanMathOperation::NODE_BOOLEAN_MATH_OR;
+  node->flag |= NODE_COLLAPSED;
+  BLI_strncpy_utf8(node->label, IFACE_("To Boolean"), sizeof(node->label));
+  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+  *socket->default_value_typed<bNodeSocketValueBoolean>() = data;
+  socket->next->flag |= SOCK_HIDDEN;
   return node;
 }
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueRotation &data)
 {
-  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputRotation");
-  auto &node_storage = *static_cast<NodeInputRotation *>(node->storage);
-  copy_v3_v3(node_storage.rotation_euler, data.value_euler);
+  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeRotateRotation");
+  node->flag |= NODE_COLLAPSED;
+  BLI_strncpy_utf8(node->label, IFACE_("To Rotation"), sizeof(node->label));
+  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+  *socket->default_value_typed<bNodeSocketValueRotation>() = data;
+  socket->next->flag |= SOCK_HIDDEN;
   return node;
 }
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueVector &data)
 {
+  /* TODO This does not handle 2D or 4D vectors correctly! */
   bNode *node = bke::node_add_node(&C, tree, "ShaderNodeVectorMath");
   node->flag |= NODE_COLLAPSED;
   BLI_strncpy_utf8(node->label, IFACE_("To Vector"), sizeof(node->label));
@@ -879,89 +890,108 @@ bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketVal
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueRGBA &data)
 {
-  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputColor");
-  auto &node_storage = *static_cast<NodeInputColor *>(node->storage);
-  copy_v4_v4(node_storage.color, data.value);
+  bNode *node = bke::node_add_node(&C, tree, "ShaderNodeMix");
+  NodeShaderMix &storage = *static_cast<NodeShaderMix *>(node->storage);
+  storage.data_type = SOCK_RGBA;
+  storage.factor_mode = NODE_MIX_MODE_UNIFORM;
+  storage.clamp_factor = 0;
+  storage.clamp_result = 0;
+  storage.blend_type = MA_RAMP_ADD;
+  node->flag |= NODE_COLLAPSED;
+  BLI_strncpy_utf8(node->label, IFACE_("To Color"), sizeof(node->label));
+  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+  /* First socket is the mix factor. */
+  socket->flag |= SOCK_HIDDEN;
+  socket->default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
+  *socket->next->default_value_typed<bNodeSocketValueRGBA>() = data;
+  socket->next->next->flag |= SOCK_HIDDEN;
   return node;
 }
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueString &data)
 {
-  bNode *node = bke::node_add_node(&C, tree, "FunctionNodeInputString");
-  auto &node_storage = *static_cast<NodeInputString *>(node->storage);
-  node_storage.string = BLI_strdup(data.value);
+  /* TODO This node is only in geometry nodes, string data type is only supported there anyway. */
+  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeStringJoin");
+  node->flag |= NODE_COLLAPSED;
+  BLI_strncpy_utf8(node->label, IFACE_("To String"), sizeof(node->label));
+  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+  /* First socket is the delimiter input. */
+  socket->flag |= SOCK_HIDDEN;
+  *socket->next->default_value_typed<bNodeSocketValueString>() = data;
   return node;
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueObject &data)
+bNode *create_converter_proxy(bContext &C,
+                              bNodeTree &tree,
+                              const bNodeSocketValueObject & /*data*/)
 {
-  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputObject");
-  node->id = &data.value->id;
-  return node;
+  /* Conversion not supported. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueImage &data)
+bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueImage & /*data*/)
 {
-  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputImage");
-  node->id = &data.value->id;
-  return node;
+  /* Conversion not supported. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueCollection &data)
+bNode *create_converter_proxy(bContext &C,
+                              bNodeTree &tree,
+                              const bNodeSocketValueCollection & /*data*/)
 {
-  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCollection");
-  node->id = &data.value->id;
-  return node;
+  /* Conversion not supported. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 template<>
 bNode *create_converter_proxy(bContext &C,
                               bNodeTree &tree,
                               const bNodeSocketValueTexture & /*data*/)
 {
-  /* TODO Does not have a constant input node. */
+  /* Conversion not supported. */
   return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMaterial &data)
+bNode *create_converter_proxy(bContext &C,
+                              bNodeTree &tree,
+                              const bNodeSocketValueMaterial & /*data*/)
 {
-  bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputMaterial");
-  node->id = &data.value->id;
-  return node;
+  /* Conversion not supported. */
+  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueFont & /*data*/)
 {
-  /* TODO Does not have a constant input node. */
+  /* Conversion not supported. */
   return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueScene & /*data*/)
 {
-  /* TODO Does not have a constant input node. */
+  /* Conversion not supported. */
   return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueText & /*data*/)
 {
-  /* TODO Does not have a constant input node. */
+  /* Conversion not supported. */
   return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMask & /*data*/)
 {
-  /* TODO Does not have a constant input node. */
+  /* Conversion not supported. */
   return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueSound & /*data*/)
 {
-  /* TODO Does not have a constant input node. */
+  /* Conversion not supported. */
   return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 template<>
 bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMenu & /*data*/)
 {
-  /* TODO Does not have a constant input node. */
+  /* Conversion not supported. */
   return bke::node_add_static_node(&C, tree, NODE_REROUTE);
 }
 
