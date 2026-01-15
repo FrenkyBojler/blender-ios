@@ -1100,8 +1100,8 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
     vert_edge_tot = BM_vert_edge_count_nonwire(v);
 
     /* Check if we should step, this is fairly involved. */
-    bool inner_corner_delimit = (walker->flag & BMW_FLAG_DELIMIT_INNER_CORNERS) != 0;
-    bool outer_corner_delimit = (walker->flag & BMW_FLAG_DELIMIT_OUTER_CORNERS) != 0;
+    const bool inner_corner_delimit = (walker->flag & BMW_FLAG_DELIMIT_INNER_CORNERS) != 0;
+    const bool outer_corner_delimit = (walker->flag & BMW_FLAG_DELIMIT_OUTER_CORNERS) != 0;
     if (
         /* Walk over boundary of faces but stop at corners. */
         (owalk.is_single == false &&
