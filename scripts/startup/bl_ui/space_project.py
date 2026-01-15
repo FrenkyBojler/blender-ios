@@ -177,33 +177,48 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
         col.separator(factor=2.0)
 
         if context.blend_data.filepath == "":
-            col.label(text="No active project.", icon='INFO')
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(
+                text="No active project.",
+                icon="INFO",
+            )
+            col.separator()
 
-            col.separator_spacer()
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(text="Save the current file, and make sure to place it in a folder that will be part of the project")
 
-            col.label(
-                text="Save the current file, and make sure to place it in a folder that will",
-                icon='WARNING_LARGE')
-            col.label(
-                text="be part of the project.")
-            self.centered_operator(col, "wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(text="Alternatively, open a file inside of a project directory to see its settings.")
 
-            col.separator_spacer()
-
-            col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
-            self.centered_operator(col, "project.open_blend_in_project", icon='FILE_FOLDER')
+            col.separator()
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.operator("wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
+            row.operator("project.open_blend_in_project", icon='FILE_FOLDER')
         elif context.project.data is None:
-            col.label(text="No active project.", icon='INFO')
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(
+                text="No active project.",
+                icon="INFO",
+            )
+            col.separator()
 
-            col.separator_spacer()
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(text="Set up a new project by choosing any parent directory of the current file.")
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(text="Alternatively, open a file inside of a project directory to see its settings.")
 
-            col.label(text="Set up a new project by choosing any parent directory of the current file.")
-            self.centered_operator(col, "project.new_project", text="New Project...", icon='ADD')
-
-            col.separator_spacer()
-
-            col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
-            self.centered_operator(col, "project.open_blend_in_project", icon='FILE_FOLDER')
+            col.separator()
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.operator("project.new_project", text="New Project...", icon='ADD')
+            row.operator("project.open_blend_in_project", icon='FILE_FOLDER')
         else:
             col.prop(project.data, "name")
             col.prop(project.data, "root_path")
