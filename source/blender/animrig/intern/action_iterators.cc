@@ -39,7 +39,7 @@ void foreach_fcurve_in_action(Action &action, FunctionRef<void(FCurve &fcurve)> 
   }
 }
 
-void foreach_editable_fcurve_in_action_slot(Action &action,
+void foreach_fcurve_in_action_slot_editable(Action &action,
                                             slot_handle_t handle,
                                             FunctionRef<void(FCurve &fcurve)> callback)
 {
