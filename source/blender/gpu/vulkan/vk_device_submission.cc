@@ -63,13 +63,13 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
   }
 
   /* Sanitize input flags */
-  /* When we wait for completion we must submit to device. */
+  /* When we wait for completion/submission we must submit to device. */
   submit_to_device |= wait_for_completion;
+  submit_to_device |= wait_for_submission;
   /* We need to wait for submission when a signal semaphore is present, otherwise the semaphore
    * could be in an invalid state it is being waited for, but not have been submitted. */
   wait_for_submission |= signal_semaphore != VK_NULL_HANDLE;
-  /* We don't need to wait for submission when we wait for completion as that is already part of
-   * it. */
+  /* We don't need to wait for submission when waiting for completion. */
   wait_for_submission &= !wait_for_completion;
 
   VKRenderGraphSubmitTask *submit_task = MEM_new<VKRenderGraphSubmitTask>(__func__);
