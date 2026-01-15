@@ -1189,7 +1189,7 @@ void GPU_texture_py_reference_set(gpu::Texture *texture, void **py_ref);
 #endif
 
 /**
- * Set the texture's internal name for debug labeling.
+ * Set the texture's internal debug name.
  */
 void GPU_texture_name_set(gpu::Texture *texture, const char *name);
 

@@ -122,8 +122,7 @@ class VKTexture : public Texture {
                   int extent[3],
                   eGPUDataFormat format,
                   GPUPixelBuffer *pixbuf) override;
-  
-  /* Set name and attached debug object label. */
+
   void name_set(const char *name) override;
 
   /**
