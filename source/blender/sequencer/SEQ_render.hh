@@ -43,7 +43,6 @@ struct RenderData {
   int motion_blur_samples = 0;
   float motion_blur_shutter = 0.0f;
   bool skip_cache = false;
-  bool is_proxy_render = false;
   bool is_prefetch_render = false;
   bool is_playing = false;
   bool is_scrubbing = false;

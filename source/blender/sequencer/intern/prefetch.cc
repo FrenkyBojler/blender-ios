@@ -635,7 +635,7 @@ void seq_prefetch_start(const RenderData *context, float timeline_frame)
   Editing *ed = scene->ed;
   bool has_strips = bool(ed->current_strips()->first);
 
-  if (!context->is_prefetch_render && !context->is_proxy_render) {
+  if (!context->is_prefetch_render) {
     bool playing = context->is_playing;
     bool scrubbing = context->is_scrubbing;
     bool running = seq_prefetch_job_is_running(scene);
