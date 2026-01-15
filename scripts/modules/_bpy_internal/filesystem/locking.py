@@ -3,12 +3,49 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import io
+import time
 from pathlib import Path
 from typing import Callable
 
 __all__ = (
     'mutex_lock_and_open',
+    'mutex_lock_and_open_with_retry',
+    'MutexAcquisitionError',
 )
+
+
+class MutexAcquisitionError(Exception):
+    """Raised when `mutex_lock_and_open_with_retry()` cannot obtain a lock."""
+    pass
+
+
+def mutex_lock_and_open_with_retry(file_path: Path,
+                                   mode: str,
+                                   *,
+                                   max_tries: int,
+                                   wait_time_sec: float) -> tuple[io.IOBase, Callable[[io.IOBase], None]]:
+    """Obtain an exclusive lock on a file, retrying when that fails.
+
+    See `mutex_lock_and_open()` for the lock semantics, and the first two parameters.
+
+    :param max_tries: number of times the code attempts to acquire the lock.
+    :param wait_time: amount of time (in seconds) to wait between tries.
+
+    :returns: A tuple (file, unlocker) is returned. The caller should call
+        `unlocker(file)` to unlock the mutex.
+
+    :raises MutexAcquisitionError: when the lock cannot be acquired within the
+        given number of tries.
+    """
+
+    for _ in range(max_tries):
+        meta_file, unlocker = mutex_lock_and_open(file_path, mode)
+        if meta_file is not None:
+            assert unlocker is not None
+            return meta_file, unlocker
+        time.sleep(wait_time_sec)
+
+    raise MutexAcquisitionError("could not open & lock file {!s}".format(file_path))
 
 
 def mutex_lock_and_open(file_path: Path, mode: str) -> tuple[io.IOBase | None, Callable[[io.IOBase], None] | None]:
@@ -25,7 +62,8 @@ def mutex_lock_and_open(file_path: Path, mode: str) -> tuple[io.IOBase | None, C
         on Windows. So either 'rb' or 'wb'.
 
     :returns: If the file was opened & locked succesfully, a tuple (file,
-        unlocker) is returned. Otherwise returns None.
+        unlocker) is returned. Otherwise returns None. The caller should call
+        `unlocker(file)` to unlock the mutex.
     """
 
     import sys

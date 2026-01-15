@@ -1118,8 +1118,12 @@ class MetadataProviderFilesystem(MetadataProvider):
         return self.cache_location / self._cache_key(http_req_descr)
 
     def load(self, http_req_descr: RequestDescription) -> HTTPMetadata | None:
-        import time
-        from _bpy_internal.filesystem.locking import mutex_lock_and_open
+        """Load the metadata for this request.
+
+        :raises _bpy_internal.filesystem.locking.MutexAcquisitionError: if the
+            filesystem lock cannot be obtained (even after retrying).
+        """
+        from _bpy_internal.filesystem import locking
 
         meta_path = self._metadata_path(http_req_descr)
         if not meta_path.exists():
@@ -1129,18 +1133,13 @@ class MetadataProviderFilesystem(MetadataProvider):
         # (20x 0.1 sec), which should be more than long enough for another
         # process to run the code below and release the mutex, while also not so
         # long that people think Blender crashed.
-        for _ in range(20):
-            meta_file, unlocker = mutex_lock_and_open(meta_path, 'rb')
-            if meta_file is not None:
-                assert unlocker is not None
-                break
-            # Wait for a considerable amount of time for a machine (so that this
-            # Blender doesn't hog the CPU, so that the other process can do its
-            # work), but a short time for a human (so that an unlock is noticed
-            # relatively quickly and this Blender can move on and do stuff).
-            time.sleep(0.1)
-        else:
-            raise RuntimeError("could not open & lock file {!s}".format(meta_path))
+        #
+        # Waiting for 0.1 sec is a considerable amount of time for a machine (so
+        # that this Blender doesn't hog the CPU, so that the other process can
+        # do its work), but a short time for a human (so that an unlock is
+        # noticed relatively quickly and this Blender can move on and do stuff).
+        meta_file, unlocker = locking.mutex_lock_and_open_with_retry(
+            meta_path, 'rb', max_tries=20, wait_time_sec=0.1)
 
         try:
             meta_json = meta_path.read_bytes()
