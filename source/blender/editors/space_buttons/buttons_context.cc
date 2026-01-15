@@ -1395,11 +1395,12 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
     if (name) {
       const eSpaceButtons_Context context = context_from_path_item(ptr);
       if (context != BCONTEXT_TOT) {
-        row.emboss_set(blender::ui::EmbossType::None);
-        row.button(name, icon, [sbuts, ptr, context](const bContext &C) {
+        row.emboss_set(ui::EmbossType::None);
+        ui::Button *but = row.button(name, icon, [sbuts, ptr, context](const bContext &C) {
           ED_buttons_set_context(&C, sbuts, ptr, context);
           WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
         });
+        ui::button_drag_set_id(but, ptr->owner_id);
       }
       else {
         row.label(name, icon);
