@@ -166,6 +166,8 @@ class Texture {
 
   void usage_set(eGPUTextureUsage usage_flags);
 
+  virtual void name_set(const char *name) = 0;
+
   virtual void update_sub(int mip,
                           int offset[3],
                           int extent[3],
