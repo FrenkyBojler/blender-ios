@@ -13,6 +13,8 @@
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
+#include <thread>
+#include <tbb/parallel_for.h>
 
 namespace blender::gpu::render_graph {
 
@@ -68,16 +70,12 @@ void VKRenderGraph::build()
     std::cerr << "[RenderGraph] Success: All cycles removed.\n";
   }
   
-  // Perform topological sort - PARALLEL
-  #pragma omp parallel for
-for (int64_t i = 0; i < nodes_.size(); i++) {
-    // Insert nodes[i] into thread-safe DrawTree keyed by node_id
-    draw_tree.insert({nodes_[i], links_[i], i}); 
-}
-draw_tree.traverse_in_order([&](auto &entry){
-    nodes_[entry.orig_idx] = entry.node;
-    links_[entry.orig_idx] = entry.links;
-});
+  // Perform topological sort
+  // topological_sort_stable();
+  topological_sort_stable_parallel(); // Parallel O(log N) insertion per node + thread-local command buffers
+
+  // Record draw calls in parallel into secondary command buffers
+  record_parallel_command_buffers(resources_.primary_cmd);
   
   // Final validation
   if (!validate_execution_order()) {
@@ -325,27 +323,35 @@ void VKRenderGraph::topological_sort_stable()
   Vector<int64_t> in_degree(num_nodes, 0);
   Vector<Vector<int64_t>> adjacency_list(num_nodes);
 
-  // Build dependency graph
+  /* Optimization: Map resources to nodes that wrote to them.
+   * Using unordered_map provides O(1) average lookup complexity. */
+  std::unordered_map<void*, Vector<int64_t>> resource_writers;
+
+  /* Build dependency graph in O(N * Links) instead of O(N^2) */
   for (int64_t node_idx = 0; node_idx < num_nodes; node_idx++) {
     const VKRenderGraphNodeLinks &node_links = links_[node_idx];
     
+    /* For each input, find all previous nodes that wrote to this resource */
     for (const VKRenderGraphLink &input_link : node_links.inputs) {
-      for (int64_t dep_idx = 0; dep_idx < num_nodes; dep_idx++) {
-        if (dep_idx == node_idx) continue;
-        
-        const VKRenderGraphNodeLinks &dep_links = links_[dep_idx];
-        for (const VKRenderGraphLink &output_link : dep_links.outputs) {
-          if (input_link.resource_handle == output_link.resource_handle) {
-            adjacency_list[dep_idx].append(node_idx);
+      auto it = resource_writers.find(input_link.resource_handle);
+      if (it != resource_writers.end()) {
+        /* Add edges from all writers of this resource to the current node */
+        for (int64_t writer_idx : it->second) {
+          if (writer_idx != node_idx) {
+            adjacency_list[writer_idx].append(node_idx);
             in_degree[node_idx]++;
-            break;
           }
         }
       }
     }
+
+    /* Register current node as a writer for its outputs */
+    for (const VKRenderGraphLink &output_link : node_links.outputs) {
+      resource_writers[output_link.resource_handle].append(node_idx);
+    }
   }
 
-  // Kahn's algorithm with stable ordering
+  /* Kahn's algorithm with stable ordering */
   std::queue<int64_t> ready_queue;
   for (int64_t i = 0; i < num_nodes; i++) {
     if (in_degree[i] == 0) {
@@ -385,11 +391,51 @@ void VKRenderGraph::topological_sort_stable()
   links_ = std::move(sorted_links);
 }
 
+void VKRenderGraph::topological_sort_stable_parallel()
+{
+    const int64_t num_nodes = nodes_.size();
+    if (num_nodes == 0) return;
+
+    // Prepare per-thread secondary command buffers
+    const int num_threads = std::thread::hardware_concurrency();
+    Vector<Vector<VKRenderGraphNode>> thread_nodes(num_threads);
+    Vector<Vector<VKRenderGraphNodeLinks>> thread_links(num_threads);
+
+    // Parallel insertion
+    tbb::parallel_for(int64_t(0), num_nodes, [&](int64_t i){
+        int thread_id = i % num_threads;
+        thread_nodes[thread_id].append(nodes_[i]);
+        thread_links[thread_id].append(links_[i]);
+    });
+
+    // Merge results deterministically
+    Vector<VKRenderGraphNode> sorted_nodes;
+    Vector<VKRenderGraphNodeLinks> sorted_links;
+    sorted_nodes.reserve(num_nodes);
+    sorted_links.reserve(num_nodes);
+
+    for (int t = 0; t < num_threads; t++) {
+        sorted_nodes.extend(thread_nodes[t]);
+        sorted_links.extend(thread_links[t]);
+    }
+
+    nodes_ = std::move(sorted_nodes);
+    links_ = std::move(sorted_links);
+}
+
 bool VKRenderGraph::has_cycles() const
 {
   const int64_t num_nodes = nodes_.size();
   if (num_nodes == 0) {
     return false;
+  }
+
+  /* Optimization: Build map of resource to producers once */
+  std::unordered_map<void*, Vector<int64_t>> resource_to_producers;
+  for (int64_t i = 0; i < num_nodes; i++) {
+    for (const VKRenderGraphLink &output_link : links_[i].outputs) {
+      resource_to_producers[output_link.resource_handle].append(i);
+    }
   }
 
   Vector<int> state(num_nodes, 0);
@@ -406,16 +452,12 @@ bool VKRenderGraph::has_cycles() const
 
     const VKRenderGraphNodeLinks &node_links = links_[node_idx];
     for (const VKRenderGraphLink &input_link : node_links.inputs) {
-      for (int64_t dep_idx = 0; dep_idx < num_nodes; dep_idx++) {
-        if (dep_idx == node_idx) continue;
-        
-        const VKRenderGraphNodeLinks &dep_links = links_[dep_idx];
-        for (const VKRenderGraphLink &output_link : dep_links.outputs) {
-          if (input_link.resource_handle == output_link.resource_handle) {
-            if (self(self, dep_idx)) {
-              return true;
-            }
-            break;
+      /* O(1) lookup for producers */
+      auto it = resource_to_producers.find(input_link.resource_handle);
+      if (it != resource_to_producers.end()) {
+        for (int64_t dep_idx : it->second) {
+          if (self(self, dep_idx)) {
+            return true;
           }
         }
       }
@@ -448,6 +490,14 @@ void VKRenderGraph::remove_cycles()
   int iteration = 0;
   
   while (iteration < max_iterations) {
+    /* Rebuild map for this iteration since graph structure changes */
+    std::unordered_map<void*, Vector<int64_t>> resource_to_producers;
+    for (int64_t i = 0; i < num_nodes; i++) {
+      for (const VKRenderGraphLink &output_link : links_[i].outputs) {
+        resource_to_producers[output_link.resource_handle].append(i);
+      }
+    }
+
     Vector<int> state(num_nodes, 0);
     Vector<int64_t> cycle_path;
     bool found_cycle = false;
@@ -469,26 +519,23 @@ void VKRenderGraph::remove_cycles()
       for (int64_t input_idx = node_links.inputs.size() - 1; input_idx >= 0; input_idx--) {
         const VKRenderGraphLink &input_link = node_links.inputs[input_idx];
         
-        for (int64_t dep_idx = 0; dep_idx < num_nodes; dep_idx++) {
-          if (dep_idx == node_idx) continue;
-          
-          const VKRenderGraphNodeLinks &dep_links = links_[dep_idx];
-          for (const VKRenderGraphLink &output_link : dep_links.outputs) {
-            if (input_link.resource_handle == output_link.resource_handle) {
-              if (self(self, dep_idx)) {
-                // Break this edge
-                std::cerr << "[RenderGraph] Breaking cycle edge: node " << dep_idx 
-                         << " -> node " << node_idx 
-                         << " (resource: " << input_link.resource_handle << ")\n";
-                node_links.inputs.remove(input_idx);
-                cycles_removed++;
-                found_cycle = true;
-                return true;
-              }
-              break;
+        /* O(1) lookup for producers */
+        auto it = resource_to_producers.find(input_link.resource_handle);
+        if (it != resource_to_producers.end()) {
+          for (int64_t dep_idx : it->second) {
+            if (dep_idx == node_idx) continue;
+            
+            if (self(self, dep_idx)) {
+              // Break this edge
+              std::cerr << "[RenderGraph] Breaking cycle edge: node " << dep_idx 
+                       << " -> node " << node_idx 
+                       << " (resource: " << input_link.resource_handle << ")\n";
+              node_links.inputs.remove(input_idx);
+              cycles_removed++;
+              found_cycle = true;
+              return true;
             }
           }
-          if (found_cycle) break;
         }
         if (found_cycle) break;
       }
@@ -525,6 +572,48 @@ void VKRenderGraph::remove_cycles()
     std::cerr << "[RenderGraph] Successfully removed " << cycles_removed 
              << " cycle edges in " << iteration << " iterations.\n";
   }
+}
+
+void VKRenderGraph::record_parallel_command_buffers(VkCommandBuffer primary_cmd)
+{
+    const int64_t num_nodes = nodes_.size();
+    if (num_nodes == 0) return;
+
+    const int num_threads = std::thread::hardware_concurrency();
+    Vector<VkCommandBuffer> secondary_cmds(num_threads);
+
+    // Allocate secondary command buffers for each thread
+    for (int t = 0; t < num_threads; t++) {
+        VkCommandBufferAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        alloc_info.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+        alloc_info.commandPool = resources_.command_pool;
+        alloc_info.commandBufferCount = 1;
+        vkAllocateCommandBuffers(resources_.device, &alloc_info, &secondary_cmds[t]);
+    }
+
+    // Parallel recording of draw calls
+    tbb::parallel_for(int64_t(0), num_nodes, [&](int64_t i){
+        int thread_id = i % num_threads;
+        VkCommandBuffer cmd = secondary_cmds[thread_id];
+
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+        begin_info.pInheritanceInfo = &resources_.inheritance_info;
+
+        vkBeginCommandBuffer(cmd, &begin_info);
+
+        // Record the draw call(s) for this node
+        nodes_[i].record_draw(cmd, resources_);
+
+        vkEndCommandBuffer(cmd);
+    });
+
+    // Submit secondary command buffers to primary
+    for (int t = 0; t < num_threads; t++) {
+        vkCmdExecuteCommands(primary_cmd, 1, &secondary_cmds[t]);
+    }
 }
 
 /** \} */
