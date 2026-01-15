@@ -15,6 +15,8 @@
 #include "gpu_context_private.hh"
 #include "gpu_texture_pool_private.hh"
 
+#include "fmt/format.h"
+
 namespace blender::gpu {
 
 TexturePool &TexturePool::get()
@@ -35,8 +37,15 @@ TexturePoolImpl::~TexturePoolImpl()
 
 Texture *TexturePoolImpl::acquire_texture(int2 extent,
                                           TextureFormat format,
-                                          eGPUTextureUsage usage)
+                                          eGPUTextureUsage usage,
+                                          const char *name)
 {
+  /* Generate debug label name, if one isn't passed in `name`. */
+  std::string name_str;
+  if (G.debug & G_DEBUG_GPU) {
+    name_str = name ? name : fmt::format("TexFromPool_{}", pool_.size());
+  }
+
   /* Search pool for compatible available texture first. */
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
@@ -54,16 +63,12 @@ Texture *TexturePoolImpl::acquire_texture(int2 extent,
     TextureHandle handle = {pool_[match_index].texture};
     acquired_.add(handle);
     pool_.remove_and_reorder(match_index);
+    handle.texture->name_set(name_str.c_str());
     return handle.texture;
   }
 
   /* Otherwise, allocate a new texture as a last resort. */
-  char name[16] = "TexFromPool";
-  if (G.debug & G_DEBUG_GPU) {
-    int texture_id = pool_.size();
-    SNPRINTF(name, "TexFromPool_%d", texture_id);
-  }
-  TextureHandle handle = {GPU_texture_create_2d(name, UNPACK2(extent), 1, format, usage, nullptr)};
+  TextureHandle handle = {GPU_texture_create_2d(name_str.c_str(), UNPACK2(extent), 1, format, usage, nullptr)};
   acquired_.add(handle);
   return handle.texture;
 }
