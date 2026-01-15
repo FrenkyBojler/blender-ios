@@ -419,7 +419,7 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
 
     if (RNA_boolean_get(op->ptr, "apply_mix")) {
       float *arr = BKE_key_evaluate_object_ex(
-          ob, nullptr, nullptr, 0, static_cast<ID *>(ob->data));
+          ob, nullptr, nullptr, 0, std::nullopt, static_cast<ID *>(ob->data));
       MEM_freeN(arr);
     }
     changed = BKE_object_shapekey_free(bmain, ob);
@@ -957,42 +957,55 @@ static wmOperatorStatus shape_key_apply_to_basis_exec(bContext *C, wmOperator *o
   Key *key = BKE_key_from_object(ob);
   KeyBlock *basis_key = static_cast<KeyBlock *>(key->block.first);
   MutableSpan<float3> basis_data(static_cast<float3 *>(basis_key->data), basis_key->totelem);
+  Mesh &mesh = id_cast<Mesh &>(*ob->data);
 
-  Array<float3> translations(basis_data.size(), float3(0));
+  MutableSpan<float3> positions = mesh.vert_positions_for_write();
 
-  Set<KeyBlock *> processed_keys;
   int locked_count = 0;
-  for (const auto [index, kb] : key->block.enumerate()) {
-    if (!shape_key_is_selected(*ob, kb, index)) {
-      continue;
-    }
-    if (&kb == basis_key) {
+  Array<bool> keys_to_process(BLI_listbase_count(&key->block), false);
+  for (const auto [i, kb] : key->block.enumerate()) {
+    if (!shape_key_is_selected(*ob, kb, i)) {
       continue;
     }
     if (kb.flag & KEYBLOCK_LOCKED_SHAPE) {
       locked_count++;
       continue;
     }
-    const Span kb_data(static_cast<const float3 *>(kb.data), kb.totelem);
-    for (const int i : kb_data.index_range()) {
-      translations[i] += (kb_data[i] - basis_data[i]);
-    }
-    processed_keys.add_new(&kb);
+    keys_to_process[i] = true;
   }
 
   if (locked_count != 0) {
     BKE_reportf(op->reports, RPT_INFO, "Skipped %d locked shape keys", locked_count);
   }
 
-  if (processed_keys.is_empty()) {
+  if (!keys_to_process.as_span().contains(true)) {
     return OPERATOR_CANCELLED;
   }
 
+  int totelem_dummy;
+  BKE_key_evaluate_object_ex(ob,
+                             &totelem_dummy,
+                             positions.cast<float>().data(),
+                             sizeof(float3) * positions.size(),
+                             keys_to_process,
+                             nullptr);
+
+  Array<float3> translations(positions.size());
+  for (const int i : positions.index_range()) {
+    translations[i] = positions[i] - basis_data[i];
+  }
+
+  basis_data.copy_from(positions);
+
+  Set<KeyBlock *> processed_keys;
+  for (const auto [i, kb] : key->block.enumerate()) {
+    if (keys_to_process[i]) {
+      processed_keys.add_new(&kb);
+    }
+  }
   for (KeyBlock *kb : processed_keys) {
     BKE_object_shapekey_remove(bmain, ob, kb);
   }
-
-  add_arrays(basis_data, translations);
 
   if (const std::optional<Array<bool>> dependent = BKE_keyblock_get_dependent_keys(key, 0)) {
     for (const auto [i, kb] : key->block.enumerate()) {
