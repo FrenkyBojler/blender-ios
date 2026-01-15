@@ -3010,5 +3010,7 @@ AbstractViewItem *region_views_find_active_item(const ARegion *region);
 Button *region_views_find_active_item_but(const ARegion *region);
 void region_views_clear_search_highlight(const ARegion *region);
 
+bool try_activate_rna_button(
+    bContext *C, ARegion *region, int state, PointerRNA *ptr, StringRef property);
 }  // namespace ui
 }  // namespace blender

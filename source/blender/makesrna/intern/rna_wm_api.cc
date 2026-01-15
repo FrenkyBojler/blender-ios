@@ -16,6 +16,7 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "UI_interface_c.hh"
 #include "UI_interface_icons.hh"
 #include "UI_interface_types.hh"
 
@@ -255,6 +256,17 @@ static int rna_Operator_confirm(bContext *C,
                                 message_str ? message_str->c_str() : nullptr,
                                 confirm_text_str ? confirm_text_str->c_str() : nullptr,
                                 ui::AlertIcon(icon));
+}
+
+static void rna_WM_try_activate_rna_button(blender::wmWindowManager * /*wm*/,
+                                           bContext *C,
+                                           ARegion *region,
+                                           PointerRNA *ptr,
+                                           const char *property,
+                                           int state,
+                                           bool *resultret)
+{
+  *resultret = ui::try_activate_rna_button(C, region, state, ptr, property);
 }
 
 static int rna_Operator_props_popup(bContext *C, wmOperator *op, wmEvent *event)
@@ -885,7 +897,34 @@ const EnumPropertyItem rna_operator_popup_icon_items[] = {
     {int(ui::AlertIcon::Info), "INFO", 0, "Info", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
-
+/* Deduplicate this. */
+enum HandleButtonState {
+  BUTTON_STATE_INIT,
+  BUTTON_STATE_HIGHLIGHT,
+  BUTTON_STATE_WAIT_FLASH,
+  BUTTON_STATE_WAIT_RELEASE,
+  BUTTON_STATE_WAIT_KEY_EVENT,
+  BUTTON_STATE_NUM_EDITING,
+  BUTTON_STATE_TEXT_EDITING,
+  BUTTON_STATE_TEXT_SELECTING,
+  BUTTON_STATE_MENU_OPEN,
+  BUTTON_STATE_WAIT_DRAG,
+  BUTTON_STATE_EXIT,
+};
+const EnumPropertyItem rna_button_activation[] = {
+    {int(BUTTON_STATE_INIT), "INIT", 0, "INIT", ""},
+    {int(BUTTON_STATE_HIGHLIGHT), "HIGHLIGHT", 0, "HIGHLIGHT", ""},
+    {int(BUTTON_STATE_WAIT_FLASH), "WAIT_FLASH", 0, "WAIT_FLASH", ""},
+    {int(BUTTON_STATE_WAIT_RELEASE), "WAIT_RELEASE", 0, "WAIT_RELEASE", ""},
+    {int(BUTTON_STATE_WAIT_KEY_EVENT), "WAIT_KEY_EVENT", 0, "WAIT_KEY_EVENT", ""},
+    {int(BUTTON_STATE_NUM_EDITING), "NUM_EDITING", 0, "NUM_EDITING", ""},
+    {int(BUTTON_STATE_TEXT_EDITING), "TEXT_EDITING", 0, "TEXT_EDITING", ""},
+    {int(BUTTON_STATE_TEXT_SELECTING), "TEXT_SELECTING", 0, "TEXT_SELECTING", ""},
+    {int(BUTTON_STATE_MENU_OPEN), "MENU_OPEN", 0, "MENU_OPEN", ""},
+    {int(BUTTON_STATE_WAIT_DRAG), "WAIT_DRAG", 0, "WAIT_DRAG", ""},
+    {int(BUTTON_STATE_EXIT), "EXIT", 0, "EXIT", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 void RNA_api_wm(StructRNA *srna)
 {
   FunctionRNA *func;
@@ -1026,6 +1065,21 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_property_ui_text(parm, "Icon", "Optional icon displayed in the dialog");
 
   api_ui_item_common_translation(func);
+
+  func = RNA_def_function(srna, "try_activate_rna_button", "rna_WM_try_activate_rna_button");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  parm = RNA_def_pointer(func, "region", "Region", "", "");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "data", "AnyType", "", "");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
+  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in data");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_property(func, "state", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(parm, rna_button_activation);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  parm = RNA_def_property(func, "result", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_OUTPUT);
 
   /* wrap popup_menu_begin */
   func = RNA_def_function(srna, "popmenu_begin__internal", "rna_PopMenuBegin");

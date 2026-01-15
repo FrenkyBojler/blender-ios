@@ -12658,4 +12658,59 @@ static void block_interaction_begin_ensure(bContext *C,
 
 /** \} */
 
+bool try_activate_rna_button(
+    bContext *C, ARegion *region, int state, PointerRNA *ptr, StringRef property)
+{
+  bScreen *screen = CTX_wm_screen(C);
+  ScrArea *area = nullptr;
+  for (ScrArea &test_area : screen->areabase) {
+    if (std::find_if(test_area.regionbase.begin(),
+                     test_area.regionbase.end(),
+                     [region](ARegion &r) { return &r == region; }) != test_area.regionbase.end())
+    {
+
+      area = &test_area;
+      break;
+    }
+  }
+  if (!area) {
+    return false;
+  }
+  Button *button = nullptr;
+  PropertyRNA *prop = RNA_struct_find_property(ptr, property.data());
+  for (Block &block : region->runtime->uiblocks) {
+    auto *but_itr = std::find_if(
+        block.buttons.begin(), block.buttons.end(), [&](const std::unique_ptr<Button> &but) {
+          return but->rnapoin.data == ptr->data && but->rnaprop == prop;
+        });
+    if (but_itr != block.buttons.end()) {
+      button = but_itr->get();
+      break;
+    }
+  }
+  if (!button) {
+    return false;
+  }
+  int xy[] = {BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
+  ED_screen_set_active_region(C, CTX_wm_window(C), xy);
+  ScrArea *current_screen = CTX_wm_area(C);
+  ARegion *current_region = CTX_wm_region(C);
+
+  CTX_wm_area_set(C, area);
+  CTX_wm_region_set(C, region);
+
+  ui_handle_button_activate(C, region, button, BUTTON_ACTIVATE);
+
+  if (state == int(BUTTON_STATE_TEXT_EDITING)) {
+    button_activate_state(C, button, BUTTON_STATE_TEXT_EDITING);
+  }
+  if (state == int(BUTTON_STATE_NUM_EDITING)) {
+    button_activate_state(C, button, BUTTON_STATE_NUM_EDITING);
+  }
+
+  CTX_wm_area_set(C, current_screen);
+  CTX_wm_region_set(C, current_region);
+
+  return true;
+}
 }  // namespace blender::ui
