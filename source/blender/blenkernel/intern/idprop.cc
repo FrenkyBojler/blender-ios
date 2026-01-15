@@ -2155,45 +2155,45 @@ void IDP_TryConvertProperty(ID *id,
 
   /* Store single value or entire array then paste them to new idproperty type. */
   Vector<double> value = [&]() -> Vector<double> {
-    Vector<double> value;
+    Vector<double> val;
     switch (src_type) {
       case IDP_UI_DATA_TYPE_INT: {
         if (src->type != IDP_ARRAY) {
-          value.append(IDP_int_get(src));
-          return value;
+          val.append(IDP_int_get(src));
+          return val;
         }
         int *int_array = IDP_array_int_get(src);
         for (int i = 0; i < src->len; i++) {
-          value.append(int_array[i]);
+          val.append(int_array[i]);
         }
-        return value;
+        return val;
       }
       case IDP_UI_DATA_TYPE_FLOAT: {
         if (src->type != IDP_ARRAY) {
-          value.append(IDP_double_get(src));
-          return value;
+          val.append(IDP_double_get(src));
+          return val;
         }
         double *double_array = IDP_array_double_get(src);
         for (int i = 0; i < src->len; i++) {
-          value.append(double_array[i]);
+          val.append(double_array[i]);
         }
-        return value;
+        return val;
       }
       case IDP_UI_DATA_TYPE_BOOLEAN: {
         if (src->type != IDP_ARRAY) {
-          value.append(IDP_bool_get(src));
-          return value;
+          val.append(IDP_bool_get(src));
+          return val;
         }
         int8_t *bool_array = IDP_array_bool_get(src);
         for (int i = 0; i < src->len; i++) {
-          value.append(bool_array[i]);
+          val.append(bool_array[i]);
         }
-        return value;
+        return val;
       }
       case IDP_UI_DATA_TYPE_STRING: {
         if (const char *str = IDP_string_get(src)) {
-          value.append(std::stod(str));
-          return value;
+          val.append(std::stod(str));
+          return val;
         }
         break;
       }
@@ -2202,8 +2202,8 @@ void IDP_TryConvertProperty(ID *id,
       default:
         break;
     }
-    value.append(0);
-    return value;
+    val.append(0);
+    return val;
   }();
 
   /* Free previous pointer before changing the type. */
