@@ -27,7 +27,7 @@ namespace asset_system {
  * Iterates all libraries registers in the Preferences and calls the given function with the URL
  * of the library.
  */
-void foreach_registered_remote_library(FunctionRef<void(const bUserAssetLibrary &)> fn);
+void foreach_registered_remote_library(FunctionRef<void(bUserAssetLibrary &)> fn);
 
 /**
  * Combination of a URL of a remote resource, and its hash.
@@ -59,7 +59,7 @@ class AssetRepresentation;
  * application handler. Doesn't do anything if a download with the library's URL is already
  * ongoing.
  */
-void remote_library_request_download(Main &bmain, const bUserAssetLibrary &library_definition);
+void remote_library_request_download(Main &bmain, bUserAssetLibrary &library_definition);
 
 void remote_library_request_asset_download(bContext &C,
                                            const AssetRepresentation &asset,

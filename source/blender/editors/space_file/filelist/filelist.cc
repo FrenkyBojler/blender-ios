@@ -3545,8 +3545,7 @@ static void filelist_remote_asset_library_update_loading_flags(RemoteLibraryRequ
 }
 
 /* Called when starting the job (from the main thread). */
-static void remote_asset_library_request(FileListReadJob *job_params,
-                                         const bUserAssetLibrary &library)
+static void remote_asset_library_request(FileListReadJob *job_params, bUserAssetLibrary &library)
 {
   if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
     BLI_assert_unreachable();
@@ -3582,7 +3581,7 @@ static void filelist_start_job_all_asset_library(FileListReadJob *job_params)
 {
   Set<StringRef> requested_urls;
 
-  asset_system::foreach_registered_remote_library([&](const bUserAssetLibrary &library) {
+  asset_system::foreach_registered_remote_library([&](bUserAssetLibrary &library) {
     if (!requested_urls.contains(library.remote_url)) {
       requested_urls.add(library.remote_url);
 
