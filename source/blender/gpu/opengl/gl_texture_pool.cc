@@ -11,6 +11,8 @@
 #include "gl_backend.hh"
 #include "gl_texture_pool.hh"
 
+#include "fmt/format.h"
+
 namespace blender::gpu {
 
 static bool are_formats_compatible(const TextureFormat format_a, const TextureFormat format_b)
@@ -51,12 +53,15 @@ GLTexturePool::~GLTexturePool()
   }
 }
 
-Texture *GLTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTextureUsage usage)
+Texture *GLTexturePool::acquire_texture(int2 extent,
+                                        TextureFormat format,
+                                        eGPUTextureUsage usage,
+                                        const char *name)
 {
-  char name[16] = "TexFromPool";
+  /* Generate debug label name, if one isn't passed in `name`. */
+  std::string name_str;
   if (G.debug & G_DEBUG_GPU) {
-    int texture_id = acquired_.size();
-    SNPRINTF(name, "TexFromPool_%d", texture_id);
+    name_str = name ? name : fmt::format("TexFromPool_{}", pool_.size());
   }
 
   /* Search for the first compatible existing texture. */
@@ -89,11 +94,12 @@ Texture *GLTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   TextureHandle texture_handle;
   if (texture_allocation->format_ == format) {
     texture_handle.texture_allocation = texture_handle.texture = texture_allocation;
+    texture_handle.texture_allocation->name_set(name_str.c_str());
   }
   else {
     texture_handle.texture_allocation = texture_allocation;
     texture_handle.texture = unwrap(
-        GPU_texture_create_view(name, texture_allocation, format, 0, 1, 0, 1, false, false));
+        GPU_texture_create_view(name_str.c_str(), texture_allocation, format, 0, 1, 0, 1, false, false));
   }
 
   acquired_.add(texture_handle);
