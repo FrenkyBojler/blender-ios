@@ -690,7 +690,7 @@ template<class T> inline gpu::Batch *PassBase<T>::procedural_batch_get(GPUPrimTy
 template<class T> inline PassBase<T> &PassBase<T>::sub(std::string name)
 {
   int64_t index = sub_passes_.append_and_get_index(
-      PassBase(name, draw_commands_buf_, sub_passes_, shader_));
+      PassBase(name.c_str(), draw_commands_buf_, sub_passes_, shader_));
   headers_.append({command::Type::SubPass, uint(index)});
   return sub_passes_[index];
 }
