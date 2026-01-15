@@ -2931,6 +2931,31 @@ void assert_baklava_phase_1_invariants(const Strip &strip)
   BLI_assert(strip.frame_offset == 0.0);
 }
 
+void assert_baklava_phase_2_invariants(const Action &action)
+{
+  for (const Layer *layer : action.layers()) {
+    assert_baklava_phase_2_invariants(*layer);
+  }
+}
+
+void assert_baklava_phase_2_invariants(const Layer &layer)
+{
+  if (layer.strips().is_empty()) {
+    return;
+  }
+  BLI_assert(layer.strips().size() == 1);
+
+  assert_baklava_phase_2_invariants(*layer.strip(0));
+}
+
+void assert_baklava_phase_2_invariants(const Strip &strip)
+{
+  UNUSED_VARS_NDEBUG(strip);
+  BLI_assert(strip.type() == Strip::Type::Keyframe);
+  BLI_assert(strip.is_infinite());
+  BLI_assert(strip.frame_offset == 0.0);
+}
+
 /**
  * Clone information from the given slot into this slot while retaining important info like the
  * slot handle and runtime data. This copies the identifier which might clash with other

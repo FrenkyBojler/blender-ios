@@ -590,6 +590,8 @@ int delete_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna
   const bool modify_all_indices = index == -1;
 
   Action &action = act->wrap();
+  /* In order to support strips we'd need to offset the `cfra` into strip space. */
+  assert_baklava_phase_2_invariants(action);
   Vector<FCurve *> modified_fcurves;
   BLI_assert(adt->action == act && action.slot_for_handle(adt->slot_handle) != nullptr);
   foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {

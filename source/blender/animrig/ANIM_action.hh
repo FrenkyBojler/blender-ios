@@ -1868,6 +1868,27 @@ void assert_baklava_phase_1_invariants(const Layer &layer);
 void assert_baklava_phase_1_invariants(const Strip &strip);
 
 /**
+ * Assert the invariants of Project Baklava (layered actions) phase 2.
+ *
+ * An action can have 0-n layers.
+ *
+ * For a layer the invariants are that it:
+ * - Has zero strips.
+ * - OR has a single strip that adheres to the phase 1 invariants for strips.
+ *
+ * For a strip the invariants are that it:
+ * - Is a keyframe strip.
+ * - AND is infinite.
+ * - AND has no time offset (i.e. aligns with scene time).
+ *
+ * This simultaneously serves as a todo marker for later phases of Project
+ * Baklava and ensures that the phase-2 invariants hold at runtime.
+ */
+void assert_baklava_phase_2_invariants(const Action &action);
+void assert_baklava_phase_2_invariants(const Layer &layer);
+void assert_baklava_phase_2_invariants(const Strip &strip);
+
+/**
  * Move the given slot from `from_action` to `to_action`.
  * The slot identifier might not be exactly the same if the identifier already exists in the slots
  * of `to_action`. Also the slot handle is likely going to be different on `to_action`. All users
