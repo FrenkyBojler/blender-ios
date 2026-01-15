@@ -12661,6 +12661,9 @@ static void block_interaction_begin_ensure(bContext *C,
 bool try_activate_rna_button(
     bContext *C, ARegion *region, int state, PointerRNA *ptr, StringRef property)
 {
+  if (region->runtime->do_draw & RGN_DRAWING) {
+    return false;
+  }
   bScreen *screen = CTX_wm_screen(C);
   ScrArea *area = nullptr;
   for (ScrArea &test_area : screen->areabase) {
