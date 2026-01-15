@@ -451,6 +451,21 @@ static PyObject *bpy_app_tempdir_get(PyObject * /*self*/, void * /*closure*/)
 
 PyDoc_STRVAR(
     /* Wrap. */
+    bpy_app_cachedir_doc,
+    "String, the cache directory used by blender (read-only).\n"
+    "\n"
+    ":type: str\n");
+static PyObject *bpy_app_cachedir_get(PyObject * /*self*/, void * /*closure*/)
+{
+  std::optional<std::string> cache_dir = BKE_appdir_folder_caches();
+  if (!cache_dir) {
+    return PyC_UnicodeFromBytesAndSize("", 0);
+  }
+  return PyC_UnicodeFromStdStr(*cache_dir);
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     bpy_app_driver_dict_doc,
     "Dictionary for drivers namespace, editable in-place, reset on file load (read-only).\n"
     "\n"
@@ -631,6 +646,7 @@ static PyGetSetDef bpy_app_getsets[] = {
      bpy_app_debug_value_doc,
      nullptr},
     {"tempdir", bpy_app_tempdir_get, nullptr, bpy_app_tempdir_doc, nullptr},
+    {"cachedir", bpy_app_cachedir_get, nullptr, bpy_app_cachedir_doc, nullptr},
     {"driver_namespace", bpy_app_driver_dict_get, nullptr, bpy_app_driver_dict_doc, nullptr},
 
     {"render_icon_size",
