@@ -10952,7 +10952,7 @@ static int ui_handle_menu_event(bContext *C,
           if (event->modifier) {
             /* pass */
           }
-          if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
+          else if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
             const float dy = event->xy[1] - event->prev_xy[1];
             if (dy != 0.0f) {
               ui_menu_scroll_apply_offset_y(region, block, dy);
