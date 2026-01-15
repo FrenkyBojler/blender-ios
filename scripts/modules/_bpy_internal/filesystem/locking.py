@@ -79,7 +79,7 @@ def mutex_lock_and_open(file_path: Path, mode: str) -> tuple[io.IOBase | None, C
         import msvcrt
 
         def _obtain_lock(file: io.IOBase) -> None:
-            # Lock the first byte of the file (arbitrary choice)
+            # Lock the first byte of the file (arbitrary choice).
             msvcrt.locking(file.fileno(), msvcrt.LK_NBLCK, 1)
 
         def _unlock_and_close(file: io.IOBase) -> None:
