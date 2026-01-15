@@ -1686,7 +1686,7 @@ static void walker_select_count(BMEditMesh *em,
   BMW_end(&walker);
 }
 
-static bool walker_select(BMEditMesh *em, int walkercode, void *start, const bool select, BMWFlag flags = BMW_FLAG_TEST_HIDDEN)
+static bool walker_select(BMEditMesh *em, int walkercode, void *start, const bool select, BMWFlag flags)
 {
   BMesh *bm = em->bm;
   BMElem *ele;
@@ -1763,7 +1763,7 @@ static wmOperatorStatus edbm_loop_multiselect_exec(bContext *C, wmOperator *op)
     if (is_ring) {
       for (edindex = 0; edindex < totedgesel; edindex += 1) {
         eed = edarray[edindex];
-        changed |= walker_select(em, BMW_EDGERING, eed, true);
+        changed |= walker_select(em, BMW_EDGERING, eed, true, flags);
       }
       if (changed) {
         EDBM_selectmode_flush(em);
@@ -1828,7 +1828,7 @@ static void mouse_mesh_loop_face(BMEditMesh *em, BMEdge *eed, bool select, bool 
     EDBM_flag_disable_all(em, BM_ELEM_SELECT);
   }
 
-  walker_select(em, BMW_FACELOOP, eed, select);
+  walker_select(em, BMW_FACELOOP, eed, select, BMW_FLAG_TEST_HIDDEN);
 }
 
 static void mouse_mesh_loop_edge_ring(BMEditMesh *em, BMEdge *eed, bool select, bool select_clear)
@@ -1837,7 +1837,7 @@ static void mouse_mesh_loop_edge_ring(BMEditMesh *em, BMEdge *eed, bool select, 
     EDBM_flag_disable_all(em, BM_ELEM_SELECT);
   }
 
-  walker_select(em, BMW_EDGERING, eed, select);
+  walker_select(em, BMW_EDGERING, eed, select, BMW_FLAG_TEST_HIDDEN);
 }
 
 static void mouse_mesh_loop_edge(
