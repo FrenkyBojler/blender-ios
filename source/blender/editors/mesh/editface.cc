@@ -1200,7 +1200,8 @@ void paintvert_reveal(bContext *C, Object *ob, const bool select)
   paintvert_tag_select_update(C, ob);
 }
 
-/* Helper: Walk along an edge loop (Vertex/Valence based). */
+/* Walk along an edge loop (Vertex based).
+ * Return true if closed loop found. */
 static bool follow_edge_loop(const int edge_start_index,
                              const int vert_start_index,
                              const Span<int2> edges,
@@ -1212,58 +1213,51 @@ static bool follow_edge_loop(const int edge_start_index,
   int current_edge_index = edge_start_index;
   int current_vert_index = vert_start_index;
 
-  int iter = 0;
-  while (iter++ < 10000) { /* Safety limit */
+  /* Loop until we hit a boundary (-1) or return explicitly. */
+  while (current_edge_index != -1) {
 
-    /* 1. Stop if vertex is hidden */
+    /* Stop if vertex is hidden. */
     if (hide_vert[current_vert_index]) {
       return false;
     }
 
-    /* 2. Stop at poles (Valence != 4) */
-    /* This is why the Cube stops at corners (Valence 3). This is standard behavior. */
+    /* Stop at poles (Valence != 4). */
     const Span<int> connected_edges = vert_to_edge_map[current_vert_index];
     if (connected_edges.size() != 4) {
       return false;
     }
 
-    /* 3. Find the "opposite" edge. */
+    /* Find the opposite edge. */
     int next_edge_index = -1;
     const Span<int> current_edge_faces = edge_to_face_map[current_edge_index];
 
-    for (const int e_index : connected_edges) {
-      if (e_index == current_edge_index) continue;
-
-      /* Check if this candidate edge shares any face with the current edge. */
-      bool shares_face = false;
-      const Span<int> other_edge_faces = edge_to_face_map[e_index];
-      for (const int f1 : current_edge_faces) {
-        for (const int f2 : other_edge_faces) {
-          if (f1 == f2) {
-            shares_face = true;
-            break;
-          }
-        }
-        if (shares_face) break;
+    for (const int edge_index : connected_edges) {
+      if (edge_index == current_edge_index) {
+        continue;
       }
 
-      /* If they share no faces, we found our straight line! */
-      if (!shares_face) {
-        next_edge_index = e_index;
+      /* Check if this candidate edge shares any face with the current edge. */
+      const Span<int> other_edge_faces = edge_to_face_map[edge_index];
+
+      /* If no faces overlap, it means the edge is on the opposite side. */
+      if (!current_edge_faces.intersects__linear_search(other_edge_faces)) {
+        next_edge_index = edge_index;
         break;
       }
     }
 
-    if (next_edge_index == -1) return false;
+    if (next_edge_index == -1) {
+      return false;
+    }
 
-    /* Check for closed loop */
+    /* Check for closed loop. */
     if (r_loop_edges.contains(next_edge_index)) {
       return true;
     }
 
     r_loop_edges.add(next_edge_index);
 
-    /* 4. Advance to the next vertex */
+    /* Advance to the next vertex. */
     const int2 next_edge_verts = edges[next_edge_index];
     current_vert_index = (next_edge_verts[0] == current_vert_index) ? next_edge_verts[1] :
                                                                       next_edge_verts[0];
@@ -1279,26 +1273,29 @@ void paintvert_select_loop(bContext *C, Object *ob, const int mval[2], const boo
   ED_view3d_select_id_validate(&vc);
 
   Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
-  if (!ob_eval) return;
+  if (!ob_eval) {
+    return;
+  }
 
   uint closest_edge_index = uint(-1);
   if (!ED_mesh_pick_edge(C, ob, mval, ED_MESH_PICK_DEFAULT_VERT_DIST, &closest_edge_index)) {
     return;
   }
-  if (closest_edge_index == -1) return;
+  if (closest_edge_index == uint(-1)) {
+    return;
+  }
 
   Mesh *mesh = BKE_mesh_from_object(ob);
   const Span<int2> edges = mesh->edges();
   const Span<int> corner_edges = mesh->corner_edges();
   const OffsetIndices faces = mesh->faces();
 
-  /* Build Topology Maps */
+  /* Build Topology Maps. */
   Array<int> edge_to_face_offsets;
   Array<int> edge_to_face_indices;
   const GroupedSpan<int> edge_to_face_map = bke::mesh::build_edge_to_face_map(
       faces, corner_edges, mesh->edges_num, edge_to_face_offsets, edge_to_face_indices);
 
-  /* Vertex map is required for the Valence 4 check */
   Array<int> vert_to_edge_offsets;
   Array<int> vert_to_edge_indices;
   const GroupedSpan<int> vert_to_edge_map = bke::mesh::build_vert_to_edge_map(
@@ -1310,45 +1307,41 @@ void paintvert_select_loop(bContext *C, Object *ob, const int mval[2], const boo
 
   VectorSet<int> edges_in_loop;
 
-  /* Add start edge */
   edges_in_loop.add(closest_edge_index);
 
-  /* Trace both directions */
+  /* Trace both directions. */
   const int2 start_verts = edges[closest_edge_index];
 
-  bool full_loop = follow_edge_loop(closest_edge_index, start_verts[0], edges, hide_vert,
-                                    vert_to_edge_map, edge_to_face_map, edges_in_loop);
+  const bool full_loop = follow_edge_loop(closest_edge_index, start_verts[0], edges, hide_vert,
+                                          vert_to_edge_map, edge_to_face_map, edges_in_loop);
 
   if (!full_loop) {
-      follow_edge_loop(closest_edge_index, start_verts[1], edges, hide_vert,
-                       vert_to_edge_map, edge_to_face_map, edges_in_loop);
+    follow_edge_loop(closest_edge_index, start_verts[1], edges, hide_vert,
+                     vert_to_edge_map, edge_to_face_map, edges_in_loop);
   }
 
-  /* Apply Selection */
   bke::SpanAttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write_span<bool>(
       ".select_vert", bke::AttrDomain::Point);
 
   VectorSet<int> verts_to_select;
   for (int e_idx : edges_in_loop) {
-      verts_to_select.add(edges[e_idx][0]);
-      verts_to_select.add(edges[e_idx][1]);
+    verts_to_select.add(edges[e_idx][0]);
+    verts_to_select.add(edges[e_idx][1]);
   }
 
-  /* Toggling Logic */
   bool any_vert_selected = false;
   for (int v_idx : verts_to_select) {
-      if (select_vert.span[v_idx]) {
-          any_vert_selected = true;
-          break;
-      }
+    if (select_vert.span[v_idx]) {
+      any_vert_selected = true;
+      break;
+    }
   }
   const bool select_toggle = select && !any_vert_selected;
   select_vert.span.fill_indices(verts_to_select.as_span(), select_toggle);
 
   select_vert.finish();
 
-  /* Finalize and Update Viewport */
   paintvert_flush_flags(ob);
-  paintvert_tag_select_update(C, ob); /* <--- CRITICAL FIX for "Undo to see" bug */
+  paintvert_tag_select_update(C, ob);
 }
 }  // namespace blender
