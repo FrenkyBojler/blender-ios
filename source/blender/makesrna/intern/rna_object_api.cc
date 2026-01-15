@@ -534,9 +534,9 @@ static CollectionVector rna_Object_shape_keys_selected(Object *ob)
   }
 
   CollectionVector selected_keys;
-  LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
-    if (kb->flag & KEYBLOCK_SEL) {
-      selected_keys.items.append(RNA_pointer_create_discrete(&key->id, &RNA_ShapeKey, kb));
+  for (KeyBlock &kb : key->block) {
+    if (kb.flag & KEYBLOCK_SEL) {
+      selected_keys.items.append(RNA_pointer_create_discrete(&key->id, &RNA_ShapeKey, &kb));
     }
   }
   return selected_keys;
