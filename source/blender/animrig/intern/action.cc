@@ -2590,7 +2590,7 @@ Vector<FCurve *> fcurves_in_action_slot_filtered(bAction *act,
 
   Vector<FCurve *> found;
 
-  foreach_editable_fcurve_in_action_slot(act->wrap(), slot_handle, [&](FCurve &fcurve) {
+  foreach_fcurve_in_action_slot(act->wrap(), slot_handle, [&](FCurve &fcurve) {
     if (predicate(fcurve)) {
       found.append(&fcurve);
     }
