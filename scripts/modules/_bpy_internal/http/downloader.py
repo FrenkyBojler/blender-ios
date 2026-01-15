@@ -32,6 +32,7 @@ import logging
 import multiprocessing
 import multiprocessing.connection
 import multiprocessing.process
+import os
 import sys
 import time
 import zlib  # For streaming gzip decompression.
@@ -169,7 +170,7 @@ class ConditionalDownloader:
             return
 
         # Move the downloaded file to the final filename.
-        _move_file(temp_path, local_path)
+        os.replace(temp_path, local_path)
 
         self.metadata_provider.save(http_req_descr_with_headers, http_meta)
 
@@ -1435,13 +1436,3 @@ def _create_temp_file(dirpath: Path, prefix: str, suffix: str) -> Path:
     fd, path_as_str = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=dirpath)
     os.close(fd)
     return Path(path_as_str)
-
-
-def _move_file(from_path: Path, to_path: Path) -> None:
-    """Move a file from one path to another, as atomically as possible."""
-    if sys.platform == "win32":
-        # As far as I (Sybren) know, this is necessary on Windows, while on
-        # other platforms the rename is atomic.
-        # TODO: See if we can get this atomic everywhere.
-        to_path.unlink(missing_ok=True)
-    from_path.rename(to_path)
