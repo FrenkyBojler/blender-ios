@@ -14,19 +14,22 @@
 #include "BLI_task.h"
 
 #include "vk_device.hh"
+#include "vk_to_string.hh"
 
 #include "CLG_log.h"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Render graph
  * \{ */
 
 struct VKRenderGraphWait {
-  blender::Mutex is_submitted_mutex;
+  Mutex is_submitted_mutex;
   std::condition_variable_any is_submitted_condition;
   bool is_submitted;
 };
@@ -86,7 +89,7 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
   submit_task = nullptr;
 
   if (wait_for_submission) {
-    std::unique_lock<blender::Mutex> lock(wait_condition.is_submitted_mutex);
+    std::unique_lock<Mutex> lock(wait_condition.is_submitted_mutex);
     wait_condition.is_submitted_condition.wait(lock, [&] { return wait_condition.is_submitted; });
   }
 
@@ -103,7 +106,11 @@ void VKDevice::wait_for_timeline(TimelineValue timeline)
   }
   VkSemaphoreWaitInfo vk_semaphore_wait_info = {
       VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO, nullptr, 0, 1, &vk_timeline_semaphore_, &timeline};
-  vkWaitSemaphores(vk_device_, &vk_semaphore_wait_info, UINT64_MAX);
+  VkResult wait_result = vkWaitSemaphores(vk_device_, &vk_semaphore_wait_info, UINT64_MAX);
+  if (wait_result != VK_SUCCESS) {
+    CLOG_ERROR(
+        &LOG, "Vulkan: failed to wait for synchronization timeline [%s]", to_string(wait_result));
+  }
 }
 
 void VKDevice::wait_queue_idle()
@@ -262,8 +269,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
                       submit_task->signal_fence);
       }
       if (submit_task->wait_for_submission != nullptr) {
-        std::unique_lock<blender::Mutex> lock(
-            submit_task->wait_for_submission->is_submitted_mutex);
+        std::unique_lock<Mutex> lock(submit_task->wait_for_submission->is_submitted_mutex);
         submit_task->wait_for_submission->is_submitted = true;
         submit_task->wait_for_submission->is_submitted_condition.notify_one();
       }
@@ -341,4 +347,5 @@ void VKDevice::deinit_submission_pool()
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender
