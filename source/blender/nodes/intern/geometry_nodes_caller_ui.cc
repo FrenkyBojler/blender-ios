@@ -125,8 +125,8 @@ static NodesModifierData *get_modifier_data(Main &bmain,
     return nullptr;
   }
 
-  const Object *object = (Object *)BKE_libblock_find_session_uid(
-      &bmain, ID_OB, data.object_session_uid);
+  const Object *object = id_cast<Object *>(
+      BKE_libblock_find_session_uid(&bmain, ID_OB, data.object_session_uid));
   if (object == nullptr) {
     return nullptr;
   }
@@ -538,7 +538,25 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       break;
     }
     case SOCK_FONT: {
-      row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "fonts", name, ICON_FONT_DATA);
+      PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, rna_path.c_str());
+      if (prop && RNA_property_type(prop) == PROP_POINTER) {
+        template_id(&row,
+                    &ctx.C,
+                    ctx.properties_ptr,
+                    rna_path,
+                    nullptr,
+                    "FONT_OT_open",
+                    "FONT_OT_unlink",
+                    ui::TEMPLATE_ID_FILTER_ALL,
+                    false,
+                    name);
+      }
+      else {
+        /* #template_id only supports pointer properties currently. Node tools store
+         * data-block pointers in strings currently. */
+        row.prop_search(
+            ctx.properties_ptr, rna_path, ctx.bmain_ptr, "fonts", name, ICON_FONT_DATA);
+      }
       break;
     }
     case SOCK_SCENE: {
@@ -737,7 +755,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
 {
   for (const bNodeTreeInterfaceItem *item : interface_panel.items().drop_front(skip_first ? 1 : 0))
   {
-    switch (NodeTreeInterfaceItemType(item->item_type)) {
+    switch (eNodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_PANEL: {
         const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
         draw_interface_panel_as_panel(ctx, layout, sub_interface_panel);
