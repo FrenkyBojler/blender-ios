@@ -897,7 +897,7 @@ enum GHOST_TVulkanXRModes {
 
   /**
    * OpenXR and GHOST_ContextVK uses the same vulkan instance. The OpenXR swapchain will be updated
-   * directly in the render graph.
+   * directly via the render graph.
    */
   GHOST_kVulkanXRModeRenderGraph,
 };
