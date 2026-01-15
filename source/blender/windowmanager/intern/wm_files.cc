@@ -4984,6 +4984,7 @@ static void wm_block_save_modified_images_save(bContext *C, void *arg_block, voi
 
   if (save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain)) {
     ReportList *reports = CTX_wm_reports(C);
+    BKE_reports_clear(reports);
     ED_image_save_all_modified(C, reports);
     WM_report_banner_show(wm, win);
   }
@@ -5052,7 +5053,7 @@ static blender::ui::Block *block_create_save_modified_images_dialog(bContext *C,
 
   /* Image Saving Warnings. */
   ReportList reports;
-  BKE_reports_init(&reports, RPT_STORE);
+  BKE_reports_init(&reports, RPT_STORE & RPT_PRINT);
   uint modified_images_count = ED_image_save_all_modified_info(bmain, &reports);
 
   for (Report &report : reports.list) {
