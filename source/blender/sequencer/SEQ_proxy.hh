@@ -18,7 +18,6 @@
 
 namespace blender {
 
-struct Depsgraph;
 struct Main;
 struct Scene;
 struct Strip;
@@ -32,7 +31,6 @@ struct IndexBuildContext;
 struct RenderData;
 
 bool proxy_rebuild_context(Main *bmain,
-                           Depsgraph *depsgraph,
                            Scene *scene,
                            Strip *strip,
                            Set<std::string> *processed_paths,
@@ -49,7 +47,6 @@ float rendersize_to_scale_factor(eSpaceSeq_Proxy_RenderSize render_size);
 
 struct ProxyJob {
   Main *main = nullptr;
-  Depsgraph *depsgraph = nullptr;
   Scene *scene = nullptr;
   Vector<IndexBuildContext *> queue;
   int stop = 0;

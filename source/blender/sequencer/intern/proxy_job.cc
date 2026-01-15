@@ -69,11 +69,9 @@ static void proxy_endjob(void *pjv)
 ProxyJob *ED_seq_proxy_job_get(const bContext *C, wmJob *wm_job)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   ProxyJob *pj = static_cast<ProxyJob *>(WM_jobs_customdata_get(wm_job));
   if (!pj) {
     pj = MEM_new<ProxyJob>("proxy rebuild job");
-    pj->depsgraph = depsgraph;
     pj->scene = scene;
     pj->main = CTX_data_main(C);
     WM_jobs_customdata_set(wm_job, pj, proxy_freejob);

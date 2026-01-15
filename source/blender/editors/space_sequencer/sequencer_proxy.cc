@@ -67,7 +67,7 @@ static void seq_proxy_build_job(const bContext *C, ReportList *reports)
     }
 
     bool success = seq::proxy_rebuild_context(
-        pj->main, pj->depsgraph, pj->scene, &strip, &processed_paths, false, pj->queue);
+        pj->main, pj->scene, &strip, &processed_paths, false, pj->queue);
 
     if (!success && (strip.data->proxy->build_flags & SEQ_PROXY_SKIP_EXISTING) != 0) {
       BKE_reportf(reports, RPT_WARNING, "Overwrite is not checked for %s, skipping", strip.name);
@@ -99,7 +99,6 @@ static wmOperatorStatus sequencer_rebuild_proxy_invoke(bContext *C,
 static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /*o*/)
 {
   Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
@@ -113,7 +112,7 @@ static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /
     if (strip.flag & SEQ_SELECT) {
       Vector<seq::IndexBuildContext *> queue;
 
-      seq::proxy_rebuild_context(bmain, depsgraph, scene, &strip, &processed_paths, false, queue);
+      seq::proxy_rebuild_context(bmain, scene, &strip, &processed_paths, false, queue);
 
       wmJobWorkerStatus worker_status = {};
       for (seq::IndexBuildContext *context : queue) {

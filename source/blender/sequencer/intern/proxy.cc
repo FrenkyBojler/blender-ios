@@ -61,10 +61,8 @@ struct IndexBuildContext {
   int view_id = 0;
 
   Main *bmain = nullptr;
-  Depsgraph *depsgraph = nullptr;
   Scene *scene = nullptr;
-  Strip *strip = nullptr, *orig_seq = nullptr;
-  SessionUID orig_seq_uid;
+  Strip *strip = nullptr;
 };
 
 IMB_Proxy_Size rendersize_to_proxysize(eSpaceSeq_Proxy_RenderSize render_size)
@@ -113,9 +111,8 @@ bool seq_proxy_get_custom_file_filepath(const Strip *strip, char *filepath, cons
 
   if (view_id > 0) {
     SNPRINTF(suffix, "_%d", view_id);
-    /* TODO(sergey): This will actually append suffix after extension
-     * which is weird but how was originally coded in multi-view branch.
-     */
+    /* This will actually append suffix after extension
+     * which is weird but how was originally coded in multi-view branch. */
     BLI_snprintf(filepath, PROXY_MAXFILE, "%s_%s", filepath_temp, suffix);
   }
   else {
@@ -384,7 +381,6 @@ static bool seq_proxy_need_rebuild(Strip *strip, MovieReader *anim)
 }
 
 bool proxy_rebuild_context(Main *bmain,
-                           Depsgraph *depsgraph,
                            Scene *scene,
                            Strip *strip,
                            Set<std::string> *processed_paths,
@@ -429,10 +425,7 @@ bool proxy_rebuild_context(Main *bmain,
     context->overwrite = (strip_new->data->proxy->build_flags & SEQ_PROXY_SKIP_EXISTING) == 0;
 
     context->bmain = bmain;
-    context->depsgraph = depsgraph;
     context->scene = scene;
-    context->orig_seq = strip;
-    context->orig_seq_uid = strip->runtime->session_uid;
     context->strip = strip_new;
 
     context->view_id = i; /* only for images */
@@ -544,20 +537,15 @@ static ImBuf *render_image_strip_frame(const IndexBuildContext &context,
     seq_multiview_name(context.scene, view_id, prefix, ext, filepath_view, FILE_MAX);
     ibuf = IMB_load_image_from_filepath(filepath_view, flag, strip.data->colorspace_settings.name);
   }
-
   if (ibuf == nullptr) {
     return nullptr;
   }
+
   convert_multilayer_ibuf(ibuf);
-
-  /* We don't need both (speed reasons)! */
   if (ibuf->float_buffer.data != nullptr && ibuf->byte_buffer.data != nullptr) {
-    IMB_free_byte_pixels(ibuf);
+    IMB_free_byte_pixels(ibuf); /* If both float & byte exist, free byte buffer. */
   }
-
-  /* All sequencer color is done in SRGB space, linear gives odd cross-fades. */
   seq_imbuf_to_sequencer_space(context.scene, ibuf, false);
-
   return ibuf;
 }
 
@@ -580,6 +568,9 @@ static void image_proxy_builder_process(IndexBuildContext &context,
     return;
   }
 
+  const char *base_path = ID_BLEND_PATH_FROM_GLOBAL(&context.scene->id);
+  const int tot_views = BKE_scene_multiview_num_views_get(&context.scene->r);
+
   for (int elem_index = 0; elem_index < strip.len; elem_index++) {
     const StripElem &s_elem = strip.data->stripdata[elem_index];
 
@@ -590,17 +581,14 @@ static void image_proxy_builder_process(IndexBuildContext &context,
     ImBuf *ibuf = nullptr;
 
     BLI_path_join(filepath, sizeof(filepath), strip.data->dirpath, s_elem.filename);
-    BLI_path_abs(filepath,
-                 ID_BLEND_PATH_FROM_GLOBAL(&context.scene->id));  //@TODO: can be done once
+    BLI_path_abs(filepath, base_path);
 
     const int totfiles = seq_num_files(context.scene, strip.views_format, true);
     bool is_multiview_render = seq_image_strip_is_multiview_render(
         context.scene, &strip, totfiles, filepath, prefix, ext);
 
     if (is_multiview_render) {
-      int totviews = BKE_scene_multiview_num_views_get(
-          &context.scene->r);  //@TODO: can be done once
-      Array<ImBuf *> ibufs_arr(totviews, nullptr);
+      Array<ImBuf *> ibufs_arr(tot_views, nullptr);
 
       for (int view_id = 0; view_id < totfiles; view_id++) {
         ibufs_arr[view_id] = render_image_strip_frame(
