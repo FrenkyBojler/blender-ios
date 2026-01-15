@@ -909,7 +909,7 @@ static void init_session_data(const VPaint &wpaint, Object &ob, WPaintData &wpd)
 
   /* Create average brush arrays */
   if (!vwpaint::brush_use_accumulate(wpaint)) {
-    wpd.alpha_weight.reinitialize(mesh->verts_num);
+    wpd.alpha_weight = Array<float>(mesh->verts_num, 0.0f);
     MDeformVert initial_value{};
     /* Use to show this isn't initialized, never apply to the mesh data. */
     initial_value.flag = 1;
