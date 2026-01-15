@@ -592,11 +592,11 @@ std::optional<int64_t> GHOST_XrGraphicsBindingVulkan::chooseSwapchainFormat(
 }
 
 std::vector<XrSwapchainImageBaseHeader *> GHOST_XrGraphicsBindingVulkan::createSwapchainImages(
-    uint32_t swapchain_image_count)
+    uint32_t image_count)
 {
   std::vector<XrSwapchainImageBaseHeader *> base_images;
   std::vector<XrSwapchainImageVulkan2KHR> vulkan_images(
-      swapchain_image_count, {XR_TYPE_SWAPCHAIN_IMAGE_VULKAN2_KHR, nullptr, VK_NULL_HANDLE});
+      image_count, {XR_TYPE_SWAPCHAIN_IMAGE_VULKAN2_KHR, nullptr, VK_NULL_HANDLE});
   for (XrSwapchainImageVulkan2KHR &image : vulkan_images) {
     base_images.push_back(reinterpret_cast<XrSwapchainImageBaseHeader *>(&image));
   }
