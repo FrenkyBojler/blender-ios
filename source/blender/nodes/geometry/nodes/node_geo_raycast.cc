@@ -57,39 +57,44 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label()
       .description("Mapping from the target geometry to hit points");
 
-  b.add_input<decl::Vector>("Source Position")
-      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
-      .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Vector>("Ray Direction")
-      .default_value({0.0f, 0.0f, -1.0f})
-      .supports_field()
-      .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Float>("Ray Length")
-      .default_value(100.0f)
-      .min(0.0f)
-      .subtype(PROP_DISTANCE)
-      .supports_field()
-      .structure_type(StructureType::Dynamic);
+  const int source_position = b.add_input<decl::Vector>("Source Position")
+                                  .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
+                                  .structure_type(StructureType::Dynamic)
+                                  .index();
+  const int ray_direction = b.add_input<decl::Vector>("Ray Direction")
+                                .default_value({0.0f, 0.0f, -1.0f})
+                                .supports_field()
+                                .structure_type(StructureType::Dynamic)
+                                .index();
+  const int ray_length = b.add_input<decl::Float>("Ray Length")
+                             .default_value(100.0f)
+                             .min(0.0f)
+                             .subtype(PROP_DISTANCE)
+                             .supports_field()
+                             .structure_type(StructureType::Dynamic)
+                             .index();
 
-  b.add_output<decl::Bool>("Is Hit").dependent_field({2, 3, 4});
-  b.add_output<decl::Vector>("Hit Position").dependent_field({2, 3, 4});
-  b.add_output<decl::Vector>("Hit Normal").dependent_field({2, 3, 4});
-  b.add_output<decl::Float>("Hit Distance").dependent_field({2, 3, 4});
+  const Vector<int> field_dependencys({source_position, ray_direction, ray_length});
+
+  b.add_output<decl::Bool>("Is Hit").dependent_field(field_dependencys);
+  b.add_output<decl::Vector>("Hit Position").dependent_field(field_dependencys);
+  b.add_output<decl::Vector>("Hit Normal").dependent_field(field_dependencys);
+  b.add_output<decl::Float>("Hit Distance").dependent_field(field_dependencys);
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
-    b.add_output(data_type, "Attribute").dependent_field({2, 3, 4});
+    b.add_output(data_type, "Attribute").dependent_field(field_dependencys);
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryRaycast *data = MEM_callocN<NodeGeometryRaycast>(__func__);
+  NodeGeometryRaycast *data = MEM_new_for_free<NodeGeometryRaycast>(__func__);
   data->data_type = CD_PROP_FLOAT;
   node->storage = data;
 }
@@ -359,7 +364,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeRaycast", GEO_NODE_RAYCAST);
   ntype.ui_name = "Raycast";
@@ -370,13 +375,13 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryRaycast", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

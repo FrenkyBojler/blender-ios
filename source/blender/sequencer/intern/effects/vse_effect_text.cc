@@ -44,6 +44,13 @@
 
 namespace blender::seq {
 
+static Mutex text_runtime_mutex;
+
+std::unique_lock<Mutex> text_runtime_scoped_lock_get()
+{
+  return std::unique_lock<Mutex>(text_runtime_mutex);
+}
+
 /* -------------------------------------------------------------------- */
 /* Sequencer font access.
  *
@@ -171,7 +178,7 @@ bool effects_can_render_text(const Strip *strip)
 static void init_text_effect(Strip *strip)
 {
   MEM_SAFE_FREE(strip->effectdata);
-  TextVars *data = MEM_callocN<TextVars>("textvars");
+  TextVars *data = MEM_new_for_free<TextVars>("textvars");
   strip->effectdata = data;
 
   data->text_font = nullptr;
@@ -595,7 +602,7 @@ static rcti draw_text_outline(const RenderData *context,
   Array<uchar4> tmp_buf(pixel_count, uchar4(0));
   BLF_buffer(runtime->font,
              nullptr,
-             (uchar *)tmp_buf.data(),
+             reinterpret_cast<uchar *>(tmp_buf.data()),
              size.x,
              size.y,
              out->byte_buffer.colorspace);
@@ -1058,7 +1065,8 @@ static ImBuf *do_text_effect(const RenderData *context,
                                ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
 
   /* Guard against parallel accesses to the fonts map. */
-  std::lock_guard lock(g_font_map.mutex);
+  std::lock_guard font_map_lock(g_font_map.mutex);
+  std::lock_guard text_runtime_lock(text_runtime_mutex);
 
   const int font = text_effect_font_init(context, strip, font_flags);
 
