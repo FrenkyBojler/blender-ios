@@ -116,8 +116,8 @@ bool GHOST_XrGraphicsBindingVulkan::loadExtensionFunctions(XrInstance instance)
 
   CLOG_INFO(&LOG,
             "XR/Vulkan graphics extensions:\n"
-            "- [%c] XR_KHR_vulkan_enable\n"
-            "- [%c] XR_KHR_vulkan_enable2",
+            " - [%c] XR_KHR_vulkan_enable\n"
+            " - [%c] XR_KHR_vulkan_enable2",
             extensions_.vulkan_enable ? 'X' : ' ',
             extensions_.vulkan_enable2 ? 'X' : ' ');
   return extensions_.vulkan_enable || extensions_.vulkan_enable2;
