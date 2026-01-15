@@ -225,7 +225,6 @@ void render_new_render_data(Main *bmain,
   r_context->view_id = 0;
   r_context->gpu_offscreen = nullptr;
   r_context->gpu_viewport = nullptr;
-  r_context->task_id = SEQ_TASK_MAIN_RENDER;
   r_context->is_prefetch_render = false;
 }
 

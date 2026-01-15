@@ -339,7 +339,6 @@ static void seq_prefetch_update_context(const RenderData *context)
                          nullptr,
                          &pfjob->context_cpy);
   pfjob->context_cpy.is_prefetch_render = true;
-  pfjob->context_cpy.task_id = SEQ_TASK_PREFETCH_RENDER;
 
   render_new_render_data(pfjob->bmain,
                          pfjob->depsgraph,
@@ -350,12 +349,6 @@ static void seq_prefetch_update_context(const RenderData *context)
                          nullptr,
                          &pfjob->context);
   pfjob->context.is_prefetch_render = false;
-
-  /* Same ID as prefetch context, because context will be swapped, but we still
-   * want to assign this ID to cache entries created in this thread.
-   * This is to allow "temp cache" work correctly for both threads.
-   */
-  pfjob->context.task_id = SEQ_TASK_PREFETCH_RENDER;
 }
 
 static void seq_prefetch_update_scene(Scene *scene)
