@@ -210,7 +210,7 @@ class GHOST_ContextVK : public GHOST_Context {
   }
 
   /**
-   * \brief Is the give instance extension name enabled.
+   * \brief Is the given extension name enabled on instance level?
    *
    * \returns false, when extension isn't enabled on instance level or when no instance exists.
    * Will return true when instance exists and extension name has been enabled on the instance.
@@ -218,7 +218,7 @@ class GHOST_ContextVK : public GHOST_Context {
   static bool is_instance_extension_enabled(blender::StringRefNull extension_name);
 
   /**
-   * \brief Is the give device extension name enabled.
+   * \brief Is the given extension name enabled on device level?
    *
    * \returns false, when extension isn't enabled on device level or when no instance or device
    * exists. Will return true when instance exists and extension name has been enabled on the
