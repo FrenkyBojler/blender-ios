@@ -1761,8 +1761,7 @@ static void sequencer_preview_draw_overlays(const bContext *C,
   }
 
   /* FPS counter. */
-  if ((space_sequencer.flag & SEQ_SHOW_OVERLAY) &&
-      (CTX_wm_screen(C)->state != SCREENFULL) &&
+  if ((space_sequencer.flag & SEQ_SHOW_OVERLAY) && (CTX_wm_screen(C)->state != SCREENFULL) &&
       (U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(&wm))
   {
     const rcti *rect = ED_region_visible_rect(&region);
