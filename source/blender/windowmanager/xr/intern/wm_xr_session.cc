@@ -1496,7 +1496,7 @@ bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
   /* Initialize with some unsupported format to check following switch statement. */
   gpu::TextureFormat format = gpu::TextureFormat::UNORM_8;
 
-  switch (draw_view->swapchain_format) {
+  switch (draw_view->swapchain_format.xr_format) {
     case GHOST_kXrSwapchainFormatRGBA8:
       format = gpu::TextureFormat::UNORM_8_8_8_8;
       break;

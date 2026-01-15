@@ -55,8 +55,8 @@ GHOST_XrSwapchain::GHOST_XrSwapchain(GHOST_IXrGraphicsBinding &gpu_binding,
            "Failed to get swapchain image formats.");
   assert(swapchain_formats.size() == format_count);
 
-  std::optional chosen_format = gpu_binding.chooseSwapchainFormat(
-      swapchain_formats, format_, is_srgb_buffer_);
+  std::optional<GHOST_XrSwapchainFormat> chosen_format = gpu_binding.chooseSwapchainFormat(
+      swapchain_formats);
   if (!chosen_format) {
     throw GHOST_XrException(
         "Error: No format matching OpenXR runtime supported swapchain formats found.");
@@ -64,7 +64,7 @@ GHOST_XrSwapchain::GHOST_XrSwapchain(GHOST_IXrGraphicsBinding &gpu_binding,
 
   create_info.usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT |
                            XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
-  create_info.format = *chosen_format;
+  create_info.format = chosen_format->gpu_format;
   create_info.sampleCount = view_config.recommendedSwapchainSampleCount;
   create_info.width = view_config.recommendedImageRectWidth;
   create_info.height = view_config.recommendedImageRectHeight;
@@ -121,16 +121,6 @@ void GHOST_XrSwapchain::updateCompositionLayerProjectViewSubImage(XrSwapchainSub
   r_sub_image.swapchain = oxr_->swapchain;
   r_sub_image.imageRect.offset = {0, 0};
   r_sub_image.imageRect.extent = {image_width_, image_height_};
-}
-
-GHOST_TXrSwapchainFormat GHOST_XrSwapchain::getFormat() const
-{
-  return format_;
-}
-
-bool GHOST_XrSwapchain::isBufferSRGB() const
-{
-  return is_srgb_buffer_;
 }
 
 void GHOST_XrSwapchain::releaseImage()

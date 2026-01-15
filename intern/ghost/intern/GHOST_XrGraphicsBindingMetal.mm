@@ -81,10 +81,8 @@ void GHOST_XrGraphicsBindingMetal::initFromGhostContext(GHOST_Context &ghost_ctx
   oxr_binding.metal.commandQueue = (__bridge void *)ghost_metal_ctx.metalCommandQueue();
 }
 
-std::optional<int64_t> GHOST_XrGraphicsBindingMetal::chooseSwapchainFormat(
-    const std::vector<int64_t> &runtime_formats,
-    GHOST_TXrSwapchainFormat &r_format,
-    bool &r_is_srgb_format) const
+std::optional<GHOST_XrSwapchainFormat> GHOST_XrGraphicsBindingMetal::chooseSwapchainFormat(
+    const std::vector<int64_t> &runtime_formats) const
 {
   std::vector<int64_t> gpu_binding_formats = {
       MTLPixelFormatRGBA16Float,
@@ -97,31 +95,29 @@ std::optional<int64_t> GHOST_XrGraphicsBindingMetal::chooseSwapchainFormat(
   const std::optional result = choose_swapchain_format_from_candidates(gpu_binding_formats,
                                                                        runtime_formats);
 
-  if (!result) {
-    r_format = GHOST_kXrSwapchainFormatRGBA8;
-    r_is_srgb_format = false;
+  if (result) {
+    GHOST_XrSwapchainFormat swapchain_format = {};
+    switch (*result) {
+      case MTLPixelFormatRGB10A2Unorm:
+        swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGB10_A2;
+        break;
+      case MTLPixelFormatRGBA16Unorm:
+        swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGBA16;
+        break;
+      case MTLPixelFormatRGBA16Float:
+        swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGBA16F;
+        break;
+      case MTLPixelFormatRGBA8Unorm:
+      case MTLPixelFormatRGBA8Unorm_sRGB:
+        swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGBA8;
+        break;
+    }
+    swapchain_format.gpu_format = *result;
+    swapchain_format.is_srgb_format = (*result == MTLPixelFormatRGBA8Unorm_sRGB);
     return result;
   }
 
-  switch (*result) {
-    case MTLPixelFormatRGB10A2Unorm:
-      r_format = GHOST_kXrSwapchainFormatRGB10_A2;
-      break;
-    case MTLPixelFormatRGBA16Unorm:
-      r_format = GHOST_kXrSwapchainFormatRGBA16;
-      break;
-    case MTLPixelFormatRGBA16Float:
-      r_format = GHOST_kXrSwapchainFormatRGBA16F;
-      break;
-    case MTLPixelFormatRGBA8Unorm:
-    case MTLPixelFormatRGBA8Unorm_sRGB:
-      r_format = GHOST_kXrSwapchainFormatRGBA8;
-      break;
-  }
-
-  r_is_srgb_format = (*result == MTLPixelFormatRGBA8Unorm_sRGB);
-
-  return result;
+  return std::nullopt;
 }
 
 std::vector<XrSwapchainImageBaseHeader *> GHOST_XrGraphicsBindingMetal::createSwapchainImages(

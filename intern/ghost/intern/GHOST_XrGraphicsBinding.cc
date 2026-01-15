@@ -207,9 +207,8 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
     glGenFramebuffers(1, &fbo_);
   }
 
-  std::optional<int64_t> chooseSwapchainFormat(const std::vector<int64_t> &runtime_formats,
-                                               GHOST_TXrSwapchainFormat &r_format,
-                                               bool &r_is_srgb_format) const override
+  std::optional<GHOST_XrSwapchainFormat> chooseSwapchainFormat(
+      const std::vector<int64_t> &runtime_formats) const override
   {
     std::vector<int64_t> gpu_binding_formats = {
 #  if 0 /* RGB10A2, RGBA16 don't seem to work with Oculus head-sets, \
@@ -228,30 +227,14 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
 
     std::optional result = choose_swapchain_format_from_candidates(gpu_binding_formats,
                                                                    runtime_formats);
-    if (result) {
-      switch (*result) {
-        case GL_RGB10_A2:
-          r_format = GHOST_kXrSwapchainFormatRGB10_A2;
-          break;
-        case GL_RGBA16:
-          r_format = GHOST_kXrSwapchainFormatRGBA16;
-          break;
-        case GL_RGBA16F:
-          r_format = GHOST_kXrSwapchainFormatRGBA16F;
-          break;
-        case GL_RGBA8:
-        case GL_SRGB8_ALPHA8:
-          r_format = GHOST_kXrSwapchainFormatRGBA8;
-          break;
-      }
-      r_is_srgb_format = (*result == GL_SRGB8_ALPHA8);
-    }
-    else {
-      r_format = GHOST_kXrSwapchainFormatRGBA8;
-      r_is_srgb_format = false;
-    }
 
-    return result;
+    if (result) {
+      GHOST_XrSwapchainFormat swapchain_format = {};
+      swapchain_format.gpu_format = *result;
+      swapchain_format.is_srgb_format = (*result == GL_SRGB8_ALPHA8);
+      return swapchain_format;
+    }
+    return std::nullopt;
   }
 
   std::vector<XrSwapchainImageBaseHeader *> createSwapchainImages(uint32_t image_count) override

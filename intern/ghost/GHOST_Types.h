@@ -1192,6 +1192,12 @@ typedef enum GHOST_TXrSwapchainFormat {
   GHOST_kXrSwapchainFormatRGB10_A2,
 } GHOST_TXrSwapchainFormat;
 
+typedef struct GHOST_XrSwapchainFormat {
+  GHOST_TXrSwapchainFormat xr_format;
+  int64_t gpu_format;
+  bool is_srgb_format;
+} GHOST_XrSwapchainFormat;
+
 typedef struct GHOST_XrDrawViewInfo {
   int ofsx, ofsy;
   int width, height;
@@ -1204,9 +1210,7 @@ typedef struct GHOST_XrDrawViewInfo {
     float angle_up, angle_down;
   } fov;
 
-  GHOST_TXrSwapchainFormat swapchain_format;
-  /** Set if the buffer should be submitted with a SRGB transfer applied. */
-  char expects_srgb_buffer;
+  GHOST_XrSwapchainFormat swapchain_format;
 
   /** The view that this info represents. Not necessarily the "eye index" (e.g. for quad view
    * systems, etc). */
@@ -1300,7 +1304,8 @@ typedef struct GHOST_XrControllerModelData {
  * SpaceMouse devices ship with an internal identifier number for each button.
  * Deprecated versions of the 3DxWare SDK have a `virtualkeys.h` header file
  * where some of these numbers are found but it is basically an arbitrary assignment
- * made by the vendor (3Dconnexion) since the application has the freedom to override as necessary.
+ * made by the vendor (3Dconnexion) since the application has the freedom to override as
+ * necessary.
  */
 typedef enum {
 

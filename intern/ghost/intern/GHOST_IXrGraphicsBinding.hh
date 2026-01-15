@@ -77,9 +77,8 @@ class GHOST_IXrGraphicsBinding {
   virtual void initFromGhostContext(class GHOST_Context &ghost_ctx,
                                     XrInstance instance,
                                     XrSystemId system_id) = 0;
-  virtual std::optional<int64_t> chooseSwapchainFormat(const std::vector<int64_t> &runtime_formats,
-                                                       GHOST_TXrSwapchainFormat &r_format,
-                                                       bool &r_is_rgb_format) const = 0;
+  virtual std::optional<GHOST_XrSwapchainFormat> chooseSwapchainFormat(
+      const std::vector<int64_t> &runtime_formats) const = 0;
   virtual std::vector<XrSwapchainImageBaseHeader *> createSwapchainImages(
       uint32_t image_count) = 0;
   virtual void submitToSwapchainBegin() = 0;

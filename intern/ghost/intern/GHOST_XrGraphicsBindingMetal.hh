@@ -35,9 +35,8 @@ class GHOST_XrGraphicsBindingMetal : public GHOST_IXrGraphicsBinding {
   void initFromGhostContext(GHOST_Context &ghost_ctx,
                             XrInstance instance,
                             XrSystemId system_id) override;
-  std::optional<int64_t> chooseSwapchainFormat(const std::vector<int64_t> &runtime_formats,
-                                               GHOST_TXrSwapchainFormat &r_format,
-                                               bool &r_is_srgb_format) const override;
+  std::optional<GHOST_XrSwapchainFormat> chooseSwapchainFormat(
+      const std::vector<int64_t> &runtime_formats) const override;
   std::vector<XrSwapchainImageBaseHeader *> createSwapchainImages(uint32_t image_count) override;
 
   void submitToSwapchainBegin() override;

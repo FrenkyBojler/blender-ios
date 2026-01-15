@@ -120,10 +120,8 @@ void GHOST_XrGraphicsBindingD3D::initFromGhostContext(
   oxr_binding.d3d11.device = ghost_d3d_ctx_->device_;
 }
 
-std::optional<int64_t> GHOST_XrGraphicsBindingD3D::chooseSwapchainFormat(
-    const std::vector<int64_t> &runtime_formats,
-    GHOST_TXrSwapchainFormat &r_format,
-    bool &r_is_srgb_format) const
+std::optional<GHOST_XrSwapchainFormat> GHOST_XrGraphicsBindingD3D::chooseSwapchainFormat(
+    const std::vector<int64_t> &runtime_formats) const
 {
   std::vector<int64_t> gpu_binding_formats = {
 #if 0 /* RGB10A2, RGBA16 don't seem to work with Oculus head-sets, \
@@ -143,29 +141,27 @@ std::optional<int64_t> GHOST_XrGraphicsBindingD3D::chooseSwapchainFormat(
   std::optional result = choose_swapchain_format_from_candidates(gpu_binding_formats,
                                                                  runtime_formats);
   if (result) {
+    GHOST_XrSwapchainFormat swapchain_format = {};
     switch (*result) {
       case DXGI_FORMAT_R10G10B10A2_UNORM:
-        r_format = GHOST_kXrSwapchainFormatRGB10_A2;
+        swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGB10_A2;
         break;
       case DXGI_FORMAT_R16G16B16A16_UNORM:
-        r_format = GHOST_kXrSwapchainFormatRGBA16;
+        swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGBA16;
         break;
       case DXGI_FORMAT_R16G16B16A16_FLOAT:
-        r_format = GHOST_kXrSwapchainFormatRGBA16F;
+        swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGBA16F;
         break;
       case DXGI_FORMAT_R8G8B8A8_UNORM:
       case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-        r_format = GHOST_kXrSwapchainFormatRGBA8;
+        swapchain_format.xr_format = GHOST_kXrSwapchainFormatRGBA8;
         break;
     }
-    r_is_srgb_format = (*result == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+    swapchain_format.gpu_format = *result;
+    swapchain_format.is_srgb_format = (*result == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+    return swapchain_format;
   }
-  else {
-    r_format = GHOST_kXrSwapchainFormatRGBA8;
-    r_is_srgb_format = false;
-  }
-
-  return result;
+  return std::nullopt;
 }
 
 std::vector<XrSwapchainImageBaseHeader *> GHOST_XrGraphicsBindingD3D::createSwapchainImages(
