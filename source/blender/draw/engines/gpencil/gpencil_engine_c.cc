@@ -488,6 +488,11 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     const VArray<bool> is_fill_guide = *attributes.lookup_or_default<bool>(
         ".is_fill_guide", bke::AttrDomain::Curve, false);
 
+    const VArray<bool> hide_stroke = *attributes.lookup_or_default<bool>(
+        "hide_stroke", bke::AttrDomain::Curve, false);
+    const VArray<int> fill_id = *attributes.lookup_or_default<int>(
+        "fill_id", bke::AttrDomain::Curve, 0);
+
     const bool only_lines = !ELEM(ob->mode,
                                   OB_MODE_PAINT_GREASE_PENCIL,
                                   OB_MODE_WEIGHT_GREASE_PENCIL,

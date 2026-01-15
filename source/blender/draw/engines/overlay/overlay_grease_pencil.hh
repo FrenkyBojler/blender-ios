@@ -349,6 +349,11 @@ class GreasePencil : Overlay {
       const VArray<bool> cyclic = *attributes.lookup_or_default<bool>(
           "cyclic", bke::AttrDomain::Curve, false);
 
+      const VArray<bool> hide_stroke = *attributes.lookup_or_default<bool>(
+          "hide_stroke", bke::AttrDomain::Curve, false);
+      const VArray<int> fill_id = *attributes.lookup_or_default<int>(
+          "fill_id", bke::AttrDomain::Curve, 0);
+
       IndexMaskMemory memory;
       const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
           *ob, info.drawing, memory);
@@ -393,9 +398,8 @@ class GreasePencil : Overlay {
 
         gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(scene, ob);
 
-        const bool show_stroke = (gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0;
-        const bool show_fill = (num_stroke_triangles != 0) &&
-                               (gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
+        const bool show_stroke = !hide_stroke[stroke_i];
+        const bool show_fill = num_stroke_triangles != 0;
 
         if (show_fill) {
           const int v_first = t_offset * 3;

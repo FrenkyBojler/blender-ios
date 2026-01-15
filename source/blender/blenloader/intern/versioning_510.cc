@@ -9,6 +9,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
+#include "DNA_brush_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -25,6 +26,7 @@
 
 #include "BKE_asset.hh"
 #include "BKE_customdata.hh"
+#include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -484,7 +486,7 @@ static void do_version_light_remove_use_nodes(Main *bmain, Light *light)
   new_output.location[1] = emission.location[1];
 }
 
-void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
+void do_versions_after_linking_510(FileData *fd, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
    * fixed already in c8cb24121f, but blend files were never updated. So starting in 5.1, we fix
@@ -509,6 +511,42 @@ void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 0)) {
     version_clear_unused_strip_flags(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 19)) {
+    bke::greasepencil::convert::grease_pencil_material_stroke_fill_toggle_to_attributes(
+        *bmain, *fd->reports);
+    /* Set the stroke mode for all brushes. */
+    for (Brush &brush : bmain->brushes) {
+      if (BrushGpencilSettings *settings = brush.gpencil_settings) {
+        if (Material *material = settings->material) {
+          BLI_assert(material->gp_style != nullptr);
+          SET_FLAG_FROM_TEST(settings->flag2,
+                             (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0,
+                             GP_BRUSH_USE_STROKE);
+          SET_FLAG_FROM_TEST(settings->flag2,
+                             (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0,
+                             GP_BRUSH_USE_FILL);
+        }
+        else {
+          settings->flag2 |= GP_BRUSH_USE_STROKE;
+          settings->flag2 &= ~GP_BRUSH_USE_FILL;
+        }
+      }
+    }
+    /* Set the color to transparent for when the stroke/fill is disabled. */
+    for (Material &material : bmain->materials) {
+      if (material.gp_style == nullptr) {
+        continue;
+      }
+      MaterialGPencilStyle &gp_style = *material.gp_style;
+      if ((gp_style.flag & GP_MATERIAL_STROKE_SHOW) == 0) {
+        gp_style.stroke_rgba[3] = 0.0f;
+      }
+      if ((gp_style.flag & GP_MATERIAL_FILL_SHOW) == 0) {
+        gp_style.fill_rgba[3] = 0.0f;
+      }
+    }
   }
 
   /**
