@@ -441,7 +441,7 @@ TEST(curves_geometry, BezierGenericEvaluation)
 /** \name NURBS: Evaluation
  * \{ */
 
-CurvesGeometry create_single_nurbs(const int num_points)
+static CurvesGeometry create_single_nurbs(const int num_points)
 {
   CurvesGeometry curves(num_points, 1);
   curves.fill_curve_types(CURVE_TYPE_NURBS);
@@ -548,7 +548,7 @@ TEST(curves_geometry, NURBSEvaluateZeroOrderBezierDeg3)
   positions[2] = {0.0f, -0.29f, -0.2f};
   positions[3] = {-5.12f, 0.0f, -0.1f};
 
-  for (const int8_t i : IndexRange(-1, 2)) {
+  for (int8_t i = -1; i < 2; i++) {
     curves.nurbs_orders_for_write().fill(i);
     curves.tag_topology_changed();
     Span<float3> evaluated_positions = curves.evaluated_positions();
@@ -568,7 +568,7 @@ TEST(curves_geometry, NURBSEvaluateZeroOrderClampedDeg3)
   positions[2] = {0.0f, -0.29f, 0.2f};
   positions[3] = {-5.12f, 0.0f, 0.1f};
 
-  for (const int8_t i : IndexRange(-1, 2)) {
+  for (int8_t i = -1; i < 2; i++) {
     curves.nurbs_orders_for_write().fill(i);
     curves.tag_topology_changed();
     Span<float3> evaluated_positions = curves.evaluated_positions();
