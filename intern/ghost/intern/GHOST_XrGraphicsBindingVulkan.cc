@@ -757,8 +757,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageRenderGraph(
   GHOST_VulkanSwapChainData swap_chain_data = {};
   swap_chain_data.image = swapchain_image.image;
   swap_chain_data.extent = {uint32_t(draw_info.width), uint32_t(draw_info.height)};
-  // TODO: this should be dynamic.
-  swap_chain_data.surface_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+  swap_chain_data.surface_format.format = VkFormat(draw_info.gpu_swapchain_format);
   swap_chain_data.surface_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
 
   ghost_ctx_.swap_buffer_draw_callback_(&swap_chain_data);

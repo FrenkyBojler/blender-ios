@@ -1168,6 +1168,7 @@ struct GHOST_XrDrawViewInfo {
   } fov;
 
   GHOST_TXrSwapchainFormat swapchain_format;
+  int64_t gpu_swapchain_format;
   /** Set if the buffer should be submitted with a SRGB transfer applied. */
   char expects_srgb_buffer;
 
