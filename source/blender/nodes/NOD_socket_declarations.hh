@@ -293,6 +293,7 @@ class Closure : public SocketDeclaration {
  public:
   std::unique_ptr<ClosureSignature> signature;
 
+  Closure();
   ~Closure() override;
 
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_CLOSURE;

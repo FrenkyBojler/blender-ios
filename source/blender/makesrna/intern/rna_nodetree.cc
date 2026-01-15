@@ -670,6 +670,8 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 
 #  include "DEG_depsgraph_query.hh"
 
+namespace blender {
+
 using nodes::BakeItemsAccessor;
 using nodes::CaptureAttributeItemsAccessor;
 using nodes::ClosureInputItemsAccessor;
@@ -3854,9 +3856,8 @@ static const EnumPropertyItem *rna_GeometryNodeClosureToListItem_structure_type_
   }
   const bool is_geometry_nodes = ntree->type == NTREE_GEOMETRY;
   const bool supports_fields = is_geometry_nodes &&
-                               blender::nodes::socket_type_supports_fields(socket_type);
-  const bool supports_grids = is_geometry_nodes &&
-                              blender::nodes::socket_type_supports_grids(socket_type);
+                               nodes::socket_type_supports_fields(socket_type);
+  const bool supports_grids = is_geometry_nodes && nodes::socket_type_supports_grids(socket_type);
   /* Lists of lists are sort of arbitrarily not supported yet. */
   const bool supports_lists = false;
 

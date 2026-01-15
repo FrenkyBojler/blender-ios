@@ -692,6 +692,8 @@ BundleBuilder &BundleBuilder::pass_through_input_index(const std::optional<int> 
 /** \name #Closure
  * \{ */
 
+Closure::Closure() = default;
+
 Closure::~Closure() = default;
 
 bNodeSocket &Closure::build(bNodeTree &ntree, bNode &node) const

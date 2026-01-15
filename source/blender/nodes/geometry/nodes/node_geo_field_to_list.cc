@@ -158,7 +158,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->storage = MEM_callocN<GeometryNodeFieldToList>(__func__);
+  node->storage = MEM_new_for_free<GeometryNodeFieldToList>(__func__);
 }
 
 static void node_free_storage(bNode *node)
