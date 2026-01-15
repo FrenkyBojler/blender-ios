@@ -585,6 +585,23 @@ class ShaderNodesInliner {
     for (const bNodeLink &internal_link : node->internal_links()) {
       if (internal_link.tosock == socket.socket) {
         const SocketInContext src_socket = {socket.context, internal_link.fromsock};
+        if (src_socket->is_multi_input()) {
+          const bNodeLink *src_link = nullptr;
+          for (const bNodeLink *link : src_socket->directly_linked_links()) {
+            if (link->is_used()) {
+              src_link = link;
+              break;
+            }
+          }
+          if (!src_link) {
+            return false;
+          }
+          const ComputeContext *from_context = this->get_link_source_context(*src_link,
+                                                                             src_socket);
+          const SocketInContext origin_socket = {from_context, src_link->fromsock};
+          this->forward_value_or_schedule(socket, origin_socket);
+          return true;
+        }
         if (const SocketValue *value = value_by_socket_.lookup_ptr(src_socket)) {
           /* Pass the value of the internally linked input socket, with an implicit conversion if
            * necessary. */
