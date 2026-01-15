@@ -59,7 +59,7 @@ class ExportHelper:
     # True == use ext, False == no ext, None == do nothing.
     check_extension = True
 
-    def invoke(self, context, _event):
+    def invoke(self, context, event):
         import os
         if not self.filepath:
             blend_filepath = context.blend_data.filepath
@@ -73,7 +73,7 @@ class ExportHelper:
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-    def check(self, _context):
+    def check(self, context):
         import os
         change_ext = False
         change_axis = _check_axis_conversion(self)
@@ -104,7 +104,7 @@ class ImportHelper:
         options={'SKIP_PRESET', 'HIDDEN'}
     )
 
-    def invoke(self, context, _event):
+    def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -130,7 +130,7 @@ class ImportHelper:
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-    def check(self, _context):
+    def check(self, context):
         return _check_axis_conversion(self)
 
 
