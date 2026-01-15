@@ -503,6 +503,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
   SampleColorData *data = static_cast<SampleColorData *>(op->customdata);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
+  Main &bmain = *CTX_data_main(C);
 
   if ((event->type == data->launch_event) && (event->val == KM_RELEASE)) {
     if (data->show_cursor) {
@@ -532,7 +533,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
       RNA_int_set_array(op->ptr, "location", event->mval);
       const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
       const float3 average_color = sample_average_color(data, sampled_color);
-      apply_sampled_color(*CTX_data_main(C), *paint, average_color, false);
+      apply_sampled_color(bmain, *paint, average_color, false);
       WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       break;
     }
@@ -542,7 +543,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
         RNA_int_set_array(op->ptr, "location", event->mval);
         const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
         const float3 average_color = sample_average_color(data, sampled_color);
-        apply_sampled_color(*CTX_data_main(C), *paint, average_color, true);
+        apply_sampled_color(bmain, *paint, average_color, true);
         if (!data->sample_palette) {
           data->sample_palette = true;
           sample_color_update_header(data, C);
