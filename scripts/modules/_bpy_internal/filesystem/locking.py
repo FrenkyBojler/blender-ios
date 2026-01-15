@@ -38,6 +38,12 @@ def mutex_lock_and_open_with_retry(file_path: Path,
         given number of tries.
     """
 
+    if 'r' in mode and not file_path.exists():
+        # Opening a non-existent file for read is not going to work. The retry
+        # logic is meant for the locking, and not to wait for the file's
+        # existence.
+        raise FileNotFoundError(file_path)
+
     for _ in range(max_tries):
         meta_file, unlocker = mutex_lock_and_open(file_path, mode)
         if meta_file is not None:
