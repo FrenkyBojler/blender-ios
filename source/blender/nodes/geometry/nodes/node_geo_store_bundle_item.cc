@@ -15,6 +15,8 @@
 
 namespace blender::nodes::node_geo_store_bundle_item_cc {
 
+NODE_STORAGE_FUNCS(NodeStoreBundleItem)
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -27,7 +29,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Path").optional_label();
 
   if (node != nullptr) {
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(node->custom1);
+    const NodeStoreBundleItem &storage = node_storage(*node);
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(storage.socket_type);
     b.add_input(socket_type, "Item");
   }
 }
@@ -41,12 +44,15 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = SOCK_FLOAT;
+  auto *storage = MEM_new_for_free<NodeStoreBundleItem>(__func__);
+  storage->socket_type = SOCK_FLOAT;
+  node->storage = storage;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &bnode = params.node();
+  const NodeStoreBundleItem &storage = node_storage(bnode);
 
   BundlePtr bundle_ptr = params.extract_input<nodes::BundlePtr>("Bundle");
   if (!bundle_ptr) {
@@ -67,7 +73,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(bnode.custom1, 0);
+  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(storage.socket_type, 0);
   if (!stype || !stype->geometry_nodes_default_value) {
     params.set_output("Bundle", std::move(bundle_ptr));
     return;
@@ -85,7 +91,7 @@ static void node_rna(StructRNA *srna)
                     "Socket Type",
                     "",
                     rna_enum_node_socket_data_type_items,
-                    NOD_inline_enum_accessors(custom1),
+                    NOD_storage_enum_accessors(socket_type),
                     SOCK_FLOAT,
                     [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
                       *r_free = true;
@@ -110,6 +116,8 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
+  bke::node_type_storage(
+      ntype, "NodeStoreBundleItem", node_free_standard_storage, node_copy_standard_storage);
   bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);

@@ -17,6 +17,8 @@
 
 namespace blender::nodes::node_geo_get_bundle_item_cc {
 
+NODE_STORAGE_FUNCS(NodeGetBundleItem)
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -27,7 +29,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bundle>("Bundle");
   b.add_output<decl::Bundle>("Bundle").align_with_previous().propagate_all().reference_pass_all();
   if (node != nullptr) {
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(node->custom1);
+    const NodeGetBundleItem &storage = node_storage(*node);
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(storage.socket_type);
     b.add_output(socket_type, "Item");
   }
   b.add_output<decl::Bool>("Exists");
@@ -44,12 +47,15 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = SOCK_FLOAT;
+  auto *storage = MEM_new_for_free<NodeGetBundleItem>(__func__);
+  storage->socket_type = SOCK_FLOAT;
+  node->storage = storage;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
+  const NodeGetBundleItem &storage = node_storage(node);
 
   nodes::BundlePtr bundle = params.extract_input<nodes::BundlePtr>("Bundle");
   if (!bundle) {
@@ -85,7 +91,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(node.custom1, 0);
+  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(storage.socket_type, 0);
   SocketValueVariant output_value = socket_value->value;
   if (socket_value->type->type != stype->type) {
     if (std::optional<SocketValueVariant> converted_value = implicitly_convert_socket_value(
@@ -118,7 +124,7 @@ static void node_rna(StructRNA *srna)
                     "Socket Type",
                     "Value may be implicitly converted if the type does not match",
                     rna_enum_node_socket_data_type_items,
-                    NOD_inline_enum_accessors(custom1),
+                    NOD_storage_enum_accessors(socket_type),
                     SOCK_FLOAT,
                     [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
                       *r_free = true;
@@ -143,6 +149,8 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
+  bke::node_type_storage(
+      ntype, "NodeGetBundleItem", node_free_standard_storage, node_copy_standard_storage);
   bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
