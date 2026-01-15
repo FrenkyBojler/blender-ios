@@ -58,15 +58,17 @@ struct OnlineAssetInfo {
   std::optional<URLWithHash> preview_url;
 
   /**
-   * Return the main asset file, i.e. the file containing the asset data-block.
+   * Return the asset's main file, i.e. the file containing the asset data-block.
    *
-   * This can only return an empty string in error cases, i.e. when the `files`
-   * vector (see above) is empty. This should never happen; file-less assets
-   * should be rejected when loading the listing.
+   * This can only return an empty string in error cases, i.e. when the `files` vector (see above)
+   * is empty. This should never happen; file-less assets should be rejected when loading the
+   * listing.
    *
-   * NOTE: This function should only be used when it is semantically the correct
-   * function. It should never be used as a generic short-hand avoid having to
-   * loop over multiple files.
+   * NOTE: Blender currently only has preliminary support for multi-file assets (it downloads them
+   * correctly, but there's little in place to check for conflicting versions, or to handle things
+   * like copying non-blend files to the project directory). Even though the 'files' list will
+   * likely only have one element (at least that is the case at the time of writing), this function
+   * should not be used as a shortcut when trying to obtain "the asset's files".
    */
   StringRefNull asset_file() const;
 };
