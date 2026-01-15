@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'12e628ea43f8')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-12 15:09+0000\n"
 "PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -9339,6 +9339,70 @@ msgid "Use Material Mask"
 msgstr "Använd materialmask"
 
 
+msgid "Show/Hide"
+msgstr "Visa/dölj"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
+
+
+msgid "Math"
+msgstr "Matematik"
+
+
+msgid "Metaball"
+msgstr "Metaboll"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Names"
+msgstr "Namn"
+
+
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
+msgid "Read"
+msgstr "Läs"
+
+
+msgid "Write"
+msgstr "Skriv"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
+
+
+msgid "Primitives"
+msgstr "Primitiver"
+
+
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgid "Instances"
+msgstr "Instanser"
+
+
+msgid "Import"
+msgstr "Importera"
+
+
+msgid "Deprecated"
+msgstr "Föråldrad"
+
+
+msgid "Mirror"
+msgstr "Spegla"
+
+
 msgid "Local View"
 msgstr "Lokal vy"
 
@@ -9349,6 +9413,10 @@ msgstr "Visningspunkt"
 
 msgid "Navigation"
 msgstr "Navigering"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Align View"
@@ -9367,20 +9435,12 @@ msgid "Assign Material"
 msgstr "Tilldela material"
 
 
-msgid "Metaball"
-msgstr "Metaboll"
-
-
 msgid "Light"
 msgstr "Ljus"
 
 
 msgid "Light Probe"
 msgstr "Ljussond"
-
-
-msgid "Layout"
-msgstr "Layout"
 
 
 msgid "Add Image"
@@ -9403,20 +9463,8 @@ msgid "Track"
 msgstr "Spår"
 
 
-msgid "Adjust"
-msgstr "Justera"
-
-
 msgid "Quick Effects"
 msgstr "Snabbeffekter"
-
-
-msgid "Show/Hide"
-msgstr "Visa/dölj"
-
-
-msgid "Clean Up"
-msgstr "Städa upp"
 
 
 msgid "Asset"
@@ -9431,68 +9479,20 @@ msgid "Link/Transfer Data"
 msgstr "Länka/överför data"
 
 
-msgid "Utilities"
-msgstr "Verktyg"
+msgid "Layout"
+msgstr "Layout"
 
 
-msgid "Math"
-msgstr "Matematik"
+msgid "Adjust"
+msgstr "Justera"
 
 
 msgid "Propagate"
 msgstr "Propagera"
 
 
-msgid "Names"
-msgstr "Namn"
-
-
 msgid "Merge"
 msgstr "Sammanfoga"
-
-
-msgid "Read"
-msgstr "Läs"
-
-
-msgid "Special Characters"
-msgstr "Specialtecken"
-
-
-msgid "Write"
-msgstr "Skriv"
-
-
-msgid "Primitives"
-msgstr "Primitiver"
-
-
-msgid "Instances"
-msgstr "Instanser"
-
-
-msgid "Import"
-msgstr "Importera"
-
-
-msgid "Pivot Point"
-msgstr "Fast punkt"
-
-
-msgid "Snap"
-msgstr "Snäpp"
-
-
-msgid "Deprecated"
-msgstr "Föråldrad"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Spegla"
 
 
 msgid "Animals"
@@ -13238,8 +13238,8 @@ msgstr "Importera bildsekvens"
 
 
 msgctxt "Operator"
-msgid "Texture Setup"
-msgstr "Texturkonfiguration"
+msgid "Add Texture Setup"
+msgstr "Lägg till texturinställning"
 
 
 msgctxt "Operator"
@@ -21371,14 +21371,6 @@ msgid "Palette Color"
 msgstr "Palettfärg"
 
 
-msgid "Stroke Placement"
-msgstr "Streckplacering"
-
-
-msgid "VR"
-msgstr "VR"
-
-
 msgid "Active Tool"
 msgstr "Aktivt verktyg"
 
@@ -21401,6 +21393,14 @@ msgstr "Visningsnod"
 
 msgid "Measurement"
 msgstr "Mätning"
+
+
+msgid "Stroke Placement"
+msgstr "Streckplacering"
+
+
+msgid "VR"
+msgstr "VR"
 
 
 msgid "Import Settings"
@@ -26209,11 +26209,6 @@ msgstr "Variant"
 msgctxt "Operator"
 msgid "Image Sequence"
 msgstr "Bildsekvens"
-
-
-msgctxt "Operator"
-msgid "Add Texture Setup"
-msgstr "Lägg till texturinställning"
 
 
 msgctxt "Operator"
