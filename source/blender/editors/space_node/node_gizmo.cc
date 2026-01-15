@@ -431,7 +431,8 @@ static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgro
   }
 
   crop_group->state.dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
-  copy_v2_v2(crop_group->state.offset, ima->runtime->backdrop_offset);
+  crop_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
+                                                                   float2(0.0f);
 
   RNA_float_set_array(gz->ptr, "dimensions", crop_group->state.dims);
   WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
@@ -633,7 +634,8 @@ static void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgro
   }
 
   mask_group->state.dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
-  copy_v2_v2(mask_group->state.offset, ima->runtime->backdrop_offset);
+  mask_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
+                                                                   float2(0.0f);
 
   RNA_float_set_array(gz->ptr, "dimensions", mask_group->state.dims);
   WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
@@ -824,7 +826,8 @@ static void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgr
   }
 
   glare_group->state.dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
-  copy_v2_v2(glare_group->state.offset, ima->runtime->backdrop_offset);
+  glare_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
+                                                                    float2(0.0f);
 
   SpaceNode *snode = CTX_wm_space_node(C);
   bNode *node = bke::node_get_active(*snode->edittree);
@@ -940,7 +943,8 @@ static void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup 
   }
 
   cpin_group->state.dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
-  copy_v2_v2(cpin_group->state.offset, ima->runtime->backdrop_offset);
+  cpin_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
+                                                                   float2(0.0f);
 
   SpaceNode *snode = CTX_wm_space_node(C);
   bNode *node = bke::node_get_active(*snode->edittree);
@@ -1103,7 +1107,8 @@ static void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgr
 
   /* Larger fallback size otherwise the gizmo would be partially hidden. */
   split_group->state.dims = node_gizmo_safe_calc_dims(ibuf, float2{1000.0f, 1000.0f});
-  copy_v2_v2(split_group->state.offset, ima->runtime->backdrop_offset);
+  split_group->state.offset = ibuf->flags & IB_has_display_window ? float2(ibuf->display_offset) :
+                                                                    float2(0.0f);
 
   RNA_float_set_array(gz->ptr, "dimensions", split_group->state.dims);
   WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
