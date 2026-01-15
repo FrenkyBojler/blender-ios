@@ -1100,14 +1100,14 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
     vert_edge_tot = BM_vert_edge_count_nonwire(v);
 
     /* Check if we should step, this is fairly involved. */
-    bool test_concave_corners = (walker->flag & BMW_FLAG_TEST_CONCAVE_CORNERS) != 0;
-    bool test_convex_corners = (walker->flag & BMW_FLAG_TEST_CONVEX_CORNERS) != 0;
+    bool inner_corner_delimit = (walker->flag & BMW_FLAG_DELIMIT_INNER_CORNERS) != 0;
+    bool outer_corner_delimit = (walker->flag & BMW_FLAG_DELIMIT_OUTER_CORNERS) != 0;
     if (
         /* Walk over boundary of faces but stop at corners. */
         (owalk.is_single == false &&
-          (vert_edge_tot == 2 && test_convex_corners == false) ||
+          (vert_edge_tot == 2 && outer_corner_delimit == false) ||
           (vert_edge_tot == 3) ||
-          (vert_edge_tot > 3 && test_concave_corners == false)
+          (vert_edge_tot > 3 && inner_corner_delimit == false)
         ) ||
 
         /* Initial edge was a boundary, so is this edge and vertex is only a part of this face
