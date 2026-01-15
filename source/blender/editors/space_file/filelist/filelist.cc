@@ -1625,7 +1625,6 @@ bool filelist_file_cache_block(FileList *filelist, const int index)
   else if ((cache->block_center_index != index) && (cache->flags & FLC_PREVIEWS_ACTIVE)) {
     /* We try to always preview visible entries first, so 'restart' preview background task. */
     filelist_cache_previews_update(filelist);
-    filelist_cache_previews_clear(cache);
   }
 
   //  printf("Re-queueing previews...\n");
