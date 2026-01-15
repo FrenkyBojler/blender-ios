@@ -16,6 +16,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "RNA_types.hh"
 #include "rna_internal.hh"
 
 #include "WM_api.hh"
@@ -663,6 +664,65 @@ static void rna_GreasePencilLayerGroup_is_expanded_set(PointerRNA *ptr, const bo
   group->wrap().set_expanded(value);
 }
 
+static void rna_GreasePencilLayerGroup_children_begin(CollectionPropertyIterator *iter,
+                                                      PointerRNA *ptr)
+{
+  using namespace blender::bke::greasepencil;
+  TreeNode *node = static_cast<TreeNode *>(ptr->data);
+
+  iter->internal.count.item = 0;
+  iter->valid = node->is_group() && !node->as_group().is_empty();
+}
+
+static void rna_GreasePencilLayerGroup_children_next(CollectionPropertyIterator *iter)
+{
+  using namespace blender::bke::greasepencil;
+  LayerGroup *layer_group = static_cast<LayerGroup *>(iter->parent.data);
+  const blender::Span<const TreeNode *> nodes = layer_group->nodes();
+
+  iter->internal.count.item++;
+  iter->valid = nodes.index_range().contains(iter->internal.count.item);
+}
+
+static PointerRNA rna_GreasePencilLayerGroup_children_get(CollectionPropertyIterator *iter)
+{
+  using namespace blender::bke::greasepencil;
+  LayerGroup *layer_group = static_cast<LayerGroup *>(iter->parent.data);
+  blender::Span<TreeNode *> nodes = layer_group->nodes_for_write();
+
+  return RNA_pointer_create_discrete(iter->parent.owner_id,
+                                     &RNA_GreasePencilTreeNode,
+                                     static_cast<void *>(nodes[iter->internal.count.item]));
+}
+
+static int rna_GreasePencilLayerGroup_children_length(PointerRNA *ptr)
+{
+  using namespace blender::bke::greasepencil;
+  TreeNode *node = static_cast<TreeNode *>(ptr->data);
+
+  if (node->is_layer()) {
+    return 0;
+  }
+
+  return node->as_group().num_nodes_total();
+}
+
+static bool rna_GreasePencilLayerGroup_children_lookup_int(PointerRNA *ptr,
+                                                           int index,
+                                                           PointerRNA *r_ptr)
+{
+  using namespace blender::bke::greasepencil;
+  LayerGroup *layer_group = static_cast<LayerGroup *>(ptr->data);
+  blender::Span<TreeNode *> nodes = layer_group->nodes_for_write();
+  if (!nodes.index_range().contains(index)) {
+    return false;
+  }
+
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_GreasePencilTreeNode, static_cast<void *>(nodes[index]), *r_ptr);
+  return true;
+}
+
 static void rna_iterator_grease_pencil_layer_groups_begin(CollectionPropertyIterator *iter,
                                                           PointerRNA *ptr)
 {
@@ -1262,6 +1322,20 @@ static void rna_def_grease_pencil_layer_group(BlenderRNA *brna)
   prop = RNA_def_property(srna, "color_tag", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_funcs(prop, "rna_group_color_tag_get", "rna_group_color_tag_set", nullptr);
   RNA_def_property_enum_items(prop, enum_layergroup_color_items);
+
+  /* Children */
+  prop = RNA_def_property(srna, "children", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "GreasePencilTreeNode");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_GreasePencilLayerGroup_children_begin",
+                                    "rna_GreasePencilLayerGroup_children_next",
+                                    nullptr,
+                                    "rna_GreasePencilLayerGroup_children_get",
+                                    "rna_GreasePencilLayerGroup_children_length",
+                                    "rna_GreasePencilLayerGroup_children_lookup_int",
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_ui_text(prop, "Children", "The children of this layer group");
 }
 
 static void rna_def_grease_pencil_layer_groups(BlenderRNA *brna, PropertyRNA *cprop)
