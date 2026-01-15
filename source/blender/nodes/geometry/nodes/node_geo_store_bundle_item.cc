@@ -31,7 +31,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const NodeStoreBundleItem &storage = node_storage(*node);
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(storage.socket_type);
-    b.add_input(socket_type, "Item");
+    auto &decl = b.add_input(socket_type, "Item");
+    if (storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      decl.structure_type(StructureType::Dynamic);
+    }
+    else {
+      decl.structure_type(StructureType(storage.structure_type));
+    }
   }
 }
 
@@ -40,6 +46,13 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
   layout.prop(ptr, "socket_type", UI_ITEM_NONE, "", ICON_NONE);
+}
+
+static void node_layout_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -105,6 +118,12 @@ static void node_rna(StructRNA *srna)
                                                      eNodeSocketDatatype(item.value), ntree.type);
                                                });
                     });
+  RNA_def_node_enum(srna,
+                    "structure_type",
+                    "Structure Type",
+                    "What kind of higher order types are expected to flow through this socket",
+                    rna_enum_node_socket_structure_type_items,
+                    NOD_storage_enum_accessors(structure_type));
 }
 
 static void node_register()
@@ -119,6 +138,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
+  ntype.draw_buttons_ex = node_layout_ex;
   bke::node_type_storage(
       ntype, "NodeStoreBundleItem", node_free_standard_storage, node_copy_standard_storage);
   bke::node_register_type(ntype);
