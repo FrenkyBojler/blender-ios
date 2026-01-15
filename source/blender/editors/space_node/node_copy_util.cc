@@ -746,14 +746,14 @@ template<>
 bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueObject &data)
 {
   bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputObject");
-  node->id = &data.value->id;
+  node->id = data.value ? &data.value->id : nullptr;
   return node;
 }
 template<>
 bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueImage &data)
 {
   bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputImage");
-  node->id = &data.value->id;
+  node->id = data.value ? &data.value->id : nullptr;
   return node;
 }
 template<>
@@ -762,7 +762,7 @@ bNode *create_const_value_proxy(bContext &C,
                                 const bNodeSocketValueCollection &data)
 {
   bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCollection");
-  node->id = &data.value->id;
+  node->id = data.value ? &data.value->id : nullptr;
   return node;
 }
 template<>
@@ -777,7 +777,7 @@ template<>
 bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMaterial &data)
 {
   bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputMaterial");
-  node->id = &data.value->id;
+  node->id = data.value ? &data.value->id : nullptr;
   return node;
 }
 template<>
@@ -1014,7 +1014,7 @@ enum class InterfaceProxyType {
 static bNode *make_interface_proxy(bContext &C,
                                    bNodeTree &tree,
                                    const bNodeTreeInterfaceSocket &io_socket,
-                                   const bNodeSocket *group_socket,
+                                   const void *socket_data,
                                    const InterfaceProxyType proxy_type)
 {
   switch (proxy_type) {
@@ -1024,7 +1024,7 @@ static bNode *make_interface_proxy(bContext &C,
     case InterfaceProxyType::Reroute:
       return bke::node_add_static_node(&C, tree, NODE_REROUTE);
     case InterfaceProxyType::ConstValue: {
-      if (!group_socket) {
+      if (!socket_data) {
         return bke::node_add_static_node(&C, tree, NODE_REROUTE);
       }
 
@@ -1032,14 +1032,13 @@ static bNode *make_interface_proxy(bContext &C,
       bke::node_interface::socket_types::socket_data_to_static_type_tag(
           io_socket.socket_type, [&](auto type_tag) {
             using SocketDataType = typename decltype(type_tag)::type;
-            const SocketDataType *socket_data = static_cast<const SocketDataType *>(
-                group_socket->default_value);
-            value_node = detail::create_const_value_proxy(C, tree, *socket_data);
+            value_node = detail::create_const_value_proxy(
+                C, tree, *static_cast<const SocketDataType *>(socket_data));
           });
       return value_node;
     }
     case InterfaceProxyType::Converter:
-      if (!group_socket) {
+      if (!socket_data) {
         return bke::node_add_static_node(&C, tree, NODE_REROUTE);
       }
 
@@ -1047,9 +1046,8 @@ static bNode *make_interface_proxy(bContext &C,
       bke::node_interface::socket_types::socket_data_to_static_type_tag(
           io_socket.socket_type, [&](auto type_tag) {
             using SocketDataType = typename decltype(type_tag)::type;
-            const SocketDataType *socket_data = static_cast<const SocketDataType *>(
-                group_socket->default_value);
-            value_node = detail::create_converter_proxy(C, tree, *socket_data);
+            value_node = detail::create_converter_proxy(
+                C, tree, *static_cast<const SocketDataType *>(socket_data));
           });
       return value_node;
   }
@@ -1108,6 +1106,7 @@ static InterfaceProxyNodes create_proxy_nodes_for_interface(
   Map<const bNodeTreeInterfaceSocket *, bNodeSocket *> group_socket_by_io_socket;
   if (group_node) {
     const bNodeTree &group_tree = *id_cast<const bNodeTree *>(group_node->id);
+    /* Input constants are provided by the group node inputs. */
     for (bNodeSocket &group_socket : group_node->inputs) {
       if (const bNodeTreeInterfaceSocket *io_socket = bke::node_find_interface_input_by_identifier(
               group_tree, group_socket.identifier))
@@ -1115,11 +1114,14 @@ static InterfaceProxyNodes create_proxy_nodes_for_interface(
         group_socket_by_io_socket.add_new(io_socket, &group_socket);
       }
     }
-    for (bNodeSocket &group_socket : group_node->outputs) {
-      if (const bNodeTreeInterfaceSocket *io_socket =
-              bke::node_find_interface_output_by_identifier(group_tree, group_socket.identifier))
-      {
-        group_socket_by_io_socket.add_new(io_socket, &group_socket);
+    /* Output constants are provided by the active group output node inside the tree. */
+    if (const bNode *group_output_node = group_tree.group_output_node()) {
+      for (bNodeSocket &group_socket : group_output_node->inputs) {
+        if (const bNodeTreeInterfaceSocket *io_socket =
+                bke::node_find_interface_output_by_identifier(group_tree, group_socket.identifier))
+        {
+          group_socket_by_io_socket.add_new(io_socket, &group_socket);
+        }
       }
     }
   }
@@ -1153,12 +1155,9 @@ static InterfaceProxyNodes create_proxy_nodes_for_interface(
       proxy_type = InterfaceProxyType::Direct;
     }
 
-    const bNodeSocket *group_socket = nullptr;
-    if (group_node) {
-      group_socket = group_socket_by_io_socket.lookup(item.key);
-    }
-
-    if (bNode *proxy_node = make_interface_proxy(C, dst_tree, *item.key, group_socket, proxy_type))
+    const bNodeSocket *const_value_socket = group_socket_by_io_socket.lookup(item.key);
+    const void *socket_data = const_value_socket ? const_value_socket->default_value : nullptr;
+    if (bNode *proxy_node = make_interface_proxy(C, dst_tree, *item.key, socket_data, proxy_type))
     {
       interface_proxies.add(item.key->identifier, proxy_node);
     }
