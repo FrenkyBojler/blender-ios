@@ -32,6 +32,17 @@ struct URLWithHash {
   std::string hash;
 };
 
+/** Information of a single file of an online asset. */
+struct OnlineAssetFile {
+  /**
+   * The path within the asset library this file should be downloaded to.
+   * Relative to the library root.
+   */
+  std::string path;
+  /** The URL the asset should be downloaded from. */
+  URLWithHash url;
+};
+
 /**
  * Information specific to online assets.
  *
@@ -39,17 +50,11 @@ struct URLWithHash {
  * verify related fragments. #AssetRepresentation stores this for online assets.
  */
 struct OnlineAssetInfo {
-  struct File {
-    /** The path this file should be downloaded to. Relative to the library root. */
-    std::string path;
-    /** The URL the asset should be downloaded from. */
-    URLWithHash url;
-  };
   /**
    * The files for this asset.
    * The first one contains the asset data-blocks, and subsequent files are dependencies.
    */
-  Vector<File> files;
+  Vector<OnlineAssetFile> files;
   std::optional<URLWithHash> preview_url;
 
   /**

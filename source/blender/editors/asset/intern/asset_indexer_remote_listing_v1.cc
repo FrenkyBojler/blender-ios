@@ -75,7 +75,7 @@ static std::optional<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
       return {};
     }
     for (const std::shared_ptr<Value> &file_path_element : file_paths->elements()) {
-      asset_system::OnlineAssetInfo::File file = {};
+      asset_system::OnlineAssetFile file = {};
 
       const io::serialize::StringValue *file_path_string = file_path_element->as_string_value();
       if (!file_path_string) {
