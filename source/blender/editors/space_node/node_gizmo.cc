@@ -296,15 +296,15 @@ static void node_input_from_rect(bNode *node,
   PointerRNA height_input_rna_pointer = RNA_pointer_create_discrete(
       nullptr, &RNA_NodeSocket, const_cast<bNodeSocket *>(height_input));
 
-  const float xmin = math::round(rect->xmin * dims.x - offset.x);
-  const float width = math::round(rect->xmax * dims.x - offset.x - xmin);
-  const float ymin = math::round(rect->ymin * dims.y - offset.y);
-  const float height = math::round(rect->ymax * dims.y - offset.y - ymin);
+  const float xmin = rect->xmin * dims.x - offset.x;
+  const float width = rect->xmax * dims.x - offset.x - xmin;
+  const float ymin = rect->ymin * dims.y - offset.y;
+  const float height = rect->ymax * dims.y - offset.y - ymin;
 
-  RNA_int_set(&x_input_rna_pointer, "default_value", int(xmin));
-  RNA_int_set(&y_input_rna_pointer, "default_value", int(ymin));
-  RNA_int_set(&width_input_rna_pointer, "default_value", int(width));
-  RNA_int_set(&height_input_rna_pointer, "default_value", int(height));
+  RNA_int_set(&x_input_rna_pointer, "default_value", math::round(xmin));
+  RNA_int_set(&y_input_rna_pointer, "default_value", math::round(ymin));
+  RNA_int_set(&width_input_rna_pointer, "default_value", math::round(width));
+  RNA_int_set(&height_input_rna_pointer, "default_value", math::round(height));
 }
 
 /* scale callbacks */
