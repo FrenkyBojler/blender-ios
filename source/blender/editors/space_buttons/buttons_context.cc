@@ -231,7 +231,7 @@ static bool buttons_context_path_object(ButsContextPath *path)
   return false;
 }
 
-static bool is_buttons_context_path_data(PointerRNA *ptr, int type)
+static bool pointer_matches_object_type(PointerRNA *ptr, int type)
 {
   /* if we already have a data, we're done */
   if (RNA_struct_is_a(ptr->type, &RNA_Mesh) && ELEM(type, -1, OB_MESH)) {
@@ -282,7 +282,7 @@ static bool buttons_context_path_data(ButsContextPath *path, int type)
 {
   PointerRNA *ptr = &path->ptr[path->len - 1];
 
-  if (is_buttons_context_path_data(ptr, type)) {
+  if (pointer_matches_object_type(ptr, type)) {
     return true;
   }
 
@@ -604,7 +604,7 @@ static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *vie
 }
 #endif
 
-static eSpaceButtons_Context context_from_path_item(const bContext *C, PointerRNA *ptr)
+static eSpaceButtons_Context context_from_path_item(PointerRNA *ptr)
 {
   if (RNA_struct_is_a(ptr->type, &RNA_Scene)) {
     return BCONTEXT_SCENE;
@@ -655,13 +655,13 @@ static eSpaceButtons_Context context_from_path_item(const bContext *C, PointerRN
     }
     return BCONTEXT_MODIFIER;
   }
-  else if (is_buttons_context_path_data(ptr, -1)) {
+  else if (pointer_matches_object_type(ptr, -1)) {
     return BCONTEXT_DATA;
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Strip)) {
     return BCONTEXT_STRIP;
   }
-  else if (is_buttons_context_path_data(ptr, OB_ARMATURE)) {
+  else if (pointer_matches_object_type(ptr, OB_ARMATURE)) {
     bArmature *arm = static_cast<bArmature *>(ptr->data);
     if (arm && (arm->act_bone || (arm->edbo && arm->act_edbone))) {
       return BCONTEXT_BONE;
@@ -1393,7 +1393,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
     char namebuf[128];
     char *name = RNA_struct_name_get_alloc(ptr, namebuf, sizeof(namebuf), nullptr);
     if (name) {
-      eSpaceButtons_Context context = context_from_path_item(C, ptr);
+      const eSpaceButtons_Context context = context_from_path_item(ptr);
       if (context != BCONTEXT_TOT) {
         row.emboss_set(blender::ui::EmbossType::None);
         row.button(name, icon, [sbuts, ptr, context](const bContext &C) {
