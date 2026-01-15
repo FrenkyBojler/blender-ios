@@ -133,12 +133,12 @@ static bool node_copy_local(bNodeTree &from_tree,
       bNodeLink &new_link = bke::node_add_link(to_tree, *from_node, *from, *to_node, *to);
       new_link.multi_input_sort_id = link.multi_input_sort_id;
     }
+  }
 
-    to_tree.ensure_topology_cache();
-    for (bNode *new_node : node_map.values()) {
-      /* Update multi input socket indices in case all connected nodes weren't copied. */
-      update_multi_input_indices_for_removed_links(*new_node);
-    }
+  to_tree.ensure_topology_cache();
+  for (bNode *new_node : node_map.values()) {
+    /* Update multi input socket indices in case all connected nodes weren't copied. */
+    update_multi_input_indices_for_removed_links(*new_node);
   }
 
   return true;
@@ -209,10 +209,8 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
          * extra scenes, see #node_clipboard_paste_exec(). */
         return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
       }
-      else {
-        /* All ID datablocks exposed through nodes are added here. */
-        return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
-      }
+      /* All ID datablocks exposed through nodes are added here. */
+      return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
     };
 
     id_dst = copy_buffer.id_add(
@@ -286,13 +284,14 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   /* We don't want to paste scenes referenced by the Render Layers node if they don't exist in the
    * destination bmain. */
-  Set<std::pair<StringRef, StringRef>> src_scenes;
-  for (Scene &scene : bmain_src->scenes) {
-    src_scenes.add({scene.id.name, scene_lib_filepath(scene)});
-  }
   Main *bmain_dst = CTX_data_main(C);
   Set<std::pair<StringRef, StringRef>> dst_scenes;
   for (Scene &scene : bmain_dst->scenes) {
+    /* Packed scenes are currently not needed so they are skipped.
+     * TODO: Support packed scenes. */
+    if (scene.id.lib && scene.id.lib->archive_parent_library) {
+      continue;
+    }
     dst_scenes.add({scene.id.name, scene_lib_filepath(scene)});
   }
 
