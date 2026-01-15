@@ -5,7 +5,7 @@
 /** \file
  * \ingroup gpu
  *
- * The render graph primarily is a a graph of GPU commands that are then serialized into command
+ * The render graph primarily is a graph of GPU commands that are then serialized into command
  * buffers. The submission order can be altered and barriers are added for resource sync.
  *
  * # Building render graph
@@ -37,9 +37,13 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cassert>
+#include <iostream>
 #include <mutex>
 #include <optional>
 #include <pthread.h>
+#include <vector>
 
 #include "BKE_global.hh"
 
@@ -48,8 +52,6 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
-
-#include "BKE_global.hh"
 
 #include "vk_common.hh"
 
@@ -61,11 +63,18 @@
 namespace blender::gpu::render_graph {
 class VKScheduler;
 
+// Forward declaration for Node type
+struct Node;
+
 class VKRenderGraph : public NonCopyable {
   friend class VKCommandBuilder;
   friend class VKScheduler;
   using DebugGroupNameID = int64_t;
   using DebugGroupID = int64_t;
+
+ private:
+  /** Build state flag */
+  bool built_ = false;
 
   /** All links inside the graph indexable via NodeHandle. */
   Vector<VKRenderGraphNodeLinks, 1024> links_;
@@ -172,6 +181,11 @@ class VKRenderGraph : public NonCopyable {
     return node_handle;
   }
 
+  // Helper functions for graph validation and sorting
+  void topological_sort_stable();
+  bool has_cycles() const;
+  void remove_cycles(); // optional cycle-breaker
+
  public:
 #define ADD_NODE(NODE_CLASS) \
   NodeHandle add_node(const NODE_CLASS::CreateInfo &create_info) \
@@ -202,6 +216,11 @@ class VKRenderGraph : public NonCopyable {
   ADD_NODE(VKUpdateMipmapsNode)
   ADD_NODE(VKSynchronizationNode)
 #undef ADD_NODE
+
+  /**
+   * Add a generic node to the render graph (only allowed before build).
+   */
+  void add_node(const Node &node);
 
   /**
    * Get the reference to the node data for a VKCopyBufferNode.
@@ -249,9 +268,31 @@ class VKRenderGraph : public NonCopyable {
     return nodes_.size();
   }
 
+  /**
+   * Build the render graph (topological sort + validation).
+   * Finalizes the graph for execution.
+   */
+  void build();
+
+  /**
+   * Query if graph has been built and is ready for execution.
+   */
+  bool built() const
+  {
+    return built_;
+  }
+
   bool is_empty()
   {
     return nodes_.is_empty();
+  }
+
+  /**
+   * Access to nodes (read-only).
+   */
+  const Vector<VKRenderGraphNode, 1024> &nodes() const
+  {
+    return nodes_;
   }
 
   void debug_print(NodeHandle node_handle) const;
@@ -262,8 +303,6 @@ class VKRenderGraph : public NonCopyable {
   void reset();
 
   void memstats() const;
-
- private:
 };
 
 }  // namespace blender::gpu::render_graph
