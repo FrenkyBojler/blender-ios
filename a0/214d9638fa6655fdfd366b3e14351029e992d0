@@ -1,2 +1,3 @@
 Referenced by issue #152900, Sculpt mode crash
 Referenced by pull request #152912, Fix #152900: Crash when selecting non-brush tool in Sculpt Mode
+Referenced by commit aaaf3cc424b701c95cb047a34fdcc5111aaeac0d, Fix #152900: Crash when selecting non-brush tool in Sculpt Mode
