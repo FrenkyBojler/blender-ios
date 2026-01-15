@@ -65,7 +65,7 @@ def mutex_lock_and_open(file_path: Path, mode: str) -> tuple[io.IOBase | None, C
         lockfile: io.IOBase
         lockfile = file_path.open(mode)  # type: ignore
     except OSError:
-        # on Windows, opening a file for writing, while another process already
+        # On Windows, opening a file for writing, while another process already
         # has it open, can fail. That just means somebody else has ownership of
         # it.
         return None, None
