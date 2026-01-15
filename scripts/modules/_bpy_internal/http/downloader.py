@@ -1119,7 +1119,7 @@ class MetadataProviderFilesystem(MetadataProvider):
 
     def load(self, http_req_descr: RequestDescription) -> HTTPMetadata | None:
         import time
-        from _bpy_internal.file_locking import mutex_lock_and_open
+        from _bpy_internal.filesystem.locking import mutex_lock_and_open
 
         meta_path = self._metadata_path(http_req_descr)
         if not meta_path.exists():
@@ -1181,7 +1181,7 @@ class MetadataProviderFilesystem(MetadataProvider):
 
     def save(self, http_req_descr: RequestDescription, meta: HTTPMetadata) -> None:
         import time
-        from _bpy_internal.file_locking import mutex_lock_and_open
+        from _bpy_internal.filesystem.locking import mutex_lock_and_open
 
         meta.request = http_req_descr
 
