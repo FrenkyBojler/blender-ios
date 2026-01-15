@@ -81,7 +81,7 @@ struct GWL_WindowCSD {
   /** Track the active type, intersecting the pointing device. */
   GHOST_TCSD_Type active_type = GHOST_kCSDTypeBody;
   /** For tracking double click/drag. */
-  GHOST_CSD_EventState event_state = {0};
+  GHOST_CSD_EventState event_state = {{0}};
 };
 
 #endif /* WITH_GHOST_CSD */
@@ -872,7 +872,7 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
 
   if (dpi_changed) {
     GHOST_SystemWayland *system = win->ghost_system;
-    system->pushEvent(new GHOST_Event(
+    system->pushEvent(std::make_unique<GHOST_Event>(
         system->getMilliSeconds(), GHOST_kEventWindowDPIHintChanged, win->ghost_window));
   }
 
@@ -1695,7 +1695,7 @@ GHOST_WindowWayland::~GHOST_WindowWayland()
   }
 
 #ifdef WITH_GHOST_CSD
-  if (window_->xdg_decor) {
+  if (window_->xdg_csd) {
     delete window_->xdg_csd;
     window_->xdg_csd = nullptr;
   }
@@ -1942,6 +1942,11 @@ void GHOST_WindowWayland::clientToScreen(const int32_t inX,
 
 uint16_t GHOST_WindowWayland::getDPIHint()
 {
+  /* Early out if use of DPI scale is disabled. */
+  if (!system_->native_pixel_) {
+    return base_dpi;
+  }
+
   /* No need to lock `server_mutex`
    * (`outputs_changed_update_scale` never changes values in a non-main thread). */
 
@@ -2144,7 +2149,7 @@ const std::vector<GWL_Output *> &GHOST_WindowWayland::outputs_get()
 GHOST_TSuccess GHOST_WindowWayland::close()
 {
   return system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowClose, this));
+      std::make_unique<GHOST_Event>(system_->getMilliSeconds(), GHOST_kEventWindowClose, this));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::activate()
@@ -2165,7 +2170,7 @@ GHOST_TSuccess GHOST_WindowWayland::activate()
     }
   }
   const GHOST_TSuccess success = system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowActivate, this));
+      std::make_unique<GHOST_Event>(system_->getMilliSeconds(), GHOST_kEventWindowActivate, this));
   return success;
 }
 
@@ -2183,23 +2188,23 @@ GHOST_TSuccess GHOST_WindowWayland::deactivate()
       system_->getWindowManager()->setWindowInactive(this);
     }
   }
-  const GHOST_TSuccess success = system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowDeactivate, this));
+  const GHOST_TSuccess success = system_->pushEvent_maybe_pending(std::make_unique<GHOST_Event>(
+      system_->getMilliSeconds(), GHOST_kEventWindowDeactivate, this));
   return success;
 }
 
 GHOST_TSuccess GHOST_WindowWayland::notify_size()
 {
   return system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowSize, this));
+      std::make_unique<GHOST_Event>(system_->getMilliSeconds(), GHOST_kEventWindowSize, this));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::notify_decor_redraw()
 {
   /* NOTE: we want to `swapBuffers`, however this may run from a thread and
    * when this windows OpenGL context is not active, so send and update event instead. */
-  return system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowUpdateDecor, this));
+  return system_->pushEvent_maybe_pending(std::make_unique<GHOST_Event>(
+      system_->getMilliSeconds(), GHOST_kEventWindowUpdateDecor, this));
 }
 
 /** \} */
@@ -2235,6 +2240,12 @@ void GHOST_WindowWayland::outputs_changed_update_scale_tag()
 
 bool GHOST_WindowWayland::outputs_changed_update_scale()
 {
+  /* NOTE: a current limitation is that a change in monitor scale while using --no-native-pixels
+   * will scale the window content up/down. */
+  if (!system_->native_pixel_) {
+    return false;
+  }
+
 #ifdef USE_EVENT_BACKGROUND_THREAD
   if (system_->main_thread_id != std::this_thread::get_id()) {
     gwl_window_pending_actions_tag(window_, PENDING_OUTPUT_SCALE_UPDATE);

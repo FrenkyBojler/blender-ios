@@ -22,30 +22,6 @@ constexpr const char *DEFAULT_LEGACY_SLOT_NAME = "Legacy Slot";
 constexpr const char *DEFAULT_LEGACY_LAYER_NAME = "Legacy Layer";
 
 /**
- * Ensure that a Slot exists, for legacy Python API shims that need one.
- *
- * \return The first Slot if one already exists, or a newly created "Legacy
- * Slot" otherwise.
- */
-Slot &slot_ensure(Action &action);
-
-/**
- * Return the Channelbag for compatibility with the legacy Python API.
- *
- * \return the Channelbag for the first slot, of the first keyframe Strip on the
- * bottom layer, or nullptr if that doesn't exist.
- */
-Channelbag *channelbag_get(Action &action);
-
-/**
- * Ensure a Channelbag exists, for compatibility with the legacy Python API.
- *
- * This basically is channelbag_get(action), additionally creating the necessary
- * slot, layer, and keyframe strip if necessary.
- */
-Channelbag &channelbag_ensure(Action &action);
-
-/**
  * Return all F-Curves in the Action.
  *
  * This works for both legacy and layered Actions. For the latter, it will
@@ -55,18 +31,10 @@ Channelbag &channelbag_ensure(Action &action);
  * inspected to see if this is _really_ the desired behavior, or whether the
  * F-Curves for a specific slot/layer/strip should be used instead.
  *
- * \see #blender::animrig::legacy::fcurves_for_action_slot
+ * \see #animrig::legacy::fcurves_for_action_slot
  */
 Vector<const FCurve *> fcurves_all(const bAction *action);
 Vector<FCurve *> fcurves_all(bAction *action);
-
-/**
- * Return the F-Curves for the first slot of this Action.
- *
- * This works for both legacy and layered Actions. For the former, it will
- * return all F-Curves in the Action.
- */
-Vector<FCurve *> fcurves_first_slot(bAction *action);
 
 /**
  * Return the F-Curves for this specific slot handle.
@@ -75,10 +43,10 @@ Vector<FCurve *> fcurves_first_slot(bAction *action);
  *
  * The use of this function is an indicator for code that can be simplified when the slotted
  * Actions feature is no longer experimental. When that switchover happens, calls to this function
- * can be replaced with the more efficient `blender::animrig::fcurves_for_action_slot()`.
+ * can be replaced with the more efficient `animrig::fcurves_for_action_slot()`.
  *
- * \see #blender::animrig::fcurves_for_action_slot
- * \see #blender::animrig::legacy::fcurves_all
+ * \see #animrig::fcurves_for_action_slot
+ * \see #animrig::legacy::fcurves_all
  */
 Vector<FCurve *> fcurves_for_action_slot(bAction *action, slot_handle_t slot_handle);
 Vector<const FCurve *> fcurves_for_action_slot(const bAction *action, slot_handle_t slot_handle);
@@ -111,7 +79,7 @@ bool assigned_action_has_keyframes(AnimData *adt);
  * This works for both legacy and layered Actions. For the latter, it will
  * return all channel groups for all slots/layers/strips.
  *
- * \see #blender::animrig::legacy::channel_groups_for_assigned_slot
+ * \see #animrig::legacy::channel_groups_for_assigned_slot
  */
 Vector<bActionGroup *> channel_groups_all(bAction *action);
 
@@ -121,18 +89,9 @@ Vector<bActionGroup *> channel_groups_all(bAction *action);
  * This works for both legacy and layered Actions. For the former, this function
  * acts identical to channel_groups_all().
  *
- * \see #blender::animrig::legacy::channel_groups_all
+ * \see #animrig::legacy::channel_groups_all
  */
 Vector<bActionGroup *> channel_groups_for_assigned_slot(AnimData *adt);
-
-/**
- * Determine whether to treat this Action as a legacy Action or not.
- *
- * - empty Action: returns the value of the 'Slotted Actions' experimental feature.
- * - layered Action: always returns false.
- * - legacy Action: always returns true.
- */
-bool action_treat_as_legacy(const bAction &action);
 
 /**
  * Remove all F-Curves whose RNA path starts with the given prefix from an Action Slot.
