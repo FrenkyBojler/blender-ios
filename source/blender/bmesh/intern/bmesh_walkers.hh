@@ -28,8 +28,9 @@ enum BMWOrder {
 enum BMWFlag {
   BMW_FLAG_NOP = 0,
   BMW_FLAG_TEST_HIDDEN = (1 << 0),
-  /* delimits boundary corners in BMW_EDGELOOP only */
+  /* Delimits loops at boundary verts with > 3 connected edges in BMW_EDGELOOP. */
   BMW_FLAG_DELIMIT_INNER_CORNERS = (1 << 1),
+  /* Delimits loops at boundary verts with 2 connected edges in BMW_EDGELOOP. */
   BMW_FLAG_DELIMIT_OUTER_CORNERS = (1 << 2),
 };
 
