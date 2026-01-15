@@ -45,9 +45,11 @@ void BKE_sound_load(Main *bmain, bSound *sound);
  * High-level pack function.
  *
  * Packs sound data from its filepath.
- * Does nothing if sound is already packed.
+ * Does nothing if sound is already packed unless replace is true.
+ *
+ * \return true when a change was made.
  */
-void BKE_sound_packfile_ensure(Main *bmain, bSound *sound, ReportList *reports);
+bool BKE_sound_packfile_ensure(Main *bmain, bSound *sound, bool replace, ReportList *reports);
 
 /** Matches AUD_Channels. */
 enum eSoundChannels {

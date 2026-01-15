@@ -1515,13 +1515,16 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
   }
 }
 
-void BKE_image_packfile_ensure(
-    Main *bmain, Image *image, ReportList *reports, const char *data, const int data_len)
+bool BKE_image_packfile_ensure(Main *bmain,
+                               Image *image,
+                               const bool replace,
+                               const char *data,
+                               const int data_len,
+                               ReportList *reports)
 {
-  const bool is_packed = BKE_image_has_packedfile(image);
+  const bool was_packed = BKE_image_has_packedfile(image);
   const bool is_dirty = BKE_image_is_dirty(image);
-
-  if (is_packed && !is_dirty && !data) {
+  if (!replace) {
     /* Image is already packed and considered unmodified, do not attempt to repack it, since:
      * - Its original file may not be available anymore on the current FS.
      * - Repacking from the current runtime buffer will force the packedfile format to OpenEXR or
@@ -1529,10 +1532,14 @@ void BKE_image_packfile_ensure(
      *
      * See #152638.
      */
-    return;
+    if (was_packed && !is_dirty && !data) {
+      /* Already packed, do nothing. */
+      return false;
+    }
   }
 
-  BKE_image_free_packedfiles(image);
+  ListBaseT<ImagePackedFile> packedfiles_orig = {nullptr, nullptr};
+  std::swap(packedfiles_orig, image->packedfiles);
 
   if (data) {
     char *data_dup = static_cast<char *>(MEM_malloc_arrayN(size_t(data_len), 1, __func__));
@@ -1545,6 +1552,22 @@ void BKE_image_packfile_ensure(
   else {
     BKE_image_packfiles(reports, image, ID_BLEND_PATH(bmain, &image->id));
   }
+
+  if (!BKE_image_has_packedfile(image)) {
+    /* Don't replace the current pack. */
+    std::swap(packedfiles_orig, image->packedfiles);
+    return false;
+  }
+
+  /* Swap back to free the original. */
+  if (was_packed) {
+    std::swap(packedfiles_orig, image->packedfiles);
+    BKE_image_free_packedfiles(image);
+    std::swap(packedfiles_orig, image->packedfiles);
+  }
+
+  /* Pack changed. */
+  return true;
 }
 
 void BKE_image_tag_time(Image *ima)

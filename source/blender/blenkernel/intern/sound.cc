@@ -719,19 +719,37 @@ void BKE_sound_load(Main *bmain, bSound *sound)
   sound_load_audio(bmain, sound, true);
 }
 
-void BKE_sound_packfile_ensure(Main *bmain, bSound *sound, ReportList *reports)
+bool BKE_sound_packfile_ensure(Main *bmain, bSound *sound, const bool replace, ReportList *reports)
 {
-  if (sound->packedfile != nullptr) {
+  const bool was_packed = sound->packedfile != nullptr;
+  if (!replace) {
     /* Sound is already packed and considered unmodified, do not attempt to repack it, since its
      * original file may not be available anymore on the current FS.
      *
      * See #152638.
      */
-    return;
+    if (was_packed) {
+      return false;
+    }
   }
+
+  PackedFile *packedfile_orig = nullptr;
+  std::swap(packedfile_orig, sound->packedfile);
 
   sound->packedfile = BKE_packedfile_new(
       reports, sound->filepath, ID_BLEND_PATH(bmain, &sound->id));
+
+  if (sound->packedfile == nullptr) {
+    /* Restore the original and return. */
+    sound->packedfile = packedfile_orig;
+    return false;
+  }
+
+  if (was_packed) {
+    /* Pack succeeded, free the original. */
+    BKE_packedfile_free(packedfile_orig);
+  }
+  return true;
 }
 
 AUD_Device *BKE_sound_mixdown(const Scene *scene, AUD_DeviceSpecs specs, int start, float volume)
@@ -1492,7 +1510,13 @@ void BKE_sound_init_once() {}
 void BKE_sound_init(Main * /*bmain*/) {}
 void BKE_sound_exit_once() {}
 void BKE_sound_load(Main * /*bmain*/, bSound * /*sound*/) {}
-void BKE_sound_packfile_ensure(Main * /*bmain*/, bSound * /*sound*/, ReportList * /*reports*/) {}
+bool BKE_sound_packfile_ensure(Main * /*bmain*/,
+                               bSound * /*sound*/,
+                               const bool /*replace*/,
+                               ReportList * /*reports*/)
+{
+  return false;
+}
 void BKE_sound_create_scene(Scene * /*scene*/) {}
 void BKE_sound_destroy_scene(Scene * /*scene*/) {}
 void BKE_sound_lock() {}

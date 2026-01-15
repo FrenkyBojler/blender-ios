@@ -24,9 +24,9 @@
 
 namespace blender {
 
-static void rna_Sound_pack(bSound *sound, Main *bmain, ReportList *reports)
+static void rna_Sound_pack(bSound *sound, Main *bmain, ReportList *reports, const bool replace)
 {
-  BKE_sound_packfile_ensure(bmain, sound, reports);
+  BKE_sound_packfile_ensure(bmain, sound, replace, reports);
 }
 
 static void rna_Sound_unpack(bSound *sound, Main *bmain, ReportList *reports, int method)
@@ -56,8 +56,16 @@ void RNA_api_sound(StructRNA *srna)
   FunctionRNA *func;
 
   func = RNA_def_function(srna, "pack", "rna_Sound_pack");
-  RNA_def_function_ui_description(func, "Pack the sound into the current blend file");
+  RNA_def_function_ui_description(func,
+                                  "Pack the sound into the current blend file, "
+                                  "keep the existing packed data if pack fails");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_MAIN);
+  RNA_def_boolean(func,
+                  "replace",
+                  false,
+                  "Replace",
+                  "Discard existing packed data before packing, "
+                  "otherwise do nothing if packed data exists");
 
   func = RNA_def_function(srna, "unpack", "rna_Sound_unpack");
   RNA_def_function_ui_description(func, "Unpack the sound to the samples filename");

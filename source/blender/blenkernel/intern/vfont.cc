@@ -399,19 +399,38 @@ VFont *BKE_vfont_builtin_ensure()
   return vfont;
 }
 
-void BKE_vfont_packfile_ensure(Main *bmain, VFont *vfont, ReportList *reports)
+bool BKE_vfont_packfile_ensure(Main *bmain, VFont *vfont, const bool replace, ReportList *reports)
 {
-  if (vfont->packedfile != nullptr) {
+  const bool was_packed = vfont->packedfile != nullptr;
+  if (!replace) {
     /* Font is already packed and considered unmodified, do not attempt to repack it, since its
      * original file may not be available anymore on the current FS.
      *
      * See #152638.
      */
-    return;
+    if (was_packed) {
+      return false;
+    }
   }
+
+  PackedFile *packedfile_orig = nullptr;
+  std::swap(packedfile_orig, vfont->packedfile);
 
   vfont->packedfile = BKE_packedfile_new(
       reports, vfont->filepath, ID_BLEND_PATH(bmain, &vfont->id));
+
+  if (vfont->packedfile == nullptr) {
+    /* Restore the original and return. */
+    vfont->packedfile = packedfile_orig;
+    return false;
+  }
+
+  if (was_packed) {
+    /* Pack succeeded, free the original. */
+    BKE_packedfile_free(packedfile_orig);
+  }
+
+  return true;
 }
 
 /** \} */

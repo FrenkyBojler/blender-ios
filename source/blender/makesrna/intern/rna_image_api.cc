@@ -127,11 +127,17 @@ static void rna_Image_save(Image *image,
   WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
 }
 
-static void rna_Image_pack(
-    Image *image, Main *bmain, bContext *C, ReportList *reports, const char *data, int data_len)
+static void rna_Image_pack(Image *image,
+                           Main *bmain,
+                           bContext *C,
+                           ReportList *reports,
+                           const char *data,
+                           int data_len,
+                           bool replace)
 {
-  BKE_image_packfile_ensure(bmain, image, reports, data, data_len);
-  WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
+  if (BKE_image_packfile_ensure(bmain, image, replace, data, data_len, reports)) {
+    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
+  }
 }
 
 static void rna_Image_unpack(Image *image, Main *bmain, ReportList *reports, int method)
@@ -320,7 +326,9 @@ void RNA_api_image(StructRNA *srna)
                   "Save the image as a copy, without updating current image's filepath");
 
   func = RNA_def_function(srna, "pack", "rna_Image_pack");
-  RNA_def_function_ui_description(func, "Pack an image as embedded data into the .blend file");
+  RNA_def_function_ui_description(func,
+                                  "Pack an image as embedded data into the .blend file, "
+                                  "keep the existing packed data if pack fails");
   RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_property(func, "data", PROP_STRING, PROP_BYTESTRING);
   RNA_def_property_ui_text(parm, "data", "Raw data (bytes, exact content of the embedded file)");
@@ -333,6 +341,12 @@ void RNA_api_image(StructRNA *srna)
               "length of given data (mandatory if data is provided)",
               0,
               INT_MAX);
+  RNA_def_boolean(func,
+                  "replace",
+                  false,
+                  "Replace",
+                  "Discard existing packed data before packing, "
+                  "otherwise do nothing if packed data exists");
 
   func = RNA_def_function(srna, "unpack", "rna_Image_unpack");
   RNA_def_function_ui_description(func, "Save an image packed in the .blend file to disk");

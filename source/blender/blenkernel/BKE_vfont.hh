@@ -114,9 +114,11 @@ VFont *BKE_vfont_builtin_ensure();
  * High-level pack function.
  *
  * Packs font data from its filepath.
- * Does nothing if font is already packed.
+ * Does nothing if font is already packed unless replace is true.
+ *
+ * \return true when a change was made.
  */
-void BKE_vfont_packfile_ensure(Main *bmain, VFont *vfont, ReportList *reports);
+bool BKE_vfont_packfile_ensure(Main *bmain, VFont *vfont, const bool replace, ReportList *reports);
 
 void BKE_vfont_data_ensure(VFont *vfont);
 void BKE_vfont_data_free(VFont *vfont);
