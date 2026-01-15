@@ -27,7 +27,7 @@ struct LayeredImageBinding {
 /**
  * Build the command buffer for sending to the device queue.
  *
- * Determine which nodes needs to be scheduled, Then for each node generate the needed pipeline
+ * Determine which nodes need to be scheduled, then for each node generate the needed pipeline
  * barriers and commands.
  */
 class VKCommandBuilder {
@@ -320,7 +320,6 @@ class VKCommandBuilder {
    */
   void finish_debug_groups(VKCommandBufferInterface &command_buffer, DebugGroups &debug_groups);
 
- private:
   /**
    * Update the layered attachments list when beginning a new render scope.
    */
