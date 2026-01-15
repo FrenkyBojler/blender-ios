@@ -119,7 +119,10 @@ VKTexturePool::~VKTexturePool()
   }
 }
 
-Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name)
+Texture *VKTexturePool::acquire_texture(int2 extent,
+                                        TextureFormat format,
+                                        eGPUTextureUsage usage,
+                                        const char *name)
 {
   VKDevice &device = VKBackend::get().device;
 

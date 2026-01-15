@@ -68,7 +68,8 @@ Texture *TexturePoolImpl::acquire_texture(int2 extent,
   }
 
   /* Otherwise, allocate a new texture as a last resort. */
-  TextureHandle handle = {GPU_texture_create_2d(name_str.c_str(), UNPACK2(extent), 1, format, usage, nullptr)};
+  TextureHandle handle = {
+      GPU_texture_create_2d(name_str.c_str(), UNPACK2(extent), 1, format, usage, nullptr)};
   acquired_.add(handle);
   return handle.texture;
 }
