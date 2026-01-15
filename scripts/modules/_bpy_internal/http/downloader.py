@@ -1184,8 +1184,12 @@ class MetadataProviderFilesystem(MetadataProvider):
         meta_path.unlink(missing_ok=True)
 
     def save(self, http_req_descr: RequestDescription, meta: HTTPMetadata) -> None:
-        import time
-        from _bpy_internal.filesystem.locking import mutex_lock_and_open
+        """Save the metadata for this request.
+
+        :raises _bpy_internal.filesystem.locking.MutexAcquisitionError: if the
+            filesystem lock cannot be obtained (even after retrying).
+        """
+        from _bpy_internal.filesystem import locking
 
         meta.request = http_req_descr
 
@@ -1196,15 +1200,9 @@ class MetadataProviderFilesystem(MetadataProvider):
         dir = meta_path.parent
         dir.mkdir(mode=0o700, parents=True, exist_ok=True)
 
-        # Try to lock the file. If that fails, give it a few attempts.
-        for _ in range(20):
-            meta_file, unlocker = mutex_lock_and_open(meta_path, 'wb')
-            if meta_file is not None:
-                assert unlocker is not None
-                break
-            time.sleep(0.1)
-        else:
-            raise RuntimeError("could not open & lock file {!s}".format(meta_path))
+        # See load() for an explanation of the numer of tries & wait time.
+        meta_file, unlocker = locking.mutex_lock_and_open_with_retry(
+            meta_path, 'wb', max_tries=20, wait_time_sec=0.1)
 
         # Write the JSON to the file & unlock it.
         try:
