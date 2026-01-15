@@ -5046,8 +5046,11 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
   const uiFontStyle *fstyle = &style->widget;
   WidgetType *wt = nullptr;
 
+  if (but->type == ButtonType::Color) {
+    wt = widget_type(UI_WTYPE_SWATCH);
+  }
   /* handle menus separately */
-  if (but->emboss == EmbossType::Pulldown) {
+  else if (but->emboss == EmbossType::Pulldown) {
     switch (but->type) {
       case ButtonType::Label:
         widget_draw_text_icon(&style->widget, &tui->wcol_menu_back, but, rect);
