@@ -143,7 +143,8 @@ static bool group_node_tree_interface_panel_poll(const bContext *C, PanelType *p
 
   bNodeTree *ntree = CTX_wm_space_node(C)->edittree;
   bNode *active_node = bke::node_get_active(*ntree);
-  return (active_node && active_node->is_group() && active_node->id);
+  return (active_node && active_node->is_group() && active_node->id &&
+          ID_IS_EDITABLE(active_node->id) && !active_node->id->override_library);
 }
 
 static void group_node_tree_interface_panel_draw(const bContext *C, Panel *panel)

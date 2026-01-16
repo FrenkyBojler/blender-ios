@@ -1129,7 +1129,7 @@ class NODE_PT_group_node_tree_properties(NodeTreePropertiesPanel, Panel):
             return False
 
         node_tree = cls.get_node_tree(context)
-        return node_tree is not None
+        return (node_tree is not None) and (node_tree.override_library)
 
     def draw(self, context):
         tree = self.get_node_tree(context)
