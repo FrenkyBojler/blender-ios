@@ -250,6 +250,25 @@ const EnumPropertyItem rna_enum_idproperty_float_sutypes_items[] = {
     {PROP_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
+
+const EnumPropertyItem rna_enum_idproperty_float_array_sutypes_items[] = {
+    {PROP_NONE, "NONE", 0, "None", "No subtype"},
+    {PROP_COLOR, "COLOR", 0, "Linear Color", "Color in the scene linear working color space"},
+    {PROP_COLOR_GAMMA,
+     "COLOR_GAMMA",
+     0,
+     "sRGB Color",
+     "Color in sRGB color space (mainly for user interface colors)"},
+    {PROP_TRANSLATION, "TRANSLATION", 0, "Translation", ""},
+    {PROP_DIRECTION, "DIRECTION", 0, "Direction", ""},
+    {PROP_VELOCITY, "VELOCITY", 0, "Velocity", ""},
+    {PROP_ACCELERATION, "ACCELERATION", 0, "Acceleration", ""},
+    {PROP_EULER, "EULER", 0, "Euler Angles", "Euler rotation angles in radians"},
+    {PROP_QUATERNION, "QUATERNION", 0, "Quaternion", "Quaternion rotation (affects NLA blending)"},
+    {PROP_AXISANGLE, "AXISANGLE", 0, "Axis-Angle", "Angle and axis to rotate around"},
+    {PROP_XYZ, "XYZ", 0, "XYZ", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -1777,7 +1796,7 @@ static void rna_idproperty_ui_float_limits_update(Main * /*bmain*/,
     return;
   }
   ui_data->soft_min = std::clamp(ui_data->soft_min, ui_data->min, ui_data->soft_max);
-  ui_data->soft_max = std::clamp(ui_data->soft_max, ui_data->max, ui_data->soft_min);
+  ui_data->soft_max = std::clamp(ui_data->soft_max, ui_data->soft_min, ui_data->max);
 }
 
 static void rna_idproperty_ui_int_limits_update(Main * /*bmain*/,
@@ -1795,7 +1814,17 @@ static void rna_idproperty_ui_int_limits_update(Main * /*bmain*/,
     return;
   }
   ui_data->soft_min = std::clamp(ui_data->soft_min, ui_data->min, ui_data->soft_max);
-  ui_data->soft_max = std::clamp(ui_data->soft_max, ui_data->max, ui_data->soft_min);
+  ui_data->soft_max = std::clamp(ui_data->soft_max, ui_data->soft_min, ui_data->max);
+}
+
+static const EnumPropertyItem *rna_idproperty_ui_float_subtype_itemf(bContext * /*C*/,
+                                                                     PointerRNA *ptr,
+                                                                     PropertyRNA * /*prop*/,
+                                                                     bool * /*r_free*/)
+{
+  const IDPropertyUIDataFloat *ui_data = static_cast<IDPropertyUIDataFloat *>(ptr->data);
+  return (ui_data->default_array_len > 0) ? rna_enum_idproperty_float_array_sutypes_items :
+                                            rna_enum_idproperty_float_sutypes_items;
 }
 
 static int rna_idproperty_ui_default_array_length(const PointerRNA *ptr,
@@ -3163,6 +3192,7 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
                       "",
                       "Subtype for float property");
   RNA_def_property_enum_sdna(prop, nullptr, "base.rna_subtype");
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_idproperty_ui_float_subtype_itemf");
 
   prop = RNA_def_property(srna, "default_array", PROP_FLOAT, PROP_NONE);
   RNA_def_property_flag(prop, PROP_DYNAMIC);
