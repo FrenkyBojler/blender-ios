@@ -430,7 +430,7 @@ class IndexSwitchOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new IndexSwitchOperation(context, node);
 }
@@ -545,7 +545,7 @@ std::unique_ptr<LazyFunction> get_index_switch_node_lazy_function(
   return std::make_unique<LazyFunctionForIndexSwitchNode>(node, lf_graph_info);
 }
 
-StructRNA *IndexSwitchItemsAccessor::item_srna = &RNA_IndexSwitchItem;
+StructRNA **IndexSwitchItemsAccessor::item_srna = &RNA_IndexSwitchItem;
 
 void IndexSwitchItemsAccessor::blend_write_item(BlendWriter * /*writer*/, const ItemT & /*item*/)
 {

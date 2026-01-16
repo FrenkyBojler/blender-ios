@@ -3401,7 +3401,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
 #define BPY_PROPDEF_FLOAT_STEP_DOC \
   "   :arg step: Step of increment/decrement in UI, in [1, 100], defaults to 3 (WARNING: actual " \
   "value is /100).\n" \
-  "   :type step: int\n"
+  "   :type step: float\n"
 
 #define BPY_PROPDEF_FLOAT_PREC_DOC \
   "   :arg precision: Maximum number of decimal digits to display, in [0, 6]. Fraction is " \
@@ -3493,7 +3493,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :type search_options: set[str]\n"
 
 #define BPY_PROPDEF_POINTER_TYPE_DOC \
-  "   :arg type: A subclass of a property group or ID types.\n" \
+  "   :arg type: A subclass of PropertyGroup or ID.\n" \
   "   :type type: type[:class:`bpy.types.PropertyGroup` | :class:`bpy.types.ID`]\n"
 
 #define BPY_PROPDEF_COLLECTION_TYPE_DOC \
@@ -5367,11 +5367,11 @@ PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
   if (!ptype) {
     return nullptr;
   }
-  if (!RNA_struct_is_a(ptype, &RNA_PropertyGroup) && !RNA_struct_is_ID(ptype)) {
+  if (!RNA_struct_is_a(ptype, RNA_PropertyGroup) && !RNA_struct_is_ID(ptype)) {
     PyErr_Format(PyExc_TypeError,
                  "PointerProperty(...) expected an RNA type derived from %.200s or %.200s",
-                 RNA_struct_ui_name(&RNA_ID),
-                 RNA_struct_ui_name(&RNA_PropertyGroup));
+                 RNA_struct_ui_name(RNA_ID),
+                 RNA_struct_ui_name(RNA_PropertyGroup));
     return nullptr;
   }
   if (bpy_prop_callback_check(update_fn, "update", 2) == -1) {
@@ -5401,7 +5401,7 @@ PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
   }
 
   if (RNA_struct_idprops_contains_datablock(ptype)) {
-    if (RNA_struct_is_a(srna, &RNA_PropertyGroup)) {
+    if (RNA_struct_is_a(srna, RNA_PropertyGroup)) {
       RNA_def_struct_flag(srna, STRUCT_CONTAINS_DATABLOCK_IDPROPERTIES);
     }
   }
@@ -5511,10 +5511,10 @@ PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
     return nullptr;
   }
 
-  if (!RNA_struct_is_a(ptype, &RNA_PropertyGroup)) {
+  if (!RNA_struct_is_a(ptype, RNA_PropertyGroup)) {
     PyErr_Format(PyExc_TypeError,
                  "CollectionProperty(...) expected an RNA type derived from %.200s",
-                 RNA_struct_ui_name(&RNA_PropertyGroup));
+                 RNA_struct_ui_name(RNA_PropertyGroup));
     return nullptr;
   }
 
@@ -5538,7 +5538,7 @@ PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
   }
 
   if (RNA_struct_idprops_contains_datablock(ptype)) {
-    if (RNA_struct_is_a(srna, &RNA_PropertyGroup)) {
+    if (RNA_struct_is_a(srna, RNA_PropertyGroup)) {
       RNA_def_struct_flag(srna, STRUCT_CONTAINS_DATABLOCK_IDPROPERTIES);
     }
   }
@@ -5559,8 +5559,10 @@ PyDoc_STRVAR(
     "   :arg attr: Property name (must be passed as a keyword).\n"
     "   :type attr: str\n"
     "\n"
-    ".. note:: Typically this function doesn't need to be accessed directly.\n"
-    "   Instead use ``del cls.attr``\n");
+    "   .. note::\n"
+    "\n"
+    "      Typically this function doesn't need to be accessed directly.\n"
+    "      Instead use ``del cls.attr``\n");
 static PyObject *BPy_RemoveProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
   StructRNA *srna;

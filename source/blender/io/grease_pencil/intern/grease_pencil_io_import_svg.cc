@@ -180,6 +180,7 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
                                        const NSVGshape &shape,
                                        const IndexRange curves_range,
                                        const float4x4 &transform,
+                                       const int shape_index,
                                        const int material_index)
 {
   /* Path width is twice the radius. */
@@ -220,6 +221,21 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
   }
   if (fill_opacities) {
     fill_opacities.span.slice(curves_range).fill(shape_color.a);
+  }
+
+  const bool use_stroke = bool(shape.stroke.type);
+  const bool use_fill = bool(shape.fill.type);
+  if (!use_stroke) {
+    bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
+        "hide_stroke", bke::AttrDomain::Curve);
+    hide_stroke.span.slice(curves_range).fill(true);
+    hide_stroke.finish();
+  }
+  if (use_fill) {
+    bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
+        "fill_id", bke::AttrDomain::Curve);
+    fill_ids.span.slice(curves_range).fill(shape_index + 1);
+    fill_ids.finish();
   }
 
   int curve_index = curves_range.start();
@@ -353,6 +369,11 @@ bool SVGImporter::read(StringRefNull filepath)
   }
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object_->data);
 
+  /* The three possible materials that might be created. */
+  std::optional<int> mat_index_stroke;
+  std::optional<int> mat_index_fill;
+  std::optional<int> mat_index_both;
+
   const float scene_unit_scale = (context_.scene->unit.system != USER_UNIT_NONE &&
                                   params_.use_scene_unit) ?
                                      context_.scene->unit.scale_length :
@@ -369,6 +390,7 @@ bool SVGImporter::read(StringRefNull filepath)
   /* Loop all shapes. */
   std::string prv_id = "*";
   int prefix = 0;
+  int shape_index = 0;
   for (NSVGshape *shape = svg_data->shapes; shape; shape = shape->next) {
     std::string layer_id = get_layer_id(*shape, prefix);
     if (prv_id != layer_id) {
@@ -398,11 +420,31 @@ bool SVGImporter::read(StringRefNull filepath)
       }
     }
 
-    /* Create materials. */
+    /* Find or create materials. */
     const bool is_fill = bool(shape->fill.type);
     const bool is_stroke = bool(shape->stroke.type) || !is_fill;
-    const StringRefNull mat_name = (is_stroke ? (is_fill ? "Both" : "Stroke") : "Fill");
-    const int material_index = create_material(mat_name, is_stroke, is_fill);
+    int material_index;
+    if (is_stroke && is_fill) {
+      if (!mat_index_both) {
+        mat_index_both = create_material("Both");
+      }
+
+      material_index = *mat_index_both;
+    }
+    else if (is_stroke) {
+      if (!mat_index_stroke) {
+        mat_index_stroke = create_material("Stroke");
+      }
+
+      material_index = *mat_index_stroke;
+    }
+    else if (is_fill) {
+      if (!mat_index_fill) {
+        mat_index_fill = create_material("Fill");
+      }
+
+      material_index = *mat_index_fill;
+    }
 
     if (ELEM(shape->fill.type, NSVG_PAINT_LINEAR_GRADIENT, NSVG_PAINT_RADIAL_GRADIENT)) {
       has_color_gradient = true;
@@ -414,8 +456,11 @@ bool SVGImporter::read(StringRefNull filepath)
       continue;
     }
 
-    shape_attributes_to_curves(curves, *shape, new_curves_range, transform, material_index);
+    shape_attributes_to_curves(
+        curves, *shape, new_curves_range, transform, shape_index, material_index);
     drawing->strokes_for_write() = std::move(curves);
+
+    shape_index++;
   }
 
   /* Free SVG memory. */

@@ -155,33 +155,6 @@ bool BKE_animdata_action_editable(const AnimData *adt)
   return !is_tweaking_strip;
 }
 
-bool BKE_animdata_action_ensure_idroot(const ID *owner, bAction *action)
-{
-  const int idcode = GS(owner->name);
-
-  if (action == nullptr) {
-    /* A nullptr action is usable by any ID type. */
-    return true;
-  }
-
-  if (!animrig::legacy::action_treat_as_legacy(*action)) {
-    /* TODO: for layered Actions, this function doesn't make sense. Once all Actions are
-     * auto-versioned to layered Actions, this entire function can be removed. */
-    action->idroot = 0;
-    /* Layered Actions can always be assigned to any ID type. It's the slots
-     * that are specialized. */
-    return true;
-  }
-
-  if (action->idroot == 0) {
-    /* First time this Action is assigned, lock it to this ID type. */
-    action->idroot = idcode;
-    return true;
-  }
-
-  return (action->idroot == idcode);
-}
-
 /* Freeing -------------------------------------------- */
 
 void BKE_animdata_free(ID *id, const bool do_id_user)
@@ -247,10 +220,7 @@ bool BKE_animdata_id_is_animated(const ID *id)
 
   if (adt->action) {
     const animrig::Action &action = adt->action->wrap();
-    if (action.is_action_layered() && action.is_slot_animated(adt->slot_handle)) {
-      return true;
-    }
-    if (action.is_action_legacy() && !BLI_listbase_is_empty(&action.curves)) {
+    if (action.is_slot_animated(adt->slot_handle)) {
       return true;
     }
   }
@@ -708,11 +678,11 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
     return;
   }
 
-  /* Copy data from tyhe source action. */
+  /* Copy data from the source action. */
   if (src_adt->action) {
     BLI_assert(dst_adt->action);
 
-    /* Copy fcurves for each base path. */
+    /* Copy F-curves for each base path. */
     for (const AnimationBasePathChange &basepath_change : basepaths) {
       if (action_copy_fcurves_by_basepath(src_adt->action->wrap(),
                                           src_adt->slot_handle,
@@ -975,8 +945,8 @@ static bool nlastrips_path_rename_fix(ID *owner_id,
   for (NlaStrip &strip : *strips) {
     /* fix strip's action */
     if (strip.act != nullptr) {
-      const Vector<FCurve *> fcurves = animrig::legacy::fcurves_for_action_slot(
-          strip.act, strip.action_slot_handle);
+      const Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(strip.act->wrap(),
+                                                                        strip.action_slot_handle);
       const bool is_changed_action = fcurves_path_rename_fix(
           owner_id, prefix, oldName, newName, oldKey, newKey, fcurves, verify_paths);
       if (is_changed_action) {
@@ -1095,7 +1065,7 @@ void BKE_action_fix_paths_rename(ID *owner_id,
                           newName,
                           oldN,
                           newN,
-                          animrig::legacy::fcurves_for_action_slot(act, slot_handle),
+                          animrig::fcurves_for_action_slot(act->wrap(), slot_handle),
                           verify_paths);
 
   /* free the temp names */
@@ -1142,8 +1112,8 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
   }
   /* Active action and temp action. */
   if (adt->action != nullptr && adt->slot_handle != animrig::Slot::unassigned) {
-    const Vector<FCurve *> fcurves = animrig::legacy::fcurves_for_action_slot(adt->action,
-                                                                              adt->slot_handle);
+    const Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(adt->action->wrap(),
+                                                                      adt->slot_handle);
     if (fcurves_path_rename_fix(
             owner_id, prefix, oldName, newName, oldN, newN, fcurves, verify_paths))
     {
@@ -1151,8 +1121,8 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
     }
   }
   if (adt->tmpact) {
-    const Vector<FCurve *> fcurves = animrig::legacy::fcurves_for_action_slot(
-        adt->tmpact, adt->tmp_slot_handle);
+    const Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(adt->tmpact->wrap(),
+                                                                      adt->tmp_slot_handle);
     if (fcurves_path_rename_fix(
             owner_id, prefix, oldName, newName, oldN, newN, fcurves, verify_paths))
     {
@@ -1315,8 +1285,8 @@ static bool nlastrips_apply_all_curves_cb(ID *id,
 
   for (NlaStrip &strip : *strips) {
     if (strip.act) {
-      const Vector<FCurve *> fcurves = animrig::legacy::fcurves_for_action_slot(
-          strip.act, strip.action_slot_handle);
+      const Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(strip.act->wrap(),
+                                                                        strip.action_slot_handle);
       if (!fcurves_apply_cb(id, fcurves, func)) {
         return false;
       }
@@ -1344,7 +1314,7 @@ static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallba
 
   if (adt->action) {
     if (!fcurves_apply_cb(
-            id, animrig::legacy::fcurves_for_action_slot(adt->action, adt->slot_handle), func))
+            id, animrig::fcurves_for_action_slot(adt->action->wrap(), adt->slot_handle), func))
     {
       return false;
     }
@@ -1352,7 +1322,7 @@ static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallba
 
   if (adt->tmpact) {
     if (!fcurves_apply_cb(
-            id, animrig::legacy::fcurves_for_action_slot(adt->tmpact, adt->tmp_slot_handle), func))
+            id, animrig::fcurves_for_action_slot(adt->tmpact->wrap(), adt->tmp_slot_handle), func))
     {
       return false;
     }
