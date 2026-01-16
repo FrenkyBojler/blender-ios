@@ -4,7 +4,7 @@
 
 bl_info = {
     "name": "Rigify",
-    "version": (0, 6, 10),
+    "version": (0, 6, 13),
     # This is now displayed as the maintainer, so show the foundation.
     # "author": "Nathan Vegdahl, Lucio Rossi, Ivan Cappiello, Alexander Gavrilov", # Original Authors
     "author": "Blender Foundation",
@@ -779,6 +779,12 @@ def register_rna_properties() -> None:
                     "name of the metarig object by replacing 'metarig' with 'rig', 'META' with "
                     "'RIG', or prefixing with 'RIG-'. When updating an already generated rig its "
                     "name is never changed",
+        default="")
+    
+    bpy.types.Armature.rigify_root_bone_name = StringProperty(
+        name="Rigify Root Bone Name",
+        description="Optional. If specified, this name will be used for the Root bone of the newly generated rig."
+                    "Otherwise, the Root bone will be called 'root'.",
         default="")
 
     bpy.types.Armature.rigify_target_rig = PointerProperty(

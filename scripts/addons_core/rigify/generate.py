@@ -22,7 +22,7 @@ from .utils.naming import (
     ORG_PREFIX,
     MCH_PREFIX,
     DEF_PREFIX,
-    ROOT_NAME,
+    get_root_name,
     make_original_name,
     change_name_side,
     get_name_side,
@@ -332,7 +332,7 @@ class Generator(base_generate.BaseGenerator):
             bone = obj.pose.bones[original_bones[i]]
 
             # Preserve the root bone as is if present
-            if bone.name == ROOT_NAME:
+            if bone.name == get_root_name(obj.data):
                 if bone.parent:
                     raise MetarigError('Root bone must have no parent')
                 if get_rigify_type(bone) not in ('', 'basic.raw_copy'):
@@ -350,12 +350,12 @@ class Generator(base_generate.BaseGenerator):
         obj = self.obj
         metarig = self.metarig
 
-        if ROOT_NAME in obj.data.bones:
+        if get_root_name(metarig.data) in obj.data.bones:
             # Use the existing root bone
-            root_bone = ROOT_NAME
+            root_bone = get_root_name(metarig.data)
         else:
             # Create the root bone.
-            root_bone = new_bone(obj, ROOT_NAME)
+            root_bone = new_bone(obj, get_root_name(metarig.data))
             spread = get_xy_spread(metarig.data.bones) or metarig.data.bones[0].length
             spread = float('%.3g' % spread)
             scale = spread / 0.589

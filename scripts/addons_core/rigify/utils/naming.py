@@ -18,7 +18,14 @@ if TYPE_CHECKING:
 ORG_PREFIX = "ORG-"  # Prefix of original bones.
 MCH_PREFIX = "MCH-"  # Prefix of mechanism bones.
 DEF_PREFIX = "DEF-"  # Prefix of deformation bones.
-ROOT_NAME = "root"   # Name of the root bone.
+
+# ROOT_NAME
+def get_root_name(arm: str) -> str:
+    if arm.rigify_root_bone_name.strip():
+        root_bone_name = arm.rigify_root_bone_name.strip()
+    else:
+        root_bone_name = 'root'
+    return root_bone_name # noqa
 
 _PREFIX_TABLE = {'org': "ORG", 'mch': "MCH", 'def': "DEF", 'ctrl': ''}
 

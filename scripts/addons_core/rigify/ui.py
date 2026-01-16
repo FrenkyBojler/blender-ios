@@ -199,6 +199,8 @@ class DATA_PT_rigify_advanced(bpy.types.Panel):
         row = col.row()
         row.active = not get_rigify_target_rig(armature_id_store)
         row.prop(armature_id_store, "rigify_rig_basename", text="Rig Name")
+        row = col.row()
+        row.prop(armature_id_store, "rigify_root_bone_name", text="Root Bone Name")
 
         col.separator()
 

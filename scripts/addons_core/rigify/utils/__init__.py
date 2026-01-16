@@ -12,7 +12,7 @@ from .errors import MetarigError
 
 from .misc import angle_on_plane, linsrgb_to_srgb, gamma_correct, copy_attributes
 
-from .naming import ORG_PREFIX, MCH_PREFIX, DEF_PREFIX, ROOT_NAME
+from .naming import ORG_PREFIX, MCH_PREFIX, DEF_PREFIX
 from .naming import strip_trailing_number, unique_name, org_name, strip_org, strip_mch, strip_def
 from .naming import org, make_original_name, mch, make_mechanism_name, deformer, make_deformer_name
 from .naming import insert_before_lr, random_id
