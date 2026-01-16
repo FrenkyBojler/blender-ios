@@ -270,10 +270,10 @@ bool read_remote_listing(const StringRefNull root_dirpath,
     case 1: {
       const ReadingResult result = read_remote_listing_v1(
           root_dirpath, process_fn, wait_fn, ignore_before_timestamp);
-      if (result == ReadingResult::Failure) {
+      if (result.is_failure()) {
         return false;
       }
-      if (result == ReadingResult::Cancelled) {
+      if (result.is_cancelled()) {
         return false;
       }
       break;
