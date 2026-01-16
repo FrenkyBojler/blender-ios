@@ -75,20 +75,6 @@ void BKE_addon_free(bAddon *addon)
   MEM_freeN(addon);
 }
 
-/**
- * Make sure the hidden core-addons are enabled.
- */
-  void BKE_addon_sanitize_all(ListBaseT<bAddon> *addon_list)
-{
-#ifndef WITH_CYCLES
-  BKE_addon_remove_safe(addon_list, "cycles");
-#endif
-
-  for (const char *addon : core_addons_hidden) {
-    BKE_addon_ensure(addon_list, addon);
-  }
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

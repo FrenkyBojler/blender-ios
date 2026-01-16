@@ -67,7 +67,9 @@
 
 #include "AS_asset_library.hh"
 
-#include "BKE_addon.h"
+#ifndef WITH_CYCLES
+#  include "BKE_addon.h"
+#endif
 #include "BKE_appdir.hh"
 #include "BKE_autoexec.hh"
 #include "BKE_blender.hh"
@@ -516,7 +518,9 @@ static void wm_gpu_backend_override_from_userdef()
 static void wm_init_userdef(Main *bmain)
 {
   /* Not versioning, just avoid errors. */
-  BKE_addon_sanitize_all(&U.addons);
+#ifndef WITH_CYCLES
+  BKE_addon_remove_safe(&U.addons, "cycles");
+#endif
 
   ui::init_userdef();
 

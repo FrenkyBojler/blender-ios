@@ -26,22 +26,6 @@ struct bAddonPrefType {
 struct bAddonPrefType;
 #endif
 
-/**
- * List of Core Add-ons which should be hidden to the users.
- * They are to be treated as implementation detail and not
- * as real add-ons.
- */
-static const char *core_addons_hidden[] = {
-    "bl_pkg",
-#ifdef WITH_CYCLES
-    "cycles",
-#endif
-    "io_anim_bvh",
-    "io_curve_svg",
-    "io_mesh_uv_layout",
-    "io_scene_fbx",
-};
-
 bAddonPrefType *BKE_addon_pref_type_find(const char *idname, bool quiet);
 void BKE_addon_pref_type_add(bAddonPrefType *apt);
 void BKE_addon_pref_type_remove(const bAddonPrefType *apt);
@@ -54,6 +38,5 @@ struct bAddon *BKE_addon_find(const ListBaseT<bAddon> *addon_list, const char *m
 struct bAddon *BKE_addon_ensure(ListBaseT<bAddon> *addon_list, const char *module);
 bool BKE_addon_remove_safe(ListBaseT<bAddon> *addon_list, const char *module);
 void BKE_addon_free(struct bAddon *addon);
-void BKE_addon_sanitize_all(struct ListBaseT<bAddon> *addon_list);
 
 }  // namespace blender

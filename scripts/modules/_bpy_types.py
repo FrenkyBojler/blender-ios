@@ -1104,9 +1104,7 @@ class _GenericUI:
                 # Support filtering out by owner
                 workspace = context.workspace
                 if workspace.use_filter_by_owner:
-                    import addon_utils
                     owner_names = {owner_id.name for owner_id in workspace.owner_ids}
-                    owner_names |= addon_utils.CORE_ADDONS_HIDDEN
                 else:
                     owner_names = None
 

@@ -216,7 +216,6 @@ static const EnumPropertyItem rna_enum_preferences_asset_import_method_items[] =
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
 #  include "BLI_string_utils.hh"
-#  include "BLI_utildefines.h"
 
 #  include "DNA_object_types.h"
 #  include "DNA_screen_types.h"
@@ -882,56 +881,6 @@ static const EnumPropertyItem *rna_UseDef_active_section_itemf(bContext * /*C*/,
 
   *r_free = true;
   return items;
-}
-
-/**
- * Skip all the core add-ons which are not to be listed.
- *
- * This prevents those add-ons from been listed (and disabled) per-workspace.
- */
-static bool rna_UserDef_addons_ui_skip(CollectionPropertyIterator *iter, void * /*data*/)
-{
-  ListBaseIterator *internal = &iter->internal.listbase;
-  bAddon *addon = (bAddon *)internal->link;
-
-  for (const char *name : core_addons_hidden) {
-    if (STREQ(addon->module, name)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-static void rna_UserDef_addons_ui_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-  UserDef *userdef = (UserDef *)ptr->data;
-  rna_iterator_listbase_begin(iter, ptr, &userdef->addons, rna_UserDef_addons_ui_skip);
-}
-
-/**
- * List all the core add-ons which are hidden from the UI.
- *
- * This is used to sync the Python code with the list defined in BKE_addon.h.
- */
-static bool rna_UserDef_addons_core_skip(CollectionPropertyIterator *iter, void * /*data*/)
-{
-  ListBaseIterator *internal = &iter->internal.listbase;
-  bAddon *addon = (bAddon *)internal->link;
-
-  for (const char *name : core_addons_hidden) {
-    if (STREQ(addon->module, name)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-static void rna_UserDef_addons_core_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-  UserDef *userdef = (UserDef *)ptr->data;
-  rna_iterator_listbase_begin(iter, ptr, &userdef->addons, rna_UserDef_addons_core_skip);
 }
 
 static PointerRNA rna_UserDef_view_get(PointerRNA *ptr)
@@ -7656,34 +7605,6 @@ void RNA_def_userdef(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "Addon");
   RNA_def_property_ui_text(prop, "Add-on", "");
   rna_def_userdef_addon_collection(brna, prop);
-
-  prop = RNA_def_property(srna, "addons_ui", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "addons", nullptr);
-  RNA_def_property_struct_type(prop, "Addon");
-  RNA_def_property_collection_funcs(prop,
-                                    "rna_UserDef_addons_ui_begin",
-                                    "rna_iterator_listbase_next",
-                                    "rna_iterator_listbase_end",
-                                    "rna_iterator_listbase_get",
-                                    nullptr,
-                                    nullptr,
-                                    nullptr,
-                                    nullptr);
-  RNA_def_property_ui_text(prop, "UI Add-ons", "Add-ons exposed on the UI");
-
-  prop = RNA_def_property(srna, "addons_core", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "addons", nullptr);
-  RNA_def_property_struct_type(prop, "Addon");
-  RNA_def_property_collection_funcs(prop,
-                                    "rna_UserDef_addons_core_begin",
-                                    "rna_iterator_listbase_next",
-                                    "rna_iterator_listbase_end",
-                                    "rna_iterator_listbase_get",
-                                    nullptr,
-                                    nullptr,
-                                    nullptr,
-                                    nullptr);
-  RNA_def_property_ui_text(prop, "Core Add-ons", "Those add-ons hidden from the user interface");
 
   prop = RNA_def_property(srna, "autoexec_paths", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "autoexec_paths", nullptr);

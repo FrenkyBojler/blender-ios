@@ -622,10 +622,6 @@ if(WITH_BULLET)
   )
 endif()
 
-if(WITH_CYCLES)
-  add_definitions(-DWITH_CYCLES)
-endif()
-
 if(WITH_IMAGE_OPENEXR)
   add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
