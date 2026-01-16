@@ -32,6 +32,8 @@
 
 #  include "WM_api.hh"
 
+namespace blender {
+
 static void rna_EditBone_align_roll(EditBone *ebo, const float no[3])
 {
   ebo->roll = ED_armature_ebone_roll_to_vector(ebo, no, false);
@@ -123,7 +125,7 @@ static bool rna_BoneCollection_assign_abstract(BoneCollection *bcoll,
     return false;
   }
 
-  if (RNA_struct_is_a(bone_ptr->type, &RNA_PoseBone)) {
+  if (RNA_struct_is_a(bone_ptr->type, RNA_PoseBone)) {
     bPoseChannel *pchan = static_cast<bPoseChannel *>(bone_ptr->data);
     const bool made_any_change = assign_bone(bcoll, pchan->bone);
     if (made_any_change) {
@@ -132,7 +134,7 @@ static bool rna_BoneCollection_assign_abstract(BoneCollection *bcoll,
     return made_any_change;
   }
 
-  if (RNA_struct_is_a(bone_ptr->type, &RNA_Bone)) {
+  if (RNA_struct_is_a(bone_ptr->type, RNA_Bone)) {
     Bone *bone = static_cast<Bone *>(bone_ptr->data);
     const bool made_any_change = assign_bone(bcoll, bone);
     if (made_any_change) {
@@ -141,7 +143,7 @@ static bool rna_BoneCollection_assign_abstract(BoneCollection *bcoll,
     return made_any_change;
   }
 
-  if (RNA_struct_is_a(bone_ptr->type, &RNA_EditBone)) {
+  if (RNA_struct_is_a(bone_ptr->type, RNA_EditBone)) {
     EditBone *ebone = static_cast<EditBone *>(bone_ptr->data);
     const bool made_any_change = assign_ebone(bcoll, ebone);
     if (made_any_change) {
@@ -182,7 +184,11 @@ static bool rna_BoneCollection_unassign(BoneCollection *bcoll,
                                             ANIM_armature_bonecoll_unassign_editbone);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_armature_edit_bone(StructRNA *srna)
 {
@@ -324,5 +330,7 @@ void RNA_api_bonecollection(StructRNA *srna)
                          "not a member of the collection to begin with");
   RNA_def_function_return(func, parm);
 }
+
+}  // namespace blender
 
 #endif

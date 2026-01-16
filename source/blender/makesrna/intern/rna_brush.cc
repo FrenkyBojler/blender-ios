@@ -27,6 +27,8 @@
 
 #include "WM_types.hh"
 
+namespace blender {
+
 static const EnumPropertyItem prop_direction_items[] = {
     {0, "ADD", ICON_ADD, "Add", "Add effect of brush"},
     {BRUSH_DIR_IN, "SUBTRACT", ICON_REMOVE, "Subtract", "Subtract effect of brush"},
@@ -162,6 +164,7 @@ const EnumPropertyItem rna_enum_brush_sculpt_brush_type_items[] = {
      ""},
     {SCULPT_BRUSH_TYPE_PAINT, "PAINT", 0, "Paint", ""},
     {SCULPT_BRUSH_TYPE_SMEAR, "SMEAR", 0, "Smear", ""},
+    {SCULPT_BRUSH_TYPE_BLUR, "BLUR", 0, "Blur", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -351,6 +354,8 @@ static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
 
 #endif
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include "DNA_material_types.h"
@@ -369,6 +374,8 @@ static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
 #  include "BKE_preview_image.hh"
 
 #  include "WM_api.hh"
+
+namespace blender {
 
 static bool rna_TextureCapabilities_has_random_texture_angle_get(PointerRNA *ptr)
 {
@@ -417,157 +424,157 @@ static bool rna_BrushCapabilities_has_spacing_get(PointerRNA *ptr)
 static bool rna_BrushCapabilitiesSculpt_has_accumulate_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_accumulate(*br);
+  return bke::brush::supports_accumulate(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_topology_rake_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_topology_rake(*br);
+  return bke::brush::supports_topology_rake(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_auto_smooth_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_auto_smooth(*br);
+  return bke::brush::supports_auto_smooth(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_height_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_height(*br);
+  return bke::brush::supports_height(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_plane_height_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_plane_height(*br);
+  return bke::brush::supports_plane_height(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_plane_depth_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_plane_depth(*br);
+  return bke::brush::supports_plane_depth(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_jitter_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_jitter(*br);
+  return bke::brush::supports_jitter(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_normal_weight_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_normal_weight(*br);
+  return bke::brush::supports_normal_weight(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_rake_factor_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_rake_factor(*br);
+  return bke::brush::supports_rake_factor(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_persistence_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_persistence(*br);
+  return bke::brush::supports_persistence(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_pinch_factor_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_pinch_factor(*br);
+  return bke::brush::supports_pinch_factor(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_plane_offset_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_plane_offset(*br);
+  return bke::brush::supports_plane_offset(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_random_texture_angle_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_random_texture_angle(*br);
+  return bke::brush::supports_random_texture_angle(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_sculpt_plane_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_sculpt_plane(*br);
+  return bke::brush::supports_sculpt_plane(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_color_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_color(*br);
+  return bke::brush::supports_color(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_secondary_color_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_secondary_cursor_color(*br);
+  return bke::brush::supports_secondary_cursor_color(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_smooth_stroke_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_smooth_stroke(*br);
+  return bke::brush::supports_smooth_stroke(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_space_attenuation_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_space_attenuation(*br);
+  return bke::brush::supports_space_attenuation(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_strength_pressure_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_strength_pressure(*br);
+  return bke::brush::supports_strength_pressure(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_size_pressure_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_size_pressure(*br);
+  return bke::brush::supports_size_pressure(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_auto_smooth_pressure_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_auto_smooth_pressure(*br);
+  return bke::brush::supports_auto_smooth_pressure(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_hardness_pressure_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_hardness_pressure(*br);
+  return bke::brush::supports_hardness_pressure(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_direction_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_inverted_direction(*br);
+  return bke::brush::supports_inverted_direction(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_gravity_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_gravity(*br);
+  return bke::brush::supports_gravity(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_tilt_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_tilt(*br);
+  return bke::brush::supports_tilt(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_dyntopo_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
-  return blender::bke::brush::supports_dyntopo(*br);
+  return bke::brush::supports_dyntopo(*br);
 }
 
 static bool rna_BrushCapabilitiesImagePaint_has_accumulate_get(PointerRNA *ptr)
@@ -623,31 +630,31 @@ static bool rna_BrushCapabilitiesWeightPaint_has_weight_get(PointerRNA *ptr)
 static PointerRNA rna_Sculpt_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesSculpt, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BrushCapabilitiesSculpt, ptr->data);
 }
 
 static PointerRNA rna_Imapaint_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesImagePaint, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BrushCapabilitiesImagePaint, ptr->data);
 }
 
 static PointerRNA rna_Vertexpaint_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesVertexPaint, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BrushCapabilitiesVertexPaint, ptr->data);
 }
 
 static PointerRNA rna_Weightpaint_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesWeightPaint, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BrushCapabilitiesWeightPaint, ptr->data);
 }
 
 static PointerRNA rna_Brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilities, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BrushCapabilities, ptr->data);
 }
 
 static void rna_Brush_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -926,7 +933,7 @@ static const EnumPropertyItem *rna_Brush_stroke_itemf(bContext *C,
                                                       PropertyRNA * /*prop*/,
                                                       bool * /*r_free*/)
 {
-  PaintMode mode = BKE_paintmode_get_active_from_context(C);
+  PaintMode mode = (C) ? BKE_paintmode_get_active_from_context(C) : PaintMode::Invalid;
 
   static const EnumPropertyItem brush_stroke_method_items[] = {
       {0, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
@@ -1109,7 +1116,11 @@ static std::optional<std::string> rna_BrushCurvesSculptSettings_path(const Point
   return "curves_sculpt_settings";
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_brush_texture_slot(BlenderRNA *brna)
 {
@@ -1345,6 +1356,13 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   static const EnumPropertyItem rna_enum_gpencil_brush_caps_types_items[] = {
       {GP_STROKE_CAP_ROUND, "ROUND", ICON_GP_CAPS_ROUND, "Round", ""},
       {GP_STROKE_CAP_FLAT, "FLAT", ICON_GP_CAPS_FLAT, "Flat", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem rna_enum_gpencil_brush_stroke_mode_items[] = {
+      {GP_BRUSH_USE_STROKE, "STROKE", ICON_NONE, "Stroke", ""},
+      {GP_BRUSH_USE_FILL, "FILL", ICON_NONE, "Fill", ""},
+      {GP_BRUSH_USE_FILL | GP_BRUSH_USE_STROKE, "BOTH", ICON_NONE, "Both", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1809,6 +1827,13 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag2", GP_BRUSH_USE_UV_RAND_PRESS);
   RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
   RNA_def_property_ui_text(prop, "Use Pressure", "Use pressure to modulate randomness");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
+
+  prop = RNA_def_property(srna, "stroke_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag2");
+  RNA_def_property_enum_items(prop, rna_enum_gpencil_brush_stroke_mode_items);
+  RNA_def_property_ui_text(prop, "Stroke Mode", "Mode to use when creating strokes");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
 
@@ -4099,5 +4124,7 @@ void RNA_def_brush(BlenderRNA *brna)
   rna_def_brush_texture_slot(brna);
   rna_def_operator_stroke_element(brna);
 }
+
+}  // namespace blender
 
 #endif

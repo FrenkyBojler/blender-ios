@@ -22,6 +22,8 @@
 #  include "BLI_dynstr.h"
 #endif
 
+namespace blender {
+
 #define EULER_SIZE 3
 
 /* -------------------------------------------------------------------- */
@@ -343,7 +345,7 @@ static PyObject *Euler_make_compatible(EulerObject *self, PyObject *value)
 PyDoc_STRVAR(
     /* Wrap. */
     Euler_copy_doc,
-    ".. function:: copy()\n"
+    ".. method:: copy()\n"
     "\n"
     "   Returns a copy of this euler.\n"
     "\n"
@@ -1092,3 +1094,5 @@ PyObject *Euler_CreatePyObject_cb(PyObject *cb_user,
 }
 
 /** \} */
+
+}  // namespace blender

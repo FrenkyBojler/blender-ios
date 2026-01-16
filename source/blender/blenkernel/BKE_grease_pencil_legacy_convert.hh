@@ -8,6 +8,8 @@
  * \ingroup bke
  */
 
+namespace blender {
+
 struct BlendfileLinkAppendContext;
 struct BlendFileReadReport;
 struct GreasePencil;
@@ -15,16 +17,19 @@ struct Main;
 struct LineartGpencilModifierData;
 struct GreasePencilLineartModifierData;
 
-namespace blender::bke::greasepencil::convert {
+namespace bke::greasepencil::convert {
 
 /** Main entry point to convert all legacy GPData into GreasePencil data and objects. */
 void legacy_main(Main &bmain,
                  BlendfileLinkAppendContext *lapp_context,
                  BlendFileReadReport &reports);
+void grease_pencil_material_stroke_fill_toggle_to_attributes(Main &bmain,
+                                                             BlendFileReadReport &reports);
 
 void lineart_wrap_v3(const LineartGpencilModifierData *lmd_legacy,
                      GreasePencilLineartModifierData *lmd);
 void lineart_unwrap_v3(LineartGpencilModifierData *lmd_legacy,
                        const GreasePencilLineartModifierData *lmd);
 
-}  // namespace blender::bke::greasepencil::convert
+}  // namespace bke::greasepencil::convert
+}  // namespace blender

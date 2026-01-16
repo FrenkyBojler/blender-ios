@@ -482,7 +482,7 @@ void Instance::render_sync()
   begin_sync();
 
   DRW_render_object_iter(
-      render, depsgraph, [this](blender::draw::ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
+      render, depsgraph, [this](draw::ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
         this->object_sync(ob_ref, *this->manager);
       });
 
@@ -668,9 +668,11 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
       RE_engine_update_stats(engine, nullptr, re_info.c_str());
     }
 
-    /* Perform render step between samples to allow
-     * flushing of freed GPUBackend resources. */
-    if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+    /* Metal: Perform render step between samples to allow flushing of freed GPUBackend resources.
+     * Vulkan: Perform render step between samples to avoid allocation of a high amount of command
+     * buffer memory that can eventually result in out-of-memory errors or a TDR when submitted as
+     * one large command buffer. */
+    if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
       GPU_flush();
     }
     GPU_render_step();

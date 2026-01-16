@@ -280,7 +280,7 @@ static void strip_draw_context_curve_get(const TimelineDrawContext &ctx,
   if (showing_curve_overlay || showing_waveform) {
     const char *prop_name = strip_ctx.strip->type == STRIP_TYPE_SOUND ? "volume" : "blend_alpha";
     strip_ctx.curve = id_data_find_fcurve(
-        &ctx.scene->id, strip_ctx.strip, &RNA_Strip, prop_name, 0, nullptr);
+        &ctx.scene->id, strip_ctx.strip, RNA_Strip, prop_name, 0, nullptr);
     if (strip_ctx.curve && BKE_fcurve_is_empty(strip_ctx.curve)) {
       strip_ctx.curve = nullptr;
     }
@@ -427,7 +427,7 @@ static void color3ubv_from_seq(const Scene *curscene,
       break;
   }
 
-  blender::ui::theme::theme_restore(&theme_state);
+  ui::theme::theme_restore(&theme_state);
 }
 
 static void waveform_job_start_if_needed(const bContext *C, const Strip *strip)

@@ -818,9 +818,7 @@ Array<Vector<MutableDrawingInfo>> retrieve_editable_drawings_grouped_per_frame(
 }
 
 Vector<MutableDrawingInfo> retrieve_editable_drawings_from_layer(
-    const Scene &scene,
-    GreasePencil &grease_pencil,
-    const blender::bke::greasepencil::Layer &layer)
+    const Scene &scene, GreasePencil &grease_pencil, const bke::greasepencil::Layer &layer)
 {
   using namespace blender::bke::greasepencil;
   const int current_frame = scene.r.cfra;
@@ -842,9 +840,7 @@ Vector<MutableDrawingInfo> retrieve_editable_drawings_from_layer(
 }
 
 Vector<MutableDrawingInfo> retrieve_editable_drawings_from_layer_with_falloff(
-    const Scene &scene,
-    GreasePencil &grease_pencil,
-    const blender::bke::greasepencil::Layer &layer)
+    const Scene &scene, GreasePencil &grease_pencil, const bke::greasepencil::Layer &layer)
 {
   using namespace blender::bke::greasepencil;
   const int current_frame = scene.r.cfra;
@@ -941,27 +937,11 @@ static VectorSet<int> get_hidden_material_indices(Object &object)
   return hidden_material_indices;
 }
 
-static VectorSet<int> get_fill_material_indices(Object &object)
-{
-  BLI_assert(object.type == OB_GREASE_PENCIL);
-  VectorSet<int> fill_material_indices;
-  for (const int mat_i : IndexRange(object.totcol)) {
-    Material *material = BKE_object_material_get(&object, mat_i + 1);
-    if (material != nullptr && material->gp_style != nullptr &&
-        (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0)
-    {
-      fill_material_indices.add_new(mat_i);
-    }
-  }
-  return fill_material_indices;
-}
-
 IndexMask retrieve_editable_strokes(Object &object,
                                     const bke::greasepencil::Drawing &drawing,
                                     int layer_index,
                                     IndexMaskMemory &memory)
 {
-  using namespace blender;
   const bke::CurvesGeometry &curves = drawing.strokes();
   const IndexRange curves_range = curves.curves_range();
 
@@ -969,7 +949,7 @@ IndexMask retrieve_editable_strokes(Object &object,
     return IndexMask(curves_range);
   }
 
-  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
   const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
 
   /* If we're not using material locking, the entire curves range is editable. */
@@ -1005,7 +985,6 @@ IndexMask retrieve_editable_fill_strokes(Object &object,
                                          int layer_index,
                                          IndexMaskMemory &memory)
 {
-  using namespace blender;
   const IndexMask editable_strokes = retrieve_editable_strokes(
       object, drawing, layer_index, memory);
   if (editable_strokes.is_empty()) {
@@ -1016,20 +995,14 @@ IndexMask retrieve_editable_fill_strokes(Object &object,
   const IndexRange curves_range = curves.curves_range();
 
   const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
-  const VectorSet<int> fill_material_indices = get_fill_material_indices(object);
-  if (!materials) {
-    /* If the attribute does not exist then the default is the first material. */
-    if (editable_strokes.contains(0) && fill_material_indices.contains(0)) {
-      return curves_range;
-    }
+  const VArray<int> fill_ids = *attributes.lookup_or_default<int>(
+      "fill_id", bke::AttrDomain::Curve, 0);
+  if (!fill_ids) {
     return {};
   }
   const IndexMask fill_strokes = IndexMask::from_predicate(
       curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
-        const int material_index = materials[curve_i];
-        return fill_material_indices.contains(material_index);
+        return fill_ids[curve_i] != 0;
       });
   return IndexMask::from_intersection(editable_strokes, fill_strokes, memory);
 }
@@ -1039,8 +1012,6 @@ IndexMask retrieve_editable_strokes_by_material(Object &object,
                                                 const int mat_i,
                                                 IndexMaskMemory &memory)
 {
-  using namespace blender;
-
   const bke::CurvesGeometry &curves = drawing.strokes();
   const IndexRange curves_range = curves.curves_range();
 
@@ -1081,7 +1052,7 @@ IndexMask retrieve_editable_points(Object &object,
     return IndexMask(points_range);
   }
 
-  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
   const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
 
   /* If we're not using material locking, the entire points range is editable. */
@@ -1133,8 +1104,6 @@ IndexMask retrieve_visible_strokes(Object &object,
                                    const bke::greasepencil::Drawing &drawing,
                                    IndexMaskMemory &memory)
 {
-  using namespace blender;
-
   /* Get all the hidden material indices. */
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
@@ -1255,6 +1224,37 @@ IndexMask retrieve_visible_bezier_handle_strokes(Object &object,
   return IndexMask::from_intersection(visible_bezier_strokes, selected_strokes, memory);
 }
 
+IndexMask retrieve_visible_fills(Object &object,
+                                 const bke::greasepencil::Drawing &drawing,
+                                 IndexMaskMemory &memory)
+{
+  /* Get all the hidden material indices. */
+  VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
+
+  const std::optional<GroupedSpan<int>> fills = drawing.fills();
+  if (!fills) {
+    return ed::greasepencil::retrieve_visible_strokes(object, drawing, memory);
+  }
+
+  if (hidden_material_indices.is_empty()) {
+    return (*fills).index_range();
+  }
+
+  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::AttributeAccessor attributes = curves.attributes();
+
+  /* Get all the fills that have their first curve's material visible. */
+  const VArray<int> materials = *attributes.lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Curve, 0);
+  return IndexMask::from_predicate(
+      (*fills).index_range(), GrainSize(4096), memory, [&](const int64_t fill_index) {
+        const Span<int> fill = (*fills)[fill_index];
+        const int curve_i = fill.first();
+        const int material_index = materials[curve_i];
+        return !hidden_material_indices.contains(material_index);
+      });
+}
+
 IndexMask retrieve_visible_bezier_handle_points(Object &object,
                                                 const bke::greasepencil::Drawing &drawing,
                                                 const int layer_index,
@@ -1322,7 +1322,6 @@ IndexMask retrieve_editable_and_selected_strokes(Object &object,
                                                  int layer_index,
                                                  IndexMaskMemory &memory)
 {
-  using namespace blender;
   const bke::CurvesGeometry &curves = drawing.strokes();
 
   const IndexMask editable_strokes = retrieve_editable_strokes(
@@ -1337,7 +1336,6 @@ IndexMask retrieve_editable_and_selected_fill_strokes(Object &object,
                                                       int layer_index,
                                                       IndexMaskMemory &memory)
 {
-  using namespace blender;
   const bke::CurvesGeometry &curves = drawing.strokes();
 
   const IndexMask editable_strokes = retrieve_editable_fill_strokes(
@@ -1674,7 +1672,7 @@ wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
   if (!grease_pencil.has_active_layer()) {
     BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
     return OPERATOR_CANCELLED;
@@ -1757,12 +1755,12 @@ float4x2 calculate_texture_space(const Scene *scene,
 GreasePencil *from_context(bContext &C)
 {
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(
-      CTX_data_pointer_get_type(&C, "grease_pencil", &RNA_GreasePencil).data);
+      CTX_data_pointer_get_type(&C, "grease_pencil", RNA_GreasePencil).data);
 
   if (grease_pencil == nullptr) {
     Object *object = CTX_data_active_object(&C);
     if (object && object->type == OB_GREASE_PENCIL) {
-      grease_pencil = blender::id_cast<GreasePencil *>(object->data);
+      grease_pencil = id_cast<GreasePencil *>(object->data);
     }
   }
   return grease_pencil;
@@ -1772,6 +1770,7 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
 {
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
   if (at_end) {
+    const int num_old_curves = curves.curves_num();
     const int num_old_points = curves.points_num();
     curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
     curves.offsets_for_write().last(1) = num_old_points;
@@ -1785,6 +1784,14 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
     drawing.runtime->curve_texture_matrices.update([&](Vector<float4x2> &texture_matrices) {
       texture_matrices.append(float4x2::identity());
     });
+    /* Update the fill cache if it exists. */
+    drawing.runtime->fill_cache.update(
+        [&](std::optional<bke::greasepencil::FillCache> &fill_cache) {
+          if (fill_cache) {
+            (*fill_cache).fill_map.append(num_old_curves);
+            (*fill_cache).fill_offsets.append((*fill_cache).fill_offsets.last() + 1);
+          }
+        });
     return;
   }
 
@@ -2002,7 +2009,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
     Drawing *drawing_orig = orig_grease_pencil.get_drawing_at(*layer_orig, eval_frame);
 
     if (drawing_orig && drawing_eval) {
-      CurvesGeometry &eval_strokes = drawing_eval->strokes_for_write();
+      bke::CurvesGeometry &eval_strokes = drawing_eval->strokes_for_write();
 
       /* Check for new vertex groups in CurvesGeometry. */
       for (bDeformGroup &dg : eval_strokes.vertex_group_names) {

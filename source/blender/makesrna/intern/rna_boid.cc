@@ -19,6 +19,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+namespace blender {
+
 const EnumPropertyItem rna_enum_boidrule_type_items[] = {
     {eBoidRuleType_Goal,
      "GOAL",
@@ -92,6 +94,8 @@ static const EnumPropertyItem boidruleset_type_items[] = {
 };
 #endif
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include <fmt/format.h>
@@ -106,9 +110,11 @@ static const EnumPropertyItem boidruleset_type_items[] = {
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
 
+namespace blender {
+
 static void rna_Boids_reset(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  if (ptr->type == &RNA_ParticleSystem) {
+  if (ptr->type == RNA_ParticleSystem) {
     ParticleSystem *psys = static_cast<ParticleSystem *>(ptr->data);
 
     psys->recalc = ID_RECALC_PSYS_RESET;
@@ -123,7 +129,7 @@ static void rna_Boids_reset(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr
 }
 static void rna_Boids_reset_deps(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  if (ptr->type == &RNA_ParticleSystem) {
+  if (ptr->type == RNA_ParticleSystem) {
     ParticleSystem *psys = static_cast<ParticleSystem *>(ptr->data);
 
     psys->recalc = ID_RECALC_PSYS_RESET;
@@ -145,19 +151,19 @@ static StructRNA *rna_BoidRule_refine(PointerRNA *ptr)
 
   switch (rule->type) {
     case eBoidRuleType_Goal:
-      return &RNA_BoidRuleGoal;
+      return RNA_BoidRuleGoal;
     case eBoidRuleType_Avoid:
-      return &RNA_BoidRuleAvoid;
+      return RNA_BoidRuleAvoid;
     case eBoidRuleType_AvoidCollision:
-      return &RNA_BoidRuleAvoidCollision;
+      return RNA_BoidRuleAvoidCollision;
     case eBoidRuleType_FollowLeader:
-      return &RNA_BoidRuleFollowLeader;
+      return RNA_BoidRuleFollowLeader;
     case eBoidRuleType_AverageSpeed:
-      return &RNA_BoidRuleAverageSpeed;
+      return RNA_BoidRuleAverageSpeed;
     case eBoidRuleType_Fight:
-      return &RNA_BoidRuleFight;
+      return RNA_BoidRuleFight;
     default:
-      return &RNA_BoidRule;
+      return RNA_BoidRule;
   }
 }
 
@@ -176,10 +182,10 @@ static PointerRNA rna_BoidState_active_boid_rule_get(PointerRNA *ptr)
 
   for (; rule; rule = rule->next) {
     if (rule->flag & BOIDRULE_CURRENT) {
-      return RNA_pointer_create_with_parent(*ptr, &RNA_BoidRule, rule);
+      return RNA_pointer_create_with_parent(*ptr, RNA_BoidRule, rule);
     }
   }
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BoidRule, nullptr);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BoidRule, nullptr);
 }
 static void rna_BoidState_active_boid_rule_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
@@ -231,7 +237,7 @@ static std::optional<std::string> rna_BoidSettings_path(const PointerRNA *ptr)
   const BoidSettings *boids = static_cast<BoidSettings *>(ptr->data);
 
   if (particle_id_check(ptr)) {
-    ParticleSettings *part = blender::id_cast<ParticleSettings *>(ptr->owner_id);
+    ParticleSettings *part = id_cast<ParticleSettings *>(ptr->owner_id);
 
     if (part->boids == boids) {
       return "boids";
@@ -247,10 +253,10 @@ static PointerRNA rna_BoidSettings_active_boid_state_get(PointerRNA *ptr)
 
   for (; state; state = state->next) {
     if (state->flag & BOIDSTATE_CURRENT) {
-      return RNA_pointer_create_with_parent(*ptr, &RNA_BoidState, state);
+      return RNA_pointer_create_with_parent(*ptr, RNA_BoidState, state);
     }
   }
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BoidState, nullptr);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BoidState, nullptr);
 }
 static void rna_BoidSettings_active_boid_state_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
@@ -290,7 +296,11 @@ static void rna_BoidSettings_active_boid_state_index_set(PointerRNA *ptr, int va
   }
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_boidrule_goal(BlenderRNA *brna)
 {
@@ -709,5 +719,7 @@ void RNA_def_boid(BlenderRNA *brna)
   rna_def_boidstate(brna);
   rna_def_boid_settings(brna);
 }
+
+}  // namespace blender
 
 #endif

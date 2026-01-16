@@ -10,6 +10,8 @@
 
 #include "BLI_enum_flags.hh"
 
+namespace blender {
+
 /* BrushGpencilSettings->preset_type.
  * Use a range for each group and not continuous values. */
 enum eGPBrush_Presets {
@@ -134,6 +136,10 @@ enum eGPDbrush_Flag2 {
   GP_BRUSH_USE_STRENGTH_RAND_PRESS = (1 << 10),
   /* Brush use UV random pressure */
   GP_BRUSH_USE_UV_RAND_PRESS = (1 << 11),
+  /* Brush creates curves that use the stroke. */
+  GP_BRUSH_USE_STROKE = (1 << 12),
+  /* Brush creates curves that use the fill. */
+  GP_BRUSH_USE_FILL = (1 << 13),
 };
 
 /* BrushGpencilSettings->fill_draw_mode */
@@ -475,6 +481,7 @@ enum eBrushSculptType {
   SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER = 31,
   SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR = 32,
   SCULPT_BRUSH_TYPE_PLANE = 33,
+  SCULPT_BRUSH_TYPE_BLUR = 34,
 };
 
 /* Brush.curves_sculpt_brush_type. */
@@ -613,3 +620,5 @@ enum eBrushColorJitterSettings_Flag {
 
 #define MAX_BRUSH_PIXEL_RADIUS 500
 #define MAX_BRUSH_PIXEL_DIAMETER 1000
+
+}  // namespace blender

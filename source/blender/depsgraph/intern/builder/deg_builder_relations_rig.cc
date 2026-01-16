@@ -73,7 +73,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
    * one Init IK node per armature, this link has quite high risk of spurious dependency cycles.
    */
   const bool is_itasc = (object->pose->iksolver == IKSOLVER_ITASC);
-  PointerRNA con_ptr = RNA_pointer_create_discrete(&object->id, &RNA_Constraint, con);
+  PointerRNA con_ptr = RNA_pointer_create_discrete(&object->id, RNA_Constraint, con);
   if (is_itasc || cache_->isAnyPropertyAnimated(&con_ptr)) {
     add_relation(pchan_local_key, init_ik_key, "IK Constraint -> Init IK Tree");
   }
@@ -149,7 +149,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
       add_customdata_mask(data->poletar, DEGCustomDataMeshMasks::MaskVert(CD_MASK_MDEFORMVERT));
     }
   }
-  DEG_DEBUG_PRINTF((::Depsgraph *)graph_,
+  DEG_DEBUG_PRINTF((blender::Depsgraph *)graph_,
                    BUILD,
                    "\nStarting IK Build: pchan = %s, target = (%s, %s), "
                    "segcount = %d\n",
@@ -189,7 +189,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *object,
     parchan->flag |= POSE_DONE;
     root_map->add_bone(parchan->name, rootchan->name);
     /* continue up chain, until we reach target number of items. */
-    DEG_DEBUG_PRINTF((::Depsgraph *)graph_, BUILD, "  %d = %s\n", segcount, parchan->name);
+    DEG_DEBUG_PRINTF((blender::Depsgraph *)graph_, BUILD, "  %d = %s\n", segcount, parchan->name);
     /* TODO(sergey): This is an arbitrary value, which was just following
      * old code convention. */
     segcount++;
@@ -289,7 +289,7 @@ void DepsgraphRelationBuilder::build_inter_ik_chains(Object *object,
 void DepsgraphRelationBuilder::build_rig(Object *object)
 {
   /* Armature-Data */
-  bArmature *armature = blender::id_cast<bArmature *>(object->data);
+  bArmature *armature = id_cast<bArmature *>(object->data);
   /* TODO: selection status? */
   /* Attach links between pose operations. */
   ComponentKey local_transform(&object->id, NodeType::TRANSFORM);
@@ -381,6 +381,11 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
     pchan.flag &= ~POSE_DONE;
     /* Pose init to bone local. */
     add_relation(pose_init_key, bone_local_key, "Pose Init - Bone Local", RELATION_FLAG_GODMODE);
+
+    /* Bone visibility (BONE_VISIBILITY) has no relationships. The node is a no-op, and it's just
+     * there to ensure the pose data itself is there. It does have the implicit dependency on the
+     * COPY_ON_EVAL node. */
+
     /* Local to pose parenting operation. */
     add_relation(bone_local_key, bone_pose_key, "Bone Local - Bone Pose");
     /* Parent relation. */

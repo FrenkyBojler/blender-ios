@@ -43,11 +43,13 @@
 
 #include "grease_pencil_trace_util.hh"
 
+namespace blender {
+
 #ifdef WITH_POTRACE
 #  include "potracelib.h"
 #endif
 
-namespace blender::ed::sculpt_paint::greasepencil {
+namespace ed::sculpt_paint::greasepencil {
 
 /* -------------------------------------------------------------------- */
 /** \name Trace Image Operator
@@ -98,8 +100,7 @@ struct TraceJob {
   TraceMode mode;
   /* Custom source frame, allows overriding the default scene frame. */
   int frame_number;
-  int foreground_material_index;
-  int background_material_index;
+  int material_index;
 
   bool success;
   bool was_canceled;
@@ -129,7 +130,7 @@ void TraceJob::ensure_output_object()
   }
 
   /* Create Layer. */
-  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(this->ob_grease_pencil->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(this->ob_grease_pencil->data);
   this->layer = grease_pencil.get_active_layer();
   if (this->layer == nullptr) {
     Layer &new_layer = grease_pencil.add_layer(DATA_("Trace"));
@@ -156,29 +157,13 @@ static float4x4 pixel_to_object_transform(const Object &image_object,
   return to_normalized;
 }
 
-static int ensure_foreground_material(Main *bmain, Object *ob, const StringRefNull name)
-{
-  int index = BKE_grease_pencil_object_material_index_get_by_name(ob, name.c_str());
-  if (index == -1) {
-    Material &ma = *BKE_grease_pencil_object_material_new(bmain, ob, name.c_str(), &index);
-    copy_v4_v4(ma.gp_style->stroke_rgba, float4(0, 0, 0, 1));
-    ma.gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
-    ma.gp_style->flag |= GP_MATERIAL_FILL_SHOW;
-  }
-  return index;
-}
-
-static int ensure_background_material(Main *bmain, Object *ob, const StringRefNull name)
+static int ensure_material(Main *bmain, Object *ob, const StringRefNull name)
 {
   int index = BKE_grease_pencil_object_material_index_get_by_name(ob, name.c_str());
   if (index == -1) {
     Material &ma = *BKE_grease_pencil_object_material_new(bmain, ob, name.c_str(), &index);
     copy_v4_v4(ma.gp_style->stroke_rgba, float4(0, 0, 0, 1));
     copy_v4_v4(ma.gp_style->fill_rgba, float4(0, 0, 0, 1));
-    ma.gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
-    ma.gp_style->flag |= GP_MATERIAL_FILL_SHOW;
-    ma.gp_style->flag |= GP_MATERIAL_IS_STROKE_HOLDOUT;
-    ma.gp_style->flag |= GP_MATERIAL_IS_FILL_HOLDOUT;
   }
   return index;
 }
@@ -198,34 +183,25 @@ static bke::CurvesGeometry grease_pencil_trace_image(TraceJob &trace_job, const 
   image_trace::Trace *trace = image_trace::trace_bitmap(params, *bm);
   image_trace::free_bitmap(bm);
 
-  /* Attribute ID for which curves are "holes" with a negative trace sign. */
-  const StringRef hole_attribute_id = "is_hole";
-
   /* Transform from bitmap index space to local image object space. */
   const float4x4 transform = pixel_to_object_transform(*trace_job.ob_active, ibuf);
-  bke::CurvesGeometry trace_curves = image_trace::trace_to_curves(
-      *trace, hole_attribute_id, transform);
+  bke::CurvesGeometry trace_curves = image_trace::trace_to_curves(*trace, transform);
   image_trace::free_trace(trace);
 
   /* Assign different materials to foreground curves and hole curves. */
   bke::MutableAttributeAccessor attributes = trace_curves.attributes_for_write();
-  BLI_assert_msg(trace_job.foreground_material_index >= 0,
-                 "ensure_foreground_material must be called on the main thread");
-  BLI_assert_msg(trace_job.background_material_index >= 0,
-                 "ensure_background_material must be called on the main thread");
-  const VArraySpan<bool> holes = *attributes.lookup<bool>(hole_attribute_id);
+  BLI_assert_msg(trace_job.material_index >= 0,
+                 "ensure_material must be called on the main thread");
   bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
-  threading::parallel_for(trace_curves.curves_range(), 4096, [&](const IndexRange range) {
-    for (const int curve_i : range) {
-      const bool is_hole = holes[curve_i];
-      material_indices.span[curve_i] = (is_hole ? trace_job.background_material_index :
-                                                  trace_job.foreground_material_index);
-    }
-  });
+  material_indices.span.fill(trace_job.material_index);
   material_indices.finish();
-  /* Remove hole attribute */
-  attributes.remove(hole_attribute_id);
+
+  bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
+      "fill_id", bke::AttrDomain::Curve);
+  /* Create a single fill from all curves. */
+  fill_ids.span.fill(1);
+  fill_ids.finish();
 
   /* Uniform radius for all trace curves. */
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
@@ -301,8 +277,7 @@ static void trace_start_job(void *customdata, wmJobWorkerStatus *worker_status)
 static void trace_end_job(void *customdata)
 {
   TraceJob &trace_job = *static_cast<TraceJob *>(customdata);
-  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(
-      trace_job.ob_grease_pencil->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(trace_job.ob_grease_pencil->data);
 
   auto ensure_drawing_at_frame = [&](const int frame_number) {
     const std::optional<int> start_frame = trace_job.layer->start_frame_at(frame_number);
@@ -372,7 +347,7 @@ static bool grease_pencil_trace_image_poll(bContext *C)
     return false;
   }
 
-  Image *image = blender::id_cast<Image *>(ob->data);
+  Image *image = id_cast<Image *>(ob->data);
   if (!ELEM(image->source, IMA_SRC_FILE, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
     CTX_wm_operator_poll_msg_set(C, "No valid image format selected");
     return false;
@@ -393,7 +368,7 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
   job->v3d = CTX_wm_view3d(C);
   job->base_active = CTX_data_active_base(C);
   job->ob_active = job->base_active->object;
-  job->image = blender::id_cast<Image *>(job->ob_active->data);
+  job->image = id_cast<Image *>(job->ob_active->data);
   job->frame_target = scene->r.cfra;
   job->use_current_frame = RNA_boolean_get(op->ptr, "use_current_frame");
 
@@ -426,13 +401,10 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
   job->ensure_output_object();
 
   /* Back to active base. */
-  blender::ed::object::base_activate(job->C, job->base_active);
+  ed::object::base_activate(job->C, job->base_active);
 
-  /* Create materials on the main thread before starting the job. */
-  job->foreground_material_index = ensure_foreground_material(
-      job->bmain, job->ob_grease_pencil, "Stroke");
-  job->background_material_index = ensure_background_material(
-      job->bmain, job->ob_grease_pencil, "Holdout");
+  /* Create material on the main thread before starting the job. */
+  job->material_index = ensure_material(job->bmain, job->ob_grease_pencil, "Material");
 
   if ((job->image->source == IMA_SRC_FILE) || (job->frame_number > 0)) {
     wmJobWorkerStatus worker_status = {};
@@ -579,7 +551,7 @@ static void GREASE_PENCIL_OT_trace_image(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace blender::ed::sculpt_paint::greasepencil
+}  // namespace ed::sculpt_paint::greasepencil
 
 /* -------------------------------------------------------------------- */
 /** \name Registration
@@ -595,3 +567,5 @@ void ED_operatortypes_grease_pencil_trace()
 }
 
 /** \} */
+
+}  // namespace blender

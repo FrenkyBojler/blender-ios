@@ -25,6 +25,8 @@
 #  include "BLI_string_utf8.h"
 #endif
 
+namespace blender {
+
 enum eMatrixAccess_t {
   MAT_ACCESS_ROW,
   MAT_ACCESS_COL,
@@ -1982,7 +1984,7 @@ static PyObject *Matrix_decompose(MatrixObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Matrix_lerp_doc,
-    ".. function:: lerp(other, factor, /)\n"
+    ".. method:: lerp(other, factor, /)\n"
     "\n"
     "   Returns the interpolation of two matrices. Uses polar decomposition, see"
     "   \"Matrix Animation and Polar Decomposition\", Shoemake and Duff, 1992.\n"
@@ -4165,3 +4167,5 @@ static PyObject *MatrixAccess_CreatePyObject(MatrixObject *matrix, const eMatrix
 }
 
 /** \} */
+
+}  // namespace blender

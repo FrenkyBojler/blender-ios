@@ -57,9 +57,11 @@
 
 #include <fmt/format.h>
 
+namespace blender {
+
 static CLG_LogRef LOG = {"ui.icon"};
 
-namespace blender::ui {
+namespace ui {
 
 struct IconImage {
   int w;
@@ -403,13 +405,13 @@ static void icon_node_socket_draw(
   };
 
   float color_inner[4];
-  blender::ed::space_node::std_node_socket_colors_get(socket_type, color_inner);
+  ed::space_node::std_node_socket_colors_get(socket_type, color_inner);
 
   float color_outer[4] = {0};
   theme::get_color_type_4fv(TH_WIRE, SPACE_NODE, color_outer);
   color_outer[3] = 1.0f;
 
-  blender::ed::space_node::node_draw_nodesocket(
+  ed::space_node::node_draw_nodesocket(
       &rect, color_inner, color_outer, U.pixelsize, SOCK_DISPLAY_SHAPE_CIRCLE, 1.0f);
 }
 
@@ -1874,7 +1876,7 @@ void icon_render_id(
 
   /* For objects, first try if a preview can created via the object data. */
   if (GS(id->name) == ID_OB) {
-    Object *ob = blender::id_cast<Object *>(id);
+    Object *ob = id_cast<Object *>(id);
     if (ED_preview_id_is_supported(static_cast<const ID *>(ob->data))) {
       id_to_render = ob->data;
     }
@@ -1928,10 +1930,10 @@ int id_icon_get(const bContext *C, ID *id, const bool big)
       iconid = ui_id_screen_get_icon(C, id);
       break;
     case ID_OB:
-      iconid = icon_from_object_type(blender::id_cast<Object *>(id));
+      iconid = icon_from_object_type(id_cast<Object *>(id));
       break;
     case ID_GR:
-      iconid = icon_color_from_collection(blender::id_cast<Collection *>(id));
+      iconid = icon_color_from_collection(id_cast<Collection *>(id));
       break;
     default:
       break;
@@ -1981,16 +1983,16 @@ int icon_from_rnaptr(const bContext *C, PointerRNA *ptr, int rnaicon, const bool
   if (RNA_struct_is_ID(ptr->type)) {
     id = ptr->owner_id;
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_MaterialSlot)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_MaterialSlot)) {
     id = static_cast<ID *>(RNA_pointer_get(ptr, "material").data);
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_TextureSlot)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_TextureSlot)) {
     id = static_cast<ID *>(RNA_pointer_get(ptr, "texture").data);
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_FileBrowserFSMenuEntry)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_FileBrowserFSMenuEntry)) {
     return RNA_int_get(ptr, "icon");
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_DynamicPaintSurface)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_DynamicPaintSurface)) {
     const DynamicPaintSurface *surface = static_cast<const DynamicPaintSurface *>(ptr->data);
 
     if (surface->format == MOD_DPAINT_SURFACE_F_PTEX) {
@@ -2003,7 +2005,7 @@ int icon_from_rnaptr(const bContext *C, PointerRNA *ptr, int rnaicon, const bool
       return ICON_FILE_IMAGE;
     }
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_StudioLight)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_StudioLight)) {
     StudioLight *sl = static_cast<StudioLight *>(ptr->data);
     switch (sl->flag & STUDIOLIGHT_FLAG_ORIENTATIONS) {
       case STUDIOLIGHT_TYPE_STUDIO:
@@ -2333,4 +2335,5 @@ ImBuf *icon_alert_imbuf_get(AlertIcon icon, float size)
 #endif
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

@@ -191,7 +191,7 @@ static void add_orco_mesh(Object &ob,
 
   if (!layer_orco.is_empty()) {
     if (layer == CD_ORCO) {
-      BKE_mesh_orco_verts_transform(blender::id_cast<Mesh *>(ob.data), layer_orco, false);
+      BKE_mesh_orco_verts_transform(id_cast<Mesh *>(ob.data), layer_orco, false);
     }
   }
 }
@@ -296,7 +296,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
                                 GeometrySet **r_geometry_set)
 {
   /* Input mesh shouldn't be modified. */
-  Mesh &mesh_input = *blender::id_cast<Mesh *>(ob.data);
+  Mesh &mesh_input = *id_cast<Mesh *>(ob.data);
   /* The final mesh is the result of calculating all enabled modifiers. */
   Mesh *mesh = nullptr;
   /* The result of calculating all leading deform modifiers. */
@@ -319,8 +319,8 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
   /* Sculpt can skip certain modifiers. */
   const bool has_multires = BKE_sculpt_multires_active(&scene, &ob) != nullptr;
   bool multires_applied = false;
-  const bool sculpt_mode = ob.mode & OB_MODE_SCULPT && ob.sculpt && !use_render;
-  const bool sculpt_dyntopo = (sculpt_mode && ob.sculpt->bm) && !use_render;
+  const bool sculpt_mode = ob.mode & OB_MODE_SCULPT && ob.runtime->sculpt_session && !use_render;
+  const bool sculpt_dyntopo = (sculpt_mode && ob.runtime->sculpt_session->bm) && !use_render;
 
   /* Modifier evaluation contexts for different types of modifiers. */
   ModifierApplyFlag apply_render = use_render ? MOD_APPLY_RENDER : ModifierApplyFlag(0);
@@ -761,7 +761,7 @@ static void editbmesh_calc_modifiers(Depsgraph &depsgraph,
                                      Mesh **r_final,
                                      GeometrySet **r_geometry_set)
 {
-  Mesh &mesh_input = *blender::id_cast<Mesh *>(ob.data);
+  Mesh &mesh_input = *id_cast<Mesh *>(ob.data);
   BMEditMesh &em_input = *mesh_input.runtime->edit_mesh;
 
   Mesh *mesh_cage = nullptr;
@@ -999,7 +999,7 @@ static void mesh_build_data(Depsgraph &depsgraph,
    * Check ownership now, since later on we can not go to a mesh owned by someone else via
    * object's runtime: this could cause access freed data on depsgraph destruction (mesh who owns
    * the final result might be freed prior to object). */
-  Mesh *mesh = blender::id_cast<Mesh *>(ob.data);
+  Mesh *mesh = id_cast<Mesh *>(ob.data);
   const bool is_mesh_eval_owned = (mesh_eval != mesh->runtime->mesh_eval);
   BKE_object_eval_assign_data(&ob, &mesh_eval->id, is_mesh_eval_owned);
 
@@ -1018,7 +1018,7 @@ static void mesh_build_data(Depsgraph &depsgraph,
   BLI_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
   mesh_eval->key = mesh->key;
 
-  if ((ob.mode & OB_MODE_ALL_SCULPT) && ob.sculpt) {
+  if ((ob.mode & OB_MODE_ALL_SCULPT) && ob.runtime->sculpt_session) {
     if (DEG_is_active(&depsgraph)) {
       BKE_sculpt_update_object_after_eval(&depsgraph, &ob);
     }
@@ -1032,7 +1032,7 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
                                  Object &obedit,
                                  CustomData_MeshMasks &dataMask)
 {
-  Mesh *mesh = blender::id_cast<Mesh *>(obedit.data);
+  Mesh *mesh = id_cast<Mesh *>(obedit.data);
   Mesh *me_cage;
   Mesh *me_final;
   GeometrySet *geometry_set_eval;
@@ -1136,7 +1136,7 @@ void mesh_data_update(Depsgraph &depsgraph,
    * to the pre-evaluated state. This is because the evaluated state is not necessarily sharing the
    * `edit_mesh` pointer with the input. For example, if the object is first evaluated in the
    * object mode, and then user in another scene moves object to edit mode. */
-  Mesh *mesh = blender::id_cast<Mesh *>(ob.data);
+  Mesh *mesh = id_cast<Mesh *>(ob.data);
 
   bool need_mapping;
   CustomData_MeshMasks cddata_masks = dataMask;
@@ -1155,7 +1155,7 @@ Mesh *mesh_get_eval_deform(Depsgraph *depsgraph,
                            Object *ob,
                            const CustomData_MeshMasks *dataMask)
 {
-  BMEditMesh *em = (blender::id_cast<Mesh *>(ob->data))->runtime->edit_mesh.get();
+  BMEditMesh *em = (id_cast<Mesh *>(ob->data))->runtime->edit_mesh.get();
   if (em != nullptr) {
     /* There is no such a concept as deformed mesh in edit mode.
      * Explicitly disallow this request so that the evaluated result is not modified with evaluated

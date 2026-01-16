@@ -309,9 +309,9 @@ class GreasePencil : Overlay {
                                  ResourceHandleRange res_handle,
                                  select::ID select_id = select::SelectMap::select_invalid_id())
   {
-    using namespace blender;
     using namespace blender::ed::greasepencil;
-    ::GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<::GreasePencil>(*ob);
+    blender::GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<blender::GreasePencil>(
+        *ob);
 
     const bool is_stroke_order_3d = (grease_pencil.flag & GREASE_PENCIL_STROKE_ORDER_3D) != 0;
 
@@ -343,26 +343,52 @@ class GreasePencil : Overlay {
       const bke::CurvesGeometry &curves = info.drawing.strokes();
       const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
       const bke::AttributeAccessor attributes = curves.attributes();
+      const GroupedSpan<int3> triangles = info.drawing.triangles();
       const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
           "material_index", bke::AttrDomain::Curve, 0);
       const VArray<bool> cyclic = *attributes.lookup_or_default<bool>(
           "cyclic", bke::AttrDomain::Curve, false);
 
-      IndexMaskMemory memory;
-      const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
-          *ob, info.drawing, memory);
+      const VArray<bool> hide_stroke = *attributes.lookup_or_default<bool>(
+          "hide_stroke", bke::AttrDomain::Curve, false);
+      const VArray<int> fill_id = *attributes.lookup_or_default<int>(
+          "fill_id", bke::AttrDomain::Curve, 0);
 
-      visible_strokes.foreach_index([&](const int stroke_i) {
-        const IndexRange points = points_by_curve[stroke_i];
-        const int material_index = stroke_materials[stroke_i];
+      IndexMaskMemory memory;
+      const IndexMask visible_fills = ed::greasepencil::retrieve_visible_fills(
+          *ob, info.drawing, memory);
+      const std::optional<GroupedSpan<int>> fills = info.drawing.fills();
+
+      const bool hide_onion = info.onion_id != 0;
+
+      visible_fills.foreach_index([&](const int fill_index) {
+        int first_curve = fill_index;
+        if (fills) {
+          first_curve = (*fills)[fill_index].first();
+        }
+
+        const int material_index = stroke_materials[first_curve];
         MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, material_index + 1);
 
-        const bool hide_onion = info.onion_id != 0;
         const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
 
-        const int num_stroke_triangles = (points.size() >= 3) ? (points.size() - 2) : 0;
-        const int num_stroke_vertices = (points.size() +
-                                         int(cyclic[stroke_i] && (points.size() >= 3)));
+        const int num_stroke_triangles = triangles[fill_index].size();
+
+        int num_stroke_vertices = 0;
+
+        if (!fills) {
+          const int curve_i = fill_index;
+          const IndexRange points = points_by_curve[curve_i];
+          num_stroke_vertices += (points.size() + int(cyclic[curve_i] && (points.size() >= 3)));
+        }
+        else {
+          const Span<int> fill = (*fills)[fill_index];
+          for (const int pos : fill.index_range()) {
+            const int curve_i = fill[pos];
+            const IndexRange points = points_by_curve[curve_i];
+            num_stroke_vertices += (points.size() + int(cyclic[curve_i] && (points.size() >= 3)));
+          }
+        }
 
         if (hide_material || hide_onion) {
           t_offset += num_stroke_triangles;
@@ -370,23 +396,22 @@ class GreasePencil : Overlay {
           return;
         }
 
-        blender::gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(scene, ob);
+        gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(scene, ob);
 
-        const bool show_stroke = (gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0;
-        const bool show_fill = (points.size() >= 3) &&
-                               (gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
+        const bool show_stroke = !hide_stroke[first_curve];
+        const bool show_fill = (num_stroke_triangles != 0) && fill_id[first_curve] != 0;
 
         if (show_fill) {
-          int v_first = t_offset * 3;
-          int v_count = num_stroke_triangles * 3;
+          const int v_first = t_offset * 3;
+          const int v_count = num_stroke_triangles * 3;
           pass.draw(geom, 1, v_count, v_first, res_handle, select_id.get());
         }
 
         t_offset += num_stroke_triangles;
 
         if (show_stroke) {
-          int v_first = t_offset * 3;
-          int v_count = num_stroke_vertices * 2 * 3;
+          const int v_first = t_offset * 3;
+          const int v_count = num_stroke_vertices * 2 * 3;
           pass.draw(geom, 1, v_count, v_first, res_handle, select_id.get());
         }
         t_offset += num_stroke_vertices * 2;
@@ -435,8 +460,9 @@ class GreasePencil : Overlay {
   {
     const ToolSettings *ts = scene->toolsettings;
 
-    const ::GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<::GreasePencil>(object);
-    const blender::bke::greasepencil::Layer *active_layer = grease_pencil.get_active_layer();
+    const blender::GreasePencil &grease_pencil =
+        DRW_object_get_data_for_drawing<blender::GreasePencil>(object);
+    const bke::greasepencil::Layer *active_layer = grease_pencil.get_active_layer();
 
     float4x4 mat = object.object_to_world();
     if (active_layer && ts->gp_sculpt.lock_axis != GP_LOCKAXIS_CURSOR) {
@@ -462,7 +488,7 @@ class GreasePencil : Overlay {
       case GP_LOCKAXIS_VIEW:
         /* view aligned */
         /* TODO(fclem): Global access. */
-        mat = blender::draw::View::default_get().viewinv();
+        mat = draw::View::default_get().viewinv();
         break;
     }
 
@@ -487,7 +513,8 @@ class GreasePencil : Overlay {
     uchar4 color;
     ui::theme::get_color_4ubv(res.object_wire_theme_id(ob_ref, state), color);
 
-    ::GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<::GreasePencil>(object);
+    blender::GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<blender::GreasePencil>(
+        object);
 
     Vector<ed::greasepencil::DrawingInfo> drawings = ed::greasepencil::retrieve_visible_drawings(
         *state.scene, grease_pencil, false);

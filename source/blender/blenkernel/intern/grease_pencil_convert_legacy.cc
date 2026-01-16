@@ -32,6 +32,7 @@
 #include "BKE_object.hh"
 #include "BKE_screen.hh"
 
+#include "BLO_read_write.hh"
 #include "BLO_readfile.hh"
 
 #include "BLI_color.hh"
@@ -43,6 +44,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
+#include "BLI_string_utils.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -528,19 +530,6 @@ class AnimDataConvertor {
       return;
     }
 
-    /* Ensure existing actions moved to a different ID type keep a 'valid' `idroot` value. Not
-     * essential, but 'nice to have'. */
-    if (GS(this->id_src.name) != GS(this->id_dst.name)) {
-      if (!this->animdata_dst) {
-        this->animdata_dst = BKE_animdata_ensure_id(&this->id_dst);
-      }
-      auto actions_idroot_ensure = [&](bAction &action) -> bool {
-        BKE_animdata_action_ensure_idroot(&this->id_dst, &action);
-        return true;
-      };
-      this->animdata_action_foreach(*this->animdata_dst, actions_idroot_ensure);
-    }
-
     if (&id_src == &id_dst) {
       if (this->has_changes) {
         DEG_id_tag_update(&this->id_src, ID_RECALC_ANIMATION);
@@ -680,8 +669,6 @@ static float3x2 get_legacy_stroke_to_texture_matrix(const float2 uv_translation,
                                                     const float uv_rotation,
                                                     const float2 uv_scale)
 {
-  using namespace blender;
-
   /* Bounding box data. */
   const float2 minv = float2(-1.0f, -1.0f);
   const float2 maxv = float2(1.0f, 1.0f);
@@ -718,9 +705,8 @@ static float3x2 get_legacy_stroke_to_texture_matrix(const float2 uv_translation,
 /*
  * This gets the legacy layer-space to stroke-space matrix.
  */
-static blender::float4x2 get_legacy_layer_to_stroke_matrix(bGPDstroke *gps)
+static float4x2 get_legacy_layer_to_stroke_matrix(bGPDstroke *gps)
 {
-  using namespace blender;
   using namespace blender::math;
 
   const bGPDspoint *points = gps->points;
@@ -757,7 +743,7 @@ static blender::float4x2 get_legacy_layer_to_stroke_matrix(bGPDstroke *gps)
   return mat;
 }
 
-static blender::float4x2 get_legacy_texture_matrix(bGPDstroke *gps)
+static float4x2 get_legacy_texture_matrix(bGPDstroke *gps)
 {
   const float3x2 texture_matrix = get_legacy_stroke_to_texture_matrix(
       float2(gps->uv_translation), gps->uv_rotation, float2(gps->uv_scale));
@@ -1181,7 +1167,6 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
 constexpr const char *OFFSET_RADIUS_NODETREE_NAME = "Offset Radius GPv3 Conversion";
 static bNodeTree *offset_radius_node_tree_add(ConversionData &conversion_data, Library *library)
 {
-  using namespace blender;
   /* NOTE: DO NOT translate this ID name, it is used to find a potentially already existing
    * node-tree. */
   bNodeTree *group = bke::node_tree_add_in_lib(
@@ -2932,7 +2917,7 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
     if (object.type != OB_GPENCIL_LEGACY) {
       continue;
     }
-    bGPdata *legacy_gpd = blender::id_cast<bGPdata *>(object.data);
+    bGPdata *legacy_gpd = id_cast<bGPdata *>(object.data);
     if (!legacy_gpd) {
       continue;
     }
@@ -3061,7 +3046,7 @@ static void legacy_gpencil_object(ConversionData &conversion_data, Object &objec
 {
   BLI_assert((GS(object.data->name) == ID_GD_LEGACY));
 
-  bGPdata *gpd = blender::id_cast<bGPdata *>(object.data);
+  bGPdata *gpd = id_cast<bGPdata *>(object.data);
 
   GreasePencil *new_grease_pencil = conversion_data.legacy_to_greasepencil_data.lookup_default(
       gpd, nullptr);
@@ -3073,7 +3058,7 @@ static void legacy_gpencil_object(ConversionData &conversion_data, Object &objec
     id_us_min(&new_grease_pencil->id);
   }
 
-  object.data = blender::id_cast<ID *>(new_grease_pencil);
+  object.data = id_cast<ID *>(new_grease_pencil);
   object.type = OB_GREASE_PENCIL;
 
   /* NOTE: Could also use #BKE_id_free_us, to also free the legacy GP if not used anymore? */
@@ -3161,6 +3146,134 @@ void legacy_main(Main &bmain,
         eBlendfileLinkAppendForeachItemFlag(
             BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_DIRECT |
             BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_INDIRECT));
+  }
+}
+
+static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attributes(
+    BlendFileReadReport &reports,
+    Object *object,
+    const StringRef layer_name,
+    const int frame_number,
+    blender::bke::greasepencil::Drawing &drawing)
+{
+  using namespace blender;
+  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  if (curves.is_empty()) {
+    return;
+  }
+
+  Array<bool> material_hides_stroke(curves.curves_num(), false);
+  Array<bool> material_uses_fill(curves.curves_num(), false);
+  const VArray<int> materials = *curves.attributes().lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Curve, 0);
+  threading::parallel_for(curves.curves_range(), 1024, [&](const IndexRange range) {
+    for (const int curve_i : range) {
+      const Material *material = BKE_object_material_get(object, materials[curve_i] + 1);
+      if (!material) {
+        continue;
+      }
+      BLI_assert(material->gp_style != nullptr);
+      material_hides_stroke[curve_i] = (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW) == 0;
+      material_uses_fill[curve_i] = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
+    }
+  });
+
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  /* Optimization: If all of the strokes are shown, don't create the attribute. */
+  const bool needs_hide_stroke_attribute = std::any_of(
+      material_hides_stroke.begin(), material_hides_stroke.end(), [&](const bool hide_stroke) {
+        return hide_stroke;
+      });
+  if (needs_hide_stroke_attribute) {
+    constexpr StringRef hide_stroke_name = "hide_stroke";
+    /* Ensure that the name is not already taken. If so, rename the existing attribute and report a
+     * warning. */
+    if (attributes.contains(hide_stroke_name)) {
+      Set<StringRefNull> names = attributes.all_ids();
+      std::string unique_name = BLI_uniquename_cb(
+          [&](StringRef name) { return names.contains(StringRefNull(name)); },
+          '.',
+          hide_stroke_name);
+      attributes.rename(hide_stroke_name, unique_name);
+      BLO_reportf_wrap(
+          &reports,
+          RPT_WARNING,
+          RPT_("Renamed attribute '%s' to '%s' in object '%s' on layer '%s' on frame %d!"),
+          hide_stroke_name,
+          unique_name,
+          object->id.name + 2,
+          layer_name,
+          frame_number);
+    }
+    bke::SpanAttributeWriter<bool> hide_stroke =
+        attributes.lookup_or_add_for_write_only_span<bool>(hide_stroke_name,
+                                                           bke::AttrDomain::Curve);
+    hide_stroke.span.copy_from(material_hides_stroke);
+    hide_stroke.finish();
+  }
+
+  /* Optimization: If no fills are used in this drawing, don't create the attribute. */
+  const bool needs_fill_id_attribute = std::any_of(material_uses_fill.begin(),
+                                                   material_uses_fill.end(),
+                                                   [&](const bool use_fill) { return use_fill; });
+  if (needs_fill_id_attribute) {
+    constexpr StringRef fill_id_name = "fill_id";
+    /* Ensure that the name is not already taken. If so, rename the existing attribute. */
+    if (attributes.contains(fill_id_name)) {
+      Set<StringRefNull> names = attributes.all_ids();
+      std::string unique_name = BLI_uniquename_cb(
+          [&](StringRef name) { return names.contains(StringRefNull(name)); }, '.', fill_id_name);
+      attributes.rename(fill_id_name, unique_name);
+      BLO_reportf_wrap(
+          &reports,
+          RPT_WARNING,
+          RPT_("Renamed attribute '%s' to '%s' in object '%s' on layer '%s' on frame %d!"),
+          fill_id_name,
+          unique_name,
+          object->id.name + 2,
+          layer_name,
+          frame_number);
+    }
+    bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_only_span<int>(
+        "fill_id", bke::AttrDomain::Curve);
+    int current_fill_id = 1;
+    for (const int curve_i : curves.curves_range()) {
+      if (material_uses_fill[curve_i]) {
+        fill_ids.span[curve_i] = current_fill_id;
+        current_fill_id++;
+      }
+      else {
+        fill_ids.span[curve_i] = 0;
+      }
+    }
+    fill_ids.finish();
+  }
+}
+
+void grease_pencil_material_stroke_fill_toggle_to_attributes(Main &bmain,
+                                                             BlendFileReadReport &reports)
+{
+  using namespace blender;
+  using namespace bke::greasepencil;
+  /* NOTE: We ignore the edge cases where Grease Pencil data is reused in different objects.
+   * This does break visual compatibility in the case where different objects use different
+   * materials that use a different stroke/fill toggle state.
+   * It seems too unusual for it to make sense to handle this in versioning. */
+  Set<GreasePencil *> grease_pencils;
+  for (Object &object : bmain.objects) {
+    if (object.type != OB_GREASE_PENCIL) {
+      continue;
+    }
+    GreasePencil *grease_pencil = id_cast<GreasePencil *>(object.data);
+    if (grease_pencils.add(grease_pencil)) {
+      for (Layer *layer : grease_pencil->layers_for_write()) {
+        for (auto [frame_number, frame] : layer->frames().items()) {
+          Drawing &drawing = *grease_pencil->get_drawing_at(*layer, frame_number);
+          convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attributes(
+              reports, &object, layer->name(), frame_number, drawing);
+        }
+      }
+    }
   }
 }
 

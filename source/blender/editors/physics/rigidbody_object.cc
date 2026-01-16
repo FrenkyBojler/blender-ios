@@ -40,6 +40,8 @@
 
 #include "physics_intern.hh"
 
+namespace blender {
+
 /* ********************************************** */
 /* Helper API's for RigidBody Objects Editing */
 
@@ -63,7 +65,7 @@ static bool operator_rigidbody_active_poll(bContext *C)
   }
 
   if (ED_operator_object_active_editable(C)) {
-    Object *ob = blender::ed::object::context_active_object(C);
+    Object *ob = ed::object::context_active_object(C);
     return (ob && ob->rigidbody_object);
   }
 
@@ -78,7 +80,7 @@ static bool operator_rigidbody_add_poll(bContext *C)
   }
 
   if (ED_operator_object_active_editable(C)) {
-    Object *ob = blender::ed::object::context_active_object(C);
+    Object *ob = ed::object::context_active_object(C);
     return (ob && ob->type == OB_MESH);
   }
 
@@ -106,7 +108,7 @@ static wmOperatorStatus rigidbody_object_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  Object *ob = blender::ed::object::context_active_object(C);
+  Object *ob = ed::object::context_active_object(C);
   int type = RNA_enum_get(op->ptr, "type");
   bool changed;
 
@@ -153,7 +155,7 @@ static wmOperatorStatus rigidbody_object_remove_exec(bContext *C, wmOperator *op
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  Object *ob = blender::ed::object::context_active_object(C);
+  Object *ob = ed::object::context_active_object(C);
   bool changed = false;
 
   /* apply to active object */
@@ -300,7 +302,7 @@ static wmOperatorStatus rigidbody_objects_shape_change_exec(bContext *C, wmOpera
     if (ob->rigidbody_object) {
       /* use RNA-system to change the property and perform all necessary changes */
       PointerRNA ptr = RNA_pointer_create_discrete(
-          &ob->id, &RNA_RigidBodyObject, ob->rigidbody_object);
+          &ob->id, RNA_RigidBodyObject, ob->rigidbody_object);
       RNA_enum_set(&ptr, "collision_shape", shape);
 
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
@@ -487,7 +489,7 @@ static wmOperatorStatus rigidbody_objects_calc_mass_exec(bContext *C, wmOperator
 
       /* use RNA-system to change the property and perform all necessary changes */
       PointerRNA ptr = RNA_pointer_create_discrete(
-          &ob->id, &RNA_RigidBodyObject, ob->rigidbody_object);
+          &ob->id, RNA_RigidBodyObject, ob->rigidbody_object);
       RNA_float_set(&ptr, "mass", mass);
 
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
@@ -568,3 +570,5 @@ void RIGIDBODY_OT_mass_calculate(wmOperatorType *ot)
 }
 
 /* ********************************************** */
+
+}  // namespace blender
