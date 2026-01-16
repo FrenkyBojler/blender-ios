@@ -17,11 +17,15 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
+
+namespace blender {
 
 /* **************** INVERT ******************** */
 
-namespace blender::nodes::node_composite_invert_cc {
+namespace nodes::node_composite_invert_cc {
 
 static void cmp_node_invert_declare(NodeDeclarationBuilder &b)
 {
@@ -51,32 +55,40 @@ static int node_gpu_material(GPUMaterial *material,
   return GPU_stack_link(material, node, "node_composite_invert", inputs, outputs);
 }
 
-static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+static float4 invert(const float4 &color,
+                     const float factor,
+                     const bool invert_color,
+                     const bool invert_alpha)
 {
-  static auto function = mf::build::SI4_SO<float4, float, bool, bool, float4>(
+  float4 result = color;
+  if (invert_color) {
+    result = float4(1.0f - result.xyz(), result.w);
+  }
+  if (invert_alpha) {
+    result = float4(result.xyz(), 1.0f - result.w);
+  }
+  return math::interpolate(color, result, factor);
+}
+
+using compositor::Color;
+
+static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
+{
+  static auto function = mf::build::SI4_SO<Color, float, bool, bool, Color>(
       "Invert Color",
-      [](const float4 &color, const float factor, const bool invert_color, const bool invert_alpha)
-          -> float4 {
-        float4 result = color;
-        if (invert_color) {
-          result = float4(1.0f - result.xyz(), result.w);
-        }
-        if (invert_alpha) {
-          result = float4(result.xyz(), 1.0f - result.w);
-        }
-        return math::interpolate(color, result, factor);
-      },
+      [](const Color &color, const float factor, const bool invert_color, const bool invert_alpha)
+          -> Color { return Color(invert(float4(color), factor, invert_color, invert_alpha)); },
       mf::build::exec_presets::SomeSpanOrSingle<0>());
   builder.set_matching_fn(function);
 }
 
-}  // namespace blender::nodes::node_composite_invert_cc
+}  // namespace nodes::node_composite_invert_cc
 
 static void register_node_type_cmp_invert()
 {
-  namespace file_ns = blender::nodes::node_composite_invert_cc;
+  namespace file_ns = nodes::node_composite_invert_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeInvert", CMP_NODE_INVERT);
   ntype.ui_name = "Invert Color";
@@ -87,6 +99,8 @@ static void register_node_type_cmp_invert()
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_invert)
+
+}  // namespace blender

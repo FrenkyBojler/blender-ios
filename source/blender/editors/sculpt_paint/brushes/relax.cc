@@ -7,6 +7,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
 
+#include "BKE_object_types.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
@@ -50,7 +51,7 @@ static void apply_positions_faces(const Sculpt &sd,
                                   const MutableSpan<float3> translations,
                                   const PositionDeformData &position_data)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   clip_and_lock_translations(sd, ss, position_data.eval, verts, translations);
   position_data.deform(translations, verts);
 }
@@ -61,7 +62,7 @@ static void apply_positions_grids(const Sculpt &sd,
                                   const Span<float3> positions,
                                   const MutableSpan<float3> translations)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
   clip_and_lock_translations(sd, ss, positions, translations);
@@ -75,7 +76,7 @@ static void apply_positions_bmesh(const Sculpt &sd,
                                   const Span<float3> positions)
 
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
 
   clip_and_lock_translations(sd, ss, positions, translations);
   apply_translations(translations, verts);
@@ -113,7 +114,7 @@ BLI_NOINLINE static void calc_factors_faces(const Depsgraph &depsgraph,
                                             MeshLocalData &tls,
                                             const MutableSpan<float> factors)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Span<int> verts = node.verts();
@@ -150,10 +151,10 @@ static void do_relax_face_sets_brush_mesh(const Depsgraph &depsgraph,
                                           const float strength,
                                           const bool relax_face_sets)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
@@ -193,7 +194,8 @@ static void do_relax_face_sets_brush_mesh(const Depsgraph &depsgraph,
         faces,
         corner_verts,
         vert_to_face_map,
-        ss.vertex_info.boundary,
+        ss.boundary_info_cache->verts,
+        ss.boundary_info_cache->edges,
         attribute_data.face_sets,
         attribute_data.hide_poly,
         relax_face_sets,
@@ -228,7 +230,7 @@ BLI_NOINLINE static void calc_factors_grids(const Depsgraph &depsgraph,
                                             const MutableSpan<float3> positions,
                                             const MutableSpan<float> factors)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
@@ -275,14 +277,14 @@ static void do_relax_face_sets_brush_grids(const Depsgraph &depsgraph,
                                            const float strength,
                                            const bool relax_face_sets)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   MutableSpan<float3> positions = subdiv_ccg.positions;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
@@ -323,7 +325,8 @@ static void do_relax_face_sets_brush_grids(const Depsgraph &depsgraph,
         corner_verts,
         face_sets,
         vert_to_face_map,
-        ss.vertex_info.boundary,
+        ss.boundary_info_cache->verts,
+        ss.boundary_info_cache->edges,
         nodes[i].grids(),
         relax_face_sets,
         factors.as_span().slice(node_vert_offsets[pos]),
@@ -353,7 +356,7 @@ static void calc_factors_bmesh(const Depsgraph &depsgraph,
                                MutableSpan<float3> positions,
                                MutableSpan<float> factors)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
@@ -397,7 +400,7 @@ static void do_relax_face_sets_brush_bmesh(const Depsgraph &depsgraph,
       nodes, node_mask, node_offset_data);
 
   const int face_set_offset = CustomData_get_offset_named(
-      &object.sculpt->bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
+      &object.runtime->sculpt_session->bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
 
   Array<float3> current_positions(node_vert_offsets.total_size());
   Array<float3> translations(node_vert_offsets.total_size());
@@ -454,7 +457,7 @@ BLI_NOINLINE static void calc_topology_relax_factors_faces(const Depsgraph &deps
                                                            MeshLocalData &tls,
                                                            const MutableSpan<float> factors)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const OrigPositionData orig_data = orig_position_data_get_mesh(object, node);
@@ -488,10 +491,10 @@ static void do_topology_relax_brush_mesh(const Depsgraph &depsgraph,
                                          const IndexMask &node_mask,
                                          const float strength)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
@@ -526,7 +529,8 @@ static void do_topology_relax_brush_mesh(const Depsgraph &depsgraph,
         faces,
         corner_verts,
         vert_to_face_map,
-        ss.vertex_info.boundary,
+        ss.boundary_info_cache->verts,
+        ss.boundary_info_cache->edges,
         attribute_data.face_sets,
         attribute_data.hide_poly,
         false,
@@ -556,7 +560,7 @@ BLI_NOINLINE static void calc_topology_relax_factors_grids(const Depsgraph &deps
                                                            const MutableSpan<float3> positions,
                                                            const MutableSpan<float> factors)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
@@ -595,14 +599,14 @@ static void do_topology_relax_brush_grids(const Depsgraph &depsgraph,
                                           const IndexMask &node_mask,
                                           const float strength)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-  SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+  SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
   MutableSpan<float3> positions = subdiv_ccg.positions;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
@@ -639,7 +643,8 @@ static void do_topology_relax_brush_grids(const Depsgraph &depsgraph,
         corner_verts,
         face_sets,
         vert_to_face_map,
-        ss.vertex_info.boundary,
+        ss.boundary_info_cache->verts,
+        ss.boundary_info_cache->edges,
         nodes[i].grids(),
         false,
         factors.as_span().slice(node_vert_offsets[pos]),
@@ -667,7 +672,7 @@ static void calc_topology_relax_factors_bmesh(const Depsgraph &depsgraph,
                                               MutableSpan<float3> positions,
                                               MutableSpan<float> factors)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
@@ -708,7 +713,7 @@ static void do_topology_relax_brush_bmesh(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
   const int face_set_offset = CustomData_get_offset_named(
-      &object.sculpt->bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
+      &object.runtime->sculpt_session->bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
 
   Array<int> node_offset_data;
   const OffsetIndices<int> node_vert_offsets = create_node_vert_offsets_bmesh(
@@ -766,7 +771,7 @@ void do_relax_face_sets_brush(const Depsgraph &depsgraph,
 
   boundary::ensure_boundary_info(object);
 
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   const std::array<float, 4> strengths = iteration_strengths(ss.cache->bstrength,
                                                              ss.cache->iteration_count);
 
@@ -797,7 +802,7 @@ void do_topology_relax_brush(const Depsgraph &depsgraph,
                              const IndexMask &node_mask)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
 
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
     return;

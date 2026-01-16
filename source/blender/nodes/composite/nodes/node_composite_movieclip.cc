@@ -13,10 +13,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
-
-#include "DNA_defaults.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 
@@ -30,7 +28,9 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_movieclip_cc {
+namespace blender {
+
+namespace nodes::node_composite_movieclip_cc {
 
 static void cmp_node_movieclip_declare(NodeDeclarationBuilder &b)
 {
@@ -44,26 +44,28 @@ static void cmp_node_movieclip_declare(NodeDeclarationBuilder &b)
 
 static void init(const bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-  Scene *scene = CTX_data_scene(C);
-  MovieClipUser *user = DNA_struct_default_alloc(MovieClipUser);
+  bNode *node = static_cast<bNode *>(ptr->data);
+  node->flag |= NODE_PREVIEW;
 
-  node->id = (ID *)scene->clip;
+  Scene *scene = CTX_data_scene(C);
+  MovieClipUser *user = MEM_new_for_free<MovieClipUser>(__func__);
+
+  node->id = id_cast<ID *>(scene->clip);
   id_us_plus(node->id);
   node->storage = user;
   user->framenr = 1;
 }
 
-static void node_composit_buts_movieclip(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_movieclip(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+  template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 }
 
-static void node_composit_buts_movieclip_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_movieclip_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  uiTemplateMovieClip(layout, C, ptr, "clip", false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  uiTemplateMovieClip(&layout, C, ptr, "clip", false);
 }
 
 using namespace blender::compositor;
@@ -85,11 +87,11 @@ class MovieClipOperation : public NodeOperation {
 
   void compute_image(ImBuf *movie_clip_buffer)
   {
-    if (!should_compute_output("Image")) {
+    Result &result = this->get_result("Image");
+    if (!result.should_compute()) {
       return;
     }
 
-    Result &result = get_result("Image");
     if (!movie_clip_buffer) {
       result.allocate_invalid();
       return;
@@ -104,18 +106,18 @@ class MovieClipOperation : public NodeOperation {
     else {
       parallel_for(size, [&](const int2 texel) {
         int64_t pixel_index = (int64_t(texel.y) * size.x + texel.x) * 4;
-        result.store_pixel(texel, float4(movie_clip_buffer->float_buffer.data + pixel_index));
+        result.store_pixel(texel, Color(movie_clip_buffer->float_buffer.data + pixel_index));
       });
     }
   }
 
   void compute_alpha(ImBuf *movie_clip_buffer)
   {
-    if (!should_compute_output("Alpha")) {
+    Result &result = get_result("Alpha");
+    if (!result.should_compute()) {
       return;
     }
 
-    Result &result = get_result("Alpha");
     if (!movie_clip_buffer) {
       result.allocate_single_value();
       result.set_single_value(1.0f);
@@ -146,25 +148,25 @@ class MovieClipOperation : public NodeOperation {
   {
     /* The movie clip buffer is invalid or missing, set appropriate fallback values. */
     if (!movie_clip_buffer) {
-      if (should_compute_output("Offset X")) {
-        Result &result = get_result("Offset X");
-        result.allocate_single_value();
-        result.set_single_value(0.0f);
+      Result &x_offset_result = this->get_result("Offset X");
+      if (x_offset_result.should_compute()) {
+        x_offset_result.allocate_single_value();
+        x_offset_result.set_single_value(0.0f);
       }
-      if (should_compute_output("Offset Y")) {
-        Result &result = get_result("Offset Y");
-        result.allocate_single_value();
-        result.set_single_value(0.0f);
+      Result &y_offset_result = this->get_result("Offset Y");
+      if (y_offset_result.should_compute()) {
+        y_offset_result.allocate_single_value();
+        y_offset_result.set_single_value(0.0f);
       }
-      if (should_compute_output("Scale")) {
-        Result &result = get_result("Scale");
-        result.allocate_single_value();
-        result.set_single_value(1.0f);
+      Result &scale_result = this->get_result("Scale");
+      if (scale_result.should_compute()) {
+        scale_result.allocate_single_value();
+        scale_result.set_single_value(1.0f);
       }
-      if (should_compute_output("Angle")) {
-        Result &result = get_result("Angle");
-        result.allocate_single_value();
-        result.set_single_value(0.0f);
+      Result &angle_result = this->get_result("Angle");
+      if (angle_result.should_compute()) {
+        angle_result.allocate_single_value();
+        angle_result.set_single_value(0.0f);
       }
       return;
     }
@@ -182,25 +184,25 @@ class MovieClipOperation : public NodeOperation {
     BKE_tracking_stabilization_data_get(
         movie_clip, frame_number, width, height, offset, &scale, &angle);
 
-    if (should_compute_output("Offset X")) {
-      Result &result = get_result("Offset X");
-      result.allocate_single_value();
-      result.set_single_value(offset.x);
+    Result &x_offset_result = this->get_result("Offset X");
+    if (x_offset_result.should_compute()) {
+      x_offset_result.allocate_single_value();
+      x_offset_result.set_single_value(offset.x);
     }
-    if (should_compute_output("Offset Y")) {
-      Result &result = get_result("Offset Y");
-      result.allocate_single_value();
-      result.set_single_value(offset.y);
+    Result &y_offset_result = this->get_result("Offset Y");
+    if (y_offset_result.should_compute()) {
+      y_offset_result.allocate_single_value();
+      y_offset_result.set_single_value(offset.y);
     }
-    if (should_compute_output("Scale")) {
-      Result &result = get_result("Scale");
-      result.allocate_single_value();
-      result.set_single_value(scale);
+    Result &scale_result = this->get_result("Scale");
+    if (scale_result.should_compute()) {
+      scale_result.allocate_single_value();
+      scale_result.set_single_value(scale);
     }
-    if (should_compute_output("Angle")) {
-      Result &result = get_result("Angle");
-      result.allocate_single_value();
-      result.set_single_value(angle);
+    Result &angle_result = this->get_result("Angle");
+    if (angle_result.should_compute()) {
+      angle_result.allocate_single_value();
+      angle_result.set_single_value(angle);
     }
   }
 
@@ -236,27 +238,27 @@ class MovieClipOperation : public NodeOperation {
 
   MovieClip *get_movie_clip()
   {
-    return reinterpret_cast<MovieClip *>(bnode().id);
+    return reinterpret_cast<MovieClip *>(node().id);
   }
 
   MovieClipUser *get_movie_clip_user()
   {
-    return static_cast<MovieClipUser *>(bnode().storage);
+    return static_cast<MovieClipUser *>(node().storage);
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new MovieClipOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_movieclip_cc
+}  // namespace nodes::node_composite_movieclip_cc
 
 static void register_node_type_cmp_movieclip()
 {
-  namespace file_ns = blender::nodes::node_composite_movieclip_cc;
+  namespace file_ns = nodes::node_composite_movieclip_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeMovieClip", CMP_NODE_MOVIECLIP);
   ntype.ui_name = "Movie Clip";
@@ -270,9 +272,11 @@ static void register_node_type_cmp_movieclip()
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
   ntype.initfunc_api = file_ns::init;
   ntype.flag |= NODE_PREVIEW;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "MovieClipUser", node_free_standard_storage, node_copy_standard_storage);
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_movieclip)
+
+}  // namespace blender

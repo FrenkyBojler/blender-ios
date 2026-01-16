@@ -22,6 +22,8 @@
 
 #include "node_composite_util.hh"
 
+namespace blender {
+
 /* Distortion can't be exactly -1.0 as it will cause infinite pincushion distortion. */
 #define MINIMUM_DISTORTION -0.999f
 /* Arbitrary scaling factor for the dispersion input in horizontal distortion mode. */
@@ -31,7 +33,7 @@
 /* Arbitrary scaling factor for the distortion input. */
 #define DISTORTION_SCALE 4.0f
 
-namespace blender::nodes::node_composite_lensdist_cc {
+namespace nodes::node_composite_lensdist_cc {
 
 static const EnumPropertyItem type_items[] = {
     {CMP_NODE_LENS_DISTORTION_RADIAL,
@@ -93,7 +95,7 @@ static void cmp_node_lensdist_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_lensdist(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, kept for forward compatibility. */
-  NodeLensDist *data = MEM_callocN<NodeLensDist>(__func__);
+  NodeLensDist *data = MEM_new_for_free<NodeLensDist>(__func__);
   node->storage = data;
 }
 
@@ -221,7 +223,7 @@ static float4 integrate_distortion(const int2 &texel,
     /* Sample the color at the distorted coordinates and accumulate it weighted by the increment
      * value for both the start and end channels. */
     float2 distorted_uv = compute_distorted_uv(uv, distortion_scale, size);
-    float4 color = input.sample_bilinear_zero(distorted_uv / float2(size));
+    float4 color = float4(input.sample_bilinear_zero<Color>(distorted_uv / float2(size)));
     accumulated_color[start] += (1.0f - increment) * color[start];
     accumulated_color[end] += increment * color[end];
     accumulated_color.w += color.w;
@@ -247,7 +249,7 @@ static void radial_lens_distortion(const int2 texel,
    * write a zero transparent color and return. */
   float3 distortion_bounds = chromatic_distortion * distance_squared;
   if (distortion_bounds.x > 1.0f || distortion_bounds.y > 1.0f || distortion_bounds.z > 1.0f) {
-    output.store_pixel(texel, float4(0.0f));
+    output.store_pixel(texel, Color(float4(0.0f)));
     return;
   }
 
@@ -293,7 +295,7 @@ static void radial_lens_distortion(const int2 texel,
    * doesn't change regardless of jitter. */
   color *= float4(float3(2.0f), 1.0f) / float4(number_of_steps);
 
-  output.store_pixel(texel, color);
+  output.store_pixel(texel, Color(color));
 }
 
 class LensDistortionOperation : public NodeOperation {
@@ -344,14 +346,14 @@ class LensDistortionOperation : public NodeOperation {
 
     const Domain domain = compute_domain();
 
-    const float dispersion = (get_dispersion() * HORIZONTAL_DISPERSION_SCALE) / domain.size.x;
+    const float dispersion = (get_dispersion() * HORIZONTAL_DISPERSION_SCALE) / domain.data_size.x;
     GPU_shader_uniform_1f(shader, "dispersion", dispersion);
 
     Result &output_image = get_result("Image");
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     output_image.unbind_as_image();
@@ -361,26 +363,28 @@ class LensDistortionOperation : public NodeOperation {
   void execute_horizontal_distortion_cpu()
   {
     const Domain domain = compute_domain();
-    const float dispersion = (get_dispersion() * HORIZONTAL_DISPERSION_SCALE) / domain.size.x;
+    const float dispersion = (get_dispersion() * HORIZONTAL_DISPERSION_SCALE) / domain.data_size.x;
 
     const Result &input = get_input("Image");
 
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     parallel_for(size, [&](const int2 texel) {
       /* Get the normalized coordinates of the pixel centers. */
       float2 normalized_texel = (float2(texel) + float2(0.5f)) / float2(size);
 
       /* Sample the red and blue channels shifted by the dispersion amount. */
-      const float4 red = input.sample_bilinear_zero(normalized_texel + float2(dispersion, 0.0f));
-      const float4 green = input.load_pixel<float4>(texel);
-      const float4 blue = input.sample_bilinear_zero(normalized_texel - float2(dispersion, 0.0f));
+      const float4 red = float4(
+          input.sample_bilinear_zero<Color>(normalized_texel + float2(dispersion, 0.0f)));
+      const float4 green = float4(input.load_pixel<Color>(texel));
+      const float4 blue = float4(
+          input.sample_bilinear_zero<Color>(normalized_texel - float2(dispersion, 0.0f)));
 
-      const float alpha = blender::math::dot(float3(red.w, green.w, blue.w), float3(1.0f)) / 3.0f;
+      const float alpha = math::dot(float3(red.w, green.w, blue.w), float3(1.0f)) / 3.0f;
 
-      output.store_pixel(texel, float4(red.x, green.y, blue.z, alpha));
+      output.store_pixel(texel, Color(red.x, green.y, blue.z, alpha));
     });
   }
 
@@ -415,7 +419,7 @@ class LensDistortionOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     output_image.unbind_as_image();
@@ -442,7 +446,7 @@ class LensDistortionOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     parallel_for(size, [&](const int2 texel) {
       radial_lens_distortion(texel, input, output, size, chromatic_distortion, scale, use_jitter);
     });
@@ -451,13 +455,13 @@ class LensDistortionOperation : public NodeOperation {
   float get_distortion()
   {
     const Result &input = get_input("Distortion");
-    return clamp_f(input.get_single_value_default(0.0f), MINIMUM_DISTORTION, 1.0f);
+    return clamp_f(input.get_single_value_default<float>(), MINIMUM_DISTORTION, 1.0f);
   }
 
   float get_dispersion()
   {
     const Result &input = get_input("Dispersion");
-    return clamp_f(input.get_single_value_default(0.0f), 0.0f, 1.0f);
+    return clamp_f(input.get_single_value_default<float>(), 0.0f, 1.0f);
   }
 
   /* Get the distortion amount for each channel. The green channel has a distortion amount that
@@ -490,20 +494,18 @@ class LensDistortionOperation : public NodeOperation {
 
   CMPNodeLensDistortionType get_type()
   {
-    const Result &input = this->get_input("Type");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_LENS_DISTORTION_RADIAL);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return CMPNodeLensDistortionType(menu_value.value);
+    return CMPNodeLensDistortionType(
+        this->get_input("Type").get_single_value_default<MenuValue>().value);
   }
 
   bool get_use_jitter()
   {
-    return this->get_input("Jitter").get_single_value_default(false);
+    return this->get_input("Jitter").get_single_value_default<bool>();
   }
 
   bool get_is_fit()
   {
-    return this->get_input("Fit").get_single_value_default(false);
+    return this->get_input("Fit").get_single_value_default<bool>();
   }
 
   /* Returns true if the operation does nothing and the input can be passed through. */
@@ -531,18 +533,18 @@ class LensDistortionOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new LensDistortionOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_lensdist_cc
+}  // namespace nodes::node_composite_lensdist_cc
 
 static void register_node_type_cmp_lensdist()
 {
-  namespace file_ns = blender::nodes::node_composite_lensdist_cc;
+  namespace file_ns = nodes::node_composite_lensdist_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeLensdist", CMP_NODE_LENSDIST);
   ntype.ui_name = "Lens Distortion";
@@ -551,10 +553,12 @@ static void register_node_type_cmp_lensdist()
   ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_lensdist_declare;
   ntype.initfunc = file_ns::node_composit_init_lensdist;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeLensDist", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_lensdist)
+
+}  // namespace blender

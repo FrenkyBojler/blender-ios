@@ -20,11 +20,15 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
+
+namespace blender {
 
 /* ******************* Color Correction ********************************* */
 
-namespace blender::nodes::node_composite_colorcorrection_cc {
+namespace nodes::node_composite_colorcorrection_cc {
 
 static void cmp_node_colorcorrection_declare(NodeDeclarationBuilder &b)
 {
@@ -292,7 +296,12 @@ static float4 color_correction(const float4 &color,
 
   float3 corrected = luma + saturation * (color.xyz() - luma);
   corrected = 0.5f + (corrected - 0.5f) * contrast;
-  corrected = math::fallback_pow(corrected * gain + offset, inverse_gamma, corrected);
+  corrected = corrected * gain + offset;
+
+  /* Don't allow colors to go negative (or more negative than before) to keep them in gamut. */
+  corrected = math::max(math::min(color.xyz(), float3(0.0f)), corrected);
+
+  corrected = math::fallback_pow(corrected, inverse_gamma, corrected);
   corrected = math::interpolate(color.xyz(), corrected, math::min(mask, 1.0f));
 
   return float4(apply_on_red ? corrected.x : color.x,
@@ -301,15 +310,17 @@ static float4 color_correction(const float4 &color,
                 color.w);
 }
 
-static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+using compositor::Color;
+
+static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
 {
   float3 luminance_coefficients;
   IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
 
   builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::detail::build_multi_function_with_n_inputs_one_output<float4>(
+    return mf::build::detail::build_multi_function_with_n_inputs_one_output<Color>(
         "Color Correction",
-        [=](const float4 &color,
+        [=](const Color &color,
             const float &mask,
             const float &master_saturation,
             const float &master_contrast,
@@ -335,38 +346,38 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
             const float &end_midtones,
             const bool &apply_on_red,
             const bool &apply_on_green,
-            const bool &apply_on_blue) -> float4 {
-          return color_correction(color,
-                                  mask,
-                                  master_saturation,
-                                  master_contrast,
-                                  master_gamma,
-                                  master_gain,
-                                  master_offset,
-                                  highlights_saturation,
-                                  highlights_contrast,
-                                  highlights_gamma,
-                                  highlights_gain,
-                                  highlights_offset,
-                                  midtones_saturation,
-                                  midtones_contrast,
-                                  midtones_gamma,
-                                  midtones_gain,
-                                  midtones_offset,
-                                  shadows_saturation,
-                                  shadows_contrast,
-                                  shadows_gamma,
-                                  shadows_gain,
-                                  shadows_offset,
-                                  start_midtones,
-                                  end_midtones,
-                                  apply_on_red,
-                                  apply_on_green,
-                                  apply_on_blue,
-                                  luminance_coefficients);
+            const bool &apply_on_blue) -> Color {
+          return Color(color_correction(float4(color),
+                                        mask,
+                                        master_saturation,
+                                        master_contrast,
+                                        master_gamma,
+                                        master_gain,
+                                        master_offset,
+                                        highlights_saturation,
+                                        highlights_contrast,
+                                        highlights_gamma,
+                                        highlights_gain,
+                                        highlights_offset,
+                                        midtones_saturation,
+                                        midtones_contrast,
+                                        midtones_gamma,
+                                        midtones_gain,
+                                        midtones_offset,
+                                        shadows_saturation,
+                                        shadows_contrast,
+                                        shadows_gamma,
+                                        shadows_gain,
+                                        shadows_offset,
+                                        start_midtones,
+                                        end_midtones,
+                                        apply_on_red,
+                                        apply_on_green,
+                                        apply_on_blue,
+                                        luminance_coefficients));
         },
         mf::build::exec_presets::SomeSpanOrSingle<0>(),
-        TypeSequence<float4,
+        TypeSequence<Color,
                      float,
                      float,
                      float,
@@ -396,13 +407,13 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
   });
 }
 
-}  // namespace blender::nodes::node_composite_colorcorrection_cc
+}  // namespace nodes::node_composite_colorcorrection_cc
 
 static void register_node_type_cmp_colorcorrection()
 {
-  namespace file_ns = blender::nodes::node_composite_colorcorrection_cc;
+  namespace file_ns = nodes::node_composite_colorcorrection_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeColorCorrection", CMP_NODE_COLORCORRECTION);
   ntype.ui_name = "Color Correction";
@@ -415,6 +426,8 @@ static void register_node_type_cmp_colorcorrection()
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_colorcorrection)
+
+}  // namespace blender

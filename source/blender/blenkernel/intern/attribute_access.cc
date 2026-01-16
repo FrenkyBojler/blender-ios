@@ -114,7 +114,7 @@ AttrType cpp_type_to_attribute_type(const CPPType &type)
   return AttrType::Bool;
 }
 
-const blender::CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
+const CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
 {
   switch (type) {
     case CD_PROP_FLOAT:
@@ -148,7 +148,7 @@ const blender::CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
   }
 }
 
-eCustomDataType cpp_type_to_custom_data_type(const blender::CPPType &type)
+eCustomDataType cpp_type_to_custom_data_type(const CPPType &type)
 {
   if (type.is<float>()) {
     return CD_PROP_FLOAT;
@@ -1189,7 +1189,17 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
     const CPPType &type = attribute.span.type();
     GMutableSpan data = attribute.span.slice(range);
-    type.fill_assign_n(type.default_value(), data.data(), data.size());
+    if (attributes.is_builtin(iter.name)) {
+      if (const GPointer value = attributes.get_builtin_default(iter.name)) {
+        type.fill_assign_n(value.get(), data.data(), data.size());
+      }
+      else {
+        type.fill_assign_n(type.default_value(), data.data(), data.size());
+      }
+    }
+    else {
+      type.fill_assign_n(type.default_value(), data.data(), data.size());
+    }
     attribute.finish();
   });
 }

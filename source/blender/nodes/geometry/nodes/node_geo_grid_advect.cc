@@ -128,9 +128,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Limiting strategy to prevent numerical artifacts");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
@@ -254,7 +254,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const openvdb::Vec3SGrid &velocity_vdb_grid = velocity_grid.grid(velocity_token);
 
   /* OpenVDB's advection requires uniform voxel scale on the grid being advected
-  but not for the velocity grid being sampled */
+   * but not for the velocity grid being sampled. */
   if (!grid_base.hasUniformVoxels()) {
     params.error_message_add(
         NodeWarningType::Error,
@@ -329,7 +329,7 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeGridAdvect");
   ntype.ui_name = "Advect Grid";
   ntype.ui_description =
@@ -342,7 +342,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.internally_linked_input = node_internally_linked_input;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
