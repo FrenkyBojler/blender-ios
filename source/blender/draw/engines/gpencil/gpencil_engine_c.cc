@@ -517,10 +517,8 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
       const bool is_fill_guide_stroke = is_fill_guide[stroke_i];
 
       const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
-      const bool show_stroke = ((gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0) ||
-                               is_fill_guide_stroke;
-      const bool show_fill = (!triangles[shape_index].is_empty()) &&
-                             ((gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0) &&
+      const bool show_stroke = !hide_stroke[stroke_i] || is_fill_guide_stroke;
+      const bool show_fill = (!triangles[shape_index].is_empty()) && (fill_id[stroke_i] != 0) &&
                              (!this->simplify_fill) && !is_fill_guide_stroke;
       const bool hide_onion = is_onion && ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0 ||
                                            (!do_onion && !do_multi_frame));

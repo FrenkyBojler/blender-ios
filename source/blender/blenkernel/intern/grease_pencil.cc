@@ -451,7 +451,7 @@ static void ensure_shape_cache(const Drawing &drawing)
     const CurvesGeometry &curves = drawing.strokes();
     const bke::AttributeAccessor attributes = curves.attributes();
 
-    const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
+    const VArray<int> shape_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
     r_shape_cache = shape_cache_from_shape_ids(curves.curves_num(), shape_ids);
   });
 }

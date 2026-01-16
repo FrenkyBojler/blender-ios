@@ -399,7 +399,7 @@ class GreasePencil : Overlay {
         gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(scene, ob);
 
         const bool show_stroke = !hide_stroke[first_curve];
-        const bool show_fill = num_stroke_triangles != 0;
+        const bool show_fill = (num_stroke_triangles != 0) && fill_id[first_curve] != 0;
 
         if (show_fill) {
           const int v_first = t_offset * 3;
