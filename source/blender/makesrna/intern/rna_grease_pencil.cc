@@ -13,6 +13,8 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_scene_types.h"
 
+#include "MEM_guardedalloc.h"
+#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -759,6 +761,98 @@ static int rna_iterator_grease_pencil_layer_groups_length(PointerRNA *ptr)
 {
   GreasePencil *grease_pencil = rna_grease_pencil(ptr);
   return grease_pencil->layer_groups().size();
+}
+
+struct GreasePencilRootNodesIterator {
+  GreasePencilLayerTreeNode const *current;
+};
+
+static void rna_iterator_grease_pencil_root_nodes_begin(CollectionPropertyIterator *iter,
+                                                        PointerRNA *ptr)
+{
+  using namespace blender::bke::greasepencil;
+  GreasePencil *grease_pencil = rna_grease_pencil(ptr);
+  const Span<const TreeNode *> nodes = grease_pencil->nodes();
+
+  if (nodes.is_empty()) {
+    iter->valid = false;
+    return;
+  }
+
+  auto *state = MEM_new<GreasePencilRootNodesIterator>(__func__);
+  state->current = nodes.first();
+
+  iter->internal.custom = state;
+}
+
+static void rna_iterator_grease_pencil_root_nodes_next(CollectionPropertyIterator *iter)
+{
+  auto *state = static_cast<GreasePencilRootNodesIterator *>(iter->internal.custom);
+  state->current = state->current->next;
+  iter->valid = (state->current != nullptr);
+}
+
+static PointerRNA rna_iterator_grease_pencil_root_nodes_get(CollectionPropertyIterator *iter)
+{
+  auto *state = static_cast<GreasePencilRootNodesIterator *>(iter->internal.custom);
+  return RNA_pointer_create_discrete(nullptr, &RNA_GreasePencilTreeNode, const_cast<void *>(static_cast<const void *>(state->current)));
+}
+
+static void rna_iterator_grease_pencil_root_nodes_end(CollectionPropertyIterator *iter)
+{
+  if (iter->internal.custom) {
+    MEM_delete(static_cast<GreasePencilRootNodesIterator *>(iter->internal.custom));
+  }
+}
+
+static int rna_iterator_grease_pencil_root_nodes_length(PointerRNA *ptr)
+{
+  using namespace blender::bke::greasepencil;
+  GreasePencil *grease_pencil = rna_grease_pencil(ptr);
+  const Span<const TreeNode *> nodes = grease_pencil->nodes();
+
+  if (nodes.is_empty()) {
+    return 0;
+  }
+
+  GreasePencilLayerTreeNode const *node = static_cast<GreasePencilLayerTreeNode const *>(
+      nodes.first());
+
+  int count = 0;
+
+  while (node) {
+    count++;
+    node = node->next;
+  }
+
+  return count;
+}
+
+static bool rna_iterator_grease_pencil_root_nodes_lookup_int(PointerRNA *ptr,
+                                                             int index,
+                                                             PointerRNA *r_ptr)
+{
+  using namespace blender::bke::greasepencil;
+  GreasePencil *grease_pencil = rna_grease_pencil(ptr);
+  const Span<const TreeNode *> nodes = grease_pencil->nodes();
+
+  if (nodes.is_empty()) {
+    return 0;
+  }
+
+  GreasePencilLayerTreeNode const *node = static_cast<GreasePencilLayerTreeNode const *>(
+      nodes.first());
+
+  for (int i = 0; node && i < index; i++) {
+    node = node->next;
+  }
+
+  rna_pointer_create_with_ancestors(*ptr,
+                                    &RNA_GreasePencilTreeNode,
+                                    const_cast<void *>(static_cast<const void *>(node)),
+                                    *r_ptr);
+
+  return true;
 }
 
 static int rna_group_color_tag_get(PointerRNA *ptr)
@@ -1563,6 +1657,20 @@ static void rna_def_grease_pencil_data(BlenderRNA *brna)
                                     nullptr);
   RNA_def_property_ui_text(prop, "Layer Groups", "Grease Pencil layer groups");
   rna_def_grease_pencil_layer_groups(brna, prop);
+
+  /* Root nodes. */
+  prop = RNA_def_property(srna, "root_nodes", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "GreasePencilTreeNode");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_iterator_grease_pencil_root_nodes_begin",
+                                    "rna_iterator_grease_pencil_root_nodes_next",
+                                    "rna_iterator_grease_pencil_root_nodes_end",
+                                    "rna_iterator_grease_pencil_root_nodes_get",
+                                    "rna_iterator_grease_pencil_root_nodes_length",
+                                    "rna_iterator_grease_pencil_root_nodes_lookup_int",
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_ui_text(prop, "Root Nodes", "Grease Pencil root nodes");
 
   prop = RNA_def_property(srna, "use_autolock_layers", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", GREASE_PENCIL_AUTOLOCK_LAYERS);
