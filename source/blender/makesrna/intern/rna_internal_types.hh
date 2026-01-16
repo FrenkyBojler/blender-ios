@@ -488,9 +488,7 @@ enum PropertyFlagIntern {
 
 /* Property Types. */
 
-struct BoolPropertyRNA {
-  PropertyRNA property;
-
+struct BoolPropertyRNA : PropertyRNA {
   PropBooleanGetFunc get;
   PropBooleanSetFunc set;
   PropBooleanArrayGetFunc getarray;
@@ -512,9 +510,7 @@ struct BoolPropertyRNA {
   const bool *defaultarray;
 };
 
-struct IntPropertyRNA {
-  PropertyRNA property;
-
+struct IntPropertyRNA : PropertyRNA {
   PropIntGetFunc get;
   PropIntSetFunc set;
   PropIntArrayGetFunc getarray;
@@ -543,9 +539,7 @@ struct IntPropertyRNA {
   const int *defaultarray;
 };
 
-struct FloatPropertyRNA {
-  PropertyRNA property;
-
+struct FloatPropertyRNA : PropertyRNA {
   PropFloatGetFunc get;
   PropFloatSetFunc set;
   PropFloatArrayGetFunc getarray;
@@ -576,9 +570,7 @@ struct FloatPropertyRNA {
   const float *defaultarray;
 };
 
-struct StringPropertyRNA {
-  PropertyRNA property;
-
+struct StringPropertyRNA : PropertyRNA {
   PropStringGetFunc get;
   PropStringLengthFunc length;
   PropStringSetFunc set;
@@ -615,9 +607,7 @@ struct StringPropertyRNA {
   const char *defaultvalue;
 };
 
-struct EnumPropertyRNA {
-  PropertyRNA property;
-
+struct EnumPropertyRNA : PropertyRNA {
   PropEnumGetFunc get;
   PropEnumSetFunc set;
   PropEnumItemFunc item_fn;
@@ -637,9 +627,7 @@ struct EnumPropertyRNA {
   const char *native_enum_type;
 };
 
-struct PointerPropertyRNA {
-  PropertyRNA property;
-
+struct PointerPropertyRNA : PropertyRNA {
   PropPointerGetFunc get;
   PropPointerSetFunc set;
   PropPointerTypeFunc type_fn;
@@ -649,9 +637,7 @@ struct PointerPropertyRNA {
   StructRNA *type;
 };
 
-struct CollectionPropertyRNA {
-  PropertyRNA property;
-
+struct CollectionPropertyRNA : PropertyRNA {
   PropCollectionBeginFunc begin;
   PropCollectionNextFunc next;
   PropCollectionEndFunc end; /* optional */
