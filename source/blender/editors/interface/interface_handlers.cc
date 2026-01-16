@@ -10938,18 +10938,16 @@ static int ui_handle_menu_event(bContext *C,
           if (event->modifier) {
             /* pass */
           }
-          else if (!block_is_menu(block)) {
-            if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
-              const float dy = event->xy[1] - event->prev_xy[1];
-              if (dy != 0.0f) {
-                ui_menu_scroll_apply_offset_y(region, block, dy);
+          else if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
+            const float dy = event->xy[1] - event->prev_xy[1];
+            if (dy != 0.0f) {
+              ui_menu_scroll_apply_offset_y(region, block, dy);
 
-                if (but) {
-                  but->active->cancel = true;
-                  button_activate_exit(C, but, but->active, false, false);
-                }
-                WM_event_add_mousemove(CTX_wm_window(C));
+              if (but) {
+                but->active->cancel = true;
+                button_activate_exit(C, but, but->active, false, false);
               }
+              WM_event_add_mousemove(CTX_wm_window(C));
             }
             break;
           }
@@ -10960,7 +10958,7 @@ static int ui_handle_menu_event(bContext *C,
           if (event->modifier) {
             /* pass */
           }
-          else if (!block_is_menu(block)) {
+          else if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
             const int scroll_dir = (event->type == WHEELUPMOUSE) ? 1 : -1;
             if (ui_menu_scroll_step(region, block, scroll_dir)) {
               if (but) {
