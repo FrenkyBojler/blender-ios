@@ -11,9 +11,14 @@ namespace blender::nodes::node_geo_get_geometry_bundle {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  // TODO: Support remove
-  b.add_output<decl::Bundle>("Bundle");
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
   b.add_input<decl::Geometry>("Geometry").description("Geometry to get the bundle of");
+  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
+  b.add_output<decl::Bundle>("Bundle").propagate_all();
+  b.add_input<decl::Bool>("Remove").default_value(false).description(
+      "Removing the bundle from the geometry can be beneficial to avoid unnecessary data copies");
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -25,7 +30,15 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  BundlePtr bundle = geometry_set.bundle_ptr();
+  const bool remove = params.extract_input<bool>("Remove");
+  BundlePtr bundle;
+  if (remove) {
+    bundle = std::move(geometry_set.bundle_ptr());
+  }
+  else {
+    bundle = geometry_set.bundle_ptr();
+  }
+  params.set_output("Geometry", std::move(geometry_set));
   params.set_output("Bundle", std::move(bundle));
 }
 
