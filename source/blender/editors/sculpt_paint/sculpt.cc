@@ -3949,7 +3949,196 @@ static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
   }
 }
 
+static void mask_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
+{
+  Main *bmain = CTX_data_main(C);
+  Brush *cur_brush = BKE_paint_brush(paint);
+  if (cur_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
+    cache->saved_mask_brush_tool = cur_brush->mask_tool;
+    return;
+  }
+  /* Switch to the Mask brush if possible. */
+  BKE_paint_brush_set_essentials(bmain, paint, "Mask");
+  Brush *mask_brush = BKE_paint_brush(paint);
+  if (!mask_brush) {
+    BKE_paint_brush_set(paint, cur_brush);
+    CLOG_WARN(&LOG, "Switching to the Mask brush not possible, corresponding brush not");
+    cache->saved_active_brush = nullptr;
+    return;
+  }
+  int cur_brush_size = BKE_brush_size_get(paint, cur_brush);
+  cache->saved_active_brush = cur_brush;
+  cache->saved_smooth_size = BKE_brush_size_get(paint, mask_brush);
+  BKE_brush_size_set(paint, mask_brush, cur_brush_size);
+  BKE_curvemapping_init(mask_brush->curve_distance_falloff);
+}
+static void mask_brush_toggle_off(Paint *paint, StrokeCache *cache)
+{
+  Brush &brush = *BKE_paint_brush(paint);
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
+    brush.mask_tool = cache->saved_mask_brush_tool;
+    return;
+  }
+  /* If saved_active_brush is not set, brush was not switched/affected in
+   * mask_brush_toggle_on(). */
+  if (cache->saved_active_brush) {
+    BKE_brush_size_set(paint, &brush, cache->saved_smooth_size);
+    BKE_paint_brush_set(paint, cache->saved_active_brush);
+    cache->saved_active_brush = nullptr;
+  }
+}
+
 /* Initialize the stroke cache invariants from operator properties. */
+static void sculpt_update_cache_invariants(
+    bContext *C, Sculpt &sd, SculptSession &ss, const wmOperator &op, const float mval[2])
+{
+  PaintStroke *stroke = static_cast<PaintStroke *>(op.customdata);
+  StrokeCache *cache = MEM_new<StrokeCache>(__func__);
+  bke::PaintRuntime *paint_runtime = sd.paint.runtime;
+  ToolSettings *tool_settings = CTX_data_tool_settings(C);
+  const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
+  ViewContext *vc = &stroke->vc;
+  Object &ob = *CTX_data_active_object(C);
+
+  ss.cache = cache;
+
+  /* Set scaling adjustment. */
+  float max_scale = 0.0f;
+  for (int i = 0; i < 3; i++) {
+    max_scale = max_ff(max_scale, fabsf(ob.scale[i]));
+  }
+  cache->scale[0] = max_scale / ob.scale[0];
+  cache->scale[1] = max_scale / ob.scale[1];
+  cache->scale[2] = max_scale / ob.scale[2];
+
+  cache->plane_trim_squared = brush->plane_trim * brush->plane_trim;
+
+  cache->mirror_modifier_clip.flag = 0;
+
+  sculpt_init_mirror_clipping(ob, ss);
+
+  /* Initial mouse location. */
+  cache->initial_mouse = mval ? float2(mval) : float2(0.0f);
+
+  cache->initial_location_symm = ss.cursor_location;
+  cache->initial_location = ss.cursor_location;
+
+  cache->initial_normal_symm = ss.cursor_sampled_normal.value_or(ss.cursor_normal);
+  cache->initial_normal = ss.cursor_sampled_normal.value_or(ss.cursor_normal);
+
+  const int mode = RNA_enum_get(op.ptr, "mode");
+  cache->pen_flip = RNA_boolean_get(op.ptr, "pen_flip");
+  cache->invert = mode == BRUSH_STROKE_INVERT;
+  cache->alt_smooth = mode == BRUSH_STROKE_SMOOTH;
+  cache->alt_mask = mode == BRUSH_STROKE_MASK;
+  cache->normal_weight = brush->normal_weight;
+
+  /* Interpret invert as following normal, for grab brushes. */
+  if (bke::brush::supports_normal_weight(*brush)) {
+    if (cache->invert) {
+      cache->invert = false;
+      cache->normal_weight = (cache->normal_weight == 0.0f);
+    }
+  }
+
+  /* Not very nice, but with current events system implementation
+   * we can't handle brush appearance inversion hotkey separately (sergey). */
+  if (cache->invert) {
+    paint_runtime->draw_inverted = true;
+  }
+  else {
+    paint_runtime->draw_inverted = false;
+  }
+
+  /* Alt-Smooth. */
+  if (cache->alt_smooth) {
+    smooth_brush_toggle_on(CTX_data_main(C), &sd.paint, cache);
+    /* Refresh the brush pointer in case we switched brush in the toggle function. */
+    brush = BKE_paint_brush(&sd.paint);
+  }
+
+  /* Toggle Mask */
+  if (cache->alt_mask) {
+    mask_brush_toggle_on(C, &sd.paint, cache);
+    /* Refresh the brush pointer in case we switched brush in the toggle function. */
+    brush = BKE_paint_brush(&sd.paint);
+  }
+  cache->mouse = cache->initial_mouse;
+  cache->mouse_event = cache->initial_mouse;
+  copy_v2_v2(paint_runtime->tex_mouse, cache->initial_mouse);
+
+  cache->initial_direction_flipped = brush_flip(*brush, *cache) < 0.0f;
+
+  /* Truly temporary data that isn't stored in properties. */
+  cache->vc = vc;
+  cache->brush = brush;
+  cache->paint = &sd.paint;
+
+  /* Cache projection matrix. */
+  cache->projection_mat = ED_view3d_ob_project_mat_get(cache->vc->rv3d, &ob);
+
+  const float3 z_axis(0.0f, 0.0f, 1.0f);
+  ob.runtime->world_to_object = math::invert(ob.object_to_world());
+  cache->view_normal = math::normalize(math::transform_direction(
+      ob.world_to_object() * float4x4(cache->vc->rv3d->viewinv), z_axis));
+
+  cache->supports_gravity = bke::brush::supports_gravity(*brush) && sd.gravity_factor > 0.0f;
+  /* Get gravity vector in world space. */
+  if (cache->supports_gravity) {
+    if (sd.gravity_object) {
+      const Object *gravity_object = sd.gravity_object;
+      cache->gravity_direction = gravity_object->object_to_world().z_axis();
+    }
+    else {
+      cache->gravity_direction = {0.0f, 0.0f, 1.0f};
+    }
+
+    /* Transform to sculpted object space. */
+    cache->gravity_direction = math::normalize(
+        math::transform_direction(ob.world_to_object(), cache->gravity_direction));
+  }
+
+  cache->accum = true;
+
+  /* Make copies of the mesh vertex locations and normals for some brushes. */
+  if (brush->flag & BRUSH_ANCHORED) {
+    cache->accum = false;
+  }
+
+  /* Draw sharp does not need the original coordinates to produce the accumulate effect, so it
+   * should work the opposite way. */
+  if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_SHARP) {
+    cache->accum = false;
+  }
+
+  if (bke::brush::supports_accumulate(*brush)) {
+    if (!(brush->flag & BRUSH_ACCUMULATE)) {
+      cache->accum = false;
+      if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_SHARP) {
+        cache->accum = true;
+      }
+    }
+  }
+
+  /* Original coordinates require the sculpt undo system, which isn't used
+   * for image brushes. It's also not necessary, just disable it. */
+  if (brush && brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
+      SCULPT_use_image_paint_brush(tool_settings->paint_mode, ob))
+  {
+    cache->accum = true;
+  }
+
+  if (BKE_brush_color_jitter_get_settings(&sd.paint, brush)) {
+    cache->initial_hsv_jitter = seed_hsv_jitter();
+  }
+  cache->first_time = true;
+  cache->plane_brush.first_time = true;
+
+  if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_ROTATE) {
+    constexpr int pixel_input_threshold = 5;
+    cache->dial = BLI_dial_init(cache->initial_mouse, pixel_input_threshold);
+  }
+}
 
 static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
@@ -5815,7 +6004,13 @@ void SculptPaintStroke::done(bool is_cancel)
     /* Refresh the brush pointer in case we switched brush in the toggle function. */
     brush = BKE_paint_brush(&sd.paint);
   }
-
+  /* Toggle Mask */
+  if (ss.cache->alt_mask) {
+    mask_brush_toggle_off(&sd.paint, ss.cache);
+    /* Refresh the brush pointer in case we switched brush in the toggle function. */
+    brush = BKE_paint_brush(&sd.paint);
+  }
+  
   MEM_delete(ss.cache);
   ss.cache = nullptr;
 
