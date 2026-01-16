@@ -38,6 +38,7 @@ AssetMetaData *asset_metadata_from_dictionary(const io::serialize::DictionaryVal
 template<typename T = std::monostate> class ReadingResult {
  public:
   enum class Type {
+    Invalid, /* Just to allow a default constructor. */
     Success,
     Failure,
     Cancelled,
@@ -71,6 +72,8 @@ template<typename T = std::monostate> class ReadingResult {
   /**
    * Construct a failure result.
    * The ReadingResult copies the failure reason, so the StringRef can refer to temporary data.
+   *
+   * NOTE: Don't forget to wrap the string in N_(...) for translation tagging.
    */
   static ReadingResult Failure(const StringRef failure_reason)
   {
@@ -116,6 +119,9 @@ template<typename T = std::monostate> class ReadingResult {
       failure_reason = other.failure_reason;
     }
   }
+
+  /* Just to be able to construct a result object, and assign a value to it later. */
+  ReadingResult() : type(Type::Invalid) {}
 
  private:
   explicit ReadingResult(Type type) : type(type) {}

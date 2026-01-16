@@ -16,6 +16,10 @@
 #include "BLI_path_utils.hh"
 #include "BLI_serialize.hh"
 
+#include "BKE_report.hh"
+
+#include "BLT_translation.hh"
+
 #include "CLG_log.h"
 
 #include "ED_asset_indexer.hh"
@@ -246,6 +250,8 @@ static std::optional<ApiVersionInfo> choose_api_version(const AssetLibraryMeta &
 }
 
 bool read_remote_listing(const StringRefNull root_dirpath,
+                         const StringRefNull asset_library_name,
+                         ReportList &reports,
                          const RemoteListingEntryProcessFn process_fn,
                          const RemoteListingWaitForPagesFn wait_fn,
                          const std::optional<Timestamp> ignore_before_timestamp)
@@ -266,27 +272,10 @@ bool read_remote_listing(const StringRefNull root_dirpath,
   }
 
   /* Path to the listing meta-file is version-dependent. */
+  ReadingResult<Vector<std::string>> result;
   switch (api_version_info->version_nr) {
     case 1: {
-      const ReadingResult result = read_remote_listing_v1(
-          root_dirpath, process_fn, wait_fn, ignore_before_timestamp);
-
-      /* TODO: get these messages up-stream. */
-      if (result.is_failure()) {
-        printf("could not read remote asset listing: %s\n", result.failure_reason.c_str());
-        return false;
-      }
-      if (result.is_cancelled()) {
-        return false;
-      }
-
-      if (result.success_value && !result.success_value->is_empty()) {
-        printf("issues reading remote asset listing:\n");
-        for (const std::string &warning : *result.success_value) {
-          printf("  - %s\n", warning.c_str());
-        }
-      }
-
+      result = read_remote_listing_v1(root_dirpath, process_fn, wait_fn, ignore_before_timestamp);
       break;
     }
     default:
@@ -294,6 +283,39 @@ bool read_remote_listing(const StringRefNull root_dirpath,
       return false;
   }
 
+  /* Get these messages up-stream. The last call to BKE_report(f) will be the one shown in the
+   * status bar. The rest are just printed to the terminal and gathered at the Info editor. */
+  if (result.is_failure()) {
+    BKE_reportf(&reports,
+                RPT_ERROR,
+                "Asset Library '%s': %s",
+                asset_library_name.c_str(),
+                RPT_(result.failure_reason.c_str()));
+    BKE_reportf(&reports,
+                RPT_ERROR,
+                "Could not read asset listing '%s', see Info Editor for details",
+                asset_library_name.c_str());
+    return false;
+  }
+  if (result.is_cancelled()) {
+    return false;
+  }
+  if (result.success_value) {
+    const Vector<std::string> &warnings = *result.success_value;
+    if (!warnings.is_empty()) {
+      for (const std::string &warning : *result.success_value) {
+        BKE_reportf(&reports,
+                    RPT_WARNING,
+                    "Asset Library '%s': %s",
+                    asset_library_name.c_str(),
+                    RPT_(warning.c_str()));
+      }
+      BKE_reportf(&reports,
+                  RPT_WARNING,
+                  "Could not read asset listing for '%s', see Info Editor for details",
+                  asset_library_name.c_str());
+    }
+  }
   return true;
 }
 
