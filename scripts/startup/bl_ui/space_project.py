@@ -154,12 +154,11 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
     bl_label = "Project"
     bl_space_type = 'PROJECT'
     bl_region_type = 'WINDOW'
-    bl_options = {'HIDE_HEADER'}
     bl_category = MAIN_SECTION_NAME
 
     @classmethod
     def poll(cls, context):
-        return True
+        return context.project and context.project.data
 
     def centered_operator(self, layout, op_name, text=None, icon=None):
         col_flow = layout.column_flow(columns=3)
@@ -172,6 +171,33 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
             return
 
         project = context.project
+
+        col = layout.column()
+        col.prop(project.data, "name")
+        col.prop(project.data, "root_path")
+
+
+
+class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
+    bl_label = "No Project"
+    bl_space_type = 'PROJECT'
+    bl_region_type = 'WINDOW'
+    bl_options = {'HIDE_HEADER'}
+    bl_category = MAIN_SECTION_NAME
+
+    @classmethod
+    def poll(cls, context):
+        return not PROJECT_PT_main.poll(context)
+
+    def centered_operator(self, layout, op_name, text=None, icon=None):
+        col_flow = layout.column_flow(columns=3)
+        col_flow.separator_spacer()
+        col_flow.operator(op_name, text=text, icon=icon)
+        col_flow.separator_spacer()
+
+    def draw_centered(self, context, layout):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
 
         col = layout.column()
         col.separator(factor=2.0)
@@ -220,8 +246,7 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
             row.operator("project.new_project", text="New Project...", icon='ADD')
             row.operator("project.open_blend_in_project", icon='FILE_FOLDER')
         else:
-            col.prop(project.data, "name")
-            col.prop(project.data, "root_path")
+            pass
 
 
 # -------------------------------------------------------------
@@ -244,6 +269,7 @@ if bpy.context.preferences.experimental.use_blender_projects:
         PROJECT_MT_save_load,
         PROJECT_PT_navigation_bar,
         PROJECT_PT_save_project,
+        PROJECT_PT_main_unset,
         PROJECT_PT_main,
     )
 else:
