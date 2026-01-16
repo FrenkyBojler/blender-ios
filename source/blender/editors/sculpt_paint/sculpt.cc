@@ -3949,49 +3949,6 @@ static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
   }
 }
 
-static void mask_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
-{
-  Main *bmain = CTX_data_main(C);
-  Brush *cur_brush = BKE_paint_brush(paint);
-  if (cur_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    cache->saved_mask_brush_tool = cur_brush->mask_tool;
-    return;
-  }
-  /* Switch to the Mask brush if possible. */
-  if (!BKE_paint_brush_set_essentials(bmain, paint, "Mask")) {
-    BKE_paint_brush_set(paint, cur_brush);
-    CLOG_WARN(&LOG, "Unable to switch to the 'Mask' essentials brush asset");
-    cache->saved_active_brush = nullptr;
-    return;
-  }
-
-  Brush *mask_brush = BKE_paint_brush(paint);
-  int cur_brush_size = BKE_brush_size_get(paint, cur_brush);
-  cache->saved_active_brush = cur_brush;
-  cache->saved_smooth_size = BKE_brush_size_get(paint, mask_brush);
-  BKE_brush_size_set(paint, mask_brush, cur_brush_size);
-  BKE_curvemapping_init(mask_brush->curve_distance_falloff);
-}
-
-static void mask_brush_toggle_off(Paint *paint, StrokeCache *cache)
-{
-  Brush &brush = *BKE_paint_brush(paint);
-
-  /* User was already using mask brush */
-  if (cache->saved_active_brush == nullptr) {
-    if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-      brush.mask_tool = cache->saved_mask_brush_tool;
-    }
-    return;
-  }
-
-  /* Restore previous brush */
-  BKE_brush_size_set(paint, &brush, cache->saved_smooth_size);
-  BKE_paint_brush_set(paint, cache->saved_active_brush);
-  cache->saved_active_brush = nullptr;
-}
-
-
 static void mask_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache)
 {
   Brush *cur_brush = BKE_paint_brush(paint);
