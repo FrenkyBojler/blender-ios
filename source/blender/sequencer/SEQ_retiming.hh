@@ -36,13 +36,13 @@ bool retiming_is_allowed(const Strip *strip);
 SeqRetimingKey *retiming_key_add_new_for_strip(const Scene *scene,
                                                ReportList *reports,
                                                Strip *strip,
-                                               const int timeline_frame);
+                                               const int frame);
 /**
  * Add new retiming key.
  * This function always reallocates memory, so when function is used all stored pointers will
  * become invalid.
  */
-SeqRetimingKey *retiming_add_key(const Scene *scene, Strip *strip, int timeline_frame);
+SeqRetimingKey *retiming_add_key(const Scene *scene, Strip *strip, int frame);
 SeqRetimingKey *retiming_add_transition(const Scene *scene,
                                         Strip *strip,
                                         SeqRetimingKey *key,
@@ -57,15 +57,17 @@ void retiming_remove_key(Strip *strip, SeqRetimingKey *key);
 void retiming_transition_key_frame_set(const Scene *scene,
                                        const Strip *strip,
                                        SeqRetimingKey *key,
-                                       int timeline_frame);
+                                       int frame);
 float retiming_key_speed_get(const Strip *strip, const SeqRetimingKey *key);
 void retiming_key_speed_set(
     const Scene *scene, Strip *strip, SeqRetimingKey *key, float speed, bool keep_retiming);
 int retiming_key_index_get(const Strip *strip, const SeqRetimingKey *key);
-SeqRetimingKey *retiming_key_get_by_timeline_frame(const Scene *scene,
-                                                   const Strip *strip,
-                                                   int timeline_frame);
+SeqRetimingKey *retiming_key_get_by_frame(const Scene *scene, const Strip *strip, int frame);
 void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip);
+/**
+ * Get timeline frame of some `key` associated with `strip`.
+ * This is absolute, not a frame index from the start of the `strip`.
+ */
 int retiming_key_frame_get(const Scene *scene, const Strip *strip, const SeqRetimingKey *key);
 void retiming_key_frame_set(
     const Scene *scene, Strip *strip, SeqRetimingKey *key, int frame, bool keep_retiming);

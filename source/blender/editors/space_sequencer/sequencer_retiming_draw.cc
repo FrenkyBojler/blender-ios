@@ -133,7 +133,7 @@ SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const 
   int key_frame;
   if (retiming_fake_key_frame_clicked(C, strip, mval, key_frame)) {
     realize_fake_keys(scene, strip);
-    key = seq::retiming_key_get_by_timeline_frame(scene, strip, key_frame);
+    key = seq::retiming_key_get_by_frame(scene, strip, key_frame);
   }
   return key;
 }
@@ -347,13 +347,13 @@ static bool fake_keys_draw(const TimelineDrawContext &ctx,
   }
 
   const int left_key_frame = seq::left_fake_key_frame_get(scene, strip);
-  if (seq::retiming_key_get_by_timeline_frame(scene, strip, left_key_frame) == nullptr) {
+  if (seq::retiming_key_get_by_frame(scene, strip, left_key_frame) == nullptr) {
     SeqRetimingKey fake_key = fake_retiming_key_init(scene, strip, left_key_frame);
     retime_key_draw(ctx, strip_ctx, &fake_key, sh_bindings);
   }
 
   int right_key_frame = seq::right_fake_key_frame_get(scene, strip);
-  if (seq::retiming_key_get_by_timeline_frame(scene, strip, right_key_frame) == nullptr) {
+  if (seq::retiming_key_get_by_frame(scene, strip, right_key_frame) == nullptr) {
     SeqRetimingKey fake_key = fake_retiming_key_init(scene, strip, right_key_frame);
     retime_key_draw(ctx, strip_ctx, &fake_key, sh_bindings);
   }

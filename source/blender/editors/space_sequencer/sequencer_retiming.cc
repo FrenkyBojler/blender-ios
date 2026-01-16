@@ -208,7 +208,7 @@ void SEQUENCER_OT_retiming_reset(wmOperatorType *ot)
 static wmOperatorStatus retiming_key_add_from_selection(const Scene *scene,
                                                         wmOperator *op,
                                                         Span<Strip *> strips,
-                                                        const int timeline_frame)
+                                                        const int frame)
 {
   bool inserted = false;
 
@@ -216,7 +216,7 @@ static wmOperatorStatus retiming_key_add_from_selection(const Scene *scene,
     if (!seq::retiming_is_allowed(strip)) {
       continue;
     }
-    if (seq::retiming_key_add_new_for_strip(scene, op->reports, strip, timeline_frame)) {
+    if (seq::retiming_key_add_new_for_strip(scene, op->reports, strip, frame)) {
       inserted = true;
     }
   }
@@ -226,7 +226,7 @@ static wmOperatorStatus retiming_key_add_from_selection(const Scene *scene,
 
 static wmOperatorStatus retiming_key_add_to_editable_strips(const Scene *scene,
                                                             wmOperator *op,
-                                                            const int timeline_frame)
+                                                            const int frame)
 {
   Editing *ed = seq::editing_get(scene);
   bool inserted = false;
@@ -237,7 +237,7 @@ static wmOperatorStatus retiming_key_add_to_editable_strips(const Scene *scene,
   }
 
   for (Strip *strip : selection.values()) {
-    if (seq::retiming_key_add_new_for_strip(scene, op->reports, strip, timeline_frame)) {
+    if (seq::retiming_key_add_new_for_strip(scene, op->reports, strip, frame)) {
       inserted = true;
     }
   }
@@ -249,21 +249,21 @@ static wmOperatorStatus sequencer_retiming_key_add_exec(bContext *C, wmOperator 
 {
   Scene *scene = CTX_data_sequencer_scene(C);
 
-  float timeline_frame;
+  float frame;
   if (RNA_struct_property_is_set(op->ptr, "timeline_frame")) {
-    timeline_frame = RNA_int_get(op->ptr, "timeline_frame");
+    frame = RNA_int_get(op->ptr, "timeline_frame");
   }
   else {
-    timeline_frame = BKE_scene_frame_get(scene);
+    frame = BKE_scene_frame_get(scene);
   }
 
   wmOperatorStatus ret_val;
   VectorSet<Strip *> strips = selected_strips_from_context(C);
   if (!strips.is_empty()) {
-    ret_val = retiming_key_add_from_selection(scene, op, strips, timeline_frame);
+    ret_val = retiming_key_add_from_selection(scene, op, strips, frame);
   }
   else {
-    ret_val = retiming_key_add_to_editable_strips(scene, op, timeline_frame);
+    ret_val = retiming_key_add_to_editable_strips(scene, op, frame);
   }
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
@@ -301,17 +301,14 @@ void SEQUENCER_OT_retiming_key_add(wmOperatorType *ot)
 /** \name Retiming Add Freeze Frame
  * \{ */
 
-static bool freeze_frame_add_new_for_strip(const bContext *C,
-                                           const wmOperator *op,
-                                           Strip *strip,
-                                           const int timeline_frame,
-                                           const int duration)
+static bool freeze_frame_add_new_for_strip(
+    const bContext *C, const wmOperator *op, Strip *strip, const int frame, const int duration)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   seq::ensure_left_and_right_keys(scene, strip);
 
   // ensure L+R key
-  SeqRetimingKey *key = seq::retiming_add_key(scene, strip, timeline_frame);
+  SeqRetimingKey *key = seq::retiming_add_key(scene, strip, frame);
 
   if (key == nullptr) {
     BKE_report(op->reports, RPT_WARNING, "Cannot create freeze frame");
@@ -347,11 +344,11 @@ static bool freeze_frame_add_from_strip_selection(bContext *C,
   Scene *scene = CTX_data_sequencer_scene(C);
   VectorSet<Strip *> strips = selected_strips_from_context(C);
   strips.remove_if([&](Strip *strip) { return !seq::retiming_is_allowed(strip); });
-  const int timeline_frame = BKE_scene_frame_get(scene);
+  const int frame = BKE_scene_frame_get(scene);
   bool success = false;
 
   for (Strip *strip : strips) {
-    success |= freeze_frame_add_new_for_strip(C, op, strip, timeline_frame, duration);
+    success |= freeze_frame_add_new_for_strip(C, op, strip, frame, duration);
     seq::relations_invalidate_cache_raw(scene, strip);
   }
   return success;
@@ -367,8 +364,8 @@ static bool freeze_frame_add_from_retiming_selection(const bContext *C,
   Map selection = seq::retiming_selection_get(seq::editing_get(scene));
 
   for (auto item : selection.items()) {
-    const int timeline_frame = seq::retiming_key_frame_get(scene, item.value, item.key);
-    success |= freeze_frame_add_new_for_strip(C, op, item.value, timeline_frame, duration);
+    const int frame = seq::retiming_key_frame_get(scene, item.value, item.key);
+    success |= freeze_frame_add_new_for_strip(C, op, item.value, frame, duration);
     seq::relations_invalidate_cache_raw(scene, item.value);
   }
   return success;
@@ -429,20 +426,17 @@ void SEQUENCER_OT_retiming_freeze_frame_add(wmOperatorType *ot)
 /** \name Retiming Add Speed Transition
  * \{ */
 
-static bool transition_add_new_for_strip(const bContext *C,
-                                         const wmOperator *op,
-                                         Strip *strip,
-                                         const int timeline_frame,
-                                         const int duration)
+static bool transition_add_new_for_strip(
+    const bContext *C, const wmOperator *op, Strip *strip, const int frame, const int duration)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
 
   // ensure L+R key
   seq::ensure_left_and_right_keys(scene, strip);
-  SeqRetimingKey *key = seq::retiming_add_key(scene, strip, timeline_frame);
+  SeqRetimingKey *key = seq::retiming_add_key(scene, strip, frame);
 
   if (key == nullptr) {
-    key = seq::retiming_key_get_by_timeline_frame(scene, strip, timeline_frame);
+    key = seq::retiming_key_get_by_frame(scene, strip, frame);
   }
 
   if (seq::retiming_is_last_key(strip, key) || key->strip_frame_index == 0) {
@@ -476,8 +470,8 @@ static bool transition_add_from_retiming_selection(const bContext *C,
   Map selection = seq::retiming_selection_get(seq::editing_get(scene));
 
   for (auto item : selection.items()) {
-    const int timeline_frame = seq::retiming_key_frame_get(scene, item.value, item.key);
-    success |= transition_add_new_for_strip(C, op, item.value, timeline_frame, duration);
+    const int frame = seq::retiming_key_frame_get(scene, item.value, item.key);
+    success |= transition_add_new_for_strip(C, op, item.value, frame, duration);
   }
   return success;
 }
@@ -795,7 +789,7 @@ static bool select_connected_keys(const Scene *scene,
   bool changed = false;
   VectorSet<Strip *> connections = seq::connected_strips_get(source_owner);
   for (Strip *connection : connections) {
-    SeqRetimingKey *con_key = seq::retiming_key_get_by_timeline_frame(scene, connection, frame);
+    SeqRetimingKey *con_key = seq::retiming_key_get_by_frame(scene, connection, frame);
 
     if (con_key) {
       seq::retiming_selection_copy(con_key, source);
