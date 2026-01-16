@@ -1,10 +1,6 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
-
-/** \file
- * \ingroup bli
- */
 
 #pragma once
 
