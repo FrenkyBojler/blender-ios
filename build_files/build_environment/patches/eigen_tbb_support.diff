@@ -1,30 +1,3 @@
-diff -Naur eigen.base/CMakeLists.txt external_eigen/CMakeLists.txt
---- eigen.base/CMakeLists.txt	2026-01-12 11:46:25.010729700 -0800
-+++ external_eigen/CMakeLists.txt	2026-01-15 11:05:10.171914200 -0800
-@@ -149,6 +149,10 @@
-   set(EIGEN_VERSION_STRING "${EIGEN_VERSION_STRING}+${EIGEN_BUILD_VERSION}")
- endif()
- 
-+option(EIGEN_BUILD_TBB "Build with TBB support" ${PROJECT_IS_TOP_LEVEL})
-+if(EIGEN_BUILD_TBB)
-+  find_package(TBB)
-+endif()
- 
- # Generate version file.
- configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Version.in"
-@@ -219,6 +223,12 @@
- # Export as title case Eigen
- set_target_properties (eigen PROPERTIES EXPORT_NAME Eigen)
- 
-+# Link TBB if required
-+if(EIGEN_BUILD_TBB AND TBB_FOUND)
-+  target_link_libraries(eigen INTERFACE TBB::tbb)
-+  set_target_properties(eigen PROPERTIES INTERFACE_COMPILE_DEFINITIONS "EIGEN_HAS_TBB")
-+endif()
-+
- #==============================================================================
- # Install Rule Configuration.
- #==============================================================================
 diff -Naur eigen.base/Eigen/src/SparseCore/SparseDenseProduct.h external_eigen/Eigen/src/SparseCore/SparseDenseProduct.h
 --- eigen.base/Eigen/src/SparseCore/SparseDenseProduct.h	2026-01-12 11:46:25.135745600 -0800
 +++ external_eigen/Eigen/src/SparseCore/SparseDenseProduct.h	2026-01-15 11:02:49.671711500 -0800
@@ -95,20 +68,3 @@ diff -Naur eigen.base/Eigen/src/SparseCore/SparseDenseProduct.h external_eigen/E
  #endif
      {
        for (Index i = 0; i < n; ++i) processRow(lhsEval, rhs, res, alpha, i);
-diff -Naur eigen.base/cmake/Eigen3Config.cmake.in external_eigen/cmake/Eigen3Config.cmake.in
---- eigen.base/cmake/Eigen3Config.cmake.in	2026-01-12 11:46:25.291997700 -0800
-+++ external_eigen/cmake/Eigen3Config.cmake.in	2026-01-15 09:45:51.999818300 -0800
-@@ -2,7 +2,13 @@
- # target_link_libraries command.
- 
- @PACKAGE_INIT@
-+set(EIGEN_BUILD_TBB "@EIGEN_BUILD_TBB@")
-+
-+if(EIGEN_BUILD_TBB)
-+  find_package(TBB REQUIRED COMPONENTS tbb)
-+endif()
- 
- if (NOT TARGET Eigen3::Eigen)
-   include ("${CMAKE_CURRENT_LIST_DIR}/Eigen3Targets.cmake")
- endif (NOT TARGET Eigen3::Eigen)
-+
