@@ -510,16 +510,21 @@ static PointerRNA rna_Struct_properties_get(CollectionPropertyIterator *iter)
   return RNA_pointer_create_discrete(nullptr, RNA_Property, internal->link);
 }
 
-static void rna_Struct_functions_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+static Vector<StructRNA *> struct_hierarchy_get(StructRNA *srna)
 {
   Vector<StructRNA *> types;
-  for (StructRNA *srna = ptr->data_as<StructRNA>(); srna != nullptr; srna = srna->base) {
-    types.append(srna);
+  for (StructRNA *srna_iter = srna; srna_iter != nullptr; srna_iter = srna_iter->base) {
+    types.append(srna_iter);
   }
   std::reverse(types.begin(), types.end());
+  return types;
+}
 
+static void rna_Struct_functions_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  /* Collect all functions of struct and its base structs, with base struct functions first. */
   Vector<FunctionRNA *> functions;
-  for (StructRNA *srna : types) {
+  for (StructRNA *srna : struct_hierarchy_get(ptr->data_as<StructRNA>())) {
     for (std::unique_ptr<FunctionRNA> &func : srna->functions) {
       if ((func->flag & FUNC_BUILTIN) != 0) {
         continue;
