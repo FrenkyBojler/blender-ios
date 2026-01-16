@@ -4984,9 +4984,10 @@ static void wm_block_save_modified_images_save(bContext *C, void *arg_block, voi
 
   if (save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain)) {
     ReportList *reports = CTX_wm_reports(C);
-    BKE_reports_clear(reports);
-    ED_image_save_all_modified(C, reports);
-    WM_report_banner_show(wm, win);
+    bool is_successful = ED_image_save_all_modified(C, reports);
+    if (!is_successful) {
+      WM_report_banner_show(wm, win);
+    }
   }
 
   callback->exec(C, callback->user_data);
