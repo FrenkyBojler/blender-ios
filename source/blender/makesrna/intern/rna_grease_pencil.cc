@@ -783,6 +783,7 @@ static void rna_iterator_grease_pencil_root_nodes_begin(CollectionPropertyIterat
   state->current = nodes.first();
 
   iter->internal.custom = state;
+  iter->valid = (state->current != nullptr);
 }
 
 static void rna_iterator_grease_pencil_root_nodes_next(CollectionPropertyIterator *iter)
