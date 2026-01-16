@@ -10,7 +10,7 @@
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_grease_pencil_shapes.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_object.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
@@ -263,9 +263,9 @@ bool selection_update(const ViewContext *vc,
       for (const StringRef attribute_name : selection_attribute_names) {
         IndexMask changed_element_mask = select_operation(info, elements, attribute_name, memory);
 
-        /* Select shapes. */
+        /* Select fills. */
         if (selection_domain == bke::AttrDomain::Curve) {
-          changed_element_mask = bke::greasepencil::selected_mask_to_shapes(
+          changed_element_mask = bke::greasepencil::selected_mask_to_fills(
               changed_element_mask, curves, selection_domain, memory);
         }
 
@@ -898,13 +898,13 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         ".selection");
 
-    /* When the selection domain is 'curve', ensure all *shapes* with a point selection
+    /* When the selection domain is 'curve', ensure all *fills* with a point selection
      * are selected. */
     if (domain == bke::AttrDomain::Curve) {
       IndexMaskMemory memory;
       if (meta_data->domain == bke::AttrDomain::Point) {
         const IndexMask selected_points = ed::curves::retrieve_selected_points(curves, memory);
-        const IndexMask selected_mask = bke::greasepencil::selected_mask_to_shapes(
+        const IndexMask selected_mask = bke::greasepencil::selected_mask_to_fills(
             selected_points, curves, bke::AttrDomain::Point, memory);
 
         for (const StringRef selection_attribute_name :
@@ -921,7 +921,7 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
         BLI_assert(meta_data->domain == bke::AttrDomain::Curve);
 
         const IndexMask selected_curves = ed::curves::retrieve_selected_curves(curves, memory);
-        const IndexMask selected_mask = bke::greasepencil::selected_mask_to_shapes(
+        const IndexMask selected_mask = bke::greasepencil::selected_mask_to_fills(
             selected_curves, curves, bke::AttrDomain::Curve, memory);
 
         for (const StringRef selection_attribute_name :
