@@ -5,6 +5,7 @@
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
+#include "BLI_index_mask_expression.hh"
 #include "BLI_kdtree.hh"
 
 #include "node_geometry_util.hh"
@@ -31,6 +32,7 @@ static void masked_cluster_ids(const Span<float3> all_positions,
                                const float distance,
                                MutableSpan<int> r_cluster_ids)
 {
+  BLI_assert(mask_to_cluster.size() == r_cluster_ids.size());
   KDTree<float3> *tree = kdtree_new<float3>(mask_to_cluster.size());
   mask_to_cluster.foreach_index(
       [&](const int i, const int pos) { kdtree_insert<float3>(tree, pos, all_positions[i]); });
@@ -76,12 +78,6 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
       return {};
     }
 
-    const auto default_no_clusters_to_out = [&]() {
-      Array<int> cluster_ids(mask.min_array_size());
-      array_utils::fill_index_range(cluster_ids.as_mutable_span());
-      return VArray<int>::from_container(std::move(cluster_ids));
-    };
-
     const int domain_size = context.attributes()->domain_size(context.domain());
     fn::FieldEvaluator evaluator{context, domain_size};
     evaluator.add(positions_field_);
@@ -92,95 +88,84 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     const VArraySpan<int> group_ids = evaluator.get_evaluated<int>(1);
     const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
 
-    if (selection.is_empty()) {
-      return default_no_clusters_to_out();
-    }
+    IndexMaskMemory memory;
+    /* With context info about mask to compute we can skip processing of rest values. But in
+     * current case this will affect result values since some cluster might have lowest ID of
+     * element outside of visible mask. */
+    const IndexMask mask_to_cluster = IndexMask::from_intersection(mask, selection, memory);
+    const IndexMask mask_to_fallback = index_mask::evaluate_expression(
+        (index_mask::ExprBuilder{}).subtract(&mask, {&selection}), memory);
 
-    if (mask.last() < selection.first()) {
-      return default_no_clusters_to_out();
-    }
-
-    if (distance_ == 0.0f) {
-      /* TODO: Do it really faster then explicit creation of groups for parallel processing? */
-      Map<std::pair<float3, int>, int> clasters;
-      selection.foreach_index([&](const int index) {
-        clasters.add(std::make_pair(positions[index], group_ids[index]), index);
-      });
-
+    if (mask_to_cluster.is_empty()) {
       Array<int> cluster_ids(mask.min_array_size());
       array_utils::fill_index_range(cluster_ids.as_mutable_span());
+      /* TODO: VArray from index range. */
+      return VArray<int>::from_container(std::move(cluster_ids));
+    }
 
-      if (clasters.size() == 1) {
-        const int first_selected = selection.first();
-        BLI_assert(clasters.lookup(std::make_pair(positions[first_selected],
+    Array<int> cluster_ids(mask.min_array_size());
+    mask_to_fallback.foreach_index_optimized<int>(
+        GrainSize(1024), [&](const int index) { cluster_ids[index] = index; });
+
+    if (distance_ == 0.0f) {
+      /* TODO: Is this is really faster then explicit creation of groups for parallel processing
+       * (#IndexMask::from_groups)? */
+      Map<std::pair<float3, int>, int> clusters;
+      mask_to_cluster.foreach_index([&](const int index) {
+        clusters.add(std::make_pair(positions[index], group_ids[index]), index);
+      });
+
+      if (clusters.size() == 1) {
+        const int first_selected = mask_to_cluster.first();
+        BLI_assert(clusters.lookup(std::make_pair(positions[first_selected],
                                                   group_ids[first_selected])) == first_selected);
-        index_mask::masked_fill<int>(cluster_ids.as_mutable_span(), first_selected, selection);
+        index_mask::masked_fill<int>(
+            cluster_ids.as_mutable_span(), first_selected, mask_to_cluster);
         return VArray<int>::from_container(std::move(cluster_ids));
       }
 
-      selection.foreach_index(GrainSize(1024), [&](const int index) {
-        cluster_ids[index] = clasters.lookup(std::make_pair(positions[index], group_ids[index]));
+      mask_to_cluster.foreach_index(GrainSize(1024), [&](const int index) {
+        cluster_ids[index] = clusters.lookup(std::make_pair(positions[index], group_ids[index]));
       });
 
       return VArray<int>::from_container(std::move(cluster_ids));
     }
 
     /* TODO: We must be able to check group_ids.is_single() and skip this at all. */
-    const VectorSet<int> group_indexing(group_ids);
+    const VectorSet<int> group_indexing = [&]() {
+      VectorSet<int> group_indexing;
+      mask_to_cluster.foreach_index(
+          [&](const int index) { group_indexing.add(group_ids[index]); });
+      return group_indexing;
+    }();
     const int groups_num = group_indexing.size();
 
     const auto get_group_index = [&](const int i) {
       return group_indexing.index_of(group_ids[i]);
     };
 
-    IndexMaskMemory memory;
     Array<IndexMask> all_indices_by_group_id(groups_num);
-    IndexMask::from_groups<int>(selection, memory, get_group_index, all_indices_by_group_id);
-
-    Array<Array<int>> cluster_ids_by_group(all_indices_by_group_id.size());
+    IndexMask::from_groups<int>(mask_to_cluster, memory, get_group_index, all_indices_by_group_id);
 
     /* The grain size should be larger as each group gets smaller. */
     const int avg_group_size = domain_size / group_indexing.size();
     const int grain_size = std::max(8192 / avg_group_size, 1);
     threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
-      Vector<int> group_cluser_ids;
+      Vector<int, 64> buffer;
       for (const int group_i : range) {
         const IndexMask &group_indices = all_indices_by_group_id[group_i];
-        if (mask.bounds().intersect(group_indices.bounds()).is_empty()) {
-          continue;
-        }
+        BLI_assert(!mask_to_cluster.bounds().intersect(group_indices.bounds()).is_empty());
+        buffer.reinitialize(group_indices.size() * 2);
+        MutableSpan<int> group_cluser_ids = buffer.as_mutable_span().take_front(
+            group_indices.size());
+        MutableSpan<int> mask_indices = buffer.as_mutable_span().take_back(group_indices.size());
 
-        group_cluser_ids.reinitialize(group_indices.size());
-        masked_cluster_ids(
-            positions, group_indices, distance_, group_cluser_ids.as_mutable_span());
-        cluster_ids_by_group[group_i] = group_cluser_ids.as_span();
-      }
-    });
+        masked_cluster_ids(positions, group_indices, distance_, group_cluser_ids);
+        group_indices.to_indices(mask_indices);
 
-    Array<int> cluster_ids(mask.min_array_size());
-    array_utils::fill_index_range(cluster_ids.as_mutable_span());
-
-    threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
-      Vector<int> mask_indices;
-      for (const int group_i : range) {
-        const IndexMask &group_indices = all_indices_by_group_id[group_i];
-        if (mask.bounds().intersect(group_indices.bounds()).is_empty()) {
-          continue;
-        }
-
-        const int last_reqered_group_element = group_indices.iterator_to_index(
-            *group_indices.find_smaller_equal(mask.last()));
-        const IndexMask requered_group_mask = group_indices.slice(0,
-                                                                  last_reqered_group_element + 1);
-
-        mask_indices.reinitialize(requered_group_mask.size());
-        requered_group_mask.to_indices(mask_indices.as_mutable_span());
-
-        const Span<int> group_ids = cluster_ids_by_group[group_i];
-
-        requered_group_mask.foreach_index_optimized<int>(
+        group_indices.foreach_index_optimized<int>(
             GrainSize(2048), [&](const int index, const int pos) {
-              cluster_ids[index] = mask_indices[group_ids[pos]];
+              cluster_ids[index] = mask_indices[group_cluser_ids[pos]];
             });
       }
     });
@@ -220,16 +205,12 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<float3> position_field = params.extract_input<Field<float3>>("Position");
-  Field<int> group_field = params.extract_input<Field<int>>("Group ID");
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  const float distance = params.extract_input<float>("Distance");
-
   params.set_output("Cluster ID",
-                    Field<int>(std::make_shared<ClusterFieldInput>(std::move(position_field),
-                                                                   std::move(group_field),
-                                                                   std::move(selection_field),
-                                                                   distance)));
+                    Field<int>(std::make_shared<ClusterFieldInput>(
+                        params.extract_input<Field<float3>>("Position"),
+                        params.extract_input<Field<int>>("Group ID"),
+                        params.extract_input<Field<bool>>("Selection"),
+                        params.extract_input<float>("Distance"))));
 }
 
 static void node_register()
@@ -238,6 +219,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeClusterField");
   ntype.ui_name = "Cluster Field";
+  ntype.ui_description = "Group elements into integer IDs based on proximity of vector values";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
