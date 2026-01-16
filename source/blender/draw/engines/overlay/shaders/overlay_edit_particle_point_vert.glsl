@@ -46,7 +46,19 @@ void main()
 
   float3 world_pos = drw_point_object_to_world(pos);
 #ifdef CURVES_POINT
-  world_pos += drw_world_incident_vector(world_pos) * rad * 1.5f;
+  {
+    /* Offset the curve radius in the incoming direction,
+     * so the curve geometry doesn't occlude the handle.
+     * But ensure we don't offset past the near plane. */
+    float3 I = drw_world_incident_vector(world_pos);
+    float vs_depth = dot(drw_view_position() - world_pos, I);
+    float near_plane_distance = abs(drw_view_near());
+    float max_offset = vs_depth - (near_plane_distance + 1e-3f);
+    max_offset = max(0.0f, max_offset);
+    /* Compensate for view angle. */
+    float radius = rad * 1.5f;
+    world_pos += I * min(radius, max_offset);
+  }
 #endif
   gl_Position = drw_point_world_to_homogenous(world_pos);
   float end_point_size_factor = 1.0f;
