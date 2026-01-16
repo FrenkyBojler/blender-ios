@@ -93,6 +93,7 @@ set(SRC
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
+  nodes/node_geo_get_bundle_item.cc
   nodes/node_geo_get_named_grid.cc
   nodes/node_geo_gizmo_dial.cc
   nodes/node_geo_gizmo_linear.cc
@@ -247,6 +248,7 @@ set(SRC
   nodes/node_geo_simulation.cc
   nodes/node_geo_sort_elements.cc
   nodes/node_geo_split_to_instances.cc
+  nodes/node_geo_store_bundle_item.cc
   nodes/node_geo_store_named_attribute.cc
   nodes/node_geo_store_named_grid.cc
   nodes/node_geo_string_join.cc
@@ -312,6 +314,8 @@ set(LIB
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::gmp
+  PRIVATE bf::dependencies::optional::bullet
 )
 
 if(WITH_IO_STL)
@@ -339,14 +343,9 @@ if(WITH_IO_WAVEFRONT_OBJ)
 endif()
 
 if(WITH_BULLET)
-  list(APPEND INC_SYS
-    ${BULLET_INCLUDE_DIRS}
+  list(APPEND INC
     ../../../../intern/rigidbody
   )
-  list(APPEND LIB
-    ${BULLET_LIBRARIES}
-  )
-  add_definitions(-DWITH_BULLET)
 endif()
 
 if(WITH_TBB)
@@ -363,18 +362,6 @@ endif()
 
 if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
-endif()
-
-if(WITH_GMP)
-  add_definitions(-DWITH_GMP)
-
-  list(APPEND INC_SYS
-    ${GMP_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${GMP_LIBRARIES}
-  )
 endif()
 
 add_node_discovery(
