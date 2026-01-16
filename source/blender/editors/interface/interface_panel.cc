@@ -2408,6 +2408,7 @@ static void ui_panel_category_active_set(ARegion *region, const char *idname, bo
       }
     }
   }
+  ED_region_tag_redraw(region);
 }
 
 void panel_category_active_set(ARegion *region, const char *idname)

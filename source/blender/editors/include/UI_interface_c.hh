@@ -3010,7 +3010,21 @@ AbstractViewItem *region_views_find_active_item(const ARegion *region);
 Button *region_views_find_active_item_but(const ARegion *region);
 void region_views_clear_search_highlight(const ARegion *region);
 
-bool try_activate_rna_button(
-    bContext *C, ARegion *region, int state, PointerRNA *ptr, StringRef property);
+enum HandleButtonState {
+  BUTTON_STATE_INIT,
+  BUTTON_STATE_HIGHLIGHT,
+  BUTTON_STATE_WAIT_FLASH,
+  BUTTON_STATE_WAIT_RELEASE,
+  BUTTON_STATE_WAIT_KEY_EVENT,
+  BUTTON_STATE_NUM_EDITING,
+  BUTTON_STATE_TEXT_EDITING,
+  BUTTON_STATE_TEXT_SELECTING,
+  BUTTON_STATE_MENU_OPEN,
+  BUTTON_STATE_WAIT_DRAG,
+  BUTTON_STATE_EXIT,
+};
+
+std::optional<int2> try_activate_rna_button(
+    bContext *C, ARegion *region, HandleButtonState state, PointerRNA *ptr, StringRef property);
 }  // namespace ui
 }  // namespace blender

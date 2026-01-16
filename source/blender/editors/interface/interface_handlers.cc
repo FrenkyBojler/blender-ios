@@ -217,20 +217,6 @@ enum ButtonActivateType {
   BUTTON_ACTIVATE_OPEN,
 };
 
-enum HandleButtonState {
-  BUTTON_STATE_INIT,
-  BUTTON_STATE_HIGHLIGHT,
-  BUTTON_STATE_WAIT_FLASH,
-  BUTTON_STATE_WAIT_RELEASE,
-  BUTTON_STATE_WAIT_KEY_EVENT,
-  BUTTON_STATE_NUM_EDITING,
-  BUTTON_STATE_TEXT_EDITING,
-  BUTTON_STATE_TEXT_SELECTING,
-  BUTTON_STATE_MENU_OPEN,
-  BUTTON_STATE_WAIT_DRAG,
-  BUTTON_STATE_EXIT,
-};
-
 enum MenuScrollType {
   MENU_SCROLL_UP,
   MENU_SCROLL_DOWN,
@@ -12658,11 +12644,11 @@ static void block_interaction_begin_ensure(bContext *C,
 
 /** \} */
 
-bool try_activate_rna_button(
-    bContext *C, ARegion *region, int state, PointerRNA *ptr, StringRef property)
+std::optional<int2> try_activate_rna_button(
+    bContext *C, ARegion *region, HandleButtonState state, PointerRNA *ptr, StringRef property)
 {
   if (region->runtime->do_draw & RGN_DRAWING) {
-    return false;
+    return std::nullopt;
   }
   bScreen *screen = CTX_wm_screen(C);
   ScrArea *area = nullptr;
@@ -12677,7 +12663,7 @@ bool try_activate_rna_button(
     }
   }
   if (!area) {
-    return false;
+    return std::nullopt;
   }
   Button *button = nullptr;
   PropertyRNA *prop = RNA_struct_find_property(ptr, property.data());
@@ -12692,28 +12678,56 @@ bool try_activate_rna_button(
     }
   }
   if (!button) {
-    return false;
+    return std::nullopt;
   }
-  int xy[] = {BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
+  int2 xy{BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
   ED_screen_set_active_region(C, CTX_wm_window(C), xy);
   ScrArea *current_screen = CTX_wm_area(C);
   ARegion *current_region = CTX_wm_region(C);
 
   CTX_wm_area_set(C, area);
   CTX_wm_region_set(C, region);
-
+  /* Init button active data with state as #BUTTON_STATE_HIGHLIGHT */
   ui_handle_button_activate(C, region, button, BUTTON_ACTIVATE);
 
-  if (state == int(BUTTON_STATE_TEXT_EDITING)) {
+  wmWindow *win = CTX_wm_window(C);
+  rctf rect;
+  block_to_window_rctf(region, button->block, &rect, &button->rect);
+  WM_cursor_warp(win, BLI_rctf_cent_x(&rect), BLI_rctf_cent_y(&rect));
+
+  if (state == BUTTON_STATE_TEXT_EDITING && ELEM(button->type,
+                                                 ButtonType::Text,
+                                                 ButtonType::Num,
+                                                 ButtonType::NumSlider,
+                                                 ButtonType::SearchMenu))
+  {
     button_activate_state(C, button, BUTTON_STATE_TEXT_EDITING);
   }
-  if (state == int(BUTTON_STATE_NUM_EDITING)) {
-    button_activate_state(C, button, BUTTON_STATE_NUM_EDITING);
+
+  if (state == BUTTON_STATE_NUM_EDITING && ELEM(button->type,
+                                                ButtonType::Num,
+                                                ButtonType::NumSlider,
+                                                ButtonType::HsvCircle,
+                                                ButtonType::HsvCube))
+  {
+
+    wmEvent event = *win->runtime->eventstate;
+    event.type = LEFTMOUSE;
+    event.val = KM_PRESS;
+    /* Use `ui_do_button` for #BUTTON_STATE_NUM_EDITING with a dummy event, some buttons do some
+     * configurations on left click. */
+    ui_do_button(C, button->block, button, &event);
+  }
+
+  if (state == BUTTON_STATE_WAIT_KEY_EVENT &&
+      ELEM(button->type, ButtonType::KeyEvent, ButtonType::HotkeyEvent))
+  {
+    button_activate_state(C, button, BUTTON_STATE_WAIT_KEY_EVENT);
   }
 
   CTX_wm_area_set(C, current_screen);
   CTX_wm_region_set(C, current_region);
 
-  return true;
+  return xy;
 }
 }  // namespace blender::ui

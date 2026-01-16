@@ -1520,6 +1520,7 @@ if(WITH_UI_TESTS)
     test_fullscreen.wm_toggle_fullscreen
     test_fullscreen.wm_toggle_stacked_fullscreen_file_browser
     test_fullscreen.wm_toggle_stacked_fullscreens
+    test_layout.ui_string_property_buttons
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
