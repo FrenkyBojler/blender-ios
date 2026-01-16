@@ -110,12 +110,12 @@ static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /
 
   for (Strip &strip : *seq::active_seqbase_get(ed)) {
     if (strip.flag & SEQ_SELECT) {
-      Vector<seq::IndexBuildContext *> queue;
+      Vector<seq::ProxyBuildContext *> queue;
 
       seq::proxy_rebuild_context(bmain, scene, &strip, &processed_paths, false, queue);
 
       wmJobWorkerStatus worker_status = {};
-      for (seq::IndexBuildContext *context : queue) {
+      for (seq::ProxyBuildContext *context : queue) {
         seq::proxy_rebuild(context, &worker_status, nullptr);
         seq::proxy_rebuild_finish(context, false);
       }

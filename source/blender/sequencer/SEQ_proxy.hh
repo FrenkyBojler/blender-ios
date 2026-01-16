@@ -27,7 +27,7 @@ struct wmJobWorkerStatus;
 
 namespace seq {
 
-struct IndexBuildContext;
+struct ProxyBuildContext;
 struct RenderData;
 
 bool proxy_rebuild_context(Main *bmain,
@@ -35,11 +35,11 @@ bool proxy_rebuild_context(Main *bmain,
                            Strip *strip,
                            Set<std::string> *processed_paths,
                            bool build_only_on_bad_performance,
-                           Vector<IndexBuildContext *> &r_queue);
-void proxy_rebuild(IndexBuildContext *context,
+                           Vector<ProxyBuildContext *> &r_queue);
+void proxy_rebuild(ProxyBuildContext *context,
                    wmJobWorkerStatus *worker_status,
                    FunctionRef<void(float progress)> set_progress_fn);
-void proxy_rebuild_finish(IndexBuildContext *context, bool stop);
+void proxy_rebuild_finish(ProxyBuildContext *context, bool stop);
 void proxy_set(Strip *strip, bool value);
 bool can_use_proxy(const RenderData *context, const Strip *strip, IMB_Proxy_Size psize);
 IMB_Proxy_Size rendersize_to_proxysize(eSpaceSeq_Proxy_RenderSize render_size);
@@ -48,7 +48,7 @@ float rendersize_to_scale_factor(eSpaceSeq_Proxy_RenderSize render_size);
 struct ProxyJob {
   Main *main = nullptr;
   Scene *scene = nullptr;
-  Vector<IndexBuildContext *> queue;
+  Vector<ProxyBuildContext *> queue;
   int stop = 0;
 };
 

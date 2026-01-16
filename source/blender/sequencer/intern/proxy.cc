@@ -51,7 +51,7 @@
 
 namespace blender::seq {
 
-struct IndexBuildContext {
+struct ProxyBuildContext {
   MovieProxyBuilder *movie_proxy_builder = nullptr;
 
   int tc_flags = 0;
@@ -385,7 +385,7 @@ bool proxy_rebuild_context(Main *bmain,
                            Strip *strip,
                            Set<std::string> *processed_paths,
                            bool build_only_on_bad_performance,
-                           Vector<IndexBuildContext *> &r_queue)
+                           Vector<ProxyBuildContext *> &r_queue)
 {
   if (!strip->data || !strip->data->proxy) {
     return true;
@@ -413,7 +413,7 @@ bool proxy_rebuild_context(Main *bmain,
 
     strip_free_movie_readers(strip);
 
-    IndexBuildContext *context = MEM_new_for_free<IndexBuildContext>(
+    ProxyBuildContext *context = MEM_new_for_free<ProxyBuildContext>(
         "strip proxy rebuild context");
 
     Strip *strip_new = strip_duplicate_recursive(
@@ -514,7 +514,7 @@ static void seq_proxy_build_frame(const Scene *scene,
   }
 }
 
-static ImBuf *render_image_strip_frame(const IndexBuildContext &context,
+static ImBuf *render_image_strip_frame(const ProxyBuildContext &context,
                                        const Strip &strip,
                                        char *filepath,
                                        char *prefix,
@@ -549,7 +549,7 @@ static ImBuf *render_image_strip_frame(const IndexBuildContext &context,
   return ibuf;
 }
 
-static void image_proxy_builder_process(IndexBuildContext &context,
+static void image_proxy_builder_process(ProxyBuildContext &context,
                                         const bool *job_stop,
                                         bool *job_update_ui,
                                         const FunctionRef<void(float progress)> set_progress_fn)
@@ -650,7 +650,7 @@ static void image_proxy_builder_process(IndexBuildContext &context,
   }
 }
 
-void proxy_rebuild(IndexBuildContext *context,
+void proxy_rebuild(ProxyBuildContext *context,
                    wmJobWorkerStatus *worker_status,
                    const FunctionRef<void(float progress)> set_progress_fn)
 {
@@ -671,7 +671,7 @@ void proxy_rebuild(IndexBuildContext *context,
   }
 }
 
-void proxy_rebuild_finish(IndexBuildContext *context, bool stop)
+void proxy_rebuild_finish(ProxyBuildContext *context, bool stop)
 {
   if (context->movie_proxy_builder) {
     for (MovieReader *anim : context->strip->runtime->movie_readers) {
