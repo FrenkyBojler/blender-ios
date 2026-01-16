@@ -31,7 +31,6 @@
 #include "BLI_span.hh"
 #include "BLI_task.h"
 #include "BLI_task.hh"
-#include "BLI_time.h"
 #include "BLI_vector.hh"
 
 #include "DNA_brush_types.h"
@@ -40,7 +39,7 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_view3d_types.h"
+
 
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
