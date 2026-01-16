@@ -44,9 +44,12 @@ static TexPaintSlot *get_active_slot(Object &ob)
 using namespace blender::ed::sculpt_paint::canvas;
 
 /* Does the paint tool with the given idname use a canvas. */
-static bool paint_tool_uses_canvas(StringRef idname)
+static bool paint_tool_uses_canvas(bToolRef *tref)
 {
-  return ELEM(idname, "builtin.color_filter");
+  if (tref == nullptr || tref->runtime == nullptr) {
+    return false;
+  }
+  return tref->runtime->flag & TOOLREF_FLAG_USE_PAINT_CANVAS;
 }
 
 static bool paint_brush_uses_canvas(bContext *C)
@@ -84,7 +87,7 @@ void ED_paint_brush_type_update_sticky_shading_color(bContext *C, Object *ob)
     return;
   }
 
-  ob->runtime->sculpt_session->sticky_shading_color = paint_tool_uses_canvas(tref->idname) ||
+  ob->runtime->sculpt_session->sticky_shading_color = paint_tool_uses_canvas(tref) ||
                                                       paint_brush_uses_canvas(C);
 }
 
@@ -113,7 +116,7 @@ bool ED_paint_brush_type_use_canvas(bContext *C, bToolRef *tref)
     return false;
   }
 
-  return paint_tool_uses_canvas(tref->idname) || (C && paint_brush_uses_canvas(C));
+  return paint_tool_uses_canvas(tref) || (C && paint_brush_uses_canvas(C));
 }
 
 eV3DShadingColorType ED_paint_shading_color_override(bContext *C,

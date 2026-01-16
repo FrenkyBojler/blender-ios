@@ -898,6 +898,7 @@ static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*C, *gesture_data, *op);
+  ed::sculpt_paint::mask_overlay_check(C, op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -909,6 +910,7 @@ static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*C, *gesture_data, *op);
+  ed::sculpt_paint::mask_overlay_check(C, op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -920,6 +922,7 @@ static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*C, *gesture_data, *op);
+  ed::sculpt_paint::mask_overlay_check(C, op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -931,6 +934,7 @@ static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*C, *gesture_data, *op);
+  ed::sculpt_paint::mask_overlay_check(C, op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }

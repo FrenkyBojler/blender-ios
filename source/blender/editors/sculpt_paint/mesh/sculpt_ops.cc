@@ -465,13 +465,6 @@ void object_sculpt_mode_enter(Main &bmain,
 
   ensure_valid_pivot(ob, *paint);
 
-  /* Reset warning state for new sculpt session. */
-  if (paint->runtime) {
-    paint->runtime->warnings.overlay_warning_last_shown_time = 0.0f;
-    paint->runtime->warnings.mask_opacity_warning_shown = false;
-    paint->runtime->warnings.face_sets_opacity_warning_shown = false;
-  }
-
   /* Flush object mode. */
   DEG_id_tag_update(&ob.id, ID_RECALC_SYNC_TO_EVAL);
 }
@@ -755,6 +748,8 @@ static wmOperatorStatus mask_by_color(bContext *C, wmOperator *op, const float2 
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
+
+  ed::sculpt_paint::mask_overlay_check(C, op);
 
   /* Color data is not available in multi-resolution or dynamic topology. */
   if (!color_supported_check(scene, ob, op->reports)) {
@@ -1119,6 +1114,8 @@ static wmOperatorStatus mask_from_cavity_exec(bContext *C, wmOperator *op)
   MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(C), &ob);
   BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
 
+  ed::sculpt_paint::mask_overlay_check(C, op);
+
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
   vert_random_access_ensure(ob);
 
@@ -1319,6 +1316,8 @@ static wmOperatorStatus mask_from_boundary_exec(bContext *C, wmOperator *op)
 
   MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(C), &ob);
   BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
+
+  ed::sculpt_paint::mask_overlay_check(C, op);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
   vert_random_access_ensure(ob);
