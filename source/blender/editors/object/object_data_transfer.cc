@@ -161,7 +161,7 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
 
     RNA_enum_item_add_separator(&item, &totitem);
 
-    const ListBase *defbase = BKE_object_defgroup_list(ob_src);
+    const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob_src);
     for (i = 0, dg = static_cast<const bDeformGroup *>(defbase->first); dg; i++, dg = dg->next) {
       tmp_item.value = i;
       tmp_item.identifier = tmp_item.name = dg->name;
@@ -177,14 +177,12 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
       *r_free = true;
       return item;
     }
-    int data_num = CustomData_number_of_layers(&mesh_eval->corner_data, CD_PROP_FLOAT2);
-
+    VectorSet<StringRefNull> uv_map_names = mesh_eval->uv_map_names();
     RNA_enum_item_add_separator(&item, &totitem);
 
-    for (int i = 0; i < data_num; i++) {
+    for (int i = 0; i < uv_map_names.size(); i++) {
       tmp_item.value = i;
-      tmp_item.identifier = tmp_item.name = CustomData_get_layer_name(
-          &mesh_eval->corner_data, CD_PROP_FLOAT2, i);
+      tmp_item.identifier = tmp_item.name = uv_map_names[i].c_str();
       RNA_enum_item_add(&item, &totitem, &tmp_item);
     }
   }
@@ -359,7 +357,7 @@ static void data_transfer_exec_preprocess_objects(bContext *C,
       continue;
     }
 
-    mesh = static_cast<Mesh *>(ob->data);
+    mesh = id_cast<Mesh *>(ob->data);
     if (!ID_IS_EDITABLE(mesh) || ID_IS_OVERRIDE_LIBRARY(mesh)) {
       /* Do not transfer to linked/override data, not supported. */
       BKE_reportf(op->reports,
@@ -390,7 +388,7 @@ static bool data_transfer_exec_is_object_valid(wmOperator *op,
     return true;
   }
 
-  mesh = static_cast<Mesh *>(ob_dst->data);
+  mesh = id_cast<Mesh *>(ob_dst->data);
   if (mesh->id.tag & ID_TAG_DOIT) {
     mesh->id.tag &= ~ID_TAG_DOIT;
     return true;
@@ -821,7 +819,7 @@ void OBJECT_OT_data_transfer(wmOperatorType *ot)
 
 static bool datalayout_transfer_poll(bContext *C)
 {
-  return (edit_modifier_poll_generic(C, &RNA_DataTransferModifier, (1 << OB_MESH), true, false) ||
+  return (edit_modifier_poll_generic(C, RNA_DataTransferModifier, (1 << OB_MESH), true, false) ||
           data_transfer_poll(C));
 }
 
@@ -831,8 +829,8 @@ static wmOperatorStatus datalayout_transfer_exec(bContext *C, wmOperator *op)
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   DataTransferModifierData *dtmd;
 
-  dtmd = (DataTransferModifierData *)edit_modifier_property_get(
-      op, ob_act, eModifierType_DataTransfer);
+  dtmd = reinterpret_cast<DataTransferModifierData *>(
+      edit_modifier_property_get(op, ob_act, eModifierType_DataTransfer));
 
   /* If we have a modifier, we transfer data layout from this modifier's source object to
    * active one. Else, we transfer data layout from active object to all selected ones. */

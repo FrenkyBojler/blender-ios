@@ -18,9 +18,11 @@
 
 #include "node_composite_util.hh"
 
+namespace blender {
+
 /* **************** Pixelate ******************** */
 
-namespace blender::nodes::node_composite_pixelate_cc {
+namespace nodes::node_composite_pixelate_cc {
 
 static void cmp_node_pixelate_declare(NodeDeclarationBuilder &b)
 {
@@ -73,7 +75,7 @@ class PixelateOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -88,7 +90,7 @@ class PixelateOperation : public NodeOperation {
     const Domain domain = compute_domain();
     output.allocate_texture(domain);
 
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     const int pixel_size = get_pixel_size();
     parallel_for(size, [&](const int2 texel) {
       int2 start = (texel / int2(pixel_size)) * int2(pixel_size);
@@ -97,34 +99,34 @@ class PixelateOperation : public NodeOperation {
       float4 accumulated_color = float4(0.0f);
       for (int y = start.y; y < end.y; y++) {
         for (int x = start.x; x < end.x; x++) {
-          accumulated_color += input.load_pixel<float4>(int2(x, y));
+          accumulated_color += float4(input.load_pixel<Color>(int2(x, y)));
         }
       }
 
       int2 size = end - start;
       int count = size.x * size.y;
-      output.store_pixel(texel, accumulated_color / count);
+      output.store_pixel(texel, Color(accumulated_color / count));
     });
   }
 
-  float get_pixel_size()
+  int get_pixel_size()
   {
-    return math::max(1, this->get_input("Size").get_single_value_default(1));
+    return math::max(1, this->get_input("Size").get_single_value_default<int>());
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new PixelateOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_pixelate_cc
+}  // namespace nodes::node_composite_pixelate_cc
 
 static void register_node_type_cmp_pixelate()
 {
-  namespace file_ns = blender::nodes::node_composite_pixelate_cc;
+  namespace file_ns = nodes::node_composite_pixelate_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodePixelate", CMP_NODE_PIXELATE);
   ntype.ui_name = "Pixelate";
@@ -136,6 +138,8 @@ static void register_node_type_cmp_pixelate()
   ntype.declare = file_ns::cmp_node_pixelate_declare;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_pixelate)
+
+}  // namespace blender

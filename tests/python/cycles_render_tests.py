@@ -22,6 +22,12 @@ BLOCKLIST_ALL = [
     "visibility_particles.blend",
     # Temporarily blocked for 4.4 lib upgrade, due to PNG alpha minor difference.
     "image_log_osl.blend",
+    # Tests for EEVEE-only setting (duplicates from the Cycles perspective)
+    "camera_depth_of_field_jittered.blend",
+    "shadow_resolution.blend",
+    "shadow_min_pool_size.blend",
+    "shadow_resolution_scale.blend",
+    "shader_to_rgb_transparent.blend",
 ]
 
 # Blocklist for device + build configuration that does not support OSL at all.
@@ -57,6 +63,8 @@ BLOCKLIST_OSL_ALL = BLOCKLIST_OSL_LIMITED + [
     # Tests that need investigating into why they're failing:
     # Noise differences due to Principled BSDF mixing/layering used in some of these scenes
     'render_passes_.*.blend',
+    # OSL can not specify parameters when reading attribute, which we need for stochastic sampling
+    'volume_tricubic_interpolation.blend',
 ]
 
 BLOCKLIST_OPTIX = [
@@ -94,6 +102,13 @@ BLOCKLIST_OPTIX_OSL_ALL = BLOCKLIST_OPTIX_OSL_LIMITED + [
 
 
 BLOCKLIST_METAL = []
+
+BLOCKLIST_METAL_RT = [
+    # Metal RT uses different parameterization for linear curves.
+    # See discussion in #146072
+    # https://projects.blender.org/blender/blender/issues/146072#issuecomment-1699788
+    'hair_linear_close_up.blend',
+]
 
 if platform.system() == "Darwin":
     version, _, _ = platform.mac_ver()
@@ -260,8 +275,12 @@ def main():
             blocklist += BLOCKLIST_OPTIX_OSL_LIMITED
         elif args.osl == 'all':
             blocklist += BLOCKLIST_OPTIX_OSL_ALL
+
     if device == 'METAL':
         blocklist += BLOCKLIST_METAL
+    if device == 'METAL-RT':
+        blocklist += BLOCKLIST_METAL
+        blocklist += BLOCKLIST_METAL_RT
 
     report = CyclesReport('Cycles', args.outdir, args.oiiotool, device, blocklist, args.osl == 'all')
 
@@ -282,7 +301,7 @@ def main():
         report.set_fail_threshold(0.032)
 
     # Layer mixing is different between SVM and OSL, so a few tests have
-    # noticably different noise causing OSL Principled BSDF tests to fail.
+    # noticeably different noise causing OSL Principled BSDF tests to fail.
     if ((args.osl == 'all') and (test_dir_name == 'principled_bsdf')):
         report.set_fail_threshold(0.06)
 

@@ -34,6 +34,7 @@ set(SRC
   nodes/node_geo_attribute_statistic.cc
   nodes/node_geo_bake.cc
   nodes/node_geo_blur_attribute.cc
+  nodes/node_geo_bone_info.cc
   nodes/node_geo_boolean.cc
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
@@ -91,11 +92,13 @@ set(SRC
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
+  nodes/node_geo_get_bundle_item.cc
   nodes/node_geo_get_named_grid.cc
   nodes/node_geo_gizmo_dial.cc
   nodes/node_geo_gizmo_linear.cc
   nodes/node_geo_gizmo_transform.cc
   nodes/node_geo_grease_pencil_to_curves.cc
+  nodes/node_geo_grid_advect.cc
   nodes/node_geo_grid_curl.cc
   nodes/node_geo_grid_divergence.cc
   nodes/node_geo_grid_gradient.cc
@@ -149,6 +152,7 @@ set(SRC
   nodes/node_geo_input_spline_length.cc
   nodes/node_geo_input_spline_resolution.cc
   nodes/node_geo_input_tangent.cc
+  nodes/node_geo_input_voxel_index.cc
   nodes/node_geo_instance_on_points.cc
   nodes/node_geo_instances_to_points.cc
   nodes/node_geo_interpolate_curves.cc
@@ -209,6 +213,12 @@ set(SRC
   nodes/node_geo_scale_elements.cc
   nodes/node_geo_scale_instances.cc
   nodes/node_geo_sdf_grid_boolean.cc
+  nodes/node_geo_sdf_grid_fillet.cc
+  nodes/node_geo_sdf_grid_laplacian.cc
+  nodes/node_geo_sdf_grid_mean.cc
+  nodes/node_geo_sdf_grid_mean_curvature.cc
+  nodes/node_geo_sdf_grid_median.cc
+  nodes/node_geo_sdf_grid_offset.cc
   nodes/node_geo_self_object.cc
   nodes/node_geo_separate_bundle.cc
   nodes/node_geo_separate_components.cc
@@ -236,6 +246,7 @@ set(SRC
   nodes/node_geo_simulation.cc
   nodes/node_geo_sort_elements.cc
   nodes/node_geo_split_to_instances.cc
+  nodes/node_geo_store_bundle_item.cc
   nodes/node_geo_store_named_attribute.cc
   nodes/node_geo_store_named_grid.cc
   nodes/node_geo_string_join.cc
@@ -301,6 +312,8 @@ set(LIB
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::gmp
+  PRIVATE bf::dependencies::optional::bullet
 )
 
 if(WITH_IO_STL)
@@ -328,14 +341,9 @@ if(WITH_IO_WAVEFRONT_OBJ)
 endif()
 
 if(WITH_BULLET)
-  list(APPEND INC_SYS
-    ${BULLET_INCLUDE_DIRS}
+  list(APPEND INC
     ../../../../intern/rigidbody
   )
-  list(APPEND LIB
-    ${BULLET_LIBRARIES}
-  )
-  add_definitions(-DWITH_BULLET)
 endif()
 
 if(WITH_TBB)
@@ -352,18 +360,6 @@ endif()
 
 if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
-endif()
-
-if(WITH_GMP)
-  add_definitions(-DWITH_GMP)
-
-  list(APPEND INC_SYS
-    ${GMP_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${GMP_LIBRARIES}
-  )
 endif()
 
 add_node_discovery(

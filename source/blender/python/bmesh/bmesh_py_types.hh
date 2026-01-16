@@ -12,6 +12,8 @@
 
 #include "bmesh.hh"
 
+namespace blender {
+
 struct BMesh;
 struct BMEdge;
 struct BMElem;
@@ -228,6 +230,11 @@ enum {
                                                     const char *error_prefix,
                                                     void **args,
                                                     uint args_tot) ATTR_NONNULL(1, 2);
+[[nodiscard]] int bpy_bm_check_uv_select_sync_valid(BMesh *bm, const char *error_prefix);
+[[nodiscard]] int bpy_bm_uv_layer_offset_or_error(BMesh *bm, const char *error_prefix);
+[[nodiscard]] int bpy_bm_check_bm_match_or_error(BMesh *bm_a,
+                                                 BMesh *bm_b,
+                                                 const char *error_prefix);
 
 #define BPY_BM_CHECK_OBJ(obj) \
   if (UNLIKELY(bpy_bm_generic_valid_check((BPy_BMGeneric *)obj) == -1)) { \
@@ -272,3 +279,5 @@ enum {
            (bpy_bmelemseq)->py_ele ? ((BPy_BMElem *)(bpy_bmelemseq)->py_ele)->ele : NULL); \
        ele; \
        BM_CHECK_TYPE_ELEM_ASSIGN(ele) = BM_iter_step(iter))
+
+}  // namespace blender

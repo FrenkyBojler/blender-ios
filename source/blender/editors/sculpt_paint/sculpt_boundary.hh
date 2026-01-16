@@ -14,8 +14,16 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_ordered_edge.hh"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
+
+#include "BKE_paint.hh"
+
+#include "DNA_mesh_types.h"
+
+namespace blender {
 
 struct Brush;
 struct BMVert;
@@ -26,11 +34,11 @@ struct SculptBoundaryPreview;
 struct SculptSession;
 struct SubdivCCG;
 struct SubdivCCGCoord;
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 class Node;
 }
 
-namespace blender::ed::sculpt_paint::boundary {
+namespace ed::sculpt_paint::boundary {
 
 struct SculptBoundary {
   /* Vertex indices of the active boundary. */
@@ -94,9 +102,10 @@ struct SculptBoundary {
 /**
  * Populates boundary information for a mesh.
  *
- * \see SculptVertexInfo
+ * \see SculptBoundaryInfo
  */
 void ensure_boundary_info(Object &object);
+SculptBoundaryInfoCache create_boundary_info(const Mesh &mesh);
 
 /**
  * Determine if a vertex is a boundary vertex.
@@ -105,11 +114,12 @@ void ensure_boundary_info(Object &object);
  */
 bool vert_is_boundary(GroupedSpan<int> vert_to_face_map,
                       Span<bool> hide_poly,
-                      BitSpan boundary,
+                      BitSpan boundary_verts,
                       int vert);
 bool vert_is_boundary(OffsetIndices<int> faces,
                       Span<int> corner_verts,
-                      BitSpan boundary,
+                      BitSpan boundary_verts,
+                      const Set<OrderedEdge> &boundary_edges,
                       const SubdivCCG &subdiv_ccg,
                       SubdivCCGCoord vert);
 bool vert_is_boundary(BMVert *vert);
@@ -152,4 +162,6 @@ void do_boundary_brush(const Depsgraph &depsgraph,
                        Object &object,
                        const IndexMask &node_mask);
 
-}  // namespace blender::ed::sculpt_paint::boundary
+}  // namespace ed::sculpt_paint::boundary
+
+}  // namespace blender

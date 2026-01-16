@@ -52,14 +52,13 @@ set(WITH_OPENVDB_BLOSC       ON  CACHE BOOL "" FORCE)
 set(WITH_POTRACE             ON  CACHE BOOL "" FORCE)
 set(WITH_PUGIXML             ON  CACHE BOOL "" FORCE)
 set(WITH_PYTHON_INSTALL      ON  CACHE BOOL "" FORCE)
+set(WITH_RUBBERBAND          ON  CACHE BOOL "" FORCE)
 set(WITH_QUADRIFLOW          ON  CACHE BOOL "" FORCE)
 set(WITH_SDL                 OFF CACHE BOOL "" FORCE)
 set(WITH_TBB                 ON  CACHE BOOL "" FORCE)
 set(WITH_USD                 ON  CACHE BOOL "" FORCE)
 set(WITH_MATERIALX           ON  CACHE BOOL "" FORCE)
 set(WITH_HYDRA               ON  CACHE BOOL "" FORCE)
-
-set(WITH_MEM_JEMALLOC          ON  CACHE BOOL "" FORCE)
 
 # platform dependent options
 if(APPLE)
@@ -81,6 +80,7 @@ if(UNIX AND NOT APPLE)
   # TODO don't disable pipewire on release builds once it has gotten more testing
   set(WITH_PIPEWIRE            OFF  CACHE BOOL "" FORCE)
   set(WITH_PIPEWIRE_DYNLOAD    ON  CACHE BOOL "" FORCE)
+  set(WITH_TBB_MALLOC_PROXY    ON  CACHE BOOL "" FORCE)
 endif()
 if(NOT APPLE)
   set(WITH_XR_OPENXR              ON  CACHE BOOL "" FORCE)

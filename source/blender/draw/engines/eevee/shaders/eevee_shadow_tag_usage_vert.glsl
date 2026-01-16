@@ -9,7 +9,7 @@
  * This renders the bounding boxes for transparent objects in order to tag the correct shadows.
  */
 
-#include "infos/eevee_shadow_infos.hh"
+#include "infos/eevee_shadow_pipeline_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(eevee_shadow_tag_usage_transparent)
 
@@ -21,7 +21,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_shadow_tag_usage_transparent)
 
 /* Inflate bounds by half a pixel as a conservative rasterization alternative,
  * to ensure the tiles needed by all LOD0 pixels get tagged */
-void inflate_bounds(float3 ls_center, inout float3 P, inout float3 lP)
+void inflate_bounds(float3 ls_center, float3 &P, float3 &lP)
 {
   float3 vP = drw_point_world_to_view(P);
 

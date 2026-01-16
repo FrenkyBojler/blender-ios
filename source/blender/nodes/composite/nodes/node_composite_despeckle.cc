@@ -20,9 +20,11 @@
 
 #include "node_composite_util.hh"
 
+namespace blender {
+
 /* **************** FILTER  ******************** */
 
-namespace blender::nodes::node_composite_despeckle_cc {
+namespace nodes::node_composite_despeckle_cc {
 
 static void cmp_node_despeckle_declare(NodeDeclarationBuilder &b)
 {
@@ -34,7 +36,7 @@ static void cmp_node_despeckle_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
 
-  b.add_input<decl::Float>("Fac")
+  b.add_input<decl::Float>("Factor", "Fac")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
@@ -99,7 +101,7 @@ class DespeckleOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -128,8 +130,8 @@ class DespeckleOperation : public NodeOperation {
                                 float3(1.0f, 0.0f, 1.0f),
                                 float3(corner_weight, 1.0f, corner_weight));
 
-    parallel_for(domain.size, [&](const int2 texel) {
-      float4 center_color = input.load_pixel<float4>(texel);
+    parallel_for(domain.data_size, [&](const int2 texel) {
+      float4 center_color = float4(input.load_pixel<Color>(texel));
 
       /* Go over the pixels in the 3x3 window around the center pixel and compute the total sum of
        * their colors multiplied by their weights. Additionally, for pixels whose colors are not
@@ -141,7 +143,8 @@ class DespeckleOperation : public NodeOperation {
       for (int j = 0; j < 3; j++) {
         for (int i = 0; i < 3; i++) {
           float weight = weights[j][i];
-          float4 color = input.load_pixel_extended<float4>(texel + int2(i - 1, j - 1)) * weight;
+          float4 color = float4(input.load_pixel_extended<Color>(texel + int2(i - 1, j - 1))) *
+                         weight;
           sum_of_colors += color;
           if (!math::is_equal(center_color.xyz(), color.xyz(), color_threshold)) {
             accumulated_color += color;
@@ -153,7 +156,7 @@ class DespeckleOperation : public NodeOperation {
       /* If the accumulated weight is zero, that means all pixels in the 3x3 window are similar and
        * no need to despeckle anything, so write the original center color and return. */
       if (accumulated_weight == 0.0f) {
-        output.store_pixel(texel, center_color);
+        output.store_pixel(texel, Color(center_color));
         return;
       }
 
@@ -162,7 +165,7 @@ class DespeckleOperation : public NodeOperation {
        * that are not close enough to the center pixel is low, and no need to despeckle anything,
        * so write the original center color and return. */
       if (accumulated_weight / sum_of_weights < neighbor_threshold) {
-        output.store_pixel(texel, center_color);
+        output.store_pixel(texel, Color(center_color));
         return;
       }
 
@@ -171,41 +174,41 @@ class DespeckleOperation : public NodeOperation {
       if (math::is_equal(
               center_color.xyz(), (sum_of_colors / sum_of_weights).xyz(), color_threshold))
       {
-        output.store_pixel(texel, center_color);
+        output.store_pixel(texel, Color(center_color));
         return;
       }
 
       /* We need to despeckle, so write the mean accumulated color. */
       float factor = factor_image.load_pixel<float, true>(texel);
       float4 mean_color = accumulated_color / accumulated_weight;
-      output.store_pixel(texel, math::interpolate(center_color, mean_color, factor));
+      output.store_pixel(texel, Color(math::interpolate(center_color, mean_color, factor)));
     });
   }
 
   float get_color_threshold()
   {
-    return math::max(0.0f, this->get_input("Color Threshold").get_single_value_default(0.5f));
+    return math::max(0.0f, this->get_input("Color Threshold").get_single_value_default<float>());
   }
 
   float get_neighbor_threshold()
   {
     return math::clamp(
-        this->get_input("Neighbor Threshold").get_single_value_default(0.5f), 0.0f, 1.0f);
+        this->get_input("Neighbor Threshold").get_single_value_default<float>(), 0.0f, 1.0f);
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new DespeckleOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_despeckle_cc
+}  // namespace nodes::node_composite_despeckle_cc
 
 static void register_node_type_cmp_despeckle()
 {
-  namespace file_ns = blender::nodes::node_composite_despeckle_cc;
+  namespace file_ns = nodes::node_composite_despeckle_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeDespeckle", CMP_NODE_DESPECKLE);
   ntype.ui_name = "Despeckle";
@@ -218,6 +221,8 @@ static void register_node_type_cmp_despeckle()
   ntype.flag |= NODE_PREVIEW;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_despeckle)
+
+}  // namespace blender

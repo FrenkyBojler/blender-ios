@@ -5,8 +5,8 @@
 #include "BLI_array_utils.hh"
 #include "BLI_bit_span_ops.hh"
 #include "BLI_bit_vector.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_stack.hh"
-#include "BLI_utildefines.h"
 
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
@@ -219,6 +219,24 @@ static void find_auto_structure_type_sockets(const bNodeTree &tree,
       }
     }
   }
+
+  /* Handle Store Bundle Item nodes. */
+  for (const bNode *node : tree.nodes_by_type("NodeStoreBundleItem")) {
+    auto &storage = *static_cast<NodeStoreBundleItem *>(node->storage);
+    if (storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      const bNodeSocket &socket = *node->input_by_identifier("Item");
+      is_auto_structure_type[socket.index_in_tree()].set();
+    }
+  }
+
+  /* Handle Get Bundle Item nodes. */
+  for (const bNode *node : tree.nodes_by_type("NodeGetBundleItem")) {
+    auto &storage = *static_cast<NodeGetBundleItem *>(node->storage);
+    if (storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      const bNodeSocket &socket = *node->output_by_identifier("Item");
+      is_auto_structure_type[socket.index_in_tree()].set();
+    }
+  }
 }
 
 static void init_input_requirements(const bNodeTree &tree,
@@ -340,7 +358,7 @@ enum class ZoneInOutChange {
   In = (1 << 1),
   Out = (1 << 2),
 };
-ENUM_OPERATORS(ZoneInOutChange, ZoneInOutChange::Out);
+ENUM_OPERATORS(ZoneInOutChange);
 
 static ZoneInOutChange simulation_zone_requirements_propagate(
     const bNode &input_node,
@@ -404,7 +422,7 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const ZoneInOutChange change = simulation_zone_requirements_propagate(
             node, *output_node, input_requirements);
-        if ((change & ZoneInOutChange::Out) != ZoneInOutChange::None) {
+        if (flag_is_set(change, ZoneInOutChange::Out)) {
           return true;
         }
       }
@@ -416,7 +434,7 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
         if (node.identifier == data.output_node_id) {
           const ZoneInOutChange change = simulation_zone_requirements_propagate(
               *input_node, node, input_requirements);
-          if ((change & ZoneInOutChange::In) != ZoneInOutChange::None) {
+          if (flag_is_set(change, ZoneInOutChange::In)) {
             return true;
           }
         }
@@ -428,7 +446,7 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const ZoneInOutChange change = repeat_zone_requirements_propagate(
             node, *output_node, input_requirements);
-        if ((change & ZoneInOutChange::Out) != ZoneInOutChange::None) {
+        if (flag_is_set(change, ZoneInOutChange::Out)) {
           return true;
         }
       }
@@ -440,7 +458,7 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
         if (node.identifier == data.output_node_id) {
           const ZoneInOutChange change = repeat_zone_requirements_propagate(
               *input_node, node, input_requirements);
-          if ((change & ZoneInOutChange::In) != ZoneInOutChange::None) {
+          if (flag_is_set(change, ZoneInOutChange::In)) {
             return true;
           }
         }
@@ -627,7 +645,7 @@ static bool propagate_zone_status(const bNodeTree &tree,
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const ZoneInOutChange change = simulation_zone_status_propagate(
             node, *output_node, structure_types);
-        if ((change & ZoneInOutChange::Out) != ZoneInOutChange::None) {
+        if (flag_is_set(change, ZoneInOutChange::Out)) {
           return true;
         }
       }
@@ -639,7 +657,7 @@ static bool propagate_zone_status(const bNodeTree &tree,
         if (node.identifier == data.output_node_id) {
           const ZoneInOutChange change = simulation_zone_status_propagate(
               *input_node, node, structure_types);
-          if ((change & ZoneInOutChange::In) != ZoneInOutChange::None) {
+          if (flag_is_set(change, ZoneInOutChange::In)) {
             return true;
           }
         }
@@ -651,7 +669,7 @@ static bool propagate_zone_status(const bNodeTree &tree,
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const ZoneInOutChange change = repeat_zone_status_propagate(
             node, *output_node, structure_types);
-        if ((change & ZoneInOutChange::Out) != ZoneInOutChange::None) {
+        if (flag_is_set(change, ZoneInOutChange::Out)) {
           return true;
         }
       }
@@ -663,7 +681,7 @@ static bool propagate_zone_status(const bNodeTree &tree,
         if (node.identifier == data.output_node_id) {
           const ZoneInOutChange change = repeat_zone_status_propagate(
               *input_node, node, structure_types);
-          if ((change & ZoneInOutChange::In) != ZoneInOutChange::None) {
+          if (flag_is_set(change, ZoneInOutChange::In)) {
             return true;
           }
         }
@@ -703,7 +721,11 @@ static void propagate_left_to_right(const bNodeTree &tree,
   }
 
   /* Outputs of these nodes have dynamic structure type but should start out as single values. */
-  for (const StringRefNull idname : {"GeometryNodeRepeatInput", "GeometryNodeRepeatOutput"}) {
+  for (const StringRefNull idname : {"GeometryNodeRepeatInput",
+                                     "GeometryNodeRepeatOutput",
+                                     "GeometryNodeSimulationInput",
+                                     "GeometryNodeSimulationOutput"})
+  {
     for (const bNode *node : tree.nodes_by_type(idname)) {
       for (const bNodeSocket *socket : node->output_sockets()) {
         structure_types[socket->index_in_tree()] = StructureType::Single;

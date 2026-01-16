@@ -14,16 +14,17 @@
 
 #include "DNA_attribute_types.h"
 
+namespace blender {
+
+struct Attribute;
 struct BlendDataReader;
 struct BlendWriter;
 struct IDTypeForeachColorFunctionCallback;
-namespace blender {
 class GPointer;
 class CPPType;
 class ResourceScope;
-}  // namespace blender
 
-namespace blender::bke {
+namespace bke {
 
 enum class AttrDomain : int8_t;
 enum class AttrType : int16_t;
@@ -41,7 +42,7 @@ class Attribute {
      * stores the size and type itself. It may be possible to make use of that fact to avoid
      * storing it here, or even vice versa. */
     void *data;
-    /* The number of elements in the array. */
+    /** The number of elements in the array. */
     int64_t size;
     ImplicitSharingPtr<> sharing_info;
     static ArrayData from_value(const GPointer &value, int64_t domain_size);
@@ -128,7 +129,7 @@ class AttributeStorageRuntime {
   CustomIDVectorSet<std::unique_ptr<Attribute>, AttributeNameGetter> attributes;
 };
 
-class AttributeStorage : public ::AttributeStorage {
+class AttributeStorage : public blender::AttributeStorage {
  public:
   AttributeStorage();
   AttributeStorage(const AttributeStorage &other);
@@ -201,7 +202,7 @@ class AttributeStorage : public ::AttributeStorage {
    */
   struct BlendWriteData {
     ResourceScope &scope;
-    Vector<::Attribute, 16> &attributes;
+    Vector<blender::Attribute, 16> &attributes;
     explicit BlendWriteData(ResourceScope &scope);
   };
   /**
@@ -211,7 +212,7 @@ class AttributeStorage : public ::AttributeStorage {
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
 
   /**
-   * Iterate over every color to change it to another colorspace.
+   * Iterate over every color to change it to another color-space.
    */
   void foreach_working_space_color(const IDTypeForeachColorFunctionCallback &fn);
 
@@ -219,7 +220,7 @@ class AttributeStorage : public ::AttributeStorage {
 };
 
 /** The C++ wrapper needs to be the same size as the DNA struct. */
-static_assert(sizeof(AttributeStorage) == sizeof(::AttributeStorage));
+static_assert(sizeof(AttributeStorage) == sizeof(AttributeStorage));
 
 inline StringRefNull Attribute::name() const
 {
@@ -246,13 +247,15 @@ inline void Attribute::assign_data(DataVariant &&data)
   data_ = std::move(data);
 }
 
-}  // namespace blender::bke
+}  // namespace bke
 
-inline blender::bke::AttributeStorage &AttributeStorage::wrap()
+inline bke::AttributeStorage &AttributeStorage::wrap()
 {
-  return *reinterpret_cast<blender::bke::AttributeStorage *>(this);
+  return *reinterpret_cast<bke::AttributeStorage *>(this);
 }
-inline const blender::bke::AttributeStorage &AttributeStorage::wrap() const
+inline const bke::AttributeStorage &AttributeStorage::wrap() const
 {
-  return *reinterpret_cast<const blender::bke::AttributeStorage *>(this);
+  return *reinterpret_cast<const bke::AttributeStorage *>(this);
 }
+
+}  // namespace blender
