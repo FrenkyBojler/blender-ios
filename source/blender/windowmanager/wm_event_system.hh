@@ -118,7 +118,6 @@ struct wmEventHandler_Op {
 
   /** Workaround: special cases for file-select and XR. */
   bool is_fileselect;
-  bool is_xr;
 
   /** Store context for this handler for derived/modal handlers. */
   struct {
