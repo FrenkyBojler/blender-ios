@@ -27,7 +27,8 @@ SpreadsheetTableIDGeometry *spreadsheet_table_id_new_geometry()
 static void copy_bundle_path(SpreadsheetBundleTreeViewPath &dst,
                              const SpreadsheetBundleTreeViewPath &src)
 {
-  dst.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(src.bundle_path_num, __func__);
+  dst.bundle_path = MEM_new_array_for_free<SpreadsheetBundlePathElem>(src.bundle_path_num,
+                                                                      __func__);
   dst.bundle_path_num = src.bundle_path_num;
   for (const int i : IndexRange(src.bundle_path_num)) {
     dst.bundle_path[i].identifier = BLI_strdup_null(src.bundle_path[i].identifier);
