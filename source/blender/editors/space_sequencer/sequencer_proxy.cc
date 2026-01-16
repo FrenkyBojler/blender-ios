@@ -21,7 +21,6 @@
 #include "SEQ_sequencer.hh"
 
 #include "WM_api.hh"
-#include "WM_types.hh"
 
 #include "RNA_define.hh"
 
@@ -114,9 +113,9 @@ static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /
 
       seq::proxy_build_start(bmain, scene, &strip, &processed_paths, false, queue);
 
-      wmJobWorkerStatus worker_status = {};
+      bool should_stop = false, has_updated = false;
       for (seq::ProxyBuildContext *context : queue) {
-        seq::proxy_build_process(context, &worker_status, nullptr);
+        seq::proxy_build_process(context, &should_stop, &has_updated, nullptr);
         seq::proxy_rebuild_finish(context, false);
       }
       seq::relations_free_imbuf(scene, &ed->seqbase, false);

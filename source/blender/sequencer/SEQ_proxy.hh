@@ -44,7 +44,8 @@ bool proxy_build_start(Main *bmain,
                        Vector<ProxyBuildContext *> &r_queue);
 
 void proxy_build_process(ProxyBuildContext *context,
-                         wmJobWorkerStatus *worker_status,
+                         const bool *should_stop,
+                         bool *has_updated,
                          FunctionRef<void(float progress)> set_progress_fn);
 void proxy_rebuild_finish(ProxyBuildContext *context, bool stop);
 

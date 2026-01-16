@@ -1238,7 +1238,7 @@ static void do_movie_proxy(void *pjv,
                            int /*build_count*/,
                            const int *build_undistort_sizes,
                            int build_undistort_count,
-                           bool *stop,
+                           const bool *stop,
                            bool *do_update,
                            float *progress)
 {

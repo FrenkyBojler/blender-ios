@@ -651,22 +651,20 @@ static void image_proxy_builder_process(ProxyBuildContext &context,
 }
 
 void proxy_build_process(ProxyBuildContext *context,
-                         wmJobWorkerStatus *worker_status,
+                         const bool *should_stop,
+                         bool *has_updated,
                          const FunctionRef<void(float progress)> set_progress_fn)
 {
   if (context->strip->type == STRIP_TYPE_MOVIE) {
     if (context->movie_proxy_builder) {
-      MOV_proxy_builder_process(context->movie_proxy_builder,
-                                &worker_status->stop,
-                                &worker_status->do_update,
-                                set_progress_fn);
+      MOV_proxy_builder_process(
+          context->movie_proxy_builder, should_stop, has_updated, set_progress_fn);
     }
     return;
   }
 
   if (context->strip->type == STRIP_TYPE_IMAGE) {
-    image_proxy_builder_process(
-        *context, &worker_status->stop, &worker_status->do_update, set_progress_fn);
+    image_proxy_builder_process(*context, should_stop, has_updated, set_progress_fn);
     return;
   }
 }
