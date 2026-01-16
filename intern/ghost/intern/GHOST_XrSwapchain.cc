@@ -84,6 +84,7 @@ GHOST_XrSwapchain::GHOST_XrSwapchain(GHOST_XrSwapchain &&other)
       image_width_(other.image_width_),
       image_height_(other.image_height_),
       format_(other.format_),
+      gpu_format_(other.gpu_format_),
       is_srgb_buffer_(other.is_srgb_buffer_)
 {
   /* Prevent xrDestroySwapchain call for the moved out item. */
