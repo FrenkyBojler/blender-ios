@@ -2230,7 +2230,8 @@ struct RemoteLibraryRequest {
   std::atomic<bool> is_downloading = false;
 
   /** When downloading remote library pages, ignore pages older than this. They are from a previous
-   * download still. Use the system clock since this is compared against file time-stamps. */
+   * download still. Uses the file system clock since others are not fit for file time-stamp
+   * comparisons. */
   std::optional<RemoteLibraryLoadingStatus::FileSystemTimePoint> request_time = std::nullopt;
 
   std::atomic<bool> metafiles_in_place = false;
@@ -3212,8 +3213,8 @@ static void filelist_readjob_load_asset_library_data(FileListReadJob *job_params
   if (job_params->filelist->asset_library_ref == nullptr) {
     return;
   }
-  if (tmp_filelist->asset_library != nullptr && !job_params->load_asset_library &&
-      job_params->reload_asset_library == false)
+  if (tmp_filelist->asset_library && !job_params->load_asset_library &&
+      !job_params->reload_asset_library)
   {
     /* Asset library itself is already loaded. Load assets into this. */
     job_params->load_asset_library = tmp_filelist->asset_library;
@@ -3433,7 +3434,7 @@ static void filelist_readjob_remote_asset_library_index_read(
   }
 }
 
-/* Used by the remote library loading job and the all library. */
+/* Used by the remote library loading job and the "All" library. */
 static void remote_asset_library_load(FileListReadJob *job_params,
                                       RemoteLibraryRequest &request,
                                       bool *stop,
@@ -3507,7 +3508,9 @@ static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
 
   filelist_readjob_load_asset_library_data(job_params, do_update);
 
-  BLI_assert(job_params->remote_library_requests.size() == 1);
+  BLI_assert_msg(job_params->remote_library_requests.size() == 1,
+                 "reading callback for a single remote library should only have a single remote "
+                 "library request registered (check what the starting callback is requesting)");
   for (auto [url, request] : job_params->remote_library_requests.items()) {
     remote_asset_library_load(job_params, *request, stop, do_update, progress);
     break;

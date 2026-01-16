@@ -296,7 +296,7 @@ bool RemoteLibraryLoadingStatus::handle_timeout(const StringRef url)
 void remote_library_request_download(Main &bmain, bUserAssetLibrary &library_definition)
 {
   BLI_assert(library_definition.flag & ASSET_LIBRARY_USE_REMOTE_URL);
-  BLI_assert_msg(BLI_thread_is_main(), "Calling into Python from a thread is not save");
+  BLI_assert_msg(BLI_thread_is_main(), "Calling into Python from a thread is not safe");
   /* Ensure we don't attempt to download anything when online access is disabled. */
   if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
     return;
