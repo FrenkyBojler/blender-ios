@@ -458,7 +458,13 @@ PyDoc_STRVAR(
 static PyObject *bpy_app_cachedir_get(PyObject * /*self*/, void * /*closure*/)
 {
   char cache_path[FILE_MAX];
-  BKE_appdir_folder_caches(cache_path, sizeof(cache_path));
+  if (!BKE_appdir_folder_caches(cache_path, sizeof(cache_path))) {
+    /* Avoid returning an empty path, as it could cause cache data to be stored in the user's home
+     * directory, or in the current working directory. Or worse, the caller could decide to erase
+     * the cache, which might have less subtle effects. */
+    Py_RETURN_NONE;
+  }
+  BLI_assert_msg(cache_path[0], "if BKE_appdir_folder_caches returns true, it should set a path");
   return PyC_UnicodeFromBytes(cache_path);
 }
 
