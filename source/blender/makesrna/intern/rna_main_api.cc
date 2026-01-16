@@ -175,7 +175,7 @@ static ID *rna_Main_pack_linked_ids_hierarchy(struct BlendData *blenddata,
   return packed_root_id;
 }
 
-static void rna_Main_system_idproperties_cleanup(struct BlendData *blenddata, ReportList *reports)
+static void rna_Main_bl_system_properties_cleanup(struct BlendData *blenddata, ReportList *reports)
 {
   RNAStructsFilterParams filter_params;
   filter_params.include_all_flags = STRUCT_RUNTIME;
@@ -188,14 +188,17 @@ static void rna_Main_system_idproperties_cleanup(struct BlendData *blenddata, Re
   bke::idprop::foreach_main_idproperty_container(
       *bmain,
       [&known_runtime_structs, &cleanup_reports](IDTypeInfoIDPropertyCallbackParams &params) {
-        if (*params.idproperty_p) {
-          bke::idprop::id_property_cleanup_from_known_rna_types(params.id_owner,
-                                                                params.idproperty_p,
-                                                                *params.data_owner_rna_type,
-                                                                known_runtime_structs,
-                                                                false,
-                                                                &cleanup_reports);
+        if (params.flags != IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined ||
+            *params.idproperty_p == nullptr)
+        {
+          return;
         }
+        bke::idprop::id_property_cleanup_from_known_rna_types(params.id_owner,
+                                                              params.idproperty_p,
+                                                              *params.data_owner_rna_type,
+                                                              known_runtime_structs,
+                                                              false,
+                                                              &cleanup_reports);
       });
 }
 
@@ -930,7 +933,7 @@ void RNA_api_main(StructRNA *srna)
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(
-      srna, "system_idproperties_cleanup", "rna_Main_system_idproperties_cleanup");
+      srna, "bl_system_properties_cleanup", "rna_Main_bl_system_properties_cleanup");
   RNA_def_function_ui_description(
       func,
       "Remove all system ID Properties that are currently not matching any runtime RNA data (as "

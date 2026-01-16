@@ -2056,6 +2056,7 @@ void id_property_cleanup_from_known_rna_types(ID *id_owner,
   }
   RNA_STRUCT_END;
 
+  Vector<IDProperty *> idproperties_to_remove;
   for (IDProperty &idp_iter : idproperty->data.group) {
     PropertyRNA *idp_rna_prop = known_properties.lookup_default(idp_iter.name, nullptr);
     bool is_matching(idp_rna_prop);
@@ -2081,10 +2082,16 @@ void id_property_cleanup_from_known_rna_types(ID *id_owner,
 
     if (!is_matching) {
       CLOG_WARN(&LOG,
-                "IDProp %s (from ID %s) is detected as not matching any existing RNA property",
+                "IDProp %s (from ID %s) is detected as not matching any existing RNA property, "
+                "will be removed",
                 idp_iter.name,
                 id_owner->name);
+      idproperties_to_remove.append(&idp_iter);
     }
+  }
+
+  for (IDProperty *idp_iter : idproperties_to_remove) {
+    IDP_FreeFromGroup(idproperty, idp_iter);
   }
 }
 
