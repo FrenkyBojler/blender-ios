@@ -6,6 +6,7 @@
  * \ingroup bmesh
  */
 
+#include "BLI_math_numbers.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
@@ -13,8 +14,7 @@
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh" /* own include */
 
-using namespace blender;
-
+namespace blender {
 /* Holds data for a vertex projected onto the local plane. */
 struct CircleVert {
   BMVert *v;
@@ -390,7 +390,7 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
   sub_v2_v2v2(vec, verts[0].co_2d, center);
   float start_angle = atan2f(vec[1], vec[0]);
 
-  float total_angle = is_closed ? (2.0f * M_PI) : M_PI;
+  float total_angle = is_closed ? (2.0f * math::numbers::pi) : math::numbers::pi;
 
   int divisions = is_closed ? verts.size() : (verts.size() - 1);
   if (divisions < 1) {
@@ -515,3 +515,5 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     }
   }
 }
+
+}  // namespace blender

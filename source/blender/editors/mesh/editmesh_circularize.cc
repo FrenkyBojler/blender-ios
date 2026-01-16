@@ -9,6 +9,10 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BLI_math_numbers.hh"
+
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -17,6 +21,8 @@
 #include "ED_screen.hh"
 
 #include "mesh_intern.hh" /* own include */
+
+namespace blender {
 
 static const EnumPropertyItem prop_fit_method_items[] = {
     {0,
@@ -44,9 +50,8 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
   const bool lock_y = RNA_boolean_get(op->ptr, "lock_y");
   const bool lock_z = RNA_boolean_get(op->ptr, "lock_z");
 
-  const blender::Vector<Object *> objects =
-      BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-          scene, view_layer, CTX_wm_view3d(C));
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -75,7 +80,7 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
     params.calc_looptris = true;
     params.calc_normals = true;
     params.is_destructive = true;
-    EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+    EDBM_update(id_cast<Mesh *>(obedit->data), &params);
   }
 
   return OPERATOR_FINISHED;
@@ -110,12 +115,12 @@ void MESH_OT_circularize(wmOperatorType *ot)
   prop = RNA_def_float(ot->srna,
                        "angle",
                        0.0f,
-                       -M_PI * 2.0f,
-                       M_PI * 2.0f,
+                       -math::numbers::pi * 2.0f,
+                       math::numbers::pi * 2.0f,
                        "Angle",
                        "Rotate the circle",
-                       -M_PI * 2.0f,
-                       M_PI * 2.0f);
+                       -math::numbers::pi * 2.0f,
+                       math::numbers::pi * 2.0f);
   RNA_def_property_subtype(prop, PROP_ANGLE);
   RNA_def_enum(ot->srna,
                "fit_method",
@@ -137,3 +142,5 @@ void MESH_OT_circularize(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "lock_y", false, "Lock Y", "Lock editing of the Y-coordinate");
   RNA_def_boolean(ot->srna, "lock_z", false, "Lock Z", "Lock editing of the Z-coordinate");
 }
+
+}  // namespace blender
