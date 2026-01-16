@@ -14,7 +14,7 @@
 
 namespace blender::bke::greasepencil {
 
-std::optional<ShapeCache> shape_cache_from_shape_ids(const int num_curves,
-                                                     const VArray<int> &shape_ids);
+std::optional<FillCache> fill_cache_from_fill_ids(const int num_curves,
+                                                  const VArray<int> &fill_ids);
 
 }  // namespace blender::bke::greasepencil

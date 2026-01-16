@@ -404,25 +404,25 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
         "cyclic", bke::AttrDomain::Curve, false);
 
     IndexMaskMemory memory;
-    const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
+    const IndexMask visible_fills = ed::greasepencil::retrieve_visible_fills(
         *ob, info.drawing, memory);
-    const std::optional<GroupedSpan<int>> shapes = info.drawing.shapes();
-    const int num_shapes = shapes.has_value() ? (*shapes).size() : curves.curves_num();
+    const std::optional<GroupedSpan<int>> fills = info.drawing.fills();
+    const int num_fills = fills.has_value() ? (*fills).size() : curves.curves_num();
 
     /* Precompute all the triangle and vertex counts.
      * In case the drawing should not be rendered, we need to compute the offset where the next
      * drawing begins. */
-    Array<int> num_triangles_per_shape(num_shapes);
+    Array<int> num_triangles_per_fill(num_fills);
     Array<int> num_vertices_per_stroke(curves.curves_num());
     int total_num_triangles = 0;
     int total_num_vertices = 0;
-    visible_shapes.foreach_index([&](const int shape_index) {
-      const int num_stroke_triangles = triangles[shape_index].size();
-      num_triangles_per_shape[shape_index] = num_stroke_triangles;
+    visible_fills.foreach_index([&](const int fill_index) {
+      const int num_stroke_triangles = triangles[fill_index].size();
+      num_triangles_per_fill[fill_index] = num_stroke_triangles;
       total_num_triangles += num_stroke_triangles;
 
-      if (!shapes) {
-        const int curve_i = shape_index;
+      if (!fills) {
+        const int curve_i = fill_index;
 
         const IndexRange points = points_by_curve[curve_i];
         const int num_stroke_vertices = (points.size() +
@@ -431,10 +431,10 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
         total_num_vertices += num_stroke_vertices;
       }
       else {
-        const Span<int> shape = (*shapes)[shape_index];
+        const Span<int> fill = (*fills)[fill_index];
 
-        for (const int pos : shape.index_range()) {
-          const int curve_i = shape[pos];
+        for (const int pos : fill.index_range()) {
+          const int curve_i = fill[pos];
 
           const IndexRange points = points_by_curve[curve_i];
           const int num_stroke_vertices = (points.size() +
@@ -501,11 +501,11 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
                             do_multi_frame;
     const bool is_onion = info.onion_id != 0;
 
-    visible_shapes.foreach_index([&](const int shape_index) {
-      int stroke_i = shape_index;
-      if (shapes) {
-        const Span<int> shape = (*shapes)[shape_index];
-        stroke_i = shape.first();
+    visible_fills.foreach_index([&](const int fill_index) {
+      int stroke_i = fill_index;
+      if (fills) {
+        const Span<int> fill = (*fills)[fill_index];
+        stroke_i = fill.first();
       }
 
       /* The material index is allowed to be negative as it's stored as a generic attribute. We
@@ -518,7 +518,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
 
       const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
       const bool show_stroke = !hide_stroke[stroke_i] || is_fill_guide_stroke;
-      const bool show_fill = (!triangles[shape_index].is_empty()) && (fill_id[stroke_i] != 0) &&
+      const bool show_fill = (!triangles[fill_index].is_empty()) && (fill_id[stroke_i] != 0) &&
                              (!this->simplify_fill) && !is_fill_guide_stroke;
       const bool hide_onion = is_onion && ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0 ||
                                            (!do_onion && !do_multi_frame));
@@ -526,15 +526,15 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
                                (only_lines && !do_onion && is_onion) || hide_onion;
 
       if (skip_stroke) {
-        t_offset += num_triangles_per_shape[shape_index];
+        t_offset += num_triangles_per_fill[fill_index];
 
-        if (!shapes) {
+        if (!fills) {
           t_offset += num_vertices_per_stroke[stroke_i] * 2;
         }
         else {
-          const Span<int> shape = (*shapes)[shape_index];
-          for (const int pos : shape.index_range()) {
-            const int curve_i = shape[pos];
+          const Span<int> fill = (*fills)[fill_index];
+          for (const int pos : fill.index_range()) {
+            const int curve_i = fill[pos];
             t_offset += num_vertices_per_stroke[curve_i] * 2;
           }
         }
@@ -580,13 +580,13 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
 
       if (show_fill) {
         const int v_first = t_offset * 3;
-        const int v_count = num_triangles_per_shape[shape_index] * 3;
+        const int v_count = num_triangles_per_fill[fill_index] * 3;
         drawcall_add(pass, geom, v_first, v_count);
       }
 
-      t_offset += num_triangles_per_shape[shape_index];
+      t_offset += num_triangles_per_fill[fill_index];
 
-      if (!shapes) {
+      if (!fills) {
         if (show_stroke) {
           const int v_first = t_offset * 3;
           const int v_count = num_vertices_per_stroke[stroke_i] * 2 * 3;
@@ -596,9 +596,9 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
         t_offset += num_vertices_per_stroke[stroke_i] * 2;
       }
       else {
-        const Span<int> shape = (*shapes)[shape_index];
-        for (const int pos : shape.index_range()) {
-          const int curve_i = shape[pos];
+        const Span<int> fill = (*fills)[fill_index];
+        for (const int pos : fill.index_range()) {
+          const int curve_i = fill[pos];
           if (show_stroke) {
             const int v_first = t_offset * 3;
             const int v_count = num_vertices_per_stroke[curve_i] * 2 * 3;

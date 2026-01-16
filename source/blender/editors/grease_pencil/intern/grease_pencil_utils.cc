@@ -1224,32 +1224,32 @@ IndexMask retrieve_visible_bezier_handle_strokes(Object &object,
   return IndexMask::from_intersection(visible_bezier_strokes, selected_strokes, memory);
 }
 
-IndexMask retrieve_visible_shapes(Object &object,
-                                  const bke::greasepencil::Drawing &drawing,
-                                  IndexMaskMemory &memory)
+IndexMask retrieve_visible_fills(Object &object,
+                                 const bke::greasepencil::Drawing &drawing,
+                                 IndexMaskMemory &memory)
 {
   /* Get all the hidden material indices. */
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
-  const std::optional<GroupedSpan<int>> shapes = drawing.shapes();
-  if (!shapes) {
+  const std::optional<GroupedSpan<int>> fills = drawing.fills();
+  if (!fills) {
     return ed::greasepencil::retrieve_visible_strokes(object, drawing, memory);
   }
 
   if (hidden_material_indices.is_empty()) {
-    return (*shapes).index_range();
+    return (*fills).index_range();
   }
 
   const bke::CurvesGeometry &curves = drawing.strokes();
   const bke::AttributeAccessor attributes = curves.attributes();
 
-  /* Get all the shapes that have their first curve's material visible. */
+  /* Get all the fills that have their first curve's material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
       "material_index", bke::AttrDomain::Curve, 0);
   return IndexMask::from_predicate(
-      (*shapes).index_range(), GrainSize(4096), memory, [&](const int64_t shape_index) {
-        const Span<int> shape = (*shapes)[shape_index];
-        const int curve_i = shape.first();
+      (*fills).index_range(), GrainSize(4096), memory, [&](const int64_t fill_index) {
+        const Span<int> fill = (*fills)[fill_index];
+        const int curve_i = fill.first();
         const int material_index = materials[curve_i];
         return !hidden_material_indices.contains(material_index);
       });
@@ -1784,12 +1784,12 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
     drawing.runtime->curve_texture_matrices.update([&](Vector<float4x2> &texture_matrices) {
       texture_matrices.append(float4x2::identity());
     });
-    /* Update the shape cache if it exists. */
-    drawing.runtime->shape_cache.update(
-        [&](std::optional<bke::greasepencil::ShapeCache> &shape_cache) {
-          if (shape_cache) {
-            (*shape_cache).shape_map.append(num_old_curves);
-            (*shape_cache).shape_offsets.append((*shape_cache).shape_offsets.last() + 1);
+    /* Update the fill cache if it exists. */
+    drawing.runtime->fill_cache.update(
+        [&](std::optional<bke::greasepencil::FillCache> &fill_cache) {
+          if (fill_cache) {
+            (*fill_cache).fill_map.append(num_old_curves);
+            (*fill_cache).fill_offsets.append((*fill_cache).fill_offsets.last() + 1);
           }
         });
     return;
