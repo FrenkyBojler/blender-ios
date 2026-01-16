@@ -136,6 +136,9 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     row = layout.row()
     row.template_id_properties_tree(rna_item.id_data, data_path=context_member)
 
+    if context.area.type != 'PROPERTIES':
+        return
+
     col = row.column(align=True)
     col.operator("wm.properties_add", text="", icon='ADD').data_path = context_member
 
