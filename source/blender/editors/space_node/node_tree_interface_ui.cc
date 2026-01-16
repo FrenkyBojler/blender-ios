@@ -137,11 +137,18 @@ void node_tree_interface_panel_register(ARegionType *art)
 
 static bool group_node_tree_interface_panel_poll(const bContext *C, PanelType *pt)
 {
-  if (!node_tree_interface_panel_poll(C, pt)) {
+  SpaceNode *snode = CTX_wm_space_node(C);
+  if (!snode) {
+    return false;
+  }
+  bNodeTree *ntree = snode->edittree;
+  if (!ntree) {
+    return false;
+  }
+  if (ntree->typeinfo->no_group_interface) {
     return false;
   }
 
-  bNodeTree *ntree = CTX_wm_space_node(C)->edittree;
   bNode *active_node = bke::node_get_active(*ntree);
   return (active_node && active_node->is_group() && active_node->id &&
           ID_IS_EDITABLE(active_node->id) && !active_node->id->override_library);

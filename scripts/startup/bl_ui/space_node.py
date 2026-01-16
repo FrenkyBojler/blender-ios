@@ -1125,11 +1125,12 @@ class NODE_PT_group_node_tree_properties(NodeTreePropertiesPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        if not super().poll(context):
-            return False
+        group = cls.get_node_tree(context)
 
-        node_tree = cls.get_node_tree(context)
-        return (node_tree is not None) and (node_tree.override_library)
+        if group is None:
+            return False
+        
+        return group.is_editable and (not group.override_library)
 
     def draw(self, context):
         tree = self.get_node_tree(context)
