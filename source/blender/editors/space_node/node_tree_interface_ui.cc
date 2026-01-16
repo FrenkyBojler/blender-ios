@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_library.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_listbase.h"
@@ -149,13 +150,13 @@ static void group_node_tree_interface_panel_draw(const bContext *C, Panel *panel
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &tree = *snode.edittree;
-  uiLayout &layout = *panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   bNode *active_node = bke::node_get_active(tree);
   bNodeTree *node_tree = reinterpret_cast<bNodeTree *>(active_node->id);
 
   PointerRNA tree_ptr = RNA_pointer_create_discrete(&node_tree->id, &RNA_NodeTree, node_tree);
-  UI_panel_context_pointer_set(panel, "node_tree_to_edit", &tree_ptr);
+  ui::panel_context_pointer_set(panel, "node_tree_to_edit", &tree_ptr);
   node_tree_interface_draw(const_cast<bContext &>(*C), layout, *node_tree);
 }
 
