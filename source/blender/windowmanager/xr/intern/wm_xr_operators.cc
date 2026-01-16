@@ -759,7 +759,7 @@ static void wm_xr_basenav_rotation_calc(const wmXrData *xr,
 
 static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext *C,
                                                     wmOperator *op,
-                                                    const wmEvent */*event*/)
+                                                    const wmEvent * /*event*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
