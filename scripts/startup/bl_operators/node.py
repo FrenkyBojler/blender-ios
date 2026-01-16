@@ -719,6 +719,33 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
         return None
 
+    @staticmethod
+    def get_child_items(node):
+        if hasattr(node, "paired_output"):
+            output_node = node.paired_output
+        else:
+            output_node = node
+
+        if node.bl_idname.startswith("GeometryNodeSimulation"):
+            return output_node.state_items
+        elif node.bl_idname.startswith("GeometryNodeRepeat"):
+            return output_node.repeat_items
+        elif node.bl_idname == "NodeClosureInput":
+            return output_node.input_items
+        elif node.bl_idname == "NodeClosureOutput":
+            return output_node.output_items
+
+    def transfer_zone_sockets(self, old_node, new_node):
+        old_children = self.get_child_items(old_node)
+        new_children = self.get_child_items(new_node)
+
+        for item in old_children:
+            if item.name not in new_children:
+                try:
+                    new_children.new(item.socket_type, item.name)
+                except RuntimeError:
+                    pass
+
     def execute(self, context):
         tree = context.space_data.edit_tree
         nodes_to_delete = set()
@@ -756,6 +783,18 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
                 input_node.location_absolute = old_input_node.location_absolute
                 output_node.location_absolute = old_output_node.location_absolute
+
+                if input_node.bl_idname in {"GeometryNodeSimulationInput", "GeometryNodeRepeatInput"}:
+                    new_zone_children = self.get_child_items(output_node)
+                    new_zone_children.clear()
+
+                    for node in zone_pair:
+                        if node.select:
+                            self.transfer_zone_sockets(node, output_node)
+
+                elif input_node.bl_idname.startswith("NodeClosure"):
+                    self.transfer_zone_sockets(old_input_node, input_node)
+                    self.transfer_zone_sockets(old_output_node, output_node)
 
                 self.transfer_node_properties(old_input_node, input_node)
                 self.transfer_node_properties(old_output_node, output_node)
