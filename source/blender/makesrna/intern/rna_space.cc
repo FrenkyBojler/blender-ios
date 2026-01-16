@@ -16,6 +16,7 @@
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_movieclip.hh"
+#include "BKE_object_types.hh"
 
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
@@ -1390,7 +1391,7 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *scene, PointerRNA 
     /* When switching from workbench to render or material mode the geometry of any
      * active sculpt session needs to be recalculated. */
     for (Object &ob : bmain->objects) {
-      if (ob.sculpt) {
+      if (ob.runtime->sculpt_session) {
         DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
       }
     }
@@ -1646,6 +1647,10 @@ static const EnumPropertyItem *rna_3DViewShading_render_pass_itemf(bContext *C,
                                                                    PropertyRNA * /*prop*/,
                                                                    bool *r_free)
 {
+  if (C == nullptr) {
+    return rna_enum_dummy_NULL_items;
+  }
+
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -1756,9 +1761,9 @@ static const EnumPropertyItem *rna_SpaceView3D_stereo3d_camera_itemf(bContext *C
                                                                      PropertyRNA * /*prop*/,
                                                                      bool * /*r_free*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = (C) ? CTX_data_scene(C) : nullptr;
 
-  if (scene->r.views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
+  if (scene && scene->r.views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
     return multiview_camera_items;
   }
   else {
@@ -2512,8 +2517,7 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
         eSpaceSeq_Proxy_RenderSize(sseq->render_size));
 
     /* Build proxy. */
-    seq::proxy_rebuild_context(
-        pj->main, pj->depsgraph, pj->scene, &strip, &processed_paths, &pj->queue, true);
+    seq::proxy_rebuild_context(pj->main, pj->scene, &strip, &processed_paths, true, pj->queue);
   }
 
   if (!WM_jobs_is_running(wm_job)) {
