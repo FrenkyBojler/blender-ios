@@ -1513,9 +1513,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   if (!vulkan_instance.has_value()) {
     vulkan_instance.emplace();
     GHOST_InstanceVK &instance_vk = vulkan_instance.value();
-    if (context_params_.is_debug) {
-      instance_vk.extensions.enable(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true);
-    }
+    instance_vk.extensions.enable(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true);
 
     /* Some XR platforms load functions without knowning if they were replaced by a core
      * function. Monado for example always uses the extension functions. Due to maintenance changes
@@ -1655,22 +1653,34 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #endif
 
 #ifdef WITH_XR_OPENXR
-    /* Vulkan 1.1 promoted instance extensions, enabled for OpenXR usage.*/
     optional_device_extensions.extend({
 #  ifdef _WIN32
         VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME,
         VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME,
+
+        VK_KHR_WIN32_KEYED_MUTEX_EXTENSION_NAME,
 #  elif defined(__APPLE__)
 #  else
         VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME,
         VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
 #  endif
+        /* Vulkan 1.1 promoted device extensions, enabled for OpenXR usage. */
         VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
         VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME,
         VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
         VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
         VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
-        VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME});
+        VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
+        VK_KHR_MULTIVIEW_EXTENSION_NAME,
+        VK_KHR_MAINTENANCE_1_EXTENSION_NAME,
+        VK_KHR_MAINTENANCE_2_EXTENSION_NAME,
+
+        /* Vulkan 1.2 promoted device extensions, enabled for OpenXR usage. */
+        VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
+        VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
+
+        /* Vulkan 1.3 promoted device extensions, enabled for OpenXR usage. */
+        VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME});
 #endif
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {
