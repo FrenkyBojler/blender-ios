@@ -3928,8 +3928,8 @@ def km_grease_pencil_selection(params):
     items.extend([
         # Select All
         *_template_items_select_actions(params, "grease_pencil.select_all"),
-        # Select shape
-        ("grease_pencil.select_shape", {"type": 'L', "value": 'PRESS', "ctrl": True}, None),
+        # Select fill
+        ("grease_pencil.select_fill", {"type": 'L', "value": 'PRESS', "ctrl": True}, None),
         # Select linked
         ("grease_pencil.select_linked", {"type": 'L', "value": 'PRESS'}, None),
         # Select more/less
