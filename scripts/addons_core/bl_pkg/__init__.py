@@ -426,6 +426,7 @@ def repos_to_notify():
 _downloaders: list[_RemoteAssetListingDownloader] = []
 
 
+# Called directly from C++ code.
 def remote_asset_library_sync(
     asset_library_url: str,
     asset_library_local_path: Path,
