@@ -42,6 +42,8 @@
 
 #include "DNA_modifier_types.h"
 
+namespace blender {
+
 /**
  * The formatting of these bmesh operators is parsed by
  * 'doc/python_api/rst_from_bmesh_opdefines.py'
@@ -2902,3 +2904,5 @@ const BMOpDefine *bmo_opdefines[] = {
 };
 
 const int bmo_opdefines_total = ARRAY_SIZE(bmo_opdefines);
+
+}  // namespace blender

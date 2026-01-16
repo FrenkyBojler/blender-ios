@@ -6,7 +6,6 @@ import bpy
 import math
 from typing import Optional, List, Dict, Any
 from ...io.com import lights_punctual as gltf2_io_lights_punctual
-from ...io.com import debug as gltf2_io_debug
 from ..com.extras import generate_extras
 from ..com.conversion import PBR_WATTS_TO_LUMENS
 from ..com.blender_default import LIGHTS
@@ -64,7 +63,7 @@ def __gather_color(blender_lamp, export_settings) -> Optional[List[float]]:
     path_['path'] = "/extensions/KHR_lights_punctual/lights/XXX/color"
     export_settings['current_paths']['color'] = path_
 
-    color = list(blender_lamp.color) # Convert to list to allow modification
+    color = list(blender_lamp.color)  # Convert to list to allow modification
 
     if blender_lamp.use_temperature:
         temperature_color = list(blender_lamp.temperature_color)

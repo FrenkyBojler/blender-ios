@@ -33,9 +33,11 @@
 
 #include "gl_backend.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.opengl"};
 
-namespace blender::gpu {
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Platform
@@ -101,6 +103,8 @@ static bool is_bad_AMD_driver(const char *version_cstr)
   Vector<int> version;
 
   if (parse_version(version_str, " 00.00.00.00 ", version) ||
+      parse_version(version_str, " 00.00.0.000000 ", version) ||
+      parse_version(version_str, " 00.00.00.000000 ", version) ||
       parse_version(version_str, " 00.00.000000 ", version) ||
       parse_version(version_str, " 00.00.00 ", version) ||
       parse_version(version_str, " 00.00.0 ", version) ||
@@ -125,9 +129,9 @@ void GLBackend::platform_init()
 {
   BLI_assert(!GPG.initialized);
 
-  const char *vendor = (const char *)glGetString(GL_VENDOR);
-  const char *renderer = (const char *)glGetString(GL_RENDERER);
-  const char *version = (const char *)glGetString(GL_VERSION);
+  const char *vendor = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+  const char *renderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+  const char *version = reinterpret_cast<const char *>(glGetString(GL_VERSION));
   GPUDeviceType device = GPU_DEVICE_ANY;
   GPUOSType os = GPU_OS_ANY;
   GPUDriverType driver = GPU_DRIVER_ANY;
@@ -369,14 +373,14 @@ void GLBackend::platform_exit()
 
 static const char *gl_extension_get(int i)
 {
-  return (char *)glGetStringi(GL_EXTENSIONS, i);
+  return reinterpret_cast<char *>(const_cast<GLubyte *>(glGetStringi(GL_EXTENSIONS, i)));
 }
 
 static void detect_workarounds()
 {
-  const char *vendor = (const char *)glGetString(GL_VENDOR);
-  const char *renderer = (const char *)glGetString(GL_RENDERER);
-  const char *version = (const char *)glGetString(GL_VERSION);
+  const char *vendor = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+  const char *renderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+  const char *version = reinterpret_cast<const char *>(glGetString(GL_VERSION));
 
   if (G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS) {
     printf("\n");
@@ -763,4 +767,5 @@ void GLBackend::log_workarounds()
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

@@ -27,9 +27,66 @@
 #include "gpu_shader_dependency_private.hh"
 #include "gpu_testing.hh"
 
-namespace blender::gpu::tests {
+/* GTest expects operator<< and Print to be defined in the same namespace as the type itself. */
+static std::ostream &operator<<(std::ostream &os, const TestOutput &test_output)
+{
+  os << "expect: " << testing::PrintToString(test_output.expect) << "\n";
+  os << "result: " << testing::PrintToString(test_output.result) << "\n";
+  os << "status: " << test_output.status;
+  os << ", line: " << test_output.line;
+  os << ", type: " << test_output.type;
+  return os;
+}
+
+namespace blender {
+
+namespace gpu::tests {
 
 using namespace blender::gpu::shader;
+
+/* This test should contain pure GLSL source as this is what we are expecting from the Python API.
+ * Make sure to keep it in sync with the Python API. */
+static void test_shader_python_compute()
+{
+  using namespace shader;
+
+  ShaderCreateInfo create_info("pyGPU_Shader");
+  create_info.image(0,
+                    TextureFormat::SFLOAT_16_16_16_16,
+                    Qualifier::write,
+                    ImageReadWriteType::image2D,
+                    "test_img");
+  create_info.local_group_size(16, 16, 1);
+  create_info.compute_source_generated =
+      R"(void main(){imageStore(test_img, ivec2(gl_GlobalInvocationID.xy), vec4(0));})";
+
+  gpu::Shader *shader = GPU_shader_create_from_info_python(
+      reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
+  EXPECT_NE(shader, nullptr);
+
+  GPU_shader_free(shader);
+}
+GPU_TEST(shader_python_compute)
+
+/* This test should contain pure GLSL source as this is what we are expecting from the Python API.
+ * Make sure to keep it in sync with the Python API. */
+static void test_shader_python_graphic()
+{
+  using namespace shader;
+
+  ShaderCreateInfo create_info("pyGPU_Shader");
+  create_info.vertex_in(0, Type::float4_t, "vert_in");
+  create_info.fragment_out(0, Type::float4_t, "frag_out");
+  create_info.vertex_source_generated = R"(void main(){gl_Position = vert_in;})";
+  create_info.fragment_source_generated = R"(void main() { frag_out = gl_FragCoord; })";
+
+  gpu::Shader *shader = GPU_shader_create_from_info_python(
+      reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
+  EXPECT_NE(shader, nullptr);
+
+  GPU_shader_free(shader);
+}
+GPU_TEST(shader_python_graphic)
 
 static void test_shader_compute_2d()
 {
@@ -41,13 +98,13 @@ static void test_shader_compute_2d()
   EXPECT_NE(shader, nullptr);
 
   /* Create texture to store result and attach to shader. */
-  blender::gpu::Texture *texture = GPU_texture_create_2d("gpu_shader_compute_2d",
-                                                         SIZE,
-                                                         SIZE,
-                                                         1,
-                                                         TextureFormat::SFLOAT_32_32_32_32,
-                                                         GPU_TEXTURE_USAGE_GENERAL,
-                                                         nullptr);
+  gpu::Texture *texture = GPU_texture_create_2d("gpu_shader_compute_2d",
+                                                SIZE,
+                                                SIZE,
+                                                1,
+                                                TextureFormat::SFLOAT_32_32_32_32,
+                                                GPU_TEXTURE_USAGE_GENERAL,
+                                                nullptr);
   EXPECT_NE(texture, nullptr);
 
   GPU_shader_bind(shader);
@@ -85,12 +142,12 @@ static void test_shader_compute_1d()
   EXPECT_NE(shader, nullptr);
 
   /* Construct Texture. */
-  blender::gpu::Texture *texture = GPU_texture_create_1d("gpu_shader_compute_1d",
-                                                         SIZE,
-                                                         1,
-                                                         TextureFormat::SFLOAT_32_32_32_32,
-                                                         GPU_TEXTURE_USAGE_GENERAL,
-                                                         nullptr);
+  gpu::Texture *texture = GPU_texture_create_1d("gpu_shader_compute_1d",
+                                                SIZE,
+                                                1,
+                                                TextureFormat::SFLOAT_32_32_32_32,
+                                                GPU_TEXTURE_USAGE_GENERAL,
+                                                nullptr);
   EXPECT_NE(texture, nullptr);
 
   GPU_shader_bind(shader);
@@ -256,8 +313,8 @@ static void test_shader_sampler_argument_buffer_binding()
 
   GPU_storagebuf_bind(ssbo, GPU_shader_get_ssbo_binding(shader, "data_out"));
 
-  blender::float4 tx_data(-1.0f, 1.0f, 2.0f, 3.0f);
-  blender::gpu::Texture *tex = GPU_texture_create_2d(
+  float4 tx_data(-1.0f, 1.0f, 2.0f, 3.0f);
+  gpu::Texture *tex = GPU_texture_create_2d(
       "tx", 1, 1, 1, TextureFormat::SFLOAT_32_32_32_32, GPU_TEXTURE_USAGE_SHADER_READ, &tx_data.x);
 
   GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_1"));
@@ -311,23 +368,17 @@ GPU_TEST(shader_sampler_argument_buffer_binding)
 
 static void test_shader_texture_atomic()
 {
-  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_VULKAN)) {
-    GTEST_SKIP() << "Test has been temporary disabled on Vulkan due to a missing synchronization "
-                    "between the two dispatches. The fix itself is in the making, but takes more "
-                    "time than expected. See #149463 more details.";
-  }
-
   gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_texture_atomic_test");
   EXPECT_NE(shader, nullptr);
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
                            GPU_TEXTURE_USAGE_ATOMIC;
   uint32_t tx_data[4] = {0u, 0u, 0u, 0u};
-  blender::gpu::Texture *tex_2d = GPU_texture_create_2d(
+  gpu::Texture *tex_2d = GPU_texture_create_2d(
       "tex_2d", 1, 1, 1, TextureFormat::UINT_32, usage, nullptr);
-  blender::gpu::Texture *tex_2d_array = GPU_texture_create_2d_array(
+  gpu::Texture *tex_2d_array = GPU_texture_create_2d_array(
       "tex_2d_array", 1, 1, 2, 1, TextureFormat::UINT_32, usage, nullptr);
-  blender::gpu::Texture *tex_3d = GPU_texture_create_3d(
+  gpu::Texture *tex_3d = GPU_texture_create_3d(
       "tex_3d", 1, 1, 2, 1, TextureFormat::UINT_32, usage, nullptr);
 
   GPU_texture_clear(tex_2d, eGPUDataFormat::GPU_DATA_UINT, &tx_data[0]);
@@ -498,7 +549,7 @@ static void gpu_shader_lib_test(StringRefNull test_src_name, const char *additio
   int test_output_px_len = divide_ceil_u(sizeof(TestOutput), 4 * 4);
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
-  blender::gpu::Texture *tex = GPU_texture_create_2d(
+  gpu::Texture *tex = GPU_texture_create_2d(
       "tx", test_output_px_len, test_count, 1, TextureFormat::UINT_32_32_32_32, usage, nullptr);
   gpu::FrameBuffer *fb = GPU_framebuffer_create("test_fb");
   GPU_framebuffer_ensure_config(&fb, {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(tex)});
@@ -513,7 +564,7 @@ static void gpu_shader_lib_test(StringRefNull test_src_name, const char *additio
 
   GPU_finish();
 
-  TestOutput *test_data = (TestOutput *)GPU_texture_read(tex, GPU_DATA_UINT, 0);
+  TestOutput *test_data = static_cast<TestOutput *>(GPU_texture_read(tex, GPU_DATA_UINT, 0));
   Span<TestOutput> tests(test_data, test_count);
 
   for (const TestOutput &test : tests) {
@@ -527,7 +578,7 @@ static void gpu_shader_lib_test(StringRefNull test_src_name, const char *additio
           << "Expected: " << print_test_data(test.result, TestType(test.type)) << "\n";
     }
     else {
-      BLI_assert_unreachable();
+      ADD_FAILURE() << "Unexpected test status " << test.status << ", test output:\n" << test;
     }
   }
 
@@ -562,4 +613,5 @@ static void test_eevee_lib()
 }
 GPU_TEST(eevee_lib)
 
-}  // namespace blender::gpu::tests
+}  // namespace gpu::tests
+}  // namespace blender
