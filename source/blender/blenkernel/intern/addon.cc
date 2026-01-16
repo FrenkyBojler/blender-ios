@@ -25,6 +25,8 @@
 
 #include "CLG_log.h"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"addon"};
 
 /* -------------------------------------------------------------------- */
@@ -33,16 +35,16 @@ static CLG_LogRef LOG = {"addon"};
 
 bAddon *BKE_addon_new()
 {
-  bAddon *addon = MEM_callocN<bAddon>("bAddon");
+  bAddon *addon = MEM_new_for_free<bAddon>("bAddon");
   return addon;
 }
 
-bAddon *BKE_addon_find(const ListBase *addon_list, const char *module)
+bAddon *BKE_addon_find(const ListBaseT<bAddon> *addon_list, const char *module)
 {
   return static_cast<bAddon *>(BLI_findstring(addon_list, module, offsetof(bAddon, module)));
 }
 
-bAddon *BKE_addon_ensure(ListBase *addon_list, const char *module)
+bAddon *BKE_addon_ensure(ListBaseT<bAddon> *addon_list, const char *module)
 {
   bAddon *addon = BKE_addon_find(addon_list, module);
   if (addon == nullptr) {
@@ -53,7 +55,7 @@ bAddon *BKE_addon_ensure(ListBase *addon_list, const char *module)
   return addon;
 }
 
-bool BKE_addon_remove_safe(ListBase *addon_list, const char *module)
+bool BKE_addon_remove_safe(ListBaseT<bAddon> *addon_list, const char *module)
 {
   bAddon *addon = static_cast<bAddon *>(
       BLI_findstring(addon_list, module, offsetof(bAddon, module)));
@@ -76,7 +78,7 @@ void BKE_addon_free(bAddon *addon)
 /**
  * Make sure the hidden core-addons are enabled.
  */
-void BKE_addon_sanitize_all(ListBase *addon_list)
+  void BKE_addon_sanitize_all(ListBaseT<bAddon> *addon_list)
 {
 #ifndef WITH_CYCLES
   BKE_addon_remove_safe(addon_list, "cycles");
@@ -141,3 +143,5 @@ void BKE_addon_pref_type_free()
 }
 
 /** \} */
+
+}  // namespace blender

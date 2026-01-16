@@ -93,7 +93,7 @@ void Instance::init()
                         (ctx->v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0;
     }
     else {
-      memset(&state.overlay, 0, sizeof(state.overlay));
+      _DNA_internal_memzero(&state.overlay, sizeof(state.overlay));
       state.v3d_flag = 0;
       state.v3d_gridflag = 0;
       state.overlay.flag = V3D_OVERLAY_HIDE_TEXT | V3D_OVERLAY_HIDE_MOTION_PATHS |
@@ -108,7 +108,8 @@ void Instance::init()
                               ctx->object_pose != nullptr;
   }
   else if (state.is_space_image()) {
-    SpaceImage *space_image = (SpaceImage *)state.space_data;
+    SpaceImage *space_image = reinterpret_cast<SpaceImage *>(
+        const_cast<SpaceLink *>(state.space_data));
 
     state.clear_in_front = false;
     state.use_in_front = false;
@@ -1038,7 +1039,9 @@ bool Instance::object_is_particle_edit_mode(const ObjectRef &ob_ref)
 
 bool Instance::object_is_sculpt_mode(const Object *object)
 {
-  if (object->sculpt && (object->sculpt->mode_type == OB_MODE_SCULPT)) {
+  if (object->runtime->sculpt_session &&
+      (object->runtime->sculpt_session->mode_type == OB_MODE_SCULPT))
+  {
     return object == state.object_active;
   }
   return false;
