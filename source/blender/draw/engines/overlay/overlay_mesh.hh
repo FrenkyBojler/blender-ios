@@ -495,6 +495,9 @@ class Meshes : Overlay {
 
     GPU_debug_group_begin("Edit Mesh Face Sets on Render");
     GPU_framebuffer_bind(framebuffer);
+    if (show_retopology_) {
+      manager.submit(edit_mesh_prepass_ps_, view);
+    }
     manager.submit(edit_mesh_face_sets_ps_, view);
     GPU_debug_group_end();
   }
