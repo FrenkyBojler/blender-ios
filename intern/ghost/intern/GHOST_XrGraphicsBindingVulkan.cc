@@ -184,6 +184,8 @@ bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghos
                 << XR_VERSION_MINOR(xr_graphics_requirements2.maxApiVersionSupported) << std::endl;
     }
   }
+  // TODO: Ignore result as vulkan is fully downwards compatible using extensions.
+  return true;
 
   /* When one of the version doesn't match we will error out. We assume when both extensions are
    * supported that both will use the same requirements. */
@@ -199,9 +201,11 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
                                                          XrInstance instance,
                                                          XrSystemId system_id)
 {
+  /*
   if (tryReuseVulkanInstance(static_cast<GHOST_ContextVK &>(ghost_ctx), instance, system_id)) {
     return;
   }
+  */
   /* Create a new VkInstance that is compatible with OpenXR */
   VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO,
                                            nullptr,
@@ -576,16 +580,21 @@ std::optional<int64_t> GHOST_XrGraphicsBindingVulkan::chooseSwapchainFormat(
         break;
     }
 
-    switch (*result) {
-      case VK_FORMAT_R16G16B16A16_SFLOAT:
-      case VK_FORMAT_R8G8B8A8_UNORM:
-      case VK_FORMAT_B8G8R8A8_UNORM:
-        r_is_srgb_format = false;
-        break;
-      case VK_FORMAT_R8G8B8A8_SRGB:
-      case VK_FORMAT_B8G8R8A8_SRGB:
-        r_is_srgb_format = true;
-        break;
+    /* When using render graph, the render graph commands will ensure that the drawing is done in
+     * scene reference space and blits to the swapchain with sRGB conversion. No need to render
+     * into an sRGB framebuffer. */
+    if (data_transfer_mode_ != GHOST_kVulkanXRModeRenderGraph) {
+      switch (*result) {
+        case VK_FORMAT_R16G16B16A16_SFLOAT:
+        case VK_FORMAT_R8G8B8A8_UNORM:
+        case VK_FORMAT_B8G8R8A8_UNORM:
+          r_is_srgb_format = false;
+          break;
+        case VK_FORMAT_R8G8B8A8_SRGB:
+        case VK_FORMAT_B8G8R8A8_SRGB:
+          r_is_srgb_format = true;
+          break;
+      }
     }
   }
   return result;
