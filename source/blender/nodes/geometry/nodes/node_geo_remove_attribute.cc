@@ -187,7 +187,6 @@ static void node_register()
   ntype.enum_name_legacy = "REMOVE_ATTRIBUTE";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
   ntype.declare = node_declare;
-  bke::node_type_size(ntype, 170, 100, 700);
   ntype.geometry_node_execute = node_geo_exec;
   bke::node_register_type(ntype);
 }
