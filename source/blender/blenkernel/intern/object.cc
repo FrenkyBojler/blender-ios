@@ -119,6 +119,7 @@
 #include "BKE_pointcloud.hh"
 #include "BKE_pose_backup.h"
 #include "BKE_preview_image.hh"
+#include "BKE_report.hh"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.hh"
 #include "BKE_shader_fx.hh"
@@ -139,6 +140,7 @@
 #include "SEQ_sequencer.hh"
 
 #include "ANIM_action_legacy.hh"
+#include "ANIM_animdata.hh"
 
 #include "RNA_prototypes.hh"
 
@@ -3777,12 +3779,8 @@ bool BKE_object_minmax_empty_drawtype(const Object *ob, float r_min[3], float r_
   return ok;
 }
 
-bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
-                             Scene *scene,
-                             Object *ob,
-                             float3 &r_min,
-                             float3 &r_max,
-                             const bool use_hidden)
+bool BKE_object_minmax_dupli(
+    Depsgraph *depsgraph, Object *ob, float3 &r_min, float3 &r_max, const bool use_hidden)
 {
   bool ok = false;
   if ((ob->transflag & OB_DUPLI) == 0 && ob->runtime->geometry_set_eval == nullptr) {
@@ -3790,7 +3788,7 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
   }
 
   DupliList duplilist;
-  object_duplilist(depsgraph, scene, ob, nullptr, duplilist);
+  object_duplilist(depsgraph, ob, nullptr, duplilist);
   for (DupliObject &dob : duplilist) {
     if (((use_hidden == false) && (dob.no_draw != 0)) || dob.ob_data == nullptr) {
       /* pass */
@@ -4757,7 +4755,7 @@ static bool modifiers_has_animation_check(const Object *ob)
   if (ob->adt != nullptr) {
     AnimData *adt = ob->adt;
     if (adt->action != nullptr) {
-      for (FCurve *fcu : animrig::legacy::fcurves_for_assigned_action(adt)) {
+      for (FCurve *fcu : animrig::fcurves_for_assigned_action(adt)) {
         if (fcu->rna_path && strstr(fcu->rna_path, "modifiers[")) {
           return true;
         }
