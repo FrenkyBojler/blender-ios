@@ -59,7 +59,7 @@ template<typename T = std::monostate> class ReadingResult {
 
   /**
    * Construct a valued success result.
-   * Only enabled if T == std::monostate.
+   * Only enabled if T != std::monostate.
    */
   template<typename U = T, typename = std::enable_if_t<!std::is_same_v<U, std::monostate>>>
   static ReadingResult Success(T value)
