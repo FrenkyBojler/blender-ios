@@ -844,6 +844,8 @@ static bool vfont_to_curve(Object *ob,
     curbox = 0;
   }
 
+  bool in_space = false;
+
   i = 0;
   while (i <= slen) {
     /* Characters in the list. */
@@ -870,9 +872,11 @@ static bool vfont_to_curve(Object *ob,
       che = nullptr;
     }
 
-    if ELEM (charcode, ' ', '\n', '\t') {
+    bool is_space = ELEM(charcode, ' ', '\n', '\t');
+    if (is_space && !in_space) {
       wnr++;
     }
+    in_space = is_space;
     ct->wordnr = wnr;
 
     twidth = vfont_char_width(cu, che, ct->is_smallcaps);
