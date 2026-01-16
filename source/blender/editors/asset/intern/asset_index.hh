@@ -38,7 +38,6 @@ AssetMetaData *asset_metadata_from_dictionary(const io::serialize::DictionaryVal
 template<typename T = std::monostate> class ReadingResult {
  public:
   enum class Type {
-    Invalid, /* Just to allow a default constructor. */
     Success,
     Failure,
     Cancelled,
@@ -103,6 +102,48 @@ template<typename T = std::monostate> class ReadingResult {
   }
 
   /**
+   * Get the result's success value, as if this is an `std::optional`.
+   * Only valid if this result is successful.
+   */
+  T &operator*()
+  {
+    if (!is_success() || !success_value.has_value()) {
+      throw std::runtime_error("Attempted to access value of non-success ReadingResult");
+    }
+    return *success_value;
+  }
+
+  /**
+   * Get the result's success value, as if this is an `std::optional`.
+   * Only valid if this result is successful.
+   */
+  const T &operator*() const
+  {
+    if (!is_success() || !success_value.has_value()) {
+      throw std::runtime_error("Attempted to access value of non-success ReadingResult");
+    }
+    return *success_value;
+  }
+
+  /**
+   * Get the result's success value, as if this is an `std::optional`.
+   * Only valid if this result is successful.
+   */
+  T *operator->()
+  {
+    return &**this;
+  }
+
+  /**
+   * Get the result's success value, as if this is an `std::optional`.
+   * Only valid if this result is successful.
+   */
+  const T *operator->() const
+  {
+    return &**this;
+  }
+
+  /**
    * Conversion constructor from any other ReadingResult.
    */
   template<typename U> ReadingResult(const ReadingResult<U> &other)
@@ -119,9 +160,6 @@ template<typename T = std::monostate> class ReadingResult {
       failure_reason = other.failure_reason;
     }
   }
-
-  /* Just to be able to construct a result object, and assign a value to it later. */
-  ReadingResult() : type(Type::Invalid) {}
 
  private:
   explicit ReadingResult(Type type) : type(type) {}
