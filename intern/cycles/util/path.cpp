@@ -285,7 +285,7 @@ size_t find_last_slash(const string &path)
   return string::npos;
 }
 
-std::filesystem::path std_filesystem_path_from_string(const std::string &p)
+std::filesystem::path std_filesystem_path_from_string(const string &p)
 {
 #ifdef _WIN32
   return std::filesystem::path(string_to_wstring(p));
@@ -294,7 +294,7 @@ std::filesystem::path std_filesystem_path_from_string(const std::string &p)
 #endif
 }
 
-std::filesystem::path std_filesystem_path_to_string(const std::filesystem::path &p)
+string std_filesystem_path_to_string(const std::filesystem::path &p)
 {
 #ifdef _WIN32
   return string_from_wstring(p.native());
