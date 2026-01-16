@@ -6,8 +6,6 @@ import functools
 import typing
 from pathlib import Path
 
-import bpy.utils
-
 if typing.TYPE_CHECKING:
     from _bpy_internal.assets.remote_library_listing.blender_asset_library_openapi import URLWithHash as _URLWithHash
 else:
@@ -25,16 +23,11 @@ def hash_file(filepath: Path) -> str:
 @functools.lru_cache
 def _dfhs_storage_path() -> Path:
     """Return the storage path of the disk file hash service."""
-    # NOTE: only land this after https://projects.blender.org/blender/blender/pulls/152779 landed.
-    subdir = "{:d}.{:d}/hashes".format(*bpy.app.version)
-    try:
-        hashes_dir = bpy.utils.user_resource('CACHES', path=subdir, create=True)
-    except ValueError:
-        # Raised when the above PR hasn't landed yet.
-        # THIS CODE SHOULD NOT BE COMMITTED!
-        hashes_dir = Path("~/.cache/blender").expanduser()
-        hashes_dir.mkdir(parents=True, exist_ok=True)
-    return Path(hashes_dir) / "dfhs"
+    import bpy
+
+    hashes_dir = Path(bpy.app.cachedir) / "{:d}.{:d}/file_hashes".format(*bpy.app.version)
+    hashes_dir.mkdir(parents=True, exist_ok=True)
+    return hashes_dir / "dfhs"
 
 
 def _sha256_file(filepath: Path) -> str:
