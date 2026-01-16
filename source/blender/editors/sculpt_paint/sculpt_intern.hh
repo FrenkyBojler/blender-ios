@@ -21,6 +21,7 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
+#include "BKE_brush.hh"
 
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
