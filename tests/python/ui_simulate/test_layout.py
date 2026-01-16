@@ -8,7 +8,7 @@ This file does not run anything, its methods are accessed for tests by ``run_ble
 
 
 def _string_search_property_cb(self, context, edit_text):
-    return ["A", "C"]
+    return ["A", "B", "AB"]
 
 
 def _test_string_prop_group_class():
@@ -28,7 +28,7 @@ def _test_string_prop_group_class():
         string_prop: StringProperty()
         string_update_prop: StringProperty(options={'TEXTEDIT_UPDATE'})
         string_search_prop: StringProperty(search=_string_search_property_cb)
-        string_force_search_value_prop: StringProperty(search_options={'SORT'})
+        string_force_search_value_prop: StringProperty(search=_string_search_property_cb, search_options={'SORT'})
         prop_search_filter: CollectionProperty(type=OperatorFileListElement)
 
     return TestStringPropertyGroup
@@ -54,7 +54,9 @@ def _test_string_prop_button_panel_class():
 
             # String Properties with search callback
             layout.prop(data, "string_search_prop")
+            # String Properties with forced value by button
             layout.prop_search(data, "string_search_prop", data, "prop_search_filter")
+
             # String Properties with no search callback but with a collection filter
             layout.prop_search(data, "string_prop", data, "prop_search_filter")
 
@@ -117,52 +119,177 @@ def ui_string_property_buttons():
     data = bpy.data.scenes['Scene'].test_property_group
     wm = bpy.data.window_managers[0]
 
-    # Fail to open bool property as 'TEXT_EDITING'
+    # Fail to open bool property as 'TEXT_EDITING'.
     t.assertFalse(wm.try_activate_rna_button(region, data, "bool_prop", 'TEXT_EDITING'))
 
-    # Open string_prop button as 'TEXT_EDITING' and type "123" as value
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_prop", 'TEXT_EDITING'))
-    yield e.text("123")
+    """"`StringProperty()` button"""
+    # Highlight button and open it with left click and type "123".
+    xy = wm.try_activate_rna_button(region, data, "string_prop", 'HIGHLIGHT')
+    t.assertTrue(xy)
+    yield e.cursor_position_set(*xy, move=False)
+    yield e.leftmouse().text("123")
     t.assertEqual(data.string_prop, "")
-    yield e.numpad_enter()
+    yield e.ret()
     t.assertEqual(data.string_prop, "123")
 
-    # Open string_prop button as 'TEXT_EDITING', since button selects all text by default back_space clears the string
+    # Text edit button, type "áéíóúaeiou1234" and remove "1234".
     t.assertTrue(wm.try_activate_rna_button(region, data, "string_prop", 'TEXT_EDITING'))
-    yield e.back_space().ret()
-    t.assertEqual(data.string_prop, "")
+    yield e.back_space().text_unicode("áéíóúaeiou1234")
+    yield e.shift.left_arrow().shift.left_arrow().shift.left_arrow().shift.left_arrow()
+    yield e.back_space()
+    t.assertEqual(data.string_prop, "123")
+    yield e.ret()
+    t.assertEqual(data.string_prop, "áéíóúaeiou")
 
-    # Type "123456789" as value
+    # Text edit button, type "a1a1a1" and paste it 3 times and undo once.
     t.assertTrue(wm.try_activate_rna_button(region, data, "string_prop", 'TEXT_EDITING'))
-    yield e.text("123456789").ret()
-    t.assertEqual(data.string_prop, "123456789")
+    yield e.text("a1a1a1").ctrl.a().ctrl.c().left_arrow().ctrl.v().ctrl.v().ctrl.v().ctrl.z()
+    t.assertEqual(data.string_prop, "áéíóúaeiou")
+    yield e.ret()
+    t.assertEqual(data.string_prop, "a1a1a1a1a1a1a1a1a1")
 
-    # Open string_prop button as 'TEXT_EDITING', move the cursor after last character to remove it
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_prop", 'TEXT_EDITING'))
-    yield e.right_arrow().back_space().ret()
-    t.assertEqual(data.string_prop, "12345678")
-
-    # Activate string_prop button as 'HIGHLIGHT', set it as 'TEXT_EDITING' with left click and type "a1"
-    xy = wm.try_activate_rna_button(region, data, "string_prop", 'HIGHLIGHT')
-    t.assertTrue(xy)
-    yield e.cursor_position_set(*xy, move=False)
-    yield e.leftmouse()
-    yield e.text("a1").ret()
-    t.assertEqual(data.string_prop, "a1")
-
-    # Copy current "a1" and override it with "123"
-    xy = wm.try_activate_rna_button(region, data, "string_prop", 'HIGHLIGHT')
-    t.assertTrue(xy)
-    yield e.cursor_position_set(*xy, move=False)
+    # Highlight button and copy its "a1a1a1a1a1a1a1a1a1" content, reset its
+    # value to "" and paste again "a1a1a1a1a1a1a1a1a1".
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_prop", 'HIGHLIGHT'))
     yield e.ctrl.c()
-    yield e.leftmouse()
-    yield e.text("123").ret()
+    data.string_prop = ""
+    yield  # Refresh UI
+    t.assertEqual(data.string_prop, "")
+    yield e.ctrl.v()
+    t.assertEqual(data.string_prop, "a1a1a1a1a1a1a1a1a1")
 
-    t.assertEqual(data.string_prop, "123")
-
-    # Paste previous "a1" value
-    xy = wm.try_activate_rna_button(region, data, "string_prop", 'HIGHLIGHT')
+    """"`StringProperty(options={'TEXTEDIT_UPDATE'})` button"""
+    # Highlight button and open it with left click and type "123", check value is updated without returning.
+    xy = wm.try_activate_rna_button(region, data, "string_update_prop", 'HIGHLIGHT')
     t.assertTrue(xy)
     yield e.cursor_position_set(*xy, move=False)
+    yield e.leftmouse().text("123")
+    t.assertEqual(data.string_update_prop, "123")
+    yield e.ret()
+    t.assertEqual(data.string_update_prop, "123")
+
+    # Text edit button, type "áéíóúaeiou1234" and remove "1234", check value is updated correctly on text change.
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_update_prop", 'TEXT_EDITING'))
+    yield e.back_space().text_unicode("áéíóúaeiou1234")
+    t.assertEqual(data.string_update_prop, "áéíóúaeiou1234")
+    yield e.shift.left_arrow().shift.left_arrow().shift.left_arrow().shift.left_arrow().back_space()
+    t.assertEqual(data.string_update_prop, "áéíóúaeiou")
+    yield e.ret()
+    t.assertEqual(data.string_update_prop, "áéíóúaeiou")
+
+    # Text edit button, type "a1a1a1" and paste it 3 times and undo once,
+    # check value is updated correctly on text change, but cancel this time
+    # and check that value is restored correctly
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_update_prop", 'TEXT_EDITING'))
+    yield e.text("a1a1a1").ctrl.a().ctrl.c().left_arrow().ctrl.v().ctrl.v().ctrl.v().ctrl.z()
+    t.assertEqual(data.string_update_prop, "a1a1a1a1a1a1a1a1a1")
+    yield e.esc()
+    t.assertEqual(data.string_update_prop, "áéíóúaeiou")
+
+    # Highlight button and copy its "áéíóúaeiou" content, reset its value to "" and paste again "áéíóúaeiou".
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_update_prop", 'HIGHLIGHT'))
+    yield e.ctrl.c()
+    data.string_update_prop = ""
+    yield  # Refresh UI
+    t.assertEqual(data.string_update_prop, "")
     yield e.ctrl.v()
-    t.assertEqual(data.string_prop, "a1")
+    t.assertEqual(data.string_update_prop, "áéíóúaeiou")
+
+    """"`StringProperty(search=_string_search_property_cb)` button"""
+    # Highlight button and open it with left click and type "123", check value is updated without returning.
+    xy = wm.try_activate_rna_button(region, data, "string_search_prop", 'HIGHLIGHT')
+    t.assertTrue(xy)
+    yield e.cursor_position_set(*xy, move=False)
+    yield e.leftmouse().text("123")
+    t.assertEqual(data.string_search_prop, "")
+    yield e.ret()
+    t.assertEqual(data.string_search_prop, "123")
+
+    # Text edit button, type "áéíóúaeiou1234" and remove "1234", check value is updated correctly on text change.
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING'))
+    yield e.back_space().text_unicode("áéíóúaeiou1234")
+    t.assertEqual(data.string_search_prop, "123")
+    yield e.shift.left_arrow().shift.left_arrow().shift.left_arrow().shift.left_arrow().back_space()
+    t.assertEqual(data.string_search_prop, "123")
+    yield e.ret()
+    t.assertEqual(data.string_search_prop, "áéíóúaeiou")
+
+    # Text edit button, type "a1a1a1" and paste it 3 times and undo once
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING'))
+    yield e.text("a1a1a1").ctrl.a().ctrl.c().left_arrow().ctrl.v().ctrl.v().ctrl.v().ctrl.z()
+    t.assertEqual(data.string_search_prop, "áéíóúaeiou")
+    yield e.ret()
+    t.assertEqual(data.string_search_prop, "a1a1a1a1a1a1a1a1a1")
+
+    # Highlight button and copy its "a1a1a1a1a1a1a1a1a1" content, reset its
+    # value to "" and paste again "a1a1a1a1a1a1a1a1a1".
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'HIGHLIGHT'))
+    yield e.ctrl.c()
+    data.string_search_prop = ""
+    yield  # Refresh UI
+    t.assertEqual(data.string_search_prop, "")
+    yield e.ctrl.v()
+    t.assertEqual(data.string_search_prop, "a1a1a1a1a1a1a1a1a1")
+
+    # Text edit button and select the first search suggestion value
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING'))
+    yield e.down_arrow().ret()
+    t.assertEqual(data.string_search_prop, "A")
+
+    # Text edit button and select the third search suggestion value ("A" is already selected in the search menu)
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING'))
+    yield e.down_arrow().down_arrow().ret()
+    t.assertEqual(data.string_search_prop, "AB")
+
+    # Text edit button, type "A" and select the first search suggestion value after typing
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING'))
+    yield e.text("A").down_arrow().ret()
+    t.assertEqual(data.string_search_prop, "A")
+
+    # Text edit button, type "A" and select the second search suggestion value
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING'))
+    yield e.text("A").down_arrow().down_arrow().ret()
+    t.assertEqual(data.string_search_prop, "AB")
+
+    """"`StringProperty(search=_string_search_property_cb)` as prop_search button"""
+    # Text edit button, type "C" and return, value will not be set as it don't matches a prop_search suggestion
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING', nth=1))
+    yield e.text("C").ret()
+    t.assertEqual(data.string_search_prop, "AB")
+
+    # Text edit button, type "B" and return, value be set since it matches a prop_search suggestion
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING', nth=1))
+    yield e.text("B").ret()
+    t.assertEqual(data.string_search_prop, "B")
+
+    # Highlight button, pasted clipboard value which will not be set as it don't matches a prop_search suggestion
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'HIGHLIGHT', nth=1))
+    yield e.ctrl.v()
+    t.assertEqual(data.string_search_prop, "B")
+
+    """"`StringProperty(search=_string_search_property_cb, search_options={'SORT'})` as button"""
+    t.assertEqual(data.string_force_search_value_prop, "")
+    # Text edit button, type "C" and return, value will not be set as it don't matches a suggestion
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_force_search_value_prop", 'TEXT_EDITING'))
+    yield e.text("C").ret()
+    t.assertEqual(data.string_force_search_value_prop, "")
+
+    # Text edit button, type "A" and return
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_force_search_value_prop", 'TEXT_EDITING'))
+    yield e.text("A").ret()
+    t.assertEqual(data.string_force_search_value_prop, "A")
+
+    # Text edit button, type "B" and return
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_force_search_value_prop", 'TEXT_EDITING'))
+    yield e.text("B").ret()
+    t.assertEqual(data.string_force_search_value_prop, "B")
+
+    # Text edit button, type "A" and select second suggestion
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_force_search_value_prop", 'TEXT_EDITING'))
+    yield e.text("A").down_arrow.ret()
+    t.assertEqual(data.string_force_search_value_prop, "AB")
+
+    # Highlight button, pasted clipboard value which will not be set as it don't matches a prop_search suggestion
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_force_search_value_prop", 'HIGHLIGHT'))
+    yield e.ctrl.v()
+    t.assertEqual(data.string_force_search_value_prop, "AB")

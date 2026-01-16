@@ -3024,7 +3024,11 @@ enum HandleButtonState {
   BUTTON_STATE_EXIT,
 };
 
-std::optional<int2> try_activate_rna_button(
-    bContext *C, ARegion *region, HandleButtonState state, PointerRNA *ptr, StringRef property);
+std::optional<int2> try_activate_rna_button(bContext *C,
+                                            ARegion *region,
+                                            HandleButtonState state,
+                                            PointerRNA *ptr,
+                                            StringRef property,
+                                            int nth = 0);
 }  // namespace ui
 }  // namespace blender

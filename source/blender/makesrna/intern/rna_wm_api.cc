@@ -264,11 +264,12 @@ static void rna_WM_try_activate_rna_button(blender::wmWindowManager * /*wm*/,
                                            PointerRNA *ptr,
                                            const char *property,
                                            int state,
+                                           int offset,
                                            int **r_xy,
                                            int *r_xy_total)
 {
   std::optional<int2> xy = ui::try_activate_rna_button(
-      C, region, ui::HandleButtonState(state), ptr, property);
+      C, region, ui::HandleButtonState(state), ptr, property, offset);
   if (!xy) {
     return;
   }
@@ -1074,6 +1075,8 @@ void RNA_api_wm(StructRNA *srna)
   parm = RNA_def_property(func, "state", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(parm, rna_button_activation);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_property(func, "nth", PROP_INT, PROP_NONE);
+  RNA_def_property_int_default(parm, 0);
 
   parm = RNA_def_property(func, "xy", PROP_INT, PROP_NONE);
   RNA_def_property_array(parm, 2);
