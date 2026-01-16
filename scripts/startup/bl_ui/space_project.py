@@ -189,12 +189,6 @@ class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
     def poll(cls, context):
         return not PROJECT_PT_main.poll(context)
 
-    def centered_operator(self, layout, op_name, text=None, icon=None):
-        col_flow = layout.column_flow(columns=3)
-        col_flow.separator_spacer()
-        col_flow.operator(op_name, text=text, icon=icon)
-        col_flow.separator_spacer()
-
     def draw_centered(self, context, layout):
         if not bpy.context.preferences.experimental.use_blender_projects:
             return
@@ -224,7 +218,7 @@ class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
             row.alignment = 'CENTER'
             row.operator("wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
             row.operator("project.open_blend_in_project", icon='FILE_FOLDER')
-        elif context.project.data is None:
+        else:
             row = col.row()
             row.alignment = 'CENTER'
             row.label(
@@ -245,8 +239,6 @@ class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
             row.alignment = 'CENTER'
             row.operator("project.new_project", text="New Project...", icon='ADD')
             row.operator("project.open_blend_in_project", icon='FILE_FOLDER')
-        else:
-            pass
 
 
 # -------------------------------------------------------------
