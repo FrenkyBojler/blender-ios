@@ -86,6 +86,9 @@ static void material_init_data(ID *id)
 {
   Material *material = id_cast<Material *>(id);
   INIT_DEFAULT_STRUCT_AFTER(material, id);
+
+  material->nodetree = bke::node_tree_add_tree_embedded(
+      nullptr, &material->id, "Shader Nodetree", "ShaderNodeTree");
 }
 
 static void material_copy_data(Main *bmain,
@@ -280,14 +283,12 @@ void BKE_gpencil_material_attr_init(Material *ma)
     MaterialGPencilStyle *gp_style = ma->gp_style;
     /* set basic settings */
     gp_style->stroke_rgba[3] = 1.0f;
-    gp_style->fill_rgba[3] = 1.0f;
+    gp_style->fill_rgba[3] = 0.0f;
     ARRAY_SET_ITEMS(gp_style->mix_rgba, 1.0f, 1.0f, 1.0f, 1.0f);
     ARRAY_SET_ITEMS(gp_style->texture_scale, 1.0f, 1.0f);
     gp_style->texture_offset[0] = -0.5f;
     gp_style->texture_pixsize = 100.0f;
     gp_style->mix_factor = 0.5f;
-
-    gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
   }
 }
 
@@ -2076,9 +2077,7 @@ static void material_default_gpencil_init(Material **ma_p)
 static void material_default_surface_init(Material **ma_p)
 {
   Material *ma = material_default_create(ma_p, "Default Surface");
-
-  bNodeTree *ntree = bke::node_tree_add_tree_embedded(
-      nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
+  bNodeTree *ntree = ma->nodetree;
 
   bNode *principled = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
   bNodeSocket *base_color = bke::node_find_socket(*principled, SOCK_IN, "Base Color");
@@ -2103,9 +2102,7 @@ static void material_default_surface_init(Material **ma_p)
 static void material_default_volume_init(Material **ma_p)
 {
   Material *ma = material_default_create(ma_p, "Default Volume");
-
-  bNodeTree *ntree = bke::node_tree_add_tree_embedded(
-      nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
+  bNodeTree *ntree = ma->nodetree;
 
   bNode *principled = bke::node_add_static_node(nullptr, *ntree, SH_NODE_VOLUME_PRINCIPLED);
   bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
@@ -2127,9 +2124,7 @@ static void material_default_volume_init(Material **ma_p)
 static void material_default_holdout_init(Material **ma_p)
 {
   Material *ma = material_default_create(ma_p, "Default Holdout");
-
-  bNodeTree *ntree = bke::node_tree_add_tree_embedded(
-      nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
+  bNodeTree *ntree = ma->nodetree;
 
   bNode *holdout = bke::node_add_static_node(nullptr, *ntree, SH_NODE_HOLDOUT);
   bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
