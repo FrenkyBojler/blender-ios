@@ -1,3 +1,4 @@
 Referenced by pull request #151361, Fix #151330: Editor resizing and other modal operators crash
 Referenced by commit 548f727d47097d2b69a84bd648ac883b996b9d3e, Fix #151330: Editor resizing and other modal operators crash
 Referenced by issue #152153, Displacement in VR limited to one controller at a time
+Referenced by pull request #152934, Fix #152153: XR modal operators wrongly re-executing when multiple actions are executed at once
