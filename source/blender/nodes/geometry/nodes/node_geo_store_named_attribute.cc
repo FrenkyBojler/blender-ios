@@ -218,7 +218,7 @@ static void node_register()
   static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeStoreNamedAttribute", GEO_NODE_STORE_NAMED_ATTRIBUTE);
-  ntype.ui_name = "Store Named Attribute";
+  ntype.ui_name = "Set Attribute";
   ntype.ui_description =
       "Store the result of a field on a geometry as an attribute with the specified name";
   ntype.enum_name_legacy = "STORE_NAMED_ATTRIBUTE";

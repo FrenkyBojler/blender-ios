@@ -23,7 +23,12 @@ from bpy.app.translations import (
 )
 
 
-# NOTE: This is kept for compatibility's sake, as some scripts import node_add_menu.add_node_type.
+def is_menu_search(context):
+    return getattr(context, "is_menu_search", False)
+
+    # NOTE: This is kept for compatibility's sake, as some scripts import node_add_menu.add_node_type.
+
+
 def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
     """Add a node type to a menu."""
     return AddNodeMenu.node_operator(
@@ -159,7 +164,7 @@ class NodeMenu(Menu):
         operators = []
         operators.append(cls.node_operator(layout, node_idname, search_weight=search_weight))
 
-        if getattr(context, "is_menu_search", False):
+        if is_menu_search(context):
             node_type = getattr(bpy.types, node_idname)
             translation_context = node_type.bl_rna.properties[property_name].translation_context
             for item in node_type.bl_rna.properties[property_name].enum_items_static:
@@ -197,7 +202,7 @@ class NodeMenu(Menu):
         """Similar to `node_operator`, but with extra entries based on a enum socket while in search."""
         operators = []
         operators.append(cls.node_operator(layout, node_idname, search_weight=search_weight))
-        if getattr(context, "is_menu_search", False):
+        if is_menu_search(context):
             node_type = getattr(bpy.types, node_idname)
             for enum_name in enum_names:
                 props = cls.node_operator(
@@ -228,7 +233,7 @@ class NodeMenu(Menu):
         operators = []
         operators.append(cls.node_operator(layout, node_type, label=label, search_weight=search_weight))
 
-        if getattr(context, "is_menu_search", False):
+        if is_menu_search(context):
             for subname in subnames:
                 item_props = cls.node_operator(layout, node_type, label="{:s} \u25B8 {:s}".format(
                     iface_(label), iface_(subname)), search_weight=search_weight, translate=False)
@@ -253,7 +258,7 @@ class NodeMenu(Menu):
         ops.value = "'RGBA'"
         operators.append(props)
 
-        if getattr(context, "is_menu_search", False):
+        if is_menu_search(context):
             translation_context = bpy.types.ShaderNodeMix.bl_rna.properties["blend_type"].translation_context
             for item in bpy.types.ShaderNodeMix.bl_rna.properties["blend_type"].enum_items_static:
                 props = cls.node_operator(

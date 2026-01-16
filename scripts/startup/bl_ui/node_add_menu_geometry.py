@@ -12,7 +12,7 @@ from bpy.app.translations import (
 class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
     bl_label = "Attribute"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeAttributeStatistic")
         self.node_operator(layout, "GeometryNodeAttributeDomainSize")
@@ -21,6 +21,12 @@ class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeCaptureAttribute")
         self.node_operator(layout, "GeometryNodeRemoveAttribute")
         self.node_operator(layout, "GeometryNodeStoreNamedAttribute", search_weight=1.0)
+        if node_add_menu.is_menu_search(context):
+            self.node_operator(
+                layout,
+                "GeometryNodeStoreNamedAttribute",
+                label="Store Named Attribute (old name)",
+                search_weight=-1.0)
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -925,6 +931,12 @@ class NODE_MT_gn_volume_write_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSetGridBackground")
         self.node_operator(layout, "GeometryNodeSetGridTransform")
         self.node_operator(layout, "GeometryNodeStoreNamedGrid")
+        if node_add_menu.is_menu_search(context):
+            self.node_operator(
+                layout,
+                "GeometryNodeStoreNamedGrid",
+                label="Store Named Grid (old name)",
+                search_weight=-1.0)
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
