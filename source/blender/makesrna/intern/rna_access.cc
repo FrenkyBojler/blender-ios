@@ -1026,7 +1026,7 @@ FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier)
 {
 #if 1
   for (; srna; srna = srna->base) {
-    auto *func = std::find_if(
+    std::unique_ptr<FunctionRNA> *func = std::find_if(
         srna->functions.begin(), srna->functions.end(), [&](const auto &func) {
           return STREQ(func->identifier, identifier);
         });
