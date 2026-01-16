@@ -454,7 +454,10 @@ PyDoc_STRVAR(
     bpy_app_cachedir_doc,
     "String, the cache directory used by blender (read-only).\n"
     "\n"
-    ":type: str\n");
+    "If the parent of the cache folder (i.e. the part of the path that is not Blender-specific) "
+    "does not exist, returns None.\n"
+    "\n"
+    ":type: str | None\n");
 static PyObject *bpy_app_cachedir_get(PyObject * /*self*/, void * /*closure*/)
 {
   char cache_path[FILE_MAX];
