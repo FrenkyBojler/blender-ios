@@ -99,13 +99,14 @@ def ui_string_property_buttons():
     _register()
     e, t = _test_vars(window := _test_window())
 
-    area = window.screen.areas[0]
+    area = window.screen.areas[3]
+    t.assertEqual(area.type, 'VIEW_3D')
     area.type = 'TEXT_EDITOR'
     t.assertEqual(area.type, 'TEXT_EDITOR')
 
     area.spaces[0].show_region_ui = True
     t.assertTrue(area.spaces[0].show_region_ui)
-    # Let UI to refresh so 'UI Test' can be set as ARegion::active_panel_category
+    # Let UI to refresh so 'Test String Property Buttons' can be set as ARegion::active_panel_category
     yield
 
     region = area.regions[2]
