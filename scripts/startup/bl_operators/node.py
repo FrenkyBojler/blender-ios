@@ -739,6 +739,9 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
         old_children = self.get_child_items(old_node)
         new_children = self.get_child_items(new_node)
 
+        if (old_children is None) or (new_children is None):
+            return
+
         for item in old_children:
             if item.name not in new_children:
                 try:
