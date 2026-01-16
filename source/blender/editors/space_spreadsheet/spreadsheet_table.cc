@@ -77,7 +77,8 @@ void spreadsheet_bundle_path_init_from(
     SpreadsheetBundleTreeViewPath &r_bundle_path)
 {
   spreadsheet_bundle_path_clear(r_bundle_path);
-  r_bundle_path.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(keys.size(), __func__);
+  r_bundle_path.bundle_path = MEM_new_array_for_free<SpreadsheetBundlePathElem>(keys.size(),
+                                                                                __func__);
   r_bundle_path.bundle_path_num = keys.size();
   for (const int i : keys.index_range()) {
     const StringRef key = keys[i];

@@ -1183,14 +1183,8 @@ struct SpreadsheetTableIDGeometry {
   ViewerPath viewer_path;
 
   int viewer_item_identifier;
-
-  int bundle_path_num = 0;
-  SpreadsheetBundlePathElem *bundle_path = nullptr;
-
-  /** #SpreadsheetClosureInputOutput. */
-  int8_t closure_input_output = 0;
-
-  char _pad3[7] = {};
+  char _pad3[4] = {};
+  SpreadsheetBundleTreeViewPath viewer_item_bundle_path;
 
   /**
    * The "path" to the currently active instance reference. This is needed when viewing nested
