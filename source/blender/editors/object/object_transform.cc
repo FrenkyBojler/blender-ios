@@ -2017,12 +2017,9 @@ static bool object_is_target_compat(const Object *ob)
       return true;
     }
   }
-  /* We might want to enable this later, for now just lights. */
-#if 0
   else if (ob->type == OB_CAMERA) {
     return true;
   }
-#endif
   return false;
 }
 
