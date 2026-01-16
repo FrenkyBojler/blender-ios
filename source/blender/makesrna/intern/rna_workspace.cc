@@ -177,7 +177,7 @@ const EnumPropertyItem *rna_WorkSpace_tools_mode_itemf(bContext * /*C*/,
 static bool rna_WorkSpaceTool_use_paint_canvas_get(PointerRNA *ptr)
 {
   bToolRef *tref = static_cast<bToolRef *>(ptr->data);
-  return (tref->runtime) ? ((tref->runtime->flag & TOOLREF_FLAG_USE_PAINT_CANVAS) != 0) : false;
+  return ED_paint_brush_type_use_canvas(nullptr, tref);
 }
 
 static int rna_WorkSpaceTool_index_get(PointerRNA *ptr)

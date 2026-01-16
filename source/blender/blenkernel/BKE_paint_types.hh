@@ -41,7 +41,6 @@ enum class PaintMode : int8_t {
 };
 
 namespace bke {
-
 struct PaintRuntime : NonCopyable, NonMovable {
   bool initialized = false;
   uint16_t ob_mode = 0;

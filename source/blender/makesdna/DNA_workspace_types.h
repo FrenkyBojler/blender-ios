@@ -28,7 +28,6 @@ enum {
    */
   TOOLREF_FLAG_FALLBACK_KEYMAP = (1 << 0),
   TOOLREF_FLAG_USE_BRUSHES = (1 << 1),
-  TOOLREF_FLAG_USE_PAINT_CANVAS = (1 << 2),
 };
 
 #
