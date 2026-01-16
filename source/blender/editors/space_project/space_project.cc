@@ -167,7 +167,7 @@ void ED_spacetype_project()
   ARegionType *art;
 
   st->spaceid = SPACE_PROJECT;
-  STRNCPY(st->name, "Project");
+  STRNCPY(st->name, "Project Setup");
 
   st->create = project_create;
   st->free = project_free;
