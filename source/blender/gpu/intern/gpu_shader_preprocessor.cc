@@ -6,10 +6,11 @@
  * \ingroup gpu
  */
 
+#include "BKE_global.hh"
+#include "BLI_struct_equality_utils.hh"
+
 #include "shader_tool/expression.hh"
 #include "shader_tool/intermediate.hh"
-
-#include "BLI_struct_equality_utils.hh"
 
 #include "gpu_shader_dead_code_elimination.hh"
 #include "gpu_shader_private.hh"
@@ -1201,10 +1202,16 @@ std::string Shader::run_preprocessor(StringRef source)
   BLI_assert_msg(source.find("//") == std::string::npos && source.find("/*") == std::string::npos,
                  "Input source to the preprocessor should have no comments.");
 
+  if (G.debug & G_DEBUG_GPU_SHADER_NO_PREPROCESSOR) {
+    return source;
+  }
+
   Preprocessor processor(source);
   processor.preprocess();
-  /* For testing without DCE. */
-  // return processor.result_get(true);
+
+  if (G.debug & G_DEBUG_GPU_SHADER_NO_DCE) {
+    return processor.result_get(true);
+  }
 
   DeadCodeEliminator dce(processor.result_get(true));
   dce.optimize();
