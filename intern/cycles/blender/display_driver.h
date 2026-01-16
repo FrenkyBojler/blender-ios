@@ -100,6 +100,7 @@ class BlenderDisplayDriver : public DisplayDriver {
  public:
   BlenderDisplayDriver(blender::RenderEngine &b_engine,
                        blender::Scene &b_scene,
+                       blender::RegionView3D *b_rv3d,
                        const bool background);
   ~BlenderDisplayDriver() override;
 
@@ -143,6 +144,7 @@ class BlenderDisplayDriver : public DisplayDriver {
   void gpu_resources_destroy();
 
   blender::RenderEngine &b_engine_;
+  blender::RegionView3D *b_rv3d_;
   bool background_;
 
   /* Content of the display is to be filled with zeroes. */
