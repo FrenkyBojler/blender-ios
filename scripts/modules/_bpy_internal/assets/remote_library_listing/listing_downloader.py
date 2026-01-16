@@ -708,14 +708,14 @@ def _sanitize_path_from_url(urlpath: PurePosixPath | str) -> PurePosixPath:
     return PurePosixPath(*parts)
 
 
-def is_more_recent_than(library: bpy.types.UserAssetLibrary, max_age_sec: float | int) -> bool:
+def is_more_recent_than(library_path: Path, max_age_sec: float | int) -> bool:
     """Return whether the remote asset library listing is more recent than the given age.
 
     If the listing hasn't been downloaded, return False.
     """
     import time
 
-    top_metadata_path = Path(library.path) / listing_common.ASSET_TOP_METADATA_FILENAME
+    top_metadata_path = library_path / listing_common.ASSET_TOP_METADATA_FILENAME
 
     if not top_metadata_path.exists():
         # If the metadata does not exist, it's certainly not new enough.

@@ -427,7 +427,7 @@ static void rna_userdef_asset_library_remote_sync_update(bContext *C, PointerRNA
   AssetLibraryReference library_ref = blender::ed::asset::user_library_to_library_ref(*library);
   /* Make sure all visible instances of this asset library will be refreshed. */
   blender::ed::asset::list::clear(&library_ref, C);
-  blender::asset_system::remote_library_request_download(*CTX_data_main(C), *library);
+  blender::asset_system::remote_library_request_download(*library);
   rna_userdef_asset_libraries_refresh(C, ptr);
 }
 

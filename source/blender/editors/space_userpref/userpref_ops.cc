@@ -202,7 +202,7 @@ static wmOperatorStatus preferences_asset_library_add_exec(bContext *C, wmOperat
   U.runtime.is_dirty = true;
 
   if (new_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
-    blender::asset_system::remote_library_request_download(*CTX_data_main(C), *new_library);
+    blender::asset_system::remote_library_request_download(*new_library);
   }
 
   /* There's no dedicated notifier for the Preferences. */
