@@ -116,7 +116,7 @@ static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /
       bool should_stop = false, has_updated = false;
       for (seq::ProxyBuildContext *context : queue) {
         seq::proxy_build_process(context, &should_stop, &has_updated, nullptr);
-        seq::proxy_rebuild_finish(context, false);
+        seq::proxy_build_finish(context);
       }
       seq::relations_free_imbuf(scene, &ed->seqbase, false);
     }

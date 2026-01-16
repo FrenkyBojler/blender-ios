@@ -1509,6 +1509,7 @@ static void proxy_endjob(void *pjv)
 
   if (pj->proxy_builder) {
     MOV_proxy_builder_finish(pj->proxy_builder, pj->stop);
+    pj->proxy_builder = nullptr;
   }
 
   if (pj->clip->source == MCLIP_SRC_MOVIE) {

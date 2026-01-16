@@ -650,6 +650,18 @@ static void image_proxy_builder_process(ProxyBuildContext &context,
   }
 }
 
+static void close_movie_proxy_builder(ProxyBuildContext *context, bool stop)
+{
+  if (context->movie_proxy_builder == nullptr) {
+    return;
+  }
+  for (MovieReader *movie : context->strip->runtime->movie_readers) {
+    MOV_close_proxies(movie);
+  }
+  MOV_proxy_builder_finish(context->movie_proxy_builder, stop);
+  context->movie_proxy_builder = nullptr;
+}
+
 void proxy_build_process(ProxyBuildContext *context,
                          const bool *should_stop,
                          bool *has_updated,
@@ -659,6 +671,7 @@ void proxy_build_process(ProxyBuildContext *context,
     if (context->movie_proxy_builder) {
       MOV_proxy_builder_process(
           context->movie_proxy_builder, should_stop, has_updated, set_progress_fn);
+      close_movie_proxy_builder(context, *should_stop);
     }
     return;
   }
@@ -669,15 +682,9 @@ void proxy_build_process(ProxyBuildContext *context,
   }
 }
 
-void proxy_rebuild_finish(ProxyBuildContext *context, bool stop)
+void proxy_build_finish(ProxyBuildContext *context)
 {
-  if (context->movie_proxy_builder) {
-    for (MovieReader *anim : context->strip->runtime->movie_readers) {
-      MOV_close_proxies(anim);
-    }
-    MOV_proxy_builder_finish(context->movie_proxy_builder, stop);
-  }
-
+  close_movie_proxy_builder(context, false);
   seq_free_strip_recurse(nullptr, context->strip, true);
 
   MEM_freeN(context);

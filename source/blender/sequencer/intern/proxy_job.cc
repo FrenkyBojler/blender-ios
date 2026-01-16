@@ -59,8 +59,9 @@ static void proxy_endjob(void *pjv)
   Editing *ed = editing_get(pj->scene);
 
   for (ProxyBuildContext *context : pj->queue) {
-    proxy_rebuild_finish(context, pj->stop);
+    proxy_build_finish(context);
   }
+  pj->queue.clear();
 
   relations_free_imbuf(pj->scene, &ed->seqbase, false);
 

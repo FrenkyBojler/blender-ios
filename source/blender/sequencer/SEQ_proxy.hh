@@ -43,11 +43,14 @@ bool proxy_build_start(Main *bmain,
                        bool build_only_on_bad_performance,
                        Vector<ProxyBuildContext *> &r_queue);
 
+/* Processes a proxy (re)build request in given `context`. */
 void proxy_build_process(ProxyBuildContext *context,
                          const bool *should_stop,
                          bool *has_updated,
                          FunctionRef<void(float progress)> set_progress_fn);
-void proxy_rebuild_finish(ProxyBuildContext *context, bool stop);
+
+/* Cleans up and deallocates the proxy build context. */
+void proxy_build_finish(ProxyBuildContext *context);
 
 void proxy_set(Strip *strip, bool value);
 bool can_use_proxy(const RenderData *context, const Strip *strip, IMB_Proxy_Size psize);
