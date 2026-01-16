@@ -692,7 +692,7 @@ static bool vfont_to_curve(Object *ob,
   int curbox;
   /* These values are only set to the selection range when `selboxes` is non-null. */
   int selstart = 0, selend = 0;
-  int cnr = 0, lnr = 0, wsnr = 0;
+  int cnr = 0, lnr = 0, wsnr = 0, wnr = 0;
   const char32_t *mem = nullptr;
   bool mem_alloc = false;
   const float font_size = cu.fsize * iter_data.scale_to_fit;
@@ -869,6 +869,11 @@ static bool vfont_to_curve(Object *ob,
     else {
       che = nullptr;
     }
+
+    if ELEM (charcode, ' ', '\n', '\t') {
+      wnr++;
+    }
+    ct->wordnr = wnr;
 
     twidth = vfont_char_width(cu, che, ct->is_smallcaps);
 
