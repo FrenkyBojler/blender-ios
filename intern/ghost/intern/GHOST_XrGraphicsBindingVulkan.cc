@@ -147,16 +147,22 @@ bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghos
     }
 
     /* Check if the Vulkan API instance version is supported. */
-    if (vk_version < xr_graphics_requirements.minApiVersionSupported ||
-        vk_version > xr_graphics_requirements.maxApiVersionSupported)
-    {
+    if (vk_version < xr_graphics_requirements.minApiVersionSupported) {
       strstream.clear();
       strstream << "Min Vulkan version "
                 << XR_VERSION_MAJOR(xr_graphics_requirements.minApiVersionSupported) << "."
                 << XR_VERSION_MINOR(xr_graphics_requirements.minApiVersionSupported) << std::endl;
-      strstream << "Max Vulkan version "
-                << XR_VERSION_MAJOR(xr_graphics_requirements.maxApiVersionSupported) << "."
-                << XR_VERSION_MINOR(xr_graphics_requirements.maxApiVersionSupported) << std::endl;
+    }
+    if (vk_version > xr_graphics_requirements.maxApiVersionSupported) {
+      CLOG_INFO(&LOG,
+                "OpenXR platform vulkan version requirements do not match with Blender. "
+                "This is known to happen when using Occulus/Meta Quest. A workaround for this is "
+                "already enabled by enabling extensions that are known to be in core vulkan. "
+                "(minimum vulkan version=%d.%d, maximum vulkan version=%d.%d).",
+                XR_VERSION_MAJOR(xr_graphics_requirements.minApiVersionSupported),
+                XR_VERSION_MINOR(xr_graphics_requirements.minApiVersionSupported),
+                XR_VERSION_MAJOR(xr_graphics_requirements.maxApiVersionSupported),
+                XR_VERSION_MINOR(xr_graphics_requirements.maxApiVersionSupported));
     }
   }
 
@@ -172,20 +178,24 @@ bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghos
       return false;
     }
 
-    if (vk_version < xr_graphics_requirements2.minApiVersionSupported ||
-        vk_version > xr_graphics_requirements2.maxApiVersionSupported)
-    {
+    if (vk_version < xr_graphics_requirements2.minApiVersionSupported) {
       strstream.clear();
       strstream << "Min Vulkan version "
                 << XR_VERSION_MAJOR(xr_graphics_requirements2.minApiVersionSupported) << "."
                 << XR_VERSION_MINOR(xr_graphics_requirements2.minApiVersionSupported) << std::endl;
-      strstream << "Max Vulkan version "
-                << XR_VERSION_MAJOR(xr_graphics_requirements2.maxApiVersionSupported) << "."
-                << XR_VERSION_MINOR(xr_graphics_requirements2.maxApiVersionSupported) << std::endl;
+    }
+    if (vk_version > xr_graphics_requirements2.maxApiVersionSupported) {
+      CLOG_INFO(&LOG,
+                "OpenXR platform vulkan version requirements do not match with Blender. "
+                "This is known to happen when using Occulus/Meta Quest. A workaround for this is "
+                "already enabled by enabling extensions that are known to be in core vulkan. "
+                "(minimum vulkan version=%d.%d, maximum vulkan version=%d.%d).",
+                XR_VERSION_MAJOR(xr_graphics_requirements2.minApiVersionSupported),
+                XR_VERSION_MINOR(xr_graphics_requirements2.minApiVersionSupported),
+                XR_VERSION_MAJOR(xr_graphics_requirements2.maxApiVersionSupported),
+                XR_VERSION_MINOR(xr_graphics_requirements2.maxApiVersionSupported));
     }
   }
-  // TODO: Ignore result as vulkan is fully downwards compatible using extensions.
-  return true;
 
   /* When one of the version doesn't match we will error out. We assume when both extensions are
    * supported that both will use the same requirements. */
@@ -201,11 +211,9 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
                                                          XrInstance instance,
                                                          XrSystemId system_id)
 {
-  /*
   if (tryReuseVulkanInstance(static_cast<GHOST_ContextVK &>(ghost_ctx), instance, system_id)) {
     return;
   }
-  */
   /* Create a new VkInstance that is compatible with OpenXR */
   VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO,
                                            nullptr,
