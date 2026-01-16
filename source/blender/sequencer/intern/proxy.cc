@@ -380,12 +380,12 @@ static bool seq_proxy_need_rebuild(Strip *strip, MovieReader *anim)
   return (required_proxies & built_proxies) != required_proxies;
 }
 
-bool proxy_rebuild_context(Main *bmain,
-                           Scene *scene,
-                           Strip *strip,
-                           Set<std::string> *processed_paths,
-                           bool build_only_on_bad_performance,
-                           Vector<ProxyBuildContext *> &r_queue)
+bool proxy_build_start(Main *bmain,
+                       Scene *scene,
+                       Strip *strip,
+                       Set<std::string> *processed_paths,
+                       bool build_only_on_bad_performance,
+                       Vector<ProxyBuildContext *> &r_queue)
 {
   if (!strip->data || !strip->data->proxy) {
     return true;
@@ -650,9 +650,9 @@ static void image_proxy_builder_process(ProxyBuildContext &context,
   }
 }
 
-void proxy_rebuild(ProxyBuildContext *context,
-                   wmJobWorkerStatus *worker_status,
-                   const FunctionRef<void(float progress)> set_progress_fn)
+void proxy_build_process(ProxyBuildContext *context,
+                         wmJobWorkerStatus *worker_status,
+                         const FunctionRef<void(float progress)> set_progress_fn)
 {
   if (context->strip->type == STRIP_TYPE_MOVIE) {
     if (context->movie_proxy_builder) {

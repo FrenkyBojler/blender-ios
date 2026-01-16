@@ -30,16 +30,24 @@ namespace seq {
 struct ProxyBuildContext;
 struct RenderData;
 
-bool proxy_rebuild_context(Main *bmain,
-                           Scene *scene,
-                           Strip *strip,
-                           Set<std::string> *processed_paths,
-                           bool build_only_on_bad_performance,
-                           Vector<ProxyBuildContext *> &r_queue);
-void proxy_rebuild(ProxyBuildContext *context,
-                   wmJobWorkerStatus *worker_status,
-                   FunctionRef<void(float progress)> set_progress_fn);
+/*
+ * Initializes proxy (re)build for the given input strip.
+ * The actual proxy builders, if needed, are added to the
+ * `r_queue` output vector (there can be more than one
+ * for multi-view videos/images).
+ */
+bool proxy_build_start(Main *bmain,
+                       Scene *scene,
+                       Strip *strip,
+                       Set<std::string> *processed_paths,
+                       bool build_only_on_bad_performance,
+                       Vector<ProxyBuildContext *> &r_queue);
+
+void proxy_build_process(ProxyBuildContext *context,
+                         wmJobWorkerStatus *worker_status,
+                         FunctionRef<void(float progress)> set_progress_fn);
 void proxy_rebuild_finish(ProxyBuildContext *context, bool stop);
+
 void proxy_set(Strip *strip, bool value);
 bool can_use_proxy(const RenderData *context, const Strip *strip, IMB_Proxy_Size psize);
 IMB_Proxy_Size rendersize_to_proxysize(eSpaceSeq_Proxy_RenderSize render_size);
