@@ -9801,16 +9801,10 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
           button_activate_state(C, but, BUTTON_STATE_EXIT);
         }
         else {
-          /* Re-enable tool-tip on mouse move. */
-          bool reenable_tooltip = true;
+          /* Re-enable tooltip on mouse move if not currently showing one. */
           bScreen *screen = CTX_wm_screen(C);
-          if (screen && screen->tool_tip) {
-            /* Allow some movement once the tooltip timer has started. */
-            const int threshold = WM_event_drag_threshold(event);
-            const int movement = len_manhattan_v2v2_int(event->xy, screen->tool_tip->event_xy);
-            reenable_tooltip = (movement > threshold);
-          }
-          if (reenable_tooltip) {
+          const bool tooltip_showing = screen && screen->tool_tip && screen->tool_tip->region;
+          if (!tooltip_showing) {
             ui_blocks_set_tooltips(region, true);
             button_tooltip_timer_reset(C, but);
           }
