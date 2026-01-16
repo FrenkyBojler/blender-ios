@@ -17,6 +17,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_appdir.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
@@ -310,7 +311,7 @@ void remote_library_request_download(Main &bmain, bUserAssetLibrary &library_def
   }
 
   /* Returns true if the directory exists, also if it pre-existed. */
-  if (!BLI_dir_create_recursive(library_definition.dirpath)) {
+  if (!BLI_dir_create_recursive(remote_library_cache_path(library_definition).c_str())) {
     return;
   }
 
@@ -540,6 +541,96 @@ std::string remote_library_asset_preview_path(const AssetRepresentation &asset)
   BLI_path_join(thumb_path, sizeof(thumb_path), thumbs_dir_path, thumb_prefix, thumb_name + 2);
 
   return thumb_path;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Remote Library Cache
+ * \{ */
+
+/**
+ * Maximum length of the remote library identifier. Used for directory names, so trying to keep
+ * this short (to avoid path length issues with deeply nested asset libraries).
+ *
+ * 6 bytes for a truncated MD5 hash of the URL, 1 byte for a '-', 20 bytes for the truncated asset
+ * library name (user defined), 1 byte for null terminator. Only the MD5 hash part and the '-' is
+ * used for identification, the rest is a hint for human readability.
+ */
+const int8_t MAX_REMOTE_LIBRARY_IDENTIFIER = 6 + 1 + 20 + 1;
+
+static void asset_library_identifier(StringRef name,
+                                     StringRef remote_url,
+                                     StringRef *r_hash_part,
+                                     StringRef *r_name_hint_part,
+                                     char buf[MAX_REMOTE_LIBRARY_IDENTIFIER])
+{
+  /* MD5 hash part. */
+  uchar digest[16];
+  BLI_hash_md5_buffer(remote_url.data(), remote_url.size(), digest);
+  char hex_digest[33];
+  BLI_hash_md5_to_hexdigest(digest, hex_digest);
+  /* This adds a null terminator. */
+  BLI_strncpy(buf, hex_digest, 7);
+
+  buf[6] = '-';
+  *r_hash_part = StringRef{buf, 7};
+
+  /* Name part for human readability (truncated and made safe for use as file name). */
+  char safe_trunc_name[20];
+  name.copy_utf8_truncated(safe_trunc_name);
+  BLI_path_make_safe_filename(safe_trunc_name);
+  /* Adds null terminator. */
+  BLI_strncpy(&buf[7], safe_trunc_name, sizeof(safe_trunc_name) + 1);
+  *r_name_hint_part = StringRef{&buf[7]};
+}
+
+std::string remote_library_cache_path(const bUserAssetLibrary &library)
+{
+  char cache_path[FILE_MAX];
+  char libraries_cache_path[FILE_MAX];
+  BKE_appdir_folder_caches(cache_path, sizeof(cache_path));
+  BLI_path_join(libraries_cache_path, sizeof(libraries_cache_path), cache_path, "remote-assets");
+
+  char library_identifier[MAX_REMOTE_LIBRARY_IDENTIFIER];
+  StringRef hash_part;
+  StringRef name_hint_part;
+  asset_library_identifier(
+      library.name, library.remote_url, &hash_part, &name_hint_part, library_identifier);
+
+  char preferred_library_path[FILE_MAX];
+  BLI_path_join(preferred_library_path,
+                sizeof(preferred_library_path),
+                libraries_cache_path,
+                library_identifier);
+
+  /* Simple and probably most common case once a library was loaded once: The cache path derived
+   * from the current URL and current identifier exists on disk -> use it. */
+  if (BLI_is_dir(preferred_library_path)) {
+    return preferred_library_path;
+  }
+
+  /* Remaining cases: Couldn't find the expected cache path. Check if there are other directories
+   * with the same hashed URL and use one of those. If there is none, the cache directory just
+   * doesn't exist yet and we return the path built from the current URL and identifier. */
+  if (BLI_is_dir(libraries_cache_path)) {
+    direntry *dirs;
+    const uint dirs_num = BLI_filelist_dir_contents(libraries_cache_path, &dirs);
+    BLI_SCOPED_DEFER([&]() { BLI_filelist_free(dirs, dirs_num); });
+
+    for (int i = 0; i < dirs_num; i++) {
+      if (!S_ISDIR(dirs[i].s.st_mode)) {
+        continue;
+      }
+      if (StringRef{dirs[i].relname}.startswith(hash_part)) {
+        return dirs[i].path;
+      }
+    }
+  }
+
+  /* No pre-existing path with the same hash. Return the one generated from the current URL +
+   * identifier. */
+  return preferred_library_path;
 }
 
 /** \} */

@@ -1736,6 +1736,12 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->flag |= USER_HIDE_DOT_DATABLOCK;
   }
 
+  for (bUserAssetLibrary &library : userdef->asset_libraries) {
+    if (library.flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+      library.dirpath[0] = '\0';
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

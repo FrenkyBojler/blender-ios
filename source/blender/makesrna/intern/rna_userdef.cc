@@ -419,12 +419,21 @@ static void rna_userdef_asset_library_update(bContext *C, PointerRNA *ptr)
 
 static void rna_userdef_asset_library_remote_sync_update(bContext *C, PointerRNA *ptr)
 {
-  bUserAssetLibrary *library = (bUserAssetLibrary *)ptr->data;
+  bUserAssetLibrary *library = static_cast<bUserAssetLibrary *>(ptr->data);
   AssetLibraryReference library_ref = blender::ed::asset::user_library_to_library_ref(*library);
   /* Make sure all visible instances of this asset library will be refreshed. */
   blender::ed::asset::list::clear(&library_ref, C);
   blender::asset_system::remote_library_request_download(*CTX_data_main(C), *library);
   rna_userdef_asset_library_update(C, ptr);
+}
+
+static void rna_userdef_asset_library_remote_cache_path(bUserAssetLibrary *library,
+                                                        const char **r_str,
+                                                        int *r_len)
+{
+  const std::string path = asset_system::remote_library_cache_path(*library);
+  *r_str = BLI_strdup(path.c_str());
+  *r_len = path.size();
 }
 
 /**
@@ -6871,6 +6880,25 @@ static void rna_def_userdef_filepaths_asset_library(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "URL", "Remote URL to the asset library");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_asset_library_remote_sync_update");
+
+  /* This is a function and not a property, because the value can change over time - the directory
+   * name has a hash of the URL and a "last seen name" for human friendlieness. But only the hashed
+   * URL part should be used for identification, the name part may be updated when users change the
+   * name of the library or by other running Blender instances. */
+  FunctionRNA *func = RNA_def_function(
+      srna, "remote_cache_path", "rna_userdef_asset_library_remote_cache_path");
+  /* return type */
+  PropertyRNA *parm = RNA_def_string(
+      func,
+      "directory",
+      nullptr,
+      0,
+      "",
+      "Current directory path the asset library data will be cached in. Avoid "
+      "holding onto this for longer time, it can change.");
+  RNA_def_parameter_flags(parm, PROP_DYNAMIC, ParameterFlag(0));
+  RNA_def_parameter_clear_flags(parm, PROP_NEVER_NULL, ParameterFlag(0));
+  RNA_def_function_output(func, parm);
 
   prop = RNA_def_property(srna, "import_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_preferences_asset_import_method_items);

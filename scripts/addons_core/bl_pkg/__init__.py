@@ -458,11 +458,14 @@ def remote_asset_libraries_sync(
     if only_if_older_than_sec and listing_downloader.is_more_recent_than(library, only_if_older_than_sec):
         return
 
+
     # Only actually start downloading if no other Blender is already syncing
     # this asset library.
     from pathlib import Path
+    library_path = Path(library.remote_cache_path())
+
     from _bpy_internal.assets.remote_library_listing import sync_mutex
-    if not sync_mutex.mutex_lock(Path(library.path)):
+    if not sync_mutex.mutex_lock(library_path):
         print("  skipping {!r}, another Blender is already syncing this asset library,".format(library.remote_url))
         return
 
@@ -474,7 +477,7 @@ def remote_asset_libraries_sync(
     # Create the downloader and start downloading.
     downloader = listing_downloader.RemoteAssetListingDownloader(
         library.remote_url,
-        library.path,
+        library_path,
         on_update_callback=_remote_asset_libraries_sync_update,
         on_done_callback=_remote_asset_libraries_sync_done,
         on_metafiles_done_callback=_remote_asset_libraries_sync_metafiles_done,

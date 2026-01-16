@@ -11,7 +11,6 @@
 #include <cstring>
 
 #include "BLI_fileops.h"
-#include "BLI_hash_md5.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -98,6 +97,9 @@ void BKE_preferences_asset_library_name_set(UserDef *userdef,
 
 void BKE_preferences_asset_library_path_set(bUserAssetLibrary *library, const char *path)
 {
+  if (library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+    return;
+  }
   STRNCPY(library->dirpath, path);
   if (BLI_is_file(library->dirpath)) {
     BLI_path_parent_dir(library->dirpath);
@@ -136,9 +138,10 @@ int BKE_preferences_asset_library_get_index(const UserDef *userdef,
 bool BKE_preferences_asset_library_is_valid(const bUserAssetLibrary *library,
                                             const bool check_directory_exists)
 {
-  if ((library->flag & ASSET_LIBRARY_USE_REMOTE_URL) && !library->remote_url[0]) {
-    return false;
+  if (library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+    return library->remote_url[0] != 0;
   }
+
   /* Note that there's no check if the path exists on disk here. If an invalid library path is
    * used, the Asset Browser can give a nice hint on what's wrong, so include such items in enums
    * the user can choose from. */
@@ -169,38 +172,6 @@ void BKE_preferences_asset_library_default_add(UserDef *userdef)
       library->dirpath, sizeof(library->dirpath), documents_path, N_("Blender"), N_("Assets"));
 }
 
-/**
- * Maximum length of the remote library identifier. Used for directory names, so trying to keep
- * this short (to avoid path length issues with deeply nested asset libraries).
- *
- * 6 bytes for a truncated MD5 hash of the URL, 1 byte for a '-', 10 bytes for the truncated asset
- * library name (user defined), 1 byte for null terminator. Only the MD5 hash part is used for
- * identification, the rest is for human readability.
- */
-const int8_t MAX_REMOTE_LIBRARY_IDENTIFIER = 6 + 1 + 10 + 1;
-
-static void asset_library_identifier(blender::StringRef name,
-                                     blender::StringRef remote_url,
-                                     char identifier_buf[MAX_REMOTE_LIBRARY_IDENTIFIER])
-{
-  /* MD5 hash part. */
-  uchar digest[16];
-  BLI_hash_md5_buffer(remote_url.data(), remote_url.size(), digest);
-  char hex_digest[33];
-  BLI_hash_md5_to_hexdigest(digest, hex_digest);
-  /* This adds a null terminator. */
-  BLI_strncpy(identifier_buf, hex_digest, 7);
-
-  identifier_buf[6] = '-';
-
-  /* Name part for human readability (truncated and made safe for use as file name). */
-  char safe_trunc_name[11];
-  BLI_strncpy_utf8(safe_trunc_name, name.data(), sizeof(safe_trunc_name));
-  BLI_path_make_safe_filename(safe_trunc_name);
-  /* Adds null terminator. */
-  BLI_strncpy(&identifier_buf[7], safe_trunc_name, sizeof(safe_trunc_name));
-}
-
 bUserAssetLibrary *BKE_preferences_remote_asset_library_add(UserDef *userdef,
                                                             const char *name,
                                                             const char *remote_url)
@@ -215,27 +186,7 @@ bUserAssetLibrary *BKE_preferences_remote_asset_library_add(UserDef *userdef,
     BKE_preferences_asset_library_name_set(userdef, library, name);
   }
 
-  /* Download location cache path. */
-  char cache_path[FILE_MAX];
-  BKE_appdir_folder_caches(cache_path, sizeof(cache_path));
-  char library_identifier[MAX_REMOTE_LIBRARY_IDENTIFIER];
-  asset_library_identifier(name, remote_url, library_identifier);
-  BLI_path_join(
-      library->dirpath, sizeof(library->dirpath), cache_path, "remote-assets", library_identifier);
-
   return library;
-}
-
-size_t BKE_preferences_remote_asset_library_dirpath_get(const bUserAssetLibrary *library,
-                                                        char *dirpath,
-                                                        const int dirpath_maxncpy)
-{
-  /* TODO support custom directories? */
-  // if (library->flag & USER_EXTENSION_REPO_FLAG_USE_CUSTOM_DIRECTORY) {
-  //   return BLI_strncpy_rlen(dirpath, library->custom_dirpath, dirpath_maxncpy);
-  // }
-
-  return BLI_strncpy_rlen(dirpath, library->dirpath, dirpath_maxncpy);
 }
 
 /** \} */

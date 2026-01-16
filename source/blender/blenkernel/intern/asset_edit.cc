@@ -16,6 +16,7 @@
 #include "DNA_userdef_types.h"
 
 #include "AS_asset_library.hh"
+#include "AS_remote_library.hh"
 
 #include "BKE_asset_edit.hh"
 #include "BKE_blendfile.hh"
@@ -89,10 +90,16 @@ static ID *asset_link_id(Main &global_main,
 static std::string asset_root_path_for_save(const bUserAssetLibrary &user_library,
                                             const ID_Type id_type)
 {
-  BLI_assert(user_library.dirpath[0] != '\0');
-
   char libpath[FILE_MAX];
-  STRNCPY(libpath, user_library.dirpath);
+  if (user_library.flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+    std::string cache_path = asset_system::remote_library_cache_path(user_library);
+    StringRef(cache_path).copy_utf8_truncated(libpath);
+  }
+  else {
+    BLI_assert(user_library.dirpath[0] != '\0');
+    STRNCPY(libpath, user_library.dirpath);
+  }
+
   BLI_path_slash_native(libpath);
   BLI_path_normalize(libpath);
 
@@ -225,7 +232,13 @@ static AssetWeakReference asset_weak_reference_for_user_library(
 
   /* BLI_path_rel requires a trailing slash. */
   char user_library_dirpath[FILE_MAX];
-  STRNCPY(user_library_dirpath, user_library.dirpath);
+  if (user_library.flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+    std::string cache_path = asset_system::remote_library_cache_path(user_library);
+    StringRef(cache_path).copy_utf8_truncated(user_library_dirpath);
+  }
+  else {
+    STRNCPY(user_library_dirpath, user_library.dirpath);
+  }
   BLI_path_slash_ensure(user_library_dirpath, sizeof(user_library_dirpath));
 
   char relative_filepath[FILE_MAX];
@@ -385,7 +398,7 @@ std::optional<AssetWeakReference> asset_edit_weak_reference_from_id(const ID &id
 
   const short idcode = GS(id.name);
 
-  if (user_library && user_library->dirpath[0]) {
+  if (user_library && BKE_preferences_asset_library_is_valid(user_library, false)) {
     return asset_weak_reference_for_user_library(
         *user_library, idcode, id.name + 2, id.lib->runtime->filepath_abs);
   }

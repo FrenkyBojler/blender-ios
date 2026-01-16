@@ -20,6 +20,7 @@
 
 #include "AS_asset_library.hh"
 #include "AS_essentials_library.hh"
+#include "AS_remote_library.hh"
 #include "all_library.hh"
 #include "asset_catalog_collection.hh"
 #include "asset_catalog_definition_file.hh"  // IWYU pragma: keep
@@ -140,11 +141,12 @@ AssetLibrary *AssetLibraryService::get_remote_asset_library(
     return lib;
   }
 
+  std::string cache_path = remote_library_cache_path(*custom_library);
   std::unique_ptr<RemoteAssetLibrary> lib_uptr = std::make_unique<RemoteAssetLibrary>(
       remote_url,
       custom_library->name,
       /* Constructor normalizes the path. */
-      custom_library->dirpath);
+      cache_path);
   AssetLibrary *lib = lib_uptr.get();
   lib->load_or_reload_catalogs();
 
@@ -208,6 +210,7 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk_custom(StringRef na
 AssetLibrary *AssetLibraryService::get_asset_library_on_disk_custom_preferences(
     bUserAssetLibrary *custom_library)
 {
+  BLI_assert((custom_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) == 0);
   return this->get_asset_library_on_disk(
       ASSET_LIBRARY_CUSTOM, custom_library->name, custom_library->dirpath, true, custom_library);
 }
@@ -381,13 +384,22 @@ std::string AssetLibraryService::resolve_asset_weak_reference_to_library_path(
     const AssetWeakReference &asset_reference)
 {
   StringRefNull library_dirpath;
+  /* Some cases below need to keep a string alive for #library_dirpath. Still just use the
+   * ref where possible to avoid the unnecessary string allocation. */
+  std::string library_dirpath_buffer;
 
   switch (eAssetLibraryType(asset_reference.asset_library_type)) {
     case ASSET_LIBRARY_CUSTOM: {
       bUserAssetLibrary *custom_lib = find_custom_preferences_asset_library_from_asset_weak_ref(
           asset_reference);
       if (custom_lib) {
-        library_dirpath = custom_lib->dirpath;
+        if (custom_lib->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+          library_dirpath_buffer = remote_library_cache_path(*custom_lib);
+          library_dirpath = library_dirpath_buffer;
+        }
+        else {
+          library_dirpath = custom_lib->dirpath;
+        }
         break;
       }
 
@@ -573,10 +585,13 @@ std::string AssetLibraryService::root_path_from_library_ref(
 
   bUserAssetLibrary *custom_library = find_custom_asset_library_from_library_ref(
       library_reference);
-  if (!custom_library || !custom_library->dirpath[0]) {
+  if (!custom_library) {
     return "";
   }
 
+  if (custom_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+    return remote_library_cache_path(*custom_library);
+  }
   return custom_library->dirpath;
 }
 
