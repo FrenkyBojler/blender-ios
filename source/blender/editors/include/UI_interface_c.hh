@@ -3024,6 +3024,14 @@ enum HandleButtonState {
   BUTTON_STATE_EXIT,
 };
 
+/**
+ * Attempts to activate a button that points to an RNA data property, if other any other button is
+ * active in the screen, it will be deactivated.
+ * \param state: Activation button state, some states are specific for some kinds of buttons when
+ * an incompatible one is provided the button will be just activated as #BUTTON_STATE_HIGHLIGHT.
+ * \param nth: Selects the nth button in the region that points to the data.
+ * \return The center point of the button when successfully activated.
+ */
 std::optional<int2> try_activate_rna_button(bContext *C,
                                             ARegion *region,
                                             HandleButtonState state,

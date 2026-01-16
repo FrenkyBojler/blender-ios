@@ -12683,9 +12683,11 @@ std::optional<int2> try_activate_rna_button(bContext *C,
       break;
     }
   }
+
   if (!button) {
     return std::nullopt;
   }
+
   int2 xy{BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
   ED_screen_set_active_region(C, CTX_wm_window(C), xy);
   ScrArea *current_screen = CTX_wm_area(C);
@@ -12700,6 +12702,10 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   rctf rect;
   block_to_window_rctf(region, button->block, &rect, &button->rect);
   WM_cursor_warp(win, BLI_rctf_cent_x(&rect), BLI_rctf_cent_y(&rect));
+
+  if (button->flag & (BUT_DISABLED | UI_HIDDEN)) {
+    return std::nullopt;
+  }
 
   if (state == BUTTON_STATE_TEXT_EDITING && ELEM(button->type,
                                                  ButtonType::Text,
@@ -12721,7 +12727,7 @@ std::optional<int2> try_activate_rna_button(bContext *C,
     event.type = LEFTMOUSE;
     event.val = KM_PRESS;
     /* Use `ui_do_button` for #BUTTON_STATE_NUM_EDITING with a dummy event, some buttons do some
-     * configurations on left click. */
+     * aditional configurations on left click to start editing. */
     ui_do_button(C, button->block, button, &event);
   }
 
