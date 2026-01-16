@@ -824,14 +824,14 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
                 nodes_to_delete.add(old_node)
 
-            if tree.type == "GEOMETRY" and self.add_default_geometry_link:
-                # Connect geometry sockets by default if available.
-                # Get the sockets by their types, because the name is not guaranteed due to i18n.
-                from_socket = next(s for s in input_node.outputs if s.type == 'GEOMETRY')
-                to_socket = next(s for s in output_node.inputs if s.type == 'GEOMETRY')
+                if tree.type == "GEOMETRY" and self.add_default_geometry_link:
+                    # Connect geometry sockets by default if available.
+                    # Get the sockets by their types, because the name is not guaranteed due to i18n.
+                    from_socket = next(s for s in input_node.outputs if s.type == 'GEOMETRY')
+                    to_socket = next(s for s in output_node.inputs if s.type == 'GEOMETRY')
 
-                if not (from_socket.is_linked or to_socket.is_linked):
-                    tree.links.new(to_socket, from_socket)
+                    if not (from_socket.is_linked or to_socket.is_linked):
+                        tree.links.new(to_socket, from_socket)
 
         for node in nodes_to_delete:
             tree.nodes.remove(node)
