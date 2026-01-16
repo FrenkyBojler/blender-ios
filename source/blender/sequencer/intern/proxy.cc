@@ -479,8 +479,8 @@ static void seq_proxy_build_frame(const Scene *scene,
     return;
   }
 
-  int rectx = (proxy_render_size * ibuf_full->x) / 100;
-  int recty = (proxy_render_size * ibuf_full->y) / 100;
+  const int rectx = (proxy_render_size * ibuf_full->x) / 100;
+  const int recty = (proxy_render_size * ibuf_full->y) / 100;
 
   ImBuf *ibuf = ibuf_full;
   if (ibuf_full->x != rectx || ibuf_full->y != recty) {
