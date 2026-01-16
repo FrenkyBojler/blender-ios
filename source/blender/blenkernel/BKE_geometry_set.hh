@@ -449,26 +449,10 @@ struct GeometrySet {
   void replace_grease_pencil(GreasePencil *grease_pencil,
                              GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
 
-  bool has_bundle() const
-  {
-    return bundle_;
-  }
-
-  const nodes::Bundle *bundle() const
-  {
-    return bundle_.get();
-  }
-
-  const nodes::BundlePtr &bundle_ptr() const
-  {
-    return bundle_;
-  }
-
-  nodes::BundlePtr &bundle_ptr()
-  {
-    return bundle_;
-  }
-
+  bool has_bundle() const;
+  const nodes::Bundle *bundle() const;
+  const nodes::BundlePtr &bundle_ptr() const;
+  nodes::BundlePtr &bundle_ptr();
   nodes::Bundle &bundle_for_write();
 
   void copy_bundle_from(const GeometrySet &other);

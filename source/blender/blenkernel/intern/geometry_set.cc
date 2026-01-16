@@ -783,18 +783,32 @@ Vector<GeometryComponent::Type> GeometrySet::gather_component_types(const bool i
   return types;
 }
 
+bool GeometrySet::has_bundle() const
+{
+  return bundle_;
+}
+
+const nodes::Bundle *GeometrySet::bundle() const
+{
+  return bundle_.get();
+}
+
+const nodes::BundlePtr &GeometrySet::bundle_ptr() const
+{
+  return bundle_;
+}
+
+nodes::BundlePtr &GeometrySet::bundle_ptr()
+{
+  return bundle_;
+}
+
 nodes::Bundle &GeometrySet::bundle_for_write()
 {
   if (!bundle_) {
     bundle_ = nodes::Bundle::create();
   }
-  else if (bundle_->is_mutable()) {
-    bundle_->tag_ensured_mutable();
-  }
-  else {
-    bundle_ = bundle_->copy();
-  }
-  return const_cast<nodes::Bundle &>(*bundle_);
+  return bundle_.ensure_mutable_inplace();
 }
 
 void GeometrySet::copy_bundle_from(const GeometrySet &other)

@@ -239,7 +239,7 @@ template<typename T> inline std::optional<T> Bundle::lookup(const StringRef key)
   return item->as<T>();
 }
 
-template<typename T> inline std::optional<T> Bundle::lookup_path(Span<StringRef> path) const
+template<typename T> inline std::optional<T> Bundle::lookup_path(const Span<StringRef> path) const
 {
   const BundleItemValue *item = this->lookup_path(path);
   if (!item) {

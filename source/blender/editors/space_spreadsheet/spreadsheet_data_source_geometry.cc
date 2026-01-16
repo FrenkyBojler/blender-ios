@@ -1068,7 +1068,7 @@ static bke::SocketValueVariant lookup_bundle_path(const nodes::BundlePtr &bundle
   return bundle->lookup_path<bke::SocketValueVariant>(keys).value_or(bke::SocketValueVariant{});
 }
 
-bke::SocketValueVariant root_display_data_Get(const SpaceSpreadsheet *sspreadsheet,
+bke::SocketValueVariant root_display_data_get(const SpaceSpreadsheet *sspreadsheet,
                                               Object *object_eval)
 {
   if (sspreadsheet->geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL) {
@@ -1158,7 +1158,7 @@ bke::SocketValueVariant root_display_data_Get(const SpaceSpreadsheet *sspreadshe
 std::optional<bke::GeometrySet> root_geometry_set_get(const SpaceSpreadsheet *sspreadsheet,
                                                       Object *object_eval)
 {
-  bke::SocketValueVariant display_data = root_display_data_Get(sspreadsheet, object_eval);
+  bke::SocketValueVariant display_data = root_display_data_get(sspreadsheet, object_eval);
   if (!display_data.is_single()) {
     return std::nullopt;
   }
@@ -1275,7 +1275,7 @@ static std::unique_ptr<DataSource> data_source_from_geometry(
 std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object *object_eval)
 {
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
-  bke::SocketValueVariant root_data = root_display_data_Get(sspreadsheet, object_eval);
+  bke::SocketValueVariant root_data = root_display_data_get(sspreadsheet, object_eval);
 
   if (root_data.is_single()) {
     const GPointer ptr = root_data.get_single_ptr();

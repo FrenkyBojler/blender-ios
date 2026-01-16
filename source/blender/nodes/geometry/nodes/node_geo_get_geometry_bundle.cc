@@ -11,6 +11,7 @@ namespace blender::nodes::node_geo_get_geometry_bundle {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  // TODO: Support remove
   b.add_output<decl::Bundle>("Bundle");
   b.add_input<decl::Geometry>("Geometry").description("Geometry to get the bundle of");
 }
