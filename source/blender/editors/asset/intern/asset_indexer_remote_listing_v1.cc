@@ -34,9 +34,14 @@ using namespace blender::io::serialize;
 /** \name Remote asset listing page
  * \{ */
 
+/**
+ * Vector of warnings logged by reading remote asset listings.
+ */
+using WarningVector = Vector<std::string>;
+
 struct AssetLibraryListingPageV1 {
-  static ReadingResult<> read_asset_entries(const StringRefNull filepath,
-                                            RemoteListingEntryProcessFn process_fn);
+  static ReadingResult<WarningVector> read_asset_entries(const StringRefNull filepath,
+                                                         RemoteListingEntryProcessFn process_fn);
 };
 
 static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionary(
@@ -46,33 +51,34 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
   RemoteListingAssetEntry listing_entry{};
 
   /* 'id': name of the asset. Required string. */
-  if (const std::optional<StringRef> name = dictionary.lookup_str("name")) {
-    name->copy_utf8_truncated(listing_entry.datablock_info.name);
-  }
-  else {
+  const std::optional<StringRef> asset_name_opt = dictionary.lookup_str("name");
+  if (!asset_name_opt) {
     return ReadingResult<RemoteListingAssetEntry>::Failure(
         "could not read asset name, 'name' field not set");
   }
+  const StringRef asset_name = *asset_name_opt;
+  asset_name.copy_utf8_truncated(listing_entry.datablock_info.name);
 
   /* 'type': data-block type, must match the #IDTypeInfo.name of the given type. required string.
    */
   if (const std::optional<StringRefNull> idtype_name = dictionary.lookup_str("id_type")) {
     listing_entry.idcode = BKE_idtype_idcode_from_name_case_insensitive(idtype_name->c_str());
     if (!BKE_idtype_idcode_is_valid(listing_entry.idcode)) {
-      return ReadingResult<RemoteListingAssetEntry>::Failure(
-          "could not read asset type, 'id_type' field is not a valid type");
+      return ReadingResult<RemoteListingAssetEntry>::Failure(fmt::format(
+          "could not read type of asset '{}': 'id_type' field is not a valid type", asset_name));
     }
   }
   else {
     return ReadingResult<RemoteListingAssetEntry>::Failure(
-        "could not read asset type, 'type' field not set");
+        fmt::format("could not read type of asset '{}', 'type' field not set", asset_name));
   }
 
   /* 'files': required list of strings. */
   if (const ArrayValue *file_paths = dictionary.lookup_array("files")) {
     if (file_paths->elements().is_empty()) {
       /* TODO: include the asset ID. */
-      return ReadingResult<RemoteListingAssetEntry>::Failure("asset has no files");
+      return ReadingResult<RemoteListingAssetEntry>::Failure(
+          fmt::format("asset '{}' has no files", asset_name));
     }
     for (const std::shared_ptr<Value> &file_path_element : file_paths->elements()) {
       asset_system::OnlineAssetFile file = {};
@@ -81,11 +87,12 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
       if (!file_path_string) {
         /* TODO: include the asset ID. */
         return ReadingResult<RemoteListingAssetEntry>::Failure(
-            "asset has a non-string entry in its 'files' list");
+            fmt::format("asset '{}' has a non-string entry in its 'files' list", asset_name));
       }
       file.path = file_path_string->value();
       if (file.path.empty()) {
-        /* TODO: use CLOG to have _some_ logging of this dubious empty file entry. */
+        /* TODO: use CLOG to have _some_ logging of this dubious empty file
+         * entry. But keep going, maybe there's another, non-empty entry. */
         continue;
       }
 
@@ -96,7 +103,8 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
       }
       else {
         /* TODO: include the path that's not found. */
-        return ReadingResult<RemoteListingAssetEntry>::Failure("asset references unknown file");
+        return ReadingResult<RemoteListingAssetEntry>::Failure(
+            fmt::format("asset '{}' references unknown file '{}'", asset_name, file.path));
       }
 
       listing_entry.online_info.files.append(file);
@@ -104,7 +112,7 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
   }
   else {
     return ReadingResult<RemoteListingAssetEntry>::Failure(
-        "could not read asset location, 'files' field not set");
+        fmt::format("asset '{}' has no 'files' field", asset_name));
   }
 
   /* 'thumbnail': URL and hash of the preview image. */
@@ -156,8 +164,8 @@ static ReadingResult<RemoteListingFileEntry> listing_file_from_asset_dictionary(
   return ReadingResult<RemoteListingFileEntry>::Success(std::move(file_entry));
 }
 
-static ReadingResult<> listing_entries_from_root(const DictionaryValue &value,
-                                                 const RemoteListingEntryProcessFn process_fn)
+static ReadingResult<WarningVector> listing_entries_from_root(
+    const DictionaryValue &value, const RemoteListingEntryProcessFn process_fn)
 {
   const ArrayValue *assets = value.lookup_array("assets");
   BLI_assert(assets != nullptr);
@@ -172,12 +180,14 @@ static ReadingResult<> listing_entries_from_root(const DictionaryValue &value,
     /* The 'files' section is mandatory in the OpenAPI schema. */
     return ReadingResult<>::Failure("error reading asset listing, page file has no files section");
   }
+
+  WarningVector warnings;
   Map<std::string, RemoteListingFileEntry> path_to_file_info;
   for (const std::shared_ptr<Value> &file_element : files->elements()) {
     ReadingResult<RemoteListingFileEntry> result = listing_file_from_asset_dictionary(
         *file_element->as_dictionary_value());
     if (result.is_failure()) {
-      /* TODO: collect failure info for reporting to the caller. */
+      warnings.append(result.failure_reason);
       continue;
     }
     if (result.is_cancelled()) {
@@ -197,9 +207,9 @@ static ReadingResult<> listing_entries_from_root(const DictionaryValue &value,
     ReadingResult<RemoteListingAssetEntry> result = listing_entry_from_asset_dictionary(
         *asset_element->as_dictionary_value(), path_to_file_info);
     if (result.is_failure()) {
-      /* Don't add this entry on failure to read it. */
-      printf("Error reading asset listing entry, skipping. Reason: %s\n",
-             result.failure_reason.c_str());
+      if (!result.failure_reason.empty()) {
+        warnings.append(result.failure_reason);
+      }
       continue;
     }
 
@@ -209,10 +219,10 @@ static ReadingResult<> listing_entries_from_root(const DictionaryValue &value,
     }
   }
 
-  return ReadingResult<>::Success();
+  return ReadingResult<WarningVector>::Success(warnings);
 }
 
-ReadingResult<> AssetLibraryListingPageV1::read_asset_entries(
+ReadingResult<WarningVector> AssetLibraryListingPageV1::read_asset_entries(
     const StringRefNull filepath, const RemoteListingEntryProcessFn process_fn)
 {
   if (!BLI_exists(filepath.c_str())) {
@@ -229,13 +239,7 @@ ReadingResult<> AssetLibraryListingPageV1::read_asset_entries(
     return ReadingResult<>::Failure(fmt::format("file is not a JSON dictionary: {}", filepath));
   }
 
-  const ReadingResult<> result = listing_entries_from_root(*root, process_fn);
-  if (!result.is_success()) {
-    return result;
-  }
-  // CLOG_INFO(&LOG, 1, "Read %d entries from remote asset listing for [%s].", r_entries.size(),
-  // filepath);
-  return ReadingResult<>::Success();
+  return listing_entries_from_root(*root, process_fn);
 }
 
 /** \} */
@@ -304,10 +308,11 @@ std::optional<AssetLibraryListingV1> AssetLibraryListingV1::read(
 
 /** \} */
 
-ReadingResult<> read_remote_listing_v1(const StringRefNull listing_root_dirpath,
-                                       const RemoteListingEntryProcessFn process_fn,
-                                       const RemoteListingWaitForPagesFn wait_fn,
-                                       const std::optional<Timestamp> ignore_before_timestamp)
+ReadingResult<Vector<std::string>> read_remote_listing_v1(
+    const StringRefNull listing_root_dirpath,
+    const RemoteListingEntryProcessFn process_fn,
+    const RemoteListingWaitForPagesFn wait_fn,
+    const std::optional<Timestamp> ignore_before_timestamp)
 {
   /* Version 1 asset indices are always stored in this path by RemoteAssetListingDownloader. */
   constexpr const char *asset_index_relpath = "_v1/asset-index.processed.json";
@@ -346,6 +351,7 @@ ReadingResult<> read_remote_listing_v1(const StringRefNull listing_root_dirpath,
 
   // TODO should we have some timeout here too? Like timeout after 30 seconds without a new page?
 
+  Vector<std::string> warnings;
   while (true) {
     for (const std::string &page_path : listing->page_rel_paths) {
       if (done_pages.contains(page_path)) {
@@ -368,14 +374,22 @@ ReadingResult<> read_remote_listing_v1(const StringRefNull listing_root_dirpath,
       const ReadingResult result = AssetLibraryListingPageV1::read_asset_entries(filepath,
                                                                                  process_fn);
       done_pages.add(page_path);
-
-      if (!result.is_success()) {
+      if (result.is_cancelled()) {
+        return result;
+      }
+      if (result.is_failure()) {
         printf("Couldn't read V1 listing from %s%c%s: %s\n",
                listing_root_dirpath.c_str(),
                SEP,
                page_path.c_str(),
                result.failure_reason.c_str());
         return result;
+      }
+      BLI_assert(result.is_success());
+
+      /* There were warnings, so collect them.*/
+      if (result.success_value) {
+        warnings.extend(*result.success_value);
       }
     }
 
@@ -391,7 +405,7 @@ ReadingResult<> read_remote_listing_v1(const StringRefNull listing_root_dirpath,
     }
   }
 
-  return ReadingResult<>::Success();
+  return ReadingResult<Vector<std::string>>::Success(std::move(warnings));
 }
 
 }  // namespace blender::ed::asset::index

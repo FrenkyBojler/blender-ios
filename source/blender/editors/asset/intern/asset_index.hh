@@ -36,15 +36,13 @@ AssetMetaData *asset_metadata_from_dictionary(const io::serialize::DictionaryVal
  * A succesful result can have a value of type T. A failure can have a 'reason' string.
  */
 template<typename T = std::monostate> class ReadingResult {
- private:
+ public:
   enum class Type {
     Success,
     Failure,
     Cancelled,
   };
-  Type type_;
-
- public:
+  Type type;
   std::string failure_reason;
   std::optional<T> success_value;
 
@@ -90,19 +88,37 @@ template<typename T = std::monostate> class ReadingResult {
 
   bool is_success() const
   {
-    return this->type_ == Type::Success;
+    return this->type == Type::Success;
   }
   bool is_failure() const
   {
-    return this->type_ == Type::Failure;
+    return this->type == Type::Failure;
   }
   bool is_cancelled() const
   {
-    return this->type_ == Type::Cancelled;
+    return this->type == Type::Cancelled;
+  }
+
+  /**
+   * Conversion constructor from any other ReadingResult.
+   */
+  template<typename U> ReadingResult(const ReadingResult<U> &other)
+  {
+    this->type = static_cast<ReadingResult<T>::Type>(other.type);
+    if (this->type == Type::Success) {
+      // Only allow if U is std::monostate.
+      static_assert(std::is_same<U, std::monostate>::value,
+                    "Cannot convert a valued success to another type");
+      success_value.reset();
+    }
+    else {
+      // Failure or Cancelled can convert freely.
+      failure_reason = other.failure_reason;
+    }
   }
 
  private:
-  explicit ReadingResult(Type type) : type_(type) {}
+  explicit ReadingResult(Type type) : type(type) {}
 };
 
 std::optional<bool> file_older_than_timestamp(const char *filepath, Timestamp timestamp);
@@ -111,7 +127,7 @@ std::optional<bool> file_older_than_timestamp(const char *filepath, Timestamp ti
  * Reading of API schema version 1. See #read_remote_listing() on \a process_fn.
  * \param version_root_dirpath: Absolute path to the remote listing root directory.
  */
-ReadingResult<> read_remote_listing_v1(
+ReadingResult<Vector<std::string>> read_remote_listing_v1(
     StringRefNull listing_root_dirpath,
     RemoteListingEntryProcessFn process_fn,
     RemoteListingWaitForPagesFn wait_fn = nullptr,

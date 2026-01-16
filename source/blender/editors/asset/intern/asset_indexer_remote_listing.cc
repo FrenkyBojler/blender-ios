@@ -270,12 +270,23 @@ bool read_remote_listing(const StringRefNull root_dirpath,
     case 1: {
       const ReadingResult result = read_remote_listing_v1(
           root_dirpath, process_fn, wait_fn, ignore_before_timestamp);
+
+      /* TODO: get these messages up-stream. */
       if (result.is_failure()) {
+        printf("could not read remote asset listing: %s\n", result.failure_reason.c_str());
         return false;
       }
       if (result.is_cancelled()) {
         return false;
       }
+
+      if (result.success_value && !result.success_value->is_empty()) {
+        printf("issues reading remote asset listing:\n");
+        for (const std::string &warning : *result.success_value) {
+          printf("  - %s\n", warning.c_str());
+        }
+      }
+
       break;
     }
     default:
