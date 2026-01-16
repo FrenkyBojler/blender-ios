@@ -849,7 +849,7 @@ void InstancesTreeViewItem::on_activate(bContext &C)
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
 
   MEM_SAFE_FREE(sspreadsheet.geometry_id.instance_ids);
-  sspreadsheet.geometry_id.instance_ids = MEM_calloc_arrayN<SpreadsheetInstanceID>(
+  sspreadsheet.geometry_id.instance_ids = MEM_new_array_for_free<SpreadsheetInstanceID>(
       instance_ids.size(), __func__);
   sspreadsheet.geometry_id.instance_ids_num = instance_ids.size();
   initialized_copy_n(
@@ -1131,13 +1131,12 @@ class ViewerPathTreeView : public ui::AbstractTreeView {
   {
     const ViewerPath &viewer_path = sspreadsheet_.geometry_id.viewer_path;
 
-    int index;
-    LISTBASE_FOREACH_INDEX (const ViewerPathElem *, elem, &viewer_path.path, index) {
-      if (elem == viewer_path.path.first) {
+    for (const auto [index, elem] : viewer_path.path.enumerate()) {
+      if (&elem == viewer_path.path.first) {
         /* The root item is drawn above the tree view already. */
         continue;
       }
-      this->add_viewer_path_elem(index, *elem);
+      this->add_viewer_path_elem(index, elem);
     }
   }
 

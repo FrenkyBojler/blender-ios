@@ -19,7 +19,7 @@ namespace blender::ed::spreadsheet {
 
 SpreadsheetTableIDGeometry *spreadsheet_table_id_new_geometry()
 {
-  auto *table_id = MEM_callocN<SpreadsheetTableIDGeometry>(__func__);
+  auto *table_id = MEM_new_for_free<SpreadsheetTableIDGeometry>(__func__);
   table_id->base.type = SPREADSHEET_TABLE_ID_TYPE_GEOMETRY;
   return table_id;
 }
@@ -136,7 +136,7 @@ void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTabl
   switch (eSpreadsheetTableIDType(table_id->type)) {
     case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
       const auto *table_id_ = reinterpret_cast<const SpreadsheetTableIDGeometry *>(table_id);
-      BLO_write_struct(writer, SpreadsheetTableIDGeometry, table_id_);
+      writer->write_struct(table_id_);
       spreadsheet_table_id_blend_write_content_geometry(writer, table_id_);
       break;
     }
@@ -223,7 +223,7 @@ bool spreadsheet_table_id_match(const SpreadsheetTableID &a, const SpreadsheetTa
 
 SpreadsheetTable *spreadsheet_table_new(SpreadsheetTableID *table_id)
 {
-  SpreadsheetTable *spreadsheet_table = MEM_callocN<SpreadsheetTable>(__func__);
+  SpreadsheetTable *spreadsheet_table = MEM_new_for_free<SpreadsheetTable>(__func__);
   spreadsheet_table->id = table_id;
   return spreadsheet_table;
 }
@@ -232,7 +232,8 @@ SpreadsheetTable *spreadsheet_table_copy(const SpreadsheetTable &src_table)
 {
   SpreadsheetTable *new_table = spreadsheet_table_new(spreadsheet_table_id_copy(*src_table.id));
   new_table->num_columns = src_table.num_columns;
-  new_table->columns = MEM_calloc_arrayN<SpreadsheetColumn *>(src_table.num_columns, __func__);
+  new_table->columns = MEM_new_array_for_free<SpreadsheetColumn *>(src_table.num_columns,
+                                                                   __func__);
   for (const int i : IndexRange(src_table.num_columns)) {
     new_table->columns[i] = spreadsheet_column_copy(src_table.columns[i]);
   }
@@ -251,7 +252,7 @@ void spreadsheet_table_free(SpreadsheetTable *table)
 
 void spreadsheet_table_blend_write(BlendWriter *writer, const SpreadsheetTable *table)
 {
-  BLO_write_struct(writer, SpreadsheetTable, table);
+  writer->write_struct(table);
   spreadsheet_table_id_blend_write(writer, table->id);
   BLO_write_pointer_array(writer, table->num_columns, table->columns);
   for (const int i : IndexRange(table->num_columns)) {
@@ -300,7 +301,7 @@ const SpreadsheetTable *spreadsheet_table_find(const SpaceSpreadsheet &sspreadsh
 
 void spreadsheet_table_add(SpaceSpreadsheet &sspreadsheet, SpreadsheetTable *table)
 {
-  SpreadsheetTable **new_tables = MEM_calloc_arrayN<SpreadsheetTable *>(
+  SpreadsheetTable **new_tables = MEM_new_array_for_free<SpreadsheetTable *>(
       sspreadsheet.num_tables + 1, __func__);
   std::copy_n(sspreadsheet.tables, sspreadsheet.num_tables, new_tables);
   new_tables[sspreadsheet.num_tables] = table;
@@ -341,10 +342,9 @@ void spreadsheet_table_remove_unused(SpaceSpreadsheet &sspreadsheet)
           case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
             const SpreadsheetTableIDGeometry &table_id =
                 *reinterpret_cast<const SpreadsheetTableIDGeometry *>(table->id);
-            LISTBASE_FOREACH (ViewerPathElem *, elem, &table_id.viewer_path.path) {
-              if (elem->type == VIEWER_PATH_ELEM_TYPE_ID) {
-                const IDViewerPathElem &id_elem = reinterpret_cast<const IDViewerPathElem &>(
-                    *elem);
+            for (ViewerPathElem &elem : table_id.viewer_path.path) {
+              if (elem.type == VIEWER_PATH_ELEM_TYPE_ID) {
+                const IDViewerPathElem &id_elem = reinterpret_cast<const IDViewerPathElem &>(elem);
                 if (!id_elem.id) {
                   /* Remove tables which reference an ID that does not exist anymore. */
                   return true;

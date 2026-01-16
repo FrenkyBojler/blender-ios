@@ -5,8 +5,6 @@
 
 #include "usd.hh"
 
-#include "WM_types.hh"
-
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
@@ -16,13 +14,15 @@
 
 #include <string>
 
+namespace blender {
+
 struct Main;
 struct Material;
 struct bNode;
 struct bNodeTree;
 struct ReportList;
 
-namespace blender::io::usd {
+namespace io::usd {
 
 using ShaderToNodeMap = Map<std::string, bNode *>;
 
@@ -78,6 +78,10 @@ struct NodePlacementContext {
 struct ExtraLinkInfo {
   bool is_color_corrected = false;
 
+  /* Is the value inverted with respect to Blender.
+   * For example: Opacity 0.85 <-> Transmission Weight 0.15 */
+  bool is_inverted = false;
+
   float opacity_threshold = 0.0f;
 };
 
@@ -120,10 +124,7 @@ class USDMaterialReader {
   void import_usd_preview(Material *mtl, const pxr::UsdShadeMaterial &usd_material) const;
 
   /** Get the wmJobWorkerStatus-provided `reports` list pointer, to use with the BKE_report API. */
-  ReportList *reports() const
-  {
-    return params_.worker_status ? params_.worker_status->reports : nullptr;
-  }
+  ReportList *reports() const;
 
  protected:
   /** Create the Principled BSDF shader node network. */
@@ -232,4 +233,5 @@ Material *find_existing_material(const pxr::SdfPath &usd_mat_path,
                                  const Map<std::string, Material *> &mat_map,
                                  const Map<pxr::SdfPath, Material *> &usd_path_to_mat);
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender

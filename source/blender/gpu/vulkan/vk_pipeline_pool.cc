@@ -21,12 +21,14 @@
 #include "vk_graphics_pipeline.hh"
 #include "vk_pipeline_pool.hh"
 
+namespace blender {
+
 #ifdef WITH_BUILDINFO
 extern "C" char build_hash[];
 #endif
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 void VKPipelinePool::init()
 {
@@ -359,6 +361,9 @@ std::string VKGraphicsInfo::pipeline_info_source() const
       break;
     case GPU_BLEND_OVERLAY_MASK_FROM_ALPHA:
       result << "GPU_BLEND_OVERLAY_MASK_FROM_ALPHA";
+      break;
+    case GPU_BLEND_TRANSPARENCY:
+      result << "GPU_BLEND_TRANSPARENCY";
       break;
     default:
       BLI_assert_unreachable();
@@ -751,4 +756,5 @@ void VKPipelinePool::write_to_disk()
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

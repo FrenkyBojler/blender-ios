@@ -21,13 +21,15 @@
 /* For #Map. */
 #include "BKE_attribute.hh"
 
+namespace blender {
+
 struct Curves;
 struct Curve;
 struct Mesh;
 struct PointCloud;
 struct Volume;
 struct GreasePencil;
-namespace blender::bke {
+namespace bke {
 struct AttributeDomainAndType;
 class AttributeAccessor;
 struct AttributeMetaData;
@@ -38,13 +40,13 @@ class GreasePencilEditHints;
 class MutableAttributeAccessor;
 enum class AttrDomain : int8_t;
 struct GizmoEditHints;
-}  // namespace blender::bke
-namespace blender::nodes {
+}  // namespace bke
+namespace nodes {
 class Bundle;
 using BundlePtr = ImplicitSharingPtr<Bundle>;
-}  // namespace blender::nodes
+}  // namespace nodes
 
-namespace blender::bke {
+namespace bke {
 
 #define GEO_COMPONENT_TYPE_ENUM_SIZE 7
 
@@ -839,4 +841,5 @@ class GreasePencilComponent : public GeometryComponent {
 
 bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type, StringRef name);
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender
