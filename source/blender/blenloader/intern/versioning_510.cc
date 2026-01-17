@@ -687,7 +687,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
         if (node->type_legacy == GEO_NODE_REALIZE_INSTANCES) {
-          node->custom1 = int16_t(false);
+          node->custom2 = int16_t(false);
         }
       }
     }
