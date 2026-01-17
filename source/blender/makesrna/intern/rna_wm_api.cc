@@ -1067,8 +1067,8 @@ void RNA_api_wm(StructRNA *srna)
   func = RNA_def_function(srna, "try_activate_rna_button", "rna_WM_try_activate_rna_button");
   RNA_def_function_ui_description(
       func,
-      "Attempts to activate an button that points to an RNA data property, if other any other "
-      "button is active in the screen it will be deactivated.");
+      "Attempts to activate an button that points to an RNA data property, if any other button is "
+      "active in the screen it will be deactivated.");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "region", "Region", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
