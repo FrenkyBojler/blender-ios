@@ -37,9 +37,10 @@
 
 #include "RNA_enum_types.hh"
 
-static auto len_squared_v3v3_with_normal_bias(const blender::float3 &normal)
+namespace blender {
+static auto len_squared_v3v3_with_normal_bias(const float3 &normal)
 {
-  return [&](const blender::float3 &co_search, const blender::float3 &co_test) -> float {
+  return [&](const float3 &co_search, const float3 &co_test) -> float {
     float d[3], dist;
 
     sub_v3_v3v3(d, co_test, co_search);
@@ -73,7 +74,7 @@ static bool rule_none(BoidRule * /*rule*/,
 
 static bool rule_goal_avoid(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, ParticleData *pa)
 {
-  BoidRuleGoalAvoid *gabr = (BoidRuleGoalAvoid *)rule;
+  BoidRuleGoalAvoid *gabr = reinterpret_cast<BoidRuleGoalAvoid *>(rule);
   BoidSettings *boids = bbd->part->boids;
   BoidParticle *bpa = pa->boid;
   EffectedPoint epoint;
@@ -213,8 +214,8 @@ static bool rule_avoid_collision(BoidRule *rule,
                                  ParticleData *pa)
 {
   const int raycast_flag = BVH_RAYCAST_DEFAULT & ~BVH_RAYCAST_WATERTIGHT;
-  BoidRuleAvoidCollision *acbr = (BoidRuleAvoidCollision *)rule;
-  blender::KDTreeNearest_3d *ptn = nullptr;
+  BoidRuleAvoidCollision *acbr = reinterpret_cast<BoidRuleAvoidCollision *>(rule);
+  KDTreeNearest_3d *ptn = nullptr;
   BoidParticle *bpa = pa->boid;
   float vec[3] = {0.0f, 0.0f, 0.0f}, loc[3] = {0.0f, 0.0f, 0.0f};
   float co1[3], vel1[3], co2[3], vel2[3];
@@ -286,12 +287,12 @@ static bool rule_avoid_collision(BoidRule *rule,
 
   /* Check boids in their own system. */
   if (acbr->options & BRULE_ACOLL_WITH_BOIDS) {
-    neighbors = blender::kdtree_range_search_with_len_squared_cb<blender::float3>(
+    neighbors = kdtree_range_search_with_len_squared_cb<float3>(
         bbd->sim->psys->tree,
         pa->prev_state.co,
         &ptn,
         acbr->look_ahead * len_v3(pa->prev_state.vel),
-        len_squared_v3v3_with_normal_bias(blender::float3(pa->prev_state.ave)));
+        len_squared_v3v3_with_normal_bias(float3(pa->prev_state.ave)));
     if (neighbors > 1) {
       for (n = 1; n < neighbors; n++) {
         copy_v3_v3(co1, pa->prev_state.co);
@@ -340,12 +341,12 @@ static bool rule_avoid_collision(BoidRule *rule,
 
     if (epsys) {
       BLI_assert(epsys->tree != nullptr);
-      neighbors = blender::kdtree_range_search_with_len_squared_cb<blender::float3>(
+      neighbors = kdtree_range_search_with_len_squared_cb<float3>(
           epsys->tree,
           pa->prev_state.co,
           &ptn,
           acbr->look_ahead * len_v3(pa->prev_state.vel),
-          len_squared_v3v3_with_normal_bias(blender::float3(pa->prev_state.ave)));
+          len_squared_v3v3_with_normal_bias(float3(pa->prev_state.ave)));
 
       if (neighbors > 0) {
         for (n = 0; n < neighbors; n++) {
@@ -402,10 +403,10 @@ static bool rule_separate(BoidRule * /*rule*/,
                           BoidValues *val,
                           ParticleData *pa)
 {
-  blender::KDTreeNearest_3d *ptn = nullptr;
+  KDTreeNearest_3d *ptn = nullptr;
   float len = 2.0f * val->personal_space * pa->size + 1.0f;
   float vec[3] = {0.0f, 0.0f, 0.0f};
-  int neighbors = blender::kdtree_3d_range_search(
+  int neighbors = kdtree_3d_range_search(
       bbd->sim->psys->tree, pa->prev_state.co, &ptn, 2.0f * val->personal_space * pa->size);
   bool ret = false;
 
@@ -424,7 +425,7 @@ static bool rule_separate(BoidRule * /*rule*/,
     ParticleSystem *epsys = psys_get_target_system(bbd->sim->ob, &pt);
 
     if (epsys) {
-      neighbors = blender::kdtree_3d_range_search(
+      neighbors = kdtree_3d_range_search(
           epsys->tree, pa->prev_state.co, &ptn, 2.0f * val->personal_space * pa->size);
 
       if (neighbors > 0 && ptn[0].dist < len) {
@@ -446,14 +447,14 @@ static bool rule_flock(BoidRule * /*rule*/,
                        BoidValues * /*val*/,
                        ParticleData *pa)
 {
-  blender::KDTreeNearest_3d ptn[11];
+  KDTreeNearest_3d ptn[11];
   float vec[3] = {0.0f, 0.0f, 0.0f}, loc[3] = {0.0f, 0.0f, 0.0f};
-  int neighbors = blender::kdtree_find_nearest_n_with_len_squared_cb<blender::float3>(
+  int neighbors = kdtree_find_nearest_n_with_len_squared_cb<float3>(
       bbd->sim->psys->tree,
       pa->state.co,
       ptn,
       ARRAY_SIZE(ptn),
-      len_squared_v3v3_with_normal_bias(blender::float3(pa->prev_state.ave)));
+      len_squared_v3v3_with_normal_bias(float3(pa->prev_state.ave)));
   int n;
   bool ret = false;
 
@@ -482,7 +483,7 @@ static bool rule_follow_leader(BoidRule *rule,
                                BoidValues *val,
                                ParticleData *pa)
 {
-  BoidRuleFollowLeader *flbr = (BoidRuleFollowLeader *)rule;
+  BoidRuleFollowLeader *flbr = reinterpret_cast<BoidRuleFollowLeader *>(rule);
   float vec[3] = {0.0f, 0.0f, 0.0f}, loc[3] = {0.0f, 0.0f, 0.0f};
   float mul, len;
   const int n = (flbr->queue_size <= 1) ? bbd->sim->psys->totpart : flbr->queue_size;
@@ -625,7 +626,7 @@ static bool rule_average_speed(BoidRule *rule,
                                ParticleData *pa)
 {
   BoidParticle *bpa = pa->boid;
-  BoidRuleAverageSpeed *asbr = (BoidRuleAverageSpeed *)rule;
+  BoidRuleAverageSpeed *asbr = reinterpret_cast<BoidRuleAverageSpeed *>(rule);
   float vec[3] = {0.0f, 0.0f, 0.0f};
 
   if (asbr->wander > 0.0f) {
@@ -676,8 +677,8 @@ static bool rule_average_speed(BoidRule *rule,
 }
 static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, ParticleData *pa)
 {
-  BoidRuleFight *fbr = (BoidRuleFight *)rule;
-  blender::KDTreeNearest_3d *ptn = nullptr;
+  BoidRuleFight *fbr = reinterpret_cast<BoidRuleFight *>(rule);
+  KDTreeNearest_3d *ptn = nullptr;
   ParticleData *epars;
   ParticleData *enemy_pa = nullptr;
   BoidParticle *bpa;
@@ -690,7 +691,7 @@ static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Part
   bool ret = false;
 
   /* calculate its own group strength */
-  int neighbors = blender::kdtree_3d_range_search(
+  int neighbors = kdtree_3d_range_search(
       bbd->sim->psys->tree, pa->prev_state.co, &ptn, fbr->distance);
   for (n = 0; n < neighbors; n++) {
     bpa = bbd->sim->psys->particles[ptn[n].index].boid;
@@ -707,8 +708,7 @@ static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Part
     if (epsys && epsys->part->boids) {
       epars = epsys->particles;
 
-      neighbors = blender::kdtree_3d_range_search(
-          epsys->tree, pa->prev_state.co, &ptn, fbr->distance);
+      neighbors = kdtree_3d_range_search(epsys->tree, pa->prev_state.co, &ptn, fbr->distance);
 
       health = 0.0f;
 
@@ -838,7 +838,8 @@ static Object *boid_find_ground(BoidBrainData *bbd,
     SurfaceModifierData *surmd = nullptr;
     float x[3], v[3];
 
-    surmd = (SurfaceModifierData *)BKE_modifiers_findby_type(bpa->ground, eModifierType_Surface);
+    surmd = reinterpret_cast<SurfaceModifierData *>(
+        BKE_modifiers_findby_type(bpa->ground, eModifierType_Surface));
 
     /* take surface velocity into account */
     closest_point_on_surface(surmd, pa->state.co, x, nullptr, v);
@@ -957,7 +958,7 @@ void boids_precalc_rules(ParticleSettings *part, float cfra)
   for (BoidState &state : part->boids->states) {
     for (BoidRule &rule : state.rules) {
       if (rule.type == eBoidRuleType_FollowLeader) {
-        BoidRuleFollowLeader *flbr = (BoidRuleFollowLeader *)&rule;
+        BoidRuleFollowLeader *flbr = reinterpret_cast<BoidRuleFollowLeader *>(&rule);
 
         if (flbr->ob && flbr->cfra != cfra) {
           /* save object locations for velocity calculations */
@@ -1741,3 +1742,5 @@ BoidState *boid_get_current_state(BoidSettings *boids)
 
   return state;
 }
+
+}  // namespace blender

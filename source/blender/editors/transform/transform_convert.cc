@@ -28,6 +28,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_modifier.hh"
 #include "BKE_nla.hh"
+#include "BKE_object_types.hh"
 #include "BKE_scene.hh"
 
 #include "ED_particle.hh"
@@ -237,8 +238,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
   /* Pointers to selected's #TransData.
    * Used to find #TransData from the index returned by #blender::kdtree_find_nearest. */
-  TransData **td_table = static_cast<TransData **>(
-      MEM_mallocN(sizeof(*td_table) * td_table_len, __func__));
+  TransData **td_table = MEM_malloc_arrayN<TransData *>(td_table_len, __func__);
 
   /* Create and fill KD-tree of selected's positions - in global or proj_vec space. */
   KDTree_3d *td_tree = kdtree_3d_new(td_table_len);
@@ -498,8 +498,11 @@ char transform_convert_frame_side_dir_get(TransInfo *t, float cframe)
   char dir;
   float center[2];
   if (t->flag & T_MODAL) {
-    ui::view2d_region_to_view(
-        (View2D *)t->view, t->mouse.imval[0], t->mouse.imval[1], &center[0], &center[1]);
+    ui::view2d_region_to_view(static_cast<View2D *>(t->view),
+                              t->mouse.imval[0],
+                              t->mouse.imval[1],
+                              &center[0],
+                              &center[1]);
     dir = (center[0] > cframe) ? 'R' : 'L';
     {
       /* XXX: This saves the direction in the "mirror" property to be used for redo! */
@@ -558,7 +561,7 @@ bool constraints_list_needinv(TransInfo *t, ListBaseT<bConstraint> *list)
         /* Constraints that require this only under special conditions. */
         if (con.type == CONSTRAINT_TYPE_CHILDOF) {
           /* ChildOf constraint only works when using all location components, see #42256. */
-          bChildOfConstraint *data = (bChildOfConstraint *)con.data;
+          bChildOfConstraint *data = static_cast<bChildOfConstraint *>(con.data);
 
           if ((data->flag & CHILDOF_LOCX) && (data->flag & CHILDOF_LOCY) &&
               (data->flag & CHILDOF_LOCZ))
@@ -568,7 +571,7 @@ bool constraints_list_needinv(TransInfo *t, ListBaseT<bConstraint> *list)
         }
         else if (con.type == CONSTRAINT_TYPE_ROTLIKE) {
           /* CopyRot constraint only does this when rotating, and offset is on. */
-          bRotateLikeConstraint *data = (bRotateLikeConstraint *)con.data;
+          bRotateLikeConstraint *data = static_cast<bRotateLikeConstraint *>(con.data);
 
           if (ELEM(data->mix_mode, ROTLIKE_MIX_OFFSET, ROTLIKE_MIX_BEFORE) &&
               ELEM(t->mode, TFM_ROTATION))
@@ -578,7 +581,7 @@ bool constraints_list_needinv(TransInfo *t, ListBaseT<bConstraint> *list)
         }
         else if (con.type == CONSTRAINT_TYPE_TRANSLIKE) {
           /* Copy Transforms constraint only does this in the Before mode. */
-          bTransLikeConstraint *data = (bTransLikeConstraint *)con.data;
+          bTransLikeConstraint *data = static_cast<bTransLikeConstraint *>(con.data);
 
           if (ELEM(data->mix_mode, TRANSLIKE_MIX_BEFORE, TRANSLIKE_MIX_BEFORE_FULL) &&
               ELEM(t->mode, TFM_ROTATION, TFM_TRANSLATION))
@@ -591,7 +594,7 @@ bool constraints_list_needinv(TransInfo *t, ListBaseT<bConstraint> *list)
         }
         else if (con.type == CONSTRAINT_TYPE_ACTION) {
           /* The Action constraint only does this in the Before mode. */
-          bActionConstraint *data = (bActionConstraint *)con.data;
+          bActionConstraint *data = static_cast<bActionConstraint *>(con.data);
 
           if (ELEM(data->mix_mode, ACTCON_MIX_BEFORE, ACTCON_MIX_BEFORE_FULL) &&
               ELEM(t->mode, TFM_ROTATION, TFM_TRANSLATION))
@@ -605,7 +608,7 @@ bool constraints_list_needinv(TransInfo *t, ListBaseT<bConstraint> *list)
         else if (con.type == CONSTRAINT_TYPE_TRANSFORM) {
           /* Transform constraint needs it for rotation at least (r.57309),
            * but doing so when translating may also mess things up, see: #36203. */
-          bTransformConstraint *data = (bTransformConstraint *)con.data;
+          bTransformConstraint *data = static_cast<bTransformConstraint *>(con.data);
 
           if (data->to == TRANS_ROTATION) {
             if (t->mode == TFM_ROTATION && data->mix_mode_rot == TRANS_MIXROT_BEFORE) {
@@ -843,9 +846,12 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
     for (int i = 0; i < objects.size(); i++) {
       TransDataContainer *tc = &t->data_container[i];
       if (!(t->flag & T_NO_MIRROR) && (objects[i]->type == OB_MESH)) {
-        tc->use_mirror_axis_x = (((Mesh *)objects[i]->data)->symmetry & ME_SYMMETRY_X) != 0;
-        tc->use_mirror_axis_y = (((Mesh *)objects[i]->data)->symmetry & ME_SYMMETRY_Y) != 0;
-        tc->use_mirror_axis_z = (((Mesh *)objects[i]->data)->symmetry & ME_SYMMETRY_Z) != 0;
+        tc->use_mirror_axis_x = ((id_cast<Mesh *>(objects[i]->data))->symmetry & ME_SYMMETRY_X) !=
+                                0;
+        tc->use_mirror_axis_y = ((id_cast<Mesh *>(objects[i]->data))->symmetry & ME_SYMMETRY_Y) !=
+                                0;
+        tc->use_mirror_axis_z = ((id_cast<Mesh *>(objects[i]->data))->symmetry & ME_SYMMETRY_Z) !=
+                                0;
       }
 
       if (object_mode & OB_MODE_EDIT) {
@@ -897,7 +903,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
     return &TransConvertType_Cursor3D;
   }
   if (!(t->options & CTX_PAINT_CURVE) && (t->spacetype == SPACE_VIEW3D) && ob &&
-      (ob->mode == OB_MODE_SCULPT) && ob->sculpt)
+      (ob->mode == OB_MODE_SCULPT) && ob->runtime->sculpt_session)
   {
     return &TransConvertType_Sculpt;
   }
@@ -937,7 +943,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
     if (t->options & CTX_SEQUENCER_IMAGE) {
       return &TransConvertType_SequencerImage;
     }
-    if (vse::sequencer_retiming_mode_is_active(t->context)) {
+    if (vse::sequencer_retiming_mode_is_active(t->scene)) {
       return &TransConvertType_SequencerRetiming;
     }
     return &TransConvertType_Sequencer;
@@ -1103,7 +1109,7 @@ void transform_convert_clip_mirror_modifier_apply(TransDataContainer *tc)
 
   for (; md; md = md->next) {
     if ((md->type == eModifierType_Mirror) && (md->mode & eModifierMode_Realtime)) {
-      MirrorModifierData *mmd = (MirrorModifierData *)md;
+      MirrorModifierData *mmd = reinterpret_cast<MirrorModifierData *>(md);
 
       if ((mmd->flag & MOD_MIR_CLIPPING) == 0) {
         continue;

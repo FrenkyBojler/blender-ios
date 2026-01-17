@@ -47,11 +47,13 @@
 #include "prefetch.hh"
 #include "render.hh"
 
+namespace blender {
+
 struct RenderResult;
 struct Scene;
 struct ThreadSlot;
 
-namespace blender::seq {
+namespace seq {
 
 struct PrefetchJob {
   PrefetchJob *next = nullptr;
@@ -337,7 +339,6 @@ static void seq_prefetch_update_context(const RenderData *context)
                          nullptr,
                          &pfjob->context_cpy);
   pfjob->context_cpy.is_prefetch_render = true;
-  pfjob->context_cpy.task_id = SEQ_TASK_PREFETCH_RENDER;
 
   render_new_render_data(pfjob->bmain,
                          pfjob->depsgraph,
@@ -348,12 +349,6 @@ static void seq_prefetch_update_context(const RenderData *context)
                          nullptr,
                          &pfjob->context);
   pfjob->context.is_prefetch_render = false;
-
-  /* Same ID as prefetch context, because context will be swapped, but we still
-   * want to assign this ID to cache entries created in this thread.
-   * This is to allow "temp cache" work correctly for both threads.
-   */
-  pfjob->context.task_id = SEQ_TASK_PREFETCH_RENDER;
 }
 
 static void seq_prefetch_update_scene(Scene *scene)
@@ -416,7 +411,7 @@ static VectorSet<Strip *> query_scene_strips(Editing *ed)
   Map<const Scene *, VectorSet<Strip *>> &strips_by_scene = lookup_strips_by_scene_map_get(ed);
 
   VectorSet<Strip *> scene_strips;
-  for (VectorSet<Strip *> strips : strips_by_scene.values()) {
+  for (const VectorSet<Strip *> &strips : strips_by_scene.values()) {
     scene_strips.add_multiple(strips);
   }
   return scene_strips;
@@ -525,7 +520,7 @@ static void seq_prefetch_do_suspend(PrefetchJob *pfjob)
 
 static void *seq_prefetch_frames(void *job)
 {
-  PrefetchJob *pfjob = (PrefetchJob *)job;
+  PrefetchJob *pfjob = static_cast<PrefetchJob *>(job);
 
   while (true) {
     if (pfjob->cfra < pfjob->timeline_start || pfjob->cfra > pfjob->timeline_end) {
@@ -633,7 +628,7 @@ void seq_prefetch_start(const RenderData *context, float timeline_frame)
   Editing *ed = scene->ed;
   bool has_strips = bool(ed->current_strips()->first);
 
-  if (!context->is_prefetch_render && !context->is_proxy_render) {
+  if (!context->is_prefetch_render) {
     bool playing = context->is_playing;
     bool scrubbing = context->is_scrubbing;
     bool running = seq_prefetch_job_is_running(scene);
@@ -675,4 +670,5 @@ bool prefetch_need_redraw(const bContext *C, Scene *scene)
   return false;
 }
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

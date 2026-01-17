@@ -25,6 +25,8 @@
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
+struct IconTextOverlay;
+namespace blender {
 
 struct AnimationEvalContext;
 struct ARegion;
@@ -32,21 +34,20 @@ struct bContext;
 struct bContextStore;
 struct CurveMapping;
 struct CurveProfile;
-namespace blender::gpu {
+namespace gpu {
 class Batch;
 }
-struct IconTextOverlay;
 struct ID;
 struct ImBuf;
 struct LayoutPanelHeader;
 struct Main;
 struct Scene;
-namespace blender::ui {
+namespace ui {
 struct SafetyRect;
 struct HandleButtonData;
 struct Layout;
 struct UndoStack_Text;
-}  // namespace blender::ui
+}  // namespace ui
 struct uiListType;
 struct uiStyle;
 struct uiWidgetColors;
@@ -56,7 +57,7 @@ struct wmKeyConfig;
 struct wmOperatorType;
 struct wmTimer;
 
-namespace blender::ui {
+namespace ui {
 
 /* ****************** general defines ************** */
 
@@ -78,7 +79,7 @@ namespace blender::ui {
 #define UI_POPOVER_WIDTH_UNITS 10
 
 /** #Button.flag */
-enum {
+enum ButtonFlagInternal {
   /** Use when the button is pressed. */
   UI_SELECT = (1 << 0),
   /** Temporarily hidden (scrolled out of the view). */
@@ -105,6 +106,16 @@ enum {
 
   /* WARNING: rest of #Button.flag in `UI_interface_c.hh`. */
 };
+
+/** These two enums can be combined. */
+inline int operator|(const ButtonFlag a, const ButtonFlagInternal b)
+{
+  return int(a) | int(b);
+}
+inline int operator|(const ButtonFlagInternal b, const ButtonFlag a)
+{
+  return int(a) | int(b);
+}
 
 /** #Button.pie_dir */
 enum RadialDirection : int8_t {
@@ -523,6 +534,12 @@ struct ColorPicker {
 
   /* Hex Color string */
   char hexcol[128];
+
+  /**
+   * Buffer for the main area (Circle/Square) tooltip.
+   * Used for dynamically formatted tooltips (e.g. "Hue/Saturation").
+   */
+  char tooltip_area[128];
 
   /** Cubic saturation for the color wheel. */
   bool use_color_cubic;
@@ -1736,4 +1753,5 @@ int paste_property_drivers(Span<FCurve *> src_drivers,
 
 }  // namespace internal
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

@@ -9,43 +9,51 @@
 
 #include "intermediate.hh"
 #include "scope.hh"
+#include "time_it.hh"
 #include "token.hh"
 #include "token_stream.hh"
 
 #include <algorithm>
+#include <array>
 #include <stack>
+
+#if defined(_MSC_VER)
+#  define always_inline __forceinline
+#else
+#  define always_inline inline __attribute__((always_inline))
+#endif
 
 namespace blender::gpu::shader::parser {
 
-size_t line_number(const std::string &str, size_t pos)
+size_t line_number(const std::string_view &str, size_t pos)
 {
-  std::string directive = "#line ";
+  std::string_view directive = "#line ";
   /* String to count the number of line. */
-  std::string sub_str = str.substr(0, pos);
+  std::string_view sub_str = str.substr(0, pos);
   size_t nearest_line_directive = sub_str.rfind(directive);
   size_t line_count = 1;
   if (nearest_line_directive != std::string::npos) {
     sub_str = sub_str.substr(nearest_line_directive + directive.size());
-    line_count = std::stoll(sub_str) - 1;
+    line_count = std::stoll(std::string(sub_str)) - 1;
   }
   return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
 }
 
-size_t char_number(const std::string &str, size_t pos)
+size_t char_number(const std::string_view &str, size_t pos)
 {
-  std::string sub_str = str.substr(0, pos);
+  std::string_view sub_str = str.substr(0, pos);
   size_t nearest_line_directive = sub_str.rfind('\n');
   return (nearest_line_directive == std::string::npos) ?
              (sub_str.size()) :
              (sub_str.size() - nearest_line_directive - 1);
 }
 
-std::string line_str(const std::string &str, size_t pos)
+std::string line_str(const std::string_view &str, size_t pos)
 {
   size_t start = str.rfind('\n', pos);
   size_t end = str.find('\n', pos);
   start = (start != std::string::npos) ? start + 1 : 0;
-  return str.substr(start, end - start);
+  return std::string(str.substr(start, end - start));
 }
 
 Scope Token::scope() const
@@ -53,7 +61,7 @@ Scope Token::scope() const
   if (this->is_invalid()) {
     return Scope::invalid();
   }
-  return Scope::from_position(data, data->token_scope[index]);
+  return Scope::from_position(*data, data->token_scope[index]);
 }
 
 Scope Token::attribute_before() const
@@ -80,640 +88,1003 @@ Scope Token::attribute_after() const
   return Scope::invalid();
 }
 
-void TokenStream::tokenize()
+struct TokenData {
+  std::vector<TokenType> types;
+  OffsetIndices offsets;
+  /* Word size without white-spaces. */
+  std::vector<uint32_t> sizes;
+};
+
+void LexerBase::ensure_memory()
 {
+  size_t input_size = str.size();
   if (str.empty()) {
-    *this = {};
-    return;
+    /* Avoid no allocation. */
+    input_size = 1;
+  }
+  /* Add one for offsets. */
+  input_size += 1;
+  /* Round to 128 for easy alignment of types and allocations. */
+  input_size += (input_size + 127) & ~127;
+
+  size_t needed_size = 0;
+  needed_size += sizeof(*token_types.data_) * input_size;
+  needed_size += sizeof(*token_sizes.data_) * input_size;
+  needed_size += sizeof(*token_offsets.data()) * input_size;
+
+  /* Make sure there is enough reserved space inside the data structures.
+   * We need at least as many token as there is character.
+   * Note: Never shrinks. */
+  if (alloc_size < needed_size) {
+    std::free(memory);
+    memory = static_cast<char *>(std::malloc(needed_size));
+    alloc_size = needed_size;
   }
 
-  token_offsets_populate();
-  token_types_populate();
+  char *ptr = memory;
+  token_types = {reinterpret_cast<TokenType *>(ptr), input_size};
+  ptr += sizeof(*token_types.data_) * input_size;
+  token_sizes = {reinterpret_cast<uint32_t *>(ptr), input_size};
+  ptr += sizeof(*token_sizes.data_) * input_size;
+  token_offsets = {reinterpret_cast<uint32_t *>(ptr), input_size};
+
+  update_string_view();
 }
 
-void TokenStream::token_offsets_populate()
+static always_inline TokenType to_type(const char c)
 {
-  std::vector<TokenType> token_types;
-  /* Tokenization. */
-  token_types.clear();
-  token_offsets.clear();
+  switch (c) {
+    case '\n':
+      return TokenType::NewLine;
+    case ' ':
+      return TokenType::Space;
+    case '#':
+      return TokenType::Hash;
+    case '&':
+      return TokenType::Ampersand;
+    case '^':
+      return TokenType::Caret;
+    case '|':
+      return TokenType::Pipe;
+    case '%':
+      return TokenType::Percent;
+    case '.':
+      return TokenType::Dot;
+    case '(':
+      return TokenType::ParOpen;
+    case ')':
+      return TokenType::ParClose;
+    case '{':
+      return TokenType::BracketOpen;
+    case '}':
+      return TokenType::BracketClose;
+    case '[':
+      return TokenType::SquareOpen;
+    case ']':
+      return TokenType::SquareClose;
+    case '<':
+      return TokenType::AngleOpen;
+    case '>':
+      return TokenType::AngleClose;
+    case '=':
+      return TokenType::Assign;
+    case '!':
+      return TokenType::Not;
+    case '*':
+      return TokenType::Star;
+    case '-':
+      return TokenType::Minus;
+    case '+':
+      return TokenType::Plus;
+    case '/':
+      return TokenType::Divide;
+    case '~':
+      return TokenType::Tilde;
+    case '\\':
+      return TokenType::Backslash;
+    case '\"':
+      return TokenType::String;
+    case '?':
+      return TokenType::Question;
+    case ':':
+      return TokenType::Colon;
+    case ',':
+      return TokenType::Comma;
+    case ';':
+      return TokenType::SemiColon;
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      return TokenType::Number;
+    default:
+      return TokenType::Word;
+  }
+}
 
-  /* Reserve space inside the data structures. */
-  size_t predicted_token_count = str.size() / 4;
-  token_types.reserve(predicted_token_count);
-  token_offsets.offsets.reserve(predicted_token_count);
+static always_inline bool always_split_token(const TokenType c, bool is_preprocessor = false)
+{
+  switch (c) {
+    case TokenType::Dot: /* For variadic macros. */
+    case TokenType::Number:
+    case TokenType::Word:
+    case TokenType::Space:
+      return false;
+    case TokenType::NewLine:
+      /* Split new lines for the preprocessor so that we know when to end a directive. */
+      return is_preprocessor;
+    default:
+      return true;
+  }
+}
 
-  token_types.emplace_back(to_type(str[0]));
-  token_offsets.offsets.emplace_back(0);
+static const std::array<std::pair<TokenType, bool>, 256> token_table_full = [] {
+  std::array<std::pair<TokenType, bool>, 256> t;
+  for (int i = 0; i < 256; ++i) {
+    TokenType type = to_type(i);
+    t[i] = {type, always_split_token(type)};
+  }
+  return t;
+}();
 
-  /* When doing white-space merging, keep knowledge about whether previous char was white-space.
-   * This allows to still split words on spaces. */
-  bool prev_was_whitespace = (token_types[0] == NewLine || token_types[0] == Space);
-  bool inside_preprocessor_directive = token_types[0] == Hash;
-  bool next_character_is_escape = false;
-  bool inside_string = false;
+/* Same thing but consider numbers as words to avoid second merging pass. */
+static const std::array<std::pair<TokenType, bool>, 256> token_table_preprocessor = [] {
+  std::array<std::pair<TokenType, bool>, 256> t;
+  for (int i = 0; i < 256; ++i) {
+    TokenType type = to_type(i);
+    if (type == Number) {
+      type = Word;
+    }
+    t[i] = {type, always_split_token(type, true)};
+  }
+  return t;
+}();
 
-  char curr_c = str[0];
-  char prev_c = str[0];
-  int offset = 0;
-  for (const char c : str.substr(1)) {
-    offset++;
-    TokenType type = to_type(c);
-    TokenType prev = token_types.back();
+void LexerBase::tokenize(bool only_preprocessor_tokens)
+{
+  TokenType type = TokenType::Invalid;
 
-    prev_c = curr_c;
-    curr_c = c;
+  const std::array<std::pair<TokenType, bool>, 256> &token_table = only_preprocessor_tokens ?
+                                                                       token_table_preprocessor :
+                                                                       token_table_full;
 
-    /* Merge string literal. */
-    if (inside_string) {
-      if (!next_character_is_escape && c == '\"') {
-        inside_string = false;
-      }
-      next_character_is_escape = c == '\\';
-      continue;
-    }
-    if (c == '\"') {
-      inside_string = true;
-    }
-    /* Detect preprocessor directive newlines `\\\n`. */
-    if (prev == Backslash && type == NewLine) {
-      token_types.back() = PreprocessorNewline;
-      continue;
-    }
-    /* Make sure to keep the ending newline for a preprocessor directive. */
-    if (inside_preprocessor_directive && type == NewLine) {
-      inside_preprocessor_directive = false;
-      token_types.emplace_back(type);
-      token_offsets.offsets.emplace_back(offset);
-      continue;
-    }
-    if (type == Hash) {
-      inside_preprocessor_directive = true;
-    }
-    /* Merge newlines and spaces with previous token. */
-    if ((type == NewLine || type == Space)) {
-      prev_was_whitespace = true;
-      continue;
-    }
-    /* Merge '=='. */
-    if (prev == Assign && type == Assign) {
-      token_types.back() = Equal;
-      continue;
-    }
-    /* Merge '!='. */
-    if (prev == '!' && type == Assign) {
-      token_types.back() = NotEqual;
-      continue;
-    }
-    /* Merge '>='. */
-    if (prev == '>' && type == Assign) {
-      token_types.back() = GEqual;
-      continue;
-    }
-    /* Merge '<='. */
-    if (prev == '<' && type == Assign) {
-      token_types.back() = LEqual;
-      continue;
-    }
-    /* Merge '->'. */
-    if (prev == '-' && type == '>') {
-      token_types.back() = Deref;
-      continue;
-    }
-    /* If digit is part of word. */
-    if (type == Number && prev == Word && !prev_was_whitespace) {
-      continue;
-    }
-    /* If 'x' is part of hex literal. */
-    if (c == 'x' && prev == Number) {
-      continue;
+  TokenType *types_raw = token_types.data();
+  uint32_t *offsets_raw = token_offsets.data();
+
+  int offset = 0, cursor = 0;
+  for (const char c : str) {
+    const TokenType prev = type;
+    auto [tok_type, always_split] = token_table[c];
+    type = tok_type;
+    /* Its faster to overwrite the previous value with the same value
+     * than having a condition. */
+    types_raw[cursor] = type;
+    offsets_raw[cursor] = offset++;
+    /* Split if type mismatch. */
+    cursor += (type != prev || always_split);
+  }
+  /* Set end of last token. */
+  offsets_raw[cursor] = offset++;
+  /* Resize to the actual usage. */
+  token_types.shrink(cursor);
+  token_sizes.shrink(cursor);
+  token_offsets.offsets.shrink(cursor + 1);
+
+  update_string_view();
+}
+
+static const std::array<bool, 256> num_literal_table = [] {
+  std::array<bool, 256> t;
+  for (int c = 0; c < 256; ++c) {
+    t[c] = true;
+    /* If dot is part of float literal. */
+    if (c == '.') {
+      continue; /* Merge. */
     }
     /* If 'A-F' is part of hex literal. */
-    if (c >= 'A' && c <= 'F' && prev == Number) {
-      continue;
+    if (c >= 'A' && c <= 'F') {
+      continue; /* Merge. */
     }
     /* If 'a-f' is part of hex literal. */
-    if (c >= 'a' && c <= 'f' && prev == Number) {
-      continue;
+    /* If 'f' suffix is part of float literal. */
+    /* If 'e' is part of float literal. */
+    if (c >= 'a' && c <= 'f') {
+      continue; /* Merge. */
+    }
+    /* If 'x' is part of hex literal. */
+    if (c == 'x') {
+      continue; /* Merge. */
     }
     /* If 'u' is part of unsigned int literal. */
-    if (c == 'u' && prev == Number) {
-      continue;
+    if (c == 'u') {
+      continue; /* Merge. */
     }
-    /* If dot is part of float literal. */
-    if (type == Dot && prev == Number) {
-      continue;
-    }
-    /* If 'f' suffix is part of float literal. */
-    if (c == 'f' && prev == Number) {
-      continue;
-    }
-    /* If 'e' is part of float literal. */
-    if (c == 'e' && prev == Number) {
-      continue;
-    }
-    /* If sign is part of float literal after exponent. */
-    if ((c == '+' || c == '-') && prev_c == 'e') {
-      continue;
-    }
-    /* Detect increment. */
-    if (type == '+' && prev == '+') {
-      token_types.back() = Increment;
-      continue;
-    }
-    /* Detect decrement. */
-    if (type == '+' && prev == '+') {
-      token_types.back() = Decrement;
-      continue;
-    }
-    /* Only merge these token. Otherwise, always emit a token. */
-    if (type != Word && type != NewLine && type != Space && type != Number) {
-      prev = Word;
-    }
-    /* Split words on white-spaces even when merging. */
-    if (type == Word && prev_was_whitespace) {
-      prev = Space;
-      prev_was_whitespace = false;
-    }
-    /* Emit a token if we don't merge. */
-    if (type != prev) {
-      token_types.emplace_back(type);
-      token_offsets.offsets.emplace_back(offset);
-    }
+    t[c] = false;
   }
-  offset++;
-  token_offsets.offsets.emplace_back(offset);
+  return t;
+}();
 
-  /* Convert vector of char to string for faster lookups. */
-  this->token_types = std::string(reinterpret_cast<char *>(token_types.data()),
-                                  token_types.size());
+/* Table lookup variant. Much faster than switch statement.  */
+static always_inline bool is_char_part_of_number_literal(const unsigned char c)
+{
+  return num_literal_table[c];
 }
 
-static TokenType type_lookup(std::string_view s)
+static always_inline bool is_word_part_of_number_literal(const std::string_view str)
+{
+  for (char c : str) {
+    if (!is_char_part_of_number_literal(c)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static always_inline bool is_whitespace(TokenType t)
+{
+  return (t == ' ') || (t == '\n');
+}
+
+void LexerBase::merge_tokens()
+{
+  const char *str_raw = str.data();
+  TokenType *types_raw = token_types.data();
+  uint32_t *offsets_raw = token_offsets.data();
+  uint32_t *sizes_raw = token_sizes.data();
+
+  /* Never merge the first token. We don't want to loose it. */
+  TokenType prev = types_raw[0];
+  sizes_raw[0] = token_offsets[0].size;
+
+  /* State. */
+  bool after_whitespace = is_whitespace(prev);
+  bool inside_escaped_char = false;
+  bool inside_preprocessor_directive = false;
+  bool inside_string = false;
+  bool inside_number = false;
+
+  uint32_t cursor = 1;
+  for (uint32_t i = 1; i < token_types.size(); i++) {
+    bool emit = true;
+#define merge_if(a) emit &= !(a)
+
+    TokenType tok = types_raw[i];
+    uint32_t offset = offsets_raw[i];
+    uint32_t tok_size = offsets_raw[i + 1] - offset;
+
+#ifndef NDEBUG
+    std::string_view tok_str{str_raw + offset, tok_size};
+#endif
+
+    /* Merge string literal. */
+    merge_if(inside_string);
+
+    /* Flip flop inside string when finding and unescaped quote. */
+    if (tok == String && !inside_escaped_char) {
+      inside_string = !inside_string;
+    }
+    inside_escaped_char = inside_string && (tok == '\\');
+
+    /* Merge number literal. */
+    if (inside_number) {
+      merge_if((tok == Word || tok == '.') &&
+               is_word_part_of_number_literal({str_raw + offset, tok_size}));
+      /* If sign is part of float literal after exponent. */
+      merge_if((tok == '+' || tok == '-') && str_raw[offset - 1] == 'e');
+
+      /* Disable if we do not emit. */
+      inside_number = (tok == Number) || !emit;
+    }
+
+    switch (tok) {
+      case Hash:
+        inside_preprocessor_directive = true;
+        break;
+
+      case NewLine:
+        after_whitespace = true;
+        /* Preprocessor directives. */
+        if (inside_preprocessor_directive) {
+          /* Detect preprocessor directive newlines `\\\n`. */
+          if (prev == Backslash) {
+            types_raw[cursor - 1] = PreprocessorNewline;
+            continue;
+          }
+          inside_preprocessor_directive = false;
+          /* Make sure to keep the ending newline for a preprocessor directive. */
+          break;
+        }
+        continue;
+
+      case Space:
+        after_whitespace = true;
+        continue;
+
+      case Word:
+        /* Merge words that contain numbers that were split by the tokenizer. */
+        if (prev == Word && !after_whitespace) {
+          sizes_raw[cursor - 1] += tok_size;
+          continue;
+        }
+        sizes_raw[cursor] = tok_size;
+        break;
+
+      case Number:
+        /* If digit is part of word. */
+        if (prev == Word && !after_whitespace) {
+          sizes_raw[cursor - 1] += tok_size;
+          continue;
+        }
+        if (prev == Number) {
+          continue;
+        }
+        inside_number = true;
+        break;
+
+      case '=':
+        /* Merge '=='. */
+        if (prev == '=') {
+          types_raw[cursor - 1] = Equal;
+          continue;
+        }
+        /* Merge '!='. */
+        if (prev == '!') {
+          types_raw[cursor - 1] = NotEqual;
+          continue;
+        }
+        /* Merge '>='. */
+        if (prev == '>') {
+          types_raw[cursor - 1] = GEqual;
+          continue;
+        }
+        /* Merge '<='. */
+        if (prev == '<') {
+          types_raw[cursor - 1] = LEqual;
+          continue;
+        }
+        break;
+
+      case '>':
+        /* Merge '->'. */
+        if (prev == '-') {
+          types_raw[cursor - 1] = Deref;
+          continue;
+        }
+        break;
+
+      case '&':
+        /* Detect logical and. */
+        if (prev == '&') {
+          types_raw[cursor - 1] = LogicalAnd;
+          continue;
+        }
+        break;
+
+      case '|':
+        /* Detect logical or. */
+        if (prev == '|') {
+          types_raw[cursor - 1] = LogicalOr;
+          continue;
+        }
+        break;
+
+      case '+':
+        /* Detect increment. */
+        if (prev == '+') {
+          types_raw[cursor - 1] = Increment;
+          continue;
+        }
+        break;
+
+      case '-':
+        /* Detect decrement. */
+        if (prev == '-') {
+          types_raw[cursor - 1] = Decrement;
+          continue;
+        }
+        break;
+
+      default:
+        break;
+    }
+    after_whitespace = false;
+
+    if (emit) {
+      prev = tok;
+      types_raw[cursor] = tok;
+      offsets_raw[cursor] = offset;
+      cursor += 1;
+    }
+  }
+  /* Make sure the last token extend to the end of the string. */
+  token_offsets.offsets[cursor] = token_offsets.offsets.back();
+  /* Shrink spans to new number of tokens. */
+  token_types.shrink(cursor);
+  token_offsets.offsets.shrink(cursor + 1);
+
+  update_string_view();
+}
+
+static always_inline TokenType type_lookup(std::string_view s)
 {
   switch (s.size()) {
     case 2:
-      if (s == "do") {
-        return Do;
-      }
-      if (s == "if") {
-        return If;
+      switch (s[0]) {
+        case 'd':
+          if (s == "do") {
+            return Do;
+          }
+          break;
+        case 'i':
+          if (s == "if") {
+            return If;
+          }
+          break;
       }
       break;
     case 3:
-      if (s == "for") {
-        return For;
+      switch (s[0]) {
+        case 'f':
+          if (s == "for") {
+            return For;
+          }
+          break;
       }
       break;
     case 4:
-      if (s == "case") {
-        return Case;
-      }
-      if (s == "else") {
-        return Else;
-      }
-      if (s == "enum") {
-        return Enum;
-      }
-      if (s == "this") {
-        return This;
+      switch (s[0]) {
+        case 'c':
+          if (s == "case") {
+            return Case;
+          }
+          break;
+        case 'e':
+          if (s == "else") {
+            return Else;
+          }
+          if (s == "enum") {
+            return Enum;
+          }
+          break;
+        case 't':
+          if (s == "this") {
+            return This;
+          }
+          break;
       }
       break;
     case 5:
-      if (s == "break") {
-        return Break;
-      }
-      if (s == "class") {
-        return Class;
-      }
-      if (s == "const") {
-        return Const;
-      }
-      if (s == "union") {
-        return Union;
-      }
-      if (s == "using") {
-        return Using;
-      }
-      if (s == "while") {
-        return While;
+      switch (s[0]) {
+        case 'b':
+          if (s == "break") {
+            return Break;
+          }
+          break;
+        case 'c':
+          if (s == "class") {
+            return Class;
+          }
+          if (s == "const") {
+            return Const;
+          }
+          break;
+        case 'u':
+          if (s == "union") {
+            return Union;
+          }
+          if (s == "using") {
+            return Using;
+          }
+          break;
+        case 'w':
+          if (s == "while") {
+            return While;
+          }
+          break;
       }
       break;
     case 6:
-      if (s == "inline") {
-        return Inline;
-      }
-      if (s == "public") {
-        return Public;
-      }
-      if (s == "return") {
-        return Return;
-      }
-      if (s == "static") {
-        return Static;
-      }
-      if (s == "struct") {
-        return Struct;
-      }
-      if (s == "switch") {
-        return Switch;
+      switch (s[0]) {
+        case 'i':
+          if (s == "inline") {
+            return Inline;
+          }
+          break;
+        case 'p':
+          if (s == "public") {
+            return Public;
+          }
+          break;
+        case 'r':
+          if (s == "return") {
+            return Return;
+          }
+          break;
+        case 's':
+          if (s == "static") {
+            return Static;
+          }
+          if (s == "struct") {
+            return Struct;
+          }
+          if (s == "switch") {
+            return Switch;
+          }
+          break;
       }
       break;
     case 7:
-      if (s == "private") {
-        return Private;
+      switch (s[0]) {
+        case 'p':
+          if (s == "private") {
+            return Private;
+          }
+          break;
       }
       break;
+
     case 8:
-      if (s == "continue") {
-        return Continue;
-      }
-      if (s == "template") {
-        return Template;
+      switch (s[0]) {
+        case 'c':
+          if (s == "continue") {
+            return Continue;
+          }
+          break;
+        case 't':
+          if (s == "template") {
+            return Template;
+          }
+          break;
       }
       break;
+
     case 9:
-      if (s == "constexpr") {
-        return Constexpr;
-      }
-      if (s == "namespace") {
-        return Namespace;
+      switch (s[0]) {
+        case 'c':
+          if (s == "constexpr") {
+            return Constexpr;
+          }
+          break;
+        case 'n':
+          if (s == "namespace") {
+            return Namespace;
+          }
+          break;
       }
       break;
   }
-  return Invalid;
+  return Word;
 }
 
-void TokenStream::token_types_populate()
+void LexerBase::identify_keywords()
 {
   int tok_id = -1;
-  for (char &c : token_types) {
+  for (TokenType &type : token_types) {
     tok_id++;
-    if (TokenType(c) == Word) {
+    if (type == Word) {
       IndexRange range = token_offsets[tok_id];
-      std::string_view word(str.data() + range.start, range.size);
+      type = type_lookup({str.data() + range.start, size_t(token_sizes[tok_id])});
+    }
+  }
+}
 
-      size_t last_non_whitespace = word.find_last_not_of(" \n");
-      if (last_non_whitespace == std::string::npos) {
+struct ScopeStack {
+  struct Item {
+    ScopeType type;
+    size_t start;
+    int index;
+  };
+
+  int scope_index = 0;
+  std::vector<ScopeStack::Item> scopes;
+  /* Output. */
+  std::vector<IndexRange> ranges;
+  std::vector<ScopeType> types;
+
+  ScopeStack(size_t predicted_scope_count)
+  {
+    /* Predicted max nesting depth. */
+    scopes.reserve(128);
+
+    ranges.reserve(predicted_scope_count);
+    types.reserve(predicted_scope_count);
+  }
+
+  void always_inline enter_scope(ScopeType type, size_t start_tok_id)
+  {
+    scopes.emplace_back(Item{type, start_tok_id, scope_index++});
+    ranges.emplace_back(start_tok_id, 1);
+    types.emplace_back(type);
+  };
+
+  void always_inline exit_scope(int end_tok_id)
+  {
+    if (scopes.empty()) {
+      return;
+    }
+    Item scope = scopes.back();
+    ranges[scope.index].size = end_tok_id - scope.start + 1;
+    scopes.pop_back();
+  };
+
+  Item always_inline back() const
+  {
+    return scopes.back();
+  }
+
+  bool always_inline empty() const
+  {
+    return scopes.empty();
+  }
+};
+
+void ParserBase::build_scope_tree(report_callback &report_error)
+{
+  Token error_token = Token::invalid();
+  const char *error_msg = nullptr;
+
+  size_t predicted_scope_count = lex.token_types.size() / 2;
+
+  ScopeStack stack(predicted_scope_count);
+
+  stack.enter_scope(ScopeType::Global, 0);
+
+  int in_template = 0;
+
+  int tok_id = -1;
+  for (const TokenType &type : lex.token_types) {
+    tok_id++;
+
+    const ScopeType current_scope = stack.back().type;
+
+    if (stack.back().type == ScopeType::Preprocessor) {  // Here
+      if (type == NewLine) {
+        stack.exit_scope(tok_id);
+      }
+      else {
+        /* Do nothing. Enclose all preprocessor lines together. */
         continue;
       }
-
-      word.remove_suffix(word.size() - last_non_whitespace - 1);
-
-      TokenType type = type_lookup(word);
-      if (type != Invalid) {
-        c = type;
-      }
     }
-  }
-}
 
-void TokenStream::parse_scopes(report_callback &report_error)
-{
-  {
-    /* Scope detection. */
-    scope_ranges.clear();
-    scope_types.clear();
+    switch (type) {
+      case Hash:
+        stack.enter_scope(ScopeType::Preprocessor, tok_id);
+        break;
+      case Assign:
+        if (current_scope == ScopeType::Assignment) {
+          /* Chained assignments. */
+          stack.exit_scope(tok_id - 1);
+        }
+        stack.enter_scope(ScopeType::Assignment, tok_id);
+        break;
+      case BracketOpen: {
+        /* Scan back identifier that could contain namespaces. */
+        TokenType keyword;
+        int pos = 2;
+        do {
+          keyword = (tok_id >= pos) ? TokenType(lex.token_types[tok_id - pos]) :
+                                      TokenType::Invalid;
+          pos += 3;
+        } while (keyword != Invalid && keyword == Colon);
 
-    struct ScopeItem {
-      ScopeType type;
-      size_t start;
-      int index;
-    };
+        /* Skip host_shared attribute for structures if any. */
+        if (keyword == ']') {
+          keyword = (tok_id >= pos) ? TokenType(lex.token_types[tok_id - pos]) :
+                                      TokenType::Invalid;
+          if (keyword == '[') {
+            pos += 2;
+            keyword = (tok_id >= pos) ? TokenType(lex.token_types[tok_id - pos]) :
+                                        TokenType::Invalid;
+          }
+        }
 
-    int scope_index = 0;
-    std::stack<ScopeItem> scopes;
-
-    auto enter_scope = [&](ScopeType type, size_t start_tok_id) {
-      scopes.emplace(ScopeItem{type, start_tok_id, scope_index++});
-      scope_ranges.emplace_back(start_tok_id, 1);
-      scope_types += char(type);
-    };
-
-    auto exit_scope = [&](int end_tok_id) {
-      if (scopes.empty()) {
-        return;
-      }
-      ScopeItem scope = scopes.top();
-      scope_ranges[scope.index].size = end_tok_id - scope.start + 1;
-      scopes.pop();
-    };
-
-    enter_scope(ScopeType::Global, 0);
-
-    int in_template = 0;
-
-    int tok_id = -1;
-    for (char &c : token_types) {
-      tok_id++;
-
-      if (scopes.top().type == ScopeType::Preprocessor) {
-        if (TokenType(c) == NewLine) {
-          exit_scope(tok_id);
+        if (keyword == Struct || keyword == Class) {
+          stack.enter_scope(ScopeType::Struct, tok_id);
+        }
+        else if (keyword == Enum) {
+          stack.enter_scope(ScopeType::Local, tok_id);
+        }
+        else if (keyword == Namespace) {
+          stack.enter_scope(ScopeType::Namespace, tok_id);
+        }
+        else if (current_scope == ScopeType::Global) {
+          stack.enter_scope(ScopeType::Function, tok_id);
+        }
+        else if (current_scope == ScopeType::Struct) {
+          stack.enter_scope(ScopeType::Function, tok_id);
+        }
+        else if (current_scope == ScopeType::Namespace) {
+          stack.enter_scope(ScopeType::Function, tok_id);
         }
         else {
-          /* Do nothing. Enclose all preprocessor lines together. */
-          continue;
+          stack.enter_scope(ScopeType::Local, tok_id);
         }
+        break;
       }
-
-      switch (TokenType(c)) {
-        case Hash:
-          enter_scope(ScopeType::Preprocessor, tok_id);
-          break;
-        case Assign:
-          if (scopes.top().type == ScopeType::Assignment) {
-            /* Chained assignments. */
-            exit_scope(tok_id - 1);
-          }
-          enter_scope(ScopeType::Assignment, tok_id);
-          break;
-        case BracketOpen: {
-          /* Scan back identifier that could contain namespaces. */
-          TokenType keyword;
-          int pos = 2;
-          do {
-            keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) : TokenType::Invalid;
-            pos += 3;
-          } while (keyword != Invalid && keyword == Colon);
-
-          /* Skip host_shared attribute for structures if any. */
-          if (keyword == ']') {
-            keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) : TokenType::Invalid;
-            if (keyword == '[') {
-              pos += 2;
-              keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) :
-                                          TokenType::Invalid;
-            }
-          }
-
-          if (keyword == Struct || keyword == Class) {
-            enter_scope(ScopeType::Struct, tok_id);
-          }
-          else if (keyword == Enum) {
-            enter_scope(ScopeType::Local, tok_id);
-          }
-          else if (keyword == Namespace) {
-            enter_scope(ScopeType::Namespace, tok_id);
-          }
-          else if (scopes.top().type == ScopeType::Global) {
-            enter_scope(ScopeType::Function, tok_id);
-          }
-          else if (scopes.top().type == ScopeType::Struct) {
-            enter_scope(ScopeType::Function, tok_id);
-          }
-          else if (scopes.top().type == ScopeType::Namespace) {
-            enter_scope(ScopeType::Function, tok_id);
-          }
-          else {
-            enter_scope(ScopeType::Local, tok_id);
-          }
-          break;
+      case ParOpen:
+        if ((tok_id >= 1 && lex.token_types[tok_id - 1] == For) ||
+            (tok_id >= 1 && lex.token_types[tok_id - 1] == While))
+        {
+          stack.enter_scope(ScopeType::LoopArgs, tok_id);
         }
-        case ParOpen:
-          if ((tok_id >= 1 && token_types[tok_id - 1] == For) ||
-              (tok_id >= 1 && token_types[tok_id - 1] == While))
+        else if (tok_id >= 1 && lex.token_types[tok_id - 1] == Switch) {
+          stack.enter_scope(ScopeType::SwitchArg, tok_id);
+        }
+        else if (current_scope == ScopeType::Global) {
+          stack.enter_scope(ScopeType::FunctionArgs, tok_id);
+        }
+        else if (current_scope == ScopeType::Struct) {
+          stack.enter_scope(ScopeType::FunctionArgs, tok_id);
+        }
+        else if ((current_scope == ScopeType::Function || current_scope == ScopeType::Local ||
+                  current_scope == ScopeType::Assignment ||
+                  current_scope == ScopeType::FunctionParam ||
+                  current_scope == ScopeType::Subscript ||
+                  current_scope == ScopeType::Attribute) &&
+                 (tok_id >= 1 && lex.token_types[tok_id - 1] == Word))
+        {
+          stack.enter_scope(ScopeType::FunctionCall, tok_id);
+        }
+        else {
+          stack.enter_scope(ScopeType::Local, tok_id);
+        }
+        break;
+      case SquareOpen:
+        if (tok_id >= 1 && lex.token_types[tok_id - 1] == SquareOpen) {
+          stack.enter_scope(ScopeType::Attributes, tok_id);
+        }
+        else {
+          stack.enter_scope(ScopeType::Subscript, tok_id);
+        }
+        break;
+      case AngleOpen:
+        if (tok_id >= 1) {
+          char prev_char = lex.str[lex.token_offsets[tok_id - 1].last()];
+          /* Rely on the fact that template are formatted without spaces but comparison isn't. */
+          if ((prev_char != ' ' && prev_char != '\n' && prev_char != '<') ||
+              lex.token_types[tok_id - 1] == Template)
           {
-            enter_scope(ScopeType::LoopArgs, tok_id);
+            stack.enter_scope(ScopeType::Template, tok_id);
+            in_template++;
           }
-          else if (tok_id >= 1 && token_types[tok_id - 1] == Switch) {
-            enter_scope(ScopeType::SwitchArg, tok_id);
-          }
-          else if (scopes.top().type == ScopeType::Global) {
-            enter_scope(ScopeType::FunctionArgs, tok_id);
-          }
-          else if (scopes.top().type == ScopeType::Struct) {
-            enter_scope(ScopeType::FunctionArgs, tok_id);
-          }
-          else if ((scopes.top().type == ScopeType::Function ||
-                    scopes.top().type == ScopeType::Local ||
-                    scopes.top().type == ScopeType::Attribute) &&
-                   (tok_id >= 1 && token_types[tok_id - 1] == Word))
-          {
-            enter_scope(ScopeType::FunctionCall, tok_id);
-          }
-          else {
-            enter_scope(ScopeType::Local, tok_id);
-          }
-          break;
-        case SquareOpen:
-          if (tok_id >= 1 && token_types[tok_id - 1] == SquareOpen) {
-            enter_scope(ScopeType::Attributes, tok_id);
-          }
-          else {
-            enter_scope(ScopeType::Subscript, tok_id);
-          }
-          break;
-        case AngleOpen:
-          if (tok_id >= 1) {
-            char prev_char = str[token_offsets[tok_id - 1].last()];
-            /* Rely on the fact that template are formatted without spaces but comparison isn't. */
-            if ((prev_char != ' ' && prev_char != '\n' && prev_char != '<') ||
-                token_types[tok_id - 1] == Template)
-            {
-              enter_scope(ScopeType::Template, tok_id);
-              in_template++;
-            }
-          }
-          break;
-        case AngleClose:
-          if (in_template > 0 && scopes.top().type == ScopeType::Assignment) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::TemplateArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::Template) {
-            exit_scope(tok_id);
-            in_template--;
-          }
-          break;
-        case BracketClose:
-          if (scopes.top().type == ScopeType::Assignment) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::Struct || scopes.top().type == ScopeType::Local ||
-              scopes.top().type == ScopeType::Namespace ||
-              scopes.top().type == ScopeType::LoopBody ||
-              scopes.top().type == ScopeType::SwitchBody ||
-              scopes.top().type == ScopeType::Function || scopes.top().type == ScopeType::Function)
-          {
-            exit_scope(tok_id);
-          }
-          else {
-            Token token = Token::from_position(this, tok_id);
-            report_error(token.line_number(),
-                         token.char_number(),
-                         token.line_str(),
-                         "Unexpected '}' token");
-            /* Avoid out of bound access for the rest of the processing. Empty everything. */
-            *this = {};
-            return;
-          }
-          break;
-        case ParClose:
-          if (scopes.top().type == ScopeType::Assignment) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::FunctionArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::FunctionParam) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::LoopArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::LoopArgs ||
-              scopes.top().type == ScopeType::SwitchArg ||
-              scopes.top().type == ScopeType::FunctionArgs ||
-              scopes.top().type == ScopeType::FunctionCall ||
-              scopes.top().type == ScopeType::Local)
-          {
-            exit_scope(tok_id);
-          }
-          else {
-            Token token = Token::from_position(this, tok_id);
-            report_error(token.line_number(),
-                         token.char_number(),
-                         token.line_str(),
-                         "Unexpected ')' token");
-            /* Avoid out of bound access for the rest of the processing. Empty everything. */
-            *this = {};
-            return;
-          }
-          break;
-        case SquareClose:
-          if (scopes.top().type == ScopeType::Attribute) {
-            exit_scope(tok_id - 1);
-          }
-          exit_scope(tok_id);
-          break;
-        case SemiColon:
-          if (scopes.top().type == ScopeType::Assignment) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::FunctionArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::TemplateArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::LoopArg) {
-            exit_scope(tok_id - 1);
-          }
-          break;
-        case Comma:
-          if (scopes.top().type == ScopeType::Assignment) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::FunctionArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::FunctionParam) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::TemplateArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::Attributes) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::Attribute) {
-            exit_scope(tok_id - 1);
-          }
-          break;
-        default:
-          if (scopes.top().type == ScopeType::Attributes) {
-            enter_scope(ScopeType::Attribute, tok_id);
-          }
-          if (scopes.top().type == ScopeType::FunctionArgs) {
-            enter_scope(ScopeType::FunctionArg, tok_id);
-          }
-          if (scopes.top().type == ScopeType::FunctionCall) {
-            enter_scope(ScopeType::FunctionParam, tok_id);
-          }
-          if (scopes.top().type == ScopeType::LoopArgs) {
-            enter_scope(ScopeType::LoopArg, tok_id);
-          }
-          if (scopes.top().type == ScopeType::Template) {
-            enter_scope(ScopeType::TemplateArg, tok_id);
-          }
-          break;
-      }
-    }
-
-    if (scopes.empty()) {
-      Token token = Token::from_position(this, tok_id);
-      report_error(token.line_number(),
-                   token.char_number(),
-                   token.line_str(),
-                   "Extraneous end of scope somewhere in that file");
-
-      /* Avoid out of bound access for the rest of the processing. Empty everything. */
-      *this = {};
-      return;
-    }
-
-    if (scopes.top().type == ScopeType::Preprocessor) {
-      exit_scope(tok_id - 1);
-    }
-
-    if (scopes.top().type != ScopeType::Global) {
-      ScopeItem scope_item = scopes.top();
-      Token token = Token::from_position(this, scope_ranges[scope_item.index].start);
-      report_error(
-          token.line_number(), token.char_number(), token.line_str(), "Unterminated scope");
-
-      /* Avoid out of bound access for the rest of the processing. Empty everything. */
-      *this = {};
-      return;
-    }
-
-    exit_scope(tok_id);
-  }
-  {
-    token_scope.clear();
-    token_scope.resize(scope_ranges[0].size);
-
-    int scope_id = -1;
-    for (const IndexRange &range : scope_ranges) {
-      scope_id++;
-      for (int i = 0; i < range.size; i++) {
-        int j = range.start + i;
-        token_scope[j] = scope_id;
-      }
+        }
+        break;
+      case AngleClose:
+        if (stack.back().type == ScopeType::Assignment && in_template > 0) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::TemplateArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::Template) {
+          stack.exit_scope(tok_id);
+          in_template--;
+        }
+        break;
+      case BracketClose:
+        if (stack.back().type == ScopeType::Assignment) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::Struct || stack.back().type == ScopeType::Local ||
+            stack.back().type == ScopeType::Namespace ||
+            stack.back().type == ScopeType::LoopBody ||
+            stack.back().type == ScopeType::SwitchBody ||
+            stack.back().type == ScopeType::Function || stack.back().type == ScopeType::Function)
+        {
+          stack.exit_scope(tok_id);
+        }
+        else {
+          error_token = (*this)[tok_id];
+          error_msg = "Unexpected '}' token";
+          goto error;
+        }
+        break;
+      case ParClose:
+        if (stack.back().type == ScopeType::Assignment) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::FunctionArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::FunctionParam) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::LoopArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::LoopArgs ||
+            stack.back().type == ScopeType::SwitchArg ||
+            stack.back().type == ScopeType::FunctionArgs ||
+            stack.back().type == ScopeType::FunctionCall || stack.back().type == ScopeType::Local)
+        {
+          stack.exit_scope(tok_id);
+        }
+        else {
+          error_token = (*this)[tok_id];
+          error_msg = "Unexpected ')' token";
+          goto error;
+        }
+        break;
+      case SquareClose:
+        if (stack.back().type == ScopeType::Attribute) {
+          stack.exit_scope(tok_id - 1);
+        }
+        stack.exit_scope(tok_id);
+        break;
+      case SemiColon:
+        if (stack.back().type == ScopeType::Assignment) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::FunctionArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::TemplateArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::LoopArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        break;
+      case Comma:
+        if (stack.back().type == ScopeType::Assignment) {
+          stack.exit_scope(tok_id - 1);
+        }
+        switch (stack.back().type) {
+          case ScopeType::FunctionArg:
+          case ScopeType::FunctionParam:
+          case ScopeType::TemplateArg:
+          case ScopeType::Attribute:
+            stack.exit_scope(tok_id - 1);
+            break;
+          default:
+            break;
+        }
+        break;
+      default:
+        switch (current_scope) {
+          case ScopeType::Attributes:
+            stack.enter_scope(ScopeType::Attribute, tok_id);
+            break;
+          case ScopeType::FunctionArgs:
+            stack.enter_scope(ScopeType::FunctionArg, tok_id);
+            break;
+          case ScopeType::FunctionCall:
+            stack.enter_scope(ScopeType::FunctionParam, tok_id);
+            break;
+          case ScopeType::LoopArgs:
+            stack.enter_scope(ScopeType::LoopArg, tok_id);
+            break;
+          case ScopeType::Template:
+            stack.enter_scope(ScopeType::TemplateArg, tok_id);
+            break;
+          default:
+            break;
+        }
+        break;
     }
   }
+
+  if (stack.empty()) {
+    error_token = (*this)[tok_id];
+    error_msg = "Extraneous end of scope somewhere in that file";
+    goto error;
+  }
+
+  if (stack.back().type == ScopeType::Preprocessor) {
+    stack.exit_scope(tok_id - 1);
+  }
+
+  if (stack.back().type != ScopeType::Global) {
+    ScopeStack::Item scope_item = stack.back();
+    error_token = (*this)[scope_ranges[scope_item.index].start];
+    error_msg = "Unterminated scope";
+    goto error;
+  }
+
+  stack.exit_scope(tok_id);
+
+  scope_types = std::move(stack.types);
+  scope_ranges = std::move(stack.ranges);
+  update_string_view();
+  return;
+
+error:
+  report_error(
+      error_token.line_number(), error_token.char_number(), error_token.line_str(), error_msg);
+  /* Avoid out of bound access for the rest of the processing. Empty everything. */
+  scope_types = {ScopeType::Global};
+  scope_ranges = {IndexRange(0, 0)};
 }
 
-/* Return true if any mutation was applied. */
-bool IntermediateForm::only_apply_mutations()
+void ParserBase::build_token_to_scope_map()
+{
+  token_scope.clear();
+  token_scope.resize(scope_ranges[0].size);
+
+  std::stack<uint32_t> stack;
+
+  int scope_id = 0;
+  for (const IndexRange &range : scope_ranges) {
+    std::fill(token_scope.begin() + range.start,
+              token_scope.begin() + range.start + range.size,
+              scope_id);
+    scope_id++;
+  }
+
+  update_string_view();
+}
+
+Token ParserBase::operator[](int i) const
+{
+  return Token::from_position(this, i);
+}
+
+void LexerBase::update_string_view()
+{
+  this->token_types_str = std::string_view(reinterpret_cast<char *>(this->token_types.data()),
+                                           this->token_types.size());
+}
+
+void ParserBase::update_string_view()
+{
+  this->scope_types_str = std::string_view(reinterpret_cast<char *>(this->scope_types.data()),
+                                           this->scope_types.size());
+}
+
+bool MutableString::apply_mutations(LexerBase &lexer, const bool all_mutation_ordered)
 {
   if (mutations_.empty()) {
     return false;
   }
 
-  /* Order mutations so that they can be applied in one pass. */
-  std::stable_sort(mutations_.begin(), mutations_.end());
+  if (!all_mutation_ordered) {
+    /* Order mutations so that they can be applied in one pass. */
+    std::stable_sort(mutations_.begin(), mutations_.end());
+  }
+#ifndef NDEBUG
+  else {
+    assert(std::is_sorted(mutations_.begin(), mutations_.end()));
+  }
+#endif
 
   /* Make sure to pad the input string in case of insertion after the last char. */
   bool added_trailing_new_line = false;
-  if (data_.str.back() != '\n') {
-    data_.str += '\n';
+  if (str_.back() != '\n') {
+    str_ += '\n';
     added_trailing_new_line = true;
   }
 
+  std::string result;
+  result.reserve(str_.size());
+
   int64_t offset = 0;
   for (const Mutation &mut : mutations_) {
-    data_.str.replace(mut.src_range.start + offset, mut.src_range.size, mut.replacement);
-    offset += mut.replacement.size() - mut.src_range.size;
+    size_t start = mut.src_range.start;
+    size_t end = start + mut.src_range.size;
+    /* Copy unchanged text. */
+    result.append(str_.data() + offset, start - offset);
+    /* Append replacement. */
+    result.append(mut.replacement);
+    offset = end;
   }
+  result.append(str_.data() + offset, str_.size() - offset);
+
+  str_ = std::move(result);
+
   mutations_.clear();
 
   if (added_trailing_new_line) {
-    data_.str.pop_back();
+    str_.pop_back();
   }
+  /* String have changed. Update string view. */
+  lexer.str = str_;
   return true;
 }
 

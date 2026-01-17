@@ -24,9 +24,11 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 struct PyKDTree {
   PyObject_HEAD
-  blender::KDTree_3d *obj;
+  KDTree_3d *obj;
   uint maxsize;
   uint count;
   uint count_balance; /* size when we last balanced */
@@ -35,8 +37,7 @@ struct PyKDTree {
 /* -------------------------------------------------------------------- */
 /* Utility helper functions */
 
-static void kdtree_nearest_to_py_tuple(const blender::KDTreeNearest_3d *nearest,
-                                       PyObject *py_retval)
+static void kdtree_nearest_to_py_tuple(const KDTreeNearest_3d *nearest, PyObject *py_retval)
 {
   BLI_assert(nearest->index >= 0);
   BLI_assert(PyTuple_GET_SIZE(py_retval) == 3);
@@ -47,7 +48,7 @@ static void kdtree_nearest_to_py_tuple(const blender::KDTreeNearest_3d *nearest,
                     PyFloat_FromDouble(nearest->dist));
 }
 
-static PyObject *kdtree_nearest_to_py(const blender::KDTreeNearest_3d *nearest)
+static PyObject *kdtree_nearest_to_py(const KDTreeNearest_3d *nearest)
 {
   PyObject *py_retval;
 
@@ -58,7 +59,7 @@ static PyObject *kdtree_nearest_to_py(const blender::KDTreeNearest_3d *nearest)
   return py_retval;
 }
 
-static PyObject *kdtree_nearest_to_py_and_check(const blender::KDTreeNearest_3d *nearest)
+static PyObject *kdtree_nearest_to_py_and_check(const KDTreeNearest_3d *nearest)
 {
   PyObject *py_retval;
 
@@ -85,7 +86,9 @@ static int PyKDTree__tp_init(PyKDTree *self, PyObject *args, PyObject *kwargs)
   uint maxsize;
   const char *keywords[] = {"size", nullptr};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "I:KDTree", (char **)keywords, &maxsize)) {
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwargs, "I:KDTree", const_cast<char **>(keywords), &maxsize))
+  {
     return -1;
   }
 
@@ -94,7 +97,7 @@ static int PyKDTree__tp_init(PyKDTree *self, PyObject *args, PyObject *kwargs)
     return -1;
   }
 
-  self->obj = blender::kdtree_3d_new(maxsize);
+  self->obj = kdtree_3d_new(maxsize);
   self->maxsize = maxsize;
   self->count = 0;
   self->count_balance = 0;
@@ -104,8 +107,8 @@ static int PyKDTree__tp_init(PyKDTree *self, PyObject *args, PyObject *kwargs)
 
 static void PyKDTree__tp_dealloc(PyKDTree *self)
 {
-  blender::kdtree_3d_free(self->obj);
-  Py_TYPE(self)->tp_free((PyObject *)self);
+  kdtree_3d_free(self->obj);
+  Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
 }
 
 PyDoc_STRVAR(
@@ -126,7 +129,9 @@ static PyObject *py_kdtree_insert(PyKDTree *self, PyObject *args, PyObject *kwar
   int index;
   const char *keywords[] = {"co", "index", nullptr};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi:insert", (char **)keywords, &py_co, &index)) {
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwargs, "Oi:insert", const_cast<char **>(keywords), &py_co, &index))
+  {
     return nullptr;
   }
 
@@ -144,7 +149,7 @@ static PyObject *py_kdtree_insert(PyKDTree *self, PyObject *args, PyObject *kwar
     return nullptr;
   }
 
-  blender::kdtree_3d_insert(self->obj, index, co);
+  kdtree_3d_insert(self->obj, index, co);
   self->count++;
 
   Py_RETURN_NONE;
@@ -162,7 +167,7 @@ PyDoc_STRVAR(
     "   This builds the entire tree, avoid calling after each insertion.\n");
 static PyObject *py_kdtree_balance(PyKDTree *self)
 {
-  blender::kdtree_3d_balance(self->obj);
+  kdtree_3d_balance(self->obj);
   self->count_balance = self->count;
   Py_RETURN_NONE;
 }
@@ -190,11 +195,11 @@ static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs
 {
   PyObject *py_co, *py_filter = nullptr;
   float co[3];
-  blender::KDTreeNearest_3d nearest;
+  KDTreeNearest_3d nearest;
   const char *keywords[] = {"co", "filter", nullptr};
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwargs, "O|$O:find", (char **)keywords, &py_co, &py_filter))
+          args, kwargs, "O|$O:find", const_cast<char **>(keywords), &py_co, &py_filter))
   {
     return nullptr;
   }
@@ -211,7 +216,7 @@ static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs
   nearest.index = -1;
 
   if (py_filter == nullptr) {
-    blender::kdtree_3d_find_nearest(self->obj, co, &nearest);
+    kdtree_3d_find_nearest(self->obj, co, &nearest);
   }
   else {
     PyKDTree_NearestData data = {nullptr};
@@ -219,8 +224,8 @@ static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs
     data.py_filter = py_filter;
     data.is_error = false;
 
-    blender::kdtree_find_nearest_cb<blender::float3>(
-        self->obj, co, &nearest, [&](int index, const blender::float3 &co, float dist_sq) {
+    kdtree_find_nearest_cb<float3>(
+        self->obj, co, &nearest, [&](int index, const float3 &co, float dist_sq) {
           UNUSED_VARS(co, dist_sq);
 
           PyObject *py_args = PyTuple_New(1);
@@ -267,12 +272,14 @@ static PyObject *py_kdtree_find_n(PyKDTree *self, PyObject *args, PyObject *kwar
   PyObject *py_list;
   PyObject *py_co;
   float co[3];
-  blender::KDTreeNearest_3d *nearest;
+  KDTreeNearest_3d *nearest;
   uint n;
   int i, found;
   const char *keywords[] = {"co", "n", nullptr};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OI:find_n", (char **)keywords, &py_co, &n)) {
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwargs, "OI:find_n", const_cast<char **>(keywords), &py_co, &n))
+  {
     return nullptr;
   }
 
@@ -290,9 +297,9 @@ static PyObject *py_kdtree_find_n(PyKDTree *self, PyObject *args, PyObject *kwar
     return nullptr;
   }
 
-  nearest = MEM_malloc_arrayN<blender::KDTreeNearest_3d>(n, __func__);
+  nearest = MEM_malloc_arrayN<KDTreeNearest_3d>(n, __func__);
 
-  found = blender::kdtree_3d_find_nearest_n(self->obj, co, nearest, n);
+  found = kdtree_3d_find_nearest_n(self->obj, co, nearest, n);
 
   py_list = PyList_New(found);
 
@@ -323,14 +330,14 @@ static PyObject *py_kdtree_find_range(PyKDTree *self, PyObject *args, PyObject *
   PyObject *py_list;
   PyObject *py_co;
   float co[3];
-  blender::KDTreeNearest_3d *nearest = nullptr;
+  KDTreeNearest_3d *nearest = nullptr;
   float radius;
   int i, found;
 
   const char *keywords[] = {"co", "radius", nullptr};
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwargs, "Of:find_range", (char **)keywords, &py_co, &radius))
+          args, kwargs, "Of:find_range", const_cast<char **>(keywords), &py_co, &radius))
   {
     return nullptr;
   }
@@ -349,7 +356,7 @@ static PyObject *py_kdtree_find_range(PyKDTree *self, PyObject *args, PyObject *
     return nullptr;
   }
 
-  found = blender::kdtree_3d_range_search(self->obj, co, &nearest, radius);
+  found = kdtree_3d_range_search(self->obj, co, &nearest, radius);
 
   py_list = PyList_New(found);
 
@@ -375,12 +382,24 @@ static PyObject *py_kdtree_find_range(PyKDTree *self, PyObject *args, PyObject *
 #endif
 
 static PyMethodDef PyKDTree_methods[] = {
-    {"insert", (PyCFunction)py_kdtree_insert, METH_VARARGS | METH_KEYWORDS, py_kdtree_insert_doc},
-    {"balance", (PyCFunction)py_kdtree_balance, METH_NOARGS, py_kdtree_balance_doc},
-    {"find", (PyCFunction)py_kdtree_find, METH_VARARGS | METH_KEYWORDS, py_kdtree_find_doc},
-    {"find_n", (PyCFunction)py_kdtree_find_n, METH_VARARGS | METH_KEYWORDS, py_kdtree_find_n_doc},
+    {"insert",
+     reinterpret_cast<PyCFunction>(py_kdtree_insert),
+     METH_VARARGS | METH_KEYWORDS,
+     py_kdtree_insert_doc},
+    {"balance",
+     reinterpret_cast<PyCFunction>(py_kdtree_balance),
+     METH_NOARGS,
+     py_kdtree_balance_doc},
+    {"find",
+     reinterpret_cast<PyCFunction>(py_kdtree_find),
+     METH_VARARGS | METH_KEYWORDS,
+     py_kdtree_find_doc},
+    {"find_n",
+     reinterpret_cast<PyCFunction>(py_kdtree_find_n),
+     METH_VARARGS | METH_KEYWORDS,
+     py_kdtree_find_n_doc},
     {"find_range",
-     (PyCFunction)py_kdtree_find_range,
+     reinterpret_cast<PyCFunction>(py_kdtree_find_range),
      METH_VARARGS | METH_KEYWORDS,
      py_kdtree_find_range_doc},
     {nullptr, nullptr, 0, nullptr},
@@ -411,7 +430,7 @@ PyTypeObject PyKDTree_Type = {
     /*tp_name*/ "KDTree",
     /*tp_basicsize*/ sizeof(PyKDTree),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)PyKDTree__tp_dealloc,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(PyKDTree__tp_dealloc),
     /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -434,7 +453,7 @@ PyTypeObject PyKDTree_Type = {
     /*tp_weaklistoffset*/ 0,
     /*tp_iter*/ nullptr,
     /*tp_iternext*/ nullptr,
-    /*tp_methods*/ (PyMethodDef *)PyKDTree_methods,
+    /*tp_methods*/ static_cast<PyMethodDef *>(PyKDTree_methods),
     /*tp_members*/ nullptr,
     /*tp_getset*/ nullptr,
     /*tp_base*/ nullptr,
@@ -442,17 +461,17 @@ PyTypeObject PyKDTree_Type = {
     /*tp_descr_get*/ nullptr,
     /*tp_descr_set*/ nullptr,
     /*tp_dictoffset*/ 0,
-    /*tp_init*/ (initproc)PyKDTree__tp_init,
-    /*tp_alloc*/ (allocfunc)PyType_GenericAlloc,
-    /*tp_new*/ (newfunc)PyType_GenericNew,
-    /*tp_free*/ (freefunc) nullptr,
+    /*tp_init*/ reinterpret_cast<initproc>(PyKDTree__tp_init),
+    /*tp_alloc*/ static_cast<allocfunc>(PyType_GenericAlloc),
+    /*tp_new*/ static_cast<newfunc>(PyType_GenericNew),
+    /*tp_free*/ static_cast<freefunc>(nullptr),
     /*tp_is_gc*/ nullptr,
     /*tp_bases*/ nullptr,
     /*tp_mro*/ nullptr,
     /*tp_cache*/ nullptr,
     /*tp_subclasses*/ nullptr,
     /*tp_weaklist*/ nullptr,
-    /*tp_del*/ (destructor) nullptr,
+    /*tp_del*/ static_cast<destructor>(nullptr),
     /*tp_version_tag*/ 0,
     /*tp_finalize*/ nullptr,
     /*tp_vectorcall*/ nullptr,
@@ -490,3 +509,5 @@ PyMODINIT_FUNC PyInit_mathutils_kdtree()
 
   return m;
 }
+
+}  // namespace blender

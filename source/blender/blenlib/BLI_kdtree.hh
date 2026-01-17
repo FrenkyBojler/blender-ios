@@ -27,13 +27,13 @@ constexpr int kd_stack_init = 100;     /* initial size for array (on the stack) 
 constexpr int kd_near_alloc_inc = 100; /* alloc increment for collecting nearest */
 constexpr int kd_found_alloc_inc = 50; /* alloc increment for collecting nearest */
 
-constexpr uint kd_node_unset = ((uint)-1);
+constexpr uint kd_node_unset = (uint(-1));
 
 /**
  * When set we know all values are unbalanced,
  * otherwise clear them when re-balancing: see #62210.
  */
-constexpr uint kd_node_root_is_init = ((uint)-2);
+constexpr uint kd_node_root_is_init = (uint(-2));
 
 }  // namespace detail
 
@@ -545,7 +545,7 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(const KDTree<CoordT> *tree,
     MEM_freeN(stack);
   }
 
-  return (int)nearest_len;
+  return int(nearest_len);
 }
 
 template<typename CoordT>
@@ -678,7 +678,7 @@ inline int kdtree_range_search_with_len_squared_cb(const KDTree<CoordT> *tree,
 
   *r_nearest = nearest;
 
-  return (int)nearest_len;
+  return int(nearest_len);
 }
 
 template<typename CoordT>
@@ -772,12 +772,12 @@ namespace detail {
  * Use when we want to loop over nodes ordered by index.
  * Requires indices to be aligned with nodes.
  */
-template<typename CoordT> static blender::Vector<int> kdtree_order(const KDTree<CoordT> *tree)
+template<typename CoordT> static Vector<int> kdtree_order(const KDTree<CoordT> *tree)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
-  blender::Vector<int> order(tree->max_node_index + 1, -1);
+  Vector<int> order(tree->max_node_index + 1, -1);
   for (uint i = 0; i < tree->nodes_len; i++) {
-    order[nodes[i].index] = (int)i;
+    order[nodes[i].index] = int(i);
   }
   return order;
 }
@@ -816,7 +816,7 @@ static void deduplicate_recursive(const DeDuplicateParams<CoordT> *p, uint i)
   else {
     if ((p->search != node->index) && (p->duplicates[node->index] == -1)) {
       if (math::distance_squared(node->co, p->search_co) <= p->range_sq) {
-        p->duplicates[node->index] = (int)p->search;
+        p->duplicates[node->index] = int(p->search);
         *p->duplicates_found += 1;
       }
     }
@@ -865,7 +865,7 @@ inline int kdtree_calc_duplicates_fast(const KDTree<CoordT> *tree,
   p.duplicates_found = &found;
 
   if (use_index_order) {
-    blender::Vector<int> order = detail::kdtree_order<CoordT>(tree);
+    Vector<int> order = detail::kdtree_order<CoordT>(tree);
     for (int i = 0; i < tree->max_node_index + 1; i++) {
       const int node_index = order[i];
       if (node_index == -1) {
@@ -941,7 +941,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
 
   /* Use `index_to_node_index` so coordinates are looked up in order first to last. */
   const uint nodes_len = tree->nodes_len;
-  blender::Array<int> index_to_node_index(tree->max_node_index + 1);
+  Array<int> index_to_node_index(tree->max_node_index + 1);
   for (uint i = 0; i < nodes_len; i++) {
     index_to_node_index[tree->nodes[i].index] = int(i);
   }
@@ -950,8 +950,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
 
   /* First pass, handle merging into self-index (if any exist). */
   if (has_self_index) {
-    blender::Array<typename KDTree<CoordT>::ValueType> duplicates_dist_sq(tree->max_node_index +
-                                                                          1);
+    Array<typename KDTree<CoordT>::ValueType> duplicates_dist_sq(tree->max_node_index + 1);
     for (uint i = 0; i < nodes_len; i++) {
       const int node_index = tree->nodes[i].index;
       if (node_index != duplicates[node_index]) {
@@ -991,7 +990,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
   /* Second pass, de-duplicate clusters that weren't handled in the first pass. */
 
   /* Could be inline, declare here to avoid re-allocation. */
-  blender::Vector<int> cluster;
+  Vector<int> cluster;
   for (uint i = 0; i < nodes_len; i++) {
     const int node_index = tree->nodes[i].index;
     if (duplicates[node_index] != -1) {
@@ -1063,7 +1062,8 @@ static int kdtree_node_cmp_deduplicate(const void *n0_p, const void *n1_p)
     /* Two nodes share identical `co`
      * Both are still valid.
      * Cast away `const` and tag one of them as invalid. */
-    ((KDTreeNode<CoordT> *)n1)->d = KDTree<CoordT>::DimsNum;
+    (static_cast<KDTreeNode<CoordT> *>(const_cast<KDTreeNode<CoordT> *>(n1)))->d =
+        KDTree<CoordT>::DimsNum;
   }
 
   /* Keep sorting until each unique value has one and only one valid node. */
@@ -1084,7 +1084,7 @@ template<typename CoordT> inline int kdtree_deduplicate(KDTree<CoordT> *tree)
   tree->is_balanced = false;
 #endif
   qsort(tree->nodes,
-        (size_t)tree->nodes_len,
+        size_t(tree->nodes_len),
         sizeof(*tree->nodes),
         detail::kdtree_node_cmp_deduplicate<CoordT>);
   uint j = 0;
@@ -1097,14 +1097,10 @@ template<typename CoordT> inline int kdtree_deduplicate(KDTree<CoordT> *tree)
     }
   }
   tree->nodes_len = j;
-  return (int)tree->nodes_len;
+  return int(tree->nodes_len);
 }
 
 /** \} */
-
-}  //  namespace blender
-
-namespace blender {
 
 constexpr inline auto kdtree_1d_new = kdtree_new<float1>;
 constexpr inline auto kdtree_2d_new = kdtree_new<float2>;

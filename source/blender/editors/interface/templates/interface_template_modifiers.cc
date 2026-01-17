@@ -26,7 +26,7 @@ namespace blender::ui {
 
 static void modifier_panel_id(void *md_link, char *r_name)
 {
-  ModifierData *md = (ModifierData *)md_link;
+  ModifierData *md = static_cast<ModifierData *>(md_link);
   BKE_modifier_type_panel_id(ModifierType(md->type), r_name);
 }
 
@@ -34,7 +34,7 @@ void template_modifiers(Layout * /*layout*/, bContext *C)
 {
   ARegion *region = CTX_wm_region(C);
 
-  Object *ob = blender::ed::object::context_active_object(C);
+  Object *ob = ed::object::context_active_object(C);
   ListBaseT<ModifierData> *modifiers = &ob->modifiers;
 
   const bool panels_match = panel_list_matches_data(region, modifiers, modifier_panel_id);
@@ -52,7 +52,7 @@ void template_modifiers(Layout * /*layout*/, bContext *C)
 
       /* Create custom data RNA pointer. */
       PointerRNA *md_ptr = MEM_new<PointerRNA>(__func__);
-      *md_ptr = RNA_pointer_create_id_subdata(ob->id, &RNA_Modifier, &md);
+      *md_ptr = RNA_pointer_create_id_subdata(ob->id, RNA_Modifier, &md);
 
       panel_add_instanced(C, region, &region->panels, panel_idname, md_ptr);
     }
@@ -74,7 +74,7 @@ void template_modifiers(Layout * /*layout*/, bContext *C)
       }
 
       PointerRNA *md_ptr = MEM_new<PointerRNA>(__func__);
-      *md_ptr = RNA_pointer_create_id_subdata(ob->id, &RNA_Modifier, &md);
+      *md_ptr = RNA_pointer_create_id_subdata(ob->id, RNA_Modifier, &md);
       panel_custom_data_set(panel, md_ptr);
 
       panel = panel->next;

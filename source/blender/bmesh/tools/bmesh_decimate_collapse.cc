@@ -12,7 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
+#include "BLI_array.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_heap.h"
 #include "BLI_linklist.h"
@@ -35,6 +35,8 @@
 #ifdef USE_SYMMETRY
 #  include "BLI_kdtree.hh"
 #endif
+
+namespace blender {
 
 /* defines for testing */
 #define USE_CUSTOMDATA
@@ -375,9 +377,9 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
   uint i;
   int *edge_symmetry_map;
   const float limit_sq = square_f(limit);
-  blender::KDTree_3d *tree;
+  KDTree_3d *tree;
 
-  tree = blender::kdtree_3d_new(bm->totedge);
+  tree = kdtree_3d_new(bm->totedge);
 
   etable = MEM_malloc_arrayN<BMEdge *>(bm->totedge, __func__);
   edge_symmetry_map = MEM_malloc_arrayN<int>(bm->totedge, __func__);
@@ -385,12 +387,12 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
   BM_ITER_MESH_INDEX (e, &iter, bm, BM_EDGES_OF_MESH, i) {
     float co[3];
     mid_v3_v3v3(co, e->v1->co, e->v2->co);
-    blender::kdtree_3d_insert(tree, i, co);
+    kdtree_3d_insert(tree, i, co);
     etable[i] = e;
     edge_symmetry_map[i] = -1;
   }
 
-  blender::kdtree_3d_balance(tree);
+  kdtree_3d_balance(tree);
 
   sym_data.etable = etable;
   sym_data.limit_sq = limit_sq;
@@ -408,8 +410,8 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
       sub_v3_v3v3(sym_data.e_dir, sym_data.e_v2_co, sym_data.e_v1_co);
       sym_data.e_found_index = -1;
 
-      blender::kdtree_range_search_cb<blender::float3>(
-          tree, co, limit, [&](int index, const blender::float3 & /*co*/, float /*dist_sq*/) {
+      kdtree_range_search_cb<float3>(
+          tree, co, limit, [&](int index, const float3 & /*co*/, float /*dist_sq*/) {
             BMEdge *e_other = sym_data.etable[index];
             float e_other_dir[3];
 
@@ -444,7 +446,7 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
   }
 
   MEM_freeN(etable);
-  blender::kdtree_3d_free(tree);
+  kdtree_3d_free(tree);
 
   return edge_symmetry_map;
 }
@@ -478,8 +480,8 @@ static bool bm_face_triangulate(BMesh *bm,
   const int f_base_len = f_base->len;
   int faces_array_tot = f_base_len - 3;
   int edges_array_tot = f_base_len - 3;
-  BMFace **faces_array = BLI_array_alloca(faces_array, faces_array_tot);
-  BMEdge **edges_array = BLI_array_alloca(edges_array, edges_array_tot);
+  Array<BMFace *, BM_DEFAULT_NGON_STACK_SIZE> faces_array(faces_array_tot);
+  Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edges_array(edges_array_tot);
   const int quad_method = 0, ngon_method = 0; /* beauty */
 
   bool has_cut = false;
@@ -488,9 +490,9 @@ static bool bm_face_triangulate(BMesh *bm,
 
   BM_face_triangulate(bm,
                       f_base,
-                      faces_array,
+                      faces_array.data(),
                       &faces_array_tot,
-                      edges_array,
+                      edges_array.data(),
                       &edges_array_tot,
                       r_faces_double,
                       quad_method,
@@ -601,8 +603,7 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
   BMEdge *e;
 
   /* we need to collect before merging for ngons since the loops indices will be lost */
-  BMEdge **edges_tri = static_cast<BMEdge **>(
-      MEM_mallocN(std::min(edges_tri_tot, bm->totedge) * sizeof(*edges_tri), __func__));
+  BMEdge **edges_tri = MEM_malloc_arrayN<BMEdge *>(std::min(edges_tri_tot, bm->totedge), __func__);
   STACK_DECLARE(edges_tri);
 
   STACK_INIT(edges_tri, std::min(edges_tri_tot, bm->totedge));
@@ -1523,3 +1524,5 @@ void BM_mesh_decimate_collapse(BMesh *bm,
   /* quiet release build warning */
   (void)tot_edge_orig;
 }
+
+}  // namespace blender

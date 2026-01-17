@@ -90,7 +90,7 @@
 
 #include "image_intern.hh"
 
-using blender::Vector;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name View Navigation Utilities
@@ -183,7 +183,7 @@ static Image *image_from_context(const bContext *C)
 {
   /* Edit image is set by templates used throughout the interface, so image
    * operations work outside the image editor. */
-  Image *ima = static_cast<Image *>(CTX_data_pointer_get_type(C, "edit_image", &RNA_Image).data);
+  Image *ima = static_cast<Image *>(CTX_data_pointer_get_type(C, "edit_image", RNA_Image).data);
 
   if (ima) {
     return ima;
@@ -199,7 +199,7 @@ static ImageUser *image_user_from_context(const bContext *C)
   /* Edit image user is set by templates used throughout the interface, so
    * image operations work outside the image editor. */
   ImageUser *iuser = static_cast<ImageUser *>(
-      CTX_data_pointer_get_type(C, "edit_image_user", &RNA_ImageUser).data);
+      CTX_data_pointer_get_type(C, "edit_image_user", RNA_ImageUser).data);
 
   if (iuser) {
     return iuser;
@@ -224,8 +224,10 @@ static ImageUser image_user_from_context_and_active_tile(const bContext *C, Imag
 
   /* Use the file associated with the active tile. Otherwise use the first tile. */
   if (ima && ima->source == IMA_SRC_TILED) {
-    const ImageTile *active = (ImageTile *)BLI_findlink(&ima->tiles, ima->active_tile_index);
-    iuser.tile = active ? active->tile_number : ((ImageTile *)ima->tiles.first)->tile_number;
+    const ImageTile *active = static_cast<ImageTile *>(
+        BLI_findlink(&ima->tiles, ima->active_tile_index));
+    iuser.tile = active ? active->tile_number :
+                          (static_cast<ImageTile *>(ima->tiles.first))->tile_number;
   }
 
   return iuser;
@@ -555,7 +557,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   vpd->zoom = sima->zoom;
   vpd->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
-  blender::ui::view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &vpd->location[0], &vpd->location[1]);
 
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
@@ -619,7 +621,7 @@ static wmOperatorStatus image_view_zoom_invoke(bContext *C, wmOperator *op, cons
     ARegion *region = CTX_wm_region(C);
     float delta, factor, location[2];
 
-    blender::ui::view2d_region_to_view(
+    ui::view2d_region_to_view(
         &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
 
     delta = event->prev_xy[0] - event->xy[0] + event->prev_xy[1] - event->xy[1];
@@ -832,7 +834,7 @@ static wmOperatorStatus image_view_ndof_invoke(bContext *C,
   const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(event->customdata);
   const float pan_speed = NDOF_PIXELS_PER_SECOND;
 
-  blender::float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get_for_navigation(ndof);
+  float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get_for_navigation(ndof);
 
   mul_v2_fl(pan_vec, pan_speed / sima->zoom);
 
@@ -1082,7 +1084,7 @@ static wmOperatorStatus image_view_zoom_in_invoke(bContext *C,
   ARegion *region = CTX_wm_region(C);
   float location[2];
 
-  blender::ui::view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
   RNA_float_set_array(op->ptr, "location", location);
 
@@ -1143,7 +1145,7 @@ static wmOperatorStatus image_view_zoom_out_invoke(bContext *C,
   ARegion *region = CTX_wm_region(C);
   float location[2];
 
-  blender::ui::view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
   RNA_float_set_array(op->ptr, "location", location);
 
@@ -1244,7 +1246,7 @@ static wmOperatorStatus image_view_zoom_border_exec(bContext *C, wmOperator *op)
 
   WM_operator_properties_border_to_rctf(op, &bounds);
 
-  blender::ui::view2d_region_to_view_rctf(&region->v2d, &bounds, &bounds);
+  ui::view2d_region_to_view_rctf(&region->v2d, &bounds, &bounds);
 
   struct {
     float xof;
@@ -1312,8 +1314,8 @@ static void image_open_init(bContext *C, wmOperator *op)
   ImageOpenData *iod;
   op->customdata = iod = MEM_new<ImageOpenData>(__func__);
   iod->iuser = static_cast<ImageUser *>(
-      CTX_data_pointer_get_type(C, "image_user", &RNA_ImageUser).data);
-  blender::ui::context_active_but_prop_get_templateID(C, &iod->pprop.ptr, &iod->pprop.prop);
+      CTX_data_pointer_get_type(C, "image_user", RNA_ImageUser).data);
+  ui::context_active_but_prop_get_templateID(C, &iod->pprop.ptr, &iod->pprop.prop);
 }
 
 static void image_open_cancel(bContext * /*C*/, wmOperator *op)
@@ -1405,9 +1407,8 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ID *owner_id = iod->pprop.ptr.owner_id;
   Library *owner_library = owner_id ? owner_id->lib : nullptr;
-  blender::StringRefNull blendfile_path = BKE_main_blendfile_path(bmain);
-  blender::StringRefNull root_path = owner_library ? owner_library->runtime->filepath_abs :
-                                                     blendfile_path;
+  StringRefNull blendfile_path = BKE_main_blendfile_path(bmain);
+  StringRefNull root_path = owner_library ? owner_library->runtime->filepath_abs : blendfile_path;
 
   ListBaseT<ImageFrameRange> ranges = ED_image_filesel_detect_sequences(
       blendfile_path, root_path, op, use_udim);
@@ -1454,14 +1455,13 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
     iuser = &sima->iuser;
   }
   else {
-    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data);
+    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", RNA_Texture).data);
     if (tex && tex->type == TEX_IMAGE) {
       iuser = &tex->iuser;
     }
 
     if (iuser == nullptr) {
-      Camera *cam = static_cast<Camera *>(
-          CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
+      Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", RNA_Camera).data);
       if (cam) {
         for (CameraBGImage &bgpic : cam->bg_images) {
           if (bgpic.ima == ima) {
@@ -1513,7 +1513,7 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
   }
 
   if (ima == nullptr) {
-    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data);
+    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", RNA_Texture).data);
     if (tex && tex->type == TEX_IMAGE) {
       ima = tex->ima;
     }
@@ -1524,14 +1524,14 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
     PropertyRNA *prop;
 
     /* hook into UI */
-    blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
+    ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
     if (prop) {
       PointerRNA oldptr;
       Image *oldima;
 
       oldptr = RNA_property_pointer_get(&ptr, prop);
-      oldima = (Image *)oldptr.owner_id;
+      oldima = id_cast<Image *>(oldptr.owner_id);
       /* unlikely to fail but better avoid strange crash */
       if (oldima && GS(oldima->id.name) == ID_IM) {
         ima = oldima;
@@ -1570,7 +1570,7 @@ static bool image_open_draw_check_prop(PointerRNA * /*ptr*/,
 
 static void image_open_draw(bContext * /*C*/, wmOperator *op)
 {
-  blender::ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op->layout;
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ImageFormatData *imf = &iod->im_format;
 
@@ -1580,11 +1580,11 @@ static void image_open_draw(bContext * /*C*/, wmOperator *op)
                    image_open_draw_check_prop,
                    nullptr,
                    nullptr,
-                   blender::ui::BUT_LABEL_ALIGN_NONE,
+                   ui::BUT_LABEL_ALIGN_NONE,
                    false);
 
   /* image template */
-  PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, imf);
+  PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, RNA_ImageFormatSettings, imf);
 
   /* multiview template */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
@@ -1697,7 +1697,7 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
     wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
 
     if (event->modifier & KM_ALT) {
-      char *lslash = (char *)BLI_path_slash_rfind(filepath);
+      char *lslash = const_cast<char *>(BLI_path_slash_rfind(filepath));
       if (lslash) {
         *lslash = '\0';
       }
@@ -1709,14 +1709,14 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
 
     PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_string_set(&props_ptr, "filepath", filepath);
-    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     return OPERATOR_CANCELLED;
   }
 
   /* The image is typically passed to the operator via layout/button context (e.g.
-   * # blender::ui::Layout::context_ptr_set. The File Browser doesn't support
+   * # ui::Layout::context_ptr_set. The File Browser doesn't support
    * restoring this context when calling `exec()` though, so we have to pass it the image via
    * custom data. */
   op->customdata = ima;
@@ -1773,7 +1773,7 @@ static wmOperatorStatus image_match_len_exec(bContext *C, wmOperator * /*op*/)
 
   if (!ima || !iuser) {
     /* Try to get a Texture, or a SpaceImage from context... */
-    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data);
+    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", RNA_Texture).data);
     if (tex && tex->type == TEX_IMAGE) {
       ima = tex->ima;
       iuser = &tex->iuser;
@@ -1784,7 +1784,7 @@ static wmOperatorStatus image_match_len_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
+  MovieReader *anim = (static_cast<ImageAnim *>(ima->anims.first))->anim;
   if (!anim) {
     return OPERATOR_CANCELLED;
   }
@@ -2077,7 +2077,7 @@ static bool image_save_as_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop, vo
 
 static void image_save_as_draw(bContext *C, wmOperator *op)
 {
-  blender::ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op->layout;
   ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
   const bool is_multiview = RNA_boolean_get(op->ptr, "show_multiview");
   const bool save_as_render = RNA_boolean_get(op->ptr, "save_as_render");
@@ -2091,19 +2091,19 @@ static void image_save_as_draw(bContext *C, wmOperator *op)
                    image_save_as_draw_check_prop,
                    isd,
                    nullptr,
-                   blender::ui::BUT_LABEL_ALIGN_NONE,
+                   ui::BUT_LABEL_ALIGN_NONE,
                    false);
 
   layout.separator();
 
   /* Image format settings. */
   PointerRNA imf_ptr = RNA_pointer_create_discrete(
-      nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
+      nullptr, RNA_ImageFormatSettings, &isd->opts.im_format);
   uiTemplateImageSettings(&layout, C, &imf_ptr, save_as_render);
 
   if (!save_as_render) {
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imf_ptr, "linear_colorspace_settings");
-    blender::ui::Layout &col = layout.column(true);
+    ui::Layout &col = layout.column(true);
     col.separator();
     col.prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
   }
@@ -2279,8 +2279,7 @@ static wmOperatorStatus image_save_invoke(bContext *C, wmOperator *op, const wmE
   if (!BKE_image_has_packedfile(ima) &&
       (!BKE_image_has_filepath(ima) || !image_file_format_writable(ima, iuser)))
   {
-    WM_operator_name_call(
-        C, "IMAGE_OT_save_as", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
+    WM_operator_name_call(C, "IMAGE_OT_save_as", wm::OpCallContext::InvokeDefault, nullptr, event);
     return OPERATOR_CANCELLED;
   }
   return image_save_exec(C, op);
@@ -2441,7 +2440,7 @@ bool ED_image_should_save_modified(const Main *bmain)
 
 int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
 {
-  blender::Set<std::string> unique_paths;
+  Set<std::string> unique_paths;
 
   int num_saveable_images = 0;
 
@@ -2622,7 +2621,7 @@ static ImageNewData *image_new_init(bContext *C, wmOperator *op)
   }
 
   ImageNewData *data = MEM_new<ImageNewData>(__func__);
-  blender::ui::context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
+  ui::context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
   op->customdata = data;
   return data;
 }
@@ -2728,7 +2727,7 @@ static wmOperatorStatus image_new_invoke(bContext *C, wmOperator *op, const wmEv
   /* Get property in advance, it doesn't work after WM_operator_props_dialog_popup. */
   ImageNewData *data;
   op->customdata = data = MEM_new<ImageNewData>(__func__);
-  blender::ui::context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
+  ui::context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
 
   /* Better for user feedback. */
   RNA_string_set(op->ptr, "name", DATA_(IMA_DEF_NAME));
@@ -2738,14 +2737,14 @@ static wmOperatorStatus image_new_invoke(bContext *C, wmOperator *op, const wmEv
 
 static void image_new_draw(bContext * /*C*/, wmOperator *op)
 {
-  blender::ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op->layout;
 
   /* copy of WM_operator_props_dialog_popup() layout */
 
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  blender::ui::Layout &col = layout.column(false);
+  ui::Layout &col = layout.column(false);
   col.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -3564,7 +3563,7 @@ static wmOperatorStatus image_unpack_invoke(bContext *C, wmOperator *op, const w
               ima->filepath,
               "textures",
               BKE_image_has_packedfile(ima) ?
-                  ((ImagePackedFile *)ima->packedfiles.first)->packedfile :
+                  (static_cast<ImagePackedFile *>(ima->packedfiles.first))->packedfile :
                   nullptr);
 
   return OPERATOR_FINISHED;
@@ -3612,7 +3611,7 @@ bool ED_space_image_get_position(SpaceImage *sima,
     return false;
   }
 
-  blender::ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &r_fpos[0], &r_fpos[1]);
+  ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &r_fpos[0], &r_fpos[1]);
 
   ED_space_image_release_buffer(sima, ibuf, lock);
   return true;
@@ -3628,7 +3627,7 @@ bool ED_space_image_color_sample(
     return false;
   }
   float uv[2];
-  blender::ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &uv[0], &uv[1]);
+  ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &uv[0], &uv[1]);
   int tile = BKE_image_get_tile_from_pos(sima->image, uv, uv, nullptr);
 
   void *lock;
@@ -3710,8 +3709,8 @@ static wmOperatorStatus image_sample_line_exec(bContext *C, wmOperator *op)
   int y_end = RNA_int_get(op->ptr, "yend");
 
   float uv1[2], uv2[2], ofs[2];
-  blender::ui::view2d_region_to_view(&region->v2d, x_start, y_start, &uv1[0], &uv1[1]);
-  blender::ui::view2d_region_to_view(&region->v2d, x_end, y_end, &uv2[0], &uv2[1]);
+  ui::view2d_region_to_view(&region->v2d, x_start, y_start, &uv1[0], &uv1[1]);
+  ui::view2d_region_to_view(&region->v2d, x_end, y_end, &uv2[0], &uv2[1]);
 
   /* If the image has tiles, shift the positions accordingly. */
   int tile = BKE_image_get_tile_from_pos(ima, uv1, uv1, ofs);
@@ -4025,8 +4024,7 @@ static int frame_from_event(bContext *C, const wmEvent *event)
   else {
     float viewx, viewy;
 
-    blender::ui::view2d_region_to_view(
-        &region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
+    ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
 
     framenr = round_fl_to_int(viewx);
   }
@@ -4160,7 +4158,7 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
   /* Get rectangle from the operator. */
   rctf border;
   WM_operator_properties_border_to_rctf(op, &border);
-  blender::ui::view2d_region_to_view_rctf(&region->v2d, &border, &border);
+  ui::view2d_region_to_view_rctf(&region->v2d, &border, &border);
 
   /* Adjust for cropping. */
   if ((rd->mode & (R_BORDER | R_CROP)) == (R_BORDER | R_CROP)) {
@@ -4271,12 +4269,12 @@ static bool do_fill_tile(PointerRNA *ptr, Image *ima, ImageTile *tile)
   return BKE_image_fill_tile(ima, tile);
 }
 
-static void draw_fill_tile(PointerRNA *ptr, blender::ui::Layout &layout)
+static void draw_fill_tile(PointerRNA *ptr, ui::Layout &layout)
 {
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  blender::ui::Layout &col = layout.column(false);
+  ui::Layout &col = layout.column(false);
   col.prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4416,12 +4414,12 @@ static wmOperatorStatus tile_add_invoke(bContext *C, wmOperator *op, const wmEve
 
 static void tile_add_draw(bContext * /*C*/, wmOperator *op)
 {
-  blender::ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op->layout;
 
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  blender::ui::Layout &col = layout.column(false);
+  ui::Layout &col = layout.column(false);
   col.prop(op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(op->ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(op->ptr, "label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4578,3 +4576,5 @@ void IMAGE_OT_tile_fill(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender
