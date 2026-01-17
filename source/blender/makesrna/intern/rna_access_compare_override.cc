@@ -47,6 +47,8 @@
 #include "rna_access_internal.hh"
 #include "rna_internal.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"rna.access_compare_override"};
 
 /**
@@ -83,7 +85,7 @@ static ID *rna_property_override_property_real_id_owner(Main * /*bmain*/,
 
     switch (GS(id->name)) {
       case ID_KE:
-        owner_id = (blender::id_cast<Key *>(id))->from;
+        owner_id = (id_cast<Key *>(id))->from;
         rna_path_prefix = "shape_keys.";
         break;
       case ID_GR:
@@ -126,31 +128,31 @@ bool RNA_property_overridable_get(const PointerRNA *ptr, PropertyRNA *prop)
      * (like a special property in struct of items)
      * if we get more overridable collections,
      * for now we can live with those special-cases handling I think. */
-    if (RNA_struct_is_a(ptr->type, &RNA_Constraint)) {
+    if (RNA_struct_is_a(ptr->type, RNA_Constraint)) {
       bConstraint *con = static_cast<bConstraint *>(ptr->data);
       if (con->flag & CONSTRAINT_OVERRIDE_LIBRARY_LOCAL) {
         return true;
       }
     }
-    else if (RNA_struct_is_a(ptr->type, &RNA_Modifier)) {
+    else if (RNA_struct_is_a(ptr->type, RNA_Modifier)) {
       ModifierData *mod = static_cast<ModifierData *>(ptr->data);
       if (mod->flag & eModifierFlag_OverrideLibrary_Local) {
         return true;
       }
     }
-    else if (RNA_struct_is_a(ptr->type, &RNA_NlaTrack)) {
+    else if (RNA_struct_is_a(ptr->type, RNA_NlaTrack)) {
       NlaTrack *nla_track = static_cast<NlaTrack *>(ptr->data);
       if (nla_track->flag & NLATRACK_OVERRIDELIBRARY_LOCAL) {
         return true;
       }
     }
-    else if (RNA_struct_is_a(ptr->type, &RNA_CameraBackgroundImage)) {
+    else if (RNA_struct_is_a(ptr->type, RNA_CameraBackgroundImage)) {
       CameraBGImage *bgpic = static_cast<CameraBGImage *>(ptr->data);
       if (bgpic->flag & CAM_BGIMG_FLAG_OVERRIDE_LIBRARY_LOCAL) {
         return true;
       }
     }
-    else if (RNA_struct_is_a(ptr->type, &RNA_BoneCollection)) {
+    else if (RNA_struct_is_a(ptr->type, RNA_BoneCollection)) {
       BoneCollection *bcoll = static_cast<BoneCollection *>(ptr->data);
       if (bcoll->flags & BONE_COLLECTION_OVERRIDE_LIBRARY_LOCAL) {
         return true;
@@ -646,15 +648,13 @@ bool RNA_struct_override_matches(Main *bmain,
      * missing updates (possibly due to dependencies?). Since calling this function on same ID
      * several time is almost free, and safe even in a threaded context as long as it has been done
      * at least once first outside of threaded processing, we do it another time here. */
-    Object *ob_local = blender::id_cast<Object *>(ptr_local->owner_id);
+    Object *ob_local = id_cast<Object *>(ptr_local->owner_id);
     if (ob_local->type == OB_ARMATURE) {
-      Object *ob_reference = blender::id_cast<Object *>(
-          ptr_local->owner_id->override_library->reference);
+      Object *ob_reference = id_cast<Object *>(ptr_local->owner_id->override_library->reference);
       BLI_assert(ob_local->data != nullptr);
       BLI_assert(ob_reference->data != nullptr);
-      BKE_pose_ensure(bmain, ob_local, blender::id_cast<bArmature *>(ob_local->data), true);
-      BKE_pose_ensure(
-          bmain, ob_reference, blender::id_cast<bArmature *>(ob_reference->data), true);
+      BKE_pose_ensure(bmain, ob_local, id_cast<bArmature *>(ob_local->data), true);
+      BKE_pose_ensure(bmain, ob_reference, id_cast<bArmature *>(ob_reference->data), true);
     }
   }
 
@@ -1644,7 +1644,7 @@ void RNA_struct_override_apply(Main *bmain,
   }
 
   /* Some cases (like point caches) may require additional post-processing. */
-  if (RNA_struct_is_a(id_ptr_dst->type, &RNA_ID)) {
+  if (RNA_struct_is_a(id_ptr_dst->type, RNA_ID)) {
     ID *id_dst = static_cast<ID *>(id_ptr_dst->data);
     ID *id_src = static_cast<ID *>(id_ptr_src->data);
     const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id_dst);
@@ -1766,3 +1766,5 @@ eRNAOverrideStatus RNA_property_override_library_status(Main *bmain,
 
   return override_status;
 }
+
+}  // namespace blender

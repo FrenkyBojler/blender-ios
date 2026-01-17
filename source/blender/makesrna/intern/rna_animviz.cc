@@ -18,6 +18,8 @@
 
 #include "WM_types.hh"
 
+namespace blender {
+
 /* Which part of bone(s) get baked */
 /* TODO: icons? */
 const EnumPropertyItem rna_enum_motionpath_bake_location_items[] = {
@@ -59,13 +61,17 @@ const EnumPropertyItem rna_enum_motionpath_range_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include "DNA_userdef_types.h"
 
+namespace blender {
+
 static PointerRNA rna_AnimViz_motion_paths_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_AnimVizMotionPaths, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_AnimVizMotionPaths, ptr->data);
 }
 
 static void rna_AnimViz_path_start_frame_set(PointerRNA *ptr, int value)
@@ -91,7 +97,11 @@ static void rna_AnimViz_path_end_frame_set(PointerRNA *ptr, int value)
   }
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void rna_def_motionpath_common(StructRNA *srna)
 {
@@ -373,5 +383,7 @@ void RNA_def_animviz(BlenderRNA *brna)
   rna_def_animviz_motion_path(brna);
   rna_def_animviz_motionpath_vert(brna);
 }
+
+}  // namespace blender
 
 #endif

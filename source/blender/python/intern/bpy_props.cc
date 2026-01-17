@@ -42,7 +42,7 @@
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
-using blender::Array;
+namespace blender {
 
 /* Disabled duplicating strings because the array can still be freed and
  * the strings from it referenced, for now we can't support dynamically
@@ -2042,9 +2042,7 @@ static std::string bpy_prop_string_set_transform_fn(PointerRNA *ptr,
 }
 
 static bool bpy_prop_string_visit_fn_call(
-    PyObject *py_func,
-    PyObject *item,
-    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+    PyObject *py_func, PyObject *item, FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
   const char *text;
   const char *info = nullptr;
@@ -2093,7 +2091,7 @@ static void bpy_prop_string_visit_for_search_fn(
     PointerRNA *ptr,
     PropertyRNA *prop,
     const char *edit_text,
-    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
   PyGILState_STATE gilstate;
   if (C) {
@@ -2726,7 +2724,7 @@ static int bpy_prop_callback_check(PyObject *py_func, const char *keyword, int a
       return -1;
     }
 
-    PyCodeObject *f_code = reinterpret_cast<PyCodeObject *> PyFunction_GET_CODE(py_func);
+    PyCodeObject *f_code = reinterpret_cast<PyCodeObject *>(PyFunction_GET_CODE(py_func));
     if (f_code->co_argcount != argcount) {
       PyErr_Format(PyExc_TypeError,
                    "%s keyword: expected a function taking %d arguments, not %d",
@@ -3403,7 +3401,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
 #define BPY_PROPDEF_FLOAT_STEP_DOC \
   "   :arg step: Step of increment/decrement in UI, in [1, 100], defaults to 3 (WARNING: actual " \
   "value is /100).\n" \
-  "   :type step: int\n"
+  "   :type step: float\n"
 
 #define BPY_PROPDEF_FLOAT_PREC_DOC \
   "   :arg precision: Maximum number of decimal digits to display, in [0, 6]. Fraction is " \
@@ -3495,7 +3493,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :type search_options: set[str]\n"
 
 #define BPY_PROPDEF_POINTER_TYPE_DOC \
-  "   :arg type: A subclass of a property group or ID types.\n" \
+  "   :arg type: A subclass of PropertyGroup or ID.\n" \
   "   :type type: type[:class:`bpy.types.PropertyGroup` | :class:`bpy.types.ID`]\n"
 
 #define BPY_PROPDEF_COLLECTION_TYPE_DOC \
@@ -5149,7 +5147,7 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
   /* Items can be a list or a callable.
    * NOTE: Don't use #PyCallable_Check because we need the function code for errors. */
   if (PyFunction_Check(items)) {
-    PyCodeObject *f_code = reinterpret_cast<PyCodeObject *> PyFunction_GET_CODE(items);
+    PyCodeObject *f_code = reinterpret_cast<PyCodeObject *>(PyFunction_GET_CODE(items));
     if (f_code->co_argcount != 2) {
       PyErr_Format(PyExc_ValueError,
                    "EnumProperty(...): expected 'items' function to take 2 arguments, not %d",
@@ -5369,11 +5367,11 @@ PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
   if (!ptype) {
     return nullptr;
   }
-  if (!RNA_struct_is_a(ptype, &RNA_PropertyGroup) && !RNA_struct_is_ID(ptype)) {
+  if (!RNA_struct_is_a(ptype, RNA_PropertyGroup) && !RNA_struct_is_ID(ptype)) {
     PyErr_Format(PyExc_TypeError,
                  "PointerProperty(...) expected an RNA type derived from %.200s or %.200s",
-                 RNA_struct_ui_name(&RNA_ID),
-                 RNA_struct_ui_name(&RNA_PropertyGroup));
+                 RNA_struct_ui_name(RNA_ID),
+                 RNA_struct_ui_name(RNA_PropertyGroup));
     return nullptr;
   }
   if (bpy_prop_callback_check(update_fn, "update", 2) == -1) {
@@ -5403,7 +5401,7 @@ PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
   }
 
   if (RNA_struct_idprops_contains_datablock(ptype)) {
-    if (RNA_struct_is_a(srna, &RNA_PropertyGroup)) {
+    if (RNA_struct_is_a(srna, RNA_PropertyGroup)) {
       RNA_def_struct_flag(srna, STRUCT_CONTAINS_DATABLOCK_IDPROPERTIES);
     }
   }
@@ -5513,10 +5511,10 @@ PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
     return nullptr;
   }
 
-  if (!RNA_struct_is_a(ptype, &RNA_PropertyGroup)) {
+  if (!RNA_struct_is_a(ptype, RNA_PropertyGroup)) {
     PyErr_Format(PyExc_TypeError,
                  "CollectionProperty(...) expected an RNA type derived from %.200s",
-                 RNA_struct_ui_name(&RNA_PropertyGroup));
+                 RNA_struct_ui_name(RNA_PropertyGroup));
     return nullptr;
   }
 
@@ -5540,7 +5538,7 @@ PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
   }
 
   if (RNA_struct_idprops_contains_datablock(ptype)) {
-    if (RNA_struct_is_a(srna, &RNA_PropertyGroup)) {
+    if (RNA_struct_is_a(srna, RNA_PropertyGroup)) {
       RNA_def_struct_flag(srna, STRUCT_CONTAINS_DATABLOCK_IDPROPERTIES);
     }
   }
@@ -5561,8 +5559,10 @@ PyDoc_STRVAR(
     "   :arg attr: Property name (must be passed as a keyword).\n"
     "   :type attr: str\n"
     "\n"
-    ".. note:: Typically this function doesn't need to be accessed directly.\n"
-    "   Instead use ``del cls.attr``\n");
+    "   .. note::\n"
+    "\n"
+    "      Typically this function doesn't need to be accessed directly.\n"
+    "      Instead use ``del cls.attr``\n");
 static PyObject *BPy_RemoveProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
   StructRNA *srna;
@@ -5779,3 +5779,5 @@ void BPY_rna_props_clear_all()
 }
 
 /** \} */
+
+}  // namespace blender

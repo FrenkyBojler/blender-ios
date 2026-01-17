@@ -38,8 +38,7 @@ static FCurve *create_fcurve(animrig::Channelbag &channelbag,
                              const animrig::FCurveDescriptor &descriptor,
                              int64_t key_count)
 {
-  FCurve *cu = channelbag.fcurve_create_unique(nullptr, descriptor);
-  BLI_assert_msg(cu, "The same F-Curve is being created twice, this is unexpected.");
+  FCurve *cu = &channelbag.fcurve_ensure(nullptr, descriptor);
   BKE_fcurve_bezt_resize(cu, key_count);
   return cu;
 }
@@ -446,7 +445,7 @@ static void create_material_curves(const ElementAnimations &anim,
   const char *rna_path_2 = "nodes[\"Principled BSDF\"].inputs[0].default_value";
 
   /* Also create animation curves for the node tree diffuse color input. */
-  Material *target_mat = blender::id_cast<Material *>(anim.target_id);
+  Material *target_mat = id_cast<Material *>(anim.target_id);
   ID *target_ntree = reinterpret_cast<ID *>(target_mat->nodetree);
   animrig::Action &act = action->wrap();
   const animrig::Slot *slot = animrig::assign_action_ensure_slot_for_keying(act, *target_ntree);

@@ -31,14 +31,17 @@
 #include "vk_state_manager.hh"
 #include "vk_storage_buffer.hh"
 #include "vk_texture.hh"
+#include "vk_texture_pool.hh"
 #include "vk_uniform_buffer.hh"
 #include "vk_vertex_buffer.hh"
 
 #include "vk_backend.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 static const char *vk_extension_get(int index)
 {
@@ -651,6 +654,11 @@ Texture *VKBackend::texture_alloc(const char *name)
   return new VKTexture(name);
 }
 
+TexturePool *VKBackend::texturepool_alloc()
+{
+  return new VKTexturePool();
+}
+
 UniformBuf *VKBackend::uniformbuf_alloc(size_t size, const char *name)
 {
   return new VKUniformBuffer(size, name);
@@ -757,4 +765,5 @@ void VKBackend::capabilities_init(VKDevice &device)
   detect_workarounds(device);
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

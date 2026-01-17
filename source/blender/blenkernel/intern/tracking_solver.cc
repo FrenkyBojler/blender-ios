@@ -30,6 +30,8 @@
 #include "libmv-capi.h"
 #include "tracking_private.hh"
 
+namespace blender {
+
 struct MovieReconstructContext {
   libmv_Tracks *tracks;
   bool select_keyframes;
@@ -74,7 +76,7 @@ static libmv_Tracks *libmv_tracks_new(MovieClip *clip,
   track = static_cast<MovieTrackingTrack *>(tracksbase->first);
   while (track) {
     const FCurve *weight_fcurve = id_data_find_fcurve(
-        &clip->id, track, &RNA_MovieTrackingTrack, "weight", 0, nullptr);
+        &clip->id, track, RNA_MovieTrackingTrack, "weight", 0, nullptr);
 
     for (int a = 0; a < track->markersnr; a++) {
       MovieTrackingMarker *marker = &track->markers[a];
@@ -551,3 +553,5 @@ void BKE_tracking_reconstruction_scale(MovieTracking *tracking, float scale[3])
     tracking_scale_reconstruction(&object.tracks, &object.reconstruction, scale);
   }
 }
+
+}  // namespace blender

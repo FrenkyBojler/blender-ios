@@ -24,6 +24,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+namespace blender {
+
 const EnumPropertyItem rna_enum_linestyle_color_modifier_type_items[] = {
     {LS_MODIFIER_ALONG_STROKE, "ALONG_STROKE", ICON_MODIFIER, "Along Stroke", ""},
     {LS_MODIFIER_CREASE_ANGLE, "CREASE_ANGLE", ICON_MODIFIER, "Crease Angle", ""},
@@ -111,6 +113,8 @@ const EnumPropertyItem rna_enum_linestyle_geometry_modifier_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include <fmt/format.h>
@@ -129,29 +133,31 @@ const EnumPropertyItem rna_enum_linestyle_geometry_modifier_type_items[] = {
 
 #  include "RNA_access.hh"
 
+namespace blender {
+
 static StructRNA *rna_LineStyle_color_modifier_refine(PointerRNA *ptr)
 {
   LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   switch (m->type) {
     case LS_MODIFIER_ALONG_STROKE:
-      return &RNA_LineStyleColorModifier_AlongStroke;
+      return RNA_LineStyleColorModifier_AlongStroke;
     case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-      return &RNA_LineStyleColorModifier_DistanceFromCamera;
+      return RNA_LineStyleColorModifier_DistanceFromCamera;
     case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-      return &RNA_LineStyleColorModifier_DistanceFromObject;
+      return RNA_LineStyleColorModifier_DistanceFromObject;
     case LS_MODIFIER_MATERIAL:
-      return &RNA_LineStyleColorModifier_Material;
+      return RNA_LineStyleColorModifier_Material;
     case LS_MODIFIER_TANGENT:
-      return &RNA_LineStyleColorModifier_Tangent;
+      return RNA_LineStyleColorModifier_Tangent;
     case LS_MODIFIER_NOISE:
-      return &RNA_LineStyleColorModifier_Noise;
+      return RNA_LineStyleColorModifier_Noise;
     case LS_MODIFIER_CREASE_ANGLE:
-      return &RNA_LineStyleColorModifier_CreaseAngle;
+      return RNA_LineStyleColorModifier_CreaseAngle;
     case LS_MODIFIER_CURVATURE_3D:
-      return &RNA_LineStyleColorModifier_Curvature_3D;
+      return RNA_LineStyleColorModifier_Curvature_3D;
     default:
-      return &RNA_LineStyleColorModifier;
+      return RNA_LineStyleColorModifier;
   }
 }
 
@@ -161,23 +167,23 @@ static StructRNA *rna_LineStyle_alpha_modifier_refine(PointerRNA *ptr)
 
   switch (m->type) {
     case LS_MODIFIER_ALONG_STROKE:
-      return &RNA_LineStyleAlphaModifier_AlongStroke;
+      return RNA_LineStyleAlphaModifier_AlongStroke;
     case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-      return &RNA_LineStyleAlphaModifier_DistanceFromCamera;
+      return RNA_LineStyleAlphaModifier_DistanceFromCamera;
     case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-      return &RNA_LineStyleAlphaModifier_DistanceFromObject;
+      return RNA_LineStyleAlphaModifier_DistanceFromObject;
     case LS_MODIFIER_MATERIAL:
-      return &RNA_LineStyleAlphaModifier_Material;
+      return RNA_LineStyleAlphaModifier_Material;
     case LS_MODIFIER_TANGENT:
-      return &RNA_LineStyleAlphaModifier_Tangent;
+      return RNA_LineStyleAlphaModifier_Tangent;
     case LS_MODIFIER_NOISE:
-      return &RNA_LineStyleAlphaModifier_Noise;
+      return RNA_LineStyleAlphaModifier_Noise;
     case LS_MODIFIER_CREASE_ANGLE:
-      return &RNA_LineStyleAlphaModifier_CreaseAngle;
+      return RNA_LineStyleAlphaModifier_CreaseAngle;
     case LS_MODIFIER_CURVATURE_3D:
-      return &RNA_LineStyleAlphaModifier_Curvature_3D;
+      return RNA_LineStyleAlphaModifier_Curvature_3D;
     default:
-      return &RNA_LineStyleAlphaModifier;
+      return RNA_LineStyleAlphaModifier;
   }
 }
 
@@ -187,25 +193,25 @@ static StructRNA *rna_LineStyle_thickness_modifier_refine(PointerRNA *ptr)
 
   switch (m->type) {
     case LS_MODIFIER_ALONG_STROKE:
-      return &RNA_LineStyleThicknessModifier_AlongStroke;
+      return RNA_LineStyleThicknessModifier_AlongStroke;
     case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-      return &RNA_LineStyleThicknessModifier_DistanceFromCamera;
+      return RNA_LineStyleThicknessModifier_DistanceFromCamera;
     case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-      return &RNA_LineStyleThicknessModifier_DistanceFromObject;
+      return RNA_LineStyleThicknessModifier_DistanceFromObject;
     case LS_MODIFIER_MATERIAL:
-      return &RNA_LineStyleThicknessModifier_Material;
+      return RNA_LineStyleThicknessModifier_Material;
     case LS_MODIFIER_CALLIGRAPHY:
-      return &RNA_LineStyleThicknessModifier_Calligraphy;
+      return RNA_LineStyleThicknessModifier_Calligraphy;
     case LS_MODIFIER_TANGENT:
-      return &RNA_LineStyleThicknessModifier_Tangent;
+      return RNA_LineStyleThicknessModifier_Tangent;
     case LS_MODIFIER_NOISE:
-      return &RNA_LineStyleThicknessModifier_Noise;
+      return RNA_LineStyleThicknessModifier_Noise;
     case LS_MODIFIER_CREASE_ANGLE:
-      return &RNA_LineStyleThicknessModifier_CreaseAngle;
+      return RNA_LineStyleThicknessModifier_CreaseAngle;
     case LS_MODIFIER_CURVATURE_3D:
-      return &RNA_LineStyleThicknessModifier_Curvature_3D;
+      return RNA_LineStyleThicknessModifier_Curvature_3D;
     default:
-      return &RNA_LineStyleThicknessModifier;
+      return RNA_LineStyleThicknessModifier;
   }
 }
 
@@ -215,35 +221,35 @@ static StructRNA *rna_LineStyle_geometry_modifier_refine(PointerRNA *ptr)
 
   switch (m->type) {
     case LS_MODIFIER_SAMPLING:
-      return &RNA_LineStyleGeometryModifier_Sampling;
+      return RNA_LineStyleGeometryModifier_Sampling;
     case LS_MODIFIER_BEZIER_CURVE:
-      return &RNA_LineStyleGeometryModifier_BezierCurve;
+      return RNA_LineStyleGeometryModifier_BezierCurve;
     case LS_MODIFIER_SINUS_DISPLACEMENT:
-      return &RNA_LineStyleGeometryModifier_SinusDisplacement;
+      return RNA_LineStyleGeometryModifier_SinusDisplacement;
     case LS_MODIFIER_SPATIAL_NOISE:
-      return &RNA_LineStyleGeometryModifier_SpatialNoise;
+      return RNA_LineStyleGeometryModifier_SpatialNoise;
     case LS_MODIFIER_PERLIN_NOISE_1D:
-      return &RNA_LineStyleGeometryModifier_PerlinNoise1D;
+      return RNA_LineStyleGeometryModifier_PerlinNoise1D;
     case LS_MODIFIER_PERLIN_NOISE_2D:
-      return &RNA_LineStyleGeometryModifier_PerlinNoise2D;
+      return RNA_LineStyleGeometryModifier_PerlinNoise2D;
     case LS_MODIFIER_BACKBONE_STRETCHER:
-      return &RNA_LineStyleGeometryModifier_BackboneStretcher;
+      return RNA_LineStyleGeometryModifier_BackboneStretcher;
     case LS_MODIFIER_TIP_REMOVER:
-      return &RNA_LineStyleGeometryModifier_TipRemover;
+      return RNA_LineStyleGeometryModifier_TipRemover;
     case LS_MODIFIER_POLYGONIZATION:
-      return &RNA_LineStyleGeometryModifier_Polygonalization;
+      return RNA_LineStyleGeometryModifier_Polygonalization;
     case LS_MODIFIER_GUIDING_LINES:
-      return &RNA_LineStyleGeometryModifier_GuidingLines;
+      return RNA_LineStyleGeometryModifier_GuidingLines;
     case LS_MODIFIER_BLUEPRINT:
-      return &RNA_LineStyleGeometryModifier_Blueprint;
+      return RNA_LineStyleGeometryModifier_Blueprint;
     case LS_MODIFIER_2D_OFFSET:
-      return &RNA_LineStyleGeometryModifier_2DOffset;
+      return RNA_LineStyleGeometryModifier_2DOffset;
     case LS_MODIFIER_2D_TRANSFORM:
-      return &RNA_LineStyleGeometryModifier_2DTransform;
+      return RNA_LineStyleGeometryModifier_2DTransform;
     case LS_MODIFIER_SIMPLIFICATION:
-      return &RNA_LineStyleGeometryModifier_Simplification;
+      return RNA_LineStyleGeometryModifier_Simplification;
     default:
-      return &RNA_LineStyleGeometryModifier;
+      return RNA_LineStyleGeometryModifier;
   }
 }
 
@@ -281,7 +287,7 @@ static std::optional<std::string> rna_LineStyle_geometry_modifier_path(const Poi
 
 static void rna_LineStyleColorModifier_name_set(PointerRNA *ptr, const char *value)
 {
-  FreestyleLineStyle *linestyle = blender::id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
   LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   STRNCPY_UTF8(m->name, value);
@@ -295,7 +301,7 @@ static void rna_LineStyleColorModifier_name_set(PointerRNA *ptr, const char *val
 
 static void rna_LineStyleAlphaModifier_name_set(PointerRNA *ptr, const char *value)
 {
-  FreestyleLineStyle *linestyle = blender::id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
   LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   STRNCPY_UTF8(m->name, value);
@@ -309,7 +315,7 @@ static void rna_LineStyleAlphaModifier_name_set(PointerRNA *ptr, const char *val
 
 static void rna_LineStyleThicknessModifier_name_set(PointerRNA *ptr, const char *value)
 {
-  FreestyleLineStyle *linestyle = blender::id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
   LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   STRNCPY_UTF8(m->name, value);
@@ -323,7 +329,7 @@ static void rna_LineStyleThicknessModifier_name_set(PointerRNA *ptr, const char 
 
 static void rna_LineStyleGeometryModifier_name_set(PointerRNA *ptr, const char *value)
 {
-  FreestyleLineStyle *linestyle = blender::id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
   LineStyleModifier *m = static_cast<LineStyleModifier *>(ptr->data);
 
   STRNCPY_UTF8(m->name, value);
@@ -337,14 +343,14 @@ static void rna_LineStyleGeometryModifier_name_set(PointerRNA *ptr, const char *
 
 static void rna_LineStyle_mtex_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  FreestyleLineStyle *linestyle = blender::id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
   rna_iterator_array_begin(
       iter, ptr, static_cast<void *>(linestyle->mtex), sizeof(MTex *), MAX_MTEX, 0, nullptr);
 }
 
 static PointerRNA rna_LineStyle_active_texture_get(PointerRNA *ptr)
 {
-  FreestyleLineStyle *linestyle = blender::id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
   Tex *tex;
 
   tex = give_current_linestyle_texture(linestyle);
@@ -355,14 +361,14 @@ static void rna_LineStyle_active_texture_set(PointerRNA *ptr,
                                              PointerRNA value,
                                              ReportList * /*reports*/)
 {
-  FreestyleLineStyle *linestyle = blender::id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
 
   set_current_linestyle_texture(linestyle, static_cast<Tex *>(value.data));
 }
 
 static void rna_LineStyle_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  FreestyleLineStyle *linestyle = blender::id_cast<FreestyleLineStyle *>(ptr->owner_id);
+  FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(ptr->owner_id);
 
   DEG_id_tag_update(&linestyle->id, 0);
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
@@ -520,7 +526,11 @@ static void rna_LineStyle_geometry_modifier_remove(FreestyleLineStyle *linestyle
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_linestyle_mtex(BlenderRNA *brna)
 {
@@ -2218,5 +2228,7 @@ void RNA_def_linestyle(BlenderRNA *brna)
   rna_def_linestyle(brna);
   rna_def_linestyle_mtex(brna);
 }
+
+}  // namespace blender
 
 #endif

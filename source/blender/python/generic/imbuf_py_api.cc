@@ -27,6 +27,8 @@
 #include <cerrno>
 #include <fcntl.h>
 
+namespace blender {
+
 static PyObject *BPyInit_imbuf_types();
 
 static PyObject *Py_ImBuf_CreatePyObject(ImBuf *ibuf);
@@ -347,7 +349,7 @@ static int py_imbuf_filepath_set(Py_ImBuf *self, PyObject *value, void * /*closu
 PyDoc_STRVAR(
     /* Wrap. */
     py_imbuf_planes_doc,
-    "Number of bits associated with this image.\n"
+    "Number of bits per pixel.\n"
     "\n"
     ":type: int\n");
 static PyObject *py_imbuf_planes_get(Py_ImBuf *self, void * /*closure*/)
@@ -360,7 +362,7 @@ static PyObject *py_imbuf_planes_get(Py_ImBuf *self, void * /*closure*/)
 PyDoc_STRVAR(
     /* Wrap. */
     py_imbuf_channels_doc,
-    "Number of bit-planes.\n"
+    "Number of color channels.\n"
     "\n"
     ":type: int\n");
 static PyObject *py_imbuf_channels_get(Py_ImBuf *self, void * /*closure*/)
@@ -504,11 +506,11 @@ PyDoc_STRVAR(
     M_imbuf_new_doc,
     ".. function:: new(size)\n"
     "\n"
-    "   Load a new image.\n"
+    "   Create a new image.\n"
     "\n"
     "   :arg size: The size of the image in pixels.\n"
     "   :type size: tuple[int, int]\n"
-    "   :return: the newly loaded image.\n"
+    "   :return: the newly created image.\n"
     "   :rtype: :class:`ImBuf`\n");
 static PyObject *M_imbuf_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
@@ -862,3 +864,5 @@ ImBuf *BPy_ImBuf_FromPyObject(PyObject *py_imbuf)
 }
 
 /** \} */
+
+}  // namespace blender

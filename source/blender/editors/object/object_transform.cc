@@ -341,9 +341,9 @@ static wmOperatorStatus object_clear_transform_generic_exec(bContext *C,
   }
 
   /* get KeyingSet to use */
-  ks = blender::animrig::get_keyingset_for_autokeying(scene, default_ksName);
+  ks = animrig::get_keyingset_for_autokeying(scene, default_ksName);
 
-  if (blender::animrig::is_autokey_on(scene)) {
+  if (animrig::is_autokey_on(scene)) {
     ANIM_deselect_keys_in_animation_editors(C);
   }
 
@@ -658,7 +658,8 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
                                                bool apply_rot,
                                                bool apply_scale,
                                                bool do_props,
-                                               bool do_single_user)
+                                               bool do_single_user,
+                                               bool corrective_flip_normals)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -734,7 +735,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
 
     if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
       ID *obdata = ob->data;
-      Curve *cu = blender::id_cast<Curve *>(ob->data);
+      Curve *cu = id_cast<Curve *>(ob->data);
 
       if (((ob->type == OB_CURVES_LEGACY) && !(cu->flag & CU_3D)) && (apply_rot || apply_loc)) {
         BKE_reportf(
@@ -768,7 +769,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
     }
 
     if (ob->type == OB_LAMP) {
-      Light *la = blender::id_cast<Light *>(ob->data);
+      Light *la = id_cast<Light *>(ob->data);
       if (la->type == LA_AREA) {
         if (apply_rot || apply_loc) {
           BKE_reportf(reports,
@@ -862,7 +863,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
       id_us_plus(ob->data);
     }
     else if (ob->type == OB_MESH) {
-      Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
+      Mesh *mesh = id_cast<Mesh *>(ob->data);
 
       if (apply_scale) {
         multiresModifier_scale_disp(depsgraph, scene, ob);
@@ -870,27 +871,33 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
 
       /* adjust data */
       bke::mesh_transform(*mesh, float4x4(mat), true);
+      /* The determinant of mat will be negative for objects with an odd number of negative scale
+       * axes, since the normals will be flipped when scale is applied, we provide the option to
+       * flip them back. */
+      if (corrective_flip_normals && math::determinant(float4x4(mat)) < 0.0f) {
+        bke::mesh_flip_faces(*mesh, IndexMask(mesh->faces_num));
+      }
     }
     else if (ob->type == OB_ARMATURE) {
-      bArmature *arm = blender::id_cast<bArmature *>(ob->data);
+      bArmature *arm = id_cast<bArmature *>(ob->data);
       BKE_armature_transform(arm, mat, do_props);
     }
     else if (ob->type == OB_LATTICE) {
-      Lattice *lt = blender::id_cast<Lattice *>(ob->data);
+      Lattice *lt = id_cast<Lattice *>(ob->data);
 
       BKE_lattice_transform(lt, mat, true);
     }
     else if (ob->type == OB_MBALL) {
-      MetaBall *mb = blender::id_cast<MetaBall *>(ob->data);
+      MetaBall *mb = id_cast<MetaBall *>(ob->data);
       BKE_mball_transform(mb, mat, do_props);
     }
     else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
-      Curve *cu = blender::id_cast<Curve *>(ob->data);
+      Curve *cu = id_cast<Curve *>(ob->data);
       scale = mat3_to_scale(rsmat);
       BKE_curve_transform_ex(cu, mat, true, do_props, scale);
     }
     else if (ob->type == OB_FONT) {
-      Curve *cu = blender::id_cast<Curve *>(ob->data);
+      Curve *cu = id_cast<Curve *>(ob->data);
 
       scale = mat3_to_scale(rsmat);
 
@@ -907,12 +914,12 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
       }
     }
     else if (ob->type == OB_CURVES) {
-      Curves &curves = *blender::id_cast<Curves *>(ob->data);
+      Curves &curves = *id_cast<Curves *>(ob->data);
       curves.geometry.wrap().transform(float4x4(mat));
       curves.geometry.wrap().calculate_bezier_auto_handles();
     }
     else if (ob->type == OB_GREASE_PENCIL) {
-      GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(ob->data);
+      GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob->data);
 
       const float scalef = mat4_to_scale(mat);
 
@@ -943,7 +950,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
       }
     }
     else if (ob->type == OB_POINTCLOUD) {
-      PointCloud &pointcloud = *blender::id_cast<PointCloud *>(ob->data);
+      PointCloud &pointcloud = *id_cast<PointCloud *>(ob->data);
       math::transform_points(float4x4(mat), pointcloud.positions_for_write());
       pointcloud.tag_positions_changed();
     }
@@ -980,7 +987,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
       }
     }
     else if (ob->type == OB_LAMP) {
-      Light *la = blender::id_cast<Light *>(ob->data);
+      Light *la = id_cast<Light *>(ob->data);
       if (la->type != LA_AREA) {
         continue;
       }
@@ -1068,8 +1075,8 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
     BKE_object_where_is_calc(depsgraph, scene, ob_eval);
     if (ob->type == OB_ARMATURE) {
       /* needed for bone parents */
-      BKE_armature_copy_bone_transforms(blender::id_cast<bArmature *>(ob_eval->data),
-                                        blender::id_cast<bArmature *>(ob->data));
+      BKE_armature_copy_bone_transforms(id_cast<bArmature *>(ob_eval->data),
+                                        id_cast<bArmature *>(ob->data));
       BKE_pose_where_is(depsgraph, scene, ob_eval);
     }
 
@@ -1141,9 +1148,11 @@ static wmOperatorStatus object_transform_apply_exec(bContext *C, wmOperator *op)
   const bool sca = RNA_boolean_get(op->ptr, "scale");
   const bool do_props = RNA_boolean_get(op->ptr, "properties");
   const bool do_single_user = RNA_boolean_get(op->ptr, "isolate_users");
+  const bool corrective_flip_normals = RNA_boolean_get(op->ptr, "corrective_flip_normals");
 
   if (loc || rot || sca) {
-    return apply_objects_internal(C, op->reports, loc, rot, sca, do_props, do_single_user);
+    return apply_objects_internal(
+        C, op->reports, loc, rot, sca, do_props, do_single_user, corrective_flip_normals);
   }
   /* allow for redo */
   return OPERATOR_FINISHED;
@@ -1200,6 +1209,11 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
                   true,
                   "Apply Properties",
                   "Modify properties such as curve vertex radius, font size and bone envelope");
+  RNA_def_boolean(ot->srna,
+                  "corrective_flip_normals",
+                  true,
+                  "Corrective Flip Normals",
+                  "Invert normals for negative scaled objects.");
   PropertyRNA *prop = RNA_def_boolean(ot->srna,
                                       "isolate_users",
                                       false,
@@ -1319,7 +1333,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
 
   if (obedit) {
     if (obedit->type == OB_MESH) {
-      Mesh *mesh = blender::id_cast<Mesh *>(obedit->data);
+      Mesh *mesh = id_cast<Mesh *>(obedit->data);
       BMEditMesh *em = mesh->runtime->edit_mesh.get();
       BMVert *eve;
       BMIter iter;
@@ -1380,7 +1394,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       (tob.data)->tag &= ~ID_TAG_DOIT;
     }
     if (tob.instance_collection) {
-      (blender::id_cast<ID *>(tob.instance_collection))->tag &= ~ID_TAG_DOIT;
+      (id_cast<ID *>(tob.instance_collection))->tag &= ~ID_TAG_DOIT;
     }
   }
 
@@ -1416,7 +1430,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
             float3 min, max;
             /* only bounds support */
             INIT_MINMAX(min, max);
-            BKE_object_minmax_dupli(depsgraph, scene, ob, min, max, true);
+            BKE_object_minmax_dupli(depsgraph, ob, min, max, true);
             mid_v3_v3v3(cent, min, max);
             invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
             mul_m4_v3(ob->world_to_object().ptr(), cent);
@@ -1441,7 +1455,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
     else if (ob->type == OB_MESH) {
       if (obedit == nullptr) {
-        Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
+        Mesh *mesh = id_cast<Mesh *>(ob->data);
 
         if (centermode == ORIGIN_TO_CURSOR) {
           /* done */
@@ -1470,7 +1484,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       }
     }
     else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
-      Curve *cu = blender::id_cast<Curve *>(ob->data);
+      Curve *cu = id_cast<Curve *>(ob->data);
 
       if (centermode == ORIGIN_TO_CURSOR) {
         /* done */
@@ -1506,7 +1520,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     else if (ob->type == OB_FONT) {
       /* Get from bounding-box. */
 
-      Curve *cu = blender::id_cast<Curve *>(ob->data);
+      Curve *cu = id_cast<Curve *>(ob->data);
       std::optional<Bounds<float3>> bounds = BKE_curve_minmax(cu, true);
 
       if (!bounds && (centermode != ORIGIN_TO_CURSOR)) {
@@ -1532,7 +1546,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       }
     }
     else if (ob->type == OB_ARMATURE) {
-      bArmature *arm = blender::id_cast<bArmature *>(ob->data);
+      bArmature *arm = id_cast<bArmature *>(ob->data);
 
       if (ID_REAL_USERS(arm) > 1) {
 #if 0
@@ -1553,8 +1567,8 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
 
         Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
         BKE_object_transform_copy(ob_eval, ob);
-        BKE_armature_copy_bone_transforms(blender::id_cast<bArmature *>(ob_eval->data),
-                                          blender::id_cast<bArmature *>(ob->data));
+        BKE_armature_copy_bone_transforms(id_cast<bArmature *>(ob_eval->data),
+                                          id_cast<bArmature *>(ob->data));
         BKE_object_where_is_calc(depsgraph, scene, ob_eval);
         BKE_pose_where_is(depsgraph, scene, ob_eval); /* needed for bone parents */
 
@@ -1566,7 +1580,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       }
     }
     else if (ob->type == OB_MBALL) {
-      MetaBall *mb = blender::id_cast<MetaBall *>(ob->data);
+      MetaBall *mb = id_cast<MetaBall *>(ob->data);
 
       if (centermode == ORIGIN_TO_CURSOR) {
         /* done */
@@ -1593,7 +1607,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       }
     }
     else if (ob->type == OB_LATTICE) {
-      Lattice *lt = blender::id_cast<Lattice *>(ob->data);
+      Lattice *lt = id_cast<Lattice *>(ob->data);
 
       if (centermode == ORIGIN_TO_CURSOR) {
         /* done */
@@ -1615,7 +1629,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       do_inverse_offset = true;
     }
     else if (ob->type == OB_CURVES) {
-      Curves &curves_id = *blender::id_cast<Curves *>(ob->data);
+      Curves &curves_id = *id_cast<Curves *>(ob->data);
       bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       if (ELEM(centermode, ORIGIN_TO_CENTER_OF_MASS_SURFACE, ORIGIN_TO_CENTER_OF_MASS_VOLUME) ||
           !ELEM(around, V3D_AROUND_CENTER_BOUNDS, V3D_AROUND_CENTER_MEDIAN))
@@ -1646,7 +1660,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       do_inverse_offset = true;
     }
     else if (ob->type == OB_GREASE_PENCIL) {
-      GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(ob->data);
+      GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob->data);
       if (ELEM(centermode, ORIGIN_TO_CENTER_OF_MASS_SURFACE, ORIGIN_TO_CENTER_OF_MASS_VOLUME) ||
           !ELEM(around, V3D_AROUND_CENTER_BOUNDS, V3D_AROUND_CENTER_MEDIAN))
       {
@@ -1719,7 +1733,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       do_inverse_offset = true;
     }
     else if (ob->type == OB_POINTCLOUD) {
-      PointCloud &pointcloud = *blender::id_cast<PointCloud *>(ob->data);
+      PointCloud &pointcloud = *id_cast<PointCloud *>(ob->data);
       MutableSpan<float3> positions = pointcloud.positions_for_write();
       if (ELEM(centermode, ORIGIN_TO_CENTER_OF_MASS_SURFACE, ORIGIN_TO_CENTER_OF_MASS_VOLUME) ||
           !ELEM(around, V3D_AROUND_CENTER_BOUNDS, V3D_AROUND_CENTER_MEDIAN))
@@ -1780,8 +1794,8 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       BKE_object_where_is_calc(depsgraph, scene, ob_eval);
       if (ob->type == OB_ARMATURE) {
         /* needed for bone parents */
-        BKE_armature_copy_bone_transforms(blender::id_cast<bArmature *>(ob_eval->data),
-                                          blender::id_cast<bArmature *>(ob->data));
+        BKE_armature_copy_bone_transforms(id_cast<bArmature *>(ob_eval->data),
+                                          id_cast<bArmature *>(ob->data));
         BKE_pose_where_is(depsgraph, scene, ob_eval);
       }
 
@@ -1810,8 +1824,8 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
           BKE_object_where_is_calc(depsgraph, scene, ob_other_eval);
           if (ob_other->type == OB_ARMATURE) {
             /* needed for bone parents */
-            BKE_armature_copy_bone_transforms(blender::id_cast<bArmature *>(ob_eval->data),
-                                              blender::id_cast<bArmature *>(ob->data));
+            BKE_armature_copy_bone_transforms(id_cast<bArmature *>(ob_eval->data),
+                                              id_cast<bArmature *>(ob->data));
             BKE_pose_where_is(depsgraph, scene, ob_other_eval);
           }
           ignore_parent_tx(bmain, depsgraph, scene, ob_other);
@@ -1998,7 +2012,7 @@ static void object_transform_axis_target_calc_depth_init(XFormAxisData *xfd, con
 static bool object_is_target_compat(const Object *ob)
 {
   if (ob->type == OB_LAMP) {
-    const Light *la = blender::id_cast<Light *>(ob->data);
+    const Light *la = id_cast<Light *>(ob->data);
     if (ELEM(la->type, LA_SUN, LA_SPOT, LA_AREA)) {
       return true;
     }
@@ -2348,7 +2362,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     Scene *scene = CTX_data_scene(C);
     /* Perform auto-keying for rotational changes for all objects. */
     for (XFormAxisItem &item : xfd->object_data) {
-      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, &RNA_Object, &item.ob->id);
+      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, RNA_Object, &item.ob->id);
       const char *rotation_property = "rotation_euler";
       switch (item.ob->rotmode) {
         case ROT_MODE_QUAT:

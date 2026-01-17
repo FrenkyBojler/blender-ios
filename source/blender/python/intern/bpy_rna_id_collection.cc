@@ -41,6 +41,8 @@
 
 #include "bpy_rna.hh"
 
+namespace blender {
+
 static Main *pyrna_bmain_FromPyObject(PyObject *obj)
 {
   if (!BPy_StructRNA_Check(obj)) {
@@ -51,7 +53,7 @@ static Main *pyrna_bmain_FromPyObject(PyObject *obj)
   }
   BPy_StructRNA *pyrna = reinterpret_cast<BPy_StructRNA *>(obj);
   PYRNA_STRUCT_CHECK_OBJ(pyrna);
-  if (!(pyrna->ptr && pyrna->ptr->type == &RNA_BlendData && pyrna->ptr->data)) {
+  if (!(pyrna->ptr && pyrna->ptr->type == RNA_BlendData && pyrna->ptr->data)) {
     PyErr_Format(PyExc_TypeError,
                  "Expected a StructRNA of type BlendData, not %.200s",
                  Py_TYPE(pyrna)->tp_name);
@@ -850,7 +852,7 @@ static PyObject *bpy_batch_remove(PyObject *self, PyObject *args, PyObject *kwds
 
   PyObject **ids_array = PySequence_Fast_ITEMS(ids_fast);
   Py_ssize_t ids_len = PySequence_Fast_GET_SIZE(ids_fast);
-  blender::Set<ID *> ids_to_delete;
+  Set<ID *> ids_to_delete;
   for (; ids_len; ids_array++, ids_len--) {
     ID *id;
     if (!pyrna_id_FromPyObject(*ids_array, &id)) {
@@ -984,3 +986,5 @@ PyMethodDef BPY_rna_id_collection_orphans_purge_method_def = {
 #    pragma GCC diagnostic pop
 #  endif
 #endif
+
+}  // namespace blender

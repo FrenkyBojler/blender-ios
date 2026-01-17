@@ -53,7 +53,7 @@
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
-#include "ANIM_action_legacy.hh"
+#include "ANIM_animdata.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -146,7 +146,7 @@ bool has_playback_animation(const Scene *scene)
     return false;
   }
 
-  for (FCurve *fcurve : animrig::legacy::fcurves_for_assigned_action(scene->adt)) {
+  for (FCurve *fcurve : animrig::fcurves_for_assigned_action(scene->adt)) {
     if (sequencer_fcurves_targets_color_strip(fcurve)) {
       return true;
     }
@@ -366,7 +366,6 @@ static Scene *get_sequencer_scene_for_time_sync(const bContext &C)
 
 const Strip *get_scene_strip_for_time_sync(const Scene *sequencer_scene)
 {
-  using namespace blender;
   const Editing *ed = seq::editing_get(sequencer_scene);
   if (!ed) {
     return nullptr;
@@ -396,7 +395,6 @@ const Strip *get_scene_strip_for_time_sync(const Scene *sequencer_scene)
 
 void sync_active_scene_and_time_with_scene_strip(bContext &C)
 {
-  using namespace blender;
   Scene *sequencer_scene = get_sequencer_scene_for_time_sync(C);
   if (!sequencer_scene) {
     return;
@@ -440,7 +438,7 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
         if (view3d->camera == camera) {
           continue;
         }
-        PointerRNA view3d_ptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceView3D, view3d);
+        PointerRNA view3d_ptr = RNA_pointer_create_discrete(&screen->id, RNA_SpaceView3D, view3d);
         RNA_pointer_set(&view3d_ptr, "camera", camera_ptr);
       }
     }
@@ -1999,8 +1997,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
    * note that this means strips.size() can increase during the loops.  */
   for (int i = 0; i < strips.size(); i++) {
     Strip *strip = strips[i];
-    rctf strip_rect;
-    strip_rectf(scene, strip, &strip_rect);
+    rctf strip_rect = strip_bounds_get(scene, strip);
     if (BLI_rctf_isect(&strip_rect, &box_rect, nullptr)) {
       gap_removal_boundary[0] = math::min(gap_removal_boundary[0], strip->left_handle());
       gap_removal_boundary[1] = math::max(gap_removal_boundary[1], strip->right_handle(scene));
@@ -2073,7 +2070,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
     /* Propagate removal to connected strips. */
     if (!ignore_connections) {
-      blender::VectorSet<Strip *> connections = seq::connected_strips_get(strip);
+      VectorSet<Strip *> connections = seq::connected_strips_get(strip);
       for (Strip *connection : connections) {
         seq::edit_flag_for_removal(scene, ed->current_strips(), connection);
       }
@@ -2224,9 +2221,9 @@ void SEQUENCER_OT_box_blade(wmOperatorType *ot)
 
 static void sequencer_report_duplicates(wmOperator *op, ListBaseT<Strip> *duplicated_strips)
 {
-  blender::Set<Scene *> scenes;
-  blender::Set<MovieClip *> movieclips;
-  blender::Set<Mask *> masks;
+  Set<Scene *> scenes;
+  Set<MovieClip *> movieclips;
+  Set<Mask *> masks;
 
   for (Strip &strip : *duplicated_strips) {
     switch (strip.type) {
@@ -3477,7 +3474,7 @@ static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
     PropertyRNA *prop;
     char filepath[FILE_MAX];
 
-    PointerRNA strip_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Strip, strip);
+    PointerRNA strip_ptr = RNA_pointer_create_discrete(&scene->id, RNA_Strip, strip);
 
     RNA_string_get(op->ptr, "filepath", filepath);
     prop = RNA_struct_find_property(&strip_ptr, "filepath");
@@ -3912,7 +3909,7 @@ static wmOperatorStatus sequencer_strip_transform_clear_exec(bContext *C, wmOper
     if (strip.flag & SEQ_SELECT && strip.type != STRIP_TYPE_SOUND) {
       StripTransform *transform = strip.data->transform;
       PropertyRNA *prop;
-      PointerRNA ptr = RNA_pointer_create_discrete(&scene->id, &RNA_StripTransform, transform);
+      PointerRNA ptr = RNA_pointer_create_discrete(&scene->id, RNA_StripTransform, transform);
       switch (property) {
         case STRIP_TRANSFORM_POSITION:
           transform->xofs = 0;

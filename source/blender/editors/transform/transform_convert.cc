@@ -28,6 +28,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_modifier.hh"
 #include "BKE_nla.hh"
+#include "BKE_object_types.hh"
 #include "BKE_scene.hh"
 
 #include "ED_particle.hh"
@@ -845,12 +846,12 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
     for (int i = 0; i < objects.size(); i++) {
       TransDataContainer *tc = &t->data_container[i];
       if (!(t->flag & T_NO_MIRROR) && (objects[i]->type == OB_MESH)) {
-        tc->use_mirror_axis_x = ((blender::id_cast<Mesh *>(objects[i]->data))->symmetry &
-                                 ME_SYMMETRY_X) != 0;
-        tc->use_mirror_axis_y = ((blender::id_cast<Mesh *>(objects[i]->data))->symmetry &
-                                 ME_SYMMETRY_Y) != 0;
-        tc->use_mirror_axis_z = ((blender::id_cast<Mesh *>(objects[i]->data))->symmetry &
-                                 ME_SYMMETRY_Z) != 0;
+        tc->use_mirror_axis_x = ((id_cast<Mesh *>(objects[i]->data))->symmetry & ME_SYMMETRY_X) !=
+                                0;
+        tc->use_mirror_axis_y = ((id_cast<Mesh *>(objects[i]->data))->symmetry & ME_SYMMETRY_Y) !=
+                                0;
+        tc->use_mirror_axis_z = ((id_cast<Mesh *>(objects[i]->data))->symmetry & ME_SYMMETRY_Z) !=
+                                0;
       }
 
       if (object_mode & OB_MODE_EDIT) {
@@ -902,7 +903,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
     return &TransConvertType_Cursor3D;
   }
   if (!(t->options & CTX_PAINT_CURVE) && (t->spacetype == SPACE_VIEW3D) && ob &&
-      (ob->mode == OB_MODE_SCULPT) && ob->sculpt)
+      (ob->mode == OB_MODE_SCULPT) && ob->runtime->sculpt_session)
   {
     return &TransConvertType_Sculpt;
   }
@@ -942,7 +943,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
     if (t->options & CTX_SEQUENCER_IMAGE) {
       return &TransConvertType_SequencerImage;
     }
-    if (vse::sequencer_retiming_mode_is_active(t->context)) {
+    if (vse::sequencer_retiming_mode_is_active(t->scene)) {
       return &TransConvertType_SequencerRetiming;
     }
     return &TransConvertType_Sequencer;

@@ -131,7 +131,7 @@ static bool return_editmesh_vgroup(Object *obedit, BMEditMesh *em, char *r_name,
 
 static void select_editbmesh_hook(Object *ob, HookModifierData *hmd)
 {
-  Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
+  Mesh *mesh = id_cast<Mesh *>(ob->data);
   BMEditMesh *em = mesh->runtime->edit_mesh.get();
   BMVert *eve;
   BMIter iter;
@@ -205,7 +205,7 @@ static int return_editlattice_indexar(Lattice *editlatt,
 
 static void select_editlattice_hook(Object *obedit, HookModifierData *hmd)
 {
-  Lattice *lt = blender::id_cast<Lattice *>(obedit->data), *editlt;
+  Lattice *lt = id_cast<Lattice *>(obedit->data), *editlt;
   BPoint *bp;
   int index = 0, nr = 0, a;
 
@@ -332,7 +332,7 @@ static bool object_hook_index_array(Main *bmain,
 
   switch (obedit->type) {
     case OB_MESH: {
-      Mesh *mesh = blender::id_cast<Mesh *>(obedit->data);
+      Mesh *mesh = id_cast<Mesh *>(obedit->data);
 
       EDBM_mesh_load(bmain, obedit);
       EDBM_mesh_make(obedit, scene->toolsettings->selectmode, true);
@@ -355,7 +355,7 @@ static bool object_hook_index_array(Main *bmain,
       ED_curve_editnurb_make(obedit);
       return return_editcurve_indexar(obedit, r_indexar, r_indexar_num, r_cent);
     case OB_LATTICE: {
-      Lattice *lt = blender::id_cast<Lattice *>(obedit->data);
+      Lattice *lt = id_cast<Lattice *>(obedit->data);
       return return_editlattice_indexar(lt->editlatt->latt, r_indexar, r_indexar_num, r_cent);
     }
     default:
@@ -424,7 +424,7 @@ static void object_hook_from_context(
   HookModifierData *hmd;
 
   if (ptr->data) { /* if modifier context is available, use that */
-    ob = blender::id_cast<Object *>(ptr->owner_id);
+    ob = id_cast<Object *>(ptr->owner_id);
     hmd = static_cast<HookModifierData *>(ptr->data);
   }
   else { /* use the provided property */
@@ -561,7 +561,7 @@ static int add_hook_object(const bContext *C,
   }
 
   if (mode == OBJECT_ADDHOOK_SELOB_BONE) {
-    bArmature *arm = blender::id_cast<bArmature *>(ob->data);
+    bArmature *arm = id_cast<bArmature *>(ob->data);
     BLI_assert(ob->type == OB_ARMATURE);
     if (arm->act_bone) {
       bPoseChannel *pchan_act;
@@ -723,7 +723,7 @@ static const EnumPropertyItem *hook_mod_itemf(bContext *C,
                                               PropertyRNA * /*prop*/,
                                               bool *r_free)
 {
-  Object *ob = CTX_data_edit_object(C);
+  Object *ob = (C) ? CTX_data_edit_object(C) : nullptr;
   EnumPropertyItem tmp = {0, "", 0, "", ""};
   EnumPropertyItem *item = nullptr;
   ModifierData *md = nullptr;
@@ -778,7 +778,7 @@ void OBJECT_OT_hook_remove(wmOperatorType *ot)
 
 static wmOperatorStatus object_hook_reset_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
@@ -826,7 +826,7 @@ void OBJECT_OT_hook_reset(wmOperatorType *ot)
 
 static wmOperatorStatus object_hook_recenter_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
@@ -883,7 +883,7 @@ static wmOperatorStatus object_hook_assign_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
@@ -948,7 +948,7 @@ void OBJECT_OT_hook_assign(wmOperatorType *ot)
 
 static wmOperatorStatus object_hook_select_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;

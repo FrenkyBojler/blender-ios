@@ -129,7 +129,7 @@ struct SocketValue {
           return PrimitiveSocketValue{socket.default_value_typed<bNodeSocketValueInt>()->value};
         case SOCK_BOOLEAN:
           return PrimitiveSocketValue{
-              socket.default_value_typed<bNodeSocketValueBoolean>()->value};
+              bool(socket.default_value_typed<bNodeSocketValueBoolean>()->value)};
         case SOCK_VECTOR:
           return PrimitiveSocketValue{
               float3(socket.default_value_typed<bNodeSocketValueVector>()->value)};
@@ -352,7 +352,7 @@ class ShaderNodesInliner {
       if (group_node->is_muted()) {
         continue;
       }
-      const bNodeTree *group = blender::id_cast<const bNodeTree *>(group_node->id);
+      const bNodeTree *group = id_cast<const bNodeTree *>(group_node->id);
       if (!group || ID_MISSING(&group->id)) {
         continue;
       }

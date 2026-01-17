@@ -105,13 +105,15 @@
 #include <fmt/format.h>
 #include <sstream>
 
-namespace geo_log = blender::nodes::geo_eval_log;
-using blender::bke::bNodeTreeZone;
-using blender::bke::bNodeTreeZones;
-using blender::ed::space_node::NestedTreePreviews;
-using blender::nodes::NodeExtraInfoRow;
+namespace blender {
 
-namespace blender::ed::space_node {
+namespace geo_log = nodes::geo_eval_log;
+using bke::bNodeTreeZone;
+using bke::bNodeTreeZones;
+using ed::space_node::NestedTreePreviews;
+using nodes::NodeExtraInfoRow;
+
+namespace ed::space_node {
 
 #define NODE_ZONE_PADDING UI_UNIT_X
 #define ZONE_ZONE_PADDING 0.3f * UI_UNIT_X
@@ -362,7 +364,7 @@ static bool node_update_basis_buttons(const bContext &C,
     return false;
   }
 
-  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
 
   /* Round the node origin because text contents are always pixel-aligned. */
   const float2 loc = math::round(node_to_view(node.location));
@@ -518,12 +520,12 @@ static bool node_update_basis_socket(TreeDrawContext &tree_draw_ctx,
   }
 
   ui::Layout *row = &layout.row(true);
-  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
   row->context_ptr_set("node", &nodeptr);
 
   if (input_socket) {
     /* Context pointers for current node and socket. */
-    PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, input_socket);
+    PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, RNA_NodeSocket, input_socket);
     row->context_ptr_set("socket", &sockptr);
 
     row->alignment_set(ui::LayoutAlign::Expand);
@@ -533,7 +535,7 @@ static bool node_update_basis_socket(TreeDrawContext &tree_draw_ctx,
   }
   else {
     /* Context pointers for current node and socket. */
-    PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, output_socket);
+    PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, RNA_NodeSocket, output_socket);
     row->context_ptr_set("socket", &sockptr);
 
     /* Align output buttons to the right. */
@@ -1168,7 +1170,7 @@ static void node_update_basis_from_declaration(TreeDrawContext &tree_draw_ctx,
             if (!ID_IS_EDITABLE(&ntree.id)) {
               layout.enabled_set(false);
             }
-            PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+            PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
             layout.context_ptr_set("node", &node_ptr);
             decl.draw(layout, const_cast<bContext *>(&C), &node_ptr);
             block_align_end(&block);
@@ -1521,9 +1523,9 @@ void node_socket_color_get(const bContext &C,
     return;
   }
 
-  BLI_assert(RNA_struct_is_a(node_ptr.type, &RNA_Node));
+  BLI_assert(RNA_struct_is_a(node_ptr.type, RNA_Node));
   PointerRNA ptr = RNA_pointer_create_discrete(
-      &const_cast<ID &>(ntree.id), &RNA_NodeSocket, &const_cast<bNodeSocket &>(sock));
+      &const_cast<ID &>(ntree.id), RNA_NodeSocket, &const_cast<bNodeSocket &>(sock));
   sock.typeinfo->draw_color(const_cast<bContext *>(&C), &ptr, &node_ptr, r_color);
 }
 
@@ -1611,7 +1613,7 @@ static bool draw_node_details(const SpaceNode &snode)
 static void node_draw_preview_background(rctf *rect)
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
 
@@ -1872,7 +1874,7 @@ static void node_draw_sockets(const bContext &C,
   }
 
   PointerRNA nodeptr = RNA_pointer_create_discrete(
-      const_cast<ID *>(&ntree.id), &RNA_Node, const_cast<bNode *>(&node));
+      const_cast<ID *>(&ntree.id), RNA_Node, const_cast<bNode *>(&node));
 
   const float outline_thickness = NODE_SOCKET_OUTLINE;
 
@@ -2049,8 +2051,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, ui::Block &blo
 
     /* Panel toggle. */
     if (input_socket && !input_socket->is_logically_linked()) {
-      PointerRNA socket_ptr = RNA_pointer_create_discrete(
-          &ntree.id, &RNA_NodeSocket, input_socket);
+      PointerRNA socket_ptr = RNA_pointer_create_discrete(&ntree.id, RNA_NodeSocket, input_socket);
       ui::Button *panel_toggle_but = uiDefButR(&block,
                                                ui::ButtonType::Checkbox,
                                                "",
@@ -3729,9 +3730,7 @@ static void node_frame_get_label_color(const float bgcolor[4], uchar r_color[3])
   rgb_float_to_uchar(r_color, text_color_rgb);
 }
 
-static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
-                                  const bNode &node,
-                                  const SpaceNode &snode)
+static void frame_node_draw_label(const bNode &node, const SpaceNode &snode)
 {
   /* XXX font id is crap design */
   const int fontid = ui::style_get()->widget.uifont_id;
@@ -3770,7 +3769,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
   /* Draw text body. */
   if (node.id) {
-    const Text *text = blender::id_cast<const Text *>(node.id);
+    const Text *text = id_cast<const Text *>(node.id);
     const float line_spacing = BLF_height_max(fontid) * aspect;
     const float line_width = (BLI_rctf_size_x(&rct) - 2 * frame_layout.margin) / aspect;
 
@@ -3883,7 +3882,7 @@ static void frame_node_draw_overlay(const bContext &C,
   }
 
   /* Label and text. */
-  frame_node_draw_label(tree_draw_ctx, node, snode);
+  frame_node_draw_label(node, snode);
 
   node_draw_extra_info_panel(C, tree_draw_ctx, snode, node, nullptr, block);
 
@@ -4016,7 +4015,7 @@ static void reroute_node_draw_body(const bContext &C,
   bNodeSocket &sock = *static_cast<bNodeSocket *>(node.inputs.first);
 
   PointerRNA nodeptr = RNA_pointer_create_discrete(
-      const_cast<ID *>(&ntree.id), &RNA_Node, const_cast<bNode *>(&node));
+      const_cast<ID *>(&ntree.id), RNA_Node, const_cast<bNode *>(&node));
 
   ColorTheme4f socket_color;
   ColorTheme4f outline_color;
@@ -4291,7 +4290,7 @@ static void node_draw_zones_and_frames(const ARegion &region,
   };
 
   const uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+      immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
   using ZoneOrNode = std::variant<const bNodeTreeZone *, const bNode *>;
   Vector<ZoneOrNode> draw_order;
@@ -4801,7 +4800,7 @@ void node_draw_space(const bContext &C, ARegion &region)
   /* Setup off-screen buffers. */
   GPUViewport *viewport = WM_draw_region_get_viewport(&region);
 
-  blender::gpu::FrameBuffer *framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
+  gpu::FrameBuffer *framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(viewport);
   GPU_framebuffer_bind_no_srgb(framebuffer_overlay);
 
   ui::view2d_view_ortho(&v2d);
@@ -4941,4 +4940,6 @@ void node_draw_space(const bContext &C, ARegion &region)
   ui::view2d_scrollers_draw(&v2d, nullptr);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

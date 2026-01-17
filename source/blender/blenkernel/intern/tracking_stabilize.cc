@@ -32,6 +32,8 @@
 #include "IMB_interp.hh"
 #include "MEM_guardedalloc.h"
 
+namespace blender {
+
 /* == Parameterization constants == */
 
 /* When measuring the scale changes relative to the rotation pivot point, it
@@ -89,7 +91,7 @@ struct StabContext {
   MovieClip *clip;
   MovieTracking *tracking;
   MovieTrackingStabilization *stab;
-  blender::Map<MovieTrackingTrack *, TrackStabilizationBase *> *private_track_data;
+  Map<MovieTrackingTrack *, TrackStabilizationBase *> *private_track_data;
   FCurve *locinf;
   FCurve *rotinf;
   FCurve *scaleinf;
@@ -125,7 +127,7 @@ static FCurve *retrieve_stab_animation(MovieClip *clip, const char *data_path, i
 {
   return id_data_find_fcurve(&clip->id,
                              &clip->tracking.stabilization,
-                             &RNA_MovieTrackingStabilization,
+                             RNA_MovieTrackingStabilization,
                              data_path,
                              idx,
                              nullptr);
@@ -133,7 +135,7 @@ static FCurve *retrieve_stab_animation(MovieClip *clip, const char *data_path, i
 
 static FCurve *retrieve_track_weight_animation(MovieClip *clip, MovieTrackingTrack *track)
 {
-  return id_data_find_fcurve(&clip->id, track, &RNA_MovieTrackingTrack, "weight_stab", 0, nullptr);
+  return id_data_find_fcurve(&clip->id, track, RNA_MovieTrackingTrack, "weight_stab", 0, nullptr);
 }
 
 static float fetch_from_fcurve(const FCurve *animationCurve,
@@ -206,7 +208,7 @@ static StabContext *init_stabilization_working_context(MovieClip *clip)
   ctx->clip = clip;
   ctx->tracking = &clip->tracking;
   ctx->stab = &clip->tracking.stabilization;
-  ctx->private_track_data = MEM_new<blender::Map<MovieTrackingTrack *, TrackStabilizationBase *>>(
+  ctx->private_track_data = MEM_new<Map<MovieTrackingTrack *, TrackStabilizationBase *>>(
       "2D stabilization per track private working data");
   ctx->locinf = retrieve_stab_animation(clip, "influence_location", 0);
   ctx->rotinf = retrieve_stab_animation(clip, "influence_rotation", 0);
@@ -1299,8 +1301,6 @@ static void tracking_stabilize_frame_interpolation_cb(void *__restrict userdata,
                                                       const int y,
                                                       const TaskParallelTLS *__restrict /*tls*/)
 {
-  using namespace blender;
-
   TrackingStabilizeFrameInterpolationData *data =
       static_cast<TrackingStabilizeFrameInterpolationData *>(userdata);
   ImBuf *ibuf = data->ibuf;
@@ -1479,3 +1479,5 @@ void BKE_tracking_stabilization_data_to_mat4(int buffer_width,
   /* Compose transformation matrix. */
   stabilization_data_to_mat4(pixel_aspect, pivot, translation, scale, angle, r_mat);
 }
+
+}  // namespace blender

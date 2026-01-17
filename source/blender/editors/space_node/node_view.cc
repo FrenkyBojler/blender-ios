@@ -37,7 +37,9 @@
 
 #include "node_intern.hh" /* own include */
 
-namespace blender::ed::space_node {
+namespace blender {
+
+namespace ed::space_node {
 
 /* -------------------------------------------------------------------- */
 /** \name Local Functions
@@ -116,13 +118,13 @@ bool space_node_view_flag(
   else {
     if (old_aspect < new_aspect) {
       const float height_new = width / old_aspect;
-      cur_new.ymin = cur_new.ymin - height_new / 2.0f;
-      cur_new.ymax = cur_new.ymax + height_new / 2.0f;
+      cur_new.ymin = cur_new.ymin - height_new / 4.0f;
+      cur_new.ymax = cur_new.ymax + height_new / 4.0f;
     }
     else {
       const float width_new = height * old_aspect;
-      cur_new.xmin = cur_new.xmin - width_new / 2.0f;
-      cur_new.xmax = cur_new.xmax + width_new / 2.0f;
+      cur_new.xmin = cur_new.xmin - width_new / 4.0f;
+      cur_new.xmax = cur_new.xmax + width_new / 4.0f;
     }
 
     /* add some padding */
@@ -468,7 +470,7 @@ static void sample_draw(const bContext *C, ARegion *region, void *arg_info)
   }
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 bool ED_space_node_get_position(
     Main *bmain, SpaceNode *snode, ARegion *region, const int mval[2], float fpos[2])
@@ -552,7 +554,7 @@ bool ED_space_node_color_sample(
   return ret;
 }
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 
 static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -723,4 +725,6 @@ void NODE_OT_backimage_sample(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

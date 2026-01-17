@@ -30,6 +30,8 @@
 #include "bpy_rna.hh"
 #include "bpy_rna_data.hh"
 
+namespace blender {
+
 struct BPy_DataContext {
   PyObject_HEAD /* Required Python macro. */
   BPy_StructRNA *data_rna;
@@ -179,7 +181,7 @@ static PyObject *bpy_rna_data_context_enter(BPy_DataContext *self)
   Main *bmain_temp = BKE_main_new();
   STRNCPY(bmain_temp->filepath, self->filepath);
 
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendData, bmain_temp);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_BlendData, bmain_temp);
 
   self->data_rna = reinterpret_cast<BPy_StructRNA *>(pyrna_struct_CreatePyObject(&ptr));
 
@@ -229,3 +231,5 @@ int BPY_rna_data_context_type_ready()
 
   return 0;
 }
+
+}  // namespace blender

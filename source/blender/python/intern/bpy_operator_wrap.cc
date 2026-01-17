@@ -24,6 +24,8 @@
 #include "bpy_operator_wrap.hh" /* own include */
 #include "bpy_rna.hh"
 
+namespace blender {
+
 static void operator_properties_init(wmOperatorType *ot)
 {
   PyTypeObject *py_class = static_cast<PyTypeObject *>(ot->rna_ext.data);
@@ -154,6 +156,8 @@ PyObject *PYOP_wrap_macro_define(PyObject * /*self*/, PyObject *args)
 
   otmacro = WM_operatortype_macro_define(ot, idname);
 
-  PointerRNA ptr_otmacro = RNA_pointer_create_discrete(nullptr, &RNA_OperatorMacro, otmacro);
+  PointerRNA ptr_otmacro = RNA_pointer_create_discrete(nullptr, RNA_OperatorMacro, otmacro);
   return pyrna_struct_CreatePyObject(&ptr_otmacro);
 }
+
+}  // namespace blender

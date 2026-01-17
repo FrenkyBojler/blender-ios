@@ -105,16 +105,11 @@
 
 #include "CLG_log.h"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"geom.bmesh.convert"};
 
-using blender::Array;
-using blender::float3;
-using blender::IndexRange;
-using blender::MutableSpan;
-using blender::Span;
-using blender::StringRef;
-using blender::Vector;
-using blender::bke::AttrDomain;
+using bke::AttrDomain;
 
 bool BM_attribute_stored_in_bmesh_builtin(const StringRef name)
 {
@@ -178,11 +173,12 @@ static Vector<MeshToBMeshLayerInfo> mesh_to_bm_copy_info_calc(const CustomData &
   per_type_index.fill(0);
   for (const int i : IndexRange(bm_data.totlayer)) {
     const CustomDataLayer &bm_layer = bm_data.layers[i];
+    const StringRef layer_name = bm_layer.name;
     const eCustomDataType type = eCustomDataType(bm_layer.type);
     const int mesh_layer_index =
         bm_layer.name[0] == '\0' ?
             CustomData_get_layer_index_n(&mesh_data, type, per_type_index[type]) :
-            CustomData_get_named_layer_index(&mesh_data, type, bm_layer.name);
+            CustomData_get_named_layer_index(&mesh_data, type, layer_name);
 
     MeshToBMeshLayerInfo info{};
     info.type = type;
@@ -216,7 +212,6 @@ static void mesh_attributes_copy_to_bmesh_block(CustomData &data,
 
 void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *params)
 {
-  using namespace blender;
   if (!mesh) {
     /* Sanity check. */
     return;
@@ -281,7 +276,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
     return;
   }
 
-  Span<blender::float3> vert_normals;
+  Span<float3> vert_normals;
   if (params->calc_vert_normal) {
     vert_normals = mesh->vert_normals();
   }
@@ -344,7 +339,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   if (is_new == false) {
     tot_shape_keys = min_ii(tot_shape_keys, CustomData_number_of_layers(&bm->vdata, CD_SHAPEKEY));
   }
-  blender::Array<const float (*)[3], 32> shape_key_table_buf(tot_shape_keys);
+  Array<const float (*)[3], 32> shape_key_table_buf(tot_shape_keys);
   const float (**shape_key_table)[3] = tot_shape_keys ? shape_key_table_buf.data() : nullptr;
 
   if ((params->active_shapekey != 0) && tot_shape_keys > 0) {
@@ -475,7 +470,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
     bm->elem_index_dirty &= ~BM_VERT; /* Added in order, clear dirty flag. */
   }
 
-  const Span<blender::int2> edges = mesh->edges();
+  const Span<int2> edges = mesh->edges();
   Array<BMEdge *> etable(mesh->edges_num);
   for (const int i : edges.index_range()) {
     BMEdge *e = etable[i] = BM_edge_create(
@@ -1015,7 +1010,7 @@ static void bmesh_to_mesh_calc_object_remap(Main &bmain,
   BMVert *eve;
 
   for (Object &ob : bmain.objects) {
-    if ((ob.parent) && (ob.parent->data == blender::id_cast<ID *>(&mesh)) &&
+    if ((ob.parent) && (ob.parent->data == id_cast<ID *>(&mesh)) &&
         ELEM(ob.partype, PARVERT1, PARVERT3))
     {
 
@@ -1042,7 +1037,7 @@ static void bmesh_to_mesh_calc_object_remap(Main &bmain,
         }
       }
     }
-    if (ob.data == blender::id_cast<ID *>(&mesh)) {
+    if (ob.data == id_cast<ID *>(&mesh)) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Hook) {
           HookModifierData *hmd = reinterpret_cast<HookModifierData *>(&md);
@@ -1123,8 +1118,6 @@ static Vector<BMeshToMeshLayerInfo> bm_to_mesh_copy_info_calc(const CustomData &
   }
   return infos;
 }
-
-namespace blender {
 
 static void bm_vert_table_build(BMesh &bm,
                                 MutableSpan<const BMVert *> table,
@@ -1422,11 +1415,8 @@ static void bm_to_mesh_loops(const BMesh &bm,
   });
 }
 
-}  // namespace blender
-
 void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParams *params)
 {
-  using namespace blender;
   const int old_verts_num = mesh->verts_num;
 
   BKE_mesh_clear_geometry(mesh);
@@ -1675,7 +1665,6 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   /* NOTE: The function is called from multiple threads with the same input BMesh and different
    * mesh objects. */
 
-  using namespace blender;
   /* Must be an empty mesh. */
   BLI_assert(mesh.verts_num == 0);
   /* Just in case, clear the derived geometry caches from the input mesh. */
@@ -1785,8 +1774,8 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   bke::SpanAttributeWriter<bool> uv_select_face;
   bke::SpanAttributeWriter<int> material_index;
 
+  bke::MutableAttributeAccessor attrs = mesh.attributes_for_write();
   if (add_mesh_attributes) {
-    bke::MutableAttributeAccessor attrs = mesh.attributes_for_write();
     if (need_select_vert) {
       select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".select_vert",
                                                                   AttrDomain::Point);
@@ -1893,3 +1882,5 @@ void BM_mesh_bm_to_me_for_eval(BMesh &bm, Mesh &mesh, const CustomData_MeshMasks
 
   BM_mesh_bm_to_me_compact(bm, mesh, &mask, true);
 }
+
+}  // namespace blender
