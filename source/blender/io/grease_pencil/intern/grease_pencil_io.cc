@@ -93,7 +93,7 @@ Object *GreasePencilImporter::create_object(const StringRefNull name)
                                      context_.v3d->local_view_uid :
                                      ushort(0);
 
-  Object *ob_gpencil = blender::ed::object::add_type(
+  Object *ob_gpencil = ed::object::add_type(
       &context_.C, OB_GREASE_PENCIL, name.c_str(), cur_loc, rot, false, local_view_bits);
 
   return ob_gpencil;
@@ -147,7 +147,7 @@ std::optional<Bounds<float2>> GreasePencilExporter::compute_screen_space_drawing
   std::optional<Bounds<float2>> drawing_bounds = std::nullopt;
 
   BLI_assert(object.type == OB_GREASE_PENCIL);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
 
   const Layer &layer = *grease_pencil.layers()[layer_index];
   const float4x4 layer_to_world = layer.to_world_space(object);
@@ -195,7 +195,7 @@ std::optional<Bounds<float2>> GreasePencilExporter::compute_objects_bounds(
 
   for (const ObjectInfo &info : objects) {
     Object *object_eval = DEG_get_evaluated(&depsgraph, info.object);
-    const GreasePencil &grease_pencil_eval = *static_cast<GreasePencil *>(object_eval->data);
+    const GreasePencil &grease_pencil_eval = *id_cast<GreasePencil *>(object_eval->data);
 
     for (const int layer_index : grease_pencil_eval.layers().index_range()) {
       const Layer &layer = *grease_pencil_eval.layers()[layer_index];
@@ -343,15 +343,17 @@ Vector<GreasePencilExporter::ObjectInfo> GreasePencilExporter::retrieve_objects(
       add_object(params_.object);
       break;
     case SelectMode::Selected:
-      LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-        if (base->flag & BASE_SELECTED) {
-          add_object(base->object);
+      for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+        if (base.flag & BASE_SELECTED) {
+          add_object(base.object);
         }
       }
       break;
     case SelectMode::Visible:
-      LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-        add_object(base->object);
+      for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+        if ((base.flag & BASE_ENABLED_RENDER) != 0) {
+          add_object(base.object);
+        }
       }
       break;
   }
@@ -397,11 +399,7 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
   const VArraySpan<ColorGeometry4f> vertex_colors = drawing.vertex_colors();
 
   Array<float3> world_positions(positions.size());
-  threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      world_positions[i] = math::transform_point(layer_to_world, positions[i]);
-    }
-  });
+  math::transform_points(positions, layer_to_world, world_positions);
 
   for (const int i_curve : curves.curves_range()) {
     const IndexRange points = points_by_curve[i_curve];
@@ -567,9 +565,7 @@ std::string GreasePencilExporter::coord_to_svg_string(const float2 &screen_co) c
   if (camera_persmat_) {
     return fmt::format("{},{}", screen_co.x, camera_rect_.size().y - screen_co.y);
   }
-  else {
-    return fmt::format("{},{}", screen_co.x, screen_rect_.size().y - screen_co.y);
-  }
+  return fmt::format("{},{}", screen_co.x, screen_rect_.size().y - screen_co.y);
 }
 
 }  // namespace blender::io::grease_pencil

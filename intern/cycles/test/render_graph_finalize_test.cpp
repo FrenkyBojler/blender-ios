@@ -6,7 +6,6 @@
 
 #include "device/device.h"
 
-#include "scene/colorspace.h"
 #include "scene/scene.h"
 #include "scene/shader_graph.h"
 #include "scene/shader_nodes.h"
@@ -148,7 +147,7 @@ class ShaderGraphBuilder {
 };
 
 /* A ScopedMockLog object intercepts log messages issued during its lifespan,
- * to test if the approriate logs are output. */
+ * to test if the appropriate logs are output. */
 class ScopedMockLog {
  public:
   ScopedMockLog()

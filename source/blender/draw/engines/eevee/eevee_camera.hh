@@ -13,7 +13,7 @@
 
 #include "BKE_camera.h"
 
-#include "eevee_shader_shared.hh"
+#include "eevee_camera_shared.hh"
 
 namespace blender::eevee {
 
@@ -105,7 +105,7 @@ class Camera {
     float radius;
   } bound_sphere;
 
-  float overscan_;
+  float overscan_ = -1.0f;
   bool overscan_changed_;
   /** Whether or not the camera was synced from a camera object. */
   bool is_camera_object_ = false;
@@ -114,8 +114,8 @@ class Camera {
   bool camera_changed_ = false;
 
  public:
-  Camera(Instance &inst, CameraData &data) : inst_(inst), data_(data){};
-  ~Camera(){};
+  Camera(Instance &inst, CameraData &data) : inst_(inst), data_(data) {};
+  ~Camera() {};
 
   void init();
   void sync();

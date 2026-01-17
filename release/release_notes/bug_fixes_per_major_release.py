@@ -50,7 +50,7 @@ issue: https://projects.blender.org/blender/blender/issues/137983
 
 ### How the script works
 - First the script gathers all commits that contain `Fix #NUMBER` that
-occured between the two versions of Blender you're interested in.
+occurred between the two versions of Blender you're interested in.
   - This is done using:
   `git --no-pager log PREVIOUS_VERSION..CURRENT_VERSION --oneline -i -P --grep "Fix.*#+\d+"`
 - The script then extracts all report numbers (`#NUMBER`)
@@ -224,7 +224,7 @@ LIST_OF_OFFICIAL_BLENDER_VERSIONS = (
     # 4.x.
     '4.0', '4.1', '4.2', '4.3', '4.4', '4.5',
     # 5.x.
-    '5.0',
+    '5.0', '5.1',
 )
 
 # Catch duplicates
@@ -326,7 +326,8 @@ class CommitInfo:
         # E.g. Fix `blender/blender-manual#NUMBER`, will be picked out for processing.
         match = re.findall(r'\s#+(\d+)', command_output)
         if match:
-            return match
+            # Remove duplicates reports.
+            return list(dict.fromkeys(match))
         return []
 
     def get_backports(self, dict_of_backports: dict[str, list[str]]) -> None:
@@ -1033,7 +1034,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
     if len(args.backport_tasks) == 0:
         print("WARNING: (Optional) -bpt/--backport-tasks is not defined.")
         if not (args.silence or should_quit):
-            yes_no = input("Do you want to proceeed without it? (y/n)")
+            yes_no = input("Do you want to proceed without it? (y/n)")
             if yes_no.lower() == "n":
                 should_quit = True
 

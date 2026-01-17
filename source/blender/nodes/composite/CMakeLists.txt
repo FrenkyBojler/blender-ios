@@ -14,6 +14,7 @@ set(INC
   ../../compositor/cached_resources
   ../../compositor/derived_resources
   ../../compositor/utilities
+  ../../sequencer
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -39,6 +40,8 @@ set(SRC
   nodes/node_composite_colorcorrection.cc
   nodes/node_composite_common.cc
   nodes/node_composite_convert_color_space.cc
+  nodes/node_composite_convert_to_display.cc
+  nodes/node_composite_convolve.cc
   nodes/node_composite_cornerpin.cc
   nodes/node_composite_crop.cc
   nodes/node_composite_cryptomatte.cc
@@ -58,10 +61,7 @@ set(SRC
   nodes/node_composite_file_output.cc
   nodes/node_composite_filter.cc
   nodes/node_composite_flip.cc
-  nodes/node_composite_gamma.cc
   nodes/node_composite_glare.cc
-  nodes/node_composite_group_input.cc
-  nodes/node_composite_group_output.cc
   nodes/node_composite_hue_sat_val.cc
   nodes/node_composite_huecorrect.cc
   nodes/node_composite_id_mask.cc
@@ -87,14 +87,17 @@ set(SRC
   nodes/node_composite_posterize.cc
   nodes/node_composite_premulkey.cc
   nodes/node_composite_relative_to_pixel.cc
+  nodes/node_composite_render_layers.cc
   nodes/node_composite_rgb.cc
   nodes/node_composite_rotate.cc
   nodes/node_composite_scale.cc
   nodes/node_composite_scene_time.cc
   nodes/node_composite_sepcomb_color.cc
   nodes/node_composite_setalpha.cc
+  nodes/node_composite_signed_distance_field.cc
   nodes/node_composite_split.cc
   nodes/node_composite_stabilize2d.cc
+  nodes/node_composite_strip_info.cc
   nodes/node_composite_switch.cc
   nodes/node_composite_switchview.cc
   nodes/node_composite_tonemap.cc
@@ -127,7 +130,11 @@ set(LIB
   bf_compositor
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::sequencer
   PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::optional::tbb
+  PRIVATE bf::dependencies::optional::openimagedenoise
+  PRIVATE bf::dependencies::optional::fftw3
 )
 
 add_node_discovery(
@@ -143,30 +150,6 @@ list(APPEND LIB
 
 if(WITH_IMAGE_OPENEXR)
   add_definitions(-DWITH_IMAGE_OPENEXR)
-endif()
-
-if(WITH_OPENIMAGEDENOISE)
-  add_definitions(-DWITH_OPENIMAGEDENOISE)
-  add_definitions(-DOIDN_STATIC_LIB)
-  list(APPEND INC_SYS
-    ${OPENIMAGEDENOISE_INCLUDE_DIRS}
-    ${TBB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${OPENIMAGEDENOISE_LIBRARIES}
-    ${TBB_LIBRARIES}
-  )
-endif()
-
-
-if(WITH_FFTW3)
-  list(APPEND INC_SYS
-    ${FFTW3_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFTW3_LIBRARIES}
-  )
-  add_definitions(-DWITH_FFTW3)
 endif()
 
 blender_add_lib(bf_nodes_composite "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

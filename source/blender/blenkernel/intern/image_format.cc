@@ -8,7 +8,6 @@
 
 #include <cstring>
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_path_utils.hh"
@@ -24,23 +23,19 @@
 #include "BKE_image_format.hh"
 #include "BKE_path_templates.hh"
 
-namespace path_templates = blender::bke::path_templates;
+namespace blender {
+
+namespace path_templates = bke::path_templates;
 
 /* Init/Copy/Free */
 
-void BKE_image_format_init(ImageFormatData *imf, const bool render)
+void BKE_image_format_init(ImageFormatData *imf)
 {
-  *imf = *DNA_struct_default_get(ImageFormatData);
+  *imf = ImageFormatData();
 
   BKE_color_managed_display_settings_init(&imf->display_settings);
 
-  if (render) {
-    BKE_color_managed_view_settings_init_render(
-        &imf->view_settings, &imf->display_settings, "Filmic");
-  }
-  else {
-    BKE_color_managed_view_settings_init_untonemapped(&imf->view_settings, &imf->display_settings);
-  }
+  BKE_color_managed_view_settings_init(&imf->view_settings, &imf->display_settings, "AgX");
 
   BKE_color_managed_colorspace_settings_init(&imf->linear_colorspace_settings);
 }
@@ -68,13 +63,14 @@ void BKE_image_format_update_color_space_for_type(ImageFormatData *format)
   }
 
   const bool image_requires_linear = BKE_imtype_requires_linear_float(format->imtype);
+  /* TODO: This is wrong, there are more linear colorspaces than scene linear. */
   const bool is_linear = IMB_colormanagement_space_name_is_scene_linear(
       format->linear_colorspace_settings.name);
 
   /* The color space is either not set or is linear but the image requires non-linear or vice
    * versa. So set to the default for the image type. */
   if (format->linear_colorspace_settings.name[0] == '\0' || image_requires_linear != is_linear) {
-    const int role = image_requires_linear ? COLOR_ROLE_DEFAULT_FLOAT : COLOR_ROLE_DEFAULT_BYTE;
+    const int role = image_requires_linear ? COLOR_ROLE_SCENE_LINEAR : COLOR_ROLE_DEFAULT_BYTE;
     const char *default_color_space = IMB_colormanagement_role_colorspace_name_get(role);
     STRNCPY_UTF8(format->linear_colorspace_settings.name, default_color_space);
   }
@@ -183,7 +179,7 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
 int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
 {
-  memset(r_options, 0, sizeof(*r_options));
+  *r_options = ImbFormatOptions();
 
   if (imtype == R_IMF_IMTYPE_TARGA) {
     return IMB_FTYPE_TGA;
@@ -418,7 +414,7 @@ char BKE_imtype_valid_depths_with_video(char imtype, const ID *owner_id)
   if (imtype == R_IMF_IMTYPE_FFMPEG) {
     const bool is_render_out = (owner_id && GS(owner_id->name) == ID_SCE);
     if (is_render_out) {
-      const Scene *scene = (const Scene *)owner_id;
+      const Scene *scene = id_cast<const Scene *>(owner_id);
       depths |= MOV_codec_valid_bit_depths(scene->r.ffcodecdata.codec_id_get());
     }
   }
@@ -641,7 +637,7 @@ int BKE_image_path_ext_from_imtype_ensure(char *filepath,
   return do_ensure_image_extension(filepath, filepath_maxncpy, imtype, nullptr);
 }
 
-static blender::Vector<path_templates::Error> do_makepicstring(
+static Vector<path_templates::Error> do_makepicstring(
     char filepath[FILE_MAX],
     const char *base,
     const char *relbase,
@@ -659,7 +655,7 @@ static blender::Vector<path_templates::Error> do_makepicstring(
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
 
   if (template_variables) {
-    const blender::Vector<path_templates::Error> variable_errors = BKE_path_apply_template(
+    const Vector<path_templates::Error> variable_errors = BKE_path_apply_template(
         filepath, FILE_MAX, *template_variables);
     if (!variable_errors.is_empty()) {
       return variable_errors;
@@ -683,7 +679,7 @@ static blender::Vector<path_templates::Error> do_makepicstring(
   return {};
 }
 
-blender::Vector<path_templates::Error> BKE_image_path_from_imformat(
+Vector<path_templates::Error> BKE_image_path_from_imformat(
     char *filepath,
     const char *base,
     const char *relbase,
@@ -706,7 +702,7 @@ blender::Vector<path_templates::Error> BKE_image_path_from_imformat(
                           suffix);
 }
 
-blender::Vector<path_templates::Error> BKE_image_path_from_imtype(
+Vector<path_templates::Error> BKE_image_path_from_imtype(
     char *filepath,
     const char *base,
     const char *relbase,
@@ -791,6 +787,9 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     }
     ibuf->foptions.flag |= (imf->exr_codec & OPENEXR_CODEC_MASK);
     ibuf->foptions.quality = quality;
+    if (imf->exr_flag & R_IMF_EXR_FLAG_MULTIPART) {
+      ibuf->foptions.flag |= OPENEXR_MULTIPART;
+    }
   }
 #endif
 #ifdef WITH_IMAGE_CINEON
@@ -931,7 +930,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
   char quality = imbuf->foptions.quality;
   bool is_depth_set = false;
 
-  BKE_image_format_init(im_format, false);
+  BKE_image_format_init(im_format);
   im_format->media_type = MEDIA_TYPE_IMAGE;
 
   /* file type */
@@ -991,6 +990,9 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
     }
     if (exr_codec < R_IMF_EXR_CODEC_MAX) {
       im_format->exr_codec = exr_codec;
+    }
+    if (custom_flags & OPENEXR_MULTIPART) {
+      im_format->exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
     }
   }
 #endif
@@ -1099,13 +1101,16 @@ void BKE_image_format_color_management_copy_from_scene(ImageFormatData *imf, con
 
 void BKE_image_format_init_for_write(ImageFormatData *imf,
                                      const Scene *scene_src,
-                                     const ImageFormatData *imf_src)
+                                     const ImageFormatData *imf_src,
+                                     const bool allow_video)
 {
   *imf = (imf_src) ? *imf_src : scene_src->r.im_format;
 
-  /* The source scene might be set to Video, so we default back to an image. */
-  if (scene_src && imf->media_type == MEDIA_TYPE_VIDEO) {
-    BKE_image_format_media_type_set(imf, const_cast<ID *>(&scene_src->id), MEDIA_TYPE_IMAGE);
+  /* For image saving we can not have use media type video. */
+  if (!allow_video) {
+    if (scene_src && imf->media_type == MEDIA_TYPE_VIDEO) {
+      BKE_image_format_media_type_set(imf, const_cast<ID *>(&scene_src->id), MEDIA_TYPE_IMAGE);
+    }
   }
 
   if (imf_src && imf_src->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
@@ -1132,3 +1137,5 @@ void BKE_image_format_init_for_write(ImageFormatData *imf,
                  IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR));
   }
 }
+
+}  // namespace blender

@@ -224,54 +224,39 @@ static GVArray adapt_mesh_domain_corner_to_edge(const Mesh &mesh, const GVArray 
   return GVArray::from_garray(std::move(values));
 }
 
-template<typename T>
-void adapt_mesh_domain_face_to_point_impl(const Mesh &mesh,
-                                          const VArray<T> &src,
-                                          MutableSpan<T> r_dst)
-{
-  BLI_assert(r_dst.size() == mesh.verts_num);
-  const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-
-  threading::parallel_for(vert_to_face_map.index_range(), 2048, [&](const IndexRange range) {
-    for (const int vert : range) {
-      attribute_math::DefaultMixer<T> mixer({&r_dst[vert], 1});
-      for (const int face : vert_to_face_map[vert]) {
-        mixer.mix_in(0, src[face]);
-      }
-      mixer.finalize();
-    }
-  });
-}
-
-/* A vertex is selected if any of the connected faces were selected. */
-template<>
-void adapt_mesh_domain_face_to_point_impl(const Mesh &mesh,
-                                          const VArray<bool> &src,
-                                          MutableSpan<bool> r_dst)
-{
-  BLI_assert(r_dst.size() == mesh.verts_num);
-  const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-
-  threading::parallel_for(vert_to_face_map.index_range(), 2048, [&](const IndexRange range) {
-    for (const int vert : range) {
-      const Span<int> vert_faces = vert_to_face_map[vert];
-      r_dst[vert] = std::any_of(
-          vert_faces.begin(), vert_faces.end(), [&](const int face) { return src[face]; });
-    }
-  });
-}
-
 static GVArray adapt_mesh_domain_face_to_point(const Mesh &mesh, const GVArray &varray)
 {
-  GArray<> values(varray.type(), mesh.verts_num);
+  GVArray new_varray;
   attribute_math::convert_to_static_type(varray.type(), [&](auto dummy) {
     using T = decltype(dummy);
     if constexpr (!std::is_void_v<attribute_math::DefaultMixer<T>>) {
-      adapt_mesh_domain_face_to_point_impl<T>(
-          mesh, varray.typed<T>(), values.as_mutable_span().typed<T>());
+      VArray<T> src = varray.typed<T>();
+      const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
+      if constexpr (std::is_same_v<T, bool>) {
+        new_varray = VArray<T>::from_func(
+            mesh.verts_num, [vert_to_face_map, src](const int point_i) {
+              const Span<int> vert_faces = vert_to_face_map[point_i];
+              /* A vertex is selected if any of the connected faces were selected. */
+              return std::any_of(
+                  vert_faces.begin(), vert_faces.end(), [&](const int face) { return src[face]; });
+            });
+      }
+      else {
+        new_varray = VArray<T>::from_func(
+            mesh.verts_num, [vert_to_face_map, src](const int point_i) {
+              const Span<int> vert_faces = vert_to_face_map[point_i];
+              T return_value;
+              attribute_math::DefaultMixer<T> mixer({&return_value, 1});
+              for (const int face : vert_faces) {
+                mixer.mix_in(0, src[face]);
+              }
+              mixer.finalize();
+              return return_value;
+            });
+      }
     }
   });
-  return GVArray::from_garray(std::move(values));
+  return new_varray;
 }
 
 /* Each corner's value is simply a copy of the value at its face. */
@@ -708,7 +693,7 @@ static GVArray adapt_mesh_attribute_domain(const Mesh &mesh,
   return {};
 }
 
-static void tag_component_positions_changed(void *owner)
+static void tag_positions_changed(void *owner)
 {
   Mesh *mesh = static_cast<Mesh *>(owner);
   if (mesh != nullptr) {
@@ -716,7 +701,7 @@ static void tag_component_positions_changed(void *owner)
   }
 }
 
-static void tag_component_sharpness_changed(void *owner)
+static void tag_sharpness_changed(void *owner)
 {
   if (Mesh *mesh = static_cast<Mesh *>(owner)) {
     mesh->tag_sharpness_changed();
@@ -767,7 +752,6 @@ class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider
     if (mesh == nullptr) {
       return {};
     }
-
     const int vertex_group_index = BKE_defgroup_name_index(&mesh->vertex_group_names,
                                                            attribute_id);
     if (vertex_group_index < 0) {
@@ -810,13 +794,12 @@ class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider
     const AttributeAccessor accessor = mesh->attributes();
     const Span<MDeformVert> dverts = mesh->deform_verts();
 
-    int group_index = 0;
-    LISTBASE_FOREACH_INDEX (const bDeformGroup *, group, &mesh->vertex_group_names, group_index) {
-      const auto get_fn = [&]() {
+    for (const auto [group_index, group] : mesh->vertex_group_names.enumerate()) {
+      const auto get_fn = [&, group_index = group_index]() {
         return this->get_for_vertex_group_index(*mesh, dverts, group_index);
       };
 
-      AttributeIter iter{group->name, AttrDomain::Point, bke::AttrType::Float, get_fn};
+      AttributeIter iter{group.name, AttrDomain::Point, bke::AttrType::Float, get_fn};
       iter.is_builtin = false;
       iter.accessor = &accessor;
       fn(iter);
@@ -891,14 +874,7 @@ static GeometryAttributeProviders create_attribute_providers_for_mesh()
                                                  CD_PROP_FLOAT3,
                                                  BuiltinAttributeProvider::NonDeletable,
                                                  point_access,
-                                                 tag_component_positions_changed);
-
-  static BuiltinCustomDataLayerProvider id("id",
-                                           AttrDomain::Point,
-                                           CD_PROP_INT32,
-                                           BuiltinAttributeProvider::Deletable,
-                                           point_access,
-                                           nullptr);
+                                                 tag_positions_changed);
 
   static const auto material_index_clamp = mf::build::SI1_SO<int, int>(
       "Material Index Validate",
@@ -953,14 +929,14 @@ static GeometryAttributeProviders create_attribute_providers_for_mesh()
                                                    CD_PROP_BOOL,
                                                    BuiltinAttributeProvider::Deletable,
                                                    face_access,
-                                                   tag_component_sharpness_changed);
+                                                   tag_sharpness_changed);
 
   static BuiltinCustomDataLayerProvider sharp_edge("sharp_edge",
                                                    AttrDomain::Edge,
                                                    CD_PROP_BOOL,
                                                    BuiltinAttributeProvider::Deletable,
                                                    edge_access,
-                                                   tag_component_sharpness_changed);
+                                                   tag_sharpness_changed);
 
   static MeshVertexGroupsAttributeProvider vertex_groups;
   static CustomDataAttributeProvider corner_custom_data(AttrDomain::Corner, corner_access);
@@ -972,7 +948,6 @@ static GeometryAttributeProviders create_attribute_providers_for_mesh()
                                      &edge_verts,
                                      &corner_vert,
                                      &corner_edge,
-                                     &id,
                                      &material_index,
                                      &sharp_face,
                                      &sharp_edge},

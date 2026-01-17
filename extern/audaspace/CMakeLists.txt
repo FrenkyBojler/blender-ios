@@ -23,7 +23,7 @@ endif()
 
 project(audaspace)
 
-set(AUDASPACE_VERSION 1.7)
+set(AUDASPACE_VERSION 1.8)
 set(AUDASPACE_LONG_VERSION ${AUDASPACE_VERSION}.0)
 
 if(DEFINED AUDASPACE_CMAKE_CFG)
@@ -92,6 +92,8 @@ set(SRC
 	src/fx/VolumeReader.cpp
 	src/fx/VolumeSound.cpp
 	src/fx/VolumeStorage.cpp
+	src/fx/Echo.cpp
+	src/fx/EchoReader.cpp
 	src/generator/Sawtooth.cpp
 	src/generator/SawtoothReader.cpp
 	src/generator/Silence.cpp
@@ -206,6 +208,8 @@ set(PUBLIC_HDR
 	include/fx/VolumeReader.h
 	include/fx/VolumeSound.h
 	include/fx/VolumeStorage.h
+	include/fx/Echo.h
+	include/fx/EchoReader.h
 	include/generator/Sawtooth.h
 	include/generator/SawtoothReader.h
 	include/generator/Silence.h
@@ -803,10 +807,14 @@ if(WITH_RUBBERBAND)
 		set(RUBBERBAND_SRC
 			src/fx/TimeStretchPitchScale.cpp
 			src/fx/TimeStretchPitchScaleReader.cpp
+			src/fx/AnimateableTimeStretchPitchScale.cpp
+			src/fx/AnimateableTimeStretchPitchScaleReader.cpp
 		)
 		set(RUBBERBAND_HDR
 			include/fx/TimeStretchPitchScale.h
 			include/fx/TimeStretchPitchScaleReader.h
+			include/fx/AnimateableTimeStretchPitchScale.h
+			include/fx/AnimateableTimeStretchPitchScaleReader.h
 		)
 
 		add_definitions(-DWITH_RUBBERBAND)
@@ -1174,6 +1182,7 @@ endif()
 
 if(WITH_PYTHON)
 	set(PYTHON_SRC
+		bindings/python/PyAnimateableProperty.cpp
 		bindings/python/PyAPI.cpp
 		bindings/python/PyDevice.cpp
 		bindings/python/PyDynamicMusic.cpp
@@ -1186,6 +1195,7 @@ if(WITH_PYTHON)
 		bindings/python/PyThreadPool.cpp
 	)
 	set(PYTHON_HDR
+		bindings/python/PyAnimateableProperty.h
 		bindings/python/PyAPI.h
 		bindings/python/PyDevice.h
 		bindings/python/PyDynamicMusic.h

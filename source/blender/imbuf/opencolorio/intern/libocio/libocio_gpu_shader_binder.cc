@@ -36,6 +36,8 @@ static ConstProcessorRcPtr create_to_display_processor(
   display_parameters.view = display_shader.view;
   display_parameters.display = display_shader.display;
   display_parameters.look = display_shader.look;
+  display_parameters.use_hdr_buffer = display_shader.use_hdr_buffer;
+  display_parameters.use_display_emulation = display_shader.use_display_emulation;
   return create_ocio_display_processor(config, display_parameters);
 }
 
@@ -79,9 +81,9 @@ static bool add_gpu_lut_1D2D(internal::GPUTextures &textures,
     return false;
   }
 
-  blender::gpu::TextureFormat format = (channel == GpuShaderCreator::TEXTURE_RGB_CHANNEL) ?
-                                           blender::gpu::TextureFormat::SFLOAT_16_16_16 :
-                                           blender::gpu::TextureFormat::SFLOAT_16;
+  gpu::TextureFormat format = (channel == GpuShaderCreator::TEXTURE_RGB_CHANNEL) ?
+                                  gpu::TextureFormat::SFLOAT_16_16_16 :
+                                  gpu::TextureFormat::SFLOAT_16;
 
   internal::GPULutTexture lut;
   /* There does not appear to be an explicit way to check if a texture is 1D or 2D.
@@ -133,7 +135,7 @@ static bool add_gpu_lut_3D(internal::GPUTextures &textures,
                                       edgelen,
                                       edgelen,
                                       1,
-                                      blender::gpu::TextureFormat::SFLOAT_16_16_16,
+                                      gpu::TextureFormat::SFLOAT_16_16_16,
                                       GPU_TEXTURE_USAGE_SHADER_READ,
                                       values);
   if (lut.texture == nullptr) {
@@ -259,7 +261,10 @@ void LibOCIOGPUShaderBinder::construct_scene_linear_shader(
   }
 
   construct_shader_for_processors(
-      display_shader, processor_to_scene_linear, nullptr, {{"USE_TO_SCENE_LINEAR_ONLY", ""}});
+      display_shader,
+      processor_to_scene_linear,
+      nullptr,
+      {{"USE_TO_SCENE_LINEAR_ONLY", ""}, {"OUTPUT_PREMULTIPLIED", ""}});
 }
 
 }  // namespace blender::ocio

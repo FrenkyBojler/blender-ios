@@ -68,7 +68,6 @@ set(INC_SYS
 )
 
 set(SRC
-  intern/derived_node_tree.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
@@ -94,10 +93,13 @@ set(SRC
   intern/node_rna_define.cc
   intern/node_socket.cc
   intern/node_socket_declarations.cc
+  intern/node_tree_defaults.cc
   intern/node_util.cc
   intern/partial_eval.cc
+  intern/shader_nodes_inline.cc
   intern/socket_search_link.cc
   intern/socket_usage_inference.cc
+  intern/socket_value_inference.cc
   intern/sync_sockets.cc
   intern/trace_values.cc
   intern/value_elem.cc
@@ -105,7 +107,7 @@ set(SRC
 
   NOD_common.hh
   NOD_composite.hh
-  NOD_derived_node_tree.hh
+  NOD_defaults.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
   NOD_geometry_nodes_bundle.hh
@@ -124,6 +126,7 @@ set(SRC
   NOD_geometry_nodes_list.hh
   NOD_geometry_nodes_list_fwd.hh
   NOD_geometry_nodes_log.hh
+  NOD_geometry_nodes_values.hh
   NOD_geometry_nodes_warning.hh
   NOD_inverse_eval_params.hh
   NOD_inverse_eval_path.hh
@@ -139,6 +142,7 @@ set(SRC
   NOD_register.hh
   NOD_rna_define.hh
   NOD_shader.h
+  NOD_shader_nodes_inline.hh
   NOD_socket.hh
   NOD_socket_declarations.hh
   NOD_socket_declarations_geometry.hh
@@ -149,6 +153,7 @@ set(SRC
   NOD_socket_search_link.hh
   NOD_socket_usage_inference.hh
   NOD_socket_usage_inference_fwd.hh
+  NOD_socket_value_inference.hh
   NOD_sync_sockets.hh
   NOD_texture.h
   NOD_trace_values.hh
@@ -184,18 +189,9 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::windowmanager
   PRIVATE bf::intern::clog
+  PRIVATE bf::dependencies::optional::gmp
+  PRIVATE bf::dependencies::optional::bullet
 )
-
-if(WITH_BULLET)
-  list(APPEND INC_SYS
-    ${BULLET_INCLUDE_DIRS}
-    ../../../intern/rigidbody
-  )
-  list(APPEND LIB
-    ${BULLET_LIBRARIES}
-  )
-  add_definitions(-DWITH_BULLET)
-endif()
 
 if(WITH_TBB)
   if(WIN32)
@@ -215,18 +211,6 @@ endif()
 
 if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
-endif()
-
-if(WITH_GMP)
-  add_definitions(-DWITH_GMP)
-
-  list(APPEND INC_SYS
-    ${GMP_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${GMP_LIBRARIES}
-  )
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

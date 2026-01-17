@@ -27,7 +27,7 @@ TreeElementStrip::TreeElementStrip(TreeElement &legacy_te, Strip &strip)
 
 bool TreeElementStrip::expand_poll(const SpaceOutliner & /*space_outliner*/) const
 {
-  return !(strip_.type & STRIP_TYPE_EFFECT);
+  return !strip_.is_effect();
 }
 
 void TreeElementStrip::expand(SpaceOutliner & /*space_outliner*/) const
@@ -39,8 +39,8 @@ void TreeElementStrip::expand(SpaceOutliner & /*space_outliner*/) const
    */
 
   if (strip_.type == STRIP_TYPE_META) {
-    LISTBASE_FOREACH (Strip *, child, &strip_.seqbase) {
-      add_element(&legacy_te_.subtree, nullptr, child, &legacy_te_, TSE_STRIP, 0);
+    for (Strip &child : strip_.seqbase) {
+      add_element(&legacy_te_.subtree, nullptr, &child, &legacy_te_, TSE_STRIP, 0);
     }
   }
   else {

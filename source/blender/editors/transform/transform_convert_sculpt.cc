@@ -15,6 +15,7 @@
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
@@ -36,13 +37,13 @@ static void createTransSculpt(bContext *C, TransInfo *t)
 
   Scene *scene = t->scene;
   if (!BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
-    BKE_report(t->reports, RPT_ERROR, "Linked data cannot text-space transform");
+    BKE_report(t->reports, RPT_ERROR, "Cannot create transform on linked data");
     return;
   }
 
   BKE_view_layer_synced_ensure(t->scene, t->view_layer);
   Object &ob = *BKE_view_layer_active_object_get(t->view_layer);
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
 
   /* Avoid editing locked shapes. */
   if (t->mode != TFM_DUMMY && sculpt_paint::report_if_shape_key_is_locked(ob, t->reports)) {

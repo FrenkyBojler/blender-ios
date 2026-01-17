@@ -29,7 +29,9 @@
 
 #include "node_intern.hh"
 
-namespace blender::ed::space_node {
+namespace blender {
+
+namespace ed::space_node {
 
 struct NodeClipboardItemIDInfo {
   /** Name of the referenced ID. */
@@ -42,6 +44,11 @@ struct NodeClipboardItemIDInfo {
    * identical libraries can be matched accordingly, even across several blend-files.
    */
   std::string library_path;
+
+  /**
+   * Packed IDs are identified by the #ID.deep_hash.
+   */
+  std::optional<IDHash> packed_id_hash;
 
   /** The validated ID pointer (may be the same as the original one, or a new one). */
   std::optional<ID *> new_id = {};
@@ -116,11 +123,25 @@ struct NodeClipboard {
     Map<std::string, Library *> libraries_path_to_id;
     for (NodeClipboardItemIDInfo &id_info : this->old_ids_to_idinfo.values()) {
       id_info.new_id.reset();
-      if (!id_info.library_path.empty() && !libraries_path_to_id.contains(id_info.library_path)) {
+      if (!id_info.packed_id_hash.has_value() && !id_info.library_path.empty() &&
+          !libraries_path_to_id.contains(id_info.library_path))
+      {
         libraries_path_to_id.add(
             id_info.library_path,
-            blender::bke::library::search_filepath_abs(&bmain.libraries, id_info.library_path));
+            bke::library::search_filepath_abs(&bmain.libraries, id_info.library_path));
       }
+    }
+
+    /* Prepare a map of packed IDs, to avoid quadratic lookups below. */
+    Map<IDHash, ID *> packed_id_by_hash;
+    {
+      ID *id;
+      FOREACH_MAIN_ID_BEGIN (&bmain, id) {
+        if (ID_IS_PACKED(id)) {
+          packed_id_by_hash.add(id->deep_hash, id);
+        }
+      }
+      FOREACH_MAIN_ID_END;
     }
 
     /* Find a new valid ID pointer for all ID usages in given node.
@@ -129,8 +150,9 @@ struct NodeClipboard {
      * and library-path pairs can be used here.
      *   - UID cannot be trusted across file load.
      *   - ID pointer itself cannot be trusted across undo/redo and file-load. */
-    auto validate_id_fn = [this, &is_valid, &bmain, &bmain_id_map, &libraries_path_to_id](
-                              LibraryIDLinkCallbackData *cb_data) -> int {
+    auto validate_id_fn =
+        [this, &is_valid, &bmain, &bmain_id_map, &libraries_path_to_id, &packed_id_by_hash](
+            LibraryIDLinkCallbackData *cb_data) -> int {
       ID *old_id = *(cb_data->id_pointer);
       if (!old_id) {
         return IDWALK_RET_NOP;
@@ -147,14 +169,22 @@ struct NodeClipboard {
         if (!bmain_id_map) {
           bmain_id_map = BKE_main_idmap_create(&bmain, false, nullptr, MAIN_IDMAP_TYPE_NAME);
         }
-        Library *new_id_lib = libraries_path_to_id.lookup_default(id_info.library_path, nullptr);
-        if (id_info.library_path.empty() || new_id_lib) {
-          id_info.new_id = BKE_main_idmap_lookup_name(
-              bmain_id_map, GS(id_info.id_name.c_str()), id_info.id_name.c_str() + 2, new_id_lib);
+        if (id_info.packed_id_hash.has_value()) {
+          id_info.new_id = packed_id_by_hash.lookup_default(*id_info.packed_id_hash, nullptr);
         }
         else {
-          /* No matching library found, so there is no possible matching ID either. */
-          id_info.new_id = nullptr;
+          Library *new_id_lib = libraries_path_to_id.lookup_default(id_info.library_path, nullptr);
+          BLI_assert(!new_id_lib || !(new_id_lib->flag & LIBRARY_FLAG_IS_ARCHIVE));
+          if (id_info.library_path.empty() || new_id_lib) {
+            id_info.new_id = BKE_main_idmap_lookup_name(bmain_id_map,
+                                                        GS(id_info.id_name.c_str()),
+                                                        id_info.id_name.c_str() + 2,
+                                                        new_id_lib);
+          }
+          else {
+            /* No matching library found, so there is no possible matching ID either. */
+            id_info.new_id = nullptr;
+          }
         }
       }
       if (*(id_info.new_id) == nullptr) {
@@ -243,6 +273,7 @@ struct NodeClipboard {
     auto ensure_id_info_fn = [this](LibraryIDLinkCallbackData *cb_data) -> int {
       ID *old_id = *(cb_data->id_pointer);
       if (!old_id) {
+        return IDWALK_RET_NOP;
       }
       if (this->old_ids_to_idinfo.contains(old_id)) {
         return IDWALK_RET_NOP;
@@ -253,6 +284,9 @@ struct NodeClipboard {
         id_info.id_name = old_id->name;
         if (ID_IS_LINKED(old_id)) {
           id_info.library_path = old_id->lib->runtime->filepath_abs;
+          if (ID_IS_PACKED(old_id)) {
+            id_info.packed_id_hash = old_id->deep_hash;
+          }
         }
       }
       this->old_ids_to_idinfo.add(old_id, std::move(id_info));
@@ -319,18 +353,18 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator * /*op*
   }
 
   /* Copy links between selected nodes. */
-  LISTBASE_FOREACH (bNodeLink *, link, &tree.links) {
-    BLI_assert(link->tonode);
-    BLI_assert(link->fromnode);
-    if (link->tonode->flag & NODE_SELECT && link->fromnode->flag & NODE_SELECT) {
+  for (bNodeLink &link : tree.links) {
+    BLI_assert(link.tonode);
+    BLI_assert(link.fromnode);
+    if (link.tonode->flag & NODE_SELECT && link.fromnode->flag & NODE_SELECT) {
       clipboard.links.append({});
       ClipboardLink &new_link = clipboard.links.last();
-      new_link.flag = link->flag;
-      new_link.to_node = node_map.lookup(link->tonode);
-      new_link.from_node = node_map.lookup(link->fromnode);
-      new_link.to_socket = link->tosock->identifier;
-      new_link.from_socket = link->fromsock->identifier;
-      new_link.multi_input_sort_id = link->multi_input_sort_id;
+      new_link.flag = link.flag;
+      new_link.to_node = node_map.lookup(link.tonode);
+      new_link.from_node = node_map.lookup(link.fromnode);
+      new_link.to_socket = link.tosock->identifier;
+      new_link.from_socket = link.fromsock->identifier;
+      new_link.multi_input_sort_id = link.multi_input_sort_id;
     }
   }
 
@@ -402,11 +436,11 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
     /* Update the newly copied node's ID references. */
     clipboard.paste_update_node_id_references(*new_node);
     /* Reset socket shape in case a node is copied to a different tree type. */
-    LISTBASE_FOREACH (bNodeSocket *, socket, &new_node->inputs) {
-      socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+    for (bNodeSocket &socket : new_node->inputs) {
+      socket.display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
     }
-    LISTBASE_FOREACH (bNodeSocket *, socket, &new_node->outputs) {
-      socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+    for (bNodeSocket &socket : new_node->outputs) {
+      socket.display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
     }
 
     if (!new_node->typeinfo->poll_instance ||
@@ -515,7 +549,7 @@ static wmOperatorStatus node_clipboard_paste_invoke(bContext *C,
 {
   const ARegion *region = CTX_wm_region(C);
   float2 cursor;
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &cursor.x, &cursor.y);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &cursor.x, &cursor.y);
   RNA_float_set_array(op->ptr, "offset", cursor);
   return node_clipboard_paste_exec(C, op);
 }
@@ -549,7 +583,7 @@ void NODE_OT_clipboard_paste(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 void ED_node_clipboard_free()
 {
@@ -557,3 +591,5 @@ void ED_node_clipboard_free()
   NodeClipboard &clipboard = get_node_clipboard();
   clipboard.clear();
 }
+
+}  // namespace blender

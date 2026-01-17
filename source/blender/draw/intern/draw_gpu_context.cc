@@ -21,6 +21,8 @@
 #include "WM_api.hh"
 #include "wm_window.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Submission critical section
  *
@@ -123,6 +125,11 @@ class ContextShared {
     GPU_context_begin_frame(blender_gpu_context_);
   }
 
+  bool is_enabled()
+  {
+    return blender_gpu_context_ == GPU_context_active_get();
+  }
+
   /* Restore window drawable after disabling if restore is true. */
   void disable(bool restore = false)
   {
@@ -167,12 +174,7 @@ void DRW_gpu_context_create()
   viewport_context = MEM_new<ContextShared>(__func__);
   preview_context = MEM_new<ContextShared>(__func__);
 
-  /* Some part of the code assumes no context is left bound. */
-  GPU_context_active_set(nullptr);
-  WM_system_gpu_context_release(preview_context->system_gpu_context_);
-
-  /* Activate the window's context if any. */
-  wm_window_reset_drawable();
+  viewport_context->enable();
 }
 
 void DRW_gpu_context_destroy()
@@ -242,6 +244,11 @@ bool DRW_gpu_context_try_enable()
   }
   DRW_gpu_context_enable_ex(true);
   return true;
+}
+
+bool DRW_gpu_context_is_enabled()
+{
+  return viewport_context && viewport_context->is_enabled();
 }
 
 void DRW_gpu_context_disable()
@@ -444,3 +451,5 @@ void DRW_gpu_context_activate(bool drw_state)
 }
 
 /** \} */
+
+}  // namespace blender

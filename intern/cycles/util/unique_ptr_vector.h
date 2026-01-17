@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include "util/algorithm.h"
+#include "util/random_access_iterator_mixin.h"
 #include "util/set.h"
 #include "util/unique_ptr.h"
 #include "util/vector.h"
@@ -103,20 +104,27 @@ template<typename T> class unique_ptr_vector {
   }
 
   /* Basic iterators for range based for loop. */
-  struct ConstIterator {
-    typename vector<unique_ptr<T>>::const_iterator it;
+  struct ConstIterator : public random_access_iterator_mixin<ConstIterator> {
+   private:
+    using It = typename vector<unique_ptr<T>>::const_iterator;
+    It it_;
+
+   public:
+    using value_type = const T *;
+    using pointer = const T **;
+    /** For such derived iterators, this does not have to be an actual reference. */
+    using reference = value_type;
+
+    ConstIterator(It it) : it_(it) {}
 
     const T *operator*() const
     {
-      return it->get();
+      return it_->get();
     }
-    bool operator!=(const ConstIterator &other) const
+
+    const It &iter_prop() const
     {
-      return it != other.it;
-    }
-    void operator++()
-    {
-      ++it;
+      return it_;
     }
   };
 
@@ -129,20 +137,27 @@ template<typename T> class unique_ptr_vector {
     return ConstIterator{data.end()};
   }
 
-  struct Iterator {
-    typename vector<unique_ptr<T>>::const_iterator it;
+  struct Iterator : public random_access_iterator_mixin<Iterator> {
+   private:
+    using It = typename vector<unique_ptr<T>>::iterator;
+    It it_;
+
+   public:
+    using value_type = T *;
+    using pointer = T **;
+    /** For such derived iterators, this does not have to be an actual reference. */
+    using reference = value_type;
+
+    Iterator(It it) : it_(it) {}
 
     T *operator*() const
     {
-      return it->get();
+      return it_->get();
     }
-    bool operator!=(const Iterator &other) const
+
+    const It &iter_prop() const
     {
-      return it != other.it;
-    }
-    void operator++()
-    {
-      ++it;
+      return it_;
     }
   };
   Iterator begin()

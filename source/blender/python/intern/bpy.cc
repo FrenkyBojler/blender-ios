@@ -37,6 +37,7 @@
 #include "bpy_cli_command.hh"
 #include "bpy_driver.hh"
 #include "bpy_geometry_set.hh"
+#include "bpy_inline_shader_nodes.hh"
 #include "bpy_library.hh"
 #include "bpy_operator.hh"
 #include "bpy_props.hh"
@@ -59,6 +60,8 @@
 #ifdef WITH_FREESTYLE
 #  include "BPy_Freestyle.h"
 #endif
+
+namespace blender {
 
 PyObject *bpy_package_py = nullptr;
 
@@ -101,13 +104,13 @@ static bool bpy_blend_foreach_path_cb(BPathForeachPathData *bpath_data,
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_blend_paths_doc,
-    ".. function:: blend_paths(absolute=False, packed=False, local=False)\n"
+    ".. function:: blend_paths(*, absolute=False, packed=False, local=False)\n"
     "\n"
     "   Returns a list of paths to external files referenced by the loaded .blend file.\n"
     "\n"
     "   :arg absolute: When true the paths returned are made absolute.\n"
     "   :type absolute: bool\n"
-    "   :arg packed: When true skip file paths for packed data.\n"
+    "   :arg packed: When true include file paths for packed data.\n"
     "   :type packed: bool\n"
     "   :arg local: When true skip linked library paths.\n"
     "   :type local: bool\n"
@@ -171,7 +174,7 @@ static PyObject *bpy_blend_paths(PyObject * /*self*/, PyObject *args, PyObject *
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_flip_name_doc,
-    ".. function:: flip_name(name, strip_digits=False)\n"
+    ".. function:: flip_name(name, *, strip_digits=False)\n"
     "\n"
     "   Flip a name between left/right sides, useful for \n"
     "   mirroring bone names.\n"
@@ -217,7 +220,7 @@ static PyObject *bpy_flip_name(PyObject * /*self*/, PyObject *args, PyObject *kw
   return result;
 }
 
-/* `bpy_user_resource_doc`, Now in `bpy/utils.py`. */
+/* `bpy_user_resource_doc`, Now in `bpy/utils/__init__.py`. */
 static PyObject *bpy_user_resource(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   const PyC_StringEnumItems type_items[] = {
@@ -263,7 +266,7 @@ static PyObject *bpy_user_resource(PyObject * /*self*/, PyObject *args, PyObject
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_system_resource_doc,
-    ".. function:: system_resource(type, path=\"\")\n"
+    ".. function:: system_resource(type, *, path=\"\")\n"
     "\n"
     "   Return a system resource path.\n"
     "\n"
@@ -314,7 +317,7 @@ static PyObject *bpy_system_resource(PyObject * /*self*/, PyObject *args, PyObje
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_resource_path_doc,
-    ".. function:: resource_path(type, major=bpy.app.version[0], minor=bpy.app.version[1])\n"
+    ".. function:: resource_path(type, *, major=bpy.app.version[0], minor=bpy.app.version[1])\n"
     "\n"
     "   Return the base path for storing system files.\n"
     "\n"
@@ -323,7 +326,7 @@ PyDoc_STRVAR(
     "   :arg major: major version, defaults to current.\n"
     "   :type major: int\n"
     "   :arg minor: minor version, defaults to current.\n"
-    "   :type minor: str\n"
+    "   :type minor: int\n"
     "   :return: the resource path (not necessarily existing).\n"
     "   :rtype: str\n");
 static PyObject *bpy_resource_path(PyObject * /*self*/, PyObject *args, PyObject *kw)
@@ -365,7 +368,7 @@ static PyObject *bpy_resource_path(PyObject * /*self*/, PyObject *args, PyObject
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_driver_secure_code_test_doc,
-    ".. function:: _driver_secure_code_test(code)\n"
+    ".. function:: _driver_secure_code_test(code, *, namespace=None, verbose=False)\n"
     "\n"
     "   Test if the script should be considered trusted.\n"
     "\n"
@@ -381,7 +384,7 @@ static PyObject *bpy_driver_secure_code_test(PyObject * /*self*/, PyObject *args
 {
   PyObject *py_code;
   PyObject *py_namespace = nullptr;
-  const bool verbose = false;
+  bool verbose = false;
   static const char *_keywords[] = {"code", "namespace", "verbose", nullptr};
   static _PyArg_Parser _parser = {
       PY_ARG_PARSER_HEAD_COMPAT()
@@ -572,7 +575,7 @@ static PyObject *bpy_rna_enum_items_static(PyObject * /*self*/)
     PyObject *value = PyTuple_New(items_count);
     for (int item_index = 0; item_index < items_count; item_index++) {
       PointerRNA ptr = RNA_pointer_create_discrete(
-          nullptr, &RNA_EnumPropertyItem, (void *)&items[item_index]);
+          nullptr, RNA_EnumPropertyItem, (void *)&items[item_index]);
       PyTuple_SET_ITEM(value, item_index, pyrna_struct_CreatePyObject(&ptr));
     }
     PyDict_SetItemString(result, enum_info[i].id, value);
@@ -656,39 +659,60 @@ static PyObject *bpy_wm_capabilities(PyObject *self)
 #endif
 
 static PyMethodDef bpy_methods[] = {
-    {"script_paths", (PyCFunction)bpy_script_paths, METH_NOARGS, bpy_script_paths_doc},
+    {"script_paths",
+     reinterpret_cast<PyCFunction>(bpy_script_paths),
+     METH_NOARGS,
+     bpy_script_paths_doc},
     {"blend_paths",
-     (PyCFunction)bpy_blend_paths,
+     reinterpret_cast<PyCFunction>(bpy_blend_paths),
      METH_VARARGS | METH_KEYWORDS,
      bpy_blend_paths_doc},
-    {"flip_name", (PyCFunction)bpy_flip_name, METH_VARARGS | METH_KEYWORDS, bpy_flip_name_doc},
-    {"user_resource", (PyCFunction)bpy_user_resource, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"flip_name",
+     reinterpret_cast<PyCFunction>(bpy_flip_name),
+     METH_VARARGS | METH_KEYWORDS,
+     bpy_flip_name_doc},
+    {"user_resource",
+     reinterpret_cast<PyCFunction>(bpy_user_resource),
+     METH_VARARGS | METH_KEYWORDS,
+     nullptr},
     {"system_resource",
-     (PyCFunction)bpy_system_resource,
+     reinterpret_cast<PyCFunction>(bpy_system_resource),
      METH_VARARGS | METH_KEYWORDS,
      bpy_system_resource_doc},
     {"resource_path",
-     (PyCFunction)bpy_resource_path,
+     reinterpret_cast<PyCFunction>(bpy_resource_path),
      METH_VARARGS | METH_KEYWORDS,
      bpy_resource_path_doc},
-    {"escape_identifier", (PyCFunction)bpy_escape_identifier, METH_O, bpy_escape_identifier_doc},
+    {"escape_identifier",
+     static_cast<PyCFunction>(bpy_escape_identifier),
+     METH_O,
+     bpy_escape_identifier_doc},
     {"unescape_identifier",
-     (PyCFunction)bpy_unescape_identifier,
+     static_cast<PyCFunction>(bpy_unescape_identifier),
      METH_O,
      bpy_unescape_identifier_doc},
-    {"context_members", (PyCFunction)bpy_context_members, METH_NOARGS, bpy_context_members_doc},
+    {"context_members",
+     reinterpret_cast<PyCFunction>(bpy_context_members),
+     METH_NOARGS,
+     bpy_context_members_doc},
     {"rna_enum_items_static",
-     (PyCFunction)bpy_rna_enum_items_static,
+     reinterpret_cast<PyCFunction>(bpy_rna_enum_items_static),
      METH_NOARGS,
      bpy_rna_enum_items_static_doc},
 
     /* Private functions (not part of the public API and may be removed at any time). */
     {"_driver_secure_code_test",
-     (PyCFunction)bpy_driver_secure_code_test,
+     reinterpret_cast<PyCFunction>(bpy_driver_secure_code_test),
      METH_VARARGS | METH_KEYWORDS,
      bpy_driver_secure_code_test_doc},
-    {"_ghost_backend", (PyCFunction)bpy_ghost_backend, METH_NOARGS, bpy_ghost_backend_doc},
-    {"_wm_capabilities", (PyCFunction)bpy_wm_capabilities, METH_NOARGS, bpy_wm_capabilities_doc},
+    {"_ghost_backend",
+     reinterpret_cast<PyCFunction>(bpy_ghost_backend),
+     METH_NOARGS,
+     bpy_ghost_backend_doc},
+    {"_wm_capabilities",
+     reinterpret_cast<PyCFunction>(bpy_wm_capabilities),
+     METH_NOARGS,
+     bpy_wm_capabilities_doc},
 
     {nullptr, nullptr, 0, nullptr},
 };
@@ -748,6 +772,7 @@ void BPy_init_modules(bContext *C)
   /* Needs to be first so `_bpy_types` can run. */
   PyObject *bpy_types = BPY_rna_types();
   PyModule_AddObject(bpy_types, "GeometrySet", BPyInit_geometry_set_type());
+  PyModule_AddObject(bpy_types, "InlineShaderNodes", BPyInit_inline_shader_nodes_type());
   PyModule_AddObject(mod, "types", bpy_types);
 
   /* Needs to be first so `_bpy_types` can run. */
@@ -781,9 +806,9 @@ void BPy_init_modules(bContext *C)
   PyModule_AddObject(mod, "_utils_previews", BPY_utils_previews_module());
   PyModule_AddObject(mod, "msgbus", BPY_msgbus_module());
 
-  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
-  bpy_context_module = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ctx_ptr);
-  PyModule_AddObject(mod, "context", (PyObject *)bpy_context_module);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, RNA_Context, C);
+  bpy_context_module = reinterpret_cast<BPy_StructRNA *>(pyrna_struct_CreatePyObject(&ctx_ptr));
+  PyModule_AddObject(mod, "context", reinterpret_cast<PyObject *>(bpy_context_module));
 
   /* Register methods and property get/set for RNA types. */
   BPY_rna_types_extend_capi();
@@ -814,3 +839,5 @@ void BPy_init_modules(bContext *C)
   /* add our own modules dir, this is a python package */
   bpy_package_py = bpy_import_test("bpy");
 }
+
+}  // namespace blender

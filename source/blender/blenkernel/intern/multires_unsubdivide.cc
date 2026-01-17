@@ -21,15 +21,17 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_ccg.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
-#include "BKE_subsurf.hh"
 
 #include "bmesh.hh"
 
 #include "multires_reshape.hh"
 #include "multires_unsubdivide.hh"
+
+namespace blender {
 
 /* This is done in the following steps:
  *
@@ -149,7 +151,7 @@ static bool is_vertex_diagonal(BMVert *from_v, BMVert *to_v)
  */
 static void unsubdivide_face_center_vertex_tag(BMesh *bm, BMVert *initial_vertex)
 {
-  blender::BitVector<> visited_verts(bm->totvert);
+  BitVector<> visited_verts(bm->totvert);
   GSQueue *queue;
   queue = BLI_gsqueue_new(sizeof(BMVert *));
 
@@ -629,9 +631,9 @@ static void store_grid_data(MultiresUnsubdivideContext *context,
                             int grid_y)
 {
   Mesh *original_mesh = context->original_mesh;
-  const blender::OffsetIndices faces = original_mesh->faces();
-  const blender::Span<int> corner_verts = original_mesh->corner_verts();
-  const blender::IndexRange face = faces[BM_elem_index_get(f)];
+  const OffsetIndices faces = original_mesh->faces();
+  const Span<int> corner_verts = original_mesh->corner_verts();
+  const IndexRange face = faces[BM_elem_index_get(f)];
 
   const int corner_vertex_index = BM_elem_index_get(v);
 
@@ -647,10 +649,10 @@ static void store_grid_data(MultiresUnsubdivideContext *context,
   }
 
   /* Write the 4 grids of the current quad with the right orientation into the face_grid buffer. */
-  const int grid_size = BKE_ccg_gridsize(context->num_original_levels);
-  const int face_grid_size = BKE_ccg_gridsize(context->num_original_levels + 1);
+  const int grid_size = CCG_grid_size(context->num_original_levels);
+  const int face_grid_size = CCG_grid_size(context->num_original_levels + 1);
   const int face_grid_area = face_grid_size * face_grid_size;
-  float(*face_grid)[3] = MEM_calloc_arrayN<float[3]>(face_grid_area, "face_grid");
+  float (*face_grid)[3] = MEM_calloc_arrayN<float[3]>(face_grid_area, "face_grid");
 
   for (int i = 0; i < face.size(); i++) {
     const int loop_index = face[i];
@@ -700,8 +702,8 @@ static void multires_unsubdivide_extract_single_grid_from_face_edge(
   BMEdge *initial_edge_x;
   BMEdge *initial_edge_y;
 
-  const int grid_size = BKE_ccg_gridsize(context->num_new_levels);
-  const int unsubdiv_grid_size = grid->grid_size = BKE_ccg_gridsize(context->num_total_levels);
+  const int grid_size = CCG_grid_size(context->num_new_levels);
+  const int unsubdiv_grid_size = grid->grid_size = CCG_grid_size(context->num_total_levels);
   BLI_assert(grid->grid_co == nullptr);
   grid->grid_size = unsubdiv_grid_size;
   grid->grid_co = MEM_calloc_arrayN<float[3]>(
@@ -869,7 +871,7 @@ static const char vname[] = "v_remap_index";
 
 static void multires_unsubdivide_free_original_datalayers(Mesh *mesh)
 {
-  blender::bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   attributes.remove(lname);
   attributes.remove(vname);
 }
@@ -880,7 +882,6 @@ static void multires_unsubdivide_free_original_datalayers(Mesh *mesh)
  */
 static void multires_unsubdivide_add_original_index_datalayers(Mesh *mesh)
 {
-  using namespace blender;
   multires_unsubdivide_free_original_datalayers(mesh);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
 
@@ -914,7 +915,7 @@ static void multires_unsubdivide_prepare_original_bmesh_for_extract(
                                  false);
 
   /* Get the mapping data-layer. */
-  blender::bke::AttributeAccessor attributes = base_mesh->attributes();
+  bke::AttributeAccessor attributes = base_mesh->attributes();
   context->base_to_orig_vmap = *attributes.lookup<int>(vname);
 
   /* Tag the base mesh vertices in the original mesh. */
@@ -931,13 +932,13 @@ static void multires_unsubdivide_prepare_original_bmesh_for_extract(
  * Checks the orientation of the loops to flip the x and y axis when extracting the grid if
  * necessary.
  */
-static bool multires_unsubdivide_flip_grid_x_axis(const blender::OffsetIndices<int> faces,
-                                                  const blender::Span<int> corner_verts,
+static bool multires_unsubdivide_flip_grid_x_axis(const OffsetIndices<int> faces,
+                                                  const Span<int> corner_verts,
                                                   int face_index,
                                                   int loop,
                                                   int v_x)
 {
-  const blender::IndexRange face = faces[face_index];
+  const IndexRange face = faces[face_index];
 
   const int v_first = corner_verts[face.start()];
   if ((loop == (face.start() + (face.size() - 1))) && v_first == v_x) {
@@ -957,7 +958,6 @@ static bool multires_unsubdivide_flip_grid_x_axis(const blender::OffsetIndices<i
 
 static void multires_unsubdivide_extract_grids(MultiresUnsubdivideContext *context)
 {
-  using namespace blender;
   Mesh *original_mesh = context->original_mesh;
   Mesh *base_mesh = context->base_mesh;
 
@@ -1005,8 +1005,8 @@ static void multires_unsubdivide_extract_grids(MultiresUnsubdivideContext *conte
   const int base_l_offset = CustomData_get_offset_named(
       &bm_base_mesh->ldata, CD_PROP_INT32, lname);
 
-  const blender::OffsetIndices faces = base_mesh->faces();
-  const blender::Span<int> corner_verts = base_mesh->corner_verts();
+  const OffsetIndices faces = base_mesh->faces();
+  const Span<int> corner_verts = base_mesh->corner_verts();
 
   /* Main loop for extracting the grids. Iterates over the base mesh vertices. */
   BM_ITER_MESH (v, &iter, bm_base_mesh, BM_VERTS_OF_MESH) {
@@ -1171,14 +1171,14 @@ static void multires_create_grids_in_unsubdivided_base_mesh(MultiresUnsubdivideC
   MDisps *mdisps = static_cast<MDisps *>(CustomData_add_layer(
       &base_mesh->corner_data, CD_MDISPS, CD_SET_DEFAULT, base_mesh->corners_num));
 
-  const int totdisp = pow_i(BKE_ccg_gridsize(context->num_total_levels), 2);
+  const int totdisp = pow_i(CCG_grid_size(context->num_total_levels), 2);
   const int totloop = base_mesh->corners_num;
 
   BLI_assert(base_mesh->corners_num == context->num_grids);
 
   /* Allocate the MDISPS grids and copy the extracted data from context. */
   for (int i = 0; i < totloop; i++) {
-    float(*disps)[3] = MEM_calloc_arrayN<float[3]>(totdisp, __func__);
+    float (*disps)[3] = MEM_calloc_arrayN<float[3]>(totdisp, __func__);
 
     if (mdisps[i].disps) {
       MEM_freeN(mdisps[i].disps);
@@ -1202,7 +1202,7 @@ int multiresModifier_rebuild_subdiv(Depsgraph *depsgraph,
                                     int rebuild_limit,
                                     bool switch_view_to_lower_level)
 {
-  Mesh *mesh = static_cast<Mesh *>(object->data);
+  Mesh *mesh = id_cast<Mesh *>(object->data);
 
   multires_force_sculpt_rebuild(object);
 
@@ -1242,7 +1242,7 @@ int multiresModifier_rebuild_subdiv(Depsgraph *depsgraph,
   }
 
   /* Copy the new base mesh to the original mesh. */
-  Mesh *base_mesh = static_cast<Mesh *>(object->data);
+  Mesh *base_mesh = id_cast<Mesh *>(object->data);
   BKE_mesh_nomain_to_mesh(unsubdiv_context.base_mesh, base_mesh, object);
   multires_create_grids_in_unsubdivided_base_mesh(&unsubdiv_context, base_mesh);
 
@@ -1275,3 +1275,5 @@ int multiresModifier_rebuild_subdiv(Depsgraph *depsgraph,
 
   return rebuild_subdvis;
 }
+
+}  // namespace blender

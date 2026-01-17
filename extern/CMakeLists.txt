@@ -4,7 +4,9 @@
 
 # Libs that adhere to strict flags
 add_subdirectory(curve_fit_nd)
+add_subdirectory(fast_float)
 add_subdirectory(fmtlib)
+add_subdirectory(json)
 if(WITH_IO_FBX)
   add_subdirectory(ufbx)
 endif()
@@ -59,14 +61,6 @@ endif()
 
 if(WITH_BINRELOC)
   add_subdirectory(binreloc)
-endif()
-
-if(WITH_LZO AND NOT WITH_SYSTEM_LZO)
-  add_subdirectory(lzo)
-endif()
-
-if(WITH_LZMA)
-  add_subdirectory(lzma)
 endif()
 
 if(WITH_CYCLES OR WITH_OPENSUBDIV)

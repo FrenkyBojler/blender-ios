@@ -6,6 +6,8 @@
 
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 /** \file
  * \ingroup bke
  */
@@ -22,8 +24,9 @@ struct UnitSettings;
  * \param pad: When true & `prec` is positive, stripped zeroes will be replaced with a space
  * instead of being removed.
  *
- * \note disabling stripping or enabling padding reduces text "jittering" when changing values.
- * Especially with mono-spaced fonts.
+ * \note Disabling stripping or enabling padding reduces text "jittering" when changing values,
+ * especially with mono-spaced fonts. However, the values will take up more space,
+ * so the default is good when there is little movement (e.g. numerical input or mesh overlays).
  */
 size_t BKE_unit_value_as_string(char *str,
                                 int str_maxncpy,
@@ -150,3 +153,5 @@ enum {
   B_UNIT_FREQUENCY = 15,
   B_UNIT_TYPE_TOT = 16,
 };
+
+}  // namespace blender

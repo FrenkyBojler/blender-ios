@@ -36,9 +36,12 @@
 #include "fbx_import_util.hh"
 
 #include "CLG_log.h"
+
+namespace blender {
+
 static CLG_LogRef LOG = {"io.fbx"};
 
-namespace blender::io::fbx {
+namespace io::fbx {
 
 struct FbxImportContext {
   Main *bmain;
@@ -180,7 +183,7 @@ void FbxImportContext::import_cameras()
     bcam->clip_end = fcam->far_plane * this->fbx.metadata.root_scale;
 
     Object *obj = BKE_object_add_only_object(this->bmain, OB_CAMERA, get_fbx_name(node->name));
-    obj->data = bcam;
+    obj->data = id_cast<ID *>(bcam);
     if (!node->visible) {
       obj->visibility_flag |= OB_HIDE_VIEWPORT;
     }
@@ -232,7 +235,7 @@ void FbxImportContext::import_lights()
     //@TODO: if hasattr(lamp, "cycles"): lamp.cycles.cast_shadow = lamp.use_shadow
 
     Object *obj = BKE_object_add_only_object(this->bmain, OB_LAMP, get_fbx_name(node->name));
-    obj->data = lamp;
+    obj->data = id_cast<ID *>(lamp);
     if (!node->visible) {
       obj->visibility_flag |= OB_HIDE_VIEWPORT;
     }
@@ -347,11 +350,7 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   opts.clean_skin_weights = true;
   opts.use_blender_pbr_material = true;
 
-  /* Do geometry modifications for "geometric transforms" cases; when it cannot do that
-   * (e.g. instancing etc.), do not insert helper nodes to account for that. Helper nodes currently
-   * cause armatures/skins to not import correctly, when inserted in the middle of bone chain. */
-  opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY_NO_FALLBACK;
-
+  opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY;
   opts.pivot_handling = UFBX_PIVOT_HANDLING_ADJUST_TO_ROTATION_PIVOT;
 
   opts.space_conversion = UFBX_SPACE_CONVERSION_ADJUST_TRANSFORMS;
@@ -455,4 +454,5 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   DEG_relations_tag_update(bmain);
 }
 
-}  // namespace blender::io::fbx
+}  // namespace io::fbx
+}  // namespace blender

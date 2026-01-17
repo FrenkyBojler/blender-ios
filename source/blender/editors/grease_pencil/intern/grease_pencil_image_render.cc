@@ -84,7 +84,7 @@ GPUOffScreen *image_render_begin(const int2 &win_size)
   GPUOffScreen *offscreen = GPU_offscreen_create(win_size.x,
                                                  win_size.y,
                                                  true,
-                                                 blender::gpu::TextureFormat::UNORM_8_8_8_8,
+                                                 gpu::TextureFormat::UNORM_8_8_8_8,
                                                  GPU_TEXTURE_USAGE_HOST_READ,
                                                  false,
                                                  err_out);
@@ -226,11 +226,10 @@ void draw_dot(const float4x4 &transform,
               const ColorGeometry4f &color)
 {
   GPUVertFormat *format = immVertexFormat();
-  uint attr_pos = GPU_vertformat_attr_add(
-      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
-  uint attr_size = GPU_vertformat_attr_add(format, "size", blender::gpu::VertAttrType::SFLOAT_32);
+  uint attr_pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+  uint attr_size = GPU_vertformat_attr_add(format, "size", gpu::VertAttrType::SFLOAT_32);
   uint attr_color = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+      format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
@@ -251,10 +250,9 @@ void draw_polyline(const float4x4 &transform,
                    const float line_width)
 {
   GPUVertFormat *format = immVertexFormat();
-  const uint attr_pos = GPU_vertformat_attr_add(
-      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint attr_pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
   const uint attr_color = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+      format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
   GPU_line_width(line_width);
@@ -324,11 +322,11 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
   /* Format is matching shader manual load. Keep in sync with #GreasePencilStrokeData.
    * Only the name of the first attribute is important. */
   const uint attr_pos = GPU_vertformat_attr_add(
-      format, "gp_vert_data", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+      format, "gp_vert_data", gpu::VertAttrType::SFLOAT_32_32_32);
   const uint attr_thickness = GPU_vertformat_attr_add(
-      format, "thickness", blender::gpu::VertAttrType::SFLOAT_32);
+      format, "thickness", gpu::VertAttrType::SFLOAT_32);
   const uint attr_color = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+      format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_GPENCIL_STROKE);
   gpu::UniformBuf *ubo = create_shader_ubo(
@@ -338,8 +336,8 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
   /* If cyclic the curve needs one more vertex. */
   const int cyclic_add = (cyclic && indices.size() > 2) ? 1 : 0;
 
-  blender::gpu::Batch *batch = immBeginBatchAtMost(GPU_PRIM_LINE_STRIP_ADJ,
-                                                   indices.size() + cyclic_add + 2);
+  gpu::Batch *batch = immBeginBatchAtMost(GPU_PRIM_LINE_STRIP_ADJ,
+                                          indices.size() + cyclic_add + 2);
 
   auto draw_point = [&](const int point_i) {
     constexpr const float radius_to_pixel_factor =
@@ -387,7 +385,7 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
     /* TODO(fclem): get rid of this dummy VBO. */
     GPUVertFormat format = {0};
     GPU_vertformat_attr_add(&format, "dummy", gpu::VertAttrType::SFLOAT_32);
-    blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+    gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
     GPU_vertbuf_data_alloc(*vbo, 1);
 
     gpu::Batch *gpu_batch = GPU_batch_create_ex(
@@ -417,12 +415,10 @@ static void draw_dots(const float4x4 &transform,
   }
 
   GPUVertFormat *format = immVertexFormat();
-  const uint attr_pos = GPU_vertformat_attr_add(
-      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
-  const uint attr_size = GPU_vertformat_attr_add(
-      format, "size", blender::gpu::VertAttrType::SFLOAT_32);
+  const uint attr_pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint attr_size = GPU_vertformat_attr_add(format, "size", gpu::VertAttrType::SFLOAT_32);
   const uint attr_color = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+      format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
   GPU_program_point_size(true);
@@ -471,10 +467,9 @@ void draw_circles(const float4x4 &transform,
   };
 
   GPUVertFormat *format = immVertexFormat();
-  const uint attr_pos = GPU_vertformat_attr_add(
-      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint attr_pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
   const uint attr_color = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+      format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   const float scale = math::average(math::to_scale(transform));
 
@@ -538,10 +533,9 @@ void draw_lines(const float4x4 &transform,
                 float line_width)
 {
   GPUVertFormat *format = immVertexFormat();
-  const uint attr_pos = GPU_vertformat_attr_add(
-      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint attr_pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
   const uint attr_color = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+      format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
   GPU_line_width(line_width);
@@ -558,6 +552,18 @@ void draw_lines(const float4x4 &transform,
   immEnd();
   immUnbindProgram();
 }
+
+static GVArray attribute_interpolate(const GSpan &input, const bke::CurvesGeometry &curves)
+{
+  if (curves.is_single_type(CURVE_TYPE_POLY)) {
+    return GVArray::from_span(input);
+  }
+
+  const CPPType &type = input.type();
+  GArray<> out(type, curves.evaluated_points_num());
+  curves.interpolate_to_evaluated(input, out.as_mutable_span());
+  return GVArray::from_garray(std::move(out));
+};
 
 void draw_grease_pencil_strokes(const RegionView3D &rv3d,
                                 const int2 &win_size,
@@ -583,11 +589,18 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
   }
 
   const bke::CurvesGeometry &curves = drawing.strokes();
-  const OffsetIndices points_by_curve = curves.points_by_curve();
-  const Span<float3> positions = curves.positions();
+  const OffsetIndices points_by_curve = curves.evaluated_points_by_curve();
+  const Span<float3> positions = curves.evaluated_positions();
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<bool> cyclic = curves.cyclic();
-  const VArray<float> &radii = drawing.radii();
+
+  curves.ensure_can_interpolate_to_evaluated();
+
+  const VArray<float> radii =
+      attribute_interpolate(VArraySpan(drawing.radii()), curves).typed<float>();
+  const VArray<ColorGeometry4f> eval_colors =
+      attribute_interpolate(VArraySpan(colors), curves).typed<ColorGeometry4f>();
+
   const VArray<int8_t> stroke_start_caps = *attributes.lookup_or_default<int8_t>(
       "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
   const VArray<int8_t> stroke_end_caps = *attributes.lookup_or_default<int8_t>(
@@ -620,7 +633,7 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
                                   points_by_curve[stroke_i],
                                   positions,
                                   radii,
-                                  colors,
+                                  eval_colors,
                                   cyclic[stroke_i],
                                   eGPDstroke_Caps(stroke_start_caps[stroke_i]),
                                   eGPDstroke_Caps(stroke_end_caps[stroke_i]),
@@ -630,7 +643,8 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
       case GP_MATERIAL_MODE_DOT:
       case GP_MATERIAL_MODE_SQUARE:
         /* NOTE: Squares don't have their own shader, render as dots too. */
-        draw_dots(transform, points_by_curve[stroke_i], positions, radii, colors, radius_scale);
+        draw_dots(
+            transform, points_by_curve[stroke_i], positions, radii, eval_colors, radius_scale);
         break;
     }
   });

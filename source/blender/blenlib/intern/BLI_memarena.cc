@@ -34,6 +34,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 struct MemBuf {
   MemBuf *next;
   uchar data[0];
@@ -103,14 +105,14 @@ void BLI_memarena_free(MemArena *ma)
 }
 
 /** Pad num up by \a amt (must be power of two). */
-#define PADUP(num, amt) (((num) + ((amt)-1)) & ~((amt)-1))
+#define PADUP(num, amt) (((num) + ((amt) - 1)) & ~((amt) - 1))
 
 /** Align alloc'ed memory (needed if `align > 8`). */
 static void memarena_curbuf_align(MemArena *ma)
 {
   uchar *tmp;
 
-  tmp = (uchar *)PADUP(intptr_t(ma->curbuf), int(ma->align));
+  tmp = reinterpret_cast<uchar *> PADUP(intptr_t(ma->curbuf), int(ma->align));
   ma->cursize -= size_t(tmp - ma->curbuf);
   ma->curbuf = tmp;
 }
@@ -237,3 +239,5 @@ void BLI_memarena_clear(MemArena *ma)
   VALGRIND_DESTROY_MEMPOOL(ma);
   VALGRIND_CREATE_MEMPOOL(ma, 0, false);
 }
+
+}  // namespace blender

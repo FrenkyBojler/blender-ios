@@ -15,8 +15,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_vector.hh"
-#include "BLI_noise.hh"
 #include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -45,7 +45,6 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
-#include "BKE_report.hh"
 #include "BKE_scene.hh"
 
 #include "NOD_texture.h"
@@ -72,6 +71,8 @@
 #include "IMB_colormanagement.hh"
 
 #include "paint_intern.hh"
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Image Paint Tile Utilities (Partial Update)
@@ -354,7 +355,7 @@ bool paint_use_opacity_masking(const Paint *paint, const Brush *brush)
                        IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
                   (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
                   (brush->flag & BRUSH_USE_GRADIENT) ||
-                  (BKE_brush_color_jitter_get_settings(paint, brush)) ||
+                  BKE_brush_color_jitter_get_settings(paint, brush) ||
                   (brush->mtex.tex && !ELEM(brush->mtex.brush_map_mode,
                                             MTEX_MAP_MODE_TILED,
                                             MTEX_MAP_MODE_STENCIL,
@@ -365,12 +366,10 @@ bool paint_use_opacity_masking(const Paint *paint, const Brush *brush)
 
 void paint_brush_color_get(const Paint *paint,
                            Brush *br,
-                           std::optional<blender::float3> &initial_hsv_jitter,
-                           bool color_correction,
+                           std::optional<float3> &initial_hsv_jitter,
                            bool invert,
                            float distance,
                            float pressure,
-                           const ColorManagedDisplay *display,
                            float r_color[3])
 {
   if (invert) {
@@ -395,24 +394,21 @@ void paint_brush_color_get(const Paint *paint,
           break;
         }
       }
-      /* Gradient / Color-band colors are not considered #PROP_COLOR_GAMMA.
-       * Brush colors are expected to be in sRGB though. */
-      IMB_colormanagement_scene_linear_to_srgb_v3(r_color, color_gr);
+      copy_v3_v3(r_color, color_gr);
     }
     else if (color_jitter_settings) {
-      copy_v3_v3(r_color,
-                 BKE_paint_randomize_color(*color_jitter_settings,
-                                           *initial_hsv_jitter,
-                                           distance,
-                                           pressure,
-                                           BKE_brush_color_get(paint, br)));
+      /* Perform color jitter with sRGB transfer function. This is inconsistent with other
+       * paint modes which do it in linear space. But arguably it's better to do it in the
+       * more perceptually uniform color space. */
+      float3 color = BKE_brush_color_get(paint, br);
+      linearrgb_to_srgb_v3_v3(color, color);
+      color = BKE_paint_randomize_color(
+          *color_jitter_settings, *initial_hsv_jitter, distance, pressure, color);
+      srgb_to_linearrgb_v3_v3(r_color, color);
     }
     else {
       copy_v3_v3(r_color, BKE_brush_color_get(paint, br));
     }
-  }
-  if (color_correction) {
-    IMB_colormanagement_display_to_scene_linear_v3(r_color, display);
   }
 }
 
@@ -474,9 +470,9 @@ static void toggle_paint_cursor(Scene &scene, bool enable)
   ToolSettings *settings = scene.toolsettings;
   Paint &p = settings->imapaint.paint;
 
-  if (p.paint_cursor && !enable) {
-    WM_paint_cursor_end(static_cast<wmPaintCursor *>(p.paint_cursor));
-    p.paint_cursor = nullptr;
+  if (p.runtime->paint_cursor && !enable) {
+    WM_paint_cursor_end(static_cast<wmPaintCursor *>(p.runtime->paint_cursor));
+    p.runtime->paint_cursor = nullptr;
     paint_cursor_delete_textures();
   }
   else if (enable) {
@@ -490,12 +486,12 @@ void ED_space_image_paint_update(Main *bmain, wmWindowManager *wm, Scene *scene)
   ImagePaintSettings *imapaint = &settings->imapaint;
   bool enabled = false;
 
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    bScreen *screen = WM_window_get_active_screen(win);
+  for (wmWindow &win : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&win);
 
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      if (area->spacetype == SPACE_IMAGE) {
-        if (((SpaceImage *)area->spacedata.first)->mode == SI_MODE_PAINT) {
+    for (ScrArea &area : screen->areabase) {
+      if (area.spacetype == SPACE_IMAGE) {
+        if ((static_cast<SpaceImage *>(area.spacedata.first))->mode == SI_MODE_PAINT) {
           enabled = true;
         }
       }
@@ -503,7 +499,7 @@ void ED_space_image_paint_update(Main *bmain, wmWindowManager *wm, Scene *scene)
   }
 
   if (enabled) {
-    BKE_paint_init(bmain, scene, PaintMode::Texture2D, PAINT_CURSOR_TEXTURE_PAINT);
+    BKE_paint_init(bmain, scene, PaintMode::Texture2D);
 
     ED_paint_cursor_start(&imapaint->paint, ED_image_tools_paint_poll);
   }
@@ -578,9 +574,9 @@ static wmOperatorStatus grab_clone_modal(bContext *C, wmOperator *op, const wmEv
       return OPERATOR_FINISHED;
     case MOUSEMOVE:
       /* mouse moved, so move the clone image */
-      UI_view2d_region_to_view(
+      ui::view2d_region_to_view(
           &region->v2d, cmv->startx - xmin, cmv->starty - ymin, &startfx, &startfy);
-      UI_view2d_region_to_view(&region->v2d, event->xy[0] - xmin, event->xy[1] - ymin, &fx, &fy);
+      ui::view2d_region_to_view(&region->v2d, event->xy[0] - xmin, event->xy[1] - ymin, &fx, &fy);
 
       delta[0] = fx - startfx;
       delta[1] = fy - startfy;
@@ -640,12 +636,11 @@ void PAINT_OT_grab_clone(wmOperatorType *ot)
 /** \name Texture Paint Toggle Operator
  * \{ */
 
-static blender::float3 paint_init_pivot_mesh(Object *ob)
+static float3 paint_init_pivot_mesh(Object *ob)
 {
-  using namespace blender;
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
   if (!mesh_eval) {
-    mesh_eval = (const Mesh *)ob->data;
+    mesh_eval = id_cast<const Mesh *>(ob->data);
   }
 
   const std::optional<Bounds<float3>> bounds = mesh_eval->bounds_min_max();
@@ -656,24 +651,22 @@ static blender::float3 paint_init_pivot_mesh(Object *ob)
   return math::midpoint(bounds->min, bounds->max);
 }
 
-static blender::float3 paint_init_pivot_curves(Object *ob)
+static float3 paint_init_pivot_curves(Object *ob)
 {
-  const Curves &curves = *static_cast<const Curves *>(ob->data);
-  const std::optional<blender::Bounds<blender::float3>> bounds =
-      curves.geometry.wrap().bounds_min_max();
+  const Curves &curves = *id_cast<const Curves *>(ob->data);
+  const std::optional<Bounds<float3>> bounds = curves.geometry.wrap().bounds_min_max();
   if (bounds.has_value()) {
-    return blender::math::midpoint(bounds->min, bounds->max);
+    return math::midpoint(bounds->min, bounds->max);
   }
-  return blender::float3(0);
+  return float3(0);
 }
 
-static blender::float3 paint_init_pivot_grease_pencil(Object *ob, const int frame)
+static float3 paint_init_pivot_grease_pencil(Object *ob, const int frame)
 {
-  using namespace blender;
-  const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(ob->data);
+  const GreasePencil &grease_pencil = *id_cast<const GreasePencil *>(ob->data);
   const std::optional<Bounds<float3>> bounds = grease_pencil.bounds_min_max(frame);
   if (bounds.has_value()) {
-    return blender::math::midpoint(bounds->min, bounds->max);
+    return math::midpoint(bounds->min, bounds->max);
   }
   return float3(0.0f);
 }
@@ -681,9 +674,9 @@ static blender::float3 paint_init_pivot_grease_pencil(Object *ob, const int fram
 /* TODO: Move this out of paint image... */
 void paint_init_pivot(Object *ob, Scene *scene, Paint *paint)
 {
-  blender::bke::PaintRuntime &paint_runtime = *paint->runtime;
+  bke::PaintRuntime &paint_runtime = *paint->runtime;
 
-  blender::float3 location;
+  float3 location;
   switch (ob->type) {
     case OB_MESH:
       location = paint_init_pivot_mesh(ob);
@@ -740,7 +733,7 @@ void ED_object_texture_paint_mode_enter_ex(Main &bmain,
 
   ob.mode |= OB_MODE_TEXTURE_PAINT;
 
-  BKE_paint_init(&bmain, &scene, PaintMode::Texture3D, PAINT_CURSOR_TEXTURE_PAINT);
+  BKE_paint_init(&bmain, &scene, PaintMode::Texture3D);
 
   BKE_paint_brushes_validate(&bmain, &imapaint.paint);
 
@@ -871,10 +864,12 @@ static wmOperatorStatus brush_colors_flip_exec(bContext *C, wmOperator * /*op*/)
 
   if (BKE_paint_use_unified_color(paint)) {
     UnifiedPaintSettings &ups = paint->unified_paint_settings;
-    swap_v3_v3(ups.rgb, ups.secondary_rgb);
+    swap_v3_v3(ups.color, ups.secondary_color);
+    BKE_brush_color_sync_legacy(&ups);
   }
   else if (br) {
-    swap_v3_v3(br->rgb, br->secondary_rgb);
+    swap_v3_v3(br->color, br->secondary_color);
+    BKE_brush_color_sync_legacy(br);
     BKE_brush_tag_unsaved_changes(br);
   }
   else {
@@ -900,8 +895,8 @@ static bool brush_colors_flip_poll(bContext *C)
       if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_TEXTURE_PAINT | OB_MODE_SCULPT)) {
         return true;
       }
-      if (blender::ed::greasepencil::grease_pencil_painting_poll(C) ||
-          blender::ed::greasepencil::grease_pencil_vertex_painting_poll(C))
+      if (ed::greasepencil::grease_pencil_painting_poll(C) ||
+          ed::greasepencil::grease_pencil_vertex_painting_poll(C))
       {
         return true;
       }
@@ -960,10 +955,10 @@ static bool texture_paint_poll(bContext *C)
   return false;
 }
 
-blender::float3 seed_hsv_jitter()
+float3 seed_hsv_jitter()
 {
-  blender::RandomNumberGenerator rng = blender::RandomNumberGenerator::from_random_seed();
-  return blender::float3{rng.get_float(), rng.get_float(), rng.get_float()};
+  RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
+  return float3{rng.get_float(), rng.get_float(), rng.get_float()};
 }
 
 bool image_texture_paint_poll(bContext *C)
@@ -987,3 +982,5 @@ bool mask_paint_poll(bContext *C)
 }
 
 /** \} */
+
+}  // namespace blender

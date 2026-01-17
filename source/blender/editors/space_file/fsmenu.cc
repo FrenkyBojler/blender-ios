@@ -8,16 +8,18 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
+
+#include "DNA_userdef_types.h"
 
 #include "BLT_translation.hh"
 
@@ -26,10 +28,10 @@
 #include "ED_fileselect.hh"
 
 #include "UI_resources.hh"
-#include "WM_api.hh"
-#include "WM_types.hh"
 
-#include "fsmenu.h" /* include ourselves */
+#include "fsmenu.hh" /* include ourselves */
+
+namespace blender {
 
 /* FSMENU HANDLING */
 
@@ -231,6 +233,15 @@ void fsmenu_insert_entry(FSMenu *fsmenu,
                          int icon,
                          FSMenuInsert flag)
 {
+  /* NOTE: this function must *not* perform file-system checks on `path`,
+   * although the path may be inspected as a literal string.
+   *
+   * This is important because accessing the file system may reference drives
+   * which are offline, network drives requiring an internet connection,
+   * external drives that aren't plugged in, etc.
+   * Delays in any file-system checks can causes hanging on startup.
+   * See !138218 for details. */
+
   const uint path_len = strlen(path);
   BLI_assert(path_len > 0);
   if (path_len == 0) {
@@ -445,15 +456,10 @@ void fsmenu_read_bookmarks(FSMenu *fsmenu, const char *filepath)
         if (line[len - 1] == '\n') {
           line[len - 1] = '\0';
         }
-        /* don't do this because it can be slow on network drives,
-         * having a bookmark from a drive that's ejected or so isn't
-         * all _that_ bad */
-#if 0
-        if (BLI_exists(line))
-#endif
-        {
-          fsmenu_insert_entry(fsmenu, category, line, name, ICON_FILE_FOLDER, FS_INSERT_SAVE);
-        }
+        /* Don't check if the path exists before adding because it can be slow on network drives,
+         * having a bookmark from a drive that's ejected or so isn't all that bad.
+         * See !138218 for details. */
+        fsmenu_insert_entry(fsmenu, category, line, name, ICON_FILE_FOLDER, FS_INSERT_SAVE);
       }
       /* always reset name. */
       name[0] = '\0';
@@ -522,3 +528,39 @@ int fsmenu_get_active_indices(FSMenu *fsmenu, enum FSMenuCategory category, cons
 
   return -1;
 }
+
+void fsmenu_add_common_platform_directories(FSMenu *fsmenu)
+{
+  /* For all platforms, we add some directories from User Preferences to
+   * the FS_CATEGORY_OTHER category so that these directories
+   * have the appropriate icons when they are added to the Bookmarks.
+   *
+   * NOTE: of the preferences support as `//` prefix.
+   * Skip them since they depend on the current loaded blend file. */
+
+  auto add_user_dir = [fsmenu](const char *dir, int icon) {
+    if (dir[0] && !BLI_path_is_rel(dir)) {
+      fsmenu_insert_entry(fsmenu, FS_CATEGORY_OTHER, dir, nullptr, icon, FS_INSERT_LAST);
+    }
+  };
+
+  add_user_dir(U.fontdir, ICON_FILE_FONT);
+  add_user_dir(U.textudir, ICON_FILE_IMAGE);
+
+  for (bUserScriptDirectory &script_dir : U.script_directories) {
+    if (UNLIKELY(script_dir.dir_path[0] == '\0')) {
+      continue;
+    }
+    fsmenu_insert_entry(fsmenu,
+                        FS_CATEGORY_OTHER,
+                        script_dir.dir_path,
+                        script_dir.name,
+                        ICON_FILE_SCRIPT,
+                        FS_INSERT_LAST);
+  }
+
+  add_user_dir(U.sounddir, ICON_FILE_SOUND);
+  add_user_dir(U.tempdir, ICON_TEMP);
+}
+
+}  // namespace blender

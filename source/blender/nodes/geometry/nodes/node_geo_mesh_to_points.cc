@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_attribute.h"
 #include "BLI_array_utils.hh"
 
 #include "DNA_mesh_types.h"
@@ -41,14 +42,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Points").propagate_all();
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshToPoints *data = MEM_callocN<NodeGeometryMeshToPoints>(__func__);
+  NodeGeometryMeshToPoints *data = MEM_new_for_free<NodeGeometryMeshToPoints>(__func__);
   data->mode = GEO_NODE_MESH_TO_POINTS_VERTICES;
   node->storage = data;
 }
@@ -108,32 +109,34 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
   array_utils::gather(evaluator.get_evaluated(1), selection, radius.span);
   radius.finish();
 
-  Map<StringRef, AttributeDomainAndType> attributes;
+  bke::GeometrySet::GatheredAttributes attributes;
   geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::Mesh},
                                                  GeometryComponent::Type::PointCloud,
                                                  false,
                                                  attribute_filter,
                                                  attributes);
-  attributes.remove("radius");
-  attributes.remove("position");
 
-  for (MapItem<StringRef, AttributeDomainAndType> entry : attributes.items()) {
-    const StringRef attribute_id = entry.key;
-    const bke::AttrType data_type = entry.value.data_type;
-    const bke::GAttributeReader src = src_attributes.lookup(attribute_id, domain, data_type);
+  for (const int i : attributes.names.index_range()) {
+    if (ELEM(attributes.names[i], "position", "radius", ".select_edge", ".select_poly")) {
+      continue;
+    }
+    const StringRef src_name = attributes.names[i];
+    const bke::AttrType data_type = attributes.kinds[i].data_type;
+    const bke::GAttributeReader src = src_attributes.lookup(src_name, domain, data_type);
     if (!src) {
       /* Domain interpolation can fail if the source domain is empty. */
       continue;
     }
 
+    const StringRef dst_name = src_name == ".select_vert" ? ".selection" : src_name;
     if (share_arrays && src.domain == domain && src.sharing_info && src.varray.is_span()) {
       const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
                                           *src.sharing_info);
-      dst_attributes.add(attribute_id, AttrDomain::Point, data_type, init);
+      dst_attributes.add(dst_name, AttrDomain::Point, data_type, init);
     }
     else {
       GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-          attribute_id, AttrDomain::Point, data_type);
+          dst_name, AttrDomain::Point, data_type);
       array_utils::gather(src.varray, selection, dst.span);
       dst.finish();
     }
@@ -159,7 +162,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<float> positive_radius(FieldOperation::from(max_zero_fn, {std::move(radius)}), 0);
 
   const NodeGeometryMeshToPoints &storage = node_storage(params.node());
-  const GeometryNodeMeshToPointsMode mode = (GeometryNodeMeshToPointsMode)storage.mode;
+  const GeometryNodeMeshToPointsMode mode = GeometryNodeMeshToPointsMode(storage.mode);
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Points");
 
@@ -242,7 +245,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeMeshToPoints", GEO_NODE_MESH_TO_POINTS);
   ntype.ui_name = "Mesh to Points";
@@ -253,9 +256,9 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryMeshToPoints", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
