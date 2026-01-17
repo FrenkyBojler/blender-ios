@@ -636,6 +636,24 @@ int make_samples<Sampler::Box>(int width,
   return count;
 }
 
+// some macros so code can work with float4 or __m128
+// Currently not seeing a difference in speed, this may not be necessary
+#if BLI_HAVE_SSE2
+#define F4 __m128
+#define F4C(c) _mm_set1_ps(c)
+#define F4P(p) _mm_loadu_ps(p)
+#define F4ADD(a,b) _mm_add_ps(a,b)
+#define F4MULC(a,c) _mm_mul_ps(a, _mm_set1_ps(c))
+#define F4V(a) *(float4*)(&a)
+#else
+#define F4 float4
+#define F4C(c) float4(c)
+#define F4P(p) *(float4*)(p)
+#define F4ADD(a,b) (a)+(b)
+#define F4MULC(a,c) (a)*(c)
+#define F4V(a) a
+#endif
+
 template<Sampler sampler>
 static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
@@ -649,30 +667,16 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
   const int nx = make_samples<sampler>(
       source.width, source.wrap_x, uv.x, wh.x, positions_x, weights_x);
 
-#if BLI_HAVE_SSE2
-  __m128 sum = _mm_set1_ps(0.0f);
+  F4 sum = F4C(0.0f);
   for (int i = 0; i < ny; i++) {
-    __m128 sumx = _mm_set1_ps(0.0f);
+    F4 sumx = F4C(0.0f);
     const float *p = source.row(positions_y[i]);
     for (int j = 0; j < nx; j++) {
-      sumx = _mm_add_ps(
-          sumx, _mm_mul_ps(_mm_loadu_ps(p + positions_x[j] * source.step), _mm_set1_ps(weights_x[j])));
+      sumx = F4ADD(sumx, F4MULC(F4P(p + positions_x[j] * source.step), weights_x[j]));
     }
-    sum = _mm_add_ps(sum, _mm_mul_ps(sumx, _mm_set1_ps(weights_y[i])));
+    sum = F4ADD(sum, F4MULC(sumx, weights_y[i]));
   }
-  return *(float4 *)(&sum);  //_mm_storeu_ps(output, sum);
-#else
-  float4 sum{0.0f};
-  for (int i = 0; i < ny; i++) {
-    float4 sumx{0.0f};
-    const float *p = source.row(positions_y[i]);
-    for (int j = 0; j < nx; j++) {
-      sumx += *(float4 *)(p + positions_x[j] * source.step) * weights_x[j];
-    }
-    sum += sumx * weights_y[i];
-  }
-  return sum;
-#endif
+  return F4V(sum);
 }
 
 /* nearest sampling does the clipping, so there is no _clip version */
@@ -713,16 +717,12 @@ float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
   float ma_b = (1.0f - a) * b;
   float a_mb = a * (1.0f - b);
   float ma_mb = (1.0f - a) * (1.0f - b);
-#if BLI_HAVE_SSE2
-  __m128 sum = _mm_mul_ps(_mm_set1_ps(ma_mb), _mm_loadu_ps(row1));
-  sum = _mm_add_ps(_mm_mul_ps(_mm_set1_ps(ma_b), _mm_loadu_ps(row2)), sum);
-  sum = _mm_add_ps(_mm_mul_ps(_mm_set1_ps(a_mb), _mm_loadu_ps(row3)), sum);
-  sum = _mm_add_ps(_mm_mul_ps(_mm_set1_ps(a_b), _mm_loadu_ps(row4)), sum);
-  return *(float4 *)(&sum);  //_mm_storeu_ps(output, sum);
-#else
-  return *(float4 *)row1 * ma_mb + *(float4 *)row2 * ma_b + *(float4 *)row3 * a_mb +
-         *(float4 *)row4 * a_b;
-#endif
+
+  F4 sum = F4ADD(F4ADD(F4MULC(F4P(row1), ma_mb),
+                       F4MULC(F4P(row2), ma_b)),
+                 F4ADD(F4MULC(F4P(row3), a_mb),
+                       F4MULC(F4P(row4), a_b)));
+  return F4V(sum);
 }
 
 template<Sampler sampler>
