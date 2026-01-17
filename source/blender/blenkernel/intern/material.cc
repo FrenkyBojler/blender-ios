@@ -86,6 +86,9 @@ static void material_init_data(ID *id)
 {
   Material *material = id_cast<Material *>(id);
   INIT_DEFAULT_STRUCT_AFTER(material, id);
+
+  material->nodetree = bke::node_tree_add_tree_embedded(
+      nullptr, &material->id, "Shader Nodetree", "ShaderNodeTree");
 }
 
 static void material_copy_data(Main *bmain,
@@ -829,7 +832,7 @@ std::optional<int> BKE_id_material_index_max_eval(const ID &id)
     case ID_PT:
       return reinterpret_cast<const PointCloud &>(id).material_index_max();
     case ID_GP:
-      return reinterpret_cast<const GreasePencil &>(id).material_index_max_eval();
+      return reinterpret_cast<const GreasePencil &>(id).material_index_max();
     case ID_VO:
     case ID_MB:
       /* Always use the first material. */
@@ -2076,9 +2079,7 @@ static void material_default_gpencil_init(Material **ma_p)
 static void material_default_surface_init(Material **ma_p)
 {
   Material *ma = material_default_create(ma_p, "Default Surface");
-
-  bNodeTree *ntree = bke::node_tree_add_tree_embedded(
-      nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
+  bNodeTree *ntree = ma->nodetree;
 
   bNode *principled = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
   bNodeSocket *base_color = bke::node_find_socket(*principled, SOCK_IN, "Base Color");
@@ -2103,9 +2104,7 @@ static void material_default_surface_init(Material **ma_p)
 static void material_default_volume_init(Material **ma_p)
 {
   Material *ma = material_default_create(ma_p, "Default Volume");
-
-  bNodeTree *ntree = bke::node_tree_add_tree_embedded(
-      nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
+  bNodeTree *ntree = ma->nodetree;
 
   bNode *principled = bke::node_add_static_node(nullptr, *ntree, SH_NODE_VOLUME_PRINCIPLED);
   bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
@@ -2127,9 +2126,7 @@ static void material_default_volume_init(Material **ma_p)
 static void material_default_holdout_init(Material **ma_p)
 {
   Material *ma = material_default_create(ma_p, "Default Holdout");
-
-  bNodeTree *ntree = bke::node_tree_add_tree_embedded(
-      nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
+  bNodeTree *ntree = ma->nodetree;
 
   bNode *holdout = bke::node_add_static_node(nullptr, *ntree, SH_NODE_HOLDOUT);
   bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);

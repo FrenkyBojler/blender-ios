@@ -792,9 +792,6 @@ option(LLVM_STATIC "Link with LLVM static libraries" OFF)
 mark_as_advanced(LLVM_STATIC)
 option(WITH_CLANG "Use Clang" OFF)
 
-option(WITH_MEM_JEMALLOC "Enable malloc replacement (http://www.canonware.com/jemalloc)" ON)
-mark_as_advanced(WITH_MEM_JEMALLOC)
-
 # currently only used for BLI_mempool
 option(WITH_MEM_VALGRIND "Enable extended valgrind support for better reporting" OFF)
 mark_as_advanced(WITH_MEM_VALGRIND)
@@ -820,8 +817,10 @@ Enable multi-threading. TBB is also required for features such as Cycles, OpenVD
   ON
 )
 
-# TBB malloc is only supported on for windows currently
-if(WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+# TBB malloc is only supported:
+# - On MS-Windows.
+# - On Unix/Linux.
+if((WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64") OR (UNIX AND NOT APPLE))
   option(WITH_TBB_MALLOC_PROXY "Enable the TBB malloc replacement" ON)
 endif()
 
@@ -1039,9 +1038,9 @@ Can cause linking issues due to too large binary size."
   OFF
 )
 mark_as_advanced(WITH_COMPILER_ASAN_EXTERN)
-set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_JEMALLOC OFF)
+# Note: Using tbbmalloc allocator seems to be fully compatible with current sanitizers
+# (both clang/llvm and gcc ones).
 set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_VALGRIND OFF)
-set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_JEMALLOC OFF)
 set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_VALGRIND OFF)
 
 option(WITH_COMPILER_CODE_COVERAGE "\
@@ -1642,13 +1641,16 @@ if(NOT WITH_SYSTEM_EIGEN3)
 endif()
 if (WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
   # See also:
-  #   - `EIGEN_MALLOC_ALREADY_ALIGNED` definition and usages in extern/Eigen3/Eigen/src/Core/util/Memory.h
-  #   - Report: https://projects.blender.org/blender/blender/issues/152010
+  # - `EIGEN_MALLOC_ALREADY_ALIGNED` definition and usages in
+  #   `./extern/Eigen3/Eigen/src/Core/util/Memory.h`
+  # - Report: https://projects.blender.org/blender/blender/issues/152010
   #
-  # NOTE: It seems to only affect GCC and its sanitizer library - but best be on the safe side here,
-  #       and do that for all compilers and systems.
-  message(DEBUG "Forcing Eigen to use their own allocator code because `WITH_COMPILER_ASAN` is enabled but "
-                "`WITH_COMPILER_ASAN_EXTERN` is disabled, which can cause mismatch usages of Eigen allocators." )
+  # NOTE: It seems to only affect GCC and its sanitizer library - but best
+  #       be on the safe side here, and do that for all compilers and systems.
+  message(DEBUG
+    "Forcing Eigen to use their own allocator code because `WITH_COMPILER_ASAN` is enabled but "
+    "`WITH_COMPILER_ASAN_EXTERN` is disabled, which can cause mismatch usages of Eigen allocators."
+  )
   add_definitions(-DEIGEN_MALLOC_ALREADY_ALIGNED=0)
 endif()
 
@@ -2857,7 +2859,7 @@ if(FIRST_RUN)
 
   info_cfg_text("System Options:")
   info_cfg_option(WITH_INSTALL_PORTABLE)
-  info_cfg_option(WITH_MEM_JEMALLOC)
+  info_cfg_option(WITH_TBB_MALLOC_PROXY)
   info_cfg_option(WITH_MEM_VALGRIND)
 
   info_cfg_text("GHOST Options:")

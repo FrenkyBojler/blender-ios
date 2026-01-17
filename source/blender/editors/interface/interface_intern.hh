@@ -79,7 +79,7 @@ namespace ui {
 #define UI_POPOVER_WIDTH_UNITS 10
 
 /** #Button.flag */
-enum {
+enum ButtonFlagInternal {
   /** Use when the button is pressed. */
   UI_SELECT = (1 << 0),
   /** Temporarily hidden (scrolled out of the view). */
@@ -106,6 +106,16 @@ enum {
 
   /* WARNING: rest of #Button.flag in `UI_interface_c.hh`. */
 };
+
+/** These two enums can be combined. */
+inline int operator|(const ButtonFlag a, const ButtonFlagInternal b)
+{
+  return int(a) | int(b);
+}
+inline int operator|(const ButtonFlagInternal b, const ButtonFlag a)
+{
+  return int(a) | int(b);
+}
 
 /** #Button.pie_dir */
 enum RadialDirection : int8_t {
@@ -524,6 +534,12 @@ struct ColorPicker {
 
   /* Hex Color string */
   char hexcol[128];
+
+  /**
+   * Buffer for the main area (Circle/Square) tooltip.
+   * Used for dynamically formatted tooltips (e.g. "Hue/Saturation").
+   */
+  char tooltip_area[128];
 
   /** Cubic saturation for the color wheel. */
   bool use_color_cubic;
