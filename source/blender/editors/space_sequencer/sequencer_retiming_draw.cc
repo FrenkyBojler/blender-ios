@@ -105,9 +105,9 @@ static void retiming_key_draw(const TimelineDrawContext &ctx,
   const View2D *v2d = ctx.v2d;
   Strip *strip = strip_ctx.strip;
 
-  const float key_x = seq::retiming_key_frame_get(scene, strip, key);
+  const float key_frame = seq::retiming_key_frame_get(scene, strip, key);
   const rctf strip_bounds = strip_bounds_get(scene, strip);
-  if (!BLI_rctf_isect_x(&strip_bounds, key_x)) {
+  if (!BLI_rctf_isect_x(&strip_bounds, key_frame)) {
     return; /* Key out of the strip bounds. */
   }
 
@@ -123,12 +123,11 @@ static void retiming_key_draw(const TimelineDrawContext &ctx,
   const int size = retiming_key_size();
   const float bottom = retiming_key_center(v2d, strip);
 
-  /* Ensure, that key is always inside of strip. */
-  const float right_pos_max = ui::view2d_view_to_region_x(v2d, strip_ctx.right_handle) -
-                              (size / 2);
-  const float left_pos_min = ui::view2d_view_to_region_x(v2d, strip_ctx.left_handle) + (size / 2);
-  float key_position = ui::view2d_view_to_region_x(v2d, key_x);
-  CLAMP(key_position, left_pos_min, right_pos_max);
+  /* For keys on the edge of the strip, ensure that their entire extent is drawn with a shift. */
+  const float right_max = ui::view2d_view_to_region_x(v2d, strip_ctx.right_handle) - (size / 2);
+  const float left_min = ui::view2d_view_to_region_x(v2d, strip_ctx.left_handle) + (size / 2);
+  float key_position = ui::view2d_view_to_region_x(v2d, key_frame);
+  CLAMP(key_position, left_min, right_max);
   const float alpha = seq::retiming_data_is_editable(strip) ? 1.0f : 0.3f;
 
   draw_keyframe_shape(key_position,
@@ -144,7 +143,7 @@ static void retiming_key_draw(const TimelineDrawContext &ctx,
 }
 
 /* If there are no keys, draw fake keys and create real key when they are selected. */
-/* TODO: would be nice to draw continuity between fake keys. */
+/* TODO: would be nice to draw segments between fake keys. */
 static bool fake_keys_draw(const TimelineDrawContext &ctx,
                            const StripDrawContext &strip_ctx,
                            const KeyframeShaderBindings &sh_bindings)
@@ -215,7 +214,7 @@ void sequencer_retiming_keys_draw(const TimelineDrawContext &ctx, Span<StripDraw
       retiming_key_draw(ctx, strip_ctx, &key, sh_bindings);
       point_counter++;
 
-      /* Next key plus possible two fake keys for next sequence would need at
+      /* Next key plus possible two fake keys for next strip would need at
        * most 3 points, so restart the batch if we're close to that. */
       if (point_counter + 3 >= MAX_KEYS_IN_BATCH) {
         immEnd();
@@ -248,8 +247,8 @@ void sequencer_retiming_draw_segments(const TimelineDrawContext &ctx,
   const Strip *strip = strip_ctx.strip;
   const View2D *v2d = ctx.v2d;
   const Scene *scene = ctx.scene;
-  const float left_handle_position = ui::view2d_view_to_region_x(v2d, strip_ctx.left_handle);
-  const float right_handle_position = ui::view2d_view_to_region_x(v2d, strip_ctx.right_handle);
+  const float left_handle_pos = ui::view2d_view_to_region_x(v2d, strip_ctx.left_handle);
+  const float right_handle_pos = ui::view2d_view_to_region_x(v2d, strip_ctx.right_handle);
 
   for (const SeqRetimingKey &key : seq::retiming_keys_get(strip)) {
     const int key_frame = seq::retiming_key_frame_get(scene, strip, &key);
@@ -257,15 +256,15 @@ void sequencer_retiming_draw_segments(const TimelineDrawContext &ctx,
       continue;
     }
 
-    float key_position = ui::view2d_view_to_region_x(v2d, key_frame);
-    float prev_key_position = ui::view2d_view_to_region_x(
+    float key_pos = ui::view2d_view_to_region_x(v2d, key_frame);
+    float prev_key_pos = ui::view2d_view_to_region_x(
         v2d, seq::retiming_key_frame_get(scene, strip, &key - 1));
-    if (prev_key_position > right_handle_position || key_position < left_handle_position) {
+    if (prev_key_pos > right_handle_pos || key_pos < left_handle_pos) {
       /* Don't draw highlights for out of bounds retiming keys. */
       continue;
     }
-    prev_key_position = max_ff(prev_key_position, left_handle_position);
-    key_position = min_ff(key_position, right_handle_position);
+    prev_key_pos = max_ff(prev_key_pos, left_handle_pos);
+    key_pos = min_ff(key_pos, right_handle_pos);
 
     const int size = retiming_key_size();
     const float y_center = retiming_key_center(v2d, strip);
@@ -290,7 +289,7 @@ void sequencer_retiming_draw_segments(const TimelineDrawContext &ctx,
       color[2] = 0;
       color[3] = 25;
     }
-    ctx.quads->add_quad(prev_key_position, bottom, key_position, top, color);
+    ctx.quads->add_quad(prev_key_pos, bottom, key_pos, top, color);
   }
 }
 
