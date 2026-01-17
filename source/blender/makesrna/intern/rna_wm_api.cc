@@ -1088,7 +1088,6 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_property_ui_text(
       parm, "nth", "Selects the nth button in the region that points to the data.");
   RNA_def_property_int_default(parm, 0);
-
   parm = RNA_def_property(func, "xy", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(
       parm, "xy", "The center point of the button when successfully activated");

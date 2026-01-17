@@ -12652,6 +12652,7 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   if (region->runtime->do_draw & RGN_DRAWING) {
     return std::nullopt;
   }
+
   bScreen *screen = CTX_wm_screen(C);
   ScrArea *area = nullptr;
   for (ScrArea &test_area : screen->areabase) {
@@ -12664,9 +12665,11 @@ std::optional<int2> try_activate_rna_button(bContext *C,
       break;
     }
   }
+
   if (!area) {
     return std::nullopt;
   }
+
   Button *button = nullptr;
   PropertyRNA *prop = RNA_struct_find_property(ptr, property.data());
   for (Block &block : region->runtime->uiblocks) {
@@ -12742,4 +12745,5 @@ std::optional<int2> try_activate_rna_button(bContext *C,
 
   return xy;
 }
+
 }  // namespace blender::ui
