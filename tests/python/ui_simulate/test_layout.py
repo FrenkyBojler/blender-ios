@@ -95,6 +95,13 @@ def _test_vars(window):
     )
 
 
+def _button_reset_value(wm, region, data, prop, t, e, expected_value, nth=0):
+    """Highlight button and reset its value with back_space"""
+    t.assertTrue(wm.try_activate_rna_button(region, data, prop, 'HIGHLIGHT', nth=nth))
+    yield e.back_space()
+    t.assertEqual(getattr(data, prop), expected_value)
+
+
 def ui_string_property_buttons():
     _register()
     e, t = _test_vars(window := _test_window())
@@ -160,9 +167,7 @@ def ui_string_property_buttons():
     yield e.ctrl.v()
     t.assertEqual(data.string_prop, "a1a1a1a1a1a1a1a1a1")
 
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_prop", 'HIGHLIGHT'))
-    yield e.back_space()
-    t.assertEqual(data.string_prop, "")
+    yield from _button_reset_value(wm, region, data, "string_prop", t, e, "", 0)
 
     # `StringProperty(options={'TEXTEDIT_UPDATE'})` as Text button
 
@@ -202,9 +207,7 @@ def ui_string_property_buttons():
     yield e.ctrl.v()
     t.assertEqual(data.string_update_prop, "áéíóúaeiou")
 
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_update_prop", 'HIGHLIGHT'))
-    yield e.back_space()
-    t.assertEqual(data.string_update_prop, "")
+    yield from _button_reset_value(wm, region, data, "string_update_prop", t, e, "", 0)
 
     # `StringProperty(search=_string_search_property_cb)` as Search button
 
@@ -263,9 +266,7 @@ def ui_string_property_buttons():
     yield e.text("A").down_arrow().down_arrow().ret()
     t.assertEqual(data.string_search_prop, "AB")
 
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'HIGHLIGHT'))
-    yield e.back_space()
-    t.assertEqual(data.string_search_prop, "")
+    yield from _button_reset_value(wm, region, data, "string_search_prop", t, e, "", 0)
 
     # `StringProperty(search=_string_search_property_cb)` as prop_search button
 
@@ -284,9 +285,7 @@ def ui_string_property_buttons():
     yield e.ctrl.v()
     t.assertEqual(data.string_search_prop, "B")
 
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'HIGHLIGHT', nth=1))
-    yield e.back_space()
-    t.assertEqual(data.string_search_prop, "")
+    yield from _button_reset_value(wm, region, data, "string_search_prop", t, e, "", nth=1)
 
     # `StringProperty(search=_string_search_property_cb, search_options={'SORT'})` as Search button
 
@@ -316,6 +315,4 @@ def ui_string_property_buttons():
     yield e.ctrl.v()
     t.assertEqual(data.string_force_search_value_prop, "AB")
 
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_force_search_value_prop", 'HIGHLIGHT'))
-    yield e.back_space()
-    t.assertEqual(data.string_force_search_value_prop, "")
+    yield from _button_reset_value(wm, region, data, "string_force_search_value_prop", t, e, "")
