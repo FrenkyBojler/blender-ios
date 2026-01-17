@@ -303,7 +303,6 @@ static void gather_attributes(MutableAttributeAccessor attributes,
 {
   for (const StringRef id : ids) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-    BLI_assert(IndexRange(attribute.span.size()).one_after_last() == new_range.one_after_last());
     bke::attribute_math::gather(
         attribute.span.take_front(new_range.start()), indices, attribute.span.slice(new_range));
     attribute.finish();
@@ -343,7 +342,6 @@ static void gather_vert_attributes(Mesh &mesh,
   for (const StringRef id : ids) {
     if (!vertex_group_names.contains(id)) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-      BLI_assert(IndexRange(attribute.span.size()).one_after_last() == new_range.one_after_last());
       bke::attribute_math::gather(
           attribute.span.take_front(new_range.start()), indices, attribute.span.slice(new_range));
       attribute.finish();
@@ -363,14 +361,16 @@ static void gather_vert_attributes(Mesh &mesh,
 
   if (!vertex_group_names.is_empty() && !mesh.deform_verts().is_empty()) {
     MutableSpan<MDeformVert> dverts = mesh.deform_verts_for_write();
-    bke::gather_deform_verts(dverts, indices, dverts.slice(new_range));
+    bke::gather_deform_verts(
+        dverts.take_front(new_range.start()), indices, dverts.slice(new_range));
   }
 
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   for (const StringRef id : ids) {
     if (!vertex_group_names.contains(id)) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-      array_utils::gather(attribute.span, indices, attribute.span.slice(new_range));
+      array_utils::gather(
+          attribute.span.take_front(new_range.start()), indices, attribute.span.slice(new_range));
       attribute.finish();
     }
   }
@@ -442,7 +442,8 @@ static void extrude_mesh_vertices(Mesh &mesh,
   });
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
-    array_utils::gather(indices->as_span(), selection, indices->slice(new_vert_range));
+    array_utils::gather(
+        indices->as_span().take_front(orig_vert_size), selection, indices->slice(new_vert_range));
   }
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Edge)) {
     indices->slice(new_edge_range).fill(ORIGINDEX_NONE);
@@ -528,12 +529,8 @@ static GroupedSpan<int> build_vert_to_edge_map(const Span<int2> edges,
 
   Array<int> masked_edge_to_edge(edge_mask.size());
   edge_mask.to_indices<int>(masked_edge_to_edge);
-
-  threading::parallel_for(r_indices.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      r_indices[i] = masked_edge_to_edge[r_indices[i]];
-    }
-  });
+  array_utils::gather(
+      masked_edge_to_edge.as_span(), r_indices.as_span(), r_indices.as_mutable_span());
 
   return {r_offsets.as_span(), r_indices.as_span()};
 }
@@ -563,6 +560,7 @@ static void extrude_mesh_edges(Mesh &mesh,
                                const AttributeFilter &attribute_filter)
 {
   const int orig_vert_size = mesh.verts_num;
+  const int orig_edge_size = mesh.edges_num;
   const Span<int2> orig_edges = mesh.edges();
   const OffsetIndices orig_faces = mesh.faces();
   const int orig_loop_size = mesh.corners_num;
@@ -795,11 +793,14 @@ static void extrude_mesh_edges(Mesh &mesh,
   }
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
-    array_utils::gather(indices->as_span(), new_verts, indices->slice(new_vert_range));
+    array_utils::gather(
+        indices->as_span().take_front(orig_vert_size), new_verts, indices->slice(new_vert_range));
   }
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Edge)) {
     indices->slice(connect_edge_range).fill(ORIGINDEX_NONE);
-    array_utils::gather(indices->as_span(), edge_selection, indices->slice(duplicate_edge_range));
+    array_utils::gather(indices->as_span().take_front(orig_edge_size),
+                        edge_selection,
+                        indices->slice(duplicate_edge_range));
   }
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Face)) {
     indices->slice(new_face_range).fill(ORIGINDEX_NONE);
@@ -842,6 +843,8 @@ static void extrude_mesh_face_regions(Mesh &mesh,
                                       const AttributeFilter &attribute_filter)
 {
   const int orig_vert_size = mesh.verts_num;
+  const int orig_edge_size = mesh.edges_num;
+  const int orig_face_size = mesh.faces_num;
   const Span<int2> orig_edges = mesh.edges();
   const OffsetIndices orig_faces = mesh.faces();
   const Span<int> orig_corner_verts = mesh.corner_verts();
@@ -1094,7 +1097,8 @@ static void extrude_mesh_face_regions(Mesh &mesh,
 
       /* Edges parallel to original edges copy the edge attributes from the original edges. */
       GMutableSpan boundary_data = attribute.span.slice(boundary_edge_range);
-      array_utils::gather(attribute.span, boundary_edge_mask, boundary_data);
+      array_utils::gather(
+          attribute.span.take_front(orig_edge_size), boundary_edge_mask, boundary_data);
 
       /* Edges inside of face regions also just duplicate their source data. */
       BLI_assert(new_inner_edge_range.one_after_last() ==
@@ -1187,24 +1191,21 @@ static void extrude_mesh_face_regions(Mesh &mesh,
   }
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
-    BLI_assert(new_vert_range.one_after_last() == indices->index_range().one_after_last());
-    array_utils::gather(indices->as_span().drop_back(new_vert_range.size()),
+    array_utils::gather(indices->as_span().take_front(orig_vert_size),
                         new_vert_indices.as_span(),
                         indices->slice(new_vert_range));
   }
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Edge)) {
-    BLI_assert(new_inner_edge_range.one_after_last() == indices->index_range().one_after_last());
     indices->slice(connect_edge_range).fill(ORIGINDEX_NONE);
-    array_utils::gather(indices->as_span().drop_back(new_inner_edge_range.size()),
+    array_utils::gather(indices->as_span().take_front(orig_edge_size),
                         new_inner_edge_indices.as_span(),
                         indices->slice(new_inner_edge_range));
-    array_utils::gather(indices->as_span().drop_back(boundary_edge_range.size()),
+    array_utils::gather(indices->as_span().take_front(orig_edge_size),
                         boundary_edge_indices.as_span(),
                         indices->slice(boundary_edge_range));
   }
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Face)) {
-    BLI_assert(side_face_range.one_after_last() == indices->index_range().one_after_last());
-    array_utils::gather(indices->as_span().drop_back(side_face_range.size()),
+    array_utils::gather(indices->as_span().take_front(orig_face_size),
                         edge_extruded_face_indices.as_span(),
                         indices->slice(side_face_range));
   }
@@ -1229,6 +1230,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
 {
   const int orig_vert_size = mesh.verts_num;
   const int orig_edge_size = mesh.edges_num;
+  const int orig_face_size = mesh.faces_num;
   const OffsetIndices orig_faces = mesh.faces();
   const Span<int> orig_corner_verts = mesh.corner_verts();
   const int orig_loop_size = orig_corner_verts.size();
@@ -1260,7 +1262,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
   /* Each selected edge is duplicated to form a single edge on the extrusion. */
   const IndexRange duplicate_edge_range = connect_edge_range.after(extrude_corner_size);
   /* Each edge selected for extrusion is extruded into a single face. */
-  const IndexRange side_face_range{orig_faces.size(), duplicate_edge_range.size()};
+  const IndexRange side_face_range{orig_faces.size(), extrude_corner_size};
   const IndexRange side_loop_range{orig_loop_size, side_face_range.size() * 4};
 
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
@@ -1444,18 +1446,21 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
                                });
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
-    array_utils::gather(
-        indices->as_span(), new_vert_indices.as_span(), indices->slice(new_vert_range));
+    array_utils::gather(indices->as_span().take_front(orig_vert_size),
+                        new_vert_indices.as_span(),
+                        indices->slice(new_vert_range));
   }
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Edge)) {
     indices->slice(connect_edge_range).fill(ORIGINDEX_NONE);
-    array_utils::gather(indices->as_span(),
+    array_utils::gather(indices->as_span().take_front(orig_edge_size),
                         duplicate_edge_indices.as_span(),
                         indices->slice(duplicate_edge_range));
   }
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Face)) {
-    array_utils::gather_to_groups(
-        group_per_face, face_selection, indices->as_span(), indices->slice(side_face_range));
+    array_utils::gather_to_groups(group_per_face,
+                                  face_selection,
+                                  indices->as_span().take_front(orig_face_size),
+                                  indices->slice(side_face_range));
   }
 
   if (attribute_outputs.top_id) {

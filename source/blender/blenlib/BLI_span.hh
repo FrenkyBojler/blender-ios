@@ -435,7 +435,7 @@ template<typename T> class Span {
     return !(a == b);
   }
 
-  template<typename OtherT> constexpr bool contains_share_addresses(const Span<OtherT> other) const
+  template<typename OtherT> constexpr bool overlaps(const Span<OtherT> other) const
   {
     if (static_cast<const void *>(this->end()) <= static_cast<const void *>(other.begin())) {
       return false;
