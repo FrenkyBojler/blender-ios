@@ -2893,7 +2893,7 @@ float3 SCULPT_flip_v3_by_symm_area(const float3 &vector,
     if (!(symm & symm_it)) {
       continue;
     }
-    if (symmarea & symm_it) {
+    if (symmarea & ePaintSymmetryAreas(symm_it)) {
       result = ed::sculpt_paint::symmetry_flip(result, symm_it);
     }
     if (pivot[i] < 0.0f) {
@@ -2913,7 +2913,7 @@ void SCULPT_flip_quat_by_symm_area(float quat[4],
     if (!(symm & symm_it)) {
       continue;
     }
-    if (symmarea & symm_it) {
+    if (symmarea & ePaintSymmetryAreas(symm_it)) {
       flip_qt(quat, symm_it);
     }
     if (pivot[i] < 0.0f) {
@@ -3646,7 +3646,7 @@ static void sculpt_fix_noise_tear(const Sculpt &sd, Object &ob)
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
 
-  if (ss.multires.active && mtex->tex && mtex->tex->type == TEX_NOISE) {
+  if (ss.multires_modifier && mtex->tex && mtex->tex->type == TEX_NOISE) {
     multires_stitch_grids(&ob);
   }
 }
@@ -5048,7 +5048,7 @@ void flush_update_step(ViewContext &vc, Object &object, const UpdateType update_
   }
 
   const SculptSession &ss = *object.runtime->sculpt_session;
-  const MultiresModifierData *mmd = ss.multires.modifier;
+  const MultiresModifierData *mmd = ss.multires_modifier;
   if (mmd != nullptr) {
     multires_mark_as_modified(vc.depsgraph, &object, MULTIRES_COORDS_MODIFIED);
   }

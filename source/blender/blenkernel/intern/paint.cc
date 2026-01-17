@@ -2234,18 +2234,6 @@ void BKE_sculptsession_free_deformMats(SculptSession *ss)
   ss->face_normals_deform = {};
 }
 
-void BKE_sculptsession_free_vwpaint_data(SculptSession *ss)
-{
-  if (ss->mode_type == OB_MODE_WEIGHT_PAINT) {
-    MEM_SAFE_FREE(ss->mode.wpaint.alpha_weight);
-    if (!ss->mode.wpaint.dvert_prev.is_empty()) {
-      BKE_defvert_array_free_elems(ss->mode.wpaint.dvert_prev.data(),
-                                   ss->mode.wpaint.dvert_prev.size());
-      ss->mode.wpaint.dvert_prev = {};
-    }
-  }
-}
-
 /**
  * Write out the sculpt dynamic-topology #BMesh to the #Mesh.
  */
@@ -2348,10 +2336,6 @@ SculptSession::~SculptSession()
   if (this->tex_pool) {
     BKE_image_pool_free(this->tex_pool);
   }
-
-  BKE_sculptsession_free_vwpaint_data(this);
-
-  MEM_SAFE_FREE(this->last_paint_canvas_key);
 }
 
 ActiveVert SculptSession::active_vert() const
@@ -2592,18 +2576,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
   ss.shapekey_active = (mmd == nullptr) ? BKE_keyblock_from_object(ob) : nullptr;
 
-  /* NOTE: Weight pPaint require mesh info for loop lookup, but it never uses multires code path,
-   * so no extra checks is needed here. */
-  if (mmd) {
-    ss.multires.active = true;
-    ss.multires.modifier = mmd;
-    ss.multires.level = mmd->sculptlvl;
-  }
-  else {
-    ss.multires.active = false;
-    ss.multires.modifier = nullptr;
-    ss.multires.level = 0;
-  }
+  ss.multires_modifier = mmd;
 
   ss.subdiv_ccg = mesh_eval->runtime->subdiv_ccg.get();
 
@@ -2655,20 +2628,8 @@ static void sculpt_update_object(Depsgraph *depsgraph,
   if (ss.shapekey_active != nullptr && ss.deform_cos.is_empty()) {
     ss.deform_cos = Span(static_cast<const float3 *>(ss.shapekey_active->data),
                          mesh_orig->verts_num);
-  }
-
-  /* if pbvh is deformed, key block is already applied to it */
-  if (ss.shapekey_active) {
-    if (ss.deform_cos.is_empty()) {
-      const Span key_data(static_cast<const float3 *>(ss.shapekey_active->data),
-                          mesh_orig->verts_num);
-
-      if (key_data.data() != nullptr) {
-        BKE_pbvh_vert_coords_apply(pbvh, key_data);
-        if (ss.deform_cos.is_empty()) {
-          ss.deform_cos = key_data;
-        }
-      }
+    if (!ss.deform_cos.is_empty()) {
+      BKE_pbvh_vert_coords_apply(pbvh, ss.deform_cos);
     }
   }
 
@@ -2678,16 +2639,11 @@ static void sculpt_update_object(Depsgraph *depsgraph,
      * The relevant changes are stored/encoded in the paint canvas key.
      * These include the active uv map, and resolutions. */
     if (USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint)) {
-      char *paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode, ob);
-      if (ss.last_paint_canvas_key == nullptr ||
-          !STREQ(paint_canvas_key, ss.last_paint_canvas_key))
-      {
-        MEM_SAFE_FREE(ss.last_paint_canvas_key);
+      std::string paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode,
+                                                              ob);
+      if (!ss.last_paint_canvas_key || paint_canvas_key != ss.last_paint_canvas_key) {
         ss.last_paint_canvas_key = paint_canvas_key;
         BKE_pbvh_mark_rebuild_pixels(pbvh);
-      }
-      else {
-        MEM_freeN(paint_canvas_key);
       }
     }
 
@@ -2731,9 +2687,6 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
     BKE_sculptsession_free_pbvh(*ob_orig);
 
     BKE_sculptsession_free_deformMats(ss);
-
-    /* In vertex/weight paint, force maps to be rebuilt. */
-    BKE_sculptsession_free_vwpaint_data(ss);
   }
   else if (pbvh) {
     IndexMaskMemory memory;
