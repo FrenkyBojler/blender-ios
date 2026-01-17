@@ -560,6 +560,10 @@ struct SculptSession : NonCopyable, NonMovable {
   std::optional<PersistentMultiresData> persistent_multires_data();
 };
 
+namespace bke::object {
+SculptSession &sculpt_session_ensure(Depsgraph &depsgraph, Object &object);
+}
+
 void BKE_sculptsession_free(Object *ob);
 void BKE_sculptsession_free_deformMats(SculptSession *ss);
 void BKE_sculptsession_free_vwpaint_data(SculptSession *ss);
