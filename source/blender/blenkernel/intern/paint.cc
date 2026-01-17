@@ -2226,6 +2226,228 @@ bool paint_calculate_rake_rotation(Paint &paint,
   return ok;
 }
 
+static MultiresModifierData *sculpt_multires_modifier_get(const Scene *scene,
+                                                          Object *ob,
+                                                          const bool auto_create_mdisps)
+{
+  Mesh &mesh = *id_cast<Mesh *>(ob->data);
+
+  if (ob->runtime->sculpt_session && ob->runtime->sculpt_session->bm) {
+    /* Can't combine multires and dynamic topology. */
+    return nullptr;
+  }
+
+  bool need_mdisps = false;
+
+  if (!CustomData_get_layer(&mesh.corner_data, CD_MDISPS)) {
+    if (!auto_create_mdisps) {
+      /* Multires can't work without displacement layer. */
+      return nullptr;
+    }
+    need_mdisps = true;
+  }
+
+  /* Weight paint operates on original vertices, and needs to treat multires as regular modifier
+   * to make it so that pbvh::Tree vertices are at the multires surface. */
+  if ((ob->mode & OB_MODE_SCULPT) == 0) {
+    return nullptr;
+  }
+
+  VirtualModifierData virtual_modifier_data;
+  for (ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data); md;
+       md = md->next)
+  {
+    if (md->type == eModifierType_Multires) {
+      MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
+
+      if (!BKE_modifier_is_enabled(scene, md, eModifierMode_Realtime)) {
+        continue;
+      }
+
+      if (mmd->sculptlvl > 0 && !(mmd->flags & eMultiresModifierFlag_UseSculptBaseMesh)) {
+        if (need_mdisps) {
+          CustomData_add_layer(&mesh.corner_data, CD_MDISPS, CD_SET_DEFAULT, mesh.corners_num);
+        }
+
+        return mmd;
+      }
+
+      return nullptr;
+    }
+  }
+
+  return nullptr;
+}
+
+MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob)
+{
+  return sculpt_multires_modifier_get(scene, ob, false);
+}
+
+/* Checks if there are any supported deformation modifiers active */
+static bool sculpt_modifiers_active(const Scene *scene, const Sculpt *sd, Object *ob)
+{
+  const Mesh &mesh = *id_cast<Mesh *>(ob->data);
+
+  if (ob->runtime->sculpt_session->bm || BKE_sculpt_multires_active(scene, ob)) {
+    return false;
+  }
+
+  /* Non-locked shape keys could be handled in the same way as deformed mesh. */
+  if ((ob->shapeflag & OB_SHAPE_LOCK) == 0 && mesh.key && ob->shapenr) {
+    return true;
+  }
+
+  VirtualModifierData virtual_modifier_data;
+  for (ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data); md;
+       md = md->next)
+  {
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(static_cast<ModifierType>(md->type));
+    if (!BKE_modifier_is_enabled(scene, md, eModifierMode_Realtime)) {
+      continue;
+    }
+    if (md->type == eModifierType_Multires && (ob->mode & OB_MODE_SCULPT)) {
+      MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
+      if (!(mmd->flags & eMultiresModifierFlag_UseSculptBaseMesh)) {
+        continue;
+      }
+    }
+    /* Exception for shape keys because we can edit those. */
+    if (md->type == eModifierType_ShapeKey) {
+      continue;
+    }
+
+    if (mti->type == ModifierTypeType::OnlyDeform) {
+      return true;
+    }
+    if ((sd->flags & SCULPT_ONLY_DEFORM) == 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static void sculpt_session_update_deform_coords(Depsgraph &depsgraph,
+                                                Scene &scene,
+                                                Object &object_orig,
+                                                Object &object_eval,
+                                                SculptSession &ss)
+{
+  const Mesh *mesh_orig = BKE_object_get_original_mesh(&object_orig);
+  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_unchecked(&object_eval);
+
+  if (ss.deform_modifiers_active) {
+    /* Painting doesn't need crazyspace, use already evaluated mesh coordinates if possible. */
+    bool used_me_eval = false;
+
+    if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
+      const Mesh *me_eval_deform = BKE_object_get_mesh_deform_eval(&object_eval);
+
+      /* If the fully evaluated mesh has the same topology as the deform-only version, use it.
+       * This matters because crazyspace evaluation is very restrictive and excludes even modifiers
+       * that simply recompute vertex weights (which can even include Geometry Nodes). */
+      if (me_eval_deform->faces_num == mesh_eval->faces_num &&
+          me_eval_deform->corners_num == mesh_eval->corners_num &&
+          me_eval_deform->verts_num == mesh_eval->verts_num)
+      {
+        BKE_sculptsession_free_deformMats(&ss);
+
+        BLI_assert(me_eval_deform->verts_num == mesh_orig->verts_num);
+
+        ss.deform_cos = mesh_eval->vert_positions();
+        BKE_pbvh_vert_coords_apply(*ss.pbvh, ss.deform_cos);
+
+        used_me_eval = true;
+      }
+    }
+
+    /* We depend on the deform coordinates not being updated in the middle of a stroke. This array
+     * eventually gets cleared inside BKE_sculpt_update_object_before_eval.
+     * See #126713 for more information. */
+    if (ss.deform_cos.is_empty() && !used_me_eval) {
+      BKE_sculptsession_free_deformMats(&ss);
+
+      BKE_crazyspace_build_sculpt(
+          &depsgraph, &scene, &object_orig, ss.deform_imats, ss.deform_cos);
+      BKE_pbvh_vert_coords_apply(*ss.pbvh, ss.deform_cos);
+
+      for (float3x3 &matrix : ss.deform_imats) {
+        matrix = math::invert(matrix);
+      }
+    }
+  }
+  else {
+    BKE_sculptsession_free_deformMats(&ss);
+  }
+
+  if (ss.shapekey_active != nullptr && ss.deform_cos.is_empty()) {
+    ss.deform_cos = Span(static_cast<const float3 *>(ss.shapekey_active->data),
+                         mesh_orig->verts_num);
+  }
+
+  /* if pbvh is deformed, key block is already applied to it */
+  if (ss.shapekey_active) {
+    if (ss.deform_cos.is_empty()) {
+      const Span key_data(static_cast<const float3 *>(ss.shapekey_active->data),
+                          mesh_orig->verts_num);
+
+      if (key_data.data() != nullptr) {
+        BKE_pbvh_vert_coords_apply(*ss.pbvh, key_data);
+        ss.deform_cos = key_data;
+      }
+    }
+  }
+}
+
+namespace bke::object {
+SculptSession &sculpt_session_ensure(Depsgraph &depsgraph, Object &object)
+{
+
+  if (object.runtime->sculpt_session) {
+    return *object.runtime->sculpt_session;
+  }
+
+  BLI_assert(&object == DEG_get_original(&object));
+  Scene *scene = DEG_get_input_scene(&depsgraph);
+
+  SculptSession *ss = MEM_new<SculptSession>(__func__);
+
+  /* Use the "unchecked" function, because this code also runs as part of the depsgraph node that
+   * evaluates the object's geometry. So from perspective of the depsgraph, the mesh is not fully
+   * evaluated yet. */
+  Object &ob_eval = *DEG_get_evaluated(&depsgraph, &object);
+  Mesh *mesh_eval = BKE_object_get_evaluated_mesh_unchecked(&ob_eval);
+
+  MultiresModifierData *mmd = sculpt_multires_modifier_get(scene, object, true);
+
+  BLI_assert(mesh_eval != nullptr);
+
+#if 0
+  /* This is for handling a newly opened file with no object visible,
+   * causing `mesh_eval == nullptr`. */
+  if (mesh_eval == nullptr) {
+    return;
+  }
+#endif
+
+  Sculpt *sd = scene->toolsettings->sculpt;
+  ss->deform_modifiers_active = sculpt_modifiers_active(scene, sd, &object);
+
+  ss->shapekey_active = (mmd == nullptr) ? BKE_keyblock_from_object(&object) : nullptr;
+
+  ss->multires_modifier = mmd;
+  ss->subdiv_ccg = mesh_eval->runtime->subdiv_ccg.get();
+
+  BLI_assert(!mmd || mmd && ss->subdiv_ccg);
+
+  pbvh::Tree &pbvh = object::pbvh_ensure(depsgraph, object);
+
+  object.runtime->sculpt_session = ss;
+  return *object.runtime->sculpt_session;
+}
+}  // namespace bke::object
+
 void BKE_sculptsession_free_deformMats(SculptSession *ss)
 {
   ss->deform_cos = {};
@@ -2432,64 +2654,6 @@ std::optional<PersistentMultiresData> SculptSession::persistent_multires_data()
                                 persistent.sculpt_persistent_disp};
 }
 
-static MultiresModifierData *sculpt_multires_modifier_get(const Scene *scene,
-                                                          Object *ob,
-                                                          const bool auto_create_mdisps)
-{
-  Mesh &mesh = *id_cast<Mesh *>(ob->data);
-
-  if (ob->runtime->sculpt_session && ob->runtime->sculpt_session->bm) {
-    /* Can't combine multires and dynamic topology. */
-    return nullptr;
-  }
-
-  bool need_mdisps = false;
-
-  if (!CustomData_get_layer(&mesh.corner_data, CD_MDISPS)) {
-    if (!auto_create_mdisps) {
-      /* Multires can't work without displacement layer. */
-      return nullptr;
-    }
-    need_mdisps = true;
-  }
-
-  /* Weight paint operates on original vertices, and needs to treat multires as regular modifier
-   * to make it so that pbvh::Tree vertices are at the multires surface. */
-  if ((ob->mode & OB_MODE_SCULPT) == 0) {
-    return nullptr;
-  }
-
-  VirtualModifierData virtual_modifier_data;
-  for (ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data); md;
-       md = md->next)
-  {
-    if (md->type == eModifierType_Multires) {
-      MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
-
-      if (!BKE_modifier_is_enabled(scene, md, eModifierMode_Realtime)) {
-        continue;
-      }
-
-      if (mmd->sculptlvl > 0 && !(mmd->flags & eMultiresModifierFlag_UseSculptBaseMesh)) {
-        if (need_mdisps) {
-          CustomData_add_layer(&mesh.corner_data, CD_MDISPS, CD_SET_DEFAULT, mesh.corners_num);
-        }
-
-        return mmd;
-      }
-
-      return nullptr;
-    }
-  }
-
-  return nullptr;
-}
-
-MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob)
-{
-  return sculpt_multires_modifier_get(scene, ob, false);
-}
-
 int BKE_sculpt_get_grid_num_verts(const Object &object)
 {
   const SculptSession &ss = *object.runtime->sculpt_session;
@@ -2504,50 +2668,6 @@ int BKE_sculpt_get_grid_num_faces(const Object &object)
   BLI_assert(bke::object::pbvh_get(object)->type() == bke::pbvh::Type::Grids);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
   return ss.subdiv_ccg->grids_num * square_i(key.grid_size - 1);
-}
-
-/* Checks if there are any supported deformation modifiers active */
-static bool sculpt_modifiers_active(const Scene *scene, const Sculpt *sd, Object *ob)
-{
-  const Mesh &mesh = *id_cast<Mesh *>(ob->data);
-
-  if (ob->runtime->sculpt_session->bm || BKE_sculpt_multires_active(scene, ob)) {
-    return false;
-  }
-
-  /* Non-locked shape keys could be handled in the same way as deformed mesh. */
-  if ((ob->shapeflag & OB_SHAPE_LOCK) == 0 && mesh.key && ob->shapenr) {
-    return true;
-  }
-
-  VirtualModifierData virtual_modifier_data;
-  for (ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data); md;
-       md = md->next)
-  {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(static_cast<ModifierType>(md->type));
-    if (!BKE_modifier_is_enabled(scene, md, eModifierMode_Realtime)) {
-      continue;
-    }
-    if (md->type == eModifierType_Multires && (ob->mode & OB_MODE_SCULPT)) {
-      MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
-      if (!(mmd->flags & eMultiresModifierFlag_UseSculptBaseMesh)) {
-        continue;
-      }
-    }
-    /* Exception for shape keys because we can edit those. */
-    if (md->type == eModifierType_ShapeKey) {
-      continue;
-    }
-
-    if (mti->type == ModifierTypeType::OnlyDeform) {
-      return true;
-    }
-    if ((sd->flags & SCULPT_ONLY_DEFORM) == 0) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 static void sculpt_update_object(Depsgraph *depsgraph,
@@ -2584,70 +2704,10 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
   pbvh::Tree &pbvh = object::pbvh_ensure(*depsgraph, *ob);
 
-  if (ss.deform_modifiers_active) {
-    /* Painting doesn't need crazyspace, use already evaluated mesh coordinates if possible. */
-    bool used_me_eval = false;
+  sculpt_session_update_deform_coords()
 
-    if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
-      const Mesh *me_eval_deform = BKE_object_get_mesh_deform_eval(ob_eval);
-
-      /* If the fully evaluated mesh has the same topology as the deform-only version, use it.
-       * This matters because crazyspace evaluation is very restrictive and excludes even modifiers
-       * that simply recompute vertex weights (which can even include Geometry Nodes). */
-      if (me_eval_deform->faces_num == mesh_eval->faces_num &&
-          me_eval_deform->corners_num == mesh_eval->corners_num &&
-          me_eval_deform->verts_num == mesh_eval->verts_num)
-      {
-        BKE_sculptsession_free_deformMats(&ss);
-
-        BLI_assert(me_eval_deform->verts_num == mesh_orig->verts_num);
-
-        ss.deform_cos = mesh_eval->vert_positions();
-        BKE_pbvh_vert_coords_apply(pbvh, ss.deform_cos);
-
-        used_me_eval = true;
-      }
-    }
-
-    /* We depend on the deform coordinates not being updated in the middle of a stroke. This array
-     * eventually gets cleared inside BKE_sculpt_update_object_before_eval.
-     * See #126713 for more information. */
-    if (ss.deform_cos.is_empty() && !used_me_eval) {
-      BKE_sculptsession_free_deformMats(&ss);
-
-      BKE_crazyspace_build_sculpt(depsgraph, scene, ob, ss.deform_imats, ss.deform_cos);
-      BKE_pbvh_vert_coords_apply(pbvh, ss.deform_cos);
-
-      for (float3x3 &matrix : ss.deform_imats) {
-        matrix = math::invert(matrix);
-      }
-    }
-  }
-  else {
-    BKE_sculptsession_free_deformMats(&ss);
-  }
-
-  if (ss.shapekey_active != nullptr && ss.deform_cos.is_empty()) {
-    ss.deform_cos = Span(static_cast<const float3 *>(ss.shapekey_active->data),
-                         mesh_orig->verts_num);
-  }
-
-  /* if pbvh is deformed, key block is already applied to it */
-  if (ss.shapekey_active) {
-    if (ss.deform_cos.is_empty()) {
-      const Span key_data(static_cast<const float3 *>(ss.shapekey_active->data),
-                          mesh_orig->verts_num);
-
-      if (key_data.data() != nullptr) {
-        BKE_pbvh_vert_coords_apply(pbvh, key_data);
-        if (ss.deform_cos.is_empty()) {
-          ss.deform_cos = key_data;
-        }
-      }
-    }
-  }
-
-  if (is_paint_tool) {
+      if (is_paint_tool)
+  {
     /* We should rebuild the PBVH_pixels when painting canvas changes.
      *
      * The relevant changes are stored/encoded in the paint canvas key.
