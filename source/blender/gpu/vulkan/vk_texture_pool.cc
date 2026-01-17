@@ -14,11 +14,14 @@
 
 namespace blender::gpu {
 
+/* Compute the nearest `offset` that is aligned up to `alignment`. */
 static VkDeviceSize align_offset(VkDeviceSize offset, VkDeviceSize alignment)
 {
   return (offset - 1ul + alignment) & -alignment;
 }
 
+/* Compute the nearest `offset` that is aligned up to `alignment`, but with
+ * respect to `allocation_offset` from which `offset` is based. */
 static VkDeviceSize align_offset(VkDeviceSize offset,
                                  VkDeviceSize allocation_offset,
                                  VkDeviceSize alignment)
@@ -112,7 +115,7 @@ void VKTexturePool::TextureHandle::free()
 
 VKTexturePool::~VKTexturePool()
 {
-  for (auto &handle : acquired_) {
+  for (const auto &handle : acquired_) {
     release_texture(wrap(handle.texture));
   }
   for (auto &handle : pool_) {
@@ -143,15 +146,17 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   for (uint64_t i : pool_.index_range()) {
     const auto &handle = pool_[i];
 
-    /* Compute full necessary size incorporating an aligned-at-start offset. */
-    /* TODO(not_mark): size aliasing branch handles this better. */
-    VkDeviceSize aligned_size = memory_requirements.size +
-                                align_offset(0,
-                                             handle.allocation_info.offset,
-                                             memory_requirements.alignment);
+    /* VkMemoryRequirements::alignment specifies starting alignment requirements; we compute
+     * the necessary size of the allocation such that there is room for a starting offset. As
+     * different images can have different alignments on some platofrms, this is done per case. */
+    VkDeviceSize aligned_offset = align_offset(
+        0, handle.allocation_info.offset, memory_requirements.alignment);
+    VkDeviceSize aligned_size = aligned_offset + memory_requirements.size;
+
     if (handle.allocation_info.size >= aligned_size) {
-      /* `memory_requirements.memoryTypeBits` has bits set for every type of supported memory;
-       * only one needs to match for the allocation to be compatible to the image. */
+      /* VkMemoryRequirements::memoryTypeBits has bits set for every supported memory type;
+       * only one needs to match for the allocation to be compatible to the image. Further,
+       * if VmaAllocationInfo::memoryType is 0, the allocation is generally compatible. */
       if (handle.allocation_info.memoryType == 0 ||
           bool(handle.allocation_info.memoryType & memory_requirements.memoryTypeBits))
       {
@@ -171,18 +176,26 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
     allocation_handle.alloc(memory_requirements);
   }
 
-  /* Compute necessary offset into allocation s.t. we are aligned-at-start. */
-  /* TODO(not_mark): size aliasing branch handles this more nicely. */
+  /* Compute the necessary starting offset to satisfy image alignment requirements. */
   VkDeviceSize aligned_offset = align_offset(
       0, allocation_handle.allocation_info.offset, memory_requirements.alignment);
 
-  /* Bind VkImage to allocation. */
-  VkResult bind_result = vmaBindImageMemory2(device.mem_allocator_get(),
-                                             allocation_handle.allocation,
-                                             aligned_offset,
-                                             texture_handle.texture->vk_image_,
-                                             nullptr);
-  BLI_assert_msg(bind_result == VK_SUCCESS, "VKTexturePool::acquire failed on image binding.");
+/* Bind VkImage to allocation. */
+#ifndef NDEBUG
+  VkResult bind_result =
+#endif
+      vmaBindImageMemory2(device.mem_allocator_get(),
+                          allocation_handle.allocation,
+                          aligned_offset,
+                          texture_handle.texture->vk_image_,
+                          nullptr);
+
+  /* WATCH(not_mark): if the bind fails with e.g. VK_ERROR_UNKNOWN, VkMemoryRequirements are
+   * likely not correctly satisfied. I'll keep the assert in for now, as the problem otherwise
+   * incorrectly shows up in the render graph. */
+  BLI_assert_msg(bind_result == VK_SUCCESS,
+                 "VKTexturePool::acquire failed on vmaBindImageMemory2.");
+
   debug::object_label(texture_handle.texture->vk_image_, texture_handle.texture->name_);
   device.resources.add_image(
       texture_handle.texture->vk_image_, false, texture_handle.texture->name_);
