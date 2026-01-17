@@ -431,6 +431,7 @@ class RENDER_PT_eevee_screen_trace(RenderButtonsPanel, Panel):
         props = context.scene.eevee.ray_tracing_options
 
         col = layout.column()
+        col.prop(props, "rt_scale", text="Intensity")
         col.prop(props, "screen_trace_quality", text="Precision")
         col.prop(props, "screen_trace_thickness", text="Thickness")
 
