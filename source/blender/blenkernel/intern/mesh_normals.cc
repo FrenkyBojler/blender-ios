@@ -1264,8 +1264,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
     return;
   }
 
-  threading::EnumerableThreadSpecific<Vector<CornerSpaceGroup, 0>> space_groups;
-
   if (has_no_loos_verts.value_or(false) && vert_to_face_map.data.size() == vert_positions.size()) {
     BLI_assert(std::all_of(vert_positions.index_range().begin(),
                            vert_positions.index_range().end(),
