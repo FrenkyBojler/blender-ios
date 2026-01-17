@@ -22,18 +22,20 @@
 #include "gpu_py_shader.hh" /* own include */
 #include "gpu_py_texture.hh"
 
+namespace blender {
+
 #define USE_PYGPU_SHADER_INFO_IMAGE_METHOD
 
-using blender::gpu::shader::DepthWrite;
-using blender::gpu::shader::DualBlend;
-using blender::gpu::shader::Frequency;
-using blender::gpu::shader::ImageType;
-using blender::gpu::shader::ShaderCreateInfo;
-using blender::gpu::shader::StageInterfaceInfo;
-using blender::gpu::shader::Type;
+using gpu::shader::DepthWrite;
+using gpu::shader::DualBlend;
+using gpu::shader::Frequency;
+using gpu::shader::ImageType;
+using gpu::shader::ShaderCreateInfo;
+using gpu::shader::StageInterfaceInfo;
+using gpu::shader::Type;
 
 #ifdef USE_PYGPU_SHADER_INFO_IMAGE_METHOD
-using blender::gpu::shader::Qualifier;
+using gpu::shader::Qualifier;
 
 #  define PYDOC_QUALIFIERS \
     "      - ``NO_RESTRICT``\n" \
@@ -448,7 +450,7 @@ PyDoc_STRVAR(
     "   List of varyings between shader stages.\n"
     "\n"
     "   :arg name: Name of the interface block.\n"
-    "   :type value: str\n");
+    "   :type name: str\n");
 PyTypeObject BPyGPUStageInterfaceInfo_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GPUStageInterfaceInfo",
@@ -672,7 +674,7 @@ PyDoc_STRVAR(
     "are greater than the depth value in the output buffer.\n"
     "      :LESS: enables depth write in a fragment shader for depth values that"
     "are less than the depth value in the output buffer.\n"
-    "   :type blend: str\n");
+    "   :type value: str\n");
 static PyObject *pygpu_shader_info_depth_write(BPyGPUShaderCreateInfo *self, PyObject *args)
 {
   PyC_StringEnum depth_write = {pygpu_depth_write_items, int(DepthWrite::UNCHANGED)};
@@ -796,12 +798,12 @@ static PyObject *pygpu_shader_info_image(BPyGPUShaderCreateInfo *self,
   }
 
   if (pygpu_texformat.value_found == GPU_DEPTH24_STENCIL8_DEPRECATED) {
-    pygpu_texformat.value_found = int(blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8);
+    pygpu_texformat.value_found = int(gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8);
     PyErr_WarnEx(
         PyExc_DeprecationWarning, "'DEPTH24_STENCIL8' is deprecated. Use 'DEPTH32F_STENCIL8'.", 1);
   }
   if (pygpu_texformat.value_found == GPU_DEPTH_COMPONENT24_DEPRECATED) {
-    pygpu_texformat.value_found = int(blender::gpu::TextureFormat::SFLOAT_32_DEPTH);
+    pygpu_texformat.value_found = int(gpu::TextureFormat::SFLOAT_32_DEPTH);
     PyErr_WarnEx(PyExc_DeprecationWarning,
                  "'DEPTH_COMPONENT24' is deprecated. Use 'DEPTH_COMPONENT32F'.",
                  1);
@@ -813,9 +815,9 @@ static PyObject *pygpu_shader_info_image(BPyGPUShaderCreateInfo *self,
 
   ShaderCreateInfo *info = reinterpret_cast<ShaderCreateInfo *>(self->info);
   info->image(slot,
-              blender::gpu::TextureFormat(pygpu_texformat.value_found),
+              gpu::TextureFormat(pygpu_texformat.value_found),
               qualifier,
-              blender::gpu::shader::ImageReadWriteType(pygpu_imagetype.value_found),
+              gpu::shader::ImageReadWriteType(pygpu_imagetype.value_found),
               name);
 
   Py_RETURN_NONE;
@@ -1490,3 +1492,5 @@ PyObject *BPyGPUShaderCreateInfo_CreatePyObject(GPUShaderCreateInfo *info)
 }
 
 /** \} */
+
+}  // namespace blender

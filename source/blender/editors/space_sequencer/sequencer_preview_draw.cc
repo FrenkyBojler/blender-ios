@@ -306,7 +306,7 @@ static void sequencer_stop_running_jobs(const bContext *C, Scene *scene)
 
 static void sequencer_preview_clear()
 {
-  blender::ui::theme::frame_buffer_clear(TH_SEQ_PREVIEW);
+  ui::theme::frame_buffer_clear(TH_SEQ_PREVIEW);
 }
 
 /* Semantic utility to get a rectangle with positions that correspond to a full frame drawn in the
@@ -1761,7 +1761,9 @@ static void sequencer_preview_draw_overlays(const bContext *C,
   }
 
   /* FPS counter. */
-  if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(&wm)) {
+  if ((U.uiflag & USER_SHOW_FPS) && (space_sequencer.flag & SEQ_SHOW_OVERLAY) &&
+      (CTX_wm_screen(C)->state != SCREENFULL) && ED_screen_animation_no_scrub(&wm))
+  {
     const rcti *rect = ED_region_visible_rect(&region);
     int xoffset = rect->xmin + U.widget_unit;
     int yoffset = rect->ymax;

@@ -31,6 +31,8 @@
 
 #include "graph_intern.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Set Up Drivers Editor
  * \{ */
@@ -45,7 +47,7 @@ void ED_drivers_editor_init(bContext *C, ScrArea *area)
   /* Show Properties Region (or else the settings can't be edited) */
   ARegion *region_props = BKE_area_find_region_type(area, RGN_TYPE_UI);
   if (region_props) {
-    blender::ui::panel_category_active_set(region_props, "Drivers");
+    ui::panel_category_active_set(region_props, "Drivers");
 
     region_props->flag &= ~RGN_FLAG_HIDDEN;
     /* XXX: Adjust width of this too? */
@@ -262,7 +264,7 @@ bool graphop_active_fcurve_poll(bContext *C)
 
 bool graphop_active_editable_fcurve_ctx_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "active_editable_fcurve", &RNA_FCurve);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "active_editable_fcurve", RNA_FCurve);
 
   return ptr.data != nullptr;
 }
@@ -303,3 +305,5 @@ bool graphop_selected_fcurve_poll(bContext *C)
 }
 
 /** \} */
+
+}  // namespace blender

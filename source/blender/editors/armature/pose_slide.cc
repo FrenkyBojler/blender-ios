@@ -70,7 +70,7 @@
 
 #include "armature_intern.hh"
 
-using blender::Vector;
+namespace blender {
 
 /* **************************************************** */
 /* A) Push & Relax, Breakdowner */
@@ -158,7 +158,7 @@ struct tPoseSlideOp {
   /** Numeric input. */
   NumInput num;
 
-  blender::Array<tPoseSlideObject> ob_data_array;
+  Array<tPoseSlideObject> ob_data_array;
 };
 
 /** Property enum for #ePoseSlide_Channels. */
@@ -458,7 +458,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
   int len = strlen(pfl->pchan_path);
 
   /* Setup pointer RNA for resolving paths. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_PoseBone, pfl->pchan);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PoseBone, pfl->pchan);
 
   /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
    *   so just check for opening pair after the end of the path
@@ -1974,3 +1974,5 @@ void POSE_OT_propagate(wmOperatorType *ot)
 }
 
 /* **************************************************** */
+
+}  // namespace blender

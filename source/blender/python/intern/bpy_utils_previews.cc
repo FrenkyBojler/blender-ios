@@ -26,7 +26,9 @@
 
 #include "BKE_preview_image.hh"
 
-#define STR_SOURCE_TYPES "'IMAGE', 'MOVIE', 'BLEND', 'FONT'"
+namespace blender {
+
+#define STR_SOURCE_TYPES "'IMAGE', 'MOVIE', 'BLEND', 'FONT', 'OBJECT_IO'"
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -52,7 +54,7 @@ static PyObject *bpy_utils_previews_new(PyObject * /*self*/, PyObject *args)
   }
 
   prv = BKE_previewimg_cached_ensure(name);
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImagePreview, prv);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_ImagePreview, prv);
 
   return pyrna_struct_CreatePyObject(&ptr);
 }
@@ -83,6 +85,7 @@ static PyObject *bpy_utils_previews_load(PyObject * /*self*/, PyObject *args)
 {
   char *name;
   PyC_UnicodeAsBytesAndSize_Data filepath_data = {nullptr};
+  /* Be sure to keep these in sync with #STR_SOURCE_TYPES. */
   const PyC_StringEnumItems path_type_items[] = {
       {THB_SOURCE_IMAGE, "IMAGE"},
       {THB_SOURCE_MOVIE, "MOVIE"},
@@ -120,7 +123,7 @@ static PyObject *bpy_utils_previews_load(PyObject * /*self*/, PyObject *args)
 
   Py_XDECREF(filepath_data.value_coerce);
 
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImagePreview, prv);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_ImagePreview, prv);
   return pyrna_struct_CreatePyObject(&ptr);
 }
 
@@ -207,3 +210,5 @@ PyObject *BPY_utils_previews_module()
 
   return submodule;
 }
+
+}  // namespace blender

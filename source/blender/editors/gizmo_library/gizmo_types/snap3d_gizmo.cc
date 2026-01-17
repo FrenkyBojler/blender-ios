@@ -30,6 +30,8 @@
 /* own includes */
 #include "../gizmo_library_intern.hh"
 
+namespace blender {
+
 struct SnapGizmo3D {
   wmGizmo gizmo;
   V3DSnapCursorState *snap_state;
@@ -40,8 +42,8 @@ struct SnapGizmo3D {
 /** \name ED_gizmo_library specific API
  * \{ */
 
-blender::ed::transform::SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene,
-                                                                                wmGizmo * /*gz*/)
+ed::transform::SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(Scene *scene,
+                                                                       wmGizmo * /*gz*/)
 {
   return ED_view3d_cursor_snap_context_ensure(scene);
 }
@@ -70,7 +72,7 @@ void ED_gizmotypes_snap_3d_data_get(const bContext *C,
     const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
     if (event) {
       ARegion *region = CTX_wm_region(C);
-      const blender::int2 mval = {
+      const int2 mval = {
           event->xy[0] - region->winrct.xmin,
           event->xy[1] - region->winrct.ymin,
       };
@@ -258,7 +260,7 @@ static int snap_gizmo_test_select(bContext *C, wmGizmo *gz, const int mval[2])
   const ARegion *region = CTX_wm_region(C);
 
   /* Snap values are updated too late at the cursor. Be sure to update ahead of time. */
-  blender::int2 mval_copy;
+  int2 mval_copy;
   {
     const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
     if (event) {
@@ -319,7 +321,7 @@ static void GIZMO_GT_snap_3d(wmGizmoType *gzt)
   {
     /* Get Snap Element Items enum. */
     bool free;
-    PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ToolSettings, nullptr);
+    PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(nullptr, RNA_ToolSettings, nullptr);
     PropertyRNA *prop = RNA_struct_find_property(&toolsettings_ptr, "snap_elements");
     RNA_property_enum_items(
         nullptr, &toolsettings_ptr, prop, &rna_enum_snap_element_items, nullptr, &free);
@@ -410,3 +412,5 @@ void ED_gizmotypes_snap_3d()
 }
 
 /** \} */
+
+}  // namespace blender

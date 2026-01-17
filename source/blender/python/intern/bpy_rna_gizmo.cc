@@ -29,6 +29,8 @@
 
 #include "bpy_rna.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Parsing Utility Functions
  *
@@ -49,7 +51,7 @@ static int py_rna_gizmo_parse(PyObject *o, void *p)
 {
   /* No type checking (this is `self` not a user defined argument). */
   BLI_assert(BPy_StructRNA_Check(o));
-  BLI_assert(RNA_struct_is_a(((const BPy_StructRNA *)o)->ptr->type, &RNA_Gizmo));
+  BLI_assert(RNA_struct_is_a(((const BPy_StructRNA *)o)->ptr->type, RNA_Gizmo));
 
   wmGizmo **gz_p = static_cast<wmGizmo **>(p);
   *gz_p = static_cast<wmGizmo *>((reinterpret_cast<const BPy_StructRNA *>(o))->ptr->data);
@@ -710,3 +712,5 @@ bool BPY_rna_gizmo_module(PyObject *mod_par)
 }
 
 /** \} */
+
+}  // namespace blender

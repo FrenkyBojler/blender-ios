@@ -27,6 +27,8 @@
 #  include "BKE_main.hh"
 #  include "BKE_mesh.hh"
 
+namespace blender {
+
 /* all the list begin functions are added manually here, Main is not in SDNA */
 
 static bool rna_Main_use_autopack_get(PointerRNA * /*ptr*/)
@@ -89,7 +91,7 @@ static void rna_Main_filepath_set(PointerRNA *ptr, const char *value)
 static PointerRNA rna_Main_colorspace_get(PointerRNA *ptr)
 {
   Main *bmain = static_cast<Main *>(ptr->data);
-  return PointerRNA(nullptr, &RNA_BlendFileColorspace, &bmain->colorspace);
+  return PointerRNA(nullptr, RNA_BlendFileColorspace, &bmain->colorspace);
 }
 
 static int rna_MainColorspace_working_space_get(PointerRNA *ptr)
@@ -200,14 +202,18 @@ static void rna_Main_version_get(PointerRNA *ptr, int *value)
 static PointerRNA rna_Test_test_get(PointerRNA *ptr)
 {
   PointerRNA ret = *ptr;
-  ret.type = &RNA_Test;
+  ret.type = RNA_Test;
 
   return ret;
 }
 
 #  endif
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 /* local convenience types */
 using CollectionDefFunc = void(BlenderRNA *brna, PropertyRNA *cprop);
@@ -596,5 +602,7 @@ void RNA_def_main(BlenderRNA *brna)
 
 #  endif
 }
+
+}  // namespace blender
 
 #endif

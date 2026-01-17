@@ -62,6 +62,8 @@
 #include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
+namespace blender {
+
 #ifdef BUILD_DATE
 extern "C" char build_date[];
 extern "C" char build_time[];
@@ -449,6 +451,28 @@ static PyObject *bpy_app_tempdir_get(PyObject * /*self*/, void * /*closure*/)
 
 PyDoc_STRVAR(
     /* Wrap. */
+    bpy_app_cachedir_doc,
+    "String, the cache directory used by blender (read-only).\n"
+    "\n"
+    "If the parent of the cache folder (i.e. the part of the path that is not Blender-specific) "
+    "does not exist, returns None.\n"
+    "\n"
+    ":type: str | None\n");
+static PyObject *bpy_app_cachedir_get(PyObject * /*self*/, void * /*closure*/)
+{
+  char cache_path[FILE_MAX];
+  if (!BKE_appdir_folder_caches(cache_path, sizeof(cache_path))) {
+    /* Avoid returning an empty path, as it could cause cache data to be stored in the user's home
+     * directory, or in the current working directory. Or worse, the caller could decide to erase
+     * the cache, which might have less subtle effects. */
+    Py_RETURN_NONE;
+  }
+  BLI_assert_msg(cache_path[0], "if BKE_appdir_folder_caches returns true, it should set a path");
+  return PyC_UnicodeFromBytes(cache_path);
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     bpy_app_driver_dict_doc,
     "Dictionary for drivers namespace, editable in-place, reset on file load (read-only).\n"
     "\n"
@@ -474,7 +498,7 @@ PyDoc_STRVAR(
 static PyObject *bpy_app_preview_render_size_get(PyObject * /*self*/, void *closure)
 {
   return PyLong_FromLong(
-      long(blender::ui::icon_preview_to_render_size(eIconSizes(POINTER_AS_INT(closure)))));
+      long(ui::icon_preview_to_render_size(eIconSizes(POINTER_AS_INT(closure)))));
 }
 
 PyDoc_STRVAR(
@@ -629,6 +653,7 @@ static PyGetSetDef bpy_app_getsets[] = {
      bpy_app_debug_value_doc,
      nullptr},
     {"tempdir", bpy_app_tempdir_get, nullptr, bpy_app_tempdir_doc, nullptr},
+    {"cachedir", bpy_app_cachedir_get, nullptr, bpy_app_cachedir_doc, nullptr},
     {"driver_namespace", bpy_app_driver_dict_get, nullptr, bpy_app_driver_dict_doc, nullptr},
 
     {"render_icon_size",
@@ -853,3 +878,5 @@ PyObject *BPY_app_struct()
 
   return ret;
 }
+
+}  // namespace blender

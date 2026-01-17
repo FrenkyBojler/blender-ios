@@ -53,6 +53,8 @@
 
 #include "RNA_enum_types.hh"
 
+namespace blender {
+
 #define USE_SPLINE_FIT
 
 #ifdef USE_SPLINE_FIT
@@ -141,7 +143,7 @@ struct CurveDrawData {
 
 static float stroke_elem_radius_from_pressure(const CurveDrawData *cdd, const float pressure)
 {
-  const Curve *cu = blender::id_cast<const Curve *>(cdd->vc.obedit->data);
+  const Curve *cu = id_cast<const Curve *>(cdd->vc.obedit->data);
   return ((pressure * cdd->radius.range) + cdd->radius.min) * cu->bevel_radius;
 }
 
@@ -361,7 +363,7 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
   }
 
   Object *obedit = cdd->vc.obedit;
-  Curve *cu = blender::id_cast<Curve *>(obedit->data);
+  Curve *cu = id_cast<Curve *>(obedit->data);
 
   if (cu->bevel_radius > 0.0f) {
     BLI_mempool_iter iter;
@@ -371,9 +373,9 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
     const float *location_prev = location_zero;
 
     float color[3];
-    blender::ui::theme::get_color_3fv(TH_WIRE, color);
+    ui::theme::get_color_3fv(TH_WIRE, color);
 
-    blender::gpu::Batch *sphere = GPU_batch_preset_sphere(0);
+    gpu::Batch *sphere = GPU_batch_preset_sphere(0);
     GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
     GPU_batch_uniform_3fv(sphere, "color", color);
 
@@ -419,8 +421,7 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
 
     {
       GPUVertFormat *format = immVertexFormat();
-      uint pos = GPU_vertformat_attr_add(
-          format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+      uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       GPU_depth_test(GPU_DEPTH_NONE);
@@ -777,7 +778,7 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
 
   const CurvePaintSettings *cps = &cdd->vc.scene->toolsettings->curve_paint_settings;
   Object *obedit = cdd->vc.obedit;
-  Curve *cu = blender::id_cast<Curve *>(obedit->data);
+  Curve *cu = id_cast<Curve *>(obedit->data);
   ListBaseT<Nurb> *nurblist = object_editcurve_get(obedit);
 
   int stroke_len = BLI_mempool_len(cdd->stroke_elem_pool);
@@ -874,7 +875,7 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
 
     uint *corners_index = nullptr;
     uint corners_index_len = 0;
-    uint calc_flag = CURVE_FIT_CALC_HIGH_QUALIY;
+    uint calc_flag = CURVE_FIT_CALC_HIGH_QUALITY;
 
     if ((stroke_len > 2) && use_cyclic) {
       calc_flag |= CURVE_FIT_CALC_CYCLIC;
@@ -1094,7 +1095,7 @@ static wmOperatorStatus curve_draw_invoke(bContext *C, wmOperator *op, const wmE
     View3D *v3d = cdd->vc.v3d;
     RegionView3D *rv3d = cdd->vc.rv3d;
     Object *obedit = cdd->vc.obedit;
-    Curve *cu = blender::id_cast<Curve *>(obedit->data);
+    Curve *cu = id_cast<Curve *>(obedit->data);
 
     const float *plane_no = nullptr;
     const float *plane_co = nullptr;
@@ -1254,7 +1255,7 @@ void CURVE_OT_draw(wmOperatorType *ot)
   prop = RNA_def_boolean(ot->srna, "use_cyclic", true, "Cyclic", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-  prop = RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+  prop = RNA_def_collection_runtime(ot->srna, "stroke", RNA_OperatorStrokeElement, "Stroke", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(ot->srna, "wait_for_input", true, "Wait for Input", "");
@@ -1262,3 +1263,5 @@ void CURVE_OT_draw(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

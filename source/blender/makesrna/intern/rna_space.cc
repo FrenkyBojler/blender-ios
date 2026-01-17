@@ -16,6 +16,7 @@
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_movieclip.hh"
+#include "BKE_object_types.hh"
 
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
@@ -42,28 +43,30 @@
 
 #include "RNA_enum_types.hh"
 
+namespace blender {
+
 const EnumPropertyItem rna_enum_geometry_component_type_items[] = {
-    {int(blender::bke::GeometryComponent::Type::Mesh),
+    {int(bke::GeometryComponent::Type::Mesh),
      "MESH",
      ICON_MESH_DATA,
      "Mesh",
      "Mesh component containing point, corner, edge and face data"},
-    {int(blender::bke::GeometryComponent::Type::PointCloud),
+    {int(bke::GeometryComponent::Type::PointCloud),
      "POINTCLOUD",
      ICON_POINTCLOUD_DATA,
      "Point Cloud",
      "Point cloud component containing only point data"},
-    {int(blender::bke::GeometryComponent::Type::Curve),
+    {int(bke::GeometryComponent::Type::Curve),
      "CURVE",
      ICON_CURVE_DATA,
      "Curve",
      "Curve component containing spline and control point data"},
-    {int(blender::bke::GeometryComponent::Type::Instance),
+    {int(bke::GeometryComponent::Type::Instance),
      "INSTANCES",
      ICON_EMPTY_AXIS,
      "Instances",
      "Instances of objects or collections"},
-    {int(blender::bke::GeometryComponent::Type::GreasePencil),
+    {int(bke::GeometryComponent::Type::GreasePencil),
      "GREASEPENCIL",
      ICON_GREASEPENCIL,
      "Grease Pencil",
@@ -522,8 +525,10 @@ const EnumPropertyItem rna_enum_clip_editor_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-/* Actually populated dynamically through a function,
- * but helps for context-less access (e.g. doc, i18n...). */
+/**
+ * Actually populated dynamically through a function,
+ * but helps for contextless access (e.g. doc, i18n...).
+ */
 const EnumPropertyItem buttons_context_items[] = {
     {BCONTEXT_TOOL, "TOOL", ICON_TOOL_SETTINGS, "Tool", "Active Tool and Workspace settings"},
     {BCONTEXT_SCENE, "SCENE", ICON_SCENE_DATA, "Scene", "Scene Properties"},
@@ -624,6 +629,8 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
@@ -696,6 +703,8 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 
 #  include "RE_engine.h"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Private Utilities
  * \{ */
@@ -706,37 +715,37 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
 
   switch (eSpace_Type(space->spacetype)) {
     case SPACE_VIEW3D:
-      return &RNA_SpaceView3D;
+      return RNA_SpaceView3D;
     case SPACE_GRAPH:
-      return &RNA_SpaceGraphEditor;
+      return RNA_SpaceGraphEditor;
     case SPACE_OUTLINER:
-      return &RNA_SpaceOutliner;
+      return RNA_SpaceOutliner;
     case SPACE_PROPERTIES:
-      return &RNA_SpaceProperties;
+      return RNA_SpaceProperties;
     case SPACE_FILE:
-      return &RNA_SpaceFileBrowser;
+      return RNA_SpaceFileBrowser;
     case SPACE_IMAGE:
-      return &RNA_SpaceImageEditor;
+      return RNA_SpaceImageEditor;
     case SPACE_INFO:
-      return &RNA_SpaceInfo;
+      return RNA_SpaceInfo;
     case SPACE_SEQ:
-      return &RNA_SpaceSequenceEditor;
+      return RNA_SpaceSequenceEditor;
     case SPACE_TEXT:
-      return &RNA_SpaceTextEditor;
+      return RNA_SpaceTextEditor;
     case SPACE_ACTION:
-      return &RNA_SpaceDopeSheetEditor;
+      return RNA_SpaceDopeSheetEditor;
     case SPACE_NLA:
-      return &RNA_SpaceNLA;
+      return RNA_SpaceNLA;
     case SPACE_NODE:
-      return &RNA_SpaceNodeEditor;
+      return RNA_SpaceNodeEditor;
     case SPACE_CONSOLE:
-      return &RNA_SpaceConsole;
+      return RNA_SpaceConsole;
     case SPACE_USERPREF:
-      return &RNA_SpacePreferences;
+      return RNA_SpacePreferences;
     case SPACE_CLIP:
-      return &RNA_SpaceClipEditor;
+      return RNA_SpaceClipEditor;
     case SPACE_SPREADSHEET:
-      return &RNA_SpaceSpreadsheet;
+      return RNA_SpaceSpreadsheet;
 
       /* Currently no type info. */
     case SPACE_SCRIPT:
@@ -746,12 +755,12 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
       break;
   }
 
-  return &RNA_Space;
+  return RNA_Space;
 }
 
 static ScrArea *rna_area_from_space(const PointerRNA *ptr)
 {
-  BLI_assert(RNA_struct_is_a(ptr->type, &RNA_Space));
+  BLI_assert(RNA_struct_is_a(ptr->type, RNA_Space));
   bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
   SpaceLink *link = static_cast<SpaceLink *>(ptr->data);
   return BKE_screen_find_area_from_space(screen, link);
@@ -778,7 +787,7 @@ static void area_region_from_regiondata(bScreen *screen,
 
 static void rna_area_region_from_regiondata(PointerRNA *ptr, ScrArea **r_area, ARegion **r_region)
 {
-  bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+  bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
   void *regiondata = (ptr->data);
 
   area_region_from_regiondata(screen, regiondata, r_area, r_region);
@@ -851,7 +860,7 @@ static void rna_Space_bool_from_region_flag_update_by_type(bContext *C,
         ED_region_toggle_hidden(C, region);
 
         if ((region->flag & RGN_FLAG_HIDDEN_BY_USER) == 0) {
-          blender::ui::ED_area_type_hud_ensure(C, area);
+          ui::ED_area_type_hud_ensure(C, area);
         }
       }
     }
@@ -979,7 +988,7 @@ static void rna_Space_show_region_ui_set(PointerRNA *ptr, bool value)
                              (BLI_rctf_size_x(&region->v2d.cur) /
                               (BLI_rcti_size_x(&region->v2d.mask) + 1)) :
                              1.0f;
-    if (BKE_regiontype_uses_category_tabs(region->runtime->type) &&
+    if (region->runtime->type && BKE_regiontype_uses_category_tabs(region->runtime->type) &&
         (float(region->sizex) <= (UI_PANEL_CATEGORY_MIN_WIDTH / aspect)))
     {
       /* If the region is showing only tabs, increase to full width. */
@@ -1080,7 +1089,7 @@ static void rna_Space_view2d_sync_set(PointerRNA *ptr, bool value)
     return;
   }
 
-  if (!blender::ui::view2d_area_supports_sync(area)) {
+  if (!ui::view2d_area_supports_sync(area)) {
     BKE_reportf(nullptr,
                 RPT_ERROR,
                 "'show_locked_time' is not supported for the '%s' editor",
@@ -1123,10 +1132,10 @@ static void rna_Space_view2d_sync_update(Main * /*bmain*/, Scene * /*scene*/, Po
   }
 
   if (region) {
-    bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+    bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
     View2D *v2d = &region->v2d;
 
-    blender::ui::view2d_sync(screen, area, v2d, V2D_LOCK_SET);
+    ui::view2d_sync(screen, area, v2d, V2D_LOCK_SET);
   }
 }
 
@@ -1145,7 +1154,7 @@ static void rna_SpaceView3D_camera_update(Main *bmain, Scene *scene, PointerRNA 
 static void rna_SpaceView3D_use_local_camera_set(PointerRNA *ptr, bool value)
 {
   View3D *v3d = static_cast<View3D *>(ptr->data);
-  bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+  bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
 
   v3d->scenelock = !value;
 
@@ -1163,7 +1172,7 @@ static void rna_SpaceView3D_use_local_camera_set(PointerRNA *ptr, bool value)
 static float rna_View3DOverlay_GridScaleUnit_get(PointerRNA *ptr)
 {
   View3D *v3d = static_cast<View3D *>(ptr->data);
-  bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+  bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
   Scene *scene = ED_screen_scene_find(screen, static_cast<wmWindowManager *>(G_MAIN->wm.first));
   if (scene != nullptr) {
     return ED_view3d_grid_scale(scene, v3d, nullptr);
@@ -1186,7 +1195,7 @@ static PointerRNA rna_SpaceView3D_region_3d_get(PointerRNA *ptr)
     regiondata = region->regiondata;
   }
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_RegionView3D, regiondata);
+  return RNA_pointer_create_with_parent(*ptr, RNA_RegionView3D, regiondata);
 }
 
 static void rna_SpaceView3D_object_type_visibility_update(Main * /*bmain*/,
@@ -1250,7 +1259,7 @@ static PointerRNA rna_SpaceView3D_region_quadviews_get(CollectionPropertyIterato
 {
   void *regiondata = (static_cast<ARegion *>(rna_iterator_listbase_get(iter)))->regiondata;
 
-  return RNA_pointer_create_with_parent(iter->parent, &RNA_RegionView3D, regiondata);
+  return RNA_pointer_create_with_parent(iter->parent, RNA_RegionView3D, regiondata);
 }
 
 static void rna_RegionView3D_quadview_update(Main * /*main*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -1382,13 +1391,13 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *scene, PointerRNA 
     /* When switching from workbench to render or material mode the geometry of any
      * active sculpt session needs to be recalculated. */
     for (Object &ob : bmain->objects) {
-      if (ob.sculpt) {
+      if (ob.runtime->sculpt_session) {
         DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
       }
     }
   }
 
-  bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+  bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
   for (ScrArea &area : screen->areabase) {
     for (SpaceLink &sl : area.spacedata) {
       if (sl.spacetype == SPACE_VIEW3D) {
@@ -1407,14 +1416,14 @@ static Scene *rna_3DViewShading_scene(PointerRNA *ptr)
   /* Get scene, depends if using 3D view or OpenGL render settings. */
   ID *id = ptr->owner_id;
   if (GS(id->name) == ID_SCE) {
-    return blender::id_cast<Scene *>(id);
+    return id_cast<Scene *>(id);
   }
   else if (GS(id->name) == ID_WM) {
     /* For XR shading settings. */
     return nullptr;
   }
   else {
-    bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+    bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
     return WM_windows_scene_get_from_screen(static_cast<wmWindowManager *>(G_MAIN->wm.first),
                                             screen);
   }
@@ -1432,7 +1441,7 @@ static ViewLayer *rna_3DViewShading_view_layer(PointerRNA *ptr)
     return nullptr;
   }
   else {
-    bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+    bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
     return WM_windows_view_layer_get_from_screen(static_cast<wmWindowManager *>(G_MAIN->wm.first),
                                                  screen);
   }
@@ -1519,7 +1528,7 @@ static PointerRNA rna_View3DShading_selected_studio_light_get(PointerRNA *ptr)
     /* OB_MATERIAL and OB_RENDER */
     sl = BKE_studiolight_find(shading->lookdev_light, STUDIOLIGHT_TYPE_WORLD);
   }
-  return RNA_pointer_create_with_parent(*ptr, &RNA_StudioLight, sl);
+  return RNA_pointer_create_with_parent(*ptr, RNA_StudioLight, sl);
 }
 
 /* shading.light */
@@ -1638,6 +1647,10 @@ static const EnumPropertyItem *rna_3DViewShading_render_pass_itemf(bContext *C,
                                                                    PropertyRNA * /*prop*/,
                                                                    bool *r_free)
 {
+  if (C == nullptr) {
+    return rna_enum_dummy_NULL_items;
+  }
+
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -1748,9 +1761,9 @@ static const EnumPropertyItem *rna_SpaceView3D_stereo3d_camera_itemf(bContext *C
                                                                      PropertyRNA * /*prop*/,
                                                                      bool * /*r_free*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = (C) ? CTX_data_scene(C) : nullptr;
 
-  if (scene->r.views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
+  if (scene && scene->r.views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
     return multiview_camera_items;
   }
   else {
@@ -1810,7 +1823,7 @@ static std::optional<std::string> rna_View3DShading_path(const PointerRNA *ptr)
 
 static PointerRNA rna_SpaceView3D_overlay_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_View3DOverlay, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_View3DOverlay, ptr->data);
 }
 
 static std::optional<std::string> rna_View3DOverlay_path(const PointerRNA *ptr)
@@ -1823,7 +1836,7 @@ static std::optional<std::string> rna_View3DOverlay_path(const PointerRNA *ptr)
 
 static PointerRNA rna_SpaceImage_overlay_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SpaceImageOverlay, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SpaceImageOverlay, ptr->data);
 }
 
 static std::optional<std::string> rna_SpaceImageOverlay_path(const PointerRNA *ptr)
@@ -1840,7 +1853,7 @@ static std::optional<std::string> rna_SpaceUVEditor_path(const PointerRNA *ptr)
 
 static PointerRNA rna_SpaceImageEditor_uvedit_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SpaceUVEditor, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SpaceUVEditor, ptr->data);
 }
 
 static void rna_SpaceImageEditor_mode_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -1921,7 +1934,7 @@ static bool rna_SpaceImageEditor_show_paint_get(PointerRNA *ptr)
 static bool rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
 {
   SpaceImage *sima = static_cast<SpaceImage *>(ptr->data);
-  bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+  bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
   Object *obedit = nullptr;
   wmWindow *win = ED_screen_window_find(screen, static_cast<wmWindowManager *>(G_MAIN->wm.first));
   if (win != nullptr) {
@@ -1936,7 +1949,7 @@ static bool rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
 static bool rna_SpaceImageEditor_show_maskedit_get(PointerRNA *ptr)
 {
   SpaceImage *sima = static_cast<SpaceImage *>(ptr->data);
-  bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+  bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
   Object *obedit = nullptr;
   wmWindow *win = ED_screen_window_find(screen, static_cast<wmWindowManager *>(G_MAIN->wm.first));
   if (win != nullptr) {
@@ -2219,7 +2232,7 @@ static StructRNA *rna_SpaceProperties_pin_id_typef(PointerRNA *ptr)
     return ID_code_to_RNA_type(GS(sbuts->pinid->name));
   }
 
-  return &RNA_ID;
+  return RNA_ID;
 }
 
 static void rna_SpaceProperties_pin_id_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -2268,7 +2281,7 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext * /*C*
 
   /* Although it would never reach this amount, a theoretical maximum number of tabs
    * is BCONTEXT_TOT * 2, with every tab displayed and a spacer in every other item. */
-  const blender::Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
+  const Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
 
   int totitem_added = 0;
   bool add_separator = true;
@@ -2312,7 +2325,7 @@ static int rna_SpaceProperties_tab_search_results_getlength(const PointerRNA *pt
 {
   SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
 
-  const blender::Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
+  const Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
 
   length[0] = context_tabs_array.size();
 
@@ -2323,7 +2336,7 @@ static void rna_SpaceProperties_tab_search_results_get(PointerRNA *ptr, bool *va
 {
   SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
 
-  const blender::Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
+  const Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
 
   for (const int i : context_tabs_array.index_range()) {
     values[i] = ED_buttons_tab_has_search_result(sbuts, i);
@@ -2477,7 +2490,7 @@ static void rna_SpaceConsole_rect_update(Main * /*bmain*/, Scene * /*scene*/, Po
 
 static void rna_SequenceEditor_update_cache(Main * /*bmain*/, Scene *scene, PointerRNA * /*ptr*/)
 {
-  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
+  seq::cache_cleanup(scene, seq::CacheCleanup::FinalAndIntra);
 }
 
 static void seq_build_proxy(bContext *C, PointerRNA *ptr)
@@ -2488,11 +2501,11 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
 
   SpaceSeq *sseq = static_cast<SpaceSeq *>(ptr->data);
   Scene *scene = CTX_data_sequencer_scene(C);
-  ListBaseT<Strip> *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
+  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
 
-  blender::Set<std::string> processed_paths;
-  wmJob *wm_job = blender::seq::ED_seq_proxy_wm_job_get(C);
-  blender::seq::ProxyJob *pj = blender::seq::ED_seq_proxy_job_get(C, wm_job);
+  Set<std::string> processed_paths;
+  wmJob *wm_job = seq::ED_seq_proxy_wm_job_get(C);
+  seq::ProxyJob *pj = seq::ED_seq_proxy_job_get(C, wm_job);
 
   for (Strip &strip : *seqbase) {
     if (strip.type != STRIP_TYPE_MOVIE || strip.data == nullptr || strip.data->proxy == nullptr) {
@@ -2500,12 +2513,11 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
     }
 
     /* Add new proxy size. */
-    strip.data->proxy->build_size_flags |= blender::seq::rendersize_to_proxysize(
+    strip.data->proxy->build_size_flags |= seq::rendersize_to_proxysize(
         eSpaceSeq_Proxy_RenderSize(sseq->render_size));
 
     /* Build proxy. */
-    blender::seq::proxy_rebuild_context(
-        pj->main, pj->depsgraph, pj->scene, &strip, &processed_paths, &pj->queue, true);
+    seq::proxy_build_start(pj->main, pj->scene, &strip, &processed_paths, true, pj->queue);
   }
 
   if (!WM_jobs_is_running(wm_job)) {
@@ -2560,7 +2572,7 @@ static void rna_Sequencer_view_type_update(Main * /*bmain*/, Scene * /*scene*/, 
 
 static PointerRNA rna_SpaceSequenceEditor_preview_overlay_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SequencerPreviewOverlay, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SequencerPreviewOverlay, ptr->data);
 }
 
 static std::optional<std::string> rna_SpaceSequencerPreviewOverlay_path(const PointerRNA *ptr)
@@ -2572,7 +2584,7 @@ static std::optional<std::string> rna_SpaceSequencerPreviewOverlay_path(const Po
 
 static PointerRNA rna_SpaceSequenceEditor_timeline_overlay_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SequencerTimelineOverlay, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SequencerTimelineOverlay, ptr->data);
 }
 
 static std::optional<std::string> rna_SpaceSequencerTimelineOverlay_path(const PointerRNA *ptr)
@@ -2584,7 +2596,7 @@ static std::optional<std::string> rna_SpaceSequencerTimelineOverlay_path(const P
 
 static PointerRNA rna_SpaceSequenceEditor_cache_overlay_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SequencerCacheOverlay, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SequencerCacheOverlay, ptr->data);
 }
 
 static std::optional<std::string> rna_SpaceSequencerCacheOverlay_path(const PointerRNA *ptr)
@@ -2630,7 +2642,7 @@ static void rna_SpaceSequenceEditor_zoom_percentage_set(PointerRNA *ptr, const f
 
 static PointerRNA rna_SpaceDopeSheet_overlay_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SpaceDopeSheetOverlay, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SpaceDopeSheetOverlay, ptr->data);
 }
 
 static std::optional<std::string> rna_SpaceDopeSheetOverlay_path(const PointerRNA *ptr)
@@ -2645,7 +2657,7 @@ static std::optional<std::string> rna_SpaceDopeSheetOverlay_path(const PointerRN
 /* Space Node Editor */
 static PointerRNA rna_SpaceNode_overlay_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SpaceNodeOverlay, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SpaceNodeOverlay, ptr->data);
 }
 
 static bool rna_SpaceNode_supports_previews(PointerRNA *ptr)
@@ -2733,7 +2745,7 @@ static bool rna_SpaceNodeEditor_node_tree_poll(PointerRNA *ptr, const PointerRNA
 
 static void rna_SpaceNodeEditor_node_tree_update(const bContext *C, PointerRNA * /*ptr*/)
 {
-  blender::ed::space_node::tree_update(C);
+  ed::space_node::tree_update(C);
 }
 
 static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
@@ -2806,7 +2818,7 @@ static void rna_SpaceNodeEditor_tree_type_set(PointerRNA *ptr, int value)
   SpaceNode *snode = static_cast<SpaceNode *>(ptr->data);
   ED_node_set_tree_type(snode, rna_node_tree_type_from_enum(value));
 }
-static bool rna_SpaceNodeEditor_tree_type_poll(void *Cv, blender::bke::bNodeTreeType *type)
+static bool rna_SpaceNodeEditor_tree_type_poll(void *Cv, bke::bNodeTreeType *type)
 {
   bContext *C = static_cast<bContext *>(Cv);
   if (type->poll) {
@@ -2859,7 +2871,7 @@ static int rna_SpaceNodeEditor_path_length(PointerRNA *ptr)
 static void rna_SpaceNodeEditor_path_clear(SpaceNode *snode, bContext *C)
 {
   ED_node_tree_start(nullptr, snode, nullptr, nullptr, nullptr);
-  blender::ed::space_node::tree_update(C);
+  ed::space_node::tree_update(C);
 }
 
 static ARegion *find_snode_region(SpaceNode *snode, bContext *C)
@@ -2881,7 +2893,7 @@ static void rna_SpaceNodeEditor_path_start(SpaceNode *snode, bContext *C, Pointe
 {
   ARegion *region = find_snode_region(snode, C);
   ED_node_tree_start(region, snode, static_cast<bNodeTree *>(node_tree->data), nullptr, nullptr);
-  blender::ed::space_node::tree_update(C);
+  ed::space_node::tree_update(C);
 }
 
 static void rna_SpaceNodeEditor_path_append(SpaceNode *snode,
@@ -2892,14 +2904,14 @@ static void rna_SpaceNodeEditor_path_append(SpaceNode *snode,
   ARegion *region = find_snode_region(snode, C);
   ED_node_tree_push(
       region, snode, static_cast<bNodeTree *>(node_tree->data), static_cast<bNode *>(node->data));
-  blender::ed::space_node::tree_update(C);
+  ed::space_node::tree_update(C);
 }
 
 static void rna_SpaceNodeEditor_path_pop(SpaceNode *snode, bContext *C)
 {
   ARegion *region = find_snode_region(snode, C);
   ED_node_tree_pop(region, snode);
-  blender::ed::space_node::tree_update(C);
+  ed::space_node::tree_update(C);
 }
 
 static void rna_SpaceNodeEditor_show_backdrop_update(Main * /*bmain*/,
@@ -2919,7 +2931,7 @@ static void rna_SpaceNodeEditor_cursor_location_from_region(SpaceNode *snode,
 
   float cursor_location[2];
 
-  blender::ui::view2d_region_to_view(&region->v2d, x, y, &cursor_location[0], &cursor_location[1]);
+  ui::view2d_region_to_view(&region->v2d, x, y, &cursor_location[0], &cursor_location[1]);
   cursor_location[0] /= UI_SCALE_FAC;
   cursor_location[1] /= UI_SCALE_FAC;
 
@@ -2931,7 +2943,7 @@ static void rna_SpaceClipEditor_clip_set(PointerRNA *ptr,
                                          ReportList * /*reports*/)
 {
   SpaceClip *sc = static_cast<SpaceClip *>(ptr->data);
-  bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+  bScreen *screen = id_cast<bScreen *>(ptr->owner_id);
 
   ED_space_clip_set_clip(nullptr, screen, sc, static_cast<MovieClip *>(value.data));
 }
@@ -2993,7 +3005,7 @@ static void rna_SpaceClipEditor_zoom_percentage_set(PointerRNA *ptr, const float
 
 static PointerRNA rna_SpaceClip_overlay_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SpaceClipOverlay, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SpaceClipOverlay, ptr->data);
 }
 
 static std::optional<std::string> rna_SpaceClipOverlay_path(const PointerRNA *ptr)
@@ -3033,7 +3045,7 @@ static const EnumPropertyItem *rna_FileSelectParams_display_type_itemf(bContext 
                                                                        PropertyRNA * /*prop*/,
                                                                        bool *r_free)
 {
-  if (RNA_struct_is_a(ptr->type, &RNA_FileAssetSelectParams)) {
+  if (RNA_struct_is_a(ptr->type, RNA_FileAssetSelectParams)) {
     EnumPropertyItem *items = nullptr;
     int totitem = 0;
 
@@ -3055,7 +3067,7 @@ static const EnumPropertyItem *rna_FileSelectParams_display_type_itemf(bContext 
 
 static int rna_FileSelectParams_display_type_default(PointerRNA *ptr, PropertyRNA *prop)
 {
-  if (RNA_struct_is_a(ptr->type, &RNA_FileAssetSelectParams)) {
+  if (RNA_struct_is_a(ptr->type, RNA_FileAssetSelectParams)) {
     return FILE_IMGDISPLAY;
   }
 
@@ -3097,7 +3109,7 @@ static const EnumPropertyItem *rna_FileSelectParams_sort_method_itemf(bContext *
   EnumPropertyItem *items = nullptr;
   int totitem = 0;
 
-  if (RNA_struct_is_a(ptr->type, &RNA_FileAssetSelectParams)) {
+  if (RNA_struct_is_a(ptr->type, RNA_FileAssetSelectParams)) {
     /* Only expose sorting by name and asset catalog for asset browsing. */
 
     RNA_enum_items_add_value(
@@ -3138,27 +3150,27 @@ static void rna_FileSelectPrams_filter_glob_set(PointerRNA *ptr, const char *val
 
 static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_FileSelectIDFilter, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_FileSelectIDFilter, ptr->data);
 }
 
 static int rna_FileAssetSelectParams_asset_library_get(PointerRNA *ptr)
 {
   FileAssetSelectParams *params = static_cast<FileAssetSelectParams *>(ptr->data);
   /* Just an extra sanity check to ensure this isn't somehow called for RNA_FileSelectParams. */
-  BLI_assert(ptr->type == &RNA_FileAssetSelectParams);
+  BLI_assert(ptr->type == RNA_FileAssetSelectParams);
 
-  return blender::ed::asset::library_reference_to_enum_value(&params->asset_library_ref);
+  return ed::asset::library_reference_to_enum_value(&params->asset_library_ref);
 }
 
 static void rna_FileAssetSelectParams_asset_library_set(PointerRNA *ptr, int value)
 {
   FileAssetSelectParams *params = static_cast<FileAssetSelectParams *>(ptr->data);
-  params->asset_library_ref = blender::ed::asset::library_reference_from_enum_value(value);
+  params->asset_library_ref = ed::asset::library_reference_from_enum_value(value);
 }
 
 static PointerRNA rna_FileAssetSelectParams_filter_id_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_FileAssetSelectIDFilter, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_FileAssetSelectIDFilter, ptr->data);
 }
 
 static PointerRNA rna_FileBrowser_FileSelectEntry_asset_data_get_impl(const PointerRNA *ptr)
@@ -3178,10 +3190,10 @@ static PointerRNA rna_FileBrowser_FileSelectEntry_asset_data_get_impl(const Poin
 
   if (entry->asset->is_local_id()) {
     PointerRNA id_ptr = RNA_id_pointer_create(entry->id);
-    return RNA_pointer_create_with_parent(id_ptr, &RNA_AssetMetaData, asset_data);
+    return RNA_pointer_create_with_parent(id_ptr, RNA_AssetMetaData, asset_data);
   }
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_AssetMetaData, asset_data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_AssetMetaData, asset_data);
 }
 
 static int rna_FileBrowser_FileSelectEntry_name_editable(const PointerRNA *ptr,
@@ -3242,10 +3254,10 @@ static StructRNA *rna_FileBrowser_params_typef(PointerRNA *ptr)
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   if (params == ED_fileselect_get_file_params(sfile)) {
-    return &RNA_FileSelectParams;
+    return RNA_FileSelectParams;
   }
   if (params == static_cast<void *>(ED_fileselect_get_asset_params(sfile))) {
-    return &RNA_FileAssetSelectParams;
+    return RNA_FileAssetSelectParams;
   }
 
   BLI_assert_msg(0, "Could not identify file select parameters");
@@ -3368,7 +3380,7 @@ static PointerRNA rna_FileBrowser_FSMenu_get(CollectionPropertyIterator *iter)
 {
   ListBaseIterator *internal = &iter->internal.listbase;
   PointerRNA ptr_result = RNA_pointer_create_with_parent(
-      iter->parent, &RNA_FileBrowserFSMenuEntry, internal->link);
+      iter->parent, RNA_FileBrowserFSMenuEntry, internal->link);
   return ptr_result;
 }
 
@@ -3579,7 +3591,6 @@ static void rna_SpaceSpreadsheet_geometry_component_type_update(Main * /*bmain*/
                                                                 Scene * /*scene*/,
                                                                 PointerRNA *ptr)
 {
-  using namespace blender;
   SpaceSpreadsheet *sspreadsheet = static_cast<SpaceSpreadsheet *>(ptr->data);
   switch (sspreadsheet->geometry_id.geometry_component_type) {
     case int(bke::GeometryComponent::Type::Mesh): {
@@ -3621,7 +3632,6 @@ const EnumPropertyItem *rna_SpaceSpreadsheet_attribute_domain_itemf(bContext * /
                                                                     PropertyRNA * /*prop*/,
                                                                     bool *r_free)
 {
-  using namespace blender;
   SpaceSpreadsheet *sspreadsheet = static_cast<SpaceSpreadsheet *>(ptr->data);
   auto component_type = bke::GeometryComponent::Type(
       sspreadsheet->geometry_id.geometry_component_type);
@@ -3629,7 +3639,7 @@ const EnumPropertyItem *rna_SpaceSpreadsheet_attribute_domain_itemf(bContext * /
     ID *used_id = ed::spreadsheet::get_current_id(sspreadsheet);
     if (used_id != nullptr) {
       if (GS(used_id->name) == ID_OB) {
-        Object *used_object = blender::id_cast<Object *>(used_id);
+        Object *used_object = id_cast<Object *>(used_id);
         if (used_object->type == OB_POINTCLOUD) {
           component_type = bke::GeometryComponent::Type::PointCloud;
         }
@@ -3688,9 +3698,9 @@ static StructRNA *rna_SpreadsheetTableID_refine(PointerRNA *ptr)
   SpreadsheetTableID *table_id = ptr->data_as<SpreadsheetTableID>();
   switch (eSpreadsheetTableIDType(table_id->type)) {
     case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY:
-      return &RNA_SpreadsheetTableIDGeometry;
+      return RNA_SpreadsheetTableIDGeometry;
   }
-  return &RNA_SpreadsheetTableID;
+  return RNA_SpreadsheetTableID;
 }
 
 static void rna_iterator_SpreadsheetTable_columns_begin(CollectionPropertyIterator *iter,
@@ -3729,8 +3739,8 @@ static int rna_iterator_SpaceSpreadsheet_tables_length(PointerRNA *ptr)
 static PointerRNA rna_SpreadsheetTables_active_get(PointerRNA *ptr)
 {
   SpaceSpreadsheet *sspreadsheet = ptr->data_as<SpaceSpreadsheet>();
-  SpreadsheetTable *table = blender::ed::spreadsheet::get_active_table(*sspreadsheet);
-  return RNA_pointer_create_discrete(ptr->owner_id, &RNA_SpreadsheetTable, table);
+  SpreadsheetTable *table = ed::spreadsheet::get_active_table(*sspreadsheet);
+  return RNA_pointer_create_discrete(ptr->owner_id, RNA_SpreadsheetTable, table);
 }
 
 static StructRNA *rna_viewer_path_elem_refine(PointerRNA *ptr)
@@ -3738,21 +3748,21 @@ static StructRNA *rna_viewer_path_elem_refine(PointerRNA *ptr)
   ViewerPathElem *elem = static_cast<ViewerPathElem *>(ptr->data);
   switch (ViewerPathElemType(elem->type)) {
     case VIEWER_PATH_ELEM_TYPE_ID:
-      return &RNA_IDViewerPathElem;
+      return RNA_IDViewerPathElem;
     case VIEWER_PATH_ELEM_TYPE_MODIFIER:
-      return &RNA_ModifierViewerPathElem;
+      return RNA_ModifierViewerPathElem;
     case VIEWER_PATH_ELEM_TYPE_GROUP_NODE:
-      return &RNA_GroupNodeViewerPathElem;
+      return RNA_GroupNodeViewerPathElem;
     case VIEWER_PATH_ELEM_TYPE_SIMULATION_ZONE:
-      return &RNA_SimulationZoneViewerPathElem;
+      return RNA_SimulationZoneViewerPathElem;
     case VIEWER_PATH_ELEM_TYPE_VIEWER_NODE:
-      return &RNA_ViewerNodeViewerPathElem;
+      return RNA_ViewerNodeViewerPathElem;
     case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE:
-      return &RNA_RepeatZoneViewerPathElem;
+      return RNA_RepeatZoneViewerPathElem;
     case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE:
-      return &RNA_ForeachGeometryElementZoneViewerPathElem;
+      return RNA_ForeachGeometryElementZoneViewerPathElem;
     case VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE:
-      return &RNA_EvaluateClosureNodeViewerPathElem;
+      return RNA_EvaluateClosureNodeViewerPathElem;
   }
   BLI_assert_unreachable();
   return nullptr;
@@ -3820,7 +3830,11 @@ static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
   return items;
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static const EnumPropertyItem dt_uv_items[] = {
     {SI_UVDT_OUTLINE, "OUTLINE", 0, "Outline", "Display white edges with black outline"},
@@ -5921,7 +5935,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 static void rna_def_space_properties_filter(StructRNA *srna)
 {
   /* Order must follow `buttons_context_items`. */
-  constexpr std::array<blender::StringRefNull, BCONTEXT_TOT> filter_items = {
+  constexpr std::array<StringRefNull, BCONTEXT_TOT> filter_items = {
       "show_properties_tool",
       "show_properties_scene",
       "show_properties_render",
@@ -5944,10 +5958,10 @@ static void rna_def_space_properties_filter(StructRNA *srna)
       "show_properties_strip_modifier",
   };
 
-  for (const int i : blender::IndexRange(BCONTEXT_TOT)) {
+  for (const int i : IndexRange(BCONTEXT_TOT)) {
     EnumPropertyItem item = buttons_context_items[i];
     const int value = (1 << item.value);
-    blender::StringRefNull prop_name = filter_items[i];
+    StringRefNull prop_name = filter_items[i];
 
     PropertyRNA *prop = RNA_def_property(srna, prop_name.c_str(), PROP_BOOLEAN, PROP_NONE);
     RNA_def_property_boolean_sdna(prop, nullptr, "visible_tabs", value);
@@ -6573,7 +6587,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
       "Display Channel",
       "Preview all channels less than or equal to this value. 0 shows every channel, and negative "
       "values climb that many meta-strip levels if applicable, showing every channel there.");
-  RNA_def_property_range(prop, -5, blender::seq::MAX_CHANNELS);
+  RNA_def_property_range(prop, -5, seq::MAX_CHANNELS);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_update_cache");
 
   prop = RNA_def_property(srna, "preview_channels", PROP_ENUM, PROP_NONE);
@@ -9203,5 +9217,7 @@ void RNA_def_space(BlenderRNA *brna)
   rna_def_space_clip(brna);
   rna_def_space_spreadsheet(brna);
 }
+
+}  // namespace blender
 
 #endif

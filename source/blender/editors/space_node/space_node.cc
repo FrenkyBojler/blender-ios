@@ -71,7 +71,7 @@
 
 #include "node_intern.hh" /* own include */
 
-using blender::float2;
+namespace blender {
 
 /* ******************** tree path ********************* */
 
@@ -85,12 +85,12 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
   if (ntree) {
     bNodeTreePath *path = MEM_new_for_free<bNodeTreePath>("node tree path");
     path->nodetree = ntree;
-    path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
+    path->parent_key = bke::NODE_INSTANCE_KEY_BASE;
 
     /* Set initial view center from node tree. */
     copy_v2_v2(path->view_center, ntree->view_center);
     if (region) {
-      blender::ui::view2d_center_set(&region->v2d, ntree->view_center[0], ntree->view_center[1]);
+      ui::view2d_center_set(&region->v2d, ntree->view_center[0], ntree->view_center[1]);
     }
 
     if (id) {
@@ -125,24 +125,23 @@ void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNod
   path->nodetree = ntree;
   if (gnode) {
     if (prev_path) {
-      path->parent_key = blender::bke::node_instance_key(
-          prev_path->parent_key, prev_path->nodetree, gnode);
+      path->parent_key = bke::node_instance_key(prev_path->parent_key, prev_path->nodetree, gnode);
     }
     else {
-      path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
+      path->parent_key = bke::NODE_INSTANCE_KEY_BASE;
     }
 
     STRNCPY_UTF8(path->node_name, gnode->name);
     STRNCPY_UTF8(path->display_name, gnode->name);
   }
   else {
-    path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
+    path->parent_key = bke::NODE_INSTANCE_KEY_BASE;
   }
 
   /* Set initial view center from node tree. */
   copy_v2_v2(path->view_center, ntree->view_center);
   if (region) {
-    blender::ui::view2d_center_set(&region->v2d, ntree->view_center[0], ntree->view_center[1]);
+    ui::view2d_center_set(&region->v2d, ntree->view_center[0], ntree->view_center[1]);
   }
 
   BLI_addtail(&snode->treepath, path);
@@ -176,7 +175,7 @@ void ED_node_tree_pop(ARegion *region, SpaceNode *snode)
 
   /* Set view center from node tree path. */
   if (region) {
-    blender::ui::view2d_center_set(&region->v2d, path->view_center[0], path->view_center[1]);
+    ui::view2d_center_set(&region->v2d, path->view_center[0], path->view_center[1]);
   }
 
   ED_node_set_active_viewer_key(snode);
@@ -263,7 +262,7 @@ void ED_node_cursor_location_set(SpaceNode *snode, const float value[2])
   copy_v2_v2(snode->runtime->cursor, value);
 }
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 
 float2 space_node_group_offset(const SpaceNode &snode)
 {
@@ -456,17 +455,16 @@ static std::optional<const ComputeContext *> compute_context_for_tree_path(
   for (const int i : tree_path.index_range().drop_back(1)) {
     bNodeTree *tree = tree_path[i]->nodetree;
     const char *group_node_name = tree_path[i + 1]->node_name;
-    const bNode *group_node = blender::bke::node_find_node_by_name(*tree, group_node_name);
+    const bNode *group_node = bke::node_find_node_by_name(*tree, group_node_name);
     if (group_node == nullptr) {
       return std::nullopt;
     }
-    const blender::bke::bNodeTreeZones *tree_zones = tree->zones();
+    const bke::bNodeTreeZones *tree_zones = tree->zones();
     if (tree_zones == nullptr) {
       return std::nullopt;
     }
-    const Vector<const blender::bke::bNodeTreeZone *> zone_stack =
-        tree_zones->get_zones_to_enter_from_root(
-            tree_zones->get_zone_by_node(group_node->identifier));
+    const Vector<const bke::bNodeTreeZone *> zone_stack = tree_zones->get_zones_to_enter_from_root(
+        tree_zones->get_zone_by_node(group_node->identifier));
     current = compute_context_for_zones(zone_stack, compute_context_cache, current);
     if (!current) {
       return std::nullopt;
@@ -847,7 +845,7 @@ static void node_area_refresh(const bContext *C, ScrArea *area)
   if (snode->nodetree && snode->nodetree == scene->compositing_node_group) {
     if (snode->runtime->recalc_regular_compositing) {
       snode->runtime->recalc_regular_compositing = false;
-      ED_node_composite_job(C, scene->compositing_node_group, scene);
+      ED_node_compositor_job(C);
     }
   }
 }
@@ -1400,7 +1398,7 @@ static void node_region_listener(const wmRegionListenerParams *params)
   }
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 /* Outside of blender namespace to avoid Python documentation build error with `ctypes`. */
 extern "C" {
@@ -1408,7 +1406,7 @@ const char *node_context_dir[] = {
     "selected_nodes", "active_node", "light", "material", "world", nullptr};
 };
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 
 static int /*eContextResult*/ node_context(const bContext *C,
                                            const char *member,
@@ -1424,7 +1422,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
     if (snode->edittree) {
       for (bNode *node : snode->edittree->all_nodes()) {
         if (node->flag & NODE_SELECT) {
-          CTX_data_list_add(result, &snode->edittree->id, &RNA_Node, node);
+          CTX_data_list_add(result, &snode->edittree->id, RNA_Node, node);
         }
       }
     }
@@ -1434,7 +1432,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
   if (CTX_data_equals(member, "active_node")) {
     if (snode->edittree) {
       bNode *node = bke::node_get_active(*snode->edittree);
-      CTX_data_pointer_set(result, &snode->edittree->id, &RNA_Node, node);
+      CTX_data_pointer_set(result, &snode->edittree->id, RNA_Node, node);
     }
 
     CTX_data_type_set(result, ContextDataType::Pointer);
@@ -1442,10 +1440,8 @@ static int /*eContextResult*/ node_context(const bContext *C,
   }
   if (CTX_data_equals(member, "node_previews")) {
     if (snode->nodetree) {
-      CTX_data_pointer_set(result,
-                           &snode->nodetree->id,
-                           &RNA_NodeInstanceHash,
-                           &snode->nodetree->runtime->previews);
+      CTX_data_pointer_set(
+          result, &snode->nodetree->id, RNA_NodeInstanceHash, &snode->nodetree->runtime->previews);
     }
 
     CTX_data_type_set(result, ContextDataType::Pointer);
@@ -1510,8 +1506,8 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
     }
   }
   else if (GS(old_id->name) == ID_GD_LEGACY) {
-    if (blender::id_cast<ID *>(snode->gpd) == old_id) {
-      snode->gpd = blender::id_cast<bGPdata *>(new_id);
+    if (id_cast<ID *>(snode->gpd) == old_id) {
+      snode->gpd = id_cast<bGPdata *>(new_id);
       id_us_min(old_id);
       id_us_plus(new_id);
     }
@@ -1527,8 +1523,8 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
     bNodeTreePath *path, *path_next;
 
     for (path = static_cast<bNodeTreePath *>(snode->treepath.first); path; path = path->next) {
-      if (blender::id_cast<ID *>(path->nodetree) == old_id) {
-        path->nodetree = blender::id_cast<bNodeTree *>(new_id);
+      if (id_cast<ID *>(path->nodetree) == old_id) {
+        path->nodetree = id_cast<bNodeTree *>(new_id);
         id_us_ensure_real(new_id);
       }
       if (path == snode->treepath.first) {
@@ -1563,7 +1559,7 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
 
 static void node_id_remap(ScrArea * /*area*/,
                           SpaceLink *slink,
-                          const blender::bke::id::IDRemapper &mappings)
+                          const bke::id::IDRemapper &mappings)
 {
   /* Although we should be able to perform all the mappings in a single go this lead to issues when
    * running the python test cases. Somehow the nodetree/edittree weren't updated to the new
@@ -1764,7 +1760,7 @@ static void node_asset_shelf_region_init(wmWindowManager *wm, ARegion *region)
   asset::shelf::region_init(wm, region);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 void ED_spacetype_node()
 {
@@ -1890,3 +1886,5 @@ void ED_spacetype_node()
 
   BKE_spacetype_register(std::move(st));
 }
+
+}  // namespace blender

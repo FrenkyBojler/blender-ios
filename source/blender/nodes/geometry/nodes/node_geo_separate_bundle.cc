@@ -23,7 +23,9 @@
 
 #include <fmt/format.h>
 
-namespace blender::nodes::node_geo_separate_bundle_cc {
+namespace blender {
+
+namespace nodes::node_geo_separate_bundle_cc {
 
 NODE_STORAGE_FUNCS(NodeSeparateBundle);
 
@@ -41,7 +43,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       const std::string identifier = SeparateBundleItemsAccessor::socket_identifier_for_item(item);
       auto &decl = b.add_output(socket_type, name, identifier)
                        .socket_name_ptr(
-                           &tree->id, SeparateBundleItemsAccessor::item_srna, &item, "name")
+                           &tree->id, *SeparateBundleItemsAccessor::item_srna, &item, "name")
                        .propagate_all()
                        .reference_pass_all();
       if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
@@ -64,8 +66,8 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeSeparateBundle &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeSeparateBundle>(
-      __func__, blender::dna::shallow_copy(src_storage));
+  auto *dst_storage = MEM_new_for_free<NodeSeparateBundle>(__func__,
+                                                           dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<SeparateBundleItemsAccessor>(*src_node, *dst_node);
@@ -237,7 +239,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   sh_geo_node_type_base(&ntype, "NodeSeparateBundle", NODE_SEPARATE_BUNDLE);
   ntype.ui_name = "Separate Bundle";
@@ -253,15 +255,15 @@ static void node_register()
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_type_storage(ntype, "NodeSeparateBundle", node_free_storage, node_copy_storage);
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_separate_bundle_cc
+}  // namespace nodes::node_geo_separate_bundle_cc
 
-namespace blender::nodes {
+namespace nodes {
 
-StructRNA *SeparateBundleItemsAccessor::item_srna = &RNA_NodeSeparateBundleItem;
+StructRNA **SeparateBundleItemsAccessor::item_srna = &RNA_NodeSeparateBundleItem;
 
 void SeparateBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -273,4 +275,5 @@ void SeparateBundleItemsAccessor::blend_read_data_item(BlendDataReader *reader, 
   BLO_read_string(reader, &item.name);
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

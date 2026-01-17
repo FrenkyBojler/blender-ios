@@ -27,6 +27,8 @@
 
 #define COLOR_SIZE 3
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Utilities
  * \{ */
@@ -122,7 +124,7 @@ static PyObject *Color_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_srgb_doc,
-    ".. function:: from_scene_linear_to_srgb()\n"
+    ".. method:: from_scene_linear_to_srgb()\n"
     "\n"
     "   Convert from scene linear to sRGB color space.\n"
     "\n"
@@ -138,7 +140,7 @@ static PyObject *Color_from_scene_linear_to_srgb(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_srgb_to_scene_linear_doc,
-    ".. function:: from_srgb_to_scene_linear()\n"
+    ".. method:: from_srgb_to_scene_linear()\n"
     "\n"
     "   Convert from sRGB to scene linear color space.\n"
     "\n"
@@ -154,7 +156,7 @@ static PyObject *Color_from_srgb_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_xyz_d65_doc,
-    ".. function:: from_scene_linear_to_xyz_d65()\n"
+    ".. method:: from_scene_linear_to_xyz_d65()\n"
     "\n"
     "   Convert from scene linear to CIE XYZ (Illuminant D65) color space.\n"
     "\n"
@@ -170,7 +172,7 @@ static PyObject *Color_from_scene_linear_to_xyz_d65(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_xyz_d65_to_scene_linear_doc,
-    ".. function:: from_xyz_d65_to_scene_linear()\n"
+    ".. method:: from_xyz_d65_to_scene_linear()\n"
     "\n"
     "   Convert from CIE XYZ (Illuminant D65) to scene linear color space.\n"
     "\n"
@@ -186,7 +188,7 @@ static PyObject *Color_from_xyz_d65_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_aces_doc,
-    ".. function:: from_scene_linear_to_aces()\n"
+    ".. method:: from_scene_linear_to_aces()\n"
     "\n"
     "   Convert from scene linear to ACES2065-1 linear color space.\n"
     "\n"
@@ -202,7 +204,7 @@ static PyObject *Color_from_scene_linear_to_aces(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_aces_to_scene_linear_doc,
-    ".. function:: from_aces_to_scene_linear()\n"
+    ".. method:: from_aces_to_scene_linear()\n"
     "\n"
     "   Convert from ACES2065-1 linear to scene linear color space.\n"
     "\n"
@@ -218,7 +220,7 @@ static PyObject *Color_from_aces_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_acescg_doc,
-    ".. function:: from_scene_linear_to_acescg()\n"
+    ".. method:: from_scene_linear_to_acescg()\n"
     "\n"
     "   Convert from scene linear to ACEScg linear color space.\n"
     "\n"
@@ -234,7 +236,7 @@ static PyObject *Color_from_scene_linear_to_acescg(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_acescg_to_scene_linear_doc,
-    ".. function:: from_acescg_to_scene_linear()\n"
+    ".. method:: from_acescg_to_scene_linear()\n"
     "\n"
     "   Convert from ACEScg linear to scene linear color space.\n"
     "\n"
@@ -250,7 +252,7 @@ static PyObject *Color_from_acescg_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_rec709_linear_doc,
-    ".. function:: from_scene_linear_to_rec709_linear()\n"
+    ".. method:: from_scene_linear_to_rec709_linear()\n"
     "\n"
     "   Convert from scene linear to Rec.709 linear color space.\n"
     "\n"
@@ -266,7 +268,7 @@ static PyObject *Color_from_scene_linear_to_rec709_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_rec709_linear_to_scene_linear_doc,
-    ".. function:: from_rec709_linear_to_scene_linear()\n"
+    ".. method:: from_rec709_linear_to_scene_linear()\n"
     "\n"
     "   Convert from Rec.709 linear color space to scene linear color space.\n"
     "\n"
@@ -282,7 +284,7 @@ static PyObject *Color_from_rec709_linear_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_scene_linear_to_rec2020_linear_doc,
-    ".. function:: from_scene_linear_to_rec2020_linear()\n"
+    ".. method:: from_scene_linear_to_rec2020_linear()\n"
     "\n"
     "   Convert from scene linear to Rec.2020 linear color space.\n"
     "\n"
@@ -298,7 +300,7 @@ static PyObject *Color_from_scene_linear_to_rec2020_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_from_rec2020_linear_to_scene_linear_doc,
-    ".. function:: from_rec2020_linear_to_scene_linear()\n"
+    ".. method:: from_rec2020_linear_to_scene_linear()\n"
     "\n"
     "   Convert from Rec.2020 linear color space to scene linear color space.\n"
     "\n"
@@ -322,7 +324,7 @@ static PyObject *Color_from_rec2020_linear_to_scene_linear(ColorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Color_copy_doc,
-    ".. function:: copy()\n"
+    ".. method:: copy()\n"
     "\n"
     "   Returns a copy of this color.\n"
     "\n"
@@ -1508,3 +1510,5 @@ PyObject *Color_CreatePyObject_cb(PyObject *cb_user, uchar cb_type, uchar cb_sub
 }
 
 /** \} */
+
+}  // namespace blender

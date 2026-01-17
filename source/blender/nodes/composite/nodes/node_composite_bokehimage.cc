@@ -16,9 +16,11 @@
 
 #include "node_composite_util.hh"
 
+namespace blender {
+
 /* **************** Bokeh image Tools  ******************** */
 
-namespace blender::nodes::node_composite_bokehimage_cc {
+namespace nodes::node_composite_bokehimage_cc {
 
 static void cmp_node_bokehimage_declare(NodeDeclarationBuilder &b)
 {
@@ -51,6 +53,11 @@ static void cmp_node_bokehimage_declare(NodeDeclarationBuilder &b)
           "means maximum shifting toward red");
 
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+}
+
+static void node_init(bNodeTree * /*node_tree*/, bNode *node)
+{
+  node->flag |= NODE_PREVIEW;
 }
 
 using namespace blender::compositor;
@@ -109,18 +116,18 @@ class BokehImageOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new BokehImageOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_bokehimage_cc
+}  // namespace nodes::node_composite_bokehimage_cc
 
 static void register_node_type_cmp_bokehimage()
 {
-  namespace file_ns = blender::nodes::node_composite_bokehimage_cc;
+  namespace file_ns = nodes::node_composite_bokehimage_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeBokehImage", CMP_NODE_BOKEHIMAGE);
   ntype.ui_name = "Bokeh Image";
@@ -128,10 +135,13 @@ static void register_node_type_cmp_bokehimage()
   ntype.enum_name_legacy = "BOKEHIMAGE";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::cmp_node_bokehimage_declare;
+  ntype.initfunc = file_ns::node_init;
   ntype.flag |= NODE_PREVIEW;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  blender::bke::node_type_size(ntype, 160, 140, NODE_DEFAULT_MAX_WIDTH);
+  bke::node_type_size(ntype, 160, 140, NODE_DEFAULT_MAX_WIDTH);
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_bokehimage)
+
+}  // namespace blender

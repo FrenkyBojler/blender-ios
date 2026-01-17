@@ -35,6 +35,8 @@
 
 #include "MOD_ui_common.hh"
 
+namespace blender {
+
 static void init_data(ModifierData *md)
 {
   FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
@@ -214,7 +216,7 @@ static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, voi
   FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
 
   if (fmd->type == MOD_FLUID_TYPE_FLOW && fmd->flow) {
-    PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_FluidFlowSettings, fmd->flow);
+    PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_FluidFlowSettings, fmd->flow);
     PropertyRNA *prop = RNA_struct_find_property(&ptr, "noise_texture");
 
     walk(user_data, ob, md, &ptr, prop);
@@ -223,7 +225,7 @@ static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, voi
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  blender::ui::Layout &layout = *panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
@@ -272,3 +274,5 @@ ModifierTypeInfo modifierType_Fluid = {
     /*foreach_cache*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

@@ -30,6 +30,8 @@
 
 #include "DNA_meshdata_types.h"
 
+namespace blender {
+
 static CustomData *bpy_bm_customdata_get(BMesh *bm, char htype)
 {
   switch (htype) {
@@ -425,7 +427,7 @@ PyDoc_STRVAR(
     bpy_bmlayeritem_copy_from_doc,
     ".. method:: copy_from(other)\n"
     "\n"
-    "   Return a copy of the layer\n"
+    "   Copy data from another layer.\n"
     "\n"
     "   :arg other: Another layer to copy from.\n"
     "   :type other: :class:`bmesh.types.BMLayerItem`\n");
@@ -1369,3 +1371,5 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
 
   return ret;
 }
+
+}  // namespace blender

@@ -31,6 +31,8 @@
 
 #include "python_utildefines.hh"
 
+namespace blender {
+
 extern bool pyrna_id_FromPyObject(PyObject *obj, ID **id);
 extern PyObject *pyrna_id_CreatePyObject(ID *id);
 extern bool pyrna_id_CheckPyObject(PyObject *obj);
@@ -471,7 +473,7 @@ static IDProperty *idp_from_PyFloat(IDProperty *prop_exist,
     }
   }
   if (!prop && can_create) {
-    prop = blender::bke::idprop::create(name, value).release();
+    prop = bke::idprop::create(name, value).release();
   }
   return prop;
 }
@@ -508,7 +510,7 @@ static IDProperty *idp_from_PyBool(IDProperty *prop_exist,
     }
   }
   if (!prop && can_create) {
-    prop = blender::bke::idprop::create_bool(name, value).release();
+    prop = bke::idprop::create_bool(name, value).release();
   }
   return prop;
 }
@@ -559,7 +561,7 @@ static IDProperty *idp_from_PyLong(IDProperty *prop_exist,
     if (value == -1 && PyErr_Occurred()) {
       return prop;
     }
-    prop = blender::bke::idprop::create(name, value).release();
+    prop = bke::idprop::create(name, value).release();
   }
   return prop;
 }
@@ -960,7 +962,7 @@ static IDProperty *idp_from_PyMapping(IDProperty * /*prop_exist*/,
 
   /* We allocate the group first; if we hit any invalid data,
    * we can delete it easily enough. */
-  prop = blender::bke::idprop::create_group(name).release();
+  prop = bke::idprop::create_group(name).release();
   len = PyMapping_Length(ob);
   for (i = 0; i < len; i++) {
     key = PySequence_GetItem(keys, i);
@@ -1005,16 +1007,16 @@ static IDProperty *idp_from_DatablockPointer(IDProperty *prop_exist,
     /* No conversion. */
   }
   if (!prop && can_create) {
-    prop = blender::bke::idprop::create(name, value).release();
+    prop = bke::idprop::create(name, value).release();
   }
   return prop;
 }
 
-static IDProperty *idp_from_PyObject(IDProperty *prop_exist,
-                                     const char *name,
-                                     PyObject *ob,
-                                     const bool do_conversion,
-                                     const bool can_create)
+IDProperty *BPy_IDProperty_FromPyObject(IDProperty *prop_exist,
+                                        const char *name,
+                                        PyObject *ob,
+                                        const bool do_conversion,
+                                        const bool can_create)
 {
   if (name == nullptr) {
     return nullptr;
@@ -1065,7 +1067,7 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
 
   /* If the container is an array of IDProperties, always add a new property to it. */
   if (group->type == IDP_IDPARRAY) {
-    IDProperty *new_prop = idp_from_PyObject(nullptr, name, ob, false, true);
+    IDProperty *new_prop = BPy_IDProperty_FromPyObject(nullptr, name, ob, false, true);
     if (new_prop == nullptr) {
       return false;
     }
@@ -1082,7 +1084,7 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
   /* If existing property is flagged to be statically typed, do not re-type it. Assign the value if
    * possible (potentially converting it), or fail. See #122743. */
   if (prop_exist && (prop_exist->flag & IDP_FLAG_STATIC_TYPE) != 0) {
-    IDProperty *prop = idp_from_PyObject(prop_exist, name, ob, true, false);
+    IDProperty *prop = BPy_IDProperty_FromPyObject(prop_exist, name, ob, true, false);
     BLI_assert(ELEM(prop, prop_exist, nullptr));
     if (prop != prop_exist) {
       PyErr_Format(PyExc_TypeError,
@@ -1097,7 +1099,7 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
 
   /* Attempt to assign new value in existing IDProperty, if types (and potentially subtypes) match
    * exactly. Otherwise, create a new IDProperty. */
-  IDProperty *new_prop = idp_from_PyObject(prop_exist, name, ob, false, true);
+  IDProperty *new_prop = BPy_IDProperty_FromPyObject(prop_exist, name, ob, false, true);
   if (new_prop == nullptr) {
     return false;
   }
@@ -1846,7 +1848,10 @@ PyDoc_STRVAR(
     BPy_IDGroup_keys_doc,
     ".. method:: keys()\n"
     "\n"
-    "   Return the keys associated with this group as a list of strings.\n");
+    "   Return the keys associated with this group.\n"
+    "\n"
+    "   :return: The keys.\n"
+    "   :rtype: idprop.types.IDPropertyGroupViewKeys\n");
 static PyObject *BPy_IDGroup_keys(BPy_IDProperty *self)
 {
   return BPy_IDGroup_ViewKeys_CreatePyObject(self);
@@ -2717,3 +2722,5 @@ PyObject *BPyInit_idprop()
 }
 
 /** \} */
+
+}  // namespace blender
