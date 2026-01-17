@@ -751,7 +751,7 @@ bool ED_operator_editmball(bContext *C)
 
 bool ED_operator_camera_poll(bContext *C)
 {
-  Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
+  Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", RNA_Camera).data);
   return (cam != nullptr && ID_IS_EDITABLE(cam));
 }
 
@@ -1623,6 +1623,23 @@ static wmOperatorStatus area_dupli_invoke(bContext *C, wmOperator *op, const wmE
   return newwin ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
+static bool area_dupli_poll(bContext *C)
+{
+  if (!ED_operator_areaactive(C)) {
+    return false;
+  }
+
+  if (CTX_wm_area(C)->global) {
+    return false;
+  }
+
+  if (CTX_wm_screen(C)->temp) {
+    return false;
+  }
+
+  return true;
+}
+
 static void SCREEN_OT_area_dupli(wmOperatorType *ot)
 {
   ot->name = "Duplicate Area into New Window";
@@ -1630,7 +1647,7 @@ static void SCREEN_OT_area_dupli(wmOperatorType *ot)
   ot->idname = "SCREEN_OT_area_dupli";
 
   ot->invoke = area_dupli_invoke;
-  ot->poll = ED_operator_areaactive;
+  ot->poll = area_dupli_poll;
 }
 
 /** \} */
@@ -5034,6 +5051,20 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
   return OPERATOR_RUNNING_MODAL;
 }
 
+static bool area_join_poll(bContext *C)
+{
+  if (!ED_operator_screenactive(C)) {
+    return false;
+  }
+
+  bScreen *screen = CTX_wm_screen(C);
+  if (screen->state != SCREENNORMAL || screen->temp) {
+    return false;
+  }
+
+  return true;
+}
+
 /* Operator for joining two areas (space types) */
 static void SCREEN_OT_area_join(wmOperatorType *ot)
 {
@@ -5046,7 +5077,7 @@ static void SCREEN_OT_area_join(wmOperatorType *ot)
   ot->exec = area_join_exec;
   ot->invoke = area_join_invoke;
   ot->modal = area_join_modal;
-  ot->poll = screen_active_editable;
+  ot->poll = area_join_poll;
   ot->cancel = area_join_cancel;
 
   /* flags */
@@ -5733,7 +5764,7 @@ void ED_screens_header_tools_menu_create(bContext *C, ui::Layout *layout, void *
   ScrArea *area = CTX_wm_area(C);
   {
     PointerRNA ptr = RNA_pointer_create_discrete(
-        id_cast<ID *>(CTX_wm_screen(C)), &RNA_Space, area->spacedata.first);
+        id_cast<ID *>(CTX_wm_screen(C)), RNA_Space, area->spacedata.first);
     if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
       layout->prop(&ptr, "show_region_header", UI_ITEM_NONE, IFACE_("Show Header"), ICON_NONE);
     }
@@ -5766,7 +5797,7 @@ void ED_screens_footer_tools_menu_create(bContext *C, ui::Layout *layout, void *
 
   {
     PointerRNA ptr = RNA_pointer_create_discrete(
-        id_cast<ID *>(CTX_wm_screen(C)), &RNA_Space, area->spacedata.first);
+        id_cast<ID *>(CTX_wm_screen(C)), RNA_Space, area->spacedata.first);
     layout->prop(&ptr, "show_region_footer", UI_ITEM_NONE, IFACE_("Show Footer"), ICON_NONE);
   }
 
@@ -5792,7 +5823,7 @@ void ED_screens_region_flip_menu_create(bContext *C, ui::Layout *layout, void * 
 
 static void ed_screens_statusbar_menu_create(ui::Layout &layout, void * /*arg*/)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesView, &U);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PreferencesView, &U);
   layout.prop(&ptr, "show_statusbar_stats", UI_ITEM_NONE, IFACE_("Scene Statistics"), ICON_NONE);
   layout.prop(
       &ptr, "show_statusbar_scene_duration", UI_ITEM_NONE, IFACE_("Scene Duration"), ICON_NONE);
@@ -6621,7 +6652,7 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   if (prop && RNA_property_is_set(op->ptr, prop)) {
     /* Set active section via RNA, so it can fail properly. */
 
-    PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, &U);
+    PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, RNA_Preferences, &U);
     PropertyRNA *active_section_prop = RNA_struct_find_property(&pref_ptr, "active_section");
 
     RNA_property_enum_set(&pref_ptr, active_section_prop, RNA_property_enum_get(op->ptr, prop));
@@ -7008,7 +7039,7 @@ static wmOperatorStatus space_type_set_or_cycle_exec(bContext *C, wmOperator *op
   const int space_type = RNA_enum_get(op->ptr, "space_type");
 
   ScrArea *area = CTX_wm_area(C);
-  PointerRNA ptr = RNA_pointer_create_discrete(id_cast<ID *>(CTX_wm_screen(C)), &RNA_Area, area);
+  PointerRNA ptr = RNA_pointer_create_discrete(id_cast<ID *>(CTX_wm_screen(C)), RNA_Area, area);
   PropertyRNA *prop_type = RNA_struct_find_property(&ptr, "type");
   PropertyRNA *prop_ui_type = RNA_struct_find_property(&ptr, "ui_type");
 
@@ -7092,11 +7123,11 @@ static void context_cycle_prop_get(bScreen *screen,
   switch (area->spacetype) {
     case SPACE_PROPERTIES:
       *r_ptr = RNA_pointer_create_discrete(
-          &screen->id, &RNA_SpaceProperties, area->spacedata.first);
+          &screen->id, RNA_SpaceProperties, area->spacedata.first);
       propname = "context";
       break;
     case SPACE_USERPREF:
-      *r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, &U);
+      *r_ptr = RNA_pointer_create_discrete(nullptr, RNA_Preferences, &U);
       propname = "active_section";
       break;
     default:
