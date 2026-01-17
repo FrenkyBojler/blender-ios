@@ -2838,9 +2838,8 @@ static void ui_but_paste_menu(bContext *C, Button *but, const StringRef value)
   const bool found = RNA_property_enum_value(
       C, &but->rnapoin, prop, std::string(value).c_str(), &item_index);
   if (!found) {
-    WM_global_reportf(RPT_ERROR,
-                      "Paste of \"%s\": cannot assign to value to property",
-                      std::string(value).c_str());
+    WM_global_reportf(
+        RPT_ERROR, "Paste of \"%s\": cannot assign value to property", std::string(value).c_str());
     return;
   }
   RNA_property_enum_set(&but->rnapoin, prop, item_index);
