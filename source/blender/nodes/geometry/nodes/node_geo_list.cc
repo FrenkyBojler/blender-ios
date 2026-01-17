@@ -95,10 +95,14 @@ static void node_rna(StructRNA *srna)
       SOCK_GEOMETRY,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supports_fields(eNodeSocketDatatype(item.value));
-            });
+        return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                 [](const EnumPropertyItem &item) -> bool {
+                                   const auto data_type = eNodeSocketDatatype(item.value);
+                                   if (data_type == SOCK_STRING) {
+                                     return true;
+                                   }
+                                   return socket_type_supports_fields(data_type);
+                                 });
       });
 }
 
