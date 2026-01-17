@@ -150,6 +150,8 @@ void main()
   }
 
   radiance = colorspace_brightness_clamp_max(radiance, uniform_buf.clamp.surface_indirect);
+  RayTraceData rt_data = uniform_buf.raytrace; // FIXME(Tri): this is ugly and has to be moved
+  radiance *= rt_data.rt_scale;
 
   imageStoreFast(ray_time_img, texel, float4(hit.time));
   imageStoreFast(ray_radiance_img, texel, float4(radiance, 0.0f));
