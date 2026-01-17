@@ -129,7 +129,7 @@ void sound_update_bounds(Scene *scene, Strip *strip)
      * because the meta handle needs strip start -meta strip start. Currently the offset is handled
      * because we recreate the meta handle each time but for a proper implementation we should do
      * the right calculation of where the strip should be in the sound_move logic. */
-    printf("Move strip %s\n", strip->name);
+    // printf("Move strip %s\n", strip->name);
     // Editing *ed = scene->ed;
     // Strip *parent_strip = lookup_meta_by_strip(ed, strip);
     // if (parent_strip == nullptr) {

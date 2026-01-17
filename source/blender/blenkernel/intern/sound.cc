@@ -852,18 +852,12 @@ void *BKE_sound_add_scene_sound(
     Scene *scene, Strip *strip, int startframe, int endframe, int frameskip)
 {
   sound_verify_evaluated_id(&scene->id);
-  printf("----------------\n");
-  if (strip->seqbase.first != nullptr) {
-    printf("META strip %s\n", strip->name);
-  }
+
   if (strip->type == STRIP_TYPE_META) {
-    printf("META strip %s\n", strip->name);
     LISTBASE_FOREACH (Strip *, strip_child, &strip->seqbase) {
-      printf("strip_child %s\n", strip_child->name);
-      if (strip_child->sound != nullptr) {
+      if (strip_child->sound != nullptr || strip_child->type == STRIP_TYPE_META) {
         strip_child->runtime->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip_child);
       }
-      // BKE_sound_add_scene_sound(scene, strip_child, )
     }
   }
 
@@ -880,20 +874,19 @@ void *BKE_sound_add_scene_sound(
   AUD_Sound *add_handle = strip->type == STRIP_TYPE_META ? strip->runtime->meta_scene_sound :
                                                            strip->sound->runtime->playback_handle;
 
+  /* This is to add the hande to the right AUD sequence(to sequence of parent_strip or to scene
+   * when there is no parent). */
   if (parent_strip != nullptr) {
+    /* Add a new meta_scene_sound when there is none. */
     if (parent_strip->runtime->meta_scene_sound == nullptr) {
       parent_strip->runtime->meta_scene_sound = AUD_Sequence_create(scene->frames_per_second(),
                                                                     false);
     }
     parent_sound_scene = parent_strip->runtime->meta_scene_sound;
-    // printf("add sound to %s\n", parent_strip->name);
-    // parent_sound_scene = parent_strip->sound->runtime->playback_handle;
   }
   else {
-    // printf("else\n");
     parent_sound_scene = scene->runtime->audio.sound_scene;
   }
-  // AUD_Device_play(g_state.sound_device, parent_sound_scene, 1);
 
   const double fps = scene->frames_per_second();
   double offset_time = 0.0f;
@@ -906,20 +899,23 @@ void *BKE_sound_add_scene_sound(
   // to remove the last handle properly
   if (strip->runtime->scene_sound != nullptr) {
     if (parent_strip != nullptr && strip->runtime->last_parent_sound_scene == 1) {
-      printf("1\n");
+      printf("remove\n");
       AUD_Sequence_remove(parent_sound_scene, strip->runtime->scene_sound);
     }
     else {
-      printf("0\n");
+      printf("remove\n");
       AUD_Sequence_remove(scene->runtime->audio.sound_scene, strip->runtime->scene_sound);
     }
   }
 
   // store last handle here so it can be properly removed in the next run.
   strip->runtime->last_parent_sound_scene = parent_strip != nullptr ? 1 : 0;
+  if (strip->type == STRIP_TYPE_META) {
+    printf("printf -----------------------------------\n");
+  }
 
-  printf("strip %s\n", strip->name);
-  printf("startframe - parent_start %d\n", startframe - parent_start);
+  // printf("strip %s\n", strip->name);
+  // printf("startframe - parent_start %d\n", startframe - parent_start);
   if (offset_time >= 0.0f) {
     return AUD_Sequence_add(parent_sound_scene,
                             add_handle,
@@ -960,7 +956,7 @@ void BKE_sound_move_scene_sound(const Scene *scene,
                                 int frameskip,
                                 double audio_offset)
 {
-  printf("BKE_sound_move_scene_sound\n");
+  // printf("BKE_sound_move_scene_sound\n");
   sound_verify_evaluated_id(&scene->id);
   const double fps = scene->frames_per_second();
   const double offset_time = audio_offset - frameskip / fps;

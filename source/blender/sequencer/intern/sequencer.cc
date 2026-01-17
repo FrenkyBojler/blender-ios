@@ -1085,7 +1085,7 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
   // }
 
   if (strip->sound != nullptr || strip->type == STRIP_TYPE_META) {
-    printf("strip->sound != nullptr %s\n", strip->name);
+    // printf("strip->sound != nullptr %s\n", strip->name);
     /* Adds `strip->sound->playback_handle` to `scene->sound_scene` */
     strip->runtime->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip);
   }
@@ -1104,7 +1104,7 @@ static void strip_update_sound_properties(const Scene *scene, const Strip *strip
   // output_volume *= meta->volume;
   // }
   const int frame = BKE_scene_frame_get(scene);
-  printf("vol strip %s\n", strip->name);
+  // printf("vol strip %s\n", strip->name);
   BKE_sound_set_scene_sound_volume_at_frame(strip->runtime->scene_sound,
                                             frame,
                                             output_volume,
@@ -1116,14 +1116,23 @@ static void strip_update_sound_properties(const Scene *scene, const Strip *strip
 
 static void strip_update_sound_modifiers(Strip *strip)
 {
-  void *sound_handle = BKE_sound_playback_handle_get(strip->sound);
+  printf("strip_update_sound_modifiers--------------------\n");
+  printf("strip %s", strip->name);
+  printf(" STRIP_TYPE_META %s\n", strip->type == STRIP_TYPE_META ? "true" : "false");
+
+  void *sound_handle = strip->type == STRIP_TYPE_META ?
+                           strip->runtime->meta_scene_sound :
+                           BKE_sound_playback_handle_get(strip->sound);
+  // void *sound_handle = BKE_sound_playback_handle_get(strip->sound);
   bool needs_update = false;
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    printf("LISTBASE_FOREACH\n");
     sound_handle = sound_modifier_recreator(strip, smd, sound_handle, needs_update);
   }
 
   if (needs_update) {
+    printf("needs_update\n");
     /* Assign modified sound back to `strip`. */
     BKE_sound_update_sequence_handle(strip->runtime->scene_sound, sound_handle);
   }
@@ -1137,12 +1146,15 @@ static bool must_update_strip_sound(Scene *scene, Strip *strip)
 
 static void seq_update_sound_strips(Scene *scene, Strip *strip)
 {
-  if (strip->sound == nullptr || !must_update_strip_sound(scene, strip)) {
+  if ((strip->sound == nullptr || !must_update_strip_sound(scene, strip)) &&
+      strip->type != STRIP_TYPE_META)
+  {
     return;
   }
+   // printf("EnsureEnsureEnsureEnsureEnsureEnsure\n");
 
   /* Ensure strip is playing correct sound. */
-  if (BLI_listbase_is_empty(&strip->modifiers)) {
+  if (BLI_listbase_is_empty(&strip->modifiers) && strip->type != STRIP_TYPE_META) {
     /* Just use playback handle from sound ID. */
     BKE_sound_update_scene_sound(strip->runtime->scene_sound, strip->sound);
   }

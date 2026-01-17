@@ -1484,12 +1484,7 @@ class SEQUENCER_MT_modifier_add(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        if strip.type == 'SOUND':
-            self.operator_modifier_add(layout, 'SOUND_EQUALIZER')
-            self.operator_modifier_add(layout, 'PITCH')
-            self.operator_modifier_add(layout, 'ECHO')
-
-        else:
+        if strip.type != 'SOUND':
             self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
             self.operator_modifier_add(layout, 'COLOR_BALANCE')
             self.operator_modifier_add(layout, 'COMPOSITOR')
@@ -1498,6 +1493,14 @@ class SEQUENCER_MT_modifier_add(Menu):
             self.operator_modifier_add(layout, 'MASK')
             self.operator_modifier_add(layout, 'TONEMAP')
             self.operator_modifier_add(layout, 'WHITE_BALANCE')
+
+        if strip.type == 'META':
+            self.layout.separator()
+
+        if strip.type == 'SOUND' or strip.type == 'META':
+            self.operator_modifier_add(layout, 'SOUND_EQUALIZER')
+            self.operator_modifier_add(layout, 'PITCH')
+            self.operator_modifier_add(layout, 'ECHO')
 
 
 class SequencerButtonsPanel:
