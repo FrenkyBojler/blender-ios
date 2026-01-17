@@ -2391,11 +2391,11 @@ static void sculpt_session_update_deform_coords(Depsgraph &depsgraph,
 }
 
 namespace bke::object {
-SculptSession &sculpt_session_ensure(Depsgraph &depsgraph, Object &object)
+SculptSession *sculpt_session_ensure(Depsgraph &depsgraph, Object &object)
 {
 
   if (object.runtime->sculpt_session) {
-    return *object.runtime->sculpt_session;
+    return object.runtime->sculpt_session;
   }
 
   BLI_assert(&object == DEG_get_original(&object));
@@ -2409,17 +2409,15 @@ SculptSession &sculpt_session_ensure(Depsgraph &depsgraph, Object &object)
   Object &ob_eval = *DEG_get_evaluated(&depsgraph, &object);
   Mesh *mesh_eval = BKE_object_get_evaluated_mesh_unchecked(&ob_eval);
 
-  MultiresModifierData *mmd = sculpt_multires_modifier_get(scene, object, true);
+  MultiresModifierData *mmd = sculpt_multires_modifier_get(scene, &object, true);
 
   BLI_assert(mesh_eval != nullptr);
 
-#if 0
   /* This is for handling a newly opened file with no object visible,
    * causing `mesh_eval == nullptr`. */
   if (mesh_eval == nullptr) {
-    return;
+    return nullptr;
   }
-#endif
 
   Sculpt *sd = scene->toolsettings->sculpt;
   ss->deform_modifiers_active = sculpt_modifiers_active(scene, sd, &object);
@@ -2431,10 +2429,11 @@ SculptSession &sculpt_session_ensure(Depsgraph &depsgraph, Object &object)
 
   BLI_assert(!mmd || mmd && ss->subdiv_ccg);
 
-  pbvh::Tree &pbvh = object::pbvh_ensure(depsgraph, object);
+  object::pbvh_ensure(depsgraph, object);
+  sculpt_session_update_deform_coords(depsgraph, *scene, object, ob_eval, *ss);;
 
   object.runtime->sculpt_session = ss;
-  return *object.runtime->sculpt_session;
+  return object.runtime->sculpt_session;
 }
 }  // namespace bke::object
 
@@ -2665,34 +2664,15 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 {
   using namespace blender::bke;
   Scene *scene = DEG_get_input_scene(depsgraph);
-  Sculpt *sd = scene->toolsettings->sculpt;
-  SculptSession &ss = *ob->runtime->sculpt_session;
-  Mesh *mesh_orig = BKE_object_get_original_mesh(ob);
-  /* Use the "unchecked" function, because this code also runs as part of the depsgraph node that
-   * evaluates the object's geometry. So from perspective of the depsgraph, the mesh is not fully
-   * evaluated yet. */
-  Mesh *mesh_eval = BKE_object_get_evaluated_mesh_unchecked(ob_eval);
-  MultiresModifierData *mmd = sculpt_multires_modifier_get(scene, ob, true);
 
-  BLI_assert(mesh_eval != nullptr);
-
-  /* This is for handling a newly opened file with no object visible,
-   * causing `mesh_eval == nullptr`. */
-  if (mesh_eval == nullptr) {
+  SculptSession *ss = object::sculpt_session_ensure(*depsgraph, *ob);
+  if (!ss) {
+    BLI_assert_msg(0, "Unable to create sculpt session");
     return;
   }
 
-  ss.deform_modifiers_active = sculpt_modifiers_active(scene, sd, ob);
-
-  ss.shapekey_active = (mmd == nullptr) ? BKE_keyblock_from_object(ob) : nullptr;
-
-  ss.multires_modifier = mmd;
-
-  ss.subdiv_ccg = mesh_eval->runtime->subdiv_ccg.get();
-
   pbvh::Tree &pbvh = object::pbvh_ensure(*depsgraph, *ob);
-
-  sculpt_session_update_deform_coords();
+  sculpt_session_update_deform_coords(*depsgraph, *scene, *ob, *ob_eval, *ss);
 
   if (is_paint_tool) {
     /* We should rebuild the PBVH_pixels when painting canvas changes.
@@ -2702,8 +2682,8 @@ static void sculpt_update_object(Depsgraph *depsgraph,
     if (USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint)) {
       std::string paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode,
                                                               ob);
-      if (!ss.last_paint_canvas_key || paint_canvas_key != ss.last_paint_canvas_key) {
-        ss.last_paint_canvas_key = paint_canvas_key;
+      if (!ss->last_paint_canvas_key || paint_canvas_key != ss->last_paint_canvas_key) {
+        ss->last_paint_canvas_key = paint_canvas_key;
         BKE_pbvh_mark_rebuild_pixels(pbvh);
       }
     }

@@ -882,13 +882,6 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   /* Some files were incorrectly written with a dangling pointer to this runtime data. */
   ob->runtime->sculpt_session = nullptr;
 
-  /* When loading undo steps, for objects in modes that use `sculpt`, recreate the mode runtime
-   * data. For regular non-undo reading, this is currently handled by mode switching after the
-   * initial file read. */
-  if (BLO_read_data_is_undo(reader) && (ob->mode & OB_MODE_ALL_SCULPT)) {
-    BKE_object_sculpt_data_create(ob);
-  }
-
   BLO_read_struct(reader, PreviewImage, &ob->preview);
   BKE_previewimg_blend_read(reader, ob->preview);
 
@@ -4081,13 +4074,6 @@ void BKE_object_handle_update_ex(Depsgraph *depsgraph,
 void BKE_object_handle_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
   BKE_object_handle_update_ex(depsgraph, scene, ob, nullptr);
-}
-
-void BKE_object_sculpt_data_create(Object *ob)
-{
-  BLI_assert((ob->runtime->sculpt_session == nullptr) && (ob->mode & OB_MODE_ALL_SCULPT));
-  ob->runtime->sculpt_session = MEM_new<SculptSession>(__func__);
-  ob->runtime->sculpt_session->mode_type = eObjectMode(ob->mode);
 }
 
 bool BKE_object_obdata_texspace_get(Object *ob,

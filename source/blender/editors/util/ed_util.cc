@@ -189,7 +189,7 @@ void ED_editors_init(bContext *C)
          * mode-switching but don't yet support multi-editing. */
         if (mode & OB_MODE_ALL_SCULPT) {
           ob.mode = mode;
-          BKE_object_sculpt_data_create(&ob);
+          bke::object::sculpt_session_ensure(*depsgraph, ob);
         }
       }
     }

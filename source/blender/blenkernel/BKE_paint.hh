@@ -561,7 +561,7 @@ struct SculptSession : NonCopyable, NonMovable {
 };
 
 namespace bke::object {
-SculptSession &sculpt_session_ensure(Depsgraph &depsgraph, Object &object);
+SculptSession *sculpt_session_ensure(Depsgraph &depsgraph, Object &object);
 }
 
 void BKE_sculptsession_free(Object *ob);
