@@ -3586,38 +3586,214 @@ void WM_OT_recover_auto_save(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Save Modified Images Dialog
+ * \{ */
+
+static void free_post_file_close_action(void *arg)
+{
+  wmGenericCallback *action = static_cast<wmGenericCallback *>(arg);
+  WM_generic_callback_free(action);
+}
+
+static void wm_free_operator_properties_callback(void *user_data)
+{
+  IDProperty *properties = static_cast<IDProperty *>(user_data);
+  IDP_FreeProperty(properties);
+}
+
+static char save_modified_images_when_file_is_saved = true;
+
+static void wm_block_save_modified_images_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
+{
+  wmWindow *win = CTX_wm_window(C);
+  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
+}
+
+static void wm_block_save_modified_images_save(bContext *C, void *arg_block, void *arg_data)
+{
+  const Main *bmain = CTX_data_main(C);
+  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
+  wmGenericCallback *callback = WM_generic_callback_steal(
+      static_cast<wmGenericCallback *>(arg_data));
+
+  wmWindow *win = CTX_wm_window(C);
+  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
+
+  if (save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain)) {
+    ReportList *reports = CTX_wm_reports(C);
+    bool is_successful = ED_image_save_all_modified(C, reports);
+    if (!is_successful) {
+      WM_report_banner_show(wm, win);
+    }
+  }
+
+  callback->exec(C, callback->user_data);
+  WM_generic_callback_free(callback);
+}
+
+static void wm_block_save_modified_images_cancel_button(ui::Block *block,
+                                                        wmGenericCallback *post_action)
+{
+  ui::Button *but = uiDefIconTextBut(
+      block, ui::ButtonType::But, ICON_NONE, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, "");
+  button_func_set(but, wm_block_save_modified_images_cancel, block, post_action);
+  button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
+}
+
+static void wm_block_save_modified_images_save_button(ui::Block *block,
+                                                      wmGenericCallback *post_action)
+{
+  ui::Button *but = uiDefIconTextBut(
+      block, ui::ButtonType::But, ICON_NONE, "Save File", 0, 0, 0, UI_UNIT_Y, nullptr, "");
+  button_func_set(but, wm_block_save_modified_images_save, block, post_action);
+  button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
+  button_flag_enable(but, ui::BUT_ACTIVE_DEFAULT);
+}
+
+static const char *save_modified_images_dialog_name = "save_modified_images_popup";
+
+static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion *region, void *arg)
+{
+  wmGenericCallback *post_action = static_cast<wmGenericCallback *>(arg);
+  Main *bmain = CTX_data_main(C);
+
+  ui::Block *block = block_begin(
+      C, region, save_modified_images_dialog_name, ui::EmbossType::Emboss);
+  block_flag_enable(
+      block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_LOOP | ui::BLOCK_NO_WIN_CLIP | ui::BLOCK_NUMSELECT);
+  block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
+
+  ui::Layout &layout = *uiItemsAlertBox(
+      block, (bmain->colorspace.is_missing_opencolorio_config) ? 44 : 34, ui::AlertIcon::Info);
+
+  /* Title. */
+  uiItemL_ex(
+      &layout, RPT_("Images are not automatically saved with the file"), ICON_NONE, true, false);
+
+  /* Image Saving Warnings. */
+  ReportList reports;
+  BKE_reports_init(&reports, RPT_STORE & RPT_PRINT);
+  uint modified_images_count = ED_image_save_all_modified_info(bmain, &reports);
+
+  for (Report &report : reports.list) {
+    ui::Layout &row = layout.column(false);
+    row.scale_y_set(0.6f);
+    row.separator();
+
+    /* Error messages created in ED_image_save_all_modified_info() can be long,
+     * but are made to separate into two parts at first colon between text and paths.
+     */
+    char *message = BLI_strdupn(report.message, report.len);
+    char *path_info = strstr(message, ": ");
+    if (path_info) {
+      /* Terminate message string at colon. */
+      path_info[1] = '\0';
+      /* Skip over the ": ". */
+      path_info += 2;
+    }
+    uiItemL_ex(&row, message, ICON_NONE, false, true);
+    if (path_info) {
+      uiItemL_ex(&row, path_info, ICON_NONE, false, true);
+    }
+    MEM_freeN(message);
+  }
+
+  /* Modified Images Checkbox. */
+  char message[64];
+  SNPRINTF(message, RPT_("Save %u modified image(s)"), modified_images_count);
+  layout.separator();
+  uiDefButC(block,
+            ui::ButtonType::Checkbox,
+            message,
+            0,
+            0,
+            0,
+            UI_UNIT_Y,
+            &save_modified_images_when_file_is_saved,
+            0,
+            0,
+            "");
+
+  BKE_reports_free(&reports);
+
+  layout.separator(2.0f);
+
+  /* Buttons. */
+#ifdef _WIN32
+  const bool windows_layout = true;
+#else
+  const bool windows_layout = false;
+#endif
+
+  if (windows_layout) {
+    /* Windows standard layout. */
+
+    ui::Layout &split = layout.split(0.0f, true);
+    split.scale_y_set(1.2f);
+
+    split.column(false);
+    wm_block_save_modified_images_save_button(block, post_action);
+
+    split.column(false);
+    /* Empty space. */
+
+    split.column(false);
+    wm_block_save_modified_images_cancel_button(block, post_action);
+  }
+  else {
+    /* Non-Windows layout (macOS and Linux). */
+
+    ui::Layout &split = layout.split(0.3f, true);
+    split.scale_y_set(1.2f);
+
+    split.column(false);
+    /* Empty space. */
+
+    ui::Layout &split_right = split.split(0.1f, true);
+
+    split_right.column(false);
+    /* Empty space. */
+
+    split_right.column(false);
+    wm_block_save_modified_images_cancel_button(block, post_action);
+
+    split_right.column(false);
+    wm_block_save_modified_images_save_button(block, post_action);
+  }
+
+  block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
+  return block;
+}
+
+static void wm_save_modified_images_dialog(bContext *C, wmGenericCallback *post_action)
+{
+  if (!ui::popup_block_name_exists(CTX_wm_screen(C), save_modified_images_dialog_name)) {
+    ui::popup_block_invoke(
+        C, block_create_save_modified_images_dialog, post_action, free_post_file_close_action);
+  }
+  else {
+    WM_generic_callback_free(post_action);
+  }
+}
+
+static void wm_operator_save_modified_images_dialog(bContext *C,
+                                                    wmOperator *op,
+                                                    wmGenericCallbackFn post_action_fn)
+{
+  wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
+  callback->exec = post_action_fn;
+  callback->user_data = IDP_CopyProperty(op->properties);
+  callback->free_user_data = wm_free_operator_properties_callback;
+  wm_save_modified_images_dialog(C, callback);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Save Main .blend File Operator
  *
  * Both #WM_OT_save_as_mainfile & #WM_OT_save_mainfile.
  * \{ */
-
-static void wm_save_as_mainfile_after_dialog_callback(bContext *C, void *user_data)
-{
-  WM_operator_name_call_with_properties(C,
-                                        "WM_OT_save_as_mainfile",
-                                        blender::wm::OpCallContext::InvokeDefault,
-                                        (IDProperty *)user_data,
-                                        nullptr);
-}
-
-static void wm_execute_save_mainfile_after_dialog_callback(bContext *C, void *user_data)
-{
-  WM_operator_name_call_with_properties(C,
-                                        "WM_OT_save_mainfile",
-                                        blender::wm::OpCallContext::ExecDefault,
-                                        (IDProperty *)user_data,
-                                        nullptr);
-}
-
-static void wm_invoke_save_mainfile_after_dialog_callback(bContext *C, void *user_data)
-{
-  WM_operator_name_call_with_properties(C,
-                                        "WM_OT_save_mainfile",
-                                        blender::wm::OpCallContext::InvokeDefault,
-                                        (IDProperty *)user_data,
-                                        nullptr);
-}
-
 static void wm_filepath_default(const Main *bmain, char *filepath)
 {
   if (bmain->filepath[0] == '\0') {
@@ -3683,10 +3859,16 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
   const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
-  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
+  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
   if (show_save_image_dialog && modified_images_count > 0) {
     RNA_property_boolean_set(op->ptr, prop, false);
-    wm_operator_save_modified_images_dialog(C, op, wm_save_as_mainfile_after_dialog_callback);
+    wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
+      WM_operator_name_call_with_properties(C,
+                                            "WM_OT_save_as_mainfile",
+                                            wm::OpCallContext::InvokeDefault,
+                                            (IDProperty *)user_data,
+                                            nullptr);
+    });
     return OPERATOR_INTERFACE;
   }
 
@@ -3717,10 +3899,16 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
   const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
-  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
+  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
   if (show_save_image_dialog && modified_images_count > 0) {
     RNA_property_boolean_set(op->ptr, prop, false);
-    wm_operator_save_modified_images_dialog(C, op, wm_execute_save_mainfile_after_dialog_callback);
+    wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
+      WM_operator_name_call_with_properties(C,
+                                            "WM_OT_save_mainfile",
+                                            wm::OpCallContext::ExecDefault,
+                                            (IDProperty *)user_data,
+                                            nullptr);
+    });
     return OPERATOR_INTERFACE;
   }
 
@@ -3929,10 +4117,16 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
   const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
-  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
+  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
   if (show_save_image_dialog && modified_images_count > 0) {
     RNA_property_boolean_set(op->ptr, prop, false);
-    wm_operator_save_modified_images_dialog(C, op, wm_invoke_save_mainfile_after_dialog_callback);
+    wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
+      WM_operator_name_call_with_properties(C,
+                                            "WM_OT_save_mainfile",
+                                            wm::OpCallContext::InvokeDefault,
+                                            (IDProperty *)user_data,
+                                            nullptr);
+    });
     return OPERATOR_INTERFACE;
   }
 
@@ -4369,18 +4563,6 @@ void wm_test_foreign_file_warning(bContext *C)
 /** \name Save File Forward Compatibility Dialog
  * \{ */
 
-static void free_post_file_close_action(void *arg)
-{
-  wmGenericCallback *action = static_cast<wmGenericCallback *>(arg);
-  WM_generic_callback_free(action);
-}
-
-static void wm_free_operator_properties_callback(void *user_data)
-{
-  IDProperty *properties = static_cast<IDProperty *>(user_data);
-  IDP_FreeProperty(properties);
-}
-
 static const char *save_file_overwrite_dialog_name = "save_file_overwrite_popup";
 
 static void file_overwrite_detailed_info_show(ui::Layout &parent_layout, Main *bmain)
@@ -4660,7 +4842,7 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 
-  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
+  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
   if (modified_images_count > 0 && save_images_when_file_is_closed) {
     if (ED_image_should_save_modified(bmain)) {
       ReportList *reports = CTX_wm_reports(C);
@@ -4957,216 +5139,6 @@ bool wm_operator_close_file_dialog_if_needed(bContext *C,
   }
 
   return false;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Save Modified Images Dialog
- * \{ */
-
-static char save_modified_images_when_file_is_saved = true;
-
-static void wm_block_save_modified_images_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
-{
-  wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
-}
-
-static void wm_block_save_modified_images_save(bContext *C, void *arg_block, void *arg_data)
-{
-  const Main *bmain = CTX_data_main(C);
-  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  wmGenericCallback *callback = WM_generic_callback_steal((wmGenericCallback *)arg_data);
-
-  wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
-
-  if (save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain)) {
-    ReportList *reports = CTX_wm_reports(C);
-    bool is_successful = ED_image_save_all_modified(C, reports);
-    if (!is_successful) {
-      WM_report_banner_show(wm, win);
-    }
-  }
-
-  callback->exec(C, callback->user_data);
-  WM_generic_callback_free(callback);
-}
-
-static void wm_block_save_modified_images_cancel_button(blender::ui::Block *block,
-                                                        wmGenericCallback *post_action)
-{
-  blender::ui::Button *but = uiDefIconTextBut(block,
-                                              blender::ui::ButtonType::But,
-                                              ICON_NONE,
-                                              IFACE_("Cancel"),
-                                              0,
-                                              0,
-                                              0,
-                                              UI_UNIT_Y,
-                                              nullptr,
-                                              "");
-  button_func_set(but, wm_block_save_modified_images_cancel, block, post_action);
-  button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
-}
-
-static void wm_block_save_modified_images_save_button(blender::ui::Block *block,
-                                                      wmGenericCallback *post_action)
-{
-  blender::ui::Button *but = uiDefIconTextBut(block,
-                                              blender::ui::ButtonType::But,
-                                              ICON_NONE,
-                                              "Save File",
-                                              0,
-                                              0,
-                                              0,
-                                              UI_UNIT_Y,
-                                              nullptr,
-                                              "");
-  button_func_set(but, wm_block_save_modified_images_save, block, post_action);
-  button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
-  button_flag_enable(but, blender::ui::BUT_ACTIVE_DEFAULT);
-}
-
-static const char *save_modified_images_dialog_name = "save_modified_images_popup";
-
-static blender::ui::Block *block_create_save_modified_images_dialog(bContext *C,
-                                                                    ARegion *region,
-                                                                    void *arg)
-{
-  using namespace blender;
-  wmGenericCallback *post_action = (wmGenericCallback *)arg;
-  Main *bmain = CTX_data_main(C);
-
-  ui::Block *block = block_begin(
-      C, region, save_modified_images_dialog_name, ui::EmbossType::Emboss);
-  block_flag_enable(
-      block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_LOOP | ui::BLOCK_NO_WIN_CLIP | ui::BLOCK_NUMSELECT);
-  block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
-
-  ui::Layout &layout = *uiItemsAlertBox(
-      block, (bmain->colorspace.is_missing_opencolorio_config) ? 44 : 34, ui::AlertIcon::Info);
-
-  /* Title. */
-  uiItemL_ex(
-      &layout, RPT_("Images are not automatically saved with the file"), ICON_NONE, true, false);
-
-  /* Image Saving Warnings. */
-  ReportList reports;
-  BKE_reports_init(&reports, RPT_STORE & RPT_PRINT);
-  uint modified_images_count = ED_image_save_all_modified_info(bmain, &reports);
-
-  for (Report &report : reports.list) {
-    ui::Layout &row = layout.column(false);
-    row.scale_y_set(0.6f);
-    row.separator();
-
-    /* Error messages created in ED_image_save_all_modified_info() can be long,
-     * but are made to separate into two parts at first colon between text and paths.
-     */
-    char *message = BLI_strdupn(report.message, report.len);
-    char *path_info = strstr(message, ": ");
-    if (path_info) {
-      /* Terminate message string at colon. */
-      path_info[1] = '\0';
-      /* Skip over the ": ". */
-      path_info += 2;
-    }
-    uiItemL_ex(&row, message, ICON_NONE, false, true);
-    if (path_info) {
-      uiItemL_ex(&row, path_info, ICON_NONE, false, true);
-    }
-    MEM_freeN(message);
-  }
-
-  /* Modified Images Checkbox. */
-  char message[64];
-  SNPRINTF(message, RPT_("Save %u modified image(s)"), modified_images_count);
-  layout.separator();
-  uiDefButC(block,
-            blender::ui::ButtonType::Checkbox,
-            message,
-            0,
-            0,
-            0,
-            UI_UNIT_Y,
-            &save_modified_images_when_file_is_saved,
-            0,
-            0,
-            "");
-
-  BKE_reports_free(&reports);
-
-  layout.separator(2.0f);
-
-  /* Buttons. */
-#ifdef _WIN32
-  const bool windows_layout = true;
-#else
-  const bool windows_layout = false;
-#endif
-
-  if (windows_layout) {
-    /* Windows standard layout. */
-
-    ui::Layout &split = layout.split(0.0f, true);
-    split.scale_y_set(1.2f);
-
-    split.column(false);
-    wm_block_save_modified_images_save_button(block, post_action);
-
-    split.column(false);
-    /* Empty space. */
-
-    split.column(false);
-    wm_block_save_modified_images_cancel_button(block, post_action);
-  }
-  else {
-    /* Non-Windows layout (macOS and Linux). */
-
-    ui::Layout &split = layout.split(0.3f, true);
-    split.scale_y_set(1.2f);
-
-    split.column(false);
-    /* Empty space. */
-
-    ui::Layout &split_right = split.split(0.1f, true);
-
-    split_right.column(false);
-    /* Empty space. */
-
-    split_right.column(false);
-    wm_block_save_modified_images_cancel_button(block, post_action);
-
-    split_right.column(false);
-    wm_block_save_modified_images_save_button(block, post_action);
-  }
-
-  block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
-  return block;
-}
-
-void wm_save_modified_images_dialog(bContext *C, wmGenericCallback *post_action)
-{
-  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), save_modified_images_dialog_name)) {
-    blender::ui::popup_block_invoke(
-        C, block_create_save_modified_images_dialog, post_action, free_post_file_close_action);
-  }
-  else {
-    WM_generic_callback_free(post_action);
-  }
-}
-
-void wm_operator_save_modified_images_dialog(bContext *C,
-                                             wmOperator *op,
-                                             wmGenericCallbackFn post_action_fn)
-{
-  wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
-  callback->exec = post_action_fn;
-  callback->user_data = IDP_CopyProperty(op->properties);
-  callback->free_user_data = wm_free_operator_properties_callback;
-  wm_save_modified_images_dialog(C, callback);
 }
 
 /** \} */
