@@ -4005,6 +4005,8 @@ static void mask_brush_toggle_off(Paint *paint, StrokeCache *cache)
   cache->saved_active_brush = nullptr;
 }
 
+/* Initialize the stroke cache invariants from operator properties. */
+
 static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
                                     float initial_size)
@@ -5574,7 +5576,6 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
     brush = BKE_paint_brush(this->paint);
   }
 
-
   cache->mouse = cache->initial_mouse;
   cache->mouse_event = cache->initial_mouse;
   copy_v2_v2(paint_runtime->tex_mouse, cache->initial_mouse);
@@ -5882,7 +5883,7 @@ void SculptPaintStroke::done(bool is_cancel)
     /* Refresh the brush pointer in case we switched brush in the toggle function. */
     brush = BKE_paint_brush(&sd.paint);
   }
-  
+
   MEM_delete(ss.cache);
   ss.cache = nullptr;
 

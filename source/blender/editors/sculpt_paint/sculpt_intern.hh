@@ -10,6 +10,7 @@
 
 #include <optional>
 
+#include "BKE_brush.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -21,7 +22,6 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
-#include "BKE_brush.hh"
 
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
@@ -399,7 +399,7 @@ struct StrokeCache {
    */
   bool alt_smooth = false;
 
-   /**
+  /**
    * Whether the modifier key that controls masking is active currently.
    * Switches the active brush to the mask brush during the stroke.
    *
