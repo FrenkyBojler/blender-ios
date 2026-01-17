@@ -393,11 +393,11 @@ wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op)
 wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op);
 
 /* `sequencer_retiming_draw.cc` */
-void sequencer_retiming_draw_continuity(const TimelineDrawContext &ctx,
-                                        const StripDrawContext &strip_ctx);
+void sequencer_retiming_draw_segments(const TimelineDrawContext &ctx,
+                                      const StripDrawContext &strip_ctx);
 void sequencer_retiming_keys_draw(const TimelineDrawContext &ctx, Span<StripDrawContext> strips);
-void sequencer_retiming_speed_draw(const TimelineDrawContext &ctx,
-                                   const StripDrawContext &strip_ctx);
+void sequencer_retiming_speed_labels_draw(const TimelineDrawContext &ctx,
+                                          const StripDrawContext &strip_ctx);
 rcti strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip);
 bool retiming_overlay_enabled(const SpaceSeq *sseq);
 
