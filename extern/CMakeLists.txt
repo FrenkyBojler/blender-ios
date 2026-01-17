@@ -114,3 +114,8 @@ endif()
 
 # FontForge spline overlap removal
 add_subdirectory(fontforge)
+
+# Skia PathOps overlap removal (alternative to FontForge)
+if(WITH_FONT_SKIA)
+  add_subdirectory(skia)
+endif()

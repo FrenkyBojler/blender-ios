@@ -46,6 +46,16 @@ if(WITH_FONT_FORGE)
   )
 endif()
 
+if(WITH_FONT_SKIA)
+  add_definitions(-DWITH_FONT_SKIA)
+  list(APPEND INC
+    ../../../extern/skia
+  )
+  list(APPEND LIB
+    extern_skia
+  )
+endif()
+
 if(WIN32)
   list(APPEND SRC
     intern/blf_font_win32_compat.cc

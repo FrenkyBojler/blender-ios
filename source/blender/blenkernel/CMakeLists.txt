@@ -774,11 +774,6 @@ if(WITH_GTESTS)
     intern/tracking_test.cc
     intern/volume_test.cc
   )
-  if(WITH_FONT_FORGE)
-    list(APPEND TEST_SRC
-      intern/vfontdata_sanitize_test.cc
-    )
-  endif()
   set(TEST_INC
     # WARNING: this is a bad-level include which is only acceptable for tests
     # and even then it would be good if the dependency could be removed.

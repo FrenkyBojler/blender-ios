@@ -37,7 +37,8 @@ struct VFont {
 
   /** Remove overlapping regions from glyph curves. */
   char use_overlap_removal = 0;
-  char _pad[7];
+  char overlap_removal_method = 0;
+  char _pad[6];
 };
 
 #define FO_BUILTIN_NAME "<builtin>"

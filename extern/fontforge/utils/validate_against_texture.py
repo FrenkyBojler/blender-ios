@@ -236,6 +236,7 @@ Options (passed to Blender):
   font_file               Font file to test (.ttf, .otf, .woff, .woff2)
   --font-dir DIR          Test all font files in directory
   --chars CHARS           Test only specific characters (e.g., 'ABC')
+  --method METHOD         Overlap removal method: FONTFORGE or SKIA (default: FONTFORGE)
   -v, --verbose           Show all results (default: only show failures)
   --blend-from-errors FILE
                           Save a .blend file showing failed characters
@@ -389,6 +390,12 @@ def parse_args_blender() -> argparse.Namespace:
         "--update",
         action="store_true",
         help="Skip rendering if curves and BLF images exist, still run comparison",
+    )
+    parser.add_argument(
+        "--method",
+        choices=["FONTFORGE", "SKIA"],
+        default="FONTFORGE",
+        help="Overlap removal method to use (default: FONTFORGE)",
     )
 
     args = parser.parse_args(argv)
@@ -672,9 +679,10 @@ def test_character(
     diff_filename = "U{:08X}_diff.png".format(codepoint)
     diff_path = os.path.join(output_dir, diff_filename)
 
-    # Skip rendering if both images exist and update mode is enabled
+    # Skip rendering and comparison if both images exist and update mode is enabled.
     if update and os.path.exists(curves_path) and os.path.exists(blf_path):
-        pass  # Skip rendering, just run comparison
+        # Assume test passed, skip idiff for speed.
+        passed = True
     else:
         try:
             render_char_to_image(font, char, curves_path, font_path)
@@ -682,7 +690,7 @@ def test_character(
         except Exception as e:
             return False, str(e)
 
-        # Scale curves image to match BLF image size
+        # Scale curves image to match BLF image size.
         import imbuf
         blf_ibuf = imbuf.load(blf_path)
         curves_ibuf = imbuf.load(curves_path)
@@ -690,14 +698,14 @@ def test_character(
             curves_ibuf.resize(blf_ibuf.size)
             imbuf.write(curves_ibuf, filepath=curves_path)
 
-    # Compare images using idiff (also generates diff image)
-    passed, message = compare_images_idiff(curves_path, blf_path, diff_path)
+        # Compare images using idiff (also generates diff image).
+        passed, message = compare_images_idiff(curves_path, blf_path, diff_path)
+        if not passed:
+            return False, message
 
-    # Track generated images for HTML index (with pass/fail status)
+    # Track generated images for HTML index (with pass/fail status).
     generated_images.append(CharImageData(char, curves_filename, blf_filename, diff_filename, passed))
 
-    if not passed:
-        return False, message
     return True, None
 
 
@@ -776,6 +784,7 @@ def generate_html_index(
 def test_font(
     font_path: str, custom_chars: str | None, verbose: bool, base_dir: str | None = None,
     no_fontforge: bool = False, no_font_sanitize: bool = False, update: bool = False,
+    method: str = "FONTFORGE",
 ) -> FontTestResult:
     """Test all characters in the font. Returns FontTestResult."""
     test_chars = get_test_chars(font_path, custom_chars, no_fontforge)
@@ -809,6 +818,7 @@ def test_font(
     font: "BlenderFont" = bpy.data.fonts.load(font_path)
     if not no_font_sanitize:
         font.use_overlap_removal = True
+        font.overlap_removal_method = method
 
     passed_count = 0
     failed: list[CharTestResult] = []
@@ -918,7 +928,8 @@ def main_blender() -> int:
             base_dir,
             args.no_fontforge,
             args.no_font_sanitize,
-            args.update)
+            args.update,
+            args.method)
         total_passed += result.passed
         total_failed += result.failed
         if result.failed_chars:

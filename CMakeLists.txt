@@ -462,6 +462,7 @@ else()
 endif()
 
 option(WITH_FONT_FORGE "Enable FontForge overlap removal for font glyphs" ON)
+option(WITH_FONT_SKIA "Enable Skia PathOps overlap removal for font glyphs (alternative to FontForge)" ON)
 
 if((NOT WITH_PYTHON_MODULE) AND (
       (WIN32 AND (CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")) OR

@@ -130,6 +130,7 @@ VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, uint character)
                                vfont->data->metrics.scale,
                                use_fallback,
                                vfont->use_overlap_removal,
+                               vfont->overlap_removal_method,
                                &che->width))
   {
     /* Free but add to the character cache to prevent future lookups

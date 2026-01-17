@@ -222,21 +222,9 @@ FT_GlyphSlot blf_glyph_render_outline(FontBLF *settings_font,
 /* blf_glyph_curves.cc */
 
 /**
- * Remove overlapping regions from font glyph curves.
- *
- * This function takes a list of Nurb curves representing a font glyph
- * and removes any self-intersecting or overlapping regions, producing
- * clean non-overlapping outlines suitable for tessellation.
- *
- * \param nurbsbase: List of Nurb curves to process (modified in place)
- * \param scale: The scale factor that was applied to the coordinates (typically 1.0/em_size).
- *               Used to convert to FontForge's expected coordinate range.
- */
-void blf_glyph_remove_overlaps(ListBaseT<Nurb> *nurbsbase, float scale);
-
-/**
  * Convert a character's outlines into curves.
- * \param use_sanitize: Remove overlapping regions using FontForge's algorithm.
+ * \param use_sanitize: Remove overlapping regions from glyph curves.
+ * \param overlap_removal_method: Method to use (0=none, 1=FontForge, 2=Skia).
  * \return success if the character was found and converted.
  */
 bool blf_character_to_curves(FontBLF *font,
@@ -245,6 +233,7 @@ bool blf_character_to_curves(FontBLF *font,
                              const float scale,
                              bool use_fallback,
                              bool use_sanitize,
+                             int overlap_removal_method,
                              float *r_advance);
 
 }  // namespace blender
