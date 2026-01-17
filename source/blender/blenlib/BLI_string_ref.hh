@@ -122,9 +122,6 @@ class StringRefBase {
   constexpr StringRef trim() const;
   constexpr StringRef trim(StringRef characters_to_remove) const;
   constexpr StringRef trim(char character_to_remove) const;
-
-  constexpr StringRef drop_front(StringRef value) const;
-  constexpr StringRef drop_back(StringRef value) const;
 };
 
 /**
@@ -427,18 +424,6 @@ constexpr StringRef StringRefBase::trim(StringRef characters_to_remove) const
                  "forward search found characters-to-not-remove, but backward search did not");
   const int64_t substr_len = find_end - find_front + 1;
   return this->substr(find_front, substr_len);
-}
-
-constexpr StringRef StringRefBase::drop_front(StringRef value) const
-{
-  BLI_assert(this->startswith(value));
-  return this->substr(value.size(), this->size() - value.size());
-}
-
-constexpr StringRef StringRefBase::drop_back(StringRef value) const
-{
-  BLI_assert(this->endswith(value));
-  return this->substr(0, this->size() - value.size());
 }
 
 /** \} */

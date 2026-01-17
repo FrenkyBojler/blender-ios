@@ -2810,7 +2810,7 @@ static bool ui_but_copy_menu(bContext *C, Button *but, char *output, int output_
     return false;
   }
 
-  BLI_snprintf_utf8(output, output_maxncpy, "\"%s\"", item.identifier);
+  BLI_strncpy_utf8(output, item.identifier, output_maxncpy);
   return true;
 }
 
@@ -2820,12 +2820,7 @@ static void ui_but_paste_menu(bContext *C, Button *but, const StringRef value)
     return;
   }
 
-  if (!(value.startswith("\"") && value.endswith("\""))) {
-    return;
-  }
-
-  const StringRef value_identifier = value.drop_back("\"").drop_front("\"");
-  if (value_identifier.is_empty()) {
+  if (value.is_empty()) {
     return;
   }
 
@@ -2841,11 +2836,11 @@ static void ui_but_paste_menu(bContext *C, Button *but, const StringRef value)
 
   int item_index;
   const bool found = RNA_property_enum_value(
-      C, &but->rnapoin, prop, std::string(value_identifier).c_str(), &item_index);
+      C, &but->rnapoin, prop, std::string(value).c_str(), &item_index);
   if (!found) {
     WM_global_reportf(RPT_ERROR,
                       "Paste of \"%s\": cannot assign to value to property",
-                      std::string(value_identifier).c_str());
+                      std::string(value).c_str());
     return;
   }
   RNA_property_enum_set(&but->rnapoin, prop, item_index);
@@ -3025,7 +3020,7 @@ static void ui_but_paste(bContext *C, Button *but, HandleButtonData *data, const
       break;
 
     case ButtonType::Menu:
-      ui_but_paste_menu(C, but, buf_paste);
+      ui_but_paste_menu(C, but, {buf_paste, buf_paste_len});
       break;
 
     case ButtonType::ViewItem: {
