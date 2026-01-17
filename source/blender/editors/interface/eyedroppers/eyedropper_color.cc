@@ -101,7 +101,7 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
       MEM_delete(eye);
       return false;
     }
-    PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
+    PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, RNA_Context, C);
     if (!RNA_path_resolve(&ctx_ptr, prop_data_path.c_str(), &eye->ptr, &eye->prop)) {
       BKE_reportf(op->reports, RPT_ERROR, "Could not resolve path '%s'", prop_data_path.c_str());
       MEM_delete(eye);
@@ -132,8 +132,8 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
 
   float col[4];
   RNA_property_float_get_array_at_most(&eye->ptr, eye->prop, col, ARRAY_SIZE(col));
-  if (eye->ptr.type == &RNA_CompositorNodeCryptomatteV2) {
-    eye->crypto_node = (bNode *)eye->ptr.data;
+  if (eye->ptr.type == RNA_CompositorNodeCryptomatteV2) {
+    eye->crypto_node = static_cast<bNode *>(eye->ptr.data);
     eye->cryptomatte_session = ntreeCompositCryptomatteSession(eye->crypto_node);
     eye->cb_win = CTX_wm_window(C);
     eye->draw_handle_sample_text = WM_draw_cb_activate(eye->cb_win, eyedropper_draw_cb, eye);
@@ -272,7 +272,7 @@ static bool eyedropper_cryptomatte_sample_render_fl(const bNode *node,
                                                     float r_col[3])
 {
   bool success = false;
-  Scene *scene = (Scene *)node->id;
+  Scene *scene = id_cast<Scene *>(node->id);
   BLI_assert(GS(scene->id.name) == ID_SCE);
   Render *re = RE_GetSceneRender(scene);
 
@@ -300,7 +300,7 @@ static bool eyedropper_cryptomatte_sample_image_fl(bContext *C,
                                                    float r_col[3])
 {
   bool success = false;
-  Image *image = (Image *)node->id;
+  Image *image = id_cast<Image *>(node->id);
   BLI_assert((image == nullptr) || (GS(image->id.name) == ID_IM));
 
   /* Compute the effective frame number of the image if it was animated. */
@@ -329,7 +329,7 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
                                              float r_col[3])
 {
   bNode *node = eye->crypto_node;
-  NodeCryptomatte *crypto = node ? ((NodeCryptomatte *)node->storage) : nullptr;
+  NodeCryptomatte *crypto = node ? (static_cast<NodeCryptomatte *>(node->storage)) : nullptr;
 
   if (!crypto) {
     return false;
@@ -600,7 +600,7 @@ static void eyedropper_cancel(bContext *C, wmOperator *op)
 /* main modal status check */
 static wmOperatorStatus eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Eyedropper *eye = (Eyedropper *)op->customdata;
+  Eyedropper *eye = static_cast<Eyedropper *>(op->customdata);
 
   /* handle modal keymap */
   if (event->type == EVT_MODAL_MAP) {
