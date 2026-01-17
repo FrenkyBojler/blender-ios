@@ -292,8 +292,6 @@ void AbstractHierarchyIterator::debug_print_export_graph(const ExportGraph &grap
 
 void AbstractHierarchyIterator::export_graph_construct()
 {
-  Scene *scene = DEG_get_evaluated_scene(depsgraph_);
-
   /* Add a "null" root node with no children immediately for the case where the top-most node in
    * the scene is not being exported and a root node otherwise wouldn't get added. */
   ObjectIdentifier root_node_id = ObjectIdentifier::for_real_object(nullptr);
@@ -315,7 +313,7 @@ void AbstractHierarchyIterator::export_graph_construct()
     }
 
     /* Export the duplicated objects instanced by this object. */
-    object_duplilist(depsgraph_, scene, object, nullptr, duplilist);
+    object_duplilist(depsgraph_, object, nullptr, duplilist);
     if (!duplilist.is_empty()) {
       DupliParentFinder dupli_parent_finder;
 
@@ -596,7 +594,7 @@ bool AbstractHierarchyIterator::determine_duplication_references(
       }
 
       if (context->object->data) {
-        ID *source_data_id = (ID *)context->object->data;
+        ID *source_data_id = static_cast<ID *>(context->object->data);
         if (!duplisource_export_path_.contains(source_data_id)) {
           /* The original was not found, so mark this instance as "original". */
           std::string data_path = get_object_data_path(context);

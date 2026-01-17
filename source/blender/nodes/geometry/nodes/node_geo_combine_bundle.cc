@@ -2,9 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "node_geometry_util.hh"
-
 #include "NOD_geo_bundle.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -15,12 +14,14 @@
 
 #include "BLO_read_write.hh"
 
-#include "NOD_geometry_nodes_bundle.hh"
-
 #include "UI_interface_layout.hh"
+
+#include "node_geometry_util.hh"
 #include "shader/node_shader_util.hh"
 
-namespace blender::nodes::node_geo_combine_bundle_cc {
+namespace blender {
+
+namespace nodes::node_geo_combine_bundle_cc {
 
 NODE_STORAGE_FUNCS(NodeCombineBundle);
 
@@ -37,7 +38,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       const std::string identifier = CombineBundleItemsAccessor::socket_identifier_for_item(item);
       auto &decl = b.add_input(socket_type, name, identifier)
                        .socket_name_ptr(
-                           &tree->id, CombineBundleItemsAccessor::item_srna, &item, "name")
+                           &tree->id, *CombineBundleItemsAccessor::item_srna, &item, "name")
                        .supports_field();
       if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
         decl.structure_type(StructureType(item.structure_type));
@@ -61,7 +62,7 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
 {
   const NodeCombineBundle &src_storage = node_storage(*src_node);
   auto *dst_storage = MEM_new_for_free<NodeCombineBundle>(__func__,
-                                                          blender::dna::shallow_copy(src_storage));
+                                                          dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<CombineBundleItemsAccessor>(*src_node, *dst_node);
@@ -190,7 +191,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   sh_geo_node_type_base(&ntype, "NodeCombineBundle", NODE_COMBINE_BUNDLE);
   ntype.ui_name = "Combine Bundle";
@@ -206,15 +207,15 @@ static void node_register()
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_type_storage(ntype, "NodeCombineBundle", node_free_storage, node_copy_storage);
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_combine_bundle_cc
+}  // namespace nodes::node_geo_combine_bundle_cc
 
-namespace blender::nodes {
+namespace nodes {
 
-StructRNA *CombineBundleItemsAccessor::item_srna = &RNA_NodeCombineBundleItem;
+StructRNA **CombineBundleItemsAccessor::item_srna = &RNA_NodeCombineBundleItem;
 
 void CombineBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -252,7 +253,9 @@ std::string CombineBundleItemsAccessor::validate_name(const StringRef name)
       result[last_index] = '_';
     }
   }
+  BLI_assert(Bundle::is_valid_key(result));
   return result;
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

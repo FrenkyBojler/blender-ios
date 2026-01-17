@@ -55,8 +55,7 @@
 #include "libmv-capi.h"
 #include "tracking_private.hh"
 
-using blender::Array;
-using blender::int2;
+namespace blender {
 
 struct MovieDistortion {
   libmv_CameraIntrinsics *intrinsics;
@@ -170,17 +169,16 @@ void BKE_tracking_free(MovieTracking *tracking)
 
 struct TrackingCopyContext {
   /* Map from point and plane track pointer from the source object to the destination object. */
-  blender::Map<MovieTrackingTrack *, MovieTrackingTrack *> *old_to_new_track_map;
-  blender::Map<MovieTrackingPlaneTrack *, MovieTrackingPlaneTrack *> *old_to_new_plane_track_map;
+  Map<MovieTrackingTrack *, MovieTrackingTrack *> *old_to_new_track_map;
+  Map<MovieTrackingPlaneTrack *, MovieTrackingPlaneTrack *> *old_to_new_plane_track_map;
 };
 
 static TrackingCopyContext tracking_copy_context_new()
 {
   TrackingCopyContext ctx = {};
-  ctx.old_to_new_track_map = MEM_new<blender::Map<MovieTrackingTrack *, MovieTrackingTrack *>>(
-      __func__);
+  ctx.old_to_new_track_map = MEM_new<Map<MovieTrackingTrack *, MovieTrackingTrack *>>(__func__);
   ctx.old_to_new_plane_track_map =
-      MEM_new<blender::Map<MovieTrackingPlaneTrack *, MovieTrackingPlaneTrack *>>(__func__);
+      MEM_new<Map<MovieTrackingPlaneTrack *, MovieTrackingPlaneTrack *>>(__func__);
   return ctx;
 }
 
@@ -1092,7 +1090,7 @@ struct TrackMaskSetPixelData {
 
 static void track_mask_set_pixel_cb(int x, int x_end, int y, void *user_data)
 {
-  TrackMaskSetPixelData *data = (TrackMaskSetPixelData *)user_data;
+  TrackMaskSetPixelData *data = static_cast<TrackMaskSetPixelData *>(user_data);
   size_t index = size_t(y) * data->mask_width + x;
   size_t index_end = size_t(y) * data->mask_width + x_end;
   do {
@@ -1180,7 +1178,7 @@ float BKE_tracking_track_get_weight_for_marker(MovieClip *clip,
   float weight = track->weight;
 
   weight_fcurve = id_data_find_fcurve(
-      &clip->id, track, &RNA_MovieTrackingTrack, "weight", 0, nullptr);
+      &clip->id, track, RNA_MovieTrackingTrack, "weight", 0, nullptr);
 
   if (weight_fcurve) {
     int scene_framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, marker->framenr);
@@ -2231,7 +2229,6 @@ bool BKE_tracking_camera_distortion_equal(const MovieTrackingCamera *a,
 
 uint64_t BKE_tracking_camera_distortion_hash(const MovieTrackingCamera *camera)
 {
-  using namespace blender;
   switch (camera->distortion_model) {
     case TRACKING_DISTORTION_MODEL_POLYNOMIAL:
       return get_default_hash(camera->distortion_model,
@@ -2509,117 +2506,6 @@ ImBuf *BKE_tracking_distort_frame(MovieTracking *tracking,
                                       calibration_height,
                                       overscan,
                                       false);
-}
-
-/* Reduces the given function in parallel over the given range, the reduction function should have
- * the given identity value. The given function gets as arguments the index of the element of the
- * range as well as a reference to the value where the result should be accumulated, while the
- * reduction function gets a reference to two values and returns their reduction. */
-template<typename Value, typename Function, typename Reduction>
-static Value parallel_reduce(const int range,
-                             const Value &identity,
-                             const Function &function,
-                             const Reduction &reduction)
-{
-  using namespace blender;
-  return threading::parallel_reduce(
-      IndexRange(range),
-      32,
-      identity,
-      [&](const IndexRange sub_range, const Value &initial_value) {
-        Value result = initial_value;
-        for (const int64_t i : sub_range) {
-          function(i, result);
-        }
-        return result;
-      },
-      reduction);
-}
-
-void BKE_tracking_distortion_bounds_deltas(MovieDistortion *distortion,
-                                           const int size[2],
-                                           const int calibration_size[2],
-                                           const bool undistort,
-                                           int *r_right,
-                                           int *r_left,
-                                           int *r_bottom,
-                                           int *r_top)
-{
-  using namespace blender;
-
-  auto distortion_function = [&](const float2 &position) {
-    /* The tracking distortion functions expect the coordinates to be in the space of the image
-     * where the tracking camera was calibrated. So we first remap the coordinates into that space,
-     * apply the distortion, then remap back to the original coordinates space. This is done by
-     * dividing by the size then multiplying by the calibration size. */
-    float2 coordinates = (position / float2(size)) * float2(calibration_size);
-    /* Notice that the condition is inverted, that's because when we are undistorting, we compute
-     * the boundaries by distorting and vice versa. */
-    float2 distorted_coordinates;
-    if (undistort) {
-      BKE_tracking_distortion_distort_v2(distortion, coordinates, distorted_coordinates);
-    }
-    else {
-      BKE_tracking_distortion_undistort_v2(distortion, coordinates, distorted_coordinates);
-    }
-
-    /* We remap the coordinates back into the original size by dividing by the calibration size and
-     * multiplying by the size. */
-    return (distorted_coordinates / float2(calibration_size)) * float2(size);
-  };
-
-  /* Maximum distorted x location along the right edge of the image. */
-  const float maximum_x = parallel_reduce(
-      size[1] + 1,
-      std::numeric_limits<float>::lowest(),
-      [&](const int i, float &accumulated_value) {
-        const float2 position = float2(size[0], i);
-        accumulated_value = math::max(accumulated_value, distortion_function(position).x);
-      },
-      [&](const float &a, const float &b) { return math::max(a, b); });
-
-  /* Minimum distorted x location along the left edge of the image. */
-  const float minimum_x = parallel_reduce(
-      size[1] + 1,
-      std::numeric_limits<float>::max(),
-      [&](const int i, float &accumulated_value) {
-        const float2 position = float2(0.0f, i);
-        accumulated_value = math::min(accumulated_value, distortion_function(position).x);
-      },
-      [&](const float &a, const float &b) { return math::min(a, b); });
-
-  /* Minimum distorted y location along the bottom edge of the image. */
-  const float minimum_y = parallel_reduce(
-      size[0] + 1,
-      std::numeric_limits<float>::max(),
-      [&](const int i, float &accumulated_value) {
-        const float2 position = float2(i, 0.0f);
-        accumulated_value = math::min(accumulated_value, distortion_function(position).y);
-      },
-      [&](const float &a, const float &b) { return math::min(a, b); });
-
-  /* Maximum distorted y location along the top edge of the image. */
-  const float maximum_y = parallel_reduce(
-      size[0] + 1,
-      std::numeric_limits<float>::lowest(),
-      [&](const int i, float &accumulated_value) {
-        const float2 position = float2(i, size[1]);
-        accumulated_value = math::max(accumulated_value, distortion_function(position).y);
-      },
-      [&](const float &a, const float &b) { return math::max(a, b); });
-
-  /* Compute the deltas from the image edges to the maximum/minimum distorted location along the
-   * direction of that edge. */
-  const float right_delta = maximum_x - size[0];
-  const float left_delta = 0.0f - minimum_x;
-  const float bottom_delta = 0.0f - minimum_y;
-  const float top_delta = maximum_y - size[1];
-
-  /* Round the deltas away from zero. */
-  *r_right = int(math::ceil(right_delta));
-  *r_left = int(math::ceil(left_delta));
-  *r_bottom = int(math::ceil(bottom_delta));
-  *r_top = int(math::ceil(top_delta));
 }
 
 /* --------------------------------------------------------------------
@@ -3573,3 +3459,5 @@ void BKE_tracking_get_rna_path_prefix_for_plane_track(const MovieTracking *track
         rna_path, rna_path_maxncpy, "tracking.objects[\"%s\"].plane_tracks", object_name_esc);
   }
 }
+
+}  // namespace blender

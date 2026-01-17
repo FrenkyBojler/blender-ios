@@ -574,17 +574,18 @@ static void curvemap_buttons_layout(Layout *layout,
   /* Curve itself. */
   const int size = max_ii(layout->width(), UI_UNIT_X);
   row = &layout->row(false);
-  ButtonCurveMapping *curve_but = (ButtonCurveMapping *)uiDefBut(block,
-                                                                 ButtonType::Curve,
-                                                                 IFACE_("Edit Curve Map"),
-                                                                 0,
-                                                                 0,
-                                                                 size,
-                                                                 8.0f * UI_UNIT_X,
-                                                                 cumap,
-                                                                 0.0f,
-                                                                 1.0f,
-                                                                 "");
+  ButtonCurveMapping *curve_but = static_cast<ButtonCurveMapping *>(
+      uiDefBut(block,
+               ButtonType::Curve,
+               IFACE_("Edit Curve Map"),
+               0,
+               0,
+               size,
+               8.0f * UI_UNIT_X,
+               cumap,
+               0.0f,
+               1.0f,
+               ""));
   curve_but->gradient_type = bg;
   if (!layout->active()) {
     button_flag_enable(curve_but, BUT_INACTIVE);
@@ -835,7 +836,7 @@ void template_curve_mapping(Layout *layout,
   }
 
   PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
-  if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_CurveMapping)) {
+  if (!cptr.data || !RNA_struct_is_a(cptr.type, RNA_CurveMapping)) {
     return;
   }
 

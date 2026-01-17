@@ -13,9 +13,11 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 
+namespace blender {
+
 using namespace blender::bke::greasepencil;
 
-namespace blender::bke::greasepencil::tests {
+namespace bke::greasepencil::tests {
 
 /* --------------------------------------------------------------------------------------------- */
 /* Grease Pencil ID Tests. */
@@ -123,13 +125,13 @@ TEST(greasepencil, remove_drawings_last_unused)
 /* --------------------------------------------------------------------------------------------- */
 /* Layer Tree Tests. */
 
-struct GreasePencilHelper : public ::GreasePencil {
+struct GreasePencilHelper : public blender::GreasePencil {
   GreasePencilHelper()
   {
     this->root_group_ptr = MEM_new<greasepencil::LayerGroup>(__func__);
     this->active_node = nullptr;
 
-    new (&this->attribute_storage.wrap()) blender::bke::AttributeStorage();
+    new (&this->attribute_storage.wrap()) bke::AttributeStorage();
 
     this->drawing_array = nullptr;
     this->drawing_array_num = 0;
@@ -567,67 +569,5 @@ TEST(greasepencil, remove_drawings_with_no_users)
   BKE_id_free(nullptr, grease_pencil);
 }
 
-TEST(greasepencil, shape_cache)
-{
-  {
-    Array<int> shape_ids(0);
-    std::optional<ShapeCache> shape_cache = shape_cache_from_shape_ids(
-        5, VArray<int>::from_span(shape_ids.as_span()));
-    EXPECT_FALSE(shape_cache.has_value());
-  }
-
-  {
-    Array<int> shape_ids({0, 0, 0});
-    std::optional<ShapeCache> shape_cache = shape_cache_from_shape_ids(
-        shape_ids.size(), VArray<int>::from_span(shape_ids.as_span()));
-    EXPECT_FALSE(shape_cache.has_value());
-  }
-
-  {
-    Array<int> shape_ids({1, 2, 3});
-    std::optional<ShapeCache> shape_cache = shape_cache_from_shape_ids(
-        shape_ids.size(), VArray<int>::from_span(shape_ids.as_span()));
-    EXPECT_FALSE(shape_cache.has_value());
-  }
-
-  {
-    Array<int> shape_ids({1, 1, 2, 2, 3, 3});
-    std::optional<ShapeCache> shape_cache = shape_cache_from_shape_ids(
-        shape_ids.size(), VArray<int>::from_span(shape_ids.as_span()));
-    EXPECT_TRUE(shape_cache.has_value());
-
-    Array<int> expected_shape_map({0, 1, 2, 3, 4, 5});
-    Array<int> expected_shape_offsets({0, 2, 4, 6});
-
-    EXPECT_EQ_SPAN<int>(expected_shape_map, shape_cache->shape_map);
-    EXPECT_EQ_SPAN<int>(expected_shape_offsets, shape_cache->shape_offsets);
-  }
-
-  {
-    Array<int> shape_ids({0, 0, 1, 0, 1, 4, 1, 3, 3});
-    std::optional<ShapeCache> shape_cache = shape_cache_from_shape_ids(
-        shape_ids.size(), VArray<int>::from_span(shape_ids.as_span()));
-    EXPECT_TRUE(shape_cache.has_value());
-
-    Array<int> expected_shape_map({0, 1, 2, 4, 6, 3, 5, 7, 8});
-    Array<int> expected_shape_offsets({0, 1, 2, 5, 6, 7, 9});
-
-    EXPECT_EQ_SPAN<int>(expected_shape_map, shape_cache->shape_map);
-    EXPECT_EQ_SPAN<int>(expected_shape_offsets, shape_cache->shape_offsets);
-  }
-
-  {
-    Array<int> shape_ids({1, 1, 0, 3, 0, 1, 2, 0, 3});
-    std::optional<ShapeCache> shape_cache = shape_cache_from_shape_ids(
-        shape_ids.size(), VArray<int>::from_span(shape_ids.as_span()));
-    EXPECT_TRUE(shape_cache.has_value());
-
-    Array<int> expected_shape_map({0, 1, 5, 2, 3, 8, 4, 6, 7});
-    Array<int> expected_shape_offsets({0, 3, 4, 6, 7, 8, 9});
-
-    EXPECT_EQ_SPAN<int>(expected_shape_map, shape_cache->shape_map);
-    EXPECT_EQ_SPAN<int>(expected_shape_offsets, shape_cache->shape_offsets);
-  }
-}
-
-}  // namespace blender::bke::greasepencil::tests
+}  // namespace bke::greasepencil::tests
+}  // namespace blender

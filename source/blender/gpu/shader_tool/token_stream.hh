@@ -9,44 +9,154 @@
 
 #pragma once
 
+#include "enums.hh"
 #include "utils.hh"
 
 namespace blender::gpu::shader::parser {
 
-/**
- * This a tiny bit more than a token stream as it contains ranges or tokens (called scopes) from
- * syntax. The scopes and tokens have bi-directional mapping.
- */
-struct TokenStream {
-  /** The lexer's input string. */
-  std::string str;
+struct Token;
 
-  /** Actually contains a sequence of #TokenType. */
-  std::string token_types;
-  /** Actually contains a sequence of #ScopeType. */
-  std::string scope_types;
+/**
+ * Turns string into token.
+ */
+struct LexerBase {
+  /** The lexer's input string. */
+  std::string_view str;
+
+  /** Compact visualization of token_types.  */
+  std::string_view token_types_str;
+
+  /* --- Structure of Array style data for tokens. --- */
+
+  /** Token type per token. */
+  MutableSpan<TokenType> token_types;
+  /** Size of the raw token before token merging. */
+  MutableSpan<uint32_t> token_sizes;
   /** Ranges of characters per token. */
   OffsetIndices token_offsets;
-  /** Index of bottom most scope per token. */
-  std::vector<int> token_scope;
-  /** Range of token per scope. */
-  std::vector<IndexRange> scope_ranges;
 
-  void lexical_analysis();
+  /** Token Data. Backing memory for the spans. */
+  size_t alloc_size = 0;
+  char *memory = nullptr;
 
-  void semantic_analysis(report_callback &report_error);
+  ~LexerBase()
+  {
+    std::free(memory);
+  }
+
+ protected:
+  void ensure_memory();
+  /* Create tokens based on character stream. */
+  void tokenize(bool only_preprocessor_tokens);
+  /* Merge tokens (ex: '2','.','e','-','3` into '2.e-3`). */
+  void merge_tokens();
+  /* Change words into keyword (ex: `if`, `struct`, `template`). */
+  void identify_keywords();
 
  private:
-  /* Create tokens based on character stream. */
-  void tokenize(struct TokenData &tokens);
-  /* Merge tokens (ex: '2','.','e','-','3` into '2.e-3`). */
-  void merge_tokens(struct TokenData &tokens);
+  void update_string_view();
+};
 
-  void identify_keywords(struct TokenData &tokens);
+/**
+ * Consider numbers as words (to avoid splitting identifiers).
+ * Does not merge newlines and spaces.
+ */
+struct SimpleLexer : LexerBase {
+  void lexical_analysis(std::string_view input)
+  {
+    str = input;
+    ensure_memory();
+    tokenize(true);
+  }
+};
 
+/**
+ * Allow recognition of common operators and numbers. Merge whitespaces.
+ */
+struct ExpressionLexer : LexerBase {
+  void lexical_analysis(std::string_view input)
+  {
+    str = input;
+    ensure_memory();
+    tokenize(false);
+    merge_tokens();
+  }
+};
+
+struct FullLexer : LexerBase {
+  void lexical_analysis(std::string_view input)
+  {
+    str = input;
+    ensure_memory();
+    tokenize(false);
+    merge_tokens();
+    identify_keywords();
+  }
+};
+
+/**
+ * Create semantic scopes from token stream.
+ * Also creates mapping table from token to scope to have bi-directional mapping.
+ */
+struct ParserBase {
+  const LexerBase &lex;
+
+  /** Compact visualization of scope_types.  */
+  std::string_view scope_types_str;
+
+  /* --- Structure of Array style data for scopes. --- */
+
+  /** Range of token per scope. */
+  std::vector<ScopeType> scope_types;
+  /** Range of token per scope. */
+  std::vector<IndexRange> scope_ranges;
+  /** Index of bottom most scope per token. */
+  std::vector<int> token_scope;
+
+  ParserBase(const LexerBase &lex) : lex(lex) {}
+
+  /* Return the i'th token. */
+  Token operator[](int i) const;
+
+ protected:
   void build_scope_tree(report_callback &report_error);
-
   void build_token_to_scope_map();
+
+ private:
+  void update_string_view();
+};
+
+/* Don't do anything. No access to scopes is allowed. */
+struct NullParser : ParserBase {
+  NullParser(const LexerBase &lex) : ParserBase(lex) {}
+
+  void semantic_analysis(report_callback & /*report_error*/)
+  {
+    scope_types = {};
+    scope_ranges = {};
+  }
+};
+
+/* Do not parse. Creates a single global scope containing all tokens. */
+struct DummyParser : ParserBase {
+  DummyParser(const LexerBase &lex) : ParserBase(lex) {}
+
+  void semantic_analysis(report_callback & /*report_error*/)
+  {
+    scope_types = {ScopeType::Global};
+    scope_ranges = {IndexRange(0, lex.token_types.size())};
+    build_token_to_scope_map();
+  }
+};
+
+struct FullParser : ParserBase {
+  FullParser(const LexerBase &lex) : ParserBase(lex) {}
+
+  void semantic_analysis(report_callback &report_error)
+  {
+    build_scope_tree(report_error);
+    build_token_to_scope_map();
+  }
 };
 
 }  // namespace blender::gpu::shader::parser
