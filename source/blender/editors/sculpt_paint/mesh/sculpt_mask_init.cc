@@ -113,7 +113,7 @@ static wmOperatorStatus sculpt_mask_init_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  ed::sculpt_paint::mask_overlay_check(C, op);
+  ed::sculpt_paint::mask_overlay_check(*C, *op);
 
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);

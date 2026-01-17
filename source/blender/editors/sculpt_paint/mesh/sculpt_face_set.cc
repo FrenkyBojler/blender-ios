@@ -411,7 +411,7 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  ed::sculpt_paint::face_set_overlay_check(C, op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
 
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   if (pbvh.type() == bke::pbvh::Type::BMesh) {
@@ -710,7 +710,7 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  ed::sculpt_paint::face_set_overlay_check(C, op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
@@ -1532,7 +1532,7 @@ static wmOperatorStatus edit_op_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  ed::sculpt_paint::face_set_overlay_check(C, op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
 
   const Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
@@ -1840,7 +1840,7 @@ static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
-  ed::sculpt_paint::face_set_overlay_check(C, op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -1863,7 +1863,7 @@ static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
-  ed::sculpt_paint::face_set_overlay_check(C, op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -1886,7 +1886,7 @@ static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
-  ed::sculpt_paint::face_set_overlay_check(C, op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
@@ -1909,7 +1909,7 @@ static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   init_operation(*gesture_data, *op);
-  ed::sculpt_paint::face_set_overlay_check(C, op);
+  ed::sculpt_paint::face_set_overlay_check(*C, *op);
   gesture::apply(*C, *gesture_data, *op);
   return OPERATOR_FINISHED;
 }
