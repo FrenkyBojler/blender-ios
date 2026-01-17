@@ -36,6 +36,16 @@ set(LIB
   PRIVATE bf::dependencies::freetype
 )
 
+if(WITH_FONT_FORGE)
+  add_definitions(-DWITH_FONT_FORGE)
+  list(APPEND INC
+    ../../../extern/fontforge
+  )
+  list(APPEND LIB
+    extern_fontforge
+  )
+endif()
+
 if(WIN32)
   list(APPEND SRC
     intern/blf_font_win32_compat.cc

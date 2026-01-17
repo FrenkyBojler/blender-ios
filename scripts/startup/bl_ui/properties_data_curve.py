@@ -323,6 +323,30 @@ class DATA_PT_font(CurveButtonsPanelText, Panel):
                 ).style = 'SMALL_CAPS'
 
 
+class DATA_PT_font_settings(CurveButtonsPanelText, Panel):
+    bl_label = "Settings"
+    bl_parent_id = "DATA_PT_font"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        text = context.curve
+
+        col = layout.column()
+        fonts_shown = set()
+        for attr, label in (
+            ("font", ""),
+            ("font_bold", " (Bold)"),
+            ("font_italic", " (Italic)"),
+            ("font_bold_italic", " (Bold Italic)"),
+        ):
+            font = getattr(text, attr, None)
+            if font and font not in fonts_shown:
+                col.prop(font, "use_overlap_removal", text="Remove Overlaps" + label)
+                fonts_shown.add(font)
+
+
 class DATA_PT_font_transform(CurveButtonsPanelText, Panel):
     bl_label = "Transform"
     bl_parent_id = "DATA_PT_font"
@@ -446,6 +470,7 @@ classes = (
     DATA_PT_geometry_curve_start_end,
     DATA_PT_pathanim,
     DATA_PT_font,
+    DATA_PT_font_settings,
     DATA_PT_font_transform,
     DATA_PT_paragraph,
     DATA_PT_paragraph_alignment,

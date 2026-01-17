@@ -111,3 +111,6 @@ endif()
 if(WITH_VULKAN_BACKEND)
   add_subdirectory(vulkan_memory_allocator)
 endif()
+
+# FontForge spline overlap removal
+add_subdirectory(fontforge)

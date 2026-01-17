@@ -178,6 +178,123 @@ static PyObject *py_imbuf_crop(Py_ImBuf *self, PyObject *args, PyObject *kw)
 
 PyDoc_STRVAR(
     /* Wrap. */
+    py_imbuf_zealous_crop_rect_doc,
+    ".. method:: zealous_crop_rect(*, alpha_threshold=0.0)\n"
+    "\n"
+    "   Calculate the bounding box of non-transparent pixels.\n"
+    "\n"
+    "   Scans the image to find the smallest rectangle containing all pixels\n"
+    "   with alpha greater than the threshold.\n"
+    "\n"
+    "   :arg alpha_threshold: Minimum alpha value (0.0-1.0) to consider a pixel non-transparent.\n"
+    "   :type alpha_threshold: float\n"
+    "   :return: Tuple of ((min_x, min_y), (max_x, max_y)) suitable for :meth:`crop`,\n"
+    "            or None if no non-transparent pixels found.\n"
+    "   :rtype: tuple[tuple[int, int], tuple[int, int]] | None\n");
+static PyObject *py_imbuf_zealous_crop_rect(Py_ImBuf *self, PyObject *args, PyObject *kw)
+{
+  PY_IMBUF_CHECK_OBJ(self);
+
+  float alpha_threshold = 0.0f;
+
+  static const char *_keywords[] = {"alpha_threshold", nullptr};
+  static _PyArg_Parser _parser = {
+      PY_ARG_PARSER_HEAD_COMPAT()
+      "|$" /* Optional keyword only arguments. */
+      "f"  /* `alpha_threshold` */
+      ":zealous_crop_rect",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &alpha_threshold)) {
+    return nullptr;
+  }
+
+  if (alpha_threshold < 0.0f || alpha_threshold > 1.0f) {
+    PyErr_SetString(PyExc_ValueError, "alpha_threshold must be between 0.0 and 1.0");
+    return nullptr;
+  }
+
+  ImBuf *ibuf = self->ibuf;
+  const int width = ibuf->x;
+  const int height = ibuf->y;
+
+  int min_x = width;
+  int min_y = height;
+  int max_x = -1;
+  int max_y = -1;
+
+  const uchar *byte_buffer = ibuf->byte_buffer.data;
+  const float *float_buffer = ibuf->float_buffer.data;
+
+  if (float_buffer != nullptr) {
+    /* Float buffer: RGBA floats, alpha at index 3. */
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        const int pixel_offset = (y * width + x) * 4;
+        const float alpha = float_buffer[pixel_offset + 3];
+        if (alpha > alpha_threshold) {
+          if (x < min_x) {
+            min_x = x;
+          }
+          if (x > max_x) {
+            max_x = x;
+          }
+          if (y < min_y) {
+            min_y = y;
+          }
+          if (y > max_y) {
+            max_y = y;
+          }
+        }
+      }
+    }
+  }
+  else if (byte_buffer != nullptr) {
+    /* Byte buffer: RGBA bytes, alpha at index 3, normalized to 0-255. */
+    const uchar threshold_byte = uchar(alpha_threshold * 255.0f);
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        const int pixel_offset = (y * width + x) * 4;
+        const uchar alpha = byte_buffer[pixel_offset + 3];
+        if (alpha > threshold_byte) {
+          if (x < min_x) {
+            min_x = x;
+          }
+          if (x > max_x) {
+            max_x = x;
+          }
+          if (y < min_y) {
+            min_y = y;
+          }
+          if (y > max_y) {
+            max_y = y;
+          }
+        }
+      }
+    }
+  }
+  else {
+    PyErr_SetString(PyExc_RuntimeError, "Image has no pixel data");
+    return nullptr;
+  }
+
+  /* No non-transparent pixels found. */
+  if (max_x < 0) {
+    Py_RETURN_NONE;
+  }
+
+  /* Return ((min_x, min_y), (max_x, max_y)) suitable for crop(). */
+  PyObject *min_tuple = Py_BuildValue("(ii)", min_x, min_y);
+  PyObject *max_tuple = Py_BuildValue("(ii)", max_x, max_y);
+  PyObject *result = PyTuple_Pack(2, min_tuple, max_tuple);
+  Py_DECREF(min_tuple);
+  Py_DECREF(max_tuple);
+  return result;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     py_imbuf_copy_doc,
     ".. method:: copy()\n"
     "\n"
@@ -239,6 +356,10 @@ static PyMethodDef Py_ImBuf_methods[] = {
      reinterpret_cast<PyCFunction>(py_imbuf_crop),
      METH_VARARGS | METH_KEYWORDS,
      const_cast<char *>(py_imbuf_crop_doc)},
+    {"zealous_crop_rect",
+     reinterpret_cast<PyCFunction>(py_imbuf_zealous_crop_rect),
+     METH_VARARGS | METH_KEYWORDS,
+     py_imbuf_zealous_crop_rect_doc},
     {"free", reinterpret_cast<PyCFunction>(py_imbuf_free), METH_NOARGS, py_imbuf_free_doc},
     {"copy", reinterpret_cast<PyCFunction>(py_imbuf_copy), METH_NOARGS, py_imbuf_copy_doc},
     {"__copy__", reinterpret_cast<PyCFunction>(py_imbuf_copy), METH_NOARGS, py_imbuf_copy_doc},

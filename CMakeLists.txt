@@ -461,6 +461,8 @@ else()
   set(WITH_SYSTEM_EIGEN3 OFF)
 endif()
 
+option(WITH_FONT_FORGE "Enable FontForge overlap removal for font glyphs" ON)
+
 if((NOT WITH_PYTHON_MODULE) AND (
       (WIN32 AND (CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")) OR
       ((UNIX AND NOT APPLE) AND (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64"))))

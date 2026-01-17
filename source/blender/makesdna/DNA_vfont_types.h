@@ -34,6 +34,10 @@ struct VFont {
   /* runtime only, holds memory for freetype to read from
    * TODO: replace this with #blf_font_new() style loading. */
   struct PackedFile *temp_pf = nullptr;
+
+  /** Remove overlapping regions from glyph curves. */
+  char use_overlap_removal = 0;
+  char _pad[7];
 };
 
 #define FO_BUILTIN_NAME "<builtin>"

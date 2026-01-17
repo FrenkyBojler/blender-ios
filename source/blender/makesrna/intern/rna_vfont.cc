@@ -16,6 +16,7 @@
 
 #ifdef RNA_RUNTIME
 
+#  include "DNA_curve_types.h"
 #  include "DNA_object_types.h"
 #  include "DNA_vfont_types.h"
 
@@ -48,6 +49,30 @@ static void rna_VectorFont_reload_update(Main * /*bmain*/, Scene * /*scene*/, Po
   DEG_id_tag_update(&vf->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 }
 
+static void rna_VectorFont_overlap_removal_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+{
+  VFont *vf = id_cast<VFont *>(ptr->owner_id);
+  BKE_vfont_data_free(vf);
+
+  /* update */
+  WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
+  DEG_id_tag_update(&vf->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+
+  /* FIXME: blender should already refresh curves in the viewport when the depsgraph is tagged
+   * but it doesn't. */
+  for (Curve &cu : bmain->curves) {
+    if (cu.ob_type != OB_FONT) {
+      continue;
+    }
+    if (!ELEM(vf, cu.vfont, cu.vfontb, cu.vfonti, cu.vfontbi)) {
+      continue;
+    }
+    DEG_id_tag_update(&cu.id, ID_RECALC_GEOMETRY);
+  }
+
+  /*  */
+}
+
 }  // namespace blender
 
 #else
@@ -74,6 +99,12 @@ void RNA_def_vfont(BlenderRNA *brna)
   prop = RNA_def_property(srna, "packed_file", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "packedfile");
   RNA_def_property_ui_text(prop, "Packed File", "");
+
+  prop = RNA_def_property(srna, "use_overlap_removal", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_overlap_removal", 0);
+  RNA_def_property_ui_text(
+      prop, "Remove Overlaps", "Remove overlapping regions from glyph curves when loading");
+  RNA_def_property_update(prop, NC_GEOM | ND_DATA, "rna_VectorFont_overlap_removal_update");
 
   RNA_api_vfont(srna);
 }

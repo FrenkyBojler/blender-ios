@@ -248,6 +248,52 @@ static PyObject *py_blf_dimensions(PyObject * /*self*/, PyObject *args)
 
 PyDoc_STRVAR(
     /* Wrap. */
+    py_blf_ascender_doc,
+    ".. function:: ascender(fontid)\n"
+    "\n"
+    "   Return the ascender of the font.\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :return: the ascender of the font.\n"
+    "   :rtype: int\n");
+static PyObject *py_blf_ascender(PyObject * /*self*/, PyObject *args)
+{
+  int fontid;
+
+  if (!PyArg_ParseTuple(args, "i:blf.ascender", &fontid)) {
+    return nullptr;
+  }
+
+  return PyLong_FromLong(BLF_ascender(fontid));
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_descender_doc,
+    ".. function:: descender(fontid)\n"
+    "\n"
+    "   Return the descender of the font (negative value).\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :return: the descender of the font.\n"
+    "   :rtype: int\n");
+static PyObject *py_blf_descender(PyObject * /*self*/, PyObject *args)
+{
+  int fontid;
+
+  if (!PyArg_ParseTuple(args, "i:blf.descender", &fontid)) {
+    return nullptr;
+  }
+
+  return PyLong_FromLong(BLF_descender(fontid));
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     py_blf_clipping_doc,
     ".. function:: clipping(fontid, xmin, ymin, xmax, ymax)\n"
     "\n"
@@ -732,6 +778,8 @@ static PyMethodDef BLF_methods[] = {
      static_cast<PyCFunction>(py_blf_dimensions),
      METH_VARARGS,
      py_blf_dimensions_doc},
+    {"ascender", static_cast<PyCFunction>(py_blf_ascender), METH_VARARGS, py_blf_ascender_doc},
+    {"descender", static_cast<PyCFunction>(py_blf_descender), METH_VARARGS, py_blf_descender_doc},
     {"draw", static_cast<PyCFunction>(py_blf_draw), METH_VARARGS, py_blf_draw_doc},
     {"draw_buffer",
      static_cast<PyCFunction>(py_blf_draw_buffer),

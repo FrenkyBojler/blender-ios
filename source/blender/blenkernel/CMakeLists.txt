@@ -4,6 +4,7 @@
 
 set(INC
   PUBLIC .
+  ../blenfont/intern  # For blf_internal.hh used by tests
   ../ikplugin
   ../makesrna
   ../modifiers
@@ -773,6 +774,11 @@ if(WITH_GTESTS)
     intern/tracking_test.cc
     intern/volume_test.cc
   )
+  if(WITH_FONT_FORGE)
+    list(APPEND TEST_SRC
+      intern/vfontdata_sanitize_test.cc
+    )
+  endif()
   set(TEST_INC
     # WARNING: this is a bad-level include which is only acceptable for tests
     # and even then it would be good if the dependency could be removed.
@@ -782,5 +788,10 @@ if(WITH_GTESTS)
     ${LIB}
     bf_rna  # RNA_prototypes.hh
   )
+  if(WITH_FONT_FORGE)
+    list(APPEND TEST_LIB
+      extern_fontforge
+    )
+  endif()
   blender_add_test_suite_lib(blenkernel "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()
