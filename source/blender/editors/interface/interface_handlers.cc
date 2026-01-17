@@ -2932,6 +2932,7 @@ static bool ui_but_copy(bContext *C, Button *but, const bool copy_array)
       is_buf_set = true;
       break;
 
+    case ButtonType::Row:
     case ButtonType::Menu:
     case ButtonType::Pulldown:
       if (ui_but_copy_menu(C, but, buf, buf_maxncpy)) {
@@ -3018,6 +3019,7 @@ static void ui_but_paste(bContext *C, Button *but, HandleButtonData *data, const
       ui_but_paste_CurveProfile(C, but);
       break;
 
+    case ButtonType::Row:
     case ButtonType::Menu:
       ui_but_paste_menu(C, but, {buf_paste, buf_paste_len});
       break;
