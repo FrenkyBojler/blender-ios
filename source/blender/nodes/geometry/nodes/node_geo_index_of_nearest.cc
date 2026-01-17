@@ -6,7 +6,6 @@
 #include "BLI_kdtree.hh"
 #include "BLI_map.hh"
 #include "BLI_task.hh"
-#include "BLI_task_size_hints.hh"
 
 #include "node_geometry_util.hh"
 
