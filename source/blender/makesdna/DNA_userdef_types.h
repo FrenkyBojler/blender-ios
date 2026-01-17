@@ -1052,6 +1052,8 @@ struct UserDef {
   short rvibright = 8;
   /** Maximum number of recently used files to remember. */
   short recent_files = 200;
+  /** Maximum pending background image saves (0 = unlimited). */
+  short image_save_queue_limit = 1;
   /** Milliseconds to spend spinning the view. */
   short smooth_viewtx = 200;
   short glreslimit = 0;
@@ -1063,7 +1065,7 @@ struct UserDef {
   char ipo_new = BEZT_IPO_BEZ;
   /** Handle types for newly added keyframes. */
   char keyhandles_new = HD_AUTO_ANIM;
-  char _pad11[4] = {};
+  char _pad11[2] = {};
   /** #eZoomFrame_Mode. */
   char view_frame_type = ZOOM_FRAME_MODE_KEEP_RANGE;
 

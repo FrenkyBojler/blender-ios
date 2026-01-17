@@ -89,6 +89,7 @@
 #include "ED_asset.hh"
 #include "ED_gpencil_legacy.hh"
 #include "ED_grease_pencil.hh"
+#include "ED_image.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_keyframing.hh"
 #include "ED_node.hh"
@@ -669,6 +670,9 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   }
 
   DNA_sdna_current_free();
+
+  /* Wait for any pending background image saves before task scheduler exits. */
+  ed::space_image::image_save_pool_exit();
 
   BLI_threadapi_exit();
   BLI_task_scheduler_exit();

@@ -7320,6 +7320,13 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Recent Files", "Maximum number of recently opened files to remember");
 
+  prop = RNA_def_property(srna, "image_save_queue_limit", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, 100);
+  RNA_def_property_ui_text(prop,
+                           "Background Save Queue Limit",
+                           "Maximum number of images that can be saved in background "
+                           "simultaneously (0 for unlimited, higher values use more memory)");
+
   prop = RNA_def_property(srna, "file_preview_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, preview_type_items);
   RNA_def_property_ui_text(prop, "File Preview Type", "What type of blend preview to create");

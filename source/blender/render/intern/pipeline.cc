@@ -91,6 +91,8 @@
 #  include "FRS_freestyle.h"
 #endif
 
+#include "ED_image.hh"
+
 /* internal */
 #include "pipeline.hh"
 #include "render_result.h"
@@ -2229,7 +2231,18 @@ static bool do_write_image_or_movie(
 
       /* write images as individual images or stereo */
       if (ok) {
-        ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
+        /* Try background save if enabled, fall back to sync save if not possible. */
+        if (scene->r.im_format.flag & R_IMF_FLAG_BACKGROUND_SAVE) {
+          ok = ed::space_image::image_save_background_render(
+              re->reports, &rres, scene, true, filepath);
+          if (!ok) {
+            /* Background save not possible, fall back to sync save. */
+            ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
+          }
+        }
+        else {
+          ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
+        }
       }
     }
 

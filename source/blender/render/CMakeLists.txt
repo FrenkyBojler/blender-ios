@@ -10,6 +10,7 @@ set(INC
   ../compositor/cached_resources
   ../compositor/derived_resources
   ../draw/intern
+  ../editors/include
   ../gpu/intern
   ../makesrna
   ../simulation

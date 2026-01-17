@@ -371,6 +371,8 @@ enum {
 enum {
   // R_IMF_FLAG_ZBUF = 1 << 0, /* DEPRECATED, and cleared. */
   R_IMF_FLAG_PREVIEW_JPG = 1 << 1,
+  /** Save images in background thread (non-blocking). */
+  R_IMF_FLAG_BACKGROUND_SAVE = 1 << 2,
 };
 
 /**
