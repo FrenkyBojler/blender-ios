@@ -180,6 +180,7 @@ def __gather_sampler(blender_shader_sockets, export_settings):
     first_valid_shader_node = next(filter(lambda x: x is not None, shader_nodes))
 
     # group_path can't be a list, so transform it to str
+    # TODO: using inline node tree, we don't need to pass group_path_str anymore
 
     sep_item = "##~~gltf-sep~~##"
     sep_inside_item = "##~~gltf-inside-sep~~##"
@@ -190,6 +191,14 @@ def __gather_sampler(blender_shader_sockets, export_settings):
             if id(mat.node_tree) == id(first_valid_shader_node.group_path[0].original):
                 group_path_str += mat.name  # TODO if linked, we can have multiple materials with same name...
                 break
+
+    if group_path_str == "":
+        # Inline node tree ?
+        return gather_sampler(
+            first_valid_shader_node.shader_node,
+            group_path_str,
+            export_settings)
+
     if len(first_valid_shader_node.group_path) > 1:
         for idx, i in enumerate(first_valid_shader_node.group_path[1:]):
             group_path_str += sep_item
