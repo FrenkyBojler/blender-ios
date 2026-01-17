@@ -370,6 +370,19 @@ void SEQUENCER_OT_retiming_freeze_frame_add(wmOperatorType *ot);
 void SEQUENCER_OT_retiming_transition_add(wmOperatorType *ot);
 void SEQUENCER_OT_retiming_key_delete(wmOperatorType *ot);
 void SEQUENCER_OT_retiming_segment_speed_set(wmOperatorType *ot);
+SeqRetimingKey *retiming_mouseover_key_get(const Scene *scene,
+                                           const View2D *v2d,
+                                           const int mval[2],
+                                           Strip **r_strip);
+bool is_mouse_over_retiming_keys_box(const Scene *scene,
+                                     const Strip *strip,
+                                     const View2D *v2d,
+                                     const SpaceSeq *sseq,
+                                     int mouse_co_region[2]);
+SeqRetimingKey *try_to_realize_fake_keys(const Scene *scene,
+                                         const View2D *v2d,
+                                         Strip *strip,
+                                         const int mval[2]);
 wmOperatorStatus sequencer_retiming_key_select_exec(bContext *C,
                                                     wmOperator *op,
                                                     SeqRetimingKey *key,
@@ -385,14 +398,7 @@ void sequencer_retiming_draw_continuity(const TimelineDrawContext &ctx,
 void sequencer_retiming_keys_draw(const TimelineDrawContext &ctx, Span<StripDrawContext> strips);
 void sequencer_retiming_speed_draw(const TimelineDrawContext &ctx,
                                    const StripDrawContext &strip_ctx);
-void realize_fake_keys(const Scene *scene, Strip *strip);
-SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const int mval[2]);
-SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2], Strip **r_strip);
-bool is_mouse_over_retiming_keys_box(const Scene *scene,
-                                     const Strip *strip,
-                                     const View2D *v2d,
-                                     const SpaceSeq *sseq,
-                                     int mouse_co_region[2]);
+rcti strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip);
 bool retiming_overlay_enabled(const SpaceSeq *sseq);
 
 /* `sequencer_text_edit.cc` */

@@ -308,6 +308,24 @@ SeqRetimingKey *ensure_left_and_right_keys(const Scene *scene, Strip *strip)
   return seq::retiming_add_key(scene, strip, right_fake_key_frame_get(scene, strip));
 }
 
+void realize_fake_keys(const Scene *scene, Strip *strip)
+{
+  seq::retiming_data_ensure(strip);
+  seq::retiming_add_key(scene, strip, strip->left_handle());
+  seq::retiming_add_key(scene, strip, strip->right_handle(scene));
+}
+
+SeqRetimingKey fake_retiming_key_init(const Scene *scene, const Strip *strip, int frame)
+{
+  const float scene_fps = float(scene->frames_per_second());
+  const int sound_offset = strip->rounded_sound_offset(scene_fps);
+  SeqRetimingKey fake_key = {0};
+  fake_key.strip_frame_index = (frame - strip->content_start() - sound_offset) *
+                               strip->media_playback_rate_factor(scene_fps);
+  fake_key.flag = 0;
+  return fake_key;
+}
+
 void retiming_data_clear(Strip *strip)
 {
   if (strip->retiming_keys != nullptr) {

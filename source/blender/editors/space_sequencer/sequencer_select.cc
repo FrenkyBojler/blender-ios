@@ -1188,7 +1188,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   /* Check to see if the mouse cursor intersects with the retiming box; if so, `strip_key_owner` is
    * set. If the cursor intersects with a retiming key, `key` will be set too. */
   Strip *strip_key_owner = nullptr;
-  SeqRetimingKey *key = retiming_mouseover_key_get(C, mouse_co.region, &strip_key_owner);
+  SeqRetimingKey *key = retiming_mouseover_key_get(scene, v2d, mouse_co.region, &strip_key_owner);
 
   if (strip_key_owner != nullptr && retiming_overlay_enabled(CTX_wm_space_seq(C)) &&
       seq::retiming_data_is_editable(strip_key_owner))
@@ -1196,11 +1196,11 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     /* If no key was found, the mouse cursor may still intersect with a "fake key" that has not
      * been realized yet. */
     if (key == nullptr) {
-      key = try_to_realize_fake_keys(C, strip_key_owner, mouse_co.region);
+      key = try_to_realize_fake_keys(scene, v2d, strip_key_owner, mouse_co.region);
     }
     else {
       /* There may be fake key on either side of strip. It must be realized. */
-      realize_fake_keys(scene, strip_key_owner);
+      seq::realize_fake_keys(scene, strip_key_owner);
     }
 
     if (key != nullptr) {
@@ -1216,7 +1216,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
           if (key_frame == seq::left_fake_key_frame_get(scene, connection) ||
               key_frame == seq::right_fake_key_frame_get(scene, connection))
           {
-            realize_fake_keys(scene, connection);
+            seq::realize_fake_keys(scene, connection);
           }
         }
       }
@@ -1470,7 +1470,7 @@ static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op
 
   /* Ignore clicks on retiming keys. */
   Strip *strip_key_test = nullptr;
-  SeqRetimingKey *key = retiming_mouseover_key_get(C, mouse_co.region, &strip_key_test);
+  SeqRetimingKey *key = retiming_mouseover_key_get(scene, v2d, mouse_co.region, &strip_key_test);
   if (key != nullptr) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }

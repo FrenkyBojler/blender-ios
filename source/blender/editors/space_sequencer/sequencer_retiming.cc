@@ -752,6 +752,122 @@ void SEQUENCER_OT_retiming_segment_speed_set(wmOperatorType *ot)
 /** \name Retiming Select Key
  * \{ */
 
+static inline float retiming_key_mouseover_threshold()
+{
+  /** Size in pixels. */
+  return (16.0f * UI_SCALE_FAC);
+}
+
+static SeqRetimingKey *mouse_over_key_get_from_strip(const Scene *scene,
+                                                     const View2D *v2d,
+                                                     const Strip *strip,
+                                                     const int mval[2])
+{
+  int best_distance = INT_MAX;
+  SeqRetimingKey *best_key = nullptr;
+
+  for (SeqRetimingKey &key : seq::retiming_keys_get(strip)) {
+    int distance = round_fl_to_int(
+        fabsf(ui::view2d_view_to_region_x(v2d, seq::retiming_key_frame_get(scene, strip, &key)) -
+              mval[0]));
+
+    int threshold = retiming_key_mouseover_threshold();
+    if (seq::retiming_key_frame_get(scene, strip, &key) == strip->left_handle() ||
+        seq::retiming_key_frame_get(scene, strip, &key) == strip->right_handle(scene))
+    {
+      threshold *= 2; /* Make first and last key easier to select. */
+    }
+
+    if (distance < threshold && distance < best_distance) {
+      best_distance = distance;
+      best_key = &key;
+    }
+  }
+
+  return best_key;
+}
+
+SeqRetimingKey *retiming_mouseover_key_get(const Scene *scene,
+                                           const View2D *v2d,
+                                           const int mval[2],
+                                           Strip **r_strip)
+{
+  for (Strip *strip : sequencer_visible_strips_get(scene, v2d)) {
+    if (!seq::retiming_data_is_editable(strip)) {
+      continue;
+    }
+
+    rcti box = strip_retiming_keys_box_get(scene, v2d, strip);
+    if (!BLI_rcti_isect_pt(&box, mval[0], mval[1])) {
+      continue;
+    }
+
+    if (r_strip != nullptr) {
+      *r_strip = strip;
+    }
+
+    SeqRetimingKey *key = mouse_over_key_get_from_strip(scene, v2d, strip, mval);
+
+    if (key == nullptr) {
+      continue;
+    }
+
+    return key;
+  }
+
+  return nullptr;
+}
+
+static bool retiming_fake_key_frame_clicked(
+    const Scene *scene, const View2D *v2d, const Strip *strip, const int mval[2], int &r_frame)
+{
+  rcti box = strip_retiming_keys_box_get(scene, v2d, strip);
+  if (!BLI_rcti_isect_pt(&box, mval[0], mval[1])) {
+    return false;
+  }
+
+  const int left_frame = seq::left_fake_key_frame_get(scene, strip);
+  const float left_distance = fabs(ui::view2d_view_to_region_x(v2d, left_frame) - mval[0]);
+
+  const int right_frame = seq::right_fake_key_frame_get(scene, strip);
+  const int right_x = right_frame;
+  const float right_distance = fabs(ui::view2d_view_to_region_x(v2d, right_x) - mval[0]);
+
+  r_frame = (left_distance < right_distance) ? left_frame : right_frame;
+
+  /* Fake key threshold is doubled to make them easier to select. */
+  return min_ff(left_distance, right_distance) < retiming_key_mouseover_threshold() * 2;
+}
+
+bool is_mouse_over_retiming_keys_box(const Scene *scene,
+                                     const Strip *strip,
+                                     const View2D *v2d,
+                                     const SpaceSeq *sseq,
+                                     int mouse_co_region[2])
+{
+  if (!seq::retiming_data_is_editable(strip) || !retiming_overlay_enabled(sseq)) {
+    return false;
+  }
+
+  rcti retiming_keys_box = strip_retiming_keys_box_get(scene, v2d, strip);
+  return BLI_rcti_isect_pt_v(&retiming_keys_box, mouse_co_region);
+}
+
+SeqRetimingKey *try_to_realize_fake_keys(const Scene *scene,
+                                         const View2D *v2d,
+                                         Strip *strip,
+                                         const int mval[2])
+{
+  SeqRetimingKey *key = nullptr;
+
+  int key_frame;
+  if (retiming_fake_key_frame_clicked(scene, v2d, strip, mval, key_frame)) {
+    seq::realize_fake_keys(scene, strip);
+    key = seq::retiming_key_get_by_frame(scene, strip, key_frame);
+  }
+  return key;
+}
+
 static bool select_key(const Editing *ed,
                        SeqRetimingKey *key,
                        const bool toggle,
