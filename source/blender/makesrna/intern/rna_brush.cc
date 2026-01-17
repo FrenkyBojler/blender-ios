@@ -164,6 +164,7 @@ const EnumPropertyItem rna_enum_brush_sculpt_brush_type_items[] = {
      ""},
     {SCULPT_BRUSH_TYPE_PAINT, "PAINT", 0, "Paint", ""},
     {SCULPT_BRUSH_TYPE_SMEAR, "SMEAR", 0, "Smear", ""},
+    {SCULPT_BRUSH_TYPE_BLUR, "BLUR", 0, "Blur", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -629,31 +630,31 @@ static bool rna_BrushCapabilitiesWeightPaint_has_weight_get(PointerRNA *ptr)
 static PointerRNA rna_Sculpt_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesSculpt, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BrushCapabilitiesSculpt, ptr->data);
 }
 
 static PointerRNA rna_Imapaint_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesImagePaint, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BrushCapabilitiesImagePaint, ptr->data);
 }
 
 static PointerRNA rna_Vertexpaint_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesVertexPaint, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BrushCapabilitiesVertexPaint, ptr->data);
 }
 
 static PointerRNA rna_Weightpaint_brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilitiesWeightPaint, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BrushCapabilitiesWeightPaint, ptr->data);
 }
 
 static PointerRNA rna_Brush_capabilities_get(PointerRNA *ptr)
 {
   BLI_assert(ptr->owner_id == ptr->data);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_BrushCapabilities, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_BrushCapabilities, ptr->data);
 }
 
 static void rna_Brush_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -932,7 +933,7 @@ static const EnumPropertyItem *rna_Brush_stroke_itemf(bContext *C,
                                                       PropertyRNA * /*prop*/,
                                                       bool * /*r_free*/)
 {
-  PaintMode mode = BKE_paintmode_get_active_from_context(C);
+  PaintMode mode = (C) ? BKE_paintmode_get_active_from_context(C) : PaintMode::Invalid;
 
   static const EnumPropertyItem brush_stroke_method_items[] = {
       {0, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
@@ -1355,6 +1356,13 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   static const EnumPropertyItem rna_enum_gpencil_brush_caps_types_items[] = {
       {GP_STROKE_CAP_ROUND, "ROUND", ICON_GP_CAPS_ROUND, "Round", ""},
       {GP_STROKE_CAP_FLAT, "FLAT", ICON_GP_CAPS_FLAT, "Flat", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem rna_enum_gpencil_brush_stroke_mode_items[] = {
+      {GP_BRUSH_USE_STROKE, "STROKE", ICON_NONE, "Stroke", ""},
+      {GP_BRUSH_USE_FILL, "FILL", ICON_NONE, "Fill", ""},
+      {GP_BRUSH_USE_FILL | GP_BRUSH_USE_STROKE, "BOTH", ICON_NONE, "Both", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1819,6 +1827,13 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag2", GP_BRUSH_USE_UV_RAND_PRESS);
   RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
   RNA_def_property_ui_text(prop, "Use Pressure", "Use pressure to modulate randomness");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
+
+  prop = RNA_def_property(srna, "stroke_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag2");
+  RNA_def_property_enum_items(prop, rna_enum_gpencil_brush_stroke_mode_items);
+  RNA_def_property_ui_text(prop, "Stroke Mode", "Mode to use when creating strokes");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
 

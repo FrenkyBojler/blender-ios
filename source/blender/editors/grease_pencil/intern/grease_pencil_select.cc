@@ -10,6 +10,7 @@
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_object.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
@@ -253,15 +254,20 @@ bool selection_update(const ViewContext *vc,
           ed::curves::get_curves_selection_attribute_names(curves);
 
       IndexMaskMemory memory;
-      const IndexMask elements = ed::greasepencil::retrieve_editable_elements(
+      IndexMask elements = ed::greasepencil::retrieve_editable_elements(
           *object, info, selection_domain, memory);
       if (elements.is_empty()) {
         continue;
       }
 
       for (const StringRef attribute_name : selection_attribute_names) {
-        const IndexMask changed_element_mask = select_operation(
-            info, elements, attribute_name, memory);
+        IndexMask changed_element_mask = select_operation(info, elements, attribute_name, memory);
+
+        /* Select fills. */
+        if (selection_domain == bke::AttrDomain::Curve) {
+          changed_element_mask = bke::greasepencil::selected_mask_to_fills(
+              changed_element_mask, curves, selection_domain, memory);
+        }
 
         /* Modes that un-set all elements not in the mask. */
         if (ELEM(sel_op, SEL_OP_SET, SEL_OP_AND)) {
@@ -655,8 +661,8 @@ static void select_similar_by_value(Scene *scene,
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
-    const IndexMask mask = ed::greasepencil::retrieve_editable_points(
-        *object, info.drawing, info.layer_index, memory);
+    const IndexMask elements = ed::greasepencil::retrieve_editable_elements(
+        *object, info, selection_domain, memory);
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
         attribute_id, selection_domain, default_value);
@@ -668,7 +674,7 @@ static void select_similar_by_value(Scene *scene,
           curves, selection_domain, bke::AttrType::Bool, selection_attribute_names[i]);
       MutableSpan<bool> selection = selection_writer.span.typed<bool>();
 
-      mask.foreach_index(GrainSize(1024), [&](const int index) {
+      elements.foreach_index(GrainSize(1024), [&](const int index) {
         if (selection[index]) {
           return;
         }
@@ -867,6 +873,101 @@ static void GREASE_PENCIL_OT_select_ends(wmOperatorType *ot)
               INT32_MAX);
 }
 
+static wmOperatorStatus select_fill_exec(bContext *C, wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object->data);
+  const bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(
+      scene->toolsettings, object);
+
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    IndexMaskMemory memory;
+    const IndexMask selected_strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+        *object, info.drawing, info.layer_index, memory);
+    if (selected_strokes.is_empty()) {
+      return;
+    }
+
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
+
+    /* If the attribute does not exist then each curves is its own fill. */
+    if (!fill_ids) {
+      const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_strokes(
+          *object, info.drawing, info.layer_index, memory);
+      blender::ed::curves::select_linked(curves, editable_strokes);
+      return;
+    }
+
+    VectorSet<int> selected_fill_ids;
+    selected_strokes.foreach_index([&](const int64_t curve_i) {
+      const int fill_id = fill_ids[curve_i];
+      if (fill_id != 0) {
+        selected_fill_ids.add(fill_id);
+      }
+    });
+
+    Array<bool> selected_curves(curves.curves_num());
+    selected_strokes.to_bools(selected_curves);
+
+    const IndexMask strokes = IndexMask::from_predicate(
+        curves.curves_range(), GrainSize(4096), memory, [&](const int64_t curve_i) {
+          const int fill_id = fill_ids[curve_i];
+          if (fill_id == 0) {
+            return selected_curves[curve_i];
+          }
+          return selected_fill_ids.contains(fill_id);
+        });
+
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const Span<StringRef> selection_attribute_names =
+        ed::curves::get_curves_selection_attribute_names(curves);
+
+    for (const int i : selection_attribute_names.index_range()) {
+      bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+          curves, selection_domain, bke::AttrType::Bool, selection_attribute_names[i]);
+      switch (selection_domain) {
+        case bke::AttrDomain::Curve: {
+          ed::curves::fill_selection_true(selection.span.typed<bool>(), strokes);
+          break;
+        }
+        case bke::AttrDomain::Point: {
+          strokes.foreach_index([&](const int curve_index) {
+            const IndexRange points = points_by_curve[curve_index];
+            ed::curves::fill_selection_true(selection.span.slice(points));
+          });
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
+      }
+      selection.finish();
+    }
+  });
+
+  /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
+   * attribute for now. */
+  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_select_fill(wmOperatorType *ot)
+{
+  ot->name = "Select Shape";
+  ot->idname = "GREASE_PENCIL_OT_select_fill";
+  ot->description = "Select all curves in a fill";
+
+  ot->exec = select_fill_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 bool ensure_selection_domain(ToolSettings *ts, Object *object)
 {
   bool changed = false;
@@ -888,19 +989,54 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
       continue;
     }
 
-    /* Skip curve when the selection domain already matches, or when there is no selection
-     * at all. */
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         ".selection");
-    if ((!meta_data) || (meta_data->domain == domain)) {
-      continue;
-    }
 
-    /* When the new selection domain is 'curve', ensure all curves with a point selection
+    /* When the selection domain is 'curve', ensure all *fills* with a point selection
      * are selected. */
     if (domain == bke::AttrDomain::Curve) {
-      ed::curves::select_linked(curves);
+      IndexMaskMemory memory;
+      if (meta_data->domain == bke::AttrDomain::Point) {
+        const IndexMask selected_points = ed::curves::retrieve_selected_points(curves, memory);
+        const IndexMask selected_mask = bke::greasepencil::selected_mask_to_fills(
+            selected_points, curves, bke::AttrDomain::Point, memory);
+
+        for (const StringRef selection_attribute_name :
+             ed::curves::get_curves_selection_attribute_names(curves))
+        {
+          bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+              curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+          curves::fill_selection_true(selection_writer.span, selected_mask);
+
+          selection_writer.finish();
+        }
+      }
+      else {
+        BLI_assert(meta_data->domain == bke::AttrDomain::Curve);
+
+        const IndexMask selected_curves = ed::curves::retrieve_selected_curves(curves, memory);
+        const IndexMask selected_mask = bke::greasepencil::selected_mask_to_fills(
+            selected_curves, curves, bke::AttrDomain::Curve, memory);
+
+        for (const StringRef selection_attribute_name :
+             ed::curves::get_curves_selection_attribute_names(curves))
+        {
+          bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+              curves, bke::AttrDomain::Curve, bke::AttrType::Bool, selection_attribute_name);
+          curves::fill_selection_true(selection_writer.span, selected_mask);
+
+          selection_writer.finish();
+        }
+      }
+
+      changed |= true;
+    }
+
+    /* Skip curve when the selection domain already matches, or when there is no selection
+     * at all. */
+    if ((!meta_data) || (meta_data->domain == domain)) {
+      continue;
     }
 
     /* Convert selection domain. */
@@ -1166,6 +1302,7 @@ void ED_operatortypes_grease_pencil_select()
   WM_operatortype_append(GREASE_PENCIL_OT_select_alternate);
   WM_operatortype_append(GREASE_PENCIL_OT_select_similar);
   WM_operatortype_append(GREASE_PENCIL_OT_select_ends);
+  WM_operatortype_append(GREASE_PENCIL_OT_select_fill);
   WM_operatortype_append(GREASE_PENCIL_OT_set_selection_mode);
   WM_operatortype_append(GREASE_PENCIL_OT_material_select);
 }
