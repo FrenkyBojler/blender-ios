@@ -28,7 +28,9 @@
 
 #include "DNA_genfile.h"
 
+#include "BLI_endian_defines.h"
 #include "BLI_fftw.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_system.h"
 #include "BLI_task.h"
@@ -48,8 +50,8 @@
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_particle.h"
-#include "BKE_shader_fx.h"
-#include "BKE_sound.h"
+#include "BKE_shader_fx.hh"
+#include "BKE_sound.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
@@ -67,6 +69,8 @@
 #include "RE_texture.h"
 
 #include "ED_datafiles.h"
+
+#include "SEQ_modifier.hh"
 
 #include "WM_api.hh"
 
@@ -92,133 +96,25 @@
 
 #ifdef WITH_LIBMV
 #  include "libmv-capi.h"
-#elif defined(WITH_CYCLES_LOGGING)
+#endif
+
+#ifdef WITH_CYCLES
 #  include "CCL_api.h"
+#endif
+
+#if defined(WITH_PYTHON_MODULE) && defined(__APPLE__)
+/* Environment is not available in macOS shared libraries. */
+#  include <crt_externs.h>
+char **environ = nullptr;
+#endif
+
+#if defined(WITH_TBB_MALLOC) && defined(__linux__)
+#  include <tbb/scalable_allocator.h>
 #endif
 
 #include "creator_intern.h" /* Own include. */
 
-/* -------------------------------------------------------------------- */
-/** \name Local Defines
- * \{ */
-
-/* When building as a Python module, don't use special argument handling
- * so the module loading logic can control the `argv` & `argc`. */
-#if defined(WIN32) && !defined(WITH_PYTHON_MODULE)
-#  define USE_WIN32_UNICODE_ARGS
-#endif
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Local Application State
- * \{ */
-
-/* Written to by `creator_args.cc`. */
-ApplicationState app_state = []() {
-  ApplicationState app_state{};
-  app_state.signal.use_crash_handler = true;
-  app_state.signal.use_abort_handler = true;
-  app_state.exit_code_on_error.python = 0;
-  app_state.main_arg_deferred = nullptr;
-  return app_state;
-}();
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Application Level Callbacks
- *
- * Initialize callbacks for the modules that need them.
- * \{ */
-
-static void callback_mem_error(const char *errorStr)
-{
-  fputs(errorStr, stderr);
-  fflush(stderr);
-}
-
-static void main_callback_setup()
-{
-  /* Error output from the guarded allocation routines. */
-  MEM_set_error_callback(callback_mem_error);
-}
-
-/** Free data on early exit (if Python calls `sys.exit()` while parsing args for eg). */
-struct CreatorAtExitData {
-#ifndef WITH_PYTHON_MODULE
-  bArgs *ba;
-#endif
-
-#ifdef USE_WIN32_UNICODE_ARGS
-  char **argv;
-  int argv_num;
-#endif
-
-#if defined(WITH_PYTHON_MODULE) && !defined(USE_WIN32_UNICODE_ARGS)
-  void *_empty; /* Prevent empty struct error with MSVC. */
-#endif
-};
-
-static void callback_main_atexit(void *user_data)
-{
-  CreatorAtExitData *app_init_data = static_cast<CreatorAtExitData *>(user_data);
-
-#ifndef WITH_PYTHON_MODULE
-  if (app_init_data->ba) {
-    BLI_args_destroy(app_init_data->ba);
-    app_init_data->ba = nullptr;
-  }
-#else
-  UNUSED_VARS(app_init_data); /* May be unused. */
-#endif
-
-#ifdef USE_WIN32_UNICODE_ARGS
-  if (app_init_data->argv) {
-    while (app_init_data->argv_num) {
-      free((void *)app_init_data->argv[--app_init_data->argv_num]);
-    }
-    free((void *)app_init_data->argv);
-    app_init_data->argv = nullptr;
-  }
-#else
-  UNUSED_VARS(app_init_data); /* May be unused. */
-#endif
-}
-
-static void callback_clg_fatal(void *fp)
-{
-  BLI_system_backtrace(static_cast<FILE *>(fp));
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Blender as a Stand-Alone Python Module (bpy)
- *
- * While not officially supported, this can be useful for Python developers.
- * See: https://developer.blender.org/docs/handbook/building_blender/python_module/
- * \{ */
-
-#ifdef WITH_PYTHON_MODULE
-
-/* Called in `bpy_interface.cc` when building as a Python module. */
-int main_python_enter(int argc, const char **argv);
-void main_python_exit();
-
-/* Rename the `main(..)` function, allowing Python initialization to call it. */
-#  define main main_python_enter
-static void *evil_C = nullptr;
-
-#  ifdef __APPLE__
-/* Environment is not available in macOS shared libraries. */
-#    include <crt_externs.h>
-char **environ = nullptr;
-#  endif /* __APPLE__ */
-
-#endif /* WITH_PYTHON_MODULE */
-
-/** \} */
+BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
 
 /* -------------------------------------------------------------------- */
 /** \name GMP Allocator Workaround
@@ -257,6 +153,162 @@ void gmp_blender_init_allocator()
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Local Defines
+ * \{ */
+
+/* When building as a Python module, don't use special argument handling
+ * so the module loading logic can control the `argv` & `argc`. */
+#if defined(WIN32) && !defined(WITH_PYTHON_MODULE)
+#  define USE_WIN32_UNICODE_ARGS
+#endif
+
+/** \} */
+
+namespace blender {
+
+/* -------------------------------------------------------------------- */
+/** \name Local Application State
+ * \{ */
+
+/* Written to by `creator_args.cc`. */
+ApplicationState app_state = []() {
+  ApplicationState app_state{};
+  app_state.signal.use_crash_handler = true;
+  app_state.signal.use_abort_handler = true;
+  app_state.exit_code_on_error.python = 0;
+  app_state.main_arg_deferred = nullptr;
+  return app_state;
+}();
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Application Level Callbacks
+ *
+ * Initialize callbacks for the modules that need them.
+ * \{ */
+
+static void callback_mem_error(const char *errorStr)
+{
+  fputs(errorStr, stderr);
+  fflush(stderr);
+}
+
+static void main_callback_setup()
+{
+  /* Error output from the guarded allocation routines. */
+  MEM_set_error_callback(callback_mem_error);
+}
+
+/** Data to free when Blender exits early on. */
+struct CreatorAtExitData_EarlyExit {
+  bContext *C;
+};
+
+/** Free data on early exit (if Python calls `sys.exit()` while parsing args for eg). */
+struct CreatorAtExitData {
+#ifndef WITH_PYTHON_MODULE
+  bArgs *ba;
+#endif
+
+#ifdef USE_WIN32_UNICODE_ARGS
+  char **argv;
+  int argv_num;
+#endif
+
+  /**
+   * When non-null, run additional exit logic.
+   * Cleared once early initialization is over.
+   */
+  CreatorAtExitData_EarlyExit *early_exit = nullptr;
+};
+
+static void callback_main_atexit(void *user_data)
+{
+  CreatorAtExitData *app_init_data = static_cast<CreatorAtExitData *>(user_data);
+
+#ifndef WITH_PYTHON_MODULE
+  if (app_init_data->ba) {
+    BLI_args_destroy(app_init_data->ba);
+    app_init_data->ba = nullptr;
+  }
+#endif
+
+#ifdef USE_WIN32_UNICODE_ARGS
+  if (app_init_data->argv) {
+    while (app_init_data->argv_num) {
+      free((void *)app_init_data->argv[--app_init_data->argv_num]);
+    }
+    free((void *)app_init_data->argv);
+    app_init_data->argv = nullptr;
+  }
+#endif
+
+  if (CreatorAtExitData_EarlyExit *early_exit = app_init_data->early_exit) {
+    CTX_free(early_exit->C);
+
+    DEG_free_node_types();
+
+    BKE_blender_globals_clear();
+    BKE_appdir_exit();
+
+    DNA_sdna_current_free();
+
+    CLG_exit();
+  }
+}
+
+static void callback_clg_fatal(void *fp)
+{
+  BLI_system_backtrace(static_cast<FILE *>(fp));
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name LD_PRELOAD for Linux
+ * \{ */
+
+static void restore_ld_preload()
+{
+  /* LD_PRELOAD may have been modified on startup for Blender. However
+   * we don't want it for other executables launched from Blender. */
+  const char *restore_ld_preload = BLI_getenv("BLENDER_RESTORE_LD_PRELOAD");
+  if (restore_ld_preload) {
+    BLI_setenv("LD_PRELOAD", restore_ld_preload);
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Blender as a Stand-Alone Python Module (bpy)
+ *
+ * While not officially supported, this can be useful for Python developers.
+ * See: https://developer.blender.org/docs/handbook/building_blender/python_module/
+ * \{ */
+
+#ifdef WITH_PYTHON_MODULE
+static void *main_python_evil_C = nullptr;
+
+/* Called in `bpy_interface.cc` when building as a Python module. */
+int main_python_enter(int argc, const char **argv);
+
+void main_python_exit()
+{
+  WM_exit_ex((bContext *)main_python_evil_C, true, false);
+  main_python_evil_C = nullptr;
+}
+
+/* Rename the `main(..)` function, allowing Python initialization to call it. */
+#  define main blender::main_python_enter
+#endif /* WITH_PYTHON_MODULE */
+
+/** \} */
+
+}  // namespace blender
+
+/* -------------------------------------------------------------------- */
 /** \name Main Function
  * \{ */
 
@@ -279,6 +331,8 @@ int main(int argc,
 #endif
 )
 {
+  using namespace blender;
+
   bContext *C;
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
@@ -288,6 +342,9 @@ int main(int argc,
   CreatorAtExitData app_init_data = {nullptr};
   BKE_blender_atexit_register(callback_main_atexit, &app_init_data);
 
+  CreatorAtExitData_EarlyExit app_init_data_early_exit = {nullptr};
+  app_init_data.early_exit = &app_init_data_early_exit;
+
 /* Un-buffered `stdout` makes `stdout` and `stderr` better synchronized, and helps
  * when stepping through code in a debugger (prints are immediately
  * visible). However disabling buffering causes lock contention on windows
@@ -296,6 +353,8 @@ int main(int argc,
 #ifndef NDEBUG
   setvbuf(stdout, nullptr, _IONBF, 0);
 #endif
+
+  restore_ld_preload();
 
 #ifdef WIN32
 #  ifdef USE_WIN32_UNICODE_ARGS
@@ -323,6 +382,11 @@ int main(int argc,
     GPU_compilation_subprocess_run(argv[1]);
     return 0;
   }
+#endif
+
+#if defined(WITH_TBB_MALLOC) && defined(__linux__)
+  /* Enable huge pages for performance .*/
+  scalable_allocation_mode(TBBMALLOC_USE_HUGE_PAGES, 1);
 #endif
 
   /* NOTE: Special exception for guarded allocator type switch:
@@ -362,9 +426,15 @@ int main(int argc,
 
   /* Initialize logging. */
   CLG_init();
+  CLG_output_use_timestamp_set(true);
+  CLG_output_use_memory_set(false);
+  CLG_output_use_source_set(false);
+  CLG_output_use_basename_set(false);
   CLG_fatal_fn_set(callback_clg_fatal);
 
   C = CTX_create();
+
+  app_init_data_early_exit.C = C;
 
 #ifdef WITH_PYTHON_MODULE
 #  ifdef __APPLE__
@@ -372,7 +442,7 @@ int main(int argc,
 #  endif
 
 #  undef main
-  evil_C = C;
+  main_python_evil_C = C;
 #endif
 
 #ifdef WITH_BINRELOC
@@ -381,8 +451,6 @@ int main(int argc,
 
 #ifdef WITH_LIBMV
   libmv_initLogging(argv[0]);
-#elif defined(WITH_CYCLES_LOGGING)
-  CCL_init_logging(argv[0]);
 #endif
 
 #if defined(WITH_TBB_MALLOC) && defined(_MSC_VER) && defined(NDEBUG) && defined(WITH_GMP)
@@ -421,12 +489,10 @@ int main(int argc,
   BKE_cpp_types_init();
   BKE_idtype_init();
   BKE_modifier_init();
+  seq::modifiers_init();
   BKE_shaderfx_init();
   BKE_volumes_init();
   DEG_register_node_types();
-
-  BKE_brush_system_init();
-  RE_texture_rng_init();
 
   BKE_callback_global_init();
 
@@ -438,10 +504,6 @@ int main(int argc,
   app_init_data.ba = ba;
 
   main_args_setup(C, ba, false);
-
-  /* Begin argument parsing, ignore leaks so arguments that call #exit
-   * (such as `--version` & `--help`) don't report leaks. */
-  MEM_use_memleak_detection(false);
 
   /* Parse environment handling arguments. */
   BLI_args_parse(ba, ARG_PASS_ENVIRONMENT, nullptr, nullptr);
@@ -459,7 +521,7 @@ int main(int argc,
   BLI_task_scheduler_init();
 
   /* Initialize FFTW threading support. */
-  blender::fftw::initialize_float();
+  fftw::initialize_float();
 
 #ifndef WITH_PYTHON_MODULE
   /* The settings pass includes:
@@ -476,6 +538,13 @@ int main(int argc,
   main_signal_setup();
 #endif
 
+  /* Continue with regular initialization, no need to use "early" exit. */
+  app_init_data.early_exit = nullptr;
+
+#ifdef WITH_CYCLES
+  CCL_log_init();
+#endif
+
   /* Must be initialized after #BKE_appdir_init to account for color-management paths. */
   IMB_init();
   /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
@@ -484,8 +553,11 @@ int main(int argc,
   /* After #ARG_PASS_SETTINGS arguments, this is so #WM_main_playanim skips #RNA_init. */
   RNA_init();
 
+  RE_texture_rng_init();
   RE_engines_init();
-  blender::bke::node_system_init();
+  bke::node_system_init();
+
+  BKE_brush_system_init();
   BKE_particle_init_rng();
   /* End second initialization. */
 
@@ -519,9 +591,11 @@ int main(int argc,
   WM_init(C, argc, argv);
 
 #ifndef WITH_PYTHON
-  printf(
-      "\n* WARNING * - Blender compiled without Python!\n"
-      "this is not intended for typical usage\n\n");
+  fprintf(stderr,
+          "\n"
+          "WARNING: Blender compiled without Python!\n"
+          "This is not intended for typical usage.\n"
+          "\n");
 #endif
 
 #ifdef WITH_FREESTYLE
@@ -542,9 +616,6 @@ int main(int argc,
    */
   callback_main_atexit(&app_init_data);
   BKE_blender_atexit_unregister(callback_main_atexit, &app_init_data);
-
-  /* End argument parsing, allow memory leaks to be printed. */
-  MEM_use_memleak_detection(true);
 
 /* Paranoid, avoid accidental re-use. */
 #ifndef WITH_PYTHON_MODULE
@@ -587,13 +658,5 @@ int main(int argc,
   return 0;
 
 } /* End of `int main(...)` function. */
-
-#ifdef WITH_PYTHON_MODULE
-void main_python_exit()
-{
-  WM_exit_ex((bContext *)evil_C, true, false);
-  evil_C = nullptr;
-}
-#endif
 
 /** \} */

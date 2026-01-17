@@ -10,16 +10,13 @@ set(INC
   ..
 )
 set(INC_SYS
-  ${USD_INCLUDE_DIRS}
-  ${Epoxy_INCLUDE_DIRS}
-  ${PYTHON_INCLUDE_DIRS}
 )
 
 set(LIB
   cycles_scene
   cycles_session
   cycles_graph
-  ${Epoxy_LIBRARIES}
+  bf::dependencies::epoxy
   ${BOOST_PYTHON_LIBRARIES}
 )
 cycles_external_libraries_append(LIB)
@@ -68,13 +65,6 @@ set(SRC_HD_CYCLES
   volume.cpp
 )
 
-if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-endif()
-
 # Blender libraries do not include hgiGL, so build without display driver then.
 if(EXISTS ${USD_INCLUDE_DIR}/pxr/imaging/hgiGL)
   add_definitions(-DWITH_HYDRA_DISPLAY_DRIVER)
@@ -112,7 +102,8 @@ target_compile_definitions(cycles_hydra
 
 target_link_libraries(cycles_hydra
   PUBLIC
-  ${USD_LIBRARIES}
+  bf::dependencies::optional::usd
+  bf::dependencies::optional::python
   PRIVATE
   ${LIB}
 )

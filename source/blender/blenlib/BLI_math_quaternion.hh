@@ -14,7 +14,9 @@
 
 #include "BLI_math_matrix.hh"
 
-namespace blender::math {
+namespace blender {
+
+namespace math {
 
 /* -------------------------------------------------------------------- */
 /** \name Quaternion functions.
@@ -285,7 +287,7 @@ template<typename T>
     w[1] = math::sin(t * omega) / sinom;
   }
   else {
-    /* Fallback to lerp */
+    /* Fall back to lerp */
     w[0] = T(1) - t;
     w[1] = t;
   }
@@ -612,9 +614,9 @@ template<typename T>
 
 /** \} */
 
-}  // namespace blender::math
+}  // namespace math
 
-namespace blender::math {
+namespace math {
 
 /* -------------------------------------------------------------------- */
 /** \name Conversion to Euler
@@ -699,4 +701,5 @@ template<typename T> VecBase<T, 3> QuaternionBase<T>::expmap() const
 
 /** \} */
 
-}  // namespace blender::math
+}  // namespace math
+}  // namespace blender

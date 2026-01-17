@@ -46,6 +46,15 @@ if(WIN32 AND NOT BLENDER_PLATFORM_ARM)
     -DCMAKE_C_COMPILER=${LIBDIR}/dpcpp/bin/clang.exe
     -DCMAKE_DEBUG_POSTFIX=_d
   )
+  if(DEFINED ENV{ROCM_PATH})
+    # Older ROCM shipped a /bin/hipconfig (no extension) and oidn
+    # uses it to validate a valid rocm folder, given this file
+    # is no longer shipped work around it for now by passing the
+    # path ourselves, so we don't have to rely on their find rocm
+    # functionality.
+    cmake_path(CONVERT $ENV{ROCM_PATH} TO_CMAKE_PATH_LIST ROCM_PATH NORMALIZE)
+    list(APPEND OIDN_EXTRA_ARGS -DROCM_PATH=${ROCM_PATH})
+  endif()
   set(OIDN_CMAKE_FLAGS ${DEFAULT_CLANG_CMAKE_FLAGS}
     -DCMAKE_CXX_COMPILER=${LIBDIR}/dpcpp/bin/clang++.exe
     -DCMAKE_C_COMPILER=${LIBDIR}/dpcpp/bin/clang.exe
@@ -67,10 +76,7 @@ endif()
 set(ODIN_PATCH_COMMAND
   ${PATCH_CMD} --verbose -p 1 -N -d
   ${BUILD_DIR}/openimagedenoise/src/external_openimagedenoise <
-  ${PATCH_DIR}/oidn.diff &&
-  ${PATCH_CMD} --verbose -p 1 -N -d
-  ${BUILD_DIR}/openimagedenoise/src/external_openimagedenoise <
-  ${PATCH_DIR}/oidn_blackwell.diff
+  ${PATCH_DIR}/oidn.diff
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -79,14 +85,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(ODIN_PATCH_COMMAND ${ODIN_PATCH_COMMAND} &&
     sed -i "s/(attrib\\.memoryType)/(attrib.type)/g"
     ${BUILD_DIR}/openimagedenoise/src/external_openimagedenoise/devices/hip/hip_device.cpp
-  )
-endif()
-
-if(WIN32 AND BLENDER_PLATFORM_ARM)
-  set(ODIN_PATCH_COMMAND ${ODIN_PATCH_COMMAND} &&
-    ${PATCH_CMD} --verbose -p 1 -N -d
-    ${BUILD_DIR}/openimagedenoise/src/external_openimagedenoise <
-    ${PATCH_DIR}/oidn_disable_dependentload.diff
   )
 endif()
 

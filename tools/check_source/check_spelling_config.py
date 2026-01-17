@@ -91,6 +91,7 @@ dict_custom = {
     "confusticated",
     "constructability",
     "constructible",
+    "contextless",
     "convolved",
     "coplanarity",
     "copyable",
@@ -158,6 +159,7 @@ dict_custom = {
     "discretizes",
     "distributable",
     "downcasting",
+    "downloader",
     "downsample",
     "downsampled",
     "downsampler",
@@ -173,6 +175,7 @@ dict_custom = {
     "elementwise",
     "embedder",
     "enablement",
+    "encodable",
     "enqueueing",
     "equiangular",
     "evolute",
@@ -187,6 +190,7 @@ dict_custom = {
     "foveation",
     "generatrix",
     "glitchy",
+    "handlings",
     "haptics",
     "headerless",
     "highlightable",
@@ -210,6 +214,7 @@ dict_custom = {
     "interdependencies",
     "interferences",
     "interocular",
+    "interpolant",
     "interpolator",
     "invariance",
     "invariant",
@@ -308,6 +313,7 @@ dict_custom = {
     "prepend",
     "prepending",
     "preprocess",
+    "preprocesses",
     "preprocessing",
     "preprocessor",
     "preprocessors",
@@ -341,8 +347,10 @@ dict_custom = {
     "redistributions",
     "registerable",
     "reimplement",
+    "reimplementation",
     "reimplemented",
     "reimplementing",
+    "reimport",
     "relink",
     "relinked",
     "relinking",
@@ -358,6 +366,7 @@ dict_custom = {
     "reparameterization",
     "reparametrization",
     "representable",
+    "reproject",
     "reprojected",
     "reprojecting",
     "reprojection",
@@ -396,6 +405,7 @@ dict_custom = {
     "stitchable",
     "strobing",
     "subclass",
+    "subclassed",
     "subclasses",
     "subclassing",
     "subdirectories",
@@ -425,6 +435,7 @@ dict_custom = {
     "tertiarily",
     "testability",
     "thumbstick",
+    "tokenization",
     "tokenize",
     "tokenizing",
     "toolchain",
@@ -903,6 +914,8 @@ dict_ignore_hyphenated_suffix = {
 }
 
 files_ignore = {
+    "scripts/modules/_bl_i18n_utils/utils_spell_check.py",  # UI spelling, doesn't always match code spelling.
+    "tools/utils/git_data_canonical_authors.py",  # Too many names which aren't in the dictionary.
     "tools/utils_doc/rna_manual_reference_updater.py",  # Contains language ID references.
 
     # Maintained by 3rd parties.
@@ -911,7 +924,8 @@ files_ignore = {
     "source/blender/gpu/shaders/common/gpu_shader_smaa_lib.glsl",
 }
 
+# These contain many typos that could be resolved, then removed from this list.
 directories_ignore = {
-    "scripts/addons",
-    "scripts/addons_core",
+    "scripts/addons_core/io_scene_gltf2/",
+    "scripts/addons_core/rigify/",
 }

@@ -14,19 +14,23 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
+
+namespace blender {
 
 /* ******************* channel Difference Matte ********************************* */
 
-namespace blender::nodes::node_composite_diff_matte_cc {
+namespace nodes::node_composite_diff_matte_cc {
 
 static void cmp_node_diff_matte_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Color>("Image 1").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Color>("Image 2").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Tolerance")
@@ -50,14 +54,6 @@ static void cmp_node_diff_matte_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Matte");
 }
 
-static void node_composit_init_diff_matte(bNodeTree * /*ntree*/, bNode *node)
-{
-  /* All members are deprecated and needn't be set, but the data is still allocated for forward
-   * compatibility. */
-  NodeChroma *c = MEM_callocN<NodeChroma>(__func__);
-  node->storage = c;
-}
-
 using namespace blender::compositor;
 
 static int node_gpu_material(GPUMaterial *material,
@@ -69,38 +65,51 @@ static int node_gpu_material(GPUMaterial *material,
   return GPU_stack_link(material, node, "node_composite_difference_matte", inputs, outputs);
 }
 
-static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+static void difference_matte(const float4 &color,
+                             const float4 &key,
+                             const float &tolerance,
+                             const float &falloff,
+                             float4 &result,
+                             float &matte)
 {
-  builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::SI4_SO2<float4, float4, float, float, float4, float>(
-        "Difference Key",
-        [=](const float4 &color,
-            const float4 &key,
-            const float &tolerance,
-            const float &falloff,
-            float4 &result,
-            float &matte) -> void {
-          float difference = math::dot(math::abs(color - key).xyz(), float3(1.0f)) / 3.0f;
+  float difference = math::dot(math::abs(color - key).xyz(), float3(1.0f)) / 3.0f;
 
-          bool is_opaque = difference > tolerance + falloff;
-          float alpha = is_opaque ?
-                            color.w :
+  bool is_opaque = difference > tolerance + falloff;
+  float alpha = is_opaque ? color.w :
                             math::safe_divide(math::max(0.0f, difference - tolerance), falloff);
 
-          matte = math::min(alpha, color.w);
-          result = color * matte;
+  matte = math::min(alpha, color.w);
+  result = color * matte;
+}
+
+using compositor::Color;
+
+static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
+{
+  builder.construct_and_set_matching_fn_cb([=]() {
+    return mf::build::SI4_SO2<Color, Color, float, float, Color, float>(
+        "Difference Key",
+        [=](const Color &color,
+            const Color &key,
+            const float &tolerance,
+            const float &falloff,
+            Color &output_color,
+            float &matte) -> void {
+          float4 out_color;
+          difference_matte(float4(color), float4(key), tolerance, falloff, out_color, matte);
+          output_color = Color(out_color);
         },
         mf::build::exec_presets::SomeSpanOrSingle<0, 1>());
   });
 }
 
-}  // namespace blender::nodes::node_composite_diff_matte_cc
+}  // namespace nodes::node_composite_diff_matte_cc
 
 static void register_node_type_cmp_diff_matte()
 {
-  namespace file_ns = blender::nodes::node_composite_diff_matte_cc;
+  namespace file_ns = nodes::node_composite_diff_matte_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeDiffMatte", CMP_NODE_DIFF_MATTE);
   ntype.ui_name = "Difference Key";
@@ -111,12 +120,11 @@ static void register_node_type_cmp_diff_matte()
   ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_diff_matte_declare;
   ntype.flag |= NODE_PREVIEW;
-  ntype.initfunc = file_ns::node_composit_init_diff_matte;
-  blender::bke::node_type_storage(
-      ntype, "NodeChroma", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_diff_matte)
+
+}  // namespace blender

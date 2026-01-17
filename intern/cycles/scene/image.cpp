@@ -2,20 +2,21 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "scene/image.h"
 #include "device/device.h"
-#include "scene/colorspace.h"
+
+#include "scene/image.h"
 #include "scene/image_oiio.h"
 #include "scene/image_vdb.h"
 #include "scene/scene.h"
 #include "scene/stats.h"
 
+#include "util/colorspace.h"
 #include "util/image.h"
 #include "util/image_impl.h"
 #include "util/log.h"
 #include "util/progress.h"
 #include "util/task.h"
-#include "util/texture.h"
+#include "util/types_image.h"
 
 #ifdef WITH_OSL
 #  include <OSL/oslexec.h>
@@ -48,10 +49,14 @@ const char *name_from_type(ImageDataType type)
       return "nanovdb_float";
     case IMAGE_DATA_TYPE_NANOVDB_FLOAT3:
       return "nanovdb_float3";
+    case IMAGE_DATA_TYPE_NANOVDB_FLOAT4:
+      return "nanovdb_float4";
     case IMAGE_DATA_TYPE_NANOVDB_FPN:
       return "nanovdb_fpn";
     case IMAGE_DATA_TYPE_NANOVDB_FP16:
       return "nanovdb_fp16";
+    case IMAGE_DATA_TYPE_NANOVDB_EMPTY:
+      return "nanovdb_empty";
     case IMAGE_DATA_NUM_TYPES:
       assert(!"System enumerator type, should never be used");
       return "";
@@ -175,7 +180,7 @@ vector<int4> ImageHandle::get_svm_slots() const
   return svm_slots;
 }
 
-device_texture *ImageHandle::image_memory() const
+device_image *ImageHandle::image_memory() const
 {
   if (slots.empty()) {
     return nullptr;
@@ -220,62 +225,6 @@ bool ImageHandle::operator==(const ImageHandle &other) const
   return manager == other.manager && is_tiled == other.is_tiled && slots == other.slots;
 }
 
-/* Image MetaData */
-
-ImageMetaData::ImageMetaData()
-    : channels(0),
-      width(0),
-      height(0),
-      depth(0),
-      byte_size(0),
-      type(IMAGE_DATA_NUM_TYPES),
-      colorspace(u_colorspace_raw),
-      colorspace_file_format(""),
-      use_transform_3d(false),
-      compress_as_srgb(false)
-{
-}
-
-bool ImageMetaData::operator==(const ImageMetaData &other) const
-{
-  return channels == other.channels && width == other.width && height == other.height &&
-         depth == other.depth && use_transform_3d == other.use_transform_3d &&
-         (!use_transform_3d || transform_3d == other.transform_3d) && type == other.type &&
-         colorspace == other.colorspace && compress_as_srgb == other.compress_as_srgb;
-}
-
-bool ImageMetaData::is_float() const
-{
-  return (type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4 ||
-          type == IMAGE_DATA_TYPE_HALF || type == IMAGE_DATA_TYPE_HALF4);
-}
-
-void ImageMetaData::detect_colorspace()
-{
-  /* Convert used specified color spaces to one we know how to handle. */
-  colorspace = ColorSpaceManager::detect_known_colorspace(
-      colorspace, colorspace_file_hint.c_str(), colorspace_file_format, is_float());
-
-  if (colorspace == u_colorspace_raw) {
-    /* Nothing to do. */
-  }
-  else if (colorspace == u_colorspace_srgb) {
-    /* Keep sRGB colorspace stored as sRGB, to save memory and/or loading time
-     * for the common case of 8bit sRGB images like PNG. */
-    compress_as_srgb = true;
-  }
-  else {
-    /* If colorspace conversion needed, use half instead of short so we can
-     * represent HDR values that might result from conversion. */
-    if (type == IMAGE_DATA_TYPE_BYTE || type == IMAGE_DATA_TYPE_USHORT) {
-      type = IMAGE_DATA_TYPE_HALF;
-    }
-    else if (type == IMAGE_DATA_TYPE_BYTE4 || type == IMAGE_DATA_TYPE_USHORT4) {
-      type = IMAGE_DATA_TYPE_HALF4;
-    }
-  }
-}
-
 /* Image Loader */
 
 ImageLoader::ImageLoader() = default;
@@ -305,14 +254,11 @@ bool ImageLoader::is_vdb_loader() const
 
 /* Image Manager */
 
-ImageManager::ImageManager(const DeviceInfo &info)
+ImageManager::ImageManager(const DeviceInfo & /*info*/)
 {
   need_update_ = true;
   osl_texture_system = nullptr;
   animation_frame = 0;
-
-  /* Set image limits */
-  features.has_nanovdb = info.has_nanovdb;
 }
 
 ImageManager::~ImageManager()
@@ -358,19 +304,14 @@ void ImageManager::load_image_metadata(Image *img)
   metadata = ImageMetaData();
   metadata.colorspace = img->params.colorspace;
 
-  if (img->loader->load_metadata(features, metadata)) {
+  if (img->loader->load_metadata(metadata)) {
     assert(metadata.type != IMAGE_DATA_NUM_TYPES);
   }
   else {
     metadata.type = IMAGE_DATA_TYPE_BYTE4;
   }
 
-  metadata.detect_colorspace();
-
-  assert(features.has_nanovdb || (metadata.type != IMAGE_DATA_TYPE_NANOVDB_FLOAT ||
-                                  metadata.type != IMAGE_DATA_TYPE_NANOVDB_FLOAT3 ||
-                                  metadata.type != IMAGE_DATA_TYPE_NANOVDB_FPN ||
-                                  metadata.type != IMAGE_DATA_TYPE_NANOVDB_FP16));
+  metadata.finalize(img->params.alpha_type);
 
   img->need_metadata = false;
 }
@@ -524,15 +465,6 @@ ImageManager::Image *ImageManager::get_image_slot(const size_t slot)
   return images[slot].get();
 }
 
-static bool image_associate_alpha(ImageManager::Image *img)
-{
-  /* For typical RGBA images we let OIIO convert to associated alpha,
-   * but some types we want to leave the RGB channels untouched. */
-  return !(ColorSpaceManager::colorspace_is_data(img->params.colorspace) ||
-           img->params.alpha_type == IMAGE_ALPHA_IGNORE ||
-           img->params.alpha_type == IMAGE_ALPHA_CHANNEL_PACKED);
-}
-
 template<TypeDesc::BASETYPE FileFormat, typename StorageType>
 bool ImageManager::file_load_image(Image *img, const int texture_limit)
 {
@@ -544,13 +476,11 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
   /* Get metadata. */
   const int width = img->metadata.width;
   const int height = img->metadata.height;
-  const int depth = img->metadata.depth;
-  const int components = img->metadata.channels;
 
   /* Read pixels. */
   vector<StorageType> pixels_storage;
   StorageType *pixels;
-  const size_t max_size = max(max(width, height), depth);
+  const size_t max_size = max(width, height);
   if (max_size == 0) {
     /* Don't bother with empty images. */
     return false;
@@ -558,12 +488,12 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
 
   /* Allocate memory as needed, may be smaller to resize down. */
   if (texture_limit > 0 && max_size > texture_limit) {
-    pixels_storage.resize(((size_t)width) * height * depth * 4);
+    pixels_storage.resize(((size_t)width) * height * 4);
     pixels = &pixels_storage[0];
   }
   else {
     const thread_scoped_lock device_lock(device_mutex);
-    pixels = (StorageType *)img->mem->alloc(width, height, depth);
+    pixels = (StorageType *)img->mem->alloc(width, height);
   }
 
   if (pixels == nullptr) {
@@ -571,90 +501,8 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
     return false;
   }
 
-  const size_t num_pixels = ((size_t)width) * height * depth;
-  img->loader->load_pixels(
-      img->metadata, pixels, num_pixels * components, image_associate_alpha(img));
-
-  /* The kernel can handle 1 and 4 channel images. Anything that is not a single
-   * channel image is converted to RGBA format. */
-  const bool is_rgba = (img->metadata.type == IMAGE_DATA_TYPE_FLOAT4 ||
-                        img->metadata.type == IMAGE_DATA_TYPE_HALF4 ||
-                        img->metadata.type == IMAGE_DATA_TYPE_BYTE4 ||
-                        img->metadata.type == IMAGE_DATA_TYPE_USHORT4);
-
-  if (is_rgba) {
-    const StorageType one = util_image_cast_from_float<StorageType>(1.0f);
-
-    if (components == 2) {
-      /* Grayscale + alpha to RGBA. */
-      for (size_t i = num_pixels - 1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-        pixels[i * 4 + 3] = pixels[i * 2 + 1];
-        pixels[i * 4 + 2] = pixels[i * 2 + 0];
-        pixels[i * 4 + 1] = pixels[i * 2 + 0];
-        pixels[i * 4 + 0] = pixels[i * 2 + 0];
-      }
-    }
-    else if (components == 3) {
-      /* RGB to RGBA. */
-      for (size_t i = num_pixels - 1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-        pixels[i * 4 + 3] = one;
-        pixels[i * 4 + 2] = pixels[i * 3 + 2];
-        pixels[i * 4 + 1] = pixels[i * 3 + 1];
-        pixels[i * 4 + 0] = pixels[i * 3 + 0];
-      }
-    }
-    else if (components == 1) {
-      /* Grayscale to RGBA. */
-      for (size_t i = num_pixels - 1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-        pixels[i * 4 + 3] = one;
-        pixels[i * 4 + 2] = pixels[i];
-        pixels[i * 4 + 1] = pixels[i];
-        pixels[i * 4 + 0] = pixels[i];
-      }
-    }
-
-    /* Disable alpha if requested by the user. */
-    if (img->params.alpha_type == IMAGE_ALPHA_IGNORE) {
-      for (size_t i = num_pixels - 1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-        pixels[i * 4 + 3] = one;
-      }
-    }
-  }
-
-  if (img->metadata.colorspace != u_colorspace_raw &&
-      img->metadata.colorspace != u_colorspace_srgb)
-  {
-    /* Convert to scene linear. */
-    ColorSpaceManager::to_scene_linear(
-        img->metadata.colorspace, pixels, num_pixels, is_rgba, img->metadata.compress_as_srgb);
-  }
-
-  /* Make sure we don't have buggy values. */
-  if constexpr (FileFormat == TypeDesc::FLOAT) {
-    /* For RGBA buffers we put all channels to 0 if either of them is not
-     * finite. This way we avoid possible artifacts caused by fully changed
-     * hue. */
-    if (is_rgba) {
-      for (size_t i = 0; i < num_pixels; i += 4) {
-        StorageType *pixel = &pixels[i * 4];
-        if (!isfinite(pixel[0]) || !isfinite(pixel[1]) || !isfinite(pixel[2]) ||
-            !isfinite(pixel[3]))
-        {
-          pixel[0] = 0;
-          pixel[1] = 0;
-          pixel[2] = 0;
-          pixel[3] = 0;
-        }
-      }
-    }
-    else {
-      for (size_t i = 0; i < num_pixels; ++i) {
-        StorageType *pixel = &pixels[i];
-        if (!isfinite(pixel[0])) {
-          pixel[0] = 0;
-        }
-      }
-    }
+  if (!img->loader->load_pixels(img->metadata, pixels)) {
+    return false;
   }
 
   /* Scale image down if needed. */
@@ -663,28 +511,25 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
     while (max_size * scale_factor > texture_limit) {
       scale_factor *= 0.5f;
     }
-    VLOG_WORK << "Scaling image " << img->loader->name() << " by a factor of " << scale_factor
+    LOG_DEBUG << "Scaling image " << img->loader->name() << " by a factor of " << scale_factor
               << ".";
     vector<StorageType> scaled_pixels;
     size_t scaled_width;
     size_t scaled_height;
-    size_t scaled_depth;
     util_image_resize_pixels(pixels_storage,
                              width,
                              height,
-                             depth,
-                             is_rgba ? 4 : 1,
+                             img->metadata.is_rgba() ? 4 : 1,
                              scale_factor,
                              &scaled_pixels,
                              &scaled_width,
-                             &scaled_height,
-                             &scaled_depth);
+                             &scaled_height);
 
     StorageType *texture_pixels;
 
     {
       const thread_scoped_lock device_lock(device_mutex);
-      texture_pixels = (StorageType *)img->mem->alloc(scaled_width, scaled_height, scaled_depth);
+      texture_pixels = (StorageType *)img->mem->alloc(scaled_width, scaled_height);
     }
 
     memcpy(texture_pixels, &scaled_pixels[0], scaled_pixels.size() * sizeof(StorageType));
@@ -720,7 +565,7 @@ void ImageManager::device_load_image(Device *device,
     img->mem.reset();
   }
 
-  img->mem = make_unique<device_texture>(
+  img->mem = make_unique<device_image>(
       device, img->mem_name.c_str(), slot, type, img->params.interpolation, img->params.extension);
   img->mem->info.use_transform_3d = img->metadata.use_transform_3d;
   img->mem->info.transform_3d = img->metadata.transform_3d;
@@ -732,10 +577,10 @@ void ImageManager::device_load_image(Device *device,
       const thread_scoped_lock device_lock(device_mutex);
       float *pixels = (float *)img->mem->alloc(1, 1);
 
-      pixels[0] = TEX_IMAGE_MISSING_R;
-      pixels[1] = TEX_IMAGE_MISSING_G;
-      pixels[2] = TEX_IMAGE_MISSING_B;
-      pixels[3] = TEX_IMAGE_MISSING_A;
+      pixels[0] = IMAGE_MISSING_RGBA.x;
+      pixels[1] = IMAGE_MISSING_RGBA.y;
+      pixels[2] = IMAGE_MISSING_RGBA.z;
+      pixels[3] = IMAGE_MISSING_RGBA.w;
     }
   }
   else if (type == IMAGE_DATA_TYPE_FLOAT) {
@@ -744,7 +589,7 @@ void ImageManager::device_load_image(Device *device,
       const thread_scoped_lock device_lock(device_mutex);
       float *pixels = (float *)img->mem->alloc(1, 1);
 
-      pixels[0] = TEX_IMAGE_MISSING_R;
+      pixels[0] = IMAGE_MISSING_RGBA.x;
     }
   }
   else if (type == IMAGE_DATA_TYPE_BYTE4) {
@@ -753,10 +598,10 @@ void ImageManager::device_load_image(Device *device,
       const thread_scoped_lock device_lock(device_mutex);
       uchar *pixels = (uchar *)img->mem->alloc(1, 1);
 
-      pixels[0] = (TEX_IMAGE_MISSING_R * 255);
-      pixels[1] = (TEX_IMAGE_MISSING_G * 255);
-      pixels[2] = (TEX_IMAGE_MISSING_B * 255);
-      pixels[3] = (TEX_IMAGE_MISSING_A * 255);
+      pixels[0] = (IMAGE_MISSING_RGBA.x * 255);
+      pixels[1] = (IMAGE_MISSING_RGBA.y * 255);
+      pixels[2] = (IMAGE_MISSING_RGBA.z * 255);
+      pixels[3] = (IMAGE_MISSING_RGBA.w * 255);
     }
   }
   else if (type == IMAGE_DATA_TYPE_BYTE) {
@@ -765,7 +610,7 @@ void ImageManager::device_load_image(Device *device,
       const thread_scoped_lock device_lock(device_mutex);
       uchar *pixels = (uchar *)img->mem->alloc(1, 1);
 
-      pixels[0] = (TEX_IMAGE_MISSING_R * 255);
+      pixels[0] = (IMAGE_MISSING_RGBA.x * 255);
     }
   }
   else if (type == IMAGE_DATA_TYPE_HALF4) {
@@ -774,10 +619,10 @@ void ImageManager::device_load_image(Device *device,
       const thread_scoped_lock device_lock(device_mutex);
       half *pixels = (half *)img->mem->alloc(1, 1);
 
-      pixels[0] = TEX_IMAGE_MISSING_R;
-      pixels[1] = TEX_IMAGE_MISSING_G;
-      pixels[2] = TEX_IMAGE_MISSING_B;
-      pixels[3] = TEX_IMAGE_MISSING_A;
+      pixels[0] = IMAGE_MISSING_RGBA.x;
+      pixels[1] = IMAGE_MISSING_RGBA.y;
+      pixels[2] = IMAGE_MISSING_RGBA.z;
+      pixels[3] = IMAGE_MISSING_RGBA.w;
     }
   }
   else if (type == IMAGE_DATA_TYPE_USHORT) {
@@ -786,7 +631,7 @@ void ImageManager::device_load_image(Device *device,
       const thread_scoped_lock device_lock(device_mutex);
       uint16_t *pixels = (uint16_t *)img->mem->alloc(1, 1);
 
-      pixels[0] = (TEX_IMAGE_MISSING_R * 65535);
+      pixels[0] = (IMAGE_MISSING_RGBA.x * 65535);
     }
   }
   else if (type == IMAGE_DATA_TYPE_USHORT4) {
@@ -795,10 +640,10 @@ void ImageManager::device_load_image(Device *device,
       const thread_scoped_lock device_lock(device_mutex);
       uint16_t *pixels = (uint16_t *)img->mem->alloc(1, 1);
 
-      pixels[0] = (TEX_IMAGE_MISSING_R * 65535);
-      pixels[1] = (TEX_IMAGE_MISSING_G * 65535);
-      pixels[2] = (TEX_IMAGE_MISSING_B * 65535);
-      pixels[3] = (TEX_IMAGE_MISSING_A * 65535);
+      pixels[0] = (IMAGE_MISSING_RGBA.x * 65535);
+      pixels[1] = (IMAGE_MISSING_RGBA.y * 65535);
+      pixels[2] = (IMAGE_MISSING_RGBA.z * 65535);
+      pixels[3] = (IMAGE_MISSING_RGBA.w * 65535);
     }
   }
   else if (type == IMAGE_DATA_TYPE_HALF) {
@@ -807,18 +652,16 @@ void ImageManager::device_load_image(Device *device,
       const thread_scoped_lock device_lock(device_mutex);
       half *pixels = (half *)img->mem->alloc(1, 1);
 
-      pixels[0] = TEX_IMAGE_MISSING_R;
+      pixels[0] = IMAGE_MISSING_RGBA.x;
     }
   }
 #ifdef WITH_NANOVDB
-  else if (type == IMAGE_DATA_TYPE_NANOVDB_FLOAT || type == IMAGE_DATA_TYPE_NANOVDB_FLOAT3 ||
-           type == IMAGE_DATA_TYPE_NANOVDB_FPN || type == IMAGE_DATA_TYPE_NANOVDB_FP16)
-  {
+  else if (is_nanovdb_type(type)) {
     const thread_scoped_lock device_lock(device_mutex);
-    void *pixels = img->mem->alloc(img->metadata.byte_size, 0);
+    void *pixels = img->mem->alloc(img->metadata.nanovdb_byte_size, 0);
 
     if (pixels != nullptr) {
-      img->loader->load_pixels(img->metadata, pixels, img->metadata.byte_size, false);
+      img->loader->load_pixels(img->metadata, pixels);
     }
   }
 #endif

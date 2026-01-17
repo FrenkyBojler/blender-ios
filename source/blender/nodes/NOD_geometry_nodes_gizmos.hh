@@ -13,11 +13,13 @@
 
 #include "BKE_compute_context_cache_fwd.hh"
 
+namespace blender {
+
 struct Object;
 struct NodesModifierData;
 struct wmWindowManager;
 
-namespace blender::nodes::gizmos {
+namespace nodes::gizmos {
 
 namespace ie = inverse_eval;
 
@@ -130,9 +132,15 @@ ie::ElemVariant get_editable_gizmo_elem(const ComputeContext &gizmo_context,
 void apply_gizmo_change(bContext &C,
                         Object &object,
                         NodesModifierData &nmd,
-                        geo_eval_log::GeoModifierLog &eval_log,
+                        geo_eval_log::GeoNodesLog &eval_log,
                         const ComputeContext &gizmo_context,
                         const bNodeSocket &gizmo_socket,
                         FunctionRef<void(bke::SocketValueVariant &value)> apply_on_gizmo_value_fn);
 
-}  // namespace blender::nodes::gizmos
+/**
+ * Returns true if the value if the given node is controlled by a gizmo.
+ */
+bool value_node_has_gizmo(const bNodeTree &tree, const bNode &node);
+
+}  // namespace nodes::gizmos
+}  // namespace blender

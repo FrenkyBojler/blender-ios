@@ -15,7 +15,7 @@
  * This is done because command-line actions may be destructive so the down-side of running the
  * wrong command could be severe. The reason this is not considered an error is we can't prevent
  * it so easily, unlike operator ID's which may be longer, commands are typically short terms
- * which wont necessarily include an add-ons identifier as a prefix for e.g.
+ * which wont necessarily include an add-ons identifier as a prefix for example.
  * Further, an error would break loading add-ons who's primary is *not*
  * necessarily to provide command-line access.
  * An alternative solution could be to generate unique names (number them for example)
@@ -29,6 +29,8 @@
 
 #include "BKE_blender_cli_command.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Internal API
  * \{ */
@@ -39,7 +41,7 @@ using CommandHandlerPtr = std::unique_ptr<CommandHandler>;
  * All registered command handlers.
  * \note the order doesn't matter as duplicates are detected and prevented from running.
  */
-blender::Vector<CommandHandlerPtr> g_command_handlers;
+Vector<CommandHandlerPtr> g_command_handlers;
 
 static CommandHandler *blender_cli_command_lookup(const std::string &id)
 {
@@ -176,3 +178,5 @@ void BKE_blender_cli_command_free_all()
 }
 
 /** \} */
+
+}  // namespace blender

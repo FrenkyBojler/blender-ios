@@ -25,7 +25,9 @@
 #include "BLI_vector_set.hh"
 #include "BLI_virtual_array_fwd.hh"
 
-namespace blender::index_mask {
+namespace blender {
+
+namespace index_mask {
 
 /**
  * Constants that define the maximum segment size. Segment sizes are limited so that the indices
@@ -203,6 +205,7 @@ class IndexMask : private IndexMaskData {
   /** Construct a mask from the true indices. */
   static IndexMask from_bools(Span<bool> bools, IndexMaskMemory &memory);
   static IndexMask from_bools(const VArray<bool> &bools, IndexMaskMemory &memory);
+  static IndexMask from_bools_inverse(Span<bool> bools, IndexMaskMemory &memory);
   static IndexMask from_bools_inverse(const VArray<bool> &bools, IndexMaskMemory &memory);
   /** Construct a mask from the true indices, but limited by the indices in #universe. */
   static IndexMask from_bools(const IndexMask &universe,
@@ -346,8 +349,8 @@ class IndexMask : private IndexMaskData {
   int64_t operator[](const RawMaskIterator &it) const;
 
   /**
-   * Get a new mask that contains a consecutive subset of this mask. Takes O(log n) time and but
-   * can reuse the memory from the source mask.
+   * Get a new mask that contains a consecutive subset of this mask. Takes O(log n) time
+   * but can reuse the memory from the source mask.
    */
   IndexMask slice(IndexRange range) const;
   IndexMask slice(int64_t start, int64_t size) const;
@@ -850,8 +853,7 @@ template<typename T, typename Fn>
 #if (defined(__GNUC__) && !defined(__clang__))
 [[gnu::optimize("O3")]]
 #endif
-inline void
-optimized_foreach_index(const IndexMaskSegment segment, const Fn fn)
+inline void optimized_foreach_index(const IndexMaskSegment segment, const Fn fn)
 {
   BLI_assert(segment.last() < std::numeric_limits<T>::max());
   if (unique_sorted_indices::non_empty_is_range(segment.base_span())) {
@@ -872,10 +874,9 @@ template<typename T, typename Fn>
 #if (defined(__GNUC__) && !defined(__clang__))
 [[gnu::optimize("O3")]]
 #endif
-inline void
-optimized_foreach_index_with_pos(const IndexMaskSegment segment,
-                                 const int64_t segment_pos,
-                                 const Fn fn)
+inline void optimized_foreach_index_with_pos(const IndexMaskSegment segment,
+                                             const int64_t segment_pos,
+                                             const Fn fn)
 {
   BLI_assert(segment.last() < std::numeric_limits<T>::max());
   BLI_assert(segment.size() + segment_pos < std::numeric_limits<T>::max());
@@ -1136,11 +1137,11 @@ IndexMask random_mask(const int64_t universe_size,
                       const float probability,
                       IndexMaskMemory &memory);
 
-}  // namespace blender::index_mask
+}  // namespace index_mask
 
-namespace blender {
 using index_mask::IndexMask;
 using index_mask::IndexMaskFromSegment;
 using index_mask::IndexMaskMemory;
 using index_mask::IndexMaskSegment;
+
 }  // namespace blender

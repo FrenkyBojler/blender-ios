@@ -20,6 +20,8 @@
 #include "bmesh.hh"
 #include "bmesh_decimate.hh" /* own include */
 
+namespace blender {
+
 /* check that collapsing a vertex between 2 edges doesn't cause a degenerate face. */
 #define USE_DEGENERATE_CHECK
 
@@ -57,7 +59,7 @@ static float bm_vert_edge_face_angle(BMVert *v,
   /* NOTE: could be either edge, it doesn't matter. */
   if (v->e && BM_edge_is_manifold(v->e)) {
     /* Checking delimited is important here,
-     * otherwise the boundary between two materials for e.g.
+     * otherwise, for example, the boundary between two materials
      * will collapse if the faces on either side of the edge have a small angle.
      *
      * This way, delimiting edges are treated like boundary edges,
@@ -348,11 +350,11 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
       i = BM_elem_index_get(e);
 
       if (BM_edge_is_manifold(e)) {
-        BMFace *f_double;
-        f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false, &f_double);
-        /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
-        BLI_assert_msg(f_double == nullptr,
-                       "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+        /* The `f_new` may be an existing face, see #144383.
+         * In this case it's still flagged as output so the selection
+         * isn't "lost" when dissolving, see: !144653. */
+        f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false, nullptr);
+
         if (f_new) {
           BMLoop *l_first, *l_iter;
 
@@ -570,3 +572,5 @@ void BM_mesh_decimate_dissolve(BMesh *bm,
   MEM_freeN(vinput_arr);
   MEM_freeN(einput_arr);
 }
+
+}  // namespace blender

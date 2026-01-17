@@ -115,7 +115,7 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
     if (end_selection.is_empty()) {
       array_utils::fill_index_range<int>(next_index);
       return mesh.attributes().adapt_domain<int>(
-          VArray<int>::ForContainer(std::move(next_index)), AttrDomain::Point, domain);
+          VArray<int>::from_container(std::move(next_index)), AttrDomain::Point, domain);
     }
 
     const Span<int2> edges = mesh.edges();
@@ -133,7 +133,7 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
       }
     });
     return mesh.attributes().adapt_domain<int>(
-        VArray<int>::ForContainer(std::move(next_index)), AttrDomain::Point, domain);
+        VArray<int>::from_container(std::move(next_index)), AttrDomain::Point, domain);
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -195,7 +195,7 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
 
     if (end_selection.is_empty()) {
       return mesh.attributes().adapt_domain<float>(
-          VArray<float>::ForSingle(0.0f, mesh.verts_num), AttrDomain::Point, domain);
+          VArray<float>::from_single(0.0f, mesh.verts_num), AttrDomain::Point, domain);
     }
 
     Array<int> next_index(mesh.verts_num, -1);
@@ -216,7 +216,7 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
       }
     });
     return mesh.attributes().adapt_domain<float>(
-        VArray<float>::ForContainer(std::move(cost)), AttrDomain::Point, domain);
+        VArray<float>::from_container(std::move(cost)), AttrDomain::Point, domain);
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -260,7 +260,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(
       &ntype, "GeometryNodeInputShortestEdgePaths", GEO_NODE_INPUT_SHORTEST_EDGE_PATHS);
@@ -272,7 +272,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

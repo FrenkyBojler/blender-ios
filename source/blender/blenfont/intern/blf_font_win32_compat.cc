@@ -28,6 +28,8 @@
 #  define STREAM_FILE(stream) static_cast<FILE *>(stream->descriptor.pointer)
 #  define FT_THROW(e) -1
 
+using namespace blender;
+
 static void ft_ansi_stream_close(FT_Stream stream)
 {
   fclose(STREAM_FILE(stream));
@@ -72,7 +74,7 @@ static FT_Error FT_Stream_Open__win32_compat(FT_Stream stream, const char *filep
   if (!file) {
     fprintf(stderr,
             "FT_Stream_Open: "
-            "could not open `%s'\n",
+            "could not open '%s'\n",
             filepathname);
     return FT_THROW(Cannot_Open_Resource);
   }
@@ -82,7 +84,7 @@ static FT_Error FT_Stream_Open__win32_compat(FT_Stream stream, const char *filep
   if (!stream->size) {
     fprintf(stderr,
             "FT_Stream_Open: "
-            "opened `%s' but zero-sized\n",
+            "opened '%s' but zero-sized\n",
             filepathname);
     fclose(file);
     return FT_THROW(Cannot_Open_Stream);

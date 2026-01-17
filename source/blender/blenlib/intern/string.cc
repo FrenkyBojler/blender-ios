@@ -23,6 +23,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name String Duplicate/Copy
  * \{ */
@@ -158,15 +160,12 @@ size_t BLI_vsnprintf(char *__restrict dst,
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  size_t n;
-
   BLI_assert(dst != nullptr);
   BLI_assert(dst_maxncpy > 0);
   BLI_assert(format != nullptr);
 
-  n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
-
-  if (n != size_t(-1) && n < dst_maxncpy) {
+  const size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
+  if (n < dst_maxncpy) {
     dst[n] = '\0';
   }
   else {
@@ -183,15 +182,12 @@ size_t BLI_vsnprintf_rlen(char *__restrict dst,
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  size_t n;
-
   BLI_assert(dst != nullptr);
   BLI_assert(dst_maxncpy > 0);
   BLI_assert(format != nullptr);
 
-  n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
-
-  if (n != size_t(-1) && n < dst_maxncpy) {
+  size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
+  if (n < dst_maxncpy) {
     /* pass */
   }
   else {
@@ -206,11 +202,9 @@ size_t BLI_snprintf(char *__restrict dst, size_t dst_maxncpy, const char *__rest
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  size_t n;
   va_list arg;
-
   va_start(arg, format);
-  n = BLI_vsnprintf(dst, dst_maxncpy, format, arg);
+  const size_t n = BLI_vsnprintf(dst, dst_maxncpy, format, arg);
   va_end(arg);
 
   return n;
@@ -223,11 +217,9 @@ size_t BLI_snprintf_rlen(char *__restrict dst,
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  size_t n;
   va_list arg;
-
   va_start(arg, format);
-  n = BLI_vsnprintf_rlen(dst, dst_maxncpy, format, arg);
+  const size_t n = BLI_vsnprintf_rlen(dst, dst_maxncpy, format, arg);
   va_end(arg);
 
   return n;
@@ -260,7 +252,7 @@ char *BLI_sprintfN_with_buffer(
   va_start(args, format);
   retval = vsnprintf(result, size, format, args);
   va_end(args);
-  BLI_assert((size_t)(retval + 1) == size);
+  BLI_assert(size_t(retval + 1) == size);
   UNUSED_VARS_NDEBUG(retval);
   return result;
 }
@@ -293,7 +285,7 @@ char *BLI_vsprintfN_with_buffer(char *fixed_buf,
   const size_t size = size_t(retval) + 1;
   char *result = MEM_malloc_arrayN<char>(size, __func__);
   retval = vsnprintf(result, size, format, args);
-  BLI_assert((size_t)(retval + 1) == size);
+  BLI_assert(size_t(retval + 1) == size);
   UNUSED_VARS_NDEBUG(retval);
   return result;
 }
@@ -518,7 +510,7 @@ char *BLI_str_quoted_substrN(const char *__restrict str, const char *__restrict 
   if (!BLI_str_quoted_substr_range(str, prefix, &start_match_ofs, &end_match_ofs)) {
     return nullptr;
   }
-  const size_t escaped_len = (size_t)(end_match_ofs - start_match_ofs);
+  const size_t escaped_len = size_t(end_match_ofs - start_match_ofs);
   char *result = MEM_malloc_arrayN<char>(escaped_len + 1, __func__);
   const size_t unescaped_len = BLI_str_unescape(result, str + start_match_ofs, escaped_len);
   if (unescaped_len != escaped_len) {
@@ -577,7 +569,7 @@ char *BLI_strcasestr(const char *s, const char *find)
     } while (BLI_strncasecmp(s, find, len) != 0);
     s--;
   }
-  return ((char *)s);
+  return (const_cast<char *>(s));
 }
 
 int BLI_string_max_possible_word_count(const int str_len)
@@ -641,7 +633,7 @@ char *BLI_strncasestr(const char *s, const char *find, size_t len)
     }
     s--;
   }
-  return ((char *)s);
+  return (const_cast<char *>(s));
 }
 
 int BLI_strcasecmp(const char *s1, const char *s2)
@@ -1202,6 +1194,18 @@ size_t BLI_str_format_uint64_grouped(char dst[BLI_STR_FORMAT_UINT64_GROUPED_SIZE
   return BLI_str_format_int_grouped_ex(src, dst, num_len);
 }
 
+size_t BLI_str_format_int64_grouped(char dst[BLI_STR_FORMAT_INT64_GROUPED_SIZE], int64_t num)
+{
+  const size_t dst_maxncpy = BLI_STR_FORMAT_INT64_GROUPED_SIZE;
+  BLI_string_debug_size(dst, dst_maxncpy);
+  UNUSED_VARS_NDEBUG(dst_maxncpy);
+
+  char src[BLI_STR_FORMAT_INT64_GROUPED_SIZE];
+  const int num_len = int(SNPRINTF(src, "%" PRId64 "", num));
+
+  return BLI_str_format_int_grouped_ex(src, dst, num_len);
+}
+
 void BLI_str_format_byte_unit(char dst[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE],
                               long long int bytes,
                               const bool base_10)
@@ -1341,3 +1345,5 @@ void BLI_string_debug_size_after_nil(char *str, size_t str_maxncpy)
 #endif /* WITH_STRSIZE_DEBUG */
 
 /** \} */
+
+}  // namespace blender

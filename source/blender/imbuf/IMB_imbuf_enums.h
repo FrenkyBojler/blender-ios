@@ -4,11 +4,13 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 /** \file
  * \ingroup imbuf
  */
+
+namespace blender {
 
 #define IM_MAX_SPACE 64
 
@@ -38,6 +40,7 @@ enum eImbFileType {
 #endif
 };
 
+/** NOTE: Keep in sync with #MovieClipProxy.build_size_flag */
 enum IMB_Proxy_Size {
   IMB_PROXY_NONE = 0,
   IMB_PROXY_25 = 1,
@@ -46,4 +49,6 @@ enum IMB_Proxy_Size {
   IMB_PROXY_100 = 8,
   IMB_PROXY_MAX_SLOT = 4,
 };
-ENUM_OPERATORS(IMB_Proxy_Size, IMB_PROXY_100);
+ENUM_OPERATORS(IMB_Proxy_Size);
+
+}  // namespace blender

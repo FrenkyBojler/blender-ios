@@ -15,6 +15,8 @@
 
 #include "DNA_ID.h"
 
+namespace blender {
+
 TempLibraryContext *BLO_library_temp_load_id(Main *real_main,
                                              const char *blend_file_path,
                                              const short idcode,
@@ -38,7 +40,7 @@ TempLibraryContext *BLO_library_temp_load_id(Main *real_main,
   temp_lib_ctx->temp_id = BLO_library_link_named_part(
       bmain_lib, &blendhandle, idcode, idname, &lib_link_params);
 
-  BLO_library_link_end(bmain_lib, &blendhandle, &lib_link_params);
+  BLO_library_link_end(bmain_lib, &blendhandle, &lib_link_params, reports);
   BLO_blendhandle_close(blendhandle);
 
   return temp_lib_ctx;
@@ -49,3 +51,5 @@ void BLO_library_temp_free(TempLibraryContext *temp_lib_ctx)
   BKE_main_free(temp_lib_ctx->bmain_base);
   MEM_freeN(temp_lib_ctx);
 }
+
+}  // namespace blender

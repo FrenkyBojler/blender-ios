@@ -25,6 +25,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_image_wrappers.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_bvh_pixels.hh"
 
@@ -32,7 +33,9 @@
 #include "sculpt_automask.hh"
 #include "sculpt_intern.hh"
 
-namespace blender::ed::sculpt_paint::paint::image {
+namespace blender {
+
+namespace ed::sculpt_paint::paint::image {
 
 using namespace blender::bke::pbvh::pixels;
 using namespace blender::bke::image;
@@ -210,11 +213,7 @@ template<typename ImageBuffer> class PaintingKernel {
       return;
     }
 
-    /* NOTE: Brush colors are stored in sRGB. We use math color to follow other areas that
-     * use brush colors. From there on we use IMB_colormanagement to convert the brush color to the
-     * colorspace of the texture. This isn't ideal, but would need more refactoring to make sure
-     * that brush colors are stored in scene linear by default. */
-    srgb_to_linearrgb_v3_v3(brush_color_, in_brush_color);
+    copy_v3_v3(brush_color_, in_brush_color);
     brush_color_[3] = 1.0f;
 
     const char *from_colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -251,15 +250,14 @@ static BitVector<> init_uv_primitives_brush_test(SculptSession &ss,
   return brush_test;
 }
 
-static void do_paint_pixels(const Scene &scene,
-                            const Depsgraph &depsgraph,
+static void do_paint_pixels(const Depsgraph &depsgraph,
                             Object &object,
                             const Paint &paint,
                             const Brush &brush,
                             ImageData image_data,
                             bke::pbvh::Node &node)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   PBVHData &pbvh_data = bke::pbvh::pixels::data_get(pbvh);
@@ -282,8 +280,8 @@ static void do_paint_pixels(const Scene &scene,
   brush_color[2] = float((hash >> 16) & 255) / 255.0f;
 #else
   copy_v3_v3(brush_color,
-             ss.cache->invert ? BKE_brush_secondary_color_get(&scene, &paint, &brush) :
-                                BKE_brush_color_get(&scene, &paint, &brush));
+             ss.cache->invert ? BKE_brush_secondary_color_get(&paint, &brush) :
+                                BKE_brush_color_get(&paint, &brush));
 #endif
 
   brush_color[3] = 1.0f;
@@ -295,8 +293,8 @@ static void do_paint_pixels(const Scene &scene,
   ImageUser image_user = *image_data.image_user;
   bool pixels_updated = false;
   for (UDIMTilePixels &tile_data : node_data.tiles) {
-    LISTBASE_FOREACH (ImageTile *, tile, &image_data.image->tiles) {
-      ImageTileWrapper image_tile(tile);
+    for (ImageTile &tile : image_data.image->tiles) {
+      ImageTileWrapper image_tile(&tile);
       if (image_tile.get_tile_number() == tile_data.tile_number) {
         image_user.tile = image_tile.get_tile_number();
 
@@ -413,8 +411,8 @@ static void do_push_undo_tile(Image &image, ImageUser &image_user, bke::pbvh::No
 
   ImBuf *tmpibuf = nullptr;
   ImageUser local_image_user = image_user;
-  LISTBASE_FOREACH (ImageTile *, tile, &image.tiles) {
-    image::ImageTileWrapper image_tile(tile);
+  for (ImageTile &tile : image.tiles) {
+    image::ImageTileWrapper image_tile(&tile);
     local_image_user.tile = image_tile.get_tile_number();
     ImBuf *image_buffer = BKE_image_acquire_ibuf(&image, &local_image_user, nullptr);
     if (image_buffer == nullptr) {
@@ -464,7 +462,7 @@ static void fix_non_manifold_seam_bleeding(Object &ob,
 
 /** \} */
 
-}  // namespace blender::ed::sculpt_paint::paint::image
+}  // namespace ed::sculpt_paint::paint::image
 
 using namespace blender::ed::sculpt_paint::paint::image;
 
@@ -499,14 +497,12 @@ bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob)
   return BKE_paint_canvas_image_get(&settings, &ob, &image, &image_user);
 }
 
-void SCULPT_do_paint_brush_image(const Scene &scene,
-                                 const Depsgraph &depsgraph,
+void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
                                  PaintModeSettings &paint_mode_settings,
                                  const Sculpt &sd,
                                  Object &ob,
-                                 const blender::IndexMask &node_mask)
+                                 const IndexMask &node_mask)
 {
-  using namespace blender;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
   ImageData image_data;
@@ -521,7 +517,7 @@ void SCULPT_do_paint_brush_image(const Scene &scene,
     do_push_undo_tile(*image_data.image, *image_data.image_user, nodes[i]);
   });
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    do_paint_pixels(scene, depsgraph, ob, sd.paint, *brush, image_data, nodes[i]);
+    do_paint_pixels(depsgraph, ob, sd.paint, *brush, image_data, nodes[i]);
   });
 
   fix_non_manifold_seam_bleeding(ob, *image_data.image, *image_data.image_user, nodes, node_mask);
@@ -530,3 +526,5 @@ void SCULPT_do_paint_brush_image(const Scene &scene,
     bke::pbvh::pixels::mark_image_dirty(nodes[i], *image_data.image, *image_data.image_user);
   });
 }
+
+}  // namespace blender

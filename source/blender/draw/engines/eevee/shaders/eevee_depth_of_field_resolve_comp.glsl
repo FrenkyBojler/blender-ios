@@ -11,7 +11,7 @@
  * in-focus and defocus regions.
  */
 
-#include "infos/eevee_depth_of_field_info.hh"
+#include "infos/eevee_depth_of_field_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_resolve)
 
@@ -20,8 +20,8 @@ COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_resolve)
 /* Workarounds for Metal/AMD issue where atomicMax lead to incorrect results.
  * See #123052 */
 #if defined(GPU_METAL)
+shared float array_of_values[gl_WorkGroupSize.x * gl_WorkGroupSize.y];
 #  define threadgroup_size (gl_WorkGroupSize.x * gl_WorkGroupSize.y)
-shared float array_of_values[threadgroup_size];
 
 /* Only works for 2D thread-groups where the size is a power of 2. */
 float parallelMax(const float value)
@@ -56,7 +56,8 @@ float dof_slight_focus_coc_tile_get(float2 frag_coord)
   for (int i = 0; i < 4; i++) {
     float2 sample_uv = (frag_coord + quad_offsets[i] * 2.0f * dof_max_slight_focus_radius) /
                        float2(textureSize(color_tx, 0));
-    float coc = dof_coc_from_depth(dof_buf, sample_uv, textureLod(depth_tx, sample_uv, 0.0f).r);
+    float depth = reverse_z::read(textureLod(depth_tx, sample_uv, 0.0f).r);
+    float coc = dof_coc_from_depth(dof_buf, sample_uv, depth);
     coc = clamp(coc, -dof_buf.coc_abs_max, dof_buf.coc_abs_max);
     if (abs(coc) < dof_max_slight_focus_radius) {
       local_abs_max = max(local_abs_max, abs(coc));
@@ -142,7 +143,8 @@ void main()
   }
 
   if (prediction.do_focus) {
-    float center_coc = (dof_coc_from_depth(dof_buf, uv, textureLod(depth_tx, uv, 0.0f).r));
+    float depth = reverse_z::read(textureLod(depth_tx, uv, 0.0f).r);
+    float center_coc = (dof_coc_from_depth(dof_buf, uv, depth));
     prediction.do_focus = abs(center_coc) <= 0.5f;
   }
 

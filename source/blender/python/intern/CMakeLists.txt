@@ -13,7 +13,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${PYTHON_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -32,11 +31,14 @@ set(SRC
   bpy_app_timers.cc
   bpy_app_translations.cc
   bpy_app_usd.cc
+  bpy_audaspace.cc
   bpy_capi_utils.cc
   bpy_cli_command.cc
   bpy_driver.cc
+  bpy_driver_bytecode.cc
   bpy_geometry_set.cc
   bpy_gizmo_wrap.cc
+  bpy_inline_shader_nodes.cc
   bpy_interface.cc
   bpy_interface_atexit.cc
   bpy_interface_run.cc
@@ -45,6 +47,7 @@ set(SRC
   bpy_library_write.cc
   bpy_msgbus.cc
   bpy_operator.cc
+  bpy_operator_function.cc
   bpy_operator_wrap.cc
   bpy_path.cc
   bpy_props.cc
@@ -80,11 +83,14 @@ set(SRC
   bpy_app_timers.hh
   bpy_app_translations.hh
   bpy_app_usd.hh
+  bpy_audaspace.hh
   bpy_capi_utils.hh
   bpy_cli_command.hh
   bpy_driver.hh
+  bpy_driver_bytecode.hh
   bpy_geometry_set.hh
   bpy_gizmo_wrap.hh
+  bpy_inline_shader_nodes.hh
   bpy_intern_string.hh
   bpy_library.hh
   bpy_msgbus.hh
@@ -130,10 +136,12 @@ set(LIB
   PRIVATE bf::animrig
   bf_python_gpu
   PRIVATE bf::imbuf::opencolorio
-
-  ${PYTHON_LINKFLAGS}
-  ${PYTHON_LIBRARIES}
+  PRIVATE bf::nodes
   PRIVATE bf::windowmanager
+
+  PRIVATE bf::dependencies::optional::python
+  PRIVATE bf::dependencies::optional::ffmpeg
+  PRIVATE bf::dependencies::optional::sdl
 )
 
 # Only to check if `buildinfo` is available.
@@ -180,21 +188,12 @@ if(WITH_AUDASPACE)
   add_definitions(-DWITH_AUDASPACE)
   if(WITH_PYTHON_NUMPY)
     add_definitions(-DWITH_AUDASPACE_PY)
+    list(APPEND LIB bf::dependencies::optional::audaspace)
   endif()
 endif()
 
 if(WITH_BULLET)
   add_definitions(-DWITH_BULLET)
-endif()
-
-if(WITH_CODEC_FFMPEG)
-  list(APPEND INC_SYS
-    ${FFMPEG_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFMPEG_LIBRARIES}
-  )
-  add_definitions(-DWITH_FFMPEG)
 endif()
 
 if(WITH_CODEC_SNDFILE)
@@ -258,16 +257,6 @@ if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
-if(WITH_SDL)
-  list(APPEND INC_SYS
-    ${SDL_INCLUDE_DIR}
-  )
-  list(APPEND LIB
-    ${SDL_LIBRARY}
-  )
-  add_definitions(-DWITH_SDL)
-endif()
-
 if(WITH_JACK)
   add_definitions(-DWITH_JACK)
 endif()
@@ -300,10 +289,6 @@ if(WITH_MOD_FLUID)
   add_definitions(-DWITH_FLUID)
 endif()
 
-if(WITH_OPENCOLLADA)
-  add_definitions(-DWITH_COLLADA)
-endif()
-
 if(WITH_IO_WAVEFRONT_OBJ)
   add_definitions(-DWITH_IO_WAVEFRONT_OBJ)
 endif()
@@ -322,17 +307,6 @@ endif()
 
 if(WITH_IO_GREASE_PENCIL)
   add_definitions(-DWITH_IO_GREASE_PENCIL)
-endif()
-
-if(WITH_ALEMBIC)
-  add_definitions(-DWITH_ALEMBIC)
-endif()
-
-if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB)
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
 endif()
 
 if(WITH_ALEMBIC)
@@ -377,6 +351,10 @@ if(WITH_HYDRA)
     bf_render_hydra
   )
   add_definitions(-DWITH_HYDRA)
+endif()
+
+if(WITH_EXPERIMENTAL_FEATURES)
+  add_definitions(-DWITH_EXPERIMENTAL_FEATURES)
 endif()
 
 blender_add_lib(bf_python "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

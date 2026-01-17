@@ -5,6 +5,8 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_curve_reverse_cc {
@@ -13,8 +15,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Curve").supported_type(
-      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Geometry>("Curve")
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
+      .description("Curves to switch the start and end of");
   b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
 }
@@ -56,7 +59,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry_set);
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
       const bke::CurvesFieldContext field_context{*curves_id, AttrDomain::Curve};
@@ -72,7 +75,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeReverseCurve", GEO_NODE_REVERSE_CURVE);
   ntype.ui_name = "Reverse Curve";
   ntype.ui_description = "Change the direction of curves by swapping their start and end data";
@@ -80,7 +83,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

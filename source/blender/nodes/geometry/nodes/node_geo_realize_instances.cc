@@ -13,6 +13,7 @@
 #include "NOD_rna_define.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_realize_instances_cc {
@@ -21,7 +22,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry")
+      .description("Geometry whose instances are (partially) realized");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection")
       .default_value(true)
@@ -38,14 +40,16 @@ static void node_declare(NodeDeclarationBuilder &b)
       "Number of levels of nested instances to realize for each top-level instance");
 }
 
-static void node_init(bNodeTree * /*tree*/, bNode *node)
-{
-  node->custom1 = int16_t(true);
-}
-
-static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout->prop(ptr, "scale_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "realize_to_point_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  node->custom1 = GEO_NODE_REALIZE_TO_POINT_DOMAIN;
+  node->custom2 = int16_t(true);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -60,13 +64,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Field<bool> realize_all_field = params.extract_input<Field<bool>>("Realize All");
   Field<int> depth_field = params.extract_input<Field<int>>("Depth");
+  const bNode &node = params.node();
+  const bool realize_to_point_domain = node.custom1 & GEO_NODE_REALIZE_TO_POINT_DOMAIN;
 
   static auto depth_override = mf::build::SI2_SO<int, bool, int>(
       "depth_override", [](int depth, bool realize_all_field) {
         return realize_all_field ? geometry::VariedDepthOptions::MAX_DEPTH : std::max(depth, 0);
       });
 
-  Field<int> depth_field_overridden(FieldOperation::Create(
+  Field<int> depth_field_overridden(FieldOperation::from(
       depth_override, {std::move(depth_field), std::move(realize_all_field)}));
 
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
@@ -75,7 +81,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       "selection_override",
       [](int depth_override, bool selection) { return depth_override == 0 ? false : selection; });
 
-  Field<bool> selection_field_overrided(FieldOperation::Create(
+  Field<bool> selection_field_overrided(FieldOperation::from(
       selection_override, {depth_field_overridden, std::move(selection_field)}));
 
   const bke::Instances &instances = *geometry_set.get_instances();
@@ -93,27 +99,37 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::RealizeInstancesOptions options;
   options.keep_original_ids = false;
   options.realize_instance_attributes = true;
-  options.apply_uniform_scale = bool(params.node().custom1);
+  options.apply_uniform_scale = bool(params.node().custom2);
+  options.realize_to_point_domain = realize_to_point_domain;
   const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Geometry");
   options.attribute_filter = attribute_filter;
-  GeometrySet new_geometry_set = geometry::realize_instances(
+  geometry::RealizeInstancesResult realize_result = geometry::realize_instances(
       geometry_set, options, varied_depth_option);
-  new_geometry_set.name = geometry_set.name;
-  params.set_output("Geometry", std::move(new_geometry_set));
+  for (const StringRef error : realize_result.errors) {
+    params.error_message_add(NodeWarningType::Error, error);
+  }
+  realize_result.geometry.name = geometry_set.name;
+  params.set_output("Geometry", std::move(realize_result.geometry));
 }
 
 static void node_rna(StructRNA *srna)
 {
   RNA_def_node_boolean(srna,
+                       "realize_to_point_domain",
+                       "Realize to Point Domain",
+                       "Propagate instance attributes to the point domain rather than the curve "
+                       "domain. This property exists for compatibility with 5.0 and earlier.",
+                       NOD_inline_boolean_accessors(custom1, GEO_NODE_REALIZE_TO_POINT_DOMAIN));
+  RNA_def_node_boolean(srna,
                        "scale_radius",
                        "Scale Radius",
                        "Uniformly apply transformation to a radius.",
-                       NOD_inline_boolean_accessors(custom1, 1));
+                       NOD_inline_boolean_accessors(custom2, 1));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeRealizeInstances", GEO_NODE_REALIZE_INSTANCES);
   ntype.ui_name = "Realize Instances";

@@ -13,12 +13,13 @@
 #include <cstdio>
 
 #include "BLI_fileops.h"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -74,14 +75,14 @@
 
 #include "CLG_log.h"
 
-using blender::int3;
+namespace blender {
 
 /* could enable at some point but for now there are far too many conversions */
 #ifdef __GNUC__
 // #  pragma GCC diagnostic ignored "-Wdouble-promotion"
 #endif
 
-static CLG_LogRef LOG = {"bke.dynamicpaint"};
+static CLG_LogRef LOG = {"object.dynamicpaint"};
 
 /* precalculated gaussian factors for 5x super sampling */
 static const float gaussianFactors[5] = {
@@ -102,7 +103,7 @@ static int neighStraightX[8] = {1, 0, -1, 0, 1, -1, -1, 1};
 static int neighStraightY[8] = {0, 1, 0, -1, 1, 1, -1, -1};
 
 /* subframe_updateObject() flags */
-#define SUBFRAME_RECURSION 5
+#define SUBFRAME_RECURSION OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT
 /* #surface_getBrushFlags() return values. */
 #define BRUSH_USES_VELOCITY (1 << 0)
 /* Brush mesh ray-cast status. */
@@ -120,6 +121,17 @@ static int neighStraightY[8] = {0, 1, 0, -1, 1, 1, -1, -1};
 /* drying limits */
 #define MIN_WETNESS 0.001f
 #define MAX_WETNESS 5.0f
+
+/** Stored in ModifierData.runtime. */
+struct DynamicPaintRuntime {
+  Mesh *canvas_mesh = nullptr;
+  Mesh *brush_mesh = nullptr;
+  /**
+   * Multiple threads may access `brush_mesh` so locking is needed
+   * to ensure access is thread safe, see: #143958.
+   */
+  Mutex brush_mutex;
+};
 
 /* dissolve inline function */
 BLI_INLINE void value_dissolve(float *r_value,
@@ -265,18 +277,21 @@ void dynamicPaint_Modifier_free_runtime(DynamicPaintRuntime *runtime_data)
   if (runtime_data->canvas_mesh) {
     BKE_id_free(nullptr, runtime_data->canvas_mesh);
   }
-  if (runtime_data->brush_mesh) {
-    BKE_id_free(nullptr, runtime_data->brush_mesh);
+  {
+    std::lock_guard lock(runtime_data->brush_mutex);
+    if (runtime_data->brush_mesh) {
+      BKE_id_free(nullptr, runtime_data->brush_mesh);
+    }
   }
-  MEM_freeN(runtime_data);
+  MEM_delete(runtime_data);
 }
 
 static DynamicPaintRuntime *dynamicPaint_Modifier_runtime_ensure(DynamicPaintModifierData *pmd)
 {
   if (pmd->modifier.runtime == nullptr) {
-    pmd->modifier.runtime = MEM_callocN<DynamicPaintRuntime>("dynamic paint runtime");
+    pmd->modifier.runtime = MEM_new<DynamicPaintRuntime>("dynamic paint runtime");
   }
-  return (DynamicPaintRuntime *)pmd->modifier.runtime;
+  return static_cast<DynamicPaintRuntime *>(pmd->modifier.runtime);
 }
 
 static Mesh *dynamicPaint_canvas_mesh_get(DynamicPaintCanvasSettings *canvas)
@@ -284,17 +299,9 @@ static Mesh *dynamicPaint_canvas_mesh_get(DynamicPaintCanvasSettings *canvas)
   if (canvas->pmd->modifier.runtime == nullptr) {
     return nullptr;
   }
-  DynamicPaintRuntime *runtime_data = (DynamicPaintRuntime *)canvas->pmd->modifier.runtime;
+  DynamicPaintRuntime *runtime_data = static_cast<DynamicPaintRuntime *>(
+      canvas->pmd->modifier.runtime);
   return runtime_data->canvas_mesh;
-}
-
-static Mesh *dynamicPaint_brush_mesh_get(DynamicPaintBrushSettings *brush)
-{
-  if (brush->pmd->modifier.runtime == nullptr) {
-    return nullptr;
-  }
-  DynamicPaintRuntime *runtime_data = (DynamicPaintRuntime *)brush->pmd->modifier.runtime;
-  return runtime_data->brush_mesh;
 }
 
 /***************************** General Utils ******************************/
@@ -329,6 +336,7 @@ DynamicPaintSurface *get_activeSurface(DynamicPaintCanvasSettings *canvas)
 
 bool dynamicPaint_outputLayerExists(DynamicPaintSurface *surface, Object *ob, int output)
 {
+  using namespace blender::bke;
   const char *name;
 
   if (output == 0) {
@@ -343,9 +351,10 @@ bool dynamicPaint_outputLayerExists(DynamicPaintSurface *surface, Object *ob, in
 
   if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
     if (surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
-      Mesh *mesh = static_cast<Mesh *>(ob->data);
-      return (CustomData_get_named_layer_index(&mesh->corner_data, CD_PROP_BYTE_COLOR, name) !=
-              -1);
+      Mesh *mesh = id_cast<Mesh *>(ob->data);
+      const AttributeAccessor attributes = mesh->attributes();
+      const std::optional<AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
+      return meta_data == AttributeMetaData{AttrDomain::Corner, AttrType::ColorByte};
     }
     if (surface->type == MOD_DPAINT_SURFACE_T_WEIGHT) {
       return (BKE_object_defgroup_name_index(ob, name) != -1);
@@ -355,8 +364,7 @@ bool dynamicPaint_outputLayerExists(DynamicPaintSurface *surface, Object *ob, in
   return false;
 }
 
-static bool surface_duplicateOutputExists(DynamicPaintSurface *t_surface,
-                                          const blender::StringRefNull name)
+static bool surface_duplicateOutputExists(DynamicPaintSurface *t_surface, const StringRefNull name)
 {
   DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(
       t_surface->canvas->surfaces.first);
@@ -377,7 +385,7 @@ static bool surface_duplicateOutputExists(DynamicPaintSurface *t_surface,
 
 static void surface_setUniqueOutputName(DynamicPaintSurface *surface, char *basename, int output)
 {
-  auto is_unique_fn = [&](const blender::StringRefNull check_name) {
+  auto is_unique_fn = [&](const StringRefNull check_name) {
     return surface_duplicateOutputExists(surface, check_name);
   };
 
@@ -392,8 +400,7 @@ static void surface_setUniqueOutputName(DynamicPaintSurface *surface, char *base
   }
 }
 
-static bool surface_duplicateNameExists(DynamicPaintSurface *t_surface,
-                                        const blender::StringRefNull name)
+static bool surface_duplicateNameExists(DynamicPaintSurface *t_surface, const StringRefNull name)
 {
   DynamicPaintSurface *surface = static_cast<DynamicPaintSurface *>(
       t_surface->canvas->surfaces.first);
@@ -411,7 +418,7 @@ void dynamicPaintSurface_setUniqueName(DynamicPaintSurface *surface, const char 
   char name[64];
   STRNCPY_UTF8(name, basename); /* in case basename is surface->name use a copy */
   BLI_uniquename_cb(
-      [&](const blender::StringRefNull check_name) {
+      [&](const StringRefNull check_name) {
         return surface_duplicateNameExists(surface, check_name);
       },
       name,
@@ -549,7 +556,7 @@ static int surface_getBrushFlags(DynamicPaintSurface *surface, Depsgraph *depsgr
 
     ModifierData *md = BKE_modifiers_findby_type(brushObj, eModifierType_DynamicPaint);
     if (md && md->mode & (eModifierMode_Realtime | eModifierMode_Render)) {
-      DynamicPaintModifierData *pmd2 = (DynamicPaintModifierData *)md;
+      DynamicPaintModifierData *pmd2 = reinterpret_cast<DynamicPaintModifierData *>(md);
 
       if (pmd2->brush) {
         DynamicPaintBrushSettings *brush = pmd2->brush;
@@ -965,7 +972,7 @@ void dynamicPaint_freeSurfaceData(DynamicPaintSurface *surface)
   if (data->format_data) {
     /* format specific free */
     if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) {
-      ImgSeqFormatData *format_data = (ImgSeqFormatData *)data->format_data;
+      ImgSeqFormatData *format_data = data->format_data;
       if (format_data->uv_p) {
         MEM_freeN(format_data->uv_p);
       }
@@ -1035,7 +1042,7 @@ void dynamicPaint_Modifier_free(DynamicPaintModifierData *pmd)
 DynamicPaintSurface *dynamicPaint_createNewSurface(DynamicPaintCanvasSettings *canvas,
                                                    Scene *scene)
 {
-  DynamicPaintSurface *surface = MEM_callocN<DynamicPaintSurface>(__func__);
+  DynamicPaintSurface *surface = MEM_new_for_free<DynamicPaintSurface>(__func__);
   if (!surface) {
     return nullptr;
   }
@@ -1118,7 +1125,7 @@ bool dynamicPaint_createType(DynamicPaintModifierData *pmd, int type, Scene *sce
         dynamicPaint_freeCanvas(pmd);
       }
 
-      canvas = pmd->canvas = MEM_callocN<DynamicPaintCanvasSettings>(__func__);
+      canvas = pmd->canvas = MEM_new_for_free<DynamicPaintCanvasSettings>(__func__);
       if (!canvas) {
         return false;
       }
@@ -1135,7 +1142,7 @@ bool dynamicPaint_createType(DynamicPaintModifierData *pmd, int type, Scene *sce
         dynamicPaint_freeBrush(pmd);
       }
 
-      brush = pmd->brush = MEM_callocN<DynamicPaintBrushSettings>(__func__);
+      brush = pmd->brush = MEM_new_for_free<DynamicPaintBrushSettings>(__func__);
       if (!brush) {
         return false;
       }
@@ -1312,7 +1319,7 @@ void dynamicPaint_Modifier_copy(const DynamicPaintModifierData *pmd,
     t_brush->paint_distance = brush->paint_distance;
 
     /* NOTE: This is dangerous, as it will generate invalid data in case we are copying between
-     * different objects. Extra external code has to be called then to ensure proper remapping of
+     * different objects. Extra external code has to be called to ensure proper remapping of
      * that pointer. See e.g. `BKE_object_copy_particlesystems` or `BKE_object_copy_modifier`. */
     t_brush->psys = brush->psys;
 
@@ -1428,9 +1435,9 @@ static void dynamicPaint_initAdjacencyData(DynamicPaintSurface *surface, const b
     /* For vertex format, count every vertex that is connected by an edge */
     int numOfEdges = mesh->edges_num;
     int numOfPolys = mesh->faces_num;
-    const blender::Span<blender::int2> edges = mesh->edges();
-    const blender::OffsetIndices faces = mesh->faces();
-    const blender::Span<int> corner_verts = mesh->corner_verts();
+    const Span<int2> edges = mesh->edges();
+    const OffsetIndices faces = mesh->faces();
+    const Span<int> corner_verts = mesh->corner_verts();
 
     /* count number of edges per vertex */
     for (int i = 0; i < numOfEdges; i++) {
@@ -1493,10 +1500,10 @@ static void dynamicPaint_initAdjacencyData(DynamicPaintSurface *surface, const b
 struct DynamicPaintSetInitColorData {
   const DynamicPaintSurface *surface;
 
-  blender::Span<int> corner_verts;
-  const float (*mloopuv)[2];
-  blender::Span<int3> corner_tris;
-  const MLoopCol *mloopcol;
+  Span<int> corner_verts;
+  Span<float2> uv_map;
+  Span<int3> corner_tris;
+  Span<ColorGeometry4b> mloopcol;
   ImagePool *pool;
 };
 
@@ -1507,11 +1514,11 @@ static void dynamic_paint_set_init_color_tex_to_vcol_cb(void *__restrict userdat
   const DynamicPaintSetInitColorData *data = static_cast<DynamicPaintSetInitColorData *>(userdata);
 
   const PaintSurfaceData *sData = data->surface->data;
-  PaintPoint *pPoint = (PaintPoint *)sData->type_data;
+  PaintPoint *pPoint = static_cast<PaintPoint *>(sData->type_data);
 
-  const blender::Span<int> corner_verts = data->corner_verts;
-  const blender::Span<int3> corner_tris = data->corner_tris;
-  const float(*mloopuv)[2] = data->mloopuv;
+  const Span<int> corner_verts = data->corner_verts;
+  const Span<int3> corner_tris = data->corner_tris;
+  const Span<float2> uv_map = data->uv_map;
   ImagePool *pool = data->pool;
   Tex *tex = data->surface->init_texture;
 
@@ -1522,8 +1529,8 @@ static void dynamic_paint_set_init_color_tex_to_vcol_cb(void *__restrict userdat
     const int vert = corner_verts[corner_tris[i][j]];
 
     /* remap to [-1.0, 1.0] */
-    uv[0] = mloopuv[corner_tris[i][j]][0] * 2.0f - 1.0f;
-    uv[1] = mloopuv[corner_tris[i][j]][1] * 2.0f - 1.0f;
+    uv[0] = uv_map[corner_tris[i][j]][0] * 2.0f - 1.0f;
+    uv[1] = uv_map[corner_tris[i][j]][1] * 2.0f - 1.0f;
 
     multitex_ext_safe(tex, uv, &texres, pool, true, false);
 
@@ -1541,12 +1548,12 @@ static void dynamic_paint_set_init_color_tex_to_imseq_cb(void *__restrict userda
   const DynamicPaintSetInitColorData *data = static_cast<DynamicPaintSetInitColorData *>(userdata);
 
   const PaintSurfaceData *sData = data->surface->data;
-  PaintPoint *pPoint = (PaintPoint *)sData->type_data;
+  PaintPoint *pPoint = static_cast<PaintPoint *>(sData->type_data);
 
-  const blender::Span<int3> corner_tris = data->corner_tris;
-  const float(*mloopuv)[2] = data->mloopuv;
+  const Span<int3> corner_tris = data->corner_tris;
+  const Span<float2> uv_map = data->uv_map;
   Tex *tex = data->surface->init_texture;
-  ImgSeqFormatData *f_data = (ImgSeqFormatData *)sData->format_data;
+  ImgSeqFormatData *f_data = sData->format_data;
   const int samples = (data->surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
 
   float uv[9] = {0.0f};
@@ -1556,7 +1563,7 @@ static void dynamic_paint_set_init_color_tex_to_imseq_cb(void *__restrict userda
 
   /* collect all uvs */
   for (int j = 3; j--;) {
-    copy_v2_v2(&uv[j * 3], mloopuv[corner_tris[f_data->uv_p[i].tri_index][j]]);
+    copy_v2_v2(&uv[j * 3], uv_map[corner_tris[f_data->uv_p[i].tri_index][j]]);
   }
 
   /* interpolate final uv pos */
@@ -1578,11 +1585,11 @@ static void dynamic_paint_set_init_color_vcol_to_imseq_cb(
   const DynamicPaintSetInitColorData *data = static_cast<DynamicPaintSetInitColorData *>(userdata);
 
   const PaintSurfaceData *sData = data->surface->data;
-  PaintPoint *pPoint = (PaintPoint *)sData->type_data;
+  PaintPoint *pPoint = static_cast<PaintPoint *>(sData->type_data);
 
-  const blender::Span<int3> corner_tris = data->corner_tris;
-  const MLoopCol *mloopcol = data->mloopcol;
-  ImgSeqFormatData *f_data = (ImgSeqFormatData *)sData->format_data;
+  const Span<int3> corner_tris = data->corner_tris;
+  const Span<ColorGeometry4b> mloopcol = data->mloopcol;
+  ImgSeqFormatData *f_data = sData->format_data;
   const int samples = (data->surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
 
   const int tri_idx = f_data->uv_p[i].tri_index;
@@ -1591,7 +1598,8 @@ static void dynamic_paint_set_init_color_vcol_to_imseq_cb(
 
   /* collect color values */
   for (int j = 3; j--;) {
-    rgba_uchar_to_float(colors[j], (const uchar *)&mloopcol[corner_tris[tri_idx][j]].r);
+    rgba_uchar_to_float(colors[j],
+                        static_cast<const uchar *>(&mloopcol[corner_tris[tri_idx][j]].r));
   }
 
   /* interpolate final color */
@@ -1603,8 +1611,9 @@ static void dynamic_paint_set_init_color_vcol_to_imseq_cb(
 static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSurface *surface)
 {
   PaintSurfaceData *sData = surface->data;
-  PaintPoint *pPoint = (PaintPoint *)sData->type_data;
+  PaintPoint *pPoint = static_cast<PaintPoint *>(sData->type_data);
   Mesh *mesh = dynamicPaint_canvas_mesh_get(surface->canvas);
+  const bke::AttributeAccessor attributes = mesh->attributes();
 
   if (surface->type != MOD_DPAINT_SURFACE_T_PAINT) {
     return;
@@ -1625,22 +1634,20 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
   else if (surface->init_color_type == MOD_DPAINT_INITIAL_TEXTURE) {
     Tex *tex = surface->init_texture;
 
-    const blender::Span<int> corner_verts = mesh->corner_verts();
-    const blender::Span<int3> corner_tris = mesh->corner_tris();
-
-    char uvname[MAX_CUSTOMDATA_LAYER_NAME];
+    const Span<int> corner_verts = mesh->corner_verts();
+    const Span<int3> corner_tris = mesh->corner_tris();
 
     if (!tex) {
       return;
     }
 
     /* get uv map */
-    CustomData_validate_layer_name(
-        &mesh->corner_data, CD_PROP_FLOAT2, surface->init_layername, uvname);
-    const float(*mloopuv)[2] = static_cast<const float(*)[2]>(
-        CustomData_get_layer_named(&mesh->corner_data, CD_PROP_FLOAT2, uvname));
+    const StringRef uvname = mesh->uv_map_names().contains(surface->init_layername) ?
+                                 surface->init_layername :
+                                 mesh->active_uv_map_name();
+    const VArraySpan uv_map = *attributes.lookup<float2>(uvname, bke::AttrDomain::Corner);
 
-    if (!mloopuv) {
+    if (uv_map.is_empty()) {
       return;
     }
 
@@ -1653,7 +1660,7 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
       data.surface = surface;
       data.corner_verts = corner_verts;
       data.corner_tris = corner_tris;
-      data.mloopuv = mloopuv;
+      data.uv_map = uv_map;
       data.pool = pool;
 
       TaskParallelSettings settings;
@@ -1667,7 +1674,7 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
       DynamicPaintSetInitColorData data{};
       data.surface = surface;
       data.corner_tris = corner_tris;
-      data.mloopuv = mloopuv;
+      data.uv_map = uv_map;
 
       TaskParallelSettings settings;
       BLI_parallel_range_settings_defaults(&settings);
@@ -1681,22 +1688,22 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
 
     /* For vertex surface, just copy colors from #MLoopCol. */
     if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
-      const blender::Span<int> corner_verts = mesh->corner_verts();
-      const MLoopCol *col = static_cast<const MLoopCol *>(CustomData_get_layer_named(
-          &mesh->corner_data, CD_PROP_BYTE_COLOR, surface->init_layername));
-      if (!col) {
+      const Span<int> corner_verts = mesh->corner_verts();
+      const VArraySpan col = *attributes.lookup<ColorGeometry4b>(surface->init_layername,
+                                                                 bke::AttrDomain::Corner);
+      if (col.is_empty()) {
         return;
       }
 
       for (const int i : corner_verts.index_range()) {
-        rgba_uchar_to_float(pPoint[corner_verts[i]].color, (const uchar *)&col[i].r);
+        rgba_uchar_to_float(pPoint[corner_verts[i]].color, static_cast<const uchar *>(&col[i].r));
       }
     }
     else if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) {
-      const blender::Span<int3> corner_tris = mesh->corner_tris();
-      const MLoopCol *col = static_cast<const MLoopCol *>(CustomData_get_layer_named(
-          &mesh->corner_data, CD_PROP_BYTE_COLOR, surface->init_layername));
-      if (!col) {
+      const Span<int3> corner_tris = mesh->corner_tris();
+      const VArraySpan col = *attributes.lookup<ColorGeometry4b>(surface->init_layername,
+                                                                 bke::AttrDomain::Corner);
+      if (col.is_empty()) {
         return;
       }
 
@@ -1794,14 +1801,14 @@ struct DynamicPaintModifierApplyData {
   const DynamicPaintSurface *surface;
   Object *ob;
 
-  blender::MutableSpan<blender::float3> vert_positions;
-  blender::Span<blender::float3> vert_normals;
-  blender::OffsetIndices<int> faces;
-  blender::Span<int> corner_verts;
+  MutableSpan<float3> vert_positions;
+  Span<float3> vert_normals;
+  OffsetIndices<int> faces;
+  Span<int> corner_verts;
 
   float (*fcolor)[4];
-  MLoopCol *mloopcol;
-  MLoopCol *mloopcol_wet;
+  MutableSpan<ColorGeometry4b> mloopcol;
+  MutableSpan<ColorGeometry4b> mloopcol_wet;
 };
 
 static void dynamic_paint_apply_surface_displace_cb(void *__restrict userdata,
@@ -1813,7 +1820,7 @@ static void dynamic_paint_apply_surface_displace_cb(void *__restrict userdata,
 
   const DynamicPaintSurface *surface = data->surface;
 
-  const float *value = (float *)surface->data->type_data;
+  const float *value = static_cast<float *>(surface->data->type_data);
   const float val = value[i] * surface->disp_factor;
 
   madd_v3_v3fl(data->vert_positions[i], data->vert_normals[i], -val);
@@ -1850,8 +1857,8 @@ static void dynamic_paint_apply_surface_vpaint_blend_cb(void *__restrict userdat
   const DynamicPaintModifierApplyData *data = static_cast<DynamicPaintModifierApplyData *>(
       userdata);
 
-  PaintPoint *pPoint = (PaintPoint *)data->surface->data->type_data;
-  float(*fcolor)[4] = data->fcolor;
+  PaintPoint *pPoint = static_cast<PaintPoint *>(data->surface->data->type_data);
+  float (*fcolor)[4] = data->fcolor;
 
   /* blend dry and wet layer */
   blendColors(
@@ -1865,25 +1872,25 @@ static void dynamic_paint_apply_surface_vpaint_cb(void *__restrict userdata,
   const DynamicPaintModifierApplyData *data = static_cast<DynamicPaintModifierApplyData *>(
       userdata);
 
-  const blender::Span<int> corner_verts = data->corner_verts;
+  const Span<int> corner_verts = data->corner_verts;
 
   const DynamicPaintSurface *surface = data->surface;
-  PaintPoint *pPoint = (PaintPoint *)surface->data->type_data;
-  float(*fcolor)[4] = data->fcolor;
+  PaintPoint *pPoint = static_cast<PaintPoint *>(surface->data->type_data);
+  float (*fcolor)[4] = data->fcolor;
 
-  MLoopCol *mloopcol = data->mloopcol;
-  MLoopCol *mloopcol_wet = data->mloopcol_wet;
+  MutableSpan<ColorGeometry4b> mloopcol = data->mloopcol;
+  MutableSpan<ColorGeometry4b> mloopcol_wet = data->mloopcol_wet;
 
   for (const int l_index : data->faces[p_index]) {
     const int v_index = corner_verts[l_index];
 
     /* save layer data to output layer */
     /* apply color */
-    if (mloopcol) {
-      rgba_float_to_uchar((uchar *)&mloopcol[l_index].r, fcolor[v_index]);
+    if (!mloopcol.is_empty()) {
+      rgba_float_to_uchar(mloopcol[l_index], fcolor[v_index]);
     }
     /* apply wetness */
-    if (mloopcol_wet) {
+    if (!mloopcol_wet.is_empty()) {
       const char c = unit_float_to_uchar_clamp(pPoint[v_index].wetness);
       mloopcol_wet[l_index].r = c;
       mloopcol_wet[l_index].g = c;
@@ -1900,7 +1907,7 @@ static void dynamic_paint_apply_surface_wave_cb(void *__restrict userdata,
   const DynamicPaintModifierApplyData *data = static_cast<DynamicPaintModifierApplyData *>(
       userdata);
 
-  PaintWavePoint *wPoint = (PaintWavePoint *)data->surface->data->type_data;
+  PaintWavePoint *wPoint = static_cast<PaintWavePoint *>(data->surface->data->type_data);
 
   madd_v3_v3fl(data->vert_positions[i], data->vert_normals[i], wPoint[i].height);
 }
@@ -1910,6 +1917,7 @@ static void dynamic_paint_apply_surface_wave_cb(void *__restrict userdata,
  */
 static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *ob, Mesh *mesh)
 {
+  using namespace blender::bke;
   Mesh *result = BKE_mesh_copy_for_eval(*mesh);
 
   if (pmd->canvas && !(pmd->canvas->flags & MOD_DPAINT_BAKING) &&
@@ -1934,12 +1942,12 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
 
           /* vertex color paint */
           if (surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
-            const blender::OffsetIndices faces = result->faces();
-            const blender::Span<int> corner_verts = result->corner_verts();
+            const OffsetIndices faces = result->faces();
+            const Span<int> corner_verts = result->corner_verts();
 
             /* paint is stored on dry and wet layers, so mix final color first */
-            float(*fcolor)[4] = MEM_calloc_arrayN<float[4]>(sData->total_points,
-                                                            "Temp paint color");
+            float (*fcolor)[4] = MEM_calloc_arrayN<float[4]>(sData->total_points,
+                                                             "Temp paint color");
 
             DynamicPaintModifierApplyData data{};
             data.surface = surface;
@@ -1956,42 +1964,39 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
                                       &settings);
             }
 
+            MutableAttributeAccessor attributes = result->attributes_for_write();
+
             /* paint layer */
-            MLoopCol *mloopcol = static_cast<MLoopCol *>(
-                CustomData_get_layer_named_for_write(&result->corner_data,
-                                                     CD_PROP_BYTE_COLOR,
-                                                     surface->output_name,
-                                                     result->corners_num));
+            SpanAttributeWriter<ColorGeometry4b> mloopcol;
+            if (attributes.lookup_meta_data(surface->output_name) ==
+                AttributeMetaData{AttrDomain::Corner, AttrType::ColorByte})
+            {
+              mloopcol = attributes.lookup_for_write_span<ColorGeometry4b>(surface->output_name);
+            }
             /* if output layer is lost from a constructive modifier, re-add it */
             if (!mloopcol && dynamicPaint_outputLayerExists(surface, ob, 0)) {
-              mloopcol = static_cast<MLoopCol *>(CustomData_add_layer_named(&result->corner_data,
-                                                                            CD_PROP_BYTE_COLOR,
-                                                                            CD_SET_DEFAULT,
-                                                                            corner_verts.size(),
-                                                                            surface->output_name));
+              mloopcol = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
+                  surface->output_name, AttrDomain::Corner);
             }
 
-            /* wet layer */
-            MLoopCol *mloopcol_wet = static_cast<MLoopCol *>(
-                CustomData_get_layer_named_for_write(&result->corner_data,
-                                                     CD_PROP_BYTE_COLOR,
-                                                     surface->output_name2,
-                                                     result->corners_num));
+            SpanAttributeWriter<ColorGeometry4b> mloopcol_wet;
+            if (attributes.lookup_meta_data(surface->output_name2) ==
+                AttributeMetaData{AttrDomain::Corner, AttrType::ColorByte})
+            {
+              mloopcol_wet = attributes.lookup_for_write_span<ColorGeometry4b>(
+                  surface->output_name2);
+            }
             /* if output layer is lost from a constructive modifier, re-add it */
             if (!mloopcol_wet && dynamicPaint_outputLayerExists(surface, ob, 1)) {
-              mloopcol_wet = static_cast<MLoopCol *>(
-                  CustomData_add_layer_named(&result->corner_data,
-                                             CD_PROP_BYTE_COLOR,
-                                             CD_SET_DEFAULT,
-                                             corner_verts.size(),
-                                             surface->output_name2));
+              mloopcol_wet = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
+                  surface->output_name2, AttrDomain::Corner);
             }
 
             data.ob = ob;
             data.corner_verts = corner_verts;
             data.faces = faces;
-            data.mloopcol = mloopcol;
-            data.mloopcol_wet = mloopcol_wet;
+            data.mloopcol = mloopcol.span;
+            data.mloopcol_wet = mloopcol_wet.span;
 
             {
               TaskParallelSettings settings;
@@ -2001,23 +2006,21 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
                   0, faces.size(), &data, dynamic_paint_apply_surface_vpaint_cb, &settings);
             }
 
+            mloopcol.finish();
+            mloopcol_wet.finish();
+
             MEM_freeN(fcolor);
           }
           /* vertex group paint */
           else if (surface->type == MOD_DPAINT_SURFACE_T_WEIGHT) {
             int defgrp_index = BKE_object_defgroup_name_index(ob, surface->output_name);
-            MDeformVert *dvert = static_cast<MDeformVert *>(CustomData_get_layer_for_write(
-                &result->vert_data, CD_MDEFORMVERT, result->verts_num));
-            float *weight = (float *)sData->type_data;
+            float *weight = static_cast<float *>(sData->type_data);
 
             /* apply weights into a vertex group, if doesn't exists add a new layer */
-            if (defgrp_index != -1 && !dvert && (surface->output_name[0] != '\0')) {
-              dvert = static_cast<MDeformVert *>(CustomData_add_layer(
-                  &result->vert_data, CD_MDEFORMVERT, CD_SET_DEFAULT, sData->total_points));
-            }
-            if (defgrp_index != -1 && dvert) {
+            MutableSpan<MDeformVert> dverts = result->deform_verts_for_write();
+            if (defgrp_index != -1) {
               for (int i = 0; i < sData->total_points; i++) {
-                MDeformVert *dv = &dvert[i];
+                MDeformVert *dv = &dverts[i];
                 MDeformWeight *def_weight = BKE_defvert_find_index(dv, defgrp_index);
 
                 /* skip if weight value is 0 and no existing weight is found */
@@ -2060,6 +2063,8 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
   /* make a copy of mesh to use as brush data */
   else if (pmd->brush && pmd->type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
     DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_ensure(pmd);
+    BLI_assert(runtime_data != nullptr);
+    std::lock_guard lock(runtime_data->brush_mutex);
     if (runtime_data->brush_mesh != nullptr) {
       BKE_id_free(nullptr, runtime_data->brush_mesh);
     }
@@ -2194,7 +2199,16 @@ Mesh *dynamicPaint_Modifier_do(
 /* Create a surface for uv image sequence format. */
 #define JITTER_SAMPLES \
   { \
-    0.0f, 0.0f, -0.2f, -0.4f, 0.2f, 0.4f, 0.4f, -0.2f, -0.4f, 0.3f, \
+      0.0f, \
+      0.0f, \
+      -0.2f, \
+      -0.4f, \
+      0.2f, \
+      0.4f, \
+      0.4f, \
+      -0.2f, \
+      -0.4f, \
+      0.3f, \
   }
 
 struct DynamicPaintCreateUVSurfaceData {
@@ -2203,9 +2217,9 @@ struct DynamicPaintCreateUVSurfaceData {
   PaintUVPoint *tempPoints;
   Vec3f *tempWeights;
 
-  blender::Span<int3> corner_tris;
-  const float (*mloopuv)[2];
-  blender::Span<int> corner_verts;
+  Span<int3> corner_tris;
+  Span<float2> uv_map;
+  Span<int> corner_verts;
 
   const Bounds2D *faceBB;
   uint32_t *active_points;
@@ -2222,9 +2236,9 @@ static void dynamic_paint_create_uv_surface_direct_cb(void *__restrict userdata,
   PaintUVPoint *tempPoints = data->tempPoints;
   Vec3f *tempWeights = data->tempWeights;
 
-  const blender::Span<int3> corner_tris = data->corner_tris;
-  const float(*mloopuv)[2] = data->mloopuv;
-  const blender::Span<int> corner_verts = data->corner_verts;
+  const Span<int3> corner_tris = data->corner_tris;
+  const Span<float2> uv_map = data->uv_map;
+  const Span<int> corner_verts = data->corner_verts;
 
   const Bounds2D *faceBB = data->faceBB;
 
@@ -2276,9 +2290,9 @@ static void dynamic_paint_create_uv_surface_direct_cb(void *__restrict userdata,
           continue;
         }
 
-        const float *uv1 = mloopuv[corner_tris[i][0]];
-        const float *uv2 = mloopuv[corner_tris[i][1]];
-        const float *uv3 = mloopuv[corner_tris[i][2]];
+        const float *uv1 = uv_map[corner_tris[i][0]];
+        const float *uv2 = uv_map[corner_tris[i][1]];
+        const float *uv3 = uv_map[corner_tris[i][2]];
 
         /* If point is inside the face */
         if (isect_point_tri_v2(point[sample], uv1, uv2, uv3) != 0) {
@@ -2319,9 +2333,9 @@ static void dynamic_paint_create_uv_surface_neighbor_cb(void *__restrict userdat
   PaintUVPoint *tempPoints = data->tempPoints;
   Vec3f *tempWeights = data->tempWeights;
 
-  const blender::Span<int3> corner_tris = data->corner_tris;
-  const float(*mloopuv)[2] = data->mloopuv;
-  const blender::Span<int> corner_verts = data->corner_verts;
+  const Span<int3> corner_tris = data->corner_tris;
+  const Span<float2> uv_map = data->uv_map;
+  const Span<int> corner_verts = data->corner_verts;
 
   uint32_t *active_points = data->active_points;
 
@@ -2361,9 +2375,9 @@ static void dynamic_paint_create_uv_surface_neighbor_cb(void *__restrict userdat
             if (tempPoints[ind].neighbor_pixel == -1 && tempPoints[ind].tri_index != -1) {
               float uv[2];
               const int i = tempPoints[ind].tri_index;
-              const float *uv1 = mloopuv[corner_tris[i][0]];
-              const float *uv2 = mloopuv[corner_tris[i][1]];
-              const float *uv3 = mloopuv[corner_tris[i][2]];
+              const float *uv1 = uv_map[corner_tris[i][0]];
+              const float *uv2 = uv_map[corner_tris[i][1]];
+              const float *uv3 = uv_map[corner_tris[i][2]];
 
               /* tri index */
               /* There is a low possibility of actually having a neighbor point which tri is
@@ -2406,8 +2420,8 @@ static void dynamic_paint_create_uv_surface_neighbor_cb(void *__restrict userdat
 
 #undef JITTER_SAMPLES
 
-static float dist_squared_to_corner_tris_uv_edges(const blender::Span<int3> corner_tris,
-                                                  const float (*mloopuv)[2],
+static float dist_squared_to_corner_tris_uv_edges(const Span<int3> corner_tris,
+                                                  const Span<float2> uv_map,
                                                   int tri_index,
                                                   const float point[2])
 {
@@ -2418,8 +2432,8 @@ static float dist_squared_to_corner_tris_uv_edges(const blender::Span<int3> corn
   for (int i = 0; i < 3; i++) {
     const float dist_squared = dist_squared_to_line_segment_v2(
         point,
-        mloopuv[corner_tris[tri_index][(i + 0)]],
-        mloopuv[corner_tris[tri_index][(i + 1) % 3]]);
+        uv_map[corner_tris[tri_index][(i + 0)]],
+        uv_map[corner_tris[tri_index][(i + 1) % 3]]);
 
     min_distance = std::min(dist_squared, min_distance);
   }
@@ -2527,9 +2541,9 @@ static void dynamic_paint_find_island_border(const DynamicPaintCreateUVSurfaceDa
                                              int in_edge,
                                              int depth)
 {
-  const blender::Span<int> corner_verts = data->corner_verts;
-  const blender::Span<int3> corner_tris = data->corner_tris;
-  const float(*mloopuv)[2] = data->mloopuv;
+  const Span<int> corner_verts = data->corner_verts;
+  const Span<int3> corner_tris = data->corner_tris;
+  const Span<float2> uv_map = data->uv_map;
 
   const int3 loop_idx = corner_tris[tri_index];
 
@@ -2542,9 +2556,9 @@ static void dynamic_paint_find_island_border(const DynamicPaintCreateUVSurfaceDa
 
     float uv0[2], uv1[2], uv2[2];
 
-    copy_v2_v2(uv0, mloopuv[loop_idx[(edge_idx + 0)]]);
-    copy_v2_v2(uv1, mloopuv[loop_idx[(edge_idx + 1) % 3]]);
-    copy_v2_v2(uv2, mloopuv[loop_idx[(edge_idx + 2) % 3]]);
+    copy_v2_v2(uv0, uv_map[loop_idx[(edge_idx + 0)]]);
+    copy_v2_v2(uv1, uv_map[loop_idx[(edge_idx + 1) % 3]]);
+    copy_v2_v2(uv2, uv_map[loop_idx[(edge_idx + 2) % 3]]);
 
     /* Verify the target point is on the opposite side of the edge from the third triangle
      * vertex, to ensure that we always move closer to the goal point. */
@@ -2595,13 +2609,13 @@ static void dynamic_paint_find_island_border(const DynamicPaintCreateUVSurfaceDa
         /* Allow for swapped vertex order */
         if (overt0 == vert0 && overt1 == vert1) {
           found_other = true;
-          copy_v2_v2(ouv0, mloopuv[other_tri[(j + 0)]]);
-          copy_v2_v2(ouv1, mloopuv[other_tri[(j + 1) % 3]]);
+          copy_v2_v2(ouv0, uv_map[other_tri[(j + 0)]]);
+          copy_v2_v2(ouv1, uv_map[other_tri[(j + 1) % 3]]);
         }
         else if (overt0 == vert1 && overt1 == vert0) {
           found_other = true;
-          copy_v2_v2(ouv1, mloopuv[other_tri[(j + 0)]]);
-          copy_v2_v2(ouv0, mloopuv[other_tri[(j + 1) % 3]]);
+          copy_v2_v2(ouv1, uv_map[other_tri[(j + 0)]]);
+          copy_v2_v2(ouv0, uv_map[other_tri[(j + 1) % 3]]);
         }
 
         if (found_other) {
@@ -2688,7 +2702,7 @@ static void dynamic_paint_find_island_border(const DynamicPaintCreateUVSurfaceDa
       const float final_pt[2] = {((final_index % w) + 0.5f) / w, ((final_index / w) + 0.5f) / h};
       const float threshold = square_f(0.7f) / (w * h);
 
-      if (dist_squared_to_corner_tris_uv_edges(corner_tris, mloopuv, final_tri_index, final_pt) >
+      if (dist_squared_to_corner_tris_uv_edges(corner_tris, uv_map, final_tri_index, final_pt) >
           threshold)
       {
         continue;
@@ -2814,7 +2828,6 @@ int dynamicPaint_createUVSurface(Scene *scene,
 {
   /* Anti-alias jitter point relative coords. */
   const int aa_samples = (surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
-  char uvname[MAX_CUSTOMDATA_LAYER_NAME];
   uint32_t active_points = 0;
   bool error = false;
 
@@ -2824,7 +2837,7 @@ int dynamicPaint_createUVSurface(Scene *scene,
 
   PaintUVPoint *tempPoints = nullptr;
   Vec3f *tempWeights = nullptr;
-  const float(*mloopuv)[2] = nullptr;
+  VArraySpan<float2> uv_map;
 
   Bounds2D *faceBB = nullptr;
   int *final_index;
@@ -2839,19 +2852,21 @@ int dynamicPaint_createUVSurface(Scene *scene,
     return setError(canvas, N_("Cannot bake non-'image sequence' formats"));
   }
 
-  const blender::Span<int> corner_verts = mesh->corner_verts();
-  const blender::Span<int3> corner_tris = mesh->corner_tris();
+  const Span<int> corner_verts = mesh->corner_verts();
+  const Span<int3> corner_tris = mesh->corner_tris();
 
   /* get uv map */
-  if (CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
-    CustomData_validate_layer_name(
-        &mesh->corner_data, CD_PROP_FLOAT2, surface->uvlayer_name, uvname);
-    mloopuv = static_cast<const float(*)[2]>(
-        CustomData_get_layer_named(&mesh->corner_data, CD_PROP_FLOAT2, uvname));
+  const VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
+  if (!uv_map_names.is_empty()) {
+    const StringRef uvname = uv_map_names.contains(surface->uvlayer_name) ?
+                                 surface->uvlayer_name :
+                                 mesh->active_uv_map_name();
+    const bke::AttributeAccessor attributes = mesh->attributes();
+    uv_map = *attributes.lookup<float2>(uvname, bke::AttrDomain::Corner);
   }
 
   /* Check for validity */
-  if (!mloopuv) {
+  if (uv_map.is_empty()) {
     return setError(canvas, N_("No UV data on canvas"));
   }
   if (surface->image_resolution < 16 || surface->image_resolution > 8192) {
@@ -2864,8 +2879,8 @@ int dynamicPaint_createUVSurface(Scene *scene,
   /*
    * Start generating the surface
    */
-  CLOG_INFO(
-      &LOG, 1, "Preparing UV surface of %ix%i pixels and %i tris.", w, h, int(corner_tris.size()));
+  CLOG_DEBUG(
+      &LOG, "Preparing UV surface of %ix%i pixels and %i tris.", w, h, int(corner_tris.size()));
 
   /* Init data struct */
   if (surface->data) {
@@ -2908,11 +2923,11 @@ int dynamicPaint_createUVSurface(Scene *scene,
 
   if (!error) {
     for (const int i : corner_tris.index_range()) {
-      copy_v2_v2(faceBB[i].min, mloopuv[corner_tris[i][0]]);
-      copy_v2_v2(faceBB[i].max, mloopuv[corner_tris[i][0]]);
+      copy_v2_v2(faceBB[i].min, uv_map[corner_tris[i][0]]);
+      copy_v2_v2(faceBB[i].max, uv_map[corner_tris[i][0]]);
 
       for (int j = 1; j < 3; j++) {
-        minmax_v2v2_v2(faceBB[i].min, faceBB[i].max, mloopuv[corner_tris[i][j]]);
+        minmax_v2v2_v2(faceBB[i].min, faceBB[i].max, uv_map[corner_tris[i][j]]);
       }
     }
 
@@ -2925,7 +2940,7 @@ int dynamicPaint_createUVSurface(Scene *scene,
     data.tempPoints = tempPoints;
     data.tempWeights = tempWeights;
     data.corner_tris = corner_tris;
-    data.mloopuv = mloopuv;
+    data.uv_map = uv_map;
     data.corner_verts = corner_verts;
     data.faceBB = faceBB;
 
@@ -3162,7 +3177,7 @@ int dynamicPaint_createUVSurface(Scene *scene,
      * For debug, output pixel statuses to the color map
      * ----------------------------------------------------------------- */
     for (index = 0; index < sData->total_points; index++) {
-      ImgSeqFormatData *f_data = (ImgSeqFormatData *)sData->format_data;
+      ImgSeqFormatData *f_data = sData->format_data;
       PaintUVPoint *uvPoint = &((PaintUVPoint *)f_data->uv_p)[index];
       PaintPoint *pPoint = &((PaintPoint *)sData->type_data)[index];
       pPoint->alpha = 1.0f;
@@ -3205,11 +3220,11 @@ static void dynamic_paint_output_surface_image_paint_cb(void *__restrict userdat
       static_cast<const DynamicPaintOutputSurfaceImageData *>(userdata);
 
   const DynamicPaintSurface *surface = data->surface;
-  const PaintPoint *point = &((PaintPoint *)surface->data->type_data)[index];
+  const PaintPoint *point = &(static_cast<PaintPoint *>(surface->data->type_data))[index];
 
   ImBuf *ibuf = data->ibuf;
   /* image buffer position */
-  const int pos = ((ImgSeqFormatData *)(surface->data->format_data))->uv_p[index].pixel_index * 4;
+  const int pos = surface->data->format_data->uv_p[index].pixel_index * 4;
 
   /* blend wet and dry layers */
   blendColors(point->color,
@@ -3231,11 +3246,11 @@ static void dynamic_paint_output_surface_image_displace_cb(
       static_cast<const DynamicPaintOutputSurfaceImageData *>(userdata);
 
   const DynamicPaintSurface *surface = data->surface;
-  float depth = ((float *)surface->data->type_data)[index];
+  float depth = (static_cast<float *>(surface->data->type_data))[index];
 
   ImBuf *ibuf = data->ibuf;
   /* image buffer position */
-  const int pos = ((ImgSeqFormatData *)(surface->data->format_data))->uv_p[index].pixel_index * 4;
+  const int pos = surface->data->format_data->uv_p[index].pixel_index * 4;
 
   if (surface->depth_clamp) {
     depth /= surface->depth_clamp;
@@ -3259,12 +3274,12 @@ static void dynamic_paint_output_surface_image_wave_cb(void *__restrict userdata
       static_cast<const DynamicPaintOutputSurfaceImageData *>(userdata);
 
   const DynamicPaintSurface *surface = data->surface;
-  const PaintWavePoint *wPoint = &((PaintWavePoint *)surface->data->type_data)[index];
+  const PaintWavePoint *wPoint = &(static_cast<PaintWavePoint *>(surface->data->type_data))[index];
   float depth = wPoint->height;
 
   ImBuf *ibuf = data->ibuf;
   /* image buffer position */
-  const int pos = ((ImgSeqFormatData *)(surface->data->format_data))->uv_p[index].pixel_index * 4;
+  const int pos = surface->data->format_data->uv_p[index].pixel_index * 4;
 
   if (surface->depth_clamp) {
     depth /= surface->depth_clamp;
@@ -3285,11 +3300,11 @@ static void dynamic_paint_output_surface_image_wetmap_cb(void *__restrict userda
       static_cast<const DynamicPaintOutputSurfaceImageData *>(userdata);
 
   const DynamicPaintSurface *surface = data->surface;
-  const PaintPoint *point = &((PaintPoint *)surface->data->type_data)[index];
+  const PaintPoint *point = &(static_cast<PaintPoint *>(surface->data->type_data))[index];
 
   ImBuf *ibuf = data->ibuf;
   /* image buffer position */
-  const int pos = ((ImgSeqFormatData *)(surface->data->format_data))->uv_p[index].pixel_index * 4;
+  const int pos = surface->data->format_data->uv_p[index].pixel_index * 4;
 
   copy_v3_fl(&ibuf->float_buffer.data[pos], (point->wetness > 1.0f) ? 1.0f : point->wetness);
   ibuf->float_buffer.data[pos + 3] = 1.0f;
@@ -3442,8 +3457,8 @@ static void mesh_tris_spherecast_dp(void *userdata,
                                     const BVHTreeRay *ray,
                                     BVHTreeRayHit *hit)
 {
-  const blender::bke::BVHTreeFromMesh *data = (blender::bke::BVHTreeFromMesh *)userdata;
-  const blender::Span<blender::float3> positions = data->vert_positions;
+  const bke::BVHTreeFromMesh *data = static_cast<bke::BVHTreeFromMesh *>(userdata);
+  const Span<float3> positions = data->vert_positions;
   const int3 *corner_tris = data->corner_tris.data();
   const int *corner_verts = data->corner_verts.data();
 
@@ -3454,7 +3469,7 @@ static void mesh_tris_spherecast_dp(void *userdata,
   t1 = positions[corner_verts[corner_tris[index][1]]];
   t2 = positions[corner_verts[corner_tris[index][2]]];
 
-  dist = blender::bke::bvhtree_ray_tri_intersection(ray, hit->dist, t0, t1, t2);
+  dist = bke::bvhtree_ray_tri_intersection(ray, hit->dist, t0, t1, t2);
 
   if (dist >= 0 && dist < hit->dist) {
     hit->index = index;
@@ -3474,8 +3489,8 @@ static void mesh_tris_nearest_point_dp(void *userdata,
                                        const float co[3],
                                        BVHTreeNearest *nearest)
 {
-  const blender::bke::BVHTreeFromMesh *data = (blender::bke::BVHTreeFromMesh *)userdata;
-  const blender::Span<blender::float3> positions = data->vert_positions;
+  const bke::BVHTreeFromMesh *data = static_cast<bke::BVHTreeFromMesh *>(userdata);
+  const Span<float3> positions = data->vert_positions;
   const int3 *corner_tris = data->corner_tris.data();
   const int *corner_verts = data->corner_verts.data();
   float nearest_tmp[3], dist_sq;
@@ -3516,7 +3531,7 @@ static void dynamicPaint_mixPaintColors(const DynamicPaintSurface *surface,
                                         const float paintWetness,
                                         const float timescale)
 {
-  PaintPoint *pPoint = &((PaintPoint *)surface->data->type_data)[index];
+  PaintPoint *pPoint = &(static_cast<PaintPoint *>(surface->data->type_data))[index];
 
   /* Add paint */
   if (!(paintFlags & MOD_DPAINT_ERASE)) {
@@ -3676,7 +3691,7 @@ static void dynamicPaint_updatePointData(const DynamicPaintSurface *surface,
   }
   /* displace surface */
   else if (surface->type == MOD_DPAINT_SURFACE_T_DISPLACE) {
-    float *value = (float *)sData->type_data;
+    float *value = static_cast<float *>(sData->type_data);
 
     if (surface->flags & MOD_DPAINT_DISP_INCREMENTAL) {
       depth = value[index] + depth;
@@ -3696,7 +3711,7 @@ static void dynamicPaint_updatePointData(const DynamicPaintSurface *surface,
   }
   /* vertex weight group surface */
   else if (surface->type == MOD_DPAINT_SURFACE_T_WEIGHT) {
-    float *value = (float *)sData->type_data;
+    float *value = static_cast<float *>(sData->type_data);
 
     if (brush->flags & MOD_DPAINT_ERASE) {
       value[index] *= (1.0f - strength);
@@ -3712,7 +3727,8 @@ static void dynamicPaint_updatePointData(const DynamicPaintSurface *surface,
       CLAMP(depth, 0.0f - brush->wave_clamp, brush->wave_clamp);
     }
 
-    dynamicPaint_mixWaveHeight(&((PaintWavePoint *)sData->type_data)[index], brush, 0.0f - depth);
+    dynamicPaint_mixWaveHeight(
+        &(static_cast<PaintWavePoint *>(sData->type_data))[index], brush, 0.0f - depth);
   }
 
   /* doing velocity based painting */
@@ -3758,11 +3774,11 @@ static void dynamic_paint_brush_velocity_compute_cb(void *__restrict userdata,
 
   Vec3f *brush_vel = data->brush_vel;
 
-  const float(*positions_p)[3] = data->positions_p;
-  const float(*positions_c)[3] = data->positions_c;
+  const float (*positions_p)[3] = data->positions_p;
+  const float (*positions_c)[3] = data->positions_c;
 
-  const float(*obmat)[4] = data->obmat;
-  float(*prev_obmat)[4] = data->prev_obmat;
+  const float (*obmat)[4] = data->obmat;
+  float (*prev_obmat)[4] = data->prev_obmat;
 
   const float timescale = data->timescale;
 
@@ -3810,10 +3826,18 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
                                       SUBFRAME_RECURSION,
                                       BKE_scene_ctime_get(scene),
                                       eModifierType_DynamicPaint);
-  mesh_p = BKE_mesh_copy_for_eval(*dynamicPaint_brush_mesh_get(brush));
+
+  {
+    auto *runtime_data = static_cast<DynamicPaintRuntime *>(brush->pmd->modifier.runtime);
+    if (!runtime_data) {
+      return;
+    }
+    std::lock_guard lock(runtime_data->brush_mutex);
+    mesh_p = BKE_mesh_copy_for_eval(*runtime_data->brush_mesh);
+  }
   numOfVerts_p = mesh_p->verts_num;
 
-  float(*positions_p)[3] = reinterpret_cast<float(*)[3]>(
+  float (*positions_p)[3] = reinterpret_cast<float (*)[3]>(
       mesh_p->vert_positions_for_write().data());
   copy_m4_m4(prev_obmat, ob->object_to_world().ptr());
 
@@ -3828,9 +3852,15 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
                                       SUBFRAME_RECURSION,
                                       BKE_scene_ctime_get(scene),
                                       eModifierType_DynamicPaint);
-  mesh_c = dynamicPaint_brush_mesh_get(brush);
+  auto *runtime_data = static_cast<DynamicPaintRuntime *>(brush->pmd->modifier.runtime);
+  if (!runtime_data) {
+    return;
+  }
+  std::lock_guard lock(runtime_data->brush_mutex);
+  mesh_c = runtime_data->brush_mesh;
+
   numOfVerts_c = mesh_c->verts_num;
-  float(*positions_c)[3] = reinterpret_cast<float(*)[3]>(
+  float (*positions_c)[3] = reinterpret_cast<float (*)[3]>(
       mesh_c->vert_positions_for_write().data());
 
   (*brushVel) = MEM_malloc_arrayN<Vec3f>(size_t(numOfVerts_c), "Dynamic Paint brush velocity");
@@ -3919,9 +3949,9 @@ struct DynamicPaintPaintData {
   int c_index;
 
   Mesh *mesh;
-  blender::Span<blender::float3> positions;
-  blender::Span<int> corner_verts;
-  blender::Span<int3> corner_tris;
+  Span<float3> positions;
+  Span<int> corner_verts;
+  Span<int3> corner_tris;
   float brush_radius;
   const float *avg_brushNor;
   const Vec3f *brushVelocity;
@@ -3953,15 +3983,14 @@ static void dynamic_paint_paint_mesh_cell_point_cb_ex(void *__restrict userdata,
   const float timescale = data->timescale;
   const int c_index = data->c_index;
 
-  const blender::Span<blender::float3> positions = data->positions;
-  const blender::Span<int> corner_verts = data->corner_verts;
-  const blender::Span<int3> corner_tris = data->corner_tris;
+  const Span<float3> positions = data->positions;
+  const Span<int> corner_verts = data->corner_verts;
+  const Span<int3> corner_tris = data->corner_tris;
   const float brush_radius = data->brush_radius;
   const float *avg_brushNor = data->avg_brushNor;
   const Vec3f *brushVelocity = data->brushVelocity;
 
-  blender::bke::BVHTreeFromMesh *treeData = static_cast<blender::bke::BVHTreeFromMesh *>(
-      data->treeData);
+  bke::BVHTreeFromMesh *treeData = static_cast<bke::BVHTreeFromMesh *>(data->treeData);
 
   const int index = grid->t_index[grid->s_pos[c_index] + id];
   const int samples = bData->s_num[index];
@@ -4289,7 +4318,12 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
         depsgraph, scene, brushOb, brush, &brushVelocity, timescale);
   }
 
-  Mesh *brush_mesh = dynamicPaint_brush_mesh_get(brush);
+  auto *runtime_data = static_cast<DynamicPaintRuntime *>(brush->pmd->modifier.runtime);
+  if (!runtime_data) {
+    return false;
+  }
+  std::lock_guard lock(runtime_data->brush_mutex);
+  const Mesh *brush_mesh = runtime_data->brush_mesh;
   if (brush_mesh == nullptr) {
     return false;
   }
@@ -4303,10 +4337,10 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
     DynamicPaintVolumeGrid *grid = bData->grid;
 
     mesh = BKE_mesh_copy_for_eval(*brush_mesh);
-    blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
-    const blender::Span<blender::float3> vert_normals = mesh->vert_normals();
-    const blender::Span<int> corner_verts = mesh->corner_verts();
-    const blender::Span<int3> corner_tris = mesh->corner_tris();
+    MutableSpan<float3> positions = mesh->vert_positions_for_write();
+    const Span<float3> vert_normals = mesh->vert_normals();
+    const Span<int> corner_verts = mesh->corner_verts();
+    const Span<int3> corner_tris = mesh->corner_tris();
     numOfVerts = mesh->verts_num;
 
     /* Transform collider vertices to global space
@@ -4340,7 +4374,7 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
     /* check bounding box collision */
     if (grid && meshBrush_boundsIntersect(&grid->grid_bounds, &mesh_bb, brush, brush_radius)) {
       /* Build a bvh tree from transformed vertices */
-      blender::bke::BVHTreeFromMesh treeData = mesh->bvh_corner_tris();
+      bke::BVHTreeFromMesh treeData = mesh->bvh_corner_tris();
       if (treeData.tree != nullptr) {
         int c_index;
         int total_cells = grid->dim[0] * grid->dim[1] * grid->dim[2];
@@ -4435,7 +4469,7 @@ static void dynamic_paint_paint_particle_cell_point_cb_ex(
     float smooth_range, part_solidradius;
 
     /* Find nearest particle and get distance to it */
-    BLI_kdtree_3d_find_nearest(tree, bData->realCoord[bData->s_pos[index]].v, &nearest);
+    kdtree_3d_find_nearest(tree, bData->realCoord[bData->s_pos[index]].v, &nearest);
     /* if outside maximum range, no other particle can influence either */
     if (nearest.dist > range) {
       return;
@@ -4477,7 +4511,7 @@ static void dynamic_paint_paint_particle_cell_point_cb_ex(
     /* Make gcc happy! */
     dist = max_range;
 
-    const int particles = BLI_kdtree_3d_range_search(
+    const int particles = kdtree_3d_range_search(
         tree, bData->realCoord[bData->s_pos[index]].v, &nearest, max_range);
 
     /* Find particle that produces highest influence */
@@ -4602,7 +4636,7 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
   /*
    * Build a KD-tree to optimize distance search
    */
-  tree = BLI_kdtree_3d_new(psys->totpart);
+  tree = kdtree_3d_new(psys->totpart);
 
   /* loop through particles and insert valid ones to the tree */
   p = 0;
@@ -4626,7 +4660,7 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
       continue;
     }
 
-    BLI_kdtree_3d_insert(tree, p, pa->state.co);
+    kdtree_3d_insert(tree, p, pa->state.co);
 
     /* calc particle system bounds */
     boundInsert(&part_bb, pa->state.co);
@@ -4639,7 +4673,7 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
 
   /* If no suitable particles were found, exit */
   if (particlesAdded < 1) {
-    BLI_kdtree_3d_free(tree);
+    kdtree_3d_free(tree);
     return true;
   }
 
@@ -4649,7 +4683,7 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
     int total_cells = grid->dim[0] * grid->dim[1] * grid->dim[2];
 
     /* balance tree */
-    BLI_kdtree_3d_balance(tree);
+    kdtree_3d_balance(tree);
 
     /* loop through space partitioning grid */
     for (c_index = 0; c_index < total_cells; c_index++) {
@@ -4678,7 +4712,7 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
                               &settings);
     }
   }
-  BLI_kdtree_3d_free(tree);
+  kdtree_3d_free(tree);
 
   return true;
 }
@@ -4797,7 +4831,9 @@ static bool dynamicPaint_paintSinglePoint(
     dynamicPaint_brushObjectCalculateVelocity(depsgraph, scene, brushOb, &brushVel, timescale);
   }
 
-  const Mesh *brush_mesh = dynamicPaint_brush_mesh_get(brush);
+  auto *runtime_data = static_cast<DynamicPaintRuntime *>(brush->pmd->modifier.runtime);
+  std::lock_guard lock(runtime_data->brush_mutex);
+  const Mesh *brush_mesh = runtime_data->brush_mesh;
 
   /*
    * Loop through every surface point
@@ -5008,7 +5044,7 @@ static void dynamicPaint_doSmudge(DynamicPaintSurface *surface,
         continue;
       }
 
-      PaintPoint *pPoint = &((PaintPoint *)sData->type_data)[index];
+      PaintPoint *pPoint = &(static_cast<PaintPoint *>(sData->type_data))[index];
       float smudge_str = bData->brush_velocity[index * 4 + 3];
 
       /* force targets */
@@ -5030,7 +5066,7 @@ static void dynamicPaint_doSmudge(DynamicPaintSurface *surface,
           float dir_dot = closest_d[i], dir_factor;
           float speed_scale = eff_scale * smudge_str / bNeighs[n_index].dist;
           PaintPoint *ePoint = &(
-              (PaintPoint *)sData->type_data)[sData->adj_data->n_target[n_index]];
+              static_cast<PaintPoint *>(sData->type_data))[sData->adj_data->n_target[n_index]];
 
           /* just skip if angle is too extreme */
           if (dir_dot <= 0.0f) {
@@ -5065,7 +5101,7 @@ struct DynamicPaintEffectData {
   Scene *scene;
 
   float *force;
-  ListBase *effectors;
+  ListBaseT<EffectorCache> *effectors;
   const void *prevPoint;
   float eff_scale;
 
@@ -5099,7 +5135,7 @@ static void dynamic_paint_prepare_effect_cb(void *__restrict userdata,
   Scene *scene = data->scene;
 
   float *force = data->force;
-  ListBase *effectors = data->effectors;
+  ListBaseT<EffectorCache> *effectors = data->effectors;
 
   float forc[3] = {0};
   float vel[3] = {0};
@@ -5158,7 +5194,7 @@ static int dynamicPaint_prepareEffectStep(Depsgraph *depsgraph,
 
   /* Init force data if required */
   if (surface->effect & MOD_DPAINT_EFFECT_DO_DRIP) {
-    ListBase *effectors = BKE_effectors_create(
+    ListBaseT<EffectorCache> *effectors = BKE_effectors_create(
         depsgraph, ob, nullptr, surface->effector_weights, false);
 
     /* allocate memory for force data (dir vector + strength) */
@@ -5224,7 +5260,7 @@ static void dynamic_paint_effect_spread_cb(void *__restrict userdata,
 
   const int numOfNeighs = sData->adj_data->n_num[index];
   BakeAdjPoint *bNeighs = sData->bData->bNeighs;
-  PaintPoint *pPoint = &((PaintPoint *)sData->type_data)[index];
+  PaintPoint *pPoint = &(static_cast<PaintPoint *>(sData->type_data))[index];
   const PaintPoint *prevPoint = static_cast<const PaintPoint *>(data->prevPoint);
   const float eff_scale = data->eff_scale;
 
@@ -5283,7 +5319,7 @@ static void dynamic_paint_effect_shrink_cb(void *__restrict userdata,
 
   const int numOfNeighs = sData->adj_data->n_num[index];
   BakeAdjPoint *bNeighs = sData->bData->bNeighs;
-  PaintPoint *pPoint = &((PaintPoint *)sData->type_data)[index];
+  PaintPoint *pPoint = &(static_cast<PaintPoint *>(sData->type_data))[index];
   const PaintPoint *prevPoint = static_cast<const PaintPoint *>(data->prevPoint);
   const float eff_scale = data->eff_scale;
 
@@ -5340,7 +5376,7 @@ static void dynamic_paint_effect_drip_cb(void *__restrict userdata,
   }
 
   BakeAdjPoint *bNeighs = sData->bData->bNeighs;
-  PaintPoint *pPoint = &((PaintPoint *)sData->type_data)[index];
+  PaintPoint *pPoint = &(static_cast<PaintPoint *>(sData->type_data))[index];
   const PaintPoint *prevPoint = static_cast<const PaintPoint *>(data->prevPoint);
   const PaintPoint *pPoint_prev = &prevPoint[index];
   const float *force = data->force;
@@ -5392,7 +5428,7 @@ static void dynamic_paint_effect_drip_cb(void *__restrict userdata,
         /* pass */
       }
 
-      PaintPoint *ePoint = &((PaintPoint *)sData->type_data)[n_trgt];
+      PaintPoint *ePoint = &(static_cast<PaintPoint *>(sData->type_data))[n_trgt];
       const float e_wet = ePoint->wetness;
 
       dir_factor = min_ff(0.5f, dir_dot * min_ff(speed_scale, 1.0f) * w_factor);
@@ -5558,7 +5594,7 @@ static void dynamic_paint_border_cb(void *__restrict userdata,
   const int index = sData->adj_data->border[b_index];
 
   const int numOfNeighs = sData->adj_data->n_num[index];
-  PaintPoint *pPoint = &((PaintPoint *)sData->type_data)[index];
+  PaintPoint *pPoint = &(static_cast<PaintPoint *>(sData->type_data))[index];
 
   const int *n_index = sData->adj_data->n_index;
   const int *n_target = sData->adj_data->n_target;
@@ -5572,7 +5608,7 @@ static void dynamic_paint_border_cb(void *__restrict userdata,
     const int n_idx = n_index[index] + i;
     const int target = n_target[n_idx];
 
-    PaintPoint *pPoint2 = &((PaintPoint *)sData->type_data)[target];
+    PaintPoint *pPoint2 = &(static_cast<PaintPoint *>(sData->type_data))[target];
 
     BLI_assert(!(sData->adj_data->flags[target] & ADJ_BORDER_PIXEL));
 
@@ -5644,7 +5680,7 @@ static void dynamic_paint_wave_step_cb(void *__restrict userdata,
   const float min_dist = data->min_dist;
   const float damp_factor = data->damp_factor;
 
-  PaintWavePoint *wPoint = &((PaintWavePoint *)sData->type_data)[index];
+  PaintWavePoint *wPoint = &(static_cast<PaintWavePoint *>(sData->type_data))[index];
   const int numOfNeighs = sData->adj_data->n_num[index];
   float force = 0.0f, avg_dist = 0.0f, avg_height = 0.0f, avg_n_height = 0.0f;
   int numOfN = 0, numOfRN = 0;
@@ -5818,7 +5854,7 @@ static void dynamic_paint_surface_pre_step_cb(void *__restrict userdata,
 
   /* Do drying dissolve effects */
   if (surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
-    PaintPoint *pPoint = &((PaintPoint *)sData->type_data)[index];
+    PaintPoint *pPoint = &(static_cast<PaintPoint *>(sData->type_data))[index];
     /* drying */
     if (surface->flags & MOD_DPAINT_USE_DRYING) {
       if (pPoint->wetness >= MIN_WETNESS) {
@@ -5892,7 +5928,7 @@ static void dynamic_paint_surface_pre_step_cb(void *__restrict userdata,
   else if (surface->flags & MOD_DPAINT_DISSOLVE &&
            ELEM(surface->type, MOD_DPAINT_SURFACE_T_DISPLACE, MOD_DPAINT_SURFACE_T_WEIGHT))
   {
-    float *point = &((float *)sData->type_data)[index];
+    float *point = &(static_cast<float *>(sData->type_data))[index];
     /* log or linear */
     value_dissolve(
         point, surface->diss_speed, timescale, (surface->flags & MOD_DPAINT_DISSOLVE_LOG) != 0);
@@ -5905,7 +5941,7 @@ static bool dynamicPaint_surfaceHasMoved(DynamicPaintSurface *surface, Object *o
   PaintSurfaceData *sData = surface->data;
   PaintBakeData *bData = sData->bData;
   Mesh *mesh = dynamicPaint_canvas_mesh_get(surface->canvas);
-  const blender::Span<blender::float3> positions = mesh->vert_positions();
+  const Span<float3> positions = mesh->vert_positions();
 
   int numOfVerts = mesh->verts_num;
 
@@ -5933,8 +5969,8 @@ struct DynamicPaintGenerateBakeData {
   const DynamicPaintSurface *surface;
   Object *ob;
 
-  blender::Span<blender::float3> positions;
-  blender::Span<blender::float3> vert_normals;
+  Span<float3> positions;
+  Span<float3> vert_normals;
   const Vec3f *canvas_verts;
 
   bool do_velocity_data;
@@ -5972,8 +6008,8 @@ static void dynamic_paint_generate_bake_data_cb(void *__restrict userdata,
    */
   if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) {
     float n1[3], n2[3], n3[3];
-    const ImgSeqFormatData *f_data = (ImgSeqFormatData *)sData->format_data;
-    const PaintUVPoint *tPoint = &((PaintUVPoint *)f_data->uv_p)[index];
+    const ImgSeqFormatData *f_data = sData->format_data;
+    const PaintUVPoint *tPoint = &(static_cast<PaintUVPoint *>(f_data->uv_p))[index];
 
     bData->s_num[index] = (surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
     bData->s_pos[index] = index * bData->s_num[index];
@@ -6066,7 +6102,7 @@ static bool dynamicPaint_generateBakeData(DynamicPaintSurface *surface,
   const bool do_accel_data = (surface->effect & MOD_DPAINT_EFFECT_DO_DRIP) != 0;
 
   int canvasNumOfVerts = mesh->verts_num;
-  const blender::Span<blender::float3> positions = mesh->vert_positions();
+  const Span<float3> positions = mesh->vert_positions();
   Vec3f *canvas_verts;
 
   if (bData) {
@@ -6246,7 +6282,7 @@ static int dynamicPaint_doStep(Depsgraph *depsgraph,
       /* check if target has an active dp modifier */
       ModifierData *md = BKE_modifiers_findby_type(brushObj, eModifierType_DynamicPaint);
       if (md && md->mode & (eModifierMode_Realtime | eModifierMode_Render)) {
-        DynamicPaintModifierData *pmd2 = (DynamicPaintModifierData *)md;
+        DynamicPaintModifierData *pmd2 = reinterpret_cast<DynamicPaintModifierData *>(md);
         /* make sure we're dealing with a brush */
         if (pmd2->brush && pmd2->type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
           DynamicPaintBrushSettings *brush = pmd2->brush;
@@ -6406,3 +6442,5 @@ int dynamicPaint_calculateFrame(
 
   return dynamicPaint_doStep(depsgraph, scene, cObject, surface, timescale, 0.0f);
 }
+
+}  // namespace blender

@@ -49,6 +49,8 @@
 #include "BLI_sys_types.h" /* For `intptr_t` support. */
 #include "BLI_utildefines.h"
 
+namespace blender {
+
 /** Sizes above this must be allocated. */
 #define FILE_MAX_STATIC_BUF 256
 
@@ -137,7 +139,7 @@ int64_t BLI_read(int fd, void *buf, size_t nbytes)
     }
 
     /* If this is reached, fewer bytes were read than were requested. */
-    buf = (void *)(((char *)buf) + nbytes_read);
+    buf = static_cast<void *>((static_cast<char *>(buf)) + nbytes_read);
     nbytes_read_total += nbytes_read;
     nbytes -= nbytes_read;
   }
@@ -278,7 +280,7 @@ bool BLI_file_magic_is_zstd(const char header[4])
    * For more details, see https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md
    */
 
-  uint32_t magic = *((uint32_t *)header);
+  uint32_t magic = *(reinterpret_cast<uint32_t *>(const_cast<char *>(header)));
   if (magic == 0xFD2FB528) {
     return true;
   }
@@ -341,10 +343,19 @@ bool BLI_file_touch(const char *filepath)
   return false;
 }
 
-static bool dir_create_recursive(char *dirname, int len)
+/**
+ * Create the given directory and its parents if necessary.
+ *
+ * If the directory already exists, this function is a no-op.
+ *
+ * \param dirname: The directory to create.
+ * \param len: The number of bytes of `dirname` to use as path to create.
+ * This makes the recursive call possible without doing string duplication
+ * for each parent directory.
+ */
+static bool dir_create_recursive(const char *dirname, const int len)
 {
   BLI_assert(strlen(dirname) == len);
-  BLI_assert(BLI_exists(dirname) == 0);
   /* Caller must ensure the path doesn't have trailing slashes. */
   BLI_assert_msg(len && !BLI_path_slash_is_native_compat(dirname[len - 1]),
                  "Paths must not end with a slash!");
@@ -353,7 +364,7 @@ static bool dir_create_recursive(char *dirname, int len)
                  "Paths containing \"..\" components must be normalized first!");
 
   bool ret = true;
-  char *dirname_parent_end = (char *)BLI_path_parent_dir_end(dirname, len);
+  char *dirname_parent_end = const_cast<char *>(BLI_path_parent_dir_end(dirname, len));
   if (dirname_parent_end) {
     const char dirname_parent_end_value = *dirname_parent_end;
     *dirname_parent_end = '\0';
@@ -375,12 +386,26 @@ static bool dir_create_recursive(char *dirname, int len)
     *dirname_parent_end = dirname_parent_end_value;
   }
   if (ret) {
+    /* Ignore errors when the directory was created (probably by another process) in between the
+     * earlier call to BLI_exists() and this call to mkdir. Since this function only creates a
+     * directory if it doesn't exist yet, this is actually not seen as an error, even though
+     * mkdir() failed. */
 #ifdef WIN32
     if (umkdir(dirname) == -1) {
+      if (GetLastError() == ERROR_ALREADY_EXISTS && BLI_is_dir(dirname)) {
+        return true;
+      }
+
+      /* Any other error should bubble up as an actual error. */
       ret = false;
     }
 #else
     if (mkdir(dirname, 0777) != 0) {
+      if (errno == EEXIST && BLI_is_dir(dirname)) {
+        return true;
+      }
+
+      /* Any other error should bubble up as an actual error. */
       ret = false;
     }
 #endif
@@ -569,8 +594,7 @@ void *BLI_gzopen(const char *filepath, const char *mode)
     fclose(file);
   }
 
-  /* temporary #if until we update all libraries to 1.2.7
-   * for correct wide char path handling */
+  /* Temporary `#if` until we update all libraries to 1.2.7 for correct wide char path handling. */
 #  if ZLIB_VERNUM >= 0x1270
   UTF16_ENCODE(filepath);
 
@@ -964,7 +988,7 @@ static int recursive_operation_impl(StrBuf *src_buf,
 {
   /* NOTE(@ideasman42): This function must *not* use any `MEM_*` functions
    * as it's used to purge temporary files on when the processed is aborted,
-   * in this case the `MEM_*` state may have already been freed (memory usage tracking for e.g.)
+   * in this case the `MEM_*` state may have already been freed (e.g. memory usage tracking)
    * causing freed memory access, potentially crashing. This constraint doesn't apply to the
    * callbacks themselves - unless they might also be called when aborting. */
   struct stat st;
@@ -1546,3 +1570,5 @@ int BLI_create_symlink(const char *path_src, const char *path_dst)
 #  endif
 
 #endif
+
+}  // namespace blender

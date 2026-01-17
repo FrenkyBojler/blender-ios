@@ -34,6 +34,8 @@
 
 #define MAX_ARRAY_DIMENSION 10
 
+namespace blender {
+
 struct ItemConvertArgData;
 
 using ItemConvertFunc = void (*)(const ItemConvertArgData *arg, PyObject *py_data, char *data);
@@ -114,7 +116,6 @@ static int validate_array_type(PyObject *seq,
         ok = false;
       }
       else if ((item_seq_size = PySequence_Size(item)) == -1) {
-        // BLI_snprintf(error_str, error_str_size, "expected a sequence of %s", item_type_str);
         PyErr_Format(PyExc_TypeError,
                      "%s expected a sequence of %s, not %s",
                      error_prefix,
@@ -128,9 +129,6 @@ static int validate_array_type(PyObject *seq,
        *
        * dim = 0 */
       else if (item_seq_size != dimsize[dim + 1]) {
-        /* BLI_snprintf(error_str, error_str_size,
-         *              "sequences of dimension %d should contain %d items",
-         *              dim + 1, dimsize[dim + 1]); */
         PyErr_Format(PyExc_ValueError,
                      "%s sequences of dimension %d should contain %d items, not %d",
                      error_prefix,
@@ -192,10 +190,6 @@ static int validate_array_type(PyObject *seq,
       }
       if (!check_item_type(item)) {
         Py_DECREF(item);
-
-#if 0
-        SNPRINTF(error_str, "sequence items should be of type %s", item_type_str);
-#endif
         PyErr_Format(PyExc_TypeError,
                      "%s expected sequence items of type %s, not %s",
                      error_prefix,
@@ -317,7 +311,6 @@ static int validate_array_length(PyObject *rvalue,
     }
 
     if (tot != len) {
-      // BLI_snprintf(error_str, error_str_size, "sequence must have length of %d", len);
       PyErr_Format(PyExc_ValueError,
                    "%s %.200s.%.200s, sequence must have %d items total, not %d",
                    error_prefix,
@@ -352,7 +345,7 @@ static int validate_array(PyObject *rvalue,
 #ifdef USE_MATHUTILS
   if (lvalue_dim == 0) { /* only valid for first level array */
     if (MatrixObject_Check(rvalue)) {
-      MatrixObject *pymat = (MatrixObject *)rvalue;
+      MatrixObject *pymat = reinterpret_cast<MatrixObject *>(rvalue);
 
       if (BaseMath_ReadCallback(pymat) == -1) {
         return -1;
@@ -428,7 +421,7 @@ static char *copy_value_single(PyObject *item,
       float fl;
       int i;
     } value_buf;
-    char *value = static_cast<char *>((void *)&value_buf);
+    char *value = static_cast<char *>(static_cast<void *>(&value_buf));
 
     convert_item->func(&convert_item->arg, item, value);
     rna_set_index(ptr, prop, *index, value);
@@ -442,6 +435,9 @@ static char *copy_value_single(PyObject *item,
   return data;
 }
 
+/**
+ * \param data: Data array, may be null.
+ */
 static char *copy_values(PyObject *seq,
                          PointerRNA *ptr,
                          PropertyRNA *prop,
@@ -463,8 +459,6 @@ static char *copy_values(PyObject *seq,
    * validating but fails later somehow, so include checks for safety.
    */
 
-  /* Note that 'data can be nullptr' */
-
   if (seq_size == -1) {
     return nullptr;
   }
@@ -472,7 +466,7 @@ static char *copy_values(PyObject *seq,
 #ifdef USE_MATHUTILS
   if (dim == 0) {
     if (MatrixObject_Check(seq)) {
-      MatrixObject *pymat = (MatrixObject *)seq;
+      MatrixObject *pymat = reinterpret_cast<MatrixObject *>(seq);
       const size_t allocsize = pymat->col_num * pymat->row_num * sizeof(float);
 
       /* read callback already done by validate */
@@ -549,7 +543,7 @@ static int py_to_array(PyObject *seq,
     /* NOTE: this code is confusing. */
     if (prop_is_param_dyn_alloc) {
       /* not freeing allocated mem, RNA_parameter_list_free() will do this */
-      ParameterDynAlloc *param_alloc = (ParameterDynAlloc *)param_data;
+      ParameterDynAlloc *param_alloc = reinterpret_cast<ParameterDynAlloc *>(param_data);
       param_alloc->array_tot = totitem;
 
       /* freeing param list will free */
@@ -665,7 +659,7 @@ static void py_to_float(const ItemConvertArgData *arg, PyObject *py, char *data)
   const float *range = arg->float_data.range;
   float value = float(PyFloat_AsDouble(py));
   CLAMP(value, range[0], range[1]);
-  *(float *)data = value;
+  *reinterpret_cast<float *>(data) = value;
 }
 
 static void py_to_int(const ItemConvertArgData *arg, PyObject *py, char *data)
@@ -673,12 +667,12 @@ static void py_to_int(const ItemConvertArgData *arg, PyObject *py, char *data)
   const int *range = arg->int_data.range;
   int value = PyC_Long_AsI32(py);
   CLAMP(value, range[0], range[1]);
-  *(int *)data = value;
+  *reinterpret_cast<int *>(data) = value;
 }
 
 static void py_to_bool(const ItemConvertArgData * /*arg*/, PyObject *py, char *data)
 {
-  *(bool *)data = bool(PyObject_IsTrue(py));
+  *reinterpret_cast<bool *>(data) = bool(PyObject_IsTrue(py));
 }
 
 static int py_float_check(PyObject *py)
@@ -700,17 +694,17 @@ static int py_bool_check(PyObject *py)
 
 static void float_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, void *value)
 {
-  RNA_property_float_set_index(ptr, prop, index, *(float *)value);
+  RNA_property_float_set_index(ptr, prop, index, *static_cast<float *>(value));
 }
 
 static void int_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, void *value)
 {
-  RNA_property_int_set_index(ptr, prop, index, *(int *)value);
+  RNA_property_int_set_index(ptr, prop, index, *static_cast<int *>(value));
 }
 
 static void bool_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, void *value)
 {
-  RNA_property_boolean_set_index(ptr, prop, index, *(bool *)value);
+  RNA_property_boolean_set_index(ptr, prop, index, *static_cast<bool *>(value));
 }
 
 static void convert_item_init_float(PointerRNA *ptr,
@@ -755,7 +749,7 @@ int pyrna_py_to_array(
                         "float",
                         sizeof(float),
                         &convert_item,
-                        (RNA_SetArrayFunc)RNA_property_float_set_array,
+                        reinterpret_cast<RNA_SetArrayFunc>(RNA_property_float_set_array),
                         error_prefix);
       break;
     }
@@ -771,7 +765,7 @@ int pyrna_py_to_array(
                         "int",
                         sizeof(int),
                         &convert_item,
-                        (RNA_SetArrayFunc)RNA_property_int_set_array,
+                        reinterpret_cast<RNA_SetArrayFunc>(RNA_property_int_set_array),
                         error_prefix);
       break;
     }
@@ -787,7 +781,7 @@ int pyrna_py_to_array(
                         "boolean",
                         sizeof(bool),
                         &convert_item,
-                        (RNA_SetArrayFunc)RNA_property_boolean_set_array,
+                        reinterpret_cast<RNA_SetArrayFunc>(RNA_property_boolean_set_array),
                         error_prefix);
       break;
     }
@@ -958,7 +952,7 @@ PyObject *pyrna_py_from_array_index(BPy_PropertyArrayRNA *self,
   totdim = RNA_property_array_dimension(ptr, prop, dimsize);
 
   if (arraydim + 1 < totdim) {
-    ret = (BPy_PropertyArrayRNA *)pyrna_prop_CreatePyObject(ptr, prop);
+    ret = reinterpret_cast<BPy_PropertyArrayRNA *>(pyrna_prop_CreatePyObject(ptr, prop));
     ret->arraydim = arraydim + 1;
 
     /* arr[3][4][5]
@@ -977,10 +971,10 @@ PyObject *pyrna_py_from_array_index(BPy_PropertyArrayRNA *self,
   }
   else {
     index = arrayoffset + index;
-    ret = (BPy_PropertyArrayRNA *)pyrna_array_index(ptr, prop, index);
+    ret = reinterpret_cast<BPy_PropertyArrayRNA *>(pyrna_array_index(ptr, prop, index));
   }
 
-  return (PyObject *)ret;
+  return reinterpret_cast<PyObject *>(ret);
 }
 
 PyObject *pyrna_py_from_array(PointerRNA *ptr, PropertyRNA *prop)
@@ -1117,3 +1111,5 @@ int pyrna_array_contains_py(PointerRNA *ptr, PropertyRNA *prop, PyObject *value)
   PyErr_SetString(PyExc_TypeError, "PropertyRNA - type not in float/bool/int");
   return -1;
 }
+
+}  // namespace blender

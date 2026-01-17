@@ -10,6 +10,8 @@
 
 #include "BLI_compiler_attrs.h"
 
+namespace blender {
+
 struct bContext;
 struct Main;
 struct PointerRNA;
@@ -100,7 +102,8 @@ void wm_window_set_size(wmWindow *win, int width, int height);
 /**
  * \brief Push rendered buffer to the screen.
  */
-void wm_window_swap_buffers(wmWindow *win);
+void wm_window_swap_buffer_acquire(wmWindow *win);
+void wm_window_swap_buffer_release(wmWindow *win);
 void wm_window_set_swap_interval(wmWindow *win, int interval);
 bool wm_window_get_swap_interval(wmWindow *win, int *r_interval);
 
@@ -143,3 +146,6 @@ wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op);
 
 void wm_test_autorun_revert_action_set(wmOperatorType *ot, PointerRNA *ptr);
 void wm_test_autorun_warning(bContext *C);
+void wm_test_foreign_file_warning(bContext *C);
+
+}  // namespace blender

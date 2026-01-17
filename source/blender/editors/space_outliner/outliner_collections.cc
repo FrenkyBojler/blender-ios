@@ -41,7 +41,9 @@
 
 #include "outliner_intern.hh" /* own include */
 
-namespace blender::ed::outliner {
+namespace blender {
+
+namespace ed::outliner {
 
 /* -------------------------------------------------------------------- */
 /** \name Utility API
@@ -80,11 +82,11 @@ Collection *outliner_collection_from_tree_element(const TreeElement *te)
     return lc->collection;
   }
   if (ELEM(tselem->type, TSE_SCENE_COLLECTION_BASE, TSE_VIEW_COLLECTION_BASE)) {
-    Scene *scene = (Scene *)tselem->id;
+    Scene *scene = id_cast<Scene *>(tselem->id);
     return scene->master_collection;
   }
   if ((tselem->type == TSE_SOME_ID) && (te->idcode == ID_GR)) {
-    return (Collection *)tselem->id;
+    return id_cast<Collection *>(tselem->id);
   }
 
   return nullptr;
@@ -107,6 +109,21 @@ TreeTraversalAction outliner_collect_selected_collections(TreeElement *te, void 
   return TRAVERSE_CONTINUE;
 }
 
+static TreeTraversalAction outliner_collect_selected_parent_collections(TreeElement *te,
+                                                                        void *customdata)
+{
+  IDsSelectedData *data = static_cast<IDsSelectedData *>(customdata);
+  /* If collection is already selected, skip iterating their children. */
+  if (outliner_is_collection_tree_element(te)) {
+    if (ELEM(te->store_elem->type, TSE_SCENE_COLLECTION_BASE, TSE_VIEW_COLLECTION_BASE)) {
+      return TRAVERSE_CONTINUE;
+    }
+    BLI_addtail(&data->selected_array, BLI_genericNodeN(te));
+    return TRAVERSE_SKIP_CHILDS;
+  }
+  return TRAVERSE_CONTINUE;
+}
+
 TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *customdata)
 {
   IDsSelectedData *data = static_cast<IDsSelectedData *>(customdata);
@@ -126,9 +143,9 @@ TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *cus
   return TRAVERSE_CONTINUE;
 }
 
-}  // namespace blender::ed::outliner
+}  // namespace ed::outliner
 
-void ED_outliner_selected_objects_get(const bContext *C, ListBase *objects)
+void ED_outliner_selected_objects_get(const bContext *C, ListBaseT<LinkData> *objects)
 {
   using namespace blender::ed::outliner;
 
@@ -140,15 +157,15 @@ void ED_outliner_selected_objects_get(const bContext *C, ListBase *objects)
                          TSE_SELECTED,
                          outliner_collect_selected_objects,
                          &data);
-  LISTBASE_FOREACH (LinkData *, link, &data.selected_array) {
-    TreeElement *ten_selected = (TreeElement *)link->data;
-    Object *ob = (Object *)TREESTORE(ten_selected)->id;
+  for (LinkData &link : data.selected_array) {
+    TreeElement *ten_selected = static_cast<TreeElement *>(link.data);
+    Object *ob = id_cast<Object *>(TREESTORE(ten_selected)->id);
     BLI_addtail(objects, BLI_genericNodeN(ob));
   }
   BLI_freelistN(&data.selected_array);
 }
 
-namespace blender::ed::outliner {
+namespace ed::outliner {
 
 /** \} */
 
@@ -156,7 +173,7 @@ namespace blender::ed::outliner {
 /** \name Poll Functions
  * \{ */
 
-}  // namespace blender::ed::outliner
+}  // namespace ed::outliner
 
 bool ED_outliner_collections_editor_poll(bContext *C)
 {
@@ -165,7 +182,7 @@ bool ED_outliner_collections_editor_poll(bContext *C)
          ELEM(space_outliner->outlinevis, SO_VIEW_LAYER, SO_SCENES, SO_LIBRARIES);
 }
 
-namespace blender::ed::outliner {
+namespace ed::outliner {
 
 static bool outliner_view_layer_collections_editor_poll(bContext *C)
 {
@@ -227,6 +244,7 @@ static TreeTraversalAction collection_find_selected_to_add(TreeElement *te, void
 
 static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
 {
+  WorkSpace *workspace = CTX_wm_workspace(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ARegion *region = CTX_wm_region(C);
   Main *bmain = CTX_data_main(C);
@@ -236,7 +254,7 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
   CollectionNewData data{};
 
   if (RNA_boolean_get(op->ptr, "nested")) {
-    outliner_build_tree(bmain, scene, view_layer, space_outliner, region);
+    outliner_build_tree(bmain, workspace, scene, view_layer, space_outliner, region);
 
     outliner_tree_traverse(space_outliner,
                            &space_outliner->tree,
@@ -258,7 +276,7 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
   }
 
   if (!ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene)) {
-    BKE_report(op->reports, RPT_ERROR, "Can't add a new collection to linked/override scene");
+    BKE_report(op->reports, RPT_ERROR, "Cannot add a new collection to linked/override scene");
     return OPERATOR_CANCELLED;
   }
 
@@ -381,8 +399,8 @@ void outliner_collection_delete(
           skip = true;
         }
         else {
-          LISTBASE_FOREACH (CollectionParent *, cparent, &collection->runtime.parents) {
-            Collection *parent = cparent->collection;
+          for (CollectionParent &cparent : collection->runtime->parents) {
+            Collection *parent = cparent.collection;
             if (!ID_IS_EDITABLE(parent) || ID_IS_OVERRIDE_LIBRARY(parent)) {
               skip = true;
               break;
@@ -521,8 +539,8 @@ static wmOperatorStatus collection_objects_select_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  LISTBASE_FOREACH (LinkData *, link, &selected_collections.selected_array) {
-    TreeElement *te = static_cast<TreeElement *>(link->data);
+  for (LinkData &link : selected_collections.selected_array) {
+    TreeElement *te = static_cast<TreeElement *>(link.data);
     if (te->store_elem->type == TSE_LAYER_COLLECTION) {
       LayerCollection *layer_collection = static_cast<LayerCollection *>(te->directdata);
       BKE_layer_collection_objects_select(scene, view_layer, layer_collection, deselect);
@@ -613,59 +631,75 @@ static TreeElement *outliner_active_collection(bContext *C)
 static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  TreeElement *te = outliner_active_collection(C);
   const bool linked = strstr(op->idname, "linked") != nullptr;
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+
+  IDsSelectedData selected_collections{};
+  outliner_tree_traverse(space_outliner,
+                         &space_outliner->tree,
+                         0,
+                         TSE_SELECTED,
+                         outliner_collect_selected_parent_collections,
+                         &selected_collections);
 
   /* Can happen when calling from a key binding. */
-  if (te == nullptr) {
+  if (BLI_listbase_is_empty(&selected_collections.selected_array)) {
     BKE_report(op->reports, RPT_ERROR, "No active collection");
     return OPERATOR_CANCELLED;
   }
 
-  Collection *collection = outliner_collection_from_tree_element(te);
-  Collection *parent = (te->parent) ? outliner_collection_from_tree_element(te->parent) : nullptr;
-  CollectionChild *child = BKE_collection_child_find(parent, collection);
-
-  /* We are allowed to duplicated linked collections (they will become local IDs then),
-   * but we should not allow its parent to be a linked ID, ever.
-   * This can happen when a whole scene is linked e.g. */
-  if (parent != nullptr && (!ID_IS_EDITABLE(parent) || ID_IS_OVERRIDE_LIBRARY(parent))) {
-    Scene *scene = CTX_data_scene(C);
-    parent = (!ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene)) ? nullptr :
-                                                                         scene->master_collection;
-  }
-  else if (parent != nullptr && (parent->flag & COLLECTION_IS_MASTER) != 0) {
-    BLI_assert(parent->id.flag & ID_FLAG_EMBEDDED_DATA);
-
-    Scene *scene_owner = reinterpret_cast<Scene *>(BKE_id_owner_get(&parent->id));
-    BLI_assert(scene_owner != nullptr);
-    BLI_assert(GS(scene_owner->id.name) == ID_SCE);
-
-    if (!ID_IS_EDITABLE(scene_owner) || ID_IS_OVERRIDE_LIBRARY(scene_owner)) {
-      scene_owner = CTX_data_scene(C);
-      parent = (!ID_IS_EDITABLE(scene_owner) || ID_IS_OVERRIDE_LIBRARY(scene_owner)) ?
-                   nullptr :
-                   scene_owner->master_collection;
+  int failed_count = 0;
+  for (LinkData &link : selected_collections.selected_array) {
+    TreeElement *te = static_cast<TreeElement *>(link.data);
+    Collection *collection = outliner_collection_from_tree_element(te);
+    Collection *parent = (te->parent) ? outliner_collection_from_tree_element(te->parent) :
+                                        nullptr;
+    if (!parent) {
+      failed_count += 1;
+      continue;
     }
-  }
+    CollectionChild *child = BKE_collection_child_find(parent, collection);
 
-  if (collection->flag & COLLECTION_IS_MASTER) {
-    BKE_report(op->reports, RPT_ERROR, "Can't duplicate the master collection");
-    return OPERATOR_CANCELLED;
-  }
+    /* We are allowed to duplicated linked collections (they will become local IDs then),
+     * but we should not allow its parent to be a linked ID, ever.
+     * This can happen when a whole scene is linked e.g. */
+    if (parent != nullptr && (!ID_IS_EDITABLE(parent) || ID_IS_OVERRIDE_LIBRARY(parent))) {
+      Scene *scene = CTX_data_scene(C);
+      parent = (!ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene)) ?
+                   nullptr :
+                   scene->master_collection;
+    }
+    else if (parent != nullptr && (parent->flag & COLLECTION_IS_MASTER) != 0) {
+      BLI_assert(parent->id.flag & ID_FLAG_EMBEDDED_DATA);
 
-  if (parent == nullptr) {
-    BKE_report(op->reports,
-               RPT_WARNING,
-               "Could not find a valid parent collection for the new duplicate, "
-               "it won't be linked to any view layer");
-  }
+      Scene *scene_owner = reinterpret_cast<Scene *>(BKE_id_owner_get(&parent->id));
+      BLI_assert(scene_owner != nullptr);
+      BLI_assert(GS(scene_owner->id.name) == ID_SCE);
 
-  const eDupli_ID_Flags dupli_flags = (eDupli_ID_Flags)(USER_DUP_OBJECT |
+      if (!ID_IS_EDITABLE(scene_owner) || ID_IS_OVERRIDE_LIBRARY(scene_owner)) {
+        scene_owner = CTX_data_scene(C);
+        parent = (!ID_IS_EDITABLE(scene_owner) || ID_IS_OVERRIDE_LIBRARY(scene_owner)) ?
+                     nullptr :
+                     scene_owner->master_collection;
+      }
+    }
+
+    const eDupli_ID_Flags dupli_flags = eDupli_ID_Flags(USER_DUP_OBJECT |
                                                         (linked ? 0 : U.dupflag));
-  BKE_collection_duplicate(
-      bmain, parent, child, collection, dupli_flags, LIB_ID_DUPLICATE_IS_ROOT_ID);
+    BKE_collection_duplicate(
+        bmain, parent, child, collection, dupli_flags, LIB_ID_DUPLICATE_IS_ROOT_ID);
+  }
 
+  if (failed_count != 0) {
+    BKE_reportf(op->reports,
+                RPT_WARNING,
+                "Unable to duplicate %d of the selected collections. "
+                "Could not find a valid parent collection for the new duplicate, "
+                "they won't be linked to any view layer",
+                failed_count);
+  }
+
+  BLI_freelistN(&selected_collections.selected_array);
   DEG_relations_tag_update(bmain);
   WM_main_add_notifier(NC_SCENE | ND_LAYER, CTX_data_scene(C));
   ED_outliner_select_sync_from_object_tag(C);
@@ -1089,9 +1123,9 @@ static wmOperatorStatus collection_isolate_exec(bContext *C, wmOperator *op)
       BKE_layer_collection_isolate_global(scene, view_layer, layer_collection, true);
     }
     else {
-      PropertyRNA *prop = RNA_struct_type_find_property(&RNA_LayerCollection, "hide_viewport");
+      PropertyRNA *prop = RNA_struct_type_find_property(RNA_LayerCollection, "hide_viewport");
       PointerRNA ptr = RNA_pointer_create_discrete(
-          &scene->id, &RNA_LayerCollection, layer_collection);
+          &scene->id, RNA_LayerCollection, layer_collection);
 
       /* We need to flip the value because the isolate flag routine was designed to work from the
        * outliner as a callback. That means the collection visibility was set before the callback
@@ -1473,7 +1507,7 @@ static TreeTraversalAction outliner_hide_collect_data_to_edit(TreeElement *te, v
     }
   }
   else if ((tselem->type == TSE_SOME_ID) && (te->idcode == ID_OB)) {
-    Object *ob = (Object *)tselem->id;
+    Object *ob = id_cast<Object *>(tselem->id);
     BKE_view_layer_synced_ensure(data->scene, data->view_layer);
     Base *base = BKE_view_layer_base_find(data->view_layer, ob);
     data->bases_to_edit.add(base);
@@ -1536,14 +1570,14 @@ static wmOperatorStatus outliner_unhide_all_exec(bContext *C, wmOperator * /*op*
 
   /* Unhide all the collections. */
   LayerCollection *lc_master = static_cast<LayerCollection *>(view_layer->layer_collections.first);
-  LISTBASE_FOREACH (LayerCollection *, lc_iter, &lc_master->layer_collections) {
-    BKE_layer_collection_set_flag(lc_iter, LAYER_COLLECTION_HIDE, false);
+  for (LayerCollection &lc_iter : lc_master->layer_collections) {
+    BKE_layer_collection_set_flag(&lc_iter, LAYER_COLLECTION_HIDE, false);
   }
 
   /* Unhide all objects. */
   BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    base->flag &= ~BASE_HIDDEN;
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    base.flag &= ~BASE_HIDDEN;
   }
 
   BKE_view_layer_need_resync_tag(view_layer);
@@ -1589,15 +1623,15 @@ static wmOperatorStatus outliner_color_tag_set_exec(bContext *C, wmOperator *op)
                          outliner_collect_selected_collections,
                          &selected);
 
-  LISTBASE_FOREACH (LinkData *, link, &selected.selected_array) {
-    TreeElement *te_selected = (TreeElement *)link->data;
+  for (LinkData &link : selected.selected_array) {
+    TreeElement *te_selected = static_cast<TreeElement *>(link.data);
 
     Collection *collection = outliner_collection_from_tree_element(te_selected);
     if (collection == scene->master_collection) {
       continue;
     }
     if (!BKE_id_is_editable(CTX_data_main(C), &collection->id)) {
-      BKE_report(op->reports, RPT_WARNING, "Can't add a color tag to a linked collection");
+      BKE_report(op->reports, RPT_WARNING, "Cannot add a color tag to a linked collection");
       continue;
     }
 
@@ -1631,4 +1665,5 @@ void OUTLINER_OT_collection_color_tag_set(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace blender::ed::outliner
+}  // namespace ed::outliner
+}  // namespace blender

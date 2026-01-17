@@ -27,10 +27,6 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
       "try running from the visual studio developer prompt."
     )
   endif()
-  if(WITH_WINDOWS_STRIPPED_PDB)
-    message(WARNING "stripped pdb not supported with clang, disabling..")
-    set(WITH_WINDOWS_STRIPPED_PDB OFF)
-  endif()
 else()
   if(WITH_BLENDER)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.28.29921) # MSVC 2019 16.9.16
@@ -208,7 +204,7 @@ if(WITH_COMPILER_ASAN AND MSVC AND NOT MSVC_CLANG)
     string(APPEND CMAKE_EXE_LINKER_FLAGS_DEBUG " /INCREMENTAL:NO")
     string(APPEND CMAKE_SHARED_LINKER_FLAGS_DEBUG " /INCREMENTAL:NO")
   else()
-    message("-- ASAN not supported on MSVC ${CMAKE_CXX_COMPILER_VERSION}")
+    message(WARNING "ASAN not supported on MSVC ${CMAKE_CXX_COMPILER_VERSION}")
   endif()
 endif()
 
@@ -226,7 +222,7 @@ if(NOT MSVC_CLANG)
   string(APPEND CMAKE_CXX_FLAGS " /permissive- /Zc:__cplusplus /Zc:inline")
   string(APPEND CMAKE_C_FLAGS   " /Zc:inline")
 
-  # For VS2022+ we can enable the the new preprocessor
+  # For VS2022+ we can enable the new preprocessor
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.30.30423)
     string(APPEND CMAKE_CXX_FLAGS " /Zc:preprocessor")
     string(APPEND CMAKE_C_FLAGS " /Zc:preprocessor")
@@ -238,35 +234,23 @@ if(WITH_WINDOWS_SCCACHE AND CMAKE_VS_MSBUILD_COMMAND)
   set(WITH_WINDOWS_SCCACHE OFF)
 endif()
 
-# Debug Symbol format
-# sccache # MSVC_ASAN # format # why
-# ON      # ON        # Z7     # sccache will only play nice with Z7.
-# ON      # OFF       # Z7     # sccache will only play nice with Z7.
-# OFF     # ON        # Zi     # Asan will not play nice with Edit and Continue.
-# OFF     # OFF       # ZI     # Neither ASAN nor sscache is enabled Edit and
-#                                Continue is available.
-
-# Release Symbol format
-# sccache # MSVC_ASAN # format # why
-# ON      # ON        # Z7     # sccache will only play nice with Z7
-# ON      # OFF       # Z7     # sccache will only play nice with Z7
-# OFF     # ON        # Zi     # Asan will not play nice with Edit and Continue
-# OFF     # OFF       # Zi     # Edit and Continue disables some optimizations
-
-
 if(WITH_WINDOWS_SCCACHE)
   set(CMAKE_C_COMPILER_LAUNCHER sccache)
   set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
+  # sccache will only play nice with Z7.
   set(SYMBOL_FORMAT /Z7)
   set(SYMBOL_FORMAT_RELEASE /Z7)
 else()
   unset(CMAKE_C_COMPILER_LAUNCHER)
   unset(CMAKE_CXX_COMPILER_LAUNCHER)
-  if(MSVC_ASAN)
+  if(MSVC_ASAN OR MSVC_CLANG)
+    # Neither Asan nor Clang will play nice with Edit and Continue.
     set(SYMBOL_FORMAT /Zi)
     set(SYMBOL_FORMAT_RELEASE /Zi)
   else()
+    # Otherwise enable Edit and Continue.
     set(SYMBOL_FORMAT /ZI)
+    # Except for Release builds, since it disables some optimizations.
     set(SYMBOL_FORMAT_RELEASE /Zi)
   endif()
 endif()
@@ -295,9 +279,13 @@ endif()
 string(APPEND PLATFORM_LINKFLAGS " /SUBSYSTEM:CONSOLE /STACK:2097152")
 set(PLATFORM_LINKFLAGS_RELEASE "/NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libcmtd.lib /NODEFAULTLIB:msvcrtd.lib")
 
-if(NOT WITH_COMPILER_ASAN)
-  # ASAN is incompatible with `fastlink`, it will appear to work,
-  # but will not resolve symbols which makes it somewhat useless.
+if(
+    (NOT WITH_COMPILER_ASAN) AND
+    # ASAN is incompatible with `fastlink`, it will appear to work,
+    # but will not resolve symbols which makes it somewhat useless.
+    MSVC_VERSION LESS 1950
+    # /debug:fastlink is no longer supported in vs2026
+  )
   string(APPEND PLATFORM_LINKFLAGS_DEBUG "/debug:fastlink ")
 endif()
 string(APPEND PLATFORM_LINKFLAGS_DEBUG " /IGNORE:4099 /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcmtd.lib")
@@ -336,6 +324,9 @@ if(NOT DEFINED LIBDIR)
     message(STATUS
       "Clang version ${CMAKE_CXX_COMPILER_VERSION} detected, masquerading as MSVC ${MSVC_VERSION}"
     )
+    set(LIBDIR ${CMAKE_SOURCE_DIR}/lib/${LIBDIR_BASE})
+  elseif(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.50.0)
+    message(STATUS "Visual Studio 2026 detected.")
     set(LIBDIR ${CMAKE_SOURCE_DIR}/lib/${LIBDIR_BASE})
   elseif(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.30.30423)
     message(STATUS "Visual Studio 2022 detected.")
@@ -498,45 +489,6 @@ if(WITH_IMAGE_WEBP)
     )
   endif()
   set(WEBP_FOUND ON)
-endif()
-
-if(WITH_OPENCOLLADA)
-  set(OPENCOLLADA ${LIBDIR}/opencollada)
-
-  set(OPENCOLLADA_INCLUDE_DIRS
-    ${OPENCOLLADA}/include/opencollada/COLLADAStreamWriter
-    ${OPENCOLLADA}/include/opencollada/COLLADABaseUtils
-    ${OPENCOLLADA}/include/opencollada/COLLADAFramework
-    ${OPENCOLLADA}/include/opencollada/COLLADASaxFrameworkLoader
-    ${OPENCOLLADA}/include/opencollada/GeneratedSaxParser
-  )
-
-  set(OPENCOLLADA_LIBRARIES
-    optimized ${OPENCOLLADA}/lib/opencollada/OpenCOLLADASaxFrameworkLoader.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAFramework.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/OpenCOLLADABaseUtils.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAStreamWriter.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/MathMLSolver.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/GeneratedSaxParser.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/buffer.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/ftoa.lib
-
-    debug ${OPENCOLLADA}/lib/opencollada/OpenCOLLADASaxFrameworkLoader_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAFramework_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/OpenCOLLADABaseUtils_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAStreamWriter_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/MathMLSolver_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/GeneratedSaxParser_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/buffer_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/ftoa_d.lib
-  )
-  if(EXISTS ${LIBDIR}/xml2/lib/libxml2s.lib) # 3.4 libraries
-    list(APPEND OPENCOLLADA_LIBRARIES ${LIBDIR}/xml2/lib/libxml2s.lib)
-  else()
-    list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/xml.lib)
-  endif()
-
-  list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/UTF.lib)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -936,6 +888,15 @@ if(WITH_OPENSUBDIV)
   endif()
 endif()
 
+if(WITH_RUBBERBAND)
+  set(RUBBERBAND_FOUND TRUE)
+  set(RUBBERBAND_INCLUDE_DIRS ${LIBDIR}/rubberband/include)
+  set(RUBBERBAND_LIBRARIES
+    optimized ${LIBDIR}/rubberband/lib/rubberband-static.lib
+    debug ${LIBDIR}/rubberband/lib/rubberband-static_d.lib
+  )
+endif()
+
 if(WITH_SDL)
   set(SDL ${LIBDIR}/sdl)
   set(SDL_INCLUDE_DIR ${SDL}/include)
@@ -990,7 +951,7 @@ endif()
 # used in many places so include globally, like OpenGL
 include_directories(SYSTEM "${PTHREADS_INCLUDE_DIRS}")
 
-set(WINTAB_INC ${LIBDIR}/wintab/include)
+set(WINTAB_INC ${CMAKE_SOURCE_DIR}/extern/wintab/include)
 
 if(WITH_OPENAL)
   set(OPENAL ${LIBDIR}/openal)
@@ -1015,7 +976,8 @@ if(WITH_CODEC_SNDFILE)
   endif()
 endif()
 
-if(WITH_CPU_SIMD AND SUPPORT_NEON_BUILD)
+test_neon_support()
+if(SUPPORTS_NEON_BUILD)
   windows_find_package(sse2neon)
   if(NOT SSE2NEON_FOUND)
     set(SSE2NEON_ROOT_DIR ${LIBDIR}/sse2neon)
@@ -1288,7 +1250,11 @@ if(WITH_HARU)
   set(HARU_FOUND ON)
   set(HARU_ROOT_DIR ${LIBDIR}/haru)
   set(HARU_INCLUDE_DIRS ${HARU_ROOT_DIR}/include)
-  set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
+  if(EXISTS ${HARU_ROOT_DIR}/lib/hpdf.lib) # blender 5.0+
+    set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/hpdf.lib)
+  else()
+    set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
+  endif()
 endif()
 
 if(WITH_VULKAN_BACKEND)
@@ -1384,6 +1350,8 @@ set(PLATFORM_ENV_BUILD_DIRS "${_msvc_path}\;${LIBDIR}/epoxy/bin\;${LIBDIR}/tbb/b
 set(PLATFORM_ENV_BUILD "PATH=${PLATFORM_ENV_BUILD_DIRS}")
 # Install needs the additional folders from PLATFORM_ENV_BUILD_DIRS as well, as tools like:
 # `idiff` and `abcls` use the release mode dlls.
-set(PLATFORM_ENV_INSTALL "PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/blender.shared/\;${PLATFORM_ENV_BUILD_DIRS}\;$ENV{PATH}")
+# Escape semicolons, since in cmake they denote elements in a list if surrounded by square brackets
+string(REPLACE ";" "\\;" ESCAPED_PATH "$ENV{PATH}")
+set(PLATFORM_ENV_INSTALL "PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/blender.shared/\;${PLATFORM_ENV_BUILD_DIRS}\;${ESCAPED_PATH}")
 unset(_library_paths)
 unset(_msvc_path)

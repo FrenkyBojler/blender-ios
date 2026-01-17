@@ -12,7 +12,7 @@
 #include "kernel/util/profiler.h"
 
 #include "util/color.h"
-#include "util/texture.h"
+#include "util/types_image.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -41,6 +41,8 @@ struct KernelParamsOptiX {
 
   /* Integrator state */
   IntegratorStateGPU integrator_state;
+
+  void *osl_colorsystem;
 };
 
 #ifdef __NVCC__

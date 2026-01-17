@@ -18,6 +18,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 /***/
 
 struct HeapNode {
@@ -60,7 +62,7 @@ struct Heap {
 /** \name Internal Functions
  * \{ */
 
-#define HEAP_PARENT(i) (((i)-1) >> 1)
+#define HEAP_PARENT(i) (((i) - 1) >> 1)
 #define HEAP_LEFT(i) (((i) << 1) + 1)
 #define HEAP_RIGHT(i) (((i) << 1) + 2)
 #define HEAP_COMPARE(a, b) ((a)->value < (b)->value)
@@ -381,3 +383,5 @@ bool BLI_heap_is_valid(const Heap *heap)
 }
 
 /** \} */
+
+}  // namespace blender

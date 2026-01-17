@@ -19,6 +19,7 @@
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_mesh.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 
@@ -40,11 +41,10 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include <cmath>
-#include <cstdlib>
 
 namespace blender::ed::sculpt_paint::color {
 
@@ -108,7 +108,7 @@ static void color_filter_task(const Depsgraph &depsgraph,
                               LocalData &tls,
                               bke::GSpanAttributeWriter &color_attribute)
 {
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
 
   const Span<float4> orig_colors = orig_color_data_get_mesh(ob, node);
 
@@ -315,7 +315,7 @@ static void color_filter_task(const Depsgraph &depsgraph,
 
 static void sculpt_color_presmooth_init(const Mesh &mesh, Object &object)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
   const IndexMask &node_mask = ss.filter_cache->node_mask;
@@ -372,7 +372,7 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
 {
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
@@ -381,9 +381,8 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
   float fill_color[3];
 
   RNA_float_get_array(op->ptr, "fill_color", fill_color);
-  IMB_colormanagement_srgb_to_scene_linear_v3(fill_color, fill_color);
 
-  Mesh &mesh = *static_cast<Mesh *>(ob.data);
+  Mesh &mesh = *id_cast<Mesh *>(ob.data);
   if (filter_strength < 0.0 && ss.filter_cache->pre_smoothed_color.is_empty()) {
     sculpt_color_presmooth_init(mesh, ob);
   }
@@ -424,7 +423,7 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
 
 static void sculpt_color_filter_end(bContext *C, Object &ob)
 {
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
 
   undo::push_end(ob);
   MEM_delete(ss.filter_cache);
@@ -437,7 +436,7 @@ static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
                                                   const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
 
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
     sculpt_color_filter_end(C, ob);
@@ -461,7 +460,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   View3D *v3d = CTX_wm_view3d(C);
 
   const Base *base = CTX_data_active_base(C);
@@ -506,10 +505,12 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
                      mval_fl,
                      RNA_float_get(op->ptr, "area_normal_radius"),
                      RNA_float_get(op->ptr, "strength"));
-  const SculptSession &ss = *ob.sculpt;
+  const SculptSession &ss = *ob.runtime->sculpt_session;
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  if (auto_mask::is_enabled(sd, ob, nullptr)) {
+    auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  }
 
   return OPERATOR_PASS_THROUGH;
 }
@@ -544,7 +545,7 @@ static wmOperatorStatus sculpt_color_filter_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  ED_image_paint_brush_type_update_sticky_shading_color(C, &ob);
+  ED_paint_brush_type_update_sticky_shading_color(C, &ob);
 
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
@@ -562,12 +563,12 @@ static std::string sculpt_color_filter_get_name(wmOperatorType * /*ot*/, Pointer
 
 static void sculpt_color_filter_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill) {
-    layout->prop(op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -605,7 +606,7 @@ void SCULPT_OT_color_filter(wmOperatorType *ot)
                                           0.0f,
                                           1.0f);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
-  RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
+  RNA_def_property_subtype(prop, PROP_COLOR);
 }
 
 }  // namespace blender::ed::sculpt_paint::color

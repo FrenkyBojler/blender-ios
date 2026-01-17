@@ -8,6 +8,8 @@
  * \ingroup bmesh
  */
 
+namespace blender {
+
 struct BMOperator;
 struct BMesh;
 
@@ -35,6 +37,7 @@ void bmo_create_monkey_exec(BMesh *bm, BMOperator *op);
 void bmo_create_uvsphere_exec(BMesh *bm, BMOperator *op);
 void bmo_create_vert_exec(BMesh *bm, BMOperator *op);
 void bmo_delete_exec(BMesh *bm, BMOperator *op);
+void bmo_dissolve_edges_init(BMOperator *op);
 void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op);
 void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op);
 void bmo_dissolve_verts_exec(BMesh *bm, BMOperator *op);
@@ -91,3 +94,5 @@ void bmo_unsubdivide_exec(BMesh *bm, BMOperator *op);
 void bmo_weld_verts_exec(BMesh *bm, BMOperator *op);
 void bmo_wireframe_exec(BMesh *bm, BMOperator *op);
 void bmo_flip_quad_tessellation_exec(BMesh *bm, BMOperator *op);
+
+}  // namespace blender

@@ -16,7 +16,6 @@
 
 #include "BLF_api.hh"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -27,6 +26,8 @@
 
 #include "DNA_packedFile_types.h"
 #include "DNA_vfont_types.h"
+
+namespace blender {
 
 extern const void *builtin_font_data;
 extern int builtin_font_size;
@@ -62,16 +63,12 @@ VFontData *BKE_vfontdata_from_freetypefont(PackedFile *pf)
     BKE_vfontdata_metrics_get_defaults(&vfd->metrics);
   }
 
-  vfd->characters = BLI_ghash_int_new_ex(__func__, 255);
+  vfd->characters = MEM_new<Map<uint, VChar *>>(__func__);
+  vfd->characters->reserve(255);
 
   BLF_unload_id(fontid);
 
   return vfd;
-}
-
-static void *vfontdata_copy_characters_value_cb(const void *src)
-{
-  return BKE_vfontdata_char_copy(static_cast<const VChar *>(src));
 }
 
 VFontData *BKE_vfontdata_copy(const VFontData *vfont_src, const int /*flag*/)
@@ -79,8 +76,13 @@ VFontData *BKE_vfontdata_copy(const VFontData *vfont_src, const int /*flag*/)
   VFontData *vfont_dst = static_cast<VFontData *>(MEM_dupallocN(vfont_src));
 
   if (vfont_src->characters != nullptr) {
-    vfont_dst->characters = BLI_ghash_copy(
-        vfont_src->characters, nullptr, vfontdata_copy_characters_value_cb);
+    vfont_dst->characters = MEM_new<Map<uint, VChar *>>(__func__);
+    vfont_dst->characters->reserve(vfont_src->characters->size());
+    for (const auto &item : vfont_src->characters->items()) {
+      VChar *vchar_src = item.value;
+      VChar *vchar_dst = vchar_src ? BKE_vfontdata_char_copy(vchar_src) : nullptr;
+      vfont_dst->characters->add(item.key, vchar_dst);
+    }
   }
 
   return vfont_dst;
@@ -122,10 +124,20 @@ VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, uint character)
   /* need to set a size for embolden, etc. */
   BLF_size(font_id, 16);
 
-  che->width = BLF_character_to_curves(
-      font_id, character, &che->nurbsbase, vfont->data->metrics.scale, use_fallback);
+  if (!BLF_character_to_curves(font_id,
+                               character,
+                               &che->nurbsbase,
+                               vfont->data->metrics.scale,
+                               use_fallback,
+                               &che->width))
+  {
+    /* Free but add to the character cache to prevent future lookups
+     * from attempting to load the font again. */
+    MEM_freeN(che);
+    che = nullptr;
+  }
 
-  BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(character), che);
+  vfont->data->characters->add(character, che);
   BLF_unload_id(font_id);
   return che;
 }
@@ -139,3 +151,5 @@ VChar *BKE_vfontdata_char_copy(const VChar *vchar_src)
 
   return vchar_dst;
 }
+
+}  // namespace blender

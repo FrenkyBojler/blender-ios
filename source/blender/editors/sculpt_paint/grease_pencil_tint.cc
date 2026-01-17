@@ -33,7 +33,7 @@ using ed::greasepencil::MutableDrawingInfo;
 
 class TintOperation : public GreasePencilStrokeOperation {
  public:
-  TintOperation(bool temp_eraser = false) : temp_eraser_(temp_eraser){};
+  TintOperation(bool temp_eraser = false) : temp_eraser_(temp_eraser) {};
   void on_stroke_begin(const bContext &C, const InputSample &start_sample) override;
   void on_stroke_extended(const bContext &C, const InputSample &extension_sample) override;
   void on_stroke_done(const bContext &C) override;
@@ -82,20 +82,20 @@ void TintOperation::on_stroke_begin(const bContext &C, const InputSample & /*sta
   }
   BLI_assert(brush->gpencil_settings != nullptr);
 
-  BKE_curvemapping_init(brush->curve);
+  BKE_curvemapping_init(brush->curve_distance_falloff);
 
-  radius_ = brush->size;
+  radius_ = brush->size / 2.0f;
   strength_ = brush->alpha;
   active_layer_only_ = ((brush->gpencil_settings->flag & GP_BRUSH_ACTIVE_LAYER_ONLY) != 0);
 
   float4 color_linear;
   color_linear[3] = 1.0f;
-  srgb_to_linearrgb_v3_v3(color_linear, BKE_brush_color_get(scene, paint, brush));
+  copy_v3_v3(color_linear, BKE_brush_color_get(paint, brush));
 
   color_ = ColorGeometry4f(color_linear);
 
   Object *obact = CTX_data_active_object(&C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(obact->data);
 
   if (active_layer_only_) {
     /* Tint only on the drawings of the active layer. */
@@ -131,7 +131,7 @@ void TintOperation::on_stroke_begin(const bContext &C, const InputSample & /*sta
 
     bke::crazyspace::GeometryDeformation deformation =
         bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-            ob_eval, *obact, drawing_info.layer_index, drawing_info.frame_number);
+            ob_eval, *obact, drawing_info.drawing);
 
     for (const int point : strokes.points_range()) {
       ED_view3d_project_float_global(
@@ -209,7 +209,7 @@ void TintOperation::tint_fills(const bke::CurvesGeometry &strokes,
       return false;
     }
     return isect_point_poly_v2(
-        mouse, reinterpret_cast<const float(*)[2]>(points.data()), points.size());
+        mouse, reinterpret_cast<const float (*)[2]>(points.data()), points.size());
   };
 
   threading::parallel_for(strokes.curves_range(), 512, [&](const IndexRange curves) {
@@ -279,7 +279,7 @@ void TintOperation::execute_tint(const bContext &C, const InputSample &extension
   const bool tint_fills = ELEM(
       brush->gpencil_settings->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH);
 
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(obact->data);
 
   std::atomic<bool> changed = false;
   const auto execute_tint_on_drawing = [&](Drawing &drawing, const int drawing_index) {

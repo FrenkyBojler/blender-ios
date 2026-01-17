@@ -10,20 +10,22 @@
 
 #include <optional>
 
+namespace blender {
+
 struct Brush;
 struct Depsgraph;
 struct Scene;
 struct Sculpt;
-namespace blender::ed::sculpt_paint {
+namespace ed::sculpt_paint {
 struct StrokeCache;
 };
 struct SculptSession;
 struct Object;
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 class Node;
 }
 
-namespace blender::ed::sculpt_paint::brushes {
+namespace ed::sculpt_paint::brushes {
 
 /** Represents the result of one or more BVH queries to find a brush's affected nodes. */
 struct CursorSampleResult {
@@ -71,12 +73,10 @@ void do_clay_thumb_brush(const Depsgraph &depsgraph,
 float clay_thumb_get_stabilized_pressure(const StrokeCache &cache);
 
 void do_crease_brush(const Depsgraph &depsgraph,
-                     const Scene &scene,
                      const Sculpt &sd,
                      Object &ob,
                      const IndexMask &node_mask);
 void do_blob_brush(const Depsgraph &depsgraph,
-                   const Scene &scene,
                    const Sculpt &sd,
                    Object &ob,
                    const IndexMask &node_mask);
@@ -213,4 +213,6 @@ void do_topology_relax_brush(const Depsgraph &depsgraph,
                              Object &object,
                              const IndexMask &node_mask);
 
-}  // namespace blender::ed::sculpt_paint::brushes
+}  // namespace ed::sculpt_paint::brushes
+
+}  // namespace blender
