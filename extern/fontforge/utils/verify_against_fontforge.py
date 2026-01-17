@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Validation script for Blender font overlap removal.
+Verification script for Blender font overlap removal.
 
 Compares Blender's overlap removal against FontForge's implementation by loading
 fonts and comparing the resulting curve statistics (area, perimeter, spline count).
 
 Can be run directly or through Blender:
-    ./validate.py                       # Test all fonts in ./fonts (auto-finds Blender)
-    BLENDER_JOBS=4 ./validate.py        # Run with 4 parallel jobs
-    ./validate.py path/to/font.ttf      # Test specific font
-    blender --background --python validate.py -- [options]
+    ./verify.py                       # Test all fonts in ./fonts (auto-finds Blender)
+    BLENDER_JOBS=4 ./verify.py        # Run with 4 parallel jobs
+    ./verify.py path/to/font.ttf      # Test specific font
+    blender --background --python verify.py -- [options]
 """
 __all__ = (
     "main",
@@ -108,8 +108,8 @@ class JobResult(NamedTuple):
     stderr: str
 
 
-class ValidationError(Exception):
-    """Raised when validation setup fails."""
+class VerificationError(Exception):
+    """Raised when verification setup fails."""
 
 
 def report(message: str = "") -> None:
@@ -145,11 +145,11 @@ def find_font_files(directory: str) -> list[str]:
 
 def run_single_font_job(
     blender: str,
-    validate_py: str,
+    verify_py: str,
     font: str,
     extra_args: list[str],
 ) -> JobResult:
-    """Run validation for a single font file."""
+    """Run verification for a single font file."""
     import subprocess
 
     env = os.environ.copy()
@@ -160,7 +160,7 @@ def run_single_font_job(
         "-q",
         "--background",
         "--python",
-        validate_py,
+        verify_py,
         "--",
         font,
         *extra_args,
@@ -177,19 +177,19 @@ def run_single_font_job(
 
 def run_parallel_jobs(
     blender: str,
-    validate_py: str,
+    verify_py: str,
     fonts: list[str],
     extra_args: list[str],
     jobs: int,
 ) -> int:
-    """Run validation for multiple fonts in parallel."""
+    """Run verification for multiple fonts in parallel."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     max_returncode = 0
 
     with ThreadPoolExecutor(max_workers=jobs) as executor:
         futures = {
-            executor.submit(run_single_font_job, blender, validate_py, font, extra_args): font
+            executor.submit(run_single_font_job, blender, verify_py, font, extra_args): font
             for font in fonts
         }
 
@@ -209,14 +209,14 @@ def run_parallel_jobs(
 def print_direct_help() -> None:
     """Print help message for direct execution mode."""
     print("""\
-Validation script for Blender font overlap removal.
+Verification script for Blender font overlap removal.
 
 This script can be run directly or through Blender. When run directly,
 it spawns Blender subprocess(es) and forwards all arguments.
 
 Usage:
-  ./validate.py [options] [font_file]
-  blender --background --python validate.py -- [options] [font_file]
+  ./verify.py [options] [font_file]
+  blender --background --python verify.py -- [options] [font_file]
 
 Environment variables (direct mode only):
   BLENDER_BIN   Path to Blender executable (default: "blender")
@@ -233,12 +233,12 @@ Options (passed to Blender):
   -h, --help              Show this help message
 
 Examples:
-  ./validate.py                              Test all fonts in ./fonts
-  BLENDER_JOBS=0 ./validate.py               Run with all CPU cores
-  BLENDER_JOBS=4 ./validate.py               Run with 4 parallel jobs
-  ./validate.py --chars 'ABC'                Test only specific characters
-  ./validate.py path/to/font.ttf             Test a specific font
-  BLENDER_BIN=/path/to/blender ./validate.py Use specific Blender build
+  ./verify.py                              Test all fonts in ./fonts
+  BLENDER_JOBS=0 ./verify.py               Run with all CPU cores
+  BLENDER_JOBS=4 ./verify.py               Run with 4 parallel jobs
+  ./verify.py --chars 'ABC'                Test only specific characters
+  ./verify.py path/to/font.ttf             Test a specific font
+  BLENDER_BIN=/path/to/blender ./verify.py Use specific Blender build
 """)
 
 
@@ -266,7 +266,7 @@ def main_direct() -> int:
         print(f"Error: BLENDER_JOBS must be a non-negative integer, got: {jobs_str}", file=sys.stderr)
         return 1
 
-    validate_py = os.path.abspath(__file__)
+    verify_py = os.path.abspath(__file__)
     forward_args = sys.argv[1:]
 
     env = os.environ.copy()
@@ -303,7 +303,7 @@ def main_direct() -> int:
         fonts = find_font_files(font_dir)
         if len(fonts) > 1:
             # Keep --font-dir in args so it's used as cache base directory
-            return run_parallel_jobs(blender, validate_py, fonts, forward_args, jobs)
+            return run_parallel_jobs(blender, verify_py, fonts, forward_args, jobs)
 
     # Single job: forward all arguments to Blender
     cmd = [
@@ -311,7 +311,7 @@ def main_direct() -> int:
         "-q",
         "--background",
         "--python",
-        validate_py,
+        verify_py,
         "--",
         *forward_args,
     ]
@@ -333,8 +333,8 @@ def parse_args_blender() -> argparse.Namespace:
         argv = []
 
     parser = argparse.ArgumentParser(
-        description="Validate Blender font overlap removal against FontForge.",
-        usage="blender --background --python validate.py -- [options] [font_file]",
+        description="Verify Blender font overlap removal against FontForge.",
+        usage="blender --background --python verify.py -- [options] [font_file]",
     )
     parser.add_argument(
         "font_file",
@@ -371,13 +371,13 @@ def parse_args_blender() -> argparse.Namespace:
     # Validate arguments
     if args.fonts_dir is None and args.font_file is None:
         parser.print_help()
-        raise ValidationError("No font file or directory specified")
+        raise VerificationError("No font file or directory specified")
 
     return args
 
 
 def get_font_paths(args: argparse.Namespace) -> list[str]:
-    """Get list of font paths to test. Raises ValidationError on invalid paths."""
+    """Get list of font paths to test. Raises VerificationError on invalid paths."""
     result: list[str] = []
 
     # If a specific font file is provided, use only that (no recursive scan)
@@ -387,14 +387,14 @@ def get_font_paths(args: argparse.Namespace) -> list[str]:
         if not os.path.isabs(font_path):
             font_path = os.path.abspath(font_path)
         if not os.path.exists(font_path):
-            raise ValidationError("Font file not found: {:s}".format(font_path))
+            raise VerificationError("Font file not found: {:s}".format(font_path))
         result = [font_path]
     elif args.fonts_dir:
         fonts_dir: str = args.fonts_dir
         if not os.path.isabs(fonts_dir):
             fonts_dir = os.path.abspath(fonts_dir)
         if not os.path.isdir(fonts_dir):
-            raise ValidationError("Directory not found: {:s}".format(fonts_dir))
+            raise VerificationError("Directory not found: {:s}".format(fonts_dir))
         # Recursively collect all font files, ignoring directories starting with "."
         for root, dirs, files in os.walk(fonts_dir):
             # Filter out directories starting with "." (modifies dirs in-place to skip them)
@@ -404,7 +404,7 @@ def get_font_paths(args: argparse.Namespace) -> list[str]:
                     result.append(os.path.join(root, filename))
         result.sort()  # Sort all results for consistent ordering
         if not result:
-            raise ValidationError("No font files found in: {:s}".format(fonts_dir))
+            raise VerificationError("No font files found in: {:s}".format(fonts_dir))
 
     return result
 
@@ -789,7 +789,7 @@ def save_error_blend(
     """
     Save a .blend file with text objects for each failed character.
     Each text object is positioned in a line along the X axis.
-    Includes a text data-block with the full validation report.
+    Includes a text data-block with the full verification report.
     """
     # Clear the scene
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -815,8 +815,8 @@ def save_error_blend(
             )
             x_pos += 1.0
 
-    # Create a text data-block with the validation report
-    report_text = bpy.data.texts.new("validation_report.txt")
+    # Create a text data-block with the verification report
+    report_text = bpy.data.texts.new("verification_report.txt")
     report_text.from_string("\n".join(_report_log))
 
     # Save the blend file
@@ -829,7 +829,7 @@ def main_blender() -> int:
     try:
         args = parse_args_blender()
         font_paths = get_font_paths(args)
-    except ValidationError as e:
+    except VerificationError as e:
         report("Error: {:s}".format(str(e)))
         return 1
 

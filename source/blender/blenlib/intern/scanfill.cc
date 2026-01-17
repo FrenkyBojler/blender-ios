@@ -20,6 +20,7 @@
 #include <cstring>
 
 #include <algorithm>
+#include <vector>
 
 #include "MEM_guardedalloc.h"
 
@@ -33,6 +34,10 @@
 #include "BLI_utildefines.h"
 
 #include "BLI_scanfill.h" /* own include */
+
+#ifdef WITH_POLY_SCANFILL
+#  include "poly_scanfill_2d.hh"
+#endif
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
@@ -814,8 +819,120 @@ void BLI_scanfill_end_arena(ScanFillContext *sf_ctx, MemArena *arena)
   BLI_listbase_clear(&sf_ctx->fillfacebase);
 }
 
+#ifdef WITH_POLY_SCANFILL
+/**
+ * Robust scanfill implementation using poly_fill library.
+ * Converts ScanFillContext data to poly_fill format, triangulates,
+ * and converts results back to ScanFillFace entries.
+ */
+static uint scanfill_calc_robust(ScanFillContext *sf_ctx,
+                                 const int /*flag*/,
+                                 const float nor_proj[3])
+{
+  /* Mark vertices that are in edges. */
+  for (ScanFillEdge &eed : sf_ctx->filledgebase) {
+    eed.v1->f = SF_VERT_AVAILABLE;
+    eed.v2->f = SF_VERT_AVAILABLE;
+  }
+
+  /* Check if any vertices are available. */
+  bool vert_available = false;
+  for (ScanFillVert &eve : sf_ctx->fillvertbase) {
+    if (eve.f == SF_VERT_AVAILABLE) {
+      vert_available = true;
+      break;
+    }
+  }
+
+  if (UNLIKELY(!vert_available)) {
+    return 0;
+  }
+
+  /* Calculate projection normal. */
+  float n[3];
+  if (nor_proj) {
+    copy_v3_v3(n, nor_proj);
+  }
+  else {
+    const float *v_prev;
+    zero_v3(n);
+    v_prev = static_cast<ScanFillVert *>(sf_ctx->fillvertbase.last)->co;
+    for (ScanFillVert &eve : sf_ctx->fillvertbase) {
+      if (LIKELY(!compare_v3v3(v_prev, eve.co, SF_EPSILON))) {
+        add_newell_cross_v3_v3v3(n, v_prev, eve.co);
+        v_prev = eve.co;
+      }
+    }
+  }
+
+  if (UNLIKELY(normalize_v3(n) == 0.0f)) {
+    return 0;
+  }
+
+  float mat_2d[3][3];
+  axis_dominant_v3_to_m3_negate(mat_2d, n);
+
+  /* Count available vertices and assign indices. */
+  uint verts_num = 0;
+  for (ScanFillVert &eve : sf_ctx->fillvertbase) {
+    if (eve.f == SF_VERT_AVAILABLE) {
+      eve.tmp.u = verts_num++;
+    }
+  }
+
+  if (verts_num < 3) {
+    return 0;
+  }
+
+  /* Build vertex array with 2D projected coordinates. */
+  std::vector<poly_fill::Vert> verts(verts_num);
+  std::vector<ScanFillVert *> vert_map(verts_num);
+  for (ScanFillVert &eve : sf_ctx->fillvertbase) {
+    if (eve.f == SF_VERT_AVAILABLE) {
+      float xy[2];
+      mul_v2_m3v3(xy, mat_2d, eve.co);
+      verts[eve.tmp.u] = {poly_fill::Scalar(xy[0]), poly_fill::Scalar(xy[1])};
+      vert_map[eve.tmp.u] = &eve;
+    }
+  }
+
+  /* Build edge array. */
+  std::vector<poly_fill::Edge> edges;
+  edges.reserve(size_t(BLI_listbase_count(
+      reinterpret_cast<const ListBase *>(&sf_ctx->filledgebase))));
+  for (ScanFillEdge &eed : sf_ctx->filledgebase) {
+    if (eed.v1->f == SF_VERT_AVAILABLE && eed.v2->f == SF_VERT_AVAILABLE) {
+      edges.push_back({int(eed.v1->tmp.u), int(eed.v2->tmp.u)});
+    }
+  }
+
+  if (edges.empty()) {
+    return 0;
+  }
+
+  /* Call poly_fill. */
+  std::vector<poly_fill::Face> faces = poly_fill::poly_fill(verts, edges, false);
+
+  /* Convert results to ScanFillFace. */
+  uint totfaces = 0;
+  for (const poly_fill::Face &face : faces) {
+    ScanFillFace *sf_tri = BLI_memarena_alloc<ScanFillFace>(sf_ctx->arena);
+    BLI_addtail(&sf_ctx->fillfacebase, sf_tri);
+    sf_tri->v1 = vert_map[size_t(face[0])];
+    sf_tri->v2 = vert_map[size_t(face[1])];
+    sf_tri->v3 = vert_map[size_t(face[2])];
+    totfaces++;
+  }
+
+  return totfaces;
+}
+#endif /* WITH_POLY_SCANFILL */
+
 uint BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float nor_proj[3])
 {
+#ifdef WITH_POLY_SCANFILL
+  return scanfill_calc_robust(sf_ctx, flag, nor_proj);
+#else
   /*
    * - fill works with its own lists, so create that first (no faces!)
    * - for vertices, put in ->tmp.v the old pointer
@@ -1135,6 +1252,7 @@ uint BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float n
   MEM_freeN(pflist);
 
   return totfaces;
+#endif /* !WITH_POLY_SCANFILL */
 }
 
 uint BLI_scanfill_calc(ScanFillContext *sf_ctx, const int flag)

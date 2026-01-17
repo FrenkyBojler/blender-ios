@@ -445,6 +445,21 @@ if(WITH_MEM_VALGRIND)
   add_definitions(-DWITH_MEM_VALGRIND)
 endif()
 
+if(WITH_POLY_SCANFILL)
+  add_definitions(-DWITH_POLY_SCANFILL)
+  list(APPEND INC
+    ../../../extern/poly_scanfill_2d
+  )
+  list(APPEND LIB
+    PRIVATE bf::extern::poly_scanfill_2d
+  )
+  # poly_scanfill_2d.hh uses C++20 features (std::span)
+  set_source_files_properties(
+    intern/scanfill.cc
+    PROPERTIES COMPILE_FLAGS "-std=c++20"
+  )
+endif()
+
 if(WIN32)
   if(WITH_BLENDER_THUMBNAILER)
     # Needed for querying the `thumbnailer .dll` in `winstuff.c`.
@@ -598,7 +613,25 @@ if(WITH_GTESTS)
   set(TEST_LIB
     bf_blenlib
   )
+  if(WITH_POLY_SCANFILL)
+    list(APPEND TEST_SRC
+      tests/BLI_scanfill_test.cc
+    )
+  endif()
   blender_add_test_suite_executable(BLI "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+
+  # Define test data directory for scanfill tests.
+  if(WITH_POLY_SCANFILL)
+    if(WITH_TESTS_SINGLE_BINARY)
+      target_compile_definitions(BLI_test PRIVATE
+        TEST_DATA_DIR=${CMAKE_CURRENT_SOURCE_DIR}/tests/BLI_scanfill_test/data
+      )
+    else()
+      target_compile_definitions(BLI_scanfill_test PRIVATE
+        TEST_DATA_DIR=${CMAKE_CURRENT_SOURCE_DIR}/tests/BLI_scanfill_test/data
+      )
+    endif()
+  endif()
 
   add_subdirectory(tests/performance)
 endif()

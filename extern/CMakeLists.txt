@@ -119,3 +119,8 @@ add_subdirectory(fontforge)
 if(WITH_FONT_SKIA)
   add_subdirectory(skia)
 endif()
+
+# Robust scanfill polygon triangulation
+if(WITH_POLY_SCANFILL)
+  add_subdirectory(poly_scanfill_2d)
+endif()
