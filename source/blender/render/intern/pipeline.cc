@@ -2608,6 +2608,9 @@ void RE_RenderAnim(Render *re,
   scene->r.cfra = cfra_old;
   scene->r.subframe = subframe_old;
 
+  /* Wait for pending background image saves before signaling completion. */
+  ed::space_image::image_save_pool_wait();
+
   render_callback_exec_id(re,
                           re->main,
                           &scene->id,

@@ -82,6 +82,16 @@ TaskPool *BLI_task_pool_create_background(void *userdata, eTaskPriority priority
 TaskPool *BLI_task_pool_create_background_serial(void *userdata, eTaskPriority priority);
 
 /**
+ * Background Parallel: run tasks in parallel on dedicated background threads.
+ *
+ * Unlike the regular background pool, this does not use TBB's work-stealing scheduler.
+ * Tasks are executed on a fixed number of dedicated threads with FIFO ordering.
+ */
+TaskPool *BLI_task_pool_create_background_parallel(void *userdata,
+                                                   eTaskPriority priority,
+                                                   int num_threads);
+
+/**
  * Suspended: don't execute tasks until work_and_wait is called. This is slower
  * as threads can't immediately start working. But it can be used if the data
  * structures the threads operate on are not fully initialized until all tasks are created.

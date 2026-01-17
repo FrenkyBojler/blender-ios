@@ -48,6 +48,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_image.hh"
 #include "ED_render.hh"
 #include "ED_screen.hh"
 #include "ED_util.hh"
@@ -1400,6 +1401,22 @@ void RENDER_OT_shutter_curve_preset(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna, "shape", prop_shape_items, CURVE_PRESET_SMOOTH, "Mode", "");
   RNA_def_property_translation_context(prop,
                                        BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
+}
+
+/* Wait for background image saves */
+
+static wmOperatorStatus render_image_save_wait_exec(bContext * /*C*/, wmOperator * /*op*/)
+{
+  ed::space_image::image_save_pool_wait();
+  return OPERATOR_FINISHED;
+}
+
+void RENDER_OT_image_save_wait(wmOperatorType *ot)
+{
+  ot->name = "Wait for Image Saves";
+  ot->description = "Wait for all pending background image saves to complete";
+  ot->idname = "RENDER_OT_image_save_wait";
+  ot->exec = render_image_save_wait_exec;
 }
 
 }  // namespace blender

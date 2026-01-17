@@ -22,6 +22,9 @@ namespace blender::ed::space_image {
 /** Initialize the background image save task pool. Called lazily on first use. */
 void image_save_pool_init();
 
+/** Wait for pending background image saves to complete. */
+void image_save_pool_wait();
+
 /** Wait for pending saves and free the task pool. Call at shutdown. */
 void image_save_pool_exit();
 

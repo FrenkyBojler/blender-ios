@@ -15,6 +15,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
 
@@ -58,6 +59,7 @@ static void image_save_task_run(TaskPool *__restrict /*pool*/, void *taskdata)
 
   if (success) {
     printf("Saved \"%s\"\n", task->filepath);
+    fflush(stdout);
   }
   else {
     fprintf(stderr, "Failed to save \"%s\": %s\n", task->filepath, strerror(errno));
@@ -80,7 +82,17 @@ static void image_save_task_free(TaskPool *__restrict /*pool*/, void *taskdata)
 void image_save_pool_init()
 {
   if (g_image_save_pool == nullptr) {
-    g_image_save_pool = BLI_task_pool_create_background(nullptr, TASK_PRIORITY_LOW);
+    /* Use 1/4 of available threads for background saves, minimum 2. */
+    const int num_threads = max_ii(2, BLI_task_scheduler_num_threads() / 4);
+    g_image_save_pool = BLI_task_pool_create_background_parallel(
+        nullptr, TASK_PRIORITY_HIGH, num_threads);
+  }
+}
+
+void image_save_pool_wait()
+{
+  if (g_image_save_pool != nullptr) {
+    BLI_task_pool_work_and_wait(g_image_save_pool);
   }
 }
 
@@ -173,6 +185,7 @@ static void render_save_task_run(TaskPool *__restrict /*pool*/, void *taskdata)
 
   if (success) {
     printf("Saved \"%s\"\n", task->filepath);
+    fflush(stdout);
   }
   else {
     fprintf(stderr, "Failed to save \"%s\": %s\n", task->filepath, strerror(errno));

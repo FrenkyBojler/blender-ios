@@ -87,6 +87,7 @@ struct RenderJobBase {
  */
 void RENDER_OT_render(wmOperatorType *ot);
 void RENDER_OT_shutter_curve_preset(wmOperatorType *ot);
+void RENDER_OT_image_save_wait(wmOperatorType *ot);
 
 /* `render_view.cc` */
 

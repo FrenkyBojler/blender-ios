@@ -241,6 +241,9 @@ struct RenderResult;
 
 namespace ed::space_image {
 
+/** Wait for pending background image saves to complete. */
+void image_save_pool_wait();
+
 /** Wait for pending background image saves and free the task pool. Call at shutdown. */
 void image_save_pool_exit();
 
