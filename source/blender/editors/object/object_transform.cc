@@ -84,6 +84,30 @@
 namespace blender::ed::object {
 
 /* -------------------------------------------------------------------- */
+/** \name Auto-Keyframe Utilities
+ * \{ */
+
+static void autokeyframe_object_rotation(bContext *C, Scene *scene, Object *ob)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_Object, &ob->id);
+  const char *rotation_property = "rotation_euler";
+  switch (ob->rotmode) {
+    case ROT_MODE_QUAT:
+      rotation_property = "rotation_quaternion";
+      break;
+    case ROT_MODE_AXISANGLE:
+      rotation_property = "rotation_axis_angle";
+      break;
+    default:
+      break;
+  }
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+  animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Clear Transformation Utilities
  * \{ */
 
@@ -1950,6 +1974,16 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
  */
 #define USE_FAKE_DEPTH_INIT
 
+enum eAxisTargetModal {
+  AXIS_TARGET_MODAL_CONFIRM = 1,
+  AXIS_TARGET_MODAL_CANCEL,
+  AXIS_TARGET_MODAL_TRANSLATE_ENABLE,   /* Ctrl - enable translate mode. */
+  AXIS_TARGET_MODAL_TRANSLATE_DISABLE,  /* Ctrl release - disable translate mode. */
+  AXIS_TARGET_MODAL_SWITCH_TO_ORBIT,    /* O key - switch to orbit modal. */
+  AXIS_TARGET_MODAL_PRECISION_ENABLE,   /* Shift - enable precision mode. */
+  AXIS_TARGET_MODAL_PRECISION_DISABLE,  /* Shift release - disable precision mode. */
+};
+
 struct XFormAxisItem {
   Object *ob;
   float rot_mat[3][3];
@@ -1975,6 +2009,9 @@ struct XFormAxisData {
 
   Vector<XFormAxisItem> object_data;
   bool is_translate;
+  bool precision_mode;
+  float precision_factor;
+  int precision_mval[2];
 
   int init_event;
 };
@@ -2024,6 +2061,40 @@ static bool object_is_target_compat(const Object *ob)
   }
 #endif
   return false;
+}
+
+static void object_transform_axis_target_update_status(bContext *C,
+                                                       wmOperator *op,
+                                                       const XFormAxisData *xfd)
+{
+  WorkspaceStatus status(C);
+  status.opmodal(IFACE_("Cancel"), op->type, AXIS_TARGET_MODAL_CANCEL);
+  status.opmodal(IFACE_("Confirm"), op->type, AXIS_TARGET_MODAL_CONFIRM);
+  status.opmodal(
+      IFACE_("Translate"), op->type, AXIS_TARGET_MODAL_TRANSLATE_ENABLE, xfd->is_translate);
+  status.opmodal(IFACE_("Orbit Mode"), op->type, AXIS_TARGET_MODAL_SWITCH_TO_ORBIT);
+  status.opmodal(IFACE_("Precision Mode"),
+                 op->type,
+                 AXIS_TARGET_MODAL_PRECISION_ENABLE,
+                 xfd->precision_mode);
+}
+
+void object_transform_axis_target_modal_keymap(wmKeyConfig *keyconf)
+{
+  static const EnumPropertyItem modal_items[] = {
+      {AXIS_TARGET_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+      {AXIS_TARGET_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+      {AXIS_TARGET_MODAL_TRANSLATE_ENABLE, "TRANSLATE_ENABLE", 0, "Translate On", ""},
+      {AXIS_TARGET_MODAL_TRANSLATE_DISABLE, "TRANSLATE_DISABLE", 0, "Translate Off", ""},
+      {AXIS_TARGET_MODAL_SWITCH_TO_ORBIT, "ORBIT_MODE", 0, "Switch to Orbit mode", ""},
+      {AXIS_TARGET_MODAL_PRECISION_ENABLE, "PRECISION_ENABLE", 0, "Precision On", ""},
+      {AXIS_TARGET_MODAL_PRECISION_DISABLE, "PRECISION_DISABLE", 0, "Precision Off", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_ensure(
+      keyconf, "Transform Axis Target Modal Map", modal_items);
+  WM_modalkeymap_assign(keymap, "OBJECT_OT_transform_axis_target");
 }
 
 static void object_transform_axis_target_free_data(wmOperator *op)
@@ -2180,6 +2251,11 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     item.is_z_flip = dot_v3v3(item.rot_mat[2], full_mat3[2]) < 0.0f;
   }
 
+  xfd->precision_mode = false;
+  xfd->precision_factor = 0.1f;
+
+  object_transform_axis_target_update_status(C, op, xfd);
+
   WM_event_add_modal_handler(C, op);
 
   return OPERATOR_RUNNING_MODAL;
@@ -2194,14 +2270,87 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
   view3d_operator_needs_gpu(C);
 
-  const bool is_translate = event->modifier & KM_CTRL;
-  const bool is_translate_init = is_translate && (xfd->is_translate != is_translate);
+  bool is_translate_init = false;
+
+  /* Handle modal keymap events first to update state before processing movement. */
+  if (event->type == EVT_MODAL_MAP) {
+    switch (event->val) {
+      case AXIS_TARGET_MODAL_CONFIRM: {
+        Scene *scene = CTX_data_scene(C);
+        for (XFormAxisItem &item : xfd->object_data) {
+          autokeyframe_object_rotation(C, scene, item.ob);
+        }
+        object_transform_axis_target_free_data(op);
+        return OPERATOR_FINISHED;
+      }
+
+      case AXIS_TARGET_MODAL_CANCEL:
+        object_transform_axis_target_cancel(C, op);
+        return OPERATOR_CANCELLED;
+
+      case AXIS_TARGET_MODAL_SWITCH_TO_ORBIT: {
+        Scene *scene = CTX_data_scene(C);
+        for (XFormAxisItem &item : xfd->object_data) {
+          autokeyframe_object_rotation(C, scene, item.ob);
+        }
+        object_transform_axis_target_free_data(op);
+
+        /* Try to launch orbit operator (placeholder - may not exist in this branch). */
+        wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_light_orbit_around", false);
+        if (ot != nullptr) {
+          WM_operator_name_call(
+              C, "OBJECT_OT_light_orbit_around", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+        }
+        return OPERATOR_FINISHED;
+      }
+
+      case AXIS_TARGET_MODAL_TRANSLATE_ENABLE:
+        if (!xfd->is_translate) {
+          xfd->is_translate = true;
+          is_translate_init = true;
+        }
+        object_transform_axis_target_update_status(C, op, xfd);
+        break;
+
+      case AXIS_TARGET_MODAL_TRANSLATE_DISABLE:
+        xfd->is_translate = false;
+        object_transform_axis_target_update_status(C, op, xfd);
+        break;
+
+      case AXIS_TARGET_MODAL_PRECISION_ENABLE:
+        xfd->precision_mode = true;
+        xfd->precision_mval[0] = event->mval[0];
+        xfd->precision_mval[1] = event->mval[1];
+        object_transform_axis_target_update_status(C, op, xfd);
+        break;
+
+      case AXIS_TARGET_MODAL_PRECISION_DISABLE:
+        xfd->precision_mode = false;
+        object_transform_axis_target_update_status(C, op, xfd);
+        break;
+    }
+  }
+
+  const bool is_translate = xfd->is_translate;
 
   if (event->type == MOUSEMOVE || is_translate_init) {
     const ViewDepths *depths = xfd->depths;
-    if (depths && (uint(event->mval[0]) < depths->w) && (uint(event->mval[1]) < depths->h)) {
+
+    int mval_use[2];
+    if (xfd->precision_mode) {
+      mval_use[0] = xfd->precision_mval[0] +
+                    int(float(event->mval[0] - xfd->precision_mval[0]) * xfd->precision_factor);
+      mval_use[1] = xfd->precision_mval[1] +
+                    int(float(event->mval[1] - xfd->precision_mval[1]) * xfd->precision_factor);
+    }
+    else {
+      mval_use[0] = event->mval[0];
+      mval_use[1] = event->mval[1];
+    }
+
+    if (depths && (uint(mval_use[0]) < depths->w) && (uint(mval_use[1]) < depths->h)) {
       float depth_fl = 1.0f;
-      ED_view3d_depth_read_cached(depths, event->mval, 0, &depth_fl);
+      ED_view3d_depth_read_cached(depths, mval_use, 0, &depth_fl);
       float location_world[3];
       if (depth_fl == 1.0f) {
         if (xfd->prev.is_depth_valid) {
@@ -2225,12 +2374,12 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
       if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
         xfd->prev.depth = depth_fl;
         xfd->prev.is_depth_valid = true;
-        if (ED_view3d_depth_unproject_v3(region, event->mval, depth, location_world)) {
+        if (ED_view3d_depth_unproject_v3(region, mval_use, depth, location_world)) {
           if (is_translate) {
 
             float normal[3];
             bool normal_found = false;
-            if (ED_view3d_depth_read_cached_normal(region, depths, event->mval, normal)) {
+            if (ED_view3d_depth_read_cached_normal(region, depths, mval_use, normal)) {
               normal_found = true;
 
               /* cheap attempt to smooth normals out a bit! */
@@ -2238,7 +2387,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
               for (int x = -ofs; x <= ofs; x += ofs / 2) {
                 for (int y = -ofs; y <= ofs; y += ofs / 2) {
                   if (x != 0 && y != 0) {
-                    const int mval_ofs[2] = {event->mval[0] + x, event->mval[1] + y};
+                    const int mval_ofs[2] = {mval_use[0] + x, mval_use[1] + y};
                     float n[3];
                     if (ED_view3d_depth_read_cached_normal(region, depths, mval_ofs, n)) {
                       add_v3_v3(normal, n);
@@ -2340,50 +2489,19 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         }
       }
     }
-    xfd->is_translate = is_translate;
-
     ED_region_tag_redraw(xfd->vc.region);
   }
 
-  bool is_finished = false;
-
+  /* Fallback for mouse release when invoked with mouse button. */
   if (ISMOUSE_BUTTON(xfd->init_event)) {
     if ((event->type == xfd->init_event) && (event->val == KM_RELEASE)) {
-      is_finished = true;
-    }
-  }
-  else {
-    if (ELEM(event->type, LEFTMOUSE, EVT_RETKEY, EVT_PADENTER)) {
-      is_finished = true;
-    }
-  }
-
-  if (is_finished) {
-    Scene *scene = CTX_data_scene(C);
-    /* Perform auto-keying for rotational changes for all objects. */
-    for (XFormAxisItem &item : xfd->object_data) {
-      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, RNA_Object, &item.ob->id);
-      const char *rotation_property = "rotation_euler";
-      switch (item.ob->rotmode) {
-        case ROT_MODE_QUAT:
-          rotation_property = "rotation_quaternion";
-          break;
-        case ROT_MODE_AXISANGLE:
-          rotation_property = "rotation_axis_angle";
-          break;
-        default:
-          break;
+      Scene *scene = CTX_data_scene(C);
+      for (XFormAxisItem &item : xfd->object_data) {
+        autokeyframe_object_rotation(C, scene, item.ob);
       }
-      PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
-      animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+      object_transform_axis_target_free_data(op);
+      return OPERATOR_FINISHED;
     }
-
-    object_transform_axis_target_free_data(op);
-    return OPERATOR_FINISHED;
-  }
-  if (ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE)) {
-    object_transform_axis_target_cancel(C, op);
-    return OPERATOR_CANCELLED;
   }
 
   return OPERATOR_RUNNING_MODAL;
