@@ -184,8 +184,12 @@ class GreasePencilBrushFalloff:
                 col.prop(brush, "curve_distance_falloff_preset", text="")
 
             if brush.curve_distance_falloff_preset == 'CUSTOM':
-                layout.template_curve_mapping(brush, "curve_distance_falloff", brush=True,
-                                              use_negative_slope=True, show_presets=True)
+                layout.template_curve_mapping(
+                    brush, "curve_distance_falloff",
+                    brush=True,
+                    use_negative_slope=True,
+                    show_presets=True,
+                )
 
 
 class GREASE_PENCIL_MT_move_to_layer(Menu):
@@ -193,6 +197,13 @@ class GREASE_PENCIL_MT_move_to_layer(Menu):
 
     def draw(self, context):
         layout = self.layout
+
+        if layout.operator_context == 'EXEC_REGION_WIN':
+            layout.operator_context = 'INVOKE_REGION_WIN'
+            layout.operator("WM_OT_search_single_menu", text="Search...",
+                            icon='VIEWZOOM').menu_idname = "GREASE_PENCIL_MT_move_to_layer"
+            layout.separator()
+
         layout.operator_context = 'INVOKE_REGION_WIN'
         grease_pencil = context.active_object.data
 

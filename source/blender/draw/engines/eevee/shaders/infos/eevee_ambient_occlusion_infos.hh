@@ -8,7 +8,10 @@
 
 #  include "draw_view_infos.hh"
 #  include "eevee_common_infos.hh"
+#  include "eevee_sampling_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define HORIZON_OCCLUSION
 #endif
 

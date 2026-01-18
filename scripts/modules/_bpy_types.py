@@ -142,10 +142,12 @@ class Library(_types.ID):
             "fonts", "worlds",
         )
 
-        return tuple(id_block
-                     for attr in attr_links
-                     for id_block in getattr(bpy.data, attr)
-                     if id_block.library == self)
+        return tuple(
+            id_block
+            for attr in attr_links
+            for id_block in getattr(bpy.data, attr)
+            if id_block.library == self
+        )
 
 
 class Texture(_types.ID):
@@ -1197,10 +1199,18 @@ class Header(_StructRNA, _GenericUI, metaclass=_RNAMeta):
 class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
     __slots__ = ()
 
-    def path_menu(self, searchpaths, operator, *,
-                  props_default=None, prop_filepath="filepath",
-                  filter_ext=None, filter_path=None, display_name=None,
-                  add_operator=None, add_operator_props=None):
+    def path_menu(
+        self, searchpaths, operator,
+        *,
+        props_default=None,
+        prop_filepath="filepath",
+        filter_ext=None,
+        filter_path=None,
+        display_name=None,
+        add_operator=None,
+        add_operator_props=None,
+        translate=True,
+    ):
         """
         Populate a menu from a list of paths.
 
@@ -1261,7 +1271,7 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
             name = display_name(filepath) if display_name else bpy.path.display_name(f)
             props = row.operator(
                 operator,
-                text=iface_(name),
+                text=(iface_(name) if translate else name),
                 translate=False,
             )
 
@@ -1370,14 +1380,16 @@ class NodeSocket(_StructRNA, metaclass=_RNAMetaPropGroup):
 
         .. note:: Takes ``O(len(nodetree.links))`` time.
         """
-        links = (link for link in self.id_data.links
-                 if self in (link.from_socket, link.to_socket))
-
+        links = (
+            link for link in self.id_data.links
+            if self in (link.from_socket, link.to_socket)
+        )
         if not self.is_output:
-            links = sorted(links,
-                           key=lambda link: link.multi_input_sort_id,
-                           reverse=True)
-
+            links = sorted(
+                links,
+                key=lambda link: link.multi_input_sort_id,
+                reverse=True,
+            )
         return tuple(links)
 
 
@@ -1396,9 +1408,6 @@ class CompositorNode(NodeInternal):
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == 'CompositorNodeTree'
-
-    def update(self):
-        self.tag_need_exec()
 
 
 class ShaderNode(NodeInternal):

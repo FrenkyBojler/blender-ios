@@ -224,7 +224,7 @@ LIST_OF_OFFICIAL_BLENDER_VERSIONS = (
     # 4.x.
     '4.0', '4.1', '4.2', '4.3', '4.4', '4.5',
     # 5.x.
-    '5.0',
+    '5.0', '5.1',
 )
 
 # Catch duplicates
@@ -326,7 +326,8 @@ class CommitInfo:
         # E.g. Fix `blender/blender-manual#NUMBER`, will be picked out for processing.
         match = re.findall(r'\s#+(\d+)', command_output)
         if match:
-            return match
+            # Remove duplicates reports.
+            return list(dict.fromkeys(match))
         return []
 
     def get_backports(self, dict_of_backports: dict[str, list[str]]) -> None:
