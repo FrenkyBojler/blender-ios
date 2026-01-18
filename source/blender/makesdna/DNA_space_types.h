@@ -801,6 +801,34 @@ struct SpaceScript {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Captions Editor
+ * \{ */
+
+/* Captions Editor. */
+typedef struct SpaceCaptions {
+  SpaceLink *next, *prev;
+  /** Storage of regions for inactive spaces. */
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
+  char spacetype = 0;
+  char link_flag = 0;
+  char _pad0[6] = {};
+  /* End 'SpaceLink' header. */
+
+  short flags = 0;
+  char _pad1[6];
+  
+  ListBaseT<CaptionsStripRef> current_strips = {nullptr, nullptr};
+  struct Scene *seq_scene = nullptr;
+  struct SeqTimelineChannel *active_channel = nullptr;
+  char cache_dirty = 0;
+  char _pad2[7];
+
+  /** Keep last. */
+  SpaceCaptions_Runtime *runtime = nullptr;
+} SpaceCaptions;
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Nodes Editor
  * \{ */
 
