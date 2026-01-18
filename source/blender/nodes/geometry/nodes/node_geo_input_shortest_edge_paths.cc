@@ -110,17 +110,14 @@ static void shortest_paths(const Mesh &mesh,
       }
 
       if (all_next_indices.size() == 1) {
-        if (all_next_indices.first().size() < 1024) {
-
-          for (Vector<int> &item : to_check_next) {
-            if (!item.is_empty()) {
-              to_check = std::move(item);
-              break;
-            }
+        for (Vector<int> &item : to_check_next) {
+          if (!item.is_empty()) {
+            to_check = std::move(item);
+            break;
           }
-
-          continue;
         }
+
+        continue;
       }
 
       join_values<int>(all_next_indices.as_mutable_span(), to_check);
