@@ -89,7 +89,6 @@
 #include "RE_engine.h"
 
 #include "image_intern.hh"
-#include "image_save_job.hh"
 
 namespace blender {
 
@@ -1929,28 +1928,13 @@ static void image_save_options_from_op(Main *bmain, ImageSaveOptions *opts, wmOp
                           RNA_boolean_get(op->ptr, "save_as_render"));
 }
 
-static bool save_image_op(bContext *C,
+static bool save_image_op(bContext * /*C*/,
                           Main *bmain,
                           Image *ima,
                           ImageUser *iuser,
                           wmOperator *op,
                           const ImageSaveOptions *opts)
 {
-  /* Check for background save option (property may not exist on all operators). */
-  const bool use_background = RNA_struct_find_property(op->ptr, "use_background_save") &&
-                              RNA_boolean_get(op->ptr, "use_background_save");
-
-  if (use_background && opts->im_format.imtype != R_IMF_IMTYPE_MULTILAYER) {
-    if (ed::space_image::image_save_background(C, ima, iuser, opts)) {
-      /* Update filepath history immediately. */
-      STRNCPY(G.filepath_last_image, opts->filepath);
-      WM_main_add_notifier(NC_IMAGE | NA_EDITED, ima);
-      return true;
-    }
-    /* Fall through to sync save if background failed. */
-  }
-
-  /* Original synchronous path. */
   WM_cursor_wait(true);
 
   bool ok = BKE_image_save(op->reports, bmain, ima, iuser, opts);
@@ -2189,12 +2173,6 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
                          "Create a new image file without modifying the current image in Blender");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-  RNA_def_boolean(ot->srna,
-                  "use_background_save",
-                  false,
-                  "Background Save",
-                  "Save in background thread (non-blocking, uses more memory)");
-
   image_operator_prop_allow_tokens(ot);
   WM_operator_properties_filesel(ot,
                                  FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE,
@@ -2325,13 +2303,6 @@ void IMAGE_OT_save(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  /* properties */
-  RNA_def_boolean(ot->srna,
-                  "use_background_save",
-                  false,
-                  "Background Save",
-                  "Save in background thread (non-blocking, uses more memory)");
 }
 
 /** \} */

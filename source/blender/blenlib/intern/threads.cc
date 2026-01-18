@@ -876,6 +876,8 @@ void BLI_thread_queue_wait(ThreadQueue *queue)
 {
   pthread_mutex_lock(&queue->mutex);
   queue->nowait = 0;
+  /* Wake any blocked threads so they can re-check the queue state. */
+  pthread_cond_broadcast(&queue->push_cond);
   pthread_mutex_unlock(&queue->mutex);
 }
 

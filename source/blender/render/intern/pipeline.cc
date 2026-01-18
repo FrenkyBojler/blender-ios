@@ -91,8 +91,6 @@
 #  include "FRS_freestyle.h"
 #endif
 
-#include "ED_image.hh"
-
 /* internal */
 #include "pipeline.hh"
 #include "render_result.h"
@@ -2233,8 +2231,7 @@ static bool do_write_image_or_movie(
       if (ok) {
         /* Try background save if enabled, fall back to sync save if not possible. */
         if (scene->r.im_format.flag & R_IMF_FLAG_BACKGROUND_SAVE) {
-          ok = ed::space_image::image_save_background_render(
-              re->reports, &rres, scene, true, filepath);
+          ok = BKE_image_save_background_render(&rres, scene, true, filepath);
           if (!ok) {
             /* Background save not possible, fall back to sync save. */
             ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
@@ -2355,7 +2352,7 @@ void RE_RenderAnim(Render *re,
 
   /* do not fully call for each frame, it initializes & pops output window */
   if (!render_init_from_main(re, &rd, bmain, scene, single_layer, camera_override, false, true)) {
-    ed::space_image::image_save_pool_wait();
+    BKE_image_save_pool_wait();
     return;
   }
 
@@ -2400,7 +2397,7 @@ void RE_RenderAnim(Render *re,
     }
 
     if (is_error) {
-      ed::space_image::image_save_pool_wait();
+      BKE_image_save_pool_wait();
       re_movie_free_all(re);
       BKE_image_format_free(&image_format);
       render_pipeline_free(re);
@@ -2611,7 +2608,7 @@ void RE_RenderAnim(Render *re,
   scene->r.subframe = subframe_old;
 
   /* Wait for pending background image saves before signaling completion. */
-  ed::space_image::image_save_pool_wait();
+  BKE_image_save_pool_wait();
 
   render_callback_exec_id(re,
                           re->main,

@@ -19,13 +19,11 @@ set(SRC
   image_draw.cc
   image_edit.cc
   image_ops.cc
-  image_save_job.cc
   image_sequence.cc
   image_undo.cc
   space_image.cc
 
   image_intern.hh
-  image_save_job.hh
 )
 
 set(LIB

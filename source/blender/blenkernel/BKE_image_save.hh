@@ -23,8 +23,8 @@ struct Scene;
 /* -------------------------------------------------------------------- */
 /** \name Background Image Save Pool
  *
- * Task pool for saving render images asynchronously. Used by both
- * the render pipeline and image save operators.
+ * Task pool for saving render images asynchronously. Used by the render
+ * pipeline for non-blocking output file writes during animation rendering.
  * \{ */
 
 /**
@@ -107,18 +107,6 @@ bool BKE_image_save_background_render(RenderResult *rr,
                                       const Scene *scene,
                                       bool stamp,
                                       const char *filepath);
-
-/**
- * Queue a background save for an Image datablock.
- * Falls back to synchronous save if background saving is not possible.
- *
- * \param ima: Image to save.
- * \param iuser: Image user for acquiring the buffer.
- * \param opts: Save options including filepath and format.
- * \return true if the background task was successfully queued, false if the caller should
- *         fall back to synchronous saving (e.g., queue is full or format is unsupported).
- */
-bool BKE_image_save_background(Image *ima, ImageUser *iuser, const ImageSaveOptions *opts);
 
 /** \} */
 
