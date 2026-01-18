@@ -58,7 +58,11 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (!U.experimental.use_geometry_nodes_lists) {
     return;
   }
-  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
+  const auto socket_type = eNodeSocketDatatype(params.other_socket().type);
+  if (!is_supported_list_type(socket_type)) {
+    return;
+  }
+
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_INT)) {
       params.add_item(IFACE_("Count"), SocketSearchOp{"Count", SOCK_INT});
@@ -97,11 +101,7 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         return enum_items_filter(rna_enum_node_socket_data_type_items,
                                  [](const EnumPropertyItem &item) -> bool {
-                                   const auto data_type = eNodeSocketDatatype(item.value);
-                                   if (data_type == SOCK_STRING) {
-                                     return true;
-                                   }
-                                   return socket_type_supports_fields(data_type);
+                                   return is_supported_list_type(eNodeSocketDatatype(item.value));
                                  });
       });
 }

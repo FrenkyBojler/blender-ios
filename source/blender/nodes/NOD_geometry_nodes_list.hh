@@ -11,6 +11,8 @@
 
 #include "NOD_geometry_nodes_list_fwd.hh"
 
+#include "DNA_node_types.h"
+
 namespace blender::nodes {
 
 class List : public ImplicitSharingMixin {
@@ -61,6 +63,8 @@ class List : public ImplicitSharingMixin {
   GVArray varray() const;
   template<typename T> VArray<T> varray() const;
 };
+
+bool is_supported_list_type(eNodeSocketDatatype type);
 
 inline const List::DataVariant &List::data() const
 {

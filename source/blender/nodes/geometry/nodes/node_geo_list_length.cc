@@ -51,6 +51,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
+  if (!is_supported_list_type(socket_type)) {
+    return;
+  }
   if (params.in_out() == SOCK_IN) {
     params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
   }
@@ -83,10 +86,10 @@ static void node_rna(StructRNA *srna)
       SOCK_GEOMETRY,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supports_fields(eNodeSocketDatatype(item.value));
-            });
+        return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                 [](const EnumPropertyItem &item) -> bool {
+                                   return is_supported_list_type(eNodeSocketDatatype(item.value));
+                                 });
       });
 }
 
