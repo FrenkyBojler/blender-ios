@@ -4999,7 +4999,7 @@ static void GREASE_PENCIL_OT_set_corner_type(wmOperatorType *ot)
 // }
 
 /* -------------------------------------------------------------------- */
-/** \name Join Shapes Operator
+/** \name Join Fills Operator
  * \{ */
 
 static Array<int> get_gapless_indices(const IndexRange &universe, const IndexMask &selected)
@@ -5040,7 +5040,7 @@ static Array<int> get_gapless_indices(const IndexRange &universe, const IndexMas
   return indices_data;
 }
 
-static wmOperatorStatus grease_pencil_join_shapes_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_join_fills_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
 
@@ -5125,24 +5125,24 @@ static wmOperatorStatus grease_pencil_join_shapes_exec(bContext *C, wmOperator *
   }
   bke::CurvesGeometry &curves = drawing_dst->strokes_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_or_add_for_write_span<int>(
-      "shape_id", bke::AttrDomain::Curve);
+  bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
+      "fill_id", bke::AttrDomain::Curve);
 
   /* Currently Grease Pencil does not have a active element, so instead just use the first. */
   const int active_curve = strokes.first();
 
-  int shape_id_to_set = shape_ids.span[active_curve];
-  if (shape_id_to_set == 0) {
+  int fill_id_to_set = fill_ids.span[active_curve];
+  if (fill_id_to_set == 0) {
     /* Get the first id that does not already exist. */
-    shape_id_to_set = *std::max_element(shape_ids.span.begin(), shape_ids.span.end()) + 1;
+    fill_id_to_set = *std::max_element(fill_ids.span.begin(), fill_ids.span.end()) + 1;
 
-    if (shape_id_to_set == 0) {
-      shape_id_to_set++;
+    if (fill_id_to_set == 0) {
+      fill_id_to_set++;
     }
   }
 
-  index_mask::masked_fill(shape_ids.span, shape_id_to_set, strokes);
-  shape_ids.finish();
+  index_mask::masked_fill(fill_ids.span, fill_id_to_set, strokes);
+  fill_ids.finish();
 
   Set<StringRef> attributes_to_set{{"material_index",
                                     "fill_color",
@@ -5174,13 +5174,13 @@ static wmOperatorStatus grease_pencil_join_shapes_exec(bContext *C, wmOperator *
   return OPERATOR_FINISHED;
 }
 
-static void GREASE_PENCIL_OT_join_shapes(wmOperatorType *ot)
+static void GREASE_PENCIL_OT_join_fills(wmOperatorType *ot)
 {
-  ot->name = "Join Shapes";
-  ot->idname = "GREASE_PENCIL_OT_join_shapes";
-  ot->description = "Join selected strokes into one shape to create holes";
+  ot->name = "Join Fills";
+  ot->idname = "GREASE_PENCIL_OT_join_fills";
+  ot->description = "Join selected strokes into one fill to create holes";
 
-  ot->exec = grease_pencil_join_shapes_exec;
+  ot->exec = grease_pencil_join_fills_exec;
   ot->poll = editable_grease_pencil_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -5233,7 +5233,7 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_convert_curve_type);
   WM_operatortype_append(GREASE_PENCIL_OT_set_corner_type);
   // WM_operatortype_append(GREASE_PENCIL_OT_set_stroke_mode);
-  WM_operatortype_append(GREASE_PENCIL_OT_join_shapes);
+  WM_operatortype_append(GREASE_PENCIL_OT_join_fills);
 }
 
 /* -------------------------------------------------------------------- */
