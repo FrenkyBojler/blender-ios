@@ -12,6 +12,7 @@
 #include <atomic>
 #include <cerrno>
 #include <cstring>
+#include <mutex>
 
 #include "MEM_guardedalloc.h"
 
@@ -42,6 +43,7 @@ static std::atomic<int> g_pending_image_saves{0};
 
 /* Global task pool for background image saves. */
 static TaskPool *g_image_save_pool = nullptr;
+static std::once_flag g_pool_init_flag;
 
 struct ImageSaveTaskData {
   ImBuf *ibuf;         /* Copied buffer (owned by task). */
@@ -81,12 +83,12 @@ static void image_save_task_free(TaskPool *__restrict /*pool*/, void *taskdata)
 
 void image_save_pool_init()
 {
-  if (g_image_save_pool == nullptr) {
-    /* Use 1/4 of available threads for background saves, minimum 2. */
-    const int num_threads = max_ii(2, BLI_task_scheduler_num_threads() / 4);
+  std::call_once(g_pool_init_flag, []() {
+    /* Use 1/4 of available threads for background saves, minimum 1. */
+    const int num_threads = max_ii(1, BLI_task_scheduler_num_threads() / 4);
     g_image_save_pool = BLI_task_pool_create_background_parallel(
         nullptr, TASK_PRIORITY_HIGH, num_threads);
-  }
+  });
 }
 
 void image_save_pool_wait()
@@ -116,14 +118,18 @@ bool image_save_background(bContext * /*C*/,
     return false;
   }
 
-  /* Check queue limit. */
+  /* Check queue limit (enforce minimum of 2 when enabled). */
   const int queue_limit = U.image_save_queue_limit;
-  if (queue_limit > 0 && g_pending_image_saves.load() >= queue_limit) {
+  const int effective_limit = (queue_limit > 0) ? max_ii(2, queue_limit) : 0;
+  if (effective_limit > 0 && g_pending_image_saves.load() >= effective_limit) {
     return false;
   }
 
   /* Ensure pool is initialized. */
   image_save_pool_init();
+  if (g_image_save_pool == nullptr) {
+    return false;
+  }
 
   /* Acquire and copy buffer with color management applied. */
   void *lock;
@@ -236,14 +242,18 @@ bool image_save_background_render(ReportList * /*reports*/,
     return false;
   }
 
-  /* Check queue limit. */
+  /* Check queue limit (enforce minimum of 2 when enabled). */
   const int queue_limit = U.image_save_queue_limit;
-  if (queue_limit > 0 && g_pending_image_saves.load() >= queue_limit) {
+  const int effective_limit = (queue_limit > 0) ? max_ii(2, queue_limit) : 0;
+  if (effective_limit > 0 && g_pending_image_saves.load() >= effective_limit) {
     return false;
   }
 
   /* Ensure pool is initialized. */
   image_save_pool_init();
+  if (g_image_save_pool == nullptr) {
+    return false;
+  }
 
   /* Create image format from scene settings. */
   ImageFormatData image_format;
