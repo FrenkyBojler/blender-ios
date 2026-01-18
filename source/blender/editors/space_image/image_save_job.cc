@@ -47,6 +47,9 @@ namespace blender::ed::space_image {
 /* Track pending saves for queue limit. */
 static std::atomic<int> g_pending_image_saves{0};
 
+/* Flag to prevent new tasks during shutdown. */
+static std::atomic<bool> g_image_save_shutting_down{false};
+
 /* Global task pool for background image saves. */
 static TaskPool *g_image_save_pool = nullptr;
 static std::once_flag g_pool_init_flag;
@@ -90,10 +93,11 @@ static void image_save_task_free(TaskPool *__restrict /*pool*/, void *taskdata)
   if (task->ibuf) {
     IMB_freeImBuf(task->ibuf);
   }
+  BKE_image_format_free(&task->im_format);
   MEM_freeN(task);
 
   /* Decrement pending count. */
-  g_pending_image_saves.fetch_sub(1);
+  g_pending_image_saves.fetch_sub(1, std::memory_order_relaxed);
 }
 
 void image_save_pool_init()
@@ -127,6 +131,9 @@ void image_save_pool_wait()
 
 void image_save_pool_exit()
 {
+  /* Prevent new tasks from being queued. */
+  g_image_save_shutting_down.store(true, std::memory_order_release);
+
   if (g_image_save_pool != nullptr) {
     /* Wait for all pending saves to complete. */
     BLI_task_pool_work_and_wait(g_image_save_pool);
@@ -146,21 +153,38 @@ bool image_save_background(bContext * /*C*/,
                            ImageUser *iuser,
                            const ImageSaveOptions *opts)
 {
+  /* Reject new tasks during shutdown. */
+  if (g_image_save_shutting_down.load(std::memory_order_acquire)) {
+    return false;
+  }
+
   /* Reject multilayer. */
   if (opts->im_format.imtype == R_IMF_IMTYPE_MULTILAYER) {
     return false;
   }
 
-  /* Check queue limit (enforce minimum of 2 when enabled). */
+  /* Check queue limit (enforce minimum of 2 when enabled).
+   * Use compare-exchange to atomically reserve a slot. */
   const int queue_limit = U.image_save_queue_limit;
   const int effective_limit = (queue_limit > 0) ? max_ii(2, queue_limit) : 0;
-  if (effective_limit > 0 && g_pending_image_saves.load() >= effective_limit) {
-    return false;
+  if (effective_limit > 0) {
+    int current = g_pending_image_saves.load(std::memory_order_relaxed);
+    do {
+      if (current >= effective_limit) {
+        return false;
+      }
+    } while (!g_pending_image_saves.compare_exchange_weak(
+        current, current + 1, std::memory_order_acq_rel, std::memory_order_relaxed));
+  }
+  else {
+    /* No limit - just increment. */
+    g_pending_image_saves.fetch_add(1, std::memory_order_relaxed);
   }
 
   /* Ensure pool is initialized. */
   image_save_pool_init();
   if (g_image_save_pool == nullptr) {
+    g_pending_image_saves.fetch_sub(1, std::memory_order_relaxed);
     return false;
   }
 
@@ -169,6 +193,7 @@ bool image_save_background(bContext * /*C*/,
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
   if (!ibuf) {
     BKE_image_release_ibuf(ima, ibuf, lock);
+    g_pending_image_saves.fetch_sub(1, std::memory_order_relaxed);
     return false;
   }
 
@@ -179,19 +204,22 @@ bool image_save_background(bContext * /*C*/,
   BKE_image_release_ibuf(ima, ibuf, lock);
 
   if (!ibuf_copy) {
+    g_pending_image_saves.fetch_sub(1, std::memory_order_relaxed);
     return false;
   }
 
   /* Create task data. */
   ImageSaveTaskData *task = static_cast<ImageSaveTaskData *>(
       MEM_callocN(sizeof(ImageSaveTaskData), __func__));
+  if (!task) {
+    IMB_freeImBuf(ibuf_copy);
+    g_pending_image_saves.fetch_sub(1, std::memory_order_relaxed);
+    return false;
+  }
   task->ibuf = ibuf_copy;
   STRNCPY(task->filepath, opts->filepath);
   task->im_format = opts->im_format;
   task->save_copy = opts->save_copy;
-
-  /* Increment pending count before queuing. */
-  g_pending_image_saves.fetch_add(1);
 
   /* Push task. */
   BLI_task_pool_push(
@@ -251,7 +279,7 @@ static void render_save_task_free(TaskPool *__restrict /*pool*/, void *taskdata)
   MEM_freeN(task);
 
   /* Decrement pending count. */
-  g_pending_image_saves.fetch_sub(1);
+  g_pending_image_saves.fetch_sub(1, std::memory_order_relaxed);
 }
 
 bool image_save_background_render(ReportList * /*reports*/,
@@ -260,6 +288,11 @@ bool image_save_background_render(ReportList * /*reports*/,
                                   bool stamp,
                                   const char *filepath)
 {
+  /* Reject new tasks during shutdown. */
+  if (g_image_save_shutting_down.load(std::memory_order_acquire)) {
+    return false;
+  }
+
   if (!rr) {
     return false;
   }
@@ -281,16 +314,28 @@ bool image_save_background_render(ReportList * /*reports*/,
     return false;
   }
 
-  /* Check queue limit (enforce minimum of 2 when enabled). */
+  /* Check queue limit (enforce minimum of 2 when enabled).
+   * Use compare-exchange to atomically reserve a slot. */
   const int queue_limit = U.image_save_queue_limit;
   const int effective_limit = (queue_limit > 0) ? max_ii(2, queue_limit) : 0;
-  if (effective_limit > 0 && g_pending_image_saves.load() >= effective_limit) {
-    return false;
+  if (effective_limit > 0) {
+    int current = g_pending_image_saves.load(std::memory_order_relaxed);
+    do {
+      if (current >= effective_limit) {
+        return false;
+      }
+    } while (!g_pending_image_saves.compare_exchange_weak(
+        current, current + 1, std::memory_order_acq_rel, std::memory_order_relaxed));
+  }
+  else {
+    /* No limit - just increment. */
+    g_pending_image_saves.fetch_add(1, std::memory_order_relaxed);
   }
 
   /* Ensure pool is initialized. */
   image_save_pool_init();
   if (g_image_save_pool == nullptr) {
+    g_pending_image_saves.fetch_sub(1, std::memory_order_relaxed);
     return false;
   }
 
@@ -304,6 +349,7 @@ bool image_save_background_render(ReportList * /*reports*/,
   ImBuf *ibuf = RE_render_result_rect_to_ibuf(rr, &image_format, dither, 0);
   if (!ibuf) {
     BKE_image_format_free(&image_format);
+    g_pending_image_saves.fetch_sub(1, std::memory_order_relaxed);
     return false;
   }
 
@@ -313,6 +359,12 @@ bool image_save_background_render(ReportList * /*reports*/,
   /* Create task data. */
   RenderSaveTaskData *task = static_cast<RenderSaveTaskData *>(
       MEM_callocN(sizeof(RenderSaveTaskData), __func__));
+  if (!task) {
+    IMB_freeImBuf(ibuf);
+    BKE_image_format_free(&image_format);
+    g_pending_image_saves.fetch_sub(1, std::memory_order_relaxed);
+    return false;
+  }
   task->ibuf = ibuf;
   STRNCPY(task->filepath, filepath);
   task->im_format = image_format;
@@ -325,9 +377,6 @@ bool image_save_background_render(ReportList * /*reports*/,
   else {
     task->stamp_rr = nullptr;
   }
-
-  /* Increment pending count before queuing. */
-  g_pending_image_saves.fetch_add(1);
 
   /* Push task. */
   BLI_task_pool_push(

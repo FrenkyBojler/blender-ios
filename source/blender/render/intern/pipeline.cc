@@ -2355,6 +2355,7 @@ void RE_RenderAnim(Render *re,
 
   /* do not fully call for each frame, it initializes & pops output window */
   if (!render_init_from_main(re, &rd, bmain, scene, single_layer, camera_override, false, true)) {
+    ed::space_image::image_save_pool_wait();
     return;
   }
 
@@ -2399,6 +2400,7 @@ void RE_RenderAnim(Render *re,
     }
 
     if (is_error) {
+      ed::space_image::image_save_pool_wait();
       re_movie_free_all(re);
       BKE_image_format_free(&image_format);
       render_pipeline_free(re);
