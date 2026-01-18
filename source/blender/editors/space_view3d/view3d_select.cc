@@ -5571,22 +5571,8 @@ static bool obedit_circle_select(bContext *C,
   }
 
   if (changed) {
-    switch (vc->obedit->type) {
-      case OB_MESH:
-      case OB_CURVES_LEGACY:
-      case OB_SURF:
-      case OB_LATTICE:
-      case OB_MBALL:
-        DEG_id_tag_update(static_cast<ID *>(vc->obedit->data), ID_RECALC_SELECT);
-        WM_main_add_notifier(NC_GEOM | ND_SELECT, vc->obedit->data);
-        break;
-      default:
-        /* Types handled in-case:
-         * - OB_ARMATURE posts NC_OBJECT | ND_BONE_SELECT.
-         * - OB_CURVES, OB_POINTCLOUD and OB_GREASE_PENCIL post ID_RECALC_GEOMETRY + NC_GEOM |
-         * ND_DATA. */
-        break;
-    }
+    DEG_id_tag_update(static_cast<ID *>(vc->obact->data), ID_RECALC_SELECT);
+    WM_main_add_notifier(NC_GEOM | ND_SELECT, vc->obact->data);
   }
   return changed;
 }
@@ -5678,7 +5664,6 @@ static void view3d_circle_select_cancel(bContext *C, wmOperator *op)
 
 static wmOperatorStatus view3d_circle_select_exec(bContext *C, wmOperator *op)
 {
-  using namespace blender;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const int radius = RNA_int_get(op->ptr, "radius");
   const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
