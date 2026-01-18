@@ -1355,17 +1355,6 @@ void action_group_to_keylist(
     return;
   }
 
-  /* Legacy actions. */
-  if (agrp->wrap().is_legacy()) {
-    for (FCurve &fcu : agrp->channels) {
-      if (fcu.grp != agrp) {
-        break;
-      }
-      fcurve_to_keylist(adt, &fcu, keylist, saction_flag, range, true);
-    }
-    return;
-  }
-
   /* Layered actions. */
   animrig::Channelbag &channelbag = agrp->channelbag->wrap();
   Span<FCurve *> fcurves = channelbag.fcurves().slice(agrp->fcurve_range_start,
@@ -1505,7 +1494,7 @@ void sequencer_strip_to_keylist(const Strip &strip, AnimKeylist &keylist, Scene 
   }
   keylist_reset_last_accessed(&keylist);
   for (const SeqRetimingKey &retime_key : seq::retiming_keys_get(&strip)) {
-    const float cfra = seq::retiming_key_timeline_frame_get(&scene, &strip, &retime_key);
+    const float cfra = seq::retiming_key_frame_get(&scene, &strip, &retime_key);
     SeqAllocateData allocate_data = {&retime_key, cfra};
     keylist_add_or_update_column(
         &keylist, cfra, nalloc_ak_seqframe, nupdate_ak_seqframe, &allocate_data);

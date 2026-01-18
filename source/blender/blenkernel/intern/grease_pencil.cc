@@ -121,17 +121,16 @@ static void grease_pencil_set_runtime_visibilities(ID &id_dst, GreasePencil &gre
     return;
   }
 
-  PropertyRNA *layer_hide_prop = RNA_struct_type_find_property(&RNA_GreasePencilLayer, "hide");
+  PropertyRNA *layer_hide_prop = RNA_struct_type_find_property(RNA_GreasePencilLayer, "hide");
   BLI_assert_msg(layer_hide_prop,
                  "RNA struct GreasePencilLayer is expected to have a 'hide' property.");
-  PropertyRNA *group_hide_prop = RNA_struct_type_find_property(&RNA_GreasePencilLayerGroup,
-                                                               "hide");
+  PropertyRNA *group_hide_prop = RNA_struct_type_find_property(RNA_GreasePencilLayerGroup, "hide");
   BLI_assert_msg(group_hide_prop,
                  "RNA struct GreasePencilLayerGroup is expected to have a 'hide' property.");
 
   for (greasepencil::LayerGroup *layer_group : grease_pencil.layer_groups_for_write()) {
     PointerRNA layer_ptr = RNA_pointer_create_discrete(
-        &id_dst, &RNA_GreasePencilLayerGroup, layer_group);
+        &id_dst, RNA_GreasePencilLayerGroup, layer_group);
     std::optional<std::string> rna_path = RNA_path_from_ID_to_property(&layer_ptr,
                                                                        group_hide_prop);
     BLI_assert_msg(
@@ -159,7 +158,7 @@ static void grease_pencil_set_runtime_visibilities(ID &id_dst, GreasePencil &gre
       layer->runtime->is_visibility_animated_ = true;
       continue;
     }
-    PointerRNA layer_ptr = RNA_pointer_create_discrete(&id_dst, &RNA_GreasePencilLayer, layer);
+    PointerRNA layer_ptr = RNA_pointer_create_discrete(&id_dst, RNA_GreasePencilLayer, layer);
     std::optional<std::string> rna_path = RNA_path_from_ID_to_property(&layer_ptr,
                                                                        layer_hide_prop);
     BLI_assert_msg(rna_path,
@@ -3479,22 +3478,24 @@ void GreasePencil::count_memory(MemoryCounter &memory) const
   }
 }
 
-std::optional<int> GreasePencil::material_index_max_eval() const
+std::optional<int> GreasePencil::material_index_max() const
 {
   using namespace blender::bke;
   std::optional<int> max_index;
-  for (const greasepencil::Layer *layer : this->layers()) {
-    if (const greasepencil::Drawing *drawing = this->get_eval_drawing(*layer)) {
-      const bke::CurvesGeometry &curves = drawing->strokes();
-      const std::optional<int> max_index_on_layer = curves.material_index_max();
-      if (max_index) {
-        if (max_index_on_layer) {
-          max_index = std::max(*max_index, *max_index_on_layer);
-        }
+  for (const GreasePencilDrawingBase *drawing_base : this->drawings()) {
+    if (drawing_base->type != GP_DRAWING) {
+      continue;
+    }
+    const GreasePencilDrawing *drawing = reinterpret_cast<const GreasePencilDrawing *>(
+        drawing_base);
+    const std::optional<int> max_index_in_drawing = drawing->wrap().strokes().material_index_max();
+    if (max_index) {
+      if (max_index_in_drawing) {
+        max_index = std::max(*max_index, *max_index_in_drawing);
       }
-      else {
-        max_index = max_index_on_layer;
-      }
+    }
+    else {
+      max_index = max_index_in_drawing;
     }
   }
   return max_index;

@@ -2509,6 +2509,11 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
    * Also making sure we have a valid event value, to not exit too early. */
 
   if (ISMOUSE_BUTTON(event->type) && ELEM(event->val, KM_PRESS, KM_RELEASE)) {
+    if (event->type == MIDDLEMOUSE) {
+      /* Pass middle mouse event to viewport navigation, see: #151982 */
+      return estate;
+    }
+
     /* if painting, end stroke */
     if (p->status == GP_STATUS_PAINTING) {
       int sketch = 0;
@@ -2809,7 +2814,7 @@ void GPENCIL_OT_annotate(wmOperatorType *ot)
                      100);
   RNA_def_property_subtype(prop, PROP_PIXEL);
 
-  prop = RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+  prop = RNA_def_collection_runtime(ot->srna, "stroke", RNA_OperatorStrokeElement, "Stroke", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   /* NOTE: wait for input is enabled by default,
