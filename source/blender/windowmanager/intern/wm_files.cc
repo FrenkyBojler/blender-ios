@@ -3601,7 +3601,7 @@ static void wm_free_operator_properties_callback(void *user_data)
   IDP_FreeProperty(properties);
 }
 
-static char save_modified_images_when_file_is_saved = true;
+static Map<std::string, char> save_modified_images_when_file_is_saved;
 
 static void wm_block_save_modified_images_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
 {
@@ -3619,7 +3619,9 @@ static void wm_block_save_modified_images_save(bContext *C, void *arg_block, voi
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 
-  if (save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain)) {
+  if (save_modified_images_when_file_is_saved.lookup(bmain->filepath) &&
+      ED_image_should_save_modified(bmain))
+  {
     ReportList *reports = CTX_wm_reports(C);
     bool is_successful = ED_image_save_all_modified(C, reports);
     if (!is_successful) {
@@ -3652,29 +3654,8 @@ static void wm_block_save_modified_images_save_button(ui::Block *block,
 
 static const char *save_modified_images_dialog_name = "save_modified_images_popup";
 
-static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion *region, void *arg)
+static void wm_block_image_save_errors(ui::Layout &layout, ReportList &reports)
 {
-  wmGenericCallback *post_action = static_cast<wmGenericCallback *>(arg);
-  Main *bmain = CTX_data_main(C);
-
-  ui::Block *block = block_begin(
-      C, region, save_modified_images_dialog_name, ui::EmbossType::Emboss);
-  block_flag_enable(
-      block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_LOOP | ui::BLOCK_NO_WIN_CLIP | ui::BLOCK_NUMSELECT);
-  block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
-
-  ui::Layout &layout = *uiItemsAlertBox(
-      block, (bmain->colorspace.is_missing_opencolorio_config) ? 44 : 34, ui::AlertIcon::Info);
-
-  /* Title. */
-  uiItemL_ex(
-      &layout, RPT_("Images are not automatically saved with the file"), ICON_NONE, true, false);
-
-  /* Image Saving Warnings. */
-  ReportList reports;
-  BKE_reports_init(&reports, RPT_STORE & RPT_PRINT);
-  uint modified_images_count = ED_image_save_all_modified_info(bmain, &reports);
-
   for (Report &report : reports.list) {
     ui::Layout &row = layout.column(false);
     row.scale_y_set(0.6f);
@@ -3697,6 +3678,31 @@ static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion 
     }
     MEM_freeN(message);
   }
+}
+
+static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion *region, void *arg)
+{
+  wmGenericCallback *post_action = static_cast<wmGenericCallback *>(arg);
+  Main *bmain = CTX_data_main(C);
+
+  ui::Block *block = block_begin(
+      C, region, save_modified_images_dialog_name, ui::EmbossType::Emboss);
+  block_flag_enable(
+      block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_LOOP | ui::BLOCK_NO_WIN_CLIP | ui::BLOCK_NUMSELECT);
+  block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
+
+  ui::Layout &layout = *uiItemsAlertBox(
+      block, (bmain->colorspace.is_missing_opencolorio_config) ? 44 : 34, ui::AlertIcon::Info);
+
+  /* Title. */
+  uiItemL_ex(
+      &layout, RPT_("Images are not automatically saved with the file"), ICON_NONE, true, false);
+
+  /* Image Saving Warnings. */
+  ReportList reports;
+  BKE_reports_init(&reports, RPT_STORE);
+  uint modified_images_count = ED_image_save_all_modified_info(bmain, &reports);
+  wm_block_image_save_errors(layout, reports);
 
   /* Modified Images Checkbox. */
   char message[64];
@@ -3709,7 +3715,7 @@ static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion 
             0,
             0,
             UI_UNIT_Y,
-            &save_modified_images_when_file_is_saved,
+            &save_modified_images_when_file_is_saved.lookup(bmain->filepath),
             0,
             0,
             "");
@@ -3768,6 +3774,9 @@ static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion 
 static void wm_save_modified_images_dialog(bContext *C, wmGenericCallback *post_action)
 {
   if (!ui::popup_block_name_exists(CTX_wm_screen(C), save_modified_images_dialog_name)) {
+    const Main *bmain = CTX_data_main(C);
+    save_modified_images_when_file_is_saved.add(bmain->filepath, true);
+
     ui::popup_block_invoke(
         C, block_create_save_modified_images_dialog, post_action, free_post_file_close_action);
   }
@@ -4982,29 +4991,7 @@ static ui::Block *block_create__close_file_dialog(bContext *C, ARegion *region, 
   ReportList reports;
   BKE_reports_init(&reports, RPT_STORE);
   uint modified_images_count = ED_image_save_all_modified_info(bmain, &reports);
-
-  for (Report &report : reports.list) {
-    ui::Layout &row = layout.column(false);
-    row.scale_y_set(0.6f);
-    row.separator();
-
-    /* Error messages created in ED_image_save_all_modified_info() can be long,
-     * but are made to separate into two parts at first colon between text and paths.
-     */
-    char *message = BLI_strdupn(report.message, report.len);
-    char *path_info = strstr(message, ": ");
-    if (path_info) {
-      /* Terminate message string at colon. */
-      path_info[1] = '\0';
-      /* Skip over the ": ". */
-      path_info += 2;
-    }
-    uiItemL_ex(&row, message, ICON_NONE, false, true);
-    if (path_info) {
-      uiItemL_ex(&row, path_info, ICON_NONE, false, true);
-    }
-    MEM_freeN(message);
-  }
+  wm_block_image_save_errors(layout, reports);
 
   /* Used to determine if extra separators are needed. */
   bool has_extra_checkboxes = false;
