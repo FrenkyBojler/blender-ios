@@ -175,8 +175,7 @@ template<typename T> Vector<T> gather_selected_values(const bNode &node, GeoNode
 
       const int next_data_index = data.size();
       data.resize(next_data_index + selection.size());
-      MutableSpan<T> selected_data = data.as_mutable_span().slice(next_data_index,
-                                                                      selection.size());
+      MutableSpan<T> selected_data = data.as_mutable_span().take_back(selection.size());
       array_utils::gather(component_data, selection, selected_data);
     }
   return data;
@@ -325,7 +324,13 @@ static void node_geo_exec(GeoNodeExecParams params)
       break;
     }
     case CD_PROP_BOOL: {
-      Vector<bool> data = gather_selected_values<bool>(node, params);
+      const Vector<bool> data = gather_selected_values<bool>(node, params);
+
+      if (data.is_empty()) {
+        params.set_output("All", true);
+        params.set_default_remaining_outputs();
+        return;
+      }
 
       bool any = false;
       bool all = true;
@@ -333,30 +338,28 @@ static void node_geo_exec(GeoNodeExecParams params)
       const bool any_required = params.output_is_required("Any");
       const bool all_required = params.output_is_required("All");
 
-      if (data.size() != 0) {
-        if (any_required && all_required) {
-          for (const bool value : data) {
-            any |= value;
-            all &= value;
-            if (any && !all) {
-              break;
-            }
+      if (any_required && all_required) {
+        for (const bool value : data) {
+          any |= value;
+          all &= value;
+          if (any && !all) {
+            break;
           }
         }
-        else if (any_required) {
-          for (const bool value : data) {
-            if (value) {
-              any = true;
-              break;
-            }
+      }
+      else if (any_required) {
+        for (const bool value : data) {
+          if (value) {
+            any = true;
+            break;
           }
         }
-        else if (all_required) {
-          for (const bool value : data) {
-            if (!value) {
-              all = false;
-              break;
-            }
+      }
+      else if (all_required) {
+        for (const bool value : data) {
+          if (!value) {
+            all = false;
+            break;
           }
         }
       }

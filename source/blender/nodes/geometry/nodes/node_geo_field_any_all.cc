@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -26,7 +26,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Bool>("Value").hide_value().supports_field();
 
-  b.add_input<decl::Int>("Group ID", "Group Index")
+  b.add_input<decl::Int>("Group ID")
       .supports_field()
       .hide_value()
       .description("An index used to group values together for multiple separate operations");
@@ -166,7 +166,7 @@ class AnyAllInput final : public bke::GeometryFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const Field<int> group_index_field = params.extract_input<Field<int>>("Group Index");
+  const Field<int> group_index_field = params.extract_input<Field<int>>("Group ID");
   const Field<bool> input_field = params.extract_input<Field<bool>>("Value");
 
   if (params.output_is_required("Any")) {
