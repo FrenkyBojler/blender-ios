@@ -24,20 +24,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Total Cost").field_source().reference_pass_all();
 }
 
-template<typename T> static void join_values(MutableSpan<Span<T>> src, Vector<T> &dst)
-{
-  Array<int> offset_buffer(src.size() + 1);
-  for (const int index : src.index_range()) {
-    offset_buffer[index] = src[index].size();
-  }
-  const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(offset_buffer);
-  dst.reinitialize(offsets.total_size());
-
-  for (const int index : src.index_range()) {
-    dst.as_mutable_span().slice(offsets[index]).copy_from(src[index]);
-  }
-}
-
 using VertPriority = std::pair<float, int>;
 
 static void shortest_paths(const Mesh &mesh,
@@ -64,71 +50,58 @@ static void shortest_paths(const Mesh &mesh,
 
   if (input_cost.is_single()) {
     const GroupedSpan<int> vert_to_verts(vert_to_edge.offsets, other_vertex.as_span());
-    const float cost = input_cost.get_internal_single();
 
     Vector<int> to_check(end_selection.size());
     end_selection.to_indices(to_check.as_mutable_span());
+    Vector<int> to_check_next;
 
-    threading::EnumerableThreadSpecific<Vector<int>> to_check_next;
+    Array<int> distances(r_cost.size(), std::numeric_limits<int>::max());
 
-    int topology_distance = -1;
+    int topology_distance = 0;
     while (!to_check.is_empty()) {
-      topology_distance++;
-
-      threading::parallel_for(to_check.index_range(), 1024, [&](const IndexRange range) {
-        Vector<int> &local_to_check_next = to_check_next.local();
-        local_to_check_next.reserve(local_to_check_next.size() + range.size());
-        for (const int vert_i : to_check.as_span().slice(range)) {
-          if (visited[vert_i]) {
-            continue;
-          }
-          /* This is write-only deterministic data race. Only equal values are possible to write at
-           * the same moment. This is should be okay. */
-          visited[vert_i] = true;
-          r_cost[vert_i] = topology_distance * cost;
-
-          const Span<int> connected_verts = vert_to_verts[vert_i];
-          local_to_check_next.reserve(local_to_check_next.size() + connected_verts.size());
-
-          for (const int connected_vert : connected_verts) {
-            if (visited[connected_vert]) {
-              continue;
-            }
-            local_to_check_next.append_unchecked(connected_vert);
-          }
-        }
-      });
-
-      Vector<Span<int>> all_next_indices;
-      for (Vector<int> &item : to_check_next) {
-        if (!item.is_empty()) {
-          all_next_indices.append(item);
-        }
-      }
-
-      if (all_next_indices.is_empty()) {
-        break;
-      }
-
-      if (all_next_indices.size() == 1) {
-        if (all_next_indices.first().size() < 1024) {
-
-          for (Vector<int> &item : to_check_next) {
-            if (!item.is_empty()) {
-              to_check = std::move(item);
-              break;
-            }
-          }
-
+      for (const int vert_i : to_check) {
+        if (visited[vert_i]) {
           continue;
         }
+
+        visited[vert_i] = true;
+        distances[vert_i] = topology_distance;
+
+        const Span<int> connected_verts = vert_to_verts[vert_i];
+        to_check_next.reserve(to_check_next.size() + connected_verts.size());
+        for (const int connected_vert : connected_verts) {
+          if (visited[connected_vert]) {
+            continue;
+          }
+          to_check_next.append_unchecked(connected_vert);
+        }
       }
 
-      join_values<int>(all_next_indices.as_mutable_span(), to_check);
-      for (Vector<int> &item : to_check_next) {
-        item.clear();
-      }
+      to_check.clear();
+      std::swap(to_check, to_check_next);
+      topology_distance++;
     }
+
+    const float cost = input_cost.get_internal_single();
+    threading::parallel_for(distances.index_range(), 1024, [&](const IndexRange range) {
+      for (const int vert_i : range) {
+        r_cost[vert_i] = distances[vert_i] * cost;
+      }
+    });
+
+    threading::parallel_for(distances.index_range(), 1024, [&](const IndexRange range) {
+      for (const int vert_i : range) {
+        std::pair<int, int> distance_and_index(distances[vert_i], vert_i);
+        for (const int other_vert : vert_to_verts[vert_i]) {
+          const auto other = std::make_pair(distances[other_vert], other_vert);
+          if (other < distance_and_index) {
+            distance_and_index = other;
+          }
+        }
+
+        r_next_index[vert_i] = distance_and_index.second;
+      }
+    });
 
     return;
   }
