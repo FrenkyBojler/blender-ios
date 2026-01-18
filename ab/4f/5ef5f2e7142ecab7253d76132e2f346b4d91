@@ -3,3 +3,4 @@ Referenced by issue #140469, Workspace Tab Bar Becomes Inaccessible – UI Overl
 Referenced by issue #140490, EEVEE: Broken hair motion vectors
 Referenced by issue #140511, Blender crash upon going to material preview or rendered (z2  or z8)
 Referenced by pull request #152892, Fix #138360: Batch-Generate Previews fails to save
+Referenced by commit 82a913988abd1ac51ef6ed16a357c9b9328e7f63, Fix #138360: Batch-Generate Previews fails to save
