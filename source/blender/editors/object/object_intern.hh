@@ -42,12 +42,10 @@ void OBJECT_OT_origin_clear(wmOperatorType *ot);
 void OBJECT_OT_visual_transform_apply(wmOperatorType *ot);
 void OBJECT_OT_transform_apply(wmOperatorType *ot);
 void OBJECT_OT_parent_inverse_apply(wmOperatorType *ot);
-/* light target modals */
-void target_modal_keymap(wmKeyConfig *keyconf);
-/* END Light target modals */
+void object_target_modal_keymap(wmKeyConfig *keyconf);
 void OBJECT_OT_transform_axis_target(wmOperatorType *ot);
-void OBJECT_OT_light_orbit_around_target(wmOperatorType *ot);
-void light_orbit_around_target_modal_keymap(wmKeyConfig *keyconf);
+void object_orbit_around_target_modal_keymap(wmKeyConfig *keyconf);
+void OBJECT_OT_orbit_around_target(wmOperatorType *ot);
 void OBJECT_OT_origin_set(wmOperatorType *ot);
 
 /* `object_relations.cc` */
