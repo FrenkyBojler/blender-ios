@@ -54,7 +54,7 @@ static PyObject *pygpu_init(PyObject * /*self*/)
   }
 
   // Cannot use GPU_init() as it requires a GPU context to have been created.
-  // See WM_init_gpu implementation. 
+  // See WM_init_gpu implementation.
   WM_init_gpu();
 
   if (!GPU_is_init()) {
