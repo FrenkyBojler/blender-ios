@@ -11,7 +11,7 @@
 
 namespace blender::gpu::shader::parser {
 
-enum TokenType : char {
+enum TokenType : unsigned char {
   Invalid = 0,
   /* Use ascii chars to store them in string, and for easy debugging / testing. */
   Word = 'w',
@@ -45,6 +45,8 @@ enum TokenType : char {
   Pipe = '|',
   Percent = '%',
   Backslash = '\\',
+  /* Mark end of stream. */
+  EndOfFile = '\0',
   /* Keywords */
   Break = 'b',
   Const = 'c',
@@ -89,6 +91,8 @@ enum TokenType : char {
   LThan = AngleOpen,
   BitwiseNot = Tilde,
   Modulo = Percent,
+  /* Flag for char-to-token tables to tell the tokenizer to emit one token per char. */
+  AlwaysSplit = (1 << 7),
 };
 
 enum class ScopeType : char {

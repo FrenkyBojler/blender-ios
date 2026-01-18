@@ -102,10 +102,10 @@ void LexerBase::ensure_memory()
     /* Avoid no allocation. */
     input_size = 1;
   }
-  /* Add one for offsets. */
+  /* Add one for offsets and end token. */
   input_size += 1;
   /* Round to 128 for easy alignment of types and allocations. */
-  input_size += (input_size + 127) & ~127;
+  input_size = (input_size + 127) & ~127;
 
   size_t needed_size = 0;
   needed_size += sizeof(*token_types.data_) * input_size;
@@ -117,7 +117,7 @@ void LexerBase::ensure_memory()
    * Note: Never shrinks. */
   if (alloc_size < needed_size) {
     std::free(memory);
-    memory = static_cast<char *>(std::malloc(needed_size));
+    memory = static_cast<char *>(std::aligned_alloc(128, needed_size));
     alloc_size = needed_size;
   }
 
