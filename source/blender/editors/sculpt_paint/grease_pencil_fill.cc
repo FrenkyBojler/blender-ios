@@ -596,7 +596,7 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   /* Attributes that are defined explicitly and should not be set to default values. */
   Set<std::string> skip_curve_attributes = {
-      "curve_type", "material_index", "cyclic", "hardness", "fill_opacity", "shape_id"};
+      "curve_type", "material_index", "cyclic", "hardness", "fill_opacity"};
   Set<std::string> skip_point_attributes = {"position", "radius", "opacity"};
 
   curves.curve_types_for_write().fill(CURVE_TYPE_POLY);
@@ -623,18 +623,13 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
       "opacity",
       bke::AttrDomain::Point,
       bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.points_num())));
-  bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_or_add_for_write_span<int>(
-      "shape_id", bke::AttrDomain::Curve);
 
-  /* Set all of this fill to a new shape. */
-  shape_ids.span.fill(1);
   cyclic.span.fill(true);
   materials.span.fill(material_index);
   hardnesses.span.fill(hardness);
   /* TODO: `fill_opacities` are currently always 1.0f for the new strokes. Maybe this should be a
    * parameter. */
 
-  shape_ids.finish();
   cyclic.finish();
   materials.finish();
   hardnesses.finish();
