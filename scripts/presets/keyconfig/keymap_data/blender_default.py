@@ -4469,6 +4469,7 @@ def km_object_mode(params):
         # Transform Actions.
         *_template_items_transform_actions(params, use_mirror=True),
         ("object.transform_axis_target", {"type": 'T', "value": 'PRESS', "shift": True}, None),
+        ("object.orbit_around_target", {"type": 'O', "value": 'PRESS', "alt": True}, None),
         ("object.location_clear", {"type": 'G', "value": 'PRESS', "alt": True},
          {"properties": [("clear_delta", False)]}),
         ("object.rotation_clear", {"type": 'R', "value": 'PRESS', "alt": True},

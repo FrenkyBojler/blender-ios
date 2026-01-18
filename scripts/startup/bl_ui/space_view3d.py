@@ -2972,6 +2972,11 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             layout.separator()
 
+            layout.operator("object.transform_axis_target", text="Look At Target")
+            layout.operator("object.orbit_around_target", text="Orbit Around Target")
+
+            layout.separator()
+
         elif obj.type in {'CURVE', 'FONT'}:
             layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -3063,7 +3068,8 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             layout.separator()
 
-            layout.operator("object.light_orbit_around", text="Light Orbit Around Target")
+            layout.operator("object.transform_axis_target", text="Look At Target")
+            layout.operator("object.orbit_around_target", text="Orbit Around Target")
 
             layout.separator()
 
