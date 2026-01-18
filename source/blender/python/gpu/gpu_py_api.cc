@@ -27,7 +27,7 @@
 #include "BKE_global.hh"
 #include "GPU_context.hh"
 #include "GPU_init_exit.hh"
-
+#include "WM_api.hh"
 #include "gpu_py_api.hh" /* Own include. */
 
 namespace blender {
@@ -55,7 +55,9 @@ static PyObject *pygpu_init(PyObject * /*self*/)
     return nullptr;
   }
 
-  GPU_init();
+  // Cannot use GPU_init() as it requires a GPU context to have been created.
+  // See WM_init_gpu implementation. 
+  WM_init_gpu();
 
   if (!GPU_is_init()) {
     PyErr_SetString(PyExc_SystemError, "Failed to initialize GPU. Unexpected Error");
