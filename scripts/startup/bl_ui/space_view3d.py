@@ -3063,6 +3063,10 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             layout.separator()
 
+            layout.operator("object.light_orbit_around", text="Light Orbit Around Target")
+
+            layout.separator()
+
         # Shared among some object types.
         if obj is not None:
             if obj.type in {'MESH', 'CURVE', 'SURFACE'}:

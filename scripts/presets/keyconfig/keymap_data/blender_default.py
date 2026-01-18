@@ -6478,6 +6478,35 @@ def km_view3d_fly_modal(_params):
     return keymap
 
 
+def km_light_orbit_around_target_modal(_params):
+    items = []
+    keymap = (
+        "Light Orbit Around Target Modal Map",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": items},
+    )
+
+    items.extend([
+        ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CONFIRM", {"type": 'RET', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
+        ("TARGET_MODE", {"type": 'T', "value": 'PRESS'}, None),
+        ("AZIMUTH_LOCK", {"type": 'H', "value": 'PRESS'}, None),
+        ("ELEVATION_LOCK", {"type": 'V', "value": 'PRESS'}, None),
+        ("DISTANCE_LOCK", {"type": 'Z', "value": 'PRESS'}, None),
+        ("INVERT", {"type": 'I', "value": 'PRESS'}, None),
+        ("SYMMETRY", {"type": 'S', "value": 'PRESS'}, None),
+        ("PRECISION_ENABLE", {"type": 'LEFT_SHIFT', "value": 'PRESS'}, None),
+        ("PRECISION_DISABLE", {"type": 'LEFT_SHIFT', "value": 'RELEASE'}, None),
+        ("PRECISION_ENABLE", {"type": 'RIGHT_SHIFT', "value": 'PRESS'}, None),
+        ("PRECISION_DISABLE", {"type": 'RIGHT_SHIFT', "value": 'RELEASE'}, None),
+    ])
+
+    return keymap
+
+
 def km_view3d_walk_modal(_params):
     items = []
     keymap = (
@@ -8946,6 +8975,7 @@ def generate_keymaps(params=None):
         km_bevel_modal_map(params),
         km_light_target_modal_map(params),
         km_view3d_fly_modal(params),
+        km_light_orbit_around_target_modal(params),
         km_view3d_walk_modal(params),
         km_view3d_rotate_modal(params),
         km_view3d_move_modal(params),
