@@ -80,6 +80,11 @@ bool deg_object_hide_original(eEvaluationMode eval_mode, const Object *ob, const
 
     if (!dob || !(dob->type & hide_original_types)) {
       if (ob->parent && (ob->parent->transflag & hide_original_types)) {
+        /* Fix: #152739: Don't hide Text/NURBS objects that evaluate to different
+        * geometry types. These need to remain visible at their original location. */
+        if (ob->type == OB_FONT || ob->type == OB_SURF || ob->type == OB_CURVES_LEGACY) {
+          return false;
+        }
         return true;
       }
     }
