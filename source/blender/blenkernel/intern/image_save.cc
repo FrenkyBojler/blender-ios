@@ -6,15 +6,20 @@
  * \ingroup bke
  */
 
+#include <atomic>
 #include <cerrno>
 #include <cstring>
+#include <mutex>
 
 #include "BLI_fileops.h"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
+#include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -22,6 +27,8 @@
 
 #include "DNA_image_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -47,6 +54,449 @@
 namespace blender {
 
 static CLG_LogRef LOG_RENDER = {"render"};
+
+/** Thread-safe wrapper for strerror. */
+static void strerror_safe(int errnum, char *buf, size_t buflen)
+{
+  if (buflen == 0) {
+    return;
+  }
+#ifdef _WIN32
+  strerror_s(buf, buflen, errnum);
+#else
+  /* GNU strerror_r may return a pointer to a static string instead of using buf. */
+#  if defined(__GLIBC__) && (_GNU_SOURCE || (_POSIX_C_SOURCE < 200112L && _XOPEN_SOURCE < 600))
+  const char *msg = strerror_r(errnum, buf, buflen);
+  if (msg != buf) {
+    BLI_strncpy(buf, msg, buflen);
+  }
+#  else
+  if (strerror_r(errnum, buf, buflen) != 0) {
+    BLI_strncpy(buf, "Unknown error", buflen);
+  }
+#  endif
+#endif
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Background Image Save Pool
+ *
+ * Task pool for saving images asynchronously.
+ * \{ */
+
+/** Fraction of available threads to use for background saves. */
+static constexpr int BACKGROUND_SAVE_THREAD_DIVISOR = 4;
+
+static std::mutex g_pool_mutex;
+static int g_pending_image_saves = 0;
+static std::atomic<bool> g_shutting_down{false};
+static TaskPool *g_pool = nullptr;
+static bool g_pool_initialized = false;
+
+/** Release a slot in the background save queue. */
+static void release_slot()
+{
+  std::scoped_lock lock(g_pool_mutex);
+  g_pending_image_saves--;
+}
+
+/**
+ * Initialize the pool if not already done. Must be called while holding g_pool_mutex.
+ */
+static void ensure_pool_initialized_locked()
+{
+  if (g_pool_initialized) {
+    return;
+  }
+  g_pool_initialized = true;
+
+  const int num_threads = max_ii(1,
+                                 BLI_task_scheduler_num_threads() / BACKGROUND_SAVE_THREAD_DIVISOR);
+  g_pool = BLI_task_pool_create_background_parallel(nullptr, TASK_PRIORITY_HIGH, num_threads);
+}
+
+void BKE_image_save_pool_init()
+{
+  std::scoped_lock lock(g_pool_mutex);
+  g_shutting_down.store(false, std::memory_order_release);
+  ensure_pool_initialized_locked();
+}
+
+void BKE_image_save_pool_wait()
+{
+  TaskPool *pool_copy = nullptr;
+  {
+    std::scoped_lock lock(g_pool_mutex);
+    pool_copy = g_pool;
+  }
+  if (pool_copy != nullptr) {
+    BLI_task_pool_work_and_wait(pool_copy);
+  }
+}
+
+void BKE_image_save_pool_exit()
+{
+  /* Prevent new tasks from being queued. */
+  g_shutting_down.store(true, std::memory_order_release);
+
+  /* Hold lock during entire cleanup to prevent races with other threads. */
+  TaskPool *pool_to_free = nullptr;
+  {
+    std::scoped_lock lock(g_pool_mutex);
+    pool_to_free = g_pool;
+    g_pool = nullptr;
+    g_pool_initialized = false;
+  }
+
+  if (pool_to_free != nullptr) {
+    /* Wait for all pending saves to complete (outside lock to avoid deadlock). */
+    BLI_task_pool_work_and_wait(pool_to_free);
+    BLI_task_pool_free(pool_to_free);
+  }
+
+  /* Reset shutdown flag so pool can be re-initialized if needed. */
+  g_shutting_down.store(false, std::memory_order_release);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Async-Safe Render Write Data
+ *
+ * Prepared render data for async-safe image writing.
+ * All data is owned and can be safely used from any thread.
+ * \{ */
+
+/**
+ * Self-contained data for writing a render result to an image file.
+ * All scene-dependent data is extracted and copied at creation time,
+ * making this safe for use from background threads.
+ */
+struct RenderWriteData {
+  /** Color-managed ibuf ready for writing (owned). */
+  ImBuf *ibuf = nullptr;
+  /** Image format settings (owned, deep copied). */
+  ImageFormatData im_format = {};
+  /** RenderResult for stamp data, or nullptr (owned). */
+  RenderResult *stamp_rr = nullptr;
+  /** Output filepath. */
+  char filepath[FILE_MAX] = "";
+  /** Whether to write stamp metadata. */
+  bool stamp = false;
+  /** Whether saving as render output (affects color management). */
+  bool save_as_render = false;
+};
+
+/**
+ * Prepare data for writing a render result to an image file.
+ * All scene-dependent data is extracted and copied.
+ * Result is thread-safe and can be passed to async execution.
+ */
+static RenderWriteData *render_write_prepare(RenderResult *rr,
+                                             const Scene *scene,
+                                             const char *filepath,
+                                             bool stamp,
+                                             const ImageFormatData *format,
+                                             bool save_as_render,
+                                             int view_id)
+{
+  if (!rr) {
+    return nullptr;
+  }
+
+  ImageFormatData image_format;
+  BKE_image_format_init_for_write(&image_format, scene, format);
+  if (!save_as_render && format) {
+    BKE_color_managed_colorspace_settings_copy(&image_format.linear_colorspace_settings,
+                                               &format->linear_colorspace_settings);
+  }
+
+  const float dither = scene->r.dither_intensity;
+
+  ImBuf *ibuf = RE_render_result_rect_to_ibuf(rr, &image_format, dither, view_id);
+  if (!ibuf) {
+    BKE_image_format_free(&image_format);
+    return nullptr;
+  }
+  IMB_colormanagement_imbuf_for_write(ibuf, save_as_render, false, &image_format);
+
+  /* Allocate and fill data struct. */
+  RenderWriteData *data = MEM_new<RenderWriteData>(__func__);
+  data->ibuf = ibuf;
+  /* Deep copy format to avoid sharing pointers with the local copy. */
+  BKE_image_format_copy(&data->im_format, &image_format);
+  BKE_image_format_free(&image_format);
+  STRNCPY(data->filepath, filepath);
+  data->stamp = stamp;
+  data->save_as_render = save_as_render;
+
+  /* Copy stamp data if needed. */
+  if (stamp) {
+    data->stamp_rr = RE_DuplicateRenderResult(rr);
+  }
+  else {
+    data->stamp_rr = nullptr;
+  }
+
+  return data;
+}
+
+static void render_write_data_free(RenderWriteData *data)
+{
+  if (!data) {
+    return;
+  }
+
+  if (data->ibuf) {
+    IMB_freeImBuf(data->ibuf);
+  }
+  if (data->stamp_rr) {
+    RE_FreeRenderResult(data->stamp_rr);
+  }
+  BKE_image_format_free(&data->im_format);
+  MEM_delete(data);
+}
+
+/**
+ * Write prepared render data to disk. Thread-safe.
+ * \return true on success.
+ */
+static bool render_write_prepared(const RenderWriteData *data)
+{
+  if (!data || !data->ibuf) {
+    return false;
+  }
+
+  bool success;
+  if (data->stamp && data->stamp_rr) {
+    success = BKE_imbuf_write_stamp(
+        nullptr, data->stamp_rr, data->ibuf, data->filepath, &data->im_format);
+  }
+  else {
+    success = BKE_imbuf_write(data->ibuf, data->filepath, &data->im_format);
+  }
+
+  /* Save errno immediately before any other calls that might modify it. */
+  const int saved_errno = errno;
+
+  if (success) {
+    CLOG_INFO(&LOG_RENDER, "Saved \"%s\"", data->filepath);
+  }
+  else {
+    /* TODO: Add WM_report() or similar for UI notification of background
+     * save failures. Currently errors only go to stderr which GUI users don't see. */
+    char errbuf[256];
+    strerror_safe(saved_errno, errbuf, sizeof(errbuf));
+    CLOG_ERROR(&LOG_RENDER, "Failed to save \"%s\": %s", data->filepath, errbuf);
+  }
+
+  return success;
+}
+
+/* Task callbacks for background saving. */
+
+static void render_save_task_run(TaskPool *__restrict /*pool*/, void *taskdata)
+{
+  RenderWriteData *data = static_cast<RenderWriteData *>(taskdata);
+  render_write_prepared(data);
+}
+
+static void render_save_task_free(TaskPool *__restrict /*pool*/, void *taskdata)
+{
+  RenderWriteData *data = static_cast<RenderWriteData *>(taskdata);
+  render_write_data_free(data);
+
+  /* Release pending slot. */
+  release_slot();
+}
+
+bool BKE_image_save_background_render(RenderResult *rr,
+                                      const Scene *scene,
+                                      bool stamp,
+                                      const char *filepath)
+{
+  if (!rr || !scene) {
+    return false;
+  }
+
+  const ImageFormatData *im_format = &scene->r.im_format;
+
+  /* Reject multilayer EXR - too complex for background save. */
+  if (im_format->imtype == R_IMF_IMTYPE_MULTILAYER) {
+    return false;
+  }
+
+  /* Reject movies - not applicable. */
+  if (BKE_imtype_is_movie(im_format->imtype)) {
+    return false;
+  }
+
+  /* Reject multiview - complex cases need sync save. */
+  if (RE_ResultIsMultiView(rr)) {
+    return false;
+  }
+
+  /* 1. Prepare data OUTSIDE lock - this does slow buffer/color management work. */
+  RenderWriteData *data = render_write_prepare(rr, scene, filepath, stamp, nullptr, true, 0);
+  if (!data) {
+    return false;
+  }
+
+  /* 2. Take lock ONLY for queue management operations. */
+  {
+    std::scoped_lock lock(g_pool_mutex);
+
+    if (g_shutting_down.load(std::memory_order_acquire)) {
+      render_write_data_free(data);
+      return false;
+    }
+
+    /* Check queue limit (enforce minimum of 2 when enabled). */
+    const int queue_limit = U.image_save_queue_limit;
+    const int effective_limit = (queue_limit > 0) ? max_ii(2, queue_limit) : 0;
+
+    if (effective_limit > 0 && g_pending_image_saves >= effective_limit) {
+      render_write_data_free(data);
+      return false;
+    }
+
+    /* Initialize pool if needed (already under lock). */
+    ensure_pool_initialized_locked();
+
+    /* Reserve slot and push task. */
+    g_pending_image_saves++;
+    BLI_task_pool_push(g_pool, render_save_task_run, data, true, render_save_task_free);
+  }
+
+  return true;
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Image Datablock Background Save
+ * \{ */
+
+/**
+ * Self-contained data for writing an Image datablock to a file.
+ * All data is copied at creation time for thread safety.
+ */
+struct ImageSaveTaskData {
+  /** Copied buffer (owned by task). */
+  ImBuf *ibuf = nullptr;
+  /** Output filepath. */
+  char filepath[FILE_MAX] = "";
+  /** Image format settings (owned, deep copied). */
+  ImageFormatData im_format = {};
+  /** Whether saving as a copy (doesn't affect image state). */
+  bool save_copy = false;
+};
+
+static void image_save_task_run(TaskPool *__restrict /*pool*/, void *taskdata)
+{
+  ImageSaveTaskData *task = static_cast<ImageSaveTaskData *>(taskdata);
+
+  const bool success = BKE_imbuf_write_as(
+      task->ibuf, task->filepath, &task->im_format, task->save_copy);
+
+  /* Save errno immediately before any other calls. */
+  const int saved_errno = errno;
+
+  if (success) {
+    CLOG_INFO(&LOG_RENDER, "Saved \"%s\"", task->filepath);
+  }
+  else {
+    /* TODO: Add WM_report() or similar for UI notification of background
+     * save failures. Currently errors only go to stderr which GUI users don't see. */
+    char errbuf[256];
+    strerror_safe(saved_errno, errbuf, sizeof(errbuf));
+    CLOG_ERROR(&LOG_RENDER, "Failed to save \"%s\": %s", task->filepath, errbuf);
+  }
+}
+
+static void image_save_task_free(TaskPool *__restrict /*pool*/, void *taskdata)
+{
+  ImageSaveTaskData *task = static_cast<ImageSaveTaskData *>(taskdata);
+
+  if (task->ibuf) {
+    IMB_freeImBuf(task->ibuf);
+  }
+  BKE_image_format_free(&task->im_format);
+  MEM_delete(task);
+
+  /* Release pending slot. */
+  release_slot();
+}
+
+bool BKE_image_save_background(Image *ima, ImageUser *iuser, const ImageSaveOptions *opts)
+{
+  if (!ima || !opts) {
+    return false;
+  }
+
+  /* Reject multilayer - needs complex handling. */
+  if (opts->im_format.imtype == R_IMF_IMTYPE_MULTILAYER) {
+    return false;
+  }
+
+  /* 1. Prepare data OUTSIDE lock - these are slow I/O operations. */
+  void *ibuf_lock;
+  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &ibuf_lock);
+  if (!ibuf) {
+    BKE_image_release_ibuf(ima, nullptr, ibuf_lock);
+    return false;
+  }
+
+  ImBuf *ibuf_cm = IMB_colormanagement_imbuf_for_write(
+      ibuf, opts->save_as_render, true, &opts->im_format);
+
+  /* Make a copy if colormanagement returned the same buffer. */
+  ImBuf *ibuf_copy = (ibuf_cm == ibuf) ? IMB_dupImBuf(ibuf) : ibuf_cm;
+  BKE_image_release_ibuf(ima, ibuf, ibuf_lock);
+
+  if (!ibuf_copy) {
+    return false;
+  }
+
+  /* Create task data with deep copy of format. */
+  ImageSaveTaskData *task = MEM_new<ImageSaveTaskData>(__func__);
+  task->ibuf = ibuf_copy;
+  STRNCPY(task->filepath, opts->filepath);
+  BKE_image_format_copy(&task->im_format, &opts->im_format);
+  task->save_copy = opts->save_copy;
+
+  /* 2. Take lock ONLY for queue management operations. */
+  {
+    std::scoped_lock lock(g_pool_mutex);
+
+    if (g_shutting_down.load(std::memory_order_acquire)) {
+      IMB_freeImBuf(ibuf_copy);
+      BKE_image_format_free(&task->im_format);
+      MEM_delete(task);
+      return false;
+    }
+
+    /* Check queue limit. */
+    const int queue_limit = U.image_save_queue_limit;
+    const int effective_limit = (queue_limit > 0) ? max_ii(2, queue_limit) : 0;
+
+    if (effective_limit > 0 && g_pending_image_saves >= effective_limit) {
+      IMB_freeImBuf(ibuf_copy);
+      BKE_image_format_free(&task->im_format);
+      MEM_delete(task);
+      return false;
+    }
+
+    /* Initialize pool if needed (already under lock). */
+    ensure_pool_initialized_locked();
+
+    /* Reserve slot and push task. */
+    g_pending_image_saves++;
+    BLI_task_pool_push(g_pool, image_save_task_run, task, true, image_save_task_free);
+  }
+
+  return true;
+}
+
+/** \} */
 
 bool BKE_image_save_options_init(ImageSaveOptions *opts,
                                  Main *bmain,
@@ -1129,8 +1579,7 @@ bool BKE_image_render_write(ReportList *reports,
 
   ImageFormatData image_format;
   BKE_image_format_init_for_write(&image_format, scene, format);
-
-  if (!save_as_render) {
+  if (!save_as_render && format) {
     BKE_color_managed_colorspace_settings_copy(&image_format.linear_colorspace_settings,
                                                &format->linear_colorspace_settings);
   }
@@ -1166,36 +1615,44 @@ bool BKE_image_render_write(ReportList *reports,
             reports, rr, filepath, &image_format, save_as_render, rv->name, -1);
         image_render_print_save_message(reports, filepath, ok, errno);
 
-        /* optional preview images for exr */
+        /* Optional preview images for EXR. */
         if (ok && (image_format.flag & R_IMF_FLAG_PREVIEW_JPG)) {
-          image_format.imtype = R_IMF_IMTYPE_JPEG90;
-          image_format.depth = R_IMF_CHAN_DEPTH_8;
-
-          if (BLI_path_extension_check(filepath, ".exr")) {
-            filepath[strlen(filepath) - 4] = 0;
-          }
-          BKE_image_path_ext_from_imformat_ensure(filepath, sizeof(filepath), &image_format);
-
           ImBuf *ibuf = RE_render_result_rect_to_ibuf(rr, &image_format, dither, view_id);
-          ibuf->planes = 24;
-          IMB_colormanagement_imbuf_for_write(ibuf, save_as_render, false, &image_format);
+          if (ibuf) {
+            IMB_colormanagement_imbuf_for_write(ibuf, save_as_render, false, &image_format);
 
-          ok = image_render_write_stamp_test(
-              reports, scene, rr, ibuf, filepath, &image_format, stamp);
+            /* Configure for JPEG preview. */
+            image_format.imtype = R_IMF_IMTYPE_JPEG90;
+            image_format.depth = R_IMF_CHAN_DEPTH_8;
 
-          IMB_freeImBuf(ibuf);
+            /* Replace .exr extension. */
+            if (BLI_path_extension_check(filepath, ".exr")) {
+              filepath[strlen(filepath) - 4] = 0;
+            }
+            BKE_image_path_ext_from_imformat_ensure(filepath, sizeof(filepath), &image_format);
+
+            ibuf->planes = 24;
+            ok = image_render_write_stamp_test(
+                reports, scene, rr, ibuf, filepath, &image_format, stamp);
+
+            IMB_freeImBuf(ibuf);
+          }
         }
       }
       else {
-        ImBuf *ibuf = RE_render_result_rect_to_ibuf(rr, &image_format, dither, view_id);
-
-        IMB_colormanagement_imbuf_for_write(ibuf, save_as_render, false, &image_format);
-
-        ok = image_render_write_stamp_test(
-            reports, scene, rr, ibuf, filepath, &image_format, stamp);
-
-        /* imbuf knows which rects are not part of ibuf */
-        IMB_freeImBuf(ibuf);
+        /* Use shared helpers for mono non-EXR writes. */
+        RenderWriteData *write_data = render_write_prepare(
+            rr, scene, filepath, stamp, &image_format, save_as_render, view_id);
+        if (write_data) {
+          ok = render_write_prepared(write_data);
+          if (!ok && reports) {
+            BKE_reportf(reports, RPT_ERROR, "Failed to save \"%s\"", filepath);
+          }
+          render_write_data_free(write_data);
+        }
+        else {
+          ok = false;
+        }
       }
     }
   }
@@ -1216,7 +1673,9 @@ bool BKE_image_render_write(ReportList *reports,
       for (i = 0; i < 2; i++) {
         int view_id = BLI_findstringindex(&rr->views, names[i], offsetof(RenderView, name));
         ibuf_arr[i] = RE_render_result_rect_to_ibuf(rr, &image_format, dither, view_id);
-        IMB_colormanagement_imbuf_for_write(ibuf_arr[i], save_as_render, false, &image_format);
+        if (ibuf_arr[i]) {
+          IMB_colormanagement_imbuf_for_write(ibuf_arr[i], save_as_render, false, &image_format);
+        }
       }
 
       ibuf_arr[2] = IMB_stereo3d_ImBuf(&image_format, ibuf_arr[0], ibuf_arr[1]);
@@ -1225,18 +1684,19 @@ bool BKE_image_render_write(ReportList *reports,
         ok = image_render_write_stamp_test(
             reports, scene, rr, ibuf_arr[2], filepath, &image_format, stamp);
 
-        /* optional preview images for exr */
+        /* Optional preview images for EXR. */
         if (ok && is_exr_rr && (image_format.flag & R_IMF_FLAG_PREVIEW_JPG)) {
+          /* Configure for JPEG preview. */
           image_format.imtype = R_IMF_IMTYPE_JPEG90;
           image_format.depth = R_IMF_CHAN_DEPTH_8;
 
+          /* Replace .exr extension. */
           if (BLI_path_extension_check(filepath, ".exr")) {
             filepath[strlen(filepath) - 4] = 0;
           }
-
           BKE_image_path_ext_from_imformat_ensure(filepath, sizeof(filepath), &image_format);
-          ibuf_arr[2]->planes = 24;
 
+          ibuf_arr[2]->planes = 24;
           ok = image_render_write_stamp_test(
               reports, scene, rr, ibuf_arr[2], filepath, &image_format, stamp);
         }
