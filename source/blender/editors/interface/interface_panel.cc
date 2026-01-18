@@ -2481,62 +2481,33 @@ void panel_category_clear_all(ARegion *region)
   BLI_freelistN(&region->runtime->panels_category);
 }
 
-static int ui_handle_panel_category_cycling(const wmEvent *event,
-                                            ARegion *region,
-                                            const Button *active_but)
+int handle_panel_category_cycling(ARegion *region, CategoryCycleDirection direction, bool wrap)
 {
   BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
 
-  const bool is_mousewheel = ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE);
-  const bool inside_tabregion =
-      ((RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT) ?
-           (event->mval[0] <
-            (static_cast<PanelCategoryDyn *>(region->runtime->panels_category.first))->rect.xmax) :
-           (event->mval[0] >
-            (static_cast<PanelCategoryDyn *>(region->runtime->panels_category.first))->rect.xmin));
-
-  /* If mouse is inside non-tab region, ctrl key is required. */
-  if (is_mousewheel && (event->modifier & KM_CTRL) == 0 && !inside_tabregion) {
+  const char *category = panel_category_active_get(region, false);
+  if (!category) {
     return WM_UI_HANDLER_CONTINUE;
   }
-
-  if (active_but && button_supports_cycling(active_but)) {
-    /* Skip - exception to make cycling buttons using ctrl+mousewheel work in tabbed regions. */
+  PanelCategoryDyn *pc_dyn = panel_category_find(region, category);
+  /* Cycle between categories.*/
+  if (!pc_dyn) {
+    return WM_UI_HANDLER_CONTINUE;
   }
-  else {
-    const char *category = panel_category_active_get(region, false);
-    if (LIKELY(category)) {
-      PanelCategoryDyn *pc_dyn = panel_category_find(region, category);
-      /* Cyclic behavior between categories
-       * using Ctrl+Tab (+Shift for backwards) or Ctrl+Wheel Up/Down. */
-      if (LIKELY(pc_dyn) && (event->modifier & KM_CTRL)) {
-        if (is_mousewheel) {
-          /* We can probably get rid of this and only allow Ctrl-Tabbing. */
-          pc_dyn = (event->type == WHEELDOWNMOUSE) ? pc_dyn->next : pc_dyn->prev;
-        }
-        else {
-          const bool backwards = event->modifier & KM_SHIFT;
-          pc_dyn = backwards ? pc_dyn->prev : pc_dyn->next;
-          if (!pc_dyn) {
-            /* Proper cyclic behavior, back to first/last category (only used for ctrl+tab). */
-            pc_dyn = backwards ?
-                         static_cast<PanelCategoryDyn *>(region->runtime->panels_category.last) :
-                         static_cast<PanelCategoryDyn *>(region->runtime->panels_category.first);
-          }
-        }
-
-        if (pc_dyn) {
-          /* Intentionally don't reset scroll in this case,
-           * allowing for quick browsing between tabs. */
-          panel_category_active_set(region, pc_dyn->idname);
-          ED_region_tag_redraw(region);
-        }
-        return WM_UI_HANDLER_BREAK;
-      }
-    }
+  const bool backwards = direction == CategoryCycleDirection::Prev;
+  pc_dyn = backwards ? pc_dyn->prev : pc_dyn->next;
+  if (!pc_dyn && wrap) {
+    /* Wrap bettwen first/last categories. */
+    pc_dyn = static_cast<PanelCategoryDyn *>(backwards ? (region->runtime->panels_category.last) :
+                                                         (region->runtime->panels_category.first));
   }
 
-  return WM_UI_HANDLER_CONTINUE;
+  if (pc_dyn) {
+    /* Intentionally don't reset scroll in this case, allowing for quick browsing between tabs. */
+    panel_category_active_set(region, pc_dyn->idname);
+    ED_region_tag_redraw(region);
+  }
+  return WM_UI_HANDLER_BREAK;
 }
 
 static void ui_panel_region_width_set(ARegion *region, const float aspect, int unscaled_size)
@@ -2561,7 +2532,7 @@ static void ui_panel_region_width_set(ARegion *region, const float aspect, int u
 int handler_panel_region(bContext *C,
                          const wmEvent *event,
                          ARegion *region,
-                         const Button *active_but)
+                         const Button * /*active_but*/)
 {
   /* Mouse-move events are handled by separate handlers for dragging and drag collapsing. */
   if (ISMOUSE_MOTION(event->type)) {
@@ -2618,13 +2589,7 @@ int handler_panel_region(bContext *C,
         retval = WM_UI_HANDLER_BREAK;
       }
     }
-    else if (((event->type == EVT_TABKEY) && (event->modifier & KM_CTRL)) ||
-             ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE))
-    {
-      /* Cycle tabs. */
-      retval = ui_handle_panel_category_cycling(event, region, active_but);
-    }
-    if (event->type == EVT_PADPERIOD) {
+    else if (event->type == EVT_PADPERIOD) {
       retval = ui_panel_category_show_active_tab(region, event->xy);
     }
   }

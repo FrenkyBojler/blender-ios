@@ -1135,6 +1135,12 @@ int handler_panel_region(bContext *C,
                          const wmEvent *event,
                          ARegion *region,
                          const Button *active_but);
+enum class CategoryCycleDirection {
+  Next,
+  Prev,
+};
+int handle_panel_category_cycling(ARegion *region, CategoryCycleDirection direction, bool wrap);
+
 /**
  * Draw a panel integrated in buttons-window, tool/property lists etc.
  */

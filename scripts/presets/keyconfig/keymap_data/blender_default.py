@@ -1059,6 +1059,14 @@ def km_user_interface(_params):
         ("ui.view_item_rename", {"type": 'F2', "value": 'PRESS'}, None),
         ("ui.view_item_delete", {"type": 'X', "value": 'PRESS'}, None),
         ("ui.view_item_delete", {"type": 'DEL', "value": 'PRESS'}, None),
+        ("ui.panel_category_cycle", {"type": 'WHEELUPMOUSE', "value": 'PRESS', "ctrl": True},
+         {"properties": [("direction", 'PREV')]}),
+        ("ui.panel_category_cycle", {"type": 'WHEELDOWNMOUSE', "value": 'PRESS', "ctrl": True},
+         {"properties": [("direction", 'NEXT')]}),
+        ("ui.panel_category_cycle", {"type": 'TAB', "value": 'PRESS', "ctrl": True, "shift": True},
+         {"properties": [("direction", 'PREV'), ("wrap", True)]}),
+        ("ui.panel_category_cycle", {"type": 'TAB', "value": 'PRESS', "ctrl": True},
+         {"properties": [("direction", 'NEXT'), ("wrap", True)]}),
     ])
 
     return keymap

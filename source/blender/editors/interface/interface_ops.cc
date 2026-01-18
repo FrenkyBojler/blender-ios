@@ -2976,6 +2976,55 @@ static void UI_OT_drop_material(wmOperatorType *ot)
   WM_operator_properties_id_lookup(ot, false);
 }
 
+static const EnumPropertyItem panel_category_cycle_direction[] = {
+    {int(CategoryCycleDirection::Prev), "PREV", 0, "Previous", ""},
+    {int(CategoryCycleDirection::Next), "NEXT", 0, "Next", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static bool panel_category_cycle_poll(bContext *C)
+{
+  ARegion *region = CTX_wm_region(C);
+  return region && region->regiontype == RGN_TYPE_UI && panel_category_tabs_is_visible(region);
+}
+
+static wmOperatorStatus panel_category_cycle_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
+
+{
+
+  const CategoryCycleDirection direction = CategoryCycleDirection(
+      RNA_enum_get(op->ptr, "direction"));
+  const bool wrap = RNA_boolean_get(op->ptr, "wrap");
+  handle_panel_category_cycling(CTX_wm_region(C), direction, wrap);
+
+  return OPERATOR_FINISHED;
+}
+
+static void panel_category_cycle(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Panel Category Cycle";
+  ot->description = "Cycle through the panel category context by activating the next/previous one";
+  ot->idname = "UI_OT_panel_category_cycle";
+
+  /* API callbacks. */
+  ot->invoke = panel_category_cycle_invoke;
+  ot->poll = panel_category_cycle_poll;
+
+  ot->flag = 0;
+
+  RNA_def_enum(ot->srna,
+               "direction",
+               panel_category_cycle_direction,
+               0,
+               "Direction",
+               "Direction to cycle through");
+  RNA_def_boolean(
+      ot->srna, "wrap", false, "Wrap", "Wraps between fist/last categories when cycling through");
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -3011,6 +3060,7 @@ void operatortypes_ui()
   WM_operatortype_append(UI_OT_view_item_rename);
   WM_operatortype_append(UI_OT_view_item_select);
   WM_operatortype_append(UI_OT_view_item_delete);
+  WM_operatortype_append(panel_category_cycle);
 
   WM_operatortype_append(UI_OT_override_add_button);
   WM_operatortype_append(UI_OT_override_remove_button);
