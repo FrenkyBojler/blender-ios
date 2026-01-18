@@ -1591,7 +1591,6 @@ static void region_rect_recursive(
   }
 
   /* `prefsizex/y`, taking into account DPI. */
-
   int prefsizex = UI_SCALE_FAC *
                   ((region->sizex > 1) ? region->sizex + 0.5f : region->runtime->type->prefsizex);
   int prefsizey;
