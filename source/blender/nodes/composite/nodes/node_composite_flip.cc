@@ -15,9 +15,11 @@
 
 #include "node_composite_util.hh"
 
+namespace blender {
+
 /* **************** Flip  ******************** */
 
-namespace blender::nodes::node_composite_flip_cc {
+namespace nodes::node_composite_flip_cc {
 
 static void cmp_node_flip_declare(NodeDeclarationBuilder &b)
 {
@@ -72,7 +74,7 @@ class FlipOperation : public NodeOperation {
     result.allocate_texture(domain);
     result.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input.unbind_as_texture();
     result.unbind_as_image();
@@ -90,8 +92,8 @@ class FlipOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    const int2 size = domain.size;
-    parallel_for(domain.size, [&](const int2 texel) {
+    const int2 size = domain.data_size;
+    parallel_for(domain.data_size, [&](const int2 texel) {
       int2 flipped_texel = texel;
       if (flip_x) {
         flipped_texel.x = size.x - texel.x - 1;
@@ -105,27 +107,27 @@ class FlipOperation : public NodeOperation {
 
   bool get_flip_x()
   {
-    return this->get_input("Flip X").get_single_value_default(false);
+    return this->get_input("Flip X").get_single_value_default<bool>();
   }
 
   bool get_flip_y()
   {
-    return this->get_input("Flip Y").get_single_value_default(false);
+    return this->get_input("Flip Y").get_single_value_default<bool>();
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new FlipOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_flip_cc
+}  // namespace nodes::node_composite_flip_cc
 
 static void register_node_type_cmp_flip()
 {
-  namespace file_ns = blender::nodes::node_composite_flip_cc;
+  namespace file_ns = nodes::node_composite_flip_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeFlip", CMP_NODE_FLIP);
   ntype.ui_name = "Flip";
@@ -135,6 +137,8 @@ static void register_node_type_cmp_flip()
   ntype.declare = file_ns::cmp_node_flip_declare;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_flip)
+
+}  // namespace blender

@@ -30,7 +30,9 @@
 #undef GPU_SHADER_INTERFACE_END
 #undef GPU_SHADER_CREATE_END
 
-namespace blender::gpu::shader {
+namespace blender {
+
+namespace gpu::shader {
 
 using CreateInfoDictionary = Map<StringRef, ShaderCreateInfo *>;
 using InterfaceDictionary = Map<StringRef, StageInterfaceInfo *>;
@@ -94,22 +96,46 @@ bool ShaderCreateInfo::is_vulkan_compatible() const
   return true;
 }
 
+std::string ShaderCreateInfo::buffer_typename(StringRefNull type_name, bool uniform_buffer) const
+{
+  if (bool(this->builtins_ & BuiltinBits::NO_BUFFER_TYPE_LINTING) || type_name.startswith("int") ||
+      type_name.startswith("uint") || type_name.startswith("float") ||
+      type_name.startswith("packed_"))
+  {
+    return type_name;
+  }
+  return type_name + "_host_shared_" + (uniform_buffer ? "uniform_" : "");
+}
+
 /** \} */
 
-std::string ShaderCreateInfo::resource_guard_defines() const
+ShaderCreateInfo::ShaderCreateInfo(const char *name) : name_(name)
+{
+  bool last_char_is_underscore = false;
+  /* Escape the shader name to be able to use it inside an identifier. */
+  for (char &c : name_) {
+    if (!std::isalnum(c)) {
+      c = '_';
+    }
+    if (c == '_' && last_char_is_underscore) {
+      /* Avoid GLSL warning about double underscore being reserved. */
+      c = 'w';
+    }
+    last_char_is_underscore = c == '_';
+  }
+}
+
+std::string ShaderCreateInfo::resource_guard_defines(Span<CompilationConstant> constants) const
 {
   std::string defines;
-  if (name_.startswith("MA") || name_.startswith("WO")) {
-    defines += "#define CREATE_INFO_Material\n";
-  }
-  else {
-    defines += "#define CREATE_INFO_" + name_ + "\n";
-  }
-  for (const auto &info_name : additional_infos_) {
+  defines += "#define CREATE_INFO_" + name_ + "\n";
+  for (const auto &additional_info : additional_infos_) {
     const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(
-        gpu_shader_create_info_get(info_name.c_str()));
+        gpu_shader_create_info_get(additional_info.name.c_str()));
 
-    defines += info.resource_guard_defines();
+    if (additional_info.conditions.evaluate(constants)) {
+      defines += info.resource_guard_defines(constants);
+    }
   }
   return defines;
 }
@@ -125,11 +151,11 @@ void ShaderCreateInfo::finalize(const bool recursive)
 
   validate_vertex_attributes();
 
-  for (auto &info_name : additional_infos_) {
+  for (const auto &additional_info : additional_infos_) {
 
     /* Fetch create info. */
     const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(
-        gpu_shader_create_info_get(info_name.c_str()));
+        gpu_shader_create_info_get(additional_info.name.c_str()));
 
     if (recursive) {
       const_cast<ShaderCreateInfo &>(info).finalize(recursive);
@@ -159,10 +185,24 @@ void ShaderCreateInfo::finalize(const bool recursive)
     /* Insert with duplicate check. */
     push_constants_.extend_non_duplicates(info.push_constants_);
     defines_.extend_non_duplicates(info.defines_);
-    batch_resources_.extend_non_duplicates(info.batch_resources_);
-    pass_resources_.extend_non_duplicates(info.pass_resources_);
-    geometry_resources_.extend_non_duplicates(info.geometry_resources_);
     typedef_sources_.extend_non_duplicates(info.typedef_sources_);
+
+    auto extend_predicate = [&](Vector<Resource, 0> &resource_vector,
+                                ShaderCreateInfo::Resource res_copy,
+                                Span<ConditionFn> additional_conditions) {
+      res_copy.conditions.extend(additional_conditions);
+      /** IMPORTANT: We keep duplicates until we evaluate the conditions. */
+      resource_vector.append(res_copy);
+    };
+    for (const auto &res : info.pass_resources_) {
+      extend_predicate(pass_resources_, res, additional_info.conditions);
+    }
+    for (const auto &res : info.batch_resources_) {
+      extend_predicate(batch_resources_, res, additional_info.conditions);
+    }
+    for (const auto &res : info.geometry_resources_) {
+      extend_predicate(geometry_resources_, res, additional_info.conditions);
+    }
 
     /* API-specific parameters.
      * We will only copy API-specific parameters if they are otherwise unassigned. */
@@ -185,7 +225,10 @@ void ShaderCreateInfo::finalize(const bool recursive)
     /* Inherit builtin bits from additional info. */
     builtins_ |= info.builtins_;
 
-    validate_merge(info);
+    /* TODO(fclem): We need to reintroduce this check before compiling.
+     * The issue is that the new SRT paradigm allows for conflicting resources if they are not
+     * defined at the same time (using compilation constants). */
+    // validate_merge(info);
 
     auto assert_no_overlap = [&](const bool test, const StringRefNull error) {
       if (!test) {
@@ -345,7 +388,7 @@ std::string ShaderCreateInfo::check_error() const
         error += "Shader " + this->name_ + " : \"" + interface->name + "." + inout.name + "\":";
         error += " Array types are not allowed in shader stage interfaces.\n";
       }
-      if (inout.type == Type::float3x3_t || inout.type == Type::float4x4_t) {
+      if (ELEM(inout.type, Type::float3x3_t, Type::float4x4_t)) {
         error += "Shader " + this->name_ + " : \"" + interface->name + "." + inout.name + "\":";
         error += " Matrix types are not allowed in shader stage interfaces.\n";
       }
@@ -511,7 +554,7 @@ void ShaderCreateInfo::validate_vertex_attributes(const ShaderCreateInfo *other_
   }
 }
 
-}  // namespace blender::gpu::shader
+}  // namespace gpu::shader
 
 using namespace blender::gpu::shader;
 
@@ -574,8 +617,13 @@ void gpu_shader_create_info_init()
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->geometry_source_);
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->compute_source_);
 
+    if (!info->compute_source_.is_empty()) {
+      info->shared_variables_.extend(
+          gpu_shader_dependency_get_shared_variables(info->compute_source_));
+    }
+
 #if GPU_SHADER_PRINTF_ENABLE
-    const bool is_material_shader = info->name_.startswith("eevee_surf_");
+    const bool is_material_shader = StringRefNull(info->name_).startswith("eevee_surf_");
     if (flag_is_set(info->builtins_, BuiltinBits::USE_PRINTF) ||
         (gpu_shader_dependency_force_gpu_print_injection() && is_material_shader))
     {
@@ -615,22 +663,21 @@ void gpu_shader_create_info_exit()
   delete g_interfaces;
 }
 
-bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
+bool gpu_shader_create_info_compile_all(const char *name_starts_with_filter)
 {
-  using namespace blender;
   using namespace blender::gpu;
   int success = 0;
   int skipped_filter = 0;
   int skipped = 0;
   int total = 0;
 
-  Vector<const GPUShaderCreateInfo *> infos;
+  Vector<AsyncCompilationHandle> handles;
 
   for (ShaderCreateInfo *info : g_create_infos->values()) {
     info->finalize();
     if (info->do_static_compilation_) {
       if (name_starts_with_filter &&
-          !info->name_.startswith(blender::StringRefNull(name_starts_with_filter)))
+          !StringRefNull(info->name_).startswith(StringRefNull(name_starts_with_filter)))
       {
         skipped_filter++;
         continue;
@@ -643,25 +690,25 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
       }
       total++;
 
-      infos.append(reinterpret_cast<const GPUShaderCreateInfo *>(info));
+      handles.append(
+          GPU_shader_async_compilation(reinterpret_cast<const GPUShaderCreateInfo *>(info)));
     }
   }
 
-  BatchHandle batch = GPU_shader_batch_create_from_infos(infos);
-  Vector<blender::gpu::Shader *> result = GPU_shader_batch_finalize(batch);
+  GPU_shader_compiler_wait_for_all();
 
-  for (int i : result.index_range()) {
-    if (result[i]) {
+  for (AsyncCompilationHandle handle : handles) {
+    if (gpu::Shader *result = GPU_shader_async_compilation_finalize(handle)) {
       success++;
 #if 0 /* TODO(fclem): This is too verbose for now. Make it a cmake option. */
         /* Test if any resource is optimized out and print a warning if that's the case. */
         /* TODO(fclem): Limit this to OpenGL backend. */
         const ShaderInterface *interface = shader->interface;
 
-        blender::Vector<ShaderCreateInfo::Resource> all_resources = info->resources_get_all_();
+        Vector<ShaderCreateInfo::Resource> all_resources = info->resources_get_all_();
 
         for (ShaderCreateInfo::Resource &res : all_resources) {
-          blender::StringRefNull name = "";
+          StringRefNull name = "";
           const ShaderInput *input = nullptr;
 
           switch (res.bind_type) {
@@ -693,7 +740,7 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
           }
         }
 #endif
-      GPU_shader_free(result[i]);
+      GPU_shader_free(result);
     }
   }
 
@@ -717,3 +764,5 @@ const GPUShaderCreateInfo *gpu_shader_create_info_get(const char *info_name)
   ShaderCreateInfo *info = g_create_infos->lookup(info_name);
   return reinterpret_cast<const GPUShaderCreateInfo *>(info);
 }
+
+}  // namespace blender

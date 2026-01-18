@@ -10,6 +10,8 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "BKE_node_runtime.hh"
+
 #include "RNA_types.hh"
 
 #include "COM_node_operation.hh"
@@ -17,7 +19,9 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_filter_cc {
+namespace blender {
+
+namespace nodes::node_composite_filter_cc {
 
 static const EnumPropertyItem type_items[] = {
     {CMP_NODE_FILTER_SOFT, "SOFTEN", 0, N_("Soften"), ""},
@@ -67,7 +71,7 @@ class SocketSearchOp {
   void operator()(LinkSearchOpParams &params)
   {
     bNode &node = params.add_node("CompositorNodeFilter");
-    bNodeSocket &type_socket = *blender::bke::node_find_socket(node, SOCK_IN, "Type");
+    bNodeSocket &type_socket = *bke::node_find_socket(node, SOCK_IN, "Type");
     type_socket.default_value_typed<bNodeSocketValueMenu>()->value = this->filter_type;
     params.update_and_connect_available_socket(node, "Image");
   }
@@ -132,7 +136,7 @@ class FilterOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     factor.unbind_as_texture();
@@ -160,7 +164,7 @@ class FilterOperation : public NodeOperation {
     output.allocate_texture(domain);
 
     if (this->is_edge_filter()) {
-      parallel_for(domain.size, [&](const int2 texel) {
+      parallel_for(domain.data_size, [&](const int2 texel) {
         /* Compute the dot product between the 3x3 window around the pixel and the edge detection
          * kernel in the X direction and Y direction. The Y direction kernel is computed by
          * transposing the given X direction kernel. */
@@ -190,7 +194,7 @@ class FilterOperation : public NodeOperation {
       });
     }
     else {
-      parallel_for(domain.size, [&](const int2 texel) {
+      parallel_for(domain.data_size, [&](const int2 texel) {
         /* Compute the dot product between the 3x3 window around the pixel and the kernel. */
         float4 color = float4(0.0f);
         for (int j = 0; j < 3; j++) {
@@ -280,25 +284,23 @@ class FilterOperation : public NodeOperation {
 
   CMPNodeFilterMethod get_type()
   {
-    const Result &input = this->get_input("Type");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_FILTER_SOFT);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeFilterMethod>(menu_value.value);
+    return CMPNodeFilterMethod(
+        this->get_input("Type").get_single_value_default<MenuValue>().value);
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new FilterOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_filter_cc
+}  // namespace nodes::node_composite_filter_cc
 
 static void register_node_type_cmp_filter()
 {
-  namespace file_ns = blender::nodes::node_composite_filter_cc;
+  namespace file_ns = nodes::node_composite_filter_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeFilter", CMP_NODE_FILTER);
   ntype.ui_name = "Filter";
@@ -310,6 +312,8 @@ static void register_node_type_cmp_filter()
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
   ntype.gather_link_search_ops = file_ns::gather_link_searches;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_filter)
+
+}  // namespace blender

@@ -24,7 +24,9 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_kuwahara_cc {
+namespace blender {
+
+namespace nodes::node_composite_kuwahara_cc {
 
 static const EnumPropertyItem type_items[] = {
     {CMP_NODE_KUWAHARA_CLASSIC,
@@ -95,7 +97,7 @@ static void cmp_node_kuwahara_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_kuwahara(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, kept for forward compatibility. */
-  NodeKuwaharaData *data = MEM_callocN<NodeKuwaharaData>(__func__);
+  NodeKuwaharaData *data = MEM_new_for_free<NodeKuwaharaData>(__func__);
   node->storage = data;
 }
 
@@ -169,7 +171,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     output_image.unbind_as_image();
@@ -190,8 +192,12 @@ class ConvertKuwaharaOperation : public NodeOperation {
     Result &output = this->get_result("Image");
     output.allocate_texture(domain);
 
-    this->compute_classic<false>(
-        &this->get_input("Image"), nullptr, nullptr, this->get_input("Size"), output, domain.size);
+    this->compute_classic<false>(&this->get_input("Image"),
+                                 nullptr,
+                                 nullptr,
+                                 this->get_input("Size"),
+                                 output,
+                                 domain.data_size);
   }
 
   void execute_classic_summed_area_table()
@@ -237,7 +243,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     table.unbind_as_texture();
     squared_table.unbind_as_texture();
@@ -260,7 +266,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
     output.allocate_texture(domain);
 
     this->compute_classic<true>(
-        nullptr, &table, &squared_table, this->get_input("Size"), output, domain.size);
+        nullptr, &table, &squared_table, this->get_input("Size"), output, domain.data_size);
   }
 
   /* If UseSummedAreaTable is true, then `table` and `squared_table` should be provided while
@@ -384,7 +390,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input.unbind_as_texture();
     structure_tensor.unbind_as_texture();
@@ -428,7 +434,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
      *  filtering." 2011.
      */
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       /* The structure tensor is encoded in a float4 using a column major storage order, as can be
        * seen in the compute_structure_tensor_cpu method. */
       float4 encoded_structure_tensor = structure_tensor.load_pixel<float4>(texel);
@@ -699,7 +705,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
     structure_tensor.allocate_texture(domain);
     structure_tensor.bind_as_image(shader, "structure_tensor_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input.unbind_as_texture();
     structure_tensor.unbind_as_image();
@@ -724,7 +730,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
      *
      * The structure tensor should then be smoothed using a Gaussian function to eliminate high
      * frequency details. */
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       /* The weight kernels of the filter optimized for rotational symmetry described in section
        * "3.2.1 Gradient Calculation". */
       const float corner_weight = 0.182f;
@@ -799,45 +805,43 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
   int get_high_precision()
   {
-    return this->get_input("High Precision").get_single_value_default(false);
+    return this->get_input("High Precision").get_single_value_default<bool>();
   }
 
   int get_uniformity()
   {
-    return math::max(0, this->get_input("Uniformity").get_single_value_default(4));
+    return math::max(0, this->get_input("Uniformity").get_single_value_default<int>());
   }
 
   float get_sharpness()
   {
-    return math::clamp(this->get_input("Sharpness").get_single_value_default(1.0f), 0.0f, 1.0f);
+    return math::clamp(this->get_input("Sharpness").get_single_value_default<float>(), 0.0f, 1.0f);
   }
 
   float get_eccentricity()
   {
-    return math::clamp(this->get_input("Eccentricity").get_single_value_default(1.0f), 0.0f, 2.0f);
+    return math::clamp(
+        this->get_input("Eccentricity").get_single_value_default<float>(), 0.0f, 2.0f);
   }
 
   CMPNodeKuwahara get_type()
   {
-    const Result &input = this->get_input("Type");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_KUWAHARA_ANISOTROPIC);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeKuwahara>(menu_value.value);
+    return CMPNodeKuwahara(this->get_input("Type").get_single_value_default<MenuValue>().value);
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new ConvertKuwaharaOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_kuwahara_cc
+}  // namespace nodes::node_composite_kuwahara_cc
 
 static void register_node_type_cmp_kuwahara()
 {
-  namespace file_ns = blender::nodes::node_composite_kuwahara_cc;
+  namespace file_ns = nodes::node_composite_kuwahara_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeKuwahara", CMP_NODE_KUWAHARA);
   ntype.ui_name = "Kuwahara";
@@ -847,11 +851,13 @@ static void register_node_type_cmp_kuwahara()
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_kuwahara_declare;
   ntype.initfunc = file_ns::node_composit_init_kuwahara;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeKuwaharaData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  blender::bke::node_type_size(ntype, 150, 140, NODE_DEFAULT_MAX_WIDTH);
+  bke::node_type_size(ntype, 150, 140, NODE_DEFAULT_MAX_WIDTH);
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_kuwahara)
+
+}  // namespace blender

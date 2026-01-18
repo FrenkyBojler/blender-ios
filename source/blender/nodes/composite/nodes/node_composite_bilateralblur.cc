@@ -18,9 +18,11 @@
 
 #include "node_composite_util.hh"
 
+namespace blender {
+
 /* **************** BILATERALBLUR ******************** */
 
-namespace blender::nodes::node_composite_bilateralblur_cc {
+namespace nodes::node_composite_bilateralblur_cc {
 
 static void cmp_node_bilateralblur_declare(NodeDeclarationBuilder &b)
 {
@@ -69,7 +71,7 @@ class BilateralBlurOperation : public NodeOperation {
                                input_image,
                                output_image,
                                float2(this->get_blur_radius()),
-                               R_FILTER_BOX);
+                               math::FilterKernel::Box);
       return;
     }
 
@@ -100,7 +102,7 @@ class BilateralBlurOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -120,7 +122,7 @@ class BilateralBlurOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       float4 center_determinator = float4(determinator_image.load_pixel<Color>(texel));
 
       /* Go over the pixels in the blur window of the specified radius around the center pixel, and
@@ -154,27 +156,27 @@ class BilateralBlurOperation : public NodeOperation {
 
   int get_blur_radius()
   {
-    return math::max(0, this->get_input("Size").get_single_value_default(0));
+    return math::max(0, this->get_input("Size").get_single_value_default<int>());
   }
 
   float get_threshold()
   {
-    return math::max(0.0f, this->get_input("Threshold").get_single_value_default(0.1f));
+    return math::max(0.0f, this->get_input("Threshold").get_single_value_default<float>());
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new BilateralBlurOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_bilateralblur_cc
+}  // namespace nodes::node_composite_bilateralblur_cc
 
 static void register_node_type_cmp_bilateralblur()
 {
-  namespace file_ns = blender::nodes::node_composite_bilateralblur_cc;
+  namespace file_ns = nodes::node_composite_bilateralblur_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeBilateralblur", CMP_NODE_BILATERALBLUR);
   ntype.ui_name = "Bilateral Blur";
@@ -184,6 +186,8 @@ static void register_node_type_cmp_bilateralblur()
   ntype.declare = file_ns::cmp_node_bilateralblur_declare;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_bilateralblur)
+
+}  // namespace blender

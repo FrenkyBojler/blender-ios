@@ -10,6 +10,8 @@
 
 #ifdef _WIN32
 #  include <vulkan/vulkan_win32.h>
+#elif defined(__APPLE__)
+#  include <vulkan/vulkan_metal.h>
 #else /* X11/WAYLAND. */
 #  ifdef WITH_GHOST_X11
 #    include <vulkan/vulkan_xlib.h>
@@ -29,9 +31,12 @@
 
 #include "CLG_log.h"
 
+#include "BLI_vector.hh"
+
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cinttypes>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -46,56 +51,6 @@ using namespace std;
 
 static CLG_LogRef LOG = {"ghost.context"};
 
-static const char *vulkan_error_as_string(VkResult result)
-{
-#define FORMAT_ERROR(X) \
-  case X: { \
-    return "" #X; \
-  }
-
-  switch (result) {
-    FORMAT_ERROR(VK_NOT_READY);
-    FORMAT_ERROR(VK_TIMEOUT);
-    FORMAT_ERROR(VK_EVENT_SET);
-    FORMAT_ERROR(VK_EVENT_RESET);
-    FORMAT_ERROR(VK_INCOMPLETE);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_HOST_MEMORY);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_DEVICE_MEMORY);
-    FORMAT_ERROR(VK_ERROR_INITIALIZATION_FAILED);
-    FORMAT_ERROR(VK_ERROR_DEVICE_LOST);
-    FORMAT_ERROR(VK_ERROR_MEMORY_MAP_FAILED);
-    FORMAT_ERROR(VK_ERROR_LAYER_NOT_PRESENT);
-    FORMAT_ERROR(VK_ERROR_EXTENSION_NOT_PRESENT);
-    FORMAT_ERROR(VK_ERROR_FEATURE_NOT_PRESENT);
-    FORMAT_ERROR(VK_ERROR_INCOMPATIBLE_DRIVER);
-    FORMAT_ERROR(VK_ERROR_TOO_MANY_OBJECTS);
-    FORMAT_ERROR(VK_ERROR_FORMAT_NOT_SUPPORTED);
-    FORMAT_ERROR(VK_ERROR_FRAGMENTED_POOL);
-    FORMAT_ERROR(VK_ERROR_UNKNOWN);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_POOL_MEMORY);
-    FORMAT_ERROR(VK_ERROR_INVALID_EXTERNAL_HANDLE);
-    FORMAT_ERROR(VK_ERROR_FRAGMENTATION);
-    FORMAT_ERROR(VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS);
-    FORMAT_ERROR(VK_ERROR_SURFACE_LOST_KHR);
-    FORMAT_ERROR(VK_ERROR_NATIVE_WINDOW_IN_USE_KHR);
-    FORMAT_ERROR(VK_SUBOPTIMAL_KHR);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_DATE_KHR);
-    FORMAT_ERROR(VK_ERROR_INCOMPATIBLE_DISPLAY_KHR);
-    FORMAT_ERROR(VK_ERROR_VALIDATION_FAILED_EXT);
-    FORMAT_ERROR(VK_ERROR_INVALID_SHADER_NV);
-    FORMAT_ERROR(VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT);
-    FORMAT_ERROR(VK_ERROR_NOT_PERMITTED_EXT);
-    FORMAT_ERROR(VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT);
-    FORMAT_ERROR(VK_THREAD_IDLE_KHR);
-    FORMAT_ERROR(VK_THREAD_DONE_KHR);
-    FORMAT_ERROR(VK_OPERATION_DEFERRED_KHR);
-    FORMAT_ERROR(VK_OPERATION_NOT_DEFERRED_KHR);
-    FORMAT_ERROR(VK_PIPELINE_COMPILE_REQUIRED_EXT);
-    default:
-      return "Unknown Error";
-  }
-}
-
 #define __STR(A) "" #A
 #define VK_CHECK(__expression, fail_value) \
   do { \
@@ -104,7 +59,7 @@ static const char *vulkan_error_as_string(VkResult result)
       CLOG_ERROR(&LOG, \
                  "Vulkan: %s resulted in code %s.", \
                  __STR(__expression), \
-                 vulkan_error_as_string(r)); \
+                 blender::gpu::to_string(r)); \
       return fail_value; \
     } \
   } while (0)
@@ -150,20 +105,20 @@ void GHOST_Frame::destroy(VkDevice vk_device)
  * \{ */
 
 struct GHOST_ExtensionsVK {
-  vector<VkExtensionProperties> extensions;
-  vector<const char *> enabled;
+  blender::Vector<VkExtensionProperties> extensions;
+  blender::Vector<const char *> enabled;
 
   bool is_supported(const char *extension_name) const
   {
     for (const VkExtensionProperties &extension : extensions) {
-      if (strcmp(extension.extensionName, extension_name) == 0) {
+      if (STREQ(extension.extensionName, extension_name)) {
         return true;
       }
     }
     return false;
   }
 
-  bool is_supported(const vector<const char *> &extension_names)
+  bool is_supported(blender::Span<const char *> extension_names)
   {
     for (const char *extension_name : extension_names) {
       if (!is_supported(extension_name)) {
@@ -181,7 +136,7 @@ struct GHOST_ExtensionsVK {
                  "Vulkan: %s extension enabled: name=%s",
                  optional ? "optional" : "required",
                  extension_name);
-      enabled.push_back(extension_name);
+      enabled.append(extension_name);
       return true;
     }
 
@@ -194,7 +149,20 @@ struct GHOST_ExtensionsVK {
     return false;
   }
 
-  bool enable(const vector<const char *> &extension_names, bool optional = false)
+  bool disable(const char *extension_name)
+  {
+    bool is_extension_enabled = is_enabled(extension_name);
+    if (is_extension_enabled) {
+      CLOG_TRACE(
+          &LOG, "Vulkan: extension disabled for compatibility reasons: name=%s", extension_name);
+      enabled.remove(enabled.first_index_of(extension_name));
+      return true;
+    }
+
+    return false;
+  }
+
+  bool enable(const blender::Span<const char *> &extension_names, bool optional = false)
   {
     bool failure = false;
     for (const char *extension_name : extension_names) {
@@ -206,7 +174,7 @@ struct GHOST_ExtensionsVK {
   bool is_enabled(const char *extension_name) const
   {
     for (const char *enabled_extension_name : enabled) {
-      if (strcmp(enabled_extension_name, extension_name) == 0) {
+      if (STREQ(enabled_extension_name, extension_name)) {
         return true;
       }
     }
@@ -412,7 +380,7 @@ struct GHOST_InstanceVK {
   }
 
   bool select_physical_device(const GHOST_GPUDevice &preferred_device,
-                              const vector<const char *> &required_extensions)
+                              const blender::Span<const char *> required_extensions)
   {
     VkPhysicalDevice best_physical_device = VK_NULL_HANDLE;
 
@@ -435,8 +403,16 @@ struct GHOST_InstanceVK {
         continue;
       }
 
-      if (!device_vk.features.features.geometryShader ||
+      if (
+#ifndef __APPLE__
+          !device_vk.features.features.geometryShader ||
           !device_vk.features.features.vertexPipelineStoresAndAtomics ||
+#endif
+          !device_vk.features.features.multiViewport ||
+          !device_vk.features.features.shaderClipDistance ||
+          !device_vk.features.features.fragmentStoresAndAtomics ||
+          !device_vk.features.features.multiDrawIndirect ||
+          !device_vk.features.features.imageCubeArray ||
           !device_vk.features.features.dualSrcBlend || !device_vk.features.features.logicOp ||
           !device_vk.features.features.imageCubeArray)
       {
@@ -489,14 +465,34 @@ struct GHOST_InstanceVK {
   }
 
   bool create_device(const bool use_vk_ext_swapchain_maintenance1,
-                     vector<const char *> &required_device_extensions,
-                     vector<const char *> &optional_device_extensions)
+                     const bool is_debug,
+                     blender::Span<const char *> required_device_extensions,
+                     blender::Span<const char *> optional_device_extensions)
   {
     device.emplace(vk_physical_device, use_vk_ext_swapchain_maintenance1);
     GHOST_DeviceVK &device = *this->device;
 
     device.extensions.enable(required_device_extensions);
     device.extensions.enable(optional_device_extensions, true);
+
+    /* Disabling pipeline libraries and dynamic vertex input on AMD drivers due to random crashes
+     * that are also happening when enabling the extension, but not using it at all. This needs
+     * more investigation as it could be related to development workflows.
+     *
+     * This seems to affect the pro drivers more than the `Adrenalin` ones.
+     * But as both share the same code-base it is better to disable them until
+     * it is clear what causes the crashes and when these were fixed.
+     *
+     * Ref #151103
+     */
+    const bool is_amd_driver = device.properties_12.driverID == VK_DRIVER_ID_AMD_PROPRIETARY ||
+                               device.properties_12.driverID == VK_DRIVER_ID_AMD_OPEN_SOURCE;
+    if (is_amd_driver && is_debug) {
+      device.extensions.disable(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
+      device.extensions.disable(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
+      device.extensions.disable(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
+    }
+
     device.init_generic_queue_family();
 
     float queue_priorities[] = {1.0f};
@@ -509,16 +505,18 @@ struct GHOST_InstanceVK {
     queue_create_infos.push_back(graphic_queue_create_info);
 
     VkPhysicalDeviceFeatures device_features = {};
+#ifndef __APPLE__
     device_features.geometryShader = VK_TRUE;
+    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
+#endif
+    device_features.multiViewport = VK_TRUE;
+    device_features.shaderClipDistance = VK_TRUE;
+    device_features.fragmentStoresAndAtomics = VK_TRUE;
     device_features.logicOp = VK_TRUE;
     device_features.dualSrcBlend = VK_TRUE;
     device_features.imageCubeArray = VK_TRUE;
     device_features.multiDrawIndirect = VK_TRUE;
-    device_features.multiViewport = VK_TRUE;
-    device_features.shaderClipDistance = VK_TRUE;
     device_features.drawIndirectFirstInstance = VK_TRUE;
-    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
-    device_features.fragmentStoresAndAtomics = VK_TRUE;
     device_features.samplerAnisotropy = device.features.features.samplerAnisotropy;
     device_features.wideLines = device.features.features.wideLines;
 
@@ -547,12 +545,14 @@ struct GHOST_InstanceVK {
     vulkan_12_features.timelineSemaphore = VK_TRUE;
     feature_struct_ptr.push_back(&vulkan_12_features);
 
+#ifndef __APPLE__
     /* Enable provoking vertex. */
     VkPhysicalDeviceProvokingVertexFeaturesEXT provoking_vertex_features = {};
     provoking_vertex_features.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROVOKING_VERTEX_FEATURES_EXT;
     provoking_vertex_features.provokingVertexLast = VK_TRUE;
     feature_struct_ptr.push_back(&provoking_vertex_features);
+#endif
 
     /* Enable dynamic rendering. */
     VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
@@ -626,6 +626,47 @@ struct GHOST_InstanceVK {
       feature_struct_ptr.push_back(&pageable_device_local_memory);
     }
 
+    /* VK_EXT_graphics_pipeline_library */
+    VkPhysicalDeviceGraphicsPipelineLibraryFeaturesEXT graphics_pipeline_library = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GRAPHICS_PIPELINE_LIBRARY_FEATURES_EXT,
+        nullptr,
+        VK_TRUE};
+    if (device.extensions.is_enabled(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&graphics_pipeline_library);
+    }
+
+    /* VK_EXT_line_rasterization */
+    VkPhysicalDeviceLineRasterizationFeaturesKHR line_rasterization_features = {};
+    line_rasterization_features.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
+    line_rasterization_features.bresenhamLines = VK_TRUE;
+    if (device.extensions.is_enabled(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&line_rasterization_features);
+    }
+
+    /* VK_EXT_extended_dynamic_state */
+    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT, nullptr, VK_TRUE};
+    if (device.extensions.is_enabled(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&extended_dynamic_state);
+    }
+
+    /* VK_EXT_vertex_input_dynamic_state */
+    VkPhysicalDeviceVertexInputDynamicStateFeaturesEXT vertex_input_dynamic_state = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_INPUT_DYNAMIC_STATE_FEATURES_EXT,
+        nullptr,
+        VK_TRUE};
+    if (device.extensions.is_enabled(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&vertex_input_dynamic_state);
+    }
+
+    /* VK_EXT_host_image_copy */
+    VkPhysicalDeviceHostImageCopyFeaturesEXT host_image_copy = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES_EXT, nullptr, VK_TRUE};
+    if (device.extensions.is_enabled(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&host_image_copy);
+    }
+
     /* Link all registered feature structs. */
     for (int i = 1; i < feature_struct_ptr.size(); i++) {
       ((VkBaseInStructure *)(feature_struct_ptr[i - 1]))->pNext =
@@ -658,7 +699,7 @@ GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #ifdef _WIN32
                                  HWND hwnd,
 #elif defined(__APPLE__)
-                                 CAMetalLayer *metal_layer,
+                                 void *metal_layer,
 #else
                                  GHOST_TVulkanPlatformType platform,
                                  /* X11 */
@@ -799,7 +840,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
      * swapchain image. Other do it when calling vkQueuePresent. */
     VkResult acquire_result = VK_ERROR_OUT_OF_DATE_KHR;
     while (swapchain_ != VK_NULL_HANDLE &&
-           (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR))
+           (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)))
     {
       acquire_result = vkAcquireNextImageKHR(vk_device,
                                              swapchain_,
@@ -807,7 +848,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
                                              submission_frame_data.acquire_semaphore,
                                              VK_NULL_HANDLE,
                                              &image_index);
-      if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR) {
+      if (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
         recreateSwapchain(use_hdr_swapchain);
       }
     }
@@ -833,7 +874,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
   }
 
   CLOG_DEBUG(&LOG,
-             "Acquired swap-chain image (render_frame=%lu, image_index=%u)",
+             "Acquired swap-chain image (render_frame=%" PRIu64 ", image_index=%u)",
              render_frame_,
              image_index);
   acquired_swapchain_image_index_ = image_index;
@@ -943,14 +984,14 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   }
   acquired_swapchain_image_index_.reset();
 
-  if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
+  if (ELEM(present_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
     recreateSwapchain(use_hdr_swapchain);
     return GHOST_kSuccess;
   }
   if (present_result != VK_SUCCESS) {
     CLOG_ERROR(&LOG,
                "Vulkan: failed to present swap-chain image : %s",
-               vulkan_error_as_string(present_result));
+               blender::gpu::to_string(present_result));
     return GHOST_kFailure;
   }
 
@@ -1327,8 +1368,8 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   }
   CLOG_DEBUG(&LOG,
              "Vulkan: recreating swapchain: width=%u, height=%u, format=%d, colorSpace=%d, "
-             "present_mode=%d, image_count_requested=%u, image_count_acquired=%u, swapchain=%lx, "
-             "old_swapchain=%lx",
+             "present_mode=%d, image_count_requested=%u, image_count_acquired=%u, "
+             "swapchain=%" PRIx64 ", old_swapchain=%" PRIx64 "",
              render_extent_.width,
              render_extent_.height,
              surface_format_.format,
@@ -1445,8 +1486,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   }
 #endif
 
-  vector<const char *> required_device_extensions;
-  vector<const char *> optional_device_extensions;
+  blender::Vector<const char *> required_device_extensions;
+  blender::Vector<const char *> optional_device_extensions;
 
   /* Initialize VkInstance */
   if (!vulkan_instance.has_value()) {
@@ -1470,13 +1511,13 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
       if (use_vk_ext_swapchain_maintenance1) {
         instance_vk.extensions.enable(VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
         instance_vk.extensions.enable(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
-        optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
+        optional_device_extensions.append(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
       }
 
       use_vk_ext_swapchain_colorspace = instance_vk.extensions.enable(
           VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, true);
 
-      required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+      required_device_extensions.append(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }
 
     if (!instance_vk.create_instance(
@@ -1503,7 +1544,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     info.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
     info.pNext = nullptr;
     info.flags = 0;
-    info.pLayer = metal_layer_;
+    info.pLayer = static_cast<CAMetalLayer *>(metal_layer_);
     VK_CHECK(vkCreateMetalSurfaceEXT(instance_vk.vk_instance, &info, nullptr, &surface_),
              GHOST_kFailure);
 #else
@@ -1545,29 +1586,46 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   if (!vulkan_instance->device.has_value()) {
     /* External memory extensions. */
 #ifdef _WIN32
-    optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+#elif defined(__APPLE__)
 #else
-    optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
 #endif
 
-    required_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
-    required_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
-    optional_device_extensions.push_back(
-        VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
+#ifndef __APPLE__
+    required_device_extensions.append(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
+#endif
+    required_device_extensions.append(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME);
+    /* Disabled as the extension is available, but without any features set. */
+#ifndef __APPLE__
+    optional_device_extensions.append(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
+#endif
+    optional_device_extensions.append(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_COPY_COMMANDS_2_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME);
+#if 0
+    /* VK_EXT_host_image_copy isn't supported by Renderdoc and also isn't working as expected. */
+    optional_device_extensions.append(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);
+#endif
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {
       return GHOST_kFailure;
     }
 
     if (!instance_vk.create_device(use_vk_ext_swapchain_colorspace,
+                                   context_params_.is_debug,
                                    required_device_extensions,
                                    optional_device_extensions))
     {

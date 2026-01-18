@@ -57,7 +57,7 @@ static float3 compute_triangle_tangent(const float3 &p1,
   const float s2 = uv3.x - uv1.x;
   const float t1 = uv2.y - uv1.y;
   const float t2 = uv3.y - uv1.y;
-  const float r = 1.0f / (s1 * t2 - s2 * t1);
+  const float r = math::safe_rcp(s1 * t2 - s2 * t1);
   const float3 tangent((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r);
   return tangent;
 }
@@ -232,7 +232,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeUVTangent");
   ntype.ui_name = "UV Tangent";
@@ -240,7 +240,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

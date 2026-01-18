@@ -35,20 +35,20 @@ namespace blender::compositor {
  * to be derived from the compositor_parallel_reduction.glsl shader, see that file for more
  * information. Also see the compositor_parallel_reduction_info.hh file for example shader
  * definitions. */
-static float *parallel_reduction_dispatch(blender::gpu::Texture *texture,
+static float *parallel_reduction_dispatch(gpu::Texture *texture,
                                           gpu::Shader *shader,
-                                          blender::gpu::TextureFormat format)
+                                          gpu::TextureFormat format)
 {
   GPU_shader_uniform_1b(shader, "is_initial_reduction", true);
 
-  blender::gpu::Texture *texture_to_reduce = texture;
+  gpu::Texture *texture_to_reduce = texture;
   int2 size_to_reduce = int2(GPU_texture_width(texture), GPU_texture_height(texture));
 
   /* Dispatch the reduction shader until the texture reduces to a single pixel. */
   while (size_to_reduce != int2(1)) {
     const int2 reduced_size = math::divide_ceil(size_to_reduce, int2(16));
-    blender::gpu::Texture *reduced_texture = gpu::TexturePool::get().acquire_texture(
-        reduced_size.x, reduced_size.y, format, GPU_TEXTURE_USAGE_GENERAL);
+    gpu::Texture *reduced_texture = gpu::TexturePool::get().acquire_texture(
+        reduced_size, format, GPU_TEXTURE_USAGE_GENERAL);
 
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_FETCH);
     const int texture_image_unit = GPU_shader_get_sampler_binding(shader, "input_tx");
@@ -133,7 +133,7 @@ static float sum_red_gpu(Context &context, const Result &result)
 static float sum_red_cpu(const Result &result)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       0.0,
       [&](const int2 texel, double &accumulated_value) {
         accumulated_value += result.load_pixel<Color>(texel).r;
@@ -167,7 +167,7 @@ static float sum_green_gpu(Context &context, const Result &result)
 static float sum_green_cpu(const Result &result)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       0.0,
       [&](const int2 texel, double &accumulated_value) {
         accumulated_value += result.load_pixel<Color>(texel).g;
@@ -201,7 +201,7 @@ static float sum_blue_gpu(Context &context, const Result &result)
 static float sum_blue_cpu(const Result &result)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       0.0,
       [&](const int2 texel, double &accumulated_value) {
         accumulated_value += result.load_pixel<Color>(texel).b;
@@ -239,7 +239,7 @@ static float sum_luminance_gpu(Context &context,
 static float sum_luminance_cpu(const Result &result, const float3 &luminance_coefficients)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       0.0,
       [&](const int2 texel, double &accumulated_value) {
         accumulated_value += math::dot(float4(result.load_pixel<Color>(texel)).xyz(),
@@ -278,7 +278,7 @@ static float sum_log_luminance_gpu(Context &context,
 static float sum_log_luminance_cpu(const Result &result, const float3 &luminance_coefficients)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       0.0,
       [&](const int2 texel, double &accumulated_value) {
         const float luminance = math::dot(float4(result.load_pixel<Color>(texel)).xyz(),
@@ -316,7 +316,7 @@ static float4 sum_color_gpu(Context &context, const Result &result)
 static float4 sum_color_cpu(const Result &result)
 {
   return float4(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       double4(0.0),
       [&](const int2 texel, double4 &accumulated_value) {
         accumulated_value += double4(float4(result.load_pixel<Color>(texel)));
@@ -359,7 +359,7 @@ static float sum_red_squared_difference_gpu(Context &context,
 static float sum_red_squared_difference_cpu(const Result &result, const float subtrahend)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       0.0,
       [&](const int2 texel, double &accumulated_value) {
         accumulated_value += math::square(result.load_pixel<Color>(texel).r - subtrahend);
@@ -398,7 +398,7 @@ static float sum_green_squared_difference_gpu(Context &context,
 static float sum_green_squared_difference_cpu(const Result &result, const float subtrahend)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       0.0,
       [&](const int2 texel, double &accumulated_value) {
         accumulated_value += math::square(result.load_pixel<Color>(texel).g - subtrahend);
@@ -437,7 +437,7 @@ static float sum_blue_squared_difference_gpu(Context &context,
 static float sum_blue_squared_difference_cpu(const Result &result, const float subtrahend)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       0.0,
       [&](const int2 texel, double &accumulated_value) {
         accumulated_value += math::square(result.load_pixel<Color>(texel).b - subtrahend);
@@ -480,7 +480,7 @@ static float sum_luminance_squared_difference_cpu(const Result &result,
                                                   const float subtrahend)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       0.0,
       [&](const int2 texel, double &accumulated_value) {
         const float luminance = math::dot(float4(result.load_pixel<Color>(texel)).xyz(),
@@ -528,7 +528,7 @@ static float maximum_luminance_gpu(Context &context,
 static float maximum_luminance_cpu(const Result &result, const float3 &luminance_coefficients)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       std::numeric_limits<float>::lowest(),
       [&](const int2 texel, float &accumulated_value) {
         const float luminance = math::dot(float4(result.load_pixel<Color>(texel)).xyz(),
@@ -566,7 +566,7 @@ static float maximum_float_gpu(Context &context, const Result &result)
 static float maximum_float_cpu(const Result &result)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       std::numeric_limits<float>::lowest(),
       [&](const int2 texel, float &accumulated_value) {
         accumulated_value = math::max(accumulated_value, result.load_pixel<float>(texel));
@@ -600,7 +600,7 @@ static float2 maximum_float2_gpu(Context &context, const Result &result)
 static float2 maximum_float2_cpu(const Result &result)
 {
   return parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       float2(std::numeric_limits<float>::lowest()),
       [&](const int2 texel, float2 &accumulated_value) {
         accumulated_value = math::max(accumulated_value, result.load_pixel<float2>(texel));
@@ -643,7 +643,7 @@ static float maximum_float_in_range_cpu(const Result &result,
                                         const float upper_bound)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       lower_bound,
       [&](const int2 texel, float &accumulated_value) {
         const float value = result.load_pixel<float>(texel);
@@ -691,7 +691,7 @@ static float minimum_luminance_gpu(Context &context,
 static float minimum_luminance_cpu(const Result &result, const float3 &luminance_coefficients)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       std::numeric_limits<float>::max(),
       [&](const int2 texel, float &accumulated_value) {
         const float luminance = math::dot(float4(result.load_pixel<Color>(texel)).xyz(),
@@ -729,7 +729,7 @@ static float minimum_float_gpu(Context &context, const Result &result)
 static float minimum_float_cpu(const Result &result)
 {
   return float(parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       std::numeric_limits<float>::max(),
       [&](const int2 texel, float &accumulated_value) {
         accumulated_value = math::min(accumulated_value, result.load_pixel<float>(texel));
@@ -772,7 +772,7 @@ static float minimum_float_in_range_cpu(const Result &result,
                                         const float upper_bound)
 {
   return parallel_reduce(
-      result.domain().size,
+      result.domain().data_size,
       upper_bound,
       [&](const int2 texel, float &accumulated_value) {
         const float value = result.load_pixel<float>(texel);

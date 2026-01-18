@@ -50,7 +50,7 @@ static TransData *SeqToTransData(const Scene *scene,
                                  TransDataSeq *tdseq)
 {
 
-  td2d->loc[0] = seq::retiming_key_timeline_frame_get(scene, strip, key);
+  td2d->loc[0] = seq::retiming_key_frame_get(scene, strip, key);
   td2d->loc[1] = key->retiming_factor;
   td2d->loc2d = nullptr;
   td->loc = td2d->loc;
@@ -62,7 +62,7 @@ static TransData *SeqToTransData(const Scene *scene,
   unit_m3(td->smtx);
 
   tdseq->strip = strip;
-  tdseq->orig_timeline_frame = seq::retiming_key_timeline_frame_get(scene, strip, key);
+  tdseq->orig_timeline_frame = seq::retiming_key_frame_get(scene, strip, key);
   tdseq->key_index = seq::retiming_key_index_get(strip, key);
 
   td->extra = static_cast<void *>(tdseq);
@@ -82,11 +82,11 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
 
   VectorSet<Strip *> transformed_strips;
   for (int i = 0; i < tc->data_len; i++) {
-    Strip *strip = ((TransDataSeq *)(td + i)->extra)->strip;
+    Strip *strip = (static_cast<TransDataSeq *>((td + i)->extra))->strip;
     transformed_strips.add(strip);
   }
 
-  ListBase *seqbasep = seq::active_seqbase_get(ed);
+  ListBaseT<Strip> *seqbasep = seq::active_seqbase_get(ed);
   seq::iterator_set_expand(scene, seqbasep, transformed_strips, seq::query_strip_effect_chain);
 
   VectorSet<Strip *> dependant;
@@ -94,7 +94,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
   dependant.remove_if([&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
 
   if (seq_transform_check_overlap(transformed_strips)) {
-    const bool use_sync_markers = (((SpaceSeq *)t->area->spacedata.first)->flag &
+    const bool use_sync_markers = ((static_cast<SpaceSeq *>(t->area->spacedata.first))->flag &
                                    SEQ_MARKER_TRANS) != 0;
     seq::transform_handle_overlap(
         scene, seqbasep, transformed_strips, dependant, use_sync_markers);
@@ -110,13 +110,13 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
 
 static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 {
-  TransSeq *ts = (TransSeq *)TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
+  TransSeq *ts = static_cast<TransSeq *>(TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data);
   const Editing *ed = seq::editing_get(scene);
 
   /* Prevent snaps and change in `values` past `offset_clamp` for all selected retiming keys. */
   BLI_rcti_init(&ts->offset_clamp, -INT_MAX, INT_MAX, 0, 0);
 
-  blender::Map selection = seq::retiming_selection_get(ed);
+  Map selection = seq::retiming_selection_get(ed);
   for (auto item : selection.items()) {
     SeqRetimingKey *key = item.key;
 
@@ -243,7 +243,7 @@ static void recalcData_sequencer_retiming(TransInfo *t)
       seq::retiming_transition_key_frame_set(t->scene, strip, key, round_fl_to_int(new_frame));
     }
     else {
-      seq::retiming_key_timeline_frame_set(t->scene, strip, key, new_frame);
+      seq::retiming_key_frame_set(t->scene, strip, key, new_frame, true);
     }
 
     seq::relations_invalidate_cache(t->scene, strip);
@@ -254,9 +254,9 @@ static void recalcData_sequencer_retiming(TransInfo *t)
   seq::iterator_set_expand(
       t->scene, seq::active_seqbase_get(ed), transformed_strips, seq::query_strip_effect_chain);
   for (Strip *strip : transformed_strips) {
-    strip->runtime.flag &= ~STRIP_OVERLAP;
+    strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
     if (seq::transform_test_overlap(t->scene, seq::active_seqbase_get(ed), strip)) {
-      strip->runtime.flag |= STRIP_OVERLAP;
+      strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
     }
   }
 }
