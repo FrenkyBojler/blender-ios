@@ -84,6 +84,34 @@
 namespace blender::ed::object {
 
 /* -------------------------------------------------------------------- */
+/** \name Precision Mode Utilities
+ * \{ */
+
+/**
+ * Calculate effective mouse position with precision mode support.
+ * Applies precision factor to mouse movement delta from precision toggle position.
+ */
+static void precision_mode_mouse_pos(bool precision_mode,
+                                     float precision_factor,
+                                     const int current_mval[2],
+                                     const int precision_toggle_mval[2],
+                                     int effective_mval[2])
+{
+  if (precision_mode) {
+    float delta_x = (current_mval[0] - precision_toggle_mval[0]) * precision_factor;
+    float delta_y = (current_mval[1] - precision_toggle_mval[1]) * precision_factor;
+    effective_mval[0] = int(precision_toggle_mval[0] + delta_x);
+    effective_mval[1] = int(precision_toggle_mval[1] + delta_y);
+  }
+  else {
+    effective_mval[0] = current_mval[0];
+    effective_mval[1] = current_mval[1];
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Auto-Keyframe Utilities
  * \{ */
 
@@ -2011,7 +2039,7 @@ struct XFormAxisData {
   bool is_translate;
   bool precision_mode;
   float precision_factor;
-  int precision_mval[2];
+  int precision_toggle_mval[2];
 
   int init_event;
 };
@@ -2319,8 +2347,8 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
       case AXIS_TARGET_MODAL_PRECISION_ENABLE:
         xfd->precision_mode = true;
-        xfd->precision_mval[0] = event->mval[0];
-        xfd->precision_mval[1] = event->mval[1];
+        xfd->precision_toggle_mval[0] = event->mval[0];
+        xfd->precision_toggle_mval[1] = event->mval[1];
         object_transform_axis_target_update_status(C, op, xfd);
         break;
 
@@ -2337,16 +2365,11 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     const ViewDepths *depths = xfd->depths;
 
     int mval_use[2];
-    if (xfd->precision_mode) {
-      mval_use[0] = xfd->precision_mval[0] +
-                    int(float(event->mval[0] - xfd->precision_mval[0]) * xfd->precision_factor);
-      mval_use[1] = xfd->precision_mval[1] +
-                    int(float(event->mval[1] - xfd->precision_mval[1]) * xfd->precision_factor);
-    }
-    else {
-      mval_use[0] = event->mval[0];
-      mval_use[1] = event->mval[1];
-    }
+    precision_mode_mouse_pos(xfd->precision_mode,
+                             xfd->precision_factor,
+                             event->mval,
+                             xfd->precision_toggle_mval,
+                             mval_use);
 
     if (depths && (uint(mval_use[0]) < depths->w) && (uint(mval_use[1]) < depths->h)) {
       float depth_fl = 1.0f;
