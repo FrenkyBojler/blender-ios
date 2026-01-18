@@ -17,7 +17,7 @@ namespace poly_fill {
 /* -----------------------------------------------------------------------------
  * Public Types */
 
-using Scalar = double;
+using Scalar = float;
 
 using Vert = std::array<Scalar, 2>;
 using Edge = std::array<int, 2>;
@@ -42,17 +42,23 @@ struct PolyFillParams {
 /**
  * Main polygon fill function.
  * Takes vertices and edges, returns triangulated faces.
+ * 
+ * \param degenerate: When false, add strict asserts
+ * for situations we know should be properly supported.
  */
 [[nodiscard]] std::vector<Face> poly_fill(std::span<const Vert> verts,
                                           std::span<const Edge> edges,
-                                          bool degenerate = false);
+                                          bool degenerate);
 
 /**
  * Polygon fill with pre-computed edge map.
  * More efficient when edge map is already available.
+ * 
+ * \param degenerate: When false, add strict asserts
+ * for situations we know should be properly supported.
  */
 [[nodiscard]] std::vector<Face> poly_fill_with_edge_map(std::span<const Vert> verts,
                                                         const VertsEdgeMap &verts_edge_map,
-                                                        bool degenerate = false);
+                                                        bool degenerate);
 
 }  // namespace poly_fill

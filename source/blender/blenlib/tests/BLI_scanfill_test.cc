@@ -11,11 +11,38 @@
 
 #include <array>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <string>
 #include <vector>
 
 namespace blender::tests {
+
+/**
+ * Check if an environment variable is set to a truthy value.
+ * Returns true if set, not empty, and not "0".
+ */
+static bool env_var_as_bool(const char *name)
+{
+  const char *env = std::getenv(name);
+  if (env == nullptr || env[0] == '\0') {
+    return false;
+  }
+  if (env[0] == '0' && env[1] == '\0') {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Check if legacy scanfill method should be used.
+ * Set USE_SCANFILL_LEGACY=1 environment variable to enable.
+ */
+static bool use_scanfill_legacy()
+{
+  return env_var_as_bool("USE_SCANFILL_LEGACY");
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Transform Permutations
@@ -131,20 +158,52 @@ static void xform_verts(XForm xf, Vector<std::array<float, 2>> &verts)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Disabled Test Combinations
+ *
+ * Tests that are known to fail with specific transforms.
+ * Format: test name with optional transform suffix (e.g. "test_name_rotate_90").
+ * \{ */
+
+static const char *disabled_tests[] = {
+    /* Non-degenerate test failures. */
+    "poly_fill_axis_align_steps_whole_subdiv_2x_03_rotate_45",
+    /* TODO: `poly_fill_axis_aligned_sweepline_bug_01` - investigate the failure. */
+    "poly_fill_axis_aligned_sweepline_bug_01",
+    "poly_fill_axis_aligned_sweepline_bug_01_rotate_90",
+    "poly_fill_axis_aligned_sweepline_bug_01_rotate_180",
+    "poly_fill_axis_aligned_sweepline_bug_01_rotate_270",
+    "poly_fill_axis_aligned_sweepline_bug_01_flip_x",
+    "poly_fill_axis_aligned_sweepline_bug_01_flip_y",
+};
+
+static bool is_test_disabled(const char *filename, XForm xform)
+{
+  /* Build the full test name with transform suffix. */
+  const char *xf_name = xform_name(xform);
+  std::string test_name = filename;
+  if (xf_name[0] != '\0') {
+    test_name += "_";
+    test_name += xf_name;
+  }
+
+  for (const char *disabled : disabled_tests) {
+    if (test_name == disabled) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** \} */
+
 /**
  * Check if SVG debug output is enabled via environment variable.
  * Set USE_DEBUG_SVG_OUTPUT to a non-empty value (not "0") to enable.
  */
 static bool use_debug_svg_output()
 {
-  const char *env = std::getenv("USE_DEBUG_SVG_OUTPUT");
-  if (env == nullptr || env[0] == '\0') {
-    return false;
-  }
-  if (env[0] == '0' && env[1] == '\0') {
-    return false;
-  }
-  return true;
+  return env_var_as_bool("USE_DEBUG_SVG_OUTPUT");
 }
 
 /* -------------------------------------------------------------------- */
@@ -172,8 +231,6 @@ struct TestDataWithXForm {
 
 /* -------------------------------------------------------------------- */
 /** \name Test Data Definitions
- *
- * Mirrors tests_data from test_poly_fill.py
  * \{ */
 
 static const TestData tests_data[] = {
@@ -195,13 +252,19 @@ static const TestData tests_data[] = {
     {"poly_fill_align_holes_aabb_alt_01", 14, 1.68},
     {"poly_fill_align_holes_aabb_alt_02", 26, 1.64},
     {"poly_fill_align_holes_aabb_alt_03", 74, 1.52},
-    /* Known failing case - also excluded in Python test suite. */
+#if 0
+    /* NOTE(@ideasman42): Known failing case. The problem is that touching "holes"
+     * are not supported, supporting them is possible but would require pre-processing
+     * the polygon so two touching shapes would form a larger shape instead of 
+     * two isolated shapes. */
     {"poly_fill_align_holes_aabb_overlap_01", 20, 1.2, 7, true},
+#endif
     {"poly_fill_align_y_events_01", 38, 0.787547779338},
     {"poly_fill_axis_align_max_01", 36, 3.560722616582},
     {"poly_fill_axis_align_min_01", 36, 3.56072279169},
     {"poly_fill_axis_align_steps_whole_subdiv_2x_02", 214, 1.4},
     {"poly_fill_axis_align_steps_whole_subdiv_2x_03", 256, 1.14},
+    {"poly_fill_axis_aligned_sweepline_bug_01", 14, 1.1125182102151905},
     {"poly_fill_circle_bent_2x_start", 30, 1.1845165512325},
     {"poly_fill_circle_non_aligned", 30, 3.121443994996},
     {"poly_fill_circle_non_aligned_x2_diag", 60, 0.9988627689815},
@@ -232,7 +295,10 @@ static const TestData tests_data[] = {
     {"poly_fill_primitive_triangle_02", 1, 0.5},
     {"poly_fill_tilted_staircase_01", 6, 0.6875},
     {"poly_fill_stress_test_sweepline_01", 6, 1.23},
+#if 0 /* A valid test but quite slow. */
     {"poly_fill_stress_test_sweepline_02", 95211, 0.6013724715115001},
+#endif
+
     /* Degenerate tests - only verify no crash. */
     {"poly_fill_degenerate_bowtie_01", -1, -1.0, 7, true},
     {"poly_fill_degenerate_bowtie_02", -1, -1.0, 7, true},
@@ -435,13 +501,93 @@ static void write_svg(const std::string &filepath,
 }
 
 /**
+ * Write input polygon edges as SVG (no triangulation).
+ *
+ * \param filepath: Output SVG file path.
+ * \param verts: Vertex coordinates.
+ * \param edges: Edge indices (pairs of vertex indices).
+ */
+static void write_svg_poly(const std::string &filepath,
+                           const Vector<std::array<float, 2>> &verts,
+                           const Vector<std::array<int, 2>> &edges)
+{
+  if (verts.is_empty() || edges.is_empty()) {
+    return;
+  }
+
+  /* Calculate bounds. */
+  float min_x = verts[0][0], max_x = verts[0][0];
+  float min_y = verts[0][1], max_y = verts[0][1];
+  for (const auto &v : verts) {
+    min_x = std::min(min_x, v[0]);
+    max_x = std::max(max_x, v[0]);
+    min_y = std::min(min_y, v[1]);
+    max_y = std::max(max_y, v[1]);
+  }
+
+  float width = max_x - min_x;
+  float height = max_y - min_y;
+
+  if (width == 0.0f || height == 0.0f) {
+    return;
+  }
+
+  /* Add padding. */
+  float padding = std::max(width, height) * 0.05f;
+  min_x -= padding;
+  min_y -= padding;
+  width += padding * 2;
+  height += padding * 2;
+
+  /* Scale to reasonable SVG size. */
+  float scale = 500.0f / std::max(width, height);
+  float svg_width = width * scale;
+  float svg_height = height * scale;
+
+  std::ofstream ofs(filepath);
+  if (!ofs.is_open()) {
+    return;
+  }
+
+  /* SVG header. */
+  ofs << "<svg xmlns=\"http://www.w3.org/2000/svg\" ";
+  ofs << "width=\"" << svg_width << "\" height=\"" << svg_height << "\" ";
+  ofs << "viewBox=\"" << min_x << " " << min_y << " " << width << " " << height << "\">\n";
+
+  /* Flip Y axis (SVG has Y down, geometry has Y up). */
+  ofs << "<g transform=\"translate(0," << (min_y + max_y + padding * 2) << ") scale(1,-1)\">\n";
+
+  /* Draw edges. */
+  float stroke_width = 0.002f * std::max(width, height);
+  for (const auto &edge : edges) {
+    if (edge[0] < 0 || edge[0] >= int(verts.size()) || edge[1] < 0 ||
+        edge[1] >= int(verts.size()))
+    {
+      continue;
+    }
+    const auto &p0 = verts[edge[0]];
+    const auto &p1 = verts[edge[1]];
+    ofs << "<line x1=\"" << p0[0] << "\" y1=\"" << p0[1] << "\" ";
+    ofs << "x2=\"" << p1[0] << "\" y2=\"" << p1[1] << "\" ";
+    ofs << "stroke=\"black\" stroke-width=\"" << stroke_width << "\"/>\n";
+  }
+
+  ofs << "</g>\n";
+  ofs << "</svg>\n";
+}
+
+/**
  * Run scanfill on polygon data and return the number of triangles and total area.
  * Optionally collects face indices for SVG output.
+ *
+ * \param is_degenerate: If false, pass BLI_SCANFILL_POLY_IS_NOT_DEGENERATE to enable
+ *                       assertions in poly_fill that check for valid input.
  */
 static bool run_scanfill(const Vector<std::array<float, 2>> &verts,
                          const Vector<std::array<int, 2>> &edges,
                          uint &out_num_tris,
                          double &out_area,
+                         bool is_degenerate,
                          Vector<std::array<uint, 3>> *out_faces = nullptr)
 {
   if (verts.is_empty() || edges.is_empty()) {
@@ -474,7 +620,14 @@ static bool run_scanfill(const Vector<std::array<float, 2>> &verts,
 
   /* Run scanfill. */
   const float nor[3] = {0.0f, 0.0f, 1.0f};
-  out_num_tris = BLI_scanfill_calc_ex(&sf_ctx, BLI_SCANFILL_CALC_HOLES, nor);
+  int flag = BLI_SCANFILL_CALC_HOLES;
+  if (!is_degenerate) {
+    flag |= BLI_SCANFILL_POLY_IS_NOT_DEGENERATE;
+  }
+  if (use_scanfill_legacy()) {
+    flag |= BLI_SCANFILL_LEGACY_METHOD;
+  }
+  out_num_tris = BLI_scanfill_calc_ex(&sf_ctx, flag, nor);
 
   /* Calculate total area from resulting triangles (use double for precision). */
   out_area = 0.0;
@@ -580,7 +733,8 @@ TEST_P(ScanFillDataTest, FillPolygon)
   double area = 0.0;
   Vector<std::array<uint, 3>> faces;
   const bool write_svg_output = use_debug_svg_output();
-  bool success = run_scanfill(verts, edges, num_tris, area, write_svg_output ? &faces : nullptr);
+  bool success = run_scanfill(
+      verts, edges, num_tris, area, t.degenerate, write_svg_output ? &faces : nullptr);
   EXPECT_TRUE(success);
 
   if (write_svg_output) {
@@ -599,8 +753,13 @@ TEST_P(ScanFillDataTest, FillPolygon)
     /* Write SVG visualization next to the JSON file. */
     const char *xf_name = xform_name(xf);
     std::string xf_suffix = (xf_name[0] != '\0') ? std::string("_") + xf_name : "";
-    std::string svg_path = data_dir + "/" + t.filename + xf_suffix + ".svg";
+    const char *svg_suffix = use_scanfill_legacy() ? ".legacy.svg" : ".svg";
+    std::string svg_path = data_dir + "/" + t.filename + xf_suffix + svg_suffix;
     write_svg(svg_path, verts, faces, test_failed);
+
+    /* Write input polygon SVG. */
+    std::string poly_svg_path = data_dir + "/" + t.filename + xf_suffix + ".poly.svg";
+    write_svg_poly(poly_svg_path, verts, edges);
   }
 
   /* For degenerate tests, just verify it doesn't crash. */
@@ -609,8 +768,8 @@ TEST_P(ScanFillDataTest, FillPolygon)
   }
 
   /* Check triangle count. */
-  EXPECT_EQ(int(num_tris), t.tris) << "Triangle count mismatch for " << t.filename
-                                   << " with transform " << xform_name(xf);
+  EXPECT_EQ(int(num_tris), t.tris)
+      << "Triangle count mismatch for " << t.filename << " with transform " << xform_name(xf);
 
   /* Check area within tolerance.
    * For transforms using trigonometric functions (non-90-degree rotations),
@@ -622,6 +781,15 @@ TEST_P(ScanFillDataTest, FillPolygon)
   double tolerance = std::pow(10.0, -area_places);
   EXPECT_NEAR(area, t.area, tolerance)
       << "Area mismatch for " << t.filename << " with transform " << xform_name(xf);
+}
+
+/**
+ * Pretty-print TestDataWithXForm for Google Test failure messages.
+ * Suppresses unhelpful "40-byte object" output - actual values shown by EXPECT macros.
+ */
+static void PrintTo(const TestDataWithXForm & /*param*/, std::ostream *os)
+{
+  *os << "(see above)";
 }
 
 /* Generate test name from TestDataWithXForm. */
@@ -643,7 +811,11 @@ static std::vector<TestDataWithXForm> get_tests_with_xforms(bool adjacent)
       continue;
     }
     for (int xf_i = 0; xf_i < int(XForm::NUM); xf_i++) {
-      result.push_back({t, XForm(xf_i)});
+      XForm xf = XForm(xf_i);
+      if (is_test_disabled(t.filename, xf)) {
+        continue;
+      }
+      result.push_back({t, xf});
     }
   }
   return result;

@@ -224,7 +224,7 @@ FT_GlyphSlot blf_glyph_render_outline(FontBLF *settings_font,
 /**
  * Convert a character's outlines into curves.
  * \param use_sanitize: Remove overlapping regions from glyph curves.
- * \param overlap_removal_method: Method to use (0=none, 1=FontForge, 2=Skia).
+ * \param simplify_method: Method to use (see eVFont_SimplifyMethod in DNA_vfont_types.h).
  * \return success if the character was found and converted.
  */
 bool blf_character_to_curves(FontBLF *font,
@@ -233,7 +233,7 @@ bool blf_character_to_curves(FontBLF *font,
                              const float scale,
                              bool use_fallback,
                              bool use_sanitize,
-                             int overlap_removal_method,
+                             int simplify_method,
                              float *r_advance);
 
 }  // namespace blender

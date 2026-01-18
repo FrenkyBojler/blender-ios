@@ -119,8 +119,8 @@ bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, flo
 
 /**
  * Convert a character's outlines into curves.
- * \param use_sanitize: Remove overlapping regions from glyph curves.
- * \param overlap_removal_method: Method to use (0=none, 1=FontForge, 2=Skia).
+ * \param use_simplify: Remove overlapping regions from glyph curves.
+ * \param simplify_method: Method to use (see eVFont_SimplifyMethod in DNA_vfont_types.h).
  * \return success if the character was found and converted.
  */
 bool BLF_character_to_curves(int fontid,
@@ -128,7 +128,7 @@ bool BLF_character_to_curves(int fontid,
                              ListBaseT<Nurb> *nurbsbase,
                              const float scale,
                              bool use_fallback,
-                             bool use_sanitize,
+                             bool use_simplify,
                              int overlap_removal_method,
                              float *r_advance);
 

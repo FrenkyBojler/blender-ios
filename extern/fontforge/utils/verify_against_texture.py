@@ -114,7 +114,7 @@ class VerificationError(Exception):
     """Raised when verification setup fails."""
 
 
-def report(message: str = "", end: str = "\n") -> None:
+def report(message: str, *, end: str = "\n") -> None:
     """Print message to stdout and append to global log."""
     print(message, end=end, flush=True)
     _report_log.append(message)
@@ -465,7 +465,7 @@ def get_fontforge_all_chars(font_path: str) -> str | None:
     return "".join(chars)
 
 
-def get_test_chars(font_path: str, custom_chars: str | None, no_fontforge: bool = False) -> str:
+def get_test_chars(font_path: str, custom_chars: str | None, *, no_fontforge: bool = False) -> str:
     """Get the characters to test for a given font."""
     if custom_chars:
         return custom_chars
@@ -575,7 +575,13 @@ def render_char_to_image(font: "BlenderFont", char: str, output_path: str, font_
     imbuf.write(ibuf, filepath=output_path)
 
 
-def render_char_to_image_blf(font_path: str, char: str, output_path: str, image_size: int = RASTER_OUTPUT_SIZE) -> None:
+def render_char_to_image_blf(
+        font_path: str,
+        char: str,
+        output_path:
+        str, *,
+        image_size: int,
+) -> None:
     """
     Render a character to an image using BLF (Blender's font drawing).
     Character is centered with BLF_MARGIN_PX margin on all sides.
@@ -686,7 +692,7 @@ def test_character(
     else:
         try:
             render_char_to_image(font, char, curves_path, font_path)
-            render_char_to_image_blf(font_path, char, blf_path)
+            render_char_to_image_blf(font_path, char, blf_path, RASTER_OUTPUT_SIZE)
         except Exception as e:
             return False, str(e)
 
@@ -782,14 +788,16 @@ def generate_html_index(
 
 
 def test_font(
-    font_path: str, custom_chars: str | None, verbose: bool, base_dir: str | None = None,
-    no_fontforge: bool = False, no_font_sanitize: bool = False, update: bool = False,
-    method: str = "FONTFORGE",
+    font_path: str, custom_chars: str | None, verbose: bool, *,
+    base_dir: str | None = None, no_fontforge: bool = False, no_font_sanitize: bool = False,
+    update: bool = False, method: str = "FONTFORGE",
+    font_index: int = 0, font_total: int = 0,
 ) -> FontTestResult:
     """Test all characters in the font. Returns FontTestResult."""
-    test_chars = get_test_chars(font_path, custom_chars, no_fontforge)
+    test_chars = get_test_chars(font_path, custom_chars, no_fontforge=no_fontforge)
 
-    report("\nTesting font: {:s}".format(font_path))
+    font_progress = " [{:d} of {:d}]".format(font_index, font_total) if font_total > 1 else ""
+    report("\nTesting font: {:s}{:s}".format(font_path, font_progress))
     report("Testing {:d} characters\n".format(len(test_chars)))
 
     # Determine output directory for rendered images
@@ -817,8 +825,8 @@ def test_font(
 
     font: "BlenderFont" = bpy.data.fonts.load(font_path)
     if not no_font_sanitize:
-        font.use_overlap_removal = True
-        font.overlap_removal_method = method
+        font.use_simplify = True
+        font.simplify_method = method
 
     passed_count = 0
     failed: list[CharTestResult] = []
@@ -919,17 +927,21 @@ def main_blender() -> int:
     total_failed = 0
     all_failed: list[tuple[str, list[CharTestResult]]] = []
     all_html_data: list[FontHtmlData] = []
+    font_total = len(font_paths)
 
-    for font_path in font_paths:
+    for font_index, font_path in enumerate(font_paths, 1):
         result = test_font(
             font_path,
             args.custom_chars,
             args.verbose,
-            base_dir,
-            args.no_fontforge,
-            args.no_font_sanitize,
-            args.update,
-            args.method)
+            base_dir=base_dir,
+            no_fontforge=args.no_fontforge,
+            no_font_sanitize=args.no_font_sanitize,
+            update=args.update,
+            method=args.method,
+            font_index=font_index,
+            font_total=font_total,
+        )
         total_passed += result.passed
         total_failed += result.failed
         if result.failed_chars:

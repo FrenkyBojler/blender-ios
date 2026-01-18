@@ -13,6 +13,12 @@
 
 #include "DNA_ID.h"
 
+/** Overlap removal method for VFont. */
+enum eVFont_SimplifyMethod {
+  DNA_VFONT_SIMPLIFY_SKIA = 0,
+  DNA_VFONT_SIMPLIFY_FONTFORGE = 1,
+};
+
 namespace blender {
 
 struct PackedFile;
@@ -36,8 +42,8 @@ struct VFont {
   struct PackedFile *temp_pf = nullptr;
 
   /** Remove overlapping regions from glyph curves. */
-  char use_overlap_removal = 0;
-  char overlap_removal_method = 0;
+  char use_simplify = 0;
+  char simplify_method = 0;
   char _pad[6];
 };
 

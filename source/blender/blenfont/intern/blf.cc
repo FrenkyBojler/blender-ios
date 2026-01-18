@@ -1151,21 +1151,15 @@ bool BLF_character_to_curves(int fontid,
                              const float scale,
                              bool use_fallback,
                              bool use_sanitize,
-                             int overlap_removal_method,
+                             int simplify_method,
                              float *r_advance)
 {
   FontBLF *font = blf_get(fontid);
   if (!font) {
     return false;
   }
-  return blf_character_to_curves(font,
-                                 unicode,
-                                 nurbsbase,
-                                 scale,
-                                 use_fallback,
-                                 use_sanitize,
-                                 overlap_removal_method,
-                                 r_advance);
+  return blf_character_to_curves(
+      font, unicode, nurbsbase, scale, use_fallback, use_sanitize, simplify_method, r_advance);
 }
 
 #ifndef NDEBUG

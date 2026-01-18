@@ -22,6 +22,7 @@
 #include "BLF_api.hh"
 
 #include "DNA_curve_types.h"
+#include "DNA_vfont_types.h"
 
 #include "BKE_curve.hh"
 
@@ -317,9 +318,9 @@ static FFSplineSet *ftoutline_to_splinesets(const FT_Outline &ftoutline)
      * We process forward first, then reverse to get PostScript winding. */
 
     struct OnCurvePoint {
-      double2 pos;     /* On-curve point position. */
-      double2 prev_cp; /* Incoming control point (from previous segment). */
-      double2 next_cp; /* Outgoing control point (to next segment). */
+      double2 pos;       /* On-curve point position. */
+      double2 prev_cp;   /* Incoming control point (from previous segment). */
+      double2 next_cp;   /* Outgoing control point (to next segment). */
       bool prev_is_line; /* Previous segment is a line. */
       bool next_is_line; /* Next segment is a line. */
     };
@@ -1188,7 +1189,7 @@ bool blf_character_to_curves(FontBLF *font,
                              const float scale,
                              bool use_fallback,
                              bool use_sanitize,
-                             int overlap_removal_method,
+                             int simplify_method,
                              float *r_advance)
 {
   FT_GlyphSlot glyph = blf_glyphslot_ensure_outline(font, unicode, use_fallback);
@@ -1200,25 +1201,25 @@ bool blf_character_to_curves(FontBLF *font,
   if (use_sanitize) {
     bool success = false;
 
-    /* Method for overlap removal:
-     * 0 = FontForge (when WITH_FONT_FORGE is enabled)
-     * 1 = Skia PathOps (when WITH_FONT_SKIA is enabled) */
-    switch (overlap_removal_method) {
-#ifdef WITH_FONT_FORGE
-      case 0:
-        success = blf_ftoutline_to_curves_with_overlap_removal(glyph->outline, nurbsbase, scale);
-        break;
-#endif
+    switch (simplify_method) {
 #ifdef WITH_FONT_SKIA
-      case 1:
+      case DNA_VFONT_SIMPLIFY_SKIA: {
         success = blf_ftoutline_to_curves_with_skia(glyph->outline, nurbsbase, scale);
         break;
+      }
 #endif
-      default:
-        /* Fallback: no overlap removal. */
+#ifdef WITH_FONT_FORGE
+      case DNA_VFONT_SIMPLIFY_FONTFORGE: {
+        success = blf_ftoutline_to_curves_with_overlap_removal(glyph->outline, nurbsbase, scale);
+        break;
+      }
+#endif
+      default: {
+        /* Fallback: no simplification. */
         blf_glyph_to_curves(glyph->outline, nurbsbase, scale);
         success = true;
         break;
+      }
     }
 
     if (!success) {

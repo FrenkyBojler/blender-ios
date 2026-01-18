@@ -287,9 +287,9 @@ class DATA_PT_font(CurveButtonsPanelText, Panel):
         if font:
             col = layout.column()
             col.use_property_split = True
-            col.prop(font, "use_overlap_removal", text="Remove Overlaps")
-            if font.use_overlap_removal:
-                col.prop(font, "overlap_removal_method", text="Method")
+            col.prop(font, "use_simplify", text="Simplify")
+            if font.use_simplify:
+                col.prop(font, "simplify_method", text="Method")
 
     def draw(self, context):
         layout = self.layout

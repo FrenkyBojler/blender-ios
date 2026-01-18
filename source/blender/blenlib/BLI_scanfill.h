@@ -101,6 +101,16 @@ enum {
 
   /* checks valid edge users - can skip for simple loops */
   BLI_SCANFILL_CALC_LOOSE = (1 << 4),
+
+  /**
+   * Use for tests, when know the input is not degenerate,
+   * any problems filling are turned into assertions.
+   *
+   * For user input this is unknown, so we cant have such strict assertions by default.
+   */
+  BLI_SCANFILL_POLY_IS_NOT_DEGENERATE = 1 << 5,
+  BLI_SCANFILL_LEGACY_METHOD = 1 << 6,
+
 };
 void BLI_scanfill_begin(ScanFillContext *sf_ctx);
 unsigned int BLI_scanfill_calc(ScanFillContext *sf_ctx, int flag);

@@ -8,6 +8,8 @@
 
 #include <cstdlib>
 
+#include "DNA_vfont_types.h"
+
 #include "RNA_define.hh"
 
 #include "rna_internal.hh"
@@ -18,7 +20,6 @@
 
 #  include "DNA_curve_types.h"
 #  include "DNA_object_types.h"
-#  include "DNA_vfont_types.h"
 
 #  include "BKE_library.hh"
 #  include "BKE_vfont.hh"
@@ -79,9 +80,9 @@ static void rna_VectorFont_overlap_removal_update(Main *bmain, Scene * /*scene*/
 
 namespace blender {
 
-static const EnumPropertyItem overlap_removal_method_items[] = {
-    {0, "FONTFORGE", 0, "FontForge", "Use FontForge algorithm"},
-    {1, "SKIA", 0, "Skia", "Use Skia PathOps algorithm"},
+static const EnumPropertyItem simplify_method_items[] = {
+    {DNA_VFONT_SIMPLIFY_SKIA, "SKIA", 0, "Skia", "Use Skia PathOps algorithm"},
+    {DNA_VFONT_SIMPLIFY_FONTFORGE, "FONTFORGE", 0, "FontForge", "Use FontForge algorithm"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -106,15 +107,15 @@ void RNA_def_vfont(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, nullptr, "packedfile");
   RNA_def_property_ui_text(prop, "Packed File", "");
 
-  prop = RNA_def_property(srna, "use_overlap_removal", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_overlap_removal", 0);
+  prop = RNA_def_property(srna, "use_simplify", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_simplify", 0);
   RNA_def_property_ui_text(
       prop, "Remove Overlaps", "Remove overlapping regions from glyph curves when loading");
   RNA_def_property_update(prop, NC_GEOM | ND_DATA, "rna_VectorFont_overlap_removal_update");
 
-  prop = RNA_def_property(srna, "overlap_removal_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "overlap_removal_method");
-  RNA_def_property_enum_items(prop, overlap_removal_method_items);
+  prop = RNA_def_property(srna, "simplify_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "simplify_method");
+  RNA_def_property_enum_items(prop, simplify_method_items);
   RNA_def_property_ui_text(prop, "Overlap Removal Method", "Algorithm used for overlap removal");
   RNA_def_property_update(prop, NC_GEOM | ND_DATA, "rna_VectorFont_overlap_removal_update");
 
