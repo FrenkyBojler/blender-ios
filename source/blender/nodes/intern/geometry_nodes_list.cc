@@ -9,6 +9,9 @@ namespace blender::nodes {
 
 bool is_supported_list_type(const eNodeSocketDatatype type)
 {
+  if (type == SOCK_STRING) {
+    return true;
+  }
   return socket_type_supports_fields(type);
 }
 
