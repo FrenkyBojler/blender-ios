@@ -16,6 +16,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
@@ -23,8 +24,11 @@
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
+#include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+
+#include "DNA_windowmanager_types.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
@@ -33,6 +37,8 @@
 #include "IMB_imbuf.hh"
 
 #include "RE_pipeline.h"
+
+#include "WM_api.hh"
 
 #include "image_save_job.hh"
 
@@ -44,6 +50,9 @@ static std::atomic<int> g_pending_image_saves{0};
 /* Global task pool for background image saves. */
 static TaskPool *g_image_save_pool = nullptr;
 static std::once_flag g_pool_init_flag;
+
+/* Thread-safe report list for background save errors. */
+static ReportList *g_image_save_reports = nullptr;
 
 struct ImageSaveTaskData {
   ImBuf *ibuf;         /* Copied buffer (owned by task). */
@@ -64,6 +73,12 @@ static void image_save_task_run(TaskPool *__restrict /*pool*/, void *taskdata)
     fflush(stdout);
   }
   else {
+    /* Thread-safe error reporting. */
+    BKE_reportf(g_image_save_reports,
+                RPT_ERROR,
+                "Failed to save \"%s\": %s",
+                task->filepath,
+                strerror(errno));
     fprintf(stderr, "Failed to save \"%s\": %s\n", task->filepath, strerror(errno));
   }
 }
@@ -88,6 +103,10 @@ void image_save_pool_init()
     const int num_threads = max_ii(1, BLI_task_scheduler_num_threads() / 4);
     g_image_save_pool = BLI_task_pool_create_background_parallel(
         nullptr, TASK_PRIORITY_HIGH, num_threads);
+
+    /* Create thread-safe report list for async errors. */
+    g_image_save_reports = MEM_new<ReportList>(__func__);
+    BKE_reports_init(g_image_save_reports, RPT_STORE);
   });
 }
 
@@ -95,6 +114,14 @@ void image_save_pool_wait()
 {
   if (g_image_save_pool != nullptr) {
     BLI_task_pool_work_and_wait(g_image_save_pool);
+  }
+
+  /* Transfer any accumulated reports to WindowManager. */
+  if (g_image_save_reports != nullptr && !BLI_listbase_is_empty(&g_image_save_reports->list)) {
+    wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+    if (wm) {
+      WM_reports_from_reports_move(wm, g_image_save_reports);
+    }
   }
 }
 
@@ -105,6 +132,12 @@ void image_save_pool_exit()
     BLI_task_pool_work_and_wait(g_image_save_pool);
     BLI_task_pool_free(g_image_save_pool);
     g_image_save_pool = nullptr;
+  }
+
+  if (g_image_save_reports != nullptr) {
+    BKE_reports_free(g_image_save_reports);
+    MEM_delete(g_image_save_reports);
+    g_image_save_reports = nullptr;
   }
 }
 
@@ -194,6 +227,12 @@ static void render_save_task_run(TaskPool *__restrict /*pool*/, void *taskdata)
     fflush(stdout);
   }
   else {
+    /* Thread-safe error reporting. */
+    BKE_reportf(g_image_save_reports,
+                RPT_ERROR,
+                "Failed to save \"%s\": %s",
+                task->filepath,
+                strerror(errno));
     fprintf(stderr, "Failed to save \"%s\": %s\n", task->filepath, strerror(errno));
   }
 }
