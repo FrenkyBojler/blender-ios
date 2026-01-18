@@ -45,6 +45,7 @@
 #include "BKE_deform.hh"
 #include "BKE_fcurve_driver.h"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -778,35 +779,10 @@ static wmOperatorStatus grease_pencil_stroke_material_set_exec(bContext *C, wmOp
     bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
         "material_index", bke::AttrDomain::Curve);
 
-    const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
+    const IndexMask fill_strokes = bke::greasepencil::selected_mask_to_fills(
+        strokes, curves, bke::AttrDomain::Curve, memory);
 
-    if (!shape_ids) {
-      index_mask::masked_fill(materials.span, material_index, strokes);
-      materials.finish();
-      return;
-    }
-
-    VectorSet<int> selected_shape_ids;
-    strokes.foreach_index([&](const int64_t curve_i) {
-      const int shape_id = shape_ids[curve_i];
-      if (shape_id != 0) {
-        selected_shape_ids.add(shape_id);
-      }
-    });
-
-    Array<bool> selected_curves(curves.curves_num());
-    strokes.to_bools(selected_curves);
-
-    const IndexMask shape_strokes = IndexMask::from_predicate(
-        curves.curves_range(), GrainSize(4096), memory, [&](const int64_t curve_i) {
-          const int shape_id = shape_ids[curve_i];
-          if (shape_id == 0) {
-            return selected_curves[curve_i];
-          }
-          return selected_shape_ids.contains(shape_id);
-        });
-
-    index_mask::masked_fill(materials.span, material_index, shape_strokes);
+    index_mask::masked_fill(materials.span, material_index, fill_strokes);
     materials.finish();
   });
 
