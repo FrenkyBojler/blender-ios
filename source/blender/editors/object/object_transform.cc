@@ -3088,9 +3088,9 @@ static void light_orbit_around_target_init_data(bContext *C, wmOperator *op, con
   BKE_view_layer_synced_ensure(scene, view_layer);
 
   Object *active_ob = loatd->vc.obact;
-  if (active_ob && active_ob->type == OB_LAMP) {
+  if (active_ob && ELEM(active_ob->type, OB_LAMP, OB_CAMERA)) {
     CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-      if (ob->type != OB_LAMP) {
+      if (!ELEM(ob->type, OB_LAMP, OB_CAMERA)) {
         continue;
       }
 
@@ -3687,9 +3687,9 @@ static bool light_orbit_around_target_poll(bContext *C)
     return false;
   }
 
-  /* Check if active object is a light. */
+  /* Check if active object is a light or camera. */
   Object *active_ob = CTX_data_active_object(C);
-  if (active_ob && active_ob->type == OB_LAMP) {
+  if (active_ob && ELEM(active_ob->type, OB_LAMP, OB_CAMERA)) {
     return true;
   }
 
