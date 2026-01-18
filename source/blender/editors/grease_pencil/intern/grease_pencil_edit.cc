@@ -1526,7 +1526,7 @@ static wmOperatorStatus grease_pencil_duplicate_exec(bContext *C, wmOperator * /
       curves::duplicate_points(curves, points);
     }
 
-    bke::greasepencil::separate_shape_ids(curves, IndexRange(num_old_curves));
+    bke::greasepencil::separate_fill_ids(curves, IndexRange(num_old_curves));
     info.drawing.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);
   });
