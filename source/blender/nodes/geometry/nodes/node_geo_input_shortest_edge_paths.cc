@@ -24,6 +24,20 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Total Cost").field_source().reference_pass_all();
 }
 
+template<typename T> static void join_values(MutableSpan<Span<T>> src, Vector<T> &dst)
+{
+  Array<int> offset_buffer(src.size() + 1);
+  for (const int index : src.index_range()) {
+    offset_buffer[index] = src[index].size();
+  }
+  const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(offset_buffer);
+  dst.reinitialize(offsets.total_size());
+
+  for (const int index : src.index_range()) {
+    dst.as_mutable_span().slice(offsets[index]).copy_from(src[index]);
+  }
+}
+
 using VertPriority = std::pair<float, int>;
 
 static void shortest_paths(const Mesh &mesh,
@@ -51,35 +65,70 @@ static void shortest_paths(const Mesh &mesh,
   if (input_cost.is_single()) {
     const GroupedSpan<int> vert_to_verts(vert_to_edge.offsets, other_vertex.as_span());
 
-    Vector<int> to_check(end_selection.size());
-    end_selection.to_indices(to_check.as_mutable_span());
-    Vector<int> to_check_next;
-
     Array<int> distances(r_cost.size(), std::numeric_limits<int>::max());
 
-    int topology_distance = 0;
+    Vector<int> to_check(end_selection.size());
+    end_selection.to_indices(to_check.as_mutable_span());
+
+    threading::EnumerableThreadSpecific<Vector<int>> to_check_next;
+
+    int topology_distance = -1;
     while (!to_check.is_empty()) {
-      for (const int vert_i : to_check) {
-        if (visited[vert_i]) {
-          continue;
-        }
+      topology_distance++;
 
-        visited[vert_i] = true;
-        distances[vert_i] = topology_distance;
-
-        const Span<int> connected_verts = vert_to_verts[vert_i];
-        to_check_next.reserve(to_check_next.size() + connected_verts.size());
-        for (const int connected_vert : connected_verts) {
-          if (visited[connected_vert]) {
+      threading::parallel_for(to_check.index_range(), 1024, [&](const IndexRange range) {
+        Vector<int> &local_to_check_next = to_check_next.local();
+        local_to_check_next.reserve(local_to_check_next.size() + range.size());
+        for (const int vert_i : to_check.as_span().slice(range)) {
+          if (visited[vert_i]) {
             continue;
           }
-          to_check_next.append_unchecked(connected_vert);
+          /* This is write-only deterministic data race. Only equal values are possible to write at
+           * the same moment. This is should be okay. */
+          visited[vert_i] = true;
+          distances[vert_i] = topology_distance;
+
+          const Span<int> connected_verts = vert_to_verts[vert_i];
+          local_to_check_next.reserve(local_to_check_next.size() + connected_verts.size());
+
+          for (const int connected_vert : connected_verts) {
+            if (visited[connected_vert]) {
+              continue;
+            }
+            local_to_check_next.append_unchecked(connected_vert);
+          }
+        }
+      });
+
+      Vector<Span<int>> all_next_indices;
+      for (Vector<int> &item : to_check_next) {
+        if (!item.is_empty()) {
+          all_next_indices.append(item);
         }
       }
 
-      to_check.clear();
-      std::swap(to_check, to_check_next);
-      topology_distance++;
+      if (all_next_indices.is_empty()) {
+        break;
+      }
+
+      if (all_next_indices.size() == 1) {
+        if (all_next_indices.first().size() < 1024) {
+
+          for (Vector<int> &item : to_check_next) {
+            if (!item.is_empty()) {
+              to_check = std::move(item);
+              break;
+            }
+          }
+
+          continue;
+        }
+      }
+
+      join_values<int>(all_next_indices.as_mutable_span(), to_check);
+      for (Vector<int> &item : to_check_next) {
+        item.clear();
+      }
     }
 
     const float cost = input_cost.get_internal_single();
