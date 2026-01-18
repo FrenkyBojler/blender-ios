@@ -3,8 +3,14 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "NOD_geometry_nodes_list.hh"
+#include "NOD_socket.hh"
 
 namespace blender::nodes {
+
+bool is_supported_list_type(const eNodeSocketDatatype type)
+{
+  return socket_type_supports_fields(type);
+}
 
 class ArrayImplicitSharingData : public ImplicitSharingInfo {
  public:
