@@ -4944,6 +4944,356 @@ static void GREASE_PENCIL_OT_set_corner_type(wmOperatorType *ot)
 
 /** \} */
 
+// /* -------------------------------------------------------------------- */
+// /** \name Set Stroke Mode Operator
+//  * \{ */
+
+// enum class StrokeMode : int8_t { Stroke = 0, Fill = 1, Both = 2 };
+
+// static wmOperatorStatus grease_pencil_set_stroke_mode_exec(bContext *C, wmOperator *op)
+// {
+//   const Scene *scene = CTX_data_scene(C);
+//   Object *object = CTX_data_active_object(C);
+//   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
+
+//   const StrokeMode mode = StrokeMode(RNA_enum_get(op->ptr, "mode"));
+//   std::atomic<bool> changed = false;
+//   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+//   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+//     IndexMaskMemory memory;
+//     const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+//         *object, info.drawing, info.layer_index, memory);
+//     if (strokes.is_empty()) {
+//       return;
+//     }
+
+//     MutableSpan<bool> is_stroke = info.drawing.is_stroke_for_write();
+//     MutableSpan<bool> is_fill = info.drawing.is_fill_for_write();
+//     switch (mode) {
+//       case StrokeMode::Stroke: {
+//         index_mask::masked_fill(is_stroke, true, strokes);
+//         index_mask::masked_fill(is_fill, false, strokes);
+//         changed.store(true, std::memory_order_relaxed);
+//         info.drawing.tag_topology_changed();
+//         break;
+//       }
+//       case StrokeMode::Fill: {
+//         index_mask::masked_fill(is_stroke, false, strokes);
+//         index_mask::masked_fill(is_fill, true, strokes);
+//         changed.store(true, std::memory_order_relaxed);
+//         info.drawing.tag_topology_changed();
+//         break;
+//         break;
+//       }
+//       case StrokeMode::Both: {
+//         index_mask::masked_fill(is_stroke, true, strokes);
+//         index_mask::masked_fill(is_fill, true, strokes);
+//         changed.store(true, std::memory_order_relaxed);
+//         info.drawing.tag_topology_changed();
+//         break;
+//       }
+//     }
+//   });
+
+//   if (changed) {
+//     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+//     WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+//   }
+
+//   return OPERATOR_FINISHED;
+// }
+
+// static void GREASE_PENCIL_OT_set_stroke_mode(wmOperatorType *ot)
+// {
+//   static const EnumPropertyItem prop_stroke_mode_types[] = {
+//       {int(StrokeMode::Stroke), "STROKE", 0, "Stroke", ""},
+//       {int(StrokeMode::Fill), "FILL", 0, "Fill", ""},
+//       {int(StrokeMode::Both), "BOTH", 0, "Both", ""},
+//       {0, nullptr, 0, nullptr, nullptr},
+//   };
+
+//   /* Identifiers. */
+//   ot->name = "Set Stroke Mode";
+//   ot->idname = "GREASE_PENCIL_OT_set_stroke_mode";
+//   ot->description = "Set the stroke mode (stroke/fill) of the selected strokes";
+
+//   /* Callbacks. */
+//   ot->exec = grease_pencil_set_stroke_mode_exec;
+//   ot->poll = editable_grease_pencil_poll;
+
+//   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+//   ot->prop = RNA_def_enum(
+//       ot->srna, "mode", prop_stroke_mode_types, int(StrokeMode::Stroke), "Mode", "");
+// }
+
+/* -------------------------------------------------------------------- */
+/** \name Join Fills Operator
+ * \{ */
+
+static Array<int> get_gapless_indices(const IndexRange &universe, const IndexMask &selected)
+{
+  const int first_curve = selected.first();
+  Array<int> indices_data(universe.size());
+  MutableSpan<int> indices = indices_data.as_mutable_span();
+
+  /*
+   * Make the selected indices be in ascending order with the first indices staying at the same
+   * place.
+   *
+   * Here's a diagram:
+   *
+   *        Input
+   * 0 1 2 3 4 5 6 7 8 9
+   *       ^   ^ ^
+   *
+   * |-A-| |-B-| |--C--|
+   * 0 1 2 3 5 6 4 7 8 9
+   *       ^ ^ ^
+   *
+   * The `A` range gets filled with increasing indices starting at zero, ending at `first_curve`.
+   * The `B` range gets filled with the selected indices starting at `first_curve`.
+   * The `C` range gets filled with the unselected indices not including the `A` range.
+   */
+
+  IndexMaskMemory memory;
+  const IndexMask unselected = selected.complement(universe.drop_front(first_curve), memory);
+
+  /* Fill `A`. */
+  array_utils::fill_index_range<int>(indices.take_front(first_curve));
+  /* Fill `B`. */
+  selected.to_indices(indices.drop_front(first_curve).take_front(selected.size()));
+  /* Fill `C`. */
+  unselected.to_indices(indices.take_back(unselected.size()));
+
+  return indices_data;
+}
+
+static wmOperatorStatus grease_pencil_join_fills_exec(bContext *C, wmOperator *op)
+{
+  using namespace bke::greasepencil;
+
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object->data);
+
+  Layer *active_layer = grease_pencil.get_active_layer();
+  if (!active_layer) {
+    BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
+    return OPERATOR_CANCELLED;
+  }
+  if (!active_layer->is_editable()) {
+    BKE_report(op->reports, RPT_ERROR, "Active layer is not editable");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Iterate through all the drawings at current scene frame. */
+  const Vector<MutableDrawingInfo> drawings_src = retrieve_editable_drawings(*scene,
+                                                                             grease_pencil);
+  for (const MutableDrawingInfo &info : drawings_src) {
+    bke::CurvesGeometry &curves_src = info.drawing.strokes_for_write();
+    IndexMaskMemory memory;
+    const IndexMask selected_strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+        *object, info.drawing, info.layer_index, memory);
+    if (selected_strokes.is_empty()) {
+      continue;
+    }
+
+    bool is_key_inserted = false;
+    bool has_active_key = false;
+    if (active_layer->frames().is_empty()) {
+      /* If the target layer doesn't have any keyframes, insert a new key at the current frame.
+       */
+      grease_pencil.insert_frame(*active_layer, scene->r.cfra);
+      is_key_inserted = true;
+      has_active_key = true;
+    }
+    else {
+      has_active_key = ensure_active_keyframe(
+          *scene, grease_pencil, *active_layer, false, is_key_inserted);
+    }
+
+    if (has_active_key && is_key_inserted) {
+      /* Move geometry to a new drawing in target layer. */
+      Drawing &drawing_dst = *grease_pencil.get_drawing_at(*active_layer, info.frame_number);
+      drawing_dst.strokes_for_write() = bke::curves_copy_curve_selection(
+          curves_src, selected_strokes, {});
+
+      curves_src.remove_curves(selected_strokes, {});
+      drawing_dst.tag_topology_changed();
+    }
+    else if (Drawing *drawing_dst = grease_pencil.get_drawing_at(*active_layer, info.frame_number))
+    {
+      /* Append geometry to drawing in target layer. */
+      bke::CurvesGeometry selected_elems = curves_copy_curve_selection(
+          curves_src, selected_strokes, {});
+      Curves *selected_curves = bke::curves_new_nomain(std::move(selected_elems));
+      Curves *layer_curves = bke::curves_new_nomain(std::move(drawing_dst->strokes_for_write()));
+      std::array<bke::GeometrySet, 2> geometry_sets{
+          bke::GeometrySet::from_curves(layer_curves),
+          bke::GeometrySet::from_curves(selected_curves)};
+      bke::GeometrySet joined = geometry::join_geometries(geometry_sets, {});
+      drawing_dst->strokes_for_write() = std::move(joined.get_curves_for_write()->geometry.wrap());
+
+      curves_src.remove_curves(selected_strokes, {});
+
+      drawing_dst->tag_topology_changed();
+    }
+
+    info.drawing.tag_topology_changed();
+  }
+
+  const int active_layer_index = *grease_pencil.get_layer_index(*active_layer);
+  Drawing *drawing_dst = grease_pencil.get_drawing_at(*active_layer, scene->r.cfra);
+
+  IndexMaskMemory memory;
+  const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+      *object, *drawing_dst, active_layer_index, memory);
+  if (strokes.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+  bke::CurvesGeometry &curves = drawing_dst->strokes_for_write();
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
+      "fill_id", bke::AttrDomain::Curve);
+
+  /* Currently Grease Pencil does not have a active element, so instead just use the first. */
+  const int active_curve = strokes.first();
+
+  int fill_id_to_set = fill_ids.span[active_curve];
+  if (fill_id_to_set == 0) {
+    /* Get the first id that does not already exist. */
+    fill_id_to_set = *std::max_element(fill_ids.span.begin(), fill_ids.span.end()) + 1;
+
+    if (fill_id_to_set == 0) {
+      fill_id_to_set++;
+    }
+  }
+
+  index_mask::masked_fill(fill_ids.span, fill_id_to_set, strokes);
+  fill_ids.finish();
+
+  Set<StringRef> attributes_to_set{{"material_index",
+                                    "fill_color",
+                                    "fill_opacity",
+                                    "uv_rotation",
+                                    "uv_translation",
+                                    "uv_scale"}};
+  /* Copy curve attributes from the active to all other selected curves. */
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain != bke::AttrDomain::Curve) {
+      return;
+    }
+    if (!attributes_to_set.contains(iter.name)) {
+      return;
+    }
+    bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
+    const CPPType &type = attribute.span.type();
+    type.fill_assign_indices(attribute.span[active_curve], attribute.span.data(), strokes);
+    attribute.finish();
+  });
+
+  Array<int> indices = get_gapless_indices(curves.curves_range(), strokes);
+  curves = geometry::reorder_curves_geometry(curves, indices, {});
+  drawing_dst->tag_topology_changed();
+
+  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_join_fills(wmOperatorType *ot)
+{
+  ot->name = "Join Fills";
+  ot->idname = "GREASE_PENCIL_OT_join_fills";
+  ot->description = "Join selected strokes into one fill to create holes";
+
+  ot->exec = grease_pencil_join_fills_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Separate Fills Operator
+ * \{ */
+
+static wmOperatorStatus grease_pencil_separate_fills_exec(bContext *C, wmOperator *op)
+{
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object->data);
+
+  const bool individual = RNA_boolean_get(op->ptr, "individual");
+
+  std::atomic<bool> changed = false;
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    IndexMaskMemory memory;
+    const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+        *object, info.drawing, info.layer_index, memory);
+    if (strokes.is_empty()) {
+      return;
+    }
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_for_write_span<int>("fill_id");
+
+    /* If the attribute does not exist then every fill is already separate. */
+    if (!fill_ids) {
+      return;
+    }
+
+    if (individual) {
+      /* Each selected stroke becomes a new fill. */
+      index_mask::masked_fill(fill_ids.span, 0, strokes);
+    }
+    else {
+      /* Get the first id that does not already exist. */
+      int fill_id_to_set = *std::max_element(fill_ids.span.begin(), fill_ids.span.end()) + 1;
+
+      if (fill_id_to_set == 0) {
+        fill_id_to_set++;
+      }
+
+      /* All selected strokes become a new fill. */
+      index_mask::masked_fill(fill_ids.span, fill_id_to_set, strokes);
+    }
+
+    fill_ids.finish();
+    info.drawing.tag_topology_changed();
+
+    changed = true;
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_separate_fills(wmOperatorType *ot)
+{
+  ot->name = "Separate Fills";
+  ot->idname = "GREASE_PENCIL_OT_separate_fills";
+  ot->description = "Separate the selected strokes from current fill";
+
+  ot->exec = grease_pencil_separate_fills_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(
+      ot->srna, "individual", true, "Individual", "Create a separate fill for each stroke");
+}
+
+/** \} */
+
 }  // namespace ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
@@ -4988,6 +5338,9 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_outline);
   WM_operatortype_append(GREASE_PENCIL_OT_convert_curve_type);
   WM_operatortype_append(GREASE_PENCIL_OT_set_corner_type);
+  // WM_operatortype_append(GREASE_PENCIL_OT_set_stroke_mode);
+  WM_operatortype_append(GREASE_PENCIL_OT_join_fills);
+  WM_operatortype_append(GREASE_PENCIL_OT_separate_fills);
 }
 
 /* -------------------------------------------------------------------- */
