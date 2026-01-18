@@ -2068,6 +2068,7 @@ enum {
   TGT_MODAL_SPECULAR_DISABLE,
   TGT_MODAL_SHADOW_ENABLE,
   TGT_MODAL_SHADOW_DISABLE,
+  TGT_MODAL_SWITCH_TO_ORBIT,
   TGT_MODAL_PRECISION_ENABLE,
   TGT_MODAL_PRECISION_DISABLE,
 };
@@ -2095,6 +2096,11 @@ void target_modal_keymap(wmKeyConfig *keyconf)
        "Shadow Mode",
        "Position light depending on the shadow target"},
       {TGT_MODAL_SHADOW_DISABLE, "SHADOW_DISABLE", 0, "Shadow Mode (Off)", ""},
+      {TGT_MODAL_SWITCH_TO_ORBIT,
+       "SWITCH_TO_ORBIT",
+       0,
+       "Switch to Orbit",
+       "Switch to orbit mode around target"},
       {TGT_MODAL_PRECISION_ENABLE,
        "PRECISION_ENABLE",
        0,
@@ -2543,6 +2549,12 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         }
         break;
       }
+      case TGT_MODAL_SWITCH_TO_ORBIT: {
+        object_transform_axis_target_free_data(C, op);
+        WM_operator_name_call(
+            C, "OBJECT_OT_light_orbit_around", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+        return OPERATOR_FINISHED;
+      }
       case TGT_MODAL_PRECISION_ENABLE: {
         xfd->precision_mode = true;
         /* Store current mouse position as the base for precision calculations */
@@ -2564,9 +2576,6 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     WorkspaceStatus status(C);
     status.opmodal(IFACE_("Confirm"), op->type, TGT_MODAL_CONFIRM);
     status.opmodal(IFACE_("Cancel"), op->type, TGT_MODAL_CANCEL);
-    /* Show precision mode status */
-    status.opmodal(IFACE_("Precision"), op->type, TGT_MODAL_PRECISION_ENABLE, xfd->precision_mode);
-
     /* Show current mode and available mode switches */
     status.opmodal(IFACE_("Diffuse"),
                    op->type,
@@ -2578,6 +2587,9 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                    xfd->light_mode == LIGHT_SPECULAR_MODE);
     status.opmodal(
         IFACE_("Shadow"), op->type, TGT_MODAL_SHADOW_ENABLE, xfd->light_mode == LIGHT_SHADOW_MODE);
+    status.opmodal(IFACE_("Orbit"), op->type, TGT_MODAL_SWITCH_TO_ORBIT);
+    /* Show precision mode status */
+    status.opmodal(IFACE_("Precision"), op->type, TGT_MODAL_PRECISION_ENABLE, xfd->precision_mode);
   }
 
   /* Refresh depth buffer after navigation */
@@ -2899,7 +2911,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     for (XFormAxisItem &item : xfd->object_data) {
       autokeyframe_object_rotation(C, scene, item.ob);
     }
-    object_transform_axis_target_free_data(op);
+    object_transform_axis_target_free_data(C, op);
 
     /* Launch orbit operator. */
     WM_operator_name_call(

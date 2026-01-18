@@ -6410,16 +6410,17 @@ def km_light_target_modal_map(_params):
         ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'ANY', "any": True}, None),
         ("CONFIRM", {"type": 'RET', "value": 'PRESS', "any": True}, None),
         ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
-        ("PRECISION_ENABLE", {"type": 'LEFT_SHIFT', "value": 'PRESS', "any": True}, None),
-        ("PRECISION_DISABLE", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
-        ("PRECISION_ENABLE", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
-        ("PRECISION_DISABLE", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
         ("DIFFUSE_ENABLE", {"type": 'D', "value": 'PRESS'}, None),
         ("DIFFUSE_DISABLE", {"type": 'D', "value": 'RELEASE'}, None),
         ("SPECULAR_ENABLE", {"type": 'R', "value": 'PRESS'}, None),
         ("SPECULAR_DISABLE", {"type": 'R', "value": 'RELEASE'}, None),
         ("SHADOW_ENABLE", {"type": 'S', "value": 'PRESS'}, None),
         ("SHADOW_DISABLE", {"type": 'S', "value": 'RELEASE'}, None),
+        ("SWITCH_TO_ORBIT", {"type": 'O', "value": 'PRESS'}, None),
+        ("PRECISION_ENABLE", {"type": 'LEFT_SHIFT', "value": 'PRESS', "any": True}, None),
+        ("PRECISION_DISABLE", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
+        ("PRECISION_ENABLE", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
+        ("PRECISION_DISABLE", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
     ])
 
     return keymap
