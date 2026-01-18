@@ -5,6 +5,7 @@
 #include <queue>
 
 #include "BLI_array_utils.hh"
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
 
