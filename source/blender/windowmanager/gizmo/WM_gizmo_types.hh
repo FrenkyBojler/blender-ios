@@ -439,6 +439,8 @@ struct wmGizmoGroupType {
   wmGizmoGroupFnRefresh refresh;
   /** Refresh data for drawing, called before each redraw. */
   wmGizmoGroupFnDrawPrepare draw_prepare;
+  /** Optionally draw the gizmo group before the contained gizmos are drawn. */
+  wmGizmoGroupFnDraw draw;
   /** Initialize data for before invoke. */
   wmGizmoGroupFnInvokePrepare invoke_prepare;
 

@@ -16,6 +16,7 @@
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_c.hh"
 #include "UI_resources.hh"
 
 #include "MEM_guardedalloc.h"
@@ -177,28 +178,11 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
     gz->flag |= WM_GIZMO_MOVE_CURSOR | WM_GIZMO_DRAW_MODAL;
 
     if (i == GZ_INDEX_ROTATE) {
-      gz->color[3] = 0.0f;
-      copy_v3_fl(gz->color_hi, 0.5f);
-      gz->color_hi[3] = 0.5f;
+      copy_v4_fl4(gz->color_hi, 0.0f, 0.0f, 0.0f, 0.2f);
     }
     else {
-      uchar icon_color[3];
-      ui::theme::get_color_3ubv(TH_TEXT, icon_color);
-      int color_tint, color_tint_hi;
-      if (icon_color[0] > 128) {
-        color_tint = -40;
-        color_tint_hi = 60;
-        gz->color[3] = 0.5f;
-        gz->color_hi[3] = 0.5f;
-      }
-      else {
-        color_tint = 60;
-        color_tint_hi = 60;
-        gz->color[3] = 0.5f;
-        gz->color_hi[3] = 0.75f;
-      }
-      ui::theme::get_color_shade_3fv(TH_HEADER, color_tint, gz->color);
-      ui::theme::get_color_shade_3fv(TH_HEADER, color_tint_hi, gz->color_hi);
+      copy_v4_fl4(gz->color_hi, 0.0f, 0.0f, 0.0f, 0.0f);
+      copy_v4_fl4(gz->color, 0.0f, 0.0f, 0.0f, 0.0f);
     }
 
     /* may be overwritten later */
@@ -320,7 +304,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
                                        bke::ARegionQuadviewIndex::TopRight));
   const float icon_offset = UI_SCALE_FAC *
                             (GIZMO_OFFSET + (show_rotate_gizmo ? GIZMO_SIZE / 2.0f : 0.0f));
-  const float icon_offset_mini = (GIZMO_MINI_SIZE + GIZMO_MINI_OFFSET) * UI_SCALE_FAC;
+  const float icon_offset_mini = GIZMO_MINI_SIZE * UI_SCALE_FAC;
   const float co_rotate[2] = {
       rect_visible->xmax - icon_offset,
       rect_visible->ymax - icon_offset,
@@ -399,6 +383,60 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
   }
 }
 
+static void WIDGETGROUP_navigate_draw(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  if (!(U.uiflag & USER_SHOW_GIZMO_NAVIGATE)) {
+    return;
+  }
+
+  NavigateWidgetGroup *navgroup = static_cast<NavigateWidgetGroup *>(gzgroup->customdata);
+  ARegion *region = CTX_wm_region(C);
+  const RegionView3D *rv3d = static_cast<const RegionView3D *>(region->regiondata);
+  const View3D *v3d = CTX_wm_view3d(C);
+
+  const bool show_rotate_gizmo =
+      (ELEM(U.mini_axis_type, USER_MINI_AXIS_TYPE_GIZMO, USER_MINI_AXIS_TYPE_MINIMAL) &&
+                                  (region->alignment != RGN_ALIGN_QSPLIT ||
+                                   region->runtime->quadview_index ==
+                                       bke::ARegionQuadviewIndex::TopRight));
+
+  int count = 0;
+  for (uint i = 0; i < ARRAY_SIZE(navgroup->gz_array); i++) {
+    wmGizmo *gz = navgroup->gz_array[i];
+    if (!(gz->flag & WM_GIZMO_HIDDEN)) {
+      count++;
+    }
+  }
+
+  if (show_rotate_gizmo && U.mini_axis_type == USER_MINI_AXIS_TYPE_GIZMO) {
+    count -= 1; /* don't count rotate gizmo */
+  }
+
+  float top = 7.0f * UI_SCALE_FAC;
+  if (show_rotate_gizmo) {
+    switch (eUserpref_MiniAxisType(U.mini_axis_type)) {
+      case USER_MINI_AXIS_TYPE_GIZMO:
+        top = (2.1f * UI_SCALE_FAC * (GIZMO_OFFSET + GIZMO_SIZE / 2.0f)) - (14.0f * UI_SCALE_FAC);
+        break;
+      case USER_MINI_AXIS_TYPE_MINIMAL:
+        top = (UI_UNIT_X * 1.8) + (U.rvisize * U.pixelsize * 2.0f);
+        break;
+    }
+  }
+
+  float left = navgroup->state.rect_visible.xmax - (35.0f * UI_SCALE_FAC);
+  float width = GIZMO_MINI_SIZE * UI_SCALE_FAC;
+  float height = count * width;
+
+  rctf rect = { left, left + width,
+               navgroup->state.rect_visible.ymax - height - top,
+               navgroup->state.rect_visible.ymax - top};
+  float col[4] = {0.0f, 0.0f, 0.0f, 0.3f};
+
+  ui::draw_roundbox_corner_set(ui::CNR_ALL);
+  ui::draw_roundbox_4fv_ex(&rect, col, nullptr, 1.0f, col, U.pixelsize, width / 2.0f);
+}
+
 void VIEW3D_GGT_navigate(wmGizmoGroupType *gzgt)
 {
   gzgt->name = "View3D Navigate";
@@ -410,6 +448,7 @@ void VIEW3D_GGT_navigate(wmGizmoGroupType *gzgt)
   gzgt->poll = WIDGETGROUP_navigate_poll;
   gzgt->setup = WIDGETGROUP_navigate_setup;
   gzgt->draw_prepare = WIDGETGROUP_navigate_draw_prepare;
+  gzgt->draw = WIDGETGROUP_navigate_draw;
 }
 
 /** \} */
