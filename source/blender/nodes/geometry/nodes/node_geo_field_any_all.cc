@@ -73,15 +73,10 @@ class AnyAllInput final : public bke::GeometryFieldInput {
     evaluator.add(group_index_);
     evaluator.evaluate();
 
-    const GVArray g_values = evaluator.get_evaluated(0);
+    const VArray<bool> values = evaluator.get_evaluated<bool>(0);
     const VArray<int> group_indices = evaluator.get_evaluated<int>(1);
 
     GVArray g_outputs;
-
-    bke::attribute_math::convert_to_static_type(g_values.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      if constexpr (std::is_same_v<T, bool>) {
-        const VArray<bool> values = g_values.typed<bool>();
 
         if (operation_ == Operation::Any) {
           if (group_indices.is_single()) {
@@ -137,8 +132,6 @@ class AnyAllInput final : public bke::GeometryFieldInput {
             g_outputs = VArray<bool>::from_container(std::move(outputs));
           }
         }
-      }
-    });
 
     return g_outputs;
   }
