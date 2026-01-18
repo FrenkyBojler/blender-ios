@@ -2548,8 +2548,11 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
       }
       case TGT_MODAL_SWITCH_TO_ORBIT: {
         object_transform_axis_target_free_data(C, op);
-        WM_operator_name_call(
-            C, "OBJECT_OT_orbit_around_target", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+        WM_operator_name_call(C,
+                              "OBJECT_OT_orbit_around_target",
+                              wm::OpCallContext::InvokeDefault,
+                              nullptr,
+                              nullptr);
         return OPERATOR_FINISHED;
       }
       case TGT_MODAL_PRECISION_ENABLE: {
@@ -2956,12 +2959,12 @@ enum eOrbitAxisLock {
 enum eObjectOrbitAroundTargetModal {
   ORB_MODAL_CONFIRM = 1,
   ORB_MODAL_CANCEL,
-  ORB_MODAL_SWITCH_TO_TARGET, /* T key - switch to target modal. */
-  ORB_MODAL_AZIMUTH_LOCK,     /* H key - horizontal lock. */
-  ORB_MODAL_ELEVATION_LOCK,   /* V key - vertical lock. */
-  ORB_MODAL_DISTANCE_LOCK,    /* Z key - distance lock. */
-  ORB_MODAL_INVERT,           /* I key - 180° rotation around local Y. */
-  ORB_MODAL_SYMMETRY, /* S key - symmetry around intersection point. */
+  ORB_MODAL_SWITCH_TO_TARGET,  /* T key - switch to target modal. */
+  ORB_MODAL_AZIMUTH_LOCK,      /* H key - horizontal lock. */
+  ORB_MODAL_ELEVATION_LOCK,    /* V key - vertical lock. */
+  ORB_MODAL_DISTANCE_LOCK,     /* Z key - distance lock. */
+  ORB_MODAL_INVERT,            /* I key - 180° rotation around local Y. */
+  ORB_MODAL_SYMMETRY,          /* S key - symmetry around intersection point. */
   ORB_MODAL_PRECISION_ENABLE,  /* Left Shift - enable precision mode. */
   ORB_MODAL_PRECISION_DISABLE, /* Left Shift release - disable precision mode. */
 };
@@ -3002,7 +3005,7 @@ struct ObjectOrbitAroundTargetData {
 };
 
 static void object_orbit_around_target_set_cursor(bContext *C,
-                                                 const ObjectOrbitAroundTargetData *lead)
+                                                  const ObjectOrbitAroundTargetData *lead)
 {
   wmWindow *win = CTX_wm_window(C);
 
@@ -3024,14 +3027,13 @@ static void object_orbit_around_target_set_cursor(bContext *C,
 }
 
 static void object_orbit_around_target_update_status(bContext *C,
-                                                    wmOperator *op,
-                                                    const ObjectOrbitAroundTargetData *lead)
+                                                     wmOperator *op,
+                                                     const ObjectOrbitAroundTargetData *lead)
 {
   WorkspaceStatus status(C);
   status.opmodal(IFACE_("Cancel"), op->type, ORB_MODAL_CANCEL);
   status.opmodal(IFACE_("Confirm"), op->type, ORB_MODAL_CONFIRM);
-  status.opmodal(
-      IFACE_("Target Mode"), op->type, ORB_MODAL_SWITCH_TO_TARGET);
+  status.opmodal(IFACE_("Target Mode"), op->type, ORB_MODAL_SWITCH_TO_TARGET);
   status.opmodal(IFACE_("Horizontal Lock"),
                  op->type,
                  ORB_MODAL_AZIMUTH_LOCK,
@@ -3053,13 +3055,10 @@ static void object_orbit_around_target_update_status(bContext *C,
       break;
     }
   }
-  status.opmodal(
-      IFACE_("Symmetry"), op->type, ORB_MODAL_SYMMETRY, any_inverted);
+  status.opmodal(IFACE_("Symmetry"), op->type, ORB_MODAL_SYMMETRY, any_inverted);
   status.opmodal(IFACE_("Invert Direction"), op->type, ORB_MODAL_INVERT);
-  status.opmodal(IFACE_("Precision Mode"),
-                 op->type,
-                 ORB_MODAL_PRECISION_ENABLE,
-                 lead->precision_mode);
+  status.opmodal(
+      IFACE_("Precision Mode"), op->type, ORB_MODAL_PRECISION_ENABLE, lead->precision_mode);
 }
 
 static void object_orbit_around_target_init_data(bContext *C, wmOperator *op, const wmEvent *event)
@@ -3209,26 +3208,14 @@ void object_orbit_around_target_modal_keymap(wmKeyConfig *keyconf)
   static const EnumPropertyItem modal_items[] = {
       {ORB_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
       {ORB_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
-      {ORB_MODAL_SWITCH_TO_TARGET,
-       "TARGET_MODE",
-       0,
-       "Switch to Target mode",
-       ""},
+      {ORB_MODAL_SWITCH_TO_TARGET, "TARGET_MODE", 0, "Switch to Target mode", ""},
       {ORB_MODAL_AZIMUTH_LOCK, "AZIMUTH_LOCK", 0, "Horizontal Lock", ""},
       {ORB_MODAL_ELEVATION_LOCK, "ELEVATION_LOCK", 0, "Vertical Lock", ""},
       {ORB_MODAL_DISTANCE_LOCK, "DISTANCE_LOCK", 0, "Distance Lock", ""},
       {ORB_MODAL_INVERT, "INVERT", 0, "Invert Direction", ""},
       {ORB_MODAL_SYMMETRY, "SYMMETRY", 0, "Symmetry", ""},
-      {ORB_MODAL_PRECISION_ENABLE,
-       "PRECISION_ENABLE",
-       0,
-       "Precision On",
-       ""},
-      {ORB_MODAL_PRECISION_DISABLE,
-       "PRECISION_DISABLE",
-       0,
-       "Precision Off",
-       ""},
+      {ORB_MODAL_PRECISION_ENABLE, "PRECISION_ENABLE", 0, "Precision On", ""},
+      {ORB_MODAL_PRECISION_DISABLE, "PRECISION_DISABLE", 0, "Precision Off", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -3345,8 +3332,8 @@ static void light_orbit_update_rotation(Object *light_ob,
 }
 
 static wmOperatorStatus object_orbit_around_target_invoke(bContext *C,
-                                                         wmOperator *op,
-                                                         const wmEvent *event)
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
 {
   object_orbit_around_target_init_data(C, op, event);
   ObjectOrbitAroundTargetData *ooatd = static_cast<ObjectOrbitAroundTargetData *>(op->customdata);
@@ -3398,8 +3385,8 @@ static void object_orbit_around_target_confirm(bContext *C, wmOperator *op)
 }
 
 static wmOperatorStatus object_orbit_around_target_modal(bContext *C,
-                                                        wmOperator *op,
-                                                        const wmEvent *event)
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
 {
   ObjectOrbitAroundTargetData *ooatd = static_cast<ObjectOrbitAroundTargetData *>(op->customdata);
 
