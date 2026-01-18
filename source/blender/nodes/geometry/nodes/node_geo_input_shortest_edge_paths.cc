@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Total Cost").field_source().reference_pass_all();
 }
 
-template<typename T> static void join_values(MutableSpan<Span<T>> src, Vector<T> &dst)
+template<typename T> static void join_values(const Span<Span<T>> src, Vector<T> &dst)
 {
   Array<int> offset_buffer(src.size() + 1);
   for (const int index : src.index_range()) {
@@ -69,7 +69,6 @@ static void shortest_paths(const Mesh &mesh,
 
     Vector<int> to_check(end_selection.size());
     end_selection.to_indices(to_check.as_mutable_span());
-
     threading::EnumerableThreadSpecific<Vector<int>> to_check_next;
 
     int topology_distance = -1;
