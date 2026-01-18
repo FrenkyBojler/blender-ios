@@ -4999,10 +4999,10 @@ static void GREASE_PENCIL_OT_set_corner_type(wmOperatorType *ot)
 // }
 
 /* -------------------------------------------------------------------- */
-/** \name Separate Shapes Operator
+/** \name Separate Fills Operator
  * \{ */
 
-static wmOperatorStatus grease_pencil_separate_shapes_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_separate_fills_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
@@ -5021,30 +5021,30 @@ static wmOperatorStatus grease_pencil_separate_shapes_exec(bContext *C, wmOperat
     }
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_for_write_span<int>("shape_id");
+    bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_for_write_span<int>("fill_id");
 
-    /* If the attribute does not exist then every shape is already separate. */
-    if (!shape_ids) {
+    /* If the attribute does not exist then every fill is already separate. */
+    if (!fill_ids) {
       return;
     }
 
     if (individual) {
-      /* Each selected stroke becomes a new shape. */
-      index_mask::masked_fill(shape_ids.span, 0, strokes);
+      /* Each selected stroke becomes a new fill. */
+      index_mask::masked_fill(fill_ids.span, 0, strokes);
     }
     else {
       /* Get the first id that does not already exist. */
-      int shape_id_to_set = *std::max_element(shape_ids.span.begin(), shape_ids.span.end()) + 1;
+      int fill_id_to_set = *std::max_element(fill_ids.span.begin(), fill_ids.span.end()) + 1;
 
-      if (shape_id_to_set == 0) {
-        shape_id_to_set++;
+      if (fill_id_to_set == 0) {
+        fill_id_to_set++;
       }
 
-      /* All selected strokes become a new shape. */
-      index_mask::masked_fill(shape_ids.span, shape_id_to_set, strokes);
+      /* All selected strokes become a new fill. */
+      index_mask::masked_fill(fill_ids.span, fill_id_to_set, strokes);
     }
 
-    shape_ids.finish();
+    fill_ids.finish();
     info.drawing.tag_topology_changed();
 
     changed = true;
@@ -5058,19 +5058,19 @@ static wmOperatorStatus grease_pencil_separate_shapes_exec(bContext *C, wmOperat
   return OPERATOR_FINISHED;
 }
 
-static void GREASE_PENCIL_OT_separate_shapes(wmOperatorType *ot)
+static void GREASE_PENCIL_OT_separate_fills(wmOperatorType *ot)
 {
-  ot->name = "Separate Shapes";
-  ot->idname = "GREASE_PENCIL_OT_separate_shapes";
-  ot->description = "Separate the selected strokes from current shapes";
+  ot->name = "Separate Fills";
+  ot->idname = "GREASE_PENCIL_OT_separate_fills";
+  ot->description = "Separate the selected strokes from current fill";
 
-  ot->exec = grease_pencil_separate_shapes_exec;
+  ot->exec = grease_pencil_separate_fills_exec;
   ot->poll = editable_grease_pencil_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_boolean(
-      ot->srna, "individual", true, "Individual", "Create a separate shape for each stroke");
+      ot->srna, "individual", true, "Individual", "Create a separate fill for each stroke");
 }
 
 /** \} */
@@ -5120,7 +5120,7 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_convert_curve_type);
   WM_operatortype_append(GREASE_PENCIL_OT_set_corner_type);
   // WM_operatortype_append(GREASE_PENCIL_OT_set_stroke_mode);
-  WM_operatortype_append(GREASE_PENCIL_OT_separate_shapes);
+  WM_operatortype_append(GREASE_PENCIL_OT_separate_fills);
 }
 
 /* -------------------------------------------------------------------- */
