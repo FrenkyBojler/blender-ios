@@ -30,7 +30,6 @@
 
 #include "gpu_py_api.hh" /* Own include. */
 
-
 namespace blender {
 
 /* -------------------------------------------------------------------- */
@@ -48,7 +47,7 @@ PyDoc_STRVAR(
 static PyObject *pygpu_init(PyObject * /*self*/)
 {
   if (G.background && !DRW_gpu_context_is_enabled()) {
-      WM_init_gpu();
+    WM_init_gpu();
   }
 
   Py_RETURN_NONE;
