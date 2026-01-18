@@ -155,7 +155,7 @@ static bool get_smoothed_surface_normal(const ViewContext *vc,
  */
 static void autokeyframe_object_rotation(bContext *C, Scene *scene, Object *ob)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Object, &ob->id);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_Object, &ob->id);
   const char *rotation_property = "rotation_euler";
   switch (ob->rotmode) {
     case ROT_MODE_QUAT:
@@ -2389,7 +2389,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     snap_params.grid_size = 0.0f;
 
     blender::ed::transform::SnapObjectContext *sctx =
-        blender::ed::transform::snap_object_context_create(xfd->vc.scene, 0);
+        blender::ed::transform::snap_object_context_create();
 
     blender::float3 hit_co, hit_no;
     float ray_depth = BVH_RAYCAST_DIST_MAX; /* Cast ray far into the scene */
