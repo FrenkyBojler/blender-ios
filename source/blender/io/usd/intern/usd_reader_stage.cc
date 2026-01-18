@@ -45,9 +45,10 @@
 #include <pxr/usd/usdShade/material.h>
 
 #include "BLI_map.hh"
+#include "BLI_math_axis_angle_types.hh"
 #include "BLI_math_base.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_sort.hh"
 #include "BLI_string.h"
 
@@ -128,12 +129,8 @@ static void convert_to_z_up(pxr::UsdStageRefPtr stage, ImportSettings &settings)
   settings.do_convert_mat = true;
 
   /* Rotate 90 degrees about the X-axis. */
-  float rmat[3][3];
-  float axis[3] = {1.0f, 0.0f, 0.0f};
-  axis_angle_normalized_to_mat3(rmat, axis, M_PI_2);
-
-  unit_m4(settings.conversion_mat);
-  copy_m4_m3(settings.conversion_mat, rmat);
+  const math::AxisAngle axis_angle_rotation(math::AxisSigned::X_POS, M_PI_2);
+  settings.conversion_mat = math::from_rotation<float4x4>(axis_angle_rotation);
 }
 
 /**
