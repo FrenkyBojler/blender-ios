@@ -3783,7 +3783,7 @@ static void rna_SpaceCaptionsEditor_current_strips_begin(CollectionPropertyItera
   
    // TODO: For some reason, handling cache update here makes the fancy UI Animations disapper.
   if (scaptions->cache_dirty) {
-    update_current_strips(scaptions->seq_scene, scaptions);
+    blender::update_current_strips(scaptions->seq_scene, scaptions);
   }
   
   rna_iterator_listbase_begin(iter, ptr, &scaptions->current_strips, nullptr);
@@ -3813,7 +3813,8 @@ static PointerRNA rna_SpaceCaptionsEditor_current_strips_get(CollectionPropertyI
 
 static void rna_SpaceCaptions_current_strips_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr)
 {
-  blender::seq::relations_invalidate_cache(scene, (Strip *)ptr->data);
+  /* Should use relations_invalidate_cache to make the system redraw the cache, but first we need to figure out how to get the right strip... */
+  ///blender::seq::relations_invalidate_cache(scene, (Strip *)ptr->data);
 }
 
 #else

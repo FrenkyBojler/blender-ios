@@ -1122,8 +1122,8 @@ typedef enum eSpace_Type {
   SPACE_SPREADSHEET = 23,
   SPACE_CAPTIONS = 24
 
-#define SPACE_TYPE_NUM (SPACE_CAPTIONS + 1)
-} eSpace_Type;
+#define SPACE_TYPE_NUM (SPACE_CAPTIONS   + 1)
+};
 
 /* use for function args */
 #define SPACE_TYPE_ANY -1

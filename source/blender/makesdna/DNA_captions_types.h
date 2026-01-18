@@ -10,11 +10,16 @@
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
-#include "DNA_sequence_types.h"  // For Strip
 
-void update_current_strips(struct Scene *scene, struct SpaceCaptions *scaptions);
-
-typedef struct CaptionsStripRef {
-  struct CaptionsStripRef *next, *prev;
-  Strip *strip;
-} CaptionsStripRef;
+namespace blender {
+    
+  struct Strip;
+  
+  void update_current_strips(struct Scene *scene, struct SpaceCaptions *scaptions);
+  
+  typedef struct CaptionsStripRef {
+    struct CaptionsStripRef *next, *prev;
+    Strip *strip;
+  } CaptionsStripRef;
+  
+}  // namespace blender

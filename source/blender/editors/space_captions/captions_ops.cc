@@ -12,10 +12,14 @@
 #include "WM_api.hh"
 #include "captions_intern.hh"
 
-/* ************************** registration **********************************/
 
-void captions_operatortypes()
-{
-    /* `captions_edit.cc` */
-      WM_operatortype_append(CAPTIONS_OT_caption_add);
-}
+namespace blender {
+
+/* ************************** registration **********************************/
+  void captions_operatortypes()
+  {
+      /* `captions_edit.cc` */
+        WM_operatortype_append(CAPTIONS_OT_caption_add);
+  }
+  
+} // namespace blender

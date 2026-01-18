@@ -6,7 +6,6 @@
  * \ingroup spcaptions
  */
 
-#include "DNA_defaults.h"
 #include "DNA_space_types.h"
 #include "DNA_object_types.h"
 #include "DNA_sequence_types.h"
@@ -16,9 +15,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listBase.h"
 #include "BLI_string_utf8.h"
 #include "BLI_threads.h"
+#include "BLI_listbase_iterator.hh"
 
 #include "BKE_screen.hh"
 
@@ -39,6 +39,8 @@
 #include "ED_screen.hh"
 #include "BLO_read_write.hh"
 
+namespace blender {
+
 static void update_active_channel(Scene *scene, SpaceCaptions *scaptions){
   Editing *ed = blender::seq::editing_get(scene);
   if (ed != nullptr) {
@@ -46,14 +48,14 @@ static void update_active_channel(Scene *scene, SpaceCaptions *scaptions){
   }
 }
 
-static ListBase build_strip_refs(ListBase *strips, int channel_index)
+static ListBaseT<struct CaptionsStripRef> build_strip_refs(ListBaseT<struct Strip> *strips, SpaceCaptions *scaptions)
 {
-  ListBase result = {nullptr, nullptr};
-  LISTBASE_FOREACH (Strip *, strip, strips) {
-    if (strip->channel == channel_index) {
-      if (strip->type == STRIP_TYPE_TEXT) {
+  ListBaseT<CaptionsStripRef>  result = {nullptr, nullptr};
+  for (Strip &strip : *strips) {
+    if (strip.channel == scaptions->active_channel->index) {
+      if (strip.type == STRIP_TYPE_TEXT) {
         CaptionsStripRef *ref = (CaptionsStripRef *)MEM_callocN(sizeof(CaptionsStripRef), "strip ref");
-        ref->strip = strip;
+        ref->strip = &strip;
         BLI_addtail(&result, ref);
       }
     }
@@ -65,9 +67,10 @@ static ListBase build_strip_refs(ListBase *strips, int channel_index)
 static void free_strip_refs(SpaceCaptions *scaptions)
 {
   ListBase *refs = &scaptions->current_strips;
-  LISTBASE_FOREACH_MUTABLE (CaptionsStripRef *, ref, refs) {
-    MEM_freeN(ref);
+  for (CaptionsStripRef &ref : scaptions->current_strips.items_mutable()) {
+    MEM_freeN(&ref);
   }
+  
   BLI_listbase_clear(refs);
 }
 
@@ -107,11 +110,11 @@ void update_current_strips(Scene *scene, SpaceCaptions *scaptions)
   }
    
   if (scaptions->active_channel != nullptr) {
-    // Free old references
-    free_strip_refs(scaptions);
     
-    // Build new reference list
-    scaptions->current_strips = build_strip_refs(&ed->seqbase, scaptions->active_channel->index);
+    /* Free old references */
+    free_strip_refs(scaptions);
+
+    scaptions->current_strips = build_strip_refs(&ed->seqbase, scaptions);
     
     scaptions->seq_scene = scene;
     scaptions->cache_dirty = false;
@@ -122,7 +125,7 @@ void update_current_strips(Scene *scene, SpaceCaptions *scaptions)
 
 static SpaceLink *captions_create(const ScrArea * /*area*/, const Scene * scene)
 {
-    SpaceCaptions *scaptions = MEM_callocN<SpaceCaptions>("initcaptions");
+    SpaceCaptions *scaptions = MEM_new_for_free<SpaceCaptions>("initcaptions");
    // scaptions->runtime = MEM_new<SpaceCaptions_Runtime>(__func__);
     scaptions->spacetype = SPACE_CAPTIONS;
     ARegion *region;
@@ -234,7 +237,7 @@ static void captions_main_region_listener(const wmRegionListenerParams *params)
     case NC_SCENE:
       switch (wmn->data) {
         case ND_SEQUENCER:
-          printf("action: %d data: %d category: %d\n", wmn->action, wmn->data, wmn->category);
+          //printf("action: %d data: %d category: %d\n", wmn->action, wmn->data, wmn->category);
           switch (wmn->action) {
             case NA_ADDED:
             case NA_REMOVED:
@@ -322,7 +325,7 @@ static void captions_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLi
 
 static void captions_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceCaptions, sl);
+  writer->write_struct_cast<SpaceSeq>(sl);
 }
 
 /**************************** spacetype *****************************/
@@ -372,3 +375,6 @@ void ED_spacetype_captions()
 
   BKE_spacetype_register(std::move(st));
 }
+
+}  // namespace blender
+

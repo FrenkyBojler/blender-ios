@@ -13,7 +13,6 @@
 #include "DNA_color_types.h" /* for Histogram */
 #include "DNA_defs.h"
 #include "DNA_scene_types.h" 
-//#include "DNA_captions_types.h" /* CaptionsStripRef */
 #include "DNA_image_types.h" /* ImageUser */
 #include "DNA_listBase.h"
 #include "DNA_movieclip_types.h" /* MovieClipUser */
@@ -835,6 +834,32 @@ typedef struct SpaceCaptions {
   /** Keep last. */
   SpaceCaptions_Runtime *runtime;
 } SpaceCaptions;
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Captions Editor
+ * \{ */
+
+/** Captions Editor. */
+struct SpaceCaptions {
+  SpaceLink *next = nullptr, *prev = nullptr;
+  /** Storage of regions for inactive spaces. */
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
+  char spacetype = 0;
+  char link_flag = 0;
+  char _pad0[6] = {};
+  /* End 'SpaceLink' header. */
+
+  ListBaseT<CaptionsStripRef> current_strips = {nullptr, nullptr};
+  Scene *seq_scene = nullptr;
+  SeqTimelineChannel *active_channel = nullptr;
+  char cache_dirty = 0;
+  char _pad1[7] = {};
+
+  /** Keep last. */
+  ed::text::SpaceText_Runtime *runtime = nullptr;
+};
 
 /** \} */
 

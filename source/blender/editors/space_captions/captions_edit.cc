@@ -1,11 +1,12 @@
 #include "BLI_utildefines.h"
-#include "BLI_listbase.h"
 #include "BLI_vector.hh"        
 #include "BLI_vector_set.hh"    
 #include "BLI_span.hh"          
 #include "BLI_set.hh"           
-#include "BLI_map.hh"           
+#include "BLI_map.hh"
+#include "BLI_listbase_iterator.hh"        
 
+#include "DNA_listBase.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
@@ -30,117 +31,141 @@
 #include "SEQ_transform.hh"
 #include "SEQ_add.hh"
 
-int get_extend_right(int start_frame, int channel, ListBase *refs, int max_extend) {
-    int next_strip_start = start_frame + max_extend;
-    
-    LISTBASE_FOREACH (CaptionsStripRef *, ref, refs) {
-        Strip *strip = ref->strip;
+
+namespace blender {
+
+    static int get_extend_right(int start_frame, int channel, ListBaseT<struct CaptionsStripRef> *refs, int max_extend) {
         
-        /* Only check strips on the same channel */
-        if (strip->channel != channel) {
-            continue;
+        int next_strip_start = start_frame + max_extend;
+        for (CaptionsStripRef &ref : *refs) {
+            Strip *strip = ref.strip;
+
+            /* Only check strips on the same channel */
+            if (strip->channel != channel) {
+                continue;
+            }
+
+            float other_start = strip->left_handle();
+            if (other_start >= start_frame && other_start < next_strip_start) {
+                next_strip_start = other_start;
+            }
         }
 
-        float other_start = blender::seq::time_left_handle_frame_get(nullptr, strip);
-        if (other_start >= start_frame && other_start < next_strip_start) {
-            next_strip_start = other_start;
+        return next_strip_start - start_frame;
+    }
+
+    /* -------------------------------------------------------------------- */
+    /** \name Add Caption Operator
+     * \{ */
+
+    static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
+    {
+        seq::LoadData load_data;
+        memset(&load_data, 0, sizeof(load_data));
+        Scene *scene = CTX_data_sequencer_scene(C);
+        SpaceCaptions *scaptions = CTX_wm_space_captions(C);
+        int start_frame = scene->r.cfra;
+        int channel = scaptions->active_channel->index;
+
+        /* Maybe add RNA option for that */
+        load_data.start_frame = start_frame;
+        load_data.channel = channel;
+        load_data.effect.type = STRIP_TYPE_TEXT;
+
+        load_data.effect.length = 1; /* Will be changed after calculating space */
+
+        Editing *ed = seq::editing_ensure(scene);
+        Strip *strip = seq::add_effect_strip(scene, &ed->seqbase, &load_data);
+
+        int length = 100; // TODO: change to DEFAULT_IMG_STRIP_LENGTH 
+        if (RNA_struct_find_property(op->ptr, "length")) {
+            length = RNA_int_get(op->ptr, "length");
         }
-    }
-        
-    return next_strip_start - start_frame;
-}
-/* -------------------------------------------------------------------- */
-/** \name Add Caption Operator
- * \{ */
 
-static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
-{
-    blender::seq::LoadData load_data;
-    memset(&load_data, 0, sizeof(load_data));
-    Scene *scene = CTX_data_scene(C);
-    SpaceCaptions *scaptions = CTX_wm_space_captions(C);
-    int frame = scene->r.cfra;
-    int channel = scaptions->active_channel->index;
+        /* Get extend */
+        int next_strip_start = start_frame + length;
+        for (CaptionsStripRef &ref : scaptions->current_strips) {
+            Strip *strip = ref.strip;
 
-    /* Maybe add RNA option for that */
-    load_data.start_frame = frame;
-    load_data.channel = channel;
-    load_data.effect.type = STRIP_TYPE_TEXT;
+            /* Only check strips on the same channel */
+            if (strip->channel != channel) {
+                continue;
+            }
 
-    load_data.effect.length = 1; /* Will be changed after calculating space */
+            float other_start = strip->left_handle();
+            if (other_start >= start_frame && other_start < next_strip_start) {
+                next_strip_start = other_start;
+            }
+        }
 
-    Editing *ed = blender::seq::editing_ensure(scene);
-    Strip *strip = blender::seq::add_effect_strip(scene, &ed->seqbase, &load_data);
+        length = next_strip_start - start_frame;
 
-    int length = 100; // TODO: change to DEFAULT_IMG_STRIP_LENGTH 
-    if (RNA_struct_find_property(op->ptr, "length")) {
-        length = RNA_int_get(op->ptr, "length");
-    }
-    length = get_extend_right(frame, channel, &scaptions->current_strips, length);
 
-    printf("length: %d\n", length);
-    load_data.effect.length = length;
-    strip->len = length;
 
-    printf("strip: %d\n", strip->len);
-    DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+        length = get_extend_right(start_frame, channel, &scaptions->current_strips, length);
 
-    scaptions->cache_dirty = true;
-    tag_redraw(CTX_wm_region(C), scene, scaptions);
-    
-    WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
+        load_data.effect.length = length;
+        strip->len = length;
 
-    return OPERATOR_FINISHED;
-}
+        DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
 
-static bool captions_add_poll(bContext *C)
-{
-    const Scene *scene = CTX_data_scene(C);
-    const int frame = scene->r.cfra;
-    SpaceCaptions *scaptions = CTX_wm_space_captions(C);
-    if(scaptions == nullptr) {
-        return false;
-    }
-    ListBase *refs = &scaptions->current_strips;
-    if(scaptions -> cache_dirty) {
-        update_current_strips(scaptions->seq_scene, scaptions);
+        scaptions->cache_dirty = true;
+        tag_redraw(CTX_wm_region(C), scene, scaptions);
+
+        WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
+
+        return OPERATOR_FINISHED;
     }
 
-    LISTBASE_FOREACH (CaptionsStripRef *, ref, refs) {
-        Strip *strip = ref->strip;
-        if(blender::seq::time_strip_intersects_frame(scene, strip, frame)){
+    static bool captions_add_poll(bContext *C)
+    {
+        const Scene *scene = CTX_data_sequencer_scene(C);
+        const int frame = scene->r.cfra;
+        SpaceCaptions *scaptions = CTX_wm_space_captions(C);
+        if(scaptions == nullptr) {
             return false;
         }
+        if(scaptions -> cache_dirty) {
+            update_current_strips(scaptions->seq_scene, scaptions);
+        }
+
+        for (CaptionsStripRef &ref : scaptions->current_strips) {
+            Strip *strip = ref.strip;
+            if (strip->intersects_frame(scene, frame)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
-    return true;
-}
+    void CAPTIONS_OT_caption_add(wmOperatorType *ot)
+    {
+        /* Identifiers. */
+        ot->name = "Add Caption";
+        ot->idname = "CAPTIONS_OT_caption_add";
+        ot->description = "Add a new caption at the current frame";
 
-void CAPTIONS_OT_caption_add(wmOperatorType *ot)
-{
-    /* Identifiers. */
-    ot->name = "Add Caption";
-    ot->idname = "CAPTIONS_OT_caption_add";
-    ot->description = "Add a new caption at the current frame";
+        /* API callbacks. */
+        //  ot->invoke = sequencer_snap_invoke;
+        ot->exec = captions_add_exec;
+        ot->poll = captions_add_poll; // TODO: Make it check for intersection with strip and for active space, I guess.
 
-    /* API callbacks. */
-    //  ot->invoke = sequencer_snap_invoke;
-    ot->exec = captions_add_exec;
-    ot->poll = captions_add_poll; // TODO: Make it check for intersection with strip and for active space, I guess.
+        /* Flags. */
+        ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-    /* Flags. */
-    ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+        /* Properties. */
+        PropertyRNA *prop = RNA_def_int(ot->srna,
+                         "length",
+                         100,  // TODO: change to DEFAULT_IMG_STRIP_LENGTH
+                         MINAFRAME,
+                         MAXFRAME,
+                         "Length",
+                         "Length of the caption strip in frames",
+                         1,
+                         500);
+        RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-    /* Properties. */
-    PropertyRNA *prop = RNA_def_int(ot->srna,
-                     "length",
-                     100,  // TODO: change to DEFAULT_IMG_STRIP_LENGTH
-                     MINAFRAME,
-                     MAXFRAME,
-                     "Length",
-                     "Length of the caption strip in frames",
-                     1,
-                     500);
-    RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+    }
 
-}
+} // namespace blender

@@ -11,28 +11,26 @@
 #include "DNA_vec_types.h"
 #include "DNA_captions_types.h" 
 
-/* Internal exports only. */
+namespace blender {
 
-struct ARegion;
-struct ScrArea;
-struct SpaceCaptions;
-struct bContext;
-struct wmOperatorType;
-struct scene;
+    struct ARegion;
+    struct ScrArea;
+    struct SpaceCaptions;
+    struct bContext;
+    struct wmOperatorType;
+    struct Scene;
 
-/* `captions_edit.cc` */
+    /* `captions_edit.cc` */
 
-void CAPTIONS_OT_caption_add(wmOperatorType *ot);
+    void CAPTIONS_OT_caption_add(wmOperatorType *ot);
 
-/* `captions_ops.cc` */
+    /* `captions_ops.cc` */
 
-void captions_operatortypes();
+    void captions_operatortypes();
 
-/* `space_captions.cc` */
-void tag_redraw(ARegion *region, Scene *scene, SpaceCaptions *scaptions);
+    /* `space_captions.cc` */
+    void tag_redraw(ARegion *region, Scene *scene, SpaceCaptions *scaptions);
 
-namespace blender::ed::captions {
-struct SpaceText_Runtime {
-
-};
-}  // namespace blender::ed::captions
+    struct SpaceCaptions_Runtime {
+    };
+} // namespace blender
