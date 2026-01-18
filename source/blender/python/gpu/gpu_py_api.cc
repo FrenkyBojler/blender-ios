@@ -25,8 +25,8 @@
 #include "gpu_py_types.hh"
 
 #include "BKE_global.hh"
-#include "DRW_engine.hh"
-#include "WM_api.hh"
+#include "GPU_context.hh"
+#include "GPU_init_exit.hh"
 
 #include "gpu_py_api.hh" /* Own include. */
 
@@ -42,12 +42,24 @@ PyDoc_STRVAR(
     ".. function:: init()\n"
     "\n"
     "   Initializes the GPU module for background use.\n"
-    "   When using the OpenGL backend, a display server is required.\n");
+    "   If the initialization fails, a SystemError will be raised.\n");
 
 static PyObject *pygpu_init(PyObject * /*self*/)
 {
-  if (G.background && !DRW_gpu_context_is_enabled()) {
-    WM_init_gpu();
+  if (!G.background || GPU_is_init()) {
+    Py_RETURN_NONE;  // Nothing to do
+  }
+
+  if (!GPU_backend_supported()) {
+    PyErr_SetString(PyExc_SystemError, "Failed to initialize GPU. GPU backend not supported");
+    return nullptr;
+  }
+
+  GPU_init();
+
+  if (!GPU_is_init()) {
+    PyErr_SetString(PyExc_SystemError, "Failed to initialize GPU. Unexpected Error");
+    return nullptr;
   }
 
   Py_RETURN_NONE;
