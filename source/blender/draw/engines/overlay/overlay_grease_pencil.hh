@@ -349,17 +349,22 @@ class GreasePencil : Overlay {
       const VArray<bool> cyclic = *attributes.lookup_or_default<bool>(
           "cyclic", bke::AttrDomain::Curve, false);
 
+      const VArray<bool> hide_stroke = *attributes.lookup_or_default<bool>(
+          "hide_stroke", bke::AttrDomain::Curve, false);
+      const VArray<int> fill_id = *attributes.lookup_or_default<int>(
+          "fill_id", bke::AttrDomain::Curve, 0);
+
       IndexMaskMemory memory;
-      const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
+      const IndexMask visible_fills = ed::greasepencil::retrieve_visible_fills(
           *ob, info.drawing, memory);
-      const std::optional<GroupedSpan<int>> shapes = info.drawing.shapes();
+      const std::optional<GroupedSpan<int>> fills = info.drawing.fills();
 
       const bool hide_onion = info.onion_id != 0;
 
-      visible_shapes.foreach_index([&](const int shape_index) {
-        int first_curve = shape_index;
-        if (shapes) {
-          first_curve = (*shapes)[shape_index].first();
+      visible_fills.foreach_index([&](const int fill_index) {
+        int first_curve = fill_index;
+        if (fills) {
+          first_curve = (*fills)[fill_index].first();
         }
 
         const int material_index = stroke_materials[first_curve];
@@ -367,19 +372,19 @@ class GreasePencil : Overlay {
 
         const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
 
-        const int num_stroke_triangles = triangles[shape_index].size();
+        const int num_stroke_triangles = triangles[fill_index].size();
 
         int num_stroke_vertices = 0;
 
-        if (!shapes) {
-          const int curve_i = shape_index;
+        if (!fills) {
+          const int curve_i = fill_index;
           const IndexRange points = points_by_curve[curve_i];
           num_stroke_vertices += (points.size() + int(cyclic[curve_i] && (points.size() >= 3)));
         }
         else {
-          const Span<int> shape = (*shapes)[shape_index];
-          for (const int pos : shape.index_range()) {
-            const int curve_i = shape[pos];
+          const Span<int> fill = (*fills)[fill_index];
+          for (const int pos : fill.index_range()) {
+            const int curve_i = fill[pos];
             const IndexRange points = points_by_curve[curve_i];
             num_stroke_vertices += (points.size() + int(cyclic[curve_i] && (points.size() >= 3)));
           }
@@ -393,9 +398,8 @@ class GreasePencil : Overlay {
 
         gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(scene, ob);
 
-        const bool show_stroke = (gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0;
-        const bool show_fill = (num_stroke_triangles != 0) &&
-                               (gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
+        const bool show_stroke = !hide_stroke[first_curve];
+        const bool show_fill = (num_stroke_triangles != 0) && fill_id[first_curve] != 0;
 
         if (show_fill) {
           const int v_first = t_offset * 3;
