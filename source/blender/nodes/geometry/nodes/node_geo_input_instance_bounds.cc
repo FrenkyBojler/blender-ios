@@ -27,7 +27,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
  public:
   InstanceBoundsField(bool use_radius, bool return_max)
-      : bke::InstancesFieldInput(CPPType::get<float3>(), return_max ? "Max" : "Min"),
+      : fn::FieldInput(CPPType::get<float3>(), return_max ? "Max" : "Min"),
         use_radius_(use_radius),
         return_max_(return_max)
   {

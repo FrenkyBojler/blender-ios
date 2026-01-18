@@ -58,7 +58,7 @@ class PathToEdgeSelectionFieldInput final : public bke::MeshFieldInput {
 
  public:
   PathToEdgeSelectionFieldInput(Field<bool> start_verts, Field<int> next_vertex)
-      : bke::MeshFieldInput(CPPType::get<bool>(), "Edge Selection"),
+      : fn::FieldInput(CPPType::get<bool>(), "Edge Selection"),
         start_vertices_(start_verts),
         next_vertex_(next_vertex)
   {

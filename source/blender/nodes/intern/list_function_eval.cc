@@ -10,27 +10,45 @@
 
 namespace blender::nodes {
 
-class ListFieldContext : public FieldContext {
- public:
-  ListFieldContext() = default;
+GVArray ListFieldContext::get_varray_for_input(const FieldInput &field_input,
+                                               const IndexMask &mask,
+                                               ResourceScope & /*scope*/) const
+{
+  const bke::IDAttributeFieldInput *id_field_input = dynamic_cast<const bke::IDAttributeFieldInput *>(&field_input);
+  const fn::IndexFieldInput *index_field_input = dynamic_cast<const fn::IndexFieldInput *>(&field_input);
 
-  GVArray get_varray_for_input(const FieldInput &field_input,
-                               const IndexMask &mask,
-                               ResourceScope & /*scope*/) const override
-  {
-    const bke::IDAttributeFieldInput *id_field_input =
-        dynamic_cast<const bke::IDAttributeFieldInput *>(&field_input);
-
-    const fn::IndexFieldInput *index_field_input = dynamic_cast<const fn::IndexFieldInput *>(
-        &field_input);
-
-    if (id_field_input == nullptr && index_field_input == nullptr) {
-      return {};
-    }
-
+  if (nullptr != id_field_input || nullptr != index_field_input) {
     return fn::IndexFieldInput::get_index_varray(mask);
   }
-};
+  
+  if (const auto *typed_input = dynamic_cast<const ListFieldInput *>(&field_input)) {
+    return typed_input->get_varray_for_context(*this, mask);
+  }
+  
+  return {};
+}
+
+GVArray ListFieldInput::get_varray_for_context(const FieldContext &context, const IndexMask &mask, ResourceScope & /*scope*/) const
+{
+  if (const auto *typed_context = dynamic_cast<const ListFieldContext *>(&context)) {
+    return this->get_varray_for_context(*typed_context, mask);
+  }
+  
+  return {};
+}
+
+GVArray ListOrGeometryFieldInput::get_varray_for_context(const fn::FieldContext &context,
+                                                         const IndexMask &mask,
+                                                         ResourceScope & /*scope*/) const
+{
+  if (const auto *typed_context = dynamic_cast<const bke::GeometryFieldContext *>(&context)) {
+    return dynamic_cast<const bke::GeometryFieldInput *>(this)->get_varray_for_context(*typed_context, mask);
+  }
+  if (const auto *typed_context = dynamic_cast<const ListFieldContext *>(&context)) {
+    return dynamic_cast<const ListFieldInput *>(this)->get_varray_for_context(*typed_context, mask);
+  }
+  return {};
+}
 
 ListPtr evaluate_field_to_list(GField field, const int64_t count)
 {

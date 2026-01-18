@@ -20,7 +20,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
  public:
   EdgeNeighborCountFieldInput()
-      : bke::MeshFieldInput(CPPType::get<int>(), "Edge Neighbor Count Field")
+      : fn::FieldInput(CPPType::get<int>(), "Edge Neighbor Count Field")
   {
     category_ = Category::Generated;
   }

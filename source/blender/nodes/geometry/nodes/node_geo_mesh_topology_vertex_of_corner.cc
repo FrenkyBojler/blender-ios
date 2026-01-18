@@ -21,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class CornerVertFieldInput final : public bke::MeshFieldInput {
  public:
-  CornerVertFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Vertex")
+  CornerVertFieldInput() : fn::FieldInput(CPPType::get<int>(), "Corner Vertex")
   {
     category_ = Category::Generated;
   }

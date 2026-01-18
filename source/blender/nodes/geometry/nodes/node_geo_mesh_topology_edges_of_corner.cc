@@ -26,7 +26,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
  public:
-  CornerNextEdgeFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Next Edge")
+  CornerNextEdgeFieldInput() : fn::FieldInput(CPPType::get<int>(), "Corner Next Edge")
   {
     category_ = Category::Generated;
   }
@@ -59,7 +59,7 @@ class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
 
 class CornerPreviousEdgeFieldInput final : public bke::MeshFieldInput {
  public:
-  CornerPreviousEdgeFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Previous Edge")
+  CornerPreviousEdgeFieldInput() : fn::FieldInput(CPPType::get<int>(), "Corner Previous Edge")
   {
     category_ = Category::Generated;
   }

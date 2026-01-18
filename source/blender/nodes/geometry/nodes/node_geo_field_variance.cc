@@ -129,7 +129,7 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
                      GField input,
                      Field<int> group_index,
                      Operation operation)
-      : bke::GeometryFieldInput(input.cpp_type(), "Calculation"),
+      : fn::FieldInput(input.cpp_type(), "Calculation"),
         input_(std::move(input)),
         group_index_(std::move(group_index)),
         source_domain_(source_domain),

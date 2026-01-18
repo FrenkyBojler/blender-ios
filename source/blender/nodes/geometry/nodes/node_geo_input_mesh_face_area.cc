@@ -32,7 +32,7 @@ static VArray<float> construct_face_area_varray(const Mesh &mesh, const AttrDoma
 
 class FaceAreaFieldInput final : public bke::MeshFieldInput {
  public:
-  FaceAreaFieldInput() : bke::MeshFieldInput(CPPType::get<float>(), "Face Area Field")
+  FaceAreaFieldInput() : fn::FieldInput(CPPType::get<float>(), "Face Area Field")
   {
     category_ = Category::Generated;
   }

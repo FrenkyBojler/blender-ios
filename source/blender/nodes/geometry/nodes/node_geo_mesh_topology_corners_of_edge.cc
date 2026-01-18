@@ -38,7 +38,7 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
 
  public:
   CornersOfEdgeInput(Field<int> edge_index, Field<int> sort_index, Field<float> sort_weight)
-      : bke::MeshFieldInput(CPPType::get<int>(), "Corner of Edge"),
+      : fn::FieldInput(CPPType::get<int>(), "Corner of Edge"),
         edge_index_(std::move(edge_index)),
         sort_index_(std::move(sort_index)),
         sort_weight_(std::move(sort_weight))
@@ -136,7 +136,7 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
 
 class CornersOfEdgeCountInput final : public bke::MeshFieldInput {
  public:
-  CornersOfEdgeCountInput() : bke::MeshFieldInput(CPPType::get<int>(), "Edge Corner Count")
+  CornersOfEdgeCountInput() : fn::FieldInput(CPPType::get<int>(), "Edge Corner Count")
   {
     category_ = Category::Generated;
   }

@@ -30,7 +30,7 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
 
  public:
   BoundaryFieldInput(const Field<int> face_set)
-      : bke::MeshFieldInput(CPPType::get<bool>(), "Face Group Boundaries"), face_set_(face_set)
+      : fn::FieldInput(CPPType::get<bool>(), "Face Group Boundaries"), face_set_(face_set)
   {
     category_ = Category::Generated;
   }

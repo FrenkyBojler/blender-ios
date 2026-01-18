@@ -18,7 +18,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
  public:
   InstanceRotationFieldInput()
-      : bke::InstancesFieldInput(CPPType::get<math::Quaternion>(), "Rotation")
+      : fn::FieldInput(CPPType::get<math::Quaternion>(), "Rotation")
   {
   }
 

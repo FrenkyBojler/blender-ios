@@ -74,7 +74,7 @@ static VArray<int> construct_neighbor_count_varray(const Mesh &mesh, const AttrD
 class FaceNeighborCountFieldInput final : public bke::MeshFieldInput {
  public:
   FaceNeighborCountFieldInput()
-      : bke::MeshFieldInput(CPPType::get<int>(), "Face Neighbor Count Field")
+      : fn::FieldInput(CPPType::get<int>(), "Face Neighbor Count Field")
   {
     category_ = Category::Generated;
   }
@@ -115,7 +115,7 @@ static VArray<int> construct_vertex_count_varray(const Mesh &mesh, const AttrDom
 
 class FaceVertexCountFieldInput final : public bke::MeshFieldInput {
  public:
-  FaceVertexCountFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Vertex Count Field")
+  FaceVertexCountFieldInput() : fn::FieldInput(CPPType::get<int>(), "Vertex Count Field")
   {
     category_ = Category::Generated;
   }

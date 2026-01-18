@@ -9,6 +9,10 @@
 #include "BLI_generic_pointer.hh"
 #include "BLI_generic_virtual_array.hh"
 
+#include "BKE_geometry_fields.hh"
+
+#include "FN_field.hh"
+
 #include "NOD_geometry_nodes_list_fwd.hh"
 
 namespace blender::nodes {
@@ -60,6 +64,34 @@ class List : public ImplicitSharingMixin {
   /** Access the list as virtual array. */
   GVArray varray() const;
   template<typename T> VArray<T> varray() const;
+};
+
+class ListFieldContext : public fn::FieldContext {
+ public:
+  ListFieldContext() = default;
+
+  GVArray get_varray_for_input(const fn::FieldInput &field_input,
+                               const IndexMask &mask,
+                               ResourceScope & /*scope*/) const override;
+};
+
+class ListFieldInput : public virtual fn::FieldInput {
+ public:
+  GVArray get_varray_for_context(const fn::FieldContext &context,
+                                 const IndexMask &mask,
+                                 ResourceScope & /*scope*/) const override;
+
+  virtual GVArray get_varray_for_context(const ListFieldContext &context,
+                                         const IndexMask &mask) const = 0;
+};
+
+class ListOrGeometryFieldInput : public virtual fn::FieldInput, public ListFieldInput, public bke::GeometryFieldInput {
+ public:
+  ListOrGeometryFieldInput(const CPPType &type, std::string debug_name = ""):
+    fn::FieldInput(type, debug_name) {}
+  GVArray get_varray_for_context(const fn::FieldContext &context,
+                                 const IndexMask &mask,
+                                 ResourceScope & /*scope*/) const final;
 };
 
 inline const List::DataVariant &List::data() const

@@ -80,7 +80,7 @@ class HandleTypeFieldInput final : public bke::CurvesFieldInput {
 
  public:
   HandleTypeFieldInput(HandleType type, GeometryNodeCurveHandleMode mode)
-      : bke::CurvesFieldInput(CPPType::get<bool>(), "Handle Type Selection node"),
+      : fn::FieldInput(CPPType::get<bool>(), "Handle Type Selection node"),
         type_(type),
         mode_(mode)
   {

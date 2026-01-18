@@ -38,7 +38,7 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
 
  public:
   FaceSetFromBoundariesInput(Field<bool> selection)
-      : bke::MeshFieldInput(CPPType::get<int>(), "Edges to Face Groups"),
+      : fn::FieldInput(CPPType::get<int>(), "Edges to Face Groups"),
         non_boundary_edge_field_(std::move(selection))
   {
   }

@@ -616,7 +616,7 @@ void copy_with_checked_indices(const GVArray &src,
 EvaluateAtIndexInput::EvaluateAtIndexInput(fn::Field<int> index_field,
                                            fn::GField value_field,
                                            AttrDomain value_field_domain)
-    : bke::GeometryFieldInput(value_field.cpp_type(), "Evaluate at Index"),
+    : fn::FieldInput(value_field.cpp_type(), "Evaluate at Index"),
       index_field_(std::move(index_field)),
       value_field_(std::move(value_field)),
       value_field_domain_(value_field_domain)
@@ -648,7 +648,7 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
 }
 
 EvaluateOnDomainInput::EvaluateOnDomainInput(fn::GField field, AttrDomain domain)
-    : bke::GeometryFieldInput(field.cpp_type(), "Evaluate on Domain"),
+    : fn::FieldInput(field.cpp_type(), "Evaluate on Domain"),
       src_field_(std::move(field)),
       src_domain_(domain)
 {

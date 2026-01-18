@@ -53,7 +53,7 @@ static Array<int2> create_edge_map(const OffsetIndices<int> faces,
 
 class AngleFieldInput final : public bke::MeshFieldInput {
  public:
-  AngleFieldInput() : bke::MeshFieldInput(CPPType::get<float>(), "Unsigned Angle Field")
+  AngleFieldInput() : fn::FieldInput(CPPType::get<float>(), "Unsigned Angle Field")
   {
     category_ = Category::Generated;
   }
@@ -127,7 +127,7 @@ static int find_other_vert_of_edge_triangle(const OffsetIndices<int> faces,
 
 class SignedAngleFieldInput final : public bke::MeshFieldInput {
  public:
-  SignedAngleFieldInput() : bke::MeshFieldInput(CPPType::get<float>(), "Signed Angle Field")
+  SignedAngleFieldInput() : fn::FieldInput(CPPType::get<float>(), "Signed Angle Field")
   {
     category_ = Category::Generated;
   }

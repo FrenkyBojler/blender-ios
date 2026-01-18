@@ -216,7 +216,7 @@ class GeometryFieldContext : public fn::FieldContext {
   const Curves *curves_id() const;
 };
 
-class GeometryFieldInput : public fn::FieldInput {
+class GeometryFieldInput : public virtual fn::FieldInput {
  public:
   using fn::FieldInput::FieldInput;
   GVArray get_varray_for_context(const fn::FieldContext &context,
@@ -227,7 +227,7 @@ class GeometryFieldInput : public fn::FieldInput {
   virtual std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const;
 };
 
-class MeshFieldInput : public fn::FieldInput {
+class MeshFieldInput : public virtual fn::FieldInput {
  public:
   using fn::FieldInput::FieldInput;
   GVArray get_varray_for_context(const fn::FieldContext &context,
@@ -239,7 +239,7 @@ class MeshFieldInput : public fn::FieldInput {
   virtual std::optional<AttrDomain> preferred_domain(const Mesh &mesh) const;
 };
 
-class CurvesFieldInput : public fn::FieldInput {
+class CurvesFieldInput : public virtual fn::FieldInput {
  public:
   using fn::FieldInput::FieldInput;
   GVArray get_varray_for_context(const fn::FieldContext &context,
@@ -251,7 +251,7 @@ class CurvesFieldInput : public fn::FieldInput {
   virtual std::optional<AttrDomain> preferred_domain(const CurvesGeometry &curves) const;
 };
 
-class PointCloudFieldInput : public fn::FieldInput {
+class PointCloudFieldInput : public virtual fn::FieldInput {
  public:
   using fn::FieldInput::FieldInput;
   GVArray get_varray_for_context(const fn::FieldContext &context,
@@ -261,7 +261,7 @@ class PointCloudFieldInput : public fn::FieldInput {
                                          const IndexMask &mask) const = 0;
 };
 
-class InstancesFieldInput : public fn::FieldInput {
+class InstancesFieldInput : public virtual fn::FieldInput {
  public:
   using fn::FieldInput::FieldInput;
   GVArray get_varray_for_context(const fn::FieldContext &context,
@@ -280,7 +280,7 @@ class AttributeFieldInput : public GeometryFieldInput {
   AttributeFieldInput(std::string name,
                       const CPPType &type,
                       std::optional<std::string> socket_inspection_name = std::nullopt)
-      : GeometryFieldInput(type, name),
+      : fn::FieldInput(type, name),
         name_(std::move(name)),
         socket_inspection_name_(std::move(socket_inspection_name))
   {
@@ -325,7 +325,7 @@ class AttributeExistsFieldInput final : public bke::GeometryFieldInput {
 
  public:
   AttributeExistsFieldInput(std::string name, const CPPType &type)
-      : GeometryFieldInput(type, name), name_(std::move(name))
+      : fn::FieldInput(type, name), name_(std::move(name))
   {
     category_ = Category::Generated;
   }
@@ -347,7 +347,7 @@ class NamedLayerSelectionFieldInput final : public bke::GeometryFieldInput {
 
  public:
   NamedLayerSelectionFieldInput(std::string layer_name)
-      : bke::GeometryFieldInput(CPPType::get<bool>(), "Named Layer node"),
+      : fn::FieldInput(CPPType::get<bool>(), "Named Layer node"),
         layer_name_(std::move(layer_name))
   {
     category_ = Category::Generated;
@@ -362,7 +362,7 @@ class NamedLayerSelectionFieldInput final : public bke::GeometryFieldInput {
 
 class IDAttributeFieldInput : public GeometryFieldInput {
  public:
-  IDAttributeFieldInput() : GeometryFieldInput(CPPType::get<int>())
+  IDAttributeFieldInput() : fn::FieldInput(CPPType::get<int>())
   {
     category_ = Category::Generated;
   }
@@ -390,7 +390,7 @@ class NormalFieldInput : public GeometryFieldInput {
 
  public:
   NormalFieldInput(const bool legacy_corner_normals = false, const bool true_normals = false)
-      : GeometryFieldInput(CPPType::get<float3>()),
+      : fn::FieldInput(CPPType::get<float3>()),
         legacy_corner_normals_(legacy_corner_normals),
         true_normals_(true_normals)
   {

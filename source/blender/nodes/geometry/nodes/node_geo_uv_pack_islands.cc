@@ -176,7 +176,7 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
                         const eUVPackIsland_ShapeMethod shape_method,
                         const float3 bottom,
                         const float3 top)
-      : bke::MeshFieldInput(CPPType::get<float3>(), "Pack UV Islands Field"),
+      : fn::FieldInput(CPPType::get<float3>(), "Pack UV Islands Field"),
         selection_field_(selection_field),
         uv_field_(uv_field),
         rotate_(rotate),

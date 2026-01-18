@@ -184,7 +184,7 @@ class AccumulateFieldInput final : public bke::GeometryFieldInput {
                        GField input,
                        Field<int> group_index,
                        AccumulationMode accumulation_mode)
-      : bke::GeometryFieldInput(input.cpp_type(), "Accumulation"),
+      : fn::FieldInput(input.cpp_type(), "Accumulation"),
         input_(std::move(input)),
         group_index_(std::move(group_index)),
         source_domain_(source_domain),
@@ -298,7 +298,7 @@ class TotalFieldInput final : public bke::GeometryFieldInput {
 
  public:
   TotalFieldInput(const AttrDomain source_domain, GField input, Field<int> group_index)
-      : bke::GeometryFieldInput(input.cpp_type(), "Total Value"),
+      : fn::FieldInput(input.cpp_type(), "Total Value"),
         input_(std::move(input)),
         group_index_(std::move(group_index)),
         source_domain_(source_domain)

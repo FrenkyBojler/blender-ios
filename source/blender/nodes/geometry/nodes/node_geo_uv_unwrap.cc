@@ -182,7 +182,7 @@ class UnwrapFieldInput final : public bke::MeshFieldInput {
                    const GeometryNodeUVUnwrapMethod method,
                    const int iterations,
                    const bool no_flip)
-      : bke::MeshFieldInput(CPPType::get<float3>(), "UV Unwrap Field"),
+      : fn::FieldInput(CPPType::get<float3>(), "UV Unwrap Field"),
         selection_(selection),
         seam_(seam),
         fill_holes_(fill_holes),

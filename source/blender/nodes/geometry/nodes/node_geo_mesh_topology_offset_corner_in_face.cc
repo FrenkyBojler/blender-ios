@@ -28,7 +28,7 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
 
  public:
   OffsetCornerInFaceFieldInput(Field<int> corner_index, Field<int> offset)
-      : bke::MeshFieldInput(CPPType::get<int>(), "Offset Corner in Face"),
+      : fn::FieldInput(CPPType::get<int>(), "Offset Corner in Face"),
         corner_index_(std::move(corner_index)),
         offset_(std::move(offset))
   {

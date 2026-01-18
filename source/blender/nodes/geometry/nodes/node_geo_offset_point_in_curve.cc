@@ -35,7 +35,7 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
 
  public:
   ControlPointNeighborFieldInput(Field<int> index, Field<int> offset)
-      : GeometryFieldInput(CPPType::get<int>(), "Offset Point in Curve"),
+      : fn::FieldInput(CPPType::get<int>(), "Offset Point in Curve"),
         index_(std::move(index)),
         offset_(std::move(offset))
   {
@@ -95,7 +95,7 @@ class OffsetValidFieldInput final : public bke::GeometryFieldInput {
 
  public:
   OffsetValidFieldInput(Field<int> index, Field<int> offset)
-      : GeometryFieldInput(CPPType::get<bool>(), "Offset Valid"),
+      : fn::FieldInput(CPPType::get<bool>(), "Offset Valid"),
         index_(std::move(index)),
         offset_(std::move(offset))
   {

@@ -56,7 +56,7 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
 
  public:
   MaterialSelectionFieldInput(Material *material)
-      : bke::GeometryFieldInput(CPPType::get<bool>(), "Material Selection node"),
+      : fn::FieldInput(CPPType::get<bool>(), "Material Selection node"),
         material_(material)
   {
     category_ = Category::Generated;

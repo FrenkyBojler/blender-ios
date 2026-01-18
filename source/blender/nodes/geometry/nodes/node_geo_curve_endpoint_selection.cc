@@ -33,7 +33,7 @@ class EndpointFieldInput final : public bke::GeometryFieldInput {
 
  public:
   EndpointFieldInput(Field<int> start_size, Field<int> end_size)
-      : bke::GeometryFieldInput(CPPType::get<bool>(), "Endpoint Selection node"),
+      : fn::FieldInput(CPPType::get<bool>(), "Endpoint Selection node"),
         start_size_(start_size),
         end_size_(end_size)
   {

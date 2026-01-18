@@ -367,7 +367,7 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
 
  public:
   BlurAttributeFieldInput(Field<float> weight_field, GField value_field, const int iterations)
-      : bke::GeometryFieldInput(value_field.cpp_type(), "Blur Attribute"),
+      : fn::FieldInput(value_field.cpp_type(), "Blur Attribute"),
         weight_field_(std::move(weight_field)),
         value_field_(std::move(value_field)),
         iterations_(iterations)

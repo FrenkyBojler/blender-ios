@@ -33,7 +33,7 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
 
  public:
   PlanarFieldInput(Field<float> threshold)
-      : bke::MeshFieldInput(CPPType::get<bool>(), "Planar"), threshold_(threshold)
+      : fn::FieldInput(CPPType::get<bool>(), "Planar"), threshold_(threshold)
   {
     category_ = Category::Generated;
   }

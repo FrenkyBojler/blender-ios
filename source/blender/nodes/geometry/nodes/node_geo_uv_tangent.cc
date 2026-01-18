@@ -134,7 +134,7 @@ class TangentFieldInput final : public bke::MeshFieldInput {
 
  public:
   TangentFieldInput(const Method method, Field<float3> uv)
-      : bke::MeshFieldInput(CPPType::get<float3>(), "Tangent Field"),
+      : fn::FieldInput(CPPType::get<float3>(), "Tangent Field"),
         method_(method),
         uv_field_(std::move(uv))
   {

@@ -53,7 +53,7 @@ class PointsOfCurveInput final : public bke::GeometryFieldInput {
 
  public:
   PointsOfCurveInput(Field<int> curve_index, Field<int> sort_index, Field<float> sort_weight)
-      : bke::GeometryFieldInput(CPPType::get<int>(), "Point of Curve"),
+      : fn::FieldInput(CPPType::get<int>(), "Point of Curve"),
         curve_index_(std::move(curve_index)),
         sort_index_(std::move(sort_index)),
         sort_weight_(std::move(sort_weight))
@@ -162,7 +162,7 @@ class PointsOfCurveInput final : public bke::GeometryFieldInput {
 
 class CurvePointCountInput final : public bke::CurvesFieldInput {
  public:
-  CurvePointCountInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Curve Point Count")
+  CurvePointCountInput() : fn::FieldInput(CPPType::get<int>(), "Curve Point Count")
   {
     category_ = Category::Generated;
   }

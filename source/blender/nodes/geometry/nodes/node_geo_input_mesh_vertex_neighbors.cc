@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class VertexCountFieldInput final : public bke::MeshFieldInput {
  public:
-  VertexCountFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Vertex Count Field")
+  VertexCountFieldInput() : fn::FieldInput(CPPType::get<int>(), "Vertex Count Field")
   {
     category_ = Category::Generated;
   }
@@ -60,7 +60,7 @@ class VertexCountFieldInput final : public bke::MeshFieldInput {
 
 class VertexFaceCountFieldInput final : public bke::MeshFieldInput {
  public:
-  VertexFaceCountFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Vertex Face Count Field")
+  VertexFaceCountFieldInput() : fn::FieldInput(CPPType::get<int>(), "Vertex Face Count Field")
   {
     category_ = Category::Generated;
   }

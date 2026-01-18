@@ -272,7 +272,7 @@ static VArray<float> construct_curve_length_gvarray(const CurvesGeometry &curves
 }
 
 CurveLengthFieldInput::CurveLengthFieldInput()
-    : CurvesFieldInput(CPPType::get<float>(), "Spline Length node")
+    : fn::FieldInput(CPPType::get<float>(), "Spline Length node")
 {
   category_ = Category::Generated;
 }

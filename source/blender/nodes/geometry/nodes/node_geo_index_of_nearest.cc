@@ -7,6 +7,8 @@
 #include "BLI_map.hh"
 #include "BLI_task.hh"
 
+#include "NOD_geometry_nodes_list.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_index_of_nearest_cc {
@@ -52,27 +54,25 @@ static void find_neighbors(const KDTree_3d &tree,
   });
 }
 
-class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
+class IndexOfNearestFieldInput final : public ListOrGeometryFieldInput {
  private:
   const Field<float3> positions_field_;
   const Field<int> group_field_;
 
  public:
   IndexOfNearestFieldInput(Field<float3> positions_field, Field<int> group_field)
-      : bke::GeometryFieldInput(CPPType::get<int>(), "Index of Nearest"),
+      : fn::FieldInput(CPPType::get<int>(), "Index of Nearest"),
+        ListOrGeometryFieldInput(CPPType::get<int>(), "Index of Nearest"),
         positions_field_(std::move(positions_field)),
         group_field_(std::move(group_field))
   {
   }
 
-  GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
-                                 const IndexMask &mask) const final
+  GVArray get_varray_for_context(const fn::FieldContext &context,
+                                 const IndexMask &mask,
+                                 const int domain_size) const
   {
-    if (!context.attributes()) {
-      return {};
-    }
-    const int domain_size = context.attributes()->domain_size(context.domain());
-    fn::FieldEvaluator evaluator{context, domain_size};
+    fn::FieldEvaluator evaluator(context, domain_size);
     evaluator.add(positions_field_);
     evaluator.add(group_field_);
     evaluator.evaluate();
@@ -130,6 +130,22 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
     return VArray<int>::from_container(std::move(result));
   }
 
+  GVArray get_varray_for_context(const ListFieldContext &context,
+                                 const IndexMask &mask) const final
+  {
+    return this->get_varray_for_context(context, mask, mask.min_array_size());
+  }
+
+  GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
+                                 const IndexMask &mask) const final
+  {
+    if (!context.attributes()) {
+      return {};
+    }
+    const int domain_size = context.attributes()->domain_size(context.domain());
+    return this->get_varray_for_context(context, mask, domain_size);
+  }
+
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
   {
     positions_field_.node().for_each_field_input_recursive(fn);
@@ -162,7 +178,7 @@ class HasNeighborFieldInput final : public bke::GeometryFieldInput {
 
  public:
   HasNeighborFieldInput(Field<int> group_field)
-      : bke::GeometryFieldInput(CPPType::get<bool>(), "Has Neighbor"),
+      : fn::FieldInput(CPPType::get<bool>(), "Has Neighbor"),
         group_field_(std::move(group_field))
   {
   }

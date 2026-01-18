@@ -17,7 +17,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class InstanceScaleFieldInput final : public bke::InstancesFieldInput {
  public:
-  InstanceScaleFieldInput() : bke::InstancesFieldInput(CPPType::get<float3>(), "Scale") {}
+  InstanceScaleFieldInput() : fn::FieldInput(CPPType::get<float3>(), "Scale") {}
 
   GVArray get_varray_for_context(const bke::Instances &instances,
                                  const IndexMask & /*mask*/) const final

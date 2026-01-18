@@ -26,7 +26,7 @@ class HandlePositionFieldInput final : public bke::GeometryFieldInput {
 
  public:
   HandlePositionFieldInput(Field<bool> relative, bool left)
-      : bke::GeometryFieldInput(CPPType::get<float3>(), "Handle"), relative_(relative), left_(left)
+      : fn::FieldInput(CPPType::get<float3>(), "Handle"), relative_(relative), left_(left)
   {
   }
 

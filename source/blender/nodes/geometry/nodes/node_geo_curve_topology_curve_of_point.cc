@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class CurveOfPointInput final : public bke::CurvesFieldInput {
  public:
-  CurveOfPointInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Point Curve Index")
+  CurveOfPointInput() : fn::FieldInput(CPPType::get<int>(), "Point Curve Index")
   {
     category_ = Category::Generated;
   }
@@ -57,7 +57,7 @@ class CurveOfPointInput final : public bke::CurvesFieldInput {
 
 class PointIndexInCurveInput final : public bke::CurvesFieldInput {
  public:
-  PointIndexInCurveInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Point Index in Curve")
+  PointIndexInCurveInput() : fn::FieldInput(CPPType::get<int>(), "Point Index in Curve")
   {
     category_ = Category::Generated;
   }

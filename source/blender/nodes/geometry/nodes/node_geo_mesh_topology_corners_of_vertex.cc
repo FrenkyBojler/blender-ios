@@ -35,7 +35,7 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
 
  public:
   CornersOfVertInput(Field<int> vert_index, Field<int> sort_index, Field<float> sort_weight)
-      : bke::MeshFieldInput(CPPType::get<int>(), "Corner of Vertex"),
+      : fn::FieldInput(CPPType::get<int>(), "Corner of Vertex"),
         vert_index_(std::move(vert_index)),
         sort_index_(std::move(sort_index)),
         sort_weight_(std::move(sort_weight))
@@ -142,7 +142,7 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
 
 class CornersOfVertCountInput final : public bke::MeshFieldInput {
  public:
-  CornersOfVertCountInput() : bke::MeshFieldInput(CPPType::get<int>(), "Vertex Corner Count")
+  CornersOfVertCountInput() : fn::FieldInput(CPPType::get<int>(), "Vertex Corner Count")
   {
     category_ = Category::Generated;
   }

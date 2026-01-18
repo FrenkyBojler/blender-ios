@@ -46,7 +46,7 @@ class EdgeVertsInput final : public bke::MeshFieldInput {
 
  public:
   EdgeVertsInput(VertNumber vertex)
-      : bke::MeshFieldInput(CPPType::get<int>(), "Edge Vertices Field"), vertex_(vertex)
+      : fn::FieldInput(CPPType::get<int>(), "Edge Vertices Field"), vertex_(vertex)
   {
     category_ = Category::Generated;
   }
@@ -104,7 +104,7 @@ class EdgePositionFieldInput final : public bke::MeshFieldInput {
 
  public:
   EdgePositionFieldInput(VertNumber vertex)
-      : bke::MeshFieldInput(CPPType::get<float3>(), "Edge Position Field"), vertex_(vertex)
+      : fn::FieldInput(CPPType::get<float3>(), "Edge Position Field"), vertex_(vertex)
   {
     category_ = Category::Generated;
   }

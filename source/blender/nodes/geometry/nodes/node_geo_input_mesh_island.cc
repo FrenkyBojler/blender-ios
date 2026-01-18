@@ -25,7 +25,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class IslandFieldInput final : public bke::MeshFieldInput {
  public:
-  IslandFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Island Index")
+  IslandFieldInput() : fn::FieldInput(CPPType::get<int>(), "Island Index")
   {
     category_ = Category::Generated;
   }
@@ -69,7 +69,7 @@ class IslandFieldInput final : public bke::MeshFieldInput {
 
 class IslandCountFieldInput final : public bke::MeshFieldInput {
  public:
-  IslandCountFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Island Count")
+  IslandCountFieldInput() : fn::FieldInput(CPPType::get<int>(), "Island Count")
   {
     category_ = Category::Generated;
   }

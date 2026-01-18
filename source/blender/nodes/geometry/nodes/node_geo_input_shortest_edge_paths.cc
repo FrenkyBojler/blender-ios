@@ -86,7 +86,7 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
 
  public:
   ShortestEdgePathsNextVertFieldInput(Field<bool> end_selection, Field<float> cost)
-      : bke::MeshFieldInput(CPPType::get<int>(), "Shortest Edge Paths Next Vertex Field"),
+      : fn::FieldInput(CPPType::get<int>(), "Shortest Edge Paths Next Vertex Field"),
         end_selection_(end_selection),
         cost_(cost)
   {
@@ -170,7 +170,7 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
 
  public:
   ShortestEdgePathsCostFieldInput(Field<bool> end_selection, Field<float> cost)
-      : bke::MeshFieldInput(CPPType::get<float>(), "Shortest Edge Paths Cost Field"),
+      : fn::FieldInput(CPPType::get<float>(), "Shortest Edge Paths Cost Field"),
         end_selection_(end_selection),
         cost_(cost)
   {

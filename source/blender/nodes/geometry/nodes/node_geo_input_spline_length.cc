@@ -37,7 +37,7 @@ static VArray<int> construct_curve_point_count_gvarray(const bke::CurvesGeometry
 
 class SplineCountFieldInput final : public bke::CurvesFieldInput {
  public:
-  SplineCountFieldInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Spline Point Count")
+  SplineCountFieldInput() : fn::FieldInput(CPPType::get<int>(), "Spline Point Count")
   {
     category_ = Category::Generated;
   }

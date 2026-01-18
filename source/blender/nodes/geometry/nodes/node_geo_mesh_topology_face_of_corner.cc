@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 class CornerFaceIndexInput final : public bke::MeshFieldInput {
  public:
-  CornerFaceIndexInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Face Index")
+  CornerFaceIndexInput() : fn::FieldInput(CPPType::get<int>(), "Corner Face Index")
   {
     category_ = Category::Generated;
   }
@@ -52,7 +52,7 @@ class CornerFaceIndexInput final : public bke::MeshFieldInput {
 
 class CornerIndexInFaceInput final : public bke::MeshFieldInput {
  public:
-  CornerIndexInFaceInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Index In Face")
+  CornerIndexInFaceInput() : fn::FieldInput(CPPType::get<int>(), "Corner Index In Face")
   {
     category_ = Category::Generated;
   }
