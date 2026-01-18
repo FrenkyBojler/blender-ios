@@ -832,7 +832,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
                                       const int num_edges,
                                       const int num_loops,
                                       const int num_faces,
-                                      const int * /*subdiv_face_offset*/)
+                                      const Span<int> /*subdiv_face_offset*/)
 {
   /* Multi-resolution grid data will be applied or become invalid after subdivision,
    * so don't try to preserve it and use memory. Crease values should also not be interpolated. */
@@ -885,6 +885,12 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
     }
     else if (iter.domain == AttrDomain::Corner) {
       if (ELEM(iter.name, ".corner_vert", ".corner_edge")) {
+        return;
+      }
+      /* Rely on #CD_NORMAL to propagate normals to subdivision surfaces.
+       * These are converted into "custom_normals" afterwards, otherwise these normals
+       * would interpolated without being normalized, see: #152277. */
+      if (ELEM(iter.name, "custom_normal")) {
         return;
       }
       if (iter.data_type == AttrType::Float2) {
@@ -1301,7 +1307,7 @@ static void subdiv_mesh_loop(const ForeachContext *foreach_context,
  * \{ */
 
 static void subdiv_mesh_face(const ForeachContext *foreach_context,
-                             blender::OffsetIndices<int> subdiv_faces_by_base_face)
+                             OffsetIndices<int> subdiv_faces_by_base_face)
 {
   SubdivMeshContext *ctx = static_cast<SubdivMeshContext *>(foreach_context->user_data);
   threading::memory_bandwidth_bound_task(int64_t(ctx->subdiv_mesh->faces_num) * 4, [&]() {

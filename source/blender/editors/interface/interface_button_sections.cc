@@ -70,12 +70,12 @@ static Vector<rcti> button_section_bounds_calc(const ARegion *region, const bool
      * active state is only useful during drawing and must be ignored for handling (at which point
      * #Block::active is false for all blocks). */
     const bool is_drawing = region->runtime->do_draw & RGN_DRAWING;
-    LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-      if (is_drawing && !block->active) {
+    for (Block &block : region->runtime->uiblocks) {
+      if (is_drawing && !block.active) {
         continue;
       }
 
-      for (const std::unique_ptr<Button> &but : block->buttons) {
+      for (const std::unique_ptr<Button> &but : block.buttons) {
         if (but->type == ButtonType::SeprSpacer) {
           /* Start a new section. */
           if (has_section_content) {
@@ -89,7 +89,7 @@ static Vector<rcti> button_section_bounds_calc(const ARegion *region, const bool
         }
 
         rcti but_pixelrect;
-        button_to_pixelrect(&but_pixelrect, region, block, but.get());
+        button_to_pixelrect(&but_pixelrect, region, &block, but.get());
         BLI_rcti_do_minmax_rcti(&cur_section_bounds, &but_pixelrect);
         has_section_content = true;
       }
@@ -128,7 +128,7 @@ static void ui_draw_button_sections_background(const ARegion *region,
                                                const float corner_radius)
 {
   float bg_color[4];
-  GetThemeColor4fv(colorid, bg_color);
+  theme::get_color_4fv(colorid, bg_color);
 
   for (const rcti &bounds : section_bounds) {
     int roundbox_corners = [align]() -> int {
@@ -175,7 +175,7 @@ static void ui_draw_button_sections_alignment_separator(const ARegion *region,
   const int separator_line_width = UI_BUTTON_SECTION_SEPERATOR_LINE_WITH;
 
   float bg_color[4];
-  GetThemeColor4fv(colorid, bg_color);
+  theme::get_color_4fv(colorid, bg_color);
 
   GPU_blend(GPU_BLEND_ALPHA);
 

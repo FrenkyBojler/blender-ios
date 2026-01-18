@@ -13,7 +13,10 @@
 
 #include "DNA_listBase.h"
 
+namespace blender {
+
 struct Main;
+struct RecentFile;
 
 /**
  * Global data, typically accessed from #G.
@@ -53,7 +56,7 @@ struct Global {
    * Strings of recently opened files to show in the file menu.
    * A list of #RecentFile read from #BLENDER_HISTORY_FILE.
    */
-  ListBase recent_files;
+  ListBaseT<RecentFile> recent_files;
 
   /**
    * Set when Escape been pressed or `Ctrl-C` pressed in background mode.
@@ -269,6 +272,9 @@ enum {
 
   G_DEBUG_GHOST = (1 << 25),  /* Debug GHOST module. */
   G_DEBUG_WINTAB = (1 << 26), /* Debug Wintab. */
+
+  G_DEBUG_GPU_SHADER_NO_PREPROCESSOR = (1 << 27), /* Disable the preprocessor (implies NO_DCE). */
+  G_DEBUG_GPU_SHADER_NO_DCE = (1 << 28),          /* Disable Dead Code Elimination. */
 };
 
 #define G_DEBUG_ALL \
@@ -368,3 +374,5 @@ extern Global G;
  * helps with cleanup task.
  */
 #define G_MAIN (G).main
+
+}  // namespace blender

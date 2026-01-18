@@ -23,9 +23,11 @@
 #include "UI_abstract_view.hh"
 #include "UI_resources.hh"
 
+namespace blender {
+
 struct bContext;
 
-namespace blender::ui {
+namespace ui {
 
 class AbstractTreeView;
 class AbstractTreeViewItem;
@@ -224,6 +226,7 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   std::string label_;
 
  public:
+  AbstractTreeViewItem();
   /* virtual */ ~AbstractTreeViewItem() override = default;
 
   virtual void build_row(Layout &row) = 0;
@@ -463,4 +466,5 @@ template<class ViewType> ViewType &TreeViewItemDropTarget::get_view() const
   return dynamic_cast<ViewType &>(view_item_.get_tree_view());
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

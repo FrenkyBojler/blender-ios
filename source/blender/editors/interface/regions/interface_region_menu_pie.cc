@@ -171,7 +171,7 @@ void pie_menu_end(bContext *C, PieMenu *pie)
   menu->popup = true;
   menu->towardstime = BLI_time_now_seconds();
 
-  popup_handlers_add(C, &window->modalhandlers, menu, WM_HANDLER_ACCEPT_DBL_CLICK);
+  popup_handlers_add(C, &window->runtime->modalhandlers, menu, WM_HANDLER_ACCEPT_DBL_CLICK);
   WM_event_add_mousemove(window);
 
   MEM_freeN(pie);

@@ -873,24 +873,24 @@ void view2d_sync(bScreen *screen, ScrArea *area, View2D *v2dcur, int flag)
 
   /* check if doing within area syncing (i.e. channels/vertical) */
   if ((v2dcur->flag & V2D_VIEWSYNC_AREA_VERTICAL) && (area)) {
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    for (ARegion &region : area->regionbase) {
       /* don't operate on self */
-      if (v2dcur != &region->v2d) {
+      if (v2dcur != &region.v2d) {
         /* only if view has vertical locks enabled */
-        if (region->v2d.flag & V2D_VIEWSYNC_AREA_VERTICAL) {
+        if (region.v2d.flag & V2D_VIEWSYNC_AREA_VERTICAL) {
           if (flag == V2D_LOCK_COPY) {
             /* other views with locks on must copy active */
-            region->v2d.cur.ymin = v2dcur->cur.ymin;
-            region->v2d.cur.ymax = v2dcur->cur.ymax;
+            region.v2d.cur.ymin = v2dcur->cur.ymin;
+            region.v2d.cur.ymax = v2dcur->cur.ymax;
           }
           else { /* V2D_LOCK_SET */
                  /* active must copy others */
-            v2dcur->cur.ymin = region->v2d.cur.ymin;
-            v2dcur->cur.ymax = region->v2d.cur.ymax;
+            v2dcur->cur.ymin = region.v2d.cur.ymin;
+            v2dcur->cur.ymax = region.v2d.cur.ymax;
           }
 
           /* region possibly changed, so refresh */
-          ED_region_tag_redraw_no_rebuild(region);
+          ED_region_tag_redraw_no_rebuild(&region);
         }
       }
     }
@@ -898,28 +898,28 @@ void view2d_sync(bScreen *screen, ScrArea *area, View2D *v2dcur, int flag)
 
   /* check if doing whole screen syncing (i.e. time/horizontal) */
   if ((v2dcur->flag & V2D_VIEWSYNC_SCREEN_TIME) && (screen)) {
-    LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
-      if (!view2d_area_supports_sync(area_iter)) {
+    for (ScrArea &area_iter : screen->areabase) {
+      if (!view2d_area_supports_sync(&area_iter)) {
         continue;
       }
-      LISTBASE_FOREACH (ARegion *, region, &area_iter->regionbase) {
+      for (ARegion &region : area_iter.regionbase) {
         /* don't operate on self */
-        if (v2dcur != &region->v2d) {
+        if (v2dcur != &region.v2d) {
           /* only if view has horizontal locks enabled */
-          if (region->v2d.flag & V2D_VIEWSYNC_SCREEN_TIME) {
+          if (region.v2d.flag & V2D_VIEWSYNC_SCREEN_TIME) {
             if (flag == V2D_LOCK_COPY) {
               /* other views with locks on must copy active */
-              region->v2d.cur.xmin = v2dcur->cur.xmin;
-              region->v2d.cur.xmax = v2dcur->cur.xmax;
+              region.v2d.cur.xmin = v2dcur->cur.xmin;
+              region.v2d.cur.xmax = v2dcur->cur.xmax;
             }
             else { /* V2D_LOCK_SET */
                    /* active must copy others */
-              v2dcur->cur.xmin = region->v2d.cur.xmin;
-              v2dcur->cur.xmax = region->v2d.cur.xmax;
+              v2dcur->cur.xmin = region.v2d.cur.xmin;
+              v2dcur->cur.xmax = region.v2d.cur.xmax;
             }
 
             /* region possibly changed, so refresh */
-            ED_region_tag_redraw_no_rebuild(region);
+            ED_region_tag_redraw_no_rebuild(&region);
           }
         }
       }
@@ -986,7 +986,7 @@ void view2d_totRect_set_resize(View2D *v2d, int width, int height, bool resize)
     if (G.debug & G_DEBUG) {
       /* XXX: temp debug info. */
       printf("Error: View2D totRect set exiting: v2d=%p width=%d height=%d\n",
-             (void *)v2d,
+             static_cast<void *>(v2d),
              width,
              height);
     }
@@ -1208,7 +1208,7 @@ void view2d_multi_grid_draw(
   for (int level = 0; level < totlevels; level++) {
     /* Blend the background color (colorid) with the grid color, to avoid either too low contrast
      * or high contrast grid lines. This only has an effect if colorid != TH_GRID. */
-    GetThemeColorBlendShade3ubv(colorid, TH_GRID, 0.25f, offset, grid_line_color);
+    theme::get_color_blend_shade_3ubv(colorid, TH_GRID, 0.25f, offset, grid_line_color);
 
     int i = int(v2d->cur.xmin / lstep);
     if (v2d->cur.xmin > 0.0f) {
@@ -1249,7 +1249,7 @@ void view2d_multi_grid_draw(
   }
 
   /* X and Y axis */
-  GetThemeColorBlendShade3ubv(
+  theme::get_color_blend_shade_3ubv(
       colorid, TH_GRID, 0.5f, -18 + ((totlevels - 1) * -6), grid_line_color);
 
   immAttrSkip(color);
@@ -1345,7 +1345,7 @@ void view2d_dot_grid_draw(const View2D *v2d,
     const float subdivision_fade = last_level ? (1.0f - fractf(view_level)) : 1.0f;
 
     float color[4];
-    GetThemeColor3fv(grid_color_id, color);
+    theme::get_color_3fv(grid_color_id, color);
     color[3] = alpha_clamped * subdivision_fade;
 
     const float step = min_step * level_scale;
@@ -1505,7 +1505,7 @@ void view2d_scrollers_draw(View2D *v2d, const rcti *mask_custom)
 {
   View2DScrollers scrollers;
   view2d_scrollers_calc(v2d, mask_custom, &scrollers);
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
   rcti vert, hor;
   const int scroll = view2d_scroll_mapped(v2d->scroll);
   const char emboss_alpha = btheme->tui.widget_emboss[3];
@@ -1514,7 +1514,7 @@ void view2d_scrollers_draw(View2D *v2d, const rcti *mask_custom)
   uchar scrollers_back_color[4];
 
   /* Color for scroll-bar backs. */
-  GetThemeColor4ubv(TH_BACK, scrollers_back_color);
+  theme::get_color_4ubv(TH_BACK, scrollers_back_color);
 
   /* make copies of rects for less typing */
   vert = scrollers.vert;
@@ -2096,7 +2096,7 @@ void view2d_text_cache_add(
 
     BLI_LINKS_PREPEND(g_v2d_strings, v2s);
 
-    v2s->col.pack = *((const int *)col);
+    v2s->col.pack = *(reinterpret_cast<const int *>(col));
 
     v2s->rect = rcti{};
 
@@ -2126,7 +2126,7 @@ void view2d_text_cache_add_rectf(
 
     BLI_LINKS_PREPEND(g_v2d_strings, v2s);
 
-    v2s->col.pack = *((const int *)col);
+    v2s->col.pack = *(reinterpret_cast<const int *>(col));
 
     v2s->rect = rect;
 

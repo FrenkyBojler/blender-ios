@@ -101,6 +101,11 @@ struct VKExtensions {
    */
   bool vertex_input_dynamic_state = false;
 
+  /**
+   *Does the device support VK_EXT_host_image_copy
+   */
+  bool host_image_copy = false;
+
   /** Log enabled features and extensions. */
   void log() const;
 };
@@ -258,6 +263,10 @@ class VKDevice : public NonCopyable {
     /* Extension: VK_KHR_external_memory_fd */
     PFN_vkGetMemoryFdKHR vkGetMemoryFd = nullptr;
 
+    /* Extension: VK_EXT_host_image_copy */
+    PFN_vkCopyMemoryToImageEXT vkCopyMemoryToImage = nullptr;
+    PFN_vkTransitionImageLayoutEXT vkTransitionImageLayout = nullptr;
+
 #ifdef _WIN32
     /* Extension: VK_KHR_external_memory_win32 */
     PFN_vkGetMemoryWin32HandleKHR vkGetMemoryWin32Handle = nullptr;
@@ -399,6 +408,7 @@ class VKDevice : public NonCopyable {
   TimelineValue render_graph_submit(render_graph::VKRenderGraph *render_graph,
                                     VKDiscardPool &context_discard_pool,
                                     bool submit_to_device,
+                                    bool wait_for_submission,
                                     bool wait_for_completion,
                                     VkPipelineStageFlags wait_dst_stage_mask,
                                     VkSemaphore wait_semaphore,
