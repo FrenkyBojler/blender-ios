@@ -78,13 +78,12 @@ static void shortest_paths(const Mesh &mesh,
 
       threading::parallel_for(to_check.index_range(), 1024, [&](const IndexRange range) {
         Vector<int> &local_to_check_next = to_check_next.local();
-        local_to_check_next.reserve(local_to_check_next.size() + range.size());
         for (const int vert_i : to_check.as_span().slice(range)) {
           if (visited[vert_i]) {
             continue;
           }
           /* This is write-only deterministic data race. Only equal values are possible to write at
-           * the same moment. This is should be okay. */
+           * the same moment. */
           visited[vert_i] = true;
           distances[vert_i] = topology_distance;
 
