@@ -154,7 +154,7 @@ void Camera::sync()
                                      overscan_,
                                      data.winmat.ptr());
     }
-    else {
+    else if (!camera_eval) {
       /* Can happen for the case of XR or if `rv3d->dist == 0`.
        * In this case the produced winmat is degenerate. So just revert to the input matrix. */
       float2 film_center = float2(film_offset) + float2(film_extent) / 2.0f;
