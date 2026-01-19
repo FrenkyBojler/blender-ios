@@ -88,7 +88,6 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
   /* Acquire the compatible texture, or create a new one as a last resort. */
   if (match_index != -1) {
     texture_handle.texture_allocation = pool_[match_index].texture;
-    texture_handle.texture_allocation->invalidate(0);
     pool_.remove_and_reorder(match_index);
   }
   else {
