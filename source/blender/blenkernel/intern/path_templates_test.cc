@@ -548,7 +548,7 @@ TEST(path_templates, apply_template_alloc)
         << "  Template errors: " << errors_to_string(application_errors) << std::endl
         << "  Expected errors: " << errors_to_string(test_case.expected_errors) << std::endl
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
-    EXPECT_EQ(StringRef(buffer), test_case.path_result)
+    EXPECT_EQ(StringRef(buffer), StringRef(test_case.path_result))
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl
         << "  Note: test_case.path_result = " << test_case.path_result << std::endl;
 
