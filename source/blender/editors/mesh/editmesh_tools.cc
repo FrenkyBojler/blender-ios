@@ -3625,8 +3625,10 @@ static wmOperatorStatus edbm_remove_doubles_exec(bContext *C, wmOperator *op)
     /* store selection as tags */
     BM_mesh_elem_hflag_enable_test(em->bm, htype_select, BM_ELEM_TAG, true, true, BM_ELEM_SELECT);
 
+    const bool use_centroid = RNA_boolean_get(op->ptr, "use_centroid");
+
     if (use_unselected) {
-      EDBM_automerge(obedit, false, BM_ELEM_SELECT, threshold);
+      EDBM_automerge(obedit, false, BM_ELEM_SELECT, threshold, use_centroid);
     }
     else {
       EDBM_op_init(em, &bmop, op, "find_doubles verts=%hv dist=%f", BM_ELEM_SELECT, threshold);
@@ -3638,7 +3640,7 @@ static wmOperatorStatus edbm_remove_doubles_exec(bContext *C, wmOperator *op)
                          "weld_verts targetmap=%S use_centroid=%b",
                          &bmop,
                          "targetmap.out",
-                         RNA_boolean_get(op->ptr, "use_centroid")))
+                         use_centroid))
       {
         BMO_op_finish(em->bm, &bmop);
         continue;
@@ -3962,7 +3964,7 @@ static const EnumPropertyItem *shape_itemf(bContext *C,
                                            PropertyRNA * /*prop*/,
                                            bool *r_free)
 {
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = (C) ? CTX_data_edit_object(C) : nullptr;
   BMEditMesh *em;
   EnumPropertyItem *item = nullptr;
   int totitem = 0;
@@ -7892,15 +7894,15 @@ void MESH_OT_symmetrize(wmOperatorType *ot)
                           BMO_SYMMETRIZE_NEGATIVE_X,
                           "Direction",
                           "Which sides to copy from and to");
-  RNA_def_float(ot->srna,
-                "threshold",
-                1e-4f,
-                0.0f,
-                10.0f,
-                "Threshold",
-                "Limit for snap middle vertices to the axis center",
-                1e-5f,
-                0.1f);
+  RNA_def_float_distance(ot->srna,
+                         "threshold",
+                         1e-4f,
+                         0.0f,
+                         10.0f,
+                         "Threshold",
+                         "Limit for snap middle vertices to the axis center",
+                         1e-5f,
+                         0.1f);
 }
 
 /** \} */
