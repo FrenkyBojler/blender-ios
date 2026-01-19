@@ -1164,7 +1164,7 @@ typedef struct SpreadsheetBundleTreeViewPath {
 
   /** #SpreadsheetClosureInputOutput. */
   int8_t closure_input_output = SPREADSHEET_CLOSURE_NONE;
-  char _pad[3];
+  char _pad[3] = {};
 } SpreadsheetBundleTreeViewPath;
 
 typedef enum SpreadsheetGeometryItemType {
@@ -1182,7 +1182,7 @@ struct SpreadsheetTableIDGeometry {
    */
   ViewerPath viewer_path;
 
-  int viewer_item_identifier;
+  int viewer_item_identifier = 0;
   char _pad3[4] = {};
   SpreadsheetBundleTreeViewPath viewer_item_bundle_path;
 
