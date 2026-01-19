@@ -25,9 +25,9 @@ class GLTexturePool : public TexturePool {
   };
 
   struct TextureHandle {
-    /* Either created texture, or aliasing view over texture. */
+    /* Texture view that possibly aliases backing texture. */
     GLTexture *texture = nullptr;
-    /* Optional backing texture behind view. */
+    /* Backing texture behind view. */
     GLTexture *texture_allocation = nullptr;
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;

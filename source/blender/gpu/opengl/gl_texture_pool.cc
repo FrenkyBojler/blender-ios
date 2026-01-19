@@ -17,6 +17,9 @@ namespace blender::gpu {
 
 static bool are_formats_compatible(const TextureFormat format_a, const TextureFormat format_b)
 {
+  /* TODO(not_mark): remove. */
+  // return format_a == format_b;
+
   GPUTextureFormatFlag flag_a = to_format_flag(format_a);
   GPUTextureFormatFlag flag_b = to_format_flag(format_b);
   bool is_depth_or_stencil = (flag_a & GPU_FORMAT_DEPTH_STENCIL) != 0 ||
@@ -24,10 +27,13 @@ static bool are_formats_compatible(const TextureFormat format_a, const TextureFo
   bool is_compressed = (flag_a & GPU_FORMAT_COMPRESSED) != 0 ||
                        (flag_b & GPU_FORMAT_COMPRESSED) != 0;
 
-  /* glTextureView on sRGB/non-sRGB formats breaks on Intel Iris Xe. */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    bool is_srgb_match = (flag_a & GPU_FORMAT_SRGB) == (flag_b & GPU_FORMAT_SRGB);
-    if (!is_srgb_match) {
+    bool is_bad_format_match =
+        /* RG16F and R11F_G11F_B10F appear to be incompatible. glCLear* operations fail. */
+        (format_a == TextureFormat::UFLOAT_11_11_10 && format_b == TextureFormat::SFLOAT_16_16) ||
+        /* sRGB and non-sRGB appear to be incompatible */
+        (flag_a & GPU_FORMAT_SRGB) == (flag_b & GPU_FORMAT_SRGB);
+    if (is_bad_format_match) {
       return false;
     }
   }
@@ -59,10 +65,8 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
                                         const char *name)
 {
   /* Generate debug label name, if one isn't passed in `name`. */
-  std::string name_str;
-  if (G.debug & G_DEBUG_GPU) {
-    name_str = name ? name : fmt::format("TexFromPool_{}", pool_.size());
-  }
+  std::string texture_name_str = fmt::format("TexFromPool_{}", pool_.size());
+  std::string view_name_str = name ? name : texture_name_str;
 
   /* Search for the first compatible existing texture. */
   int64_t match_index = -1;
@@ -78,28 +82,37 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
     break;
   }
 
+  /* Return value. */
+  TextureHandle texture_handle;
+
   /* Acquire the compatible texture, or create a new one as a last resort. */
-  GLTexture *texture_allocation;
   if (match_index != -1) {
-    texture_allocation = pool_[match_index].texture;
+    texture_handle.texture_allocation = pool_[match_index].texture;
+    texture_handle.texture_allocation->invalidate(0);
     pool_.remove_and_reorder(match_index);
   }
   else {
     eGPUTextureUsage usage_flag = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
-    texture_allocation = unwrap(
-        GPU_texture_create_2d(name, extent.x, extent.y, 1, format, usage_flag, nullptr));
+    texture_handle.texture_allocation = unwrap(GPU_texture_create_2d(
+        texture_name_str.c_str(), extent.x, extent.y, 1, format, usage_flag, nullptr));
   }
 
-  /* Assemble texture handle, including `glTextureView`, if format aliasing is required. */
-  TextureHandle texture_handle;
-  if (texture_allocation->format_ == format) {
-    texture_handle.texture_allocation = texture_handle.texture = texture_allocation;
-    texture_handle.texture_allocation->name_set(name_str.c_str());
+  /* Assemble texture handle, including `glTextureView`, if format aliasing is required. Note, on
+   * some platforms, glTextureView with two identical formats is possible, but it isn't standard.
+   */
+  if (texture_handle.texture_allocation->format_ == format) {
+    texture_handle.texture = texture_handle.texture_allocation;
   }
   else {
-    texture_handle.texture_allocation = texture_allocation;
-    texture_handle.texture = unwrap(
-        GPU_texture_create_view(name_str.c_str(), texture_allocation, format, 0, 1, 0, 1, false, false));
+    texture_handle.texture = unwrap(GPU_texture_create_view(view_name_str.c_str(),
+                                                            texture_handle.texture_allocation,
+                                                            format,
+                                                            0,
+                                                            1,
+                                                            0,
+                                                            1,
+                                                            false,
+                                                            false));
   }
 
   acquired_.add(texture_handle);
@@ -117,7 +130,7 @@ void GLTexturePool::release_texture(Texture *tex)
   allocation_handle.texture = texture_handle.texture_allocation;
   pool_.append(allocation_handle);
 
-  /* Destroy view, if one was created. */
+  /* Destroy view and handle, if a view was created. */
   if (texture_handle.is_view()) {
     GPU_texture_free(texture_handle.texture);
   }
