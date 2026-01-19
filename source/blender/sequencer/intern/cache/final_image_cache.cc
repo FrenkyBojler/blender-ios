@@ -36,7 +36,8 @@ struct FinalImageCache {
 
     uint64_t hash() const
     {
-      return get_default_hash(seqbasep, timeline_frame, view_id, display_channel, image_size);
+      uint64_t h = get_default_hash(seqbasep, timeline_frame, view_id, display_channel);
+      return get_default_hash(h, image_size);
     }
 
     bool operator==(const Key &other) const
