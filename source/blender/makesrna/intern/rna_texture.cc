@@ -1216,13 +1216,15 @@ static void rna_def_texture_image(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Crop Maximum Y", "Maximum Y value to crop the image");
   RNA_def_property_update(prop, 0, "rna_Texture_update");
 
-  prop = RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);
+  prop = RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);  //? seems excluded already?
   RNA_def_property_pointer_sdna(prop, nullptr, "ima");
   RNA_def_property_struct_type(prop, "Image");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Image", "");
   RNA_def_property_update(prop, 0, "rna_Texture_update");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 
   prop = RNA_def_property(srna, "image_user", PROP_POINTER, PROP_NEVER_NULL);
   RNA_def_property_pointer_sdna(prop, nullptr, "iuser");
