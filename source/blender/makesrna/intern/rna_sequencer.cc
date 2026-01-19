@@ -589,7 +589,10 @@ static void rna_Strip_content_trim_start_set(PointerRNA *ptr, int value)
   Strip *strip = static_cast<Strip *>(ptr->data);
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
 
-  strip->anim_startofs = std::min(value, strip->len + strip->anim_startofs);
+  /* As `anim_startofs` is changed, strip shrinks on the right with left handle position unchanged.
+   * To give the appearance as if the strip is trimmed from the left, add move compensation. */
+  seq::transform_translate_strip(scene, strip, value - strip->anim_startofs);
+  strip->anim_startofs = value;
 
   seq::add_reload_new_file(G.main, scene, strip, false);
   do_strip_frame_change_update(scene, strip);
@@ -600,7 +603,7 @@ static void rna_Strip_content_trim_end_set(PointerRNA *ptr, int value)
   Strip *strip = static_cast<Strip *>(ptr->data);
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
 
-  strip->anim_endofs = std::min(value, strip->len + strip->anim_endofs);
+  strip->anim_endofs = value;
 
   seq::add_reload_new_file(G.main, scene, strip, false);
   do_strip_frame_change_update(scene, strip);
@@ -3039,9 +3042,11 @@ static void rna_def_input(StructRNA *srna)
                              nullptr,
                              "rna_Strip_content_trim_start_set",
                              "rna_Strip_content_trim_start_range"); /* overlap tests */
-  RNA_def_property_ui_text(prop,
-                           "Content Trim Start",
-                           "Number of frames to ignore from the start of the underlying source");
+  RNA_def_property_ui_text(
+      prop,
+      "Content Trim Start",
+      "Number of frames to ignore from the start of the underlying source. The source content is "
+      "trimmed, and previous frames are turned into holds");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
@@ -3066,7 +3071,8 @@ static void rna_def_input(StructRNA *srna)
                              "rna_Strip_content_trim_end_range"); /* overlap tests */
   RNA_def_property_ui_text(prop,
                            "Content Trim End",
-                           "Number of frames to ignore from the end of the underlying source");
+                           "Number of frames to ignore from the end of the underlying source. The "
+                           "source content is trimmed, and future frames are turned into holds");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 }
