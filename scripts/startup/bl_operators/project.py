@@ -371,7 +371,6 @@ def on_blend_save(blend_path):
 
 @bpy.app.handlers.persistent
 def on_exit(is_user_exit):
-    print("PROJECT SETUP AUTO-SAVE ", is_user_exit)
     if not is_user_exit:
         return
 
