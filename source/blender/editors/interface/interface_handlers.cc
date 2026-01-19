@@ -9801,10 +9801,22 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
           button_activate_state(C, but, BUTTON_STATE_EXIT);
         }
         else {
-          /* Re-enable tooltip on mouse move if not currently showing one. */
+          /* Re-enable tool-tip on mouse move. */
+          bool reenable_tooltip = true;
           bScreen *screen = CTX_wm_screen(C);
-          const bool tooltip_showing = screen && screen->tool_tip && screen->tool_tip->region;
-          if (!tooltip_showing) {
+          if (screen && screen->tool_tip) {
+            if (BLI_rctf_size_y(&but->rect) > UI_UNIT_Y) {
+              /* For large buttons allow some movement once the tooltip timer has started. */
+              const int threshold = WM_event_drag_threshold(event);
+              const int movement = len_manhattan_v2v2_int(event->xy, screen->tool_tip->event_xy);
+              reenable_tooltip = (movement > threshold);
+            }
+            else if (screen->tool_tip->region) {
+              /* don't reset if already showing on regular-height button. */
+              reenable_tooltip = false;
+            }
+          }
+          if (reenable_tooltip) {
             ui_blocks_set_tooltips(region, true);
             button_tooltip_timer_reset(C, but);
           }
