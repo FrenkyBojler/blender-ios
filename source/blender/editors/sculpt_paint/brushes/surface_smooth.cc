@@ -10,6 +10,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_mesh.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -54,14 +55,14 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
                                                       Object &object,
                                                       const MutableSpan<float3> all_laplacian_disp)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const StrokeCache &cache = *ss.cache;
   const float alpha = brush.surface_smooth_shape_preservation;
   const float beta = brush.surface_smooth_current_vertex;
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
@@ -178,7 +179,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_grids(
     Object &object,
     const MutableSpan<float3> all_laplacian_disp)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const StrokeCache &cache = *ss.cache;
   const float alpha = brush.surface_smooth_shape_preservation;
@@ -282,7 +283,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_bmesh(
     Object &object,
     const MutableSpan<float3> all_laplacian_disp)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const StrokeCache &cache = *ss.cache;
   const float alpha = brush.surface_smooth_shape_preservation;
@@ -383,7 +384,7 @@ void do_surface_smooth_brush(const Depsgraph &depsgraph,
                              Object &object,
                              const IndexMask &node_mask)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
