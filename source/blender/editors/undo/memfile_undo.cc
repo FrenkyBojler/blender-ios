@@ -295,6 +295,9 @@ static void memfile_undosys_step_decode(
         /* In some cases when using memfile undo in sculpt mode, the object but not the
          * corresponding mesh will be tagged for an update, leading to invalid data and crashes.
          *
+         * This is a band-aid mitigation for the 4.5 LTS release, not a proper fix of the
+         * underlying problem.
+         *
          * See #152087 for more details. */
         Object *object = reinterpret_cast<Object *>(id);
         Mesh *mesh = static_cast<Mesh *>(object->data);
