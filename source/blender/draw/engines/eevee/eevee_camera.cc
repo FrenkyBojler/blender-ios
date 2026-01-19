@@ -154,9 +154,6 @@ void Camera::sync()
                                      overscan_,
                                      data.winmat.ptr());
     }
-    else if (camera_eval) {
-      data.winmat = inst_.drw_view->winmat();
-    }
     else {
       /* Can happen for the case of XR or if `rv3d->dist == 0`.
        * In this case the produced winmat is degenerate. So just revert to the input matrix. */
