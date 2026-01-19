@@ -566,16 +566,6 @@ static void rna_Strip_content_start_set(PointerRNA *ptr, float value)
   seq::relations_invalidate_cache(scene, strip);
 }
 
-static void rna_Strip_content_end_set(PointerRNA *ptr, float value)
-{
-  Strip *strip = static_cast<Strip *>(ptr->data);
-  Scene *scene = id_cast<Scene *>(ptr->owner_id);
-
-  seq::transform_translate_strip(scene, strip, value - strip->content_end(scene));
-  do_strip_frame_change_update(scene, strip);
-  seq::relations_invalidate_cache(scene, strip);
-}
-
 static void rna_Strip_left_handle_offset_set(PointerRNA *ptr, float value)
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
@@ -2473,19 +2463,18 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Length", "The length of the contents of this strip after the handles are applied");
-  RNA_def_property_int_funcs(prop, "rna_Strip_duration_get", "rna_Strip_duration_set", nullptr);
+  RNA_def_property_int_funcs(
+      prop, "rna_Strip_duration_get", "rna_Strip_duration_set", "rna_Strip_duration_range");
   RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
   RNA_def_property_deprecated(prop, "Replaced by '.duration'.", 510, 600);
 
   prop = RNA_def_property(srna, "duration", PROP_INT, PROP_TIME);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Strip Duration", "Length of the strip in frames from left handle to right handle");
-  RNA_def_property_int_funcs(
-      prop, "rna_Strip_duration_get", "rna_Strip_duration_set", "rna_Strip_duration_range");
-  RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
+  RNA_def_property_int_funcs(prop, "rna_Strip_duration_get", nullptr, nullptr);
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
@@ -2530,13 +2519,11 @@ static void rna_def_strip(BlenderRNA *brna)
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
   prop = RNA_def_property(srna, "content_end", PROP_FLOAT, PROP_TIME);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Content End", "Timeline frame where underlying strip source ends");
   RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
-  RNA_def_property_float_funcs(
-      prop, "rna_Strip_content_end_get", "rna_Strip_content_end_set", nullptr);
-  RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
+  RNA_def_property_float_funcs(prop, "rna_Strip_content_end_get", nullptr, nullptr);
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
@@ -2645,7 +2632,7 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "channel");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 1, seq::MAX_CHANNELS);
-  RNA_def_property_ui_text(prop, "Channel", "Y position of the sequence strip");
+  RNA_def_property_ui_text(prop, "Channel", "Vertical position of the strip");
   RNA_def_property_int_funcs(prop, nullptr, "rna_Strip_channel_set", nullptr); /* overlap test */
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
