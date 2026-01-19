@@ -1107,12 +1107,9 @@ static wmOperatorStatus preferences_start_filter_exec(bContext *C, wmOperator * 
 
 void PREFERENCES_OT_start_filter(wmOperatorType *ot)
 {
-  /* Identifiers. */
   ot->name = "Filter";
   ot->description = "Start entering filter text";
   ot->idname = "PREFERENCES_OT_start_filter";
-
-  /* Callbacks. */
   ot->exec = preferences_start_filter_exec;
   ot->poll = ED_operator_preferences_active;
 }
@@ -1130,12 +1127,9 @@ static wmOperatorStatus preferences_clear_filter_exec(bContext *C, wmOperator * 
 
 void PREFERENCES_OT_clear_filter(wmOperatorType *ot)
 {
-  /* Identifiers. */
   ot->name = "Clear Filter";
   ot->description = "Clear the search filter";
   ot->idname = "PREFERENCES_OT_clear_filter";
-
-  /* Callbacks. */
   ot->exec = preferences_clear_filter_exec;
   ot->poll = ED_operator_preferences_active;
 }
