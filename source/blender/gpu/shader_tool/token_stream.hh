@@ -53,7 +53,6 @@ struct LexerBase {
   /* Change words into keyword (ex: `if`, `struct`, `template`). */
   void identify_keywords();
 
- private:
   void update_string_view();
 };
 

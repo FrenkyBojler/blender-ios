@@ -82,6 +82,7 @@ enum TokenType : unsigned char {
   Union = 'o',
   LogicalAnd = 'a',
   LogicalOr = 'g',
+  DoubleHash = '`',
   /* Aliases. */
   Multiply = Star,
   And = Ampersand,

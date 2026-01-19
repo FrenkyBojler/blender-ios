@@ -464,6 +464,152 @@ static void tokenize_data(const TokenType char_to_tok[128],
   *r_count = cursor;
 }
 
+void tokenize_numbers_start(const uint8_t c_str[/*size*/],
+                            const uint32_t /*size*/,
+                            TokenType tok_types[/*tok_len*/],
+                            const uint32_t tok_offsets[/*tok_len*/],
+                            uint32_t tok_len)
+{
+  for (uint32_t i = 0; i < tok_len; i++) {
+    tok_types[i] = std::isdigit(c_str[tok_offsets[i]]) ? Number : tok_types[i];
+  }
+}
+
+BLI_NOINLINE void lex_string(const TokenType *types, uint32_t &cursor)
+{
+  const TokenType *ptr = types + cursor;
+  while (true) {
+    cursor++;
+    ptr++;
+    if (*ptr == '\\') {
+      /* Escaped character. Skip next. */
+      cursor++;
+      ptr++;
+      continue;
+    }
+    if (ELEM(*ptr, String, EndOfFile)) {
+      return;
+    }
+  }
+}
+
+BLI_NOINLINE void lex_number(const uint8_t c_str[/*size*/],
+                             const TokenType types[/*tok_len*/],
+                             const uint32_t offsets[/*tok_len*/],
+                             uint32_t &cursor)
+{
+  const TokenType *type = types + cursor;
+  const uint32_t *offset = offsets + cursor;
+  while (true) {
+    cursor++;
+    type++;
+    offset++;
+    /* Check if previous char was an exponent "e" char. */
+    if (ELEM(*type, '+', '-') && c_str[*offset - 1] != 'e') {
+      break;
+    }
+    if (!ELEM(*type, Word, Number, Dot, '+', '-')) {
+      break;
+    }
+  }
+  /* We need to evaluate the token we broke on. */
+  cursor--;
+}
+
+void tokenize_compounds(const uint8_t c_str[/*size*/],
+                        const uint32_t /*size*/,
+                        const TokenType in_tok_types[/*tok_len*/],
+                        const uint32_t in_tok_offsets[/*tok_len*/],
+                        uint32_t int_tok_len,
+                        TokenType out_tok_types[/*tok_len*/],
+                        uint32_t out_tok_offsets[/*tok_len*/],
+                        uint32_t *out_tok_len)
+{
+  TokenType *types = out_tok_types;
+  uint32_t *offsets = out_tok_offsets;
+  for (uint32_t i = 0; i < int_tok_len; i++, types++, offsets++) {
+    union {
+      struct {
+        TokenType tok, peek;
+      };
+      uint16_t two;
+    };
+    tok = in_tok_types[i];
+    peek = in_tok_types[i + 1];
+
+    uint32_t offset = in_tok_offsets[i];
+
+#ifndef NDEBUG
+    uint32_t tok_size = in_tok_offsets[i + 1] - offset;
+    std::string_view tok_str{(const char *)c_str + offset, tok_size};
+#endif
+
+    *offsets = offset;
+    *types = tok;
+
+    switch (tok) {
+        // case NewLine:
+        // case Space:
+        //   /* Make next token overwrite this one. Merge the space with the token before. */
+        //   types--;
+        //   offsets--;
+        //   continue;
+
+      case String:
+        lex_string(in_tok_types, i);
+        continue;
+
+      case Number:
+        lex_number(c_str, in_tok_types, in_tok_offsets, i);
+        continue;
+
+      [[likely]] default:
+        break;
+    }
+
+    switch (two) {
+      case '=' | '=' << 8:
+        *types = Equal;
+        break;
+      case '!' | '=' << 8:
+        *types = NotEqual;
+        break;
+      case '<' | '=' << 8:
+        *types = GEqual;
+        break;
+      case '>' | '=' << 8:
+        *types = LEqual;
+        break;
+
+      case '#' | '#' << 8:
+        *types = DoubleHash;
+        break;
+      case '&' | '&' << 8:
+        *types = LogicalAnd;
+        break;
+      case '|' | '|' << 8:
+        *types = LogicalOr;
+        break;
+      case '+' | '+' << 8:
+        *types = Increment;
+        break;
+      case '-' | '-' << 8:
+        *types = Decrement;
+        break;
+      case '-' | '>' << 8:
+        *types = Deref;
+        break;
+
+      [[likely]] default:
+        continue;
+    }
+    /* Skip next token. */
+    i++;
+  }
+
+  *out_tok_len = types - out_tok_types;
+}
+
 /**
  * Lexer variant for very fast tokenization for the preprocessor.
  * Consider numbers as words (to avoid splitting and then merging later on).
@@ -506,65 +652,116 @@ struct AtomicLexer : LexerBase {
     update_string_view();
   }
 
+  BLI_NOINLINE void identify_numbers()
+  {
+    tokenize_numbers_start((const uint8_t *)str.data(),
+                           str.size(),
+                           token_types.data(),
+                           token_offsets.data(),
+                           token_types.size());
+  }
+
+  BLI_NOINLINE void merge_tokens()
+  {
+    uint32_t tok_len = token_types.size();
+    tokenize_compounds((const uint8_t *)str.data(),
+                       str.size(),
+                       token_types.data(),
+                       token_offsets.data(),
+                       tok_len,
+                       token_types.data(),
+                       token_offsets.data(),
+                       &tok_len);
+
+    /* Make sure the last token extend to the end of the string. */
+    token_offsets.offsets[tok_len] = token_offsets.offsets.back();
+    /* Shrink spans to new number of tokens. */
+    token_types.shrink(tok_len);
+    token_offsets.offsets.shrink(tok_len + 1);
+
+    update_string_view();
+  }
+
   void lexical_analysis(std::string_view input)
   {
     str = input;
     ensure_memory();
 
     tokenize();
+    identify_numbers();
     atomize_words();
     build_line_structure();
   }
 
-  Atom hash(StringRef tok_str)
+  BLI_INLINE_METHOD Atom hash(StringRef tok_str)
   {
-    if (tok_str.size() == 1) {
-      /* Reserve [0-127] range for single char token. */
-      return tok_str[0];
-    }
+    union {
+      uint64_t u64;
+      uint32_t u32[2];
+    };
+    u64 = 0;
 
-    if (tok_str.size() == 2) {
-      /* Reserve [128-16511] range for double char token. tok_str[1] cannot be 0. */
-      return tok_str[0] + tok_str[1] * uint16_t(128);
+    switch (tok_str.size()) {
+      case 1:
+        /* Reserve [0-127] range for single char token. */
+        return tok_str[0];
+      case 2:
+        /* Reserve [128-16511] range for double char token. tok_str[1] cannot be 0. */
+        return tok_str[0] + tok_str[1] * uint16_t(128);
+      case 3:
+      case 4:
+        std::memcpy(&u64, tok_str.data(), tok_str.size());
+        return atom_u32_map_.lookup_or_add_cb(u32[0], [this]() { return this->next_hash(); });
+      case 5:
+      case 6:
+      case 7:
+      case 8:
+        std::memcpy(&u64, tok_str.data(), tok_str.size());
+        return atom_u64_map_.lookup_or_add_cb(u64, [this]() { return this->next_hash(); });
+      default:
+        /* Long identifier slow path. Do full hash */
+        return atomization_map_.lookup_or_add_cb(tok_str, [this]() { return this->next_hash(); });
     }
-    /* Reserve [16512-65536] range for longer token. */
-    Atom id = 16512 + atomization_map_.size();
-    /* Check for overflow. */
-    BLI_assert(id >= 16512);
-    /* Long identifier slow path. Do full hash */
-    return atomization_map_.lookup_or_add(tok_str, id);
   }
 
  protected:
   /** Map string hashes to atom value. */
   Map<StringRef, Atom> atomization_map_;
+  Map<uint64_t, Atom> atom_u64_map_;
+  Map<uint32_t, Atom> atom_u32_map_;
+  /* Reserve [16512-65536] range for longer token. */
+  uint16_t atom_hash_counter_ = 16512;
 
-  void atomize_words()
+  uint16_t next_hash()
   {
-    token_atoms.resize(token_types.size());
+    /* Check for overflow. */
+    BLI_assert(atom_hash_counter_ >= 16512);
+    return atom_hash_counter_++;
+  }
+
+  BLI_NOINLINE void atomize_words()
+  {
+    const int tok_count = token_types.size();
+
+    token_atoms.resize(tok_count);
     /* From checking our statistics. This heuristic should be enough for 99% of our cases. */
-    atomization_map_.reserve(token_types.size() / 10);
+    atom_u32_map_.reserve(tok_count / 170);
+    atom_u64_map_.reserve(tok_count / 80);
+    atomization_map_.reserve(tok_count / 25);
 
-    for (int tok_id : blender::IndexRange(token_types.size())) {
-      if (token_types[tok_id] == Word) {
-        IndexRange range = token_offsets[tok_id];
-        StringRef tok_str(str.data() + range.start, range.size);
-        char alpha1 = tok_str[0] >> 6;
-        /* Check if number. Reduce false negative in dead code elimination. */
-        if (alpha1 == 0) {
-          token_types[tok_id] = Number;
-          continue;
-        }
-
-        token_atoms[tok_id] = hash(tok_str);
+    for (int tok_id = 0; tok_id < tok_count; tok_id++) {
+      if (token_types[tok_id] != Word) {
+        continue;
       }
+      IndexRange range = token_offsets[tok_id];
+      token_atoms[tok_id] = hash(StringRef(str.data() + range.start, range.size));
     }
   }
 
   /* Backing buffer for line_offsets. */
   Vector<int> line_offsets_buf_;
 
-  void build_line_structure()
+  BLI_NOINLINE void build_line_structure()
   {
     /* From checking our statistics. This heuristic should be enough for 100% of our cases. */
     line_offsets_buf_.reserve(token_types.size() / 7);
