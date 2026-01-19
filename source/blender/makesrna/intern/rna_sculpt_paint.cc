@@ -544,7 +544,6 @@ static void rna_UnifiedPaintSettings_update(bContext *C, PointerRNA * /*ptr*/)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Brush *br = BKE_paint_brush(BKE_paint_get_active(scene, view_layer));
   /* TODO: Verify if tagging the brush for these settings being changed is correct. */
-  // BKE_brush_tag_unsaved_changes(br);
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, br);
   WM_main_add_notifier(NC_SCENE | ND_TOOLSETTINGS, scene);
 }
