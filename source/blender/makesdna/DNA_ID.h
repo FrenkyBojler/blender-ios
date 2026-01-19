@@ -142,6 +142,8 @@ struct IDPropertyData {
   bke::idprop::IDPropertyGroupChildrenSet *children_map = nullptr;
   /** NOTE: a `double` is written into two 32bit integers. */
   int val = 0, val2 = 0;
+  int idprop_active_index = 0;
+  char _pad[4] = {};
 };
 
 struct IDProperty {

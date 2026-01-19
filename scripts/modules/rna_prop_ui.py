@@ -89,7 +89,8 @@ def rna_idprop_ui_create(
 
     # Assign the value
     item[prop] = default
-    item.idprop_active_index = len(item.items()) - 1
+    idprop_group = item.id_properties_ensure()
+    idprop_group.idprop_active_index = len(item.items()) - 1
 
     rna_idprop_ui_prop_update(item, prop)
     ui_data = item.id_properties_ui(prop)
@@ -134,7 +135,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     rna_properties = {prop.identifier for prop in rna_item.bl_rna.properties if prop.is_runtime} if items else None
 
     row = layout.row()
-    row.template_id_properties_tree(rna_item, rna_item.id_data, data_path=context_member)
+    row.template_id_properties_tree(rna_item, data_path=context_member)
 
     if context.area.type != 'PROPERTIES':
         return
@@ -145,7 +146,8 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     if len(items) <= 0:
         return
 
-    active_prop = items[rna_item.idprop_active_index]
+    idprop_group = rna_item.id_properties_ensure()
+    active_prop = items[idprop_group.idprop_active_index]
     key = active_prop[0]
     value = active_prop[1]
     is_rna = (key in rna_properties)
