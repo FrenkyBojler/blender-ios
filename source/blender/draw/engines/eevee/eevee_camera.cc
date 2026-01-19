@@ -154,9 +154,13 @@ void Camera::sync()
                                      overscan_,
                                      data.winmat.ptr());
     }
-    else if (!camera_eval) {
+    else if (camera_eval) {
       /* Can happen for the case of XR or if `rv3d->dist == 0`.
        * In this case the produced winmat is degenerate. So just revert to the input matrix. */
+      data.winmat = inst_.drw_view->winmat();
+    }
+    else {
+      /* Revert to the input matrix and apply the render region. */
       float2 film_center = float2(film_offset) + float2(film_extent) / 2.0f;
       float2 uv_offset = float2(0.5f) - (film_center / float2(display_extent));
       data.winmat = inst_.drw_view->winmat();
