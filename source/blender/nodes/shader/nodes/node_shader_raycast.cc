@@ -51,7 +51,8 @@ static int node_shader_gpu(GPUMaterial *mat,
     GPU_link(mat, "world_normals_get", &in[1].link);
   }
 
-  if (bool only_local = node->custom1) {
+  const bool only_local = node->custom1;
+  if (only_local) {
     return GPU_stack_link(mat, node, "node_raycast_only_local", in, out);
   }
   return GPU_stack_link(mat, node, "node_raycast", in, out);
