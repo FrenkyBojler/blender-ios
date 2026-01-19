@@ -174,7 +174,10 @@ struct Instance : public DrawEngine {
       select_face_flat = nullptr;
       if (e_data.context.select_mode & SCE_SELECT_FACE) {
         auto &sub = select_face_ps.sub("Face");
+        const float vertex_size = U.pixelsize *
+                                  blender::draw::overlay::Resources::vertex_size_get();
         sub.shader_set(sh->select_id_flat);
+        sub.push_constant("vertex_size", float(2 * vertex_size));
         sub.push_constant("retopology_offset", retopology_offset);
         select_face_flat = &sub;
       }
@@ -358,13 +361,15 @@ struct Instance : public DrawEngine {
     StaticData &e_data = StaticData::get();
     SELECTID_Context &sel_ctx = e_data.context;
 
-    if (!sel_ctx.objects.contains(ob) && ob->dt >= OB_SOLID) {
-      /* This object is not selectable. It is here to participate in occlusion.
-       * This is the case in retopology mode. */
-      blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
-          DRW_object_get_data_for_drawing<Mesh>(*ob));
+    if (!sel_ctx.objects.contains(ob)) {
+      if (ob->dt >= OB_SOLID) {
+        /* This object is not selectable. It is here to participate in occlusion.
+         * This is the case in retopology mode. */
+        blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
+            DRW_object_get_data_for_drawing<Mesh>(*ob));
 
-      depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
+        depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
+      }
       return;
     }
 

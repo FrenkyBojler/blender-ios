@@ -29,6 +29,7 @@
 #include "ED_asset_shelf.hh"
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
@@ -669,12 +670,14 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
 
   AssetModifyMode mode = AssetModifyMode(RNA_enum_get(op->ptr, "mode"));
   update_pose_action_from_scene(bmain, action->wrap(), *pose_object, mode);
-  if (!G.background) {
-    asset::generate_preview(C, &action->id);
-  }
+
   if (ID_IS_LINKED(action)) {
     /* Not needed for local assets. */
     bke::asset_edit_id_save(*bmain, action->id, *op->reports);
+  }
+  else {
+    /* Only create undo-step for local actions. Undoing external files isn't supported. */
+    ED_undo_push_op(C, op);
   }
 
   asset::refresh_asset_library_from_asset(C, *asset);
@@ -783,6 +786,8 @@ static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
   }
   else {
     asset::clear_id(&action->id);
+    /* Only create undo-step for local actions. Undoing external files isn't supported. */
+    ED_undo_push_op(C, op);
   }
 
   asset::refresh_asset_library(C, library_ref.value());

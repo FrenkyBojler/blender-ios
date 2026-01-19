@@ -787,6 +787,8 @@ static ImBuf *seq_render_effect_strip_impl(const RenderData *context,
             target_frame = std::floor(target_frame);
           }
 
+          intra_frame_cache_set_cur_frame(
+              context->scene, target_frame, context->view_id, context->rectx, context->recty);
           ibuf[i] = seq_render_strip(context, state, input[0], target_frame);
         }
         else { /* Other effects. */
@@ -2014,6 +2016,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     count = max_ii(count + chanshown, 0);
     seqbasep = ((MetaStack *)BLI_findlink(&ed->metastack, count))->oldbasep;
     channels = ((MetaStack *)BLI_findlink(&ed->metastack, count))->old_channels;
+    chanshown = 0;
   }
   else {
     seqbasep = ed->seqbasep;
@@ -2081,6 +2084,8 @@ ImBuf *render_give_ibuf_direct(const RenderData *context, float timeline_frame, 
 {
   SeqRenderState state;
 
+  intra_frame_cache_set_cur_frame(
+      context->scene, timeline_frame, context->view_id, context->rectx, context->recty);
   ImBuf *ibuf = seq_render_strip(context, &state, strip, timeline_frame);
   return ibuf;
 }

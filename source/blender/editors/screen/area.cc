@@ -1668,7 +1668,7 @@ static void region_rect_recursive(
   else if (ELEM(alignment, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
     rcti *winrct = (region->overlap) ? overlap_remainder : remainder;
 
-    if ((prefsizey == 0) || (rct_fits(winrct, SCREEN_AXIS_V, prefsizey) < 0)) {
+    if ((prefsizey == 0) || (rct_fits(winrct, SCREEN_AXIS_V, prefsizey) < (U.pixelsize * -2))) {
       region->flag |= RGN_FLAG_TOO_SMALL;
     }
     else {
@@ -1891,8 +1891,14 @@ static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *w
     if (area->totrct.xmax < (window_rect->xmax - 1)) {
       area->totrct.xmax -= px;
     }
-    if (area->totrct.ymin > window_rect->ymin) {
+
+    if (area->totrct.ymin > window_rect->ymin + 1) {
       area->totrct.ymin += px;
+    }
+    else {
+      /* Minimum padding at bottom edge. #144921 */
+      const short px_min = short(U.pixelsize * 2.0f);
+      area->totrct.ymin += px_min;
     }
 
     if (area->totrct.ymax < (window_rect->ymax - 1)) {

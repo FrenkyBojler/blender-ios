@@ -1525,6 +1525,7 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
   const int split_side = sequence_split_side_for_exec_get(op);
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
+  const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
 
   seq::prefetch_stop(scene);
 
@@ -1535,8 +1536,14 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
 
     if (ignore_selection || strip->flag & SELECT) {
       const char *error_msg = nullptr;
-      if (seq::edit_strip_split(
-              bmain, scene, ed->seqbasep, strip, split_frame, method, &error_msg) != nullptr)
+      if (seq::edit_strip_split(bmain,
+                                scene,
+                                ed->seqbasep,
+                                strip,
+                                split_frame,
+                                method,
+                                ignore_connections,
+                                &error_msg) != nullptr)
       {
         changed = true;
       }
@@ -1614,6 +1621,13 @@ static wmOperatorStatus sequencer_split_invoke(bContext *C, wmOperator *op, cons
     UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
     if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
       split_frame = round_fl_to_int(mouseloc[0]);
+      Strip *strip = strip_under_mouse_get(scene, v2d, event->mval);
+      if (strip == nullptr || split_frame == seq::time_left_handle_frame_get(scene, strip) ||
+          split_frame == seq::time_right_handle_frame_get(scene, strip))
+      {
+        /* Do not pass through to selection. */
+        return OPERATOR_CANCELLED;
+      }
     }
     RNA_int_set(op->ptr, "channel", mouseloc[1]);
   }
@@ -1641,6 +1655,10 @@ static void sequencer_split_ui(bContext * /*C*/, wmOperator *op)
   if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
     layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
+
+  layout->separator();
+
+  layout->prop(op->ptr, "ignore_connections", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void SEQUENCER_OT_split(wmOperatorType *ot)
@@ -1708,6 +1726,12 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
       "Make cut even if strip is not selected preserving selection state after cut");
 
   RNA_def_property_flag(prop, PROP_HIDDEN);
+
+  RNA_def_boolean(ot->srna,
+                  "ignore_connections",
+                  false,
+                  "Ignore Connections",
+                  "Don't propagate split to connected strips");
 }
 
 /** \} */
