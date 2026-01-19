@@ -1,0 +1,26 @@
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
+
+/** \file
+ * \ingroup bke
+ */
+
+#include <optional>
+
+#include "BKE_attribute.hh"
+#include "BKE_grease_pencil.hh"
+
+namespace blender::bke::greasepencil {
+
+std::optional<FillCache> fill_cache_from_fill_ids(const int num_curves,
+                                                  const VArray<int> &fill_ids);
+IndexMask selected_mask_to_fills(const IndexMask selected_mask,
+                                 const bke::CurvesGeometry &curves,
+                                 const bke::AttrDomain selection_domain,
+                                 IndexMaskMemory &memory);
+void separate_fill_ids(CurvesGeometry &curves, const IndexMask &strokes_to_keep);
+
+}  // namespace blender::bke::greasepencil
