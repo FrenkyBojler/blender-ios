@@ -765,14 +765,11 @@ static wmOperatorStatus outliner_id_remap_exec(bContext *C, wmOperator *op)
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   const short id_type = short(RNA_enum_get(op->ptr, "id_type"));
-  ListBaseT<ID> &lb = *which_libbase(CTX_data_main(C), id_type);
 
-  const int old_session_uid = RNA_int_get(op->ptr, "old_id");
-  const int new_session_uid = RNA_int_get(op->ptr, "new_id");
-  ID *old_id = BLI_listbase_find(lb,
-                                 [&](ID &id) { return int(id.session_uid) == old_session_uid; });
-  ID *new_id = BLI_listbase_find(lb,
-                                 [&](ID &id) { return int(id.session_uid) == new_session_uid; });
+  const uint32_t old_session_uid = RNA_int_get(op->ptr, "old_id");
+  const uint32_t new_session_uid = RNA_int_get(op->ptr, "new_id");
+  ID *old_id = BKE_libblock_find_session_uid(bmain, id_type, old_session_uid);
+  ID *new_id = BKE_libblock_find_session_uid(bmain, id_type, new_session_uid);
 
   /* check for invalid states */
   if (space_outliner == nullptr) {
