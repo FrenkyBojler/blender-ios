@@ -413,7 +413,6 @@ static bool follow_face_loop(const int face_start_index,
 
 void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const bool select)
 {
-  fflush(stdout);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   ED_view3d_select_id_validate(&vc);
@@ -427,7 +426,6 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
   if (!ED_mesh_pick_edge(C, ob, mval, ED_MESH_PICK_DEFAULT_VERT_DIST, &closest_edge_index)) {
     return;
   }
-  fflush(stdout);
   if (closest_edge_index == -1) {
     return;
   }
@@ -465,7 +463,6 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
                                                  corner_edges,
                                                  edge_to_face_map,
                                                  faces_to_select);
-  fflush(stdout);
   if (!traced_full_loop && faces_to_closest_edge.size() > 1) {
     /* Trace the other way. */
     follow_face_loop(faces_to_closest_edge[1],
