@@ -725,6 +725,25 @@ class STRIP_PT_time(StripButtonsPanel, Panel):
         split.label(text="Channel")
         split.prop(strip, "channel", text="")
 
+        if not is_effect or strip.input_count == 0:
+            layout.alignment = 'RIGHT'
+            sub = layout.column(align=True)
+
+            split = sub.split(factor=factor + max_factor, align=True)
+            split.alignment = 'RIGHT'
+            split.label(text="Left Handle")
+            split.prop(strip, "left_handle", text=smpte_from_frame(left_handle))
+
+            split = sub.split(factor=factor + max_factor, align=True)
+            split.alignment = 'RIGHT'
+            split.label(text="Strip Duration")
+            split.prop(strip, "duration", text=smpte_from_frame(duration))
+
+            split = sub.split(factor=factor + max_factor, align=True)
+            split.alignment = 'RIGHT'
+            split.label(text="Right Handle")
+            split.prop(strip, "right_handle", text=smpte_from_frame(right_handle))
+
         sub = layout.column(align=True)
         split = sub.split(factor=factor + max_factor, align=True)
         split.alignment = 'RIGHT'
@@ -748,24 +767,6 @@ class STRIP_PT_time(StripButtonsPanel, Panel):
 
             split = sub.split(factor=factor + max_factor, align=True)
             split.alignment = 'RIGHT'
-            split.label(text="Left Handle")
-            split.prop(strip, "left_handle", text=smpte_from_frame(left_handle))
-
-            split = sub.split(factor=factor + max_factor, align=True)
-            split.alignment = 'RIGHT'
-            split.label(text="Strip Duration")
-            split.prop(strip, "duration", text=smpte_from_frame(duration))
-
-            split = sub.split(factor=factor + max_factor, align=True)
-            split.alignment = 'RIGHT'
-            split.label(text="Right Handle")
-            split.prop(strip, "right_handle", text=smpte_from_frame(right_handle))
-
-            layout.alignment = 'RIGHT'
-            sub = layout.column(align=True)
-
-            split = sub.split(factor=factor + max_factor, align=True)
-            split.alignment = 'RIGHT'
             split.label(text="Content Trim Start")
             split.prop(strip, "content_trim_start", text=smpte_from_frame(strip.content_trim_start))
 
@@ -774,12 +775,12 @@ class STRIP_PT_time(StripButtonsPanel, Panel):
             split.label(text="End")
             split.prop(strip, "content_trim_end", text=smpte_from_frame(strip.content_trim_end))
 
-            if strip.type == 'SOUND':
-                sub2 = layout.column(align=True)
-                split = sub2.split(factor=factor + max_factor, align=True)
-                split.alignment = 'RIGHT'
-                split.label(text="Sound Offset", text_ctxt=i18n_contexts.id_sound)
-                split.prop(strip, "sound_offset", text="")
+        if strip.type == 'SOUND':
+            sub2 = layout.column(align=True)
+            split = sub2.split(factor=factor + max_factor, align=True)
+            split.alignment = 'RIGHT'
+            split.label(text="Sound Offset", text_ctxt=i18n_contexts.id_sound)
+            split.prop(strip, "sound_offset", text="")
 
         col = layout.column(align=True)
         col = col.box()
