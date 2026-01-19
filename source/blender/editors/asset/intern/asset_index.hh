@@ -162,6 +162,7 @@ template<typename T = std::monostate> class ReadingResult {
    * Get a reference to the result's success value, similar to `std::optional<T>`.
    * Only valid if this result is successful and there is an actual success value.
    */
+  template<typename U = T, typename = std::enable_if_t<!std::is_same_v<U, std::monostate>>>
   T &operator*()
   {
     BLI_assert_msg(is_success() || !success_value.has_value(),
@@ -173,6 +174,7 @@ template<typename T = std::monostate> class ReadingResult {
    * Get a reference to the result's success value, similar to `std::optional<T>`.
    * Only valid if this result is successful and there is an actual success value.
    */
+  template<typename U = T, typename = std::enable_if_t<!std::is_same_v<U, std::monostate>>>
   const T &operator*() const
   {
     BLI_assert_msg(is_success() || !success_value.has_value(),
@@ -184,6 +186,7 @@ template<typename T = std::monostate> class ReadingResult {
    * Get a pointer to the result's success value, similar to `std::optional<T>`.
    * Only valid if this result is successful and there is an actual success value.
    */
+  template<typename U = T, typename = std::enable_if_t<!std::is_same_v<U, std::monostate>>>
   T *operator->()
   {
     T &success_value = **this;
@@ -194,6 +197,7 @@ template<typename T = std::monostate> class ReadingResult {
    * Get a pointer to the result's success value, similar to `std::optional<T>`.
    * Only valid if this result is successful and there is an actual success value.
    */
+  template<typename U = T, typename = std::enable_if_t<!std::is_same_v<U, std::monostate>>>
   const T *operator->() const
   {
     const T &success_value = **this;
