@@ -95,10 +95,10 @@ static PointerRNA rna_BlenderProject_data_get(PointerRNA *ptr)
 {
   bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
   if (!project->data.has_value()) {
-    return RNA_pointer_create_discrete(nullptr, &RNA_BlenderProjectData, nullptr);
+    return RNA_pointer_create_discrete(nullptr, RNA_BlenderProjectData, nullptr);
   }
 
-  return RNA_pointer_create_discrete(nullptr, &RNA_BlenderProjectData, &project->data);
+  return RNA_pointer_create_discrete(nullptr, RNA_BlenderProjectData, &project->data);
 }
 
 static void rna_BlenderProject_init(PointerRNA ptr,

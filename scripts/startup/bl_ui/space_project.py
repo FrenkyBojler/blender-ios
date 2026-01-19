@@ -177,7 +177,6 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
         col.prop(project.data, "root_path")
 
 
-
 class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
     bl_label = "No Project"
     bl_space_type = 'PROJECT'
