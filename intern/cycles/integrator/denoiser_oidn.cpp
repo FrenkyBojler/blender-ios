@@ -37,13 +37,6 @@ OIDNDenoiser::OIDNDenoiser(Device *denoiser_device, const DenoiseParams &params)
 #endif
 }
 
-OIDNDenoiser::~OIDNDenoiser()
-{
-#ifdef WITH_OPENIMAGEDENOISE
-  base_.release_all_resources();
-#endif
-}
-
 #ifdef WITH_OPENIMAGEDENOISE
 static bool oidn_progress_monitor_function(void *user_ptr, double /*n*/)
 {

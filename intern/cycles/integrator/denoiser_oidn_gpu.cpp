@@ -160,11 +160,6 @@ OIDNDenoiserGPU::OIDNDenoiserGPU(Device *denoiser_device, const DenoiseParams &p
   DCHECK_EQ(params.type, DENOISER_OPENIMAGEDENOISE);
 }
 
-OIDNDenoiserGPU::~OIDNDenoiserGPU()
-{
-  base_.release_all_resources();
-}
-
 bool OIDNDenoiserGPU::denoise_buffer(const BufferParams &buffer_params,
                                      RenderBuffers *render_buffers,
                                      const int num_samples,

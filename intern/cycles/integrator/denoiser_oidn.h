@@ -19,7 +19,6 @@ class OIDNDenoiser : public Denoiser {
   class State;
 
   OIDNDenoiser(Device *denoiser_device, const DenoiseParams &params);
-  ~OIDNDenoiser() override;
 
   bool denoise_buffer(const BufferParams &buffer_params,
                       RenderBuffers *render_buffers,

@@ -17,7 +17,10 @@ CCL_NAMESPACE_BEGIN
 class OIDNDenoiserBase {
  public:
   explicit OIDNDenoiserBase(Denoiser *denoiser);
-  ~OIDNDenoiserBase() = default;
+  ~OIDNDenoiserBase()
+  {
+    release_all_resources();
+  }
 
   /* OIDN handles and state. */
   OIDNDevice oidn_device_ = nullptr;

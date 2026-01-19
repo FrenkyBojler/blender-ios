@@ -18,7 +18,6 @@ class OIDNDenoiserGPU : public DenoiserGPU {
   class State;
 
   OIDNDenoiserGPU(Device *denoiser_device, const DenoiseParams &params);
-  ~OIDNDenoiserGPU() override;
 
   bool denoise_buffer(const BufferParams &buffer_params,
                       RenderBuffers *render_buffers,
