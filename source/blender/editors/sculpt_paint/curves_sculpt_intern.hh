@@ -73,7 +73,9 @@ std::unique_ptr<CurvesSculptStrokeOperation> new_snake_hook_operation();
 std::unique_ptr<CurvesSculptStrokeOperation> new_grow_shrink_operation(BrushStrokeMode brush_mode,
                                                                        const Scene &scene);
 std::unique_ptr<CurvesSculptStrokeOperation> new_selection_paint_operation(
-    BrushStrokeMode brush_mode, const Scene &scene);
+    BrushStrokeMode brush_mode,
+    TemporaryBrushToggleType temporary_brush_toggle_type,
+    const Scene &scene);
 std::unique_ptr<CurvesSculptStrokeOperation> new_pinch_operation(BrushStrokeMode brush_mode,
                                                                  const Scene &scene);
 std::unique_ptr<CurvesSculptStrokeOperation> new_smooth_operation();

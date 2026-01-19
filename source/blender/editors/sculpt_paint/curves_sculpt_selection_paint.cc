@@ -391,12 +391,15 @@ void SelectionPaintOperation::on_stroke_extended(const PaintStroke &stroke,
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_selection_paint_operation(
-    const BrushStrokeMode brush_mode, const Scene &scene)
+    const BrushStrokeMode brush_mode,
+    const TemporaryBrushToggleType temporary_brush_toggle_type,
+    const Scene &scene)
 {
   Brush &brush = *BKE_paint_brush(&scene.toolsettings->curves_sculpt->paint);
-  const bool use_select = ELEM(brush_mode, BRUSH_STROKE_INVERT) ==
+  const bool use_select = ELEM(brush_mode, BrushStrokeMode::Invert) ==
                           ((brush.flag & BRUSH_DIR_IN) != 0);
-  const bool clear_selection = use_select && brush_mode != BRUSH_STROKE_SMOOTH;
+  const bool clear_selection = use_select &&
+                               temporary_brush_toggle_type != TemporaryBrushToggleType::Smooth;
 
   return std::make_unique<SelectionPaintOperation>(use_select, clear_selection);
 }

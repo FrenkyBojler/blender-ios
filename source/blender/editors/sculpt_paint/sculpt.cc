@@ -4269,15 +4269,14 @@ static void cache_paint_invariants_update(StrokeCache &cache, const Brush &brush
  * smooth). */
 static bool sculpt_needs_connectivity_info(const Sculpt &sd,
                                            const Brush &brush,
-                                           const Object &object,
-                                           int stroke_mode)
+                                           const Object &object)
 {
   SculptSession &ss = *object.runtime->sculpt_session;
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(object);
   if (pbvh && auto_mask::is_enabled(sd, object, &brush)) {
     return true;
   }
-  return ((stroke_mode == BRUSH_STROKE_SMOOTH) || (ss.cache && ss.cache->alt_smooth) ||
+  return ((ss.cache && ss.cache->alt_smooth) ||
           (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SMOOTH) || (brush.autosmooth_factor > 0) ||
           ((brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) &&
            (brush.mask_tool == BRUSH_MASK_SMOOTH)) ||
@@ -4300,7 +4299,7 @@ void SCULPT_stroke_modifiers_check(
   using namespace blender::ed::sculpt_paint;
   SculptSession &ss = *ob.runtime->sculpt_session;
 
-  bool need_pmap = brush && sculpt_needs_connectivity_info(sd, *brush, ob, 0);
+  bool need_pmap = brush && sculpt_needs_connectivity_info(sd, *brush, ob);
   if (ss.shapekey_active || ss.deform_modifiers_active ||
       (!BKE_sculptsession_use_pbvh_draw(&ob, rv3d) && need_pmap))
   {
@@ -4932,7 +4931,10 @@ struct SculptPaintStroke final : public PaintStroke {
     wm_ = CTX_wm_manager(C);
   }
 
-  void stroke_cache_init(BrushStrokeMode stroke_mode, bool pen_flip, const float mval[2]);
+  void stroke_cache_init(BrushStrokeMode stroke_mode,
+                         TemporaryBrushToggleType temporary_brush_toggle_type,
+                         bool pen_flip,
+                         const float mval[2]);
   void stroke_cache_update(PointerRNA *ptr);
 
   bool get_location(float out[3], const float mouse[2], bool force_original) override;
@@ -5502,9 +5504,11 @@ bool color_supported_check(const Scene &scene, Object &object, ReportList *repor
   return true;
 }
 
-void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
-                                          const bool pen_flip,
-                                          const float mval[2])
+void SculptPaintStroke::stroke_cache_init(
+    const BrushStrokeMode stroke_mode,
+    const TemporaryBrushToggleType temporary_brush_toggle_type,
+    const bool pen_flip,
+    const float mval[2])
 {
   StrokeCache *cache = MEM_new<StrokeCache>(__func__);
   bke::PaintRuntime *paint_runtime = sculpt_->paint.runtime;
@@ -5541,9 +5545,9 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
   cache->initial_normal = ss.cursor_sampled_normal.value_or(ss.cursor_normal);
 
   cache->pen_flip = pen_flip;
-  cache->invert = stroke_mode == BRUSH_STROKE_INVERT;
-  cache->alt_smooth = stroke_mode == BRUSH_STROKE_SMOOTH;
-  cache->alt_mask = stroke_mode == BRUSH_STROKE_MASK;
+  cache->invert = stroke_mode == BrushStrokeMode::Invert;
+  cache->alt_smooth = temporary_brush_toggle_type == TemporaryBrushToggleType::Smooth;
+  cache->alt_mask = temporary_brush_toggle_type == TemporaryBrushToggleType::Mask;
   cache->normal_weight = brush->normal_weight;
 
   /* Interpret invert as following normal, for grab brushes. */
@@ -5679,6 +5683,7 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
     ED_view3d_init_mats_rv3d(&ob, this->vc.rv3d);
 
     stroke_cache_init((BrushStrokeMode)RNA_enum_get(op->ptr, "mode"),
+                      (TemporaryBrushToggleType)RNA_enum_get(op->ptr, "brush_toggle"),
                       RNA_boolean_get(op->ptr, "pen_flip"),
                       mval);
     if (brush && brush_type_is_paint(brush->sculpt_brush_type)) {
