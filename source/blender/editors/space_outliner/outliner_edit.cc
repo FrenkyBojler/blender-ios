@@ -855,7 +855,7 @@ static void outliner_id_remap_ui(bContext *C, wmOperator *op)
 {
   ui::Layout &layout = *op->layout;
   layout.use_property_split_set(true);
-  ui::template_ID_session_uid(layout, C, op->ptr, "new_id", ID_OB);
+  ui::template_ID_session_uid(layout, C, op->ptr, "new_id", RNA_enum_get(op->ptr, "id_type"));
 }
 
 void OUTLINER_OT_id_remap(wmOperatorType *ot)
