@@ -18,6 +18,8 @@
 #include "BKE_asset.hh"
 #include "BKE_idtype.hh"
 
+#include "BLT_translation.hh"
+
 #include "CLG_log.h"
 
 #include "ED_asset_indexer.hh"
@@ -54,7 +56,7 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
   const std::optional<StringRef> asset_name_opt = dictionary.lookup_str("name");
   if (!asset_name_opt) {
     return ReadingResult<RemoteListingAssetEntry>::Failure(
-        "could not read asset name, 'name' field not set");
+        N_("could not read asset name, 'name' field not set"));
   }
   const StringRef asset_name = *asset_name_opt;
   asset_name.copy_utf8_truncated(listing_entry.datablock_info.name);
@@ -65,29 +67,28 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
     listing_entry.idcode = BKE_idtype_idcode_from_name_case_insensitive(idtype_name->c_str());
     if (!BKE_idtype_idcode_is_valid(listing_entry.idcode)) {
       return ReadingResult<RemoteListingAssetEntry>::Failure(fmt::format(
-          "could not read type of asset '{}': 'id_type' field is not a valid type", asset_name));
+          N_("could not read type of asset '{:s}': 'id_type' field is not a valid type"),
+          asset_name));
     }
   }
   else {
     return ReadingResult<RemoteListingAssetEntry>::Failure(
-        fmt::format("could not read type of asset '{}', 'type' field not set", asset_name));
+        fmt::format(N_("could not read type of asset '{:s}', 'type' field not set"), asset_name));
   }
 
   /* 'files': required list of strings. */
   if (const ArrayValue *file_paths = dictionary.lookup_array("files")) {
     if (file_paths->elements().is_empty()) {
-      /* TODO: include the asset ID. */
       return ReadingResult<RemoteListingAssetEntry>::Failure(
-          fmt::format("asset '{}' has no files", asset_name));
+          fmt::format(N_("asset '{:s}' has no files"), asset_name));
     }
     for (const std::shared_ptr<Value> &file_path_element : file_paths->elements()) {
       asset_system::OnlineAssetFile file = {};
 
       const io::serialize::StringValue *file_path_string = file_path_element->as_string_value();
       if (!file_path_string) {
-        /* TODO: include the asset ID. */
-        return ReadingResult<RemoteListingAssetEntry>::Failure(
-            fmt::format("asset '{}' has a non-string entry in its 'files' list", asset_name));
+        return ReadingResult<RemoteListingAssetEntry>::Failure(fmt::format(
+            N_("asset '{:s}' has a non-string entry in its 'files' list"), asset_name));
       }
       file.path = file_path_string->value();
       if (file.path.empty()) {
@@ -102,9 +103,8 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
         file.url = file_entry->download_url;
       }
       else {
-        /* TODO: include the path that's not found. */
         return ReadingResult<RemoteListingAssetEntry>::Failure(
-            fmt::format("asset '{}' references unknown file '{}'", asset_name, file.path));
+            fmt::format(N_("asset '{:s}' references unknown file '{:s}'"), asset_name, file.path));
       }
 
       listing_entry.online_info.files.append(file);
@@ -112,7 +112,7 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
   }
   else {
     return ReadingResult<RemoteListingAssetEntry>::Failure(
-        fmt::format("asset '{}' has no 'files' field", asset_name));
+        fmt::format(N_("asset '{:s}' has no 'files' field"), asset_name));
   }
 
   /* 'thumbnail': URL and hash of the preview image. */
@@ -141,8 +141,8 @@ static ReadingResult<RemoteListingFileEntry> listing_file_from_asset_dictionary(
   }
   else {
     return ReadingResult<RemoteListingFileEntry>::Failure(
-        "Error reading asset listing file entry, skipping. Reason: found a file without 'path' "
-        "field");
+        N_("Error reading asset listing file entry, skipping. Reason: found a file without 'path' "
+           "field"));
   }
 
   /* Hash is mandatory. */
@@ -151,8 +151,8 @@ static ReadingResult<RemoteListingFileEntry> listing_file_from_asset_dictionary(
   }
   else {
     return ReadingResult<RemoteListingFileEntry>::Failure(fmt::format(
-        "Error reading asset listing file entry, skipping. Reason: found a file ({}) without "
-        "'hash' field",
+        N_("Error reading asset listing file entry, skipping. Reason: found a file ({:s}) without "
+           "'hash' field"),
         file_entry.local_path.c_str()));
   }
 
@@ -170,7 +170,7 @@ static ReadingResult<WarningVector> listing_entries_from_root(
   const ArrayValue *assets = value.lookup_array("assets");
   BLI_assert(assets != nullptr);
   if (assets == nullptr) {
-    return ReadingResult<>::Failure("no assets listed");
+    return ReadingResult<>::Failure(N_("no assets listed"));
   }
 
   /* Build a mapping from local file path to its file info. */
@@ -178,7 +178,8 @@ static ReadingResult<WarningVector> listing_entries_from_root(
   BLI_assert(files != nullptr);
   if (assets == nullptr) {
     /* The 'files' section is mandatory in the OpenAPI schema. */
-    return ReadingResult<>::Failure("error reading asset listing, page file has no files section");
+    return ReadingResult<>::Failure(
+        N_("error reading asset listing, page file has no files section"));
   }
 
   WarningVector warnings;
@@ -226,17 +227,18 @@ ReadingResult<WarningVector> AssetLibraryListingPageV1::read_asset_entries(
     const StringRefNull filepath, const RemoteListingEntryProcessFn process_fn)
 {
   if (!BLI_exists(filepath.c_str())) {
-    return ReadingResult<>::Failure(fmt::format("file does not exist: {}", filepath));
+    return ReadingResult<>::Failure(fmt::format(N_("file does not exist: {:s}"), filepath));
   }
 
   const std::unique_ptr<Value> contents = read_contents(filepath);
   if (!contents) {
-    return ReadingResult<>::Failure(fmt::format("file is empty: {}", filepath));
+    return ReadingResult<>::Failure(fmt::format(N_("file is empty: {:s}"), filepath));
   }
 
   const DictionaryValue *root = contents->as_dictionary_value();
   if (!root) {
-    return ReadingResult<>::Failure(fmt::format("file is not a JSON dictionary: {}", filepath));
+    return ReadingResult<>::Failure(
+        fmt::format(N_("file is not a JSON dictionary: {:s}"), filepath));
   }
 
   return listing_entries_from_root(*root, process_fn);
@@ -328,7 +330,7 @@ ReadingResult<Vector<std::string>> read_remote_listing_v1(
                                                              *ignore_before_timestamp);
     if (!is_older) {
       return ReadingResult<>::Failure(
-          fmt::format("Couldn't find index file {}", asset_index_abspath));
+          fmt::format(N_("Couldn't find index file {:s}"), asset_index_abspath));
     }
     /* TODO the .processed.json file doesn't get touched by the downloader to indicate it's up to
      * date. Should this be done, or should we just note compare the timestamps for meta-files? The
@@ -343,7 +345,7 @@ ReadingResult<Vector<std::string>> read_remote_listing_v1(
       asset_index_abspath);
   if (!listing) {
     return ReadingResult<>::Failure(
-        fmt::format("Couldn't read V1 listing from {}", asset_index_abspath));
+        fmt::format(N_("Couldn't read V1 listing from {:s}"), asset_index_abspath));
   }
 
   Set<StringRef> done_pages;

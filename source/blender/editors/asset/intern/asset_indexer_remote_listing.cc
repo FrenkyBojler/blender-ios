@@ -253,7 +253,7 @@ static ReadingResult<ApiVersionInfo> choose_api_version(const AssetLibraryMeta &
   }
 
   return ReadingResult<ApiVersionInfo>::Failure(
-      "remote does not offer an API version supported by this version of Blender");
+      N_("remote does not offer an API version supported by this version of Blender"));
 }
 
 bool read_remote_listing(const StringRefNull root_dirpath,
@@ -287,7 +287,7 @@ bool read_remote_listing(const StringRefNull root_dirpath,
       default:
         /* choose_api_version() should not have chosen this version. */
         BLI_assert_unreachable();
-        return ResultWithWarnings::Failure("internal error, please report a bug");
+        return ResultWithWarnings::Failure(N_("internal error, please report a bug"));
     }
   };
 
