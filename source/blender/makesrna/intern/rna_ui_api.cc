@@ -637,6 +637,7 @@ static void rna_uiTemplateID(Layout *layout,
 
   template_id(layout, C, ptr, propname, newop, openop, unlinkop, filter, live_icon, text);
 }
+
 static void rna_ui_template_ID_session_uid(
     Layout *layout, bContext *C, PointerRNA *ptr, const char *propname, int idcode)
 {

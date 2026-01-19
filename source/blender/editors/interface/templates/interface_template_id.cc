@@ -73,7 +73,7 @@ static void template_ID_set_property_exec_fn(bContext *C, void *arg_template, vo
   }
 }
 
-/* Search browse menu, assign. */
+/* Search browse menu, assign #ID::session_uid as Int Property. */
 static void template_ID_set_int_property_session_uid_exec_fn(bContext * /*C*/,
                                                              void *arg_template,
                                                              void *item)
@@ -286,15 +286,6 @@ static Block *id_search_menu_session_uid(bContext *C, ARegion *region, void *arg
   template_ui = *(static_cast<TemplateID *>(arg_litem));
   const uint32_t active_session_uid = RNA_property_int_get(&template_ui.ptr, template_ui.prop);
   ID *active_id = BKE_libblock_find_session_uid(CTX_data_main(C), template_ui.idcode, active_session_uid);
-
-  if (template_ui.filter) {
-    /* Currently only used for objects. */
-    if (template_ui.idcode == ID_OB) {
-      if (template_ui.filter == TEMPLATE_ID_FILTER_AVAILABLE) {
-        id_search_update_fn = id_search_cb_objects_from_scene;
-      }
-    }
-  }
 
   return template_common_search_menu(C,
                                      region,
@@ -1645,13 +1636,13 @@ void template_ID_session_uid(
   TemplateID template_ui = {};
   template_ui.ptr = *ptr;
   template_ui.prop = prop;
-  template_ui.prv_rows = 0;
-  template_ui.prv_cols = 0;
   template_ui.scale = 1.0f;
 
   Block *block = layout.block();
+
   template_ui.idcode = idcode;
   template_ui.idlb = lb;
+  
   Layout &row = layout.row(true);
   if (layout.use_property_split()) {
     PropertySplitWrapper split = uiItemPropertySplitWrapperCreate(&row);
