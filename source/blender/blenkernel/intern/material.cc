@@ -1526,7 +1526,7 @@ enum ePaintSlotFilter {
 };
 ENUM_OPERATORS(ePaintSlotFilter)
 
-using ForEachTexNodeCallback = bool (*)(bNode *node, void *userdata);
+using ForEachTexNodeCallback = bool (*)(bNodeTree *nodetree, bNode *node, void *userdata);
 static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
                                             ForEachTexNodeCallback callback,
                                             void *userdata,
@@ -1538,12 +1538,12 @@ static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
     if (do_image_nodes && node->typeinfo->nclass == NODE_CLASS_TEXTURE &&
         node->typeinfo->type_legacy == SH_NODE_TEX_IMAGE && node->id)
     {
-      if (!callback(node, userdata)) {
+      if (!callback(nodetree, node, userdata)) {
         return false;
       }
     }
     if (do_color_attributes && node->typeinfo->type_legacy == SH_NODE_ATTRIBUTE) {
-      if (!callback(node, userdata)) {
+      if (!callback(nodetree, node, userdata)) {
         return false;
       }
     }
@@ -1559,7 +1559,7 @@ static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
   return true;
 }
 
-static bool count_texture_nodes_cb(bNode * /*node*/, void *userdata)
+static bool count_texture_nodes_cb(bNodeTree * /*nodetree*/, bNode * /*node*/, void *userdata)
 {
   (*(static_cast<int *>(userdata)))++;
   return true;
@@ -1581,7 +1581,7 @@ struct FillTexPaintSlotsData {
   int slot_len;
 };
 
-static bool fill_texpaint_slots_cb(bNode *node, void *userdata)
+static bool fill_texpaint_slots_cb(bNodeTree * /*nodetree*/, bNode *node, void *userdata)
 {
   FillTexPaintSlotsData *fill_data = static_cast<FillTexPaintSlotsData *>(userdata);
 
@@ -1741,15 +1741,17 @@ void BKE_texpaint_slots_refresh_object(Scene *scene, Object *ob)
 
 struct FindTexPaintNodeData {
   TexPaintSlot *slot;
+  bNodeTree *r_nodetree;
   bNode *r_node;
 };
 
-static bool texpaint_slot_node_find_cb(bNode *node, void *userdata)
+static bool texpaint_slot_node_find_cb(bNodeTree *nodetree, bNode *node, void *userdata)
 {
   FindTexPaintNodeData *find_data = static_cast<FindTexPaintNodeData *>(userdata);
   if (find_data->slot->ima && node->type_legacy == SH_NODE_TEX_IMAGE) {
     Image *node_ima = id_cast<Image *>(node->id);
     if (find_data->slot->ima == node_ima) {
+      find_data->r_nodetree = nodetree;
       find_data->r_node = node;
       return false;
     }
@@ -1758,6 +1760,7 @@ static bool texpaint_slot_node_find_cb(bNode *node, void *userdata)
   if (find_data->slot->attribute_name && node->type_legacy == SH_NODE_ATTRIBUTE) {
     NodeShaderAttribute *storage = static_cast<NodeShaderAttribute *>(node->storage);
     if (STREQLEN(find_data->slot->attribute_name, storage->name, sizeof(storage->name))) {
+      find_data->r_nodetree = nodetree;
       find_data->r_node = node;
       return false;
     }
@@ -1766,7 +1769,9 @@ static bool texpaint_slot_node_find_cb(bNode *node, void *userdata)
   return true;
 }
 
-bNode *BKE_texpaint_slot_material_find_node(Material *ma, short texpaint_slot)
+bNode *BKE_texpaint_slot_material_find_node(Material *ma,
+                                            short texpaint_slot,
+                                            bNodeTree **r_nodetree)
 {
   if (ma->texpaintslot == nullptr) {
     return nullptr;
@@ -1782,6 +1787,10 @@ bNode *BKE_texpaint_slot_material_find_node(Material *ma, short texpaint_slot)
                                   texpaint_slot_node_find_cb,
                                   &find_data,
                                   PAINT_SLOT_IMAGE | PAINT_SLOT_COLOR_ATTRIBUTE);
+
+  if (r_nodetree) {
+    *r_nodetree = find_data.r_nodetree;
+  }
 
   return find_data.r_node;
 }
