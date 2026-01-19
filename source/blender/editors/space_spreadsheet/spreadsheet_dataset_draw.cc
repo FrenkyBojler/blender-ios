@@ -1444,7 +1444,7 @@ static void draw_context_panel_content(const bContext &C, ui::Layout &layout)
   }
 
   PointerRNA sspreadsheet_ptr = RNA_pointer_create_discrete(
-      &screen.id, &RNA_SpaceSpreadsheet, sspreadsheet);
+      &screen.id, RNA_SpaceSpreadsheet, sspreadsheet);
 
   layout.prop(&sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
 
