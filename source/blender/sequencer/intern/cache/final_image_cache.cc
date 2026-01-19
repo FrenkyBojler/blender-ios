@@ -34,7 +34,7 @@ struct FinalImageCache {
     int display_channel;
     int2 image_size;
 
-    const uint64_t hash() const
+    uint64_t hash() const
     {
       return get_default_hash(seqbasep, timeline_frame, view_id, display_channel, image_size);
     }

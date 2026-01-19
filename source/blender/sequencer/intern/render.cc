@@ -7,7 +7,6 @@
 /** \file
  * \ingroup sequencer
  */
-3
 #include <ctime>
 
 #include "MEM_guardedalloc.h"
