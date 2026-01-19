@@ -3381,16 +3381,17 @@ static int mesh_to_grease_pencil_add_material(Main &bmain,
 
   if (stroke_color.has_value()) {
     copy_v4_v4(ma->gp_style->stroke_rgba, stroke_color.value());
-    srgb_to_linearrgb_v4(ma->gp_style->stroke_rgba, ma->gp_style->stroke_rgba);
+  }
+  else {
+    copy_v4_v4(ma->gp_style->stroke_rgba, float4(0.0f));
   }
 
   if (fill_color.has_value()) {
     copy_v4_v4(ma->gp_style->fill_rgba, fill_color.value());
-    srgb_to_linearrgb_v4(ma->gp_style->fill_rgba, ma->gp_style->fill_rgba);
   }
-
-  SET_FLAG_FROM_TEST(ma->gp_style->flag, stroke_color.has_value(), GP_MATERIAL_STROKE_SHOW);
-  SET_FLAG_FROM_TEST(ma->gp_style->flag, fill_color.has_value(), GP_MATERIAL_FILL_SHOW);
+  else {
+    copy_v4_v4(ma->gp_style->fill_rgba, float4(0.0f));
+  }
 
   return index;
 }
@@ -3452,14 +3453,14 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
                                        const float offset,
                                        const Array<int> &material_remap)
 {
-  grease_pencil.flag |= GREASE_PENCIL_STROKE_ORDER_3D;
+  using namespace bke::greasepencil;
 
   if (mesh_eval.edges_num <= 0) {
     return;
   }
 
-  bke::greasepencil::Layer &layer_line = grease_pencil.add_layer(DATA_("Lines"));
-  bke::greasepencil::Drawing *drawing_line = grease_pencil.insert_frame(layer_line, current_frame);
+  Layer &layer_line = grease_pencil.add_layer(DATA_("Lines"));
+  Drawing *drawing_line = grease_pencil.insert_frame(layer_line, current_frame);
 
   const Span<float3> mesh_positions = mesh_eval.vert_positions();
   const OffsetIndices<int> faces = mesh_eval.faces();
@@ -3467,69 +3468,86 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   const Span<int> corner_verts = mesh_eval.corner_verts();
 
   if (generate_faces && !faces.is_empty()) {
-    bke::greasepencil::Layer &layer_fill = grease_pencil.add_layer(DATA_("Fills"));
-    bke::greasepencil::Drawing *drawing_fill = grease_pencil.insert_frame(layer_fill,
-                                                                          current_frame);
+    Layer &layer_fill = grease_pencil.add_layer(DATA_("Fills"));
+    Drawing *drawing_fill = grease_pencil.insert_frame(layer_fill, current_frame);
     const int fills_num = faces.size();
     const int fills_points_num = corner_verts.size();
 
     drawing_fill->strokes_for_write().resize(fills_points_num, fills_num);
-    bke::CurvesGeometry &curves_fill = drawing_fill->strokes_for_write();
-    MutableSpan<float3> positions_fill = curves_fill.positions_for_write();
-    MutableSpan<int> offsets_fill = curves_fill.offsets_for_write();
-    MutableSpan<bool> cyclic_fill = curves_fill.cyclic_for_write();
-    bke::SpanAttributeWriter<int> stroke_materials_fill =
-        curves_fill.attributes_for_write().lookup_or_add_for_write_span<int>(
-            "material_index", bke::AttrDomain::Curve);
-    bke::AttributeAccessor mesh_attributes = mesh_eval.attributes();
-    VArray<int> mesh_materials = *mesh_attributes.lookup_or_default(
+    bke::CurvesGeometry &curves = drawing_fill->strokes_for_write();
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    MutableSpan<float3> positions = curves.positions_for_write();
+    MutableSpan<int> offsets = curves.offsets_for_write();
+    MutableSpan<bool> cyclic = curves.cyclic_for_write();
+
+    curves.fill_curve_types(CURVE_TYPE_POLY);
+    array_utils::gather(mesh_positions, corner_verts, positions);
+    array_utils::copy(faces_span, offsets);
+    cyclic.fill(true);
+
+    VArray<int> mesh_materials = *mesh_eval.attributes().lookup_or_default(
         "material_index", bke::AttrDomain::Face, 0);
+    bke::SpanAttributeWriter<int> material_indices =
+        attributes.lookup_or_add_for_write_only_span<int>("material_index",
+                                                          bke::AttrDomain::Curve);
+    threading::parallel_for(curves.curves_range(), 2048, [&](const IndexRange range) {
+      for (const int i : range) {
+        /* Increase material index by 1 to accommodate the stroke material. */
+        material_indices.span[i] = material_remap[mesh_materials[i]] + 1;
+      }
+    });
+    material_indices.finish();
 
-    curves_fill.fill_curve_types(CURVE_TYPE_POLY);
-    array_utils::gather(mesh_positions, corner_verts, positions_fill);
-    array_utils::copy(faces_span, offsets_fill);
-    cyclic_fill.fill(true);
+    bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_only_span<int>(
+        "fill_id", bke::AttrDomain::Curve);
+    threading::parallel_for(curves.curves_range(), 2048, [&](const IndexRange range) {
+      for (const int i : range) {
+        const int fill_id = i + 1;
+        fill_ids.span[i] = fill_id;
+      }
+    });
+    fill_ids.finish();
 
-    MutableSpan<int> material_span = stroke_materials_fill.span;
-    for (const int face_i : material_span.index_range()) {
-      /* Increase material index by 1 to accommodate the stroke material. */
-      material_span[face_i] = material_remap[mesh_materials[face_i]] + 1;
-    }
-    stroke_materials_fill.finish();
+    bke::SpanAttributeWriter<bool> hide_stroke =
+        attributes.lookup_or_add_for_write_only_span<bool>("hide_stroke", bke::AttrDomain::Curve);
+    hide_stroke.span.fill(true);
+    hide_stroke.finish();
   }
 
   Mesh *mesh_copied = BKE_mesh_copy_for_eval(mesh_eval);
   const Span<float3> normals = mesh_copied->vert_normals();
 
-  std::string unique_attribute_id = BKE_attribute_calc_unique_name(
+  std::string normals_attribute_id = BKE_attribute_calc_unique_name(
       AttributeOwner::from_id(&mesh_copied->id), "vertex_normal_for_conversion");
 
   mesh_copied->attributes_for_write().add(
-      unique_attribute_id,
+      normals_attribute_id,
       bke::AttrDomain::Point,
       bke::AttrType::Float3,
       bke::AttributeInitVArray(VArray<float3>::from_span(normals)));
 
   const int edges_num = mesh_copied->edges_num;
-  bke::CurvesGeometry curves = geometry::mesh_edges_to_curves_convert(
+  bke::CurvesGeometry curves_edges = geometry::mesh_edges_to_curves_convert(
       *mesh_copied, IndexRange(edges_num), {});
 
-  MutableSpan<float3> curve_positions = curves.positions_for_write();
-  const VArraySpan<float3> point_normals = *curves.attributes().lookup<float3>(
-      unique_attribute_id);
-
+  MutableSpan<float3> curve_positions = curves_edges.positions_for_write();
+  const VArraySpan<float3> point_normals = *curves_edges.attributes().lookup<float3>(
+      normals_attribute_id);
   threading::parallel_for(curve_positions.index_range(), 8192, [&](const IndexRange range) {
     for (const int point_i : range) {
       curve_positions[point_i] += offset * point_normals[point_i];
     }
   });
+  curves_edges.attributes_for_write().remove(normals_attribute_id);
 
   BKE_defgroup_copy_list(&grease_pencil.vertex_group_names, &mesh_copied->vertex_group_names);
   grease_pencil.vertex_group_active_index = mesh_copied->vertex_group_active_index;
 
-  curves.radius_for_write().fill(stroke_radius);
+  grease_pencil.flag |= GREASE_PENCIL_STROKE_ORDER_3D;
 
-  drawing_line->strokes_for_write() = std::move(curves);
+  curves_edges.radius_for_write().fill(stroke_radius);
+
+  drawing_line->strokes_for_write() = std::move(curves_edges);
   drawing_line->tag_topology_changed();
 
   BKE_id_free(nullptr, mesh_copied);
@@ -3963,8 +3981,6 @@ static Object *convert_font_to_curves(Base &base, ObjectConversionInfo &info, Ba
   return curve_ob;
 }
 
-/* Currently neither Grease Pencil nor legacy curves supports per-stroke/curve fill attribute, thus
- * the #fill argument applies on all strokes that are converted. */
 static void add_grease_pencil_materials_for_conversion(Main &bmain,
                                                        ID &from_id,
                                                        Object &gp_object,
@@ -3972,10 +3988,12 @@ static void add_grease_pencil_materials_for_conversion(Main &bmain,
 {
   short *len_p = BKE_id_material_len_p(&from_id);
   if (!len_p || *len_p == 0) {
+    BKE_grease_pencil_object_material_new(&bmain, &gp_object, IFACE_("Empty Material"), nullptr);
     return;
   }
   Material ***materials = BKE_id_material_array_p(&from_id);
   if (!materials || !(*materials)) {
+    BKE_grease_pencil_object_material_new(&bmain, &gp_object, IFACE_("Empty Material"), nullptr);
     return;
   }
   for (short i = 0; i < *len_p; i++) {
@@ -3993,10 +4011,25 @@ static void add_grease_pencil_materials_for_conversion(Main &bmain,
     }
 
     copy_v4_v4(gp_material->gp_style->fill_rgba, &orig_material->r);
-
-    SET_FLAG_FROM_TEST(gp_material->gp_style->flag, !use_fill, GP_MATERIAL_STROKE_SHOW);
-    SET_FLAG_FROM_TEST(gp_material->gp_style->flag, use_fill, GP_MATERIAL_FILL_SHOW);
+    if (use_fill) {
+      gp_material->gp_style->fill_rgba[3] = 1.0f;
+    }
   }
+}
+
+static void create_grease_pencil_fills(bke::greasepencil::Drawing &drawing)
+{
+  bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+  bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_only_span<int>(
+      "fill_id", bke::AttrDomain::Curve);
+  bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_only_span<bool>(
+      "hide_stroke", bke::AttrDomain::Curve);
+  /* Mark all the strokes as part of the same fill. */
+  fill_ids.span.fill(1);
+  /* Hide all the strokes, only show fills. */
+  hide_stroke.span.fill(true);
+  fill_ids.finish();
+  hide_stroke.finish();
 }
 
 static Object *convert_font_to_grease_pencil(Base &base,
@@ -4025,7 +4058,13 @@ static Object *convert_font_to_grease_pencil(Base &base,
   drawing->strokes_for_write() = std::move(curves);
   /* Default radius (1.0 unit) is too thick for converted strokes. */
   drawing->radii_for_write().fill(0.01f);
-  drawing->tag_positions_changed();
+
+  /* Legacy curves don't support per-stroke/curve fill attribute, thus all the strokes that are
+   * converted are filled. */
+  const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
+  if (use_fill) {
+    create_grease_pencil_fills(*drawing);
+  }
 
   grease_pencil_separate_shapes_from_materials(drawing);
 
@@ -4033,7 +4072,6 @@ static Object *convert_font_to_grease_pencil(Base &base,
   curve_ob->type = OB_GREASE_PENCIL;
   curve_ob->totcol = grease_pencil->material_array_num;
 
-  const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
   add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob, use_fill);
 
   /* We don't need the intermediate font/curve data ID any more. */
@@ -4139,6 +4177,12 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
   drawing->radii_for_write().fill(0.01f);
   drawing->tag_positions_changed();
 
+  /* Legacy curves don't support per-stroke/curve fill attribute, thus all the strokes that are
+   * converted are filled. */
+  const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
+  if (use_fill) {
+    create_grease_pencil_fills(*drawing);
+  }
   grease_pencil_separate_shapes_from_materials(drawing);
 
   newob->data = id_cast<ID *>(grease_pencil);
@@ -4148,7 +4192,6 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
    * sync. */
   newob->totcol = grease_pencil->material_array_num;
 
-  const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
   add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob, use_fill);
 
   /* For some reason this must be called, otherwise evaluated id_cow will still be the original
