@@ -508,14 +508,14 @@ static const auto &get_type_map()
 {
   static auto type_map = []() {
     std::array<PropertyRNA *, IDP_NUMTYPES> type_map{};
-    type_map[IDP_STRING] = RNA_struct_type_find_property(RNA_PropertyGroup, "string");
-    type_map[IDP_INT] = RNA_struct_type_find_property(RNA_PropertyGroup, "int");
-    type_map[IDP_FLOAT] = RNA_struct_type_find_property(RNA_PropertyGroup, "float");
-    type_map[IDP_GROUP] = RNA_struct_type_find_property(RNA_PropertyGroup, "group");
-    type_map[IDP_ID] = RNA_struct_type_find_property(RNA_PropertyGroup, "id");
-    type_map[IDP_DOUBLE] = RNA_struct_type_find_property(RNA_PropertyGroup, "double");
-    type_map[IDP_IDPARRAY] = RNA_struct_type_find_property(RNA_PropertyGroup, "idp_array");
-    type_map[IDP_BOOLEAN] = RNA_struct_type_find_property(RNA_PropertyGroup, "bool");
+    type_map[IDP_STRING] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "string");
+    type_map[IDP_INT] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "int");
+    type_map[IDP_FLOAT] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "float");
+    type_map[IDP_GROUP] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "group");
+    type_map[IDP_ID] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "id");
+    type_map[IDP_DOUBLE] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "double");
+    type_map[IDP_IDPARRAY] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "idp_array");
+    type_map[IDP_BOOLEAN] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "bool");
     return type_map;
   }();
   return type_map;
