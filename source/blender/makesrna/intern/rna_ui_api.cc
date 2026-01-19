@@ -2386,6 +2386,8 @@ void RNA_api_ui_layout(StructRNA *srna)
       srna, "template_id_properties_tree", "blender::ui::id_properties::template_tree");
   RNA_def_function_ui_description(func, "ID Property tree view");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  parm = RNA_def_pointer(func, "data", "AnyType", "", "Data from which to take property");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
   parm = RNA_def_pointer(
       func, "id", "ID", "", "ID data-block containing the ID properties to display");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
@@ -2398,6 +2400,8 @@ void RNA_api_ui_layout(StructRNA *srna)
   parm = RNA_def_pointer(
       func, "id", "ID", "", "ID data-block containing the ID properties to display");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "data", "AnyType", "", "Data from which to take property");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
 }
 
 }  // namespace blender

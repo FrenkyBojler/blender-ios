@@ -252,11 +252,13 @@ void IDPropertyView::build_tree()
   }
 }
 
-void template_tree(ui::Layout *layout, bContext *C, ID *id, const char *data_path)
+void template_tree(ui::Layout *layout, bContext *C, PointerRNA *ptr, ID *id, const char *data_path)
 {
   if (id == nullptr) {
     return;
   }
+
+  IDProperty *user_properties = RNA_struct_idprops(ptr, false);
 
   Block *block = layout->block();
 
@@ -268,7 +270,7 @@ void template_tree(ui::Layout *layout, bContext *C, ID *id, const char *data_pat
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
 
-void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id)
+void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, PointerRNA *ptr)
 {
   if (!id->properties) {
     return;
