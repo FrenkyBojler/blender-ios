@@ -396,9 +396,8 @@ static void WIDGETGROUP_navigate_draw(const bContext *C, wmGizmoGroup *gzgroup)
 
   const bool show_rotate_gizmo =
       (ELEM(U.mini_axis_type, USER_MINI_AXIS_TYPE_GIZMO, USER_MINI_AXIS_TYPE_MINIMAL) &&
-                                  (region->alignment != RGN_ALIGN_QSPLIT ||
-                                   region->runtime->quadview_index ==
-                                       bke::ARegionQuadviewIndex::TopRight));
+       (region->alignment != RGN_ALIGN_QSPLIT ||
+        region->runtime->quadview_index == bke::ARegionQuadviewIndex::TopRight));
 
   int count = 0;
   for (uint i = 0; i < ARRAY_SIZE(navgroup->gz_array); i++) {
@@ -428,7 +427,8 @@ static void WIDGETGROUP_navigate_draw(const bContext *C, wmGizmoGroup *gzgroup)
   float width = GIZMO_MINI_SIZE * UI_SCALE_FAC;
   float height = count * width;
 
-  rctf rect = { left, left + width,
+  rctf rect = {left,
+               left + width,
                navgroup->state.rect_visible.ymax - height - top,
                navgroup->state.rect_visible.ymax - top};
   float col[4] = {0.0f, 0.0f, 0.0f, 0.3f};
