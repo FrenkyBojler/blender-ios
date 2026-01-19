@@ -371,6 +371,7 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
                 "Orthographic Scale",
             ],
         )
+        self.node_operator(layout, "GeometryNodeBoneInfo")
         self.node_operator(layout, "GeometryNodeCollectionInfo")
         self.node_operator(layout, "GeometryNodeImageInfo")
         self.node_operator(layout, "GeometryNodeIsViewport")
@@ -790,6 +791,8 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
+        self.node_operator(layout, "NodeGetBundleItem")
+        self.node_operator(layout, "NodeStoreBundleItem")
         self.node_operator(layout, "NodeJoinBundle")
 
         self.draw_assets_for_catalog(layout, self.menu_path)

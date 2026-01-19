@@ -69,11 +69,6 @@ class NODE_HT_header(Header):
                     'MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'GPENCIL', 'VOLUME', 'CURVES', 'POINTCLOUD',
                 }
 
-                if snode_id:
-                    row = layout.row()
-                    if ob_type not in types_that_support_material:
-                        row.prop(snode_id, "use_nodes")
-
                 layout.separator_spacer()
 
                 # disable material slot buttons when pinned, cannot find correct slot within id_from (#36589)
@@ -151,8 +146,10 @@ class NODE_HT_header(Header):
 
             if snode.node_tree_sub_type == 'SCENE':
                 row = layout.row()
-                row.enabled = not snode.pin
-                if scene.compositing_node_group:
+                if snode.pin:
+                    row.enabled = False
+                    row.template_ID(snode, "node_tree", new="node.new_compositing_node_group")
+                elif scene.compositing_node_group:
                     row.template_ID(scene, "compositing_node_group", new="node.duplicate_compositing_node_group")
                 else:
                     row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
@@ -603,15 +600,21 @@ class NODE_PT_geometry_node_tool_options(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Options"
-    bl_ui_units_x = 8
+    bl_ui_units_x = 12
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         snode = context.space_data
         group = snode.node_tree
 
         layout.prop(group, "use_wait_for_click")
+        layout.prop(group, "node_tool_idname", text="Identifier")
+        layout.template_node_operator_registration_errors(idname=group.node_tool_idname)
+        if len(group.node_tool_idname) == 0:
+            layout.label(icon='ERROR', text="Missing operator identifier")
 
 
 class NODE_PT_node_color_presets(PresetPanel, Panel):

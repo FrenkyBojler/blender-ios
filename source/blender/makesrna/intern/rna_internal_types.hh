@@ -20,6 +20,8 @@
 #include "RNA_define.hh"
 #include "RNA_types.hh"
 
+namespace blender {
+
 struct BlenderRNA;
 struct CollectionPropertyIterator;
 struct ContainerRNA;
@@ -327,38 +329,36 @@ struct RNAPropertyOverrideApplyContext {
 using RNAPropOverrideApply = bool (*)(Main *bmain, RNAPropertyOverrideApplyContext &rnaapply_ctx);
 
 struct PropertyRNAIdentifierGetter {
-  blender::StringRef operator()(const PropertyRNA *prop) const;
+  StringRef operator()(const PropertyRNA *prop) const;
 };
 
 /** Container - generic abstracted container of RNA properties */
 struct ContainerRNA {
-  void *next, *prev;
-
-  blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter> *prop_lookup_set;
-  ListBase properties;
+  CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter> *prop_lookup_set;
+  ListBaseT<PropertyRNA> properties;
 };
 
 struct FunctionRNA {
   /** Structs are containers of properties. */
-  ContainerRNA cont;
+  ContainerRNA cont = {};
   /** Unique identifier, keep after `cont`. */
-  const char *identifier;
+  const char *identifier = nullptr;
 
   /** Various options */
-  int flag;
+  int flag = 0;
 
   /** Single line description, displayed in the tool-tip for example. */
-  const char *description;
+  const char *description = nullptr;
 
   /** Callback to execute the function. */
-  CallFunc call;
+  CallFunc call = {};
 
   /**
    * Parameter for the return value.
    *
    * \note this is only the C return value, rna functions can have multiple return values.
    */
-  PropertyRNA *c_ret;
+  PropertyRNA *c_ret = nullptr;
 };
 
 struct PropertyRNA {
@@ -458,7 +458,7 @@ struct PropertyRNA {
   void *py_data;
 };
 
-inline blender::StringRef PropertyRNAIdentifierGetter::operator()(const PropertyRNA *prop) const
+inline StringRef PropertyRNAIdentifierGetter::operator()(const PropertyRNA *prop) const
 {
   return prop->identifier;
 }
@@ -486,9 +486,7 @@ enum PropertyFlagIntern {
 
 /* Property Types. */
 
-struct BoolPropertyRNA {
-  PropertyRNA property;
-
+struct BoolPropertyRNA : public PropertyRNA {
   PropBooleanGetFunc get;
   PropBooleanSetFunc set;
   PropBooleanArrayGetFunc getarray;
@@ -510,9 +508,7 @@ struct BoolPropertyRNA {
   const bool *defaultarray;
 };
 
-struct IntPropertyRNA {
-  PropertyRNA property;
-
+struct IntPropertyRNA : public PropertyRNA {
   PropIntGetFunc get;
   PropIntSetFunc set;
   PropIntArrayGetFunc getarray;
@@ -541,9 +537,7 @@ struct IntPropertyRNA {
   const int *defaultarray;
 };
 
-struct FloatPropertyRNA {
-  PropertyRNA property;
-
+struct FloatPropertyRNA : public PropertyRNA {
   PropFloatGetFunc get;
   PropFloatSetFunc set;
   PropFloatArrayGetFunc getarray;
@@ -574,9 +568,7 @@ struct FloatPropertyRNA {
   const float *defaultarray;
 };
 
-struct StringPropertyRNA {
-  PropertyRNA property;
-
+struct StringPropertyRNA : public PropertyRNA {
   PropStringGetFunc get;
   PropStringLengthFunc length;
   PropStringSetFunc set;
@@ -613,9 +605,7 @@ struct StringPropertyRNA {
   const char *defaultvalue;
 };
 
-struct EnumPropertyRNA {
-  PropertyRNA property;
-
+struct EnumPropertyRNA : public PropertyRNA {
   PropEnumGetFunc get;
   PropEnumSetFunc set;
   PropEnumItemFunc item_fn;
@@ -635,9 +625,7 @@ struct EnumPropertyRNA {
   const char *native_enum_type;
 };
 
-struct PointerPropertyRNA {
-  PropertyRNA property;
-
+struct PointerPropertyRNA : public PropertyRNA {
   PropPointerGetFunc get;
   PropPointerSetFunc set;
   PropPointerTypeFunc type_fn;
@@ -647,9 +635,7 @@ struct PointerPropertyRNA {
   StructRNA *type;
 };
 
-struct CollectionPropertyRNA {
-  PropertyRNA property;
-
+struct CollectionPropertyRNA : public PropertyRNA {
   PropCollectionBeginFunc begin;
   PropCollectionNextFunc next;
   PropCollectionEndFunc end; /* optional */
@@ -668,9 +654,9 @@ struct CollectionPropertyRNA {
  */
 struct StructRNA {
   /** Structs are containers of properties. */
-  ContainerRNA cont;
+  ContainerRNA cont = {};
   /** Unique identifier, keep after `cont`. */
-  const char *identifier;
+  const char *identifier = nullptr;
 
   /**
    * Python type, this is a sub-type of #pyrna_struct_Type
@@ -678,34 +664,34 @@ struct StructRNA {
    *
    * Owns a reference so the value isn't freed by Python.
    */
-  void *py_type;
-  void *blender_type;
+  void *py_type = nullptr;
+  void *blender_type = nullptr;
 
   /** Various options. */
-  int flag;
+  int flag = 0;
   /**
    * Each StructRNA type can define its own tags which properties can set
    * (PropertyRNA.tags) for changed behavior based on struct-type.
    */
-  const EnumPropertyItem *prop_tag_defines;
+  const EnumPropertyItem *prop_tag_defines = nullptr;
 
   /** User readable name. */
-  const char *name;
+  const char *name = nullptr;
   /** Single line description, displayed in the tool-tip for example. */
-  const char *description;
+  const char *description = nullptr;
   /** Context for translation. */
-  const char *translation_context;
+  const char *translation_context = nullptr;
   /** Icon ID. */
-  int icon;
+  int icon = 0;
 
   /** Property that defines the name. */
-  PropertyRNA *nameproperty;
+  PropertyRNA *nameproperty = nullptr;
 
   /** Property to iterate over properties. */
-  PropertyRNA *iteratorproperty;
+  PropertyRNA *iteratorproperty = nullptr;
 
   /** Struct this is derived from. */
-  StructRNA *base;
+  StructRNA *base = nullptr;
 
   /**
    * Only use for nested structs, where both the parent and child access
@@ -713,18 +699,18 @@ struct StructRNA {
    * The parent property is used so we know NULL checks are not needed,
    * and that this struct will never exist without its parent.
    */
-  StructRNA *nested;
+  StructRNA *nested = nullptr;
 
   /** Function to give the more specific type. */
-  StructRefineFunc refine;
+  StructRefineFunc refine = nullptr;
 
   /** Function to find path to this struct in an ID. */
-  StructPathFunc path;
+  StructPathFunc path = nullptr;
 
   /** Function to register/unregister sub-classes. */
-  StructRegisterFunc reg;
+  StructRegisterFunc reg = nullptr;
   /** Function to unregister sub-classes. */
-  StructUnregisterFunc unreg;
+  StructUnregisterFunc unreg = nullptr;
   /**
    * Optionally support reusing Python instances for this type.
    *
@@ -736,16 +722,16 @@ struct StructRNA {
    * the Python instance when the data has been removed, see: #BPY_DECREF_RNA_INVALIDATE
    * so accessing the variables from Python raises an exception instead of crashing.
    */
-  StructInstanceFunc instance;
+  StructInstanceFunc instance = nullptr;
 
   /** Return the location of the struct's pointer to the user-defined root group IDProperty. */
-  IDPropertiesFunc idproperties;
+  IDPropertiesFunc idproperties = nullptr;
 
   /** Return the location of the struct's pointer to the system-defined root group IDProperty. */
-  IDPropertiesFunc system_idproperties;
+  IDPropertiesFunc system_idproperties = nullptr;
 
   /** Functions of this struct. */
-  ListBase functions;
+  Vector<std::unique_ptr<FunctionRNA>> functions;
 };
 
 /**
@@ -754,15 +740,14 @@ struct StructRNA {
  * Root RNA data structure that lists all struct types.
  */
 struct BlenderRNA {
-  ListBase structs;
+  Vector<std::unique_ptr<StructRNA>> structs;
   /**
    * A map of structs: `{StructRNA.identifier -> StructRNA}`
    * These are ensured to have unique names (with #STRUCT_PUBLIC_NAMESPACE enabled).
    */
-  using StructsMap = blender::Map<blender::StringRef, StructRNA *>;
-  StructsMap *structs_map;
-  /** Needed because types with an empty identifier aren't included in `structs_map`. */
-  unsigned int structs_len;
+  Map<StringRef, StructRNA *> structs_map;
 };
 
 #define CONTAINER_RNA_ID(cont) (*(const char **)(((ContainerRNA *)(cont)) + 1))
+
+}  // namespace blender
