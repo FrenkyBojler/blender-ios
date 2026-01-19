@@ -55,7 +55,7 @@ struct GeometryDomainDataId {
 };
 
 struct GeometryBundleItemId {
-  Vector<std::string> keys;
+  Vector<StringRef> keys;
   SpreadsheetClosureInputOutput closure_in_out = SPREADSHEET_CLOSURE_NONE;
 };
 
@@ -69,7 +69,7 @@ struct GeometryDataIdentifier {
   {
   }
 
-  GeometryDataIdentifier(Vector<std::string> bundle_keys,
+  GeometryDataIdentifier(Vector<StringRef> bundle_keys,
                          SpreadsheetClosureInputOutput closure_in_out)
       : id(GeometryBundleItemId{std::move(bundle_keys), closure_in_out})
   {
@@ -569,7 +569,7 @@ class GeometryBundleViewItem : public DataSetViewItem {
 
   std::optional<GeometryDataIdentifier> get_geometry_data_id() const override
   {
-    return GeometryDataIdentifier(Vector<std::string>(), SPREADSHEET_CLOSURE_NONE);
+    return GeometryDataIdentifier(Vector<StringRef>(), SPREADSHEET_CLOSURE_NONE);
   }
 };
 
@@ -590,7 +590,7 @@ class GeometryBundleItemViewItem : public DataSetViewItem {
 
   std::optional<GeometryDataIdentifier> get_geometry_data_id() const override
   {
-    Vector<std::string> keys;
+    Vector<StringRef> keys;
     keys.append(key_);
     this->foreach_parent([&](const AbstractTreeViewItem &parent) {
       if (const auto *bundle_item = dynamic_cast<const GeometryBundleItemViewItem *>(&parent)) {
