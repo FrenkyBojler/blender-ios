@@ -384,6 +384,8 @@ std::string SubPassTransition::serialize() const
       case GPU_ATTACHMENT_READ:
         return "read";
     }
+    BLI_assert_unreachable();
+    return "error";
   };
 
   return std::string(".subpass_transition(\n") +
