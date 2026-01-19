@@ -33,7 +33,17 @@ AssetMetaData *asset_metadata_from_dictionary(const io::serialize::DictionaryVal
 /**
  * Result of reading a remote listing.
  *
- * A succesful result can have a value of type T. A failure can have a 'reason' string.
+ * Can be in any of these three states:
+ *
+ * type=Success:   has a 'success value' of type `T`, and a vector of warnings
+ *                 (strings; may be empty).
+ *
+ * type=Failure:   has a 'failure message' (may be empty, but for good UX better
+ *                 to always use).
+ *
+ * type=Cancelled: has no extra info, because this was in response to a user
+ *                 cancelling an operation (and so this happening should be
+ *                 expected).
  */
 template<typename T = std::monostate> class ReadingResult {
  public:
