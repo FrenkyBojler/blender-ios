@@ -82,20 +82,26 @@ template<typename T = std::monostate> class ReadingResult {
   }
   /**
    * Construct a cancelled result.
+   *
+   * Callback functions passed to `index::read_remote_listing()` can return
+   * `false` to indicate the loading should be cancelled.
    */
   static ReadingResult Cancelled()
   {
     return ReadingResult(Type::Cancelled);
   }
 
+  /** Return whether this result indicates a success. */
   bool is_success() const
   {
     return this->type == Type::Success;
   }
+  /** Return whether this result indicates a failure. */
   bool is_failure() const
   {
     return this->type == Type::Failure;
   }
+  /** Return whether this result indicates cancellation. */
   bool is_cancelled() const
   {
     return this->type == Type::Cancelled;
