@@ -1253,8 +1253,7 @@ static bool follow_edge_loop(const int edge_start_index,
 
     /* Advance to the next vertex. */
     const int2 next_edge_verts = edges[next_edge_index];
-    current_vert_index = (next_edge_verts[0] == current_vert_index) ? next_edge_verts[1] :
-                                                                      next_edge_verts[0];
+    current_vert_index = bke::mesh::edge_other_vert(next_edge_verts, current_vert_index);
     current_edge_index = next_edge_index;
   }
   return false;
@@ -1306,12 +1305,22 @@ void paintvert_select_loop(bContext *C, Object *ob, const int mval[2], const boo
   /* Trace both directions. */
   const int2 start_verts = edges[closest_edge_index];
 
-  const bool full_loop = follow_edge_loop(closest_edge_index, start_verts[0], edges, hide_vert,
-                                          vert_to_edge_map, edge_to_face_map, edges_in_loop);
+  const bool full_loop = follow_edge_loop(closest_edge_index,
+                                          start_verts[0],
+                                          edges,
+                                          hide_vert,
+                                          vert_to_edge_map,
+                                          edge_to_face_map,
+                                          edges_in_loop);
 
   if (!full_loop) {
-    follow_edge_loop(closest_edge_index, start_verts[1], edges, hide_vert,
-                     vert_to_edge_map, edge_to_face_map, edges_in_loop);
+    follow_edge_loop(closest_edge_index,
+                     start_verts[1],
+                     edges,
+                     hide_vert,
+                     vert_to_edge_map,
+                     edge_to_face_map,
+                     edges_in_loop);
   }
 
   bke::SpanAttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write_span<bool>(
@@ -1323,13 +1332,9 @@ void paintvert_select_loop(bContext *C, Object *ob, const int mval[2], const boo
     verts_to_select.add(edges[e_idx][1]);
   }
 
-  bool any_vert_selected = false;
-  for (int v_idx : verts_to_select) {
-    if (select_vert.span[v_idx]) {
-      any_vert_selected = true;
-      break;
-    }
-  }
+  bool any_vert_selected = std::any_of(verts_to_select.begin(),
+                                       verts_to_select.end(),
+                                       [&](const int vert) { return select_vert.span[vert]; });
   const bool select_toggle = select && !any_vert_selected;
   select_vert.span.fill_indices(verts_to_select.as_span(), select_toggle);
 
@@ -1338,4 +1343,5 @@ void paintvert_select_loop(bContext *C, Object *ob, const int mval[2], const boo
   paintvert_flush_flags(ob);
   paintvert_tag_select_update(C, ob);
 }
+
 }  // namespace blender
