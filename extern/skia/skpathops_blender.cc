@@ -167,6 +167,25 @@ void SK_FreePathBuilder(SKPathBuilder *builder)
  * Simplify API
  * ============================================================================ */
 
+void SK_SetFillType(SKPath *path, SKFillType fill_type)
+{
+  if (path == nullptr) {
+    return;
+  }
+#ifdef WITH_SKIA_PATHOPS
+  switch (fill_type) {
+    case SK_FILL_WINDING:
+      path->path.setFillType(SkPathFillType::kWinding);
+      break;
+    case SK_FILL_EVENODD:
+      path->path.setFillType(SkPathFillType::kEvenOdd);
+      break;
+  }
+#else
+  (void)fill_type;
+#endif
+}
+
 SKPath *SK_Simplify(SKPath *path)
 {
   if (path == nullptr) {

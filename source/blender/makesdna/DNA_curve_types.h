@@ -239,7 +239,8 @@ struct Curve {
   short ob_type = OB_CURVES_LEGACY;
 
   char texspace_flag = CU_TEXSPACE_FLAG_AUTO;
-  char _pad0[7] = {};
+  char simplify_fill_mode = CU_SIMPLIFY_FILL_EVENODD;
+  char _pad0[6] = {};
   short twist_mode = CU_TWIST_MINIMUM;
   float twist_smooth = 0, smallcaps_scale = 0.75f;
 

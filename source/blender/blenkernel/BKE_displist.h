@@ -80,11 +80,17 @@ bool BKE_displist_surfindex_get(
  * Pass this along if known since it saves time calculating the normal.
  * This is also used to initialize #DispList.nors (one normal per display list).
  * \param flip_normal: Flip the normal (same as passing \a normal_proj negated).
+ * \param use_simplify: When true and WITH_FONT_SKIA is enabled, run Skia's Simplify on all
+ * input paths before passing to scan-fill. This removes overlapping regions.
+ * \param simplify_fill_mode: Fill mode for simplification (CU_SIMPLIFY_FILL_WINDING or
+ * CU_SIMPLIFY_FILL_EVENODD).
  */
 void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
                        ListBaseT<DispList> *to,
                        const float normal_proj[3],
-                       bool flip_normal);
+                       bool flip_normal,
+                       bool use_simplify,
+                       char simplify_fill_mode);
 
 float BKE_displist_calc_taper(struct Depsgraph *depsgraph,
                               const struct Scene *scene,

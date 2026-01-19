@@ -70,6 +70,23 @@ SKPath *SK_FinishPath(SKPathBuilder *builder);
 void SK_FreePathBuilder(SKPathBuilder *builder);
 
 /**
+ * Fill type for path operations.
+ */
+typedef enum {
+  /** Non-zero winding rule (union of all regions). */
+  SK_FILL_WINDING,
+  /** Even-odd rule (alternating inside/outside). */
+  SK_FILL_EVENODD
+} SKFillType;
+
+/**
+ * Set the fill type for a path.
+ * @param path The path to modify
+ * @param fill_type The fill type to use
+ */
+void SK_SetFillType(SKPath *path, SKFillType fill_type);
+
+/**
  * Simplify a path by removing overlapping regions.
  * This is equivalent to FontForge's SplineSetRemoveOverlap.
  * @param path Input path (consumed/freed by this function)

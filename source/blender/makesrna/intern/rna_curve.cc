@@ -1873,6 +1873,32 @@ static void rna_def_curve(BlenderRNA *brna)
       prop, "Map Taper", "Map effect of the taper object to the beveled part of the curve");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
+  prop = RNA_def_property(srna, "use_simplify_fill", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CU_USE_SIMPLIFY);
+  RNA_def_property_ui_text(
+      prop, "Simplify Fill", "Simplify filled polygons to remove overlapping regions");
+  RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+
+  static const EnumPropertyItem simplify_fill_mode_items[] = {
+      {CU_SIMPLIFY_FILL_EVENODD,
+       "EVENODD",
+       0,
+       "Even-Odd",
+       "Even-odd rule, alternating inside/outside regions"},
+      {CU_SIMPLIFY_FILL_WINDING,
+       "WINDING",
+       0,
+       "Winding",
+       "Non-zero winding rule, union of all filled regions"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "simplify_fill_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "simplify_fill_mode");
+  RNA_def_property_enum_items(prop, simplify_fill_mode_items);
+  RNA_def_property_ui_text(prop, "Simplify Mode", "Method used to resolve overlapping regions");
+  RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+
   /* texture space */
   prop = RNA_def_property(srna, "use_auto_texspace", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "texspace_flag", CU_TEXSPACE_FLAG_AUTO);

@@ -42,6 +42,13 @@ enum {
   CU_FILL_CAPS = 1 << 14,
   /** map taper object to beveled area */
   CU_MAP_TAPER = 1 << 15,
+  CU_USE_SIMPLIFY = 1 << 16,
+};
+
+/** #Curve.simplify_fill_mode */
+enum {
+  CU_SIMPLIFY_FILL_EVENODD = 0,
+  CU_SIMPLIFY_FILL_WINDING = 1,
 };
 
 /** #Curve.twist_mode */

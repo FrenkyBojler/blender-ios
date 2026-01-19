@@ -728,6 +728,16 @@ if(WITH_INPUT_IME)
   add_definitions(-DWITH_INPUT_IME)
 endif()
 
+if(WITH_FONT_SKIA)
+  list(APPEND INC
+    ../../../extern/skia
+  )
+  list(APPEND LIB
+    extern_skia
+  )
+  add_definitions(-DWITH_FONT_SKIA)
+endif()
+
 # # Warnings as errors, this is too strict!
 # if(MSVC)
 #    string(APPEND CMAKE_C_FLAGS " /WX")

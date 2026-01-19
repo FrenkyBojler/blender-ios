@@ -41,6 +41,10 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
+#ifdef WITH_FONT_SKIA
+#  include "skpathops_blender.h"
+#endif
+
 namespace blender {
 
 static void displist_elem_free(DispList *dl)
@@ -249,10 +253,156 @@ static void curve_to_displist(const Curve *cu,
   }
 }
 
+#ifdef WITH_FONT_SKIA
+/**
+ * Simplify all DL_POLY entries in the displist using Skia PathOps.
+ * Creates a new displist with simplified polygons.
+ * \param dispbase: Input display list with DL_POLY entries.
+ * \param simplified_dispbase: Output display list (must be initialized to empty).
+ * \param fill_mode: Fill mode (CU_SIMPLIFY_FILL_WINDING or CU_SIMPLIFY_FILL_EVENODD).
+ * \return True on success, false on failure.
+ */
+static bool displist_simplify_with_skia(const ListBaseT<DispList> *dispbase,
+                                        ListBaseT<DispList> *simplified_dispbase,
+                                        const char fill_mode)
+{
+  /* Build a Skia path from all DL_POLY entries. */
+  SKPathBuilder *builder = SK_CreatePathBuilder();
+  if (!builder) {
+    return false;
+  }
+
+  /* Track the Z coordinate (assume all vertices are on the same plane for fonts). */
+  float z_coord = 0.0f;
+  bool has_poly = false;
+  short first_col = 0;
+  short first_flag = 0;
+  short first_rt = 0;
+  int first_charidx = 0;
+
+  for (const DispList &dl : *dispbase) {
+    if (dl.type == DL_POLY && dl.nr > 0) {
+      if (!has_poly) {
+        z_coord = dl.verts[2];
+        first_col = dl.col;
+        first_flag = dl.flag;
+        first_rt = dl.rt;
+        first_charidx = dl.charidx;
+        has_poly = true;
+      }
+      /* Move to first point (use X, Y only). */
+      SK_MoveTo(builder, double(dl.verts[0]), double(dl.verts[1]));
+      /* Add line segments for remaining points. */
+      for (int i = 1; i < dl.nr; i++) {
+        SK_LineTo(builder, double(dl.verts[3 * i]), double(dl.verts[3 * i + 1]));
+      }
+      SK_Close(builder);
+    }
+  }
+
+  if (!has_poly) {
+    SK_FreePathBuilder(builder);
+    return true; /* Nothing to simplify. */
+  }
+
+  SKPath *path = SK_FinishPath(builder);
+  if (!path) {
+    return false;
+  }
+
+  /* Set the fill type based on the mode. */
+  SK_SetFillType(path,
+                 (fill_mode == CU_SIMPLIFY_FILL_EVENODD) ? SK_FILL_EVENODD : SK_FILL_WINDING);
+
+  /* Simplify the path to remove overlapping regions. */
+  SKPath *simplified = SK_Simplify(path);
+  if (!simplified) {
+    return false;
+  }
+
+  /* Convert simplified path back to DL_POLY entries. */
+  SKPathIterator *iter = SK_CreateIterator(simplified);
+  if (!iter) {
+    SK_FreePath(simplified);
+    return false;
+  }
+
+  /* First pass: count contours and vertices per contour. */
+  Vector<Vector<float>> contours;
+  Vector<float> current_contour;
+
+  double points[8];
+  SKPathVerb verb;
+  while ((verb = SK_IteratorNext(iter, points)) != SK_VERB_DONE) {
+    switch (verb) {
+      case SK_VERB_MOVE:
+        if (!current_contour.is_empty()) {
+          contours.append(std::move(current_contour));
+          current_contour = Vector<float>();
+        }
+        current_contour.append(float(points[0]));
+        current_contour.append(float(points[1]));
+        current_contour.append(z_coord);
+        break;
+      case SK_VERB_LINE:
+        current_contour.append(float(points[0]));
+        current_contour.append(float(points[1]));
+        current_contour.append(z_coord);
+        break;
+      case SK_VERB_CUBIC:
+        /* Skia simplify should only produce lines, but handle cubic by sampling if needed.
+         * For simplicity, just add the endpoint. */
+        current_contour.append(float(points[4]));
+        current_contour.append(float(points[5]));
+        current_contour.append(z_coord);
+        break;
+      case SK_VERB_CLOSE:
+        if (!current_contour.is_empty()) {
+          contours.append(std::move(current_contour));
+          current_contour = Vector<float>();
+        }
+        break;
+      case SK_VERB_DONE:
+        break;
+    }
+  }
+  if (!current_contour.is_empty()) {
+    contours.append(std::move(current_contour));
+  }
+
+  SK_FreeIterator(iter);
+  SK_FreePath(simplified);
+
+  /* Create DL_POLY entries for each contour. */
+  for (const Vector<float> &contour : contours) {
+    const int nr = int(contour.size() / 3);
+    if (nr < 3) {
+      continue; /* Skip degenerate contours. */
+    }
+
+    DispList *dl = MEM_callocN<DispList>(__func__);
+    dl->type = DL_POLY;
+    dl->nr = nr;
+    dl->parts = 1;
+    dl->col = first_col;
+    dl->flag = first_flag;
+    dl->rt = first_rt;
+    dl->charidx = first_charidx;
+    dl->verts = MEM_malloc_arrayN<float>(3 * size_t(nr), __func__);
+    memcpy(dl->verts, contour.data(), sizeof(float) * 3 * size_t(nr));
+    BLI_addtail(simplified_dispbase, dl);
+  }
+
+  return true;
+}
+#endif /* WITH_FONT_SKIA */
+
 void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
                        ListBaseT<DispList> *to,
                        const float normal_proj[3],
-                       const bool flip_normal)
+                       const bool flip_normal,
+                       const bool use_simplify,
+                       const char simplify_fill_mode)
 {
   if (dispbase == nullptr) {
     return;
@@ -260,6 +410,22 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
   if (BLI_listbase_is_empty(dispbase)) {
     return;
   }
+
+#ifdef WITH_FONT_SKIA
+  /* Optionally simplify paths using Skia before scan-fill. */
+  ListBaseT<DispList> simplified_dispbase = {nullptr, nullptr};
+  const ListBaseT<DispList> *effective_dispbase = dispbase;
+  if (use_simplify) {
+    if (displist_simplify_with_skia(dispbase, &simplified_dispbase, simplify_fill_mode)) {
+      if (!BLI_listbase_is_empty(&simplified_dispbase)) {
+        effective_dispbase = &simplified_dispbase;
+      }
+    }
+  }
+#else
+  UNUSED_VARS(use_simplify, simplify_fill_mode);
+  const ListBaseT<DispList> *effective_dispbase = dispbase;
+#endif
 
   const int scanfill_flag = BLI_SCANFILL_CALC_REMOVE_DOUBLES | BLI_SCANFILL_CALC_POLYS |
                             BLI_SCANFILL_CALC_HOLES;
@@ -279,7 +445,7 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
     int totvert = 0;
     short dl_flag_accum = 0;
     short dl_rt_accum = 0;
-    for (const DispList &dl : *dispbase) {
+    for (const DispList &dl : *effective_dispbase) {
       if (dl.type == DL_POLY) {
         if (charidx < dl.charidx) {
           should_continue = true;
@@ -365,6 +531,14 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
   }
 
   BLI_memarena_free(sf_arena);
+
+#ifdef WITH_FONT_SKIA
+  /* Free the simplified displist if we created one. */
+  if (use_simplify && !BLI_listbase_is_empty(&simplified_dispbase)) {
+    BKE_displist_free(&simplified_dispbase);
+  }
+#endif
+
   /* do not free polys, needed for wireframe display */
 }
 
@@ -419,13 +593,15 @@ static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
   }
 
   const float z_up[3] = {0.0f, 0.0f, -1.0f};
-  BKE_displist_fill(&front, dispbase, z_up, true);
-  BKE_displist_fill(&back, dispbase, z_up, false);
+  const bool use_simplify = (cu->flag & CU_USE_SIMPLIFY) != 0;
+  const char fill_mode = cu->simplify_fill_mode;
+  BKE_displist_fill(&front, dispbase, z_up, true, use_simplify, fill_mode);
+  BKE_displist_fill(&back, dispbase, z_up, false, use_simplify, fill_mode);
 
   BKE_displist_free(&front);
   BKE_displist_free(&back);
 
-  BKE_displist_fill(dispbase, dispbase, z_up, false);
+  BKE_displist_fill(dispbase, dispbase, z_up, false, use_simplify, fill_mode);
 }
 
 static void curve_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
@@ -439,7 +615,9 @@ static void curve_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
   }
   else {
     const float z_up[3] = {0.0f, 0.0f, -1.0f};
-    BKE_displist_fill(dispbase, dispbase, z_up, false);
+    const bool use_simplify = (cu->flag & CU_USE_SIMPLIFY) != 0;
+    const char fill_mode = cu->simplify_fill_mode;
+    BKE_displist_fill(dispbase, dispbase, z_up, false, use_simplify, fill_mode);
   }
 }
 
@@ -1300,11 +1478,15 @@ static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
         }
 
         if (bottom_capbase.first) {
-          BKE_displist_fill(&bottom_capbase, r_dispbase, bottom_no, false);
+          const bool use_simplify = (cu->flag & CU_USE_SIMPLIFY) != 0;
+          const char fill_mode = cu->simplify_fill_mode;
+          BKE_displist_fill(&bottom_capbase, r_dispbase, bottom_no, false, use_simplify, fill_mode);
           BKE_displist_free(&bottom_capbase);
         }
         if (top_capbase.first) {
-          BKE_displist_fill(&top_capbase, r_dispbase, top_no, false);
+          const bool use_simplify = (cu->flag & CU_USE_SIMPLIFY) != 0;
+          const char fill_mode = cu->simplify_fill_mode;
+          BKE_displist_fill(&top_capbase, r_dispbase, top_no, false, use_simplify, fill_mode);
           BKE_displist_free(&top_capbase);
         }
       }

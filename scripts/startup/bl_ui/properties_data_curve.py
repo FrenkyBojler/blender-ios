@@ -91,6 +91,7 @@ class DATA_PT_shape_curve(CurveButtonsPanel, Panel):
         sub.prop(curve, "render_resolution_u", text="Render U")
         if is_surf:
             sub.prop(curve, "render_resolution_v", text="V")
+
         col.separator()
 
         if is_curve:
@@ -106,6 +107,14 @@ class DATA_PT_shape_curve(CurveButtonsPanel, Panel):
             sub = col.column()
             sub.active = (curve.dimensions == '2D' or (curve.bevel_mode != 'OBJECT' and curve.dimensions == '3D'))
             sub.prop(curve, "fill_mode")
+
+            if is_text or (is_curve and curve.dimensions == '2D'):
+                sub = col.column()
+                sub.active = curve.fill_mode != 'NONE'
+                sub.prop(curve, "use_simplify_fill")
+                subsub = sub.column()
+                subsub.active = curve.use_simplify_fill and curve.fill_mode != 'NONE'
+                subsub.prop(curve, "simplify_fill_mode", text="")
 
         if is_curve:
             col = layout.column()
