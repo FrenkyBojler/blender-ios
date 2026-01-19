@@ -1586,7 +1586,7 @@ static int arg_handle_debug_gpu_shader_no_dce(int /*argc*/,
 
 static const char arg_handle_debug_gpu_no_texture_pool_set_doc[] =
     "\n"
-    "\tDisable memory aliasing optimizations in the GPU texture pool.\n";
+    "\tDisable memory aliasing optimizations in the GPU texture pool.";
 static int arg_handle_debug_gpu_no_texture_pool_set(int /* argc */,
                                                     const char ** /* argv */,
                                                     void * /*data*/)
