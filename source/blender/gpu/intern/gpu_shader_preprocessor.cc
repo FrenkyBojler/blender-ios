@@ -523,7 +523,9 @@ void tokenize_compounds(const uint8_t c_str[/*size*/],
                         uint32_t int_tok_len,
                         TokenType out_tok_types[/*tok_len*/],
                         uint32_t out_tok_offsets[/*tok_len*/],
-                        uint32_t *out_tok_len)
+                        uint32_t *out_tok_len,
+                        const bool merge_newlines,
+                        const bool merge_spaces)
 {
   TokenType *types = out_tok_types;
   uint32_t *offsets = out_tok_offsets;
@@ -548,12 +550,17 @@ void tokenize_compounds(const uint8_t c_str[/*size*/],
     *types = tok;
 
     switch (tok) {
-        // case NewLine:
-        // case Space:
-        //   /* Make next token overwrite this one. Merge the space with the token before. */
-        //   types--;
-        //   offsets--;
-        //   continue;
+      case NewLine:
+        /* Make next token overwrite this one. Merge the space with the token before. */
+        types -= merge_newlines;
+        offsets -= merge_newlines;
+        continue;
+
+      case Space:
+        /* Make next token overwrite this one. Merge the space with the token before. */
+        types -= merge_spaces;
+        offsets -= merge_spaces;
+        continue;
 
       case String:
         lex_string(in_tok_types, i);
@@ -671,7 +678,9 @@ struct AtomicLexer : LexerBase {
                        tok_len,
                        token_types.data(),
                        token_offsets.data(),
-                       &tok_len);
+                       &tok_len,
+                       false,
+                       false);
 
     /* Make sure the last token extend to the end of the string. */
     token_offsets.offsets[tok_len] = token_offsets.offsets.back();
