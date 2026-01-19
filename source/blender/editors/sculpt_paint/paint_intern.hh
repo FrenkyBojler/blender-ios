@@ -79,6 +79,7 @@ enum BrushStrokeMode {
   BRUSH_STROKE_INVERT,
   BRUSH_STROKE_SMOOTH,
   BRUSH_STROKE_ERASE,
+  BRUSH_STROKE_MASK,
 };
 
 namespace ed::sculpt_paint {
@@ -708,14 +709,6 @@ void get_brush_alpha_data(const SculptSession &ss,
                           float *r_brush_alpha_pressure);
 
 void init_stroke(Depsgraph &depsgraph, Object &ob);
-void init_session_data(const ToolSettings &ts, Object &ob);
-/** Toggle operator for turning vertex paint mode on or off (copied from `sculpt.cc`) */
-void init_session(Main &bmain,
-                  Depsgraph &depsgraph,
-                  Scene &scene,
-                  Paint &paint,
-                  Object &ob,
-                  eObjectMode object_mode);
 
 IndexMask pbvh_gather_generic(const Depsgraph &depsgraph,
                               const Object &ob,
