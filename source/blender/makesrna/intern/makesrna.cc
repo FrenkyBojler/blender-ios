@@ -4011,7 +4011,6 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_armature.cc", "rna_armature_api.cc", RNA_def_armature},
     {"rna_attribute.cc", nullptr, RNA_def_attribute},
     {"rna_asset.cc", nullptr, RNA_def_asset},
-    {"rna_blender_project.cc", nullptr, RNA_def_blender_project},
     {"rna_boid.cc", nullptr, RNA_def_boid},
     {"rna_brush.cc", nullptr, RNA_def_brush},
     {"rna_cachefile.cc", nullptr, RNA_def_cachefile},
@@ -4072,6 +4071,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_usd.cc", nullptr, RNA_def_usd},
 #endif
     {"rna_userdef.cc", nullptr, RNA_def_userdef},
+    {"rna_blender_project.cc", nullptr, RNA_def_blender_project},
     {"rna_vfont.cc", "rna_vfont_api.cc", RNA_def_vfont},
     {"rna_volume.cc", nullptr, RNA_def_volume},
     {"rna_wm.cc", "rna_wm_api.cc", RNA_def_wm},

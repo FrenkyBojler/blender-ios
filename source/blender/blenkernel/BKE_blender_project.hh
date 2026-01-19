@@ -41,6 +41,9 @@ class BlenderProject {
   std::string root_path_;
 
  public:
+  /* The index of the selected project asset library in the UI. */
+  int active_asset_library;
+
   /**
    * Whether the project has unsaved changes.
    *

@@ -23,4 +23,16 @@ void ED_userpref_search_string_set(SpaceUserPref *sprefs, const char *value);
 int ED_userpref_search_string_length(SpaceUserPref *sprefs);
 const char *ED_userpref_search_string_get(SpaceUserPref *sprefs);
 
+enum class bUserAssetLibraryAddType {
+  Remote = 0,
+  Local = 1,
+};
+
+struct bUserAssetLibrary *ED_userpref_asset_library_new(const struct bContext *C,
+                                                        const char *name,
+                                                        const char *dirpath,
+                                                        bUserAssetLibraryAddType library_type,
+                                                        bool is_project_defined);
+void ED_userpref_asset_library_remove(bContext *C, struct bUserAssetLibrary *asset_library);
+
 }  // namespace blender

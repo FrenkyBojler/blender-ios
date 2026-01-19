@@ -35,20 +35,31 @@ PROJECT_DEFAULT_NAME = "Untitled Project"
 @dataclass
 class ProjectConfig:
     name: str
+    asset_libraries: dict
 
     @staticmethod
     def new_from_project(project):
         """Create a ProjectConfig object from an existing real project."""
-        return ProjectConfig(name=project.name)
+        asset_dict = {}
+        if project.data.asset_libraries is not None:
+            for asset in project.data.asset_libraries:
+                asset_data = {}
+                asset_data["path"] = asset.path
+                asset_data["use_relative_path"] = asset.use_relative_path
+                asset_data["import_method"] = asset.import_method
+                asset_dict[asset.name] = asset_data
+        return ProjectConfig(name=project.name, asset_libraries=asset_dict)
 
     def populate_project(self, project):
         """Fills in an existing real project's data from this ProjectConfig object."""
 
-        # Currently we don't do anything, because the project name is handled
-        # separately. But when projects have more than just a name, all of that
-        # other data should be handled here, and be symmetric with
-        # `new_from_project()` above.
-        pass
+        # Populate the project asset libraries (if any)
+        for asset_name, asset_data in self.asset_libraries.items():
+            lib = project.data.asset_libraries.new(name=asset_name, directory=asset_data["path"])
+            if "import_method" in asset_data:
+                lib.import_method = asset_data["import_method"]
+            if "use_relative_path" in asset_data:
+                lib.use_relative_path = asset_data["use_relative_path"]
 
 
 # -------------------------------------------------------------
@@ -84,6 +95,7 @@ def save_project(project, report=None):
 
     import cattrs
     import tomli_w
+    import tempfile
     from pathlib import Path
 
     if project is None:
@@ -139,6 +151,7 @@ def save_project(project, report=None):
 
     # Write the config TOML file.
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
+
     try:
         with config_path.open(mode='wb') as f:
             tomli_w.dump(config_dict, f)
@@ -430,6 +443,83 @@ class PROJECT_OT_OpenBlendInProject(Operator):
         return {'RUNNING_MODAL'}
 
 
+class PROJECT_OT_AssetLibraryAdd(Operator):
+    """Add a new asset library to the project."""
+    bl_idname = "project.asset_library_add"
+    bl_label = "Add Asset Library"
+    bl_options = {'INTERNAL'}
+
+    directory: bpy.props.StringProperty(
+        name="Asset Library Directory",
+        subtype='DIR_PATH',
+        default="",
+    )
+
+    filter_folder: bpy.props.BoolProperty(
+        name="Filter folders",
+        default=True,
+        options={'HIDDEN'},
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return context.project.data is not None
+
+    def execute(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
+            return {'CANCELLED'}
+
+        if self.directory == "":
+            self.report({'ERROR'}, "Cannot create a project with an empty directory path.")
+            return {'CANCELLED'}
+
+        if not bpy.path.is_subdir(path=self.directory, directory=context.project.data.root_path):
+            self.report({'ERROR'}, "New project directory must be a parent of the currently open blend file.")
+            return {'CANCELLED'}
+
+        # Create an initial names from the folder name
+        asset_name = os.path.basename(os.path.normpath(self.directory)).title()
+        context.project.data.asset_libraries.new(name=asset_name, directory=self.directory)
+
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+
+class PROJECT_OT_AssetLibraryRemove(Operator):
+    """Remove the current active project asset library"""
+    bl_idname = "project.asset_library_remove"
+    bl_label = "Remove Project Asset Library"
+    bl_options = {'INTERNAL'}
+
+    index: bpy.props.IntProperty(
+        name="Index",
+        default=0,
+    )
+
+    @classmethod
+    def poll(cls, context):
+        if context.project.data is None:
+            return False
+        return len(context.project.data.asset_libraries) != 0
+
+    def execute(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
+            return {'CANCELLED'}
+
+        if self.index >= len(context.project.data.asset_libraries):
+            return {'CANCELLED'}
+
+        library = context.project.data.asset_libraries[self.index]
+        context.project.data.asset_libraries.remove(library)
+
+        return {'FINISHED'}
+
+
 # -------------------------------------------------------------
 # Handler Callbacks
 #
@@ -504,6 +594,8 @@ classes = (
     PROJECT_OT_NewProject,
     PROJECT_OT_SaveProject,
     PROJECT_OT_OpenBlendInProject,
+    PROJECT_OT_AssetLibraryAdd,
+    PROJECT_OT_AssetLibraryRemove,
 )
 
 

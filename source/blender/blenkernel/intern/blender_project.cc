@@ -9,12 +9,18 @@
 #include <mutex>
 #include <shared_mutex>
 
+#include "BKE_preferences.h"
+#include "BLI_listbase.h"
+
 #include "BKE_blender_project.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 
 #include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
+
+#include "DNA_asset_types.h"
+#include "DNA_userdef_types.h"
 
 namespace blender {
 
@@ -141,6 +147,14 @@ void BKE_blender_project_clear()
 
   bke::with_blender_project_write_lock([&] {
     std::optional<bke::BlenderProject> &project = get_project();
+
+    for (auto user_library : U.asset_libraries) {
+      if ((user_library.flag & ASSET_LIBRARY_PROJECT_DEFINED)) {
+        // TODO: Look at the "ED" variant of this function as we need to update and poke gui
+        // variables to refersh editor and asset library active index
+        BKE_preferences_asset_library_remove(&U, &user_library);
+      }
+    }
 
     project = std::nullopt;
   });

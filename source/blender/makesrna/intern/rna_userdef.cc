@@ -249,6 +249,7 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #  include "BKE_addon.h"
 #  include "BKE_appdir.hh"
 #  include "BKE_blender.hh"
+#  include "BKE_blender_project.hh"
 #  include "BKE_blender_version.h"
 #  include "BKE_callbacks.hh"
 #  include "BKE_global.hh"
@@ -279,6 +280,7 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #  include "ED_asset_library.hh"
 #  include "ED_asset_list.hh"
 #  include "ED_screen.hh"
+#  include "ED_userpref.hh"
 
 #  include "UI_interface.hh"
 
@@ -455,6 +457,17 @@ int rna_userdef_asset_library_path_editable(const PointerRNA *ptr, const char **
   return PROP_EDITABLE;
 }
 
+static void rna_userdef_asset_libraries_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  if (RNA_struct_is_a(ptr->type, RNA_ProjectAssetLibrary)) {
+    bke::BlenderProject *project = BKE_blender_project_get(bmain);
+    bke::with_blender_project_write_lock([&] { project->is_dirty = true; });
+    WM_main_add_notifier(NC_WINDOW, nullptr);
+    return;
+  }
+  rna_userdef_update(bmain, scene, ptr);
+}
+
 static void rna_userdef_asset_libraries_refresh(bContext *C, PointerRNA *ptr)
 {
   ed::asset::list::clear_all_library(C);
@@ -462,6 +475,13 @@ static void rna_userdef_asset_libraries_refresh(bContext *C, PointerRNA *ptr)
   /* Trigger refresh for the Asset Browser. */
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 
+  if (RNA_struct_is_a(ptr->type, RNA_ProjectAssetLibrary)) {
+    Main *bmain = CTX_data_main(C);
+    bke::BlenderProject *project = BKE_blender_project_get(bmain);
+    bke::with_blender_project_write_lock([&] { project->is_dirty = true; });
+    WM_main_add_notifier(NC_WINDOW, nullptr);
+    return;
+  }
   rna_userdef_update(CTX_data_main(C), CTX_data_scene(C), ptr);
 }
 
@@ -712,13 +732,9 @@ static bUserAssetLibrary *rna_userdef_asset_library_new(const bContext *C,
                                                         const char *name,
                                                         const char *directory)
 {
-  bUserAssetLibrary *new_library = BKE_preferences_asset_library_add(
-      &U, name ? name : "", directory ? directory : "");
-
-  ed::asset::list::clear_all_library(C);
-
-  /* Trigger refresh for the Asset Browser. */
-  WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
+  bUserAssetLibrary *new_library;
+  new_library = ED_userpref_asset_library_new(
+      C, name ? name : "", directory ? directory : "", bUserAssetLibraryAddType::Local, false);
 
   USERDEF_TAG_DIRTY;
   return new_library;
@@ -733,15 +749,7 @@ static void rna_userdef_asset_library_remove(bContext *C, ReportList *reports, P
     return;
   }
 
-  BKE_preferences_asset_library_remove(&U, library);
-  ed::asset::list::clear_all_library(C);
-
-  /* Update active library index to be in range. */
-  const int count_remaining = U.asset_libraries.count();
-  CLAMP(U.active_asset_library, 0, count_remaining - 1);
-
-  /* Trigger refresh for the Asset Browser. */
-  WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
+  ED_userpref_asset_library_remove(C, library);
 
   ptr->invalidate();
   USERDEF_TAG_DIRTY;
@@ -1683,8 +1691,11 @@ static const EnumPropertyItem *rna_preference_asset_libray_import_method_itemf(
   return items;
 }
 
-int rna_preference_asset_libray_import_method_default(PointerRNA * /*ptr*/, PropertyRNA * /*prop*/)
+int rna_preference_asset_libray_import_method_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
 {
+  if (RNA_struct_is_a(ptr->type, RNA_ProjectAssetLibrary)) {
+    return ASSET_IMPORT_LINK;
+  }
   return U.experimental.no_data_block_packing ? ASSET_IMPORT_APPEND_REUSE : ASSET_IMPORT_PACK;
 }
 
@@ -6994,7 +7005,7 @@ static void rna_def_userdef_filepaths_asset_library(BlenderRNA *brna)
       prop, "Name", "Identifier (not necessarily unique) for the asset library");
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_userdef_asset_library_name_set");
   RNA_def_struct_name_property(srna, prop);
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_asset_libraries_update");
 
   prop = RNA_def_property(srna, "path", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "dirpath");
@@ -7036,10 +7047,17 @@ static void rna_def_userdef_filepaths_asset_library(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", ASSET_LIBRARY_RELATIVE_PATH);
   RNA_def_property_ui_text(
       prop, "Relative Path", "Use relative path when linking assets from this asset library");
+  RNA_def_property_update(prop, 0, "rna_userdef_asset_libraries_update");
 
   prop = RNA_def_property(srna, "use_remote_url", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", ASSET_LIBRARY_USE_REMOTE_URL);
   RNA_def_property_ui_text(prop, "Use Remote", "Synchronize the asset library with a remote URL");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "is_project_defined", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", ASSET_LIBRARY_PROJECT_DEFINED);
+  RNA_def_property_ui_text(
+      prop, "Project Defined", "Signifies if the asset library is defined by a project or not");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
