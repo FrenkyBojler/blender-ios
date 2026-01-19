@@ -197,7 +197,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
     sub.emboss_set(emboss);
     sub.alignment_set(LayoutAlign::Right);
 
-    PointerRNA prop_ptr = RNA_pointer_create_discrete(id_, &RNA_ID, id_);
+    PointerRNA prop_ptr = RNA_pointer_create_discrete(id_, RNA_ID, id_);
     std::string prop_name = "[\"" + std::string(property_->name) + "\"]";
 
     if ((property_->type == IDP_ARRAY) || !IDP_ui_data_supported(property_)) {
@@ -219,7 +219,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   void on_activate(bContext &C) override
   {
-    PointerRNA id_ptr = RNA_pointer_create_discrete(id_, &RNA_ID, id_);
+    PointerRNA id_ptr = RNA_pointer_create_discrete(id_, RNA_ID, id_);
     PropertyRNA *prop = RNA_struct_find_property(&id_ptr, "idprop_active_index");
     RNA_property_int_set(&id_ptr, prop, index_);
     RNA_property_update(&C, &id_ptr, prop);
@@ -281,7 +281,7 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
   IDProperty *active_prop = static_cast<IDProperty *>(
       BLI_findlink(&id->properties->data.group, id->idprop_active_index));
 
-  PointerRNA prop_ptr = RNA_pointer_create_discrete(id, &RNA_IDProperty, active_prop);
+  PointerRNA prop_ptr = RNA_pointer_create_discrete(id, RNA_IDProperty, active_prop);
   layout->prop(&prop_ptr, "type", UI_ITEM_NONE, "Type", ICON_NONE);
 
   if (!IDP_ui_data_supported(active_prop)) {
@@ -291,21 +291,21 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
   auto get_prop_type = [&](const char type) {
     switch (type) {
       case IDP_INT:
-        return &RNA_IDPropertyUIDataInt;
+        return RNA_IDPropertyUIDataInt;
       case IDP_FLOAT:
       case IDP_DOUBLE:
-        return &RNA_IDPropertyUIDataFloat;
+        return RNA_IDPropertyUIDataFloat;
       case IDP_BOOLEAN:
-        return &RNA_IDPropertyUIDataBool;
+        return RNA_IDPropertyUIDataBool;
       case IDP_STRING:
-        return &RNA_IDPropertyUIDataString;
+        return RNA_IDPropertyUIDataString;
       case IDP_ID:
-        return &RNA_IDPropertyUIDataID;
+        return RNA_IDPropertyUIDataID;
       default:
         break;
     }
     /* Not required (remove later), added to silent the warning. */
-    return &RNA_IDPropertyUIDataFloat;
+    return RNA_IDPropertyUIDataFloat;
   };
 
   StructRNA *srna = active_prop->type == IDP_ARRAY ? get_prop_type(active_prop->subtype) :
@@ -314,8 +314,7 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
   PointerRNA propui_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
 
   /* Draw `ui_data` of active IDProperty. */
-  if (ELEM(srna, &RNA_IDPropertyUIDataInt, &RNA_IDPropertyUIDataFloat, &RNA_IDPropertyUIDataBool))
-  {
+  if (ELEM(srna, RNA_IDPropertyUIDataInt, RNA_IDPropertyUIDataFloat, RNA_IDPropertyUIDataBool)) {
     if (active_prop->type == IDP_ARRAY) {
       layout->prop(&prop_ptr, "length", UI_ITEM_NONE, "Length", ICON_NONE);
       layout->prop(&propui_ptr, "default_array", ui::ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
@@ -323,7 +322,7 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
     else {
       layout->prop(&propui_ptr, "default_value", UI_ITEM_NONE, "Default Value", ICON_NONE);
     }
-    if (ELEM(srna, &RNA_IDPropertyUIDataInt, &RNA_IDPropertyUIDataFloat)) {
+    if (ELEM(srna, RNA_IDPropertyUIDataInt, RNA_IDPropertyUIDataFloat)) {
       Layout &col = layout->column(true);
       col.prop(&propui_ptr, "min", UI_ITEM_NONE, "Hard Min", ICON_NONE);
       col.prop(&propui_ptr, "max", UI_ITEM_NONE, "Max", ICON_NONE);
@@ -336,12 +335,12 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
     }
   }
 
-  if (srna == &RNA_IDPropertyUIDataFloat) {
+  if (srna == RNA_IDPropertyUIDataFloat) {
     layout->prop(&propui_ptr, "precision", UI_ITEM_NONE, "Precision", ICON_NONE);
     layout->prop(&propui_ptr, "subtype", UI_ITEM_NONE, "Sub Type", ICON_NONE);
   }
 
-  if (srna == &RNA_IDPropertyUIDataID) {
+  if (srna == RNA_IDPropertyUIDataID) {
     layout->prop(&propui_ptr, "id_type", UI_ITEM_NONE, "ID type", ICON_NONE);
   }
 
