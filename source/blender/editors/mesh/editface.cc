@@ -1207,8 +1207,8 @@ static bool follow_edge_loop(const int edge_start_index,
   int current_edge_index = edge_start_index;
   int current_vert_index = vert_start_index;
 
-  /* Loop until we hit a boundary (-1) or return explicitly. */
-  while (current_edge_index != -1) {
+  /* Loop runs until we hit a boundary or closed loop found. */
+  while (true) {
 
     /* Stop if vertex is hidden. */
     if (hide_vert[current_vert_index]) {
@@ -1332,9 +1332,10 @@ void paintvert_select_loop(bContext *C, Object *ob, const int mval[2], const boo
     verts_to_select.add(edges[e_idx][1]);
   }
 
-  bool any_vert_selected = std::any_of(verts_to_select.begin(),
-                                       verts_to_select.end(),
-                                       [&](const int vert) { return select_vert.span[vert]; });
+  const bool any_vert_selected = std::any_of(
+      verts_to_select.begin(), verts_to_select.end(), [&](const int vert) {
+        return select_vert.span[vert];
+      });
   const bool select_toggle = select && !any_vert_selected;
   select_vert.span.fill_indices(verts_to_select.as_span(), select_toggle);
 
