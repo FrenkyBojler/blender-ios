@@ -245,8 +245,11 @@ class PROJECT_OP_NewProject(Operator):
                 "New project directory is already inside of an existing project. Try reloading the current blend file to open the existing project.")
             return {'CANCELLED'}
 
+        # Get the initial project name based on the folder name.
+        project_name = os.path.basename(os.path.normpath(self.directory)).title()
+
         # Create the project.
-        context.project.init("New Project", self.directory)
+        context.project.init(project_name, self.directory)
 
         # Immediately save the project.
         try:

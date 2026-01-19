@@ -106,6 +106,7 @@ class PROJECT_PT_save_project(Panel):
             layout.operator(
                 "project.save_project",
                 text=("* " if context.project.is_dirty else "") + pgettext_iface("Save Project"),
+                icon='FILE_TICK',
                 translate=False,
             )
 
@@ -153,12 +154,11 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
     bl_label = "Project"
     bl_space_type = 'PROJECT'
     bl_region_type = 'WINDOW'
-    bl_options = {'HIDE_HEADER'}
     bl_category = MAIN_SECTION_NAME
 
     @classmethod
     def poll(cls, context):
-        return True
+        return context.project and context.project.data
 
     def centered_operator(self, layout, op_name, text=None, icon=None):
         col_flow = layout.column_flow(columns=3)
@@ -173,39 +173,72 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
         project = context.project
 
         col = layout.column()
+        col.prop(project.data, "name")
+        col.prop(project.data, "root_path")
+
+
+
+class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
+    bl_label = "No Project"
+    bl_space_type = 'PROJECT'
+    bl_region_type = 'WINDOW'
+    bl_options = {'HIDE_HEADER'}
+    bl_category = MAIN_SECTION_NAME
+
+    @classmethod
+    def poll(cls, context):
+        return not PROJECT_PT_main.poll(context)
+
+    def draw_centered(self, context, layout):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
+
+        col = layout.column()
         col.separator(factor=2.0)
 
         if context.blend_data.filepath == "":
-            col.label(text="No active project.", icon='INFO')
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(
+                text="No active project.",
+                icon="INFO",
+            )
+            col.separator()
 
-            col.separator_spacer()
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(text="Save the current file, and make sure to place it in a folder that will be part of the project")
 
-            col.label(
-                text="Save the current file, and make sure to place it in a folder that will",
-                icon='WARNING_LARGE')
-            col.label(
-                text="be part of the project.")
-            self.centered_operator(col, "wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(text="Alternatively, open a file inside of a project directory to see its settings.")
 
-            col.separator_spacer()
-
-            col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
-            self.centered_operator(col, "project.open_blend_in_project", icon='FILE_FOLDER')
-        elif context.project.data is None:
-            col.label(text="No active project.", icon='INFO')
-
-            col.separator_spacer()
-
-            col.label(text="Set up a new project by choosing any parent directory of the current file.")
-            self.centered_operator(col, "project.new_project", text="New Project...", icon='ADD')
-
-            col.separator_spacer()
-
-            col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
-            self.centered_operator(col, "project.open_blend_in_project", icon='FILE_FOLDER')
+            col.separator()
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.operator("wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
+            row.operator("project.open_blend_in_project", icon='FILE_FOLDER')
         else:
-            col.prop(project.data, "name")
-            col.prop(project.data, "root_path")
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(
+                text="No active project.",
+                icon="INFO",
+            )
+            col.separator()
+
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(text="Set up a new project by choosing any parent directory of the current file.")
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.label(text="Alternatively, open a file inside of a project directory to see its settings.")
+
+            col.separator()
+            row = col.row()
+            row.alignment = 'CENTER'
+            row.operator("project.new_project", text="New Project...", icon='ADD')
+            row.operator("project.open_blend_in_project", icon='FILE_FOLDER')
 
 
 # -------------------------------------------------------------
@@ -228,6 +261,7 @@ if bpy.context.preferences.experimental.use_blender_projects:
         PROJECT_MT_save_load,
         PROJECT_PT_navigation_bar,
         PROJECT_PT_save_project,
+        PROJECT_PT_main_unset,
         PROJECT_PT_main,
     )
 else:

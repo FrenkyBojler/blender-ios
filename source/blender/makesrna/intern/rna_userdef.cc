@@ -4320,7 +4320,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
       {5, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", ""},
       {12, "OUTLINER", ICON_OUTLINER, "Outliner", ""},
       {14, "PREFERENCES", ICON_PREFERENCES, "Preferences", ""},
-      {27, "PROJECT", ICON_PROJECT, "Project", ""},
+      {27, "PROJECT", ICON_PROJECT, "Project Setup", ""},
       {11, "PROPERTIES", ICON_PROPERTIES, "Properties", ""},
       {17, "CONSOLE", ICON_CONSOLE, "Python Console", ""},
       {23, "SPREADSHEET", ICON_SPREADSHEET, "Spreadsheet"},
@@ -4456,7 +4456,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_pointer_sdna(prop, nullptr, "space_project");
   RNA_def_property_struct_type(prop, "ThemeProject");
-  RNA_def_property_ui_text(prop, "Project", "");
+  RNA_def_property_ui_text(prop, "Project Setup", "");
 
   prop = RNA_def_property(srna, "console", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
