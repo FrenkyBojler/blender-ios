@@ -2471,14 +2471,13 @@ static void rna_def_strip(BlenderRNA *brna)
   prop = RNA_def_property(srna, "frame_final_duration", PROP_INT, PROP_TIME);
   RNA_def_property_range(prop, 1, MAXFRAME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop,
-                           "Length",
-                           "(Deprecated: Replaced by '.duration') The length of the contents of "
-                           "this strip after the handles are applied");
+  RNA_def_property_ui_text(
+      prop, "Length", "The length of the contents of this strip after the handles are applied");
   RNA_def_property_int_funcs(prop, "rna_Strip_duration_get", "rna_Strip_duration_set", nullptr);
   RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
+  RNA_def_property_deprecated(prop, "Replaced by '.duration'.", 510, 600);
 
   prop = RNA_def_property(srna, "duration", PROP_INT, PROP_TIME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -2494,10 +2493,9 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_int_funcs(prop, "rna_Strip_content_duration_get", nullptr, nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
   RNA_def_property_range(prop, 1, MAXFRAME);
-  RNA_def_property_ui_text(prop,
-                           "Length",
-                           "(Deprecated: Replaced by '.content_duration') The length of the "
-                           "contents of this strip before the handles are applied");
+  RNA_def_property_ui_text(
+      prop, "Length", "The length of the contents of this strip before the handles are applied");
+  RNA_def_property_deprecated(prop, "Replaced by '.content_duration'.", 510, 600);
 
   prop = RNA_def_property(srna, "content_duration", PROP_INT, PROP_TIME);
   RNA_def_property_int_funcs(prop, "rna_Strip_content_duration_get", nullptr, nullptr);
@@ -2510,16 +2508,14 @@ static void rna_def_strip(BlenderRNA *brna)
   prop = RNA_def_property(srna, "frame_start", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "start");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(
-      prop,
-      "Start Frame",
-      "(Deprecated: Replaced by '.content_start') X position where the strip begins");
+  RNA_def_property_ui_text(prop, "Start Frame", "X position where the strip begins");
   RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
   RNA_def_property_float_funcs(
       prop, nullptr, "rna_Strip_content_start_set", nullptr); /* overlap tests and calc_seq_disp */
   RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
+  RNA_def_property_deprecated(prop, "Replaced by '.content_start'.", 510, 600);
 
   prop = RNA_def_property(srna, "content_start", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "start");
@@ -2550,14 +2546,15 @@ static void rna_def_strip(BlenderRNA *brna)
       prop, "rna_Strip_left_handle_get", "rna_Strip_left_handle_set", nullptr);
   RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop,
-                           "Start Frame",
-                           "(Deprecated: Replaced by '.left_handle') Start frame displayed in the "
-                           "sequence editor after offsets are applied, setting this is "
-                           "equivalent to moving the handle, not the actual start frame");
+  RNA_def_property_ui_text(
+      prop,
+      "Start Frame",
+      "Start frame displayed in the sequence editor after offsets are applied, setting this is "
+      "equivalent to moving the handle, not the actual start frame");
   /* overlap tests and calc_seq_disp */
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
+  RNA_def_property_deprecated(prop, "Replaced by '.left_handle'.", 510, 600);
 
   prop = RNA_def_property(srna, "left_handle", PROP_INT, PROP_TIME);
   RNA_def_property_int_funcs(prop,
@@ -2580,13 +2577,12 @@ static void rna_def_strip(BlenderRNA *brna)
                              "rna_Strip_right_handle_range");
   RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop,
-                           "End Frame",
-                           "(Deprecated: Replaced by '.right_handle') End frame displayed in the "
-                           "sequence editor after offsets are applied");
+  RNA_def_property_ui_text(
+      prop, "End Frame", "End frame displayed in the sequence editor after offsets are applied");
   /* overlap tests and calc_seq_disp */
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
+  RNA_def_property_deprecated(prop, "Replaced by '.right_handle'.", 510, 600);
 
   prop = RNA_def_property(srna, "right_handle", PROP_INT, PROP_TIME);
   RNA_def_property_int_funcs(prop,
@@ -2606,14 +2602,12 @@ static void rna_def_strip(BlenderRNA *brna)
   prop = RNA_def_property(srna, "frame_offset_start", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "startofs");
   //  RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* overlap tests */
-  RNA_def_property_ui_text(prop,
-                           "Start Offset",
-                           "(Deprecated: Replaced by '.left_handle_offset') Offset from the start "
-                           "of the strip in frames");
+  RNA_def_property_ui_text(prop, "Start Offset", "Offset from the start of the strip in frames");
   RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
   RNA_def_property_float_funcs(
       prop, nullptr, "rna_Strip_left_handle_offset_set", "rna_Strip_left_handle_offset_range");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_frame_change_update");
+  RNA_def_property_deprecated(prop, "Replaced by '.left_handle_offset'.", 510, 600);
 
   prop = RNA_def_property(srna, "left_handle_offset", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "startofs");
@@ -2629,14 +2623,12 @@ static void rna_def_strip(BlenderRNA *brna)
   prop = RNA_def_property(srna, "frame_offset_end", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "endofs");
   //  RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* overlap tests */
-  RNA_def_property_ui_text(prop,
-                           "End Offset",
-                           "(Deprecated: Replaced by '.right_handle_offset') Offset from the end "
-                           "of the strip in frames");
+  RNA_def_property_ui_text(prop, "End Offset", "Offset from the end of the strip in frames");
   RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
   RNA_def_property_float_funcs(
       prop, nullptr, "rna_Strip_right_handle_offset_set", "rna_Strip_right_handle_offset_range");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_frame_change_update");
+  RNA_def_property_deprecated(prop, "Replaced by '.right_handle_offset'.", 510, 600);
 
   prop = RNA_def_property(srna, "right_handle_offset", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "endofs");
@@ -3048,12 +3040,10 @@ static void rna_def_input(StructRNA *srna)
                              nullptr,
                              "rna_Strip_content_trim_start_set",
                              "rna_Strip_content_trim_start_range"); /* overlap tests */
-  RNA_def_property_ui_text(
-      prop,
-      "Animation Start Offset",
-      "(Deprecated: Replaced with '.content_trim_start' Animation start offset (trim start)");
+  RNA_def_property_ui_text(prop, "Animation Start Offset", "Animation start offset (trim start)");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
+  RNA_def_property_deprecated(prop, "Replaced by '.content_trim_start'.", 510, 600);
 
   prop = RNA_def_property(srna, "content_trim_start", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "anim_startofs");
@@ -3075,12 +3065,10 @@ static void rna_def_input(StructRNA *srna)
                              nullptr,
                              "rna_Strip_content_trim_end_set",
                              "rna_Strip_content_trim_end_range"); /* overlap tests */
-  RNA_def_property_ui_text(
-      prop,
-      "Animation End Offset",
-      "(Deprecated: Replaced with '.content_trim_end') Animation end offset (trim end)");
+  RNA_def_property_ui_text(prop, "Animation End Offset", "Animation end offset (trim end)");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
+  RNA_def_property_deprecated(prop, "Replaced by '.content_trim_end'.", 510, 600);
 
   prop = RNA_def_property(srna, "content_trim_end", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "anim_endofs");
