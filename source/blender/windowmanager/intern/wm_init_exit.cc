@@ -458,13 +458,15 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * Saving #BLENDER_QUIT_FILE is also not likely to be desired either. */
   BLI_assert(G.background ? (do_user_exit_actions == false) : true);
 
+  if (C) {
+    /* Run `exit_pre` Python handlers. */
+    BKE_callback_exec_boolean(CTX_data_main(C), do_user_exit_actions, BKE_CB_EVT_EXIT_PRE);
+  }
+
   /* First wrap up running stuff, we assume only the active WM is running. */
   /* Modal handlers are on window level freed, others too? */
   /* NOTE: same code copied in `wm_files.cc`. */
   if (C && wm) {
-    /* Run `exit_pre` Python handlers. */
-    BKE_callback_exec_null(CTX_data_main(C), BKE_CB_EVT_EXIT_PRE);
-
     if (do_user_exit_actions) {
       /* Save quit.blend. */
       Main *bmain = CTX_data_main(C);
