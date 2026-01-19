@@ -721,6 +721,7 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
           break;
         }
         /* Unsupported kernels */
+        default:
         case DEVICE_KERNEL_NUM:
         case DEVICE_KERNEL_INTEGRATOR_MEGAKERNEL:
           kernel_assert(0);

@@ -71,6 +71,8 @@ class Integrator : public Node {
 
   NODE_SOCKET_API(int, seed)
 
+  NODE_SOCKET_API(int, frame)
+
   NODE_SOCKET_API(float, sample_clamp_direct)
   NODE_SOCKET_API(float, sample_clamp_indirect)
   NODE_SOCKET_API(bool, motion_blur)

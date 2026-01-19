@@ -253,8 +253,8 @@ bool OIDNDenoiserGPU::commit_and_execute_filter(OIDNFilter filter, ExecMode mode
 bool OIDNDenoiserGPU::denoise_create_if_needed(DenoiseContext &context)
 {
   const bool recreate_denoiser = (oidn_device_ == nullptr) || (oidn_filter_ == nullptr) ||
-                                 (use_pass_albedo_ != context.use_pass_albedo) ||
-                                 (use_pass_normal_ != context.use_pass_normal) ||
+                                 (use_pass_albedo_ != context.denoise_params.use_pass_albedo) ||
+                                 (use_pass_normal_ != context.denoise_params.use_pass_normal) ||
                                  (quality_ != params_.quality);
   if (!recreate_denoiser) {
     return true;
@@ -330,14 +330,14 @@ bool OIDNDenoiserGPU::denoise_create_if_needed(DenoiseContext &context)
     }
   }
 
-  if (context.use_pass_albedo) {
+  if (context.denoise_params.use_pass_albedo) {
     albedo_filter_ = create_filter();
     if (albedo_filter_ == nullptr) {
       return false;
     }
   }
 
-  if (context.use_pass_normal) {
+  if (context.denoise_params.use_pass_normal) {
     normal_filter_ = create_filter();
     if (normal_filter_ == nullptr) {
       return false;
@@ -345,8 +345,8 @@ bool OIDNDenoiserGPU::denoise_create_if_needed(DenoiseContext &context)
   }
 
   /* OIDN denoiser handle was created with the requested number of input passes. */
-  use_pass_albedo_ = context.use_pass_albedo;
-  use_pass_normal_ = context.use_pass_normal;
+  use_pass_albedo_ = context.denoise_params.use_pass_albedo;
+  use_pass_normal_ = context.denoise_params.use_pass_normal;
 
   /* OIDN denoiser has been created, but it needs configuration. */
   is_configured_ = false;
@@ -394,13 +394,23 @@ bool OIDNDenoiserGPU::denoise_run(const DenoiseContext &context, const DenoisePa
                   pass_stride_in_bytes * context.buffer_params.stride);
 
   /* Optional albedo and color passes. */
-  if (context.num_input_passes > 1) {
-    const device_ptr d_guiding_buffer = context.guiding_params.device_pointer;
-    const int64_t pixel_stride_in_bytes = context.guiding_params.pass_stride * sizeof(float);
-    const int64_t row_stride_in_bytes = context.guiding_params.stride * pixel_stride_in_bytes;
+  const device_ptr d_guiding_buffer = context.guiding_params.device_pointer;
+  const int64_t pixel_stride_in_bytes = context.guiding_params.pass_stride * sizeof(float);
+  const int64_t row_stride_in_bytes = context.guiding_params.stride * pixel_stride_in_bytes;
 
-    if (context.use_pass_albedo) {
-      set_filter_pass(oidn_filter_,
+  if (context.denoise_params.use_pass_albedo) {
+    set_filter_pass(oidn_filter_,
+                    "albedo",
+                    d_guiding_buffer,
+                    OIDN_FORMAT_FLOAT3,
+                    context.buffer_params.width,
+                    context.buffer_params.height,
+                    context.guiding_params.pass_albedo * sizeof(float),
+                    pixel_stride_in_bytes,
+                    row_stride_in_bytes);
+
+    if (params_.prefilter == DENOISER_PREFILTER_ACCURATE) {
+      set_filter_pass(albedo_filter_,
                       "albedo",
                       d_guiding_buffer,
                       OIDN_FORMAT_FLOAT3,
@@ -410,35 +420,35 @@ bool OIDNDenoiserGPU::denoise_run(const DenoiseContext &context, const DenoisePa
                       pixel_stride_in_bytes,
                       row_stride_in_bytes);
 
-      if (params_.prefilter == DENOISER_PREFILTER_ACCURATE) {
-        set_filter_pass(albedo_filter_,
-                        "albedo",
-                        d_guiding_buffer,
-                        OIDN_FORMAT_FLOAT3,
-                        context.buffer_params.width,
-                        context.buffer_params.height,
-                        context.guiding_params.pass_albedo * sizeof(float),
-                        pixel_stride_in_bytes,
-                        row_stride_in_bytes);
+      set_filter_pass(albedo_filter_,
+                      "output",
+                      d_guiding_buffer,
+                      OIDN_FORMAT_FLOAT3,
+                      context.buffer_params.width,
+                      context.buffer_params.height,
+                      context.guiding_params.pass_albedo * sizeof(float),
+                      pixel_stride_in_bytes,
+                      row_stride_in_bytes);
 
-        set_filter_pass(albedo_filter_,
-                        "output",
-                        d_guiding_buffer,
-                        OIDN_FORMAT_FLOAT3,
-                        context.buffer_params.width,
-                        context.buffer_params.height,
-                        context.guiding_params.pass_albedo * sizeof(float),
-                        pixel_stride_in_bytes,
-                        row_stride_in_bytes);
-
-        if (!commit_and_execute_filter(albedo_filter_, ExecMode::ASYNC)) {
-          return false;
-        }
+      if (!commit_and_execute_filter(albedo_filter_, ExecMode::ASYNC)) {
+        return false;
       }
     }
+  }
 
-    if (context.use_pass_normal) {
-      set_filter_pass(oidn_filter_,
+  if (context.denoise_params.use_pass_normal) {
+    set_filter_pass(oidn_filter_,
+                    "normal",
+                    d_guiding_buffer,
+                    OIDN_FORMAT_FLOAT3,
+                    context.buffer_params.width,
+                    context.buffer_params.height,
+                    context.guiding_params.pass_normal * sizeof(float),
+                    pixel_stride_in_bytes,
+                    row_stride_in_bytes);
+
+    if (params_.prefilter == DENOISER_PREFILTER_ACCURATE) {
+      set_filter_pass(normal_filter_,
                       "normal",
                       d_guiding_buffer,
                       OIDN_FORMAT_FLOAT3,
@@ -448,30 +458,18 @@ bool OIDNDenoiserGPU::denoise_run(const DenoiseContext &context, const DenoisePa
                       pixel_stride_in_bytes,
                       row_stride_in_bytes);
 
-      if (params_.prefilter == DENOISER_PREFILTER_ACCURATE) {
-        set_filter_pass(normal_filter_,
-                        "normal",
-                        d_guiding_buffer,
-                        OIDN_FORMAT_FLOAT3,
-                        context.buffer_params.width,
-                        context.buffer_params.height,
-                        context.guiding_params.pass_normal * sizeof(float),
-                        pixel_stride_in_bytes,
-                        row_stride_in_bytes);
+      set_filter_pass(normal_filter_,
+                      "output",
+                      d_guiding_buffer,
+                      OIDN_FORMAT_FLOAT3,
+                      context.buffer_params.width,
+                      context.buffer_params.height,
+                      context.guiding_params.pass_normal * sizeof(float),
+                      pixel_stride_in_bytes,
+                      row_stride_in_bytes);
 
-        set_filter_pass(normal_filter_,
-                        "output",
-                        d_guiding_buffer,
-                        OIDN_FORMAT_FLOAT3,
-                        context.buffer_params.width,
-                        context.buffer_params.height,
-                        context.guiding_params.pass_normal * sizeof(float),
-                        pixel_stride_in_bytes,
-                        row_stride_in_bytes);
-
-        if (!commit_and_execute_filter(normal_filter_, ExecMode::ASYNC)) {
-          return false;
-        }
+      if (!commit_and_execute_filter(normal_filter_, ExecMode::ASYNC)) {
+        return false;
       }
     }
   }

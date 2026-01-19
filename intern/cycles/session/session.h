@@ -165,6 +165,8 @@ class Session {
    * via the write callback. */
   void process_full_buffer_from_disk(string_view filename);
 
+  DenoiserType get_effective_denoiser_type() const;
+
  protected:
   struct DelayedReset {
     thread_mutex mutex;

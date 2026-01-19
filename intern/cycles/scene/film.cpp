@@ -197,6 +197,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   /* Mark passes as unused so that the kernel knows the pass is inaccessible. */
   kfilm->pass_denoising_normal = PASS_UNUSED;
   kfilm->pass_denoising_albedo = PASS_UNUSED;
+  kfilm->pass_denoising_specular_albedo = PASS_UNUSED;
   kfilm->pass_denoising_depth = PASS_UNUSED;
   kfilm->pass_sample_count = PASS_UNUSED;
   kfilm->pass_render_time = PASS_UNUSED;
@@ -376,6 +377,9 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
       case PASS_DENOISING_ALBEDO:
         kfilm->pass_denoising_albedo = kfilm->pass_stride;
         break;
+      case PASS_DENOISING_SPECULAR_ALBEDO:
+        kfilm->pass_denoising_specular_albedo = kfilm->pass_stride;
+        break;
       case PASS_DENOISING_DEPTH:
         kfilm->pass_denoising_depth = kfilm->pass_stride;
         break;
@@ -536,11 +540,18 @@ void Film::update_passes(Scene *scene)
   /* Create passes needed for denoising. */
   const bool use_denoise = integrator->get_use_denoise();
   if (use_denoise) {
-    if (integrator->get_use_denoise_pass_normal()) {
+    const bool add_dlss_passes = integrator->get_denoiser_type() == DENOISER_DLSS;
+    if (add_dlss_passes || integrator->get_use_denoise_pass_normal()) {
       add_auto_pass(scene, PASS_DENOISING_NORMAL);
     }
-    if (integrator->get_use_denoise_pass_albedo()) {
+    if (add_dlss_passes || integrator->get_use_denoise_pass_albedo()) {
       add_auto_pass(scene, PASS_DENOISING_ALBEDO);
+    }
+    if (add_dlss_passes) {
+      add_auto_pass(scene, PASS_DENOISING_DEPTH);
+      add_auto_pass(scene, PASS_MOTION);
+      add_auto_pass(scene, PASS_ROUGHNESS);
+      add_auto_pass(scene, PASS_DENOISING_SPECULAR_ALBEDO);
     }
   }
 

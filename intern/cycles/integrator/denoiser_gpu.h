@@ -22,7 +22,8 @@ class DenoiserGPU : public Denoiser {
                       const BufferParams &denoised_buffer_params,
                       RenderBuffers *render_buffers,
                       const int num_samples,
-                      const bool allow_inplace_modification) override;
+                      const bool allow_inplace_modification,
+                      const float2 jitter) override;
 
  protected:
   class DenoisePass;
@@ -46,8 +47,10 @@ class DenoiserGPU : public Denoiser {
 
   /* Run corresponding filter kernels, preparing data for the denoiser or copying data from the
    * denoiser result to the render buffer. */
-  bool denoise_filter_color_preprocess(const DenoiseContext &context, const DenoisePass &pass);
-  bool denoise_filter_color_postprocess(const DenoiseContext &context, const DenoisePass &pass);
+  virtual bool denoise_filter_color_preprocess(const DenoiseContext &context,
+                                               const DenoisePass &pass);
+  virtual bool denoise_filter_color_postprocess(const DenoiseContext &context,
+                                                const DenoisePass &pass);
   bool denoise_filter_color_flip_y(const DenoiseContext &context,
                                    const BufferParams &buffer_params,
                                    const DenoisePass &pass);
@@ -59,9 +62,9 @@ class DenoiserGPU : public Denoiser {
    *
    * Pre-processing of the guiding passes is to only happen once per context lifetime. DO not
    * preprocess them for every pass which is being denoised. */
-  bool denoise_filter_guiding_preprocess(const DenoiseContext &context);
+  virtual bool denoise_filter_guiding_preprocess(DenoiseContext &context);
 
-  void denoise_pass(DenoiseContext &context, PassType pass_type);
+  bool denoise_pass(DenoiseContext &context, PassType pass_type);
 
   /* Returns true if task is fully handled. */
   virtual bool denoise_run(const DenoiseContext &context, const DenoisePass &pass) = 0;
@@ -99,7 +102,8 @@ class DenoiserGPU : public Denoiser {
                             const BufferParams &denoised_buffer_params,
                             RenderBuffers *render_buffers,
                             const int num_samples,
-                            const bool allow_inplace_modification);
+                            const bool allow_inplace_modification,
+                            const float2 jitter);
 
     const DenoiseParams &denoise_params;
 
@@ -132,12 +136,7 @@ class DenoiserGPU : public Denoiser {
       int pass_stride = -1;
     } guiding_params;
 
-    /* Number of input passes. Including the color and extra auxiliary passes. */
-    int num_input_passes = 0;
-    bool use_guiding_passes = false;
-    bool use_pass_albedo = false;
-    bool use_pass_normal = false;
-    bool use_pass_motion = false;
+    const bool use_guiding_passes = false;
 
     int num_samples = 0;
 
@@ -152,6 +151,8 @@ class DenoiserGPU : public Denoiser {
      * the (0.5, 0.5, 0.5). This flag indicates that the real albedo pass has been replaced with
      * the fake values and denoising of passes which do need albedo can no longer happen. */
     bool albedo_replaced_with_fake = false;
+
+    float2 jitter;
   };
 };
 

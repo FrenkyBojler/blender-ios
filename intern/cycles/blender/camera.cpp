@@ -1099,6 +1099,9 @@ void BlenderSync::sync_view(blender::View3D *b_v3d,
                             const int width,
                             const int height)
 {
+  const float prev_fov = scene->camera->get_fov();
+  const Transform prev_matrix = scene->camera->get_matrix();
+
   const blender::RenderData &b_render_settings = b_scene->r;
   BlenderCamera bcam(b_render_settings);
   blender_camera_from_view(&bcam, *b_engine, *b_scene, *b_data, b_v3d, b_rv3d, width, height);
@@ -1107,6 +1110,21 @@ void BlenderSync::sync_view(blender::View3D *b_v3d,
   blender::PointerRNA scene_rna_ptr = RNA_id_pointer_create(&b_scene->id);
   blender::PointerRNA cscene = RNA_pointer_get(&scene_rna_ptr, "cycles");
   blender_camera_sync(scene->camera, scene, &bcam, width, height, "", &cscene);
+
+  /* Apply viewport changes as motion. */
+  bool update_view_motion = prev_matrix != transform_identity() &&
+                            prev_matrix != scene->camera->get_matrix();
+  if (prev_fov != scene->camera->get_fov()) {
+    scene->camera->set_fov_pre(prev_fov);
+    scene->camera->set_use_perspective_motion(true);
+    update_view_motion = true;
+  }
+  if (update_view_motion) {
+    array<Transform> motion(2);
+    motion[0] = prev_matrix;
+    motion[1] = bcam.matrix;
+    scene->camera->set_motion(motion);
+  }
 
   /* dicing camera */
   blender::Object *b_ob = RNA_pointer_get(&cscene, "dicing_camera").data_as<blender::Object>();

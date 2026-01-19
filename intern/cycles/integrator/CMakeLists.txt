@@ -12,6 +12,7 @@ set(INC_SYS
 set(SRC
   adaptive_sampling.cpp
   denoiser.cpp
+  denoiser_dlss.cpp
   denoiser_gpu.cpp
   denoiser_oidn.cpp
   denoiser_oidn_gpu.cpp
@@ -35,6 +36,7 @@ set(SRC
 set(SRC_HEADERS
   adaptive_sampling.h
   denoiser.h
+  denoiser_dlss.h
   denoiser_gpu.h
   denoiser_oidn.h
   denoiser_oidn_gpu.h
@@ -69,6 +71,12 @@ set(LIB
 if(WITH_OPENIMAGEDENOISE)
   list(APPEND LIB
     ${OPENIMAGEDENOISE_LIBRARIES}
+  )
+endif()
+
+if(WITH_DLSS)
+  list(APPEND INC_SYS
+    ${DLSS_INCLUDE_DIR}
   )
 endif()
 

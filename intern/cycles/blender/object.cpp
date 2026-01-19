@@ -595,6 +595,11 @@ void BlenderSync::sync_motion(blender::RenderData &b_render,
     return;
   }
 
+  /* Disable object motion in viewport, so that it does not interfer with viewport denoising. */
+  if (b_v3d) {
+    return;
+  }
+
   /* get camera object here to deal with camera switch */
   blender::Object *b_cam = get_camera_object(b_v3d, b_rv3d);
 

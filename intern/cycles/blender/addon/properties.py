@@ -270,6 +270,13 @@ def enum_openimagedenoise_denoiser(self, context):
     return []
 
 
+def enum_dlss_denoiser(self, context):
+    if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('CUDA')):
+        return [('DLSS', "DLSS",
+                 n_("Use NVIDIA DLSS Ray Reconstruction"), 8)]
+    return []
+
+
 def enum_optix_denoiser(self, context):
     if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPTIX')):
         return [('OPTIX', "OptiX", n_(
@@ -278,10 +285,11 @@ def enum_optix_denoiser(self, context):
 
 
 def enum_preview_denoiser(self, context):
+    dlss_items = enum_dlss_denoiser(self, context)
     optix_items = enum_optix_denoiser(self, context)
     oidn_items = enum_openimagedenoise_denoiser(self, context)
 
-    if len(optix_items) or len(oidn_items):
+    if len(dlss_items) or len(optix_items) or len(oidn_items):
         items = [
             ('AUTO',
              "Automatic",
@@ -291,6 +299,7 @@ def enum_preview_denoiser(self, context):
     else:
         items = [('AUTO', "None", n_("Blender was compiled without a viewport denoiser"), 0)]
 
+    items += dlss_items
     items += optix_items
     items += oidn_items
     return items
@@ -337,6 +346,28 @@ enum_denoising_quality = (
      "Fast",
      "High performance",
      3),
+)
+enum_denoising_dlss_quality = (
+    ('DLAA',
+     "DLAA",
+     "Highest quality without upscaling",
+     0),
+    ('QUALITY',
+     "Quality",
+     "Offers higher image quality than balanced mode",
+     1),
+    ('BALANCED',
+     "Balanced",
+     "Offers both optimized performance and image quality",
+     2),
+    ('PERF',
+     "Performance",
+     "Offers a higher performance boost than balanced mode",
+     3),
+    ('ULTRA_PERF',
+     "Ultra Performance",
+     "Offers the highest performance boost",
+     4),
 )
 
 enum_direct_light_sampling_type = (
@@ -474,6 +505,12 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="Denoise Preview on GPU",
         description="Perform denoising on GPU devices configured in the system tab in the user preferences. This is significantly faster than on CPU, but requires additional GPU memory. When large scenes need more GPU memory, this option can be disabled",
         default=True,
+    )
+    preview_denoising_dlss_quality: EnumProperty(
+        name="DLSS Mode",
+        description="Overall quality when using DLSS",
+        items=enum_denoising_dlss_quality,
+        default='BALANCED',
     )
 
     samples: IntProperty(
@@ -1765,6 +1802,22 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
                 has_device_oidn_support = device[5]
                 if has_device_oidn_support and self.find_existing_device_entry(device).use:
+                    return True
+
+        return False
+
+    def has_dlss_gpu_devices(self):
+        compute_device_type = self.get_compute_device_type()
+
+        # We need non-CPU devices, used for rendering and supporting DLSS
+        if compute_device_type != 'NONE':
+            for device in self.get_device_list(compute_device_type):
+                device_type = device[1]
+                if device_type == 'CPU':
+                    continue
+
+                has_device_dlss_support = device[8]
+                if has_device_dlss_support and self.find_existing_device_entry(device).use:
                     return True
 
         return False

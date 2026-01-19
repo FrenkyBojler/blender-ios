@@ -537,7 +537,9 @@ void PathTrace::set_denoiser_params(const DenoiseParams &params)
 
     const bool is_cpu_denoising = old_denoiser_params.type == DENOISER_OPENIMAGEDENOISE &&
                                   old_denoiser_params.use_gpu == false;
-    const bool requested_gpu_denoising = effective_denoise_params.type == DENOISER_OPTIX ||
+    const bool always_gpu_denoising = effective_denoise_params.type == DENOISER_DLSS ||
+                                      effective_denoise_params.type == DENOISER_OPTIX;
+    const bool requested_gpu_denoising = always_gpu_denoising ||
                                          (effective_denoise_params.type ==
                                               DENOISER_OPENIMAGEDENOISE &&
                                           effective_denoise_params.use_gpu == true);
@@ -555,7 +557,7 @@ void PathTrace::set_denoiser_params(const DenoiseParams &params)
     /* Optix Denoiser is not supporting CPU devices, so use_gpu option is not
      * shown in the UI and changes in the option value should not be checked. */
     if (old_denoiser_params.type == effective_denoise_params.type &&
-        (is_same_denoising_device_type || effective_denoise_params.type == DENOISER_OPTIX))
+        (is_same_denoising_device_type || always_gpu_denoising))
     {
       denoiser_->set_params(effective_denoise_params);
     }
@@ -563,7 +565,7 @@ void PathTrace::set_denoiser_params(const DenoiseParams &params)
       need_to_recreate_denoiser = true;
     }
   }
-  else {
+  else if (effective_denoise_params.use) {
     /* if there is no denoiser and param.use is true, then we need to create it. */
     need_to_recreate_denoiser = true;
   }
@@ -653,7 +655,8 @@ void PathTrace::denoise(const RenderWork &render_work)
                                 render_state_.effective_denoised_big_tile_params,
                                 buffer_to_denoise,
                                 get_num_samples_in_buffer(),
-                                allow_inplace_modification))
+                                allow_inplace_modification,
+                                device_scene_->data.integrator.jitter))
   {
     render_state_.has_denoised_result = true;
   }

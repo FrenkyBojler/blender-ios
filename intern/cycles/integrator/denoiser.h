@@ -21,6 +21,8 @@ class GraphicsInteropDevice;
 class RenderBuffers;
 class Progress;
 
+bool use_dlss_denoiser(Device *denoiser_device, const DenoiseParams &params);
+
 bool use_optix_denoiser(Device *denoiser_device, const DenoiseParams &params);
 
 bool use_gpu_oidn_denoiser(Device *denoiser_device, const DenoiseParams &params);
@@ -93,7 +95,8 @@ class Denoiser {
                               const BufferParams &denoised_buffer_params,
                               RenderBuffers *render_buffers,
                               const int num_samples,
-                              const bool allow_inplace_modification) = 0;
+                              const bool allow_inplace_modification,
+                              const float2 jitter = {}) = 0;
 
   /* Get a device which is used to perform actual denoising.
    *

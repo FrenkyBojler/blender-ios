@@ -151,6 +151,9 @@ def show_preview_denoise_active(context):
     if not cscene.use_preview_denoising:
         return False
 
+    if cscene.preview_denoiser == 'DLSS':
+        return has_dlss_gpu_devices(context)
+
     if cscene.preview_denoiser == 'OPTIX':
         return has_optixdenoiser_gpu_devices(context)
 
@@ -188,6 +191,10 @@ def get_effective_preview_denoiser(context, has_oidn_gpu):
 
 def has_oidn_gpu_devices(context):
     return context.preferences.addons[__package__].preferences.has_oidn_gpu_devices()
+
+
+def has_dlss_gpu_devices(context):
+    return context.preferences.addons[__package__].preferences.has_dlss_gpu_devices()
 
 
 def has_optixdenoiser_gpu_devices(context):
@@ -229,18 +236,20 @@ class CYCLES_RENDER_PT_sampling_viewport(CyclesButtonsPanel, Panel):
         layout.use_property_decorate = False
 
         heading = layout.column(align=True, heading="Noise Threshold")
+        heading.active = cscene.preview_denoiser != 'DLSS'
         row = heading.row(align=True)
         row.prop(cscene, "use_preview_adaptive_sampling", text="")
         sub = row.row()
         sub.active = cscene.use_preview_adaptive_sampling
         sub.prop(cscene, "preview_adaptive_threshold", text="")
 
+        col = layout.column(align=True)
+        col.active = cscene.preview_denoiser != 'DLSS'
         if cscene.use_preview_adaptive_sampling:
-            col = layout.column(align=True)
             col.prop(cscene, "preview_samples", text="Max Samples")
             col.prop(cscene, "preview_adaptive_min_samples", text="Min Samples")
         else:
-            layout.prop(cscene, "preview_samples", text="Samples")
+            col.prop(cscene, "preview_samples", text="Samples")
 
 
 class CYCLES_RENDER_PT_sampling_viewport_denoise(CyclesButtonsPanel, Panel):
@@ -269,10 +278,15 @@ class CYCLES_RENDER_PT_sampling_viewport_denoise(CyclesButtonsPanel, Panel):
         sub.active = show_preview_denoise_active(context)
         sub.prop(cscene, "preview_denoiser", text="Denoiser")
 
-        col.prop(cscene, "preview_denoising_input_passes", text="Passes")
-
         has_oidn_gpu = has_oidn_gpu_devices(context)
         effective_preview_denoiser = get_effective_preview_denoiser(context, has_oidn_gpu)
+
+        if effective_preview_denoiser == 'DLSS':
+            col.prop(cscene, "preview_denoising_dlss_quality", text="Mode")
+            return
+
+        col.prop(cscene, "preview_denoising_input_passes", text="Passes")
+
         if effective_preview_denoiser == 'OPENIMAGEDENOISE':
             col.prop(cscene, "preview_denoising_prefilter", text="Prefilter")
             col.prop(cscene, "preview_denoising_quality", text="Quality")

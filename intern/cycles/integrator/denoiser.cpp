@@ -6,6 +6,7 @@
 
 #include "device/device.h"
 
+#include "integrator/denoiser_dlss.h"
 #include "integrator/denoiser_oidn.h"
 #include "session/display_driver.h"
 #ifdef WITH_OPENIMAGEDENOISE
@@ -78,6 +79,18 @@ static Device *find_best_device(Device *device,
   return best_device;
 }
 
+bool use_dlss_denoiser(Device *denoiser_device, const DenoiseParams &params)
+{
+#ifdef WITH_DLSS
+  return (params.type == DENOISER_DLSS &&
+          DLSSDenoiser::is_device_supported(denoiser_device->info));
+#else
+  (void)denoiser_device;
+  (void)params;
+  return false;
+#endif
+}
+
 bool use_optix_denoiser(Device *denoiser_device, const DenoiseParams &params)
 {
 #ifdef WITH_OPTIX
@@ -136,6 +149,16 @@ DenoiseParams get_effective_denoise_params(Device *denoiser_device,
       /* Denoising parameters are correct and there is no need to fall back to CPU OIDN. */
       return effective_denoise_params;
     }
+
+    if (effective_denoise_params.type == DENOISER_DLSS) {
+#ifdef WITH_DLSS
+      if (DLSSDenoiser::is_device_supported(single_denoiser_device->info)) {
+        return effective_denoise_params;
+      }
+#endif
+      /* Default to disabling denoising when DLSS is selected, but not available. */
+      effective_denoise_params.use = false;
+    }
   }
 
   /* Always fallback to OIDN on CPU. */
@@ -155,9 +178,18 @@ unique_ptr<Denoiser> Denoiser::create(Device *denoiser_device,
   Device *single_denoiser_device;
   const DenoiseParams effective_denoiser_params = get_effective_denoise_params(
       denoiser_device, cpu_fallback_device, params, interop_device, single_denoiser_device);
+  if (!effective_denoiser_params.use) {
+    return nullptr;
+  }
 
   const bool is_cpu_denoiser_device = single_denoiser_device->info.type == DEVICE_CPU;
   if (is_cpu_denoiser_device == false) {
+#ifdef WITH_DLSS
+    if (use_dlss_denoiser(single_denoiser_device, effective_denoiser_params)) {
+      return make_unique<DLSSDenoiser>(single_denoiser_device, effective_denoiser_params);
+    }
+#endif
+
 #ifdef WITH_OPTIX
     if (use_optix_denoiser(single_denoiser_device, effective_denoiser_params)) {
       return make_unique<OptiXDenoiser>(single_denoiser_device, effective_denoiser_params);

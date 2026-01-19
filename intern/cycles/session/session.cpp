@@ -779,4 +779,13 @@ void Session::process_full_buffer_from_disk(string_view filename)
   path_trace_->process_full_buffer_from_disk(filename);
 }
 
+DenoiserType Session::get_effective_denoiser_type() const
+{
+  if (!render_scheduler_.get_denoiser_params().use) {
+    return DENOISER_NONE;
+  }
+
+  return render_scheduler_.get_denoiser_params().type;
+}
+
 CCL_NAMESPACE_END

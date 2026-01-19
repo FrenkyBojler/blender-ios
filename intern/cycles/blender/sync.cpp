@@ -388,6 +388,7 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
   }
 
   integrator->set_seed(seed);
+  integrator->set_frame(b_scene->r.cfra);
 
   integrator->set_sample_clamp_direct(get_float(cscene, "sample_clamp_direct"));
   integrator->set_sample_clamp_indirect(get_float(cscene, "sample_clamp_indirect"));
@@ -441,11 +442,37 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
 
   integrator->set_sampling_pattern(sampling_pattern);
 
+  DenoiseParams denoise_params = get_denoise_params(
+      *b_scene, &b_view_layer, background, denoise_device_info);
+
+  /* No denoising support for vertex color baking, vertices packed into image
+   * buffer have no relation to neighbors. */
+  if (is_vertex_baking) {
+    denoise_params.use = false;
+  }
+
+  integrator->set_use_denoise(denoise_params.use);
+
+  /* Only update denoiser parameters if the denoiser is actually used. This allows to tweak
+   * denoiser parameters before enabling it without render resetting on every change. The downside
+   * is that the interface and the integrator are technically out of sync. */
+  if (denoise_params.use) {
+    integrator->set_denoiser_type(denoise_params.type);
+    integrator->set_denoise_use_gpu(denoise_params.use_gpu);
+    integrator->set_denoise_start_sample(denoise_params.start_sample);
+    integrator->set_use_denoise_pass_albedo(denoise_params.use_pass_albedo);
+    integrator->set_use_denoise_pass_normal(denoise_params.use_pass_normal);
+    integrator->set_denoiser_prefilter(denoise_params.prefilter);
+    integrator->set_denoiser_quality(denoise_params.quality);
+    integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
+  }
+
   int samples = 1;
   bool use_adaptive_sampling = false;
   if (preview) {
     samples = get_int(cscene, "preview_samples");
-    use_adaptive_sampling = RNA_boolean_get(&cscene, "use_preview_adaptive_sampling");
+    use_adaptive_sampling = RNA_boolean_get(&cscene, "use_preview_adaptive_sampling") &&
+                            !(denoise_params.use && denoise_params.type == DENOISER_DLSS);
     integrator->set_use_adaptive_sampling(use_adaptive_sampling);
     integrator->set_adaptive_threshold(get_float(cscene, "preview_adaptive_threshold"));
     integrator->set_adaptive_min_samples(get_int(cscene, "preview_adaptive_min_samples"));
@@ -532,31 +559,6 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
     integrator->set_guiding_roughness_threshold(get_float(cscene, "guiding_roughness_threshold"));
   }
 
-  DenoiseParams denoise_params = get_denoise_params(
-      *b_scene, &b_view_layer, background, denoise_device_info);
-
-  /* No denoising support for vertex color baking, vertices packed into image
-   * buffer have no relation to neighbors. */
-  if (is_vertex_baking) {
-    denoise_params.use = false;
-  }
-
-  integrator->set_use_denoise(denoise_params.use);
-
-  /* Only update denoiser parameters if the denoiser is actually used. This allows to tweak
-   * denoiser parameters before enabling it without render resetting on every change. The downside
-   * is that the interface and the integrator are technically out of sync. */
-  if (denoise_params.use) {
-    integrator->set_denoiser_type(denoise_params.type);
-    integrator->set_denoise_use_gpu(denoise_params.use_gpu);
-    integrator->set_denoise_start_sample(denoise_params.start_sample);
-    integrator->set_use_denoise_pass_albedo(denoise_params.use_pass_albedo);
-    integrator->set_use_denoise_pass_normal(denoise_params.use_pass_normal);
-    integrator->set_denoiser_prefilter(denoise_params.prefilter);
-    integrator->set_denoiser_quality(denoise_params.quality);
-    integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
-  }
-
   /* UPDATE_NONE as we don't want to tag the integrator as modified (this was done by the
    * set calls above), but we need to make sure that the dependent things are tagged. */
   integrator->tag_update(scene, Integrator::UPDATE_NONE);
@@ -615,6 +617,9 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
   else {
     film->set_use_approximate_shadow_catcher(!get_boolean(crl, "use_pass_shadow_catcher"));
   }
+
+  /* Update passes early already, so that 'scene->need_motion()' reports correctly. */
+  film->update_passes(scene);
 }
 
 /* Render Layer */
@@ -736,6 +741,7 @@ static bool get_known_pass_type(blender::RenderPass &b_pass, PassType &type, Pas
 
   MAP_PASS("Denoising Normal", PASS_DENOISING_NORMAL, true);
   MAP_PASS("Denoising Albedo", PASS_DENOISING_ALBEDO, true);
+  MAP_PASS("Denoising Specular Albedo", PASS_DENOISING_ALBEDO, true);
   MAP_PASS("Denoising Depth", PASS_DENOISING_DEPTH, true);
 
   MAP_PASS("Shadow Catcher", PASS_SHADOW_CATCHER, false);
@@ -1062,6 +1068,13 @@ SessionParams BlenderSync::get_session_params(blender::RenderEngine &b_engine,
   }
   else {
     params.use_auto_tile = false;
+
+    if (get_boolean(cscene, "use_preview_denoising") &&
+        get_enum(cscene, "preview_denoiser", DENOISER_NUM, DENOISER_NONE) == DENOISER_DLSS)
+    {
+      /* Disable resolution divider with DLSS */
+      params.use_resolution_divider = false;
+    }
   }
 
   return params;
@@ -1078,6 +1091,16 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
     DENOISER_INPUT_RGB_ALBEDO_NORMAL = 3,
 
     DENOISER_INPUT_NUM,
+  };
+
+  enum DenoiserDLSSQuality {
+    DENOISER_DLSS_MODE_DLAA = 0,
+    DENOISER_DLSS_MODE_QUALITY = 1,
+    DENOISER_DLSS_MODE_BALANCED = 2,
+    DENOISER_DLSS_MODE_PERF = 3,
+    DENOISER_DLSS_MODE_ULTRA_PERF = 4,
+
+    DENOISER_DLSS_MODE_NUM,
   };
 
   DenoiseParams denoising;
@@ -1128,6 +1151,41 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
       denoising.type = Denoiser::automatic_viewport_denoiser_type(denoise_device_info);
       if (denoising.type == DENOISER_NONE) {
         denoising.use = false;
+      }
+    }
+
+    if (denoising.type == DENOISER_DLSS) {
+      input_passes = DENOISER_INPUT_RGB_ALBEDO_NORMAL;
+
+      denoising.start_sample = 0;
+      denoising.temporally_stable = true;
+
+      switch ((DenoiserDLSSQuality)get_enum(cscene,
+                                            "preview_denoising_dlss_quality",
+                                            DENOISER_DLSS_MODE_NUM,
+                                            DENOISER_DLSS_MODE_BALANCED))
+      {
+        case DENOISER_DLSS_MODE_DLAA:
+          denoising.quality = DENOISER_QUALITY_HIGH;
+          denoising.upscale_factor = 1.0f;
+          break;
+        case DENOISER_DLSS_MODE_QUALITY:
+          denoising.quality = DENOISER_QUALITY_HIGH;
+          denoising.upscale_factor = 1.0f / 0.66666667f;
+          break;
+        default:
+        case DENOISER_DLSS_MODE_BALANCED:
+          denoising.quality = DENOISER_QUALITY_BALANCED;
+          denoising.upscale_factor = 1.0f / 0.58f;
+          break;
+        case DENOISER_DLSS_MODE_PERF:
+          denoising.quality = DENOISER_QUALITY_FAST;
+          denoising.upscale_factor = 2.0f;
+          break;
+        case DENOISER_DLSS_MODE_ULTRA_PERF:
+          denoising.quality = DENOISER_QUALITY_FAST;
+          denoising.upscale_factor = 3.0f;
+          break;
       }
     }
   }

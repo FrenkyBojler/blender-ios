@@ -942,6 +942,13 @@ void BlenderSession::view_draw(const int w, const int h)
       session->scene->mutex.unlock();
     }
 
+    if (session->get_effective_denoiser_type() == DENOISER_DLSS)
+    {
+      reset = true;
+      scene->integrator->set_seed(scene->integrator->get_seed() + rand());
+      scene->integrator->set_frame(scene->integrator->get_frame() + 1);
+    }
+
     /* reset if requested */
     if (reset) {
       const SessionParams session_params = BlenderSync::get_session_params(

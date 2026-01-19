@@ -22,7 +22,8 @@ class OIDNDenoiser : public Denoiser {
                       const BufferParams &denoised_buffer_params,
                       RenderBuffers *render_buffers,
                       const int num_samples,
-                      const bool allow_inplace_modification) override;
+                      const bool allow_inplace_modification,
+                      const float2 jitter) override;
 
  protected:
   uint get_device_type_mask() const override;

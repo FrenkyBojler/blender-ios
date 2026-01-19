@@ -104,6 +104,9 @@ NODE_DEFINE(Integrator)
   SOCKET_BOOLEAN(use_emission, "Use Emission", true);
 
   SOCKET_INT(seed, "Seed", 0);
+
+  SOCKET_INT(frame, "Frame Index", 0);
+
   SOCKET_FLOAT(sample_clamp_direct, "Sample Clamp Direct", 0.0f);
   SOCKET_FLOAT(sample_clamp_indirect, "Sample Clamp Indirect", 10.0f);
   SOCKET_BOOLEAN(motion_blur, "Motion Blur", false);
@@ -136,6 +139,7 @@ NODE_DEFINE(Integrator)
   denoiser_type_enum.insert("none", DENOISER_NONE);
   denoiser_type_enum.insert("optix", DENOISER_OPTIX);
   denoiser_type_enum.insert("openimagedenoise", DENOISER_OPENIMAGEDENOISE);
+  denoiser_type_enum.insert("dlss", DENOISER_DLSS);
 
   static NodeEnum denoiser_prefilter_enum;
   denoiser_prefilter_enum.insert("none", DENOISER_PREFILTER_NONE);
@@ -348,6 +352,27 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   }
 
   kintegrator->has_shadow_catcher = scene->has_shadow_catcher();
+
+  if (get_denoiser_type() == DENOISER_DLSS) {
+    const auto halton = [](uint32_t index, uint32_t base) -> float {
+      float f = 1.0f;
+      float r = 0.0f;
+
+      while (index > 0) {
+        f *= static_cast<float>(base);
+        r += static_cast<float>(index % base) / f;
+        index /= base;
+      }
+
+      return r;
+    };
+    kintegrator->jitter.x = halton(frame, 2) - 0.5f;
+    kintegrator->jitter.y = halton(frame, 3) - 0.5f;
+  }
+  else {
+    kintegrator->jitter.x = 0.0f;
+    kintegrator->jitter.y = 0.0f;
+  }
 
   dscene->sample_pattern_lut.clear_modified();
   clear_modified();
