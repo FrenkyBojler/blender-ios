@@ -426,6 +426,7 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
   if (!ED_mesh_pick_edge(C, ob, mval, ED_MESH_PICK_DEFAULT_VERT_DIST, &closest_edge_index)) {
     return;
   }
+
   if (closest_edge_index == -1) {
     return;
   }
