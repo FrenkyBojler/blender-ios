@@ -517,7 +517,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
     }
   };
 
-  const std::optional<GroupedSpan<int>> shapes = drawing.shapes();
+  const std::optional<GroupedSpan<int>> shapes = drawing.fills();
 
   if (shapes) {
     for (const int shape_i : shapes->index_range()) {
