@@ -2782,6 +2782,13 @@ class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
         if active_library.use_remote_url:
             layout.prop(active_library, "remote_url")
             layout.prop(active_library, "path", text="Download Location")
+
+            if not context.preferences.experimental.use_remote_asset_libraries:
+                box = layout.box()
+                col = box.column(align=True)
+                col.label(icon='WARNING_LARGE', text="")
+                col.label(text="The Experimental Feature 'Remote Asset Libraries' is disabled.")
+                col.label(text="This library will NOT be included in 'All Libraries'.")
         else:
             layout.prop(active_library, "path")
             layout.prop(active_library, "import_method", text="Import Method")
@@ -3028,6 +3035,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
                 ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
+                ({"property": "use_remote_asset_libraries"}, ("blender/blender/issues/134495", "#134495")),
             ),
         )
 
