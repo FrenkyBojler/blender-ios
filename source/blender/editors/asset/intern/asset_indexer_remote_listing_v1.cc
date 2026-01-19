@@ -36,14 +36,9 @@ using namespace blender::io::serialize;
 /** \name Remote asset listing page
  * \{ */
 
-/**
- * Vector of warnings logged by reading remote asset listings.
- */
-using WarningVector = Vector<std::string>;
-
 struct AssetLibraryListingPageV1 {
-  static ReadingResult<WarningVector> read_asset_entries(const StringRefNull filepath,
-                                                         RemoteListingEntryProcessFn process_fn);
+  static ReadingResult<> read_asset_entries(const StringRefNull filepath,
+                                            RemoteListingEntryProcessFn process_fn);
 };
 
 static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionary(
@@ -164,8 +159,8 @@ static ReadingResult<RemoteListingFileEntry> listing_file_from_asset_dictionary(
   return ReadingResult<RemoteListingFileEntry>::Success(std::move(file_entry));
 }
 
-static ReadingResult<WarningVector> listing_entries_from_root(
-    const DictionaryValue &value, const RemoteListingEntryProcessFn process_fn)
+static ReadingResult<> listing_entries_from_root(const DictionaryValue &value,
+                                                 const RemoteListingEntryProcessFn process_fn)
 {
   const ArrayValue *assets = value.lookup_array("assets");
   BLI_assert(assets != nullptr);
@@ -182,20 +177,20 @@ static ReadingResult<WarningVector> listing_entries_from_root(
         N_("error reading asset listing, page file has no files section"));
   }
 
-  WarningVector warnings;
+  Vector<std::string> warnings;
   Map<std::string, RemoteListingFileEntry> path_to_file_info;
   for (const std::shared_ptr<Value> &file_element : files->elements()) {
-    ReadingResult<RemoteListingFileEntry> result = listing_file_from_asset_dictionary(
+    ReadingResult<RemoteListingFileEntry> file_result = listing_file_from_asset_dictionary(
         *file_element->as_dictionary_value());
-    if (result.is_failure()) {
-      warnings.append(result.failure_reason);
+    if (file_result.is_failure()) {
+      warnings.append(std::move(file_result.failure_reason));
       continue;
     }
-    if (result.is_cancelled()) {
+    if (file_result.is_cancelled()) {
       return ReadingResult<>::Cancelled();
     }
-    BLI_assert(result.is_success());
-    RemoteListingFileEntry &file_entry = *result.success_value;
+    BLI_assert(file_result.is_success());
+    RemoteListingFileEntry &file_entry = *file_result;
     if (file_entry.local_path.empty()) {
       continue;
     }
@@ -209,7 +204,7 @@ static ReadingResult<WarningVector> listing_entries_from_root(
         *asset_element->as_dictionary_value(), path_to_file_info);
     if (result.is_failure()) {
       if (!result.failure_reason.empty()) {
-        warnings.append(result.failure_reason);
+        warnings.append(std::move(result.failure_reason));
       }
       continue;
     }
@@ -220,10 +215,12 @@ static ReadingResult<WarningVector> listing_entries_from_root(
     }
   }
 
-  return ReadingResult<WarningVector>::Success(warnings);
+  ReadingResult<> overall_result = ReadingResult<>::Success();
+  overall_result.warnings.extend(std::move(warnings));
+  return overall_result;
 }
 
-ReadingResult<WarningVector> AssetLibraryListingPageV1::read_asset_entries(
+ReadingResult<> AssetLibraryListingPageV1::read_asset_entries(
     const StringRefNull filepath, const RemoteListingEntryProcessFn process_fn)
 {
   if (!BLI_exists(filepath.c_str())) {
@@ -310,11 +307,10 @@ std::optional<AssetLibraryListingV1> AssetLibraryListingV1::read(
 
 /** \} */
 
-ReadingResult<Vector<std::string>> read_remote_listing_v1(
-    const StringRefNull listing_root_dirpath,
-    const RemoteListingEntryProcessFn process_fn,
-    const RemoteListingWaitForPagesFn wait_fn,
-    const std::optional<Timestamp> ignore_before_timestamp)
+ReadingResult<> read_remote_listing_v1(const StringRefNull listing_root_dirpath,
+                                       const RemoteListingEntryProcessFn process_fn,
+                                       const RemoteListingWaitForPagesFn wait_fn,
+                                       const std::optional<Timestamp> ignore_before_timestamp)
 {
   /* Version 1 asset indices are always stored in this path by RemoteAssetListingDownloader. */
   constexpr const char *asset_index_relpath = "_v1/asset-index.processed.json";
@@ -373,25 +369,25 @@ ReadingResult<Vector<std::string>> read_remote_listing_v1(
         }
       }
 
-      const ReadingResult result = AssetLibraryListingPageV1::read_asset_entries(filepath,
-                                                                                 process_fn);
+      ReadingResult page_result = AssetLibraryListingPageV1::read_asset_entries(filepath,
+                                                                                process_fn);
       done_pages.add(page_path);
-      if (result.is_cancelled()) {
-        return result;
+      if (page_result.is_cancelled()) {
+        return page_result;
       }
-      if (result.is_failure()) {
+      if (page_result.is_failure()) {
         printf("Couldn't read V1 listing from %s%c%s: %s\n",
                listing_root_dirpath.c_str(),
                SEP,
                page_path.c_str(),
-               result.failure_reason.c_str());
-        return result;
+               page_result.failure_reason.c_str());
+        return page_result;
       }
-      BLI_assert(result.is_success());
+      BLI_assert(page_result.is_success());
 
-      /* There were warnings, so collect them.*/
-      if (result.success_value) {
-        warnings.extend(*result.success_value);
+      /* Gather per-page warnings into the overall result. */
+      if (page_result.has_warnings()) {
+        warnings.extend(std::move(page_result.warnings));
       }
     }
 
@@ -407,7 +403,10 @@ ReadingResult<Vector<std::string>> read_remote_listing_v1(
     }
   }
 
-  return ReadingResult<Vector<std::string>>::Success(std::move(warnings));
+  /* Return a success, with all the warnings. */
+  ReadingResult<> result = ReadingResult<>::Success();
+  result.warnings.extend(std::move(warnings));
+  return result;
 }
 
 }  // namespace blender::ed::asset::index

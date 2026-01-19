@@ -263,20 +263,18 @@ bool read_remote_listing(const StringRefNull root_dirpath,
                          const RemoteListingWaitForPagesFn wait_fn,
                          const std::optional<Timestamp> ignore_before_timestamp)
 {
-  using ResultWithWarnings = ReadingResult<Vector<std::string>>;
-
   /* This actually does the work, and returns a ReadingResult. It's implemented as a lambda
    * function, to be able to use early returns on error. */
   auto get_result = [&]() {
     const ReadingResult<AssetLibraryMeta> meta = AssetLibraryMeta::read(root_dirpath,
                                                                         ignore_before_timestamp);
     if (!meta.is_success()) {
-      return ResultWithWarnings::Failure(meta.failure_reason);
+      return meta.without_success_value();
     }
 
     const ReadingResult<ApiVersionInfo> api_version_info = choose_api_version(*meta);
     if (!api_version_info.is_success()) {
-      return ResultWithWarnings::Failure(api_version_info.failure_reason);
+      return api_version_info.without_success_value();
     }
 
     /* Path to the listing meta-file is version-dependent. */
@@ -287,11 +285,11 @@ bool read_remote_listing(const StringRefNull root_dirpath,
       default:
         /* choose_api_version() should not have chosen this version. */
         BLI_assert_unreachable();
-        return ResultWithWarnings::Failure(N_("internal error, please report a bug"));
+        return ReadingResult<>::Failure(N_("internal error, please report a bug"));
     }
   };
 
-  const ResultWithWarnings result = get_result();
+  const ReadingResult<> result = get_result();
 
   /* Get these messages up-stream. The last call to BKE_report(f) will be the one shown in the
    * status bar. The rest are just printed to the terminal and gathered at the Info editor. */
@@ -310,21 +308,18 @@ bool read_remote_listing(const StringRefNull root_dirpath,
   if (result.is_cancelled()) {
     return false;
   }
-  if (result.success_value) {
-    const Vector<std::string> &warnings = *result.success_value;
-    if (!warnings.is_empty()) {
-      for (const std::string &warning : *result.success_value) {
-        BKE_reportf(&reports,
-                    RPT_WARNING,
-                    "Asset Library '%s': %s",
-                    asset_library_name.c_str(),
-                    RPT_(warning.c_str()));
-      }
+  if (result.has_warnings()) {
+    for (const std::string &warning : result.warnings) {
       BKE_reportf(&reports,
                   RPT_WARNING,
-                  "Could not read asset listing for '%s', see Info Editor for details",
-                  asset_library_name.c_str());
+                  "Asset Library '%s': %s",
+                  asset_library_name.c_str(),
+                  RPT_(warning.c_str()));
     }
+    BKE_reportf(&reports,
+                RPT_WARNING,
+                "Could not read asset listing for '%s', see Info Editor for details",
+                asset_library_name.c_str());
   }
   return true;
 }

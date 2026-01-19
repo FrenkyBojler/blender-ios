@@ -47,6 +47,17 @@ template<typename T = std::monostate> class ReadingResult {
   std::optional<T> success_value;
 
   /**
+   * Even when an operation was performed succesfully, there could have been
+   * warnings. These are only intended to be used on success status; on failure,
+   * only `failure_reason` is expected to be set. On cancellation, no reason
+   * needs to be given (as it is in response to the user cancelling the
+   * operation).
+   *
+   * \see ReadingResult::append_warning()
+   */
+  Vector<std::string> warnings;
+
+  /**
    * Construct a valueless success result.
    * Only enabled if T == std::monostate.
    */
@@ -91,6 +102,16 @@ template<typename T = std::monostate> class ReadingResult {
     return ReadingResult(Type::Cancelled);
   }
 
+  /**
+   * Construct a ReadingResult with the given type.
+   *
+   * NOTE: Do not use this function, use one of the above functions instead. It's public only
+   * because it's needed in internal code of this class, but across differently-templated versions
+   * of this class (which C++ considers to be unrelated, and thus cannot access each other's
+   * private members).
+   */
+  explicit ReadingResult(Type type) : type(type) {}
+
   /** Return whether this result indicates a success. */
   bool is_success() const
   {
@@ -107,46 +128,76 @@ template<typename T = std::monostate> class ReadingResult {
     return this->type == Type::Cancelled;
   }
 
+  bool has_warnings() const
+  {
+    return !this->warnings.is_empty();
+  }
+
   /**
-   * Get the result's success value, as if this is an `std::optional`.
-   * Only valid if this result is successful.
+   * Move the warnings from another result into this one.
+   */
+  template<typename U> void move_warnings_from(ReadingResult<U> &other)
+  {
+    BLI_assert_msg(is_success(), "Attempted to move warnings into a non-success ReadingResult");
+    for (std::string &warning : other.warnings) {
+      this->warnings.append(std::move(warning));
+    }
+  }
+
+  /**
+   * Return this ReadingResult, but without its success value.
+   *
+   * The result type, failure message, and warnings are copied.
+   */
+  ReadingResult<> without_success_value() const
+  {
+    ReadingResult<> without_value(static_cast<ReadingResult<>::Type>(this->type));
+    without_value.success_value.reset();
+    without_value.failure_reason = this->failure_reason;
+    without_value.warnings.extend(this->warnings);
+    return without_value;
+  }
+
+  /**
+   * Get a reference to the result's success value, similar to `std::optional<T>`.
+   * Only valid if this result is successful and there is an actual success value.
    */
   T &operator*()
   {
-    if (!is_success() || !success_value.has_value()) {
-      throw std::runtime_error("Attempted to access value of non-success ReadingResult");
-    }
+    BLI_assert_msg(is_success() || !success_value.has_value(),
+                   "Attempted to access value of non-success ReadingResult");
     return *success_value;
   }
 
   /**
-   * Get the result's success value, as if this is an `std::optional`.
-   * Only valid if this result is successful.
+   * Get a reference to the result's success value, similar to `std::optional<T>`.
+   * Only valid if this result is successful and there is an actual success value.
    */
   const T &operator*() const
   {
-    if (!is_success() || !success_value.has_value()) {
-      throw std::runtime_error("Attempted to access value of non-success ReadingResult");
-    }
+    BLI_assert_msg(is_success() || !success_value.has_value(),
+                   "Attempted to access value of non-success ReadingResult");
     return *success_value;
   }
 
   /**
-   * Get the result's success value, as if this is an `std::optional`.
-   * Only valid if this result is successful.
+   * Get a pointer to the result's success value, similar to `std::optional<T>`.
+   * Only valid if this result is successful and there is an actual success value.
    */
   T *operator->()
   {
-    return &**this;
+    T &success_value = **this;
+    return &success_value;
   }
 
   /**
-   * Get the result's success value, as if this is an `std::optional`.
-   * Only valid if this result is successful.
+   * Get a pointer to the result's success value, similar to `std::optional<T>`.
+   * Only valid if this result is successful and there is an actual success value.
    */
   const T *operator->() const
   {
-    return &**this;
+    const T &success_value = **this;
+    return &success_value;
   }
 
   /**
@@ -166,9 +217,6 @@ template<typename T = std::monostate> class ReadingResult {
       failure_reason = other.failure_reason;
     }
   }
-
- private:
-  explicit ReadingResult(Type type) : type(type) {}
 };
 
 std::optional<bool> file_older_than_timestamp(const char *filepath, Timestamp timestamp);
@@ -177,7 +225,7 @@ std::optional<bool> file_older_than_timestamp(const char *filepath, Timestamp ti
  * Reading of API schema version 1. See #read_remote_listing() on \a process_fn.
  * \param version_root_dirpath: Absolute path to the remote listing root directory.
  */
-ReadingResult<Vector<std::string>> read_remote_listing_v1(
+ReadingResult<> read_remote_listing_v1(
     StringRefNull listing_root_dirpath,
     RemoteListingEntryProcessFn process_fn,
     RemoteListingWaitForPagesFn wait_fn = nullptr,
