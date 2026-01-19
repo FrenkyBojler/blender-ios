@@ -2,3 +2,4 @@ Referenced by pull request #140385, VSE: delete keyframes from preview
 Referenced by issue #151587, Flickering
 Referenced by issue #152870, VSE Keyframe in Preview window causes a crash
 Referenced by pull request #152924, Fix #152870: VSE Keyframe in Preview window causes a crash
+Referenced by commit 8b2799aaef4fb2248d426054498289a3f3e18205, Fix #152870: VSE Keyframe in Preview window causes a crash
