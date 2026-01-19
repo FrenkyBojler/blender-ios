@@ -666,9 +666,9 @@ class USERPREF_PT_animation_advanced(AnimationPanel, CenterAlignMixIn, Panel):
 
         box = layout.box()
         col = box.column(align=True)
+        col.prop(edit, "use_negative_frames")
         col.label(text="Using negative frames can cause issues, for example")
         col.label(text="with audio playback or with some exporters.")
-        col.prop(edit, "use_negative_frames")
 
 
 # -----------------------------------------------------------------------------
