@@ -1662,13 +1662,20 @@ void template_ID_session_uid(
   const int session_uid = RNA_property_int_get(ptr, prop);
   const ID *id = BLI_listbase_find(
       *lb, [&](const ID &id) { return int(id.session_uid) == session_uid; });
+
+  const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
+  const int margin = UI_UNIT_X * 0.75f;
+  const int estimated_width = id ? (fontstyle_string_width(fstyle, id->name + 2) + margin) : 0;
+  const int width = std::clamp(
+      estimated_width, TEMPLATE_SEARCH_TEXTBUT_MIN_WIDTH, TEMPLATE_SEARCH_TEXTBUT_MIN_WIDTH * 4);
+
   blender::ui::Button *but = uiDefBlockButN(block,
                                             id_search_menu_session_uid,
                                             MEM_new<TemplateID>(__func__, template_ui),
                                             id ? id->name + 2 : nullptr,
                                             0,
                                             0,
-                                            UI_UNIT_X * 1.6,
+                                            width,
                                             UI_UNIT_Y,
                                             nullptr,
                                             but_func_argN_free<TemplateID>,
