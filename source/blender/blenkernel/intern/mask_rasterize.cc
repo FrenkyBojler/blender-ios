@@ -908,6 +908,10 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
       rctf bounds;
       uint face_index;
       int scanfill_flag = 0;
+#ifdef WITH_FONT_SKIA
+      /* Use Skia's GrTriangulator for more robust polygon filling. */
+      scanfill_flag |= BLI_SCANFILL_USE_SKIA_TRIANGULATOR;
+#endif
 
       bool is_isect = false;
       ListBaseT<ScanFillVert> isect_remvertbase = {nullptr, nullptr};

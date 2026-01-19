@@ -111,6 +111,13 @@ enum {
   BLI_SCANFILL_POLY_IS_NOT_DEGENERATE = 1 << 5,
   BLI_SCANFILL_LEGACY_METHOD = 1 << 6,
 
+  /**
+   * Use Skia's GrTriangulator for polygon filling.
+   * Only available when WITH_SKIA_TRIANGULATOR is enabled.
+   * Takes priority over poly_scanfill if both are available.
+   */
+  BLI_SCANFILL_USE_SKIA_TRIANGULATOR = 1 << 7,
+
 };
 void BLI_scanfill_begin(ScanFillContext *sf_ctx);
 unsigned int BLI_scanfill_calc(ScanFillContext *sf_ctx, int flag);

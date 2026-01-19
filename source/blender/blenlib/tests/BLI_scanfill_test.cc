@@ -44,6 +44,16 @@ static bool use_scanfill_legacy()
   return env_var_as_bool("USE_SCANFILL_LEGACY");
 }
 
+/**
+ * Check if Skia triangulator should be used.
+ * Set USE_SKIA_TRIANGULATOR=1 environment variable to enable.
+ * Only effective when built with WITH_SKIA_TRIANGULATOR.
+ */
+static bool use_skia_triangulator()
+{
+  return env_var_as_bool("USE_SKIA_TRIANGULATOR");
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Transform Permutations
  * \{ */
@@ -295,7 +305,7 @@ static const TestData tests_data[] = {
     {"poly_fill_primitive_triangle_02", 1, 0.5},
     {"poly_fill_tilted_staircase_01", 6, 0.6875},
     {"poly_fill_stress_test_sweepline_01", 6, 1.23},
-#if 0 /* A valid test but quite slow. */
+#if 1 /* A valid test but quite slow. */
     {"poly_fill_stress_test_sweepline_02", 95211, 0.6013724715115001},
 #endif
 
@@ -627,6 +637,9 @@ static bool run_scanfill(const Vector<std::array<float, 2>> &verts,
   if (use_scanfill_legacy()) {
     flag |= BLI_SCANFILL_LEGACY_METHOD;
   }
+  if (use_skia_triangulator()) {
+    flag |= BLI_SCANFILL_USE_SKIA_TRIANGULATOR;
+  }
   out_num_tris = BLI_scanfill_calc_ex(&sf_ctx, flag, nor);
 
   /* Calculate total area from resulting triangles (use double for precision). */
@@ -753,7 +766,9 @@ TEST_P(ScanFillDataTest, FillPolygon)
     /* Write SVG visualization next to the JSON file. */
     const char *xf_name = xform_name(xf);
     std::string xf_suffix = (xf_name[0] != '\0') ? std::string("_") + xf_name : "";
-    const char *svg_suffix = use_scanfill_legacy() ? ".legacy.svg" : ".svg";
+    const char *svg_suffix = use_skia_triangulator() ? ".skia.svg" :
+                             use_scanfill_legacy()   ? ".legacy.svg" :
+                                                       ".svg";
     std::string svg_path = data_dir + "/" + t.filename + xf_suffix + svg_suffix;
     write_svg(svg_path, verts, faces, test_failed);
 

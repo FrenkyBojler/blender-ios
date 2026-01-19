@@ -427,8 +427,12 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
   const ListBaseT<DispList> *effective_dispbase = dispbase;
 #endif
 
-  const int scanfill_flag = BLI_SCANFILL_CALC_REMOVE_DOUBLES | BLI_SCANFILL_CALC_POLYS |
-                            BLI_SCANFILL_CALC_HOLES;
+  int scanfill_flag = BLI_SCANFILL_CALC_REMOVE_DOUBLES | BLI_SCANFILL_CALC_POLYS |
+                      BLI_SCANFILL_CALC_HOLES;
+#ifdef WITH_FONT_SKIA
+  /* Use Skia's GrTriangulator for more robust polygon filling. */
+  scanfill_flag |= BLI_SCANFILL_USE_SKIA_TRIANGULATOR;
+#endif
 
   MemArena *sf_arena = BLI_memarena_new(BLI_SCANFILL_ARENA_SIZE, __func__);
 

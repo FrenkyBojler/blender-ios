@@ -12,6 +12,8 @@ set(INC
   intern
   intern/include
   intern/include/config
+  # For triangulator headers.
+  intern/src
 )
 
 set(INC_SYS
@@ -133,17 +135,33 @@ else()
 endif()
 
 # -----------------------------------------------------------------------------
+# Triangulator module sources (for polygon triangulation).
+
+set(TRIANGULATOR_SRC
+  intern/src/gpu/ganesh/geometry/GrTriangulator.cpp
+  intern/src/gpu/ganesh/geometry/GrTriangulator.h
+  intern/src/gpu/ganesh/geometry/GrPathUtils.cpp
+  intern/src/gpu/ganesh/geometry/GrPathUtils.h
+  intern/src/gpu/ganesh/GrColor.h
+  intern/src/gpu/ganesh/GrEagerVertexAllocator.h
+  intern/src/gpu/BufferWriter.h
+)
+
+# -----------------------------------------------------------------------------
 # Blender wrapper.
 
 set(WRAPPER_SRC
   skpathops_blender.cc
   skpathops_blender.h
+  sktriangulator_blender.cc
+  sktriangulator_blender.h
 )
 
 # Combine all sources.
 set(SRC
   ${WRAPPER_SRC}
   ${PATHOPS_SRC}
+  ${TRIANGULATOR_SRC}
   ${CORE_SRC}
   ${BASE_SRC}
 )

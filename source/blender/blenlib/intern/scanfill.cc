@@ -39,6 +39,10 @@
 #  include "poly_scanfill_2d.hh"
 #endif
 
+#ifdef WITH_SKIA_TRIANGULATOR
+#  include "sktriangulator_blender.h"
+#endif
+
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 namespace blender {
@@ -927,8 +931,141 @@ static uint poly_scanfill_2d_calc(ScanFillContext *sf_ctx, const int flag, const
 }
 #endif /* WITH_POLY_SCANFILL */
 
+#ifdef WITH_SKIA_TRIANGULATOR
+/**
+ * Skia GrTriangulator-based scanfill implementation.
+ * Uses Skia's internal tessellator as an alternative to the legacy method.
+ */
+static uint skia_triangulator_calc(ScanFillContext *sf_ctx,
+                                   const int /*flag*/,
+                                   const float nor_proj[3])
+{
+  /* Mark vertices that are in edges. */
+  for (ScanFillEdge &eed : sf_ctx->filledgebase) {
+    eed.v1->f = SF_VERT_AVAILABLE;
+    eed.v2->f = SF_VERT_AVAILABLE;
+  }
+
+  /* Check if any vertices are available. */
+  bool vert_available = false;
+  for (ScanFillVert &eve : sf_ctx->fillvertbase) {
+    if (eve.f == SF_VERT_AVAILABLE) {
+      vert_available = true;
+      break;
+    }
+  }
+
+  if (UNLIKELY(!vert_available)) {
+    return 0;
+  }
+
+  /* Calculate projection normal. */
+  float n[3];
+  if (nor_proj) {
+    copy_v3_v3(n, nor_proj);
+  }
+  else {
+    const float *v_prev;
+    zero_v3(n);
+    v_prev = static_cast<ScanFillVert *>(sf_ctx->fillvertbase.last)->co;
+    for (ScanFillVert &eve : sf_ctx->fillvertbase) {
+      if (LIKELY(!compare_v3v3(v_prev, eve.co, SF_EPSILON))) {
+        add_newell_cross_v3_v3v3(n, v_prev, eve.co);
+        v_prev = eve.co;
+      }
+    }
+  }
+
+  if (UNLIKELY(normalize_v3(n) == 0.0f)) {
+    return 0;
+  }
+
+  float mat_2d[3][3];
+  axis_dominant_v3_to_m3_negate(mat_2d, n);
+
+  /* Count available vertices and assign indices. */
+  uint verts_num = 0;
+  for (ScanFillVert &eve : sf_ctx->fillvertbase) {
+    if (eve.f == SF_VERT_AVAILABLE) {
+      eve.tmp.u = verts_num++;
+    }
+  }
+
+  if (verts_num < 3) {
+    return 0;
+  }
+
+  /* Build vertex array with 2D projected coordinates. */
+  std::vector<float> coords(verts_num * 2);
+  std::vector<ScanFillVert *> vert_map(verts_num);
+  for (ScanFillVert &eve : sf_ctx->fillvertbase) {
+    if (eve.f == SF_VERT_AVAILABLE) {
+      float xy[2];
+      mul_v2_m3v3(xy, mat_2d, eve.co);
+      coords[eve.tmp.u * 2] = xy[0];
+      coords[eve.tmp.u * 2 + 1] = xy[1];
+      vert_map[eve.tmp.u] = &eve;
+    }
+  }
+
+  /* Build edge array. */
+  std::vector<int> edges;
+  edges.reserve(
+      size_t(BLI_listbase_count(reinterpret_cast<const ListBase *>(&sf_ctx->filledgebase))) * 2);
+  for (ScanFillEdge &eed : sf_ctx->filledgebase) {
+    if (eed.v1->f == SF_VERT_AVAILABLE && eed.v2->f == SF_VERT_AVAILABLE) {
+      edges.push_back(int(eed.v1->tmp.u));
+      edges.push_back(int(eed.v2->tmp.u));
+    }
+  }
+
+  if (edges.empty()) {
+    return 0;
+  }
+
+  /* Call Skia triangulator. */
+  SKTriangulatorResult result;
+  if (!SK_Triangulate(
+          coords.data(), int(verts_num), edges.data(), int(edges.size() / 2), &result))
+  {
+    return 0;
+  }
+
+  /* Convert results to ScanFillFace. */
+  uint totfaces = 0;
+  for (int i = 0; i < result.triangle_count; i++) {
+    int idx0 = result.triangles[i * 3];
+    int idx1 = result.triangles[i * 3 + 1];
+    int idx2 = result.triangles[i * 3 + 2];
+
+    /* Validate indices. */
+    if (idx0 < 0 || idx0 >= int(verts_num) || idx1 < 0 || idx1 >= int(verts_num) || idx2 < 0 ||
+        idx2 >= int(verts_num))
+    {
+      continue;
+    }
+
+    ScanFillFace *sf_tri = BLI_memarena_alloc<ScanFillFace>(sf_ctx->arena);
+    BLI_addtail(&sf_ctx->fillfacebase, sf_tri);
+    sf_tri->v1 = vert_map[size_t(idx0)];
+    sf_tri->v2 = vert_map[size_t(idx1)];
+    sf_tri->v3 = vert_map[size_t(idx2)];
+    totfaces++;
+  }
+
+  SK_FreeTriangulatorResult(&result);
+
+  return totfaces;
+}
+#endif /* WITH_SKIA_TRIANGULATOR */
+
 uint BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float nor_proj[3])
 {
+#ifdef WITH_SKIA_TRIANGULATOR
+  if (flag & BLI_SCANFILL_USE_SKIA_TRIANGULATOR) {
+    return skia_triangulator_calc(sf_ctx, flag, nor_proj);
+  }
+#endif
 #ifdef WITH_POLY_SCANFILL
   if (!(flag & BLI_SCANFILL_LEGACY_METHOD)) {
     return poly_scanfill_2d_calc(sf_ctx, flag, nor_proj);

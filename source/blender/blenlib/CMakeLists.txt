@@ -460,6 +460,17 @@ if(WITH_POLY_SCANFILL)
   )
 endif()
 
+# Skia triangulator integration for alternative polygon fill.
+if(WITH_SKIA_PATHOPS)
+  add_definitions(-DWITH_SKIA_TRIANGULATOR)
+  list(APPEND INC
+    ../../../extern/skia
+  )
+  list(APPEND LIB
+    PRIVATE bf::extern::skia
+  )
+endif()
+
 if(WIN32)
   if(WITH_BLENDER_THUMBNAILER)
     # Needed for querying the `thumbnailer .dll` in `winstuff.c`.
