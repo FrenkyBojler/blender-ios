@@ -238,7 +238,7 @@ gpu::VertBufPtr extract_vert_index_subdiv(const DRWSubdivCache &subdiv_cache,
   gpu::VertBufPtr vbo = draw_subdiv_init_origindex_buffer(
       subdiv_cache.verts_orig_index->data<int32_t>().data(),
       subdiv_cache.num_subdiv_loops,
-      subdiv_full_vbo_size(mr, subdiv_cache));
+      subdiv_full_vbo_size(mr, subdiv_cache) - subdiv_cache.num_subdiv_loops);
   if (!mr.orig_index_vert) {
     return vbo;
   }
