@@ -225,8 +225,8 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
     newbone->dist = newbone->length * 0.25f;
 
     /* Calculate the new bone roll:
-    Ensure the Z-axis of the newly-created bone matches the Z-axis of the parent bone.
-    The roll_to_vector operator can then take care of the bone roll angle. */
+     * Ensure the Z-axis of the newly-created bone matches the Z-axis of the parent bone.
+     * The roll_to_vector operator can then take care of the bone roll angle. */
     float parent_y[3];
     sub_v3_v3v3(parent_y, ebone->tail, ebone->head);
     normalize_v3(parent_y);
