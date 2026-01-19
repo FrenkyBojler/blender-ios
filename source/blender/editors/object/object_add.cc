@@ -3961,19 +3961,20 @@ static Object *convert_font_to_curves(Base &base, ObjectConversionInfo &info, Ba
   return curve_ob;
 }
 
-static void add_grease_pencil_materials_for_conversion(Main &bmain,
-                                                       ID &from_id,
-                                                       Object &gp_object,
-                                                       const bool use_fill)
+static void add_grease_pencil_materials_for_conversion(Main &bmain, ID &from_id, Object &gp_object)
 {
   short *len_p = BKE_id_material_len_p(&from_id);
   if (!len_p || *len_p == 0) {
-    BKE_grease_pencil_object_material_new(&bmain, &gp_object, IFACE_("Empty Material"), nullptr);
+    Material *gp_material = BKE_grease_pencil_object_material_new(
+        &bmain, &gp_object, IFACE_("Empty Material"), nullptr);
+    gp_material->gp_style->fill_rgba[3] = 1.0f;
     return;
   }
   Material ***materials = BKE_id_material_array_p(&from_id);
   if (!materials || !(*materials)) {
-    BKE_grease_pencil_object_material_new(&bmain, &gp_object, IFACE_("Empty Material"), nullptr);
+    Material *gp_material = BKE_grease_pencil_object_material_new(
+        &bmain, &gp_object, IFACE_("Empty Material"), nullptr);
+    gp_material->gp_style->fill_rgba[3] = 1.0f;
     return;
   }
   for (short i = 0; i < *len_p; i++) {
@@ -3987,13 +3988,12 @@ static void add_grease_pencil_materials_for_conversion(Main &bmain,
      * have anything to copy color information from. In those cases we still added an empty
      * material to keep the material index matching. */
     if (!orig_material) {
+      gp_material->gp_style->fill_rgba[3] = 1.0f;
       continue;
     }
 
+    copy_v4_v4(gp_material->gp_style->stroke_rgba, &orig_material->r);
     copy_v4_v4(gp_material->gp_style->fill_rgba, &orig_material->r);
-    if (use_fill) {
-      gp_material->gp_style->fill_rgba[3] = 1.0f;
-    }
   }
 }
 
@@ -4057,7 +4057,7 @@ static Object *convert_font_to_grease_pencil(Base &base,
   curve_ob->type = OB_GREASE_PENCIL;
   curve_ob->totcol = grease_pencil->material_array_num;
 
-  add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob, use_fill);
+  add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob);
 
   /* We don't need the intermediate font/curve data ID any more. */
   BKE_id_delete(info.bmain, legacy_curve_id);
@@ -4174,7 +4174,7 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
    * sync. */
   newob->totcol = grease_pencil->material_array_num;
 
-  add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob, use_fill);
+  add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob);
 
   /* For some reason this must be called, otherwise evaluated id_cow will still be the original
    * curves id (and that seems to only happen if "Keep Original" is enabled, and only with this
