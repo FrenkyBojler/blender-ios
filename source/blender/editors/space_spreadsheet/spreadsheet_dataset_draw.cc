@@ -877,7 +877,7 @@ void DataSetViewItem::on_activate(bContext &C)
 
   bScreen &screen = *CTX_wm_screen(&C);
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
-  PointerRNA ptr = RNA_pointer_create_discrete(&screen.id, &RNA_SpaceSpreadsheet, &sspreadsheet);
+  PointerRNA ptr = RNA_pointer_create_discrete(&screen.id, RNA_SpaceSpreadsheet, &sspreadsheet);
 
   if (const auto *domain_data_id = std::get_if<GeometryDomainDataId>(&data_id->id)) {
     sspreadsheet.geometry_id.geometry_item_type = SPREADSHEET_GEOMETRY_ITEM_TYPE_DOMAIN;
