@@ -417,6 +417,23 @@ struct bNodeTreeInterfaceItemReference {
   int items_count;
 };
 
+/**
+ * Add an input node that outputs the value of a group node input or internal constant value of an
+ * unconnected tree interface output.
+ */
+bNode *add_const_input_node_for_interface_socket(bContext &C,
+                                                 bNodeTree &tree,
+                                                 const bNodeTreeInterfaceSocket &io_socket,
+                                                 const void *socket_data);
+
+/**
+ * Add a node that converts values to the type of a tree interface socket.
+ */
+bNode *add_converter_node_for_interface_socket(bContext &C,
+                                               bNodeTree &tree,
+                                               const bNodeTreeInterfaceSocket &io_socket,
+                                               const void *socket_data);
+
 }  // namespace node_interface
 
 }  // namespace blender::bke
