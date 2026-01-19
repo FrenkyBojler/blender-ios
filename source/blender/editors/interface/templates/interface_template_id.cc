@@ -284,7 +284,7 @@ static Block *id_search_menu_session_uid(bContext *C, ARegion *region, void *arg
       const bContext *, void *, const char *, SearchItems *, const bool) = id_search_cb;
 
   template_ui = *(static_cast<TemplateID *>(arg_litem));
-  const int active_session_uid = RNA_property_int_get(&template_ui.ptr, template_ui.prop);
+  const uint32_t active_session_uid = RNA_property_int_get(&template_ui.ptr, template_ui.prop);
   ID *active_id = BKE_libblock_find_session_uid(CTX_data_main(C), template_ui.idcode, active_session_uid);
 
   if (template_ui.filter) {
@@ -1658,7 +1658,7 @@ void template_ID_session_uid(
     split.label_column->label(RNA_property_ui_name(prop), 0);
     block_layout_set_current(block, split.property_row);
   }
-  const int session_uid = RNA_property_int_get(ptr, prop);
+  const uint32_t session_uid = RNA_property_int_get(ptr, prop);
   const ID *id = BKE_libblock_find_session_uid(CTX_data_main(C), template_ui.idcode, session_uid);
 
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
