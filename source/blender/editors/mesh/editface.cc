@@ -464,6 +464,7 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
                                                  corner_edges,
                                                  edge_to_face_map,
                                                  faces_to_select);
+
   if (!traced_full_loop && faces_to_closest_edge.size() > 1) {
     /* Trace the other way. */
     follow_face_loop(faces_to_closest_edge[1],
