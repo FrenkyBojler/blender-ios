@@ -219,7 +219,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!socket_type_supports_fields(*socket_type)) {
     if (!index.is_single()) {
       params.error_message_add(NodeWarningType::Error,
-                               "Index must be a single value for list type");
+                               "Index must be a single value for socket type");
       params.set_default_remaining_outputs();
       return;
     }
