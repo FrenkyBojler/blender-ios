@@ -177,7 +177,7 @@ static void WIDGETGROUP_gizmo_message_subscribe(const bContext *C,
 
   {
     const PropertyRNA *props[] = {
-        &rna_ToolSettings_workspace_tool_type,
+        RNA_struct_type_find_property(RNA_ToolSettings, "workspace_tool_type"),
     };
 
     Scene *scene = CTX_data_scene(C);

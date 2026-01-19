@@ -504,33 +504,36 @@ static bool rna_idproperty_verify_valid(PointerRNA *ptr, PropertyRNA *prop, IDPr
   return true;
 }
 
-static PropertyRNA *typemap[IDP_NUMTYPES] = {
-    &rna_PropertyGroupItem_string,
-    &rna_PropertyGroupItem_int,
-    &rna_PropertyGroupItem_float,
-    nullptr,
-    nullptr,
-    nullptr,
-    &rna_PropertyGroupItem_group,
-    &rna_PropertyGroupItem_id,
-    &rna_PropertyGroupItem_double,
-    &rna_PropertyGroupItem_idp_array,
-    &rna_PropertyGroupItem_bool,
-};
+static const auto &get_type_map()
+{
+  static auto type_map = []() {
+    std::array<PropertyRNA *, IDP_NUMTYPES> type_map{};
+    type_map[IDP_STRING] = RNA_struct_type_find_property(RNA_PropertyGroup, "string");
+    type_map[IDP_INT] = RNA_struct_type_find_property(RNA_PropertyGroup, "int");
+    type_map[IDP_FLOAT] = RNA_struct_type_find_property(RNA_PropertyGroup, "float");
+    type_map[IDP_GROUP] = RNA_struct_type_find_property(RNA_PropertyGroup, "group");
+    type_map[IDP_ID] = RNA_struct_type_find_property(RNA_PropertyGroup, "id");
+    type_map[IDP_DOUBLE] = RNA_struct_type_find_property(RNA_PropertyGroup, "double");
+    type_map[IDP_IDPARRAY] = RNA_struct_type_find_property(RNA_PropertyGroup, "idp_array");
+    type_map[IDP_BOOLEAN] = RNA_struct_type_find_property(RNA_PropertyGroup, "bool");
+    return type_map;
+  }();
+  return type_map;
+}
 
-static PropertyRNA *arraytypemap[IDP_NUMTYPES] = {
-    nullptr,
-    &rna_PropertyGroupItem_int_array,
-    &rna_PropertyGroupItem_float_array,
-    nullptr,
-    nullptr,
-    nullptr,
-    &rna_PropertyGroupItem_collection,
-    nullptr,
-    &rna_PropertyGroupItem_double_array,
-    nullptr,
-    &rna_PropertyGroupItem_bool_array,
-};
+static const auto &get_array_type_map()
+{
+  static auto type_map = []() {
+    std::array<PropertyRNA *, IDP_NUMTYPES> type_map{};
+    type_map[IDP_INT] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "int_array");
+    type_map[IDP_FLOAT] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "float_array");
+    type_map[IDP_GROUP] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "collection");
+    type_map[IDP_DOUBLE] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "double_array");
+    type_map[IDP_BOOLEAN] = RNA_struct_type_find_property(RNA_PropertyGroupItem, "bool_array");
+    return type_map;
+  }();
+  return type_map;
+}
 
 void rna_property_rna_or_id_get(PropertyRNA *prop,
                                 PointerRNA *ptr,
@@ -594,7 +597,7 @@ void rna_property_rna_or_id_get(PropertyRNA *prop,
 
     r_prop_rna_or_id->identifier = idprop->name;
     if (idprop->type == IDP_ARRAY) {
-      r_prop_rna_or_id->rnaprop = arraytypemap[int(idprop->subtype)];
+      r_prop_rna_or_id->rnaprop = get_array_type_map()[int(idprop->subtype)];
       r_prop_rna_or_id->is_array = true;
       r_prop_rna_or_id->array_len = idprop_evaluated != nullptr ? uint(idprop_evaluated->len) : 0;
     }
@@ -604,11 +607,12 @@ void rna_property_rna_or_id_get(PropertyRNA *prop,
         const IDPropertyUIDataInt *ui_data_int = reinterpret_cast<IDPropertyUIDataInt *>(
             idprop->ui_data);
         if (ui_data_int && ui_data_int->enum_items_num > 0) {
-          r_prop_rna_or_id->rnaprop = &rna_PropertyGroupItem_enum;
+          static PropertyRNA *prop = RNA_struct_type_find_property(RNA_PropertyGroupItem, "enum");
+          r_prop_rna_or_id->rnaprop = prop;
           return;
         }
       }
-      r_prop_rna_or_id->rnaprop = typemap[int(idprop->type)];
+      r_prop_rna_or_id->rnaprop = get_type_map()[int(idprop->type)];
     }
   }
 }
@@ -635,17 +639,18 @@ PropertyRNA *rna_ensure_property(PropertyRNA *prop)
     IDProperty *idprop = reinterpret_cast<IDProperty *>(prop);
 
     if (idprop->type == IDP_ARRAY) {
-      return arraytypemap[int(idprop->subtype)];
+      return get_array_type_map()[int(idprop->subtype)];
     }
     /* Special case for int properties with enum items, these are displayed as a PROP_ENUM. */
     if (idprop->type == IDP_INT) {
       const IDPropertyUIDataInt *ui_data_int = reinterpret_cast<IDPropertyUIDataInt *>(
           idprop->ui_data);
       if (ui_data_int && ui_data_int->enum_items_num > 0) {
-        return &rna_PropertyGroupItem_enum;
+        static PropertyRNA *prop = RNA_struct_type_find_property(RNA_PropertyGroupItem, "enum");
+        return prop;
       }
     }
-    return typemap[int(idprop->type)];
+    return get_type_map()[int(idprop->type)];
   }
 }
 

@@ -274,16 +274,16 @@ static void WIDGETGROUP_camera_message_subscribe(const bContext *C,
 
   {
     const PropertyRNA *props[] = {
-        &rna_CameraDOFSettings_focus_distance,
-        &rna_Camera_display_size,
-        &rna_Camera_ortho_scale,
-        &rna_Camera_sensor_fit,
-        &rna_Camera_sensor_width,
-        &rna_Camera_sensor_height,
-        &rna_Camera_shift_x,
-        &rna_Camera_shift_y,
-        &rna_Camera_type,
-        &rna_Camera_lens,
+        RNA_struct_type_find_property(RNA_CameraDOFSettings, "focus_distance"),
+        RNA_struct_type_find_property(RNA_Camera, "display_size"),
+        RNA_struct_type_find_property(RNA_Camera, "ortho_scale"),
+        RNA_struct_type_find_property(RNA_Camera, "sensor_fit"),
+        RNA_struct_type_find_property(RNA_Camera, "sensor_width"),
+        RNA_struct_type_find_property(RNA_Camera, "sensor_height"),
+        RNA_struct_type_find_property(RNA_Camera, "shift_x"),
+        RNA_struct_type_find_property(RNA_Camera, "shift_y"),
+        RNA_struct_type_find_property(RNA_Camera, "type"),
+        RNA_struct_type_find_property(RNA_Camera, "lens"),
     };
 
     PointerRNA idptr = RNA_id_pointer_create(&ca->id);

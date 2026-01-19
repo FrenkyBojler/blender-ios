@@ -646,28 +646,28 @@ short *transform_snap_flag_from_spacetype_ptr(TransInfo *t, const PropertyRNA **
   switch (t->spacetype) {
     case SPACE_VIEW3D:
       if (r_prop) {
-        *r_prop = &rna_ToolSettings_use_snap;
+        *r_prop = RNA_struct_type_find_property(RNA_ToolSettings, "use_snap");
       }
       return &ts->snap_flag;
     case SPACE_NODE:
       if (r_prop) {
-        *r_prop = &rna_ToolSettings_use_snap_node;
+        *r_prop = RNA_struct_type_find_property(RNA_ToolSettings, "use_snap_node");
       }
       return &ts->snap_flag_node;
     case SPACE_IMAGE:
       if (r_prop) {
-        *r_prop = &rna_ToolSettings_use_snap_uv;
+        *r_prop = RNA_struct_type_find_property(RNA_ToolSettings, "use_snap_uv");
       }
       return &ts->snap_uv_flag;
     case SPACE_SEQ:
       if (r_prop) {
-        *r_prop = &rna_ToolSettings_use_snap_sequencer;
+        *r_prop = RNA_struct_type_find_property(RNA_ToolSettings, "use_snap_sequencer");
       }
       return &ts->snap_flag_seq;
     case SPACE_ACTION:
     case SPACE_NLA:
       if (r_prop) {
-        *r_prop = &rna_ToolSettings_use_snap_anim;
+        *r_prop = RNA_struct_type_find_property(RNA_ToolSettings, "use_snap_anim");
       }
       return &ts->snap_flag_anim;
     case SPACE_GRAPH: {
@@ -680,7 +680,7 @@ short *transform_snap_flag_from_spacetype_ptr(TransInfo *t, const PropertyRNA **
 
         case SIPO_MODE_ANIMATION: {
           if (r_prop) {
-            *r_prop = &rna_ToolSettings_use_snap_anim;
+            *r_prop = RNA_struct_type_find_property(RNA_ToolSettings, "use_snap_anim");
           }
           return &ts->snap_flag_anim;
         }

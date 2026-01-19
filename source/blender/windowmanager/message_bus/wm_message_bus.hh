@@ -12,6 +12,7 @@
 
 #include "DNA_listBase.h"
 
+#include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 #include "RNA_types.hh"
 #include <cstdio>
@@ -262,7 +263,7 @@ void WM_msg_publish_ID(wmMsgBus *mbus, ID *id);
   { \
     wmMsgParams_RNA msg_key_params_ = {{}}; \
     msg_key_params_.ptr = RNA_pointer_create_discrete(id_, RNA_##type_, data_); \
-    msg_key_params_.prop = &rna_##type_##_##prop_; \
+    msg_key_params_.prop = RNA_struct_type_find_property(RNA_##type_, "prop_"); \
     WM_msg_publish_rna_params(mbus, &msg_key_params_); \
   } \
   ((void)0)
@@ -270,7 +271,7 @@ void WM_msg_publish_ID(wmMsgBus *mbus, ID *id);
   { \
     wmMsgParams_RNA msg_key_params_ = {{}}; \
     msg_key_params_.ptr = RNA_pointer_create_discrete(id_, RNA_##type_, data_); \
-    msg_key_params_.prop = &rna_##type_##_##prop_; \
+    msg_key_params_.prop = RNA_struct_type_find_property(RNA_##type_, "prop_"); \
     WM_msg_subscribe_rna_params(mbus, &msg_key_params_, value, __func__); \
   } \
   ((void)0)
@@ -290,7 +291,7 @@ void WM_msg_publish_ID(wmMsgBus *mbus, ID *id);
     PointerRNA msg_ptr_ = {nullptr, RNA_##type_, nullptr}; \
     wmMsgParams_RNA msg_key_params_ = {{}}; \
     msg_key_params_.ptr = msg_ptr_; \
-    msg_key_params_.prop = &rna_##type_##_##prop_; \
+    msg_key_params_.prop = RNA_struct_type_find_property(RNA_##type_, "prop_"); \
 \
     WM_msg_subscribe_rna_params(mbus, &msg_key_params_, value, __func__); \
   } \
