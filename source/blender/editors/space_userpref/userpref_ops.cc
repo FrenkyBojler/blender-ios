@@ -248,7 +248,7 @@ static void preferences_asset_library_add_ui(bContext * /*C*/, wmOperator *op)
   }
 }
 
-static const EnumPropertyItem custom_library_type_items[] = {
+static constexpr EnumPropertyItem custom_library_type_items[] = {
     {int(bUserAssetLibraryAddType::Remote),
      "REMOTE",
      ICON_INTERNET,
@@ -278,7 +278,7 @@ static const EnumPropertyItem *custom_library_type_itemf(bContext * /*C*/,
 
   /* Since the Remote item is the first in the list, we can just return a pointer to
    * the 2nd item in the list, when remote asset libraries should be hidden. */
-  BLI_assert(custom_library_type_items[0].value == int(bUserAssetLibraryAddType::Remote));
+  static_assert(custom_library_type_items[0].value == int(bUserAssetLibraryAddType::Remote));
   return custom_library_type_items + 1;
 }
 
