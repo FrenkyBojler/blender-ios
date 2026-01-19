@@ -3685,24 +3685,6 @@ static Object *convert_curves_to_mesh(Base &base, ObjectConversionInfo &info, Ba
   return newob;
 }
 
-static void grease_pencil_separate_shapes_from_materials(bke::greasepencil::Drawing *drawing)
-{
-  bke::CurvesGeometry &curves = drawing->strokes_for_write();
-  VArray<int> materials = *curves.attributes().lookup_or_default(
-      "material_index", bke::AttrDomain::Curve, 0);
-
-  bke::SpanAttributeWriter<int> shape_ids =
-      curves.attributes_for_write().lookup_or_add_for_write_span<int>("shape_id",
-                                                                      bke::AttrDomain::Curve);
-
-  for (const int curve_i : curves.curves_range()) {
-    shape_ids.span[curve_i] = materials[curve_i] + 1;
-  }
-
-  shape_ids.finish();
-  drawing->tag_topology_changed();
-}
-
 static Object *convert_curves_to_grease_pencil(Base &base,
                                                ObjectConversionInfo &info,
                                                Base **r_new_base)
@@ -3751,8 +3733,6 @@ static Object *convert_curves_to_grease_pencil(Base &base,
     drawing->strokes_for_write() = curves_eval->geometry.wrap();
     /* Default radius (1.0 unit) is too thick for converted strokes. */
     drawing->radii_for_write().fill(0.01f);
-
-    grease_pencil_separate_shapes_from_materials(drawing);
 
     BKE_grease_pencil_nomain_to_grease_pencil(grease_pencil, new_grease_pencil);
     BKE_object_material_from_eval_data(info.bmain, newob, &curves_eval->id);
@@ -4019,15 +3999,24 @@ static void add_grease_pencil_materials_for_conversion(Main &bmain,
 
 static void create_grease_pencil_fills(bke::greasepencil::Drawing &drawing)
 {
-  bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+
+  VArray<int> materials = *attributes.lookup_or_default(
+      "material_index", bke::AttrDomain::Curve, 0);
   bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_only_span<int>(
       "fill_id", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_only_span<bool>(
       "hide_stroke", bke::AttrDomain::Curve);
-  /* Mark all the strokes as part of the same fill. */
-  fill_ids.span.fill(1);
+
   /* Hide all the strokes, only show fills. */
   hide_stroke.span.fill(true);
+
+  /* Mark all the strokes in the same material as the same fill. */
+  for (const int curve_i : curves.curves_range()) {
+    fill_ids.span[curve_i] = materials[curve_i] + 1;
+  }
+
   fill_ids.finish();
   hide_stroke.finish();
 }
@@ -4059,14 +4048,10 @@ static Object *convert_font_to_grease_pencil(Base &base,
   /* Default radius (1.0 unit) is too thick for converted strokes. */
   drawing->radii_for_write().fill(0.01f);
 
-  /* Legacy curves don't support per-stroke/curve fill attribute, thus all the strokes that are
-   * converted are filled. */
   const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
   if (use_fill) {
     create_grease_pencil_fills(*drawing);
   }
-
-  grease_pencil_separate_shapes_from_materials(drawing);
 
   curve_ob->data = id_cast<ID *>(grease_pencil);
   curve_ob->type = OB_GREASE_PENCIL;
@@ -4177,13 +4162,10 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
   drawing->radii_for_write().fill(0.01f);
   drawing->tag_positions_changed();
 
-  /* Legacy curves don't support per-stroke/curve fill attribute, thus all the strokes that are
-   * converted are filled. */
   const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
   if (use_fill) {
     create_grease_pencil_fills(*drawing);
   }
-  grease_pencil_separate_shapes_from_materials(drawing);
 
   newob->data = id_cast<ID *>(grease_pencil);
   newob->type = OB_GREASE_PENCIL;
