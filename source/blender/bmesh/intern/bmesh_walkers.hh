@@ -28,11 +28,15 @@ enum BMWOrder {
 enum BMWFlag {
   BMW_FLAG_NOP = 0,
   BMW_FLAG_TEST_HIDDEN = (1 << 0),
-  /* Delimits loops at boundary verts with > 3 connected edges in BMW_EDGELOOP. */
-  BMW_FLAG_DELIMIT_INNER_CORNERS = (1 << 1),
-  /* Delimits loops at boundary verts with 2 connected edges in BMW_EDGELOOP. */
-  BMW_FLAG_DELIMIT_OUTER_CORNERS = (1 << 2),
 };
+
+enum BMEdgeLoopDelimit {
+  BM_LOOP_DELIMIT_NONE = 0,
+  BM_LOOP_DELIMIT_INNER_CORNERS = 1 << 0,
+  BM_LOOP_DELIMIT_OUTER_CORNERS = 1 << 1,
+  BM_LOOP_DELIMIT_NGONS = 1 << 2,
+};
+ENUM_OPERATORS(BMEdgeLoopDelimit)
 
 /*Walkers*/
 struct BMWalker {
@@ -58,6 +62,7 @@ struct BMWalker {
   short mask_face;
 
   BMWFlag flag;
+  BMEdgeLoopDelimit delimit;
 
   Set<const void *> *visit_set;
   Set<const void *> *visit_set_alt;
@@ -80,7 +85,8 @@ void BMW_init(struct BMWalker *walker,
               short mask_edge,
               short mask_face,
               BMWFlag flag,
-              int layer);
+              int layer,
+              BMEdgeLoopDelimit delimit = BM_LOOP_DELIMIT_NONE);
 void *BMW_begin(BMWalker *walker, void *start);
 /**
  * \brief Step Walker
