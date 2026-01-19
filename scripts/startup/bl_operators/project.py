@@ -30,11 +30,8 @@ class ProjectLoadException(Exception):
 
 # -------------------------------------------------------------
 
-def save_project(project, clear_dirty_flag=True):
+def save_project(project):
     """ Saves the passed project to disk.
-
-        When `clear_dirty_flag` is true, the project's dirty flag will be
-        automatically cleared when the save is successful.
 
         Throws a ProjectSaveException in any of the following cases:
 
@@ -76,8 +73,7 @@ def save_project(project, clear_dirty_flag=True):
     except PermissionError:
         raise ProjectSaveException("Cannot write to '{}' due to filesystem permissions.".format(PROJECT_CONFIG))
 
-    if clear_dirty_flag:
-        project.is_dirty = False
+    project.is_dirty = False
 
     print("...done.")
 
@@ -373,26 +369,17 @@ def on_blend_save(blend_path):
     find_and_load_project_for_blend_path(bpy.context, blend_path)
 
 
-def on_exit():
+@bpy.app.handlers.persistent
+def on_exit(is_user_exit):
+    print("PROJECT SETUP AUTO-SAVE ", is_user_exit)
+    if not is_user_exit:
+        return
+
     if not bpy.context.preferences.experimental.use_blender_projects:
         return
 
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
-        # We omit clearing the dirty flag here because:
-        #
-        # 1. It's unnecessary since we're exiting anyway.
-        # 2. Clearing the flag during exit triggers an ASAN heap-use-after-free,
-        #    seemingly in `ctx_data_get()`.
-        #
-        # Regarding point 2: the project and the flag itself are both still
-        # valid, not-freed memory at this point. The heap-use-after-free
-        # seems(?) to be related to property lookup, but I (Nathan) don't know
-        # that area of the code well enough to really say much. And looking up
-        # the flag for reading works fine, so...
-        #
-        # TODO: get an adult to double-check that it's not me just being
-        # ignorant about something and violating some expected code invariant.
-        save_project(bpy.context.project, clear_dirty_flag=False)
+        save_project(bpy.context.project)
 
 
 # -----------------------------------------------------------------------------
@@ -408,14 +395,10 @@ classes = (
 def register():
     bpy.app.handlers.load_pre.append(on_blend_load)
     bpy.app.handlers.save_post.append(on_blend_save)
-
-    atexit.register(on_exit)
+    bpy.app.handlers.exit_pre.append(on_exit)
 
 
 def unregister():
     bpy.app.handlers.load_pre.remove(on_blend_load)
     bpy.app.handlers.save_post.remove(on_blend_save)
-
-    # Note: we intentionally *don't* call `atexit.unregister()`, because then
-    # the callback gets removed before Python exits and thus doesn't run,
-    # defeating the purpose.
+    bpy.app.handlers.exit_pre.remove(on_exit)
