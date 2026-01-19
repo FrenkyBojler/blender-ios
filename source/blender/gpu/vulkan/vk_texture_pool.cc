@@ -127,10 +127,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   VKDevice &device = VKBackend::get().device;
 
   /* Generate debug label name, if one isn't passed in `name`. */
-  std::string name_str;
-  if (G.debug & G_DEBUG_GPU) {
-    name_str = name ? name : fmt::format("TexFromPool_{}", acquired_.size());
-  }
+  std::string name_str = name ? name : fmt::format("TexFromPool_{}", acquired_.size());
 
   /* Create texture object with no backing allocation, wrapped in `TextureHandle`. */
   TextureHandle texture_handle;

@@ -41,10 +41,7 @@ Texture *TexturePoolImpl::acquire_texture(int2 extent,
                                           const char * /* name */)
 {
   /* Generate debug label name, if one isn't passed in `name`. */
-  std::string name_str;
-  if (G.debug & G_DEBUG_GPU) {
-    name_str = name ? name : fmt::format("TexFromPool_{}", pool_.size());
-  }
+  std::string name_str = name ? name : fmt::format("TexFromPool_{}", pool_.size());
 
   /* Search pool for compatible available texture first. */
   int64_t match_index = -1;
