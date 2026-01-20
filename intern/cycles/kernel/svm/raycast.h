@@ -151,8 +151,6 @@ ccl_device_noinline
   uint hit_normal_offset;
   svm_unpack_node_uchar4(
       node.z, &is_self_hit_offset, &hit_distance_offset, &hit_position_offset, &hit_normal_offset);
-  uint only_local = node.w;
-  (void)only_local; /* Prevent unused warnings. */
 
   float distance = stack_load_float_default(stack, distance_offset, 0.0f);
 
@@ -164,6 +162,8 @@ ccl_device_noinline
 
   IF_KERNEL_NODES_FEATURE(RAYTRACE)
   {
+    uint only_local = node.w;
+
     float3 position = stack_load_float3_default(stack, position_offset, sd->P);
     float3 direction = stack_load_float3_default(stack, direction_offset, sd->N);
 #  ifdef __KERNEL_OPTIX__
