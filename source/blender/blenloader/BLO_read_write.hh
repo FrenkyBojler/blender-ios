@@ -145,14 +145,6 @@ struct BlendLibReader {
 int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name);
 
 /**
- * Write single struct at address and specify a file-code.
- */
-#define BLO_write_struct_at_address_with_filecode( \
-    writer, filecode, struct_name, address, data_ptr) \
-  (writer)->write_struct_at_address_by_id_with_filecode( \
-      filecode, dna::sdna_struct_id_get<struct_name>(), address, data_ptr)
-
-/**
  * Write struct array.
  */
 #define BLO_write_struct_array(writer, struct_name, array_size, data_ptr) \
