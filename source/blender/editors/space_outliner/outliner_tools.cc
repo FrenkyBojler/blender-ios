@@ -2571,7 +2571,9 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
     case OL_OP_REMAP:
       TreeElement *active_elem = outliner_find_element_with_flag(&space_outliner->tree,
                                                                  TSE_ACTIVE);
-      id_remap_fn(C, TREESTORE(active_elem));
+      if (active_elem) {
+        id_remap_fn(C, TREESTORE(active_elem));
+      }
       /* No undo push here, operator does it itself (since it's a modal one, the op_undo_depth
        * trick does not work here). */
       break;
@@ -2996,7 +2998,9 @@ static wmOperatorStatus outliner_id_operation_exec(bContext *C, wmOperator *op)
          * windows. See #93814. */
         TreeElement *active_elem = outliner_find_element_with_flag(&space_outliner->tree,
                                                                    TSE_ACTIVE);
-        id_remap_fn(C, TREESTORE(active_elem));
+        if (active_elem) {
+          id_remap_fn(C, TREESTORE(active_elem));
+        }
         /* No undo push here, operator does it itself (since it's a modal one, the op_undo_depth
          * trick does not work here). */
       }
