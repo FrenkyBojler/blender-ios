@@ -4991,8 +4991,7 @@ void CustomData_blend_write(BlendWriter *writer,
     });
   }
 
-  BLO_write_struct_array_at_address(
-      writer, CustomDataLayer, data->totlayer, data->layers, layers_to_write.data());
+  writer->write_struct_array_at_address(data->totlayer, data->layers, layers_to_write.data());
 
   if (data->external) {
     writer->write_struct(data->external);

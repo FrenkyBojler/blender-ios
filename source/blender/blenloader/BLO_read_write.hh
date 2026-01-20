@@ -82,6 +82,7 @@ struct BlendWriter {
   {
     this->write_struct_at_address_by_id(dna::sdna_struct_id_get<T>(), address, data);
   }
+
   template<typename T> void write_struct_at_address_cast(const void *address, const void *data)
   {
     this->write_struct_at_address_by_id(dna::sdna_struct_id_get<T>(), address, data);
@@ -96,6 +97,13 @@ struct BlendWriter {
   template<typename T> void write_struct_array_cast(const int64_t array_size, const void *data)
   {
     this->write_struct_array_by_id(dna::sdna_struct_id_get<T>(), array_size, data);
+  }
+
+  template<typename T>
+  void write_struct_array_at_address(const int64_t array_size, const void *address, const T *data)
+  {
+    this->write_struct_array_at_address_by_id(
+        dna::sdna_struct_id_get<T>(), array_size, address, data);
   }
 };
 
@@ -154,13 +162,6 @@ struct BlendLibReader {
  * Mapping between names and ids.
  */
 int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name);
-
-/**
- * Write struct array at address.
- */
-#define BLO_write_struct_array_at_address(writer, struct_name, array_size, address, data_ptr) \
-  (writer)->write_struct_array_at_address_by_id( \
-      dna::sdna_struct_id_get<struct_name>(), array_size, address, data_ptr)
 
 /**
  * Write struct list.
