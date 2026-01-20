@@ -359,11 +359,22 @@ static wmOperatorStatus preferences_asset_library_remove_exec(bContext *C, wmOpe
     return OPERATOR_CANCELLED;
   }
 
-  BKE_preferences_asset_library_remove(&U, library);
+  const bool use_remote_libraries = USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+  const bool is_remote_library = library->flag & ASSET_LIBRARY_USE_REMOTE_URL;
+
+  if (is_remote_library && !use_remote_libraries) {
+    /* This is a corner case, where the active library is a remote one, but remote libraries are
+     * not shown. This only happens right after disabling the experimental flag, which doesn't
+     * update the active library index, or when somebody set the active index via Python. Just
+     * pretend the deletion happened (because actually deleting hidden things is bad), and let the
+     * code below activate a non-remote (and so visible) library. */
+  }
+  else {
+    BKE_preferences_asset_library_remove(&U, library);
+  }
 
   /* If the experimental flag was disabled, make sure the newly activated asset
    * library is not a remote one. */
-  const bool use_remote_libraries = USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
   if (!use_remote_libraries) {
     int nonremote_index = 0;
     for (auto [index, lib] : U.asset_libraries.enumerate()) {
