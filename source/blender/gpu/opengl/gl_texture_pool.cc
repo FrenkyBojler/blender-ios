@@ -24,57 +24,26 @@ static TextureFormat get_compatible_texture_format(TextureFormat format)
   GPUTextureFormatFlag format_flag = to_format_flag(format);
 
   if (bool(format_flag & GPU_FORMAT_DEPTH_STENCIL)) {
-    return gpu::TextureFormat::Invalid;
+    return TextureFormat::Invalid;
   }
   if (bool(format_flag & GPU_FORMAT_COMPRESSED)) {
-    return gpu::TextureFormat::Invalid;
+    return TextureFormat::Invalid;
   }
 
   switch (to_bytesize(format)) {
     case 16:
-      return gpu::TextureFormat::UINT_32_32_32_32;
+      return TextureFormat::SFLOAT_32_32_32_32;
     case 8:
-      return gpu::TextureFormat::UINT_32_32;
+      return TextureFormat::SFLOAT_32_32;
     case 4:
-      return gpu::TextureFormat::UINT_32;
+      return TextureFormat::SFLOAT_32;
     case 2:
-      return gpu::TextureFormat::UINT_16;
+      return TextureFormat::SFLOAT_16;
     case 1:
-      return gpu::TextureFormat::UINT_8;
+      return TextureFormat::UNORM_8;
     default:
-      return gpu::TextureFormat::Invalid;
+      return TextureFormat::Invalid;
   }
-}
-
-static bool are_formats_compatible(const TextureFormat format_a, const TextureFormat format_b)
-{
-  GPUTextureFormatFlag flag_a = to_format_flag(format_a);
-  GPUTextureFormatFlag flag_b = to_format_flag(format_b);
-  bool is_depth_or_stencil = (flag_a & GPU_FORMAT_DEPTH_STENCIL) != 0 ||
-                             (flag_b & GPU_FORMAT_DEPTH_STENCIL) != 0;
-  bool is_compressed = (flag_a & GPU_FORMAT_COMPRESSED) != 0 ||
-                       (flag_b & GPU_FORMAT_COMPRESSED) != 0;
-
-  if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    bool is_bad_format_match =
-        /* RG16F and R11F_G11F_B10F appear to be incompatible. glCLear* operations fail. */
-        (format_a == TextureFormat::UFLOAT_11_11_10 && format_b == TextureFormat::SFLOAT_16_16) ||
-        /* sRGB and non-sRGB appear to be incompatible */
-        (flag_a & GPU_FORMAT_SRGB) == (flag_b & GPU_FORMAT_SRGB);
-    if (is_bad_format_match) {
-      return false;
-    }
-  }
-
-  /* glTextureView does not support depth/stencil formats, so we can only re-use
-   * these textures if they share format. Compressed formats also have restricted
-   * aliasing capabilities with glTextureView. */
-  if (is_depth_or_stencil || is_compressed) {
-    return format_a == format_b;
-  }
-
-  /* WATCHME(not_mark): this might not be exhaustive. */
-  return to_bytesize(format_a) == to_bytesize(format_b);
 }
 
 GLTexturePool::~GLTexturePool()
@@ -92,22 +61,24 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
                                         eGPUTextureUsage usage,
                                         const char *name)
 {
+  /* Determine format of compatible underlying texture. If there is no
+   * compatible format to alias upon, we simply require an exact match
+   * for the underlying texture. */
+  TextureFormat compatible_format = get_compatible_texture_format(format);
+  if (compatible_format == TextureFormat::Invalid) {
+    compatible_format = format;
+  }
+
   /* Search for the first compatible existing texture. */
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
     const auto &handle = pool_[i];
+    if (handle.texture->format_get() != compatible_format) {
+      continue;
+    }
     if (int2(handle.texture->w_, handle.texture->h_) != extent) {
       continue;
     }
-
-    TextureFormat compatible_format = get_compatible_texture_format(format);
-    if (compatible_format == TextureFormat::Invalid) {
-      compatible_format = format;
-    }
-    if (compatible_format != handle.texture->format_get()) {
-      continue;
-    }
-
     match_index = i;
     break;
   }
@@ -121,27 +92,39 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
     pool_.remove_and_reorder(match_index);
   }
   else {
+    /* Debug label attached to allocated texture object. */
     std::string texture_name_str;
-#ifndef NDEBUG
+    // if (G.debug & G_DEBUG_GPU) {
     texture_name_str = fmt::format("TexFromPool_{}", pool_.size());
-#endif
+    // }
+
     eGPUTextureUsage usage_flag = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
     texture_handle.texture_allocation = unwrap(GPU_texture_create_2d(
-        texture_name_str.c_str(), extent.x, extent.y, 1, format, usage_flag, nullptr));
+        texture_name_str.c_str(), extent.x, extent.y, 1, compatible_format, usage_flag, nullptr));
   }
+
+  /* Debug label attached to view texture object. */
+  std::string view_name_str;
+  // if (G.debug & G_DEBUG_GPU) {
+  view_name_str = name ? name : texture_handle.texture_allocation->name_;
+  // }
 
   /* Assemble texture view and add to handle. Note, glTextureView with identical formats is
    * allowed, even if the formats are not listed for aliasing in the Internal Formats table. */
-  std::string view_name_str;
-#ifndef NDEBUG
-  view_name_str = name ? name : texture_handle.texture_allocation->name_;
-#endif
   gpu::Texture *view = GPU_texture_create_view(
       view_name_str.c_str(), texture_handle.texture_allocation, format, 0, 1, 0, 1, false, false);
   texture_handle.texture = unwrap(view);
 
+  /* if (format != compatible_format) {
+    std::printf("Aliasing: %s (%d) -> %s (%d)\n",
+                GPU_texture_format_name(texture_handle.texture_allocation->format_get()),
+                to_bytesize(texture_handle.texture_allocation->format_get()),
+                GPU_texture_format_name(texture_handle.texture->format_get()),
+                to_bytesize(texture_handle.texture->format_get()));
+  } */
+
   acquired_.add(texture_handle);
-  return view;
+  return wrap(texture_handle.texture);
 }
 
 void GLTexturePool::release_texture(Texture *tex)
