@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-11-12 16:04+0000\n"
 "Last-Translator: blend-it <blend-it@users.noreply.translate.blender.org>\n"
 "Language-Team: Italian <https://translate.blender.org/projects/blender-ui/ui/it/>\n"
@@ -13130,6 +13130,22 @@ msgid "Closure"
 msgstr "Chiusura"
 
 
+msgid "Font"
+msgstr "Carattere"
+
+
+msgid "Text"
+msgstr "Testo"
+
+
+msgid "Mask"
+msgstr "Maschera"
+
+
+msgid "Sound"
+msgstr "Suono"
+
+
 msgid "Freestyle Line Set"
 msgstr "Gruppi Linee Freestyle"
 
@@ -15044,10 +15060,6 @@ msgid "Stabilize Normal"
 msgstr "Stabilizza Normale"
 
 
-msgid "Stabilize Plane"
-msgstr "Stabilizza Piano"
-
-
 msgid "Stencil Dimensions"
 msgstr "Dimensione Stencil"
 
@@ -16145,10 +16157,6 @@ msgstr "Testo su Curva"
 
 msgid "Curve deforming text object"
 msgstr "Curva che deforma l'oggetto testo"
-
-
-msgid "Font"
-msgstr "Carattere"
 
 
 msgid "Font Bold"
@@ -20166,10 +20174,6 @@ msgstr "Timbro"
 
 msgid "Playback pitch of the sound"
 msgstr "Timbro di riproduzione del suono"
-
-
-msgid "Sound"
-msgstr "Suono"
 
 
 msgid "Sound data-block used by this speaker"
@@ -24558,10 +24562,6 @@ msgid "Use Material Mask"
 msgstr "Utilizza Maschera Materiale"
 
 
-msgid "Mask"
-msgstr "Maschera"
-
-
 msgid "Material slot in an object"
 msgstr "Slot del materiale in un oggetto"
 
@@ -24576,146 +24576,6 @@ msgstr "Blocco-dati Materiale utilizzato da questo slot materiale"
 
 msgid "Material slot name"
 msgstr "Nome dello slot materiale"
-
-
-msgid "Assign Material"
-msgstr "Assegna Materiale"
-
-
-msgid "Select More/Less"
-msgstr "Seleziona Più/Meno"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
-msgid "Light"
-msgstr "Luce"
-
-
-msgid "Light Probe"
-msgstr "Sensore di Luce"
-
-
-msgid "Add Image"
-msgstr "Aggiungi Immagine"
-
-
-msgid "Relations"
-msgstr "Relazioni"
-
-
-msgid "Rigid Body"
-msgstr "Corpo Rigido"
-
-
-msgid "Apply"
-msgstr "Applica"
-
-
-msgid "Track"
-msgstr "Traccia"
-
-
-msgid "Quick Effects"
-msgstr "Effetti Veloci"
-
-
-msgid "Show/Hide"
-msgstr "Mostra/Nascondi"
-
-
-msgid "Clean Up"
-msgstr "Ripulisci"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Asset"
-msgstr "Risorsa"
-
-
-msgid "Make Single User"
-msgstr "Rendi Utilizzatore Singolo"
-
-
-msgid "Convert"
-msgstr "Converti"
-
-
-msgid "Link/Transfer Data"
-msgstr "Collega/Trasferisci Dati"
-
-
-msgid "Hooks"
-msgstr "Ganci"
-
-
-msgid "Vertex Group Locks"
-msgstr "Blocchi del Gruppo di Vertici"
-
-
-msgid "Adjust"
-msgstr "Regola"
-
-
-msgid "Face Sets Init"
-msgstr "Init Sets di Facce"
-
-
-msgid "Keying"
-msgstr "Keying"
-
-
-msgid "Random Mask"
-msgstr "Maschera Casuale"
-
-
-msgid "Tracking"
-msgstr "Tracciamento"
-
-
-msgid "Utilities"
-msgstr "Utilità"
-
-
-msgid "Clear Transform"
-msgstr "Cancella Trasformazione"
-
-
-msgid "In-Betweens"
-msgstr "Intermedio"
-
-
-msgid "Math"
-msgstr "Matematica"
-
-
-msgid "Propagate"
-msgstr "Propaga"
-
-
-msgid "Bone Collections"
-msgstr "Raccolte di Ossa"
-
-
-msgid "Names"
-msgstr "Nomi"
-
-
-msgid "Toggle Bone Options"
-msgstr "Attiva/disattiva Opzioni Osso"
-
-
-msgid "Enable Bone Options"
-msgstr "Abilita Opzioni Osso"
-
-
-msgid "Disable Bone Options"
-msgstr "Disabilita Opzioni Osso"
 
 
 msgid "Mesh Select Mode"
@@ -24734,8 +24594,24 @@ msgid "Set Face Strength"
 msgstr "Imposta Intensità Faccia"
 
 
+msgid "Math"
+msgstr "Matematica"
+
+
+msgid "Clean Up"
+msgstr "Ripulisci"
+
+
+msgid "Utilities"
+msgstr "Utilità"
+
+
 msgid "Merge"
 msgstr "Unisci"
+
+
+msgid "Show/Hide"
+msgstr "Mostra/Nascondi"
 
 
 msgid "Special Characters"
@@ -24746,16 +24622,16 @@ msgid "Kerning"
 msgstr "Crenatura"
 
 
-msgid "Text"
-msgstr "Testo"
-
-
-msgid "Bone Roll"
-msgstr "Rollio Osso"
+msgid "Metaball"
+msgstr "Metaball"
 
 
 msgid "Read"
 msgstr "Lettura"
+
+
+msgid "Names"
+msgstr "Nomi"
 
 
 msgid "Sample"
@@ -24766,8 +24642,16 @@ msgid "Write"
 msgstr "Scrittura"
 
 
+msgid "Bone Roll"
+msgstr "Rollio Osso"
+
+
 msgid "Primitives"
 msgstr "Primitive"
+
+
+msgid "Instances"
+msgstr "Istanze"
 
 
 msgid "Pivot Point"
@@ -24790,16 +24674,16 @@ msgid "Automasking"
 msgstr "Automascheramento"
 
 
-msgid "Instances"
-msgstr "Istanze"
+msgid "Import"
+msgstr "Importa"
 
 
 msgid "Face Sets Edit"
 msgstr "Modifica Sets di Facce"
 
 
-msgid "Import"
-msgstr "Importa"
+msgid "Vertex Group Locks"
+msgstr "Blocchi del Gruppo di Vertici"
 
 
 msgid "UV"
@@ -24838,6 +24722,10 @@ msgid "View Regions"
 msgstr "Regione Vista"
 
 
+msgid "Select More/Less"
+msgstr "Seleziona Più/Meno"
+
+
 msgid "Select Similar"
 msgstr "Seleziona Simili"
 
@@ -24852,6 +24740,114 @@ msgstr "Seleziona Collegati"
 
 msgid "Select Loops"
 msgstr "Seleziona Anelli"
+
+
+msgid "Assign Material"
+msgstr "Assegna Materiale"
+
+
+msgid "Light"
+msgstr "Luce"
+
+
+msgid "Light Probe"
+msgstr "Sensore di Luce"
+
+
+msgid "Add Image"
+msgstr "Aggiungi Immagine"
+
+
+msgid "Relations"
+msgstr "Relazioni"
+
+
+msgid "Rigid Body"
+msgstr "Corpo Rigido"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Apply"
+msgstr "Applica"
+
+
+msgid "Track"
+msgstr "Traccia"
+
+
+msgid "Quick Effects"
+msgstr "Effetti Veloci"
+
+
+msgid "Asset"
+msgstr "Risorsa"
+
+
+msgid "Make Single User"
+msgstr "Rendi Utilizzatore Singolo"
+
+
+msgid "Convert"
+msgstr "Converti"
+
+
+msgid "Link/Transfer Data"
+msgstr "Collega/Trasferisci Dati"
+
+
+msgid "Hooks"
+msgstr "Ganci"
+
+
+msgid "Adjust"
+msgstr "Regola"
+
+
+msgid "Keying"
+msgstr "Keying"
+
+
+msgid "Tracking"
+msgstr "Tracciamento"
+
+
+msgid "Face Sets Init"
+msgstr "Init Sets di Facce"
+
+
+msgid "Random Mask"
+msgstr "Maschera Casuale"
+
+
+msgid "Clear Transform"
+msgstr "Cancella Trasformazione"
+
+
+msgid "In-Betweens"
+msgstr "Intermedio"
+
+
+msgid "Propagate"
+msgstr "Propaga"
+
+
+msgid "Bone Collections"
+msgstr "Raccolte di Ossa"
+
+
+msgid "Toggle Bone Options"
+msgstr "Attiva/disattiva Opzioni Osso"
+
+
+msgid "Enable Bone Options"
+msgstr "Abilita Opzioni Osso"
+
+
+msgid "Disable Bone Options"
+msgstr "Disabilita Opzioni Osso"
 
 
 msgid "Keyframe Insert Pie"
@@ -31460,16 +31456,16 @@ msgid "Blur Attribute"
 msgstr "Attributo Sfocatura"
 
 
+msgid "Original"
+msgstr "Originale"
+
+
 msgid "Capture Attribute"
 msgstr "Attributo Cattura"
 
 
 msgid "Collection Info"
 msgstr "Informazioni Raccolta"
-
-
-msgid "Original"
-msgstr "Originale"
 
 
 msgid "Convex Hull"
@@ -31939,6 +31935,10 @@ msgstr "Dimensione Font Etichetta"
 
 msgid "Font size to use for displaying the label"
 msgstr "Dimensione del font da utilizzare per mostrare l'etichetta"
+
+
+msgid "Single"
+msgstr "Singolo"
 
 
 msgid "Group Input"
@@ -32759,10 +32759,6 @@ msgstr "Uscita Nodo"
 
 msgid "Value to Normal"
 msgstr "Valore a Normale"
-
-
-msgid "Single"
-msgstr "Singolo"
 
 
 msgid "Bake Item"
@@ -38361,6 +38357,11 @@ msgstr "Dispone il pennello nel modo morbido per la durata del tratto"
 msgctxt "Operator"
 msgid "Erase"
 msgstr "Cancella"
+
+
+msgctxt "Operator"
+msgid "Mask"
+msgstr "Maschera"
 
 
 msgctxt "Operator"
@@ -49978,10 +49979,6 @@ msgid "New Main Window"
 msgstr "Nuova Finestra Principale"
 
 
-msgid "Sample Count"
-msgstr "Conteggio Campioni"
-
-
 msgctxt "Operator"
 msgid "Add Workspace"
 msgstr "Aggiungi Spazio di Lavoro"
@@ -50308,14 +50305,6 @@ msgid "Active Palette Color"
 msgstr "Colore Tavolozza Attivo"
 
 
-msgid "Stereoscopy"
-msgstr "Stereoscopia"
-
-
-msgid "Auto-Masking"
-msgstr "Auto-Mascheramento"
-
-
 msgid "Selectability & Visibility"
 msgstr "Selezionabilità e Visibilità"
 
@@ -50366,6 +50355,14 @@ msgstr "Assi (Orientamenti Trasformazione)"
 
 msgid "Stroke Placement"
 msgstr "Giacitura Tratto"
+
+
+msgid "Stereoscopy"
+msgstr "Stereoscopia"
+
+
+msgid "Auto-Masking"
+msgstr "Auto-Mascheramento"
 
 
 msgid "Chain Scaling"
@@ -50668,11 +50665,6 @@ msgstr "Strappa Regione"
 msgctxt "Operator"
 msgid "Grab"
 msgstr "Prendi"
-
-
-msgctxt "Operator"
-msgid "Mask"
-msgstr "Maschera"
 
 
 msgid "Tiling"
@@ -52735,10 +52727,6 @@ msgid "Emulate 3 Button Mouse"
 msgstr "Emula Mouse a 3 bottoni"
 
 
-msgid "Use selection as the pivot point"
-msgstr "Utilizza la selezione come punto di perno"
-
-
 msgid "Zoom in towards the mouse pointer's position in the 3D view, rather than the 2D window center"
 msgstr "Zoomma nella posizione del mouse in vista 3D, anziché al centro della finestra 2D"
 
@@ -53941,6 +53929,10 @@ msgstr "Trasmissione Indiretto"
 
 msgid "Transmission Color"
 msgstr "Colore trasmissivo"
+
+
+msgid "Sample Count"
+msgstr "Conteggio Campioni"
 
 
 msgid "Show Active Pixels"
@@ -59980,6 +59972,16 @@ msgstr "Alterna Marca come Netto"
 
 
 msgctxt "WindowManager"
+msgid "Snap"
+msgstr "Aggancia"
+
+
+msgctxt "WindowManager"
+msgid "Precision"
+msgstr "Precisione"
+
+
+msgctxt "WindowManager"
 msgid "Paint Stroke Modal"
 msgstr "Dipingi Tratto Modale"
 
@@ -60052,11 +60054,6 @@ msgstr "Saltare"
 msgctxt "WindowManager"
 msgid "Pan"
 msgstr "Scorrimento"
-
-
-msgctxt "WindowManager"
-msgid "Precision"
-msgstr "Precisione"
 
 
 msgctxt "WindowManager"
@@ -60262,11 +60259,6 @@ msgstr "Nessuna Operazione"
 msgctxt "WindowManager"
 msgid "Move"
 msgstr "Muovi"
-
-
-msgctxt "WindowManager"
-msgid "Snap"
-msgstr "Aggancia"
 
 
 msgctxt "WindowManager"
@@ -64794,6 +64786,14 @@ msgid "ParticleSettings"
 msgstr "Impostazioni Particelle"
 
 
+msgid "Mesh has no UV data"
+msgstr "La mesh non ha dati UV"
+
+
+msgid "Mesh has no VCol data"
+msgstr "La mesh non ha dati di colore vertice"
+
+
 msgid "%i frames found!"
 msgstr "%i fotogrammi trovati!"
 
@@ -67023,10 +67023,6 @@ msgid "Videos"
 msgstr "Video"
 
 
-msgid "Movies"
-msgstr "Filmati"
-
-
 msgid "Cursor X"
 msgstr "X Cursore"
 
@@ -68356,14 +68352,6 @@ msgstr "L'oggetto '%s' non è nella vista livello '%s'"
 
 msgid "Object '%s' does not support shapes"
 msgstr "L'Oggetto '%s' non supporta le forme"
-
-
-msgid "Mesh has no UV data"
-msgstr "La mesh non ha dati UV"
-
-
-msgid "Mesh has no VCol data"
-msgstr "La mesh non ha dati di colore vertice"
 
 
 msgid "Constraint '%s' not found in pose bone '%s'"

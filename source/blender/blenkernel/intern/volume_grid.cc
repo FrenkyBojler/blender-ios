@@ -24,6 +24,7 @@ namespace blender::bke::volume_grid {
 GridIndexMappingParams GridIndexMappingParams::from_context(const bContext &C)
 {
   GridIndexMappingParams params;
+  return params;
 }
 
 VolumeGridData::VolumeGridData()

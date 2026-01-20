@@ -8,9 +8,7 @@
  * Do not hand edit this file!
  */
 
-#include "DNA_userdef_types.h"
-
-#include "BLO_userdef_default.h"
+#include "DNA_theme_types.h"
 
 /* clang-format off */
 
@@ -706,6 +704,7 @@ const bTheme U_theme_default = {
     .vertex_size = 3,
     .outline_width = 1,
     .facedot_size = 4,
+    .match = RGBA(0x4772b3ff),
   },
   .space_console = {
     .back = RGBA(0x1d1d1d00),
