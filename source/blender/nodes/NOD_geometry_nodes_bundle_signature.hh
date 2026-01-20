@@ -39,6 +39,10 @@ struct BundleSignature {
                                                   bool allow_auto_structure_type);
   static BundleSignature from_separate_bundle_node(const bNode &node,
                                                    bool allow_auto_structure_type);
+  static BundleSignature from_store_bundle_item_node(const bNode &node,
+                                                     bool allow_auto_structure_type);
+  static BundleSignature from_get_bundle_item_node(const bNode &node,
+                                                   bool allow_auto_structure_type);
 
   void set_auto_structure_types();
 };

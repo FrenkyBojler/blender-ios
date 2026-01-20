@@ -624,6 +624,18 @@ LinkedBundleSignatures gather_linked_origin_bundle_signatures(
                                  socket});
             return true;
           }
+          if (node->is_type("NodeStoreBundleItem")) {
+            const bNodeSocket &input_bundle_socket = node->input_socket(0);
+            result = gather_linked_origin_bundle_signatures(
+                node.context, input_bundle_socket, compute_context_cache);
+            return true;
+          }
+          if (node->is_type("NodeGetBundleItem")) {
+            const bNodeSocket &input_bundle_socket = node->input_socket(0);
+            result = gather_linked_origin_bundle_signatures(
+                node.context, input_bundle_socket, compute_context_cache);
+            return true;
+          }
         }
         if (node->is_type("NodeJoinBundle")) {
           const SocketInContext input_socket = node.input_socket(0);
