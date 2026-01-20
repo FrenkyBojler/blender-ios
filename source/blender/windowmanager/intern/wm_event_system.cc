@@ -59,10 +59,10 @@
 #include "ED_markers.hh"
 #include "ED_render.hh"
 #include "ED_screen.hh"
+#include "ED_sequencer.hh"
 #include "ED_undo.hh"
 #include "ED_util.hh"
 #include "ED_view3d.hh"
-#include "ED_sequencer.hh"
 
 #include "GPU_context.hh"
 
@@ -820,6 +820,17 @@ void wm_event_do_notifiers(bContext *C)
   }
 #endif /* If 1 (postpone disabling for in favor of message-bus), eventually. */
 
+  /* Resync VSE camera after all listeners and depsgraph updates have completed.
+   * viewport listeners may reset. Adding it after WM level notifiers works only
+   * for Undo/Redo but Outliner Changes fail, so adding it here.  */
+  if (resync_vse_camera) {
+    for (wmWindow &win : wm->windows) {
+      CTX_wm_window_set(C, &win);
+      blender::ed::vse::sync_vse_camera_to_strip(*C);
+    }
+    CTX_wm_window_set(C, nullptr);
+  }
+
   /* Handle message bus. */
   {
     for (wmWindow &win : wm->windows) {
@@ -830,14 +841,6 @@ void wm_event_do_notifiers(bContext *C)
   }
 
   wm_event_do_refresh_wm_and_depsgraph(C);
-
-  if (resync_vse_camera) {
-    for (wmWindow &win : wm->windows) {
-      CTX_wm_window_set(C, &win);
-      blender::ed::vse::sync_vse_camera_to_strip(*C);
-    }
-    CTX_wm_window_set(C, nullptr);
-  }
 
   RE_FreeUnusedGPUResources();
 
