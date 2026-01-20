@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <stack>
 
 #if defined(_MSC_VER)
