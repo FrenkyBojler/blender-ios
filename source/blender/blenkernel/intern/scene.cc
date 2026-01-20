@@ -668,14 +668,14 @@ static void scene_foreach_toolsettings(LibraryForeachIDData *data,
                                                     SCENE_FOREACH_UNDO_RESTORE,
                                                     reader,
                                                     &toolsett_old->anim_mirror_object,
-                                                    IDWALK_CB_USER);
+                                                    IDWALK_CB_NOP);
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     &toolsett->anim_relative_object,
                                                     do_undo_restore,
                                                     SCENE_FOREACH_UNDO_RESTORE,
                                                     reader,
                                                     &toolsett_old->anim_relative_object,
-                                                    IDWALK_CB_USER);
+                                                    IDWALK_CB_NOP);
 
   Paint *paint, *paint_old;
 
