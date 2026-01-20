@@ -1401,7 +1401,7 @@ static bool view3d_lasso_select(bContext *C,
     else if (ob && (ob->mode & OB_MODE_SCULPT_CURVES) && (ob->type == OB_CURVES)) {
       changed_multi = do_curves_sculpt_lasso_select(*vc, mcoords, sel_op);
       if (changed_multi) {
-        DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+        DEG_id_tag_update(ob->data, ID_RECALC_GEOMETRY);
         WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
       }
     }
@@ -4665,7 +4665,7 @@ static wmOperatorStatus view3d_box_select_exec(bContext *C, wmOperator *op)
     {
       changed_multi = do_curves_sculpt_box_select(vc, &rect, sel_op);
       if (changed_multi) {
-        DEG_id_tag_update(static_cast<ID *>(vc.obact->data), ID_RECALC_GEOMETRY);
+        DEG_id_tag_update(vc.obact->data, ID_RECALC_GEOMETRY);
         WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc.obact->data);
       }
     }
@@ -5717,7 +5717,7 @@ static wmOperatorStatus view3d_circle_select_exec(bContext *C, wmOperator *op)
       else if ((obact->mode & OB_MODE_SCULPT_CURVES) && (obact->type == OB_CURVES)) {
         const bool changed = curves_sculpt_circle_select(vc, sel_op, mval, float(radius));
         if (changed) {
-          DEG_id_tag_update(static_cast<ID *>(obact->data), ID_RECALC_GEOMETRY);
+          DEG_id_tag_update(obact->data, ID_RECALC_GEOMETRY);
           WM_event_add_notifier(C, NC_GEOM | ND_DATA, obact->data);
         }
       }
