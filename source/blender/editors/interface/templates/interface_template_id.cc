@@ -285,7 +285,8 @@ static Block *id_search_menu_session_uid(bContext *C, ARegion *region, void *arg
 
   template_ui = *(static_cast<TemplateID *>(arg_litem));
   const uint32_t active_session_uid = RNA_property_int_get(&template_ui.ptr, template_ui.prop);
-  ID *active_id = BKE_libblock_find_session_uid(CTX_data_main(C), template_ui.idcode, active_session_uid);
+  ID *active_id = BKE_libblock_find_session_uid(
+      CTX_data_main(C), template_ui.idcode, active_session_uid);
 
   return template_common_search_menu(C,
                                      region,
@@ -1642,7 +1643,7 @@ void template_ID_session_uid(
 
   template_ui.idcode = idcode;
   template_ui.idlb = lb;
-  
+
   Layout &row = layout.row(true);
   if (layout.use_property_split()) {
     PropertySplitWrapper split = uiItemPropertySplitWrapperCreate(&row);
