@@ -70,6 +70,8 @@ struct BlendWriter {
   void write_struct_list_by_name(const char *struct_name, ListBase *list);
   void write_struct_list_by_id(int struct_id, const ListBase *list);
 
+  int struct_id_by_name(const char *struct_name) const;
+
   template<typename T> void write_struct(const T *data)
   {
     this->write_struct_by_id(dna::sdna_struct_id_get<T>(), data);
@@ -152,7 +154,7 @@ struct BlendLibReader {
  * - Run-time Name: The name is provided as `const char *`.
  * - Compile-time Name: The name is provided at compile time. This is more efficient.
  * - Struct ID: Every DNA struct type has an integer ID that can be queried with
- *   #BLO_get_struct_id_by_name. Providing this ID can be a useful optimization when many
+ *   #BlendWriter::struct_id_by_name. Providing this ID can be a useful optimization when many
  *   structs of the same type are stored AND if those structs are not in a continuous array.
  *
  * Often only a single instance of a struct is written at once. However, sometimes it is necessary
@@ -169,11 +171,6 @@ struct BlendLibReader {
  * there are convenience functions that write and read arrays of simple types such as `int32`.
  * Those will correct endianness automatically.
  * \{ */
-
-/**
- * Mapping between names and ids.
- */
-int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name);
 
 /**
  * Specific code to prepare IDs to be written.
