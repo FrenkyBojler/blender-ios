@@ -95,6 +95,19 @@ enum {
   CU_TAPER_RADIUS_ADD = 2,
 };
 
+/** #Curve.fill_solver */
+enum {
+  CU_FILL_SOLVER_SCANFILL = 0,
+  CU_FILL_SOLVER_CDT = 1,
+};
+
+/** #Curve.fill_rule */
+enum {
+  CU_FILL_RULE_EVEN_ODD = 0,
+  CU_FILL_RULE_NONZERO_CW = 1,
+  CU_FILL_RULE_NONZERO_CCW = 2,
+};
+
 /* Curve.overflow. */
 enum {
   CU_OVERFLOW_NONE = 0,

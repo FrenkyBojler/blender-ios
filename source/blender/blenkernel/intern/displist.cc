@@ -15,8 +15,11 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
+#include "BLI_array.hh"
+#include "BLI_delaunay_2d.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
+#include "BLI_listbase_wrapper.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_memarena.h"
@@ -24,6 +27,7 @@
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_anim_path.h"
 #include "BKE_curve.hh"
@@ -249,10 +253,159 @@ static void curve_to_displist(const Curve *cu,
   }
 }
 
-void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
-                       ListBaseT<DispList> *to,
-                       const float normal_proj[3],
-                       const bool flip_normal)
+/**
+ * Helper structure to track polygon ranges in the combined vertex array.
+ */
+struct PolyRange {
+  /** Start index in combined vertex array. */
+  int start;
+  /** Number of vertices. */
+  int count;
+  /** Source #DispList. */
+  const DispList *dl;
+};
+
+/**
+ * Find which polygon a vertex index belongs to.
+ *
+ * \param poly_index_hint: Starting position for search, updated to the found index.
+ */
+static const PolyRange &find_poly_from_vert(const Vector<PolyRange> &poly_ranges,
+                                            int vert_index,
+                                            int &poly_index_hint)
+{
+  const int n = int(poly_ranges.size());
+
+  /* Check hint first. */
+  if (poly_index_hint < n && vert_index >= poly_ranges[poly_index_hint].start &&
+      vert_index < poly_ranges[poly_index_hint].start + poly_ranges[poly_index_hint].count)
+  {
+    return poly_ranges[poly_index_hint];
+  }
+
+  /* Uses exponential search from `poly_index_hint` position
+   * to speed up sequential/clustered access patterns
+   * (common when iterating CDT output vertices that tend to come from nearby input regions). */
+
+  int lo, hi;
+
+  if (poly_index_hint >= n || vert_index >= poly_ranges[poly_index_hint].start) {
+    /* Search forward with doubling. */
+    lo = poly_index_hint < n ? poly_index_hint : 0;
+    int step = 1;
+    while (lo + step < n && poly_ranges[lo + step].start <= vert_index) {
+      lo += step;
+      step *= 2;
+    }
+    hi = std::min(lo + step, n - 1);
+  }
+  else {
+    /* Search backward with doubling. */
+    hi = poly_index_hint;
+    int step = 1;
+    while (hi - step >= 0 && poly_ranges[hi - step].start > vert_index) {
+      hi -= step;
+      step *= 2;
+    }
+    lo = std::max(hi - step, 0);
+  }
+
+  /* Binary search in narrowed range. */
+  while (lo < hi) {
+    int mid = (lo + hi + 1) / 2;
+    if (poly_ranges[mid].start <= vert_index) {
+      lo = mid;
+    }
+    else {
+      hi = mid - 1;
+    }
+  }
+
+  BLI_assert(lo >= 0 && lo < n);
+  poly_index_hint = lo;
+  return poly_ranges[lo];
+}
+
+/**
+ * Compute Z coordinate for an intersection vertex by interpolating along
+ * the original edge it lies on.
+ */
+static float isect_vert_calc_z(int vert_index,
+                               int edge_index,
+                               const meshintersect::CDT_result<double> &result,
+                               const Vector<PolyRange> &poly_ranges,
+                               const Array<double2> &input_verts_2d,
+                               int total_input_verts)
+{
+  const double2 &vert_co = result.vert[vert_index];
+
+  /* Find a face edge in the original edge info. */
+  for (int orig_id : result.edge_orig[edge_index]) {
+    if (orig_id < result.face_edge_offset) {
+      /* Standalone edge - skip. */
+      continue;
+    }
+    /* Decode face index and edge position. */
+    int face_index, edge_in_face;
+    face_index = orig_id / result.face_edge_offset - 1;
+    edge_in_face = orig_id % result.face_edge_offset;
+
+    if (face_index < 0 || face_index >= int(poly_ranges.size())) {
+      continue;
+    }
+
+    const PolyRange &poly = poly_ranges[face_index];
+    if (edge_in_face >= poly.count) {
+      continue;
+    }
+
+    /* Get the two endpoints of the original edge. */
+    int v0_local = edge_in_face;
+    int v1_local = (edge_in_face + 1) % poly.count;
+
+    int v0_global = poly.start + v0_local;
+    int v1_global = poly.start + v1_local;
+
+    if (v0_global >= total_input_verts || v1_global >= total_input_verts) {
+      continue;
+    }
+
+    const double2 &p0 = input_verts_2d[v0_global];
+    const double2 &p1 = input_verts_2d[v1_global];
+
+    /* Project the intersection vertex onto this edge to find parameter t. */
+    double2 edge_vec = p1 - p0;
+    double edge_len_sq = math::length_squared(edge_vec);
+
+    double t;
+    if (edge_len_sq < 1e-16) {
+      t = 0.5;
+    }
+    else {
+      double2 to_point = vert_co - p0;
+      t = math::dot(to_point, edge_vec) / edge_len_sq;
+      t = math::clamp(t, 0.0, 1.0);
+    }
+
+    /* Get the Z coordinates of the original edge endpoints. */
+    float z0 = poly.dl->verts[3 * v0_local + 2];
+    float z1 = poly.dl->verts[3 * v1_local + 2];
+
+    /* Interpolate Z. */
+    return z0 + float(t) * (z1 - z0);
+  }
+
+  /* Fallback: return 0 if no edge found. */
+  return 0.0f;
+}
+
+/**
+ * Scanfill-based triangulation (original algorithm).
+ */
+static void displist_fill_scanfill(const ListBaseT<DispList> *dispbase,
+                                   ListBaseT<DispList> *to,
+                                   const float normal_proj[3],
+                                   const bool flip_normal)
 {
   if (dispbase == nullptr) {
     return;
@@ -369,6 +522,203 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
   /* do not free polys, needed for wireframe display */
 }
 
+/**
+ * CDT-based triangulation.
+ */
+static void displist_fill_cdt(const ListBaseT<DispList> *dispbase,
+                              ListBaseT<DispList> *to,
+                              const bool flip_normal,
+                              const CDT_output_type cdt_output_type)
+{
+  if (dispbase == nullptr) {
+    return;
+  }
+  if (BLI_listbase_is_empty(dispbase)) {
+    return;
+  }
+
+  short colnr = 0;
+  int charidx = 0;
+  bool should_continue = true;
+
+  while (should_continue) {
+    should_continue = false;
+    bool nextcol = false;
+
+    /* Collect polygons for this (charidx, colnr) group. */
+    Vector<PolyRange> poly_ranges;
+    int total_verts = 0;
+    short dl_flag_accum = 0;
+    short dl_rt_accum = 0;
+
+    for (const DispList &dl : *dispbase) {
+      if (dl.type == DL_POLY) {
+        if (charidx < dl.charidx) {
+          should_continue = true;
+        }
+        else if (charidx == dl.charidx) { /* character with needed index */
+          if (colnr == dl.col) {
+            poly_ranges.append({total_verts, dl.nr, &dl});
+            total_verts += dl.nr;
+          }
+          else if (colnr < dl.col) {
+            /* got poly with next material at current char */
+            should_continue = true;
+            nextcol = true;
+          }
+        }
+        dl_flag_accum |= dl.flag;
+        dl_rt_accum |= dl.rt;
+      }
+    }
+
+    if (total_verts == 0 || poly_ranges.is_empty()) {
+      if (nextcol) {
+        colnr++;
+      }
+      else {
+        charidx++;
+        colnr = 0;
+      }
+      continue;
+    }
+
+    /* Build CDT input. */
+    Array<double2> verts_2d(total_verts);
+    Array<Vector<int>> faces(poly_ranges.size());
+
+    for (int64_t p = 0; p < int64_t(poly_ranges.size()); p++) {
+      const PolyRange &poly = poly_ranges[p];
+      faces[p].reinitialize(poly.count);
+      for (int i = 0; i < poly.count; i++) {
+        const float *v = &poly.dl->verts[3 * i];
+        verts_2d[poly.start + i] = double2(v[0], v[1]);
+        faces[p][i] = poly.start + i;
+      }
+    }
+
+    meshintersect::CDT_input<double> input;
+    input.vert = std::move(verts_2d);
+    input.face = std::move(faces);
+    input.epsilon = 1e-8;
+    input.need_ids = true;
+
+    meshintersect::CDT_result<double> result = meshintersect::delaunay_2d_calc(input,
+                                                                               cdt_output_type);
+
+    if (result.face.is_empty()) {
+      if (nextcol) {
+        colnr++;
+      }
+      else {
+        charidx++;
+        colnr = 0;
+      }
+      continue;
+    }
+
+    /* Build output DispList. */
+    const int out_verts = int(result.vert.size());
+    const int out_tris = int(result.face.size());
+
+    DispList *dlnew = MEM_callocN<DispList>(__func__);
+    dlnew->type = DL_INDEX3;
+    dlnew->flag = (dl_flag_accum & (DL_BACK_CURVE | DL_FRONT_CURVE));
+    dlnew->rt = (dl_rt_accum & CU_SMOOTH);
+    dlnew->col = colnr;
+    dlnew->nr = out_verts;
+    dlnew->parts = out_tris;
+    dlnew->verts = MEM_malloc_arrayN<float>(3 * size_t(out_verts), __func__);
+    dlnew->index = MEM_malloc_arrayN<int>(3 * size_t(out_tris), __func__);
+
+    /* Build map from intersection vertex to an edge with original edge info. */
+    Array<int> isect_vert_to_edge(out_verts, -1);
+    for (int64_t e = 0; e < result.edge.size(); e++) {
+      if (result.edge_orig[e].is_empty()) {
+        continue;
+      }
+      int v0 = result.edge[e].first;
+      int v1 = result.edge[e].second;
+      if (result.vert_orig[v0].is_empty()) {
+        isect_vert_to_edge[v0] = int(e);
+      }
+      if (result.vert_orig[v1].is_empty()) {
+        isect_vert_to_edge[v1] = int(e);
+      }
+    }
+
+    /* Map output vertices to 3D. */
+    int poly_index_hint = 0;
+    for (int i = 0; i < out_verts; i++) {
+      float *out = &dlnew->verts[3 * i];
+      if (!result.vert_orig[i].is_empty()) {
+        /* Original vertex - copy from input. */
+        int orig_index = result.vert_orig[i][0];
+        const PolyRange &poly = find_poly_from_vert(poly_ranges, orig_index, poly_index_hint);
+        int local_index = orig_index - poly.start;
+        copy_v3_v3(out, &poly.dl->verts[3 * local_index]);
+      }
+      else {
+        /* Intersection vertex - interpolate Z. */
+        out[0] = float(result.vert[i].x);
+        out[1] = float(result.vert[i].y);
+        out[2] = isect_vert_calc_z(
+            i, isect_vert_to_edge[i], result, poly_ranges, input.vert, total_verts);
+      }
+    }
+
+    /* Build triangle indices. */
+    int *index = dlnew->index;
+    for (const Vector<int> &face : result.face) {
+      BLI_assert(face.size() == 3);
+      index[0] = face[0];
+      index[1] = flip_normal ? face[2] : face[1];
+      index[2] = flip_normal ? face[1] : face[2];
+      index += 3;
+    }
+
+    BLI_addhead(to, dlnew);
+
+    if (nextcol) {
+      /* stay at current char but fill polys with next material */
+      colnr++;
+    }
+    else {
+      /* switch to next char and start filling from first material */
+      charidx++;
+      colnr = 0;
+    }
+  }
+}
+
+void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
+                       ListBaseT<DispList> *to,
+                       const float normal_proj[3],
+                       const bool flip_normal,
+                       const int fill_solver,
+                       const int fill_rule)
+{
+  if (fill_solver == CU_FILL_SOLVER_CDT) {
+    CDT_output_type output_type;
+    switch (fill_rule) {
+      case CU_FILL_RULE_NONZERO_CW:
+        output_type = CDT_INSIDE_WITH_HOLES_NONZERO_CW;
+        break;
+      case CU_FILL_RULE_NONZERO_CCW:
+        output_type = CDT_INSIDE_WITH_HOLES_NONZERO_CCW;
+        break;
+      case CU_FILL_RULE_EVEN_ODD:
+      default:
+        output_type = CDT_INSIDE_WITH_HOLES;
+        break;
+    }
+    displist_fill_cdt(dispbase, to, flip_normal, output_type);
+  }
+  else {
+    displist_fill_scanfill(dispbase, to, normal_proj, flip_normal);
+  }
+}
+
 static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
 {
   ListBaseT<DispList> front = {nullptr, nullptr};
@@ -420,13 +770,13 @@ static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
   }
 
   const float z_up[3] = {0.0f, 0.0f, -1.0f};
-  BKE_displist_fill(&front, dispbase, z_up, true);
-  BKE_displist_fill(&back, dispbase, z_up, false);
+  BKE_displist_fill(&front, dispbase, z_up, true, cu->fill_solver, cu->fill_rule);
+  BKE_displist_fill(&back, dispbase, z_up, false, cu->fill_solver, cu->fill_rule);
 
   BKE_displist_free(&front);
   BKE_displist_free(&back);
 
-  BKE_displist_fill(dispbase, dispbase, z_up, false);
+  BKE_displist_fill(dispbase, dispbase, z_up, false, cu->fill_solver, cu->fill_rule);
 }
 
 static void curve_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
@@ -440,7 +790,7 @@ static void curve_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
   }
   else {
     const float z_up[3] = {0.0f, 0.0f, -1.0f};
-    BKE_displist_fill(dispbase, dispbase, z_up, false);
+    BKE_displist_fill(dispbase, dispbase, z_up, false, cu->fill_solver, cu->fill_rule);
   }
 }
 
@@ -1301,11 +1651,13 @@ static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
         }
 
         if (bottom_capbase.first) {
-          BKE_displist_fill(&bottom_capbase, r_dispbase, bottom_no, false);
+          BKE_displist_fill(
+              &bottom_capbase, r_dispbase, bottom_no, false, cu->fill_solver, cu->fill_rule);
           BKE_displist_free(&bottom_capbase);
         }
         if (top_capbase.first) {
-          BKE_displist_fill(&top_capbase, r_dispbase, top_no, false);
+          BKE_displist_fill(
+              &top_capbase, r_dispbase, top_no, false, cu->fill_solver, cu->fill_rule);
           BKE_displist_free(&top_capbase);
         }
       }

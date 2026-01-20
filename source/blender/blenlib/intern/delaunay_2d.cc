@@ -2471,15 +2471,28 @@ template<typename T> void remove_faces_in_holes(CDT_state<T> *cdt_state)
 
 /**
  * Set the hole member of each CDTFace to true for each face that is detected to be part of a
- * hole. A hole face is define as one for which, when a ray is shot from a point inside the face
- * to infinity, it crosses an even number of constraint edges. We'll choose a ray direction that
- * is extremely unlikely to exactly superimpose some edge, so avoiding the need to be careful
- * about such overlaps.
+ * hole. We'll choose a ray direction that is extremely unlikely to exactly superimpose some edge,
+ * so avoiding the need to be careful about such overlaps.
+ *
+ * For even-odd rule: A hole face is one for which, when a ray is shot from a point inside the
+ * face to infinity, it crosses an even number of constraint edges.
+ *
+ * For non-zero winding rule: A hole face is one for which, when a ray is shot from a point inside
+ * the face to infinity, the signed sum of edge crossings is zero (edges crossed left-to-right
+ * count +1, edges crossed right-to-left count -1).
  *
  * To improve performance, we gather together faces that should have the same winding number, and
  * only shoot rays once.
+ *
+ * \param input: The original CDT input, used to determine edge directions for winding calculation.
+ * \param use_nonzero_rule: If true, use non-zero winding rule; otherwise use even-odd rule.
+ * \param flip_winding: If true (and use_nonzero_rule is true), flip the winding direction.
  */
-template<typename T> void detect_holes(CDT_state<T> *cdt_state)
+template<typename T>
+void detect_holes(CDT_state<T> *cdt_state,
+                  const CDT_input<T> &input,
+                  bool use_nonzero_rule,
+                  bool flip_winding)
 {
   CDTArrangement<T> *cdt = &cdt_state->cdt;
 
@@ -2535,7 +2548,10 @@ template<typename T> void detect_holes(CDT_state<T> *cdt_state)
     mid.exact[1] = (f->symedge->vert->co.exact[1] + f->symedge->next->vert->co.exact[1] +
                     f->symedge->next->next->vert->co.exact[1]) /
                    3;
-    std::atomic<int> hits = 0;
+    /* Counts edge crossings from face centroid to infinity:
+     * - Even-odd rule: counts crossings, hole if (crossings % 2) == 0.
+     * - Non-zero rule: accumulates signed winding contributions, hole if crossings == 0. */
+    std::atomic<int> crossings = 0;
     /* TODO: Use CDT data structure here to greatly reduce search for intersections! */
     threading::parallel_for(cdt->edges.index_range(), 256, [&](IndexRange range) {
       for (const int i : range) {
@@ -2550,7 +2566,100 @@ template<typename T> void detect_holes(CDT_state<T> *cdt_state)
                                      e->symedges[1].vert->co.exact);
           switch (isect.kind) {
             case isect_result<VecBase<T, 2>>::LINE_LINE_CROSS: {
-              hits++;
+              if (use_nonzero_rule) {
+                /* For non-zero winding, we need to determine the edge direction from
+                 * the original input face specification, not from symedge ordering
+                 * (which can be arbitrary when edges are reused).
+                 *
+                 * Find a face input_id for this edge and use the input face to determine
+                 * which direction the edge should be traversed.
+                 */
+                int delta = 0;
+                int face_edge_offset = cdt_state->face_edge_offset;
+
+                /* Find a face input_id (id >= face_edge_offset indicates face edge). */
+                int face_input_id = -1;
+                for (int id : e->input_ids) {
+                  if (id >= face_edge_offset) {
+                    face_input_id = id;
+                    break;
+                  }
+                }
+
+                if (face_input_id >= 0) {
+                  /* Decode the face input_id to get face index and edge position. */
+                  const int face_index = face_input_id / face_edge_offset - 1;
+                  const int edge_index = face_input_id % face_edge_offset;
+
+                  if (face_index >= 0 && face_index < input.face.size()) {
+                    const Vector<int> &face = input.face[face_index];
+                    if (edge_index < face.size()) {
+                      /* The face edge goes from face[edge_index] to face[(edge_index+1) % n].
+                       * Get the input vertex indices. */
+                      int iv_start = face[edge_index];
+                      int iv_end = face[(edge_index + 1) % face.size()];
+
+                      /* Get input coordinates for start and end vertices.
+                       * Note: We use input coordinates, not CDT vertices, because vertices
+                       * may have been merged during CDT processing. */
+                      if (iv_start >= 0 && iv_start < input.vert.size() && iv_end >= 0 &&
+                          iv_end < input.vert.size())
+                      {
+                        VecBase<T, 2> edge_start = input.vert[iv_start];
+                        VecBase<T, 2> edge_end = input.vert[iv_end];
+
+                        /* Compute which side of the ray each endpoint is on.
+                         * Cross(v - mid, ray_dir) > 0 means v is to the RIGHT of ray_dir
+                         * (i.e., below the ray for a rightward ray). */
+                        VecBase<T, 2> ray_dir = ray_end.exact - mid.exact;
+                        VecBase<T, 2> v_start = edge_start - mid.exact;
+                        VecBase<T, 2> v_end = edge_end - mid.exact;
+                        T side_start = v_start[0] * ray_dir[1] - v_start[1] * ray_dir[0];
+                        T side_end = v_end[0] * ray_dir[1] - v_end[1] * ray_dir[0];
+
+                        /* Determine winding contribution based on edge direction:
+                         * - Edge goes from start to end (as per input face winding)
+                         * - If start is below ray and end is above: upward crossing → +1
+                         * - If start is above ray and end is below: downward crossing → -1
+                         */
+                        if (side_start > 0 && side_end < 0) {
+                          /* Edge starts below, ends above: upward crossing. */
+                          delta = 1;
+                        }
+                        else if (side_start < 0 && side_end > 0) {
+                          /* Edge starts above, ends below: downward crossing. */
+                          delta = -1;
+                        }
+                      }
+                    }
+                  }
+                }
+                else {
+                  /* No face input_id found. This edge is a standalone constraint edge,
+                   * not part of a face boundary. For standalone edges, fall back to
+                   * symedge ordering (though this should be rare in practice). */
+                  VecBase<T, 2> ray_dir = ray_end.exact - mid.exact;
+                  VecBase<T, 2> v0 = e->symedges[0].vert->co.exact - mid.exact;
+                  VecBase<T, 2> v1 = e->symedges[1].vert->co.exact - mid.exact;
+                  T side0 = v0[0] * ray_dir[1] - v0[1] * ray_dir[0];
+                  T side1 = v1[0] * ray_dir[1] - v1[1] * ray_dir[0];
+                  if (side0 > 0 && side1 < 0) {
+                    delta = 1;
+                  }
+                  else if (side0 < 0 && side1 > 0) {
+                    delta = -1;
+                  }
+                }
+
+                if (flip_winding) {
+                  delta = -delta;
+                }
+                crossings += delta;
+              }
+              else {
+                /* Even-odd rule: just count crossings. */
+                crossings++;
+              }
               break;
             }
             case isect_result<VecBase<T, 2>>::LINE_LINE_EXACT:
@@ -2561,7 +2670,14 @@ template<typename T> void detect_holes(CDT_state<T> *cdt_state)
         }
       }
     });
-    f->hole = (hits.load() % 2) == 0;
+    if (use_nonzero_rule) {
+      /* Non-zero rule: hole if winding number is zero (union behavior). */
+      f->hole = (crossings.load() == 0);
+    }
+    else {
+      /* Even-odd rule: hole if even number of crossings. */
+      f->hole = (crossings.load() % 2) == 0;
+    }
   }
 
   /* Finally, propagate hole status to all holes of a region. */
@@ -2583,7 +2699,9 @@ template<typename T> void detect_holes(CDT_state<T> *cdt_state)
  * \note the cdt cannot be further changed after this.
  */
 template<typename T>
-void prepare_cdt_for_output(CDT_state<T> *cdt_state, const CDT_output_type output_type)
+void prepare_cdt_for_output(CDT_state<T> *cdt_state,
+                            const CDT_input<T> &input,
+                            const CDT_output_type output_type)
 {
   CDTArrangement<T> *cdt = &cdt_state->cdt;
   if (cdt->edges.is_empty()) {
@@ -2602,11 +2720,24 @@ void prepare_cdt_for_output(CDT_state<T> *cdt_state, const CDT_output_type outpu
     }
   }
 
-  bool need_holes = output_type == CDT_INSIDE_WITH_HOLES ||
-                    output_type == CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES;
+  /* Determine if hole detection is needed and which winding rule to use. */
+  bool need_holes_evenodd = ELEM(
+      output_type, CDT_INSIDE_WITH_HOLES, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
+  bool need_holes_nonzero_ccw = ELEM(output_type,
+                                     CDT_INSIDE_WITH_HOLES_NONZERO_CCW,
+                                     CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CCW);
+  bool need_holes_nonzero_cw = ELEM(output_type,
+                                    CDT_INSIDE_WITH_HOLES_NONZERO_CW,
+                                    CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CW);
 
-  if (need_holes) {
-    detect_holes(cdt_state);
+  if (need_holes_evenodd) {
+    detect_holes(cdt_state, input, false, false);
+  }
+  else if (need_holes_nonzero_ccw) {
+    detect_holes(cdt_state, input, true, false);
+  }
+  else if (need_holes_nonzero_cw) {
+    detect_holes(cdt_state, input, true, true);
   }
 
   if (output_type == CDT_CONSTRAINTS) {
@@ -2618,11 +2749,19 @@ void prepare_cdt_for_output(CDT_state<T> *cdt_state, const CDT_output_type outpu
   else if (output_type == CDT_INSIDE) {
     remove_outer_edges_until_constraints(cdt_state);
   }
-  else if (output_type == CDT_INSIDE_WITH_HOLES) {
+  else if (ELEM(output_type,
+                CDT_INSIDE_WITH_HOLES,
+                CDT_INSIDE_WITH_HOLES_NONZERO_CW,
+                CDT_INSIDE_WITH_HOLES_NONZERO_CCW))
+  {
     remove_outer_edges_until_constraints(cdt_state);
     remove_faces_in_holes(cdt_state);
   }
-  else if (output_type == CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES) {
+  else if (ELEM(output_type,
+                CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES,
+                CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CW,
+                CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CCW))
+  {
     remove_outer_edges_until_constraints(cdt_state);
     remove_non_constraint_edges_leave_valid_bmesh(cdt_state);
     remove_faces_in_holes(cdt_state);
@@ -2631,11 +2770,11 @@ void prepare_cdt_for_output(CDT_state<T> *cdt_state, const CDT_output_type outpu
 
 template<typename T>
 CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state,
-                             const CDT_input<T> /*input*/,
+                             const CDT_input<T> &input,
                              CDT_output_type output_type)
 {
   CDT_output_type oty = output_type;
-  prepare_cdt_for_output(cdt_state, oty);
+  prepare_cdt_for_output(cdt_state, input, oty);
   CDT_result<T> result;
   CDTArrangement<T> *cdt = &cdt_state->cdt;
   result.face_edge_offset = cdt_state->face_edge_offset;

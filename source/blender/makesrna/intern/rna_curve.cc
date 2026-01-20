@@ -137,6 +137,27 @@ static const EnumPropertyItem curve3d_fill_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem fill_solver_items[] = {
+    {CU_FILL_SOLVER_SCANFILL, "SCANFILL", 0, "Scanfill", "Classic scanfill triangulation"},
+    {CU_FILL_SOLVER_CDT, "CDT", 0, "Delaunay", "Constrained Delaunay Triangulation"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem fill_rule_items[] = {
+    {CU_FILL_RULE_EVEN_ODD, "EVEN_ODD", 0, "Even-Odd", "Even-odd fill rule"},
+    {CU_FILL_RULE_NONZERO_CW,
+     "NONZERO_CW",
+     0,
+     "Non-Zero CW",
+     "Non-zero fill rule (CW outer contours, FreeType convention)"},
+    {CU_FILL_RULE_NONZERO_CCW,
+     "NONZERO_CCW",
+     0,
+     "Non-Zero CCW",
+     "Non-zero fill rule (CCW outer contours, SVG convention)"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #ifdef RNA_RUNTIME
 static const EnumPropertyItem curve2d_fill_mode_items[] = {
     {0, "NONE", 0, "None", ""},
@@ -1824,6 +1845,18 @@ static void rna_def_curve(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, curve3d_fill_mode_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Curve_fill_mode_itemf");
   RNA_def_property_ui_text(prop, "Fill Mode", "Mode of filling curve");
+  RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+
+  prop = RNA_def_property(srna, "fill_solver", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "fill_solver");
+  RNA_def_property_enum_items(prop, fill_solver_items);
+  RNA_def_property_ui_text(prop, "Fill Solver", "Triangulation solver for filling 2D curves");
+  RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+
+  prop = RNA_def_property(srna, "fill_rule", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "fill_rule");
+  RNA_def_property_enum_items(prop, fill_rule_items);
+  RNA_def_property_ui_text(prop, "Fill Rule", "Fill rule for Delaunay fill solver");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "twist_mode", PROP_ENUM, PROP_NONE);

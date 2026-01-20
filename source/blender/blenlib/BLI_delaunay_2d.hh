@@ -58,19 +58,68 @@ enum CDT_output_type {
   CDT_FULL,
   /** All triangles fully enclosed by constraint edges or faces. */
   CDT_INSIDE,
-  /** Like previous, but detect holes and omit those from output. */
+  /**
+   * Like #CDT_INSIDE, but detect holes and omit those from output.
+   *
+   * Uses the "even-odd rule": a point is inside if a ray from that point crosses
+   * an odd number of boundary edges. This creates alternating filled/unfilled regions
+   * for nested or overlapping curves. Overlapping regions with the same winding
+   * direction will cancel out and become holes.
+   */
   CDT_INSIDE_WITH_HOLES,
+  /**
+   * Like #CDT_INSIDE_WITH_HOLES, but uses the **non-zero winding rule**.
+   *
+   * A point is inside if the winding number (sum of signed edge crossings) is non-zero.
+   * This creates "union" behavior: overlapping curves with the same winding direction
+   * merge together instead of creating holes.
+   *
+   * - CCW variant: Expects outer contours to be counter-clockwise and holes to be
+   *   clockwise. This matches SVG convention and most vector graphics software.
+   *
+   * - Practical note on CCW vs CW:
+   *   For simple shapes with holes (like the letter "O"),
+   *   both CCW and CW produce identical results because hole detection only checks if
+   *   the winding number equals zero. The difference matters when:
+   *   - Combining curves from sources with different winding conventions.
+   *   - Working with software that expects a specific convention.
+   *   - Results appear inverted (try the other variant).
+   */
+  CDT_INSIDE_WITH_HOLES_NONZERO_CCW,
+  /**
+   * Like #CDT_INSIDE_WITH_HOLES_NONZERO_CCW, but expects the opposite winding convention.
+   *
+   * - CW variant:
+   *   Expects outer contours to be clockwise and holes to be
+   *   counter-clockwise. This is the convention used by FreeType fonts.
+   *
+   * See #CDT_INSIDE_WITH_HOLES_NONZERO_CCW for detailed explanation of the non-zero
+   * winding rule and when CCW vs CW choice matters.
+   */
+  CDT_INSIDE_WITH_HOLES_NONZERO_CW,
   /** Only point, edge, and face constraints, and their intersections. */
   CDT_CONSTRAINTS,
   /**
-   * Like CDT_CONSTRAINTS, but keep enough
-   * edges so that any output faces that came from input faces can be made as valid
-   * #BMesh faces in Blender: that is,
+   * Like #CDT_CONSTRAINTS, but keep enough edges so that any output faces that came
+   * from input faces can be made as valid #BMesh faces in Blender: that is,
    * no vertex appears more than once and no isolated holes in faces.
    */
   CDT_CONSTRAINTS_VALID_BMESH,
-  /** Like previous, but detect holes and omit those from output. */
+  /**
+   * Like #CDT_CONSTRAINTS_VALID_BMESH, but detect holes using the even-odd rule.
+   * See #CDT_INSIDE_WITH_HOLES for explanation of the even-odd rule.
+   */
   CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES,
+  /**
+   * Like #CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES, but uses non-zero winding rule (CCW).
+   * See #CDT_INSIDE_WITH_HOLES_NONZERO_CCW for explanation.
+   */
+  CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CCW,
+  /**
+   * Like #CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES, but uses non-zero winding rule (CW).
+   * See #CDT_INSIDE_WITH_HOLES_NONZERO_CW for explanation.
+   */
+  CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CW,
 };
 
 namespace meshintersect {
