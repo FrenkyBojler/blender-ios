@@ -10,6 +10,8 @@
 
 #include <cstring>
 
+#include "AS_remote_library.hh"
+
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -187,6 +189,14 @@ bUserAssetLibrary *BKE_preferences_remote_asset_library_add(UserDef *userdef,
   }
 
   return library;
+}
+
+std::string bUserAssetLibrary::storage_directory_path() const
+{
+  if (flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+    return asset_system::remote_library_cache_path(*this);
+  }
+  return dirpath;
 }
 
 /** \} */

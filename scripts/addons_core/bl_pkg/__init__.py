@@ -458,7 +458,6 @@ def remote_asset_libraries_sync(
     if only_if_older_than_sec and listing_downloader.is_more_recent_than(library, only_if_older_than_sec):
         return
 
-
     # Only actually start downloading if no other Blender is already syncing
     # this asset library.
     from pathlib import Path

@@ -23,7 +23,6 @@
 #endif
 
 #include "AS_asset_representation.hh"
-#include "AS_remote_library.hh"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -450,7 +449,7 @@ static void fileselect_refresh_asset_params(FileAssetSelectParams *asset_params)
       break;
     case ASSET_LIBRARY_CUSTOM:
       BLI_assert(user_library);
-      STRNCPY(base_params->dir, asset_system::remote_library_cache_path(*user_library).c_str());
+      STRNCPY(base_params->dir, user_library->storage_directory_path().c_str());
       BLI_path_slash_native(base_params->dir);
       base_params->type = (user_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) ?
                               FILE_ASSET_LIBRARY_REMOTE :

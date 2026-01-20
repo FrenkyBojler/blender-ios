@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "BLI_math_constants.h"
 
 #include "DNA_ID.h"
@@ -616,8 +618,11 @@ struct bUserAssetLibrary {
   struct bUserAssetLibrary *next = nullptr, *prev = nullptr;
 
   char name[/*MAX_NAME*/ 64] = "";
-  /** The path on disk for this asset library. For remote libraries, use
-   * #asset_system::remote_library_cache_path(). */
+  /**
+   * The path on disk for this asset library. For remote libraries, this is an empty string.
+   * Don't access this directly, use #storage_directory_path(), which also returns the cache
+   * directory path in the case of remote libraries.
+   */
   char dirpath[/*FILE_MAX*/ 1024] = "";
   /** Only for remote asset libraries (#ASSET_LIBRARY_USE_REMOTE_URL is set). */
   char remote_url[/*FILE_MAX*/ 1024];
@@ -625,6 +630,17 @@ struct bUserAssetLibrary {
   short import_method = ASSET_IMPORT_PACK;  /* eAssetImportMethod */
   short flag = ASSET_LIBRARY_RELATIVE_PATH; /* eAssetLibrary_Flag */
   char _pad0[4] = {};
+
+#ifdef __cplusplus
+  /**
+   * The path at which the asset library storage is found at.
+   *
+   * While on-disk libraries have this stored in #dirpath above, the cache directory path for
+   * remote libraries is determined dynamically. Use this function to get the path to actually
+   * access directories or files on disk.
+   */
+  [[nodiscard]] std::string storage_directory_path() const;
+#endif
 };
 
 enum eUserExtensionRepo_Flag {

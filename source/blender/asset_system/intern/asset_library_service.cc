@@ -20,7 +20,6 @@
 
 #include "AS_asset_library.hh"
 #include "AS_essentials_library.hh"
-#include "AS_remote_library.hh"
 #include "all_library.hh"
 #include "asset_catalog_collection.hh"
 #include "asset_catalog_definition_file.hh"  // IWYU pragma: keep
@@ -141,7 +140,7 @@ AssetLibrary *AssetLibraryService::get_remote_asset_library(
     return lib;
   }
 
-  std::string cache_path = remote_library_cache_path(*custom_library);
+  std::string cache_path = custom_library->storage_directory_path();
   std::unique_ptr<RemoteAssetLibrary> lib_uptr = std::make_unique<RemoteAssetLibrary>(
       remote_url,
       custom_library->name,
@@ -393,13 +392,7 @@ std::string AssetLibraryService::resolve_asset_weak_reference_to_library_path(
       bUserAssetLibrary *custom_lib = find_custom_preferences_asset_library_from_asset_weak_ref(
           asset_reference);
       if (custom_lib) {
-        if (custom_lib->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
-          library_dirpath_buffer = remote_library_cache_path(*custom_lib);
-          library_dirpath = library_dirpath_buffer;
-        }
-        else {
-          library_dirpath = custom_lib->dirpath;
-        }
+        library_dirpath_buffer = custom_lib->storage_directory_path();
         break;
       }
 
@@ -589,10 +582,7 @@ std::string AssetLibraryService::root_path_from_library_ref(
     return "";
   }
 
-  if (custom_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
-    return remote_library_cache_path(*custom_library);
-  }
-  return custom_library->dirpath;
+  return custom_library->storage_directory_path();
 }
 
 void AssetLibraryService::allocate_service_instance()
