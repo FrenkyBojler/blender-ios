@@ -13,6 +13,9 @@
 #include "token.hh"
 #include "token_stream.hh"
 
+#include "lexit/lexit.hh"
+#include "lexit/tables.hh"
+
 #include <algorithm>
 #include <array>
 #include <stack>
@@ -131,150 +134,46 @@ void LexerBase::ensure_memory()
   update_string_view();
 }
 
-static always_inline TokenType to_type(const char c)
-{
-  switch (c) {
-    case '\n':
-      return TokenType::NewLine;
-    case ' ':
-      return TokenType::Space;
-    case '#':
-      return TokenType::Hash;
-    case '&':
-      return TokenType::Ampersand;
-    case '^':
-      return TokenType::Caret;
-    case '|':
-      return TokenType::Pipe;
-    case '%':
-      return TokenType::Percent;
-    case '.':
-      return TokenType::Dot;
-    case '(':
-      return TokenType::ParOpen;
-    case ')':
-      return TokenType::ParClose;
-    case '{':
-      return TokenType::BracketOpen;
-    case '}':
-      return TokenType::BracketClose;
-    case '[':
-      return TokenType::SquareOpen;
-    case ']':
-      return TokenType::SquareClose;
-    case '<':
-      return TokenType::AngleOpen;
-    case '>':
-      return TokenType::AngleClose;
-    case '=':
-      return TokenType::Assign;
-    case '!':
-      return TokenType::Not;
-    case '*':
-      return TokenType::Star;
-    case '-':
-      return TokenType::Minus;
-    case '+':
-      return TokenType::Plus;
-    case '/':
-      return TokenType::Divide;
-    case '~':
-      return TokenType::Tilde;
-    case '\\':
-      return TokenType::Backslash;
-    case '\"':
-      return TokenType::String;
-    case '?':
-      return TokenType::Question;
-    case ':':
-      return TokenType::Colon;
-    case ',':
-      return TokenType::Comma;
-    case ';':
-      return TokenType::SemiColon;
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-      return TokenType::Number;
-    default:
-      return TokenType::Word;
-  }
-}
-
-static always_inline bool always_split_token(const TokenType c, bool is_preprocessor = false)
-{
-  switch (c) {
-    case TokenType::Dot: /* For variadic macros. */
-    case TokenType::Number:
-    case TokenType::Word:
-    case TokenType::Space:
-      return false;
-    case TokenType::NewLine:
-      /* Split new lines for the preprocessor so that we know when to end a directive. */
-      return is_preprocessor;
-    default:
-      return true;
-  }
-}
-
-static const std::array<std::pair<TokenType, bool>, 256> token_table_full = [] {
-  std::array<std::pair<TokenType, bool>, 256> t;
-  for (int i = 0; i < 256; ++i) {
-    TokenType type = to_type(i);
-    t[i] = {type, always_split_token(type)};
-  }
-  return t;
+static const std::array<TokenType, 128> token_table_default = [] {
+  std::array<TokenType, 128> table;
+  memcpy(table.data(), lexit::token_table, sizeof(lexit::token_table));
+  /* TODO(fclem): Replace String by Quote. */
+  table['"'] = TokenType(String);
+  return table;
 }();
 
-/* Same thing but consider numbers as words to avoid second merging pass. */
-static const std::array<std::pair<TokenType, bool>, 256> token_table_preprocessor = [] {
-  std::array<std::pair<TokenType, bool>, 256> t;
-  for (int i = 0; i < 256; ++i) {
-    TokenType type = to_type(i);
-    if (type == Number) {
-      type = Word;
-    }
-    t[i] = {type, always_split_token(type, true)};
-  }
-  return t;
+/* Same thing as default table but consider numbers as words to avoid second merging pass. */
+static const std::array<TokenType, 128> token_table_preprocessor = [] {
+  std::array<TokenType, 128> table;
+  memcpy(table.data(), lexit::token_table, sizeof(lexit::token_table));
+
+  table['0'] = TokenType(Word | Merge);
+  table['1'] = TokenType(Word | Merge);
+  table['2'] = TokenType(Word | Merge);
+  table['3'] = TokenType(Word | Merge);
+  table['4'] = TokenType(Word | Merge);
+  table['5'] = TokenType(Word | Merge);
+  table['6'] = TokenType(Word | Merge);
+  table['7'] = TokenType(Word | Merge);
+  table['8'] = TokenType(Word | Merge);
+  table['9'] = TokenType(Word | Merge);
+  table['"'] = TokenType(String);
+  return table;
 }();
 
 void LexerBase::tokenize(bool only_preprocessor_tokens)
 {
-  TokenType type = TokenType::Invalid;
+  const std::array<TokenType, 128> &token_table = only_preprocessor_tokens ?
+                                                      token_table_preprocessor :
+                                                      token_table_default;
 
-  const std::array<std::pair<TokenType, bool>, 256> &token_table = only_preprocessor_tokens ?
-                                                                       token_table_preprocessor :
-                                                                       token_table_full;
+  lexit::TokenBuffer tok_buf(str.data(), str.size(), token_types.data(), token_offsets.data());
+  tok_buf.tokenize(token_table.data());
 
-  TokenType *types_raw = token_types.data();
-  uint32_t *offsets_raw = token_offsets.data();
-
-  int offset = 0, cursor = 0;
-  for (const char c : str) {
-    const TokenType prev = type;
-    auto [tok_type, always_split] = token_table[c];
-    type = tok_type;
-    /* Its faster to overwrite the previous value with the same value
-     * than having a condition. */
-    types_raw[cursor] = type;
-    offsets_raw[cursor] = offset++;
-    /* Split if type mismatch. */
-    cursor += (type != prev || always_split);
-  }
-  /* Set end of last token. */
-  offsets_raw[cursor] = offset++;
   /* Resize to the actual usage. */
-  token_types.shrink(cursor);
-  token_sizes.shrink(cursor);
-  token_offsets.offsets.shrink(cursor + 1);
+  token_types.shrink(tok_buf.size());
+  token_sizes.shrink(tok_buf.size());
+  token_offsets.offsets.shrink(tok_buf.size() + 1);
 
   update_string_view();
 }
