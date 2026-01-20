@@ -53,14 +53,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryDuplicateElements *data = MEM_callocN<NodeGeometryDuplicateElements>(__func__);
+  NodeGeometryDuplicateElements *data = MEM_new_for_free<NodeGeometryDuplicateElements>(__func__);
   data->domain = int8_t(AttrDomain::Point);
   node->storage = data;
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 struct IndexAttributes {
@@ -251,7 +251,8 @@ static void copy_stable_id_curves(const bke::CurvesGeometry &src_curves,
       GrainSize(512), [&](const int64_t i_src_curve, const int64_t i_selection) {
         const Span<int> curve_src = src.slice(src_points_by_curve[i_src_curve]);
         const IndexRange duplicates_range = offsets[i_selection];
-        for (const int i_duplicate : IndexRange(offsets[i_selection].size()).drop_front(1)) {
+        dst.slice(dst_points_by_curve[duplicates_range.first()]).copy_from(curve_src);
+        for (const int i_duplicate : duplicates_range.index_range().drop_front(1)) {
           const int i_dst_curve = duplicates_range[i_duplicate];
           copy_hashed_ids(curve_src, i_duplicate, dst.slice(dst_points_by_curve[i_dst_curve]));
         }
@@ -1278,22 +1279,22 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeDuplicateElements", GEO_NODE_DUPLICATE_ELEMENTS);
   ntype.ui_name = "Duplicate Elements";
   ntype.ui_description = "Generate an arbitrary number copies of each selected input element";
   ntype.enum_name_legacy = "DUPLICATE_ELEMENTS";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryDuplicateElements",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryDuplicateElements",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
 
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
