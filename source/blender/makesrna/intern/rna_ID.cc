@@ -250,25 +250,6 @@ const EnumPropertyItem rna_enum_idproperty_float_sutypes_items[] = {
     {PROP_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
-
-const EnumPropertyItem rna_enum_idproperty_float_array_sutypes_items[] = {
-    {PROP_NONE, "NONE", 0, "None", "No subtype"},
-    {PROP_COLOR, "COLOR", 0, "Linear Color", "Color in the scene linear working color space"},
-    {PROP_COLOR_GAMMA,
-     "COLOR_GAMMA",
-     0,
-     "sRGB Color",
-     "Color in sRGB color space (mainly for user interface colors)"},
-    {PROP_TRANSLATION, "TRANSLATION", 0, "Translation", ""},
-    {PROP_DIRECTION, "DIRECTION", 0, "Direction", ""},
-    {PROP_VELOCITY, "VELOCITY", 0, "Velocity", ""},
-    {PROP_ACCELERATION, "ACCELERATION", 0, "Acceleration", ""},
-    {PROP_EULER, "EULER", 0, "Euler Angles", "Euler rotation angles in radians"},
-    {PROP_QUATERNION, "QUATERNION", 0, "Quaternion", "Quaternion rotation (affects NLA blending)"},
-    {PROP_AXISANGLE, "AXISANGLE", 0, "Axis-Angle", "Angle and axis to rotate around"},
-    {PROP_XYZ, "XYZ", 0, "XYZ", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -310,6 +291,25 @@ const EnumPropertyItem rna_enum_idproperty_float_array_sutypes_items[] = {
 #  endif
 
 namespace blender {
+
+const EnumPropertyItem rna_enum_idproperty_float_array_sutypes_items[] = {
+    {PROP_NONE, "NONE", 0, "None", "No subtype"},
+    {PROP_COLOR, "COLOR", 0, "Linear Color", "Color in the scene linear working color space"},
+    {PROP_COLOR_GAMMA,
+     "COLOR_GAMMA",
+     0,
+     "sRGB Color",
+     "Color in sRGB color space (mainly for user interface colors)"},
+    {PROP_TRANSLATION, "TRANSLATION", 0, "Translation", ""},
+    {PROP_DIRECTION, "DIRECTION", 0, "Direction", ""},
+    {PROP_VELOCITY, "VELOCITY", 0, "Velocity", ""},
+    {PROP_ACCELERATION, "ACCELERATION", 0, "Acceleration", ""},
+    {PROP_EULER, "EULER", 0, "Euler Angles", "Euler rotation angles in radians"},
+    {PROP_QUATERNION, "QUATERNION", 0, "Quaternion", "Quaternion rotation (affects NLA blending)"},
+    {PROP_AXISANGLE, "AXISANGLE", 0, "Axis-Angle", "Angle and axis to rotate around"},
+    {PROP_XYZ, "XYZ", 0, "XYZ", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 void rna_ID_override_library_property_operation_refname_get(PointerRNA *ptr, char *value)
 {
@@ -2608,10 +2608,6 @@ static void rna_def_ID(BlenderRNA *brna)
   RNA_def_struct_refine_func(srna, "rna_ID_refine");
   RNA_def_struct_idprops_func(srna, "rna_ID_idprops");
   RNA_def_struct_system_idprops_func(srna, "rna_ID_system_idprops");
-
-  prop = RNA_def_property(srna, "idprop_active_index", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "idprop_active_index");
-  RNA_def_property_ui_text(prop, "Active ID property index", "Active ID property index");
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(

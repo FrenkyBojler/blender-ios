@@ -37,7 +37,8 @@ namespace blender::ui::id_properties {
 class IDPropertyView : public AbstractTreeView {
  public:
   const char *data_path_;
-  IDPropertyView(PointerRNA *prop_ptr, const char *data_path) : data_path_(data_path), prop_ptr_(prop_ptr)
+  IDPropertyView(PointerRNA *prop_ptr, const char *data_path)
+      : data_path_(data_path), prop_ptr_(prop_ptr)
   {
     is_flat_ = true;
     user_properties_ = RNA_struct_idprops(prop_ptr_, false);
@@ -55,7 +56,10 @@ struct DragDropData {
   IDProperty *prop_;
 
   DragDropData() = default;
-  DragDropData(IDProperty *user_properties, IDProperty *prop) : user_properties_(user_properties), prop_(prop) {}
+  DragDropData(IDProperty *user_properties, IDProperty *prop)
+      : user_properties_(user_properties), prop_(prop)
+  {
+  }
 };
 
 class IDPropertyDragController : public ui::AbstractViewItemDragController {
@@ -144,8 +148,8 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
     }
 
     /* Change active index after drop. */
-    drag_data->user_properties_->data.idprop_active_index = BLI_findindex(&drag_data->user_properties_->data.group,
-                                                        drag_data->prop_);
+    drag_data->user_properties_->data.idprop_active_index = BLI_findindex(
+        &drag_data->user_properties_->data.group, drag_data->prop_);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
     ED_undo_push(C, "Drop Active IDProperty");
     return true;
@@ -270,7 +274,7 @@ void template_tree(ui::Layout *layout, bContext *C, PointerRNA *ptr, const char 
 }
 
 /* Callback to reset object pointer when ID data type is changed. */
-void idproperty_id_type_set_fn(bContext */*C*/, void *but_arg1, void * /*arg2*/)
+void idproperty_id_type_set_fn(bContext * /*C*/, void *but_arg1, void * /*arg2*/)
 {
   IDProperty *user_properties = static_cast<IDProperty *>(but_arg1);
 
@@ -280,7 +284,7 @@ void idproperty_id_type_set_fn(bContext */*C*/, void *but_arg1, void * /*arg2*/)
 }
 
 /* Callback to convert property to python type when type changed to unsupported. */
-void idproperty_python_prop_add_fn(bContext */*C*/, void *but_arg1, void * /*arg2*/)
+void idproperty_python_prop_add_fn(bContext * /*C*/, void *but_arg1, void * /*arg2*/)
 {
   IDProperty *user_properties = static_cast<IDProperty *>(but_arg1);
   IDProperty *active_prop = static_cast<IDProperty *>(

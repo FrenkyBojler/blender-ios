@@ -14,8 +14,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "idprop_py_api.hh"
 #include "idprop_py_ui_api.hh"
@@ -319,10 +319,10 @@ static PyGetSetDef BPy_IDGroup_getseters[] = {
      reinterpret_cast<setter>(BPy_IDGroup_SetName),
      "The name of this Group.",
      nullptr},
-     {"idprop_active_index",
+    {"idprop_active_index",
      reinterpret_cast<getter>(BPy_IDProperty_GetActiveIndex),
      reinterpret_cast<setter>(BPy_IDProperty_SetActiveIndex),
-     "The active index for array properties inside this group.",
+     "The active index of properties inside this group.",
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr},
 };

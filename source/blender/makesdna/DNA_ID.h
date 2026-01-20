@@ -531,8 +531,6 @@ struct ID {
    * and #BKE_libblock_free_runtime_data).
    */
   bke::id::ID_Runtime *runtime = nullptr;
-  int idprop_active_index = 0;
-  int _pad2 = {};
 };
 
 /**

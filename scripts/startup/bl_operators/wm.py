@@ -2125,16 +2125,6 @@ class WM_OT_properties_edit_value(Operator):
             col.prop(rna_item, '["{:s}"]'.format(escape_identifier(self.property_name)), text="")
 
 
-def unique_name(names):
-    prop = "prop"
-    prop_new = prop
-    i = 1
-    while prop_new in names:
-        prop_new = prop + str(i)
-        i += 1
-    return prop_new
-
-
 class WM_OT_properties_add(Operator):
     """Add your own property to the data-block"""
     bl_idname = "wm.properties_add"
@@ -2154,6 +2144,16 @@ class WM_OT_properties_add(Operator):
         if (item.id_data and item.id_data.override_library and item.id_data.override_library.reference):
             self.report({'ERROR'}, "Cannot add properties to override data")
             return {'CANCELLED'}
+
+        def unique_name(names):
+            prop = "prop"
+            prop_new = prop
+            i = 1
+            while prop_new in names:
+                prop_new = prop + str(i)
+                i += 1
+
+            return prop_new
 
         prop = unique_name({
             *item.keys(),
