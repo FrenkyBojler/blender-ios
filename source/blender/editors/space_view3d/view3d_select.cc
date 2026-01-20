@@ -1234,11 +1234,11 @@ static bool do_lasso_select_grease_pencil(const ViewContext *vc,
       });
 }
 
-static bool do_curves_sculpt_lasso_select(const ViewContext &vc,
-                                          const Span<int2> mcoords,
-                                          const eSelectOp sel_op)
+static bool curves_select_lasso(const ViewContext &vc,
+                                const Object *object,
+                                const Span<int2> mcoords,
+                                const eSelectOp sel_op)
 {
-  const Object *object = (vc.obedit ? vc.obedit : vc.obact);
   Curves &curves_id = *id_cast<Curves *>(object->data);
   bke::CurvesGeometry &curves = curves_id.geometry.wrap();
   bke::crazyspace::GeometryDeformation deformation =
@@ -1249,6 +1249,14 @@ static bool do_curves_sculpt_lasso_select(const ViewContext &vc,
 
   return ed::curves::select_lasso(
       vc, curves, deformation, projection, elements, elements, selection_domain, mcoords, sel_op);
+}
+
+static bool do_curves_sculpt_lasso_select(const ViewContext &vc,
+                                          const Span<int2> mcoords,
+                                          const eSelectOp sel_op)
+{
+  const Object *object = (vc.obedit ? vc.obedit : vc.obact);
+  return curves_select_lasso(vc, object, mcoords, sel_op);
 }
 
 struct LassoSelectUserData_ForMeshObjectVert {
@@ -1463,26 +1471,9 @@ static bool view3d_lasso_select(bContext *C,
           changed = do_lasso_select_meta(vc, mcoords, sel_op);
           break;
         case OB_CURVES: {
-          Curves &curves_id = *id_cast<Curves *>(vc->obedit->data);
-          bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-          bke::crazyspace::GeometryDeformation deformation =
-              bke::crazyspace::get_evaluated_curves_deformation(*vc->depsgraph, *vc->obedit);
-          const bke::AttrDomain selection_domain = bke::AttrDomain(curves_id.selection_domain);
-          const IndexRange elements(curves.attributes().domain_size(selection_domain));
-          const float4x4 projection = ED_view3d_ob_project_mat_get(vc->rv3d, vc->obedit);
-          changed = ed::curves::select_lasso(*vc,
-                                             curves,
-                                             deformation,
-                                             projection,
-                                             elements,
-                                             elements,
-                                             selection_domain,
-                                             mcoords,
-                                             sel_op);
+          changed = curves_select_lasso(*vc, vc->obedit, mcoords, sel_op);
           if (changed) {
-            /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
-             * generic attribute for now. */
-            DEG_id_tag_update(static_cast<ID *>(vc->obedit->data), ID_RECALC_GEOMETRY);
+            DEG_id_tag_update(vc->obedit->data, ID_RECALC_GEOMETRY);
             WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc->obedit->data);
           }
           break;
@@ -4521,11 +4512,11 @@ static bool do_grease_pencil_box_select(const ViewContext *vc,
       });
 }
 
-static bool do_curves_sculpt_box_select(const ViewContext &vc,
-                                        const rcti *rect,
-                                        const eSelectOp sel_op)
+static bool do_curves_select_box(const ViewContext &vc,
+                                 const Object *object,
+                                 const rcti *rect,
+                                 const eSelectOp sel_op)
 {
-  const Object *object = (vc.obedit ? vc.obedit : vc.obact);
   Curves &curves_id = *id_cast<Curves *>(object->data);
   bke::CurvesGeometry &curves = curves_id.geometry.wrap();
   bke::crazyspace::GeometryDeformation deformation =
@@ -4536,6 +4527,14 @@ static bool do_curves_sculpt_box_select(const ViewContext &vc,
 
   return ed::curves::select_box(
       vc, curves, deformation, projection, elements, elements, selection_domain, *rect, sel_op);
+}
+
+static bool do_curves_sculpt_box_select(const ViewContext &vc,
+                                        const rcti *rect,
+                                        const eSelectOp sel_op)
+{
+  const Object *object = (vc.obedit ? vc.obedit : vc.obact);
+  return do_curves_select_box(vc, object, rect, sel_op);
 }
 
 static wmOperatorStatus view3d_box_select_exec(bContext *C, wmOperator *op)
@@ -4603,26 +4602,9 @@ static wmOperatorStatus view3d_box_select_exec(bContext *C, wmOperator *op)
           }
           break;
         case OB_CURVES: {
-          Curves &curves_id = *id_cast<Curves *>(vc.obedit->data);
-          bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-          bke::crazyspace::GeometryDeformation deformation =
-              bke::crazyspace::get_evaluated_curves_deformation(*vc.depsgraph, *vc.obedit);
-          const bke::AttrDomain selection_domain = bke::AttrDomain(curves_id.selection_domain);
-          const float4x4 projection = ED_view3d_ob_project_mat_get(vc.rv3d, vc.obedit);
-          const IndexRange elements(curves.attributes().domain_size(selection_domain));
-          changed = ed::curves::select_box(vc,
-                                           curves,
-                                           deformation,
-                                           projection,
-                                           elements,
-                                           elements,
-                                           selection_domain,
-                                           rect,
-                                           sel_op);
+          changed = do_curves_select_box(vc, vc.obedit, &rect, sel_op);
           if (changed) {
-            /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
-             * generic attribute for now. */
-            DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_GEOMETRY);
+            DEG_id_tag_update(vc.obedit->data, ID_RECALC_GEOMETRY);
             WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc.obedit->data);
           }
           break;
@@ -5464,12 +5446,12 @@ static bool grease_pencil_circle_select(const ViewContext *vc,
       });
 }
 
-static bool curves_sculpt_circle_select(const ViewContext &vc,
-                                        const eSelectOp sel_op,
-                                        const int mval[2],
-                                        const float radius)
+static bool curves_select_circle(const ViewContext &vc,
+                                 const Object *object,
+                                 const eSelectOp sel_op,
+                                 const int mval[2],
+                                 const float radius)
 {
-  const Object *object = (vc.obedit ? vc.obedit : vc.obact);
   Curves &curves_id = *id_cast<Curves *>(object->data);
   bke::CurvesGeometry &curves = curves_id.geometry.wrap();
   bke::crazyspace::GeometryDeformation deformation =
@@ -5488,6 +5470,15 @@ static bool curves_sculpt_circle_select(const ViewContext &vc,
                                    int2(mval),
                                    radius,
                                    sel_op);
+}
+
+static bool do_curves_sculpt_circle_select(const ViewContext &vc,
+                                           const eSelectOp sel_op,
+                                           const int mval[2],
+                                           const float radius)
+{
+  const Object *object = (vc.obedit ? vc.obedit : vc.obact);
+  return curves_select_circle(vc, object, sel_op, mval, radius);
 }
 
 /**
@@ -5523,27 +5514,9 @@ static bool obedit_circle_select(bContext *C,
       changed = mball_circle_select(vc, sel_op, mval, rad);
       break;
     case OB_CURVES: {
-      Curves &curves_id = *id_cast<Curves *>(vc->obedit->data);
-      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-      bke::crazyspace::GeometryDeformation deformation =
-          bke::crazyspace::get_evaluated_curves_deformation(*vc->depsgraph, *vc->obedit);
-      const bke::AttrDomain selection_domain = bke::AttrDomain(curves_id.selection_domain);
-      const float4x4 projection = ED_view3d_ob_project_mat_get(vc->rv3d, vc->obedit);
-      const IndexRange elements(curves.attributes().domain_size(selection_domain));
-      changed = ed::curves::select_circle(*vc,
-                                          curves,
-                                          deformation,
-                                          projection,
-                                          elements,
-                                          elements,
-                                          selection_domain,
-                                          int2(mval),
-                                          rad,
-                                          sel_op);
+      changed = curves_select_circle(*vc, vc->obedit, sel_op, mval, rad);
       if (changed) {
-        /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
-         * generic attribute for now. */
-        DEG_id_tag_update(static_cast<ID *>(vc->obedit->data), ID_RECALC_GEOMETRY);
+        DEG_id_tag_update(vc->obedit->data, ID_RECALC_GEOMETRY);
         WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc->obedit->data);
       }
       break;
@@ -5715,7 +5688,7 @@ static wmOperatorStatus view3d_circle_select_exec(bContext *C, wmOperator *op)
         grease_pencil_circle_select(&vc, sel_op, mval, float(radius));
       }
       else if ((obact->mode & OB_MODE_SCULPT_CURVES) && (obact->type == OB_CURVES)) {
-        const bool changed = curves_sculpt_circle_select(vc, sel_op, mval, float(radius));
+        const bool changed = do_curves_sculpt_circle_select(vc, sel_op, mval, float(radius));
         if (changed) {
           DEG_id_tag_update(obact->data, ID_RECALC_GEOMETRY);
           WM_event_add_notifier(C, NC_GEOM | ND_DATA, obact->data);
