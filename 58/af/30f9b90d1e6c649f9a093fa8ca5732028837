@@ -10,3 +10,4 @@ Referenced by commit 3adf68b591cd5d1d8fb5055f7933174492de6b7d, Fix #149870: Corr
 Referenced by pull request #151219, Fix #151206: Crash When Switching From Normal Rotate to Transform Rotate
 Referenced by commit c481ba422114b4da92afb1f32901a67e9a512e50, Fix #151206: Crash When Switching From Normal Rotate to Transform Rotate
 Referenced by pull request #152955, Fix #152793: Repeat last rotation using snap base is backwards
+Referenced by commit 306469565d560262d335616b0b6e83b6f5cf9fe9, Fix #152793: Repeat last rotation using snap base is backwards
