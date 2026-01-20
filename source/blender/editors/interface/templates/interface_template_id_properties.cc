@@ -201,8 +201,17 @@ class IDPropertyItem : public AbstractTreeViewItem {
   {
     uiItemL_ex(&row, property_->name, ICON_NONE, false, false);
     ui::Layout &sub = row.split(0.90f, true);
-    const EmbossType emboss = property_->type == IDP_BOOLEAN ? EmbossType::Emboss :
-                                                               EmbossType::Pulldown;
+    /* Use different emboss for widget style to color buttons when keyframe/drivers are present. */
+    const EmbossType emboss = [&]() -> EmbossType {
+      if (property_->type == IDP_BOOLEAN) {
+        return EmbossType::Emboss;
+      }
+      if (ELEM(property_->type, IDP_INT, IDP_FLOAT, IDP_DOUBLE)) {
+        return EmbossType::NoneOrStatus;
+      }
+      return EmbossType::Pulldown;
+    }();
+
     sub.emboss_set(emboss);
     sub.alignment_set(LayoutAlign::Right);
 
