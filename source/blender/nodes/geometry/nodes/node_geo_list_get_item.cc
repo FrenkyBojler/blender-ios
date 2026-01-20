@@ -17,26 +17,45 @@
 
 namespace blender::nodes::node_geo_list_get_item_cc {
 
+NODE_STORAGE_FUNCS(NodeGeometryListGetItem);
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
-
-  if (node != nullptr) {
-    const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "List").structure_type(StructureType::List).hide_value();
+  if (!node) {
+    return;
   }
+
+  const NodeGeometryListGetItem &storage = node_storage(*node);
+  const auto type = eNodeSocketDatatype(storage.socket_type);
+
+  const auto structure_type = storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                  StructureType::Dynamic :
+                                  StructureType(storage.structure_type);
+
+  b.add_input(type, "List").structure_type(StructureType::List).hide_value();
 
   b.add_input<decl::Int>("Index").min(0).structure_type(StructureType::Dynamic);
 
-  if (node != nullptr) {
-    const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_output(type, "Value").dependent_field({1});
-  }
+  b.add_output(type, "Value").dependent_field({1}).structure_type(structure_type);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "socket_type", UI_ITEM_NONE, "", ICON_NONE);
+}
+
+static void node_layout_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
+}
+
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  auto *storage = MEM_new_for_free<NodeGeometryListGetItem>(__func__);
+  node->storage = storage;
 }
 
 class SocketSearchOp {
@@ -46,7 +65,7 @@ class SocketSearchOp {
   void operator()(LinkSearchOpParams &params)
   {
     bNode &node = params.add_node("GeometryNodeListGetItem");
-    node.custom1 = socket_type;
+    node_storage(node).socket_type = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
 };
@@ -127,22 +146,28 @@ static void node_rna(StructRNA *srna)
 {
   RNA_def_node_enum(
       srna,
-      "data_type",
-      "Data Type",
-      "",
+      "socket_type",
+      "Socket Type",
+      "Value may be implicitly converted if the type does not match",
       rna_enum_node_socket_data_type_items,
-      NOD_inline_enum_accessors(custom1),
-      SOCK_GEOMETRY,
+      NOD_storage_enum_accessors(socket_type),
+      SOCK_FLOAT,
       [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
         const bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
-        blender::bke::bNodeTreeType *ntree_type = ntree.typeinfo;
+        bke::bNodeTreeType *ntree_type = ntree.typeinfo;
         return enum_items_filter(
             rna_enum_node_socket_data_type_items, [&](const EnumPropertyItem &item) -> bool {
               bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(item.value);
               return ntree_type->valid_socket_type(ntree_type, socket_type);
             });
       });
+  RNA_def_node_enum(srna,
+                    "structure_type",
+                    "Structure Type",
+                    "What kind of higher order types are expected to flow through this socket",
+                    rna_enum_node_socket_structure_type_items,
+                    NOD_storage_enum_accessors(structure_type));
 }
 
 /**
@@ -196,7 +221,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!socket_type_supports_fields(*socket_type)) {
     if (!index.is_single()) {
       params.error_message_add(NodeWarningType::Error,
-                               "Index must be a single value for list type");
+                               "Index must be a single value for socket type");
       params.set_default_remaining_outputs();
       return;
     }
@@ -233,7 +258,11 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
+  ntype.draw_buttons_ex = node_layout_ex;
+  ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_searches;
+  bke::node_type_storage(
+      ntype, "NodeGeometryListGetItem", node_free_standard_storage, node_copy_standard_storage);
   bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
