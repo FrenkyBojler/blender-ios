@@ -168,14 +168,13 @@ static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id
       /* write strokes */
       BLO_write_struct_list(writer, bGPDstroke, &gpf.strokes);
       for (bGPDstroke &gps : gpf.strokes) {
-        BLO_write_struct_array(writer, bGPDspoint, gps.totpoints, gps.points);
-        BLO_write_struct_array(writer, bGPDtriangle, gps.tot_triangles, gps.triangles);
+        writer->write_struct_array<bGPDspoint>(gps.totpoints, gps.points);
+        writer->write_struct_array<bGPDtriangle>(gps.tot_triangles, gps.triangles);
         BKE_defvert_blend_write(writer, gps.totpoints, gps.dvert);
         if (gps.editcurve != nullptr) {
           bGPDcurve *gpc = gps.editcurve;
           writer->write_struct(gpc);
-          BLO_write_struct_array(
-              writer, bGPDcurve_point, gpc->tot_curve_points, gpc->curve_points);
+          writer->write_struct_array<bGPDcurve_point>(gpc->tot_curve_points, gpc->curve_points);
         }
       }
     }

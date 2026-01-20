@@ -2515,7 +2515,7 @@ void BKE_fmodifiers_blend_write(BlendWriter *writer, ListBaseT<FModifier> *fmodi
 
           /* write envelope data */
           if (data->data) {
-            BLO_write_struct_array(writer, FCM_EnvelopeData, data->totvert, data->data);
+            writer->write_struct_array<FCM_EnvelopeData>(data->totvert, data->data);
           }
 
           break;
@@ -2570,10 +2570,10 @@ void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu)
 {
   /* curve data */
   if (fcu->bezt) {
-    BLO_write_struct_array(writer, BezTriple, fcu->totvert, fcu->bezt);
+    writer->write_struct_array<BezTriple>(fcu->totvert, fcu->bezt);
   }
   if (fcu->fpt) {
-    BLO_write_struct_array(writer, FPoint, fcu->totvert, fcu->fpt);
+    writer->write_struct_array<FPoint>(fcu->totvert, fcu->fpt);
   }
 
   if (fcu->rna_path) {

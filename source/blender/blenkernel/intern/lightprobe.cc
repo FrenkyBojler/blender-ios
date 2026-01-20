@@ -115,7 +115,7 @@ LightProbe *BKE_lightprobe_add(Main *bmain, const char *name)
 static void lightprobe_grid_cache_frame_blend_write(BlendWriter *writer,
                                                     const LightProbeGridCacheFrame *cache)
 {
-  BLO_write_struct_array(writer, LightProbeGridCacheFrame, cache->block_len, cache->block_infos);
+  writer->write_struct_array<LightProbeBlockData>(cache->block_len, cache->block_infos);
 
   int64_t sample_count = BKE_lightprobe_grid_cache_frame_sample_count(cache);
 

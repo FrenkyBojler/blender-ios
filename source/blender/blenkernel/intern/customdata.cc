@@ -4897,7 +4897,7 @@ static void write_mdisps(BlendWriter *writer,
                          const int external)
 {
   if (mdlist) {
-    BLO_write_struct_array(writer, MDisps, count, mdlist);
+    writer->write_struct_array<MDisps>(count, mdlist);
     for (int i = 0; i < count; i++) {
       const MDisps *md = &mdlist[i];
       if (md->disps) {
@@ -4920,7 +4920,7 @@ static void write_grid_paint_mask(BlendWriter *writer,
                                   const GridPaintMask *grid_paint_mask)
 {
   if (grid_paint_mask) {
-    BLO_write_struct_array(writer, GridPaintMask, count, grid_paint_mask);
+    writer->write_struct_array<GridPaintMask>(count, grid_paint_mask);
     for (int i = 0; i < count; i++) {
       const GridPaintMask *gpm = &grid_paint_mask[i];
       if (gpm->data) {
