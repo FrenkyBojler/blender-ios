@@ -85,7 +85,7 @@ static const std::array<TokenType, 128> token_table_preprocessor = [] {
   table['7'] = TokenType(Word | Merge);
   table['8'] = TokenType(Word | Merge);
   table['9'] = TokenType(Word | Merge);
-  /* Make "..." for __VA_ARGS__ support a single token. */
+  /* Make "..." a single token for simpler __VA_ARGS__ support. */
   table['.'] = TokenType(Dot | Merge);
   return table;
 }();
@@ -139,7 +139,7 @@ struct AtomicLexer : LexerBase {
     lexit::TokenBuffer tok_buf(
         str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
 
-    tok_buf.merge_compounds<CompoundFlags::AllButWhitespaces>();
+    tok_buf.fuse_compounds<CompoundFlags::AllButWhitespaces>();
 
     /* Resize to the actual usage. */
     token_types.shrink(tok_buf.size());

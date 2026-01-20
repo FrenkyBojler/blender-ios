@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #ifndef NDEBUG
 #  include <string_view>
@@ -34,7 +35,7 @@ enum class CompoundFlags : uint64_t {
   Derefs = 1 << 8,     /* -> */
 
   Whitespaces = Newlines | Spaces, /* Merge whitespace with previous token. */
-  AllButWhitespaces = String | Numbers | CompOps | TokenPaste | LogicOps | UnaryOps | Deref,
+  AllButWhitespaces = String | Numbers | CompOps | TokenPaste | LogicOps | UnaryOps | Derefs,
   All = AllButWhitespaces | Whitespaces,
 };
 
@@ -106,9 +107,10 @@ class TokenBuffer {
   /**
    * @brief Merge compound tokens together.
    *
-   * This can be used to reduce the token count, remove whitespaces, find 
+   * This is legacy and should be revisited by splitting compound (string, number) and whitespace
+   * merging in two passes.
    */
-  template<CompoundFlags flags> void merge_compounds()
+  template<CompoundFlags flags> void fuse_compounds(uint32_t *rawsize = nullptr)
   {
     static_assert(flags != CompoundFlags::None, "No merge flag provided, function is a noop");
 
@@ -118,8 +120,9 @@ class TokenBuffer {
     TokenType *out_types = types_;
     const uint32_t *in_offsets = offsets_;
     uint32_t *out_offsets = offsets_;
+    uint32_t *out_size = rawsize;
 
-    for (uint32_t i = 0; i < size_; i++, out_types++, out_offsets++) {
+    for (uint32_t i = 0; i < size_; i++, out_types++, out_offsets++, out_size++) {
       const TokenType one = in_types[i];
       const uint16_t two = LEXIT_TWO(one, in_types[i + 1]);
 
@@ -129,6 +132,9 @@ class TokenBuffer {
       std::string_view tok_str{(const char *)str_ + offset, in_offsets[i + 1] - offset};
 #endif
 
+      if (rawsize != nullptr) {
+        *out_size = in_offsets[i + 1] - offset;
+      }
       *out_types = one;
       *out_offsets = offset;
 
@@ -144,11 +150,11 @@ class TokenBuffer {
 
       switch (one) {
         /* Make next token overwrite this one. Merge the token with the one before. */
-        LEXIT_COMPOUND_LEX(NewLine, Newlines, out_types--, out_offsets--)
-        LEXIT_COMPOUND_LEX(Space, Spaces, out_types--, out_offsets--)
+        LEXIT_COMPOUND_LEX(NewLine, Newlines, if (i > 0) out_types--, out_offsets--, out_size--)
+        LEXIT_COMPOUND_LEX(Space, Spaces, if (i > 0) out_types--, out_offsets--, out_size--)
         /* Complex compound call dedicated functions. */
-        LEXIT_COMPOUND_LEX(String, Strings, out_types--, lex_string(in_types, i))
-        LEXIT_COMPOUND_LEX(Number, Numbers, out_types--, lex_number(str_, in_types, in_offsets, i))
+        LEXIT_COMPOUND_LEX(String, Strings, lex_string(in_types, i))
+        LEXIT_COMPOUND_LEX(Number, Numbers, lex_number(str_, in_types, in_offsets, i))
 
         [[likely]] default:
           break;
@@ -186,7 +192,22 @@ class TokenBuffer {
     }
 #undef LEXIT_TWO
 
-    size_ = in_types - out_types;
+    assert(in_types < out_types);
+    assert(out_types - in_types < 0xFFFFFFFFu);
+    size_ = out_types - in_types;
+    types_[size_] = EndOfFile;
+    offsets_[size_] = str_len_;
+    if (rawsize) {
+      rawsize[size_] = 0;
+    }
+  }
+
+  template<typename CallbackFn> void foreach_token_type(CallbackFn cb)
+  {
+    TokenType *end = types_ + size_;
+    for (TokenType *type = types_; type < end; type++) {
+      cb(type);
+    }
   }
 
  private:
