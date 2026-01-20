@@ -334,7 +334,6 @@ class OUTLINER_MT_object(Menu):
         layout.operator("outliner.object_operation", text="Select", icon='RESTRICT_SELECT_OFF').type = 'SELECT'
         layout.operator("outliner.object_operation", text="Select Hierarchy").type = 'SELECT_HIERARCHY'
         layout.operator("outliner.object_operation", text="Deselect").type = 'DESELECT'
-        layout.operator("outliner.object_operation", text="Deselect").type = 'REMAP'
 
         layout.separator()
 
