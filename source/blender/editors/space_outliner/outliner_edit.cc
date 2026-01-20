@@ -871,7 +871,7 @@ static wmOperatorStatus outliner_id_remap_invoke(bContext *C, wmOperator *op, co
   layout.prop_search(op->ptr, prop, &bmain_ptr, search_prop, nullptr, "", ICON_NONE, false);
 
   PointerRNA opptr = PointerRNA_NULL;
-  ui::popup_block_template_confirm_op(&layout, op->type, "Ok", "Cancel", 0, false, &opptr);
+  ui::popup_block_template_confirm_op(&layout, op->type, "Remap", "Cancel", 0, false, &opptr);
 
   popup_menu_end(C, pop_up);
 
