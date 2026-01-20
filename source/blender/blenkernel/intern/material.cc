@@ -1769,16 +1769,15 @@ static bool texpaint_slot_node_find_cb(bNodeTree *nodetree, bNode *node, void *u
   return true;
 }
 
-bNode *BKE_texpaint_slot_material_find_node(Material *ma,
-                                            short texpaint_slot,
-                                            bNodeTree **r_nodetree)
+std::pair<bNodeTree *, bNode *> BKE_texpaint_slot_material_find_node(Material *ma,
+                                                                     short texpaint_slot)
 {
   if (ma->texpaintslot == nullptr) {
-    return nullptr;
+    return {};
   }
 
   if (texpaint_slot >= ma->tot_slots) {
-    return nullptr;
+    return {};
   }
 
   TexPaintSlot *slot = &ma->texpaintslot[texpaint_slot];
@@ -1788,11 +1787,7 @@ bNode *BKE_texpaint_slot_material_find_node(Material *ma,
                                   &find_data,
                                   PAINT_SLOT_IMAGE | PAINT_SLOT_COLOR_ATTRIBUTE);
 
-  if (r_nodetree) {
-    *r_nodetree = find_data.r_nodetree;
-  }
-
-  return find_data.r_node;
+  return std::pair<bNodeTree *, bNode *>(find_data.r_nodetree, find_data.r_node);
 }
 
 void ramp_blend(int type, float r_col[4], const float fac, const float col[4])

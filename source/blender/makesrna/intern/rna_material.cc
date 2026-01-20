@@ -171,11 +171,12 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
   Material *ma = id_cast<Material *>(ptr->owner_id);
 
   if (ma->nodetree) {
-    bNodeTree *nodetree = nullptr;
-    bNode *node = BKE_texpaint_slot_material_find_node(ma, ma->paint_active_slot, &nodetree);
+    std::pair<bNodeTree *, bNode *> found = BKE_texpaint_slot_material_find_node(
+        ma, ma->paint_active_slot);
 
-    if (node) {
-      bke::node_set_active(*nodetree, *node);
+    if (found.second) {
+      BLI_assert(found.first != nullptr);
+      bke::node_set_active(*found.first, *found.second);
     }
   }
 

@@ -10,6 +10,7 @@
  */
 
 #include <optional>
+#include <utility>
 
 namespace blender {
 
@@ -128,9 +129,8 @@ MaterialGPencilStyle *BKE_gpencil_material_settings(Object *ob, short act);
 
 void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma, const Object *ob);
 void BKE_texpaint_slots_refresh_object(Scene *scene, Object *ob);
-bNode *BKE_texpaint_slot_material_find_node(Material *ma,
-                                            short texpaint_slot,
-                                            bNodeTree **r_nodetree);
+std::pair<bNodeTree *, bNode *> BKE_texpaint_slot_material_find_node(Material *ma,
+                                                                     short texpaint_slot);
 
 /** \} */
 
