@@ -395,7 +395,7 @@ struct StrokeCache {
    * Whether the modifier key that controls smoothing is active currently.
    * Generally signals a change in behavior for different brushes.
    *
-   * \see TemporaryBrushToggleType::Smooth.
+   * \see BrushSwitchMode::Smooth.
    */
   bool alt_smooth = false;
 
@@ -403,7 +403,7 @@ struct StrokeCache {
    * Whether the modifier key that controls masking is active currently.
    * Switches the active brush to the mask brush during the stroke.
    *
-   * \see TemporaryBrushToggleType::Mask.
+   * \see BrushSwitchMode::Mask.
    */
   bool alt_mask = false;
 

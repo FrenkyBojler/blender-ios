@@ -415,12 +415,11 @@ void update_cache_invariants(
     zero_v2(cache->initial_mouse);
   }
 
-  BrushStrokeMode mode = (BrushStrokeMode)RNA_enum_get(op->ptr, "mode");
+  const auto mode = (BrushStrokeMode)RNA_enum_get(op->ptr, "mode");
   cache->invert = mode == BrushStrokeMode::Invert;
 
-  const TemporaryBrushToggleType temporary_brush_toggle_type = TemporaryBrushToggleType(
-      RNA_enum_get(op->ptr, "brush_toggle"));
-  cache->alt_smooth = temporary_brush_toggle_type == TemporaryBrushToggleType::Smooth;
+  const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
+  cache->alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
   /* not very nice, but with current events system implementation
    * we can't handle brush appearance inversion hotkey separately (sergey) */
   if (cache->invert) {

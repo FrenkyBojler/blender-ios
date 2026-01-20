@@ -79,9 +79,8 @@ enum class BrushStrokeMode : int8_t {
   Invert = 1,
 };
 
-/* Indicates a brush (or brush type) that the stroke will switch to for the duration of the stroke
- */
-enum class TemporaryBrushToggleType : int8_t {
+/* Indicates a brush that the stroke will switch to for the duration of the stroke */
+enum class BrushSwitchMode : int8_t {
   None = 0,
   Smooth = 1,
   Erase = 2,
@@ -167,7 +166,7 @@ struct PaintStroke : NonCopyable, NonMovable {
   /* last pressure will store last pressure value for use in interpolation for space strokes */
   float last_pressure_ = 0.0f;
   BrushStrokeMode stroke_mode_ = BrushStrokeMode::Normal;
-  TemporaryBrushToggleType temporary_brush_toggle_type_ = TemporaryBrushToggleType::None;
+  BrushSwitchMode brush_switch_mode_ = BrushSwitchMode::None;
 
   float last_tablet_event_pressure_ = 0.0f;
 
@@ -316,7 +315,7 @@ bool paint_supports_dynamic_size(const Brush &br, PaintMode mode);
 bool paint_supports_dynamic_tex_coords(const Brush &br, PaintMode mode);
 bool paint_supports_smooth_stroke(const Brush &brush,
                                   PaintMode mode,
-                                  TemporaryBrushToggleType temporary_brush_toggle_type);
+                                  BrushSwitchMode brush_switch_mode);
 bool paint_supports_texture(PaintMode mode);
 
 /**
@@ -479,7 +478,7 @@ void *paint_proj_new_stroke(bContext *C,
                             Object *ob,
                             const float mouse[2],
                             BrushStrokeMode mode,
-                            TemporaryBrushToggleType temporary_brush_toggle_type);
+                            BrushSwitchMode brush_switch_mode);
 void paint_proj_stroke(const bContext *C,
                        void *ps_handle_p,
                        const float prev_pos[2],

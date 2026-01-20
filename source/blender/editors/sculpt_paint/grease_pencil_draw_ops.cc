@@ -110,13 +110,12 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
   const Paint *paint = BKE_paint_get_active_from_context(&C);
   const Brush &brush = *BKE_paint_brush_for_read(paint);
   const PaintMode mode = BKE_paintmode_get_active_from_context(&C);
-  const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
-  const TemporaryBrushToggleType temporary_brush_toggle_type = TemporaryBrushToggleType(
-      RNA_enum_get(op->ptr, "brush_toggle"));
+  const auto stroke_mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
+  const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
 
   if (mode == PaintMode::GPencil) {
     if (eBrushGPaintType(brush.gpencil_brush_type) == GPAINT_BRUSH_TYPE_DRAW &&
-        temporary_brush_toggle_type == TemporaryBrushToggleType::Erase)
+        brush_switch_mode == BrushSwitchMode::Erase)
     {
       /* Special case: We're using the draw tool but with the eraser mode, so create an erase
        * operation. */
@@ -132,13 +131,12 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
         /* Fill tool keymap uses the paint operator to draw fill guides. */
         return greasepencil::new_paint_operation(/* do_fill_guides = */ true);
       case GPAINT_BRUSH_TYPE_TINT:
-        return greasepencil::new_tint_operation(temporary_brush_toggle_type ==
-                                                TemporaryBrushToggleType::Erase);
+        return greasepencil::new_tint_operation(brush_switch_mode == BrushSwitchMode::Erase);
     }
   }
   else if (mode == PaintMode::SculptGPencil) {
 
-    if (temporary_brush_toggle_type == TemporaryBrushToggleType::Smooth) {
+    if (brush_switch_mode == BrushSwitchMode::Smooth) {
       return greasepencil::new_smooth_operation(stroke_mode, true);
     }
     switch (eBrushGPSculptType(brush.gpencil_sculpt_brush_type)) {
@@ -262,15 +260,14 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
                                                           const wmEvent *event)
 {
   if (event->tablet.active == EVT_TABLET_ERASER) {
-    RNA_enum_set(op->ptr, "brush_toggle", (int)TemporaryBrushToggleType::Erase);
+    RNA_enum_set(op->ptr, "brush_toggle", int(BrushSwitchMode::Erase));
   }
 
   const bool use_duplicate_previous_key = [&]() -> bool {
     const Paint *paint = BKE_paint_get_active_from_context(C);
     const Brush &brush = *BKE_paint_brush_for_read(paint);
     const PaintMode mode = BKE_paintmode_get_active_from_context(C);
-    const TemporaryBrushToggleType temporary_brush_toggle_type = TemporaryBrushToggleType(
-        RNA_enum_get(op->ptr, "brush_toggle"));
+    const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
 
     if (mode == PaintMode::GPencil) {
       /* For the eraser and tint tool, we don't want auto-key to create an empty keyframe, so we
@@ -283,7 +280,7 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
       }
       /* Same for the temporary eraser when using the draw tool. */
       if (eBrushGPaintType(brush.gpencil_brush_type) == GPAINT_BRUSH_TYPE_DRAW &&
-          temporary_brush_toggle_type == TemporaryBrushToggleType::Erase)
+          brush_switch_mode == BrushSwitchMode::Erase)
       {
         return true;
       }

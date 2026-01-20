@@ -55,7 +55,7 @@ class AbstractPaintMode {
                                  Object *ob,
                                  const float mouse[2],
                                  BrushStrokeMode mode,
-                                 TemporaryBrushToggleType temporary_brush_toggle_type) = 0;
+                                 BrushSwitchMode brush_switch_mode) = 0;
   virtual void paint_stroke(bContext *C,
                             void *stroke_handle,
                             float prev_mouse[2],
@@ -90,7 +90,7 @@ class ImagePaintMode : public AbstractPaintMode {
                          Object * /*ob*/,
                          const float /*mouse*/[2],
                          const BrushStrokeMode mode,
-                         const TemporaryBrushToggleType /*temporary_brush_toggle_type*/) override
+                         const BrushSwitchMode /*brush_switch_mode*/) override
   {
     return paint_2d_new_stroke(C, op, mode);
   }
@@ -154,9 +154,9 @@ class ProjectionPaintMode : public AbstractPaintMode {
                          Object *ob,
                          const float mouse[2],
                          BrushStrokeMode mode,
-                         TemporaryBrushToggleType temporary_brush_toggle_type) override
+                         BrushSwitchMode brush_switch_mode) override
   {
-    return paint_proj_new_stroke(C, ob, mouse, mode, temporary_brush_toggle_type);
+    return paint_proj_new_stroke(C, ob, mouse, mode, brush_switch_mode);
   }
 
   void paint_stroke(bContext *C,
@@ -303,9 +303,8 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
   ToolSettings *settings = scene->toolsettings;
   std::unique_ptr<PaintOperation> pop = std::make_unique<PaintOperation>();
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
-  BrushStrokeMode mode = (BrushStrokeMode)RNA_enum_get(op->ptr, "mode");
-  TemporaryBrushToggleType temporary_brush_toggle_type = (TemporaryBrushToggleType)RNA_enum_get(
-      op->ptr, "brush_toggle");
+  auto mode = (BrushStrokeMode)RNA_enum_get(op->ptr, "mode");
+  auto brush_switch_mode = (BrushSwitchMode)RNA_enum_get(op->ptr, "brush_toggle");
   pop->vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   copy_v2_v2(pop->prevmouse, mouse);
@@ -329,8 +328,7 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
     pop->mode = MEM_new<ImagePaintMode>("ImagePaintMode");
   }
 
-  pop->stroke_handle = pop->mode->paint_new_stroke(
-      C, op, ob, mouse, mode, temporary_brush_toggle_type);
+  pop->stroke_handle = pop->mode->paint_new_stroke(C, op, ob, mouse, mode, brush_switch_mode);
   if (!pop->stroke_handle) {
     return nullptr;
   }

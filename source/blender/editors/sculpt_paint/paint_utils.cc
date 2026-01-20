@@ -151,18 +151,18 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
   };
 
   static const EnumPropertyItem temporary_brush_toggle_items[] = {
-      {(int)TemporaryBrushToggleType::None, "None", 0, "None", "Apply brush normally"},
-      {(int)TemporaryBrushToggleType::Smooth,
+      {int(BrushSwitchMode::None), "None", 0, "None", "Apply brush normally"},
+      {int(BrushSwitchMode::Smooth),
        "SMOOTH",
        0,
        "Smooth",
        "Switch to smooth brush for duration of stroke"},
-      {(int)TemporaryBrushToggleType::Erase,
+      {int(BrushSwitchMode::Erase),
        "ERASE",
        0,
        "Erase",
        "Switch to erase brush for duration of stroke"},
-      {(int)TemporaryBrushToggleType::Mask,
+      {int(BrushSwitchMode::Mask),
        "MASK",
        0,
        "Mask",
@@ -178,7 +178,7 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna,
                       "mode",
                       stroke_mode_items,
-                      (int)BrushStrokeMode::Normal,
+                      int(BrushStrokeMode::Normal),
                       "Stroke Mode",
                       "Action taken when a paint stroke is made");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
@@ -187,7 +187,7 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna,
                       "brush_toggle",
                       temporary_brush_toggle_items,
-                      (int)TemporaryBrushToggleType::None,
+                      int(BrushSwitchMode::None),
                       "Temporary Brush Toggle Type",
                       "Brush to use for duration of stroke");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);

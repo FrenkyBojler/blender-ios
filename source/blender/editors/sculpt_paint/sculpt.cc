@@ -4932,7 +4932,7 @@ struct SculptPaintStroke final : public PaintStroke {
   }
 
   void stroke_cache_init(BrushStrokeMode stroke_mode,
-                         TemporaryBrushToggleType temporary_brush_toggle_type,
+                         BrushSwitchMode brush_switch_mode,
                          bool pen_flip,
                          const float mval[2]);
   void stroke_cache_update(PointerRNA *ptr);
@@ -5504,11 +5504,10 @@ bool color_supported_check(const Scene &scene, Object &object, ReportList *repor
   return true;
 }
 
-void SculptPaintStroke::stroke_cache_init(
-    const BrushStrokeMode stroke_mode,
-    const TemporaryBrushToggleType temporary_brush_toggle_type,
-    const bool pen_flip,
-    const float mval[2])
+void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
+                                          const BrushSwitchMode brush_switch_mode,
+                                          const bool pen_flip,
+                                          const float mval[2])
 {
   StrokeCache *cache = MEM_new<StrokeCache>(__func__);
   bke::PaintRuntime *paint_runtime = sculpt_->paint.runtime;
@@ -5546,8 +5545,8 @@ void SculptPaintStroke::stroke_cache_init(
 
   cache->pen_flip = pen_flip;
   cache->invert = stroke_mode == BrushStrokeMode::Invert;
-  cache->alt_smooth = temporary_brush_toggle_type == TemporaryBrushToggleType::Smooth;
-  cache->alt_mask = temporary_brush_toggle_type == TemporaryBrushToggleType::Mask;
+  cache->alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
+  cache->alt_mask = brush_switch_mode == BrushSwitchMode::Mask;
   cache->normal_weight = brush->normal_weight;
 
   /* Interpret invert as following normal, for grab brushes. */
@@ -5683,7 +5682,7 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
     ED_view3d_init_mats_rv3d(&ob, this->vc.rv3d);
 
     stroke_cache_init((BrushStrokeMode)RNA_enum_get(op->ptr, "mode"),
-                      (TemporaryBrushToggleType)RNA_enum_get(op->ptr, "brush_toggle"),
+                      (BrushSwitchMode)RNA_enum_get(op->ptr, "brush_toggle"),
                       RNA_boolean_get(op->ptr, "pen_flip"),
                       mval);
     if (brush && brush_type_is_paint(brush->sculpt_brush_type)) {

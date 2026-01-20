@@ -293,7 +293,7 @@ struct ProjPaintState {
   short brush_type;
   short blend;
   BrushStrokeMode mode;
-  TemporaryBrushToggleType temporary_brush_toggle_type;
+  BrushSwitchMode brush_switch_mode;
 
   float brush_size;
   Object *ob;
@@ -6002,21 +6002,21 @@ static void project_state_init(bContext *C,
                                Object *ob,
                                ProjPaintState *ps,
                                const BrushStrokeMode mode,
-                               const TemporaryBrushToggleType temporary_brush_toggle_type)
+                               const BrushSwitchMode brush_switch_mode)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *settings = scene->toolsettings;
 
   /* brush */
   ps->mode = mode;
-  ps->temporary_brush_toggle_type = temporary_brush_toggle_type;
+  ps->brush_switch_mode = brush_switch_mode;
   ps->paint = BKE_paint_get_active_from_context(C);
   ps->brush = BKE_paint_brush(&settings->imapaint.paint);
   if (ps->brush) {
     Brush *brush = ps->brush;
     ps->brush_type = brush->image_brush_type;
     ps->blend = brush->blend;
-    if (temporary_brush_toggle_type == TemporaryBrushToggleType::Smooth) {
+    if (brush_switch_mode == BrushSwitchMode::Smooth) {
       ps->brush_type = IMAGE_PAINT_BRUSH_TYPE_SOFTEN;
     }
     /* only check for inversion for the soften brush, elsewhere,
@@ -6118,7 +6118,7 @@ void *paint_proj_new_stroke(bContext *C,
                             Object *ob,
                             const float mouse[2],
                             const BrushStrokeMode mode,
-                            const TemporaryBrushToggleType temporary_brush_toggle_type)
+                            const BrushSwitchMode brush_switch_mode)
 {
   ProjStrokeHandle *ps_handle;
   Scene *scene = CTX_data_scene(C);
@@ -6176,7 +6176,7 @@ void *paint_proj_new_stroke(bContext *C,
   for (int i = 0; i < ps_handle->ps_views_tot; i++) {
     ProjPaintState *ps = ps_handle->ps_views[i];
 
-    project_state_init(C, ob, ps, mode, temporary_brush_toggle_type);
+    project_state_init(C, ob, ps, mode, brush_switch_mode);
 
     if (ps->ob == nullptr) {
       ps_handle->ps_views_tot = i + 1;
@@ -6298,7 +6298,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
     return OPERATOR_CANCELLED;
   }
 
-  project_state_init(C, ob, &ps, BrushStrokeMode::Normal, TemporaryBrushToggleType::None);
+  project_state_init(C, ob, &ps, BrushStrokeMode::Normal, BrushSwitchMode::None);
 
   if (image == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "Image could not be found");

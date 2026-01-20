@@ -581,14 +581,14 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
 static bool paint_smooth_stroke(const Brush &brush,
                                 const PaintSample *sample,
                                 const PaintMode mode,
-                                const TemporaryBrushToggleType temporary_brush_toggle_type,
+                                const BrushSwitchMode brush_switch_mode,
                                 float zoom_2d,
                                 float2 last_mouse_position,
                                 float last_pressure,
                                 float2 &r_mouse,
                                 float &r_pressure)
 {
-  if (paint_supports_smooth_stroke(brush, mode, temporary_brush_toggle_type)) {
+  if (paint_supports_smooth_stroke(brush, mode, brush_switch_mode)) {
     const float radius = brush.smooth_stroke_radius * zoom_2d;
     const float u = brush.smooth_stroke_factor;
 
@@ -870,7 +870,7 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
   this->scene = CTX_data_scene(C);
 
   stroke_mode_ = (BrushStrokeMode)RNA_enum_get(op->ptr, "mode");
-  temporary_brush_toggle_type_ = (TemporaryBrushToggleType)RNA_enum_get(op->ptr, "brush_toggle");
+  brush_switch_mode_ = (BrushSwitchMode)RNA_enum_get(op->ptr, "brush_toggle");
 
   original_ = paint_brush_type_raycast_original(*this->brush,
                                                 BKE_paintmode_get_active_from_context(C));
@@ -899,7 +899,7 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
 
   if (stroke_mode_ == BrushStrokeMode::Invert) {
     if (this->brush->flag & BRUSH_CURVE) {
-      RNA_enum_set(op->ptr, "mode", (int)BrushStrokeMode::Normal);
+      RNA_enum_set(op->ptr, "mode", int(BrushStrokeMode::Normal));
     }
   }
   /* initialize here */
@@ -1054,13 +1054,13 @@ bool paint_supports_dynamic_size(const Brush &br, const PaintMode mode)
 
 bool paint_supports_smooth_stroke(const Brush &brush,
                                   const PaintMode mode,
-                                  const TemporaryBrushToggleType temporary_brush_toggle_type)
+                                  const BrushSwitchMode brush_switch_mode)
 {
   /* The grease pencil draw tool needs to enable this when the `stroke_mode` is set to
-   * `TemporaryBrushToggleType::Smooth`. */
+   * `BrushSwitchMode::Smooth`. */
   if (mode == PaintMode::GPencil &&
       eBrushGPaintType(brush.gpencil_brush_type) == GPAINT_BRUSH_TYPE_DRAW &&
-      temporary_brush_toggle_type == TemporaryBrushToggleType::Smooth)
+      brush_switch_mode == BrushSwitchMode::Smooth)
   {
     return true;
   }
@@ -1489,7 +1489,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
        * here. */
       br = BKE_paint_brush(paint);
 
-      if (paint_supports_smooth_stroke(*br, mode, temporary_brush_toggle_type_)) {
+      if (paint_supports_smooth_stroke(*br, mode, brush_switch_mode_)) {
 
         stroke_cursor_ = WM_paint_cursor_activate(
             SPACE_TYPE_ANY, RGN_TYPE_ANY, paint_brush_cursor_poll, paint_draw_smooth_cursor, this);
@@ -1522,7 +1522,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   /* Handles shift-key active smooth toggling during a grease pencil stroke. */
   if (mode == PaintMode::GPencil) {
     if (event->modifier & KM_SHIFT) {
-      temporary_brush_toggle_type_ = TemporaryBrushToggleType::Smooth;
+      brush_switch_mode_ = BrushSwitchMode::Smooth;
       if (!stroke_cursor_) {
         stroke_cursor_ = WM_paint_cursor_activate(
             SPACE_TYPE_ANY, RGN_TYPE_ANY, paint_brush_cursor_poll, paint_draw_smooth_cursor, this);
@@ -1583,7 +1583,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     if (paint_smooth_stroke(*this->brush,
                             &sample_average,
                             mode,
-                            temporary_brush_toggle_type_,
+                            brush_switch_mode_,
                             zoom_2d_,
                             this->last_mouse_position,
                             last_pressure_,
