@@ -5,8 +5,10 @@
 #pragma once
 
 #include "BKE_geometry_set.hh"
-
 #include "BKE_node_socket_value.hh"
+
+#include "BLI_cache_mutex.hh"
+
 #include "DNA_space_types.h"
 
 namespace blender {
@@ -46,6 +48,9 @@ struct SpaceSpreadsheet_Runtime {
   int left_column_width = 0;
 
   std::optional<ReorderColumnVisualizationData> reorder_column_visualization_data;
+
+  mutable CacheMutex index_mapping_mutex_;
+  mutable std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> index_mapping_;
 
   SpaceSpreadsheet_Runtime() = default;
 

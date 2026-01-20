@@ -51,6 +51,10 @@ namespace asset_system {
 class AssetRepresentation;
 }
 
+namespace bke::volume_grid {
+class GridNodeIndexMapping;
+}
+
 /** Defined in `buttons_intern.hh`. */
 struct SpaceProperties_Runtime;
 
@@ -1260,6 +1264,10 @@ struct SpaceSpreadsheet {
   char _pad2[4] = {};
 
   ed::spreadsheet::SpaceSpreadsheet_Runtime *runtime = nullptr;
+
+#ifdef __cplusplus
+  const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &index_mapping() const;
+#endif
 };
 
 struct SpreadsheetRowFilter {

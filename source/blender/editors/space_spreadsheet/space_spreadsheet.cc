@@ -49,7 +49,9 @@
 
 #include <sstream>
 
-namespace blender::ed::spreadsheet {
+namespace blender {
+
+namespace ed::spreadsheet {
 
 static SpaceLink *spreadsheet_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
@@ -861,4 +863,27 @@ void register_spacetype()
   BKE_spacetype_register(std::move(st));
 }
 
-}  // namespace blender::ed::spreadsheet
+}  // namespace ed::spreadsheet
+
+const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &SpaceSpreadsheet::
+    index_mapping() const
+{
+  using namespace bke::volume_grid;
+
+  BLI_assert(this->runtime);
+
+  // TODO add filter settings in spreadsheet
+  const GridValueOnOff grid_value_filter = GridValueOnOff::On;
+
+  GridIndexMappingParams params = {grid_value_filter};
+  if (!this->runtime->index_mapping_mutex_.is_dirty()) {
+    if (this->runtime->index_mapping_->params() != params) {
+      this->runtime->index_mapping_mutex_.tag_dirty();
+    }
+  }
+  this->runtime->index_mapping_mutex_.ensure(
+      [&]() { this->runtime->index_mapping_ = GridNodeIndexMapping::from_grid(*this, params); });
+  return this->runtime->index_mapping_;
+}
+
+}  // namespace blender

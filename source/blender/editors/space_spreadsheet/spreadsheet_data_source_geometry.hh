@@ -81,18 +81,19 @@ class VolumeDataSource : public DataSource {
   const bke::GeometrySet geometry_set_;
   const bke::VolumeComponent *component_;
   SpreadsheetVolumeGridData volume_grid_data_;
-  bke::volume_grid::GridValueOnOff grid_value_filter_;
+  std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> grid_index_mapping_;
   int grid_index_;
 
  public:
-  VolumeDataSource(bke::GeometrySet geometry_set,
-                   const SpreadsheetVolumeGridData volume_grid_data,
-                   const bke::volume_grid::GridValueOnOff grid_value_filter,
-                   const int grid_index)
+  VolumeDataSource(
+      bke::GeometrySet geometry_set,
+      const SpreadsheetVolumeGridData volume_grid_data,
+      const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &grid_index_mapping,
+      const int grid_index)
       : geometry_set_(std::move(geometry_set)),
         component_(geometry_set_.get_component<bke::VolumeComponent>()),
         volume_grid_data_(volume_grid_data),
-        grid_value_filter_(grid_value_filter),
+        grid_index_mapping_(grid_index_mapping),
         grid_index_(grid_index)
   {
   }
@@ -113,11 +114,13 @@ class VolumeGridDataSource : public DataSource {
   std::unique_ptr<bke::GVolumeGrid> grid_;
   SpreadsheetVolumeGridData volume_grid_data_;
   bke::volume_grid::GridValueOnOff grid_value_filter_;
+  std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> grid_index_mapping_;
 
  public:
-  VolumeGridDataSource(const bke::GVolumeGrid &grid,
-                       SpreadsheetVolumeGridData volume_grid_data,
-                       bke::volume_grid::GridValueOnOff grid_value_filter);
+  VolumeGridDataSource(
+      const bke::GVolumeGrid &grid,
+      SpreadsheetVolumeGridData volume_grid_data,
+      const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &grid_index_mapping);
 
   void foreach_default_column_ids(
       FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;

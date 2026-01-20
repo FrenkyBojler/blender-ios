@@ -37,8 +37,6 @@ struct GridIndexMappingParams {
   GridValueOnOff grid_value_filter = GridValueOnOff::On;
 
   BLI_STRUCT_EQUALITY_OPERATORS_1(GridIndexMappingParams, grid_value_filter)
-
-  static GridIndexMappingParams from_context(const bContext &C);
 };
 
 /**
@@ -143,8 +141,6 @@ class VolumeGridData : public ImplicitSharingMixin {
   mutable int64_t size_in_bytes_ = 0;
   mutable CacheMutex active_bounds_mutex_;
   mutable openvdb::CoordBBox active_bounds_;
-  mutable CacheMutex index_mapping_mutex_;
-  mutable std::shared_ptr<const GridNodeIndexMapping> index_mapping_;
 
   /**
    * A token that allows detecting whether some code is currently accessing the tree (not grid) or
@@ -274,8 +270,6 @@ class VolumeGridData : public ImplicitSharingMixin {
   int64_t active_tiles() const;
   int64_t size_in_bytes() const;
   const openvdb::CoordBBox &active_bounds() const;
-  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping(
-      GridValueOnOff grid_value_filter) const;
 
  private:
   /**

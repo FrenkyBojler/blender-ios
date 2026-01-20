@@ -2,10 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_context.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_grid_process.hh"
-#include "BKE_volume_grid_varray.hh"
 #include "BKE_volume_openvdb.hh"
 
 #include "BLI_index_mask.hh"
@@ -20,12 +18,6 @@
 namespace blender::bke::volume_grid {
 
 #ifdef WITH_OPENVDB
-
-GridIndexMappingParams GridIndexMappingParams::from_context(const bContext &C)
-{
-  GridIndexMappingParams params;
-  return params;
-}
 
 VolumeGridData::VolumeGridData()
 {
@@ -266,20 +258,6 @@ const openvdb::CoordBBox &VolumeGridData::active_bounds() const
     tree.evalActiveVoxelBoundingBox(active_bounds_);
   });
   return active_bounds_;
-}
-
-const std::shared_ptr<const GridNodeIndexMapping> &VolumeGridData::index_mapping(
-    const GridValueOnOff grid_value_filter) const
-{
-  GridIndexMappingParams params = {grid_value_filter};
-  if (!index_mapping_mutex_.is_dirty()) {
-    if (index_mapping_->params() != params) {
-      index_mapping_mutex_.tag_dirty();
-    }
-  }
-  index_mapping_mutex_.ensure(
-      [&]() { index_mapping_ = GridNodeIndexMapping::from_grid(*this, params); });
-  return index_mapping_;
 }
 
 std::string VolumeGridData::error_message() const
