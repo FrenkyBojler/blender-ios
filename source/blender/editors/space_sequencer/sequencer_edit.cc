@@ -471,6 +471,67 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
   WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, nullptr);
 }
 
+void sync_vse_camera_to_strip(bContext &C)
+{
+  /* Check if VSE sync mode is enabled. */
+  WorkSpace *workspace = CTX_wm_workspace(&C);
+  if (!workspace || !workspace->sequencer_scene) {
+    return;
+  }
+  if ((workspace->flags & WORKSPACE_SYNC_SCENE_TIME) == 0) {
+    return;
+  }
+  
+  /* Get the sequencer scene directly from workspace. */
+  Scene *sequencer_scene = workspace->sequencer_scene;
+  
+  /* Check if there's a valid scene strip. */
+  const Strip *scene_strip = get_scene_strip_for_time_sync(sequencer_scene);
+  if (!scene_strip || !scene_strip->scene) {
+    return;
+  }
+  
+  /* Check if the current active scene is being controlled by a scene strip. */
+  wmWindow *win = CTX_wm_window(&C);
+  Scene *active_scene = WM_window_get_active_scene(win);
+  
+  /* Only resync if the active scene matches the scene strip's target scene. */
+  if (active_scene != scene_strip->scene) {
+    return;
+  }
+  
+  /*Determine which camera to use. */
+  Object *camera = [&]() -> Object * {
+    if (scene_strip->scene_camera) {
+      return scene_strip->scene_camera;
+    }
+    return scene_strip->scene->camera;
+  }();
+  
+  if (!camera) {
+    return;
+  }
+  
+  /* Sync camera in any 3D view that uses camera view. */
+  PointerRNA camera_ptr = RNA_id_pointer_create(&camera->id);
+  bScreen *screen = WM_window_get_active_screen(win);
+  
+  for (ScrArea &area : screen->areabase) {
+    for (SpaceLink &sl : area.spacedata) {
+      if (sl.spacetype != SPACE_VIEW3D) {
+        continue;
+      }
+      View3D *view3d = reinterpret_cast<View3D *>(&sl);
+      if (view3d->camera == camera) {
+        continue;
+      }
+      PointerRNA view3d_ptr = RNA_pointer_create_discrete(&screen->id, RNA_SpaceView3D, view3d);
+      RNA_pointer_set(&view3d_ptr, "camera", camera_ptr);
+    }
+  }
+  
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
