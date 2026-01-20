@@ -15,6 +15,7 @@ set(SRC
   denoiser_dlss.cpp
   denoiser_gpu.cpp
   denoiser_oidn.cpp
+  denoiser_oidn_base.cpp
   denoiser_oidn_gpu.cpp
   denoiser_optix.cpp
   path_trace.cpp
@@ -39,6 +40,7 @@ set(SRC_HEADERS
   denoiser_dlss.h
   denoiser_gpu.h
   denoiser_oidn.h
+  denoiser_oidn_base.h
   denoiser_oidn_gpu.h
   denoiser_optix.h
   guiding.h
