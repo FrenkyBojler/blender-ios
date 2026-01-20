@@ -869,8 +869,8 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
   this->object = CTX_data_active_object(C);
   this->scene = CTX_data_scene(C);
 
-  stroke_mode_ = (BrushStrokeMode)RNA_enum_get(op->ptr, "mode");
-  brush_switch_mode_ = (BrushSwitchMode)RNA_enum_get(op->ptr, "brush_toggle");
+  stroke_mode_ = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
+  brush_switch_mode_ = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
 
   original_ = paint_brush_type_raycast_original(*this->brush,
                                                 BKE_paintmode_get_active_from_context(C));

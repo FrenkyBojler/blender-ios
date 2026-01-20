@@ -5681,8 +5681,8 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
 
     ED_view3d_init_mats_rv3d(&ob, this->vc.rv3d);
 
-    stroke_cache_init((BrushStrokeMode)RNA_enum_get(op->ptr, "mode"),
-                      (BrushSwitchMode)RNA_enum_get(op->ptr, "brush_toggle"),
+    stroke_cache_init(BrushStrokeMode(RNA_enum_get(op->ptr, "mode")),
+                      BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle")),
                       RNA_boolean_get(op->ptr, "pen_flip"),
                       mval);
     if (brush && brush_type_is_paint(brush->sculpt_brush_type)) {

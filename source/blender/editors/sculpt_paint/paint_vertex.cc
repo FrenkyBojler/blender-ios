@@ -415,7 +415,7 @@ void update_cache_invariants(
     zero_v2(cache->initial_mouse);
   }
 
-  const auto mode = (BrushStrokeMode)RNA_enum_get(op->ptr, "mode");
+  const auto mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
   cache->invert = mode == BrushStrokeMode::Invert;
 
   const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
@@ -951,7 +951,7 @@ static std::unique_ptr<VPaintData> vpaint_init_vpaint(wmOperator *op,
                                   (brush.flag & BRUSH_FRONTFACE_FALLOFF) != 0);
 
   vpd->paintcol = vpaint_get_current_col(
-      vp, ((BrushStrokeMode)RNA_enum_get(op->ptr, "mode") == BrushStrokeMode::Invert));
+      vp, (BrushStrokeMode(RNA_enum_get(op->ptr, "mode")) == BrushStrokeMode::Invert));
 
   vpd->is_texbrush = !(brush.vertex_brush_type == VPAINT_BRUSH_TYPE_BLUR) && brush.mtex.tex;
 

@@ -303,8 +303,8 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
   ToolSettings *settings = scene->toolsettings;
   std::unique_ptr<PaintOperation> pop = std::make_unique<PaintOperation>();
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
-  auto mode = (BrushStrokeMode)RNA_enum_get(op->ptr, "mode");
-  auto brush_switch_mode = (BrushSwitchMode)RNA_enum_get(op->ptr, "brush_toggle");
+  auto mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
+  auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
   pop->vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   copy_v2_v2(pop->prevmouse, mouse);
@@ -562,7 +562,7 @@ static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
   bool dummy;
   float dummy_location[3];
 
-  BrushStrokeMode stroke_mode = (BrushStrokeMode)RNA_enum_get(op->ptr, "mode");
+  BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
   float zoomx;
   float zoomy;
   get_imapaint_zoom(C, &zoomx, &zoomy);
