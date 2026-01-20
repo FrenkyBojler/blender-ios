@@ -1619,7 +1619,7 @@ static void ui_template_id(Layout &layout,
 }
 
 void template_ID_session_uid(
-    Layout &layout, bContext *C, PointerRNA *ptr, const StringRefNull propname, short idcode)
+    Layout &layout, bContext *C, PointerRNA *ptr, StringRefNull propname, short idcode)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
@@ -1659,17 +1659,17 @@ void template_ID_session_uid(
   const int width = std::clamp(
       estimated_width, TEMPLATE_SEARCH_TEXTBUT_MIN_WIDTH, TEMPLATE_SEARCH_TEXTBUT_MIN_WIDTH * 4);
 
-  blender::ui::Button *but = uiDefBlockButN(block,
-                                            id_search_menu_session_uid,
-                                            MEM_new<TemplateID>(__func__, template_ui),
-                                            id ? id->name + 2 : nullptr,
-                                            0,
-                                            0,
-                                            width,
-                                            UI_UNIT_Y,
-                                            nullptr,
-                                            but_func_argN_free<TemplateID>,
-                                            but_func_argN_copy<TemplateID>);
+  Button *but = uiDefBlockButN(block,
+                               id_search_menu_session_uid,
+                               MEM_new<TemplateID>(__func__, template_ui),
+                               id ? id->name + 2 : nullptr,
+                               0,
+                               0,
+                               width,
+                               UI_UNIT_Y,
+                               nullptr,
+                               but_func_argN_free<TemplateID>,
+                               but_func_argN_copy<TemplateID>);
 
   def_but_icon(but, RNA_struct_ui_icon(type), UI_HAS_ICON);
 }

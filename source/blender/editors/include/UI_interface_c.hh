@@ -2285,7 +2285,7 @@ void template_id(Layout *layout,
                  bool live_icon = false,
                  std::optional<StringRef> text = std::nullopt);
 void template_ID_session_uid(
-    Layout &layout, bContext *C, PointerRNA *ptr, const StringRefNull propname, short idcode);
+    Layout &layout, bContext *C, PointerRNA *ptr, StringRefNull propname, short idcode);
 void template_id_browse(Layout *layout,
                         bContext *C,
                         PointerRNA *ptr,
