@@ -268,67 +268,6 @@ struct PolyRange {
 };
 
 /**
- * Find which polygon a vertex index belongs to.
- *
- * \param poly_index_hint: Starting position for search, updated to the found index.
- */
-static const PolyRange &find_poly_from_vert(const Vector<PolyRange> &poly_ranges,
-                                            int vert_index,
-                                            int &poly_index_hint)
-{
-  const int n = int(poly_ranges.size());
-
-  /* Check hint first. */
-  if (poly_index_hint < n && vert_index >= poly_ranges[poly_index_hint].start &&
-      vert_index < poly_ranges[poly_index_hint].start + poly_ranges[poly_index_hint].count)
-  {
-    return poly_ranges[poly_index_hint];
-  }
-
-  /* Uses exponential search from `poly_index_hint` position
-   * to speed up sequential/clustered access patterns
-   * (common when iterating CDT output vertices that tend to come from nearby input regions). */
-
-  int lo, hi;
-
-  if (poly_index_hint >= n || vert_index >= poly_ranges[poly_index_hint].start) {
-    /* Search forward with doubling. */
-    lo = poly_index_hint < n ? poly_index_hint : 0;
-    int step = 1;
-    while (lo + step < n && poly_ranges[lo + step].start <= vert_index) {
-      lo += step;
-      step *= 2;
-    }
-    hi = std::min(lo + step, n - 1);
-  }
-  else {
-    /* Search backward with doubling. */
-    hi = poly_index_hint;
-    int step = 1;
-    while (hi - step >= 0 && poly_ranges[hi - step].start > vert_index) {
-      hi -= step;
-      step *= 2;
-    }
-    lo = std::max(hi - step, 0);
-  }
-
-  /* Binary search in narrowed range. */
-  while (lo < hi) {
-    int mid = (lo + hi + 1) / 2;
-    if (poly_ranges[mid].start <= vert_index) {
-      lo = mid;
-    }
-    else {
-      hi = mid - 1;
-    }
-  }
-
-  BLI_assert(lo >= 0 && lo < n);
-  poly_index_hint = lo;
-  return poly_ranges[lo];
-}
-
-/**
  * Compute Z coordinate for an intersection vertex by interpolating along
  * the original edge it lies on.
  */
@@ -541,9 +480,11 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
                                                 const bool flip_normal,
                                                 const CDT_output_type cdt_output_type)
 {
-  /* Build CDT input, tracking if all Z coordinates are uniform. */
+  /* Build CDT input, tracking if all Z coordinates are uniform.
+   * Also build vert_to_poly map for O(1) polygon lookup. */
   Array<double2> verts_2d(item.total_verts);
   Array<Vector<int>> faces(item.poly_ranges.size());
+  Array<int> vert_to_poly(item.total_verts);
 
   const float first_z = item.poly_ranges[0].dl->verts[2];
   bool uniform_z = true;
@@ -553,8 +494,10 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
     faces[p].reinitialize(poly.count);
     for (int i = 0; i < poly.count; i++) {
       const float *v = &poly.dl->verts[3 * i];
-      verts_2d[poly.start + i] = double2(v[0], v[1]);
-      faces[p][i] = poly.start + i;
+      const int vert_index = poly.start + i;
+      verts_2d[vert_index] = double2(v[0], v[1]);
+      faces[p][i] = vert_index;
+      vert_to_poly[vert_index] = int(p);
       if (uniform_z && v[2] != first_z) {
         uniform_z = false;
       }
@@ -610,14 +553,13 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
   }
 
   /* Map output vertices to 3D. */
-  int poly_index_hint = 0;
   for (int i = 0; i < out_verts; i++) {
     float *out = &dlnew->verts[3 * i];
     if (!result.vert_orig[i].is_empty()) {
-      /* Original vertex - copy from input. */
-      int orig_index = result.vert_orig[i][0];
-      const PolyRange &poly = find_poly_from_vert(item.poly_ranges, orig_index, poly_index_hint);
-      int local_index = orig_index - poly.start;
+      /* Original vertex - copy from input using direct lookup. */
+      const int orig_index = result.vert_orig[i][0];
+      const PolyRange &poly = item.poly_ranges[vert_to_poly[orig_index]];
+      const int local_index = orig_index - poly.start;
       copy_v3_v3(out, &poly.dl->verts[3 * local_index]);
     }
     else {
