@@ -139,6 +139,11 @@ def object_data_add(context, obdata, operator=None, name=None):
             if uv_act is not None:
                 uv_new.name = uv_act.name
 
+        # Copy the active object's materials into the primitive with no materials.
+        if len(obj_act.data.materials) > 0 and len(obdata.materials) == 0:
+            for mat in obj_act.data.materials:
+                obdata.materials.append(mat)
+
         bpy.ops.object.join()  # join into the active.
         if obdata:
             bpy.data.meshes.remove(obdata)
