@@ -90,148 +90,6 @@ static const std::array<TokenType, 128> token_table_preprocessor = [] {
   return table;
 }();
 
-BLI_NOINLINE void lex_string(const TokenType *types, uint32_t &cursor)
-{
-  const TokenType *ptr = types + cursor;
-  while (true) {
-    cursor++;
-    ptr++;
-    if (*ptr == '\\') {
-      /* Escaped character. Skip next. */
-      cursor++;
-      ptr++;
-      continue;
-    }
-    if (ELEM(*ptr, String, EndOfFile)) {
-      return;
-    }
-  }
-}
-
-BLI_NOINLINE void lex_number(const uint8_t c_str[/*size*/],
-                             const TokenType types[/*tok_len*/],
-                             const uint32_t offsets[/*tok_len*/],
-                             uint32_t &cursor)
-{
-  const TokenType *type = types + cursor;
-  const uint32_t *offset = offsets + cursor;
-  while (true) {
-    cursor++;
-    type++;
-    offset++;
-    /* Check if previous char was an exponent "e" char. */
-    if (ELEM(*type, '+', '-') && c_str[*offset - 1] != 'e') {
-      break;
-    }
-    if (!ELEM(*type, Word, Number, Dot, '+', '-')) {
-      break;
-    }
-  }
-  /* We need to evaluate the token we broke on. */
-  cursor--;
-}
-
-void tokenize_compounds(const uint8_t c_str[/*size*/],
-                        const uint32_t /*size*/,
-                        const TokenType in_tok_types[/*tok_len*/],
-                        const uint32_t in_tok_offsets[/*tok_len*/],
-                        uint32_t int_tok_len,
-                        TokenType out_tok_types[/*tok_len*/],
-                        uint32_t out_tok_offsets[/*tok_len*/],
-                        uint32_t *out_tok_len,
-                        const bool merge_newlines,
-                        const bool merge_spaces)
-{
-  TokenType *types = out_tok_types;
-  uint32_t *offsets = out_tok_offsets;
-  for (uint32_t i = 0; i < int_tok_len; i++, types++, offsets++) {
-    union {
-      struct {
-        TokenType tok, peek;
-      };
-      uint16_t two;
-    };
-    tok = in_tok_types[i];
-    peek = in_tok_types[i + 1];
-
-    uint32_t offset = in_tok_offsets[i];
-
-#ifndef NDEBUG
-    uint32_t tok_size = in_tok_offsets[i + 1] - offset;
-    std::string_view tok_str{(const char *)c_str + offset, tok_size};
-#endif
-
-    *offsets = offset;
-    *types = tok;
-
-    switch (tok) {
-      case NewLine:
-        /* Make next token overwrite this one. Merge the space with the token before. */
-        types -= merge_newlines;
-        offsets -= merge_newlines;
-        continue;
-
-      case Space:
-        /* Make next token overwrite this one. Merge the space with the token before. */
-        types -= merge_spaces;
-        offsets -= merge_spaces;
-        continue;
-
-      case String:
-        lex_string(in_tok_types, i);
-        continue;
-
-      case Number:
-        lex_number(c_str, in_tok_types, in_tok_offsets, i);
-        continue;
-
-      [[likely]] default:
-        break;
-    }
-
-    switch (two) {
-      case '=' | '=' << 8:
-        *types = Equal;
-        break;
-      case '!' | '=' << 8:
-        *types = NotEqual;
-        break;
-      case '<' | '=' << 8:
-        *types = GEqual;
-        break;
-      case '>' | '=' << 8:
-        *types = LEqual;
-        break;
-
-      case '#' | '#' << 8:
-        *types = DoubleHash;
-        break;
-      case '&' | '&' << 8:
-        *types = LogicalAnd;
-        break;
-      case '|' | '|' << 8:
-        *types = LogicalOr;
-        break;
-      case '+' | '+' << 8:
-        *types = Increment;
-        break;
-      case '-' | '-' << 8:
-        *types = Decrement;
-        break;
-      case '-' | '>' << 8:
-        *types = Deref;
-        break;
-
-      [[likely]] default:
-        continue;
-    }
-    /* Skip next token. */
-    i++;
-  }
-
-  *out_tok_len = types - out_tok_types;
-}
-
 /**
  * Lexer variant for very fast tokenization for the preprocessor.
  * Consider numbers as words (to avoid splitting and then merging later on).
@@ -278,23 +136,15 @@ struct AtomicLexer : LexerBase {
 
   BLI_NOINLINE void merge_tokens()
   {
-    uint32_t tok_len = token_types.size();
-    tokenize_compounds((const uint8_t *)str.data(),
-                       str.size(),
-                       token_types.data(),
-                       token_offsets.data(),
-                       tok_len,
-                       token_types.data(),
-                       token_offsets.data(),
-                       &tok_len,
-                       false,
-                       false);
+    lexit::TokenBuffer tok_buf(
+        str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
 
-    /* Make sure the last token extend to the end of the string. */
-    token_offsets.offsets[tok_len] = token_offsets.offsets.back();
-    /* Shrink spans to new number of tokens. */
-    token_types.shrink(tok_len);
-    token_offsets.offsets.shrink(tok_len + 1);
+    tok_buf.merge_compounds<CompoundFlags::AllButWhitespaces>();
+
+    /* Resize to the actual usage. */
+    token_types.shrink(tok_buf.size());
+    token_sizes.shrink(tok_buf.size());
+    token_offsets.offsets.shrink(tok_buf.size() + 1);
 
     update_string_view();
   }

@@ -283,4 +283,45 @@ void TokenBuffer::identify_numbers()
   }
 }
 
+void TokenBuffer::lex_string(const TokenType *types, uint32_t &cursor)
+{
+  const TokenType *ptr = types + cursor;
+  while (true) {
+    cursor++;
+    ptr++;
+    if (*ptr == '\\') {
+      /* Escaped character. Skip next. */
+      cursor++;
+      ptr++;
+      continue;
+    }
+    if (*ptr == String || *ptr == EndOfFile) {
+      return;
+    }
+  }
+}
+
+void TokenBuffer::lex_number(const uint8_t *c_str,
+                             const TokenType *types,
+                             const uint32_t *offsets,
+                             uint32_t &cursor)
+{
+  const TokenType *type = types + cursor;
+  const uint32_t *offset = offsets + cursor;
+  while (true) {
+    cursor++;
+    type++;
+    offset++;
+    /* Check if previous char was an exponent "e" char. */
+    if ((*type == '+' || *type == '-') && c_str[*offset - 1] != 'e') {
+      break;
+    }
+    if (!(*type == Word || *type == Number || *type == '.' || *type == '+' || *type == '-')) {
+      break;
+    }
+  }
+  /* We need to evaluate the token we broke on. */
+  cursor--;
+}
+
 }  // namespace lexit

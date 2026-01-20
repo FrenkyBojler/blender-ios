@@ -12,10 +12,31 @@
 #pragma once
 
 #include <cstdint>
+#ifndef NDEBUG
+#  include <string_view>
+#endif
 
 #include "types.hh"
 
 namespace lexit {
+
+enum class CompoundFlags : uint64_t {
+  None = 0, /* Invalid. */
+
+  Newlines = 1 << 0,   /* Merge newline with previous token. */
+  Spaces = 1 << 1,     /* Merge space with previous token. */
+  Strings = 1 << 2,    /* "my\"string" */
+  Numbers = 1 << 3,    /* 3.e-3f */
+  CompOps = 1 << 4,    /* >=, <=, ==, != */
+  TokenPaste = 1 << 5, /* ## */
+  LogicOps = 1 << 6,   /* ||, && */
+  UnaryOps = 1 << 7,   /* ++, -- */
+  Derefs = 1 << 8,     /* -> */
+
+  Whitespaces = Newlines | Spaces, /* Merge whitespace with previous token. */
+  AllButWhitespaces = String | Numbers | CompOps | TokenPaste | LogicOps | UnaryOps | Deref,
+  All = AllButWhitespaces | Whitespaces,
+};
 
 /**
  * Non-owning container for token datas stored in structure of array layout.
@@ -81,6 +102,100 @@ class TokenBuffer {
   {
     return size_;
   }
+
+  /**
+   * @brief Merge compound tokens together.
+   *
+   * This can be used to reduce the token count, remove whitespaces, find 
+   */
+  template<CompoundFlags flags> void merge_compounds()
+  {
+    static_assert(flags != CompoundFlags::None, "No merge flag provided, function is a noop");
+
+#define LEXIT_TWO(a, b) a | b << 8
+
+    const TokenType *in_types = types_;
+    TokenType *out_types = types_;
+    const uint32_t *in_offsets = offsets_;
+    uint32_t *out_offsets = offsets_;
+
+    for (uint32_t i = 0; i < size_; i++, out_types++, out_offsets++) {
+      const TokenType one = in_types[i];
+      const uint16_t two = LEXIT_TWO(one, in_types[i + 1]);
+
+      const uint32_t offset = in_offsets[i];
+
+#ifndef NDEBUG
+      std::string_view tok_str{(const char *)str_ + offset, in_offsets[i + 1] - offset};
+#endif
+
+      *out_types = one;
+      *out_offsets = offset;
+
+#define LEXIT_COMPOUND_LEX(tok, flag, ...) \
+  case tok: \
+    if constexpr (uint64_t(flags) & uint64_t(CompoundFlags::flag)) { \
+      __VA_ARGS__; \
+      continue; \
+    } \
+    else { \
+      break; \
+    }
+
+      switch (one) {
+        /* Make next token overwrite this one. Merge the token with the one before. */
+        LEXIT_COMPOUND_LEX(NewLine, Newlines, out_types--, out_offsets--)
+        LEXIT_COMPOUND_LEX(Space, Spaces, out_types--, out_offsets--)
+        /* Complex compound call dedicated functions. */
+        LEXIT_COMPOUND_LEX(String, Strings, out_types--, lex_string(in_types, i))
+        LEXIT_COMPOUND_LEX(Number, Numbers, out_types--, lex_number(str_, in_types, in_offsets, i))
+
+        [[likely]] default:
+          break;
+      }
+
+#undef LEXIT_COMPOUND_LEX
+
+#define LEXIT_COMPOUND_LEX(first, second, flag, new_type) \
+  case LEXIT_TWO(first, second): \
+    if constexpr (uint64_t(flags) & uint64_t(CompoundFlags::flag)) { \
+      *out_types = new_type; \
+      break; \
+    } \
+    else { \
+      continue; \
+    }
+
+      switch (two) {
+        LEXIT_COMPOUND_LEX('=', '=', CompOps, Equal)
+        LEXIT_COMPOUND_LEX('!', '=', CompOps, NotEqual)
+        LEXIT_COMPOUND_LEX('<', '=', CompOps, GEqual)
+        LEXIT_COMPOUND_LEX('>', '=', CompOps, LEqual)
+        LEXIT_COMPOUND_LEX('#', '#', TokenPaste, DoubleHash)
+        LEXIT_COMPOUND_LEX('&', '&', LogicOps, LogicalAnd)
+        LEXIT_COMPOUND_LEX('|', '|', LogicOps, LogicalOr)
+        LEXIT_COMPOUND_LEX('+', '+', UnaryOps, Increment)
+        LEXIT_COMPOUND_LEX('-', '-', UnaryOps, Decrement)
+        LEXIT_COMPOUND_LEX('-', '>', Derefs, Deref)
+        [[likely]] default:
+          continue;
+      }
+#undef LEXIT_COMPOUND_LEX
+
+      i++; /* Skip next token. */
+    }
+#undef LEXIT_TWO
+
+    size_ = in_types - out_types;
+  }
+
+ private:
+  void lex_string(const TokenType *types, uint32_t &cursor);
+
+  void lex_number(const uint8_t c_str[/*size*/],
+                  const TokenType types[/*tok_len*/],
+                  const uint32_t offsets[/*tok_len*/],
+                  uint32_t &cursor);
 };
 
 }  // namespace lexit
