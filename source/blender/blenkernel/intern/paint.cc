@@ -2289,7 +2289,8 @@ static bool sculpt_modifiers_active(const Scene *scene, const Sculpt *sd, Object
 {
   const Mesh &mesh = *id_cast<Mesh *>(ob->data);
 
-  if (ob->runtime->sculpt_session->bm || BKE_sculpt_multires_active(scene, ob)) {
+  /* TODO: Confirm this, logically we cannot have ever created a sculpt session with BM? */
+  if (/*ob->runtime->sculpt_session->bm || */BKE_sculpt_multires_active(scene, ob)) {
     return false;
   }
 
@@ -2429,10 +2430,11 @@ SculptSession *sculpt_session_ensure(Depsgraph &depsgraph, Object &object)
 
   BLI_assert(!mmd || (mmd && ss->subdiv_ccg));
 
+  object.runtime->sculpt_session = ss;
+
   object::pbvh_ensure(depsgraph, object);
   sculpt_session_update_deform_coords(depsgraph, *scene, object, ob_eval, *ss);;
 
-  object.runtime->sculpt_session = ss;
   return object.runtime->sculpt_session;
 }
 }  // namespace bke::object
