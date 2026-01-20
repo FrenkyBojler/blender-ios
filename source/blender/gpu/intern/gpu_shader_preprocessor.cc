@@ -15,11 +15,8 @@
 #include "gpu_shader_dead_code_elimination.hh"
 #include "gpu_shader_private.hh"
 
-#if defined(__ARM_NEON)
-/* Use ARM FP16 conversion instructions */
-#  define USE_HARDWARE_FP16_NEON
-#  include <arm_neon.h>
-#endif
+#include "shader_tool/lexit/lexit.hh"
+#include "shader_tool/lexit/tables.hh"
 
 namespace blender::gpu {
 
@@ -73,407 +70,25 @@ using namespace shader::parser;
 /** \name Parser / Lexer classes.
  * \{ */
 
-/* Same thing but consider numbers as words to avoid second merging pass. */
-static constexpr TokenType token_table[128] = {
-    ['A'] = Word,
-    ['B'] = Word,
-    ['C'] = Word,
-    ['D'] = Word,
-    ['E'] = Word,
-    ['F'] = Word,
-    ['G'] = Word,
-    ['H'] = Word,
-    ['I'] = Word,
-    ['J'] = Word,
-    ['K'] = Word,
-    ['L'] = Word,
-    ['M'] = Word,
-    ['N'] = Word,
-    ['O'] = Word,
-    ['P'] = Word,
-    ['Q'] = Word,
-    ['R'] = Word,
-    ['S'] = Word,
-    ['T'] = Word,
-    ['U'] = Word,
-    ['V'] = Word,
-    ['W'] = Word,
-    ['X'] = Word,
-    ['Y'] = Word,
-    ['Z'] = Word,
-    ['a'] = Word,
-    ['b'] = Word,
-    ['c'] = Word,
-    ['d'] = Word,
-    ['e'] = Word,
-    ['f'] = Word,
-    ['g'] = Word,
-    ['h'] = Word,
-    ['i'] = Word,
-    ['j'] = Word,
-    ['k'] = Word,
-    ['l'] = Word,
-    ['m'] = Word,
-    ['n'] = Word,
-    ['o'] = Word,
-    ['p'] = Word,
-    ['q'] = Word,
-    ['r'] = Word,
-    ['s'] = Word,
-    ['t'] = Word,
-    ['u'] = Word,
-    ['v'] = Word,
-    ['w'] = Word,
-    ['x'] = Word,
-    ['y'] = Word,
-    ['z'] = Word,
-    ['_'] = Word,
-    ['0'] = Word,
-    ['1'] = Word,
-    ['2'] = Word,
-    ['3'] = Word,
-    ['4'] = Word,
-    ['5'] = Word,
-    ['6'] = Word,
-    ['7'] = Word,
-    ['8'] = Word,
-    ['9'] = Word,
-    ['!'] = TokenType('!' | AlwaysSplit),
-    ['"'] = TokenType(String | AlwaysSplit),
-    ['#'] = TokenType('#' | AlwaysSplit),
-    ['%'] = TokenType('%' | AlwaysSplit),
-    ['&'] = TokenType('&' | AlwaysSplit),
-    ['\''] = TokenType('\'' | AlwaysSplit),
-    ['('] = TokenType('(' | AlwaysSplit),
-    [')'] = TokenType(')' | AlwaysSplit),
-    ['*'] = TokenType('*' | AlwaysSplit),
-    ['+'] = TokenType('+' | AlwaysSplit),
-    [','] = TokenType(',' | AlwaysSplit),
-    ['-'] = TokenType('-' | AlwaysSplit),
-    ['.'] = TokenType('.'),
-    ['/'] = TokenType('/' | AlwaysSplit),
-    [':'] = TokenType(':' | AlwaysSplit),
-    [';'] = TokenType(';' | AlwaysSplit),
-    ['<'] = TokenType('<' | AlwaysSplit),
-    ['='] = TokenType('=' | AlwaysSplit),
-    ['>'] = TokenType('>' | AlwaysSplit),
-    ['?'] = TokenType('?' | AlwaysSplit),
-    ['['] = TokenType('[' | AlwaysSplit),
-    [' '] = TokenType(' '),
-    [93 /*'\]'*/] = TokenType(']' | AlwaysSplit),
-    ['^'] = TokenType('^' | AlwaysSplit),
-    ['{'] = TokenType('{' | AlwaysSplit),
-    ['|'] = TokenType('|' | AlwaysSplit),
-    ['}'] = TokenType('}' | AlwaysSplit),
-    ['~'] = TokenType('~' | AlwaysSplit),
-    ['\n'] = TokenType('\n' | AlwaysSplit),
-    ['\\'] = TokenType('\\' | AlwaysSplit),
-};
+/* Same thing as default table but consider numbers as words to avoid second merging pass. */
+static const std::array<TokenType, 128> token_table_preprocessor = [] {
+  std::array<TokenType, 128> table;
+  memcpy(table.data(), lexit::token_table, sizeof(lexit::token_table));
 
-/* Same thing but consider numbers as words to avoid second merging pass. */
-static const std::array<TokenType, 256> token_table_preprocessor = [] {
-  std::array<TokenType, 256> table;
-  for (int i = 0; i < 128; i++) {
-    table[i] = token_table[i];
-  }
-  /* Same thing but consider numbers as words to avoid second merging pass. */
-  table['0'] = Word;
-  table['1'] = Word;
-  table['2'] = Word;
-  table['3'] = Word;
-  table['4'] = Word;
-  table['5'] = Word;
-  table['6'] = Word;
-  table['7'] = Word;
-  table['8'] = Word;
-  table['9'] = Word;
-  table['\n'] = TokenType('\n' | AlwaysSplit);
+  table['0'] = TokenType(Word | Merge);
+  table['1'] = TokenType(Word | Merge);
+  table['2'] = TokenType(Word | Merge);
+  table['3'] = TokenType(Word | Merge);
+  table['4'] = TokenType(Word | Merge);
+  table['5'] = TokenType(Word | Merge);
+  table['6'] = TokenType(Word | Merge);
+  table['7'] = TokenType(Word | Merge);
+  table['8'] = TokenType(Word | Merge);
+  table['9'] = TokenType(Word | Merge);
+  /* Make "..." for __VA_ARGS__ support a single token. */
+  table['.'] = TokenType(Dot | Merge);
   return table;
 }();
-
-#if defined(USE_HARDWARE_FP16_NEON)
-/* Shuffle table used for stream compaction. */
-uint8_t shuffle_table_8[256][8] = {
-    [0b00000000] = {0, 0, 0, 0, 0, 0, 0, 0}, [0b00000001] = {0, 0, 0, 0, 0, 0, 0, 0},
-    [0b00000010] = {1, 0, 0, 0, 0, 0, 0, 0}, [0b00000011] = {0, 1, 0, 0, 0, 0, 0, 0},
-    [0b00000100] = {2, 0, 0, 0, 0, 0, 0, 0}, [0b00000101] = {0, 2, 0, 0, 0, 0, 0, 0},
-    [0b00000110] = {1, 2, 0, 0, 0, 0, 0, 0}, [0b00000111] = {0, 1, 2, 0, 0, 0, 0, 0},
-    [0b00001000] = {3, 0, 0, 0, 0, 0, 0, 0}, [0b00001001] = {0, 3, 0, 0, 0, 0, 0, 0},
-    [0b00001010] = {1, 3, 0, 0, 0, 0, 0, 0}, [0b00001011] = {0, 1, 3, 0, 0, 0, 0, 0},
-    [0b00001100] = {2, 3, 0, 0, 0, 0, 0, 0}, [0b00001101] = {0, 2, 3, 0, 0, 0, 0, 0},
-    [0b00001110] = {1, 2, 3, 0, 0, 0, 0, 0}, [0b00001111] = {0, 1, 2, 3, 0, 0, 0, 0},
-    [0b00010000] = {4, 0, 0, 0, 0, 0, 0, 0}, [0b00010001] = {0, 4, 0, 0, 0, 0, 0, 0},
-    [0b00010010] = {1, 4, 0, 0, 0, 0, 0, 0}, [0b00010011] = {0, 1, 4, 0, 0, 0, 0, 0},
-    [0b00010100] = {2, 4, 0, 0, 0, 0, 0, 0}, [0b00010101] = {0, 2, 4, 0, 0, 0, 0, 0},
-    [0b00010110] = {1, 2, 4, 0, 0, 0, 0, 0}, [0b00010111] = {0, 1, 2, 4, 0, 0, 0, 0},
-    [0b00011000] = {3, 4, 0, 0, 0, 0, 0, 0}, [0b00011001] = {0, 3, 4, 0, 0, 0, 0, 0},
-    [0b00011010] = {1, 3, 4, 0, 0, 0, 0, 0}, [0b00011011] = {0, 1, 3, 4, 0, 0, 0, 0},
-    [0b00011100] = {2, 3, 4, 0, 0, 0, 0, 0}, [0b00011101] = {0, 2, 3, 4, 0, 0, 0, 0},
-    [0b00011110] = {1, 2, 3, 4, 0, 0, 0, 0}, [0b00011111] = {0, 1, 2, 3, 4, 0, 0, 0},
-    [0b00100000] = {5, 0, 0, 0, 0, 0, 0, 0}, [0b00100001] = {0, 5, 0, 0, 0, 0, 0, 0},
-    [0b00100010] = {1, 5, 0, 0, 0, 0, 0, 0}, [0b00100011] = {0, 1, 5, 0, 0, 0, 0, 0},
-    [0b00100100] = {2, 5, 0, 0, 0, 0, 0, 0}, [0b00100101] = {0, 2, 5, 0, 0, 0, 0, 0},
-    [0b00100110] = {1, 2, 5, 0, 0, 0, 0, 0}, [0b00100111] = {0, 1, 2, 5, 0, 0, 0, 0},
-    [0b00101000] = {3, 5, 0, 0, 0, 0, 0, 0}, [0b00101001] = {0, 3, 5, 0, 0, 0, 0, 0},
-    [0b00101010] = {1, 3, 5, 0, 0, 0, 0, 0}, [0b00101011] = {0, 1, 3, 5, 0, 0, 0, 0},
-    [0b00101100] = {2, 3, 5, 0, 0, 0, 0, 0}, [0b00101101] = {0, 2, 3, 5, 0, 0, 0, 0},
-    [0b00101110] = {1, 2, 3, 5, 0, 0, 0, 0}, [0b00101111] = {0, 1, 2, 3, 5, 0, 0, 0},
-    [0b00110000] = {4, 5, 0, 0, 0, 0, 0, 0}, [0b00110001] = {0, 4, 5, 0, 0, 0, 0, 0},
-    [0b00110010] = {1, 4, 5, 0, 0, 0, 0, 0}, [0b00110011] = {0, 1, 4, 5, 0, 0, 0, 0},
-    [0b00110100] = {2, 4, 5, 0, 0, 0, 0, 0}, [0b00110101] = {0, 2, 4, 5, 0, 0, 0, 0},
-    [0b00110110] = {1, 2, 4, 5, 0, 0, 0, 0}, [0b00110111] = {0, 1, 2, 4, 5, 0, 0, 0},
-    [0b00111000] = {3, 4, 5, 0, 0, 0, 0, 0}, [0b00111001] = {0, 3, 4, 5, 0, 0, 0, 0},
-    [0b00111010] = {1, 3, 4, 5, 0, 0, 0, 0}, [0b00111011] = {0, 1, 3, 4, 5, 0, 0, 0},
-    [0b00111100] = {2, 3, 4, 5, 0, 0, 0, 0}, [0b00111101] = {0, 2, 3, 4, 5, 0, 0, 0},
-    [0b00111110] = {1, 2, 3, 4, 5, 0, 0, 0}, [0b00111111] = {0, 1, 2, 3, 4, 5, 0, 0},
-    [0b01000000] = {6, 0, 0, 0, 0, 0, 0, 0}, [0b01000001] = {0, 6, 0, 0, 0, 0, 0, 0},
-    [0b01000010] = {1, 6, 0, 0, 0, 0, 0, 0}, [0b01000011] = {0, 1, 6, 0, 0, 0, 0, 0},
-    [0b01000100] = {2, 6, 0, 0, 0, 0, 0, 0}, [0b01000101] = {0, 2, 6, 0, 0, 0, 0, 0},
-    [0b01000110] = {1, 2, 6, 0, 0, 0, 0, 0}, [0b01000111] = {0, 1, 2, 6, 0, 0, 0, 0},
-    [0b01001000] = {3, 6, 0, 0, 0, 0, 0, 0}, [0b01001001] = {0, 3, 6, 0, 0, 0, 0, 0},
-    [0b01001010] = {1, 3, 6, 0, 0, 0, 0, 0}, [0b01001011] = {0, 1, 3, 6, 0, 0, 0, 0},
-    [0b01001100] = {2, 3, 6, 0, 0, 0, 0, 0}, [0b01001101] = {0, 2, 3, 6, 0, 0, 0, 0},
-    [0b01001110] = {1, 2, 3, 6, 0, 0, 0, 0}, [0b01001111] = {0, 1, 2, 3, 6, 0, 0, 0},
-    [0b01010000] = {4, 6, 0, 0, 0, 0, 0, 0}, [0b01010001] = {0, 4, 6, 0, 0, 0, 0, 0},
-    [0b01010010] = {1, 4, 6, 0, 0, 0, 0, 0}, [0b01010011] = {0, 1, 4, 6, 0, 0, 0, 0},
-    [0b01010100] = {2, 4, 6, 0, 0, 0, 0, 0}, [0b01010101] = {0, 2, 4, 6, 0, 0, 0, 0},
-    [0b01010110] = {1, 2, 4, 6, 0, 0, 0, 0}, [0b01010111] = {0, 1, 2, 4, 6, 0, 0, 0},
-    [0b01011000] = {3, 4, 6, 0, 0, 0, 0, 0}, [0b01011001] = {0, 3, 4, 6, 0, 0, 0, 0},
-    [0b01011010] = {1, 3, 4, 6, 0, 0, 0, 0}, [0b01011011] = {0, 1, 3, 4, 6, 0, 0, 0},
-    [0b01011100] = {2, 3, 4, 6, 0, 0, 0, 0}, [0b01011101] = {0, 2, 3, 4, 6, 0, 0, 0},
-    [0b01011110] = {1, 2, 3, 4, 6, 0, 0, 0}, [0b01011111] = {0, 1, 2, 3, 4, 6, 0, 0},
-    [0b01100000] = {5, 6, 0, 0, 0, 0, 0, 0}, [0b01100001] = {0, 5, 6, 0, 0, 0, 0, 0},
-    [0b01100010] = {1, 5, 6, 0, 0, 0, 0, 0}, [0b01100011] = {0, 1, 5, 6, 0, 0, 0, 0},
-    [0b01100100] = {2, 5, 6, 0, 0, 0, 0, 0}, [0b01100101] = {0, 2, 5, 6, 0, 0, 0, 0},
-    [0b01100110] = {1, 2, 5, 6, 0, 0, 0, 0}, [0b01100111] = {0, 1, 2, 5, 6, 0, 0, 0},
-    [0b01101000] = {3, 5, 6, 0, 0, 0, 0, 0}, [0b01101001] = {0, 3, 5, 6, 0, 0, 0, 0},
-    [0b01101010] = {1, 3, 5, 6, 0, 0, 0, 0}, [0b01101011] = {0, 1, 3, 5, 6, 0, 0, 0},
-    [0b01101100] = {2, 3, 5, 6, 0, 0, 0, 0}, [0b01101101] = {0, 2, 3, 5, 6, 0, 0, 0},
-    [0b01101110] = {1, 2, 3, 5, 6, 0, 0, 0}, [0b01101111] = {0, 1, 2, 3, 5, 6, 0, 0},
-    [0b01110000] = {4, 5, 6, 0, 0, 0, 0, 0}, [0b01110001] = {0, 4, 5, 6, 0, 0, 0, 0},
-    [0b01110010] = {1, 4, 5, 6, 0, 0, 0, 0}, [0b01110011] = {0, 1, 4, 5, 6, 0, 0, 0},
-    [0b01110100] = {2, 4, 5, 6, 0, 0, 0, 0}, [0b01110101] = {0, 2, 4, 5, 6, 0, 0, 0},
-    [0b01110110] = {1, 2, 4, 5, 6, 0, 0, 0}, [0b01110111] = {0, 1, 2, 4, 5, 6, 0, 0},
-    [0b01111000] = {3, 4, 5, 6, 0, 0, 0, 0}, [0b01111001] = {0, 3, 4, 5, 6, 0, 0, 0},
-    [0b01111010] = {1, 3, 4, 5, 6, 0, 0, 0}, [0b01111011] = {0, 1, 3, 4, 5, 6, 0, 0},
-    [0b01111100] = {2, 3, 4, 5, 6, 0, 0, 0}, [0b01111101] = {0, 2, 3, 4, 5, 6, 0, 0},
-    [0b01111110] = {1, 2, 3, 4, 5, 6, 0, 0}, [0b01111111] = {0, 1, 2, 3, 4, 5, 6, 0},
-    [0b10000000] = {7, 0, 0, 0, 0, 0, 0, 0}, [0b10000001] = {0, 7, 0, 0, 0, 0, 0, 0},
-    [0b10000010] = {1, 7, 0, 0, 0, 0, 0, 0}, [0b10000011] = {0, 1, 7, 0, 0, 0, 0, 0},
-    [0b10000100] = {2, 7, 0, 0, 0, 0, 0, 0}, [0b10000101] = {0, 2, 7, 0, 0, 0, 0, 0},
-    [0b10000110] = {1, 2, 7, 0, 0, 0, 0, 0}, [0b10000111] = {0, 1, 2, 7, 0, 0, 0, 0},
-    [0b10001000] = {3, 7, 0, 0, 0, 0, 0, 0}, [0b10001001] = {0, 3, 7, 0, 0, 0, 0, 0},
-    [0b10001010] = {1, 3, 7, 0, 0, 0, 0, 0}, [0b10001011] = {0, 1, 3, 7, 0, 0, 0, 0},
-    [0b10001100] = {2, 3, 7, 0, 0, 0, 0, 0}, [0b10001101] = {0, 2, 3, 7, 0, 0, 0, 0},
-    [0b10001110] = {1, 2, 3, 7, 0, 0, 0, 0}, [0b10001111] = {0, 1, 2, 3, 7, 0, 0, 0},
-    [0b10010000] = {4, 7, 0, 0, 0, 0, 0, 0}, [0b10010001] = {0, 4, 7, 0, 0, 0, 0, 0},
-    [0b10010010] = {1, 4, 7, 0, 0, 0, 0, 0}, [0b10010011] = {0, 1, 4, 7, 0, 0, 0, 0},
-    [0b10010100] = {2, 4, 7, 0, 0, 0, 0, 0}, [0b10010101] = {0, 2, 4, 7, 0, 0, 0, 0},
-    [0b10010110] = {1, 2, 4, 7, 0, 0, 0, 0}, [0b10010111] = {0, 1, 2, 4, 7, 0, 0, 0},
-    [0b10011000] = {3, 4, 7, 0, 0, 0, 0, 0}, [0b10011001] = {0, 3, 4, 7, 0, 0, 0, 0},
-    [0b10011010] = {1, 3, 4, 7, 0, 0, 0, 0}, [0b10011011] = {0, 1, 3, 4, 7, 0, 0, 0},
-    [0b10011100] = {2, 3, 4, 7, 0, 0, 0, 0}, [0b10011101] = {0, 2, 3, 4, 7, 0, 0, 0},
-    [0b10011110] = {1, 2, 3, 4, 7, 0, 0, 0}, [0b10011111] = {0, 1, 2, 3, 4, 7, 0, 0},
-    [0b10100000] = {5, 7, 0, 0, 0, 0, 0, 0}, [0b10100001] = {0, 5, 7, 0, 0, 0, 0, 0},
-    [0b10100010] = {1, 5, 7, 0, 0, 0, 0, 0}, [0b10100011] = {0, 1, 5, 7, 0, 0, 0, 0},
-    [0b10100100] = {2, 5, 7, 0, 0, 0, 0, 0}, [0b10100101] = {0, 2, 5, 7, 0, 0, 0, 0},
-    [0b10100110] = {1, 2, 5, 7, 0, 0, 0, 0}, [0b10100111] = {0, 1, 2, 5, 7, 0, 0, 0},
-    [0b10101000] = {3, 5, 7, 0, 0, 0, 0, 0}, [0b10101001] = {0, 3, 5, 7, 0, 0, 0, 0},
-    [0b10101010] = {1, 3, 5, 7, 0, 0, 0, 0}, [0b10101011] = {0, 1, 3, 5, 7, 0, 0, 0},
-    [0b10101100] = {2, 3, 5, 7, 0, 0, 0, 0}, [0b10101101] = {0, 2, 3, 5, 7, 0, 0, 0},
-    [0b10101110] = {1, 2, 3, 5, 7, 0, 0, 0}, [0b10101111] = {0, 1, 2, 3, 5, 7, 0, 0},
-    [0b10110000] = {4, 5, 7, 0, 0, 0, 0, 0}, [0b10110001] = {0, 4, 5, 7, 0, 0, 0, 0},
-    [0b10110010] = {1, 4, 5, 7, 0, 0, 0, 0}, [0b10110011] = {0, 1, 4, 5, 7, 0, 0, 0},
-    [0b10110100] = {2, 4, 5, 7, 0, 0, 0, 0}, [0b10110101] = {0, 2, 4, 5, 7, 0, 0, 0},
-    [0b10110110] = {1, 2, 4, 5, 7, 0, 0, 0}, [0b10110111] = {0, 1, 2, 4, 5, 7, 0, 0},
-    [0b10111000] = {3, 4, 5, 7, 0, 0, 0, 0}, [0b10111001] = {0, 3, 4, 5, 7, 0, 0, 0},
-    [0b10111010] = {1, 3, 4, 5, 7, 0, 0, 0}, [0b10111011] = {0, 1, 3, 4, 5, 7, 0, 0},
-    [0b10111100] = {2, 3, 4, 5, 7, 0, 0, 0}, [0b10111101] = {0, 2, 3, 4, 5, 7, 0, 0},
-    [0b10111110] = {1, 2, 3, 4, 5, 7, 0, 0}, [0b10111111] = {0, 1, 2, 3, 4, 5, 7, 0},
-    [0b11000000] = {6, 7, 0, 0, 0, 0, 0, 0}, [0b11000001] = {0, 6, 7, 0, 0, 0, 0, 0},
-    [0b11000010] = {1, 6, 7, 0, 0, 0, 0, 0}, [0b11000011] = {0, 1, 6, 7, 0, 0, 0, 0},
-    [0b11000100] = {2, 6, 7, 0, 0, 0, 0, 0}, [0b11000101] = {0, 2, 6, 7, 0, 0, 0, 0},
-    [0b11000110] = {1, 2, 6, 7, 0, 0, 0, 0}, [0b11000111] = {0, 1, 2, 6, 7, 0, 0, 0},
-    [0b11001000] = {3, 6, 7, 0, 0, 0, 0, 0}, [0b11001001] = {0, 3, 6, 7, 0, 0, 0, 0},
-    [0b11001010] = {1, 3, 6, 7, 0, 0, 0, 0}, [0b11001011] = {0, 1, 3, 6, 7, 0, 0, 0},
-    [0b11001100] = {2, 3, 6, 7, 0, 0, 0, 0}, [0b11001101] = {0, 2, 3, 6, 7, 0, 0, 0},
-    [0b11001110] = {1, 2, 3, 6, 7, 0, 0, 0}, [0b11001111] = {0, 1, 2, 3, 6, 7, 0, 0},
-    [0b11010000] = {4, 6, 7, 0, 0, 0, 0, 0}, [0b11010001] = {0, 4, 6, 7, 0, 0, 0, 0},
-    [0b11010010] = {1, 4, 6, 7, 0, 0, 0, 0}, [0b11010011] = {0, 1, 4, 6, 7, 0, 0, 0},
-    [0b11010100] = {2, 4, 6, 7, 0, 0, 0, 0}, [0b11010101] = {0, 2, 4, 6, 7, 0, 0, 0},
-    [0b11010110] = {1, 2, 4, 6, 7, 0, 0, 0}, [0b11010111] = {0, 1, 2, 4, 6, 7, 0, 0},
-    [0b11011000] = {3, 4, 6, 7, 0, 0, 0, 0}, [0b11011001] = {0, 3, 4, 6, 7, 0, 0, 0},
-    [0b11011010] = {1, 3, 4, 6, 7, 0, 0, 0}, [0b11011011] = {0, 1, 3, 4, 6, 7, 0, 0},
-    [0b11011100] = {2, 3, 4, 6, 7, 0, 0, 0}, [0b11011101] = {0, 2, 3, 4, 6, 7, 0, 0},
-    [0b11011110] = {1, 2, 3, 4, 6, 7, 0, 0}, [0b11011111] = {0, 1, 2, 3, 4, 6, 7, 0},
-    [0b11100000] = {5, 6, 7, 0, 0, 0, 0, 0}, [0b11100001] = {0, 5, 6, 7, 0, 0, 0, 0},
-    [0b11100010] = {1, 5, 6, 7, 0, 0, 0, 0}, [0b11100011] = {0, 1, 5, 6, 7, 0, 0, 0},
-    [0b11100100] = {2, 5, 6, 7, 0, 0, 0, 0}, [0b11100101] = {0, 2, 5, 6, 7, 0, 0, 0},
-    [0b11100110] = {1, 2, 5, 6, 7, 0, 0, 0}, [0b11100111] = {0, 1, 2, 5, 6, 7, 0, 0},
-    [0b11101000] = {3, 5, 6, 7, 0, 0, 0, 0}, [0b11101001] = {0, 3, 5, 6, 7, 0, 0, 0},
-    [0b11101010] = {1, 3, 5, 6, 7, 0, 0, 0}, [0b11101011] = {0, 1, 3, 5, 6, 7, 0, 0},
-    [0b11101100] = {2, 3, 5, 6, 7, 0, 0, 0}, [0b11101101] = {0, 2, 3, 5, 6, 7, 0, 0},
-    [0b11101110] = {1, 2, 3, 5, 6, 7, 0, 0}, [0b11101111] = {0, 1, 2, 3, 5, 6, 7, 0},
-    [0b11110000] = {4, 5, 6, 7, 0, 0, 0, 0}, [0b11110001] = {0, 4, 5, 6, 7, 0, 0, 0},
-    [0b11110010] = {1, 4, 5, 6, 7, 0, 0, 0}, [0b11110011] = {0, 1, 4, 5, 6, 7, 0, 0},
-    [0b11110100] = {2, 4, 5, 6, 7, 0, 0, 0}, [0b11110101] = {0, 2, 4, 5, 6, 7, 0, 0},
-    [0b11110110] = {1, 2, 4, 5, 6, 7, 0, 0}, [0b11110111] = {0, 1, 2, 4, 5, 6, 7, 0},
-    [0b11111000] = {3, 4, 5, 6, 7, 0, 0, 0}, [0b11111001] = {0, 3, 4, 5, 6, 7, 0, 0},
-    [0b11111010] = {1, 3, 4, 5, 6, 7, 0, 0}, [0b11111011] = {0, 1, 3, 4, 5, 6, 7, 0},
-    [0b11111100] = {2, 3, 4, 5, 6, 7, 0, 0}, [0b11111101] = {0, 2, 3, 4, 5, 6, 7, 0},
-    [0b11111110] = {1, 2, 3, 4, 5, 6, 7, 0}, [0b11111111] = {0, 1, 2, 3, 4, 5, 6, 7},
-};
-
-static uint8x16_t simd_transform16_ascii(uint8x16x4_t table[2], uint8x16_t input)
-{
-  uint8x16_t t1 = vqtbl4q_u8(table[0], input);
-  uint8x16_t t2 = vqtbl4q_u8(table[1], veorq_u8(input, vdupq_n_u8(0x40)));
-  return vorrq_u8(t1, t2);
-}
-#endif
-
-/**
- * @brief Tokenizes an input string by grouping contiguous characters of the same type.
- *
- * This function iterates through the input string and identifies "runs" of characters
- * that map to the same TokenType. For each new group, it records the type and the
- * starting byte offset into the result arrays.
- *
- * The result likely needs a second pass to fuse words or number literals together.
- *
- * @param char_to_tok  A lookup table mapping ASCII values (0-127) to a TokenType.
- * @param c_str        The raw input character buffer to be scanned.
- * @param size         The length of the input buffer (c_str) without null terminator.
- * @param r_types      [out] Output array to store the TokenType of each identified token.
- *                     Must have been allocated to contain at most size+1 elements.
- * @param r_offsets    [out] Output array to store the starting index of each identified token.
- *                     Must have been allocated to contain at most size+1 elements.
- * @param r_count      [out] Amount of token generated.
- */
-static void tokenize_data(const TokenType char_to_tok[128],
-                          const uint8_t c_str[/*size*/],
-                          const uint32_t size,
-                          TokenType r_types[/*size*/],
-                          uint32_t r_offsets[/*size*/],
-                          uint32_t *r_count)
-{
-#if defined(USE_HARDWARE_FP16_NEON)
-  uint8x16x4_t map_v[2];
-  map_v[0] = vld1q_u8_x4((const uint8_t *)char_to_tok);
-  map_v[1] = vld1q_u8_x4((const uint8_t *)char_to_tok + sizeof(uint8x16x4_t));
-
-  const uint8x16_t mask_last = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF};
-  const uint8x16_t mask_split = vdupq_n_u8(AlwaysSplit);
-
-  uint8x16_t prev = {Invalid};
-  uint32_t offset = 0, cursor = 0;
-  for (; offset + 16 <= size; offset += 16) {
-    uint8x16_t type = simd_transform16_ascii(map_v, vld1q_u8(c_str + offset));
-    /* Check if token needs to always split. */
-    const uint8x16_t always_split = vceqq_s8(vandq_u8(type, mask_split), mask_split);
-    /* Remove the AlwaysSplit bit. */
-    type = vandq_u8(type, vmvnq_u8(mask_split));
-    /* Add the last iteration end token at the end of the vector. */
-    prev = vbslq_u8(mask_last, prev, type);
-    /* Right shift elements (not bits) by 1. */
-    prev = vextq_u8(prev, prev, 15);
-    /* Equivalent to: `(type != prev || type & AlwaysSplit)`. */
-    uint8x16_t emit = vorrq_u8(vmvnq_u8(vceqq_s8(type, prev)), always_split);
-
-    /* Stream compaction of data based on the emit mask (0xFF == emit, 0x00 == skip).
-     * Stores `data` compacted inside `data_out` starting from `data_out + cursor` and advance
-     * `cursor` by the number of element compacted. */
-    {
-      /* Make it 1 bit valid element flag. */
-      const uint8x16_t mask_comp = {1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128};
-      uint8x16_t mask_vec = vandq_u8(emit, mask_comp);
-
-      uint8x8_t data_lo = vget_low_u8(type);
-      uint8x8_t data_hi = vget_high_u8(type);
-
-      int32_t mask_lo = vaddv_u8(vget_low_u8(mask_vec));
-      int32_t mask_hi = vaddv_u8(vget_high_u8(mask_vec));
-      /* Lookup the shuffle vector. */
-      uint8x8_t shuffle_lo = vld1_u8(shuffle_table_8[mask_lo]);
-      uint8x8_t shuffle_hi = vld1_u8(shuffle_table_8[mask_hi]);
-      /* Table lookup. */
-      data_lo = vtbl1_u8(data_lo, shuffle_lo);
-      data_hi = vtbl1_u8(data_hi, shuffle_hi);
-
-      /* Write 8 types. */
-      vst1_u8((uint8_t *)r_types + cursor, data_lo);
-      /* Write 8 offsets. */
-      uint32x4_t offset_vec_lo = vdupq_n_u32(offset);
-      /* The offsets are contained inside the 8 bit shuffle vector.
-       * We need to promote it to 32 bit before adding the base offset. */
-      uint16x8_t shuffle_lo16 = vmovl_u8(shuffle_lo);
-      uint32x4_t shuffle_lo32_lo = vmovl_u16(vget_low_u16(shuffle_lo16));
-      uint32x4_t shuffle_lo32_hi = vmovl_u16(vget_high_u16(shuffle_lo16));
-      uint32x4_t offset_lo_lo = vaddq_u32(shuffle_lo32_lo, offset_vec_lo);
-      uint32x4_t offset_lo_hi = vaddq_u32(shuffle_lo32_hi, offset_vec_lo);
-      vst1q_u32(r_offsets + cursor + 0, offset_lo_lo);
-      vst1q_u32(r_offsets + cursor + 4, offset_lo_hi);
-
-      cursor += count_bits_i(mask_lo);
-
-      /* Write 8 types. */
-      vst1_u8((uint8_t *)r_types + cursor, data_hi);
-      /* Write 8 offsets. */
-      uint32x4_t offset_vec_hi = vdupq_n_u32(offset + 8);
-      /* The offsets are contained inside the 8 bit shuffle vector.
-       * We need to promote it to 32 bit before adding the base offset. */
-      uint16x8_t shuffle_hi16 = vmovl_u8(shuffle_hi);
-      uint32x4_t shuffle_hi32_lo = vmovl_u16(vget_low_u16(shuffle_hi16));
-      uint32x4_t shuffle_hi32_hi = vmovl_u16(vget_high_u16(shuffle_hi16));
-      uint32x4_t offset_hi_lo = vaddq_u32(shuffle_hi32_lo, offset_vec_hi);
-      uint32x4_t offset_hi_hi = vaddq_u32(shuffle_hi32_hi, offset_vec_hi);
-      vst1q_u32(r_offsets + cursor + 0, offset_hi_lo);
-      vst1q_u32(r_offsets + cursor + 4, offset_hi_hi);
-
-      cursor += count_bits_i(mask_hi);
-    }
-
-    prev = type;
-  }
-  /* Finish tail using scalar loop. */
-  TokenType last_type = TokenType(vgetq_lane_u8(prev, 15));
-#else
-  /* Scalar only implementation. */
-  TokenType last_type = Invalid;
-#endif
-
-  {
-    TokenType prev = last_type;
-    for (; offset < size; offset += 1) {
-      TokenType type = char_to_tok[c_str[offset]];
-      /* Its faster to overwrite the previous value with the same value
-       * than having a condition. */
-      r_types[cursor] = TokenType(type & ~AlwaysSplit);
-      r_offsets[cursor] = offset;
-      /* Split if type mismatch. */
-      cursor += (type != prev || type & AlwaysSplit);
-      prev = type;
-    }
-  }
-
-  /* Set end of last token. */
-  r_offsets[cursor] = size;
-  /* Set end of file token. */
-  r_types[cursor] = EndOfFile;
-
-  *r_count = cursor;
-}
-
-void tokenize_numbers_start(const uint8_t c_str[/*size*/],
-                            const uint32_t /*size*/,
-                            TokenType tok_types[/*tok_len*/],
-                            const uint32_t tok_offsets[/*tok_len*/],
-                            uint32_t tok_len)
-{
-  for (uint32_t i = 0; i < tok_len; i++) {
-    tok_types[i] = std::isdigit(c_str[tok_offsets[i]]) ? Number : tok_types[i];
-  }
-}
 
 BLI_NOINLINE void lex_string(const TokenType *types, uint32_t &cursor)
 {
@@ -643,29 +258,22 @@ struct AtomicLexer : LexerBase {
 
   BLI_NOINLINE void tokenize()
   {
-    uint32_t cursor;
-    tokenize_data(token_table,
-                  (const uint8_t *)str.data(),
-                  str.size(),
-                  token_types.data(),
-                  token_offsets.data(),
-                  &cursor);
+    lexit::TokenBuffer tok_buf(str.data(), str.size(), token_types.data(), token_offsets.data());
+    tok_buf.tokenize(token_table_preprocessor.data());
 
     /* Resize to the actual usage. */
-    token_types.shrink(cursor);
-    token_sizes.shrink(cursor);
-    token_offsets.offsets.shrink(cursor + 1);
+    token_types.shrink(tok_buf.size());
+    token_sizes.shrink(tok_buf.size());
+    token_offsets.offsets.shrink(tok_buf.size() + 1);
 
     update_string_view();
   }
 
   BLI_NOINLINE void identify_numbers()
   {
-    tokenize_numbers_start((const uint8_t *)str.data(),
-                           str.size(),
-                           token_types.data(),
-                           token_offsets.data(),
-                           token_types.size());
+    lexit::TokenBuffer tok_buf(
+        str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
+    tok_buf.identify_numbers();
   }
 
   BLI_NOINLINE void merge_tokens()
