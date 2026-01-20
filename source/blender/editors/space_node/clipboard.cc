@@ -343,6 +343,11 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
     offset = mouse_location / UI_SCALE_FAC - center;
   }
 
+  if (CTX_data_scene(C)->toolsettings->snap_flag_node & SCE_SNAP) {
+    offset.x = nearest_node_grid_coord(offset.x);
+    offset.y = nearest_node_grid_coord(offset.y);
+  }
+
   if (!node_copy_local(*from_tree, *snode->edittree, false, offset, op->reports)) {
     BKE_id_delete(bmain_dst, &from_tree->id);
     /* Note: we don't return OPERATOR_CANCELLED here although the copy fails to avoid corrupting
