@@ -217,6 +217,13 @@ void LexerBase::merge_tokens()
 
   tok_buf.fuse_compounds<CompoundFlags::All>(token_sizes.data());
 
+  /* Change back tor regular newline. */
+  tok_buf.foreach_token_type([](TokenType *&type) {
+    if (type[0] == PreprocessorNewline) {
+      type[0] = NewLine;
+    }
+  });
+
   /* Resize to the actual usage. */
   token_types.shrink(tok_buf.size());
   token_sizes.shrink(tok_buf.size());
@@ -458,7 +465,7 @@ void ParserBase::build_scope_tree(report_callback &report_error)
     const ScopeType current_scope = stack.back().type;
 
     if (stack.back().type == ScopeType::Preprocessor) {
-      if (type == PreprocessorNewline) {
+      if (type == NewLine) {
         stack.exit_scope(tok_id);
       }
       else {
