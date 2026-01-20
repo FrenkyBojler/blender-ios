@@ -540,9 +540,12 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
                                                 const bool flip_normal,
                                                 const CDT_output_type cdt_output_type)
 {
-  /* Build CDT input. */
+  /* Build CDT input, tracking if all Z coordinates are uniform. */
   Array<double2> verts_2d(item.total_verts);
   Array<Vector<int>> faces(item.poly_ranges.size());
+
+  const float first_z = item.poly_ranges[0].dl->verts[2];
+  bool uniform_z = true;
 
   for (int64_t p = 0; p < int64_t(item.poly_ranges.size()); p++) {
     const PolyRange &poly = item.poly_ranges[p];
@@ -551,6 +554,9 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
       const float *v = &poly.dl->verts[3 * i];
       verts_2d[poly.start + i] = double2(v[0], v[1]);
       faces[p][i] = poly.start + i;
+      if (uniform_z && v[2] != first_z) {
+        uniform_z = false;
+      }
     }
   }
 
@@ -581,19 +587,24 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
   dlnew->verts = MEM_malloc_arrayN<float>(3 * size_t(out_verts), __func__);
   dlnew->index = MEM_malloc_arrayN<int>(3 * size_t(out_tris), __func__);
 
-  /* Build map from intersection vertex to an edge with original edge info. */
-  Array<int> isect_vert_to_edge(out_verts, -1);
-  for (int64_t e = 0; e < result.edge.size(); e++) {
-    if (result.edge_orig[e].is_empty()) {
-      continue;
-    }
-    int v0 = result.edge[e].first;
-    int v1 = result.edge[e].second;
-    if (result.vert_orig[v0].is_empty()) {
-      isect_vert_to_edge[v0] = int(e);
-    }
-    if (result.vert_orig[v1].is_empty()) {
-      isect_vert_to_edge[v1] = int(e);
+  /* Build map from intersection vertex to an edge with original edge info.
+   * Only needed when Z coordinates vary and interpolation is required. */
+  Array<int> isect_vert_to_edge;
+  if (!uniform_z) {
+    isect_vert_to_edge.reinitialize(out_verts);
+    isect_vert_to_edge.fill(-1);
+    for (int64_t e = 0; e < result.edge.size(); e++) {
+      if (result.edge_orig[e].is_empty()) {
+        continue;
+      }
+      int v0 = result.edge[e].first;
+      int v1 = result.edge[e].second;
+      if (result.vert_orig[v0].is_empty()) {
+        isect_vert_to_edge[v0] = int(e);
+      }
+      if (result.vert_orig[v1].is_empty()) {
+        isect_vert_to_edge[v1] = int(e);
+      }
     }
   }
 
@@ -609,11 +620,16 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
       copy_v3_v3(out, &poly.dl->verts[3 * local_index]);
     }
     else {
-      /* Intersection vertex - interpolate Z. */
+      /* Intersection vertex. */
       out[0] = float(result.vert[i].x);
       out[1] = float(result.vert[i].y);
-      out[2] = isect_vert_calc_z(
-          i, isect_vert_to_edge[i], result, item.poly_ranges, input.vert, item.total_verts);
+      out[2] = uniform_z ? first_z :
+                           isect_vert_calc_z(i,
+                                             isect_vert_to_edge[i],
+                                             result,
+                                             item.poly_ranges,
+                                             input.vert,
+                                             item.total_verts);
     }
   }
 
