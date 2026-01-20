@@ -351,19 +351,16 @@ bool GHOST_XrGraphicsBindingVulkan::tryReuseVulkanInstance(GHOST_ContextVK &ghos
     return false;
   }
 
-  /* Check if required instance extensions are enabled in GHOST_ContextVK. */
-  if (!are_required_instance_extensions_enabled(instance, system_id)) {
-    return false;
-  }
+  bool result = true;
 
-  /* Check if required device extensions are enabled in GHOST_ContextVK. */
-  if (!are_required_device_extensions_enabled(instance, system_id)) {
-    return false;
-  }
+  /* Perform all checks. When stacking the calls with `&&` only the first
+   * failing message will be reported. */
+  result &= are_required_instance_extensions_enabled(instance, system_id);
+  result &= are_required_device_extensions_enabled(instance, system_id);
+  result &= is_same_physical_device_selected(instance, system_id, context_handles);
 
-  /* Check if the physical device requested by OpenXR matches the one used by GHOST_ContextVK. */
-  if (!is_same_physical_device_selected(instance, system_id, context_handles)) {
-    return false;
+  if (!result) {
+    return result;
   }
 
   CLOG_INFO(&LOG, "Reusing vulkan instance.");

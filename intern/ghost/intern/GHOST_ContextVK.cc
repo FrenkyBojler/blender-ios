@@ -1527,6 +1527,9 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     instance_vk.extensions.enable(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
     instance_vk.extensions.enable(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
     instance_vk.extensions.enable(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+
+    /* SteamVR requests both NVIDIA and KHR rectified extension. */
+    instance_vk.extensions.enable(VK_NV_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME, true);
 #endif
 
     if (use_window_surface) {
@@ -1665,6 +1668,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
         VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
 #  endif
         /* Vulkan 1.1 promoted device extensions, enabled for OpenXR usage. */
+        VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME,
+        VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
         VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
         VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME,
         VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
@@ -1676,11 +1681,14 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
         VK_KHR_MAINTENANCE_2_EXTENSION_NAME,
 
         /* Vulkan 1.2 promoted device extensions, enabled for OpenXR usage. */
-        VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
         VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
+        VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
 
         /* Vulkan 1.3 promoted device extensions, enabled for OpenXR usage. */
-        VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME});
+        VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME,
+
+        /* Vulkan 1.4 promoted device extensions, enabled for OpenXR usage. */
+        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME});
 #endif
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {
