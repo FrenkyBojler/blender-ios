@@ -1925,7 +1925,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         if (RNA_property_type(prop) != PROP_POINTER)
           continue;
         PointerRNA propptr = RNA_property_pointer_get(ptr_extra, prop);
-        if (!propptr.data || !RNA_struct_is_a(propptr.type, &RNA_OperatorProperties))
+        if (!propptr.data || !RNA_struct_is_a(propptr.type, RNA_OperatorProperties))
           continue;
         PropertyRNA *constr = NULL;
         if (ELEM(true, UNPACK3(constraint_axis))) {
@@ -1943,7 +1943,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         if (RNA_property_type(prop) != PROP_POINTER)
           continue;
         PointerRNA propptr2 = RNA_property_pointer_get(ptr_extra2, prop);
-        if (!propptr2.data || !RNA_struct_is_a(propptr2.type, &RNA_OperatorProperties))
+        if (!propptr2.data || !RNA_struct_is_a(propptr2.type, RNA_OperatorProperties))
           continue;
         PropertyRNA *constr = NULL;
         if (ELEM(true, UNPACK3(constraint_axis))) {
