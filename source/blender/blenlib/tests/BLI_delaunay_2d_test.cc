@@ -756,6 +756,207 @@ template<typename T> void nestedholes_test()
   }
 }
 
+/* Two overlapping squares with the same winding direction (both CCW).
+ * Even-odd: overlap region is excluded (2 crossings = outside).
+ * Non-zero: overlap region is included (winding = 2 = inside). */
+template<typename T> void nonzero_winding_test()
+{
+  /* Square 1: (0,0)-(1,1) CCW, Square 2: (0.5,0.5)-(1.5,1.5) CCW. */
+  const char *spec = R"(8 0 2
+  0.0 0.0
+  1.0 0.0
+  1.0 1.0
+  0.0 1.0
+  0.5 0.5
+  1.5 0.5
+  1.5 1.5
+  0.5 1.5
+  0 1 2 3
+  4 5 6 7
+  )";
+
+  CDT_input<T> in = fill_input_from_string<T>(spec);
+
+  /* Even-odd: the overlap region (0.5,0.5)-(1,1) is a hole. */
+  CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
+  EXPECT_EQ(out_evenodd.vert.size(), 10); /* 8 input + 2 intersections */
+  if (DO_DRAW) {
+    graph_draw<T>(
+        "NonZeroWinding - even-odd", out_evenodd.vert, out_evenodd.edge, out_evenodd.face);
+  }
+
+  /* Non-zero CCW: overlapping same-winding squares union. */
+  CDT_result<T> out_nonzero = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO_CCW);
+  EXPECT_EQ(out_nonzero.vert.size(), 10); /* 8 input + 2 intersections */
+  if (DO_DRAW) {
+    graph_draw<T>(
+        "NonZeroWinding - non-zero CCW", out_nonzero.vert, out_nonzero.edge, out_nonzero.face);
+  }
+
+  /* Non-zero should have more faces than even-odd (union vs hole in overlap). */
+  EXPECT_EQ(out_evenodd.face.size(), 8);
+  EXPECT_EQ(out_nonzero.face.size(), 10);
+
+  /* CW and CCW variants produce identical results because the non-zero rule
+   * treats both +n and -n winding as "inside". The CW/CCW choice matches
+   * input data convention (FreeType vs SVG), not different output. */
+  CDT_result<T> out_nonzero_cw = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO_CW);
+  EXPECT_EQ(out_nonzero_cw.vert.size(), out_nonzero.vert.size());
+  EXPECT_EQ(out_nonzero_cw.face.size(), out_nonzero.face.size());
+}
+
+/* One square inside another - tests hole creation with winding rules.
+ * Outer square CCW, inner square CW (opposite winding) = inner is a hole.
+ * Outer square CCW, inner square CCW (same winding) = inner is filled. */
+template<typename T> void nonzero_winding_nested_test()
+{
+  /* Outer square (0,0)-(2,2) CCW, inner square (0.5,0.5)-(1.5,1.5) CW. */
+  const char *spec_hole = R"(8 0 2
+  0.0 0.0
+  2.0 0.0
+  2.0 2.0
+  0.0 2.0
+  0.5 0.5
+  0.5 1.5
+  1.5 1.5
+  1.5 0.5
+  0 1 2 3
+  4 5 6 7
+  )";
+
+  CDT_input<T> in_hole = fill_input_from_string<T>(spec_hole);
+
+  /* Even-odd: inner square is a hole (2 crossings = outside). */
+  CDT_result<T> out_evenodd_hole = delaunay_2d_calc(in_hole, CDT_INSIDE_WITH_HOLES);
+  EXPECT_EQ(out_evenodd_hole.vert.size(), 8);
+  if (DO_DRAW) {
+    graph_draw<T>("NonZeroWindingNested - even-odd, inner CW (hole)",
+                  out_evenodd_hole.vert,
+                  out_evenodd_hole.edge,
+                  out_evenodd_hole.face);
+  }
+
+  /* Non-zero CCW: inner CW square creates a hole (winding: +1 - 1 = 0). */
+  CDT_result<T> out_nonzero_hole = delaunay_2d_calc(in_hole, CDT_INSIDE_WITH_HOLES_NONZERO_CCW);
+  EXPECT_EQ(out_nonzero_hole.vert.size(), 8);
+  if (DO_DRAW) {
+    graph_draw<T>("NonZeroWindingNested - non-zero CCW, inner CW (hole)",
+                  out_nonzero_hole.vert,
+                  out_nonzero_hole.edge,
+                  out_nonzero_hole.face);
+  }
+
+  /* Both rules produce same face count when inner has opposite winding. */
+  EXPECT_EQ(out_evenodd_hole.face.size(), 8);
+  EXPECT_EQ(out_nonzero_hole.face.size(), out_evenodd_hole.face.size());
+
+  /* Now test with inner square also CCW (same winding as outer). */
+  const char *spec_filled = R"(8 0 2
+  0.0 0.0
+  2.0 0.0
+  2.0 2.0
+  0.0 2.0
+  0.5 0.5
+  1.5 0.5
+  1.5 1.5
+  0.5 1.5
+  0 1 2 3
+  4 5 6 7
+  )";
+
+  CDT_input<T> in_filled = fill_input_from_string<T>(spec_filled);
+
+  /* Even-odd: inner square is still a hole (2 crossings = outside). */
+  CDT_result<T> out_evenodd_filled = delaunay_2d_calc(in_filled, CDT_INSIDE_WITH_HOLES);
+  EXPECT_EQ(out_evenodd_filled.vert.size(), 8);
+  if (DO_DRAW) {
+    graph_draw<T>("NonZeroWindingNested - even-odd, inner CCW (hole)",
+                  out_evenodd_filled.vert,
+                  out_evenodd_filled.edge,
+                  out_evenodd_filled.face);
+  }
+
+  /* Non-zero CCW: inner CCW square is filled (winding: +1 + 1 = 2 = inside). */
+  CDT_result<T> out_nonzero_filled = delaunay_2d_calc(in_filled,
+                                                      CDT_INSIDE_WITH_HOLES_NONZERO_CCW);
+  EXPECT_EQ(out_nonzero_filled.vert.size(), 8);
+  if (DO_DRAW) {
+    graph_draw<T>("NonZeroWindingNested - non-zero CCW, inner CCW (filled)",
+                  out_nonzero_filled.vert,
+                  out_nonzero_filled.edge,
+                  out_nonzero_filled.face);
+  }
+
+  /* Non-zero should have more faces (inner filled vs inner hole). */
+  EXPECT_EQ(out_evenodd_filled.face.size(), 8);
+  EXPECT_EQ(out_nonzero_filled.face.size(), 10);
+}
+
+/* Outer square with a hole, and two overlapping filled squares inside the hole.
+ * Tests union behavior: the two inner CCW squares should union together.
+ * Even-odd: inner non-overlap = 3 crossings (filled), inner overlap = 4 crossings (hole).
+ * Non-zero: all inner regions filled (winding > 0 = inside). */
+template<typename T> void nonzero_winding_nested_union_test()
+{
+  /* Outer (0,0)-(4,4) CCW - boundary.
+   * Hole (0.5,0.5)-(3.5,3.5) CW - hole inside outer.
+   * Inner1 (1,1)-(2.5,2.5) CCW, Inner2 (1.5,1.5)-(3,3) CCW - overlapping fills in hole. */
+  const char *spec = R"(16 0 4
+  0.0 0.0
+  4.0 0.0
+  4.0 4.0
+  0.0 4.0
+  0.5 0.5
+  0.5 3.5
+  3.5 3.5
+  3.5 0.5
+  1.0 1.0
+  2.5 1.0
+  2.5 2.5
+  1.0 2.5
+  1.5 1.5
+  3.0 1.5
+  3.0 3.0
+  1.5 3.0
+  0 1 2 3
+  4 5 6 7
+  8 9 10 11
+  12 13 14 15
+  )";
+
+  CDT_input<T> in = fill_input_from_string<T>(spec);
+
+  /* Even-odd: inner overlap has 4 crossings (outer, hole, inner1, inner2) = outside. */
+  CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
+  EXPECT_EQ(out_evenodd.vert.size(), 18); /* 16 input + 2 intersections */
+  if (DO_DRAW) {
+    graph_draw<T>("NonZeroWindingNestedUnion - even-odd",
+                  out_evenodd.vert,
+                  out_evenodd.edge,
+                  out_evenodd.face);
+  }
+
+  /* Non-zero CCW: inner squares union.
+   * Winding in overlap: outer(+1) + hole(-1) + inner1(+1) + inner2(+1) = +2 = inside. */
+  CDT_result<T> out_nonzero = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO_CCW);
+  EXPECT_EQ(out_nonzero.vert.size(), 18); /* 16 input + 2 intersections */
+  if (DO_DRAW) {
+    graph_draw<T>("NonZeroWindingNestedUnion - non-zero CCW",
+                  out_nonzero.vert,
+                  out_nonzero.edge,
+                  out_nonzero.face);
+  }
+
+  /* Non-zero should have more faces (union vs hole in overlap). */
+  EXPECT_EQ(out_evenodd.face.size(), 16);
+  EXPECT_EQ(out_nonzero.face.size(), 18);
+
+  /* CW variant should produce identical results. */
+  CDT_result<T> out_nonzero_cw = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO_CW);
+  EXPECT_EQ(out_nonzero_cw.vert.size(), out_nonzero.vert.size());
+  EXPECT_EQ(out_nonzero_cw.face.size(), out_nonzero.face.size());
+}
+
 template<typename T> void crosssegs_test()
 {
   const char *spec = R"(4 2 0
@@ -1512,6 +1713,21 @@ TEST(delaunay_d, NestedHoles)
   nestedholes_test<double>();
 }
 
+TEST(delaunay_d, NonZeroWinding)
+{
+  nonzero_winding_test<double>();
+}
+
+TEST(delaunay_d, NonZeroWindingNested)
+{
+  nonzero_winding_nested_test<double>();
+}
+
+TEST(delaunay_d, NonZeroWindingNestedUnion)
+{
+  nonzero_winding_nested_union_test<double>();
+}
+
 TEST(delaunay_d, CrossSegs)
 {
   crosssegs_test<double>();
@@ -1655,6 +1871,21 @@ TEST(delaunay_m, LineHoleInSquare)
 TEST(delaunay_m, NestedHoles)
 {
   nestedholes_test<mpq_class>();
+}
+
+TEST(delaunay_m, NonZeroWinding)
+{
+  nonzero_winding_test<mpq_class>();
+}
+
+TEST(delaunay_m, NonZeroWindingNested)
+{
+  nonzero_winding_nested_test<mpq_class>();
+}
+
+TEST(delaunay_m, NonZeroWindingNestedUnion)
+{
+  nonzero_winding_nested_union_test<mpq_class>();
 }
 
 TEST(delaunay_m, CrossSegs)
