@@ -1619,7 +1619,7 @@ static void ui_template_id(Layout &layout,
 }
 
 void template_ID_session_uid(
-    Layout &layout, bContext *C, PointerRNA *ptr, StringRefNull propname, short idcode)
+    Layout &layout, bContext *C, PointerRNA *ptr, const StringRefNull propname, short idcode)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
