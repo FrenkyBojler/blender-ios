@@ -2317,6 +2317,12 @@ void block_draw(const bContext *C, Block *block)
       if (BLI_rcti_size_x(&rect) > int(float(panel_width) * 1.2f)) {
         continue;
       }
+      if (but->flag & UI_HAS_ICON && but->str.empty()) {
+        /* No need to show icon only when really narrow. */
+        if (panel_width < (UI_UNIT_X * 3)) {
+          continue;
+        }
+      }
     }
 
     /* XXX: figure out why invalid coordinates happen when closing render window */
