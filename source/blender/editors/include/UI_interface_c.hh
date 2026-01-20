@@ -3039,6 +3039,14 @@ std::optional<int2> try_activate_rna_button(bContext *C,
                                             PointerRNA *ptr,
                                             StringRef property,
                                             int index = 0);
-
+/**
+ * Attempt to activate a button referencing an RNA string property, if region is hidden or if the
+ * button is not found this will add a timer that will retry to open the button other 4 times. If
+ * any other button in the screen is active, it will be deactivated.
+ */
+bool textbutton_try_activate_over_redraws(bContext *C,
+                                          ARegion *region,
+                                          PointerRNA ptr,
+                                          StringRef property);
 }  // namespace ui
 }  // namespace blender

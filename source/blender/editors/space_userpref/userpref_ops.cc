@@ -1101,7 +1101,11 @@ static wmOperatorStatus preferences_start_filter_exec(bContext *C, wmOperator * 
   SpaceUserPref *space = CTX_wm_space_userpref(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
-  ui::textbutton_activate_rna(C, region, space, "search_filter");
+  ui::textbutton_try_activate_over_redraws(
+      C,
+      region,
+      RNA_pointer_create_discrete(id_cast<ID *>(CTX_wm_screen(C)), RNA_SpacePreferences, space),
+      "search_filter");
   return OPERATOR_FINISHED;
 }
 

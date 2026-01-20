@@ -913,6 +913,10 @@ void ED_region_exit(bContext *C, ARegion *region)
     WM_event_timer_remove(wm, win, region->runtime->regiontimer);
     region->runtime->regiontimer = nullptr;
   }
+  if (region->runtime->auto_open_rna_button_timer) {
+    WM_event_timer_remove(wm, win, region->runtime->auto_open_rna_button_timer);
+    region->runtime->auto_open_rna_button_timer = nullptr;
+  }
 
   WM_msgbus_clear_by_owner(wm->runtime->message_bus, region);
 
@@ -1732,6 +1736,10 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
       if (region.runtime->regiontimer) {
         WM_event_timer_remove(wm, nullptr, region.runtime->regiontimer);
         region.runtime->regiontimer = nullptr;
+      }
+      if (region.runtime->auto_open_rna_button_timer) {
+        WM_event_timer_remove(wm, win, region.runtime->auto_open_rna_button_timer);
+        region.runtime->auto_open_rna_button_timer = nullptr;
       }
     }
 

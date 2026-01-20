@@ -546,6 +546,7 @@ struct ARegionRuntime {
 
   /** Blend in/out. */
   wmTimer *regiontimer = nullptr;
+  wmTimer *auto_open_rna_button_timer = nullptr;
 
   wmDrawBuffer *draw_buffer = nullptr;
 

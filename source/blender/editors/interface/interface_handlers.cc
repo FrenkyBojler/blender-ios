@@ -11990,12 +11990,24 @@ void popup_menu_retval_set(const Block *block, const int retval, const bool enab
 /** \name UI Event Handlers
  * \{ */
 
+struct AutoOpenRNAButtonData {
+  PointerRNA ptr;
+  std::string property;
+  int attemps = 0;
+};
+
 static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/)
 {
   /* here we handle buttons at the region level, non-modal */
   ARegion *region = CTX_wm_region(C);
   int retval = WM_UI_HANDLER_CONTINUE;
 
+  if (event->type == TIMER && region->runtime->auto_open_rna_button_timer == event->customdata) {
+    AutoOpenRNAButtonData *data = static_cast<AutoOpenRNAButtonData *>(
+        region->runtime->auto_open_rna_button_timer->customdata);
+    textbutton_try_activate_over_redraws(C, region, data->ptr, data->property);
+    return WM_UI_HANDLER_BREAK;
+  }
   if (region == nullptr || BLI_listbase_is_empty(&region->runtime->uiblocks)) {
     return retval;
   }
@@ -12442,6 +12454,48 @@ bool textbutton_activate_rna(const bContext *C,
     CTX_wm_region_set(const_cast<bContext *>(C), region_ctx);
     return true;
   }
+  return false;
+}
+
+bool textbutton_try_activate_over_redraws(bContext *C,
+                                          ARegion *region,
+                                          PointerRNA ptr,
+                                          StringRef property)
+{
+  if (try_activate_rna_button(C, region, BUTTON_STATE_TEXT_EDITING, &ptr, property)) {
+    WM_event_timer_remove(
+        CTX_wm_manager(C), CTX_wm_window(C), region->runtime->auto_open_rna_button_timer);
+    region->runtime->auto_open_rna_button_timer = nullptr;
+    return true;
+  }
+
+  if (region->flag & RGN_FLAG_HIDDEN) {
+    ED_region_toggle_hidden(const_cast<bContext *>(C), region);
+    ED_region_tag_redraw(region);
+  }
+
+  if (!region->runtime->auto_open_rna_button_timer) {
+    wmTimer *timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01);
+    AutoOpenRNAButtonData *data = MEM_new<AutoOpenRNAButtonData>(__func__);
+    data->ptr = ptr;
+    data->property = property;
+    timer->customdata = data;
+    timer->customdata_free = [](const void *ptr) {
+      MEM_delete(static_cast<const AutoOpenRNAButtonData *>(ptr));
+    };
+
+    region->runtime->auto_open_rna_button_timer = timer;
+  }
+
+  AutoOpenRNAButtonData *data = static_cast<AutoOpenRNAButtonData *>(
+      region->runtime->auto_open_rna_button_timer->customdata);
+  data->attemps++;
+  if (data->attemps > 4) {
+    WM_event_timer_remove(
+        CTX_wm_manager(C), CTX_wm_window(C), region->runtime->auto_open_rna_button_timer);
+    region->runtime->auto_open_rna_button_timer = nullptr;
+  }
+  ED_region_tag_redraw(region);
   return false;
 }
 
