@@ -458,8 +458,7 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
 /**
  * Convert property to the new type.
  */
-void IDP_TryConvertProperty(ID *id,
-                            IDProperty *prop,
+void IDP_TryConvertProperty(IDProperty *prop,
                             const eIDPropertyUIDataType src_type,
                             const eIDPropertyUIDataType dst_type,
                             const char type,

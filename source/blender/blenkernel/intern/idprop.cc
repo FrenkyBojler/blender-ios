@@ -2144,8 +2144,7 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
   return nullptr;
 }
 
-void IDP_TryConvertProperty(ID *id,
-                            IDProperty *src,
+void IDP_TryConvertProperty(IDProperty *src,
                             const eIDPropertyUIDataType src_type,
                             const eIDPropertyUIDataType dst_type,
                             const char type,
@@ -2279,11 +2278,7 @@ void IDP_TryConvertProperty(ID *id,
       src->data.pointer = nullptr;
       break;
     case IDP_UI_DATA_TYPE_UNSUPPORTED: {
-      IDPropertyTemplate prop_template{0};
-      /* Remove existing property to add a new idprop of python type. */
-      IDProperty *new_prop = IDP_New(IDP_GROUP, &prop_template, src->name);
-      BLI_insertlinkreplace(&id->properties->data.group, src, new_prop);
-      IDP_ReplaceInGroup_ex(id->properties, new_prop, src, 0);
+      /* handled in `idproperty_python_prop_add_fn` */
       return;
     }
     default:

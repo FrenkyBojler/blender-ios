@@ -30,6 +30,8 @@
 #include "WM_api.hh"
 #include "WM_message.hh"
 
+#include "interface_intern.hh"
+
 namespace blender::ui::id_properties {
 
 class IDPropertyView : public AbstractTreeView {
@@ -267,6 +269,33 @@ void template_tree(ui::Layout *layout, bContext *C, PointerRNA *ptr, const char 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
 
+/* Callback to reset object pointer when ID data type is changed. */
+void idproperty_id_type_set_fn(bContext */*C*/, void *but_arg1, void * /*arg2*/)
+{
+  IDProperty *user_properties = static_cast<IDProperty *>(but_arg1);
+
+  IDProperty *active_prop = static_cast<IDProperty *>(
+      BLI_findlink(&user_properties->data.group, user_properties->data.idprop_active_index));
+  active_prop->data.pointer = nullptr;
+}
+
+/* Callback to convert property to python type when type changed to unsupported. */
+void idproperty_python_prop_add_fn(bContext */*C*/, void *but_arg1, void * /*arg2*/)
+{
+  IDProperty *user_properties = static_cast<IDProperty *>(but_arg1);
+  IDProperty *active_prop = static_cast<IDProperty *>(
+      BLI_findlink(&user_properties->data.group, user_properties->data.idprop_active_index));
+
+  if (IDP_ui_data_supported(active_prop)) {
+    return;
+  }
+
+  IDPropertyTemplate prop_template{0};
+  /* Remove existing property to add a new idprop of python type. */
+  IDProperty *python_prop = IDP_New(IDP_GROUP, &prop_template, active_prop->name);
+  IDP_ReplaceInGroup_ex(user_properties, python_prop, active_prop, 0);
+}
+
 void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, PointerRNA *ptr)
 {
   layout->use_property_split_set(true);
@@ -279,6 +308,8 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
 
   PointerRNA prop_ptr = RNA_pointer_create_discrete(id, RNA_IDProperty, active_prop);
   layout->prop(&prop_ptr, "type", UI_ITEM_NONE, "Type", ICON_NONE);
+  Button *but = button_last(layout->block());
+  button_func_set(but, idproperty_python_prop_add_fn, user_properties, nullptr);
 
   if (!IDP_ui_data_supported(active_prop)) {
     return;
@@ -338,6 +369,8 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
 
   if (srna == RNA_IDPropertyUIDataID) {
     layout->prop(&propui_ptr, "id_type", UI_ITEM_NONE, "ID type", ICON_NONE);
+    Button *but = button_last(layout->block());
+    button_func_set(but, idproperty_id_type_set_fn, user_properties, nullptr);
   }
 
   layout->prop(&propui_ptr, "description", UI_ITEM_NONE, "Description", ICON_NONE);
