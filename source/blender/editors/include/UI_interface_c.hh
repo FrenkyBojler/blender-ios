@@ -3025,11 +3025,12 @@ enum HandleButtonState {
 };
 
 /**
- * Attempts to activate a button that points to an RNA data property, if any other button is active
- * in the screen, it will be deactivated.
- * \param state: Activation button state, some states are specific for some kinds of buttons when
- * an incompatible one is provided the button will be just activated as #BUTTON_STATE_HIGHLIGHT.
- * \param nth: Selects the nth button in the region that points to the data.
+ * Attempt to activate an button referencing an RNA property. If any other button in the screen is
+ * active, it will be deactivated.
+ * \param state: Activation state for button. Some states are specific to certain button types;
+ * When an incompatible state is provided, the button will be activated as with
+ * #BUTTON_STATE_HIGHLIGHT.
+ * \param index: Index of the button that references the RNA property.
  * \return The center point of the button when successfully activated.
  */
 std::optional<int2> try_activate_rna_button(bContext *C,
@@ -3037,6 +3038,6 @@ std::optional<int2> try_activate_rna_button(bContext *C,
                                             HandleButtonState state,
                                             PointerRNA *ptr,
                                             StringRef property,
-                                            int nth = 0);
+                                            int index = 0);
 }  // namespace ui
 }  // namespace blender

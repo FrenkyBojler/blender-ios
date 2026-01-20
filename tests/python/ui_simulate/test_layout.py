@@ -95,9 +95,9 @@ def _test_vars(window):
     )
 
 
-def _button_reset_value(wm, region, data, prop, t, e, expected_value, nth=0):
+def _button_reset_value(wm, region, data, prop, t, e, expected_value, index=0):
     """Highlight button and reset its value with back_space"""
-    t.assertTrue(wm.try_activate_rna_button(region, data, prop, 'HIGHLIGHT', nth=nth))
+    t.assertTrue(wm.try_activate_rna_button(region, data, prop, 'HIGHLIGHT', index=index))
     yield e.back_space()
     t.assertEqual(getattr(data, prop), expected_value)
 
@@ -271,21 +271,21 @@ def ui_string_property_buttons():
     # `StringProperty(search=_string_search_property_cb)` as prop_search button
 
     # Text edit button, type "C" and return, value will not be set as it don't matches a prop_search suggestion
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING', nth=1))
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING', index=1))
     yield e.text("C").ret()
     t.assertEqual(data.string_search_prop, "")
 
     # Text edit button, type "B" and return, value will be set since it matches a prop_search suggestion
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING', nth=1))
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING', index=1))
     yield e.text("B").ret()
     t.assertEqual(data.string_search_prop, "B")
 
     # Highlight button, pasted clipboard value which will not be set as it don't matches a prop_search suggestion
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'HIGHLIGHT', nth=1))
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'HIGHLIGHT', index=1))
     yield e.ctrl.v()
     t.assertEqual(data.string_search_prop, "B")
 
-    yield from _button_reset_value(wm, region, data, "string_search_prop", t, e, "", nth=1)
+    yield from _button_reset_value(wm, region, data, "string_search_prop", t, e, "", index=1)
 
     # `StringProperty(search=_string_search_property_cb, search_options={'SORT'})` as Search button
 

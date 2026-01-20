@@ -12647,7 +12647,7 @@ std::optional<int2> try_activate_rna_button(bContext *C,
                                             HandleButtonState state,
                                             PointerRNA *ptr,
                                             StringRef property,
-                                            int nth)
+                                            int index)
 {
   if (region->runtime->do_draw & RGN_DRAWING) {
     return std::nullopt;

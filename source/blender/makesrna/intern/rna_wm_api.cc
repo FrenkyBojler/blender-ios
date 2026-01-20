@@ -1067,8 +1067,8 @@ void RNA_api_wm(StructRNA *srna)
   func = RNA_def_function(srna, "try_activate_rna_button", "rna_WM_try_activate_rna_button");
   RNA_def_function_ui_description(
       func,
-      "Attempts to activate an button that points to an RNA data property, if any other button is "
-      "active in the screen it will be deactivated.");
+      "Attempt to activate an button referencing an RNA property. If any other button in the "
+      "screen is active, it will be deactivated");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "region", "Region", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
@@ -1079,14 +1079,13 @@ void RNA_api_wm(StructRNA *srna)
   parm = RNA_def_property(func, "state", PROP_ENUM, PROP_NONE);
   RNA_def_property_ui_text(
       parm,
-      "nth",
-      "Activation button state, some states are specific for some kinds of buttons when an "
-      "incompatible one is provided the button will be just activated as 'HIGHLIGHT'");
+      "State",
+      "Activation state for button. Some states are specific to certain button types; When an "
+      "incompatible state is provided, the button will be activated as with 'HIGHLIGHT");
   RNA_def_property_enum_items(parm, rna_button_activation);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_property(func, "nth", PROP_INT, PROP_NONE);
-  RNA_def_property_ui_text(
-      parm, "nth", "Selects the nth button in the region that points to the data.");
+  parm = RNA_def_property(func, "index", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(parm, "Index", "Index of the button that references the RNA property");
   RNA_def_property_int_default(parm, 0);
   parm = RNA_def_property(func, "xy", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(
