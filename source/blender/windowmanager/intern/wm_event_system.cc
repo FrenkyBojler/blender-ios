@@ -822,7 +822,7 @@ void wm_event_do_notifiers(bContext *C)
 
   /* Resync VSE camera after all listeners and depsgraph updates have completed.
    * viewport listeners may reset. Adding it after WM level notifiers works only
-   * for Undo/Redo but Outliner Changes fail, so adding it here.  */
+   * for Undo/Redo but Outliner Changes fail, so adding it here.See issue #152866  */
   if (resync_vse_camera) {
     for (wmWindow &win : wm->windows) {
       CTX_wm_window_set(C, &win);
