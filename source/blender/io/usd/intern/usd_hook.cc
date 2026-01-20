@@ -20,7 +20,7 @@
 #include "BKE_report.hh"
 
 #include "DNA_material_types.h"
-#include "DNA_windowmanager_types.h"
+#include "DNA_object_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -41,9 +41,11 @@
 #include <pxr/external/boost/python/to_python_converter.hpp>
 #include <pxr/external/boost/python/tuple.hpp>
 
+namespace blender {
+
 using namespace pxr::pxr_boost;
 
-namespace blender::io::usd {
+namespace io::usd {
 
 using USDHookList = std::list<std::unique_ptr<USDHook>>;
 using ImportedPrimMap = Map<pxr::SdfPath, Vector<PointerRNA>>;
@@ -109,7 +111,7 @@ class USDSceneExportContext {
   USDSceneExportContext(const USDHierarchyIterator *iter, Depsgraph *depsgraph)
       : stage_(iter->get_stage()), hierarchy_iterator_(iter)
   {
-    depsgraph_ptr_ = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
+    depsgraph_ptr_ = RNA_pointer_create_discrete(nullptr, RNA_Depsgraph, depsgraph);
   }
 
   pxr::UsdStageRefPtr get_stage() const
@@ -230,7 +232,7 @@ class USDMaterialExportContext {
     std::string asset_path = get_tex_image_asset_filepath(ima, stage_, params_);
 
     if (params_.export_textures) {
-      blender::io::usd::export_texture(ima, stage_, params_.overwrite_textures, reports_);
+      io::usd::export_texture(ima, stage_, params_.overwrite_textures, reports_);
     }
 
     return asset_path;
@@ -468,7 +470,7 @@ class OnMaterialExportInvoker final : public USDHookInvoker {
         hook_context_(stage, export_params, reports),
         usd_material_(usd_material)
   {
-    material_ptr_ = RNA_pointer_create_discrete(nullptr, &RNA_Material, material);
+    material_ptr_ = RNA_pointer_create_discrete(nullptr, RNA_Material, material);
   }
 
  private:
@@ -567,7 +569,7 @@ class OnMaterialImportInvoker final : public USDHookInvoker {
         hook_context_(stage, import_params, reports),
         usd_material_(usd_material)
   {
-    material_ptr_ = RNA_pointer_create_discrete(nullptr, &RNA_Material, material);
+    material_ptr_ = RNA_pointer_create_discrete(nullptr, RNA_Material, material);
   }
 
   bool result() const
@@ -628,10 +630,6 @@ void call_import_hooks(USDStageReader *archive, ReportList *reports)
   prim_map.reserve((readers.size() * 2) + settings.usd_path_to_mat.size());
 
   for (const USDPrimReader *reader : readers) {
-    if (!reader) {
-      continue;
-    }
-
     Object *ob = reader->object();
 
     prim_map.lookup_or_add_default(reader->object_prim_path())
@@ -681,4 +679,5 @@ bool call_material_import_hooks(pxr::UsdStageRefPtr stage,
   return on_material_import.result();
 }
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender
