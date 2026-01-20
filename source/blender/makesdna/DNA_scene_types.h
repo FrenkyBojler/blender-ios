@@ -2527,6 +2527,9 @@ struct RaytraceEEVEE {
   /** #RaytraceEEVEE_DenoiseStages. */
   int denoise_stages = RAYTRACE_EEVEE_DENOISE_SPATIAL | RAYTRACE_EEVEE_DENOISE_TEMPORAL |
                        RAYTRACE_EEVEE_DENOISE_BILATERAL;
+  /** Global ray-traced lighting contribution scalar. */
+  float rt_scale = 1.0f;
+  char _pad0[4] = {};
 };
 
 /** #SceneEEVEE::flag */
