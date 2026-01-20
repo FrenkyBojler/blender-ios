@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include <cmath>
 #include <cstring>
 #include <numeric>
 
@@ -279,36 +278,42 @@ static float isect_vert_calc_z(int vert_index,
                                const Array<double2> &input_verts_2d,
                                int total_input_verts)
 {
+  /* -1 if this intersection vertex only appears on Delaunay edges
+   * (edges created by triangulation) rather than edges deriving from
+   * input polygon edges. Fall back to Z=0. */
+  if (UNLIKELY(edge_index == -1)) {
+    return 0.0f;
+  }
+
   const double2 &vert_co = result.vert[vert_index];
 
   /* Find a face edge in the original edge info. */
-  for (int orig_id : result.edge_orig[edge_index]) {
+  for (const int orig_id : result.edge_orig[edge_index]) {
     if (orig_id < result.face_edge_offset) {
       /* Standalone edge - skip. */
       continue;
     }
     /* Decode face index and edge position. */
-    int face_index, edge_in_face;
-    face_index = orig_id / result.face_edge_offset - 1;
-    edge_in_face = orig_id % result.face_edge_offset;
+    const int face_index = orig_id / result.face_edge_offset - 1;
+    const int edge_in_face = orig_id % result.face_edge_offset;
 
-    if (face_index < 0 || face_index >= int(poly_ranges.size())) {
+    if (UNLIKELY(face_index == -1 || face_index >= int(poly_ranges.size()))) {
       continue;
     }
 
     const PolyRange &poly = poly_ranges[face_index];
-    if (edge_in_face >= poly.count) {
+    if (UNLIKELY(edge_in_face >= poly.count)) {
       continue;
     }
 
     /* Get the two endpoints of the original edge. */
-    int v0_local = edge_in_face;
-    int v1_local = (edge_in_face + 1) % poly.count;
+    const int v0_local = edge_in_face;
+    const int v1_local = (edge_in_face + 1) % poly.count;
 
-    int v0_global = poly.start + v0_local;
-    int v1_global = poly.start + v1_local;
+    const int v0_global = poly.start + v0_local;
+    const int v1_global = poly.start + v1_local;
 
-    if (v0_global >= total_input_verts || v1_global >= total_input_verts) {
+    if (UNLIKELY(v0_global >= total_input_verts || v1_global >= total_input_verts)) {
       continue;
     }
 
@@ -316,22 +321,22 @@ static float isect_vert_calc_z(int vert_index,
     const double2 &p1 = input_verts_2d[v1_global];
 
     /* Project the intersection vertex onto this edge to find parameter t. */
-    double2 edge_vec = p1 - p0;
-    double edge_len_sq = math::length_squared(edge_vec);
+    const double2 edge_vec = p1 - p0;
+    const double edge_len_sq = math::length_squared(edge_vec);
 
     double t;
-    if (edge_len_sq < 1e-16) {
+    if (UNLIKELY(edge_len_sq < 1e-16)) {
       t = 0.5;
     }
     else {
-      double2 to_point = vert_co - p0;
+      const double2 to_point = vert_co - p0;
       t = math::dot(to_point, edge_vec) / edge_len_sq;
       t = math::clamp(t, 0.0, 1.0);
     }
 
     /* Get the Z coordinates of the original edge endpoints. */
-    float z0 = poly.dl->verts[3 * v0_local + 2];
-    float z1 = poly.dl->verts[3 * v1_local + 2];
+    const float z0 = poly.dl->verts[3 * v0_local + 2];
+    const float z1 = poly.dl->verts[3 * v1_local + 2];
 
     /* Interpolate Z. */
     return z0 + float(t) * (z1 - z0);
@@ -467,10 +472,10 @@ static void displist_fill_scanfill(const ListBaseT<DispList> *dispbase,
 /** Work item for parallel CDT fill processing. */
 struct CDTFillWorkItem {
   Vector<PolyRange> poly_ranges;
-  int total_verts;
-  short dl_flag_accum;
-  short dl_rt_accum;
-  short colnr;
+  int total_verts = 0;
+  short dl_flag_accum = 0;
+  short dl_rt_accum = 0;
+  short colnr = 0;
 };
 
 /**
@@ -485,12 +490,19 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
    * Also build vert_to_poly map for O(1) polygon lookup. */
   Array<double2> verts_2d(item.total_verts);
   Array<int> vert_to_poly(item.total_verts);
+  Array<Vector<int>> faces(item.poly_ranges.size());
 
   const float first_z = item.poly_ranges[0].dl->verts[2];
   bool uniform_z = true;
 
-  for (int64_t p = 0; p < int64_t(item.poly_ranges.size()); p++) {
+  for (const int64_t p : item.poly_ranges.index_range()) {
     const PolyRange &poly = item.poly_ranges[p];
+
+    /* Build face indices: sequential vertex indices for this polygon. */
+    faces[p].resize(poly.count);
+    std::iota(faces[p].begin(), faces[p].end(), poly.start);
+
+    /* Build vertex data. */
     for (int i = 0; i < poly.count; i++) {
       const float *v = &poly.dl->verts[3 * i];
       const int vert_index = poly.start + i;
@@ -502,15 +514,6 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
     }
   }
 
-  /* Build face index arrays. Each face contains sequential vertex indices
-   * [poly.start, poly.start+1, ..., poly.start+count-1]. */
-  Array<Vector<int>> faces(item.poly_ranges.size());
-  for (int64_t p = 0; p < int64_t(item.poly_ranges.size()); p++) {
-    const PolyRange &poly = item.poly_ranges[p];
-    faces[p].resize(poly.count);
-    std::iota(faces[p].begin(), faces[p].end(), poly.start);
-  }
-
   meshintersect::CDT_input<double> input;
   input.vert = std::move(verts_2d);
   input.face = std::move(faces);
@@ -520,7 +523,7 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
   meshintersect::CDT_result<double> result = meshintersect::delaunay_2d_calc(input,
                                                                              cdt_output_type);
 
-  if (result.face.is_empty()) {
+  if (UNLIKELY(result.face.is_empty())) {
     return nullptr;
   }
 
@@ -544,17 +547,17 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
   if (!uniform_z) {
     isect_vert_to_edge.reinitialize(out_verts);
     isect_vert_to_edge.fill(-1);
-    for (int64_t e = 0; e < result.edge.size(); e++) {
+    for (int e = 0; e < int(result.edge.size()); e++) {
       if (result.edge_orig[e].is_empty()) {
         continue;
       }
-      int v0 = result.edge[e].first;
-      int v1 = result.edge[e].second;
+      const int v0 = result.edge[e].first;
+      const int v1 = result.edge[e].second;
       if (result.vert_orig[v0].is_empty()) {
-        isect_vert_to_edge[v0] = int(e);
+        isect_vert_to_edge[v0] = e;
       }
       if (result.vert_orig[v1].is_empty()) {
-        isect_vert_to_edge[v1] = int(e);
+        isect_vert_to_edge[v1] = e;
       }
     }
   }
@@ -617,13 +620,10 @@ static void displist_fill_cdt(const ListBaseT<DispList> *dispbase,
     if (dl.type != DL_POLY) {
       continue;
     }
-    std::pair<int, short> key(dl.charidx, dl.col);
+    const std::pair<int, short> key(dl.charidx, dl.col);
     CDTFillWorkItem &item = work_item_map.lookup_or_add_default(key);
     if (item.poly_ranges.is_empty()) {
-      /* First polygon for this key - initialize. */
-      item.total_verts = 0;
-      item.dl_flag_accum = 0;
-      item.dl_rt_accum = 0;
+      /* First polygon for this key - set colnr. */
       item.colnr = dl.col;
     }
     item.poly_ranges.append({item.total_verts, dl.nr, &dl});
@@ -640,7 +640,7 @@ static void displist_fill_cdt(const ListBaseT<DispList> *dispbase,
     work_items.append(std::move(item));
   }
 
-  if (work_items.is_empty()) {
+  if (UNLIKELY(work_items.is_empty())) {
     return;
   }
 
