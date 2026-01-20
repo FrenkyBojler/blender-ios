@@ -360,8 +360,29 @@ static wmOperatorStatus preferences_asset_library_remove_exec(bContext *C, wmOpe
   }
 
   BKE_preferences_asset_library_remove(&U, library);
-  const int count_remaining = BLI_listbase_count(&U.asset_libraries);
+
+  /* If the experimental flag was disabled, make sure the newly activated asset
+   * library is not a remote one. */
+  const bool use_remote_libraries = USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+  if (!use_remote_libraries) {
+    int nonremote_index = 0;
+    for (auto [index, lib] : U.asset_libraries.enumerate()) {
+      if (lib.flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+        /* Ignore remote libraries. */
+        continue;
+      }
+
+      nonremote_index = index;
+      if (index >= U.active_asset_library) {
+        /* We've found the first usable library above the deleted one, the search can stop. */
+        break;
+      }
+    }
+    U.active_asset_library = nonremote_index;
+  }
+
   /* Update active library index to be in range. */
+  const int count_remaining = BLI_listbase_count(&U.asset_libraries);
   CLAMP(U.active_asset_library, 0, count_remaining - 1);
   U.runtime.is_dirty = true;
 
