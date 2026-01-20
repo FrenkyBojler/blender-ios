@@ -39,7 +39,7 @@ constexpr auto formats_class_32 = {
     gpu::TextureFormat::SFLOAT_16_16,
     gpu::TextureFormat::UFLOAT_11_11_10,
     gpu::TextureFormat::SFLOAT_32,
-    // gpu::TextureFormat::UINT_10_10_10_2, /* Supported, but unused. Breaks on Intel. */
+    // gpu::TextureFormat::UINT_10_10_10_2, /* Unused. Breaks on Intel. */
     gpu::TextureFormat::UINT_8_8_8_8,
     gpu::TextureFormat::UINT_16_16,
     gpu::TextureFormat::UINT_32,
@@ -66,9 +66,7 @@ constexpr auto formats_class_16 = {
     /* ::SNORM_16 */   /* Not of TextureTargetFormat. */
 };
 constexpr auto formats_class_8 = {
-    gpu::TextureFormat::UINT_8,
-    gpu::TextureFormat::SINT_8,
-    gpu::TextureFormat::UNORM_8,
+    gpu::TextureFormat::UINT_8, gpu::TextureFormat::SINT_8, gpu::TextureFormat::UNORM_8,
     /* ::SNORM_8 */ /* Not of TextureTargetFormat. */
 };
 
@@ -161,12 +159,6 @@ static testing::AssertionResult test_texture_view_clear(
   GPU_texture_free(view);
   GPU_texture_free(base);
 
-  /* if (result) {
-    std::printf("PASS: %s -> %s\n",
-                GPU_texture_format_name(formats.first),
-                GPU_texture_format_name(formats.second));
-  } */
-
   return result;
 }
 
@@ -177,15 +169,13 @@ static void test_texture_view_format_aliasing()
   }
   GPU_render_begin();
 
-  // auto format = gpu::TextureFormat::UINT_10_10_10_2;
-  // EXPECT_TRUE(test_texture_view_clear({format, format}));
-
-  /* Test all specified format lists; note that we ignore 96-bit, 48-bit, 24-bit formats
-   * given their lack of FBO support or general support in Blender. */
+  /* Test all specified format lists; note that we ignore 96-bit, 48-bit, 24-bit formats. These
+   * are specified as supported by glTextureView(), but most don't support framebuffer attachment
+   * or have no equivalent in Metal, and are unused by Blender. */
   for (auto formats :
        {formats_class_128, formats_class_64, formats_class_32, formats_class_16, formats_class_8})
   {
-    /* Iterate cartesian product of format list. */
+    /* Iterate cartesian product of format lists. */
     for (TextureFormat a : formats) {
       for (TextureFormat b : formats) {
         EXPECT_TRUE(test_texture_view_clear({a, b}));
