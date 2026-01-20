@@ -112,7 +112,7 @@ static void shortest_paths(const Mesh &mesh,
 
         std::pair<int, int> distance_and_index(distances[vert_i], vert_i);
         for (const int other_vert : vert_to_verts[vert_i]) {
-          const auto other = std::make_pair(distances[other_vert], other_vert);
+          const std::pair<int, int> other(distances[other_vert], other_vert);
           if (other < distance_and_index) {
             distance_and_index = other;
           }
