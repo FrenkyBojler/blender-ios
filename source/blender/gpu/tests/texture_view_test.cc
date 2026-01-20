@@ -17,75 +17,72 @@
 
 namespace blender::gpu::tests {
 
-constexpr uint texture_size_w = 4;
-constexpr uint texture_size_h = 4;
-constexpr uint texture_size = texture_size_w * texture_size_h;
-
-/* Arrays matching the Internal Formats compatibility table of glTextureView,
- * or at least as far as `GPU_format.hh` specifies formats listed there. This
- * excludes the set of compressed formats (e.g. GL_COMPRESSED_RGBA_BPTC_UNORM). */
+/* Arrays overlapping (A) the internal formats table of glTextureView, and (B)
+ * the supported types in gpu::TextureTargetFormat::. This excludes compressed
+ * formats, depth textures, as these remain unsupported. */
 constexpr auto formats_class_128 = {
-    gpu::TextureTargetFormat::SFLOAT_32_32_32_32,
-    gpu::TextureTargetFormat::UINT_32_32_32_32,
-    gpu::TextureTargetFormat::SINT_32_32_32_32,
+    gpu::TextureFormat::SFLOAT_32_32_32_32,
+    gpu::TextureFormat::UINT_32_32_32_32,
+    gpu::TextureFormat::SINT_32_32_32_32,
 };
-
 constexpr auto formats_class_64 = {
-    gpu::TextureTargetFormat::SFLOAT_16_16_16_16,
-    gpu::TextureTargetFormat::SFLOAT_32_32,
-    gpu::TextureTargetFormat::UINT_16_16_16_16,
-    gpu::TextureTargetFormat::UINT_32_32,
-    gpu::TextureTargetFormat::SINT_16_16_16_16,
-    gpu::TextureTargetFormat::SINT_32_32,
-    gpu::TextureTargetFormat::UNORM_16_16_16_16,
+    gpu::TextureFormat::SFLOAT_16_16_16_16,
+    gpu::TextureFormat::SFLOAT_32_32,
+    gpu::TextureFormat::UINT_16_16_16_16,
+    gpu::TextureFormat::UINT_32_32,
+    gpu::TextureFormat::SINT_16_16_16_16,
+    gpu::TextureFormat::SINT_32_32,
+    gpu::TextureFormat::UNORM_16_16_16_16,
     /* ::SNORM_16_16_16_16, */ /* Not of TextureTargetFormat. */
 };
-
 constexpr auto formats_class_32 = {
-    gpu::TextureTargetFormat::SFLOAT_16_16,
-    gpu::TextureTargetFormat::UFLOAT_11_11_10, /* Commonly used. Appears supported. So why does it
-                                                * break things aliasing from SFLOAT_16_16? */
-    gpu::TextureTargetFormat::SFLOAT_32,
-    // ::UINT_10_10_10_2, /* Supported, but unused. Breaks on Intel? */
-    gpu::TextureTargetFormat::UINT_8_8_8_8,
-    gpu::TextureTargetFormat::UINT_16_16,
-    gpu::TextureTargetFormat::UINT_32,
-    gpu::TextureTargetFormat::SINT_8_8_8_8,
-    gpu::TextureTargetFormat::SINT_16_16,
-    gpu::TextureTargetFormat::SINT_32,
-    // ::UNORM_10_10_10_2, /* Unsupported in OpenGL. */
-    gpu::TextureTargetFormat::UNORM_8_8_8_8,
-    gpu::TextureTargetFormat::UNORM_16_16,
+    gpu::TextureFormat::SFLOAT_16_16,
+    gpu::TextureFormat::UFLOAT_11_11_10,
+    gpu::TextureFormat::SFLOAT_32,
+    // gpu::TextureFormat::UINT_10_10_10_2, /* Supported, but unused. Breaks on Intel. */
+    gpu::TextureFormat::UINT_8_8_8_8,
+    gpu::TextureFormat::UINT_16_16,
+    gpu::TextureFormat::UINT_32,
+    gpu::TextureFormat::SINT_8_8_8_8,
+    gpu::TextureFormat::SINT_16_16,
+    gpu::TextureFormat::SINT_32,
+    gpu::TextureFormat::UNORM_10_10_10_2,
+    gpu::TextureFormat::UNORM_8_8_8_8,
+    gpu::TextureFormat::UNORM_16_16,
     /* ::SNORM_8_8_8_8, */ /* Not of TextureTargetFormat. */
     /* ::SNORM_16_16, */   /* Not of TextureTargetFormat. */
-    gpu::TextureTargetFormat::SRGBA_8_8_8_8
+    gpu::TextureFormat::SRGBA_8_8_8_8
     // ::UFLOAT_9_9_9_EXP_5 /* Not of TextureTargetFormat. */
 };
-
 constexpr auto formats_class_16 = {
-    gpu::TextureTargetFormat::SFLOAT_16,
-    gpu::TextureTargetFormat::UINT_8_8,
-    gpu::TextureTargetFormat::UINT_16,
-    gpu::TextureTargetFormat::SINT_8_8,
-    gpu::TextureTargetFormat::SINT_16,
-    gpu::TextureTargetFormat::UNORM_8_8,
-    gpu::TextureTargetFormat::UNORM_16,
+    gpu::TextureFormat::SFLOAT_16,
+    gpu::TextureFormat::UINT_8_8,
+    gpu::TextureFormat::UINT_16,
+    gpu::TextureFormat::SINT_8_8,
+    gpu::TextureFormat::SINT_16,
+    gpu::TextureFormat::UNORM_8_8,
+    gpu::TextureFormat::UNORM_16,
     /* ::SNORM_8_8, */ /* Not of TextureTargetFormat. */
     /* ::SNORM_16 */   /* Not of TextureTargetFormat. */
 };
-
 constexpr auto formats_class_8 = {
-    gpu::TextureTargetFormat::UINT_8,
-    gpu::TextureTargetFormat::SINT_8,
-    gpu::TextureTargetFormat::UNORM_8,
+    gpu::TextureFormat::UINT_8,
+    gpu::TextureFormat::SINT_8,
+    gpu::TextureFormat::UNORM_8,
     /* ::SNORM_8 */ /* Not of TextureTargetFormat. */
 };
+
+/* Test texture data. */
+constexpr uint texture_size_w = 4;
+constexpr uint texture_size_h = 4;
+constexpr uint texture_size = texture_size_w * texture_size_h;
+constexpr auto texture_usage = GPU_TEXTURE_USAGE_GENERAL;
 
 /* Create a exture of specified format, bind to a temporary FBO and clear to black. */
 static gpu::Texture *create_base_texture(TextureFormat format)
 {
   gpu::Texture *base = GPU_texture_create_2d(
-      "base", texture_size_w, texture_size_h, 1, format, GPU_TEXTURE_USAGE_GENERAL, nullptr);
+      "base", texture_size_w, texture_size_h, 1, format, texture_usage, nullptr);
   GPU_texture_mipmap_mode(base, false, false);
   GPU_memory_barrier(GPU_BARRIER_FRAMEBUFFER);
 
@@ -134,7 +131,7 @@ static testing::AssertionResult test_texture_view_clear(
   /* First check; the view texture should be all zeroes. */
   if (check_texture_not_zero(view)) {
     result = testing::AssertionFailure()
-             << "test_view_framebuffer_clear, initial state failed with aliasing: "
+             << "test_texture_view_clear, initial state failed with aliasing: "
              << GPU_texture_format_name(formats.first) << " -> "
              << GPU_texture_format_name(formats.second) << '\n';
     GPU_texture_free(view);
@@ -155,7 +152,7 @@ static testing::AssertionResult test_texture_view_clear(
   /* Second check; the view texture should **not** be all zeroes. */
   if (!check_texture_not_zero(view)) {
     result = testing::AssertionFailure()
-             << "test_view_framebuffer_clear, fbo clear failed with aliasing: "
+             << "test_texture_view_clear, fbo clear failed with aliasing: "
              << GPU_texture_format_name(formats.first) << " -> "
              << GPU_texture_format_name(formats.second) << '\n';
   }
@@ -164,15 +161,24 @@ static testing::AssertionResult test_texture_view_clear(
   GPU_texture_free(view);
   GPU_texture_free(base);
 
+  /* if (result) {
+    std::printf("PASS: %s -> %s\n",
+                GPU_texture_format_name(formats.first),
+                GPU_texture_format_name(formats.second));
+  } */
+
   return result;
 }
 
 static void test_texture_view_format_aliasing()
 {
   if (GPU_backend_get_type() != GPU_BACKEND_OPENGL) {
-    GTEST_SKIP() << "Texture view format aliasing is only used on OpeNGL";
+    GTEST_SKIP() << "Texture view format aliasing is only tested on OpenGL.";
   }
   GPU_render_begin();
+
+  // auto format = gpu::TextureFormat::UINT_10_10_10_2;
+  // EXPECT_TRUE(test_texture_view_clear({format, format}));
 
   /* Test all specified format lists; note that we ignore 96-bit, 48-bit, 24-bit formats
    * given their lack of FBO support or general support in Blender. */
@@ -180,12 +186,13 @@ static void test_texture_view_format_aliasing()
        {formats_class_128, formats_class_64, formats_class_32, formats_class_16, formats_class_8})
   {
     /* Iterate cartesian product of format list. */
-    for (TextureTargetFormat a : formats) {
-      for (TextureTargetFormat b : formats) {
-        EXPECT_TRUE(test_texture_view_clear({to_texture_format(a), to_texture_format(b)}));
+    for (TextureFormat a : formats) {
+      for (TextureFormat b : formats) {
+        EXPECT_TRUE(test_texture_view_clear({a, b}));
       }
     }
   }
+
   GPU_render_end();
 }
 GPU_TEST(texture_view_format_aliasing)
