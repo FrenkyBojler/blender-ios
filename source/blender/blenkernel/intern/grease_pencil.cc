@@ -4452,8 +4452,7 @@ static void write_layer(BlendWriter *writer, GreasePencilLayer *node)
   BLO_write_string(writer, node->viewlayername);
 
   BLO_write_int32_array(writer, node->frames_storage.num, node->frames_storage.keys);
-  writer->write_struct_array<GreasePencilFrame>(node->frames_storage.num,
-                                                node->frames_storage.values);
+  writer->write_struct_array(node->frames_storage.num, node->frames_storage.values);
 
   BLO_write_struct_list(writer, GreasePencilLayerMask, &node->masks);
   for (GreasePencilLayerMask &mask : node->masks) {

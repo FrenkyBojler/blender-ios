@@ -223,7 +223,7 @@ void animviz_motionpath_blend_write(BlendWriter *writer, bMotionPath *mpath)
   writer->write_struct(mpath);
 
   /* now write the array of data */
-  writer->write_struct_array<bMotionPathVert>(mpath->length, mpath->points);
+  writer->write_struct_array(mpath->length, mpath->points);
 }
 
 void animviz_motionpath_blend_read_data(BlendDataReader *reader, bMotionPath *mpath)

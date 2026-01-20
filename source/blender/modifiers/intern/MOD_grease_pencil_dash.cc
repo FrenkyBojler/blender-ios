@@ -490,8 +490,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
   writer->write_struct(dmd);
   modifier::greasepencil::write_influence_data(writer, &dmd->influence);
 
-  writer->write_struct_array<GreasePencilDashModifierSegment>(dmd->segments_num,
-                                                              dmd->segments_array);
+  writer->write_struct_array(dmd->segments_num, dmd->segments_array);
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)

@@ -1604,12 +1604,12 @@ void BKE_defvert_blend_write(BlendWriter *writer, int count, const MDeformVert *
   }
 
   /* Write the dvert list */
-  writer->write_struct_array<MDeformVert>(count, dvlist);
+  writer->write_struct_array(count, dvlist);
 
   /* Write deformation data for each dvert */
   for (int i = 0; i < count; i++) {
     if (dvlist[i].dw) {
-      writer->write_struct_array<MDeformWeight>(dvlist[i].totweight, dvlist[i].dw);
+      writer->write_struct_array(dvlist[i].totweight, dvlist[i].dw);
     }
   }
 }

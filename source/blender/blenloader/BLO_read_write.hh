@@ -88,9 +88,8 @@ struct BlendWriter {
     this->write_struct_at_address_by_id(dna::sdna_struct_id_get<T>(), address, data);
   }
 
-  template<typename U, typename T> void write_struct_array(const int64_t array_size, const T *data)
+  template<typename T> void write_struct_array(const int64_t array_size, const T *data)
   {
-    static_assert(std::is_same_v<U, T>);
     this->write_struct_array_by_id(dna::sdna_struct_id_get<T>(), array_size, data);
   }
 

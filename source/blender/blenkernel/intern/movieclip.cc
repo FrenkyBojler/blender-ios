@@ -173,7 +173,7 @@ static void write_movieTracks(BlendWriter *writer, ListBaseT<MovieTrackingTrack>
     writer->write_struct(track);
 
     if (track->markers) {
-      writer->write_struct_array<MovieTrackingMarker>(track->markersnr, track->markers);
+      writer->write_struct_array(track->markersnr, track->markers);
     }
 
     track = track->next;
@@ -187,8 +187,7 @@ static void write_moviePlaneTracks(BlendWriter *writer,
     writer->write_struct(&plane_track);
 
     BLO_write_pointer_array(writer, plane_track.point_tracksnr, plane_track.point_tracks);
-    writer->write_struct_array<MovieTrackingPlaneMarker>(plane_track.markersnr,
-                                                         plane_track.markers);
+    writer->write_struct_array(plane_track.markersnr, plane_track.markers);
   }
 }
 
@@ -196,8 +195,7 @@ static void write_movieReconstruction(BlendWriter *writer,
                                       MovieTrackingReconstruction *reconstruction)
 {
   if (reconstruction->camnr) {
-    writer->write_struct_array<MovieReconstructedCamera>(reconstruction->camnr,
-                                                         reconstruction->cameras);
+    writer->write_struct_array(reconstruction->camnr, reconstruction->cameras);
   }
 }
 

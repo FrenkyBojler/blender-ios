@@ -135,7 +135,7 @@ static void lattice_blend_write(BlendWriter *writer, ID *id, const void *id_addr
   BKE_id_blend_write(writer, &lt->id);
 
   /* direct data */
-  writer->write_struct_array<BPoint>(lt->pntsu * lt->pntsv * lt->pntsw, lt->def);
+  writer->write_struct_array(lt->pntsu * lt->pntsv * lt->pntsw, lt->def);
 
   BKE_defbase_blend_write(writer, &lt->vertex_group_names);
   BKE_defvert_blend_write(writer, lt->pntsu * lt->pntsv * lt->pntsw, lt->dvert);
