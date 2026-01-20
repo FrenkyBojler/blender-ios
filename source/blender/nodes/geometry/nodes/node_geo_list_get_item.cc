@@ -28,7 +28,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   const NodeGeometryListGetItem &storage = node_storage(*node);
   const auto type = eNodeSocketDatatype(storage.socket_type);
-  const auto structure_type = StructureType(storage.structure_type);
+
+  const auto structure_type = storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                  StructureType::Dynamic :
+                                  StructureType(storage.structure_type);
 
   b.add_input(type, "List").structure_type(StructureType::List).hide_value();
 
