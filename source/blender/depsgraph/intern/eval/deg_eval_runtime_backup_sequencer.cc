@@ -28,7 +28,7 @@ static bool strip_init_cb(Strip *strip, void *user_data)
 {
   SequencerBackup *sb = (SequencerBackup *)user_data;
   StripBackup strip_backup(sb->depsgraph);
-  strip_backup.init_from_strip(strip);
+  strip_backup.init_from_strip(strip, sb->ref_scene);
   if (!strip_backup.isEmpty()) {
     const SessionUID &session_uid = strip->runtime->session_uid;
     BLI_assert(BLI_session_uid_is_generated(&session_uid));
@@ -39,6 +39,7 @@ static bool strip_init_cb(Strip *strip, void *user_data)
 
 void SequencerBackup::init_from_scene(Scene *scene)
 {
+  this->ref_scene = scene;
   if (scene->ed != nullptr) {
     seq::foreach_strip(&scene->ed->seqbase, strip_init_cb, this);
   }
@@ -64,6 +65,16 @@ void SequencerBackup::restore_to_scene(Scene *scene)
   /* Cleanup audio while the scene is still known. */
   for (StripBackup &strip_backup : strips_backup.values()) {
     if (strip_backup.scene_sound != nullptr) {
+      /* Ramon: this is a workaround that leads the parent_strip sequence to be recreated(without
+       * the removed strip).*/
+      if (strip_backup.parent_strip != nullptr) {
+        printf("strip_backup.parent_strip != nullptr\n");
+        // BKE_sound_remove_sound(strip_backup.parent_strip->runtime->meta_scene_sound,
+        //                        strip_backup.scene_sound);
+        BKE_sound_remove_scene_sound(scene, strip_backup.parent_strip->runtime->scene_sound);
+        strip_backup.parent_strip->runtime->scene_sound = nullptr;
+        return;
+      }
       BKE_sound_remove_scene_sound(scene, strip_backup.scene_sound);
     }
   }

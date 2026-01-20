@@ -3243,11 +3243,15 @@ static wmOperatorStatus sequencer_swap_data_exec(bContext *C, wmOperator *op)
   }
 
   if (strip_act->runtime->scene_sound) {
-    BKE_sound_remove_scene_sound(scene, strip_act->runtime->scene_sound);
+    // BKE_sound_remove_scene_sound(scene, strip_act->runtime->scene_sound);
+    BKE_sound_remove_sound(strip_act->runtime->last_parent_sound_scene_real,
+                           strip_act->runtime->scene_sound);
   }
 
   if (strip_other->runtime->scene_sound) {
-    BKE_sound_remove_scene_sound(scene, strip_other->runtime->scene_sound);
+    // BKE_sound_remove_scene_sound(scene, strip_other->runtime->scene_sound);
+    BKE_sound_remove_sound(strip_act->runtime->last_parent_sound_scene_real,
+                           strip_act->runtime->scene_sound);
   }
 
   strip_act->runtime->scene_sound = nullptr;

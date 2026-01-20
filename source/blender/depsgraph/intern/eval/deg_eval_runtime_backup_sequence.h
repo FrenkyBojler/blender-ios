@@ -12,6 +12,7 @@
 
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
+#include "DNA_scene_types.h"
 
 struct MovieReader;
 struct Strip;
@@ -44,12 +45,14 @@ class StripBackup {
 
   void reset();
 
-  void init_from_strip(Strip *strip);
+  void init_from_strip(Strip *strip, Scene *scene);
+  // void restore_to_strip(Strip *strip, Scene *scene);
   void restore_to_strip(Strip *strip);
 
   bool isEmpty() const;
 
   void *scene_sound;
+  Strip *parent_strip; // Stores to what the strip was added (scene or meta).
   Vector<MovieReader *, 1> movie_readers;
   Map<int, StripModifierDataBackup> modifiers;
 };

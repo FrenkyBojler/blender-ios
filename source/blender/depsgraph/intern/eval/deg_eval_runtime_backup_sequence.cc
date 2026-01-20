@@ -68,9 +68,10 @@ void StripBackup::reset()
   modifiers.clear();
 }
 
-void StripBackup::init_from_strip(Strip *strip)
+void StripBackup::init_from_strip(Strip *strip, Scene *scene)
 {
   scene_sound = strip->runtime->scene_sound;
+  parent_strip = seq::lookup_meta_by_strip(scene->ed, strip);
   movie_readers = std::move(strip->runtime->movie_readers);
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {

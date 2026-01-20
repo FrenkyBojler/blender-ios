@@ -910,12 +910,11 @@ void *BKE_sound_add_scene_sound(
 
   // store last handle here so it can be properly removed in the next run.
   strip->runtime->last_parent_sound_scene = parent_strip != nullptr ? 1 : 0;
+  strip->runtime->last_parent_sound_scene_real = parent_sound_scene;
   if (strip->type == STRIP_TYPE_META) {
     printf("printf -----------------------------------\n");
   }
 
-  // printf("strip %s\n", strip->name);
-  // printf("startframe - parent_start %d\n", startframe - parent_start);
   if (offset_time >= 0.0f) {
     return AUD_Sequence_add(parent_sound_scene,
                             add_handle,
@@ -942,6 +941,12 @@ void *BKE_sound_add_scene_sound_defaults(Scene *scene, Strip *strip)
 void BKE_sound_remove_scene_sound(Scene *scene, void *handle)
 {
   AUD_Sequence_remove(scene->runtime->audio.sound_scene, handle);
+}
+
+// also remove from metas
+void BKE_sound_remove_sound(void *sound_scene, void *handle)
+{
+  AUD_Sequence_remove(sound_scene, handle);
 }
 
 void BKE_sound_mute_scene_sound(void *handle, bool mute)

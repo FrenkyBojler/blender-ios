@@ -98,8 +98,13 @@ void sound_update_bounds_all(Scene *scene)
 
   if (ed) {
     LISTBASE_FOREACH (Strip *, strip, &ed->seqbase) {
+      // // no need for the recursion anymore since the meta has its own sequence that can be moved
+      // // like any other strip.
+      //
+      // Nevermind, this is still needed so the strips inside the meta can be moved.
       if (strip->type == STRIP_TYPE_META) {
         strip_update_sound_bounds_recursive(scene, strip);
+        sound_update_bounds(scene, strip);
       }
       else if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE)) {
         sound_update_bounds(scene, strip);
@@ -133,7 +138,7 @@ void sound_update_bounds(Scene *scene, Strip *strip)
     // Editing *ed = scene->ed;
     // Strip *parent_strip = lookup_meta_by_strip(ed, strip);
     // if (parent_strip == nullptr) {
-      BKE_sound_move_scene_sound_defaults(scene, strip);
+    BKE_sound_move_scene_sound_defaults(scene, strip);
     // }
   }
   /* mute is set in strip_update_muting_recursive */

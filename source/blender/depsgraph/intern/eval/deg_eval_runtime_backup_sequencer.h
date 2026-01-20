@@ -29,6 +29,7 @@ class SequencerBackup {
   void restore_to_scene(Scene *scene);
 
   const Depsgraph *depsgraph;
+  Scene *ref_scene;
 
   Map<SessionUID, StripBackup> strips_backup;
 };
