@@ -123,6 +123,7 @@ start_frame_s$ID$   = $START_FRAME$\n\
 end_frame_s$ID$     = $END_FRAME$\n\
 \n\
 # Fluid diffusion / viscosity\n\
+cellSize_s$ID$ = $FLUID_DOMAIN_AVG_CELL_SIZE$\n\
 domainSize_s$ID$ = $FLUID_DOMAIN_SIZE$ # longest domain side in meters\n\
 kinViscosity_s$ID$ = $FLUID_VISCOSITY$ / (domainSize_s$ID$*domainSize_s$ID$) # kinematic viscosity in m^2/s\n\
 \n\

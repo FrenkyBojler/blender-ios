@@ -831,6 +831,7 @@ void MANTA::initializeRNAMap(FluidModifierData *fmd)
   string cacheDirectory(fds->cache_directory);
 
   float viscosity = fds->viscosity_base * pow(10.0f, -fds->viscosity_exponent);
+  float averageCellSize = (fds->cell_size[0] + fds->cell_size[1] + fds->cell_size[2]) / 3;
   float domainSize = std::max({fds->global_size[0], fds->global_size[1], fds->global_size[2]});
 
   string vdbCompressionMethod = "Compression_None";
@@ -975,6 +976,7 @@ void MANTA::initializeRNAMap(FluidModifierData *fmd)
   mRNAMap["SNDPARTICLE_UPDATE_RADIUS"] = to_string(fds->sndparticle_update_radius);
   mRNAMap["LIQUID_SURFACE_TENSION"] = to_string(fds->surface_tension);
   mRNAMap["FLUID_VISCOSITY"] = to_string(viscosity);
+  mRNAMap["FLUID_DOMAIN_AVG_CELL_SIZE"] = to_string(averageCellSize);
   mRNAMap["FLUID_DOMAIN_SIZE"] = to_string(domainSize);
   mRNAMap["FLUID_DOMAIN_SIZE_X"] = to_string(fds->global_size[0]);
   mRNAMap["FLUID_DOMAIN_SIZE_Y"] = to_string(fds->global_size[1]);
