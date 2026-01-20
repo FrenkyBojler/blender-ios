@@ -2,6 +2,19 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "call_menu",
+    "call_operator",
+    "get_area_center",
+    "get_area_center_from_spacetype",
+    "get_window_area_by_type",
+    "get_window_size_in_pixels",
+    "idle_until",
+    "keep_open",
+    "test_window",
+)
+
+
 def test_window(window_index=0):
     """
     Get window with associated event simulator and tests.
