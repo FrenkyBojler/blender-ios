@@ -376,7 +376,7 @@ static void write_slots(BlendWriter *writer, Span<animrig::Slot *> slots)
     ActionSlot shallow_copy = *slot;
     shallow_copy.runtime = nullptr;
 
-    BLO_write_struct_at_address(writer, ActionSlot, slot, &shallow_copy);
+    writer->write_struct_at_address(slot, &shallow_copy);
   }
 }
 

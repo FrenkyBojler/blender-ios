@@ -1086,7 +1086,7 @@ static void scene_blend_write_compositor_forward_compat(Scene &scene,
 
   BLO_Write_IDBuffer temp_embedded_id_buffer{temp_nodetree_copy->id, writer};
   bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
-  BLO_write_struct_at_address(writer, bNodeTree, scene.nodetree, temp_nodetree);
+  writer->write_struct_at_address(scene.nodetree, temp_nodetree);
 
   /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not write an embedded
    * nodetree at `scene->nodetree` anymore. */
@@ -1272,7 +1272,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BLO_Write_IDBuffer temp_embedded_id_buffer{sce->master_collection->id, writer};
     Collection *temp_collection = reinterpret_cast<Collection *>(temp_embedded_id_buffer.get());
     BKE_collection_blend_write_prepare_nolib(writer, temp_collection);
-    BLO_write_struct_at_address(writer, Collection, sce->master_collection, temp_collection);
+    writer->write_struct_at_address(sce->master_collection, temp_collection);
     BKE_collection_blend_write_nolib(writer, temp_collection);
   }
 

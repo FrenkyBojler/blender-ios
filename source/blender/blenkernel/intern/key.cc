@@ -130,7 +130,7 @@ static void shapekey_blend_write(BlendWriter *writer, ID *id, const void *id_add
       tmp_kb.totelem = 0;
       tmp_kb.data = nullptr;
     }
-    BLO_write_struct_at_address(writer, KeyBlock, &kb, &tmp_kb);
+    writer->write_struct_at_address(&kb, &tmp_kb);
     if (tmp_kb.data != nullptr) {
       BLO_write_raw(writer, tmp_kb.totelem * key->elemsize, tmp_kb.data);
     }

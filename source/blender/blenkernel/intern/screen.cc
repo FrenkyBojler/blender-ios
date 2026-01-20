@@ -1243,7 +1243,7 @@ static void write_region(BlendWriter *writer, ARegion *region, int spacetype)
 {
   ARegion region_copy = *region;
   region_copy.runtime = nullptr;
-  BLO_write_struct_at_address(writer, ARegion, region, &region_copy);
+  writer->write_struct_at_address(region, &region_copy);
 
   if (region->regiondata) {
     if (region->flag & RGN_FLAG_TEMP_REGIONDATA) {
@@ -1293,7 +1293,7 @@ static void write_panel_list(BlendWriter *writer, ListBaseT<Panel> *lb)
     Panel panel_copy = panel;
     panel_copy.runtime_flag = 0;
     panel_copy.runtime = nullptr;
-    BLO_write_struct_at_address(writer, Panel, &panel, &panel_copy);
+    writer->write_struct_at_address(&panel, &panel_copy);
     BLO_write_struct_list(writer, LayoutPanelState, &panel.layout_panel_states);
     for (LayoutPanelState &state : panel.layout_panel_states) {
       BLO_write_string(writer, state.idname);

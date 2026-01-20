@@ -4347,7 +4347,7 @@ static void write_drawing_array(GreasePencil &grease_pencil,
         BLO_write_shared_tag(writer, curves.curve_offsets);
         BLO_write_shared_tag(writer, curves.custom_knots);
 
-        BLO_write_struct_at_address(writer, GreasePencilDrawing, drawing_base, &drawing_copy);
+        writer->write_struct_at_address_cast<GreasePencilDrawing>(drawing_base, &drawing_copy);
         curves.blend_write(*writer, grease_pencil.id, write_data);
         break;
       }

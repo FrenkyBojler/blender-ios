@@ -602,7 +602,7 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
                    mmd.dynverts_sharing_info,
                    [&]() { BLO_write_int32_array(writer, mmd.verts_num, mmd.dynverts); });
 
-  BLO_write_struct_at_address(writer, MeshDeformModifierData, md, &mmd);
+  writer->write_struct_at_address(md, &mmd);
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
