@@ -69,7 +69,6 @@ void USDXformReader::read_matrix(float4x4 &r_mat /* local matrix */,
                                  const float scale,
                                  bool *r_is_constant) const
 {
-  BLI_assert(r_mat);
   BLI_assert(r_is_constant);
 
   *r_is_constant = true;
