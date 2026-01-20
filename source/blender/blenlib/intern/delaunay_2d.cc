@@ -2553,20 +2553,20 @@ void detect_holes(CDT_state<T> *cdt_state,
      * - Non-zero rule: accumulates signed winding contributions, hole if crossings == 0. */
     std::atomic<int> crossings = 0;
     /* TODO: Use CDT data structure here to greatly reduce search for intersections! */
-    threading::parallel_for(cdt->edges.index_range(), 256, [&](IndexRange range) {
-      for (const int i : range) {
-        const CDTEdge<T> *e = cdt->edges[i];
-        if (!is_deleted_edge(e) && is_constrained_edge(e)) {
-          if (e->symedges[0].face->visit_index == e->symedges[1].face->visit_index) {
-            continue; /* Don't count hits on edges between faces in same region. */
-          }
-          auto isect = isect_seg_seg(ray_end.exact,
-                                     mid.exact,
-                                     e->symedges[0].vert->co.exact,
-                                     e->symedges[1].vert->co.exact);
-          switch (isect.kind) {
-            case isect_result<VecBase<T, 2>>::LINE_LINE_CROSS: {
-              if (use_nonzero_rule) {
+    if (use_nonzero_rule) {
+      threading::parallel_for(cdt->edges.index_range(), 256, [&](IndexRange range) {
+        for (const int i : range) {
+          const CDTEdge<T> *e = cdt->edges[i];
+          if (!is_deleted_edge(e) && is_constrained_edge(e)) {
+            if (e->symedges[0].face->visit_index == e->symedges[1].face->visit_index) {
+              continue; /* Don't count hits on edges between faces in same region. */
+            }
+            auto isect = isect_seg_seg(ray_end.exact,
+                                       mid.exact,
+                                       e->symedges[0].vert->co.exact,
+                                       e->symedges[1].vert->co.exact);
+            switch (isect.kind) {
+              case isect_result<VecBase<T, 2>>::LINE_LINE_CROSS: {
                 /* For non-zero winding, we need to determine the edge direction from
                  * the original input face specification, not from symedge ordering
                  * (which can be arbitrary when edges are reused).
@@ -2588,7 +2588,7 @@ void detect_holes(CDT_state<T> *cdt_state,
 
                 if (face_input_id >= 0) {
                   /* Decode the face input_id to get face index and edge position. */
-                  const int face_index = face_input_id / face_edge_offset - 1;
+                  const int face_index = (face_input_id / face_edge_offset) - 1;
                   const int edge_index = face_input_id % face_edge_offset;
 
                   if (face_index >= 0 && face_index < input.face.size()) {
@@ -2614,8 +2614,8 @@ void detect_holes(CDT_state<T> *cdt_state,
                         VecBase<T, 2> ray_dir = ray_end.exact - mid.exact;
                         VecBase<T, 2> v_start = edge_start - mid.exact;
                         VecBase<T, 2> v_end = edge_end - mid.exact;
-                        T side_start = v_start[0] * ray_dir[1] - v_start[1] * ray_dir[0];
-                        T side_end = v_end[0] * ray_dir[1] - v_end[1] * ray_dir[0];
+                        T side_start = (v_start[0] * ray_dir[1]) - (v_start[1] * ray_dir[0]);
+                        T side_end = (v_end[0] * ray_dir[1]) - (v_end[1] * ray_dir[0]);
 
                         /* Determine winding contribution based on edge direction:
                          * - Edge goes from start to end (as per input face winding)
@@ -2641,8 +2641,8 @@ void detect_holes(CDT_state<T> *cdt_state,
                   VecBase<T, 2> ray_dir = ray_end.exact - mid.exact;
                   VecBase<T, 2> v0 = e->symedges[0].vert->co.exact - mid.exact;
                   VecBase<T, 2> v1 = e->symedges[1].vert->co.exact - mid.exact;
-                  T side0 = v0[0] * ray_dir[1] - v0[1] * ray_dir[0];
-                  T side1 = v1[0] * ray_dir[1] - v1[1] * ray_dir[0];
+                  T side0 = (v0[0] * ray_dir[1]) - (v0[1] * ray_dir[0]);
+                  T side1 = (v1[0] * ray_dir[1]) - (v1[1] * ray_dir[0]);
                   if (side0 > 0 && side1 < 0) {
                     delta = 1;
                   }
@@ -2655,26 +2655,47 @@ void detect_holes(CDT_state<T> *cdt_state,
                   delta = -delta;
                 }
                 crossings += delta;
+                break;
               }
-              else {
-                /* Even-odd rule: just count crossings. */
-                crossings++;
+              case isect_result<VecBase<T, 2>>::LINE_LINE_EXACT:
+              case isect_result<VecBase<T, 2>>::LINE_LINE_NONE:
+              case isect_result<VecBase<T, 2>>::LINE_LINE_COLINEAR: {
+                break;
               }
-              break;
             }
-            case isect_result<VecBase<T, 2>>::LINE_LINE_EXACT:
-            case isect_result<VecBase<T, 2>>::LINE_LINE_NONE:
-            case isect_result<VecBase<T, 2>>::LINE_LINE_COLINEAR:
-              break;
           }
         }
-      }
-    });
-    if (use_nonzero_rule) {
+      });
       /* Non-zero rule: hole if winding number is zero (union behavior). */
       f->hole = (crossings.load() == 0);
     }
     else {
+      /* Even-odd rule: just count crossings. */
+      threading::parallel_for(cdt->edges.index_range(), 256, [&](IndexRange range) {
+        for (const int i : range) {
+          const CDTEdge<T> *e = cdt->edges[i];
+          if (!is_deleted_edge(e) && is_constrained_edge(e)) {
+            if (e->symedges[0].face->visit_index == e->symedges[1].face->visit_index) {
+              continue; /* Don't count hits on edges between faces in same region. */
+            }
+            auto isect = isect_seg_seg(ray_end.exact,
+                                       mid.exact,
+                                       e->symedges[0].vert->co.exact,
+                                       e->symedges[1].vert->co.exact);
+            switch (isect.kind) {
+              case isect_result<VecBase<T, 2>>::LINE_LINE_CROSS: {
+                crossings++;
+                break;
+              }
+              case isect_result<VecBase<T, 2>>::LINE_LINE_EXACT:
+              case isect_result<VecBase<T, 2>>::LINE_LINE_NONE:
+              case isect_result<VecBase<T, 2>>::LINE_LINE_COLINEAR: {
+                break;
+              }
+            }
+          }
+        }
+      });
       /* Even-odd rule: hole if even number of crossings. */
       f->hole = (crossings.load() % 2) == 0;
     }

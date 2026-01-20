@@ -3273,7 +3273,6 @@ struct NodeGeometryCurveFill {
   uint8_t mode = 0;
   /** #GeometryNodeCurveFillRule. */
   uint8_t fill_rule = 0;
-  uint8_t _pad[6] = {};
 };
 
 struct NodeGeometryMeshToPoints {

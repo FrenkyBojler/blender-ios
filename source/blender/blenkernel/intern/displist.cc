@@ -19,8 +19,8 @@
 #include "BLI_delaunay_2d.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
-#include "BLI_map.hh"
 #include "BLI_listbase_wrapper.hh"
+#include "BLI_map.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_memarena.h"
@@ -294,7 +294,7 @@ static float isect_vert_calc_z(int vert_index,
       continue;
     }
     /* Decode face index and edge position. */
-    const int face_index = orig_id / result.face_edge_offset - 1;
+    const int face_index = (orig_id / result.face_edge_offset) - 1;
     const int edge_in_face = orig_id % result.face_edge_offset;
 
     if (UNLIKELY(face_index == -1 || face_index >= int(poly_ranges.size()))) {
@@ -335,11 +335,11 @@ static float isect_vert_calc_z(int vert_index,
     }
 
     /* Get the Z coordinates of the original edge endpoints. */
-    const float z0 = poly.dl->verts[3 * v0_local + 2];
-    const float z1 = poly.dl->verts[3 * v1_local + 2];
+    const float z0 = poly.dl->verts[(3 * v0_local) + 2];
+    const float z1 = poly.dl->verts[(3 * v1_local) + 2];
 
     /* Interpolate Z. */
-    return z0 + float(t) * (z1 - z0);
+    return z0 + (float(t) * (z1 - z0));
   }
 
   /* Fallback: return 0 if no edge found. */
@@ -469,8 +469,8 @@ static void displist_fill_scanfill(const ListBaseT<DispList> *dispbase,
   /* do not free polys, needed for wireframe display */
 }
 
-/** Work item for parallel CDT fill processing. */
-struct CDTFillWorkItem {
+/** Group of polygons to be filled together by CDT. */
+struct CDTFillGroup {
   Vector<PolyRange> poly_ranges;
   int total_verts = 0;
   short dl_flag_accum = 0;
@@ -479,24 +479,24 @@ struct CDTFillWorkItem {
 };
 
 /**
- * Process a single CDT fill work item.
+ * Process a single CDT fill group.
  * \return The resulting DispList, or nullptr if no triangles were generated.
  */
-static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
-                                                const bool flip_normal,
-                                                const CDT_output_type cdt_output_type)
+static DispList *displist_fill_cdt_process_group(const CDTFillGroup &group,
+                                                 const bool flip_normal,
+                                                 const CDT_output_type cdt_output_type)
 {
   /* Build CDT input, tracking if all Z coordinates are uniform.
    * Also build vert_to_poly map for O(1) polygon lookup. */
-  Array<double2> verts_2d(item.total_verts);
-  Array<int> vert_to_poly(item.total_verts);
-  Array<Vector<int>> faces(item.poly_ranges.size());
+  Array<double2> verts_2d(group.total_verts);
+  Array<int> vert_to_poly(group.total_verts);
+  Array<Vector<int>> faces(group.poly_ranges.size());
 
-  const float first_z = item.poly_ranges[0].dl->verts[2];
+  const float first_z = group.poly_ranges[0].dl->verts[2];
   bool uniform_z = true;
 
-  for (const int64_t p : item.poly_ranges.index_range()) {
-    const PolyRange &poly = item.poly_ranges[p];
+  for (const int64_t p : group.poly_ranges.index_range()) {
+    const PolyRange &poly = group.poly_ranges[p];
 
     /* Build face indices: sequential vertex indices for this polygon. */
     faces[p].resize(poly.count);
@@ -533,9 +533,9 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
 
   DispList *dlnew = MEM_callocN<DispList>(__func__);
   dlnew->type = DL_INDEX3;
-  dlnew->flag = (item.dl_flag_accum & (DL_BACK_CURVE | DL_FRONT_CURVE));
-  dlnew->rt = (item.dl_rt_accum & CU_SMOOTH);
-  dlnew->col = item.colnr;
+  dlnew->flag = (group.dl_flag_accum & (DL_BACK_CURVE | DL_FRONT_CURVE));
+  dlnew->rt = (group.dl_rt_accum & CU_SMOOTH);
+  dlnew->col = group.colnr;
   dlnew->nr = out_verts;
   dlnew->parts = out_tris;
   dlnew->verts = MEM_malloc_arrayN<float>(3 * size_t(out_verts), __func__);
@@ -568,7 +568,7 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
     if (!result.vert_orig[i].is_empty()) {
       /* Original vertex - copy from input using direct lookup. */
       const int orig_index = result.vert_orig[i][0];
-      const PolyRange &poly = item.poly_ranges[vert_to_poly[orig_index]];
+      const PolyRange &poly = group.poly_ranges[vert_to_poly[orig_index]];
       const int local_index = orig_index - poly.start;
       copy_v3_v3(out, &poly.dl->verts[3 * local_index]);
     }
@@ -580,9 +580,9 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
                            isect_vert_calc_z(i,
                                              isect_vert_to_edge[i],
                                              result,
-                                             item.poly_ranges,
+                                             group.poly_ranges,
                                              input.vert,
-                                             item.total_verts);
+                                             group.total_verts);
     }
   }
 
@@ -611,66 +611,50 @@ static void displist_fill_cdt(const ListBaseT<DispList> *dispbase,
     return;
   }
 
-  /* Collect work items in a single pass over dispbase.
-   * Group polygons by (charidx, colnr) key. */
-  Map<std::pair<int, short>, CDTFillWorkItem> work_item_map;
-  int total_verts_all = 0;
+  /* Collect groups in a single pass over dispbase.
+   * Polygons are grouped by (charidx, colnr) key. */
+  Map<std::pair<int, short>, CDTFillGroup> group_map;
 
   for (const DispList &dl : *dispbase) {
     if (dl.type != DL_POLY) {
       continue;
     }
     const std::pair<int, short> key(dl.charidx, dl.col);
-    CDTFillWorkItem &item = work_item_map.lookup_or_add_default(key);
-    if (item.poly_ranges.is_empty()) {
+    CDTFillGroup &group = group_map.lookup_or_add_default(key);
+    if (group.poly_ranges.is_empty()) {
       /* First polygon for this key - set colnr. */
-      item.colnr = dl.col;
+      group.colnr = dl.col;
     }
-    item.poly_ranges.append({item.total_verts, dl.nr, &dl});
-    item.total_verts += dl.nr;
-    item.dl_flag_accum |= dl.flag;
-    item.dl_rt_accum |= dl.rt;
-    total_verts_all += dl.nr;
+    group.poly_ranges.append({group.total_verts, dl.nr, &dl});
+    group.total_verts += dl.nr;
+    group.dl_flag_accum |= dl.flag;
+    group.dl_rt_accum |= dl.rt;
   }
 
-  /* Move items from map to vector for processing. */
-  Vector<CDTFillWorkItem> work_items;
-  work_items.reserve(work_item_map.size());
-  for (auto &item : work_item_map.values()) {
-    work_items.append(std::move(item));
+  /* Move groups from map to vector for processing. */
+  Vector<CDTFillGroup> groups;
+  groups.reserve(group_map.size());
+  for (CDTFillGroup &group : group_map.values()) {
+    groups.append_unchecked(std::move(group));
   }
 
-  if (UNLIKELY(work_items.is_empty())) {
+  if (UNLIKELY(groups.is_empty())) {
     return;
   }
 
-  /* Process work items (parallel if worthwhile). */
-  constexpr int threading_threshold = 4096;
-  const bool use_threading = work_items.size() > 1 && total_verts_all >= threading_threshold;
+  /* Process groups in parallel. */
+  Array<DispList *, 32> results(groups.size(), nullptr);
 
-  if (use_threading) {
-    Array<DispList *> results(work_items.size(), nullptr);
-
-    threading::parallel_for(work_items.index_range(), 1, [&](const IndexRange range) {
-      for (const int i : range) {
-        results[i] = displist_fill_cdt_process_item(work_items[i], flip_normal, cdt_output_type);
-      }
-    });
-
-    /* Add results to output list (serial). */
-    for (DispList *dl : results) {
-      if (dl != nullptr) {
-        BLI_addhead(to, dl);
-      }
+  threading::parallel_for(groups.index_range(), 1, [&](const IndexRange range) {
+    for (const int i : range) {
+      results[i] = displist_fill_cdt_process_group(groups[i], flip_normal, cdt_output_type);
     }
-  }
-  else {
-    /* Process sequentially - not enough work to justify threading overhead. */
-    for (const CDTFillWorkItem &item : work_items) {
-      DispList *dl = displist_fill_cdt_process_item(item, flip_normal, cdt_output_type);
-      if (dl != nullptr) {
-        BLI_addhead(to, dl);
-      }
+  });
+
+  /* Add results to output list (serial). */
+  for (DispList *dl : results) {
+    if (dl != nullptr) {
+      BLI_addhead(to, dl);
     }
   }
 }

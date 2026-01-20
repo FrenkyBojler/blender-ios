@@ -144,17 +144,23 @@ static const EnumPropertyItem fill_solver_items[] = {
 };
 
 static const EnumPropertyItem fill_rule_items[] = {
-    {CU_FILL_RULE_EVEN_ODD, "EVEN_ODD", 0, "Even-Odd", "Even-odd fill rule"},
+    {CU_FILL_RULE_EVEN_ODD,
+     "EVEN_ODD",
+     0,
+     "Even-Odd",
+     "Alternate inside/outside based on crossing count"},
     {CU_FILL_RULE_NONZERO_CW,
      "NONZERO_CW",
      0,
      "Non-Zero CW",
-     "Non-zero fill rule (CW outer contours, FreeType convention)"},
+     "Clockwise contours are filled, counterclockwise create holes. "
+     "Overlapping clockwise curves union together"},
     {CU_FILL_RULE_NONZERO_CCW,
      "NONZERO_CCW",
      0,
      "Non-Zero CCW",
-     "Non-zero fill rule (CCW outer contours, SVG convention)"},
+     "Counterclockwise contours are filled, clockwise create holes. "
+     "Overlapping counterclockwise curves union together"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

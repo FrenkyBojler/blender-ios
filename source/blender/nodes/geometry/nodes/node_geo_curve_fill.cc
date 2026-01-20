@@ -39,12 +39,14 @@ static const EnumPropertyItem fill_rule_items[] = {
      "NON_ZERO_CW",
      0,
      N_("Non-Zero CW"),
-     "Non-zero winding with clockwise outer contours"},
+     "Clockwise contours are filled, counterclockwise create holes. "
+     "Overlapping clockwise curves union together"},
     {GEO_NODE_CURVE_FILL_RULE_NON_ZERO_CCW,
      "NON_ZERO_CCW",
      0,
      N_("Non-Zero CCW"),
-     "Non-zero winding with counterclockwise outer contours"},
+     "Counterclockwise contours are filled, clockwise create holes. "
+     "Overlapping counterclockwise curves union together"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
