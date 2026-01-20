@@ -1312,9 +1312,8 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
 #ifdef WITH_OPENVDB
     const SpreadsheetVolumeGridData volume_grid_data = SpreadsheetVolumeGridData(
         sspreadsheet->geometry_id.volume_grid_data);
-    return std::make_unique<VolumeGridDataSource>(display_data.get<bke::GVolumeGrid>(),
-                                                  volume_grid_data,
-                                                  sspreadsheet->runtime->index_mapping);
+    return std::make_unique<VolumeGridDataSource>(
+        display_data.get<bke::GVolumeGrid>(), volume_grid_data, sspreadsheet->index_mapping());
 #else
     return {};
 #endif
@@ -1343,11 +1342,9 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
     if (component_type == bke::GeometryComponent::Type::Volume) {
       const SpreadsheetVolumeGridData volume_grid_data = SpreadsheetVolumeGridData(
           sspreadsheet->geometry_id.volume_grid_data);
-      const bke::volume_grid::GridValueOnOff grid_value_filter =
-          bke::volume_grid::GridValueOnOff::On;
       const int grid_index = sspreadsheet->geometry_id.volume_grid_index;
       return std::make_unique<VolumeDataSource>(
-          std::move(geometry_set), volume_grid_data, grid_value_filter, grid_index);
+          std::move(geometry_set), volume_grid_data, sspreadsheet->index_mapping(), grid_index);
     }
     Object *object_orig = sspreadsheet->geometry_id.instance_ids_num == 0 ?
                               DEG_get_original(object_eval) :

@@ -11,6 +11,7 @@
 
 #include "BKE_screen.hh"
 #include "BKE_viewer_path.hh"
+#include "BKE_volume_grid_fwd.hh"
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -241,6 +242,7 @@ static void spreadsheet_update_context(const bContext *C)
         if (context_object == nullptr) {
           /* Object is not available anymore, so clear the pinning. */
           sspreadsheet->flag &= ~SPREADSHEET_FLAG_PINNED;
+          sspreadsheet->tag_index_mapping_changed();
         }
         else {
           /* The object is still pinned, do nothing. */
@@ -250,6 +252,7 @@ static void spreadsheet_update_context(const bContext *C)
       else {
         if (active_object != context_object) {
           /* The active object has changed, so view the new active object. */
+          sspreadsheet->tag_index_mapping_changed();
           view_active_object(C, sspreadsheet);
         }
         else {
@@ -271,10 +274,12 @@ static void spreadsheet_update_context(const bContext *C)
           }
           /* The pinned path does not exist anymore, clear pinning. */
           sspreadsheet->flag &= ~SPREADSHEET_FLAG_PINNED;
+          sspreadsheet->tag_index_mapping_changed();
         }
         else {
           /* Unknown pinned path, clear pinning. */
           sspreadsheet->flag &= ~SPREADSHEET_FLAG_PINNED;
+          sspreadsheet->tag_index_mapping_changed();
         }
       }
       /* Now try to update the viewer path from the workspace. */
@@ -295,6 +300,7 @@ static void spreadsheet_update_context(const bContext *C)
       else {
         /* No active viewer node, change back to showing evaluated active object. */
         sspreadsheet->geometry_id.object_eval_state = SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED;
+        sspreadsheet->tag_index_mapping_changed();
         view_active_object(C, sspreadsheet);
       }
 
@@ -866,7 +872,7 @@ void register_spacetype()
 }  // namespace ed::spreadsheet
 
 const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &SpaceSpreadsheet::
-    index_mapping() const
+    index_mapping(const bke::volume_grid::VolumeGridData &grid) const
 {
   using namespace bke::volume_grid;
 
@@ -882,8 +888,14 @@ const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &SpaceSpread
     }
   }
   this->runtime->index_mapping_mutex_.ensure(
-      [&]() { this->runtime->index_mapping_ = GridNodeIndexMapping::from_grid(*this, params); });
+      [&]() { this->runtime->index_mapping_ = GridNodeIndexMapping::from_grid(grid, params); });
   return this->runtime->index_mapping_;
+}
+
+void SpaceSpreadsheet::tag_index_mapping_changed() const
+{
+  BLI_assert(this->runtime);
+  this->runtime->index_mapping_mutex_.tag_dirty();
 }
 
 }  // namespace blender
