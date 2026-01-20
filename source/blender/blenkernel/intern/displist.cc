@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <numeric>
 
 #include "MEM_guardedalloc.h"
 
@@ -483,7 +484,6 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
   /* Build CDT input, tracking if all Z coordinates are uniform.
    * Also build vert_to_poly map for O(1) polygon lookup. */
   Array<double2> verts_2d(item.total_verts);
-  Array<Vector<int>> faces(item.poly_ranges.size());
   Array<int> vert_to_poly(item.total_verts);
 
   const float first_z = item.poly_ranges[0].dl->verts[2];
@@ -491,17 +491,24 @@ static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
 
   for (int64_t p = 0; p < int64_t(item.poly_ranges.size()); p++) {
     const PolyRange &poly = item.poly_ranges[p];
-    faces[p].reinitialize(poly.count);
     for (int i = 0; i < poly.count; i++) {
       const float *v = &poly.dl->verts[3 * i];
       const int vert_index = poly.start + i;
       verts_2d[vert_index] = double2(v[0], v[1]);
-      faces[p][i] = vert_index;
       vert_to_poly[vert_index] = int(p);
       if (uniform_z && v[2] != first_z) {
         uniform_z = false;
       }
     }
+  }
+
+  /* Build face index arrays. Each face contains sequential vertex indices
+   * [poly.start, poly.start+1, ..., poly.start+count-1]. */
+  Array<Vector<int>> faces(item.poly_ranges.size());
+  for (int64_t p = 0; p < int64_t(item.poly_ranges.size()); p++) {
+    const PolyRange &poly = item.poly_ranges[p];
+    faces[p].resize(poly.count);
+    std::iota(faces[p].begin(), faces[p].end(), poly.start);
   }
 
   meshintersect::CDT_input<double> input;
