@@ -275,7 +275,9 @@ template<typename T> void SocketValueVariant::store_impl(T value)
       /* For lists of #SocketValueVariant, use the socket type of the first element. */
       const GVArray gvarray = value->varray();
       const VArray varray = gvarray.typed<bke::SocketValueVariant>();
-      socket_type_ = varray[0].socket_type_;
+      if (!varray.is_empty()) {
+        socket_type_ = varray[0].socket_type_;
+      }
     }
     else {
       const std::optional<eNodeSocketDatatype> new_socket_type =
