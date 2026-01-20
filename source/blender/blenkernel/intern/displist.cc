@@ -26,6 +26,7 @@
 #include "BLI_scanfill.h"
 #include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -522,20 +523,128 @@ static void displist_fill_scanfill(const ListBaseT<DispList> *dispbase,
   /* do not free polys, needed for wireframe display */
 }
 
+/** Work item for parallel CDT fill processing. */
+struct CDTFillWorkItem {
+  Vector<PolyRange> poly_ranges;
+  int total_verts;
+  short dl_flag_accum;
+  short dl_rt_accum;
+  short colnr;
+};
+
 /**
- * CDT-based triangulation.
+ * Process a single CDT fill work item.
+ * \return The resulting DispList, or nullptr if no triangles were generated.
+ */
+static DispList *displist_fill_cdt_process_item(const CDTFillWorkItem &item,
+                                                const bool flip_normal,
+                                                const CDT_output_type cdt_output_type)
+{
+  /* Build CDT input. */
+  Array<double2> verts_2d(item.total_verts);
+  Array<Vector<int>> faces(item.poly_ranges.size());
+
+  for (int64_t p = 0; p < int64_t(item.poly_ranges.size()); p++) {
+    const PolyRange &poly = item.poly_ranges[p];
+    faces[p].reinitialize(poly.count);
+    for (int i = 0; i < poly.count; i++) {
+      const float *v = &poly.dl->verts[3 * i];
+      verts_2d[poly.start + i] = double2(v[0], v[1]);
+      faces[p][i] = poly.start + i;
+    }
+  }
+
+  meshintersect::CDT_input<double> input;
+  input.vert = std::move(verts_2d);
+  input.face = std::move(faces);
+  input.epsilon = 1e-8;
+  input.need_ids = true;
+
+  meshintersect::CDT_result<double> result = meshintersect::delaunay_2d_calc(input,
+                                                                             cdt_output_type);
+
+  if (result.face.is_empty()) {
+    return nullptr;
+  }
+
+  /* Build output DispList. */
+  const int out_verts = int(result.vert.size());
+  const int out_tris = int(result.face.size());
+
+  DispList *dlnew = MEM_callocN<DispList>(__func__);
+  dlnew->type = DL_INDEX3;
+  dlnew->flag = (item.dl_flag_accum & (DL_BACK_CURVE | DL_FRONT_CURVE));
+  dlnew->rt = (item.dl_rt_accum & CU_SMOOTH);
+  dlnew->col = item.colnr;
+  dlnew->nr = out_verts;
+  dlnew->parts = out_tris;
+  dlnew->verts = MEM_malloc_arrayN<float>(3 * size_t(out_verts), __func__);
+  dlnew->index = MEM_malloc_arrayN<int>(3 * size_t(out_tris), __func__);
+
+  /* Build map from intersection vertex to an edge with original edge info. */
+  Array<int> isect_vert_to_edge(out_verts, -1);
+  for (int64_t e = 0; e < result.edge.size(); e++) {
+    if (result.edge_orig[e].is_empty()) {
+      continue;
+    }
+    int v0 = result.edge[e].first;
+    int v1 = result.edge[e].second;
+    if (result.vert_orig[v0].is_empty()) {
+      isect_vert_to_edge[v0] = int(e);
+    }
+    if (result.vert_orig[v1].is_empty()) {
+      isect_vert_to_edge[v1] = int(e);
+    }
+  }
+
+  /* Map output vertices to 3D. */
+  int poly_index_hint = 0;
+  for (int i = 0; i < out_verts; i++) {
+    float *out = &dlnew->verts[3 * i];
+    if (!result.vert_orig[i].is_empty()) {
+      /* Original vertex - copy from input. */
+      int orig_index = result.vert_orig[i][0];
+      const PolyRange &poly = find_poly_from_vert(item.poly_ranges, orig_index, poly_index_hint);
+      int local_index = orig_index - poly.start;
+      copy_v3_v3(out, &poly.dl->verts[3 * local_index]);
+    }
+    else {
+      /* Intersection vertex - interpolate Z. */
+      out[0] = float(result.vert[i].x);
+      out[1] = float(result.vert[i].y);
+      out[2] = isect_vert_calc_z(
+          i, isect_vert_to_edge[i], result, item.poly_ranges, input.vert, item.total_verts);
+    }
+  }
+
+  /* Build triangle indices. */
+  int *index = dlnew->index;
+  for (const Vector<int> &face : result.face) {
+    BLI_assert(face.size() == 3);
+    index[0] = face[0];
+    index[1] = flip_normal ? face[2] : face[1];
+    index[2] = flip_normal ? face[1] : face[2];
+    index += 3;
+  }
+
+  return dlnew;
+}
+
+/**
+ * CDT-based triangulation with parallel processing.
  */
 static void displist_fill_cdt(const ListBaseT<DispList> *dispbase,
                               ListBaseT<DispList> *to,
                               const bool flip_normal,
                               const CDT_output_type cdt_output_type)
 {
-  if (dispbase == nullptr) {
+  if (dispbase == nullptr || BLI_listbase_is_empty(dispbase)) {
     return;
   }
-  if (BLI_listbase_is_empty(dispbase)) {
-    return;
-  }
+
+  /* Collect work items (serial). */
+  Vector<CDTFillWorkItem> work_items;
+  int total_verts_all = 0;
 
   short colnr = 0;
   int charidx = 0;
@@ -545,148 +654,77 @@ static void displist_fill_cdt(const ListBaseT<DispList> *dispbase,
     should_continue = false;
     bool nextcol = false;
 
-    /* Collect polygons for this (charidx, colnr) group. */
-    Vector<PolyRange> poly_ranges;
-    int total_verts = 0;
-    short dl_flag_accum = 0;
-    short dl_rt_accum = 0;
+    CDTFillWorkItem item;
+    item.total_verts = 0;
+    item.dl_flag_accum = 0;
+    item.dl_rt_accum = 0;
+    item.colnr = colnr;
 
     for (const DispList &dl : *dispbase) {
       if (dl.type == DL_POLY) {
         if (charidx < dl.charidx) {
           should_continue = true;
         }
-        else if (charidx == dl.charidx) { /* character with needed index */
+        else if (charidx == dl.charidx) {
           if (colnr == dl.col) {
-            poly_ranges.append({total_verts, dl.nr, &dl});
-            total_verts += dl.nr;
+            item.poly_ranges.append({item.total_verts, dl.nr, &dl});
+            item.total_verts += dl.nr;
+            item.dl_flag_accum |= dl.flag;
+            item.dl_rt_accum |= dl.rt;
           }
           else if (colnr < dl.col) {
-            /* got poly with next material at current char */
             should_continue = true;
             nextcol = true;
           }
         }
-        dl_flag_accum |= dl.flag;
-        dl_rt_accum |= dl.rt;
       }
     }
 
-    if (total_verts == 0 || poly_ranges.is_empty()) {
-      if (nextcol) {
-        colnr++;
-      }
-      else {
-        charidx++;
-        colnr = 0;
-      }
-      continue;
+    if (item.total_verts > 0 && !item.poly_ranges.is_empty()) {
+      total_verts_all += item.total_verts;
+      work_items.append(std::move(item));
     }
-
-    /* Build CDT input. */
-    Array<double2> verts_2d(total_verts);
-    Array<Vector<int>> faces(poly_ranges.size());
-
-    for (int64_t p = 0; p < int64_t(poly_ranges.size()); p++) {
-      const PolyRange &poly = poly_ranges[p];
-      faces[p].reinitialize(poly.count);
-      for (int i = 0; i < poly.count; i++) {
-        const float *v = &poly.dl->verts[3 * i];
-        verts_2d[poly.start + i] = double2(v[0], v[1]);
-        faces[p][i] = poly.start + i;
-      }
-    }
-
-    meshintersect::CDT_input<double> input;
-    input.vert = std::move(verts_2d);
-    input.face = std::move(faces);
-    input.epsilon = 1e-8;
-    input.need_ids = true;
-
-    meshintersect::CDT_result<double> result = meshintersect::delaunay_2d_calc(input,
-                                                                               cdt_output_type);
-
-    if (result.face.is_empty()) {
-      if (nextcol) {
-        colnr++;
-      }
-      else {
-        charidx++;
-        colnr = 0;
-      }
-      continue;
-    }
-
-    /* Build output DispList. */
-    const int out_verts = int(result.vert.size());
-    const int out_tris = int(result.face.size());
-
-    DispList *dlnew = MEM_callocN<DispList>(__func__);
-    dlnew->type = DL_INDEX3;
-    dlnew->flag = (dl_flag_accum & (DL_BACK_CURVE | DL_FRONT_CURVE));
-    dlnew->rt = (dl_rt_accum & CU_SMOOTH);
-    dlnew->col = colnr;
-    dlnew->nr = out_verts;
-    dlnew->parts = out_tris;
-    dlnew->verts = MEM_malloc_arrayN<float>(3 * size_t(out_verts), __func__);
-    dlnew->index = MEM_malloc_arrayN<int>(3 * size_t(out_tris), __func__);
-
-    /* Build map from intersection vertex to an edge with original edge info. */
-    Array<int> isect_vert_to_edge(out_verts, -1);
-    for (int64_t e = 0; e < result.edge.size(); e++) {
-      if (result.edge_orig[e].is_empty()) {
-        continue;
-      }
-      int v0 = result.edge[e].first;
-      int v1 = result.edge[e].second;
-      if (result.vert_orig[v0].is_empty()) {
-        isect_vert_to_edge[v0] = int(e);
-      }
-      if (result.vert_orig[v1].is_empty()) {
-        isect_vert_to_edge[v1] = int(e);
-      }
-    }
-
-    /* Map output vertices to 3D. */
-    int poly_index_hint = 0;
-    for (int i = 0; i < out_verts; i++) {
-      float *out = &dlnew->verts[3 * i];
-      if (!result.vert_orig[i].is_empty()) {
-        /* Original vertex - copy from input. */
-        int orig_index = result.vert_orig[i][0];
-        const PolyRange &poly = find_poly_from_vert(poly_ranges, orig_index, poly_index_hint);
-        int local_index = orig_index - poly.start;
-        copy_v3_v3(out, &poly.dl->verts[3 * local_index]);
-      }
-      else {
-        /* Intersection vertex - interpolate Z. */
-        out[0] = float(result.vert[i].x);
-        out[1] = float(result.vert[i].y);
-        out[2] = isect_vert_calc_z(
-            i, isect_vert_to_edge[i], result, poly_ranges, input.vert, total_verts);
-      }
-    }
-
-    /* Build triangle indices. */
-    int *index = dlnew->index;
-    for (const Vector<int> &face : result.face) {
-      BLI_assert(face.size() == 3);
-      index[0] = face[0];
-      index[1] = flip_normal ? face[2] : face[1];
-      index[2] = flip_normal ? face[1] : face[2];
-      index += 3;
-    }
-
-    BLI_addhead(to, dlnew);
 
     if (nextcol) {
-      /* stay at current char but fill polys with next material */
       colnr++;
     }
     else {
-      /* switch to next char and start filling from first material */
       charidx++;
       colnr = 0;
+    }
+  }
+
+  if (work_items.is_empty()) {
+    return;
+  }
+
+  /* Process work items (parallel if worthwhile). */
+  constexpr int threading_threshold = 4096;
+  const bool use_threading = work_items.size() > 1 && total_verts_all >= threading_threshold;
+
+  if (use_threading) {
+    Array<DispList *> results(work_items.size(), nullptr);
+
+    threading::parallel_for(work_items.index_range(), 1, [&](const IndexRange range) {
+      for (const int i : range) {
+        results[i] = displist_fill_cdt_process_item(work_items[i], flip_normal, cdt_output_type);
+      }
+    });
+
+    /* Add results to output list (serial). */
+    for (DispList *dl : results) {
+      if (dl != nullptr) {
+        BLI_addhead(to, dl);
+      }
+    }
+  }
+  else {
+    /* Process sequentially - not enough work to justify threading overhead. */
+    for (const CDTFillWorkItem &item : work_items) {
+      DispList *dl = displist_fill_cdt_process_item(item, flip_normal, cdt_output_type);
+      if (dl != nullptr) {
+        BLI_addhead(to, dl);
+      }
     }
   }
 }
