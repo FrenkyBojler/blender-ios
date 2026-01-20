@@ -349,20 +349,23 @@ static void create_edit_points_radius(const bke::CurvesGeometry &curves,
   MutableSpan<float> data = vbo.data<float>();
   data.take_front(radii.size()).copy_from(radii);
 
-  if (!bezier_curves.is_empty()) {
-    const VArray zero_varray = VArray<float>(
-        varray_tag::single(), 0.0f, curves.handle_positions_left().value().size());
-    array_utils::gather_group_to_group(points_by_curve,
-                                       bezier_offsets,
-                                       bezier_curves,
-                                       zero_varray,
-                                       data.slice(handle_range_left(points_num, bezier_offsets)));
-    array_utils::gather_group_to_group(points_by_curve,
-                                       bezier_offsets,
-                                       bezier_curves,
-                                       zero_varray,
-                                       data.slice(handle_range_right(points_num, bezier_offsets)));
+  if (bezier_curves.is_empty()) {
+    return;
   }
+
+  MutableSpan data_left = data.slice(handle_range_left(points_num, bezier_offsets));
+  MutableSpan data_right = data.slice(handle_range_right(points_num, bezier_offsets));
+
+  bezier_curves.foreach_index(GrainSize(256), [&](const int curve, const int64_t pos) {
+    const IndexRange points = points_by_curve[curve];
+    const IndexRange bezier_range = bezier_offsets[pos];
+    for (const int i : points.index_range()) {
+      const int point = points[i];
+      const int bezier_point = bezier_range[i];
+      data_left[bezier_point] = data[point];
+      data_right[bezier_point] = data[point];
+    }
+  });
 }
 
 static void create_edit_points_selection(const OffsetIndices<int> points_by_curve,
