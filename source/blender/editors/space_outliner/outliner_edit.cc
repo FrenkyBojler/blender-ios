@@ -764,10 +764,9 @@ static wmOperatorStatus outliner_id_remap_exec(bContext *C, wmOperator *op)
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   const short id_type = short(RNA_enum_get(op->ptr, "id_type"));
-  ID *old_id = static_cast<ID *>(
-      BLI_findlink(which_libbase(CTX_data_main(C), id_type), RNA_enum_get(op->ptr, "old_id")));
-  ID *new_id = static_cast<ID *>(
-      BLI_findlink(which_libbase(CTX_data_main(C), id_type), RNA_enum_get(op->ptr, "new_id")));
+  const ListBaseT<ID> *id_list = which_libbase(bmain, id_type);
+  ID *old_id = static_cast<ID *>(BLI_findlink(id_list, RNA_enum_get(op->ptr, "old_id")));
+  ID *new_id = static_cast<ID *>(BLI_findlink(id_list, RNA_enum_get(op->ptr, "new_id")));
 
   /* check for invalid states */
   if (space_outliner == nullptr) {
@@ -831,19 +830,58 @@ static bool outliner_id_remap_find_tree_element(bContext *C,
   return false;
 }
 
+static PropertyRNA *search_id_collection(StructRNA *ptype, PointerRNA &main_ptr)
+{
+  RNA_STRUCT_BEGIN (&main_ptr, iprop) {
+    /* if it's a collection and has same pointer type, we've got it */
+    if (RNA_property_type(iprop) == PROP_COLLECTION) {
+      StructRNA *srna = RNA_property_pointer_type(&main_ptr, iprop);
+
+      if (ptype == srna) {
+        return iprop;
+      }
+    }
+  }
+  RNA_STRUCT_END;
+  return nullptr;
+}
+
+static void okay_pressed(bContext &context) {}
+
 static wmOperatorStatus outliner_id_remap_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  ARegion *region = CTX_wm_region(C);
-  float fmval[2];
-
   if (!RNA_property_is_set(op->ptr, RNA_struct_find_property(op->ptr, "id_type"))) {
+    float fmval[2];
+    ARegion *region = CTX_wm_region(C);
+    SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
     ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
-
     outliner_id_remap_find_tree_element(C, op, &space_outliner->tree, fmval[1]);
   }
 
-  return WM_operator_props_dialog_popup(C, op, 400, IFACE_("Remap Data ID"), IFACE_("Remap"));
+  const short id_type = short(RNA_enum_get(op->ptr, "id_type"));
+  Main *bmain = CTX_data_main(C);
+
+  ui::PopupMenu *pop_up = ui::popup_menu_begin(
+      C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
+  // ui::popup_menu_close_from_but();
+
+  ui::Layout &layout = *popup_menu_layout(pop_up);
+  layout.operator_context_set(wm::OpCallContext::ExecDefault);
+
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "new_id");
+  PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
+  StructRNA *srna = ID_code_to_RNA_type(id_type);
+  PropertyRNA *search_prop = search_id_collection(srna, bmain_ptr);
+  layout.prop_search(op->ptr, prop, &bmain_ptr, search_prop, nullptr, "", ICON_NONE, false);
+
+  ui::Layout &row = layout.row(false);
+  ui::Button *cancel_but = row.button("Cancel", 0, okay_pressed, "");
+  ui::Button *okay_but = row.button("Ok", 0, okay_pressed, "");
+  button_flag_enable(okay_but, ui::BUT_ACTIVE_DEFAULT);
+
+  popup_menu_end(C, pop_up);
+
+  return OPERATOR_INTERFACE;
 }
 
 static const EnumPropertyItem *outliner_id_itemf(bContext *C,
