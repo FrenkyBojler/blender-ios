@@ -141,8 +141,7 @@ def object_data_add(context, obdata, operator=None, name=None):
 
         # Copy the active object's active material into the primitive with no materials.
         if len(obj_act.data.materials) > 0 and len(obdata.materials) == 0:
-            mat = obj_act.active_material
-            obdata.materials.append(mat)
+            obdata.materials.append(obj_act.active_material)
 
         bpy.ops.object.join()  # join into the active.
         if obdata:
