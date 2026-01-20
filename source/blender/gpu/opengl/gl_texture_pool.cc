@@ -15,11 +15,39 @@
 
 namespace blender::gpu {
 
+/* Given a TextureFormat of non-compressed, non-depth-stencil types, return a default
+ * with which it can alias. The returned default has to be available in TextureWriteFormat,
+ * TextureTargetFormat, and TextureFormat, as on some platforms (Intel), aliasing a
+ * framebuffer-supporting format on a non-supporting format breaks framebuffer compatibility. */
+static TextureFormat get_compatible_texture_format(TextureFormat format)
+{
+  GPUTextureFormatFlag format_flag = to_format_flag(format);
+
+  if (bool(format_flag & GPU_FORMAT_DEPTH_STENCIL)) {
+    return gpu::TextureFormat::Invalid;
+  }
+  if (bool(format_flag & GPU_FORMAT_COMPRESSED)) {
+    return gpu::TextureFormat::Invalid;
+  }
+
+  switch (to_bytesize(format)) {
+    case 16:
+      return gpu::TextureFormat::UINT_32_32_32_32;
+    case 8:
+      return gpu::TextureFormat::UINT_32_32;
+    case 4:
+      return gpu::TextureFormat::UINT_32;
+    case 2:
+      return gpu::TextureFormat::UINT_16;
+    case 1:
+      return gpu::TextureFormat::UINT_8;
+    default:
+      return gpu::TextureFormat::Invalid;
+  }
+}
+
 static bool are_formats_compatible(const TextureFormat format_a, const TextureFormat format_b)
 {
-  /* TODO(not_mark): remove. */
-  // return format_a == format_b;
-
   GPUTextureFormatFlag flag_a = to_format_flag(format_a);
   GPUTextureFormatFlag flag_b = to_format_flag(format_b);
   bool is_depth_or_stencil = (flag_a & GPU_FORMAT_DEPTH_STENCIL) != 0 ||
@@ -64,10 +92,6 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
                                         eGPUTextureUsage usage,
                                         const char *name)
 {
-  /* Generate debug label name, if one isn't passed in `name`. */
-  std::string texture_name_str = fmt::format("TexFromPool_{}", pool_.size());
-  std::string view_name_str = name ? name : texture_name_str;
-
   /* Search for the first compatible existing texture. */
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
@@ -75,9 +99,15 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
     if (int2(handle.texture->w_, handle.texture->h_) != extent) {
       continue;
     }
-    if (!are_formats_compatible(handle.texture->format_, format)) {
+
+    TextureFormat compatible_format = get_compatible_texture_format(format);
+    if (compatible_format == TextureFormat::Invalid) {
+      compatible_format = format;
+    }
+    if (compatible_format != handle.texture->format_get()) {
       continue;
     }
+
     match_index = i;
     break;
   }
@@ -91,31 +121,27 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
     pool_.remove_and_reorder(match_index);
   }
   else {
+    std::string texture_name_str;
+#ifndef NDEBUG
+    texture_name_str = fmt::format("TexFromPool_{}", pool_.size());
+#endif
     eGPUTextureUsage usage_flag = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
     texture_handle.texture_allocation = unwrap(GPU_texture_create_2d(
         texture_name_str.c_str(), extent.x, extent.y, 1, format, usage_flag, nullptr));
   }
 
-  /* Assemble texture handle, including `glTextureView`, if format aliasing is required. Note, on
-   * some platforms, glTextureView with two identical formats is possible, but it isn't standard.
-   */
-  if (texture_handle.texture_allocation->format_ == format) {
-    texture_handle.texture = texture_handle.texture_allocation;
-  }
-  else {
-    texture_handle.texture = unwrap(GPU_texture_create_view(view_name_str.c_str(),
-                                                            texture_handle.texture_allocation,
-                                                            format,
-                                                            0,
-                                                            1,
-                                                            0,
-                                                            1,
-                                                            false,
-                                                            false));
-  }
+  /* Assemble texture view and add to handle. Note, glTextureView with identical formats is
+   * allowed, even if the formats are not listed for aliasing in the Internal Formats table. */
+  std::string view_name_str;
+#ifndef NDEBUG
+  view_name_str = name ? name : texture_handle.texture_allocation->name_;
+#endif
+  gpu::Texture *view = GPU_texture_create_view(
+      view_name_str.c_str(), texture_handle.texture_allocation, format, 0, 1, 0, 1, false, false);
+  texture_handle.texture = unwrap(view);
 
   acquired_.add(texture_handle);
-  return wrap(texture_handle.texture);
+  return view;
 }
 
 void GLTexturePool::release_texture(Texture *tex)
