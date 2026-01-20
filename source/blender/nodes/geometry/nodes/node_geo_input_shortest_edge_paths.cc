@@ -23,6 +23,44 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Total Cost").field_source().reference_pass_all();
 }
 
+static int breadth_first_search(const IndexMask start_mask,
+                                const GroupedSpan<int> vert_to_verts,
+                                MutableSpan<int> r_distances)
+{
+  Array<bool> visited(vert_to_verts.size(), false);
+
+  Vector<int> to_check(start_mask.size());
+  start_mask.to_indices(to_check.as_mutable_span());
+  Vector<int> to_check_next;
+
+  int topology_distance = 0;
+  while (!to_check.is_empty()) {
+    for (const int vert_i : to_check) {
+      if (visited[vert_i]) {
+        continue;
+      }
+
+      visited[vert_i] = true;
+      r_distances[vert_i] = topology_distance;
+
+      const Span<int> connected_verts = vert_to_verts[vert_i];
+      to_check_next.reserve(to_check_next.size() + connected_verts.size());
+      for (const int connected_vert : connected_verts) {
+        if (visited[connected_vert]) {
+          continue;
+        }
+        to_check_next.append_unchecked(connected_vert);
+      }
+    }
+
+    to_check.clear();
+    std::swap(to_check, to_check_next);
+    topology_distance++;
+  }
+
+  return topology_distance;
+}
+
 using VertPriority = std::pair<float, int>;
 
 static void shortest_paths(const Mesh &mesh,
@@ -33,7 +71,6 @@ static void shortest_paths(const Mesh &mesh,
                            MutableSpan<float> r_cost)
 {
   const Span<int2> edges = mesh.edges();
-  Array<bool> visited(mesh.verts_num, false);
 
   /* Though it uses more memory, calculating the adjacent vertex
    * across each edge beforehand is noticeably faster. */
@@ -50,46 +87,29 @@ static void shortest_paths(const Mesh &mesh,
   if (input_cost.is_single()) {
     const GroupedSpan<int> vert_to_verts(vert_to_edge.offsets, other_vertex.as_span());
 
-    Vector<int> to_check(end_selection.size());
-    end_selection.to_indices(to_check.as_mutable_span());
-    Vector<int> to_check_next;
-
     Array<int> distances(r_cost.size(), std::numeric_limits<int>::max());
+    breadth_first_search(end_selection, vert_to_verts, distances);
 
-    int topology_distance = 0;
-    while (!to_check.is_empty()) {
-      for (const int vert_i : to_check) {
-        if (visited[vert_i]) {
-          continue;
-        }
-
-        visited[vert_i] = true;
-        distances[vert_i] = topology_distance;
-
-        const Span<int> connected_verts = vert_to_verts[vert_i];
-        to_check_next.reserve(to_check_next.size() + connected_verts.size());
-        for (const int connected_vert : connected_verts) {
-          if (visited[connected_vert]) {
-            continue;
-          }
-          to_check_next.append_unchecked(connected_vert);
-        }
-      }
-
-      to_check.clear();
-      std::swap(to_check, to_check_next);
-      topology_distance++;
-    }
-
+    /* TODO: Compute only next index or cost. */
     const float cost = input_cost.get_internal_single();
     threading::parallel_for(distances.index_range(), 1024, [&](const IndexRange range) {
       for (const int vert_i : range) {
-        r_cost[vert_i] = distances[vert_i] * cost;
+        if (distances[vert_i] != std::numeric_limits<int>::max()) {
+          r_cost[vert_i] = distances[vert_i] * cost;
+        }
+        else {
+          r_cost[vert_i] = 0.0f;
+        }
       }
     });
 
     threading::parallel_for(distances.index_range(), 1024, [&](const IndexRange range) {
       for (const int vert_i : range) {
+        if (ELEM(distances[vert_i], 0, std::numeric_limits<int>::max())) {
+          r_next_index[vert_i] = vert_i;
+          continue;
+        }
+
         std::pair<int, int> distance_and_index(distances[vert_i], vert_i);
         for (const int other_vert : vert_to_verts[vert_i]) {
           const auto other = std::make_pair(distances[other_vert], other_vert);
@@ -97,7 +117,6 @@ static void shortest_paths(const Mesh &mesh,
             distance_and_index = other;
           }
         }
-
         r_next_index[vert_i] = distance_and_index.second;
       }
     });
@@ -105,9 +124,10 @@ static void shortest_paths(const Mesh &mesh,
     return;
   }
 
-  index_mask::masked_fill(r_cost, 0.0f, end_selection);
+  Array<bool> visited(mesh.verts_num, false);
 
   std::priority_queue<VertPriority, std::vector<VertPriority>, std::greater<>> queue;
+  index_mask::masked_fill(r_cost, 0.0f, end_selection);
   end_selection.foreach_index([&](const int start_vert_i) { queue.emplace(0.0f, start_vert_i); });
 
   while (!queue.empty()) {
