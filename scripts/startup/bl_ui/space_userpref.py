@@ -2780,15 +2780,12 @@ class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
         layout.separator()
 
         if active_library.use_remote_url:
-            layout.prop(active_library, "remote_url")
-            layout.prop(active_library, "path", text="Download Location")
-
-            if not context.preferences.experimental.use_remote_asset_libraries:
-                box = layout.box()
-                col = box.column(align=True)
-                col.label(icon='WARNING_LARGE', text="")
-                col.label(text="The Experimental Feature 'Remote Asset Libraries' is disabled.")
-                col.label(text="This library will NOT be included in 'All Libraries'.")
+            sub = layout.column()
+            sub.enabled = context.preferences.experimental.use_remote_asset_libraries
+            if not sub.enabled:
+                sub.label(icon='WARNING_LARGE', text="The Experimental Feature 'Remote Asset Libraries' is disabled.")
+            sub.prop(active_library, "remote_url")
+            sub.prop(active_library, "path", text="Download Location")
         else:
             layout.prop(active_library, "path")
             layout.prop(active_library, "import_method", text="Import Method")
@@ -2796,11 +2793,15 @@ class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
 
 
 class USERPREF_UL_asset_libraries(UIList):
-    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
+    def draw_item(self, context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         asset_library = item
 
         icon = 'INTERNET' if asset_library.use_remote_url else 'DISK_DRIVE'
         layout.prop(asset_library, "name", text="", icon=icon, emboss=False)
+
+        # Check the 'experimental' flag.
+        if asset_library.use_remote_url:
+            layout.enabled = context.preferences.experimental.use_remote_asset_libraries
 
 
 # -----------------------------------------------------------------------------
