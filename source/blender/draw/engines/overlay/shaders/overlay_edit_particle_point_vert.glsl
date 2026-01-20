@@ -52,8 +52,8 @@ void main()
      * But ensure we don't offset past the near plane. */
     float3 I = drw_world_incident_vector(world_pos);
     float vs_depth = dot(drw_view_position() - world_pos, I);
-    float near_plane_distance = abs(drw_view_near());
-    float max_offset = vs_depth - (near_plane_distance + 1e-3f);
+    float near_plane_distance = abs(drw_view_near()) / dot(I, drw_view_forward());
+    float max_offset = vs_depth - (near_plane_distance * 1.01f);
     max_offset = max(0.0f, max_offset);
     /* Compensate for view angle. */
     float radius = rad * 1.5f;
