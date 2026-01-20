@@ -19,6 +19,7 @@
 #include "BLI_delaunay_2d.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -658,56 +659,36 @@ static void displist_fill_cdt(const ListBaseT<DispList> *dispbase,
     return;
   }
 
-  /* Collect work items (serial). */
-  Vector<CDTFillWorkItem> work_items;
+  /* Collect work items in a single pass over dispbase.
+   * Group polygons by (charidx, colnr) key. */
+  Map<std::pair<int, short>, CDTFillWorkItem> work_item_map;
   int total_verts_all = 0;
 
-  short colnr = 0;
-  int charidx = 0;
-  bool should_continue = true;
-
-  while (should_continue) {
-    should_continue = false;
-    bool nextcol = false;
-
-    CDTFillWorkItem item;
-    item.total_verts = 0;
-    item.dl_flag_accum = 0;
-    item.dl_rt_accum = 0;
-    item.colnr = colnr;
-
-    for (const DispList &dl : *dispbase) {
-      if (dl.type == DL_POLY) {
-        if (charidx < dl.charidx) {
-          should_continue = true;
-        }
-        else if (charidx == dl.charidx) {
-          if (colnr == dl.col) {
-            item.poly_ranges.append({item.total_verts, dl.nr, &dl});
-            item.total_verts += dl.nr;
-            item.dl_flag_accum |= dl.flag;
-            item.dl_rt_accum |= dl.rt;
-          }
-          else if (colnr < dl.col) {
-            should_continue = true;
-            nextcol = true;
-          }
-        }
-      }
+  for (const DispList &dl : *dispbase) {
+    if (dl.type != DL_POLY) {
+      continue;
     }
+    std::pair<int, short> key(dl.charidx, dl.col);
+    CDTFillWorkItem &item = work_item_map.lookup_or_add_default(key);
+    if (item.poly_ranges.is_empty()) {
+      /* First polygon for this key - initialize. */
+      item.total_verts = 0;
+      item.dl_flag_accum = 0;
+      item.dl_rt_accum = 0;
+      item.colnr = dl.col;
+    }
+    item.poly_ranges.append({item.total_verts, dl.nr, &dl});
+    item.total_verts += dl.nr;
+    item.dl_flag_accum |= dl.flag;
+    item.dl_rt_accum |= dl.rt;
+    total_verts_all += dl.nr;
+  }
 
-    if (item.total_verts > 0 && !item.poly_ranges.is_empty()) {
-      total_verts_all += item.total_verts;
-      work_items.append(std::move(item));
-    }
-
-    if (nextcol) {
-      colnr++;
-    }
-    else {
-      charidx++;
-      colnr = 0;
-    }
+  /* Move items from map to vector for processing. */
+  Vector<CDTFillWorkItem> work_items;
+  work_items.reserve(work_item_map.size());
+  for (auto &item : work_item_map.values()) {
+    work_items.append(std::move(item));
   }
 
   if (work_items.is_empty()) {
