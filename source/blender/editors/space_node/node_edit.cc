@@ -1655,6 +1655,23 @@ static wmOperatorStatus node_delete_exec(bContext *C, wmOperator * /*op*/)
   /* Delete paired nodes as well. */
   node_select_paired(*snode->edittree);
 
+  /* Ensure child nodes propagate upwards through nested frames, when their parent is deleted. */
+  for (bNode *node : snode->edittree->all_nodes()) {
+    if (node->flag & SELECT) {
+      /* This node can be skipped, because it will be deleted anyway. */
+      continue;
+    }
+
+    /* Set the parent of the node to the lowest frame that is not going to be deleted. */
+    bNode *parent = node;
+    while (parent = parent->parent) {
+      if ((parent->flag & SELECT) == 0) {
+        break;
+      }
+    }
+    node->parent = parent;
+  }
+
   for (bNode &node : snode->edittree->nodes.items_mutable()) {
     if (node.flag & SELECT) {
       bke::node_remove_node(bmain, *snode->edittree, node, true);
