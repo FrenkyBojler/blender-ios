@@ -158,15 +158,15 @@ static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id
   BLO_write_pointer_array(writer, gpd->totcol, gpd->mat);
 
   /* write grease-pencil layers to file */
-  BLO_write_struct_list(writer, bGPDlayer, &gpd->layers);
+  writer->write_struct_list(&gpd->layers);
   for (bGPDlayer &gpl : gpd->layers) {
     /* Write mask list. */
-    BLO_write_struct_list(writer, bGPDlayer_Mask, &gpl.mask_layers);
+    writer->write_struct_list(&gpl.mask_layers);
     /* write this layer's frames to file */
-    BLO_write_struct_list(writer, bGPDframe, &gpl.frames);
+    writer->write_struct_list(&gpl.frames);
     for (bGPDframe &gpf : gpl.frames) {
       /* write strokes */
-      BLO_write_struct_list(writer, bGPDstroke, &gpf.strokes);
+      writer->write_struct_list(&gpf.strokes);
       for (bGPDstroke &gps : gpf.strokes) {
         writer->write_struct_array(gps.totpoints, gps.points);
         writer->write_struct_array(gps.tot_triangles, gps.triangles);

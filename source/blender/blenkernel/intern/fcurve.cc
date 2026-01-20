@@ -2487,7 +2487,7 @@ float calculate_fcurve(PathResolvedRNA *anim_rna,
 void BKE_fmodifiers_blend_write(BlendWriter *writer, ListBaseT<FModifier> *fmodifiers)
 {
   /* Write all modifiers first (for faster reloading) */
-  BLO_write_struct_list(writer, FModifier, fmodifiers);
+  writer->write_struct_list(fmodifiers);
 
   /* Modifiers */
   for (FModifier &fcm : *fmodifiers) {
@@ -2587,7 +2587,7 @@ void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu)
     writer->write_struct(driver);
 
     /* variables */
-    BLO_write_struct_list(writer, DriverVar, &driver->variables);
+    writer->write_struct_list(&driver->variables);
     for (DriverVar &dvar : driver->variables) {
       DRIVER_TARGETS_USED_LOOPER_BEGIN (&dvar) {
         if (dtar->rna_path) {
@@ -2604,7 +2604,7 @@ void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu)
 
 void BKE_fcurve_blend_write_listbase(BlendWriter *writer, ListBaseT<FCurve> *fcurves)
 {
-  BLO_write_struct_list(writer, FCurve, fcurves);
+  writer->write_struct_list(fcurves);
   for (FCurve &fcu : *fcurves) {
     BKE_fcurve_blend_write_data(writer, &fcu);
   }

@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
 #include "DNA_sdna_type_ids.hh"
 
 #include "BLI_function_ref.hh"
@@ -104,6 +105,11 @@ struct BlendWriter {
     this->write_struct_array_at_address_by_id(
         dna::sdna_struct_id_get<T>(), array_size, address, data);
   }
+
+  template<typename T> void write_struct_list(const ListBaseT<T> *list)
+  {
+    this->write_struct_list_by_id(dna::sdna_struct_id_get<T>(), list);
+  }
 };
 
 struct BlendDataReader {
@@ -161,12 +167,6 @@ struct BlendLibReader {
  * Mapping between names and ids.
  */
 int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name);
-
-/**
- * Write struct list.
- */
-#define BLO_write_struct_list(writer, struct_name, list_ptr) \
-  (writer)->write_struct_list_by_id(dna::sdna_struct_id_get<struct_name>(), list_ptr)
 
 /**
  * Write id struct.
@@ -282,7 +282,7 @@ bool BLO_write_is_undo(BlendWriter *writer);
  * writer->write_struct(clmd->sim_parms);
  * BLO_read_struct(reader, ClothSimSettings, &clmd->sim_parms);
  *
- * BLO_write_struct_list(writer, TimeMarker, &action->markers);
+ * writer->write_struct_list(&action->markers);
  * BLO_read_struct_list(reader, TimeMarker, &action->markers);
  *
  * BLO_write_int32_array(writer, hmd->totindex, hmd->indexar);

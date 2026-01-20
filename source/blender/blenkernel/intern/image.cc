@@ -366,11 +366,11 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
   writer->write_struct(ima->stereo3d_format);
 
-  BLO_write_struct_list(writer, ImageTile, &ima->tiles);
+  writer->write_struct_list(&ima->tiles);
 
   ima->packedfile = nullptr;
 
-  BLO_write_struct_list(writer, RenderSlot, &ima->renderslots);
+  writer->write_struct_list(&ima->renderslots);
 }
 
 static void image_blend_read_data(BlendDataReader *reader, ID *id)

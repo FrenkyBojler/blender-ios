@@ -1295,7 +1295,7 @@ static void write_panel_list(BlendWriter *writer, ListBaseT<Panel> *lb)
     panel_copy.runtime_flag = 0;
     panel_copy.runtime = nullptr;
     writer->write_struct_at_address(&panel, &panel_copy);
-    BLO_write_struct_list(writer, LayoutPanelState, &panel.layout_panel_states);
+    writer->write_struct_list(&panel.layout_panel_states);
     for (LayoutPanelState &state : panel.layout_panel_states) {
       BLO_write_string(writer, state.idname);
     }
@@ -1340,8 +1340,8 @@ static void write_area(BlendWriter *writer, ScrArea *area)
 
 void BKE_screen_area_map_blend_write(BlendWriter *writer, ScrAreaMap *area_map)
 {
-  BLO_write_struct_list(writer, ScrVert, &area_map->vertbase);
-  BLO_write_struct_list(writer, ScrEdge, &area_map->edgebase);
+  writer->write_struct_list(&area_map->vertbase);
+  writer->write_struct_list(&area_map->edgebase);
   for (ScrArea &area : area_map->areabase) {
     area.butspacetype = area.spacetype; /* Just for compatibility, will be reset below. */
 

@@ -131,7 +131,7 @@ static void palette_blend_write(BlendWriter *writer, ID *id, const void *id_addr
   BLO_write_id_struct(writer, Palette, id_address, &palette->id);
   BKE_id_blend_write(writer, &palette->id);
 
-  BLO_write_struct_list(writer, PaletteColor, &palette->colors);
+  writer->write_struct_list(&palette->colors);
 }
 
 static void palette_blend_read_data(BlendDataReader *reader, ID *id)
@@ -2030,8 +2030,7 @@ void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)
     if (tool_brush_bindings.main_brush_asset_reference) {
       BKE_asset_weak_reference_write(writer, tool_brush_bindings.main_brush_asset_reference);
     }
-    BLO_write_struct_list(
-        writer, NamedBrushAssetReference, &tool_brush_bindings.active_brush_per_brush_type);
+    writer->write_struct_list(&tool_brush_bindings.active_brush_per_brush_type);
     for (NamedBrushAssetReference &brush_ref : tool_brush_bindings.active_brush_per_brush_type) {
       BLO_write_string(writer, brush_ref.name);
       if (brush_ref.brush_asset_reference) {
