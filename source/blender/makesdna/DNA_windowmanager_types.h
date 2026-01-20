@@ -255,6 +255,7 @@ struct wmWindow {
    * makes cursors/buttons active on UI switching.
    */
   char addmousemove = 0;
+  char tag[128] = "";
   char _pad1[7] = {};
 
   /** Properties for stereoscopic displays. */

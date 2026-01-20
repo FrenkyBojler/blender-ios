@@ -143,6 +143,9 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win) ATTR_
 
 wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op);
 wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op);
+wmOperatorStatus wm_window_toggle_by_tag_exec(bContext *C, wmOperator *op);
+wmOperatorStatus wm_window_set_tag_exec(bContext *C, wmOperator *op);
+wmOperatorStatus wm_window_toggle_by_tag_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 
 void wm_test_autorun_revert_action_set(wmOperatorType *ot, PointerRNA *ptr);
 void wm_test_autorun_warning(bContext *C);

@@ -2364,6 +2364,33 @@ static bool wm_operator_winactive_not_full(bContext *C)
   return true;
 }
 
+static void WM_OT_window_toggle_by_tag(wmOperatorType *ot)
+{
+  ot->name = "Toggle Window by Tag";
+  ot->idname = "WM_OT_window_toggle_by_tag";
+  ot->description = "Minimizes and Maximizes windows based on their tag";
+  RNA_def_string(ot->srna, "tag", "Properties", 0, "Window Tag", "Toggle all windows with this tag");
+  RNA_def_boolean(ot->srna, "swap", false, "Minimize other windows", "Makes it behave fancy");
+
+  ot->invoke = wm_window_toggle_by_tag_invoke;
+  ot->exec = wm_window_toggle_by_tag_exec;
+  ot->poll = WM_operator_winactive;
+}
+
+static void WM_OT_window_set_tag(wmOperatorType *ot)
+{
+  ot->name = "Set Window Tag";
+  ot->idname = "WM_OT_window_set_tag";
+  ot->description = "Sets the Window Tag";
+  RNA_def_string(ot->srna, "tag", "Group A", 0, "Window Tag", "Toggle all windows with this tag");
+
+  ot->invoke = WM_operator_props_popup_confirm;
+  ot->exec = wm_window_set_tag_exec;
+  ot->poll = WM_operator_winactive;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* Included for script-access. */
 static void WM_OT_window_close(wmOperatorType *ot)
 {
@@ -4258,6 +4285,8 @@ void wm_operatortypes_register()
   WM_operatortype_append(WM_OT_call_asset_shelf_popover);
   WM_operatortype_append(WM_OT_radial_control);
   WM_operatortype_append(WM_OT_stereo3d_set);
+  WM_operatortype_append(WM_OT_window_toggle_by_tag);
+  WM_operatortype_append(WM_OT_window_set_tag);
 #if defined(WIN32)
   WM_operatortype_append(WM_OT_console_toggle);
 #endif

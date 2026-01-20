@@ -5854,6 +5854,7 @@ static wmOperatorStatus screen_context_menu_invoke(bContext *C,
       ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Header"), ICON_NONE);
       ui::Layout *layout = ui::popup_menu_layout(pup);
       ED_screens_header_tools_menu_create(C, layout, nullptr);
+      layout->op("wm.window_set_tag", IFACE_("Set Window Tag"), ICON_NONE);
       popup_menu_end(C, pup);
     }
     else if (region->regiontype == RGN_TYPE_FOOTER) {

@@ -60,6 +60,18 @@ class TOPBAR_HT_upper_bar(Header):
             unlink="scene.view_layer_remove",
         )
 
+        layout.separator()
+
+        row = layout.row()
+        op = row.operator("wm.window_toggle_by_tag", text='', icon='EVENT_A')
+        op.tag = "Group A"
+
+        op = row.operator("wm.window_toggle_by_tag", text='', icon='EVENT_B')
+        op.tag = "Group B"
+
+        op = row.operator("wm.window_toggle_by_tag", text='', icon='EVENT_C')
+        op.tag = "Group C"
+
 
 class TOPBAR_PT_tool_settings_extra(Panel):
     """

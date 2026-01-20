@@ -566,10 +566,17 @@ static std::string wm_window_title_text(
     bScreen *screen = WM_window_get_active_screen(win);
     const bool is_single = screen && BLI_listbase_is_single(&screen->areabase);
     ScrArea *area = (screen) ? static_cast<ScrArea *>(screen->areabase.first) : nullptr;
-    if (is_single && area && area->spacetype != SPACE_EMPTY) {
-      return IFACE_(ED_area_name(area).c_str());
+
+    std::string win_title = (is_single && area && area->spacetype != SPACE_EMPTY)  
+      ? IFACE_(ED_area_name(area).c_str())
+      : "Blender";
+
+    if (!STREQ(win->tag, "")) {
+      win_title.append(" - ");
+      win_title.append(win->tag);
     }
-    return "Blender";
+
+    return win_title;
   }
 
   /* This path may contain invalid UTF8 byte sequences on UNIX systems,
@@ -1498,6 +1505,82 @@ wmOperatorStatus wm_window_fullscreen_toggle_exec(bContext *C, wmOperator * /*op
     GHOST_SetWindowState(static_cast<GHOST_WindowHandle>(window->runtime->ghostwin),
                          GHOST_kWindowStateNormal);
   }
+
+  return OPERATOR_FINISHED;
+}
+
+wmOperatorStatus wm_window_toggle_by_tag_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if ((event->modifier & KM_CTRL) != 0) {
+    RNA_boolean_set(op->ptr, "swap", true);
+  }
+  else {
+    RNA_boolean_set(op->ptr, "swap", false);
+
+  }
+
+  return wm_window_toggle_by_tag_exec(C, op);
+}
+
+wmOperatorStatus wm_window_toggle_by_tag_exec(bContext *C, wmOperator *op)
+{
+  if (G.background) {
+    return OPERATOR_CANCELLED;
+  }
+
+  char tag[FILE_MAX];
+  RNA_string_get(op->ptr, "tag", tag);
+  bool swap = RNA_boolean_get(op->ptr, "swap");
+
+  GHOST_WindowHandle ghostwindow;
+  GHOST_TWindowState state;
+
+  wmWindowManager *wm = CTX_wm_manager(C);
+  for (wmWindow &win : wm->windows) {
+    ghostwindow = static_cast<GHOST_WindowHandle>(win.runtime->ghostwin);
+    state = GHOST_GetWindowState(ghostwindow);
+
+    if (STREQ(win.tag, tag)) {
+      switch (state) {
+        case GHOST_kWindowStateNormal:
+        case GHOST_kWindowStateMaximized:
+        case GHOST_kWindowStateFullScreen: {
+          GHOST_SetWindowState(ghostwindow, GHOST_kWindowStateMinimized);
+          break;
+        }
+        case GHOST_kWindowStateMinimized: {
+          /* TODO: Store previous state, so it can be restored properly */
+          GHOST_SetWindowState(ghostwindow, GHOST_kWindowStateNormal);
+          break;
+        }
+      }
+    }
+  
+    else if (swap && (strlen(win.tag) > 0)) {
+      if (state != GHOST_kWindowStateMinimized) {
+        GHOST_SetWindowState(ghostwindow, GHOST_kWindowStateMinimized);
+      }
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+wmOperatorStatus wm_window_set_tag_exec(bContext *C, wmOperator *op)
+{
+  if (G.background) {
+    return OPERATOR_CANCELLED;
+  }
+  char tag[FILE_MAX];
+  RNA_string_get(op->ptr, "tag", tag);
+
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+
+  GHOST_WindowHandle ghostwindow;
+  ghostwindow = static_cast<GHOST_WindowHandle>(win->runtime->ghostwin);
+  BLI_strncpy(win->tag, tag, 128);
+  WM_window_title_refresh(wm, win);
 
   return OPERATOR_FINISHED;
 }
