@@ -2427,7 +2427,7 @@ SculptSession *sculpt_session_ensure(Depsgraph &depsgraph, Object &object)
   ss->multires_modifier = mmd;
   ss->subdiv_ccg = mesh_eval->runtime->subdiv_ccg.get();
 
-  BLI_assert(!mmd || mmd && ss->subdiv_ccg);
+  BLI_assert(!mmd || (mmd && ss->subdiv_ccg));
 
   object::pbvh_ensure(depsgraph, object);
   sculpt_session_update_deform_coords(depsgraph, *scene, object, ob_eval, *ss);;

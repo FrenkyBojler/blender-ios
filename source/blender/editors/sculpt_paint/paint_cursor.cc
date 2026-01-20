@@ -1391,11 +1391,13 @@ static bool paint_cursor_context_init(bContext *C,
   pcontext.outline_alpha = pcontext.brush->add_col[3];
 
   Object *active_object = pcontext.vc.obact;
-  pcontext.ss = active_object ? active_object->runtime->sculpt_session : nullptr;
+  if (active_object && active_object->mode & OB_MODE_ALL_SCULPT) {
+    pcontext.ss = bke::object::sculpt_session_ensure(*pcontext.depsgraph, *active_object);
 
-  if (pcontext.ss && pcontext.ss->draw_faded_cursor) {
-    pcontext.outline_alpha = 0.3f;
-    pcontext.outline_col = float3(0.8f);
+    if (pcontext.ss && pcontext.ss->draw_faded_cursor) {
+      pcontext.outline_alpha = 0.3f;
+      pcontext.outline_col = float3(0.8f);
+    }
   }
 
   const ScrArea *area = CTX_wm_area(C);
