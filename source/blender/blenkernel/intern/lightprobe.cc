@@ -44,7 +44,7 @@ static void lightprobe_blend_write(BlendWriter *writer, ID *id, const void *id_a
   LightProbe *prb = id_cast<LightProbe *>(id);
 
   /* write LibData */
-  BLO_write_id_struct(writer, LightProbe, id_address, &prb->id);
+  writer->write_id_struct(id_address, prb);
   BKE_id_blend_write(writer, &prb->id);
 }
 

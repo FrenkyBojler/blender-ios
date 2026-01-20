@@ -1312,7 +1312,7 @@ static void ntree_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   ntree->typeinfo = nullptr;
   ntree->runtime->execdata = nullptr;
 
-  BLO_write_id_struct(writer, bNodeTree, id_address, &ntree->id);
+  writer->write_id_struct(id_address, ntree);
 
   node_tree_blend_write(writer, ntree);
 }

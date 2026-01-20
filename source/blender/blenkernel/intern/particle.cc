@@ -260,7 +260,7 @@ static void particle_settings_blend_write(BlendWriter *writer, ID *id, const voi
   ParticleSettings *part = id_cast<ParticleSettings *>(id);
 
   /* write LibData */
-  BLO_write_id_struct(writer, ParticleSettings, id_address, &part->id);
+  writer->write_id_struct(id_address, part);
   BKE_id_blend_write(writer, &part->id);
 
   writer->write_struct(part->pd);

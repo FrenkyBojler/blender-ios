@@ -158,7 +158,7 @@ static void world_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   wrld->use_nodes = true;
 
   /* write LibData */
-  BLO_write_id_struct(writer, World, id_address, &wrld->id);
+  writer->write_id_struct(id_address, wrld);
   BKE_id_blend_write(writer, &wrld->id);
 
   /* nodetree is integral part of world, no libdata */

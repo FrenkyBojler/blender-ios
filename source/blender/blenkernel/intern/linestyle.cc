@@ -468,7 +468,7 @@ static void linestyle_blend_write(BlendWriter *writer, ID *id, const void *id_ad
 {
   FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(id);
 
-  BLO_write_id_struct(writer, FreestyleLineStyle, id_address, &linestyle->id);
+  writer->write_id_struct(id_address, linestyle);
   BKE_id_blend_write(writer, &linestyle->id);
 
   write_linestyle_color_modifiers(writer, &linestyle->color_modifiers);

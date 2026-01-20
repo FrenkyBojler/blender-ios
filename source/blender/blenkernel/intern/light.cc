@@ -145,7 +145,7 @@ static void light_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   la->use_nodes = true;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Light, id_address, &la->id);
+  writer->write_id_struct(id_address, la);
   BKE_id_blend_write(writer, &la->id);
 
   /* Node-tree is integral part of lights, no libdata. */

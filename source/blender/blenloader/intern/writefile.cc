@@ -2224,14 +2224,6 @@ void BlendWriter::write_struct_list_by_name(const char *struct_name, ListBase *l
   this->write_struct_list_by_id(struct_id, list);
 }
 
-void blo_write_id_struct(BlendWriter *writer,
-                         const int struct_id,
-                         const void *id_address,
-                         const ID *id)
-{
-  writestruct_at_address_nr(writer->wd, GS(id->name), struct_id, 1, id_address, id);
-}
-
 int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name)
 {
   int struct_id = DNA_struct_find_with_alias(writer->wd->sdna, struct_name);

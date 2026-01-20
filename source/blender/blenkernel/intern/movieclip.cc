@@ -210,7 +210,7 @@ static void movieclip_blend_write(BlendWriter *writer, ID *id, const void *id_ad
 
   MovieTracking *tracking = &clip->tracking;
 
-  BLO_write_id_struct(writer, MovieClip, id_address, &clip->id);
+  writer->write_id_struct(id_address, clip);
   BKE_id_blend_write(writer, &clip->id);
 
   for (MovieTrackingObject &object : tracking->objects) {

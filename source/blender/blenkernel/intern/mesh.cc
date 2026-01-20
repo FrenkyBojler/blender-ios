@@ -373,7 +373,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
 
   BLO_write_shared_tag(writer, mesh->face_offset_indices);
 
-  BLO_write_id_struct(writer, Mesh, id_address, &mesh->id);
+  writer->write_id_struct(id_address, mesh);
   BKE_id_blend_write(writer, &mesh->id);
 
   BKE_defbase_blend_write(writer, &mesh->vertex_group_names);

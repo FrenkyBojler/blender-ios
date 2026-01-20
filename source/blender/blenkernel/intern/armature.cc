@@ -353,7 +353,7 @@ static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_add
     arm->collection_array = nullptr;
   }
 
-  BLO_write_id_struct(writer, bArmature, id_address, &arm->id);
+  writer->write_id_struct(id_address, arm);
   BKE_id_blend_write(writer, &arm->id);
 
   /* Direct data */

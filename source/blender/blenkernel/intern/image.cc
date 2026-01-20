@@ -351,7 +351,7 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, Image, id_address, &ima->id);
+  writer->write_id_struct(id_address, ima);
   BKE_id_blend_write(writer, &ima->id);
 
   for (ImagePackedFile &imapf : ima->packedfiles) {

@@ -119,7 +119,7 @@ static void shapekey_blend_write(BlendWriter *writer, ID *id, const void *id_add
   const bool is_undo = BLO_write_is_undo(writer);
 
   /* Write LibData. */
-  BLO_write_id_struct(writer, Key, id_address, &key->id);
+  writer->write_id_struct(id_address, key);
   BKE_id_blend_write(writer, &key->id);
 
   /* Direct data. */

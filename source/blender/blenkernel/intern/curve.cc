@@ -160,7 +160,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   cu->batch_cache = nullptr;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Curve, id_address, &cu->id);
+  writer->write_id_struct(id_address, cu);
   BKE_id_blend_write(writer, &cu->id);
 
   /* direct data */

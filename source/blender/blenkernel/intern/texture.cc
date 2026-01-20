@@ -147,7 +147,7 @@ static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_addr
   Tex *tex = id_cast<Tex *>(id);
 
   /* write LibData */
-  BLO_write_id_struct(writer, Tex, id_address, &tex->id);
+  writer->write_id_struct(id_address, tex);
   BKE_id_blend_write(writer, &tex->id);
 
   /* direct data */

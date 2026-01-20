@@ -150,7 +150,7 @@ static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id
   gpd->runtime.sbuffer_size = 0;
 
   /* write gpd data block to file */
-  BLO_write_id_struct(writer, bGPdata, id_address, &gpd->id);
+  writer->write_id_struct(id_address, gpd);
   BKE_id_blend_write(writer, &gpd->id);
 
   BKE_defbase_blend_write(writer, &gpd->vertex_group_names);

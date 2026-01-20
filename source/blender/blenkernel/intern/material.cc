@@ -211,7 +211,7 @@ static void material_blend_write(BlendWriter *writer, ID *id, const void *id_add
   ma->use_nodes = true;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Material, id_address, &ma->id);
+  writer->write_id_struct(id_address, ma);
   BKE_id_blend_write(writer, &ma->id);
 
   /* nodetree is integral part of material, no libdata */

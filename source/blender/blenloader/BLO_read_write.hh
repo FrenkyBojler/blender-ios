@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "DNA_ID.h"
 #include "DNA_listBase.h"
 #include "DNA_sdna_type_ids.hh"
 
@@ -110,6 +111,12 @@ struct BlendWriter {
   {
     this->write_struct_list_by_id(dna::sdna_struct_id_get<T>(), list);
   }
+
+  template<typename T> void write_id_struct(const void *id_address, const T *id)
+  {
+    this->write_struct_at_address_by_id_with_filecode(
+        GS(id_cast<const ID *>(id)->name), dna::sdna_struct_id_get<T>(), id_address, id);
+  }
 };
 
 struct BlendDataReader {
@@ -167,13 +174,6 @@ struct BlendLibReader {
  * Mapping between names and ids.
  */
 int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name);
-
-/**
- * Write id struct.
- */
-void blo_write_id_struct(BlendWriter *writer, int struct_id, const void *id_address, const ID *id);
-#define BLO_write_id_struct(writer, struct_name, id_address, id) \
-  blo_write_id_struct(writer, dna::sdna_struct_id_get<struct_name>(), id_address, id)
 
 /**
  * Specific code to prepare IDs to be written.

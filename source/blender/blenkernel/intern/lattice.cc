@@ -131,7 +131,7 @@ static void lattice_blend_write(BlendWriter *writer, ID *id, const void *id_addr
   lt->batch_cache = nullptr;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Lattice, id_address, &lt->id);
+  writer->write_id_struct(id_address, lt);
   BKE_id_blend_write(writer, &lt->id);
 
   /* direct data */

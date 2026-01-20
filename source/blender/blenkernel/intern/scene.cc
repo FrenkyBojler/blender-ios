@@ -1128,7 +1128,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, Scene, id_address, &sce->id);
+  writer->write_id_struct(id_address, sce);
   BKE_id_blend_write(writer, &sce->id);
 
   BKE_keyingsets_blend_write(writer, &sce->keyingsets);

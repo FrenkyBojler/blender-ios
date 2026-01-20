@@ -128,7 +128,7 @@ static void palette_blend_write(BlendWriter *writer, ID *id, const void *id_addr
 {
   Palette *palette = id_cast<Palette *>(id);
 
-  BLO_write_id_struct(writer, Palette, id_address, &palette->id);
+  writer->write_id_struct(id_address, palette);
   BKE_id_blend_write(writer, &palette->id);
 
   writer->write_struct_list(&palette->colors);
@@ -209,7 +209,7 @@ static void paint_curve_blend_write(BlendWriter *writer, ID *id, const void *id_
 {
   PaintCurve *pc = id_cast<PaintCurve *>(id);
 
-  BLO_write_id_struct(writer, PaintCurve, id_address, &pc->id);
+  writer->write_id_struct(id_address, pc);
   BKE_id_blend_write(writer, &pc->id);
 
   writer->write_struct_array(pc->tot_points, pc->points);
