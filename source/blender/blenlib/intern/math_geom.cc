@@ -927,7 +927,8 @@ float dist_squared_to_projected_aabb(DistProjectedAABBPrecalc *data,
   }
 
   /* if rtmin <= rtmax, ray intersect `AABB` */
-  if (rtmin <= rtmax) {
+  float error_margin = 1.0f;  // fixes some cases where snapping to edge wont work if the viewport is too close
+  if (rtmin <= rtmax || (fabsf(rtmin - rtmax) < error_margin)) {
     return 0;
   }
 
