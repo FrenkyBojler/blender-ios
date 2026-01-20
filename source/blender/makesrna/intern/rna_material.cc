@@ -177,6 +177,10 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
     if (found.second) {
       BLI_assert(found.first != nullptr);
       bke::node_set_active(*found.first, *found.second);
+      /* Tag nodetree for viewport update (if node is found in a nested group). */
+      if (ma->nodetree != found.first) {
+        DEG_id_tag_update(&found.first->id, ID_RECALC_SYNC_TO_EVAL);
+      }
     }
   }
 
