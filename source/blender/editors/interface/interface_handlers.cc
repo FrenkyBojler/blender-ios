@@ -12673,16 +12673,12 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   Button *button = nullptr;
   PropertyRNA *prop = RNA_struct_find_property(ptr, property.data());
   for (Block &block : region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block.buttons) {
-      if (but->rnapoin.data == ptr->data && but->rnaprop == prop) {
-        if (nth == 0) {
-          button = but.get();
-          break;
-        }
-        nth--;
-      }
-    }
-    if (button) {
+    auto but_itr = std::find_if(
+        block.buttons.begin(), block.buttons.end(), [&](const std::unique_ptr<Button> &but) {
+          return but->rnapoin.data == ptr->data && but->rnaprop == prop && but->rnaindex == index;
+        });
+    if (but_itr!=block.buttons.end()) {
+      button = but_itr->get();
       break;
     }
   }

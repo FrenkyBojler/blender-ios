@@ -1085,7 +1085,9 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_property_enum_items(parm, rna_button_activation);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "index", PROP_INT, PROP_NONE);
-  RNA_def_property_ui_text(parm, "Index", "Index of the button that references the RNA property");
+  RNA_def_property_ui_text(parm,
+                           "Index",
+                           "RNA index of the button when a single member of the referenced RNA property is accessed");
   RNA_def_property_int_default(parm, 0);
   parm = RNA_def_property(func, "xy", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(

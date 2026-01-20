@@ -28,6 +28,7 @@ def _test_string_prop_group_class():
         string_prop: StringProperty()
         string_update_prop: StringProperty(options={'TEXTEDIT_UPDATE'})
         string_search_prop: StringProperty(search=_string_search_property_cb)
+        string_search_prop_search: StringProperty(search=_string_search_property_cb)
         string_force_search_value_prop: StringProperty(search=_string_search_property_cb, search_options={'SORT'})
         prop_search_filter: CollectionProperty(type=OperatorFileListElement)
 
@@ -55,7 +56,7 @@ def _test_string_prop_button_panel_class():
             # String Properties with search callback
             layout.prop(data, "string_search_prop")
             # String Properties with forced value by button
-            layout.prop_search(data, "string_search_prop", data, "prop_search_filter")
+            layout.prop_search(data, "string_search_prop_search", data, "prop_search_filter")
 
             # String Properties with no search callback but with a collection filter
             layout.prop_search(data, "string_prop", data, "prop_search_filter")
@@ -271,21 +272,21 @@ def ui_string_property_buttons():
     # `StringProperty(search=_string_search_property_cb)` as prop_search button
 
     # Text edit button, type "C" and return, value will not be set as it don't matches a prop_search suggestion
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING', index=1))
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop_search", 'TEXT_EDITING'))
     yield e.text("C").ret()
-    t.assertEqual(data.string_search_prop, "")
+    t.assertEqual(data.string_search_prop_search, "")
 
     # Text edit button, type "B" and return, value will be set since it matches a prop_search suggestion
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING', index=1))
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop_search", 'TEXT_EDITING'))
     yield e.text("B").ret()
-    t.assertEqual(data.string_search_prop, "B")
+    t.assertEqual(data.string_search_prop_search, "B")
 
     # Highlight button, pasted clipboard value which will not be set as it don't matches a prop_search suggestion
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'HIGHLIGHT', index=1))
+    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop_search", 'HIGHLIGHT'))
     yield e.ctrl.v()
-    t.assertEqual(data.string_search_prop, "B")
+    t.assertEqual(data.string_search_prop_search, "B")
 
-    yield from _button_reset_value(wm, region, data, "string_search_prop", t, e, "", index=1)
+    yield from _button_reset_value(wm, region, data, "string_search_prop_search", t, e, "")
 
     # `StringProperty(search=_string_search_property_cb, search_options={'SORT'})` as Search button
 
