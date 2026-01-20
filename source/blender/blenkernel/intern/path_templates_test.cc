@@ -451,7 +451,7 @@ TEST(path_templates, apply_template_alloc)
 {
   VariableMap variables;
   {
-    variables.add_string("long", "This string is exactly 32 bytes.");
+    variables.add_string("long", "This string is exactly 32 bytes_");
     variables.add_string("short", "hi");
     variables.add_string("empty", "");
     variables.add_integer("number", 42);
@@ -461,12 +461,12 @@ TEST(path_templates, apply_template_alloc)
   const Vector<PathTemplateTestCase> test_cases = {
       {
           "{long}{short}{empty}{number}",
-          "This string is exactly 32 bytes.hi42",
+          "This string is exactly 32 bytes_hi42",
           {},
       },
       {
           "foo{long}bar",
-          "fooThis string is exactly 32 bytes.bar",
+          "fooThis string is exactly 32 bytes_bar",
           {},
       },
       {
@@ -510,7 +510,7 @@ TEST(path_templates, apply_template_alloc)
       /* Truncated due to exceeding max specified length. */
       {
           "foo{long}{long}{long}{long}bar",
-          "fooThis string is exactly 32 bytes.This",
+          "fooThis string is exactly 32 bytes_This",
           {},
       },
 
