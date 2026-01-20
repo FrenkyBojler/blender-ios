@@ -707,18 +707,16 @@ static bNode *make_interface_proxy(bContext &C,
     case InterfaceProxyType::Reroute:
       return bke::node_add_static_node(&C, tree, NODE_REROUTE);
     case InterfaceProxyType::ConstValue: {
-      if (!socket_data) {
-        return bke::node_add_static_node(&C, tree, NODE_REROUTE);
-      }
       return bke::node_interface::add_const_input_node_for_interface_socket(
-          C, tree, io_socket, socket_data);
+          C,
+          tree,
+          io_socket.socket_type,
+          socket_data,
+          NodeDefaultInputType(io_socket.default_input));
     }
     case InterfaceProxyType::Converter:
-      if (!socket_data) {
-        return bke::node_add_static_node(&C, tree, NODE_REROUTE);
-      }
       return bke::node_interface::add_converter_node_for_interface_socket(
-          C, tree, io_socket, socket_data);
+          C, tree, io_socket.socket_type, socket_data);
   }
   BLI_assert_unreachable();
   return nullptr;

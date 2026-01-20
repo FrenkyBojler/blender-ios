@@ -420,18 +420,27 @@ struct bNodeTreeInterfaceItemReference {
 /**
  * Add an input node that outputs the value of a group node input or internal constant value of an
  * unconnected tree interface output.
+ * \param socket_data Data to store in the proxy node. Can be null in case a default input is used.
+ * \param default_input If not "Value" then an implicit input field node will be created instead of
+ *                      a constant input.
+ * \return Proxy node for the socket data with one visible output socket.
  */
 bNode *add_const_input_node_for_interface_socket(bContext &C,
                                                  bNodeTree &tree,
-                                                 const bNodeTreeInterfaceSocket &io_socket,
-                                                 const void *socket_data);
+                                                 StringRef socket_type,
+                                                 const void *socket_data,
+                                                 NodeDefaultInputType default_input);
 
 /**
  * Add a node that converts values to the type of a tree interface socket.
+ * \param socket_data Data to store as input of the proxy node. If null then the default value for
+ *                    the socket type is used.
+ * \return Proxy node for converting the socket type with one visible input and one visible output
+ *         socket.
  */
 bNode *add_converter_node_for_interface_socket(bContext &C,
                                                bNodeTree &tree,
-                                               const bNodeTreeInterfaceSocket &io_socket,
+                                               StringRef socket_type,
                                                const void *socket_data);
 
 }  // namespace node_interface

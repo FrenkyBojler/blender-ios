@@ -1489,12 +1489,12 @@ bNode *create_const_value_proxy(bContext &C,
   return node;
 }
 template<>
-bNode *create_const_value_proxy(bContext &C,
-                                bNodeTree &tree,
+bNode *create_const_value_proxy(bContext & /*C*/,
+                                bNodeTree & /*tree*/,
                                 const bNodeSocketValueTexture & /*data*/)
 {
   /* TODO Does not have a constant input node. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
 bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMaterial &data)
@@ -1504,52 +1504,52 @@ bNode *create_const_value_proxy(bContext &C, bNodeTree &tree, const bNodeSocketV
   return node;
 }
 template<>
-bNode *create_const_value_proxy(bContext &C,
-                                bNodeTree &tree,
+bNode *create_const_value_proxy(bContext & /*C*/,
+                                bNodeTree & /*tree*/,
                                 const bNodeSocketValueFont & /*data*/)
 {
   /* TODO Does not have a constant input node. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_const_value_proxy(bContext &C,
-                                bNodeTree &tree,
+bNode *create_const_value_proxy(bContext & /*C*/,
+                                bNodeTree & /*tree*/,
                                 const bNodeSocketValueScene & /*data*/)
 {
   /* TODO Does not have a constant input node. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_const_value_proxy(bContext &C,
-                                bNodeTree &tree,
+bNode *create_const_value_proxy(bContext & /*C*/,
+                                bNodeTree & /*tree*/,
                                 const bNodeSocketValueText & /*data*/)
 {
   /* TODO Does not have a constant input node. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_const_value_proxy(bContext &C,
-                                bNodeTree &tree,
+bNode *create_const_value_proxy(bContext & /*C*/,
+                                bNodeTree & /*tree*/,
                                 const bNodeSocketValueMask & /*data*/)
 {
   /* TODO Does not have a constant input node. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_const_value_proxy(bContext &C,
-                                bNodeTree &tree,
+bNode *create_const_value_proxy(bContext & /*C*/,
+                                bNodeTree & /*tree*/,
                                 const bNodeSocketValueSound & /*data*/)
 {
   /* TODO Does not have a constant input node. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_const_value_proxy(bContext &C,
-                                bNodeTree &tree,
+bNode *create_const_value_proxy(bContext & /*C*/,
+                                bNodeTree & /*tree*/,
                                 const bNodeSocketValueMenu & /*data*/)
 {
   /* TODO Does not have a constant input node. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 
 template<typename T> bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const T &data);
@@ -1646,109 +1646,195 @@ bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketVal
   return node;
 }
 template<>
-bNode *create_converter_proxy(bContext &C,
-                              bNodeTree &tree,
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
                               const bNodeSocketValueObject & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueImage & /*data*/)
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
+                              const bNodeSocketValueImage & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_converter_proxy(bContext &C,
-                              bNodeTree &tree,
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
                               const bNodeSocketValueCollection & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_converter_proxy(bContext &C,
-                              bNodeTree &tree,
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
                               const bNodeSocketValueTexture & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_converter_proxy(bContext &C,
-                              bNodeTree &tree,
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
                               const bNodeSocketValueMaterial & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueFont & /*data*/)
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
+                              const bNodeSocketValueFont & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueScene & /*data*/)
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
+                              const bNodeSocketValueScene & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueText & /*data*/)
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
+                              const bNodeSocketValueText & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMask & /*data*/)
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
+                              const bNodeSocketValueMask & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueSound & /*data*/)
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
+                              const bNodeSocketValueSound & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
 }
 template<>
-bNode *create_converter_proxy(bContext &C, bNodeTree &tree, const bNodeSocketValueMenu & /*data*/)
+bNode *create_converter_proxy(bContext & /*C*/,
+                              bNodeTree & /*tree*/,
+                              const bNodeSocketValueMenu & /*data*/)
 {
   /* Conversion not supported. */
-  return bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  return nullptr;
+}
+
+static bNode *try_create_default_input_value_proxy(bContext &C,
+                                                   bNodeTree &tree,
+                                                   const StringRef socket_type,
+                                                   const NodeDefaultInputType type)
+{
+  const bNodeSocketType *typeinfo = bke::node_socket_type_find(socket_type);
+  if (!typeinfo) {
+    return nullptr;
+  }
+  switch (type) {
+    case NODE_DEFAULT_INPUT_VALUE:
+      return nullptr;
+    case NODE_DEFAULT_INPUT_INDEX_FIELD:
+      if (typeinfo->type == SOCK_INT) {
+        return bke::node_add_node(&C, tree, "GeometryNodeInputIndex");
+      }
+      return nullptr;
+    case NODE_DEFAULT_INPUT_ID_INDEX_FIELD:
+      if (typeinfo->type == SOCK_INT) {
+        return bke::node_add_node(&C, tree, "GeometryNodeInputID");
+      }
+      return nullptr;
+    case NODE_DEFAULT_INPUT_NORMAL_FIELD:
+      if (typeinfo->type == SOCK_VECTOR) {
+        bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputNormal");
+        bke::node_find_socket(*node, SOCK_OUT, "True Normal")->flag |= SOCK_HIDDEN;
+      }
+      return nullptr;
+    case NODE_DEFAULT_INPUT_POSITION_FIELD:
+      if (typeinfo->type == SOCK_VECTOR) {
+        return bke::node_add_node(&C, tree, "GeometryNodeInputPosition");
+      }
+      return nullptr;
+    case NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD:
+      if (typeinfo->type == SOCK_MATRIX) {
+        return bke::node_add_node(&C, tree, "GeometryNodeInstanceTransform");
+      }
+      return nullptr;
+    case NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD:
+      if (typeinfo->type == SOCK_VECTOR) {
+        bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCurveHandlePositions");
+        bke::node_find_socket(*node, SOCK_IN, "Relative")->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_OUT, "Right")->flag |= SOCK_HIDDEN;
+      }
+      return nullptr;
+    case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
+      if (typeinfo->type == SOCK_VECTOR) {
+        bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCurveHandlePositions");
+        bke::node_find_socket(*node, SOCK_IN, "Relative")->flag |= SOCK_HIDDEN;
+        bke::node_find_socket(*node, SOCK_OUT, "Left")->flag |= SOCK_HIDDEN;
+      }
+      return nullptr;
+  }
+  BLI_assert_unreachable();
+  return nullptr;
 }
 
 }  // namespace socket_types
 
 bNode *add_const_input_node_for_interface_socket(bContext &C,
                                                  bNodeTree &tree,
-                                                 const bNodeTreeInterfaceSocket &io_socket,
-                                                 const void *socket_data)
+                                                 const StringRef socket_type,
+                                                 const void *socket_data,
+                                                 const NodeDefaultInputType default_input)
 {
-  bNode *value_node = nullptr;
-  bke::node_interface::socket_types::socket_data_to_static_type_tag(
-      io_socket.socket_type, [&](auto type_tag) {
-        using SocketDataType = typename decltype(type_tag)::type;
-        value_node = socket_types::create_const_value_proxy(
-            C, tree, *static_cast<const SocketDataType *>(socket_data));
-      });
+  bNode *value_node = socket_types::try_create_default_input_value_proxy(
+      C, tree, socket_type, default_input);
+  if (value_node) {
+    return value_node;
+  }
+  if (socket_data) {
+    bke::node_interface::socket_types::socket_data_to_static_type_tag(
+        socket_type, [&](auto type_tag) {
+          using SocketDataType = typename decltype(type_tag)::type;
+          value_node = socket_types::create_const_value_proxy(
+              C, tree, *static_cast<const SocketDataType *>(socket_data));
+        });
+  }
+  if (!value_node) {
+    value_node = bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  }
   return value_node;
 }
 
 bNode *add_converter_node_for_interface_socket(bContext &C,
                                                bNodeTree &tree,
-                                               const bNodeTreeInterfaceSocket &io_socket,
+                                               const StringRef socket_type,
                                                const void *socket_data)
 {
   bNode *value_node = nullptr;
-  bke::node_interface::socket_types::socket_data_to_static_type_tag(
-      io_socket.socket_type, [&](auto type_tag) {
-        using SocketDataType = typename decltype(type_tag)::type;
-        value_node = socket_types::create_converter_proxy(
-            C, tree, *static_cast<const SocketDataType *>(socket_data));
-      });
+  if (socket_data) {
+    bke::node_interface::socket_types::socket_data_to_static_type_tag(
+        socket_type, [&](auto type_tag) {
+          using SocketDataType = typename decltype(type_tag)::type;
+          value_node = socket_types::create_converter_proxy(
+              C, tree, *static_cast<const SocketDataType *>(socket_data));
+        });
+  }
+  if (!value_node) {
+    value_node = bke::node_add_static_node(&C, tree, NODE_REROUTE);
+  }
   return value_node;
 }
 
