@@ -846,8 +846,6 @@ static PropertyRNA *search_id_collection(StructRNA *ptype, PointerRNA &main_ptr)
   return nullptr;
 }
 
-static void okay_pressed(bContext &context) {}
-
 static wmOperatorStatus outliner_id_remap_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!RNA_property_is_set(op->ptr, RNA_struct_find_property(op->ptr, "id_type"))) {
@@ -863,10 +861,8 @@ static wmOperatorStatus outliner_id_remap_invoke(bContext *C, wmOperator *op, co
 
   ui::PopupMenu *pop_up = ui::popup_menu_begin(
       C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
-  // ui::popup_menu_close_from_but();
 
   ui::Layout &layout = *popup_menu_layout(pop_up);
-  layout.operator_context_set(wm::OpCallContext::ExecDefault);
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "new_id");
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
@@ -874,10 +870,8 @@ static wmOperatorStatus outliner_id_remap_invoke(bContext *C, wmOperator *op, co
   PropertyRNA *search_prop = search_id_collection(srna, bmain_ptr);
   layout.prop_search(op->ptr, prop, &bmain_ptr, search_prop, nullptr, "", ICON_NONE, false);
 
-  ui::Layout &row = layout.row(false);
-  ui::Button *cancel_but = row.button("Cancel", 0, okay_pressed, "");
-  ui::Button *okay_but = row.button("Ok", 0, okay_pressed, "");
-  button_flag_enable(okay_but, ui::BUT_ACTIVE_DEFAULT);
+  PointerRNA opptr = PointerRNA_NULL;
+  ui::popup_block_template_confirm_op(&layout, op->type, "Ok", "Cancel", 0, false, &opptr);
 
   popup_menu_end(C, pop_up);
 
