@@ -3671,8 +3671,7 @@ static void filelist_readjob_all_asset_library(FileListReadJob *job_params,
 
   /* Count how many asset libraries need to be loaded, for progress reporting. Not very precise. */
   int library_count = 0;
-  asset_system::AssetLibrary::foreach_loaded(
-      [&](asset_system::AssetLibrary &nested_library) { library_count++; }, false);
+  asset_system::AssetLibrary::foreach_loaded([&](const auto &) { library_count++; }, false);
 
   BLI_assert(filelist->asset_library != nullptr);
 
