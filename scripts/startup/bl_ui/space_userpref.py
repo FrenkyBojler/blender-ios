@@ -2780,12 +2780,10 @@ class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
         layout.separator()
 
         if active_library.use_remote_url:
-            sub = layout.column()
-            sub.enabled = context.preferences.experimental.use_remote_asset_libraries
-            if not sub.enabled:
-                sub.label(icon='WARNING_LARGE', text="The Experimental Feature 'Remote Asset Libraries' is disabled.")
-            sub.prop(active_library, "remote_url")
-            sub.prop(active_library, "path", text="Download Location")
+            use_remote_libraries = context.preferences.experimental.use_remote_asset_libraries
+            if use_remote_libraries:
+                layout.prop(active_library, "remote_url")
+                layout.prop(active_library, "path", text="Download Location")
         else:
             layout.prop(active_library, "path")
             layout.prop(active_library, "import_method", text="Import Method")
@@ -2802,6 +2800,22 @@ class USERPREF_UL_asset_libraries(UIList):
         # Check the 'experimental' flag.
         if asset_library.use_remote_url:
             layout.enabled = context.preferences.experimental.use_remote_asset_libraries
+
+    def filter_items(self, context, data, property):
+        asset_libraries = getattr(data, property)
+
+        # Determine the bitflags for remote & non-remote asset libraries.
+        use_remote_libs = context.preferences.experimental.use_remote_asset_libraries
+        flag_remote = self.bitflag_filter_item if use_remote_libs else self.bitflag_item_never_show
+        flag_nonremote = self.bitflag_filter_item
+
+        # Construct arrays of flags & indices.
+        flags = [
+            flag_remote if asset_library.use_remote_url else flag_nonremote
+            for asset_library in asset_libraries]
+        indices = list(range(len(asset_libraries)))
+
+        return flags, indices
 
 
 # -----------------------------------------------------------------------------
