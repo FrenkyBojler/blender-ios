@@ -3669,19 +3669,10 @@ static void filelist_readjob_all_asset_library(FileListReadJob *job_params,
     return;
   }
 
-  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
-
   /* Count how many asset libraries need to be loaded, for progress reporting. Not very precise. */
   int library_count = 0;
   asset_system::AssetLibrary::foreach_loaded(
-      [&](asset_system::AssetLibrary &nested_library) {
-        const bool is_online_lib = nested_library.remote_url().has_value();
-        if (is_online_lib && skip_remote_libraries) {
-          return;
-        }
-        library_count++;
-      },
-      false);
+      [&](asset_system::AssetLibrary &nested_library) { library_count++; }, false);
 
   BLI_assert(filelist->asset_library != nullptr);
 
@@ -3690,10 +3681,6 @@ static void filelist_readjob_all_asset_library(FileListReadJob *job_params,
    * Load their assets from disk into the "All" library. */
   asset_system::AssetLibrary::foreach_loaded(
       [&](asset_system::AssetLibrary &nested_library) {
-        const bool is_online_lib = nested_library.remote_url().has_value();
-        if (is_online_lib && skip_remote_libraries) {
-          return;
-        }
         StringRefNull root_path = nested_library.root_path();
         if (root_path.is_empty()) {
           return;
