@@ -78,7 +78,7 @@ void register_node_type_sh_raycast()
   sh_node_type_base(&ntype, "ShaderNodeRaycast", SH_NODE_RAYCAST);
   ntype.ui_name = "Raycast";
   ntype.ui_description = "Cast rays and retrieve information from the hit point";
-  ntype.enum_name_legacy = "RAYCAST";
+  ntype.enum_name_legacy = "MATERIAL_RAYCAST";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.initfunc = file_ns::node_shader_init;
   ntype.add_ui_poll = object_shader_nodes_poll;
