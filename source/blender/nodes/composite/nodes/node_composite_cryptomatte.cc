@@ -746,6 +746,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
         /* If this Cryptomatte layer wasn't found, then all later Cryptomatte layers can't be used
          * even if they were found. */
         if (pass_result.is_single_value()) {
+          pass_result.release();
           return layers;
         }
         layers.append(pass_result);

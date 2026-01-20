@@ -41,7 +41,7 @@ void extract_alpha(Context &context, Result &input, Result &output)
 {
   if (input.is_single_value()) {
     output.allocate_single_value();
-    output.set_single_value(output.get_single_value<Color>().a);
+    output.set_single_value(input.get_single_value<Color>().a);
     return;
   }
 
