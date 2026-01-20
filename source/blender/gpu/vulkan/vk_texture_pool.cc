@@ -14,19 +14,13 @@
 
 namespace blender::gpu {
 
-/* Compute the nearest `offset` that is aligned up to `alignment`. */
-static VkDeviceSize align_offset(VkDeviceSize offset, VkDeviceSize alignment)
-{
-  return (offset - 1ul + alignment) & -alignment;
-}
-
 /* Compute the nearest `offset` that is aligned up to `alignment`, but with
  * respect to `allocation_offset` from which `offset` is based. */
 static VkDeviceSize align_offset(VkDeviceSize offset,
                                  VkDeviceSize allocation_offset,
                                  VkDeviceSize alignment)
 {
-  return align_offset(allocation_offset + offset, alignment) - allocation_offset;
+  return ceil_to_multiple_ul(allocation_offset + offset, alignment) - allocation_offset;
 }
 
 bool VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirements)
@@ -115,10 +109,10 @@ void VKTexturePool::TextureHandle::free()
 
 VKTexturePool::~VKTexturePool()
 {
-  for (const auto &handle : acquired_) {
+  for (const TextureHandle &handle : acquired_) {
     release_texture(wrap(handle.texture));
   }
-  for (auto &handle : pool_) {
+  for (AllocationHandle &handle : pool_) {
     handle.free();
   }
 }
@@ -144,11 +138,12 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   /* TODO(not_mark): naive, but first compatible works better than smallest compatible. */
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
-    const auto &handle = pool_[i];
+    const AllocationHandle &handle = pool_[i];
 
-    /* VkMemoryRequirements::alignment specifies starting alignment requirements; we compute
-     * the necessary size of the allocation such that there is room for a starting offset. As
-     * different images can have different alignments on some platofrms, this is done per case. */
+    /* VkMemoryRequirements::alignment specifies alignment requirements of the offset within a
+     * memory allocation; we compute the necssary size of the allocation such that there is a
+     * starting offset to the first aligned index. As different images can have different
+     * alignments, this is done per VkImage */
     VkDeviceSize aligned_offset = align_offset(
         0, handle.allocation_info.offset, memory_requirements.alignment);
     VkDeviceSize aligned_size = aligned_offset + memory_requirements.size;
@@ -176,23 +171,21 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
     allocation_handle.alloc(memory_requirements);
   }
 
-  /* Compute the necessary starting offset to satisfy image alignment requirements. */
+  /* Compute the necessary offset into the allocation to satisfy alignment requirements. */
   VkDeviceSize aligned_offset = align_offset(
       0, allocation_handle.allocation_info.offset, memory_requirements.alignment);
 
-/* Bind VkImage to allocation. */
-#ifndef NDEBUG
-  VkResult bind_result =
-#endif
-      vmaBindImageMemory2(device.mem_allocator_get(),
-                          allocation_handle.allocation,
-                          aligned_offset,
-                          texture_handle.texture->vk_image_,
-                          nullptr);
+  /* Bind VkImage to allocation. */
+  VkResult bind_result = vmaBindImageMemory2(device.mem_allocator_get(),
+                                             allocation_handle.allocation,
+                                             aligned_offset,
+                                             texture_handle.texture->vk_image_,
+                                             nullptr);
 
   /* WATCH(not_mark): if the bind fails with e.g. VK_ERROR_UNKNOWN, VkMemoryRequirements are
    * likely not correctly satisfied. I'll keep the assert in for now, as the problem otherwise
    * incorrectly shows up in the render graph. */
+  UNUSED_VARS(bind_result);
   BLI_assert_msg(bind_result == VK_SUCCESS,
                  "VKTexturePool::acquire failed on vmaBindImageMemory2.");
 
@@ -208,7 +201,7 @@ void VKTexturePool::release_texture(Texture *tex)
 {
   BLI_assert_msg(acquired_.contains({unwrap(tex)}),
                  "Unacquired texture passed to VKTexturePool::offset_users_count()");
-  auto texture_handle = acquired_.lookup_key({unwrap(tex)});
+  TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex)});
 
   /* Move allocation back to `pool_`. */
   AllocationHandle allocation_handle = texture_handle.allocation_handle;
@@ -224,7 +217,7 @@ void VKTexturePool::offset_users_count(Texture *tex, int offset)
 {
   BLI_assert_msg(acquired_.contains({unwrap(tex)}),
                  "Unacquired texture passed to VKTexturePool::offset_users_count()");
-  auto texture_handle = acquired_.lookup_key({unwrap(tex)});
+  TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex)});
   texture_handle.users_count += offset;
   acquired_.add_overwrite(texture_handle);
 }
