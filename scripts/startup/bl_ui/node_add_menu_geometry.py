@@ -791,6 +791,8 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
+        self.node_operator(layout, "NodeGetBundleItem")
+        self.node_operator(layout, "NodeStoreBundleItem")
         self.node_operator(layout, "NodeJoinBundle")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
@@ -815,7 +817,7 @@ class NODE_MT_gn_utilities_list_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
-        self.node_operator(layout, "GeometryNodeList")
+        self.node_operator(layout, "GeometryNodeFieldToList")
         self.node_operator(layout, "GeometryNodeListGetItem")
         self.node_operator(layout, "GeometryNodeListLength")
 

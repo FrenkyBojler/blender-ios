@@ -17,6 +17,8 @@
 
 #include "BLO_core_file_reader.hh"
 
+namespace blender {
+
 FileReader *BLO_file_reader_uncompressed_from_path(const char *filepath)
 {
   const int filedes = BLI_open(filepath, O_BINARY | O_RDONLY, 0);
@@ -69,3 +71,5 @@ FileReader *BLO_file_reader_uncompressed(FileReader *rawfile)
   rawfile->close(rawfile);
   return nullptr;
 }
+
+}  // namespace blender
