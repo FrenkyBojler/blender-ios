@@ -80,7 +80,7 @@ bool BKE_displist_surfindex_get(
  * Pass this along if known since it saves time calculating the normal.
  * This is also used to initialize #DispList.nors (one normal per display list).
  * \param flip_normal: Flip the normal (same as passing \a normal_proj negated).
- * \param fill_solver: Triangulation solver (#CU_FILL_SOLVER_SCANFILL, etc.).
+ * \param fill_solver: Triangulation solver (#CU_FILL_SOLVER_SWEEP_LINE, etc.).
  * \param fill_rule: Fill rule for CDT solver (#CU_FILL_RULE_EVEN_ODD, etc.).
  */
 void BKE_displist_fill(const ListBaseT<DispList> *dispbase,

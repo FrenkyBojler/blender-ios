@@ -1444,7 +1444,7 @@ static PyObject *M_Geometry_tessellate_polygon(PyObject * /*self*/, PyObject *po
                       &dispbase,
                       is_2d ? down_vec : nullptr,
                       false,
-                      CU_FILL_SOLVER_SCANFILL,
+                      CU_FILL_SOLVER_SWEEP_LINE,
                       CU_FILL_RULE_EVEN_ODD);
 
     /* The faces are stored in a new DisplayList

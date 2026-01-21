@@ -97,7 +97,14 @@ enum {
 
 /** #Curve.fill_solver */
 enum {
-  CU_FILL_SOLVER_SCANFILL = 0,
+  /**
+   * Fast filling without support for self-intersections.
+   * Uses `BLI_scanfill`.
+   */
+  CU_FILL_SOLVER_SWEEP_LINE = 0,
+  /**
+   * Constrained Delaunay Triangulation with self-intersection and fill rule support.
+   */
   CU_FILL_SOLVER_CDT = 1,
 };
 

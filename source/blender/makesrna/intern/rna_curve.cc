@@ -138,8 +138,16 @@ static const EnumPropertyItem curve3d_fill_mode_items[] = {
 };
 
 static const EnumPropertyItem fill_solver_items[] = {
-    {CU_FILL_SOLVER_SCANFILL, "SCANFILL", 0, "Scanfill", "Classic scanfill triangulation"},
-    {CU_FILL_SOLVER_CDT, "CDT", 0, "Delaunay", "Constrained Delaunay Triangulation"},
+    {CU_FILL_SOLVER_SWEEP_LINE,
+     "SWEEP_LINE",
+     0,
+     "Sweep Line",
+     "Fast without support for self-intersection"},
+    {CU_FILL_SOLVER_CDT,
+     "CDT",
+     0,
+     "Delaunay",
+     "Constrained Delaunay Triangulation (CDT), robust with support for self-intersections"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

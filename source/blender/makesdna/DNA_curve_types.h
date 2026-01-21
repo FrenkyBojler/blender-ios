@@ -266,7 +266,7 @@ struct Curve {
    */
   char taper_radius_mode = CU_TAPER_RADIUS_OVERRIDE;
   /** Triangulation solver for filling 2D curves. */
-  char fill_solver = CU_FILL_SOLVER_SCANFILL;
+  char fill_solver = CU_FILL_SOLVER_SWEEP_LINE;
   /** Fill rule for CDT fill solver. */
   char fill_rule = CU_FILL_RULE_EVEN_ODD;
   char _pad[1] = {};
