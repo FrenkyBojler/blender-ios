@@ -1,1 +1,2 @@
 Referenced by issue #146132, Vulkan: SSS artifacts after EEVEE GBuffer packing refactor
+Referenced by issue #153092, "shader to RGB" node will disable the thickness from shadow of subsurface scattering
