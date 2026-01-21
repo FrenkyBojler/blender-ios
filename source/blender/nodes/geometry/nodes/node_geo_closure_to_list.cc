@@ -272,15 +272,14 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeClosureToList");
   ntype.ui_name = "Closure to List";
   ntype.ui_description = "Create a list of values";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
-      ntype, "GeometryNodeClosureToList", node_free_storage, node_copy_storage);
+  bke::node_type_storage(ntype, "GeometryNodeClosureToList", node_free_storage, node_copy_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
@@ -290,7 +289,7 @@ static void node_register()
   ntype.internally_linked_input = node_internally_linked_input;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
