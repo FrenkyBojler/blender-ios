@@ -2788,6 +2788,10 @@ void Layout::prop_textbox(PointerRNA *ptr,
   ButtonTextBox *textbox = static_cast<ButtonTextBox *>(but);
   textbox->visible_lines = visible_lines;
 
+  if (RNA_property_flag(prop) & PROP_TEXTEDIT_UPDATE) {
+    button_flag_enable(but, BUT_TEXTEDIT_UPDATE);
+  }
+
   Layout &grip_row = overlap.row(true);
   grip_row.alignment_set(LayoutAlign::Expand);
 

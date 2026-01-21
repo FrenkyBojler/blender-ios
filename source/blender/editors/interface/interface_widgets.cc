@@ -2009,8 +2009,9 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
 Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
 {
   const uiFontStyle &fstyle = style_get()->widget;
-  const int width = std::ceil(BLI_rctf_size_x(&textbox->rect) -
-                              2.0f * UI_TEXT_MARGIN_X * float(U.widget_unit) - 2.0f);
+  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&textbox->rect) -
+                                            2.0f * UI_TEXT_MARGIN_X * float(U.widget_unit) - 2.0f),
+                                  0);
   StringRef text = textbox->drawstr;
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data = button_ime_data_get(textbox);
@@ -2178,10 +2179,10 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     scissor_textbox.ymax = scissor_textbox.ymin + BLI_rcti_size_y(&rect);
     BLI_rcti_isect(&scissor_rect, &scissor_textbox, &scissor_textbox);
     /* Textbox text isn't clipped, apply scissors to avoid text overflowing the scrollbar. */
-    GPU_scissor(scissor_rect.xmin,
-                scissor_rect.ymin,
-                BLI_rcti_size_x(&scissor_rect),
-                BLI_rcti_size_y(&scissor_rect));
+    GPU_scissor(scissor_textbox.xmin,
+                scissor_textbox.ymin,
+                BLI_rcti_size_x(&scissor_textbox),
+                BLI_rcti_size_y(&scissor_textbox));
   }
 
   /* Text button selection, cursor, composite underline. */
