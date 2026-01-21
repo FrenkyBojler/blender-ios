@@ -1099,28 +1099,6 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
     /* Adds `strip->sound->playback_handle` to `scene->sound_scene` */
     printf("dont skip strip %s\n", strip->name);
 
-    // Ramon: this is a overcomplicated thing that is currently needed to enable that strips in the
-    // meta can be duplicated
-    Strip *parent_strip = lookup_meta_by_strip(scene->ed, strip);
-    if (parent_strip != nullptr) {
-      printf("recalc parent_strip\n");
-      if (parent_strip->runtime->scene_sound != nullptr) {
-        if (parent_strip->runtime->last_parent_sound_scene != nullptr) {
-          BKE_sound_remove_sound(parent_strip->runtime->last_parent_sound_scene,
-                                 parent_strip->runtime->scene_sound);
-          parent_strip->runtime->scene_sound = nullptr;
-        }
-        else {
-          BKE_sound_remove_sound(scene->runtime->audio.sound_scene,
-                                 parent_strip->runtime->scene_sound);
-          parent_strip->runtime->scene_sound = nullptr;
-        }
-      }
-      parent_strip->runtime->scene_sound = BKE_sound_scene_add_scene_sound_defaults(scene,
-                                                                                    parent_strip);
-    }
-
-    // printf("-----\n");
     strip->runtime->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip);
   }
   else if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
