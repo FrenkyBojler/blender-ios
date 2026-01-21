@@ -54,6 +54,9 @@ ActionSlotAssignmentResult assign_action_slot_handle(NlaStrip &strip,
  *
  * With the removal of the NLA any calls to this can be redirected to
  * animrig::insert_keyframe_direct.
+ *
+ * \warning This bypasses all animation layer and strip logic. Use with caution. If unsure, use
+ * `insert_keyframes` instead.
  */
 bool insert_keyframe_direct(ReportList *reports,
                             PointerRNA ptr,
