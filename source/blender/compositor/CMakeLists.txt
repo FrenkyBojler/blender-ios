@@ -15,7 +15,6 @@ set(INC
 )
 
 set(INC_SYS
-
 )
 
 set(SRC
@@ -170,6 +169,9 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::intern::clog
   PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::optional::tbb
+  PRIVATE bf::dependencies::optional::fftw3
+  PRIVATE bf::dependencies::optional::openimagedenoise
 )
 
 set(GLSL_SRC
@@ -220,7 +222,6 @@ set(GLSL_SRC
   shaders/infos/compositor_pixelate_infos.hh
   shaders/infos/compositor_plane_deform_infos.hh
   shaders/infos/compositor_premultiply_alpha_infos.hh
-  shaders/infos/compositor_read_input_infos.hh
   shaders/infos/compositor_realize_on_domain_infos.hh
   shaders/infos/compositor_relative_to_pixel_infos.hh
   shaders/infos/compositor_sample_pixel_infos.hh
@@ -324,7 +325,6 @@ set(GLSL_SRC
   shaders/compositor_plane_deform.glsl
   shaders/compositor_premultiply_alpha.glsl
   shaders/compositor_radial_lens_distortion.glsl
-  shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
   shaders/compositor_relative_to_pixel_float.glsl
   shaders/compositor_relative_to_pixel_float_per_dimension.glsl
@@ -446,29 +446,6 @@ if(WITH_TBB)
     # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
-endif()
-
-if(WITH_OPENIMAGEDENOISE)
-  add_definitions(-DWITH_OPENIMAGEDENOISE)
-  add_definitions(-DOIDN_STATIC_LIB)
-  list(APPEND INC_SYS
-    ${OPENIMAGEDENOISE_INCLUDE_DIRS}
-    ${TBB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${OPENIMAGEDENOISE_LIBRARIES}
-    ${TBB_LIBRARIES}
-  )
-endif()
-
-if(WITH_FFTW3)
-  list(APPEND INC_SYS
-    ${FFTW3_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFTW3_LIBRARIES}
-  )
-  add_definitions(-DWITH_FFTW3)
 endif()
 
 blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
