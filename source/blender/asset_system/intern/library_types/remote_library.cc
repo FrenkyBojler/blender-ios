@@ -44,6 +44,18 @@
 
 namespace blender::asset_system {
 
+struct PreferredLibraryCachePath {
+  /* Based on the current URL and identifier, the cache path built from the two (e.g.
+   * `$HOME/.cache/blender/remote-assets/1a2b3c-my_identifier/ */
+  char preferred_library_path[FILE_MAX];
+  /* Reference into #preferred_library_path above. */
+  StringRef hash_part;
+  /* Reference into #preferred_library_path above. */
+  StringRef name_hint_part;
+
+  static PreferredLibraryCachePath from_library(const bUserAssetLibrary &library);
+};
+
 RemoteAssetLibrary::RemoteAssetLibrary(const StringRef remote_url,
                                        const StringRef name,
                                        const StringRef cache_root_path)
@@ -310,6 +322,8 @@ void remote_library_request_download(Main &bmain, bUserAssetLibrary &library_def
     return;
   }
 
+  RemoteAssetLibrary::refresh_cache_directory_name(library_definition);
+
   /* Returns true if the directory exists, also if it pre-existed. */
   if (!BLI_dir_create_recursive(remote_library_cache_path(library_definition).c_str())) {
     return;
@@ -394,6 +408,14 @@ void remote_library_request_asset_download(bContext &C,
     return;
   }
 
+  const RemoteAssetLibrary *remote_library = dynamic_cast<const RemoteAssetLibrary *>(&library);
+  if (remote_library == nullptr) {
+    BLI_assert_unreachable();
+    return;
+  }
+
+  remote_library->refresh_cache_directory_name();
+
   /* The main file is listed first, and has to be downloaded last. By reversing the list of files,
    * first the dependencies are downloaded, followed by the asset itself. That way, when the main
    * asset file appears on disk, it is ready for use.
@@ -452,6 +474,14 @@ void remote_library_request_preview_download(bContext &C,
                 asset.get_name().c_str());
     return;
   }
+
+  const RemoteAssetLibrary *remote_library = dynamic_cast<const RemoteAssetLibrary *>(&library);
+  if (remote_library == nullptr) {
+    BLI_assert_unreachable();
+    return;
+  }
+
+  remote_library->refresh_cache_directory_name();
 
   /* Notify the preview loading UI that a download for this preview is pending. */
   ED_preview_online_download_requested(dst_filepath);
@@ -559,70 +589,84 @@ std::string remote_library_asset_preview_path(const AssetRepresentation &asset)
  */
 const int8_t MAX_REMOTE_LIBRARY_IDENTIFIER = 6 + 1 + 20 + 1;
 
-static void asset_library_identifier(StringRef name,
-                                     StringRef remote_url,
-                                     StringRef *r_hash_part,
-                                     StringRef *r_name_hint_part,
-                                     char buf[MAX_REMOTE_LIBRARY_IDENTIFIER])
+static StringRefNull remote_libraries_caches_path()
 {
-  /* MD5 hash part. */
-  uchar digest[16];
-  BLI_hash_md5_buffer(remote_url.data(), remote_url.size(), digest);
-  char hex_digest[33];
-  BLI_hash_md5_to_hexdigest(digest, hex_digest);
-  /* This adds a null terminator. */
-  BLI_strncpy(buf, hex_digest, 7);
+  static std::string libraries_caches_path = [] {
+    char libraries_caches_path[FILE_MAX];
+    char cache_path[FILE_MAX];
+    BKE_appdir_folder_caches(cache_path, sizeof(cache_path));
+    BLI_path_join(
+        libraries_caches_path, sizeof(libraries_caches_path), cache_path, "remote-assets");
 
-  buf[6] = '-';
-  *r_hash_part = StringRef{buf, 7};
+    return std::string{libraries_caches_path};
+  }();
 
-  /* Name part for human readability (truncated and made safe for use as file name). */
-  char safe_trunc_name[20];
-  name.copy_utf8_truncated(safe_trunc_name);
-  BLI_path_make_safe_filename(safe_trunc_name);
-  /* Adds null terminator. */
-  BLI_strncpy(&buf[7], safe_trunc_name, sizeof(safe_trunc_name) + 1);
-  *r_name_hint_part = StringRef{&buf[7]};
+  return libraries_caches_path;
+}
+
+PreferredLibraryCachePath PreferredLibraryCachePath::from_library(const bUserAssetLibrary &library)
+{
+  /* E.g.: `$HOME/.cache/blender/remote-assets/` */
+  StringRefNull caches_path = remote_libraries_caches_path();
+
+  /* E.g. `1a2b3c-my_identifier`. */
+  char library_identifier[MAX_REMOTE_LIBRARY_IDENTIFIER];
+  {
+    /* MD5 hash part. */
+    uchar digest[16];
+    BLI_hash_md5_buffer(library.remote_url, strlen(library.remote_url), digest);
+    char hex_digest[33];
+    BLI_hash_md5_to_hexdigest(digest, hex_digest);
+    /* This adds a null terminator. */
+    BLI_strncpy(library_identifier, hex_digest, 7);
+
+    library_identifier[6] = '-';
+
+    /* Name part for human readability (truncated and made safe for use as file name). */
+    char safe_trunc_name[21];
+    StringRef{library.name}.copy_utf8_truncated(safe_trunc_name);
+    BLI_path_make_safe_filename(safe_trunc_name);
+    /* Adds null terminator. */
+    BLI_strncpy(&library_identifier[7], safe_trunc_name, sizeof(safe_trunc_name));
+  }
+
+  PreferredLibraryCachePath result{};
+  BLI_path_join(result.preferred_library_path,
+                sizeof(result.preferred_library_path),
+                caches_path.c_str(),
+                library_identifier);
+  result.hash_part = StringRef{result.preferred_library_path}.substr(caches_path.size() + 1, 6);
+  result.name_hint_part = StringRef{result.preferred_library_path}.substr(caches_path.size() + 1 +
+                                                                          7);
+
+  return result;
 }
 
 std::string remote_library_cache_path(const bUserAssetLibrary &library)
 {
-  char cache_path[FILE_MAX];
-  char libraries_cache_path[FILE_MAX];
-  BKE_appdir_folder_caches(cache_path, sizeof(cache_path));
-  BLI_path_join(libraries_cache_path, sizeof(libraries_cache_path), cache_path, "remote-assets");
-
-  char library_identifier[MAX_REMOTE_LIBRARY_IDENTIFIER];
-  StringRef hash_part;
-  StringRef name_hint_part;
-  asset_library_identifier(
-      library.name, library.remote_url, &hash_part, &name_hint_part, library_identifier);
-
-  char preferred_library_path[FILE_MAX];
-  BLI_path_join(preferred_library_path,
-                sizeof(preferred_library_path),
-                libraries_cache_path,
-                library_identifier);
+  PreferredLibraryCachePath preferred = PreferredLibraryCachePath::from_library(library);
 
   /* Simple and probably most common case once a library was loaded once: The cache path derived
    * from the current URL and current identifier exists on disk -> use it. */
-  if (BLI_is_dir(preferred_library_path)) {
-    return preferred_library_path;
+  if (BLI_is_dir(preferred.preferred_library_path)) {
+    return preferred.preferred_library_path;
   }
 
-  /* Remaining cases: Couldn't find the expected cache path. Check if there are other directories
-   * with the same hashed URL and use one of those. If there is none, the cache directory just
-   * doesn't exist yet and we return the path built from the current URL and identifier. */
-  if (BLI_is_dir(libraries_cache_path)) {
+  StringRefNull caches_path = remote_libraries_caches_path();
+
+  /* Couldn't find the expected cache path. Check if there are other directories with the same
+   * hashed URL and use one of those. If there is none, the cache directory just doesn't exist yet
+   * and we return the path built from the current URL and identifier. */
+  if (BLI_is_dir(caches_path.c_str())) {
     direntry *dirs;
-    const uint dirs_num = BLI_filelist_dir_contents(libraries_cache_path, &dirs);
+    const uint dirs_num = BLI_filelist_dir_contents(caches_path.c_str(), &dirs);
     BLI_SCOPED_DEFER([&]() { BLI_filelist_free(dirs, dirs_num); });
 
     for (int i = 0; i < dirs_num; i++) {
       if (!S_ISDIR(dirs[i].s.st_mode)) {
         continue;
       }
-      if (StringRef{dirs[i].relname}.startswith(hash_part)) {
+      if (StringRef{dirs[i].relname}.startswith(preferred.hash_part)) {
         return dirs[i].path;
       }
     }
@@ -630,7 +674,58 @@ std::string remote_library_cache_path(const bUserAssetLibrary &library)
 
   /* No pre-existing path with the same hash. Return the one generated from the current URL +
    * identifier. */
-  return preferred_library_path;
+  return preferred.preferred_library_path;
+}
+
+void RemoteAssetLibrary::refresh_cache_directory_name(const bUserAssetLibrary &library_definition)
+{
+  PreferredLibraryCachePath preferred = PreferredLibraryCachePath::from_library(
+      library_definition);
+  if (BLI_is_dir(preferred.preferred_library_path)) {
+    /* Preferred path found, nothing to refresh. */
+    return;
+  }
+
+  std::string actual_path = remote_library_cache_path(library_definition);
+
+  if (!BLI_is_dir(actual_path.c_str())) {
+    return;
+  }
+  /* Refresh directory name: Attempt to rename the directory to the preferred name (made from the
+   * latest URL + identifier) */
+  /* Returns 0 on success. */
+  if (BLI_rename(actual_path.c_str(), preferred.preferred_library_path) != 0) {
+    /* Renaming failded, no need to do further refreshing. */
+    return;
+  }
+
+  /* Lastly, make sure that all loaded libraries with matching the given URL refer to the latest
+   * directory name. */
+  AssetLibrary::foreach_loaded(
+      [&](AssetLibrary &library) {
+        RemoteAssetLibrary *remote_library = dynamic_cast<RemoteAssetLibrary *>(&library);
+        if (remote_library && remote_library->root_path() == actual_path) {
+          remote_library->set_root_path(preferred.preferred_library_path);
+        }
+      },
+      false);
+}
+
+void RemoteAssetLibrary::refresh_cache_directory_name() const
+{
+  for (const bUserAssetLibrary &library_definition : U.asset_libraries) {
+    if (library_definition.name == this->name()) {
+      BLI_assert(library_definition.remote_url == this->remote_url_);
+      RemoteAssetLibrary::refresh_cache_directory_name(library_definition);
+      break;
+    }
+  }
+}
+
+void remote_library_refresh_cache_directory_name(const bUserAssetLibrary &library_definition)
+{
+  /* Forward to a class function so this can call the protected #AssetLibrary.set_root_path(). */
+  RemoteAssetLibrary::refresh_cache_directory_name(library_definition);
 }
 
 /** \} */

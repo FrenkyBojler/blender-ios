@@ -209,6 +209,7 @@ class AssetLibrary {
  protected:
   /** Load catalogs that have changed on disk. */
   virtual void refresh_catalogs();
+  void set_root_path(StringRef new_path);
 };
 
 Vector<AssetLibraryReference> all_valid_asset_library_refs();

@@ -83,6 +83,10 @@ struct OnlineAssetInfo {
 class AssetRepresentation;
 
 [[nodiscard]] std::string remote_library_cache_path(const bUserAssetLibrary &library);
+/**
+ * Renames the cache directory on disk if needed to match the current URL and current identifier.
+ */
+void remote_library_refresh_cache_directory_name(const bUserAssetLibrary &library_definition);
 
 /**
  * Ensures the remote library cache directory exists, and calls Python downloader through

@@ -266,6 +266,11 @@ AssetCatalogService &AssetLibrary::catalog_service() const
 
 void AssetLibrary::refresh_catalogs() {}
 
+void AssetLibrary::set_root_path(StringRef new_path)
+{
+  *root_path_ = new_path;
+}
+
 void AssetLibrary::load_or_reload_catalogs()
 {
   {

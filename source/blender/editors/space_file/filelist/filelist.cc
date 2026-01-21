@@ -3565,6 +3565,8 @@ static void remote_asset_library_request(FileListReadJob *job_params, bUserAsset
     return;
   }
 
+  asset_system::remote_library_refresh_cache_directory_name(library);
+
   /* Check if the library's cache directory exists, otherwise, request download. */
   if (!BLI_is_dir(asset_system::remote_library_cache_path(library).c_str())) {
     blender::asset_system::remote_library_request_download(*job_params->current_main, library);
