@@ -128,22 +128,6 @@ static void animsys_construct_orig_pointer_rna(const PointerRNA *ptr, PointerRNA
   ptr_orig->data = ptr_orig->owner_id;
 }
 
-/* Copy of the same-named function in anim_sys.cc. */
-static void animsys_write_orig_anim_rna(PointerRNA *ptr,
-                                        const char *rna_path,
-                                        const int array_index,
-                                        const float value)
-{
-  PointerRNA ptr_orig;
-  animsys_construct_orig_pointer_rna(ptr, &ptr_orig);
-
-  PathResolvedRNA orig_anim_rna;
-  /* TODO(sergey): Should be possible to cache resolved path in dependency graph somehow. */
-  if (BKE_animsys_rna_path_resolve(&ptr_orig, rna_path, array_index, &orig_anim_rna)) {
-    BKE_animsys_write_to_rna_path(&orig_anim_rna, value);
-  }
-}
-
 static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
                                                StripKeyframeData &strip_data,
                                                const slot_handle_t slot_handle,
@@ -201,6 +185,9 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
                              PointerRNA &animated_id_ptr,
                              const bool flush_to_original)
 {
+  /* A cache to avoid RNA lookups to different indices of the same RNA path. For example location
+   * x/y/z all resolve to the same property with just the index differing. */
+  Map<int64_t, PathResolvedRNA> original_rna_resolve_cache;
   for (auto channel_result : evaluation_result.items()) {
     const PropIdentifier &prop_ident = channel_result.key;
     const AnimatedProperty &anim_prop = channel_result.value;
@@ -209,11 +196,28 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
 
     BKE_animsys_write_to_rna_path(&anim_rna, animated_value);
 
-    if (flush_to_original) {
+    if (!flush_to_original) {
+      continue;
+    }
+
+    PointerRNA ptr_orig;
+    animsys_construct_orig_pointer_rna(&animated_id_ptr, &ptr_orig);
+    const int64_t rna_path_hash = get_default_hash(prop_ident.rna_path);
+    if (PathResolvedRNA *cached = original_rna_resolve_cache.lookup_ptr(rna_path_hash)) {
+      /* The cached data has been used already so it's safe to modify it here. */
+      cached->prop_index = prop_ident.array_index;
+      BKE_animsys_write_to_rna_path(cached, animated_value);
+    }
+    else {
+      PathResolvedRNA orig_anim_rna;
       /* Convert the StringRef to a `const char *`, as the rest of the RNA path handling code in
        * BKE still uses `char *` instead of `StringRef`. */
-      animsys_write_orig_anim_rna(
-          &animated_id_ptr, prop_ident.rna_path.c_str(), prop_ident.array_index, animated_value);
+      if (BKE_animsys_rna_path_resolve(
+              &ptr_orig, prop_ident.rna_path.c_str(), prop_ident.array_index, &orig_anim_rna))
+      {
+        BKE_animsys_write_to_rna_path(&orig_anim_rna, animated_value);
+        original_rna_resolve_cache.add(rna_path_hash, std::move(orig_anim_rna));
+      }
     }
   }
 }
