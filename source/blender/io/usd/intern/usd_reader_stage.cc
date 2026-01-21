@@ -129,7 +129,7 @@ static void convert_to_z_up(pxr::UsdStageRefPtr stage, ImportSettings &settings)
   settings.do_convert_mat = true;
 
   /* Rotate 90 degrees about the X-axis. */
-  const math::AxisAngle axis_angle_rotation(math::AxisSigned::X_POS, M_PI_2);
+  const math::AxisAngle axis_angle_rotation(float3(1.0f, 0.0f, 0.0f), M_PI_2);
   settings.conversion_mat = math::from_rotation<float4x4>(axis_angle_rotation);
 }
 
