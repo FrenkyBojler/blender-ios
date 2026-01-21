@@ -12,7 +12,7 @@ import sys
 import bpy
 
 """
-blender -b --factory-startup tests/files/modeling/modifiers/multires_modifier --python tests/python/modeling/modifiers/multires_modifier.py -- --run-all-tests
+blender -b --factory-startup tests/files/modeling/modifiers/multires_modifier --python tests/python/modeling/modifiers/multires_modifier.py
 """
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
