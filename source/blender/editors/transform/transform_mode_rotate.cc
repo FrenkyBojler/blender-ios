@@ -49,40 +49,35 @@ struct RotateMatrixCache {
  * point errors. */
 static bool get_exact_sincos_quarter_turn(float angle, float *r_sin, float *r_cos)
 {
-  const float quarter = float(M_PI_2);
-  const float turns = angle / quarter;
-  const float snapped_turns = roundf(turns);
+  const float angle_wrapped = angle_wrap_rad(angle);
+  const float epsilon = 1e-6f;
 
-  /* Tolerance for snapping. */
-  if (fabsf(turns - snapped_turns) < 1e-4f) {
-    /* Rotation repeats every four quarter turns. k is the index of the quarter rotation.
-     * For 90 degrees, snapped_turns will be 1, and 1 % 4 = 1, so a k=1 corresponds to a 90
-     * degree rotation. For 180 degrees, snapped_turns is 2, 2 % 4 = 2 so a k=2 gives the 180
-     * degree case and so on. Negative angles produce negative remainders so 4 is added to wrap
-     * back into the positive range. */
-    int k = int(snapped_turns) % 4;
-    if (k < 0) {
-      k += 4;
-    }
-    
-    switch (k) {
-      case 0:
-        *r_cos = 1.0f;
-        *r_sin = 0.0f;
-        return true;
-      case 1:
-        *r_cos = 0.0f;
-        *r_sin = 1.0f;
-        return true;
-      case 2:
-        *r_cos = -1.0f;
-        *r_sin = 0.0f;
-        return true;
-      case 3:
-        *r_cos = 0.0f;
-        *r_sin = -1.0f;
-        return true;
-    }
+  /* 0 degrees */
+  if (fabsf(angle_wrapped) < epsilon) {
+    *r_cos = 1.0f;
+    *r_sin = 0.0f;
+    return true;
+  }
+
+  /* 90 degrees */
+  if (fabsf(angle_wrapped - float(M_PI_2)) < epsilon) {
+    *r_cos = 0.0f;
+    *r_sin = 1.0f;
+    return true;
+  }
+
+  /* -90 degrees */
+  if (fabsf(angle_wrapped + float(M_PI_2)) < epsilon) {
+    *r_cos = 0.0f;
+    *r_sin = -1.0f;
+    return true;
+  }
+
+  /* 180 degrees */
+  if (fabsf(fabsf(angle_wrapped) - float(M_PI)) < epsilon) {
+    *r_cos = -1.0f;
+    *r_sin = 0.0f;
+    return true;
   }
   return false;
 }
