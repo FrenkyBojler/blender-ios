@@ -311,7 +311,7 @@ void BKE_modifiers_foreach_idproperty_container(
       params.set_data(&nmd.settings.properties,
                       IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
                       &ob.id,
-                      &RNA_NodesModifier);
+                      RNA_NodesModifier);
       function_callback(params);
     }
   }

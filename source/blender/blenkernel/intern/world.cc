@@ -147,12 +147,12 @@ static void world_foreach_idproperty_container(
   IDTypeInfoIDPropertyCallbackParams params;
 
   params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_World);
+      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_World);
   function_callback(params);
 
   params.set_data(&id.system_properties,
                   IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_World);
+                  RNA_World);
   function_callback(params);
 
   World &world = blender::id_cast<World &>(id);

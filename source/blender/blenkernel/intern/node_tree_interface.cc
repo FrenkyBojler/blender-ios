@@ -866,7 +866,7 @@ static void item_foreach_idproperty_container(
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
           item);
-      StructRNA *data_owner_rna_type = &RNA_NodeTreeInterfaceSocket;
+      StructRNA *data_owner_rna_type = RNA_NodeTreeInterfaceSocket;
       if (socket.socket_type) {
         blender::bke::bNodeSocketType *socket_typeinfo = blender::bke::node_socket_type_find(
             socket.socket_type);

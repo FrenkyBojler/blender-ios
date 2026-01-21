@@ -194,12 +194,12 @@ static void linestyle_foreach_idproperty_container(
   params.set_data(&id.properties,
                   IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
                   &id,
-                  &RNA_FreestyleLineStyle);
+                  RNA_FreestyleLineStyle);
   function_callback(params);
 
   params.set_data(&id.system_properties,
                   IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_FreestyleLineStyle);
+                  RNA_FreestyleLineStyle);
   function_callback(params);
 
   FreestyleLineStyle &linestyle = blender::id_cast<FreestyleLineStyle &>(id);

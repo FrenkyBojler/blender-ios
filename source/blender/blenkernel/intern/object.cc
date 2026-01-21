@@ -516,12 +516,12 @@ static void object_foreach_idproperty_container(
   IDTypeInfoIDPropertyCallbackParams params;
 
   params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Object);
+      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_Object);
   function_callback(params);
 
   params.set_data(&id.system_properties,
                   IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Object);
+                  RNA_Object);
   function_callback(params);
 
   Object &object = id_cast<Object &>(id);
@@ -531,12 +531,12 @@ static void object_foreach_idproperty_container(
   if (object.pose) {
     for (bPoseChannel &pchan : object.pose->chanbase) {
       params.set_data(
-          &pchan.prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &RNA_PoseBone);
+          &pchan.prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, RNA_PoseBone);
       function_callback(params);
 
       params.set_data(&pchan.system_properties,
                       IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                      &RNA_PoseBone);
+                      RNA_PoseBone);
       function_callback(params);
     }
   }

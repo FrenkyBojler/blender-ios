@@ -151,12 +151,12 @@ static void texture_foreach_idproperty_container(
   IDTypeInfoIDPropertyCallbackParams params;
 
   params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Texture);
+      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_Texture);
   function_callback(params);
 
   params.set_data(&id.system_properties,
                   IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Texture);
+                  RNA_Texture);
   function_callback(params);
 
   Tex &texture = blender::id_cast<Tex &>(id);

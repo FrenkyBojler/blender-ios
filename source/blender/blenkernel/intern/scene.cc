@@ -963,12 +963,12 @@ static void scene_foreach_idproperty_container(
   IDTypeInfoIDPropertyCallbackParams params;
 
   params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Scene);
+      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_Scene);
   function_callback(params);
 
   params.set_data(&id.system_properties,
                   IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Scene);
+                  RNA_Scene);
   function_callback(params);
 
   Scene &scene = blender::id_cast<Scene &>(id);
@@ -982,12 +982,12 @@ static void scene_foreach_idproperty_container(
   auto seq_strip_foreach_idproperty_container_func = [&params,
                                                       &function_callback](Strip *strip) -> bool {
     params.set_data(
-        &strip->prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &RNA_Strip);
+        &strip->prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, RNA_Strip);
     function_callback(params);
 
     params.set_data(&strip->system_properties,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    &RNA_Strip);
+                    RNA_Strip);
     function_callback(params);
     return true;
   };
@@ -998,19 +998,19 @@ static void scene_foreach_idproperty_container(
   for (ViewLayer &view_layer : scene.view_layers) {
     params.set_data(&view_layer.id_properties,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                    &RNA_ViewLayer);
+                    RNA_ViewLayer);
     function_callback(params);
 
     params.set_data(&view_layer.system_properties,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    &RNA_ViewLayer);
+                    RNA_ViewLayer);
     function_callback(params);
   }
 
   for (TimeMarker &marker : scene.markers) {
     params.set_data(&marker.prop,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    &RNA_TimelineMarker);
+                    RNA_TimelineMarker);
     function_callback(params);
   }
 }

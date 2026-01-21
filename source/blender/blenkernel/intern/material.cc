@@ -191,15 +191,13 @@ static void material_foreach_idproperty_container(
 {
   IDTypeInfoIDPropertyCallbackParams params;
 
-  params.set_data(&id.properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                  &id,
-                  &RNA_Material);
+  params.set_data(
+      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_Material);
   function_callback(params);
 
   params.set_data(&id.system_properties,
                   IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Material);
+                  RNA_Material);
   function_callback(params);
 
   Material &material = id_cast<Material &>(id);

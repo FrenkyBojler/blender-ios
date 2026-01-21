@@ -133,12 +133,12 @@ static void light_foreach_idproperty_container(
   IDTypeInfoIDPropertyCallbackParams params;
 
   params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Light);
+      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_Light);
   function_callback(params);
 
   params.set_data(&id.system_properties,
                   IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Light);
+                  RNA_Light);
   function_callback(params);
 
   Light &lamp = blender::id_cast<Light &>(id);

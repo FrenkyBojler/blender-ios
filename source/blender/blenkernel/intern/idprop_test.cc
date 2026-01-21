@@ -211,7 +211,7 @@ TEST_F(IDPropContainerIteratorFixture, idproperties_container_iterator)
   EXPECT_EQ(seen_properties_pointers, 8);
   for (SeenResult &result : seen_idproperties_containers) {
     EXPECT_EQ(result.params.id_owner, &this->arm.id);
-    EXPECT_TRUE(ELEM(result.params.data_owner_rna_type, &RNA_Armature, &RNA_Bone));
+    EXPECT_TRUE(ELEM(result.params.data_owner_rna_type, RNA_Armature, RNA_Bone));
     if (result.params.flags == IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined) {
       EXPECT_TRUE(this->created_user_properties.contains(result.idproperty));
     }

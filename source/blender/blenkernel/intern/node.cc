@@ -446,27 +446,25 @@ static void node_foreach_idproperty_container(
 {
   IDTypeInfoIDPropertyCallbackParams params;
 
-  params.set_data(&id.properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                  &id,
-                  &RNA_NodeTree);
+  params.set_data(
+      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_NodeTree);
   function_callback(params);
 
   params.set_data(&id.system_properties,
                   IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_NodeTree);
+                  RNA_NodeTree);
   function_callback(params);
 
   bNodeTree &ntree = reinterpret_cast<bNodeTree &>(id);
 
   for (bNode *node : ntree.all_nodes()) {
     params.set_data(
-        &node->prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &RNA_Node);
+        &node->prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, RNA_Node);
     function_callback(params);
 
     params.set_data(&node->system_properties,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    &RNA_Node);
+                    RNA_Node);
     function_callback(params);
   }
 
