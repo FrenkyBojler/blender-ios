@@ -625,9 +625,16 @@ LinkedBundleSignatures gather_linked_origin_bundle_signatures(
             return true;
           }
           if (node->is_type("NodeStoreBundleItem")) {
-            const bNodeSocket &input_bundle_socket = node->input_socket(0);
-            result = gather_linked_origin_bundle_signatures(
-                node.context, input_bundle_socket, compute_context_cache);
+            const auto &storage = *static_cast<const NodeStoreBundleItem *>(node->storage);
+            const bNodeSocket &path_socket = node->input_socket(1);
+            StringRef path = "";
+            path = (( bNodeSocketValueString *)path_socket.default_value)->value;
+            const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(
+                storage.socket_type);
+            BundleSignature signature;
+            signature.items.add({path, stype});
+
+            result.items.append({signature, true, socket});
             return true;
           }
           if (node->is_type("NodeGetBundleItem")) {
