@@ -1434,12 +1434,14 @@ int BKE_curvemapping_num_channels(const CurveMapping *cumap)
   if (cumap->cm[3].totpoint > 0) {
     return 4;
   }
-  else if (cumap->cm[2].totpoint > 0) {
+  if (cumap->cm[2].totpoint > 0) {
     return 3;
   }
-  else {
-    return 1;
+  if (cumap->cm[1].totpoint > 0) {
+    return 2;
   }
+
+  return 1;
 }
 
 void BKE_curvemapping_blend_write(BlendWriter *writer, const CurveMapping *cumap)
