@@ -8,13 +8,12 @@
 #include <cctype>
 
 #if defined(__ARM_NEON)
-/* Use ARM FP16 conversion instructions */
-// #  define USE_NEON
+#  define USE_NEON
 #  include <arm_neon.h>
 #endif
 
 #if (defined(__x86_64__) || defined(_M_X64))
-// #  define USE_SSE2
+#  define USE_SSE2
 #  include <immintrin.h>
 #endif
 
@@ -338,24 +337,24 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
   }
 
   const __m128i mask_last = _mm_set_epi8(0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  const __m128i mask_split = _mm_set1_epi8(Merge);
 
-  __m128i prev = _mm_set1_epi8(Invalid);
+  __m128i prev = _mm_set1_epi8(uint8_t(CharClass::None));
 
-  for (; offset + 16 <= size_; offset += 16) {
-    __m128i raw_data = _mm_loadu_si128((const __m128i *)(str_ + offset));
-    __m128i type = simd_transform16_ascii(map_v, raw_data);
+  for (; offset + 16 <= str_len_; offset += 16) {
+    const __m128i raw_data = _mm_loadu_si128((const __m128i *)(str_ + offset));
+    const __m128i curr = simd_transform16_ascii(map_v, raw_data);
     /* Check if token needs to always split. */
-    __m128i merge = _mm_cmpeq_epi8(_mm_and_si128(type, mask_split), mask_split);
-    /* Remove the Merge bit: type &= ~mask_split. */
-    type = _mm_andnot_si128(mask_split, type);
+    const __m128i mask_t = _mm_cmpgt_epi8(curr,
+                                          _mm_set1_epi8(int8_t(CharClass::ClassToTypeThreshold)));
+    const __m128i type = _mm_blendv_epi8(c, curr, mask_t);
     /* Add the last iteration end token at the end of the vector. */
-    prev = _mm_blendv_epi8(type, prev, mask_last);
+    prev = _mm_blendv_epi8(curr, prev, mask_last);
     /* Right shift elements (not bits) by 1. */
     prev = _mm_alignr_epi8(prev, prev, 15);
-    /* Equivalent to: `!(type == prev && type & Merge)`. */
-    __m128i eq = _mm_and_si128(_mm_cmpeq_epi8(type, prev), merge);
-    __m128i emit = _mm_xor_si128(eq, _mm_set1_epi8(0xFF));
+    /* Equivalent to: `!bool(curr & prev & CanMerge)`. */
+    const __m128i can_merge = _mm_set1_epi8(uint8_t(CharClass::CanMerge));
+    const __m128i combined = _mm_and_si128(_mm_and_si128(curr, prev), can_merge);
+    const __m128i emit = _mm_cmpeq_epi8(combined, _mm_setzero_si128());
 
     /* Stream compaction of data based on the emit mask (0xFF == emit, 0x00 == skip).
      * Stores `data` compacted inside `data_out` starting from `data_out + cursor` and advance
@@ -390,10 +389,10 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
       process_chunk(mask_hi, _mm_srli_si128(type, 8), offset + 8);
     }
 
-    prev = type;
+    prev = curr;
   }
   /* Finish tail using scalar loop. */
-  TokenType last_type = (TokenType)_mm_extract_epi8(prev, 15);
+  CharClass last_type = (CharClass)_mm_extract_epi8(prev, 15);
 
 #elif defined(USE_NEON)
   uint8x16x4_t map_v[2];
@@ -401,21 +400,22 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
   map_v[1] = vld1q_u8_x4((const uint8_t *)char_class_table + sizeof(uint8x16x4_t));
 
   const uint8x16_t mask_last = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF};
-  const uint8x16_t mask_split = vdupq_n_u8(Merge);
 
-  uint8x16_t prev = {Invalid};
-  for (; offset + 16 <= size_; offset += 16) {
-    uint8x16_t type = simd_transform16_ascii(map_v, vld1q_u8(str_ + offset));
-    /* Check if token needs to always split. */
-    const uint8x16_t merge = vceqq_s8(vandq_u8(type, mask_split), mask_split);
-    /* Remove the Merge bit. */
-    type = vandq_u8(type, vmvnq_u8(mask_split));
+  uint8x16_t prev = {uint8_t(CharClass::None)};
+  for (; offset + 16 <= str_len_; offset += 16) {
+    const uint8x16_t c = vld1q_u8(str_ + offset);
+    const uint8x16_t curr = simd_transform16_ascii(map_v, c);
+    /* (curr > ClassToTypeThreshold) ? TokenType(curr) : TokenType(c) */
+    const uint8x16_t mask_t = vcgtq_s8(curr, vdupq_n_u8(uint8_t(CharClass::ClassToTypeThreshold)));
+    /* Type to store. */
+    const uint8x16_t type = vbslq_u8(mask_t, curr, c);
     /* Add the last iteration end token at the end of the vector. */
-    prev = vbslq_u8(mask_last, prev, type);
+    prev = vbslq_u8(mask_last, prev, curr);
     /* Right shift elements (not bits) by 1. */
     prev = vextq_u8(prev, prev, 15);
-    /* Equivalent to: `!(type == prev && type & Merge)`. */
-    uint8x16_t emit = vmvnq_u8(vandq_u8(vceqq_s8(type, prev), merge));
+    /* Equivalent to: `!bool(curr & prev & CanMerge)`. */
+    const uint8x16_t can_merge = vdupq_n_u8(uint8_t(CharClass::CanMerge));
+    const uint8x16_t emit = vceqq_u8(vandq_u8(vandq_u8(curr, prev), can_merge), vdupq_n_u8(0));
 
     /* Stream compaction of data based on the emit mask (0xFF == emit, 0x00 == skip).
      * Stores `data` compacted inside `data_out` starting from `data_out + cursor` and advance
@@ -470,10 +470,10 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
       cursor += count_bits_i(mask_hi);
     }
 
-    prev = type;
+    prev = curr;
   }
   /* Finish tail using scalar loop. */
-  TokenType last_type = TokenType(vgetq_lane_u8(prev, 15));
+  CharClass last_type = CharClass(vgetq_lane_u8(prev, 15));
 #else
 
   /* Scalar only implementation. */
@@ -490,7 +490,7 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
       types_[cursor] = (curr > CharClass::ClassToTypeThreshold) ? TokenType(curr) : TokenType(c);
       offsets_[cursor] = offset;
       /* Split if no class in common. */
-      cursor += !bool(uint8_t(curr) & uint8_t(prev) & uint8_t(CharClass::CanMerge));
+      cursor += (uint8_t(curr) & uint8_t(prev) & uint8_t(CharClass::CanMerge)) == 0;
       prev = curr;
     }
   }
