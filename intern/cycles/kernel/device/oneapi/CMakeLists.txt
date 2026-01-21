@@ -73,7 +73,8 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     ${SYCL_CPP_FLAGS}
   )
   if(WITH_CYCLES_UNOPTIMIZED_KERNEL)
-    list(APPEND sycl_compiler_flags -O0)
+    # -O0 causes an assert llvm-spirv, so keep -O2 for nwo.
+    list(APPEND sycl_compiler_flags -O2)
   else()
     list(APPEND sycl_compiler_flags
       --offload-compress
