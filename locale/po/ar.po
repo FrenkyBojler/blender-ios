@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-07-23 14:53+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Arabic <https://translate.blender.org/projects/blender-ui/ui/ar/>\n"
@@ -7873,6 +7873,22 @@ msgid "Shader"
 msgstr "ﻞﻠﻈﻤﻟﺍ"
 
 
+msgid "Font"
+msgstr "ﻂﺨﻟﺍ"
+
+
+msgid "Text"
+msgstr "ﺺﻧ"
+
+
+msgid "Mask"
+msgstr "ءﺎﻄﻏ"
+
+
+msgid "Sound"
+msgstr "ﺕﻮﺻ"
+
+
 msgid "Freestyle Line Set"
 msgstr "ﻞﻳﺎﺘﺴﻳﺮﻓ ﻂﺧ ﺔﻋﻮﻤﺠﻣ"
 
@@ -9662,10 +9678,6 @@ msgstr "ﻰﻨﺤﻨﻣ ﻰﻠﻋ ﺺﻨﻟﺍ"
 
 msgid "Curve deforming text object"
 msgstr "ﺺﻨﻟﺍ ﻦﺋﺎﻜﻟ ﻉﻮّﻄﻤﻟﺍ ﻰﻨﺤﻨﻤﻟﺍ"
-
-
-msgid "Font"
-msgstr "ﻂﺨﻟﺍ"
 
 
 msgid "Font Bold"
@@ -12942,10 +12954,6 @@ msgid "Playback pitch of the sound"
 msgstr "ﺕﻮﺼﻠﻟ ﺽﺮﻌﻟﺍ ﺔﻤﻐﻧ"
 
 
-msgid "Sound"
-msgstr "ﺕﻮﺻ"
-
-
 msgid "How loud the sound is"
 msgstr "ﺕﻮﺼﻟﺍ ﻉﺎﻔﺗﺭﺍ ﻢﻛ"
 
@@ -15651,10 +15659,6 @@ msgid "Dots"
 msgstr "ﺕﺎﺨﻄﻟ"
 
 
-msgid "Mask"
-msgstr "ءﺎﻄﻏ"
-
-
 msgid "Material slot in an object"
 msgstr "ﻦﺋﺎﻛ ﻲﻓ ﺔﻣﺎﺧ ﺔﺤﺘﻓ"
 
@@ -15667,76 +15671,12 @@ msgid "Material slot name"
 msgstr "ﺔﻣﺎﺨﻟﺍ ﺔﺤﺘﻓ ﻢﺳﺇ"
 
 
-msgid "Select More/Less"
-msgstr "ﻞﻗﺍ/ﺮﺜﻛﺍ ﺭﺎﻴﺘﺧﺍ"
-
-
-msgid "Metaball"
-msgstr "ﺔﻠﻋﺎﻔﺘﻣ ﺓﺮﻛ"
-
-
-msgid "Light"
-msgstr "ءﻮﺿ"
-
-
-msgid "Relations"
-msgstr "ﺕﺎﻗﻼ﻿ﻌﻟﺍ"
-
-
-msgid "Rigid Body"
-msgstr "ﻞﻋﺎﻔﺘﻣ ﻢﺴﺟ"
-
-
-msgid "Apply"
-msgstr "ﻖﺒﻃ"
-
-
-msgid "Track"
-msgstr "ﺐﻘّﻌﺗ"
-
-
-msgid "Quick Effects"
-msgstr "ﺔﻌﻳﺮﺳ ﺕﺍﺮﻴﺛﺄﺗ"
-
-
-msgid "Layout"
-msgstr "ﻖﻴﺴﻨﺗ"
-
-
-msgid "Make Single User"
-msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﺪﻴﺣﻭ ﻪﻠﻌﺟﺍ"
-
-
-msgid "Hooks"
-msgstr "ﺕﺎﻓﺎﻄﺧ"
-
-
-msgid "Keying"
-msgstr "ﺺﺤﻔﻟﺍ"
-
-
-msgid "Tracking"
-msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ"
-
-
-msgid "In-Betweens"
-msgstr "ﻦﻴﺑ ﺎﻣ"
+msgid "Face Data"
+msgstr "ﻪﺟﻮﻟﺍ ﺕﺎﻧﺎﻴﺑ"
 
 
 msgid "Math"
 msgstr "ﺏﺎﺴﺣ"
-
-
-msgid "Propagate"
-msgstr "ﻢﻤﻋ"
-
-
-msgid "Names"
-msgstr "ءﺎﻤﺳﺃ"
-
-
-msgid "Face Data"
-msgstr "ﻪﺟﻮﻟﺍ ﺕﺎﻧﺎﻴﺑ"
 
 
 msgid "Merge"
@@ -15747,8 +15687,12 @@ msgid "Special Characters"
 msgstr "ﺔﺻﺎﺧ ﻑﺮﺣﺃ"
 
 
-msgid "Text"
-msgstr "ﺺﻧ"
+msgid "Metaball"
+msgstr "ﺔﻠﻋﺎﻔﺘﻣ ﺓﺮﻛ"
+
+
+msgid "Names"
+msgstr "ءﺎﻤﺳﺃ"
 
 
 msgid "Bone Roll"
@@ -15791,6 +15735,10 @@ msgid "Align View to Active"
 msgstr "ﻝﺎﻌّﻔﻠﻟ ﺮﻈﻨﻤﻟﺍ ﻱﺫﺎﺣ"
 
 
+msgid "Select More/Less"
+msgstr "ﻞﻗﺍ/ﺮﺜﻛﺍ ﺭﺎﻴﺘﺧﺍ"
+
+
 msgid "Select Similar"
 msgstr "ﻞﺛﺎﻤﻤﻟﺍ ﺮﺘﺧﺇ"
 
@@ -15801,6 +15749,58 @@ msgstr "ﺔﻤﺴﻟﺍ ﺐﺴﺣ ﻞﻛ ﺭﺎﻴﺘﺧﺍ"
 
 msgid "Select Linked"
 msgstr "ﺔﻄﺒﺗﺮﻤﻟﺍ ﺭﺎﺘﺧﺇ"
+
+
+msgid "Light"
+msgstr "ءﻮﺿ"
+
+
+msgid "Relations"
+msgstr "ﺕﺎﻗﻼ﻿ﻌﻟﺍ"
+
+
+msgid "Rigid Body"
+msgstr "ﻞﻋﺎﻔﺘﻣ ﻢﺴﺟ"
+
+
+msgid "Layout"
+msgstr "ﻖﻴﺴﻨﺗ"
+
+
+msgid "Apply"
+msgstr "ﻖﺒﻃ"
+
+
+msgid "Track"
+msgstr "ﺐﻘّﻌﺗ"
+
+
+msgid "Quick Effects"
+msgstr "ﺔﻌﻳﺮﺳ ﺕﺍﺮﻴﺛﺄﺗ"
+
+
+msgid "Make Single User"
+msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﺪﻴﺣﻭ ﻪﻠﻌﺟﺍ"
+
+
+msgid "Hooks"
+msgstr "ﺕﺎﻓﺎﻄﺧ"
+
+
+msgid "Keying"
+msgstr "ﺺﺤﻔﻟﺍ"
+
+
+msgid "Tracking"
+msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ"
+
+
+msgid "In-Betweens"
+msgstr "ﻦﻴﺑ ﺎﻣ"
+
+
+msgid "Propagate"
+msgstr "ﻢﻤﻋ"
 
 
 msgctxt "MovieClip"
@@ -18899,6 +18899,10 @@ msgid "Font size to use for displaying the label"
 msgstr "ﻖﺼﻠﻤﻟﺍ ﺽﺮﻌﻟ ﻡﺪﺨﺘﺴﻤﻟﺍ ﻂﺨﻟﺍ ﻢﺠﺣ"
 
 
+msgid "Single"
+msgstr "ﻱﺩﺮﻓ"
+
+
 msgid "Active Output"
 msgstr "ﻝﺎﻌّﻔﻟﺍ ﺝﺮﺨﻟﺍ"
 
@@ -19229,10 +19233,6 @@ msgstr "ﺓﺪﻘﻌﻟﺍ ﺝﺮﺧ"
 
 msgid "Value to Normal"
 msgstr "ﻢﻇﺎﻨﻠﻟ ﺔﻤﻴﻘﻟﺍ"
-
-
-msgid "Single"
-msgstr "ﻱﺩﺮﻓ"
 
 
 msgid "Socket Template"
@@ -29533,10 +29533,6 @@ msgstr " ﺮﻈﻨﻤﻠﻟ ﺐﻳﺮﻘﺘﻟﺍ/ﺮﻳﻭﺪﺘﻟﺍ/ﻚﻳ�
 
 msgid "Emulate 3 Button Mouse"
 msgstr "ﺭﺍﺭﺯﺃ 3 ـﺑ ﺓﺭﺄﻓ ﻲﻛﺎﺣ"
-
-
-msgid "Use selection as the pivot point"
-msgstr " ﺭﻮﺤﻣ ﺔﻄﻘﻨﻛ ﺭﺎﻴﺘﺧﻻ﻿ﺍ ﻡﺪﺨﺘﺳﺇ"
 
 
 msgid "Zoom in towards the mouse pointer's position in the 3D view, rather than the 2D window center"
