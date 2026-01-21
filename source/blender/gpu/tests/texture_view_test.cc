@@ -20,14 +20,14 @@
 
 namespace blender::gpu::tests {
 
-/* Test texture is 1x1 pixel, so glReadPixel etc. return predictable sizes. */
-constexpr auto texture_usage = GPU_TEXTURE_USAGE_GENERAL | GPU_TEXTURE_USAGE_HOST_READ |
-                               GPU_TEXTURE_USAGE_FORMAT_VIEW;
-
-/* Create a exture of specified format and clear to black. */
+/* Create a 1x1px texture of specified format and clear to black. Texture must
+ * support readback and view. */
 static gpu::Texture *create_base_texture(TextureFormat format)
 {
-  gpu::Texture *base = GPU_texture_create_2d("base", 1, 1, 1, format, texture_usage, nullptr);
+  constexpr eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL | GPU_TEXTURE_USAGE_HOST_READ |
+                                     GPU_TEXTURE_USAGE_FORMAT_VIEW;
+
+  gpu::Texture *base = GPU_texture_create_2d("base", 1, 1, 1, format, usage, nullptr);
   GPU_texture_mipmap_mode(base, false, false);
   GPU_memory_barrier(GPU_BARRIER_FRAMEBUFFER);
 
@@ -35,8 +35,8 @@ static gpu::Texture *create_base_texture(TextureFormat format)
   GPU_framebuffer_ensure_config(&fbo, {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(base)});
   GPU_framebuffer_bind(fbo);
 
-  float4 black(0.0f, 0.0f, 0.0f, 0.0f);
-  GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, black, 0.0f, 0u);
+  float4 zero_color(0.0f, 0.0f, 0.0f, 0.0f);
+  GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, zero_color, 0.0f, 0u);
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
   GPU_framebuffer_free(fbo);
@@ -74,17 +74,11 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
     GTEST_SKIP();
   }
 
-  /* Test colors, mostly arbitrary. */
-  float4 zero_color(0.0f, 0.0f, 0.0f, 0.0f);
-  float4 in_color(2.0f, 0.25f, 1.25f, 0.25f);
-  for (uint i = to_component_len(FormatB); i < 4; ++i) {
-    in_color[i] = 0.0f;
-  }
-
   gpu::Texture *base = create_base_texture(FormatA);
   gpu::Texture *view = create_view_texture(FormatB, base);
 
   /* First check; the view texture should be all zeroes. */
+  float4 zero_color(0.0f, 0.0f, 0.0f, 0.0f);
   EXPECT_EQ(get_texture_color(view), zero_color);
 
   /* Create FBO with view as color attachment 0. */
@@ -93,11 +87,15 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   GPU_framebuffer_bind(fbo);
 
   /* Clear FBO to specific color. */
-  GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, in_color, 0.0f, 0u);
+  float4 test_color(2.0f, 0.25f, 1.25f, 0.25f);
+  for (uint i = to_component_len(FormatB); i < 4; ++i) {
+    test_color[i] = 0.0f;
+  }
+  GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, test_color, 0.0f, 0u);
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
   /* Second check; the view texture should read back this color. */
-  EXPECT_EQ(get_texture_color(view), in_color);
+  EXPECT_EQ(get_texture_color(view), test_color);
 
   GPU_framebuffer_free(fbo);
   GPU_texture_free(view);
