@@ -16,7 +16,6 @@
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
-#include "UI_interface_c.hh"
 #include "UI_resources.hh"
 
 #include "MEM_guardedalloc.h"
@@ -304,7 +303,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
                                        bke::ARegionQuadviewIndex::TopRight));
   const float icon_offset = UI_SCALE_FAC *
                             (GIZMO_OFFSET + (show_rotate_gizmo ? GIZMO_SIZE / 2.0f : 0.0f));
-  const float icon_offset_mini = GIZMO_MINI_SIZE * UI_SCALE_FAC;
+  const float icon_offset_mini = (GIZMO_MINI_SIZE + GIZMO_MINI_OFFSET) * UI_SCALE_FAC;
   const float co_rotate[2] = {
       rect_visible->xmax - icon_offset,
       rect_visible->ymax - icon_offset,

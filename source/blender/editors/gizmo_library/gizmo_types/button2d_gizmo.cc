@@ -375,8 +375,8 @@ static bool gizmo_button2d_bounds(const bContext *C, wmGizmo *gz, rcti *r_boundi
   if (co != nullptr) {
     r_bounding_box->xmin = co[0] + area->totrct.xmin - rad;
     r_bounding_box->ymin = co[1] + area->totrct.ymin - rad;
-    r_bounding_box->xmax = r_bounding_box->xmin + (rad * 2);
-    r_bounding_box->ymax = r_bounding_box->ymin + (rad * 2);
+    r_bounding_box->xmax = r_bounding_box->xmin + int(rad * 2.0f);
+    r_bounding_box->ymax = r_bounding_box->ymin + int(rad * 2.0f);
     return true;
   }
   return false;
