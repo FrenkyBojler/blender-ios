@@ -267,7 +267,7 @@ void LexerBase::merge_tokens()
     }
   });
 
-  tok_buf.fuse_pass();
+  tok_buf.lex_pass();
   tok_buf.merge_whitespaces(token_ends.data());
 
   /* Change back tor regular newline. */

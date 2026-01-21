@@ -544,7 +544,7 @@ void TokenBuffer::lex_number(const uint8_t *c_str,
   cursor--;
 }
 
-void TokenBuffer::fuse_pass()
+void TokenBuffer::lex_pass()
 {
   const TokenType *in_types = types_;
   TokenType *out_type = types_;

@@ -79,9 +79,9 @@ class TokenBuffer {
   }
 
   /**
-   * @brief Fuse complex literals.
+   * @brief Lex complex literals.
    */
-  void fuse_pass();
+  void lex_pass();
 
   /**
    * @brief Merge whitespaces with their preceding token.

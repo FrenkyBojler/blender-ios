@@ -112,7 +112,7 @@ struct AtomicLexer : LexerBase {
     lexit::TokenBuffer tok_buf(
         str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
 
-    tok_buf.fuse_pass();
+    tok_buf.lex_pass();
 
     /* Resize to the actual usage. */
     token_types.shrink(tok_buf.size());
