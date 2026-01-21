@@ -374,15 +374,18 @@ static void gizmo_group_toolbar_bg(const bContext *C, wmGizmoGroup *gzgroup)
   rcti group_bounds = {0};
 
   for (wmGizmo &gz : gzgroup->gizmos) {
-    if (!(gz.flag & WM_GIZMO_HIDDEN) && !STREQ(gz.type->idname, "VIEW3D_GT_navigate_rotate")) {
-      rcti gizmo_bounds;
-      gz.type->screen_bounds_get(C, &gz, &gizmo_bounds);
-      if (BLI_rcti_is_empty(&group_bounds)) {
-        group_bounds = gizmo_bounds;
-      }
-      else {
-        BLI_rcti_union(&group_bounds, &gizmo_bounds);
-      }
+    if (gz.flag & WM_GIZMO_HIDDEN || !gz.type->screen_bounds_get ||
+        STREQ(gz.type->idname, "VIEW3D_GT_navigate_rotate"))
+    {
+      continue;
+    }
+    rcti gizmo_bounds;
+    gz.type->screen_bounds_get(C, &gz, &gizmo_bounds);
+    if (BLI_rcti_is_empty(&group_bounds)) {
+      group_bounds = gizmo_bounds;
+    }
+    else {
+      BLI_rcti_union(&group_bounds, &gizmo_bounds);
     }
   }
 
@@ -395,9 +398,11 @@ static void gizmo_group_toolbar_bg(const bContext *C, wmGizmoGroup *gzgroup)
 
   /* A bit of padding above and below. */
   BLI_rctf_pad(&draw_rect, 0.0f, rad * 0.15f);
-  float col[4] = {0.0f, 0.0f, 0.0f, 0.3f};
   ui::draw_roundbox_corner_set(ui::CNR_ALL);
-  ui::draw_roundbox_4fv_ex(&draw_rect, col, nullptr, 1.0f, col, U.pixelsize, rad);
+
+  float bg_color[4] = {0.0f, 0.0f, 0.0f, 0.25f};
+  float outline_color[4] = {0.0f, 0.0f, 0.0f, 0.3f};
+  ui::draw_roundbox_4fv_ex(&draw_rect, bg_color, nullptr, 1.0f, outline_color, U.pixelsize, rad);
 }
 
 /**

@@ -182,8 +182,8 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
       gz->color_hi[3] = 0.5f;
     }
     else {
-      copy_v4_fl4(gz->color_hi, 0.0f, 0.0f, 0.0f, 0.0f);
-      copy_v4_fl4(gz->color, 0.0f, 0.0f, 0.0f, 0.0f);
+      gz->color[3] = 0.0f;
+      gz->color_hi[3] = 0.0f;
     }
 
     /* may be overwritten later */

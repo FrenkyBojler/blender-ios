@@ -280,9 +280,31 @@ static void button2d_draw_intern(const bContext *C,
         need_to_pop = false;
       }
 
-      float alpha = (highlight) ? 1.0f : 0.8f;
       GPU_polygon_smooth(false);
-      ui::icon_draw_alpha(pos[0], pos[1], button->icon, alpha);
+
+      uchar icon_color[4];
+      View3D *v3d = CTX_wm_view3d(C);
+      if (v3d) {
+        Scene *scene = CTX_data_scene(C);
+        float text_color[4], shadow_color[4];
+        ED_view3d_text_colors_get(scene, v3d, text_color, shadow_color);
+        rgba_float_to_uchar(icon_color, text_color);
+      }
+      else {
+        ui::theme::get_color_4ubv(highlight ? TH_TEXT_HI : TH_TEXT, icon_color);
+      }
+
+      float alpha = (highlight) ? 1.0f : 0.6f;
+      ui::icon_draw_ex(pos[0],
+                       pos[1],
+                       button->icon,
+                       UI_INV_SCALE_FAC,
+                       alpha,
+                       0.0f,
+                       icon_color,
+                       highlight,
+                       UI_NO_ICON_OVERLAY_TEXT);
+
       GPU_polygon_smooth(true);
     }
     GPU_blend(GPU_BLEND_NONE);
