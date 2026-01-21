@@ -13,7 +13,7 @@
 
 #include "BKE_object.hh"
 
-#include "BLI_math_axis_angle_types.hh"
+#include "BLI_math_euler_types.hh"
 #include "BLI_math_matrix.hh"
 
 #include "DNA_object_types.h"
@@ -66,15 +66,13 @@ void ABCTransformWriter::do_write(HierarchyContext &context)
   /* If the parent is a camera, undo its to-Maya rotation (see below). */
   bool is_root_object = context.export_parent == nullptr;
   if (!is_root_object && context.export_parent->type == OB_CAMERA) {
-    float4x4 rot_mat = math::from_rotation<float4x4>(
-        math::AxisAngle(float3(1.0f, 0.0f, 0.0f), M_PI_2));
+    float4x4 rot_mat = math::from_rotation<float4x4>(math::EulerXYZ(M_PI_2, 0.0f, 0.0f));
     parent_relative_matrix = rot_mat * parent_relative_matrix;
   }
 
   /* If the object is a camera, apply an extra rotation to Maya camera orientation. */
   if (context.object->type == OB_CAMERA) {
-    float4x4 rot_mat = math::from_rotation<float4x4>(
-        math::AxisAngle(float3(1.0f, 0.0f, 0.0f), -M_PI_2));
+    float4x4 rot_mat = math::from_rotation<float4x4>(math::EulerXYZ(-M_PI_2, 0.0f, 0.0f));
     parent_relative_matrix = parent_relative_matrix * rot_mat;
   }
 
