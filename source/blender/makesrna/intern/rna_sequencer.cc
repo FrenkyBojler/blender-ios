@@ -530,7 +530,7 @@ static int rna_Strip_right_handle_get(PointerRNA *ptr)
   return (static_cast<Strip *>(ptr->data))->right_handle(scene);
 }
 
-static float rna_Strip_content_end_get(PointerRNA *ptr)
+static int rna_Strip_content_end_get(PointerRNA *ptr)
 {
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   return (static_cast<Strip *>(ptr->data))->content_end(scene);
@@ -625,6 +625,17 @@ static void rna_Strip_content_trim_start_range(
 
   *min = 0;
   *max = strip->len + strip->anim_startofs - strip->startofs - strip->endofs - 1;
+}
+
+static void rna_Strip_content_start_range(
+    PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+{
+  Scene *scene = id_cast<Scene *>(ptr->owner_id);
+
+  *softmin = PSFRA;
+  *softmax = PEFRA;
+  *min = INT_MIN;
+  *max = INT_MAX;
 }
 
 static void rna_Strip_left_handle_range(
@@ -2501,9 +2512,11 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "start");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Start Frame", "X position where the strip begins");
-  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
   RNA_def_property_float_funcs(
-      prop, nullptr, "rna_Strip_content_start_set", nullptr); /* overlap tests and calc_seq_disp */
+      prop,
+      nullptr,
+      "rna_Strip_content_start_set",
+      "rna_Strip_content_start_range"); /* overlap tests and calc_seq_disp */
   RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
@@ -2514,19 +2527,21 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Content Start", "Timeline frame where underlying strip source begins");
-  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
   RNA_def_property_float_funcs(
-      prop, nullptr, "rna_Strip_content_start_set", nullptr); /* overlap tests and calc_seq_disp */
+      prop,
+      nullptr,
+      "rna_Strip_content_start_set",
+      "rna_Strip_content_start_range"); /* overlap tests and calc_seq_disp */
   RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
-  prop = RNA_def_property(srna, "content_end", PROP_FLOAT, PROP_TIME);
+  prop = RNA_def_property(srna, "content_end", PROP_INT, PROP_TIME);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Content End", "Timeline frame where underlying strip source ends");
   RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
-  RNA_def_property_float_funcs(prop, "rna_Strip_content_end_get", nullptr, nullptr);
+  RNA_def_property_int_funcs(prop, "rna_Strip_content_end_get", nullptr, nullptr);
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
