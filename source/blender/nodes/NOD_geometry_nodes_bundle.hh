@@ -92,12 +92,16 @@ class Bundle : public ImplicitSharingMixin {
   BundleItemValue *lookup_path_for_write(Span<StringRef> path);
   BundleItemValue *lookup_path_for_write(StringRef path);
   template<typename T> std::optional<T> lookup(StringRef key) const;
+  template<typename T> std::optional<T> lookup_path(Span<StringRef> path) const;
   template<typename T> std::optional<T> lookup_path(StringRef path) const;
   template<typename T> T *lookup_ptr(StringRef key);
   template<typename T> const T *lookup_ptr(StringRef key) const;
   template<typename T> T *lookup_path_for_write_ptr(StringRef path);
 
   Bundle &ensure_nested_bundle(StringRef path);
+
+  void merge(const Bundle &other);
+  void merge_override(const Bundle &other);
 
   bool is_empty() const;
   int64_t size() const;
@@ -212,6 +216,14 @@ template<typename T> inline std::optional<T> BundleItemValue::as() const
     sharing_info->add_user();
     return ImplicitSharingPtr<SharingInfoT>{converted_value};
   }
+  else if constexpr (std::is_same_v<T, bke::SocketValueVariant>) {
+    if (const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(
+            &this->value))
+    {
+      return socket_value->value;
+    }
+    return std::nullopt;
+  }
   else if constexpr (std::is_same_v<T, ListPtr>) {
     const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(&this->value);
     if (!socket_value) {
@@ -264,6 +276,15 @@ template<typename T> inline T *Bundle::lookup_path_for_write_ptr(StringRef path)
     return nullptr;
   }
   return item->as_pointer<T>();
+}
+
+template<typename T> inline std::optional<T> Bundle::lookup_path(const Span<StringRef> path) const
+{
+  const BundleItemValue *item = this->lookup_path(path);
+  if (!item) {
+    return std::nullopt;
+  }
+  return item->as<T>();
 }
 
 template<typename T> inline std::optional<T> Bundle::lookup_path(const StringRef path) const

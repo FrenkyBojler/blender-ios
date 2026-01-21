@@ -38,7 +38,7 @@ bool Bundle::is_valid_key(const StringRef key)
     return false;
   }
   if (key != key.trim()) {
-    /* Keys must not have leading or trailing whitespace. This simplifies potentially using these
+    /* Keys must not have leading or trailing white-space. This simplifies potentially using these
      * keys in expressions later on (or even just have a comma separated list of keys). */
     return false;
   }
@@ -219,6 +219,20 @@ BundleItemValue *Bundle::lookup_path_for_write(StringRef path)
   BLI_assert(is_valid_path(path));
   const Vector<StringRef> path_elems = *split_path(path);
   return this->lookup_path_for_write(path_elems);
+}
+
+void Bundle::merge(const Bundle &other)
+{
+  for (const auto &item : other.items_.items()) {
+    this->add(item.key, item.value);
+  }
+}
+
+void Bundle::merge_override(const Bundle &other)
+{
+  for (const auto &item : other.items_.items()) {
+    this->add_override(item.key, item.value);
+  }
 }
 
 void Bundle::ensure_owns_direct_data()
