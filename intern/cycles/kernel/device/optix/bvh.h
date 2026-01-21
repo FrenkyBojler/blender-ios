@@ -616,14 +616,6 @@ ccl_device_intersect bool scene_intersect_material_raycast(KernelGlobals kg,
   if (optixGetPrimitiveType(hit_kind) == OPTIX_PRIMITIVE_TYPE_TRIANGLE) {
 #if OPTIX_VERSION >= 90000
     const float2 barycentrics = optixHitObjectGetTriangleBarycentrics();
-#else
-    /* Contruct barycentrics from hit position. */
-    float3 verts[3];
-    triangle_world_space_vertices(kg, object, prim, ray->time, verts);
-    float3 hit_p = ray->P + ray->D * isect->t;
-    const float2 barycentrics = ray_triangle_barycentric(
-        hit_p, ray->D, verts[0], verts[1], verts[2]);
-#endif
     isect->u = barycentrics.x;
     isect->v = barycentrics.y;
 #else
