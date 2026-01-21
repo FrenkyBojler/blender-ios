@@ -156,6 +156,11 @@ enum eWM_GizmoFlagGroupTypeFlag {
    * however for VR it's sometimes needed.
    */
   WM_GIZMOGROUPTYPE_VR_REDRAWS = (1 << 10),
+
+  /**
+   * Draw a background behind the contained gizmos so they look like a toolbar.
+   */
+  WM_GIZMOGROUPTYPE_TOOLBAR_BG = (1 << 11),
 };
 
 ENUM_OPERATORS(eWM_GizmoFlagGroupTypeFlag);
@@ -439,8 +444,6 @@ struct wmGizmoGroupType {
   wmGizmoGroupFnRefresh refresh;
   /** Refresh data for drawing, called before each redraw. */
   wmGizmoGroupFnDrawPrepare draw_prepare;
-  /** Optionally draw the gizmo group before the contained gizmos are drawn. */
-  wmGizmoGroupFnDraw draw;
   /** Initialize data for before invoke. */
   wmGizmoGroupFnInvokePrepare invoke_prepare;
 

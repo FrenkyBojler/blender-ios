@@ -369,6 +369,37 @@ static bool gizmo_prepare_drawing(wmGizmoMap *gzmap,
   return false;
 }
 
+static void gizmo_group_toolbar_bg(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  rcti group_bounds = {0};
+
+  for (wmGizmo &gz : gzgroup->gizmos) {
+    if (!(gz.flag & WM_GIZMO_HIDDEN) && !STREQ(gz.type->idname, "VIEW3D_GT_navigate_rotate")) {
+      rcti gizmo_bounds;
+      gz.type->screen_bounds_get(C, &gz, &gizmo_bounds);
+      if (BLI_rcti_is_empty(&group_bounds)) {
+        group_bounds = gizmo_bounds;
+      }
+      else {
+        BLI_rcti_union(&group_bounds, &gizmo_bounds);
+      }
+    }
+  }
+
+  rctf draw_rect;
+  BLI_rctf_rcti_copy(&draw_rect, &group_bounds);
+  const float rad = BLI_rctf_size_x(&draw_rect) / 2.0f;
+
+  ScrArea *area = CTX_wm_area(C);
+  BLI_rctf_translate(&draw_rect, -area->totrct.xmin, -area->totrct.ymin);
+
+  /* A bit of padding above and below. */
+  BLI_rctf_pad(&draw_rect, 0.0f, rad * 0.15f);
+  float col[4] = {0.0f, 0.0f, 0.0f, 0.3f};
+  ui::draw_roundbox_corner_set(ui::CNR_ALL);
+  ui::draw_roundbox_4fv_ex(&draw_rect, col, nullptr, 1.0f, col, U.pixelsize, rad);
+}
+
 /**
  * Update gizmos of \a gzmap to prepare for drawing. Adds all gizmos that
  * should be drawn to list \a draw_gizmos, note that added items need freeing.
@@ -435,9 +466,8 @@ static void gizmomap_prepare_drawing(wmGizmoMap *gzmap,
       gizmo_prepare_drawing(gzmap, &gz, C, draw_gizmos, drawstep);
     }
 
-    /* Draw gizmo group itself. */
-    if (gzgroup.type->draw) {
-      gzgroup.type->draw(C, &gzgroup);
+    if (gzgroup.type->flag & WM_GIZMOGROUPTYPE_TOOLBAR_BG) {
+      gizmo_group_toolbar_bg(C, &gzgroup);
     }
   }
 
