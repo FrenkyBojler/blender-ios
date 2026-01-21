@@ -588,7 +588,7 @@ BLI_INLINE int make_samples(int width,
   }
   float r = 2.0f * w; /* this is correct for cubic filters */
   float d = ceilf(w / MAX_PER_RADIUS);
-  float v = ceilf(u - r - 0.5f) + 0.5f; /* first non-zero pixel */
+  float v = floorf(u - r + 0.5f) + 0.5f; /* first non-zero pixel */
   int count = 0;
   float sum = 0.0f;
   for (float x = v - u; x < r; x += d) {
@@ -614,12 +614,9 @@ int make_samples<Sampler::Box>(int width,
                                int positions[MAX_SAMPLES],
                                float weights[MAX_SAMPLES])
 {
-  if (!(w >= 1.0f)) {
-    w = 1.0f;
-  }
-  float r = (w + 1.0f) / 2.0f;
+  float r = (w > 1.0f) ? (w + 1.0f) / 2.0f : 1.0f;
   float d = ceilf(w / MAX_PER_RADIUS);
-  float v = ceilf(u - r - 0.5f) + 0.5f; /* first non-zero pixel */
+  float v = floorf(u - r + 0.5f) + 0.5f; /* first non-zero pixel */
   int count = 0;
   float sum = 0.0f;
   for (float x = v - u; x < r; x += d) {

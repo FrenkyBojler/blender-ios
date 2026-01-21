@@ -22,10 +22,9 @@ template <> float4 sample<Bilinear>(sampler2D source, float2 uv, float2 wh)
 // Sample orthogonal rectangle of size wh centered on uv.
 template <> float4 sample<Box>(sampler2D source, float2 uv, float2 wh)
 {
-  float2 w1 = max(wh, 1.0f);
-  float2 d = ceil(w1 / 8.0f);
-  float2 r = (w1 + 1) / 2.0f;
-  float2 a = (ceil(uv - r - 0.5f) + 0.5f);                 // first non-zero sample
+  float2 r = max((wh + 1) / 2.0f, 1.0f);
+  float2 d = ceil(r / 8.0f);
+  float2 a = (floor(uv - r + 0.5f) + 0.5f);                 // first non-zero sample
   float2 scale = 1.0f / float2(textureSize(source, 0));  // convert to texture coordinates
   // precompute the horizontal filter so it can be reused
   float2 xfilter[33];  // pairs of u,weight
@@ -70,7 +69,7 @@ template <> float4 sample<Bspline>(sampler2D source, float2 uv, float2 wh)
   float2 w1 = max(wh, 1.0f);
   float2 d = ceil(w1 / 8.0f);
   float2 r = 2 * w1;
-  float2 a = (ceil(uv - r - 0.5f) + 0.5f);                 // first non-zero sample
+  float2 a = (floor(uv - r + 0.5f) + 0.5f);                 // first non-zero sample
   float2 scale = 1.0f / float2(textureSize(source, 0));  // convert to texture coordinates
   // precompute the horizontal filter so it can be reused
   float2 xfilter[33];  // pairs of u,weight
