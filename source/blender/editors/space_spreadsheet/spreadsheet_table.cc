@@ -116,8 +116,7 @@ void spreadsheet_table_id_free(SpreadsheetTableID *table_id)
 static void write_bundle_path(BlendWriter *writer,
                               const SpreadsheetBundleTreeViewPath &bundle_path)
 {
-  BLO_write_struct_array(
-      writer, SpreadsheetBundlePathElem, bundle_path.bundle_path_num, bundle_path.bundle_path);
+  writer->write_struct_array(bundle_path.bundle_path_num, bundle_path.bundle_path);
   for (const int i : IndexRange(bundle_path.bundle_path_num)) {
     BLO_write_string(writer, bundle_path.bundle_path[i].identifier);
   }
@@ -127,8 +126,7 @@ void spreadsheet_table_id_blend_write_content_geometry(BlendWriter *writer,
                                                        const SpreadsheetTableIDGeometry *table_id)
 {
   BKE_viewer_path_blend_write(writer, &table_id->viewer_path);
-  BLO_write_struct_array(
-      writer, SpreadsheetInstanceID, table_id->instance_ids_num, table_id->instance_ids);
+  writer->write_struct_array(table_id->instance_ids_num, table_id->instance_ids);
   write_bundle_path(writer, table_id->viewer_item_bundle_path);
   write_bundle_path(writer, table_id->geometry_bundle_path);
 }
