@@ -22,6 +22,7 @@
 #include "ED_keyframing.hh"
 
 #include "ANIM_keyframing.hh"
+#include "ANIM_nla.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -389,14 +390,15 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
     if (prop) {
       NlaStrip *strip = static_cast<NlaStrip *>(ptr.data);
       FCurve *fcu = BKE_fcurve_find(&strip->fcurves, RNA_property_identifier(prop), index);
-      result = insert_keyframe_direct(&reports,
-                                      ptr,
-                                      prop,
-                                      fcu,
-                                      &anim_eval_context,
-                                      eBezTriple_KeyframeType(keytype),
-                                      nullptr,
-                                      eInsertKeyFlags(options));
+      if (fcu) {
+        SingleKeyingResult key_result = insert_keyframe_direct(ptr,
+                                                               *prop,
+                                                               *fcu,
+                                                               anim_eval_context.eval_time,
+                                                               eBezTriple_KeyframeType(keytype),
+                                                               eInsertKeyFlags(options));
+        result = key_result == SingleKeyingResult::SUCCESS;
+      }
     }
     else {
       BKE_reportf(&reports, RPT_ERROR, "Could not resolve path (%s)", path_full);

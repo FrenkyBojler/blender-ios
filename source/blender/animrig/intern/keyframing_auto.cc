@@ -19,6 +19,7 @@
 
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
+#include "ANIM_nla.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -296,14 +297,14 @@ bool autokeyframe_property(bContext *C,
       ReportList *reports = CTX_wm_reports(C);
       ToolSettings *ts = scene->toolsettings;
 
-      changed = insert_keyframe_direct(reports,
-                                       *ptr,
-                                       prop,
-                                       fcu,
-                                       &anim_eval_context,
-                                       eBezTriple_KeyframeType(ts->keyframe_type),
-                                       nullptr,
-                                       eInsertKeyFlags(0));
+      const SingleKeyingResult result = insert_keyframe_direct(
+          *ptr,
+          *prop,
+          *fcu,
+          anim_eval_context.eval_time,
+          eBezTriple_KeyframeType(ts->keyframe_type),
+          eInsertKeyFlags(0));
+      changed = result == SingleKeyingResult::SUCCESS;
       WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
     }
   }
