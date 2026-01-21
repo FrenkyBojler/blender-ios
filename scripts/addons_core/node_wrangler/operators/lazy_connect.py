@@ -89,7 +89,6 @@ class NODE_OT_lazy_connect(Operator, NWBase):
                         available_outps = [outp for outp in node1.outputs if outp.enabled]
                         if len(available_outps) > 1 and node2.inputs:
                             bpy.ops.wm.call_menu("INVOKE_DEFAULT", name=NODE_MT_lazy_connect_outputs.bl_idname)
-
                         elif len(available_outps) == 1:
                             bpy.ops.node.lazy_connect_call_inputs_menu(from_socket=0)
                     else:
