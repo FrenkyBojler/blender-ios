@@ -43,6 +43,7 @@ struct MakePrimitiveData {
 };
 
 static Object *make_prim_init(bContext *C,
+                              wmOperator *op,
                               const char *idname,
                               const float loc[3],
                               const float rot[3],
@@ -64,6 +65,7 @@ static Object *make_prim_init(bContext *C,
         break;
       case CTX_MODE_SCULPT:
         obedit = CTX_data_active_object(C);
+        ed::sculpt_paint::undo::geometry_begin(*scene, *obedit, op);
         break;
       default:
         BLI_assert_unreachable();
@@ -99,14 +101,22 @@ static void make_prim_finish(bContext *C,
   params.is_destructive = true;
   EDBM_update(id_cast<Mesh *>(obedit->data), &params);
 
-  BLI_assert(ELEM(creation_data->original_ctx_mode, CTX_MODE_OBJECT, CTX_MODE_SCULPT, CTX_MODE_EDIT_MESH));
+  BLI_assert(ELEM(
+      creation_data->original_ctx_mode, CTX_MODE_OBJECT, CTX_MODE_SCULPT, CTX_MODE_EDIT_MESH));
 
   if (creation_data->original_ctx_mode != CTX_MODE_EDIT_MESH && exit_editmode) {
-    ed::object::editmode_exit_ex(CTX_data_main(C), CTX_data_scene(C), obedit, ed::object::EM_FREEDATA);
+    ed::object::editmode_exit_ex(
+        CTX_data_main(C), CTX_data_scene(C), obedit, ed::object::EM_FREEDATA);
   }
 
   if (creation_data->original_ctx_mode == CTX_MODE_SCULPT && exit_editmode) {
-    ed::sculpt_paint::object_sculpt_mode_enter(*CTX_data_main(C), *CTX_data_depsgraph_pointer(C), *CTX_data_scene(C), *obedit, true, CTX_wm_reports(C));
+    ed::sculpt_paint::object_sculpt_mode_enter(*CTX_data_main(C),
+                                               *CTX_data_depsgraph_pointer(C),
+                                               *CTX_data_scene(C),
+                                               *obedit,
+                                               true,
+                                               CTX_wm_reports(C));
+    ed::sculpt_paint::undo::geometry_end(*obedit);
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
@@ -126,6 +136,7 @@ static wmOperatorStatus add_primitive_plane_exec(bContext *C, wmOperator *op)
   ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
+                          op,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Plane"),
                           loc,
                           rot,
@@ -192,6 +203,7 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
   ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
+                          op,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cube"),
                           loc,
                           rot,
@@ -267,6 +279,7 @@ static wmOperatorStatus add_primitive_circle_exec(bContext *C, wmOperator *op)
   ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
+                          op,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Circle"),
                           loc,
                           rot,
@@ -341,6 +354,7 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
   ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
+                          op,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cylinder"),
                           loc,
                           rot,
@@ -418,6 +432,7 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
   ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
+                          op,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cone"),
                           loc,
                           rot,
@@ -495,6 +510,7 @@ static wmOperatorStatus add_primitive_grid_exec(bContext *C, wmOperator *op)
   ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
+                          op,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Grid"),
                           loc,
                           rot,
@@ -570,6 +586,7 @@ static wmOperatorStatus add_primitive_monkey_exec(bContext *C, wmOperator *op)
       C, op, 'Y', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
   obedit = make_prim_init(C,
+                          op,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Suzanne"),
                           loc,
                           rot,
@@ -635,6 +652,7 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
   ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
+                          op,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Sphere"),
                           loc,
                           rot,
@@ -706,6 +724,7 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
   ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
+                          op,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Icosphere"),
                           loc,
                           rot,
