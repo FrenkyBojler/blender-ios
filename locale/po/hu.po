@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -3629,6 +3629,22 @@ msgid "Menu"
 msgstr "Menü"
 
 
+msgid "Font"
+msgstr "Betűkészlet"
+
+
+msgid "Text"
+msgstr "Szöveg"
+
+
+msgid "Mask"
+msgstr "Maszk"
+
+
+msgid "Sound"
+msgstr "Hang"
+
+
 msgid "Freestyle Line Set"
 msgstr "Freestyle vonalkészlet"
 
@@ -4281,10 +4297,6 @@ msgstr "Hozzárendelés típusa"
 
 msgid "Path"
 msgstr "Útvonal"
-
-
-msgid "Font"
-msgstr "Betűkészlet"
 
 
 msgid "Text Selected"
@@ -5444,10 +5456,6 @@ msgid "Attenuation"
 msgstr "Gyengítés"
 
 
-msgid "Sound"
-msgstr "Hang"
-
-
 msgid "Memory"
 msgstr "Memória"
 
@@ -6569,56 +6577,20 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
-msgid "Mask"
-msgstr "Maszk"
-
-
-msgid "Metaball"
-msgstr "Meta test"
-
-
-msgid "Light"
-msgstr "Fényforrás"
-
-
-msgid "Relations"
-msgstr "Kapcsolatok"
-
-
-msgid "Rigid Body"
-msgstr "Szilárd test"
-
-
-msgid "Apply"
-msgstr "Elfogadás"
-
-
-msgid "Track"
-msgstr "Nyom"
-
-
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
 msgid "Clean Up"
 msgstr "Tisztítás"
-
-
-msgid "Keying"
-msgstr "Kulcsozás"
-
-
-msgid "Tracking"
-msgstr "Követés"
 
 
 msgid "Merge"
 msgstr "Összefésülés"
 
 
-msgid "Text"
-msgstr "Szöveg"
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
+
+
+msgid "Metaball"
+msgstr "Meta test"
 
 
 msgid "Import"
@@ -6643,6 +6615,34 @@ msgstr "Navigáció"
 
 msgid "Align View"
 msgstr "Nézet igazítása"
+
+
+msgid "Light"
+msgstr "Fényforrás"
+
+
+msgid "Relations"
+msgstr "Kapcsolatok"
+
+
+msgid "Rigid Body"
+msgstr "Szilárd test"
+
+
+msgid "Apply"
+msgstr "Elfogadás"
+
+
+msgid "Track"
+msgstr "Nyom"
+
+
+msgid "Keying"
+msgstr "Kulcsozás"
+
+
+msgid "Tracking"
+msgstr "Követés"
 
 
 msgctxt "MovieClip"
@@ -13338,10 +13338,6 @@ msgstr "Az egér alatti mélység használata a pásztázás/forgatás/zoomolás
 
 msgid "Emulate 3 Button Mouse"
 msgstr "3 gombos egér emulálása"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Kijelölés használata a nézetforgatás középpontjaként"
 
 
 msgid "Zoom in towards the mouse pointer's position in the 3D view, rather than the 2D window center"

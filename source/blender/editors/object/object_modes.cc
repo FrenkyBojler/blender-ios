@@ -272,7 +272,9 @@ static bool ed_object_mode_generic_exit_ex(
     }
   }
   else if (ob->mode & OB_MODE_VERTEX_PAINT) {
-    if (ob->sculpt && (ob->sculpt->mode_type == OB_MODE_VERTEX_PAINT)) {
+    if (ob->runtime->sculpt_session &&
+        (ob->runtime->sculpt_session->mode_type == OB_MODE_VERTEX_PAINT))
+    {
       if (only_test) {
         return true;
       }
@@ -280,7 +282,9 @@ static bool ed_object_mode_generic_exit_ex(
     }
   }
   else if (ob->mode & OB_MODE_WEIGHT_PAINT) {
-    if (ob->sculpt && (ob->sculpt->mode_type == OB_MODE_WEIGHT_PAINT)) {
+    if (ob->runtime->sculpt_session &&
+        (ob->runtime->sculpt_session->mode_type == OB_MODE_WEIGHT_PAINT))
+    {
       if (only_test) {
         return true;
       }
@@ -288,7 +292,8 @@ static bool ed_object_mode_generic_exit_ex(
     }
   }
   else if (ob->mode & OB_MODE_SCULPT) {
-    if (ob->sculpt && (ob->sculpt->mode_type == OB_MODE_SCULPT)) {
+    if (ob->runtime->sculpt_session && (ob->runtime->sculpt_session->mode_type == OB_MODE_SCULPT))
+    {
       if (only_test) {
         return true;
       }
@@ -404,7 +409,8 @@ void mode_generic_exit(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *
 
 bool mode_generic_has_data(Depsgraph *depsgraph, const Object *ob)
 {
-  return ed_object_mode_generic_exit_ex(nullptr, depsgraph, nullptr, (Object *)ob, true);
+  return ed_object_mode_generic_exit_ex(
+      nullptr, depsgraph, nullptr, const_cast<Object *>(ob), true);
 }
 
 /** \} */

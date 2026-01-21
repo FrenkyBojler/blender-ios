@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-11-19 06:24+0000\n"
 "Last-Translator: \"M. Amin Taheri\" <amintaheri2001@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
@@ -2381,6 +2381,18 @@ msgid "Top"
 msgstr "ﻻ﻿ﺎﺑ"
 
 
+msgid "Font"
+msgstr "ﺖﻧﻮﻓ"
+
+
+msgid "Text"
+msgstr "ﻦﺘﻣ"
+
+
+msgid "Sound"
+msgstr "ﺍﺪﺻ"
+
+
 msgid "Visibility"
 msgstr "ﺪﯾﺩ"
 
@@ -2654,10 +2666,6 @@ msgid "Text on Curve"
 msgstr "ﯽﻨﺤﻨﻣ ﯼﻭﺭ ﺮﺑ ﻦﺘﻣ"
 
 
-msgid "Font"
-msgstr "ﺖﻧﻮﻓ"
-
-
 msgid "X Offset"
 msgstr "X ﺖﺴﻓﺍ"
 
@@ -2921,10 +2929,6 @@ msgid "Mute"
 msgstr "ﺵﻮﻣ‌ﺎﺧ"
 
 
-msgid "Sound"
-msgstr "ﺍﺪﺻ"
-
-
 msgid "Memory"
 msgstr "ﻪﻈﻓﺎﺣ"
 
@@ -3074,36 +3078,8 @@ msgid "Mix"
 msgstr "ﻁﻮﻠﺨﻣ"
 
 
-msgid "Add Image"
-msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
-
-
-msgid "Relations"
-msgstr "ﻂﺑﺍﻭﺭ"
-
-
-msgid "Apply"
-msgstr "ﻝﺎﻤﻋﺍ"
-
-
-msgid "Layout"
-msgstr "ﺡﺮﻃ"
-
-
-msgid "Convert"
-msgstr "ﻞﯾﺪﺒﺗ"
-
-
-msgid "Tracking"
-msgstr "ﯽﺑﺎﯾﺩﺭ"
-
-
 msgid "Math"
 msgstr "ﯽﺿﺎﯾﺭ"
-
-
-msgid "Text"
-msgstr "ﻦﺘﻣ"
 
 
 msgid "Pivot Point"
@@ -3120,6 +3096,30 @@ msgstr "UV"
 
 msgid "Mirror"
 msgstr "ﻪﻨﯾﺁ"
+
+
+msgid "Add Image"
+msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
+
+
+msgid "Relations"
+msgstr "ﻂﺑﺍﻭﺭ"
+
+
+msgid "Layout"
+msgstr "ﺡﺮﻃ"
+
+
+msgid "Apply"
+msgstr "ﻝﺎﻤﻋﺍ"
+
+
+msgid "Convert"
+msgstr "ﻞﯾﺪﺒﺗ"
+
+
+msgid "Tracking"
+msgstr "ﯽﺑﺎﯾﺩﺭ"
 
 
 msgid "Key"
@@ -3499,6 +3499,10 @@ msgid "Points to Curves"
 msgstr "ﺎﻫ‌ﯽﻨﺤﻨﻣ ﻪﺑ ﻁﺎﻘﻧ"
 
 
+msgid "Single"
+msgstr "ﯽﮑﺗ"
+
+
 msgid "Add Shader"
 msgstr "ﻥﺯ ﻪﯾﺎﺳ ﻥﺩﻭﺰﻓﺍ"
 
@@ -3565,10 +3569,6 @@ msgstr "ﻩﺮﮔ ﯽﺟﻭﺮﺧ"
 
 msgid "Value to Normal"
 msgstr "ﯼﺩﺎﻋ ﺖﻟﺎﺣ ﻪﺑ ﺭﺍﺪﻘﻣ"
-
-
-msgid "Single"
-msgstr "ﯽﮑﺗ"
 
 
 msgid "Linked"

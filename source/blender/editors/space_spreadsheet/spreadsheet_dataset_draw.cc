@@ -691,7 +691,7 @@ void InstancesTreeViewItem::on_activate(bContext &C)
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
 
   MEM_SAFE_FREE(sspreadsheet.geometry_id.instance_ids);
-  sspreadsheet.geometry_id.instance_ids = MEM_calloc_arrayN<SpreadsheetInstanceID>(
+  sspreadsheet.geometry_id.instance_ids = MEM_new_array_for_free<SpreadsheetInstanceID>(
       instance_ids.size(), __func__);
   sspreadsheet.geometry_id.instance_ids_num = instance_ids.size();
   initialized_copy_n(
@@ -727,7 +727,7 @@ void DataSetViewItem::on_activate(bContext &C)
   if (data_id->layer_index) {
     sspreadsheet.geometry_id.layer_index = *data_id->layer_index;
   }
-  PointerRNA ptr = RNA_pointer_create_discrete(&screen.id, &RNA_SpaceSpreadsheet, &sspreadsheet);
+  PointerRNA ptr = RNA_pointer_create_discrete(&screen.id, RNA_SpaceSpreadsheet, &sspreadsheet);
   /* These updates also make sure that the attribute domain is set properly based on the
    * component type. */
   RNA_property_update(&C, &ptr, RNA_struct_find_property(&ptr, "attribute_domain"));
@@ -932,13 +932,12 @@ class ViewerPathTreeView : public ui::AbstractTreeView {
   {
     const ViewerPath &viewer_path = sspreadsheet_.geometry_id.viewer_path;
 
-    int index;
-    LISTBASE_FOREACH_INDEX (const ViewerPathElem *, elem, &viewer_path.path, index) {
-      if (elem == viewer_path.path.first) {
+    for (const auto [index, elem] : viewer_path.path.enumerate()) {
+      if (&elem == viewer_path.path.first) {
         /* The root item is drawn above the tree view already. */
         continue;
       }
-      this->add_viewer_path_elem(index, *elem);
+      this->add_viewer_path_elem(index, elem);
     }
   }
 
@@ -1046,8 +1045,8 @@ struct ViewerDataPath {
       }
       MEM_freeN(table_id.bundle_path);
     }
-    table_id.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(this->bundles.size(),
-                                                                        __func__);
+    table_id.bundle_path = MEM_new_array_for_free<SpreadsheetBundlePathElem>(this->bundles.size(),
+                                                                             __func__);
     table_id.bundle_path_num = this->bundles.size();
     for (const int i : this->bundles.index_range()) {
       table_id.bundle_path[i].identifier = BLI_strdupn(this->bundles[i].data(),
@@ -1255,7 +1254,7 @@ static void draw_context_panel_content(const bContext &C, ui::Layout &layout)
   }
 
   PointerRNA sspreadsheet_ptr = RNA_pointer_create_discrete(
-      &screen.id, &RNA_SpaceSpreadsheet, sspreadsheet);
+      &screen.id, RNA_SpaceSpreadsheet, sspreadsheet);
 
   layout.prop(&sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
 

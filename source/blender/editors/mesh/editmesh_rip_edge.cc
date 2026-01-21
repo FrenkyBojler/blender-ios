@@ -8,6 +8,7 @@
  * based on mouse cursor position, split of vertices along the closest edge.
  */
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
 #include "BKE_context.hh"
@@ -29,10 +30,7 @@
 
 #include "mesh_intern.hh" /* own include */
 
-using blender::float2;
-using blender::float3;
-using blender::float4x4;
-using blender::Vector;
+namespace blender {
 
 /* uses total number of selected edges around a vertex to choose how to extend */
 #define USE_TRICKY_EXTEND
@@ -60,7 +58,12 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    /* clear tags. */
+    const float4x4 projectMat = ED_view3d_ob_project_mat_get(rv3d, obedit);
+
+    zero_v2(cent_sco);
+    cent_tot = 0;
+
+    /* clear tags and calc screen center */
     BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
       BM_elem_flag_disable(v, BM_ELEM_TAG);
     }
@@ -185,7 +188,7 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
       params.calc_looptris = true;
       params.calc_normals = false;
       params.is_destructive = true;
-      EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+      EDBM_update(id_cast<Mesh *>(obedit->data), &params);
     }
   }
 
@@ -221,16 +224,8 @@ void MESH_OT_rip_edge(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
-  PropertyRNA *prop;
-  prop = RNA_def_float_vector(ot->srna,
-                              "direction",
-                              3,
-                              nullptr,
-                              -FLT_MAX,
-                              FLT_MAX,
-                              "Direction",
-                              "World-space direction vector for extending vertices",
-                              -1.0f,
-                              1.0f);
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  /* to give to transform */
+  ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
 }
+
+}  // namespace blender
