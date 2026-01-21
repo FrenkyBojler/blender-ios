@@ -1,23 +1,24 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_volume_grid.hh"
+ #include "NOD_rna_define.hh"
+ #include "NOD_socket_search_link.hh"
+
+ #include "RNA_enum_types.hh"
+
+ #include "node_geometry_util.hh"
+
+ #include "UI_interface_layout.hh"
+ #include "UI_resources.hh"
+
+ #include "BKE_volume_grid.hh"
 #include "BKE_volume_grid_process.hh"
+ #include "BKE_volume_openvdb.hh"
 
-#include "NOD_rna_define.hh"
-#include "NOD_socket_search_link.hh"
-
-#include "RNA_enum_types.hh"
-
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
-
-#include "node_geometry_util.hh"
-
-#ifdef WITH_OPENVDB
-#  include "openvdb/tools/Filter.h"
-#endif
+ #ifdef WITH_OPENVDB
+ #  include "openvdb/tools/Filter.h"
+ #endif
 
 namespace blender::nodes::node_geo_grid_median_cc {
 
@@ -39,19 +40,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0)
       .max(10)
       .structure_type(StructureType::Single)
-      .description("Half-width of the filter. Filter size is (2*width+1) voxels");
+      .description("Filter kernel radius in voxels");
 
   b.add_input<decl::Int>("Iterations")
       .default_value(1)
       .min(0)
       .max(100)
       .structure_type(StructureType::Single)
-      .description("Number of times to apply the median filter");
+      .description("Number of iterations to apply the filter");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
@@ -117,16 +118,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
   const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
 
-  BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
-    using GridT = typename decltype(type_tag)::type;
-    if constexpr (bke::volume_grid::is_supported_grid_type<GridT>) {
-      GridT &typed_grid = static_cast<GridT &>(grid_base);
-      openvdb::tools::Filter<GridT> filter(typed_grid);
-      filter.median(width, iterations);
-    }
-    else {
-      BLI_assert_unreachable();
-    }
+  bke::volume_grid::to_typed_grid(grid_base, [&](auto &typed_grid) {
+    openvdb::tools::Filter filter(typed_grid);
+    filter.median(width, iterations);
   });
 
   params.set_output("Grid", std::move(grid));
@@ -172,9 +166,8 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeGridMedian");
   ntype.ui_name = "Grid Median";
   ntype.ui_description =
-      "Apply a median filter to smooth a grid while preserving edges. The filter takes the "
-      "median value within a box-shaped neighborhood defined by the width and replaces the "
-      "voxel value.";
+      "Apply median (box) filter smoothing to a voxel. The median value from surrounding "
+      "voxels in a box-shape defined by the radius replaces the voxel value.";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
