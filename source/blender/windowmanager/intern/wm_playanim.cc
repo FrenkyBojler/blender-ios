@@ -2047,8 +2047,8 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
         return EXIT_FAILURE;
       }
 
-      GHOST_CallbackEventConsumer ghost_event_consumer(ghost_event_proc, &ps);
-      ps.ghost_data.system->addEventConsumer(&ghost_event_consumer);
+      ghost_event_consumer = new GHOST_CallbackEventConsumer(ghost_event_proc, &ps);
+      ps.ghost_data.system->addEventConsumer(ghost_event_consumer);
 
       return std::nullopt;
     }();
