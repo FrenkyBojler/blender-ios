@@ -2569,8 +2569,7 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
       selection_changed = true;
       break;
     case OL_OP_REMAP: {
-      TreeElement *active_elem = outliner_find_element_with_flag(&space_outliner->tree,
-                                                                 TSE_ACTIVE);
+      TreeElement *active_elem = get_target_element(space_outliner);
       if (active_elem) {
         id_remap_fn(C, TREESTORE(active_elem));
       }
