@@ -878,11 +878,19 @@ void OUTLINER_OT_id_remap(wmOperatorType *ot)
    */
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
-  prop = RNA_def_int(ot->srna, "old_id", 0, 0, 0, "Old ID", "Old ID to replace", 0, 0);
+  prop = RNA_def_int(
+      ot->srna, "old_id", 0, 0, 0, "Old ID", "Old ID's uid to remap data from", 0, 0);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
-  ot->prop = RNA_def_int(
-      ot->srna, "new_id", 0, 0, 0, "New ID", "New ID to remap all selected IDs' users to", 0, 0);
+  ot->prop = RNA_def_int(ot->srna,
+                         "new_id",
+                         0,
+                         0,
+                         0,
+                         "New ID",
+                         "New ID's uid to remap all selected IDs' users to",
+                         0,
+                         0);
 }
 
 void id_remap_fn(bContext *C,
