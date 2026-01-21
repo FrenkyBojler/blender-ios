@@ -53,33 +53,16 @@ static gpu::Texture *create_view_texture(TextureFormat format, gpu::Texture *bas
   return view;
 }
 
-/* Read back a texture, and check if any bytes are non-zero. */
-static bool check_texture_is_zero(gpu::Texture *texture)
-{
-  TextureFormat format = GPU_texture_format(texture);
-
-  /* Texture is 1x1px, so readback is predictable. */
-  Vector<std::byte> data(to_bytesize(format));
-  void *ptr = GPU_texture_read(texture, to_texture_data_format(format), 0);
-  std::memcpy(data.data(), ptr, to_bytesize(format));
-  MEM_freeN(ptr);
-
-  /* Check if data is all 0. */
-  return std::count(data.begin(), data.end(), std::byte(0)) == data.size();
-}
-
 /* Read back a single-pixel, n-channel texture of type float or half, return float4. */
 static float4 get_texture_color(gpu::Texture *texture)
 {
-  BLI_assert(bool(to_format_flag(format) & GPU_FORMAT_FLOAT));
-
   TextureFormat format = GPU_texture_format(texture);
-  void *ptr = GPU_texture_read(texture, GPU_DATA_FLOAT, 0);
 
+  void *src = GPU_texture_read(texture, GPU_DATA_FLOAT, 0);
   float4 dst(0.0f, 0.0f, 0.0f, 0.0f);
-  std::memcpy(dst, ptr, is_half_float(format) ? 2 * to_bytesize(format) : to_bytesize(format));
+  std::memcpy(dst, src, is_half_float(format) ? 2 * to_bytesize(format) : to_bytesize(format));
 
-  MEM_freeN(ptr);
+  MEM_freeN(src);
   return dst;
 }
 
@@ -87,10 +70,6 @@ static float4 get_texture_color(gpu::Texture *texture)
  * attempt to perform a framebuffer color clear over the view texture. */
 template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_create_test()
 {
-  if (GPU_backend_get_type() != GPU_BACKEND_OPENGL) {
-    GTEST_SKIP();
-  }
-
   /* Test colors, mostly arbitrary. */
   float4 zero_color(0.0f, 0.0f, 0.0f, 0.0f);
   float4 in_color(2.0f, 0.25f, 1.25f, 0.25f);
