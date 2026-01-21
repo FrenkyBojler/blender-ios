@@ -161,12 +161,6 @@ class GHOST_IWindow {
   virtual void setAcceptDragOperation(bool can_accept) = 0;
 
   /**
-   * Returns acceptance of the dropped object.
-   * Usually called by the "object dropped" event handling function.
-   */
-  virtual bool canAcceptDragOperation() const = 0;
-
-  /**
    * Returns the state of the window (normal, minimized, maximized).
    * \return The state of the window.
    */
@@ -185,12 +179,6 @@ class GHOST_IWindow {
    * \return Indication of success.
    */
   virtual GHOST_TSuccess setModifiedState(bool is_unsaved_changes) = 0;
-
-  /**
-   * Gets the window "modified" status, indicating unsaved changes.
-   * \return True if there are unsaved changes
-   */
-  virtual bool getModifiedState() = 0;
 
   /**
    * Sets the order of the window (bottom, top).
@@ -296,21 +284,10 @@ class GHOST_IWindow {
    */
   virtual GHOST_TSuccess setCursorShape(GHOST_TStandardCursor cursor_shape) = 0;
 
-  /**
-   * Gets the cursor grab region, if unset the window is used.
-   * reset when grab is disabled.
-   */
-  virtual GHOST_TSuccess getCursorGrabBounds(GHOST_Rect &bounds) const = 0;
-
   virtual void getCursorGrabState(GHOST_TGrabCursorMode &mode,
                                   GHOST_TAxisFlag &axis_flag,
                                   GHOST_Rect &bounds,
                                   bool &use_software_cursor) = 0;
-
-  /**
-   * Return true when a software cursor should be used.
-   */
-  virtual bool getCursorGrabUseSoftwareDisplay() = 0;
 
   /**
    * Test if the standard cursor shape is supported by current platform.
