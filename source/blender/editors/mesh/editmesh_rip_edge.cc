@@ -58,12 +58,7 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    const float4x4 projectMat = ED_view3d_ob_project_mat_get(rv3d, obedit);
-
-    zero_v2(cent_sco);
-    cent_tot = 0;
-
-    /* clear tags and calc screen center */
+    /* clear tags. */
     BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
       BM_elem_flag_disable(v, BM_ELEM_TAG);
     }
@@ -224,8 +219,18 @@ void MESH_OT_rip_edge(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
-  /* to give to transform */
-  ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
+  PropertyRNA *prop;
+  prop = RNA_def_float_vector(ot->srna,
+                              "direction",
+                              3,
+                              nullptr,
+                              -FLT_MAX,
+                              FLT_MAX,
+                              "Direction",
+                              "World-space direction vector for extending vertices",
+                              -1.0f,
+                              1.0f);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 }  // namespace blender
