@@ -16,7 +16,7 @@ namespace blender::nodes {
  */
 struct ClosureToListItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = GeometryNodeClosureToListItem;
-  static StructRNA *item_srna;
+  static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "GeometryNodeClosureToList";
   static constexpr bool has_type = true;

@@ -298,7 +298,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *ClosureToListItemsAccessor::item_srna = &RNA_GeometryNodeClosureToListItem;
+StructRNA **ClosureToListItemsAccessor::item_srna = &RNA_GeometryNodeClosureToListItem;
 
 void ClosureToListItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
