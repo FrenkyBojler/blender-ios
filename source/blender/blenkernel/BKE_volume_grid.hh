@@ -31,14 +31,6 @@ namespace blender::bke::volume_grid {
 
 class GridNodeIndexMapping;
 
-enum class GridValueOnOff { On, Off, Dense };
-
-struct GridIndexMappingParams {
-  GridValueOnOff grid_value_filter = GridValueOnOff::On;
-
-  BLI_STRUCT_EQUALITY_OPERATORS_1(GridIndexMappingParams, grid_value_filter)
-};
-
 /**
  * A grid or tree may be loaded lazily when it's accessed. This is especially useful for grids that
  * are loaded from disk. Those may even be unloaded temporarily to avoid using too much memory.

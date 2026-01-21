@@ -17,7 +17,6 @@
 #  include "BLI_virtual_array_fwd.hh"
 
 #  include "BKE_volume_grid.hh"
-#  include "BKE_volume_openvdb.hh"
 
 namespace blender::bke::volume_grid {
 

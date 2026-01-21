@@ -25,6 +25,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
+#include "BKE_volume_grid_varray.hh"
 
 #include "DNA_pointcloud_types.h"
 #include "DNA_space_types.h"

@@ -14,6 +14,7 @@
 
 #include "BLI_math_matrix_types.hh"
 #include "BLI_memory_counter_fwd.hh"
+#include "BLI_struct_equality_utils.hh"
 
 namespace blender {
 
@@ -104,6 +105,14 @@ std::string error_message_from_load(const VolumeGridData &grid);
 bool is_loaded(const VolumeGridData &grid);
 
 void count_memory(const VolumeGridData &grid, MemoryCounter &memory);
+
+enum class GridValueOnOff { On, Off, Dense };
+
+struct GridIndexMappingParams {
+  GridValueOnOff grid_value_filter = GridValueOnOff::On;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_1(GridIndexMappingParams, grid_value_filter)
+};
 
 }  // namespace bke::volume_grid
 

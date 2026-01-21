@@ -19,6 +19,7 @@
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_volume.hh"
+#include "BKE_volume_grid.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
