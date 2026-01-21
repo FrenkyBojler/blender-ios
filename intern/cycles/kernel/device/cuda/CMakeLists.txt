@@ -44,6 +44,15 @@ function(cuda_add_common_flags cuda_version arch in_flags out_flags)
     --use_fast_math
     -Wno-deprecated-gpu-targets)
 
+  if(WITH_CYCLES_UNOPTIMIZED_KERNEL)
+    list(APPEND flags
+      --no-compress
+      --optimize 0
+      --Ofast-compile max
+      --threads 0
+    )
+  endif()
+
   if(WITH_CYCLES_DEBUG)
     set(flags ${flags}
       -D WITH_CYCLES_DEBUG

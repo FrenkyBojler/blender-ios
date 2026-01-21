@@ -141,9 +141,15 @@ if(WIN32 AND MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Unlike GCC/clang we still use fast math, because there is no fine
   # grained control and the speedup we get here is too big to ignore.
   string(APPEND CMAKE_CXX_FLAGS " /fp:fast -D_CRT_SECURE_NO_WARNINGS /GS-")
-  string(APPEND CMAKE_CXX_FLAGS_RELEASE " /Ox")
-  string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " /Ox")
-  string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL " /Ox")
+  if(WITH_CYCLES_UNOPTIMIZED_KERNEL)
+    string(APPEND CMAKE_CXX_FLAGS_RELEASE " /Ox")
+    string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " /Ox")
+    string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL " /Ox")
+  else()
+    string(APPEND CMAKE_CXX_FLAGS_RELEASE " /Od")
+    string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " /Od")
+    string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL " /Od")
+  endif()
 
   # `jumptablerdata` improves performance when there is contention in large switch statements
   # such as in `svm.h`.
@@ -194,6 +200,12 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
 
   list(JOIN CYCLES_MATH_FLAGS " " CYCLES_MATH_FLAGS)
   string(APPEND CMAKE_CXX_FLAGS " ${CYCLES_MATH_FLAGS}")
+
+  if(WITH_CYCLES_UNOPTIMIZED_KERNEL)
+    string(APPEND CMAKE_CXX_FLAGS_RELEASE " -O0")
+    string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -O0")
+    string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL " -O0")
+  endif()
 endif()
 
 # Definitions and Includes

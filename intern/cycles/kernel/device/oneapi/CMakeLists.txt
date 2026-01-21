@@ -64,17 +64,23 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -fdelayed-template-parsing
     -fsycl-device-code-split=per_kernel
     -fsycl-max-parallel-link-jobs=${SYCL_OFFLINE_COMPILER_PARALLEL_JOBS}
-    --offload-compress
-    --offload-compression-level=19
     -shared
     -DWITH_ONEAPI
-    -O2
     -ffast-math
     -D__KERNEL_LOCAL_ATOMIC_SORT__
     -o"${cycles_kernel_oneapi_lib}"
     -I"${CMAKE_CURRENT_SOURCE_DIR}/../../.."
     ${SYCL_CPP_FLAGS}
   )
+  if(WITH_CYCLES_UNOPTIMIZED_KERNEL)
+    list(APPEND sycl_compiler_flags -O0)
+  else()
+    list(APPEND sycl_compiler_flags
+      --offload-compress
+      --offload-compression-level=19
+      -O2
+    )
+  endif()
 
   if(WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION)
     list(APPEND sycl_compiler_flags -DWITH_ONEAPI_SYCL_HOST_TASK)

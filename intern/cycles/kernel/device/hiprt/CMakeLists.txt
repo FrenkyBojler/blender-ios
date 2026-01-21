@@ -80,6 +80,10 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     -ffast-math
   )
 
+  if(WITH_CYCLES_UNOPTIMIZED_KERNEL)
+    list(APPEND hiprt_compile_flags -O0)
+  endif()
+
   set(hiprt_hipfb)
   foreach(arch ${CYCLES_HIP_BINARIES_ARCH})
     set(hiprt_file ${CMAKE_CURRENT_BINARY_DIR}/kernel_rt_${arch}.hipfb)

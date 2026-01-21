@@ -267,10 +267,14 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
 #  ifndef NDEBUG
   options.append(" -save-temps");
 #  endif
+#  ifdef WITH_CYCLES_UNOPTIMIZED_KERNEL
+  options.append(" -O0");
+#  else
   if (major == 9 && minor == 0) {
     /* Reduce optimization level on VEGA GPUs to avoid some rendering artifacts */
     options.append(" -O1");
   }
+#  endif
   options.append(" --offload-arch=").append(arch);
 
   const string include_path = source_path;
