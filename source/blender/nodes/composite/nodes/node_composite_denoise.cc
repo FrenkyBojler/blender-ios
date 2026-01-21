@@ -26,6 +26,10 @@
 
 #include "node_composite_util.hh"
 
+#ifdef WITH_OPENIMAGEDENOISE
+#  include <OpenImageDenoise/oidn.hpp>
+#endif
+
 namespace blender::nodes::node_composite_denoise_cc {
 
 static const EnumPropertyItem prefilter_items[] = {
