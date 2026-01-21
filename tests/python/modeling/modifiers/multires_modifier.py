@@ -2,12 +2,20 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "main",
+)
+
 import pathlib
 import sys
 
 import bpy
 
-sys.path.append(str(pathlib.Path(__file__).parents[1].absolute()))
+"""
+blender -b --factory-startup tests/files/modeling/modifiers/multires_modifier --python tests/python/modeling/modifiers/multires_modifier.py -- --run-all-tests
+"""
+
+sys.path.append(str(pathlib.Path(__file__).parents[2].absolute()))
 from modules.mesh_test import RunTest, ModifierSpec, MultiModifierSpec, SpecMeshTest, OperatorSpecObjectMode
 
 
@@ -22,18 +30,7 @@ def main():
     ]
 
     modifiers_test = RunTest(tests)
-
-    command = list(sys.argv)
-    for i, cmd in enumerate(command):
-        if cmd == "--run-all-tests":
-            modifiers_test.do_compare = True
-            modifiers_test.run_all_tests()
-            break
-        elif cmd == "--run-test":
-            modifiers_test.do_compare = False
-            name = command[i + 1]
-            modifiers_test.run_test(name)
-            break
+    modifiers_test.main()
 
 
 if __name__ == "__main__":

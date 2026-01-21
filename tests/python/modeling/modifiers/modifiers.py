@@ -2,15 +2,22 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# A collection of tests that cover a wide range of modeling related modifiers
+#
+# Note: Please avoid adding new tests to this file and to the associated .blend file, ideally, a single
+# file per modifier is preferred to avoid the headache of merge conflicts that comes with a single large file
+# See `multires_modifier.py` for an example of splitting these out
+
 import math
-import os
+import pathlib
 import sys
 from random import seed
 
 import bpy
 
-sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append(str(pathlib.Path(__file__).parents[2].absolute()))
 from modules.mesh_test import RunTest, ModifierSpec, MultiModifierSpec, SpecMeshTest, OperatorSpecObjectMode
+
 
 seed(0)
 
@@ -405,18 +412,7 @@ def main():
                                              "collection": bpy.data.collections["test" + boolean_basename + "Operands"]})]))
 
     modifiers_test = RunTest(tests)
-
-    command = list(sys.argv)
-    for i, cmd in enumerate(command):
-        if cmd == "--run-all-tests":
-            modifiers_test.do_compare = True
-            modifiers_test.run_all_tests()
-            break
-        elif cmd == "--run-test":
-            modifiers_test.do_compare = False
-            name = command[i + 1]
-            modifiers_test.run_test(name)
-            break
+    modifiers_test.main()
 
 
 if __name__ == "__main__":

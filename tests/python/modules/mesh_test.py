@@ -949,3 +949,26 @@ class RunTest:
 
         success = test.run_test()
         return success
+
+    def main(self):
+        import sys
+        import argparse
+
+        argv = [sys.argv[0]]
+        if '--' in sys.argv:
+            argv += sys.argv[sys.argv.index('--') + 1:]
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--run-all-tests', action='store_true', dest='all_tests')
+        parser.add_argument('--run-test', dest='name')
+
+        args, _ = parser.parse_known_args(argv)
+
+        print(args)
+
+        if args.all_tests:
+            self.do_compare = True
+            self.run_all_tests()
+        elif args.name:
+            self.do_compare = False
+            self.run_test(args.name)

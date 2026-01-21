@@ -473,16 +473,16 @@ if(TEST_SRC_DIR_EXISTS)
 
   add_blender_test(
     modifiers
-    ${TEST_SRC_DIR}/modeling/modifiers.blend
-    --python ${TEST_PYTHON_DIR}/modifiers.py
+    ${TEST_SRC_DIR}/modeling/modifiers/modifiers.blend
+    --python ${TEST_PYTHON_DIR}/modeling/modifiers/modifiers.py
     --
     --run-all-tests
   )
 
   add_blender_test(
     modifiers_multires
-    ${TEST_SRC_DIR}/sculpting/multires_modifier.blend
-    --python ${TEST_PYTHON_DIR}/modifiers/multires_modifier.py
+    ${TEST_SRC_DIR}/modeling/modifiers/multires_modifier.blend
+    --python ${TEST_PYTHON_DIR}/modeling/modifiers/multires_modifier.py
     --
     --run-all-tests
   )
