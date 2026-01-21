@@ -35,7 +35,7 @@ void SourceProcessor::lower_strings_sequences(Parser &parser)
 void SourceProcessor::lower_assert(Parser &parser, const string &filename)
 {
   /* Example: `assert(i < 0)` > `if (!(i < 0)) { printf(...); }` */
-  parser().foreach_match("w(..)", [&](const vector<Token> &tokens) {
+  parser().foreach_match("A(..)", [&](const vector<Token> &tokens) {
     if (tokens[0].str() != "assert") {
       return;
     }
@@ -78,7 +78,7 @@ void SourceProcessor::lower_strings(Parser &parser)
  * This allows to emulate the variadic arguments of printf. */
 void SourceProcessor::lower_printf(Parser &parser)
 {
-  parser().foreach_match("w(..)", [&](const vector<Token> &tokens) {
+  parser().foreach_match("A(..)", [&](const vector<Token> &tokens) {
     if (tokens[0].str() != "printf") {
       return;
     }

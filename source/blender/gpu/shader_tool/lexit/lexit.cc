@@ -4,16 +4,17 @@
 
 #include "lexit.hh"
 
+#include <cassert>
 #include <cctype>
 
 #if defined(__ARM_NEON)
 /* Use ARM FP16 conversion instructions */
-#  define USE_NEON
+// #  define USE_NEON
 #  include <arm_neon.h>
 #endif
 
 #if (defined(__x86_64__) || defined(_M_X64))
-#  define USE_SSE2
+// #  define USE_SSE2
 #  include <immintrin.h>
 #endif
 
@@ -326,14 +327,14 @@ static inline __m128i simd_transform16_ascii(const __m128i table[8], __m128i inp
 }
 #endif
 
-void TokenBuffer::tokenize(const TokenType char_to_tok[128])
+void TokenBuffer::tokenize(const CharClass char_class_table[128])
 {
   uint32_t offset = 0, cursor = 0;
 
 #if defined(USE_SSE2)
   __m128i map_v[8];
   for (int i = 0; i < 8; ++i) {
-    map_v[i] = _mm_loadu_si128((const __m128i *)char_to_tok + i);
+    map_v[i] = _mm_loadu_si128((const __m128i *)char_class_table + i);
   }
 
   const __m128i mask_last = _mm_set_epi8(0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -396,8 +397,8 @@ void TokenBuffer::tokenize(const TokenType char_to_tok[128])
 
 #elif defined(USE_NEON)
   uint8x16x4_t map_v[2];
-  map_v[0] = vld1q_u8_x4((const uint8_t *)char_to_tok);
-  map_v[1] = vld1q_u8_x4((const uint8_t *)char_to_tok + sizeof(uint8x16x4_t));
+  map_v[0] = vld1q_u8_x4((const uint8_t *)char_class_table);
+  map_v[1] = vld1q_u8_x4((const uint8_t *)char_class_table + sizeof(uint8x16x4_t));
 
   const uint8x16_t mask_last = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF};
   const uint8x16_t mask_split = vdupq_n_u8(Merge);
@@ -476,22 +477,21 @@ void TokenBuffer::tokenize(const TokenType char_to_tok[128])
 #else
 
   /* Scalar only implementation. */
-  TokenType last_type = Invalid;
+  CharClass last_type = CharClass::None;
 #endif
 
   {
-    TokenType prev = last_type;
+    CharClass prev = last_type;
     for (; offset < str_len_; offset += 1) {
-      TokenType type = char_to_tok[str_[offset]];
-      const bool merge = type & Merge;
-      type = TokenType(type & ~Merge);
+      const char c = str_[offset];
+      const CharClass curr = char_class_table[c];
       /* Its faster to overwrite the previous value with the same value
        * than having a condition. */
-      types_[cursor] = type;
+      types_[cursor] = (curr > CharClass::ClassToTypeThreshold) ? TokenType(curr) : TokenType(c);
       offsets_[cursor] = offset;
-      /* Split if type mismatch. */
-      cursor += !(type == prev && merge);
-      prev = type;
+      /* Split if no class in common. */
+      cursor += !bool(curr & prev & CharClass::CanMerge);
+      prev = curr;
     }
   }
 
@@ -501,13 +501,6 @@ void TokenBuffer::tokenize(const TokenType char_to_tok[128])
   types_[cursor] = EndOfFile;
 
   size_ = cursor;
-}
-
-void TokenBuffer::identify_numbers()
-{
-  for (uint32_t i = 0; i < size_; i++) {
-    types_[i] = std::isdigit(str_[offsets_[i]]) ? Number : types_[i];
-  }
 }
 
 void TokenBuffer::lex_string(const TokenType *types, uint32_t &cursor)
@@ -549,6 +542,87 @@ void TokenBuffer::lex_number(const uint8_t *c_str,
   }
   /* We need to evaluate the token we broke on. */
   cursor--;
+}
+
+void TokenBuffer::fuse_pass()
+{
+  const TokenType *in_types = types_;
+  TokenType *out_type = types_;
+  const uint32_t *in_offsets = offsets_;
+  uint32_t *out_offset = offsets_;
+
+  for (uint32_t i = 0; i < size_; i++, out_type++, out_offset++) {
+    const TokenType type = in_types[i];
+    const uint32_t offset = in_offsets[i];
+#ifndef NDEBUG
+    std::string_view tok_str{(const char *)str_ + offset, in_offsets[i + 1] - offset};
+#endif
+    *out_type = type;
+    *out_offset = offset;
+
+    switch (type) {
+      case String:
+        lex_string(in_types, i);
+        break;
+      case Number:
+        lex_number(str_, in_types, in_offsets, i);
+        break;
+      [[likely]] default:
+        break;
+    }
+  }
+
+  assert(in_types < out_type);
+  assert(out_type - in_types < 0xFFFFFFFFu);
+  size_ = out_type - in_types;
+  types_[size_] = EndOfFile;
+  offsets_[size_] = str_len_;
+}
+
+void TokenBuffer::merge_whitespaces(uint32_t *original_ends)
+{
+  const TokenType *in_types = types_;
+  TokenType *out_type = types_;
+  const uint32_t *in_offsets = offsets_;
+  uint32_t *out_offset = offsets_;
+  uint32_t *out_end = original_ends;
+
+  for (uint32_t i = 0; i < size_; i++, out_type++, out_offset++, out_end++) {
+    const TokenType type = in_types[i];
+    const uint32_t offset = in_offsets[i];
+#ifndef NDEBUG
+    std::string_view tok_str{(const char *)str_ + offset, in_offsets[i + 1] - offset};
+#endif
+
+    *out_end = in_offsets[i + 1];
+    *out_type = type;
+    *out_offset = offset;
+
+    switch (type) {
+      /* Make next token overwrite this one. Merge the token with the one before. */
+      case NewLine:
+        if (i > 0) {
+          out_type--, out_offset--, out_end--;
+          continue;
+        }
+        break;
+      case Space:
+        if (i > 0) {
+          out_type--, out_offset--, out_end--;
+          continue;
+        }
+        break;
+      [[likely]] default:
+        break;
+    }
+  }
+
+  assert(in_types < out_type);
+  assert(out_type - in_types < 0xFFFFFFFFu);
+  size_ = out_type - in_types;
+  types_[size_] = EndOfFile;
+  offsets_[size_] = str_len_;
+  original_ends[size_] = str_len_;
 }
 
 }  // namespace lexit

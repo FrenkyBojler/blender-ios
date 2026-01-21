@@ -70,26 +70,6 @@ using namespace shader::parser;
 /** \name Parser / Lexer classes.
  * \{ */
 
-/* Same thing as default table but consider numbers as words to avoid second merging pass. */
-static const std::array<TokenType, 128> token_table_preprocessor = [] {
-  std::array<TokenType, 128> table;
-  memcpy(table.data(), lexit::token_table, sizeof(lexit::token_table));
-
-  table['0'] = TokenType(Word | Merge);
-  table['1'] = TokenType(Word | Merge);
-  table['2'] = TokenType(Word | Merge);
-  table['3'] = TokenType(Word | Merge);
-  table['4'] = TokenType(Word | Merge);
-  table['5'] = TokenType(Word | Merge);
-  table['6'] = TokenType(Word | Merge);
-  table['7'] = TokenType(Word | Merge);
-  table['8'] = TokenType(Word | Merge);
-  table['9'] = TokenType(Word | Merge);
-  /* Make "..." a single token for simpler __VA_ARGS__ support. */
-  table['.'] = TokenType(Dot | Merge);
-  return table;
-}();
-
 /**
  * Lexer variant for very fast tokenization for the preprocessor.
  * Consider numbers as words (to avoid splitting and then merging later on).
@@ -117,21 +97,14 @@ struct AtomicLexer : LexerBase {
   BLI_NOINLINE void tokenize()
   {
     lexit::TokenBuffer tok_buf(str.data(), str.size(), token_types.data(), token_offsets.data());
-    tok_buf.tokenize(token_table_preprocessor.data());
+    tok_buf.tokenize(lexit::char_class_table);
 
     /* Resize to the actual usage. */
     token_types.shrink(tok_buf.size());
-    token_sizes.shrink(tok_buf.size());
+    token_ends.shrink(tok_buf.size());
     token_offsets.offsets.shrink(tok_buf.size() + 1);
 
     update_string_view();
-  }
-
-  BLI_NOINLINE void identify_numbers()
-  {
-    lexit::TokenBuffer tok_buf(
-        str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
-    tok_buf.identify_numbers();
   }
 
   BLI_NOINLINE void merge_tokens()
@@ -139,11 +112,11 @@ struct AtomicLexer : LexerBase {
     lexit::TokenBuffer tok_buf(
         str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
 
-    tok_buf.fuse_compounds<CompoundFlags::AllButWhitespaces>();
+    tok_buf.fuse_pass();
 
     /* Resize to the actual usage. */
     token_types.shrink(tok_buf.size());
-    token_sizes.shrink(tok_buf.size());
+    token_ends.shrink(tok_buf.size());
     token_offsets.offsets.shrink(tok_buf.size() + 1);
 
     update_string_view();
@@ -155,7 +128,6 @@ struct AtomicLexer : LexerBase {
     ensure_memory();
 
     tokenize();
-    identify_numbers();
     atomize_words();
     build_line_structure();
   }
@@ -393,7 +365,7 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   }
   bool is_last(TokenID tok)
   {
-    return (lex_.token_sizes.size() - 1) == int(tok);
+    return (lex_.token_types.size() - 1) == int(tok);
   }
 
   /**

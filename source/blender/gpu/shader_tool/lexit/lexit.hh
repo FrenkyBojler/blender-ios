@@ -11,7 +11,6 @@
 
 #pragma once
 
-#include <cassert>
 #include <cstdint>
 #ifndef NDEBUG
 #  include <string_view>
@@ -20,24 +19,6 @@
 #include "types.hh"
 
 namespace lexit {
-
-enum class CompoundFlags : uint64_t {
-  None = 0, /* Invalid. */
-
-  Newlines = 1 << 0,   /* Merge newline with previous token. */
-  Spaces = 1 << 1,     /* Merge space with previous token. */
-  Strings = 1 << 2,    /* "my\"string" */
-  Numbers = 1 << 3,    /* 3.e-3f */
-  CompOps = 1 << 4,    /* >=, <=, ==, != */
-  TokenPaste = 1 << 5, /* ## */
-  LogicOps = 1 << 6,   /* ||, && */
-  UnaryOps = 1 << 7,   /* ++, -- */
-  Derefs = 1 << 8,     /* -> */
-
-  Whitespaces = Newlines | Spaces, /* Merge whitespace with previous token. */
-  AllButWhitespaces = String | Numbers | CompOps | TokenPaste | LogicOps | UnaryOps | Derefs,
-  All = AllButWhitespaces | Whitespaces,
-};
 
 /**
  * Non-owning container for token datas stored in structure of array layout.
@@ -85,16 +66,9 @@ class TokenBuffer {
    *
    * Only tokens with the #Merge flag are merged together.
    *
-   * @param char_to_tok  A lookup table mapping ASCII values (0-127) to a 8-bit TokenType.
+   * @param char_class_table  A lookup table mapping ASCII values (0-127) to a 8-bit CharClass.
    */
-  void tokenize(const TokenType char_to_tok[128]);
-
-  /**
-   * @brief Change each token type to Number if their first char is a number.
-   *
-   * This is only needed if the tokenize pass did not identify number.
-   */
-  void identify_numbers();
+  void tokenize(const CharClass char_class_table[128]);
 
   /**
    * @brief Return the amount of token inside the buffer.
@@ -105,102 +79,19 @@ class TokenBuffer {
   }
 
   /**
-   * @brief Merge compound tokens together.
-   *
-   * This is legacy and should be revisited by splitting compound (string, number) and whitespace
-   * merging in two passes.
+   * @brief Fuse complex literals.
    */
-  template<CompoundFlags flags> void fuse_compounds(uint32_t *rawsize = nullptr)
-  {
-    static_assert(flags != CompoundFlags::None, "No merge flag provided, function is a noop");
+  void fuse_pass();
 
-#define LEXIT_TWO(a, b) a | b << 8
-
-    const TokenType *in_types = types_;
-    TokenType *out_types = types_;
-    const uint32_t *in_offsets = offsets_;
-    uint32_t *out_offsets = offsets_;
-    uint32_t *out_size = rawsize;
-
-    for (uint32_t i = 0; i < size_; i++, out_types++, out_offsets++, out_size++) {
-      const TokenType one = in_types[i];
-      const uint16_t two = LEXIT_TWO(one, in_types[i + 1]);
-
-      const uint32_t offset = in_offsets[i];
-
-#ifndef NDEBUG
-      std::string_view tok_str{(const char *)str_ + offset, in_offsets[i + 1] - offset};
-#endif
-
-      if (rawsize != nullptr) {
-        *out_size = in_offsets[i + 1] - offset;
-      }
-      *out_types = one;
-      *out_offsets = offset;
-
-#define LEXIT_COMPOUND_LEX(tok, flag, ...) \
-  case tok: \
-    if constexpr (uint64_t(flags) & uint64_t(CompoundFlags::flag)) { \
-      __VA_ARGS__; \
-      continue; \
-    } \
-    else { \
-      break; \
-    }
-
-      switch (one) {
-        /* Make next token overwrite this one. Merge the token with the one before. */
-        LEXIT_COMPOUND_LEX(NewLine, Newlines, if (i > 0) out_types--, out_offsets--, out_size--)
-        LEXIT_COMPOUND_LEX(Space, Spaces, if (i > 0) out_types--, out_offsets--, out_size--)
-        /* Complex compound call dedicated functions. */
-        LEXIT_COMPOUND_LEX(String, Strings, lex_string(in_types, i))
-        LEXIT_COMPOUND_LEX(Number, Numbers, lex_number(str_, in_types, in_offsets, i))
-
-        [[likely]] default:
-          break;
-      }
-
-#undef LEXIT_COMPOUND_LEX
-
-#define LEXIT_COMPOUND_LEX(first, second, flag, new_type) \
-  case LEXIT_TWO(first, second): \
-    if constexpr (uint64_t(flags) & uint64_t(CompoundFlags::flag)) { \
-      *out_types = new_type; \
-      break; \
-    } \
-    else { \
-      continue; \
-    }
-
-      switch (two) {
-        LEXIT_COMPOUND_LEX('=', '=', CompOps, Equal)
-        LEXIT_COMPOUND_LEX('!', '=', CompOps, NotEqual)
-        LEXIT_COMPOUND_LEX('<', '=', CompOps, GEqual)
-        LEXIT_COMPOUND_LEX('>', '=', CompOps, LEqual)
-        LEXIT_COMPOUND_LEX('#', '#', TokenPaste, DoubleHash)
-        LEXIT_COMPOUND_LEX('&', '&', LogicOps, LogicalAnd)
-        LEXIT_COMPOUND_LEX('|', '|', LogicOps, LogicalOr)
-        LEXIT_COMPOUND_LEX('+', '+', UnaryOps, Increment)
-        LEXIT_COMPOUND_LEX('-', '-', UnaryOps, Decrement)
-        LEXIT_COMPOUND_LEX('-', '>', Derefs, Deref)
-        [[likely]] default:
-          continue;
-      }
-#undef LEXIT_COMPOUND_LEX
-
-      i++; /* Skip next token. */
-    }
-#undef LEXIT_TWO
-
-    assert(in_types < out_types);
-    assert(out_types - in_types < 0xFFFFFFFFu);
-    size_ = out_types - in_types;
-    types_[size_] = EndOfFile;
-    offsets_[size_] = str_len_;
-    if (rawsize) {
-      rawsize[size_] = 0;
-    }
-  }
+  /**
+   * @brief Merge whitespaces with their preceding token.
+   *
+   * Cannot run before fuse_pass().
+   *
+   * @param original_ends  Output buffer to store the original token end offset before merging.
+   *                       Must be sized to contain at least this->size()+1 amount of elements.
+   */
+  void merge_whitespaces(uint32_t *original_ends);
 
   template<typename CallbackFn> void foreach_token_type(CallbackFn cb)
   {

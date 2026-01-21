@@ -247,6 +247,7 @@ gpu::Shader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 
 void GPU_shader_builtin_warm_up()
 {
+  return;
   if ((G.debug & G_DEBUG_GPU) && (GPU_backend_get_type() == GPU_BACKEND_OPENGL)) {
     /* On some system (Mesa OpenGL), doing this warm up seems to breaks something related to debug
      * hooks and makes the Blender application hang. */

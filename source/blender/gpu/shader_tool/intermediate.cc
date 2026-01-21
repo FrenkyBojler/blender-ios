@@ -113,7 +113,7 @@ void LexerBase::ensure_memory()
 
   size_t needed_size = 0;
   needed_size += sizeof(*token_types.data_) * input_size;
-  needed_size += sizeof(*token_sizes.data_) * input_size;
+  needed_size += sizeof(*token_ends.data_) * input_size;
   needed_size += sizeof(*token_offsets.data()) * input_size;
 
   /* Make sure there is enough reserved space inside the data structures.
@@ -128,66 +128,120 @@ void LexerBase::ensure_memory()
   char *ptr = memory;
   token_types = {reinterpret_cast<TokenType *>(ptr), input_size};
   ptr += sizeof(*token_types.data_) * input_size;
-  token_sizes = {reinterpret_cast<uint32_t *>(ptr), input_size};
-  ptr += sizeof(*token_sizes.data_) * input_size;
+  token_ends = {reinterpret_cast<uint32_t *>(ptr), input_size};
+  ptr += sizeof(*token_ends.data_) * input_size;
   token_offsets = {reinterpret_cast<uint32_t *>(ptr), input_size};
 
   update_string_view();
 }
 
-static const std::array<TokenType, 128> token_table_default = [] {
-  std::array<TokenType, 128> table;
-  memcpy(table.data(), lexit::token_table, sizeof(lexit::token_table));
-  /* Number literals are detected later. */
-  table['0'] = TokenType(Word | Merge);
-  table['1'] = TokenType(Word | Merge);
-  table['2'] = TokenType(Word | Merge);
-  table['3'] = TokenType(Word | Merge);
-  table['4'] = TokenType(Word | Merge);
-  table['5'] = TokenType(Word | Merge);
-  table['6'] = TokenType(Word | Merge);
-  table['7'] = TokenType(Word | Merge);
-  table['8'] = TokenType(Word | Merge);
-  table['9'] = TokenType(Word | Merge);
-  /* TODO(fclem): Replace String by Quote. */
-  table['"'] = TokenType(String);
+/* Same thing as default table but consider numbers as words to avoid second merging pass. */
+static const std::array<CharClass, 128> char_class_table = [] {
+  std::array<CharClass, 128> table;
+  memcpy(table.data(), lexit::char_class_table, sizeof(lexit::char_class_table));
+
+  /* Make < and > separators in order to support template.
+   * That means >= and <= need to be manually handled. */
+  table['<'] = CharClass::Separator;
+  table['>'] = CharClass::Separator;
   return table;
 }();
 
-static const std::array<TokenType, 128> token_table_preprocessor = [] {
-  std::array<TokenType, 128> table;
-  memcpy(table.data(), lexit::token_table, sizeof(lexit::token_table));
-  /* Number literals are detected later. */
-  table['0'] = TokenType(Word | Merge);
-  table['1'] = TokenType(Word | Merge);
-  table['2'] = TokenType(Word | Merge);
-  table['3'] = TokenType(Word | Merge);
-  table['4'] = TokenType(Word | Merge);
-  table['5'] = TokenType(Word | Merge);
-  table['6'] = TokenType(Word | Merge);
-  table['7'] = TokenType(Word | Merge);
-  table['8'] = TokenType(Word | Merge);
-  table['9'] = TokenType(Word | Merge);
-  /* TODO(fclem): Replace String by Quote. */
-  table['"'] = TokenType(String);
-  return table;
-}();
-
-void LexerBase::tokenize(bool only_preprocessor_tokens)
+void LexerBase::tokenize(bool use_default_table)
 {
-  const std::array<TokenType, 128> &token_table = only_preprocessor_tokens ?
-                                                      token_table_preprocessor :
-                                                      token_table_default;
-
   lexit::TokenBuffer tok_buf(str.data(), str.size(), token_types.data(), token_offsets.data());
-  tok_buf.tokenize(token_table.data());
+  tok_buf.tokenize(use_default_table ? lexit::char_class_table : char_class_table.data());
 
   /* Resize to the actual usage. */
   token_types.shrink(tok_buf.size());
-  token_sizes.shrink(tok_buf.size());
+  token_ends.shrink(tok_buf.size());
   token_offsets.offsets.shrink(tok_buf.size() + 1);
 
   update_string_view();
+}
+
+static always_inline TokenType multi_tok_lookup(TokenType input, std::string_view s)
+{
+  switch (s.size()) {
+    case 2:
+      switch (s[0]) {
+        case '=':
+          if (s == "==") {
+            return Equal;
+          }
+          break;
+        case '!':
+          if (s == "!=") {
+            return NotEqual;
+          }
+          break;
+        // case '*':
+        //   if (s == "*=") {
+        //     return MulEqual;
+        //   }
+        //   break;
+        // case '%':
+        //   if (s == "%=") {
+        //     return ModEqual;
+        //   }
+        //   break;
+        case '|':
+          if (s == "||") {
+            return LogicalOr;
+          }
+          // if (s == "|=") {
+          //   return OrEqual;
+          // }
+          break;
+        case '&':
+          if (s == "&&") {
+            return LogicalAnd;
+          }
+          // if (s == "&=") {
+          //   return AndEqual;
+          // }
+          break;
+        case '<':
+          if (s == "<=") {
+            return LEqual;
+          }
+          // if (s == "<<") {
+          //   return LShit;
+          // }
+          break;
+        case '>':
+          if (s == ">=") {
+            return GEqual;
+          }
+          // if (s == ">>") {
+          //   return RShit;
+          // }
+          break;
+        case '+':
+          if (s == "++") {
+            return Increment;
+          }
+          // if (s == "+=") {
+          //   return AddEqual;
+          // }
+          break;
+        case '-':
+          if (s == "--") {
+            return Decrement;
+          }
+          // if (s == "-=") {
+          //   return SubEqual;
+          // }
+          break;
+        case '#':
+          if (s == "##") {
+            return DoubleHash;
+          }
+          break;
+      }
+      break;
+  }
+  return input;
 }
 
 void LexerBase::merge_tokens()
@@ -195,12 +249,17 @@ void LexerBase::merge_tokens()
   lexit::TokenBuffer tok_buf(
       str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
 
-  tok_buf.identify_numbers();
+  /* TODO remove. */
+  tok_buf.foreach_token_type([](TokenType *&type) {
+    if (*type == '"') {
+      *type = String;
+    }
+  });
 
   tok_buf.foreach_token_type([](TokenType *&type) {
     if (*type == '#') {
-      /* Seek until the end of the directive. Mark all Newlines as PreprocessorNewLine to avoid
-       * merging. */
+      /* Seek until the end of the directive and mark it as PreprocessorNewLine
+       * to avoid loosing it. */
       while (*type != EndOfFile) {
         if (type[0] == NewLine) {
           type[0] = PreprocessorNewline;
@@ -215,7 +274,8 @@ void LexerBase::merge_tokens()
     }
   });
 
-  tok_buf.fuse_compounds<CompoundFlags::All>(token_sizes.data());
+  tok_buf.fuse_pass();
+  tok_buf.merge_whitespaces(token_ends.data());
 
   /* Change back tor regular newline. */
   tok_buf.foreach_token_type([](TokenType *&type) {
@@ -226,7 +286,7 @@ void LexerBase::merge_tokens()
 
   /* Resize to the actual usage. */
   token_types.shrink(tok_buf.size());
-  token_sizes.shrink(tok_buf.size());
+  token_ends.shrink(tok_buf.size());
   token_offsets.offsets.shrink(tok_buf.size() + 1);
 
   update_string_view();
@@ -388,9 +448,16 @@ void LexerBase::identify_keywords()
   int tok_id = -1;
   for (TokenType &type : token_types) {
     tok_id++;
-    if (type == Word) {
-      IndexRange range = token_offsets[tok_id];
-      type = type_lookup({str.data() + range.start, size_t(token_sizes[tok_id])});
+    IndexRange range = token_offsets[tok_id];
+    switch (type) {
+      case Word:
+        type = type_lookup({str.data() + range.start, size_t(range.size)});
+        break;
+      case Number:
+        break;
+      default:
+        type = multi_tok_lookup(type, {str.data() + range.start, size_t(range.size)});
+        break;
     }
   }
 }

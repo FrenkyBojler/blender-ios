@@ -4,20 +4,60 @@
 
 #pragma once
 
+#include <cstdint>
+
 namespace lexit {
+
+/**
+ * Class for each characters inside the ASCII table.
+ *
+ * The tokenizer identifies runs of characters with similar classes.
+ * A character is grouped with its predecessor if it shares a class.
+ * The Separator class is the exception which never group chars together.
+ *
+ * Note: The values were chosen to allow fast comparison, masking, and cast to printable TokenType.
+ */
+enum class CharClass : uint8_t {
+  /* Will decay into single char token. */
+  None = 0,
+  /* Will decay into single char of the token. */
+  Separator = (1 << 1),
+  /* Will decay into the first char of the token. */
+  MultiTok = (1 << 2),
+  WhiteSpace = (1 << 3),
+  /* Will decay into Word. Can start an identifier. */
+  Alpha = 'A', /* 0b01000001 */
+  /* Will decay into Number. Can continue an identifier. */
+  Numeric = '1', /* 0b00110001 */
+
+  /* These classes will merge characters together. */
+  CanMerge = Alpha | Numeric | MultiTok | WhiteSpace,
+  /* Classes above this value will cast to TokenType instead of using the character. */
+  ClassToTypeThreshold = Numeric - 1,
+};
+
+[[maybe_unused]] [[nodiscard]] constexpr CharClass operator|(CharClass a, CharClass b)
+{
+  return CharClass(uint8_t(a) | uint8_t(b));
+}
+
+[[maybe_unused]] [[nodiscard]] constexpr CharClass operator&(CharClass a, CharClass b)
+{
+  return CharClass(uint8_t(a) & uint8_t(b));
+}
 
 /* Make sure to declare this enum as being a char.
  * This is allow casting to string possible. */
-enum TokenType : unsigned char {
+enum TokenType : uint8_t {
   Invalid = 0,
+  Word = TokenType(CharClass::Alpha),
+  Number = TokenType(CharClass::Numeric),
   /* Use printable ascii chars to store them in string, and for easy debugging / testing. */
-  Word = 'w',
   NewLine = '\n',
   Space = ' ',
   Dot = '.',
   Hash = '#',
   Ampersand = '&',
-  Number = '0',
   String = '_', /* TODO(fclem): Move String to a DoubleQuote */
   DoubleQuote = '"',
   SingleQuote = '\'',
@@ -57,7 +97,6 @@ enum TokenType : unsigned char {
   Constexpr = 'C',
   Do = 'd',
   Decrement = 'D',
-  Deref = 'D', /* TODO(fclem): Deduplicate. */
   NotEqual = 'e',
   Equal = 'E',
   For = 'f',
