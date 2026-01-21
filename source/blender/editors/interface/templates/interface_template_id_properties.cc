@@ -199,8 +199,12 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   void build_row(ui::Layout &row) override
   {
-    uiItemL_ex(&row, property_->name, ICON_NONE, false, false);
-    ui::Layout &sub = row.split(0.90f, true);
+    ui::Layout &name_layout = row.split(0.4f, false);
+    name_layout.alignment_set(LayoutAlign::Left);
+    uiItemL_ex(&name_layout, property_->name, ICON_NONE, false, false);
+
+    ui::Layout &sub = name_layout.row(false);
+    sub.alignment_set(LayoutAlign::Right);
     /* Use different emboss for widget style to color buttons when keyframe/drivers are present. */
     const EmbossType emboss = [&]() -> EmbossType {
       if (property_->type == IDP_BOOLEAN) {
