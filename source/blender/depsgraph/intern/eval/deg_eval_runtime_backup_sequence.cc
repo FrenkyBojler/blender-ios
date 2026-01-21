@@ -64,6 +64,8 @@ StripBackup::StripBackup(const Depsgraph * /*depsgraph*/)
 void StripBackup::reset()
 {
   scene_sound = nullptr;
+  last_parent_sound_scene = nullptr;
+  meta_scene_sound = nullptr;
   movie_readers.clear();
   modifiers.clear();
 }
@@ -71,6 +73,8 @@ void StripBackup::reset()
 void StripBackup::init_from_strip(Strip *strip, Scene *scene)
 {
   scene_sound = strip->runtime->scene_sound;
+  last_parent_sound_scene = strip->runtime->last_parent_sound_scene;
+  meta_scene_sound = strip->runtime->meta_scene_sound;
   parent_strip = seq::lookup_meta_by_strip(scene->ed, strip);
   movie_readers = std::move(strip->runtime->movie_readers);
 
@@ -89,6 +93,8 @@ void StripBackup::init_from_strip(Strip *strip, Scene *scene)
 void StripBackup::restore_to_strip(Strip *strip)
 {
   strip->runtime->scene_sound = scene_sound;
+  strip->runtime->last_parent_sound_scene = last_parent_sound_scene;
+  strip->runtime->meta_scene_sound = meta_scene_sound;
   strip->runtime->movie_readers = std::move(movie_readers);
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {

@@ -71,8 +71,7 @@ struct StripRuntime {
   StripRuntimeFlag flag = StripRuntimeFlag::None;
   void *scene_sound = nullptr; /* AUD_SequenceEntry */
   void *meta_scene_sound = nullptr; /* AUD_SequenceEntry */
-  int last_parent_sound_scene = 0;
-  void *last_parent_sound_scene_real = nullptr;
+  void *last_parent_sound_scene = nullptr;
   Vector<MovieReader *, 1> movie_readers;
 
   [[nodiscard]] MovieReader *movie_reader_get(int64_t index = 0) const

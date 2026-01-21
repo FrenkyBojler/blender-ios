@@ -8,6 +8,7 @@
  * \ingroup sequencer
  */
 
+#include <AUD_Sequence.h>
 #define DNA_DEPRECATED_ALLOW
 
 #include <cstddef>
@@ -206,10 +207,11 @@ static void seq_strip_free_ex(Scene *scene,
       ed->act_strip = nullptr;
     }
 
-    if (strip->runtime->scene_sound && ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE)) {
+    if (strip->runtime->scene_sound &&
+        ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE, STRIP_TYPE_META))
+    {
       // BKE_sound_remove_scene_sound(scene, strip->runtime->scene_sound);
-      BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene_real,
-                             strip->runtime->scene_sound);
+      BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
     }
   }
 
@@ -602,7 +604,6 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx, ListBase *seqbase_dst,
 
   strip_new->runtime->meta_scene_sound = strip->runtime->meta_scene_sound;
   strip_new->runtime->last_parent_sound_scene = strip->runtime->last_parent_sound_scene;
-  strip_new->runtime->last_parent_sound_scene_real = strip->runtime->last_parent_sound_scene_real;
 
   ctx.strip_map.add(strip, strip_new);
 
@@ -1065,8 +1066,7 @@ static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
   Scene *scene = (Scene *)user_data;
   if (strip->runtime->scene_sound != nullptr) {
     // BKE_sound_remove_scene_sound(scene, strip->runtime->scene_sound);
-    BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene_real,
-                           strip->runtime->scene_sound);
+    BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
     strip->runtime->scene_sound = nullptr;
   }
   return true;
@@ -1084,7 +1084,11 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
   // Ramon: this is the place that prevents the audio from getting added multible times. Problem is
   // that when a strip gets grouped into a meta strip this also prevents the handle from getting
   // moved into this new handle
-  if (strip->runtime->scene_sound != nullptr) {
+  void *parent_sound_scene = get_parent_sound_scene(strip, scene);
+
+  if (strip->runtime->scene_sound != nullptr &&
+      parent_sound_scene == strip->runtime->last_parent_sound_scene)
+  {
     // Ramon: you can return here since when the strip is inside a meta it gets removed via the
     // meta recursion.
     printf("skip strip %s\n", strip->name);
@@ -1101,8 +1105,8 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
     if (parent_strip != nullptr) {
       printf("recalc parent_strip\n");
       if (parent_strip->runtime->scene_sound != nullptr) {
-        if (parent_strip->runtime->last_parent_sound_scene_real != nullptr) {
-          BKE_sound_remove_sound(parent_strip->runtime->last_parent_sound_scene_real,
+        if (parent_strip->runtime->last_parent_sound_scene != nullptr) {
+          BKE_sound_remove_sound(parent_strip->runtime->last_parent_sound_scene,
                                  parent_strip->runtime->scene_sound);
           parent_strip->runtime->scene_sound = nullptr;
         }
@@ -1128,13 +1132,8 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
 
 static void strip_update_sound_properties(const Scene *scene, const Strip *strip)
 {
-  // const Strip *meta = lookup_meta_by_strip(editing_get(scene), strip);
   float output_volume = strip->volume;
-  // if (meta != nullptr) {
-  // output_volume *= meta->volume;
-  // }
   const int frame = BKE_scene_frame_get(scene);
-  // printf("vol strip %s\n", strip->name);
   BKE_sound_set_scene_sound_volume_at_frame(strip->runtime->scene_sound,
                                             frame,
                                             output_volume,
@@ -1152,12 +1151,10 @@ static void strip_update_sound_modifiers(Strip *strip)
   bool needs_update = false;
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
-    printf("LISTBASE_FOREACH\n");
     sound_handle = sound_modifier_recreator(strip, smd, sound_handle, needs_update);
   }
 
   if (needs_update) {
-    printf("needs_update\n");
     /* Assign modified sound back to `strip`. */
     BKE_sound_update_sequence_handle(strip->runtime->scene_sound, sound_handle);
   }

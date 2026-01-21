@@ -847,6 +847,27 @@ void *BKE_sound_scene_add_scene_sound_defaults(Scene *scene, Strip *strip)
                                          strip->startofs + strip->anim_startofs);
 }
 
+void *get_parent_sound_scene(Strip *strip, Scene *scene)
+{
+  Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
+  void *parent_sound_scene = nullptr;
+
+  if (parent_strip != nullptr) {
+    /* Add a new meta_scene_sound when there is none. */
+    if (parent_strip->runtime->meta_scene_sound == nullptr) {
+      printf("AUD_Sequence_create\n");
+      parent_strip->runtime->meta_scene_sound = AUD_Sequence_create(scene->frames_per_second(),
+                                                                    false);
+    }
+    parent_sound_scene = parent_strip->runtime->meta_scene_sound;
+  }
+  else {
+    parent_sound_scene = scene->runtime->audio.sound_scene;
+  }
+
+  return parent_sound_scene;
+}
+
 // Ramon: here the playback_handle of the strip gets added to the sound_scene
 void *BKE_sound_add_scene_sound(
     Scene *scene, Strip *strip, int startframe, int endframe, int frameskip)
@@ -870,23 +891,12 @@ void *BKE_sound_add_scene_sound(
   Strip *parent_strip = blender::seq::lookup_meta_by_strip(ed, strip);
   int parent_start = parent_strip != nullptr ? parent_strip->left_handle() : 0;
 
-  void *parent_sound_scene = nullptr;
   AUD_Sound *add_handle = strip->type == STRIP_TYPE_META ? strip->runtime->meta_scene_sound :
                                                            strip->sound->runtime->playback_handle;
 
   /* This is to add the hande to the right AUD sequence(to sequence of parent_strip or to scene
    * when there is no parent). */
-  if (parent_strip != nullptr) {
-    /* Add a new meta_scene_sound when there is none. */
-    if (parent_strip->runtime->meta_scene_sound == nullptr) {
-      parent_strip->runtime->meta_scene_sound = AUD_Sequence_create(scene->frames_per_second(),
-                                                                    false);
-    }
-    parent_sound_scene = parent_strip->runtime->meta_scene_sound;
-  }
-  else {
-    parent_sound_scene = scene->runtime->audio.sound_scene;
-  }
+  void *parent_sound_scene = get_parent_sound_scene(strip, scene);
 
   const double fps = scene->frames_per_second();
   double offset_time = 0.0f;
@@ -896,21 +906,20 @@ void *BKE_sound_add_scene_sound(
     offset_time = strip->sound->offset_time + strip->sound_offset - frameskip / fps;
   }
 
-  // to remove the last handle properly
+  // to remove the last handle properly. This is needed when strips that were previosly added to a
+  // scene are now moved to a meta.
   if (strip->runtime->scene_sound != nullptr) {
-    if (parent_strip != nullptr && strip->runtime->last_parent_sound_scene == 1) {
-      printf("remove\n");
-      AUD_Sequence_remove(parent_sound_scene, strip->runtime->scene_sound);
-    }
-    else {
-      printf("remove\n");
-      AUD_Sequence_remove(scene->runtime->audio.sound_scene, strip->runtime->scene_sound);
+    if (strip->runtime->last_parent_sound_scene != nullptr) {
+      if (strip->runtime->last_parent_sound_scene != parent_sound_scene) {
+        printf("remove\n");
+        AUD_Sequence_remove(strip->runtime->last_parent_sound_scene,
+                            strip->runtime->scene_sound);
+      }
     }
   }
 
   // store last handle here so it can be properly removed in the next run.
-  strip->runtime->last_parent_sound_scene = parent_strip != nullptr ? 1 : 0;
-  strip->runtime->last_parent_sound_scene_real = parent_sound_scene;
+  strip->runtime->last_parent_sound_scene = parent_sound_scene;
   if (strip->type == STRIP_TYPE_META) {
     printf("printf -----------------------------------\n");
   }

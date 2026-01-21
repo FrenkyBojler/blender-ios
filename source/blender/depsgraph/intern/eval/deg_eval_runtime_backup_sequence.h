@@ -53,6 +53,8 @@ class StripBackup {
 
   void *scene_sound;
   Strip *parent_strip; // Stores to what the strip was added (scene or meta).
+  void *last_parent_sound_scene;
+  void *meta_scene_sound;
   Vector<MovieReader *, 1> movie_readers;
   Map<int, StripModifierDataBackup> modifiers;
 };

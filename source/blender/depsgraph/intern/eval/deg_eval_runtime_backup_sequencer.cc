@@ -65,17 +65,7 @@ void SequencerBackup::restore_to_scene(Scene *scene)
   /* Cleanup audio while the scene is still known. */
   for (StripBackup &strip_backup : strips_backup.values()) {
     if (strip_backup.scene_sound != nullptr) {
-      /* Ramon: this is a workaround that leads the parent_strip sequence to be recreated(without
-       * the removed strip).*/
-      if (strip_backup.parent_strip != nullptr) {
-        printf("strip_backup.parent_strip != nullptr\n");
-        // BKE_sound_remove_sound(strip_backup.parent_strip->runtime->meta_scene_sound,
-        //                        strip_backup.scene_sound);
-        BKE_sound_remove_scene_sound(scene, strip_backup.parent_strip->runtime->scene_sound);
-        strip_backup.parent_strip->runtime->scene_sound = nullptr;
-        return;
-      }
-      BKE_sound_remove_scene_sound(scene, strip_backup.scene_sound);
+      BKE_sound_remove_sound(strip_backup.last_parent_sound_scene, strip_backup.scene_sound);
     }
   }
 }
