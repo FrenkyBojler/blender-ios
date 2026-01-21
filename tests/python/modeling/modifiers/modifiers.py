@@ -9,13 +9,14 @@
 # See `multires_modifier.py` for an example of splitting these out.
 
 import math
-import pathlib
+import os
 import sys
 from random import seed
 
 import bpy
 
-sys.path.append(str(pathlib.Path(__file__).parents[2].absolute()))
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(BASE_DIR, "..", ".."))
 from modules.mesh_test import RunTest, ModifierSpec, MultiModifierSpec, SpecMeshTest, OperatorSpecObjectMode
 
 

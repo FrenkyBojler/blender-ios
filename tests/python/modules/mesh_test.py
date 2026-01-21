@@ -950,25 +950,30 @@ class RunTest:
         success = test.run_test()
         return success
 
-    def main(self):
-        import sys
+    @staticmethod
+    def argparse_create():
         import argparse
 
-        argv = [sys.argv[0]]
+        parser = argparse.ArgumentParser(
+            description='Mesh comparison test runner.\nBy default, runs all constructed tests.')
+        parser.add_argument('--run-test', dest='name', help='A specific test to run.')
+
+        return parser
+
+    def main(self):
+        import sys
+        parser = RunTest.argparse_create()
+
         if '--' in sys.argv:
-            argv += sys.argv[sys.argv.index('--') + 1:]
+            argv = sys.argv[sys.argv.index("--") + 1:]
+        else:
+            argv = []
 
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--run-all-tests', action='store_true', dest='all_tests')
-        parser.add_argument('--run-test', dest='name')
+        args = parser.parse_args(argv)
 
-        args, _ = parser.parse_known_args(argv)
-
-        print(args)
-
-        if args.all_tests:
-            self.do_compare = True
-            self.run_all_tests()
-        elif args.name:
+        if args.name:
             self.do_compare = False
             self.run_test(args.name)
+        else:
+            self.do_compare = True
+            self.run_all_tests()
