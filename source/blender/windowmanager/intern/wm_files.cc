@@ -3805,6 +3805,7 @@ static void wm_operator_save_modified_images_dialog(bContext *C,
  *
  * Both #WM_OT_save_as_mainfile & #WM_OT_save_mainfile.
  * \{ */
+
 static void wm_filepath_default(const Main *bmain, char *filepath)
 {
   if (bmain->filepath[0] == '\0') {
@@ -4853,7 +4854,7 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 
-  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
+  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
   if (modified_images_count > 0 && save_images_when_file_is_closed) {
     if (ED_image_should_save_modified(bmain)) {
       ReportList *reports = CTX_wm_reports(C);
