@@ -351,18 +351,42 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   else if (obedit->type == OB_CURVES) {
     const Curves &curves_id = *id_cast<Curves *>(obedit->data);
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-    const VArray<bool> selection_attribute = *curves.attributes().lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
-
-    const OffsetIndices points_by_curve = curves.points_by_curve();
-    threading::parallel_for(curves.curves_range(), 256, [&](const IndexRange curves_range) {
-      for (const int curve_i : curves_range) {
-        const int selected_points = array_utils::count_booleans(
-            selection_attribute, points_by_curve[curve_i]);
-        stats->totpointsel += selected_points;
-        stats->totcurvesel += (selected_points > 0);
-      }
-    });
+    if (const bke::AttributeReader selection = curves.attributes().lookup<bool>(".selection")) {
+      const OffsetIndices points_by_curve = curves.points_by_curve();
+      struct SelectionCounts {
+        int point;
+        int curve;
+      };
+      const SelectionCounts counts = threading::parallel_reduce(
+          points_by_curve.index_range(),
+          2048,
+          SelectionCounts{0, 0},
+          [&](const IndexRange range, SelectionCounts value) {
+            for (const int curve : range) {
+              if (selection.domain == bke::AttrDomain::Point) {
+                const int selected_points = array_utils::count_booleans(*selection,
+                                                                        points_by_curve[curve]);
+                value.point += selected_points;
+                value.curve += (selected_points > 0);
+              }
+              else {
+                const bool selected = selection.varray[curve];
+                value.point += selected ? points_by_curve[curve].size() : 0;
+                value.curve += selected;
+              }
+            }
+            return value;
+          },
+          [&](const SelectionCounts &a, const SelectionCounts &b) {
+            return SelectionCounts{a.point + b.point, a.curve + b.curve};
+          });
+      stats->totpointsel += counts.point;
+      stats->totcurvesel += counts.curve;
+    }
+    else {
+      stats->totpointsel += curves.points_num();
+      stats->totcurvesel += curves.curves_num();
+    }
 
     stats->totpoints += curves.points_num();
     stats->totcurves += curves.curves_num();
