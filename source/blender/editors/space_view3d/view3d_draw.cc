@@ -57,6 +57,7 @@
 #include "ED_info.hh"
 #include "ED_scene.hh"
 #include "ED_screen.hh"
+#include "ED_sequencer.hh"
 #include "ED_view3d_offscreen.hh"
 #include "ED_viewer_path.hh"
 
@@ -1786,6 +1787,9 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
   using namespace blender::draw;
   Main *bmain = CTX_data_main(C);
   View3D *v3d = CTX_wm_view3d(C);
+
+  /* Resync VSE camera after all outliner/undo operations.See issue #152866. */
+  blender::ed::vse::sync_vse_camera_to_strip(*const_cast<bContext *>(C));
 
   view3d_update_viewer_path(C);
   view3d_draw_view(C, region);

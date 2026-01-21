@@ -59,7 +59,6 @@
 #include "ED_markers.hh"
 #include "ED_render.hh"
 #include "ED_screen.hh"
-#include "ED_sequencer.hh"
 #include "ED_undo.hh"
 #include "ED_util.hh"
 #include "ED_view3d.hh"
@@ -598,8 +597,6 @@ void wm_event_do_notifiers(bContext *C)
     return;
   }
 
-  bool resync_vse_camera = false;
-
   /* Disable? - Keep for now since its used for window level notifiers. */
 #if 1
   /* Cache & catch WM level notifiers, such as frame change, scene/screen set. */
@@ -694,12 +691,6 @@ void wm_event_do_notifiers(bContext *C)
           if (note->data == ND_FRAME) {
             do_anim = true;
           }
-          if (ELEM(note->data, ND_OB_ACTIVE, ND_LAYER_CONTENT, ND_LAYER)) {
-            resync_vse_camera = true;
-          }
-        }
-        if (note->category == NC_WM && note->data == ND_UNDO) {
-          resync_vse_camera = true;
         }
       }
       if (ELEM(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_WM)) {
@@ -819,17 +810,6 @@ void wm_event_do_notifiers(bContext *C)
     MEM_freeN(note);
   }
 #endif /* If 1 (postpone disabling for in favor of message-bus), eventually. */
-
-  /* Resync VSE camera after all listeners and depsgraph updates have completed.
-   * viewport listeners may reset. Adding it after WM level notifiers works only
-   * for Undo/Redo but Outliner Changes fail, so adding it here.See issue #152866  */
-  if (resync_vse_camera) {
-    for (wmWindow &win : wm->windows) {
-      CTX_wm_window_set(C, &win);
-      blender::ed::vse::sync_vse_camera_to_strip(*C);
-    }
-    CTX_wm_window_set(C, nullptr);
-  }
 
   /* Handle message bus. */
   {
