@@ -341,8 +341,8 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
   __m128i prev = _mm_set1_epi8(uint8_t(CharClass::None));
 
   for (; offset + 16 <= str_len_; offset += 16) {
-    const __m128i raw_data = _mm_loadu_si128((const __m128i *)(str_ + offset));
-    const __m128i curr = simd_transform16_ascii(map_v, raw_data);
+    const __m128i c = _mm_loadu_si128((const __m128i *)(str_ + offset));
+    const __m128i curr = simd_transform16_ascii(map_v, c);
     /* Check if token needs to always split. */
     const __m128i mask_t = _mm_cmpgt_epi8(curr,
                                           _mm_set1_epi8(int8_t(CharClass::ClassToTypeThreshold)));
