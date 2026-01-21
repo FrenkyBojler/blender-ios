@@ -669,16 +669,15 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
   if (fill_solver == CU_FILL_SOLVER_CDT) {
     CDT_output_type output_type;
     switch (fill_rule) {
-      case CU_FILL_RULE_NONZERO_CW:
-        output_type = CDT_INSIDE_WITH_HOLES_NONZERO_CW;
+      case CU_FILL_RULE_NONZERO: {
+        output_type = CDT_INSIDE_WITH_HOLES_NONZERO;
         break;
-      case CU_FILL_RULE_NONZERO_CCW:
-        output_type = CDT_INSIDE_WITH_HOLES_NONZERO_CCW;
-        break;
+      }
       case CU_FILL_RULE_EVEN_ODD:
-      default:
+      default: {
         output_type = CDT_INSIDE_WITH_HOLES;
         break;
+      }
     }
     displist_fill_cdt(dispbase, to, flip_normal, output_type);
   }

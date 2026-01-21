@@ -2486,13 +2486,9 @@ template<typename T> void remove_faces_in_holes(CDT_state<T> *cdt_state)
  *
  * \param input: The original CDT input, used to determine edge directions for winding calculation.
  * \param use_nonzero_rule: If true, use non-zero winding rule; otherwise use even-odd rule.
- * \param flip_winding: If true (and use_nonzero_rule is true), flip the winding direction.
  */
 template<typename T>
-void detect_holes(CDT_state<T> *cdt_state,
-                  const CDT_input<T> &input,
-                  bool use_nonzero_rule,
-                  bool flip_winding)
+void detect_holes(CDT_state<T> *cdt_state, const CDT_input<T> &input, bool use_nonzero_rule)
 {
   CDTArrangement<T> *cdt = &cdt_state->cdt;
 
@@ -2651,9 +2647,6 @@ void detect_holes(CDT_state<T> *cdt_state,
                   }
                 }
 
-                if (flip_winding) {
-                  delta = -delta;
-                }
                 crossings += delta;
                 break;
               }
@@ -2744,21 +2737,14 @@ void prepare_cdt_for_output(CDT_state<T> *cdt_state,
   /* Determine if hole detection is needed and which winding rule to use. */
   bool need_holes_evenodd = ELEM(
       output_type, CDT_INSIDE_WITH_HOLES, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
-  bool need_holes_nonzero_ccw = ELEM(output_type,
-                                     CDT_INSIDE_WITH_HOLES_NONZERO_CCW,
-                                     CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CCW);
-  bool need_holes_nonzero_cw = ELEM(output_type,
-                                    CDT_INSIDE_WITH_HOLES_NONZERO_CW,
-                                    CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CW);
+  bool need_holes_nonzero = ELEM(
+      output_type, CDT_INSIDE_WITH_HOLES_NONZERO, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO);
 
   if (need_holes_evenodd) {
-    detect_holes(cdt_state, input, false, false);
+    detect_holes(cdt_state, input, false);
   }
-  else if (need_holes_nonzero_ccw) {
-    detect_holes(cdt_state, input, true, false);
-  }
-  else if (need_holes_nonzero_cw) {
-    detect_holes(cdt_state, input, true, true);
+  else if (need_holes_nonzero) {
+    detect_holes(cdt_state, input, true);
   }
 
   if (output_type == CDT_CONSTRAINTS) {
@@ -2770,18 +2756,13 @@ void prepare_cdt_for_output(CDT_state<T> *cdt_state,
   else if (output_type == CDT_INSIDE) {
     remove_outer_edges_until_constraints(cdt_state);
   }
-  else if (ELEM(output_type,
-                CDT_INSIDE_WITH_HOLES,
-                CDT_INSIDE_WITH_HOLES_NONZERO_CW,
-                CDT_INSIDE_WITH_HOLES_NONZERO_CCW))
-  {
+  else if (ELEM(output_type, CDT_INSIDE_WITH_HOLES, CDT_INSIDE_WITH_HOLES_NONZERO)) {
     remove_outer_edges_until_constraints(cdt_state);
     remove_faces_in_holes(cdt_state);
   }
   else if (ELEM(output_type,
                 CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES,
-                CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CW,
-                CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CCW))
+                CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO))
   {
     remove_outer_edges_until_constraints(cdt_state);
     remove_non_constraint_edges_leave_valid_bmesh(cdt_state);

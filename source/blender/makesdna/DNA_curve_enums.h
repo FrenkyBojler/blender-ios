@@ -104,8 +104,7 @@ enum {
 /** #Curve.fill_rule */
 enum {
   CU_FILL_RULE_EVEN_ODD = 0,
-  CU_FILL_RULE_NONZERO_CW = 1,
-  CU_FILL_RULE_NONZERO_CCW = 2,
+  CU_FILL_RULE_NONZERO = 1,
 };
 
 /* Curve.overflow. */

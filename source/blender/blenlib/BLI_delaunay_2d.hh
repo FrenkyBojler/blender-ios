@@ -73,30 +73,8 @@ enum CDT_output_type {
    * A point is inside if the winding number (sum of signed edge crossings) is non-zero.
    * This creates "union" behavior: overlapping curves with the same winding direction
    * merge together instead of creating holes.
-   *
-   * - CCW variant: Expects outer contours to be counter-clockwise and holes to be
-   *   clockwise. This matches SVG convention and most vector graphics software.
-   *
-   * - Practical note on CCW vs CW:
-   *   For simple shapes with holes (like the letter "O"),
-   *   both CCW and CW produce identical results because hole detection only checks if
-   *   the winding number equals zero. The difference matters when:
-   *   - Combining curves from sources with different winding conventions.
-   *   - Working with software that expects a specific convention.
-   *   - Results appear inverted (try the other variant).
    */
-  CDT_INSIDE_WITH_HOLES_NONZERO_CCW,
-  /**
-   * Like #CDT_INSIDE_WITH_HOLES_NONZERO_CCW, but expects the opposite winding convention.
-   *
-   * - CW variant:
-   *   Expects outer contours to be clockwise and holes to be
-   *   counter-clockwise. This is the convention used by FreeType fonts.
-   *
-   * See #CDT_INSIDE_WITH_HOLES_NONZERO_CCW for detailed explanation of the non-zero
-   * winding rule and when CCW vs CW choice matters.
-   */
-  CDT_INSIDE_WITH_HOLES_NONZERO_CW,
+  CDT_INSIDE_WITH_HOLES_NONZERO,
   /** Only point, edge, and face constraints, and their intersections. */
   CDT_CONSTRAINTS,
   /**
@@ -111,15 +89,10 @@ enum CDT_output_type {
    */
   CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES,
   /**
-   * Like #CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES, but uses non-zero winding rule (CCW).
-   * See #CDT_INSIDE_WITH_HOLES_NONZERO_CCW for explanation.
+   * Like #CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES, but uses non-zero winding rule.
+   * See #CDT_INSIDE_WITH_HOLES_NONZERO for explanation.
    */
-  CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CCW,
-  /**
-   * Like #CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES, but uses non-zero winding rule (CW).
-   * See #CDT_INSIDE_WITH_HOLES_NONZERO_CW for explanation.
-   */
-  CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CW,
+  CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO,
 };
 
 namespace meshintersect {

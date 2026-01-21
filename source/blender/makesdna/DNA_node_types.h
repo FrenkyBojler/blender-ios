@@ -1272,10 +1272,8 @@ enum GeometryNodeCurveFillMode {
 enum GeometryNodeCurveFillRule {
   /** Even-odd winding rule for hole detection. */
   GEO_NODE_CURVE_FILL_RULE_EVEN_ODD = 0,
-  /** Non-zero winding rule (CCW outer contours). */
-  GEO_NODE_CURVE_FILL_RULE_NON_ZERO_CCW = 1,
-  /** Non-zero winding rule (CW outer contours). */
-  GEO_NODE_CURVE_FILL_RULE_NON_ZERO_CW = 2,
+  /** Non-zero winding rule. */
+  GEO_NODE_CURVE_FILL_RULE_NON_ZERO = 1,
 };
 
 enum GeometryNodeMeshToPointsMode {

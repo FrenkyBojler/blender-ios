@@ -785,24 +785,27 @@ template<typename T> void nonzero_winding_test()
         "NonZeroWinding - even-odd", out_evenodd.vert, out_evenodd.edge, out_evenodd.face);
   }
 
-  /* Non-zero CCW: overlapping same-winding squares union. */
-  CDT_result<T> out_nonzero = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO_CCW);
+  /* Non-zero: overlapping same-winding squares union. */
+  CDT_result<T> out_nonzero = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO);
   EXPECT_EQ(out_nonzero.vert.size(), 10); /* 8 input + 2 intersections */
   if (DO_DRAW) {
     graph_draw<T>(
-        "NonZeroWinding - non-zero CCW", out_nonzero.vert, out_nonzero.edge, out_nonzero.face);
+        "NonZeroWinding - non-zero", out_nonzero.vert, out_nonzero.edge, out_nonzero.face);
   }
 
   /* Non-zero should have more faces than even-odd (union vs hole in overlap). */
   EXPECT_EQ(out_evenodd.face.size(), 8);
   EXPECT_EQ(out_nonzero.face.size(), 10);
 
-  /* CW and CCW variants produce identical results because the non-zero rule
-   * treats both +n and -n winding as "inside". The CW/CCW choice matches
-   * input data convention (FreeType vs SVG), not different output. */
-  CDT_result<T> out_nonzero_cw = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO_CW);
-  EXPECT_EQ(out_nonzero_cw.vert.size(), out_nonzero.vert.size());
-  EXPECT_EQ(out_nonzero_cw.face.size(), out_nonzero.face.size());
+  /* Verify non-zero rule is winding-independent: flipping all face windings
+   * should produce identical results since we only check if winding == 0. */
+  CDT_input<T> in_flipped = in;
+  for (Vector<int> &face : in_flipped.face) {
+    std::reverse(face.begin(), face.end());
+  }
+  CDT_result<T> out_flipped = delaunay_2d_calc(in_flipped, CDT_INSIDE_WITH_HOLES_NONZERO);
+  EXPECT_EQ(out_flipped.vert.size(), out_nonzero.vert.size());
+  EXPECT_EQ(out_flipped.face.size(), out_nonzero.face.size());
 }
 
 /* One square inside another - tests hole creation with winding rules.
@@ -836,11 +839,11 @@ template<typename T> void nonzero_winding_nested_test()
                   out_evenodd_hole.face);
   }
 
-  /* Non-zero CCW: inner CW square creates a hole (winding: +1 - 1 = 0). */
-  CDT_result<T> out_nonzero_hole = delaunay_2d_calc(in_hole, CDT_INSIDE_WITH_HOLES_NONZERO_CCW);
+  /* Non-zero: inner CW square creates a hole (winding: +1 - 1 = 0). */
+  CDT_result<T> out_nonzero_hole = delaunay_2d_calc(in_hole, CDT_INSIDE_WITH_HOLES_NONZERO);
   EXPECT_EQ(out_nonzero_hole.vert.size(), 8);
   if (DO_DRAW) {
-    graph_draw<T>("NonZeroWindingNested - non-zero CCW, inner CW (hole)",
+    graph_draw<T>("NonZeroWindingNested - non-zero, inner CW (hole)",
                   out_nonzero_hole.vert,
                   out_nonzero_hole.edge,
                   out_nonzero_hole.face);
@@ -876,12 +879,11 @@ template<typename T> void nonzero_winding_nested_test()
                   out_evenodd_filled.face);
   }
 
-  /* Non-zero CCW: inner CCW square is filled (winding: +1 + 1 = 2 = inside). */
-  CDT_result<T> out_nonzero_filled = delaunay_2d_calc(in_filled,
-                                                      CDT_INSIDE_WITH_HOLES_NONZERO_CCW);
+  /* Non-zero: inner CCW square is filled (winding: +1 + 1 = 2 = inside). */
+  CDT_result<T> out_nonzero_filled = delaunay_2d_calc(in_filled, CDT_INSIDE_WITH_HOLES_NONZERO);
   EXPECT_EQ(out_nonzero_filled.vert.size(), 8);
   if (DO_DRAW) {
-    graph_draw<T>("NonZeroWindingNested - non-zero CCW, inner CCW (filled)",
+    graph_draw<T>("NonZeroWindingNested - non-zero, inner CCW (filled)",
                   out_nonzero_filled.vert,
                   out_nonzero_filled.edge,
                   out_nonzero_filled.face);
@@ -936,12 +938,12 @@ template<typename T> void nonzero_winding_nested_union_test()
                   out_evenodd.face);
   }
 
-  /* Non-zero CCW: inner squares union.
+  /* Non-zero: inner squares union.
    * Winding in overlap: outer(+1) + hole(-1) + inner1(+1) + inner2(+1) = +2 = inside. */
-  CDT_result<T> out_nonzero = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO_CCW);
+  CDT_result<T> out_nonzero = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO);
   EXPECT_EQ(out_nonzero.vert.size(), 18); /* 16 input + 2 intersections */
   if (DO_DRAW) {
-    graph_draw<T>("NonZeroWindingNestedUnion - non-zero CCW",
+    graph_draw<T>("NonZeroWindingNestedUnion - non-zero",
                   out_nonzero.vert,
                   out_nonzero.edge,
                   out_nonzero.face);
@@ -950,11 +952,6 @@ template<typename T> void nonzero_winding_nested_union_test()
   /* Non-zero should have more faces (union vs hole in overlap). */
   EXPECT_EQ(out_evenodd.face.size(), 16);
   EXPECT_EQ(out_nonzero.face.size(), 18);
-
-  /* CW variant should produce identical results. */
-  CDT_result<T> out_nonzero_cw = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO_CW);
-  EXPECT_EQ(out_nonzero_cw.vert.size(), out_nonzero.vert.size());
-  EXPECT_EQ(out_nonzero_cw.face.size(), out_nonzero.face.size());
 }
 
 template<typename T> void crosssegs_test()

@@ -149,18 +149,11 @@ static const EnumPropertyItem fill_rule_items[] = {
      0,
      "Even-Odd",
      "Alternate inside/outside based on crossing count"},
-    {CU_FILL_RULE_NONZERO_CW,
-     "NONZERO_CW",
+    {CU_FILL_RULE_NONZERO,
+     "NONZERO",
      0,
-     "Non-Zero CW",
-     "Clockwise contours are filled, counterclockwise create holes. "
-     "Overlapping clockwise curves union together"},
-    {CU_FILL_RULE_NONZERO_CCW,
-     "NONZERO_CCW",
-     0,
-     "Non-Zero CCW",
-     "Counterclockwise contours are filled, clockwise create holes. "
-     "Overlapping counterclockwise curves union together"},
+     "Non-Zero",
+     "Overlapping curves with the same winding direction are filled as a union"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

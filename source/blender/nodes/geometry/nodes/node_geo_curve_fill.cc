@@ -35,18 +35,11 @@ static const EnumPropertyItem fill_rule_items[] = {
      0,
      N_("Even-Odd"),
      "Alternate inside/outside based on crossing count"},
-    {GEO_NODE_CURVE_FILL_RULE_NON_ZERO_CW,
-     "NON_ZERO_CW",
+    {GEO_NODE_CURVE_FILL_RULE_NON_ZERO,
+     "NON_ZERO",
      0,
-     N_("Non-Zero CW"),
-     "Clockwise contours are filled, counterclockwise create holes. "
-     "Overlapping clockwise curves union together"},
-    {GEO_NODE_CURVE_FILL_RULE_NON_ZERO_CCW,
-     "NON_ZERO_CCW",
-     0,
-     N_("Non-Zero CCW"),
-     "Counterclockwise contours are filled, clockwise create holes. "
-     "Overlapping counterclockwise curves union together"},
+     N_("Non-Zero"),
+     "Overlapping curves with the same winding direction are filled as a union"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -282,12 +275,8 @@ static void curve_fill_calculate(GeometrySet &geometry_set,
   if (mode == GEO_NODE_CURVE_FILL_MODE_NGONS) {
     /* N-gons mode. */
     switch (fill_rule) {
-      case GEO_NODE_CURVE_FILL_RULE_NON_ZERO_CCW: {
-        output_type = CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CCW;
-        break;
-      }
-      case GEO_NODE_CURVE_FILL_RULE_NON_ZERO_CW: {
-        output_type = CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO_CW;
+      case GEO_NODE_CURVE_FILL_RULE_NON_ZERO: {
+        output_type = CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO;
         break;
       }
       case GEO_NODE_CURVE_FILL_RULE_EVEN_ODD:
@@ -300,12 +289,8 @@ static void curve_fill_calculate(GeometrySet &geometry_set,
   else {
     /* Triangulated mode. */
     switch (fill_rule) {
-      case GEO_NODE_CURVE_FILL_RULE_NON_ZERO_CCW: {
-        output_type = CDT_INSIDE_WITH_HOLES_NONZERO_CCW;
-        break;
-      }
-      case GEO_NODE_CURVE_FILL_RULE_NON_ZERO_CW: {
-        output_type = CDT_INSIDE_WITH_HOLES_NONZERO_CW;
+      case GEO_NODE_CURVE_FILL_RULE_NON_ZERO: {
+        output_type = CDT_INSIDE_WITH_HOLES_NONZERO;
         break;
       }
       case GEO_NODE_CURVE_FILL_RULE_EVEN_ODD:

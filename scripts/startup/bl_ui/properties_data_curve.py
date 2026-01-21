@@ -107,9 +107,9 @@ class DATA_PT_shape_curve(CurveButtonsPanel, Panel):
             sub.active = (curve.dimensions == '2D' or (curve.bevel_mode != 'OBJECT' and curve.dimensions == '3D'))
             sub.prop(curve, "fill_mode")
             sub.prop(curve, "fill_solver")
-            sub2 = sub.column()
-            sub2.active = (curve.fill_solver == 'CDT')
-            sub2.prop(curve, "fill_rule")
+            sub_rule = sub.column()
+            sub_rule.active = (curve.fill_solver == 'CDT')
+            sub_rule.prop(curve, "fill_rule")
 
         if is_curve:
             col = layout.column()
