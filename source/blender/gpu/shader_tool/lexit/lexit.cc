@@ -490,7 +490,7 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
       types_[cursor] = (curr > CharClass::ClassToTypeThreshold) ? TokenType(curr) : TokenType(c);
       offsets_[cursor] = offset;
       /* Split if no class in common. */
-      cursor += !bool(curr & prev & CharClass::CanMerge);
+      cursor += !bool(uint8_t(curr) & uint8_t(prev) & uint8_t(CharClass::CanMerge));
       prev = curr;
     }
   }
@@ -503,7 +503,7 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
   size_ = cursor;
 }
 
-void TokenBuffer::lex_string(const TokenType *types, uint32_t &cursor)
+static void lex_string(const TokenType *types, uint32_t &cursor)
 {
   const TokenType *ptr = types + cursor;
   while (true) {
@@ -521,10 +521,10 @@ void TokenBuffer::lex_string(const TokenType *types, uint32_t &cursor)
   }
 }
 
-void TokenBuffer::lex_number(const uint8_t *c_str,
-                             const TokenType *types,
-                             const uint32_t *offsets,
-                             uint32_t &cursor)
+static void lex_number(const uint8_t *c_str,
+                       const TokenType *types,
+                       const uint32_t *offsets,
+                       uint32_t &cursor)
 {
   const TokenType *type = types + cursor;
   const uint32_t *offset = offsets + cursor;
@@ -544,7 +544,7 @@ void TokenBuffer::lex_number(const uint8_t *c_str,
   cursor--;
 }
 
-void TokenBuffer::lex_pass()
+void TokenBuffer::merge_complex_literals()
 {
   const TokenType *in_types = types_;
   TokenType *out_type = types_;
@@ -579,42 +579,47 @@ void TokenBuffer::lex_pass()
   offsets_[size_] = str_len_;
 }
 
-void TokenBuffer::merge_whitespaces(uint32_t *original_ends)
+void TokenBuffer::merge_whitespaces()
 {
+  assert(original_offsets_ != nullptr);
+  assert(original_offsets_ != offsets_);
+
   const TokenType *in_types = types_;
   TokenType *out_type = types_;
   const uint32_t *in_offsets = offsets_;
   uint32_t *out_offset = offsets_;
-  uint32_t *out_end = original_ends;
+  uint32_t *out_original_offset = original_offsets_;
 
-  for (uint32_t i = 0; i < size_; i++, out_type++, out_offset++, out_end++) {
+  *out_original_offset = 0;
+  out_original_offset++;
+
+  if (size_ > 0) {
+    /* Iter 0. */
+    *out_type = in_types[0];
+    *out_offset = in_offsets[0];
+    *out_original_offset = in_offsets[1];
+    out_type++, out_offset++, out_original_offset++;
+  }
+
+  for (uint32_t i = 1; i < size_; i++, out_type++, out_offset++, out_original_offset++) {
     const TokenType type = in_types[i];
     const uint32_t offset = in_offsets[i];
 #ifndef NDEBUG
     std::string_view tok_str{(const char *)str_ + offset, in_offsets[i + 1] - offset};
 #endif
-
-    *out_end = in_offsets[i + 1];
     *out_type = type;
     *out_offset = offset;
+    *out_original_offset = in_offsets[i + 1];
 
     switch (type) {
-      /* Make next token overwrite this one. Merge the token with the one before. */
       case NewLine:
-        if (i > 0) {
-          out_type--, out_offset--, out_end--;
-          continue;
-        }
-        break;
       case Space:
-        if (i > 0) {
-          out_type--, out_offset--, out_end--;
-          continue;
-        }
         break;
       [[likely]] default:
-        break;
+        continue;
     }
+    /* Make next token overwrite this one. Effectively merging the token with the one before. */
+    out_type--, out_offset--, out_original_offset--;
   }
 
   assert(in_types < out_type);
@@ -622,7 +627,7 @@ void TokenBuffer::merge_whitespaces(uint32_t *original_ends)
   size_ = out_type - in_types;
   types_[size_] = EndOfFile;
   offsets_[size_] = str_len_;
-  original_ends[size_] = str_len_;
+  original_offsets_[size_] = str_len_;
 }
 
 }  // namespace lexit

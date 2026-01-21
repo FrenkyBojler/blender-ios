@@ -36,16 +36,6 @@ enum class CharClass : uint8_t {
   ClassToTypeThreshold = Numeric - 1,
 };
 
-[[maybe_unused]] [[nodiscard]] constexpr CharClass operator|(CharClass a, CharClass b)
-{
-  return CharClass(uint8_t(a) | uint8_t(b));
-}
-
-[[maybe_unused]] [[nodiscard]] constexpr CharClass operator&(CharClass a, CharClass b)
-{
-  return CharClass(uint8_t(a) & uint8_t(b));
-}
-
 /* Make sure to declare this enum as being a char.
  * This is allow casting to string possible. */
 enum TokenType : uint8_t {
@@ -162,12 +152,6 @@ enum TokenType : uint8_t {
   Modulo = Percent,
 
   String = DoubleQuote,
-
-  /* Last bit of the byte is used for various flag for different stages. */
-
-  /* Flag for char-to-token tables to tell the tokenizer to agglomerate sequences of char
-   * of the same token type. */
-  Merge = (1 << 7),
 };
 
 }  // namespace lexit

@@ -12,9 +12,8 @@
 #pragma once
 
 #include <cstdint>
-#ifndef NDEBUG
-#  include <string_view>
-#endif
+#include <iterator>
+#include <string_view>
 
 #include "types.hh"
 
@@ -33,6 +32,8 @@ class TokenBuffer {
   TokenType *types_;
   /* Starting character index of each token. */
   uint32_t *offsets_;
+  /* Original character index of each next token before whitespace merging (optional). */
+  uint32_t *original_offsets_;
   /* Amount of tokens inside the buffer excluding the terminating EndOfFile token. */
   uint32_t size_;
 
@@ -53,6 +54,30 @@ class TokenBuffer {
         str_len_(str_len),
         types_(types),
         offsets_(offsets),
+        original_offsets_(offsets),
+        size_(token_len)
+  {
+  }
+
+  /**
+   * @param c_str             An null-terminated C string.
+   * @param str_len           Length of c_str excluding the null terminator.
+   * @param types             An aligned array which can contain str_len+1 TokenType.
+   * @param offsets           An aligned array which can contain str_len+1 uint32_t.
+   * @param original_offsets  An aligned array which can contain str_len+1 uint32_t.
+   * @param token_len         The amount of token already parsed.
+   */
+  TokenBuffer(const char *c_str,
+              uint32_t str_len,
+              TokenType *types,
+              uint32_t *offsets,
+              uint32_t *original_offsets,
+              uint32_t token_len)
+      : str_((const uint8_t *)c_str),
+        str_len_(str_len),
+        types_(types),
+        offsets_(offsets),
+        original_offsets_(original_offsets),
         size_(token_len)
   {
   }
@@ -79,35 +104,69 @@ class TokenBuffer {
   }
 
   /**
-   * @brief Lex complex literals.
+   * @brief Merge complex literals such as floats and strings.
    */
-  void lex_pass();
+  void merge_complex_literals();
 
   /**
    * @brief Merge whitespaces with their preceding token.
-   *
-   * Cannot run before fuse_pass().
-   *
-   * @param original_ends  Output buffer to store the original token end offset before merging.
-   *                       Must be sized to contain at least this->size()+1 amount of elements.
    */
-  void merge_whitespaces(uint32_t *original_ends);
+  void merge_whitespaces();
 
-  template<typename CallbackFn> void foreach_token_type(CallbackFn cb)
-  {
-    TokenType *end = types_ + size_;
-    for (TokenType *type = types_; type < end; type++) {
-      cb(type);
+  struct Token {
+    const std::string_view str;
+    TokenType &type;
+  };
+
+  /**
+   * @brief Token iterator.
+   */
+  struct TokenIt {
+    using iterator_category = std::forward_iterator_tag;
+
+   private:
+    TokenBuffer *buf_;
+    int32_t index_;
+
+   public:
+    explicit TokenIt(TokenBuffer *buf, int index) : buf_(buf), index_(index) {}
+
+    Token operator*() const
+    {
+      int start = buf_->offsets_[index_];
+      int end = buf_->original_offsets_[index_ + 1];
+      return Token{std::string_view((const char *)buf_->str_ + start, end - start),
+                   buf_->types_[index_]};
     }
+
+    TokenIt &operator++()
+    {
+      index_++;
+      return *this;
+    }
+
+    bool operator==(const TokenIt &other) const
+    {
+      return index_ == other.index_;
+    }
+    bool operator!=(const TokenIt &other) const
+    {
+      return index_ != other.index_;
+    }
+    bool operator<(const TokenIt &other) const
+    {
+      return index_ < other.index_;
+    }
+  };
+
+  TokenIt begin()
+  {
+    return TokenIt(this, 0);
   }
-
- private:
-  void lex_string(const TokenType *types, uint32_t &cursor);
-
-  void lex_number(const uint8_t c_str[/*size*/],
-                  const TokenType types[/*tok_len*/],
-                  const uint32_t offsets[/*tok_len*/],
-                  uint32_t &cursor);
+  TokenIt end()
+  {
+    return TokenIt(this, size_);
+  }
 };
 
 }  // namespace lexit

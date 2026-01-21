@@ -246,36 +246,42 @@ static always_inline TokenType multi_tok_lookup(TokenType input, std::string_vie
 
 void LexerBase::merge_tokens()
 {
-  lexit::TokenBuffer tok_buf(
-      str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
+  lexit::TokenBuffer tok_buf(str.data(),
+                             str.size(),
+                             token_types.data(),
+                             token_offsets.data(),
+                             token_ends.data(),
+                             token_types.size());
 
-  tok_buf.foreach_token_type([](TokenType *&type) {
-    if (*type == '#') {
+  for (auto it = tok_buf.begin(); it < tok_buf.end(); ++it) {
+    TokenBuffer::Token tok = *it;
+    if (tok.type == '#') {
       /* Seek until the end of the directive and mark it as PreprocessorNewLine
-       * to avoid loosing it. */
-      while (*type != EndOfFile) {
-        if (type[0] == NewLine) {
-          type[0] = PreprocessorNewline;
+       * to avoid loosing it during merge_whitespaces. This is necessary for parsing preprocessor
+       * directive scopes. */
+      while ((*it).type != EndOfFile) {
+        TokenBuffer::Token tok = *it;
+        if (tok.type == NewLine) {
+          tok.type = PreprocessorNewline;
           break;
         }
-        if (type[0] == '\\' && type[1] == NewLine) {
-          /* Escaped newline. */
-          type++;
+        if (tok.type == '\\') {
+          ++it; /* Escape newline. */
         }
-        type++;
+        ++it;
       }
     }
-  });
+  }
 
-  tok_buf.lex_pass();
-  tok_buf.merge_whitespaces(token_ends.data());
+  tok_buf.merge_complex_literals();
+  tok_buf.merge_whitespaces();
 
   /* Change back tor regular newline. */
-  tok_buf.foreach_token_type([](TokenType *&type) {
-    if (type[0] == PreprocessorNewline) {
-      type[0] = NewLine;
+  for (auto tok : tok_buf) {
+    if (tok.type == PreprocessorNewline) {
+      tok.type = NewLine;
     }
-  });
+  }
 
   /* Resize to the actual usage. */
   token_types.shrink(tok_buf.size());
@@ -438,18 +444,18 @@ static always_inline TokenType type_lookup(std::string_view s)
 
 void LexerBase::identify_keywords()
 {
-  int tok_id = -1;
-  for (TokenType &type : token_types) {
-    tok_id++;
-    IndexRange range = token_offsets[tok_id];
-    switch (type) {
+  lexit::TokenBuffer tok_buf(
+      str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
+
+  for (auto tok : tok_buf) {
+    switch (tok.type) {
       case Word:
-        type = type_lookup({str.data() + range.start, size_t(range.size)});
+        tok.type = type_lookup(tok.str);
         break;
       case Number:
         break;
       default:
-        type = multi_tok_lookup(type, {str.data() + range.start, size_t(range.size)});
+        tok.type = multi_tok_lookup(tok.type, tok.str);
         break;
     }
   }
