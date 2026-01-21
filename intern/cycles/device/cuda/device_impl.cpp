@@ -222,7 +222,7 @@ string CUDADevice::compile_kernel_get_common_cflags(const uint kernel_features)
       "-m%d "
       "--ptxas-options=\"-v\" "
       "--use_fast_math "
-#  ifdef WITH_CYCLES_FAST_UNOPTIMIZED_KERNEL_BUILD
+#  ifdef WITH_CYCLES_UNOPTIMIZED_KERNEL
       "--no-compress "
       "--optimize 0 "
       "--Ofast-compile max "
