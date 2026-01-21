@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <ostream>
+
 #include "DNA_rich_sdna.hh"
 
 #include "dna_utils.h"
