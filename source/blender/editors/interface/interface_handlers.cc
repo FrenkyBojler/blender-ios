@@ -2755,7 +2755,7 @@ static void ui_but_paste_curvemapping(bContext *C, Button *but)
     else {
       BKE_curvemapping_free_data_single(dest, dest->cur);
       BKE_curvemapping_copy_data_single(
-          dest, &but_copypaste_curve, dest->cur, but_copypaste_curve.cur);
+          dest, &but_copypaste_curve, dest->cur, but_copypaste_curve.cur, true);
     }
 
     button_activate_state(C, but, BUTTON_STATE_EXIT);

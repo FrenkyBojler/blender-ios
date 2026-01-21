@@ -34,10 +34,8 @@ CurveMapping *BKE_curvemapping_add(int tot, float minx, float miny, float maxx, 
 void BKE_curvemapping_free_data_single(CurveMapping *cumap, int index);
 void BKE_curvemapping_free_data(CurveMapping *cumap);
 void BKE_curvemapping_free(CurveMapping *cumap);
-void BKE_curvemapping_copy_data_single(CurveMapping *target,
-                                       const CurveMapping *cumap,
-                                       int to_idx,
-                                       int from_idx);
+void BKE_curvemapping_copy_data_single(
+    CurveMapping *target, const CurveMapping *cumap, int to_idx, int from_idx, bool make_copy);
 void BKE_curvemapping_copy_data(CurveMapping *target, const CurveMapping *cumap);
 CurveMapping *BKE_curvemapping_copy(const CurveMapping *cumap);
 void BKE_curvemapping_set_black_white_ex(const float black[3],
