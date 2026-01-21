@@ -160,7 +160,7 @@ class CropOperation : public NodeOperation {
   {
     const Bounds<int2> bounds = this->compute_cropping_bounds();
 
-    gpu::Shader *shader = this->context().get_shader("compositor_image_crop");
+    gpu::Shader *shader = this->context().get_shader("compositor_image_crop_float4");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_2iv(shader, "lower_bound", bounds.min);
@@ -240,7 +240,7 @@ class CropOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new CropOperation(context, node);
 }

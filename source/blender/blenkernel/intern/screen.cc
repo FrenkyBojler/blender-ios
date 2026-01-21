@@ -200,7 +200,8 @@ static void screen_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   /* write LibData */
   /* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
-  BLO_write_struct_at_address_with_filecode(writer, ID_SCRN, bScreen, id_address, screen);
+  writer->write_struct_at_address_by_id_with_filecode(
+      ID_SCRN, dna::sdna_struct_id_get<bScreen>(), id_address, screen);
   BKE_id_blend_write(writer, &screen->id);
 
   BKE_previewimg_blend_write(writer, screen->preview);
@@ -611,15 +612,18 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
                                                       const StringRef idname,
                                                       const bool default_closed)
 {
+  ListBaseT<LayoutPanelState> &layout_panel_states =
+      panel->runtime->popup_layout_panel_states ? *panel->runtime->popup_layout_panel_states :
+                                                  panel->layout_panel_states;
   const uint32_t logical_time = ++panel->layout_panel_states_clock;
   /* Overflow happened, reset all last used times. Not sure if this will ever happen in practice,
    * but better handle the overflow explicitly. */
   if (logical_time == 0) {
-    for (LayoutPanelState &state : panel->layout_panel_states) {
+    for (LayoutPanelState &state : layout_panel_states) {
       state.last_used = 0;
     }
   }
-  for (LayoutPanelState &state : panel->layout_panel_states) {
+  for (LayoutPanelState &state : layout_panel_states) {
     if (state.idname == idname) {
       state.last_used = logical_time;
       return &state;
@@ -629,7 +633,7 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
   state->idname = BLI_strdupn(idname.data(), idname.size());
   SET_FLAG_FROM_TEST(state->flag, !default_closed, LAYOUT_PANEL_STATE_FLAG_OPEN);
   state->last_used = logical_time;
-  BLI_addtail(&panel->layout_panel_states, state);
+  BLI_addtail(&layout_panel_states, state);
   return state;
 }
 
@@ -1240,7 +1244,7 @@ static void write_region(BlendWriter *writer, ARegion *region, int spacetype)
 {
   ARegion region_copy = *region;
   region_copy.runtime = nullptr;
-  BLO_write_struct_at_address(writer, ARegion, region, &region_copy);
+  writer->write_struct_at_address(region, &region_copy);
 
   if (region->regiondata) {
     if (region->flag & RGN_FLAG_TEMP_REGIONDATA) {
@@ -1290,8 +1294,8 @@ static void write_panel_list(BlendWriter *writer, ListBaseT<Panel> *lb)
     Panel panel_copy = panel;
     panel_copy.runtime_flag = 0;
     panel_copy.runtime = nullptr;
-    BLO_write_struct_at_address(writer, Panel, &panel, &panel_copy);
-    BLO_write_struct_list(writer, LayoutPanelState, &panel.layout_panel_states);
+    writer->write_struct_at_address(&panel, &panel_copy);
+    writer->write_struct_list(&panel.layout_panel_states);
     for (LayoutPanelState &state : panel.layout_panel_states) {
       BLO_write_string(writer, state.idname);
     }
@@ -1336,8 +1340,8 @@ static void write_area(BlendWriter *writer, ScrArea *area)
 
 void BKE_screen_area_map_blend_write(BlendWriter *writer, ScrAreaMap *area_map)
 {
-  BLO_write_struct_list(writer, ScrVert, &area_map->vertbase);
-  BLO_write_struct_list(writer, ScrEdge, &area_map->edgebase);
+  writer->write_struct_list(&area_map->vertbase);
+  writer->write_struct_list(&area_map->edgebase);
   for (ScrArea &area : area_map->areabase) {
     area.butspacetype = area.spacetype; /* Just for compatibility, will be reset below. */
 

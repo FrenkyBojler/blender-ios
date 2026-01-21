@@ -4,6 +4,7 @@
 
 #include "CLG_log.h"
 
+#include "BLI_array_utils.hh"
 #include "BLI_assert.h"
 #include "BLI_color_types.hh"
 #include "BLI_implicit_sharing.hh"
@@ -87,6 +88,14 @@ Attribute::ArrayData Attribute::ArrayData::from_value(const GPointer &value,
 Attribute::ArrayData Attribute::ArrayData::from_default_value(const CPPType &type,
                                                               const int64_t domain_size)
 {
+  if (type.is<ColorGeometry4f>()) {
+    constexpr ColorGeometry4f default_color(1.0f, 1.0f, 1.0f, 1.0f);
+    return from_value(GPointer(type, &default_color), domain_size);
+  }
+  if (type.is<ColorGeometry4b>()) {
+    constexpr ColorGeometry4b default_color(255, 255, 255, 255);
+    return from_value(GPointer(type, &default_color), domain_size);
+  }
   return from_value(GPointer(type, type.default_value()), domain_size);
 }
 
@@ -180,7 +189,8 @@ Attribute::DataVariant &Attribute::data_for_write()
     }
     const CPPType &type = attribute_type_to_cpp_type(type_);
     ArrayData new_data = ArrayData::from_uninitialized(type, data->size);
-    type.copy_construct_n(data->data, new_data.data, data->size);
+    array_utils::copy(GVArray::from_span({type, data->data, data->size}),
+                      GMutableSpan(type, new_data.data, data->size));
     *data = std::move(new_data);
   }
   else if (auto *data = std::get_if<Attribute::SingleData>(&data_)) {
@@ -567,8 +577,7 @@ static void write_array_data(BlendWriter &writer,
       BLO_write_float_array(&writer, size * 4, static_cast<const float *>(data));
       break;
     case AttrType::String:
-      BLO_write_struct_array(
-          &writer, MStringProperty, size, static_cast<const MStringProperty *>(data));
+      writer.write_struct_array_cast<MStringProperty>(size, data);
       break;
   }
 }
