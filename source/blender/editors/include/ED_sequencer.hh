@@ -90,7 +90,7 @@ bool is_scene_time_sync_needed(const bContext &C);
  */
 const Strip *get_scene_strip_for_time_sync(const Scene *sequencer_scene);
 void sync_active_scene_and_time_with_scene_strip(bContext &C);
-void sync_vse_camera_to_strip(bContext &C);
+void sync_vse_camera_for_view3d(const bContext &C, View3D *v3d);
 
 }  // namespace ed::vse
 }  // namespace blender

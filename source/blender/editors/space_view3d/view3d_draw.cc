@@ -1789,7 +1789,7 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
   View3D *v3d = CTX_wm_view3d(C);
 
   /* Resync VSE camera after all outliner/undo operations.See issue #152866. */
-  blender::ed::vse::sync_vse_camera_to_strip(*const_cast<bContext *>(C));
+  blender::ed::vse::sync_vse_camera_for_view3d(*C, v3d);
 
   view3d_update_viewer_path(C);
   view3d_draw_view(C, region);
