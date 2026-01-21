@@ -896,6 +896,13 @@ else()
   set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
 
+option(WITH_UI_TESTS_VULKAN "\
+Enable UI tests using the Vulkan backend. \
+Requires WITH_UI_TESTS and WITH_GPU_RENDER_TESTS_VULKAN."
+  ON
+)
+mark_as_advanced(WITH_UI_TESTS_VULKAN)
+
 option(WITH_TESTS_EXPERIMENTAL "\
 Run tests marked as experimental. \
 These tests are labeled as such due to long runtime, flakey results,
@@ -2942,6 +2949,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_GPU_MESH_PAINT_TESTS)
   info_cfg_option(WITH_UI_TESTS)
   info_cfg_option(WITH_UI_TESTS_HEADLESS)
+  info_cfg_option(WITH_UI_TESTS_VULKAN)
   info_cfg_option(WITH_GPU_RENDER_TESTS_VULKAN)
   info_cfg_option(WITH_LINUX_OFFICIAL_RELEASE_TESTS)
 

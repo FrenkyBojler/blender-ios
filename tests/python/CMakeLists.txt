@@ -144,7 +144,7 @@ if(WITH_UI_TESTS)
         "${ARGN}"
       )
     endif()
-    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN AND WITH_UI_TESTS_VULKAN)
       add_blender_test_ui_backend(
         "ui_vulkan_${testname}"
         "vulkan"
