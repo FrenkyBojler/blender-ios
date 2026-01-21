@@ -62,6 +62,7 @@ void outliner_operatortypes()
   WM_operatortype_append(OUTLINER_OT_drivers_add_selected);
   WM_operatortype_append(OUTLINER_OT_drivers_delete_selected);
 
+  WM_operatortype_append(OUTLINER_OT_system_properties_cleanup);
   WM_operatortype_append(OUTLINER_OT_orphans_purge);
   WM_operatortype_append(OUTLINER_OT_orphans_manage);
 

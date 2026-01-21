@@ -153,6 +153,9 @@ class TOPBAR_MT_file_cleanup(Menu):
         layout.operator("outliner.orphans_purge", text="Purge Unused Data...")
         layout.operator("outliner.orphans_manage", text="Manage Unused Data...")
 
+        layout.separator()
+        layout.operator("outliner.system_properties_cleanup", text="Cleanup Unknown System Properties...")
+
 
 class TOPBAR_MT_file(Menu):
     bl_label = "File"

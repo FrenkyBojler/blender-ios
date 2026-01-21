@@ -1251,9 +1251,9 @@ Set<StructRNA *> RNA_structs_filter_get(RNAStructsFilterParams &params)
 
   Set<StructRNA *> result;
 
-  for (StructRNA *srna : brna.structs) {
-    if (struct_filter_match(srna, params)) {
-      result.add_new(srna);
+  for (std::unique_ptr<blender::StructRNA> &srna : brna.structs) {
+    if (struct_filter_match(srna.get(), params)) {
+      result.add_new(srna.get());
     }
   }
 

@@ -21,6 +21,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
+#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -35,6 +36,7 @@
 #include "BKE_blender_copybuffer.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -2398,6 +2400,64 @@ void OUTLINER_OT_keyingset_remove_selected(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Cleanup Unknown System Properties Operator.
+ * \{ */
+
+static wmOperatorStatus outliner_system_properties_cleanup_exec(bContext *C, wmOperator *op)
+{
+  RNAStructsFilterParams filter_params;
+  filter_params.include_all_flags = STRUCT_RUNTIME;
+
+  Set<StructRNA *> known_runtime_structs = RNA_structs_filter_get(filter_params);
+
+  Main *bmain = CTX_data_main(C);
+  bke::idprop::IDPropertyCleanupReport cleanup_reports;
+  cleanup_reports.reports = op->reports;
+  bke::idprop::foreach_main_idproperty_container(
+      *bmain,
+      [&known_runtime_structs, &cleanup_reports](IDTypeInfoIDPropertyCallbackParams &params) {
+        if (params.flags != IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined ||
+            *params.idproperty_p == nullptr)
+        {
+          return;
+        }
+        bke::idprop::id_property_cleanup_from_known_rna_types(params.id_owner,
+                                                              params.idproperty_p,
+                                                              *params.data_owner_rna_type,
+                                                              known_runtime_structs,
+                                                              false,
+                                                              &cleanup_reports);
+      });
+
+  BKE_reportf(op->reports,
+              RPT_INFO,
+              "Deleted %d unknown system properties",
+              cleanup_reports.num_deleted_idproperties);
+
+  return OPERATOR_FINISHED;
+}
+
+void OUTLINER_OT_system_properties_cleanup(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->idname = "OUTLINER_OT_system_properties_cleanup";
+  ot->name = "Cleanup Unused System Properties";
+  ot->description =
+      "Remove system properties not matching any known usage (e.g. stale data from disabled "
+      "extensions). Warning: Be careful with this operation, as it may delete data from e.g. "
+      "temporarily disabled extensions.";
+
+  /* callbacks */
+  ot->exec = outliner_system_properties_cleanup_exec;
+
+  /* flags */
+  /* NOTE: No #OPTYPE_REGISTER, since this operator should not be 'adjustable'. */
+  ot->flag = OPTYPE_UNDO;
 }
 
 /** \} */

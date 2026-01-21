@@ -26,6 +26,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
+#include "BKE_report.hh"
 
 #include "RNA_types.hh"
 
@@ -2094,12 +2095,16 @@ void id_property_cleanup_from_known_rna_types(ID *id_owner,
     }
 
     if (!is_matching) {
-      CLOG_WARN(&LOG,
-                "IDProp %s (from ID %s) is detected as not matching any existing RNA property, "
-                "will be removed",
-                idp_iter.name,
-                id_owner->name);
+      if (reports) {
+        BKE_reportf(reports->reports,
+                    RPT_INFO,
+                    "IDProp %s (from ID %s) is detected as not matching any existing RNA "
+                    "property, will be removed",
+                    idp_iter.name,
+                    id_owner->name);
+      }
       idproperties_to_remove.append(&idp_iter);
+      reports->num_deleted_idproperties++;
     }
   }
 

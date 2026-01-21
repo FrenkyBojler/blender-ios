@@ -181,7 +181,6 @@ static void rna_Main_bl_system_properties_cleanup(struct BlendData *blenddata, R
   filter_params.include_all_flags = STRUCT_RUNTIME;
 
   Set<StructRNA *> known_runtime_structs = RNA_structs_filter_get(filter_params);
-  printf("Num known registered runtime RNA structs: %d\n", int(known_runtime_structs.size()));
 
   Main *bmain = reinterpret_cast<Main *>(blenddata);
   bke::idprop::IDPropertyCleanupReport cleanup_reports;

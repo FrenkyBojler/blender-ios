@@ -32,6 +32,7 @@ struct IDProperty;
 struct IDPropertyUIData;
 struct IDPropertyUIDataEnumItem;
 struct StructRNA;
+struct ReportList;
 namespace io::serialize {
 class ArrayValue;
 class Value;
@@ -599,6 +600,7 @@ void foreach_main_idproperty_container(Main &bmain,
  */
 struct IDPropertyCleanupReport {
   int num_deleted_idproperties = 0;
+  ReportList *reports;
 };
 
 /**
