@@ -666,7 +666,7 @@ option(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD
 mark_as_advanced(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD)
 
 option(WITH_CYCLES_UNOPTIMIZED_KERNEL
-       "Build Cycles kernels with optimization disabled (faster compilation, but low runtime performance)" OFF)
+       "Build Cycles kernels with optimization disabled (faster compilation, but low runtime performance)" ON)
 mark_as_advanced(WITH_CYCLES_UNOPTIMIZED_KERNEL)
 
 option(WITH_CYCLES_DEBUG_NAN "\
