@@ -232,7 +232,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *FieldToListItemsAccessor::item_srna = &RNA_GeometryNodeFieldToListItem;
+StructRNA **FieldToListItemsAccessor::item_srna = &RNA_GeometryNodeFieldToListItem;
 
 void FieldToListItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

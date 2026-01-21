@@ -16,7 +16,7 @@ namespace blender::nodes {
  */
 struct FieldToListItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = GeometryNodeFieldToListItem;
-  static StructRNA *item_srna;
+  static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "GeometryNodeFieldToList";
   static constexpr bool has_type = true;
