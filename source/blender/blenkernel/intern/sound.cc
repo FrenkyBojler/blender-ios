@@ -826,10 +826,12 @@ void BKE_sound_update_scene_listener(Scene *scene)
 void *BKE_sound_scene_add_scene_sound(
     Scene *scene, Strip *strip, int startframe, int endframe, int frameskip)
 {
+  void *parent_sound_scene = get_parent_sound_scene(strip, scene);
+  strip->runtime->last_parent_sound_scene = parent_sound_scene;
   sound_verify_evaluated_id(&scene->id);
   if (strip->scene && scene != strip->scene) {
     const double fps = scene->frames_per_second();
-    return AUD_Sequence_add(scene->runtime->audio.sound_scene,
+    return AUD_Sequence_add(parent_sound_scene,
                             strip->scene->runtime->audio.sound_scene,
                             startframe / fps,
                             endframe / fps,
@@ -912,8 +914,7 @@ void *BKE_sound_add_scene_sound(
     if (strip->runtime->last_parent_sound_scene != nullptr) {
       if (strip->runtime->last_parent_sound_scene != parent_sound_scene) {
         printf("remove\n");
-        AUD_Sequence_remove(strip->runtime->last_parent_sound_scene,
-                            strip->runtime->scene_sound);
+        AUD_Sequence_remove(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
       }
     }
   }
