@@ -22,7 +22,6 @@
 #include "ED_keyframing.hh"
 
 #include "ANIM_keyframing.hh"
-#include "ANIM_nla.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -398,6 +397,9 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
                                                                eBezTriple_KeyframeType(keytype),
                                                                eInsertKeyFlags(options));
         result = key_result == SingleKeyingResult::SUCCESS;
+        if (key_result != SingleKeyingResult::SUCCESS) {
+          generate_single_keying_result_report(key_result, &reports);
+        }
       }
     }
     else {

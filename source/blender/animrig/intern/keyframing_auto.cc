@@ -19,7 +19,6 @@
 
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
-#include "ANIM_nla.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -305,6 +304,9 @@ bool autokeyframe_property(bContext *C,
           eBezTriple_KeyframeType(ts->keyframe_type),
           eInsertKeyFlags(0));
       changed = result == SingleKeyingResult::SUCCESS;
+      if (result != SingleKeyingResult::SUCCESS) {
+        generate_single_keying_result_report(result, reports);
+      }
       WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
     }
   }

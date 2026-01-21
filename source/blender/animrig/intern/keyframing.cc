@@ -48,6 +48,49 @@
 
 namespace blender::animrig {
 
+void generate_single_keying_result_report(const SingleKeyingResult result, ReportList *reports)
+{
+  switch (result) {
+    case SingleKeyingResult::SUCCESS:
+      BKE_reportf(reports, RPT_INFO, "Successfully inserted a key.");
+      break;
+    case SingleKeyingResult::UNKNOWN_FAILURE:
+      break;
+    case SingleKeyingResult::CANNOT_CREATE_FCURVE:
+      BKE_reportf(reports, RPT_ERROR, "Failed to create the F-Curve.");
+      break;
+    case SingleKeyingResult::FCURVE_NOT_KEYFRAMEABLE:
+      BKE_reportf(reports, RPT_ERROR, "The F-Curve is not keyable. It may be locked or sampled.");
+      break;
+    case SingleKeyingResult::NO_KEY_NEEDED:
+      BKE_reportf(
+          reports, RPT_ERROR, "Due to the setting 'Only Insert Needed' no keyframe was inserted.");
+      break;
+    case SingleKeyingResult::UNABLE_TO_INSERT_TO_NLA_STACK:
+      BKE_reportf(reports, RPT_ERROR, "Due to the NLA stack setup, no key was inserted.");
+      break;
+    case SingleKeyingResult::ID_NOT_EDITABLE:
+      BKE_reportf(
+          reports, RPT_ERROR, "Inserting key has been skipped because the ID cannot be edited.");
+      break;
+    case SingleKeyingResult::ID_NOT_ANIMATABLE:
+      BKE_reportf(reports, RPT_ERROR, "Inserting key has been skipped the ID cannot be keyed.");
+      break;
+    case SingleKeyingResult::NO_VALID_LAYER:
+      BKE_reportf(reports, RPT_ERROR, "No valid layer. Cannot insert key.");
+      break;
+    case SingleKeyingResult::NO_VALID_STRIP:
+      BKE_reportf(reports, RPT_ERROR, "No valid strip. Cannot insert key.");
+      break;
+    case SingleKeyingResult::NO_VALID_SLOT:
+      BKE_reportf(reports, RPT_ERROR, "No valid slot. Cannot insert key.");
+      break;
+    case SingleKeyingResult::CANNOT_RESOLVE_PATH:
+      BKE_reportf(reports, RPT_ERROR, "Invalid RNA path. Cannot insert key.");
+      break;
+  }
+}
+
 CombinedKeyingResult::CombinedKeyingResult()
 {
   result_counter.fill(0);

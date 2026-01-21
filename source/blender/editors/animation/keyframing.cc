@@ -54,7 +54,6 @@
 #include "ANIM_fcurve.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
-#include "ANIM_nla.hh"
 #include "ANIM_rna.hh"
 
 #include "SEQ_relations.hh"
@@ -1309,6 +1308,9 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
             eBezTriple_KeyframeType(ts->keyframe_type),
             eInsertKeyFlags(0));
         changed = result == SingleKeyingResult::SUCCESS;
+        if (result != SingleKeyingResult::SUCCESS) {
+          generate_single_keying_result_report(result, op->reports);
+        }
       }
       else {
         BKE_report(op->reports,
@@ -1335,6 +1337,9 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
             eBezTriple_KeyframeType(ts->keyframe_type),
             INSERTKEY_NOFLAGS);
         changed = result == SingleKeyingResult::SUCCESS;
+        if (result != SingleKeyingResult::SUCCESS) {
+          generate_single_keying_result_report(result, op->reports);
+        }
       }
     }
     else {

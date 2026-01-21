@@ -62,6 +62,13 @@ enum class SingleKeyingResult {
 };
 
 /**
+ * Add a message into the ReportList depending on which SingleKeyingResult is passed.
+ * This should only be used when a single keyframe is being added per user action. Otherwise use
+ * CombinedKeyingResult to avoid spamming the user with messages.
+ */
+void generate_single_keying_result_report(const SingleKeyingResult result, ReportList *reports);
+
+/**
  * Class for tracking the result of inserting keyframes. Tracks how often each of
  * `SingleKeyingResult` has happened.
  * */

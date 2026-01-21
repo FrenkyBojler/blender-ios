@@ -5724,6 +5724,10 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
     if (result == animrig::SingleKeyingResult::SUCCESS) {
       WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
     }
+    else {
+      ReportList *reports = CTX_wm_reports(C);
+      generate_single_keying_result_report(result, reports);
+    }
   }
 }
 
