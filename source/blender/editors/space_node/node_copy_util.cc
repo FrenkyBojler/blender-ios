@@ -721,11 +721,11 @@ static void replace_interface_socket(bContext &C,
     return;
   }
 
-  const std::optional<bke::node_interface::ProxyNodeCreateFn> converter_fn =
+  const bke::node_interface::ConverterNodeCreateFn converter_fn =
       bke::node_interface::find_proxy_converter_node_function(socket_type);
-  const std::optional<bke::node_interface::ProxyNodeCreateFn> const_input_fn =
+  const bke::node_interface::ConstInputCreateFn const_input_fn =
       bke::node_interface::find_proxy_const_input_node_function(socket_type);
-  const std::optional<bke::node_interface::ProxyNodeCreateFn> implicit_input_fn =
+  const bke::node_interface::ImplicitInputCreateFn implicit_input_fn =
       bke::node_interface::find_proxy_implicit_input_node_function(
           socket_type, NodeDefaultInputType(io_socket.default_input));
 
@@ -736,13 +736,9 @@ static void replace_interface_socket(bContext &C,
   bool needs_proxy = false;
   for (const MutableNodeAndSocket &out_link : outgoing_links) {
     const eNodeSocketDatatype out_type = eNodeSocketDatatype(out_link.socket.type);
-    /* Converter not needed if the types match and can be connected directly. */
-    if (socket_type == out_type) {
-      continue;
-    }
-    /* Converter not needed if the value can be transfered. */
+    /* Converter not needed if the value can be losslessly copied. */
     if (use_socket_value &&
-        bke::node_interface::find_socket_value_transfer_function(socket_type, out_type))
+        bke::node_interface::find_socket_value_copy_function(socket_type, out_type))
     {
       continue;
     }
@@ -765,15 +761,15 @@ static void replace_interface_socket(bContext &C,
   if (needs_proxy) {
     if (use_socket_value) {
       if (implicit_input_fn) {
-        proxy_node = (*implicit_input_fn)(C, dst_tree, nullptr);
+        proxy_node = implicit_input_fn(C, dst_tree);
       }
       else if (const_input_fn) {
-        proxy_node = (*const_input_fn)(C, dst_tree, socket_value);
+        proxy_node = const_input_fn(C, dst_tree, socket_value);
       }
     }
     else {
       if (converter_fn) {
-        proxy_node = (*converter_fn)(C, dst_tree, socket_value);
+        proxy_node = converter_fn(C, dst_tree, socket_value);
       }
     }
     if (!proxy_node) {
@@ -807,15 +803,10 @@ static void replace_interface_socket(bContext &C,
     if (use_socket_value && socket_value) {
       for (const MutableNodeAndSocket &to_socket : outgoing_links) {
         const eNodeSocketDatatype to_type = eNodeSocketDatatype(to_socket.socket.type);
-        if (socket_type == to_type) {
-          node_socket_copy_default_value_data(
-              socket_type, to_socket.socket.default_value, socket_value);
-        }
-        else if (std::optional<bke::node_interface::SocketValueTransferFn> transfer_fn =
-                     bke::node_interface::find_socket_value_transfer_function(socket_type,
-                                                                              to_type))
+        if (bke::node_interface::SocketValueCopyFn copy_fn =
+                bke::node_interface::find_socket_value_copy_function(socket_type, to_type))
         {
-          (*transfer_fn)(socket_value, to_socket.socket.default_value);
+          copy_fn(socket_value, to_socket.socket.default_value);
         }
       }
     }
