@@ -626,6 +626,26 @@ ccl_device_intersect bool scene_intersect_material_raycast(KernelGlobals kg,
 #endif
     isect->u = barycentrics.x;
     isect->v = barycentrics.y;
+#else
+    /* optixHitObjectGetTriangleBarycentrics is not available.
+     * Compute barycentrics manually (Same logic as ray_triangle_intersect). */
+    float3 verts[3];
+    triangle_world_space_vertices(kg, object, prim, ray->time, verts);
+
+    const float3 v0 = verts[0] - ray->P;
+    const float3 v1 = verts[1] - ray->P;
+    const float3 v2 = verts[2] - ray->P;
+
+    const float U = ray_triangle_dot(ray_triangle_cross(v2 - v0, v2 + v0), ray->D);
+    const float V = ray_triangle_dot(ray_triangle_cross(v0 - v1, v0 + v1), ray->D);
+    const float W = ray_triangle_dot(ray_triangle_cross(v1 - v2, v1 + v2), ray->D);
+
+    const float UVW = U + V + W;
+    const float rcp_uvw = (fabsf(UVW) < 1e-18f) ? 0.0f : ray_triangle_reciprocal(UVW);
+
+    isect->u = min(U * rcp_uvw, 1.0f);
+    isect->v = min(V * rcp_uvw, 1.0f);
+#endif
     isect->prim = prim;
     isect->type = kernel_data_fetch(objects, object).primitive_type;
   }
