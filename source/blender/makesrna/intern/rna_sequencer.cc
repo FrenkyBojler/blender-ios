@@ -633,8 +633,8 @@ static void rna_Strip_left_handle_range(
   Strip *strip = static_cast<Strip *>(ptr->data);
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
 
-  *softmin = strip->content_start();
   *min = INT_MIN;
+  *softmin = (seq::transform_single_image_check(strip)) ? *min : int(strip->content_start());
   *max = strip->right_handle(scene) - 1;
 }
 
@@ -644,9 +644,9 @@ static void rna_Strip_right_handle_range(
   Strip *strip = static_cast<Strip *>(ptr->data);
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
 
-  *softmax = strip->content_end(scene);
   *min = strip->left_handle() + 1;
   *max = INT_MAX;
+  *softmax = (seq::transform_single_image_check(strip)) ? *max : int(strip->content_end(scene));
 }
 
 static void rna_Strip_duration_range(
