@@ -181,7 +181,8 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
  * Retrieves the value of the PropertyRNA at the index of the given FCurve and sets a key at
  * `fcurve_frame`.
  *
- * \note This bypasses all animation layer and strip logic.
+ * \warning This bypasses all animation layer and strip logic. Use with caution. If unsure, use
+ * `insert_keyframes` instead.
  *
  * \param fcurve_frame: The frame at which to insert the keyframe. No time remapping is done on the
  * frame.
