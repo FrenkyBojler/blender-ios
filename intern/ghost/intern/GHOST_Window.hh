@@ -21,6 +21,8 @@ class GHOST_Context;
  * be implemented by sub-classes of this class.
  */
 class GHOST_Window : public GHOST_IWindow {
+  friend class GHOST_WindowManager;
+
  public:
   /**
    * Constructor.
@@ -75,9 +77,6 @@ class GHOST_Window : public GHOST_IWindow {
   {
     return context_ != nullptr;
   }
-
-  /** \copydoc #GHOST_IWindow::getOSWindow */
-  void *getOSWindow() const override;
 
   /** \copydoc #GHOST_IWindow::setPath */
   void setPath(const char * /*filepath*/) override
@@ -272,6 +271,12 @@ class GHOST_Window : public GHOST_IWindow {
 #endif /* WITH_INPUT_IME */
 
  protected:
+  /**
+   * Returns the associated OS object/handle.
+   * \return The associated OS object/handle.
+   */
+  virtual void *getOSWindow() const;
+
   /**
    * Tries to install a rendering context in this window.
    * \param type: The type of rendering context installed.
