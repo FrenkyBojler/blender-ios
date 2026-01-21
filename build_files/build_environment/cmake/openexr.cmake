@@ -68,6 +68,7 @@ if(WIN32)
   )
 else()
   harvest(external_openexr openexr/include openexr/include "*.h")
+  harvest(external_openexr openexr/lib/cmake/OpenEXR openexr/lib/cmake/OpenEXR "*.cmake")
   harvest_rpath_lib(external_openexr openexr/lib openexr/lib "*${SHAREDLIBEXT}*")
 endif()
 
