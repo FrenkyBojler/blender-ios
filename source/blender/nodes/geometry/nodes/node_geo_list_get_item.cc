@@ -188,6 +188,7 @@ static bke::SocketValueVariant get_list_value_at_index(const ListPtr &list,
     else {
       list_type.copy_construct(POINTER_OFFSET(data->data, list_type.size * index), dst);
     }
+    return value;
   }
   if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
     if (list->is_mutable() && data->sharing_info->is_mutable()) {
@@ -196,6 +197,7 @@ static bke::SocketValueVariant get_list_value_at_index(const ListPtr &list,
     else {
       list_type.copy_construct(data->value, dst);
     }
+    return value;
   }
   BLI_assert_unreachable();
   return {};
@@ -227,6 +229,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     index.convert_to_single();
     const int index_int = index.get<int>();
+    if (!IndexRange(list->size()).contains(index_int)) {
+      params.error_message_add(NodeWarningType::Error, "Index out of range");
+      params.set_default_remaining_outputs();
+      return;
+    }
     params.set_output("Value", get_list_value_at_index(list, *socket_type, index_int));
     return;
   }

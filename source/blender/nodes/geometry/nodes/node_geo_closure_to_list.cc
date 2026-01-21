@@ -127,11 +127,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
+  Array<const bke::bNodeSocketType *> socket_types(required_items.size());
   Array<const CPPType *> cpp_types(required_items.size());
   for (const int i : required_items.index_range()) {
     const int item_i = required_items[i];
     const auto type = eNodeSocketDatatype(items[item_i].socket_type);
     const auto structure_type = StructureType(items[item_i].structure_type);
+    socket_types[i] = bke::node_socket_type_find_static(type);
     if (structure_type == StructureType::Single) {
       cpp_types[i] = bke::socket_type_to_geo_nodes_base_cpp_type(type);
     }
@@ -149,9 +151,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   GeoNodesUserData user_data = *params.user_data();
-  bke::EvaluateClosureComputeContext closure_context(
-      user_data.compute_context, node.identifier, &node.owner_tree());
-  user_data.compute_context = &closure_context;
+  const ComputeContext *parent_context = user_data.compute_context;
 
   /* The grain size is completely arbitrary since we don't know how expensive the closure is.
    * However since the closure evaluation itself has fairly high overhead, it makes to optimize for
@@ -165,51 +165,31 @@ static void node_geo_exec(GeoNodeExecParams params)
     Array<bke::SocketValueVariant> closure_results(lists.size());
     for (const int i : required_items.index_range()) {
       const int item_i = required_items[i];
-      const GeometryNodeClosureToListItem &item = items[item_i];
-      const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-      const bke::bNodeSocketType *socket_type_ptr = bke::node_socket_type_find_static(socket_type);
-      closure_params.outputs.append({items[item_i].name, socket_type_ptr, &closure_results[i]});
+      closure_params.outputs.append({items[item_i].name, socket_types[i], &closure_results[i]});
     }
 
     int &params_index_input = *static_cast<int *>(
         const_cast<void *>(closure_params.inputs[0].value.get_single_ptr_raw()));
-    for (const int64_t out_i : range) {
-      BLI_assert(out_i < std::numeric_limits<int>::max());
-      params_index_input = int(out_i);
+    for (const int64_t list_i : range) {
+
+      bke::ClosureToListComputeContext closure_to_list_context(
+          parent_context, node.identifier, int(list_i));
+      user_data.compute_context = &closure_to_list_context;
+
+      BLI_assert(list_i < std::numeric_limits<int>::max());
+      params_index_input = int(list_i);
       for (bke::SocketValueVariant &value : closure_results) {
         value.~SocketValueVariant();
       }
       evaluate_closure_eagerly(*closure, closure_params);
 
       for (const int i : required_items.index_range()) {
-#ifdef WITH_OPENVDB
-        if (closure_results[i].is_volume_grid() && cpp_types[i]->is<bke::GVolumeGrid>()) {
-          /* Currently bke::SocketValueVariant lacks a function returning the pointer to the
-           * internal grid that we could move from. So implement that explicitly here. */
-          bke::GVolumeGrid grid = closure_results[i].get<bke::GVolumeGrid>();
-          list_values[i].typed<bke::GVolumeGrid>()[out_i] = std::move(grid);
-        }
-        else
-#endif
-            if (closure_results[i].is_context_dependent_field() && cpp_types[i]->is<fn::GField>())
-        {
-          /* Same situation with suboptimal bke::SocketValueVariant grid API. */
-          fn::GField field = closure_results[i].get<fn::GField>();
-          list_values[i].typed<fn::GField>()[out_i] = std::move(field);
-        }
-        else if (closure_results[i].is_list() && cpp_types[i]->is<ListPtr>()) {
-          /* Same situation with suboptimal bke::SocketValueVariant grid API. Lists of lists may
-           * have a different implementation in the future, but better to be complete here even
-           * still. */
-          ListPtr field = closure_results[i].get<ListPtr>();
-          list_values[i].typed<ListPtr>()[out_i] = std::move(field);
-        }
-        else if (closure_results[i].is_single()) {
+        if (closure_results[i].is_single()) {
           cpp_types[i]->move_construct(const_cast<void *>(closure_results[i].get_single_ptr_raw()),
-                                       list_values[i][out_i]);
+                                       list_values[i][list_i]);
         }
         else {
-          cpp_types[i]->copy_construct(cpp_types[i]->default_value(), list_values[i][out_i]);
+          cpp_types[i]->copy_construct(cpp_types[i]->default_value(), list_values[i][list_i]);
         }
       }
     }
