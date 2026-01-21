@@ -12652,8 +12652,17 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   if (region->runtime->do_draw & RGN_DRAWING) {
     return std::nullopt;
   }
-
+  wmWindow *win = CTX_wm_window(C);
   bScreen *screen = CTX_wm_screen(C);
+  ED_screen_areas_iter (win, screen, area) {
+    for (ARegion &other_region : area->regionbase) {
+      if (other_region.runtime->do_draw & RGN_DRAWING) {
+        /* Ensure no one else is drawing too. */
+        return std::nullopt;
+      }
+    }
+  }
+
   ScrArea *area = nullptr;
   for (ScrArea &test_area : screen->areabase) {
     if (std::find_if(test_area.regionbase.begin(),
@@ -12695,8 +12704,6 @@ std::optional<int2> try_activate_rna_button(bContext *C,
 
   const int2 xy{BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
 
-  wmWindow *win = CTX_wm_window(C);
-
   ED_screen_areas_iter (win, screen, area) {
     for (ARegion &other_region : area->regionbase) {
       UI_region_free_active_but_all(C, &other_region);
@@ -12720,6 +12727,9 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   block_to_window_rctf(region, button->block, &button_view_rect, &button->rect);
 
   WM_cursor_warp(win, BLI_rctf_cent_x(&button_view_rect), BLI_rctf_cent_y(&button_view_rect));
+
+  /* Disable textsearch interactive mode. */
+  button->changed = false;
 
   if (button->flag & (BUT_DISABLED | UI_HIDDEN)) {
     /* Restore button position. */

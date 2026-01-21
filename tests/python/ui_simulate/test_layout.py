@@ -239,13 +239,24 @@ def ui_string_property_buttons():
 
     # Highlight button and copy its "a1a1a1a1a1a1a1a1a1" content, reset its
     # value to "" and paste again "a1a1a1a1a1a1a1a1a1".
-    t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'HIGHLIGHT'))
+    t.assertTrue(xy := wm.try_activate_rna_button(region, data, "string_search_prop", 'HIGHLIGHT'))
     yield e.ctrl.c()
     data.string_search_prop = ""
     yield  # Refresh UI
     t.assertEqual(data.string_search_prop, "")
     yield e.ctrl.v()
     t.assertEqual(data.string_search_prop, "a1a1a1a1a1a1a1a1a1")
+
+    # Open search button after pasting, search filter whill be already active,
+    # Since there are no matching items, it will not select any value with arrow keys events
+    yield e.cursor_position_set(*xy, move=False)
+    yield e.leftmouse().down_arrow().ret()
+    t.assertEqual(data.string_search_prop, "a1a1a1a1a1a1a1a1a1")
+
+    # Open again search button and override text
+    yield e.cursor_position_set(*xy, move=False)
+    yield e.leftmouse().text_unicode("!äåéæœ").ret()
+    t.assertEqual(data.string_search_prop, "!äåéæœ")
 
     # Text edit button and select the first search suggestion value
     t.assertTrue(wm.try_activate_rna_button(region, data, "string_search_prop", 'TEXT_EDITING'))
