@@ -79,7 +79,7 @@ int64_t MTLContext::frame_latency[MTL_FRAME_AVERAGE_COUNT] = {0};
 
 void MTLContext::set_ghost_context(GHOST_IContext *ghostCtxHandle)
 {
-  GHOST_Context *ghost_ctx = dynamic_cast<GHOST_Context *>(ghostCtxHandle);
+  GHOST_Context *ghost_ctx = static_cast<GHOST_Context *>(ghostCtxHandle);
   BLI_assert(ghost_ctx != nullptr);
 
   /* Release old MTLTexture handle */
@@ -169,7 +169,7 @@ void MTLContext::set_ghost_context(GHOST_IContext *ghostCtxHandle)
 
 void MTLContext::set_ghost_window(GHOST_IWindow *ghostWinHandle)
 {
-  GHOST_Window *ghostWin = dynamic_cast<GHOST_Window *>(ghostWinHandle);
+  GHOST_Window *ghostWin = static_cast<GHOST_Window *>(ghostWinHandle);
   this->set_ghost_context(ghostWin ? ghostWin->getContext() : nullptr);
 }
 
@@ -415,7 +415,7 @@ void MTLContext::activate()
     this->set_ghost_window(ghost_window_);
   }
   else if (ghost_context_) {
-    this->set_ghost_context(dynamic_cast<GHOST_IContext *>(ghost_context_));
+    this->set_ghost_context(static_cast<GHOST_IContext *>(ghost_context_));
   }
 
   /* Reset UBO bind state. */

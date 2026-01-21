@@ -637,7 +637,7 @@ void GHOST_XrSession::bindGraphicsContext()
 {
   const GHOST_XrCustomFuncs &custom_funcs = context_->getCustomFuncs();
   assert(custom_funcs.gpu_ctx_bind_fn);
-  gpu_ctx_ = dynamic_cast<GHOST_Context *>(custom_funcs.gpu_ctx_bind_fn());
+  gpu_ctx_ = static_cast<GHOST_Context *>(custom_funcs.gpu_ctx_bind_fn());
 }
 
 void GHOST_XrSession::unbindGraphicsContext()

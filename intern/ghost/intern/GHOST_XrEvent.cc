@@ -27,7 +27,7 @@ GHOST_TSuccess GHOST_XrEventsHandle(GHOST_IXrContext *xr_contexthandle)
     return GHOST_kFailure;
   }
 
-  GHOST_XrContext &xr_context = *dynamic_cast<GHOST_XrContext *>(xr_contexthandle);
+  GHOST_XrContext &xr_context = *static_cast<GHOST_XrContext *>(xr_contexthandle);
   XrEventDataBuffer event_buffer; /* Structure big enough to hold all possible events. */
 
   while (GHOST_XrEventPollNext(xr_context.getInstance(), event_buffer)) {
