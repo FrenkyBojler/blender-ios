@@ -76,6 +76,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_global.hh"
 #include "BKE_icons.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
@@ -443,6 +444,7 @@ constexpr IDTypeInfo get_type_info()
   info.foreach_id = nullptr;
   info.foreach_cache = image_foreach_cache;
   info.foreach_path = image_foreach_path;
+  info.foreach_idproperty_container = bke::idprop::foreach_idproperty_container_id_default_fn;
   info.owner_pointer_get = nullptr;
 
   info.blend_write = image_blend_write;

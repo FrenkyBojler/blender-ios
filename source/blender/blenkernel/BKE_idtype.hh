@@ -291,10 +291,8 @@ struct IDTypeInfo {
    * Iterator over all IDProperty containers of given ID. This includes both user- and
    * system-defined ones.
    *
-   * \note In case the _only_ idprop containers for an ID type are the default ones in the ID
-   * struct itself, there is no need to define this callback. But if there is any other container
-   * (e.g. in an embeded ID, or some sub-struct), then _all_ containers must be processed by the
-   * callback, including the standard ones in the ID itself.
+   * Must always be non-null, a default #bke::idprop::foreach_idproperty_container_id_default_fn()
+   * helper is available to cover the 'most common' basic cases.
    */
   IDTypeForeachIDPropertyContainer foreach_idproperty_container;
 
