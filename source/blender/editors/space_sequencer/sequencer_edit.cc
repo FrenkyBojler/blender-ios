@@ -490,14 +490,14 @@ void sync_vse_camera_for_view3d(const bContext &C, View3D *v3d)
 
   const wmWindow *win = CTX_wm_window(&C);
   const Scene *active_scene = WM_window_get_active_scene(win);
-  
+
   if (active_scene != scene_strip->scene) {
     return;
   }
 
   /* Determine which camera to use. */
   Object *camera = scene_strip->scene_camera ? scene_strip->scene_camera :
-                                                scene_strip->scene->camera;
+                                               scene_strip->scene->camera;
 
   /* Sync camera for this specific View3D.
    * This is the only non-const modification. */
