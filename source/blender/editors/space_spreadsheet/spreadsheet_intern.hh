@@ -49,8 +49,8 @@ struct SpaceSpreadsheet_Runtime {
 
   std::optional<ReorderColumnVisualizationData> reorder_column_visualization_data;
 
-  mutable CacheMutex index_mapping_mutex_;
-  mutable std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> index_mapping_;
+  mutable CacheMutex index_mappings_mutex_;
+  mutable GridIndexMappings index_mappings_;
 
   SpaceSpreadsheet_Runtime() = default;
 

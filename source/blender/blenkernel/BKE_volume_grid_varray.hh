@@ -50,14 +50,15 @@ class GridNodeIndexMapping {
 };
 
 VArray<int3> varray_for_grid_origin(const VolumeGridData &grid,
-                                    const GridValueOnOff grid_value_filter);
+                                    const std::shared_ptr<GridNodeIndexMapping> &index_mapping);
 VArray<int> varray_for_grid_level(const VolumeGridData &grid,
-                                  const GridValueOnOff grid_value_filter);
+                                  const std::shared_ptr<GridNodeIndexMapping> &index_mapping);
 VArray<int> varray_for_grid_size(const VolumeGridData &grid,
-                                 const GridValueOnOff grid_value_filter);
+                                 const std::shared_ptr<GridNodeIndexMapping> &index_mapping);
 VArray<bool> varray_for_grid_active(const VolumeGridData &grid,
-                                    const GridValueOnOff grid_value_filter);
-GVArray varray_for_grid_value(const VolumeGridData &grid, const GridValueOnOff grid_value_filter);
+                                    const std::shared_ptr<GridNodeIndexMapping> &index_mapping);
+GVArray varray_for_grid_value(const VolumeGridData &grid,
+                              const std::shared_ptr<GridNodeIndexMapping> &index_mapping);
 
 }  // namespace blender::bke::volume_grid
 

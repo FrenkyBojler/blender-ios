@@ -586,6 +586,15 @@ std::optional<const bke::AttributeAccessor> GeometryDataSource::get_component_at
   return {};
 }
 
+static const std::shared_ptr<bke::volume_grid::GridNodeIndexMapping> &get_grid_index_mapping(
+    GridIndexMappings &grid_index_mappings,
+    const bke::volume_grid::GridIndexMappingParams &params,
+    const bke::VolumeGridData &grid)
+{
+  return grid_index_mappings.lookup_or_add_cb(
+      &grid, [&]() { return bke::volume_grid::GridNodeIndexMapping::from_grid(grid, params); });
+}
+
 void VolumeDataSource::foreach_default_column_ids(
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
 {
@@ -603,17 +612,13 @@ void VolumeDataSource::foreach_default_column_ids(
       }
       break;
     case SPREADSHEET_VOLUME_VOXEL_DATA:
-      if (grid_index_mapping_) {
-        fn(SpreadsheetColumnID{const_cast<char *>("Origin")}, false);
-        fn(SpreadsheetColumnID{const_cast<char *>("Size")}, false);
-        if (grid_index_mapping_->params().grid_value_filter ==
-            bke::volume_grid::GridValueOnOff::Dense)
-        {
-          fn(SpreadsheetColumnID{const_cast<char *>("Active")}, false);
-        }
-        fn(SpreadsheetColumnID{const_cast<char *>("Value")}, false);
-        fn(SpreadsheetColumnID{const_cast<char *>("Level")}, false);
+      fn(SpreadsheetColumnID{const_cast<char *>("Origin")}, false);
+      fn(SpreadsheetColumnID{const_cast<char *>("Size")}, false);
+      if (grid_params_.grid_value_filter == bke::volume_grid::GridValueOnOff::Dense) {
+        fn(SpreadsheetColumnID{const_cast<char *>("Active")}, false);
       }
+      fn(SpreadsheetColumnID{const_cast<char *>("Value")}, false);
+      fn(SpreadsheetColumnID{const_cast<char *>("Level")}, false);
       break;
   }
 }
@@ -705,30 +710,30 @@ std::unique_ptr<ColumnValues> VolumeDataSource::get_column_values(
       break;
     case SPREADSHEET_VOLUME_VOXEL_DATA:
       const bke::VolumeGridData *grid = BKE_volume_grid_get(volume, grid_index_);
-      if (!grid || !grid_index_mapping_) {
+      if (!grid) {
         break;
       }
-      const bke::volume_grid::GridValueOnOff grid_value_filter =
-          grid_index_mapping_->params().grid_value_filter;
+      const std::shared_ptr<bke::volume_grid::GridNodeIndexMapping> &grid_index_mapping =
+          get_grid_index_mapping(grid_index_mappings_, grid_params_, *grid);
       if (STREQ(column_id.name, "Origin")) {
         return std::make_unique<ColumnValues>(
-            IFACE_("Origin"), bke::volume_grid::varray_for_grid_origin(*grid, grid_value_filter));
+            IFACE_("Origin"), bke::volume_grid::varray_for_grid_origin(*grid, grid_index_mapping));
       }
       if (STREQ(column_id.name, "Size")) {
         return std::make_unique<ColumnValues>(
-            IFACE_("Size"), bke::volume_grid::varray_for_grid_size(*grid, grid_value_filter));
+            IFACE_("Size"), bke::volume_grid::varray_for_grid_size(*grid, grid_index_mapping));
       }
       if (STREQ(column_id.name, "Active")) {
         return std::make_unique<ColumnValues>(
-            IFACE_("Active"), bke::volume_grid::varray_for_grid_active(*grid, grid_value_filter));
+            IFACE_("Active"), bke::volume_grid::varray_for_grid_active(*grid, grid_index_mapping));
       }
       if (STREQ(column_id.name, "Value")) {
         return std::make_unique<ColumnValues>(
-            IFACE_("Value"), bke::volume_grid::varray_for_grid_value(*grid, grid_value_filter));
+            IFACE_("Value"), bke::volume_grid::varray_for_grid_value(*grid, grid_index_mapping));
       }
       if (STREQ(column_id.name, "Level")) {
         return std::make_unique<ColumnValues>(
-            IFACE_("Level"), bke::volume_grid::varray_for_grid_level(*grid, grid_value_filter));
+            IFACE_("Level"), bke::volume_grid::varray_for_grid_level(*grid, grid_index_mapping));
       }
       break;
   }
@@ -748,21 +753,29 @@ int VolumeDataSource::tot_rows() const
   switch (volume_grid_data_) {
     case SPREADSHEET_VOLUME_SUMMARY:
       return BKE_volume_num_grids(volume);
-    case SPREADSHEET_VOLUME_VOXEL_DATA:
-      return grid_index_mapping_ ? grid_index_mapping_->size() : 0;
+    case SPREADSHEET_VOLUME_VOXEL_DATA: {
+      const bke::VolumeGridData *grid = BKE_volume_grid_get(volume, grid_index_);
+      if (!grid) {
+        return 0;
+      }
+      const std::shared_ptr<bke::volume_grid::GridNodeIndexMapping> &grid_index_mapping =
+          get_grid_index_mapping(grid_index_mappings_, grid_params_, *grid);
+      return grid_index_mapping ? grid_index_mapping->size() : 0;
+    }
   }
   return 0;
 }
 
 #ifdef WITH_OPENVDB
 
-VolumeGridDataSource::VolumeGridDataSource(
-    const bke::GVolumeGrid &grid,
-    SpreadsheetVolumeGridData volume_grid_data,
-    const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &grid_index_mapping)
+VolumeGridDataSource::VolumeGridDataSource(const bke::GVolumeGrid &grid,
+                                           SpreadsheetVolumeGridData volume_grid_data,
+                                           bke::volume_grid::GridIndexMappingParams grid_params,
+                                           GridIndexMappings &grid_index_mappings)
     : grid_(std::make_unique<bke::GVolumeGrid>(grid)),
       volume_grid_data_(volume_grid_data),
-      grid_index_mapping_(grid_index_mapping)
+      grid_params_(std::move(grid_params)),
+      grid_index_mappings_(grid_index_mappings)
 {
 }
 
@@ -785,7 +798,7 @@ void VolumeGridDataSource::foreach_default_column_ids(
     case SPREADSHEET_VOLUME_VOXEL_DATA:
       fn(SpreadsheetColumnID{const_cast<char *>("Origin")}, false);
       fn(SpreadsheetColumnID{const_cast<char *>("Size")}, false);
-      if (grid_value_filter_ == bke::volume_grid::GridValueOnOff::Dense) {
+      if (grid_params_.grid_value_filter == bke::volume_grid::GridValueOnOff::Dense) {
         fn(SpreadsheetColumnID{const_cast<char *>("Active")}, false);
       }
       fn(SpreadsheetColumnID{const_cast<char *>("Value")}, false);
@@ -840,25 +853,27 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
       }
       break;
     case SPREADSHEET_VOLUME_VOXEL_DATA:
+      const std::shared_ptr<bke::volume_grid::GridNodeIndexMapping> &grid_index_mapping =
+          get_grid_index_mapping(grid_index_mappings_, grid_params_, grid);
       if (STREQ(column_id.name, "Origin")) {
         return std::make_unique<ColumnValues>(
-            IFACE_("Origin"), bke::volume_grid::varray_for_grid_origin(grid, grid_value_filter_));
+            IFACE_("Origin"), bke::volume_grid::varray_for_grid_origin(grid, grid_index_mapping));
       }
       if (STREQ(column_id.name, "Size")) {
         return std::make_unique<ColumnValues>(
-            IFACE_("Size"), bke::volume_grid::varray_for_grid_size(grid, grid_value_filter_));
+            IFACE_("Size"), bke::volume_grid::varray_for_grid_size(grid, grid_index_mapping));
       }
       if (STREQ(column_id.name, "Active")) {
         return std::make_unique<ColumnValues>(
-            IFACE_("Active"), bke::volume_grid::varray_for_grid_active(grid, grid_value_filter_));
+            IFACE_("Active"), bke::volume_grid::varray_for_grid_active(grid, grid_index_mapping));
       }
       if (STREQ(column_id.name, "Value")) {
         return std::make_unique<ColumnValues>(
-            IFACE_("Value"), bke::volume_grid::varray_for_grid_value(grid, grid_value_filter_));
+            IFACE_("Value"), bke::volume_grid::varray_for_grid_value(grid, grid_index_mapping));
       }
       if (STREQ(column_id.name, "Level")) {
         return std::make_unique<ColumnValues>(
-            IFACE_("Level"), bke::volume_grid::varray_for_grid_level(grid, grid_value_filter_));
+            IFACE_("Level"), bke::volume_grid::varray_for_grid_level(grid, grid_index_mapping));
       }
       break;
   }
@@ -871,7 +886,12 @@ int VolumeGridDataSource::tot_rows() const
     case SPREADSHEET_VOLUME_SUMMARY:
       return 1;
     case SPREADSHEET_VOLUME_VOXEL_DATA: {
-      return grid_index_mapping_ ? grid_index_mapping_->size() : 0;
+      if (!grid_) {
+        return 0;
+      }
+      const std::shared_ptr<bke::volume_grid::GridNodeIndexMapping> &grid_index_mapping =
+          get_grid_index_mapping(grid_index_mappings_, grid_params_, grid_->get());
+      return grid_index_mapping ? grid_index_mapping->size() : 0;
     }
   }
   BLI_assert_unreachable();
@@ -1300,6 +1320,15 @@ bke::GeometrySet get_geometry_set_for_instance_ids(const bke::GeometrySet &root_
   return geometry;
 }
 
+// TODO actually use filter settings.
+static bke::volume_grid::GridIndexMappingParams grid_index_mapping_params(
+    const SpaceSpreadsheet &sspreadsheet)
+{
+  const bke::volume_grid::GridValueOnOff grid_value_filter = bke::volume_grid::GridValueOnOff::On;
+  UNUSED_VARS(sspreadsheet);
+  return {grid_value_filter};
+}
+
 std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object *object_eval)
 {
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
@@ -1312,8 +1341,11 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
 #ifdef WITH_OPENVDB
     const SpreadsheetVolumeGridData volume_grid_data = SpreadsheetVolumeGridData(
         sspreadsheet->geometry_id.volume_grid_data);
-    return std::make_unique<VolumeGridDataSource>(
-        display_data.get<bke::GVolumeGrid>(), volume_grid_data, sspreadsheet->index_mapping());
+    const auto grid = display_data.get<bke::GVolumeGrid>();
+    return std::make_unique<VolumeGridDataSource>(grid,
+                                                  volume_grid_data,
+                                                  grid_index_mapping_params(*sspreadsheet),
+                                                  sspreadsheet->index_mappings());
 #else
     return {};
 #endif
@@ -1343,8 +1375,11 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
       const SpreadsheetVolumeGridData volume_grid_data = SpreadsheetVolumeGridData(
           sspreadsheet->geometry_id.volume_grid_data);
       const int grid_index = sspreadsheet->geometry_id.volume_grid_index;
-      return std::make_unique<VolumeDataSource>(
-          std::move(geometry_set), volume_grid_data, sspreadsheet->index_mapping(), grid_index);
+      return std::make_unique<VolumeDataSource>(std::move(geometry_set),
+                                                volume_grid_data,
+                                                grid_index,
+                                                grid_index_mapping_params(*sspreadsheet),
+                                                sspreadsheet->index_mappings());
     }
     Object *object_orig = sspreadsheet->geometry_id.instance_ids_num == 0 ?
                               DEG_get_original(object_eval) :

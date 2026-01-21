@@ -1230,6 +1230,11 @@ struct SpreadsheetTable {
   uint32_t column_use_clock = 0;
 };
 
+#ifdef __cplusplus
+using GridIndexMappings = Map<const bke::volume_grid::VolumeGridData *,
+                              std::shared_ptr<bke::volume_grid::GridNodeIndexMapping>>;
+#endif
+
 struct SpaceSpreadsheet {
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
@@ -1267,10 +1272,8 @@ struct SpaceSpreadsheet {
   ed::spreadsheet::SpaceSpreadsheet_Runtime *runtime = nullptr;
 
 #ifdef __cplusplus
-  const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &index_mapping(
-      const bke::volume_grid::VolumeGridData &grid) const;
-
-  void tag_index_mapping_changed() const;
+  GridIndexMappings &index_mappings() const;
+  void tag_index_mappings_changed() const;
 #endif
 };
 

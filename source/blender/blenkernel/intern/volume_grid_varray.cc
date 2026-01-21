@@ -360,7 +360,6 @@ static void foreach_value_in_internal_node(const IndexRange range,
                                            const InternalNodeT &node,
                                            const IndexRange node_range,
                                            const GridNodeIndexMapping &index_mapping,
-                                           const GridValueOnOff active_filter,
                                            ForeachValueFn<typename InternalNodeT::ValueType> fn)
 {
   using ChildNodeT = typename InternalNodeT::ChildNodeType;
@@ -374,7 +373,7 @@ static void foreach_value_in_internal_node(const IndexRange range,
 
   /* Tiles. */
   const NodeMaskT &value_mask = node.getValueMask();
-  switch (active_filter) {
+  switch (index_mapping.params().grid_value_filter) {
     case GridValueOnOff::On:
       foreach_value_in_mask<ChildNodeT::DIM>(
           range, node, node_range, value_mask.beginOn(), table, fn);
@@ -408,12 +407,12 @@ static void foreach_value_in_internal_node(const IndexRange range,
     }
 
     if constexpr (std::is_same_v<ChildNodeT, LeafNodeT>) {
-      foreach_value_in_leaf_node(range, child_node, child_node_range, active_filter, fn);
+      foreach_value_in_leaf_node(
+          range, child_node, child_node_range, index_mapping.params().grid_value_filter, fn);
     }
     else {
       /* Recurse into lower-level internal nodes. */
-      foreach_value_in_internal_node(
-          range, child_node, child_node_range, index_mapping, active_filter, fn);
+      foreach_value_in_internal_node(range, child_node, child_node_range, index_mapping, fn);
     }
   }
 }
@@ -423,7 +422,6 @@ static void foreach_value_in_internal_node(const IndexMaskSegment &segment,
                                            const InternalNodeT &node,
                                            const IndexRange node_range,
                                            const GridNodeIndexMapping &index_mapping,
-                                           const GridValueOnOff active_filter,
                                            ForeachValueFn<typename InternalNodeT::ValueType> fn)
 {
   using ChildNodeT = typename InternalNodeT::ChildNodeType;
@@ -438,7 +436,7 @@ static void foreach_value_in_internal_node(const IndexMaskSegment &segment,
 
   /* Tiles. */
   const NodeMaskT &value_mask = node.getValueMask();
-  switch (active_filter) {
+  switch (index_mapping.params().grid_value_filter) {
     case GridValueOnOff::On:
       foreach_value_in_mask<ChildNodeT::DIM>(
           segment, node, node_range, value_mask.beginOn(), table, fn);
@@ -472,12 +470,12 @@ static void foreach_value_in_internal_node(const IndexMaskSegment &segment,
     }
 
     if constexpr (std::is_same_v<ChildNodeT, LeafNodeT>) {
-      foreach_value_in_leaf_node(segment, child_node, child_node_range, active_filter, fn);
+      foreach_value_in_leaf_node(
+          segment, child_node, child_node_range, index_mapping.params().grid_value_filter, fn);
     }
     else {
       /* Recurse into lower-level internal nodes. */
-      foreach_value_in_internal_node(
-          segment, child_node, child_node_range, index_mapping, active_filter, fn);
+      foreach_value_in_internal_node(segment, child_node, child_node_range, index_mapping, fn);
     }
   }
 }
@@ -486,7 +484,6 @@ template<typename TreeT>
 static void foreach_value_in_tree(const IndexRange range,
                                   const TreeT &tree,
                                   const GridNodeIndexMapping &index_mapping,
-                                  const GridValueOnOff active_filter,
                                   ForeachValueFn<typename TreeT::ValueType> fn)
 {
   if (range.is_empty()) {
@@ -511,8 +508,7 @@ static void foreach_value_in_tree(const IndexRange range,
     }
 
     /* Handle values in range. */
-    foreach_value_in_internal_node(
-        range, internal_node, internal_node_range, index_mapping, active_filter, fn);
+    foreach_value_in_internal_node(range, internal_node, internal_node_range, index_mapping, fn);
   }
 }
 
@@ -520,7 +516,6 @@ template<typename TreeT>
 static void foreach_value_in_tree(const IndexMaskSegment &segment,
                                   const TreeT &tree,
                                   const GridNodeIndexMapping &index_mapping,
-                                  const GridValueOnOff active_filter,
                                   ForeachValueFn<typename TreeT::ValueType> fn)
 {
   if (segment.is_empty()) {
@@ -547,8 +542,7 @@ static void foreach_value_in_tree(const IndexMaskSegment &segment,
     }
 
     /* Handle values in range. */
-    foreach_value_in_internal_node(
-        segment, internal_node, internal_node_range, index_mapping, active_filter, fn);
+    foreach_value_in_internal_node(segment, internal_node, internal_node_range, index_mapping, fn);
   }
 }
 
@@ -556,7 +550,6 @@ template<typename TreeT>
 static void foreach_value_in_tree(const IndexMask &index_mask,
                                   const TreeT &tree,
                                   const GridNodeIndexMapping &index_mapping,
-                                  const GridValueOnOff active_filter,
                                   ForeachValueFn<typename TreeT::ValueType> fn)
 {
 #  ifdef DEBUG_TIME
@@ -565,11 +558,11 @@ static void foreach_value_in_tree(const IndexMask &index_mask,
   index_mask.foreach_segment_optimized([&](const auto segment) {
     if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
       const IndexRange range = segment;
-      foreach_value_in_tree(range, tree, index_mapping, active_filter, fn);
+      foreach_value_in_tree(range, tree, index_mapping, fn);
     }
     else {
       const IndexMaskSegment indices = segment;
-      foreach_value_in_tree(segment, tree, index_mapping, active_filter, fn);
+      foreach_value_in_tree(segment, tree, index_mapping, fn);
     }
   });
 }
@@ -582,18 +575,15 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValueBase : public
   VolumeTreeAccessToken access_token_;
   std::shared_ptr<const TreeT> tree_;
   std::shared_ptr<const GridNodeIndexMapping> index_mapping_;
-  GridValueOnOff grid_value_filter_;
 
  public:
   VArrayImpl_For_GridValueBase(VolumeTreeAccessToken &&access_token,
                                std::shared_ptr<const TreeT> tree,
-                               std::shared_ptr<const GridNodeIndexMapping> index_mapping,
-                               const GridValueOnOff grid_value_filter)
+                               std::shared_ptr<const GridNodeIndexMapping> index_mapping)
       : VArrayImpl<T>(index_mapping->size()),
         access_token_(std::move(access_token)),
         tree_(std::move(tree)),
-        index_mapping_(std::move(index_mapping)),
-        grid_value_filter_(grid_value_filter)
+        index_mapping_(std::move(index_mapping))
   {
   }
 
@@ -607,7 +597,6 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValueBase : public
         IndexRange(index, 1),
         *tree_,
         *index_mapping_,
-        grid_value_filter_,
         [&](int /*index*/,
             int /*pos*/,
             const openvdb::Coord &origin,
@@ -647,16 +636,14 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValueBase : public
     };
 
     if constexpr (std::is_trivially_copyable_v<T>) {
-      foreach_value_in_tree(mask, *tree_, *index_mapping_, grid_value_filter_, store_initialized);
+      foreach_value_in_tree(mask, *tree_, *index_mapping_, store_initialized);
     }
     else {
       if (dst_is_uninitialized) {
-        foreach_value_in_tree(
-            mask, *tree_, *index_mapping_, grid_value_filter_, store_uninitialized);
+        foreach_value_in_tree(mask, *tree_, *index_mapping_, store_uninitialized);
       }
       else {
-        foreach_value_in_tree(
-            mask, *tree_, *index_mapping_, grid_value_filter_, store_initialized);
+        foreach_value_in_tree(mask, *tree_, *index_mapping_, store_initialized);
       }
     }
   }
@@ -690,16 +677,14 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValueBase : public
     };
 
     if constexpr (std::is_trivially_copyable_v<T>) {
-      foreach_value_in_tree(mask, *tree_, *index_mapping_, grid_value_filter_, store_initialized);
+      foreach_value_in_tree(mask, *tree_, *index_mapping_, store_initialized);
     }
     else {
       if (dst_is_uninitialized) {
-        foreach_value_in_tree(
-            mask, *tree_, *index_mapping_, grid_value_filter_, store_uninitialized);
+        foreach_value_in_tree(mask, *tree_, *index_mapping_, store_uninitialized);
       }
       else {
-        foreach_value_in_tree(
-            mask, *tree_, *index_mapping_, grid_value_filter_, store_initialized);
+        foreach_value_in_tree(mask, *tree_, *index_mapping_, store_initialized);
       }
     }
   }
@@ -875,83 +860,74 @@ class VArrayImpl_For_GridValueValue final : public VArrayImpl_For_GridValueBase<
 };
 
 VArray<int3> varray_for_grid_origin(const VolumeGridData &grid,
-                                    const GridValueOnOff grid_value_filter)
+                                    const std::shared_ptr<GridNodeIndexMapping> &index_mapping)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
-  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping = grid.index_mapping(
-      grid_value_filter);
 
   VArray<int3> varray;
   to_typed_grid(grid_base, [&](const auto &grid) {
     using GridType = std::decay_t<decltype(grid)>;
     using TreeType = typename GridType::TreeType;
     varray = VArray<int3>::from<VArrayImpl_For_GridValueOrigin<TreeType>>(
-        std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+        std::move(access_token), grid.treePtr(), index_mapping);
   });
   return varray;
 }
 
 VArray<int> varray_for_grid_level(const VolumeGridData &grid,
-                                  const GridValueOnOff grid_value_filter)
+                                  const std::shared_ptr<GridNodeIndexMapping> &index_mapping)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
-  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping = grid.index_mapping(
-      grid_value_filter);
 
   VArray<int> varray;
   to_typed_grid(grid_base, [&](const auto &grid) {
     using GridType = std::decay_t<decltype(grid)>;
     using TreeType = typename GridType::TreeType;
     varray = VArray<int>::from<VArrayImpl_For_GridValueLevel<TreeType>>(
-        std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+        std::move(access_token), grid.treePtr(), index_mapping);
   });
   return varray;
 }
 
 VArray<int> varray_for_grid_size(const VolumeGridData &grid,
-                                 const GridValueOnOff grid_value_filter)
+                                 const std::shared_ptr<GridNodeIndexMapping> &index_mapping)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
-  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping = grid.index_mapping(
-      grid_value_filter);
 
   VArray<int> varray;
   to_typed_grid(grid_base, [&](const auto &grid) {
     using GridType = std::decay_t<decltype(grid)>;
     using TreeType = typename GridType::TreeType;
     varray = VArray<int>::from<VArrayImpl_For_GridValueSize<TreeType>>(
-        std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+        std::move(access_token), grid.treePtr(), index_mapping);
   });
   return varray;
 }
 
 VArray<bool> varray_for_grid_active(const VolumeGridData &grid,
-                                    const GridValueOnOff grid_value_filter)
+                                    const std::shared_ptr<GridNodeIndexMapping> &index_mapping)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
-  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping = grid.index_mapping(
-      grid_value_filter);
 
   VArray<bool> varray;
   to_typed_grid(grid_base, [&](const auto &grid) {
     using GridType = std::decay_t<decltype(grid)>;
     using TreeType = typename GridType::TreeType;
     varray = VArray<bool>::from<VArrayImpl_For_GridValueActive<TreeType>>(
-        std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+        std::move(access_token), grid.treePtr(), index_mapping);
   });
   return varray;
 }
 
-GVArray varray_for_grid_value(const VolumeGridData &grid, const GridValueOnOff grid_value_filter)
+GVArray varray_for_grid_value(const VolumeGridData &grid,
+                              const std::shared_ptr<GridNodeIndexMapping> &index_mapping)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
-  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping = grid.index_mapping(
-      grid_value_filter);
 
   GVArray varray;
   to_typed_grid(grid_base, [&](const auto &grid) {
@@ -961,19 +937,19 @@ GVArray varray_for_grid_value(const VolumeGridData &grid, const GridValueOnOff g
 
     if constexpr (std::is_same_v<TreeValueType, bool>) {
       varray = VArray<bool>::from<VArrayImpl_For_GridValueValue<bool, TreeType>>(
-          std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+          std::move(access_token), grid.treePtr(), index_mapping);
     }
     if constexpr (std::is_same_v<TreeValueType, int>) {
       varray = VArray<int>::from<VArrayImpl_For_GridValueValue<int, TreeType>>(
-          std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+          std::move(access_token), grid.treePtr(), index_mapping);
     }
     if constexpr (std::is_same_v<TreeValueType, float>) {
       varray = VArray<float>::from<VArrayImpl_For_GridValueValue<float, TreeType>>(
-          std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+          std::move(access_token), grid.treePtr(), index_mapping);
     }
     if constexpr (std::is_same_v<TreeValueType, openvdb::Vec3f>) {
       varray = VArray<float3>::from<VArrayImpl_For_GridValueValue<float3, TreeType>>(
-          std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+          std::move(access_token), grid.treePtr(), index_mapping);
     }
   });
   return varray;

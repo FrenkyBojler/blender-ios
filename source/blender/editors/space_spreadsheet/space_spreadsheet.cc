@@ -242,7 +242,7 @@ static void spreadsheet_update_context(const bContext *C)
         if (context_object == nullptr) {
           /* Object is not available anymore, so clear the pinning. */
           sspreadsheet->flag &= ~SPREADSHEET_FLAG_PINNED;
-          sspreadsheet->tag_index_mapping_changed();
+          sspreadsheet->tag_index_mappings_changed();
         }
         else {
           /* The object is still pinned, do nothing. */
@@ -252,7 +252,7 @@ static void spreadsheet_update_context(const bContext *C)
       else {
         if (active_object != context_object) {
           /* The active object has changed, so view the new active object. */
-          sspreadsheet->tag_index_mapping_changed();
+          sspreadsheet->tag_index_mappings_changed();
           view_active_object(C, sspreadsheet);
         }
         else {
@@ -274,12 +274,12 @@ static void spreadsheet_update_context(const bContext *C)
           }
           /* The pinned path does not exist anymore, clear pinning. */
           sspreadsheet->flag &= ~SPREADSHEET_FLAG_PINNED;
-          sspreadsheet->tag_index_mapping_changed();
+          sspreadsheet->tag_index_mappings_changed();
         }
         else {
           /* Unknown pinned path, clear pinning. */
           sspreadsheet->flag &= ~SPREADSHEET_FLAG_PINNED;
-          sspreadsheet->tag_index_mapping_changed();
+          sspreadsheet->tag_index_mappings_changed();
         }
       }
       /* Now try to update the viewer path from the workspace. */
@@ -300,7 +300,7 @@ static void spreadsheet_update_context(const bContext *C)
       else {
         /* No active viewer node, change back to showing evaluated active object. */
         sspreadsheet->geometry_id.object_eval_state = SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED;
-        sspreadsheet->tag_index_mapping_changed();
+        sspreadsheet->tag_index_mappings_changed();
         view_active_object(C, sspreadsheet);
       }
 
@@ -871,31 +871,19 @@ void register_spacetype()
 
 }  // namespace ed::spreadsheet
 
-const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &SpaceSpreadsheet::
-    index_mapping(const bke::volume_grid::VolumeGridData &grid) const
+GridIndexMappings &SpaceSpreadsheet::index_mappings() const
 {
   using namespace bke::volume_grid;
 
   BLI_assert(this->runtime);
-
-  // TODO add filter settings in spreadsheet
-  const GridValueOnOff grid_value_filter = GridValueOnOff::On;
-
-  GridIndexMappingParams params = {grid_value_filter};
-  if (!this->runtime->index_mapping_mutex_.is_dirty()) {
-    if (this->runtime->index_mapping_->params() != params) {
-      this->runtime->index_mapping_mutex_.tag_dirty();
-    }
-  }
-  this->runtime->index_mapping_mutex_.ensure(
-      [&]() { this->runtime->index_mapping_ = GridNodeIndexMapping::from_grid(grid, params); });
-  return this->runtime->index_mapping_;
+  this->runtime->index_mappings_mutex_.ensure([&]() { this->runtime->index_mappings_.clear(); });
+  return this->runtime->index_mappings_;
 }
 
-void SpaceSpreadsheet::tag_index_mapping_changed() const
+void SpaceSpreadsheet::tag_index_mappings_changed() const
 {
   BLI_assert(this->runtime);
-  this->runtime->index_mapping_mutex_.tag_dirty();
+  this->runtime->index_mappings_mutex_.tag_dirty();
 }
 
 }  // namespace blender

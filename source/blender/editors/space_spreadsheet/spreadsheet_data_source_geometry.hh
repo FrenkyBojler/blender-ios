@@ -81,20 +81,22 @@ class VolumeDataSource : public DataSource {
   const bke::GeometrySet geometry_set_;
   const bke::VolumeComponent *component_;
   SpreadsheetVolumeGridData volume_grid_data_;
-  std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> grid_index_mapping_;
   int grid_index_;
+  bke::volume_grid::GridIndexMappingParams grid_params_;
+  GridIndexMappings &grid_index_mappings_;
 
  public:
-  VolumeDataSource(
-      bke::GeometrySet geometry_set,
-      const SpreadsheetVolumeGridData volume_grid_data,
-      const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &grid_index_mapping,
-      const int grid_index)
+  VolumeDataSource(bke::GeometrySet geometry_set,
+                   const SpreadsheetVolumeGridData volume_grid_data,
+                   const int grid_index,
+                   bke::volume_grid::GridIndexMappingParams grid_params,
+                   GridIndexMappings &grid_index_mappings)
       : geometry_set_(std::move(geometry_set)),
         component_(geometry_set_.get_component<bke::VolumeComponent>()),
         volume_grid_data_(volume_grid_data),
-        grid_index_mapping_(grid_index_mapping),
-        grid_index_(grid_index)
+        grid_index_(grid_index),
+        grid_params_(std::move(grid_params)),
+        grid_index_mappings_(grid_index_mappings)
   {
   }
 
@@ -113,14 +115,14 @@ class VolumeGridDataSource : public DataSource {
   /** Using #unique_ptr so that `BKE_volume_grid_fwd.hh` can be used. */
   std::unique_ptr<bke::GVolumeGrid> grid_;
   SpreadsheetVolumeGridData volume_grid_data_;
-  bke::volume_grid::GridValueOnOff grid_value_filter_;
-  std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> grid_index_mapping_;
+  bke::volume_grid::GridIndexMappingParams grid_params_;
+  GridIndexMappings &grid_index_mappings_;
 
  public:
-  VolumeGridDataSource(
-      const bke::GVolumeGrid &grid,
-      SpreadsheetVolumeGridData volume_grid_data,
-      const std::shared_ptr<const bke::volume_grid::GridNodeIndexMapping> &grid_index_mapping);
+  VolumeGridDataSource(const bke::GVolumeGrid &grid,
+                       SpreadsheetVolumeGridData volume_grid_data,
+                       bke::volume_grid::GridIndexMappingParams grid_params,
+                       GridIndexMappings &grid_index_mappings);
 
   void foreach_default_column_ids(
       FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;
