@@ -567,7 +567,7 @@ void TokenBuffer::merge_complex_literals()
       case Number:
         lex_number(str_, in_types, in_offsets, i);
         break;
-      [[likely]] default:
+      default:
         break;
     }
   }
@@ -615,7 +615,7 @@ void TokenBuffer::merge_whitespaces()
       case NewLine:
       case Space:
         break;
-      [[likely]] default:
+      default:
         continue;
     }
     /* Make next token overwrite this one. Effectively merging the token with the one before. */
