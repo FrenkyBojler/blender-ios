@@ -15,6 +15,7 @@ GVArray ListFieldContext::get_varray_for_input(const FieldInput &field_input,
                                                ResourceScope & /*scope*/) const
 {
   const auto *id_field_input = dynamic_cast<const bke::IDAttributeFieldInput *>(&field_input);
+
   const auto *index_field_input = dynamic_cast<const fn::IndexFieldInput *>(&field_input);
 
   if (id_field_input == nullptr && index_field_input == nullptr) {

@@ -820,7 +820,7 @@ class NODE_MT_gn_utilities_list_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeClosureToList")
         self.node_operator(layout, "GeometryNodeFieldToList")
         self.node_operator(layout, "GeometryNodeListGetItem")
-        self.node_operator(layout, "GeometryNodeListLength")\
+        self.node_operator(layout, "GeometryNodeListLength")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
