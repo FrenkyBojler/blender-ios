@@ -463,4 +463,3 @@ static void node_register()
 NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_composite_corner_pin_cc
-
