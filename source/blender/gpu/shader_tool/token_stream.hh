@@ -39,10 +39,7 @@ struct LexerBase {
   size_t alloc_size = 0;
   char *memory = nullptr;
 
-  ~LexerBase()
-  {
-    std::free(memory);
-  }
+  ~LexerBase();
 
  protected:
   void ensure_memory();

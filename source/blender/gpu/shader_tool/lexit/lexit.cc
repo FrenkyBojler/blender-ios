@@ -5,7 +5,6 @@
 #include "lexit.hh"
 
 #include <cassert>
-#include <cctype>
 
 #if defined(__ARM_NEON)
 #  define USE_NEON

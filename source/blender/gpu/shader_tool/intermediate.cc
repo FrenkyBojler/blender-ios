@@ -16,8 +16,13 @@
 #include "lexit/lexit.hh"
 #include "lexit/tables.hh"
 
+#if defined(_MSC_VER)
+#  include <malloc.h>
+#endif
+
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <cstring>
 #include <stack>
 
@@ -120,8 +125,11 @@ void LexerBase::ensure_memory()
    * We need at least as many token as there is character.
    * Note: Never shrinks. */
   if (alloc_size < needed_size) {
-    std::free(memory);
+#ifdef _WIN32
+    memory = static_cast<char *>(_aligned_malloc(needed_size, 128));
+#else
     memory = static_cast<char *>(std::aligned_alloc(128, needed_size));
+#endif
     alloc_size = needed_size;
   }
 
@@ -133,6 +141,15 @@ void LexerBase::ensure_memory()
   token_offsets = {reinterpret_cast<uint32_t *>(ptr), input_size};
 
   update_string_view();
+}
+
+LexerBase::~LexerBase()
+{
+#ifdef _WIN32
+  _aligned_free(memory);
+#else
+  std::free(memory);
+#endif
 }
 
 /* Same thing as default table but consider numbers as words to avoid second merging pass. */
