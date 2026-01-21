@@ -10,15 +10,19 @@
 
 #include "BKE_object.hh"
 
+#include "DNA_object_types.h"
+
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_string.h"
 #include "BLI_vector.hh"
 
 #include "CLG_log.h"
+
+namespace blender {
+
 static CLG_LogRef LOG = {"io.usd"};
 
-namespace blender::io::usd {
+namespace io::usd {
 
 USDTransformWriter::USDTransformWriter(const USDExporterContext &ctx) : USDAbstractWriter(ctx) {}
 
@@ -123,6 +127,7 @@ void USDTransformWriter::do_write(HierarchyContext &context)
 
   if (context.object) {
     auto prim = xform.GetPrim();
+    add_to_prim_map(prim.GetPath(), &context.object->id);
     write_id_properties(prim, context.object->id, get_export_time_code());
   }
 }
@@ -220,4 +225,5 @@ void USDTransformWriter::set_xform_ops(float parent_relative_matrix[4][4],
   }
 }
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender

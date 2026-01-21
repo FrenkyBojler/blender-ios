@@ -14,8 +14,11 @@
 
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 int GPU_max_texture_size();
 int GPU_max_texture_3d_size();
+uint32_t GPU_max_buffer_texture_size();
 int GPU_max_texture_layers();
 int GPU_max_textures();
 int GPU_max_textures_vert();
@@ -78,3 +81,5 @@ int GPU_minimum_per_vertex_stride();
 
 /** WARNING: Should only be called at startup from creator_args. Never call it at runtime. */
 void GPU_compilation_subprocess_override_set(int count);
+
+}  // namespace blender

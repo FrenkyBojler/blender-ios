@@ -129,13 +129,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   GeometrySet curves_geometry = GeometrySet::from_instances(instances);
   curves_geometry.name = std::move(grease_pencil_geometry.name);
+  curves_geometry.copy_bundle_from(grease_pencil_geometry);
 
   const bool layers_as_instances = params.extract_input<bool>("Layers as Instances");
   if (!layers_as_instances) {
     geometry::RealizeInstancesOptions options;
     const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
     options.attribute_filter = attribute_filter;
-    curves_geometry = geometry::realize_instances(curves_geometry, options);
+    curves_geometry = geometry::realize_instances(curves_geometry, options).geometry;
   }
 
   params.set_output("Curves", std::move(curves_geometry));

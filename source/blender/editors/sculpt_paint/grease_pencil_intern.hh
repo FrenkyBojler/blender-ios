@@ -15,15 +15,17 @@
 
 #include "paint_intern.hh"
 
-namespace blender::bke::greasepencil {
+namespace blender {
+
+namespace bke::greasepencil {
 class Drawing;
 class Layer;
-}  // namespace blender::bke::greasepencil
-namespace blender::bke::crazyspace {
+}  // namespace bke::greasepencil
+namespace bke::crazyspace {
 struct GeometryDeformation;
 }
 
-namespace blender::ed::sculpt_paint {
+namespace ed::sculpt_paint {
 
 /**
  * Projects a screen-space displacement vector into layer space.
@@ -135,10 +137,16 @@ bke::crazyspace::GeometryDeformation get_drawing_deformation(
     const GreasePencilStrokeParams &params);
 
 /* Project points from layer space into 2D view space. */
-Array<float2> calculate_view_positions(const GreasePencilStrokeParams &params,
-                                       const IndexMask &selection);
-Array<float> calculate_view_radii(const GreasePencilStrokeParams &params,
-                                  const IndexMask &selection);
+Array<float2> view_positions_from_point_mask(const GreasePencilStrokeParams &params,
+                                             const IndexMask &point_mask);
+Array<float2> view_positions_left_from_point_mask(const GreasePencilStrokeParams &params,
+                                                  const IndexMask &selection);
+Array<float2> view_positions_right_from_point_mask(const GreasePencilStrokeParams &params,
+                                                   const IndexMask &selection);
+Array<float2> view_positions_from_curve_mask(const GreasePencilStrokeParams &params,
+                                             const IndexMask &curve_mask);
+Array<float> view_radii_from_point_selection(const GreasePencilStrokeParams &params,
+                                             const IndexMask &selection);
 
 /* Get an appropriate projection function from screen space to layer space.
  * This is an alternative to using the DrawingPlacement. */
@@ -163,7 +171,7 @@ bool do_vertex_color_fill(const Brush &brush);
 /* Stroke operation base class that performs various common initializations. */
 class GreasePencilStrokeOperationCommon : public GreasePencilStrokeOperation {
  public:
-  using MutableDrawingInfo = blender::ed::greasepencil::MutableDrawingInfo;
+  using MutableDrawingInfo = ed::greasepencil::MutableDrawingInfo;
   using DrawingPlacement = ed::greasepencil::DrawingPlacement;
 
   BrushStrokeMode stroke_mode;
@@ -244,4 +252,6 @@ std::unique_ptr<GreasePencilStrokeOperation> new_vertex_smear_operation();
 
 }  // namespace greasepencil
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
+
+}  // namespace blender

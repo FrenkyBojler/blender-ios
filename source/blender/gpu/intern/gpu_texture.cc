@@ -17,7 +17,9 @@
 
 #include "gpu_texture_private.hh"
 
-namespace blender::gpu {
+namespace blender {
+
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Creation & Deletion
@@ -230,13 +232,12 @@ void Texture::update(eGPUDataFormat format, const void *data)
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
 
 /* -------------------------------------------------------------------- */
 /** \name C-API
  * \{ */
 
-using namespace blender;
 using namespace blender::gpu;
 
 /* ------ Memory Management ------ */
@@ -399,8 +400,11 @@ gpu::Texture *GPU_texture_create_compressed_2d(const char *name,
       tex->mip_size_get(mip, extent);
 
       size_t size = ((extent[0] + 3) / 4) * ((extent[1] + 3) / 4) * to_block_size(tex_format);
-      tex->update_sub(
-          mip, offset, extent, to_texture_data_format(tex_format), (uchar *)data + ofs);
+      tex->update_sub(mip,
+                      offset,
+                      extent,
+                      to_texture_data_format(tex_format),
+                      static_cast<uchar *>(const_cast<void *>(data)) + ofs);
 
       ofs += size;
     }
@@ -495,11 +499,12 @@ eGPUTextureUsage GPU_texture_usage(const gpu::Texture *texture_)
 void GPU_texture_update_mipmap(gpu::Texture *texture,
                                int mip_level,
                                eGPUDataFormat data_format,
-                               const void *pixels)
+                               const void *pixels,
+                               uint unpack_row_length)
 {
   int extent[3] = {1, 1, 1}, offset[3] = {0, 0, 0};
   texture->mip_size_get(mip_level, extent);
-  texture->update_sub(mip_level, offset, extent, data_format, pixels);
+  texture->update_sub(mip_level, offset, extent, data_format, pixels, unpack_row_length);
 }
 
 void GPU_texture_update_sub(gpu::Texture *tex,
@@ -510,11 +515,12 @@ void GPU_texture_update_sub(gpu::Texture *tex,
                             int offset_z,
                             int width,
                             int height,
-                            int depth)
+                            int depth,
+                            uint unpack_row_length)
 {
   int offset[3] = {offset_x, offset_y, offset_z};
   int extent[3] = {width, height, depth};
-  tex->update_sub(0, offset, extent, data_format, pixels);
+  tex->update_sub(0, offset, extent, data_format, pixels, unpack_row_length);
 }
 
 void GPU_texture_update_sub_from_pixel_buffer(gpu::Texture *texture,
@@ -550,11 +556,6 @@ void GPU_texture_clear(gpu::Texture *tex, eGPUDataFormat data_format, const void
 void GPU_texture_update(gpu::Texture *tex, eGPUDataFormat data_format, const void *data)
 {
   tex->update(data_format, data);
-}
-
-void GPU_unpack_row_length_set(uint len)
-{
-  Context::get()->state_manager->texture_unpack_row_length_set(len);
 }
 
 /* ------ Binding ------ */
@@ -1037,3 +1038,5 @@ size_t GPU_texture_dataformat_size(eGPUDataFormat data_format)
 }
 
 /** \} */
+
+}  // namespace blender

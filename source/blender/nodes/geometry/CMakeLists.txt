@@ -34,6 +34,7 @@ set(SRC
   nodes/node_geo_attribute_statistic.cc
   nodes/node_geo_bake.cc
   nodes/node_geo_blur_attribute.cc
+  nodes/node_geo_bone_info.cc
   nodes/node_geo_boolean.cc
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
@@ -87,15 +88,19 @@ set(SRC
   nodes/node_geo_field_average.cc
   nodes/node_geo_field_min_and_max.cc
   nodes/node_geo_field_to_grid.cc
+  nodes/node_geo_field_to_list.cc
   nodes/node_geo_field_variance.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
+  nodes/node_geo_get_geometry_bundle.cc
+  nodes/node_geo_get_bundle_item.cc
   nodes/node_geo_get_named_grid.cc
   nodes/node_geo_gizmo_dial.cc
   nodes/node_geo_gizmo_linear.cc
   nodes/node_geo_gizmo_transform.cc
   nodes/node_geo_grease_pencil_to_curves.cc
+  nodes/node_geo_grid_advect.cc
   nodes/node_geo_grid_curl.cc
   nodes/node_geo_grid_divergence.cc
   nodes/node_geo_grid_gradient.cc
@@ -158,7 +163,6 @@ set(SRC
   nodes/node_geo_is_viewport.cc
   nodes/node_geo_join_bundle.cc
   nodes/node_geo_join_geometry.cc
-  nodes/node_geo_list.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
   nodes/node_geo_material_replace.cc
@@ -212,6 +216,12 @@ set(SRC
   nodes/node_geo_scale_elements.cc
   nodes/node_geo_scale_instances.cc
   nodes/node_geo_sdf_grid_boolean.cc
+  nodes/node_geo_sdf_grid_fillet.cc
+  nodes/node_geo_sdf_grid_laplacian.cc
+  nodes/node_geo_sdf_grid_mean.cc
+  nodes/node_geo_sdf_grid_mean_curvature.cc
+  nodes/node_geo_sdf_grid_median.cc
+  nodes/node_geo_sdf_grid_offset.cc
   nodes/node_geo_self_object.cc
   nodes/node_geo_separate_bundle.cc
   nodes/node_geo_separate_components.cc
@@ -220,6 +230,7 @@ set(SRC
   nodes/node_geo_set_curve_normal.cc
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
+  nodes/node_geo_set_geometry_bundle.cc
   nodes/node_geo_set_geometry_name.cc
   nodes/node_geo_set_grease_pencil_color.cc
   nodes/node_geo_set_grease_pencil_depth_mode.cc
@@ -239,6 +250,7 @@ set(SRC
   nodes/node_geo_simulation.cc
   nodes/node_geo_sort_elements.cc
   nodes/node_geo_split_to_instances.cc
+  nodes/node_geo_store_bundle_item.cc
   nodes/node_geo_store_named_attribute.cc
   nodes/node_geo_store_named_grid.cc
   nodes/node_geo_string_join.cc
@@ -268,6 +280,7 @@ set(SRC
   include/NOD_geo_capture_attribute.hh
   include/NOD_geo_closure.hh
   include/NOD_geo_field_to_grid.hh
+  include/NOD_geo_field_to_list.hh
   include/NOD_geo_foreach_geometry_element.hh
   include/NOD_geo_index_switch.hh
   include/NOD_geo_menu_switch.hh
@@ -304,6 +317,8 @@ set(LIB
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::gmp
+  PRIVATE bf::dependencies::optional::bullet
 )
 
 if(WITH_IO_STL)
@@ -331,14 +346,9 @@ if(WITH_IO_WAVEFRONT_OBJ)
 endif()
 
 if(WITH_BULLET)
-  list(APPEND INC_SYS
-    ${BULLET_INCLUDE_DIRS}
+  list(APPEND INC
     ../../../../intern/rigidbody
   )
-  list(APPEND LIB
-    ${BULLET_LIBRARIES}
-  )
-  add_definitions(-DWITH_BULLET)
 endif()
 
 if(WITH_TBB)
@@ -355,18 +365,6 @@ endif()
 
 if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
-endif()
-
-if(WITH_GMP)
-  add_definitions(-DWITH_GMP)
-
-  list(APPEND INC_SYS
-    ${GMP_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${GMP_LIBRARIES}
-  )
 endif()
 
 add_node_discovery(

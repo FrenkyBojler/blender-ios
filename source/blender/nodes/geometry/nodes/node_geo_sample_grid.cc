@@ -30,9 +30,9 @@ enum class InterpolationMode {
 };
 
 static const EnumPropertyItem interpolation_mode_items[] = {
-    {int(InterpolationMode::Nearest), "NEAREST", 0, "Nearest Neighbor", ""},
-    {int(InterpolationMode::TriLinear), "TRILINEAR", 0, "Trilinear", ""},
-    {int(InterpolationMode::TriQuadratic), "TRIQUADRATIC", 0, "Triquadratic", ""},
+    {int(InterpolationMode::Nearest), "NEAREST", 0, N_("Nearest Neighbor"), ""},
+    {int(InterpolationMode::TriLinear), "TRILINEAR", 0, N_("Trilinear"), ""},
+    {int(InterpolationMode::TriQuadratic), "TRIQUADRATIC", 0, N_("Triquadratic"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -102,9 +102,9 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 #ifdef WITH_OPENVDB
@@ -227,24 +227,30 @@ class SampleGridFunction : public mf::MultiFunction {
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  const bNode &node = params.node();
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(node.custom1);
-  const auto interpolation = params.get_input<InterpolationMode>("Interpolation");
-
   bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid");
   if (!grid) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  auto fn = std::make_shared<SampleGridFunction>(std::move(grid), interpolation);
-  auto op = FieldOperation::from(std::move(fn), {params.extract_input<Field<float3>>("Position")});
+  const auto interpolation = params.get_input<InterpolationMode>("Interpolation");
+  bke::SocketValueVariant position = params.extract_input<bke::SocketValueVariant>("Position");
 
-  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
-  const CPPType &output_type = *bke::socket_type_to_geo_nodes_base_cpp_type(data_type);
-  const GField output_field = conversions.try_convert(fn::GField(std::move(op)), output_type);
-  params.set_output("Value", std::move(output_field));
+  std::string error_message;
+  bke::SocketValueVariant output_value;
+  if (!execute_multi_function_on_value_variant(
+          std::make_shared<SampleGridFunction>(std::move(grid), interpolation),
+          {&position},
+          {&output_value},
+          params.user_data(),
+          error_message))
+  {
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
+  }
 
+  params.set_output("Value", std::move(output_value));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -269,7 +275,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSampleGrid", GEO_NODE_SAMPLE_GRID);
   ntype.ui_name = "Sample Grid";
@@ -282,7 +288,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

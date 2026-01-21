@@ -114,8 +114,34 @@ set(PTHREADS_FILE pthreads4w-code-${PTHREADS_VERSION}.zip)
 set(PTHREADS_HOMEPAGE https://github.com/fwbuilder/pthreads4w)
 set(PTHREADS_LICENSE SPDX:Apache-2.0)
 set(PTHREADS_COPYRIGHT [=[
-Copyright 1998 John E. Bossom.
-Copyright 1999-2018, Pthreads4w contributors.
+Copyright 1998 John E. Bossom
+Copyright 1999-2018, Pthreads4w contributors
+
+This product includes software developed through the colaborative
+effort of several individuals, each of whom is listed in the file
+CONTRIBUTORS included with this software.
+
+The following files are not covered under the Copyrights
+listed above:
+
+    [1] tests/rwlock7.c
+    [1] tests/rwlock7_1.c
+    [1] tests/rwlock8.c
+    [1] tests/rwlock8_1.c
+    [2] tests/threestage.c
+
+[1] The file tests/rwlock7.c and those similarly named are derived from
+code written by Dave Butenhof for his book 'Programming With POSIX(R)
+Threads'. The original code was obtained by free download from his
+website http://home.earthlink.net/~anneart/family/Threads/source.html
+
+[2] The file tests/threestage.c is taken directly from examples in the
+book "Windows System Programming, Edition 4" by Johnson (John) Hart
+Session 6, Chapter 10. ThreeStage.c
+Several required additional header and source files from the
+book examples have been included inline to simplify compilation.
+The only modification to the code has been to provide default
+values when run without arguments.
 ]=])
 
 set(DEFLATE_VERSION 1.18)
@@ -650,21 +676,6 @@ set(SPNAV_HOMEPAGE https://github.com/FreeSpacenav/libspnav)
 set(SPNAV_LICENSE SPDX:BSD-3-Clause)
 set(SPNAV_COPYRIGHT "Copyright (C) 2007-2022 John Tsiombikas nuclear@member.fsf.org")
 
-set(JEMALLOC_VERSION 5.2.1)
-set(JEMALLOC_URI https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_VERSION}/jemalloc-${JEMALLOC_VERSION}.tar.bz2)
-set(JEMALLOC_HASH 3d41fbf006e6ebffd489bdb304d009ae)
-set(JEMALLOC_HASH_TYPE MD5)
-set(JEMALLOC_FILE jemalloc-${JEMALLOC_VERSION}.tar.bz2)
-set(JEMALLOC_HOMEPAGE https://jemalloc.net/)
-set(JEMALLOC_NAME jemalloc)
-set(JEMALLOC_LICENSE SPDX:BSD-2-Clause)
-set(JEMALLOC_COPYRIGHT [=[
-Copyright (C) 2002-2013 Jason Evans <jasone@canonware.com>. All rights reserved.
-Copyright (C) 2007-2012 Mozilla Foundation.  All rights reserved.
-Copyright (C) 2009-2013 Facebook, Inc.  All rights reserved.
-Copyright (C) 2013 Jason Evans <jasone@canonware.com>.
-]=])
-
 set(XML2_VERSION 2.14.5)
 set(XML2_URI https://download.gnome.org/sources/libxml2/2.14/libxml2-${XML2_VERSION}.tar.xz)
 set(XML2_HASH 59aac4e5d1d350ba2c4bddf1f7bc5098)
@@ -932,24 +943,6 @@ Copyright 1999 SuSE, Inc.
 Copyright © 2012 Philipp Brüschweiler.
 Copyright (c) 2020 Simon Ser.
 Copyright (c) 2006, 2008 Junio C Hamano.
-]=])
-
-set(WAYLAND_LIBDECOR_VERSION 0.2.2)
-set(WAYLAND_LIBDECOR_FILE libdecor-${WAYLAND_LIBDECOR_VERSION}.tar.xz)
-set(WAYLAND_LIBDECOR_URI https://gitlab.freedesktop.org/libdecor/libdecor/-/releases/${WAYLAND_LIBDECOR_VERSION}/downloads/libdecor-${WAYLAND_LIBDECOR_VERSION}.tar.xz)
-set(WAYLAND_LIBDECOR_HASH 5b7f4a10a9335b62101bccc220e2d13a)
-set(WAYLAND_LIBDECOR_HASH_TYPE MD5)
-set(WAYLAND_LIBDECOR_HOMEPAGE https://gitlab.freedesktop.org/libdecor/libdecor)
-set(WAYLAND_LIBDECOR_LICENSE SPDX:MIT)
-set(WAYLAND_LIBDECOR_COPYRIGHT [=[
-Copyright © 2010 Intel Corporation.
-Copyright © 2011 Benjamin Franzke.
-Copyright © 2018-2021 Jonas Ådahl.
-Copyright © 2019 Christian Rauch.
-Copyright (c) 2006, 2008 Junio C Hamano.
-Copyright © 2017-2018 Red Hat Inc.
-Copyright © 2012 Collabora, Ltd.
-Copyright © 2008 Kristian Høgsberg.
 ]=])
 
 set(WAYLAND_WESTON_VERSION 14.0.2)

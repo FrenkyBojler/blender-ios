@@ -859,6 +859,7 @@ class ExtensionUI_FilterParams:
         "repos_all",
 
         # From the window manager.
+        "repo_filter",
         "show_installed_enabled",
         "show_installed_disabled",
         "show_available",
@@ -878,6 +879,7 @@ class ExtensionUI_FilterParams:
             addons_enabled,
             active_theme_info,
             repos_all,
+            repo_filter,
             show_installed_enabled,
             show_installed_disabled,
             show_available,
@@ -888,6 +890,7 @@ class ExtensionUI_FilterParams:
         self.addons_enabled = addons_enabled
         self.active_theme_info = active_theme_info
         self.repos_all = repos_all
+        self.repo_filter = None if repo_filter == '_ALL_' else repo_filter
         self.show_installed_enabled = show_installed_enabled
         self.show_installed_disabled = show_installed_disabled
         self.show_available = show_available
@@ -922,8 +925,13 @@ class ExtensionUI_FilterParams:
         else:
             active_theme_info = None  # Unused.
 
-        # Create a set of tags marked False to simplify exclusion & avoid it altogether when all tags are enabled.
-        extension_tags_exclude = tags_exclude_get(wm, "extension_tags")
+        if wm.extension_use_filter:
+            # Create a set of tags marked False to simplify exclusion & avoid it altogether when all tags are enabled.
+            extension_tags_exclude = tags_exclude_get(wm, "extension_tags")
+            repo_filter = wm.extension_repo_filter
+        else:
+            extension_tags_exclude = set()
+            repo_filter = None
 
         return ExtensionUI_FilterParams(
             search_casefold=wm.extension_search.casefold(),
@@ -932,7 +940,7 @@ class ExtensionUI_FilterParams:
             addons_enabled=addons_enabled,
             active_theme_info=active_theme_info,
             repos_all=repos_all,
-
+            repo_filter=repo_filter,
             # Extensions don't different between these (add-ons do).
             show_installed_enabled=wm.extension_show_panel_installed,
             show_installed_disabled=wm.extension_show_panel_installed,
@@ -949,6 +957,13 @@ class ExtensionUI_FilterParams:
         from .bl_extension_ops import (
             pkg_info_check_exclude_filter,
         )
+
+        # Only check if filtering by tag/repository is enabled.
+        if (repo_filter := self.repo_filter) is not None:
+            # Early return if filtering by repository.
+            if repo_filter != self.repos_all[repo_index].module:
+                return
+        del repo_filter
 
         show_addons = self.filter_by_type in {"", "add-on"}
 
@@ -1167,15 +1182,17 @@ class ExtensionUI_Section:
         # Label & panel property or None not to define a header,
         # in this case the previous panel is used.
         "panel_header",
+        "panel_header_action",
         "ui_ext_sort_fn",
 
         "enabled",
         "extension_ui_list",
     )
 
-    def __init__(self, *, panel_header, ui_ext_sort_fn):
+    def __init__(self, *, panel_header, panel_header_action, ui_ext_sort_fn):
         self.panel_header = panel_header
         self.ui_ext_sort_fn = ui_ext_sort_fn
+        self.panel_header_action = panel_header_action
 
         self.enabled = True
         self.extension_ui_list = []
@@ -1352,6 +1369,7 @@ def extension_draw_item(
             row_right.label(text="Blocked   ")
         elif is_installed:
             if is_outdated:
+                row_right.label(text="{:s} \u2192 {:s}".format(item_local.version, item_remote.version))
                 props = row_right.operator("extensions.package_install", text="Update")
                 props.repo_index = repo_index
                 props.pkg_id = pkg_id
@@ -1574,27 +1592,34 @@ def extensions_panel_draw_impl(
         # Installed (upgrade, enabled).
         ExtensionUI_Section(
             panel_header=(iface_("Installed"), "extension_show_panel_installed"),
+            panel_header_action=(
+                ((iface_("Update All"), "extensions.package_upgrade_all")) if wm.extensions_updates > 0 else None
+            ),
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_blocked_and_name_fn,
         ),
         # Installed (upgrade, disabled). Use the previous panel.
         ExtensionUI_Section(
             panel_header=None,
+            panel_header_action=None,
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_name_fn,
         ),
         # Installed (up-to-date, enabled). Use the previous panel.
         ExtensionUI_Section(
             panel_header=None,
+            panel_header_action=None,
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_name_fn,
         ),
         # Installed (up-to-date, disabled).
         ExtensionUI_Section(
             panel_header=None,
+            panel_header_action=None,
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_name_fn,
         ),
         # Available (remaining).
         # NOTE: don't use A-Z here to prevent name manipulation to bring an extension up on the ranks.
         ExtensionUI_Section(
             panel_header=(iface_("Available"), "extension_show_panel_available"),
+            panel_header_action=None,
             ui_ext_sort_fn=None,
         ),
     )
@@ -1720,6 +1745,15 @@ def extensions_panel_draw_impl(
             label, prop_id = section.panel_header
             layout_header, layout_panel = layout.panel_prop(wm, prop_id)
             layout_header.label(text=label, translate=False)
+
+            if section.panel_header_action is not None:
+                operator_label, operator = section.panel_header_action
+                row = layout_header.row()
+                row.scale_x = 1.13
+                row.active = not operation_in_progress
+                row.alignment = 'RIGHT'
+                row.operator(operator, text=operator_label)
+                del operator, operator_label, row
             del label, prop_id, layout_header
 
         if layout_panel is None:
@@ -1773,15 +1807,19 @@ class USERPREF_PT_addons_tags(Panel):
         tags_panel_draw(self.layout, context, "addon_tags")
 
 
-class USERPREF_PT_extensions_tags(Panel):
-    bl_label = "Extensions Tags"
+class USERPREF_PT_extensions_filter(Panel):
+    bl_label = "Extensions Tags & Repository Filter Settings"
 
     bl_space_type = 'TOPBAR'  # dummy.
     bl_region_type = 'HEADER'
     bl_ui_units_x = 13
 
     def draw(self, context):
-        tags_panel_draw(self.layout, context, "extension_tags")
+        layout = self.layout
+        wm = context.window_manager
+        layout.active = wm.extension_use_filter
+        layout.prop(wm, "extension_repo_filter", text="")
+        tags_panel_draw(layout, context, "extension_tags")
 
 
 class USERPREF_MT_addons_settings(Menu):
@@ -2020,7 +2058,10 @@ def extensions_panel_draw(panel, context):
     row_a.prop(wm, "extension_search", text="", icon='VIEWZOOM', placeholder="Search Extensions")
     row_b = row.row(align=True)
     row_b.prop(wm, "extension_type", text="")
-    row_b.popover("USERPREF_PT_extensions_tags", text="", icon='TAG')
+
+    row_b.separator()
+    row_b.prop(wm, "extension_use_filter", text="", icon='FILTER')
+    row_b.popover("USERPREF_PT_extensions_filter", text="", icon='DOWNARROW_HLT')
 
     row_b.separator()
     row_b.popover("USERPREF_PT_extensions_repos", text="Repositories")
@@ -2215,6 +2256,10 @@ def tags_current(wm, tags_attr):
     if filter_by_type in {"", "theme"}:
         active_theme_info = pkg_repo_and_id_from_theme_path(repos_all, prefs.themes[0].filepath)
 
+    repo_filter = None
+    if wm.extension_use_filter:
+        repo_filter = wm.extension_repo_filter
+
     params = ExtensionUI_FilterParams(
         search_casefold=search_casefold,
         tags_exclude=set(),  # Tags are being generated, ignore them.
@@ -2222,7 +2267,7 @@ def tags_current(wm, tags_attr):
         addons_enabled=addons_enabled,
         active_theme_info=active_theme_info,
         repos_all=repos_all,
-
+        repo_filter=repo_filter,
         show_installed_enabled=show_installed_enabled,
         show_installed_disabled=show_installed_disabled,
         show_available=show_available,
@@ -2356,8 +2401,7 @@ classes = (
     # Pop-overs.
     USERPREF_PT_addons_tags,
     USERPREF_MT_addons_settings,
-
-    USERPREF_PT_extensions_tags,
+    USERPREF_PT_extensions_filter,
     USERPREF_MT_extensions_settings,
     USERPREF_MT_extensions_item,
     USERPREF_MT_extensions_active_repo_extra,
