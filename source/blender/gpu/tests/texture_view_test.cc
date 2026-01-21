@@ -70,6 +70,10 @@ static float4 get_texture_color(gpu::Texture *texture)
  * attempt to perform a framebuffer color clear over the view texture. */
 template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_create_test()
 {
+  if (GPU_backend_get_type() != GPU_BACKEND_OPENGL) {
+    GTEST_SKIP();
+  }
+
   /* Test colors, mostly arbitrary. */
   float4 zero_color(0.0f, 0.0f, 0.0f, 0.0f);
   float4 in_color(2.0f, 0.25f, 1.25f, 0.25f);
