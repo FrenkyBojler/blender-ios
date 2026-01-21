@@ -12686,7 +12686,23 @@ std::optional<int2> try_activate_rna_button(bContext *C,
     return std::nullopt;
   }
 
-  int2 xy{BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
+  const int2 old_view_xy = {int(region->v2d.cur.xmin), int(region->v2d.cur.ymin)};
+  if ((button->block->flag & BLOCK_CLIP_EVENTS) == 0) {
+    /* Blocks with BLOCK_CLIP_EVENTS are overlapping their region, so scrolling
+     * that region to ensure it is in view can't work and causes issues. #97530 */
+    but_ensure_in_view(C, region, button);
+  }
+
+  const int2 xy{BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
+
+  wmWindow *win = CTX_wm_window(C);
+
+  ED_screen_areas_iter (win, screen, area) {
+    for (ARegion &other_region : area->regionbase) {
+      UI_region_free_active_but_all(C, &other_region);
+    }
+  }
+
   ED_screen_set_active_region(C, CTX_wm_window(C), xy);
   ScrArea *current_screen = CTX_wm_area(C);
   ARegion *current_region = CTX_wm_region(C);
@@ -12696,12 +12712,18 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   /* Init button active data with state as #BUTTON_STATE_HIGHLIGHT */
   ui_handle_button_activate(C, region, button, BUTTON_ACTIVATE);
 
-  wmWindow *win = CTX_wm_window(C);
-  rctf rect;
-  block_to_window_rctf(region, button->block, &rect, &button->rect);
-  WM_cursor_warp(win, BLI_rctf_cent_x(&rect), BLI_rctf_cent_y(&rect));
+  const rctf button_rect = button->rect;
+  /* Temporally override button position so its already in view when putting mouse over. */
+  BLI_rctf_translate(
+      &button->rect, region->v2d.cur.xmin - old_view_xy.x, old_view_xy.y - region->v2d.cur.ymin);
+  rctf button_view_rect;
+  block_to_window_rctf(region, button->block, &button_view_rect, &button->rect);
+
+  WM_cursor_warp(win, BLI_rctf_cent_x(&button_view_rect), BLI_rctf_cent_y(&button_view_rect));
 
   if (button->flag & (BUT_DISABLED | UI_HIDDEN)) {
+    /* Restore button position. */
+    button->rect = button_rect;
     return std::nullopt;
   }
 
@@ -12737,8 +12759,10 @@ std::optional<int2> try_activate_rna_button(bContext *C,
 
   CTX_wm_area_set(C, current_screen);
   CTX_wm_region_set(C, current_region);
+  /* Restore button position. */
+  button->rect = button_rect;
 
-  return xy;
+  return int2{int(BLI_rctf_cent_x(&button_view_rect)), int(BLI_rctf_cent_y(&button_view_rect))};
 }
 
 }  // namespace blender::ui
