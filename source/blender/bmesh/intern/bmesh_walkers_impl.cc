@@ -1130,8 +1130,8 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
     }
 
     /* Stop at delimiting n-gons here so that Rewind picks the correct edge to start from. */
-    if ((walker->delimit & BMW_DELIMIT_EDGE_LOOP_NGONS) != 0) {
-      if (l && (owalk.is_single != bm_edge_is_single(l->e))) {
+    if (l && (walker->delimit & BMW_DELIMIT_EDGE_LOOP_NGONS) != 0) {
+      if (owalk.is_single != bm_edge_is_single(l->e)) {
         l = nullptr;
       }
     }
