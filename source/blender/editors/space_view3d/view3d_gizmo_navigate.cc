@@ -177,7 +177,9 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
     gz->flag |= WM_GIZMO_MOVE_CURSOR | WM_GIZMO_DRAW_MODAL;
 
     if (i == GZ_INDEX_ROTATE) {
-      copy_v4_fl4(gz->color_hi, 0.0f, 0.0f, 0.0f, 0.2f);
+      gz->color[3] = 0.0f;
+      copy_v3_fl(gz->color_hi, 0.5f);
+      gz->color_hi[3] = 0.5f;
     }
     else {
       copy_v4_fl4(gz->color_hi, 0.0f, 0.0f, 0.0f, 0.0f);
