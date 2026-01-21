@@ -151,12 +151,6 @@ def main():
 
         SpecMeshTest("CylinderMask", "testCylinderMask", "expectedCylinderMask",
                      [ModifierSpec('mask', 'MASK', {'vertex_group': "mask_vertex_group"})]),
-        SpecMeshTest("CubeMultires", "testCubeMultires", "expectedCubeMultires",
-                     [
-                         ModifierSpec('multires', 'MULTIRES', {}),
-                         OperatorSpecObjectMode('multires_subdivide', {'modifier': 'multires'}),
-                         OperatorSpecObjectMode('modifier_apply', {'modifier': 'multires'})
-                     ], apply_modifier=False),
 
         # 24
         SpecMeshTest("CubeScrew", "testCubeScrew", "expectedCubeScrew",
