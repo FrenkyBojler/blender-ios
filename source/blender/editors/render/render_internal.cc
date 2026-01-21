@@ -391,7 +391,7 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   RE_draw_lock_cb(re, nullptr, nullptr);
   RE_test_break_cb(re, nullptr, render_break);
 
-  ima = BKE_image_ensure_viewer(mainp, IMA_TYPE_R_RESULT, "Render Result");
+  ima = BKE_image_ensure_viewer(mainp, IMA_TYPE_R_RESULT, DATA_("Render Result"));
   BKE_image_signal(mainp, ima, nullptr, IMA_SIGNAL_FREE);
   BKE_image_backup_render(scene, ima, true);
 
@@ -1193,7 +1193,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   }
 
   /* get a render result image, and make sure it is empty */
-  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_R_RESULT, "Render Result");
+  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_R_RESULT, DATA_("Render Result"));
   BKE_image_signal(rj->main, ima, nullptr, IMA_SIGNAL_FREE);
   BKE_image_backup_render(rj->scene, ima, true);
   rj->image = ima;

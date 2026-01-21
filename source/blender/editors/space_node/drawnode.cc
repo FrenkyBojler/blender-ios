@@ -1623,7 +1623,7 @@ void draw_nodespace_back_pix(const bContext &C,
   GPU_depth_test(GPU_DEPTH_NONE);
 
   void *lock;
-  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
   if (ibuf) {
     /* somehow the offset has to be calculated inverse */

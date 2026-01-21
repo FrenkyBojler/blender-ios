@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLT_translation.hh"
+
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
@@ -23,7 +25,7 @@ class SpaceNodeAccessor : public AbstractSpaceAccessor {
 
   blender::Image *get_image(Main *bmain) override
   {
-    return BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+    return BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
   }
 
   ImageUser *get_image_user() override

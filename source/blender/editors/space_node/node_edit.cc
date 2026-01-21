@@ -311,7 +311,8 @@ void ED_node_compositor_job(const bContext *C)
 
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  Image *render_result_image = BKE_image_ensure_viewer(bmain, IMA_TYPE_R_RESULT, "Render Result");
+  Image *render_result_image = BKE_image_ensure_viewer(
+      bmain, IMA_TYPE_R_RESULT, DATA_("Render Result"));
   BKE_image_backup_render(scene, render_result_image, false);
 
   wmJob *job = WM_jobs_get(CTX_wm_manager(C),
@@ -2133,7 +2134,7 @@ static wmOperatorStatus viewer_border_exec(bContext *C, wmOperator *op)
 
   ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
 
-  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
   if (ibuf) {

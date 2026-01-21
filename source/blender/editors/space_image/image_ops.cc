@@ -4112,7 +4112,7 @@ static wmOperatorStatus image_read_viewlayers_exec(bContext *C, wmOperator * /*o
   SpaceImage *sima = CTX_wm_space_image(C);
   Image *ima;
 
-  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_R_RESULT, "Render Result");
+  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_R_RESULT, DATA_("Render Result"));
   if (sima->image == nullptr) {
     ED_space_image_set(bmain, sima, ima, false);
   }

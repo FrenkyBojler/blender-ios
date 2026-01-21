@@ -10,6 +10,8 @@
 
 #include "BLI_string_utf8.h"
 
+#include "BLT_translation.hh"
+
 #include "DRW_render.hh"
 
 #include "DNA_space_types.h"
@@ -81,7 +83,7 @@ static eDRWColorManagementType drw_color_management_type_for_space_node(Main &bm
                                                                         const SpaceNode &snode)
 {
   if ((snode.flag & SNODE_BACKDRAW) && ED_node_is_compositor(&snode)) {
-    const Image *image = BKE_image_ensure_viewer(&bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+    const Image *image = BKE_image_ensure_viewer(&bmain, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
     if ((image->flag & IMA_VIEW_AS_RENDER) == 0) {
       return eDRWColorManagementType::ViewTransform;
     }

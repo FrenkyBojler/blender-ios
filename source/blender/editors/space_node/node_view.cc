@@ -11,6 +11,8 @@
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
@@ -277,7 +279,7 @@ static wmOperatorStatus snode_bg_viewmove_invoke(bContext *C, wmOperator *op, co
 
   void *lock;
 
-  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
   ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
   if (ibuf == nullptr) {
@@ -390,7 +392,7 @@ static wmOperatorStatus backimage_fit_exec(bContext *C, wmOperator * /*op*/)
 
   float facx, facy;
 
-  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
   ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
   if ((ibuf == nullptr) || (ibuf->x == 0) || (ibuf->y == 0)) {
@@ -480,7 +482,7 @@ bool ED_space_node_get_position(
   }
 
   void *lock;
-  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
   if (!ibuf) {
     BKE_image_release_ibuf(ima, ibuf, lock);
@@ -515,7 +517,7 @@ bool ED_space_node_color_sample(
     return false;
   }
 
-  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
   ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
   if (!ibuf) {
     return false;
@@ -567,7 +569,7 @@ static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
   ImBuf *ibuf;
   float fx, fy, bufx, bufy;
 
-  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+  ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
   ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
   if (!ibuf) {
     info->draw = 0;

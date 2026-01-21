@@ -30,6 +30,8 @@
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
@@ -469,7 +471,7 @@ static bool wm_draw_region_stereo_set(Main *bmain,
       if (region->regiontype == RGN_TYPE_WINDOW) {
         SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
         if ((snode->flag & SNODE_BACKDRAW) && ED_node_is_compositor(snode)) {
-          Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+          Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
           ima->eye = sview;
           return true;
         }

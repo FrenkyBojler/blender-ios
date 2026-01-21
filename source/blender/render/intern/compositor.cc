@@ -11,6 +11,8 @@
 #include "BLI_threads.h"
 #include "BLI_vector.hh"
 
+#include "BLT_translation.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_node_types.h"
@@ -194,7 +196,7 @@ class Context : public compositor::Context {
     }
     RE_ReleaseResult(render);
 
-    Image *image = BKE_image_ensure_viewer(G.main, IMA_TYPE_R_RESULT, "Render Result");
+    Image *image = BKE_image_ensure_viewer(G.main, IMA_TYPE_R_RESULT, DATA_("Render Result"));
     BKE_image_partial_update_mark_full_update(image);
     BLI_thread_lock(LOCK_DRAW_IMAGE);
     BKE_image_signal(G.main, image, nullptr, IMA_SIGNAL_FREE);
@@ -203,7 +205,7 @@ class Context : public compositor::Context {
 
   void write_viewer_image(const compositor::Result &viewer_result)
   {
-    Image *image = BKE_image_ensure_viewer(G.main, IMA_TYPE_COMPOSITE, "Viewer Node");
+    Image *image = BKE_image_ensure_viewer(G.main, IMA_TYPE_COMPOSITE, DATA_("Viewer Node"));
 
     if (viewer_result.meta_data.is_non_color_data) {
       image->flag &= ~IMA_VIEW_AS_RENDER;
