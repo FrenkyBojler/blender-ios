@@ -417,6 +417,33 @@ struct bNodeTreeInterfaceItemReference {
   int items_count;
 };
 
+using ProxyNodeCreateFn = FunctionRef<bNode *(bContext &C, bNodeTree &tree, const void *value)>;
+using SocketValueTransferFn = FunctionRef<void(const void *from_data, void *to_data)>;
+
+/**
+ * Returns a function creating a proxy node that outputs a constant value.
+ */
+std::optional<ProxyNodeCreateFn> find_proxy_const_input_node_function(
+    eNodeSocketDatatype socket_type);
+
+/**
+ * Returns a function creating a proxy node that outputs an implicit value.
+ */
+std::optional<ProxyNodeCreateFn> find_proxy_implicit_input_node_function(
+    eNodeSocketDatatype socket_type, NodeDefaultInputType default_input);
+
+/**
+ * Returns a function creating a proxy node that converts a value to the given type.
+ */
+std::optional<ProxyNodeCreateFn> find_proxy_converter_node_function(
+    eNodeSocketDatatype socket_type);
+
+/**
+ * Returns a function that stores a socket value in the data of another socket type.
+ */
+std::optional<SocketValueTransferFn> find_socket_value_transfer_function(
+    eNodeSocketDatatype from_type, eNodeSocketDatatype to_type);
+
 /**
  * Add an input node that outputs the value of a group node input or internal constant value of an
  * unconnected tree interface output.

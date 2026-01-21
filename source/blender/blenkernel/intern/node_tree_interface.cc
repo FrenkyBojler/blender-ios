@@ -1793,6 +1793,69 @@ static bNode *try_create_default_input_value_proxy(bContext &C,
 
 }  // namespace socket_types
 
+using ConstInputProxyFnMap = Map<eNodeSocketDatatype, ProxyNodeCreateFn>;
+using ImplicitInputProxyFnMap =
+    Map<std::pair<eNodeSocketDatatype, NodeDefaultInputType>, ProxyNodeCreateFn>;
+using ConverterProxyFnMap = Map<eNodeSocketDatatype, ProxyNodeCreateFn>;
+using SocketValueTransferFnMap =
+    Map<std::pair<eNodeSocketDatatype, eNodeSocketDatatype>, SocketValueTransferFn>;
+
+static ConstInputProxyFnMap create_proxy_const_input_node_functions()
+{
+  ConstInputProxyFnMap result;
+
+  return result;
+}
+
+static ImplicitInputProxyFnMap create_proxy_implicit_input_node_functions()
+{
+  ImplicitInputProxyFnMap result;
+
+  return result;
+}
+
+static ConverterProxyFnMap create_proxy_converter_node_functions()
+{
+  ConverterProxyFnMap result;
+
+  return result;
+}
+
+static SocketValueTransferFnMap create_socket_value_transfer_functions()
+{
+  SocketValueTransferFnMap result;
+
+  return result;
+}
+
+std::optional<ProxyNodeCreateFn> find_proxy_const_input_node_function(
+    const eNodeSocketDatatype socket_type)
+{
+  static ConstInputProxyFnMap functions = create_proxy_const_input_node_functions();
+  return functions.lookup_try({socket_type});
+}
+
+std::optional<ProxyNodeCreateFn> find_proxy_implicit_input_node_function(
+    const eNodeSocketDatatype socket_type, const NodeDefaultInputType default_input)
+{
+  static ImplicitInputProxyFnMap functions = create_proxy_implicit_input_node_functions();
+  return functions.lookup_try({socket_type, default_input});
+}
+
+std::optional<ProxyNodeCreateFn> find_proxy_converter_node_function(
+    const eNodeSocketDatatype socket_type)
+{
+  static ConverterProxyFnMap functions = create_proxy_converter_node_functions();
+  return functions.lookup_try(socket_type);
+}
+
+std::optional<SocketValueTransferFn> find_socket_value_transfer_function(
+    const eNodeSocketDatatype from_type, const eNodeSocketDatatype to_type)
+{
+  static SocketValueTransferFnMap functions = create_socket_value_transfer_functions();
+  return functions.lookup_try({from_type, to_type});
+}
+
 bNode *add_const_input_node_for_interface_socket(bContext &C,
                                                  bNodeTree &tree,
                                                  const StringRef socket_type,
