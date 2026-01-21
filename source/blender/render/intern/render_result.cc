@@ -1346,7 +1346,16 @@ RenderResult *RE_DuplicateRenderResult(RenderResult *rr)
 
   new_rr->ibuf = IMB_dupImBuf(rr->ibuf);
 
-  new_rr->stamp_data = BKE_stamp_data_copy(new_rr->stamp_data);
+  /* Deep copy stamp data from the source, not the (already shallow-copied) destination. */
+  new_rr->stamp_data = BKE_stamp_data_copy(rr->stamp_data);
+
+  /* Deep copy text and error strings if present. */
+  if (rr->text) {
+    new_rr->text = BLI_strdup(rr->text);
+  }
+  if (rr->error) {
+    new_rr->error = BLI_strdup(rr->error);
+  }
 
   copy_v2_v2_db(new_rr->ppm, rr->ppm);
 

@@ -6439,14 +6439,6 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
       prop, "Preview", "When rendering animations, save JPG preview images in same directory");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "use_background_save", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", R_IMF_FLAG_BACKGROUND_SAVE);
-  RNA_def_property_ui_text(prop,
-                           "Background Save",
-                           "Save images in background thread for non-blocking operation "
-                           "(not available for multilayer EXR)");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
-
   /* format specific */
 
 #  ifdef WITH_IMAGE_OPENEXR

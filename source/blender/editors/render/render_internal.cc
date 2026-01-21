@@ -32,7 +32,6 @@
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
-#include "BKE_image_save.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -55,6 +54,7 @@
 
 #include "BIF_glutil.hh"
 
+#include "RE_background_save.h"
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
@@ -1407,7 +1407,7 @@ void RENDER_OT_shutter_curve_preset(wmOperatorType *ot)
 
 static wmOperatorStatus render_image_save_wait_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
-  BKE_image_save_pool_wait();
+  RE_background_save_wait();
   return OPERATOR_FINISHED;
 }
 

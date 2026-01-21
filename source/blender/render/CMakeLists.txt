@@ -10,7 +10,6 @@ set(INC
   ../compositor/cached_resources
   ../compositor/derived_resources
   ../draw/intern
-  ../editors/include
   ../gpu/intern
   ../makesrna
   ../simulation
@@ -22,6 +21,7 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/background_save.cc
   intern/bake.cc
   intern/compositor.cc
   intern/engine.cc
@@ -36,6 +36,7 @@ set(SRC
   intern/tile_highlight.cc
   intern/zbuf.cc
 
+  RE_background_save.h
   RE_bake.h
   RE_compositor.hh
   RE_engine.h
@@ -44,6 +45,7 @@ set(SRC
   RE_texture.h
   RE_texture_margin.h
 
+  intern/background_save.hh
   intern/pipeline.hh
   intern/render_result.h
   intern/render_types.h

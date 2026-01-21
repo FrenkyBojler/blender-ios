@@ -76,6 +76,7 @@
 
 #include "MOV_write.hh"
 
+#include "RE_background_save.h"
 #include "RE_compositor.hh"
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -2229,15 +2230,22 @@ static bool do_write_image_or_movie(
 
       /* write images as individual images or stereo */
       if (ok) {
-        /* Try background save if enabled, fall back to sync save if not possible. */
-        if (scene->r.im_format.flag & R_IMF_FLAG_BACKGROUND_SAVE) {
-          ok = BKE_image_save_background_render(&rres, scene, true, filepath);
-          if (!ok) {
+        /* Use automatic memory heuristics to decide sync vs background save. */
+        const size_t peak_memory_mb = MEM_get_peak_memory() / (1024 * 1024);
+        if (RE_background_save_should_use(peak_memory_mb)) {
+          /* Try background save with unified API. */
+          if (RE_background_save_render(&rres, scene, scene->camera, filepath)) {
+            /* Successfully queued for background save. */
+            CLOG_DEBUG(&LOG, "Frame queued for background save");
+          }
+          else {
             /* Background save not possible, fall back to sync save. */
+            CLOG_DEBUG(&LOG, "Background save unavailable, using synchronous save");
             ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
           }
         }
         else {
+          /* Memory heuristics suggest sync save is safer. */
           ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
         }
       }
@@ -2352,7 +2360,7 @@ void RE_RenderAnim(Render *re,
 
   /* do not fully call for each frame, it initializes & pops output window */
   if (!render_init_from_main(re, &rd, bmain, scene, single_layer, camera_override, false, true)) {
-    BKE_image_save_pool_wait();
+    RE_background_save_wait();
     return;
   }
 
@@ -2397,7 +2405,7 @@ void RE_RenderAnim(Render *re,
     }
 
     if (is_error) {
-      BKE_image_save_pool_wait();
+      RE_background_save_wait();
       re_movie_free_all(re);
       BKE_image_format_free(&image_format);
       render_pipeline_free(re);
@@ -2608,7 +2616,17 @@ void RE_RenderAnim(Render *re,
   scene->r.subframe = subframe_old;
 
   /* Wait for pending background image saves before signaling completion. */
-  BKE_image_save_pool_wait();
+  RE_background_save_wait();
+
+  /* Report any failed background saves to the user. */
+  const int failed_saves = RE_background_save_get_failed_count();
+  if (failed_saves > 0) {
+    BKE_reportf(re->reports,
+                RPT_WARNING,
+                "%d background image save(s) failed - check console for details",
+                failed_saves);
+    RE_background_save_clear_failed_count();
+  }
 
   render_callback_exec_id(re,
                           re->main,

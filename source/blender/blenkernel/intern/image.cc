@@ -2620,7 +2620,12 @@ bool BKE_imbuf_write_stamp(const Scene *scene,
                            const char *filepath,
                            const ImageFormatData *imf)
 {
-  if (scene && scene->r.stamp & R_STAMP_ALL) {
+  if (rr && rr->stamp_data) {
+    /* Stamp data already populated - use it directly. */
+    BKE_imbuf_stamp_info(rr, ibuf);
+  }
+  else if (scene && scene->r.stamp & R_STAMP_ALL) {
+    /* Fall back to scene-based stamping. */
     BKE_imbuf_stamp_info(rr, ibuf);
   }
 

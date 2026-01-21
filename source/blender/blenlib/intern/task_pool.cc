@@ -156,7 +156,6 @@ enum TaskPoolType {
   TASK_POOL_NO_THREADS,
   TASK_POOL_BACKGROUND,
   TASK_POOL_BACKGROUND_SERIAL,
-  TASK_POOL_BACKGROUND_PARALLEL,
 };
 
 struct TaskPool {
@@ -178,18 +177,9 @@ struct TaskPool {
   volatile bool background_is_canceling = false;
 
   eTaskPriority priority;
-  int num_threads = 1;
 
   TaskPool(const TaskPoolType type, const eTaskPriority priority, void *userdata)
-      : TaskPool(type, priority, userdata, 1)
-  {
-  }
-
-  TaskPool(const TaskPoolType type,
-           const eTaskPriority priority,
-           void *userdata,
-           int num_threads)
-      : type(type), userdata(userdata), priority(priority), num_threads(num_threads)
+      : type(type), userdata(userdata), priority(priority)
   {
     this->use_threads = BLI_task_scheduler_num_threads() > 1 && type != TASK_POOL_NO_THREADS;
 
@@ -221,11 +211,6 @@ struct TaskPool {
         BLI_threadpool_init(&this->background_threads, this->background_task_run, 1);
         break;
       }
-      case TASK_POOL_BACKGROUND_PARALLEL: {
-        this->background_queue = BLI_thread_queue_init();
-        BLI_threadpool_init(&this->background_threads, this->background_task_run, num_threads);
-        break;
-      }
     }
   }
 
@@ -237,8 +222,7 @@ struct TaskPool {
       case TASK_POOL_NO_THREADS:
         break;
       case TASK_POOL_BACKGROUND:
-      case TASK_POOL_BACKGROUND_SERIAL:
-      case TASK_POOL_BACKGROUND_PARALLEL: {
+      case TASK_POOL_BACKGROUND_SERIAL: {
         this->background_task_pool_work_and_wait();
 
         BLI_threadpool_end(&this->background_threads);
@@ -281,7 +265,6 @@ struct TaskPool {
         break;
       case TASK_POOL_BACKGROUND:
       case TASK_POOL_BACKGROUND_SERIAL:
-      case TASK_POOL_BACKGROUND_PARALLEL:
         this->background_task_pool_run({this, run, taskdata, free_taskdata, freedata});
         break;
     }
@@ -300,7 +283,6 @@ struct TaskPool {
         break;
       case TASK_POOL_BACKGROUND:
       case TASK_POOL_BACKGROUND_SERIAL:
-      case TASK_POOL_BACKGROUND_PARALLEL:
         this->background_task_pool_work_and_wait();
         break;
     }
@@ -319,7 +301,6 @@ struct TaskPool {
         break;
       case TASK_POOL_BACKGROUND:
       case TASK_POOL_BACKGROUND_SERIAL:
-      case TASK_POOL_BACKGROUND_PARALLEL:
         this->background_task_pool_cancel();
         break;
     }
@@ -334,7 +315,6 @@ struct TaskPool {
         return this->tbb_task_pool_canceled();
       case TASK_POOL_BACKGROUND:
       case TASK_POOL_BACKGROUND_SERIAL:
-      case TASK_POOL_BACKGROUND_PARALLEL:
         return this->background_task_pool_canceled();
     }
     BLI_assert_msg(0, "TaskPool::current_canceled: Control flow should not come here!");
@@ -445,7 +425,7 @@ bool TaskPool::tbb_task_pool_canceled()
 void TaskPool::background_task_pool_run(Task &&task)
 {
   BLI_assert(ELEM(
-      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL, TASK_POOL_BACKGROUND_PARALLEL));
+      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
 
   Task *task_mem = MEM_new<Task>(__func__, std::move(task));
   BLI_thread_queue_push(this->background_queue,
@@ -462,25 +442,19 @@ void TaskPool::background_task_pool_run(Task &&task)
 void TaskPool::background_task_pool_work_and_wait()
 {
   BLI_assert(ELEM(
-      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL, TASK_POOL_BACKGROUND_PARALLEL));
+      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
 
   /* Signal background thread to stop waiting for new tasks if none are
    * left, and wait for tasks and thread to finish. */
   BLI_thread_queue_nowait(this->background_queue);
   BLI_thread_queue_wait_finish(this->background_queue);
   BLI_threadpool_clear(&this->background_threads);
-
-  /* Reset nowait flag so the pool can be reused for more tasks.
-   * Only needed for BACKGROUND_PARALLEL which uses per-pool threads. */
-  if (this->type == TASK_POOL_BACKGROUND_PARALLEL) {
-    BLI_thread_queue_wait(this->background_queue);
-  }
 }
 
 void TaskPool::background_task_pool_cancel()
 {
   BLI_assert(ELEM(
-      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL, TASK_POOL_BACKGROUND_PARALLEL));
+      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
 
   this->background_is_canceling = true;
 
@@ -498,7 +472,7 @@ void TaskPool::background_task_pool_cancel()
 bool TaskPool::background_task_pool_canceled()
 {
   BLI_assert(ELEM(
-      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL, TASK_POOL_BACKGROUND_PARALLEL));
+      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
 
   return this->background_is_canceling;
 }
@@ -550,14 +524,6 @@ TaskPool *BLI_task_pool_create_no_threads(void *userdata)
 TaskPool *BLI_task_pool_create_background_serial(void *userdata, eTaskPriority priority)
 {
   return MEM_new<TaskPool>(__func__, TASK_POOL_BACKGROUND_SERIAL, priority, userdata);
-}
-
-TaskPool *BLI_task_pool_create_background_parallel(void *userdata,
-                                                   eTaskPriority priority,
-                                                   int num_threads)
-{
-  return MEM_new<TaskPool>(
-      __func__, TASK_POOL_BACKGROUND_PARALLEL, priority, userdata, num_threads);
 }
 
 void BLI_task_pool_free(TaskPool *pool)

@@ -40,7 +40,6 @@
 #include "BKE_global.hh"
 #include "BKE_icons.hh"
 #include "BKE_image.hh"
-#include "BKE_image_save.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
@@ -61,6 +60,7 @@
 #include "BKE_subdiv.hh"
 #include "BKE_tracking.hh" /* Free tracking clipboard. */
 
+#include "RE_background_save.h"
 #include "RE_engine.h"
 #include "RE_pipeline.h" /* `RE_` free stuff. */
 
@@ -672,7 +672,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   DNA_sdna_current_free();
 
   /* Wait for any pending background image saves before task scheduler exits. */
-  BKE_image_save_pool_exit();
+  RE_background_save_exit();
 
   BLI_threadapi_exit();
   BLI_task_scheduler_exit();

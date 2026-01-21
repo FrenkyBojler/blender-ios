@@ -1857,7 +1857,6 @@ class USERPREF_PT_saveload_blend(SaveLoadPanel, CenterAlignMixIn, Panel):
         col = layout.column()
         col.prop(paths, "save_version")
         col.prop(paths, "recent_files")
-        col.prop(paths, "image_save_queue_limit")
 
         layout.separator()
 

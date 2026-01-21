@@ -9,7 +9,7 @@
 #pragma once
 
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h" /* FILE_MAX */
+#include "DNA_space_enums.h" /* FILE_MAX */
 
 namespace blender {
 
@@ -19,28 +19,6 @@ struct Main;
 struct RenderResult;
 struct ReportList;
 struct Scene;
-
-/* -------------------------------------------------------------------- */
-/** \name Background Image Save Pool
- *
- * Task pool for saving render images asynchronously. Used by the render
- * pipeline for non-blocking output file writes during animation rendering.
- * \{ */
-
-/**
- * Optionally pre-initialize the background image save task pool.
- * The pool is initialized lazily on first use, so calling this is optional.
- * Use this for eager initialization at startup if desired.
- */
-void BKE_image_save_pool_init();
-
-/** Wait for pending background image saves to complete. */
-void BKE_image_save_pool_wait();
-
-/** Wait for pending background saves and free the task pool. Call at application shutdown. */
-void BKE_image_save_pool_exit();
-
-/** \} */
 
 /* Image datablock saving. */
 
@@ -88,28 +66,6 @@ void BKE_image_save_options_free(ImageSaveOptions *opts);
 bool BKE_image_save(
     ReportList *reports, Main *bmain, Image *ima, ImageUser *iuser, const ImageSaveOptions *opts);
 
-/* -------------------------------------------------------------------- */
-/** \name Background Image Saving
- * \{ */
-
-/**
- * Queue a background save for a render result.
- * Falls back to synchronous save if background saving is not possible.
- *
- * \param rr: Render result to save.
- * \param scene: Scene for image format settings.
- * \param stamp: Whether to add stamp metadata.
- * \param filepath: Output file path.
- * \return true if the background task was successfully queued, false if the caller should
- *         fall back to synchronous saving (e.g., queue is full or format is unsupported).
- */
-bool BKE_image_save_background_render(RenderResult *rr,
-                                      const Scene *scene,
-                                      bool stamp,
-                                      const char *filepath);
-
-/** \} */
-
 /* Render saving.
  *
  * Note on naming: BKE_image_render_write_* functions operate on RenderResult data
@@ -140,5 +96,27 @@ bool BKE_image_render_write(ReportList *reports,
                             const char *filepath_basis,
                             const ImageFormatData *format = nullptr,
                             bool save_as_render = true);
+
+/**
+ * Write a render result to an image file with optional stamp metadata.
+ * Handles ibuf creation, color management, and file writing.
+ * Thread-safe (no scene access during write).
+ *
+ * \param rr: Render result to write (must have stamp_data if use_stamp is true).
+ * \param im_format: Image format settings.
+ * \param filepath: Output path.
+ * \param dither: Dither intensity.
+ * \param use_stamp: Whether to write stamp metadata.
+ * \param view_id: View index for multi-view.
+ * \param preview_filepath: Optional path for JPEG preview (for EXR with R_IMF_FLAG_PREVIEW_JPG).
+ * \return true on success.
+ */
+bool BKE_image_render_write_from_rr(const RenderResult *rr,
+                                    const ImageFormatData *im_format,
+                                    const char *filepath,
+                                    float dither,
+                                    bool use_stamp,
+                                    int view_id,
+                                    const char *preview_filepath = nullptr);
 
 }  // namespace blender

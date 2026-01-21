@@ -236,12 +236,6 @@ void BLI_thread_queue_wait_finish(ThreadQueue *queue);
  */
 void BLI_thread_queue_nowait(ThreadQueue *queue);
 
-/**
- * Reset the nowait flag so that BLI_thread_queue_pop will block again when the queue is empty.
- * Used to allow a task pool to be reused for multiple work cycles.
- */
-void BLI_thread_queue_wait(ThreadQueue *queue);
-
 /* Thread local storage */
 
 #if defined(__APPLE__)

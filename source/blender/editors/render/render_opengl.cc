@@ -62,6 +62,7 @@
 
 #include "MOV_write.hh"
 
+#include "RE_background_save.h"
 #include "RE_pipeline.h"
 
 #include "BLT_translation.hh"
@@ -886,6 +887,20 @@ static void screen_opengl_render_end(OGLRender *oglrender)
     return;
   }
 
+  /* Wait for background image saves to complete (unified API). */
+  RE_background_save_wait();
+
+  /* Report any failed background saves. */
+  const int failed_saves = RE_background_save_get_failed_count();
+  if (failed_saves > 0) {
+    std::unique_lock lock(oglrender->reports_mutex);
+    BKE_reportf(oglrender->reports,
+                RPT_WARNING,
+                "%d background image save(s) failed - check console for details",
+                failed_saves);
+    RE_background_save_clear_failed_count();
+  }
+
   if (oglrender->task_pool) {
     /* Trickery part for movie output:
      *
@@ -1124,7 +1139,63 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
     RE_FreeRenderResult(rr);
     return false;
   }
+
   Scene *scene = oglrender->scene;
+  const bool is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
+
+  /* For images, use the unified background save API.
+   * For movies, use the local task pool (movies need movie writers). */
+  if (!is_movie) {
+    /* Compute filepath for the image. */
+    char filepath[FILE_MAX];
+    path_templates::VariableMap template_variables;
+    BKE_add_template_variables_general(template_variables, &scene->id);
+    BKE_add_template_variables_for_render_path(template_variables, *scene);
+
+    const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
+    const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
+        filepath,
+        scene->r.pic,
+        relbase,
+        &template_variables,
+        scene->r.cfra,
+        &scene->r.im_format,
+        (scene->r.scemode & R_EXTENSION) != 0,
+        true,
+        nullptr);
+
+    if (!errors.is_empty()) {
+      std::unique_lock lock(oglrender->reports_mutex);
+      BKE_report_path_template_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+      RE_FreeRenderResult(rr);
+      return false;
+    }
+
+    /* Use the unified background save API with memory heuristics.
+     * Pass 0 for peak_memory since viewport renders don't track this -
+     * relies on available memory and queue depth checks. */
+    if (RE_background_save_should_use(0) &&
+        RE_background_save_render(rr, scene, scene->camera, filepath))
+    {
+      /* Task queued successfully. The API takes ownership of rr via deep copy,
+       * so we free our copy here. */
+      RE_FreeRenderResult(rr);
+      return true;
+    }
+
+    /* Background save not possible (queue full, etc.), fall back to sync save. */
+    BKE_render_result_stamp_info(scene, scene->camera, rr, false);
+    bool ok = BKE_image_render_write(nullptr, rr, scene, true, filepath);
+    RE_FreeRenderResult(rr);
+    if (!ok) {
+      std::unique_lock lock(oglrender->reports_mutex);
+      BKE_reportf(oglrender->reports, RPT_ERROR, "Write error: cannot save %s", filepath);
+      oglrender->pool_ok = false;
+    }
+    return ok;
+  }
+
+  /* Movie path: use existing local task pool for frame ordering. */
   WriteTaskData *task_data = MEM_new<WriteTaskData>("write task data");
   task_data->rr = rr;
   task_data->tmp_scene = dna::shallow_copy(*scene);
