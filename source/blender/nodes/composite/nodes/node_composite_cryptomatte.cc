@@ -17,6 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_memory_utils.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -40,6 +41,7 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "UI_resources.hh"
 
@@ -86,11 +88,14 @@ static bke::cryptomatte::CryptomatteSessionPtr cryptomatte_init_from_node_image(
   }
   BLI_assert(GS(image->id.name) == ID_IM);
 
-  /* Construct an image user to retrieve the first image in the sequence, since the frame number
-   * might correspond to a non-existing image. We explicitly do not support the case where the
-   * image sequence has a changing structure. */
-  ImageUser image_user = {};
-  image_user.framenr = BKE_image_sequence_guess_offset(image);
+  NodeCryptomatte *node_cryptomatte = static_cast<NodeCryptomatte *>(node.storage);
+  ImageUser image_user = node_cryptomatte->iuser;
+  BKE_image_user_frame_calc(image, &image_user, image_user.framenr);
+
+  /* Fallback to the first frame in the image sequence if the current frame is out of range. */
+  if (!(image_user.flag & IMA_USER_FRAME_IN_RANGE)) {
+    image_user.framenr = BKE_image_sequence_guess_offset(image);
+  }
 
   ImBuf *ibuf = BKE_image_acquire_ibuf(image, &image_user, nullptr);
   RenderResult *render_result = image->rr;
@@ -178,6 +183,7 @@ void ntreeCompositCryptomatteSyncFromRemove(bNode *node)
     zero_v3(n->runtime.remove);
   }
 }
+
 void ntreeCompositCryptomatteUpdateLayerNames(bNode *node)
 {
   BLI_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE);
@@ -238,15 +244,9 @@ class BaseCryptoMatteOperation : public NodeOperation {
   /* Should return the input image result. */
   virtual Result &get_input_image() = 0;
 
-  /* Should returns all the Cryptomatte layers in order. */
+  /* Should return all the Cryptomatte layers in order. The caller should release the returned
+   * layers. */
   virtual Vector<Result> get_layers() = 0;
-
-  /* If only a subset area of the Cryptomatte layers is to be considered, this method should return
-   * the lower bound of that area. The upper bound will be derived from the operation domain. */
-  virtual int2 get_layers_lower_bound()
-  {
-    return int2(0);
-  }
 
   void execute() override
   {
@@ -255,6 +255,12 @@ class BaseCryptoMatteOperation : public NodeOperation {
       allocate_invalid();
       return;
     }
+
+    BLI_SCOPED_DEFER([&]() {
+      for (Result &layer : layers) {
+        layer.release();
+      }
+    });
 
     Result &output_pick = get_result("Pick");
     if (output_pick.should_compute()) {
@@ -325,9 +331,6 @@ class BaseCryptoMatteOperation : public NodeOperation {
                                                ResultPrecision::Full);
     GPU_shader_bind(shader);
 
-    const int2 lower_bound = this->get_layers_lower_bound();
-    GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
-
     const Result &first_layer = layers[0];
     first_layer.bind_as_texture(shader, "first_layer_tx");
 
@@ -345,8 +348,6 @@ class BaseCryptoMatteOperation : public NodeOperation {
 
   void compute_pick_cpu(const Vector<Result> &layers)
   {
-    const int2 lower_bound = this->get_layers_lower_bound();
-
     const Result &first_layer = layers[0];
 
     const Domain domain = this->compute_domain();
@@ -375,7 +376,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
     parallel_for(domain.data_size, [&](const int2 texel) {
       /* Each layer stores two ranks, each rank contains a pair, the identifier and the coverage of
        * the entity identified by the identifier. */
-      float2 first_rank = float4(first_layer.load_pixel<Color>(texel + lower_bound)).xy();
+      float2 first_rank = float4(first_layer.load_pixel<Color>(texel)).xy();
       float id_of_first_rank = first_rank.x;
 
       /* There is no logic to this, we just compute arbitrary compressed versions of the identifier
@@ -410,7 +411,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
     const float4 zero_color = float4(0.0f);
     GPU_texture_clear(output_matte, GPU_DATA_FLOAT, zero_color);
 
-    Vector<float> identifiers = get_identifiers();
+    const Vector<float> identifiers = this->get_identifiers();
     /* The user haven't selected any entities, return the currently zero matte. */
     if (identifiers.is_empty()) {
       return output_matte;
@@ -419,26 +420,41 @@ class BaseCryptoMatteOperation : public NodeOperation {
     gpu::Shader *shader = context().get_shader("compositor_cryptomatte_matte");
     GPU_shader_bind(shader);
 
-    const int2 lower_bound = this->get_layers_lower_bound();
-    GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
-    GPU_shader_uniform_1i(shader, "identifiers_count", identifiers.size());
-    GPU_shader_uniform_1f_array(shader, "identifiers", identifiers.size(), identifiers.data());
+    const Vector<Span<float>> identifiers_slices = this->get_identifiers_slices(identifiers);
+    for (const Span<float> &identifier_slice : identifiers_slices) {
+      GPU_shader_uniform_1i(shader, "identifiers_count", identifier_slice.size());
+      GPU_shader_uniform_1f_array(
+          shader, "identifiers", identifier_slice.size(), identifier_slice.data());
 
-    for (const Result &layer : layers) {
-      layer.bind_as_texture(shader, "layer_tx");
+      for (const Result &layer : layers) {
+        layer.bind_as_texture(shader, "layer_tx");
 
-      /* Bind the matte with read access, since we will be accumulating in it. */
-      output_matte.bind_as_image(shader, "matte_img", true);
+        /* Bind the matte with read access, since we will be accumulating in it. */
+        output_matte.bind_as_image(shader, "matte_img", true);
 
-      compute_dispatch_threads_at_least(shader, domain.data_size);
+        compute_dispatch_threads_at_least(shader, domain.data_size);
 
-      layer.unbind_as_texture();
-      output_matte.unbind_as_image();
+        layer.unbind_as_texture();
+        output_matte.unbind_as_image();
+      }
     }
 
     GPU_shader_unbind();
 
     return output_matte;
+  }
+
+  /* Divides the given identifiers vector into a number of slices with a maximum of 32 element per
+   * slice. This is needed because the GPU shader can only be passed 32 identifiers at a time. */
+  Vector<Span<float>> get_identifiers_slices(const Vector<float> &identifiers)
+  {
+    Vector<Span<float>> slices;
+    constexpr int slice_size = 32;
+    const int slices_count = ((identifiers.size() - 1) / slice_size) + 1;
+    for (int i = 0; i < slices_count; i++) {
+      slices.append(identifiers.as_span().slice_safe(i * slice_size, slice_size));
+    }
+    return slices;
   }
 
   Result compute_matte_cpu(const Vector<Result> &layers)
@@ -456,7 +472,6 @@ class BaseCryptoMatteOperation : public NodeOperation {
       return matte;
     }
 
-    const int2 lower_bound = this->get_layers_lower_bound();
     for (const Result &layer_result : layers) {
       /* Loops over all identifiers selected by the user, and accumulate the coverage of ranks
        * whose identifiers match that of the user selected identifiers.
@@ -468,7 +483,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
        * blur and transparency." ACM SIGGRAPH 2015 Posters. 2015. 1-1.
        */
       parallel_for(domain.data_size, [&](const int2 texel) {
-        float4 layer = float4(layer_result.load_pixel<Color>(texel + lower_bound));
+        float4 layer = float4(layer_result.load_pixel<Color>(texel));
 
         /* Each Cryptomatte layer stores two ranks. */
         float2 first_rank = layer.xy();
@@ -623,9 +638,8 @@ static void node_copy_cryptomatte(bNodeTree * /*dst_ntree*/,
   dest_node->storage = dest_nc;
 }
 
-static void node_update_cryptomatte(bNodeTree *ntree, bNode *node)
+static void node_update_cryptomatte(bNodeTree * /*ntree*/, bNode *node)
 {
-  cmp_node_update_default(ntree, node);
   ntreeCompositCryptomatteUpdateLayerNames(node);
 }
 
@@ -675,7 +689,8 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
     return get_input("Image");
   }
 
-  /* Returns all the relevant Cryptomatte layers from the selected source. */
+  /* Returns all the relevant Cryptomatte layers from the selected source. The caller should
+   * release the returned layers. */
   Vector<Result> get_layers() override
   {
     switch (get_source()) {
@@ -689,7 +704,8 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
     return Vector<Result>();
   }
 
-  /* Returns all the relevant Cryptomatte layers from the selected layer. */
+  /* Returns all the relevant Cryptomatte layers from the selected layer. The caller should release
+   * the returned layers. */
   Vector<Result> get_layers_from_render()
   {
     Vector<Result> layers;
@@ -729,7 +745,8 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
 
         /* If this Cryptomatte layer wasn't found, then all later Cryptomatte layers can't be used
          * even if they were found. */
-        if (!pass_result.is_allocated()) {
+        if (pass_result.is_single_value()) {
+          pass_result.release();
           return layers;
         }
         layers.append(pass_result);
@@ -742,7 +759,8 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
     return layers;
   }
 
-  /* Returns all the relevant Cryptomatte layers from the selected EXR image. */
+  /* Returns all the relevant Cryptomatte layers from the selected EXR image. The caller should
+   * release the returned layers. */
   Vector<Result> get_layers_from_image()
   {
     Vector<Result> layers;
@@ -807,7 +825,14 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
     for (const std::string &pass_name : pass_names) {
       Result pass_result = context().cache_manager().cached_images.get(
           context(), image, &image_user_for_layer, pass_name.c_str());
-      layers.append(pass_result);
+
+      /* The layers will be released by the caller, so return a wrapper around the cached image
+       * instead. */
+      Result layer_result = this->context().create_result(pass_result.type(),
+                                                          pass_result.precision());
+      layer_result.wrap_external(pass_result);
+
+      layers.append(layer_result);
     }
 
     return layers;
@@ -832,20 +857,6 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
     char type_name[MAX_NAME];
     ntreeCompositCryptomatteLayerPrefix(&node(), type_name, sizeof(type_name));
     return std::string(type_name);
-  }
-
-  int2 get_layers_lower_bound() override
-  {
-    switch (get_source()) {
-      case CMP_NODE_CRYPTOMATTE_SOURCE_RENDER: {
-        return this->context().get_input_region().min;
-      }
-      case CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE:
-        return int2(0);
-    }
-
-    BLI_assert_unreachable();
-    return int2(0);
   }
 
   /* The domain should be centered with the same size as the source. In case of invalid source,
@@ -917,7 +928,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new CryptoMatteOperation(context, node);
 }
@@ -1035,13 +1046,19 @@ class LegacyCryptoMatteOperation : public BaseCryptoMatteOperation {
          * Cryptomatte layers can't be used even if they were valid. */
         break;
       }
-      layers.append(input);
+
+      /* The layers will be released by the caller, so return a wrapper around the input result
+       * instead. */
+      Result layer_result = this->context().create_result(input.type(), input.precision());
+      layer_result.wrap_external(input);
+
+      layers.append(layer_result);
     }
     return layers;
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new LegacyCryptoMatteOperation(context, node);
 }

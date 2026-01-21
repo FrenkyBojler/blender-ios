@@ -835,7 +835,7 @@ static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
 
     uint *corners_index = nullptr;
     uint corners_index_len = 0;
-    uint calc_flag = CURVE_FIT_CALC_HIGH_QUALIY;
+    uint calc_flag = CURVE_FIT_CALC_HIGH_QUALITY;
 
     if ((stroke_len > 2) && use_cyclic) {
       calc_flag |= CURVE_FIT_CALC_CYCLIC;
@@ -1356,7 +1356,7 @@ void CURVES_OT_draw(wmOperatorType *ot)
   prop = RNA_def_boolean(ot->srna, "use_cyclic", true, "Cyclic", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-  prop = RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+  prop = RNA_def_collection_runtime(ot->srna, "stroke", RNA_OperatorStrokeElement, "Stroke", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(ot->srna, "wait_for_input", true, "Wait for Input", "");

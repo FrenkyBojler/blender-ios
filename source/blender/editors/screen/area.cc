@@ -41,6 +41,7 @@
 #include "ED_screen_types.hh"
 #include "ED_space_api.hh"
 #include "ED_time_scrub_ui.hh"
+#include "ED_userpref.hh"
 
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
@@ -589,7 +590,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
     {
       SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
 
-      PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Space, sl);
+      PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, RNA_Space, sl);
 
       /* All properties for this space type. */
       wmMsgSubscribeValue msg_sub_value_region_tag_redraw{};
@@ -825,11 +826,16 @@ int ED_area_max_regionsize(const ScrArea *area, const ARegion *scale_region, con
 
 const char *ED_area_region_search_filter_get(const ScrArea *area, const ARegion *region)
 {
-  /* Only the properties editor has a search string for now. */
   if (area->spacetype == SPACE_PROPERTIES) {
     SpaceProperties *sbuts = static_cast<SpaceProperties *>(area->spacedata.first);
     if (region->regiontype == RGN_TYPE_WINDOW) {
       return ED_buttons_search_string_get(sbuts);
+    }
+  }
+  else if (area->spacetype == SPACE_USERPREF) {
+    SpaceUserPref *sprefs = static_cast<SpaceUserPref *>(area->spacedata.first);
+    if (region->regiontype == RGN_TYPE_WINDOW) {
+      return ED_userpref_search_string_get(sprefs);
     }
   }
 
@@ -1700,9 +1706,37 @@ static void region_rect_recursive(
   }
   else if (ELEM(alignment, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) {
     rcti *winrct = (region->overlap) ? overlap_remainder : remainder;
-
-    if ((prefsizex == 0) || (rct_fits(winrct, SCREEN_AXIS_H, prefsizex) < 0)) {
+    const int width = BLI_rcti_size_x(winrct) + 1;
+    if (prefsizex == 0) {
       region->flag |= RGN_FLAG_TOO_SMALL;
+    }
+    else if (width < prefsizex) {
+      const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                           (BLI_rcti_size_y(&region->v2d.mask) + 1);
+      const bool has_tabs = BKE_regiontype_uses_category_tabs(region->runtime->type);
+      const int min = int(UI_SCALE_FAC *
+                          (has_tabs ? UI_PANEL_CATEGORY_MIN_SNAP_WIDTH : UI_TOOLBAR_WIDTH) /
+                          aspect);
+      if (width > min) {
+        /* Adjust width to fit. */
+        region->winrct = *winrct;
+        BLI_rcti_sanitize(winrct);
+      }
+      else if (has_tabs) {
+        /* Too narrow for content so show only the category tabs. */
+        const int cat_min = int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect);
+        region->winrct = *winrct;
+        if (alignment == RGN_ALIGN_RIGHT) {
+          region->winrct.xmin = region->winrct.xmax - cat_min + 1;
+        }
+        else {
+          region->winrct.xmax = region->winrct.xmin + cat_min - 1;
+        }
+        BLI_rcti_sanitize(winrct);
+      }
+      else {
+        region->flag |= RGN_FLAG_TOO_SMALL;
+      }
     }
     else {
       int fac = rct_fits(winrct, SCREEN_AXIS_H, prefsizex);
@@ -2906,7 +2940,7 @@ int ED_area_header_switchbutton(const bContext *C, ui::Block *block, int yco)
   bScreen *screen = CTX_wm_screen(C);
   int xco = 0.4 * U.widget_unit;
 
-  PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), &RNA_Area, area);
+  PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), RNA_Area, area);
 
   uiDefButR(block,
             ui::ButtonType::Menu,
