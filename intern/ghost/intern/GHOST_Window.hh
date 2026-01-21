@@ -21,8 +21,6 @@ class GHOST_Context;
  * be implemented by sub-classes of this class.
  */
 class GHOST_Window : public GHOST_IWindow {
-  friend class GHOST_WindowManager;
-
  public:
   /**
    * Constructor.
@@ -259,13 +257,25 @@ class GHOST_Window : public GHOST_IWindow {
   }
 #endif /* WITH_INPUT_IME */
 
- protected:
   /**
    * Returns the associated OS object/handle.
    * \return The associated OS object/handle.
    */
   virtual void *getOSWindow() const;
 
+  /**
+   * Returns acceptance of the dropped object.
+   * Usually called by the "object dropped" event handling function.
+   */
+  virtual bool canAcceptDragOperation() const;
+
+  /**
+   * Gets the cursor grab region, if unset the window is used.
+   * reset when grab is disabled.
+   */
+  virtual GHOST_TSuccess getCursorGrabBounds(GHOST_Rect &bounds) const;
+
+ protected:
   /**
    * Tries to install a rendering context in this window.
    * \param type: The type of rendering context installed.
@@ -305,12 +315,6 @@ class GHOST_Window : public GHOST_IWindow {
   };
 
   /**
-   * Returns acceptance of the dropped object.
-   * Usually called by the "object dropped" event handling function.
-   */
-  virtual bool canAcceptDragOperation() const;
-
-  /**
    * Return true when a software cursor should be used.
    */
   virtual bool getCursorGrabUseSoftwareDisplay();
@@ -320,12 +324,6 @@ class GHOST_Window : public GHOST_IWindow {
    * \return True if there are unsaved changes
    */
   virtual bool getModifiedState();
-
-  /**
-   * Gets the cursor grab region, if unset the window is used.
-   * reset when grab is disabled.
-   */
-  virtual GHOST_TSuccess getCursorGrabBounds(GHOST_Rect &bounds) const;
 
   GHOST_TSuccess releaseNativeHandles();
 
