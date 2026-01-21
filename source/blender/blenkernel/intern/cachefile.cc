@@ -25,6 +25,7 @@
 
 #include "BKE_bpath.hh"
 #include "BKE_cachefile.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
@@ -140,8 +141,8 @@ IDTypeInfo IDType_ID_CF = {
     /*foreach_id*/ nullptr,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ cache_file_foreach_path,
-    /*foreach_idproperty_container*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ cache_file_blend_write,

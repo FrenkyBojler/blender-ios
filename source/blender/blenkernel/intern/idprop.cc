@@ -24,6 +24,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_node.hh"
 
 #include "RNA_access.hh"
 
@@ -1997,30 +1998,43 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
 
 namespace bke::idprop {
 
+void foreach_idproperty_container_id_default_fn(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  IDTypeInfoIDPropertyCallbackParams params;
+  foreach_idproperty_container_id_default_fn(id, function_callback, params);
+}
+void foreach_idproperty_container_id_default_fn(
+    ID &id,
+    IDTypeForeachIDPropertyContainerCallback function_callback,
+    IDTypeInfoIDPropertyCallbackParams &params)
+{
+  StructRNA *data_owner_rna_type = ID_code_to_RNA_type(GS(id.name));
+
+  params.set_data(&id.properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
+                  &id,
+                  data_owner_rna_type);
+  function_callback(params);
+
+  params.set_data(&id.system_properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                  data_owner_rna_type);
+  function_callback(params);
+
+  bNodeTree *nodetree = node_tree_from_id(&id);
+  if (nodetree) {
+    bke::idprop::foreach_id_idproperty_container(nodetree->id, function_callback);
+  }
+}
+
 void foreach_id_idproperty_container(ID &id,
                                      IDTypeForeachIDPropertyContainerCallback function_callback)
 {
   const IDTypeInfo *idtype = BKE_idtype_get_info_from_id(&id);
   BLI_assert(idtype);
-
-  if (idtype->foreach_idproperty_container) {
-    idtype->foreach_idproperty_container(id, function_callback);
-  }
-  else {
-    IDTypeInfoIDPropertyCallbackParams params;
-    StructRNA *data_owner_rna_type = ID_code_to_RNA_type(GS(id.name));
-
-    params.set_data(&id.properties,
-                    IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                    &id,
-                    data_owner_rna_type);
-    function_callback(params);
-
-    params.set_data(&id.system_properties,
-                    IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    data_owner_rna_type);
-    function_callback(params);
-  }
+  BLI_assert(idtype->foreach_idproperty_container);
+  idtype->foreach_idproperty_container(id, function_callback);
 }
 
 void foreach_main_idproperty_container(Main &bmain,

@@ -51,6 +51,7 @@
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_deform.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_key.hh"
@@ -171,7 +172,7 @@ IDTypeInfo IDType_ID_PAL = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ palette_foreach_working_space_color,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ palette_blend_write,
@@ -242,7 +243,7 @@ IDTypeInfo IDType_ID_PC = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ paint_curve_blend_write,

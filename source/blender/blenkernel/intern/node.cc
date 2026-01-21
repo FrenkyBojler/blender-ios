@@ -446,14 +446,7 @@ static void node_foreach_idproperty_container(
 {
   IDTypeInfoIDPropertyCallbackParams params;
 
-  params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_NodeTree);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  RNA_NodeTree);
-  function_callback(params);
+  bke::idprop::foreach_idproperty_container_id_default_fn(id, function_callback, params);
 
   bNodeTree &ntree = reinterpret_cast<bNodeTree &>(id);
 

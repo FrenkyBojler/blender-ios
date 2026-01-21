@@ -42,6 +42,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
@@ -187,7 +188,7 @@ IDTypeInfo IDType_ID_KE = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /* A bit weird, due to shape-keys not being strictly speaking embedded data... But they also
      * share a lot with those (non linkable, only ever used by one owner ID, etc.). */
     /*owner_pointer_get*/ shapekey_owner_pointer_get,

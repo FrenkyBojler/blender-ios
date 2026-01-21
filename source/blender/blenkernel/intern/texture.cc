@@ -145,26 +145,6 @@ static void texture_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, texture->ima, IDWALK_CB_USER);
 }
 
-static void texture_foreach_idproperty_container(
-    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
-{
-  IDTypeInfoIDPropertyCallbackParams params;
-
-  params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_Texture);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  RNA_Texture);
-  function_callback(params);
-
-  Tex &texture = blender::id_cast<Tex &>(id);
-  if (texture.nodetree) {
-    blender::bke::idprop::foreach_id_idproperty_container(texture.nodetree->id, function_callback);
-  }
-}
-
 static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   Tex *tex = id_cast<Tex *>(id);
@@ -223,7 +203,7 @@ IDTypeInfo IDType_ID_TE = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ texture_foreach_idproperty_container,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ texture_blend_write,

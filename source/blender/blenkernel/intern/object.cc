@@ -515,14 +515,7 @@ static void object_foreach_idproperty_container(
 {
   IDTypeInfoIDPropertyCallbackParams params;
 
-  params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_Object);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  RNA_Object);
-  function_callback(params);
+  bke::idprop::foreach_idproperty_container_id_default_fn(id, function_callback, params);
 
   Object &object = id_cast<Object &>(id);
 

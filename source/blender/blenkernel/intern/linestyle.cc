@@ -186,28 +186,6 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-static void linestyle_foreach_idproperty_container(
-    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
-{
-  IDTypeInfoIDPropertyCallbackParams params;
-
-  params.set_data(&id.properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                  &id,
-                  RNA_FreestyleLineStyle);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  RNA_FreestyleLineStyle);
-  function_callback(params);
-
-  FreestyleLineStyle &linestyle = blender::id_cast<FreestyleLineStyle &>(id);
-  if (linestyle.nodetree) {
-    bke::idprop::foreach_id_idproperty_container(linestyle.nodetree->id, function_callback);
-  }
-}
-
 static void linestyle_foreach_working_space_color(ID *id,
                                                   const IDTypeForeachColorFunctionCallback &fn)
 {
@@ -736,7 +714,7 @@ IDTypeInfo IDType_ID_LS = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ linestyle_foreach_working_space_color,
-    /*foreach_idproperty_container*/ linestyle_foreach_idproperty_container,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ linestyle_blend_write,

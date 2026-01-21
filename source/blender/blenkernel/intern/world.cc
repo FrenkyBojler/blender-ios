@@ -141,26 +141,6 @@ static void world_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-static void world_foreach_idproperty_container(
-    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
-{
-  IDTypeInfoIDPropertyCallbackParams params;
-
-  params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_World);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  RNA_World);
-  function_callback(params);
-
-  World &world = blender::id_cast<World &>(id);
-  if (world.nodetree) {
-    blender::bke::idprop::foreach_id_idproperty_container(world.nodetree->id, function_callback);
-  }
-}
-
 static void world_foreach_working_space_color(ID *id, const IDTypeForeachColorFunctionCallback &fn)
 {
   World *world = reinterpret_cast<World *>(id);
@@ -230,7 +210,7 @@ IDTypeInfo IDType_ID_WO = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ world_foreach_working_space_color,
-    /*foreach_idproperty_container*/ world_foreach_idproperty_container,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ world_blend_write,

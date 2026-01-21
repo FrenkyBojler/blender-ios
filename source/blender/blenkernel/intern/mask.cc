@@ -32,8 +32,8 @@
 
 #include "BKE_animsys.h"
 #include "BKE_curve.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
-
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -204,7 +204,7 @@ IDTypeInfo IDType_ID_MSK = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ mask_blend_write,

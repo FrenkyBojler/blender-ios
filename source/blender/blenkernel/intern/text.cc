@@ -29,6 +29,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BKE_bpath.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
@@ -246,7 +247,7 @@ IDTypeInfo IDType_ID_TXT = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ text_foreach_path,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ text_blend_write,

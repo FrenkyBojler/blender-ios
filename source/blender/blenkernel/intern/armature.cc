@@ -309,14 +309,7 @@ static void armature_foreach_idproperty_container(
 {
   IDTypeInfoIDPropertyCallbackParams params;
 
-  params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_Armature);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  RNA_Armature);
-  function_callback(params);
+  bke::idprop::foreach_idproperty_container_id_default_fn(id, function_callback, params);
 
   bArmature &arm = id_cast<bArmature &>(id);
   for (Bone &bone : arm.bonebase) {

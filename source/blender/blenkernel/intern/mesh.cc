@@ -54,6 +54,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh"
 #include "BKE_global.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
@@ -496,7 +497,7 @@ IDTypeInfo IDType_ID_ME = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ mesh_foreach_path,
     /*foreach_working_space_color*/ mesh_foreach_working_space_color,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ mesh_blend_write,

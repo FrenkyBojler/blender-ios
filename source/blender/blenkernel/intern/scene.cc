@@ -962,19 +962,11 @@ static void scene_foreach_idproperty_container(
 {
   IDTypeInfoIDPropertyCallbackParams params;
 
-  params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, RNA_Scene);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  RNA_Scene);
-  function_callback(params);
+  bke::idprop::foreach_idproperty_container_id_default_fn(id, function_callback, params);
 
   Scene &scene = blender::id_cast<Scene &>(id);
-  if (scene.nodetree) {
-    bke::idprop::foreach_id_idproperty_container(scene.nodetree->id, function_callback);
-  }
+  /* NOTE: Scene::nodetree is handled by the #foreach_idproperty_container_id_default_fn call
+   * above. */
   if (scene.master_collection) {
     bke::idprop::foreach_id_idproperty_container(scene.master_collection->id, function_callback);
   }

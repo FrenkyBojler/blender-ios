@@ -33,6 +33,7 @@
 #include "BKE_curve.hh"
 #include "BKE_deform.hh"
 #include "BKE_displist.h"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lattice.hh"
 #include "BKE_lib_id.hh"
@@ -174,7 +175,7 @@ IDTypeInfo IDType_ID_LT = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ lattice_blend_write,

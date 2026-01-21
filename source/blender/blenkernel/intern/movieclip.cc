@@ -43,6 +43,7 @@
 
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh" /* openanim */
 #include "BKE_lib_id.hh"
@@ -312,7 +313,7 @@ IDTypeInfo IDType_ID_MC = {
     /*foreach_cache*/ movie_clip_foreach_cache,
     /*foreach_path*/ movie_clip_foreach_path,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ movieclip_blend_write,
