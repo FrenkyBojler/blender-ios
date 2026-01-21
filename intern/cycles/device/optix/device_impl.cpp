@@ -330,6 +330,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     module_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_NONE;
   }
 
+#  ifdef WITH_CYCLES_FAST_UNOPTIMIZED_KERNEL_BUILD
+  module_options.optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0;
+#  endif
+
   module_options.boundValues = nullptr;
   module_options.numBoundValues = 0;
   module_options.payloadTypes = nullptr;

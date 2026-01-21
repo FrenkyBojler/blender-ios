@@ -665,6 +665,10 @@ option(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD
        "Build Cycles kernels of difference devices in parallel (faster, but uses more memory)" OFF)
 mark_as_advanced(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD)
 
+option(WITH_CYCLES_FAST_UNOPTIMIZED_KERNEL_BUILD
+       "Build Cycles kernels with optimization disabled (faster compilation, but lower runtime performance)" OFF)
+mark_as_advanced(WITH_CYCLES_FAST_UNOPTIMIZED_KERNEL_BUILD)
+
 option(WITH_CYCLES_DEBUG_NAN "\
 Build Cycles with additional asserts for detecting NaNs and invalid values"
   OFF
