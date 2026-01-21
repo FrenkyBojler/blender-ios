@@ -126,6 +126,9 @@ struct DiffOptions {
         return true;
       }
     }
+    if (member.name == "prev" || member.name == "next") {
+      return true;
+    }
     if (this->members_to_ignore_set.contains(member)) {
       return true;
     }
@@ -1559,6 +1562,9 @@ class IdDiffer {
     }
     if (sdna_struct.type->name == "Attribute") {
       return blend_data.blend.lookup(bstruct, {"name", blend_query::Deref()}).as_string();
+    }
+    if (sdna_struct.type->name == "IDProperty") {
+      return blend_data.blend.lookup(bstruct, blend_query::LookupPathElem{"name"}).as_string();
     }
     if (sdna_struct.type->name == "bNodeTreeInterfacePanel") {
       if (!ui_identifier) {
