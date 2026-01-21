@@ -67,7 +67,7 @@ static const short g_base_collection_flags = (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_
                                               BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT |
                                               BASE_SELECTABLE | BASE_ENABLED_VIEWPORT |
                                               BASE_ENABLED_RENDER | BASE_HOLDOUT |
-                                              BASE_INDIRECT_ONLY);
+                                              BASE_INDIRECT_ONLY | BASE_SHADOW_CATCHER);
 
 /* prototype */
 static void object_bases_iterator_next(BLI_Iterator *iter, const int flag);
@@ -252,6 +252,7 @@ void BKE_view_layer_free_ex(ViewLayer *view_layer, const bool do_id_user)
   view_layer->active_aov = nullptr;
   BLI_freelistN(&view_layer->lightgroups);
   view_layer->active_lightgroup = nullptr;
+  BKE_view_layer_layer_objects_free(view_layer);
 
   /* Cannot use MEM_SAFE_FREE, as #SceneStats type is only forward-declared in `DNA_layer_types.h`
    */
@@ -542,6 +543,15 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
   BLI_listbase_clear(&view_layer_dst->lightgroups);
   layer_lightgroup_copy_data(
       view_layer_dst, view_layer_src, &view_layer_dst->lightgroups, &view_layer_src->lightgroups);
+
+  /* Copy layer objects. */
+  BLI_listbase_clear(&view_layer_dst->layer_objects);
+  for (const LayerObject &layer_object_src : view_layer_src->layer_objects) {
+    LayerObject *layer_object_dst = MEM_new_for_free<LayerObject>("LayerObject copy");
+    layer_object_dst->object = layer_object_src.object;
+    layer_object_dst->flag = layer_object_src.flag;
+    BLI_addtail(&view_layer_dst->layer_objects, layer_object_dst);
+  }
 
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
     id_us_plus(id_cast<ID *>(view_layer_dst->mat_override));
@@ -1090,12 +1100,32 @@ static void layer_collection_objects_sync(ViewLayer *view_layer,
       base->flag_from_collection |= BASE_ENABLED_RENDER;
     }
 
-    /* Holdout and indirect only */
+    /* Holdout, indirect only and shadow catcher */
     if (layer->flag & LAYER_COLLECTION_HOLDOUT) {
       base->flag_from_collection |= BASE_HOLDOUT;
     }
     if (layer->flag & LAYER_COLLECTION_INDIRECT_ONLY) {
       base->flag_from_collection |= BASE_INDIRECT_ONLY;
+    }
+    if (layer->flag & LAYER_COLLECTION_SHADOW_CATCHER) {
+      base->flag_from_collection |= BASE_SHADOW_CATCHER;
+    }
+
+    /* Apply LayerObject flags if present */
+    LayerObject *layer_object = BKE_view_layer_layer_object_get(view_layer, cob.ob);
+    if (layer_object) {
+      if (layer_object->flag & LAYER_OBJECT_HOLDOUT) {
+        base->flag_from_collection |= BASE_HOLDOUT;
+      }
+      if (layer_object->flag & LAYER_OBJECT_INDIRECT_ONLY) {
+        base->flag_from_collection |= BASE_INDIRECT_ONLY;
+      }
+      if (layer_object->flag & LAYER_OBJECT_SHADOW_CATCHER) {
+        base->flag_from_collection |= BASE_SHADOW_CATCHER;
+      }
+      if (layer_object->flag & LAYER_OBJECT_EXCLUDE) {
+        base->flag_from_collection &= ~(BASE_ENABLED_VIEWPORT | BASE_ENABLED_RENDER);
+      }
     }
 
     layer->runtime_flag |= LAYER_COLLECTION_HAS_OBJECTS;
@@ -2360,6 +2390,14 @@ void BKE_base_eval_flags(Base *base)
     base->flag &= ~BASE_SELECTABLE;
   }
 
+  /* Apply global object visibility flags (holdout, shadow catcher). */
+  if (object_restrict & OB_HOLDOUT) {
+    base->flag |= BASE_HOLDOUT;
+  }
+  if (object_restrict & OB_SHADOW_CATCHER) {
+    base->flag |= BASE_SHADOW_CATCHER;
+  }
+
   /* Apply viewport visibility by default. The dependency graph for render
    * can change these again, but for tools we always want the viewport
    * visibility to be in sync regardless if depsgraph was evaluated. */
@@ -2440,6 +2478,9 @@ void BKE_view_layer_blend_write(BlendWriter *writer, const Scene *scene, ViewLay
   for (ViewLayerLightgroup &lightgroup : view_layer->lightgroups) {
     writer->write_struct(&lightgroup);
   }
+  for (LayerObject &layer_object : view_layer->layer_objects) {
+    writer->write_struct(&layer_object);
+  }
   write_layer_collections(writer, &view_layer->layer_collections);
 }
 
@@ -2497,6 +2538,8 @@ void BKE_view_layer_blend_read_data(BlendDataReader *reader, ViewLayer *view_lay
   BLO_read_struct_list(reader, ViewLayerLightgroup, &view_layer->lightgroups);
   BLO_read_struct(reader, ViewLayerLightgroup, &view_layer->active_lightgroup);
 
+  BLO_read_struct_list(reader, LayerObject, &view_layer->layer_objects);
+
   view_layer->object_bases_array = nullptr;
   view_layer->object_bases_hash = nullptr;
 }
@@ -2513,6 +2556,16 @@ void BKE_view_layer_blend_read_after_liblink(BlendLibReader * /*reader*/,
         view_layer->basact = nullptr;
       }
     }
+  }
+
+  /* Remove LayerObjects for objects that got lost. */
+  LayerObject *layer_object = static_cast<LayerObject *>(view_layer->layer_objects.first);
+  while (layer_object) {
+    LayerObject *layer_object_next = layer_object->next;
+    if (layer_object->object == nullptr) {
+      BKE_view_layer_layer_object_remove(view_layer, layer_object);
+    }
+    layer_object = layer_object_next;
   }
 }
 
@@ -2772,6 +2825,71 @@ void BKE_lightgroup_membership_set(LightgroupMembership **lgm, const char *name)
       *lgm = nullptr;
     }
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name LayerObject API
+ * \{ */
+
+LayerObject *BKE_view_layer_layer_object_get(const ViewLayer *view_layer, const Object *object)
+{
+  for (LayerObject &layer_object : view_layer->layer_objects) {
+    if (layer_object.object == object) {
+      return &layer_object;
+    }
+  }
+  return nullptr;
+}
+
+LayerObject *BKE_view_layer_layer_object_ensure(ViewLayer *view_layer, Object *object)
+{
+  LayerObject *layer_object = BKE_view_layer_layer_object_get(view_layer, object);
+  if (layer_object) {
+    return layer_object;
+  }
+
+  layer_object = MEM_new_for_free<LayerObject>("LayerObject");
+  layer_object->object = object;
+  layer_object->flag = 0;
+  BLI_addtail(&view_layer->layer_objects, layer_object);
+
+  return layer_object;
+}
+
+void BKE_view_layer_layer_object_remove(ViewLayer *view_layer, LayerObject *layer_object)
+{
+  BLI_remlink(&view_layer->layer_objects, layer_object);
+  MEM_freeN(layer_object);
+}
+
+bool BKE_view_layer_layer_object_is_empty(const LayerObject *layer_object)
+{
+  return layer_object->flag == 0;
+}
+
+void BKE_view_layer_layer_objects_cleanup(ViewLayer *view_layer)
+{
+  LayerObject *layer_object = static_cast<LayerObject *>(view_layer->layer_objects.first);
+  while (layer_object) {
+    LayerObject *layer_object_next = layer_object->next;
+    if (BKE_view_layer_layer_object_is_empty(layer_object)) {
+      BKE_view_layer_layer_object_remove(view_layer, layer_object);
+    }
+    layer_object = layer_object_next;
+  }
+}
+
+void BKE_view_layer_layer_objects_free(ViewLayer *view_layer)
+{
+  LayerObject *layer_object = static_cast<LayerObject *>(view_layer->layer_objects.first);
+  while (layer_object) {
+    LayerObject *layer_object_next = layer_object->next;
+    MEM_freeN(layer_object);
+    layer_object = layer_object_next;
+  }
+  BLI_listbase_clear(&view_layer->layer_objects);
 }
 
 /** \} */

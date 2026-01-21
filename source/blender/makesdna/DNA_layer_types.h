@@ -131,6 +131,8 @@ enum {
   BASE_HOLDOUT = (1 << 10),
   /* Object only contributes indirectly to render */
   BASE_INDIRECT_ONLY = (1 << 11),
+  /* Object catches shadows only */
+  BASE_SHADOW_CATCHER = (1 << 12),
 };
 
 /* LayerCollection->flag */
@@ -144,6 +146,16 @@ enum {
   LAYER_COLLECTION_INDIRECT_ONLY = (1 << 6),
   LAYER_COLLECTION_HIDE = (1 << 7),
   LAYER_COLLECTION_PREVIOUSLY_EXCLUDED = (1 << 8),
+  LAYER_COLLECTION_SHADOW_CATCHER = (1 << 9),
+};
+
+/* LayerObject->flag */
+enum {
+  LAYER_OBJECT_EXCLUDE = (1 << 0),
+  LAYER_OBJECT_HOLDOUT = (1 << 1),
+  LAYER_OBJECT_INDIRECT_ONLY = (1 << 2),
+  LAYER_OBJECT_SHADOW_CATCHER = (1 << 3),
+  LAYER_OBJECT_HIDE = (1 << 4),
 };
 
 /* Layer Collection->runtime_flag
@@ -199,6 +211,18 @@ struct LayerCollection {
 
   unsigned short local_collections_bits = 0;
   short _pad2[3] = {};
+};
+
+/**
+ * Per-ViewLayer object settings. Allows per-ViewLayer control of holdout,
+ * indirect_only, shadow_catcher, and exclusion for individual objects.
+ * Sparse: only created when an object has non-default settings in a ViewLayer.
+ */
+struct LayerObject {
+  struct LayerObject *next = nullptr, *prev = nullptr;
+  struct Object *object = nullptr;
+  short flag = 0;
+  short _pad[3] = {};
 };
 
 /* Type containing EEVEE settings per view-layer */
@@ -275,6 +299,10 @@ struct ViewLayer {
 
   ListBaseT<ViewLayerLightgroup> lightgroups = {nullptr, nullptr};
   ViewLayerLightgroup *active_lightgroup = nullptr;
+
+  /** Per-ViewLayer object settings (holdout, shadow_catcher, etc.).
+   * Sparse: only contains objects with non-default settings. */
+  ListBaseT<LayerObject> layer_objects = {nullptr, nullptr};
 
   /* Runtime data */
   struct Base **object_bases_array = nullptr;

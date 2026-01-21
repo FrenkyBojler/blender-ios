@@ -349,6 +349,32 @@ static void outliner__base_set_flag_recursive_fn(bContext *C, void *poin, void *
   outliner_object_set_flag_recursive_fn(C, base, nullptr, propname);
 }
 
+/**
+ * LayerObject properties. Ensures the LayerObject exists and sets the flag.
+ */
+static void outliner__layer_object_set_flag_fn(bContext *C, void *poin, void *poin2)
+{
+  Object *ob = static_cast<Object *>(poin);
+  const int flag = POINTER_AS_INT(poin2);
+
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(C);
+
+  LayerObject *layer_object = BKE_view_layer_layer_object_ensure(view_layer, ob);
+  layer_object->flag ^= flag;
+
+  /* Cleanup if all flags are cleared. */
+  if (BKE_view_layer_layer_object_is_empty(layer_object)) {
+    BKE_view_layer_layer_object_remove(view_layer, layer_object);
+  }
+
+  BKE_view_layer_need_resync_tag(view_layer);
+  DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, nullptr);
+  DEG_relations_tag_update(bmain);
+}
+
 /** Create either a RNA_LayerCollection or a RNA_Collection pointer. */
 static void outliner_layer_or_collection_pointer_create(Scene *scene,
                                                         LayerCollection *layer_collection,
@@ -997,6 +1023,7 @@ struct RestrictProperties {
   PropertyRNA *collection_hide_viewport, *collection_hide_select, *collection_hide_render;
   PropertyRNA *layer_collection_exclude, *layer_collection_holdout,
       *layer_collection_indirect_only, *layer_collection_hide_viewport;
+  PropertyRNA *layer_object_holdout, *layer_object_indirect_only;
   PropertyRNA *modifier_show_viewport, *modifier_show_render;
   PropertyRNA *constraint_enable;
   PropertyRNA *bone_hide_viewport;
@@ -1016,6 +1043,8 @@ struct RestrictPropertiesActive {
   bool layer_collection_holdout;
   bool layer_collection_indirect_only;
   bool layer_collection_hide_viewport;
+  bool layer_object_holdout;
+  bool layer_object_indirect_only;
   bool modifier_show_viewport;
   bool modifier_show_render;
   bool constraint_enable;
@@ -1162,6 +1191,9 @@ static void outliner_draw_restrictbuts(ui::Block *block,
                                                                          "indirect_only");
     props.layer_collection_hide_viewport = RNA_struct_type_find_property(RNA_LayerCollection,
                                                                          "hide_viewport");
+    props.layer_object_holdout = RNA_struct_type_find_property(RNA_LayerObject, "holdout");
+    props.layer_object_indirect_only = RNA_struct_type_find_property(RNA_LayerObject,
+                                                                     "indirect_only");
     props.modifier_show_viewport = RNA_struct_type_find_property(RNA_Modifier, "show_viewport");
     props.modifier_show_render = RNA_struct_type_find_property(RNA_Modifier, "show_render");
 
@@ -1180,11 +1212,15 @@ static void outliner_draw_restrictbuts(ui::Block *block,
     int render;
     int indirect_only;
     int holdout;
+    int shadow_catcher;
   } restrict_offsets = {0};
   int restrict_column_offset = 0;
 
   /* This will determine the order of drawing from RIGHT to LEFT. */
   if (space_outliner->outlinevis == SO_VIEW_LAYER) {
+    if (space_outliner->show_restrict_flags & SO_RESTRICT_SHADOW_CATCHER) {
+      restrict_offsets.shadow_catcher = (++restrict_column_offset) * UI_UNIT_X + V2D_SCROLL_WIDTH;
+    }
     if (space_outliner->show_restrict_flags & SO_RESTRICT_INDIRECT_ONLY) {
       restrict_offsets.indirect_only = (++restrict_column_offset) * UI_UNIT_X + V2D_SCROLL_WIDTH;
     }
@@ -1348,6 +1384,82 @@ static void outliner_draw_restrictbuts(ui::Block *block,
           button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           if (!props_active.object_hide_render) {
             button_flag_enable(bt, ui::BUT_INACTIVE);
+          }
+        }
+
+        /* Per-ViewLayer object settings (exclude, holdout, indirect_only, shadow_catcher). */
+        if (space_outliner->outlinevis == SO_VIEW_LAYER) {
+          LayerObject *layer_object = BKE_view_layer_layer_object_get(view_layer, ob);
+          const bool has_exclude = layer_object && (layer_object->flag & LAYER_OBJECT_EXCLUDE);
+          const bool has_holdout = layer_object && (layer_object->flag & LAYER_OBJECT_HOLDOUT);
+          const bool has_indirect = layer_object &&
+                                    (layer_object->flag & LAYER_OBJECT_INDIRECT_ONLY);
+          const bool has_shadow_catcher = layer_object &&
+                                          (layer_object->flag & LAYER_OBJECT_SHADOW_CATCHER);
+
+          if (space_outliner->show_restrict_flags & SO_RESTRICT_ENABLE) {
+            bt = uiDefIconBut(block,
+                              ui::ButtonType::IconToggle,
+                              has_exclude ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT,
+                              int(region->v2d.cur.xmax - restrict_offsets.enable),
+                              te.ys,
+                              UI_UNIT_X,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              TIP_("Exclude object from view layer"));
+            button_func_set(bt, outliner__layer_object_set_flag_fn, ob, POINTER_FROM_INT(LAYER_OBJECT_EXCLUDE));
+            button_flag_enable(bt, ui::BUT_DRAG_LOCK);
+          }
+
+          if (space_outliner->show_restrict_flags & SO_RESTRICT_HOLDOUT) {
+            bt = uiDefIconBut(block,
+                              ui::ButtonType::IconToggle,
+                              has_holdout ? ICON_HOLDOUT_ON : ICON_HOLDOUT_OFF,
+                              int(region->v2d.cur.xmax - restrict_offsets.holdout),
+                              te.ys,
+                              UI_UNIT_X,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              TIP_("Mask out object from view layer"));
+            button_func_set(bt, outliner__layer_object_set_flag_fn, ob, POINTER_FROM_INT(LAYER_OBJECT_HOLDOUT));
+            button_flag_enable(bt, ui::BUT_DRAG_LOCK);
+          }
+
+          if (space_outliner->show_restrict_flags & SO_RESTRICT_INDIRECT_ONLY) {
+            bt = uiDefIconBut(block,
+                              ui::ButtonType::IconToggle,
+                              has_indirect ? ICON_INDIRECT_ONLY_ON : ICON_INDIRECT_ONLY_OFF,
+                              int(region->v2d.cur.xmax - restrict_offsets.indirect_only),
+                              te.ys,
+                              UI_UNIT_X,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              TIP_("Object only contributes indirectly (through shadows and "
+                                   "reflections) in the view layer"));
+            button_func_set(bt, outliner__layer_object_set_flag_fn, ob, POINTER_FROM_INT(LAYER_OBJECT_INDIRECT_ONLY));
+            button_flag_enable(bt, ui::BUT_DRAG_LOCK);
+          }
+
+          if (space_outliner->show_restrict_flags & SO_RESTRICT_SHADOW_CATCHER) {
+            bt = uiDefIconBut(block,
+                              ui::ButtonType::IconToggle,
+                              has_shadow_catcher ? ICON_MATSHADERBALL : ICON_OVERLAY,
+                              int(region->v2d.cur.xmax - restrict_offsets.shadow_catcher),
+                              te.ys,
+                              UI_UNIT_X,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              TIP_("Object catches shadows only in the view layer"));
+            button_func_set(bt, outliner__layer_object_set_flag_fn, ob, POINTER_FROM_INT(LAYER_OBJECT_SHADOW_CATCHER));
+            button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           }
         }
       }

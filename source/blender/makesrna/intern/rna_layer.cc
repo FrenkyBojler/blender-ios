@@ -320,6 +320,11 @@ static void rna_LayerCollection_hide_viewport_set(PointerRNA *ptr, bool value)
   rna_LayerCollection_flag_set(ptr, value, LAYER_COLLECTION_HIDE);
 }
 
+static void rna_LayerCollection_shadow_catcher_set(PointerRNA *ptr, bool value)
+{
+  rna_LayerCollection_flag_set(ptr, value, LAYER_COLLECTION_SHADOW_CATCHER);
+}
+
 static void rna_LayerCollection_exclude_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
@@ -428,11 +433,126 @@ static bool rna_LayerCollection_children_lookupstring(PointerRNA *ptr,
   return false;
 }
 
+static void rna_LayerObject_update(Main * /*bmain*/, Scene *scene, PointerRNA *ptr)
+{
+  ViewLayer *view_layer = static_cast<ViewLayer *>(ptr->data);
+
+  BKE_view_layer_need_resync_tag(view_layer);
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+
+  WM_main_add_notifier(NC_SCENE | ND_LAYER_CONTENT, nullptr);
+}
+
+static void rna_LayerObject_flag_set(PointerRNA *ptr, int flag, bool value)
+{
+  LayerObject *layer_object = static_cast<LayerObject *>(ptr->data);
+  if (value) {
+    layer_object->flag |= flag;
+  }
+  else {
+    layer_object->flag &= ~flag;
+  }
+}
+
+static void rna_LayerObject_exclude_set(PointerRNA *ptr, bool value)
+{
+  rna_LayerObject_flag_set(ptr, LAYER_OBJECT_EXCLUDE, value);
+}
+
+static void rna_LayerObject_holdout_set(PointerRNA *ptr, bool value)
+{
+  rna_LayerObject_flag_set(ptr, LAYER_OBJECT_HOLDOUT, value);
+}
+
+static void rna_LayerObject_indirect_only_set(PointerRNA *ptr, bool value)
+{
+  rna_LayerObject_flag_set(ptr, LAYER_OBJECT_INDIRECT_ONLY, value);
+}
+
+static void rna_LayerObject_shadow_catcher_set(PointerRNA *ptr, bool value)
+{
+  rna_LayerObject_flag_set(ptr, LAYER_OBJECT_SHADOW_CATCHER, value);
+}
+
+static void rna_LayerObject_hide_viewport_set(PointerRNA *ptr, bool value)
+{
+  rna_LayerObject_flag_set(ptr, LAYER_OBJECT_HIDE, value);
+}
+
 }  // namespace blender
 
 #else
 
 namespace blender {
+
+static void rna_def_layer_object(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "LayerObject", nullptr);
+  RNA_def_struct_ui_text(
+      srna, "Layer Object", "Per-ViewLayer object settings (holdout, shadow catcher, etc.)");
+  RNA_def_struct_ui_icon(srna, ICON_OBJECT_DATA);
+
+  prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_ui_text(prop, "Object", "Object this layer object wraps");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "object->id.name");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Name", "Name of this layer object (same as its object name)");
+  RNA_def_struct_name_property(srna, prop);
+
+  /* Restriction flags. */
+  prop = RNA_def_property(srna, "exclude", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", LAYER_OBJECT_EXCLUDE);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_LayerObject_exclude_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Exclude from View Layer", "Exclude object from view layer");
+  RNA_def_property_ui_icon(prop, ICON_CHECKBOX_HLT, -1);
+  RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_LayerObject_update");
+
+  prop = RNA_def_property(srna, "holdout", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", LAYER_OBJECT_HOLDOUT);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_LayerObject_holdout_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_icon(prop, ICON_HOLDOUT_OFF, 1);
+  RNA_def_property_ui_text(prop, "Holdout", "Mask out object from view layer");
+  RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_LayerObject_update");
+
+  prop = RNA_def_property(srna, "indirect_only", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", LAYER_OBJECT_INDIRECT_ONLY);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_LayerObject_indirect_only_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_icon(prop, ICON_INDIRECT_ONLY_OFF, 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Indirect Only",
+      "Object only contributes indirectly (through shadows and reflections) in the view layer");
+  RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_LayerObject_update");
+
+  prop = RNA_def_property(srna, "is_shadow_catcher", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", LAYER_OBJECT_SHADOW_CATCHER);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_LayerObject_shadow_catcher_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Shadow Catcher", "Object catches shadows only in this view layer");
+  RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_LayerObject_update");
+
+  prop = RNA_def_property(srna, "hide_viewport", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", LAYER_OBJECT_HIDE);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_LayerObject_hide_viewport_set");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_icon(prop, ICON_HIDE_OFF, -1);
+  RNA_def_property_ui_text(prop, "Hide in Viewport", "Temporarily hide object in viewport");
+  RNA_def_property_update(prop, NC_SCENE | ND_LAYER_CONTENT, "rna_LayerObject_update");
+}
 
 static void rna_def_layer_collection(BlenderRNA *brna)
 {
@@ -500,6 +620,14 @@ static void rna_def_layer_collection(BlenderRNA *brna)
       "Indirect Only",
       "Objects in collection only contribute indirectly (through shadows and reflections) "
       "in the view layer");
+  RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_LayerCollection_update");
+
+  prop = RNA_def_property(srna, "is_shadow_catcher", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", LAYER_COLLECTION_SHADOW_CATCHER);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_LayerCollection_shadow_catcher_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Shadow Catcher", "Objects in collection catch shadows only in the view layer");
   RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_LayerCollection_update");
 
   prop = RNA_def_property(srna, "hide_viewport", PROP_BOOLEAN, PROP_NONE);
@@ -719,10 +847,20 @@ void RNA_def_view_layer(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Dependency Graph", "Dependencies in the scene data");
   RNA_def_property_pointer_funcs(prop, "rna_ViewLayer_depsgraph_get", nullptr, nullptr, nullptr);
 
+  /* Per-ViewLayer object settings. */
+  prop = RNA_def_property(srna, "layer_objects", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "layer_objects", nullptr);
+  RNA_def_property_struct_type(prop, "LayerObject");
+  RNA_def_property_ui_text(
+      prop,
+      "Layer Objects",
+      "Per-ViewLayer object settings (holdout, shadow catcher, etc.) for individual objects");
+
   /* Nested Data. */
   /* *** Non-Animated *** */
   RNA_define_animate_sdna(false);
   rna_def_layer_collection(brna);
+  rna_def_layer_object(brna);
   rna_def_object_base(brna);
   RNA_define_animate_sdna(true);
   /* *** Animated *** */

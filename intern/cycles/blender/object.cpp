@@ -204,8 +204,7 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
   blender::PointerRNA b_ob_rna_ptr = RNA_id_pointer_create(&b_ob.id);
   blender::PointerRNA cobject = RNA_pointer_get(&b_ob_rna_ptr, "cycles");
   const blender::Base *base_parent = BKE_view_layer_base_find(&b_view_layer, b_parent);
-  const bool use_holdout = ((base_parent->flag & blender::BASE_HOLDOUT) != 0) ||
-                           ((b_parent->visibility_flag & blender::OB_HOLDOUT) != 0);
+  const bool use_holdout = (base_parent->flag & blender::BASE_HOLDOUT) != 0;
   uint visibility = object_ray_visibility(b_ob) & PATH_RAY_ALL_VISIBILITY;
 
   if (b_parent != &b_ob) {
@@ -282,8 +281,8 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
 
   object->set_visibility(visibility);
 
-  object->set_is_shadow_catcher((b_ob.visibility_flag & blender::OB_SHADOW_CATCHER) != 0 ||
-                                (b_parent->visibility_flag & blender::OB_SHADOW_CATCHER) != 0);
+  const bool is_shadow_catcher = (base_parent->flag & blender::BASE_SHADOW_CATCHER) != 0;
+  object->set_is_shadow_catcher(is_shadow_catcher);
 
   object->set_shadow_terminator_shading_offset(b_ob.shadow_terminator_shading_offset);
 

@@ -4357,6 +4357,12 @@ static void rna_def_space_outliner(BlenderRNA *brna)
   RNA_def_property_ui_icon(prop, ICON_INDIRECT_ONLY_ON, 0);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
+  prop = RNA_def_property(srna, "show_restrict_column_shadow_catcher", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "show_restrict_flags", SO_RESTRICT_SHADOW_CATCHER);
+  RNA_def_property_ui_text(prop, "Shadow Catcher", "Shadow catcher");
+  RNA_def_property_ui_icon(prop, ICON_MATSHADERBALL, 0);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+
   /* Filters. */
   prop = RNA_def_property(srna, "use_filter_object", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "filter", SO_FILTER_NO_OBJECT);
