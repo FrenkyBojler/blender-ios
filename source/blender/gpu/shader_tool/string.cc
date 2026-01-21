@@ -18,7 +18,7 @@ using namespace metadata;
 void SourceProcessor::lower_strings_sequences(Parser &parser)
 {
   do {
-    parser().foreach_match("__", [&](const vector<Token> &tokens) {
+    parser().foreach_match("\"\"", [&](const vector<Token> &tokens) {
       string first = tokens[0].str();
       string second = tokens[1].str();
       string between = parser.substr_range_inclusive(tokens[0].str_index_last_no_whitespace() + 1,

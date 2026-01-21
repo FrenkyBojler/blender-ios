@@ -58,7 +58,6 @@ enum TokenType : uint8_t {
   Dot = '.',
   Hash = '#',
   Ampersand = '&',
-  String = '_', /* TODO(fclem): Move String to a DoubleQuote */
   DoubleQuote = '"',
   SingleQuote = '\'',
   ParOpen = '(',
@@ -161,6 +160,8 @@ enum TokenType : uint8_t {
   LThan = AngleOpen,
   BitwiseNot = Tilde,
   Modulo = Percent,
+
+  String = DoubleQuote,
 
   /* Last bit of the byte is used for various flag for different stages. */
 

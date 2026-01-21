@@ -249,13 +249,6 @@ void LexerBase::merge_tokens()
   lexit::TokenBuffer tok_buf(
       str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
 
-  /* TODO remove. */
-  tok_buf.foreach_token_type([](TokenType *&type) {
-    if (*type == '"') {
-      *type = String;
-    }
-  });
-
   tok_buf.foreach_token_type([](TokenType *&type) {
     if (*type == '#') {
       /* Seek until the end of the directive and mark it as PreprocessorNewLine

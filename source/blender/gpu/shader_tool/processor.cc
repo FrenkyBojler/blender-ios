@@ -391,7 +391,7 @@ void SourceProcessor::parse_legacy_create_info(Parser &parser)
 
 void SourceProcessor::parse_includes(Parser &parser)
 {
-  parser().foreach_match("#A_", [&](const vector<Token> &tokens) {
+  parser().foreach_match("#A\"", [&](const vector<Token> &tokens) {
     if (tokens[1].str() != "include") {
       return;
     }
