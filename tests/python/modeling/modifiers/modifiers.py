@@ -6,7 +6,7 @@
 #
 # Note: Please avoid adding new tests to this file and to the associated .blend file, ideally, a single
 # file per modifier is preferred to avoid the headache of merge conflicts that comes with a single large file
-# See `multires_modifier.py` for an example of splitting these out
+# See `multires_modifier.py` for an example of splitting these out.
 
 import math
 import pathlib
