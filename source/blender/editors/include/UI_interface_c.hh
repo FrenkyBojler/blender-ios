@@ -3037,7 +3037,7 @@ std::optional<int2> try_activate_rna_button(bContext *C,
                                             ARegion *region,
                                             HandleButtonState state,
                                             PointerRNA *ptr,
-                                            StringRef property,
+                                            PropertyRNA *prop,
                                             int index = 0);
 }  // namespace ui
 }  // namespace blender

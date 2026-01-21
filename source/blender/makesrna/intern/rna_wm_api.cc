@@ -262,14 +262,22 @@ static void rna_WM_try_activate_rna_button(blender::wmWindowManager * /*wm*/,
                                            bContext *C,
                                            ARegion *region,
                                            PointerRNA *ptr,
-                                           const char *property,
+                                           const char *propname,
                                            int state,
                                            int offset,
                                            int **r_xy,
                                            int *r_xy_total)
 {
+  PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
+  if (!prop) {
+    RNA_warning_bare("WindowManager.try_activate_rna_button(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
+    return;
+  }
   std::optional<int2> xy = ui::try_activate_rna_button(
-      C, region, ui::HandleButtonState(state), ptr, property, offset);
+      C, region, ui::HandleButtonState(state), ptr, prop, offset);
+
   if (!xy) {
     return;
   }
@@ -1085,9 +1093,10 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_property_enum_items(parm, rna_button_activation);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "index", PROP_INT, PROP_NONE);
-  RNA_def_property_ui_text(parm,
-                           "Index",
-                           "RNA index of the button when a single member of the referenced RNA property is accessed");
+  RNA_def_property_ui_text(
+      parm,
+      "Index",
+      "RNA index of the button when a single member of the referenced RNA property is accessed");
   RNA_def_property_int_default(parm, 0);
   parm = RNA_def_property(func, "xy", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(

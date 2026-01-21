@@ -12646,7 +12646,7 @@ std::optional<int2> try_activate_rna_button(bContext *C,
                                             ARegion *region,
                                             HandleButtonState state,
                                             PointerRNA *ptr,
-                                            StringRef property,
+                                            PropertyRNA *prop,
                                             int index)
 {
   if (region->runtime->do_draw & RGN_DRAWING) {
@@ -12671,13 +12671,12 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   }
 
   Button *button = nullptr;
-  PropertyRNA *prop = RNA_struct_find_property(ptr, property.data());
   for (Block &block : region->runtime->uiblocks) {
     auto but_itr = std::find_if(
         block.buttons.begin(), block.buttons.end(), [&](const std::unique_ptr<Button> &but) {
           return but->rnapoin.data == ptr->data && but->rnaprop == prop && but->rnaindex == index;
         });
-    if (but_itr!=block.buttons.end()) {
+    if (but_itr != block.buttons.end()) {
       button = but_itr->get();
       break;
     }
