@@ -1003,10 +1003,6 @@ mark_as_advanced(WITH_STRSIZE_DEBUG)
 
 # Compiler tool-chain.
 if(UNIX AND NOT APPLE)
-  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    option(WITH_LINKER_GOLD "Use ld.gold linker which is usually faster than ld.bfd" ON)
-    mark_as_advanced(WITH_LINKER_GOLD)
-  endif()
   if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
     option(WITH_LINKER_LLD "Use ld.lld linker which is usually faster than ld.gold" OFF)
     mark_as_advanced(WITH_LINKER_LLD)
