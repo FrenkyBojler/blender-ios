@@ -2169,11 +2169,20 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   int scissor[4];
   GPU_scissor_get(scissor);
-  /* Textbox text isn't clipped on draw, apply scissors to avoid text overflowing the scrollbar. */
-  GPU_scissor(rect.xmin - caret_width,
-              rect.ymin,
-              std::max<int>(BLI_rcti_size_x(&rect) + caret_width, 0),
-              BLI_rcti_size_y(&rect));
+  {
+    rcti scissor_rect = {scissor[0], scissor[0] + scissor[2], scissor[1], scissor[1] + scissor[3]};
+    rcti scissor_textbox;
+    scissor_textbox.xmin = rect.xmin - caret_width;
+    scissor_textbox.xmax = scissor_textbox.xmin + BLI_rcti_size_x(&rect) + caret_width,
+    scissor_textbox.ymin = rect.ymin;
+    scissor_textbox.ymax = scissor_textbox.ymin + BLI_rcti_size_y(&rect);
+    BLI_rcti_isect(&scissor_rect, &scissor_textbox, &scissor_textbox);
+    /* Textbox text isn't clipped, apply scissors to avoid text overflowing the scrollbar. */
+    GPU_scissor(scissor_rect.xmin,
+                scissor_rect.ymin,
+                BLI_rcti_size_x(&scissor_rect),
+                BLI_rcti_size_y(&scissor_rect));
+  }
 
   /* Text button selection, cursor, composite underline. */
   if (but->editstr) {
