@@ -15,6 +15,7 @@
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -44,7 +45,7 @@ static void lightprobe_blend_write(BlendWriter *writer, ID *id, const void *id_a
   LightProbe *prb = id_cast<LightProbe *>(id);
 
   /* write LibData */
-  BLO_write_id_struct(writer, LightProbe, id_address, &prb->id);
+  writer->write_id_struct(id_address, prb);
   BKE_id_blend_write(writer, &prb->id);
 }
 
@@ -68,7 +69,7 @@ IDTypeInfo IDType_ID_LP = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ lightprobe_blend_write,
@@ -116,7 +117,7 @@ LightProbe *BKE_lightprobe_add(Main *bmain, const char *name)
 static void lightprobe_grid_cache_frame_blend_write(BlendWriter *writer,
                                                     const LightProbeGridCacheFrame *cache)
 {
-  BLO_write_struct_array(writer, LightProbeGridCacheFrame, cache->block_len, cache->block_infos);
+  writer->write_struct_array(cache->block_len, cache->block_infos);
 
   int64_t sample_count = BKE_lightprobe_grid_cache_frame_sample_count(cache);
 

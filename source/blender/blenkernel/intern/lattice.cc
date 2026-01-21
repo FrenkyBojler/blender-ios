@@ -33,6 +33,7 @@
 #include "BKE_curve.hh"
 #include "BKE_deform.hh"
 #include "BKE_displist.h"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lattice.hh"
 #include "BKE_lib_id.hh"
@@ -131,11 +132,11 @@ static void lattice_blend_write(BlendWriter *writer, ID *id, const void *id_addr
   lt->batch_cache = nullptr;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Lattice, id_address, &lt->id);
+  writer->write_id_struct(id_address, lt);
   BKE_id_blend_write(writer, &lt->id);
 
   /* direct data */
-  BLO_write_struct_array(writer, BPoint, lt->pntsu * lt->pntsv * lt->pntsw, lt->def);
+  writer->write_struct_array(lt->pntsu * lt->pntsv * lt->pntsw, lt->def);
 
   BKE_defbase_blend_write(writer, &lt->vertex_group_names);
   BKE_defvert_blend_write(writer, lt->pntsu * lt->pntsv * lt->pntsw, lt->dvert);
@@ -174,7 +175,7 @@ IDTypeInfo IDType_ID_LT = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ lattice_blend_write,

@@ -40,6 +40,7 @@
 #include "BKE_main.hh"
 
 #include "BKE_geometry_set.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
@@ -108,7 +109,7 @@ static void metaball_blend_write(BlendWriter *writer, ID *id, const void *id_add
   mb->lastelem = nullptr;
 
   /* write LibData */
-  BLO_write_id_struct(writer, MetaBall, id_address, &mb->id);
+  writer->write_id_struct(id_address, mb);
   BKE_id_blend_write(writer, &mb->id);
 
   /* direct data */
@@ -154,7 +155,7 @@ IDTypeInfo IDType_ID_MB = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ metaball_blend_write,

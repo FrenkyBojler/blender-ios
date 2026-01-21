@@ -563,6 +563,26 @@ std::unique_ptr<IDProperty, IDPropertyDeleter> create_group(StringRef prop_name,
                                                             eIDPropertyFlag flags = {});
 
 /**
+ * Helper functions to factorize the most common 'id container iteration' logic for IDs.
+ *
+ * They handle ID's direct idproperties containers (user and system ones), and the potential
+ * embedded nodetree sub-ID.
+ *
+ * The first version (without the `params` parameter) can be used directly as the
+ * IDTypeInfo::foreach_idproperty_container callback for most ID types, that do not require any
+ * special handling.
+ *
+ * The second version is designed to be used as part of a dedicated callbacks, for the few types
+ * requireing special cases.
+ */
+void foreach_idproperty_container_id_default_fn(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback);
+void foreach_idproperty_container_id_default_fn(
+    ID &id,
+    IDTypeForeachIDPropertyContainerCallback function_callback,
+    IDTypeInfoIDPropertyCallbackParams &params);
+
+/**
  * Utils to loop over all IDProperty containers (i.e. 'root' IDProperties) of the given `id`.
  */
 void foreach_id_idproperty_container(ID &id,

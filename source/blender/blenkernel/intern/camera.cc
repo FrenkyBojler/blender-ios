@@ -215,7 +215,7 @@ static void camera_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, Camera, id_address, &cam->id);
+  writer->write_id_struct(id_address, cam);
   BKE_id_blend_write(writer, &cam->id);
 
   for (CameraBGImage &bgpic : cam->bg_images) {
@@ -269,7 +269,7 @@ IDTypeInfo IDType_ID_CA = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ camera_foreach_path,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ camera_blend_write,

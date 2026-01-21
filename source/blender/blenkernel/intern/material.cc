@@ -186,28 +186,6 @@ static void material_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-static void material_foreach_idproperty_container(
-    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
-{
-  IDTypeInfoIDPropertyCallbackParams params;
-
-  params.set_data(&id.properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                  &id,
-                  &RNA_Material);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Material);
-  function_callback(params);
-
-  Material &material = id_cast<Material &>(id);
-  if (material.nodetree) {
-    bke::idprop::foreach_id_idproperty_container(material.nodetree->id, function_callback);
-  }
-}
-
 static void material_foreach_working_space_color(ID *id,
                                                  const IDTypeForeachColorFunctionCallback &fn)
 {
@@ -236,13 +214,13 @@ static void material_blend_write(BlendWriter *writer, ID *id, const void *id_add
   ma->use_nodes = true;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Material, id_address, &ma->id);
+  writer->write_id_struct(id_address, ma);
   BKE_id_blend_write(writer, &ma->id);
 
   /* nodetree is integral part of material, no libdata */
   if (ma->nodetree) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{ma->nodetree->id, writer};
-    BLO_write_struct_at_address(writer, bNodeTree, ma->nodetree, temp_embedded_id_buffer.get());
+    writer->write_struct_at_address_cast<bNodeTree>(ma->nodetree, temp_embedded_id_buffer.get());
     bke::node_tree_blend_write(writer,
                                reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get()));
   }
@@ -289,7 +267,7 @@ IDTypeInfo IDType_ID_MA = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ material_foreach_working_space_color,
-    /*foreach_idproperty_container*/ material_foreach_idproperty_container,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ material_blend_write,

@@ -51,6 +51,7 @@
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_deform.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_key.hh"
@@ -128,10 +129,10 @@ static void palette_blend_write(BlendWriter *writer, ID *id, const void *id_addr
 {
   Palette *palette = id_cast<Palette *>(id);
 
-  BLO_write_id_struct(writer, Palette, id_address, &palette->id);
+  writer->write_id_struct(id_address, palette);
   BKE_id_blend_write(writer, &palette->id);
 
-  BLO_write_struct_list(writer, PaletteColor, &palette->colors);
+  writer->write_struct_list(&palette->colors);
 }
 
 static void palette_blend_read_data(BlendDataReader *reader, ID *id)
@@ -171,7 +172,7 @@ IDTypeInfo IDType_ID_PAL = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ palette_foreach_working_space_color,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ palette_blend_write,
@@ -210,10 +211,10 @@ static void paint_curve_blend_write(BlendWriter *writer, ID *id, const void *id_
 {
   PaintCurve *pc = id_cast<PaintCurve *>(id);
 
-  BLO_write_id_struct(writer, PaintCurve, id_address, &pc->id);
+  writer->write_id_struct(id_address, pc);
   BKE_id_blend_write(writer, &pc->id);
 
-  BLO_write_struct_array(writer, PaintCurvePoint, pc->tot_points, pc->points);
+  writer->write_struct_array(pc->tot_points, pc->points);
 }
 
 static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
@@ -242,7 +243,7 @@ IDTypeInfo IDType_ID_PC = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ paint_curve_blend_write,
@@ -2032,8 +2033,7 @@ void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)
     if (tool_brush_bindings.main_brush_asset_reference) {
       BKE_asset_weak_reference_write(writer, tool_brush_bindings.main_brush_asset_reference);
     }
-    BLO_write_struct_list(
-        writer, NamedBrushAssetReference, &tool_brush_bindings.active_brush_per_brush_type);
+    writer->write_struct_list(&tool_brush_bindings.active_brush_per_brush_type);
     for (NamedBrushAssetReference &brush_ref : tool_brush_bindings.active_brush_per_brush_type) {
       BLO_write_string(writer, brush_ref.name);
       if (brush_ref.brush_asset_reference) {

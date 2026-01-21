@@ -127,26 +127,6 @@ static void light_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-static void light_foreach_idproperty_container(
-    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
-{
-  IDTypeInfoIDPropertyCallbackParams params;
-
-  params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Light);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Light);
-  function_callback(params);
-
-  Light &lamp = blender::id_cast<Light &>(id);
-  if (lamp.nodetree) {
-    bke::idprop::foreach_id_idproperty_container(lamp.nodetree->id, function_callback);
-  }
-}
-
 static void light_foreach_working_space_color(ID *id, const IDTypeForeachColorFunctionCallback &fn)
 {
   Light *la = id_cast<Light *>(id);
@@ -168,13 +148,13 @@ static void light_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   la->use_nodes = true;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Light, id_address, &la->id);
+  writer->write_id_struct(id_address, la);
   BKE_id_blend_write(writer, &la->id);
 
   /* Node-tree is integral part of lights, no libdata. */
   if (la->nodetree) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{la->nodetree->id, writer};
-    BLO_write_struct_at_address(writer, bNodeTree, la->nodetree, temp_embedded_id_buffer.get());
+    writer->write_struct_at_address_cast<bNodeTree>(la->nodetree, temp_embedded_id_buffer.get());
     bke::node_tree_blend_write(writer,
                                reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get()));
   }
@@ -210,7 +190,7 @@ IDTypeInfo IDType_ID_LA = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ light_foreach_working_space_color,
-    /*foreach_idproperty_container*/ light_foreach_idproperty_container,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ light_blend_write,

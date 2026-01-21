@@ -13,6 +13,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -43,7 +44,7 @@ static void speaker_blend_write(BlendWriter *writer, ID *id, const void *id_addr
   Speaker *spk = id_cast<Speaker *>(id);
 
   /* write LibData */
-  BLO_write_id_struct(writer, Speaker, id_address, &spk->id);
+  writer->write_id_struct(id_address, spk);
   BKE_id_blend_write(writer, &spk->id);
 }
 
@@ -67,7 +68,7 @@ IDTypeInfo IDType_ID_SPK = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ speaker_blend_write,

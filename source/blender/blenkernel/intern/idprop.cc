@@ -25,6 +25,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_node.hh"
 
 #include "RNA_types.hh"
 
@@ -1351,8 +1352,7 @@ static void write_ui_data(const IDProperty *prop, BlendWriter *writer)
                               uint(ui_data_int->default_array_len),
                               static_cast<int32_t *>(ui_data_int->default_array));
       }
-      BLO_write_struct_array(
-          writer, IDPropertyUIDataEnumItem, ui_data_int->enum_items_num, ui_data_int->enum_items);
+      writer->write_struct_array(ui_data_int->enum_items_num, ui_data_int->enum_items);
       for (const int64_t i : IndexRange(ui_data_int->enum_items_num)) {
         IDPropertyUIDataEnumItem &item = ui_data_int->enum_items[i];
         BLO_write_string(writer, item.identifier);
@@ -1435,7 +1435,7 @@ static void IDP_WriteIDPArray(const IDProperty *prop, BlendWriter *writer)
   if (prop->data.pointer) {
     const IDProperty *array = static_cast<const IDProperty *>(prop->data.pointer);
 
-    BLO_write_struct_array(writer, IDProperty, prop->len, array);
+    writer->write_struct_array(prop->len, array);
 
     for (int a = 0; a < prop->len; a++) {
       IDP_WriteProperty_OnlyData(&array[a], writer);
@@ -2001,30 +2001,43 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
 
 namespace bke::idprop {
 
+void foreach_idproperty_container_id_default_fn(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  IDTypeInfoIDPropertyCallbackParams params;
+  foreach_idproperty_container_id_default_fn(id, function_callback, params);
+}
+void foreach_idproperty_container_id_default_fn(
+    ID &id,
+    IDTypeForeachIDPropertyContainerCallback function_callback,
+    IDTypeInfoIDPropertyCallbackParams &params)
+{
+  StructRNA *data_owner_rna_type = ID_code_to_RNA_type(GS(id.name));
+
+  params.set_data(&id.properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
+                  &id,
+                  data_owner_rna_type);
+  function_callback(params);
+
+  params.set_data(&id.system_properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                  data_owner_rna_type);
+  function_callback(params);
+
+  bNodeTree *nodetree = node_tree_from_id(&id);
+  if (nodetree) {
+    bke::idprop::foreach_id_idproperty_container(nodetree->id, function_callback);
+  }
+}
+
 void foreach_id_idproperty_container(ID &id,
                                      IDTypeForeachIDPropertyContainerCallback function_callback)
 {
   const IDTypeInfo *idtype = BKE_idtype_get_info_from_id(&id);
   BLI_assert(idtype);
-
-  if (idtype->foreach_idproperty_container) {
-    idtype->foreach_idproperty_container(id, function_callback);
-  }
-  else {
-    IDTypeInfoIDPropertyCallbackParams params;
-    StructRNA *data_owner_rna_type = ID_code_to_RNA_type(GS(id.name));
-
-    params.set_data(&id.properties,
-                    IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                    &id,
-                    data_owner_rna_type);
-    function_callback(params);
-
-    params.set_data(&id.system_properties,
-                    IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    data_owner_rna_type);
-    function_callback(params);
-  }
+  BLI_assert(idtype->foreach_idproperty_container);
+  idtype->foreach_idproperty_container(id, function_callback);
 }
 
 void foreach_main_idproperty_container(Main &bmain,

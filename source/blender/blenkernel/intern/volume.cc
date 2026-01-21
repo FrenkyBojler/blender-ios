@@ -31,6 +31,7 @@
 #include "BKE_bpath.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -238,7 +239,7 @@ static void volume_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, Volume, id_address, &volume->id);
+  writer->write_id_struct(id_address, volume);
   BKE_id_blend_write(writer, &volume->id);
 
   /* direct data */
@@ -289,7 +290,7 @@ IDTypeInfo IDType_ID_VO = {
     /*foreach_cache*/ volume_foreach_cache,
     /*foreach_path*/ volume_foreach_path,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ volume_blend_write,

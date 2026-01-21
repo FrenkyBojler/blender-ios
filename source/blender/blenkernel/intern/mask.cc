@@ -32,8 +32,8 @@
 
 #include "BKE_animsys.h"
 #include "BKE_curve.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
-
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -101,7 +101,7 @@ static void mask_blend_write(BlendWriter *writer, ID *id, const void *id_address
 {
   Mask *mask = id_cast<Mask *>(id);
 
-  BLO_write_id_struct(writer, Mask, id_address, &mask->id);
+  writer->write_id_struct(id_address, mask);
   BKE_id_blend_write(writer, &mask->id);
 
   for (MaskLayer &masklay : mask->masklayers) {
@@ -114,7 +114,7 @@ static void mask_blend_write(BlendWriter *writer, ID *id, const void *id_address
       spline.points_deform = nullptr;
 
       writer->write_struct(&spline);
-      BLO_write_struct_array(writer, MaskSplinePoint, spline.tot_point, spline.points);
+      writer->write_struct_array(spline.tot_point, spline.points);
 
       spline.points_deform = points_deform;
 
@@ -122,7 +122,7 @@ static void mask_blend_write(BlendWriter *writer, ID *id, const void *id_address
         MaskSplinePoint *point = &spline.points[i];
 
         if (point->tot_uw) {
-          BLO_write_struct_array(writer, MaskSplinePointUW, point->tot_uw, point->uw);
+          writer->write_struct_array(point->tot_uw, point->uw);
         }
       }
     }
@@ -204,7 +204,7 @@ IDTypeInfo IDType_ID_MSK = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ mask_blend_write,

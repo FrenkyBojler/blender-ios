@@ -29,6 +29,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BKE_bpath.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
@@ -175,7 +176,7 @@ static void text_blend_write(BlendWriter *writer, ID *id, const void *id_address
   text->compiled = nullptr;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Text, id_address, &text->id);
+  writer->write_id_struct(id_address, text);
   BKE_id_blend_write(writer, &text->id);
 
   if (text->filepath) {
@@ -246,7 +247,7 @@ IDTypeInfo IDType_ID_TXT = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ text_foreach_path,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ text_blend_write,

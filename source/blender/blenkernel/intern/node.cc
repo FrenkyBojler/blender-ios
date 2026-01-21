@@ -446,27 +446,18 @@ static void node_foreach_idproperty_container(
 {
   IDTypeInfoIDPropertyCallbackParams params;
 
-  params.set_data(&id.properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                  &id,
-                  &RNA_NodeTree);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_NodeTree);
-  function_callback(params);
+  bke::idprop::foreach_idproperty_container_id_default_fn(id, function_callback, params);
 
   bNodeTree &ntree = reinterpret_cast<bNodeTree &>(id);
 
   for (bNode *node : ntree.all_nodes()) {
     params.set_data(
-        &node->prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &RNA_Node);
+        &node->prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, RNA_Node);
     function_callback(params);
 
     params.set_data(&node->system_properties,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    &RNA_Node);
+                    RNA_Node);
     function_callback(params);
   }
 
@@ -1293,8 +1284,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
     for (bNodeSocket &sock : node->outputs) {
       write_node_socket(writer, &sock);
     }
-    BLO_write_struct_array(
-        writer, bNodePanelState, node->num_panel_states, node->panel_states_array);
+    writer->write_struct_array(node->num_panel_states, node->panel_states_array);
 
     if (node->storage) {
       node_blend_write_storage(writer, ntree, node);
@@ -1319,8 +1309,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
     BLO_write_string(writer, ntree->geometry_node_asset_traits->node_tool_idname);
   }
 
-  BLO_write_struct_array(
-      writer, bNestedNodeRef, ntree->nested_node_refs_num, ntree->nested_node_refs);
+  writer->write_struct_array(ntree->nested_node_refs_num, ntree->nested_node_refs);
 
   BKE_previewimg_blend_write(writer, ntree->preview);
 
@@ -1346,7 +1335,7 @@ static void ntree_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   ntree->typeinfo = nullptr;
   ntree->runtime->execdata = nullptr;
 
-  BLO_write_id_struct(writer, bNodeTree, id_address, &ntree->id);
+  writer->write_id_struct(id_address, ntree);
 
   node_tree_blend_write(writer, ntree);
 }

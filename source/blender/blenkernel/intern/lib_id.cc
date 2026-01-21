@@ -106,7 +106,7 @@ IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ nullptr,
@@ -2659,11 +2659,11 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
   if (id->override_library) {
     writer->write_struct(id->override_library);
 
-    BLO_write_struct_list(writer, IDOverrideLibraryProperty, &id->override_library->properties);
+    writer->write_struct_list(&id->override_library->properties);
     for (IDOverrideLibraryProperty &op : id->override_library->properties) {
       BLO_write_string(writer, op.rna_path);
 
-      BLO_write_struct_list(writer, IDOverrideLibraryPropertyOperation, &op.operations);
+      writer->write_struct_list(&op.operations);
       for (IDOverrideLibraryPropertyOperation &opop : op.operations) {
         if (opop.subitem_reference_name) {
           BLO_write_string(writer, opop.subitem_reference_name);

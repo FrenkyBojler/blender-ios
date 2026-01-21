@@ -962,19 +962,11 @@ static void scene_foreach_idproperty_container(
 {
   IDTypeInfoIDPropertyCallbackParams params;
 
-  params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Scene);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Scene);
-  function_callback(params);
+  bke::idprop::foreach_idproperty_container_id_default_fn(id, function_callback, params);
 
   Scene &scene = blender::id_cast<Scene &>(id);
-  if (scene.nodetree) {
-    bke::idprop::foreach_id_idproperty_container(scene.nodetree->id, function_callback);
-  }
+  /* NOTE: Scene::nodetree is handled by the #foreach_idproperty_container_id_default_fn call
+   * above. */
   if (scene.master_collection) {
     bke::idprop::foreach_id_idproperty_container(scene.master_collection->id, function_callback);
   }
@@ -982,12 +974,12 @@ static void scene_foreach_idproperty_container(
   auto seq_strip_foreach_idproperty_container_func = [&params,
                                                       &function_callback](Strip *strip) -> bool {
     params.set_data(
-        &strip->prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &RNA_Strip);
+        &strip->prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, RNA_Strip);
     function_callback(params);
 
     params.set_data(&strip->system_properties,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    &RNA_Strip);
+                    RNA_Strip);
     function_callback(params);
     return true;
   };
@@ -998,19 +990,19 @@ static void scene_foreach_idproperty_container(
   for (ViewLayer &view_layer : scene.view_layers) {
     params.set_data(&view_layer.id_properties,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                    &RNA_ViewLayer);
+                    RNA_ViewLayer);
     function_callback(params);
 
     params.set_data(&view_layer.system_properties,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    &RNA_ViewLayer);
+                    RNA_ViewLayer);
     function_callback(params);
   }
 
   for (TimeMarker &marker : scene.markers) {
     params.set_data(&marker.prop,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    &RNA_TimelineMarker);
+                    RNA_TimelineMarker);
     function_callback(params);
   }
 }
@@ -1145,7 +1137,7 @@ static void scene_blend_write_compositor_forward_compat(Scene &scene,
 
   BLO_Write_IDBuffer temp_embedded_id_buffer{temp_nodetree_copy->id, writer};
   bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
-  BLO_write_struct_at_address(writer, bNodeTree, scene.nodetree, temp_nodetree);
+  writer->write_struct_at_address(scene.nodetree, temp_nodetree);
 
   /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not write an embedded
    * nodetree at `scene->nodetree` anymore. */
@@ -1187,7 +1179,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, Scene, id_address, &sce->id);
+  writer->write_id_struct(id_address, sce);
   BKE_id_blend_write(writer, &sce->id);
 
   BKE_keyingsets_blend_write(writer, &sce->keyingsets);
@@ -1331,7 +1323,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BLO_Write_IDBuffer temp_embedded_id_buffer{sce->master_collection->id, writer};
     Collection *temp_collection = reinterpret_cast<Collection *>(temp_embedded_id_buffer.get());
     BKE_collection_blend_write_prepare_nolib(writer, temp_collection);
-    BLO_write_struct_at_address(writer, Collection, sce->master_collection, temp_collection);
+    writer->write_struct_at_address(sce->master_collection, temp_collection);
     BKE_collection_blend_write_nolib(writer, temp_collection);
   }
 

@@ -200,7 +200,8 @@ static void screen_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   /* write LibData */
   /* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
-  BLO_write_struct_at_address_with_filecode(writer, ID_SCRN, bScreen, id_address, screen);
+  writer->write_struct_at_address_by_id_with_filecode(
+      ID_SCRN, dna::sdna_struct_id_get<bScreen>(), id_address, screen);
   BKE_id_blend_write(writer, &screen->id);
 
   BKE_previewimg_blend_write(writer, screen->preview);
@@ -264,7 +265,7 @@ IDTypeInfo IDType_ID_SCR = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ screen_blend_write,
@@ -1244,7 +1245,7 @@ static void write_region(BlendWriter *writer, ARegion *region, int spacetype)
 {
   ARegion region_copy = *region;
   region_copy.runtime = nullptr;
-  BLO_write_struct_at_address(writer, ARegion, region, &region_copy);
+  writer->write_struct_at_address(region, &region_copy);
 
   if (region->regiondata) {
     if (region->flag & RGN_FLAG_TEMP_REGIONDATA) {
@@ -1294,8 +1295,8 @@ static void write_panel_list(BlendWriter *writer, ListBaseT<Panel> *lb)
     Panel panel_copy = panel;
     panel_copy.runtime_flag = 0;
     panel_copy.runtime = nullptr;
-    BLO_write_struct_at_address(writer, Panel, &panel, &panel_copy);
-    BLO_write_struct_list(writer, LayoutPanelState, &panel.layout_panel_states);
+    writer->write_struct_at_address(&panel, &panel_copy);
+    writer->write_struct_list(&panel.layout_panel_states);
     for (LayoutPanelState &state : panel.layout_panel_states) {
       BLO_write_string(writer, state.idname);
     }
@@ -1340,8 +1341,8 @@ static void write_area(BlendWriter *writer, ScrArea *area)
 
 void BKE_screen_area_map_blend_write(BlendWriter *writer, ScrAreaMap *area_map)
 {
-  BLO_write_struct_list(writer, ScrVert, &area_map->vertbase);
-  BLO_write_struct_list(writer, ScrEdge, &area_map->edgebase);
+  writer->write_struct_list(&area_map->vertbase);
+  writer->write_struct_list(&area_map->edgebase);
   for (ScrArea &area : area_map->areabase) {
     area.butspacetype = area.spacetype; /* Just for compatibility, will be reset below. */
 

@@ -291,12 +291,12 @@ static void armature_foreach_idproperty_container_bone(
     Bone &bone,
     IDTypeForeachIDPropertyContainerCallback function_callback)
 {
-  params.set_data(&bone.prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &RNA_Bone);
+  params.set_data(&bone.prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, RNA_Bone);
   function_callback(params);
 
   params.set_data(&bone.system_properties,
                   IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Bone);
+                  RNA_Bone);
   function_callback(params);
 
   for (Bone &curbone : bone.childbase) {
@@ -309,16 +309,7 @@ static void armature_foreach_idproperty_container(
 {
   IDTypeInfoIDPropertyCallbackParams params;
 
-  params.set_data(&id.properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                  &id,
-                  &RNA_Armature);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Armature);
-  function_callback(params);
+  bke::idprop::foreach_idproperty_container_id_default_fn(id, function_callback, params);
 
   bArmature &arm = id_cast<bArmature &>(id);
   for (Bone &bone : arm.bonebase) {
@@ -327,14 +318,13 @@ static void armature_foreach_idproperty_container(
 
   if (arm.edbo != nullptr) {
     for (EditBone &edit_bone : *arm.edbo) {
-      params.set_data(&edit_bone.prop,
-                      IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                      &RNA_EditBone);
+      params.set_data(
+          &edit_bone.prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, RNA_EditBone);
       function_callback(params);
 
       params.set_data(&edit_bone.system_properties,
                       IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                      &RNA_EditBone);
+                      RNA_EditBone);
       function_callback(params);
     }
   }
@@ -342,12 +332,12 @@ static void armature_foreach_idproperty_container(
   for (BoneCollection *bcoll : arm.collections_span()) {
     params.set_data(&bcoll->prop,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
-                    &RNA_BoneCollection);
+                    RNA_BoneCollection);
     function_callback(params);
 
     params.set_data(&bcoll->system_properties,
                     IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                    &RNA_BoneCollection);
+                    RNA_BoneCollection);
     function_callback(params);
   }
 }
@@ -392,7 +382,7 @@ static void write_bone_collection(BlendWriter *writer, BoneCollection *bcoll)
     IDP_BlendWrite(writer, bcoll->system_properties);
   }
 
-  BLO_write_struct_list(writer, BoneCollectionMember, &bcoll->bones);
+  writer->write_struct_list(&bcoll->bones);
 }
 
 static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -421,7 +411,7 @@ static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_add
     arm->collection_array = nullptr;
   }
 
-  BLO_write_id_struct(writer, bArmature, id_address, &arm->id);
+  writer->write_id_struct(id_address, arm);
   BKE_id_blend_write(writer, &arm->id);
 
   /* Direct data */

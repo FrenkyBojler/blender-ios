@@ -30,6 +30,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -118,7 +119,7 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_shared_tag(writer, curves->geometry.custom_knots);
 
   /* Write LibData */
-  BLO_write_id_struct(writer, Curves, id_address, &curves->id);
+  writer->write_id_struct(id_address, curves);
   BKE_id_blend_write(writer, &curves->id);
 
   /* Direct data */
@@ -162,7 +163,7 @@ IDTypeInfo IDType_ID_CV = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ curves_foreach_working_space_color,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ curves_blend_write,

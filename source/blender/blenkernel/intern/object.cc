@@ -515,14 +515,7 @@ static void object_foreach_idproperty_container(
 {
   IDTypeInfoIDPropertyCallbackParams params;
 
-  params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Object);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Object);
-  function_callback(params);
+  bke::idprop::foreach_idproperty_container_id_default_fn(id, function_callback, params);
 
   Object &object = id_cast<Object &>(id);
 
@@ -531,12 +524,12 @@ static void object_foreach_idproperty_container(
   if (object.pose) {
     for (bPoseChannel &pchan : object.pose->chanbase) {
       params.set_data(
-          &pchan.prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &RNA_PoseBone);
+          &pchan.prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, RNA_PoseBone);
       function_callback(params);
 
       params.set_data(&pchan.system_properties,
                       IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                      &RNA_PoseBone);
+                      RNA_PoseBone);
       function_callback(params);
     }
   }
@@ -660,7 +653,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, Object, id_address, &ob->id);
+  writer->write_id_struct(id_address, ob);
   BKE_id_blend_write(writer, &ob->id);
 
   /* direct data */
@@ -701,7 +694,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_modifier_blend_write(writer, &ob->id, &ob->modifiers);
   BKE_shaderfx_blend_write(writer, &ob->shader_fx);
 
-  BLO_write_struct_list(writer, LinkData, &ob->pc_ids);
+  writer->write_struct_list(&ob->pc_ids);
 
   BKE_previewimg_blend_write(writer, ob->preview);
 

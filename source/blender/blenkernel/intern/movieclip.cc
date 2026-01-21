@@ -43,6 +43,7 @@
 
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh" /* openanim */
 #include "BKE_lib_id.hh"
@@ -173,7 +174,7 @@ static void write_movieTracks(BlendWriter *writer, ListBaseT<MovieTrackingTrack>
     writer->write_struct(track);
 
     if (track->markers) {
-      BLO_write_struct_array(writer, MovieTrackingMarker, track->markersnr, track->markers);
+      writer->write_struct_array(track->markersnr, track->markers);
     }
 
     track = track->next;
@@ -187,8 +188,7 @@ static void write_moviePlaneTracks(BlendWriter *writer,
     writer->write_struct(&plane_track);
 
     BLO_write_pointer_array(writer, plane_track.point_tracksnr, plane_track.point_tracks);
-    BLO_write_struct_array(
-        writer, MovieTrackingPlaneMarker, plane_track.markersnr, plane_track.markers);
+    writer->write_struct_array(plane_track.markersnr, plane_track.markers);
   }
 }
 
@@ -196,8 +196,7 @@ static void write_movieReconstruction(BlendWriter *writer,
                                       MovieTrackingReconstruction *reconstruction)
 {
   if (reconstruction->camnr) {
-    BLO_write_struct_array(
-        writer, MovieReconstructedCamera, reconstruction->camnr, reconstruction->cameras);
+    writer->write_struct_array(reconstruction->camnr, reconstruction->cameras);
   }
 }
 
@@ -212,7 +211,7 @@ static void movieclip_blend_write(BlendWriter *writer, ID *id, const void *id_ad
 
   MovieTracking *tracking = &clip->tracking;
 
-  BLO_write_id_struct(writer, MovieClip, id_address, &clip->id);
+  writer->write_id_struct(id_address, clip);
   BKE_id_blend_write(writer, &clip->id);
 
   for (MovieTrackingObject &object : tracking->objects) {
@@ -314,7 +313,7 @@ IDTypeInfo IDType_ID_MC = {
     /*foreach_cache*/ movie_clip_foreach_cache,
     /*foreach_path*/ movie_clip_foreach_path,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ movieclip_blend_write,

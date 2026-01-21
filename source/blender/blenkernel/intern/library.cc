@@ -32,6 +32,7 @@
 
 #include "BKE_bpath.hh"
 #include "BKE_id_hash.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
@@ -178,7 +179,7 @@ static void library_blend_write_data(BlendWriter *writer, ID *id, const void *id
   /* Clear runtime data. */
   library->runtime = nullptr;
 
-  BLO_write_id_struct(writer, Library, id_address, id);
+  writer->write_id_struct(id_address, library);
   BKE_id_blend_write(writer, id);
 
   /* Write packed file if necessary. */
@@ -231,7 +232,7 @@ IDTypeInfo IDType_ID_LI = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ library_foreach_path,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ library_blend_write_data,

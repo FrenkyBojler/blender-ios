@@ -145,32 +145,12 @@ static void texture_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, texture->ima, IDWALK_CB_USER);
 }
 
-static void texture_foreach_idproperty_container(
-    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
-{
-  IDTypeInfoIDPropertyCallbackParams params;
-
-  params.set_data(
-      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Texture);
-  function_callback(params);
-
-  params.set_data(&id.system_properties,
-                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
-                  &RNA_Texture);
-  function_callback(params);
-
-  Tex &texture = blender::id_cast<Tex &>(id);
-  if (texture.nodetree) {
-    blender::bke::idprop::foreach_id_idproperty_container(texture.nodetree->id, function_callback);
-  }
-}
-
 static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   Tex *tex = id_cast<Tex *>(id);
 
   /* write LibData */
-  BLO_write_id_struct(writer, Tex, id_address, &tex->id);
+  writer->write_id_struct(id_address, tex);
   BKE_id_blend_write(writer, &tex->id);
 
   /* direct data */
@@ -181,7 +161,7 @@ static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_addr
   /* nodetree is integral part of texture, no libdata */
   if (tex->nodetree) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{tex->nodetree->id, writer};
-    BLO_write_struct_at_address(writer, bNodeTree, tex->nodetree, temp_embedded_id_buffer.get());
+    writer->write_struct_at_address_cast<bNodeTree>(tex->nodetree, temp_embedded_id_buffer.get());
     bke::node_tree_blend_write(writer,
                                reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get()));
   }
@@ -223,7 +203,7 @@ IDTypeInfo IDType_ID_TE = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ texture_foreach_idproperty_container,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ texture_blend_write,

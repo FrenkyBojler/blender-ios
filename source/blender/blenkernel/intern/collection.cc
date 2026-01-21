@@ -306,7 +306,7 @@ static void collection_blend_write(BlendWriter *writer, ID *id, const void *id_a
   BKE_collection_blend_write_prepare_nolib(writer, collection);
 
   /* write LibData */
-  BLO_write_id_struct(writer, Collection, id_address, &collection->id);
+  writer->write_id_struct(id_address, collection);
 
   BKE_collection_blend_write_nolib(writer, collection);
 }
@@ -402,7 +402,7 @@ IDTypeInfo IDType_ID_GR = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ collection_owner_pointer_get,
 
     /*blend_write*/ collection_blend_write,

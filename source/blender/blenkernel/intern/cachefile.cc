@@ -25,6 +25,7 @@
 
 #include "BKE_bpath.hh"
 #include "BKE_cachefile.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
@@ -44,7 +45,7 @@
 #endif
 
 #ifdef WITH_USD
-#  include "usd.hh"
+#  include "usd_api_modifier.hh"
 #endif
 
 namespace blender {
@@ -100,7 +101,7 @@ static void cache_file_blend_write(BlendWriter *writer, ID *id, const void *id_a
   memset(cache_file->handle_filepath, 0, sizeof(cache_file->handle_filepath));
   cache_file->handle_readers = nullptr;
 
-  BLO_write_id_struct(writer, CacheFile, id_address, &cache_file->id);
+  writer->write_id_struct(id_address, cache_file);
   BKE_id_blend_write(writer, &cache_file->id);
 
   /* write layers */
@@ -140,8 +141,8 @@ IDTypeInfo IDType_ID_CF = {
     /*foreach_id*/ nullptr,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ cache_file_foreach_path,
-    /*foreach_idproperty_container*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ cache_file_blend_write,

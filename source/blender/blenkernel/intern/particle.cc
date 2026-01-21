@@ -58,6 +58,7 @@
 #include "BKE_deform.hh"
 #include "BKE_displist.h"
 #include "BKE_effect.h"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
@@ -260,7 +261,7 @@ static void particle_settings_blend_write(BlendWriter *writer, ID *id, const voi
   ParticleSettings *part = id_cast<ParticleSettings *>(id);
 
   /* write LibData */
-  BLO_write_id_struct(writer, ParticleSettings, id_address, &part->id);
+  writer->write_id_struct(id_address, part);
   BKE_id_blend_write(writer, &part->id);
 
   writer->write_struct(part->pd);
@@ -397,7 +398,7 @@ IDTypeInfo IDType_ID_PA = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ particle_settings_blend_write,
@@ -5166,36 +5167,21 @@ void psys_get_dupli_path_transform(ParticleSimulationData *sim,
   sub_v3_v3v3(vec, (cache + cache->segments)->co, cache->co);
   len = normalize_v3(vec);
 
-  if (pa == nullptr && psys->part->childtype != PART_CHILD_FACES) {
+  if (pa == nullptr) {
     pa = psys->particles + cpa->pa[0];
   }
 
-  if (pa) {
-    psys_particle_on_emitter(psmd,
-                             sim->psys->part->from,
-                             pa->num,
-                             pa->num_dmcache,
-                             pa->fuv,
-                             pa->foffset,
-                             loc,
-                             nor,
-                             nullptr,
-                             nullptr,
-                             nullptr);
-  }
-  else {
-    psys_particle_on_emitter(psmd,
-                             PART_FROM_FACE,
-                             cpa->num,
-                             DMCACHE_ISCHILD,
-                             cpa->fuv,
-                             cpa->foffset,
-                             loc,
-                             nor,
-                             nullptr,
-                             nullptr,
-                             nullptr);
-  }
+  psys_particle_on_emitter(psmd,
+                           sim->psys->part->from,
+                           pa->num,
+                           pa->num_dmcache,
+                           pa->fuv,
+                           pa->foffset,
+                           loc,
+                           nor,
+                           nullptr,
+                           nullptr,
+                           nullptr);
 
   if (psys->part->rotmode == PART_ROT_VEL) {
     transpose_m3_m4(nmat, ob->world_to_object().ptr());
@@ -5561,24 +5547,24 @@ void BKE_particle_system_blend_write(BlendWriter *writer, ListBaseT<ParticleSyst
     writer->write_struct(&psys);
 
     if (psys.particles) {
-      BLO_write_struct_array(writer, ParticleData, psys.totpart, psys.particles);
+      writer->write_struct_array(psys.totpart, psys.particles);
 
       if (psys.particles->hair) {
         ParticleData *pa = psys.particles;
 
         for (int a = 0; a < psys.totpart; a++, pa++) {
-          BLO_write_struct_array(writer, HairKey, pa->totkey, pa->hair);
+          writer->write_struct_array(pa->totkey, pa->hair);
         }
       }
 
       if (psys.particles->boid && (psys.part->phystype == PART_PHYS_BOIDS)) {
-        BLO_write_struct_array(writer, BoidParticle, psys.totpart, psys.particles->boid);
+        writer->write_struct_array(psys.totpart, psys.particles->boid);
       }
 
       if (psys.part->fluid && (psys.part->phystype == PART_PHYS_FLUID) &&
           (psys.part->fluid->flag & SPH_VISCOELASTIC_SPRINGS))
       {
-        BLO_write_struct_array(writer, ParticleSpring, psys.tot_fluidsprings, psys.fluid_springs);
+        writer->write_struct_array(psys.tot_fluidsprings, psys.fluid_springs);
       }
     }
     for (ParticleTarget &pt : psys.targets) {
@@ -5586,7 +5572,7 @@ void BKE_particle_system_blend_write(BlendWriter *writer, ListBaseT<ParticleSyst
     }
 
     if (psys.child) {
-      BLO_write_struct_array(writer, ChildParticle, psys.totchild, psys.child);
+      writer->write_struct_array(psys.totchild, psys.child);
     }
 
     if (psys.clmd) {

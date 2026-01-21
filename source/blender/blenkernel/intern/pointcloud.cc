@@ -29,6 +29,7 @@
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -130,7 +131,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   CustomData_reset(&pointcloud->pdata_legacy);
 
   /* Write LibData */
-  BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);
+  writer->write_id_struct(id_address, pointcloud);
   BKE_id_blend_write(writer, &pointcloud->id);
 
   /* Direct data */
@@ -173,7 +174,7 @@ IDTypeInfo IDType_ID_PT = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ pointcloud_foreach_working_space_color,
-    /*foreach_idproperty_container*/ nullptr,
+    /*foreach_idproperty_container*/ bke::idprop::foreach_idproperty_container_id_default_fn,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ pointcloud_blend_write,
