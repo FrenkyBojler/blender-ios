@@ -56,7 +56,7 @@ void BMW_init(BMWalker *walker,
               short mask_face,
               BMWFlag flag,
               int layer,
-              BMEdgeLoopDelimit delimit)
+              BMWDelimitFlag delimit)
 {
   memset(walker, 0, sizeof(BMWalker));
 

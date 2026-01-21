@@ -1101,12 +1101,12 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
 
     /* Check if any delimits should stop the step. */
     bool has_delimit = false;
-    if ((walker->delimit & BM_LOOP_DELIMIT_INNER_CORNERS) != 0) {
+    if ((walker->delimit & BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS) != 0) {
       if (vert_edge_tot > 3) {
         has_delimit = true;
       }
     }
-    if ((walker->delimit & BM_LOOP_DELIMIT_OUTER_CORNERS) != 0) {
+    if ((walker->delimit & BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS) != 0) {
       if (vert_edge_tot == 2 && bm_edge_is_single(e) == false) {
         has_delimit = true;
       }
@@ -1130,7 +1130,7 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
     }
 
     /* Stop at delimiting n-gons here so that Rewind picks the correct edge to start from. */
-    if ((walker->delimit & BM_LOOP_DELIMIT_NGONS) != 0) {
+    if ((walker->delimit & BMW_DELIMIT_EDGE_LOOP_NGONS) != 0) {
       if (l && (owalk.is_single != bm_edge_is_single(l->e))) {
         l = nullptr;
       }

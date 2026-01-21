@@ -35,18 +35,18 @@ const EnumPropertyItem rna_enum_mesh_delimit_mode_items[] = {
 };
 
 const EnumPropertyItem rna_enum_mesh_loop_delimit_items[] = {
-    {BM_LOOP_DELIMIT_INNER_CORNERS,
+    {BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS,
      "INNER_CORNERS",
      0,
      "Inner Corners",
      "Stop boundary selection at vertices with more than three edges"},
-    {BM_LOOP_DELIMIT_OUTER_CORNERS,
+    {BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS,
      "OUTER_CORNERS",
      0,
      "Outer Corners",
      "Stop boundary selection at vertices with two edges when they share a face that is not an "
      "n-gon"},
-    {BM_LOOP_DELIMIT_NGONS, "NGONS", 0, "N-gons", "Stop boundary selection at n-gons"},
+    {BMW_DELIMIT_EDGE_LOOP_NGONS, "NGONS", 0, "N-gons", "Stop boundary selection at n-gons"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
