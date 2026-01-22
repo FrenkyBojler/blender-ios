@@ -33,6 +33,8 @@
 
 #include "BLO_read_write.hh"
 
+namespace blender {
+
 /* ********************************* color curve ********************* */
 
 /* ***************** operations on full struct ************* */
@@ -73,7 +75,7 @@ void BKE_curvemapping_set_defaults(CurveMapping *cumap,
     }
 
     cumap->cm[a].totpoint = 2;
-    cumap->cm[a].curve = MEM_calloc_arrayN<CurveMapPoint>(2, "curve points");
+    cumap->cm[a].curve = MEM_new_array_for_free<CurveMapPoint>(2, "curve points");
 
     cumap->cm[a].curve[0].x = minx;
     cumap->cm[a].curve[0].y = miny;
@@ -90,7 +92,7 @@ CurveMapping *BKE_curvemapping_add(int tot, float minx, float miny, float maxx, 
 {
   CurveMapping *cumap;
 
-  cumap = MEM_callocN<CurveMapping>("new curvemap");
+  cumap = MEM_new_for_free<CurveMapping>("new curvemap");
 
   BKE_curvemapping_set_defaults(cumap, tot, minx, miny, maxx, maxy, HD_AUTO);
 
@@ -129,7 +131,7 @@ void BKE_curvemapping_copy_data(CurveMapping *target, const CurveMapping *cumap)
 {
   int a;
 
-  *target = *cumap;
+  *target = dna::shallow_copy(*cumap);
 
   for (a = 0; a < CM_TOT; a++) {
     if (cumap->cm[a].curve) {
@@ -195,7 +197,7 @@ bool BKE_curvemap_remove_point(CurveMap *cuma, CurveMapPoint *point)
     return false;
   }
 
-  cmp = MEM_malloc_arrayN<CurveMapPoint>(size_t(cuma->totpoint), "curve points");
+  cmp = MEM_new_array_for_free<CurveMapPoint>(size_t(cuma->totpoint), "curve points");
 
   /* well, lets keep the two outer points! */
   for (a = 0, b = 0; a < cuma->totpoint; a++) {
@@ -216,7 +218,8 @@ bool BKE_curvemap_remove_point(CurveMap *cuma, CurveMapPoint *point)
 
 void BKE_curvemap_remove(CurveMap *cuma, const short flag)
 {
-  CurveMapPoint *cmp = MEM_malloc_arrayN<CurveMapPoint>(size_t(cuma->totpoint), "curve points");
+  CurveMapPoint *cmp = MEM_new_array_for_free<CurveMapPoint>(size_t(cuma->totpoint),
+                                                             "curve points");
   int a, b, removed = 0;
 
   /* well, lets keep the two outer points! */
@@ -239,8 +242,8 @@ void BKE_curvemap_remove(CurveMap *cuma, const short flag)
 
 CurveMapPoint *BKE_curvemap_insert(CurveMap *cuma, float x, float y)
 {
-  CurveMapPoint *cmp = MEM_calloc_arrayN<CurveMapPoint>(size_t(cuma->totpoint) + 1,
-                                                        "curve points");
+  CurveMapPoint *cmp = MEM_new_array_for_free<CurveMapPoint>(size_t(cuma->totpoint) + 1,
+                                                             "curve points");
   CurveMapPoint *newcmp = nullptr;
   int a, b;
   bool foundloc = false;
@@ -285,7 +288,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       cuma->totpoint = 2;
       break;
     case CURVE_PRESET_SHARP:
-      cuma->totpoint = 4;
+      cuma->totpoint = 5;
       break;
     case CURVE_PRESET_SMOOTH:
       cuma->totpoint = 8;
@@ -297,10 +300,10 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       cuma->totpoint = 8;
       break;
     case CURVE_PRESET_ROUND:
-      cuma->totpoint = 4;
+      cuma->totpoint = 6;
       break;
     case CURVE_PRESET_ROOT:
-      cuma->totpoint = 4;
+      cuma->totpoint = 6;
       break;
     case CURVE_PRESET_GAUSS:
       cuma->totpoint = 7;
@@ -310,7 +313,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       break;
   }
 
-  cuma->curve = MEM_calloc_arrayN<CurveMapPoint>(cuma->totpoint, "curve points");
+  cuma->curve = MEM_new_array_for_free<CurveMapPoint>(cuma->totpoint, "curve points");
 
   for (int i = 0; i < cuma->totpoint; i++) {
     cuma->curve[i].flag = cuma->default_handle_type;
@@ -339,11 +342,19 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       cuma->curve[0].x = 0;
       cuma->curve[0].y = 1;
       cuma->curve[1].x = 0.25;
-      cuma->curve[1].y = 0.50;
-      cuma->curve[2].x = 0.75;
-      cuma->curve[2].y = 0.04;
-      cuma->curve[3].x = 1;
-      cuma->curve[3].y = 0;
+      cuma->curve[1].y = 0.5625;
+      cuma->curve[2].x = 0.50;
+      cuma->curve[2].y = 0.25;
+      cuma->curve[3].x = 0.75;
+      cuma->curve[3].y = 0.0625;
+      cuma->curve[4].x = 1;
+      cuma->curve[4].y = 0;
+      if (slope == CurveMapSlopeType::PositiveNegative) {
+        cuma->curve[0].flag &= ~CUMA_HANDLE_AUTO_ANIM;
+        cuma->curve[0].flag |= CUMA_HANDLE_VECTOR;
+        cuma->curve[4].flag &= ~CUMA_HANDLE_AUTO_ANIM;
+        cuma->curve[4].flag |= CUMA_HANDLE_VECTOR;
+      }
       break;
     case CURVE_PRESET_SMOOTH:
       cuma->curve[0].x = 0;
@@ -380,21 +391,35 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       cuma->curve[0].x = 0;
       cuma->curve[0].y = 1;
       cuma->curve[1].x = 0.5;
-      cuma->curve[1].y = 0.90;
-      cuma->curve[2].x = 0.86;
-      cuma->curve[2].y = 0.5;
-      cuma->curve[3].x = 1;
-      cuma->curve[3].y = 0;
+      cuma->curve[1].y = 0.866;
+      cuma->curve[2].x = 0.6765;
+      cuma->curve[2].y = 0.7364;
+      cuma->curve[3].x = 0.8582;
+      cuma->curve[3].y = 0.5133;
+      cuma->curve[4].x = 0.967;
+      cuma->curve[4].y = 0.2547;
+      cuma->curve[5].x = 1;
+      cuma->curve[5].y = 0;
       break;
     case CURVE_PRESET_ROOT:
       cuma->curve[0].x = 0;
       cuma->curve[0].y = 1;
       cuma->curve[1].x = 0.25;
-      cuma->curve[1].y = 0.95;
-      cuma->curve[2].x = 0.75;
-      cuma->curve[2].y = 0.44;
-      cuma->curve[3].x = 1;
-      cuma->curve[3].y = 0;
+      cuma->curve[1].y = 0.866;
+      cuma->curve[2].x = 0.5;
+      cuma->curve[2].y = 0.707;
+      cuma->curve[3].x = 0.75;
+      cuma->curve[3].y = 0.5;
+      cuma->curve[4].x = 0.9375;
+      cuma->curve[4].y = 0.25;
+      cuma->curve[5].x = 1;
+      cuma->curve[5].y = 0;
+      if (slope == CurveMapSlopeType::PositiveNegative) {
+        cuma->curve[0].flag &= ~CUMA_HANDLE_AUTO_ANIM;
+        cuma->curve[0].flag |= CUMA_HANDLE_VECTOR;
+        cuma->curve[5].flag &= ~CUMA_HANDLE_AUTO_ANIM;
+        cuma->curve[5].flag |= CUMA_HANDLE_VECTOR;
+      }
       break;
     case CURVE_PRESET_GAUSS:
       cuma->curve[0].x = 0;
@@ -429,20 +454,34 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
   /* mirror curve in x direction to have positive slope
    * rather than default negative slope */
   if (slope == CurveMapSlopeType::Positive) {
-    int i, last = cuma->totpoint - 1;
-    CurveMapPoint *newpoints = static_cast<CurveMapPoint *>(MEM_dupallocN(cuma->curve));
-
-    for (i = 0; i < cuma->totpoint; i++) {
-      newpoints[i].y = cuma->curve[last - i].y;
+    if (ELEM(preset, CURVE_PRESET_LINE, CURVE_PRESET_CONSTANT_MEDIAN)) {
+      BLI_assert(cuma->totpoint == 2);
+      /* The LINE and CONSTANT_MEDIAN presets are defined by a single pair of points, relative to
+       * the clip region. */
+      std::swap(cuma->curve[0].y, cuma->curve[1].y);
     }
-
-    MEM_freeN(cuma->curve);
-    cuma->curve = newpoints;
+    else if (preset == CURVE_PRESET_MID8) {
+      /* All points in the MID8 preset have y = 0.5, so no action is needed. */
+    }
+    else {
+      int i, last = cuma->totpoint - 1;
+      /* For all curves other than the LINE and CONSTANT_MEDIAN curves, we assume that the x period
+       * is from [0.0, 1.0] inclusive. Resetting the curve for these presets does not take into
+       * account the current clipping region. */
+      BLI_assert(cuma->curve[0].x == 0.0f && cuma->curve[last].x == 1.0f);
+      CurveMapPoint *newpoints = static_cast<CurveMapPoint *>(MEM_dupallocN(cuma->curve));
+      for (i = 0; i < cuma->totpoint; i++) {
+        newpoints[i].x = 1.0f - cuma->curve[last - i].x;
+        newpoints[i].y = cuma->curve[last - i].y;
+      }
+      MEM_freeN(cuma->curve);
+      cuma->curve = newpoints;
+    }
   }
   else if (slope == CurveMapSlopeType::PositiveNegative) {
     const int num_points = cuma->totpoint * 2 - 1;
-    CurveMapPoint *new_points = MEM_malloc_arrayN<CurveMapPoint>(size_t(num_points),
-                                                                 "curve symmetric points");
+    CurveMapPoint *new_points = MEM_new_array_for_free<CurveMapPoint>(size_t(num_points),
+                                                                      "curve symmetric points");
     for (int i = 0; i < cuma->totpoint; i++) {
       const int src_last_point = cuma->totpoint - i - 1;
       const int dst_last_point = num_points - i - 1;
@@ -490,7 +529,7 @@ void BKE_curvemap_handle_set(CurveMap *cuma, int type)
 static void calchandle_curvemap(BezTriple *bezt, const BezTriple *prev, const BezTriple *next)
 {
 /* defines to avoid confusion */
-#define p2_h1 ((p2)-3)
+#define p2_h1 ((p2) - 3)
 #define p2_h2 ((p2) + 3)
 
   const float *p1, *p3;
@@ -840,7 +879,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   float *lastpoint = allpoints + 2 * (totpoint - 1);
   point = allpoints;
 
-  CurveMapPoint *cmp = MEM_calloc_arrayN<CurveMapPoint>(CM_TABLE + 1, "dist table");
+  CurveMapPoint *cmp = MEM_new_array_for_free<CurveMapPoint>(CM_TABLE + 1, "dist table");
 
   for (int a = 0; a <= CM_TABLE; a++) {
     float cur_x = cuma->mintable + range * float(a);
@@ -909,7 +948,7 @@ void BKE_curvemapping_premultiply(CurveMapping *cumap, bool restore)
           curvemap_make_table(cumap, cumap->cm + a);
         }
         cumap->cm[a].premultable = cumap->cm[a].table;
-        cumap->cm[a].table = MEM_malloc_arrayN<CurveMapPoint>(CM_TABLE + 1, "premul table");
+        cumap->cm[a].table = MEM_new_array_for_free<CurveMapPoint>(CM_TABLE + 1, "premul table");
         memcpy(
             cumap->cm[a].table, cumap->cm[a].premultable, (CM_TABLE + 1) * sizeof(CurveMapPoint));
       }
@@ -1127,17 +1166,16 @@ void BKE_curvemapping_evaluateRGBF(const CurveMapping *cumap,
  * change in the distance from the minimum to the maximum. Finally, each of the new minimum,
  * maximum, and median values are written to the color channel that they were originally extracted
  * from. */
-static blender::float3 evaluate_film_like(const CurveMapping *curve_mapping, blender::float3 input)
+static float3 evaluate_film_like(const CurveMapping *curve_mapping, float3 input)
 {
   /* Film-like curves are only evaluated on the combined curve, which is the fourth curve map. */
   const CurveMap *curve_map = curve_mapping->cm + 3;
 
   /* Find the maximum, minimum, and median of the color channels. */
-  const float minimum = blender::math::reduce_min(input);
-  const float maximum = blender::math::reduce_max(input);
-  const float median = blender::math::max(
-      blender::math::min(input.x, input.y),
-      blender::math::min(input.z, blender::math::max(input.x, input.y)));
+  const float minimum = math::reduce_min(input);
+  const float maximum = math::reduce_max(input);
+  const float median = math::max(math::min(input.x, input.y),
+                                 math::min(input.z, math::max(input.x, input.y)));
 
   const float new_min = BKE_curvemap_evaluateF(curve_mapping, curve_map, minimum);
   const float new_max = BKE_curvemap_evaluateF(curve_mapping, curve_map, maximum);
@@ -1147,12 +1185,12 @@ static blender::float3 evaluate_film_like(const CurveMapping *curve_mapping, ble
   const float new_median = new_min + (median - minimum) * scaling_ratio;
 
   /* Write each value to its original channel. */
-  const blender::float3 median_or_min = blender::float3(input.x == minimum ? new_min : new_median,
-                                                        input.y == minimum ? new_min : new_median,
-                                                        input.z == minimum ? new_min : new_median);
-  return blender::float3(input.x == maximum ? new_max : median_or_min.x,
-                         input.y == maximum ? new_max : median_or_min.y,
-                         input.z == maximum ? new_max : median_or_min.z);
+  const float3 median_or_min = float3(input.x == minimum ? new_min : new_median,
+                                      input.y == minimum ? new_min : new_median,
+                                      input.z == minimum ? new_min : new_median);
+  return float3(input.x == maximum ? new_max : median_or_min.x,
+                input.y == maximum ? new_max : median_or_min.y,
+                input.z == maximum ? new_max : median_or_min.z);
 }
 
 void BKE_curvemapping_evaluate_premulRGBF_ex(const CurveMapping *cumap,
@@ -1175,7 +1213,7 @@ void BKE_curvemapping_evaluate_premulRGBF_ex(const CurveMapping *cumap,
       break;
     }
     case CURVE_TONE_FILMLIKE: {
-      const blender::float3 output = evaluate_film_like(cumap, balanced_color);
+      const float3 output = evaluate_film_like(cumap, balanced_color);
       copy_v3_v3(vecout, output);
       break;
     }
@@ -1378,14 +1416,14 @@ void BKE_curvemapping_table_RGBA(const CurveMapping *cumap, float **array, int *
 
 void BKE_curvemapping_blend_write(BlendWriter *writer, const CurveMapping *cumap)
 {
-  BLO_write_struct(writer, CurveMapping, cumap);
+  writer->write_struct(cumap);
   BKE_curvemapping_curves_blend_write(writer, cumap);
 }
 
 void BKE_curvemapping_curves_blend_write(BlendWriter *writer, const CurveMapping *cumap)
 {
   for (int a = 0; a < CM_TOT; a++) {
-    BLO_write_struct_array(writer, CurveMapPoint, cumap->cm[a].totpoint, cumap->cm[a].curve);
+    writer->write_struct_array(cumap->cm[a].totpoint, cumap->cm[a].curve);
   }
 }
 
@@ -1794,8 +1832,8 @@ void BKE_scopes_update(Scopes *scopes,
     cm_processor = IMB_colormanagement_display_processor_new(view_settings, display_settings);
   }
   else {
-    display_buffer = (const uchar *)IMB_display_buffer_acquire(
-        ibuf, view_settings, display_settings, &cache_handle);
+    display_buffer = const_cast<const uchar *>(
+        IMB_display_buffer_acquire(ibuf, view_settings, display_settings, &cache_handle));
   }
 
   /* Keep number of threads in sync with the merge parts below. */
@@ -1911,6 +1949,8 @@ void BKE_color_managed_view_settings_init(ColorManagedViewSettings *view_setting
   view_settings->flag = 0;
   view_settings->gamma = 1.0f;
   view_settings->exposure = 0.0f;
+  view_settings->temperature = 6500.0f;
+  view_settings->tint = 10.0f;
   view_settings->curve_mapping = nullptr;
 
   IMB_colormanagement_validate_settings(display_settings, view_settings);
@@ -1986,3 +2026,5 @@ bool BKE_color_managed_colorspace_settings_equals(const ColorManagedColorspaceSe
 {
   return STREQ(settings1->name, settings2->name);
 }
+
+}  // namespace blender

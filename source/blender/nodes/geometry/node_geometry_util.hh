@@ -23,6 +23,7 @@
 #include "BLI_task.hh"
 
 namespace blender {
+
 namespace bke {
 struct BVHTreeFromMesh;
 }
@@ -30,26 +31,26 @@ namespace nodes {
 class GatherAddNodeSearchParams;
 class GatherLinkSearchOpParams;
 }  // namespace nodes
-}  // namespace blender
 
-void geo_node_type_base(blender::bke::bNodeType *ntype,
+void geo_node_type_base(bke::bNodeType *ntype,
                         std::string idname,
                         std::optional<int16_t> legacy_type = std::nullopt);
-bool geo_node_poll_default(const blender::bke::bNodeType *ntype,
+bool geo_node_poll_default(const bke::bNodeType *ntype,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint);
 
 /* Same as geo_node_type_base but allows node use in the compositor by allowing compositor node
  * trees in the poll function. */
-void geo_cmp_node_type_base(blender::bke::bNodeType *ntype,
+void geo_cmp_node_type_base(bke::bNodeType *ntype,
                             std::string idname,
                             std::optional<int16_t> legacy_type = std::nullopt);
 
-namespace blender::nodes {
+namespace nodes {
 
 bool check_tool_context_and_error(GeoNodeExecParams &params);
 void search_link_ops_for_tool_node(GatherLinkSearchOpParams &params);
-void search_link_ops_for_volume_grid_node(GatherLinkSearchOpParams &params);
+
+void node_geo_sdf_grid_error_not_levelset(GeoNodeExecParams &params);
 
 void get_closest_in_bvhtree(bke::BVHTreeFromMesh &tree_data,
                             const VArray<float3> &positions,
@@ -85,7 +86,7 @@ const EnumPropertyItem *grid_socket_type_items_filter_fn(bContext *C,
 
 void node_geo_exec_with_missing_openvdb(GeoNodeExecParams &params);
 
-void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna);
+void node_geo_exec_with_too_old_openvdb(GeoNodeExecParams &params);
 
 class Grid3DFieldContext : public FieldContext {
  private:
@@ -112,4 +113,7 @@ class Grid3DFieldContext : public FieldContext {
                                ResourceScope &scope) const override;
 };
 
-}  // namespace blender::nodes
+void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rna);
+
+}  // namespace nodes
+}  // namespace blender

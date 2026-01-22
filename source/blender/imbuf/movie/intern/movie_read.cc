@@ -53,6 +53,8 @@ extern "C" {
 
 #endif /* WITH_FFMPEG */
 
+namespace blender {
+
 #ifdef WITH_FFMPEG
 static CLG_LogRef LOG = {"video.read"};
 #endif
@@ -601,7 +603,6 @@ static AVFrame *ffmpeg_double_buffer_frame_fallback_get(MovieReader *anim)
  * video rotation in the same go if needed. */
 static void float_planar_to_interleaved(const AVFrame *frame, const int rotation, ImBuf *ibuf)
 {
-  using namespace blender;
   const size_t src_linesize = frame->linesize[0];
   BLI_assert_msg(frame->linesize[1] == src_linesize && frame->linesize[2] == src_linesize &&
                      frame->linesize[3] == src_linesize,
@@ -1044,10 +1045,10 @@ static int ffmpeg_generic_seek_workaround(MovieReader *anim,
                                           int64_t *requested_pts,
                                           int64_t pts_to_search)
 {
+  AVStream *v_st = anim->pFormatCtx->streams[anim->videoStream];
+  int64_t start_pts = v_st->start_time;
   int64_t current_pts = *requested_pts;
   int64_t offset = 0;
-
-  int64_t cur_pts, prev_pts = -1;
 
   /* Step backward frame by frame until we find the key frame we are looking for. */
   while (current_pts != 0) {
@@ -1070,11 +1071,11 @@ static int ffmpeg_generic_seek_workaround(MovieReader *anim,
     }
 
     /* If this packet contains an I-frame, this could be the frame that we need. */
-    bool is_key_frame = read_packet->flags & AV_PKT_FLAG_KEY;
+    const bool is_key_frame = read_packet->flags & AV_PKT_FLAG_KEY;
     /* We need to check the packet timestamp as the key frame could be for a GOP forward in the
      * video stream. So if it has a larger timestamp than the frame we want, ignore it.
      */
-    cur_pts = timestamp_from_pts_or_dts(read_packet->pts, read_packet->dts);
+    const int64_t cur_pts = timestamp_from_pts_or_dts(read_packet->pts, read_packet->dts);
     av_packet_free(&read_packet);
 
     if (is_key_frame) {
@@ -1084,13 +1085,11 @@ static int ffmpeg_generic_seek_workaround(MovieReader *anim,
       }
     }
 
-    if (cur_pts == prev_pts) {
-      /* We got the same key frame packet twice.
-       * This probably means that we have hit the beginning of the stream. */
+    /* We have hit the beginning of the stream. */
+    if (cur_pts <= start_pts) {
       break;
     }
 
-    prev_pts = cur_pts;
     offset++;
   }
 
@@ -1334,9 +1333,9 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
     }
   }
   else {
-    /* Colorspace conversion is lossy for byte buffers, so only assign the colorspace.
+    /* Color-space conversion is lossy for byte buffers, so only assign the color-space.
      * It is up to artists to ensure operations on byte buffers do not involve mixing different
-     * colorspaces. */
+     * color-spaces. */
     cur_frame_final->byte_buffer.colorspace = colormanage_colorspace_get_named(anim->colorspace);
   }
 
@@ -1535,3 +1534,5 @@ int MOV_get_image_height(const MovieReader *anim)
 {
   return ELEM(anim->video_rotation, 90, 270) ? anim->x : anim->y;
 }
+
+}  // namespace blender

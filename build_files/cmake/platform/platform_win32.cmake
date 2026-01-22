@@ -27,10 +27,6 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
       "try running from the visual studio developer prompt."
     )
   endif()
-  if(WITH_WINDOWS_STRIPPED_PDB)
-    message(WARNING "stripped pdb not supported with clang, disabling..")
-    set(WITH_WINDOWS_STRIPPED_PDB OFF)
-  endif()
 else()
   if(WITH_BLENDER)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.28.29921) # MSVC 2019 16.9.16
@@ -238,35 +234,23 @@ if(WITH_WINDOWS_SCCACHE AND CMAKE_VS_MSBUILD_COMMAND)
   set(WITH_WINDOWS_SCCACHE OFF)
 endif()
 
-# Debug Symbol format
-# sccache # MSVC_ASAN # format # why
-# ON      # ON        # Z7     # sccache will only play nice with Z7.
-# ON      # OFF       # Z7     # sccache will only play nice with Z7.
-# OFF     # ON        # Zi     # Asan will not play nice with Edit and Continue.
-# OFF     # OFF       # ZI     # Neither ASAN nor sscache is enabled Edit and
-#                                Continue is available.
-
-# Release Symbol format
-# sccache # MSVC_ASAN # format # why
-# ON      # ON        # Z7     # sccache will only play nice with Z7
-# ON      # OFF       # Z7     # sccache will only play nice with Z7
-# OFF     # ON        # Zi     # Asan will not play nice with Edit and Continue
-# OFF     # OFF       # Zi     # Edit and Continue disables some optimizations
-
-
 if(WITH_WINDOWS_SCCACHE)
   set(CMAKE_C_COMPILER_LAUNCHER sccache)
   set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
+  # sccache will only play nice with Z7.
   set(SYMBOL_FORMAT /Z7)
   set(SYMBOL_FORMAT_RELEASE /Z7)
 else()
   unset(CMAKE_C_COMPILER_LAUNCHER)
   unset(CMAKE_CXX_COMPILER_LAUNCHER)
-  if(MSVC_ASAN)
+  if(MSVC_ASAN OR MSVC_CLANG)
+    # Neither Asan nor Clang will play nice with Edit and Continue.
     set(SYMBOL_FORMAT /Zi)
     set(SYMBOL_FORMAT_RELEASE /Zi)
   else()
+    # Otherwise enable Edit and Continue.
     set(SYMBOL_FORMAT /ZI)
+    # Except for Release builds, since it disables some optimizations.
     set(SYMBOL_FORMAT_RELEASE /Zi)
   endif()
 endif()
@@ -904,6 +888,15 @@ if(WITH_OPENSUBDIV)
   endif()
 endif()
 
+if(WITH_RUBBERBAND)
+  set(RUBBERBAND_FOUND TRUE)
+  set(RUBBERBAND_INCLUDE_DIRS ${LIBDIR}/rubberband/include)
+  set(RUBBERBAND_LIBRARIES
+    optimized ${LIBDIR}/rubberband/lib/rubberband-static.lib
+    debug ${LIBDIR}/rubberband/lib/rubberband-static_d.lib
+  )
+endif()
+
 if(WITH_SDL)
   set(SDL ${LIBDIR}/sdl)
   set(SDL_INCLUDE_DIR ${SDL}/include)
@@ -983,7 +976,8 @@ if(WITH_CODEC_SNDFILE)
   endif()
 endif()
 
-if(WITH_CPU_SIMD AND SUPPORT_NEON_BUILD)
+test_neon_support()
+if(SUPPORTS_NEON_BUILD)
   windows_find_package(sse2neon)
   if(NOT SSE2NEON_FOUND)
     set(SSE2NEON_ROOT_DIR ${LIBDIR}/sse2neon)
@@ -1256,7 +1250,11 @@ if(WITH_HARU)
   set(HARU_FOUND ON)
   set(HARU_ROOT_DIR ${LIBDIR}/haru)
   set(HARU_INCLUDE_DIRS ${HARU_ROOT_DIR}/include)
-  set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
+  if(EXISTS ${HARU_ROOT_DIR}/lib/hpdf.lib) # blender 5.0+
+    set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/hpdf.lib)
+  else()
+    set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
+  endif()
 endif()
 
 if(WITH_VULKAN_BACKEND)

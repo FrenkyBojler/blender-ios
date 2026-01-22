@@ -162,7 +162,7 @@ class PassBase {
         sub_passes_(sub_passes),
         shader_(shader),
         debug_name(name),
-        use_custom_ids(false){};
+        use_custom_ids(false) {};
 
   /**
    * Reset the pass command pool.
@@ -506,7 +506,7 @@ template<typename DrawCommandBufType> class Pass : public detail::PassBase<DrawC
 
  public:
   Pass(const char *name)
-      : detail::PassBase<DrawCommandBufType>(name, draw_commands_buf_main_, sub_passes_main_){};
+      : detail::PassBase<DrawCommandBufType>(name, draw_commands_buf_main_, sub_passes_main_) {};
 
   void init()
   {
@@ -556,7 +556,7 @@ class PassSortable : public PassMain {
   bool sorted_ = false;
 
  public:
-  PassSortable(const char *name_) : PassMain(name_){};
+  PassSortable(const char *name_) : PassMain(name_) {};
 
   void init()
   {
@@ -1142,7 +1142,7 @@ inline void PassBase<T>::material_set(Manager &manager,
   shader_set(GPU_pass_shader_get(gpupass));
 
   /* Bind all textures needed by the material. */
-  ListBase textures = GPU_material_textures(material);
+  ListBaseT<GPUMaterialTexture> textures = GPU_material_textures(material);
   for (GPUMaterialTexture *tex : ListBaseWrapper<GPUMaterialTexture>(textures)) {
     if (tex->ima) {
       /* Image */
@@ -1638,5 +1638,4 @@ inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
 /** \} */
 
 }  // namespace detail
-
 }  // namespace blender::draw

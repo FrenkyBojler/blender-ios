@@ -18,9 +18,11 @@
 #  include "libocio_cpu_processor.hh"
 #  include "libocio_processor.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"color_management"};
 
-namespace blender::ocio {
+namespace ocio {
 
 static bool compare_floats(float a, float b, float abs_diff, int ulp_diff)
 {
@@ -150,7 +152,7 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
       interop_id_ = "srgb_p3d65_display";
     }
     else if (alias == "displayp3_hdr_display") {
-      interop_id_ = "srgbx_p3d65_display";
+      interop_id_ = "srgbe_p3d65_display";
     }
     else if (alias == "p3d65_display") {
       interop_id_ = "g26_p3d65_display";
@@ -255,6 +257,7 @@ void LibOCIOColorSpace::clear_caches()
   is_info_cached_ = false;
 }
 
-}  // namespace blender::ocio
+}  // namespace ocio
+}  // namespace blender
 
 #endif

@@ -32,6 +32,7 @@
 
 #include "BLI_cache_mutex.hh"
 #include "BLI_compute_context.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_linear_allocator_chunked_list.hh"
@@ -51,11 +52,13 @@
 
 #include "DNA_node_types.h"
 
+namespace blender {
+
 struct SpaceNode;
 struct NodesModifierData;
 struct Report;
 
-namespace blender::nodes::geo_eval_log {
+namespace nodes::geo_eval_log {
 
 using fn::GField;
 
@@ -80,7 +83,7 @@ enum class NamedAttributeUsage {
   Write = 1 << 1,
   Remove = 1 << 2,
 };
-ENUM_OPERATORS(NamedAttributeUsage, NamedAttributeUsage::Remove);
+ENUM_OPERATORS(NamedAttributeUsage);
 
 /**
  * Values of different types are logged differently. This is necessary because some types are so
@@ -135,6 +138,11 @@ struct GeometryAttributeInfo {
   std::optional<bke::AttrType> data_type;
 };
 
+struct VolumeGridInfo {
+  std::string name;
+  VolumeGridType grid_type;
+};
+
 /**
  * Geometries are not logged entirely, because that would result in a lot of time and memory
  * overhead. Instead, only the data needed for UI features is logged.
@@ -168,7 +176,7 @@ class GeometryInfoLog : public ValueLog {
     int gizmo_transforms_num = 0;
   };
   struct VolumeInfo {
-    int grids_num;
+    Vector<VolumeGridInfo> grids;
   };
 
   std::optional<MeshInfo> mesh_info;
@@ -502,4 +510,6 @@ class GeoNodesLog {
   static const ViewerNodeLog *find_viewer_node_log_for_path(const ViewerPath &viewer_path);
 };
 
-}  // namespace blender::nodes::geo_eval_log
+}  // namespace nodes::geo_eval_log
+
+}  // namespace blender
