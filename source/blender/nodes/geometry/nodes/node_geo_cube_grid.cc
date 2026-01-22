@@ -230,7 +230,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
-  
+
   const float3 bounds_min = params.extract_input<float3>("Min");
   const float3 bounds_max = params.extract_input<float3>("Max");
 
@@ -305,7 +305,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeCubeGrid");
   ntype.ui_name = "Cube Grid";
   ntype.ui_description = "Create a new grid with the values for each voxel evaluated from a field";
-  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
