@@ -48,13 +48,12 @@ static void node_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filepat
   BLI_path_join(filepath, filepath_maxncpy, BKE_tempdir_base(), "copybuffer_nodes.blend");
 }
 
-/** Returns the number of nodes copied. */
-static int node_copy_local(bNodeTree &from_tree,
-                           bNodeTree &to_tree,
-                           const bool allow_duplicate_names,
-                           const float2 offset,
-                           const bool snap_to_grid,
-                           ReportList *reports)
+static bool node_copy_local(bNodeTree &from_tree,
+                            bNodeTree &to_tree,
+                            const bool allow_duplicate_names,
+                            const float2 offset,
+                            const bool snap_to_grid,
+                            ReportList *reports)
 {
   node_select_paired(from_tree);
 
@@ -147,7 +146,7 @@ static int node_copy_local(bNodeTree &from_tree,
     update_multi_input_indices_for_removed_links(*new_node);
   }
 
-  return node_map.size();
+  return true;
 }
 
 /** \} */
@@ -182,9 +181,7 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
   copy_tree->tree_interface.free_data();
   copy_tree->tree_interface.copy_data(node_tree->tree_interface, LIB_ID_COPY_DEFAULT);
 
-  const int num_copied = node_copy_local(
-      *node_tree, *copy_tree, true, float2(0), false, op->reports);
-  if (num_copied == 0) {
+  if (!node_copy_local(*node_tree, *copy_tree, true, float2(0), false, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -239,7 +236,6 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   };
 
-  BKE_reportf(op->reports, RPT_INFO, "Copied %d selected node(s)", num_copied);
   return OPERATOR_FINISHED;
 }
 
