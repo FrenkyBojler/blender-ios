@@ -134,7 +134,7 @@ class Texture {
   FrameBuffer *fb_[GPU_TEX_MAX_FBO_ATTACHED];
 
  public:
-  Texture(const char *name == nullptr);
+  Texture(const char *name);
   virtual ~Texture();
 
   /* Return true on success. */
