@@ -28,8 +28,7 @@ set(SRC_HEADERS
 )
 
 set(LIB
-  cycles_scene
-  bf::dependencies::openimageio
+
 )
 
 include_directories(${INC})

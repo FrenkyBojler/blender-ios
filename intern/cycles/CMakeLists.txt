@@ -210,6 +210,9 @@ add_definitions(
 include_directories(
   SYSTEM
   ${BOOST_INCLUDE_DIR}
+  ${OPENIMAGEIO_INCLUDE_DIRS}
+  ${IMATH_INCLUDE_DIRS}
+  ${OPENEXR_INCLUDE_DIRS}
   ${PUGIXML_INCLUDE_DIR}
 )
 
@@ -226,6 +229,10 @@ endif()
 
 if(WITH_CYCLES_OSL)
   add_definitions(-DWITH_OSL)
+  include_directories(
+    SYSTEM
+    ${OSL_INCLUDE_DIR}
+  )
 endif()
 
 if(WITH_CYCLES_DEVICE_CUDA OR WITH_CYCLES_DEVICE_OPTIX)

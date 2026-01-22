@@ -86,7 +86,7 @@ macro(cycles_external_libraries_append libraries)
     endif()
   endif()
   if(WITH_CYCLES_OSL)
-    list(APPEND ${libraries} bf::dependencies::optional::osl)
+    list(APPEND ${libraries} ${OSL_LIBRARIES})
   endif()
   if(WITH_CYCLES_EMBREE)
     list(APPEND ${libraries} ${EMBREE_LIBRARIES})
@@ -128,12 +128,13 @@ macro(cycles_external_libraries_append libraries)
     list(APPEND ${libraries} "-lm -lc -lutil")
   endif()
   list(APPEND ${libraries}
-    bf::dependencies::openimageio
+    ${OPENIMAGEIO_LIBRARIES}
     ${PNG_LIBRARIES}
     ${JPEG_LIBRARIES}
     ${TIFF_LIBRARY}
     ${OPENJPEG_LIBRARIES}
-    bf::dependencies::optional::openexr
+    ${OPENEXR_LIBRARIES}
+    ${OPENEXR_LIBRARIES} # For circular dependencies between libs.
     ${PUGIXML_LIBRARIES}
     ${PYTHON_LIBRARIES}
     ${ZLIB_LIBRARIES}
