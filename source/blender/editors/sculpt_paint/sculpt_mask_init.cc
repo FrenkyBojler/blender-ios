@@ -17,6 +17,7 @@
 #include "BKE_layer.hh"
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -50,7 +51,7 @@ void write_mask_mesh(const Depsgraph &depsgraph,
                      const IndexMask &node_mask,
                      FunctionRef<void(MutableSpan<float>, Span<int>)> write_fn)
 {
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
 
@@ -84,7 +85,7 @@ static void init_mask_grids(
   MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &object);
   BKE_sculpt_mask_layers_ensure(&depsgraph, &bmain, &object, mmd);
 
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
@@ -113,7 +114,7 @@ static wmOperatorStatus sculpt_mask_init_exec(bContext *C, wmOperator *op)
   }
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
 
   BKE_sculpt_update_object_for_edit(&depsgraph, &ob, false);
@@ -141,7 +142,7 @@ static wmOperatorStatus sculpt_mask_init_exec(bContext *C, wmOperator *op)
           });
           break;
         case InitMode::FaceSet: {
-          const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
+          const Mesh &mesh = *id_cast<const Mesh *>(ob.data);
           const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
           const bke::AttributeAccessor attributes = mesh.attributes();
           const VArraySpan face_sets = *attributes.lookup_or_default<int>(
@@ -191,7 +192,7 @@ static wmOperatorStatus sculpt_mask_init_exec(bContext *C, wmOperator *op)
           break;
         }
         case InitMode::FaceSet: {
-          const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
+          const Mesh &mesh = *id_cast<const Mesh *>(ob.data);
           const bke::AttributeAccessor attributes = mesh.attributes();
           const VArraySpan face_sets = *attributes.lookup_or_default<int>(
               ".sculpt_face_set", bke::AttrDomain::Face, 1);

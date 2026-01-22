@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_string.h"
-
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
@@ -11,6 +9,8 @@
 #include "BKE_node_runtime.hh"
 
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 namespace blender::nodes::decl {
 
@@ -63,7 +63,7 @@ static bool basic_types_can_connect(const SocketDeclaration & /*socket_decl*/,
 static void modify_subtype_except_for_storage(bNodeSocket &socket, int new_subtype)
 {
   const StringRefNull idname = *bke::node_static_socket_type(socket.type, new_subtype);
-  STRNCPY(socket.idname, idname.c_str());
+  STRNCPY_UTF8(socket.idname, idname.c_str());
   bke::bNodeSocketType *socktype = bke::node_socket_type_find(idname);
   socket.typeinfo = socktype;
 }
@@ -71,7 +71,7 @@ static void modify_subtype_except_for_storage(bNodeSocket &socket, int new_subty
 static void modify_subtype_except_for_storage(bNodeSocket &socket, int subtype, int dimensions)
 {
   const StringRefNull idname = *bke::node_static_socket_type(socket.type, subtype, dimensions);
-  STRNCPY(socket.idname, idname.c_str());
+  STRNCPY_UTF8(socket.idname, idname.c_str());
   bke::bNodeSocketType *socktype = bke::node_socket_type_find(idname);
   socket.typeinfo = socktype;
 }
@@ -90,7 +90,7 @@ bNodeSocket &Float::build(bNodeTree &ntree, bNode &node) const
                                                      this->identifier.c_str(),
                                                      this->name.c_str());
   this->set_common_flags(socket);
-  bNodeSocketValueFloat &value = *(bNodeSocketValueFloat *)socket.default_value;
+  bNodeSocketValueFloat &value = *static_cast<bNodeSocketValueFloat *>(socket.default_value);
   value.min = this->soft_min_value;
   value.max = this->soft_max_value;
   value.value = this->default_value;
@@ -108,7 +108,7 @@ bool Float::matches(const bNodeSocket &socket) const
   if (socket.typeinfo->subtype != this->subtype) {
     return false;
   }
-  bNodeSocketValueFloat &value = *(bNodeSocketValueFloat *)socket.default_value;
+  bNodeSocketValueFloat &value = *static_cast<bNodeSocketValueFloat *>(socket.default_value);
   if (value.min != this->soft_min_value) {
     return false;
   }
@@ -139,7 +139,7 @@ bNodeSocket &Float::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &
     modify_subtype_except_for_storage(socket, this->subtype);
   }
   this->set_common_flags(socket);
-  bNodeSocketValueFloat &value = *(bNodeSocketValueFloat *)socket.default_value;
+  bNodeSocketValueFloat &value = *static_cast<bNodeSocketValueFloat *>(socket.default_value);
   value.min = this->soft_min_value;
   value.max = this->soft_max_value;
   value.subtype = this->subtype;
@@ -162,7 +162,7 @@ bNodeSocket &Int::build(bNodeTree &ntree, bNode &node) const
                                                      this->identifier.c_str(),
                                                      this->name.c_str());
   this->set_common_flags(socket);
-  bNodeSocketValueInt &value = *(bNodeSocketValueInt *)socket.default_value;
+  bNodeSocketValueInt &value = *static_cast<bNodeSocketValueInt *>(socket.default_value);
   value.min = this->soft_min_value;
   value.max = this->soft_max_value;
   value.value = this->default_value;
@@ -180,7 +180,7 @@ bool Int::matches(const bNodeSocket &socket) const
   if (socket.typeinfo->subtype != this->subtype) {
     return false;
   }
-  bNodeSocketValueInt &value = *(bNodeSocketValueInt *)socket.default_value;
+  bNodeSocketValueInt &value = *static_cast<bNodeSocketValueInt *>(socket.default_value);
   if (value.min != this->soft_min_value) {
     return false;
   }
@@ -208,7 +208,7 @@ bNodeSocket &Int::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &so
     modify_subtype_except_for_storage(socket, this->subtype);
   }
   this->set_common_flags(socket);
-  bNodeSocketValueInt &value = *(bNodeSocketValueInt *)socket.default_value;
+  bNodeSocketValueInt &value = *static_cast<bNodeSocketValueInt *>(socket.default_value);
   value.min = this->soft_min_value;
   value.max = this->soft_max_value;
   value.subtype = this->subtype;
@@ -228,7 +228,7 @@ bNodeSocket &Vector::build(bNodeTree &ntree, bNode &node) const
   bNodeSocket &socket = *bke::node_add_socket(
       ntree, node, this->in_out, idname, this->identifier.c_str(), this->name.c_str());
   this->set_common_flags(socket);
-  bNodeSocketValueVector &value = *(bNodeSocketValueVector *)socket.default_value;
+  bNodeSocketValueVector &value = *static_cast<bNodeSocketValueVector *>(socket.default_value);
   std::copy_n(&this->default_value[0], this->dimensions, value.value);
   value.dimensions = this->dimensions;
   value.min = this->soft_min_value;
@@ -282,7 +282,7 @@ bNodeSocket &Vector::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
     modify_subtype_except_for_storage(socket, this->subtype, this->dimensions);
   }
   this->set_common_flags(socket);
-  bNodeSocketValueVector &value = *(bNodeSocketValueVector *)socket.default_value;
+  bNodeSocketValueVector &value = *static_cast<bNodeSocketValueVector *>(socket.default_value);
   if (value.dimensions != this->dimensions) {
     modify_subtype_except_for_storage(socket, this->subtype, this->dimensions);
   }
@@ -309,7 +309,7 @@ bNodeSocket &Bool::build(bNodeTree &ntree, bNode &node) const
                                                      this->identifier.c_str(),
                                                      this->name.c_str());
   this->set_common_flags(socket);
-  bNodeSocketValueBoolean &value = *(bNodeSocketValueBoolean *)socket.default_value;
+  bNodeSocketValueBoolean &value = *static_cast<bNodeSocketValueBoolean *>(socket.default_value);
   value.value = this->default_value;
   return socket;
 }
@@ -359,7 +359,7 @@ bNodeSocket &Color::build(bNodeTree &ntree, bNode &node) const
                                                      this->identifier.c_str(),
                                                      this->name.c_str());
   this->set_common_flags(socket);
-  bNodeSocketValueRGBA &value = *(bNodeSocketValueRGBA *)socket.default_value;
+  bNodeSocketValueRGBA &value = *static_cast<bNodeSocketValueRGBA *>(socket.default_value);
   copy_v4_v4(value.value, this->default_value);
   return socket;
 }
@@ -511,7 +511,8 @@ bNodeSocket &String::build(bNodeTree &ntree, bNode &node) const
                                                      this->subtype,
                                                      this->identifier.c_str(),
                                                      this->name.c_str());
-  STRNCPY(((bNodeSocketValueString *)socket.default_value)->value, this->default_value.c_str());
+  STRNCPY((static_cast<bNodeSocketValueString *>(socket.default_value))->value,
+          this->default_value.c_str());
   this->set_common_flags(socket);
   return socket;
 }
@@ -545,7 +546,7 @@ bNodeSocket &String::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
     modify_subtype_except_for_storage(socket, this->subtype);
   }
   this->set_common_flags(socket);
-  bNodeSocketValueString &value = *(bNodeSocketValueString *)socket.default_value;
+  bNodeSocketValueString &value = *static_cast<bNodeSocketValueString *>(socket.default_value);
   value.subtype = this->subtype;
   return socket;
 }
@@ -573,7 +574,7 @@ bNodeSocket &Menu::build(bNodeTree &ntree, bNode &node) const
                                                      this->identifier.c_str(),
                                                      this->name.c_str());
 
-  ((bNodeSocketValueMenu *)socket.default_value)->value = this->default_value;
+  (static_cast<bNodeSocketValueMenu *>(socket.default_value))->value = this->default_value.value;
   this->set_common_flags(socket);
   return socket;
 }
@@ -602,6 +603,31 @@ bNodeSocket &Menu::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &s
   }
   this->set_common_flags(socket);
   return socket;
+}
+
+MenuBuilder &MenuBuilder::static_items(const EnumPropertyItem *items)
+{
+  /* Using a global map ensures that the same runtime data is used for the same static items.
+   * This is necessary because otherwise each node would have a different (incompatible) menu
+   * definition. */
+  static Mutex mutex;
+  static Map<const EnumPropertyItem *, ImplicitSharingPtr<bke::RuntimeNodeEnumItems>>
+      items_by_enum_ptr;
+
+  std::lock_guard lock{mutex};
+  decl_->items = items_by_enum_ptr.lookup_or_add_cb(items, [&]() {
+    bke::RuntimeNodeEnumItems *runtime_items = new bke::RuntimeNodeEnumItems();
+    for (const EnumPropertyItem *item = items; item->identifier; item++) {
+      bke::RuntimeNodeEnumItem runtime_item;
+      runtime_item.name = item->name;
+      runtime_item.description = item->description;
+      runtime_item.identifier = item->value;
+      runtime_item.icon = item->icon;
+      runtime_items->items.append(std::move(runtime_item));
+    }
+    return ImplicitSharingPtr<bke::RuntimeNodeEnumItems>(runtime_items);
+  });
+  return *this;
 }
 
 /** \} */
@@ -650,6 +676,13 @@ bNodeSocket &Bundle::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
   }
   this->set_common_flags(socket);
   return socket;
+}
+
+BundleBuilder &BundleBuilder::pass_through_input_index(const std::optional<int> index)
+{
+  BLI_assert(this->is_output());
+  decl_->pass_through_input_index = std::move(index);
+  return *this;
 }
 
 /** \} */

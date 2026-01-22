@@ -22,15 +22,17 @@
 
 #include "NOD_geometry_nodes_closure_location.hh"
 
+namespace blender {
+
 struct bNode;
 struct bNodeTree;
 struct NodesModifierData;
 
-namespace blender::nodes {
+namespace nodes {
 class Closure;
 }
 
-namespace blender::bke {
+namespace bke {
 
 class ModifierComputeContext : public ComputeContext {
  private:
@@ -177,6 +179,12 @@ class EvaluateClosureComputeContext : public NodeComputeContext {
   {
     return closure_source_location_;
   }
+
+  /**
+   * True if there is a parent context that evaluates the same closure already. This can only be
+   * used when the #ClosureSourceLocation is available.
+   */
+  bool is_recursive() const;
 };
 
 class OperatorComputeContext : public ComputeContext {
@@ -199,4 +207,17 @@ class OperatorComputeContext : public ComputeContext {
   void print_current_in_line(std::ostream &stream) const override;
 };
 
-}  // namespace blender::bke
+class ShaderComputeContext : public ComputeContext {
+ private:
+  const bNodeTree *tree_ = nullptr;
+
+ public:
+  ShaderComputeContext(const ComputeContext *parent = nullptr, const bNodeTree *tree = nullptr);
+
+ private:
+  ComputeContextHash compute_hash() const override;
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
+}  // namespace bke
+}  // namespace blender

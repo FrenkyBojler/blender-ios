@@ -18,6 +18,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_particle.h"
@@ -35,6 +36,7 @@
 #include "sculpt_undo.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "bmesh.hh"
@@ -58,8 +60,8 @@ void triangulate(BMesh *bm)
 
 void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob)
 {
-  SculptSession &ss = *ob.sculpt;
-  Mesh *mesh = static_cast<Mesh *>(ob.data);
+  SculptSession &ss = *ob.runtime->sculpt_session;
+  Mesh *mesh = id_cast<Mesh *>(ob.data);
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
 
   BKE_sculptsession_free_pbvh(ob);
@@ -108,8 +110,8 @@ void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob)
 static void disable(
     Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob, undo::StepData *undo_step)
 {
-  SculptSession &ss = *ob.sculpt;
-  Mesh *mesh = static_cast<Mesh *>(ob.data);
+  SculptSession &ss = *ob.runtime->sculpt_session;
+  Mesh *mesh = id_cast<Mesh *>(ob.data);
 
   if (BMesh *bm = ss.bm) {
     BM_data_layer_free_named(bm, &bm->vdata, ".sculpt_dyntopo_node_id_vertex");
@@ -158,8 +160,9 @@ void disable(bContext *C, undo::StepData *undo_step)
 
 void disable_with_undo(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob)
 {
-  SculptSession &ss = *ob.sculpt;
-  if (ss.bm != nullptr) {
+  /* This is an unlikely situation to happen in normal usage, though with application handlers
+   * it is possible that a user is attempting to exit the current object mode. See #146398 */
+  if (ob.runtime->sculpt_session && ob.runtime->sculpt_session->bm) {
     /* May be false in background mode. */
     const bool use_undo = G.background ? (ED_undo_stack_get() != nullptr) : true;
     if (use_undo) {
@@ -175,7 +178,7 @@ void disable_with_undo(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &
 
 static void enable_with_undo(Main &bmain, Depsgraph &depsgraph, const Scene &scene, Object &ob)
 {
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
   if (ss.bm == nullptr) {
     /* May be false in background mode. */
     const bool use_undo = G.background ? (ED_undo_stack_get() != nullptr) : true;
@@ -196,7 +199,7 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_exec(bContext *C, wmOpera
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
   Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
 
   WM_cursor_wait(true);
 
@@ -213,77 +216,30 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_exec(bContext *C, wmOpera
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus dyntopo_warning_popup(bContext *C, wmOperatorType *ot, enum WarnFlag flag)
+static bool dyntopo_supports_layer(const bke::AttributeIter &iter)
 {
-  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Warning!"), ICON_ERROR);
-  uiLayout *layout = UI_popup_menu_layout(pup);
-
-  if (flag & (VDATA | EDATA | LDATA)) {
-    const char *msg_error = RPT_("Attribute Data Detected");
-    const char *msg = RPT_("Dyntopo will not preserve colors, UVs, or other attributes");
-    layout->label(msg_error, ICON_INFO);
-    layout->label(msg, ICON_NONE);
-    layout->separator();
-  }
-
-  if (flag & MODIFIER) {
-    const char *msg_error = RPT_("Generative Modifiers Detected!");
-    const char *msg = RPT_(
-        "Keeping the modifiers will increase polycount when returning to object mode");
-
-    layout->label(msg_error, ICON_INFO);
-    layout->label(msg, ICON_NONE);
-    layout->separator();
-  }
-
-  layout->op(ot, IFACE_("OK"), ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
-
-  UI_popup_menu_end(C, pup);
-
-  return OPERATOR_INTERFACE;
-}
-
-static bool dyntopo_supports_layer(const CustomDataLayer &layer)
-{
-  if (layer.type == CD_PROP_FLOAT && STREQ(layer.name, ".sculpt_mask")) {
+  if (iter.data_type == bke::AttrType::Float && iter.name == ".sculpt_mask") {
     return true;
   }
-  if (CD_TYPE_AS_MASK(layer.type) & CD_MASK_PROP_ALL) {
-    return BM_attribute_stored_in_bmesh_builtin(layer.name);
-  }
-  return ELEM(layer.type, CD_ORIGINDEX);
-}
-
-static bool dyntopo_supports_customdata_layers(const Span<CustomDataLayer> layers)
-{
-  return std::all_of(layers.begin(), layers.end(), [&](const CustomDataLayer &layer) {
-    return dyntopo_supports_layer(layer);
-  });
+  return BM_attribute_stored_in_bmesh_builtin(iter.name);
 }
 
 WarnFlag check_attribute_warning(Scene &scene, Object &ob)
 {
-  Mesh *mesh = static_cast<Mesh *>(ob.data);
-  SculptSession &ss = *ob.sculpt;
+  Mesh *mesh = id_cast<Mesh *>(ob.data);
+  SculptSession &ss = *ob.runtime->sculpt_session;
 
-  WarnFlag flag = WarnFlag(0);
+  WarnFlag flag = WarnFlag::OKAY;
 
   BLI_assert(ss.bm == nullptr);
   UNUSED_VARS_NDEBUG(ss);
 
-  if (!dyntopo_supports_customdata_layers({mesh->vert_data.layers, mesh->vert_data.totlayer})) {
-    flag |= VDATA;
-  }
-  if (!dyntopo_supports_customdata_layers({mesh->edge_data.layers, mesh->edge_data.totlayer})) {
-    flag |= EDATA;
-  }
-  if (!dyntopo_supports_customdata_layers({mesh->face_data.layers, mesh->face_data.totlayer})) {
-    flag |= LDATA;
-  }
-  if (!dyntopo_supports_customdata_layers({mesh->corner_data.layers, mesh->corner_data.totlayer}))
-  {
-    flag |= LDATA;
-  }
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (!dyntopo_supports_layer(iter)) {
+      flag |= ATTRIBUTES;
+    }
+  });
 
   {
     VirtualModifierData virtual_modifier_data;
@@ -311,15 +267,32 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_invoke(bContext *C,
                                                               const wmEvent * /*event*/)
 {
   Object &ob = *CTX_data_active_object(C);
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
 
   if (!ss.bm) {
     Scene &scene = *CTX_data_scene(C);
     const WarnFlag flag = check_attribute_warning(scene, ob);
 
-    if (flag) {
-      /* The mesh has customdata that will be lost, let the user confirm this is OK. */
-      return dyntopo_warning_popup(C, op->type, flag);
+    if (flag & ATTRIBUTES) {
+      return WM_operator_confirm_ex(
+          C,
+          op,
+          RPT_("Attribute Data Detected"),
+          RPT_("Dyntopo will not preserve colors, UVs, or other attributes"),
+          IFACE_("Enable"),
+          ui::AlertIcon::Warning,
+          false);
+    }
+
+    if (flag & MODIFIER) {
+      return WM_operator_confirm_ex(
+          C,
+          op,
+          RPT_("Generative Modifiers Detected!"),
+          RPT_("Keeping the modifiers will increase polycount when returning to object mode"),
+          IFACE_("Enable"),
+          ui::AlertIcon::Warning,
+          false);
     }
   }
 

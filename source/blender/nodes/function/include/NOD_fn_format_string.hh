@@ -16,7 +16,7 @@ namespace blender::nodes {
  */
 struct FormatStringItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeFunctionFormatStringItem;
-  static StructRNA *item_srna;
+  static StructRNA **item_srna;
   static constexpr StringRefNull node_idname = "FunctionNodeFormatString";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
@@ -67,7 +67,7 @@ struct FormatStringItemsAccessor : public socket_items::SocketItemsAccessorDefau
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
     return ELEM(socket_type, SOCK_INT, SOCK_FLOAT, SOCK_STRING);
   }

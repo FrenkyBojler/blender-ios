@@ -16,13 +16,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Vertex Index")
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
-      .description("The vertex to retrieve data from. Defaults to the vertex from the context");
+      .description("The vertex to retrieve data from. Defaults to the vertex from the context")
+      .structure_type(StructureType::Field);
   b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
       "Values used to sort the edges connected to the vertex. Uses indices by default");
   b.add_input<decl::Int>("Sort Index")
-      .min(0)
       .supports_field()
-      .description("Which of the sorted edges to output");
+      .description("Which of the sorted edges to output. Negative indexing is supported");
   b.add_output<decl::Int>("Edge Index")
       .field_source_reference_all()
       .description("An edge connected to the face, chosen by the sort index");
@@ -117,7 +117,7 @@ class EdgesOfVertInput final : public bke::MeshFieldInput {
       }
     });
 
-    return VArray<int>::ForContainer(std::move(edge_of_vertex));
+    return VArray<int>::from_container(std::move(edge_of_vertex));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -163,7 +163,7 @@ class EdgesOfVertCountInput final : public bke::MeshFieldInput {
     }
     Array<int> counts(mesh.verts_num, 0);
     array_utils::count_indices(mesh.edges().cast<int>(), counts);
-    return VArray<int>::ForContainer(std::move(counts));
+    return VArray<int>::from_container(std::move(counts));
   }
 
   uint64_t hash() const final
@@ -203,7 +203,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeEdgesOfVertex", GEO_NODE_MESH_TOPOLOGY_EDGES_OF_VERTEX);
   ntype.ui_name = "Edges of Vertex";
   ntype.ui_description = "Retrieve the edges connected to each vertex";
@@ -211,7 +211,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

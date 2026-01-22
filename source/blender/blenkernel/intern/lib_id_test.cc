@@ -14,6 +14,8 @@
 
 #include "DNA_ID.h"
 
+#include <string>
+
 namespace blender::bke::tests {
 
 struct LibIDMainSortTestContext {
@@ -85,21 +87,21 @@ TEST(lib_id_main_sort, linked_ids_1)
   ID *id_b = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, "OB_B"));
 
   change_lib(ctx.bmain, id_a, lib_a);
-  id_sort_by_name(&ctx.bmain->objects, id_a, nullptr);
+  id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_a, nullptr);
   change_lib(ctx.bmain, id_b, lib_a);
-  id_sort_by_name(&ctx.bmain->objects, id_b, nullptr);
+  id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_b, nullptr);
   EXPECT_TRUE(ctx.bmain->objects.first == id_c);
   EXPECT_TRUE(ctx.bmain->objects.last == id_b);
   test_lib_id_main_sort_check_order({id_c, id_a, id_b});
 
   change_lib(ctx.bmain, id_a, lib_b);
-  id_sort_by_name(&ctx.bmain->objects, id_a, nullptr);
+  id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_a, nullptr);
   EXPECT_TRUE(ctx.bmain->objects.first == id_c);
   EXPECT_TRUE(ctx.bmain->objects.last == id_a);
   test_lib_id_main_sort_check_order({id_c, id_b, id_a});
 
   change_lib(ctx.bmain, id_b, lib_b);
-  id_sort_by_name(&ctx.bmain->objects, id_b, nullptr);
+  id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_b, nullptr);
   EXPECT_TRUE(ctx.bmain->objects.first == id_c);
   EXPECT_TRUE(ctx.bmain->objects.last == id_b);
   test_lib_id_main_sort_check_order({id_c, id_a, id_b});
@@ -163,13 +165,27 @@ TEST(lib_id_main_unique_name, local_ids_rename_existing_never)
   STRNCPY(future_name, "OB_BBBB");
   EXPECT_FALSE(BKE_main_namemap_get_unique_name(*ctx.bmain, *id_c, future_name));
   EXPECT_STREQ(future_name, "OB_BBBB");
+  constexpr char long_name[] =
+      "OB_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+      "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+      "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+      "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+  BLI_STATIC_ASSERT(std::string::traits_type::length(long_name) == MAX_ID_NAME - 2 - 1,
+                    "Wrong 'max length' name");
+  constexpr char long_name_shorten[] =
+      "OB_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+      "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+      "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+      "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+  BLI_STATIC_ASSERT(std::string::traits_type::length(long_name_shorten) == MAX_ID_NAME - 2 - 2,
+                    "Wrong 'max length' name");
   /* Name too long, needs to be truncated. */
-  STRNCPY(future_name, "OB_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+  STRNCPY(future_name, long_name);
   change_name(ctx.bmain, id_a, future_name, IDNewNameMode::RenameExistingNever);
   EXPECT_STREQ(id_a->name + 2, future_name);
-  EXPECT_STREQ(future_name, "OB_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+  EXPECT_STREQ(future_name, long_name);
   EXPECT_TRUE(BKE_main_namemap_get_unique_name(*ctx.bmain, *id_c, future_name));
-  EXPECT_STREQ(future_name, "OB_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+  EXPECT_STREQ(future_name, long_name_shorten);
 }
 
 TEST(lib_id_main_unique_name, local_ids_rename_existing_always)
@@ -273,9 +289,9 @@ TEST(lib_id_main_unique_name, linked_ids_1)
   EXPECT_TRUE(BKE_main_namemap_validate(*ctx.bmain));
 
   change_lib(ctx.bmain, id_a, lib_a);
-  id_sort_by_name(&ctx.bmain->objects, id_a, nullptr);
+  id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_a, nullptr);
   change_lib(ctx.bmain, id_b, lib_a);
-  id_sort_by_name(&ctx.bmain->objects, id_b, nullptr);
+  id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_b, nullptr);
 
   change_name(ctx.bmain, id_b, "OB_A", IDNewNameMode::RenameExistingNever);
   EXPECT_STREQ(id_b->name + 2, "OB_A.001");
@@ -287,7 +303,7 @@ TEST(lib_id_main_unique_name, linked_ids_1)
   EXPECT_TRUE(BKE_main_namemap_validate(*ctx.bmain));
 
   change_lib(ctx.bmain, id_b, lib_b);
-  id_sort_by_name(&ctx.bmain->objects, id_b, nullptr);
+  id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_b, nullptr);
   change_name(ctx.bmain, id_b, "OB_A", IDNewNameMode::RenameExistingNever);
   EXPECT_STREQ(id_b->name + 2, "OB_A");
   EXPECT_STREQ(id_a->name + 2, "OB_A");
@@ -303,11 +319,11 @@ TEST(lib_id_main_unique_name, linked_ids_1)
 static void change_name_global(Main *bmain, ID *id, const char *name)
 {
   BKE_main_namemap_remove_id(*bmain, *id);
-  BLI_strncpy(id->name + 2, name, MAX_NAME);
+  BLI_strncpy(id->name + 2, name, MAX_ID_NAME - 2);
 
   BKE_main_global_namemap_get_unique_name(*bmain, *id, id->name + 2);
 
-  id_sort_by_name(&bmain->objects, id, nullptr);
+  id_sort_by_name(&bmain->objects.cast<ID>(), id, nullptr);
 }
 
 TEST(lib_id_main_global_unique_name, linked_ids_1)
@@ -324,9 +340,9 @@ TEST(lib_id_main_global_unique_name, linked_ids_1)
   EXPECT_TRUE(BKE_main_namemap_validate(*ctx.bmain));
 
   change_lib(ctx.bmain, id_a, lib_a);
-  id_sort_by_name(&ctx.bmain->objects, id_a, nullptr);
+  id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_a, nullptr);
   change_lib(ctx.bmain, id_b, lib_b);
-  id_sort_by_name(&ctx.bmain->objects, id_b, nullptr);
+  id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_b, nullptr);
 
   change_name_global(ctx.bmain, id_b, "OB_A");
   EXPECT_NE(ctx.bmain->name_map_global, nullptr);
@@ -339,7 +355,7 @@ TEST(lib_id_main_global_unique_name, linked_ids_1)
   EXPECT_TRUE(BKE_main_namemap_validate(*ctx.bmain));
 
   change_lib(ctx.bmain, id_b, lib_a);
-  id_sort_by_name(&ctx.bmain->objects, id_b, nullptr);
+  id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_b, nullptr);
   change_name_global(ctx.bmain, id_b, "OB_C");
   EXPECT_STREQ(id_b->name + 2, "OB_C.001");
   EXPECT_STREQ(id_a->name + 2, "OB_A");
@@ -384,7 +400,7 @@ static ID *add_id_in_library(Main *bmain, const char *name, Library *lib)
 {
   ID *id = static_cast<ID *>(BKE_id_new(bmain, ID_OB, name));
   change_lib(bmain, id, lib);
-  id_sort_by_name(&bmain->objects, id, nullptr);
+  id_sort_by_name(&bmain->objects.cast<ID>(), id, nullptr);
   return id;
 }
 
@@ -415,17 +431,45 @@ TEST(lib_id_main_unique_name, ids_sorted_by_default_with_libraries)
 TEST(lib_id_main_unique_name, name_too_long_handling)
 {
   LibIDMainSortTestContext ctx;
-  const char *name_a = "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated";
-  const char *name_b = "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix.123456";
-  const char *name_c = "Name_That_Has_Too_Long_Number_Suffix.1234567890";
+  constexpr char name_a[] =
+      "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
+      "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
+      "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
+      "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated";
+  BLI_STATIC_ASSERT(std::string::traits_type::length(name_a) > MAX_ID_NAME - 2,
+                    "Wrong 'max length' name");
+  constexpr char name_a_shorten[] =
+      "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
+      "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
+      "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
+      "Long_Name_That_Does_Not_Fit_Into_Max";
+  BLI_STATIC_ASSERT(std::string::traits_type::length(name_a_shorten) == MAX_ID_NAME - 2 - 1,
+                    "Wrong 'max length' name");
+  constexpr char name_b[] =
+      "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
+      "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
+      "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
+      "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix.123456";
+  BLI_STATIC_ASSERT(std::string::traits_type::length(name_b) > MAX_ID_NAME - 2,
+                    "Wrong 'max length' name");
+  constexpr char name_b_shorten[] =
+      "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
+      "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
+      "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
+      "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix.123";
+  BLI_STATIC_ASSERT(std::string::traits_type::length(name_b_shorten) == MAX_ID_NAME - 2 - 1,
+                    "Wrong 'max length' name");
+  constexpr char name_c[] = "Name_That_Has_Too_Long_Number_Suffix.1234567890";
+  BLI_STATIC_ASSERT(std::string::traits_type::length(name_c) < MAX_ID_NAME - 2,
+                    "Wrong 'max length' name");
 
   ID *id_a = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, name_a));
   ID *id_b = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, name_b));
   ID *id_c = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, name_c));
 
-  EXPECT_STREQ(id_a->name + 2, "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_");
-  EXPECT_STREQ(id_b->name + 2, "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix.123");
-  EXPECT_STREQ(id_c->name + 2, "Name_That_Has_Too_Long_Number_Suffix.1234567890"); /* Unchanged */
+  EXPECT_STREQ(BKE_id_name(*id_a), name_a_shorten);
+  EXPECT_STREQ(BKE_id_name(*id_b), name_b_shorten);
+  EXPECT_STREQ(BKE_id_name(*id_c), name_c); /* Unchanged */
 
   EXPECT_TRUE(BKE_main_namemap_validate(*ctx.bmain));
 

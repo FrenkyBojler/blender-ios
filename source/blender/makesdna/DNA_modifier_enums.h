@@ -9,9 +9,11 @@
 
 #pragma once
 
+namespace blender {
+
 /* Grease Pencil Modifiers */
 
-typedef enum eArrayGpencil_Flag {
+enum eArrayGpencil_Flag {
   GP_ARRAY_INVERT_LAYER = (1 << 2),
   GP_ARRAY_INVERT_PASS = (1 << 3),
   GP_ARRAY_INVERT_LAYERPASS = (1 << 5),
@@ -20,14 +22,14 @@ typedef enum eArrayGpencil_Flag {
   GP_ARRAY_USE_RELATIVE = (1 << 8),
   GP_ARRAY_USE_OB_OFFSET = (1 << 9),
   GP_ARRAY_UNIFORM_RANDOM_SCALE = (1 << 10),
-} eArrayGpencil_Flag;
+};
 
-typedef enum eTextureGpencil_Fit {
+enum eTextureGpencil_Fit {
   GP_TEX_FIT_STROKE = 0,
   GP_TEX_CONSTANT_LENGTH = 1,
-} eTextureGpencil_Fit;
+};
 
-typedef enum eNoiseGpencil_Flag {
+enum eNoiseGpencil_Flag {
   GP_NOISE_USE_RANDOM = (1 << 0),
   GP_NOISE_MOD_LOCATION = (1 << 1),  /* Deprecated (only for versioning). */
   GP_NOISE_MOD_STRENGTH = (1 << 2),  /* Deprecated (only for versioning). */
@@ -40,14 +42,14 @@ typedef enum eNoiseGpencil_Flag {
   GP_NOISE_MOD_UV = (1 << 9), /* Deprecated (only for versioning). */
   GP_NOISE_INVERT_LAYERPASS = (1 << 10),
   GP_NOISE_INVERT_MATERIAL = (1 << 11),
-} eNoiseGpencil_Flag;
+};
 
-typedef enum eNoiseRandomGpencil_Mode {
+enum eNoiseRandomGpencil_Mode {
   GP_NOISE_RANDOM_STEP = 0,
   GP_NOISE_RANDOM_KEYFRAME = 1,
-} eNoiseRandomGpencil_Mode;
+};
 
-typedef enum eLengthGpencil_Flag {
+enum eLengthGpencil_Flag {
   GP_LENGTH_INVERT_LAYER = (1 << 0),
   GP_LENGTH_INVERT_PASS = (1 << 1),
   GP_LENGTH_INVERT_LAYERPASS = (1 << 2),
@@ -55,12 +57,12 @@ typedef enum eLengthGpencil_Flag {
   GP_LENGTH_USE_CURVATURE = (1 << 4),
   GP_LENGTH_INVERT_CURVATURE = (1 << 5),
   GP_LENGTH_USE_RANDOM = (1 << 6),
-} eLengthGpencil_Flag;
+};
 
-typedef enum eLengthGpencil_Type {
+enum eLengthGpencil_Type {
   GP_LENGTH_RELATIVE = 0,
   GP_LENGTH_ABSOLUTE = 1,
-} eLengthGpencil_Type;
+};
 
 /* Shrink-wrap Modifier */
 
@@ -123,7 +125,6 @@ enum {
 
 enum {
   DT_TYPE_MDEFORMVERT = 1 << 0,
-  DT_TYPE_SHAPEKEY = 1 << 1,
   DT_TYPE_SKIN = 1 << 2,
   DT_TYPE_BWEIGHT_VERT = 1 << 3,
 
@@ -145,7 +146,7 @@ enum {
   DT_TYPE_VCOL_ALL = (1 << 16) | (1 << 27) | (1 << 28) | (1 << 29),
 #define DT_TYPE_MAX 30
 
-  DT_TYPE_VERT_ALL = DT_TYPE_MDEFORMVERT | DT_TYPE_SHAPEKEY | DT_TYPE_SKIN | DT_TYPE_BWEIGHT_VERT |
+  DT_TYPE_VERT_ALL = DT_TYPE_MDEFORMVERT | DT_TYPE_SKIN | DT_TYPE_BWEIGHT_VERT |
                      DT_TYPE_MPROPCOL_VERT | DT_TYPE_MLOOPCOL_VERT,
   DT_TYPE_EDGE_ALL = DT_TYPE_SHARP_EDGE | DT_TYPE_SEAM | DT_TYPE_CREASE | DT_TYPE_BWEIGHT_EDGE |
                      DT_TYPE_FREESTYLE_EDGE,
@@ -156,7 +157,6 @@ enum {
 #define DT_DATATYPE_IS_VERT(_dt) \
   ELEM(_dt, \
        DT_TYPE_MDEFORMVERT, \
-       DT_TYPE_SHAPEKEY, \
        DT_TYPE_SKIN, \
        DT_TYPE_BWEIGHT_VERT, \
        DT_TYPE_MLOOPCOL_VERT, \
@@ -175,7 +175,6 @@ enum {
 #define DT_DATATYPE_IS_MULTILAYERS(_dt) \
   ELEM(_dt, \
        DT_TYPE_MDEFORMVERT, \
-       DT_TYPE_SHAPEKEY, \
        DT_TYPE_MPROPCOL_VERT, \
        DT_TYPE_MLOOPCOL_VERT, \
        DT_TYPE_MPROPCOL_VERT | DT_TYPE_MLOOPCOL_VERT, \
@@ -187,7 +186,6 @@ enum {
 enum {
   DT_MULTILAYER_INDEX_INVALID = -1,
   DT_MULTILAYER_INDEX_MDEFORMVERT = 0,
-  DT_MULTILAYER_INDEX_SHAPEKEY = 1,
   DT_MULTILAYER_INDEX_VCOL_LOOP = 2,
   DT_MULTILAYER_INDEX_UV = 3,
   DT_MULTILAYER_INDEX_VCOL_VERT = 4,
@@ -332,3 +330,5 @@ enum {
   CDT_MIX_MUL = 19,
   /* Etc. */
 };
+
+}  // namespace blender

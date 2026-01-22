@@ -107,7 +107,7 @@ class Grid3DFieldContext : public FieldContext {
         }
       }
     });
-    return VArray<float3>::ForContainer(std::move(positions));
+    return VArray<float3>::from_container(std::move(positions));
   }
 };
 
@@ -162,7 +162,6 @@ static void node_geo_exec(GeoNodeExecParams params)
       densities.data()};
   openvdb::tools::copyFromDense(dense_grid, *grid, 0.0f);
 
-  grid->transform().preTranslate(openvdb::math::Vec3<float>(-0.5f));
   grid->transform().postScale(openvdb::math::Vec3<double>(scale_fac.x, scale_fac.y, scale_fac.z));
   grid->transform().postTranslate(
       openvdb::math::Vec3<float>(bounds_min.x, bounds_min.y, bounds_min.z));
@@ -180,7 +179,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeVolumeCube", GEO_NODE_VOLUME_CUBE);
   ntype.ui_name = "Volume Cube";
@@ -191,7 +190,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

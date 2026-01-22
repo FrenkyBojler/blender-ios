@@ -958,7 +958,7 @@ template<typename T> QuaternionBase<T> normalized_to_quat_fast(const MatBase<T, 
    * BLI_ASSERT_UNIT_QUAT(), so it's likely that even after a few more
    * transformations the quaternion will still be considered unit-ish. */
   const T q_len_squared = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
-  const T threshold = 0.0002f /* #BLI_ASSERT_UNIT_EPSILON */ * 3;
+  const T threshold = 0.0002f /* #BLI_ASSERT_UNIT_EPSILON */;
   if (math::abs(q_len_squared - 1.0f) >= threshold) {
     const T q_len_inv = 1.0 / math::sqrt(q_len_squared);
     q.x *= q_len_inv;
@@ -1805,5 +1805,21 @@ extern template float4x4 perspective(
 }  // namespace projection
 
 /** \} */
+
+/**
+ * Transform normal vectors, maintaining their unit length status, but implementing some
+ * optimizations for identity matrix and uniform scaling.
+ */
+void transform_normals(const float3x3 &transform, MutableSpan<float3> normals);
+void transform_normals(Span<float3> src, const float3x3 &transform, MutableSpan<float3> dst);
+
+/** Transform point vectors with matrix multiplication, optionally using multi-threading. */
+void transform_points(const float4x4 &transform,
+                      MutableSpan<float3> points,
+                      bool use_threading = true);
+void transform_points(Span<float3> src,
+                      const float4x4 &transform,
+                      MutableSpan<float3> dst,
+                      bool use_threading = true);
 
 }  // namespace blender::math

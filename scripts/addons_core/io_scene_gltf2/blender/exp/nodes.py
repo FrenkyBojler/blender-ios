@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import math
 import bpy
 from mathutils import Matrix, Quaternion, Vector
 
@@ -211,8 +210,10 @@ def __gather_extensions(vnode, export_settings):
         blender_lamp = blender_object.data
 
     if blender_lamp is not None:
+        world_matrix = blender_object.matrix_world.copy().freeze()
         light = gltf2_blender_gather_lights.gather_lights_punctual(
             blender_lamp,
+            world_matrix,
             export_settings
         )
         if light is not None:
@@ -311,11 +312,13 @@ def __gather_mesh(vnode, blender_object, export_settings):
                 # so no need to copy them in that case, because overwriting them will crash
                 if len(blender_mesh.keys()) == 0:
                     # Copy custom properties
-                    for prop in [p for p in blender_object.data.keys() if p not in BLACK_LIST]:
+                    for prop in [p for p in blender_object.data.keys() if (
+                            (p not in BLACK_LIST) or p.startswith("gltf"))]:
                         blender_mesh[prop] = blender_object.data[prop]
                 else:
                     # But we need to remove some properties that are not needed
-                    for prop in [p for p in blender_object.data.keys() if p in BLACK_LIST]:
+                    for prop in [p for p in blender_object.data.keys() if (
+                            p in BLACK_LIST and not p.startswith("gltf"))]:
                         del blender_mesh[prop]
                 # Store that this evaluated mesh has been created by the exporter, and is not a GN instance mesh
                 blender_mesh['gltf2_mesh_applied'] = True
@@ -370,6 +373,7 @@ def __gather_mesh(vnode, blender_object, export_settings):
 
     return result
 
+
 def __keep_material_info(materials, originals, export_settings):
     for m in [m for m in materials if m is not None]:
         if 'material_identifiers' not in export_settings.keys():
@@ -378,6 +382,7 @@ def __keep_material_info(materials, originals, export_settings):
             export_settings['material_identifiers'][id(m)] = m
         else:
             export_settings['material_identifiers'][id(m)] = m.original
+
 
 def __gather_mesh_from_nonmesh(blender_object, export_settings):
     """Handles curves, surfaces, text, etc."""

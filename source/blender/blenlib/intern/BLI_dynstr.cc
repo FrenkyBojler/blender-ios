@@ -15,7 +15,10 @@
 #include "BLI_memarena.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+
 #include "MEM_guardedalloc.h"
+
+namespace blender {
 
 /***/
 
@@ -175,3 +178,5 @@ void BLI_dynstr_free(DynStr *ds)
 
   MEM_freeN(ds);
 }
+
+}  // namespace blender

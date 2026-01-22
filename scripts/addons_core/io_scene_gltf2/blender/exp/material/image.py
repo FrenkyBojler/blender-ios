@@ -9,7 +9,6 @@ import os
 from ....io.com import gltf2_io
 from ....io.com.path import path_to_uri
 from ....io.exp import binary_data as gltf2_io_binary_data, image_data as gltf2_io_image_data
-from ....io.com import debug as gltf2_io_debug
 from ....io.exp.user_extensions import export_user_extensions
 from ..cache import cached
 from .encode_image import Channel, ExportImage, FillImage, FillImageTile, FillImageRGB2BW
@@ -59,6 +58,10 @@ def gather_image(
             return None, None, None, None
 
     buffer_view, factor_buffer_view = __gather_buffer_view(export_image, mime_type, name, export_settings)
+
+    # If something is wrong with the image data, we don't want to export it
+    if buffer_view is None and image_data is None:
+        return None, None, None, None
 
     factor = factor_uri if image_data is not None else factor_buffer_view
 
@@ -116,6 +119,9 @@ def __filter_image(sockets, export_settings):
 def __gather_buffer_view(image_data, mime_type, name, export_settings):
     if export_settings['gltf_format'] != 'GLTF_SEPARATE':
         data, factor = image_data.encode(mime_type, export_settings)
+        if len(data) == 0:
+            export_settings['log'].warning("Image data is empty, not exporting image")
+            return None, None
         return gltf2_io_binary_data.BinaryData(data=data), factor
     return None, None
 
@@ -204,7 +210,10 @@ def __gather_uri(image_data, mime_type, name, export_settings):
     if export_settings['gltf_format'] == 'GLTF_SEPARATE':
         # as usual we just store the data in place instead of already resolving the references
         data, factor = image_data.encode(mime_type, export_settings)
-        image =  gltf2_io_image_data.ImageData(
+        if len(data) == 0:
+            export_settings['log'].warning("Image data is empty, not exporting image")
+            return None, None
+        image = gltf2_io_image_data.ImageData(
             data=data,
             mime_type=mime_type,
             name=name
@@ -216,6 +225,7 @@ def __gather_uri(image_data, mime_type, name, export_settings):
         return image, factor
 
     return None, None
+
 
 def set_real_uri(image, export_settings):
     # We need to set the "final" uri here, to be able to modify it in a hook if necessary
@@ -262,7 +272,7 @@ def __get_image_data(sockets, use_tile, export_settings) -> ExportImage:
         anisotropy_rotation_socket = [s for s in sockets if s.socket.name == 'Anisotropic Rotation'][0]
         anisotropy_tangent_socket = [s for s in sockets if s.socket.name == 'Tangent'][0]
         need_to_check_anisotropy = True
-    except:
+    except Exception as _e:
         need_to_check_anisotropy = False
 
     if need_to_check_anisotropy is True:

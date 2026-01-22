@@ -77,24 +77,14 @@ typedef unsigned long long uint64_t;
 #define ccl_gpu_ballot(predicate) __ballot(predicate)
 
 /* GPU texture objects */
-typedef hipTextureObject_t ccl_gpu_tex_object_2D;
-typedef hipTextureObject_t ccl_gpu_tex_object_3D;
+typedef hipTextureObject_t ccl_gpu_image_object_2D;
 
 template<typename T>
-ccl_device_forceinline T ccl_gpu_tex_object_read_2D(const ccl_gpu_tex_object_2D texobj,
-                                                    const float x,
-                                                    const float y)
+ccl_device_forceinline T ccl_gpu_image_object_read_2D(const ccl_gpu_image_object_2D texobj,
+                                                      const float x,
+                                                      const float y)
 {
   return tex2D<T>(texobj, x, y);
-}
-
-template<typename T>
-ccl_device_forceinline T ccl_gpu_tex_object_read_3D(const ccl_gpu_tex_object_3D texobj,
-                                                    const float x,
-                                                    const float y,
-                                                    const float z)
-{
-  return tex3D<T>(texobj, x, y, z);
 }
 
 /* Use fast math functions */

@@ -12,13 +12,12 @@
 #include "device/denoise.h"
 #include "device/memory.h"
 
-#include "util/log.h"
 #include "util/profiling.h"
 #include "util/stats.h"
 #include "util/string.h"
-#include "util/texture.h"
 #include "util/thread.h"
 #include "util/types.h"
+#include "util/types_image.h"
 #include "util/unique_ptr.h"
 #include "util/vector.h"
 
@@ -120,8 +119,6 @@ class DeviceInfo {
   {
     return !(*this == info);
   }
-
-  bool contains_device_type(const DeviceType type) const;
 };
 
 /* Device */
@@ -159,14 +156,7 @@ class Device {
   {
     return !error_message().empty();
   }
-  virtual void set_error(const string &error)
-  {
-    if (!have_error()) {
-      error_msg = error;
-    }
-    fprintf(stderr, "%s\n", error.c_str());
-    fflush(stderr);
-  }
+  virtual void set_error(const string &error);
   virtual BVHLayoutMask get_bvh_layout_mask(const uint kernel_features) const = 0;
 
   /* statistics */
@@ -219,6 +209,12 @@ class Device {
   /* Used by Metal and OptiX. */
   virtual void release_bvh(BVH * /*bvh*/) {}
 
+  /* Inform of BVH limits, return true to force-rebuild all BVHs and kernels. */
+  virtual bool set_bvh_limits(size_t /*instance_count*/, size_t /*max_prim_count*/)
+  {
+    return false;
+  }
+
   /* multi device */
   virtual int device_number(Device * /*sub_device*/)
   {
@@ -270,11 +266,7 @@ class Device {
   /* Guiding */
 
   /* Returns path guiding device handle. */
-  virtual void *get_guiding_device() const
-  {
-    LOG(ERROR) << "Request guiding field from a device which does not support it.";
-    return nullptr;
-  }
+  virtual void *get_guiding_device() const;
 
   /* Sub-devices */
 
@@ -341,7 +333,7 @@ class Device {
 class GPUDevice : public Device {
  protected:
   GPUDevice(const DeviceInfo &info_, Stats &stats_, Profiler &profiler_, bool headless_)
-      : Device(info_, stats_, profiler_, headless_), texture_info(this, "texture_info", MEM_GLOBAL)
+      : Device(info_, stats_, profiler_, headless_), image_info(this, "image_info", MEM_GLOBAL)
   {
   }
 
@@ -349,12 +341,12 @@ class GPUDevice : public Device {
   ~GPUDevice() noexcept(false) override;
 
   /* For GPUs that can use bindless textures in some way or another. */
-  device_vector<TextureInfo> texture_info;
-  thread_mutex texture_info_mutex;
-  bool need_texture_info = false;
-  /* Returns true if the texture info was copied to the device (meaning, some more
+  device_vector<KernelImageInfo> image_info;
+  thread_mutex image_info_mutex;
+  bool need_image_info = false;
+  /* Returns true if the image info was copied to the device (meaning, some more
    * re-initialization might be needed). */
-  virtual bool load_texture_info();
+  virtual bool load_image_info();
 
  protected:
   /* Memory allocation, only accessed through device_memory. */
@@ -363,7 +355,7 @@ class GPUDevice : public Device {
   bool can_map_host = false;
   size_t map_host_used = 0;
   size_t map_host_limit = 0;
-  size_t device_texture_headroom = 0;
+  size_t device_image_headroom = 0;
   size_t device_working_headroom = 0;
   using texMemObject = unsigned long long;
   using arrayMemObject = unsigned long long;

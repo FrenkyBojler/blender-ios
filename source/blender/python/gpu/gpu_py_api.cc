@@ -24,6 +24,8 @@
 
 #include "gpu_py_api.hh" /* Own include. */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name GPU Module
  * \{ */
@@ -32,7 +34,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     pygpu_doc,
     "This module provides Python wrappers for the GPU implementation in Blender.\n"
-    "Some higher level functions can be found in the :mod:`gpu_extras` module.");
+    "Some higher level functions can be found in the :mod:`gpu_extras` module.\n");
 static PyModuleDef pygpu_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "gpu",
@@ -84,3 +86,5 @@ PyObject *BPyInit_gpu()
 }
 
 /** \} */
+
+}  // namespace blender

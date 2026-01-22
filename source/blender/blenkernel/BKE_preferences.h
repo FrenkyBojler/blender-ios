@@ -11,6 +11,8 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 struct BlendWriter;
 struct UserDef;
 struct bUserExtensionRepo;
@@ -21,14 +23,14 @@ struct bUserAssetShelfSettings;
 /** \name Preferences File
  * \{ */
 
-namespace blender::bke::preferences {
+namespace bke::preferences {
 
 /**
  * Return true if a preferences file exists for this Blender version.
  */
 bool exists();
 
-}  // namespace blender::bke::preferences
+}  // namespace bke::preferences
 
 /** \} */
 
@@ -144,7 +146,7 @@ bUserExtensionRepo *BKE_preferences_extension_repo_find_by_remote_url_prefix(
  */
 int BKE_preferences_extension_repo_remote_scheme_end(const char *url);
 /**
- * Set a name based on a URL, e.g. `https://www.example.com/path` -> `www.example.com`.
+ * Set a name based on a URL, e.g. `https://www.example.com/path` -> `example.com`.
  */
 void BKE_preferences_extension_remote_to_name(const char *remote_url, char name[64]);
 
@@ -177,3 +179,5 @@ bool BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(UserDef *u
                                                                       const char *catalog_path);
 
 /** \} */
+
+}  // namespace blender

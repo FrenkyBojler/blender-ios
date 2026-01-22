@@ -34,19 +34,7 @@ set(INC_SYS
   ../../extern/mantaflow/helper/util
   ../../extern/mantaflow/helper/pwrapper
   ../../extern/mantaflow/preprocessed
-  ${PYTHON_INCLUDE_DIRS}
-  ${ZLIB_INCLUDE_DIRS}
 )
-
-if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${OPENVDB_LIBRARIES}
-  )
-endif()
 
 set(SRC
   intern/manta_python_API.cpp
@@ -65,12 +53,11 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::dependencies::optional::openvdb
   PRIVATE bf::dependencies::optional::tbb
   extern_mantaflow
-
-  ${PYTHON_LINKFLAGS}
-  ${PYTHON_LIBRARIES}
-  ${ZLIB_LIBRARIES}
+  PRIVATE bf::dependencies::optional::python
+  PRIVATE bf::dependencies::zlib
 )
 
 blender_add_lib(bf_intern_mantaflow "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

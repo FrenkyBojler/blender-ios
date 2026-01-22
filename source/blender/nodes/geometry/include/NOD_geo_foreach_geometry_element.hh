@@ -13,7 +13,7 @@ namespace blender::nodes {
 struct ForeachGeometryElementInputItemsAccessor
     : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeForeachGeometryElementInputItem;
-  static StructRNA *item_srna;
+  static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "GeometryNodeForeachGeometryElementOutput";
   static constexpr bool has_type = true;
@@ -66,7 +66,7 @@ struct ForeachGeometryElementInputItemsAccessor
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
     return ELEM(socket_type,
                 SOCK_FLOAT,
@@ -99,7 +99,7 @@ struct ForeachGeometryElementInputItemsAccessor
 
 struct ForeachGeometryElementMainItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeForeachGeometryElementMainItem;
-  static StructRNA *item_srna;
+  static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "GeometryNodeForeachGeometryElementOutput";
   static constexpr bool has_type = true;
@@ -152,7 +152,7 @@ struct ForeachGeometryElementMainItemsAccessor : public socket_items::SocketItem
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
     return ELEM(socket_type,
                 SOCK_FLOAT,
@@ -185,7 +185,7 @@ struct ForeachGeometryElementMainItemsAccessor : public socket_items::SocketItem
 struct ForeachGeometryElementGenerationItemsAccessor
     : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeForeachGeometryElementGenerationItem;
-  static StructRNA *item_srna;
+  static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "GeometryNodeForeachGeometryElementOutput";
   static constexpr bool has_type = true;
@@ -238,7 +238,7 @@ struct ForeachGeometryElementGenerationItemsAccessor
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
     return ELEM(socket_type,
                 SOCK_FLOAT,

@@ -44,7 +44,7 @@ ObjectHandle &SyncModule::sync_object(const ObjectRef &ob_ref)
   return handle;
 }
 
-WorldHandle SyncModule::sync_world(const ::World &world)
+WorldHandle SyncModule::sync_world(const blender::World &world)
 {
   WorldHandle handle;
   handle.recalc = inst_.get_recalc_flags(world);
@@ -59,15 +59,18 @@ WorldHandle SyncModule::sync_world(const ::World &world)
 
 static inline void geometry_call(PassMain::Sub *sub_pass,
                                  gpu::Batch *geom,
-                                 ResourceHandle resource_handle)
+                                 ResourceHandleRange resource_handle)
 {
   if (sub_pass != nullptr) {
     sub_pass->draw(geom, resource_handle);
   }
 }
 
-static inline void volume_call(
-    MaterialPass &matpass, Scene *scene, Object *ob, gpu::Batch *geom, ResourceHandle res_handle)
+static inline void volume_call(MaterialPass &matpass,
+                               Scene *scene,
+                               Object *ob,
+                               gpu::Batch *geom,
+                               ResourceHandleRange res_handle)
 {
   if (matpass.sub_pass != nullptr) {
     PassMain::Sub *object_pass = volume_sub_pass(*matpass.sub_pass, scene, ob, matpass.gpumat);
@@ -94,7 +97,7 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
     return;
   }
 
-  ResourceHandle res_handle = inst_.manager->unique_handle(ob_ref);
+  ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
 
   bool has_motion = inst_.velocity.step_object_sync(
       ob_handle.object_key, ob_ref, ob_handle.recalc, res_handle);
@@ -145,7 +148,7 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
     is_alpha_blend = is_alpha_blend || material.is_alpha_blend_transparent;
     has_transparent_shadows = has_transparent_shadows || material.has_transparent_shadows;
 
-    ::Material *mat = GPU_material_get_material(gpu_material);
+    blender::Material *mat = GPU_material_get_material(gpu_material);
     inst_.cryptomatte.sync_material(mat);
 
     if (GPU_material_has_displacement_output(gpu_material)) {
@@ -178,7 +181,7 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
     return false;
   }
 
-  ResourceHandle res_handle = inst_.manager->unique_handle(ob_ref);
+  ResourceHandleRange res_handle = inst_.manager->unique_handle_for_sculpt(ob_ref);
 
   bool has_motion = false;
   MaterialArray &material_array = inst_.materials.material_array_get(ob, has_motion);
@@ -223,7 +226,7 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
     has_transparent_shadows = has_transparent_shadows || material.has_transparent_shadows;
 
     GPUMaterial *gpu_material = material_array.gpu_materials[batch.material_slot];
-    ::Material *mat = GPU_material_get_material(gpu_material);
+    blender::Material *mat = GPU_material_get_material(gpu_material);
     inst_.cryptomatte.sync_material(mat);
 
     if (GPU_material_has_displacement_output(gpu_material)) {
@@ -234,13 +237,6 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
   if (has_volume) {
     inst_.volume.object_sync(ob_handle);
   }
-
-  /* Use a valid bounding box. The pbvh::Tree module already does its own culling, but a valid */
-  /* bounding box is still needed for directional shadow tile-map bounds computation. */
-  const Bounds<float3> bounds = bke::pbvh::bounds_get(*bke::object::pbvh_get(*ob_ref.object));
-  const float3 center = math::midpoint(bounds.min, bounds.max);
-  const float3 half_extent = bounds.max - center + inflate_bounds;
-  inst_.manager->update_handle_bounds(res_handle, center, half_extent);
 
   inst_.manager->extract_object_attributes(res_handle, ob_ref, material_array.gpu_materials);
 
@@ -260,7 +256,7 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
 {
   const int material_slot = POINTCLOUD_MATERIAL_NR;
 
-  ResourceHandle res_handle = inst_.manager->unique_handle(ob_ref);
+  ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
 
   bool has_motion = inst_.velocity.step_object_sync(
       ob_handle.object_key, ob_ref, ob_handle.recalc, res_handle);
@@ -268,18 +264,29 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
   Material &material = inst_.materials.material_get(
       ob, has_motion, material_slot - 1, MAT_GEOM_POINTCLOUD);
 
-  auto drawcall_add = [&](MaterialPass &matpass) {
+  auto drawcall_add = [&](MaterialPass &matpass, bool dual_sided = false) {
     if (matpass.sub_pass == nullptr) {
       return;
     }
     PassMain::Sub &object_pass = matpass.sub_pass->sub("Point Cloud Sub Pass");
     gpu::Batch *geometry = pointcloud_sub_pass_setup(object_pass, ob, matpass.gpumat);
-    object_pass.draw(geometry, res_handle);
+    if (dual_sided) {
+      /* WORKAROUND: Hack to generate backfaces. Should also be baked into the Index Buf too at
+       * some point in the future. */
+      object_pass.push_constant("ptcloud_backface", false);
+      object_pass.draw(geometry, res_handle);
+      object_pass.push_constant("ptcloud_backface", true);
+      object_pass.draw(geometry, res_handle);
+    }
+    else {
+      object_pass.push_constant("ptcloud_backface", false);
+      object_pass.draw(geometry, res_handle);
+    }
   };
 
   if (material.has_volume) {
     /* Only support single volume material for now. */
-    drawcall_add(material.volume_occupancy);
+    drawcall_add(material.volume_occupancy, true);
     drawcall_add(material.volume_material);
     inst_.volume.object_sync(ob_handle);
 
@@ -303,7 +310,7 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
 
   inst_.cryptomatte.sync_object(ob, res_handle);
   GPUMaterial *gpu_material = material.shading.gpumat;
-  ::Material *mat = GPU_material_get_material(gpu_material);
+  blender::Material *mat = GPU_material_get_material(gpu_material);
   inst_.cryptomatte.sync_material(mat);
 
   if (GPU_material_has_displacement_output(gpu_material) && mat->inflate_bounds != 0.0f) {
@@ -331,7 +338,7 @@ void SyncModule::sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRe
     return;
   }
 
-  ResourceHandle res_handle = inst_.manager->unique_handle(ob_ref);
+  ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
 
   const int material_slot = VOLUME_MATERIAL_NR;
 
@@ -347,23 +354,25 @@ void SyncModule::sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRe
 
   /* Do not render the object if there is no attribute used in the volume.
    * This mimic Cycles behavior (see #124061). */
-  ListBase attr_list = GPU_material_attributes(material.volume_material.gpumat);
+  ListBaseT<GPUMaterialAttribute> attr_list = GPU_material_attributes(
+      material.volume_material.gpumat);
   if (BLI_listbase_is_empty(&attr_list)) {
     return;
   }
 
-  auto drawcall_add = [&](MaterialPass &matpass, gpu::Batch *geom, ResourceHandle res_handle) {
-    if (matpass.sub_pass == nullptr) {
-      return false;
-    }
-    PassMain::Sub *object_pass = volume_sub_pass(
-        *matpass.sub_pass, inst_.scene, ob, matpass.gpumat);
-    if (object_pass != nullptr) {
-      object_pass->draw(geom, res_handle);
-      return true;
-    }
-    return false;
-  };
+  auto drawcall_add =
+      [&](MaterialPass &matpass, gpu::Batch *geom, ResourceHandleRange res_handle) {
+        if (matpass.sub_pass == nullptr) {
+          return false;
+        }
+        PassMain::Sub *object_pass = volume_sub_pass(
+            *matpass.sub_pass, inst_.scene, ob, matpass.gpumat);
+        if (object_pass != nullptr) {
+          object_pass->draw(geom, res_handle);
+          return true;
+        }
+        return false;
+      };
 
   /* Use bounding box tag empty spaces. */
   gpu::Batch *geom = inst_.volume.unit_cube_batch_get();
@@ -390,7 +399,7 @@ void SyncModule::sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRe
 void SyncModule::sync_curves(Object *ob,
                              ObjectHandle &ob_handle,
                              const ObjectRef &ob_ref,
-                             ResourceHandle res_handle,
+                             ResourceHandleRange res_handle,
                              ModifierData *modifier_data,
                              ParticleSystem *particle_sys)
 {
@@ -403,7 +412,7 @@ void SyncModule::sync_curves(Object *ob,
     mat_nr = particle_sys->part->omat;
   }
 
-  if (res_handle.raw == 0) {
+  if (!res_handle.is_valid()) {
     /* For curve objects. */
     res_handle = inst_.manager->unique_handle(ob_ref);
   }
@@ -424,7 +433,12 @@ void SyncModule::sync_curves(Object *ob,
     }
     else {
       PassMain::Sub &sub_pass = matpass.sub_pass->sub("Curves SubPass");
-      gpu::Batch *geometry = curves_sub_pass_setup(sub_pass, inst_.scene, ob, matpass.gpumat);
+      const char *error = nullptr;
+      gpu::Batch *geometry = curves_sub_pass_setup(
+          sub_pass, inst_.scene, ob, error, matpass.gpumat);
+      if (error) {
+        inst_.info_append(error);
+      }
       sub_pass.draw(geometry, res_handle);
     }
   };
@@ -454,7 +468,7 @@ void SyncModule::sync_curves(Object *ob,
 
   inst_.cryptomatte.sync_object(ob, res_handle);
   GPUMaterial *gpu_material = material.shading.gpumat;
-  ::Material *mat = GPU_material_get_material(gpu_material);
+  blender::Material *mat = GPU_material_get_material(gpu_material);
   inst_.cryptomatte.sync_material(mat);
 
   if (GPU_material_has_displacement_output(gpu_material) && mat->inflate_bounds != 0.0f) {
@@ -472,27 +486,32 @@ void SyncModule::sync_curves(Object *ob,
 
 /** \} */
 
-void foreach_hair_particle_handle(Object *ob, ObjectHandle ob_handle, HairHandleCallback callback)
+void foreach_hair_particle_handle(Instance &inst,
+                                  ObjectRef &ob_ref,
+                                  ObjectHandle ob_handle,
+                                  HairHandleCallback callback)
 {
   int sub_key = 1;
 
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if (md->type == eModifierType_ParticleSystem) {
-      ParticleSystem *particle_sys = reinterpret_cast<ParticleSystemModifierData *>(md)->psys;
+  for (ModifierData &md : ob_ref.object->modifiers) {
+    if (md.type == eModifierType_ParticleSystem) {
+      ParticleSystem *particle_sys = reinterpret_cast<ParticleSystemModifierData *>(&md)->psys;
       ParticleSettings *part_settings = particle_sys->part;
-      const int draw_as = (part_settings->draw_as == PART_DRAW_REND) ? part_settings->ren_as :
-                                                                       part_settings->draw_as;
+      /* Only use the viewport drawing mode for material preview. */
+      const int draw_as = (part_settings->draw_as == PART_DRAW_REND || !inst.is_viewport()) ?
+                              part_settings->ren_as :
+                              part_settings->draw_as;
       if (draw_as != PART_DRAW_PATH ||
-          !DRW_object_is_visible_psys_in_active_context(ob, particle_sys))
+          !DRW_object_is_visible_psys_in_active_context(ob_ref.object, particle_sys))
       {
         continue;
       }
 
       ObjectHandle particle_sys_handle = ob_handle;
-      particle_sys_handle.object_key = ObjectKey(ob, sub_key++);
+      particle_sys_handle.object_key = ObjectKey(ob_ref, sub_key++);
       particle_sys_handle.recalc = particle_sys->recalc;
 
-      callback(particle_sys_handle, *md, *particle_sys);
+      callback(particle_sys_handle, md, *particle_sys);
     }
   }
 }

@@ -469,6 +469,10 @@ IndexMask curve_to_point_selection(OffsetIndices<int> points_by_curve,
                                    const IndexMask &curve_selection,
                                    IndexMaskMemory &memory);
 
+IndexMask curve_type_point_selection(const bke::CurvesGeometry &curves,
+                                     CurveType curve_type,
+                                     IndexMaskMemory &memory);
+
 void fill_points(OffsetIndices<int> points_by_curve,
                  const IndexMask &curve_selection,
                  GPointer value,
@@ -520,7 +524,7 @@ using UnselectedCallback = FunctionRef<void(IndexRange curves, IndexRange unsele
  * \param selected_fn: callback function called for each curve with at least one point selected.
  */
 void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
-                                             const OffsetIndices<int> points_by_curve,
+                                             OffsetIndices<int> points_by_curve,
                                              SelectedCallback selected_fn);
 
 /**
@@ -533,7 +537,7 @@ void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
  * \param unselected_fn: callback function called for groups of curves with no selected points.
  */
 void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
-                                             const OffsetIndices<int> points_by_curve,
+                                             OffsetIndices<int> points_by_curve,
                                              SelectedCallback selected_fn,
                                              UnselectedCallback unselected_fn);
 
@@ -574,7 +578,7 @@ void gather_custom_knots(const bke::CurvesGeometry &src,
 
 /**
  * Overwrites `NURBS_KNOT_MODE_CUSTOM` to given ones for regular and cyclic curves.
- * The purpose is to to update knot modes for curves when knot copying or calculation is not
+ * The purpose is to update knot modes for curves when knot copying or calculation is not
  * possible or too complex. Curve operators not supporting NURBS custom knots should call this
  * function with `IndexMask` `CurvesGeometry.curves_range()`, if resulting curves are created by
  * copying all attributes. This way `NURBS_KNOT_MODE_CUSTOM` values might be copied though custom

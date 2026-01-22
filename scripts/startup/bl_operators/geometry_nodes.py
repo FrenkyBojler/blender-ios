@@ -39,10 +39,15 @@ def geometry_node_group_empty_modifier_new(name):
 
 
 def geometry_node_group_empty_tool_new(context):
+    import re
+
     group = geometry_node_group_empty_new(data_("Tool"))
     # Node tools have fake users by default, otherwise Blender will delete them since they have no users.
     group.use_fake_user = True
     group.is_tool = True
+
+    # Operator identifier names only support lowercase ASCII characters or numbers.
+    group.node_tool_idname = "geometry." + re.sub('[^0-9a-z]+', '_', group.name.strip().lower())
 
     ob = context.object
     ob_type = ob.type if ob else 'MESH'
@@ -84,7 +89,7 @@ def get_context_modifier(context):
     if modifier is ...:
         ob = context.object
         if ob is None:
-            return False
+            return None
         modifier = ob.modifiers.active
     if modifier is None or modifier.type != 'NODES':
         return None
@@ -92,7 +97,10 @@ def get_context_modifier(context):
 
 
 def edit_geometry_nodes_modifier_poll(context):
-    return get_context_modifier(context) is not None
+    modifier = get_context_modifier(context)
+    if modifier is None:
+        return False
+    return modifier.id_data.is_editable
 
 
 def socket_idname_to_attribute_type(idname):
@@ -353,11 +361,11 @@ class NewGeometryNodeGroupTool(Operator):
     @classmethod
     def poll(cls, context):
         space = context.space_data
-        return space and space.type == 'NODE_EDITOR' and space.geometry_nodes_type == 'TOOL'
+        return space and space.type == 'NODE_EDITOR' and space.node_tree_sub_type == 'TOOL'
 
     def execute(self, context):
         group = geometry_node_group_empty_tool_new(context)
-        context.space_data.geometry_nodes_tool_tree = group
+        context.space_data.selected_node_group = group
         return {'FINISHED'}
 
 

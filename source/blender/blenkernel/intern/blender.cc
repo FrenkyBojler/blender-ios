@@ -20,6 +20,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf.hh"
@@ -49,6 +50,10 @@
 #include "BLF_api.hh"
 
 #include "SEQ_utils.hh"
+
+#include "CLG_log.h"
+
+namespace blender {
 
 Global G;
 UserDef U;
@@ -81,10 +86,10 @@ void BKE_blender_free()
   BKE_callback_global_finalize();
 
   IMB_moviecache_destruct();
-  blender::seq::fontmap_clear();
+  seq::fontmap_clear();
   MOV_exit();
 
-  blender::bke::node_system_exit();
+  bke::node_system_exit();
 }
 
 /** \} */
@@ -124,20 +129,20 @@ static void blender_version_init()
 
   const char *version_suffix = BKE_blender_version_is_lts() ? " LTS" : "";
 
-  SNPRINTF(blender_version_string,
-           "%d.%01d.%d%s%s",
-           BLENDER_VERSION / 100,
-           BLENDER_VERSION % 100,
-           BLENDER_VERSION_PATCH,
-           version_suffix,
-           version_cycle);
+  SNPRINTF_UTF8(blender_version_string,
+                "%d.%01d.%d%s%s",
+                BLENDER_VERSION / 100,
+                BLENDER_VERSION % 100,
+                BLENDER_VERSION_PATCH,
+                version_suffix,
+                version_cycle);
 
-  SNPRINTF(blender_version_string_compact,
-           "%d.%01d.%d%s",
-           BLENDER_VERSION / 100,
-           BLENDER_VERSION % 100,
-           BLENDER_VERSION_PATCH,
-           version_cycle_compact);
+  SNPRINTF_UTF8(blender_version_string_compact,
+                "%d.%01d.%d%s",
+                BLENDER_VERSION / 100,
+                BLENDER_VERSION % 100,
+                BLENDER_VERSION_PATCH,
+                version_cycle_compact);
 }
 
 const char *BKE_blender_version_string()
@@ -158,15 +163,15 @@ void BKE_blender_version_blendfile_string_from_values(char *str_buff,
   const short file_version_major = file_version / 100;
   const short file_version_minor = file_version % 100;
   if (file_subversion >= 0) {
-    BLI_snprintf(str_buff,
-                 str_buff_maxncpy,
-                 "%d.%d (sub %d)",
-                 file_version_major,
-                 file_version_minor,
-                 file_subversion);
+    BLI_snprintf_utf8(str_buff,
+                      str_buff_maxncpy,
+                      "%d.%d (sub %d)",
+                      file_version_major,
+                      file_version_minor,
+                      file_subversion);
   }
   else {
-    BLI_snprintf(str_buff, str_buff_maxncpy, "%d.%d", file_version_major, file_version_minor);
+    BLI_snprintf_utf8(str_buff, str_buff_maxncpy, "%d.%d", file_version_major, file_version_minor);
   }
 }
 
@@ -206,7 +211,7 @@ void BKE_blender_globals_init()
   G.f &= ~G_FLAG_SCRIPT_AUTOEXEC;
 #endif
 
-  G.log.level = 1;
+  G.log.level = CLG_LEVEL_WARN;
 
   G.profile_gpu = false;
 }
@@ -273,7 +278,7 @@ static void keymap_item_free(wmKeyMapItem *kmi)
 
 void BKE_blender_userdef_data_swap(UserDef *userdef_a, UserDef *userdef_b)
 {
-  blender::dna::shallow_swap(*userdef_a, *userdef_b);
+  dna::shallow_swap(*userdef_a, *userdef_b);
 }
 
 void BKE_blender_userdef_data_set(UserDef *userdef)
@@ -294,19 +299,19 @@ static void userdef_free_keymaps(UserDef *userdef)
        km = km_next)
   {
     km_next = km->next;
-    LISTBASE_FOREACH (wmKeyMapDiffItem *, kmdi, &km->diff_items) {
-      if (kmdi->add_item) {
-        keymap_item_free(kmdi->add_item);
-        MEM_freeN(kmdi->add_item);
+    for (wmKeyMapDiffItem &kmdi : km->diff_items) {
+      if (kmdi.add_item) {
+        keymap_item_free(kmdi.add_item);
+        MEM_freeN(kmdi.add_item);
       }
-      if (kmdi->remove_item) {
-        keymap_item_free(kmdi->remove_item);
-        MEM_freeN(kmdi->remove_item);
+      if (kmdi.remove_item) {
+        keymap_item_free(kmdi.remove_item);
+        MEM_freeN(kmdi.remove_item);
       }
     }
 
-    LISTBASE_FOREACH (wmKeyMapItem *, kmi, &km->items) {
-      keymap_item_free(kmi);
+    for (wmKeyMapItem &kmi : km->items) {
+      keymap_item_free(&kmi);
     }
 
     BLI_freelistN(&km->diff_items);
@@ -366,8 +371,8 @@ void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
   userdef_free_addons(userdef);
 
   if (clear_fonts) {
-    LISTBASE_FOREACH (uiFont *, font, &userdef->uifonts) {
-      BLF_unload_id(font->blf_id);
+    for (uiFont &font : userdef->uifonts) {
+      BLF_unload_id(font.blf_id);
     }
     BLF_default_set(-1);
   }
@@ -376,16 +381,15 @@ void BKE_blender_userdef_data_free(UserDef *userdef, bool clear_fonts)
   BLI_freelistN(&userdef->script_directories);
   BLI_freelistN(&userdef->asset_libraries);
 
-  LISTBASE_FOREACH_MUTABLE (bUserExtensionRepo *, repo_ref, &userdef->extension_repos) {
-    MEM_SAFE_FREE(repo_ref->access_token);
-    MEM_freeN(repo_ref);
+  for (bUserExtensionRepo &repo_ref : userdef->extension_repos.items_mutable()) {
+    MEM_SAFE_FREE(repo_ref.access_token);
+    MEM_freeN(&repo_ref);
   }
   BLI_listbase_clear(&userdef->extension_repos);
 
-  LISTBASE_FOREACH_MUTABLE (bUserAssetShelfSettings *, settings, &userdef->asset_shelves_settings)
-  {
-    BKE_asset_catalog_path_list_free(settings->enabled_catalog_paths);
-    MEM_freeN(settings);
+  for (bUserAssetShelfSettings &settings : userdef->asset_shelves_settings.items_mutable()) {
+    BKE_asset_catalog_path_list_free(settings.enabled_catalog_paths);
+    MEM_freeN(&settings);
   }
   BLI_listbase_clear(&userdef->asset_shelves_settings);
 
@@ -524,3 +528,5 @@ void BKE_blender_atexit()
 }
 
 /** \} */
+
+}  // namespace blender

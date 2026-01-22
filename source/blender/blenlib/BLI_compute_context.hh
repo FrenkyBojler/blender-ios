@@ -72,7 +72,6 @@ struct ComputeContextHash {
 
   friend std::ostream &operator<<(std::ostream &stream, const ComputeContextHash &hash);
 
- private:
   /**
    * Compute a context hash by packing all the arguments into a contiguous buffer and hashing
    * that.
@@ -152,7 +151,7 @@ template<typename... Args>
 inline ComputeContextHash ComputeContextHash::from_shallow_bytes(Args &&...args)
 {
   /* Copy all values into a contiguous buffer. Intentionally don't use std::tuple to avoid any
-   * potential padding.  */
+   * potential padding. */
   constexpr int64_t size_sum = (sizeof(args) + ...);
   char buffer[size_sum];
   int64_t offset = 0;

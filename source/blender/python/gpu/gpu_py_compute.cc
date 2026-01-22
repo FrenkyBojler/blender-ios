@@ -15,11 +15,13 @@
 #include "GPU_compute.hh"
 #include "GPU_state.hh"
 
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "gpu_py.hh"
 #include "gpu_py_compute.hh" /* own include */
 #include "gpu_py_shader.hh"
+
+namespace blender {
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -35,9 +37,7 @@ PyDoc_STRVAR(
     "   :arg groups_y_len: Int for group y length:\n"
     "   :type groups_y_len: int\n"
     "   :arg groups_z_len: Int for group z length:\n"
-    "   :type groups_z_len: int\n"
-    "   :return: Shader object.\n"
-    "   :rtype: :class:`gpu.types.GPUShader`\n");
+    "   :type groups_z_len: int\n");
 static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
@@ -95,7 +95,7 @@ static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyO
       return nullptr;
     }
 
-    GPUShader *shader = py_shader->shader;
+    gpu::Shader *shader = py_shader->shader;
     GPU_compute_dispatch(shader, groups_x_len, groups_y_len, groups_z_len);
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS);
   }
@@ -118,7 +118,7 @@ static PyObject *pygpu_compute_dispatch(PyObject * /*self*/, PyObject *args, PyO
 
 static PyMethodDef pygpu_compute__tp_methods[] = {
     {"dispatch",
-     (PyCFunction)pygpu_compute_dispatch,
+     reinterpret_cast<PyCFunction>(pygpu_compute_dispatch),
      METH_VARARGS | METH_KEYWORDS,
      pygpu_compute_dispatch_doc},
     {nullptr, nullptr, 0, nullptr},
@@ -135,7 +135,7 @@ static PyMethodDef pygpu_compute__tp_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_compute__tp_doc,
-    "This module provides access to the global GPU compute functions");
+    "This module provides access to the global GPU compute functions.");
 static PyModuleDef pygpu_compute_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "gpu.compute",
@@ -158,3 +158,5 @@ PyObject *bpygpu_compute_init()
 }
 
 /** \} */
+
+}  // namespace blender

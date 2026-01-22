@@ -32,26 +32,20 @@ set(OPENCOLORIO_EXTRA_ARGS
 )
 
 if(APPLE)
-  # Work around issue where minizip-ng_LIBRARY assumes -ng in file name.
   set(OPENCOLORIO_EXTRA_ARGS
     ${OPENCOLORIO_EXTRA_ARGS}
+    # Work around issue where minizip-ng_LIBRARY assumes -ng in file name.
     -Dminizip_LIBRARY=${LIBDIR}/minizipng/lib/libminizip${LIBEXT}
+    # Work around issue where homebrew Imath's can be prioritized over our own dependency during linking if installed.
+    -DImath_LIBRARY=${LIBDIR}/imath/lib/libImath${SHAREDLIBEXT}
   )
 endif()
 
-if(BLENDER_PLATFORM_ARM)
-  if(WIN32)
-    set(OCIO_PATCH
-      ${PATCH_CMD} -p 1 -d
-        ${BUILD_DIR}/opencolorio/src/external_opencolorio <
-        ${PATCH_DIR}/ocio_2089.diff
-    )
-  else()
-    set(OPENCOLORIO_EXTRA_ARGS
-      ${OPENCOLORIO_EXTRA_ARGS}
-      -DOCIO_USE_SSE=OFF
-    )
-  endif()
+if(BLENDER_PLATFORM_ARM AND NOT WIN32)
+  set(OPENCOLORIO_EXTRA_ARGS
+    ${OPENCOLORIO_EXTRA_ARGS}
+    -DOCIO_USE_SSE=OFF
+  )
 endif()
 
 if(WIN32)

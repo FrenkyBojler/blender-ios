@@ -133,7 +133,7 @@ static GreasePencil *curve_instances_to_grease_pencil_layers(
     if (iter.is_builtin && !grease_pencil_attributes.is_builtin(iter.name)) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     if (ELEM(iter.name, "opacity")) {
@@ -214,6 +214,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   GeometrySet grease_pencil_geometry = GeometrySet::from_grease_pencil(grease_pencil);
   grease_pencil_geometry.name = std::move(curves_geometry.name);
+  grease_pencil_geometry.copy_bundle_from(curves_geometry);
   params.set_output("Grease Pencil", std::move(grease_pencil_geometry));
 }
 

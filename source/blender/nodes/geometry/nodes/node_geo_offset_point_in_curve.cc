@@ -12,7 +12,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Point Index")
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
-      .description("The index of the control point to evaluate. Defaults to the current index");
+      .description("The index of the control point to evaluate. Defaults to the current index")
+      .structure_type(StructureType::Field);
   b.add_input<decl::Int>("Offset").supports_field().description(
       "The number of control points along the curve to traverse");
   b.add_output<decl::Bool>("Is Valid Offset")
@@ -62,7 +63,7 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
     const VArray<int> offsets = evaluator.get_evaluated<int>(1);
 
     Array<int> output(mask.min_array_size());
-    mask.foreach_index([&](const int i_selection) {
+    mask.foreach_index(GrainSize(512), [&](const int i_selection) {
       const int point = std::clamp(indices[i_selection], 0, curves.points_num() - 1);
       const int curve = parent_curves[point];
       const IndexRange curve_points = points_by_curve[curve];
@@ -77,7 +78,7 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
       output[i_selection] = std::clamp(shifted_point, 0, curves.points_num() - 1);
     });
 
-    return VArray<int>::ForContainer(std::move(output));
+    return VArray<int>::from_container(std::move(output));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -122,7 +123,7 @@ class OffsetValidFieldInput final : public bke::GeometryFieldInput {
     const VArray<int> offsets = evaluator.get_evaluated<int>(1);
 
     Array<bool> output(mask.min_array_size());
-    mask.foreach_index([&](const int i_selection) {
+    mask.foreach_index(GrainSize(512), [&](const int i_selection) {
       const int i_point = indices[i_selection];
       if (!curves.points_range().contains(i_point)) {
         output[i_selection] = false;
@@ -137,7 +138,7 @@ class OffsetValidFieldInput final : public bke::GeometryFieldInput {
       }
       output[i_selection] = curve_points.contains(i_point + offsets[i_selection]);
     });
-    return VArray<bool>::ForContainer(std::move(output));
+    return VArray<bool>::from_container(std::move(output));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -164,7 +165,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeOffsetPointInCurve", GEO_NODE_OFFSET_POINT_IN_CURVE);
   ntype.ui_name = "Offset Point in Curve";
   ntype.ui_description = "Offset a control point index within its curve";
@@ -172,7 +173,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

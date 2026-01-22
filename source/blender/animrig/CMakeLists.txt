@@ -8,7 +8,6 @@ set(INC
 
   ../editors/include
   ../makesrna
-  ../../../extern/fmtlib/include
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -24,6 +23,7 @@ set(SRC
   intern/action_selection.cc
   intern/anim_rna.cc
   intern/animdata.cc
+  intern/armature.cc
   intern/bone_collections.cc
   intern/bonecolor.cc
   intern/driver.cc
@@ -71,6 +71,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::windowmanager
+  PRIVATE bf::extern::fmtlib
 )
 
 blender_add_lib(bf_animrig "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

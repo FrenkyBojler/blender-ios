@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-This file does not run anything, it's methods are accessed for tests by: ``run.py``.
+This file does not run anything, its methods are accessed for tests by ``run_blender_setup.py``.
 """
 import datetime
 
@@ -15,6 +15,7 @@ _MENU_CONFIRM_HACK = True
 
 # -----------------------------------------------------------------------------
 # Utilities
+
 
 def _keep_open():
     """
@@ -287,6 +288,39 @@ def text_editor_edit_mode_mix():
     yield e.ctrl.shift.z(4 * 3)
     t.assertEqual(len(_bmesh_from_object(window.view_layer.objects.active).verts), 8 * 4)
     t.assertEqual(text.as_string(), "AABBCC")
+
+# -----------------------------------------------------------------------------
+# Node Editor
+
+
+def _compositor_startup_area(e):
+    """
+    Set up the compositor node editor
+    """
+    yield e.shift.f3(2)                # Compositor
+#    yield e.ctrl.alt.space()           # Full-screen.
+
+
+def compositor_make_group():
+    import bpy
+    e, t = _test_vars(window := _test_window())
+    yield from _compositor_startup_area(e)
+
+    # Create a node tree with multiple nodes and select all nodes.
+    # TODO: Node tree should be created through the UI
+    node_group = bpy.data.node_groups.new(name="comp ntree", type="CompositorNodeTree")
+    window.scene.compositing_node_group = node_group
+    yield from _call_menu(e, "Add -> Color -> Alpha Convert")
+    yield e.ret()  # Confirm adding node.
+    yield from _call_menu(e, "Add -> Filter -> Filter")
+    yield e.ret()
+    yield e.a()  # Select all.
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
+    yield e.ctrl.g()  # Make group.
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 1)
+    yield e.ctrl.z()
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
+    yield e.ctrl.z(5)  # Revert to original state
 
 
 # -----------------------------------------------------------------------------
@@ -581,6 +615,7 @@ def view3d_texture_paint_simple():
 
 
 def view3d_texture_paint_complex():
+    import bpy
     # More complex test than `view3d_texture_paint_simple`,
     # including interleaved memfile steps,
     # and a call to history to undo several steps at once.
@@ -594,16 +629,33 @@ def view3d_texture_paint_complex():
     yield from _call_by_name(e, "Add Texture Paint Slot")
     yield e.ret()                       # Accept popup.
 
+    initial_data = tuple(bpy.data.images['Suzanne Base Color'].pixels)
+
     yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window))
     yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window))
+
+    after_strokes = tuple(bpy.data.images['Suzanne Base Color'].pixels)
+    t.assertTrue(any([orig != new for (orig, new) in zip(initial_data, after_strokes)]),
+                 "At least one pixel should differ in color component")
 
     yield from _call_by_name(e, "Add Texture Paint Slot")
     yield e.ret()                       # Accept popup.
 
+    yield from _call_by_name(e, "Add Modifier")
+    yield e.a()                         # Array modifier
+    t.assertEqual(len(bpy.context.active_object.modifiers), 1, "One modifier should exist")
+
     yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window))
     yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window))
 
-    yield e.ctrl.z(6)                   # Undo: initial texture paint.
+    yield e.ctrl.z(6)                   # Undo: second slot added.
+    t.assertEqual(len(bpy.context.active_object.modifiers), 0, "No modifiers should exist")
+
+    after_undo = tuple(bpy.data.images['Suzanne Base Color'].pixels)
+    t.assertTrue(all([orig == new for (orig, new) in zip(initial_data, after_undo)]),
+                 "All pixels should be the same as their original state")
+
+    yield e.ctrl.z(1)                   # Undo: initial texture paint.
     t.assertEqual(window.view_layer.objects.active.mode, 'TEXTURE_PAINT')
     yield e.ctrl.z()                    # Undo: object mode.
     t.assertEqual(window.view_layer.objects.active.mode, 'OBJECT')
@@ -743,6 +795,30 @@ def view3d_multi_mode_select():
         yield e.ctrl.z()
 
 
+def _ui_hack_idle_until(until, idle=1 / 60, timeout=1.0):
+    """
+    Idle while the internal event loop runs until a specified condition is true.
+
+    This should be used sparingly as it likely represents some other failure condition inside Blender. Currently, the
+    only known needed usecase is for multi window undo tests which need separate view layers. See #148903 for further
+    information on this issue.
+
+    Note: In practice, the timeout value of 1.0 seconds should be more than enough for all cases. In testing with a
+    fixed, constant delay, the tests succeeded with a timeout of 1/6th of a second.
+    :param until: lambda to check the condition of after each sleep
+    :param idle: how long to idle between checks of the `until` lambda.
+        Defaults to 60Hz due to common refresh rates.
+    :param timeout: the max time in seconds that this busy wait will execute.
+    :return:
+    """
+    import time
+    start_time = time.time()
+    current_time = time.time()
+    while current_time - start_time < timeout or not until():
+        yield datetime.timedelta(seconds=idle)
+        current_time = time.time()
+
+
 def view3d_multi_mode_multi_window():
     e_a, t = _test_vars(window_a := _test_window())
     yield from _call_menu(e_a, "Window -> New Main Window")
@@ -752,8 +828,7 @@ def view3d_multi_mode_multi_window():
     yield from _call_menu(e_b, "New Scene")
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
-        # We wait for a brief period of time after confirming to ensure that each main window has a different view layer
-        yield datetime.timedelta(seconds=1 / 60)
+        yield from _ui_hack_idle_until(lambda: window_a.view_layer != window_b.view_layer)
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 
@@ -911,8 +986,7 @@ def view3d_edit_mode_multi_window():
     yield from _call_menu(e_b, "New Scene")
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
-        # We wait for a brief period of time after confirming to ensure that each main window has a different view layer
-        yield datetime.timedelta(seconds=1 / 60)
+        yield from _ui_hack_idle_until(lambda: window_a.view_layer != window_b.view_layer)
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 

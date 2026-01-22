@@ -19,7 +19,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry").description("Points to modify the positions of");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
@@ -70,12 +70,12 @@ static void set_curves_position(bke::CurvesGeometry &curves,
   fields.append(position_field);
 
   if (attributes.contains("handle_right") && attributes.contains("handle_left")) {
-    fn::Field<float3> delta(fn::FieldOperation::Create(
-        get_sub_fn(), {position_field, bke::AttributeFieldInput::Create<float3>("position")}));
+    fn::Field<float3> delta(fn::FieldOperation::from(
+        get_sub_fn(), {position_field, bke::AttributeFieldInput::from<float3>("position")}));
     for (const StringRef name : {"handle_left", "handle_right"}) {
       attribute_names.append(name);
-      fields.append(Field<float3>(fn::FieldOperation::Create(
-          get_add_fn(), {bke::AttributeFieldInput::Create<float3>(name), delta})));
+      fields.append(Field<float3>(fn::FieldOperation::from(
+          get_add_fn(), {bke::AttributeFieldInput::from<float3>(name), delta})));
     }
   }
 
@@ -121,8 +121,8 @@ static void set_instances_position(bke::Instances &instances,
   const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
 
   MutableSpan<float4x4> transforms = instances.transforms_for_write();
-  selection.foreach_index(GrainSize(2048),
-                          [&](const int i) { transforms[i].location() = result[i]; });
+  selection.foreach_index_optimized<int>(
+      GrainSize(2048), [&](const int i) { transforms[i].location() = result[i]; });
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -130,9 +130,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry = params.extract_input<GeometrySet>("Geometry");
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const fn::Field<float3> position_field(
-      fn::FieldOperation::Create(get_add_fn(),
-                                 {params.extract_input<Field<float3>>("Position"),
-                                  params.extract_input<Field<float3>>("Offset")}));
+      fn::FieldOperation::from(get_add_fn(),
+                               {params.extract_input<Field<float3>>("Position"),
+                                params.extract_input<Field<float3>>("Offset")}));
 
   if (Mesh *mesh = geometry.get_mesh_for_write()) {
     set_points_position(mesh->attributes_for_write(),
@@ -165,7 +165,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSetPosition", GEO_NODE_SET_POSITION);
   ntype.ui_name = "Set Position";
@@ -174,7 +174,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
