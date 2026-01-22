@@ -28,6 +28,8 @@
 #  include "WM_api.hh"
 #  include "WM_types.hh"
 
+#  include "ED_pointcloud.hh"
+
 namespace blender {
 
 static PointCloud *rna_pointcloud(const PointerRNA *ptr)
@@ -161,6 +163,8 @@ static void rna_def_pointcloud(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
+  FunctionRNA *func;
+  PropertyRNA *parm;
 
   srna = RNA_def_struct(brna, "PointCloud", "ID");
   RNA_def_struct_ui_text(srna, "Point Cloud", "Point cloud data-block");
@@ -180,6 +184,9 @@ static void rna_def_pointcloud(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   RNA_def_property_ui_text(prop, "Points", "");
+  func = RNA_def_function(srna, "add", "blender::ed::pointcloud::ED_pointcloud_points_add");
+  parm = RNA_def_int(func, "count", 0, 0, INT_MAX, "Count", "Number of points to add", 0, INT_MAX);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* materials */
   prop = RNA_def_property(srna, "materials", PROP_COLLECTION, PROP_NONE);
