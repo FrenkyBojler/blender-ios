@@ -19,9 +19,6 @@
 
 #include "node_util.hh"  // IWYU pragma: export
 
-#include "BKE_attribute.hh"
-#include "BLI_task.hh"
-
 namespace blender {
 
 namespace bke {
@@ -87,31 +84,6 @@ const EnumPropertyItem *grid_socket_type_items_filter_fn(bContext *C,
 void node_geo_exec_with_missing_openvdb(GeoNodeExecParams &params);
 
 void node_geo_exec_with_too_old_openvdb(GeoNodeExecParams &params);
-
-class Grid3DFieldContext : public FieldContext {
- private:
-  int3 resolution_;
-  float3 bounds_min_;
-  float3 bounds_max_;
-
-  static float grid_map_coordinate(const float x,
-                                   const float in_min,
-                                   const float in_max,
-                                   const float out_min,
-                                   const float out_max)
-  {
-    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-  }
-
- public:
-  Grid3DFieldContext(const int3 resolution, const float3 bounds_min, const float3 bounds_max);
-
-  int64_t voxel_num() const;
-
-  GVArray get_varray_for_input(const FieldInput &field_input,
-                               const IndexMask &mask,
-                               ResourceScope &scope) const override;
-};
 
 void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rna);
 

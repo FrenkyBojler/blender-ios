@@ -40,11 +40,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Boolean grid defining the topology/active regions");
 }
 
-
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
   const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
-  
+
   if (params.in_out() == SOCK_OUT) {
     if (params.node_tree().typeinfo->validate_link(SOCK_BOOLEAN, other_type)) {
       params.add_item(IFACE_("Topology"), [](LinkSearchOpParams &params) {
@@ -80,7 +79,6 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     }
   }
 }
-
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
@@ -126,8 +124,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   openvdb_grid->tree().denseFill(bbox, true, /*active=*/true);
 
   /* Set transform from grid index space to world space. */
-  openvdb_grid->transform().postScale(
-      openvdb::math::Vec3d(scale_fac.x, scale_fac.y, scale_fac.z));
+  openvdb_grid->transform().postScale(openvdb::math::Vec3d(scale_fac.x, scale_fac.y, scale_fac.z));
   openvdb_grid->transform().postTranslate(
       openvdb::math::Vec3d(bounds_min.x, bounds_min.y, bounds_min.z));
 
@@ -137,7 +134,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   node_geo_exec_with_missing_openvdb(params);
 #endif
 }
-
 
 static void node_register()
 {
