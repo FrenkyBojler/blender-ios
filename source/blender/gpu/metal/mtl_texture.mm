@@ -672,7 +672,7 @@ void gpu::MTLTexture::update_sub(int mip,
       MTL_LOG_WARNING(
           "SRGB data upload does not work correctly using compute upload. "
           "texname '%s'",
-          name_);
+          name_.c_str());
     }
 
     /* Safety Checks. */

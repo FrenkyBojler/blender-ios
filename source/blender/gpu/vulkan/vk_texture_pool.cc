@@ -197,7 +197,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
   debug::object_label(texture_handle.texture->vk_image_, texture_handle.texture->name_);
   device.resources.add_image(
-      texture_handle.texture->vk_image_, false, texture_handle.texture->name_);
+      texture_handle.texture->vk_image_, false, texture_handle.texture->name_.c_str());
 
   acquired_.add(texture_handle);
   return wrap(texture_handle.texture);
