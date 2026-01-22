@@ -87,9 +87,9 @@ struct FCurve_KeyCache {
 static void action_flip_pchan_cache_fcurve_assign_value(FCurve_KeyCache *fkc,
                                                         int index,
                                                         const char *path,
-                                                        FCurvePathCache *fcache)
+                                                        Map<RNAPath, FCurve *> &fcache)
 {
-  FCurve *fcu = BKE_fcurve_pathcache_find(fcache, path, index);
+  FCurve *fcu = fcache.lookup_default({path, std::nullopt, index}, nullptr);
   if (fcu && fcu->bezt) {
     fkc->fcurve = fcu;
   }
@@ -101,14 +101,15 @@ static void action_flip_pchan_cache_fcurve_assign_value(FCurve_KeyCache *fkc,
 static void action_flip_pchan_cache_fcurve_assign_array(FCurve_KeyCache *fkc,
                                                         int fkc_len,
                                                         const char *path,
-                                                        FCurvePathCache *fcache)
+                                                        Map<RNAPath, FCurve *> &fcache)
 {
-  FCurve **fcurves = static_cast<FCurve **>(alloca(sizeof(*fcurves) * fkc_len));
-  if (BKE_fcurve_pathcache_find_array(fcache, path, fcurves, fkc_len)) {
-    for (int i = 0; i < fkc_len; i++) {
-      if (fcurves[i] && fcurves[i]->bezt) {
-        fkc[i].fcurve = fcurves[i];
-      }
+  for (int i = 0; i < fkc_len; i++) {
+    FCurve *fcu = fcache.lookup_default({path, std::nullopt, i}, nullptr);
+    if (!fcu) {
+      continue;
+    }
+    if (fcu && fcu->bezt) {
+      fkc[i].fcurve = fcu;
     }
   }
 }
@@ -166,7 +167,9 @@ static void action_flip_pchan_cache_init(FCurve_KeyCache *fkc,
 
 /**
  */
-static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurvePathCache *fcache)
+static void action_flip_pchan(Object *ob_arm,
+                              const bPoseChannel *pchan,
+                              Map<RNAPath, FCurve *> &fcache)
 {
   /* Begin F-Curve pose channel value extraction. */
   /* Use a fixed buffer size as it's known this can only be at most:
@@ -470,11 +473,10 @@ void BKE_action_flip_with_pose(bAction *act, Span<Object *> objects)
       continue;
     }
     Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, slot->handle);
-    FCurvePathCache *fcache = BKE_fcurve_pathcache_create(fcurves);
+    Map<RNAPath, FCurve *> fcu_cache;
     for (bPoseChannel &pchan : object->pose->chanbase) {
-      action_flip_pchan(object, &pchan, fcache);
+      action_flip_pchan(object, &pchan, fcu_cache);
     }
-    BKE_fcurve_pathcache_destroy(fcache);
   }
 
   action_flip_pchan_rna_paths(act);
