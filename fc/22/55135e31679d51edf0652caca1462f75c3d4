@@ -1,1 +1,2 @@
 Referenced by issue #91625, Paint: Using a RenderResult as a clone image crashes
+Referenced by pull request #153178, UI: Do not allow "Render Result" or "Viewer Node" images in most cases
