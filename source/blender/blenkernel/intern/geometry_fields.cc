@@ -474,6 +474,9 @@ bool AttributeFieldInput::is_equal_to(const fn::FieldNode &other) const
 std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
     const GeometryComponent &component) const
 {
+  if (component.type() == GeometryComponent::Type::Instance && name_ == "position") {
+    return AttrDomain::Instance;
+  }
   const std::optional<AttributeAccessor> attributes = component.attributes();
   if (!attributes.has_value()) {
     return std::nullopt;
@@ -1015,9 +1018,6 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
   if (component_type == GeometryComponent::Type::GreasePencil) {
     return AttrDomain::Layer;
   }
-  if (component_type == GeometryComponent::Type::Instance) {
-    return AttrDomain::Instance;
-  }
   const std::shared_ptr<const fn::FieldInputs> &field_inputs = field.node().field_inputs();
   if (!field_inputs) {
     return std::nullopt;
@@ -1036,6 +1036,33 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
     output_domain = domain;
     return true;
   };
+  if (component_type == GeometryComponent::Type::Instance) {
+    const InstancesComponent &instances_component = static_cast<const InstancesComponent &>(
+        component);
+    const Instances *instances = instances_component.get();
+    if (instances == nullptr) {
+      return std::nullopt;
+    }
+    for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
+      if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
+              &field_input))
+      {
+        if (!handle_domain(geometry_field_input->preferred_domain(component))) {
+          return std::nullopt;
+        }
+      }
+      else if (dynamic_cast<const InstancesFieldInput *>(&field_input) ||
+               dynamic_cast<const fn::IndexFieldInput *>(&field_input))
+      {
+        if (!handle_domain(AttrDomain::Instance)) {
+          return std::nullopt;
+        }
+      }
+      else {
+        return std::nullopt;
+      }
+    }
+  }
   if (component_type == GeometryComponent::Type::Mesh) {
     const MeshComponent &mesh_component = static_cast<const MeshComponent &>(component);
     const Mesh *mesh = mesh_component.get();

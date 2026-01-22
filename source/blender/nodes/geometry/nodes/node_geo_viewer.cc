@@ -346,7 +346,23 @@ static void log_viewer_attribute(const bNode &node, geo_eval_log::ViewerNodeLog 
       }
     }
     else {
-      geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
+      bool instance_captured = false;
+      if (domain_or_auto == AttrDomain::Auto && geometry.has_instances()) {
+        bke::GeometryComponent &component =
+            geometry.get_component_for_write<bke::InstancesComponent>();
+        if (const std::optional<AttrDomain> domain = bke::try_detect_field_domain(component,
+                                                                                  field))
+        {
+          if (*domain == AttrDomain::Instance) {
+            if (bke::try_capture_field_on_geometry(
+                    component, viewer_attribute_name, AttrDomain::Instance, field))
+            {
+              instance_captured = true;
+            }
+          }
+        }
+      }
+      auto capture_on_components = [&](GeometrySet &geometry) {
         for (const bke::GeometryComponent::Type type :
              {bke::GeometryComponent::Type::Mesh,
               bke::GeometryComponent::Type::PointCloud,
@@ -370,7 +386,13 @@ static void log_viewer_attribute(const bNode &node, geo_eval_log::ViewerNodeLog 
           }
           bke::try_capture_field_on_geometry(component, viewer_attribute_name, used_domain, field);
         }
-      });
+      };
+      if (instance_captured) {
+        capture_on_components(geometry);
+      }
+      else {
+        geometry::foreach_real_geometry(geometry, capture_on_components);
+      }
     }
     /* Avoid overriding the viewer attribute with other fields.*/
     last_geometry_identifier.reset();

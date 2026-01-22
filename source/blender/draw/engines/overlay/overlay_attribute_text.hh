@@ -68,8 +68,6 @@ class AttributeTexts : Overlay {
       if (instances->attributes().contains(".viewer")) {
         add_instance_attributes_to_text_cache(
             dt, instances->attributes(), object_to_world, ob_ref.preview_instance_index());
-
-        return;
       }
     }
 
