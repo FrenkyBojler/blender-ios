@@ -252,7 +252,7 @@ void BKE_view_layer_free_ex(ViewLayer *view_layer, const bool do_id_user)
   view_layer->active_aov = nullptr;
   BLI_freelistN(&view_layer->lightgroups);
   view_layer->active_lightgroup = nullptr;
-  BKE_view_layer_layer_objects_free(view_layer);
+  BKE_layer_objects_free(view_layer);
 
   /* Cannot use MEM_SAFE_FREE, as #SceneStats type is only forward-declared in `DNA_layer_types.h`
    */
@@ -1112,7 +1112,7 @@ static void layer_collection_objects_sync(ViewLayer *view_layer,
     }
 
     /* Apply LayerObject flags if present */
-    LayerObject *layer_object = BKE_view_layer_layer_object_get(view_layer, cob.ob);
+    LayerObject *layer_object = BKE_layer_object_get(view_layer, cob.ob);
     if (layer_object) {
       if (layer_object->flag & LAYER_OBJECT_HOLDOUT) {
         base->flag_from_collection |= BASE_HOLDOUT;
@@ -2076,6 +2076,84 @@ bool BKE_scene_has_object(Scene *scene, Object *ob)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name LayerObject API
+ * \{ */
+
+LayerObject *BKE_layer_object_get(const ViewLayer *view_layer, const Object *object)
+{
+  for (LayerObject &layer_object : view_layer->layer_objects) {
+    if (layer_object.object == object) {
+      return &layer_object;
+    }
+  }
+  return nullptr;
+}
+
+ViewLayer *BKE_view_layer_find_from_layer_object(const Scene *scene,
+                                                 const LayerObject *layer_object)
+{
+  for (ViewLayer &view_layer : scene->view_layers) {
+    for (const LayerObject &lo : view_layer.layer_objects) {
+      if (&lo == layer_object) {
+        return &view_layer;
+      }
+    }
+  }
+  return nullptr;
+}
+
+LayerObject *BKE_layer_object_ensure(ViewLayer *view_layer, Object *object)
+{
+  LayerObject *layer_object = BKE_layer_object_get(view_layer, object);
+  if (layer_object) {
+    return layer_object;
+  }
+
+  layer_object = MEM_new_for_free<LayerObject>("LayerObject");
+  layer_object->object = object;
+  layer_object->flag = 0;
+  BLI_addtail(&view_layer->layer_objects, layer_object);
+
+  return layer_object;
+}
+
+void BKE_layer_object_remove(ViewLayer *view_layer, LayerObject *layer_object)
+{
+  BLI_remlink(&view_layer->layer_objects, layer_object);
+  MEM_freeN(layer_object);
+}
+
+bool BKE_layer_object_is_empty(const LayerObject *layer_object)
+{
+  return layer_object->flag == 0;
+}
+
+void BKE_layer_objects_cleanup(ViewLayer *view_layer)
+{
+  LayerObject *layer_object = static_cast<LayerObject *>(view_layer->layer_objects.first);
+  while (layer_object) {
+    LayerObject *layer_object_next = layer_object->next;
+    if (BKE_layer_object_is_empty(layer_object)) {
+      BKE_layer_object_remove(view_layer, layer_object);
+    }
+    layer_object = layer_object_next;
+  }
+}
+
+void BKE_layer_objects_free(ViewLayer *view_layer)
+{
+  LayerObject *layer_object = static_cast<LayerObject *>(view_layer->layer_objects.first);
+  while (layer_object) {
+    LayerObject *layer_object_next = layer_object->next;
+    MEM_freeN(layer_object);
+    layer_object = layer_object_next;
+  }
+  BLI_listbase_clear(&view_layer->layer_objects);
+}
+
+/** \} */
+
 /* Iterators */
 
 /* -------------------------------------------------------------------- */
@@ -2558,7 +2636,7 @@ void BKE_view_layer_blend_read_after_liblink(BlendLibReader * /*reader*/,
   while (layer_object) {
     LayerObject *layer_object_next = layer_object->next;
     if (layer_object->object == nullptr) {
-      BKE_view_layer_layer_object_remove(view_layer, layer_object);
+      BKE_layer_object_remove(view_layer, layer_object);
     }
     layer_object = layer_object_next;
   }
@@ -2820,84 +2898,6 @@ void BKE_lightgroup_membership_set(LightgroupMembership **lgm, const char *name)
       *lgm = nullptr;
     }
   }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name LayerObject API
- * \{ */
-
-LayerObject *BKE_view_layer_layer_object_get(const ViewLayer *view_layer, const Object *object)
-{
-  for (LayerObject &layer_object : view_layer->layer_objects) {
-    if (layer_object.object == object) {
-      return &layer_object;
-    }
-  }
-  return nullptr;
-}
-
-ViewLayer *BKE_view_layer_find_from_layer_object(const Scene *scene,
-                                                 const LayerObject *layer_object)
-{
-  for (ViewLayer &view_layer : scene->view_layers) {
-    for (const LayerObject &lo : view_layer.layer_objects) {
-      if (&lo == layer_object) {
-        return &view_layer;
-      }
-    }
-  }
-  return nullptr;
-}
-
-LayerObject *BKE_view_layer_layer_object_ensure(ViewLayer *view_layer, Object *object)
-{
-  LayerObject *layer_object = BKE_view_layer_layer_object_get(view_layer, object);
-  if (layer_object) {
-    return layer_object;
-  }
-
-  layer_object = MEM_new_for_free<LayerObject>("LayerObject");
-  layer_object->object = object;
-  layer_object->flag = 0;
-  BLI_addtail(&view_layer->layer_objects, layer_object);
-
-  return layer_object;
-}
-
-void BKE_view_layer_layer_object_remove(ViewLayer *view_layer, LayerObject *layer_object)
-{
-  BLI_remlink(&view_layer->layer_objects, layer_object);
-  MEM_freeN(layer_object);
-}
-
-bool BKE_view_layer_layer_object_is_empty(const LayerObject *layer_object)
-{
-  return layer_object->flag == 0;
-}
-
-void BKE_view_layer_layer_objects_cleanup(ViewLayer *view_layer)
-{
-  LayerObject *layer_object = static_cast<LayerObject *>(view_layer->layer_objects.first);
-  while (layer_object) {
-    LayerObject *layer_object_next = layer_object->next;
-    if (BKE_view_layer_layer_object_is_empty(layer_object)) {
-      BKE_view_layer_layer_object_remove(view_layer, layer_object);
-    }
-    layer_object = layer_object_next;
-  }
-}
-
-void BKE_view_layer_layer_objects_free(ViewLayer *view_layer)
-{
-  LayerObject *layer_object = static_cast<LayerObject *>(view_layer->layer_objects.first);
-  while (layer_object) {
-    LayerObject *layer_object_next = layer_object->next;
-    MEM_freeN(layer_object);
-    layer_object = layer_object_next;
-  }
-  BLI_listbase_clear(&view_layer->layer_objects);
 }
 
 /** \} */

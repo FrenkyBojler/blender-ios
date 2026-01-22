@@ -449,7 +449,7 @@ static void rna_LayerObject_update(Main *bmain, Scene * /*scene*/, PointerRNA *p
   WM_main_add_notifier(NC_SCENE | ND_LAYER_CONTENT, nullptr);
 }
 
-static void rna_LayerObject_flag_set(PointerRNA *ptr, int flag, bool value)
+static void rna_LayerObject_flag_set(PointerRNA *ptr, const bool value, const int flag)
 {
   LayerObject *layer_object = static_cast<LayerObject *>(ptr->data);
   if (value) {
@@ -462,32 +462,32 @@ static void rna_LayerObject_flag_set(PointerRNA *ptr, int flag, bool value)
 
 static void rna_LayerObject_exclude_set(PointerRNA *ptr, bool value)
 {
-  rna_LayerObject_flag_set(ptr, LAYER_OBJECT_EXCLUDE, value);
+  rna_LayerObject_flag_set(ptr, value, LAYER_OBJECT_EXCLUDE);
 }
 
 static void rna_LayerObject_holdout_set(PointerRNA *ptr, bool value)
 {
-  rna_LayerObject_flag_set(ptr, LAYER_OBJECT_HOLDOUT, value);
+  rna_LayerObject_flag_set(ptr, value, LAYER_OBJECT_HOLDOUT);
 }
 
 static void rna_LayerObject_indirect_only_set(PointerRNA *ptr, bool value)
 {
-  rna_LayerObject_flag_set(ptr, LAYER_OBJECT_INDIRECT_ONLY, value);
+  rna_LayerObject_flag_set(ptr, value, LAYER_OBJECT_INDIRECT_ONLY);
 }
 
 static void rna_LayerObject_shadow_catcher_set(PointerRNA *ptr, bool value)
 {
-  rna_LayerObject_flag_set(ptr, LAYER_OBJECT_SHADOW_CATCHER, value);
+  rna_LayerObject_flag_set(ptr, value, LAYER_OBJECT_SHADOW_CATCHER);
 }
 
 static void rna_LayerObject_hide_viewport_set(PointerRNA *ptr, bool value)
 {
-  rna_LayerObject_flag_set(ptr, LAYER_OBJECT_HIDE, value);
+  rna_LayerObject_flag_set(ptr, value, LAYER_OBJECT_HIDE);
 }
 
 static LayerObject *rna_ViewLayer_layer_object_get(ViewLayer *view_layer, Object *ob)
 {
-  return BKE_view_layer_layer_object_ensure(view_layer, ob);
+  return BKE_layer_object_ensure(view_layer, ob);
 }
 
 }  // namespace blender
@@ -515,8 +515,7 @@ static void rna_def_layer_object(BlenderRNA *brna)
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "object->id.name");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
-  RNA_def_property_ui_text(
-      prop, "Name", "Name of this layer object (same as its object name)");
+  RNA_def_property_ui_text(prop, "Name", "Name of this layer object (same as its object name)");
   RNA_def_struct_name_property(srna, prop);
 
   /* Restriction flags. */
@@ -867,8 +866,8 @@ void RNA_def_view_layer(BlenderRNA *brna)
       "Per-ViewLayer object settings (holdout, shadow catcher, etc.) for individual objects");
 
   func = RNA_def_function(srna, "get_layer_object", "rna_ViewLayer_layer_object_get");
-  RNA_def_function_ui_description(
-      func, "Get the LayerObject for a given object in this view layer");
+  RNA_def_function_ui_description(func,
+                                  "Get the LayerObject for a given object in this view layer");
   prop = RNA_def_pointer(func, "object", "Object", "Object", "Object to get layer settings for");
   RNA_def_parameter_flags(prop, PropertyFlag(0), PARM_REQUIRED);
   prop = RNA_def_pointer(

@@ -361,12 +361,12 @@ static void outliner__layer_object_set_flag_fn(bContext *C, void *poin, void *po
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Main *bmain = CTX_data_main(C);
 
-  LayerObject *layer_object = BKE_view_layer_layer_object_ensure(view_layer, ob);
+  LayerObject *layer_object = BKE_layer_object_ensure(view_layer, ob);
   layer_object->flag ^= flag;
 
   /* Cleanup if all flags are cleared. */
-  if (BKE_view_layer_layer_object_is_empty(layer_object)) {
-    BKE_view_layer_layer_object_remove(view_layer, layer_object);
+  if (BKE_layer_object_is_empty(layer_object)) {
+    BKE_layer_object_remove(view_layer, layer_object);
   }
 
   BKE_view_layer_need_resync_tag(view_layer);
@@ -1389,7 +1389,7 @@ static void outliner_draw_restrictbuts(ui::Block *block,
 
         /* Per-ViewLayer object settings (exclude, holdout, indirect_only, shadow_catcher). */
         if (space_outliner->outlinevis == SO_VIEW_LAYER) {
-          LayerObject *layer_object = BKE_view_layer_layer_object_get(view_layer, ob);
+          LayerObject *layer_object = BKE_layer_object_get(view_layer, ob);
           const bool has_exclude = layer_object && (layer_object->flag & LAYER_OBJECT_EXCLUDE);
           const bool has_holdout = layer_object && (layer_object->flag & LAYER_OBJECT_HOLDOUT);
           const bool has_indirect = layer_object &&
@@ -1409,7 +1409,10 @@ static void outliner_draw_restrictbuts(ui::Block *block,
                               0,
                               0,
                               TIP_("Exclude object from view layer"));
-            button_func_set(bt, outliner__layer_object_set_flag_fn, ob, POINTER_FROM_INT(LAYER_OBJECT_EXCLUDE));
+            button_func_set(bt,
+                            outliner__layer_object_set_flag_fn,
+                            ob,
+                            POINTER_FROM_INT(LAYER_OBJECT_EXCLUDE));
             button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           }
 
@@ -1425,7 +1428,10 @@ static void outliner_draw_restrictbuts(ui::Block *block,
                               0,
                               0,
                               TIP_("Mask out object from view layer"));
-            button_func_set(bt, outliner__layer_object_set_flag_fn, ob, POINTER_FROM_INT(LAYER_OBJECT_HOLDOUT));
+            button_func_set(bt,
+                            outliner__layer_object_set_flag_fn,
+                            ob,
+                            POINTER_FROM_INT(LAYER_OBJECT_HOLDOUT));
             button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           }
 
@@ -1442,7 +1448,10 @@ static void outliner_draw_restrictbuts(ui::Block *block,
                               0,
                               TIP_("Object only contributes indirectly (through shadows and "
                                    "reflections) in the view layer"));
-            button_func_set(bt, outliner__layer_object_set_flag_fn, ob, POINTER_FROM_INT(LAYER_OBJECT_INDIRECT_ONLY));
+            button_func_set(bt,
+                            outliner__layer_object_set_flag_fn,
+                            ob,
+                            POINTER_FROM_INT(LAYER_OBJECT_INDIRECT_ONLY));
             button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           }
 
@@ -1458,7 +1467,10 @@ static void outliner_draw_restrictbuts(ui::Block *block,
                               0,
                               0,
                               TIP_("Object catches shadows only in the view layer"));
-            button_func_set(bt, outliner__layer_object_set_flag_fn, ob, POINTER_FROM_INT(LAYER_OBJECT_SHADOW_CATCHER));
+            button_func_set(bt,
+                            outliner__layer_object_set_flag_fn,
+                            ob,
+                            POINTER_FROM_INT(LAYER_OBJECT_SHADOW_CATCHER));
             button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           }
         }

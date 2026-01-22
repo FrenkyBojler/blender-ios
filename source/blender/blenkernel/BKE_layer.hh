@@ -273,6 +273,48 @@ void BKE_layer_collection_set_visible(
     const Scene *scene, ViewLayer *view_layer, LayerCollection *lc, bool visible, bool hierarchy);
 void BKE_layer_collection_set_flag(LayerCollection *lc, int flag, bool value);
 
+/* LayerObject API - Per-ViewLayer object settings (holdout, shadow_catcher, etc.) */
+
+/**
+ * Get the LayerObject for an object in a ViewLayer.
+ * \return The LayerObject if found, NULL otherwise.
+ */
+LayerObject *BKE_layer_object_get(const ViewLayer *view_layer, const Object *object);
+
+/**
+ * Find the ViewLayer that contains a given LayerObject.
+ * \return The ViewLayer if found, NULL otherwise.
+ */
+ViewLayer *BKE_view_layer_find_from_layer_object(const Scene *scene,
+                                                 const LayerObject *layer_object);
+
+/**
+ * Get or create a LayerObject for an object in a ViewLayer.
+ * Creates a new LayerObject with default flags if one doesn't exist.
+ */
+LayerObject *BKE_layer_object_ensure(ViewLayer *view_layer, Object *object);
+
+/**
+ * Remove a LayerObject from a ViewLayer.
+ * Frees the LayerObject memory.
+ */
+void BKE_layer_object_remove(ViewLayer *view_layer, LayerObject *layer_object);
+
+/**
+ * Check if a LayerObject has no flags set (can be removed).
+ */
+bool BKE_layer_object_is_empty(const LayerObject *layer_object);
+
+/**
+ * Remove all LayerObjects with no flags set from a ViewLayer.
+ */
+void BKE_layer_objects_cleanup(ViewLayer *view_layer);
+
+/**
+ * Free all LayerObjects in a ViewLayer.
+ */
+void BKE_layer_objects_free(ViewLayer *view_layer);
+
 /* Evaluation. */
 
 /**
@@ -655,47 +697,5 @@ void BKE_view_layer_rename_lightgroup(Scene *scene,
 int BKE_lightgroup_membership_get(const LightgroupMembership *lgm, char *name);
 int BKE_lightgroup_membership_length(const LightgroupMembership *lgm);
 void BKE_lightgroup_membership_set(LightgroupMembership **lgm, const char *name);
-
-/* LayerObject API - Per-ViewLayer object settings (holdout, shadow_catcher, etc.) */
-
-/**
- * Get the LayerObject for an object in a ViewLayer.
- * \return The LayerObject if found, NULL otherwise.
- */
-LayerObject *BKE_view_layer_layer_object_get(const ViewLayer *view_layer, const Object *object);
-
-/**
- * Find the ViewLayer that contains a given LayerObject.
- * \return The ViewLayer if found, NULL otherwise.
- */
-ViewLayer *BKE_view_layer_find_from_layer_object(const Scene *scene,
-                                                 const LayerObject *layer_object);
-
-/**
- * Get or create a LayerObject for an object in a ViewLayer.
- * Creates a new LayerObject with default flags if one doesn't exist.
- */
-LayerObject *BKE_view_layer_layer_object_ensure(ViewLayer *view_layer, Object *object);
-
-/**
- * Remove a LayerObject from a ViewLayer.
- * Frees the LayerObject memory.
- */
-void BKE_view_layer_layer_object_remove(ViewLayer *view_layer, LayerObject *layer_object);
-
-/**
- * Check if a LayerObject has no flags set (can be removed).
- */
-bool BKE_view_layer_layer_object_is_empty(const LayerObject *layer_object);
-
-/**
- * Remove all LayerObjects with no flags set from a ViewLayer.
- */
-void BKE_view_layer_layer_objects_cleanup(ViewLayer *view_layer);
-
-/**
- * Free all LayerObjects in a ViewLayer.
- */
-void BKE_view_layer_layer_objects_free(ViewLayer *view_layer);
 
 }  // namespace blender
