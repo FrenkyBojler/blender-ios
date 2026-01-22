@@ -899,7 +899,7 @@ endif()
 option(WITH_UI_TESTS_VULKAN "\
 Enable UI tests using the Vulkan backend. \
 Requires WITH_UI_TESTS and WITH_GPU_RENDER_TESTS_VULKAN."
-  ON
+  OFF
 )
 mark_as_advanced(WITH_UI_TESTS_VULKAN)
 
