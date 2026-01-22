@@ -441,6 +441,8 @@ bool RNA_property_overridable_get(const PointerRNA *ptr, PropertyRNA *prop);
  */
 bool RNA_property_overridable_library_set(PointerRNA *ptr, PropertyRNA *prop, bool is_overridable);
 bool RNA_property_overridden(PointerRNA *ptr, PropertyRNA *prop);
+bool RNA_property_keyable_get(PointerRNA *ptr, PropertyRNA *prop);
+bool RNA_property_keyable_set(PointerRNA *ptr, PropertyRNA *prop, const bool is_keyable);
 bool RNA_property_comparable(PointerRNA *ptr, PropertyRNA *prop);
 /**
  * This function is to check if its possible to create a valid path from the ID

@@ -764,6 +764,15 @@ static bool rna_Property_overridable_get(PointerRNA *ptr)
                              (prop->flag_override & PROPOVERRIDE_OVERRIDABLE_LIBRARY) != 0;
 }
 
+static bool rna_Property_keyable_get(PointerRNA *ptr)
+{
+  PropertyRNA *prop = static_cast<PropertyRNA *>(ptr->data);
+
+  IDProperty *idprop = rna_idproperty_check(&prop, ptr);
+
+  return idprop != nullptr ? (idprop->flag & IDP_FLAG_KEYABLE) != 0 : true;
+}
+
 static bool rna_Property_use_output_get(PointerRNA *ptr)
 {
   PropertyRNA *prop = static_cast<PropertyRNA *>(ptr->data);
@@ -3333,6 +3342,11 @@ static void rna_def_property(BlenderRNA *brna)
   prop = RNA_def_property(srna, "is_animatable", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(prop, "rna_Property_animatable_get", nullptr);
+  RNA_def_property_ui_text(prop, "Animatable", "Property is animatable through RNA");
+
+  prop = RNA_def_property(srna, "is_keyable", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_Property_keyable_get", nullptr);
   RNA_def_property_ui_text(prop, "Animatable", "Property is animatable through RNA");
 
   prop = RNA_def_property(srna, "is_overridable", PROP_BOOLEAN, PROP_NONE);

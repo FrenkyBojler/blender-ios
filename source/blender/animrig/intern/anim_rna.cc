@@ -100,6 +100,10 @@ static bool is_idproperty_keyable(const IDProperty *id_prop, PointerRNA *ptr, Pr
     return false;
   }
 
+  if (!RNA_property_keyable_get(ptr, prop)) {
+    return false;
+  }
+
   if (ELEM(id_prop->type,
            eIDPropertyType::IDP_BOOLEAN,
            eIDPropertyType::IDP_INT,

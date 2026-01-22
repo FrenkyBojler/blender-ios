@@ -183,6 +183,28 @@ bool RNA_property_overridable_library_set(PointerRNA * /*ptr*/,
   return false;
 }
 
+bool RNA_property_keyable_get(PointerRNA *ptr, PropertyRNA *prop)
+{
+  if (prop->magic == RNA_MAGIC) {
+    return true;
+  }
+  IDProperty *idprop = reinterpret_cast<IDProperty *>(prop);
+  return idprop->flag & IDP_FLAG_KEYABLE;
+}
+
+bool RNA_property_keyable_set(PointerRNA * /*ptr*/, PropertyRNA *prop, const bool is_keyable)
+{
+  /* Only works for pure custom properties IDProps. */
+  if (prop->magic != RNA_MAGIC) {
+    IDProperty *idprop = reinterpret_cast<IDProperty *>(prop);
+    constexpr short flags = IDP_FLAG_KEYABLE;
+    idprop->flag = is_keyable ? (idprop->flag | flags) : (idprop->flag & ~flags);
+    return true;
+  }
+
+  return false;
+}
+
 bool RNA_property_overridden(PointerRNA *ptr, PropertyRNA *prop)
 {
   const std::optional<std::string> rna_path = RNA_path_from_ID_to_property(ptr, prop);

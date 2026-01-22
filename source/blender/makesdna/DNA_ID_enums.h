@@ -70,6 +70,11 @@ enum eIDPropertyFlag {
    */
   IDP_FLAG_OVERRIDELIBRARY_LOCAL = 1 << 1,
   /**
+   * If set, keys can be added to the property. This flag does not influence drivers and
+   * expressions. This is purely for Action keyframes.
+   */
+  IDP_FLAG_KEYABLE = 1 << 2,
+  /**
    * This #IDProperty has a static type, i.e. its #eIDPropertyType cannot be changed by assigning a
    * new value to it.
    *

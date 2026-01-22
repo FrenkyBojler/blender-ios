@@ -2390,6 +2390,16 @@ bool RNA_property_anim_editable(const PointerRNA *ptr, PropertyRNA *prop_orig)
   return rna_property_editable_do(ptr, prop_orig, -1, nullptr);
 }
 
+// bool RNA_property_keyable(const PointerRNA *ptr, PropertyRNA *prop)
+// {
+//   PropertyRNA *prop_ensured = rna_ensure_property(prop);
+
+//   if (!(prop_ensured->flag & IDP_FLAG_KEYABLE)) {
+//     return false;
+//   }
+//   return true;
+// }
+
 bool RNA_property_driver_editable(const PointerRNA *ptr, PropertyRNA *prop)
 {
   if (!RNA_property_anim_editable(ptr, prop)) {

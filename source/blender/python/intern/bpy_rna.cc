@@ -3962,6 +3962,43 @@ static PyObject *pyrna_struct_property_overridable_library_set(BPy_StructRNA *se
 
 PyDoc_STRVAR(
     /* Wrap. */
+    pyrna_struct_property_keyable_set_doc,
+    ".. method:: property_keyable_set(property, keyable, /)\n"
+    "\n"
+    "   Define a property as keyable or not (only for custom properties!).\n"
+    "\n"
+    "   :arg property: Property name.\n"
+    "   :type property: str\n"
+    "   :arg keyable: Keyable status to set.\n"
+    "   :type keyable: bool\n"
+    "   :return: True when the keyable status of the property was successfully set.\n"
+    "   :rtype: bool\n");
+static PyObject *pyrna_struct_property_keyable_set(BPy_StructRNA *self, PyObject *args)
+{
+  PropertyRNA *prop;
+  const char *name;
+  int is_overridable;
+
+  PYRNA_STRUCT_CHECK_OBJ(self);
+
+  if (!PyArg_ParseTuple(args, "sp:property_keyable_set", &name, &is_overridable)) {
+    return nullptr;
+  }
+
+  if ((prop = RNA_struct_find_property(&self->ptr.value(), name)) == nullptr) {
+    PyErr_Format(PyExc_TypeError,
+                 "%.200s.property_keyable_set(\"%.200s\") not found",
+                 RNA_struct_identifier(self->ptr->type),
+                 name);
+    return nullptr;
+  }
+
+  return PyBool_FromLong(
+      long(RNA_property_keyable_set(&self->ptr.value(), prop, bool(is_overridable))));
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     pyrna_struct_path_resolve_doc,
     ".. method:: path_resolve(path, coerce=True, /)\n"
     "\n"
@@ -6407,6 +6444,10 @@ static PyMethodDef pyrna_struct_methods[] = {
      reinterpret_cast<PyCFunction>(pyrna_struct_property_overridable_library_set),
      METH_VARARGS,
      pyrna_struct_property_overridable_library_set_doc},
+    {"property_keyable_set",
+     reinterpret_cast<PyCFunction>(pyrna_struct_property_keyable_set),
+     METH_VARARGS,
+     pyrna_struct_property_keyable_set_doc},
     {"path_resolve",
      reinterpret_cast<PyCFunction>(pyrna_struct_path_resolve),
      METH_VARARGS,

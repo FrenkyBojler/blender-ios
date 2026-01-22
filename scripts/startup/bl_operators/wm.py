@@ -1466,6 +1466,11 @@ class WM_OT_properties_edit(Operator):
         description="Allow the property to be overridden when the data-block is linked",
         default=False,
     )
+    is_keyable: BoolProperty(
+        name="Keyable",
+        description="Allow keyframes to be added to the property",
+        default=True,
+    )
     description: StringProperty(
         name="Description",
     )
@@ -1819,6 +1824,7 @@ class WM_OT_properties_edit(Operator):
 
         escaped_name = bpy.utils.escape_identifier(name)
         item.property_overridable_library_set('["{:s}"]'.format(escaped_name), self.is_overridable_library)
+        item.property_keyable_set('["{:s}"]'.format(escaped_name), self.is_keyable)
 
     def _update_blender_for_prop_change(self, context, item, name, prop_type_old, prop_type_new):
         from bpy_extras import anim_utils
@@ -2068,6 +2074,7 @@ class WM_OT_properties_edit(Operator):
             layout.prop(self, "description")
 
         layout.prop(self, "is_overridable_library")
+        layout.prop(self, "is_keyable")
 
 
 # Edit the value of a custom property with the given name on the RNA struct at the given data path.
