@@ -2390,13 +2390,8 @@ void BKE_base_eval_flags(Base *base)
     base->flag &= ~BASE_SELECTABLE;
   }
 
-  /* Apply global object visibility flags (holdout, shadow catcher). */
-  if (object_restrict & OB_HOLDOUT) {
-    base->flag |= BASE_HOLDOUT;
-  }
-  if (object_restrict & OB_SHADOW_CATCHER) {
-    base->flag |= BASE_SHADOW_CATCHER;
-  }
+  /* Note: Holdout and shadow catcher are now controlled per-ViewLayer via LayerObject,
+   * not via global object flags. The flags are applied through flag_from_collection. */
 
   /* Apply viewport visibility by default. The dependency graph for render
    * can change these again, but for tools we always want the viewport
@@ -2838,6 +2833,19 @@ LayerObject *BKE_view_layer_layer_object_get(const ViewLayer *view_layer, const 
   for (LayerObject &layer_object : view_layer->layer_objects) {
     if (layer_object.object == object) {
       return &layer_object;
+    }
+  }
+  return nullptr;
+}
+
+ViewLayer *BKE_view_layer_find_from_layer_object(const Scene *scene,
+                                                 const LayerObject *layer_object)
+{
+  for (ViewLayer &view_layer : scene->view_layers) {
+    for (const LayerObject &lo : view_layer.layer_objects) {
+      if (&lo == layer_object) {
+        return &view_layer;
+      }
     }
   }
   return nullptr;

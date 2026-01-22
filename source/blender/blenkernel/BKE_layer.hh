@@ -665,6 +665,13 @@ void BKE_lightgroup_membership_set(LightgroupMembership **lgm, const char *name)
 LayerObject *BKE_view_layer_layer_object_get(const ViewLayer *view_layer, const Object *object);
 
 /**
+ * Find the ViewLayer that contains a given LayerObject.
+ * \return The ViewLayer if found, NULL otherwise.
+ */
+ViewLayer *BKE_view_layer_find_from_layer_object(const Scene *scene,
+                                                 const LayerObject *layer_object);
+
+/**
  * Get or create a LayerObject for an object in a ViewLayer.
  * Creates a new LayerObject with default flags if one doesn't exist.
  */

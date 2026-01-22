@@ -1416,10 +1416,32 @@ class CYCLES_OBJECT_PT_visibility(CyclesButtonsPanel, Panel):
         col.prop(ob, "hide_viewport", text="Viewports", invert_checkbox=True, toggle=False)
         col.prop(ob, "hide_render", text="Renders", invert_checkbox=True, toggle=False)
 
+
+class CYCLES_OBJECT_PT_visibility_view_layer(CyclesButtonsPanel, Panel):
+    bl_label = "View Layer"
+    bl_parent_id = "CYCLES_OBJECT_PT_visibility"
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        return CyclesButtonsPanel.poll(context) and (context.object)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        ob = context.object
+        view_layer = context.view_layer
+        layer_object = view_layer.get_layer_object(ob)
+
+        col = layout.column()
+        col.prop(layer_object, "exclude", text="Include", toggle=False, invert_checkbox=True)
+
         if has_geometry_visibility(ob):
-            col = layout.column(heading="Mask")
-            col.prop(ob, "is_shadow_catcher")
-            col.prop(ob, "is_holdout")
+            col.prop(layer_object, "holdout", text="Holdout", toggle=False)
+            col.prop(layer_object, "indirect_only", text="Indirect Only", toggle=False)
+            col.prop(layer_object, "is_shadow_catcher", text="Shadow Catcher", toggle=False)
 
 
 class CYCLES_OBJECT_PT_visibility_ray_visibility(CyclesButtonsPanel, Panel):
@@ -2576,6 +2598,7 @@ classes = (
     CYCLES_OBJECT_PT_shading_caustics,
     CYCLES_OBJECT_PT_lightgroup,
     CYCLES_OBJECT_PT_visibility,
+    CYCLES_OBJECT_PT_visibility_view_layer,
     CYCLES_OBJECT_PT_visibility_ray_visibility,
     CYCLES_OBJECT_PT_visibility_culling,
     CYCLES_LIGHT_PT_preview,

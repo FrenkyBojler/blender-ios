@@ -450,9 +450,13 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
             col = layout.column(heading="Grease Pencil")
             col.prop(ob, "use_grease_pencil_lights", toggle=False)
 
+        view_layer = context.view_layer
+        layer_object = view_layer.get_layer_object(ob)
         layout.separator()
+        col = layout.column(heading="View Layer")
+        col.prop(layer_object, "exclude", text="Include", toggle=False, invert_checkbox=True)
         col = layout.column(heading="Mask")
-        col.prop(ob, "is_holdout")
+        col.prop(layer_object, "holdout", text="Holdout", toggle=False)
 
 
 def has_geometry_visibility(ob):

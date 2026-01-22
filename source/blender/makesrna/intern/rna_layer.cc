@@ -433,13 +433,18 @@ static bool rna_LayerCollection_children_lookupstring(PointerRNA *ptr,
   return false;
 }
 
-static void rna_LayerObject_update(Main * /*bmain*/, Scene *scene, PointerRNA *ptr)
+static void rna_LayerObject_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  ViewLayer *view_layer = static_cast<ViewLayer *>(ptr->data);
+  Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  LayerObject *layer_object = static_cast<LayerObject *>(ptr->data);
+  ViewLayer *view_layer = BKE_view_layer_find_from_layer_object(scene, layer_object);
 
-  BKE_view_layer_need_resync_tag(view_layer);
+  if (view_layer) {
+    BKE_view_layer_need_resync_tag(view_layer);
+  }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+  DEG_relations_tag_update(bmain);
 
   WM_main_add_notifier(NC_SCENE | ND_LAYER_CONTENT, nullptr);
 }
@@ -478,6 +483,11 @@ static void rna_LayerObject_shadow_catcher_set(PointerRNA *ptr, bool value)
 static void rna_LayerObject_hide_viewport_set(PointerRNA *ptr, bool value)
 {
   rna_LayerObject_flag_set(ptr, LAYER_OBJECT_HIDE, value);
+}
+
+static LayerObject *rna_ViewLayer_layer_object_get(ViewLayer *view_layer, Object *ob)
+{
+  return BKE_view_layer_layer_object_ensure(view_layer, ob);
 }
 
 }  // namespace blender
@@ -855,6 +865,15 @@ void RNA_def_view_layer(BlenderRNA *brna)
       prop,
       "Layer Objects",
       "Per-ViewLayer object settings (holdout, shadow catcher, etc.) for individual objects");
+
+  func = RNA_def_function(srna, "get_layer_object", "rna_ViewLayer_layer_object_get");
+  RNA_def_function_ui_description(
+      func, "Get the LayerObject for a given object in this view layer");
+  prop = RNA_def_pointer(func, "object", "Object", "Object", "Object to get layer settings for");
+  RNA_def_parameter_flags(prop, PropertyFlag(0), PARM_REQUIRED);
+  prop = RNA_def_pointer(
+      func, "layer_object", "LayerObject", "", "LayerObject for the given object");
+  RNA_def_function_return(func, prop);
 
   /* Nested Data. */
   /* *** Non-Animated *** */
