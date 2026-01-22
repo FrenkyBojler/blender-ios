@@ -42,9 +42,11 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
-  float3 mval_dir;
-  RNA_float_get_array(op->ptr, "direction", mval_dir);
-  normalize_v3(mval_dir);
+  float3 ray_loc;
+  float3 ray_dir;
+  RNA_float_get_array(op->ptr, "location", ray_loc);
+  RNA_float_get_array(op->ptr, "direction", ray_dir);
+  normalize_v3(ray_dir);
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -107,12 +109,16 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
             BMVert *v_other = BM_edge_other_vert(e, v);
 
             const float4x4 &object_to_world = obedit->object_to_world();
-            const float3 v_world = blender::math::transform_point(object_to_world, float3(v->co));
-            const float3 v_other_world = blender::math::transform_point(object_to_world,
-                                                                        float3(v_other->co));
-            const float3 v_dir = blender::math::normalize(v_other_world - v_world);
+            const float3 v_world = math::transform_point(object_to_world, float3(v->co));
+            float3 projected_point;
+            closest_to_line_v3(projected_point, v_world, ray_loc, ray_loc + ray_dir);
 
-            float angle_test = angle_normalized_v3v3(mval_dir, v_dir);
+            float3 v_ray_dir = math::normalize(projected_point - v_world);
+            const float3 v_other_world = math::transform_point(object_to_world,
+                                                               float3(v_other->co));
+            const float3 v_edge_dir = math::normalize(v_other_world - v_world);
+
+            float angle_test = angle_normalized_v3v3(v_ray_dir, v_edge_dir);
             if (angle_test < angle_best) {
               angle_best = angle_test;
               e_best = e;
@@ -199,6 +205,7 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C, wmOperator *op, const 
   ED_view3d_win_to_ray(region, mval_fl, ray_start, ray_dir);
   normalize_v3(ray_dir);
 
+  RNA_float_set_array(op->ptr, "location", ray_start);
   RNA_float_set_array(op->ptr, "direction", ray_dir);
 
   return edbm_rip_edge_exec(C, op);
@@ -220,6 +227,19 @@ void MESH_OT_rip_edge(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   PropertyRNA *prop;
+
+  prop = RNA_def_float_vector(ot->srna,
+                              "location",
+                              3,
+                              nullptr,
+                              -FLT_MAX,
+                              FLT_MAX,
+                              "Location",
+                              "World-space ray origin for extending vertices",
+                              -1.0f,
+                              1.0f);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
   prop = RNA_def_float_vector(ot->srna,
                               "direction",
                               3,
