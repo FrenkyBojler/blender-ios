@@ -2,12 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
-#include "node_geometry_util.hh"
+
+#include "BKE_curves.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
+
+#include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_xpbd_solver_cc {
 
@@ -86,22 +90,23 @@ static void node_geo_exec(GeoNodeExecParams params)
   });
 
   for (XPBDGeometryBundle &geometry_bundle : geometry_bundles) {
-    if (!geometry_bundle.geometry.has_mesh()) {
+    if (!geometry_bundle.geometry.has_curves()) {
       continue;
     }
-    Mesh &mesh = *geometry_bundle.geometry.get_mesh_for_write();
+    Curves &curves_id = *geometry_bundle.geometry.get_curves_for_write();
+    bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     bke::SpanAttributeWriter<float3> velocities =
-        mesh.attributes_for_write().lookup_or_add_for_write_span<float3>("velocity",
-                                                                         AttrDomain::Point);
+        curves.attributes_for_write().lookup_or_add_for_write_span<float3>("velocity",
+                                                                           AttrDomain::Point);
     bke::SpanAttributeWriter<float3> positions =
-        mesh.attributes_for_write().lookup_or_add_for_write_span<float3>("position",
-                                                                         AttrDomain::Point);
+        curves.attributes_for_write().lookup_or_add_for_write_span<float3>("position",
+                                                                           AttrDomain::Point);
 
-    for (const int i : IndexRange(mesh.verts_num)) {
+    for (const int i : curves.points_range()) {
       velocities.span[i] += gravity * delta_time;
       positions.span[i] += velocities.span[i] * delta_time;
     }
-    mesh.tag_positions_changed();
+    curves.tag_positions_changed();
     velocities.finish();
     positions.finish();
     world.add_path_override(geometry_bundle.self_path + "/geometry",
