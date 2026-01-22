@@ -3872,7 +3872,7 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
   const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
   const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (show_save_image_dialog && modified_images_count > 0) {
+  if (!G.background && show_save_image_dialog && modified_images_count > 0) {
     RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
@@ -3912,7 +3912,7 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
   const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (show_save_image_dialog && modified_images_count > 0) {
+  if (!G.background && show_save_image_dialog && modified_images_count > 0) {
     RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
@@ -4130,7 +4130,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
   const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
   const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (show_save_image_dialog && modified_images_count > 0) {
+  if (!G.background && show_save_image_dialog && modified_images_count > 0) {
     RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
