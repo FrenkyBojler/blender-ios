@@ -40,9 +40,6 @@ Texture *TexturePoolImpl::acquire_texture(int2 extent,
                                           eGPUTextureUsage usage,
                                           const char * /* name */)
 {
-  /* Generate debug label name, if one isn't passed in `name`. */
-  std::string name_str = name ? name : fmt::format("TexFromPool_{}", pool_.size());
-
   /* Search pool for compatible available texture first. */
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
@@ -60,7 +57,6 @@ Texture *TexturePoolImpl::acquire_texture(int2 extent,
     TextureHandle handle = {pool_[match_index].texture};
     acquired_.add(handle);
     pool_.remove_and_reorder(match_index);
-    handle.texture->name_set(name_str.c_str());
     return handle.texture;
   }
 
