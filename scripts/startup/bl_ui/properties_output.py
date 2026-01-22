@@ -311,6 +311,7 @@ class RENDER_PT_output(RenderOutputButtonsPanel, Panel):
         col = layout.column(heading="Saving")
         col.prop(rd, "use_file_extension")
         col.prop(rd, "use_render_cache")
+        col.prop(rd, "write_animation")
 
         layout.template_image_settings(image_settings, color_management=False)
 
