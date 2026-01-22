@@ -1530,6 +1530,9 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 
     /* SteamVR requests both NVIDIA and KHR rectified extension. */
     instance_vk.extensions.enable(VK_NV_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME, true);
+
+    /* Has been promoted to VK_EXT_debug_utils. */
+    instance_vk.extensions.enable(VK_EXT_DEBUG_REPORT_EXTENSION_NAME, true);
 #endif
 
     if (use_window_surface) {
@@ -1688,7 +1691,10 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
         VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME,
 
         /* Vulkan 1.4 promoted device extensions, enabled for OpenXR usage. */
-        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME});
+        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+
+        /* Has been promoted to VK_EXT_debug_utils */
+        VK_EXT_DEBUG_MARKER_EXTENSION_NAME});
 #endif
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {
