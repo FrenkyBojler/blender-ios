@@ -320,6 +320,7 @@ void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
 
   if (supports_local_read) {
     VKContext &context = *VKContext::get();
+    rendering_ensure(context);
 
     for (int index : IndexRange(color_attachment_states.size())) {
       if (color_attachment_states[index] == GPU_ATTACHMENT_READ) {
@@ -329,22 +330,11 @@ void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
         }
       }
     }
-    if (is_rendering_) {
-      is_rendering_ = false;
-      load_stores.fill(default_load_store());
-    }
+    is_rendering_ = false;
   }
   else {
     VKContext &context = *VKContext::get();
-    if (is_rendering_) {
-      rendering_end(context);
-
-      /* TODO: this might need a better implementation:
-       * READ -> DONTCARE
-       * WRITE -> LOAD, STORE based on previous value.
-       * IGNORE -> DONTCARE -> IGNORE */
-      load_stores.fill(default_load_store());
-    }
+    rendering_end(context);
 
     for (int index : IndexRange(color_attachment_states.size())) {
       if (color_attachment_states[index] == GPU_ATTACHMENT_READ) {
@@ -456,7 +446,7 @@ static void blit_aspect(VKContext &context,
   region.dstOffsets[1].z = 1;
 
   /* Early exit when no pixels needs to be blitted. This should never occur, but has happened
-   * during development as retina displays are not yet detected and the intermediate backbuffer
+   * during development as retina displays are not yet detected and the intermediate back-buffer
    * would be to small, resulting in cropping the full blit source image. */
   if (region.dstOffsets[0].x == region.dstOffsets[1].x ||
       region.dstOffsets[0].y == region.dstOffsets[1].y ||
@@ -764,6 +754,8 @@ void VKFrameBuffer::rendering_ensure(VKContext &context)
   rendering_ensure_dynamic_rendering(context, extensions);
   dirty_attachments_ = false;
   dirty_state_ = false;
+  use_explicit_load_store_ = false;
+  load_stores.fill(default_load_store());
 }
 
 VkFormat VKFrameBuffer::depth_attachment_format_get() const

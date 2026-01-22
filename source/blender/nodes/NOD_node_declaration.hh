@@ -22,14 +22,16 @@
 
 #include "NOD_socket_usage_inference_fwd.hh"
 
+namespace blender {
+
 struct bContext;
 struct bNode;
 
-namespace blender::ui {
+namespace ui {
 struct Layout;
-}  // namespace blender::ui
+}  // namespace ui
 
-namespace blender::nodes {
+namespace nodes {
 
 class NodeDeclarationBuilder;
 class PanelDeclaration;
@@ -516,7 +518,7 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;
 
-using DrawNodeLayoutFn = void(ui::Layout *, bContext *, PointerRNA *);
+using DrawNodeLayoutFn = void(ui::Layout &, bContext *, PointerRNA *);
 
 class SeparatorDeclaration : public ItemDeclaration {};
 
@@ -605,7 +607,7 @@ class DeclarationListBuilder {
 
   void add_separator();
   void add_default_layout();
-  void add_layout(std::function<void(ui::Layout *, bContext *, PointerRNA *)> draw);
+  void add_layout(std::function<void(ui::Layout &, bContext *, PointerRNA *)> draw);
 };
 
 class PanelDeclarationBuilder : public DeclarationListBuilder {
@@ -843,4 +845,5 @@ inline bool BaseSocketDeclarationBuilder::is_output() const
 
 /** \} */
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

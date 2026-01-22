@@ -826,24 +826,14 @@ ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
   /* Set diffuse bounce info. */
   INTEGRATOR_STATE_WRITE(state, path, diffuse_bounce) = diffuse_bounce + 1;
 
-  /* Evaluate light sample
-   * in case the light has a node-based shader:
-   * 1. sd_mnee will be used to store light data, which is why we need to do
-   *    this evaluation here. sd_mnee needs to contain the solution's last
-   *    interface data at the end of the call for the shadow ray setup to work.
-   * 2. ls needs to contain the last interface data for the light shader to
-   *    evaluate properly */
-
   /* Set bounce info in case a light path node is used in the light shader graph. */
   INTEGRATOR_STATE_WRITE(state, path, transmission_bounce) = transmission_bounce + vertex_count -
                                                              1;
   INTEGRATOR_STATE_WRITE(state, path, bounce) = bounce + vertex_count;
 
-  const Spectrum light_eval = light_sample_shader_eval(kg, state, sd_mnee, ls, sd->time);
-  bsdf_eval_mul(throughput, light_eval / ls->pdf);
+  bsdf_eval_mul(throughput, ls->eval_fac / ls->pdf);
 
   /* Generalized geometry term. */
-
   float dh_dx;
   float dx1_dxlight;
   if (!mnee_compute_transfer_matrix(
@@ -992,7 +982,7 @@ ccl_device_forceinline int kernel_path_mnee_sample(KernelGlobals kg,
       break;
     }
 
-    const int object_flags = intersection_get_object_flags(kg, &probe_isect);
+    const uint object_flags = intersection_get_object_flags(kg, &probe_isect);
     if (object_flags & SD_OBJECT_CAUSTICS_CASTER) {
 
       /* Do we have enough slots. */

@@ -102,21 +102,6 @@ static const std::array<float3, 6> bone_octahedral_verts{
     {0.0f, 1.0f, 0.0f},
 };
 
-/**
- * NOTE: This is not the correct normals.
- * The correct smooth normals for the equator vertices should be
- * {+-0.943608f * M_SQRT1_2, -0.331048f, +-0.943608f * M_SQRT1_2}
- * but it creates problems for outlines when bones are scaled.
- */
-static const std::array<float3, 6> bone_octahedral_smooth_normals{
-    float3{0.0f, -1.0f, 0.0f},
-    {float(M_SQRT1_2), 0.0f, float(M_SQRT1_2)},
-    {float(M_SQRT1_2), 0.0f, -float(M_SQRT1_2)},
-    {-float(M_SQRT1_2), 0.0f, -float(M_SQRT1_2)},
-    {-float(M_SQRT1_2), 0.0f, float(M_SQRT1_2)},
-    {0.0f, 1.0f, 0.0f},
-};
-
 static const std::array<uint2, 12> bone_octahedral_wire_lines = {
     uint2{0, 1},
     {1, 5},
@@ -1360,23 +1345,23 @@ ShapeCache::ShapeCache()
       float3 axis(0.0f);
       axis[i] = 1.0f;
       /* Draw the positive axes. */
-      UI_GetThemeColor3fv(axis_theme[i], crosshair_color);
+      ui::theme::get_color_3fv(axis_theme[i], crosshair_color);
       verts.append({outer_limit * axis, crosshair_color});
       verts.append({color_limit * axis, crosshair_color});
 
       /* Inner crosshair. */
-      UI_GetThemeColor3fv(TH_VIEW_OVERLAY, crosshair_color);
+      ui::theme::get_color_3fv(TH_VIEW_OVERLAY, crosshair_color);
       verts.append({color_limit * axis, crosshair_color});
       verts.append({inner_limit * axis, crosshair_color});
 
       /* Draw the negative axis a little darker and desaturated. */
       axis[i] = -1.0f;
-      UI_GetThemeColorBlendShade3fv(axis_theme[i], TH_WHITE, .25f, -60, crosshair_color);
+      ui::theme::get_color_blend_shade_3fv(axis_theme[i], TH_WHITE, .25f, -60, crosshair_color);
       verts.append({outer_limit * axis, crosshair_color});
       verts.append({color_limit * axis, crosshair_color});
 
       /* Inner crosshair. */
-      UI_GetThemeColor3fv(TH_VIEW_OVERLAY, crosshair_color);
+      ui::theme::get_color_3fv(TH_VIEW_OVERLAY, crosshair_color);
       verts.append({color_limit * axis, crosshair_color});
       verts.append({inner_limit * axis, crosshair_color});
     }
