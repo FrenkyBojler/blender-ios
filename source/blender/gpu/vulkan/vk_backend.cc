@@ -31,14 +31,17 @@
 #include "vk_state_manager.hh"
 #include "vk_storage_buffer.hh"
 #include "vk_texture.hh"
+#include "vk_texture_pool.hh"
 #include "vk_uniform_buffer.hh"
 #include "vk_vertex_buffer.hh"
 
 #include "vk_backend.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 static const char *vk_extension_get(int index)
 {
@@ -589,7 +592,7 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
 {
   if (ghost_window) {
     BLI_assert(ghost_context == nullptr);
-    ghost_context = GHOST_GetDrawingContext((GHOST_WindowHandle)ghost_window);
+    ghost_context = GHOST_GetDrawingContext(static_cast<GHOST_WindowHandle>(ghost_window));
   }
 
   BLI_assert(ghost_context != nullptr);
@@ -597,12 +600,12 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
     device.init(ghost_context);
     device.extensions_get().log();
     device.workarounds_get().log();
-    init_device_list((GHOST_ContextHandle)ghost_context);
+    init_device_list(static_cast<GHOST_ContextHandle>(ghost_context));
   }
 
   VKContext *context = new VKContext(ghost_window, ghost_context);
   device.context_register(*context);
-  GHOST_SetVulkanSwapBuffersCallbacks((GHOST_ContextHandle)ghost_context,
+  GHOST_SetVulkanSwapBuffersCallbacks(static_cast<GHOST_ContextHandle>(ghost_context),
                                       VKContext::swap_buffer_draw_callback,
                                       VKContext::swap_buffer_acquired_callback,
                                       VKContext::openxr_acquire_framebuffer_image_callback,
@@ -649,6 +652,16 @@ Shader *VKBackend::shader_alloc(const char *name)
 Texture *VKBackend::texture_alloc(const char *name)
 {
   return new VKTexture(name);
+}
+
+TexturePool *VKBackend::texturepool_alloc()
+{
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    CLOG_INFO(&LOG, "Using texture pool \"TexturePoolImpl\".");
+    return new TexturePoolImpl();
+  }
+  CLOG_INFO(&LOG, "Using texture pool \"VKTexturePool\".");
+  return new VKTexturePool();
 }
 
 UniformBuf *VKBackend::uniformbuf_alloc(size_t size, const char *name)
@@ -757,4 +770,5 @@ void VKBackend::capabilities_init(VKDevice &device)
   detect_workarounds(device);
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

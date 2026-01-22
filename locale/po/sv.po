@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-16 11:27+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -9339,12 +9339,76 @@ msgid "Use Material Mask"
 msgstr "Använd materialmask"
 
 
-msgid "Mirror"
-msgstr "Spegla"
+msgid "Math"
+msgstr "Matematik"
+
+
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Merge"
+msgstr "Sammanfoga"
+
+
+msgid "Show/Hide"
+msgstr "Visa/dölj"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
+
+
+msgid "Metaball"
+msgstr "Metaboll"
+
+
+msgid "Read"
+msgstr "Läs"
+
+
+msgid "Names"
+msgstr "Namn"
+
+
+msgid "Write"
+msgstr "Skriv"
+
+
+msgid "Primitives"
+msgstr "Primitiver"
+
+
+msgid "Instances"
+msgstr "Instanser"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
 
 
 msgid "Snap"
 msgstr "Snäpp"
+
+
+msgid "Import"
+msgstr "Importera"
+
+
+msgid "Deprecated"
+msgstr "Föråldrad"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "Spegla"
 
 
 msgid "Local View"
@@ -9375,14 +9439,6 @@ msgid "Assign Material"
 msgstr "Tilldela material"
 
 
-msgid "Metaball"
-msgstr "Metaboll"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
 msgid "Light"
 msgstr "Ljus"
 
@@ -9399,12 +9455,12 @@ msgid "Relations"
 msgstr "Relationer"
 
 
-msgid "Adjust"
-msgstr "Justera"
-
-
 msgid "Rigid Body"
 msgstr "Rigid kropp"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Apply"
@@ -9415,24 +9471,8 @@ msgid "Track"
 msgstr "Spår"
 
 
-msgid "Utilities"
-msgstr "Verktyg"
-
-
-msgid "Math"
-msgstr "Matematik"
-
-
 msgid "Quick Effects"
 msgstr "Snabbeffekter"
-
-
-msgid "Show/Hide"
-msgstr "Visa/dölj"
-
-
-msgid "Clean Up"
-msgstr "Städa upp"
 
 
 msgid "Asset"
@@ -9447,52 +9487,12 @@ msgid "Link/Transfer Data"
 msgstr "Länka/överför data"
 
 
+msgid "Adjust"
+msgstr "Justera"
+
+
 msgid "Propagate"
 msgstr "Propagera"
-
-
-msgid "Names"
-msgstr "Namn"
-
-
-msgid "Merge"
-msgstr "Sammanfoga"
-
-
-msgid "Read"
-msgstr "Läs"
-
-
-msgid "Write"
-msgstr "Skriv"
-
-
-msgid "Primitives"
-msgstr "Primitiver"
-
-
-msgid "Special Characters"
-msgstr "Specialtecken"
-
-
-msgid "Instances"
-msgstr "Instanser"
-
-
-msgid "Import"
-msgstr "Importera"
-
-
-msgid "Deprecated"
-msgstr "Föråldrad"
-
-
-msgid "Pivot Point"
-msgstr "Fast punkt"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Animals"
@@ -11538,54 +11538,6 @@ msgid "Unknown"
 msgstr "Okänt"
 
 
-msgid "Align text to the center"
-msgstr "Justera text till mitten"
-
-
-msgid "Align text to the left and the right"
-msgstr "Justera text till vänster och höger"
-
-
-msgid "Align text to the left and the right, with equal character spacing"
-msgstr "Justera text till vänster och höger, med jämnt avstånd mellan tecken"
-
-
-msgid "Let the text use more space than the specified height"
-msgstr "Låt texten använda mer utrymme än den angivna höjden"
-
-
-msgid "Scale To Fit"
-msgstr "Skala för att passa"
-
-
-msgid "Scale the text size to fit inside the width and height"
-msgstr "Skala texten så att den passar inom bredden och höjden"
-
-
-msgid "Top Left"
-msgstr "Topp vänster"
-
-
-msgid "Top Center"
-msgstr "Topp mitten"
-
-
-msgid "Top Right"
-msgstr "Topp höger"
-
-
-msgid "Bottom Left"
-msgstr "Botten vänster"
-
-
-msgid "Bottom Center"
-msgstr "Botten mitten"
-
-
-msgid "Bottom Right"
-msgstr "Botten höger"
-
-
 msgid "Selection"
 msgstr "Urval"
 
@@ -13223,11 +13175,6 @@ msgstr "Nytt objekt"
 
 
 msgctxt "Operator"
-msgid "Remove Item"
-msgstr "Ta bort objekt"
-
-
-msgctxt "Operator"
 msgid "Add Attribute"
 msgstr "Lägg till attribut"
 
@@ -13238,8 +13185,8 @@ msgstr "Importera bildsekvens"
 
 
 msgctxt "Operator"
-msgid "Texture Setup"
-msgstr "Texturkonfiguration"
+msgid "Add Texture Setup"
+msgstr "Lägg till texturinställning"
 
 
 msgctxt "Operator"
@@ -15767,6 +15714,11 @@ msgid "Erase"
 msgstr "Radera"
 
 
+msgctxt "Operator"
+msgid "Mask"
+msgstr "Maskera"
+
+
 msgid "Rounded"
 msgstr "Rundad"
 
@@ -17558,6 +17510,11 @@ msgstr "Flytta objekt"
 
 msgid "Move direction"
 msgstr "Flytta riktning"
+
+
+msgctxt "Operator"
+msgid "Remove Item"
+msgstr "Ta bort objekt"
 
 
 msgctxt "Operator"
@@ -21371,6 +21328,18 @@ msgid "Palette Color"
 msgstr "Palettfärg"
 
 
+msgid "Active Tool"
+msgstr "Aktivt verktyg"
+
+
+msgid "Cavity"
+msgstr "Hålrum"
+
+
+msgid "Render Pass"
+msgstr "Renderingspass"
+
+
 msgid "Overlays"
 msgstr "Överlägg"
 
@@ -21389,18 +21358,6 @@ msgstr "Streckplacering"
 
 msgid "VR"
 msgstr "VR"
-
-
-msgid "Active Tool"
-msgstr "Aktivt verktyg"
-
-
-msgid "Cavity"
-msgstr "Hålrum"
-
-
-msgid "Render Pass"
-msgstr "Renderingspass"
 
 
 msgid "Import Settings"
@@ -21583,11 +21540,6 @@ msgstr "Suddig"
 msgctxt "Operator"
 msgid "Clone"
 msgstr "Klona"
-
-
-msgctxt "Operator"
-msgid "Mask"
-msgstr "Maskera"
 
 
 msgid "Texture Mask"
@@ -23010,10 +22962,6 @@ msgid "Chinese (Traditional) - 繁體中文"
 msgstr "Kinesiska (traditionell) - 繁體中文"
 
 
-msgid "Croatian - Hrvatski"
-msgstr "Kroatiska - Hrvatski"
-
-
 msgid "Czech - Čeština"
 msgstr "Tjeckiska - Čeština"
 
@@ -23058,10 +23006,6 @@ msgid "Greek - Ελληνικά"
 msgstr "Grekiska - Ελληνικά"
 
 
-msgid "Hausa - Hausa"
-msgstr "Hausa - Hausa"
-
-
 msgid "Hebrew - תירִבְעִ"
 msgstr "Hebreiska - תירִבְעִ"
 
@@ -23086,10 +23030,6 @@ msgid "Japanese - 日本語"
 msgstr "Japanska - 日本語"
 
 
-msgid "Khmer - ខ្មែរ"
-msgstr "Khmer - ខ្មែរ"
-
-
 msgid "Korean - 한국어"
 msgstr "Koreanska - 한국어"
 
@@ -23104,10 +23044,6 @@ msgstr "Litauiska - Lietuviškai"
 
 msgid "Malayalam - മലയാളം"
 msgstr "Malayalam - മലയാളം"
-
-
-msgid "Nepali - नेपाली"
-msgstr "Nepali - नेपाली"
 
 
 msgid "Persian - ﯽﺳﺭﺎﻓ"
@@ -23427,6 +23363,11 @@ msgstr "Osignerad"
 
 
 msgctxt "Unit"
+msgid "Mass"
+msgstr "Massa"
+
+
+msgctxt "Unit"
 msgid "Angle"
 msgstr "Vinkel"
 
@@ -23533,11 +23474,6 @@ msgstr "Område"
 msgctxt "Unit"
 msgid "Volume"
 msgstr "Volym"
-
-
-msgctxt "Unit"
-msgid "Mass"
-msgstr "Massa"
 
 
 msgctxt "Unit"
@@ -24772,16 +24708,16 @@ msgid "Theme settings for the Blender Preferences"
 msgstr "Tema-inställningar för Blender-inställningarna"
 
 
+msgid "Search Match"
+msgstr "Sökträff"
+
+
 msgid "Theme Properties"
 msgstr "Temaegenskaper"
 
 
 msgid "Theme settings for the Properties"
 msgstr "Temainställningar för egenskaperna"
-
-
-msgid "Search Match"
-msgstr "Sökträff"
 
 
 msgid "Preview Background"
@@ -26225,11 +26161,6 @@ msgstr "Variant"
 msgctxt "Operator"
 msgid "Image Sequence"
 msgstr "Bildsekvens"
-
-
-msgctxt "Operator"
-msgid "Add Texture Setup"
-msgstr "Lägg till texturinställning"
 
 
 msgctxt "Operator"
@@ -30559,10 +30490,6 @@ msgid "CombinedAction"
 msgstr "CombinedAction"
 
 
-msgid "Active action is not layered"
-msgstr "Aktiv åtgärd är inte uppdelad i lager"
-
-
 msgid "<invalid>"
 msgstr "<ogiltig>"
 
@@ -31884,10 +31811,6 @@ msgstr "Videor"
 
 msgid "OneDrive"
 msgstr "OneDrive"
-
-
-msgid "Movies"
-msgstr "Filmer"
 
 
 msgid "Interpolation:"
@@ -33510,6 +33433,14 @@ msgstr "Strängar"
 
 msgid "Limit Surface"
 msgstr "Begränsa yta"
+
+
+msgid "Bottom Left"
+msgstr "Botten vänster"
+
+
+msgid "Top Right"
+msgstr "Topp höger"
 
 
 msgid "Manage"

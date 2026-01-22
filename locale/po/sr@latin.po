@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-16 11:27+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -8497,12 +8497,52 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
-msgid "Mirror"
-msgstr "Ogledalo"
+msgid "Mesh Select Mode"
+msgstr "Mod izbora mreže"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Merge"
+msgstr "Sjedini"
+
+
+msgid "Show/Hide"
+msgstr "Prikaži/sakrij"
+
+
+msgid "Special Characters"
+msgstr "Specijalni znaci"
+
+
+msgid "Metaball"
+msgstr "Meta lopta"
+
+
+msgid "Names"
+msgstr "Imena"
+
+
+msgid "Bone Roll"
+msgstr "Rolna kostiju"
 
 
 msgid "Snap"
 msgstr "Lepljenje"
+
+
+msgid "Import"
+msgstr "Uvoz"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "Ogledalo"
 
 
 msgid "UV Mapping"
@@ -8525,10 +8565,6 @@ msgid "Select Linked"
 msgstr "Izaberi povezano"
 
 
-msgid "Metaball"
-msgstr "Meta lopta"
-
-
 msgid "Light"
 msgstr "Svetlost"
 
@@ -8541,36 +8577,28 @@ msgid "Rigid Body"
 msgstr "Kruto telo"
 
 
-msgid "Keying"
-msgstr "Zbirka tastera"
-
-
 msgid "Apply"
 msgstr "Primeni"
-
-
-msgid "Tracking"
-msgstr "Praćenje"
 
 
 msgid "Track"
 msgstr "Staza"
 
 
-msgid "Math"
-msgstr "Matematika"
-
-
 msgid "Quick Effects"
 msgstr "Brzi efekti"
 
 
-msgid "Show/Hide"
-msgstr "Prikaži/sakrij"
-
-
 msgid "Hooks"
 msgstr "Udice"
+
+
+msgid "Keying"
+msgstr "Zbirka tastera"
+
+
+msgid "Tracking"
+msgstr "Praćenje"
 
 
 msgid "Clear Transform"
@@ -8585,10 +8613,6 @@ msgid "Propagate"
 msgstr "Prenesi"
 
 
-msgid "Names"
-msgstr "Imena"
-
-
 msgid "Toggle Bone Options"
 msgstr "Manje/više informacija"
 
@@ -8599,30 +8623,6 @@ msgstr "Omogući opcije kostiju"
 
 msgid "Disable Bone Options"
 msgstr "Onemogući opcije kostiju"
-
-
-msgid "Mesh Select Mode"
-msgstr "Mod izbora mreže"
-
-
-msgid "Merge"
-msgstr "Sjedini"
-
-
-msgid "Special Characters"
-msgstr "Specijalni znaci"
-
-
-msgid "Bone Roll"
-msgstr "Rolna kostiju"
-
-
-msgid "Import"
-msgstr "Uvoz"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Basic"
@@ -20080,10 +20080,6 @@ msgstr "Kontinualno pomeranje"
 
 msgid "Emulate 3 Button Mouse"
 msgstr "Imitiraj 3. dugme"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Koristi vektore odsjaja kao koordinate teksture"
 
 
 msgid "Turntable"
