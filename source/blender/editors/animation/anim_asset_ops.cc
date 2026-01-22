@@ -391,11 +391,11 @@ static wmOperatorStatus pose_asset_create_invoke(bContext *C,
   if (!RNA_struct_property_is_set_ex(op->ptr, "asset_library_reference", false)) {
     std::optional<AssetLibraryReference> dest_library_ref;
 
-    LISTBASE_FOREACH (bUserAssetLibrary *, asset_library, &U.asset_libraries) {
-      if (asset_library->flag & ASSET_LIBRARY_DISABLED) {
+    for (const bUserAssetLibrary &asset_library : U.asset_libraries) {
+      if (asset_library.flag & ASSET_LIBRARY_DISABLED) {
         continue;
       }
-      dest_library_ref = asset::user_library_to_library_ref(*asset_library);
+      dest_library_ref = asset::user_library_to_library_ref(asset_library);
       break;
     }
 

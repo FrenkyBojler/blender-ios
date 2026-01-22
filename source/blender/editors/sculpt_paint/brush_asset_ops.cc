@@ -298,11 +298,11 @@ static wmOperatorStatus brush_asset_save_as_invoke(bContext *C,
       dest_library_ref = library_ref;
     }
     else {
-      LISTBASE_FOREACH (bUserAssetLibrary *, asset_library, &U.asset_libraries) {
-        if (asset_library->flag & ASSET_LIBRARY_DISABLED) {
+      for (const bUserAssetLibrary &asset_library : U.asset_libraries) {
+        if (asset_library.flag & ASSET_LIBRARY_DISABLED) {
           continue;
         }
-        dest_library_ref = asset::user_library_to_library_ref(*asset_library);
+        dest_library_ref = asset::user_library_to_library_ref(asset_library);
         break;
       }
 
