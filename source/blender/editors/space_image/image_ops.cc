@@ -3420,7 +3420,7 @@ static bool image_pack_test(Image *ima, const char **r_error_message)
   }
 
   if (ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
-    *r_error_message = "Render Result and Viewer Nodes cannot be packed";
+    *r_error_message = N_("Render Result and Viewer Nodes cannot be packed");
     return false;
   }
 
