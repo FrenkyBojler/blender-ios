@@ -325,6 +325,12 @@ void Bundle::clear()
   items_.clear();
 }
 
+std::optional<StringRef> Bundle::type() const
+{
+  const std::string *type = this->lookup_ptr<std::string>(Bundle::type_item_name);
+  return type ? std::optional<StringRef>(*type) : std::nullopt;
+}
+
 NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
     const bNodeSocket &socket,
     const NodeSocketInterfaceStructureType stored_structure_type,

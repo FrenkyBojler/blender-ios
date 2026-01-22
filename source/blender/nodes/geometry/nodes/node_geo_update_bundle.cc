@@ -27,6 +27,9 @@ static void node_declare(NodeDeclarationBuilder &b)
           "level to update the bundle");
   b.add_input<decl::Closure>("Closure").description(
       "Closure that is evaluated at every level of the bundle");
+  b.add_input<decl::String>("Type Filter")
+      .optional_label()
+      .description("The closures will only be called on bundles of this type");
   b.add_input<decl::Bundle>("Reference");
 }
 
@@ -34,17 +37,20 @@ class BundleUpdater {
  private:
   const bNode &node_;
   const std::optional<Vector<StringRef>> &closure_path_;
-  ClosurePtr global_closure_ptr_;
+  const ClosurePtr global_closure_ptr_;
+  const StringRef type_filter_;
   GeoNodesUserData &geo_user_data_;
 
  public:
   BundleUpdater(const bNode &node,
                 const std::optional<Vector<StringRef>> &closure_path,
                 ClosurePtr global_closure,
+                const StringRef type_filter,
                 GeoNodesUserData &geo_user_data)
       : node_(node),
         closure_path_(closure_path),
         global_closure_ptr_(std::move(global_closure)),
+        type_filter_(type_filter),
         geo_user_data_(geo_user_data)
   {
   }
@@ -64,27 +70,31 @@ class BundleUpdater {
     for (const auto &item : main_bundle_ptr->items()) {
       old_keys.append(item.key);
     }
-    if (global_closure_ptr_) {
-      bke::UpdateBundleComputeContext compute_context{
-          geo_user_data_.compute_context, node_.identifier, true, bundle_path};
-      main_bundle_ptr = this->update_bundle_with_closure(
-          std::move(main_bundle_ptr), reference_bundle_ptr, *global_closure_ptr_, compute_context);
-    }
-    if (closure_path_) {
-      const std::optional<ClosurePtr> update_closure_ptr =
-          main_bundle_ptr->lookup_path<ClosurePtr>(*closure_path_);
-      if (update_closure_ptr && *update_closure_ptr) {
-        const Closure &update_closure = **update_closure_ptr;
+    if (this->bundle_is_filtered(*main_bundle_ptr)) {
+      if (global_closure_ptr_) {
         bke::UpdateBundleComputeContext compute_context{
-            geo_user_data_.compute_context, node_.identifier, false, bundle_path};
-        main_bundle_ptr = this->update_bundle_with_closure(
-            std::move(main_bundle_ptr), reference_bundle_ptr, update_closure, compute_context);
+            geo_user_data_.compute_context, node_.identifier, true, bundle_path};
+        main_bundle_ptr = this->update_bundle_with_closure(std::move(main_bundle_ptr),
+                                                           reference_bundle_ptr,
+                                                           *global_closure_ptr_,
+                                                           compute_context);
+      }
+      if (closure_path_) {
+        const std::optional<ClosurePtr> update_closure_ptr =
+            main_bundle_ptr->lookup_path<ClosurePtr>(*closure_path_);
+        if (update_closure_ptr && *update_closure_ptr) {
+          const Closure &update_closure = **update_closure_ptr;
+          bke::UpdateBundleComputeContext compute_context{
+              geo_user_data_.compute_context, node_.identifier, false, bundle_path};
+          main_bundle_ptr = this->update_bundle_with_closure(
+              std::move(main_bundle_ptr), reference_bundle_ptr, update_closure, compute_context);
+        }
+      }
+      if (!main_bundle_ptr) {
+        return {};
       }
     }
-    if (!main_bundle_ptr) {
-      return {};
-    }
-    if (!this->has_update_callback_recursive(*main_bundle_ptr)) {
+    if (!this->has_recursive_update_callback(*main_bundle_ptr)) {
       return main_bundle_ptr;
     }
 
@@ -113,23 +123,43 @@ class BundleUpdater {
     return main_bundle_ptr;
   }
 
-  bool has_update_callback_recursive(const Bundle &bundle) const
+  bool bundle_is_filtered(const Bundle &bundle) const
   {
-    if (closure_path_) {
-      const ClosurePtr *closure = bundle.lookup_path_ptr<ClosurePtr>(*closure_path_);
-      if (closure && *closure) {
-        return true;
-      }
+    if (type_filter_.is_empty()) {
+      return true;
     }
+    const std::optional<StringRef> type = bundle.type();
+    return type == type_filter_;
+  }
+
+  bool has_recursive_update_callback(const Bundle &bundle) const
+  {
     for (const auto &item : bundle.items()) {
       const BundlePtr *child_bundle_ptr = item.value.as_pointer<BundlePtr>();
       if (!child_bundle_ptr || !*child_bundle_ptr) {
         continue;
       }
-      if (global_closure_ptr_) {
+      if (this->has_update_callback(**child_bundle_ptr)) {
         return true;
       }
-      if (this->has_update_callback_recursive(**child_bundle_ptr)) {
+      if (this->has_recursive_update_callback(**child_bundle_ptr)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool has_update_callback(const Bundle &bundle) const
+  {
+    if (!this->bundle_is_filtered(bundle)) {
+      return false;
+    }
+    if (global_closure_ptr_) {
+      return true;
+    }
+    if (closure_path_) {
+      const ClosurePtr *closure = bundle.lookup_path_ptr<ClosurePtr>(*closure_path_);
+      if (closure && *closure) {
         return true;
       }
     }
@@ -175,7 +205,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const ClosurePtr global_closure = params.extract_input<ClosurePtr>("Closure");
   BundlePtr reference = params.extract_input<BundlePtr>("Reference");
 
-  BundleUpdater updater(params.node(), parsed_closure_path, global_closure, *params.user_data());
+  const std::string type_filter = params.extract_input<std::string>("Type Filter");
+
+  BundleUpdater updater(
+      params.node(), parsed_closure_path, global_closure, type_filter, *params.user_data());
   BundlePtr updated = updater.update("", std::move(main), std::move(reference));
   params.set_output("Bundle", std::move(updated));
 }

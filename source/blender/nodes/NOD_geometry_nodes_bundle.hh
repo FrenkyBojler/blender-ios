@@ -109,6 +109,8 @@ class Bundle : public ImplicitSharingMixin {
 
   void clear();
 
+  std::optional<StringRef> type() const;
+
   /** Also see #GeometrySet.ensure_owns_direct_data. */
   void ensure_owns_direct_data();
   bool owns_direct_data() const;
