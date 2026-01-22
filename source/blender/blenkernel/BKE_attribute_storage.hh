@@ -265,29 +265,11 @@ class AttributeStorage : public blender::AttributeStorage {
     }
   };
 
-  Iterator begin() const
-  {
-    return Iterator(this->runtime->attributes.begin());
-  }
+  Iterator begin() const;
+  Iterator end() const;
 
-  Iterator end() const
-  {
-    return Iterator(this->runtime->attributes.end());
-  }
-
-  MutableIterator begin()
-  {
-    /* Removing const is fine as long as the name of the attribute is not changed while iterating
-     * over the attributes. Renaming goes through #AttributeStorage::rename anyway. */
-    return MutableIterator(
-        const_cast<std::unique_ptr<Attribute> *>(this->runtime->attributes.begin()));
-  }
-
-  MutableIterator end()
-  {
-    return MutableIterator(
-        const_cast<std::unique_ptr<Attribute> *>(this->runtime->attributes.end()));
-  }
+  MutableIterator begin();
+  MutableIterator end();
 };
 
 /** The C++ wrapper needs to be the same size as the DNA struct. */
@@ -316,6 +298,30 @@ inline const Attribute::DataVariant &Attribute::data() const
 inline void Attribute::assign_data(DataVariant &&data)
 {
   data_ = std::move(data);
+}
+
+inline AttributeStorage::Iterator AttributeStorage::begin() const
+{
+  return Iterator(this->runtime->attributes.begin());
+}
+
+inline AttributeStorage::Iterator AttributeStorage::end() const
+{
+  return Iterator(this->runtime->attributes.end());
+}
+
+inline AttributeStorage::MutableIterator AttributeStorage::begin()
+{
+  /* Removing const is fine as long as the name of the attribute is not changed while iterating
+   * over the attributes. Renaming goes through #AttributeStorage::rename anyway. */
+  return MutableIterator(
+      const_cast<std::unique_ptr<Attribute> *>(this->runtime->attributes.begin()));
+}
+
+inline AttributeStorage::MutableIterator AttributeStorage::end()
+{
+  return MutableIterator(
+      const_cast<std::unique_ptr<Attribute> *>(this->runtime->attributes.end()));
 }
 
 }  // namespace bke
