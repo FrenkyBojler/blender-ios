@@ -2,60 +2,27 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_matrix.hh"
-#include "BLI_task.hh"
-
-#include "BKE_attribute_math.hh"
-#include "BKE_type_conversions.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
-#include "BKE_volume_openvdb.hh"
 
-#include "NOD_rna_define.hh"
-#include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
-
-#include "RNA_enum_types.hh"
-
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/openvdb.h>
-#  include <openvdb/tools/Dense.h>
 #endif
 
 namespace blender::nodes::node_geo_cube_grid_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  const bNode *node = b.node_or_null();
-  if (!node) {
-    return;
-  }
-
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-  b.use_custom_socket_order();
-  b.allow_any_socket_order();
-  b.add_default_layout();
-
-  /* Add input/output sockets with proper data types. */
-  b.add_input(data_type, "Value")
-      .description("Value field to evaluate at each grid point")
-      .supports_field();
-  b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
-  b.add_input(data_type, "Background")
-      .description("Default value for grid voxels outside the filled region");
-
   b.add_input<decl::Vector>("Min")
       .default_value(float3(-1.0f))
       .description("Minimum boundary of the grid");
   b.add_input<decl::Vector>("Max")
       .default_value(float3(1.0f))
       .description("Maximum boundary of the grid");
-
   b.add_input<decl::Int>("Resolution X")
       .default_value(32)
       .min(2)
@@ -68,169 +35,56 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(32)
       .min(2)
       .description("Number of voxels in the Z axis");
+  b.add_output<decl::Bool>("Topology")
+      .structure_type(StructureType::Grid)
+      .description("Boolean grid defining the topology/active regions");
 }
 
-static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  layout.use_property_split_set(true);
-  layout.use_property_decorate_set(false);
-  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-}
-
-static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
-{
-  switch (socket.type) {
-    case SOCK_FLOAT:
-      return SOCK_FLOAT;
-    case SOCK_BOOLEAN:
-      return SOCK_BOOLEAN;
-    case SOCK_INT:
-      return SOCK_INT;
-    case SOCK_VECTOR:
-    case SOCK_RGBA:
-      return SOCK_VECTOR;
-    default:
-      return std::nullopt;
-  }
-}
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(
-      params.other_socket());
-  if (!data_type) {
-    return;
-  }
+  const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
+  
   if (params.in_out() == SOCK_OUT) {
-    params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeCubeGrid");
-      node.custom1 = *data_type;
-      params.update_and_connect_available_socket(node, "Grid");
-    });
+    if (params.node_tree().typeinfo->validate_link(SOCK_BOOLEAN, other_type)) {
+      params.add_item(IFACE_("Topology"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeCubeGrid");
+        params.update_and_connect_available_socket(node, "Topology");
+      });
+    }
   }
   else {
-    const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_INT)) {
-      params.add_item(IFACE_("Resolution X"), [data_type](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Resolution X"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeCubeGrid");
-        node.custom1 = *data_type;
         params.update_and_connect_available_socket(node, "Resolution X");
       });
-      params.add_item(IFACE_("Resolution Y"), [data_type](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Resolution Y"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeCubeGrid");
-        node.custom1 = *data_type;
         params.update_and_connect_available_socket(node, "Resolution Y");
       });
-      params.add_item(IFACE_("Resolution Z"), [data_type](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Resolution Z"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeCubeGrid");
-        node.custom1 = *data_type;
         params.update_and_connect_available_socket(node, "Resolution Z");
       });
     }
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_VECTOR)) {
-      params.add_item(IFACE_("Min"), [data_type](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Min"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeCubeGrid");
-        node.custom1 = *data_type;
         params.update_and_connect_available_socket(node, "Min");
       });
-      params.add_item(IFACE_("Max"), [data_type](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Max"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeCubeGrid");
-        node.custom1 = *data_type;
         params.update_and_connect_available_socket(node, "Max");
       });
     }
-    params.add_item(IFACE_("Value"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeCubeGrid");
-      node.custom1 = *data_type;
-      params.update_and_connect_available_socket(node, "Value");
-    });
-    params.add_item(IFACE_("Background"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeCubeGrid");
-      node.custom1 = *data_type;
-      params.update_and_connect_available_socket(node, "Background");
-    });
   }
 }
 
-#ifdef WITH_OPENVDB
-
-template<typename T>
-bke::VolumeGrid<T> create_cube_grid(const Field<T> &input_field,
-                                    const T &background,
-                                    const int3 &resolution,
-                                    const float3 &bounds_min,
-                                    const float3 &bounds_max)
-{
-  using type_traits = typename bke::VolumeGridTraits<T>;
-  using TreeType = typename type_traits::TreeType;
-  using GridType = openvdb::Grid<TreeType>;
-
-  if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
-    /* Evaluate input field on a 3D grid. */
-    blender::nodes::Grid3DFieldContext context(resolution, bounds_min, bounds_max);
-    FieldEvaluator evaluator(context, context.voxel_num());
-    Array<T> values(context.voxel_num());
-    evaluator.add_with_destination(input_field, values.as_mutable_span());
-    evaluator.evaluate();
-
-    /* Store resulting values in openvdb grid. */
-    Array<typename type_traits::PrimitiveType> openvdb_values(values.size());
-    for (const int64_t index : values.index_range()) {
-      openvdb_values[index] = type_traits::to_openvdb(values[index]);
-    }
-
-    auto openvdb_grid = GridType::create(type_traits::to_openvdb(background));
-
-    using DenseType = openvdb::tools::Dense<typename type_traits::PrimitiveType,
-                                            openvdb::tools::LayoutZYX>;
-    DenseType dense_grid{
-        openvdb::math::CoordBBox({0, 0, 0},
-                                 {resolution.x - 1, resolution.y - 1, resolution.z - 1}),
-        openvdb_values.data()};
-
-    /* Force all voxels to be active. */
-    if constexpr (std::is_same_v<T, float>) {
-      openvdb::tools::copyFromDense(
-          dense_grid, *openvdb_grid, std::numeric_limits<float>::lowest());
-    }
-    else if constexpr (std::is_same_v<T, int>) {
-      openvdb::tools::copyFromDense(
-          dense_grid, *openvdb_grid, std::numeric_limits<int>::lowest());
-    }
-    else if constexpr (std::is_same_v<T, bool>) {
-      openvdb::tools::copyFromDense(dense_grid, *openvdb_grid, false);
-      /* Boolean grids need manual activation since there are only two possible values. */
-      openvdb_grid->tree().sparseFill(
-          openvdb::math::CoordBBox({0, 0, 0},
-                                   {resolution.x - 1, resolution.y - 1, resolution.z - 1}),
-          openvdb_grid->background(),
-          /*active=*/true);
-    }
-    else if constexpr (std::is_same_v<T, float3>) {
-      openvdb::tools::copyFromDense(
-          dense_grid, *openvdb_grid, openvdb::Vec3f(std::numeric_limits<float>::lowest()));
-    }
-
-    const double3 scale_fac = double3(bounds_max - bounds_min) / double3(resolution - 1);
-    openvdb_grid->transform().postScale(
-        openvdb::math::Vec3d(scale_fac.x, scale_fac.y, scale_fac.z));
-    openvdb_grid->transform().postTranslate(
-        openvdb::math::Vec3d(bounds_min.x, bounds_min.y, bounds_min.z));
-
-    return bke::VolumeGrid<T>(std::move(openvdb_grid));
-  }
-  else {
-    return {};
-  }
-}
-
-#endif /* WITH_OPENVDB */
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
-
   const float3 bounds_min = params.extract_input<float3>("Min");
   const float3 bounds_max = params.extract_input<float3>("Max");
 
@@ -260,43 +114,30 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  bke::attribute_math::convert_to_static_type(
-      *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&](auto type_tag) {
-        using ValueT = decltype(type_tag);
-        using type_traits = typename bke::VolumeGridTraits<ValueT>;
+  /* Create boolean grid directly in node_geo_exec. */
+  using type_traits = typename bke::VolumeGridTraits<bool>;
+  using TreeType = typename type_traits::TreeType;
+  using GridType = openvdb::Grid<TreeType>;
 
-        if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
-          using BlenderType = typename type_traits::BlenderType;
+  auto openvdb_grid = GridType::create(false /* background */);
 
-          const BlenderType background = params.extract_input<BlenderType>("Background");
-          Field<BlenderType> input_field = params.extract_input<Field<BlenderType>>("Value");
+  /* Fill all voxels in the cube densely using OpenVDB's denseFill. */
+  openvdb::math::CoordBBox bbox({0, 0, 0}, {resolution.x - 1, resolution.y - 1, resolution.z - 1});
+  openvdb_grid->tree().denseFill(bbox, true, /*active=*/true);
 
-          bke::VolumeGrid<ValueT> typed_grid = create_cube_grid<BlenderType>(
-              input_field, background, resolution, bounds_min, bounds_max);
-          params.set_output("Grid", bke::GVolumeGrid(std::move(typed_grid)));
-        }
-      });
+  /* Set transform from grid index space to world space. */
+  openvdb_grid->transform().postScale(
+      openvdb::math::Vec3d(scale_fac.x, scale_fac.y, scale_fac.z));
+  openvdb_grid->transform().postTranslate(
+      openvdb::math::Vec3d(bounds_min.x, bounds_min.y, bounds_min.z));
+
+  bke::VolumeGrid<bool> topology_grid(std::move(openvdb_grid));
+  params.set_output("Topology", bke::GVolumeGrid(std::move(topology_grid)));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
 }
 
-static void node_init(bNodeTree * /*tree*/, bNode *node)
-{
-  node->custom1 = SOCK_FLOAT;
-}
-
-static void node_rna(StructRNA *srna)
-{
-  RNA_def_node_enum(srna,
-                    "data_type",
-                    "Data Type",
-                    "Node socket data type",
-                    rna_enum_node_socket_data_type_items,
-                    NOD_inline_enum_accessors(custom1),
-                    SOCK_FLOAT,
-                    grid_socket_type_items_filter_fn);
-}
 
 static void node_register()
 {
@@ -304,16 +145,12 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeCubeGrid");
   ntype.ui_name = "Cube Grid";
-  ntype.ui_description = "Create a new grid with the values for each voxel evaluated from a field";
+  ntype.ui_description = "Create a cube topology grid for use with Field to Grid node";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
-  ntype.draw_buttons = node_layout;
-  ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.geometry_node_execute = node_geo_exec;
   bke::node_register_type(ntype);
-
-  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
