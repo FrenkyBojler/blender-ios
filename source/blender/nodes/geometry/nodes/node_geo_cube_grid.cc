@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "node_geometry_util.hh"
-
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
 
@@ -12,18 +10,21 @@
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
 
-#ifdef WITH_OPENVDB
-#  include <openvdb/openvdb.h>
-#  include <openvdb/tools/Dense.h>
-#endif
-
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_search_link.hh"
+
+#include "RNA_enum_types.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "RNA_enum_types.hh"
+#include "node_geometry_util.hh"
+
+#ifdef WITH_OPENVDB
+#  include <openvdb/openvdb.h>
+#  include <openvdb/tools/Dense.h>
+#endif
 
 namespace blender::nodes::node_geo_cube_grid_cc {
 
@@ -92,11 +93,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Number of voxels in the Z axis");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
@@ -118,56 +119,58 @@ static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeS
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  if (!USER_EXPERIMENTAL_TEST(&U, use_new_volume_nodes)) {
-    return;
-  }
-  const std::optional<eNodeSocketDatatype> node_type = node_type_for_socket_type(
+  const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(
       params.other_socket());
-  if (!node_type) {
+  if (!data_type) {
     return;
   }
   if (params.in_out() == SOCK_OUT) {
-    params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
+    params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeCubeGrid");
-      node.custom1 = *node_type;
+      node.custom1 = *data_type;
       params.update_and_connect_available_socket(node, "Grid");
     });
   }
   else {
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_INT)) {
-      params.add_item(IFACE_("Resolution X"), [](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Resolution X"), [data_type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeCubeGrid");
+        node.custom1 = *data_type;
         params.update_and_connect_available_socket(node, "Resolution X");
       });
-      params.add_item(IFACE_("Resolution Y"), [](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Resolution Y"), [data_type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeCubeGrid");
+        node.custom1 = *data_type;
         params.update_and_connect_available_socket(node, "Resolution Y");
       });
-      params.add_item(IFACE_("Resolution Z"), [](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Resolution Z"), [data_type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeCubeGrid");
+        node.custom1 = *data_type;
         params.update_and_connect_available_socket(node, "Resolution Z");
       });
     }
-    params.add_item(IFACE_("Value"), [node_type](LinkSearchOpParams &params) {
+    if (params.node_tree().typeinfo->validate_link(other_type, SOCK_VECTOR)) {
+      params.add_item(IFACE_("Min"), [data_type](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeCubeGrid");
+        node.custom1 = *data_type;
+        params.update_and_connect_available_socket(node, "Min");
+      });
+      params.add_item(IFACE_("Max"), [data_type](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeCubeGrid");
+        node.custom1 = *data_type;
+        params.update_and_connect_available_socket(node, "Max");
+      });
+    }
+    params.add_item(IFACE_("Value"), [data_type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeCubeGrid");
-      node.custom1 = *node_type;
+      node.custom1 = *data_type;
       params.update_and_connect_available_socket(node, "Value");
     });
-    params.add_item(IFACE_("Background"), [node_type](LinkSearchOpParams &params) {
+    params.add_item(IFACE_("Background"), [data_type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeCubeGrid");
-      node.custom1 = *node_type;
+      node.custom1 = *data_type;
       params.update_and_connect_available_socket(node, "Background");
-    });
-    params.add_item(IFACE_("Min"), [node_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeCubeGrid");
-      node.custom1 = *node_type;
-      params.update_and_connect_available_socket(node, "Min");
-    });
-    params.add_item(IFACE_("Max"), [node_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeCubeGrid");
-      node.custom1 = *node_type;
-      params.update_and_connect_available_socket(node, "Max");
     });
   }
 }
@@ -298,18 +301,18 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeCubeGrid");
   ntype.ui_name = "Cube Grid";
   ntype.ui_description = "Create a new grid with the values for each voxel evaluated from a field";
   ntype.nclass = NODE_CLASS_CONVERTER;
-  ntype.initfunc = node_init;
-  ntype.geometry_node_execute = node_geo_exec;
-  ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
+  ntype.draw_buttons = node_layout;
+  ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
-  blender::bke::node_register_type(ntype);
+  ntype.geometry_node_execute = node_geo_exec;
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

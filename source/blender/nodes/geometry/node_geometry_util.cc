@@ -163,6 +163,8 @@ void geo_cmp_node_type_base(bke::bNodeType *ntype,
   ntype->gather_link_search_ops = nodes::search_link_ops_for_basic_node;
 }
 
+}  // namespace blender
+
 namespace blender::nodes {
 
 Grid3DFieldContext::Grid3DFieldContext(const int3 resolution,
