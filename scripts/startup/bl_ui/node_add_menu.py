@@ -111,7 +111,7 @@ def add_closure_zone(layout, label):
 
 
 class NodeMenu(Menu):
-    """A baseclass defining the shared methods for AddNodeMenu and SwapNodeMenu."""
+    """A base-class defining the shared methods for AddNodeMenu and SwapNodeMenu."""
     draw_assets: bool
     use_transform: bool
 
@@ -281,7 +281,7 @@ class NodeMenu(Menu):
 
     @classmethod
     def new_empty_group(cls, layout):
-        """Group Node with a newly created empty group as its assigned nodetree."""
+        """Group Node with a newly created empty group as its assigned node-tree."""
         props = layout.operator(
             cls.new_empty_group_operator_id,
             text="New Group",
@@ -312,7 +312,7 @@ class NodeMenu(Menu):
             from nodeitems_builtins import node_tree_group_type
 
             prefs = bpy.context.preferences
-            show_hidden = prefs.filepaths.show_hidden_files_datablocks
+            show_hidden = prefs.show_hidden_ids
 
             groups = [
                 group for group in context.blend_data.node_groups

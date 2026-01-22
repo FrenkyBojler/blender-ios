@@ -15,6 +15,8 @@
 #  include <python/PyAPI.h>
 #  include <python/PySound.h>
 
+namespace blender {
+
 extern void *BKE_sound_get_factory(void *sound);
 
 static PyObject *AUD_getSoundFromPointer(PyObject * /*self*/, PyObject *args)
@@ -50,7 +52,7 @@ PyObject *BPyInit_audaspace()
 {
   PyObject *module = PyInit_aud();
   if (module == nullptr) {
-    printf("Unable to initialise audio\n");
+    printf("Unable to initialize audio\n");
     return nullptr;
   }
 
@@ -60,5 +62,7 @@ PyObject *BPyInit_audaspace()
 
   return module;
 }
+
+}  // namespace blender
 
 #endif  // WITH_AUDASPACE_PY
