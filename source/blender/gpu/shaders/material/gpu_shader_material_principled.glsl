@@ -169,7 +169,7 @@ void node_bsdf_principled(float4 base_color,
     weight *= max((1.0f - metallic), 0.0f);
   }
 
-#ifdef MAT_REFRACTION
+#if defined(MAT_REFRACTION) || defined(MAT_REFRACTION_AS_TRANSPARENCY)
   /* Transmission component */
   if (transmission_weight > 0.0f) {
     float3 F0 = float3(F0_from_ior(ior)) * reflection_tint;
