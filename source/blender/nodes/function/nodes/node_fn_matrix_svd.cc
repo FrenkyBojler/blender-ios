@@ -2,11 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_matrix.hh"
 #include "BLI_math_solvers.h"
-
-#include "NOD_inverse_eval_params.hh"
-#include "NOD_value_elem_eval.hh"
 
 #include "node_function_util.hh"
 
@@ -57,42 +53,6 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
-static void node_eval_elem(value_elem::ElemEvalParams &params)
-{
-  using namespace value_elem;
-  const MatrixElem matrix_elem = params.get_input_elem<MatrixElem>("Matrix");
-  params.set_output_elem("U", matrix_elem.rotation);
-  params.set_output_elem("U", matrix_elem.scale);
-  params.set_output_elem("S", matrix_elem.rotation);
-  params.set_output_elem("S", matrix_elem.scale);
-  params.set_output_elem("V", matrix_elem.rotation);
-  params.set_output_elem("V", matrix_elem.scale);
-}
-
-static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
-{
-  using namespace value_elem;
-  const MatrixElem U_elem = params.get_output_elem<MatrixElem>("U");
-  const VectorElem S_elem = params.get_output_elem<VectorElem>("S");
-  const MatrixElem V_elem = params.get_output_elem<MatrixElem>("V");
-
-  MatrixElem matrix_elem = U_elem;
-  matrix_elem.merge(V_elem);
-  matrix_elem.merge(MatrixElem{{}, {}, S_elem});
-
-  params.set_input_elem("Matrix", matrix_elem);
-}
-
-static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
-{
-  const float4x4 U = params.get_output<float4x4>("U");
-  const float3 S = params.get_output<float3>("S");
-  const float4x4 V = params.get_output<float4x4>("V");
-  const float3x3 matrix3 = float3x3(U) * math::from_scale<float3x3>(S) *
-                           math::transpose(float3x3(V));
-  params.set_input("Matrix", float4x4(matrix3));
-}
-
 static void node_register()
 {
   static bke::bNodeType ntype;
@@ -102,9 +62,6 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
-  ntype.eval_elem = node_eval_elem;
-  ntype.eval_inverse_elem = node_eval_inverse_elem;
-  ntype.eval_inverse = node_eval_inverse;
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
