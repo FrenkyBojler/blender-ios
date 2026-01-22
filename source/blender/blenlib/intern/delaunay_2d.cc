@@ -2582,72 +2582,55 @@ void detect_holes(CDT_state<T> *cdt_state, const CDT_input<T> &input, bool use_n
                   }
                 }
 
-                if (face_input_id >= 0) {
+                /* Ignore free standing edges that are not part of a face. */
+                if (face_input_id != -1) {
                   /* Decode the face input_id to get face index and edge position. */
                   const int face_index = (face_input_id / face_edge_offset) - 1;
                   const int edge_index = face_input_id % face_edge_offset;
 
-                  if (face_index >= 0 && face_index < input.face.size()) {
-                    const Vector<int> &face = input.face[face_index];
-                    if (edge_index < face.size()) {
-                      /* The face edge goes from face[edge_index] to face[(edge_index+1) % n].
-                       * Get the input vertex indices. */
-                      int iv_start = face[edge_index];
-                      int iv_end = face[(edge_index + 1) % face.size()];
+                  BLI_assert(face_index >= 0 && face_index < input.face.size());
+                  const Vector<int> &face = input.face[face_index];
+                  if (edge_index < face.size()) {
+                    /* The face edge goes from face[edge_index] to face[(edge_index+1) % n].
+                     * Get the input vertex indices. */
+                    int iv_start = face[edge_index];
+                    int iv_end = face[(edge_index + 1) % face.size()];
 
-                      /* Get input coordinates for start and end vertices.
-                       * Note: We use input coordinates, not CDT vertices, because vertices
-                       * may have been merged during CDT processing. */
-                      if (iv_start >= 0 && iv_start < input.vert.size() && iv_end >= 0 &&
-                          iv_end < input.vert.size())
-                      {
-                        VecBase<T, 2> edge_start = input.vert[iv_start];
-                        VecBase<T, 2> edge_end = input.vert[iv_end];
+                    /* Get input coordinates for start and end vertices.
+                     * Note: We use input coordinates, not CDT vertices, because vertices
+                     * may have been merged during CDT processing. */
+                    if (iv_start >= 0 && iv_start < input.vert.size() && iv_end >= 0 &&
+                        iv_end < input.vert.size())
+                    {
+                      VecBase<T, 2> edge_start = input.vert[iv_start];
+                      VecBase<T, 2> edge_end = input.vert[iv_end];
 
-                        /* Compute which side of the ray each endpoint is on.
-                         * Cross(v - mid, ray_dir) > 0 means v is to the RIGHT of ray_dir
-                         * (i.e., below the ray for a rightward ray). */
-                        VecBase<T, 2> ray_dir = ray_end.exact - mid.exact;
-                        VecBase<T, 2> v_start = edge_start - mid.exact;
-                        VecBase<T, 2> v_end = edge_end - mid.exact;
-                        T side_start = (v_start[0] * ray_dir[1]) - (v_start[1] * ray_dir[0]);
-                        T side_end = (v_end[0] * ray_dir[1]) - (v_end[1] * ray_dir[0]);
+                      /* Compute which side of the ray each endpoint is on.
+                       * Cross(v - mid, ray_dir) > 0 means v is to the RIGHT of ray_dir
+                       * (i.e., below the ray for a rightward ray). */
+                      VecBase<T, 2> ray_dir = ray_end.exact - mid.exact;
+                      VecBase<T, 2> v_start = edge_start - mid.exact;
+                      VecBase<T, 2> v_end = edge_end - mid.exact;
+                      T side_start = (v_start[0] * ray_dir[1]) - (v_start[1] * ray_dir[0]);
+                      T side_end = (v_end[0] * ray_dir[1]) - (v_end[1] * ray_dir[0]);
 
-                        /* Determine winding contribution based on edge direction:
-                         * - Edge goes from start to end (as per input face winding)
-                         * - If start is below ray and end is above: upward crossing → +1
-                         * - If start is above ray and end is below: downward crossing → -1
-                         */
-                        if (side_start > 0 && side_end < 0) {
-                          /* Edge starts below, ends above: upward crossing. */
-                          delta = 1;
-                        }
-                        else if (side_start < 0 && side_end > 0) {
-                          /* Edge starts above, ends below: downward crossing. */
-                          delta = -1;
-                        }
+                      /* Determine winding contribution based on edge direction:
+                       * - Edge goes from start to end (as per input face winding)
+                       * - If start is below ray and end is above: upward crossing → +1
+                       * - If start is above ray and end is below: downward crossing → -1
+                       */
+                      if (side_start > 0 && side_end < 0) {
+                        /* Edge starts below, ends above: upward crossing. */
+                        delta = 1;
+                      }
+                      else if (side_start < 0 && side_end > 0) {
+                        /* Edge starts above, ends below: downward crossing. */
+                        delta = -1;
                       }
                     }
                   }
+                  crossings += delta;
                 }
-                else {
-                  /* No face input_id found. This edge is a standalone constraint edge,
-                   * not part of a face boundary. For standalone edges, fall back to
-                   * symedge ordering (though this should be rare in practice). */
-                  VecBase<T, 2> ray_dir = ray_end.exact - mid.exact;
-                  VecBase<T, 2> v0 = e->symedges[0].vert->co.exact - mid.exact;
-                  VecBase<T, 2> v1 = e->symedges[1].vert->co.exact - mid.exact;
-                  T side0 = (v0[0] * ray_dir[1]) - (v0[1] * ray_dir[0]);
-                  T side1 = (v1[0] * ray_dir[1]) - (v1[1] * ray_dir[0]);
-                  if (side0 > 0 && side1 < 0) {
-                    delta = 1;
-                  }
-                  else if (side0 < 0 && side1 > 0) {
-                    delta = -1;
-                  }
-                }
-
-                crossings += delta;
                 break;
               }
               case isect_result<VecBase<T, 2>>::LINE_LINE_EXACT:
