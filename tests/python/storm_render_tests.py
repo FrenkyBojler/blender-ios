@@ -136,6 +136,9 @@ BLOCKLIST_VULKAN_NVIDIA = [
     "texture_coordinate_camera.blend",
     "texture_coordinate_object.blend",
     "texture_coordinate_generated.blend",
+
+    # Hair; failed non-deterministically on workers when tested
+    "hair_instancer_uv.blend"
 ]
 
 
