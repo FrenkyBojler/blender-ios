@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-03 10:44+0000\n"
-"PO-Revision-Date: 2025-07-23 15:34+0000\n"
-"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
+"PO-Revision-Date: 2025-12-04 22:18+0000\n"
+"Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
 "Language: hi\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 5.12.1"
+"X-Generator: Weblate 5.14.3"
 
 
 msgid "Valid"
@@ -173,6 +173,11 @@ msgstr "कार्य समूह का चयन किया है"
 
 msgid "Expanded"
 msgstr "विस्तृत"
+
+
+msgctxt "ID"
+msgid "Grease Pencil v3"
+msgstr "तैलीय पेंसिल v3"
 
 
 msgid "Off"
@@ -363,6 +368,50 @@ msgid "X Position"
 msgstr "स्थिति x"
 
 
+msgid "Brushes"
+msgstr "तूलिका"
+
+
+msgid "Fonts"
+msgstr "मुद्र्"
+
+
+msgid "Grease Pencil"
+msgstr "तैलीय पेंसिल"
+
+
+msgid "Images"
+msgstr "छवि"
+
+
+msgid "Lights"
+msgstr "प्रकाश"
+
+
+msgid "Masks"
+msgstr "आवरण"
+
+
+msgid "Materials"
+msgstr "पदार्थ"
+
+
+msgid "Objects"
+msgstr "वस्तु्ए"
+
+
+msgid "Scenes"
+msgstr "दृश्य"
+
+
+msgid "Sounds"
+msgstr "ध्वनि"
+
+
+msgid "Texts"
+msgstr "पाठ"
+
+
 msgid "Display Filter"
 msgstr "निस्पादक प्रदर्शित करें"
 
@@ -471,18 +520,6 @@ msgid "Weight"
 msgstr "भार"
 
 
-msgid "Brushes"
-msgstr "तूलिका"
-
-
-msgid "Grease Pencil"
-msgstr "तैलीय पेंसिल"
-
-
-msgid "Images"
-msgstr "छवि"
-
-
 msgid "File Has Unsaved Changes"
 msgstr "संचिका बिना सहेजे परिवर्तन हैं"
 
@@ -503,36 +540,8 @@ msgid "Libraries"
 msgstr "लायब्रेरीज़"
 
 
-msgid "Lights"
-msgstr "प्रकाश"
-
-
-msgid "Masks"
-msgstr "आवरण"
-
-
-msgid "Materials"
-msgstr "पदार्थ"
-
-
-msgid "Objects"
-msgstr "वस्तु्ए"
-
-
-msgid "Scenes"
-msgstr "दृश्य"
-
-
 msgid "Screens"
 msgstr "चित्रपट"
-
-
-msgid "Sounds"
-msgstr "ध्वनि"
-
-
-msgid "Texts"
-msgstr "पाठ"
 
 
 msgid "Window Managers"
@@ -1383,10 +1392,6 @@ msgid "2D"
 msgstr "द्वि-आयाम"
 
 
-msgid "Fonts"
-msgstr "मुद्र्"
-
-
 msgid "Save"
 msgstr "सहेजें"
 
@@ -1517,6 +1522,22 @@ msgstr "अग्नि"
 
 msgid "Add fire"
 msgstr "अग्नि में जोड़ें"
+
+
+msgid "Font"
+msgstr "मुद्र"
+
+
+msgid "Text"
+msgstr "पाठ"
+
+
+msgid "Mask"
+msgstr "आवरण"
+
+
+msgid "Sound"
+msgstr "ध्वनि"
 
 
 msgid "Border"
@@ -1801,10 +1822,6 @@ msgstr "स्वरूप संपादन"
 
 msgid "Text on Curve"
 msgstr "वक्र पर पाठ"
-
-
-msgid "Font"
-msgstr "मुद्र"
 
 
 msgid "Font Bold"
@@ -2284,10 +2301,6 @@ msgid "Mute the speaker"
 msgstr "स्पीकर म्यूट करें"
 
 
-msgid "Sound"
-msgstr "ध्वनि"
-
-
 msgid "Current Line"
 msgstr "वर्तमान रेखा"
 
@@ -2568,8 +2581,40 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "Mask"
-msgstr "आवरण"
+msgid "Math"
+msgstr "गणित"
+
+
+msgid "Merge"
+msgstr "विलय करें"
+
+
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
+msgid "Names"
+msgstr "नाम"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
+
+
+msgid "Snap"
+msgstr "स्नैप"
+
+
+msgid "Import"
+msgstr "आयात करें"
+
+
+msgid "UV"
+msgstr "यूवी"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
 
 
 msgid "Light"
@@ -2592,10 +2637,6 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
-
-
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
@@ -2608,48 +2649,12 @@ msgid "Keying"
 msgstr "कुंजीयन"
 
 
-msgid "Names"
-msgstr "नाम"
-
-
-msgid "Math"
-msgstr "गणित"
-
-
 msgid "Toggle Bone Options"
 msgstr "हड्डी विकल्प बंद/बुझ"
 
 
 msgid "Enable Bone Options"
 msgstr "हड्डी विकल्प को सक्षम करें"
-
-
-msgid "Merge"
-msgstr "विलय करें"
-
-
-msgid "Text"
-msgstr "पाठ"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
-
-
-msgid "Snap"
-msgstr "स्नैप"
-
-
-msgid "Import"
-msgstr "आयात करें"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
-
-
-msgid "UV"
-msgstr "यूवी"
 
 
 msgid "Basic"
@@ -3838,10 +3843,6 @@ msgstr "प्रशंसक"
 
 msgid "Remove original faces"
 msgstr "मूल चेहरों को हटाएँ"
-
-
-msgid "Clear Constraints"
-msgstr "प्रतिबंधी को साफ़ करें"
 
 
 msgid "Add a reroute node"
@@ -5401,10 +5402,6 @@ msgid "Face"
 msgstr "फलक"
 
 
-msgid "Image*"
-msgstr "छवि *"
-
-
 msgctxt "Operator"
 msgid "Pack"
 msgstr "संकुल"
@@ -5433,11 +5430,6 @@ msgstr "उचित"
 msgctxt "Operator"
 msgid "Make"
 msgstr "निर्माण"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "चलचित्र"
 
 
 msgctxt "Operator"
@@ -5844,11 +5836,6 @@ msgstr "सतह"
 
 
 msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "परिवर्तन शॉर्टकट"
-
-
-msgctxt "Operator"
 msgid "Delete Single Keyframe"
 msgstr "एक अनुबोधक चिन्ह मिटाएँ"
 
@@ -6105,10 +6092,6 @@ msgstr "अंतर्गत होने के लिए कोई अति�
 
 msgid "Add IK"
 msgstr "इक जोड़ें"
-
-
-msgid "To New Empty Object"
-msgstr "नया रिक्त ऑब्जेक्ट के लिए"
 
 
 msgid "Could not find scene"

@@ -24,7 +24,11 @@
 #include <iostream>
 #include <string>
 
+#include "CLG_log.h"
+
 namespace blender::gpu {
+
+static CLG_LogRef LOG = {"gpu.vulkan"};
 
 static std::optional<std::string> cache_dir_get()
 {
@@ -92,6 +96,8 @@ static bool read_spirv_from_disk(VKShaderModule &shader_module)
   spirv_file.seekg(0, std::ios::beg);
   shader_module.spirv_binary.resize(size / 4);
   spirv_file.read(reinterpret_cast<char *>(shader_module.spirv_binary.data()), size);
+
+  CLOG_TRACE(&LOG, "reading SpirV from disk %s", spirv_path.c_str());
   return true;
 }
 
@@ -106,6 +112,7 @@ static void write_spirv_to_disk(VKShaderModule &shader_module)
 
   /* Write the spirv binary */
   std::string spirv_path = (*cache_dir_get()) + SEP_STR + shader_module.sources_hash + ".spv";
+  CLOG_TRACE(&LOG, "write SpirV to disk %s", spirv_path.c_str());
   size_t size = (shader_module.compilation_result.end() -
                  shader_module.compilation_result.begin()) *
                 sizeof(uint32_t);
@@ -128,7 +135,7 @@ void VKShaderCompiler::cache_dir_clear_old()
 
   direntry *entries = nullptr;
   uint32_t dir_len = BLI_filelist_dir_contents(cache_dir_get()->c_str(), &entries);
-  for (int i : blender::IndexRange(dir_len)) {
+  for (int i : IndexRange(dir_len)) {
     direntry entry = entries[i];
     if (S_ISDIR(entry.s.st_mode)) {
       continue;
@@ -183,6 +190,16 @@ static bool compile_ex(shaderc::Compiler &compiler,
                        shaderc_shader_kind stage,
                        VKShaderModule &shader_module)
 {
+  std::string full_name = shader.name_get() + "_" + to_stage_name(stage);
+
+  Shader::dump_source_to_disk(
+      shader.name_get(), full_name, ".glsl", shader_module.combined_sources);
+
+  shader_module.combined_sources = Shader::run_preprocessor(shader_module.combined_sources);
+
+  Shader::dump_source_to_disk(
+      shader.name_get(), full_name + ".expanded", ".glsl", shader_module.combined_sources);
+
   if (read_spirv_from_disk(shader_module)) {
     return true;
   }
@@ -215,24 +232,6 @@ static bool compile_ex(shaderc::Compiler &compiler,
    * resets all previous passes. */
   if (G.debug & G_DEBUG_GPU_SHADER_DEBUG_INFO) {
     options.SetGenerateDebugInfo();
-  }
-
-  std::string full_name = shader.name_get() + "_" + to_stage_name(stage);
-
-  if (shader.name_get() == G.gpu_debug_shader_source_name) {
-    namespace fs = std::filesystem;
-    fs::path shader_dir = fs::current_path() / "Shaders";
-    fs::create_directories(shader_dir);
-    fs::path file_path = shader_dir / (full_name + ".glsl");
-
-    std::ofstream output_source_file(file_path);
-    if (output_source_file) {
-      output_source_file << shader_module.combined_sources;
-      output_source_file.close();
-    }
-    else {
-      std::cerr << "Shader Source Debug: Failed to open file: " << file_path << "\n";
-    }
   }
 
   /* Removes line directive. */

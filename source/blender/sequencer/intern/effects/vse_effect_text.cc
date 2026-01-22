@@ -44,6 +44,13 @@
 
 namespace blender::seq {
 
+static Mutex text_runtime_mutex;
+
+std::unique_lock<Mutex> text_runtime_scoped_lock_get()
+{
+  return std::unique_lock<Mutex>(text_runtime_mutex);
+}
+
 /* -------------------------------------------------------------------- */
 /* Sequencer font access.
  *
@@ -171,7 +178,7 @@ bool effects_can_render_text(const Strip *strip)
 static void init_text_effect(Strip *strip)
 {
   MEM_SAFE_FREE(strip->effectdata);
-  TextVars *data = MEM_callocN<TextVars>("textvars");
+  TextVars *data = MEM_new_for_free<TextVars>("textvars");
   strip->effectdata = data;
 
   data->text_font = nullptr;
@@ -279,12 +286,6 @@ static void free_text_effect(Strip *strip, const bool do_id_user)
     MEM_freeN(data);
     strip->effectdata = nullptr;
   }
-}
-
-static void load_text_effect(Strip *strip)
-{
-  TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  text_font_load(data, false);
 }
 
 static void copy_text_effect(Strip *dst, const Strip *src, const int flag)
@@ -601,7 +602,7 @@ static rcti draw_text_outline(const RenderData *context,
   Array<uchar4> tmp_buf(pixel_count, uchar4(0));
   BLF_buffer(runtime->font,
              nullptr,
-             (uchar *)tmp_buf.data(),
+             reinterpret_cast<uchar *>(tmp_buf.data()),
              size.x,
              size.y,
              out->byte_buffer.colorspace);
@@ -812,7 +813,6 @@ int text_effect_font_init(const RenderData *context, const Strip *strip, FontFla
 
   if (data->text_blf_id == STRIP_FONT_NOT_LOADED) {
     data->text_blf_id = -1;
-
     text_font_load(data, false);
   }
 
@@ -912,6 +912,21 @@ static void apply_word_wrapping(const TextVars *data,
       char_position.y -= runtime->line_height;
     }
   }
+
+  /* Third pass: Ensure, that lines have correct width.
+   * Note, that with italic fonts it is not possible to rely on `advance_x` value only. The actual
+   * last character position (\0 or \n) is not changed, because cursor would be drawn at slightly
+   * incorrect position. */
+  for (LineInfo &line : runtime->lines) {
+    if (line.characters.size() <= 1) {
+      continue;
+    }
+
+    CharInfo last_visible_char = line.characters[line.characters.size() - 2];
+    const char *buf = &data->text_ptr[last_visible_char.offset];
+    int glyph_width = math::ceil(BLF_width(runtime->font, buf, last_visible_char.byte_length));
+    line.width = last_visible_char.position.x + glyph_width;
+  }
 }
 
 static int text_box_width_get(const Vector<LineInfo> &lines)
@@ -972,7 +987,11 @@ static float2 anchor_offset_get(const TextVars *data, int width_max, int text_he
 
 static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const int2 image_size)
 {
-  const int text_height = runtime->lines.size() * runtime->line_height;
+  /* `BLF_bounds_max()` is used, because some fonts have glyphs overlapping with lines above. */
+  rctf glyph_bounds_max;
+  BLF_bounds_max(runtime->font, &glyph_bounds_max);
+  const int text_height = (runtime->lines.size() - 1) * runtime->line_height +
+                          math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
   int width_max = text_box_width_get(runtime->lines);
 
@@ -1046,7 +1065,8 @@ static ImBuf *do_text_effect(const RenderData *context,
                                ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
 
   /* Guard against parallel accesses to the fonts map. */
-  std::lock_guard lock(g_font_map.mutex);
+  std::lock_guard font_map_lock(g_font_map.mutex);
+  std::lock_guard text_runtime_lock(text_runtime_mutex);
 
   const int font = text_effect_font_init(context, strip, font_flags);
 
@@ -1089,7 +1109,6 @@ void text_effect_get_handle(EffectHandle &rval)
   rval.num_inputs = num_inputs_text;
   rval.init = init_text_effect;
   rval.free = free_text_effect;
-  rval.load = load_text_effect;
   rval.copy = copy_text_effect;
   rval.early_out = early_out_text;
   rval.execute = do_text_effect;

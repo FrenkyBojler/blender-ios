@@ -5,6 +5,7 @@
 #include "GEO_join_geometries.hh"
 #include "GEO_realize_instances.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_object_types.h"
 
 #include "BLI_array_utils.hh"
@@ -23,16 +24,18 @@
 #include "BKE_pointcloud.hh"
 #include "BKE_type_conversions.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 #include "BLT_translation.hh"
 
 namespace blender::geometry {
 
-using blender::bke::AttrDomain;
-using blender::bke::AttributeDomainAndType;
-using blender::bke::GSpanAttributeWriter;
-using blender::bke::InstanceReference;
-using blender::bke::Instances;
-using blender::bke::SpanAttributeWriter;
+using bke::AttrDomain;
+using bke::AttributeDomainAndType;
+using bke::GSpanAttributeWriter;
+using bke::InstanceReference;
+using bke::Instances;
+using bke::SpanAttributeWriter;
 
 /**
  * An ordered set of attribute ids. Attributes are ordered to avoid name lookups in many places.
@@ -89,10 +92,10 @@ struct RealizePointCloudTask {
 
 /** Start indices in the final output mesh. */
 struct MeshElementStartIndices {
-  int vertex = 0;
+  int vert = 0;
   int edge = 0;
   int face = 0;
-  int loop = 0;
+  int corner = 0;
 };
 
 struct MeshRealizeInfo {
@@ -108,7 +111,7 @@ struct MeshRealizeInfo {
   /** Matches the order in #AllMeshesInfo.attributes. */
   Array<std::optional<GVArraySpan>> attributes;
   /** Vertex ids stored on the mesh. If there are no ids, this #Span is empty. */
-  Span<int> stored_vertex_ids;
+  Span<int> stored_vert_ids;
   VArray<int> material_indices;
   /** Custom normals are rotated based on each instance's transformation. */
   GVArraySpan custom_normal;
@@ -277,13 +280,15 @@ struct GatherTasks {
   /* Volumes only have very simple support currently. Only the first found volume is put into the
    * output. */
   ImplicitSharingPtr<const bke::VolumeComponent> first_volume;
+
+  VectorSet<const nodes::Bundle *> bundles;
 };
 
 /** Current offsets while during the gather operation. */
 struct GatherOffsets {
   int64_t pointcloud_offset = 0;
   struct {
-    int64_t vertex = 0;
+    int64_t vert = 0;
     int64_t edge = 0;
     int64_t face = 0;
     int64_t corner = 0;
@@ -369,7 +374,7 @@ static int64_t get_final_points_num(const GatherTasks &tasks)
   }
   if (!tasks.mesh_tasks.is_empty()) {
     const RealizeMeshTask &task = tasks.mesh_tasks.last();
-    points_num += task.start_indices.vertex + task.mesh_info->mesh->verts_num;
+    points_num += task.start_indices.vert + task.mesh_info->mesh->verts_num;
   }
   if (!tasks.curve_tasks.is_empty()) {
     const RealizeCurveTask &task = tasks.curve_tasks.last();
@@ -637,6 +642,9 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
                                            const float4x4 &base_transform,
                                            const InstanceContext &base_instance_context)
 {
+  if (geometry_set.has_bundle()) {
+    gather_info.r_tasks.bundles.add(geometry_set.bundle());
+  }
   for (const bke::GeometryComponent *component : geometry_set.get_components()) {
     const bke::GeometryComponent::Type type = component->type();
     switch (type) {
@@ -645,7 +653,7 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
         if (mesh != nullptr && mesh->verts_num > 0) {
           const int mesh_index = gather_info.meshes.order.index_of(mesh);
           const MeshRealizeInfo &mesh_info = gather_info.meshes.realize_info[mesh_index];
-          gather_info.r_tasks.mesh_tasks.append({{int(gather_info.r_offsets.mesh_offsets.vertex),
+          gather_info.r_tasks.mesh_tasks.append({{int(gather_info.r_offsets.mesh_offsets.vert),
                                                   int(gather_info.r_offsets.mesh_offsets.edge),
                                                   int(gather_info.r_offsets.mesh_offsets.face),
                                                   int(gather_info.r_offsets.mesh_offsets.corner)},
@@ -653,7 +661,7 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
                                                  base_transform,
                                                  base_instance_context.meshes,
                                                  base_instance_context.id});
-          gather_info.r_offsets.mesh_offsets.vertex += mesh->verts_num;
+          gather_info.r_offsets.mesh_offsets.vert += mesh->verts_num;
           gather_info.r_offsets.mesh_offsets.edge += mesh->edges_num;
           gather_info.r_offsets.mesh_offsets.corner += mesh->corners_num;
           gather_info.r_offsets.mesh_offsets.face += mesh->faces_num;
@@ -922,6 +930,12 @@ static bke::GeometrySet::GatheredAttributes gather_attributes_to_propagate(
           /* For Grease Pencil, we want to propagate the instance attributes to the layers. */
           dst_domain = AttrDomain::Layer;
         }
+        else if (component_type == bke::GeometryComponent::Type::Curve &&
+                 !options.realize_to_point_domain)
+        {
+          /* For curves, storing the attribute on curves is more efficient. */
+          dst_domain = AttrDomain::Curve;
+        }
         else {
           /* Other instance attributes are realized on the point domain currently. */
           dst_domain = AttrDomain::Point;
@@ -960,9 +974,9 @@ static OrderedAttributes gather_generic_instance_attributes_to_propagate(
 
 static void execute_instances_tasks(
     const Span<bke::GeometryComponentPtr> src_components,
-    const Span<blender::float4x4> src_base_transforms,
+    const Span<float4x4> src_base_transforms,
     const OrderedAttributes &all_instances_attributes,
-    const Span<blender::geometry::AttributeFallbacksArray> attribute_fallback,
+    const Span<geometry::AttributeFallbacksArray> attribute_fallback,
     bke::GeometrySet &r_realized_geometry)
 {
   BLI_assert(src_components.size() == src_base_transforms.size() &&
@@ -999,7 +1013,7 @@ static void execute_instances_tasks(
     const bke::InstancesComponent &src_component = static_cast<const bke::InstancesComponent &>(
         *src_components[component_index]);
     const bke::Instances &src_instances = *src_component.get();
-    const blender::float4x4 &src_base_transform = src_base_transforms[component_index];
+    const float4x4 &src_base_transform = src_base_transforms[component_index];
     const Span<const void *> attribute_fallback_array = attribute_fallback[component_index].array;
     const Span<bke::InstanceReference> src_references = src_instances.references();
     Array<int> handle_map(src_references.size());
@@ -1032,7 +1046,7 @@ static void execute_instances_tasks(
     array_utils::gather(handle_map.as_span(), src_handles, all_handles.slice(dst_range));
     array_utils::copy(src_instances.transforms(), all_transforms.slice(dst_range));
 
-    for (blender::float4x4 &transform : all_transforms.slice(dst_range)) {
+    for (float4x4 &transform : all_transforms.slice(dst_range)) {
       transform = src_base_transform * transform;
     }
   }
@@ -1041,7 +1055,7 @@ static void execute_instances_tasks(
   auto &dst_component = r_realized_geometry.get_component_for_write<bke::InstancesComponent>();
 
   Vector<const bke::GeometryComponent *> for_join_attributes;
-  for (bke::GeometryComponentPtr component : src_components) {
+  for (const bke::GeometryComponentPtr &component : src_components) {
     for_join_attributes.append(component.get());
   }
   /* Join attribute values from the 'unselected' instances, as they aren't included otherwise.
@@ -1419,7 +1433,7 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
       if (ids_attribute && ids_attribute.domain == bke::AttrDomain::Point &&
           ids_attribute.varray.type().is<int>() && ids_attribute.varray.is_span())
       {
-        mesh_info.stored_vertex_ids = ids_attribute.varray.get_internal_span().typed<int>();
+        mesh_info.stored_vert_ids = ids_attribute.varray.get_internal_span().typed<int>();
       }
     }
     mesh_info.material_indices = *attributes.lookup_or_default<int>(
@@ -1483,7 +1497,7 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                       MutableSpan<int> all_dst_face_offsets,
                                       MutableSpan<int> all_dst_corner_verts,
                                       MutableSpan<int> all_dst_corner_edges,
-                                      MutableSpan<int> all_dst_vertex_ids,
+                                      MutableSpan<int> all_dst_vert_ids,
                                       MutableSpan<int> all_dst_material_indices,
                                       GSpanAttributeWriter &all_dst_custom_normals)
 {
@@ -1496,37 +1510,39 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
   const Span<int> src_corner_verts = mesh_info.corner_verts;
   const Span<int> src_corner_edges = mesh_info.corner_edges;
 
-  const IndexRange dst_vert_range(task.start_indices.vertex, src_positions.size());
+  const IndexRange dst_vert_range(task.start_indices.vert, src_positions.size());
   const IndexRange dst_edge_range(task.start_indices.edge, src_edges.size());
   const IndexRange dst_face_range(task.start_indices.face, src_faces.size());
-  const IndexRange dst_loop_range(task.start_indices.loop, src_corner_verts.size());
+  const IndexRange dst_corner_range(task.start_indices.corner, src_corner_verts.size());
 
   MutableSpan<float3> dst_positions = all_dst_positions.slice(dst_vert_range);
   MutableSpan<int2> dst_edges = all_dst_edges.slice(dst_edge_range);
   MutableSpan<int> dst_face_offsets = all_dst_face_offsets.slice(dst_face_range);
-  MutableSpan<int> dst_corner_verts = all_dst_corner_verts.slice(dst_loop_range);
-  MutableSpan<int> dst_corner_edges = all_dst_corner_edges.slice(dst_loop_range);
+  MutableSpan<int> dst_corner_verts = all_dst_corner_verts.slice(dst_corner_range);
+  MutableSpan<int> dst_corner_edges = all_dst_corner_edges.slice(dst_corner_range);
 
   math::transform_points(src_positions, task.transform, dst_positions);
 
   threading::parallel_for(src_edges.index_range(), 1024, [&](const IndexRange edge_range) {
     for (const int i : edge_range) {
-      dst_edges[i] = src_edges[i] + task.start_indices.vertex;
+      dst_edges[i] = src_edges[i] + task.start_indices.vert;
     }
   });
-  threading::parallel_for(src_corner_verts.index_range(), 1024, [&](const IndexRange loop_range) {
-    for (const int i : loop_range) {
-      dst_corner_verts[i] = src_corner_verts[i] + task.start_indices.vertex;
-    }
-  });
-  threading::parallel_for(src_corner_edges.index_range(), 1024, [&](const IndexRange loop_range) {
-    for (const int i : loop_range) {
-      dst_corner_edges[i] = src_corner_edges[i] + task.start_indices.edge;
-    }
-  });
+  threading::parallel_for(
+      src_corner_verts.index_range(), 1024, [&](const IndexRange corner_range) {
+        for (const int i : corner_range) {
+          dst_corner_verts[i] = src_corner_verts[i] + task.start_indices.vert;
+        }
+      });
+  threading::parallel_for(
+      src_corner_edges.index_range(), 1024, [&](const IndexRange corner_range) {
+        for (const int i : corner_range) {
+          dst_corner_edges[i] = src_corner_edges[i] + task.start_indices.edge;
+        }
+      });
   threading::parallel_for(src_faces.index_range(), 1024, [&](const IndexRange face_range) {
     for (const int i : face_range) {
-      dst_face_offsets[i] = src_faces[i].start() + task.start_indices.loop;
+      dst_face_offsets[i] = src_faces[i].start() + task.start_indices.corner;
     }
   });
   if (!all_dst_material_indices.is_empty()) {
@@ -1555,11 +1571,11 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
     }
   }
 
-  if (!all_dst_vertex_ids.is_empty()) {
+  if (!all_dst_vert_ids.is_empty()) {
     create_result_ids(options,
-                      mesh_info.stored_vertex_ids,
+                      mesh_info.stored_vert_ids,
                       task.id,
-                      all_dst_vertex_ids.slice(task.start_indices.vertex, mesh.verts_num));
+                      all_dst_vert_ids.slice(task.start_indices.vert, mesh.verts_num));
   }
 
   const auto domain_to_range = [&](const bke::AttrDomain domain) {
@@ -1571,7 +1587,7 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
       case bke::AttrDomain::Face:
         return dst_face_range;
       case bke::AttrDomain::Corner:
-        return dst_loop_range;
+        return dst_corner_range;
       default:
         BLI_assert_unreachable();
         return IndexRange();
@@ -1581,11 +1597,11 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
   if (all_dst_custom_normals) {
     if (all_dst_custom_normals.span.type().is<short2>()) {
       if (mesh_info.custom_normal.is_empty()) {
-        all_dst_custom_normals.span.typed<short2>().slice(dst_loop_range).fill(short2(0));
+        all_dst_custom_normals.span.typed<short2>().slice(dst_corner_range).fill(short2(0));
       }
       else {
         all_dst_custom_normals.span.typed<short2>()
-            .slice(dst_loop_range)
+            .slice(dst_corner_range)
             .copy_from(mesh_info.custom_normal.typed<short2>());
       }
     }
@@ -1603,7 +1619,7 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                     domain_to_range,
                                     dst_attribute_writers);
 }
-static void copy_vertex_group_name(ListBase *dst_deform_group,
+static void copy_vertex_group_name(ListBaseT<bDeformGroup> *dst_deform_group,
                                    const OrderedAttributes &ordered_attributes,
                                    const bDeformGroup &src_deform_group)
 {
@@ -1619,7 +1635,7 @@ static void copy_vertex_group_name(ListBase *dst_deform_group,
     /* Skip if the source attribute can't possibly contain vertex weights. */
     return;
   }
-  bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
+  bDeformGroup *dst = MEM_new_for_free<bDeformGroup>(__func__);
   src_name.copy_utf8_truncated(dst->name);
   BLI_addtail(dst_deform_group, dst);
 }
@@ -1629,15 +1645,15 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
                                     const Span<const Mesh *> src_meshes)
 {
   Set<StringRef> existing_names;
-  LISTBASE_FOREACH (const bDeformGroup *, defgroup, &dst_mesh.vertex_group_names) {
-    existing_names.add(defgroup->name);
+  for (const bDeformGroup &defgroup : dst_mesh.vertex_group_names) {
+    existing_names.add(defgroup.name);
   }
   for (const Mesh *mesh : src_meshes) {
-    LISTBASE_FOREACH (const bDeformGroup *, src, &mesh->vertex_group_names) {
-      if (existing_names.contains(src->name)) {
+    for (const bDeformGroup &src : mesh->vertex_group_names) {
+      if (existing_names.contains(src.name)) {
         continue;
       }
-      copy_vertex_group_name(&dst_mesh.vertex_group_names, ordered_attributes, *src);
+      copy_vertex_group_name(&dst_mesh.vertex_group_names, ordered_attributes, src);
     }
   }
 }
@@ -1666,19 +1682,19 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     return;
   }
 
-  const int64_t tot_vertices = offsets.mesh_offsets.vertex;
-  const int64_t tot_edges = offsets.mesh_offsets.edge;
-  const int64_t tot_loops = offsets.mesh_offsets.corner;
-  const int64_t tot_faces = offsets.mesh_offsets.face;
+  const int64_t verts_num = offsets.mesh_offsets.vert;
+  const int64_t edges_num = offsets.mesh_offsets.edge;
+  const int64_t faces_num = offsets.mesh_offsets.face;
+  const int64_t corners_num = offsets.mesh_offsets.corner;
 
-  if (!valid_int_num(tot_vertices) || !valid_int_num(tot_edges) || !valid_int_num(tot_loops) ||
-      !valid_int_num(tot_faces))
+  if (!valid_int_num(verts_num) || !valid_int_num(edges_num) || !valid_int_num(corners_num) ||
+      !valid_int_num(faces_num))
   {
     r_result.errors.append(RPT_("Realized mesh has too many elements."));
     return;
   }
 
-  Mesh *dst_mesh = BKE_mesh_new_nomain(tot_vertices, tot_edges, tot_faces, tot_loops);
+  Mesh *dst_mesh = BKE_mesh_new_nomain(verts_num, edges_num, faces_num, corners_num);
   r_result.geometry.replace_mesh(dst_mesh);
   bke::MutableAttributeAccessor dst_attributes = dst_mesh->attributes_for_write();
   MutableSpan<float3> dst_positions = dst_mesh->vert_positions_for_write();
@@ -1705,10 +1721,9 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   }
 
   /* Prepare id attribute. */
-  SpanAttributeWriter<int> vertex_ids;
+  SpanAttributeWriter<int> vert_ids;
   if (all_meshes_info.create_id_attribute) {
-    vertex_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("id",
-                                                                       bke::AttrDomain::Point);
+    vert_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("id", bke::AttrDomain::Point);
   }
   /* Prepare material indices. */
   SpanAttributeWriter<int> material_indices;
@@ -1744,22 +1759,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     dst_attribute_writers.append(
         dst_attributes.lookup_or_add_for_write_only_span(attribute_id, domain, data_type));
   }
-  const char *active_layer = CustomData_get_active_layer_name(&first_mesh.corner_data,
-                                                              CD_PROP_FLOAT2);
-  if (active_layer != nullptr) {
-    int id = CustomData_get_named_layer(&dst_mesh->corner_data, CD_PROP_FLOAT2, active_layer);
-    if (id >= 0) {
-      CustomData_set_layer_active(&dst_mesh->corner_data, CD_PROP_FLOAT2, id);
-    }
-  }
-  const char *render_layer = CustomData_get_render_layer_name(&first_mesh.corner_data,
-                                                              CD_PROP_FLOAT2);
-  if (render_layer != nullptr) {
-    int id = CustomData_get_named_layer(&dst_mesh->corner_data, CD_PROP_FLOAT2, render_layer);
-    if (id >= 0) {
-      CustomData_set_layer_render(&dst_mesh->corner_data, CD_PROP_FLOAT2, id);
-    }
-  }
+
   /* Actually execute all tasks. */
   threading::parallel_for(tasks.index_range(), 100, [&](const IndexRange task_range) {
     for (const int task_index : task_range) {
@@ -1773,7 +1773,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
                                 dst_face_offsets,
                                 dst_corner_verts,
                                 dst_corner_edges,
-                                vertex_ids.span,
+                                vert_ids.span,
                                 material_indices.span,
                                 custom_normals);
     }
@@ -1783,7 +1783,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   for (GSpanAttributeWriter &dst_attribute : dst_attribute_writers) {
     dst_attribute.finish();
   }
-  vertex_ids.finish();
+  vert_ids.finish();
   material_indices.finish();
   custom_normals.finish();
 
@@ -2026,16 +2026,16 @@ static void copy_vertex_group_names(CurvesGeometry &dst_curve,
                                     const Span<const Curves *> src_curves)
 {
   Set<StringRef> existing_names;
-  LISTBASE_FOREACH (const bDeformGroup *, defgroup, &dst_curve.vertex_group_names) {
-    existing_names.add(defgroup->name);
+  for (const bDeformGroup &defgroup : dst_curve.vertex_group_names) {
+    existing_names.add(defgroup.name);
   }
   for (const Curves *src_curve : src_curves) {
-    LISTBASE_FOREACH (const bDeformGroup *, src, &src_curve->geometry.vertex_group_names) {
-      if (existing_names.contains(src->name)) {
+    for (const bDeformGroup &src : src_curve->geometry.vertex_group_names) {
+      if (existing_names.contains(src.name)) {
         continue;
       }
-      copy_vertex_group_name(&dst_curve.vertex_group_names, ordered_attributes, *src);
-      existing_names.add(src->name);
+      copy_vertex_group_name(&dst_curve.vertex_group_names, ordered_attributes, src);
+      existing_names.add(src.name);
     }
   }
 }
@@ -2568,6 +2568,9 @@ RealizeInstancesResult realize_instances(bke::GeometrySet geometry_set,
   });
   if (gather_info.r_tasks.first_volume) {
     result.geometry.add(*gather_info.r_tasks.first_volume);
+  }
+  for (const nodes::Bundle *bundle : gather_info.r_tasks.bundles) {
+    result.geometry.bundle_for_write().merge(*bundle);
   }
 
   return result;

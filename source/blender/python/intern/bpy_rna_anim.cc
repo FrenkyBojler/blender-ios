@@ -52,6 +52,8 @@
 
 #include "CLG_log.h"
 
+namespace blender {
+
 /* for keyframes and drivers */
 static int pyrna_struct_anim_args_parse_ex(PointerRNA *ptr,
                                            const char *error_prefix,
@@ -242,7 +244,7 @@ static int pyrna_struct_keyframe_parse(PointerRNA *ptr,
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kw,
                                    parse_str,
-                                   (char **)kwlist,
+                                   const_cast<char **>(kwlist),
                                    &path,
                                    r_index,
                                    r_cfra,
@@ -368,7 +370,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                     cfra);
 
-  if (self->ptr->type == &RNA_NlaStrip) {
+  if (self->ptr->type == RNA_NlaStrip) {
     /* Handle special properties for NLA Strips, whose F-Curves are stored on the
      * strips themselves. These are stored separately or else the properties will
      * not have any effect.
@@ -403,8 +405,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
   else {
     BLI_assert(BKE_id_is_in_global_main(self->ptr->owner_id));
 
-    const std::optional<blender::StringRefNull> channel_group = group_name ?
-                                                                    std::optional(group_name) :
+    const std::optional<StringRefNull> channel_group = group_name ? std::optional(group_name) :
                                                                     std::nullopt;
     PointerRNA id_pointer = RNA_id_pointer_create(self->ptr->owner_id);
     CombinedKeyingResult combined_result = insert_keyframes(G_MAIN,
@@ -480,7 +481,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
                                   args,
                                   kw,
                                   "s|$ifsOs!:bpy_struct.keyframe_delete()",
-                                  "bpy_struct.keyframe_insert()",
+                                  "bpy_struct.keyframe_delete()",
                                   &path_full,
                                   &index,
                                   &cfra,
@@ -496,7 +497,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
 
   BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
 
-  if (self->ptr->type == &RNA_NlaStrip) {
+  if (self->ptr->type == RNA_NlaStrip) {
     /* Handle special properties for NLA Strips, whose F-Curves are stored on the
      * strips themselves. These are stored separately or else the properties will
      * not have any effect.
@@ -520,7 +521,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
       /* NOTE: This should be true, or else we wouldn't be able to get here. */
       BLI_assert(fcu != nullptr);
 
-      if (BKE_fcurve_is_protected(fcu)) {
+      if (BKE_fcurve_is_protected(*fcu)) {
         BKE_reportf(
             &reports,
             RPT_WARNING,
@@ -542,7 +543,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
         if (found) {
           /* delete the key at the index (will sanity check + do recalc afterwards) */
           BKE_fcurve_delete_key(fcu, i);
-          BKE_fcurve_handles_recalc(fcu);
+          BKE_fcurve_handles_recalc(*fcu);
           result = true;
         }
       }
@@ -556,8 +557,8 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
     if (index < 0) {
       rna_path.index = std::nullopt;
     }
-    result = (blender::animrig::delete_keyframe(
-                  G.main, &reports, self->ptr->owner_id, rna_path, cfra) != 0);
+    result = (animrig::delete_keyframe(G.main, &reports, self->ptr->owner_id, rna_path, cfra) !=
+              0);
   }
 
   MEM_freeN(path_full);
@@ -625,13 +626,13 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
       int i = 0;
       ret = PyList_New(0);
       while ((fcu = BKE_fcurve_find(&adt->drivers, path_full, i++))) {
-        tptr = RNA_pointer_create_discrete(id, &RNA_FCurve, fcu);
+        tptr = RNA_pointer_create_discrete(id, RNA_FCurve, fcu);
         PyList_APPEND(ret, pyrna_struct_CreatePyObject(&tptr));
       }
     }
     else {
       fcu = BKE_fcurve_find(&adt->drivers, path_full, index);
-      tptr = RNA_pointer_create_discrete(id, &RNA_FCurve, fcu);
+      tptr = RNA_pointer_create_discrete(id, RNA_FCurve, fcu);
       ret = pyrna_struct_CreatePyObject(&tptr);
     }
 
@@ -697,3 +698,5 @@ PyObject *pyrna_struct_driver_remove(BPy_StructRNA *self, PyObject *args)
 
   return PyBool_FromLong(result);
 }
+
+}  // namespace blender

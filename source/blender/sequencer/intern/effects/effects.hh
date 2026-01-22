@@ -13,16 +13,19 @@
 #include "BLI_array.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 #include "BLI_task.hh"
 
 #include "IMB_imbuf_types.hh"
 #include "SEQ_effects.hh"
 
+namespace blender {
+
 struct ImBuf;
 struct Scene;
 struct Strip;
 
-namespace blender::seq {
+namespace seq {
 
 struct SeqRenderState;
 struct RenderData;
@@ -35,17 +38,11 @@ enum class StripEarlyOut {
 };
 
 struct EffectHandle {
-  /* constructors & destructor */
-  /* init is _only_ called on first creation */
+  /* #init is only called on first creation, or when changing effect type. */
   void (*init)(Strip *strip);
 
-  /* number of input strips needed
-   * (called directly after construction) */
+  /* Number of input strips needed for this effect. */
   int (*num_inputs)();
-
-  /* load is called first time after readblenfile in
-   * get_sequence_effect automatically */
-  void (*load)(Strip *seqconst);
 
   /* duplicate */
   void (*copy)(Strip *dst, const Strip *src, int flag);
@@ -65,7 +62,7 @@ struct EffectHandle {
                     ImBuf *ibuf2);
 };
 
-/** Get the effect handle for a given strip, and load the strip if it has not been loaded already.
+/** Get the effect handle for a given strip.
  * If `strip` is not an effect strip, returns empty `EffectHandle`. */
 EffectHandle strip_effect_handle_get(Strip *strip);
 
@@ -173,7 +170,9 @@ static void apply_effect_op(const OpT &op, const ImBuf *src1, const ImBuf *src2,
   });
 }
 
+std::unique_lock<Mutex> text_runtime_scoped_lock_get();
 TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const int2 image_size);
 int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags);
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

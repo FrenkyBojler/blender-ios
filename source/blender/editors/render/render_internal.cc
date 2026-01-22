@@ -67,6 +67,8 @@
 
 #include "render_intern.hh"
 
+namespace blender {
+
 /* Render Callbacks */
 static bool render_break(void *rjv);
 
@@ -87,6 +89,7 @@ struct RenderJob : public RenderJobBase {
   ReportList *reports;
   int orig_layer;
   int last_layer;
+  bool use_sequencer_scene;
   ScrArea *area;
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
@@ -269,7 +272,7 @@ static void screen_render_single_layer_set(
     char scene_name[MAX_ID_NAME - 2];
 
     RNA_string_get(op->ptr, "scene", scene_name);
-    scn = (Scene *)BLI_findstring(&mainp->scenes, scene_name, offsetof(ID, name) + 2);
+    scn = static_cast<Scene *>(BLI_findstring(&mainp->scenes, scene_name, offsetof(ID, name) + 2));
 
     if (scn) {
       /* camera switch won't have updated */
@@ -285,7 +288,8 @@ static void screen_render_single_layer_set(
     char rl_name[RE_MAXNAME];
 
     RNA_string_get(op->ptr, "layer", rl_name);
-    rl = (ViewLayer *)BLI_findstring(&(*scene)->view_layers, rl_name, offsetof(ViewLayer, name));
+    rl = static_cast<ViewLayer *>(
+        BLI_findstring(&(*scene)->view_layers, rl_name, offsetof(ViewLayer, name)));
 
     if (rl) {
       *single_layer = rl;
@@ -336,6 +340,14 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   const bool use_sequencer_scene = RNA_boolean_get(op->ptr, "use_sequencer_scene");
 
   Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+
+  if (scene == nullptr) {
+    BKE_report(op->reports,
+               RPT_ERROR,
+               use_sequencer_scene ? "No sequencer scene to render" : "No scene to render");
+    return OPERATOR_CANCELLED;
+  }
+
   ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
                                                   CTX_data_view_layer(C);
   RenderEngineType *re_type = RE_engines_find(scene->r.engine);
@@ -356,15 +368,15 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  /* custom scene and single layer re-render */
+  screen_render_single_layer_set(op, mainp, active_layer, &scene, &single_layer);
+
   int frame_start, frame_end;
   get_render_operator_frame_range(op, scene, frame_start, frame_end);
   if (is_animation && frame_start > frame_end) {
     BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
     return OPERATOR_CANCELLED;
   }
-
-  /* custom scene and single layer re-render */
-  screen_render_single_layer_set(op, mainp, active_layer, &scene, &single_layer);
 
   if (!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
     BKE_report(
@@ -387,7 +399,7 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
    * otherwise, invalidated cache entries can make their way into
    * the output rendering. We can't put that into RE_RenderFrame,
    * since sequence rendering can call that recursively... */
-  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
+  seq::cache_cleanup(scene, seq::CacheCleanup::FinalAndIntra);
 
   RE_SetReports(re, op->reports);
 
@@ -620,16 +632,16 @@ static void render_image_update_pass_and_layer(RenderJob *rj, RenderResult *rr, 
     {
       const bScreen *screen = WM_window_get_active_screen(win);
 
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        if (area->spacetype == SPACE_IMAGE) {
-          SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+      for (ScrArea &area : screen->areabase) {
+        if (area.spacetype == SPACE_IMAGE) {
+          SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
           /* area->spacedata might be empty when toggling full-screen mode. */
           if (sima != nullptr && sima->image == rj->image) {
             if (first_area == nullptr) {
-              first_area = area;
+              first_area = &area;
             }
-            if (area == rj->area) {
-              matched_area = area;
+            if (&area == rj->area) {
+              matched_area = &area;
               break;
             }
           }
@@ -649,7 +661,7 @@ static void render_image_update_pass_and_layer(RenderJob *rj, RenderResult *rr, 
     /* TODO(sergey): is there faster way to get the layer index? */
     if (rr->renlay) {
       int layer = BLI_findstringindex(
-          &main_rr->layers, (char *)rr->renlay->name, offsetof(RenderLayer, name));
+          &main_rr->layers, static_cast<char *>(rr->renlay->name), offsetof(RenderLayer, name));
       sima->iuser.layer = layer;
       rj->last_layer = layer;
     }
@@ -773,19 +785,23 @@ static void render_startjob(void *rjv, wmJobWorkerStatus *worker_status)
   RE_SetReports(rj->re, nullptr);
 }
 
-static void render_image_restore_layer(RenderJob *rj)
+static void render_image_restore_scene_and_layer(RenderJob *rj)
 {
   /* image window, compo node users */
 
   /* Only ever 1 `wm`. */
-  LISTBASE_FOREACH (wmWindowManager *, wm, &rj->main->wm) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      const bScreen *screen = WM_window_get_active_screen(win);
+  for (wmWindowManager &wm : rj->main->wm) {
+    for (wmWindow &win : wm.windows) {
+      const bScreen *screen = WM_window_get_active_screen(&win);
 
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        if (area == rj->area) {
-          if (area->spacetype == SPACE_IMAGE) {
-            SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+      for (ScrArea &area : screen->areabase) {
+        if (&area == rj->area) {
+          if (area.spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
+
+            /* Automatically show scene we just rendered. */
+            SET_FLAG_FROM_TEST(
+                sima->iuser.flag, rj->use_sequencer_scene, IMA_SHOW_SEQUENCER_SCENE);
 
             if (RE_HasSingleLayer(rj->re)) {
               /* For single layer renders keep the active layer
@@ -813,10 +829,9 @@ static void render_endjob(void *rjv)
 {
   RenderJob *rj = static_cast<RenderJob *>(rjv);
 
-  /* This render may be used again by the sequencer without the active
-   * 'Render' where the callbacks would be re-assigned. assign dummy callbacks
-   * to avoid referencing freed render-jobs bug #24508. */
-  RE_InitRenderCB(rj->re);
+  /* Clear display GPU context and callbacks since this may be used again
+   * by e.g. the sequencer (#24508). */
+  RE_display_free(rj->re);
 
   if (rj->main != G_MAIN) {
     BKE_main_free(rj->main);
@@ -838,9 +853,6 @@ static void render_endjob(void *rjv)
     }
   }
 
-  /* XXX above function sets all tags in nodes */
-  ntreeCompositClearTags(rj->scene->compositing_node_group);
-
   /* potentially set by caller */
   rj->scene->r.scemode &= ~R_NO_FRAME_UPDATE;
 
@@ -851,7 +863,7 @@ static void render_endjob(void *rjv)
   }
 
   if (rj->area) {
-    render_image_restore_layer(rj);
+    render_image_restore_scene_and_layer(rj);
   }
 
   /* XXX render stability hack */
@@ -939,7 +951,7 @@ static void render_drawlock(void *rjv, bool lock)
 /** Catch escape key to cancel. */
 static wmOperatorStatus screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Scene *scene = (Scene *)op->customdata;
+  Scene *scene = static_cast<Scene *>(op->customdata);
 
   /* no running blender, remove handler and pass through */
   if (0 == WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER)) {
@@ -953,7 +965,7 @@ static wmOperatorStatus screen_render_modal(bContext *C, wmOperator *op, const w
 static void screen_render_cancel(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  Scene *scene = (Scene *)op->customdata;
+  Scene *scene = static_cast<Scene *>(op->customdata);
 
   /* kill on cancel, because job is using op->reports */
   WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_RENDER);
@@ -983,18 +995,18 @@ static void clean_viewport_memory(Main *bmain, Scene *scene)
   Base *base;
 
   /* Tag all the available objects. */
-  BKE_main_id_tag_listbase(&bmain->objects, ID_TAG_DOIT, true);
+  BKE_main_id_tag_listbase(&bmain->objects.cast<ID>(), ID_TAG_DOIT, true);
 
   /* Go over all the visible objects. */
 
   /* Only ever 1 `wm`. */
-  LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  for (wmWindowManager &wm : bmain->wm) {
+    for (wmWindow &win : wm.windows) {
+      ViewLayer *view_layer = WM_window_get_active_view_layer(&win);
       BKE_view_layer_synced_ensure(scene, view_layer);
 
-      LISTBASE_FOREACH (Base *, b, BKE_view_layer_object_bases_get(view_layer)) {
-        clean_viewport_memory_base(b);
+      for (Base &b : *BKE_view_layer_object_bases_get(view_layer)) {
+        clean_viewport_memory_base(&b);
       }
     }
   }
@@ -1023,6 +1035,14 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   View3D *v3d = use_viewport ? CTX_wm_view3d(C) : nullptr;
   Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+
+  if (scene == nullptr) {
+    BKE_report(op->reports,
+               RPT_ERROR,
+               use_sequencer_scene ? "No sequencer scene to render" : "No scene to render");
+    return OPERATOR_CANCELLED;
+  }
+
   ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
                                                   CTX_data_view_layer(C);
   RenderEngineType *re_type = RE_engines_find(scene->r.engine);
@@ -1043,15 +1063,15 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     return OPERATOR_CANCELLED;
   }
 
+  /* custom scene and single layer re-render */
+  screen_render_single_layer_set(op, bmain, active_layer, &scene, &single_layer);
+
   int frame_start, frame_end;
   get_render_operator_frame_range(op, scene, frame_start, frame_end);
   if (is_animation && frame_start > frame_end) {
     BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
     return OPERATOR_CANCELLED;
   }
-
-  /* custom scene and single layer re-render */
-  screen_render_single_layer_set(op, bmain, active_layer, &scene, &single_layer);
 
   /* only one render job at a time */
   if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER)) {
@@ -1070,9 +1090,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* Reports are done inside check function, and it will return false if there are other strips to
    * render. */
-  if ((scene->r.scemode & R_DOSEQ) &&
-      blender::seq::relations_check_scene_recursion(scene, op->reports))
-  {
+  if ((scene->r.scemode & R_DOSEQ) && seq::relations_check_scene_recursion(scene, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1091,7 +1109,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   ED_editors_flush_edits_ex(bmain, true, false);
 
   /* Cleanup VSE cache, since it is not guaranteed that stored images are invalid. */
-  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
+  seq::cache_cleanup(scene, seq::CacheCleanup::FinalAndIntra);
 
   /* store spare
    * get view3d layer, local layer, make this nice API call to render
@@ -1114,6 +1132,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   rj->reports = op->reports;
   rj->orig_layer = 0;
   rj->last_layer = 0;
+  rj->use_sequencer_scene = use_sequencer_scene;
   rj->area = area;
   rj->frame_start = frame_start;
   rj->frame_end = frame_end;
@@ -1181,13 +1200,14 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* setup new render */
   re = RE_NewSceneRender(scene);
+  RE_display_init(re);
+  RE_display_ensure_gpu_context(re);
   RE_test_break_cb(re, rj, render_breakjob);
   RE_draw_lock_cb(re, rj, render_drawlock);
   RE_display_update_cb(re, rj, image_rect_update);
   RE_current_scene_update_cb(re, rj, current_scene_update);
   RE_stats_draw_cb(re, rj, image_renderinfo_cb);
   RE_progress_cb(re, rj, render_progress_update);
-  RE_system_gpu_context_ensure(re);
 
   rj->re = re;
   G.is_break = false;
@@ -1381,3 +1401,5 @@ void RENDER_OT_shutter_curve_preset(wmOperatorType *ot)
   RNA_def_property_translation_context(prop,
                                        BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
 }
+
+}  // namespace blender

@@ -8,6 +8,8 @@
  * \ingroup sequencer
  */
 
+#include "BLI_math_filter.hh"
+
 #include "BKE_fcurve.hh"
 
 #include "DNA_scene_types.h"
@@ -17,12 +19,9 @@
 #include "IMB_imbuf.hh"
 #include "IMB_metadata.hh"
 
-#include "RE_pipeline.h"
-
 #include "RNA_prototypes.hh"
 
 #include "SEQ_render.hh"
-#include "SEQ_time.hh"
 
 #include "effects.hh"
 #include "render.hh"
@@ -89,7 +88,7 @@ Array<float> make_gaussian_blur_kernel(float rad, int size)
   float sum = 0.0f;
   float fac = (rad > 0.0f ? 1.0f / rad : 0.0f);
   for (int i = -size; i <= size; i++) {
-    float val = RE_filter_value(R_FILTER_GAUSS, float(i) * fac);
+    float val = math::filter_kernel_value(math::FilterKernel::Gauss, float(i) * fac);
     sum += val;
     gaussian[i + size] = val;
   }
@@ -103,8 +102,6 @@ Array<float> make_gaussian_blur_kernel(float rad, int size)
 }
 
 static void init_noop(Strip * /*strip*/) {}
-
-static void load_noop(Strip * /*strip*/) {}
 
 static void free_default(Strip *strip, const bool /*do_id_user*/)
 {
@@ -178,7 +175,6 @@ EffectHandle effect_handle_get(StripType strip_type)
 
   rval.init = init_noop;
   rval.num_inputs = num_inputs_default;
-  rval.load = load_noop;
   rval.free = free_default;
   rval.early_out = early_out_noop;
   rval.execute = nullptr;
@@ -246,7 +242,6 @@ static EffectHandle effect_handle_for_blend_mode_get(StripBlendMode blend)
 
   rval.init = init_noop;
   rval.num_inputs = num_inputs_default;
-  rval.load = load_noop;
   rval.free = free_default;
   rval.early_out = early_out_noop;
   rval.execute = nullptr;
@@ -303,45 +298,26 @@ static EffectHandle effect_handle_for_blend_mode_get(StripBlendMode blend)
 
 EffectHandle strip_effect_handle_get(Strip *strip)
 {
-  EffectHandle rval = {};
-
+  EffectHandle h = {};
   if (strip->is_effect()) {
-    rval = effect_handle_get(StripType(strip->type));
-    if ((strip->runtime.flag & STRIP_EFFECT_NOT_LOADED) != 0) {
-      rval.load(strip);
-      strip->runtime.flag &= ~STRIP_EFFECT_NOT_LOADED;
-    }
+    h = effect_handle_get(StripType(strip->type));
   }
-
-  return rval;
+  return h;
 }
 
 EffectHandle strip_blend_mode_handle_get(Strip *strip)
 {
-  EffectHandle rval = {};
-
+  EffectHandle h = {};
   if (strip->blend_mode != STRIP_BLEND_REPLACE) {
-    if ((strip->runtime.flag & STRIP_EFFECT_NOT_LOADED) != 0) {
-      /* load the effect first */
-      rval = effect_handle_get(StripType(strip->type));
-      rval.load(strip);
-    }
-
-    rval = effect_handle_for_blend_mode_get(StripBlendMode(strip->blend_mode));
-    if ((strip->runtime.flag & STRIP_EFFECT_NOT_LOADED) != 0) {
-      /* now load the blend and unset unloaded flag */
-      rval.load(strip);
-      strip->runtime.flag &= ~STRIP_EFFECT_NOT_LOADED;
-    }
+    h = effect_handle_for_blend_mode_get(StripBlendMode(strip->blend_mode));
   }
-
-  return rval;
+  return h;
 }
 
 static float transition_fader_calc(const Scene *scene, const Strip *strip, float timeline_frame)
 {
-  float fac = float(timeline_frame - time_left_handle_frame_get(scene, strip));
-  fac /= time_strip_length_get(scene, strip);
+  float fac = float(timeline_frame - strip->left_handle());
+  fac /= strip->length(scene);
   fac = math::clamp(fac, 0.0f, 1.0f);
   return fac;
 }
@@ -356,7 +332,7 @@ float effect_fader_calc(Scene *scene, Strip *strip, float timeline_frame)
   }
 
   const FCurve *fcu = id_data_find_fcurve(
-      &scene->id, strip, &RNA_Strip, "effect_fader", 0, nullptr);
+      &scene->id, strip, RNA_Strip, "effect_fader", 0, nullptr);
   if (fcu) {
     return evaluate_fcurve(fcu, timeline_frame);
   }

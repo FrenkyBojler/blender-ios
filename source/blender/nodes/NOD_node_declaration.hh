@@ -22,11 +22,16 @@
 
 #include "NOD_socket_usage_inference_fwd.hh"
 
+namespace blender {
+
 struct bContext;
 struct bNode;
-struct uiLayout;
 
-namespace blender::nodes {
+namespace ui {
+struct Layout;
+}  // namespace ui
+
+namespace nodes {
 
 class NodeDeclarationBuilder;
 class PanelDeclaration;
@@ -184,7 +189,7 @@ struct SocketNameRNA {
 
 struct CustomSocketDrawParams {
   const bContext &C;
-  uiLayout &layout;
+  ui::Layout &layout;
   bNodeTree &tree;
   bNode &node;
   bNodeSocket &socket;
@@ -193,7 +198,8 @@ struct CustomSocketDrawParams {
   StringRefNull label;
   const Map<const bNode *, const bNode *> *menu_switch_source_by_index_switch = nullptr;
 
-  void draw_standard(uiLayout &layout, std::optional<StringRefNull> label_override = std::nullopt);
+  void draw_standard(ui::Layout &layout,
+                     std::optional<StringRefNull> label_override = std::nullopt);
 };
 
 using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
@@ -512,7 +518,7 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;
 
-using DrawNodeLayoutFn = void(uiLayout *, bContext *, PointerRNA *);
+using DrawNodeLayoutFn = void(ui::Layout &, bContext *, PointerRNA *);
 
 class SeparatorDeclaration : public ItemDeclaration {};
 
@@ -601,7 +607,7 @@ class DeclarationListBuilder {
 
   void add_separator();
   void add_default_layout();
-  void add_layout(std::function<void(uiLayout *, bContext *, PointerRNA *)> draw);
+  void add_layout(std::function<void(ui::Layout &, bContext *, PointerRNA *)> draw);
 };
 
 class PanelDeclarationBuilder : public DeclarationListBuilder {
@@ -839,4 +845,5 @@ inline bool BaseSocketDeclarationBuilder::is_output() const
 
 /** \} */
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender
