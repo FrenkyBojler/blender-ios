@@ -280,6 +280,7 @@ static void button2d_draw_intern(const bContext *C,
         need_to_pop = false;
       }
 
+      float alpha = (highlight) ? 1.0f : 0.6f;
       GPU_polygon_smooth(false);
 
       uchar icon_color[4];
@@ -294,7 +295,6 @@ static void button2d_draw_intern(const bContext *C,
         ui::theme::get_color_4ubv(highlight ? TH_TEXT_HI : TH_TEXT, icon_color);
       }
 
-      float alpha = (highlight) ? 1.0f : 0.6f;
       ui::icon_draw_ex(pos[0],
                        pos[1],
                        button->icon,
