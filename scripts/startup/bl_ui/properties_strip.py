@@ -791,7 +791,7 @@ class STRIP_PT_time(StripButtonsPanel, Panel):
 
         split = col.split(factor=factor + max_factor, align=True)
         split.alignment = 'RIGHT'
-        split.label(text="Current Frame")
+        split.label(text="Playhead Offset")
         split = split.split(factor=factor + 0.3 + max_factor, align=True)
         frame_display = frame_current - left_handle
         split.label(text="{:>14s}".format(smpte_from_frame(frame_display)), translate=False)
