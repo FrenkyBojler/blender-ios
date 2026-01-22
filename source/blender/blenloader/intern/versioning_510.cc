@@ -698,6 +698,31 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 21)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        for (bNode &node : node_tree->nodes) {
+          if (node.type_legacy == CMP_NODE_R_LAYERS) {
+            bNodeSocket *socket_denoise_normal = nullptr;
+            bNodeSocket *socket_denoise_albedo = nullptr;
+            for (bNodeSocket &socket : node.outputs) {
+              if (STREQ(socket.identifier, "Denoising Normal")) {
+                socket_denoise_normal = &socket;
+              }
+              if (STREQ(socket.identifier, "Denoising Albedo")) {
+                socket_denoise_albedo = &socket;
+              }
+            }
+            if (socket_denoise_albedo && socket_denoise_normal) {
+              BLI_listbase_swaplinks(&node.outputs, socket_denoise_normal, socket_denoise_albedo);
+            }
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
