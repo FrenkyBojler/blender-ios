@@ -1981,40 +1981,6 @@ void NODE_OT_delete_reconnect(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Node Delete Copy Reconnect Operator
- * \{ */
-
-static wmOperatorStatus node_delete_copy_reconnect_exec(bContext *C, wmOperator * /*op*/)
-{
-  wmOperatorStatus copy_ok = WM_operator_name_call(
-      C, "NODE_OT_clipboard_copy", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
-  if (copy_ok == OPERATOR_CANCELLED) {
-    return OPERATOR_CANCELLED;
-  }
-  wmOperatorStatus delete_ok = WM_operator_name_call(
-      C, "NODE_OT_delete_reconnect", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
-  if (delete_ok == OPERATOR_CANCELLED) {
-    return OPERATOR_CANCELLED;
-  }
-
-  return OPERATOR_FINISHED;
-}
-
-void NODE_OT_delete_copy_reconnect(wmOperatorType *ot)
-{
-  ot->name = "Delete with Copy and Reconnect";
-  ot->description = "Copy nodes to clipboard, remove and reconnect them.";
-  ot->idname = "NODE_OT_delete_copy_reconnect";
-
-  ot->exec = node_delete_copy_reconnect_exec;
-  ot->poll = ED_operator_node_editable;
-
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Node Copy Node Color Operator
  * \{ */
 
