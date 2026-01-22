@@ -53,6 +53,7 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_duplicate);
   WM_operatortype_append(NODE_OT_delete);
   WM_operatortype_append(NODE_OT_delete_reconnect);
+  WM_operatortype_append(NODE_OT_delete_copy_reconnect);
   WM_operatortype_append(NODE_OT_resize);
 
   WM_operatortype_append(NODE_OT_link);

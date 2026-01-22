@@ -443,6 +443,7 @@ void remap_node_pairing(bNodeTree &dst_tree, const Map<const bNode *, bNode *> &
 void NODE_OT_duplicate(wmOperatorType *ot);
 void NODE_OT_delete(wmOperatorType *ot);
 void NODE_OT_delete_reconnect(wmOperatorType *ot);
+void NODE_OT_delete_copy_reconnect(wmOperatorType *ot);
 void NODE_OT_resize(wmOperatorType *ot);
 
 void NODE_OT_mute_toggle(wmOperatorType *ot);
