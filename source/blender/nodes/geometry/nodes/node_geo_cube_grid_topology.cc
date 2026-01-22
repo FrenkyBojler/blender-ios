@@ -13,7 +13,7 @@
 #  include <openvdb/openvdb.h>
 #endif
 
-namespace blender::nodes::node_geo_cube_grid_cc {
+namespace blender::nodes::node_geo_cube_grid_topology_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -139,9 +139,9 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeCubeGrid");
-  ntype.ui_name = "Cube Grid";
-  ntype.ui_description = "Create a cube topology grid for use with Field to Grid node";
+  geo_node_type_base(&ntype, "GeometryNodeCubeGridTopology");
+  ntype.ui_name = "Cube Grid Topology";
+  ntype.ui_description = "Initialize a boolean grid topology with given dimensions, for use with the Field to Grid node";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
@@ -150,4 +150,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_cube_grid_cc
+}  // namespace blender::nodes::node_geo_cube_grid_topology_cc
