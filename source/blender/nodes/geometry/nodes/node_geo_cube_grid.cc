@@ -6,6 +6,7 @@
 #include "BLI_task.hh"
 
 #include "BKE_attribute_math.hh"
+#include "BKE_type_conversions.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
@@ -40,34 +41,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
 
-  /* Set non-zero default values for each data type. */
-  switch (data_type) {
-    case SOCK_FLOAT:
-      b.add_input<decl::Float>("Value")
-          .default_value(1.0f)
-          .description("Value field to evaluate at each grid point")
-          .supports_field();
-      break;
-    case SOCK_BOOLEAN:
-      b.add_input<decl::Bool>("Value")
-          .default_value(true)
-          .description("Value field to evaluate at each grid point")
-          .supports_field();
-      break;
-    case SOCK_INT:
-      b.add_input<decl::Int>("Value")
-          .default_value(1)
-          .description("Value field to evaluate at each grid point")
-          .supports_field();
-      break;
-    case SOCK_VECTOR:
-      b.add_input<decl::Vector>("Value")
-          .default_value(float3(1.0f))
-          .description("Value field to evaluate at each grid point")
-          .supports_field();
-      break;
-  }
-
+  /* Add input/output sockets with proper data types. */
+  b.add_input(data_type, "Value")
+      .description("Value field to evaluate at each grid point")
+      .supports_field();
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input(data_type, "Background")
       .description("Default value for grid voxels outside the filled region");
@@ -175,11 +152,85 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
 }
 
+#ifdef WITH_OPENVDB
+
+template<typename T>
+bke::VolumeGrid<T> create_cube_grid(const Field<T> &input_field,
+                                    const T &background,
+                                    const int3 &resolution,
+                                    const float3 &bounds_min,
+                                    const float3 &bounds_max)
+{
+  using type_traits = typename bke::VolumeGridTraits<T>;
+  using TreeType = typename type_traits::TreeType;
+  using GridType = openvdb::Grid<TreeType>;
+
+  if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
+    /* Evaluate input field on a 3D grid. */
+    blender::nodes::Grid3DFieldContext context(resolution, bounds_min, bounds_max);
+    FieldEvaluator evaluator(context, context.voxel_num());
+    Array<T> values(context.voxel_num());
+    evaluator.add_with_destination(input_field, values.as_mutable_span());
+    evaluator.evaluate();
+
+    /* Store resulting values in openvdb grid. */
+    Array<typename type_traits::PrimitiveType> openvdb_values(values.size());
+    for (const int64_t index : values.index_range()) {
+      openvdb_values[index] = type_traits::to_openvdb(values[index]);
+    }
+
+    auto openvdb_grid = GridType::create(type_traits::to_openvdb(background));
+
+    using DenseType = openvdb::tools::Dense<typename type_traits::PrimitiveType,
+                                            openvdb::tools::LayoutZYX>;
+    DenseType dense_grid{
+        openvdb::math::CoordBBox({0, 0, 0},
+                                 {resolution.x - 1, resolution.y - 1, resolution.z - 1}),
+        openvdb_values.data()};
+
+    /* Force all voxels to be active. */
+    if constexpr (std::is_same_v<T, float>) {
+      openvdb::tools::copyFromDense(
+          dense_grid, *openvdb_grid, std::numeric_limits<float>::lowest());
+    }
+    else if constexpr (std::is_same_v<T, int>) {
+      openvdb::tools::copyFromDense(
+          dense_grid, *openvdb_grid, std::numeric_limits<int>::lowest());
+    }
+    else if constexpr (std::is_same_v<T, bool>) {
+      openvdb::tools::copyFromDense(dense_grid, *openvdb_grid, false);
+      /* Boolean grids need manual activation since there are only two possible values. */
+      openvdb_grid->tree().sparseFill(
+          openvdb::math::CoordBBox({0, 0, 0},
+                                   {resolution.x - 1, resolution.y - 1, resolution.z - 1}),
+          openvdb_grid->background(),
+          /*active=*/true);
+    }
+    else if constexpr (std::is_same_v<T, float3>) {
+      openvdb::tools::copyFromDense(
+          dense_grid, *openvdb_grid, openvdb::Vec3f(std::numeric_limits<float>::lowest()));
+    }
+
+    const double3 scale_fac = double3(bounds_max - bounds_min) / double3(resolution - 1);
+    openvdb_grid->transform().postScale(
+        openvdb::math::Vec3d(scale_fac.x, scale_fac.y, scale_fac.z));
+    openvdb_grid->transform().postTranslate(
+        openvdb::math::Vec3d(bounds_min.x, bounds_min.y, bounds_min.z));
+
+    return bke::VolumeGrid<T>(std::move(openvdb_grid));
+  }
+  else {
+    return {};
+  }
+}
+
+#endif /* WITH_OPENVDB */
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
-
+  
   const float3 bounds_min = params.extract_input<float3>("Min");
   const float3 bounds_max = params.extract_input<float3>("Max");
 
@@ -213,68 +264,16 @@ static void node_geo_exec(GeoNodeExecParams params)
       *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&](auto type_tag) {
         using ValueT = decltype(type_tag);
         using type_traits = typename bke::VolumeGridTraits<ValueT>;
-        using TreeType = typename type_traits::TreeType;
-        using GridType = openvdb::Grid<TreeType>;
 
         if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
           using BlenderType = typename type_traits::BlenderType;
 
           const BlenderType background = params.extract_input<BlenderType>("Background");
-
           Field<BlenderType> input_field = params.extract_input<Field<BlenderType>>("Value");
 
-          /* Evaluate input field on a 3D grid. */
-          blender::nodes::Grid3DFieldContext context(resolution, bounds_min, bounds_max);
-          FieldEvaluator evaluator(context, context.voxel_num());
-          Array<BlenderType> values(context.voxel_num());
-          evaluator.add_with_destination(std::move(input_field), values.as_mutable_span());
-          evaluator.evaluate();
-
-          /* Store resulting values in openvdb grid. */
-          Array<typename type_traits::PrimitiveType> openvdb_values(values.size());
-          for (const int64_t index : values.index_range()) {
-            openvdb_values[index] = type_traits::to_openvdb(values[index]);
-          }
-
-          auto openvdb_grid = GridType::create(type_traits::to_openvdb(background));
-
-          using DenseType = openvdb::tools::Dense<typename type_traits::PrimitiveType,
-                                                  openvdb::tools::LayoutZYX>;
-          DenseType dense_grid{
-              openvdb::math::CoordBBox({0, 0, 0},
-                                       {resolution.x - 1, resolution.y - 1, resolution.z - 1}),
-              openvdb_values.data()};
-          /* Force all voxels to be active. OpenVDB only stores non-background values,
-           * so use extreme tolerance values to ensure all field values are considered "different".
-           */
-          if constexpr (std::is_same_v<BlenderType, float>) {
-            openvdb::tools::copyFromDense(
-                dense_grid, *openvdb_grid, std::numeric_limits<float>::lowest());
-          }
-          else if constexpr (std::is_same_v<BlenderType, int>) {
-            openvdb::tools::copyFromDense(
-                dense_grid, *openvdb_grid, std::numeric_limits<int>::lowest());
-          }
-          else if constexpr (std::is_same_v<BlenderType, bool>) {
-            openvdb::tools::copyFromDense(dense_grid, *openvdb_grid, false);
-            /* Boolean grids need manual activation since there are only two possible values. */
-            openvdb_grid->tree().sparseFill(
-                openvdb::math::CoordBBox({0, 0, 0},
-                                         {resolution.x - 1, resolution.y - 1, resolution.z - 1}),
-                openvdb_grid->background(),
-                /*active=*/true);
-          }
-          else if constexpr (std::is_same_v<BlenderType, float3>) {
-            openvdb::tools::copyFromDense(
-                dense_grid, *openvdb_grid, openvdb::Vec3f(std::numeric_limits<float>::lowest()));
-          }
-          openvdb_grid->transform().postScale(
-              openvdb::math::Vec3d(scale_fac.x, scale_fac.y, scale_fac.z));
-          openvdb_grid->transform().postTranslate(
-              openvdb::math::Vec3d(bounds_min.x, bounds_min.y, bounds_min.z));
-
-          bke::VolumeGrid<ValueT> volume_grid(std::move(openvdb_grid));
-          params.set_output("Grid", std::move(volume_grid));
+          bke::VolumeGrid<ValueT> typed_grid = create_cube_grid<BlenderType>(
+              input_field, background, resolution, bounds_min, bounds_max);
+          params.set_output("Grid", bke::GVolumeGrid(std::move(typed_grid)));
         }
       });
 #else
