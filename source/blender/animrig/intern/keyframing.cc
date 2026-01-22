@@ -13,7 +13,6 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
-#include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
 #include "ANIM_fcurve.hh"
 #include "ANIM_keyframing.hh"
@@ -198,12 +197,12 @@ void CombinedKeyingResult::generate_reports(ReportList *reports, const eReportTy
 std::optional<StringRefNull> default_channel_group_for_path(const PointerRNA *animated_struct,
                                                             const StringRef prop_rna_path)
 {
-  if (animated_struct->type == &RNA_PoseBone) {
+  if (animated_struct->type == RNA_PoseBone) {
     bPoseChannel *pose_channel = static_cast<bPoseChannel *>(animated_struct->data);
     return pose_channel->name;
   }
 
-  if (animated_struct->type == &RNA_Object) {
+  if (animated_struct->type == RNA_Object) {
     if (prop_rna_path.find("location") != StringRef::not_found ||
         prop_rna_path.find("rotation") != StringRef::not_found ||
         prop_rna_path.find("scale") != StringRef::not_found)
@@ -272,7 +271,7 @@ static bool assigned_action_has_keyframe_at(AnimData &adt, const float frame)
     return false;
   }
 
-  for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(&adt)) {
+  for (FCurve *fcu : animrig::fcurves_for_assigned_action(&adt)) {
     if (fcurve_frame_has_keyframe(fcu, frame)) {
       return true;
     }
@@ -314,7 +313,7 @@ bool id_frame_has_keyframe(ID *id, float frame)
   /* Perform special checks for 'macro' types. */
   switch (GS(id->name)) {
     case ID_OB:
-      return object_frame_has_keyframe((Object *)id, frame);
+      return object_frame_has_keyframe(id_cast<Object *>(id), frame);
 
     default: {
       AnimData *adt = BKE_animdata_from_id(id);
@@ -424,7 +423,7 @@ static float nla_time_remap(float time,
                             PointerRNA *id_ptr,
                             AnimData *adt,
                             bAction *act,
-                            ListBase *nla_cache,
+                            ListBaseT<NlaKeyframingContext> *nla_cache,
                             NlaKeyframingContext **r_nla_context)
 {
   if (adt && adt->action == act) {
@@ -443,7 +442,7 @@ static float nla_time_remap(float time,
 static SingleKeyingResult insert_keyframe_value(
     FCurve *fcu, float cfra, float curval, eBezTriple_KeyframeType keytype, eInsertKeyFlags flag)
 {
-  if (!BKE_fcurve_is_keyframable(fcu)) {
+  if (!fcu || !BKE_fcurve_is_keyframable(*fcu)) {
     return SingleKeyingResult::FCURVE_NOT_KEYFRAMEABLE;
   }
 
@@ -838,7 +837,7 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
   key_settings.keyframe_type = key_type;
 
   /* NOTE: keyframing functions can deal with the nla_context being a nullptr. */
-  ListBase nla_cache = {nullptr, nullptr};
+  ListBaseT<NlaKeyframingContext> nla_cache = {nullptr, nullptr};
   NlaKeyframingContext *nla_context = nullptr;
   const float nla_frame = nla_time_remap(scene_frame.value_or(anim_eval_context.eval_time),
                                          &anim_eval_context,

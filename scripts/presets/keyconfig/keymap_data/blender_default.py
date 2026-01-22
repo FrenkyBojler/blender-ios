@@ -1259,6 +1259,41 @@ def km_property_editor(_params):
 
 
 # ------------------------------------------------------------------------------
+# Editor (Preferences)
+
+def km_preferences(_params):
+    items = []
+    keymap = (
+        "Preferences",
+        {"space_type": 'PREFERENCES', "region_type": 'WINDOW'},
+        {"items": items},
+    )
+
+    items.extend([
+        ("preferences.start_filter", {"type": 'F', "value": 'PRESS', "ctrl": True}, None),
+        ("preferences.clear_filter", {"type": 'F', "value": 'PRESS', "alt": True}, None),
+    ])
+
+    return keymap
+
+
+def km_preferences_nav(_params):
+    items = []
+    keymap = (
+        "Preferences_nav",
+        {"space_type": 'PREFERENCES', "region_type": 'UI'},
+        {"items": items},
+    )
+
+    items.extend([
+        ("preferences.start_filter", {"type": 'F', "value": 'PRESS', "ctrl": True}, None),
+        ("preferences.clear_filter", {"type": 'F', "value": 'PRESS', "alt": True}, None),
+    ])
+
+    return keymap
+
+
+# ------------------------------------------------------------------------------
 # Editor (Outliner)
 
 def km_outliner(params):
@@ -3076,6 +3111,10 @@ def km_sequencer(params):
         ("sequencer.select_circle", {"type": 'C', "value": 'PRESS'}, None),
         ("sequencer.select_grouped", {"type": 'G', "value": 'PRESS', "shift": True}, None),
         *_template_items_select_actions(params, "sequencer.select_all"),
+        ("sequencer.select_side_of_frame", {"type": 'LEFT_BRACKET', "value": 'PRESS'},
+         {"properties": [("side", 'LEFT')]}),
+        ("sequencer.select_side_of_frame", {"type": 'RIGHT_BRACKET', "value": 'PRESS'},
+         {"properties": [("side", 'RIGHT')]}),
         ("sequencer.split", {"type": 'K', "value": 'PRESS'},
          {"properties": [("type", 'SOFT')]}),
         ("sequencer.split", {"type": 'K', "value": 'PRESS', "shift": True},
@@ -3158,10 +3197,6 @@ def km_sequencer(params):
         ("transform.transform", {"type": 'E', "value": 'PRESS'},
          {"properties": [("mode", 'TIME_EXTEND')]}),
         ("marker.add", {"type": 'M', "value": 'PRESS'}, None),
-        ("sequencer.select_side_of_frame", {"type": 'LEFT_BRACKET', "value": 'PRESS'},
-         {"properties": [("side", 'LEFT')]}),
-        ("sequencer.select_side_of_frame", {"type": 'RIGHT_BRACKET', "value": 'PRESS'},
-         {"properties": [("side", 'RIGHT')]}),
         ("wm.context_toggle", {"type": 'Z', "value": 'PRESS', "alt": True, "shift": True},
          {"properties": [("data_path", "space_data.show_overlays")]}),
         *_template_items_context_menu("SEQUENCER_MT_context_menu", params.context_menu_event),
@@ -4806,6 +4841,15 @@ def _template_view3d_paint_mask_select_loop(params):
         ("paint.face_select_loop",
          {"type": params.select_mouse, "value": 'PRESS', "alt": True, "shift": True, "ctrl": True},
          {"properties": [("extend", True), ("select", False)]}),
+        ("paint.vert_select_loop",
+         {"type": params.select_mouse, "value": 'PRESS', "alt": True},
+         {"properties": [("extend", False), ("select", True)]}),
+        ("paint.vert_select_loop",
+         {"type": params.select_mouse, "value": 'PRESS', "alt": True, "shift": True},
+         {"properties": [("extend", True), ("select", True)]}),
+        ("paint.vert_select_loop",
+         {"type": params.select_mouse, "value": 'PRESS', "alt": True, "shift": True, "ctrl": True},
+         {"properties": [("extend", True), ("select", False)]}),
     ]
 
 
@@ -4997,6 +5041,9 @@ def km_vertex_paint(params):
          {"properties": [("mode", 'SMOOTH')]}),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
         ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, {"properties": [("merged", False)]}),
+        ("paint.sample_color",
+         {"type": 'X', "value": 'PRESS', "shift": True, "ctrl": True},
+         {"properties": [("merged", True)]}),
         ("paint.vertex_color_set", {"type": 'X', "value": 'PRESS', "ctrl": True}, None),
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
@@ -5155,8 +5202,9 @@ def km_paint_vertex_mask(params):
         ("paint.vert_select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True}, None),
     ])
 
-    # TODO: use `_template_view3d_paint_mask_select_loop` if loop-select is supported.
-    # See: `km_paint_face_mask`.
+    # For left mouse the tool key-maps are used because this interferes with Alt-LMB for regular selection.
+    if params.select_mouse == 'RIGHTMOUSE':
+        items.extend(_template_view3d_paint_mask_select_loop(params))
 
     return keymap
 
@@ -5179,6 +5227,8 @@ def km_sculpt(params):
          {"properties": [("mode", 'INVERT')]}),
         ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
          {"properties": [("mode", 'SMOOTH')]}),
+        ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
+         {"properties": [("mode", 'MASK')]}),
         # Expand
         ("sculpt.expand", {"type": 'A', "value": 'PRESS', "shift": True},
          {"properties": [
@@ -5247,7 +5297,12 @@ def km_sculpt(params):
         ("object.voxel_remesh", {"type": 'R', "value": 'PRESS', "ctrl": True}, None),
         ("object.voxel_size_edit", {"type": 'R', "value": 'PRESS'}, None),
         # Color
-        ("sculpt.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, None),
+        ("paint.sample_color",
+         {"type": 'X', "value": 'PRESS', "shift": True},
+         {"properties": [("merged", False)]}),
+        ("paint.sample_color",
+         {"type": 'X', "value": 'PRESS', "shift": True, "ctrl": True},
+         {"properties": [("merged", True)]}),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS', }, None),
         # Brush properties
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
@@ -8525,11 +8580,13 @@ def km_sequencer_tool_generic_select_rcs(params):
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS',
          "alt": True}, {"properties": [("ignore_connections", True)]}),
         ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS'},
-         {"properties": [("seq_solo_preview", True), ("pass_through_on_strip_handles", True)]}),
+         {"properties": [("pass_through_on_strip_handles", True)]}),
+        ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS', "shift": True},
+         {"properties": [("seq_solo_preview", True)]}),
         # Change frame takes precedence over the sequence slide operator. If a
         # mouse press happens on a strip handle, it is canceled, and the sequence
         # slide below activates instead.
-        ("transform.seq_slide", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+        ("transform.seq_slide", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
          {"properties": [("view2d_edge_pan", True), ("use_restore_handle_selection", True)]}),
     ]
 
@@ -8556,7 +8613,10 @@ def km_sequencer_tool_generic_select_box(params, *, fallback):
               if (params.select_mouse == 'RIGHTMOUSE') else
               km_sequencer_tool_generic_select_lcs(params)),
             # Don't use `tool_maybe_tweak_event`, see comment for this slot.
-            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+            # We do not add box select with left-click keymap items for RCS since click-drag already scrubs.
+            # These items should be re-added to this tool if/once we create a separate scrub tool.
+            *([] if (params.select_mouse == 'RIGHTMOUSE' or (fallback and not params.use_fallback_tool))
+              else _template_items_tool_select_actions_simple(
                 "sequencer.select_box",
                 **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
                     params.tool_tweak_event),
@@ -8813,6 +8873,8 @@ def generate_keymaps(params=None):
 
         # Editors.
         km_outliner(params),
+        km_preferences(params),
+        km_preferences_nav(params),
         km_uv_editor(params),
         km_view3d_generic(params),
         km_view3d(params),
@@ -9056,6 +9118,12 @@ def generate_keymaps(params=None):
         km_3d_view_tool_paint_grease_pencil_primitive_circle(params),
         km_3d_view_tool_paint_grease_pencil_primitive_arc(params),
         km_3d_view_tool_paint_grease_pencil_primitive_curve(params),
+        km_3d_view_tool_paint_grease_pencil_trim(params),
+        km_3d_view_tool_paint_grease_pencil_interpolate(params),
+        km_3d_view_tool_paint_grease_pencil_eyedropper(params),
+        km_3d_view_tool_edit_grease_pencil_texture_gradient(params),
+        km_3d_view_tool_edit_grease_pencil_pen(params),
+        km_3d_view_tool_edit_grease_pencil_interpolate(params),
         *(km_sequencer_tool_generic_select_box(params, fallback=fallback)
           for fallback in (False, True)),
         *(km_sequencer_preview_tool_generic_select(params, fallback=fallback)
@@ -9070,8 +9138,6 @@ def generate_keymaps(params=None):
           for fallback in (False, True)),
         *(km_sequencer_tool_generic_select_circle(params, fallback=fallback)
           for fallback in (False, True)),
-        km_3d_view_tool_paint_grease_pencil_trim(params),
-        km_3d_view_tool_edit_grease_pencil_texture_gradient(params),
         km_sequencer_tool_blade(params),
         km_sequencer_tool_slip(params),
         km_sequencer_preview_tool_generic_cursor(params),
@@ -9079,10 +9145,6 @@ def generate_keymaps(params=None):
         km_sequencer_preview_tool_move(params),
         km_sequencer_preview_tool_rotate(params),
         km_sequencer_preview_tool_scale(params),
-        km_3d_view_tool_edit_grease_pencil_pen(params),
-        km_3d_view_tool_edit_grease_pencil_interpolate(params),
-        km_3d_view_tool_paint_grease_pencil_interpolate(params),
-        km_3d_view_tool_paint_grease_pencil_eyedropper(params),
     ]
 
 

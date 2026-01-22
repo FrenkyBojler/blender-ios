@@ -426,7 +426,6 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
   const int2 extent = inst_.film.render_extent_get();
   const int2 tracing_res = math::divide_ceil(extent, int2(resolution_scale));
   const int2 tracing_res_horizon = math::divide_ceil(extent, int2(horizon_resolution_scale));
-  const int2 dummy_extent(1, 1);
   const int2 group_size(RAYTRACE_GROUP_SIZE);
 
   const int2 denoise_tiles = divide_ceil(extent, group_size);
@@ -562,8 +561,8 @@ RayTraceResultTexture RayTraceModule::trace(
     /* Early out. Release persistent buffers. Still acquire one dummy resource for validation. */
     denoise_buf->denoised_spatial_tx.acquire(int2(1),
                                              gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT);
-    denoise_buf->radiance_history_tx.free();
-    denoise_buf->variance_history_tx.free();
+    denoise_buf->radiance_history_tx.release();
+    denoise_buf->variance_history_tx.release();
     denoise_buf->tilemask_history_tx.free();
     return {denoise_buf->denoised_spatial_tx};
   }
@@ -653,16 +652,16 @@ RayTraceResultTexture RayTraceModule::trace(
     denoise_variance_tx_.acquire(use_bilateral_denoise ? extent : int2(1),
                                  gpu::TextureFormat::RAYTRACE_VARIANCE_FORMAT,
                                  usage_rw);
-    denoise_buf->variance_history_tx.ensure_2d(gpu::TextureFormat::RAYTRACE_VARIANCE_FORMAT,
-                                               use_bilateral_denoise ? extent : int2(1),
-                                               usage_rw);
+    denoise_buf->variance_history_tx.acquire(use_bilateral_denoise ? extent : int2(1),
+                                             gpu::TextureFormat::RAYTRACE_VARIANCE_FORMAT,
+                                             usage_rw);
     denoise_buf->tilemask_history_tx.ensure_2d_array(gpu::TextureFormat::RAYTRACE_TILEMASK_FORMAT,
                                                      tile_raytrace_denoise_tx_.size().xy(),
                                                      tile_raytrace_denoise_tx_.size().z,
                                                      usage_rw);
 
-    if (denoise_buf->radiance_history_tx.ensure_2d(
-            gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT, extent, usage_rw) ||
+    if (denoise_buf->radiance_history_tx.acquire(
+            extent, gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT, usage_rw) ||
         denoise_buf->valid_history == false)
     {
       /* If viewport resolution changes, do not try to use history. */
@@ -701,9 +700,11 @@ RayTraceResultTexture RayTraceModule::trace(
 
     inst_.manager->submit(denoise_bilateral_ps_, render_view);
 
-    /* Swap after last use. */
+    /* Swap after last use, retain history buffers until next cycle. */
     TextureFromPool::swap(denoise_buf->denoised_temporal_tx, denoise_buf->radiance_history_tx);
     TextureFromPool::swap(denoise_variance_tx_, denoise_buf->variance_history_tx);
+    denoise_buf->radiance_history_tx.retain();
+    denoise_buf->variance_history_tx.retain();
 
     result = {denoise_buf->denoised_bilateral_tx};
     /* Not referenced by result anymore. */
