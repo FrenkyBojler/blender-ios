@@ -180,6 +180,7 @@ struct NodeGeometry {
    * geometry pushes happened in the undo stack. */
   bool is_initialized;
 
+  bke::AttributeStorage attribute_storage;
   CustomData vert_data;
   CustomData edge_data;
   CustomData corner_data;
@@ -916,6 +917,7 @@ static void store_geometry_data(NodeGeometry *geometry, const Object &object)
   BLI_assert(!geometry->is_initialized);
   geometry->is_initialized = true;
 
+  geometry->attribute_storage = mesh->attribute_storage.wrap();
   CustomData_init_from(
       &mesh->vert_data, &geometry->vert_data, CD_MASK_MESH.vmask, mesh->verts_num);
   CustomData_init_from(
@@ -947,6 +949,7 @@ static void restore_geometry_data(const NodeGeometry *geometry, Mesh *mesh)
   mesh->faces_num = geometry->faces_num;
   mesh->totface_legacy = 0;
 
+  mesh->attribute_storage = geometry->attribute_storage.wrap();
   CustomData_init_from(
       &geometry->vert_data, &mesh->vert_data, CD_MASK_MESH.vmask, geometry->verts_num);
   CustomData_init_from(
@@ -1046,7 +1049,7 @@ static void refine_subdiv(Depsgraph *depsgraph,
                           bke::subdiv::Subdiv *subdiv)
 {
   Array<float3> deformed_verts = BKE_multires_create_deformed_base_mesh_vert_coords(
-      depsgraph, &object, ss.multires.modifier);
+      depsgraph, &object, ss.multires_modifier);
 
   bke::subdiv::eval_refine_from_mesh(subdiv, id_cast<const Mesh *>(object.data), deformed_verts);
 }
@@ -2410,7 +2413,7 @@ static bool use_multires_mesh(bContext *C)
   const Object *object = CTX_data_active_object(C);
   const SculptSession *sculpt_session = object->runtime->sculpt_session;
 
-  return sculpt_session->multires.active;
+  return sculpt_session->multires_modifier;
 }
 
 void push_multires_mesh_begin(bContext *C, const char *str)
