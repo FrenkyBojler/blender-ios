@@ -115,7 +115,6 @@ set(SRC
   intern/editmesh_tangent.cc
   intern/effect.cc
   intern/fcurve.cc
-  intern/fcurve_cache.cc
   intern/fcurve_driver.cc
   intern/file_handler.cc
   intern/fluid.cc
@@ -540,7 +539,6 @@ set(SRC
   nla_private.h
   particle_private.h
 
-  intern/attribute_access_intern.hh
   intern/attribute_storage_access.hh
   intern/data_transfer_intern.hh
   intern/lib_intern.hh
