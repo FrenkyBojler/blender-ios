@@ -2485,6 +2485,7 @@ void uiTemplateImageStereo3d(ui::Layout *layout, PointerRNA *stereo3d_format_ptr
 void uiTemplateImageViews(ui::Layout *layout, PointerRNA *imaptr);
 void uiTemplateImageFormatViews(ui::Layout *layout, PointerRNA *imfptr, PointerRNA *ptr);
 void uiTemplateImageLayers(ui::Layout *layout, bContext *C, Image *ima, ImageUser *iuser);
+void uiTemplateImageViewSelector(ui::Layout *layout, bContext *C, Image *ima, ImageUser *iuser);
 void uiTemplateImageInfo(ui::Layout *layout, bContext *C, Image *ima, ImageUser *iuser);
 
 namespace ui {

@@ -2080,6 +2080,13 @@ void RNA_api_ui_layout(StructRNA *srna)
   parm = RNA_def_pointer(func, "image_user", "ImageUser", "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
+  func = RNA_def_function(srna, "template_image_view_selector", "uiTemplateImageViewSelector");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  parm = RNA_def_pointer(func, "image", "Image", "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "image_user", "ImageUser", "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
   func = RNA_def_function(srna, "template_image", "uiTemplateImage");
   RNA_def_function_ui_description(
       func, "Item(s). User interface for selecting images and their source paths.");

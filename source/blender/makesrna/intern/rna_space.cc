@@ -6259,7 +6259,7 @@ static void rna_def_space_image(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_stereo_3d", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(
       prop, "rna_SpaceImageEditor_show_stereo_get", "rna_SpaceImageEditor_show_stereo_set");
-  RNA_def_property_ui_text(prop, "Show Stereo", "Display the image in Stereo 3D");
+  RNA_def_property_ui_text(prop, "Show Stereoscopy", "Display the image in stereoscopy");
   RNA_def_property_ui_icon(prop, ICON_CAMERA_STEREO, 0);
   RNA_def_property_update(
       prop, NC_SPACE | ND_SPACE_IMAGE, "rna_SpaceImageEditor_show_stereo_update");

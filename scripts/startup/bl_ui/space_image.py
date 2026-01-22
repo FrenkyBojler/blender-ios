@@ -923,13 +923,16 @@ class IMAGE_HT_header(Header):
         if ima:
             layout.template_image_layers(ima, iuser)
 
-            row = layout.row()
-            row.prop(sima, "display_channels", icon_only=True)
+        layout.separator_spacer()
 
+        if ima:
+            layout.template_image_view_selector(ima, iuser)
+            
             if ima.is_stereo_3d:
                 layout.prop(sima, "show_stereo_3d", text="")
 
-        layout.separator_spacer()
+            row = layout.row()
+            row.prop(sima, "display_channels", icon_only=True)
 
         row = layout.row(align=True)
         row.prop(sima, "show_gizmo", icon='GIZMO', text="")

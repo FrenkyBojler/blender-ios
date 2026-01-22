@@ -558,7 +558,6 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
   RenderLayer *rl = nullptr;
   const char *fake_name = nullptr;
   const char *display_name = "";
-  const bool show_stereo = (iuser->flag & IMA_SHOW_STEREO) != 0;
   if (iuser->scene == nullptr) {
     return;
   }
@@ -569,7 +568,6 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
   const int wmenu1 = (2 * w) / 5;
   const int wmenu2 = (3 * w) / 5;
   const int wmenu3 = (3 * w) / 6;
-  const int wmenu4 = (3 * w) / 6;
 
   rnd_pt_local.image = image;
   rnd_pt_local.iuser = iuser;
@@ -664,62 +662,7 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
     rnd_pt = nullptr;
   }
 
-  /* View menu - only when multiple views are available. */
-  if (rr && BLI_listbase_count_at_most(&rr->views, 2) > 1 &&
-      ((!show_stereo) || !RE_RenderResult_is_stereo(rr)))
-  {
-    RenderView *rview = static_cast<RenderView *>(BLI_findlink(&rr->views, iuser->view));
-    display_name = rview ? rview->name : "";
-
-    rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
-    but = uiDefMenuBut(block,
-                       ui_imageuser_view_menu_rr,
-                       rnd_pt,
-                       display_name,
-                       0,
-                       0,
-                       wmenu4,
-                       UI_UNIT_Y,
-                       TIP_("Select View"));
-    button_funcN_set(but, image_multi_cb, rnd_pt, rr);
-    button_type_set_menu_from_pulldown(but);
-    rnd_pt = nullptr;
-  }
-  /* Stereo/multiview image (no render result). */
-  else if (BKE_image_is_stereo(image) || BKE_image_is_multiview(image))
-  {
-    const bool is_stereo_disabled = BKE_image_is_stereo(image) && show_stereo;
-
-    if (is_stereo_disabled) {
-      display_name = IFACE_("View");
-    }
-    else {
-      int nr = 0;
-      for (ImageView &iv : image->views) {
-        if (nr++ == iuser->view) {
-          display_name = iv.name;
-          break;
-        }
-      }
-    }
-
-    rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
-    but = uiDefMenuBut(block,
-                       ui_imageuser_view_menu_multiview,
-                       rnd_pt,
-                       display_name,
-                       0,
-                       0,
-                       wmenu1,
-                       UI_UNIT_Y,
-                       is_stereo_disabled ? TIP_("Stereo 3D") : TIP_("Select View"));
-    button_funcN_set(but, image_multiview_cb, rnd_pt, nullptr);
-    button_type_set_menu_from_pulldown(but);
-    if (is_stereo_disabled) {
-      button_disable(but, TIP_("Image displayed in Stereo 3D"));
-    }
-    rnd_pt = nullptr;
-  }
+  /* Stereo/multiview views are drawn separately via uiTemplateImageViewSelector. */
 }
 
 namespace {
@@ -1214,6 +1157,86 @@ void uiTemplateImageLayers(ui::Layout *layout, bContext *C, Image *ima, ImageUse
                                menus_width,
                                (ima->type == IMA_TYPE_R_RESULT) ? &ima->render_slot : nullptr);
     BKE_image_release_renderresult(scene, ima, rr);
+  }
+}
+
+void uiTemplateImageViewSelector(ui::Layout *layout, bContext *C, Image *ima, ImageUser *iuser)
+{
+  if (ima == nullptr || iuser == nullptr) {
+    return;
+  }
+
+  const int view_menu_width = UI_UNIT_X * 4;
+  const bool show_stereo = (iuser->flag & IMA_SHOW_STEREO) != 0;
+
+  ui::Block *block = layout->block();
+  ui::Button *but;
+  const char *display_name = "";
+
+  ImageUI_Data rnd_pt_local;
+  rnd_pt_local.image = ima;
+  rnd_pt_local.iuser = iuser;
+  rnd_pt_local.rpass_index = 0;
+
+  /* Render result with multiple views. */
+  if (ima->type == IMA_TYPE_R_RESULT) {
+    Scene *scene = CTX_data_scene(C);
+    RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
+
+    if (rr && BLI_listbase_count_at_most(&rr->views, 2) > 1 &&
+        ((!show_stereo) || !RE_RenderResult_is_stereo(rr)))
+    {
+      RenderView *rview = static_cast<RenderView *>(BLI_findlink(&rr->views, iuser->view));
+      display_name = rview ? rview->name : "";
+
+      ImageUI_Data *rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
+      but = uiDefMenuBut(block,
+                         ui_imageuser_view_menu_rr,
+                         rnd_pt,
+                         display_name,
+                         0,
+                         0,
+                         view_menu_width,
+                         UI_UNIT_Y,
+                         TIP_("Render View"));
+      button_funcN_set(but, image_multi_cb, rnd_pt, rr);
+      button_type_set_menu_from_pulldown(but);
+    }
+
+    BKE_image_release_renderresult(scene, ima, rr);
+  }
+  /* Stereo/multiview image. */
+  else if (BKE_image_is_stereo(ima) || BKE_image_is_multiview(ima)) {
+    const bool is_stereo_disabled = BKE_image_is_stereo(ima) && show_stereo;
+
+    if (is_stereo_disabled) {
+      display_name = IFACE_("View");
+    }
+    else {
+      int nr = 0;
+      for (ImageView &iv : ima->views) {
+        if (nr++ == iuser->view) {
+          display_name = iv.name;
+          break;
+        }
+      }
+    }
+
+    ImageUI_Data *rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
+    but = uiDefMenuBut(block,
+                       ui_imageuser_view_menu_multiview,
+                       rnd_pt,
+                       display_name,
+                       0,
+                       0,
+                       view_menu_width,
+                       UI_UNIT_Y,
+                       TIP_("Render View"));
+    button_funcN_set(but, image_multiview_cb, rnd_pt, nullptr);
+    button_type_set_menu_from_pulldown(but);
+    if (is_stereo_disabled) {
+      button_disable(but, TIP_("Image displayed in stereoscopy"));
+    }
   }
 }
 
