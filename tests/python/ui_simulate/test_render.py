@@ -143,7 +143,6 @@ def _animation_rendering_and_player(temp_dir):
     scene.cycles.use_denoising = False
     rd.resolution_x = 128
     rd.resolution_y = 128
-    rd.filepath = str(Path(temp_dir) / "frame_")
     scene.frame_start = 1
     scene.frame_end = 20
 
@@ -158,22 +157,32 @@ def _animation_rendering_and_player(temp_dir):
     yield
 
     # Render animation and cancel after a few frames.
+    rd.filepath = str(Path(temp_dir) / "final_")
     start_path = Path(bpy.path.abspath(rd.frame_path(frame=scene.frame_start)))
-    end_path = Path(bpy.path.abspath(rd.frame_path(frame=scene.frame_end)))
+
     bpy.ops.render.render('INVOKE_DEFAULT', animation=True)
     yield
     yield from ui.idle_until(
         lambda: start_path.exists() and scene.frame_current > 2,
         timeout=20.0)
     yield e.esc()
+    yield from ui.idle_until(
+        lambda: not bpy.app.is_job_running('RENDER'),
+        timeout=20.0)
 
     t.assertTrue(start_path.exists(), "Start frame was not rendered")
 
     # In 3D viewport, render complete playblast.
+    rd.filepath = str(Path(temp_dir) / "playblast_")
+    start_path = Path(bpy.path.abspath(rd.frame_path(frame=scene.frame_start)))
+    end_path = Path(bpy.path.abspath(rd.frame_path(frame=scene.frame_end)))
+
     view3d_area = ui.get_window_area_by_type(window, 'VIEW_3D')
     e.cursor_position_set(*ui.get_area_center(view3d_area), move=True)
     yield from ui.call_menu(e, "Render Playblast")
-    yield from ui.idle_until(lambda: end_path.exists(), timeout=20.0)
+    yield from ui.idle_until(
+        lambda: end_path.exists() and not bpy.app.is_job_running('RENDER'),
+        timeout=20.0)
 
     t.assertTrue(start_path.exists(), "Start frame was not rendered")
     t.assertTrue(end_path.exists(), "End frame was not rendered")
