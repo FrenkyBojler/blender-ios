@@ -3,3 +3,4 @@ Referenced by commit 6a8c2ca16ee4477b06bd351de12ff2ada785b842, Fix #146139: Corr
 Referenced by issue #147710, Crash when attempting to bind a surface deform modifier to a faceless mesh
 Referenced by issue #153157, Laplacian Deform modifier crash
 Referenced by pull request #153158, Fix #153157: Laplacian Deform modifier crash
+Referenced by commit 2527d19ef9918c517d4f3a6468b93b6d2933acfe, Fix #153157: Laplacian Deform modifier crash
