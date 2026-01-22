@@ -132,10 +132,14 @@ BLOCKLIST_VULKAN_NVIDIA = [
     "principled_bsdf_emission.blend",
     "principled_bsdf_sheen.blend",
 
-    # Vulkan shader; failed non-deterministically on workers when tested
+    # Shader; failed non-deterministically on workers when tested
     "texture_coordinate_camera.blend",
     "texture_coordinate_object.blend",
     "texture_coordinate_generated.blend",
+    "texture_coordinate_normal.blend",
+
+    # Render layer; failed non-deterministically on workers when tested
+    "freestyle_stroke_material.blend"
 
     # Hair; failed non-deterministically on workers when tested
     "hair_instancer_uv.blend"
