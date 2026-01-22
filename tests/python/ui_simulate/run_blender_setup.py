@@ -81,7 +81,10 @@ def main():
             args.keep_open = True
 
         if not args.keep_open:
-            bpy.ops.wm.quit_blender()
+            try:
+                bpy.ops.wm.quit_blender()
+            except RuntimeError:
+                sys.exit(1)
         else:
             bpy.app.use_event_simulate = False
 
@@ -99,7 +102,10 @@ def main():
 
         if mod_name in BLOCKLIST or test_id in BLOCKLIST:
             if not args.keep_open:
-                bpy.ops.wm.quit_blender()
+                try:
+                    bpy.ops.wm.quit_blender()
+                except RuntimeError:
+                    sys.exit(1)
 
         if not is_first:
             bpy.ops.wm.read_homefile()
