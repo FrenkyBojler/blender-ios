@@ -222,12 +222,14 @@ class ShaderComputeContext : public ComputeContext {
 class UpdateBundleComputeContext : public ComputeContext {
  private:
   int32_t node_id_;
+  bool global_closure_;
   std::string bundle_path_;
 
  public:
   UpdateBundleComputeContext(const ComputeContext *parent,
                              int32_t node_id,
-                             const std::string &bundle_path);
+                             bool global_closure,
+                             StringRef bundle_path);
 
  private:
   ComputeContextHash compute_hash() const override;
