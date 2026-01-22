@@ -441,19 +441,55 @@ int AbstractTreeView::ui_handle_event(bContext *C, const wmEvent *event, ARegion
   bool redraw = false;
 
   if (val == KM_PRESS) {
-    if ((ELEM(type, EVT_UPARROWKEY, EVT_DOWNARROWKEY, EVT_LEFTARROWKEY, EVT_RIGHTARROWKEY) &&
+    if ((ELEM(type,
+              EVT_UPARROWKEY,
+              EVT_DOWNARROWKEY,
+              EVT_LEFTARROWKEY,
+              EVT_RIGHTARROWKEY,
+              EVT_HOMEKEY,
+              EVT_ENDKEY,
+              EVT_PADPERIOD,
+              EVT_PAGEUPKEY,
+              EVT_PAGEDOWNKEY) &&
          (event->modifier == 0 || event->modifier == KM_SHIFT)) ||
         (ELEM(type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier == KM_CTRL)))
     {
       /* Handle keyboard navigation of tree items */
       retval = WM_UI_HANDLER_BREAK;
+      int index = 0;
+      int active_item_index = -1;
+      const std::optional<int> visible_row_count = this->tot_visible_row_count();
+      const bool is_multiselect_supported = this->is_multiselect_supported();
       AbstractTreeViewItem *first_item = nullptr;
       AbstractTreeViewItem *active_item = nullptr;
       AbstractTreeViewItem *up_item = nullptr;
       AbstractTreeViewItem *down_item = nullptr;
-      AbstractTreeViewItem *prev = nullptr;
-      int active_index = -1;
-      int index = 0;
+      AbstractTreeViewItem *last_item = nullptr;
+      AbstractTreeViewItem *pgdown_item = nullptr;
+
+#define home (type == EVT_HOMEKEY && event->modifier == 0)
+#define shift_home (type == EVT_HOMEKEY && event->modifier == KM_SHIFT)
+#define end (type == EVT_ENDKEY && event->modifier == 0)
+#define shift_end (type == EVT_ENDKEY && event->modifier == KM_SHIFT)
+#define pad_period (type == EVT_PADPERIOD && event->modifier == 0)
+#define page_up (type == EVT_PAGEUPKEY && event->modifier == 0)
+#define shift_page_up (type == EVT_PAGEUPKEY && event->modifier == KM_SHIFT)
+#define page_down (type == EVT_PAGEDOWNKEY && event->modifier == 0)
+#define shift_page_down (type == EVT_PAGEDOWNKEY && event->modifier == KM_SHIFT)
+#define up_arrow (type == EVT_UPARROWKEY && event->modifier == 0)
+#define shift_up_arrow (type == EVT_UPARROWKEY && event->modifier == KM_SHIFT)
+#define down_arrow (type == EVT_DOWNARROWKEY && event->modifier == 0)
+#define shift_down_arrow (type == EVT_DOWNARROWKEY && event->modifier == KM_SHIFT)
+#define left_arrow (type == EVT_LEFTARROWKEY && event->modifier == 0)
+#define shift_left_arrow (type == EVT_LEFTARROWKEY && event->modifier == KM_SHIFT)
+#define right_arrow (type == EVT_RIGHTARROWKEY && event->modifier == 0)
+#define shift_right_arrow (type == EVT_RIGHTARROWKEY && event->modifier == KM_SHIFT)
+#define wheel_up (type == WHEELUPMOUSE)
+#define wheel_down (type == WHEELDOWNMOUSE)
+#define iter_options \
+  AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered
+
+      /* Iterate just once for items of interest */
       this->foreach_item(
           [&](AbstractTreeViewItem &item) {
             if (!item.is_interactive()) {
@@ -464,81 +500,250 @@ int AbstractTreeView::ui_handle_event(bContext *C, const wmEvent *event, ARegion
             }
             if (!active_item && item.is_active()) {
               active_item = &item;
-              active_index = index;
+              active_item_index = index;
               if (!up_item) {
-                up_item = prev;
+                up_item = last_item;
               }
             }
             else if (!down_item && active_item) {
               down_item = &item;
             }
-            prev = &item;
+            if (!pgdown_item && active_item_index != -1 &&
+                (index == *visible_row_count + active_item_index))
+            {
+              pgdown_item = &item;
+            }
+            last_item = &item;
             index++;
           },
-          AbstractTreeView::IterOptions::SkipCollapsed |
-              AbstractTreeView::IterOptions::SkipFiltered);
+          iter_options);
 
-      const bool up_arrow = (type == EVT_UPARROWKEY && event->modifier == 0);
-      const bool shift_up_arrow = (type == EVT_UPARROWKEY && event->modifier == KM_SHIFT);
-      const bool down_arrow = (type == EVT_DOWNARROWKEY && event->modifier == 0);
-      const bool shift_down_arrow = (type == EVT_DOWNARROWKEY && event->modifier == KM_SHIFT);
-      const bool left_arrow = (type == EVT_LEFTARROWKEY && event->modifier == 0);
-      const bool shift_left_arrow = (type == EVT_LEFTARROWKEY && event->modifier == KM_SHIFT);
-      const bool right_arrow = (type == EVT_RIGHTARROWKEY && event->modifier == 0);
-      const bool shift_right_arrow = (type == EVT_RIGHTARROWKEY && event->modifier == KM_SHIFT);
-      const bool wheel_up = (type == WHEELUPMOUSE);
-      const bool wheel_down = (type == WHEELDOWNMOUSE);
-      const bool is_multiselect_supported = this->is_multiselect_supported();
-
+      /* Handle events */
       if (!active_item && first_item) {
+        /* If no active item, set to first item if present */
         first_item->activate(*C);
-        active_index = 0;
+        active_item_index = 0;
         redraw = true;
       }
       else if (active_item && active_item->is_collapsible() &&
                ((left_arrow && !active_item->is_collapsed()) ||
                 (right_arrow && active_item->is_collapsed())))
       {
+        /* Toggle collapse */
         active_item->toggle_collapsed();
         active_item->on_collapse_change(*C, active_item->is_collapsed());
         redraw = true;
       }
-      else if (up_item && (up_arrow || left_arrow || wheel_down ||
-                           (is_multiselect_supported && (shift_up_arrow || shift_left_arrow))))
+      else if ((up_arrow || left_arrow || wheel_down ||
+                (is_multiselect_supported && (shift_up_arrow || shift_left_arrow))) &&
+               up_item)
       {
-        if (is_multiselect_supported && (up_arrow || left_arrow || wheel_down)) {
+        /* Up */
+        if (is_multiselect_supported && !(shift_up_arrow || shift_left_arrow)) {
           /* For multiselect items without shift pressed, clear selections */
           this->foreach_view_item([](auto &item) { item.set_selected(false); });
         }
         up_item->activate(*C);
-        active_index -= 1;
+        active_item_index -= 1;
         redraw = true;
       }
-      else if (down_item &&
-               (down_arrow || right_arrow || wheel_up ||
-                (is_multiselect_supported && (shift_down_arrow || shift_right_arrow))))
+      else if ((down_arrow || right_arrow || wheel_up ||
+                (is_multiselect_supported && (shift_down_arrow || shift_right_arrow))) &&
+               down_item)
       {
-        if (is_multiselect_supported && (down_arrow || right_arrow || wheel_up)) {
+        /* Down */
+        if (is_multiselect_supported && !(shift_down_arrow || shift_right_arrow)) {
           /* For multiselect items without shift pressed, clear selections */
           this->foreach_view_item([](auto &item) { item.set_selected(false); });
         }
         down_item->activate(*C);
-        active_index += 1;
+        active_item_index += 1;
         redraw = true;
       }
+      else if ((home || (is_multiselect_supported && shift_home)) && first_item) {
+        /* Home */
+        if (is_multiselect_supported) {
+          if (!shift_home) {
+            /* For multiselect items without shift pressed, clear selections */
+            this->foreach_view_item([](auto &item) { item.set_selected(false); });
+          }
+          else if (active_item_index != -1) {
+            /* Multiselect all items from active item to home */
+            int index = 0;
+            this->foreach_item(
+                [&](AbstractTreeViewItem &item) {
+                  if (item.is_interactive() && index <= active_item_index) {
+                    item.set_selected(true);
+                  }
+                  index++;
+                },
+                iter_options);
+          }
+        }
+        first_item->activate(*C);
+        active_item_index = 0;
+        redraw = true;
+      }
+      else if ((end || (is_multiselect_supported && shift_end)) && last_item) {
+        /* End */
+        if (is_multiselect_supported) {
+          if (!shift_end) {
+            /* For multiselect items without shift pressed, clear selections */
+            this->foreach_view_item([](auto &item) { item.set_selected(false); });
+          }
+          else if (active_item_index != -1) {
+            /* Multiselect all items from active item to end */
+            int index = 0;
+            this->foreach_item(
+                [&](AbstractTreeViewItem &item) {
+                  if (item.is_interactive() && index >= active_item_index) {
+                    item.set_selected(true);
+                  }
+                  index++;
+                },
+                iter_options);
+          }
+        }
+        last_item->activate(*C);
+        active_item_index = index - 1;
+        redraw = true;
+      }
+      else if (pad_period && active_item) {
+        /* Numpad period */
+        redraw = true;
+      }
+      else if (this->custom_height_ && active_item_index != -1 &&
+               (page_up || (is_multiselect_supported && shift_page_up)))
+      {
+        /* Page Up */
+        int index = 0;
+        int pgup_item_index = -1;
+        AbstractTreeViewItem *pgup_item = nullptr;
+        /* Iterate to find page up item */
+        this->foreach_item(
+            [&](AbstractTreeViewItem &item) {
+              if (item.is_interactive() && !pgup_item &&
+                  (index == active_item_index - *visible_row_count))
+              {
+                pgup_item = &item;
+                pgup_item_index = index;
+              }
+              last_item = &item;
+              index++;
+            },
+            iter_options);
+        if (is_multiselect_supported) {
+          if (pgup_item_index == -1) {
+            pgup_item_index = 0;
+          }
+          if (!shift_page_up) {
+            /* For multiselect items without shift pressed, clear selections */
+            this->foreach_view_item([](auto &item) { item.set_selected(false); });
+          }
+          else {
+            /* Multielect all items from active item to page up item */
+            int index = 0;
+            this->foreach_item(
+                [&](AbstractTreeViewItem &item) {
+                  if (item.is_interactive() && index >= pgup_item_index &&
+                      index <= active_item_index) {
+                    item.set_selected(true);
+                  }
+                  index++;
+                },
+                iter_options);
+          }
+        }
+        if (pgup_item) {
+          pgup_item->activate(*C);
+          /* Set scroll to make this first visible item */
+          *this->scroll_value_ = active_item_index - *visible_row_count;
+          active_item_index = -1;
+          redraw = true;
+        }
+        else if (first_item) {
+          /* Clamp to first item */
+          first_item->activate(*C);
+          active_item_index = 0;
+          redraw = true;
+        }
+      }
+      else if (this->custom_height_ &&
+               (page_down || (is_multiselect_supported && shift_page_down)))
+      {
+        /* Page Down */
+        int pgdown_item_index = -1;
+        if (pgdown_item) {
+          pgdown_item_index = active_item_index + *visible_row_count;
+        }
+        else if (last_item) {
+          pgdown_item_index = index - 1;
+        }
+        if (is_multiselect_supported) {
+          if (!shift_page_down) {
+            /* For multiselect items without shift pressed, clear selections */
+            this->foreach_view_item([](auto &item) { item.set_selected(false); });
+          }
+          else {
+            /* Multiselect all items from active item to page down item */
+            int index = 0;
+            this->foreach_item(
+                [&](AbstractTreeViewItem &item) {
+                  if (item.is_interactive() && index >= active_item_index &&
+                      index <= pgdown_item_index)
+                  {
+                    item.set_selected(true);
+                  }
+                  index++;
+                },
+                iter_options);
+          }
+        }
+        if (pgdown_item) {
+          pgdown_item->activate(*C);
+          active_item_index = pgdown_item_index;
+          redraw = true;
+        }
+        else if (last_item) {
+          /* Clamp to last item */
+          last_item->activate(*C);
+          active_item_index = pgdown_item_index;
+          redraw = true;
+        }
+      }
 
-      if (redraw && active_index != -1) {
+      if (this->custom_height_ && redraw && active_item_index != -1) {
         /* Scroll active item into view */
-        const std::optional<int> visible_row_count = this->tot_visible_row_count();
         const int first_visible_index = this->scroll_value_ ? *this->scroll_value_ : 0;
         const int max_visible_index = visible_row_count ?
                                           first_visible_index + *visible_row_count - 1 :
                                           std::numeric_limits<int>::max();
-        if ((active_index < first_visible_index) || (active_index > max_visible_index)) {
+        if ((active_item_index < first_visible_index) || (active_item_index > max_visible_index)) {
           this->scroll_active_into_view_on_draw_ = true;
           this->scroll_active_into_view();
         }
       }
+
+#undef home
+#undef shift_home
+#undef end
+#undef shift_end
+#undef pad_period
+#undef page_up
+#undef shift_page_up
+#undef page_down
+#undef shift_page_down
+#undef up_arrow
+#undef shift_up_arrow
+#undef down_arrow
+#undef shift_down_arrow
+#undef left_arrow
+#undef shift_left_arrow
+#undef right_arrow
+#undef shift_right_arrow
+#undef wheel_up
+#undef wheel_down
+#undef iter_options
     }
     else if (ELEM(type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_SHIFT)) {
       /* Resize the view similar to a listbox */
