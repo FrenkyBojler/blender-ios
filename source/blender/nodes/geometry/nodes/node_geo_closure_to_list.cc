@@ -127,6 +127,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
+  enum class ListStructureType {
+    Single,
+    Grid,
+    Field,
+  };
+
+  Array<ListStructureType> list_structure_types(required_items.size());
   Array<const bke::bNodeSocketType *> socket_types(required_items.size());
   Array<const CPPType *> cpp_types(required_items.size());
   for (const int i : required_items.index_range()) {
@@ -134,7 +141,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     const auto type = eNodeSocketDatatype(items[item_i].socket_type);
     const auto structure_type = StructureType(items[item_i].structure_type);
     socket_types[i] = bke::node_socket_type_find_static(type);
-    if (structure_type == StructureType::Single) {
+    if (socket_type_supports_fields(type) && structure_type == StructureType::Single) {
       cpp_types[i] = bke::socket_type_to_geo_nodes_base_cpp_type(type);
     }
     else {
