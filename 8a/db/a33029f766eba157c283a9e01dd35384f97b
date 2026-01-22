@@ -1,2 +1,3 @@
 Referenced by issue #153156, Sculpt Undo test failure / Crash
 Referenced by issue #153175, Regression: bpy mesh.edges.add(x) creates `.edge_verts` attribute of type FLOAT_VECTOR instead of INT32_2D
+Referenced by issue #153173, Crash on assert in Mirror modifier when applied to mesh without faces.
