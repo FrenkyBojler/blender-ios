@@ -49,7 +49,6 @@ static gpu::Texture *create_view_texture(TextureFormat format, gpu::Texture *bas
 {
   gpu::Texture *view = GPU_texture_create_view("view", base, format, 0, 1, 0, 1, false, false);
   GPU_texture_mipmap_mode(view, false, false);
-  GPU_memory_barrier(GPU_BARRIER_FRAMEBUFFER);
   return view;
 }
 
@@ -70,12 +69,16 @@ static float4 get_texture_color(gpu::Texture *texture)
  * attempt to perform a framebuffer color clear over the view texture. */
 template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_create_test()
 {
+  GPU_render_begin();
+
   if (GPU_backend_get_type() != GPU_BACKEND_OPENGL) {
     GTEST_SKIP();
   }
 
   gpu::Texture *base = create_base_texture(FormatA);
   gpu::Texture *view = create_view_texture(FormatB, base);
+
+  GPU_memory_barrier(GPU_BARRIER_FRAMEBUFFER);
 
   /* First check; the view texture should be all zeroes. */
   float4 zero_color(0.0f, 0.0f, 0.0f, 0.0f);
@@ -92,6 +95,7 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
     test_color[i] = 0.0f;
   }
   GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, test_color, 0.0f, 0u);
+
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
   /* Second check; the view texture should read back this color. */
@@ -100,7 +104,15 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   GPU_framebuffer_free(fbo);
   GPU_texture_free(view);
   GPU_texture_free(base);
+
+  GPU_render_end();
 }
+
+static void test_texture_view_passthrough()
+{
+  texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32, TextureFormat::SFLOAT_32_32_32_32>();
+}
+GPU_TEST(test_texture_view_passthrough);
 
 static void test_texture_view_UINT_32_32_to_SFLOAT_32_32()
 {
