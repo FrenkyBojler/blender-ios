@@ -20,11 +20,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Bundle>("Bundle");
   b.add_output<decl::Bundle>("Bundle").pass_through_input_index(0).align_with_previous();
-  b.add_input<decl::String>("Closure Name")
+  b.add_input<decl::String>("Closure Path")
       .optional_label()
       .description(
-          "If a (nested) bundle has a closure with that name, it will be evaluated at that level "
-          "to update the bundle");
+          "If a (nested) bundle has a closure with at that path, it will be evaluated at that "
+          "level to update the bundle");
   b.add_input<decl::Closure>("Closure").description(
       "Closure that is evaluated at every level of the bundle");
   b.add_input<decl::Bundle>("Reference");
@@ -33,17 +33,17 @@ static void node_declare(NodeDeclarationBuilder &b)
 class BundleUpdater {
  private:
   const bNode &node_;
-  std::optional<std::string> closure_name_;
+  const std::optional<Vector<StringRef>> &closure_path_;
   ClosurePtr global_closure_ptr_;
   GeoNodesUserData &geo_user_data_;
 
  public:
   BundleUpdater(const bNode &node,
-                std::optional<std::string> closure_name,
+                const std::optional<Vector<StringRef>> &closure_path,
                 ClosurePtr global_closure,
                 GeoNodesUserData &geo_user_data)
       : node_(node),
-        closure_name_(std::move(closure_name)),
+        closure_path_(closure_path),
         global_closure_ptr_(std::move(global_closure)),
         geo_user_data_(geo_user_data)
   {
@@ -70,9 +70,9 @@ class BundleUpdater {
       main_bundle_ptr = this->update_bundle_with_closure(
           std::move(main_bundle_ptr), reference_bundle_ptr, *global_closure_ptr_, compute_context);
     }
-    if (closure_name_) {
-      const std::optional<ClosurePtr> update_closure_ptr = main_bundle_ptr->lookup<ClosurePtr>(
-          *closure_name_);
+    if (closure_path_) {
+      const std::optional<ClosurePtr> update_closure_ptr =
+          main_bundle_ptr->lookup_path<ClosurePtr>(*closure_path_);
       if (update_closure_ptr && *update_closure_ptr) {
         const Closure &update_closure = **update_closure_ptr;
         bke::UpdateBundleComputeContext compute_context{
@@ -115,8 +115,8 @@ class BundleUpdater {
 
   bool has_update_callback_recursive(const Bundle &bundle) const
   {
-    if (closure_name_) {
-      const ClosurePtr *closure = bundle.lookup_ptr<ClosurePtr>(*closure_name_);
+    if (closure_path_) {
+      const ClosurePtr *closure = bundle.lookup_path_ptr<ClosurePtr>(*closure_path_);
       if (closure && *closure) {
         return true;
       }
@@ -169,15 +169,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
-  std::optional<std::string> closure_name = params.extract_input<std::string>("Closure Name");
-  if (!Bundle::is_valid_key(*closure_name)) {
-    closure_name.reset();
-  }
+  const std::string closure_path = params.extract_input<std::string>("Closure Path");
+  const std::optional<Vector<StringRef>> parsed_closure_path = Bundle::split_path(closure_path);
 
   const ClosurePtr global_closure = params.extract_input<ClosurePtr>("Closure");
   BundlePtr reference = params.extract_input<BundlePtr>("Reference");
 
-  BundleUpdater updater(params.node(), closure_name, global_closure, *params.user_data());
+  BundleUpdater updater(params.node(), parsed_closure_path, global_closure, *params.user_data());
   BundlePtr updated = updater.update("", std::move(main), std::move(reference));
   params.set_output("Bundle", std::move(updated));
 }
