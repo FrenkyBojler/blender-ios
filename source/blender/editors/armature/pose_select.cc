@@ -400,15 +400,17 @@ static void selectconnected_posebonechildren(Object &ob,
                                              bPoseChannel &pose_bone,
                                              const bool extend)
 {
-  animrig::pose_bone_descendent_depth_iterator(*ob.pose, pose_bone, [extend](bPoseChannel &child) {
+  animrig::pose_bone_descendent_depth_iterator(*ob.pose, pose_bone, [extend, &pose_bone](bPoseChannel &child) {
     if (!child.bone) {
       BLI_assert_unreachable();
       return false;
     }
-    /* Stop when unconnected child is encountered, or when unselectable bone is encountered. */
-    if (!(child.bone->flag & BONE_CONNECTED) || (child.bone->flag & BONE_UNSELECTABLE)) {
-      return false;
-    }
+    if (&child != &pose_bone) {
+      /* Stop when unconnected child is encountered, or when unselectable bone is encountered. */
+      if (!(child.bone->flag & BONE_CONNECTED) || (child.bone->flag & BONE_UNSELECTABLE)) {
+        return false;
+      }
+  }
 
     if (extend) {
       animrig::bone_deselect(&child);
@@ -483,7 +485,7 @@ void POSE_OT_select_linked_pick(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Select Connected";
   ot->idname = "POSE_OT_select_linked_pick";
-  ot->description = "Select bones linked by parent/child connections under the mouse cursor";
+  ot->description = "Select bones linked by connected parent/child relationships under the mouse cursor";
 
   /* callbacks */
   /* leave 'exec' unset */
@@ -546,7 +548,7 @@ void POSE_OT_select_linked(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Select Connected";
   ot->idname = "POSE_OT_select_linked";
-  ot->description = "Select all bones linked by parent/child connections to the current selection";
+  ot->description = "Select all bones linked by connected parent/child relationships from the current selection";
 
   /* callbacks */
   ot->exec = pose_select_linked_exec;
