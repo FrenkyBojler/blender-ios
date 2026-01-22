@@ -686,15 +686,20 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
     rnd_pt = nullptr;
   }
   /* Stereo/multiview image (no render result). */
-  else if ((BKE_image_is_stereo(image) && (!show_stereo)) ||
-           (BKE_image_is_multiview(image) && !BKE_image_is_stereo(image)))
+  else if (BKE_image_is_stereo(image) || BKE_image_is_multiview(image))
   {
-    int nr = 0;
+    const bool is_stereo_disabled = BKE_image_is_stereo(image) && show_stereo;
 
-    for (ImageView &iv : image->views) {
-      if (nr++ == iuser->view) {
-        display_name = iv.name;
-        break;
+    if (is_stereo_disabled) {
+      display_name = IFACE_("View");
+    }
+    else {
+      int nr = 0;
+      for (ImageView &iv : image->views) {
+        if (nr++ == iuser->view) {
+          display_name = iv.name;
+          break;
+        }
       }
     }
 
@@ -707,9 +712,12 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
                        0,
                        wmenu1,
                        UI_UNIT_Y,
-                       TIP_("Select View"));
+                       is_stereo_disabled ? TIP_("Stereo 3D") : TIP_("Select View"));
     button_funcN_set(but, image_multiview_cb, rnd_pt, nullptr);
     button_type_set_menu_from_pulldown(but);
+    if (is_stereo_disabled) {
+      button_disable(but, TIP_("Image displayed in Stereo 3D"));
+    }
     rnd_pt = nullptr;
   }
 }

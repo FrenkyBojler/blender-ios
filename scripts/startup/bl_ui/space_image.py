@@ -891,9 +891,16 @@ class IMAGE_HT_header(Header):
 
         IMAGE_MT_editor_menus.draw_collapsible(context, layout)
 
-        layout.separator_spacer()
-
         IMAGE_HT_header.draw_xform_template(layout, context)
+
+        if not show_render:
+            layout.prop(sima, "use_image_pin", text="", emboss=False)
+
+        if show_uvedit:
+            mesh = context.edit_object.data
+            layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
+
+        layout.separator_spacer()
 
         layout.template_ID(sima, "image", new="image.new", open="image.open")
 
@@ -913,47 +920,35 @@ class IMAGE_HT_header(Header):
                 panel="IMAGE_PT_proportional_edit",
             )
 
-        if not show_render:
-            layout.prop(sima, "use_image_pin", text="", emboss=False)
+        if ima:
+            layout.template_image_layers(ima, iuser)
+
+            row = layout.row()
+            row.prop(sima, "display_channels", icon_only=True)
+
+            if ima.is_stereo_3d:
+                layout.prop(sima, "show_stereo_3d", text="")
 
         layout.separator_spacer()
 
-        # Gizmo toggle & popover.
         row = layout.row(align=True)
         row.prop(sima, "show_gizmo", icon='GIZMO', text="")
         sub = row.row(align=True)
         sub.active = sima.show_gizmo
         sub.popover(panel="IMAGE_PT_gizmo_display", text="")
 
-        # Overlay toggle & popover
         row = layout.row(align=True)
         row.prop(overlay, "show_overlays", icon='OVERLAY', text="")
         sub = row.row(align=True)
         sub.active = overlay.show_overlays
         sub.popover(panel="IMAGE_PT_overlay", text="")
 
-        if show_uvedit:
-            mesh = context.edit_object.data
-            layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
-
         if ima:
             seq_scene = context.sequencer_scene
             scene = context.scene
 
             if show_render and seq_scene and (seq_scene != scene):
-                row = layout.row()
-                row.prop(sima, "show_sequencer_scene", text="")
-
-            if ima.is_stereo_3d:
-                row = layout.row()
-                row.prop(sima, "show_stereo_3d", text="")
-
-            # layers.
-            layout.template_image_layers(ima, iuser)
-
-            # draw options.
-            row = layout.row()
-            row.prop(sima, "display_channels", icon_only=True)
+                layout.prop(sima, "show_sequencer_scene", text="")
 
 
 class IMAGE_MT_editor_menus(Menu):
