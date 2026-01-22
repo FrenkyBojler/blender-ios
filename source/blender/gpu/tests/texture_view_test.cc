@@ -112,7 +112,7 @@ static void test_texture_view_passthrough()
 {
   texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32, TextureFormat::SFLOAT_32_32_32_32>();
 }
-GPU_TEST(test_texture_view_passthrough);
+GPU_TEST(texture_view_passthrough);
 
 static void test_texture_view_UINT_32_32_to_SFLOAT_32_32()
 {
