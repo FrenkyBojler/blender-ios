@@ -1247,6 +1247,53 @@ bool context_copy_to_selected_list(bContext *C,
     *r_lb = lb;
     *r_path = path;
   }
+  else if (RNA_struct_is_a(ptr->type, &RNA_NodeTreeInterfaceItem)) {
+    bNodeTree *ntree = id_cast<bNodeTree *>(ptr->owner_id);
+    bNodeTreeInterfaceItem *active_item = static_cast<bNodeTreeInterfaceItem *>(ptr->data);
+    if (active_item == nullptr) {
+      return false;
+    }
+
+    const char *prop_id = RNA_property_identifier(prop);
+    const bool is_generic_prop = STR_ELEM(prop_id,
+                                                 "socket_type",
+                                                 "description",
+                                                 "optional_label",
+                                                 "hide_value",
+                                                 "hide_in_modifier",
+                                                 "structure_type",
+                                                 "attribute_domain");
+    const char *active_socket_type = nullptr;
+    if (!is_generic_prop && active_item->item_type == NODE_INTERFACE_SOCKET) {
+      active_socket_type = reinterpret_cast<bNodeTreeInterfaceSocket *>(active_item)->socket_type;
+    }
+    ntree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
+      if (active_item->item_type != item.item_type) {
+        return true;
+      }
+      bool is_valid = false;
+      switch (eNodeTreeInterfaceItemType(item.item_type)) {
+        // todo toggle should not change type
+        case NODE_INTERFACE_SOCKET: {
+          bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+          if (socket.flag & NODE_INTERFACE_SOCKET_SELECT) {
+            is_valid = is_generic_prop ? true : STREQ(socket.socket_type, active_socket_type);
+          }
+          break;
+        }
+        case NODE_INTERFACE_PANEL: {
+          bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
+          is_valid = panel.flag & NODE_INTERFACE_PANEL_SELECT;
+          break;
+        }
+      }
+
+      if (is_valid) {
+        r_lb->append(RNA_pointer_create_discrete(&ntree->id, &RNA_NodeTreeInterfaceItem, &item));
+      }
+      return true;
+    });
+  }
   else if (RNA_struct_is_a(ptr->type, &RNA_AssetMetaData)) {
     /* Remap from #AssetRepresentation to #AssetMetaData. */
     Vector<PointerRNA> list_of_things = CTX_data_collection_get(C, "selected_assets");
