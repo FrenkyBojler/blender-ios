@@ -233,6 +233,11 @@ endif()
 # ------------------------------------------------------------------------------
 
 add_blender_test(
+  script_pyapi_bpy_app
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app.py
+)
+
+add_blender_test(
   script_pyapi_bpy_app_tempdir
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app_tempdir.py
 )
@@ -468,10 +473,14 @@ if(TEST_SRC_DIR_EXISTS)
 
   add_blender_test(
     modifiers
-    ${TEST_SRC_DIR}/modeling/modifiers.blend
-    --python ${TEST_PYTHON_DIR}/modifiers.py
-    --
-    --run-all-tests
+    ${TEST_SRC_DIR}/modeling/modifiers/modifiers.blend
+    --python ${TEST_PYTHON_DIR}/modeling/modifiers/modifiers.py
+  )
+
+  add_blender_test(
+    modifiers_multires
+    ${TEST_SRC_DIR}/modeling/modifiers/multires_modifier.blend
+    --python ${TEST_PYTHON_DIR}/modeling/modifiers/multires_modifier.py
   )
 
   add_blender_test(
@@ -1367,17 +1376,21 @@ endif()
 
 if(TEST_SRC_DIR_EXISTS)
   set(render_tests
-    effects
     filter
     transform
     blend_modes_byte
     blend_modes_float
-    ffmpeg
   )
+  set(video_output_tests)
 
-  set(video_output_tests
-    video_output
-  )
+  if(WITH_LIBMV)
+    list(APPEND render_tests effects)
+  endif()
+
+  if(WITH_CODEC_FFMPEG)
+    list(APPEND render_tests ffmpeg)
+    list(APPEND video_output_tests video_output)
+  endif()
 
   foreach(render_test ${render_tests})
     add_render_test(
@@ -1492,6 +1505,7 @@ if(WITH_UI_TESTS)
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
     test_sculpt.asset_shelf_brush_selection
+    test_sculpt.mask_expand_and_invert
     test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix

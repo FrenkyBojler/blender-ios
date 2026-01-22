@@ -981,7 +981,7 @@ int64_t Layer::find_strip_index(const Strip &strip) const
 
 Slot::Slot()
 {
-  /* Zero-initialize the DNA struct. 'this' is a C++ class, and shouldn't be memset like this. */
+  /* Zero-initialize the DNA struct. 'this' is a C++ class, and shouldn't be `memset` like this. */
   _DNA_internal_memzero(this, sizeof(ActionSlot));
   this->runtime = MEM_new<SlotRuntime>(__func__);
 }
@@ -2117,7 +2117,7 @@ SingleKeyingResult StripKeyframeData::keyframe_insert(Main *bmain,
     return SingleKeyingResult::CANNOT_CREATE_FCURVE;
   }
 
-  if (!BKE_fcurve_is_keyframable(fcurve)) {
+  if (!BKE_fcurve_is_keyframable(*fcurve)) {
     /* TODO: handle this properly, in a way that can be communicated to the user. */
     CLOG_WARN(&LOG,
               "FCurve %s[%d] for slot %s doesn't allow inserting keys.\n",
