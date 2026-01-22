@@ -2931,6 +2931,8 @@ def km_sculpt(params):
          {"properties": [("mode", 'INVERT')]}),
         ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
          {"properties": [("mode", 'SMOOTH')]}),
+        ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
+         {"properties": [("mode", 'MASK')]}),
         # Expand
         ("sculpt.expand", {"type": 'A', "value": 'PRESS', "shift": True},
          {"properties": [
@@ -3051,18 +3053,18 @@ def km_mesh(params):
     items.extend([
         # Selection
         ("mesh.loop_select", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'},
-         {"properties": [("extend", False), ("deselect", False), ("toggle", False), ("ring", False)]}),
+         {"properties": [("extend", False), ("deselect", False), ("toggle", False)]}),
         ("mesh.loop_select", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "shift": True},
-         {"properties": [("extend", True), ("deselect", False), ("toggle", False), ("ring", False)]}),
+         {"properties": [("extend", True), ("deselect", False), ("toggle", False)]}),
         ("mesh.loop_select", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "ctrl": True},
-         {"properties": [("extend", False), ("deselect", True), ("toggle", False), ("ring", False)]}),
+         {"properties": [("extend", False), ("deselect", True), ("toggle", False)]}),
 
-        ("mesh.loop_select", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "alt": True},
-         {"properties": [("extend", False), ("deselect", False), ("toggle", False), ("ring", True)]}),
-        ("mesh.loop_select", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "alt": True, "shift": True},
-         {"properties": [("extend", True), ("deselect", False), ("toggle", False), ("ring", True)]}),
-        ("mesh.loop_select", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "alt": True, "ctrl": True},
-         {"properties": [("extend", False), ("deselect", True), ("toggle", False), ("ring", True)]}),
+        ("mesh.edgering_select", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "alt": True},
+         {"properties": [("extend", False), ("deselect", False), ("toggle", False)]}),
+        ("mesh.edgering_select", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "alt": True, "shift": True},
+         {"properties": [("extend", True), ("deselect", False), ("toggle", False)]}),
+        ("mesh.edgering_select", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK', "alt": True, "ctrl": True},
+         {"properties": [("extend", False), ("deselect", True), ("toggle", False)]}),
 
         ("mesh.shortest_path_pick", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True, "ctrl": True},
          {"properties": [("use_fill", False)]}),

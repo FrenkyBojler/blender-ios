@@ -2381,30 +2381,6 @@ bool CustomData_merge_layout(const CustomData *source,
   return customdata_merge_internal(source, dest, mask, alloctype, totelem);
 }
 
-CustomData CustomData_shallow_copy_remove_non_bmesh_attributes(const CustomData *src,
-                                                               const eCustomDataMask mask)
-{
-  Vector<CustomDataLayer> dst_layers;
-  for (const CustomDataLayer &layer : Span<CustomDataLayer>{src->layers, src->totlayer}) {
-    if (BM_attribute_stored_in_bmesh_builtin(layer.name)) {
-      continue;
-    }
-    if (!(mask & CD_TYPE_AS_MASK(eCustomDataType(layer.type)))) {
-      continue;
-    }
-    dst_layers.append(layer);
-  }
-
-  CustomData dst = *src;
-  dst.layers = MEM_new_array_for_free<CustomDataLayer>(dst_layers.size(), __func__);
-  dst.maxlayer = dst.totlayer = dst_layers.size();
-  memcpy(dst.layers, dst_layers.data(), dst_layers.as_span().size_in_bytes());
-
-  CustomData_update_typemap(&dst);
-
-  return dst;
-}
-
 /**
  * An #ImplicitSharingInfo that knows how to free the entire referenced custom data layer
  * (including potentially separately allocated chunks like for vertex groups).
@@ -2618,19 +2594,28 @@ void CustomData_free(CustomData *data)
   CustomData_reset(data);
 }
 
+static int customData_pad_up_to_alignment(const int value, const int alignment)
+{
+  return (value + (alignment - 1)) & ~(alignment - 1);
+}
+
 static void customData_update_offsets(CustomData *data)
 {
   const LayerTypeInfo *typeInfo;
   int offset = 0;
+  /* Padding up is necessary for #pointer_can_point_to_instance, see #152145. */
+  int max_alignment = 1;
 
   for (int i = 0; i < data->totlayer; i++) {
     typeInfo = layerType_getInfo(eCustomDataType(data->layers[i].type));
+    offset = customData_pad_up_to_alignment(offset, typeInfo->alignment);
 
     data->layers[i].offset = offset;
     offset += typeInfo->size;
+    max_alignment = std::max(max_alignment, typeInfo->alignment);
   }
 
-  data->totsize = offset;
+  data->totsize = customData_pad_up_to_alignment(offset, max_alignment);
   CustomData_update_typemap(data);
 }
 
@@ -4888,7 +4873,7 @@ static void write_mdisps(BlendWriter *writer,
                          const int external)
 {
   if (mdlist) {
-    BLO_write_struct_array(writer, MDisps, count, mdlist);
+    writer->write_struct_array(count, mdlist);
     for (int i = 0; i < count; i++) {
       const MDisps *md = &mdlist[i];
       if (md->disps) {
@@ -4911,7 +4896,7 @@ static void write_grid_paint_mask(BlendWriter *writer,
                                   const GridPaintMask *grid_paint_mask)
 {
   if (grid_paint_mask) {
-    BLO_write_struct_array(writer, GridPaintMask, count, grid_paint_mask);
+    writer->write_struct_array(count, grid_paint_mask);
     for (int i = 0; i < count; i++) {
       const GridPaintMask *gpm = &grid_paint_mask[i];
       if (gpm->data) {
@@ -4982,8 +4967,7 @@ void CustomData_blend_write(BlendWriter *writer,
     });
   }
 
-  BLO_write_struct_array_at_address(
-      writer, CustomDataLayer, data->totlayer, data->layers, layers_to_write.data());
+  writer->write_struct_array_at_address(data->totlayer, data->layers, layers_to_write.data());
 
   if (data->external) {
     writer->write_struct(data->external);

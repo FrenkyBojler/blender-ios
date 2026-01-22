@@ -102,6 +102,8 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 
+#include "ANIM_versioning.hh"
+
 #include "versioning_common.hh"
 
 namespace blender {
@@ -472,7 +474,7 @@ static void do_versions_sequencer_speed_effect_recursive(Scene *scene,
 
       if (substr || globalSpeed_legacy != 1.0f) {
         FCurve *fcu = id_data_find_fcurve(
-            &scene->id, &strip, &RNA_Strip, "speed_factor", 0, nullptr);
+            &scene->id, &strip, RNA_Strip, "speed_factor", 0, nullptr);
         if (fcu) {
           if (globalSpeed_legacy != 1.0f) {
             for (int i = 0; i < fcu->totvert; i++) {
@@ -2333,7 +2335,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
      * reconstruct all the action groups & ensure that the FCurves of a group are continuously
      * stored (i.e. not mixed with other groups) to be sure. See #89435. */
     for (bAction &act : bmain->actions) {
-      BKE_action_groups_reconstruct(&act);
+      animrig::versioning::action_groups_reconstruct(&act);
     }
 
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {

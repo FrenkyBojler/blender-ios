@@ -45,7 +45,7 @@
 #include "BKE_report.hh"
 
 #include "ANIM_action.hh"
-#include "ANIM_action_legacy.hh"
+#include "ANIM_animdata.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -1064,6 +1064,7 @@ static void fcurve_path_rename(const char *orig_rna_path,
 
       if (ch && (STRPREFIX(ch, ".bezier_points") || STRPREFIX(ch, ".points"))) {
         fcurves_to_remove.append(fcu);
+        processed_fcurves.add(fcu);
       }
     }
   }
@@ -1094,6 +1095,10 @@ static void fcurve_path_rename(const char *orig_rna_path,
     }
     if (STRPREFIX(fcu->rna_path, "splines")) {
       fcurves_to_remove.append(fcu);
+      /* Not strictly necessary, because `orig_curves` shouldn't contain any duplicates, and this
+       * is the last loop that can add anything to `fcurves_to_remove`. However, the line below
+       * ensures the correctness even when new code would get added to the end of this function. */
+      processed_fcurves.add(fcu);
     }
   }
 
@@ -1116,7 +1121,7 @@ int ED_curve_updateAnimPaths(Main *bmain, Curve *cu)
   if (adt->action != nullptr) {
     animrig::Action &action = adt->action->wrap();
 
-    Vector<FCurve *> fcurves_to_process = animrig::legacy::fcurves_for_assigned_action(adt);
+    Vector<FCurve *> fcurves_to_process = animrig::fcurves_for_assigned_action(adt);
 
     Vector<FCurve *> fcurves_to_remove = curve_rename_fcurves(cu, fcurves_to_process);
     for (FCurve *fcurve : fcurves_to_remove) {
@@ -1125,7 +1130,6 @@ int ED_curve_updateAnimPaths(Main *bmain, Curve *cu)
       UNUSED_VARS_NDEBUG(remove_ok);
     }
 
-    BKE_action_groups_reconstruct(adt->action);
     DEG_id_tag_update(&adt->action->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
@@ -5689,8 +5693,7 @@ static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmE
     if (use_proj) {
       const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
 
-      ed::transform::SnapObjectContext *snap_context = ed::transform::snap_object_context_create(
-          vc.scene, 0);
+      ed::transform::SnapObjectContext *snap_context = ed::transform::snap_object_context_create();
 
       ed::transform::SnapObjectParams params{};
       params.snap_target_select = (vc.obedit != nullptr) ? SCE_SNAP_TARGET_NOT_ACTIVE :
