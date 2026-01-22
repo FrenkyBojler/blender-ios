@@ -1703,6 +1703,14 @@ bool RNA_property_pointer_poll(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *v
     return false;
   }
 
+  if (value->data == nullptr) {
+    if ((prop->flag & PROP_NEVER_NULL)) {
+      printf("%s: Clearing pointer not allowed (PROP_NEVER_NULL).\n", __func__);
+      return false;
+    }
+    return true;
+  }
+
   PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
 
   /* Can't point from linked to local datablock. */
@@ -4541,6 +4549,11 @@ void RNA_property_pointer_set(PointerRNA *ptr,
 
   PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
   BLI_assert(RNA_property_type(prop) == PROP_POINTER);
+
+  if (!RNA_property_pointer_poll(ptr, prop, &ptr_value)) {
+    BKE_reportf(reports, RPT_ERROR, "%s: property poll failed", __func__);
+    return;
+  }
 
   /* This is a 'real' RNA property, not an IDProperty or a dynamic RNA property using an IDProperty
    * as backend storage. */
