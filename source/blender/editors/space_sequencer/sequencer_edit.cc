@@ -471,10 +471,9 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
   WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, nullptr);
 }
 
-void sync_vse_camera_for_view3d(const bContext &C, View3D *v3d)
+void sync_vse_camera_for_view3d(const WorkSpace *workspace, const Scene *active_scene, View3D *v3d)
 {
   /* Check if VSE sync mode is enabled. */
-  const WorkSpace *workspace = CTX_wm_workspace(&C);
   if (!workspace || !workspace->sequencer_scene) {
     return;
   }
@@ -488,23 +487,29 @@ void sync_vse_camera_for_view3d(const bContext &C, View3D *v3d)
     return;
   }
 
-  const wmWindow *win = CTX_wm_window(&C);
-  const Scene *active_scene = WM_window_get_active_scene(win);
-
   if (active_scene != scene_strip->scene) {
     return;
   }
 
   /* Determine which camera to use. */
-  Object *camera = scene_strip->scene_camera ? scene_strip->scene_camera :
-                                               scene_strip->scene->camera;
+  const Object *camera = scene_strip->scene_camera ? scene_strip->scene_camera :
+                                                     scene_strip->scene->camera;
 
-  /* Sync camera for this specific View3D.
-   * This is the only non-const modification. */
+  /* Sync camera for this specific View3D. */
   if (camera && v3d->camera != camera) {
-    v3d->camera = camera;
+    v3d->camera = const_cast<Object *>(camera);
   }
 }
+
+void sync_vse_camera_for_view3d(const bContext &C, View3D *v3d)
+{
+  const WorkSpace *workspace = CTX_wm_workspace(&C);
+  const wmWindow *win = CTX_wm_window(&C);
+  const Scene *active_scene = WM_window_get_active_scene(win);
+
+  sync_vse_camera_for_view3d(workspace, active_scene, v3d);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
