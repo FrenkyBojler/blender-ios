@@ -123,8 +123,6 @@ class VKTexture : public Texture {
                   eGPUDataFormat format,
                   GPUPixelBuffer *pixbuf) override;
 
-  void name_set(const char *name) override;
-
   /**
    * Export the memory associated with this texture to be imported by a different
    * API/Process/Instance.

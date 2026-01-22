@@ -68,8 +68,6 @@ class GLTexture : public Texture {
                   eGPUDataFormat format,
                   GPUPixelBuffer *pixbuf) override;
 
-  void name_set(const char *name) override;
-
   /**
    * This will create the mipmap images and populate them with filtered data from base level.
    *
