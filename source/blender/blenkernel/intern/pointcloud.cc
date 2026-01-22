@@ -322,15 +322,15 @@ void pointcloud_add_points(PointCloud *pointcloud, int count)
   pointcloud->totpoint += count;
   bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
 
-  /* When adding points to an empty point cloud, ensure the position attribute exists. */
-  bke::SpanAttributeWriter<float3> position = attributes.lookup_or_add_for_write_only_span<float3>(
-      "position", bke::AttrDomain::Point);
-  position.finish();
+  if (old_totpoint == 0) {
+    /* If there were no points before, ensure the position attribute exists. */
+    attributes.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
+  }
 
-  bke::fill_attribute_range_default(attributes,
-                                    bke::AttrDomain::Point,
-                                    bke::attribute_filter_from_skip_ref({""}),
-                                    IndexRange(old_totpoint, count));
+  pointcloud->attribute_storage.wrap().resize(bke::AttrDomain::Point, pointcloud->totpoint);
+
+  bke::fill_attribute_range_default(
+      attributes, bke::AttrDomain::Point, {}, IndexRange(old_totpoint, count));
 }
 
 /* Dependency Graph */
