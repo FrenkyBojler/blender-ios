@@ -4303,7 +4303,7 @@ static int click_select_channel_shapekey(bContext *C,
     kb->flag |= KEYBLOCK_SEL;
   }
 
-  PointerRNA object_ptr = RNA_pointer_create_discrete(&ob.id, &RNA_Object, &ob);
+  PointerRNA object_ptr = RNA_pointer_create_discrete(&ob.id, RNA_Object, &ob);
   PropertyRNA *prop = RNA_struct_find_property(&object_ptr, "active_shape_key_index");
   RNA_property_update(C, &object_ptr, prop);
 
