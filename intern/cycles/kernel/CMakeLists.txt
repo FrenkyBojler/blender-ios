@@ -63,6 +63,7 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/convert.h
   svm/checker.h
   svm/color_util.h
+  svm/curvature.h
   svm/brick.h
   svm/displace.h
   svm/fresnel.h
