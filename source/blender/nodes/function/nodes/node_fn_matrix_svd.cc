@@ -15,7 +15,8 @@ namespace blender::nodes::node_fn_matrix_svd_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Matrix>("Matrix");
+  b.add_input<decl::Matrix>("Matrix").description(
+      "Matrix to decompose, only the 3x3 part is used");
   b.add_output<decl::Rotation>("U").description("Left hand rotation");
   b.add_output<decl::Vector>("S").description("Singular values");
   b.add_output<decl::Rotation>("V").description("Right hand rotation");
