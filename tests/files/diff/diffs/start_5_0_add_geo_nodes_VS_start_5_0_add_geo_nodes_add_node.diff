@@ -8,8 +8,6 @@
 +bNodeTree["Geometry Nodes"].links <length> = 2
 -bNodeTree["Geometry Nodes"].tree_interface.root_panel.items_array = hash(16 B) -> 0x79b6c15bb52a051c
 +bNodeTree["Geometry Nodes"].tree_interface.root_panel.items_array = hash(16 B) -> 0x4382a0adad19ada4
--bNodeTree["Geometry Nodes"].nodes[Group Output].next = nullptr
-+bNodeTree["Geometry Nodes"].nodes[Group Output].next = bNode(Set Position)
  Data-block not modified: "Scene"
  Data-block not modified: "Palette"
  Data-block not modified: "Collection"

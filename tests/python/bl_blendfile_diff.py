@@ -40,39 +40,42 @@ def run(args):
         blend_new_path = blends_dir / case.new_name
         diff_name = case.name + ".diff"
         diff_path = diffs_dir / diff_name
+        log_prefix = case.name + ":"
 
         if diff_path.exists():
             expected_diff = diff_path.read_text()
         else:
             failed_tests.append(case)
-            print(f"Missing expected diff for {case.name}")
+            print(log_prefix, "missing expected diff")
             if not update_tests:
                 continue
             expected_diff = None
 
         diff_args = [str(blend_diff_bin), str(blend_old_path), str(blend_new_path)]
-        print(f"Computing diff for {case.name}")
-        print(" ".join(diff_args))
+        print(log_prefix, "start")
+        print(log_prefix, " ".join(diff_args))
         output = subprocess.run(diff_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if output.returncode != 0:
             failed_tests.append(case)
-            print(f"Diff failed for {case.name}")
-            print(output.stderr.decode("utf-8"))
+            print(log_prefix, "diff failed")
+            print(log_prefix, output.stderr.decode("utf-8"))
             continue
         actual_diff = output.stdout.decode("utf-8")
         if expected_diff is not None:
             if actual_diff == expected_diff:
-                print(f"Diff is correct")
+                print(log_prefix, f"ok")
                 continue
 
         failed_tests.append(case)
         if update_tests:
-            print(f"Test is outdated, updating {case.name}")
+            print(log_prefix, "fail, updating", diff_path)
             Path(diff_path).write_text(actual_diff)
-
+        else:
+            print(log_prefix, "fail, does not match", diff_path)
     if len(failed_tests) > 0:
         print(f"{len(failed_tests)} / {len(test_cases)} tests failed")
-        print("Failing tests have been updated")
+        if update_tests:
+            print("Failing tests have been updated")
         sys.exit(1)
     print("All tests ok.")
 
