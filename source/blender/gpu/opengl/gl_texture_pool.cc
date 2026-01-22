@@ -11,36 +11,42 @@
 #include "gl_backend.hh"
 #include "gl_texture_pool.hh"
 
+#include "CLG_log.h"
+
 #include "fmt/format.h"
 
 namespace blender::gpu {
 
-/* Given a TextureFormat of non-compressed, non-depth-stencil types, return a default
- * with which it can alias. The returned default has to be available in TextureWriteFormat,
- * TextureTargetFormat, and TextureFormat, as on some platforms (Intel), aliasing a
- * framebuffer-supporting format on a non-supporting format breaks framebuffer compatibility. */
+static CLG_LogRef LOG = {"gpu.opengl"};
+
+/* Given a TextureFormat, return an underlying format on which to alias. If the
+ * format does not support aliasing to any other format, simply return the input. */
 static TextureFormat get_compatible_texture_format(TextureFormat format)
 {
+  /* glTextureView doesn't support aliasing on depth, stencil, or most
+   * compressed formats. */
   GPUTextureFormatFlag format_flag = to_format_flag(format);
-
   if (bool(format_flag & GPU_FORMAT_DEPTH_STENCIL)) {
-    return TextureFormat::Invalid;
+    return format;
   }
   if (bool(format_flag & GPU_FORMAT_COMPRESSED)) {
-    return TextureFormat::Invalid;
+    return format;
   }
 
+  /* Given expected byte size, we use a default format available as TextureWriteFormat,
+   * TextureTargetFormat. On some platforms (Intel), a non-framebuffer-supporting
+   * underlying format breaks framebuffer attachments. */
   switch (to_bytesize(format)) {
     case 16:
-      return TextureFormat::SFLOAT_32_32_32_32;
+      return TextureFormat::UINT_32_32_32_32;
     case 8:
-      return TextureFormat::SFLOAT_32_32;
+      return TextureFormat::UINT_32_32;
     case 4:
-      return TextureFormat::SFLOAT_32;
+      return TextureFormat::UINT_32;
     case 2:
-      return TextureFormat::SFLOAT_16;
+      return TextureFormat::UINT_16;
     case 1:
-      return TextureFormat::UNORM_8;
+      return TextureFormat::UINT_8;
     default:
       return TextureFormat::Invalid;
   }
@@ -65,9 +71,7 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
    * compatible format to alias upon, we simply require an exact match
    * for the underlying texture. */
   TextureFormat compatible_format = get_compatible_texture_format(format);
-  if (compatible_format == TextureFormat::Invalid) {
-    compatible_format = format;
-  }
+  BLI_assert(compatible_format != TextureFormat::Invalid);
 
   /* Search for the first compatible existing texture. */
   int64_t match_index = -1;
@@ -94,9 +98,9 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
   else {
     /* Debug label attached to allocated texture object. */
     std::string texture_name_str;
-    // if (G.debug & G_DEBUG_GPU) {
-    texture_name_str = fmt::format("TexFromPool_{}", pool_.size());
-    // }
+    if (G.debug & G_DEBUG_GPU) {
+      texture_name_str = fmt::format("TexFromPool_{}", pool_.size());
+    }
 
     eGPUTextureUsage usage_flag = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
     texture_handle.texture_allocation = unwrap(GPU_texture_create_2d(
@@ -105,9 +109,9 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
 
   /* Debug label attached to view texture object. */
   std::string view_name_str;
-  // if (G.debug & G_DEBUG_GPU) {
-  view_name_str = name ? name : texture_handle.texture_allocation->name_;
-  // }
+  if (G.debug & G_DEBUG_GPU) {
+    view_name_str = name ? name : texture_handle.texture_allocation->name_;
+  }
 
   /* Assemble texture view and add to handle. Note, glTextureView with identical formats is
    * allowed, even if the formats are not listed for aliasing in the Internal Formats table. */
@@ -115,13 +119,11 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
       view_name_str.c_str(), texture_handle.texture_allocation, format, 0, 1, 0, 1, false, false);
   texture_handle.texture = unwrap(view);
 
-  /* if (format != compatible_format) {
-    std::printf("Aliasing: %s (%d) -> %s (%d)\n",
-                GPU_texture_format_name(texture_handle.texture_allocation->format_get()),
-                to_bytesize(texture_handle.texture_allocation->format_get()),
-                GPU_texture_format_name(texture_handle.texture->format_get()),
-                to_bytesize(texture_handle.texture->format_get()));
-  } */
+  if (G.debug & G_DEBUG_GPU) {
+    current_usage_data_.usage_count++;
+    current_usage_data_.usage_count_max = std::max(current_usage_data_.usage_count,
+                                                   current_usage_data_.usage_count_max);
+  }
 
   acquired_.add(texture_handle);
   return wrap(texture_handle.texture);
@@ -132,6 +134,10 @@ void GLTexturePool::release_texture(Texture *tex)
   BLI_assert_msg(acquired_.contains({unwrap(tex)}),
                  "Unacquired texture passed to TexturePool::offset_users_count()");
   auto texture_handle = acquired_.lookup_key({unwrap(tex), {}, 1});
+
+  if (G.debug & G_DEBUG_GPU) {
+    current_usage_data_.usage_count--;
+  }
 
   /* Move allocation back to `pool_`. */
   AllocationHandle allocation_handle;
@@ -177,5 +183,26 @@ void GLTexturePool::reset(bool force_free)
       handle.unused_cycles_count++;
     }
   }
+
+  if (G.debug & G_DEBUG_GPU) {
+    /* Log debug usage if it differs from the last reset. */
+    if (!(previous_usage_data_ == current_usage_data_)) {
+      log_usage_data();
+    }
+
+    /* Reset usage data to track it for the next reset. */
+    previous_usage_data_ = current_usage_data_;
+    current_usage_data_ = {};
+    current_usage_data_.usage_count = acquired_.size();
+  }
+}
+
+void GLTexturePool::log_usage_data() const
+{
+  int64_t total_texture_count = acquired_.size() + pool_.size();
+  CLOG_TRACE(&LOG,
+             "GLTexturePool uses %li textures (%li consecutively)",
+             total_texture_count,
+             current_usage_data_.usage_count_max);
 }
 }  // namespace blender::gpu

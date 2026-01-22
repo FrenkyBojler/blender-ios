@@ -52,6 +52,23 @@ class GLTexturePool : public TexturePool {
   Vector<AllocationHandle> pool_;
   Set<TextureHandle> acquired_;
 
+  /* Debug storage to log memory usage. Log is only output
+   * if values have changed since the last `::reset()`. */
+  struct LogUsageData {
+    int64_t usage_count = 0;
+    int64_t usage_count_max = 0;
+
+    bool operator==(const LogUsageData &o) const
+    {
+      return std::tie(usage_count, usage_count_max) == std::tie(o.usage_count, o.usage_count_max);
+    }
+  };
+  LogUsageData previous_usage_data_ = {};
+  LogUsageData current_usage_data_ = {};
+
+  /* Output usage data to debug log. Called on `--debug-gpu` */
+  void log_usage_data() const;
+
  public:
   ~GLTexturePool();
 
