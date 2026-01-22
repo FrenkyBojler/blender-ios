@@ -312,6 +312,27 @@ void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst)
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
 }
 
+void pointcloud_add_points(PointCloud *pointcloud, int count)
+{
+  if (count == 0) {
+    return;
+  }
+
+  const int old_totpoint = pointcloud->totpoint;
+  pointcloud->totpoint += count;
+  bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
+
+  /* When adding points to an empty point cloud, ensure the position attribute exists. */
+  bke::SpanAttributeWriter<float3> position = attributes.lookup_or_add_for_write_only_span<float3>(
+      "position", bke::AttrDomain::Point);
+  position.finish();
+
+  bke::fill_attribute_range_default(attributes,
+                                    bke::AttrDomain::Point,
+                                    bke::attribute_filter_from_skip_ref({""}),
+                                    IndexRange(old_totpoint, count));
+}
+
 /* Dependency Graph */
 
 PointCloud *BKE_pointcloud_copy_for_eval(const PointCloud *pointcloud_src)

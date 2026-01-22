@@ -121,8 +121,6 @@ IndexMask retrieve_selected_points(const PointCloud &pointcloud, IndexMaskMemory
 /** \name Editing
  * \{ */
 
-void ED_pointcloud_points_add(PointCloud *pointcloud, int count);
-
 /**
  * Remove selected points based on the ".selection" attribute.
  * \returns true if any point was removed.

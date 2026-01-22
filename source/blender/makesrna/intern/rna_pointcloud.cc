@@ -28,8 +28,6 @@
 #  include "WM_api.hh"
 #  include "WM_types.hh"
 
-#  include "ED_pointcloud.hh"
-
 namespace blender {
 
 static PointCloud *rna_pointcloud(const PointerRNA *ptr)
@@ -184,7 +182,7 @@ static void rna_def_pointcloud(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   RNA_def_property_ui_text(prop, "Points", "");
-  func = RNA_def_function(srna, "add", "blender::ed::pointcloud::ED_pointcloud_points_add");
+  func = RNA_def_function(srna, "add", "pointcloud_add_points");
   parm = RNA_def_int(func, "count", 0, 0, INT_MAX, "Count", "Number of points to add", 0, INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 

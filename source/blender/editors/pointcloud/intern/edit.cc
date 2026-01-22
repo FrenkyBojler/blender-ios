@@ -45,26 +45,4 @@ bool remove_selection(PointCloud &pointcloud)
   return true;
 }
 
-void ED_pointcloud_points_add(PointCloud *pointcloud, int count)
-{
-  using namespace blender;
-  if (count == 0) {
-    return;
-  }
-
-  const int old_totpoint = pointcloud->totpoint;
-  pointcloud->totpoint += count;
-  bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
-
-  bke::SpanAttributeWriter<float> radius = attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point);
-  radius.span.slice(old_totpoint, count).fill(0.01f);
-  radius.finish();
-
-  bke::SpanAttributeWriter<float3> position = attributes.lookup_or_add_for_write_span<float3>(
-      "position", bke::AttrDomain::Point);
-  position.span.slice(old_totpoint, count).fill(float3(0.0f));
-  position.finish();
-}
-
 }  // namespace blender::ed::pointcloud
