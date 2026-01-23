@@ -283,21 +283,23 @@ void ShadowPipeline::render(View &view)
 
 void Prepass::setup_subpasses(DRWState common_state)
 {
+  /* We can't know at this point if the normal target is enabled, so we always enable color write.
+   * The write will be optimized out if the attachment is empty. */
+  common_state |= DRW_STATE_WRITE_COLOR;
+
   for (bool double_sided : {false, true}) {
     std::string double_sided_name = double_sided ? "DoubleSided." : "SingleSided.";
     DRWState double_sided_state = double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK;
 
     for (bool moving : {false, true}) {
       std::string moving_name = moving ? "Moving." : "Static.";
-      DRWState moving_state = moving ? DRW_STATE_WRITE_COLOR : DRW_STATE_NO_DRAW;
 
       for (bool write_id : {false, true}) {
         std::string write_id_name = write_id ? "ID" : "NoID";
-        DRWState write_id_state = write_id ? DRW_STATE_WRITE_COLOR : DRW_STATE_NO_DRAW;
 
         PassMain::Sub *&subpass = prepass_subpasses[double_sided][moving][write_id];
         subpass = &this->sub(double_sided_name + moving_name + write_id_name);
-        subpass->state_set(common_state | double_sided_state | moving_state | write_id_state);
+        subpass->state_set(common_state | double_sided_state);
         subpass->subpass_transition(
             GPU_ATTACHMENT_WRITE,
             {GPU_ATTACHMENT_WRITE_OPTIONAL, /* normal */
