@@ -335,6 +335,9 @@ static void asset_shelf_region_listen(const wmRegionListenerParams *params)
       if (wmn->data == ND_REGIONS_ASSET_SHELF) {
         ED_region_tag_redraw(region);
       }
+      else if (wmn->data == ND_SPACE_ASSET_PARAMS) {
+        ED_region_tag_redraw(region);
+      }
       break;
     case NC_SCENE:
       /* Asset shelf polls typically check the mode. */
