@@ -1241,7 +1241,7 @@ class CLIP_PT_footage(Panel):
         layout.use_property_decorate = False
 
         sc = context.space_data
-        
+
         if not sc.clip:
             layout.label(text="No movie clip loaded", icon='INFO')
         else:
