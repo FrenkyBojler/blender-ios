@@ -573,13 +573,7 @@ def rmtree_with_fallback_or_error(
     # so use it's callback that raises a link error and remove the link in that case.
     errors = []
 
-    # *DEPRECATED* 2024/07/01 Remove when 3.11 is dropped.
-    if sys.version_info >= (3, 12):
-        shutil.rmtree(path, onexc=lambda *args: errors.append(args))
-    else:
-        # Ignore as the deprecated logic is only used for older Python versions.
-        # pylint: disable-next=deprecated-argument
-        shutil.rmtree(path, onerror=lambda *args: errors.append((args[0], args[1], args[2][1])))
+    shutil.rmtree(path, onexc=lambda *args: errors.append(args))
 
     # Happy path (for practically all cases).
     if not errors:
@@ -5676,9 +5670,6 @@ def main(
     if "--version" in sys.argv:
         sys.stdout.write("{:s}\n".format(VERSION))
         return 0
-
-    if (sys.platform == "win32") and (sys.version_info < (3, 12, 6)):
-        _worlaround_win32_ssl_cert_failure()
 
     parser = argparse_create(
         args_internal=args_internal,
