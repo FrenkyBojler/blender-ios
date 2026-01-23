@@ -1,3 +1,4 @@
 Referenced by pull request #149262, Fix: Lite build link error
 Referenced by commit 6e085555b6a5d36bb79c9192ed2888359379334c, Fix: Lite build link error
 Referenced by pull request #153250, Fix #151639: VSE memory leak when sound strips have Preserve Pitch on and there are animations
+Referenced by commit bce21b47ba37e635acb5a2deffb0e6579ea2f36e, Fix #151639: VSE memory leak when sound strips have Preserve Pitch on and there are animations
