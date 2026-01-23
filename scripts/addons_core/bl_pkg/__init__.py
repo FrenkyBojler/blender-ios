@@ -536,8 +536,27 @@ def _remote_asset_libraries_sync_all_periodic():
     """Periodically download remote asset library listings."""
     if not bpy.app.online_access:
         return
+    wm = bpy.context.window_manager
 
     for asset_lib in bpy.context.preferences.filepaths.asset_libraries:
+        # The library cache directory name is built from a hash of the URL and a "last seen name"
+        # hint for human readability. This means the exact directory name can change when the name
+        # changes, in this or another Blender instance. To handle this well enough, the directory
+        # name should be updated to the currently expected name before requesting any download. All
+        # downloads triggered from C++ already do this, Python triggered requests need this as
+        # well.
+        #
+        # Without this specific name refresh, updating the library on startup may use an old
+        # directory name. Meanwhile the C++ code might update the directory name (e.g. because
+        # another download within the library was triggered) but the download would put the files
+        # into the old directory name.
+        #
+        # To test this, just manually modify the "last seen name" part of the cache directory name
+        # before launching Blender (ensure the "All" library is loaded and includes online assets).
+        # There are probably errors without this refresh, and potentially incorrect cache
+        # directories.
+        wm.remote_library_refresh_cache_directory_name(asset_lib)
+
         remote_asset_libraries_sync(asset_lib, only_if_older_than_sec=REMOTE_ASSET_LIBS_AUTOSYNC_PERIOD_SEC)
 
 

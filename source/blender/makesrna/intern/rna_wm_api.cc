@@ -841,6 +841,11 @@ static void rna_asset_library_status_failed_loading(const char *library_url, con
       message && message[0] ? std::optional<blender::StringRefNull>{message} : std::nullopt);
 }
 
+static void rna_remote_library_refresh_cache_directory_name(bUserAssetLibrary *library)
+{
+  asset_system::remote_library_refresh_cache_directory_name(*library);
+}
+
 }  // namespace blender
 
 #else
@@ -1561,7 +1566,7 @@ void RNA_api_keyconfigs(StructRNA *srna)
 
 /* Exposes the #blender::asset_system::asset_library_status_xxx() functions in the WM API, for the
  * lack of a better place. */
-void RNA_api_asset_library_loading_status(StructRNA *srna)
+void RNA_api_remote_library(StructRNA *srna)
 {
   FunctionRNA *func;
   PropertyRNA *parm;
@@ -1700,6 +1705,21 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
                         "The URL identifying the asset library being loaded");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_string(func, "message", nullptr, 0, "Message", "An error message to show to users");
+
+  func = RNA_def_function(srna,
+                          "remote_library_refresh_cache_directory_name",
+                          "rna_remote_library_refresh_cache_directory_name");
+  RNA_def_function_ui_description(
+      func,
+      "Make sure the cache directory for the asset library has the "
+      "current library name (as defined in the Preferences) as "
+      "suffix. This should be done before any download request (requests issued by the core asset "
+      "system already do this), to ensure files will be stored at the location Blender will "
+      "expect them at.");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_pointer(func, "library", "UserAssetLibrary", "", "");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
 }
 
 }  // namespace blender
