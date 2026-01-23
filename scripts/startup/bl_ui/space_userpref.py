@@ -2777,7 +2777,10 @@ class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
         )
 
         col = row.column(align=True)
-        col.operator_menu_enum("preferences.asset_library_add", "type", text="", icon='ADD')
+        if context.preferences.experimental.use_remote_asset_libraries:
+            col.operator_menu_enum("preferences.asset_library_add", "type", text="", icon='ADD')
+        else:
+            col.operator("preferences.asset_library_add", text="", icon='ADD').type = 'LOCAL'
         props = col.operator("preferences.asset_library_remove", text="", icon='REMOVE')
         props.index = active_library_index
 
