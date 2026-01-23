@@ -74,7 +74,7 @@ TEST_F(RealizeInstancesTest, InstanceAttributeToBuiltinCurvesAttribute)
   instances->add_instance(handle, float4x4::identity());
   /* This attribute will be converted to the point domain, where it is invalid on curves. */
   instances->attributes_for_write().add<float>(
-      "curve_type", AttrDomain::Instance, AttributeInitDefault());
+      "curve_type", AttrDomain::Instance, AttributeInitDefaultValue());
   bke::GeometrySet instances_geometry = GeometrySet::from_instances(instances);
 
   geometry::RealizeInstancesOptions options;

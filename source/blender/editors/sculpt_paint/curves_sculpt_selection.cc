@@ -26,10 +26,12 @@ bke::SpanAttributeWriter<float> float_selection_ensure(Curves &curves_id)
     }
   }
   else {
+    const bke::AttrDomain domain = bke::AttrDomain(curves_id.selection_domain);
+    const int64_t size = attributes.domain_size(domain);
     attributes.add(".selection",
-                   bke::AttrDomain(curves_id.selection_domain),
+                   domain,
                    bke::AttrType::Float,
-                   bke::AttributeInitSingle(1.0f));
+                   bke::AttributeInitVArray(VArray<float>::from_single(1.0f, size)));
   }
 
   return curves.attributes_for_write().lookup_for_write_span<float>(".selection");

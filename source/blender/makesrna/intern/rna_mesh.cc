@@ -426,7 +426,7 @@ static void rna_MeshVertex_hide_set(PointerRNA *ptr, bool value)
   Mesh *mesh = rna_mesh(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter hide_vert = attributes.lookup_or_add_for_write<bool>(
-      ".hide_vert", bke::AttrDomain::Point, bke::AttributeInitDefaultArray());
+      ".hide_vert", bke::AttrDomain::Point, bke::AttributeInitDefaultValue());
   const int index = rna_MeshVertex_index_get(ptr);
   hide_vert.varray.set(index, value);
   hide_vert.finish();
@@ -448,7 +448,7 @@ static void rna_MeshVertex_select_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshVertex_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter select_vert = attributes.lookup_or_add_for_write<bool>(
-      ".select_vert", bke::AttrDomain::Point, bke::AttributeInitDefaultArray());
+      ".select_vert", bke::AttrDomain::Point, bke::AttributeInitDefaultValue());
   select_vert.varray.set(index, value);
   select_vert.finish();
 }
@@ -551,7 +551,7 @@ static void rna_MeshPolygon_hide_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshPolygon_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter hide_poly = attributes.lookup_or_add_for_write<bool>(
-      ".hide_poly", bke::AttrDomain::Face, bke::AttributeInitDefaultArray());
+      ".hide_poly", bke::AttrDomain::Face, bke::AttributeInitDefaultValue());
   hide_poly.varray.set(index, value);
   hide_poly.finish();
 }
@@ -572,7 +572,7 @@ static void rna_MeshPolygon_use_smooth_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshPolygon_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter sharp_face = attributes.lookup_or_add_for_write<bool>(
-      "sharp_face", bke::AttrDomain::Face, bke::AttributeInitDefaultArray());
+      "sharp_face", bke::AttrDomain::Face, bke::AttributeInitDefaultValue());
   sharp_face.varray.set(index, !value);
   sharp_face.finish();
 }
@@ -593,7 +593,7 @@ static void rna_MeshPolygon_select_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshPolygon_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter select_poly = attributes.lookup_or_add_for_write<bool>(
-      ".select_poly", bke::AttrDomain::Face, bke::AttributeInitDefaultArray());
+      ".select_poly", bke::AttrDomain::Face, bke::AttributeInitDefaultValue());
   select_poly.varray.set(index, value);
   select_poly.finish();
 }
@@ -981,7 +981,7 @@ static PointerRNA bool_layer_ensure(PointerRNA *ptr,
     return rna_AttributeGroup_lookup_string(
         mesh_ptr, name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_BOOL);
   }
-  attributes.add<bool>(name, bke::AttrDomain::Corner, bke::AttributeInitDefaultArray());
+  attributes.add<bool>(name, bke::AttrDomain::Corner, bke::AttributeInitDefaultValue());
   return rna_AttributeGroup_lookup_string(
       mesh_ptr, name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_BOOL);
 }
@@ -1294,7 +1294,7 @@ static void rna_MeshEdge_hide_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshEdge_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter hide_edge = attributes.lookup_or_add_for_write<bool>(
-      ".hide_edge", bke::AttrDomain::Edge, bke::AttributeInitDefaultArray());
+      ".hide_edge", bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
   hide_edge.varray.set(index, value);
   hide_edge.finish();
 }
@@ -1315,7 +1315,7 @@ static void rna_MeshEdge_select_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshEdge_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter select_edge = attributes.lookup_or_add_for_write<bool>(
-      ".select_edge", bke::AttrDomain::Edge, bke::AttributeInitDefaultArray());
+      ".select_edge", bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
   select_edge.varray.set(index, value);
   select_edge.finish();
 }
@@ -1336,7 +1336,7 @@ static void rna_MeshEdge_use_edge_sharp_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshEdge_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter sharp_edge = attributes.lookup_or_add_for_write<bool>(
-      "sharp_edge", bke::AttrDomain::Edge, bke::AttributeInitDefaultArray());
+      "sharp_edge", bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
   sharp_edge.varray.set(index, value);
   sharp_edge.finish();
 }
@@ -1357,7 +1357,7 @@ static void rna_MeshEdge_use_seam_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshEdge_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter uv_seam = attributes.lookup_or_add_for_write<bool>(
-      "uv_seam", bke::AttrDomain::Edge, bke::AttributeInitDefaultArray());
+      "uv_seam", bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
   uv_seam.varray.set(index, value);
   uv_seam.finish();
 }

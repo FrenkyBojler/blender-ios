@@ -377,11 +377,11 @@ static wmOperatorStatus grease_pencil_vertex_paint_set_exec(bContext *C, wmOpera
     /* Create the color attributes if they don't exist. */
     if (ELEM(mode, VertexColorMode::Stroke, VertexColorMode::Both)) {
       curves.attributes_for_write().add<ColorGeometry4f>(
-          "vertex_color", bke::AttrDomain::Point, bke::AttributeInitDefault());
+          "vertex_color", bke::AttrDomain::Point, bke::AttributeInitDefaultValue());
     }
     if (ELEM(mode, VertexColorMode::Fill, VertexColorMode::Both)) {
       curves.attributes_for_write().add<ColorGeometry4f>(
-          "fill_color", bke::AttrDomain::Curve, bke::AttributeInitDefault());
+          "fill_color", bke::AttrDomain::Curve, bke::AttributeInitDefaultValue());
     }
     const bool changed = apply_color_operation_for_mode(
         mode,

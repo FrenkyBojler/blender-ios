@@ -1453,7 +1453,7 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
     if (dst_attrs.contains(attr.name())) {
       continue;
     }
-    dst_attrs.add(attr.name(), attr.domain(), attr.data_type(), bke::AttributeInitDefaultArray());
+    dst_attrs.add(attr.name(), attr.domain(), attr.data_type(), bke::AttributeInitDefaultValue());
   }
 
   return me_dst;

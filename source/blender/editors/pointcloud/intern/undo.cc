@@ -113,18 +113,8 @@ static void step_decode(
       if (!attr_a || !attr_b) {
         return true;
       }
-      if (attr_a->storage_type() != attr_b->storage_type()) {
-        return true;
-      }
-      if (attr_a->storage_type() == bke::AttrStorageType::Single) {
-        return std::get<bke::Attribute::SingleData>(attr_a->data()).value !=
-               std::get<bke::Attribute::SingleData>(attr_b->data()).value;
-      }
-      if (attr_a->storage_type() == bke::AttrStorageType::Array) {
-        return std::get<bke::Attribute::ArrayData>(attr_a->data()).data !=
-               std::get<bke::Attribute::ArrayData>(attr_b->data()).data;
-      }
-      return false;
+      return std::get<bke::Attribute::ArrayData>(attr_a->data()).data !=
+             std::get<bke::Attribute::ArrayData>(attr_b->data()).data;
     }();
 
     pointcloud.attribute_storage.wrap() = object.attribute_storage.wrap();

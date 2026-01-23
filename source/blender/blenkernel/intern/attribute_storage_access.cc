@@ -71,28 +71,26 @@ GAttributeWriter attribute_to_writer(void *owner,
 Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
                                               const int64_t domain_size,
                                               const AttributeInit &initializer,
-                                              const bool create_array_data)
+                                              const bool require_array_data)
 {
   switch (initializer.type) {
     case AttributeInit::Type::Construct: {
       const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
       return Attribute::ArrayData::from_constructed(type, domain_size);
     }
-    case AttributeInit::Type::DefaultArray: {
+    case AttributeInit::Type::DefaultValue: {
       const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
       return Attribute::ArrayData::from_default_value(type, domain_size);
-    }
-    case AttributeInit::Type::DefaultSingle: {
-      const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
-      return Attribute::SingleData::from_default_value(type);
     }
     case AttributeInit::Type::VArray: {
       const auto &init = static_cast<const AttributeInitVArray &>(initializer);
       const GVArray &varray = init.varray;
       BLI_assert(varray.size() == domain_size);
-      const CommonVArrayInfo &info = varray.common_info();
-      if (info.type == CommonVArrayInfo::Type::Single) {
-        return Attribute::SingleData::from_value(GPointer(varray.type(), info.data));
+      if (!require_array_data) {
+        const CommonVArrayInfo &info = varray.common_info();
+        if (info.type == CommonVArrayInfo::Type::Single) {
+          return Attribute::SingleData::from_value(GPointer(varray.type(), info.data));
+        }
       }
       const CPPType &type = varray.type();
       Attribute::ArrayData data = Attribute::ArrayData::from_uninitialized(type, domain_size);
@@ -115,11 +113,6 @@ Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
       data.sharing_info = ImplicitSharingPtr<>(init.sharing_info);
       data.sharing_info->add_user();
       return data;
-    }
-    case AttributeInit::Type::Single: {
-      const auto &init = static_cast<const AttributeInitSingle &>(initializer);
-      BLI_assert(init.value.type() == bke::attribute_type_to_cpp_type(data_type));
-      return Attribute::SingleData::from_value(init.value);
     }
   }
   BLI_assert_unreachable();

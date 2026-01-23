@@ -588,8 +588,11 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
 
   /* Apply thickness and strength factors. */
   {
-    bke::SpanAttributeWriter radius_writer = dst_attributes.lookup_or_add_for_write_span<float>(
-        "radius", bke::AttrDomain::Point, bke::AttributeInitSingle(0.01f));
+    bke::SpanAttributeWriter<float> radius_writer =
+        dst_attributes.lookup_or_add_for_write_span<float>(
+            "radius",
+            bke::AttrDomain::Point,
+            bke::AttributeInitVArray(VArray<float>::from_single(0.01f, dst_point_num)));
     const IndexRange all_new_points = keep_original ?
                                           IndexRange(src_curves.point_num,
                                                      dst_point_num - src_curves.point_num) :
@@ -600,7 +603,9 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
     radius_writer.finish();
     if (bke::SpanAttributeWriter<float> opacity_writer =
             dst_attributes.lookup_or_add_for_write_span<float>(
-                "opacity", bke::AttrDomain::Point, bke::AttributeInitSingle(1.0f)))
+                "opacity",
+                bke::AttrDomain::Point,
+                bke::AttributeInitVArray(VArray<float>::from_single(1.0f, dst_point_num))))
     {
       for (const int point_i : all_new_points) {
         opacity_writer.span[point_i] *= info.strength;

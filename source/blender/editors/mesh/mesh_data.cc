@@ -201,7 +201,7 @@ int ED_mesh_uv_add(
     }
     else {
       attributes.add<float2>(
-          unique_name, bke::AttrDomain::Corner, bke::AttributeInitDefaultArray());
+          unique_name, bke::AttrDomain::Corner, bke::AttributeInitDefaultValue());
     }
 
     if (active_set || layernum_dst == 0) {
@@ -238,7 +238,7 @@ static bke::AttributeWriter<bool> ensure_corner_boolean_attribute(Mesh &mesh, co
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   return attributes.lookup_or_add_for_write<bool>(
-      name, bke::AttrDomain::Corner, bke::AttributeInitDefault());
+      name, bke::AttrDomain::Corner, bke::AttributeInitDefaultValue());
 }
 
 bke::AttributeWriter<bool> ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh, const int uv_index)
@@ -296,7 +296,7 @@ std::string ED_mesh_color_add(Mesh *mesh,
   else {
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
     attributes.add<ColorGeometry4b>(
-        new_name, bke::AttrDomain::Corner, bke::AttributeInitDefaultArray());
+        new_name, bke::AttrDomain::Corner, bke::AttributeInitDefaultValue());
     if (do_init) {
       if (const VArray active_attr = *attributes.lookup<ColorGeometry4b>(active_name,
                                                                          bke::AttrDomain::Corner))
@@ -331,7 +331,7 @@ bool ED_mesh_color_ensure(Mesh *mesh, const char *name)
   if (!mesh->attributes_for_write().add(unique_name,
                                         bke::AttrDomain::Corner,
                                         bke::AttrType::ColorByte,
-                                        bke::AttributeInitDefaultArray()))
+                                        bke::AttributeInitDefaultValue()))
   {
     return false;
   }
@@ -616,7 +616,7 @@ static wmOperatorStatus mesh_customdata_custom_splitnormals_add_exec(bContext *C
   }
   else {
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-    const bke::AttributeInitDefaultArray init;
+    const bke::AttributeInitDefaultValue init;
     if (!attributes.add<short2>("custom_normal", bke::AttrDomain::Corner, init)) {
       return OPERATOR_CANCELLED;
     }
@@ -699,7 +699,7 @@ static void mesh_add_verts(Mesh *mesh, int len)
       ".select_vert", bke::AttrDomain::Point);
   select_vert.span.take_back(len).fill(true);
   select_vert.finish();
-  attributes.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitDefaultArray());
+  attributes.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitDefaultValue());
 }
 
 static void mesh_add_edges(Mesh *mesh, int len)
@@ -724,7 +724,7 @@ static void mesh_add_edges(Mesh *mesh, int len)
       ".select_edge", bke::AttrDomain::Edge);
   select_edge.span.take_back(len).fill(true);
   select_edge.finish();
-  attributes.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitDefaultArray());
+  attributes.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
 }
 
 static void mesh_add_loops(Mesh *mesh, int len)
@@ -745,8 +745,8 @@ static void mesh_add_loops(Mesh *mesh, int len)
   mesh->corners_num = totloop;
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitDefaultArray());
-  attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitDefaultArray());
+  attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitDefaultValue());
+  attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitDefaultValue());
 
   /* Keep the last face offset up to date with the corner total (they must be the same). We have
    * to be careful here though, since the mesh may not be in a valid state at this point. */
