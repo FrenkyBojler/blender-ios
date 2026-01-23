@@ -319,6 +319,15 @@ void raycast_eval(float3 position,
     return;
   }
 
+  {
+    /* Offset the start to prevent wrong intersection due to depth precission. */
+    float3 vs_start = drw_point_world_to_view(ws_start);
+    float start_depth = drw_depth_view_to_screen(vs_start.z);
+    float offset_depth = uintBitsToFloat(floatBitsToUint(start_depth) + 2);
+    float offset_delta = abs(drw_depth_screen_to_view(offset_depth) - vs_start.z);
+    ws_start += direction * offset_delta;
+  }
+
   float noise_offset = sampling_rng_1D_get(SAMPLING_RAYTRACE_W);
   float jitter = interleaved_gradient_noise(gl_FragCoord.xy, 1.0f, noise_offset);
   float thickness_noise_offset = sampling_rng_1D_get(SAMPLING_RAYTRACE_X);
