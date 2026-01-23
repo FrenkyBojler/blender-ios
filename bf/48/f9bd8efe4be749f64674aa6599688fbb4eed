@@ -1,0 +1,1 @@
+Referenced by issue #153045, Keyboard arrowing through a vertex group list, painting weight, and then undo will cause extra data loss.
