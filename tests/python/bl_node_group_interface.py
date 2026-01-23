@@ -159,7 +159,10 @@ class NodeGroupInterfaceTests:
         out0 = tree.interface.new_socket("Output 0", socket_type=socket_type, in_out='OUTPUT')
         self.assertIsNotNone(in0, f"Could not create socket of type {socket_type}")
         self.assertIsNotNone(out0, f"Could not create socket of type {socket_type}")
-        # Note: the type of the socket python object remains the same even when the actual type of the socket in the tree changes due to changing the subtype and/or dimensions! It would be nice if that can be avoided in the future, but for now is expected behavior.
+        # Note: the type of the socket python object remains the same even when
+        # the actual type of the socket in the tree changes due to changing the
+        # subtype and/or dimensions! It would be nice if that can be avoided in
+        # the future, but for now is expected behavior.
         in0_old_suffix = in0.bl_socket_idname.removeprefix("Node")
         out0_old_suffix = out0.bl_socket_idname.removeprefix("Node")
         expect_same_idname = True
