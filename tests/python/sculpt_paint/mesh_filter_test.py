@@ -41,6 +41,7 @@ def set_view3d_context_override(context_override):
                 context_override["area"] = area
                 context_override["region"] = region
 
+
 def get_attribute_data(
         attribute_name='position',
         attribute_domain='POINT',
@@ -73,7 +74,7 @@ class MeshFilterTests(unittest.TestCase):
     """
 
     def setUp(self):
-        bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "30k_monkey_mask_and_face_set.blend" ), load_ui=False)
+        bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "30k_monkey_mask_and_face_set.blend"), load_ui=False)
         bpy.ops.ed.undo_push()
         bpy.ops.sculpt.sculptmode_toggle()
 
@@ -96,7 +97,6 @@ class MeshFilterTests(unittest.TestCase):
         any_different = any([orig != new for (orig, new) in zip(initial_data, new_data)])
         self.assertTrue(all_valid, "All position components should be rational values")
         self.assertTrue(any_different, "At least one position should be different from its original value")
-
 
     def test_smooth_filter_creates_valid_data(self):
         self._check_filter('SMOOTH')
@@ -122,21 +122,18 @@ class MeshFilterTests(unittest.TestCase):
     def test_sharpen_filter_curvature_smooth_creates_valid_data(self):
         self._check_filter('SHARPEN', opts={"sharpen_curvature_smooth_iterations": 10})
 
-
     def test_enhance_details_filter_creates_valid_data(self):
         self._check_filter('ENHANCE_DETAILS')
-
 
     def test_scale_filter_creates_valid_data(self):
         self._check_filter('SCALE')
 
-
     def test_sphere_filter_creates_valid_data(self):
         self._check_filter('SPHERE')
 
-
     def test_randomize_filter_creates_valid_data(self):
         self._check_filter('RANDOM')
+
 
 def main():
     global args
