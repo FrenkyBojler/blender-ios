@@ -66,10 +66,9 @@ if(WITH_CYCLES_NATIVE_ONLY)
     endif()
     string(APPEND CMAKE_CXX_FLAGS " ${MSVC_NATIVE_ARCH_FLAGS}")
   endif()
-elseif(WIN32 AND MSVC AND SUPPORT_NEON_BUILD AND SSE2NEON_FOUND)
-  set(CXX_HAS_SSE42 FALSE)
-  set(CXX_HAS_AVX2 FALSE)
-elseif(NOT WITH_CPU_SIMD OR (SUPPORT_NEON_BUILD AND SSE2NEON_FOUND))
+elseif(SUPPORTS_NEON_BUILD AND SSE2NEON_FOUND)
+  # On ARM we use SSE2NEON to compile the cycles SSE kernels into native NEON instructions
+  # Disable the CXX_HAS_* flags so we don't add any SSE or AVX compiler flags.
   set(CXX_HAS_SSE42 FALSE)
   set(CXX_HAS_AVX2 FALSE)
 elseif(WIN32 AND MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -89,7 +88,7 @@ elseif(WIN32 AND MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   else()
     set(CYCLES_SSE42_FLAGS "/arch:SSE2")
   endif()
-elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+elseif((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
   check_cxx_compiler_flag(-msse4.2 CXX_HAS_SSE42)
   check_cxx_compiler_flag(-mavx2 CXX_HAS_AVX2)
 
@@ -155,15 +154,19 @@ if(WIN32 AND MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
      AND CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
     string(APPEND CMAKE_CXX_FLAGS " /jumptablerdata")
   endif()
-elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+elseif((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
   # Assume no signal trapping for better code generation.
   list(APPEND CYCLES_MATH_FLAGS "-fno-trapping-math")
   # Avoid overhead of setting `errno` for NaNs.
   list(APPEND CYCLES_MATH_FLAGS "-fno-math-errno")
   # Let compiler optimize 0.0 - x without worrying about signed zeros.
   list(APPEND CYCLES_MATH_FLAGS "-fno-signed-zeros")
-  # Let the compiler generate fused multiply-add instructions
-  list(APPEND CYCLES_MATH_FLAGS "-ffp-contract=fast")
+  # Disable FMA auto-vectorization across different statements,
+  # which creates havoc in "intern/cycles/blender/camera.cpp"
+  # with GCC-15.2.1, for something like:
+  #   `const float2 dv = 2.0f * (aspectratio * bcam->shift + bcam->offset * aspect * 2.0f);`
+  # (probably due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106902).
+  list(APPEND CYCLES_MATH_FLAGS "-ffp-contract=on")
   # Let the compiler replace x/y with x*(1/y)
   list(APPEND CYCLES_MATH_FLAGS "-freciprocal-math")
   # Let the compiler reorder terms to save operations
@@ -172,7 +175,7 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
   # Don't enable `-ffinite-math-only` since the BVH code relies on NaNs.
   # Otherwise, we could just use `-ffast-math`.
 
-  if(CMAKE_COMPILER_IS_GNUCC)
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # Assume no signal trapping for better code generation.
     list(APPEND CYCLES_MATH_FLAGS "-fno-signaling-nans")
     # Assume a fixed rounding mode for better constant folding.
@@ -441,11 +444,6 @@ endif()
 # Subdirectories
 
 if(WITH_CYCLES_BLENDER)
-  # Not needed to make cycles automated tests pass with -march=native.
-  # However Blender itself needs this flag.
-  # Note: the clang-cl style removal must go first, to avoid a dangling "/clang:"
-  remove_cc_flag("/clang:-ffp-contract=off")
-  remove_cc_flag("-ffp-contract=off")
   add_definitions(-DWITH_BLENDER_GUARDEDALLOC)
   add_subdirectory(blender)
 endif()

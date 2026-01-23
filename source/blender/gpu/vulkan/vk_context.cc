@@ -21,6 +21,7 @@
 #include "vk_shader_interface.hh"
 #include "vk_state_manager.hh"
 #include "vk_texture.hh"
+#include "vk_vertex_attribute_object.hh"
 
 #include "GHOST_C-api.h"
 
@@ -60,7 +61,8 @@ void VKContext::sync_backbuffer()
 {
   if (ghost_window_) {
     GHOST_VulkanSwapChainData swap_chain_data = {};
-    GHOST_GetVulkanSwapChainFormat((GHOST_WindowHandle)ghost_window_, &swap_chain_data);
+    GHOST_GetVulkanSwapChainFormat(static_cast<GHOST_WindowHandle>(ghost_window_),
+                                   &swap_chain_data);
 
     const bool reset_framebuffer = swap_chain_format_.format !=
                                        swap_chain_data.surface_format.format ||
@@ -151,7 +153,9 @@ void VKContext::end_frame()
 
 void VKContext::flush()
 {
-  flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+  /* Submit when flushing to avoid out-of-memory errors and TDRs when more and more commands are
+   * added in background mode without ever submitting work to the GPU. */
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
 }
 
 TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
@@ -172,6 +176,7 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
       &render_graph_.value().get(),
       discard_pool,
       bool(flags & RenderGraphFlushFlags::SUBMIT),
+      bool(flags & RenderGraphFlushFlags::WAIT_FOR_SUBMISSION),
       bool(flags & RenderGraphFlushFlags::WAIT_FOR_COMPLETION),
       wait_dst_stage_mask,
       wait_semaphore,
@@ -304,6 +309,9 @@ void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
     GPU_shader_uniform_1f(shader, "size", -point_size);
   }
 
+  VKDevice &device = VKBackend::get().device;
+  const VKExtensions &extensions = device.extensions_get();
+
   /* Dynamic state line width */
   const bool is_line_primitive = ELEM(primitive,
                                       GPU_PRIM_LINES,
@@ -311,11 +319,9 @@ void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
                                       GPU_PRIM_LINE_STRIP,
                                       GPU_PRIM_LINES_ADJ,
                                       GPU_PRIM_LINE_STRIP_ADJ);
-
   if (is_line_primitive) {
-    const bool supports_wide_lines = VKBackend::get().device.extensions_get().wide_lines;
-    r_pipeline_data.line_width = supports_wide_lines ? state_manager.mutable_state.line_width :
-                                                       1.0f;
+    r_pipeline_data.line_width = extensions.wide_lines ? state_manager.mutable_state.line_width :
+                                                         1.0f;
   }
   else {
     r_pipeline_data.line_width.reset();
@@ -333,10 +339,24 @@ void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
     r_pipeline_data.stencil_state.reset();
   }
 
-  update_pipeline_data(vk_shader,
-                       vk_shader.ensure_and_get_graphics_pipeline(
-                           primitive, vao, state_manager, framebuffer, constants_state_),
-                       r_pipeline_data.pipeline_data);
+  /* VK_EXT_extended_dynamic_state */
+  if (extensions.extended_dynamic_state) {
+    r_pipeline_data.front_face = state_manager.state.invert_facing ?
+                                     VK_FRONT_FACE_COUNTER_CLOCKWISE :
+                                     VK_FRONT_FACE_CLOCKWISE;
+  }
+
+  VKVertexInputDescriptionPool::Key vertex_input_description_key =
+      device.vertex_input_descriptions.get_or_insert(vao.vertex_input);
+  if (extensions.vertex_input_dynamic_state) {
+    r_pipeline_data.vertex_input_description = vertex_input_description_key;
+  }
+
+  update_pipeline_data(
+      vk_shader,
+      vk_shader.ensure_and_get_graphics_pipeline(
+          primitive, vertex_input_description_key, state_manager, framebuffer, constants_state_),
+      r_pipeline_data.pipeline_data);
 }
 
 void VKContext::update_pipeline_data(render_graph::VKPipelineData &r_pipeline_data)
@@ -467,7 +487,8 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
   render_graph.add_node(synchronization);
   GPU_debug_group_end();
 
-  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_SUBMISSION |
+                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
                      VK_PIPELINE_STAGE_TRANSFER_BIT,
                      swap_chain_data.acquire_semaphore,
                      swap_chain_data.present_semaphore,

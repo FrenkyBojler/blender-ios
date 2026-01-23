@@ -485,6 +485,25 @@ class CommandBufferLog : public VKCommandBufferInterface {
     log_.append(ss.str());
   }
 
+  void set_front_face(const VkFrontFace front_face) override
+  {
+    EXPECT_TRUE(is_recording_);
+    std::stringstream ss;
+    ss << "set_front_face(front_face=" << front_face << ")";
+    log_.append(ss.str());
+  }
+
+  void set_vertex_input(
+      Span<VkVertexInputBindingDescription2EXT> vertex_binding_descriptions,
+      Span<VkVertexInputAttributeDescription2EXT> vertex_attribute_descriptions) override
+  {
+    EXPECT_TRUE(is_recording_);
+    std::stringstream ss;
+    ss << "set_vertex_input(vertexBindingDescriptionCount=" << vertex_binding_descriptions.size()
+       << ", vertexAttributeDescriptionCount=" << vertex_attribute_descriptions.size() << ")";
+    log_.append(ss.str());
+  }
+
   void begin_debug_utils_label(const VkDebugUtilsLabelEXT * /*vk_debug_utils_label*/) override {}
   void end_debug_utils_label() override {}
 };

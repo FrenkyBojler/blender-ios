@@ -378,6 +378,7 @@ function(blender_link_libraries
   #
   # Use: "optimized libfoo optimized libbar debug libfoo_d debug libbar_d"
   # NOT: "optimized libfoo libbar debug libfoo_d libbar_d"
+  set(dependency_libraries)
   if(NOT "${library_deps}" STREQUAL "")
     set(next_library_mode "")
     set(next_interface_mode "PRIVATE")
@@ -392,16 +393,25 @@ function(blender_link_libraries
         set(next_interface_mode "${library}")
       else()
         if("${next_library_mode}" STREQUAL "optimized")
-          target_link_libraries(${target} ${next_interface_mode} optimized ${library})
+          set(link_library ${next_interface_mode} optimized ${library})
         elseif("${next_library_mode}" STREQUAL "debug")
-          target_link_libraries(${target} ${next_interface_mode} debug ${library})
+          set(link_library ${next_interface_mode} debug ${library})
         else()
-          target_link_libraries(${target} ${next_interface_mode} ${library})
+          set(link_library ${next_interface_mode} ${library})
         endif()
         set(next_library_mode "")
+        if(library MATCHES "^bf::dependencies")
+          list(APPEND dependency_libraries ${link_library})
+        else()
+          target_link_libraries(${target} ${link_library})
+        endif()
       endif()
     endforeach()
   endif()
+
+  # Ensure external dependencies are last in the list of libraries, so that bf::extern include
+  # directories have priority over system library include directories that might conflict.
+  target_link_libraries(${target} ${dependency_libraries})
 endfunction()
 
 function(blender_add_lib__impl
@@ -476,9 +486,10 @@ endfunction()
 function(setup_heavy_lib_pool)
   if(WITH_NINJA_POOL_JOBS AND NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS)
     set(_HEAVY_LIBS)
+    set(_HEAVY_FILES)
     set(_TARGET)
     if(WITH_CYCLES)
-      list(APPEND _HEAVY_LIBS "cycles_device" "cycles_kernel")
+      list(APPEND _HEAVY_LIBS "cycles_device" "cycles_kernel" "cycles_hydra")
     endif()
     if(WITH_LIBMV)
       list(APPEND _HEAVY_LIBS "extern_ceres" "bf_intern_libmv")
@@ -487,13 +498,27 @@ function(setup_heavy_lib_pool)
       list(APPEND _HEAVY_LIBS "bf_intern_openvdb")
     endif()
 
+    # A few specific files are very heavy to compile in Clang or GCC
+    # (several GB of RAM required in debug + ASAN builds e.g.).
+    list(APPEND _HEAVY_FILES "source/blender/blenkernel/intern/volume.cc")
+    list(APPEND _HEAVY_FILES "source/blender/blenkernel/intern/volume_to_mesh.cc")
+    list(APPEND _HEAVY_FILES "source/blender/blenkernel/intern/volume_grid.cc")
+    list(APPEND _HEAVY_FILES "source/blender/modifiers/intern/MOD_volume_displace.cc")
+    list(APPEND _HEAVY_FILES "source/blender/geometry/intern/mesh_to_volume.cc")
+
     foreach(_TARGET ${_HEAVY_LIBS})
       if(TARGET ${_TARGET})
         set_property(TARGET ${_TARGET} PROPERTY JOB_POOL_COMPILE compile_heavy_job_pool)
       endif()
     endforeach()
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2.0")
+      foreach(_FILE ${_HEAVY_FILES})
+        set_property(SOURCE ${_FILE} PROPERTY JOB_POOL_COMPILE compile_heavy_job_pool)
+      endforeach()
+    endif()
     unset(_TARGET)
     unset(_HEAVY_LIBS)
+    unset(_HEAVY_FILES)
   endif()
 endfunction()
 
@@ -526,9 +551,12 @@ endfunction()
 function(setup_platform_linker_libs
   target
   )
-  # jemalloc must be early in the list, to be before pthread (see #57998).
-  if(WITH_MEM_JEMALLOC)
-    target_link_libraries(${target} PRIVATE ${JEMALLOC_LIBRARIES})
+  # TBB malloc must be early in the list, to be before PTHREAD (see #57998).
+  if(WITH_TBB_MALLOC_PROXY)
+    target_link_libraries(${target}
+      PRIVATE ${TBB_MALLOC_LIBRARIES}
+      PRIVATE ${TBB_MALLOC_PROXY_LIBRARIES}
+    )
   endif()
 
   if(WIN32 AND NOT UNIX)
@@ -541,56 +569,42 @@ function(setup_platform_linker_libs
   target_link_libraries(${target} PRIVATE ${PLATFORM_LINKLIBS})
 endfunction()
 
-macro(TEST_SSE_SUPPORT
+macro(get_sse_flags
   _sse42_flags)
 
-  include(CheckCSourceRuns)
-
-  # message(STATUS "Detecting SSE support")
-  if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
-    set(${_sse42_flags} "-march=x86-64-v2")
-  elseif(MSVC)
-    # MSVC has no specific build flags for SSE42, but when using intrinsics it will
-    # generate the right instructions.
-    set(${_sse42_flags} "")
-  elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
-    if(WIN32)
-      set(${_sse42_flags} "/QxSSE4.2")
+  if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)" OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
+    # message(STATUS "Detecting SSE support")
+    if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+      set(${_sse42_flags} "-march=x86-64-v2")
+    elseif(MSVC)
+      # MSVC has no specific compile flags for SSE42 (only for AVX).
+      set(${_sse42_flags})
+      # It also doesn't define __SSE__/__MMX__ flags and only does the AVX and higher flags.
+      # For consistency we define these flags for MSVC.
+      add_compile_definitions(__MMX__ __SSE__ __SSE2__ __SSE3__ __SSE4_1__ __SSE4_2__)
+    elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
+      if(WIN32)
+        set(${_sse42_flags} "/QxSSE4.2")
+      else()
+        set(${_sse42_flags} "-xsse4.2")
+      endif()
     else()
-      set(${_sse42_flags} "-xsse4.2")
+      message(WARNING "SSE flags for this compiler: '${CMAKE_C_COMPILER_ID}' not known")
+      set(${_sse42_flags})
     endif()
   else()
-    message(WARNING "SSE flags for this compiler: '${CMAKE_C_COMPILER_ID}' not known")
+    # Not a 64bit x86 system, don't set any SSE x86 compiler flags.
     set(${_sse42_flags})
   endif()
-
-  set(CMAKE_REQUIRED_FLAGS "${${_sse42_flags}}")
-
-  if(NOT DEFINED SUPPORT_SSE42_BUILD)
-    # result cached
-    check_c_source_runs("
-      #include <nmmintrin.h>
-      #include <emmintrin.h>
-      #include <smmintrin.h>
-      int main(void) {
-        __m128i v = _mm_setzero_si128();
-        v = _mm_cmpgt_epi64(v,v);
-        if (_mm_test_all_zeros(v, v)) return 0;
-        return 1;
-      }"
-    SUPPORT_SSE42_BUILD)
-  endif()
-
-  unset(CMAKE_REQUIRED_FLAGS)
 endmacro()
 
-macro(TEST_NEON_SUPPORT)
-  if(NOT DEFINED SUPPORT_NEON_BUILD)
+macro(test_neon_support)
+  if(NOT DEFINED SUPPORTS_NEON_BUILD)
     include(CheckCXXSourceCompiles)
     check_cxx_source_compiles(
       "#include <arm_neon.h>
        int main() {return vaddvq_s32(vdupq_n_s32(1));}"
-      SUPPORT_NEON_BUILD)
+      SUPPORTS_NEON_BUILD)
   endif()
 endmacro()
 
@@ -673,7 +687,7 @@ endmacro()
 
 macro(remove_strict_flags)
 
-  if(CMAKE_COMPILER_IS_GNUCC)
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     remove_cc_flag(
       "-Wstrict-prototypes"
       "-Wsuggest-attribute=format"
@@ -728,7 +742,7 @@ macro(remove_strict_flags)
 endmacro()
 
 macro(remove_extra_strict_flags)
-  if(CMAKE_COMPILER_IS_GNUCC)
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     remove_cc_flag(
       "-Wunused-parameter"
     )
@@ -754,7 +768,7 @@ endmacro()
 macro(remove_strict_c_flags_file
   filenames)
   foreach(_SOURCE ${ARGV})
-    if(CMAKE_COMPILER_IS_GNUCC OR
+    if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR
        (CMAKE_C_COMPILER_ID MATCHES "Clang"))
       set_source_files_properties(
         ${_SOURCE} PROPERTIES
@@ -772,7 +786,7 @@ macro(remove_strict_cxx_flags_file
   filenames)
   remove_strict_c_flags_file(${filenames} ${ARHV})
   foreach(_SOURCE ${ARGV})
-    if(CMAKE_COMPILER_IS_GNUCC OR
+    if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR
        (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
       set_source_files_properties(
         ${_SOURCE} PROPERTIES
@@ -788,7 +802,7 @@ endmacro()
 
 # External libs may need 'signed char' to be default.
 macro(remove_cc_flag_unsigned_char)
-  if(CMAKE_COMPILER_IS_GNUCC OR
+  if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR
      (CMAKE_C_COMPILER_ID MATCHES "Clang") OR
      (CMAKE_C_COMPILER_ID STREQUAL "Intel"))
     remove_cc_flag("-funsigned-char")
@@ -959,7 +973,6 @@ macro(blender_project_hack_post)
 
   unset(_reset_standard_cflags_rel)
   unset(_reset_standard_cxxflags_rel)
-
 endmacro()
 
 # pair of macros to allow libraries to be specify files to install, but to
@@ -1055,6 +1068,7 @@ endfunction()
 function(glsl_to_c
   file_from
   list_to_add
+  include_list
   )
 
   # remove ../'s
@@ -1063,6 +1077,13 @@ function(glsl_to_c
   get_filename_component(_file_meta ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.hh REALPATH)
   get_filename_component(_file_info ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.info  REALPATH)
   get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.c  REALPATH)
+
+  # Turn include directories into absolute paths
+  set(_inc_list)
+  foreach(path IN LISTS ${include_list})
+    get_filename_component(_inc_path ${CMAKE_CURRENT_SOURCE_DIR}/${path} REALPATH)
+    list(APPEND _inc_list ${_inc_path})
+  endforeach()
 
   list(APPEND ${list_to_add} ${_file_to})
   source_group(Generated FILES ${_file_to})
@@ -1073,9 +1094,9 @@ function(glsl_to_c
 
   add_custom_command(
     OUTPUT  ${_file_to} ${_file_meta} ${_file_info}
-    COMMAND "$<TARGET_FILE:glsl_preprocess>" ${_file_from} ${_file_tmp} ${_file_meta} ${_file_info}
+    COMMAND "$<TARGET_FILE:shader_tool>" ${_file_from} ${_file_tmp} ${_file_meta} ${_file_info} ${_inc_list}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_tmp} ${_file_to}
-    DEPENDS ${_file_from} datatoc glsl_preprocess)
+    DEPENDS ${_file_from} datatoc shader_tool)
 
   set_source_files_properties(${_file_tmp} PROPERTIES GENERATED TRUE)
   set_source_files_properties(${_file_to}  PROPERTIES GENERATED TRUE)
@@ -1497,7 +1518,7 @@ endmacro()
 
 macro(with_shader_cpp_compilation_config)
   # avoid noisy warnings
-  if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+  if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
     add_c_flag("-Wno-unused-result")
     remove_cc_flag("-Wmissing-declarations")
     # Would be nice to enable the warning once we support references.

@@ -103,7 +103,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
                                const uint32_t path_flag)
 {
   float stack[SVM_STACK_SIZE];
-  /* Initialiez to silence (false positive?) warning about uninitialzied use on Windows. */
+  /* Initialize to silence (false positive?) warning about uninitialized use on Windows. */
   Spectrum closure_weight = zero_spectrum();
   int offset = sd->shader & SHADER_MASK;
 
@@ -116,13 +116,13 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       SVM_CASE(NODE_SHADER_JUMP)
       {
         if (type == SHADER_TYPE_SURFACE) {
-          offset = node.y;
+          offset = int(node.y);
         }
         else if (type == SHADER_TYPE_VOLUME) {
-          offset = node.z;
+          offset = int(node.z);
         }
         else if (type == SHADER_TYPE_DISPLACEMENT) {
-          offset = node.w;
+          offset = int(node.w);
         }
         else {
           return;
