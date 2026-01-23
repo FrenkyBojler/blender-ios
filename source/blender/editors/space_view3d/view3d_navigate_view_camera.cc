@@ -10,6 +10,7 @@
 #include "BKE_layer.hh"
 
 #include "DEG_depsgraph.hh"
+#include "ED_sequencer.hh"
 
 #include "WM_api.hh"
 
@@ -110,6 +111,10 @@ static wmOperatorStatus view_camera_exec(bContext *C, wmOperator *op)
                     nullptr,
                     smooth_viewtx);
     }
+  }
+
+  if (v3d) {
+    blender::ed::vse::sync_vse_camera_for_view3d(*C, v3d);
   }
 
   return OPERATOR_FINISHED;
