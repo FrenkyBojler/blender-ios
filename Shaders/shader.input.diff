@@ -1,0 +1,9 @@
+241,242c241
+< #define GPU_INTEL
+< #define OS_UNIX
+---
+> #define OS_MAC
+262c261
+< #line 750 "source/blender/gpu/vulkan/vk_shader.cc"
+---
+> #line 751 "source/blender/gpu/vulkan/vk_shader.cc"
