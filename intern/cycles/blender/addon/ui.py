@@ -235,8 +235,11 @@ class CYCLES_RENDER_PT_sampling_viewport(CyclesButtonsPanel, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
+        has_oidn_gpu = has_oidn_gpu_devices(context)
+        effective_preview_denoiser = get_effective_preview_denoiser(context, has_oidn_gpu)
+
         heading = layout.column(align=True, heading="Noise Threshold")
-        heading.active = cscene.preview_denoiser != 'DLSS'
+        heading.active = effective_preview_denoiser != 'DLSS'
         row = heading.row(align=True)
         row.prop(cscene, "use_preview_adaptive_sampling", text="")
         sub = row.row()
@@ -244,7 +247,7 @@ class CYCLES_RENDER_PT_sampling_viewport(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "preview_adaptive_threshold", text="")
 
         col = layout.column(align=True)
-        col.active = cscene.preview_denoiser != 'DLSS'
+        col.active = effective_preview_denoiser != 'DLSS'
         if cscene.use_preview_adaptive_sampling:
             col.prop(cscene, "preview_samples", text="Max Samples")
             col.prop(cscene, "preview_adaptive_min_samples", text="Min Samples")
