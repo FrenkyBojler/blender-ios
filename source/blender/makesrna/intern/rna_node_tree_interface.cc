@@ -6,9 +6,7 @@
  * \ingroup RNA
  */
 
-#include "BKE_node.hh"
 #include "DNA_node_tree_interface_types.h"
-#include "DNA_node_types.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
