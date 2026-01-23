@@ -146,8 +146,8 @@ bool BKE_preferences_asset_library_is_valid(const UserDef *userdef,
   if (is_remote_library && skip_remote_libraries) {
     return false;
   }
-  if (is_remote_library && !library->remote_url[0]) {
-    return false;
+  if (is_remote_library) {
+    return library->remote_url[0] != 0;
   }
   /* Note that there's no check if the path exists on disk here. If an invalid library path is
    * used, the Asset Browser can give a nice hint on what's wrong, so include such items in enums

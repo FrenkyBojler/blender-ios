@@ -387,7 +387,7 @@ std::optional<AssetWeakReference> asset_edit_weak_reference_from_id(const ID &id
 
   const short idcode = GS(id.name);
 
-  if (user_library && BKE_preferences_asset_library_is_valid(user_library, false)) {
+  if (user_library && BKE_preferences_asset_library_is_valid(&U, user_library, false)) {
     return asset_weak_reference_for_user_library(
         *user_library, idcode, id.name + 2, id.lib->runtime->filepath_abs);
   }
