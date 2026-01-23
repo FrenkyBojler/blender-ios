@@ -186,7 +186,7 @@ static void sound_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, bSound, id_address, &sound->id);
+  writer->write_id_struct(id_address, sound);
   BKE_id_blend_write(writer, &sound->id);
 
   BKE_packedfile_blend_write(writer, sound->packedfile);
@@ -615,7 +615,7 @@ void BKE_sound_init(Main *bmain)
 
   g_state.buffer_size = U.mixbufsize < 128 ? 1024 : U.mixbufsize;
 
-  if (requested_specs.rate < AUD_RATE_8000) {
+  if (requested_specs.rate < double(AUD_RATE_8000)) {
     requested_specs.rate = AUD_RATE_48000;
   }
 
