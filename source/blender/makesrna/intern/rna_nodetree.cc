@@ -644,6 +644,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_closure.hh"
 #  include "NOD_geo_field_to_grid.hh"
 #  include "NOD_geo_field_to_list.hh"
+#  include "NOD_geo_foreach_bundle.hh"
 #  include "NOD_geo_foreach_geometry_element.hh"
 #  include "NOD_geo_index_switch.hh"
 #  include "NOD_geo_menu_switch.hh"
@@ -681,6 +682,7 @@ using nodes::EvaluateClosureOutputItemsAccessor;
 using nodes::FieldToGridItemsAccessor;
 using nodes::FieldToListItemsAccessor;
 using nodes::FileOutputItemsAccessor;
+using nodes::ForeachBundleReduceItemsAccessor;
 using nodes::ForeachGeometryElementGenerationItemsAccessor;
 using nodes::ForeachGeometryElementInputItemsAccessor;
 using nodes::ForeachGeometryElementMainItemsAccessor;
@@ -7643,6 +7645,50 @@ static void def_closure_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
+static void rna_def_foreach_bundle_reduce_item(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "ForeachBundleReduceItem", nullptr);
+  RNA_def_struct_ui_text(srna, "For Each Bundle Reduce Item", "");
+  RNA_def_struct_sdna(srna, "NodeForeachBundleReduceItem");
+
+  rna_def_node_item_array_socket_item_common(srna, "ForeachBundleReduceItemsAccessor", true);
+}
+
+static void rna_def_foreach_bundle_reduce_items(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "NodeForeachBundleReduceItems", nullptr);
+  RNA_def_struct_sdna(srna, "bNode");
+  RNA_def_struct_ui_text(srna, "Reduce Items", "Collection of reduce items");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "ForeachBundleReduceItem", "ForeachBundleReduceItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "ForeachBundleReduceItem", "ForeachBundleReduceItemsAccessor");
+}
+
+static void def_foreach_bundle_output(BlenderRNA *brna, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  rna_def_foreach_bundle_reduce_item(brna);
+  rna_def_foreach_bundle_reduce_items(brna);
+
+  RNA_def_struct_sdna_from(srna, "NodeForeachBundleOutput", "storage");
+
+  prop = RNA_def_property(srna, "reduce_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "reduce_items.items", "reduce_items.items_num");
+  RNA_def_property_struct_type(prop, "ForeachBundleReduceItem");
+  RNA_def_property_ui_text(prop, "Reduce Items", "");
+  RNA_def_property_srna(prop, "NodeForeachBundleReduceItems");
+
+  prop = RNA_def_property(srna, "active_reduce_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "reduce_items.active_index");
+  RNA_def_property_ui_text(prop, "Active Reduce Item Index", "Index of the active reduce item");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+}
+
 static void rna_def_geo_capture_attribute_item(BlenderRNA *brna)
 {
   StructRNA *srna = RNA_def_struct(brna, "NodeGeometryCaptureAttributeItem", nullptr);
@@ -9746,7 +9792,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeSeparateBundle", def_separate_bundle);
   define("NodeInternal", "NodeStoreBundleItem");
   define("NodeInternal", "NodeForeachBundleInput", def_foreach_bundle_input);
-  define("NodeInternal", "NodeForeachBundleOutput");
+  define("NodeInternal", "NodeForeachBundleOutput", def_foreach_bundle_output);
 
   define("ShaderNode", "ShaderNodeAddShader");
   define("ShaderNode", "ShaderNodeAmbientOcclusion", def_sh_ambient_occlusion);

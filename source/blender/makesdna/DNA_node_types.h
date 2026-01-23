@@ -3882,6 +3882,24 @@ struct NodeStoreBundleItem {
   char _pad = {};
 };
 
+struct NodeForeachBundleReduceItem {
+  char *name = nullptr;
+  /** #eNodeSocketDatatype. */
+  int16_t socket_type = 0;
+  char _pad[2] = {};
+  /** Generated unique identifier which stays the same even when the item order or names change. */
+  int identifier = 0;
+};
+
+struct NodeForeachBundleReduceItems {
+  NodeForeachBundleReduceItem *items = nullptr;
+  int items_num = 0;
+  int active_index = 0;
+  /** Identifier to give to the next item. */
+  int next_identifier = 0;
+  char _pad[4] = {};
+};
+
 struct NodeForeachBundleInput {
   DNA_DEFINE_CXX_METHODS(NodeForeachBundleInput)
 
@@ -3892,7 +3910,7 @@ struct NodeForeachBundleInput {
 struct NodeForeachBundleOutput {
   DNA_DEFINE_CXX_METHODS(NodeForeachBundleOutput)
 
-  char _pad = {};
+  NodeForeachBundleReduceItems reduce_items;
 };
 
 }  // namespace blender
