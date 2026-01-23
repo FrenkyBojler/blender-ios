@@ -88,11 +88,11 @@ Attribute::ArrayData Attribute::ArrayData::from_value(const GPointer &value,
 static GPointer default_value_for_type(const CPPType &type)
 {
   if (type.is<ColorGeometry4f>()) {
-    constexpr ColorGeometry4f default_color(1.0f, 1.0f, 1.0f, 1.0f);
+    static constexpr ColorGeometry4f default_color(1.0f, 1.0f, 1.0f, 1.0f);
     return GPointer(type, &default_color);
   }
   if (type.is<ColorGeometry4b>()) {
-    constexpr ColorGeometry4b default_color(255, 255, 255, 255);
+    static constexpr ColorGeometry4b default_color(255, 255, 255, 255);
     return GPointer(type, &default_color);
   }
   return GPointer(type, type.default_value());
