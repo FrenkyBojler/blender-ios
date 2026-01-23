@@ -501,15 +501,6 @@ void sync_vse_camera_for_view3d(const WorkSpace *workspace, const Scene *active_
   }
 }
 
-void sync_vse_camera_for_view3d(const bContext &C, View3D *v3d)
-{
-  const WorkSpace *workspace = CTX_wm_workspace(&C);
-  const wmWindow *win = CTX_wm_window(&C);
-  const Scene *active_scene = WM_window_get_active_scene(win);
-
-  sync_vse_camera_for_view3d(workspace, active_scene, v3d);
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

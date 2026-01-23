@@ -210,10 +210,14 @@ static void ed_undo_step_post(bContext *C,
     wm->op_undo_depth--;
   }
 
-  /* Resync VSE camera after all outliner/undo operations.See issue #152866. */
+  /* Resync VSE camera after all outliner/undo operations. See issue #152866. */
   View3D *v3d = CTX_wm_view3d(C);
   if (v3d) {
-    blender::ed::vse::sync_vse_camera_for_view3d(*C, v3d);
+    const WorkSpace *workspace = CTX_wm_workspace(C);
+    const wmWindow *win = CTX_wm_window(C);
+    const Scene *active_scene = WM_window_get_active_scene(win);
+
+    blender::ed::vse::sync_vse_camera_for_view3d(workspace, active_scene, v3d);
   }
 
   if (G.debug & G_DEBUG_IO) {
