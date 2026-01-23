@@ -701,6 +701,7 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
               BLI_assert_unreachable();
             } break;
           }
+          info.name_ += "_shadow";
           break;
         case MAT_PIPE_VOLUME_OCCUPANCY:
           pipeline_info_name = "eevee_surf_occupancy";
