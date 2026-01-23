@@ -213,21 +213,21 @@ static StructRNA *rna_FModifierType_refine(PointerRNA *ptr)
 
   switch (fcm->type) {
     case FMODIFIER_TYPE_GENERATOR:
-      return &RNA_FModifierGenerator;
+      return RNA_FModifierGenerator;
     case FMODIFIER_TYPE_FN_GENERATOR:
-      return &RNA_FModifierFunctionGenerator;
+      return RNA_FModifierFunctionGenerator;
     case FMODIFIER_TYPE_ENVELOPE:
-      return &RNA_FModifierEnvelope;
+      return RNA_FModifierEnvelope;
     case FMODIFIER_TYPE_CYCLES:
-      return &RNA_FModifierCycles;
+      return RNA_FModifierCycles;
     case FMODIFIER_TYPE_NOISE:
-      return &RNA_FModifierNoise;
+      return RNA_FModifierNoise;
     case FMODIFIER_TYPE_LIMITS:
-      return &RNA_FModifierLimits;
+      return RNA_FModifierLimits;
     case FMODIFIER_TYPE_STEPPED:
-      return &RNA_FModifierStepped;
+      return RNA_FModifierStepped;
     default:
-      return &RNA_UnknownType;
+      return RNA_UnknownType;
   }
 }
 
@@ -598,7 +598,7 @@ static std::optional<std::string> rna_FCurve_path(const PointerRNA *ptr)
         const int fcurve_index = channelbag->fcurves().first_index_try(fcurve);
         if (fcurve_index != -1) {
           PointerRNA channelbag_ptr = RNA_pointer_create_discrete(
-              &action.id, &RNA_ActionChannelbag, channelbag);
+              &action.id, RNA_ActionChannelbag, channelbag);
           const std::optional<std::string> channelbag_path = rna_Channelbag_path(&channelbag_ptr);
           return fmt::format("{}.fcurves[{}]", *channelbag_path, fcurve_index);
         }
@@ -738,9 +738,9 @@ static void rna_tag_animation_update(Main *bmain, ID *id)
 /* allow scripts to update curve after editing manually */
 static void rna_FCurve_update_data_ex(ID *id, FCurve *fcu, Main *bmain)
 {
-  sort_time_fcurve(fcu);
+  sort_time_fcurve(*fcu);
   BKE_fcurve_deduplicate_keys(fcu);
-  BKE_fcurve_handles_recalc(fcu);
+  BKE_fcurve_handles_recalc(*fcu);
 
   rna_tag_animation_update(bmain, id);
 }
@@ -748,7 +748,7 @@ static void rna_FCurve_update_data_ex(ID *id, FCurve *fcu, Main *bmain)
 /* RNA update callback for F-Curves after curve shape changes */
 static void rna_FCurve_update_data(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  BLI_assert(ptr->type == &RNA_FCurve);
+  BLI_assert(ptr->type == RNA_FCurve);
   rna_FCurve_update_data_ex(ptr->owner_id, static_cast<FCurve *>(ptr->data), bmain);
 }
 
@@ -769,7 +769,7 @@ static PointerRNA rna_FCurve_active_modifier_get(PointerRNA *ptr)
 {
   FCurve *fcu = static_cast<FCurve *>(ptr->data);
   FModifier *fcm = find_active_fmodifier(&fcu->modifiers);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_FModifier, fcm);
+  return RNA_pointer_create_with_parent(*ptr, RNA_FModifier, fcm);
 }
 
 static void rna_FCurve_active_modifier_set(PointerRNA *ptr,
@@ -872,7 +872,7 @@ static void rna_FModifier_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr
   FModifier *fcm = static_cast<FModifier *>(ptr->data);
 
   if (fcm->curve && fcm->type == FMODIFIER_TYPE_CYCLES) {
-    BKE_fcurve_handles_recalc(fcm->curve);
+    BKE_fcurve_handles_recalc(*fcm->curve);
   }
 
   rna_tag_animation_update(bmain, id);
@@ -1131,7 +1131,7 @@ static void rna_FKeyframe_points_remove(
   bezt_ptr->invalidate();
 
   if (!do_fast) {
-    BKE_fcurve_handles_recalc(fcu);
+    BKE_fcurve_handles_recalc(*fcu);
   }
 
   rna_tag_animation_update(bmain, id);
@@ -1139,14 +1139,16 @@ static void rna_FKeyframe_points_remove(
 
 static void rna_FKeyframe_points_clear(ID *id, FCurve *fcu, Main *bmain)
 {
-  BKE_fcurve_delete_keys_all(fcu);
+  if (fcu) {
+    BKE_fcurve_delete_keys_all(*fcu);
+  }
 
   rna_tag_animation_update(bmain, id);
 }
 
 static void rna_FKeyframe_points_sort(ID *id, FCurve *fcu, Main *bmain)
 {
-  sort_time_fcurve(fcu);
+  sort_time_fcurve(*fcu);
   rna_tag_animation_update(bmain, id);
 }
 
@@ -1158,7 +1160,7 @@ static void rna_FKeyframe_points_deduplicate(ID *id, FCurve *fcu, Main *bmain)
 
 static void rna_FKeyframe_points_handles_recalc(ID *id, FCurve *fcu, Main *bmain)
 {
-  BKE_fcurve_handles_recalc(fcu);
+  BKE_fcurve_handles_recalc(*fcu);
   rna_tag_animation_update(bmain, id);
 }
 

@@ -351,7 +351,7 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, Image, id_address, &ima->id);
+  writer->write_id_struct(id_address, ima);
   BKE_id_blend_write(writer, &ima->id);
 
   for (ImagePackedFile &imapf : ima->packedfiles) {
@@ -366,11 +366,11 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
   writer->write_struct(ima->stereo3d_format);
 
-  BLO_write_struct_list(writer, ImageTile, &ima->tiles);
+  writer->write_struct_list(&ima->tiles);
 
   ima->packedfile = nullptr;
 
-  BLO_write_struct_list(writer, RenderSlot, &ima->renderslots);
+  writer->write_struct_list(&ima->renderslots);
 }
 
 static void image_blend_read_data(BlendDataReader *reader, ID *id)
@@ -422,39 +422,36 @@ static void image_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
   }
 }
 
-constexpr IDTypeInfo get_type_info()
-{
-  IDTypeInfo info{};
-  info.id_code = ID_IM;
-  info.id_filter = FILTER_ID_IM;
-  info.dependencies_id_types = 0;
-  info.main_listbase_index = INDEX_ID_IM;
-  info.struct_size = sizeof(Image);
-  info.name = "Image";
-  info.name_plural = "images";
-  info.translation_context = BLT_I18NCONTEXT_ID_IMAGE;
-  info.flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE;
-  info.asset_type_info = nullptr;
+IDTypeInfo IDType_ID_IM = {
+    /*id_code*/ Image::id_type,
+    /*id_filter*/ FILTER_ID_IM,
+    /*dependencies_id_types*/ 0,
+    /*main_listbase_index*/ INDEX_ID_IM,
+    /*struct_size*/ sizeof(Image),
+    /*name*/ "Image",
+    /*name_plural*/ "images",
+    /*translation_context*/ BLT_I18NCONTEXT_ID_IMAGE,
+    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    /*asset_type_info*/ nullptr,
 
-  info.init_data = image_init_data;
-  info.copy_data = image_copy_data;
-  info.free_data = image_free_data;
-  info.make_local = nullptr;
-  info.foreach_id = nullptr;
-  info.foreach_cache = image_foreach_cache;
-  info.foreach_path = image_foreach_path;
-  info.owner_pointer_get = nullptr;
+    /*init_data*/ image_init_data,
+    /*copy_data*/ image_copy_data,
+    /*free_data*/ image_free_data,
+    /*make_local*/ nullptr,
+    /*foreach_id*/ nullptr,
+    /*foreach_cache*/ image_foreach_cache,
+    /*foreach_path*/ image_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
+    /*owner_pointer_get*/ nullptr,
 
-  info.blend_write = image_blend_write;
-  info.blend_read_data = image_blend_read_data;
-  info.blend_read_after_liblink = image_blend_read_after_liblink;
+    /*blend_write*/ image_blend_write,
+    /*blend_read_data*/ image_blend_read_data,
+    /*blend_read_after_liblink*/ image_blend_read_after_liblink,
 
-  info.blend_read_undo_preserve = nullptr;
+    /*blend_read_undo_preserve*/ nullptr,
 
-  info.lib_override_apply_post = nullptr;
-  return info;
-}
-IDTypeInfo IDType_ID_IM = get_type_info();
+    /*lib_override_apply_post*/ nullptr,
+};
 
 /* prototypes */
 static int image_num_viewfiles(Image *ima);
