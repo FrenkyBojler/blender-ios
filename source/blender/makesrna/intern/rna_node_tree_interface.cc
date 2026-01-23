@@ -714,7 +714,7 @@ static bNodeTreeInterfaceItem *rna_NodeTreeInterfaceItems_copy_to_parent(
     }
   }
 
-  const bNodeTree &interface_node_tree = *reinterpret_cast<bNodeTree *>(id);
+  const bNodeTree &interface_node_tree = *blender::id_cast<bNodeTree *>(id);
   if (bNodeTreeInterfaceSocket *socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
           item))
   {
