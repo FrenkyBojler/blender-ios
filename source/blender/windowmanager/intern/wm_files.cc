@@ -3869,16 +3869,18 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
                                                    const wmEvent * /*event*/)
 {
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
-  const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
+  const bool show_save_image_dialog = prop ? (!G.background &&
+                                              RNA_property_boolean_get(op->ptr, prop)) :
+                                             false;
 
   const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (!G.background && show_save_image_dialog && modified_images_count > 0) {
+  if (show_save_image_dialog && modified_images_count > 0) {
     RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
                                             "WM_OT_save_as_mainfile",
                                             wm::OpCallContext::InvokeDefault,
-                                            (IDProperty *)user_data,
+                                            static_cast<IDProperty *>(user_data),
                                             nullptr);
     });
     return OPERATOR_INTERFACE;
@@ -3909,16 +3911,18 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   const bool is_incremental = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
   prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
-  const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
+  const bool show_save_image_dialog = prop ? (!G.background &&
+                                              RNA_property_boolean_get(op->ptr, prop)) :
+                                             false;
 
   const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (!G.background && show_save_image_dialog && modified_images_count > 0) {
+  if (show_save_image_dialog && modified_images_count > 0) {
     RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
                                             "WM_OT_save_mainfile",
                                             wm::OpCallContext::ExecDefault,
-                                            (IDProperty *)user_data,
+                                            static_cast<IDProperty *>(user_data),
                                             nullptr);
     });
     return OPERATOR_INTERFACE;
@@ -4127,16 +4131,18 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
   }
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
-  const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
+  const bool show_save_image_dialog = prop ? (!G.background &&
+                                              RNA_property_boolean_get(op->ptr, prop)) :
+                                             false;
 
   const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (!G.background && show_save_image_dialog && modified_images_count > 0) {
+  if (show_save_image_dialog && modified_images_count > 0) {
     RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
                                             "WM_OT_save_mainfile",
                                             wm::OpCallContext::InvokeDefault,
-                                            (IDProperty *)user_data,
+                                            static_cast<IDProperty *>(user_data),
                                             nullptr);
     });
     return OPERATOR_INTERFACE;
