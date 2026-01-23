@@ -135,8 +135,9 @@ class VKResourceStateTracker {
      */
     VKResourceBarrierState barrier_state = {};
 
-    /** For debugging. */
+#ifndef NDEBUG
     std::string name;
+#endif
 
     /**
      * Check if the given resource handle subresources needs to be tracked.
