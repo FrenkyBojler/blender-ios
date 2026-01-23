@@ -630,7 +630,7 @@ static bool data_transfer_layersmapping_cdlayers_multisrc_to_dst(
           /* Create as much data layers as necessary! */
           for (; idx_dst < idx_src; idx_dst++) {
             dst_attributes.add(
-                src_names[idx_dst], domain, attr_type, bke::AttributeInitDefaultValue());
+                src_names[idx_dst], domain, attr_type, bke::AttributeInitDefaultArray());
           }
         }
         else {
@@ -677,7 +677,7 @@ static bool data_transfer_layersmapping_cdlayers_multisrc_to_dst(
         data_dst = dst_attributes.lookup_for_write_span(name);
         if (!std::get<bke::GSpanAttributeWriter>(data_dst)) {
           if (use_create) {
-            dst_attributes.add(name, domain, attr_type, bke::AttributeInitDefaultValue());
+            dst_attributes.add(name, domain, attr_type, bke::AttributeInitDefaultArray());
             data_dst = dst_attributes.lookup_for_write_span(name);
           }
           else {
@@ -806,7 +806,7 @@ static bool data_transfer_layersmapping_cdlayers(Vector<CustomDataTransferLayerM
           return true;
         }
         name_dst = name_src;
-        dst_attributes.add(name_dst, domain, attr_type, bke::AttributeInitDefaultValue());
+        dst_attributes.add(name_dst, domain, attr_type, bke::AttributeInitDefaultArray());
         data_dst = dst_attributes.lookup_for_write_span(name_dst);
       }
       else {
@@ -822,7 +822,7 @@ static bool data_transfer_layersmapping_cdlayers(Vector<CustomDataTransferLayerM
         }
         /* Create as much data layers as necessary! */
         for (; num <= idx_dst; num++) {
-          dst_attributes.add(src_names[num], domain, attr_type, bke::AttributeInitDefaultValue());
+          dst_attributes.add(src_names[num], domain, attr_type, bke::AttributeInitDefaultArray());
         }
       }
 
@@ -837,7 +837,7 @@ static bool data_transfer_layersmapping_cdlayers(Vector<CustomDataTransferLayerM
           return true;
         }
 
-        dst_attributes.add(name, domain, attr_type, bke::AttributeInitDefaultValue());
+        dst_attributes.add(name, domain, attr_type, bke::AttributeInitDefaultArray());
       }
       data_dst = dst_attributes.lookup_for_write_span(name);
     }

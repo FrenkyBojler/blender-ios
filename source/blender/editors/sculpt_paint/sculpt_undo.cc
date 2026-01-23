@@ -2131,7 +2131,7 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
     mesh->attributes_for_write().add(attr_ref->name,
                                      attr_ref->domain,
                                      *bke::custom_data_type_to_attr_type(attr_ref->type),
-                                     bke::AttributeInitDefaultValue());
+                                     bke::AttributeInitDefault());
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
 

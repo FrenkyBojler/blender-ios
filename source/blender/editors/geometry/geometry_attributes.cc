@@ -524,10 +524,8 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
   }
 
   bke::MutableAttributeAccessor attributes = *owner.get_accessor();
-  attributes.add(unique_name,
-                 domain,
-                 *bke::custom_data_type_to_attr_type(type),
-                 bke::AttributeInitDefaultValue());
+  attributes.add(
+      unique_name, domain, *bke::custom_data_type_to_attr_type(type), bke::AttributeInitDefault());
 
   BKE_id_attributes_active_color_set(id, unique_name);
   if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or(""))) {

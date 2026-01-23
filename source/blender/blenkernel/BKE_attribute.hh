@@ -111,10 +111,14 @@ struct AttributeInit {
   enum class Type {
     /** #AttributeInitConstruct. */
     Construct,
-    /** #AttributeInitDefaultValue. */
-    DefaultValue,
+    /** #AttributeInitDefaultArray. */
+    DefaultArray,
+    /** #AttributeInitVArray. */
+    DefaultSingle,
     /** #AttributeInitVArray. */
     VArray,
+    /** #AttributeInitSingle. */
+    Single,
     /** #AttributeInitMoveArray. */
     MoveArray,
     /** #AttributeInitShared. */
@@ -135,8 +139,26 @@ struct AttributeInitConstruct : public AttributeInit {
 /**
  * Create an attribute using the default value for the data type (almost always "zero").
  */
-struct AttributeInitDefaultValue : public AttributeInit {
-  AttributeInitDefaultValue() : AttributeInit(Type::DefaultValue) {}
+struct AttributeInitDefaultArray : public AttributeInit {
+  AttributeInitDefaultArray() : AttributeInit(Type::DefaultArray) {}
+};
+
+/**
+ * Create an attribute using the default value for the data type (almost always "zero"), stored as
+ * a single value.
+ */
+struct AttributeInitDefault : public AttributeInit {
+  AttributeInitDefault() : AttributeInit(Type::DefaultSingle) {}
+};
+
+struct AttributeInitSingle : public AttributeInit {
+  GPointer value;
+
+  template<typename T>
+  AttributeInitSingle(const T &value) : AttributeInit(Type::Single), value(GPointer(&value))
+  {
+  }
+  AttributeInitSingle(const GPointer value) : AttributeInit(Type::Single), value(value) {}
 };
 
 /**
@@ -822,7 +844,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
       StringRef attribute_id,
       AttrDomain domain,
       AttrType data_type,
-      const AttributeInit &initializer = AttributeInitDefaultValue());
+      const AttributeInit &initializer = AttributeInitDefaultArray());
 
   /**
    * Same as above, but returns a type that makes it easier to work with the attribute as a span.
@@ -833,7 +855,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
       StringRef attribute_id,
       AttrDomain domain,
       AttrType data_type,
-      const AttributeInit &initializer = AttributeInitDefaultValue());
+      const AttributeInit &initializer = AttributeInitDefaultArray());
 
   /**
    * Same as above, but should be used when the type is known at compile time.
@@ -842,7 +864,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
   AttributeWriter<T> lookup_or_add_for_write(
       const StringRef attribute_id,
       const AttrDomain domain,
-      const AttributeInit &initializer = AttributeInitDefaultValue())
+      const AttributeInit &initializer = AttributeInitDefaultArray())
   {
     const CPPType &cpp_type = CPPType::get<T>();
     const AttrType data_type = cpp_type_to_attribute_type(cpp_type);
@@ -856,7 +878,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
   SpanAttributeWriter<T> lookup_or_add_for_write_span(
       const StringRef attribute_id,
       const AttrDomain domain,
-      const AttributeInit &initializer = AttributeInitDefaultValue())
+      const AttributeInit &initializer = AttributeInitDefaultArray())
   {
     AttributeWriter<T> attribute = this->lookup_or_add_for_write<T>(
         attribute_id, domain, initializer);

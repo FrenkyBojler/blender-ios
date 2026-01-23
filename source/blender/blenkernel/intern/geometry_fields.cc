@@ -889,6 +889,9 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     const AttributeValidator validator = attributes.lookup_validator(id);
     const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
 
+    if (!field.node().depends_on_input()) {
+    }
+
     /* We are writing to an attribute that exists already with the correct domain and type. */
     if (const GAttributeReader dst = attributes.lookup(id)) {
       if (dst.domain == domain && dst.varray.type() == field.cpp_type()) {
@@ -922,6 +925,9 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   for (const StoreResult &result : results_to_store) {
     const StringRef id = attribute_ids[result.input_index];
     const GVArray &result_data = evaluator.get_evaluated(result.evaluator_index);
+    if (result_data.is_single()) {
+      // TODO: HMM
+    }
     const GAttributeReader dst = attributes.lookup(id);
     if (!attribute_data_matches_varray(dst, result_data)) {
       GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(id);

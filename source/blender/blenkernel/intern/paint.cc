@@ -2732,7 +2732,7 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
   AttributeOwner owner = AttributeOwner::from_id(&orig_me->id);
   const std::string unique_name = BKE_attribute_calc_unique_name(owner, "Color");
   if (!orig_me->attributes_for_write().add(
-          unique_name, AttrDomain::Point, AttrType::ColorFloat, AttributeInitDefaultValue()))
+          unique_name, AttrDomain::Point, AttrType::ColorFloat, AttributeInitDefaultArray()))
   {
     return;
   }
@@ -2814,7 +2814,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
     }
   }
   else {
-    attributes.add<float>(".sculpt_mask", AttrDomain::Point, AttributeInitDefaultValue());
+    attributes.add<float>(".sculpt_mask", AttrDomain::Point, AttributeInitDefaultArray());
   }
 }
 

@@ -56,8 +56,12 @@ GAttributeWriter attribute_to_writer(void *owner,
           std::move(tag_modified_fn)};
     }
     case AttrStorageType::Single: {
-      /* Not yet implemented. */
-      BLI_assert_unreachable();
+      /* Just convert the stored type to an array for modification. It might not make sense to
+       * implement editing of single values at this level. */
+      const auto &data = std::get<Attribute::SingleData>(attribute.data());
+      const GPointer value(cpp_type, data.value);
+      attribute.assign_data(Attribute::ArrayData::from_value(value, domain_size));
+      return attribute_to_writer(owner, changed_tags, domain_size, attribute);
     }
   }
   BLI_assert_unreachable();
@@ -73,20 +77,25 @@ Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
       const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
       return Attribute::ArrayData::from_constructed(type, domain_size);
     }
-    case AttributeInit::Type::DefaultValue: {
+    case AttributeInit::Type::DefaultArray: {
       const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
       return Attribute::ArrayData::from_default_value(type, domain_size);
+    }
+    case AttributeInit::Type::DefaultSingle: {
+      const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
+      return Attribute::SingleData::from_default_value(type);
     }
     case AttributeInit::Type::VArray: {
       const auto &init = static_cast<const AttributeInitVArray &>(initializer);
       const GVArray &varray = init.varray;
       BLI_assert(varray.size() == domain_size);
+      const CommonVArrayInfo &info = varray.common_info();
+      if (info.type == CommonVArrayInfo::Type::Single) {
+        return Attribute::SingleData::from_value(GPointer(varray.type(), info.data));
+      }
       const CPPType &type = varray.type();
-      Attribute::ArrayData data;
-      data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
+      Attribute::ArrayData data = Attribute::ArrayData::from_uninitialized(type, domain_size);
       varray.materialize_to_uninitialized(varray.index_range(), data.data);
-      data.size = domain_size;
-      data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
       return data;
     }
     case AttributeInit::Type::MoveArray: {
@@ -105,6 +114,11 @@ Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
       data.sharing_info = ImplicitSharingPtr<>(init.sharing_info);
       data.sharing_info->add_user();
       return data;
+    }
+    case AttributeInit::Type::Single: {
+      const auto &init = static_cast<const AttributeInitSingle &>(initializer);
+      BLI_assert(init.value.type() == bke::attribute_type_to_cpp_type(data_type));
+      return Attribute::SingleData::from_value(init.value);
     }
   }
   BLI_assert_unreachable();
