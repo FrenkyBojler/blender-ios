@@ -4,3 +4,4 @@ Referenced by issue #153173, Crash on assert in Mirror modifier when applied to 
 Referenced by pull request #153188, Fix #153175: mesh.edges.add() creates attribute of type FLOAT_VECTOR
 Referenced by commit 99a09f47c20b6ada8e00ce05511dc46e57a8d1d1, Fix #153175: mesh.edges.add() creates attribute of type FLOAT_VECTOR
 Referenced by issue #153202, Regression: Modifier: mask - smooth parameter is not working correctly
+Referenced by issue #153286, Koro benchmark renders incorrectly after attribute storage switch
