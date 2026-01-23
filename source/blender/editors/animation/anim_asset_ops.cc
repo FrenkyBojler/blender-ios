@@ -389,22 +389,8 @@ static wmOperatorStatus pose_asset_create_invoke(bContext *C,
 {
   /* If the library isn't saved from the operator's last execution, use the first library. */
   if (!RNA_struct_property_is_set_ex(op->ptr, "asset_library_reference", false)) {
-    std::optional<AssetLibraryReference> dest_library_ref;
-
-    for (const bUserAssetLibrary &asset_library : U.asset_libraries) {
-      if (asset_library.flag & ASSET_LIBRARY_DISABLED) {
-        continue;
-      }
-      dest_library_ref = asset::user_library_to_library_ref(asset_library);
-      break;
-    }
-
-    /* If there's no enabled asset library, just use the first one, even if disabled. */
-    if (!dest_library_ref) {
-      const AssetLibraryReference first_library = asset::user_library_to_library_ref(
-          *static_cast<bUserAssetLibrary *>(U.asset_libraries.first));
-      dest_library_ref = first_library;
-    }
+    std::optional<AssetLibraryReference> dest_library_ref =
+        ed::asset::get_user_library_ref_for_save();
 
     if (!dest_library_ref) {
       BKE_report(op->reports, RPT_WARNING, "No editable asset library to save into");
