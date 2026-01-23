@@ -1246,7 +1246,7 @@ bool context_copy_to_selected_list(bContext *C,
     *r_lb = lb;
     *r_path = path;
   }
-  else if (RNA_struct_is_a(ptr->type, &RNA_NodeTreeInterfaceItem)) {
+  else if (RNA_struct_is_a(ptr->type, RNA_NodeTreeInterfaceItem)) {
     bNodeTree *ntree = id_cast<bNodeTree *>(ptr->owner_id);
     bNodeTreeInterfaceItem *active_item = static_cast<bNodeTreeInterfaceItem *>(ptr->data);
     if (active_item == nullptr) {
@@ -1255,13 +1255,13 @@ bool context_copy_to_selected_list(bContext *C,
 
     const char *prop_id = RNA_property_identifier(prop);
     const bool is_generic_prop = STR_ELEM(prop_id,
-                                                 "socket_type",
-                                                 "description",
-                                                 "optional_label",
-                                                 "hide_value",
-                                                 "hide_in_modifier",
-                                                 "structure_type",
-                                                 "attribute_domain");
+                                          "socket_type",
+                                          "description",
+                                          "optional_label",
+                                          "hide_value",
+                                          "hide_in_modifier",
+                                          "structure_type",
+                                          "attribute_domain");
     const char *active_socket_type = nullptr;
     if (!is_generic_prop && active_item->item_type == NODE_INTERFACE_SOCKET) {
       active_socket_type = reinterpret_cast<bNodeTreeInterfaceSocket *>(active_item)->socket_type;
@@ -1288,7 +1288,7 @@ bool context_copy_to_selected_list(bContext *C,
       }
 
       if (is_valid) {
-        r_lb->append(RNA_pointer_create_discrete(&ntree->id, &RNA_NodeTreeInterfaceItem, &item));
+        r_lb->append(RNA_pointer_create_discrete(&ntree->id, RNA_NodeTreeInterfaceItem, &item));
       }
       return true;
     });
