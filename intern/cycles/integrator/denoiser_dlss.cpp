@@ -128,7 +128,7 @@ struct NGXDriver {
 
 CCL_NAMESPACE_BEGIN
 
-static const int ApplicationId = 231313132;
+static const int ApplicationId = 100334311;
 
 void DLSSDenoiser::CUDATexture::init(Device *device, int width, int height, int num_components)
 {
