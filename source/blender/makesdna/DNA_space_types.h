@@ -820,6 +820,7 @@ typedef struct SpaceCaptions {
   ListBaseT<CaptionsStripRef> current_strips = {nullptr, nullptr};
   struct Scene *seq_scene = nullptr;
   struct SeqTimelineChannel *active_channel = nullptr;
+  struct CaptionsStripRef *style_leader_strip = nullptr;
   char cache_dirty = 0;
   char _pad2[7];
 

@@ -19,6 +19,9 @@
 #include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 #include "BLI_listbase_iterator.hh"
+#include "BLI_math_color.h"
+#include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 
 #include "BKE_screen.hh"
 
@@ -35,12 +38,107 @@
 #include "SEQ_channels.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_select.hh"
+#include "SEQ_relations.hh"
 
 #include "ED_screen.hh"
 #include "BLO_read_write.hh"
 
 namespace blender {
 
+// Todo: Maybe those helper methods should go captions_edit.cc or a new captions.cc?
+CaptionsStripRef *style_leader_ref_ensure(SpaceCaptions *scaptions) {
+  /* Check if current leader is still valid */
+  bool leader_valid = false;
+  if (scaptions->style_leader_strip != nullptr) {
+    for (CaptionsStripRef &ref : scaptions->current_strips) {
+      if (&ref == scaptions->style_leader_strip && ref.strip != nullptr) {
+        leader_valid = true;
+        break;
+      }
+    }
+  }
+  
+  if (!leader_valid) {
+    /* Search for new leader */
+    scaptions->style_leader_strip = nullptr;
+    for (CaptionsStripRef &ref : scaptions->current_strips) {
+      if (ref.strip != nullptr) {
+        scaptions->style_leader_strip = &ref;
+        break;
+      }
+    }
+  }
+  
+  return scaptions->style_leader_strip;
+}
+
+Strip *style_leader_strip_ensure(SpaceCaptions *scaptions) {
+  CaptionsStripRef *ref = style_leader_ref_ensure(scaptions);
+  if(ref == nullptr /*|| ref->strip == nullptr*/) {
+    return nullptr;
+  }
+  return ref->strip;
+}
+
+static void update_strips_style(SpaceCaptions *scaptions, Scene *scene)
+{
+  if(scene != nullptr) {
+    scaptions->seq_scene = scene;
+  }
+  
+  Strip *leader_strip = style_leader_strip_ensure(scaptions);
+  if(leader_strip == nullptr) {
+    return;
+  }
+  
+  TextVars *leader_vers = (TextVars *)leader_strip->effectdata;
+  if(leader_vers == nullptr) {
+    return;
+  }
+
+  for (CaptionsStripRef &ref : scaptions->current_strips) {
+    Strip *strip = ref.strip;
+    TextVars *vers = (TextVars *)strip->effectdata;
+    if(vers == nullptr) {
+      continue;
+    }
+
+    if(vers != leader_vers) {
+      /* Font and size */
+      vers->text_font = leader_vers->text_font;
+      vers->text_size = leader_vers->text_size;
+      
+      /* Colors */
+      copy_v4_v4(vers->color, leader_vers->color);
+      copy_v4_v4(vers->shadow_color, leader_vers->shadow_color);
+      copy_v4_v4(vers->outline_color, leader_vers->outline_color);
+      copy_v4_v4(vers->box_color, leader_vers->box_color);
+      
+      /* Shadow */
+      vers->shadow_angle = leader_vers->shadow_angle;
+      vers->shadow_offset = leader_vers->shadow_offset;
+      vers->shadow_blur = leader_vers->shadow_blur;
+      
+      /* Outline */
+      vers->outline_width = leader_vers->outline_width;
+      
+      copy_v3_v3(vers->loc, leader_vers->loc);
+      vers->wrap_width = leader_vers->wrap_width;
+      vers->box_margin = leader_vers->box_margin;
+      vers->box_roundness = leader_vers->box_roundness;
+      
+      vers->align = leader_vers->align;
+      vers->anchor_x = leader_vers->anchor_x;
+      vers->anchor_y = leader_vers->anchor_y;
+      
+      /* All style flags */
+      vers->flag = leader_vers->flag;
+
+      seq::relations_invalidate_cache_raw(scaptions->seq_scene, strip);
+    }
+  }
+}
+  
 static void update_active_channel(Scene *scene, SpaceCaptions *scaptions){
   Editing *ed = blender::seq::editing_get(scene);
   if (ed != nullptr) {
@@ -70,8 +168,9 @@ static void free_strip_refs(SpaceCaptions *scaptions)
   for (CaptionsStripRef &ref : scaptions->current_strips.items_mutable()) {
     MEM_freeN(&ref);
   }
-  
   BLI_listbase_clear(refs);
+
+    scaptions->style_leader_strip = nullptr;
 }
 
 /* Can be used without scene and scaptions, just for redraw without update */
@@ -117,9 +216,11 @@ void update_current_strips(Scene *scene, SpaceCaptions *scaptions)
     scaptions->current_strips = build_strip_refs(&ed->seqbase, scaptions);
     
     scaptions->seq_scene = scene;
-    scaptions->cache_dirty = false;
+    scaptions->cache_dirty =  false;
 
     BLI_listbase_sort(&scaptions->current_strips, compare_strips_start);
+
+    update_strips_style(scaptions, nullptr);
   }
 }
 
@@ -206,7 +307,7 @@ static int /*eContextResult*/ captions_context(const bContext *C,
 /* add handlers, stuff you only do once or on area/region changes */
 static void captions_main_region_init(wmWindowManager *wm, ARegion *region)
 {
-  region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
+region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
 
   ED_region_panels_init(wm, region);
 }
@@ -265,6 +366,9 @@ static void captions_main_region_listener(const wmRegionListenerParams *params)
                       if(active_strip->type == STRIP_TYPE_TEXT) {
                         scaptions->cache_dirty = true;
                       }
+                      if(wmn->action == NA_ADDED) {
+                        update_strips_style(scaptions, scene);
+                      }
                     } else {
                       /* If edited, it means a strip could move out of active_channel and has to update */
                       if(wmn->action == NA_EDITED) {
@@ -273,6 +377,7 @@ static void captions_main_region_listener(const wmRegionListenerParams *params)
                     }
                   } else {
                     if(wmn->action == NA_REMOVED) {
+                      style_leader_ref_ensure(scaptions);
                       scaptions->cache_dirty = true;
                     }
                   }
@@ -285,6 +390,20 @@ static void captions_main_region_listener(const wmRegionListenerParams *params)
             }
           }
           break;
+      }
+      break;
+    case NC_SPACE:
+      if (wmn->data == ND_SPACE_CAPTIONS) {
+        switch (wmn->action) {
+          case NA_EDITED: {
+            SpaceCaptions *scaptions = (SpaceCaptions *)area->spacedata.first;
+            update_strips_style(scaptions, nullptr);
+            break;
+          }
+          default:
+            tag_redraw(region, nullptr, nullptr);
+            break;
+        }
       }
       break;
     default:

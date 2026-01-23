@@ -15,11 +15,14 @@ namespace blender {
     
   struct Strip;
   
-  void update_current_strips(struct Scene *scene, struct SpaceCaptions *scaptions);
-  
   typedef struct CaptionsStripRef {
     struct CaptionsStripRef *next, *prev;
-    Strip *strip;
+    Strip *strip = nullptr;
+    char use_custom_style = 0;
   } CaptionsStripRef;
+
+  // TODO: Those methods should be placed in a proper header, here just for quick testing
+  void update_current_strips(struct Scene *scene, struct SpaceCaptions *scaptions);
+  Strip *style_leader_strip_ensure(struct SpaceCaptions *scaptions);
   
 }  // namespace blender

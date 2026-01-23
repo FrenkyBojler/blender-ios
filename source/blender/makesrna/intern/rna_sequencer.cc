@@ -10,6 +10,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_captions_types.h"
 
 #include "BLI_math_rotation.h"
 #include "BLI_string_utf8_symbols.h"
@@ -240,6 +241,38 @@ static void rna_Strip_mute_update(bContext *C, PointerRNA *ptr)
 {
   ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
   rna_Strip_invalidate_raw_update(nullptr, nullptr, ptr);
+}
+
+static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
+{
+  ScrArea *area = CTX_wm_area(C);
+  if(area == nullptr) {
+    return;
+  }
+
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Strip *strip = static_cast<Strip *>(ptr->data);
+
+  if(scene->ed && strip){
+    printf("INVALIDTE!");
+    seq::relations_invalidate_cache_raw(scene, strip);
+  }
+
+  /* Check whether should update caption strips */
+  if(area->spacetype == SPACE_CAPTIONS) {
+    SpaceCaptions *scaptions = (SpaceCaptions *)area->spacedata.first;
+
+    Strip *leader_strip = style_leader_strip_ensure(scaptions);
+    if(leader_strip == nullptr) {
+      return;
+    }
+    if(leader_strip == strip) {
+      printf("NOTIFY!");
+      WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CAPTIONS | NA_EDITED, scene);
+    }
+  } else {
+    // TODO: Choose another strip to lead, this one is on custom style
+  }
 }
 
 static void UNUSED_FUNCTION(rna_Strip_invalidate_composite_update)(Main * /*bmain*/,
@@ -3556,159 +3589,182 @@ static void rna_def_text(StructRNA *srna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  PropertyRNA *prop;
+    PropertyRNA *prop;
 
-  RNA_def_struct_sdna_from(srna, "TextVars", "effectdata");
+    RNA_def_struct_sdna_from(srna, "TextVars", "effectdata");
 
-  prop = RNA_def_property(srna, "font", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "text_font");
-  RNA_def_property_ui_icon(prop, ICON_FILE_FONT, false);
-  RNA_def_property_ui_text(
-      prop, "Font", "Font of the text. Falls back to the UI font by default.");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_pointer_funcs(prop, nullptr, "rna_Strip_text_font_set", nullptr, nullptr);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "font", PROP_POINTER, PROP_NONE);
+    RNA_def_property_pointer_sdna(prop, nullptr, "text_font");
+    RNA_def_property_ui_icon(prop, ICON_FILE_FONT, false);
+    RNA_def_property_ui_text(
+        prop, "Font", "Font of the text. Falls back to the UI font by default.");
+    RNA_def_property_flag(prop, PROP_EDITABLE);
+    RNA_def_property_pointer_funcs(prop, nullptr, "rna_Strip_text_font_set", nullptr, nullptr);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "font_size", PROP_FLOAT, PROP_UNSIGNED);
-  RNA_def_property_float_sdna(prop, nullptr, "text_size");
-  RNA_def_property_ui_text(prop, "Size", "Size of the text");
-  RNA_def_property_range(prop, 0.0, 2000);
-  RNA_def_property_ui_range(prop, 0.0f, 2000, 10.0f, 1);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "font_size", PROP_FLOAT, PROP_UNSIGNED);
+    RNA_def_property_float_sdna(prop, nullptr, "text_size");
+    RNA_def_property_ui_text(prop, "Size", "Size of the text");
+    RNA_def_property_range(prop, 0.0, 2000);
+    RNA_def_property_ui_range(prop, 0.0f, 2000, 10.0f, 1);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "color");
-  RNA_def_property_ui_text(prop, "Color", "Text color");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
+    RNA_def_property_float_sdna(prop, nullptr, "color");
+    RNA_def_property_ui_text(prop, "Color", "Text color");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "shadow_color", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "shadow_color");
-  RNA_def_property_ui_text(prop, "Shadow Color", "");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "shadow_color", PROP_FLOAT, PROP_COLOR_GAMMA);
+    RNA_def_property_float_sdna(prop, nullptr, "shadow_color");
+    RNA_def_property_ui_text(prop, "Shadow Color", "");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "shadow_angle", PROP_FLOAT, PROP_ANGLE);
-  RNA_def_property_float_sdna(prop, nullptr, "shadow_angle");
-  RNA_def_property_range(prop, 0, M_PI * 2);
-  RNA_def_property_ui_text(prop, "Shadow Angle", "");
-  RNA_def_property_float_default(prop, DEG2RADF(65.0f));
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "shadow_angle", PROP_FLOAT, PROP_ANGLE);
+    RNA_def_property_float_sdna(prop, nullptr, "shadow_angle");
+    RNA_def_property_range(prop, 0, M_PI * 2);
+    RNA_def_property_ui_text(prop, "Shadow Angle", "");
+    RNA_def_property_float_default(prop, DEG2RADF(65.0f));
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "shadow_offset", PROP_FLOAT, PROP_UNSIGNED);
-  RNA_def_property_float_sdna(prop, nullptr, "shadow_offset");
-  RNA_def_property_ui_text(prop, "Shadow Offset", "");
-  RNA_def_property_float_default(prop, 0.04f);
-  RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1.0f, 2);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "shadow_offset", PROP_FLOAT, PROP_UNSIGNED);
+    RNA_def_property_float_sdna(prop, nullptr, "shadow_offset");
+    RNA_def_property_ui_text(prop, "Shadow Offset", "");
+    RNA_def_property_float_default(prop, 0.04f);
+    RNA_def_property_range(prop, 0.0f, 1.0f);
+    RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1.0f, 2);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "shadow_blur", PROP_FLOAT, PROP_UNSIGNED);
-  RNA_def_property_float_sdna(prop, nullptr, "shadow_blur");
-  RNA_def_property_ui_text(prop, "Shadow Blur", "");
-  RNA_def_property_float_default(prop, 0.0f);
-  RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1.0f, 2);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "shadow_blur", PROP_FLOAT, PROP_UNSIGNED);
+    RNA_def_property_float_sdna(prop, nullptr, "shadow_blur");
+    RNA_def_property_ui_text(prop, "Shadow Blur", "");
+    RNA_def_property_float_default(prop, 0.0f);
+    RNA_def_property_range(prop, 0.0f, 1.0f);
+    RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1.0f, 2);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "outline_color", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "outline_color");
-  RNA_def_property_ui_text(prop, "Outline Color", "");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "outline_color", PROP_FLOAT, PROP_COLOR_GAMMA);
+    RNA_def_property_float_sdna(prop, nullptr, "outline_color");
+    RNA_def_property_ui_text(prop, "Outline Color", "");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "outline_width", PROP_FLOAT, PROP_UNSIGNED);
-  RNA_def_property_float_sdna(prop, nullptr, "outline_width");
-  RNA_def_property_ui_text(prop, "Outline Width", "");
-  RNA_def_property_float_default(prop, 0.05f);
-  RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1.0f, 2);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "outline_width", PROP_FLOAT, PROP_UNSIGNED);
+    RNA_def_property_float_sdna(prop, nullptr, "outline_width");
+    RNA_def_property_ui_text(prop, "Outline Width", "");
+    RNA_def_property_float_default(prop, 0.05f);
+    RNA_def_property_range(prop, 0.0f, 1.0f);
+    RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1.0f, 2);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "box_color", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "box_color");
-  RNA_def_property_ui_text(prop, "Box Color", "");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "box_color", PROP_FLOAT, PROP_COLOR_GAMMA);
+    RNA_def_property_float_sdna(prop, nullptr, "box_color");
+    RNA_def_property_ui_text(prop, "Box Color", "");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);
-  RNA_def_property_float_sdna(prop, nullptr, "loc");
-  RNA_def_property_ui_text(prop, "Location", "Location of the text");
-  RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
-  RNA_def_property_ui_range(prop, -10.0, 10.0, 1, -1);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);
+    RNA_def_property_float_sdna(prop, nullptr, "loc");
+    RNA_def_property_ui_text(prop, "Location", "Location of the text");
+    RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+    RNA_def_property_ui_range(prop, -10.0, 10.0, 1, -1);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "wrap_width", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "wrap_width");
-  RNA_def_property_ui_text(prop, "Wrap Width", "Word wrap width as factor, zero disables");
-  RNA_def_property_range(prop, 0, FLT_MAX);
-  RNA_def_property_ui_range(prop, 0.0, 1.0, 1, -1);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "wrap_width", PROP_FLOAT, PROP_NONE);
+    RNA_def_property_float_sdna(prop, nullptr, "wrap_width");
+    RNA_def_property_ui_text(prop, "Wrap Width", "Word wrap width as factor, zero disables");
+    RNA_def_property_range(prop, 0, FLT_MAX);
+    RNA_def_property_ui_range(prop, 0.0, 1.0, 1, -1);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "box_margin", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "box_margin");
-  RNA_def_property_ui_text(prop, "Box Margin", "Box margin as factor of image width");
-  RNA_def_property_range(prop, 0, 1.0);
-  RNA_def_property_ui_range(prop, 0.0, 1.0, 1, -1);
-  RNA_def_property_float_default(prop, 0.01f);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "box_margin", PROP_FLOAT, PROP_NONE);
+    RNA_def_property_float_sdna(prop, nullptr, "box_margin");
+    RNA_def_property_ui_text(prop, "Box Margin", "Box margin as factor of image width");
+    RNA_def_property_range(prop, 0, 1.0);
+    RNA_def_property_ui_range(prop, 0.0, 1.0, 1, -1);
+    RNA_def_property_float_default(prop, 0.01f);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "box_roundness", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "box_roundness");
-  RNA_def_property_ui_text(prop, "Box Roundness", "Box corner radius as a factor of box height");
-  RNA_def_property_range(prop, 0, 1.0);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "box_roundness", PROP_FLOAT, PROP_NONE);
+    RNA_def_property_float_sdna(prop, nullptr, "box_roundness");
+    RNA_def_property_ui_text(prop, "Box Roundness", "Box corner radius as a factor of box height");
+    RNA_def_property_range(prop, 0, 1.0);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "alignment_x", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "align");
-  RNA_def_property_enum_items(prop, text_alignment_x_items);
-  RNA_def_property_ui_text(prop, "Align X", "Horizontal text alignment");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "alignment_x", PROP_ENUM, PROP_NONE);
+    RNA_def_property_enum_sdna(prop, nullptr, "align");
+    RNA_def_property_enum_items(prop, text_alignment_x_items);
+    RNA_def_property_ui_text(prop, "Align X", "Horizontal text alignment");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "anchor_x", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "anchor_x");
-  RNA_def_property_enum_items(prop, text_anchor_x_items);
-  RNA_def_property_ui_text(
-      prop, "Anchor X", "Horizontal position of the text box relative to Location");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "anchor_x", PROP_ENUM, PROP_NONE);
+    RNA_def_property_enum_sdna(prop, nullptr, "anchor_x");
+    RNA_def_property_enum_items(prop, text_anchor_x_items);
+    RNA_def_property_ui_text(
+        prop, "Anchor X", "Horizontal position of the text box relative to Location");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "anchor_y", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "anchor_y");
-  RNA_def_property_enum_items(prop, text_anchor_y_items);
-  RNA_def_property_ui_text(
-      prop, "Anchor Y", "Vertical position of the text box relative to Location");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "anchor_y", PROP_ENUM, PROP_NONE);
+    RNA_def_property_enum_sdna(prop, nullptr, "anchor_y");
+    RNA_def_property_enum_items(prop, text_anchor_y_items);
+    RNA_def_property_ui_text(
+        prop, "Anchor Y", "Vertical position of the text box relative to Location");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "text", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "text_ptr");
-  RNA_def_property_string_funcs(
-      prop, "rna_Strip_text_get", "rna_Strip_text_length", "rna_Strip_text_set");
-  RNA_def_property_ui_text(prop, "Text", "Text that will be displayed");
-  RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "text", PROP_STRING, PROP_NONE);
+    RNA_def_property_string_sdna(prop, nullptr, "text_ptr");
+    RNA_def_property_string_funcs(
+        prop, "rna_Strip_text_get", "rna_Strip_text_length", "rna_Strip_text_set");
+    RNA_def_property_ui_text(prop, "Text", "Text that will be displayed");
+    RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "use_shadow", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_SHADOW);
-  RNA_def_property_ui_text(prop, "Shadow", "Display shadow behind text");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "use_shadow", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_SHADOW);
+    RNA_def_property_ui_text(prop, "Shadow", "Display shadow behind text");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "use_outline", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_OUTLINE);
-  RNA_def_property_ui_text(prop, "Outline", "Display outline around text");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "use_outline", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_OUTLINE);
+    RNA_def_property_ui_text(prop, "Outline", "Display outline around text");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "use_box", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_BOX);
-  RNA_def_property_ui_text(prop, "Box", "Display colored box behind text");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SEQUENCE);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "use_box", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_BOX);
+    RNA_def_property_ui_text(prop, "Box", "Display colored box behind text");
+    RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SEQUENCE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "use_bold", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_BOLD);
-  RNA_def_property_ui_text(prop, "Bold", "Display text as bold");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+    prop = RNA_def_property(srna, "use_bold", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_BOLD);
+    RNA_def_property_ui_text(prop, "Bold", "Display text as bold");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
 
-  prop = RNA_def_property(srna, "use_italic", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_ITALIC);
-  RNA_def_property_ui_text(prop, "Italic", "Display text as italic");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-}
+    prop = RNA_def_property(srna, "use_italic", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_ITALIC);
+    RNA_def_property_ui_text(prop, "Italic", "Display text as italic");
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
+  }
 
 static void rna_def_color_mix(StructRNA *srna)
 {

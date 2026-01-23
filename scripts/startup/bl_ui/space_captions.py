@@ -26,12 +26,54 @@ class CAPTIONS_PT_style(bpy.types.Panel):
     bl_space_type = 'CAPTIONS_EDITOR'
     bl_region_type = 'WINDOW'
     bl_parent_id = "CAPTIONS_PT_main"
+    #bl_options = {'HIDE_HEADER'}
     bl_order = 0
     
     def draw(self, context):
         # TODO: Add style options for captions here
+        space = context.space_data
+        strips = space.current_strips
+        if len(strips) <= 0:
+            return
+        
+        leader_strip = space.style_leader_strip
+        if(leader_strip is None):
+            return
+        
         layout = self.layout
-        layout.label(text="Style Options")
+         
+        from bpy.types import (
+            STRIP_PT_effect_text_style,
+            STRIP_PT_effect_text_outline,
+            STRIP_PT_effect_text_shadow,
+            STRIP_PT_effect_text_box,
+            STRIP_PT_effect_text_layout
+        )
+        
+        STRIP_PT_effect_text_style.draw_effect_text_style(leader_strip, layout)
+        
+        header, body = layout.panel("outline", default_closed=True)
+        header.label(text="Outline")
+        header.prop(leader_strip, "use_outline", text="")
+        if body:
+            STRIP_PT_effect_text_outline.draw_effect_text_outline(leader_strip, body)
+        
+        header, body = layout.panel("shadow", default_closed=True)
+        header.label(text="Shadow")
+        header.prop(leader_strip, "use_shadow", text="")
+        if body:
+            STRIP_PT_effect_text_shadow.draw_effect_text_shadow(leader_strip, body)
+        
+        header, body = layout.panel("box", default_closed=True)
+        header.label(text="Box")
+        header.prop(leader_strip, "use_box", text="")
+        if body:
+            STRIP_PT_effect_text_box.draw_effect_text_box(leader_strip, body)  
+           
+        header, body = layout.panel("layout", default_closed=True)
+        header.label(text="Layout")
+        if body:
+            STRIP_PT_effect_text_layout.draw_effect_text_layout(leader_strip, body)
         
 class CAPTIONS_PT_list(bpy.types.Panel):
     bl_idname = "CAPTIONS_PT_list"

@@ -64,6 +64,7 @@ namespace blender {
         memset(&load_data, 0, sizeof(load_data));
         Scene *scene = CTX_data_sequencer_scene(C);
         SpaceCaptions *scaptions = CTX_wm_space_captions(C);
+
         int start_frame = scene->r.cfra;
         int channel = scaptions->active_channel->index;
 
@@ -72,40 +73,16 @@ namespace blender {
         load_data.channel = channel;
         load_data.effect.type = STRIP_TYPE_TEXT;
 
-        load_data.effect.length = 1; /* Will be changed after calculating space */
-
-        Editing *ed = seq::editing_ensure(scene);
-        Strip *strip = seq::add_effect_strip(scene, &ed->seqbase, &load_data);
-
         int length = 100; // TODO: change to DEFAULT_IMG_STRIP_LENGTH 
         if (RNA_struct_find_property(op->ptr, "length")) {
             length = RNA_int_get(op->ptr, "length");
         }
-
-        /* Get extend */
-        int next_strip_start = start_frame + length;
-        for (CaptionsStripRef &ref : scaptions->current_strips) {
-            Strip *strip = ref.strip;
-
-            /* Only check strips on the same channel */
-            if (strip->channel != channel) {
-                continue;
-            }
-
-            float other_start = strip->left_handle();
-            if (other_start >= start_frame && other_start < next_strip_start) {
-                next_strip_start = other_start;
-            }
-        }
-
-        length = next_strip_start - start_frame;
-
-
-
         length = get_extend_right(start_frame, channel, &scaptions->current_strips, length);
 
         load_data.effect.length = length;
-        strip->len = length;
+
+        Editing *ed = seq::editing_ensure(scene);
+        Strip *strip = seq::add_effect_strip(scene, &ed->seqbase, &load_data);
 
         DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
 
