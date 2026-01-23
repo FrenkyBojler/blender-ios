@@ -115,8 +115,18 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
         texture_name_str.c_str(), extent.x, extent.y, 1, compatible_format, usage_flag, nullptr));
   }
 
-  /* On acquire, invalidate the backing GLTexture, avoiding explicit synchronization. */
-  unwrap(texture_handle.texture_allocation)->invalidate();
+  /* On acquire, issue barriers; backing texture or view may still be in flight somewhere. */
+  GPUBarrier barrier = {};
+  if (usage & GPU_TEXTURE_USAGE_SHADER_READ) {
+    barrier |= (GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+  }
+  if (usage & GPU_TEXTURE_USAGE_SHADER_WRITE) {
+    barrier |= GPU_BARRIER_SHADER_IMAGE_ACCESS;
+  }
+  if (usage & GPU_TEXTURE_USAGE_ATTACHMENT) {
+    barrier |= GPU_BARRIER_FRAMEBUFFER;
+  }
+  GPU_memory_barrier(barrier);
 
   /* Debug label attached to view texture object. */
   std::string view_name_str;

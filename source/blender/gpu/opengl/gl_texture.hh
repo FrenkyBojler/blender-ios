@@ -84,11 +84,6 @@ class GLTexture : public Texture {
   void mip_range_set(int min, int max) override;
   void *read(int mip, eGPUDataFormat type) override;
 
-  /**
-   * After this, the contents of a level of the texture will have undefined values.
-   */
-  void invalidate(int level = 0);
-
   void check_feedback_loop();
 
   /**
