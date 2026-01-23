@@ -2031,6 +2031,9 @@ struct GeometryNodesLazyFunctionBuilder {
         case NODE_CLOSURE_OUTPUT:
           this->build_closure_zone_function(zone);
           break;
+        case NODE_FOREACH_BUNDLE_OUTPUT:
+          this->build_foreach_bundle_zone_function(zone);
+          break;
         default: {
           BLI_assert_unreachable();
           break;
@@ -2219,6 +2222,11 @@ struct GeometryNodesLazyFunctionBuilder {
     auto &zone_fn = build_closure_zone_lazy_function(
         scope_, btree_, zone, zone_info, body_fn, lf_graph_info_);
     zone_info.lazy_function = &zone_fn;
+  }
+
+  void build_foreach_bundle_zone_function(const bNodeTreeZone &zone)
+  {
+    /* TODO */
   }
 
   /**
@@ -4186,6 +4194,8 @@ ensure_geometry_nodes_lazy_function_graph_impl(const bNodeTree &btree)
 {
   btree.ensure_topology_cache();
   btree.ensure_interface_cache();
+
+  return nullptr;
 
   if (btree.has_available_link_cycle()) {
     return nullptr;

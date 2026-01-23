@@ -112,7 +112,7 @@ class ClosureZoneType : public bke::bNodeZoneType {
     this->output_idname = "NodeClosureOutput";
     this->input_type = NODE_CLOSURE_INPUT;
     this->output_type = NODE_CLOSURE_OUTPUT;
-    this->theme_id = TH_NODE_ZONE_CLOSURE;
+    this->theme_id = TH_NODE_ZONE_FOREACH_GEOMETRY_ELEMENT;
   }
 
   const int &get_corresponding_output_id(const bNode &input_bnode) const override
@@ -122,16 +122,36 @@ class ClosureZoneType : public bke::bNodeZoneType {
   }
 };
 
+class ForeachBundleZoneType : public bke::bNodeZoneType {
+ public:
+  ForeachBundleZoneType()
+  {
+    this->input_idname = "NodeForeachBundleInput";
+    this->output_idname = "NodeForeachBundleOutput";
+    this->input_type = NODE_FOREACH_BUNDLE_INPUT;
+    this->output_type = NODE_FOREACH_BUNDLE_OUTPUT;
+    this->theme_id = TH_NODE_ZONE_FOREACH_GEOMETRY_ELEMENT;
+  }
+
+  const int &get_corresponding_output_id(const bNode &input_bnode) const override
+  {
+    BLI_assert(input_bnode.type_legacy == this->input_type);
+    return static_cast<NodeForeachBundleInput *>(input_bnode.storage)->output_node_id;
+  }
+};
+
 static void register_zone_types()
 {
   static SimulationZoneType simulation_zone_type;
   static RepeatZoneType repeat_zone_type;
   static ForeachGeometryElementZoneType foreach_geometry_element_zone_type;
   static ClosureZoneType closure_zone_type;
+  static ForeachBundleZoneType foreach_bundle_zone_type;
   bke::register_node_zone_type(simulation_zone_type);
   bke::register_node_zone_type(repeat_zone_type);
   bke::register_node_zone_type(foreach_geometry_element_zone_type);
   bke::register_node_zone_type(closure_zone_type);
+  bke::register_node_zone_type(foreach_bundle_zone_type);
 }
 
 void register_nodes()

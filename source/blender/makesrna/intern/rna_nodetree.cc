@@ -7148,6 +7148,13 @@ static void def_closure_input(BlenderRNA *brna, StructRNA *srna)
   def_common_zone_input(brna, srna);
 }
 
+static void def_foreach_bundle_input(BlenderRNA *brna, StructRNA *srna)
+{
+  RNA_def_struct_sdna_from(srna, "NodeForeachBundleInput", "storage");
+
+  def_common_zone_input(brna, srna);
+}
+
 static void rna_def_geo_simulation_state_item(BlenderRNA *brna)
 {
   PropertyRNA *prop;
@@ -9738,6 +9745,8 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeJoinBundle");
   define("NodeInternal", "NodeSeparateBundle", def_separate_bundle);
   define("NodeInternal", "NodeStoreBundleItem");
+  define("NodeInternal", "NodeForeachBundleInput", def_foreach_bundle_input);
+  define("NodeInternal", "NodeForeachBundleOutput");
 
   define("ShaderNode", "ShaderNodeAddShader");
   define("ShaderNode", "ShaderNodeAmbientOcclusion", def_sh_ambient_occlusion);

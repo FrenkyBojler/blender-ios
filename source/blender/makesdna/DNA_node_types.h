@@ -3882,4 +3882,17 @@ struct NodeStoreBundleItem {
   char _pad = {};
 };
 
+struct NodeForeachBundleInput {
+  DNA_DEFINE_CXX_METHODS(NodeForeachBundleInput)
+
+  /** bNode.identifier of the corresponding output node. */
+  int32_t output_node_id = 0;
+};
+
+struct NodeForeachBundleOutput {
+  DNA_DEFINE_CXX_METHODS(NodeForeachBundleOutput)
+
+  char _pad = {};
+};
+
 }  // namespace blender
