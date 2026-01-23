@@ -536,19 +536,31 @@ void interpolate_cubic_mitchell_fl(
  * 2-pass sample filtering.
  ***************************************************************************/
 
-/* large filters just do this many samples somewhat evenly spaced */
-static const int MAX_PER_RADIUS = 8;
-static const int MAX_SAMPLES = 4 * MAX_PER_RADIUS + 1;
+// some macros so code can work with float4 or __m128
+// I got a speed increase of about 17% from this
+#if BLI_HAVE_SSE2
+#define F4 __m128
+#define F4C(c) _mm_set1_ps(c)
+#define F4P(p) _mm_loadu_ps(p)
+#define F4ADD(a,b) _mm_add_ps(a,b)
+#define F4MULC(a,c) _mm_mul_ps(a, _mm_set1_ps(c))
+#define F4V(a) *(float4*)(&a)
+#else
+#define F4 float4
+#define F4C(c) float4(c)
+#define F4P(p) *(float4*)(p)
+#define F4ADD(a,b) (a)+(b)
+#define F4MULC(a,c) (a)*(c)
+#define F4V(a) a
+#endif
 
-template<Sampler sampler>
-BLI_INLINE float weight(float x);
+// Some missing math functions
+BLI_INLINE float2 max(const float2& f, float v) { return {max(f.x, v), max(f.y, v)}; }
+BLI_INLINE float2 ceil(const float2& f) { return {ceilf(f.x), ceilf(f.y)}; }
+BLI_INLINE float2 floor(const float2& f) { return {floorf(f.x), floorf(f.y)}; }
 
-template<>
-float weight<Sampler::Bspline>(float x)
-{
-  return x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
-    ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
-}
+// Offset from start of row and weight. Names are xy to match BSL code
+struct Fentry {int32_t x; float y;};
 
 /* Same as wrap_coord but Border is treated as Extend */
 BLI_INLINE int32_t wrap_coord_noclip(float u, int32_t size, InterpWrapMode wrap)
@@ -574,109 +586,45 @@ BLI_INLINE int32_t wrap_coord_noclip(float u, int32_t size, InterpWrapMode wrap)
   }
 }
 
-/* Compute 1-d filters and wrapped sample locations. */
-template<Sampler sampler>
-BLI_INLINE int make_samples(int width,
-                            InterpWrapMode wrap,
-                            float u,
-                            float w,
-                            int positions[MAX_SAMPLES],
-                            float weights[MAX_SAMPLES])
-{
-  if (!(w >= 1.0f)) {
-    w = 1.0f;
-  }
-  float r = 2.0f * w; /* this is correct for cubic filters */
-  float d = ceilf(w / MAX_PER_RADIUS);
-  float v = floorf(u - r + 0.5f) + 0.5f; /* first non-zero pixel */
-  int count = 0;
-  float sum = 0.0f;
-  for (float x = v - u; x < r; x += d) {
-    float wt = weight<sampler>(math::abs(x / w));
-    sum += wt;
-    positions[count] = wrap_coord_noclip(u + x, width, wrap);
-    weights[count] = wt;
-    count++;
-  }
-  float m = 1.0f / sum;
-  for (int i = 0; i < count; ++i) {
-    weights[i] *= m;
-  }
-  return count;
-}
+template <enum Sampler sampler>
+BLI_INLINE float weight(float x);
 
-/* Box is computed differently, it needs x & w, not x/w */
-template<>
-int make_samples<Sampler::Box>(int width,
-                               InterpWrapMode wrap,
-                               float u,
-                               float w,
-                               int positions[MAX_SAMPLES],
-                               float weights[MAX_SAMPLES])
-{
-  float r = (w > 1.0f) ? (w + 1.0f) / 2.0f : 1.0f;
-  float d = ceilf(w / MAX_PER_RADIUS);
-  float v = floorf(u - r + 0.5f) + 0.5f; /* first non-zero pixel */
-  int count = 0;
-  float sum = 0.0f;
-  for (float x = v - u; x < r; x += d) {
-    float wt = math::min(r - math::abs(x), 1.0f);
-    sum += wt;
-    positions[count] = wrap_coord_noclip(u + x, width, wrap);
-    weights[count] = wt;
-    count++;
-  }
-  float m = 1.0f / sum;
-  for (int i = 0; i < count; ++i) {
-    weights[i] *= m;
-  }
-  return count;
-}
-
-// some macros so code can work with float4 or __m128
-// I got a speed increase of about 17% from this
-#if BLI_HAVE_SSE2
-#define F4 __m128
-#define F4C(c) _mm_set1_ps(c)
-#define F4P(p) _mm_loadu_ps(p)
-#define F4ADD(a,b) _mm_add_ps(a,b)
-#define F4MULC(a,c) _mm_mul_ps(a, _mm_set1_ps(c))
-#define F4V(a) *(float4*)(&a)
-#else
-#define F4 float4
-#define F4C(c) float4(c)
-#define F4P(p) *(float4*)(p)
-#define F4ADD(a,b) (a)+(b)
-#define F4MULC(a,c) (a)*(c)
-#define F4V(a) a
-#endif
-
+/* Sample orthogonal rectangle of size wh centered on uv.
+ * Generic version works for any cubic filter (todo: fix for filters with negative weights)
+ */
 template<Sampler sampler>
 static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
-  int positions_y[MAX_SAMPLES];
-  float weights_y[MAX_SAMPLES];
-  const int ny = make_samples<sampler>(
-      source.height, source.wrap_y, uv.y, wh.y, positions_y, weights_y);
-
-  int positions_x[MAX_SAMPLES];
-  float weights_x[MAX_SAMPLES];
-  const int nx = make_samples<sampler>(
-      source.width, source.wrap_x, uv.x, wh.x, positions_x, weights_x);
-
-  F4 sum = F4C(0.0f);
-  for (int i = 0; i < ny; i++) {
-    F4 sumx = F4C(0.0f);
-    const float *p = source.row(positions_y[i]);
-    for (int j = 0; j < nx; j++) {
-      sumx = F4ADD(sumx, F4MULC(F4P(p + positions_x[j] * source.step), weights_x[j]));
-    }
-    sum = F4ADD(sum, F4MULC(sumx, weights_y[i]));
+  const float2 w1 = max(wh, 1.0f);
+  const float2 r = 2 * w1;
+  const float2 a = (floor(uv - r + 0.5f) + 0.5f); // first non-zero sample
+  const float2 d = ceil(r / 16.0f); // distance between samples
+  // precompute the horizontal filter so it can be reused
+  Fentry xfilter[33];
+  float divx = 0.0f;
+  int nx = 0;
+  for (float x = a.x - uv.x; x < r.x; x += d.x) {
+    float wt = weight<sampler>(abs(x / w1.x));
+    xfilter[nx++] = {wrap_coord_noclip(x + uv.x, source.width, source.wrap_x) * source.step, wt};
+    divx += wt;
   }
+  F4 sum = F4C(0.0f);
+  float div = 0.0f;
+  for (float y = a.y - uv.y; y < r.y; y += d.y) {
+    const float *p = source.row(wrap_coord_noclip(y + uv.y, source.height, source.wrap_y));
+    float wt = weight<sampler>(abs(y / w1.y));
+    F4 sumx = F4C(0.0f);
+    for (int j = 0; j < nx; j++) {
+      sumx = F4ADD(sumx, F4MULC(F4P(p + xfilter[j].x), xfilter[j].y));
+    }
+    sum = F4ADD(sum, F4MULC(sumx, wt));
+    div += wt;
+  }
+  sum = F4MULC(sum, 1.0f / (div * divx));
   return F4V(sum);
 }
 
-/* nearest sampling does the clipping, so there is no _clip version */
+/* specialized as wh is ignored and it reads exactly one pixel */
 template<>
 float4 _sample_rect<Sampler::Nearest>(const SamplerSource &source,
                                       const float2 &uv,
@@ -690,6 +638,7 @@ float4 _sample_rect<Sampler::Nearest>(const SamplerSource &source,
   return *(float4 *)(source.row(y) + x * source.step);
 }
 
+/* specialized as wh is ignored and it reads exactly four pixels */
 template<>
 float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
                                        const float2 &uv,
@@ -722,11 +671,55 @@ float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
   return F4V(sum);
 }
 
+/* specialized as r is smaller and weight function needs to know size of a pixel */
+template<>
+float4 _sample_rect<Sampler::Box>(const SamplerSource &source,
+                                  const float2 &uv,
+                                  const float2 &wh)
+{
+  const float2 r = max((wh + 1.0f) / 2.0f, 1.0f);
+  const float2 a = floor(uv - r + 0.5f) + 0.5f; // first non-zero sample
+  const float2 d = ceil(r / 8.0f); // distance between samples
+  // precompute the horizontal filter so it can be reused
+  Fentry xfilter[33];
+  float divx = 0.0f;
+  int nx = 0;
+  for (float x = a.x - uv.x; x < r.x; x += d.x) {
+    float wt = min(r.x - abs(x), 1.0f);
+    xfilter[nx++] = {wrap_coord_noclip(x + uv.x, source.width, source.wrap_x) * source.step, wt};
+    divx += wt;
+  }
+  F4 sum = F4C(0.0f);
+  float div = 0.0f;
+  for (float y = a.y - uv.y; y < r.y; y += d.y) {
+    const float *p = source.row(wrap_coord_noclip(y + uv.y, source.height, source.wrap_y));
+    float wt = min(r.y - abs(y), 1.0f);
+    F4 sumx = F4C(0.0f);
+    for (int j = 0; j < nx; j++) {
+      sumx = F4ADD(sumx, F4MULC(F4P(p + xfilter[j].x), xfilter[j].y));
+    }
+    sum = F4ADD(sum, F4MULC(sumx, wt));
+    div += wt;
+  }
+  sum = F4MULC(sum, 1.0f / (div * divx));
+  return F4V(sum);
+}
+
+template<>
+float weight<Sampler::Bspline>(float x)
+{
+  return x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
+    ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
+}
+
+/* Compute "sharp" black border. The source should be set to extend.
+ * clip&1 indicates horizontal clipping, clip&2 indicates vertical.
+ */
 template<Sampler sampler>
 static float4 _sample_rect_clip(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
   /* compute intersection of wh with image border */
-  float m = 1;
+  float m = 1.0f;
   if (source.wrap_x == InterpWrapMode::Border) {
     float v = math::min(uv.x, float(source.width) - uv.x) / wh.x + 0.5f;
     if (v <= 0.0f) return float4(0.0f);
@@ -740,6 +733,9 @@ static float4 _sample_rect_clip(const SamplerSource &source, const float2 &uv, c
   return _sample_rect<sampler>(source, uv, wh) * m;
 }
 
+/* Return the function to call to sample the given source. This checks the filter
+ * and whether clipping is needed.
+ */
 SampleRect sample_rect(const SamplerSource &source)
 {
   BLI_assert(source.components == 4);
