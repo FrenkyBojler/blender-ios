@@ -70,7 +70,8 @@ GAttributeWriter attribute_to_writer(void *owner,
 
 Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
                                               const int64_t domain_size,
-                                              const AttributeInit &initializer)
+                                              const AttributeInit &initializer,
+                                              const bool create_array_data)
 {
   switch (initializer.type) {
     case AttributeInit::Type::Construct: {

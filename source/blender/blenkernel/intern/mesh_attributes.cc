@@ -738,6 +738,12 @@ static const auto &changed_tags()
   return attributes;
 }
 
+static const auto &array_storage_required()
+{
+  static Set<StringRef> attributes{"position", ".edge_verts", ".corner_vert", ".corner_edge"};
+  return attributes;
+}
+
 static int get_domain_size(const void *owner, const AttrDomain domain)
 {
   const Mesh *mesh = static_cast<const Mesh *>(owner);
