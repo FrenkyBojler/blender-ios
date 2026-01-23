@@ -16,6 +16,9 @@ SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 packed_float3 g_emission;
 packed_float3 g_transmittance;
 float g_holdout;
+#ifdef MAT_REFRACTION_AS_TRANSPARENCY
+packed_float3 g_refraction_transmittance;
+#endif
 
 packed_float3 g_volume_scattering;
 float g_volume_anisotropy;
@@ -140,6 +143,9 @@ void closure_weights_reset(float closure_rand)
 
   g_emission = float3(0.0f);
   g_transmittance = float3(0.0f);
+#ifdef MAT_REFRACTION_AS_TRANSPARENCY
+  g_refraction_transmittance = float3(0.0f);
+#endif
   g_volume_scattering = float3(0.0f);
   g_volume_absorption = float3(0.0f);
   g_holdout = 0.0f;

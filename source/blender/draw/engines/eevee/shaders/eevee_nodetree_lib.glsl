@@ -116,9 +116,9 @@ Closure closure_eval(ClosureReflection reflection)
 Closure closure_eval(ClosureRefraction refraction)
 {
 #ifdef MAT_REFRACTION_AS_TRANSPARENCY
-  g_transmittance += refraction.color * refraction.weight;
+  g_refraction_transmittance += refraction.color * refraction.weight;
   return Closure(0);
-#endif
+#else
   ClosureUndetermined cl;
   closure_base_copy(cl, refraction);
   cl.data.r = refraction.roughness;
@@ -126,6 +126,7 @@ Closure closure_eval(ClosureRefraction refraction)
   /* Transmission Closures are always in first bin. */
   closure_select(g_closure_bins[0], g_closure_rand[0], cl);
   return Closure(0);
+#endif
 }
 
 Closure closure_eval(ClosureEmission emission)

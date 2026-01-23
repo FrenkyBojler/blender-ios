@@ -73,8 +73,9 @@ void main()
 #ifdef MAT_REFRACTION_AS_TRANSPARENCY
   if (g_thickness > 0.0f) {
     /* Simulate 2 refraction event. */
-    g_transmittance *= g_transmittance;
+    g_refraction_transmittance *= g_refraction_transmittance;
   }
+  g_transmittance += g_refraction_transmittance;
 #endif
 
   float3 radiance, transmittance;

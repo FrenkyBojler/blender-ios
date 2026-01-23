@@ -54,10 +54,20 @@ void main()
     discard_result;
   }
 
-#ifdef MAT_TRANSPARENT
+#if defined(MAT_TRANSPARENT) || defined(MAT_REFRACTION_AS_TRANSPARENCY)
   init_globals();
 
   nodetree_surface(0.0f);
+
+#  ifdef MAT_REFRACTION_AS_TRANSPARENCY
+  float thickness = nodetree_thickness() * thickness_mode;
+
+  if (thickness > 0.0f) {
+    /* Simulate 2 refraction event. */
+    g_refraction_transmittance *= g_refraction_transmittance;
+  }
+  g_transmittance += g_refraction_transmittance;
+#  endif
 
   float noise_offset = sampling_rng_1D_get(SAMPLING_TRANSPARENCY);
   float random_threshold = pcg4d(float4(g_data.P, noise_offset)).x;
