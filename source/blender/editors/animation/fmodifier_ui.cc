@@ -869,17 +869,16 @@ static void panel_register_stepped(ARegionType *region_type,
 
 static void smooth_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = fmodifier_get_pointers(C, panel, nullptr);
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  col = &layout->column(false);
-  col->prop(ptr, "sigma", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "filter_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &col = layout.column(false);
+  col.prop(ptr, "sigma", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "filter_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   fmodifier_influence_draw(layout, ptr);
 }
