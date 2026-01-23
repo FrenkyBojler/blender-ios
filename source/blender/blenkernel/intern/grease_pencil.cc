@@ -297,7 +297,7 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   CustomData_reset(&grease_pencil->layers_data_legacy);
 
   /* Write LibData */
-  BLO_write_id_struct(writer, GreasePencil, id_address, &grease_pencil->id);
+  writer->write_id_struct(id_address, grease_pencil);
   BKE_id_blend_write(writer, &grease_pencil->id);
 
   grease_pencil->attribute_storage.wrap().blend_write(*writer, attribute_data);
@@ -3806,9 +3806,9 @@ static void reorder_attribute_domain(bke::AttributeStorage &data,
                                      const bke::AttrDomain domain,
                                      const Span<int> new_by_old_map)
 {
-  data.foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : data) {
     if (attr.domain() != domain) {
-      return;
+      continue;
     }
     const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
@@ -3819,12 +3819,13 @@ static void reorder_attribute_domain(bke::AttributeStorage &data,
                                     new_by_old_map,
                                     GMutableSpan(type, new_data.data, new_data.size));
         attr.assign_data(std::move(new_data));
+        break;
       }
       case bke::AttrStorageType::Single: {
-        return;
+        break;
       }
     }
-  });
+  }
 }
 
 static void reorder_layer_data(GreasePencil &grease_pencil,
@@ -4137,7 +4138,7 @@ static void shrink_attribute_storage(bke::AttributeStorage &storage,
   const IndexRange range_before(index_to_remove);
   const IndexRange range_after(index_to_remove + 1, size - index_to_remove - 1);
 
-  storage.foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : storage) {
     const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
       case bke::AttrStorageType::Array: {
@@ -4150,12 +4151,13 @@ static void shrink_attribute_storage(bke::AttributeStorage &storage,
                               range_after.size());
 
         attr.assign_data(std::move(new_data));
+        break;
       }
       case bke::AttrStorageType::Single: {
-        return;
+        break;
       }
     }
-  });
+  }
 }
 
 static void update_active_node_from_node_to_remove(GreasePencil &grease_pencil,
@@ -4347,7 +4349,7 @@ static void write_drawing_array(GreasePencil &grease_pencil,
         BLO_write_shared_tag(writer, curves.curve_offsets);
         BLO_write_shared_tag(writer, curves.custom_knots);
 
-        BLO_write_struct_at_address(writer, GreasePencilDrawing, drawing_base, &drawing_copy);
+        writer->write_struct_at_address_cast<GreasePencilDrawing>(drawing_base, &drawing_copy);
         curves.blend_write(*writer, grease_pencil.id, write_data);
         break;
       }
@@ -4452,10 +4454,9 @@ static void write_layer(BlendWriter *writer, GreasePencilLayer *node)
   BLO_write_string(writer, node->viewlayername);
 
   BLO_write_int32_array(writer, node->frames_storage.num, node->frames_storage.keys);
-  BLO_write_struct_array(
-      writer, GreasePencilFrame, node->frames_storage.num, node->frames_storage.values);
+  writer->write_struct_array(node->frames_storage.num, node->frames_storage.values);
 
-  BLO_write_struct_list(writer, GreasePencilLayerMask, &node->masks);
+  writer->write_struct_list(&node->masks);
   for (GreasePencilLayerMask &mask : node->masks) {
     BLO_write_string(writer, mask.layer_name);
   }
