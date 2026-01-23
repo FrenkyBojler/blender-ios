@@ -474,6 +474,11 @@ void *GLTexture::read(int mip, eGPUDataFormat type)
   return data;
 }
 
+void GLTexture::invalidate(int level)
+{
+  glInvalidateTexImage(tex_id_, level);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

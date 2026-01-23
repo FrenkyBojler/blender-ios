@@ -33,18 +33,26 @@ static TextureFormat get_compatible_texture_format(TextureFormat format)
     return format;
   }
 
+  /* Workaround: glTextureView on Intel HD and newer Intel Arc mobile is flaky, and
+   * output of glGetString does not differentiate a Arc 140V from e.g. a B750. */
+  if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY) ||
+      GPU_type_matches(GPU_DEVICE_INTEL_UHD, GPU_OS_ANY, GPU_DRIVER_ANY))
+  {
+    return format;
+  }
+
   /* Given expected byte size, we use a default format available as TextureWriteFormat,
    * TextureTargetFormat. On some platforms (Intel), a non-framebuffer-supporting
    * underlying format breaks framebuffer attachments. */
   switch (to_bytesize(format)) {
     case 16:
-      return TextureFormat::UINT_32_32_32_32;
+      return TextureFormat::SFLOAT_32_32_32_32;
     case 8:
-      return TextureFormat::UINT_32_32;
+      return TextureFormat::SFLOAT_32_32;
     case 4:
-      return TextureFormat::UINT_32;
+      return TextureFormat::SFLOAT_32;
     case 2:
-      return TextureFormat::UINT_16;
+      return TextureFormat::SFLOAT_16;
     case 1:
       return TextureFormat::UINT_8;
     default:
@@ -106,6 +114,9 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
     texture_handle.texture_allocation = unwrap(GPU_texture_create_2d(
         texture_name_str.c_str(), extent.x, extent.y, 1, compatible_format, usage_flag, nullptr));
   }
+
+  /* On acquire, invalidate the backing GLTexture, avoiding explicit synchronization. */
+  unwrap(texture_handle.texture_allocation)->invalidate();
 
   /* Debug label attached to view texture object. */
   std::string view_name_str;
