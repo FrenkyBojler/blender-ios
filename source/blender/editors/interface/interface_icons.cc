@@ -2069,6 +2069,8 @@ int icon_from_idcode(const int idcode)
       return ICON_NODETREE;
     case ID_OB:
       return ICON_OBJECT_DATA;
+    case ID_OV:
+      return ICON_NONE;
     case ID_PA:
       return ICON_PARTICLE_DATA;
     case ID_PAL:

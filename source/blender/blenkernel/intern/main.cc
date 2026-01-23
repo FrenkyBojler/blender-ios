@@ -165,6 +165,7 @@ void BKE_main_clear(Main &bmain)
         CASE_ID_INDEX(INDEX_ID_SCR);
         CASE_ID_INDEX(INDEX_ID_WS);
         CASE_ID_INDEX(INDEX_ID_WM);
+        CASE_ID_INDEX(INDEX_ID_OV);
         case INDEX_ID_NULL: {
           BLI_assert_unreachable();
           break;
@@ -1062,6 +1063,8 @@ ListBaseT<ID> *which_libbase(Main *bmain, short type)
       return &(bmain->pointclouds.cast<ID>());
     case ID_VO:
       return &(bmain->volumes.cast<ID>());
+    case ID_OV:
+      return &(bmain->dynoverrides.cast<ID>());
   }
   return nullptr;
 }
@@ -1128,6 +1131,7 @@ MainListsArray BKE_main_lists_get(Main &bmain)
   lb[INDEX_ID_WS] = &(bmain.workspaces.cast<ID>());
   lb[INDEX_ID_WM] = &(bmain.wm.cast<ID>());
   lb[INDEX_ID_MSK] = &(bmain.masks.cast<ID>());
+  lb[INDEX_ID_OV] = &(bmain.dynoverrides.cast<ID>());
 
   return lb;
 }

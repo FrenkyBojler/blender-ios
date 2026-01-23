@@ -898,6 +898,8 @@ static StringRef template_id_browse_tip(const StructRNA *type)
         return N_("Browse Volume Data to be linked");
       case ID_GP:
         return N_("Browse Grease Pencil Data to be linked");
+      case ID_OV:
+        return N_("Browse Dynamic Override to be linked");
 
         /* Use generic text. */
       case ID_LI:

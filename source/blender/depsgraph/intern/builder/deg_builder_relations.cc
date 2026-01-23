@@ -590,6 +590,9 @@ void DepsgraphRelationBuilder::build_id(ID *id)
     case ID_VF:
       build_vfont((VFont *)id);
       break;
+    case ID_OV:
+      /* TODO */
+      break;
 
     case ID_LI:
     case ID_SCR:

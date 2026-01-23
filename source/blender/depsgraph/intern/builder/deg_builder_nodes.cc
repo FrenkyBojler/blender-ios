@@ -656,6 +656,9 @@ void DepsgraphNodeBuilder::build_id(ID *id, const bool force_be_visible)
     case ID_VF:
       build_vfont((VFont *)id);
       break;
+    case ID_OV:
+      /* TODO */
+      break;
 
     case ID_LI:
     case ID_SCR:

@@ -549,6 +549,8 @@ StructRNA *ID_code_to_RNA_type(short idcode)
       return RNA_NodeTree;
     case ID_OB:
       return RNA_Object;
+    case ID_OV:
+      return RNA_ID;
     case ID_PA:
       return RNA_ParticleSettings;
     case ID_PAL:

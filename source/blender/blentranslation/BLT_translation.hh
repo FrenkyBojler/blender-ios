@@ -114,6 +114,7 @@ StringRef BLT_translate_do_new_dataname(StringRef msgctxt, StringRef msgid);
 #define BLT_I18NCONTEXT_ID_COLLECTION "Collection"
 #define BLT_I18NCONTEXT_ID_CURVES "Curves"
 #define BLT_I18NCONTEXT_ID_CURVE_LEGACY "Curve"
+#define BLT_I18NCONTEXT_ID_DYNAMIC_OVERRIDE "DynamicOverride"
 #define BLT_I18NCONTEXT_ID_FREESTYLELINESTYLE "FreestyleLineStyle"
 #define BLT_I18NCONTEXT_ID_GPENCIL "GPencil"
 #define BLT_I18NCONTEXT_ID_ID "ID"
@@ -191,6 +192,7 @@ struct BLT_i18n_contexts_descriptor {
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_COLLECTION, "id_collection"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_CURVES, "id_curves"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_CURVE_LEGACY, "id_curve"), \
+        BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_DYNAMIC_OVERRIDE, "id_dynamic_override"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_FREESTYLELINESTYLE, "id_fs_linestyle"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_GPENCIL, "id_gpencil"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_ID_ID, "id_id"), \
