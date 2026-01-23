@@ -718,7 +718,11 @@ static bNodeTreeInterfaceItem *rna_NodeTreeInterfaceItems_copy_to_parent(
   if (bNodeTreeInterfaceSocket *socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
           item))
   {
-    if (!is_socket_type_supported(interface_node_tree.typeinfo, socket->socket_typeinfo())) {
+    blender::bke::bNodeTreeType *ntreetype = interface_node_tree.typeinfo;
+    /* Check if the node tree supports the socket type. */
+    if (ntreetype->valid_socket_type &&
+        !ntreetype->valid_socket_type(ntreetype, socket->socket_typeinfo()))
+    {
       BKE_report(reports,
                  RPT_ERROR_INVALID_INPUT,
                  "Item to be copied to this interface is of an unsupported socket type");
