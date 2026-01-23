@@ -1337,7 +1337,12 @@ static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
   bool has_vertex_displacement = GPU_material_has_displacement_output(mat) &&
                                  displacement_type != eMaterialDisplacement::MAT_DISPLACEMENT_BUMP;
   bool has_transparency = GPU_material_flag_get(mat, GPU_MATFLAG_TRANSPARENT);
-  bool has_shadow_transparency = has_transparency && transparent_shadows;
+  has_transparency |= refraction_as_transparency &&
+                      GPU_material_flag_get(mat, GPU_MATFLAG_REFRACT);
+  /* Shadow are also transparent if refraction is enabled. */
+  bool has_transparency_shadow = GPU_material_flag_get(
+      mat, GPU_MATFLAG_TRANSPARENT | GPU_MATFLAG_REFRACT);
+  bool has_shadow_transparency = has_transparency_shadow && transparent_shadows;
   bool has_raytraced_transmission = blender_mat && (blender_mat->blend_flag & MA_BL_SS_REFRACTION);
 
   bool default_shadow = is_shadow_pass && !has_vertex_displacement && !has_shadow_transparency;
