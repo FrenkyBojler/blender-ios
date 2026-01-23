@@ -75,6 +75,8 @@
 /* Only for #UI_OT_editsource. */
 #include "ED_screen.hh"
 
+#include "NOD_socket.hh"
+
 namespace blender {
 
 extern void PyC_FileAndNum_Safe(const char **r_filename, int *r_lineno);
@@ -1249,22 +1251,16 @@ bool context_copy_to_selected_list(bContext *C,
   else if (RNA_struct_is_a(ptr->type, RNA_NodeTreeInterfaceItem)) {
     bNodeTree *ntree = id_cast<bNodeTree *>(ptr->owner_id);
     bNodeTreeInterfaceItem *active_item = static_cast<bNodeTreeInterfaceItem *>(ptr->data);
-    if (active_item == nullptr) {
+    if (!active_item) {
       return false;
     }
 
     const char *prop_id = RNA_property_identifier(prop);
-    const bool is_generic_prop = STR_ELEM(prop_id,
-                                          "socket_type",
-                                          "description",
-                                          "optional_label",
-                                          "hide_value",
-                                          "hide_in_modifier",
-                                          "structure_type",
-                                          "attribute_domain");
-    const char *active_socket_type = nullptr;
+    const bool is_generic_prop = STR_ELEM(
+        prop_id, "socket_type", "description", "optional_label", "hide_value", "hide_in_modifier");
+    bNodeTreeInterfaceSocket *active_sock = nullptr;
     if (!is_generic_prop && active_item->item_type == NODE_INTERFACE_SOCKET) {
-      active_socket_type = reinterpret_cast<bNodeTreeInterfaceSocket *>(active_item)->socket_type;
+      active_sock = reinterpret_cast<bNodeTreeInterfaceSocket *>(active_item);
     }
     ntree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
       if (active_item->item_type != item.item_type) {
@@ -1272,11 +1268,17 @@ bool context_copy_to_selected_list(bContext *C,
       }
       bool is_valid = false;
       switch (eNodeTreeInterfaceItemType(item.item_type)) {
-        // todo toggle should not change type
         case NODE_INTERFACE_SOCKET: {
           bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-          if (socket.flag & NODE_INTERFACE_SOCKET_SELECT) {
-            is_valid = is_generic_prop ? true : STREQ(socket.socket_type, active_socket_type);
+          if (!socket.flag & NODE_INTERFACE_SOCKET_SELECT) {
+            break;
+          }
+          if (active_sock->flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) {
+            is_valid = socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE;
+          }
+          else {
+            is_valid = is_generic_prop ? true :
+                                         STREQ(socket.socket_type, active_sock->socket_type);
           }
           break;
         }
