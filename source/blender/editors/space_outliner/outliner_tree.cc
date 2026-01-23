@@ -619,7 +619,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
 
       /* Just sort alphabetically (but keep bone collections last when inside armature data). */
       if (tear->idcode == 1) {
-        int skip_back = has_armature_data_bone_collections ? 1 : 0;
+        const int skip_back = has_armature_data_bone_collections ? 1 : 0;
         qsort(tear, totelem - skip_back, sizeof(tTreeSort), treesort_alpha);
       }
       else {
