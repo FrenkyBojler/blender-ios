@@ -706,7 +706,7 @@ static int rna_GreasePencilLayerGroup_children_length(PointerRNA *ptr)
     return 0;
   }
 
-  return node->as_group().num_nodes_total();
+  return node->as_group().num_direct_nodes();
 }
 
 static bool rna_GreasePencilLayerGroup_children_lookup_int(PointerRNA *ptr,
@@ -763,10 +763,6 @@ static int rna_iterator_grease_pencil_layer_groups_length(PointerRNA *ptr)
   return grease_pencil->layer_groups().size();
 }
 
-struct GreasePencilRootNodesIterator {
-  GreasePencilLayerTreeNode const *current;
-};
-
 static void rna_iterator_grease_pencil_root_nodes_begin(CollectionPropertyIterator *iter,
                                                         PointerRNA *ptr)
 {
@@ -779,57 +775,31 @@ static void rna_iterator_grease_pencil_root_nodes_begin(CollectionPropertyIterat
     return;
   }
 
-  auto *state = MEM_new<GreasePencilRootNodesIterator>(__func__);
-  state->current = nodes.first();
+  const TreeNode *first = nodes.first();
 
-  iter->internal.custom = state;
-  iter->valid = (state->current != nullptr);
+  iter->internal.custom = (void *)nodes.first();
+  iter->valid = (first != nullptr);
 }
 
 static void rna_iterator_grease_pencil_root_nodes_next(CollectionPropertyIterator *iter)
 {
-  auto *state = static_cast<GreasePencilRootNodesIterator *>(iter->internal.custom);
-  state->current = state->current->next;
-  iter->valid = (state->current != nullptr);
+  auto *current = static_cast<bke::greasepencil::TreeNode *>(iter->internal.custom);
+  iter->internal.custom = current->next;
+  iter->valid = (current != nullptr);
 }
 
 static PointerRNA rna_iterator_grease_pencil_root_nodes_get(CollectionPropertyIterator *iter)
 {
-  auto *state = static_cast<GreasePencilRootNodesIterator *>(iter->internal.custom);
+  auto *current = static_cast<bke::greasepencil::TreeNode *>(iter->internal.custom);
   return RNA_pointer_create_discrete(
-      nullptr,
-      &RNA_GreasePencilTreeNode,
-      const_cast<void *>(static_cast<const void *>(state->current)));
-}
-
-static void rna_iterator_grease_pencil_root_nodes_end(CollectionPropertyIterator *iter)
-{
-  if (iter->internal.custom) {
-    MEM_delete(static_cast<GreasePencilRootNodesIterator *>(iter->internal.custom));
-  }
+      nullptr, &RNA_GreasePencilTreeNode, const_cast<void *>(static_cast<const void *>(current)));
 }
 
 static int rna_iterator_grease_pencil_root_nodes_length(PointerRNA *ptr)
 {
   using namespace blender::bke::greasepencil;
   GreasePencil *grease_pencil = rna_grease_pencil(ptr);
-  const Span<const TreeNode *> nodes = grease_pencil->nodes();
-
-  if (nodes.is_empty()) {
-    return 0;
-  }
-
-  GreasePencilLayerTreeNode const *node = static_cast<GreasePencilLayerTreeNode const *>(
-      nodes.first());
-
-  int count = 0;
-
-  while (node) {
-    count++;
-    node = node->next;
-  }
-
-  return count;
+  return grease_pencil->root_group().num_direct_nodes();
 }
 
 static int rna_group_color_tag_get(PointerRNA *ptr)
@@ -1644,7 +1614,7 @@ static void rna_def_grease_pencil_data(BlenderRNA *brna)
   RNA_def_property_collection_funcs(prop,
                                     "rna_iterator_grease_pencil_root_nodes_begin",
                                     "rna_iterator_grease_pencil_root_nodes_next",
-                                    "rna_iterator_grease_pencil_root_nodes_end",
+                                    nullptr,
                                     "rna_iterator_grease_pencil_root_nodes_get",
                                     "rna_iterator_grease_pencil_root_nodes_length",
                                     nullptr,
