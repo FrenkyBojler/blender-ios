@@ -8068,9 +8068,9 @@ static void rna_def_raytrace_eevee(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "rt_scale", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_ui_text(
-      prop, "Global Raytracing Contribution Scalar", "Intensity of Raytracing");
-  RNA_def_property_range(prop, 1e-6f, FLT_MAX);
-  RNA_def_property_ui_range(prop, 0.001f, 10.0f, 1, 3);
+      prop, "Ray Tracing Contribution", "Scale the contribution of ray-traced lighting");
+  RNA_def_property_range(prop, 0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 3.0f, 1, 3);
   RNA_def_property_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
