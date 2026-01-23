@@ -566,7 +566,7 @@ struct PieMenuData {
   float pie_center_init[2] = {};
   float pie_center_spawned[2] = {};
   float last_pos[2] = {};
-  double duration_gesture = 0.0f;
+  double duration_gesture = 0.0;
   int flags = 0;
   /** Initial event used to fire the pie menu, store here so we can query for release */
   short event_type = 0;
@@ -681,7 +681,7 @@ struct Block {
   /** Copied to #Button.emboss */
   EmbossType emboss = EmbossType::Emboss;
   bool auto_open = false;
-  double auto_open_last = 0.0f;
+  double auto_open_last = 0.0;
 
   const char *lockstr = nullptr;
 
