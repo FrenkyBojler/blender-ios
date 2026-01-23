@@ -12004,7 +12004,7 @@ void popup_menu_retval_set(const Block *block, const int retval, const bool enab
 
 struct AutoOpenRNAButtonData {
   PointerRNA ptr;
-  std::string property;
+  PropertyRNA *prop;
   int attemps = 0;
 };
 
@@ -12017,7 +12017,7 @@ static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/
   if (event->type == TIMER && region->runtime->auto_open_rna_button_timer == event->customdata) {
     AutoOpenRNAButtonData *data = static_cast<AutoOpenRNAButtonData *>(
         region->runtime->auto_open_rna_button_timer->customdata);
-    textbutton_try_activate_over_redraws(C, region, data->ptr, data->property);
+    textbutton_try_activate_over_redraws(C, region, data->ptr, data->prop);
     return WM_UI_HANDLER_BREAK;
   }
   if (region == nullptr || BLI_listbase_is_empty(&region->runtime->uiblocks)) {
@@ -12471,10 +12471,10 @@ bool textbutton_activate_rna(const bContext *C,
 
 bool textbutton_try_activate_over_redraws(bContext *C,
                                           ARegion *region,
-                                          PointerRNA ptr,
-                                          StringRef property)
+                                          PointerRNA &ptr,
+                                          PropertyRNA *prop)
 {
-  if (try_activate_rna_button(C, region, BUTTON_STATE_TEXT_EDITING, &ptr, property)) {
+  if (try_activate_rna_button(C, region, BUTTON_STATE_TEXT_EDITING, &ptr, prop)) {
     WM_event_timer_remove(
         CTX_wm_manager(C), CTX_wm_window(C), region->runtime->auto_open_rna_button_timer);
     region->runtime->auto_open_rna_button_timer = nullptr;
@@ -12490,7 +12490,7 @@ bool textbutton_try_activate_over_redraws(bContext *C,
     wmTimer *timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01);
     AutoOpenRNAButtonData *data = MEM_new<AutoOpenRNAButtonData>(__func__);
     data->ptr = ptr;
-    data->property = property;
+    data->prop = prop;
     timer->customdata = data;
     timer->customdata_free = [](const void *ptr) {
       MEM_delete(static_cast<const AutoOpenRNAButtonData *>(ptr));
@@ -12712,14 +12712,23 @@ std::optional<int2> try_activate_rna_button(bContext *C,
                                             ARegion *region,
                                             HandleButtonState state,
                                             PointerRNA *ptr,
-                                            StringRef property,
+                                            PropertyRNA *prop,
                                             int index)
 {
   if (region->runtime->do_draw & RGN_DRAWING) {
     return std::nullopt;
   }
-
+  wmWindow *win = CTX_wm_window(C);
   bScreen *screen = CTX_wm_screen(C);
+  ED_screen_areas_iter (win, screen, area) {
+    for (ARegion &other_region : area->regionbase) {
+      if (other_region.runtime->do_draw & RGN_DRAWING) {
+        /* Ensure no one else is drawing too. */
+        return std::nullopt;
+      }
+    }
+  }
+
   ScrArea *area = nullptr;
   for (ScrArea &test_area : screen->areabase) {
     if (std::find_if(test_area.regionbase.begin(),
@@ -12737,7 +12746,6 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   }
 
   Button *button = nullptr;
-  PropertyRNA *prop = RNA_struct_find_property(ptr, property.data());
   for (Block &block : region->runtime->uiblocks) {
     auto but_itr = std::find_if(
         block.buttons.begin(), block.buttons.end(), [&](const std::unique_ptr<Button> &but) {
@@ -12753,7 +12761,21 @@ std::optional<int2> try_activate_rna_button(bContext *C,
     return std::nullopt;
   }
 
-  int2 xy{BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
+  const int2 old_view_xy = {int(region->v2d.cur.xmin), int(region->v2d.cur.ymin)};
+  if ((button->block->flag & BLOCK_CLIP_EVENTS) == 0) {
+    /* Blocks with BLOCK_CLIP_EVENTS are overlapping their region, so scrolling
+     * that region to ensure it is in view can't work and causes issues. #97530 */
+    but_ensure_in_view(C, region, button);
+  }
+
+  const int2 xy{BLI_rcti_cent_x(&region->winrct), BLI_rcti_cent_y(&region->winrct)};
+
+  ED_screen_areas_iter (win, screen, area) {
+    for (ARegion &other_region : area->regionbase) {
+      UI_region_free_active_but_all(C, &other_region);
+    }
+  }
+
   ED_screen_set_active_region(C, CTX_wm_window(C), xy);
   ScrArea *current_screen = CTX_wm_area(C);
   ARegion *current_region = CTX_wm_region(C);
@@ -12763,12 +12785,21 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   /* Init button active data with state as #BUTTON_STATE_HIGHLIGHT */
   ui_handle_button_activate(C, region, button, BUTTON_ACTIVATE);
 
-  wmWindow *win = CTX_wm_window(C);
-  rctf rect;
-  block_to_window_rctf(region, button->block, &rect, &button->rect);
-  WM_cursor_warp(win, BLI_rctf_cent_x(&rect), BLI_rctf_cent_y(&rect));
+  const rctf button_rect = button->rect;
+  /* Temporally override button position so its already in view when putting mouse over. */
+  BLI_rctf_translate(
+      &button->rect, region->v2d.cur.xmin - old_view_xy.x, old_view_xy.y - region->v2d.cur.ymin);
+  rctf button_view_rect;
+  block_to_window_rctf(region, button->block, &button_view_rect, &button->rect);
+
+  WM_cursor_warp(win, BLI_rctf_cent_x(&button_view_rect), BLI_rctf_cent_y(&button_view_rect));
+
+  /* Disable textsearch interactive mode. */
+  button->changed = false;
 
   if (button->flag & (BUT_DISABLED | UI_HIDDEN)) {
+    /* Restore button position. */
+    button->rect = button_rect;
     return std::nullopt;
   }
 
@@ -12804,8 +12835,10 @@ std::optional<int2> try_activate_rna_button(bContext *C,
 
   CTX_wm_area_set(C, current_screen);
   CTX_wm_region_set(C, current_region);
+  /* Restore button position. */
+  button->rect = button_rect;
 
-  return xy;
+  return int2{int(BLI_rctf_cent_x(&button_view_rect)), int(BLI_rctf_cent_y(&button_view_rect))};
 }
 
 }  // namespace blender::ui

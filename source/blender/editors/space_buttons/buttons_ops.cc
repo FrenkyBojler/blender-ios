@@ -57,12 +57,10 @@ static wmOperatorStatus buttons_start_filter_exec(bContext *C, wmOperator * /*op
   SpaceProperties *space = CTX_wm_space_properties(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
-
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      id_cast<ID *>(CTX_wm_screen(C)), RNA_SpaceProperties, space);
   ui::textbutton_try_activate_over_redraws(
-      C,
-      region,
-      RNA_pointer_create_discrete(id_cast<ID *>(CTX_wm_screen(C)), RNA_SpaceProperties, space),
-      "search_filter");
+      C, region, ptr, RNA_struct_find_property(&ptr, "search_filter"));
 
   return OPERATOR_FINISHED;
 }

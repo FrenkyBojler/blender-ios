@@ -3039,8 +3039,9 @@ std::optional<int2> try_activate_rna_button(bContext *C,
                                             ARegion *region,
                                             HandleButtonState state,
                                             PointerRNA *ptr,
-                                            StringRef property,
+                                            PropertyRNA *prop,
                                             int index = 0);
+
 /**
  * Attempt to activate a button referencing an RNA string property, if region is hidden or if the
  * button is not found this will add a timer that will retry to open the button other 4 times. If
@@ -3048,7 +3049,7 @@ std::optional<int2> try_activate_rna_button(bContext *C,
  */
 bool textbutton_try_activate_over_redraws(bContext *C,
                                           ARegion *region,
-                                          PointerRNA ptr,
-                                          StringRef property);
+                                          PointerRNA &ptr,
+                                          PropertyRNA *prop);
 }  // namespace ui
 }  // namespace blender
