@@ -1,0 +1,18 @@
+262d261
+< 
+1335c1334
+< #pragma create_info
+---
+> #pragma 
+1343c1342
+<  layout(binding = 4, std140) uniform _world_data { WorldData world_data; };  
+---
+>                                      _world_data { WorldData world_data; };  
+1961c1960
+< #pragma create_info
+---
+> #pragma 
+1981c1980
+<  layout(binding = 0) uniform sampler2D depth_tx;  layout(binding = 1) uniform sampler2D normal_tx;  layout(binding = 2) uniform sampler2D material_tx;  
+---
+>                              sampler2D depth_tx;  layout(binding = 1) uniform sampler2D normal_tx;  layout(binding = 2) uniform sampler2D material_tx;  
