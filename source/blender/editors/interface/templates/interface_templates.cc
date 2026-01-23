@@ -54,19 +54,19 @@ int template_search_textbut_height()
   return TEMPLATE_SEARCH_TEXTBUT_HEIGHT;
 }
 
-void template_add_button_search_menu(const bContext *C,
-                                     Layout &layout,
-                                     Block *block,
-                                     PointerRNA *ptr,
-                                     PropertyRNA *prop,
-                                     BlockCreateFunc block_func,
-                                     void *block_argN,
-                                     const std::optional<StringRef> tip,
-                                     const bool use_previews,
-                                     const bool editable,
-                                     const bool live_icon,
-                                     ButtonArgNFree func_argN_free_fn,
-                                     ButtonArgNCopy func_argN_copy_fn)
+Button *template_add_button_search_menu(const bContext *C,
+                                        Layout &layout,
+                                        Block *block,
+                                        PointerRNA *ptr,
+                                        PropertyRNA *prop,
+                                        BlockCreateFunc block_func,
+                                        void *block_argN,
+                                        const std::optional<StringRef> tip,
+                                        const bool use_previews,
+                                        const bool editable,
+                                        const bool live_icon,
+                                        ButtonArgNFree func_argN_free_fn,
+                                        ButtonArgNCopy func_argN_copy_fn)
 {
   const PointerRNA active_ptr = RNA_property_pointer_get(ptr, prop);
   ID *id = (active_ptr.data && RNA_struct_is_ID(active_ptr.type)) ?
@@ -150,6 +150,7 @@ void template_add_button_search_menu(const bContext *C,
       button_flag_enable(but, BUT_DISABLED);
     }
   }
+  return but;
 }
 
 Block *template_common_search_menu(const bContext *C,

@@ -55,19 +55,19 @@ int template_search_textbut_height();
 /**
  * Add a block button for the search menu for templateID and templateSearch.
  */
-void template_add_button_search_menu(const bContext *C,
-                                     Layout &layout,
-                                     Block *block,
-                                     PointerRNA *ptr,
-                                     PropertyRNA *prop,
-                                     BlockCreateFunc block_func,
-                                     void *block_argN,
-                                     std::optional<StringRef> tip,
-                                     const bool use_previews,
-                                     const bool editable,
-                                     const bool live_icon,
-                                     ButtonArgNFree func_argN_free_fn = MEM_freeN,
-                                     ButtonArgNCopy func_argN_copy_fn = MEM_dupallocN);
+Button *template_add_button_search_menu(const bContext *C,
+                                        Layout &layout,
+                                        Block *block,
+                                        PointerRNA *ptr,
+                                        PropertyRNA *prop,
+                                        BlockCreateFunc block_func,
+                                        void *block_argN,
+                                        std::optional<StringRef> tip,
+                                        const bool use_previews,
+                                        const bool editable,
+                                        const bool live_icon,
+                                        ButtonArgNFree func_argN_free_fn = MEM_freeN,
+                                        ButtonArgNCopy func_argN_copy_fn = MEM_dupallocN);
 
 Block *template_common_search_menu(const bContext *C,
                                    ARegion *region,

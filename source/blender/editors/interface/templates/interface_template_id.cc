@@ -6,6 +6,8 @@
  * \ingroup edinterface
  */
 
+#include "AS_essentials_library.hh"
+
 #include "BKE_anim_data.hh"
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
@@ -19,6 +21,7 @@
 #include "BKE_packedFile.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string_search.hh"
 #include "BLI_string_utf8.h"
 
@@ -1050,6 +1053,59 @@ static Button *template_id_def_new_but(Block *block,
   return but;
 }
 
+static void id_menu_tip_func(bContext & /*C*/, TooltipData &tip, Button *but, void *arg)
+{
+  TemplateID *template_id = static_cast<TemplateID *>(but->func_argN);
+  if (!but->tip.is_empty()) {
+    tooltip_text_field_add(tip, but->tip, {}, TIP_STYLE_HEADER, TIP_LC_NORMAL, false);
+  }
+  else {
+    tooltip_text_field_add(tip,
+                           RNA_property_ui_description(template_id->prop, &template_id->ptr),
+                           {},
+                           TIP_STYLE_HEADER,
+                           TIP_LC_NORMAL,
+                           false);
+  }
+  if (!arg) {
+    return;
+  }
+  ID *id = static_cast<ID *>(arg);
+  /* ID's session uid menu. */
+  if (RNA_property_type(template_id->prop) == PROP_INT) {
+    tooltip_text_field_add(tip,
+                           fmt::format(fmt::runtime(TIP_("Value: {}")), id->session_uid),
+                           {},
+                           TIP_STYLE_NORMAL,
+                           TIP_LC_VALUE,
+                           true);
+    tooltip_text_field_add(tip,
+                           fmt::format(fmt::runtime(TIP_("From: {}")), id->name + 2),
+                           {},
+                           TIP_STYLE_NORMAL,
+                           TIP_LC_VALUE,
+                           false);
+  }
+  /* ID menu. */
+  else {
+    tooltip_text_field_add(tip,
+                           fmt::format(fmt::runtime(TIP_("Value: {}")), id->name + 2),
+                           {},
+                           TIP_STYLE_NORMAL,
+                           TIP_LC_VALUE,
+                           true);
+  }
+  if (ID_IS_LINKED(id)) {
+    StringRefNull assets_path = asset_system::essentials_directory_path();
+    const bool is_builtin = BLI_path_contains(assets_path.c_str(), id->lib->filepath);
+    const StringRef title = is_builtin ? TIP_("Built-in Asset") : TIP_("Library");
+    const StringRef lib_path = id->lib->filepath;
+    const StringRef path = is_builtin ? lib_path.substr(assets_path.size()) : id->lib->filepath;
+    tooltip_text_field_add(
+        tip, fmt::format("{}: {}", title, path), {}, TIP_STYLE_NORMAL, TIP_LC_VALUE);
+  }
+}
+
 static void template_ID(const bContext *C,
                         Layout &layout,
                         TemplateID &template_ui,
@@ -1087,19 +1143,20 @@ static void template_ID(const bContext *C,
   }
 
   if (flag & UI_ID_BROWSE) {
-    template_add_button_search_menu(C,
-                                    layout,
-                                    block,
-                                    &template_ui.ptr,
-                                    template_ui.prop,
-                                    id_search_menu,
-                                    MEM_new<TemplateID>(__func__, template_ui),
-                                    TIP_(template_id_browse_tip(type)),
-                                    use_previews,
-                                    editable,
-                                    live_icon,
-                                    but_func_argN_free<TemplateID>,
-                                    but_func_argN_copy<TemplateID>);
+    but = template_add_button_search_menu(C,
+                                          layout,
+                                          block,
+                                          &template_ui.ptr,
+                                          template_ui.prop,
+                                          id_search_menu,
+                                          MEM_new<TemplateID>(__func__, template_ui),
+                                          TIP_(template_id_browse_tip(type)),
+                                          use_previews,
+                                          editable,
+                                          live_icon,
+                                          but_func_argN_free<TemplateID>,
+                                          but_func_argN_copy<TemplateID>);
+    button_func_tooltip_custom_set(but, id_menu_tip_func, id, nullptr);
   }
 
   /* text button with name */
@@ -1651,7 +1708,7 @@ void template_ID_session_uid(
     block_layout_set_current(block, split.property_row);
   }
   const uint32_t session_uid = RNA_property_int_get(ptr, prop);
-  const ID *id = BKE_libblock_find_session_uid(CTX_data_main(C), template_ui.idcode, session_uid);
+  ID *id = BKE_libblock_find_session_uid(CTX_data_main(C), template_ui.idcode, session_uid);
 
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
   const int margin = UI_UNIT_X * 0.75f;
@@ -1671,6 +1728,7 @@ void template_ID_session_uid(
                                but_func_argN_free<TemplateID>,
                                but_func_argN_copy<TemplateID>);
 
+  button_func_tooltip_custom_set(but, id_menu_tip_func, id, nullptr);
   def_but_icon(but, RNA_struct_ui_icon(type), UI_HAS_ICON);
 }
 
