@@ -18,8 +18,11 @@
 typedef void AUD_Sound;
 #endif
 
+namespace blender {
+
 struct Depsgraph;
 struct Main;
+struct ReportList;
 struct Scene;
 struct Strip;
 struct bSound;
@@ -37,6 +40,14 @@ bSound *BKE_sound_new_file(Main *bmain, const char *filepath);
 bSound *BKE_sound_new_file_exists(Main *bmain, const char *filepath);
 
 void BKE_sound_load(Main *bmain, bSound *sound);
+
+/**
+ * High-level pack function.
+ *
+ * Packs sound data from its filepath.
+ * Does nothing if sound is already packed.
+ */
+void BKE_sound_packfile_ensure(Main *bmain, bSound *sound, ReportList *reports);
 
 /** Matches AUD_Channels. */
 enum eSoundChannels {
@@ -185,19 +196,21 @@ void BKE_sound_jack_scene_update(Scene *scene, int mode, double time);
 
 void BKE_sound_evaluate(Depsgraph *depsgraph, Main *bmain, bSound *sound);
 
-void *BKE_sound_ensure_time_stretch_effect(void *sound_handle, void *sequence_handle, float fps);
+AUD_Sound *BKE_sound_ensure_time_stretch_effect(const Strip *strip, float fps);
 
 void BKE_sound_runtime_state_get_and_clear(const bSound *sound,
                                            AUD_Sound **r_cache,
                                            AUD_Sound **r_playback_handle,
-                                           blender::Vector<float> **r_waveform);
+                                           Vector<float> **r_waveform);
 void BKE_sound_runtime_state_set(const bSound *sound,
                                  AUD_Sound *cache,
                                  AUD_Sound *playback_handle,
-                                 blender::Vector<float> *waveform);
+                                 Vector<float> *waveform);
 
 AUD_Sound *BKE_sound_playback_handle_get(const bSound *sound);
 
 void BKE_sound_runtime_clear_waveform_loading_tag(bSound *sound);
 bool BKE_sound_runtime_start_waveform_loading(bSound *sound);
-const blender::Vector<float> *BKE_sound_runtime_get_waveform(const bSound *sound);
+const Vector<float> *BKE_sound_runtime_get_waveform(const bSound *sound);
+
+}  // namespace blender

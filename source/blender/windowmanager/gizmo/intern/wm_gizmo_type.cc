@@ -31,13 +31,13 @@
 #include "wm_gizmo_intern.hh"
 #include "wm_gizmo_wmapi.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Gizmo Type Append
  *
  * \note This follows conventions from #WM_operatortype_find #WM_operatortype_append & friends.
  * \{ */
-
-using blender::StringRef;
 
 static auto &get_gizmo_type_map()
 {
@@ -47,7 +47,7 @@ static auto &get_gizmo_type_map()
       return StringRef(value->idname);
     }
   };
-  static blender::CustomIDVectorSet<wmGizmoType *, IDNameGetter> map;
+  static CustomIDVectorSet<wmGizmoType *, IDNameGetter> map;
   return map;
 }
 
@@ -74,7 +74,7 @@ const wmGizmoType *WM_gizmotype_find(const StringRef idname, bool quiet)
 static wmGizmoType *wm_gizmotype_append__begin()
 {
   wmGizmoType *gzt = MEM_callocN<wmGizmoType>("gizmotype");
-  gzt->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", &RNA_GizmoProperties);
+  gzt->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", RNA_GizmoProperties);
 #if 0
   /* Set the default i18n context now, so that opfunc can redefine it if needed! */
   RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
@@ -186,3 +186,5 @@ void wm_gizmotype_init()
 }
 
 /** \} */
+
+}  // namespace blender

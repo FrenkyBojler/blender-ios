@@ -1452,7 +1452,7 @@ class VIEW3D_MT_view(Menu):
         layout.separator()
 
         if context.mode in {'PAINT_TEXTURE', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT'}:
-            layout.operator("view3d.view_selected", text="Frame Last Stroke")
+            layout.operator("view3d.view_selected", text="Center Last Stroke")
         else:
             layout.operator("view3d.view_selected", text="Frame Selected")
         if view.region_quadviews:
@@ -1884,8 +1884,8 @@ class VIEW3D_MT_edit_mesh_select_loops(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("mesh.loop_multi_select", text="Edge Loops").ring = False
-        layout.operator("mesh.loop_multi_select", text="Edge Rings").ring = True
+        layout.operator("mesh.select_edge_loop_multi", text="Edge Loops")
+        layout.operator("mesh.select_edge_ring_multi", text="Edge Rings")
 
         layout.separator()
 

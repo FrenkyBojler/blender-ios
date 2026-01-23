@@ -49,9 +49,9 @@
 
 #include "nla_private.h"
 
-static CLG_LogRef LOG = {"anim.nla"};
+namespace blender {
 
-using namespace blender;
+static CLG_LogRef LOG = {"anim.nla"};
 
 /**
  * Find the active track and strip.
@@ -166,7 +166,7 @@ NlaStrip *BKE_nlastrip_copy(Main *bmain,
     }
     else {
       /* use a copy of the action instead (user count shouldn't have changed yet) */
-      BKE_id_copy_ex(bmain, &strip_d->act->id, (ID **)&strip_d->act, flag);
+      BKE_id_copy_ex(bmain, &strip_d->act->id, reinterpret_cast<ID **>(&strip_d->act), flag);
     }
   }
 
@@ -396,7 +396,7 @@ void BKE_nlatrack_insert_after(ListBaseT<NlaTrack> *nla_tracks,
   /* If nullptr, then caller intends to insert a new head. But, tracks are not allowed to be
    * placed before library overrides. So it must inserted after the last override. */
   if (prev == nullptr) {
-    NlaTrack *first_track = (NlaTrack *)nla_tracks->first;
+    NlaTrack *first_track = static_cast<NlaTrack *>(nla_tracks->first);
     if (first_track != nullptr && (first_track->flag & NLATRACK_OVERRIDELIBRARY_LOCAL) == 0) {
       prev = first_track;
     }
@@ -450,12 +450,14 @@ NlaTrack *BKE_nlatrack_new_after(ListBaseT<NlaTrack> *nla_tracks,
 
 NlaTrack *BKE_nlatrack_new_head(ListBaseT<NlaTrack> *nla_tracks, bool is_liboverride)
 {
-  return BKE_nlatrack_new_before(nla_tracks, (NlaTrack *)nla_tracks->first, is_liboverride);
+  return BKE_nlatrack_new_before(
+      nla_tracks, static_cast<NlaTrack *>(nla_tracks->first), is_liboverride);
 }
 
 NlaTrack *BKE_nlatrack_new_tail(ListBaseT<NlaTrack> *nla_tracks, const bool is_liboverride)
 {
-  return BKE_nlatrack_new_after(nla_tracks, (NlaTrack *)nla_tracks->last, is_liboverride);
+  return BKE_nlatrack_new_after(
+      nla_tracks, static_cast<NlaTrack *>(nla_tracks->last), is_liboverride);
 }
 
 float BKE_nla_clip_length_get_nonzero(const NlaStrip *strip)
@@ -546,7 +548,7 @@ NlaStrip *BKE_nlastrip_new(bAction *act, ID &animated_id)
 }
 
 NlaStrip *BKE_nlastrip_new_for_slot(bAction *act,
-                                    blender::animrig::slot_handle_t slot_handle,
+                                    animrig::slot_handle_t slot_handle,
                                     ID &animated_id)
 {
   using namespace blender::animrig;
@@ -1127,8 +1129,8 @@ void BKE_nlameta_flush_transforms(NlaStrip *mstrip)
    * - these are simply the start/end frames of the child strips,
    *   since we assume they weren't transformed yet
    */
-  oStart = ((NlaStrip *)mstrip->strips.first)->start;
-  oEnd = ((NlaStrip *)mstrip->strips.last)->end;
+  oStart = (static_cast<NlaStrip *>(mstrip->strips.first))->start;
+  oEnd = (static_cast<NlaStrip *>(mstrip->strips.last))->end;
   offset = mstrip->start - oStart;
 
   /* check if scale changed */
@@ -1187,7 +1189,7 @@ void BKE_nlameta_flush_transforms(NlaStrip *mstrip)
     /* only if scale changed, need to perform RNA updates */
     if (scaleChanged) {
       /* use RNA updates to compute scale properly */
-      PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_NlaStrip, &strip);
+      PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_NlaStrip, &strip);
 
       RNA_float_set(&ptr, "frame_start", strip.start);
       RNA_float_set(&ptr, "frame_end", strip.end);
@@ -1896,7 +1898,7 @@ bool BKE_nlastrip_has_curves_for_property(const PointerRNA *ptr, const PropertyR
   }
 
   /* 1) Must be NLA strip */
-  if (ptr->type == &RNA_NlaStrip) {
+  if (ptr->type == RNA_NlaStrip) {
     /* 2) Must be one of the predefined properties */
     static PropertyRNA *prop_influence = nullptr;
     static PropertyRNA *prop_time = nullptr;
@@ -1904,8 +1906,8 @@ bool BKE_nlastrip_has_curves_for_property(const PointerRNA *ptr, const PropertyR
 
     /* Init the properties on first use */
     if (needs_init) {
-      prop_influence = RNA_struct_type_find_property(&RNA_NlaStrip, "influence");
-      prop_time = RNA_struct_type_find_property(&RNA_NlaStrip, "strip_time");
+      prop_influence = RNA_struct_type_find_property(RNA_NlaStrip, "influence");
+      prop_time = RNA_struct_type_find_property(RNA_NlaStrip, "strip_time");
 
       needs_init = false;
     }
@@ -2146,7 +2148,7 @@ void BKE_nla_validate_state(AnimData *adt)
 
 bool BKE_nla_action_slot_is_stashed(AnimData *adt,
                                     bAction *act,
-                                    const blender::animrig::slot_handle_t slot_handle)
+                                    const animrig::slot_handle_t slot_handle)
 {
   for (NlaTrack &nlt : adt->nla_tracks) {
     if (strstr(nlt.name, STASH_TRACK_NAME)) {
@@ -2359,7 +2361,9 @@ bool BKE_nla_tweakmode_enter(const OwnedAnimData owned_adt)
   if (ELEM(nullptr, activeTrack, activeStrip, activeStrip->act)) {
     if (G.debug & G_DEBUG) {
       printf("NLA tweak-mode enter - neither active requirement found\n");
-      printf("\tactiveTrack = %p, activeStrip = %p\n", (void *)activeTrack, (void *)activeStrip);
+      printf("\tactiveTrack = %p, activeStrip = %p\n",
+             static_cast<void *>(activeTrack),
+             static_cast<void *>(activeStrip));
     }
     return false;
   }
@@ -2402,25 +2406,19 @@ bool BKE_nla_tweakmode_enter(const OwnedAnimData owned_adt)
 
   if (activeStrip->act) {
     animrig::Action &strip_action = activeStrip->act->wrap();
-    if (strip_action.is_action_layered()) {
-      animrig::Slot *strip_slot = strip_action.slot_for_handle(activeStrip->action_slot_handle);
-      if (animrig::assign_action_and_slot(&strip_action, strip_slot, owned_adt.owner_id) !=
-          animrig::ActionSlotAssignmentResult::OK)
-      {
-        printf("NLA tweak-mode enter - could not assign slot %s\n",
-               strip_slot ? strip_slot->identifier : "-unassigned-");
-        /* There is one other reason this could fail: when already in NLA tweak mode. But since
-         * we're here in the code, the ADT_NLA_EDIT_ON flag is not yet set, and thus that shouldn't
-         * be the case.
-         *
-         * Because this ADT is not in tweak mode, it means that the Action assignment will have
-         * succeeded (I know, too much coupling here, would be better to have another
-         * SlotAssignmentResult value for this). */
-      }
-    }
-    else {
-      adt.action = activeStrip->act;
-      id_us_plus(&adt.action->id);
+    animrig::Slot *strip_slot = strip_action.slot_for_handle(activeStrip->action_slot_handle);
+    if (animrig::assign_action_and_slot(&strip_action, strip_slot, owned_adt.owner_id) !=
+        animrig::ActionSlotAssignmentResult::OK)
+    {
+      printf("NLA tweak-mode enter - could not assign slot %s\n",
+             strip_slot ? strip_slot->identifier : "-unassigned-");
+      /* There is one other reason this could fail: when already in NLA tweak mode. But since
+       * we're here in the code, the ADT_NLA_EDIT_ON flag is not yet set, and thus that shouldn't
+       * be the case.
+       *
+       * Because this ADT is not in tweak mode, it means that the Action assignment will have
+       * succeeded (I know, too much coupling here, would be better to have another
+       * SlotAssignmentResult value for this). */
     }
   }
   else {
@@ -2549,8 +2547,6 @@ void BKE_nla_tweakmode_exit(const OwnedAnimData owned_adt)
    * gracefully handles duplicates. */
   if (owned_adt.adt.action && owned_adt.adt.slot_handle != animrig::Slot::unassigned) {
     animrig::Action &action = owned_adt.adt.action->wrap();
-    BLI_assert_msg(action.is_action_layered(),
-                   "when a slot is assigned, the action should layered");
     animrig::Slot *slot = action.slot_for_handle(owned_adt.adt.slot_handle);
     if (slot) {
       slot->users_add(owned_adt.owner_id);
@@ -2700,7 +2696,7 @@ void BKE_nla_debug_print_flags(AnimData *adt, ID *owner_id)
 
 static void blend_write_nla_strips(BlendWriter *writer, ListBaseT<NlaStrip> *strips)
 {
-  BLO_write_struct_list(writer, NlaStrip, strips);
+  writer->write_struct_list(strips);
   for (NlaStrip &strip : *strips) {
     /* write the strip's F-Curves and modifiers */
     BKE_fcurve_blend_write_listbase(writer, &strip.fcurves);
@@ -2809,7 +2805,7 @@ static bool visit_strip(NlaStrip *strip, FunctionRef<bool(NlaStrip *)> callback)
   return true;
 }
 
-namespace blender::bke::nla {
+namespace bke::nla {
 
 bool foreach_strip(ID *id, FunctionRef<bool(NlaStrip *)> callback)
 {
@@ -2833,4 +2829,5 @@ bool foreach_strip_adt(const AnimData &adt, FunctionRef<bool(NlaStrip *)> callba
   return true;
 }
 
-}  // namespace blender::bke::nla
+}  // namespace bke::nla
+}  // namespace blender

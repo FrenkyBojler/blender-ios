@@ -25,6 +25,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_image_wrappers.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_bvh_pixels.hh"
 
@@ -32,7 +33,9 @@
 #include "sculpt_automask.hh"
 #include "sculpt_intern.hh"
 
-namespace blender::ed::sculpt_paint::paint::image {
+namespace blender {
+
+namespace ed::sculpt_paint::paint::image {
 
 using namespace blender::bke::pbvh::pixels;
 using namespace blender::bke::image;
@@ -254,7 +257,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
                             ImageData image_data,
                             bke::pbvh::Node &node)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   PBVHData &pbvh_data = bke::pbvh::pixels::data_get(pbvh);
@@ -459,7 +462,7 @@ static void fix_non_manifold_seam_bleeding(Object &ob,
 
 /** \} */
 
-}  // namespace blender::ed::sculpt_paint::paint::image
+}  // namespace ed::sculpt_paint::paint::image
 
 using namespace blender::ed::sculpt_paint::paint::image;
 
@@ -498,9 +501,8 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
                                  PaintModeSettings &paint_mode_settings,
                                  const Sculpt &sd,
                                  Object &ob,
-                                 const blender::IndexMask &node_mask)
+                                 const IndexMask &node_mask)
 {
-  using namespace blender;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
   ImageData image_data;
@@ -524,3 +526,5 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
     bke::pbvh::pixels::mark_image_dirty(nodes[i], *image_data.image, *image_data.image_user);
   });
 }
+
+}  // namespace blender

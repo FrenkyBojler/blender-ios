@@ -51,6 +51,8 @@
 #include "paint_mask.hh"
 #include "sculpt_intern.hh"
 
+namespace blender {
+
 static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -483,7 +485,7 @@ static wmOperatorStatus palette_join_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  palette_join = (Palette *)BKE_libblock_find_name(bmain, ID_PAL, name);
+  palette_join = id_cast<Palette *>(BKE_libblock_find_name(bmain, ID_PAL, name));
   if (palette_join == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -772,7 +774,7 @@ static bool stencil_control_poll(bContext *C)
   Paint *paint;
   Brush *br;
 
-  if (!blender::ed::sculpt_paint::paint_supports_texture(mode)) {
+  if (!ed::sculpt_paint::paint_supports_texture(mode)) {
     return false;
   }
 
@@ -1034,6 +1036,7 @@ void ED_operatortypes_paint()
   WM_operatortype_append(PAINT_OT_vert_select_linked_pick);
   WM_operatortype_append(PAINT_OT_vert_select_more);
   WM_operatortype_append(PAINT_OT_vert_select_less);
+  WM_operatortype_append(PAINT_OT_vert_select_loop);
 
   /* vertex */
   WM_operatortype_append(PAINT_OT_vertex_paint_toggle);
@@ -1124,3 +1127,5 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
   /* sculpt expand. */
   expand::modal_keymap(keyconf);
 }
+
+}  // namespace blender

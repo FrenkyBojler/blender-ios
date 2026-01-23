@@ -59,6 +59,8 @@
 
 #include "IMB_colormanagement.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"geom.gpencil"};
 
 static void greasepencil_copy_data(Main * /*bmain*/,
@@ -67,8 +69,8 @@ static void greasepencil_copy_data(Main * /*bmain*/,
                                    const ID *id_src,
                                    const int /*flag*/)
 {
-  bGPdata *gpd_dst = (bGPdata *)id_dst;
-  const bGPdata *gpd_src = (const bGPdata *)id_src;
+  bGPdata *gpd_dst = id_cast<bGPdata *>(id_dst);
+  const bGPdata *gpd_src = id_cast<const bGPdata *>(id_src);
 
   /* duplicate material array */
   if (gpd_src->mat) {
@@ -120,12 +122,12 @@ static void greasepencil_free_data(ID *id)
 {
   /* Really not ideal, but for now will do... In theory custom behaviors like not freeing cache
    * should be handled through specific API, and not be part of the generic one. */
-  BKE_gpencil_free_data((bGPdata *)id, true);
+  BKE_gpencil_free_data(id_cast<bGPdata *>(id), true);
 }
 
 static void greasepencil_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  bGPdata *gpencil = (bGPdata *)id;
+  bGPdata *gpencil = id_cast<bGPdata *>(id);
   /* materials */
   for (int i = 0; i < gpencil->totcol; i++) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gpencil->mat[i], IDWALK_CB_USER);
@@ -138,7 +140,7 @@ static void greasepencil_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  bGPdata *gpd = (bGPdata *)id;
+  bGPdata *gpd = id_cast<bGPdata *>(id);
 
   /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
   /* XXX not sure why the whole run-time data is not cleared in reading code,
@@ -148,7 +150,7 @@ static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id
   gpd->runtime.sbuffer_size = 0;
 
   /* write gpd data block to file */
-  BLO_write_id_struct(writer, bGPdata, id_address, &gpd->id);
+  writer->write_id_struct(id_address, gpd);
   BKE_id_blend_write(writer, &gpd->id);
 
   BKE_defbase_blend_write(writer, &gpd->vertex_group_names);
@@ -156,24 +158,23 @@ static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id
   BLO_write_pointer_array(writer, gpd->totcol, gpd->mat);
 
   /* write grease-pencil layers to file */
-  BLO_write_struct_list(writer, bGPDlayer, &gpd->layers);
+  writer->write_struct_list(&gpd->layers);
   for (bGPDlayer &gpl : gpd->layers) {
     /* Write mask list. */
-    BLO_write_struct_list(writer, bGPDlayer_Mask, &gpl.mask_layers);
+    writer->write_struct_list(&gpl.mask_layers);
     /* write this layer's frames to file */
-    BLO_write_struct_list(writer, bGPDframe, &gpl.frames);
+    writer->write_struct_list(&gpl.frames);
     for (bGPDframe &gpf : gpl.frames) {
       /* write strokes */
-      BLO_write_struct_list(writer, bGPDstroke, &gpf.strokes);
+      writer->write_struct_list(&gpf.strokes);
       for (bGPDstroke &gps : gpf.strokes) {
-        BLO_write_struct_array(writer, bGPDspoint, gps.totpoints, gps.points);
-        BLO_write_struct_array(writer, bGPDtriangle, gps.tot_triangles, gps.triangles);
+        writer->write_struct_array(gps.totpoints, gps.points);
+        writer->write_struct_array(gps.tot_triangles, gps.triangles);
         BKE_defvert_blend_write(writer, gps.totpoints, gps.dvert);
         if (gps.editcurve != nullptr) {
           bGPDcurve *gpc = gps.editcurve;
           writer->write_struct(gpc);
-          BLO_write_struct_array(
-              writer, bGPDcurve_point, gpc->tot_curve_points, gpc->curve_points);
+          writer->write_struct_array(gpc->tot_curve_points, gpc->curve_points);
         }
       }
     }
@@ -212,7 +213,7 @@ void BKE_gpencil_blend_read_data(BlendDataReader *reader, bGPdata *gpd)
   BLO_read_struct_list(reader, bDeformGroup, &gpd->vertex_group_names);
 
   /* Materials. */
-  BLO_read_pointer_array(reader, gpd->totcol, (void **)&gpd->mat);
+  BLO_read_pointer_array(reader, gpd->totcol, reinterpret_cast<void **>(&gpd->mat));
 
   /* Relink layers. */
   BLO_read_struct_list(reader, bGPDlayer, &gpd->layers);
@@ -259,7 +260,7 @@ void BKE_gpencil_blend_read_data(BlendDataReader *reader, bGPdata *gpd)
 
 static void greasepencil_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  bGPdata *gpd = (bGPdata *)id;
+  bGPdata *gpd = id_cast<bGPdata *>(id);
   BKE_gpencil_blend_read_data(reader, gpd);
 }
 
@@ -821,7 +822,7 @@ bGPdata *BKE_gpencil_data_duplicate(Main *bmain, const bGPdata *gpd_src, bool in
   }
   else {
     BLI_assert(bmain != nullptr);
-    gpd_dst = (bGPdata *)BKE_id_copy(bmain, &gpd_src->id);
+    gpd_dst = id_cast<bGPdata *>(BKE_id_copy(bmain, &gpd_src->id));
   }
 
   /* Copy internal data (layers, etc.) */
@@ -959,8 +960,8 @@ bGPDframe *BKE_gpencil_layer_frame_get(bGPDlayer *gpl, int cframe, eGP_GetFrame_
   }
   else if (gpl->frames.first) {
     /* check which of the ends to start checking from */
-    const int first = ((bGPDframe *)(gpl->frames.first))->framenum;
-    const int last = ((bGPDframe *)(gpl->frames.last))->framenum;
+    const int first = (static_cast<bGPDframe *>(gpl->frames.first))->framenum;
+    const int last = (static_cast<bGPDframe *>(gpl->frames.last))->framenum;
 
     if (abs(cframe - first) > abs(cframe - last)) {
       /* find gp-frame which is less than or equal to cframe */
@@ -1070,7 +1071,7 @@ static int gpencil_cb_cmp_frame(void *thunk, const void *a, const void *b)
     return 1;
   }
   if (thunk != nullptr) {
-    *((bool *)thunk) = true;
+    *(static_cast<bool *>(thunk)) = true;
   }
   /* Sort selected last. */
   if ((frame_a->flag & GP_FRAME_SELECT) && ((frame_b->flag & GP_FRAME_SELECT) == 0)) {
@@ -1211,3 +1212,5 @@ void BKE_gpencil_palette_ensure(Main *bmain, Scene *scene)
 }
 
 /** \} */
+
+}  // namespace blender

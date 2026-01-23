@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #include <cmath>
 
 #include "BLI_math_vector.hh"
@@ -31,7 +27,7 @@ static const EnumPropertyItem channel_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void cmp_node_levels_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
@@ -181,28 +177,26 @@ class LevelsOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new LevelsOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_levels_cc
-
-static void register_node_type_cmp_view_levels()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_levels_cc;
-
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeLevels", CMP_NODE_VIEW_LEVELS);
   ntype.ui_name = "Levels";
   ntype.ui_description = "Compute average and standard deviation of pixel values";
   ntype.enum_name_legacy = "LEVELS";
   ntype.nclass = NODE_CLASS_CONVERTER;
-  ntype.declare = file_ns::cmp_node_levels_declare;
+  ntype.declare = node_declare;
   ntype.flag |= NODE_PREVIEW;
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_view_levels)
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_levels_cc

@@ -378,6 +378,7 @@ function(blender_link_libraries
   #
   # Use: "optimized libfoo optimized libbar debug libfoo_d debug libbar_d"
   # NOT: "optimized libfoo libbar debug libfoo_d libbar_d"
+  set(dependency_libraries)
   if(NOT "${library_deps}" STREQUAL "")
     set(next_library_mode "")
     set(next_interface_mode "PRIVATE")
@@ -392,16 +393,25 @@ function(blender_link_libraries
         set(next_interface_mode "${library}")
       else()
         if("${next_library_mode}" STREQUAL "optimized")
-          target_link_libraries(${target} ${next_interface_mode} optimized ${library})
+          set(link_library ${next_interface_mode} optimized ${library})
         elseif("${next_library_mode}" STREQUAL "debug")
-          target_link_libraries(${target} ${next_interface_mode} debug ${library})
+          set(link_library ${next_interface_mode} debug ${library})
         else()
-          target_link_libraries(${target} ${next_interface_mode} ${library})
+          set(link_library ${next_interface_mode} ${library})
         endif()
         set(next_library_mode "")
+        if(library MATCHES "^bf::dependencies")
+          list(APPEND dependency_libraries ${link_library})
+        else()
+          target_link_libraries(${target} ${link_library})
+        endif()
       endif()
     endforeach()
   endif()
+
+  # Ensure external dependencies are last in the list of libraries, so that bf::extern include
+  # directories have priority over system library include directories that might conflict.
+  target_link_libraries(${target} ${dependency_libraries})
 endfunction()
 
 function(blender_add_lib__impl
@@ -476,9 +486,10 @@ endfunction()
 function(setup_heavy_lib_pool)
   if(WITH_NINJA_POOL_JOBS AND NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS)
     set(_HEAVY_LIBS)
+    set(_HEAVY_FILES)
     set(_TARGET)
     if(WITH_CYCLES)
-      list(APPEND _HEAVY_LIBS "cycles_device" "cycles_kernel")
+      list(APPEND _HEAVY_LIBS "cycles_device" "cycles_kernel" "cycles_hydra")
     endif()
     if(WITH_LIBMV)
       list(APPEND _HEAVY_LIBS "extern_ceres" "bf_intern_libmv")
@@ -487,13 +498,27 @@ function(setup_heavy_lib_pool)
       list(APPEND _HEAVY_LIBS "bf_intern_openvdb")
     endif()
 
+    # A few specific files are very heavy to compile in Clang or GCC
+    # (several GB of RAM required in debug + ASAN builds e.g.).
+    list(APPEND _HEAVY_FILES "source/blender/blenkernel/intern/volume.cc")
+    list(APPEND _HEAVY_FILES "source/blender/blenkernel/intern/volume_to_mesh.cc")
+    list(APPEND _HEAVY_FILES "source/blender/blenkernel/intern/volume_grid.cc")
+    list(APPEND _HEAVY_FILES "source/blender/modifiers/intern/MOD_volume_displace.cc")
+    list(APPEND _HEAVY_FILES "source/blender/geometry/intern/mesh_to_volume.cc")
+
     foreach(_TARGET ${_HEAVY_LIBS})
       if(TARGET ${_TARGET})
         set_property(TARGET ${_TARGET} PROPERTY JOB_POOL_COMPILE compile_heavy_job_pool)
       endif()
     endforeach()
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2.0")
+      foreach(_FILE ${_HEAVY_FILES})
+        set_property(SOURCE ${_FILE} PROPERTY JOB_POOL_COMPILE compile_heavy_job_pool)
+      endforeach()
+    endif()
     unset(_TARGET)
     unset(_HEAVY_LIBS)
+    unset(_HEAVY_FILES)
   endif()
 endfunction()
 
@@ -526,9 +551,12 @@ endfunction()
 function(setup_platform_linker_libs
   target
   )
-  # jemalloc must be early in the list, to be before pthread (see #57998).
-  if(WITH_MEM_JEMALLOC)
-    target_link_libraries(${target} PRIVATE ${JEMALLOC_LIBRARIES})
+  # TBB malloc must be early in the list, to be before PTHREAD (see #57998).
+  if(WITH_TBB_MALLOC_PROXY)
+    target_link_libraries(${target}
+      PRIVATE ${TBB_MALLOC_LIBRARIES}
+      PRIVATE ${TBB_MALLOC_PROXY_LIBRARIES}
+    )
   endif()
 
   if(WIN32 AND NOT UNIX)

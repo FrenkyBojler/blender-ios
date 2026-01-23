@@ -92,15 +92,15 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket_usage_inference.hh"
 
-namespace lf = blender::fn::lazy_function;
-namespace geo_log = blender::nodes::geo_eval_log;
-namespace bake = blender::bke::bake;
-
 namespace blender {
+
+namespace lf = fn::lazy_function;
+namespace geo_log = nodes::geo_eval_log;
+namespace bake = bke::bake;
 
 static void init_data(ModifierData *md)
 {
-  NodesModifierData *nmd = (NodesModifierData *)md;
+  NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
 
   INIT_DEFAULT_STRUCT_AFTER(nmd, modifier);
   nmd->modifier.layout_panel_open_flag |= 1 << NODES_MODIFIER_PANEL_WARNINGS;
@@ -140,7 +140,7 @@ static void add_object_relation(
   if (info.transform) {
     DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
   }
-  if (&(ID &)object == &ctx->object->id) {
+  if (&object == ctx->object) {
     return;
   }
   if (info.geometry) {
@@ -183,7 +183,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   find_dependencies_from_settings(nmd->settings, eval_deps);
 
   if (ctx->object->type == OB_CURVES) {
-    Curves *curves_id = static_cast<Curves *>(ctx->object->data);
+    Curves *curves_id = id_cast<Curves *>(ctx->object->data);
     if (curves_id->surface != nullptr) {
       eval_deps.add_object(curves_id->surface);
     }
@@ -198,7 +198,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   }
 
   for (ID *id : eval_deps.ids.values()) {
-    switch ((ID_Type)GS(id->name)) {
+    switch (ID_Type(GS(id->name))) {
       case ID_OB: {
         Object *object = reinterpret_cast<Object *>(id);
         add_object_relation(
@@ -213,6 +213,10 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
       case ID_IM:
       case ID_TE: {
         DEG_add_generic_id_relation(ctx->node, id, "Nodes Modifier");
+        break;
+      }
+      case ID_VF: {
+        DEG_add_vfont_relation(ctx->node, reinterpret_cast<VFont *>(id), "Nodes Modifier");
         break;
       }
       case ID_MA: {
@@ -262,10 +266,10 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-  walk(user_data, ob, (ID **)&nmd->node_group, IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&nmd->node_group), IDWALK_CB_USER);
 
   IDP_foreach_property(nmd->settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
-    walk(user_data, ob, (ID **)&id_prop->data.pointer, IDWALK_CB_USER);
+    walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
   });
 
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
@@ -278,7 +282,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
   walk(user_data, ob, md, &ptr, prop);
 }
@@ -450,11 +454,8 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
   nmd.panels_num = interface_panels.size();
 }
 
-}  // namespace blender
-
 void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
 {
-  using namespace blender;
   update_id_properties_from_node_group(nmd);
   update_bakes_from_node_group(*nmd);
   update_panels_from_node_group(*nmd);
@@ -470,15 +471,13 @@ NodesModifierBake *NodesModifierData::find_bake(const int id)
 
 const NodesModifierBake *NodesModifierData::find_bake(const int id) const
 {
-  for (const NodesModifierBake &bake : blender::Span{this->bakes, this->bakes_num}) {
+  for (const NodesModifierBake &bake : Span{this->bakes, this->bakes_num}) {
     if (bake.id == id) {
       return &bake;
     }
   }
   return nullptr;
 }
-
-namespace blender {
 
 /**
  * Setup side effects nodes so that the given node in the given compute context will be executed.
@@ -846,7 +845,7 @@ static void find_side_effect_nodes(const NodesModifierData &nmd,
                                    Set<ComputeContextHash> &r_socket_log_contexts)
 {
   Main *bmain = DEG_get_bmain(ctx.depsgraph);
-  wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
+  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm == nullptr) {
     return;
   }
@@ -878,7 +877,7 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
                                      Set<ComputeContextHash> &r_socket_log_contexts)
 {
   Main *bmain = DEG_get_bmain(ctx.depsgraph);
-  wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
+  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm == nullptr) {
     return;
   }
@@ -1669,7 +1668,7 @@ static void add_missing_data_block_mappings(
       MEM_recallocN(bake.data_blocks, sizeof(NodesModifierDataBlock) * new_num));
   for (const int i : missing.index_range()) {
     NodesModifierDataBlock &data_block = bake.data_blocks[old_num + i];
-    const blender::bke::bake::BakeDataBlockID &key = missing[i];
+    const bke::bake::BakeDataBlockID &key = missing[i];
 
     data_block.id_name = BLI_strdup(key.id_name.c_str());
     if (!key.lib_name.empty()) {
@@ -1824,7 +1823,6 @@ static void modifyGeometry(ModifierData *md,
                            const ModifierEvalContext *ctx,
                            bke::GeometrySet &geometry_set)
 {
-  using namespace blender;
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
   if (nmd->node_group == nullptr) {
     return;
@@ -2030,7 +2028,6 @@ static void panel_draw(const bContext *C, Panel *panel)
 
 static void panel_register(ARegionType *region_type)
 {
-  using namespace blender;
   modifier_panel_register(region_type, eModifierType_Nodes, panel_draw);
 }
 
@@ -2063,21 +2060,19 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
     IDP_BlendWrite(writer, nmd->settings.properties);
   }
 
-  BLO_write_struct_array(writer, NodesModifierBake, nmd->bakes_num, nmd->bakes);
+  writer->write_struct_array(nmd->bakes_num, nmd->bakes);
   for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
     BLO_write_string(writer, bake.directory);
 
-    BLO_write_struct_array(writer, NodesModifierDataBlock, bake.data_blocks_num, bake.data_blocks);
+    writer->write_struct_array(bake.data_blocks_num, bake.data_blocks);
     for (const NodesModifierDataBlock &item : Span(bake.data_blocks, bake.data_blocks_num)) {
       BLO_write_string(writer, item.id_name);
       BLO_write_string(writer, item.lib_name);
     }
     if (bake.packed) {
       writer->write_struct(bake.packed);
-      BLO_write_struct_array(
-          writer, NodesModifierBakeFile, bake.packed->meta_files_num, bake.packed->meta_files);
-      BLO_write_struct_array(
-          writer, NodesModifierBakeFile, bake.packed->blob_files_num, bake.packed->blob_files);
+      writer->write_struct_array(bake.packed->meta_files_num, bake.packed->meta_files);
+      writer->write_struct_array(bake.packed->blob_files_num, bake.packed->blob_files);
       const auto write_bake_file = [&](const NodesModifierBakeFile &bake_file) {
         BLO_write_string(writer, bake_file.name);
         if (bake_file.packed_file) {
@@ -2096,7 +2091,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
       }
     }
   }
-  BLO_write_struct_array(writer, NodesModifierPanel, nmd->panels_num, nmd->panels);
+  writer->write_struct_array(nmd->panels_num, nmd->panels);
 
   if (nmd->settings.properties) {
     if (!BLO_write_is_undo(writer)) {
@@ -2305,8 +2300,6 @@ static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks *r_cd
   r_cddata_masks->vmask |= CD_MASK_PROP_ALL;
 }
 
-}  // namespace blender
-
 ModifierTypeInfo modifierType_Nodes = {
     /*idname*/ "GeometryNodes",
     /*name*/ N_("GeometryNodes"),
@@ -2320,28 +2313,30 @@ ModifierTypeInfo modifierType_Nodes = {
      eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_AcceptsGreasePencil),
     /*icon*/ ICON_GEOMETRY_NODES,
 
-    /*copy_data*/ blender::copy_data,
+    /*copy_data*/ copy_data,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
     /*deform_verts_EM*/ nullptr,
     /*deform_matrices_EM*/ nullptr,
-    /*modify_mesh*/ blender::modify_mesh,
-    /*modify_geometry_set*/ blender::modify_geometry_set,
+    /*modify_mesh*/ modify_mesh,
+    /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ blender::init_data,
-    /*required_data_mask*/ blender::required_data_mask,
-    /*free_data*/ blender::free_data,
-    /*is_disabled*/ blender::is_disabled,
-    /*update_depsgraph*/ blender::update_depsgraph,
-    /*depends_on_time*/ blender::depends_on_time,
+    /*init_data*/ init_data,
+    /*required_data_mask*/ required_data_mask,
+    /*free_data*/ free_data,
+    /*is_disabled*/ is_disabled,
+    /*update_depsgraph*/ update_depsgraph,
+    /*depends_on_time*/ depends_on_time,
     /*depends_on_normals*/ nullptr,
-    /*foreach_ID_link*/ blender::foreach_ID_link,
-    /*foreach_tex_link*/ blender::foreach_tex_link,
+    /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_tex_link*/ foreach_tex_link,
     /*free_runtime_data*/ nullptr,
-    /*panel_register*/ blender::panel_register,
-    /*blend_write*/ blender::blend_write,
-    /*blend_read*/ blender::blend_read,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ blend_write,
+    /*blend_read*/ blend_read,
     /*foreach_cache*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

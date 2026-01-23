@@ -68,7 +68,12 @@
 
 #include "BKE_scene_runtime.hh"
 
-namespace blender::seq {
+#ifdef WITH_AUDASPACE
+#  include <AUD_Sound.h>
+#endif
+
+namespace blender {
+namespace seq {
 
 /* -------------------------------------------------------------------- */
 /** \name Allocate / Free Functions
@@ -129,7 +134,7 @@ Strip *strip_alloc(ListBaseT<Strip> *lb, int timeline_frame, int channel, StripT
   relations_session_uid_generate(strip);
   BLI_addtail(lb, strip);
 
-  *((short *)strip->name) = ID_SEQ;
+  *(reinterpret_cast<short *>(strip->name)) = ID_SEQ;
   strip->name[2] = 0;
 
   strip->flag = SEQ_SELECT;
@@ -181,7 +186,7 @@ static void seq_strip_free_ex(Scene *scene,
   }
 
   if (strip->sound && do_id_user) {
-    id_us_min((ID *)strip->sound);
+    id_us_min(id_cast<ID *>(strip->sound));
   }
 
   if (strip->clip && do_id_user) {
@@ -269,6 +274,30 @@ void seq_free_strip_recurse(Scene *scene, Strip *strip, const bool do_id_user)
   }
 
   seq_strip_free_ex(scene, strip, false, do_id_user);
+}
+
+StripRuntime::~StripRuntime()
+{
+  clear_sound_time_stretch();
+}
+
+void StripRuntime::clear_sound_time_stretch()
+{
+  if (sound_time_stretch != nullptr) {
+#ifdef WITH_AUDASPACE
+    AUD_Sound_free(sound_time_stretch);
+    sound_time_stretch = nullptr;
+#endif
+  }
+  sound_time_stretch_fps = 0.0f;
+}
+
+void StripRuntime::remove_scene_sound(Scene *scene)
+{
+  if (scene_sound != nullptr) {
+    BKE_sound_remove_scene_sound(scene, scene_sound);
+    scene_sound = nullptr;
+  }
 }
 
 Editing *editing_get(const Scene *scene)
@@ -701,8 +730,9 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
   else if (strip->type == STRIP_TYPE_SOUND) {
     strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
     strip_new->runtime->scene_sound = nullptr;
+    strip_new->runtime->sound_time_stretch = nullptr;
     if ((ctx.copy_flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-      id_us_plus((ID *)strip_new->sound);
+      id_us_plus(id_cast<ID *>(strip_new->sound));
     }
   }
   else if (strip->type == STRIP_TYPE_IMAGE) {
@@ -829,7 +859,7 @@ SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings)
 
 static bool strip_write_data_cb(Strip *strip, void *userdata)
 {
-  BlendWriter *writer = (BlendWriter *)userdata;
+  BlendWriter *writer = static_cast<BlendWriter *>(userdata);
   writer->write_struct(strip);
   if (strip->data) {
     /* TODO this doesn't depend on the `Strip` data to be present? */
@@ -879,8 +909,8 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
       writer->write_struct(data->proxy);
     }
     if (strip->type == STRIP_TYPE_IMAGE) {
-      BLO_write_struct_array(
-          writer, StripElem, MEM_allocN_len(data->stripdata) / sizeof(StripElem), data->stripdata);
+      writer->write_struct_array(MEM_allocN_len(data->stripdata) / sizeof(StripElem),
+                                 data->stripdata);
     }
     else if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_SOUND)) {
       writer->write_struct(data->stripdata);
@@ -906,7 +936,7 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
 
   if (strip->retiming_keys != nullptr) {
     int size = retiming_keys_count(strip);
-    BLO_write_struct_array(writer, SeqRetimingKey, size, strip->retiming_keys);
+    writer->write_struct_array(size, strip->retiming_keys);
   }
 
   return true;
@@ -919,7 +949,7 @@ void blend_write(BlendWriter *writer, ListBaseT<Strip> *seqbase)
 
 static bool strip_read_data_cb(Strip *strip, void *user_data)
 {
-  BlendDataReader *reader = (BlendDataReader *)user_data;
+  BlendDataReader *reader = static_cast<BlendDataReader *>(user_data);
 
   strip->runtime = MEM_new<StripRuntime>(__func__);
   /* Do as early as possible, so that other parts of reading can rely on valid session UID. */
@@ -1058,11 +1088,9 @@ void doversion_250_sound_proxy_update(Main *bmain, Editing *ed)
 
 static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
 {
-  Scene *scene = (Scene *)user_data;
-  if (strip->runtime->scene_sound != nullptr) {
-    BKE_sound_remove_scene_sound(scene, strip->runtime->scene_sound);
-    strip->runtime->scene_sound = nullptr;
-  }
+  Scene *scene = static_cast<Scene *>(user_data);
+  strip->runtime->remove_scene_sound(scene);
+  strip->runtime->clear_sound_time_stretch();
   return true;
 }
 
@@ -1105,9 +1133,19 @@ static void strip_update_sound_modifiers(Strip *strip)
 {
   void *sound_handle = BKE_sound_playback_handle_get(strip->sound);
   bool needs_update = false;
+  int sound_modifiers_count = 0;
 
   for (StripModifierData &smd : strip->modifiers) {
     sound_handle = sound_modifier_recreator(strip, &smd, sound_handle, needs_update);
+    sound_modifiers_count++;
+  }
+
+  /* Check if a modifier was removed. It is particularly needed when the last modifier is removed
+   * and the `scene_sound` handle has to be updated but all the previous modifiers detect no change
+   * and `needs_update` remains false. */
+  if (strip->runtime->sound_modifiers_count != sound_modifiers_count) {
+    needs_update = true;
+    strip->runtime->sound_modifiers_count = sound_modifiers_count;
   }
 
   if (needs_update) {
@@ -1181,7 +1219,7 @@ static void seq_update_scene_strip_sound(const Scene *scene, Strip *strip)
 
 static bool strip_sound_update_cb(Strip *strip, void *user_data)
 {
-  Scene *scene = (Scene *)user_data;
+  Scene *scene = static_cast<Scene *>(user_data);
 
   strip_update_mix_sounds(scene, strip);
 
@@ -1206,7 +1244,7 @@ void eval_strips(Depsgraph *depsgraph, Scene *scene, ListBaseT<Strip> *seqbase)
   sound_update_bounds_all(scene);
 }
 
-}  // namespace blender::seq
+}  // namespace seq
 
 ListBaseT<Strip> *Editing::current_strips()
 {
@@ -1248,3 +1286,5 @@ bool Strip::is_effect() const
          (this->type >= STRIP_TYPE_WIPE && this->type <= STRIP_TYPE_ADJUSTMENT) ||
          (this->type >= STRIP_TYPE_GAUSSIAN_BLUR && this->type <= STRIP_TYPE_COLORMIX);
 }
+
+}  // namespace blender

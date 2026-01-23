@@ -19,11 +19,14 @@
 
 #include "CLG_log.h"
 
-#include "fmt/format.h"
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+
+namespace blender {
 
 static CLG_LogRef LOG = {"gpu.shader"};
 
-namespace blender::gpu {
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Debug functions
@@ -451,4 +454,5 @@ void printf_end(Context *ctx)
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender
