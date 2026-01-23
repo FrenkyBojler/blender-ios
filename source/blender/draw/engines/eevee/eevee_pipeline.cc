@@ -287,19 +287,19 @@ void Prepass::setup_subpasses(DRWState common_state)
    * The write will be optimized out if the attachment is empty. */
   common_state |= DRW_STATE_WRITE_COLOR;
 
+  static constexpr const char *subpass_names[2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
+      {{"SingleSided.Static.NoID", "SingleSided.Static.ID"},
+       {"SingleSided.Moving.NoID", "SingleSided.Moving.ID"}},
+      {{"DoubleSided.Static.NoID", "DoubleSided.Static.ID"},
+       {"DoubleSided.Moving.NoID", "DoubleSided.Moving.ID"}}};
+
   for (bool double_sided : {false, true}) {
-    std::string double_sided_name = double_sided ? "DoubleSided." : "SingleSided.";
-    DRWState double_sided_state = double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK;
-
     for (bool moving : {false, true}) {
-      std::string moving_name = moving ? "Moving." : "Static.";
-
       for (bool write_id : {false, true}) {
-        std::string write_id_name = write_id ? "ID" : "NoID";
-
         PassMain::Sub *&subpass = prepass_subpasses[double_sided][moving][write_id];
-        subpass = &this->sub(double_sided_name + moving_name + write_id_name);
-        subpass->state_set(common_state | double_sided_state);
+        subpass = &this->sub(subpass_names[double_sided][moving][write_id]);
+        subpass->state_set(common_state |
+                           (double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK));
         subpass->subpass_transition(
             GPU_ATTACHMENT_WRITE,
             {GPU_ATTACHMENT_WRITE_OPTIONAL, /* normal */
