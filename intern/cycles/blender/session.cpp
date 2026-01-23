@@ -942,9 +942,10 @@ void BlenderSession::view_draw(const int w, const int h)
       session->scene->mutex.unlock();
     }
 
-    if (session->get_effective_denoiser_type() == DENOISER_DLSS)
-    {
+    bool allow_resize_next_frame = false;
+    if (session->get_effective_denoiser_type() == DENOISER_DLSS) {
       reset = true;
+      allow_resize_next_frame = true;
       scene->integrator->set_seed(scene->integrator->get_seed() + rand());
       scene->integrator->set_frame(scene->integrator->get_frame() + 1);
     }
@@ -959,7 +960,9 @@ void BlenderSession::view_draw(const int w, const int h)
 
       if (session_pause == false) {
         session->reset(session_params, buffer_params);
-        start_resize_time = 0.0;
+        if (!allow_resize_next_frame) {
+          start_resize_time = 0.0;
+        }
       }
     }
   }
