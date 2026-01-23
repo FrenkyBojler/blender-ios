@@ -297,7 +297,7 @@ float raytrace_screen_2(float3 vs_origin,
   float4 delta = (end - start) / float(steps);
 
   float max_t = max(steps - 1, 1);
-  float previous_step_z = start.z + delta.z;
+  float previous_step_z = start.z;
   bool forward = end.z > start.z;
 
   /* Skip the first step to avoid self-occlusion. But iterate at least once. */
