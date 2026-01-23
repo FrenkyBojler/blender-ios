@@ -137,9 +137,12 @@ bool BKE_preferences_asset_library_is_valid(const UserDef *userdef,
                                             const bUserAssetLibrary *library,
                                             const bool check_directory_exists)
 {
-  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(userdef, use_remote_asset_libraries);
   const bool is_remote_library = library->flag & ASSET_LIBRARY_USE_REMOTE_URL;
-  if (is_remote_library && (skip_remote_libraries || !library->remote_url[0])) {
+  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(userdef, use_remote_asset_libraries);
+  if (is_remote_library && skip_remote_libraries) {
+    return false;
+  }
+  if (is_remote_library && !library->remote_url[0]) {
     return false;
   }
   /* Note that there's no check if the path exists on disk here. If an invalid library path is
