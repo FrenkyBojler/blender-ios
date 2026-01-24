@@ -311,23 +311,23 @@ void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst)
   dst.totcol = src.totcol;
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
 }
-void pointcloud_add_points(PointCloud *pointcloud, const int count)
+void pointcloud_add_points(PointCloud &pointcloud, const int count)
 {
   BLI_assert(count > 0);
   if (count == 0) {
     return;
   }
 
-  const int old_totpoint = pointcloud->totpoint;
-  pointcloud->totpoint += count;
-  bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
+  const int old_totpoint = pointcloud.totpoint;
+  pointcloud.totpoint += count;
+  bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
 
   if (old_totpoint == 0) {
     /* If there were no points before, ensure the position attribute exists. */
     attributes.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
   }
 
-  pointcloud->attribute_storage.wrap().resize(bke::AttrDomain::Point, pointcloud->totpoint);
+  pointcloud.attribute_storage.wrap().resize(bke::AttrDomain::Point, pointcloud.totpoint);
 
   fill_attribute_range_default(
       attributes, bke::AttrDomain::Point, {}, IndexRange(old_totpoint, count));

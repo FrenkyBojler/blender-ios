@@ -67,7 +67,7 @@ void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst);
 /**
  * Add points to the point cloud, updating the necessary attributes.
  */
-void pointcloud_add_points(PointCloud *pointcloud, const int count);
+void pointcloud_add_points(PointCloud &pointcloud, const int count);
 
 /* Dependency Graph */
 
