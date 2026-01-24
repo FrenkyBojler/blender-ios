@@ -73,6 +73,11 @@ static void node_geo_exec(GeoNodeExecParams params)
                                  std::move(collections_array_data),
                                  collections->data.size()));
 
+  if (!params.output_is_required("Objects")) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
   auto *objects = new ImplicitSharedValue<Vector<Object *>>();
   if (recursive) {
     FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, object) {
@@ -103,7 +108,8 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeCollectionChildren");
   ntype.ui_name = "Collection Children";
-  ntype.ui_description = "Retrieve children collection and object lists from a collection with name-base order";
+  ntype.ui_description =
+      "Retrieve children collection and object lists from a collection with name-base order";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
