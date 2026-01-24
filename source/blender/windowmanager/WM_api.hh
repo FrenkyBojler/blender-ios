@@ -1862,6 +1862,7 @@ enum eWM_JobType {
   WM_JOB_TYPE_CALCULATE_SIMULATION_NODES,
   WM_JOB_TYPE_BAKE_GEOMETRY_NODES,
   WM_JOB_TYPE_UV_PACK,
+  WM_JOB_TYPE_BACKGROUND_SAVE_DRAIN,
   /* Add as needed, bake, seq proxy build
    * if having hard coded values is a problem. */
 };

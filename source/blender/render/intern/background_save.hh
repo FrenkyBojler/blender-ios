@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <deque>
 #include <mutex>
 
 #include "BLI_sys_types.h"
@@ -51,6 +52,9 @@ struct BackgroundSaveState {
 
   /** Whether shutdown is in progress (prevents new tasks). */
   bool shutting_down = false;
+
+  /** Queue of completed saves awaiting callback. Protected by mutex. */
+  std::deque<int> completed_frames;
 };
 
 /* Internal implementation functions (called by C API wrappers). */
@@ -64,5 +68,8 @@ bool background_save_render_impl(RenderResult *rr,
 bool background_save_should_use_impl(size_t peak_memory_mb);
 int background_save_get_failed_count_impl();
 void background_save_clear_failed_count_impl();
+int background_save_drain_completed_impl(int *out_frames, int max_frames);
+void background_save_push_completed_impl(int frame);
+bool background_save_has_pending_impl();
 
 }  // namespace blender::render

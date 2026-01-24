@@ -424,8 +424,7 @@ bool TaskPool::tbb_task_pool_canceled()
 
 void TaskPool::background_task_pool_run(Task &&task)
 {
-  BLI_assert(ELEM(
-      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
+  BLI_assert(ELEM(this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
 
   Task *task_mem = MEM_new<Task>(__func__, std::move(task));
   BLI_thread_queue_push(this->background_queue,
@@ -441,8 +440,7 @@ void TaskPool::background_task_pool_run(Task &&task)
 
 void TaskPool::background_task_pool_work_and_wait()
 {
-  BLI_assert(ELEM(
-      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
+  BLI_assert(ELEM(this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
 
   /* Signal background thread to stop waiting for new tasks if none are
    * left, and wait for tasks and thread to finish. */
@@ -453,8 +451,7 @@ void TaskPool::background_task_pool_work_and_wait()
 
 void TaskPool::background_task_pool_cancel()
 {
-  BLI_assert(ELEM(
-      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
+  BLI_assert(ELEM(this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
 
   this->background_is_canceling = true;
 
@@ -471,8 +468,7 @@ void TaskPool::background_task_pool_cancel()
 
 bool TaskPool::background_task_pool_canceled()
 {
-  BLI_assert(ELEM(
-      this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
+  BLI_assert(ELEM(this->type, TASK_POOL_BACKGROUND, TASK_POOL_BACKGROUND_SERIAL));
 
   return this->background_is_canceling;
 }

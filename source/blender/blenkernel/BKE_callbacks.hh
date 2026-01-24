@@ -77,6 +77,7 @@ enum eCbEvent {
   BKE_CB_EVT_RENDER_PRE,
   BKE_CB_EVT_RENDER_POST,
   BKE_CB_EVT_RENDER_WRITE,
+  BKE_CB_EVT_RENDER_WRITE_QUEUED, /* Fires when async save is queued (file may not exist yet) */
   BKE_CB_EVT_RENDER_STATS,
   BKE_CB_EVT_RENDER_INIT,
   BKE_CB_EVT_RENDER_COMPLETE,

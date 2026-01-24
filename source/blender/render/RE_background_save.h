@@ -16,6 +16,11 @@
  * - Full RenderResult deep copy for thread safety
  * - Automatic memory-based heuristics for deciding sync vs async saves
  * - Serial execution for movies (frame ordering), parallel for images
+ *
+ * Note: Movie formats are intentionally excluded from this API. Viewport/movie output relies on
+ * ordered, serialized writers and remains handled by the existing movie pipeline (e.g.
+ * render_opengl.cc). Movies require ordered frame writes for codec stream integrity, which is
+ * fundamentally incompatible with parallel background saves.
  */
 
 #pragma once
@@ -120,5 +125,28 @@ int RE_background_save_get_failed_count();
  * Call this after reporting errors to the user.
  */
 void RE_background_save_clear_failed_count();
+
+/**
+ * Drain completed background saves and return count.
+ * Call this periodically during animation render.
+ * Note: Callbacks may fire out-of-frame-order since async saves complete in arbitrary order.
+ *
+ * \param out_frames: Array to receive completed frame numbers (can be NULL).
+ * \param max_frames: Maximum frames to return.
+ * \return Number of completed saves drained.
+ */
+int RE_background_save_drain_completed(int *out_frames, int max_frames);
+
+/**
+ * Push a frame number to the completion queue.
+ * Used for sync saves so they also fire RENDER_WRITE via drain.
+ */
+void RE_background_save_push_completed(int frame);
+
+/**
+ * Check if there are pending background saves.
+ * Used to determine if drain job should continue.
+ */
+bool RE_background_save_has_pending();
 
 /** \} */

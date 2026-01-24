@@ -27,6 +27,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
+#include "BKE_callbacks.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -69,6 +70,9 @@
 #include "render_intern.hh"
 
 namespace blender {
+
+/* Forward declarations */
+static void background_save_start_drain_job(Main *bmain, Scene *scene);
 
 /* Render Callbacks */
 static bool render_break(void *rjv);
@@ -424,6 +428,9 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
                    scene->r.subframe,
                    is_write_still);
   }
+
+  /* Start drain job for any async saves still in progress (non-job path). */
+  background_save_start_drain_job(mainp, scene);
 
   RE_SetReports(re, nullptr);
 
@@ -909,7 +916,137 @@ static void render_endjob(void *rjv)
     WM_locked_interface_set(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
     DEG_tag_on_visible_update(G_MAIN, false);
   }
+
+  /* Start drain job for any async saves still in progress. */
+  background_save_start_drain_job(G_MAIN, rj->scene);
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Background Save Drain Job
+ * \{ */
+
+struct DrainJobData {
+  Main *bmain;
+  Scene *scene;
+};
+
+static void drain_job_startjob(void *djv, wmJobWorkerStatus *worker_status)
+{
+  (void)djv; /* Data only needed in update callback. */
+
+  /* Poll until no more pending saves. */
+  while (!worker_status->stop && RE_background_save_has_pending()) {
+    /* Sleep briefly to avoid busy-waiting. */
+    BLI_time_sleep_ms(50);
+    worker_status->do_update = true;
+  }
+}
+
+static void drain_job_update(void *djv)
+{
+  DrainJobData *dj = static_cast<DrainJobData *>(djv);
+
+  /* Drain completions and fire RENDER_WRITE callbacks. */
+  int completed_frames[16];
+  int completed_count;
+  int saved_frame = dj->scene->r.cfra;
+
+  while ((completed_count = RE_background_save_drain_completed(completed_frames, 16)) > 0) {
+    for (int i = 0; i < completed_count; i++) {
+      dj->scene->r.cfra = completed_frames[i];
+      BKE_callback_exec_id(dj->bmain, &dj->scene->id, BKE_CB_EVT_RENDER_WRITE);
+    }
+  }
+  dj->scene->r.cfra = saved_frame;
+}
+
+static void drain_job_endjob(void *djv)
+{
+  DrainJobData *dj = static_cast<DrainJobData *>(djv);
+
+  /* Final drain to catch any remaining completions. */
+  drain_job_update(djv);
+  MEM_delete(dj);
+}
+
+/** Start drain job if async saves are pending. UI mode only. */
+static void background_save_start_drain_job(Main *bmain, Scene *scene)
+{
+  if (!RE_background_save_has_pending()) {
+    return;
+  }
+
+  /* Guard against null WM/window - only start job in UI mode. */
+  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
+  if (!wm) {
+    /* No WM available (background mode). Scripts must use flush operator. */
+    return;
+  }
+
+  wmWindow *win = static_cast<wmWindow *>(wm->windows.first);
+  if (!win) {
+    return;
+  }
+
+  DrainJobData *dj = MEM_new<DrainJobData>(__func__);
+  dj->bmain = bmain;
+  dj->scene = scene;
+
+  wmJob *wm_job = WM_jobs_get(wm,
+                              win,
+                              scene,
+                              "Background Save",
+                              WM_JOB_PROGRESS,
+                              WM_JOB_TYPE_BACKGROUND_SAVE_DRAIN);
+
+  WM_jobs_customdata_set(wm_job, dj, nullptr); /* endjob frees */
+  WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_RENDER_RESULT, 0);
+  WM_jobs_callbacks(wm_job, drain_job_startjob, nullptr, drain_job_update, drain_job_endjob);
+  WM_jobs_start(wm, wm_job);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Background Save Flush Operator
+ * \{ */
+
+static wmOperatorStatus background_save_flush_exec(bContext *C, wmOperator * /*op*/)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+
+  /* Wait for all background saves to complete. */
+  RE_background_save_wait();
+
+  /* Drain all completions and fire RENDER_WRITE callbacks. */
+  int completed_frames[16];
+  int completed_count;
+  int saved_frame = scene->r.cfra;
+
+  while ((completed_count = RE_background_save_drain_completed(completed_frames, 16)) > 0) {
+    for (int i = 0; i < completed_count; i++) {
+      scene->r.cfra = completed_frames[i];
+      BKE_callback_exec_id(bmain, &scene->id, BKE_CB_EVT_RENDER_WRITE);
+    }
+  }
+  scene->r.cfra = saved_frame;
+
+  return OPERATOR_FINISHED;
+}
+
+void RENDER_OT_background_save_flush(wmOperatorType *ot)
+{
+  ot->name = "Flush Background Saves";
+  ot->idname = "RENDER_OT_background_save_flush";
+  ot->description = "Wait for background saves and fire RENDER_WRITE callbacks";
+
+  ot->exec = background_save_flush_exec;
+
+  /* No poll - always available. */
+}
+
+/** \} */
 
 /* called by render, check job 'stop' value or the global */
 static bool render_breakjob(void *rjv)
@@ -1401,22 +1538,6 @@ void RENDER_OT_shutter_curve_preset(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna, "shape", prop_shape_items, CURVE_PRESET_SMOOTH, "Mode", "");
   RNA_def_property_translation_context(prop,
                                        BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
-}
-
-/* Wait for background image saves */
-
-static wmOperatorStatus render_image_save_wait_exec(bContext * /*C*/, wmOperator * /*op*/)
-{
-  RE_background_save_wait();
-  return OPERATOR_FINISHED;
-}
-
-void RENDER_OT_image_save_wait(wmOperatorType *ot)
-{
-  ot->name = "Wait for Image Saves";
-  ot->description = "Wait for all pending background image saves to complete";
-  ot->idname = "RENDER_OT_image_save_wait";
-  ot->exec = render_image_save_wait_exec;
 }
 
 }  // namespace blender

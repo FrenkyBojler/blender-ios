@@ -81,7 +81,7 @@ void ED_operatortypes_render()
   WM_operatortype_append(RENDER_OT_render);
   WM_operatortype_append(RENDER_OT_view_cancel);
   WM_operatortype_append(RENDER_OT_shutter_curve_preset);
-  WM_operatortype_append(RENDER_OT_image_save_wait);
+  WM_operatortype_append(RENDER_OT_background_save_flush);
 
   /* `render_opengl.cc` */
   WM_operatortype_append(RENDER_OT_opengl);

@@ -1928,12 +1928,8 @@ static void image_save_options_from_op(Main *bmain, ImageSaveOptions *opts, wmOp
                           RNA_boolean_get(op->ptr, "save_as_render"));
 }
 
-static bool save_image_op(bContext * /*C*/,
-                          Main *bmain,
-                          Image *ima,
-                          ImageUser *iuser,
-                          wmOperator *op,
-                          const ImageSaveOptions *opts)
+static bool save_image_op(
+    Main *bmain, Image *ima, ImageUser *iuser, wmOperator *op, const ImageSaveOptions *opts)
 {
   WM_cursor_wait(true);
 
@@ -2022,7 +2018,7 @@ static wmOperatorStatus image_save_as_exec(bContext *C, wmOperator *op)
   image_save_options_from_op(bmain, &isd->opts, op);
   BKE_image_save_options_update(&isd->opts, isd->image);
 
-  save_image_op(C, bmain, isd->image, isd->iuser, op, &isd->opts);
+  save_image_op(bmain, isd->image, isd->iuser, op, &isd->opts);
 
   if (isd->opts.save_copy == false) {
     BKE_image_free_packedfiles(isd->image);
@@ -2259,7 +2255,7 @@ static wmOperatorStatus image_save_exec(bContext *C, wmOperator *op)
     BKE_reportf(
         op->reports, RPT_ERROR, "Cannot save image, path \"%s\" is not writable", opts.filepath);
   }
-  else if (save_image_op(C, bmain, image, iuser, op, &opts)) {
+  else if (save_image_op(bmain, image, iuser, op, &opts)) {
     /* Report since this can be called from key shortcuts. */
     BKE_reportf(op->reports, RPT_INFO, "Saved image \"%s\"", opts.filepath);
     ok = true;

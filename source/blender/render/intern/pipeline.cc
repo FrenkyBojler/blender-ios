@@ -174,8 +174,11 @@ static void render_callback_exec_id(Render *re, Main *bmain, ID *id, eCbEvent ev
 /** \name Allocation & Free
  * \{ */
 
-static bool do_write_image_or_movie(
-    Render *re, Main *bmain, Scene *scene, const int totvideos, const char *filepath_override);
+static bool do_write_image_or_movie(Render *re,
+                                    Main *bmain,
+                                    Scene *scene,
+                                    const int totvideos,
+                                    const char *filepath_override);
 
 /* default callbacks, set in each new render */
 static void result_rcti_nothing(void * /*arg*/, RenderResult * /*rr*/, rcti * /*rect*/) {}
@@ -1999,7 +2002,18 @@ void RE_RenderFrame(Render *re,
     /* keep after file save */
     render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_POST);
     if (should_write) {
-      render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_WRITE);
+      /* Don't wait - saves complete asynchronously for better performance.
+       * Drain any already-completed saves and fire RENDER_WRITE. */
+      int completed_frames[16];
+      int completed_count;
+      int saved_frame = scene->r.cfra;
+      while ((completed_count = RE_background_save_drain_completed(completed_frames, 16)) > 0) {
+        for (int i = 0; i < completed_count; i++) {
+          scene->r.cfra = completed_frames[i];
+          render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_WRITE);
+        }
+      }
+      scene->r.cfra = saved_frame;
     }
   }
 
@@ -2181,8 +2195,11 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
   return ok;
 }
 
-static bool do_write_image_or_movie(
-    Render *re, Main *bmain, Scene *scene, const int totvideos, const char *filepath_override)
+static bool do_write_image_or_movie(Render *re,
+                                    Main *bmain,
+                                    Scene *scene,
+                                    const int totvideos,
+                                    const char *filepath_override)
 {
   char filepath[FILE_MAX];
   RenderResult rres;
@@ -2199,8 +2216,12 @@ static bool do_write_image_or_movie(
 
     /* write movie or image */
     if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
-      RE_WriteRenderViewsMovie(
+      bool movie_ok = RE_WriteRenderViewsMovie(
           re->reports, &rres, scene, &re->r, re->movie_writers.data(), totvideos, false);
+      if (movie_ok) {
+        /* Enqueue movie frame completion for RENDER_WRITE callback. */
+        RE_background_save_push_completed(scene->r.cfra);
+      }
     }
     else {
       if (filepath_override) {
@@ -2237,16 +2258,24 @@ static bool do_write_image_or_movie(
           if (RE_background_save_render(&rres, scene, scene->camera, filepath)) {
             /* Successfully queued for background save. */
             CLOG_DEBUG(&LOG, "Frame queued for background save");
+            /* Fire RENDER_WRITE_QUEUED - async save in progress, file may not exist yet. */
+            render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_WRITE_QUEUED);
           }
           else {
             /* Background save not possible, fall back to sync save. */
             CLOG_DEBUG(&LOG, "Background save unavailable, using synchronous save");
             ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
+            if (ok) {
+              RE_background_save_push_completed(scene->r.cfra);
+            }
           }
         }
         else {
           /* Memory heuristics suggest sync save is safer. */
           ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
+          if (ok) {
+            RE_background_save_push_completed(scene->r.cfra);
+          }
         }
       }
     }
@@ -2593,11 +2622,17 @@ void RE_RenderAnim(Render *re,
     }
 
     if (G.is_break == false) {
-      /* keep after file save */
       render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_POST);
-      if (should_write) {
+
+      /* Fire RENDER_WRITE callbacks for completed saves (both async and sync). */
+      int completed_frames[16];
+      int completed_count = RE_background_save_drain_completed(completed_frames, 16);
+      int saved_frame = scene->r.cfra;
+      for (int i = 0; i < completed_count; i++) {
+        scene->r.cfra = completed_frames[i];
         render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_WRITE);
       }
+      scene->r.cfra = saved_frame;
     }
   }
 
@@ -2617,6 +2652,19 @@ void RE_RenderAnim(Render *re,
 
   /* Wait for pending background image saves before signaling completion. */
   RE_background_save_wait();
+
+  /* Fire remaining RENDER_WRITE callbacks for async saves that just completed. */
+  {
+    int completed_frames[16];
+    int completed_count;
+    while ((completed_count = RE_background_save_drain_completed(completed_frames, 16)) > 0) {
+      for (int i = 0; i < completed_count; i++) {
+        scene->r.cfra = completed_frames[i];
+        render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_WRITE);
+      }
+    }
+    scene->r.cfra = cfra_old; /* Restore original frame. */
+  }
 
   /* Report any failed background saves to the user. */
   const int failed_saves = RE_background_save_get_failed_count();

@@ -163,6 +163,9 @@ static void background_save_task_execute(BackgroundSaveTask *task)
 
   if (success) {
     CLOG_INFO(&LOG, "Saved frame %d: \"%s\"", task->frame, task->filepath);
+    /* Record completion for deferred callback (only on success). */
+    std::scoped_lock lock(g_state.mutex);
+    g_state.completed_frames.push_back(task->frame);
   }
   else {
     std::scoped_lock lock(g_state.mutex);
@@ -225,6 +228,7 @@ void background_save_exit_impl()
     }
     g_state.pending_count = 0;
     g_state.failed_count = 0;
+    g_state.completed_frames.clear();
     g_state.initialized = false;
     g_state.shutting_down = false;
   }
@@ -393,6 +397,32 @@ void background_save_clear_failed_count_impl()
   g_state.failed_count = 0;
 }
 
+int background_save_drain_completed_impl(int *out_frames, int max_frames)
+{
+  std::scoped_lock lock(g_state.mutex);
+  int count = 0;
+  while (!g_state.completed_frames.empty() && count < max_frames) {
+    if (out_frames) {
+      out_frames[count] = g_state.completed_frames.front();
+    }
+    g_state.completed_frames.pop_front();
+    count++;
+  }
+  return count;
+}
+
+void background_save_push_completed_impl(int frame)
+{
+  std::scoped_lock lock(g_state.mutex);
+  g_state.completed_frames.push_back(frame);
+}
+
+bool background_save_has_pending_impl()
+{
+  std::scoped_lock lock(g_state.mutex);
+  return g_state.pending_count > 0 || !g_state.completed_frames.empty();
+}
+
 }  // namespace blender::render
 
 /** \} */
@@ -435,4 +465,19 @@ int RE_background_save_get_failed_count()
 void RE_background_save_clear_failed_count()
 {
   blender::render::background_save_clear_failed_count_impl();
+}
+
+int RE_background_save_drain_completed(int *out_frames, int max_frames)
+{
+  return blender::render::background_save_drain_completed_impl(out_frames, max_frames);
+}
+
+void RE_background_save_push_completed(int frame)
+{
+  blender::render::background_save_push_completed_impl(frame);
+}
+
+bool RE_background_save_has_pending()
+{
+  return blender::render::background_save_has_pending_impl();
 }

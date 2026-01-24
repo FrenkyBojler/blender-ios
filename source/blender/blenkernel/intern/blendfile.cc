@@ -1631,10 +1631,6 @@ bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
   Main *mainb = MEM_new<Main>(__func__);
   bool ok = false;
 
-  /* Update version so versioning code doesn't run again on next load. */
-  U.versionfile = BLENDER_FILE_VERSION;
-  U.subversionfile = BLENDER_FILE_SUBVERSION;
-
   BlendFileWriteParams params{};
   params.use_userdef = true;
 

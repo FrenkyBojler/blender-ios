@@ -78,6 +78,8 @@ static PyStructSequence_Field app_cb_info_fields[] = {
     {"render_pre", "on render (before)"},
     {"render_post", "on render (after)"},
     {"render_write", "on writing a render frame (directly after the frame is written)"},
+    {"render_write_queued",
+     "on queuing an async render save (file may not exist yet). " RENDER_ARG},
     {"render_stats", "on printing render statistics. " RENDER_STATS_ARG},
     {"render_init", "on initialization of a render job. " RENDER_ARG},
     {"render_complete", "on completion of render job. " RENDER_ARG},

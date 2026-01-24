@@ -679,10 +679,7 @@ static void check_finalization(ThreadQueue *queue)
   if (queue->queue_low_priority.empty() && queue->queue_normal_priority.empty() &&
       queue->queue_high_priority.empty())
   {
-    /* Use broadcast to wake all threads waiting on finish_cond, not just one.
-     * With multiple worker threads, using signal() could wake a worker instead
-     * of the main thread waiting in wait_finish(), causing a hang. */
-    pthread_cond_broadcast(&queue->finish_cond);
+    pthread_cond_signal(&queue->finish_cond);
   }
 }
 
@@ -720,17 +717,11 @@ void *BLI_thread_queue_pop(ThreadQueue *queue)
 {
   ThreadQueueWork work_reference = {0};
 
-  /* Wait until there is work, or return nullptr if nowait is set and queue is empty.
-   * The nowait flag should only prevent blocking on an empty queue, but existing
-   * queued tasks should still be processed. */
+  /* wait until there is work */
   pthread_mutex_lock(&queue->mutex);
-  while (queue->queue_low_priority.empty() && queue->queue_normal_priority.empty() &&
-         queue->queue_high_priority.empty())
+  while (!queue->nowait && queue->queue_low_priority.empty() &&
+         queue->queue_normal_priority.empty() && queue->queue_high_priority.empty())
   {
-    if (queue->nowait) {
-      pthread_mutex_unlock(&queue->mutex);
-      return nullptr;
-    }
     pthread_cond_wait(&queue->push_cond, &queue->mutex);
   }
 
