@@ -1344,29 +1344,23 @@ class NODE_OT_viewer_shortcut_get(Operator):
 
 
 class NODE_OT_group_make_local(Operator):
-    """Copy selected linked/packed node groups into the current .blend file"""
+    """Convert current nodetree from being linked/pack to being local in the current .blend file"""
     bl_idname = "node.make_local"
     bl_label = "Make Local"
     bl_options = {'REGISTER', 'UNDO'}
 
-    @staticmethod
-    def has_library(node):
-        tree = getattr(node, "node_tree", None)
+    @classmethod
+    def poll(cls, context):
+        tree = context.space_data.edit_tree
 
         return (
-            node is not None and
             tree is not None and
             (tree.library or tree.override_library)
         )
 
-    @classmethod
-    def poll(cls, context):
-        return any(cls.has_library(node) for node in context.selected_nodes)
-
     def execute(self, context):
-        for node in context.selected_nodes:
-            if self.has_library(node):
-                node.node_tree.make_local()
+        tree = context.space_data.edit_tree
+        tree.make_local()
 
         context.area.tag_redraw()
         return {'FINISHED'}
