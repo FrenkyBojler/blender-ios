@@ -6,11 +6,14 @@
 #include "BLI_listbase_iterator.hh"
 #include "BLI_path_utils.hh"
 
+#include "BKE_addon.h"
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
+#include "BKE_keyconfig.h"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_screen.hh"
 #include "BKE_shader_fx.hh"
 
 #include "BLO_readfile.hh"
@@ -26,7 +29,10 @@
 
 #include "ED_space_api.hh"
 
-#include "CLG_log.h"
+#include "WM_api.hh"
+#include "gizmo/WM_gizmo_types.hh"
+#include "wm.hh"
+#include "wm_event_system.hh"
 
 #include "tests/blendfile_loading_base_test.h"
 
@@ -45,6 +51,14 @@ class NodeLinkDragTest : public BlendfileLoadingBaseTest {
 
   static void TearDownTestCase()
   {
+    wm_operatortype_free();
+    WM_menutype_free();
+    WM_uilisttype_free();
+    wm_dropbox_free();
+    wm_gizmotype_free();
+    wm_gizmogrouptype_free();
+    wm_gizmomaptypes_free();
+    BKE_spacetypes_free();
     BlendfileLoadingBaseTest::TearDownTestCase();
   }
 
