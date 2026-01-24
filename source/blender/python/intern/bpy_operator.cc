@@ -87,7 +87,6 @@ PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s" /* `opname` */
       "|" /* Optional arguments. */
       "s" /* `context_str` */
@@ -157,7 +156,6 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", "", "", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `opname` */
       "|"  /* Optional arguments. */
       "O!" /* `kw` */
@@ -329,7 +327,6 @@ PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", "", "", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `opname` */
       "|"  /* Optional arguments. */
       "O!" /* `kw` */
@@ -407,7 +404,7 @@ PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
     return nullptr;
   }
 
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, ot->srna);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_Struct, ot->srna);
   BPy_StructRNA *pyrna = reinterpret_cast<BPy_StructRNA *>(pyrna_struct_CreatePyObject(&ptr));
   return reinterpret_cast<PyObject *>(pyrna);
 }

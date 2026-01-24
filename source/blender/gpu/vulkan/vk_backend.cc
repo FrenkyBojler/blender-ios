@@ -31,6 +31,7 @@
 #include "vk_state_manager.hh"
 #include "vk_storage_buffer.hh"
 #include "vk_texture.hh"
+#include "vk_texture_pool.hh"
 #include "vk_uniform_buffer.hh"
 #include "vk_vertex_buffer.hh"
 
@@ -651,6 +652,16 @@ Shader *VKBackend::shader_alloc(const char *name)
 Texture *VKBackend::texture_alloc(const char *name)
 {
   return new VKTexture(name);
+}
+
+TexturePool *VKBackend::texturepool_alloc()
+{
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    CLOG_INFO(&LOG, "Using texture pool \"TexturePoolImpl\".");
+    return new TexturePoolImpl();
+  }
+  CLOG_INFO(&LOG, "Using texture pool \"VKTexturePool\".");
+  return new VKTexturePool();
 }
 
 UniformBuf *VKBackend::uniformbuf_alloc(size_t size, const char *name)

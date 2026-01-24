@@ -53,6 +53,7 @@
 #include "BLO_core_file_reader.hh"
 #include "BLO_readfile.hh"
 
+#include "BLT_lang.hh"
 #include "BLT_translation.hh"
 
 #include "BLF_api.hh"
@@ -781,7 +782,7 @@ static void wm_file_read_post(bContext *C,
     /* Load-post must run before evaluating drivers & depsgraph, see: #109720.
      * On failure, the caller handles #BKE_CB_EVT_LOAD_POST_FAIL. */
     if (params->success) {
-      BKE_callback_exec_string(bmain, BKE_CB_EVT_LOAD_POST, filepath);
+      BKE_callback_exec_string(bmain, filepath, BKE_CB_EVT_LOAD_POST);
     }
 
     if (is_factory_startup) {
@@ -859,7 +860,7 @@ static void wm_read_callback_pre_wrapper(bContext *C, const char *filepath)
 {
   /* NOTE: either #BKE_CB_EVT_LOAD_POST or #BKE_CB_EVT_LOAD_POST_FAIL must run.
    * Runs at the end of this function, don't return beforehand. */
-  BKE_callback_exec_string(CTX_data_main(C), BKE_CB_EVT_LOAD_PRE, filepath);
+  BKE_callback_exec_string(CTX_data_main(C), filepath, BKE_CB_EVT_LOAD_PRE);
 }
 
 static void wm_read_callback_post_wrapper(bContext *C, const char *filepath, const bool success)
@@ -876,7 +877,7 @@ static void wm_read_callback_post_wrapper(bContext *C, const char *filepath, con
 
   /* On success: #BKE_CB_EVT_LOAD_POST runs from #wm_file_read_post. */
   if (success == false) {
-    BKE_callback_exec_string(bmain, BKE_CB_EVT_LOAD_POST_FAIL, filepath);
+    BKE_callback_exec_string(bmain, filepath, BKE_CB_EVT_LOAD_POST_FAIL);
   }
 
   /* This function should leave the window null when the function entered. */
@@ -2119,7 +2120,7 @@ static bool wm_file_write(bContext *C,
 
   /* NOTE: either #BKE_CB_EVT_SAVE_POST or #BKE_CB_EVT_SAVE_POST_FAIL must run.
    * Runs at the end of this function, don't return beforehand. */
-  BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_PRE, filepath);
+  BKE_callback_exec_string(bmain, filepath, BKE_CB_EVT_SAVE_PRE);
 
   /* Check if file write permission is OK. */
   if (const int st_mode = BLI_exists(filepath)) {
@@ -2142,7 +2143,7 @@ static bool wm_file_write(bContext *C,
     }
 
     if (!ok) {
-      BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_POST_FAIL, filepath);
+      BKE_callback_exec_string(bmain, filepath, BKE_CB_EVT_SAVE_POST_FAIL);
       return false;
     }
   }
@@ -2243,7 +2244,7 @@ static bool wm_file_write(bContext *C,
   }
 
   BKE_callback_exec_string(
-      bmain, success ? BKE_CB_EVT_SAVE_POST : BKE_CB_EVT_SAVE_POST_FAIL, filepath);
+      bmain, filepath, success ? BKE_CB_EVT_SAVE_POST : BKE_CB_EVT_SAVE_POST_FAIL);
 
   if (ibuf_thumb) {
     IMB_freeImBuf(ibuf_thumb);
@@ -2496,7 +2497,7 @@ static wmOperatorStatus wm_homefile_write_exec(bContext *C, wmOperator *op)
 
   /* NOTE: either #BKE_CB_EVT_SAVE_POST or #BKE_CB_EVT_SAVE_POST_FAIL must run.
    * Runs at the end of this function, don't return beforehand. */
-  BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_PRE, "");
+  BKE_callback_exec_string(bmain, "", BKE_CB_EVT_SAVE_PRE);
   ed::asset::pre_save_assets(bmain);
 
   /* Check current window and close it if temp. */
@@ -2527,7 +2528,7 @@ static wmOperatorStatus wm_homefile_write_exec(bContext *C, wmOperator *op)
   const bool success = BLO_write_file(
       bmain, filepath, fileflags, &blend_write_params, op->reports);
 
-  BKE_callback_exec_string(bmain, success ? BKE_CB_EVT_SAVE_POST : BKE_CB_EVT_SAVE_POST_FAIL, "");
+  BKE_callback_exec_string(bmain, "", success ? BKE_CB_EVT_SAVE_POST : BKE_CB_EVT_SAVE_POST_FAIL);
 
   if (success) {
     BKE_report(op->reports, RPT_INFO, "Startup file saved");
@@ -2667,8 +2668,8 @@ static void wm_userpref_update_when_changed(bContext *C,
                                             UserDef *userdef_prev,
                                             UserDef *userdef_curr)
 {
-  PointerRNA ptr_a = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, userdef_prev);
-  PointerRNA ptr_b = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, userdef_curr);
+  PointerRNA ptr_a = RNA_pointer_create_discrete(nullptr, RNA_Preferences, userdef_prev);
+  PointerRNA ptr_b = RNA_pointer_create_discrete(nullptr, RNA_Preferences, userdef_curr);
   const bool is_dirty = userdef_curr->runtime.is_dirty;
 
   rna_struct_update_when_changed(C, bmain, &ptr_a, &ptr_b);
@@ -2907,6 +2908,7 @@ static wmOperatorStatus wm_homefile_read_exec(bContext *C, wmOperator *op)
   }
 
   if (use_userdef) {
+    BLT_lang_set(nullptr);
     BKE_callback_exec_null(CTX_data_main(C), BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
   }
 
@@ -4119,7 +4121,7 @@ static ui::Block *block_create_autorun_warning(bContext *C, ARegion *region, voi
 
   layout.separator();
 
-  PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesFilePaths, &U);
+  PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, RNA_PreferencesFilePaths, &U);
   layout.prop(&pref_ptr, "use_scripts_auto_execute", UI_ITEM_NONE, checkbox_text, ICON_NONE);
 
   layout.separator(2.0f);

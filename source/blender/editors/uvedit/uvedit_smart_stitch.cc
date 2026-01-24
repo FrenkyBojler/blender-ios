@@ -2421,7 +2421,7 @@ static void stitch_exit(bContext *C, wmOperator *op, int finished)
       continue;
     }
 
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
 
@@ -2744,8 +2744,7 @@ void UV_OT_stitch(wmOperatorType *ot)
                       "Stored Operation Mode",
                       "Use vertex or edge stitching");
   RNA_def_property_flag(prop, PROP_HIDDEN);
-  prop = RNA_def_collection_runtime(
-      ot->srna, "selection", &RNA_SelectedUvElement, "Selection", "");
+  prop = RNA_def_collection_runtime(ot->srna, "selection", RNA_SelectedUvElement, "Selection", "");
   /* Selection should not be editable or viewed in toolbar */
   RNA_def_property_flag(prop, PROP_HIDDEN);
 

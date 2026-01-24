@@ -512,7 +512,7 @@ void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Obj
   if (!ob_eval) {
     return;
   }
-  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob_eval);
+  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   if (!mesh_eval) {
     return;
   }
@@ -683,7 +683,7 @@ static void object_for_curve_to_mesh_free(Object *temp_object)
  */
 static void curve_to_mesh_eval_ensure(Object &object)
 {
-  BLI_assert(GS(static_cast<ID *>(object.data)->name) == ID_CU_LEGACY);
+  BLI_assert(GS(object.data->name) == ID_CU_LEGACY);
   Curve &curve = *id_cast<Curve *>(object.data);
   /* Clear all modifiers for the bevel object.
    *
@@ -1133,6 +1133,7 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool pr
 
   /* Using #CD_MASK_MESH ensures that only data that should exist in Main meshes is moved. */
   const CustomData_MeshMasks mask = CD_MASK_MESH;
+  mesh_dst->attribute_storage.wrap() = std::move(mesh_src->attribute_storage.wrap());
   CustomData_init_from(
       &mesh_src->vert_data, &mesh_dst->vert_data, mask.vmask, mesh_src->verts_num);
   CustomData_init_from(

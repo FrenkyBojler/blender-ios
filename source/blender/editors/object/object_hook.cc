@@ -337,7 +337,7 @@ static bool object_hook_index_array(Main *bmain,
       EDBM_mesh_load(bmain, obedit);
       EDBM_mesh_make(obedit, scene->toolsettings->selectmode, true);
 
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
 
       BMEditMesh *em = mesh->runtime->edit_mesh.get();
 
@@ -723,7 +723,7 @@ static const EnumPropertyItem *hook_mod_itemf(bContext *C,
                                               PropertyRNA * /*prop*/,
                                               bool *r_free)
 {
-  Object *ob = CTX_data_edit_object(C);
+  Object *ob = (C) ? CTX_data_edit_object(C) : nullptr;
   EnumPropertyItem tmp = {0, "", 0, "", ""};
   EnumPropertyItem *item = nullptr;
   ModifierData *md = nullptr;
@@ -778,7 +778,7 @@ void OBJECT_OT_hook_remove(wmOperatorType *ot)
 
 static wmOperatorStatus object_hook_reset_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
@@ -826,7 +826,7 @@ void OBJECT_OT_hook_reset(wmOperatorType *ot)
 
 static wmOperatorStatus object_hook_recenter_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
@@ -883,7 +883,7 @@ static wmOperatorStatus object_hook_assign_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
@@ -948,7 +948,7 @@ void OBJECT_OT_hook_assign(wmOperatorType *ot)
 
 static wmOperatorStatus object_hook_select_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
@@ -962,7 +962,7 @@ static wmOperatorStatus object_hook_select_exec(bContext *C, wmOperator *op)
   /* select functionality */
   object_hook_select(ob, hmd);
 
-  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
+  DEG_id_tag_update(ob->data, ID_RECALC_SELECT);
   WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
 
   return OPERATOR_FINISHED;

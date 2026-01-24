@@ -387,7 +387,7 @@ static PointerRNA rna_ClothSettings_rest_shape_key_get(PointerRNA *ptr)
   Object *ob = id_cast<Object *>(ptr->owner_id);
   ClothSimSettings *sim = static_cast<ClothSimSettings *>(ptr->data);
 
-  return rna_object_shapekey_index_get(static_cast<ID *>(ob->data), sim->shapekey_rest);
+  return rna_object_shapekey_index_get(ob->data, sim->shapekey_rest);
 }
 
 static void rna_ClothSettings_rest_shape_key_set(PointerRNA *ptr,
@@ -397,8 +397,7 @@ static void rna_ClothSettings_rest_shape_key_set(PointerRNA *ptr,
   Object *ob = id_cast<Object *>(ptr->owner_id);
   ClothSimSettings *sim = static_cast<ClothSimSettings *>(ptr->data);
 
-  sim->shapekey_rest = rna_object_shapekey_index_set(
-      static_cast<ID *>(ob->data), value, sim->shapekey_rest);
+  sim->shapekey_rest = rna_object_shapekey_index_set(ob->data, value, sim->shapekey_rest);
 }
 
 static void rna_ClothSettings_gravity_get(PointerRNA *ptr, float *values)
@@ -620,7 +619,7 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
 
   /* mass */
 
-  prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_UNIT_MASS);
+  prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_MASS);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_text(prop, "Vertex Mass", "The mass of each vertex on the cloth material");
   RNA_def_property_update(prop, 0, "rna_cloth_update");

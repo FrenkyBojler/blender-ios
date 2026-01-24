@@ -119,6 +119,7 @@
 #include "BKE_pointcloud.hh"
 #include "BKE_pose_backup.h"
 #include "BKE_preview_image.hh"
+#include "BKE_report.hh"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.hh"
 #include "BKE_shader_fx.hh"
@@ -139,6 +140,7 @@
 #include "SEQ_sequencer.hh"
 
 #include "ANIM_action_legacy.hh"
+#include "ANIM_animdata.hh"
 
 #include "RNA_prototypes.hh"
 
@@ -162,7 +164,7 @@ static CLG_LogRef LOG = {"object"};
 static Mutex vparent_lock;
 #endif
 
-/* The flag `contained_geometry_types` in the object runtime uses a bit for each geoemtry type.
+/* The flag `contained_geometry_types` in the object runtime uses a bit for each geometry type.
  * Statically check that there are enough bits to be used. */
 static_assert(sizeof(blender::bke::ObjectRuntime::contained_geometry_types) * 8 >=
               GEO_COMPONENT_TYPE_ENUM_SIZE);
@@ -236,7 +238,7 @@ static void object_copy_data(Main *bmain,
   BKE_constraints_copy_ex(&ob_dst->constraints, &ob_src->constraints, flag_subdata, true);
 
   ob_dst->mode = OB_MODE_OBJECT;
-  ob_dst->sculpt = nullptr;
+  ob_dst->runtime->sculpt_session = nullptr;
 
   if (ob_src->pd) {
     ob_dst->pd = static_cast<PartDeflect *>(MEM_dupallocN(ob_src->pd));
@@ -618,8 +620,6 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
   ob->runtime = nullptr;
-  /* #Object::sculpt is also a runtime struct that should be stored in #Object::runtime. */
-  ob->sculpt = nullptr;
 
   if (is_undo) {
     /* For undo we stay in object mode during undo presses, so keep edit-mode disabled on save as
@@ -628,7 +628,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 
   /* write LibData */
-  BLO_write_id_struct(writer, Object, id_address, &ob->id);
+  writer->write_id_struct(id_address, ob);
   BKE_id_blend_write(writer, &ob->id);
 
   /* direct data */
@@ -669,7 +669,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_modifier_blend_write(writer, &ob->id, &ob->modifiers);
   BKE_shaderfx_blend_write(writer, &ob->shader_fx);
 
-  BLO_write_struct_list(writer, LinkData, &ob->pc_ids);
+  writer->write_struct_list(&ob->pc_ids);
 
   BKE_previewimg_blend_write(writer, ob->preview);
 
@@ -880,7 +880,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   CLAMP(ob->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
 
   /* Some files were incorrectly written with a dangling pointer to this runtime data. */
-  ob->sculpt = nullptr;
+  ob->runtime->sculpt_session = nullptr;
 
   /* When loading undo steps, for objects in modes that use `sculpt`, recreate the mode runtime
    * data. For regular non-undo reading, this is currently handled by mode switching after the
@@ -945,7 +945,7 @@ static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
      * Within a file (no library linking) this should never happen.
      * see: #139133. */
 
-    BLI_assert(GS(static_cast<ID *>(ob->data)->name) == ID_CU_LEGACY);
+    BLI_assert(GS(ob->data->name) == ID_CU_LEGACY);
     /* Don't recalculate any internal curve data is this is low level logic
      * intended to avoid errors when switching between font/curve types. */
     BKE_curve_type_test(ob, false);
@@ -953,8 +953,8 @@ static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 
   /* When the object is local and the data is library its possible
    * the material list size gets out of sync. #22663. */
-  if (ob->data && ob->id.lib != static_cast<ID *>(ob->data)->lib) {
-    BKE_object_materials_sync_length(bmain, ob, static_cast<ID *>(ob->data));
+  if (ob->data && ob->id.lib != ob->data->lib) {
+    BKE_object_materials_sync_length(bmain, ob, ob->data);
   }
 
   /* Performs quite extensive rebuilding & validation of object-level Pose data from the Armature
@@ -1599,7 +1599,7 @@ void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_own
   object_eval->runtime->is_data_eval_owned = is_owned;
 
   /* Overwrite data of evaluated object, if the data-block types match. */
-  ID *data = static_cast<ID *>(object_eval->data);
+  ID *data = object_eval->data;
   if (GS(data->name) == GS(data_eval->name)) {
     /* NOTE: we are not supposed to invoke evaluation for original objects,
      * but some areas are still being ported, so we play safe here. */
@@ -1845,17 +1845,22 @@ bool BKE_object_has_mode_data(const Object *ob, eObjectMode object_mode)
     }
   }
   else if (object_mode & OB_MODE_VERTEX_PAINT) {
-    if (ob->sculpt && (ob->sculpt->mode_type == OB_MODE_VERTEX_PAINT)) {
+    if (ob->runtime->sculpt_session &&
+        (ob->runtime->sculpt_session->mode_type == OB_MODE_VERTEX_PAINT))
+    {
       return true;
     }
   }
   else if (object_mode & OB_MODE_WEIGHT_PAINT) {
-    if (ob->sculpt && (ob->sculpt->mode_type == OB_MODE_WEIGHT_PAINT)) {
+    if (ob->runtime->sculpt_session &&
+        (ob->runtime->sculpt_session->mode_type == OB_MODE_WEIGHT_PAINT))
+    {
       return true;
     }
   }
   else if (object_mode & OB_MODE_SCULPT) {
-    if (ob->sculpt && (ob->sculpt->mode_type == OB_MODE_SCULPT)) {
+    if (ob->runtime->sculpt_session && (ob->runtime->sculpt_session->mode_type == OB_MODE_SCULPT))
+    {
       return true;
     }
   }
@@ -2551,7 +2556,7 @@ Object *BKE_object_duplicate(Main *bmain,
     }
   }
 
-  ID *id_old = static_cast<ID *>(obn->data);
+  ID *id_old = obn->data;
   ID *id_new = nullptr;
   const bool need_to_duplicate_obdata = (id_old != nullptr) && (id_old->newid == nullptr);
 
@@ -2678,7 +2683,7 @@ Object *BKE_object_duplicate(Main *bmain,
   }
 
   if (obn->data != nullptr) {
-    DEG_id_tag_update_ex(bmain, static_cast<ID *>(obn->data), ID_RECALC_EDITORS);
+    DEG_id_tag_update_ex(bmain, obn->data, ID_RECALC_EDITORS);
   }
 
   return obn;
@@ -3774,12 +3779,8 @@ bool BKE_object_minmax_empty_drawtype(const Object *ob, float r_min[3], float r_
   return ok;
 }
 
-bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
-                             Scene *scene,
-                             Object *ob,
-                             float3 &r_min,
-                             float3 &r_max,
-                             const bool use_hidden)
+bool BKE_object_minmax_dupli(
+    Depsgraph *depsgraph, Object *ob, float3 &r_min, float3 &r_max, const bool use_hidden)
 {
   bool ok = false;
   if ((ob->transflag & OB_DUPLI) == 0 && ob->runtime->geometry_set_eval == nullptr) {
@@ -3787,7 +3788,7 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
   }
 
   DupliList duplilist;
-  object_duplilist(depsgraph, scene, ob, nullptr, duplilist);
+  object_duplilist(depsgraph, ob, nullptr, duplilist);
   for (DupliObject &dob : duplilist) {
     if (((use_hidden == false) && (dob.no_draw != 0)) || dob.ob_data == nullptr) {
       /* pass */
@@ -4035,7 +4036,7 @@ void BKE_object_handle_update_ex(Depsgraph *depsgraph,
                                  Object *ob,
                                  RigidBodyWorld *rbw)
 {
-  const ID *object_data = static_cast<ID *>(ob->data);
+  const ID *object_data = ob->data;
   const bool recalc_object = (ob->id.recalc & ID_RECALC_ALL) != 0;
   const bool recalc_data = (object_data != nullptr) ?
                                ((object_data->recalc & ID_RECALC_ALL) != 0) :
@@ -4084,9 +4085,9 @@ void BKE_object_handle_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
 void BKE_object_sculpt_data_create(Object *ob)
 {
-  BLI_assert((ob->sculpt == nullptr) && (ob->mode & OB_MODE_ALL_SCULPT));
-  ob->sculpt = MEM_new<SculptSession>(__func__);
-  ob->sculpt->mode_type = eObjectMode(ob->mode);
+  BLI_assert((ob->runtime->sculpt_session == nullptr) && (ob->mode & OB_MODE_ALL_SCULPT));
+  ob->runtime->sculpt_session = MEM_new<SculptSession>(__func__);
+  ob->runtime->sculpt_session->mode_type = eObjectMode(ob->mode);
 }
 
 bool BKE_object_obdata_texspace_get(Object *ob,
@@ -4098,7 +4099,7 @@ bool BKE_object_obdata_texspace_get(Object *ob,
     return false;
   }
 
-  switch (GS(((ID *)ob->data)->name)) {
+  switch (GS(ob->data->name)) {
     case ID_ME: {
       BKE_mesh_texspace_get_reference(
           id_cast<Mesh *>(ob->data), r_texspace_flag, r_texspace_location, r_texspace_size);
@@ -4255,7 +4256,7 @@ const Mesh *BKE_object_get_mesh_deform_eval(const Object *object)
 
 Lattice *BKE_object_get_lattice(const Object *object)
 {
-  ID *data = static_cast<ID *>(object->data);
+  ID *data = object->data;
   if (data == nullptr || GS(data->name) != ID_LT) {
     return nullptr;
   }
@@ -4536,7 +4537,7 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
     return false;
   }
 
-  BKE_animdata_drivers_remove_for_rna_struct(key->id, RNA_ShapeKey, kb);
+  BKE_animdata_drivers_remove_for_rna_struct(key->id, *RNA_ShapeKey, kb);
 
   kb_index = BLI_findindex(&key->block, kb);
   BLI_assert(kb_index != -1);
@@ -4754,7 +4755,7 @@ static bool modifiers_has_animation_check(const Object *ob)
   if (ob->adt != nullptr) {
     AnimData *adt = ob->adt;
     if (adt->action != nullptr) {
-      for (FCurve *fcu : animrig::legacy::fcurves_for_assigned_action(adt)) {
+      for (FCurve *fcu : animrig::fcurves_for_assigned_action(adt)) {
         if (fcu->rna_path && strstr(fcu->rna_path, "modifiers[")) {
           return true;
         }
@@ -4896,6 +4897,7 @@ void BKE_object_runtime_reset_on_copy(Object *object, const int /*flag*/)
   runtime->object_as_temp_curve = nullptr;
   runtime->geometry_set_eval = nullptr;
   runtime->contained_geometry_types = 0;
+  runtime->sculpt_session = nullptr;
 
   runtime->crazyspace_deform_imats = {};
   runtime->crazyspace_deform_cos = {};
@@ -4903,8 +4905,8 @@ void BKE_object_runtime_reset_on_copy(Object *object, const int /*flag*/)
 
 void BKE_object_runtime_free_data(Object *object)
 {
-  /* Currently this is all that's needed. */
   BKE_object_free_derived_caches(object);
+  BKE_sculptsession_free(object);
 
   BKE_object_runtime_reset(object);
 }

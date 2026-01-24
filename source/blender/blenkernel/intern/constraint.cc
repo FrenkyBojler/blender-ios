@@ -92,7 +92,7 @@
 #endif
 
 #ifdef WITH_USD
-#  include "usd.hh"
+#  include "usd_api_modifier.hh"
 #endif
 
 namespace blender {
@@ -5453,8 +5453,10 @@ static void transformcache_evaluate(bConstraint *con,
       break;
     case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
+      float4x4 mat;
       io::usd::USD_get_transform(
-          data->reader, cob->matrix, time * scene->frames_per_second(), cache_file->scale);
+          data->reader, mat, time * scene->frames_per_second(), cache_file->scale);
+      copy_m4_m4(cob->matrix, mat.ptr());
 #  endif
       break;
     case CACHE_FILE_TYPE_INVALID:
@@ -5966,7 +5968,7 @@ static bool constraint_remove(ListBaseT<bConstraint> *list, bConstraint *con)
 
 bool BKE_constraint_remove_ex(ListBaseT<bConstraint> *list, Object *ob, bConstraint *con)
 {
-  BKE_animdata_drivers_remove_for_rna_struct(ob->id, RNA_Constraint, con);
+  BKE_animdata_drivers_remove_for_rna_struct(ob->id, *RNA_Constraint, con);
 
   const short type = con->type;
   if (constraint_remove(list, con)) {
