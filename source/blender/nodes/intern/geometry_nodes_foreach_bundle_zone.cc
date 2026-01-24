@@ -92,6 +92,7 @@ class ForeachBundleExecutor {
   const GeoNodesUserData &user_data_;
   const Span<SocketValueVariant> border_link_values_;
   Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> reference_sets_;
+  MutableSpan<SocketValueVariant> reduce_values_;
 
  public:
   ForeachBundleExecutor(
@@ -100,13 +101,15 @@ class ForeachBundleExecutor {
       const bNode &output_bnode,
       const GeoNodesUserData &user_data,
       const Span<SocketValueVariant> border_link_values,
-      const Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> &reference_sets)
+      const Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> &reference_sets,
+      MutableSpan<SocketValueVariant> reduce_values)
       : body_fn_(body_fn),
         indices_(indices),
         output_bnode_(output_bnode),
         user_data_(user_data),
         border_link_values_(border_link_values),
-        reference_sets_(reference_sets)
+        reference_sets_(reference_sets),
+        reduce_values_(reduce_values)
   {
   }
 
@@ -177,6 +180,9 @@ class ForeachBundleExecutor {
     {
       body_inputs[indices_.in.out.subbundle.lf] = &subbundle_input_value;
       body_inputs[indices_.in.out.path.lf] = &path_value;
+      for (const int i : reduce_values_.index_range()) {
+        body_inputs[indices_.in.out.reduce.lf[i]] = &reduce_values_[i];
+      }
       for (const int i : border_link_inputs.index_range()) {
         body_inputs[body_fn_.indices.inputs.border_links[i]] = &border_link_inputs[i];
       }
@@ -195,9 +201,17 @@ class ForeachBundleExecutor {
     Array<bool> input_usages(body_fn_.indices.outputs.input_usages.size());
     Array<bool> border_link_usages(border_link_values_.size());
 
+    Array<SocketValueVariant> new_reduce_values(reduce_values_.size());
+    for (SocketValueVariant &value : new_reduce_values) {
+      std::destroy_at(&value);
+    }
+
     {
       body_outputs[indices_.out.in.subbundle.lf] = &subbundle_output_value;
       body_outputs[indices_.out.in.recurse.lf] = &recurse_output_value;
+      for (const int i : new_reduce_values.index_range()) {
+        body_outputs[indices_.out.in.reduce.lf[i]] = &new_reduce_values[i];
+      }
       for (const int i : border_link_usages.index_range()) {
         body_outputs[body_fn_.indices.outputs.border_link_usages[i]] = &border_link_usages[i];
       }
@@ -225,6 +239,10 @@ class ForeachBundleExecutor {
     lf::Context body_context(body_storage, &body_user_data, &body_local_user_data);
     fn.execute(body_params, body_context);
     fn.destruct_storage(body_storage);
+
+    for (const int i : reduce_values_.index_range()) {
+      reduce_values_[i] = std::move(new_reduce_values[i]);
+    }
 
     ZoneBodyResult result;
     result.subbundle = subbundle_output_value.extract<BundlePtr>();
@@ -300,6 +318,9 @@ class LazyFunctionForForeachBundleZone : public LazyFunction {
   {
     const ScopedNodeTimer node_timer{context, output_bnode_};
 
+    const auto &node_storage = *static_cast<const NodeForeachBundleOutput *>(
+        output_bnode_.storage);
+
     auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
 
     const int border_link_num = body_fn_.indices.inputs.border_links.size();
@@ -317,12 +338,25 @@ class LazyFunctionForForeachBundleZone : public LazyFunction {
     SocketValueVariant root_bundle_value = params.extract_input<SocketValueVariant>(
         indices_.in.in.bundle.lf);
 
-    ForeachBundleExecutor executor(
-        body_fn_, indices_, output_bnode_, user_data, border_link_values, reference_sets);
+    Array<SocketValueVariant> reduce_values(node_storage.reduce_items.items_num);
+    for (const int i : reduce_values.index_range()) {
+      reduce_values[i] = params.extract_input<SocketValueVariant>(indices_.in.in.reduce.lf[i]);
+    }
+
+    ForeachBundleExecutor executor(body_fn_,
+                                   indices_,
+                                   output_bnode_,
+                                   user_data,
+                                   border_link_values,
+                                   reference_sets,
+                                   reduce_values);
     BundlePtr result_bundle = executor.execute(root_bundle_value.extract<BundlePtr>());
 
     params.set_output(indices_.out.out.bundle.lf,
                       SocketValueVariant::From(std::move(result_bundle)));
+    for (const int i : reduce_values.index_range()) {
+      params.set_output(indices_.out.out.reduce.lf[i], std::move(reduce_values[i]));
+    }
     for (const int i : zone_info_.indices.outputs.border_link_usages) {
       params.set_output(i, true);
     }
