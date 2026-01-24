@@ -93,6 +93,9 @@ ccl_device void svm_vector_math(ccl_private float *value,
     case NODE_VECTOR_MATH_SIGN:
       *vector = compatible_sign(a);
       break;
+    case NODE_VECTOR_MATH_ROUND:
+        *vector = floor(a);
+        break;
     case NODE_VECTOR_MATH_MINIMUM:
       *vector = min(a, b);
       break;
