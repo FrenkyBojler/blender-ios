@@ -6,12 +6,11 @@
 #include "BLI_listbase_iterator.hh"
 #include "BLI_path_utils.hh"
 
-#include "BKE_addon.h"
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
-#include "BKE_keyconfig.h"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.hh"
@@ -30,9 +29,10 @@
 #include "ED_space_api.hh"
 
 #include "WM_api.hh"
-#include "gizmo/WM_gizmo_types.hh"
 #include "wm.hh"
 #include "wm_event_system.hh"
+
+#include <fmt/format.h>
 
 #include "tests/blendfile_loading_base_test.h"
 
@@ -189,6 +189,29 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
   const Vector<std::string> group_node_idnames = {ntreeType_Composite->group_idname,
                                                   ntreeType_Geometry->group_idname,
                                                   ntreeType_Shader->group_idname};
+  const Vector<Vector<NodeSocketInterfaceStructureType>> structure_types = {
+      {
+          NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO,
+      },
+      {
+          NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO,
+          NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE,
+          NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC,
+          NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD,
+          NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID,
+          NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_LIST,
+      },
+      {
+          NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO,
+      }};
+  const Vector<std::string> structure_type_names = {
+      "Auto",
+      "Single",
+      "Dynamic",
+      "Field",
+      "Grid",
+      "List",
+  };
 
   for (const int tree_type_i : tree_idnames.index_range()) {
     const StringRef tree_idname = tree_idnames[tree_type_i];
@@ -217,21 +240,71 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
       {
         continue;
       }
+      /* Only test builtin socket types. This also skips extension sockets, which prevents adding
+       * more sockets to the group. */
+      if (socket_type->type == SOCK_CUSTOM) {
+        continue;
+      }
 
-      ++num_socket_types;
-      group_tree->tree_interface.add_socket(
-          "Socket", "", socket_type->idname, NODE_INTERFACE_SOCKET_INPUT, nullptr);
-      group_tree->tree_interface.add_socket(
-          "Socket", "", socket_type->idname, NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+      for (const NodeSocketInterfaceStructureType structure_type : structure_types[tree_type_i]) {
+        ++num_socket_types;
+        bNodeTreeInterfaceSocket *io_input = group_tree->tree_interface.add_socket(
+            "Socket", "", socket_type->idname, NODE_INTERFACE_SOCKET_INPUT, nullptr);
+        ASSERT_NE(io_input, nullptr);
+        bNodeTreeInterfaceSocket *io_output = group_tree->tree_interface.add_socket(
+            "Socket", "", socket_type->idname, NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+        ASSERT_NE(io_output, nullptr);
+
+        io_input->structure_type = structure_type;
+        io_output->structure_type = structure_type;
+      }
     }
     /* Make sure the group node is updated. */
     BKE_ntree_update(*bmain, Span{group_tree, tree});
-
     ASSERT_EQ(BLI_listbase_count(&group_node->inputs), num_socket_types);
     ASSERT_EQ(BLI_listbase_count(&group_node->outputs), num_socket_types);
-    // for (bNodeSocket *socket : group_node->inputs) {
-    //   gather_socket_link_operations(*C, *tree, )
-    // }
+
+    /* Generate and execute all link operations for the tree type. */
+    for (bNodeSocket &socket : group_node->inputs) {
+      const nodes::SocketDeclaration *decl = socket.runtime->declaration;
+      const StringRef socket_type = socket.idname;
+      const StringRef structure_type = structure_type_names[int(decl->structure_type)];
+      Vector<SocketLinkOperation> search_link_ops;
+      {
+        SCOPED_TRACE(fmt::format(
+            "Gather link operations for input socket type %s (%s)", socket_type, structure_type));
+        gather_socket_link_operations(*C, *tree, socket, search_link_ops);
+      }
+      for (const SocketLinkOperation &link_op : search_link_ops) {
+        SCOPED_TRACE(fmt::format("Execute link operation %s for input socket type %s (%s)",
+                                 link_op.name,
+                                 socket_type,
+                                 structure_type));
+        Vector<bNode *> added_nodes;
+        nodes::LinkSearchOpParams params{*C, *tree, *group_node, socket, added_nodes};
+        link_op.fn(params);
+      }
+    }
+    for (bNodeSocket &socket : group_node->outputs) {
+      const nodes::SocketDeclaration *decl = socket.runtime->declaration;
+      const StringRef socket_type = socket.idname;
+      const StringRef structure_type = structure_type_names[int(decl->structure_type)];
+      Vector<SocketLinkOperation> search_link_ops;
+      {
+        SCOPED_TRACE(fmt::format(
+            "Gather link operations for output socket type %s (%s)", socket_type, structure_type));
+        gather_socket_link_operations(*C, *tree, socket, search_link_ops);
+      }
+      for (const SocketLinkOperation &link_op : search_link_ops) {
+        SCOPED_TRACE(fmt::format("Execute link operation %s for output socket type %s (%s)",
+                                 link_op.name,
+                                 socket_type,
+                                 structure_type));
+        Vector<bNode *> added_nodes;
+        nodes::LinkSearchOpParams params{*C, *tree, *group_node, socket, added_nodes};
+        link_op.fn(params);
+      }
+    }
 
     BKE_id_free(bmain, tree);
     BKE_id_free(bmain, group_tree);
