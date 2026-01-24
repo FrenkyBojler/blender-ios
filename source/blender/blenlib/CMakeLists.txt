@@ -332,6 +332,7 @@ set(SRC
   BLI_memory_utils.h
   BLI_memory_utils.hh
   BLI_mempool.h
+  BLI_mempool_access.hh
   BLI_mesh_boolean.hh
   BLI_mesh_intersect.hh
   BLI_mmap.h

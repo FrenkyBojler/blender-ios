@@ -200,6 +200,41 @@ BLI_INLINE void BM_iter_parallel(BMesh *bm,
   }
 }
 
+/**
+ * \brief Parallel (threaded) chunk iterator,
+ * only available for most basic iteration-types (verts/edges/faces of mesh).
+ *
+ * Uses #BLI_task_parallel_mempool_chunks to iterate over chunks of the underlying mempool.
+ * Unlike #BM_iter_parallel, the callback receives chunk boundaries and must iterate
+ * over elements within the chunk using #BLI_TASK_PARALLEL_MEMPOOL_CHUNK_ITER_BEGIN.
+ *
+ * \note You have to include BLI_task.h before BMesh includes to be able to use this function!
+ */
+ATTR_NONNULL(1)
+BLI_INLINE void BM_iter_parallel_chunks(BMesh *bm,
+                                        const char itype,
+                                        TaskParallelMempoolChunkFunc func,
+                                        void *userdata,
+                                        const TaskParallelSettings *settings)
+{
+  /* Inlining optimizes out this switch when called with the defined type. */
+  switch (BMIterType(itype)) {
+    case BM_VERTS_OF_MESH:
+      BLI_task_parallel_mempool_chunks(bm->vpool, userdata, func, settings);
+      break;
+    case BM_EDGES_OF_MESH:
+      BLI_task_parallel_mempool_chunks(bm->epool, userdata, func, settings);
+      break;
+    case BM_FACES_OF_MESH:
+      BLI_task_parallel_mempool_chunks(bm->fpool, userdata, func, settings);
+      break;
+    default:
+      /* Should never happen. */
+      BLI_assert(0);
+      break;
+  }
+}
+
 #endif /* __BLI_TASK_H__ */
 
 }  // namespace blender

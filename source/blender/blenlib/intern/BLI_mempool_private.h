@@ -53,4 +53,17 @@ void mempool_iter_threadsafe_destroy(ParallelMempoolTaskData *iter_arr) ATTR_NON
  */
 void *mempool_iter_threadsafe_step(BLI_mempool_threadsafe_iter *ts_iter);
 
+/** Step into the next chunk. */
+void *mempool_iter_chunk_data_step(BLI_mempool_iter *iter);
+/** Step into the next chunk (thread safe version). */
+void *mempool_iter_threadsafe_chunk_data_step(BLI_mempool_threadsafe_iter *ts_iter);
+
+struct MempoolIterChunk {
+  uint32_t elem_num;
+  uint32_t elem_size;
+};
+
+/** Initialize sizes used for iteration. */
+void mempool_iter_chunk_init_sizes(const BLI_mempool *mempool, MempoolIterChunk *r_iter_chunk);
+
 }  // namespace blender

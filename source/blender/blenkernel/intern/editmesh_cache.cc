@@ -11,6 +11,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_math_vector.h"
 #include "BLI_span.hh"
+#include "BLI_task.h"
 
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh" /* own include */
@@ -100,14 +101,52 @@ std::optional<Bounds<float3>> BKE_editmesh_cache_calc_minmax(const BMEditMesh &e
   }
 
   if (emd.vert_positions.is_empty()) {
-    BMVert *eve;
-    BMIter iter;
-    float3 min(std::numeric_limits<float>::max());
-    float3 max(std::numeric_limits<float>::lowest());
-    BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
-      minmax_v3v3_v3(min, max, eve->co);
+    if (bm->totvert < BM_THREAD_LIMIT_CHUNK_ITER) {
+      BMVert *eve;
+      BMIter iter;
+      float3 min(std::numeric_limits<float>::max());
+      float3 max(std::numeric_limits<float>::lowest());
+      BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+        minmax_v3v3_v3(min, max, eve->co);
+      }
+      return Bounds<float3>{min, max};
     }
-    return Bounds<float3>{min, max};
+
+    auto bounds_chunk_fn = [](void * /*userdata*/,
+                              void *iter_data,
+                              const void *iter_data_end,
+                              const uint iter_elem_size,
+                              const TaskParallelTLS *__restrict tls) {
+      Bounds<float3> *data = static_cast<Bounds<float3> *>(tls->userdata_chunk);
+      BMVert *v = static_cast<BMVert *>(iter_data);
+      BLI_TASK_PARALLEL_MEMPOOL_CHUNK_ITER_BEGIN (v, iter_data_end, iter_elem_size) {
+        minmax_v3v3_v3(data->min, data->max, v->co);
+      }
+      BLI_TASK_PARALLEL_MEMPOOL_CHUNK_ITER_END;
+    };
+
+    auto bounds_reduce_fn = [](const void *__restrict /*userdata*/,
+                               void *__restrict chunk_join,
+                               void *__restrict chunk) {
+      Bounds<float3> *dst = static_cast<Bounds<float3> *>(chunk_join);
+      const Bounds<float3> *src = static_cast<const Bounds<float3> *>(chunk);
+      dst->min = math::min(dst->min, src->min);
+      dst->max = math::max(dst->max, src->max);
+    };
+
+    Bounds<float3> bounds{float3(std::numeric_limits<float>::max()),
+                          float3(std::numeric_limits<float>::lowest())};
+
+    TaskParallelSettings settings;
+    BLI_parallel_range_settings_defaults(&settings);
+    settings.use_threading = true;
+    settings.userdata_chunk = &bounds;
+    settings.userdata_chunk_size = sizeof(bounds);
+    settings.func_reduce = bounds_reduce_fn;
+
+    BM_iter_parallel_chunks(bm, BM_VERTS_OF_MESH, bounds_chunk_fn, &bounds, &settings);
+
+    return bounds;
   }
 
   return bounds::min_max(emd.vert_positions.as_span());

@@ -14,6 +14,8 @@
 
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+/* Needed for #_BLI_MEMPOOL_ELEM_IS_FREE. */
+#include "BLI_mempool_access.hh"
 
 namespace blender {
 
@@ -218,6 +220,47 @@ void BLI_task_parallel_mempool(struct BLI_mempool *mempool,
                                void *userdata,
                                TaskParallelMempoolFunc func,
                                const TaskParallelSettings *settings);
+
+/**
+ * This callback takes the necessary information to iterate over Mempool chunks.
+ *
+ * \param iter_data: The first valid (non-free) element in the chunk.
+ * This may not point to the very beginning of the memory chunk.
+ * The callback is only invoked when at least one valid element exists in the chunk.
+ */
+typedef void (*TaskParallelMempoolChunkFunc)(void *userdata,
+                                             void *iter_data,
+                                             const void *iter_data_end,
+                                             const uint elem_size,
+                                             const TaskParallelTLS *__restrict tls);
+
+/**
+ * This function allows to parallelize for loops over Mempool chunks.
+ *
+ * Unlike #BLI_task_parallel_mempool which calls the callback per-element,
+ * this calls the callback once per chunk, allowing the callback to iterate
+ * over elements within the chunk using #BLI_TASK_PARALLEL_MEMPOOL_CHUNK_ITER_BEGIN.
+ *
+ * \param mempool: The iterable #BLI_mempool to loop over.
+ * \param userdata: Common userdata passed to all instances of \a func.
+ * \param func: Callback function, receives chunk start/end pointers and element size.
+ * \param settings: See public API doc of TaskParallelSettings for description of all settings.
+ */
+void BLI_task_parallel_mempool_chunks(struct BLI_mempool *mempool,
+                                      void *userdata,
+                                      TaskParallelMempoolChunkFunc func,
+                                      const TaskParallelSettings *settings);
+
+#define BLI_TASK_PARALLEL_MEMPOOL_CHUNK_ITER_BEGIN(elem, elem_end, elem_size) \
+  { \
+    for (; (const void *)elem < elem_end; elem = POINTER_OFFSET(elem, elem_size)) { \
+      if (_BLI_MEMPOOL_ELEM_IS_FREE(elem)) { \
+        continue; \
+      }
+
+#define BLI_TASK_PARALLEL_MEMPOOL_CHUNK_ITER_END \
+  } \
+  }
 
 /** TODO(sergey): Think of a better place for this. */
 BLI_INLINE void BLI_parallel_range_settings_defaults(TaskParallelSettings *settings)

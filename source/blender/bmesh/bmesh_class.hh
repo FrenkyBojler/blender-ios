@@ -731,5 +731,13 @@ using BMLoopPairFilterFunc = bool (*)(const BMLoop *, const BMLoop *, void *user
 
 /** Minimum number of elements before using threading. */
 #define BM_THREAD_LIMIT 10000
+/**
+ * Minimum number of elements before using threading with chunk iteration.
+ * This constant is used because the default chunk size is 512, so the rule of thumb
+ * is to only split up chunks when we would have 3 or more chunks.
+ *
+ * Although this is a rough approximation since a fragmented memory pool may have more chunks,
+ */
+#define BM_THREAD_LIMIT_CHUNK_ITER ((512 * 3) + 1)
 
 }  // namespace blender

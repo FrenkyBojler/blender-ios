@@ -25,6 +25,7 @@
 #include "BLI_asan.h"
 #include "BLI_math_base.h"
 #include "BLI_mempool.h"         /* own include */
+#include "BLI_mempool_access.hh" /* own include */
 #include "BLI_mempool_private.h" /* own include */
 
 #ifdef WITH_ASAN
@@ -47,27 +48,12 @@ namespace blender {
 #  define POISON_REDZONE_SIZE 0
 #endif
 
-/* NOTE: copied from BLO_core_bhead.hh, don't use here because we're in BLI. */
-/* NOTE: this is endianness-sensitive. */
-#define MAKE_ID(a, b, c, d) (int(d) << 24 | int(c) << 16 | (b) << 8 | (a))
-#define MAKE_ID_8(a, b, c, d, e, f, g, h) \
-  (int64_t(h) << 56 | int64_t(g) << 48 | int64_t(f) << 40 | int64_t(e) << 32 | int64_t(d) << 24 | \
-   int64_t(c) << 16 | int64_t(b) << 8 | (a))
-
-/**
- * Important that this value is not aligned with `sizeof(void *)`.
- * So having a pointer to 2/4/8... aligned memory is enough to ensure
- * the `freeword` will never be used.
- * To be safe, use a word that's the same in both directions.
- */
-#define FREEWORD \
-  ((sizeof(void *) > sizeof(int32_t)) ? MAKE_ID_8('e', 'e', 'r', 'f', 'f', 'r', 'e', 'e') : \
-                                        MAKE_ID('e', 'f', 'f', 'e'))
+#define FREEWORD _BLI_MEMPOOL_FREEWORD
 
 /**
  * The 'used' word just needs to be set to something besides FREEWORD.
  */
-#define USEDWORD MAKE_ID('u', 's', 'e', 'd')
+#define USEDWORD _BLI_MEMPOOL_MAKE_ID_4('u', 's', 'e', 'd')
 
 /* optimize pool size */
 #define USE_CHUNK_POW2
@@ -856,5 +842,79 @@ void BLI_mempool_set_memory_debug()
   mempool_debug_memset = true;
 }
 #endif
+
+void *mempool_iter_chunk_data_step(BLI_mempool_iter *iter)
+{
+  if (UNLIKELY(iter->curchunk == nullptr)) {
+    return nullptr;
+  }
+
+  mempool_asan_lock(iter->pool);
+  void *ret = CHUNK_DATA(iter->curchunk);
+  iter->curchunk = iter->curchunk->next;
+  mempool_asan_unlock(iter->pool);
+  return ret;
+}
+
+void *mempool_iter_threadsafe_chunk_data_step(BLI_mempool_threadsafe_iter *ts_iter)
+{
+  BLI_mempool_iter *iter = &ts_iter->iter;
+
+  mempool_asan_lock(iter->pool);
+
+  /* Begin unique to the `threadsafe` version of this function.
+   * Atomically claim a chunk from the shared pointer.
+   *
+   * Loop until either:
+   * - No chunks remain (curchunk == nullptr), or
+   * - CAS succeeds (claimed the chunk and advanced the shared pointer). */
+  for (iter->curchunk = *ts_iter->curchunk_threaded_shared;
+       (iter->curchunk != nullptr) &&
+       (atomic_cas_ptr(reinterpret_cast<void **>(ts_iter->curchunk_threaded_shared),
+                       iter->curchunk,
+                       iter->curchunk->next) != iter->curchunk);
+       iter->curchunk = *ts_iter->curchunk_threaded_shared)
+  {
+    /* CAS failed, another thread claimed this chunk. Retry with updated pointer. */
+  }
+  /* End `threadsafe` exception. */
+
+  void *ret = iter->curchunk ? CHUNK_DATA(iter->curchunk) : nullptr;
+  mempool_asan_unlock(iter->pool);
+  return ret;
+}
+
+void mempool_iter_chunk_init_sizes(const BLI_mempool *mempool, MempoolIterChunk *r_iter_chunk)
+{
+  memset(r_iter_chunk, 0x0, sizeof(*r_iter_chunk));
+  r_iter_chunk->elem_size = mempool->esize;
+  r_iter_chunk->elem_num = mempool->pchunk;
+}
+
+bool _BLI_mempool_elem_is_free_debug(const void *elem)
+{
+#if defined(WITH_ASAN) || defined(WITH_MEM_VALGRIND)
+  /* Unpoison just the freeword at offset sizeof(void *). */
+  const void *freeword_ptr = static_cast<const char *>(elem) + sizeof(void *);
+#  ifdef WITH_ASAN
+  BLI_asan_unpoison(freeword_ptr, sizeof(intptr_t));
+#  endif
+#  ifdef WITH_MEM_VALGRIND
+  VALGRIND_MAKE_MEM_DEFINED(freeword_ptr, sizeof(intptr_t));
+#  endif
+#endif
+  const bool is_free = _BLI_MEMPOOL_ELEM_IS_FREE_IMPL(elem);
+#if defined(WITH_ASAN) || defined(WITH_MEM_VALGRIND)
+  if (is_free) {
+#  ifdef WITH_ASAN
+    BLI_asan_poison(freeword_ptr, sizeof(intptr_t));
+#  endif
+#  ifdef WITH_MEM_VALGRIND
+    VALGRIND_MAKE_MEM_UNDEFINED(freeword_ptr, sizeof(intptr_t));
+#  endif
+  }
+#endif
+  return is_free;
+}
 
 }  // namespace blender
