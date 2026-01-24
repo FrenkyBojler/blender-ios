@@ -4,11 +4,16 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_legacy_convert.hh"
+
 #include "BLI_sort.hh"
+
 #include "NOD_rna_define.hh"
+
 #include "RNA_enum_types.hh"
+
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_attribute_list_cc {
@@ -60,37 +65,34 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const AttributeAccessor attributes = *component->attributes();
-  int attribute_count = 0;
-  std::vector<AttributeIter> sort_attributes;
+  Vector<StringRef> sort_attributes;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain == domain && iter.data_type == bke::custom_data_type_to_attr_type(data_type) &&
         iter.name[0] != '.')
     {
-      sort_attributes.push_back(iter);
+      sort_attributes.append(iter.name);
     }
   });
 
-  if (!sort_attributes.empty()) {
-    attribute_count = sort_attributes.size();
-
-    parallel_sort(sort_attributes.begin(),
-                  sort_attributes.end(),
-                  [](const AttributeIter &a, const AttributeIter &b) { return a.name < b.name; });
+  if (sort_attributes.is_empty()) {
+    params.set_default_remaining_outputs();
+    return;
   }
+
+  parallel_sort(sort_attributes.begin(),
+                sort_attributes.end(),
+                [](const StringRef &a, const StringRef &b) { return a < b; });
 
   auto *names = new ImplicitSharedValue<Vector<std::string>>();
-
-  for (int i = 0; i < sort_attributes.size(); i++) {
-    names->data.append(sort_attributes[i].name);
-  }
-
+  names->data.resize(sort_attributes.size());
+  std::copy(sort_attributes.begin(), sort_attributes.end(), names->data.begin());
+  
   List::ArrayData names_array_data = {names->data.data(), ImplicitSharingPtr<>(names)};
 
-  params.set_output("Names",
-                    List::create(CPPType::get<std::string>(),
-                                 std::move(names_array_data),
-                                 names->data.size()));
+  params.set_output(
+      "Names",
+      List::create(CPPType::get<std::string>(), std::move(names_array_data), names->data.size()));
 }
 
 static void node_rna(StructRNA *srna)
