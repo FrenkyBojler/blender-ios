@@ -564,13 +564,15 @@ static void apply_trim(gesture::GestureData &gesture_data)
   op_params.watertight = false;
   op_params.no_nested_components = true;
   geometry::boolean::BooleanError error = geometry::boolean::BooleanError::NoError;
+  int non_manifold_mesh_index = -1;
   Mesh *result = geometry::boolean::mesh_boolean({&sculpt_mesh, &trim_mesh},
                                                  {float4x4::identity(), float4x4::identity()},
                                                  {Array<short>(), Array<short>()},
                                                  op_params,
                                                  trim_operation->solver_mode,
                                                  nullptr,
-                                                 &error);
+                                                 &error,
+                                                 &non_manifold_mesh_index);
   if (error == geometry::boolean::BooleanError::NonManifold) {
     BKE_report(trim_operation->reports, RPT_ERROR, "Solver requires a manifold mesh");
     return;

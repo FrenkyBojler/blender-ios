@@ -1711,7 +1711,8 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             const Span<Array<short>> material_remaps,
                             const BooleanOpParameters op_params,
                             Vector<int> *r_intersecting_edges,
-                            BooleanError *r_error)
+                            BooleanError *r_error,
+                            int *r_non_manifold_mesh_index)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
@@ -1758,10 +1759,14 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
         }
       }
       else {
-        if (std::any_of(manifolds.begin(), manifolds.end(), [](const Manifold &m) {
-              return m.Status() == Manifold::Error::NotManifold;
-            }))
-        {
+        for (int i = 0; i < manifolds.size(); i++) {
+          if (manifolds[i].Status() == Manifold::Error::NotManifold) {
+            *r_non_manifold_mesh_index = i;
+            break;
+          }
+        }
+
+        if (*r_non_manifold_mesh_index != -1) {
           *r_error = BooleanError::NonManifold;
         }
         else {

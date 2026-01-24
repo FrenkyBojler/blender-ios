@@ -84,6 +84,8 @@ struct BooleanOpParameters {
  * \param r_intersecting_edges: Vector to store indices of edges on the resulting mesh in. These
  * 'new' edges are the result of the intersections.
  * \param r_error: Return place for error code to be stored.
+ * \param r_non_manifold_mesh_index: Return place for the index of a non-manifold mesh
+ * (if able to be determined)
  */
 Mesh *mesh_boolean(Span<const Mesh *> meshes,
                    Span<float4x4> transforms,
@@ -91,7 +93,8 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                    BooleanOpParameters op_params,
                    Solver solver,
                    Vector<int> *r_intersecting_edges,
-                   BooleanError *r_error);
+                   BooleanError *r_error,
+                   int *r_non_manifold_mesh_index);
 
 }  // namespace geometry::boolean
 }  // namespace blender

@@ -414,6 +414,9 @@ static Mesh *non_float_boolean_mesh(BooleanModifierData *bmd,
   transforms.append(float4x4::identity());
   material_remaps.append({});
 
+  Vector<const char *> object_names;
+  object_names.append(ctx->object->id.name + 2);  // Skip "OB" prefix
+
   const BooleanModifierMaterialMode material_mode = BooleanModifierMaterialMode(
       bmd->material_mode);
   VectorSet<Material *> materials;
@@ -435,6 +438,7 @@ static Mesh *non_float_boolean_mesh(BooleanModifierData *bmd,
     BKE_mesh_wrapper_ensure_mdata(mesh_operand);
     meshes.append(mesh_operand);
     transforms.append(world_to_object * bmd->object->object_to_world());
+    object_names.append(bmd->object->id.name + 2);  // Skip "OB" prefix
     if (material_mode == eBooleanModifierMaterialMode_Index) {
       material_remaps.append(get_material_remap_index_based(ctx->object, bmd->object));
     }
@@ -455,6 +459,7 @@ static Mesh *non_float_boolean_mesh(BooleanModifierData *bmd,
           BKE_mesh_wrapper_ensure_mdata(collection_mesh);
           meshes.append(collection_mesh);
           transforms.append(world_to_object * ob->object_to_world());
+          object_names.append(ob->id.name + 2);  // Skip "OB" prefix
           if (material_mode == eBooleanModifierMaterialMode_Index) {
             material_remaps.append(get_material_remap_index_based(ctx->object, ob));
           }
@@ -475,13 +480,21 @@ static Mesh *non_float_boolean_mesh(BooleanModifierData *bmd,
   op_params.watertight = !hole_tolerant;
   op_params.no_nested_components = false;
   geometry::boolean::BooleanError error = geometry::boolean::BooleanError::NoError;
+  int non_manifold_mesh_index = -1;
   Mesh *result = geometry::boolean::mesh_boolean(
-      meshes, transforms, material_remaps, op_params, solver, nullptr, &error);
+      meshes, transforms, material_remaps, op_params, solver, nullptr, &error, &non_manifold_mesh_index);
 
   if (error != geometry::boolean::BooleanError::NoError) {
     if (error == geometry::boolean::BooleanError::NonManifold) {
-      BKE_modifier_set_error(
-          ctx->object, (ModifierData *)bmd, "Cannot execute, non-manifold inputs");
+      if (non_manifold_mesh_index != -1) {
+        BKE_modifier_set_error(
+            ctx->object, (ModifierData *)bmd, "Cannot execute, object '%s' has non-manifold geometry",
+            object_names[non_manifold_mesh_index]);
+      }
+      else {
+        BKE_modifier_set_error(
+            ctx->object, (ModifierData *)bmd, "Cannot execute, non-manifold inputs");
+      }
     }
     else if (error == geometry::boolean::BooleanError::UnknownError) {
       BKE_modifier_set_error(ctx->object, (ModifierData *)(bmd), "Cannot execute, unknown error");
