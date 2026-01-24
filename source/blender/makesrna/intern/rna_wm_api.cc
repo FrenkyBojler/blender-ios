@@ -264,7 +264,8 @@ static void rna_WM_try_activate_rna_button(blender::wmWindowManager * /*wm*/,
                                            PointerRNA *ptr,
                                            const char *propname,
                                            int state,
-                                           int offset,
+                                           bool warp_cursor_at_button,
+                                           int index,
                                            int **r_xy,
                                            int *r_xy_total)
 {
@@ -276,7 +277,7 @@ static void rna_WM_try_activate_rna_button(blender::wmWindowManager * /*wm*/,
     return;
   }
   std::optional<int2> xy = ui::try_activate_rna_button(
-      C, region, ui::HandleButtonState(state), ptr, prop, offset);
+      C, region, ui::HandleButtonState(state), ptr, prop, warp_cursor_at_button, index);
 
   if (!xy) {
     return;
@@ -1092,6 +1093,8 @@ void RNA_api_wm(StructRNA *srna)
       "incompatible state is provided, the button will be activated as with 'HIGHLIGHT");
   RNA_def_property_enum_items(parm, rna_button_activation);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_property(func, "warp_cursor_at_button", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_default(parm, true);
   parm = RNA_def_property(func, "index", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(
       parm,
