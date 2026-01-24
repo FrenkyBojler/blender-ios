@@ -202,17 +202,17 @@ class AnimdataBathPathRename {
   AnimdataBathPathRename(Main &bmain);
 
   void rename_all_ex(ID &ref_id,
-                     const StringRefNull prefix,
-                     const std::optional<StringRefNull> oldName,
-                     const std::optional<StringRefNull> newName,
+                     StringRefNull prefix,
+                     std::optional<StringRefNull> oldName,
+                     std::optional<StringRefNull> newName,
                      int oldSubscript,
                      int newSubscript,
                      bool verify_paths);
 
   void rename_all(ID &ref_id,
-                  const StringRefNull prefix,
-                  const std::optional<StringRefNull> oldName,
-                  const std::optional<StringRefNull> newName);
+                  StringRefNull prefix,
+                  std::optional<StringRefNull> oldName,
+                  std::optional<StringRefNull> newName);
 };
 
 /**
