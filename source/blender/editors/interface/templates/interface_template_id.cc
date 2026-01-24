@@ -1054,15 +1054,17 @@ static Button *template_id_def_new_but(Block *block,
   return but;
 }
 
-static void id_menu_tip_func(bContext & /*C*/, TooltipData &tip, Button *but, void *arg)
+static void id_search_menu_tip_func(bContext & /*C*/, TooltipData &tip, Button *but, void *arg)
 {
   TemplateID *template_id = static_cast<TemplateID *>(but->func_argN);
   if (!but->tip.is_empty()) {
     tooltip_text_field_add(tip, but->tip, {}, TIP_STYLE_HEADER, TIP_LC_NORMAL, false);
   }
   else {
+    const char *ui_description = RNA_property_ui_description(template_id->prop, &template_id->ptr);
+    const char *ui_name = RNA_property_ui_name(template_id->prop, &template_id->ptr);
     tooltip_text_field_add(tip,
-                           RNA_property_ui_description(template_id->prop, &template_id->ptr),
+                           ui_description ? ui_description : (ui_name ? ui_name : ""),
                            {},
                            TIP_STYLE_HEADER,
                            TIP_LC_NORMAL,
@@ -1170,7 +1172,7 @@ static void template_ID(const bContext *C,
                                           live_icon,
                                           but_func_argN_free<TemplateID>,
                                           but_func_argN_copy<TemplateID>);
-    button_func_tooltip_custom_set(but, id_menu_tip_func, id, nullptr);
+    button_func_tooltip_custom_set(but, id_search_menu_tip_func, id, nullptr);
   }
 
   /* text button with name */
@@ -1742,7 +1744,7 @@ void template_ID_session_uid(
                                but_func_argN_free<TemplateID>,
                                but_func_argN_copy<TemplateID>);
 
-  button_func_tooltip_custom_set(but, id_menu_tip_func, id, nullptr);
+  button_func_tooltip_custom_set(but, id_search_menu_tip_func, id, nullptr);
   def_but_icon(but, RNA_struct_ui_icon(type), UI_HAS_ICON);
 }
 
