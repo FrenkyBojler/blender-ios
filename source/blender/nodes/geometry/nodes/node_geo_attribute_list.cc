@@ -38,6 +38,37 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom2 = int8_t(AttrDomain::Point);
 }
 
+static bool component_is_available(const GeometrySet &geometry,
+                                   const GeometryComponent::Type type,
+                                   const AttrDomain domain)
+{
+  if (!geometry.has(type)) {
+    return false;
+  }
+  const GeometryComponent &component = *geometry.get_component(type);
+  return component.attribute_domain_size(domain) != 0;
+}
+
+static const GeometryComponent *find_source_component(const GeometrySet &geometry,
+                                                      const AttrDomain domain)
+{
+  /* Choose the other component based on a consistent order, rather than some more complicated
+   * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
+  static const Array<GeometryComponent::Type> supported_types = {
+      GeometryComponent::Type::Mesh,
+      GeometryComponent::Type::PointCloud,
+      GeometryComponent::Type::Curve,
+      GeometryComponent::Type::Instance,
+      GeometryComponent::Type::GreasePencil};
+  for (const GeometryComponent::Type src_type : supported_types) {
+    if (component_is_available(geometry, src_type, domain)) {
+      return geometry.get_component(src_type);
+    }
+  }
+
+  return nullptr;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
@@ -46,22 +77,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const eCustomDataType data_type = eCustomDataType(node.custom1);
   const AttrDomain domain = AttrDomain(node.custom2);
 
-  if (geometry_set.is_empty()) {
+  const GeometryComponent *component = find_source_component(geometry_set, domain);
+  if (!component) {
     params.set_default_remaining_outputs();
     return;
-  }
-
-  const GeometryComponent *component = nullptr;
-  for (const GeometryComponent::Type type : {GeometryComponent::Type::Mesh,
-                                             GeometryComponent::Type::PointCloud,
-                                             GeometryComponent::Type::Curve,
-                                             GeometryComponent::Type::Instance,
-                                             GeometryComponent::Type::GreasePencil})
-  {
-    if (geometry_set.has(type)) {
-      component = geometry_set.get_component(type);
-      break;
-    }
   }
 
   const AttributeAccessor attributes = *component->attributes();
