@@ -74,6 +74,7 @@ set(SRC
   intern/geometry_nodes_closure_zone.cc
   intern/geometry_nodes_dependencies.cc
   intern/geometry_nodes_execute.cc
+  intern/geometry_nodes_foreach_bundle_zone.cc
   intern/geometry_nodes_foreach_geometry_element_zone.cc
   intern/geometry_nodes_gizmos.cc
   intern/geometry_nodes_lazy_function.cc

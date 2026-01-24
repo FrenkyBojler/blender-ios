@@ -2226,7 +2226,15 @@ struct GeometryNodesLazyFunctionBuilder {
 
   void build_foreach_bundle_zone_function(const bNodeTreeZone &zone)
   {
-    /* TODO */
+    ZoneBuildInfo &zone_info = zone_build_infos_[zone.index];
+    /* build a function for the foreach body. */
+    ZoneBodyFunction &body_fn = this->build_zone_body_function(
+        zone,
+        "Foreach Bundle Body",
+        &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>());
+    auto &zone_fn = build_foreach_bundle_zone_lazy_function(
+        scope_, btree_, zone, zone_info, body_fn);
+    zone_info.lazy_function = &zone_fn;
   }
 
   /**
@@ -4194,8 +4202,6 @@ ensure_geometry_nodes_lazy_function_graph_impl(const bNodeTree &btree)
 {
   btree.ensure_topology_cache();
   btree.ensure_interface_cache();
-
-  return nullptr;
 
   if (btree.has_available_link_cycle()) {
     return nullptr;

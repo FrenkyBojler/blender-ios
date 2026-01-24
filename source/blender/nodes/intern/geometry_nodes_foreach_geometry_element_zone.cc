@@ -33,7 +33,7 @@ using bke::SocketValueVariant;
 using fn::Field;
 using fn::GField;
 
-class LazyFunctionForForeachGeometryElementZone;
+class LazyFunctionForForeachBundleZone;
 struct ForeachGeometryElementEvalStorage;
 
 struct ForeachElementComponentID {
@@ -104,13 +104,12 @@ struct ForeachElementComponent {
  * final output of the entire zone.
  */
 struct LazyFunctionForReduceForeachGeometryElement : public LazyFunction {
-  const LazyFunctionForForeachGeometryElementZone &parent_;
+  const LazyFunctionForForeachBundleZone &parent_;
   ForeachGeometryElementEvalStorage &eval_storage_;
 
  public:
-  LazyFunctionForReduceForeachGeometryElement(
-      const LazyFunctionForForeachGeometryElementZone &parent,
-      ForeachGeometryElementEvalStorage &eval_storage);
+  LazyFunctionForReduceForeachGeometryElement(const LazyFunctionForForeachBundleZone &parent,
+                                              ForeachGeometryElementEvalStorage &eval_storage);
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override;
 
@@ -230,7 +229,7 @@ struct ForeachGeometryElementEvalStorage {
   int total_iterations_num = 0;
 };
 
-class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
+class LazyFunctionForForeachBundleZone : public LazyFunction {
  private:
   const bNodeTree &btree_;
   const bke::bNodeTreeZone &zone_;
@@ -258,10 +257,10 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
   friend LazyFunctionForReduceForeachGeometryElement;
 
  public:
-  LazyFunctionForForeachGeometryElementZone(const bNodeTree &btree,
-                                            const bke::bNodeTreeZone &zone,
-                                            ZoneBuildInfo &zone_info,
-                                            const ZoneBodyFunction &body_fn)
+  LazyFunctionForForeachBundleZone(const bNodeTree &btree,
+                                   const bke::bNodeTreeZone &zone,
+                                   ZoneBuildInfo &zone_info,
+                                   const ZoneBodyFunction &body_fn)
       : btree_(btree),
         zone_(zone),
         output_bnode_(*zone.output_node()),
@@ -780,7 +779,7 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
 };
 
 LazyFunctionForReduceForeachGeometryElement::LazyFunctionForReduceForeachGeometryElement(
-    const LazyFunctionForForeachGeometryElementZone &parent,
+    const LazyFunctionForForeachBundleZone &parent,
     ForeachGeometryElementEvalStorage &eval_storage)
     : parent_(parent), eval_storage_(eval_storage)
 {
@@ -1259,8 +1258,7 @@ LazyFunction &build_foreach_geometry_element_zone_lazy_function(ResourceScope &s
                                                                 ZoneBuildInfo &zone_info,
                                                                 const ZoneBodyFunction &body_fn)
 {
-  return scope.construct<LazyFunctionForForeachGeometryElementZone>(
-      btree, zone, zone_info, body_fn);
+  return scope.construct<LazyFunctionForForeachBundleZone>(btree, zone, zone_info, body_fn);
 }
 
 }  // namespace blender::nodes

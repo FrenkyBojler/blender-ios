@@ -613,6 +613,12 @@ LazyFunction &build_closure_zone_lazy_function(
     const ZoneBodyFunction &body_fn,
     std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> &lf_graph_info);
 
+LazyFunction &build_foreach_bundle_zone_lazy_function(ResourceScope &scope,
+                                                      const bNodeTree &btree,
+                                                      const bke::bNodeTreeZone &zone,
+                                                      ZoneBuildInfo &zone_info,
+                                                      const ZoneBodyFunction &body_fn);
+
 struct EvaluateClosureFunctionIndices {
   struct {
     Vector<int> main;
