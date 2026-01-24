@@ -113,6 +113,18 @@ class ForeachBundleExecutor {
 
   BundlePtr execute(BundlePtr root_bundle)
   {
+    std::string path;
+    return this->evaluate_zone_body(root_bundle, path).subbundle;
+  }
+
+ private:
+  struct ZoneBodyResult {
+    BundlePtr subbundle;
+    bool recurse;
+  };
+
+  ZoneBodyResult evaluate_zone_body(BundlePtr subbundle, std::string path)
+  {
     ResourceScope scope;
     LinearAllocator<> &allocator = scope.allocator();
 
@@ -125,8 +137,8 @@ class ForeachBundleExecutor {
     Array<bool> body_set_outputs(fn.outputs().size(), false);
 
     Array<SocketValueVariant> border_link_inputs = border_link_values_;
-    SocketValueVariant subbundle_input_value = SocketValueVariant::From(root_bundle);
-    SocketValueVariant path_value = SocketValueVariant::From(std::string(""));
+    SocketValueVariant subbundle_input_value = SocketValueVariant::From(subbundle);
+    SocketValueVariant path_value = SocketValueVariant::From(path);
     Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> body_reference_sets = reference_sets_;
     {
       body_inputs[indices_.in.out.subbundle.lf] = &subbundle_input_value;
@@ -168,9 +180,8 @@ class ForeachBundleExecutor {
                                 body_set_outputs};
 
     GeoNodesUserData body_user_data = user_data_;
-    /* TODO: Use proper compute context. */
-    bke::NodeComputeContext body_compute_context{
-        user_data_.compute_context, output_bnode_.identifier, 0};
+    bke::ForeachBundleComputeContext body_compute_context{
+        user_data_.compute_context, output_bnode_.identifier, std::move(path)};
     body_user_data.compute_context = &body_compute_context;
     body_user_data.log_socket_values = should_log_socket_values_for_context(
         user_data_, body_compute_context.hash());
@@ -181,7 +192,10 @@ class ForeachBundleExecutor {
     fn.execute(body_params, body_context);
     fn.destruct_storage(body_storage);
 
-    return subbundle_output_value.extract<BundlePtr>();
+    ZoneBodyResult result;
+    result.subbundle = subbundle_output_value.extract<BundlePtr>();
+    result.recurse = recurse_output_value.get<bool>();
+    return result;
   }
 };
 

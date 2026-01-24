@@ -298,6 +298,24 @@ const RepeatZoneComputeContext &ComputeContextCache::for_repeat_zone(const Compu
       });
 }
 
+ForeachBundleComputeContext::ForeachBundleComputeContext(const ComputeContext *parent,
+                                                         int32_t output_node_id,
+                                                         std::string path)
+    : ComputeContext(parent), output_node_id_(output_node_id), path_(std::move(path))
+{
+}
+
+ComputeContextHash ForeachBundleComputeContext::compute_hash() const
+{
+  const std::string id = fmt::format("FOREACH_BUNDLE:{}:{}", output_node_id_, path_);
+  return ComputeContextHash::from_bytes(id.data(), id.size());
+}
+
+void ForeachBundleComputeContext::print_current_in_line(std::ostream &stream) const
+{
+  stream << "Foreach Bundle: " << output_node_id_ << " Path: " << path_;
+}
+
 const ForeachGeometryElementZoneComputeContext &ComputeContextCache::
     for_foreach_geometry_element_zone(const ComputeContext *parent,
                                       int32_t output_node_id,

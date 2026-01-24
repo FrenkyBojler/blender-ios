@@ -136,6 +136,31 @@ class RepeatZoneComputeContext : public ComputeContext {
   void print_current_in_line(std::ostream &stream) const override;
 };
 
+class ForeachBundleComputeContext : public ComputeContext {
+ private:
+  int32_t output_node_id_;
+  std::string path_;
+
+ public:
+  ForeachBundleComputeContext(const ComputeContext *parent,
+                              int32_t output_node_id,
+                              std::string path);
+
+  int32_t output_node_id() const
+  {
+    return output_node_id_;
+  }
+
+  StringRefNull path() const
+  {
+    return path_;
+  }
+
+ private:
+  ComputeContextHash compute_hash() const override;
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
 class ForeachGeometryElementZoneComputeContext : public ComputeContext {
  private:
   int32_t output_node_id_;
