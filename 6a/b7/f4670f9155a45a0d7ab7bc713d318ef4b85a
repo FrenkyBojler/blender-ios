@@ -1,3 +1,4 @@
 Referenced by issue #153257, Blender requires missing DLLs
 Referenced by issue #153294, Cannot open Blender 5.1 Alpha
 Referenced by pull request #153301, Deps: Windows ARM64: Fix AOM
+Referenced by commit 0fdf46d4c24375e4a10a9dd727262cbcd7a35c00, Deps: Windows ARM64: Fix AOM
