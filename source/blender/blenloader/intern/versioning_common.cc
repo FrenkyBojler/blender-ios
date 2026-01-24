@@ -442,10 +442,6 @@ void version_node_socket_index_animdata(Main *bmain,
         }
         bmain_anim_rename->rename_all_ex(
             *owner_id, rna_path_prefix, std::nullopt, std::nullopt, input_index, new_index, false);
-
-        // BKE_animdata_fix_paths_rename_all_ex(
-        //     bmain, owner_id, rna_path_prefix, nullptr, nullptr, input_index, new_index, false);
-
         MEM_freeN(rna_path_prefix);
       }
     }
