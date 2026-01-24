@@ -700,7 +700,8 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Utilities/Matrix")
         self.draw_menu(layout, path="Utilities/Rotation")
         layout.separator()
-        self.for_each_bundle_zone(layout, label="For Each Bundle")
+        if context.preferences.experimental.use_geometry_nodes_lists:
+            self.for_each_bundle_zone(layout, label="For Each Bundle")
         self.for_each_element_zone(layout, label="For Each Element")
         self.node_operator(layout, "GeometryNodeIndexSwitch")
         self.node_operator(layout, "GeometryNodeMenuSwitch")

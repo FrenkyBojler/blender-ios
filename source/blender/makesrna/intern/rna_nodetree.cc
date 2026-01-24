@@ -682,6 +682,7 @@ using nodes::EvaluateClosureOutputItemsAccessor;
 using nodes::FieldToGridItemsAccessor;
 using nodes::FieldToListItemsAccessor;
 using nodes::FileOutputItemsAccessor;
+using nodes::ForeachBundleGatherItemsAccessor;
 using nodes::ForeachBundleReduceItemsAccessor;
 using nodes::ForeachGeometryElementGenerationItemsAccessor;
 using nodes::ForeachGeometryElementInputItemsAccessor;
@@ -7666,12 +7667,36 @@ static void rna_def_foreach_bundle_reduce_items(BlenderRNA *brna)
       srna, "ForeachBundleReduceItem", "ForeachBundleReduceItemsAccessor");
 }
 
+static void rna_def_foreach_bundle_gather_item(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "ForeachBundleGatherItem", nullptr);
+  RNA_def_struct_ui_text(srna, "For Each Bundle Gather Item", "");
+  RNA_def_struct_sdna(srna, "NodeForeachBundleGatherItem");
+
+  rna_def_node_item_array_socket_item_common(srna, "ForeachBundleGatherItemsAccessor", true);
+}
+
+static void rna_def_foreach_bundle_gather_items(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "NodeForeachBundleGatherItems", nullptr);
+  RNA_def_struct_sdna(srna, "bNode");
+  RNA_def_struct_ui_text(srna, "Gather Items", "Collection of gather items");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "ForeachBundleGatherItem", "ForeachBundleGatherItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "ForeachBundleGatherItem", "ForeachBundleGatherItemsAccessor");
+}
+
 static void def_foreach_bundle_output(BlenderRNA *brna, StructRNA *srna)
 {
   PropertyRNA *prop;
 
   rna_def_foreach_bundle_reduce_item(brna);
   rna_def_foreach_bundle_reduce_items(brna);
+
+  rna_def_foreach_bundle_gather_item(brna);
+  rna_def_foreach_bundle_gather_items(brna);
 
   RNA_def_struct_sdna_from(srna, "NodeForeachBundleOutput", "storage");
 
@@ -7684,6 +7709,19 @@ static void def_foreach_bundle_output(BlenderRNA *brna, StructRNA *srna)
   prop = RNA_def_property(srna, "active_reduce_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "reduce_items.active_index");
   RNA_def_property_ui_text(prop, "Active Reduce Item Index", "Index of the active reduce item");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "gather_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "gather_items.items", "gather_items.items_num");
+  RNA_def_property_struct_type(prop, "ForeachBundleGatherItem");
+  RNA_def_property_ui_text(prop, "Gather Items", "");
+  RNA_def_property_srna(prop, "NodeForeachBundleGatherItems");
+
+  prop = RNA_def_property(srna, "active_gather_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "gather_items.active_index");
+  RNA_def_property_ui_text(prop, "Active Gather Item Index", "Index of the active gather item");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE, nullptr);

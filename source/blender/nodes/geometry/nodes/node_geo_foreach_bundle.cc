@@ -39,41 +39,45 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::String>("Path");
 
   b.add_input<decl::Bundle>("Bundle");
-  {
-    auto &p = b.add_panel("Reduction", 0).default_closed(true);
-    if (node && tree) {
-      const NodeForeachBundleInput &storage = node_storage(*node);
-      if (const bNode *output_node = tree->node_by_id(storage.output_node_id)) {
-        const auto &output_storage = *static_cast<const NodeForeachBundleOutput *>(
-            output_node->storage);
-        for (const int i : IndexRange(output_storage.reduce_items.items_num)) {
-          const NodeForeachBundleReduceItem &item = output_storage.reduce_items.items[i];
-          const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-          const StringRef name = item.name ? item.name : "";
-          const std::string identifier =
-              ForeachBundleReduceItemsAccessor::socket_identifier_for_item(item);
-          auto &input_decl = p.add_input(socket_type, name, identifier)
-                                 .socket_name_ptr(&tree->id,
-                                                  *ForeachBundleReduceItemsAccessor::item_srna,
-                                                  &item,
-                                                  "name");
-          auto &output_decl = p.add_output(socket_type, name, identifier).align_with_previous();
-          if (socket_type_supports_fields(socket_type)) {
-            input_decl.supports_field();
-            output_decl.dependent_field({input_decl.index()});
-          }
-          input_decl.structure_type(StructureType::Dynamic);
-          output_decl.structure_type(StructureType::Dynamic);
+  if (node && tree) {
+    const NodeForeachBundleInput &storage = node_storage(*node);
+    if (const bNode *output_node = tree->node_by_id(storage.output_node_id)) {
+      const auto &output_storage = *static_cast<const NodeForeachBundleOutput *>(
+          output_node->storage);
+
+      auto &p = b.add_panel("Reduce", 0)
+                    .default_closed(true)
+                    .description(
+                        "Custom values that are passed through all iterations similar to a "
+                        "repeat zone");
+      for (const int i : IndexRange(output_storage.reduce_items.items_num)) {
+        const NodeForeachBundleReduceItem &item = output_storage.reduce_items.items[i];
+        const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+        const StringRef name = item.name ? item.name : "";
+        const std::string identifier =
+            ForeachBundleReduceItemsAccessor::socket_identifier_for_item(item);
+        auto &input_decl = p.add_input(socket_type, name, identifier)
+                               .socket_name_ptr(&tree->id,
+                                                *ForeachBundleReduceItemsAccessor::item_srna,
+                                                &item,
+                                                "name");
+        auto &output_decl = p.add_output(socket_type, name, identifier).align_with_previous();
+        if (socket_type_supports_fields(socket_type)) {
+          input_decl.supports_field();
+          output_decl.dependent_field({input_decl.index()});
         }
+        input_decl.structure_type(StructureType::Dynamic);
+        output_decl.structure_type(StructureType::Dynamic);
       }
-      p.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
-      p.add_output<decl::Extend>("", "__extend__")
+      p.add_input<decl::Extend>("", "__extend__reduce").structure_type(StructureType::Dynamic);
+      p.add_output<decl::Extend>("", "__extend__reduce")
           .structure_type(StructureType::Dynamic)
           .align_with_previous();
     }
   }
+
   {
-    auto &p = b.add_panel("Filter", 1).default_closed(true);
+    auto &p = b.add_panel("Filter", 2).default_closed(true);
     p.add_input<decl::String>("Type");
   }
 }
@@ -140,10 +144,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
 
-  {
-    auto &p = b.add_panel("Reduction", 0).default_closed(true);
-    if (node && tree) {
-      const NodeForeachBundleOutput &storage = node_storage(*node);
+  if (node && tree) {
+    const NodeForeachBundleOutput &storage = node_storage(*node);
+    {
+      auto &p = b.add_panel("Reduce", 0).default_closed(true);
       for (const int i : IndexRange(storage.reduce_items.items_num)) {
         const NodeForeachBundleReduceItem &item = storage.reduce_items.items[i];
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
@@ -163,8 +167,34 @@ static void node_declare(NodeDeclarationBuilder &b)
         input_decl.structure_type(StructureType::Dynamic);
         output_decl.structure_type(StructureType::Dynamic);
       }
-      p.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
-      p.add_output<decl::Extend>("", "__extend__")
+      p.add_input<decl::Extend>("", "__extend__reduce").structure_type(StructureType::Dynamic);
+      p.add_output<decl::Extend>("", "__extend__reduce")
+          .structure_type(StructureType::Dynamic)
+          .align_with_previous();
+    }
+    {
+      auto &p = b.add_panel("Gather", 1).default_closed(true);
+      for (const int i : IndexRange(storage.gather_items.items_num)) {
+        const NodeForeachBundleGatherItem &item = storage.gather_items.items[i];
+        const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+        const StringRef name = item.name ? item.name : "";
+        const std::string identifier =
+            ForeachBundleGatherItemsAccessor::socket_identifier_for_item(item);
+        auto &input_decl = p.add_input(socket_type, name, identifier)
+                               .socket_name_ptr(&tree->id,
+                                                *ForeachBundleGatherItemsAccessor::item_srna,
+                                                &item,
+                                                "name");
+        auto &output_decl = p.add_output(socket_type, name, identifier).align_with_previous();
+        if (socket_type_supports_fields(socket_type)) {
+          input_decl.supports_field();
+          output_decl.dependent_field({input_decl.index()});
+        }
+        input_decl.structure_type(StructureType::Dynamic);
+        output_decl.structure_type(StructureType::List);
+      }
+      p.add_input<decl::Extend>("", "__extend__gather").structure_type(StructureType::Dynamic);
+      p.add_output<decl::Extend>("", "__extend__gather")
           .structure_type(StructureType::Dynamic)
           .align_with_previous();
     }
@@ -180,6 +210,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<ForeachBundleReduceItemsAccessor>(*node);
+  socket_items::destruct_array<ForeachBundleGatherItemsAccessor>(*node);
   MEM_freeN(static_cast<NodeForeachBundleOutput *>(node->storage));
 }
 
@@ -191,12 +222,36 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<ForeachBundleReduceItemsAccessor>(*src_node, *dst_node);
+  socket_items::copy_array<ForeachBundleGatherItemsAccessor>(*src_node, *dst_node);
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
+  if (!socket_items::try_add_item_via_any_extend_socket<ForeachBundleGatherItemsAccessor>(
+          params.ntree, params.node, params.node, params.link, "__extend__gather"))
+  {
+    return false;
+  }
   return socket_items::try_add_item_via_any_extend_socket<ForeachBundleReduceItemsAccessor>(
       params.ntree, params.node, params.node, params.link);
+}
+
+static void node_operators()
+{
+  socket_items::ops::make_common_operators<ForeachBundleGatherItemsAccessor>();
+  socket_items::ops::make_common_operators<ForeachBundleReduceItemsAccessor>();
+}
+
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<ForeachBundleReduceItemsAccessor>(&writer, node);
+  socket_items::blend_write<ForeachBundleGatherItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<ForeachBundleReduceItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<ForeachBundleGatherItemsAccessor>(&reader, node);
 }
 
 static void node_register()
@@ -209,6 +264,9 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.labelfunc = input_node::node_label;
   ntype.insert_link = node_insert_link;
+  ntype.register_operators = node_operators;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   ntype.gather_link_search_ops = nullptr;
   ntype.no_muting = true;
   bke::node_type_storage(ntype, "NodeForeachBundleOutput", node_free_storage, node_copy_storage);
@@ -221,6 +279,7 @@ NOD_REGISTER_NODE(node_register)
 }  // namespace node_geo_foreach_bundle_cc
 
 StructRNA **ForeachBundleReduceItemsAccessor::item_srna = &RNA_ForeachBundleReduceItem;
+StructRNA **ForeachBundleGatherItemsAccessor::item_srna = &RNA_ForeachBundleGatherItem;
 
 void ForeachBundleReduceItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -228,6 +287,16 @@ void ForeachBundleReduceItemsAccessor::blend_write_item(BlendWriter *writer, con
 }
 
 void ForeachBundleReduceItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
+{
+  BLO_read_string(reader, &item.name);
+}
+
+void ForeachBundleGatherItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
+{
+  BLO_write_string(writer, item.name);
+}
+
+void ForeachBundleGatherItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
 {
   BLO_read_string(reader, &item.name);
 }
