@@ -698,9 +698,9 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, XX)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 21)) {
     for (Scene &scene : bmain->scenes) {
-      scene.eevee.raytrace_options.rt_scale = 1.0f;
+      scene.eevee.ray_tracing_options.rt_scale = 1.0f;
     }
   }
 
