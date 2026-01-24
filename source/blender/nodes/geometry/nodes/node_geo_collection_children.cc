@@ -103,7 +103,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeCollectionChildren");
   ntype.ui_name = "Collection Children";
-  ntype.ui_description = "Retrieve children collection and object lists from a collection";
+  ntype.ui_description = "Retrieve children collection and object lists from a collection with name-base order";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
