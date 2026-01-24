@@ -158,4 +158,44 @@ void BKE_animdata_fix_paths_rename_all_ex(Main *bmain,
   });
 }
 
+AnimdataBathPathRename::AnimdataBathPathRename(Main &bmain) : bmain_(bmain)
+{
+  BKE_animdata_main_cb(&bmain, [&](ID *id, AnimData *adt) {
+    if (adt == nullptr) {
+      return;
+    }
+
+    ids_with_anim_data_.add(id);
+  });
+}
+
+void AnimdataBathPathRename::rename_all_ex(ID &ref_id,
+                                           const StringRefNull prefix,
+                                           const std::optional<StringRefNull> oldName,
+                                           const std::optional<StringRefNull> newName,
+                                           int oldSubscript,
+                                           int newSubscript,
+                                           bool verify_paths)
+{
+  for (ID *id : ids_with_anim_data_) {
+    BKE_animdata_fix_paths_rename(id,
+                                  BKE_animdata_from_id(id),
+                                  &ref_id,
+                                  prefix.c_str(),
+                                  oldName.has_value() ? oldName->c_str() : nullptr,
+                                  newName.has_value() ? newName->c_str() : nullptr,
+                                  oldSubscript,
+                                  newSubscript,
+                                  verify_paths);
+  }
+}
+
+void AnimdataBathPathRename::rename_all(ID &ref_id,
+                                        const StringRefNull prefix,
+                                        const std::optional<StringRefNull> oldName,
+                                        const std::optional<StringRefNull> newName)
+{
+  this->rename_all_ex(ref_id, prefix, oldName, newName, 0, 0, true);
+}
+
 }  // namespace blender

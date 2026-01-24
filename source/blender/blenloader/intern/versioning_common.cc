@@ -413,6 +413,7 @@ void version_node_socket_index_animdata(Main *bmain,
                                         const int socket_index_offset,
                                         const int total_number_of_sockets)
 {
+  std::optional<AnimdataBathPathRename> bmain_anim_rename;
 
   /* The for loop for the input ids is at the top level otherwise we lose the animation
    * keyframe data. Not sure what causes that, so I (Sybren) moved the code here from
@@ -435,8 +436,16 @@ void version_node_socket_index_animdata(Main *bmain,
         char *rna_path_prefix = BLI_sprintfN("nodes[\"%s\"].inputs", node_name_escaped);
 
         const int new_index = input_index + socket_index_offset;
-        BKE_animdata_fix_paths_rename_all_ex(
-            bmain, owner_id, rna_path_prefix, nullptr, nullptr, input_index, new_index, false);
+
+        if (!bmain_anim_rename.has_value()) {
+          bmain_anim_rename.emplace(*bmain);
+        }
+        bmain_anim_rename->rename_all_ex(
+            *owner_id, rna_path_prefix, std::nullopt, std::nullopt, input_index, new_index, false);
+
+        // BKE_animdata_fix_paths_rename_all_ex(
+        //     bmain, owner_id, rna_path_prefix, nullptr, nullptr, input_index, new_index, false);
+
         MEM_freeN(rna_path_prefix);
       }
     }

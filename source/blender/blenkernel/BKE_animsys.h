@@ -11,6 +11,7 @@
 #include "DNA_listBase.h"
 
 #include "BLI_bit_vector.hh"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_sys_types.h" /* for bool */
 
@@ -187,6 +188,32 @@ void BKE_animdata_fix_paths_rename_all(struct ID *ref_id,
                                        const char *prefix,
                                        const char *oldName,
                                        const char *newName);
+
+/**
+  A cached and shared data for multiple renamings in a row. Must be used if N properties going to
+  change a path. No changes in bmain should be made in time between object construction and method
+  invocations.
+  */
+class AnimdataBathPathRename {
+  Main &bmain_;
+  Set<ID *> ids_with_anim_data_;
+
+ public:
+  AnimdataBathPathRename(Main &bmain);
+
+  void rename_all_ex(ID &ref_id,
+                     const StringRefNull prefix,
+                     const std::optional<StringRefNull> oldName,
+                     const std::optional<StringRefNull> newName,
+                     int oldSubscript,
+                     int newSubscript,
+                     bool verify_paths);
+
+  void rename_all(ID &ref_id,
+                  const StringRefNull prefix,
+                  const std::optional<StringRefNull> oldName,
+                  const std::optional<StringRefNull> newName);
+};
 
 /**
  * Remove any animation data (F-Curves from Actions, and drivers) that have an
