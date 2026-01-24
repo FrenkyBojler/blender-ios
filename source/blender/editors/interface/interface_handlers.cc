@@ -12713,6 +12713,7 @@ std::optional<int2> try_activate_rna_button(bContext *C,
                                             HandleButtonState state,
                                             PointerRNA *ptr,
                                             PropertyRNA *prop,
+                                            bool warp_cursor_at_button,
                                             int index)
 {
   if (region->runtime->do_draw & RGN_DRAWING) {
@@ -12792,7 +12793,9 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   rctf button_view_rect;
   block_to_window_rctf(region, button->block, &button_view_rect, &button->rect);
 
-  WM_cursor_warp(win, BLI_rctf_cent_x(&button_view_rect), BLI_rctf_cent_y(&button_view_rect));
+  if (warp_cursor_at_button) {
+    WM_cursor_warp(win, BLI_rctf_cent_x(&button_view_rect), BLI_rctf_cent_y(&button_view_rect));
+  }
 
   /* Disable textsearch interactive mode. */
   button->changed = false;

@@ -3040,6 +3040,7 @@ std::optional<int2> try_activate_rna_button(bContext *C,
                                             HandleButtonState state,
                                             PointerRNA *ptr,
                                             PropertyRNA *prop,
+                                            bool warp_cursor_at_button = false,
                                             int index = 0);
 
 /**
