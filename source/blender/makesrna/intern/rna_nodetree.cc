@@ -261,6 +261,7 @@ const EnumPropertyItem rna_enum_node_vec_math_items[] = {
     {NODE_VECTOR_MATH_SINE, "SINE", 0, "Sine", "Entry-wise sin(A)"},
     {NODE_VECTOR_MATH_COSINE, "COSINE", 0, "Cosine", "Entry-wise cos(A)"},
     {NODE_VECTOR_MATH_TANGENT, "TANGENT", 0, "Tangent", "Entry-wise tan(A)"},
+    {NODE_VECTOR_MATH_ROUND, "ROUND", 0, "Round", "Entry-wise round"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

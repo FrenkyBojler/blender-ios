@@ -196,6 +196,8 @@ static const char *gpu_shader_get_name(int mode)
       return "vector_math_power";
     case NODE_VECTOR_MATH_SIGN:
       return "vector_math_sign";
+    case NODE_VECTOR_MATH_ROUND:
+      return "vector_math_round";
   }
 
   return nullptr;
@@ -237,7 +239,8 @@ static void node_shader_update_vector_math(bNodeTree *ntree, bNode *node)
                                           NODE_VECTOR_MATH_ABSOLUTE,
                                           NODE_VECTOR_MATH_FRACTION,
                                           NODE_VECTOR_MATH_NORMALIZE,
-                                          NODE_VECTOR_MATH_SIGN));
+                                          NODE_VECTOR_MATH_SIGN,
+                                          NODE_VECTOR_MATH_ROUND));
   bke::node_set_socket_availability(*ntree,
                                     *sockC,
                                     ELEM(node->custom1,
@@ -465,6 +468,9 @@ NODE_SHADER_MATERIALX_BEGIN
       break;
     case NODE_VECTOR_MATH_FRACTION:
       res = x % val(1.0f);
+      break;
+    case NODE_VECTOR_MATH_ROUND:
+      res = (x + val(0.5f)).floor();
       break;
     case NODE_VECTOR_MATH_LENGTH:
       res = x.length();

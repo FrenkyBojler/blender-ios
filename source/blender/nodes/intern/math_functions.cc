@@ -282,6 +282,8 @@ const FloatMathOperationInfo *get_float3_math_operation_info(const int operation
       RETURN_OPERATION_INFO("Power", "vector_math_power");
     case NODE_VECTOR_MATH_SIGN:
       RETURN_OPERATION_INFO("Sign", "vector_math_sign");
+    case NODE_VECTOR_MATH_ROUND:
+      RETURN_OPERATION_INFO("Round", "vector_math_round");
   }
 
 #undef RETURN_OPERATION_INFO
