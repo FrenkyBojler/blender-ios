@@ -7,3 +7,4 @@ Referenced by issue #153202, Regression: Modifier: mask - smooth parameter is no
 Referenced by issue #153286, Koro benchmark renders incorrectly after attribute storage switch
 Referenced by pull request #153287, Fix #153286: Koro benchmark scene fails with particle color from emitter
 Referenced by commit 516ce32070082d57d1e95205dc6536cca50c790d, Fix #153286: Koro benchmark scene fails with particle color from emitter
+Referenced by pull request #153322, Fix: Mesh validation bugs from AttributeStorage switch
