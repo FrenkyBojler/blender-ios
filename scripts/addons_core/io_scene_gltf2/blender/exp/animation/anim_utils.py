@@ -256,7 +256,7 @@ def bake_animation(obj_uuid: str, animation_key: str, export_settings, mode=None
             or export_settings['gltf_animation_mode'] == "NLA_TRACKS") \
             and blender_object \
             and blender_object.type == "ARMATURE" \
-            and mode is None or mode == "OBJECT":
+            and (mode is None or mode == "OBJECT"):
         # We need to bake all bones. Because some bone can have some constraints linking to
         # some other armature bones, for example
 
