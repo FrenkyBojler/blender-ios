@@ -2,9 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "NOD_geometry_nodes_lazy_function.hh"
+#include "BKE_geometry_nodes_reference_set.hh"
+#include "BLI_stack.hh"
+
+#include "FN_lazy_function_execute.hh"
+
+#include "BKE_compute_contexts.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_lazy_function.hh"
 
 namespace blender::nodes {
 
@@ -103,8 +109,8 @@ class LazyFunctionForForeachBundleZone : public LazyFunction {
   {
     debug_name_ = "Foreach Bundle";
     initialize_zone_wrapper(zone, zone_info, body_fn, true, inputs_, outputs_);
-    /* All reduce inputs are always used for now. */
-    for (const int i : zone_info.indices.inputs.main) {
+    /* All inputs are always used for now. */
+    for (const int i : inputs_.index_range()) {
       inputs_[i].usage = lf::ValueUsage::Used;
     }
 
@@ -137,19 +143,106 @@ class LazyFunctionForForeachBundleZone : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
+    ResourceScope scope;
+    LinearAllocator<> &allocator = scope.allocator();
     const ScopedNodeTimer node_timer{context, output_bnode_};
 
     auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
-    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+    // auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
 
-    const auto &node_storage = *static_cast<const NodeForeachBundleOutput *>(
-        output_bnode_.storage);
+    // const auto &node_storage = *static_cast<const NodeForeachBundleOutput *>(
+    //     output_bnode_.storage);
 
-    geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data);
+    // geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data);
 
-    BundlePtr root_bundle =
-        params.extract_input<SocketValueVariant>(indices_.in.in.bundle.lf).extract<BundlePtr>();
-    params.set_output(indices_.out.out.bundle.lf, SocketValueVariant::From(root_bundle));
+    SocketValueVariant root_bundle_value = params.extract_input<SocketValueVariant>(
+        indices_.in.in.bundle.lf);
+
+    const LazyFunction &body_fn = *body_fn_.function;
+
+    Array<GMutablePointer> body_inputs(body_fn.inputs().size());
+    Array<GMutablePointer> body_outputs(body_fn.outputs().size());
+    Array<std::optional<lf::ValueUsage>> body_input_usages(body_fn.inputs().size());
+    Array<lf::ValueUsage> body_output_usages(body_fn.outputs().size(), lf::ValueUsage::Used);
+    Array<bool> body_set_outputs(body_fn.outputs().size(), false);
+
+    const int border_link_num = body_fn_.indices.inputs.border_links.size();
+    Array<SocketValueVariant> border_link_values(border_link_num);
+    for (const int i : border_link_values.index_range()) {
+      border_link_values[i] = params.extract_input<SocketValueVariant>(
+          zone_info_.indices.inputs.border_links[i]);
+    }
+
+    Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> reference_sets;
+    for (const auto &item : zone_info_.indices.inputs.reference_sets.items()) {
+      reference_sets.add(item.key,
+                         params.extract_input<bke::GeometryNodesReferenceSet>(item.value));
+    }
+
+    Array<SocketValueVariant> border_link_inputs = border_link_values;
+    SocketValueVariant subbundle_input_value = root_bundle_value;
+    SocketValueVariant path_value = SocketValueVariant::From(std::string(""));
+    Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> body_reference_sets = reference_sets;
+    {
+      body_inputs[indices_.in.out.subbundle.lf] = &subbundle_input_value;
+      body_inputs[indices_.in.out.path.lf] = &path_value;
+      for (const int i : border_link_inputs.index_range()) {
+        body_inputs[body_fn_.indices.inputs.border_links[i]] = &border_link_inputs[i];
+      }
+      for (const int i : body_fn_.indices.inputs.output_usages) {
+        body_inputs[i] = &scope.construct<bool>(true);
+      }
+      for (const auto &item : body_fn_.indices.inputs.reference_sets.items()) {
+        body_inputs[item.value] = &body_reference_sets.lookup(item.key);
+      }
+    }
+    SocketValueVariant subbundle_output_value;
+    std::destroy_at(&subbundle_output_value);
+    SocketValueVariant recurse_output_value;
+    std::destroy_at(&recurse_output_value);
+
+    Array<bool> input_usages(body_fn_.indices.outputs.input_usages.size());
+    Array<bool> border_link_usages(border_link_num);
+
+    {
+      body_outputs[indices_.out.in.subbundle.lf] = &subbundle_output_value;
+      body_outputs[indices_.out.in.recurse.lf] = &recurse_output_value;
+      for (const int i : border_link_usages.index_range()) {
+        body_outputs[body_fn_.indices.outputs.border_link_usages[i]] = &border_link_usages[i];
+      }
+      for (const int i : input_usages.index_range()) {
+        body_outputs[body_fn_.indices.outputs.input_usages[i]] = &input_usages[i];
+      }
+    }
+
+    lf::BasicParams body_params{*body_fn_.function,
+                                body_inputs,
+                                body_outputs,
+                                body_input_usages,
+                                body_output_usages,
+                                body_set_outputs};
+
+    GeoNodesUserData body_user_data = user_data;
+    /* TODO: Use proper compute context. */
+    bke::NodeComputeContext body_compute_context{
+        user_data.compute_context, output_bnode_.identifier, 0};
+    body_user_data.compute_context = &body_compute_context;
+    body_user_data.log_socket_values = should_log_socket_values_for_context(
+        user_data, body_compute_context.hash());
+    GeoNodesLocalUserData body_local_user_data{body_user_data};
+
+    void *body_storage = body_fn.init_storage(allocator);
+    lf::Context body_context(body_storage, &body_user_data, &body_local_user_data);
+    body_fn.execute(body_params, body_context);
+    body_fn.destruct_storage(body_storage);
+
+    params.set_output(indices_.out.out.bundle.lf, std::move(subbundle_output_value));
+    for (const int i : zone_info_.indices.outputs.border_link_usages) {
+      params.set_output(i, true);
+    }
+    for (const int i : zone_info_.indices.outputs.input_usages) {
+      params.set_output(i, true);
+    }
   }
 };
 
