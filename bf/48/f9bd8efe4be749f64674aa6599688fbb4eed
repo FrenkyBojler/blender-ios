@@ -1,1 +1,1 @@
-Referenced by issue #153045, Keyboard arrowing through a vertex group list, painting weight, and then undo will cause extra data loss.
+Referenced by issue #153045, Keyboard arrowing through a vertex group list adds "useless" undo steps that can purge useful undo information
