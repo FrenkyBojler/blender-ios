@@ -61,7 +61,8 @@ void VKContext::sync_backbuffer()
 {
   if (ghost_window_) {
     GHOST_VulkanSwapChainData swap_chain_data = {};
-    GHOST_GetVulkanSwapChainFormat((GHOST_WindowHandle)ghost_window_, &swap_chain_data);
+    GHOST_GetVulkanSwapChainFormat(static_cast<GHOST_WindowHandle>(ghost_window_),
+                                   &swap_chain_data);
 
     const bool reset_framebuffer = swap_chain_format_.format !=
                                        swap_chain_data.surface_format.format ||
@@ -152,7 +153,9 @@ void VKContext::end_frame()
 
 void VKContext::flush()
 {
-  flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+  /* Submit when flushing to avoid out-of-memory errors and TDRs when more and more commands are
+   * added in background mode without ever submitting work to the GPU. */
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
 }
 
 TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
@@ -173,6 +176,7 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
       &render_graph_.value().get(),
       discard_pool,
       bool(flags & RenderGraphFlushFlags::SUBMIT),
+      bool(flags & RenderGraphFlushFlags::WAIT_FOR_SUBMISSION),
       bool(flags & RenderGraphFlushFlags::WAIT_FOR_COMPLETION),
       wait_dst_stage_mask,
       wait_semaphore,
@@ -483,7 +487,8 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
   render_graph.add_node(synchronization);
   GPU_debug_group_end();
 
-  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_SUBMISSION |
+                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
                      VK_PIPELINE_STAGE_TRANSFER_BIT,
                      swap_chain_data.acquire_semaphore,
                      swap_chain_data.present_semaphore,

@@ -8,19 +8,25 @@
  * BM construction functions.
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_sort_utils.h"
 
+#include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_customdata.hh"
+#include "BKE_geometry_set.hh"
 
 #include "DNA_mesh_types.h"
 
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
+
+namespace blender {
 
 bool BM_verts_from_edges(BMVert **vert_arr, BMEdge **edge_arr, const int len)
 {
@@ -209,13 +215,13 @@ BMFace *BM_face_create_ngon(BMesh *bm,
                             const BMFace *f_example,
                             const eBMCreateFlag create_flag)
 {
-  BMEdge **edges_sort = BLI_array_alloca(edges_sort, len);
-  BMVert **verts_sort = BLI_array_alloca(verts_sort, len);
+  Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edges_sort(len);
+  Array<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> verts_sort(len);
 
   BLI_assert(len && v1 && v2 && edges && bm);
 
-  if (bm_edges_sort_winding(v1, v2, edges, len, edges_sort, verts_sort)) {
-    return BM_face_create(bm, verts_sort, edges_sort, len, f_example, create_flag);
+  if (bm_edges_sort_winding(v1, v2, edges, len, edges_sort.data(), verts_sort.data())) {
+    return BM_face_create(bm, verts_sort.data(), edges_sort.data(), len, f_example, create_flag);
   }
 
   return nullptr;
@@ -229,7 +235,8 @@ BMFace *BM_face_create_ngon_verts(BMesh *bm,
                                   const bool calc_winding,
                                   const bool create_edges)
 {
-  BMEdge **edge_arr = BLI_array_alloca(edge_arr, len);
+  Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edge_arr(len);
+
   uint winding[2] = {0, 0};
   int i, i_prev = len - 1;
   BMVert *v_winding[2] = {vert_arr[i_prev], vert_arr[0]};
@@ -283,14 +290,20 @@ BMFace *BM_face_create_ngon_verts(BMesh *bm,
   /* --- */
 
   /* create the face */
-  return BM_face_create_ngon(
-      bm, v_winding[winding[0]], v_winding[winding[1]], edge_arr, len, f_example, create_flag);
+  return BM_face_create_ngon(bm,
+                             v_winding[winding[0]],
+                             v_winding[winding[1]],
+                             edge_arr.data(),
+                             len,
+                             f_example,
+                             create_flag);
 }
 
 void BM_verts_sort_radial_plane(BMVert **vert_arr, int len)
 {
-  SortIntByFloat *vang = BLI_array_alloca(vang, len);
-  BMVert **vert_arr_map = BLI_array_alloca(vert_arr_map, len);
+  using AngleIndex = std::pair<float, int>;
+  Array<AngleIndex, BM_DEFAULT_NGON_STACK_SIZE> vang(len);
+  Array<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> vert_arr_map(len);
 
   float nor[3], cent[3];
   int index_tangent = 0;
@@ -299,18 +312,20 @@ void BM_verts_sort_radial_plane(BMVert **vert_arr, int len)
 
   /* Now calculate every points angle around the normal (signed). */
   for (int i = 0; i < len; i++) {
-    vang[i].sort_value = angle_signed_on_axis_v3v3v3_v3(far, cent, vert_arr[i]->co, nor);
-    vang[i].data = i;
+    vang[i].first = angle_signed_on_axis_v3v3v3_v3(far, cent, vert_arr[i]->co, nor);
+    vang[i].second = i;
     vert_arr_map[i] = vert_arr[i];
   }
 
   /* sort by angle and magic! - we have our ngon */
-  qsort(vang, len, sizeof(*vang), BLI_sortutil_cmp_float);
+  std::sort(vang.begin(), vang.end(), [](const AngleIndex &a, const AngleIndex &b) {
+    return a.first < b.first;
+  });
 
   /* --- */
 
   for (int i = 0; i < len; i++) {
-    vert_arr[i] = vert_arr_map[vang[i].data];
+    vert_arr[i] = vert_arr_map[vang[i].second];
   }
 }
 
@@ -388,7 +403,8 @@ void BM_elem_select_copy(BMesh *bm_dst, void *ele_dst_v, const void *ele_src_v)
   BLI_assert(ele_src->htype == ele_dst->htype);
 
   if ((ele_src->hflag & BM_ELEM_SELECT) != (ele_dst->hflag & BM_ELEM_SELECT)) {
-    BM_elem_select_set(bm_dst, (BMElem *)ele_dst, (ele_src->hflag & BM_ELEM_SELECT) != 0);
+    BM_elem_select_set(
+        bm_dst, reinterpret_cast<BMElem *>(ele_dst), (ele_src->hflag & BM_ELEM_SELECT) != 0);
   }
 }
 
@@ -400,9 +416,9 @@ static BMFace *bm_mesh_copy_new_face(BMesh *bm_new,
                                      BMEdge **etable,
                                      BMFace *f)
 {
-  BMLoop **loops = BLI_array_alloca(loops, f->len);
-  BMVert **verts = BLI_array_alloca(verts, f->len);
-  BMEdge **edges = BLI_array_alloca(edges, f->len);
+  Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops(f->len);
+  Array<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> verts(f->len);
+  Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edges(f->len);
 
   BMFace *f_new;
   BMLoop *l_iter, *l_first;
@@ -417,7 +433,7 @@ static BMFace *bm_mesh_copy_new_face(BMesh *bm_new,
     j++;
   } while ((l_iter = l_iter->next) != l_first);
 
-  f_new = BM_face_create(bm_new, verts, edges, f->len, nullptr, BM_CREATE_SKIP_CD);
+  f_new = BM_face_create(bm_new, verts.data(), edges.data(), f->len, nullptr, BM_CREATE_SKIP_CD);
 
   if (UNLIKELY(f_new == nullptr)) {
     return nullptr;
@@ -442,6 +458,23 @@ static BMFace *bm_mesh_copy_new_face(BMesh *bm_new,
   return f_new;
 }
 
+static CustomData &get_bmesh_custom_data(BMesh &bm, const bke::AttrDomain domain)
+{
+  switch (domain) {
+    case bke::AttrDomain::Point:
+      return bm.vdata;
+    case bke::AttrDomain::Edge:
+      return bm.edata;
+    case bke::AttrDomain::Face:
+      return bm.pdata;
+    case bke::AttrDomain::Corner:
+      return bm.ldata;
+    default:
+      BLI_assert_unreachable();
+      return bm.vdata;
+  }
+}
+
 void BM_mesh_copy_init_customdata_from_mesh_array(BMesh *bm_dst,
                                                   const Mesh *me_src_array[],
                                                   const int me_src_array_len,
@@ -452,38 +485,36 @@ void BM_mesh_copy_init_customdata_from_mesh_array(BMesh *bm_dst,
     allocsize = &bm_mesh_allocsize_default;
   }
 
+  bke::GeometrySet::GatheredAttributes attribute_info;
   for (int i = 0; i < me_src_array_len; i++) {
     const Mesh *me_src = me_src_array[i];
-    CustomData mesh_vdata = CustomData_shallow_copy_remove_non_bmesh_attributes(
-        &me_src->vert_data, CD_MASK_BMESH.vmask);
-    CustomData mesh_edata = CustomData_shallow_copy_remove_non_bmesh_attributes(
-        &me_src->edge_data, CD_MASK_BMESH.emask);
-    CustomData mesh_pdata = CustomData_shallow_copy_remove_non_bmesh_attributes(
-        &me_src->face_data, CD_MASK_BMESH.pmask);
-    CustomData mesh_ldata = CustomData_shallow_copy_remove_non_bmesh_attributes(
-        &me_src->corner_data, CD_MASK_BMESH.lmask);
-
-    if (i == 0) {
-      CustomData_init_layout_from(
-          &mesh_vdata, &bm_dst->vdata, CD_MASK_BMESH.vmask, CD_SET_DEFAULT, 0);
-      CustomData_init_layout_from(
-          &mesh_edata, &bm_dst->edata, CD_MASK_BMESH.emask, CD_SET_DEFAULT, 0);
-      CustomData_init_layout_from(
-          &mesh_pdata, &bm_dst->pdata, CD_MASK_BMESH.pmask, CD_SET_DEFAULT, 0);
-      CustomData_init_layout_from(
-          &mesh_ldata, &bm_dst->ldata, CD_MASK_BMESH.lmask, CD_SET_DEFAULT, 0);
+    for (const bke::Attribute &attr : me_src->attribute_storage.wrap()) {
+      if (BM_attribute_stored_in_bmesh_builtin(attr.name())) {
+        continue;
+      }
+      attribute_info.add(attr.name(), {attr.domain(), attr.data_type()});
     }
-    else {
-      CustomData_merge_layout(&mesh_vdata, &bm_dst->vdata, CD_MASK_BMESH.vmask, CD_SET_DEFAULT, 0);
-      CustomData_merge_layout(&mesh_edata, &bm_dst->edata, CD_MASK_BMESH.emask, CD_SET_DEFAULT, 0);
-      CustomData_merge_layout(&mesh_pdata, &bm_dst->pdata, CD_MASK_BMESH.pmask, CD_SET_DEFAULT, 0);
-      CustomData_merge_layout(&mesh_ldata, &bm_dst->ldata, CD_MASK_BMESH.lmask, CD_SET_DEFAULT, 0);
-    }
+  }
 
-    MEM_SAFE_FREE(mesh_vdata.layers);
-    MEM_SAFE_FREE(mesh_edata.layers);
-    MEM_SAFE_FREE(mesh_pdata.layers);
-    MEM_SAFE_FREE(mesh_ldata.layers);
+  for (const int i : attribute_info.names.index_range()) {
+    const StringRef name = attribute_info.names[i];
+    const bke::AttrDomain domain = attribute_info.kinds[i].domain;
+    const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(
+        attribute_info.kinds[i].data_type);
+    CustomData &custom_data = get_bmesh_custom_data(*bm_dst, domain);
+    CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, name);
+  }
+
+  for (int i = 0; i < me_src_array_len; i++) {
+    const Mesh *me_src = me_src_array[i];
+    CustomData_merge_layout(
+        &me_src->vert_data, &bm_dst->vdata, CD_MASK_BMESH.vmask, CD_SET_DEFAULT, 0);
+    CustomData_merge_layout(
+        &me_src->edge_data, &bm_dst->edata, CD_MASK_BMESH.emask, CD_SET_DEFAULT, 0);
+    CustomData_merge_layout(
+        &me_src->face_data, &bm_dst->pdata, CD_MASK_BMESH.pmask, CD_SET_DEFAULT, 0);
+    CustomData_merge_layout(
+        &me_src->corner_data, &bm_dst->ldata, CD_MASK_BMESH.lmask, CD_SET_DEFAULT, 0);
   }
 
   CustomData_bmesh_init_pool(&bm_dst->vdata, allocsize->totvert, BM_VERT);
@@ -642,18 +673,18 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
   BLI_assert(i == bm_old->totface);
 
   /* copy over edit selection history */
-  LISTBASE_FOREACH (BMEditSelection *, ese, &bm_old->selected) {
+  for (BMEditSelection &ese : bm_old->selected) {
     BMElem *ele = nullptr;
 
-    switch (ese->htype) {
+    switch (ese.htype) {
       case BM_VERT:
-        eletable = (BMElem **)vtable;
+        eletable = reinterpret_cast<BMElem **>(vtable);
         break;
       case BM_EDGE:
-        eletable = (BMElem **)etable;
+        eletable = reinterpret_cast<BMElem **>(etable);
         break;
       case BM_FACE:
-        eletable = (BMElem **)ftable;
+        eletable = reinterpret_cast<BMElem **>(ftable);
         break;
       default:
         eletable = nullptr;
@@ -661,7 +692,7 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
     }
 
     if (eletable) {
-      ele = eletable[BM_elem_index_get(ese->ele)];
+      ele = eletable[BM_elem_index_get(ese.ele)];
       if (ele) {
         BM_select_history_store(bm_new, ele);
       }
@@ -678,3 +709,5 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
 
   return bm_new;
 }
+
+}  // namespace blender

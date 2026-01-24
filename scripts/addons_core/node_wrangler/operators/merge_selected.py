@@ -7,6 +7,7 @@ from bpy.types import Operator
 from bpy.props import EnumProperty
 from bpy_extras.node_utils import connect_sockets
 from bpy.app.translations import contexts as i18n_contexts
+from .. import __package__ as base_package
 
 from ..utils.constants import (
     blend_types,
@@ -133,7 +134,7 @@ class NODE_OT_merge_selected(Operator, NWBase):
                 and nw_check_selected(cls, context))
 
     def execute(self, context):
-        settings = context.preferences.addons[__package__].preferences
+        settings = context.preferences.addons[base_package].preferences
         merge_hide = settings.merge_hide
         merge_position = settings.merge_position  # 'center' or 'bottom'
 
@@ -363,8 +364,8 @@ class NODE_OT_merge_selected(Operator, NWBase):
                     add.hide = do_hide
                     if do_hide:
                         loc_y = loc_y - 50
-                    first = 1
-                    second = 2
+                    first = 0
+                    second = 1
                 elif nodes_list == selected_boolean:
                     add = nodes.new('FunctionNodeBooleanMath')
                     add.show_preview = False

@@ -18,6 +18,8 @@
 
 #include "ED_curves.hh"
 
+namespace blender {
+
 struct ARegion;
 struct Brush;
 struct Depsgraph;
@@ -26,13 +28,13 @@ struct RegionView3D;
 struct Scene;
 struct View3D;
 
-namespace blender::bke {
+namespace bke {
 struct BVHTreeFromMesh;
 }
 
 struct ReportList;
 
-namespace blender::ed::sculpt_paint {
+namespace ed::sculpt_paint {
 
 using bke::CurvesGeometry;
 using bke::CurvesSurfaceTransforms;
@@ -71,7 +73,7 @@ std::unique_ptr<CurvesSculptStrokeOperation> new_snake_hook_operation();
 std::unique_ptr<CurvesSculptStrokeOperation> new_grow_shrink_operation(BrushStrokeMode brush_mode,
                                                                        const Scene &scene);
 std::unique_ptr<CurvesSculptStrokeOperation> new_selection_paint_operation(
-    BrushStrokeMode brush_mode, const Scene &scene);
+    BrushStrokeMode brush_mode, BrushSwitchMode brush_switch_mode, const Scene &scene);
 std::unique_ptr<CurvesSculptStrokeOperation> new_pinch_operation(BrushStrokeMode brush_mode,
                                                                  const Scene &scene);
 std::unique_ptr<CurvesSculptStrokeOperation> new_smooth_operation();
@@ -193,4 +195,6 @@ struct CurvesConstraintSolver {
 bool curves_sculpt_poll(bContext *C);
 bool curves_sculpt_poll_view3d(bContext *C);
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
+
+}  // namespace blender

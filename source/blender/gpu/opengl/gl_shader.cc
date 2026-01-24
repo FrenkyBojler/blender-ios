@@ -37,6 +37,7 @@
 #include <stdio.h>
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 #include <chrono>
 #include <filesystem>
@@ -46,12 +47,13 @@
 #include <stdio.h>
 #include <string>
 
+namespace blender {
+
 #ifdef WIN32
 #  define popen _popen
 #  define pclose _pclose
 #endif
 
-using namespace blender;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
 
@@ -491,9 +493,11 @@ static std::ostream &print_qualifier(std::ostream &os, const Qualifier &qualifie
 
 static void print_resource(std::ostream &os,
                            const ShaderCreateInfo::Resource &res,
-                           bool auto_resource_location)
+                           const ShaderCreateInfo &info)
 {
-  if (auto_resource_location && res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
+  if (info.auto_resource_location_ &&
+      res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER)
+  {
     /* Skip explicit binding location for samplers when not needed, since drivers can usually
      * handle more sampler declarations this way (as long as they're not actually used by the
      * shader). See #105661. */
@@ -528,28 +532,29 @@ static void print_resource(std::ostream &os,
       os << res.image.name << ";";
       break;
     case ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
-      os << "uniform _" << res.uniformbuf.name.str_no_array() << " { " << res.uniformbuf.type_name
-         << " " << res.uniformbuf.name << "; };";
+      os << "uniform _" << res.uniformbuf.name.str_no_array() << " { ";
+      os << info.buffer_typename(res.uniformbuf.type_name, true) << " " << res.uniformbuf.name
+         << "; };";
       break;
     case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
       print_qualifier(os, res.storagebuf.qualifiers);
       os << "buffer _";
-      os << res.storagebuf.name.str_no_array() << " { " << res.storagebuf.type_name << " "
-         << res.storagebuf.name << "; };";
+      os << res.storagebuf.name.str_no_array() << " { ";
+      os << info.buffer_typename(res.storagebuf.type_name) << " " << res.storagebuf.name << "; };";
       break;
   }
 }
 
 static void print_resource(std::ostream &os,
                            const ShaderCreateInfo::Resource &res,
-                           bool auto_resource_location,
+                           const ShaderCreateInfo &info,
                            StringRefNull res_frequency,
                            StringRefNull &active_info_name)
 {
   if (assign_if_different(active_info_name, res.info_name)) {
     os << "\n#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << " \\\n";
   }
-  print_resource(os, res, auto_resource_location);
+  print_resource(os, res, info);
   os << " \\\n";
 }
 
@@ -579,7 +584,7 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
 
   ss << "\n#line " << __LINE__ << " \"" << __FILE__ << "\"\n";
 
-  ss << "\n/* Compilation Constants (pass-through). */\n";
+  /* Compilation Constants (pass-through). */
   for (const CompilationConstant &sc : info.compilation_constants_) {
     ss << "const ";
     switch (sc.type) {
@@ -611,25 +616,25 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
   {
     StringRefNull active_info = "";
     for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
-      print_resource(ss, res, info.auto_resource_location_, "PASS", active_info);
+      print_resource(ss, res, info, "PASS", active_info);
     }
     ss << "\n";
   }
   {
     StringRefNull active_info = "";
     for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-      print_resource(ss, res, info.auto_resource_location_, "BATCH", active_info);
+      print_resource(ss, res, info, "BATCH", active_info);
     }
     ss << "\n";
   }
   {
     StringRefNull active_info = "";
     for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
-      print_resource(ss, res, info.auto_resource_location_, "GEOMETRY", active_info);
+      print_resource(ss, res, info, "GEOMETRY", active_info);
     }
     ss << "\n";
   }
-  ss << "\n/* Push Constants. */\n";
+  /* Push Constants. */
   int location = 0;
   for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
     /* See #131227: Work around legacy Intel bug when using layout locations. */
@@ -652,7 +657,6 @@ std::string GLShader::constants_declare(
 {
   std::stringstream ss;
 
-  ss << "/* Specialization Constants. */\n";
   for (int constant_index : IndexRange(constants_state.types.size())) {
     const StringRefNull name = specialization_constant_names_[constant_index];
     gpu::shader::Type constant_type = constants_state.types[constant_index];
@@ -703,7 +707,7 @@ std::string GLShader::vertex_interface_declare(const ShaderCreateInfo &info) con
   std::stringstream ss;
   std::string post_main;
 
-  ss << "\n/* Inputs. */\n";
+  /* Inputs. */
   for (const ShaderCreateInfo::VertIn &attr : info.vertex_inputs_) {
     if (GLContext::explicit_location_support &&
         /* Fix issue with AMDGPU-PRO + workbench_prepass_mesh_vert.glsl being quantized. */
@@ -713,7 +717,7 @@ std::string GLShader::vertex_interface_declare(const ShaderCreateInfo &info) con
     }
     ss << "in " << to_string(attr.type) << " " << attr.name << ";\n";
   }
-  ss << "\n/* Interfaces. */\n";
+  /* Interfaces. */
   for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
     print_interface(ss, "out", *iface);
   }
@@ -770,7 +774,7 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
   std::stringstream ss;
   std::string pre_main, post_main;
 
-  ss << "\n/* Interfaces. */\n";
+  /* Interfaces. */
   const Span<StageInterfaceInfo *> in_interfaces = info.geometry_source_.is_empty() ?
                                                        info.vertex_out_interfaces_ :
                                                        info.geometry_out_interfaces_;
@@ -792,7 +796,7 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
     else if (epoxy_has_gl_extension("GL_AMD_shader_explicit_vertex_parameter")) {
       /* NOTE(fclem): This won't work with geometry shader. Hopefully, we don't need geometry
        * shader workaround if this extension/feature is detected. */
-      ss << "\n/* Stable Barycentric Coordinates. */\n";
+      /* Stable Barycentric Coordinates. */
       ss << "flat in vec4 gpu_pos_flat;\n";
       ss << "__explicitInterpAMD in vec4 gpu_pos;\n";
       /* Globals. */
@@ -816,7 +820,7 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
   }
   ss << "layout(" << to_string(info.depth_write_) << ") out float gl_FragDepth;\n";
 
-  ss << "\n/* Sub-pass Inputs. */\n";
+  /* Sub-pass Inputs. */
   for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
     if (GLContext::framebuffer_fetch_support) {
       /* Declare as inout but do not write to it. */
@@ -844,7 +848,7 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
       res.sampler.type = input.img_type;
       res.sampler.sampler = GPUSamplerState::default_sampler();
       res.sampler.name = image_name;
-      print_resource(ss, res, false);
+      print_resource(ss, res, info);
 
       char swizzle[] = "xyzw";
       swizzle[to_component_count(input.type)] = '\0';
@@ -865,7 +869,7 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
       pre_main += ss_pre.str();
     }
   }
-  ss << "\n/* Outputs. */\n";
+  /* Outputs. */
   for (const ShaderCreateInfo::FragOut &output : info.fragment_outputs_) {
     ss << "layout(location = " << output.index;
     switch (output.blend) {
@@ -895,7 +899,7 @@ std::string GLShader::geometry_layout_declare(const ShaderCreateInfo &info) cons
   int invocations = info.geometry_layout_.invocations;
 
   std::stringstream ss;
-  ss << "\n/* Geometry Layout. */\n";
+  /* Geometry Layout. */
   ss << "layout(" << to_string(info.geometry_layout_.primitive_in);
   if (invocations != -1) {
     ss << ", invocations = " << invocations;
@@ -923,7 +927,7 @@ std::string GLShader::geometry_interface_declare(const ShaderCreateInfo &info) c
 {
   std::stringstream ss;
 
-  ss << "\n/* Interfaces. */\n";
+  /* Interfaces. */
   for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
     bool has_matching_output_iface = find_interface_by_name(info.geometry_out_interfaces_,
                                                             iface->instance_name) != nullptr;
@@ -944,7 +948,7 @@ std::string GLShader::geometry_interface_declare(const ShaderCreateInfo &info) c
 std::string GLShader::compute_layout_declare(const ShaderCreateInfo &info) const
 {
   std::stringstream ss;
-  ss << "\n/* Compute Layout. */\n";
+  /* Compute Layout. */
   ss << "layout(";
   ss << "  local_size_x = " << info.compute_layout_.local_size_x;
   ss << ", local_size_y = " << info.compute_layout_.local_size_y;
@@ -1271,6 +1275,8 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage,
   std::string full_name = this->name_get() + "_" + stage_name_get(gl_stage);
 
   dump_source_to_disk(this->name_get(), full_name, ".glsl", concat_source);
+  concat_source = run_preprocessor(concat_source);
+  dump_source_to_disk(this->name_get(), full_name + ".expanded", ".glsl", concat_source);
 
   /* Patch line directives so that we can make error reporting consistent. */
   size_t start_pos = 0;
@@ -1367,7 +1373,7 @@ bool GLShader::finalize(const shader::ShaderCreateInfo *info)
     std::string source = workaround_geometry_shader_source_create(*info);
     Vector<StringRefNull> sources;
     sources.append("version");
-    sources.append("/* Specialization Constants. */\n");
+    sources.append("");
     sources.append(source);
     geometry_shader_from_glsl(*info, sources);
   }
@@ -1808,7 +1814,7 @@ bool GLCompilerWorker::load_program_binary(GLint program)
     return false;
   }
 
-  ShaderBinaryHeader *binary = (ShaderBinaryHeader *)shared_mem_->get_data();
+  ShaderBinaryHeader *binary = static_cast<ShaderBinaryHeader *>(shared_mem_->get_data());
 
   state_ = COMPILATION_FINISHED;
 
@@ -1972,3 +1978,5 @@ void GLSubprocessShaderCompiler::specialize_shader(const ShaderSpecialization &s
 /** \} */
 
 #endif
+
+}  // namespace blender

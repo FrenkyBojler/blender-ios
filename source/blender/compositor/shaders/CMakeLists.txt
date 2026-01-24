@@ -78,6 +78,8 @@ set(SRC_GLSL_COMP
   compositor_kuwahara_classic.glsl
   compositor_map_uv_anisotropic.glsl
   compositor_map_uv.glsl
+  compositor_mask_to_sdf_compute_boundary.glsl
+  compositor_mask_to_sdf_compute_distance.glsl
   compositor_morphological_blur.glsl
   compositor_morphological_distance_feather.glsl
   compositor_morphological_distance_threshold.glsl
@@ -97,7 +99,6 @@ set(SRC_GLSL_COMP
   compositor_plane_deform.glsl
   compositor_premultiply_alpha.glsl
   compositor_radial_lens_distortion.glsl
-  compositor_read_input.glsl
   compositor_realize_on_domain.glsl
   compositor_relative_to_pixel_float.glsl
   compositor_relative_to_pixel_float_per_dimension.glsl

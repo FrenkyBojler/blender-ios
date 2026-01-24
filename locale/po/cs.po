@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -8131,6 +8131,22 @@ msgid "Bundle"
 msgstr "Mód Úchopu"
 
 
+msgid "Font"
+msgstr "Písmo"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Mask"
+msgstr "Maska"
+
+
+msgid "Sound"
+msgstr "Zvuk"
+
+
 msgid "Border"
 msgstr "Okraj"
 
@@ -9419,10 +9435,6 @@ msgstr "Text na křivce"
 
 msgid "Curve deforming text object"
 msgstr "Křivka deformující textový objekt"
-
-
-msgid "Font"
-msgstr "Písmo"
 
 
 msgid "Font Bold"
@@ -11601,10 +11613,6 @@ msgstr "Jméno aktuálního klíče pro tvar"
 msgctxt "Sound"
 msgid "Pitch"
 msgstr "Seškrcení"
-
-
-msgid "Sound"
-msgstr "Zvuk"
 
 
 msgid "How loud the sound is"
@@ -13818,10 +13826,6 @@ msgid "UV Factor"
 msgstr "UV Faktor"
 
 
-msgid "Mask"
-msgstr "Maska"
-
-
 msgid "Material slot in an object"
 msgstr "Přivlastnit"
 
@@ -13834,86 +13838,6 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
-msgid "Assign Material"
-msgstr "Přiřadit Materiál"
-
-
-msgid "Metaball"
-msgstr "Meta objekt"
-
-
-msgid "Light"
-msgstr "Světlo"
-
-
-msgid "Relations"
-msgstr "Vztahy"
-
-
-msgid "Rigid Body"
-msgstr "Tuhé Těleso"
-
-
-msgid "Apply"
-msgstr "Použít"
-
-
-msgid "Track"
-msgstr "Sledování"
-
-
-msgid "Quick Effects"
-msgstr "Rychlé Efekty"
-
-
-msgid "Show/Hide"
-msgstr "Zobrazit/skrýt"
-
-
-msgid "Clean Up"
-msgstr "Vyčistit"
-
-
-msgid "Layout"
-msgstr "Rozložení"
-
-
-msgid "Make Single User"
-msgstr "Přivlastnit"
-
-
-msgid "Hooks"
-msgstr "Háky"
-
-
-msgid "Keying"
-msgstr "Klíčovací sestava"
-
-
-msgid "Tracking"
-msgstr "Sledování"
-
-
-msgid "Utilities"
-msgstr "Nástroje"
-
-
-msgid "Clear Transform"
-msgstr "Vyčistit transformaci"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Propagate"
-msgstr "Vložit"
-
-
-msgid "Names"
-msgstr "Názvy"
-
-
 msgid "Mesh Select Mode"
 msgstr "Síťový mód výběru"
 
@@ -13922,20 +13846,44 @@ msgid "Face Data"
 msgstr "Data Ploch"
 
 
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Clean Up"
+msgstr "Vyčistit"
+
+
+msgid "Utilities"
+msgstr "Nástroje"
+
+
 msgid "Merge"
 msgstr "Sloučit"
+
+
+msgid "Show/Hide"
+msgstr "Zobrazit/skrýt"
 
 
 msgid "Special Characters"
 msgstr "Speciální Znaky"
 
 
-msgid "Text"
-msgstr "Text"
+msgid "Metaball"
+msgstr "Meta objekt"
+
+
+msgid "Names"
+msgstr "Názvy"
 
 
 msgid "Bone Roll"
 msgstr "Kost"
+
+
+msgid "Instances"
+msgstr "Instance"
 
 
 msgid "Pivot Point"
@@ -13948,10 +13896,6 @@ msgstr "Přichytit"
 
 msgid "Proportional Editing Falloff"
 msgstr "Způsob útlumu"
-
-
-msgid "Instances"
-msgstr "Instance"
 
 
 msgid "Import"
@@ -13980,6 +13924,62 @@ msgstr "Zarovnat pohled"
 
 msgid "Select Linked"
 msgstr "Vybrat Propojené"
+
+
+msgid "Assign Material"
+msgstr "Přiřadit Materiál"
+
+
+msgid "Light"
+msgstr "Světlo"
+
+
+msgid "Relations"
+msgstr "Vztahy"
+
+
+msgid "Rigid Body"
+msgstr "Tuhé Těleso"
+
+
+msgid "Layout"
+msgstr "Rozložení"
+
+
+msgid "Apply"
+msgstr "Použít"
+
+
+msgid "Track"
+msgstr "Sledování"
+
+
+msgid "Quick Effects"
+msgstr "Rychlé Efekty"
+
+
+msgid "Make Single User"
+msgstr "Přivlastnit"
+
+
+msgid "Hooks"
+msgstr "Háky"
+
+
+msgid "Keying"
+msgstr "Klíčovací sestava"
+
+
+msgid "Tracking"
+msgstr "Sledování"
+
+
+msgid "Clear Transform"
+msgstr "Vyčistit transformaci"
+
+
+msgid "Propagate"
+msgstr "Vložit"
 
 
 msgid "Basic"
@@ -17095,12 +17095,16 @@ msgid "Instances of objects or collections"
 msgstr "Instance objektů nebo kolekcí"
 
 
-msgid "Collection Info"
-msgstr "Informace o Kolekci"
+msgid "The transformation of the vector and geometry outputs"
+msgstr "Transformace vektoru a výstupy geometrie"
 
 
 msgid "Original"
 msgstr "Originální"
+
+
+msgid "Collection Info"
+msgstr "Informace o Kolekci"
 
 
 msgid "Delete Geometry"
@@ -17151,10 +17155,6 @@ msgid "Object Info"
 msgstr "Informace o objektu"
 
 
-msgid "The transformation of the vector and geometry outputs"
-msgstr "Transformace vektoru a výstupy geometrie"
-
-
 msgid "Points to Volume"
 msgstr "Body na Objem"
 
@@ -17186,6 +17186,10 @@ msgstr "Rám"
 
 msgid "Font size to use for displaying the label"
 msgstr "Velikost písma použitého pro zobrazení textu"
+
+
+msgid "Single"
+msgstr "Úhel"
 
 
 msgid "Group Input"
@@ -17678,10 +17682,6 @@ msgstr "Výstup uzlu"
 
 msgid "Value to Normal"
 msgstr "Hodnota k Normále"
-
-
-msgid "Single"
-msgstr "Úhel"
 
 
 msgid "Node Inputs"
@@ -21981,6 +21981,11 @@ msgstr "Převrátit"
 msgctxt "Operator"
 msgid "Erase"
 msgstr "Smazat"
+
+
+msgctxt "Operator"
+msgid "Mask"
+msgstr "Maska"
 
 
 msgid "Flat"
@@ -30481,14 +30486,6 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
-msgid "Stereoscopy"
-msgstr "Stereoskopie"
-
-
-msgid "Auto-Masking"
-msgstr "Auto-Maska"
-
-
 msgid "Active Tool"
 msgstr "Aktivní nástroj"
 
@@ -30535,6 +30532,14 @@ msgstr "Editační Režim Křivky"
 
 msgid "Transform Orientations"
 msgstr "Orientace transformací"
+
+
+msgid "Stereoscopy"
+msgstr "Stereoskopie"
+
+
+msgid "Auto-Masking"
+msgstr "Auto-Maska"
 
 
 msgid "Chain Scaling"
@@ -30854,11 +30859,6 @@ msgstr "Roztrhnout oblast"
 msgctxt "Operator"
 msgid "Grab"
 msgstr "Chytit"
-
-
-msgctxt "Operator"
-msgid "Mask"
-msgstr "Maska"
 
 
 msgid "Tiling"
@@ -32428,10 +32428,6 @@ msgstr "Automatická hloubka"
 
 msgid "Orbit Around Selection"
 msgstr "Orbitovat Okolo Výběru"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Použít výběr jako pivot"
 
 
 msgid "Zoom to Mouse Position"
