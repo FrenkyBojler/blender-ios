@@ -56,6 +56,135 @@ class SocketIndexMapBuilder {
   }
 };
 
+struct ForeachBundleSocketIndices {
+  struct {
+    struct {
+      SocketIndexMapBuilder::SingleSocket bundle;
+      SocketIndexMapBuilder::MultipleSockets reduce;
+      SocketIndexMapBuilder::SingleSocket type;
+    } in;
+    struct {
+      SocketIndexMapBuilder::SingleSocket subbundle;
+      SocketIndexMapBuilder::SingleSocket path;
+      SocketIndexMapBuilder::MultipleSockets reduce;
+
+    } out;
+  } in;
+  struct {
+    struct {
+      SocketIndexMapBuilder::SingleSocket subbundle;
+      SocketIndexMapBuilder::SingleSocket recurse;
+      SocketIndexMapBuilder::MultipleSockets reduce;
+      SocketIndexMapBuilder::MultipleSockets gather;
+    } in;
+    struct {
+      SocketIndexMapBuilder::SingleSocket bundle;
+      SocketIndexMapBuilder::MultipleSockets reduce;
+      SocketIndexMapBuilder::MultipleSockets gather;
+    } out;
+  } out;
+};
+
+class ForeachBundleExecutor {
+ private:
+  const ZoneBodyFunction &body_fn_;
+  const ForeachBundleSocketIndices &indices_;
+  const bNode &output_bnode_;
+  const GeoNodesUserData &user_data_;
+  const Span<SocketValueVariant> border_link_values_;
+  Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> reference_sets_;
+
+ public:
+  ForeachBundleExecutor(
+      const ZoneBodyFunction &body_fn,
+      const ForeachBundleSocketIndices &indices,
+      const bNode &output_bnode,
+      const GeoNodesUserData &user_data,
+      const Span<SocketValueVariant> border_link_values,
+      const Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> &reference_sets)
+      : body_fn_(body_fn),
+        indices_(indices),
+        output_bnode_(output_bnode),
+        user_data_(user_data),
+        border_link_values_(border_link_values),
+        reference_sets_(reference_sets)
+  {
+  }
+
+  BundlePtr execute(BundlePtr root_bundle)
+  {
+    ResourceScope scope;
+    LinearAllocator<> &allocator = scope.allocator();
+
+    const LazyFunction &fn = *body_fn_.function;
+
+    Array<GMutablePointer> body_inputs(fn.inputs().size());
+    Array<GMutablePointer> body_outputs(fn.outputs().size());
+    Array<std::optional<lf::ValueUsage>> body_input_usages(fn.inputs().size());
+    Array<lf::ValueUsage> body_output_usages(fn.outputs().size(), lf::ValueUsage::Used);
+    Array<bool> body_set_outputs(fn.outputs().size(), false);
+
+    Array<SocketValueVariant> border_link_inputs = border_link_values_;
+    SocketValueVariant subbundle_input_value = SocketValueVariant::From(root_bundle);
+    SocketValueVariant path_value = SocketValueVariant::From(std::string(""));
+    Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> body_reference_sets = reference_sets_;
+    {
+      body_inputs[indices_.in.out.subbundle.lf] = &subbundle_input_value;
+      body_inputs[indices_.in.out.path.lf] = &path_value;
+      for (const int i : border_link_inputs.index_range()) {
+        body_inputs[body_fn_.indices.inputs.border_links[i]] = &border_link_inputs[i];
+      }
+      for (const int i : body_fn_.indices.inputs.output_usages) {
+        body_inputs[i] = &scope.construct<bool>(true);
+      }
+      for (const auto &item : body_fn_.indices.inputs.reference_sets.items()) {
+        body_inputs[item.value] = &body_reference_sets.lookup(item.key);
+      }
+    }
+    SocketValueVariant subbundle_output_value;
+    std::destroy_at(&subbundle_output_value);
+    SocketValueVariant recurse_output_value;
+    std::destroy_at(&recurse_output_value);
+
+    Array<bool> input_usages(body_fn_.indices.outputs.input_usages.size());
+    Array<bool> border_link_usages(border_link_values_.size());
+
+    {
+      body_outputs[indices_.out.in.subbundle.lf] = &subbundle_output_value;
+      body_outputs[indices_.out.in.recurse.lf] = &recurse_output_value;
+      for (const int i : border_link_usages.index_range()) {
+        body_outputs[body_fn_.indices.outputs.border_link_usages[i]] = &border_link_usages[i];
+      }
+      for (const int i : input_usages.index_range()) {
+        body_outputs[body_fn_.indices.outputs.input_usages[i]] = &input_usages[i];
+      }
+    }
+
+    lf::BasicParams body_params{*body_fn_.function,
+                                body_inputs,
+                                body_outputs,
+                                body_input_usages,
+                                body_output_usages,
+                                body_set_outputs};
+
+    GeoNodesUserData body_user_data = user_data_;
+    /* TODO: Use proper compute context. */
+    bke::NodeComputeContext body_compute_context{
+        user_data_.compute_context, output_bnode_.identifier, 0};
+    body_user_data.compute_context = &body_compute_context;
+    body_user_data.log_socket_values = should_log_socket_values_for_context(
+        user_data_, body_compute_context.hash());
+    GeoNodesLocalUserData body_local_user_data{body_user_data};
+
+    void *body_storage = fn.init_storage(allocator);
+    lf::Context body_context(body_storage, &body_user_data, &body_local_user_data);
+    fn.execute(body_params, body_context);
+    fn.destruct_storage(body_storage);
+
+    return subbundle_output_value.extract<BundlePtr>();
+  }
+};
+
 class LazyFunctionForForeachBundleZone : public LazyFunction {
  private:
   const bNodeTree &btree_;
@@ -65,35 +194,9 @@ class LazyFunctionForForeachBundleZone : public LazyFunction {
   const ZoneBuildInfo &zone_info_;
   const ZoneBodyFunction &body_fn_;
 
-  /** Reduces the hard-coding of index offsets in lots of places below which is quite brittle. */
-  struct {
-    struct {
-      struct {
-        SocketIndexMapBuilder::SingleSocket bundle;
-        SocketIndexMapBuilder::MultipleSockets reduce;
-        SocketIndexMapBuilder::SingleSocket type;
-      } in;
-      struct {
-        SocketIndexMapBuilder::SingleSocket subbundle;
-        SocketIndexMapBuilder::SingleSocket path;
-        SocketIndexMapBuilder::MultipleSockets reduce;
+  ForeachBundleSocketIndices indices_;
 
-      } out;
-    } in;
-    struct {
-      struct {
-        SocketIndexMapBuilder::SingleSocket subbundle;
-        SocketIndexMapBuilder::SingleSocket recurse;
-        SocketIndexMapBuilder::MultipleSockets reduce;
-        SocketIndexMapBuilder::MultipleSockets gather;
-      } in;
-      struct {
-        SocketIndexMapBuilder::SingleSocket bundle;
-        SocketIndexMapBuilder::MultipleSockets reduce;
-        SocketIndexMapBuilder::MultipleSockets gather;
-      } out;
-    } out;
-  } indices_;
+  friend ForeachBundleExecutor;
 
  public:
   LazyFunctionForForeachBundleZone(const bNodeTree &btree,
@@ -143,28 +246,9 @@ class LazyFunctionForForeachBundleZone : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
-    ResourceScope scope;
-    LinearAllocator<> &allocator = scope.allocator();
     const ScopedNodeTimer node_timer{context, output_bnode_};
 
     auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
-    // auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
-
-    // const auto &node_storage = *static_cast<const NodeForeachBundleOutput *>(
-    //     output_bnode_.storage);
-
-    // geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data);
-
-    SocketValueVariant root_bundle_value = params.extract_input<SocketValueVariant>(
-        indices_.in.in.bundle.lf);
-
-    const LazyFunction &body_fn = *body_fn_.function;
-
-    Array<GMutablePointer> body_inputs(body_fn.inputs().size());
-    Array<GMutablePointer> body_outputs(body_fn.outputs().size());
-    Array<std::optional<lf::ValueUsage>> body_input_usages(body_fn.inputs().size());
-    Array<lf::ValueUsage> body_output_usages(body_fn.outputs().size(), lf::ValueUsage::Used);
-    Array<bool> body_set_outputs(body_fn.outputs().size(), false);
 
     const int border_link_num = body_fn_.indices.inputs.border_links.size();
     Array<SocketValueVariant> border_link_values(border_link_num);
@@ -172,71 +256,21 @@ class LazyFunctionForForeachBundleZone : public LazyFunction {
       border_link_values[i] = params.extract_input<SocketValueVariant>(
           zone_info_.indices.inputs.border_links[i]);
     }
-
     Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> reference_sets;
     for (const auto &item : zone_info_.indices.inputs.reference_sets.items()) {
       reference_sets.add(item.key,
                          params.extract_input<bke::GeometryNodesReferenceSet>(item.value));
     }
 
-    Array<SocketValueVariant> border_link_inputs = border_link_values;
-    SocketValueVariant subbundle_input_value = root_bundle_value;
-    SocketValueVariant path_value = SocketValueVariant::From(std::string(""));
-    Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> body_reference_sets = reference_sets;
-    {
-      body_inputs[indices_.in.out.subbundle.lf] = &subbundle_input_value;
-      body_inputs[indices_.in.out.path.lf] = &path_value;
-      for (const int i : border_link_inputs.index_range()) {
-        body_inputs[body_fn_.indices.inputs.border_links[i]] = &border_link_inputs[i];
-      }
-      for (const int i : body_fn_.indices.inputs.output_usages) {
-        body_inputs[i] = &scope.construct<bool>(true);
-      }
-      for (const auto &item : body_fn_.indices.inputs.reference_sets.items()) {
-        body_inputs[item.value] = &body_reference_sets.lookup(item.key);
-      }
-    }
-    SocketValueVariant subbundle_output_value;
-    std::destroy_at(&subbundle_output_value);
-    SocketValueVariant recurse_output_value;
-    std::destroy_at(&recurse_output_value);
+    SocketValueVariant root_bundle_value = params.extract_input<SocketValueVariant>(
+        indices_.in.in.bundle.lf);
 
-    Array<bool> input_usages(body_fn_.indices.outputs.input_usages.size());
-    Array<bool> border_link_usages(border_link_num);
+    ForeachBundleExecutor executor(
+        body_fn_, indices_, output_bnode_, user_data, border_link_values, reference_sets);
+    BundlePtr result_bundle = executor.execute(root_bundle_value.extract<BundlePtr>());
 
-    {
-      body_outputs[indices_.out.in.subbundle.lf] = &subbundle_output_value;
-      body_outputs[indices_.out.in.recurse.lf] = &recurse_output_value;
-      for (const int i : border_link_usages.index_range()) {
-        body_outputs[body_fn_.indices.outputs.border_link_usages[i]] = &border_link_usages[i];
-      }
-      for (const int i : input_usages.index_range()) {
-        body_outputs[body_fn_.indices.outputs.input_usages[i]] = &input_usages[i];
-      }
-    }
-
-    lf::BasicParams body_params{*body_fn_.function,
-                                body_inputs,
-                                body_outputs,
-                                body_input_usages,
-                                body_output_usages,
-                                body_set_outputs};
-
-    GeoNodesUserData body_user_data = user_data;
-    /* TODO: Use proper compute context. */
-    bke::NodeComputeContext body_compute_context{
-        user_data.compute_context, output_bnode_.identifier, 0};
-    body_user_data.compute_context = &body_compute_context;
-    body_user_data.log_socket_values = should_log_socket_values_for_context(
-        user_data, body_compute_context.hash());
-    GeoNodesLocalUserData body_local_user_data{body_user_data};
-
-    void *body_storage = body_fn.init_storage(allocator);
-    lf::Context body_context(body_storage, &body_user_data, &body_local_user_data);
-    body_fn.execute(body_params, body_context);
-    body_fn.destruct_storage(body_storage);
-
-    params.set_output(indices_.out.out.bundle.lf, std::move(subbundle_output_value));
+    params.set_output(indices_.out.out.bundle.lf,
+                      SocketValueVariant::From(std::move(result_bundle)));
     for (const int i : zone_info_.indices.outputs.border_link_usages) {
       params.set_output(i, true);
     }
