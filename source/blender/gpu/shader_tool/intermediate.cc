@@ -126,8 +126,10 @@ void LexerBase::ensure_memory()
    * Note: Never shrinks. */
   if (alloc_size < needed_size) {
 #ifdef _WIN32
+    _aligned_free(memory);
     memory = static_cast<char *>(_aligned_malloc(needed_size, 128));
 #else
+    std::free(memory);
     memory = static_cast<char *>(std::aligned_alloc(128, needed_size));
 #endif
     alloc_size = needed_size;
@@ -263,32 +265,37 @@ static always_inline TokenType multi_tok_lookup(TokenType input, std::string_vie
 
 void LexerBase::merge_tokens()
 {
+  {
+    lexit::TokenBuffer tok_buf(
+        str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
+
+    for (auto it = tok_buf.begin(); it < tok_buf.end(); ++it) {
+      TokenBuffer::Token tok = *it;
+      if (tok.type == '#') {
+        /* Seek until the end of the directive and mark it as PreprocessorNewLine
+         * to avoid loosing it during merge_whitespaces. This is necessary for parsing preprocessor
+         * directive scopes. */
+        while ((*it).type != EndOfFile) {
+          TokenBuffer::Token tok = *it;
+          if (tok.type == NewLine) {
+            tok.type = PreprocessorNewline;
+            break;
+          }
+          if (tok.type == '\\') {
+            ++it; /* Escape newline. */
+          }
+          ++it;
+        }
+      }
+    }
+  }
+
   lexit::TokenBuffer tok_buf(str.data(),
                              str.size(),
                              token_types.data(),
                              token_offsets.data(),
                              token_ends.data(),
                              token_types.size());
-
-  for (auto it = tok_buf.begin(); it < tok_buf.end(); ++it) {
-    TokenBuffer::Token tok = *it;
-    if (tok.type == '#') {
-      /* Seek until the end of the directive and mark it as PreprocessorNewLine
-       * to avoid loosing it during merge_whitespaces. This is necessary for parsing preprocessor
-       * directive scopes. */
-      while ((*it).type != EndOfFile) {
-        TokenBuffer::Token tok = *it;
-        if (tok.type == NewLine) {
-          tok.type = PreprocessorNewline;
-          break;
-        }
-        if (tok.type == '\\') {
-          ++it; /* Escape newline. */
-        }
-        ++it;
-      }
-    }
-  }
 
   tok_buf.merge_complex_literals();
   tok_buf.merge_whitespaces();
