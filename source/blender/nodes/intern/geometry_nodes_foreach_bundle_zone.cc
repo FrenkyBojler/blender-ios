@@ -124,7 +124,6 @@ class ForeachBundleExecutor {
     while (!paths_to_process.is_empty()) {
       std::string path = paths_to_process.pop();
       Bundle &root_bundle = root_bundle_ptr.ensure_mutable_inplace();
-      /* Cleanup: use newer ui */
       std::optional<BundlePtr> subbundle = root_bundle.lookup_path<BundlePtr>(path);
       if (!subbundle) {
         continue;
