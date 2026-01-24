@@ -847,6 +847,33 @@ static bool bm_edge_is_single(BMEdge *e)
           (BM_edge_is_boundary(e->l->next->e) || BM_edge_is_boundary(e->l->prev->e)));
 }
 
+static bool bmw_EdgeloopWalker_delimit_check(BMVert *v, BMEdge *e, const BMWDelimitFlag delimit) {
+  bool has_delimit = false;
+  /* When starting on a mark, stop when the next edge does not have the mark.
+   * Otherwise, stop when any edge connected to the next vert has the mark. */
+  if (delimit & BMW_DELIMIT_EDGE_MARK_SEAM) {
+    BMIter eiter;
+    BMEdge *e;
+    BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
+      if (BM_elem_flag_test(e, BM_ELEM_SEAM)) {
+        has_delimit = true;
+        break;
+      }
+    }
+  }
+  if (delimit & BMW_DELIMIT_EDGE_MARK_SHARP) {
+    BMIter eiter;
+    BMEdge *e;
+    BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
+      if (!BM_elem_flag_test(e, BM_ELEM_SMOOTH)) {
+        has_delimit = true;
+        break;
+      }
+    }
+  }
+  return has_delimit;
+}
+
 static void bmw_EdgeLoopWalker_begin(BMWalker *walker, void *data)
 {
   BMwEdgeLoopWalker *lwalk = nullptr, owalk, *owalk_pt;
@@ -1058,9 +1085,11 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
 
     vert_edge_tot = BM_vert_edge_count_nonwire(v);
 
+    bool has_delimit = bmw_EdgeloopWalker_delimit_check(v, walker->delimit);
+
     /* Typical looping over edges in the middle of a mesh.
      * Why use 2 here at all? - for internal ngon loops it can be useful. */
-    if (ELEM(vert_edge_tot, 4, 2)) {
+    if (has_delimit == false && ELEM(vert_edge_tot, 4, 2)) {
       int i_opposite = vert_edge_tot / 2;
       int i = 0;
       do {
@@ -1100,13 +1129,13 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
     vert_edge_tot = BM_vert_edge_count_nonwire(v);
 
     /* Check if any delimits should stop the step. */
-    bool has_delimit = false;
+    bool has_delimit = bmw_EdgeloopWalker_delimit_check(v, e, walker->delimit);
     if ((walker->delimit & BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS) != 0) {
       if (vert_edge_tot > 3) {
         has_delimit = true;
       }
     }
-    if ((walker->delimit & BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS) != 0) {
+    if ((walker->delimit & BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS) != 0 && has_delimit == false) {
       if (vert_edge_tot == 2 && bm_edge_is_single(e) == false) {
         has_delimit = true;
       }
@@ -1907,7 +1936,7 @@ static const BMWalker bmw_EdgeLoopWalker_Type = {
     /*valid_mask*/ 0, /* Could add flags here but so far none are used. */
                       /*delimit_supported*/
     (BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS | BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS |
-     BMW_DELIMIT_EDGE_LOOP_NGONS),
+     BMW_DELIMIT_EDGE_LOOP_NGONS | BMW_DELIMIT_EDGE_MARK_SEAM | BMW_DELIMIT_EDGE_MARK_SHARP),
 };
 
 static const BMWalker bmw_FaceLoopWalker_Type = {
