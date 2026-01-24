@@ -1792,7 +1792,10 @@ class USERPREF_PT_file_paths_asset_libraries(FilePathsPanel, Panel):
 class USERPREF_UL_asset_libraries(UIList):
     def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         asset_library = item
-        layout.prop(asset_library, "name", text="", emboss=False)
+
+        row = layout.row(align=True)
+        row.prop(asset_library, "enabled", text="")
+        row.prop(asset_library, "name", text="", emboss=False)
 
 
 class USERPREF_UL_extension_repos(UIList):
@@ -2966,6 +2969,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
                 ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
+                ({"property": "use_geometry_bundle"}, ("blender/blender/issues/150574", "#150574")),
             ),
         )
 
