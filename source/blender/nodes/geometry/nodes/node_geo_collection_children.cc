@@ -79,15 +79,19 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   auto *objects = new ImplicitSharedValue<Vector<Object *>>();
+  Set<Object *> obj_visited;
+
+  Vector<Collection *> obj_collections;
+  obj_collections.append(collection);
   if (recursive) {
-    FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, object) {
-      objects->data.append(object);
-    }
-    FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+    obj_collections.extend(collections->data);
   }
-  else {
-    for (CollectionObject &cob : collection->gobject) {
-      objects->data.append(cob.ob);
+
+  for (Collection *col : obj_collections) {
+    for (CollectionObject &cob : col->gobject) {
+      if (obj_visited.add(cob.ob)) {
+        objects->data.append(cob.ob);
+      }
     }
   }
 
