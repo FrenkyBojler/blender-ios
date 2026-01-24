@@ -14,74 +14,49 @@
 #include <cassert>
 #include <cstdint>
 #include <iterator>
+#include <memory>
 #include <string_view>
 
 #include "types.hh"
 
 namespace lexit {
 
-/**
- * Non-owning container for token datas stored in structure of array layout.
- */
-class TokenBuffer {
- protected:
+struct TokenBuffer {
   /* Input string. */
-  const uint8_t *str_;
-  /* Length of the input string without including null terminator. */
-  const uint32_t str_len_;
+  std::string_view str_;
   /* Type of each token. */
-  TokenType *types_;
+  std::unique_ptr<TokenType[]> types_;
   /* Starting character index of each token. */
-  uint32_t *offsets_;
+  std::unique_ptr<uint32_t[]> offsets_;
   /* Original character index of each next token before whitespace merging (optional). */
-  uint32_t *original_offsets_;
+  std::unique_ptr<uint32_t[]> original_offsets_;
   /* Amount of tokens inside the buffer excluding the terminating EndOfFile token. */
-  uint32_t size_;
+  uint32_t size_ = 0;
+  /* Amount of tokens that can be contained. */
+  uint32_t allocated_size_ = 0;
+  /* If whitespaces where not collapsed, offsets_ should be used instead of original_offsets_. */
+  bool whitespaces_collapsed_ = false;
 
- public:
-  /**
-   * @param c_str      An null-terminated C string.
-   * @param str_len    Length of c_str excluding the null terminator.
-   * @param types      An aligned array which can contain str_len+1 TokenType.
-   * @param offsets    An aligned array which can contain str_len+1 uint32_t.
-   * @param token_len  (optional) The amount of token already parsed.
-   */
-  TokenBuffer(const char *c_str,
-              uint32_t str_len,
-              TokenType *types,
-              uint32_t *offsets,
-              uint32_t token_len = 0)
-      : str_((const uint8_t *)c_str),
-        str_len_(str_len),
-        types_(types),
-        offsets_(offsets),
-        original_offsets_(offsets),
-        size_(token_len)
+  TokenBuffer() = default;
+
+  TokenBuffer(const std::string_view str, const CharClass char_class_table[128])
   {
+    process(str, char_class_table);
+  }
+
+  void process(const std::string_view str, const CharClass char_class_table[128])
+  {
+    str_ = str;
+    clear_and_reserve(str.size());
+    tokenize(char_class_table);
   }
 
   /**
-   * @param c_str             An null-terminated C string.
-   * @param str_len           Length of c_str excluding the null terminator.
-   * @param types             An aligned array which can contain str_len+1 TokenType.
-   * @param offsets           An aligned array which can contain str_len+1 uint32_t.
-   * @param original_offsets  An aligned array which can contain str_len+1 uint32_t.
-   * @param token_len         The amount of token already parsed.
+   * @brief Discard current data and allocate backing memory for the given amount of tokens.
+   *
+   * Does nothing if allocation is already large enough.
    */
-  TokenBuffer(const char *c_str,
-              uint32_t str_len,
-              TokenType *types,
-              uint32_t *offsets,
-              uint32_t *original_offsets,
-              uint32_t token_len)
-      : str_((const uint8_t *)c_str),
-        str_len_(str_len),
-        types_(types),
-        offsets_(offsets),
-        original_offsets_(original_offsets),
-        size_(token_len)
-  {
-  }
+  void clear_and_reserve(uint32_t count);
 
   /**
    * @brief Tokenizes the input string by grouping contiguous characters of the same class.
@@ -99,14 +74,6 @@ class TokenBuffer {
   void tokenize(const CharClass char_class_table[128]);
 
   /**
-   * @brief Return the amount of token inside the buffer.
-   */
-  uint32_t size() const
-  {
-    return size_;
-  }
-
-  /**
    * @brief Merge complex literals such as floats and strings.
    */
   void merge_complex_literals();
@@ -115,6 +82,14 @@ class TokenBuffer {
    * @brief Merge whitespaces with their preceding token.
    */
   void merge_whitespaces();
+
+  /**
+   * @brief Return the amount of token inside the buffer.
+   */
+  uint32_t size() const
+  {
+    return size_;
+  }
 
   struct Token {
     const std::string_view str;
@@ -137,10 +112,10 @@ class TokenBuffer {
     Token operator*() const
     {
       int start = buf_->offsets_[index_];
-      int end = buf_->original_offsets_[index_ + 1];
+      int end = (buf_->whitespaces_collapsed_ ? buf_->original_offsets_ :
+                                                buf_->offsets_)[index_ + 1];
       assert(start < end);
-      return Token{std::string_view((const char *)buf_->str_ + start, end - start),
-                   buf_->types_[index_]};
+      return Token{buf_->str_.substr(start, end - start), buf_->types_[index_]};
     }
 
     TokenIt &operator++()

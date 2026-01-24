@@ -27,6 +27,19 @@
 
 namespace lexit {
 
+void TokenBuffer::clear_and_reserve(uint32_t count)
+{
+  size_ = 0;
+  if (allocated_size_ >= count + 1) {
+    return;
+  }
+  allocated_size_ = count + 1;
+  types_ = std::unique_ptr<TokenType[]>(new (std::align_val_t{64}) TokenType[allocated_size_]);
+  offsets_ = std::unique_ptr<uint32_t[]>(new (std::align_val_t{64}) uint32_t[allocated_size_]);
+  original_offsets_ = std::unique_ptr<uint32_t[]>(new (std::align_val_t{64})
+                                                      uint32_t[allocated_size_]);
+}
+
 #if defined(USE_NEON) || defined(USE_SSE4_2)
 
 /* Shuffle table used for stream compaction.
@@ -335,6 +348,8 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
 {
   uint32_t offset = 0, cursor = 0;
 
+  const uint8_t *str = (const uint8_t *)str_.data();
+
 #if defined(USE_SSE4_2)
   __m128i map_v[8];
   for (int i = 0; i < 8; ++i) {
@@ -345,8 +360,8 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
 
   __m128i prev = _mm_set1_epi8(uint8_t(CharClass::None));
 
-  for (; offset + 16 <= str_len_; offset += 16) {
-    const __m128i c = _mm_loadu_si128((const __m128i *)(str_ + offset));
+  for (; offset + 16 <= str_.size(); offset += 16) {
+    const __m128i c = _mm_loadu_si128((const __m128i *)(str + offset));
     const __m128i curr = simd_transform16_ascii(map_v, c);
     /* Check if token needs to always split. */
     const __m128i mask_t = _mm_cmpgt_epi8(curr,
@@ -375,7 +390,7 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
         __m128i shuffle_vec = _mm_loadl_epi64((const __m128i *)shuffle_table_8[m]);
         __m128i compacted = _mm_shuffle_epi8(chunk_data, shuffle_vec);
         /* Write types (8 bytes). */
-        _mm_storel_epi64((__m128i *)((uint8_t *)types_ + cursor), compacted);
+        _mm_storel_epi64((__m128i *)((uint8_t *)types_.get() + cursor), compacted);
         /* Promote 8-bit shuffles to 32-bit offsets */
         __m128i shuffle32_lo = _mm_cvtepu8_epi32(shuffle_vec);
         __m128i shuffle32_hi = _mm_cvtepu8_epi32(_mm_srli_si128(shuffle_vec, 4));
@@ -407,8 +422,8 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
   const uint8x16_t mask_last = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF};
 
   uint8x16_t prev = {uint8_t(CharClass::None)};
-  for (; offset + 16 <= str_len_; offset += 16) {
-    const uint8x16_t c = vld1q_u8(str_ + offset);
+  for (; offset + 16 <= str_.size(); offset += 16) {
+    const uint8x16_t c = vld1q_u8(str + offset);
     const uint8x16_t curr = simd_transform16_ascii(map_v, c);
     /* (curr > ClassToTypeThreshold) ? TokenType(curr) : TokenType(c) */
     const uint8x16_t mask_t = vcgtq_u8(curr, vdupq_n_u8(uint8_t(CharClass::ClassToTypeThreshold)));
@@ -443,7 +458,7 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
       data_hi = vtbl1_u8(data_hi, shuffle_hi);
 
       /* Write 8 types. */
-      vst1_u8((uint8_t *)types_ + cursor, data_lo);
+      vst1_u8((uint8_t *)types_.get() + cursor, data_lo);
       /* Write 8 offsets. */
       uint32x4_t offset_vec_lo = vdupq_n_u32(offset);
       /* The offsets are contained inside the 8 bit shuffle vector.
@@ -453,13 +468,13 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
       uint32x4_t shuffle_lo32_hi = vmovl_u16(vget_high_u16(shuffle_lo16));
       uint32x4_t offset_lo_lo = vaddq_u32(shuffle_lo32_lo, offset_vec_lo);
       uint32x4_t offset_lo_hi = vaddq_u32(shuffle_lo32_hi, offset_vec_lo);
-      vst1q_u32(offsets_ + cursor + 0, offset_lo_lo);
-      vst1q_u32(offsets_ + cursor + 4, offset_lo_hi);
+      vst1q_u32(offsets_.get() + cursor + 0, offset_lo_lo);
+      vst1q_u32(offsets_.get() + cursor + 4, offset_lo_hi);
 
       cursor += count_bits_i(mask_lo);
 
       /* Write 8 types. */
-      vst1_u8((uint8_t *)types_ + cursor, data_hi);
+      vst1_u8((uint8_t *)types_.get() + cursor, data_hi);
       /* Write 8 offsets. */
       uint32x4_t offset_vec_hi = vdupq_n_u32(offset + 8);
       /* The offsets are contained inside the 8 bit shuffle vector.
@@ -469,8 +484,8 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
       uint32x4_t shuffle_hi32_hi = vmovl_u16(vget_high_u16(shuffle_hi16));
       uint32x4_t offset_hi_lo = vaddq_u32(shuffle_hi32_lo, offset_vec_hi);
       uint32x4_t offset_hi_hi = vaddq_u32(shuffle_hi32_hi, offset_vec_hi);
-      vst1q_u32(offsets_ + cursor + 0, offset_hi_lo);
-      vst1q_u32(offsets_ + cursor + 4, offset_hi_hi);
+      vst1q_u32(offsets_.get() + cursor + 0, offset_hi_lo);
+      vst1q_u32(offsets_.get() + cursor + 4, offset_hi_hi);
 
       cursor += count_bits_i(mask_hi);
     }
@@ -487,7 +502,7 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
 
   {
     CharClass prev = last_type;
-    for (; offset < str_len_; offset += 1) {
+    for (; offset < str_.size(); offset += 1) {
       const char c = str_[offset];
       const CharClass curr = char_class_table[c];
       /* Its faster to overwrite the previous value with the same value
@@ -501,11 +516,12 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
   }
 
   /* Set end of last token. */
-  offsets_[cursor] = str_len_;
+  offsets_[cursor] = str_.size();
   /* Set end of file token. */
   types_[cursor] = EndOfFile;
 
   size_ = cursor;
+  whitespaces_collapsed_ = false;
 }
 
 static void lex_string(const TokenType *types, uint32_t &cursor)
@@ -526,7 +542,7 @@ static void lex_string(const TokenType *types, uint32_t &cursor)
   }
 }
 
-static void lex_number(const uint8_t *c_str,
+static void lex_number(const char *c_str,
                        const TokenType *types,
                        const uint32_t *offsets,
                        uint32_t &cursor)
@@ -551,16 +567,16 @@ static void lex_number(const uint8_t *c_str,
 
 void TokenBuffer::merge_complex_literals()
 {
-  const TokenType *in_types = types_;
-  TokenType *out_type = types_;
-  const uint32_t *in_offsets = offsets_;
-  uint32_t *out_offset = offsets_;
+  const TokenType *in_types = types_.get();
+  TokenType *out_type = types_.get();
+  const uint32_t *in_offsets = offsets_.get();
+  uint32_t *out_offset = offsets_.get();
 
   for (uint32_t i = 0; i < size_; i++, out_type++, out_offset++) {
     const TokenType type = in_types[i];
     const uint32_t offset = in_offsets[i];
 #ifndef NDEBUG
-    std::string_view tok_str{(const char *)str_ + offset, in_offsets[i + 1] - offset};
+    std::string_view tok_str = str_.substr(offset, in_offsets[i + 1] - offset);
 #endif
     *out_type = type;
     *out_offset = offset;
@@ -570,7 +586,7 @@ void TokenBuffer::merge_complex_literals()
         lex_string(in_types, i);
         break;
       case Number:
-        lex_number(str_, in_types, in_offsets, i);
+        lex_number(str_.data(), in_types, in_offsets, i);
         break;
       default:
         break;
@@ -581,7 +597,7 @@ void TokenBuffer::merge_complex_literals()
   assert(out_type - in_types < 0xFFFFFFFFu);
   size_ = out_type - in_types;
   types_[size_] = EndOfFile;
-  offsets_[size_] = str_len_;
+  offsets_[size_] = str_.size();
 }
 
 void TokenBuffer::merge_whitespaces()
@@ -589,11 +605,11 @@ void TokenBuffer::merge_whitespaces()
   assert(original_offsets_ != nullptr);
   assert(original_offsets_ != offsets_);
 
-  const TokenType *in_types = types_;
-  TokenType *out_type = types_;
-  const uint32_t *in_offsets = offsets_;
-  uint32_t *out_offset = offsets_;
-  uint32_t *out_original_offset = original_offsets_;
+  const TokenType *in_types = types_.get();
+  TokenType *out_type = types_.get();
+  const uint32_t *in_offsets = offsets_.get();
+  uint32_t *out_offset = offsets_.get();
+  uint32_t *out_original_offset = original_offsets_.get();
 
   *out_original_offset = 0;
   out_original_offset++;
@@ -610,7 +626,7 @@ void TokenBuffer::merge_whitespaces()
     const TokenType type = in_types[i];
     const uint32_t offset = in_offsets[i];
 #ifndef NDEBUG
-    std::string_view tok_str{(const char *)str_ + offset, in_offsets[i + 1] - offset};
+    std::string_view tok_str = str_.substr(offset, in_offsets[i + 1] - offset);
 #endif
     *out_type = type;
     *out_offset = offset;
@@ -631,8 +647,9 @@ void TokenBuffer::merge_whitespaces()
   assert(out_type - in_types < 0xFFFFFFFFu);
   size_ = out_type - in_types;
   types_[size_] = EndOfFile;
-  offsets_[size_] = str_len_;
-  original_offsets_[size_] = str_len_;
+  offsets_[size_] = str_.size();
+  original_offsets_[size_] = str_.size();
+  whitespaces_collapsed_ = true;
 }
 
 }  // namespace lexit

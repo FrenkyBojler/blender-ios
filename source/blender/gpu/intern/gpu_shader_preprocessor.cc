@@ -94,40 +94,15 @@ struct AtomicLexer : LexerBase {
   /* Preprocessor directive to line index. */
   Vector<int> directive_lines;
 
-  BLI_NOINLINE void tokenize()
-  {
-    lexit::TokenBuffer tok_buf(str.data(), str.size(), token_types.data(), token_offsets.data());
-    tok_buf.tokenize(lexit::char_class_table);
-
-    /* Resize to the actual usage. */
-    token_types.shrink(tok_buf.size());
-    token_ends.shrink(tok_buf.size());
-    token_offsets.offsets.shrink(tok_buf.size() + 1);
-
-    update_string_view();
-  }
-
-  BLI_NOINLINE void merge_tokens()
-  {
-    lexit::TokenBuffer tok_buf(
-        str.data(), str.size(), token_types.data(), token_offsets.data(), token_types.size());
-
-    tok_buf.merge_complex_literals();
-
-    /* Resize to the actual usage. */
-    token_types.shrink(tok_buf.size());
-    token_ends.shrink(tok_buf.size());
-    token_offsets.offsets.shrink(tok_buf.size() + 1);
-
-    update_string_view();
-  }
-
   void lexical_analysis(std::string_view input)
   {
     str = input;
-    ensure_memory();
+    process(input, lexit::char_class_table);
 
-    tokenize();
+    token_types_str = std::string_view((const char *)types_.get(), size_);
+    token_types = {types_.get(), size_};
+    token_offsets = {offsets_.get(), size_ + 1};
+
     atomize_words();
     build_line_structure();
   }

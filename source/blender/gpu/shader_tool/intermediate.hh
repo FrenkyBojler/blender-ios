@@ -291,6 +291,18 @@ struct MutableString {
   }
 };
 
+inline std::ostream &operator<<(std::ostream &out, const std::vector<int> &v)
+{
+  if (!v.empty()) {
+    out << '[';
+    for (auto val : v) {
+      out << val << ',';
+    }
+    out << "\b]";
+  }
+  return out;
+}
+
 /* Structure holding an intermediate form of the source code.
  * It is made for fast traversal and mutation of source code. */
 template<typename LexerClass, typename ParserClass> struct IntermediateForm : MutableString {
@@ -356,6 +368,7 @@ template<typename LexerClass, typename ParserClass> struct IntermediateForm : Mu
   {
     std::cout << "Input: \n" << str_ << " \nEnd of Input\n" << std::endl;
     std::cout << "Token Types: \"" << lex_.token_types_str << "\"" << std::endl;
+    std::cout << "Token scopes: \"" << parser_.token_scope << "\"" << std::endl;
     std::cout << "Scope Types: \"" << parser_.scope_types_str << "\"" << std::endl;
   }
 };
