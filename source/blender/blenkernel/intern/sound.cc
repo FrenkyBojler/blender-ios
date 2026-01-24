@@ -910,20 +910,14 @@ void *BKE_sound_add_scene_sound(
 
   // to remove the last handle properly. This is needed when strips that were previosly added to a
   // scene are now moved to a meta.
-  if (strip->runtime->scene_sound != nullptr) {
-    if (strip->runtime->last_parent_sound_scene != nullptr) {
-      if (strip->runtime->last_parent_sound_scene != parent_sound_scene) {
-        printf("remove\n");
-        AUD_Sequence_remove(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
-      }
-    }
+  if (strip->runtime->scene_sound && strip->runtime->last_parent_sound_scene &&
+      (strip->runtime->last_parent_sound_scene != parent_sound_scene))
+  {
+    AUD_Sequence_remove(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
   }
 
   // store last handle here so it can be properly removed in the next run.
   strip->runtime->last_parent_sound_scene = parent_sound_scene;
-  if (strip->type == STRIP_TYPE_META) {
-    printf("printf -----------------------------------\n");
-  }
 
   if (offset_time >= 0.0f) {
     return AUD_Sequence_add(parent_sound_scene,
