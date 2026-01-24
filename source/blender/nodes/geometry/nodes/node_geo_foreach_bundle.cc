@@ -22,6 +22,52 @@ namespace blender::nodes {
 
 namespace node_geo_foreach_bundle_cc {
 
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_node_ptr)
+{
+  bNodeTree &ntree = *id_cast<bNodeTree *>(current_node_ptr->owner_id);
+  bNode &current_node = *current_node_ptr->data_as<bNode>();
+
+  const bke::bNodeTreeZones *zones = ntree.zones();
+  if (!zones) {
+    return;
+  }
+  const bke::bNodeTreeZone *zone = zones->get_zone_by_node(current_node.identifier);
+  if (!zone) {
+    return;
+  }
+  if (!zone->output_node_id) {
+    return;
+  }
+
+  bNode &output_node = const_cast<bNode &>(*zone->output_node());
+
+  if (ui::Layout *panel = layout.panel(C, "reduce_items", false, IFACE_("Reduce"))) {
+    socket_items::ui::draw_items_list_with_operators<ForeachBundleReduceItemsAccessor>(
+        C, panel, ntree, output_node);
+    socket_items::ui::draw_active_item_props<ForeachBundleReduceItemsAccessor>(
+        ntree, output_node, [&](PointerRNA *item_ptr) {
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        });
+  }
+  if (ui::Layout *panel = layout.panel(C, "gather_items", false, IFACE_("Gather"))) {
+    socket_items::ui::draw_items_list_with_operators<ForeachBundleGatherItemsAccessor>(
+        C, panel, ntree, output_node);
+    socket_items::ui::draw_active_item_props<ForeachBundleGatherItemsAccessor>(
+        ntree, output_node, [&](PointerRNA *item_ptr) {
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        });
+  }
+}
+
+static constexpr StringRefNull reduce_panel_description = N_(
+    "The output of a iteration is passed as input into the next iteration");
+static constexpr StringRefNull gather_panel_description = N_(
+    "Collect values from all iterations into a list");
+
 namespace input_node {
 
 NODE_STORAGE_FUNCS(NodeForeachBundleInput);
@@ -45,11 +91,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       const auto &output_storage = *static_cast<const NodeForeachBundleOutput *>(
           output_node->storage);
 
-      auto &p = b.add_panel("Reduce", 0)
-                    .default_closed(true)
-                    .description(
-                        "Custom values that are passed through all iterations similar to a "
-                        "repeat zone");
+      auto &p =
+          b.add_panel("Reduce", 0).default_closed(true).description(reduce_panel_description);
       for (const int i : IndexRange(output_storage.reduce_items.items_num)) {
         const NodeForeachBundleReduceItem &item = output_storage.reduce_items.items[i];
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
@@ -118,6 +161,7 @@ static void node_register()
   ntype.labelfunc = node_label;
   ntype.insert_link = node_insert_link;
   ntype.gather_link_search_ops = nullptr;
+  ntype.draw_buttons_ex = node_layout_ex;
   ntype.no_muting = true;
   bke::node_type_storage(
       ntype, "NodeForeachBundleInput", node_free_standard_storage, node_copy_standard_storage);
@@ -147,7 +191,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node && tree) {
     const NodeForeachBundleOutput &storage = node_storage(*node);
     {
-      auto &p = b.add_panel("Reduce", 0).default_closed(true);
+      auto &p =
+          b.add_panel("Reduce", 0).default_closed(true).description(reduce_panel_description);
       for (const int i : IndexRange(storage.reduce_items.items_num)) {
         const NodeForeachBundleReduceItem &item = storage.reduce_items.items[i];
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
@@ -173,7 +218,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           .align_with_previous();
     }
     {
-      auto &p = b.add_panel("Gather", 1).default_closed(true);
+      auto &p =
+          b.add_panel("Gather", 1).default_closed(true).description(gather_panel_description);
       for (const int i : IndexRange(storage.gather_items.items_num)) {
         const NodeForeachBundleGatherItem &item = storage.gather_items.items[i];
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
@@ -267,6 +313,7 @@ static void node_register()
   ntype.register_operators = node_operators;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
+  ntype.draw_buttons_ex = node_layout_ex;
   ntype.gather_link_search_ops = nullptr;
   ntype.no_muting = true;
   bke::node_type_storage(ntype, "NodeForeachBundleOutput", node_free_storage, node_copy_storage);

@@ -30,7 +30,7 @@ struct ForeachBundleReduceItemsAccessor : public socket_items::SocketItemsAccess
   };
   struct rna_names {
     static constexpr StringRefNull items = "reduce_items";
-    static constexpr StringRefNull active_index = "active_reduce_item";
+    static constexpr StringRefNull active_index = "active_reduce_index";
   };
 
   static socket_items::SocketItemsRef<NodeForeachBundleReduceItem> get_items_from_node(bNode &node)
@@ -105,7 +105,7 @@ struct ForeachBundleGatherItemsAccessor : public socket_items::SocketItemsAccess
   };
   struct rna_names {
     static constexpr StringRefNull items = "gather_items";
-    static constexpr StringRefNull active_index = "active_gather_item";
+    static constexpr StringRefNull active_index = "active_gather_index";
   };
 
   static socket_items::SocketItemsRef<NodeForeachBundleGatherItem> get_items_from_node(bNode &node)
