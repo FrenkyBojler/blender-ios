@@ -61,7 +61,6 @@ struct ForeachBundleSocketIndices {
     struct {
       SocketIndexMapBuilder::SingleSocket bundle;
       SocketIndexMapBuilder::MultipleSockets reduce;
-      SocketIndexMapBuilder::SingleSocket type;
     } in;
     struct {
       SocketIndexMapBuilder::SingleSocket subbundle;
@@ -115,18 +114,12 @@ class ForeachBundleExecutor {
   {
     ZoneBodyResult initial_result = this->evaluate_zone_body(root_bundle_ptr, "");
     root_bundle_ptr = std::move(initial_result.subbundle);
-    if (!initial_result.recurse) {
-      return root_bundle_ptr;
-    }
     if (!root_bundle_ptr) {
       return {};
     }
-
     Stack<std::string> paths_to_process;
-    for (const auto &item : root_bundle_ptr->items()) {
-      if (item.value.as_pointer<BundlePtr>()) {
-        paths_to_process.push(item.key);
-      }
+    for (std::string recurse_path : initial_result.recurse_paths) {
+      paths_to_process.push(std::move(recurse_path));
     }
     while (!paths_to_process.is_empty()) {
       std::string path = paths_to_process.pop();
@@ -140,11 +133,9 @@ class ForeachBundleExecutor {
 
       ZoneBodyResult result = this->evaluate_zone_body(std::move(*subbundle), path);
       BundlePtr new_subbundle = std::move(result.subbundle);
-      if (new_subbundle && result.recurse) {
-        for (const auto &item : new_subbundle->items()) {
-          if (item.value.as_pointer<BundlePtr>()) {
-            paths_to_process.push(fmt::format("{}/{}", path, item.key));
-          }
+      if (new_subbundle) {
+        for (const StringRef recurse_path : result.recurse_paths) {
+          paths_to_process.push(fmt::format("{}/{}", path, recurse_path));
         }
       }
       root_bundle.add_path_override(path, std::move(new_subbundle));
@@ -155,13 +146,22 @@ class ForeachBundleExecutor {
  private:
   struct ZoneBodyResult {
     BundlePtr subbundle;
-    bool recurse;
+    Vector<std::string> recurse_paths;
   };
 
   ZoneBodyResult evaluate_zone_body(BundlePtr subbundle, std::string path)
   {
     ResourceScope scope;
     LinearAllocator<> &allocator = scope.allocator();
+
+    Vector<std::string> old_subbundle_keys;
+    if (subbundle) {
+      for (const auto &item : subbundle->items()) {
+        if (item.value.as_pointer<BundlePtr>()) {
+          old_subbundle_keys.append(item.key);
+        }
+      }
+    }
 
     const LazyFunction &fn = *body_fn_.function;
 
@@ -229,7 +229,12 @@ class ForeachBundleExecutor {
 
     ZoneBodyResult result;
     result.subbundle = subbundle_output_value.extract<BundlePtr>();
-    result.recurse = recurse_output_value.get<bool>();
+    if (recurse_output_value.get<bool>()) {
+      /* By only recursing into previously existing subbundles, infinite loops are avoided where
+       * each iteration adds more bundles to recurse into. This behavior could become configurable
+       * in the future. */
+      result.recurse_paths = std::move(old_subbundle_keys);
+    }
     return result;
   }
 };
@@ -274,7 +279,6 @@ class LazyFunctionForForeachBundleZone : public LazyFunction {
     SocketIndexMapBuilder builder_in_in(0, zone_info.indices.inputs.main[0]);
     builder_in_in.next(indices_.in.in.bundle);
     builder_in_in.next_extendable(indices_.in.in.reduce, reduce_items_num);
-    builder_in_in.next(indices_.in.in.type);
 
     SocketIndexMapBuilder builder_in_out(0, body_fn.indices.inputs.main[0]);
     builder_in_out.next(indices_.in.out.subbundle);

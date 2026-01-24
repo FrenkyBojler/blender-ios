@@ -118,11 +118,6 @@ static void node_declare(NodeDeclarationBuilder &b)
           .align_with_previous();
     }
   }
-
-  {
-    auto &p = b.add_panel("Filter", 2).default_closed(true);
-    p.add_input<decl::String>("Type");
-  }
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
