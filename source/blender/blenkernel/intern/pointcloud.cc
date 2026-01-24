@@ -311,9 +311,9 @@ void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst)
   dst.totcol = src.totcol;
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
 }
-
-void pointcloud_add_points(PointCloud *pointcloud, int count)
+void pointcloud_add_points(PointCloud *pointcloud, const int count)
 {
+  BLI_assert(count > 0);
   if (count == 0) {
     return;
   }
@@ -329,7 +329,7 @@ void pointcloud_add_points(PointCloud *pointcloud, int count)
 
   pointcloud->attribute_storage.wrap().resize(bke::AttrDomain::Point, pointcloud->totpoint);
 
-  bke::fill_attribute_range_default(
+  fill_attribute_range_default(
       attributes, bke::AttrDomain::Point, {}, IndexRange(old_totpoint, count));
 }
 
