@@ -12,6 +12,7 @@
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_list.hh"
 
 namespace blender::nodes {
 
@@ -94,6 +95,7 @@ class ForeachBundleExecutor {
   const Span<SocketValueVariant> border_link_values_;
   Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> reference_sets_;
   MutableSpan<SocketValueVariant> reduce_values_;
+  MutableSpan<Vector<SocketValueVariant>> gather_values_;
 
  public:
   ForeachBundleExecutor(
@@ -103,14 +105,16 @@ class ForeachBundleExecutor {
       const GeoNodesUserData &user_data,
       const Span<SocketValueVariant> border_link_values,
       const Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> &reference_sets,
-      MutableSpan<SocketValueVariant> reduce_values)
+      MutableSpan<SocketValueVariant> reduce_values,
+      MutableSpan<Vector<SocketValueVariant>> gather_values)
       : body_fn_(body_fn),
         indices_(indices),
         output_bnode_(output_bnode),
         user_data_(user_data),
         border_link_values_(border_link_values),
         reference_sets_(reference_sets),
-        reduce_values_(reduce_values)
+        reduce_values_(reduce_values),
+        gather_values_(gather_values)
   {
   }
 
@@ -122,9 +126,13 @@ class ForeachBundleExecutor {
       return {};
     }
     Stack<std::string> paths_to_process;
-    for (std::string recurse_path : initial_result.recurse_paths) {
-      paths_to_process.push(std::move(recurse_path));
-    }
+    auto add_paths = [&](Vector<std::string> &&paths) {
+      /* Add in reverse order so that the first one will be on top of the stack. */
+      for (const int i : paths.index_range()) {
+        paths_to_process.push(std::move(paths.last(i)));
+      }
+    };
+    add_paths(std::move(initial_result.recurse_paths));
     while (!paths_to_process.is_empty()) {
       std::string path = paths_to_process.pop();
       Bundle &root_bundle = root_bundle_ptr.ensure_mutable_inplace();
@@ -137,9 +145,7 @@ class ForeachBundleExecutor {
       ZoneBodyResult result = this->evaluate_zone_body(std::move(*subbundle), path);
       BundlePtr new_subbundle = std::move(result.subbundle);
       if (new_subbundle) {
-        for (const StringRef recurse_path : result.recurse_paths) {
-          paths_to_process.push(fmt::format("{}/{}", path, recurse_path));
-        }
+        add_paths(std::move(result.recurse_paths));
       }
       root_bundle.add_path_override(path, std::move(new_subbundle));
     }
@@ -174,51 +180,46 @@ class ForeachBundleExecutor {
     Array<lf::ValueUsage> body_output_usages(fn.outputs().size(), lf::ValueUsage::Used);
     Array<bool> body_set_outputs(fn.outputs().size(), false);
 
-    Array<SocketValueVariant> border_link_inputs = border_link_values_;
     SocketValueVariant subbundle_input_value = SocketValueVariant::From(subbundle);
+    body_inputs[indices_.in.out.subbundle.lf] = &subbundle_input_value;
     SocketValueVariant path_value = SocketValueVariant::From(path);
-    Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> body_reference_sets = reference_sets_;
-    {
-      body_inputs[indices_.in.out.subbundle.lf] = &subbundle_input_value;
-      body_inputs[indices_.in.out.path.lf] = &path_value;
-      for (const int i : reduce_values_.index_range()) {
-        body_inputs[indices_.in.out.reduce.lf[i]] = &reduce_values_[i];
-      }
-      for (const int i : border_link_inputs.index_range()) {
-        body_inputs[body_fn_.indices.inputs.border_links[i]] = &border_link_inputs[i];
-      }
-      for (const int i : body_fn_.indices.inputs.output_usages) {
-        body_inputs[i] = &scope.construct<bool>(true);
-      }
-      for (const auto &item : body_fn_.indices.inputs.reference_sets.items()) {
-        body_inputs[item.value] = &body_reference_sets.lookup(item.key);
-      }
+    body_inputs[indices_.in.out.path.lf] = &path_value;
+    for (const int i : reduce_values_.index_range()) {
+      body_inputs[indices_.in.out.reduce.lf[i]] = &reduce_values_[i];
     }
+    Array<SocketValueVariant> border_link_inputs = border_link_values_;
+    for (const int i : border_link_inputs.index_range()) {
+      body_inputs[body_fn_.indices.inputs.border_links[i]] = &border_link_inputs[i];
+    }
+    for (const int i : body_fn_.indices.inputs.output_usages) {
+      body_inputs[i] = &scope.construct<bool>(true);
+    }
+    Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> body_reference_sets = reference_sets_;
+    for (const auto &item : body_fn_.indices.inputs.reference_sets.items()) {
+      body_inputs[item.value] = &body_reference_sets.lookup(item.key);
+    }
+
     SocketValueVariant subbundle_output_value;
     std::destroy_at(&subbundle_output_value);
+    body_outputs[indices_.out.in.subbundle.lf] = &subbundle_output_value;
     SocketValueVariant recurse_output_value;
     std::destroy_at(&recurse_output_value);
-
-    Array<bool> input_usages(body_fn_.indices.outputs.input_usages.size());
-    Array<bool> border_link_usages(border_link_values_.size());
-
-    Array<SocketValueVariant> new_reduce_values(reduce_values_.size());
-    for (SocketValueVariant &value : new_reduce_values) {
-      std::destroy_at(&value);
+    body_outputs[indices_.out.in.recurse.lf] = &recurse_output_value;
+    Array<SocketValueVariant> new_reduce_values(reduce_values_.size(), NoInitialization{});
+    for (const int i : new_reduce_values.index_range()) {
+      body_outputs[indices_.out.in.reduce.lf[i]] = &new_reduce_values[i];
     }
-
-    {
-      body_outputs[indices_.out.in.subbundle.lf] = &subbundle_output_value;
-      body_outputs[indices_.out.in.recurse.lf] = &recurse_output_value;
-      for (const int i : new_reduce_values.index_range()) {
-        body_outputs[indices_.out.in.reduce.lf[i]] = &new_reduce_values[i];
-      }
-      for (const int i : border_link_usages.index_range()) {
-        body_outputs[body_fn_.indices.outputs.border_link_usages[i]] = &border_link_usages[i];
-      }
-      for (const int i : input_usages.index_range()) {
-        body_outputs[body_fn_.indices.outputs.input_usages[i]] = &input_usages[i];
-      }
+    Array<SocketValueVariant> new_gather_values(gather_values_.size(), NoInitialization{});
+    for (const int i : new_gather_values.index_range()) {
+      body_outputs[indices_.out.in.gather.lf[i]] = &new_gather_values[i];
+    }
+    Array<bool> border_link_usages(border_link_values_.size());
+    for (const int i : border_link_usages.index_range()) {
+      body_outputs[body_fn_.indices.outputs.border_link_usages[i]] = &border_link_usages[i];
+    }
+    Array<bool> input_usages(body_fn_.indices.outputs.input_usages.size());
+    for (const int i : input_usages.index_range()) {
+      body_outputs[body_fn_.indices.outputs.input_usages[i]] = &input_usages[i];
     }
 
     lf::BasicParams body_params{*body_fn_.function,
@@ -243,6 +244,9 @@ class ForeachBundleExecutor {
 
     for (const int i : reduce_values_.index_range()) {
       reduce_values_[i] = std::move(new_reduce_values[i]);
+    }
+    for (const int i : gather_values_.index_range()) {
+      gather_values_[i].append(std::move(new_gather_values[i]));
     }
 
     ZoneBodyResult result;
@@ -351,19 +355,30 @@ class LazyFunctionForForeachBundleZone : public LazyFunction {
       reduce_values[i] = params.extract_input<SocketValueVariant>(indices_.in.in.reduce.lf[i]);
     }
 
+    Array<Vector<SocketValueVariant>> gather_values(node_storage.gather_items.items_num);
+
     ForeachBundleExecutor executor(body_fn_,
                                    indices_,
                                    output_bnode_,
                                    user_data,
                                    border_link_values,
                                    reference_sets,
-                                   reduce_values);
+                                   reduce_values,
+                                   gather_values);
     BundlePtr result_bundle = executor.execute(root_bundle_value.extract<BundlePtr>());
 
     params.set_output(indices_.out.out.bundle.lf,
                       SocketValueVariant::From(std::move(result_bundle)));
     for (const int i : reduce_values.index_range()) {
       params.set_output(indices_.out.out.reduce.lf[i], std::move(reduce_values[i]));
+    }
+    for (const int i : gather_values.index_range()) {
+      auto *values = new ImplicitSharedValue<Vector<SocketValueVariant>>();
+      values->data = std::move(gather_values[i]);
+      List::ArrayData array_data = {values->data.data(), ImplicitSharingPtr<>(values)};
+      ListPtr list = List::create(
+          CPPType::get<SocketValueVariant>(), std::move(array_data), values->data.size());
+      params.set_output(indices_.out.out.gather.lf[i], SocketValueVariant::From(std::move(list)));
     }
     for (const int i : zone_info_.indices.outputs.border_link_usages) {
       params.set_output(i, true);
