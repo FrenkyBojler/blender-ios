@@ -4294,25 +4294,6 @@ SmallIntArray MeshPattern::corners_for_vert(const int vert) const
      * starting at the outside vert on the anchor line.
      * The other faces start at the outside-left vert.
      * In both cases, vertices continue CCW from their starts.
-     *
-     * Cases of vertices.
-     * Let (r,a,o) = the vertex ring, anchor, offset.
-     * Let fr_i = face ring inside the vertex.
-     * Let fr_o = face_ring outside the vertex.
-     *
-     * A) o == 0: vert is on the "anchor line"
-     *  A.1) r == 0, even segs: center vert
-     *  A.2) r == 0, odd segs: fr_i is center poly
-     *  A.2) r > 0, 4 faces starting at fr_o, offset 0,
-     *              fr_o, offset 1, fr_i, offset 0, fr_o, offset -1
-     * B) o != 0: vert is not on the "anchor line". We must have r > 0
-     *  B.1) r == 1, even segs: must have o == 1.
-     *               poly (1, a, 1), corner 2
-     *               poly (1, a, 2), corner 3
-     *               poly (0, a, 0), corner 1
-     *               poly (0, a_next, 0) corner 3
-     *  B.2) r == 1, odd segs, o == 1:
-     *               poly (1, a, 0), corner
      */
     const bool odd = (num_segs % 2) == 1;
     if (vert == 0 && !odd) {
@@ -4323,12 +4304,37 @@ SmallIntArray MeshPattern::corners_for_vert(const int vert) const
       }
       return ans;
     }
-    const int3 rao = adj::v_ring_anchor_offset(vert, num_anchors, num_segs);
-    const int r = rao[0];
-    const int a = rao[1];
-    const int o = rao[2];
-    const int a_next = (a + 1) % num_anchors;
-    const int div = adj::v_anchor_div(r, num_anchors, num_segs);
+    const int3 v_rao = adj::v_ring_anchor_offset(vert, num_anchors, num_segs);
+    const int vr = v_rao[0];
+    const int va = v_rao[1];
+    const int vo = v_rao[2];
+    const int va_next = (va + 1) % num_anchors;
+    const int vdiv = adj::v_anchor_div(vr, num_anchors, num_segs);
+    /* fr_i and fr_o are the face rings insd and outside of v, -1 if none. */
+    const int fr_i = odd ? vr : vr - 1;
+    const int outer_face_r = adj::f_num_rings(num_segs) - 1;
+    const int fr_o = fr_i >= outer_face_r ? -1 : fr_i + 1;
+    /* raoc entries are quads that specify which corner we want in form
+     * (facering, anchor, offset in facering, corner in face)
+     */
+    Vector<int4, 4> raoc;
+    if (vo == 0) {
+      /* vert is on the "anchor line". */
+      /* The general case first, then will fix exceptions. */
+      raoc.append({fr_o, va, 0, 2});
+      raoc.append({fr_o, va, 1, 0});
+      raoc.append({fr_i, va, 0, 0});
+      raoc.append({fr_o, va, -1, 1}); /* offset of -1 means go to previous anchor. */
+    }
+    else {
+      /* vert is not on the "anchor line". */
+      /* The general csse first, then will fix exceptions. */
+      raoc.append({fr_o, va, vo, 2});
+      raoc.append({fr_o, va, vo + 1, 3});
+      raoc.append({fr_i, va, vo, 0});
+      raoc.append({fr_i, va, vo - 1, 1});
+    }
+#if 0
     const int inside_face_r = odd ? r : r - 1;
     const int outside_face_r = inside_face_r + 1;
     const int outer_r = adj::v_num_rings(num_segs) - 1;
@@ -4393,6 +4399,7 @@ SmallIntArray MeshPattern::corners_for_vert(const int vert) const
                               adj::face_start_corner(f3, num_anchors, num_segs) + 1});
       }
     }
+#endif
   }
   /* TODO? other kinds of Meshes if needed. */
   return SmallIntArray(0);
