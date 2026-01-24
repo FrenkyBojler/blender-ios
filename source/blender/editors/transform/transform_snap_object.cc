@@ -515,7 +515,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
     }
 
     /*Skip if self*/
-    if (&base->flag_legacy & BA_SNAP_FIX_DEPS_FIASCO) {
+    if (base.flag_legacy & BA_SNAP_FIX_DEPS_FIASCO) {
       continue;
     }
 
