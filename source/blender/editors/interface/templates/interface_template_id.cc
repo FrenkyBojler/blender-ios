@@ -39,6 +39,7 @@
 #include "ED_undo.hh"
 
 #include "RNA_access.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
@@ -1104,6 +1105,19 @@ static void id_menu_tip_func(bContext & /*C*/, TooltipData &tip, Button *but, vo
     tooltip_text_field_add(
         tip, fmt::format("{}: {}", title, path), {}, TIP_STYLE_NORMAL, TIP_LC_VALUE);
   }
+  std::string rna_struct = RNA_struct_identifier(template_id->ptr.type);
+  std::string rna_prop = RNA_property_identifier(template_id->prop);
+  tooltip_text_field_add(tip,
+                         fmt::format(fmt::runtime(TIP_("Python: {}.{}")), rna_struct, rna_prop),
+                         {},
+                         TIP_STYLE_MONO,
+                         TIP_LC_PYTHON,
+                         true);
+  tooltip_text_field_add(tip,
+                         fmt::format(fmt::runtime(TIP_("ID: {}")), RNA_path_full_ID_py(id)),
+                         {},
+                         TIP_STYLE_MONO,
+                         TIP_LC_PYTHON);
 }
 
 static void template_ID(const bContext *C,
