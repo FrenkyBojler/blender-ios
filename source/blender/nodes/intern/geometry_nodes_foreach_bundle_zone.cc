@@ -2,12 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_geometry_nodes_reference_set.hh"
 #include "BLI_stack.hh"
+#include "BLI_string.h"
 
 #include "FN_lazy_function_execute.hh"
 
 #include "BKE_compute_contexts.hh"
+#include "BKE_geometry_nodes_reference_set.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -247,6 +248,13 @@ class ForeachBundleExecutor {
     ZoneBodyResult result;
     result.subbundle = subbundle_output_value.extract<BundlePtr>();
     if (recurse_output_value.get<bool>()) {
+      /* Sort keys to make the order deterministic. Otherwise it would depend on the order in a
+       * hash table. */
+      std::sort(old_subbundle_keys.begin(),
+                old_subbundle_keys.end(),
+                [](const StringRefNull a, const StringRefNull b) {
+                  return BLI_strcasecmp_natural(a.c_str(), b.c_str()) < 0;
+                });
       /* By only recursing into previously existing subbundles, infinite loops are avoided where
        * each iteration adds more bundles to recurse into. This behavior could become configurable
        * in the future. */
