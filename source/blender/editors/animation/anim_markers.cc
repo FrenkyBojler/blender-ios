@@ -1537,7 +1537,10 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
   else {
-    return OPERATOR_PASS_THROUGH; /* Empty space, let other operators run */
+    /* Empty space, deselect markers and let other operators run */
+    deselect_markers(markers);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
+    return OPERATOR_PASS_THROUGH;
   }
 }
 
