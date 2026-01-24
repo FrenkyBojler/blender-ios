@@ -111,10 +111,45 @@ class ForeachBundleExecutor {
   {
   }
 
-  BundlePtr execute(BundlePtr root_bundle)
+  BundlePtr execute(BundlePtr root_bundle_ptr)
   {
-    std::string path;
-    return this->evaluate_zone_body(root_bundle, path).subbundle;
+    ZoneBodyResult initial_result = this->evaluate_zone_body(root_bundle_ptr, "");
+    root_bundle_ptr = std::move(initial_result.subbundle);
+    if (!initial_result.recurse) {
+      return root_bundle_ptr;
+    }
+    if (!root_bundle_ptr) {
+      return {};
+    }
+
+    Stack<std::string> paths_to_process;
+    for (const auto &item : root_bundle_ptr->items()) {
+      if (item.value.as_pointer<BundlePtr>()) {
+        paths_to_process.push(item.key);
+      }
+    }
+    while (!paths_to_process.is_empty()) {
+      std::string path = paths_to_process.pop();
+      Bundle &root_bundle = root_bundle_ptr.ensure_mutable_inplace();
+      /* Cleanup: use newer ui */
+      std::optional<BundlePtr> subbundle = root_bundle.lookup_path<BundlePtr>(path);
+      if (!subbundle) {
+        continue;
+      }
+      root_bundle.remove_path(path);
+
+      ZoneBodyResult result = this->evaluate_zone_body(std::move(*subbundle), path);
+      BundlePtr new_subbundle = std::move(result.subbundle);
+      if (new_subbundle && result.recurse) {
+        for (const auto &item : new_subbundle->items()) {
+          if (item.value.as_pointer<BundlePtr>()) {
+            paths_to_process.push(fmt::format("{}/{}", path, item.key));
+          }
+        }
+      }
+      root_bundle.add_path_override(path, std::move(new_subbundle));
+    }
+    return root_bundle_ptr;
   }
 
  private:
