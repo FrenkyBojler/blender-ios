@@ -173,9 +173,9 @@ void AnimdataBathPathRename::rename_all_ex(ID &ref_id,
                                            const StringRefNull prefix,
                                            const std::optional<StringRefNull> oldName,
                                            const std::optional<StringRefNull> newName,
-                                           int oldSubscript,
-                                           int newSubscript,
-                                           bool verify_paths)
+                                           const int oldSubscript,
+                                           const int newSubscript,
+                                           const bool verify_paths)
 {
   for (ID *id : ids_with_anim_data_) {
     BKE_animdata_fix_paths_rename(id,
