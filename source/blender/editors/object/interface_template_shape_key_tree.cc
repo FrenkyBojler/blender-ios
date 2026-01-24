@@ -30,8 +30,6 @@
 
 #include "ED_undo.hh"
 
-#include "iostream"
-
 namespace blender::ed::object::shapekey {
 
 class ShapeKeyTreeView : public ui::AbstractTreeView {
