@@ -166,7 +166,7 @@ void vector_math_sign(
 void vector_math_round(
     float3 a, float3 b, float3 c, float scale, float3 &outVector, float &outValue)
 {
-  outVector = round(a);
+  outVector = floor(a + 0.5f);
 }
 
 [[node]]
