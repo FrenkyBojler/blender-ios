@@ -327,6 +327,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       {
         const bke::SocketValueVariant &value_variant = socket_value->value;
         this->draw_content_cell_value(&value_variant, params, column);
+        return;
       }
       this->draw_undrawable(params);
       return;
