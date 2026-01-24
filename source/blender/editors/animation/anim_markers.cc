@@ -1526,10 +1526,19 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
   mval[1] = RNA_int_get(op->ptr, "mouse_y");
   bool deselect_all = true;
 
-  wmOperatorStatus ret_value = ed_marker_select(
-      C, mval, extend, deselect_all, camera, wait_to_deselect_others);
+  ed_marker_select(C, mval, extend, deselect_all, camera, wait_to_deselect_others);
 
-  return ret_value | OPERATOR_PASS_THROUGH;
+  /* Only return finished if a marker was actually clicked */
+  const View2D *v2d = ui::view2d_fromcontext(C);
+  ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
+  TimeMarker *nearest_marker = region_position_is_over_marker(v2d, markers, mval[0]);
+
+  if (nearest_marker) {
+    return OPERATOR_FINISHED;
+  }
+  else {
+    return OPERATOR_PASS_THROUGH; /* Empty space, let other operators run */
+  }
 }
 
 static void MARKER_OT_select(wmOperatorType *ot)
@@ -1714,11 +1723,13 @@ static void MARKER_OT_select_all(wmOperatorType *ot)
 enum eMarkers_LeftRightSelect_Mode {
   MARKERS_LRSEL_LEFT = 0,
   MARKERS_LRSEL_RIGHT,
+  MARKERS_LRSEL_TEST,
 };
 
 static const EnumPropertyItem prop_markers_select_leftright_modes[] = {
     {MARKERS_LRSEL_LEFT, "LEFT", 0, "Before Current Frame", ""},
     {MARKERS_LRSEL_RIGHT, "RIGHT", 0, "After Current Frame", ""},
+    {MARKERS_LRSEL_TEST, "CHECK", 0, "Check if Select Left or Right", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1764,6 +1775,46 @@ static wmOperatorStatus ed_marker_select_leftright_exec(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus ed_marker_select_leftright_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
+{
+  bAnimContext ac;
+
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  /* Get the 2D view and list of markers */
+  View2D *v2d = &ac.region->v2d;
+  ListBaseT<TimeMarker> *markers = &ac.scene->markers;
+
+  /* Check if the mouse is over any marker */
+  TimeMarker *nearest_marker = region_position_is_over_marker(v2d, markers, event->mval[0]);
+  if (nearest_marker) {
+    /* There is a marker under the mouse */
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  /* No marker under mouse */
+  const eMarkers_LeftRightSelect_Mode mode = eMarkers_LeftRightSelect_Mode(
+      RNA_enum_get(op->ptr, "mode"));
+
+  Scene *scene = ac.scene;
+  const float mouse_frame = ui::view2d_region_to_view_x(v2d, event->mval[0]);
+
+  if (mode == MARKERS_LRSEL_TEST) {
+    if (mouse_frame < scene->r.cfra) {
+      RNA_enum_set(op->ptr, "mode", MARKERS_LRSEL_LEFT);
+    }
+    else {
+      RNA_enum_set(op->ptr, "mode", MARKERS_LRSEL_RIGHT);
+    }
+  }
+
+  return ed_marker_select_leftright_exec(C, op);
+}
+
 static void MARKER_OT_select_leftright(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1772,6 +1823,7 @@ static void MARKER_OT_select_leftright(wmOperatorType *ot)
   ot->idname = "MARKER_OT_select_leftright";
 
   /* API callbacks. */
+  ot->invoke = ed_marker_select_leftright_invoke;
   ot->exec = ed_marker_select_leftright_exec;
   ot->poll = ed_markers_poll_markers_exist;
 
