@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-05 11:52+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-11-12 16:04+0000\n"
 "Last-Translator: blend-it <blend-it@users.noreply.translate.blender.org>\n"
 "Language-Team: Italian <https://translate.blender.org/projects/blender-ui/ui/it/>\n"
@@ -15060,10 +15060,6 @@ msgid "Stabilize Normal"
 msgstr "Stabilizza Normale"
 
 
-msgid "Stabilize Plane"
-msgstr "Stabilizza Piano"
-
-
 msgid "Stencil Dimensions"
 msgstr "Dimensione Stencil"
 
@@ -24582,28 +24578,80 @@ msgid "Material slot name"
 msgstr "Nome dello slot materiale"
 
 
-msgid "Show/Hide"
-msgstr "Mostra/Nascondi"
+msgid "Mesh Select Mode"
+msgstr "Modalità Selezione Mesh"
 
 
-msgid "Names"
-msgstr "Nomi"
+msgid "Face Data"
+msgstr "Dati Faccia"
 
 
-msgid "Bone Roll"
-msgstr "Rollio Osso"
+msgid "Select by Face Strength"
+msgstr "Seleziona per Intensità delle Facce"
+
+
+msgid "Set Face Strength"
+msgstr "Imposta Intensità Faccia"
 
 
 msgid "Math"
 msgstr "Matematica"
 
 
+msgid "Clean Up"
+msgstr "Ripulisci"
+
+
 msgid "Utilities"
 msgstr "Utilità"
 
 
-msgid "Clean Up"
-msgstr "Ripulisci"
+msgid "Merge"
+msgstr "Unisci"
+
+
+msgid "Show/Hide"
+msgstr "Mostra/Nascondi"
+
+
+msgid "Special Characters"
+msgstr "Caratteri Speciali"
+
+
+msgid "Kerning"
+msgstr "Crenatura"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Read"
+msgstr "Lettura"
+
+
+msgid "Names"
+msgstr "Nomi"
+
+
+msgid "Sample"
+msgstr "Campione"
+
+
+msgid "Write"
+msgstr "Scrittura"
+
+
+msgid "Bone Roll"
+msgstr "Rollio Osso"
+
+
+msgid "Primitives"
+msgstr "Primitive"
+
+
+msgid "Instances"
+msgstr "Istanze"
 
 
 msgid "Pivot Point"
@@ -24626,36 +24674,20 @@ msgid "Automasking"
 msgstr "Automascheramento"
 
 
-msgid "Read"
-msgstr "Lettura"
-
-
-msgid "Sample"
-msgstr "Campione"
+msgid "Import"
+msgstr "Importa"
 
 
 msgid "Face Sets Edit"
 msgstr "Modifica Sets di Facce"
 
 
-msgid "Write"
-msgstr "Scrittura"
-
-
 msgid "Vertex Group Locks"
 msgstr "Blocchi del Gruppo di Vertici"
 
 
-msgid "Primitives"
-msgstr "Primitive"
-
-
-msgid "Instances"
-msgstr "Istanze"
-
-
-msgid "Import"
-msgstr "Importa"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Mirror"
@@ -24694,10 +24726,6 @@ msgid "Select More/Less"
 msgstr "Seleziona Più/Meno"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Select Similar"
 msgstr "Seleziona Simili"
 
@@ -24718,10 +24746,6 @@ msgid "Assign Material"
 msgstr "Assegna Materiale"
 
 
-msgid "Metaball"
-msgstr "Metaball"
-
-
 msgid "Light"
 msgstr "Luce"
 
@@ -24740,6 +24764,10 @@ msgstr "Relazioni"
 
 msgid "Rigid Body"
 msgstr "Corpo Rigido"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Apply"
@@ -24774,12 +24802,20 @@ msgid "Hooks"
 msgstr "Ganci"
 
 
+msgid "Adjust"
+msgstr "Regola"
+
+
+msgid "Keying"
+msgstr "Keying"
+
+
+msgid "Tracking"
+msgstr "Tracciamento"
+
+
 msgid "Face Sets Init"
 msgstr "Init Sets di Facce"
-
-
-msgid "Layout"
-msgstr "Layout"
 
 
 msgid "Random Mask"
@@ -24802,10 +24838,6 @@ msgid "Bone Collections"
 msgstr "Raccolte di Ossa"
 
 
-msgid "Adjust"
-msgstr "Regola"
-
-
 msgid "Toggle Bone Options"
 msgstr "Attiva/disattiva Opzioni Osso"
 
@@ -24814,44 +24846,8 @@ msgid "Enable Bone Options"
 msgstr "Abilita Opzioni Osso"
 
 
-msgid "Keying"
-msgstr "Keying"
-
-
 msgid "Disable Bone Options"
 msgstr "Disabilita Opzioni Osso"
-
-
-msgid "Tracking"
-msgstr "Tracciamento"
-
-
-msgid "Mesh Select Mode"
-msgstr "Modalità Selezione Mesh"
-
-
-msgid "Face Data"
-msgstr "Dati Faccia"
-
-
-msgid "Select by Face Strength"
-msgstr "Seleziona per Intensità delle Facce"
-
-
-msgid "Set Face Strength"
-msgstr "Imposta Intensità Faccia"
-
-
-msgid "Merge"
-msgstr "Unisci"
-
-
-msgid "Special Characters"
-msgstr "Caratteri Speciali"
-
-
-msgid "Kerning"
-msgstr "Crenatura"
 
 
 msgid "Keyframe Insert Pie"
@@ -31941,6 +31937,10 @@ msgid "Font size to use for displaying the label"
 msgstr "Dimensione del font da utilizzare per mostrare l'etichetta"
 
 
+msgid "Single"
+msgstr "Singolo"
+
+
 msgid "Group Input"
 msgstr "Ingresso Gruppo"
 
@@ -32759,10 +32759,6 @@ msgstr "Uscita Nodo"
 
 msgid "Value to Normal"
 msgstr "Valore a Normale"
-
-
-msgid "Single"
-msgstr "Singolo"
 
 
 msgid "Bake Item"
@@ -38361,6 +38357,11 @@ msgstr "Dispone il pennello nel modo morbido per la durata del tratto"
 msgctxt "Operator"
 msgid "Erase"
 msgstr "Cancella"
+
+
+msgctxt "Operator"
+msgid "Mask"
+msgstr "Maschera"
 
 
 msgctxt "Operator"
@@ -50666,11 +50667,6 @@ msgid "Grab"
 msgstr "Prendi"
 
 
-msgctxt "Operator"
-msgid "Mask"
-msgstr "Maschera"
-
-
 msgid "Tiling"
 msgstr "Tassellatura"
 
@@ -52729,10 +52725,6 @@ msgstr "Utilizza la profondità sotto il mouse per migliorare la visualizzazione
 
 msgid "Emulate 3 Button Mouse"
 msgstr "Emula Mouse a 3 bottoni"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Utilizza la selezione come punto di perno"
 
 
 msgid "Zoom in towards the mouse pointer's position in the 3D view, rather than the 2D window center"

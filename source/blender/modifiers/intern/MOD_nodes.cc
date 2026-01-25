@@ -215,6 +215,10 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
         DEG_add_generic_id_relation(ctx->node, id, "Nodes Modifier");
         break;
       }
+      case ID_VF: {
+        DEG_add_vfont_relation(ctx->node, reinterpret_cast<VFont *>(id), "Nodes Modifier");
+        break;
+      }
       case ID_MA: {
         /* Purposefully don't add relations for materials. While there are material sockets,
          * the pointers are only passed around as handles rather than dereferenced. */
@@ -278,7 +282,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
   walk(user_data, ob, md, &ptr, prop);
 }
@@ -2056,21 +2060,19 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
     IDP_BlendWrite(writer, nmd->settings.properties);
   }
 
-  BLO_write_struct_array(writer, NodesModifierBake, nmd->bakes_num, nmd->bakes);
+  writer->write_struct_array(nmd->bakes_num, nmd->bakes);
   for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
     BLO_write_string(writer, bake.directory);
 
-    BLO_write_struct_array(writer, NodesModifierDataBlock, bake.data_blocks_num, bake.data_blocks);
+    writer->write_struct_array(bake.data_blocks_num, bake.data_blocks);
     for (const NodesModifierDataBlock &item : Span(bake.data_blocks, bake.data_blocks_num)) {
       BLO_write_string(writer, item.id_name);
       BLO_write_string(writer, item.lib_name);
     }
     if (bake.packed) {
       writer->write_struct(bake.packed);
-      BLO_write_struct_array(
-          writer, NodesModifierBakeFile, bake.packed->meta_files_num, bake.packed->meta_files);
-      BLO_write_struct_array(
-          writer, NodesModifierBakeFile, bake.packed->blob_files_num, bake.packed->blob_files);
+      writer->write_struct_array(bake.packed->meta_files_num, bake.packed->meta_files);
+      writer->write_struct_array(bake.packed->blob_files_num, bake.packed->blob_files);
       const auto write_bake_file = [&](const NodesModifierBakeFile &bake_file) {
         BLO_write_string(writer, bake_file.name);
         if (bake_file.packed_file) {
@@ -2089,7 +2091,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
       }
     }
   }
-  BLO_write_struct_array(writer, NodesModifierPanel, nmd->panels_num, nmd->panels);
+  writer->write_struct_array(nmd->panels_num, nmd->panels);
 
   if (nmd->settings.properties) {
     if (!BLO_write_is_undo(writer)) {

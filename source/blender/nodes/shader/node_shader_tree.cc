@@ -79,7 +79,7 @@ static void shader_get_from_context(const bContext *C,
     if (ob) {
       *r_from = &ob->id;
       if (ob->type == OB_LAMP) {
-        *r_id = static_cast<ID *>(ob->data);
+        *r_id = ob->data;
         *r_ntree = (id_cast<Light *>(ob->data))->nodetree;
       }
       else {
@@ -202,7 +202,7 @@ void register_node_tree_type_sh()
   tt->validate_link = shader_validate_link;
   tt->valid_socket_type = shader_node_tree_socket_type_valid;
 
-  tt->rna_ext.srna = &RNA_ShaderNodeTree;
+  tt->rna_ext.srna = RNA_ShaderNodeTree;
 
   bke::node_tree_type_add(*tt);
 }

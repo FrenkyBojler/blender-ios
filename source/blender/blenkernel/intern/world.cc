@@ -40,6 +40,8 @@
 
 #include "BLO_read_write.hh"
 
+#include "NOD_shader.h"
+
 namespace blender {
 
 /** Free (or release) any data used by this world (does not free the world itself). */
@@ -66,6 +68,9 @@ static void world_init_data(ID *id)
 {
   World *wrld = id_cast<World *>(id);
   INIT_DEFAULT_STRUCT_AFTER(wrld, id);
+
+  wrld->nodetree = bke::node_tree_add_tree_embedded(
+      nullptr, &wrld->id, "World Nodetree", ntreeType_Shader->idname);
 }
 
 /**
@@ -153,13 +158,13 @@ static void world_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   wrld->use_nodes = true;
 
   /* write LibData */
-  BLO_write_id_struct(writer, World, id_address, &wrld->id);
+  writer->write_id_struct(id_address, wrld);
   BKE_id_blend_write(writer, &wrld->id);
 
   /* nodetree is integral part of world, no libdata */
   if (wrld->nodetree) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{wrld->nodetree->id, writer};
-    BLO_write_struct_at_address(writer, bNodeTree, wrld->nodetree, temp_embedded_id_buffer.get());
+    writer->write_struct_at_address_cast<bNodeTree>(wrld->nodetree, temp_embedded_id_buffer.get());
     bke::node_tree_blend_write(writer,
                                reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get()));
   }

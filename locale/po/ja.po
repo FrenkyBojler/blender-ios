@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-05 11:52+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-12-15 18:48+0000\n"
 "Last-Translator: Satoshi Yamasaki <yamyam@yo.rim.or.jp>\n"
 "Language-Team: Japanese <https://translate.blender.org/projects/blender-ui/ui/ja/>\n"
@@ -18875,16 +18875,8 @@ msgid "Is Layered Action"
 msgstr "レイヤー化アクション"
 
 
-msgid "Return whether this is a layered Action. An empty Action is considered as both a 'legacy' and a 'layered' Action."
-msgstr "これがレイヤー化アクションかどうかを返します．空のアクションは 'legacy' と 'layered' アクションの両方とみなされます."
-
-
 msgid "Is Legacy Action"
 msgstr "旧アクション"
-
-
-msgid "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An empty Action is considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 actions are automatically updated to layered actions, and thus this will only return True when the action is empty"
-msgstr "これが旧 (Legacy) アクションかどうかを返します．旧アクションにはレイヤーもスロットもありません．空のアクションは 'legacy' と 'layered' アクションの両方とみなされます．Blender 4.4のアクションは自動的にレイヤー化アクションにアップデートされるため，アクションが空の時のみ True を返します"
 
 
 msgid "Is Empty"
@@ -20717,18 +20709,6 @@ msgstr "ブラシ直径を100％としたブラシの塗りの間隔"
 
 msgid "Stabilize Normal"
 msgstr "法線を安定化"
-
-
-msgid "Stabilize the orientation of the brush plane."
-msgstr "ブラシ平面の方向の安定化を行います"
-
-
-msgid "Stabilize Plane"
-msgstr "平面を安定化"
-
-
-msgid "Stabilize the center of the brush plane."
-msgstr "ブラシ平面の中心の安定化を行います"
 
 
 msgid "Stencil Dimensions"
@@ -35426,28 +35406,84 @@ msgid "Editor menu containing buttons"
 msgstr "ボタンを含むエディターメニュー"
 
 
-msgid "Show/Hide"
-msgstr "表示/隠す"
+msgid "Mesh Select Mode"
+msgstr "メッシュ選択モード"
 
 
-msgid "Names"
-msgstr "名前"
+msgid "Face Data"
+msgstr "面データ"
 
 
-msgid "Bone Roll"
-msgstr "ボーンロール"
+msgid "Select by Face Strength"
+msgstr "面の強さで選択"
+
+
+msgid "Set Face Strength"
+msgstr "面の強さを設定"
 
 
 msgid "Math"
 msgstr "数式"
 
 
+msgid "Clean Up"
+msgstr "クリーンアップ"
+
+
 msgid "Utilities"
 msgstr "ユーティリティ"
 
 
-msgid "Clean Up"
-msgstr "クリーンアップ"
+msgid "Merge"
+msgstr "マージ"
+
+
+msgid "Show/Hide"
+msgstr "表示/隠す"
+
+
+msgid "Special Characters"
+msgstr "特殊文字"
+
+
+msgid "Kerning"
+msgstr "カーニング"
+
+
+msgid "Metaball"
+msgstr "メタボール"
+
+
+msgid "Read"
+msgstr "読込"
+
+
+msgid "Names"
+msgstr "名前"
+
+
+msgid "Sample"
+msgstr "サンプル"
+
+
+msgid "Write"
+msgstr "書込"
+
+
+msgid "Bone Roll"
+msgstr "ボーンロール"
+
+
+msgid "Primitives"
+msgstr "プリミティブ"
+
+
+msgid "Gizmo"
+msgstr "ギズモ"
+
+
+msgid "Instances"
+msgstr "インスタンス"
 
 
 msgid "Pivot Point"
@@ -35470,40 +35506,28 @@ msgid "Automasking"
 msgstr "自動マスク"
 
 
-msgid "Read"
-msgstr "読込"
-
-
-msgid "Sample"
-msgstr "サンプル"
+msgid "Import"
+msgstr "インポート"
 
 
 msgid "Face Sets Edit"
 msgstr "面セット編集"
 
 
-msgid "Write"
-msgstr "書込"
-
-
 msgid "Vertex Group Locks"
 msgstr "頂点グループのロック"
 
 
-msgid "Primitives"
-msgstr "プリミティブ"
+msgid "Deprecated"
+msgstr "廃止予定"
 
 
-msgid "Gizmo"
-msgstr "ギズモ"
+msgid "List"
+msgstr "リスト"
 
 
-msgid "Instances"
-msgstr "インスタンス"
-
-
-msgid "Import"
-msgstr "インポート"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Mirror"
@@ -35526,10 +35550,6 @@ msgid "Navigation"
 msgstr "視点の操作"
 
 
-msgid "Deprecated"
-msgstr "廃止予定"
-
-
 msgid "Align View"
 msgstr "視点を揃える"
 
@@ -35544,14 +35564,6 @@ msgstr "ビュー領域設定"
 
 msgid "Select More/Less"
 msgstr "選択の拡大縮小"
-
-
-msgid "List"
-msgstr "リスト"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Select Similar"
@@ -35574,10 +35586,6 @@ msgid "Assign Material"
 msgstr "マテリアルを割り当て"
 
 
-msgid "Metaball"
-msgstr "メタボール"
-
-
 msgid "Light"
 msgstr "ライト"
 
@@ -35596,6 +35604,10 @@ msgstr "関係"
 
 msgid "Rigid Body"
 msgstr "リジッドボディ"
+
+
+msgid "Layout"
+msgstr "レイアウト"
 
 
 msgid "Apply"
@@ -35630,6 +35642,18 @@ msgid "Hooks"
 msgstr "フック"
 
 
+msgid "Adjust"
+msgstr "調整"
+
+
+msgid "Keying"
+msgstr "キーイング"
+
+
+msgid "Tracking"
+msgstr "トラッキング"
+
+
 msgid "Trim/Add"
 msgstr "トリム/追加"
 
@@ -35638,12 +35662,12 @@ msgid "Sculpt Set Pivot"
 msgstr "スカルプトピボット設定"
 
 
+msgid "Creative"
+msgstr "クリエイティブ"
+
+
 msgid "Face Sets Init"
 msgstr "面セットを初期化"
-
-
-msgid "Layout"
-msgstr "レイアウト"
 
 
 msgid "Random Mask"
@@ -35666,8 +35690,8 @@ msgid "Bone Collections"
 msgstr "ボーンコレクション"
 
 
-msgid "Adjust"
-msgstr "調整"
+msgid "Render Preview"
+msgstr "レンダープレビュー"
 
 
 msgid "Toggle Bone Options"
@@ -35678,52 +35702,8 @@ msgid "Enable Bone Options"
 msgstr "ボーンオプションを有効化"
 
 
-msgid "Keying"
-msgstr "キーイング"
-
-
 msgid "Disable Bone Options"
 msgstr "ボーンオプションを無効化"
-
-
-msgid "Tracking"
-msgstr "トラッキング"
-
-
-msgid "Mesh Select Mode"
-msgstr "メッシュ選択モード"
-
-
-msgid "Face Data"
-msgstr "面データ"
-
-
-msgid "Creative"
-msgstr "クリエイティブ"
-
-
-msgid "Select by Face Strength"
-msgstr "面の強さで選択"
-
-
-msgid "Set Face Strength"
-msgstr "面の強さを設定"
-
-
-msgid "Merge"
-msgstr "マージ"
-
-
-msgid "Render Preview"
-msgstr "レンダープレビュー"
-
-
-msgid "Special Characters"
-msgstr "特殊文字"
-
-
-msgid "Kerning"
-msgstr "カーニング"
 
 
 msgid "Keyframe Insert Pie"
@@ -49640,66 +49620,6 @@ msgid "Generate a paragraph of text with a specific font, using a curve instance
 msgstr "文字毎にカーブインスタンスを使用し，指定のフォントで文章を生成します"
 
 
-msgid "Align text to the center"
-msgstr "テキストを左揃えします"
-
-
-msgid "Align text to the left and the right"
-msgstr "テキストを左右に揃えます"
-
-
-msgid "Align text to the left and the right, with equal character spacing"
-msgstr "テキストを左右に等間隔で揃えます"
-
-
-msgid "Font of the text. Falls back to the UI font by default."
-msgstr "テキストのフォント．デフォルトでは UI フォントが代替となります."
-
-
-msgid "Let the text use more space than the specified height"
-msgstr "テキストに指定の高さより大きな空間を使用します"
-
-
-msgid "Scale To Fit"
-msgstr "拡大縮小で収める"
-
-
-msgid "Scale the text size to fit inside the width and height"
-msgstr "テキストを拡大縮小して幅と高さ内に収めます"
-
-
-msgid "Only output curves that fit within the width and height. Output the remainder to the \"Remainder\" output."
-msgstr "幅と高さ内に収まるカーブのみ出力します．残りは「余り」出力に出力します."
-
-
-msgid "Pivot point position relative to character"
-msgstr "文字に対するピボットポイントの位置"
-
-
-msgid "Top Left"
-msgstr "左上"
-
-
-msgid "Top Center"
-msgstr "中心上"
-
-
-msgid "Top Right"
-msgstr "右上"
-
-
-msgid "Bottom Left"
-msgstr "左下"
-
-
-msgid "Bottom Center"
-msgstr "中心下"
-
-
-msgid "Bottom Right"
-msgstr "右下"
-
-
 msgid "Subdivide Curve"
 msgstr "カーブ細分化"
 
@@ -49977,6 +49897,42 @@ msgstr "ラベル表示のフォントサイズ"
 
 msgid "Shrink the frame to minimal bounding box"
 msgstr "最小のバウンディングボックスにフレームを縮小"
+
+
+msgid "Structure Type"
+msgstr "構造タイプ"
+
+
+msgid "What kind of higher order types are expected to flow through this socket"
+msgstr "このソケットを流れることが予測される高次のタイプ"
+
+
+msgid "Automatically detect a good structure type based on how the socket is used"
+msgstr "ソケットの使用方法を元に自動でいい構造タイプを探知します"
+
+
+msgid "Socket can work with different kinds of structures"
+msgstr "違う構造でも動作可能なソケット"
+
+
+msgid "Socket expects a field"
+msgstr "フィールドを要求するソケット"
+
+
+msgid "Socket expects a grid"
+msgstr "グリッドを要求するソケット"
+
+
+msgid "Socket expects a list"
+msgstr "リストを要求するソケット"
+
+
+msgid "Single"
+msgstr "シングル"
+
+
+msgid "Socket expects a single value"
+msgstr "単一値を要求するソケット"
 
 
 msgid "Group Input"
@@ -52413,42 +52369,6 @@ msgid "Closure Input Item"
 msgstr "クロージャ入力アイテム"
 
 
-msgid "Structure Type"
-msgstr "構造タイプ"
-
-
-msgid "What kind of higher order types are expected to flow through this socket"
-msgstr "このソケットを流れることが予測される高次のタイプ"
-
-
-msgid "Automatically detect a good structure type based on how the socket is used"
-msgstr "ソケットの使用方法を元に自動でいい構造タイプを探知します"
-
-
-msgid "Socket can work with different kinds of structures"
-msgstr "違う構造でも動作可能なソケット"
-
-
-msgid "Socket expects a field"
-msgstr "フィールドを要求するソケット"
-
-
-msgid "Socket expects a grid"
-msgstr "グリッドを要求するソケット"
-
-
-msgid "Socket expects a list"
-msgstr "リストを要求するソケット"
-
-
-msgid "Single"
-msgstr "シングル"
-
-
-msgid "Socket expects a single value"
-msgstr "単一値を要求するソケット"
-
-
 msgid "Closure Input Items"
 msgstr "クロージャ入力アイテム"
 
@@ -54661,15 +54581,6 @@ msgid "New Panel Toggle"
 msgstr "新規パネルトグル"
 
 
-msgid "Remove active item from the interface"
-msgstr "インターフェイスからアクティブアイテムを削除します"
-
-
-msgctxt "Operator"
-msgid "Remove Item"
-msgstr "アイテムを削除"
-
-
 msgid "Make the panel toggle a stand-alone socket"
 msgstr "パネルのトグルをスタンドアローンソケットにします"
 
@@ -54752,13 +54663,8 @@ msgstr "連番画像をインポート"
 
 
 msgctxt "Operator"
-msgid "Texture Setup"
-msgstr "テクスチャセットアップ"
-
-
-msgctxt "Operator"
-msgid "Principled Texture Setup"
-msgstr "プリンシプルテクスチャセットアップ"
+msgid "Add Texture Setup"
+msgstr "テクスチャセットアップを追加"
 
 
 msgctxt "Operator"
@@ -65825,6 +65731,11 @@ msgid "Switch brush to erase mode for duration of stroke"
 msgstr "ストローク中にブラシを消しゴムモードに切り替えます"
 
 
+msgctxt "Operator"
+msgid "Mask"
+msgstr "マスク"
+
+
 msgid "Pen Flip"
 msgstr "ペン反転"
 
@@ -72842,6 +72753,11 @@ msgstr "アクティブアイテムを移動します"
 
 msgid "Move direction"
 msgstr "移動方向"
+
+
+msgctxt "Operator"
+msgid "Remove Item"
+msgstr "アイテムを削除"
 
 
 msgid "Remove active item"
@@ -92384,22 +92300,6 @@ msgid "Panel containing UI elements"
 msgstr "UIの要素を含むパネル"
 
 
-msgid "glTF Variants"
-msgstr "glTFバリアント"
-
-
-msgid "glTF Material Variants"
-msgstr "glTFマテリアルバリアント"
-
-
-msgid "glTF"
-msgstr "glTF"
-
-
-msgid "glTF Animations"
-msgstr "glTFアニメーション"
-
-
 msgid "Active Tool"
 msgstr "アクティブツール"
 
@@ -92436,6 +92336,14 @@ msgid "Compositor"
 msgstr "コンポジター"
 
 
+msgid "glTF Variants"
+msgstr "glTFバリアント"
+
+
+msgid "glTF Material Variants"
+msgstr "glTFマテリアルバリアント"
+
+
 msgid "Overlays"
 msgstr "オーバーレイ"
 
@@ -92466,6 +92374,14 @@ msgstr "カーブ編集モード"
 
 msgid "Curves Edit Mode"
 msgstr "ヘアーカーブ編集モード"
+
+
+msgid "glTF"
+msgstr "glTF"
+
+
+msgid "glTF Animations"
+msgstr "glTFアニメーション"
 
 
 msgid "Transform Orientations"
@@ -93035,11 +92951,6 @@ msgstr "スミア"
 msgctxt "Operator"
 msgid "Clone"
 msgstr "クローン"
-
-
-msgctxt "Operator"
-msgid "Mask"
-msgstr "マスク"
 
 
 msgid "Tiling"
@@ -96902,10 +96813,6 @@ msgid "Orbit Around Selection"
 msgstr "選択部分を中心に回転"
 
 
-msgid "Use selection as the pivot point"
-msgstr "選択部分をピボットポイントに使用します"
-
-
 msgid "Zoom to Mouse Position"
 msgstr "マウス位置でズーム"
 
@@ -97977,10 +97884,6 @@ msgid "Polish - Polski"
 msgstr "ポーランド語 - Polski"
 
 
-msgid "Locale code: pl_PL. Translation progress: 18%"
-msgstr "ロケールコード：pl_PL．翻訳の進行状況: 18％"
-
-
 msgid "Portuguese (Brazil) - Português brasileiro"
 msgstr "ポルトガル（ブラジル）語 - Português brasileiro"
 
@@ -98907,6 +98810,11 @@ msgstr "0.0から1.0の間の係数"
 
 
 msgctxt "Unit"
+msgid "Mass"
+msgstr "重さ"
+
+
+msgctxt "Unit"
 msgid "Angle"
 msgstr "角度"
 
@@ -99122,11 +99030,6 @@ msgstr "体積"
 msgctxt "Unit"
 msgid "Rotation"
 msgstr "回転"
-
-
-msgctxt "Unit"
-msgid "Mass"
-msgstr "重さ"
 
 
 msgctxt "Unit"
@@ -107441,6 +107344,14 @@ msgid "Filter based on key bindings"
 msgstr "キーバインドによる絞り込み"
 
 
+msgid "Tab Search Results"
+msgstr "タブ検索結果"
+
+
+msgid "Whether or not each visible tab has a search result"
+msgstr "各表示タブに検索結果があるかどうか"
+
+
 msgid "Properties Space"
 msgstr "プロパティスペース"
 
@@ -107617,14 +107528,6 @@ msgstr "このエディターがアウトライナーと境界を共有する時
 
 msgid "Strip Modifiers"
 msgstr "ストリップモディファイアー"
-
-
-msgid "Tab Search Results"
-msgstr "タブ検索結果"
-
-
-msgid "Whether or not each visible tab has a search result"
-msgstr "各表示タブに検索結果があるかどうか"
 
 
 msgid "Pin ID"
@@ -109687,6 +109590,10 @@ msgstr "ボックスの高さに対するボックスの角の半径"
 
 msgid "Text color"
 msgstr "テキストカラー"
+
+
+msgid "Font of the text. Falls back to the UI font by default."
+msgstr "テキストのフォント．デフォルトでは UI フォントが代替となります."
 
 
 msgid "Size of the text"
@@ -111977,16 +111884,16 @@ msgid "Theme settings for the Blender Preferences"
 msgstr "プリファレンス用のテーマ設定"
 
 
+msgid "Search Match"
+msgstr "検索がマッチ"
+
+
 msgid "Theme Properties"
 msgstr "プロパティのテーマ"
 
 
 msgid "Theme settings for the Properties"
 msgstr "プロパティのためテーマ設定"
-
-
-msgid "Search Match"
-msgstr "検索がマッチ"
 
 
 msgid "Shared Region Properties"
@@ -120895,16 +120802,6 @@ msgstr "連番画像"
 
 
 msgctxt "Operator"
-msgid "Add Texture Setup"
-msgstr "テクスチャセットアップを追加"
-
-
-msgctxt "Operator"
-msgid "Add Principled Setup"
-msgstr "プリンシプルセットアップを追加"
-
-
-msgctxt "Operator"
 msgid "Settings from Active"
 msgstr "アクティブから設定"
 
@@ -122228,10 +122125,6 @@ msgstr "すべてのボーンコレクションが使用中です"
 
 msgid "An action slot can only be created when an action is assigned"
 msgstr "アクションスロットはアクションが割り当て済みの時のみ作成可能です"
-
-
-msgid "Action slots are only supported by layered Actions. Upgrade this Action first"
-msgstr "アクションスロットはレイヤー化アクションでのみ対応しています．アクションを先にアップグレードしてください"
 
 
 msgid "Creating a new Slot is not possible on a linked Action"
@@ -129702,11 +129595,6 @@ msgstr "ビューから投影 (バウンド)"
 
 
 msgctxt "Operator"
-msgid "Frame Last Stroke"
-msgstr "最後のストロークを表示"
-
-
-msgctxt "Operator"
 msgid "Render Playblast"
 msgstr "プレイブラストをレンダリング"
 
@@ -135423,16 +135311,6 @@ msgstr "パネルの後に挿入"
 
 
 msgctxt "Operator"
-msgid "Delete Node Interface Socket"
-msgstr "ノードインターフェイスソケットを削除"
-
-
-msgctxt "Operator"
-msgid "Delete Node Interface Panel"
-msgstr "ノードインターフェイスパネルを削除"
-
-
-msgctxt "Operator"
 msgid "Insert node group item"
 msgstr "ノードグループアイテムを挿入"
 
@@ -140060,12 +139938,8 @@ msgstr ""
 "カタログはアセットブラウザー内で割り当て可能です"
 
 
-msgid "The internal clipboard is empty"
-msgstr "内部クリップボードは空です"
-
-
-msgid "Some nodes references to other IDs could not be restored, will be left empty"
-msgstr "一部ノードの，他の ID への参照が復元できず，空のままになりました"
+msgid "No data to paste"
+msgstr "貼り付けるデータがありません"
 
 
 msgid "Cannot add node %s into node tree %s: %s"
@@ -140931,10 +140805,6 @@ msgid "No selected data-blocks to copy"
 msgstr "コピーするデータブロックが未選択です"
 
 
-msgid "No data to paste"
-msgstr "貼り付けるデータがありません"
-
-
 msgid "There is no active data-block"
 msgstr "アクティブデータブロックがありません"
 
@@ -141538,12 +141408,12 @@ msgid "Select movie or image strips"
 msgstr "動画または画像ストリップを選択してください"
 
 
-msgid "Cannot create key inside of speed transition"
-msgstr "スピードトランジション内にはキーを作成できません"
-
-
 msgid "Cannot create freeze frame"
 msgstr "フリーズフレームを作成できません"
+
+
+msgid "Cannot create key inside of speed transition"
+msgstr "スピードトランジション内にはキーを作成できません"
 
 
 msgid "Cannot create transition from first or last key"
@@ -143706,16 +143576,8 @@ msgid "Cannot return channelbag when slot is None"
 msgstr "スロットが None の時はチャンネルバッグを返すことができません"
 
 
-msgid "Cannot add slots to a legacy Action '%s'. Convert it to a layered Action first."
-msgstr "スロットは旧アクション「%s」に追加できません．先にレイヤー化アクションへ変換してください."
-
-
 msgid "Invalid slot name '%s': name must not be empty."
 msgstr "「%s」は無効なスロット名です：名前を空にしないでください."
-
-
-msgid "Cannot add layers to a legacy Action '%s'. Convert it to a layered Action first."
-msgstr "レイヤーは旧アクション「%s」に追加できません．先にレイヤー化アクションへ変換してください."
 
 
 msgid "F-Curve '%s[%d]' already exists in this channelbag"
@@ -147254,54 +147116,6 @@ msgstr ""
 "粒状またはノイズの多い結果になる可能性があります"
 
 
-msgid "Wrong Image Input Type"
-msgstr "間違った画像入力タイプ"
-
-
-msgid "Wrong Mask Input Type"
-msgstr "間違ったマスク入力タイプ"
-
-
-msgid "Unsupported Inputs"
-msgstr "未対応の入力"
-
-
-msgid "Node group's main Image input should be of type Color"
-msgstr "ノードグループのメイン画像入力はカラータイプにしてください"
-
-
-msgid "Node group's Mask input should be of type Color"
-msgstr "ノードグループのマスク入力はカラータイプにしてください"
-
-
-msgid "Only a main Image and Mask inputs are supported, the rest are unsupported and will return zero"
-msgstr "メイン画像とマスク入力のみ対応，他は未対応で０を返します"
-
-
-msgid "No Output"
-msgstr "出力なし"
-
-
-msgid "Wrong Output Type"
-msgstr "間違った出力タイプ"
-
-
-msgid "Ignored Outputs"
-msgstr "無視された出力があります"
-
-
-msgid "Node group must have a Color output socket"
-msgstr "ノードグループにカラー出力ソケットが必要です"
-
-
-msgid "Node group's first output must be a color output"
-msgstr "ノードグループの最初の出力はカラーにしてください"
-
-
-msgid "Only the first output is considered while the rest are ignored"
-msgstr "最初の出力のみ考慮，残りは無視されます"
-
-
 msgid "Fac"
 msgstr "係数"
 
@@ -147700,6 +147514,10 @@ msgstr "アルファを置換"
 
 msgid "Replace the input image's alpha channel by the alpha input value"
 msgstr "入力画像のアルファチャンネルをアルファ入力値で置き換えます"
+
+
+msgid "SDF"
+msgstr "SDF"
 
 
 msgid "Line position where the image should be split"
@@ -149184,6 +149002,10 @@ msgid "Each input geometry is turned into a separate instance"
 msgstr "入力ジオメトリ毎に別々のインスタンスにします"
 
 
+msgid "Cannot get internal value from bundle"
+msgstr "バンドル内部の値を取得できません"
+
+
 msgid "Volume to take a named grid out of"
 msgstr "名前付きグリッドを取り出すボリューム"
 
@@ -149326,10 +149148,6 @@ msgid "Turn regions where all voxels have the same value and active state (withi
 msgstr ""
 "（しきい値以内の）同じ値を持ちアクティブ状態のボクセルの領域を\n"
 "すべて非アクティブの背景タイルにします"
-
-
-msgid "SDF"
-msgstr "SDF"
 
 
 msgid "Replace inactive tiles with inactive nodes. Faster than tolerance-based pruning, useful for cases like narrow-band SDF grids with only inside or outside background values."
@@ -150640,10 +150458,6 @@ msgid "Value not found in bundle: \"{}\""
 msgstr "バンドル「{}」に値が見つかりません"
 
 
-msgid "Cannot get internal value from bundle"
-msgstr "バンドル内部の値を取得できません"
-
-
 msgid "Implicit type conversion when separating bundle"
 msgstr "バンドル分離時に暗黙的にタイプを変換します"
 
@@ -150981,6 +150795,14 @@ msgid "Use exact geometry for most efficient packing (slowest)"
 msgstr "正確な形状を使用し，梱包の効率を最優先にします（低速）"
 
 
+msgid "Bottom Left"
+msgstr "左下"
+
+
+msgid "Top Right"
+msgstr "右上"
+
+
 msgid "Faces to consider when packing islands"
 msgstr "アイランドのパック時に考慮される面"
 
@@ -151184,8 +151006,56 @@ msgid "Inspection index is out of range"
 msgstr "調査インデックスが範囲外です"
 
 
+msgid "Wrong Image Input Type"
+msgstr "間違った画像入力タイプ"
+
+
+msgid "Wrong Mask Input Type"
+msgstr "間違ったマスク入力タイプ"
+
+
+msgid "Unsupported Inputs"
+msgstr "未対応の入力"
+
+
+msgid "No Output"
+msgstr "出力なし"
+
+
+msgid "Wrong Output Type"
+msgstr "間違った出力タイプ"
+
+
+msgid "Ignored Outputs"
+msgstr "無視された出力があります"
+
+
 msgid "Unused Output"
 msgstr "未使用の出力"
+
+
+msgid "Node group's main Image input should be of type Color"
+msgstr "ノードグループのメイン画像入力はカラータイプにしてください"
+
+
+msgid "Node group's Mask input should be of type Color"
+msgstr "ノードグループのマスク入力はカラータイプにしてください"
+
+
+msgid "Only a main Image and Mask inputs are supported, the rest are unsupported and will return zero"
+msgstr "メイン画像とマスク入力のみ対応，他は未対応で０を返します"
+
+
+msgid "Node group must have a Color output socket"
+msgstr "ノードグループにカラー出力ソケットが必要です"
+
+
+msgid "Node group's first output must be a color output"
+msgstr "ノードグループの最初の出力はカラーにしてください"
+
+
+msgid "Only the first output is considered while the rest are ignored"
+msgstr "最初の出力のみ考慮，残りは無視されます"
 
 
 msgid "There are multiple group output nodes and this one is not active"

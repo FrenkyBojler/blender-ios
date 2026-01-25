@@ -4,6 +4,7 @@
 
 #include "CLG_log.h"
 
+#include "BLI_array_utils.hh"
 #include "BLI_assert.h"
 #include "BLI_color_types.hh"
 #include "BLI_implicit_sharing.hh"
@@ -84,10 +85,23 @@ Attribute::ArrayData Attribute::ArrayData::from_value(const GPointer &value,
   return data;
 }
 
+static GPointer default_value_for_type(const CPPType &type)
+{
+  if (type.is<ColorGeometry4f>()) {
+    static constexpr ColorGeometry4f default_color(1.0f, 1.0f, 1.0f, 1.0f);
+    return GPointer(type, &default_color);
+  }
+  if (type.is<ColorGeometry4b>()) {
+    static constexpr ColorGeometry4b default_color(255, 255, 255, 255);
+    return GPointer(type, &default_color);
+  }
+  return GPointer(type, type.default_value());
+}
+
 Attribute::ArrayData Attribute::ArrayData::from_default_value(const CPPType &type,
                                                               const int64_t domain_size)
 {
-  return from_value(GPointer(type, type.default_value()), domain_size);
+  return from_value(default_value_for_type(type), domain_size);
 }
 
 Attribute::ArrayData Attribute::ArrayData::from_uninitialized(const CPPType &type,
@@ -122,37 +136,7 @@ Attribute::SingleData Attribute::SingleData::from_value(const GPointer &value)
 
 Attribute::SingleData Attribute::SingleData::from_default_value(const CPPType &type)
 {
-  return from_value(GPointer(type, type.default_value()));
-}
-
-void AttributeStorage::foreach(FunctionRef<void(Attribute &)> fn)
-{
-  for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
-    fn(*attribute);
-  }
-}
-void AttributeStorage::foreach(FunctionRef<void(const Attribute &)> fn) const
-{
-  for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
-    fn(*attribute);
-  }
-}
-
-void AttributeStorage::foreach_with_stop(FunctionRef<bool(Attribute &)> fn)
-{
-  for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
-    if (!fn(*attribute)) {
-      break;
-    }
-  }
-}
-void AttributeStorage::foreach_with_stop(FunctionRef<bool(const Attribute &)> fn) const
-{
-  for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
-    if (!fn(*attribute)) {
-      break;
-    }
-  }
+  return from_value(default_value_for_type(type));
 }
 
 AttrStorageType Attribute::storage_type() const
@@ -180,7 +164,8 @@ Attribute::DataVariant &Attribute::data_for_write()
     }
     const CPPType &type = attribute_type_to_cpp_type(type_);
     ArrayData new_data = ArrayData::from_uninitialized(type, data->size);
-    type.copy_construct_n(data->data, new_data.data, data->size);
+    array_utils::copy(GVArray::from_span({type, data->data, data->size}),
+                      GMutableSpan(type, new_data.data, data->size));
     *data = std::move(new_data);
   }
   else if (auto *data = std::get_if<Attribute::SingleData>(&data_)) {
@@ -208,9 +193,9 @@ AttributeStorage::AttributeStorage(const AttributeStorage &other)
   this->dna_attributes_num = 0;
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
   this->runtime->attributes.reserve(other.runtime->attributes.size());
-  other.foreach([&](const Attribute &attribute) {
+  for (const Attribute &attribute : other) {
     this->runtime->attributes.add_new(std::make_unique<Attribute>(attribute));
-  });
+  }
 }
 
 AttributeStorage &AttributeStorage::operator=(const AttributeStorage &other)
@@ -326,9 +311,9 @@ void AttributeStorage::rename(const StringRef old_name, std::string new_name)
 
 void AttributeStorage::resize(const AttrDomain domain, const int64_t new_size)
 {
-  this->foreach([&](Attribute &attr) {
+  for (Attribute &attr : *this) {
     if (attr.domain() != domain) {
-      return;
+      continue;
     }
     const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
@@ -344,12 +329,13 @@ void AttributeStorage::resize(const AttrDomain domain, const int64_t new_size)
         }
 
         attr.assign_data(std::move(new_data));
+        break;
       }
       case bke::AttrStorageType::Single: {
-        return;
+        break;
       }
     }
-  });
+  }
 }
 
 static void read_array_data(BlendDataReader &reader,
@@ -567,8 +553,7 @@ static void write_array_data(BlendWriter &writer,
       BLO_write_float_array(&writer, size * 4, static_cast<const float *>(data));
       break;
     case AttrType::String:
-      BLO_write_struct_array(
-          &writer, MStringProperty, size, static_cast<const MStringProperty *>(data));
+      writer.write_struct_array_cast<MStringProperty>(size, data);
       break;
   }
 }
@@ -576,7 +561,7 @@ static void write_array_data(BlendWriter &writer,
 void attribute_storage_blend_write_prepare(AttributeStorage &data,
                                            AttributeStorage::BlendWriteData &write_data)
 {
-  data.foreach([&](Attribute &attr) {
+  for (Attribute &attr : data) {
     blender::Attribute attribute_dna{};
     attribute_dna.name = attr.name().c_str();
     attribute_dna.data_type = int16_t(attr.data_type());
@@ -605,7 +590,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
     }
 
     write_data.attributes.append(attribute_dna);
-  });
+  }
   data.runtime = nullptr;
 }
 

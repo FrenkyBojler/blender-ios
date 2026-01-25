@@ -2,9 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "node_geometry_util.hh"
-
 #include "NOD_geo_bundle.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -15,9 +14,9 @@
 
 #include "BLO_read_write.hh"
 
-#include "NOD_geometry_nodes_bundle.hh"
-
 #include "UI_interface_layout.hh"
+
+#include "node_geometry_util.hh"
 #include "shader/node_shader_util.hh"
 
 namespace blender {
@@ -39,7 +38,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       const std::string identifier = CombineBundleItemsAccessor::socket_identifier_for_item(item);
       auto &decl = b.add_input(socket_type, name, identifier)
                        .socket_name_ptr(
-                           &tree->id, CombineBundleItemsAccessor::item_srna, &item, "name")
+                           &tree->id, *CombineBundleItemsAccessor::item_srna, &item, "name")
                        .supports_field();
       if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
         decl.structure_type(StructureType(item.structure_type));
@@ -107,13 +106,10 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *node_ptr
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<CombineBundleItemsAccessor>(
         ntree, node, [&](PointerRNA *item_ptr) {
-          const auto &item = *item_ptr->data_as<NodeCombineBundleItem>();
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
-          if (!socket_type_always_single(eNodeSocketDatatype(item.socket_type))) {
-            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
-          }
+          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
         });
   }
 }
@@ -216,7 +212,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace nodes {
 
-StructRNA *CombineBundleItemsAccessor::item_srna = &RNA_NodeCombineBundleItem;
+StructRNA **CombineBundleItemsAccessor::item_srna = &RNA_NodeCombineBundleItem;
 
 void CombineBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -254,6 +250,7 @@ std::string CombineBundleItemsAccessor::validate_name(const StringRef name)
       result[last_index] = '_';
     }
   }
+  BLI_assert(Bundle::is_valid_key(result));
   return result;
 }
 

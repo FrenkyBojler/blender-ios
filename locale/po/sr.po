@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-05 11:52+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -8497,8 +8497,28 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
+msgid "Mesh Select Mode"
+msgstr "Мод избора мреже"
+
+
+msgid "Math"
+msgstr "Математика"
+
+
+msgid "Merge"
+msgstr "Сједини"
+
+
 msgid "Show/Hide"
 msgstr "Прикажи/сакриј"
+
+
+msgid "Special Characters"
+msgstr "Специјални знаци"
+
+
+msgid "Metaball"
+msgstr "Мета лопта"
 
 
 msgid "Names"
@@ -8509,16 +8529,16 @@ msgid "Bone Roll"
 msgstr "Ролна костију"
 
 
-msgid "Math"
-msgstr "Математика"
-
-
 msgid "Snap"
 msgstr "Лепљење"
 
 
 msgid "Import"
 msgstr "Увоз"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Mirror"
@@ -8541,16 +8561,8 @@ msgid "Align View"
 msgstr "Поравнај поглед"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Select Linked"
 msgstr "Изабери повезано"
-
-
-msgid "Metaball"
-msgstr "Мета лопта"
 
 
 msgid "Light"
@@ -8581,6 +8593,14 @@ msgid "Hooks"
 msgstr "Удице"
 
 
+msgid "Keying"
+msgstr "Збирка тастера"
+
+
+msgid "Tracking"
+msgstr "Праћење"
+
+
 msgid "Clear Transform"
 msgstr "Очисти трансформације"
 
@@ -8601,28 +8621,8 @@ msgid "Enable Bone Options"
 msgstr "Омогући опције костију"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
 msgid "Disable Bone Options"
 msgstr "Онемогући опције костију"
-
-
-msgid "Tracking"
-msgstr "Праћење"
-
-
-msgid "Mesh Select Mode"
-msgstr "Мод избора мреже"
-
-
-msgid "Merge"
-msgstr "Сједини"
-
-
-msgid "Special Characters"
-msgstr "Специјални знаци"
 
 
 msgid "Basic"
@@ -20080,10 +20080,6 @@ msgstr "Континуално померање"
 
 msgid "Emulate 3 Button Mouse"
 msgstr "Имитирај 3. дугме"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Користи векторе одсјаја као координате текстуре"
 
 
 msgid "Turntable"

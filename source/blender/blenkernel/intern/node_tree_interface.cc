@@ -1492,13 +1492,38 @@ const bNodeTreeInterfaceItem *bNodeTreeInterface::active_item() const
   return active;
 }
 
-void bNodeTreeInterface::active_item_set(bNodeTreeInterfaceItem *item)
+void bNodeTreeInterfaceItem::set_selected(const bool select)
 {
+  switch (eNodeTreeInterfaceItemType(this->item_type)) {
+    case NODE_INTERFACE_PANEL: {
+      bNodeTreeInterfacePanel *panel =
+          blender::bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(this);
+      SET_FLAG_FROM_TEST(panel->flag, select, NODE_INTERFACE_PANEL_SELECT);
+      break;
+    }
+    case NODE_INTERFACE_SOCKET: {
+      bNodeTreeInterfaceSocket *socket =
+          blender::bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(this);
+      SET_FLAG_FROM_TEST(socket->flag, select, NODE_INTERFACE_SOCKET_SELECT);
+      break;
+    }
+  }
+}
+
+void bNodeTreeInterface::active_item_set(bNodeTreeInterfaceItem *item,
+                                         const bool deselect_original)
+{
+  if (deselect_original) {
+    if (bNodeTreeInterfaceItem *original_active = this->active_item()) {
+      original_active->set_selected(false);
+    }
+  }
   this->active_index = 0;
   int count = 0;
   this->foreach_item([&](bNodeTreeInterfaceItem &titem) {
     if (&titem == item) {
       this->active_index = count;
+      item->set_selected(true);
       return false;
     }
     ++count;
@@ -1615,7 +1640,6 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::insert_item_copy(const bNodeTreeInte
   if (parent == nullptr) {
     parent = &root_panel;
   }
-  BLI_assert(this->find_item(item));
   BLI_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));

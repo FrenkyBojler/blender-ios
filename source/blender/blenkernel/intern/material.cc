@@ -86,6 +86,9 @@ static void material_init_data(ID *id)
 {
   Material *material = id_cast<Material *>(id);
   INIT_DEFAULT_STRUCT_AFTER(material, id);
+
+  material->nodetree = bke::node_tree_add_tree_embedded(
+      nullptr, &material->id, "Shader Nodetree", "ShaderNodeTree");
 }
 
 static void material_copy_data(Main *bmain,
@@ -208,13 +211,13 @@ static void material_blend_write(BlendWriter *writer, ID *id, const void *id_add
   ma->use_nodes = true;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Material, id_address, &ma->id);
+  writer->write_id_struct(id_address, ma);
   BKE_id_blend_write(writer, &ma->id);
 
   /* nodetree is integral part of material, no libdata */
   if (ma->nodetree) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{ma->nodetree->id, writer};
-    BLO_write_struct_at_address(writer, bNodeTree, ma->nodetree, temp_embedded_id_buffer.get());
+    writer->write_struct_at_address_cast<bNodeTree>(ma->nodetree, temp_embedded_id_buffer.get());
     bke::node_tree_blend_write(writer,
                                reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get()));
   }
@@ -736,7 +739,7 @@ Material *BKE_object_material_get(Object *ob, short act)
 
 static const ID *get_evaluated_object_data_with_materials(const Object *ob)
 {
-  const ID *data = static_cast<ID *>(ob->data);
+  const ID *data = ob->data;
   /* Meshes in edit mode need special handling. */
   if (ob->type == OB_MESH && ob->mode == OB_MODE_EDIT) {
     const Mesh *mesh = id_cast<const Mesh *>(ob->data);
@@ -2076,9 +2079,7 @@ static void material_default_gpencil_init(Material **ma_p)
 static void material_default_surface_init(Material **ma_p)
 {
   Material *ma = material_default_create(ma_p, "Default Surface");
-
-  bNodeTree *ntree = bke::node_tree_add_tree_embedded(
-      nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
+  bNodeTree *ntree = ma->nodetree;
 
   bNode *principled = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
   bNodeSocket *base_color = bke::node_find_socket(*principled, SOCK_IN, "Base Color");
@@ -2103,9 +2104,7 @@ static void material_default_surface_init(Material **ma_p)
 static void material_default_volume_init(Material **ma_p)
 {
   Material *ma = material_default_create(ma_p, "Default Volume");
-
-  bNodeTree *ntree = bke::node_tree_add_tree_embedded(
-      nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
+  bNodeTree *ntree = ma->nodetree;
 
   bNode *principled = bke::node_add_static_node(nullptr, *ntree, SH_NODE_VOLUME_PRINCIPLED);
   bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
@@ -2127,9 +2126,7 @@ static void material_default_volume_init(Material **ma_p)
 static void material_default_holdout_init(Material **ma_p)
 {
   Material *ma = material_default_create(ma_p, "Default Holdout");
-
-  bNodeTree *ntree = bke::node_tree_add_tree_embedded(
-      nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
+  bNodeTree *ntree = ma->nodetree;
 
   bNode *holdout = bke::node_add_static_node(nullptr, *ntree, SH_NODE_HOLDOUT);
   bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
