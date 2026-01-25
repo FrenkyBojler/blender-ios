@@ -2835,9 +2835,11 @@ template<typename T> void detect_holes_with_fillrule_nonzero(CDT_state<T> *cdt_s
   const OffsetIndices<int> region_adjacency_offsets(offset_data);
   const int total_adjacency_entries = offset_data[num_regions];
 
-  /* Fill flat adjacency array. */
+  /* Fill flat adjacency array. `region_neighbor_count` is repurposed,
+   * reset to 0 and reused to track the current write position within
+   * each region's slice of the adjacency array. */
   Array<RegionEdge> adjacency_data(total_adjacency_entries);
-  region_neighbor_count.fill(0); /* Reuse as write cursors. */
+  region_neighbor_count.fill(0);
 
   for (const auto &item : region_pair_winding.items()) {
     const int from_region = item.key[0];
