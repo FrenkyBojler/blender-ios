@@ -82,6 +82,7 @@ struct TokenBuffer {
    * @brief Merge whitespaces with their preceding token.
    */
   void merge_whitespaces();
+  void merge_spaces();
 
   /**
    * @brief Return the amount of token inside the buffer.
@@ -143,6 +144,11 @@ struct TokenBuffer {
     {
       index_++;
       return *this;
+    }
+
+    int32_t index() const
+    {
+      return index_;
     }
 
     bool operator==(const TokenIt &other) const

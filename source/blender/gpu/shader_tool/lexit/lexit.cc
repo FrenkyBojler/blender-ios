@@ -597,52 +597,71 @@ void TokenBuffer::merge_complex_literals()
   offsets_[size_] = str_.size();
 }
 
-void TokenBuffer::merge_whitespaces()
+template<enum TokenType removed_type, enum TokenType removed_type2 = removed_type>
+static uint32_t merge_token(const TokenType *in_types,
+                            const uint32_t *in_offsets,
+                            TokenType *out_types,
+                            uint32_t *out_offsets,
+                            uint32_t *out_original_offsets,
+                            const uint32_t token_count,
+                            const uint32_t str_size)
 {
-  assert(original_offsets_ != nullptr);
-  assert(original_offsets_ != offsets_);
+  uint32_t j = 0;
+  out_original_offsets[j] = 0;
 
-  const TokenType *in_types = types_.get();
-  TokenType *out_type = types_.get();
-  const uint32_t *in_offsets = offsets_.get();
-  uint32_t *out_offset = offsets_.get();
-  uint32_t *out_original_offset = original_offsets_.get();
+  if (token_count > 0) {
+    /* Iter 0 never merges. */
+    const TokenType type = in_types[0];
+    const uint32_t offset = in_offsets[0];
+    const uint32_t next_offset = in_offsets[0 + 1];
 
-  *out_original_offset = 0;
-  out_original_offset++;
-
-  if (size_ > 0) {
-    /* Iter 0. */
-    *out_type = in_types[0];
-    *out_offset = in_offsets[0];
-    *out_original_offset = in_offsets[1];
-    out_type++, out_offset++, out_original_offset++;
+    out_types[j] = type;
+    out_offsets[j] = offset;
+    out_original_offsets[j + 1] = next_offset;
+    j++;
   }
 
-  for (uint32_t i = 1; i < size_; i++, out_type++, out_offset++, out_original_offset++) {
+  for (uint32_t i = 1; i < token_count; i++) {
     const TokenType type = in_types[i];
     const uint32_t offset = in_offsets[i];
-    *out_type = type;
-    *out_offset = offset;
-    *out_original_offset = in_offsets[i + 1];
+    const uint32_t next_offset = in_offsets[i + 1];
 
-    switch (type) {
-      case NewLine:
-      case Space:
-        break;
-      default:
-        continue;
-    }
-    /* Make next token overwrite this one. Effectively merging the token with the one before. */
-    out_type--, out_offset--, out_original_offset--;
+    out_types[j] = type;
+    out_offsets[j] = offset;
+    out_original_offsets[j + 1] = next_offset;
+    /* If false, make the next token overwrite this one.
+     * Effectively merging the token with the one before. */
+    j += int(type != removed_type && type != removed_type2);
   }
 
-  assert(in_types < out_type);
-  assert(out_type - in_types < 0xFFFFFFFFu);
-  size_ = out_type - in_types;
-  types_[size_] = EndOfFile;
-  offsets_[size_] = str_.size();
-  original_offsets_[size_] = str_.size();
+  out_types[j] = EndOfFile;
+  out_offsets[j] = str_size;
+  out_original_offsets[j] = str_size;
+
+  return j;
+}
+
+void TokenBuffer::merge_whitespaces()
+{
+  size_ = merge_token<Space, NewLine>(types_.get(),
+                                      offsets_.get(),
+                                      types_.get(),
+                                      offsets_.get(),
+                                      original_offsets_.get(),
+                                      size_,
+                                      str_.size());
+  whitespaces_collapsed_ = true;
+}
+
+void TokenBuffer::merge_spaces()
+{
+  size_ = merge_token<Space>(types_.get(),
+                             offsets_.get(),
+                             types_.get(),
+                             offsets_.get(),
+                             original_offsets_.get(),
+                             size_,
+                             str_.size());
   whitespaces_collapsed_ = true;
 }
 
