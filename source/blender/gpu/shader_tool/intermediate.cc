@@ -154,87 +154,62 @@ void LexerBase::merge_tokens()
   update_string_view();
 }
 
+constexpr always_inline uint8_t perfect_hash(std::string_view s)
+{
+  return s.size() * (s[0] - s.back() * 2);
+}
+
 static always_inline TokenType type_lookup(std::string_view s)
 {
-  switch (s.size()) {
-    case 2:
-      switch (s[0]) {
-        case 'd':
-          return (s == "do") ? Do : Word;
-        case 'i':
-          return (s == "if") ? If : Word;
-        default:
-          return Word;
-      }
-    case 3:
+  switch (perfect_hash(s)) {
+    case perfect_hash("do"):
+      return (s == "do") ? Do : Word;
+    case perfect_hash("if"):
+      return (s == "if") ? If : Word;
+    case perfect_hash("for"):
       return (s == "for") ? For : Word;
-    case 4:
-      switch (s[1]) {
-        case 'a':
-          return (s == "case") ? Case : Word;
-        case 'l':
-          return (s == "else") ? Else : Word;
-        case 'n':
-          return (s == "enum") ? Enum : Word;
-        case 'h':
-          return (s == "this") ? This : Word;
-        default:
-          return Word;
-      }
-    case 5:
-      switch (s[1]) {
-        case 'r':
-          return (s == "break") ? Break : Word;
-        case 'l':
-          return (s == "class") ? Class : Word;
-        case 'o':
-          return (s == "const") ? Const : Word;
-        case 'n':
-          return (s == "union") ? Union : Word;
-        case 's':
-          return (s == "using") ? Using : Word;
-        case 'h':
-          return (s == "while") ? While : Word;
-        default:
-          return Word;
-      }
-    case 6:
-      switch (s[2]) {
-        case 'l':
-          return (s == "inline") ? Inline : Word;
-        case 'b':
-          return (s == "public") ? Public : Word;
-        case 't':
-          return (s == "return") ? Return : Word;
-        case 'a':
-          return (s == "static") ? Static : Word;
-        case 'r':
-          return (s == "struct") ? Struct : Word;
-        case 'i':
-          return (s == "switch") ? Switch : Word;
-        default:
-          return Word;
-      }
-    case 7:
+    case perfect_hash("case"):
+      return (s == "case") ? Case : Word;
+    case perfect_hash("else"):
+      return (s == "else") ? Else : Word;
+    case perfect_hash("enum"):
+      return (s == "enum") ? Enum : Word;
+    case perfect_hash("this"):
+      return (s == "this") ? This : Word;
+    case perfect_hash("break"):
+      return (s == "break") ? Break : Word;
+    case perfect_hash("class"):
+      return (s == "class") ? Class : Word;
+    case perfect_hash("const"):
+      return (s == "const") ? Const : Word;
+    case perfect_hash("union"):
+      return (s == "union") ? Union : Word;
+    case perfect_hash("using"):
+      return (s == "using") ? Using : Word;
+    case perfect_hash("while"):
+      return (s == "while") ? While : Word;
+    case perfect_hash("inline"):
+      return (s == "inline") ? Inline : Word;
+    case perfect_hash("public"):
+      return (s == "public") ? Public : Word;
+    case perfect_hash("return"):
+      return (s == "return") ? Return : Word;
+    case perfect_hash("static"):
+      return (s == "static") ? Static : Word;
+    case perfect_hash("struct"):
+      return (s == "struct") ? Struct : Word;
+    case perfect_hash("switch"):
+      return (s == "switch") ? Switch : Word;
+    case perfect_hash("private"):
       return (s == "private") ? Private : Word;
-    case 8:
-      switch (s[0]) {
-        case 'c':
-          return (s == "continue") ? Continue : Word;
-        case 't':
-          return (s == "template") ? Template : Word;
-        default:
-          return Word;
-      }
-    case 9:
-      switch (s[0]) {
-        case 'c':
-          return (s == "constexpr") ? Constexpr : Word;
-        case 'n':
-          return (s == "namespace") ? Namespace : Word;
-        default:
-          return Word;
-      }
+    case perfect_hash("continue"):
+      return (s == "continue") ? Continue : Word;
+    case perfect_hash("template"):
+      return (s == "template") ? Template : Word;
+    case perfect_hash("constexpr"):
+      return (s == "constexpr") ? Constexpr : Word;
+    case perfect_hash("namespace"):
+      return (s == "namespace") ? Namespace : Word;
     default:
       return Word;
   }
