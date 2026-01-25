@@ -1308,10 +1308,7 @@ static bool view3d_interactive_add_poll(bContext *C)
   const enum eContextObjectMode mode = CTX_data_mode_enum(C);
 
   if (mode == CTX_MODE_SCULPT) {
-    const Object *obj = CTX_data_active_object(C);
-
-    return !BKE_modifiers_findby_type(obj, eModifierType_Multires) &&
-           !BKE_object_sculpt_use_dyntopo(obj);
+    return !BKE_modifiers_findby_type(CTX_data_active_object(C), eModifierType_Multires);
   }
 
   return ELEM(mode, CTX_MODE_OBJECT, CTX_MODE_EDIT_MESH);
