@@ -1628,7 +1628,13 @@ bool OSLRenderServices::getmessage(OSL::ShaderGlobals *sg,
         return set_attribute(dual1(sd->v, sd->dv.dx, sd->dv.dy), type, derivatives, val);
       }
 
-      return get_attribute(sg, derivatives, u_empty, type, name, val);
+      /* Temporarily switch to trace shader data for attribute lookup. */
+      ShaderData *prev_sd = globals->sd;
+      globals->sd = sd;
+      const bool result = get_attribute(sg, derivatives, u_empty, type, name, val);
+      globals->sd = prev_sd;
+
+      return result;
     }
   }
 
