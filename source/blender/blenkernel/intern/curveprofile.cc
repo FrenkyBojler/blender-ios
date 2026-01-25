@@ -198,8 +198,6 @@ void BKE_curveprofile_translate_selection(CurveProfile *profile,
                                           const float delta_x,
                                           const float delta_y)
 {
-  CurveProfilePoint *active_pt = nullptr;
-  BKE_curveprofile_get_active_ptr(profile, &active_pt);
   for (int i = 0; i < profile->path_len; i++) {
     CurveProfilePoint *pt = &profile->path[i];
     float delta[2] = {delta_x, delta_y};
@@ -1075,49 +1073,44 @@ void BKE_curveprofile_update(CurveProfile *profile, const int update_flags)
   }
 }
 
-void BKE_curveprofile_get_active_ptr(CurveProfile *profile, CurveProfilePoint **ptr_out)
+CurveProfilePoint *BKE_curveprofile_active_get(CurveProfile *profile)
 {
-  *ptr_out = nullptr;
+  CurveProfilePoint *active_pt = nullptr;
   for (int i = 0; i < profile->path_len; i++) {
     CurveProfilePoint *pt = &profile->path[i];
     if (pt->flag & (PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT)) {
-      *ptr_out = pt;
+      active_pt = pt;
       if (pt->flag & (PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE)) {
-        return;
+        break;
       }
     }
   }
+  return active_pt;
 }
 
-void BKE_curveprofile_get_active_location_ptr(CurveProfilePoint *pt,
-                                              float **x_ptr_out,
-                                              float **y_ptr_out)
+float *BKE_curveprofile_active_location_get(CurveProfilePoint *pt)
 {
   if (pt->flag & PROF_ACTIVE) {
-    *x_ptr_out = &pt->x;
-    *y_ptr_out = &pt->y;
+    return &pt->x;
   }
   else if (pt->flag & PROF_H1_ACTIVE) {
-    *x_ptr_out = &pt->h1_loc[0];
-    *y_ptr_out = &pt->h1_loc[1];
+    return &pt->h1_loc[0];
   }
   else if (pt->flag & PROF_H2_ACTIVE) {
-    *x_ptr_out = &pt->h2_loc[0];
-    *y_ptr_out = &pt->h2_loc[1];
+    return &pt->h2_loc[0];
   }
   /* If no active point or handles, return the selected location. */
   else if (pt->flag & PROF_SELECT) {
-    *x_ptr_out = &pt->x;
-    *y_ptr_out = &pt->y;
+    return &pt->x;
   }
   else if (pt->flag & PROF_H1_SELECT) {
-    *x_ptr_out = &pt->h1_loc[0];
-    *y_ptr_out = &pt->h1_loc[1];
+    return &pt->h1_loc[0];
   }
   else if (pt->flag & PROF_H2_SELECT) {
-    *x_ptr_out = &pt->h2_loc[0];
-    *y_ptr_out = &pt->h2_loc[1];
+    return &pt->h2_loc[0];
   }
+
+  return nullptr;
 }
 
 void BKE_curveprofile_evaluate_length_portion(const CurveProfile *profile,

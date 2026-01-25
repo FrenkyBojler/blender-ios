@@ -11,6 +11,7 @@
 #include "BKE_library.hh"
 
 #include "BLI_math_base.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 #include "BLI_string_ref.hh"
 
@@ -28,14 +29,13 @@
 
 namespace blender::ui {
 
-using blender::StringRef;
 using blender::StringRefNull;
 using blender::Vector;
+using blender::float2;
 
 struct CurveRuntimeProperties {
   CurveProfilePoint *last_pt = nullptr;
-  float last_x = 0.0f;
-  float last_y = 0.0f;
+  float2 last_pos;
 };
 
 static Block *curve_profile_presets_fn(bContext *C, ARegion *region, void *cb_v)
@@ -208,7 +208,7 @@ static void curve_profile_zoom_out(bContext *C, CurveProfile *profile)
 
 static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const RNAUpdateCb &cb)
 {
-  CurveProfile *profile = ptr->data_as<CurveProfile>();
+  CurveProfile *profile = static_cast<CurveProfile *>(ptr->data);
   Button *bt;
 
   Block *block = layout.block();
@@ -412,11 +412,11 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
 
     row = &layout.row(true);
 
-    auto crp = std::make_shared<CurveRuntimeProperties>();
-    BKE_curveprofile_get_active_ptr(profile, &crp->last_pt);
+    auto curve_runtime = std::make_shared<CurveRuntimeProperties>();
+    curve_runtime->last_pt = BKE_curveprofile_active_get(profile);
 
     PointerRNA point_ptr = RNA_pointer_create_discrete(
-        ptr->owner_id, &RNA_CurveProfilePoint, crp->last_pt);
+        ptr->owner_id, &RNA_CurveProfilePoint, curve_runtime->last_pt);
     PropertyRNA *prop_handle_type = RNA_struct_find_property(&point_ptr, "handle_type_1");
     row->prop(&point_ptr,
               prop_handle_type,
@@ -427,11 +427,10 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
               ICON_NONE);
 
     /* Position */
-    float *last_x_ptr = nullptr;
-    float *last_y_ptr = nullptr;
-    BKE_curveprofile_get_active_location_ptr(crp->last_pt, &last_x_ptr, &last_y_ptr);
-    crp->last_x = *last_x_ptr;
-    crp->last_y = *last_y_ptr;
+    float *last_x_ptr = BKE_curveprofile_active_location_get(curve_runtime->last_pt);
+    float *last_y_ptr = last_x_ptr + 1;
+    curve_runtime->last_pos.x = *last_x_ptr;
+    curve_runtime->last_pos.y = *last_y_ptr;
 
     rctf selection_bounds;
     BLI_rctf_init_minmax(&selection_bounds);
@@ -462,20 +461,18 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
-    button_func_set(bt, [profile, cb, crp](bContext &C) {
-      float *last_x_ptr = nullptr;
-      float *last_y_ptr = nullptr;
-      BKE_curveprofile_get_active_location_ptr(crp->last_pt, &last_x_ptr, &last_y_ptr);
-      const float dx = *last_x_ptr - crp->last_x;
+    button_func_set(bt, [profile, cb, curve_runtime](bContext &C) {
+      float *last_x_ptr = BKE_curveprofile_active_location_get(curve_runtime->last_pt);
+      const float dx = *last_x_ptr - curve_runtime->last_pos.x;
       *last_x_ptr -= dx;
       BKE_curveprofile_translate_selection(profile, dx, 0.0f);
       BKE_curveprofile_update(profile, PROF_UPDATE_REMOVE_DOUBLES | PROF_UPDATE_CLIP);
       rna_update_cb(C, cb);
 
       // update the active point if the pointer changed
-      BKE_curveprofile_get_active_ptr(profile, &crp->last_pt);
-      BKE_curveprofile_get_active_location_ptr(crp->last_pt, &last_x_ptr, &last_y_ptr);
-      crp->last_x = *last_x_ptr;
+      curve_runtime->last_pt = BKE_curveprofile_active_get(profile);
+      last_x_ptr = BKE_curveprofile_active_location_get(curve_runtime->last_pt);
+      curve_runtime->last_pos.x = *last_x_ptr;
     });
     if (point_last_or_first) {
       button_flag_enable(bt, BUT_DISABLED);
@@ -493,20 +490,18 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
-    button_func_set(bt, [profile, cb, crp](bContext &C) {
-      float *last_x_ptr = nullptr;
-      float *last_y_ptr = nullptr;
-      BKE_curveprofile_get_active_location_ptr(crp->last_pt, &last_x_ptr, &last_y_ptr);
-      const float dy = *last_y_ptr - crp->last_y;
+    button_func_set(bt, [profile, cb, curve_runtime](bContext &C) {
+      float *last_y_ptr = BKE_curveprofile_active_location_get(curve_runtime->last_pt) + 1;
+      const float dy = *last_y_ptr - curve_runtime->last_pos.y;
       *last_y_ptr -= dy;
       BKE_curveprofile_translate_selection(profile, 0.0f, dy);
       BKE_curveprofile_update(profile, PROF_UPDATE_REMOVE_DOUBLES | PROF_UPDATE_CLIP);
       rna_update_cb(C, cb);
 
       // update the active point if the pointer changed
-      BKE_curveprofile_get_active_ptr(profile, &crp->last_pt);
-      BKE_curveprofile_get_active_location_ptr(crp->last_pt, &last_x_ptr, &last_y_ptr);
-      crp->last_y = *last_y_ptr;
+      curve_runtime->last_pt = BKE_curveprofile_active_get(profile);
+      last_y_ptr = BKE_curveprofile_active_location_get(curve_runtime->last_pt) + 1;
+      curve_runtime->last_pos.y = *last_y_ptr;
     });
     if (point_last_or_first) {
       button_flag_enable(bt, BUT_DISABLED);

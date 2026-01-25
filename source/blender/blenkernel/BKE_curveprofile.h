@@ -115,7 +115,8 @@ void BKE_curveprofile_reset_view(struct CurveProfile *profile);
 void BKE_curveprofile_reset(struct CurveProfile *profile);
 
 /**
- * Reset the active point to the nearest one.
+ * Reset the active point to the nearest one. This function will search the nearest selected index
+ * from the last index and activate the corresponding point.
  */
 void BKE_curveprofile_activate_nearest_point(struct CurveProfile *profile, const int i_last);
 
@@ -155,11 +156,8 @@ void BKE_curveprofile_evaluate_length_portion(const struct CurveProfile *profile
                                               float length_portion,
                                               float *x_out,
                                               float *y_out);
-void BKE_curveprofile_get_active_ptr(struct CurveProfile *profile,
-                                     struct CurveProfilePoint **ptr_out);
-void BKE_curveprofile_get_active_location_ptr(struct CurveProfilePoint *point,
-                                              float **x_ptr_out,
-                                              float **y_ptr_out);
+CurveProfilePoint *BKE_curveprofile_active_get(CurveProfile *profile);
+float *BKE_curveprofile_active_location_get(struct CurveProfilePoint *point);
 
 void BKE_curveprofile_blend_write(struct BlendWriter *writer, const struct CurveProfile *profile);
 /**

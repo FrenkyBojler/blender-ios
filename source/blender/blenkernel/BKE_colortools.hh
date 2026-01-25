@@ -7,6 +7,7 @@
  * \ingroup bke
  */
 #include <cstdint>
+#include "BLI_math_vector_types.hh"
 
 struct BlendDataReader;
 struct BlendWriter;
@@ -52,7 +53,8 @@ enum class CurveMapSlopeType : int8_t {
 void BKE_curvemapping_reset_view(CurveMapping *cumap);
 void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapSlopeType slope);
 /**
- * Reset the active point to the nearest one.
+ * Reset the active point to the nearest one. This function will search the nearest selected index
+ * from the last index and activate the corresponding point.
  */
 void BKE_curvemap_activate_nearest_point(struct CurveMap *cuma, const int i_last);
 /**
@@ -67,13 +69,13 @@ CurveMapPoint *BKE_curvemap_insert(CurveMap *cuma, float x, float y);
 /**
  * Shift all selected points.
  */
-void BKE_translate_selection(CurveMap *cuma, const float delta_x, const float delta_y);
+void BKE_curvemap_translate_selection(CurveMap *cuma, const blender::float2 &offset);
 /**
  * \param type: #eBezTriple_Handle
  */
 void BKE_curvemap_handle_set(CurveMap *cuma, int type);
 
-void BKE_curvemap_get_active_ptr(CurveMap *cuma, CurveMapPoint **ptr_out);
+CurveMapPoint *BKE_curvemap_active_get(CurveMap *cuma);
 
 /**
  * \note only does current curvemap!.

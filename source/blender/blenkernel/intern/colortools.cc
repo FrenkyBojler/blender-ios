@@ -19,6 +19,7 @@
 
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 #include "BLI_task.h"
@@ -992,27 +993,28 @@ void BKE_curvemapping_premultiply(CurveMapping *cumap, bool restore)
 }
 
 /* ************************ more CurveMapping calls *************** */
-void BKE_curvemap_get_active_ptr(CurveMap *cuma, CurveMapPoint **ptr_out)
+CurveMapPoint *BKE_curvemap_active_get(CurveMap *cuma)
 {
-  *ptr_out = nullptr;
+  CurveMapPoint *active_pt = nullptr;
   for (int i = 0; i < cuma->totpoint; i++) {
     CurveMapPoint *pt = &cuma->curve[i];
     if (pt->flag & CUMA_SELECT) {
-      *ptr_out = pt;
+      active_pt = pt;
       if (pt->flag & CUMA_ACTIVE) {
-        return;
+        break;
       }
     }
   }
+  return active_pt;
 }
 
-void BKE_translate_selection(CurveMap *cuma, const float delta_x, const float delta_y)
+void BKE_curvemap_translate_selection(CurveMap *cuma, const blender::float2 &offset)
 {
   for (int i = 0; i < cuma->totpoint; i++) {
     CurveMapPoint *pt = &cuma->curve[i];
     if (pt->flag & CUMA_SELECT) {
-      pt->x += delta_x;
-      pt->y += delta_y;
+      pt->x += offset.x;
+      pt->y += offset.y;
     }
   }
 }

@@ -12,6 +12,7 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_math_base.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 #include "BLI_string_ref.hh"
 
@@ -30,10 +31,11 @@
 namespace blender::ui {
 
 using blender::Vector;
+using blender::float2;
+
 struct CurveRuntimeProperties {
   CurveMapPoint *last_pt = nullptr;
-  float last_x = 0.0f;
-  float last_y = 0.0f;
+  float2 last_pos;
 };
 
 static bool curvemap_can_zoom_out(CurveMapping *cumap)
@@ -354,7 +356,7 @@ static void curvemap_buttons_layout(Layout *layout,
                                     bool presets,
                                     const RNAUpdateCb &cb)
 {
-  CurveMapping *cumap = ptr->data_as<CurveMapping>();
+  CurveMapping *cumap = static_cast<CurveMapping *>(ptr->data);
   CurveMap *cm = &cumap->cm[cumap->cur];
   Button *bt;
   const float dx = UI_UNIT_X;
@@ -701,10 +703,10 @@ static void curvemap_buttons_layout(Layout *layout,
     }
 
     /* Curve handle position */
-    auto crp = std::make_shared<CurveRuntimeProperties>();
-    BKE_curvemap_get_active_ptr(active_cm, &crp->last_pt);
-    crp->last_x = crp->last_pt->x;
-    crp->last_y = crp->last_pt->y;
+    auto curve_runtime = std::make_shared<CurveRuntimeProperties>();
+    curve_runtime->last_pt = BKE_curvemap_active_get(active_cm);
+    curve_runtime->last_pos.x = curve_runtime->last_pt->x;
+    curve_runtime->last_pos.y = curve_runtime->last_pt->y;
 
     rctf selection_bounds;
     BLI_rctf_init_minmax(&selection_bounds);
@@ -721,23 +723,24 @@ static void curvemap_buttons_layout(Layout *layout,
                    2 * UI_UNIT_Y,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
-                   &crp->last_pt->x,
-                   bounds.xmin + crp->last_pt->x - selection_bounds.xmin,
-                   bounds.xmax + crp->last_pt->x - selection_bounds.xmax,
+                   &curve_runtime->last_pt->x,
+                   bounds.xmin + curve_runtime->last_pt->x - selection_bounds.xmin,
+                   bounds.xmax + curve_runtime->last_pt->x - selection_bounds.xmax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
-    button_func_set(bt, [cumap, cb, crp](bContext &C) {
+    button_func_set(bt, [cumap, cb, curve_runtime](bContext &C) {
       CurveMap *cuma = cumap->cm + cumap->cur;
-      const float dx = crp->last_pt->x - crp->last_x;
-      BKE_translate_selection(cuma, dx, 0.0f);
-      crp->last_pt->x -= dx;
+      const float dx = curve_runtime->last_pt->x - curve_runtime->last_pos.x;
+      const float2 delta = float2(dx, 0.0f);
+      BKE_curvemap_translate_selection(cuma, delta);
+      curve_runtime->last_pt->x -= dx;
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
 
       // update the active point if the pointer changed
-      BKE_curvemap_get_active_ptr(cuma, &crp->last_pt);
-      crp->last_x = crp->last_pt->x;
+      curve_runtime->last_pt = BKE_curvemap_active_get(cuma);
+      curve_runtime->last_pos.x = curve_runtime->last_pt->x;
     });
 
     bt = uiDefButF(block,
@@ -747,23 +750,24 @@ static void curvemap_buttons_layout(Layout *layout,
                    1 * UI_UNIT_Y,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
-                   &crp->last_pt->y,
-                   bounds.ymin + crp->last_pt->y - selection_bounds.ymin,
-                   bounds.ymax + crp->last_pt->y - selection_bounds.ymax,
+                   &curve_runtime->last_pt->y,
+                   bounds.ymin + curve_runtime->last_pt->y - selection_bounds.ymin,
+                   bounds.ymax + curve_runtime->last_pt->y - selection_bounds.ymax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
-    button_func_set(bt, [cumap, cb, crp](bContext &C) {
+    button_func_set(bt, [cumap, cb, curve_runtime](bContext &C) {
       CurveMap *cuma = cumap->cm + cumap->cur;
-      const float dy = crp->last_pt->y - crp->last_y;
-      BKE_translate_selection(cuma, 0.0f, dy);
-      crp->last_pt->y -= dy;
+      const float dy = curve_runtime->last_pt->y - curve_runtime->last_pos.y;
+      const float2 delta = float2(0.0f, dy);
+      BKE_curvemap_translate_selection(cuma, delta);
+      curve_runtime->last_pt->y -= dy;
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
 
       // update the active point if the pointer changed
-      BKE_curvemap_get_active_ptr(cuma, &crp->last_pt);
-      crp->last_y = crp->last_pt->y;
+      curve_runtime->last_pt = BKE_curvemap_active_get(cuma);
+      curve_runtime->last_pos.y = curve_runtime->last_pt->y;
     });
 
     /* Curve handle delete point */
