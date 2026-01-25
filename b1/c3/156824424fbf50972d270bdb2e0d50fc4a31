@@ -1,0 +1,1 @@
+Referenced by issue #153324, Blender crashes calling an operator with a context override in a presence of a thread
