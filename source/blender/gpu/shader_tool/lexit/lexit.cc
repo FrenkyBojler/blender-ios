@@ -542,7 +542,7 @@ static void lex_string(const TokenType *types, uint32_t &cursor)
   }
 }
 
-static void lex_number(const char *c_str,
+static void lex_number(const std::string_view str,
                        const TokenType *types,
                        const uint32_t *offsets,
                        uint32_t &cursor)
@@ -554,7 +554,7 @@ static void lex_number(const char *c_str,
     type++;
     offset++;
     /* Check if previous char was an exponent "e" char. */
-    if ((*type == '+' || *type == '-') && c_str[*offset - 1] != 'e') {
+    if ((*type == '+' || *type == '-') && str[*offset - 1] != 'e') {
       break;
     }
     if (!(*type == Word || *type == Number || *type == '.' || *type == '+' || *type == '-')) {
@@ -575,9 +575,6 @@ void TokenBuffer::merge_complex_literals()
   for (uint32_t i = 0; i < size_; i++, out_type++, out_offset++) {
     const TokenType type = in_types[i];
     const uint32_t offset = in_offsets[i];
-#ifndef NDEBUG
-    std::string_view tok_str = str_.substr(offset, in_offsets[i + 1] - offset);
-#endif
     *out_type = type;
     *out_offset = offset;
 
@@ -586,7 +583,7 @@ void TokenBuffer::merge_complex_literals()
         lex_string(in_types, i);
         break;
       case Number:
-        lex_number(str_.data(), in_types, in_offsets, i);
+        lex_number(str_, in_types, in_offsets, i);
         break;
       default:
         break;
@@ -625,9 +622,6 @@ void TokenBuffer::merge_whitespaces()
   for (uint32_t i = 1; i < size_; i++, out_type++, out_offset++, out_original_offset++) {
     const TokenType type = in_types[i];
     const uint32_t offset = in_offsets[i];
-#ifndef NDEBUG
-    std::string_view tok_str = str_.substr(offset, in_offsets[i + 1] - offset);
-#endif
     *out_type = type;
     *out_offset = offset;
     *out_original_offset = in_offsets[i + 1];
