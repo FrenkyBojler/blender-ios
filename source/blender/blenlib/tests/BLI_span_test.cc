@@ -452,4 +452,19 @@ TEST(span, Comparison)
   EXPECT_FALSE(Span(a) != Span(a));
 }
 
+TEST(span, Overlaps)
+{
+  std::array<int, 3> a = {3, 4, 5};
+  std::array<int, 4> b = {3, 4, 5, 6};
+
+  EXPECT_FALSE(Span(a).overlaps(Span(b)));
+  EXPECT_FALSE(Span(b).overlaps(Span(a)));
+  EXPECT_TRUE(Span(a).overlaps(Span(a)));
+  EXPECT_FALSE(Span(b).overlaps(Span(a).take_front(0)));
+  EXPECT_FALSE(Span(a).overlaps(Span(b).take_front(0)));
+  EXPECT_TRUE(Span(a).overlaps(Span(a).take_front(1)));
+  EXPECT_TRUE(Span(a).overlaps(Span(a).take_front(2)));
+  EXPECT_TRUE(Span(a).overlaps(Span(a).take_front(3)));
+}
+
 }  // namespace blender::tests
