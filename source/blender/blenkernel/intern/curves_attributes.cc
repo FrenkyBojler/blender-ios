@@ -160,12 +160,12 @@ static bool foreach_vertex_group(const void *owner, FunctionRef<void(const Attri
   }
   const AttributeAccessor accessor = curves->attributes();
   const Span<MDeformVert> dverts = curves->deform_verts();
-  int group_index = 0;
-  LISTBASE_FOREACH_INDEX (const bDeformGroup *, group, &curves->vertex_group_names, group_index) {
-    const auto get_fn = [&]() {
+
+  for (const auto [group_index, group] : curves->vertex_group_names.enumerate()) {
+    const auto get_fn = [&, group_index = group_index]() {
       return reader_for_vertex_group_index(*curves, dverts, group_index);
     };
-    AttributeIter iter{group->name, AttrDomain::Point, bke::AttrType::Float, get_fn};
+    AttributeIter iter{group.name, AttrDomain::Point, bke::AttrType::Float, get_fn};
     iter.is_builtin = false;
     iter.accessor = &accessor;
     fn(iter);
@@ -311,6 +311,18 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     const AttrBuiltinInfo &info = builtin_attributes().lookup(name);
     return info.default_value;
   };
+  fn.lookup_meta_data = [](const void *owner, StringRef name) -> std::optional<AttributeMetaData> {
+    const CurvesGeometry &curves = *static_cast<const CurvesGeometry *>(owner);
+    if (BKE_defgroup_name_index(&curves.vertex_group_names, name) != -1) {
+      return AttributeMetaData{AttrDomain::Point, AttrType::Float};
+    }
+    const AttributeStorage &storage = curves.attribute_storage.wrap();
+    const Attribute *attr = storage.lookup(name);
+    if (!attr) {
+      return std::nullopt;
+    }
+    return AttributeMetaData{attr->domain(), attr->data_type()};
+  };
   fn.lookup = [](const void *owner, const StringRef name) -> GAttributeReader {
     const CurvesGeometry &curves = *static_cast<const CurvesGeometry *>(owner);
 
@@ -345,7 +357,7 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     }
 
     const AttributeStorage &storage = curves.attribute_storage.wrap();
-    storage.foreach_with_stop([&](const Attribute &attr) {
+    for (const Attribute &attr : storage) {
       const auto get_fn = [&]() {
         const int domain_size = get_domain_size(owner, attr.domain());
         return attribute_to_reader(attr, attr.domain(), domain_size);
@@ -354,8 +366,10 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
       iter.is_builtin = builtin_attributes().contains(attr.name());
       iter.accessor = &accessor;
       fn(iter);
-      return !iter.is_stopped();
-    });
+      if (iter.is_stopped()) {
+        break;
+      }
+    }
   };
   fn.lookup_validator = [](const void * /*owner*/, const StringRef name) -> AttributeValidator {
     const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);

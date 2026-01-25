@@ -9,6 +9,8 @@
 #include <cstdint>
 #include "BLI_math_vector_types.hh"
 
+namespace blender {
+
 struct BlendDataReader;
 struct BlendWriter;
 struct ColorManagedColorspaceSettings;
@@ -233,3 +235,5 @@ void BKE_color_managed_colorspace_settings_copy(
     const ColorManagedColorspaceSettings *settings);
 bool BKE_color_managed_colorspace_settings_equals(const ColorManagedColorspaceSettings *settings1,
                                                   const ColorManagedColorspaceSettings *settings2);
+
+}  // namespace blender

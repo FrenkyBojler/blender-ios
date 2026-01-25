@@ -24,6 +24,8 @@
 #include "DNA_view2d_types.h"
 #include "DNA_viewer_path_types.h"
 
+namespace blender {
+
 struct BLI_mempool;
 struct FileLayout;
 struct FileList;
@@ -43,63 +45,40 @@ struct bGPdata;
 struct bNodeTree;
 struct wmOperator;
 struct wmTimer;
+struct SpaceUserPref_Runtime;
 
-#ifdef __cplusplus
-namespace blender::asset_system {
+namespace asset_system {
 class AssetRepresentation;
 }
-using AssetRepresentationHandle = blender::asset_system::AssetRepresentation;
-#else
-struct AssetRepresentationHandle;
-#endif
 
 /** Defined in `buttons_intern.hh`. */
 struct SpaceProperties_Runtime;
 
-#ifdef __cplusplus
-namespace blender::ed::space_node {
+namespace ed::space_node {
 struct SpaceNode_Runtime;
-}  // namespace blender::ed::space_node
-using SpaceNode_Runtime = blender::ed::space_node::SpaceNode_Runtime;
+}  // namespace ed::space_node
 
-namespace blender::ed::outliner {
-
+namespace ed::outliner {
 struct SpaceOutliner_Runtime;
-}  // namespace blender::ed::outliner
-using SpaceOutliner_Runtime = blender::ed::outliner::SpaceOutliner_Runtime;
+}  // namespace ed::outliner
 
-namespace blender::ed::vse {
+namespace ed::vse {
 struct SpaceSeq_Runtime;
-}  // namespace blender::ed::vse
-using SpaceSeq_Runtime = blender::ed::vse::SpaceSeq_Runtime;
+}  // namespace ed::vse
 
-namespace blender::ed::text {
+namespace ed::text {
 
 struct SpaceText_Runtime;
-}  // namespace blender::ed::text
-using SpaceText_Runtime = blender::ed::text::SpaceText_Runtime;
+}  // namespace ed::text
 
-namespace blender::ed::spreadsheet {
+namespace ed::spreadsheet {
 struct SpaceSpreadsheet_Runtime;
 struct SpreadsheetColumnRuntime;
-}  // namespace blender::ed::spreadsheet
-using SpaceSpreadsheet_Runtime = blender::ed::spreadsheet::SpaceSpreadsheet_Runtime;
+}  // namespace ed::spreadsheet
 
-using SpreadsheetColumnRuntime = blender::ed::spreadsheet::SpreadsheetColumnRuntime;
-
-namespace blender::ed::outliner {
+namespace ed::outliner {
 struct TreeElement;
 }
-
-#else
-
-struct SpaceNode_Runtime;
-struct SpaceOutliner_Runtime;
-struct SpaceSeq_Runtime;
-struct SpaceText_Runtime;
-struct SpaceSpreadsheet_Runtime;
-struct SpreadsheetColumnRuntime;
-#endif
 
 /** Defined in `file_intern.hh`. */
 struct SpaceFile_Runtime;
@@ -207,7 +186,7 @@ struct SpaceOutliner {
   /** Deprecated, copied to region. */
   DNA_DEPRECATED View2D v2d;
 
-  ListBaseT<blender::ed::outliner::TreeElement> tree = {nullptr, nullptr};
+  ListBaseT<ed::outliner::TreeElement> tree = {nullptr, nullptr};
 
   /**
    * Treestore is an ordered list of TreeStoreElem's from outliner tree;
@@ -235,7 +214,7 @@ struct SpaceOutliner {
   char show_restrict_flags = 0;
   short filter_id_type = 0;
 
-  SpaceOutliner_Runtime *runtime = nullptr;
+  ed::outliner::SpaceOutliner_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -385,7 +364,7 @@ struct SpaceSeq {
   char multiview_eye = 0;
   char _pad2[7] = {};
 
-  SpaceSeq_Runtime *runtime = nullptr;
+  ed::vse::SpaceSeq_Runtime *runtime = nullptr;
 };
 
 struct MaskSpaceInfo {
@@ -604,7 +583,7 @@ struct FileDirEntry {
   /** If this file represents an asset, its asset data is here. Note that we may show assets of
    * external files in which case this is set but not the id above.
    * Note comment for FileListInternEntry.local_data, the same applies here! */
-  AssetRepresentationHandle *asset = nullptr;
+  asset_system::AssetRepresentation *asset = nullptr;
 
   /* The icon_id for the preview image. */
   int preview_icon_id = 0;
@@ -763,7 +742,7 @@ struct SpaceText {
   char _pad3[2] = {};
 
   /** Keep last. */
-  SpaceText_Runtime *runtime = nullptr;
+  ed::text::SpaceText_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -913,7 +892,7 @@ struct SpaceNode {
 
   SpaceNodeOverlay overlay;
 
-  SpaceNode_Runtime *runtime = nullptr;
+  ed::space_node::SpaceNode_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -975,6 +954,7 @@ struct SpaceConsole {
  * \{ */
 
 struct SpaceUserPref {
+  DNA_DEFINE_CXX_METHODS(SpaceUserPref)
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
   ListBaseT<ARegion> regionbase = {nullptr, nullptr};
@@ -987,6 +967,7 @@ struct SpaceUserPref {
   char filter_type = 0;
   /** Search term for filtering in the UI. */
   char filter[64] = "";
+  SpaceUserPref_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -1147,7 +1128,7 @@ struct SpreadsheetColumn {
    */
   char *display_name = nullptr;
 
-  SpreadsheetColumnRuntime *runtime = nullptr;
+  ed::spreadsheet::SpreadsheetColumnRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
   bool is_available() const
@@ -1180,6 +1161,20 @@ struct SpreadsheetBundlePathElem {
 #endif
 };
 
+typedef struct SpreadsheetBundleTreeViewPath {
+  SpreadsheetBundlePathElem *bundle_path = nullptr;
+  int bundle_path_num = 0;
+
+  /** #SpreadsheetClosureInputOutput. */
+  int8_t closure_input_output = SPREADSHEET_CLOSURE_NONE;
+  char _pad[3] = {};
+} SpreadsheetBundleTreeViewPath;
+
+typedef enum SpreadsheetGeometryItemType {
+  SPREADSHEET_GEOMETRY_ITEM_TYPE_DOMAIN = 0,
+  SPREADSHEET_GEOMETRY_ITEM_TYPE_BUNDLE = 1,
+} SpreadsheetGeometryItemType;
+
 struct SpreadsheetTableIDGeometry {
   SpreadsheetTableID base;
   char _pad0[4] = {};
@@ -1191,14 +1186,8 @@ struct SpreadsheetTableIDGeometry {
   ViewerPath viewer_path;
 
   int viewer_item_identifier = 0;
-
-  int bundle_path_num = 0;
-  SpreadsheetBundlePathElem *bundle_path = nullptr;
-
-  /** #SpreadsheetClosureInputOutput. */
-  int8_t closure_input_output = 0;
-
-  char _pad3[7] = {};
+  char _pad3[4] = {};
+  SpreadsheetBundleTreeViewPath viewer_item_bundle_path;
 
   /**
    * The "path" to the currently active instance reference. This is needed when viewing nested
@@ -1212,7 +1201,10 @@ struct SpreadsheetTableIDGeometry {
   uint8_t attribute_domain = 0;
   /** #eSpaceSpreadsheet_ObjectEvalState. */
   uint8_t object_eval_state = 0;
-  char _pad1[5] = {};
+  /** #SpreadsheetGeometryItemType. */
+  uint8_t geometry_item_type = 0;
+  SpreadsheetBundleTreeViewPath geometry_bundle_path = {};
+  char _pad1[4] = {};
   /** Grease Pencil layer index for grease pencil component. */
   int layer_index = 0;
 };
@@ -1271,7 +1263,7 @@ struct SpaceSpreadsheet {
   int active_viewer_path_index = 0;
   char _pad2[4] = {};
 
-  SpaceSpreadsheet_Runtime *runtime = nullptr;
+  ed::spreadsheet::SpaceSpreadsheet_Runtime *runtime = nullptr;
 };
 
 struct SpreadsheetRowFilter {
@@ -1299,3 +1291,5 @@ struct SpreadsheetRowFilter {
 };
 
 /** \} */
+
+}  // namespace blender

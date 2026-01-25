@@ -51,56 +51,6 @@ using namespace std;
 
 static CLG_LogRef LOG = {"ghost.context"};
 
-static const char *vulkan_error_as_string(VkResult result)
-{
-#define FORMAT_ERROR(X) \
-  case X: { \
-    return "" #X; \
-  }
-
-  switch (result) {
-    FORMAT_ERROR(VK_NOT_READY);
-    FORMAT_ERROR(VK_TIMEOUT);
-    FORMAT_ERROR(VK_EVENT_SET);
-    FORMAT_ERROR(VK_EVENT_RESET);
-    FORMAT_ERROR(VK_INCOMPLETE);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_HOST_MEMORY);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_DEVICE_MEMORY);
-    FORMAT_ERROR(VK_ERROR_INITIALIZATION_FAILED);
-    FORMAT_ERROR(VK_ERROR_DEVICE_LOST);
-    FORMAT_ERROR(VK_ERROR_MEMORY_MAP_FAILED);
-    FORMAT_ERROR(VK_ERROR_LAYER_NOT_PRESENT);
-    FORMAT_ERROR(VK_ERROR_EXTENSION_NOT_PRESENT);
-    FORMAT_ERROR(VK_ERROR_FEATURE_NOT_PRESENT);
-    FORMAT_ERROR(VK_ERROR_INCOMPATIBLE_DRIVER);
-    FORMAT_ERROR(VK_ERROR_TOO_MANY_OBJECTS);
-    FORMAT_ERROR(VK_ERROR_FORMAT_NOT_SUPPORTED);
-    FORMAT_ERROR(VK_ERROR_FRAGMENTED_POOL);
-    FORMAT_ERROR(VK_ERROR_UNKNOWN);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_POOL_MEMORY);
-    FORMAT_ERROR(VK_ERROR_INVALID_EXTERNAL_HANDLE);
-    FORMAT_ERROR(VK_ERROR_FRAGMENTATION);
-    FORMAT_ERROR(VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS);
-    FORMAT_ERROR(VK_ERROR_SURFACE_LOST_KHR);
-    FORMAT_ERROR(VK_ERROR_NATIVE_WINDOW_IN_USE_KHR);
-    FORMAT_ERROR(VK_SUBOPTIMAL_KHR);
-    FORMAT_ERROR(VK_ERROR_OUT_OF_DATE_KHR);
-    FORMAT_ERROR(VK_ERROR_INCOMPATIBLE_DISPLAY_KHR);
-    FORMAT_ERROR(VK_ERROR_VALIDATION_FAILED_EXT);
-    FORMAT_ERROR(VK_ERROR_INVALID_SHADER_NV);
-    FORMAT_ERROR(VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT);
-    FORMAT_ERROR(VK_ERROR_NOT_PERMITTED_EXT);
-    FORMAT_ERROR(VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT);
-    FORMAT_ERROR(VK_THREAD_IDLE_KHR);
-    FORMAT_ERROR(VK_THREAD_DONE_KHR);
-    FORMAT_ERROR(VK_OPERATION_DEFERRED_KHR);
-    FORMAT_ERROR(VK_OPERATION_NOT_DEFERRED_KHR);
-    FORMAT_ERROR(VK_PIPELINE_COMPILE_REQUIRED_EXT);
-    default:
-      return "Unknown Error";
-  }
-}
-
 #define __STR(A) "" #A
 #define VK_CHECK(__expression, fail_value) \
   do { \
@@ -109,7 +59,7 @@ static const char *vulkan_error_as_string(VkResult result)
       CLOG_ERROR(&LOG, \
                  "Vulkan: %s resulted in code %s.", \
                  __STR(__expression), \
-                 vulkan_error_as_string(r)); \
+                 blender::gpu::to_string(r)); \
       return fail_value; \
     } \
   } while (0)
@@ -838,14 +788,13 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
    * to be complete, it is also safe in the callback to clean up resources associated with the next
    * frame.
    */
-  GHOST_Frame &prev_frame_data = frame_data_[render_frame_];
   render_frame_ = (render_frame_ + 1) % frame_data_.size();
   GHOST_Frame &submission_frame_data = frame_data_[render_frame_];
   /* Wait for previous time that the frame was used to finish rendering. Presenting can
    * still happen in parallel, but acquiring needs can only happen when the frame acquire semaphore
    * has been signaled and waited for. */
-  if (prev_frame_data.submission_fence) {
-    vkWaitForFences(vk_device, 1, &prev_frame_data.submission_fence, true, UINT64_MAX);
+  if (submission_frame_data.submission_fence) {
+    vkWaitForFences(vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
   }
   for (VkSwapchainKHR swapchain : submission_frame_data.discard_pile.swapchains) {
     this->destroySwapchainPresentFences(swapchain);
@@ -1042,7 +991,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   if (present_result != VK_SUCCESS) {
     CLOG_ERROR(&LOG,
                "Vulkan: failed to present swap-chain image : %s",
-               vulkan_error_as_string(present_result));
+               blender::gpu::to_string(present_result));
     return GHOST_kFailure;
   }
 
@@ -1341,11 +1290,14 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
     return GHOST_kFailure;
   }
 
-  /* We let the WSI implementation define the amount of buffers, we can assume only one frame is
-   * free at any one time, but we need 2 free frames to reduce jitter */
-  uint32_t image_count_requested = capabilities.minImageCount + 1;
+  /* Use double buffering when using FIFO. Increasing the number of images could stall when doing
+   * actions that require low latency (paint cursor, UI resizing). MAILBOX prefers triple
+   * buffering. */
+  uint32_t image_count_requested = present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? 3 : 2;
   /* NOTE: maxImageCount == 0 means no limit. */
-
+  if (capabilities.minImageCount != 0 && image_count_requested < capabilities.minImageCount) {
+    image_count_requested = capabilities.minImageCount;
+  }
   if (capabilities.maxImageCount != 0 && image_count_requested > capabilities.maxImageCount) {
     image_count_requested = capabilities.maxImageCount;
   }

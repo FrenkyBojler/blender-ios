@@ -19,6 +19,8 @@
 
 #include "BLO_read_write.hh"
 
+namespace blender {
+
 /* ******************************************************************** */
 /* Animation Visualization */
 
@@ -221,7 +223,7 @@ void animviz_motionpath_blend_write(BlendWriter *writer, bMotionPath *mpath)
   writer->write_struct(mpath);
 
   /* now write the array of data */
-  BLO_write_struct_array(writer, bMotionPathVert, mpath->length, mpath->points);
+  writer->write_struct_array(mpath->length, mpath->points);
 }
 
 void animviz_motionpath_blend_read_data(BlendDataReader *reader, bMotionPath *mpath)
@@ -238,3 +240,5 @@ void animviz_motionpath_blend_read_data(BlendDataReader *reader, bMotionPath *mp
   mpath->batch_line = nullptr;
   mpath->batch_points = nullptr;
 }
+
+}  // namespace blender

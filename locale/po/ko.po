@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-07-23 15:30+0000\n"
 "Last-Translator: Lee YeonJoo <yzoo2@naver.com>\n"
 "Language-Team: Korean <https://translate.blender.org/projects/blender-ui/ui/ko/>\n"
@@ -23636,6 +23636,98 @@ msgid "Material slot name"
 msgstr "매테리얼 슬롯 이름"
 
 
+msgid "Mesh Select Mode"
+msgstr "메쉬 선택 모드"
+
+
+msgid "Face Data"
+msgstr "페이스 데이터"
+
+
+msgid "Select by Face Strength"
+msgstr "페이스 강도로 선택"
+
+
+msgid "Set Face Strength"
+msgstr "페이스 강도를 설정"
+
+
+msgid "Math"
+msgstr "수학"
+
+
+msgid "Clean Up"
+msgstr "정리"
+
+
+msgid "Merge"
+msgstr "병합"
+
+
+msgid "Show/Hide"
+msgstr "표시/숨기기"
+
+
+msgid "Special Characters"
+msgstr "특수 문자"
+
+
+msgid "Kerning"
+msgstr "자간"
+
+
+msgid "Metaball"
+msgstr "메타볼"
+
+
+msgid "Names"
+msgstr "이름"
+
+
+msgid "Sample"
+msgstr "샘플"
+
+
+msgid "Bone Roll"
+msgstr "본 롤"
+
+
+msgid "Primitives"
+msgstr "프리미티브"
+
+
+msgid "Pivot Point"
+msgstr "피벗 포인트"
+
+
+msgid "Snap"
+msgstr "스냅"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "비례 편집 감소"
+
+
+msgid "Mask Edit"
+msgstr "마스크 편집"
+
+
+msgid "Import"
+msgstr "가져오기"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "미러"
+
+
+msgid "UV Mapping"
+msgstr "UV 맵핑"
+
+
 msgid "Local View"
 msgstr "로컬 뷰"
 
@@ -23684,20 +23776,12 @@ msgid "Assign Material"
 msgstr "매테리얼을 할당"
 
 
-msgid "Metaball"
-msgstr "메타볼"
-
-
 msgid "Light"
 msgstr "라이트"
 
 
 msgid "Light Probe"
 msgstr "라이트 프로브"
-
-
-msgid "Layout"
-msgstr "레이아웃"
 
 
 msgid "Add Image"
@@ -23712,6 +23796,10 @@ msgid "Rigid Body"
 msgstr "리지드 바디"
 
 
+msgid "Layout"
+msgstr "레이아웃"
+
+
 msgid "Apply"
 msgstr "적용"
 
@@ -23724,18 +23812,6 @@ msgid "Quick Effects"
 msgstr "빠른 이펙트"
 
 
-msgid "Show/Hide"
-msgstr "표시/숨기기"
-
-
-msgid "Clean Up"
-msgstr "정리"
-
-
-msgid "Keying"
-msgstr "키잉"
-
-
 msgid "Asset"
 msgstr "에셋"
 
@@ -23744,16 +23820,16 @@ msgid "Make Single User"
 msgstr "싱글 유저를 만들기"
 
 
-msgid "Tracking"
-msgstr "트래킹"
-
-
 msgid "Hooks"
 msgstr "후크"
 
 
-msgid "Math"
-msgstr "수학"
+msgid "Keying"
+msgstr "키잉"
+
+
+msgid "Tracking"
+msgstr "트래킹"
 
 
 msgid "Sculpt Set Pivot"
@@ -23772,10 +23848,6 @@ msgid "Propagate"
 msgstr "전파"
 
 
-msgid "Names"
-msgstr "이름"
-
-
 msgid "Toggle Bone Options"
 msgstr "본 옵션을 토글"
 
@@ -23786,78 +23858,6 @@ msgstr "본 옵션을 사용"
 
 msgid "Disable Bone Options"
 msgstr "본 옵션을 사용 중지"
-
-
-msgid "Mesh Select Mode"
-msgstr "메쉬 선택 모드"
-
-
-msgid "Face Data"
-msgstr "페이스 데이터"
-
-
-msgid "Select by Face Strength"
-msgstr "페이스 강도로 선택"
-
-
-msgid "Set Face Strength"
-msgstr "페이스 강도를 설정"
-
-
-msgid "Merge"
-msgstr "병합"
-
-
-msgid "Special Characters"
-msgstr "특수 문자"
-
-
-msgid "Sample"
-msgstr "샘플"
-
-
-msgid "Kerning"
-msgstr "자간"
-
-
-msgid "Primitives"
-msgstr "프리미티브"
-
-
-msgid "Bone Roll"
-msgstr "본 롤"
-
-
-msgid "Import"
-msgstr "가져오기"
-
-
-msgid "Pivot Point"
-msgstr "피벗 포인트"
-
-
-msgid "Snap"
-msgstr "스냅"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "비례 편집 감소"
-
-
-msgid "Mask Edit"
-msgstr "마스크 편집"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "미러"
-
-
-msgid "UV Mapping"
-msgstr "UV 맵핑"
 
 
 msgid "Basic"
@@ -30623,6 +30623,10 @@ msgid "Shrink the frame to minimal bounding box"
 msgstr "프레임을 최소 경계 박스로 축소합니다"
 
 
+msgid "Single"
+msgstr "싱글"
+
+
 msgid "Group Input"
 msgstr "그룹 입력"
 
@@ -31569,10 +31573,6 @@ msgstr "노드 기반 텍스처의 경우 사용할 노드를 출력합니다"
 
 msgid "Value to Normal"
 msgstr "값을 노멀로 변환"
-
-
-msgid "Single"
-msgstr "싱글"
 
 
 msgid "Node Inputs"
@@ -38620,6 +38620,11 @@ msgstr "스트로크의 지속에 대해 스무스 모드로 브러시를 전환
 msgctxt "Operator"
 msgid "Erase"
 msgstr "지우기"
+
+
+msgctxt "Operator"
+msgid "Mask"
+msgstr "마스크"
 
 
 msgid "Set as default rounded"
@@ -53252,42 +53257,6 @@ msgid "Panel containing UI elements"
 msgstr "UI 요소가 포함된 패널"
 
 
-msgid "Curve Edit Mode"
-msgstr "커브 에디트 모드"
-
-
-msgid "Transform Orientations"
-msgstr "변환 오리엔테이션"
-
-
-msgid "Stroke Placement"
-msgstr "스트로크 배치"
-
-
-msgid "Drawing Plane"
-msgstr "드로잉 평면"
-
-
-msgid "Guides"
-msgstr "가이드"
-
-
-msgid "Quad View"
-msgstr "쿼드 뷰"
-
-
-msgid "Onion Skin"
-msgstr "어니언 스킨"
-
-
-msgid "Stereoscopy"
-msgstr "입체 영상"
-
-
-msgid "Multi Frame"
-msgstr "다중 프레임"
-
-
 msgid "Active Tool"
 msgstr "활성 도구"
 
@@ -53316,6 +53285,10 @@ msgid "Overlays"
 msgstr "오버레이"
 
 
+msgid "Guides"
+msgstr "가이드"
+
+
 msgid "Motion Tracking"
 msgstr "모션 트래킹"
 
@@ -53326,6 +53299,38 @@ msgstr "메쉬 에디트 모드"
 
 msgid "Measurement"
 msgstr "측정"
+
+
+msgid "Curve Edit Mode"
+msgstr "커브 에디트 모드"
+
+
+msgid "Transform Orientations"
+msgstr "변환 오리엔테이션"
+
+
+msgid "Stroke Placement"
+msgstr "스트로크 배치"
+
+
+msgid "Drawing Plane"
+msgstr "드로잉 평면"
+
+
+msgid "Quad View"
+msgstr "쿼드 뷰"
+
+
+msgid "Onion Skin"
+msgstr "어니언 스킨"
+
+
+msgid "Stereoscopy"
+msgstr "입체 영상"
+
+
+msgid "Multi Frame"
+msgstr "다중 프레임"
 
 
 msgid "Bone Constraints"
@@ -53666,11 +53671,6 @@ msgstr "립 지역"
 msgctxt "Operator"
 msgid "Grab"
 msgstr "잡기"
-
-
-msgctxt "Operator"
-msgid "Mask"
-msgstr "마스크"
 
 
 msgid "Tiling"
@@ -56212,10 +56212,6 @@ msgstr "변형하는 동안 숫자를 입력 할 때, 전체 수학 표현식 �
 
 msgid "Orbit Around Selection"
 msgstr "선택 주위에 오비트"
-
-
-msgid "Use selection as the pivot point"
-msgstr "피벗 포인트로 선택을 사용"
 
 
 msgid "Zoom to Mouse Position"
@@ -74963,6 +74959,10 @@ msgid "Select an existing NLA Track or an empty action line first"
 msgstr "엠프티 액션 라인 첫 뻔째 또는 기존의 NLA 트랙을 선택"
 
 
+msgid "No data to paste"
+msgstr "붙여 넣을 데이터가 없습니다"
+
+
 msgid "Subtype"
 msgstr "하위 유형"
 
@@ -75017,10 +75017,6 @@ msgstr "이름을 바꿀 활성 항목이 없습니다"
 
 msgid "No selected data-blocks to copy"
 msgstr "복사할 선택된 데이터 블록이 없습니다"
-
-
-msgid "No data to paste"
-msgstr "붙여 넣을 데이터가 없습니다"
 
 
 msgid "Operation requires an active keying set"

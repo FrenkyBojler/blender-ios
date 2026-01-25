@@ -83,7 +83,7 @@ struct SelectionPaintOperationExecutor {
     self_ = &self;
     object_ = ctx_.object;
 
-    curves_id_ = static_cast<Curves *>(object_->data);
+    curves_id_ = id_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
     if (curves_->is_empty()) {
       return;
@@ -391,12 +391,12 @@ void SelectionPaintOperation::on_stroke_extended(const PaintStroke &stroke,
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_selection_paint_operation(
-    const BrushStrokeMode brush_mode, const Scene &scene)
+    const BrushStrokeMode brush_mode, const BrushSwitchMode brush_switch_mode, const Scene &scene)
 {
   Brush &brush = *BKE_paint_brush(&scene.toolsettings->curves_sculpt->paint);
-  const bool use_select = ELEM(brush_mode, BRUSH_STROKE_INVERT) ==
+  const bool use_select = ELEM(brush_mode, BrushStrokeMode::Invert) ==
                           ((brush.flag & BRUSH_DIR_IN) != 0);
-  const bool clear_selection = use_select && brush_mode != BRUSH_STROKE_SMOOTH;
+  const bool clear_selection = use_select && brush_switch_mode != BrushSwitchMode::Smooth;
 
   return std::make_unique<SelectionPaintOperation>(use_select, clear_selection);
 }

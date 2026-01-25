@@ -416,7 +416,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
     curve_runtime->last_pt = BKE_curveprofile_active_get(profile);
 
     PointerRNA point_ptr = RNA_pointer_create_discrete(
-        ptr->owner_id, &RNA_CurveProfilePoint, curve_runtime->last_pt);
+        ptr->owner_id, RNA_CurveProfilePoint, curve_runtime->last_pt);
     PropertyRNA *prop_handle_type = RNA_struct_find_property(&point_ptr, "handle_type_1");
     row->prop(&point_ptr,
               prop_handle_type,
@@ -556,7 +556,7 @@ void template_curve_profile(Layout *layout, PointerRNA *ptr, const StringRefNull
   }
 
   PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
-  if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_CurveProfile)) {
+  if (!cptr.data || !RNA_struct_is_a(cptr.type, RNA_CurveProfile)) {
     return;
   }
 

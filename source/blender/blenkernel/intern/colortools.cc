@@ -34,6 +34,8 @@
 
 #include "BLO_read_write.hh"
 
+namespace blender {
+
 /* ********************************* color curve ********************* */
 
 /* ***************** operations on full struct ************* */
@@ -130,7 +132,7 @@ void BKE_curvemapping_copy_data(CurveMapping *target, const CurveMapping *cumap)
 {
   int a;
 
-  *target = blender::dna::shallow_copy(*cumap);
+  *target = dna::shallow_copy(*cumap);
 
   for (a = 0; a < CM_TOT; a++) {
     if (cumap->cm[a].curve) {
@@ -457,6 +459,9 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       /* The LINE and CONSTANT_MEDIAN presets are defined by a single pair of points, relative to
        * the clip region. */
       std::swap(cuma->curve[0].y, cuma->curve[1].y);
+    }
+    else if (preset == CURVE_PRESET_MID8) {
+      /* All points in the MID8 preset have y = 0.5, so no action is needed. */
     }
     else {
       int i, last = cuma->totpoint - 1;
@@ -1213,17 +1218,16 @@ void BKE_curvemapping_evaluateRGBF(const CurveMapping *cumap,
  * change in the distance from the minimum to the maximum. Finally, each of the new minimum,
  * maximum, and median values are written to the color channel that they were originally extracted
  * from. */
-static blender::float3 evaluate_film_like(const CurveMapping *curve_mapping, blender::float3 input)
+static float3 evaluate_film_like(const CurveMapping *curve_mapping, float3 input)
 {
   /* Film-like curves are only evaluated on the combined curve, which is the fourth curve map. */
   const CurveMap *curve_map = curve_mapping->cm + 3;
 
   /* Find the maximum, minimum, and median of the color channels. */
-  const float minimum = blender::math::reduce_min(input);
-  const float maximum = blender::math::reduce_max(input);
-  const float median = blender::math::max(
-      blender::math::min(input.x, input.y),
-      blender::math::min(input.z, blender::math::max(input.x, input.y)));
+  const float minimum = math::reduce_min(input);
+  const float maximum = math::reduce_max(input);
+  const float median = math::max(math::min(input.x, input.y),
+                                 math::min(input.z, math::max(input.x, input.y)));
 
   const float new_min = BKE_curvemap_evaluateF(curve_mapping, curve_map, minimum);
   const float new_max = BKE_curvemap_evaluateF(curve_mapping, curve_map, maximum);
@@ -1233,12 +1237,12 @@ static blender::float3 evaluate_film_like(const CurveMapping *curve_mapping, ble
   const float new_median = new_min + (median - minimum) * scaling_ratio;
 
   /* Write each value to its original channel. */
-  const blender::float3 median_or_min = blender::float3(input.x == minimum ? new_min : new_median,
-                                                        input.y == minimum ? new_min : new_median,
-                                                        input.z == minimum ? new_min : new_median);
-  return blender::float3(input.x == maximum ? new_max : median_or_min.x,
-                         input.y == maximum ? new_max : median_or_min.y,
-                         input.z == maximum ? new_max : median_or_min.z);
+  const float3 median_or_min = float3(input.x == minimum ? new_min : new_median,
+                                      input.y == minimum ? new_min : new_median,
+                                      input.z == minimum ? new_min : new_median);
+  return float3(input.x == maximum ? new_max : median_or_min.x,
+                input.y == maximum ? new_max : median_or_min.y,
+                input.z == maximum ? new_max : median_or_min.z);
 }
 
 void BKE_curvemapping_evaluate_premulRGBF_ex(const CurveMapping *cumap,
@@ -1261,7 +1265,7 @@ void BKE_curvemapping_evaluate_premulRGBF_ex(const CurveMapping *cumap,
       break;
     }
     case CURVE_TONE_FILMLIKE: {
-      const blender::float3 output = evaluate_film_like(cumap, balanced_color);
+      const float3 output = evaluate_film_like(cumap, balanced_color);
       copy_v3_v3(vecout, output);
       break;
     }
@@ -1471,7 +1475,7 @@ void BKE_curvemapping_blend_write(BlendWriter *writer, const CurveMapping *cumap
 void BKE_curvemapping_curves_blend_write(BlendWriter *writer, const CurveMapping *cumap)
 {
   for (int a = 0; a < CM_TOT; a++) {
-    BLO_write_struct_array(writer, CurveMapPoint, cumap->cm[a].totpoint, cumap->cm[a].curve);
+    writer->write_struct_array(cumap->cm[a].totpoint, cumap->cm[a].curve);
   }
 }
 
@@ -1880,8 +1884,8 @@ void BKE_scopes_update(Scopes *scopes,
     cm_processor = IMB_colormanagement_display_processor_new(view_settings, display_settings);
   }
   else {
-    display_buffer = (const uchar *)IMB_display_buffer_acquire(
-        ibuf, view_settings, display_settings, &cache_handle);
+    display_buffer = const_cast<const uchar *>(
+        IMB_display_buffer_acquire(ibuf, view_settings, display_settings, &cache_handle));
   }
 
   /* Keep number of threads in sync with the merge parts below. */
@@ -2074,3 +2078,5 @@ bool BKE_color_managed_colorspace_settings_equals(const ColorManagedColorspaceSe
 {
   return STREQ(settings1->name, settings2->name);
 }
+
+}  // namespace blender

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'e3ae31b49e53')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-20 10:29+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -8497,6 +8497,58 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
+msgid "Mesh Select Mode"
+msgstr "Мод избора мреже"
+
+
+msgid "Math"
+msgstr "Математика"
+
+
+msgid "Merge"
+msgstr "Сједини"
+
+
+msgid "Show/Hide"
+msgstr "Прикажи/сакриј"
+
+
+msgid "Special Characters"
+msgstr "Специјални знаци"
+
+
+msgid "Metaball"
+msgstr "Мета лопта"
+
+
+msgid "Names"
+msgstr "Имена"
+
+
+msgid "Bone Roll"
+msgstr "Ролна костију"
+
+
+msgid "Snap"
+msgstr "Лепљење"
+
+
+msgid "Import"
+msgstr "Увоз"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "Огледало"
+
+
+msgid "UV Mapping"
+msgstr "UV Мапирање"
+
+
 msgid "Local View"
 msgstr "Локални поглед"
 
@@ -8511,10 +8563,6 @@ msgstr "Поравнај поглед"
 
 msgid "Select Linked"
 msgstr "Изабери повезано"
-
-
-msgid "Metaball"
-msgstr "Мета лопта"
 
 
 msgid "Light"
@@ -8541,8 +8589,8 @@ msgid "Quick Effects"
 msgstr "Брзи ефекти"
 
 
-msgid "Show/Hide"
-msgstr "Прикажи/сакриј"
+msgid "Hooks"
+msgstr "Удице"
 
 
 msgid "Keying"
@@ -8551,14 +8599,6 @@ msgstr "Збирка тастера"
 
 msgid "Tracking"
 msgstr "Праћење"
-
-
-msgid "Hooks"
-msgstr "Удице"
-
-
-msgid "Math"
-msgstr "Математика"
 
 
 msgid "Clear Transform"
@@ -8573,10 +8613,6 @@ msgid "Propagate"
 msgstr "Пренеси"
 
 
-msgid "Names"
-msgstr "Имена"
-
-
 msgid "Toggle Bone Options"
 msgstr "Мање/више информација"
 
@@ -8587,42 +8623,6 @@ msgstr "Омогући опције костију"
 
 msgid "Disable Bone Options"
 msgstr "Онемогући опције костију"
-
-
-msgid "Mesh Select Mode"
-msgstr "Мод избора мреже"
-
-
-msgid "Merge"
-msgstr "Сједини"
-
-
-msgid "Special Characters"
-msgstr "Специјални знаци"
-
-
-msgid "Bone Roll"
-msgstr "Ролна костију"
-
-
-msgid "Import"
-msgstr "Увоз"
-
-
-msgid "Snap"
-msgstr "Лепљење"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Огледало"
-
-
-msgid "UV Mapping"
-msgstr "UV Мапирање"
 
 
 msgid "Basic"
@@ -19135,12 +19135,12 @@ msgid "Restrict"
 msgstr "Ограничи"
 
 
-msgid "Transform Orientations"
-msgstr "Трансформација оријентација"
-
-
 msgid "Motion Tracking"
 msgstr "Праћење покрета"
+
+
+msgid "Transform Orientations"
+msgstr "Трансформација оријентација"
 
 
 msgid "Bone Constraints"
@@ -20080,10 +20080,6 @@ msgstr "Континуално померање"
 
 msgid "Emulate 3 Button Mouse"
 msgstr "Имитирај 3. дугме"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Користи векторе одсјаја као координате текстуре"
 
 
 msgid "Turntable"
