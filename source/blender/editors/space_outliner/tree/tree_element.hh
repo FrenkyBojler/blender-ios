@@ -54,10 +54,7 @@ class AbstractTreeElement {
   /**
    * Check if the type is expandable in current context.
    */
-  virtual bool expand_poll(const SpaceOutliner & /*soops*/) const
-  {
-    return true;
-  }
+  virtual bool expand_poll(const SpaceOutliner &soops) const;
 
   TreeElement &get_legacy_element()
   {

@@ -47,12 +47,14 @@ void TreeElementIDScene::expand_world() const
 
 void TreeElementIDScene::expand_collections() const
 {
-  add_element(&legacy_te_.subtree, &scene_.id, nullptr, &legacy_te_, TSE_SCENE_COLLECTION_BASE, 0);
+  this->add_element(
+      &legacy_te_.subtree, &scene_.id, nullptr, &legacy_te_, TSE_SCENE_COLLECTION_BASE, 0);
 }
 
 void TreeElementIDScene::expand_objects() const
 {
-  add_element(&legacy_te_.subtree, &scene_.id, nullptr, &legacy_te_, TSE_SCENE_OBJECTS_BASE, 0);
+  this->add_element(
+      &legacy_te_.subtree, &scene_.id, nullptr, &legacy_te_, TSE_SCENE_OBJECTS_BASE, 0);
 }
 
 }  // namespace blender::ed::outliner

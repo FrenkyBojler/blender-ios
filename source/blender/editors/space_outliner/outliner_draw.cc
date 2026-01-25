@@ -3120,6 +3120,13 @@ static void outliner_draw_iconrow(ui::Block *block,
   eOLDrawState active = OL_DRAWSEL_NONE;
 
   for (TreeElement &te : *lb) {
+
+    if (level > 0) {
+      if (!TSELEM_OPEN(te.store_elem, space_outliner)) {
+        continue;
+      }
+    }
+
     TreeStoreElem *tselem = TREESTORE(&te);
     te.flag &= ~(TE_ICONROW | TE_ICONROW_MERGED);
 
@@ -3320,7 +3327,8 @@ static void outliner_draw_tree_element(ui::Block *block,
                                        int startx,
                                        int *starty,
                                        const float restrict_column_width,
-                                       TreeElement **te_edit)
+                                       TreeElement **te_edit,
+                                       int level = 0)
 {
   TreeStoreElem *tselem = TREESTORE(te);
   float ufac = UI_UNIT_X / 20.0f;
@@ -3522,6 +3530,13 @@ static void outliner_draw_tree_element(ui::Block *block,
     *starty -= UI_UNIT_Y;
 
     for (TreeElement &ten : te->subtree) {
+
+      if (level > 0) {
+        if (!TSELEM_OPEN(ten.store_elem, space_outliner)) {
+          continue;
+        }
+      }
+
       /* Check if element needs to be drawn grayed out, but also gray out
        * children of a grayed out parent (pass on draw_grayed_out to children). */
       bool draw_children_grayed_out = draw_grayed_out || (ten.flag & TE_DRAGGING);
@@ -3535,7 +3550,8 @@ static void outliner_draw_tree_element(ui::Block *block,
                                  startx + UI_UNIT_X,
                                  starty,
                                  restrict_column_width,
-                                 te_edit);
+                                 te_edit,
+                                 level + 1);
     }
   }
   else {
@@ -3879,6 +3895,11 @@ static void outliner_draw_tree(ui::Block *block,
     int starty = int(region->v2d.tot.ymax) - UI_UNIT_Y - OL_Y_OFFSET;
     int startx = columns_offset;
     for (TreeElement &te : space_outliner->tree) {
+
+      if (!TSELEM_OPEN(te.store_elem, space_outliner)) {
+        continue;
+      }
+
       outliner_draw_tree_element(block,
                                  fstyle,
                                  tvc,
@@ -3889,7 +3910,8 @@ static void outliner_draw_tree(ui::Block *block,
                                  startx,
                                  &starty,
                                  right_column_width,
-                                 te_edit);
+                                 te_edit,
+                                 -2);
     }
 
     if (right_column_width > 0.0f) {

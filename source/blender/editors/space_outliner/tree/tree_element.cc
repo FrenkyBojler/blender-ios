@@ -222,6 +222,14 @@ std::optional<BIFIconID> AbstractTreeElement::get_icon() const
   return {};
 }
 
+bool AbstractTreeElement::expand_poll(const SpaceOutliner &soops) const
+{
+  if (!TSELEM_OPEN(legacy_te_.store_elem, &soops)) {
+    return false;
+  }
+  return true;
+}
+
 void AbstractTreeElement::print_path()
 {
   std::string path = legacy_te_.name;
