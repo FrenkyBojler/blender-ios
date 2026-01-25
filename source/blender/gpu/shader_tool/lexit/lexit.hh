@@ -91,10 +91,31 @@ struct TokenBuffer {
     return size_;
   }
 
+  struct TokenConst {
+    const std::string_view str;
+    const TokenType &type;
+  };
+
   struct Token {
     const std::string_view str;
     TokenType &type;
   };
+
+  Token operator[](int index)
+  {
+    int start = offsets_[index];
+    int end = (whitespaces_collapsed_ ? original_offsets_ : offsets_)[index + 1];
+    assert(start < end);
+    return {str_.substr(start, end - start), types_[index]};
+  }
+
+  TokenConst operator[](int index) const
+  {
+    int start = offsets_[index];
+    int end = (whitespaces_collapsed_ ? original_offsets_ : offsets_)[index + 1];
+    assert(start < end);
+    return {str_.substr(start, end - start), types_[index]};
+  }
 
   /**
    * @brief Token iterator.
