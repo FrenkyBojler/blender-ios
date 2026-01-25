@@ -1997,8 +1997,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
    * note that this means strips.size() can increase during the loops.  */
   for (int i = 0; i < strips.size(); i++) {
     Strip *strip = strips[i];
-    rctf strip_rect;
-    strip_rectf(scene, strip, &strip_rect);
+    rctf strip_rect = strip_bounds_get(scene, strip);
     if (BLI_rctf_isect(&strip_rect, &box_rect, nullptr)) {
       gap_removal_boundary[0] = math::min(gap_removal_boundary[0], strip->left_handle());
       gap_removal_boundary[1] = math::max(gap_removal_boundary[1], strip->right_handle(scene));
@@ -3255,16 +3254,11 @@ static wmOperatorStatus sequencer_swap_data_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (strip_act->runtime->scene_sound) {
-    BKE_sound_remove_scene_sound(scene, strip_act->runtime->scene_sound);
-  }
+  strip_act->runtime->remove_scene_sound(scene);
+  strip_other->runtime->remove_scene_sound(scene);
 
-  if (strip_other->runtime->scene_sound) {
-    BKE_sound_remove_scene_sound(scene, strip_other->runtime->scene_sound);
-  }
-
-  strip_act->runtime->scene_sound = nullptr;
-  strip_other->runtime->scene_sound = nullptr;
+  strip_act->runtime->clear_sound_time_stretch();
+  strip_other->runtime->clear_sound_time_stretch();
 
   if (strip_act->sound) {
     BKE_sound_add_scene_sound_defaults(scene, strip_act);

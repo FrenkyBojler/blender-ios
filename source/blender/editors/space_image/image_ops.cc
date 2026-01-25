@@ -3410,12 +3410,17 @@ static bool image_pack_test(Image *ima, const char **r_error_message)
   }
 
   if (!ID_IS_EDITABLE(&ima->id)) {
-    *r_error_message = "Image is not editable";
+    *r_error_message = N_("Image is not editable");
     return false;
   }
 
   if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
-    *r_error_message = "Movies or image sequences do not support packing";
+    *r_error_message = N_("Movies or image sequences do not support packing");
+    return false;
+  }
+
+  if (ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
+    *r_error_message = N_("Render Result and Viewer Nodes cannot be packed");
     return false;
   }
 
@@ -4229,8 +4234,11 @@ static wmOperatorStatus clear_render_border_exec(bContext *C, wmOperator * /*op*
 {
   Scene *scene = CTX_data_scene(C);
   scene->r.mode &= ~R_BORDER;
-  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
   BLI_rctf_init(&scene->r.border, 0.0f, 1.0f, 0.0f, 1.0f);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+
   return OPERATOR_FINISHED;
 }
 

@@ -2150,6 +2150,7 @@ static wmOperatorStatus object_constraint_copy_exec(bContext *C, wmOperator * /*
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     /* if we're not handling the object we're copying from, copy all constraints over */
     if (obact != ob) {
+      BKE_constraints_free(&ob->constraints);
       BKE_constraints_copy(&ob->constraints, &obact->constraints, true);
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
     }
@@ -2579,7 +2580,7 @@ void POSE_OT_constraint_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_constraint_type_items, 0, "Type", "");
+  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_constraint_type_items, 1, "Type", "");
 }
 
 void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
@@ -2600,7 +2601,7 @@ void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_constraint_type_items, 0, "Type", "");
+  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_constraint_type_items, 1, "Type", "");
 }
 
 /** \} */

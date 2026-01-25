@@ -5,6 +5,7 @@
 #include "usd_hook.hh"
 
 #include "usd.hh"
+#include "usd_api_hook.hh"
 #include "usd_asset_utils.hh"
 #include "usd_hash_types.hh"
 #include "usd_hierarchy_iterator.hh"
@@ -636,7 +637,7 @@ void call_import_hooks(USDStageReader *archive, ReportList *reports)
         .append(RNA_id_pointer_create(&ob->id));
     if (ob->data) {
       prim_map.lookup_or_add_default(reader->data_prim_path())
-          .append(RNA_id_pointer_create(static_cast<ID *>(ob->data)));
+          .append(RNA_id_pointer_create(ob->data));
     }
   }
 
