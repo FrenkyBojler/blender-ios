@@ -98,14 +98,12 @@ struct AtomicLexer : LexerBase {
   {
     str = input;
     process(input, lexit::char_class_table);
-    identify_keywords();
 
     token_types_str = std::string_view((const char *)types_.get(), size_);
     token_types = {types_.get(), size_};
     token_offsets = {offsets_.get(), size_ + 1};
 
-    atomize_words();
-    build_line_structure();
+    lex_pass();
   }
 
   BLI_INLINE_METHOD Atom hash(StringRef tok_str)
@@ -155,15 +153,6 @@ struct AtomicLexer : LexerBase {
     }
   }
 
-  BLI_NOINLINE void identify_keywords()
-  {
-    for (auto tok : *this) {
-      if (tok.type == Word) {
-        tok.type = type_lookup(tok.str);
-      }
-    }
-  }
-
   /** Map string hashes to atom value. */
   Map<StringRef, Atom> atomization_map_;
   /* Reserve [16512-65536] range for longer token. */
@@ -176,27 +165,20 @@ struct AtomicLexer : LexerBase {
     return atom_hash_counter_++;
   }
 
-  BLI_NOINLINE void atomize_words()
-  {
-    const int tok_count = token_types.size();
-
-    token_atoms.resize(tok_count);
-    /* From checking our statistics. This heuristic should be enough for 99% of our cases. */
-    atomization_map_.reserve(tok_count / 20);
-
-    for (TokenIt it = begin(); it < end(); ++it) {
-      const Token tok = *it;
-      if (tok.type == Word) {
-        token_atoms[it.index()] = hash(tok.str);
-      }
-    }
-  }
-
   /* Backing buffer for line_offsets. */
   Vector<int> line_offsets_buf_;
 
-  BLI_NOINLINE void build_line_structure()
+  /**
+   * All-in-one lexing pass.
+   * - Keywords identification.
+   * - Identifiers atomization.
+   * - Line structure building.
+   */
+  BLI_NOINLINE void lex_pass()
   {
+    token_atoms.resize(token_types.size());
+    /* From checking our statistics. This heuristic should be enough for 99% of our cases. */
+    atomization_map_.reserve(token_types.size() / 17);
     /* From checking our statistics. This heuristic should be enough for 100% of our cases. */
     line_offsets_buf_.reserve(token_types.size() / 7);
     directive_lines.reserve(line_offsets_buf_.size() / 2);
@@ -204,19 +186,32 @@ struct AtomicLexer : LexerBase {
     line_offsets_buf_.append(0);
     for (TokenIt it = begin(); it < end(); ++it) {
       const Token tok = *it;
-      if (tok.type == NewLine) {
-        line_offsets_buf_.append(it.index() + 1);
-      }
-      else if (tok.type == '#') {
-        int line_start = line_offsets_buf_.last();
-        /* Directive can only start with a hash token (+ optional space).
-         * If there is more token before the hash token it cannot be a preprocessor directive. */
-        if (it.index() - line_start <= 1) {
-          int line_index = line_offsets_buf_.size() - 1;
-          if (directive_lines.is_empty() || directive_lines.last() != line_index) {
-            directive_lines.append(line_index);
+      switch (tok.type) {
+        case Word: {
+          tok.type = type_lookup(tok.str);
+          if (tok.type == Word) {
+            token_atoms[it.index()] = hash(tok.str);
           }
+          break;
         }
+        case NewLine: {
+          line_offsets_buf_.append(it.index() + 1);
+          break;
+        }
+        case '#': {
+          int line_start = line_offsets_buf_.last();
+          /* Directive can only start with a hash token (+ optional space).
+           * If there is more token before the hash token it cannot be a preprocessor directive. */
+          if (it.index() - line_start <= 1) {
+            int line_index = line_offsets_buf_.size() - 1;
+            if (directive_lines.is_empty() || directive_lines.last() != line_index) {
+              directive_lines.append(line_index);
+            }
+          }
+          break;
+        }
+        default:
+          break;
       }
     }
     /* Finish last line. But only do so if it contains at least one character. */
