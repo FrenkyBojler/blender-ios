@@ -89,6 +89,7 @@
 #include "UI_view2d.hh"
 
 #include "RNA_access.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
 #include "NOD_geometry_nodes_gizmos.hh"
@@ -2883,30 +2884,29 @@ static ColorTheme4f node_header_color_get(const bNodeTree &ntree,
   return color_header;
 }
 
-static void node_header_custom_tooltip(const bNode &node, ui::Button &but)
+static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node, ui::Button &but)
 {
-  button_func_tooltip_custom_set(
-      &but,
-      [](bContext & /*C*/, ui::TooltipData &data, ui::Button * /*but*/, void *argN) {
-        const bNode &node = *static_cast<const bNode *>(argN);
-        const std::string description = node.typeinfo->ui_description_fn ?
-                                            TIP_(node.typeinfo->ui_description_fn(node)) :
-                                            TIP_(node.typeinfo->ui_description);
-        if (!description.empty()) {
-          tooltip_text_field_add(
-              data, std::move(description), "", ui::TIP_STYLE_NORMAL, ui::TIP_LC_NORMAL);
-        }
-        if (U.flag & USER_TOOLTIPS_PYTHON) {
-          tooltip_text_field_add(data,
-                                 fmt::format("Python: {}", node.idname),
-                                 "",
-                                 ui::TIP_STYLE_MONO,
-                                 ui::TIP_LC_PYTHON,
-                                 !description.empty());
-        }
-      },
-      &const_cast<bNode &>(node),
-      nullptr);
+  button_func_tooltip_custom_set_cpp(but, [&](bContext & /*C*/, ui::TooltipData &data) {
+    const std::string description = node.typeinfo->ui_description_fn ?
+                                        TIP_(node.typeinfo->ui_description_fn(node)) :
+                                        TIP_(node.typeinfo->ui_description);
+    if (!description.empty()) {
+      tooltip_text_field_add(
+          data, std::move(description), "", ui::TIP_STYLE_NORMAL, ui::TIP_LC_NORMAL);
+    }
+    if (U.flag & USER_TOOLTIPS_PYTHON) {
+      PointerRNA nodeptr = RNA_pointer_create_discrete(
+          const_cast<ID *>(&ntree.id), RNA_Node, const_cast<bNode *>(&node));
+      tooltip_text_field_add(data,
+                             fmt::format("Python: {}\n{}",
+                                         node.idname,
+                                         RNA_path_full_struct_py(&nodeptr).value_or("")),
+                             "",
+                             ui::TIP_STYLE_MONO,
+                             ui::TIP_LC_PYTHON,
+                             !description.empty());
+    }
+  });
 }
 
 static void node_draw_basis(const bContext &C,
@@ -3186,7 +3186,7 @@ static void node_draw_basis(const bContext &C,
                              0,
                              0,
                              std::nullopt);
-  node_header_custom_tooltip(node, *but);
+  node_header_custom_tooltip(ntree, node, *but);
 
   if (node.is_muted()) {
     button_flag_enable(but, ui::BUT_INACTIVE);
@@ -3382,7 +3382,7 @@ static void node_draw_collapsed(const bContext &C,
                              0,
                              0,
                              std::nullopt);
-  node_header_custom_tooltip(node, *but);
+  node_header_custom_tooltip(ntree, node, *but);
 
   /* Outline. */
   {
