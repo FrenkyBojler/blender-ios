@@ -2039,6 +2039,25 @@ static wmOperatorStatus mask_move_to_layer_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static blender::VectorSet<blender::StringRef> get_layer_names(struct Mask *mask)
+{
+  using namespace blender;
+  VectorSet<StringRef> names;
+  LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
+    names.add(mask_layer->name);
+  }
+  return names;
+}
+
+static std::string unique_layer_name(struct Mask *mask, const blender::StringRef name)
+{
+  using namespace blender;
+  BLI_assert(!name.is_empty());
+  const VectorSet<StringRef> names = get_layer_names(mask);
+  return BLI_uniquename_cb(
+      [&](const StringRef check_name) { return names.contains(check_name); }, '.', name);
+}
+
 static wmOperatorStatus mask_move_to_layer_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
@@ -2046,9 +2065,9 @@ static wmOperatorStatus mask_move_to_layer_invoke(bContext *C,
   const bool add_new_layer = RNA_boolean_get(op->ptr, "add_new_layer");
   if (add_new_layer) {
     Mask *mask = CTX_data_edit_mask(C);
-    MaskLayer mask_layer = {0};
-    BKE_mask_layer_unique_name(mask, &mask_layer);
-    RNA_string_set(op->ptr, "target_layer_name", mask_layer.name);
+    std::string unique_name_string = unique_layer_name(mask, DATA_("MaskLayer"));
+    const char *unique_name = unique_name_string.c_str();
+    RNA_string_set(op->ptr, "target_layer_name", unique_name);
 
     return WM_operator_props_popup_confirm_ex(
         C, op, event, IFACE_("Move to New Layer"), IFACE_("Create"));
