@@ -984,7 +984,7 @@ void SourceProcessor::lint_unbraced_statements(Parser &parser)
 {
   auto check_statement = [&](const Tokens &toks) {
     Token end_tok = toks.back();
-    if (end_tok.next() == If || end_tok.prev() == '#') {
+    if (end_tok.next() == If || end_tok.scope().type() == ScopeType::Preprocessor) {
       return;
     }
     if (end_tok.next() == '[' && end_tok.next().next() == '[') {

@@ -194,11 +194,8 @@ struct Token {
     if (is_invalid()) {
       return 0;
     }
-    if (at_end) {
-      return parser::line_number(data->lex.str, str_index_last()) +
-             int(data->lex.str[str_index_last()] == '\n');
-    }
-    return parser::line_number(data->lex.str, str_index_start());
+    int index = at_end ? str_index_last() : (str_index_last_no_whitespace() + 1);
+    return parser::line_number(data->lex.str, index) + int(data->lex.str[index] == '\n');
   }
 
   /* Return the offset to the start of the line. */

@@ -105,7 +105,7 @@ enum TokenType : uint8_t {
   Static = 'm',
   Enum = 'M',
   Namespace = 'n',
-  PreprocessorNewline = 'N', /* TODO(fclem): Remove. */
+  // Unused = 'N',
   Union = 'o',
   Continue = 'O',
   // Unused = 'p',

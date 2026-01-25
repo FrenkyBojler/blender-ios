@@ -148,35 +148,8 @@ static always_inline TokenType multi_tok_lookup(TokenType input, std::string_vie
 
 void LexerBase::merge_tokens()
 {
-  for (auto it = begin(); it < end(); ++it) {
-    TokenBuffer::Token tok = *it;
-    if (tok.type == '#') {
-      /* Seek until the end of the directive and mark it as PreprocessorNewLine
-       * to avoid loosing it during merge_whitespaces. This is necessary for parsing preprocessor
-       * directive scopes. */
-      while ((*it).type != EndOfFile) {
-        TokenBuffer::Token tok = *it;
-        if (tok.type == NewLine) {
-          tok.type = PreprocessorNewline;
-          break;
-        }
-        if (tok.type == '\\') {
-          ++it; /* Escape newline. */
-        }
-        ++it;
-      }
-    }
-  }
-
   merge_complex_literals();
   merge_whitespaces();
-
-  /* Change back to regular newline. */
-  for (auto tok : *this) {
-    if (tok.type == PreprocessorNewline) {
-      tok.type = NewLine;
-    }
-  }
 
   update_string_view();
 }
@@ -346,25 +319,39 @@ void ParserBase::build_scope_tree(report_callback &report_error)
 
   int in_template = 0;
 
-  int tok_id = -1;
-  for (const TokenType &type : lex.token_types) {
-    tok_id++;
+  int tok_id = 0;
+
+  for (; tok_id < lex.token_types.size(); tok_id++) {
+    const TokenType type = lex.token_types[tok_id];
 
     const ScopeType current_scope = stack.back().type;
-
-    if (stack.back().type == ScopeType::Preprocessor) {
-      if (type == NewLine) {
-        stack.exit_scope(tok_id);
-      }
-      else {
-        /* Do nothing. Enclose all preprocessor lines together. */
-        continue;
-      }
-    }
 
     switch (type) {
       case Hash:
         stack.enter_scope(ScopeType::Preprocessor, tok_id);
+        /* Seek until the end of the directive. */
+        while (true) {
+          const TokenType type = lex.token_types[tok_id];
+          if (type == EndOfFile) {
+            tok_id--;
+            break;
+          }
+
+          IndexRange range = lex.token_offsets[tok_id];
+          std::string_view tok_str = {lex.str.substr(range.start, range.size)};
+          size_t new_line_offset = -1;
+          while ((new_line_offset = tok_str.find("\n", new_line_offset + 1)) != std::string::npos)
+          {
+            if (new_line_offset == 0 || tok_str[new_line_offset - 1] != '\\') {
+              break;
+            }
+          }
+          if (new_line_offset != std::string::npos) {
+            break;
+          }
+          tok_id++;
+        }
+        stack.exit_scope(tok_id);
         break;
       case Assign:
         if (current_scope == ScopeType::Assignment) {
@@ -579,6 +566,8 @@ void ParserBase::build_scope_tree(report_callback &report_error)
         break;
     }
   }
+
+  tok_id = lex.token_types.size() - 1;
 
   if (stack.empty()) {
     error_token = (*this)[tok_id];
