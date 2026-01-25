@@ -1,2 +1,3 @@
 Referenced by issue #105555, Baking Indirect Lighting is broken
 Referenced by issue #94467, Cycles Baking: 3.x is much slower than 2.93
+Referenced by issue #150104, Bake Position: values are off by a factor of 80
