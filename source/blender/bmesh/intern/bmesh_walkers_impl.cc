@@ -847,31 +847,42 @@ static bool bm_edge_is_single(BMEdge *e)
           (BM_edge_is_boundary(e->l->next->e) || BM_edge_is_boundary(e->l->prev->e)));
 }
 
-static bool bmw_EdgeloopWalker_delimit_check(BMVert *v, BMEdge *e, const BMWDelimitFlag delimit) {
-  bool has_delimit = false;
+static bool bmw_EdgeloopWalker_delimit_check(BMVert *v, BMEdge *e, BMEdge *e_next, const BMWDelimitFlag delimit) {
   /* When starting on a mark, stop when the next edge does not have the mark.
    * Otherwise, stop when any edge connected to the next vert has the mark. */
   if (delimit & BMW_DELIMIT_EDGE_MARK_SEAM) {
-    BMIter eiter;
-    BMEdge *e;
-    BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
-      if (BM_elem_flag_test(e, BM_ELEM_SEAM)) {
-        has_delimit = true;
-        break;
+    if (BM_elem_flag_test(e, BM_ELEM_SEAM)) {
+      if (!BM_elem_flag_test(e_next, BM_ELEM_SEAM)) {
+        return true;
+      }
+    }
+    else {
+      BMIter eiter;
+      BMEdge *e_connected;
+      BM_ITER_ELEM (e_connected, &eiter, v, BM_EDGES_OF_VERT) {
+        if (BM_elem_flag_test(e_connected, BM_ELEM_SEAM)) {
+          return true;
+        }
       }
     }
   }
   if (delimit & BMW_DELIMIT_EDGE_MARK_SHARP) {
-    BMIter eiter;
-    BMEdge *e;
-    BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
-      if (!BM_elem_flag_test(e, BM_ELEM_SMOOTH)) {
-        has_delimit = true;
-        break;
+    if (!BM_elem_flag_test(e, BM_ELEM_SMOOTH)) {
+      if (BM_elem_flag_test(e_next, BM_ELEM_SMOOTH)) {
+        return true;
+      }
+    }
+    else {
+      BMIter eiter;
+      BMEdge *e_connected;
+      BM_ITER_ELEM (e_connected, &eiter, v, BM_EDGES_OF_VERT) {
+        if (!BM_elem_flag_test(e_connected, BM_ELEM_SMOOTH)) {
+          return true;
+        }
       }
     }
   }
-  return has_delimit;
+  return false;
 }
 
 static void bmw_EdgeLoopWalker_begin(BMWalker *walker, void *data)
@@ -1085,11 +1096,9 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
 
     vert_edge_tot = BM_vert_edge_count_nonwire(v);
 
-    bool has_delimit = bmw_EdgeloopWalker_delimit_check(v, walker->delimit);
-
     /* Typical looping over edges in the middle of a mesh.
      * Why use 2 here at all? - for internal ngon loops it can be useful. */
-    if (has_delimit == false && ELEM(vert_edge_tot, 4, 2)) {
+    if (ELEM(vert_edge_tot, 4, 2)) {
       int i_opposite = vert_edge_tot / 2;
       int i = 0;
       do {
@@ -1104,6 +1113,10 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
       } while (++i != i_opposite);
     }
     else {
+      l = nullptr;
+    }
+
+    if (l && bmw_EdgeloopWalker_delimit_check(v, e, l->e, walker->delimit)) {
       l = nullptr;
     }
 
@@ -1129,7 +1142,7 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
     vert_edge_tot = BM_vert_edge_count_nonwire(v);
 
     /* Check if any delimits should stop the step. */
-    bool has_delimit = bmw_EdgeloopWalker_delimit_check(v, e, walker->delimit);
+    bool has_delimit = false;
     if ((walker->delimit & BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS) != 0) {
       if (vert_edge_tot > 3) {
         has_delimit = true;
@@ -1156,6 +1169,10 @@ static void *bmw_EdgeLoopWalker_step(BMWalker *walker)
           break;
         }
       } while (true);
+    }
+
+    if (l && bmw_EdgeloopWalker_delimit_check(v, e, l->e, walker->delimit)) {
+      l = nullptr;
     }
 
     /* Stop at delimiting n-gons here so that Rewind picks the correct edge to start from. */
