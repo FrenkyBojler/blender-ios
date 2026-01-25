@@ -2163,6 +2163,54 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   return group;
 }
 
+static bNodeTree *add_copy_object_node_tree(Main &bmain, Library *owner_library)
+{
+  bNodeTree *group = node_tree_add_in_lib(
+      &bmain, owner_library, DATA_("Copy Object"), "GeometryNodeTree");
+  if (!group->geometry_node_asset_traits) {
+    group->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
+  }
+  group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
+
+  group->tree_interface.add_socket(
+      DATA_("Geometry"), "", "NodeSocketGeometry", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+  group->tree_interface.add_socket(
+      DATA_("Object"), "", "NodeSocketObject", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+
+  bNode *group_input = node_add_node(nullptr, *group, "NodeGroupInput");
+  group_input->location[0] = -420.0f;
+  group_input->location[1] = -300.0f;
+  bNode *group_output = node_add_node(nullptr, *group, "NodeGroupOutput");
+  group_output->location[0] = 480.0f;
+  group_output->location[1] = -100.0f;
+
+  bNode *object_info = node_add_node(nullptr, *group, "GeometryNodeObjectInfo");
+  object_info->location[0] = 120.0f;
+  object_info->location[1] = -100.0f;
+
+  auto &object_info_storage = *static_cast<NodeGeometryObjectInfo *>(object_info->storage);
+  object_info_storage.transform_space = GEO_NODE_TRANSFORM_SPACE_ORIGINAL;
+
+  node_add_link(*group,
+                *group_input,
+                *node_find_socket(*group_input, SOCK_OUT, "Socket_1"),
+                *object_info,
+                *node_find_socket(*object_info, SOCK_IN, "Object"));
+  node_add_link(*group,
+                *object_info,
+                *node_find_socket(*object_info, SOCK_OUT, "Geometry"),
+                *group_output,
+                *node_find_socket(*group_output, SOCK_IN, "Socket_0"));
+
+  for (bNode &node : group->nodes) {
+    node_set_selected(node, false);
+  }
+
+  BKE_ntree_update_after_single_tree_change(bmain, *group);
+
+  return group;
+}
+
 static VectorSet<const bNodeSocket *> build_socket_indices(const Span<const bNode *> nodes)
 {
   VectorSet<const bNodeSocket *> result;
@@ -2272,35 +2320,60 @@ static ModifierData *create_auto_smooth_modifier(
   return &md->modifier;
 }
 
+static ModifierData *create_copy_object_modifier(
+    Object &object,
+    const FunctionRef<bNodeTree *(Library *owner_library)> get_node_group,
+    Object &source)
+{
+  auto *md = reinterpret_cast<NodesModifierData *>(BKE_modifier_new(eModifierType_Nodes));
+  STRNCPY_UTF8(md->modifier.name, DATA_("Copy Object"));
+  BKE_modifier_unique_name(&object.modifiers, &md->modifier);
+  md->node_group = get_node_group(object.id.lib);
+  id_us_plus(&md->node_group->id);
+
+  md->settings.properties = idprop::create_group("Nodes Modifier Settings").release();
+
+  IDP_AddToGroup(md->settings.properties, idprop::create("Socket_1", &source.id).release());
+
+  BKE_modifiers_persistent_uid_init(object, md->modifier);
+  return &md->modifier;
+}
+
 }  // namespace bke
 
 void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
 {
   using namespace bke;
 
+  using CreateNodeGroupFunc = bNodeTree *(*)(Main &, Library *);
+
   /* Add the node group lazily and share it among all objects in the same library. */
-  Map<Library *, bNodeTree *> group_by_library;
-  const auto add_node_group = [&](Library *owner_library) {
-    if (bNodeTree **group = group_by_library.lookup_ptr(owner_library)) {
-      /* Node tree has already been found/created for this versioning call. */
-      return *group;
-    }
-    /* Try to find an existing group added by previous versioning to avoid adding duplicates. */
-    for (bNodeTree &existing_group : bmain.nodetrees) {
-      if (existing_group.id.lib != owner_library) {
-        continue;
+  Map<std::pair<Library *, CreateNodeGroupFunc>, bNodeTree *> group_by_library;
+  const auto add_node_group = [&](const CreateNodeGroupFunc new_node_group) {
+    return [=, &group_by_library, &bmain](Library *owner_library) {
+      if (bNodeTree **group = group_by_library.lookup_ptr({owner_library, new_node_group})) {
+        /* Node tree has already been found/created for this versioning call. */
+        return *group;
       }
-      if (is_auto_smooth_node_tree(existing_group)) {
-        group_by_library.add_new(owner_library, &existing_group);
-        return &existing_group;
+      /* Try to find an existing group added by previous versioning to avoid adding duplicates. */
+      for (bNodeTree &existing_group : bmain.nodetrees) {
+        if (existing_group.id.lib != owner_library) {
+          continue;
+        }
+        if (is_auto_smooth_node_tree(existing_group)) {
+          group_by_library.add_new({owner_library, new_node_group}, &existing_group);
+          return &existing_group;
+        }
       }
-    }
-    bNodeTree *new_group = add_auto_smooth_node_tree(bmain, owner_library);
-    /* Remove the default user. The count is tracked manually when assigning to modifiers. */
-    id_us_min(&new_group->id);
-    group_by_library.add_new(owner_library, new_group);
-    return new_group;
+      bNodeTree *new_group = new_node_group(bmain, owner_library);
+      /* Remove the default user. The count is tracked manually when assigning to modifiers. */
+      id_us_min(&new_group->id);
+      group_by_library.add_new({owner_library, new_node_group}, new_group);
+      return new_group;
+    };
   };
+
+  MultiValueMap<Mesh *, Object *> mesh_to_objects;
 
   for (Object &object : bmain.objects) {
     if (object.type != OB_MESH) {
@@ -2338,7 +2411,8 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
       if (md.type == eModifierType_WeightedNormal) {
         WeightedNormalModifierData *nmd = reinterpret_cast<WeightedNormalModifierData *>(&md);
         if ((nmd->flag & MOD_WEIGHTEDNORMAL_KEEP_SHARP) != 0) {
-          ModifierData *new_md = create_auto_smooth_modifier(object, add_node_group, angle);
+          ModifierData *new_md = create_auto_smooth_modifier(
+              object, add_node_group(add_auto_smooth_node_tree), angle);
           BLI_insertlinkbefore(&object.modifiers, object.modifiers.last, new_md);
         }
       }
@@ -2361,9 +2435,14 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
       continue;
     }
 
+    mesh_to_objects.add(mesh, &object);
+  }
+
+  const auto add_auto_smooth_modifier = [&](Object &object, const float angle) {
     ModifierData *last_md = static_cast<ModifierData *>(object.modifiers.last);
-    ModifierData *new_md = create_auto_smooth_modifier(object, add_node_group, angle);
-    if (last_md && last_md->type == eModifierType_Subsurf && has_custom_normals &&
+    ModifierData *new_md = create_auto_smooth_modifier(
+        object, add_node_group(add_auto_smooth_node_tree), angle);
+    if (last_md && last_md->type == eModifierType_Subsurf &&
         (reinterpret_cast<SubsurfModifierData *>(last_md)->flags &
          eSubsurfModifierFlag_UseCustomNormals) != 0)
     {
@@ -2373,6 +2452,38 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
     }
     else {
       BLI_addtail(&object.modifiers, new_md);
+    }
+  };
+
+  for (const auto item : mesh_to_objects.items()) {
+    Object *no_modifiers_object = nullptr;
+    for (Object *object : item.value) {
+      if (BLI_listbase_count(&object->modifiers) > 0) {
+        continue;
+      }
+      no_modifiers_object = object;
+      break;
+    }
+
+    const float angle = item.key->smoothresh_legacy;
+    if (no_modifiers_object == nullptr) {
+      for (Object *object : item.value) {
+        add_auto_smooth_modifier(*object, angle);
+      }
+      continue;
+    }
+
+    add_auto_smooth_modifier(*no_modifiers_object, angle);
+
+    for (Object *other : item.value.as_span().drop_front(1)) {
+      if (BLI_listbase_count(&other->modifiers) > 0) {
+        add_auto_smooth_modifier(*other, angle);
+        continue;
+      }
+
+      ModifierData *new_md = create_copy_object_modifier(
+          *other, add_node_group(add_copy_object_node_tree), *no_modifiers_object);
+      BLI_addhead(&other->modifiers, new_md);
     }
   }
 
