@@ -186,6 +186,8 @@ inline void gather(const Span<T> src,
                    const int64_t grain_size = 4096)
 {
   BLI_assert(!src.overlaps(dst.as_span()));
+  BLI_assert(!indices.overlaps(dst.as_span()) ||
+             static_cast<const void *>(indices.data()) == static_cast<const void *>(dst.data()));
   BLI_assert(indices.size() == dst.size());
   threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
     for (const int64_t i : range) {
