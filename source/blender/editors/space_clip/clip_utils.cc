@@ -512,7 +512,7 @@ static bool selected_boundbox(const bContext *C,
     return selected_tracking_boundbox(sc, min, max);
   }
 
-  if (ED_mask_selected_minmax(C, min, max, handles_as_control_point)) {
+  if (ED_mask_selected_minmax(C, min, max, handles_as_control_point, false)) {
     MovieClip *clip = ED_space_clip_get_clip(sc);
     int width, height;
     ED_space_clip_get_size(sc, &width, &height);
