@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "tests/blendfile_loading_base_test.h"
+
+#include "testing/testing.h"
+
 #include "BLI_listbase.h"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_path_utils.hh"
@@ -29,15 +33,13 @@
 
 #include "ED_space_api.hh"
 
+#include "RE_engine.h"
+
 #include "WM_api.hh"
 #include "wm.hh"
 #include "wm_event_system.hh"
 
 #include <fmt/format.h>
-
-#include "tests/blendfile_loading_base_test.h"
-
-#include "testing/testing.h"
 
 DEFINE_string(skip_compositor_ops, "", "Compositor link operations to skip when testing.");
 DEFINE_string(skip_geometry_ops, "", "Geometry link operations to skip when testing.");
@@ -99,6 +101,7 @@ class NodeLinkDragTest : public BlendfileLoadingBaseTest {
     BlendfileLoadingBaseTest::SetUpTestCase();
     BKE_shaderfx_init();
     ED_spacetypes_init();
+    RE_engines_init();
   }
 
   static void TearDownTestCase()
@@ -111,6 +114,7 @@ class NodeLinkDragTest : public BlendfileLoadingBaseTest {
     wm_gizmogrouptype_free();
     wm_gizmomaptypes_free();
     BKE_spacetypes_free();
+    RE_engines_exit();
     BlendfileLoadingBaseTest::TearDownTestCase();
   }
 
@@ -330,7 +334,7 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
                                       socket_type,
                                       structure_type);
         SCOPED_TRACE(msg);
-        std::cout << msg << std::endl;
+        // std::cout << msg << std::endl;
         gather_socket_link_operations(*C, *tree, socket, search_link_ops);
       }
       for (const SocketLinkOperation &link_op : search_link_ops) {
@@ -368,7 +372,7 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
                                       socket_type,
                                       structure_type);
         SCOPED_TRACE(msg);
-        std::cout << msg << std::endl;
+        // std::cout << msg << std::endl;
         gather_socket_link_operations(*C, *tree, socket, search_link_ops);
       }
       for (const SocketLinkOperation &link_op : search_link_ops) {
