@@ -374,6 +374,7 @@ class IDAttributeFieldInput : public GeometryFieldInput {
 
   uint64_t hash() const override;
   bool is_equal_to(const fn::FieldNode &other) const override;
+  std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
 };
 
 VArray<float3> curve_normals_varray(const CurvesGeometry &curves, AttrDomain domain);

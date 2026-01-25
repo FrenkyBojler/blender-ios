@@ -531,6 +531,15 @@ bool IDAttributeFieldInput::is_equal_to(const fn::FieldNode &other) const
   return dynamic_cast<const IDAttributeFieldInput *>(&other) != nullptr;
 }
 
+std::optional<AttrDomain> IDAttributeFieldInput::preferred_domain(
+    const GeometryComponent &component) const
+{
+  if (component.type() == GeometryComponent::Type::Instance) {
+    return AttrDomain::Instance;
+  }
+  return std::nullopt;
+}
+
 GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
     const bke::GeometryFieldContext &context, const IndexMask &mask) const
 {
