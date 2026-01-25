@@ -349,6 +349,12 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
         Vector<bNode *> added_nodes;
         nodes::LinkSearchOpParams params{*C, *tree, *group_node, socket, added_nodes};
         link_op.fn(params);
+
+        /* Remove added nodes again (prevents deteriorating performance after executing many link
+         * operations). */
+        for (bNode *node : added_nodes) {
+          bke::node_remove_node(bmain, *tree, *node, false);
+        }
       }
     }
     for (bNodeSocket &socket : group_node->outputs) {
@@ -381,6 +387,12 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
         Vector<bNode *> added_nodes;
         nodes::LinkSearchOpParams params{*C, *tree, *group_node, socket, added_nodes};
         link_op.fn(params);
+
+        /* Remove added nodes again (prevents deteriorating performance after executing many link
+         * operations). */
+        for (bNode *node : added_nodes) {
+          bke::node_remove_node(bmain, *tree, *node, false);
+        }
       }
     }
 
