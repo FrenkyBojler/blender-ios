@@ -1533,7 +1533,7 @@ class RepoRemoteData(NamedTuple):
     pkg_manifest_map: dict[str, PkgManifest_Normalized]
 
 
-class _RepoDataSouce_ABC(metaclass=abc.ABCMeta):
+class _RepoDataSource_ABC(metaclass=abc.ABCMeta):
     """
     The purpose of this class is to be a source for the repository data.
 
@@ -1597,7 +1597,7 @@ class _RepoDataSouce_ABC(metaclass=abc.ABCMeta):
         return data
 
 
-class _RepoDataSouce_JSON(_RepoDataSouce_ABC):
+class _RepoDataSource_JSON(_RepoDataSource_ABC):
     __slots__ = (
         "_data",
 
@@ -1707,7 +1707,7 @@ class _RepoDataSouce_JSON(_RepoDataSouce_ABC):
         return data
 
 
-class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
+class _RepoDataSource_TOML_FILES(_RepoDataSource_ABC):
     __slots__ = (
         "_data",
 
@@ -1900,12 +1900,12 @@ class _RepoCacheEntry:
         self.directory = directory
         self.remote_url = remote_url
         # Manifest data per package loaded from the packages local JSON.
-        # TODO(@ideasman42): use `_RepoDataSouce_ABC` for `pkg_manifest_local`.
+        # TODO(@ideasman42): use `_RepoDataSource_ABC` for `pkg_manifest_local`.
         self._pkg_manifest_local: dict[str, PkgManifest_Normalized] | None = None
         self._pkg_manifest_remote: dict[str, PkgManifest_Normalized] | None = None
-        self._pkg_manifest_remote_data_source: _RepoDataSouce_ABC = (
-            _RepoDataSouce_JSON(directory, filter_params) if remote_url else
-            _RepoDataSouce_TOML_FILES(directory, filter_params)
+        self._pkg_manifest_remote_data_source: _RepoDataSource_ABC = (
+            _RepoDataSource_JSON(directory, filter_params) if remote_url else
+            _RepoDataSource_TOML_FILES(directory, filter_params)
         )
         # Avoid many noisy prints.
         self._pkg_manifest_remote_has_warning = False
