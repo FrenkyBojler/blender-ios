@@ -907,7 +907,7 @@ endif()
 
 
 if(CXX_WARN_NO_SUGGEST_OVERRIDE)
-  target_compile_options(bf_gpu PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>)
+  target_compile_options(bf_gpu PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
 endif()
 
 
