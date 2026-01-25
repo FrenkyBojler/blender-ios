@@ -254,7 +254,6 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
   Strip *strip = static_cast<Strip *>(ptr->data);
 
   if(scene->ed && strip){
-    printf("INVALIDTE!");
     seq::relations_invalidate_cache_raw(scene, strip);
   }
 
@@ -267,11 +266,17 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
       return;
     }
     if(leader_strip == strip) {
-      printf("NOTIFY!");
       WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CAPTIONS | NA_EDITED, scene);
     }
   } else {
-    // TODO: Choose another strip to lead, this one is on custom style
+    /*CaptionsStripRef *ref = get_ref_by_strip(scaptions ,strip);
+    mark_ref_style_custom(ref, true);
+    if(leader_ref == nullptr) { 
+      return;
+    }
+
+    leader_ref->use_custom_style = true;
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CAPTIONS | NA_EDITED, scene);*/
   }
 }
 

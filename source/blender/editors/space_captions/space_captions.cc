@@ -45,13 +45,13 @@
 
 namespace blender {
 
-// Todo: Maybe those helper methods should go captions_edit.cc or a new captions.cc?
+// Todo: Those helper methods should go captions_edit.cc or a new captions.cc, It'll stay here until the exact location of the captions in the UI is decided.
 CaptionsStripRef *style_leader_ref_ensure(SpaceCaptions *scaptions) {
-  /* Check if current leader is still valid */
+  /* Currently, each time anything need acsses for the leader, it calls this method, which is quite heavy (loop through all of the refs each time.) */
   bool leader_valid = false;
   if (scaptions->style_leader_strip != nullptr) {
     for (CaptionsStripRef &ref : scaptions->current_strips) {
-      if (&ref == scaptions->style_leader_strip && ref.strip != nullptr) {
+      if ((&ref == scaptions->style_leader_strip && ref.strip != nullptr && scaptions->style_leader_strip->use_custom_style == false)) {
         leader_valid = true;
         break;
       }
@@ -80,6 +80,21 @@ Strip *style_leader_strip_ensure(SpaceCaptions *scaptions) {
   return ref->strip;
 }
 
+CaptionsStripRef *get_ref_by_strip(struct SpaceCaptions *scaptions, struct Strip *strip) {
+  for (CaptionsStripRef &ref : scaptions->current_strips) {
+    if (ref.strip == strip) {
+      return &ref;
+    }
+  }
+  return nullptr;
+}
+
+void mark_ref_style_custom(CaptionsStripRef *ref, bool use_custom) {
+  if(ref != nullptr) {
+    ref->use_custom_style = use_custom ? 1 : 0;
+  }
+}
+
 static void update_strips_style(SpaceCaptions *scaptions, Scene *scene)
 {
   if(scene != nullptr) {
@@ -90,7 +105,7 @@ static void update_strips_style(SpaceCaptions *scaptions, Scene *scene)
   if(leader_strip == nullptr) {
     return;
   }
-  
+
   TextVars *leader_vers = (TextVars *)leader_strip->effectdata;
   if(leader_vers == nullptr) {
     return;
