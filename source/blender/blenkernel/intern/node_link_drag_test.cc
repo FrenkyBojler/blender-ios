@@ -5,6 +5,7 @@
 #include "BLI_listbase.h"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_struct_equality_utils.hh"
 
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
@@ -38,7 +39,58 @@
 
 #include "testing/testing.h"
 
+DEFINE_string(skip_compositor_ops, "", "Compositor link operations to skip when testing.");
+DEFINE_string(skip_geometry_ops, "", "Geometry link operations to skip when testing.");
+DEFINE_string(skip_shader_ops, "", "Shader link operations to skip when testing.");
+
 namespace blender::bke::tests {
+
+struct LinkOpFilter {
+  std::string tree_idname;
+  std::string link_op_name;
+  /* Optional, if empty all socket types will skip this link op. */
+  std::string socket_type;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(LinkOpFilter, link_op_name, socket_type);
+
+  uint64_t hash() const
+  {
+    return get_default_hash(link_op_name, socket_type);
+  }
+};
+
+static Set<LinkOpFilter> create_skipped_link_ops()
+{
+  Set<LinkOpFilter> ops = {};
+
+  auto add_skipped_ops = [&](const StringRef tree_idname, const StringRef arg) {
+    const std::string delimiter = ":";
+    std::string s = arg;
+    size_t pos = 0;
+    std::string token;
+    while ((pos = s.find(delimiter)) != std::string::npos) {
+      token = s.substr(0, pos);
+      ops.add({tree_idname, token});
+      s.erase(0, pos + delimiter.length());
+    }
+    if (!s.empty()) {
+      ops.add({tree_idname, s});
+    }
+  };
+
+  add_skipped_ops("CompositorNodeTree", FLAGS_skip_compositor_ops);
+  add_skipped_ops("GeometryNodeTree", FLAGS_skip_geometry_ops);
+  add_skipped_ops("ShaderNodeTree", FLAGS_skip_shader_ops);
+
+  return ops;
+}
+
+/* Skipped failing tests. */
+static const Set<LinkOpFilter> &get_skipped_link_ops()
+{
+  static Set<LinkOpFilter> skipped_link_ops = create_skipped_link_ops();
+  return skipped_link_ops;
+}
 
 class NodeLinkDragTest : public BlendfileLoadingBaseTest {
  public:
@@ -183,6 +235,8 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
 
   bContext *C = CTX_create();
   CTX_data_main_set(C, bmain);
+  CTX_data_scene_set(C, bfile->curscene);
+  CTX_wm_screen_set(C, bfile->curscreen);
 
   const Vector<std::string> tree_idnames = {
       ntreeType_Composite->idname, ntreeType_Geometry->idname, ntreeType_Shader->idname};
@@ -271,15 +325,27 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
       const StringRef structure_type = structure_type_names[int(decl->structure_type)];
       Vector<SocketLinkOperation> search_link_ops;
       {
-        SCOPED_TRACE(fmt::format(
-            "Gather link operations for input socket type %s (%s)", socket_type, structure_type));
+        std::string msg = fmt::format("{}: Gather link operations for input socket type {} ({})",
+                                      tree_idname,
+                                      socket_type,
+                                      structure_type);
+        SCOPED_TRACE(msg);
+        std::cout << msg << std::endl;
         gather_socket_link_operations(*C, *tree, socket, search_link_ops);
       }
       for (const SocketLinkOperation &link_op : search_link_ops) {
-        SCOPED_TRACE(fmt::format("Execute link operation %s for input socket type %s (%s)",
-                                 link_op.name,
-                                 socket_type,
-                                 structure_type));
+        std::string msg = fmt::format("link operation {} for input socket type {} ({})",
+                                      link_op.name,
+                                      socket_type,
+                                      structure_type);
+        if (get_skipped_link_ops().contains({tree_idname, link_op.name, ""}) ||
+            get_skipped_link_ops().contains({tree_idname, link_op.name, socket_type}))
+        {
+          std::cout << tree_idname << ": Skip " << msg << std::endl;
+          continue;
+        }
+        SCOPED_TRACE(tree_idname + ": Execute " + msg);
+        std::cout << tree_idname << ": Execute " << msg << std::endl;
         Vector<bNode *> added_nodes;
         nodes::LinkSearchOpParams params{*C, *tree, *group_node, socket, added_nodes};
         link_op.fn(params);
@@ -291,15 +357,27 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
       const StringRef structure_type = structure_type_names[int(decl->structure_type)];
       Vector<SocketLinkOperation> search_link_ops;
       {
-        SCOPED_TRACE(fmt::format(
-            "Gather link operations for output socket type %s (%s)", socket_type, structure_type));
+        std::string msg = fmt::format("{}: Gather link operations for output socket type {} ({})",
+                                      tree_idname,
+                                      socket_type,
+                                      structure_type);
+        SCOPED_TRACE(msg);
+        std::cout << msg << std::endl;
         gather_socket_link_operations(*C, *tree, socket, search_link_ops);
       }
       for (const SocketLinkOperation &link_op : search_link_ops) {
-        SCOPED_TRACE(fmt::format("Execute link operation %s for output socket type %s (%s)",
-                                 link_op.name,
-                                 socket_type,
-                                 structure_type));
+        std::string msg = fmt::format("link operation {} for output socket type {} ({})",
+                                      link_op.name,
+                                      socket_type,
+                                      structure_type);
+        if (get_skipped_link_ops().contains({tree_idname, link_op.name, ""}) ||
+            get_skipped_link_ops().contains({tree_idname, link_op.name, socket_type}))
+        {
+          std::cout << tree_idname << ": Skip " << msg << std::endl;
+          continue;
+        }
+        SCOPED_TRACE(tree_idname + ": Execute " + msg);
+        std::cout << tree_idname << ": Execute " << msg << std::endl;
         Vector<bNode *> added_nodes;
         nodes::LinkSearchOpParams params{*C, *tree, *group_node, socket, added_nodes};
         link_op.fn(params);
