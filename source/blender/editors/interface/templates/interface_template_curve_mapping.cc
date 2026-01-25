@@ -30,8 +30,8 @@
 
 namespace blender::ui {
 
-using blender::Vector;
 using blender::float2;
+using blender::Vector;
 
 struct CurveRuntimeProperties {
   CurveMapPoint *last_pt = nullptr;
@@ -601,19 +601,19 @@ static void curvemap_buttons_layout(Layout *layout,
   }
 
   /* Sliders for selected curve point. */
-  Vector<CurveMapPoint *> cmps;
+  Vector<CurveMapPoint *> selected_points;
   bool point_last_or_first = false;
   for (int i = 0; i < cm->totpoint; i++) {
     const bool selected = cm->curve[i].flag & CUMA_SELECT;
     if (selected) {
-      cmps.append(&cm->curve[i]);
+      selected_points.append(&cm->curve[i]);
     }
     if (ELEM(i, 0, cm->totpoint - 1) && selected) {
       point_last_or_first = true;
     }
   }
 
-  if (!cmps.is_empty()) {
+  if (!selected_points.is_empty()) {
     CurveMap *active_cm = cumap->cm + cumap->cur;
 
     rctf bounds;
@@ -649,7 +649,7 @@ static void curvemap_buttons_layout(Layout *layout,
       rna_update_cb(C, cb);
     });
 
-    for (const CurveMapPoint *cmp : cmps) {
+    for (const CurveMapPoint *cmp : selected_points) {
       const bool auto_anim_vec = ((cmp->flag & CUMA_HANDLE_AUTO_ANIM) == false) &&
                                  ((cmp->flag & CUMA_HANDLE_VECTOR) == false);
       bt->flag |= UI_SELECT_DRAW && auto_anim_vec;
@@ -674,7 +674,7 @@ static void curvemap_buttons_layout(Layout *layout,
       rna_update_cb(C, cb);
     });
 
-    for (const CurveMapPoint *cmp : cmps) {
+    for (const CurveMapPoint *cmp : selected_points) {
       const bool vec = (cmp->flag & CUMA_HANDLE_VECTOR);
       bt->flag |= UI_SELECT_DRAW && vec;
     }
@@ -698,7 +698,7 @@ static void curvemap_buttons_layout(Layout *layout,
       rna_update_cb(C, cb);
     });
 
-    for (const CurveMapPoint *cmp : cmps) {
+    for (const CurveMapPoint *cmp : selected_points) {
       const bool auto_anim = (cmp->flag & CUMA_HANDLE_AUTO_ANIM);
       bt->flag |= UI_SELECT_DRAW && auto_anim;
     }
@@ -712,7 +712,7 @@ static void curvemap_buttons_layout(Layout *layout,
     rctf selection_bounds;
     BLI_rctf_init_minmax(&selection_bounds);
 
-    for (const CurveMapPoint *cmp : cmps) {
+    for (const CurveMapPoint *cmp : selected_points) {
       const float loc[2] = {cmp->x, cmp->y};
       BLI_rctf_do_minmax_v(&selection_bounds, loc);
     }
@@ -730,19 +730,28 @@ static void curvemap_buttons_layout(Layout *layout,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
-    button_func_set(bt, [cumap, cb, curve_runtime](bContext &C) {
-      CurveMap *cuma = cumap->cm + cumap->cur;
-      const float dx = curve_runtime->last_pt->x - curve_runtime->last_pos.x;
-      const float2 delta = float2(dx, 0.0f);
-      BKE_curvemap_translate_selection(cuma, delta);
-      curve_runtime->last_pt->x -= dx;
-      BKE_curvemapping_changed(cumap, true);
-      rna_update_cb(C, cb);
+    if (selected_points.size() == 1) {
+      /* Simplified logic */
+      button_func_set(bt, [cumap, cb](bContext &C) {
+        BKE_curvemapping_changed(cumap, true);
+        rna_update_cb(C, cb);
+      });
+    }
+    else {
+      button_func_set(bt, [cumap, cb, curve_runtime](bContext &C) {
+        CurveMap *cuma = cumap->cm + cumap->cur;
+        const float dx = curve_runtime->last_pt->x - curve_runtime->last_pos.x;
+        const float2 delta = float2(dx, 0.0f);
+        BKE_curvemap_translate_selection(cuma, delta);
+        curve_runtime->last_pt->x -= dx;
+        BKE_curvemapping_changed(cumap, true);
+        rna_update_cb(C, cb);
 
-      // update the active point if the pointer changed
-      curve_runtime->last_pt = BKE_curvemap_active_get(cuma);
-      curve_runtime->last_pos.x = curve_runtime->last_pt->x;
-    });
+        /* Update the active point if the pointer changed. */
+        curve_runtime->last_pt = BKE_curvemap_active_get(cuma);
+        curve_runtime->last_pos.x = curve_runtime->last_pt->x;
+      });
+    }
 
     bt = uiDefButF(block,
                    ButtonType::Num,
@@ -757,19 +766,28 @@ static void curvemap_buttons_layout(Layout *layout,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
-    button_func_set(bt, [cumap, cb, curve_runtime](bContext &C) {
-      CurveMap *cuma = cumap->cm + cumap->cur;
-      const float dy = curve_runtime->last_pt->y - curve_runtime->last_pos.y;
-      const float2 delta = float2(0.0f, dy);
-      BKE_curvemap_translate_selection(cuma, delta);
-      curve_runtime->last_pt->y -= dy;
-      BKE_curvemapping_changed(cumap, true);
-      rna_update_cb(C, cb);
+    if (selected_points.size() == 1) {
+      /* Simplified logic */
+      button_func_set(bt, [cumap, cb](bContext &C) {
+        BKE_curvemapping_changed(cumap, true);
+        rna_update_cb(C, cb);
+      });
+    }
+    else {
+      button_func_set(bt, [cumap, cb, curve_runtime](bContext &C) {
+        CurveMap *cuma = cumap->cm + cumap->cur;
+        const float dy = curve_runtime->last_pt->y - curve_runtime->last_pos.y;
+        const float2 delta = float2(0.0f, dy);
+        BKE_curvemap_translate_selection(cuma, delta);
+        curve_runtime->last_pt->y -= dy;
+        BKE_curvemapping_changed(cumap, true);
+        rna_update_cb(C, cb);
 
-      // update the active point if the pointer changed
-      curve_runtime->last_pt = BKE_curvemap_active_get(cuma);
-      curve_runtime->last_pos.y = curve_runtime->last_pt->y;
-    });
+        /* Update the active point if the pointer changed. */
+        curve_runtime->last_pt = BKE_curvemap_active_get(cuma);
+        curve_runtime->last_pos.y = curve_runtime->last_pt->y;
+      });
+    }
 
     /* Curve handle delete point */
     bt = uiDefIconBut(

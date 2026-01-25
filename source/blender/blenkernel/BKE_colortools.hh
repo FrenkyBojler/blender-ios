@@ -6,8 +6,8 @@
 /** \file
  * \ingroup bke
  */
-#include <cstdint>
 #include "BLI_math_vector_types.hh"
+#include <cstdint>
 
 namespace blender {
 

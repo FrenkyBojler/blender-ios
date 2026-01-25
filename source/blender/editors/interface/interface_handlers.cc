@@ -8096,7 +8096,8 @@ static int ui_do_but_CURVEPROFILE(
       }
 
       /* Change the flag for the point(s) if one was selected or added. */
-      const short active_type = selection_type * PROF_ACTIVE; // offset it from selection flag to active flag
+      /* Offset the selection type to get the active type. */
+      const short active_type = selection_type * PROF_ACTIVE;
       pts = profile->path;
       if (i_selected != -1) {
         /* Deselect all if this one is deselectedpts = profile->path, except if we hold shift. */

@@ -29,9 +29,9 @@
 
 namespace blender::ui {
 
+using blender::float2;
 using blender::StringRefNull;
 using blender::Vector;
-using blender::float2;
 
 struct CurveRuntimeProperties {
   CurveProfilePoint *last_pt = nullptr;
@@ -388,11 +388,11 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
            "");
 
   /* Position sliders for (first) selected point */
-  Vector<CurveProfilePoint *> cfps;
+  Vector<CurveProfilePoint *> selected_points;
   bool point_last_or_first = false;
   for (int i = 0; i < profile->path_len; i++) {
     if (profile->path[i].flag & (PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT)) {
-      cfps.append(&profile->path[i]);
+      selected_points.append(&profile->path[i]);
       if (ELEM(i, 0, profile->path_len - 1) && profile->path[i].flag & PROF_SELECT) {
         point_last_or_first = true;
       }
@@ -400,7 +400,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
   }
 
   /* Selected point data */
-  if (!cfps.is_empty()) {
+  if (!selected_points.is_empty()) {
     rctf bounds;
     if (profile->flag & PROF_USE_CLIP) {
       bounds = profile->clip_rect;
@@ -435,7 +435,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
     rctf selection_bounds;
     BLI_rctf_init_minmax(&selection_bounds);
 
-    for (const CurveProfilePoint *pt : cfps) {
+    for (const CurveProfilePoint *pt : selected_points) {
       if (pt->flag & PROF_SELECT) {
         const float loc[2] = {pt->x, pt->y};
         BLI_rctf_do_minmax_v(&selection_bounds, loc);
@@ -448,6 +448,8 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
       }
     }
 
+    /* Requires BKE_curveprofile_translate_selection to handle the handle manipulation, no
+     * simpified logic. */
     bt = uiDefButF(block,
                    ButtonType::Num,
                    "X:",
@@ -469,7 +471,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
       BKE_curveprofile_update(profile, PROF_UPDATE_REMOVE_DOUBLES | PROF_UPDATE_CLIP);
       rna_update_cb(C, cb);
 
-      // update the active point if the pointer changed
+      /* Update the active point if the pointer changed. */
       curve_runtime->last_pt = BKE_curveprofile_active_get(profile);
       last_x_ptr = BKE_curveprofile_active_location_get(curve_runtime->last_pt);
       curve_runtime->last_pos.x = *last_x_ptr;
@@ -498,7 +500,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
       BKE_curveprofile_update(profile, PROF_UPDATE_REMOVE_DOUBLES | PROF_UPDATE_CLIP);
       rna_update_cb(C, cb);
 
-      // update the active point if the pointer changed
+      /* Update the active point if the pointer changed. */
       curve_runtime->last_pt = BKE_curveprofile_active_get(profile);
       last_y_ptr = BKE_curveprofile_active_location_get(curve_runtime->last_pt) + 1;
       curve_runtime->last_pos.y = *last_y_ptr;
