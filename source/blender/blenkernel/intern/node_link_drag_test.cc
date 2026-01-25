@@ -35,6 +35,8 @@
 
 #include "RE_engine.h"
 
+#include "UI_interface.hh"
+
 #include "WM_api.hh"
 #include "wm.hh"
 #include "wm_event_system.hh"
@@ -102,6 +104,7 @@ class NodeLinkDragTest : public BlendfileLoadingBaseTest {
     BKE_shaderfx_init();
     ED_spacetypes_init();
     RE_engines_init();
+    ui::style_init_default();
   }
 
   static void TearDownTestCase()
