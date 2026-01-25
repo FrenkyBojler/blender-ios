@@ -870,10 +870,17 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   };
   Vector<StoreResult> results_to_store;
 
+  ResourceScope scope;
+
   struct AddResult {
     int input_index;
-    int evaluator_index;
-    std::variant<GArray<>, GPointer> new_data;
+    struct Single {
+      void *value;
+    };
+    struct Array {
+      void *data;
+    };
+    std::variant<Single, Array> new_data;
   };
   Vector<AddResult> results_to_add;
 
@@ -915,18 +922,19 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     if (field.node().depends_on_input()) {
       /* Could avoid allocating a new buffer if:
        * - The field does not depend on that attribute (we can't easily check for that yet). */
-      GArray<> array(type, domain_size);
+      void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
       if (!selection_is_full) {
-        initialize_new_data(attributes, domain, domain_size, id, type, data_type, array.data());
+        initialize_new_data(attributes, domain, domain_size, id, type, data_type, buffer);
       }
 
-      const int evaluator_index = evaluator.add_with_destination(field, array.as_mutable_span());
-      results_to_add.append({input_index, evaluator_index, std::move(array)});
+      GMutableSpan dst(type, buffer, domain_size);
+      evaluator.add_with_destination(field, dst);
+      results_to_add.append({input_index, AddResult::Array{buffer}});
     }
     else {
-      // TODO LIFETIMES
-      BUFFER_FOR_CPP_TYPE_VALUE(field.cpp_type(), value);
+      void *value = scope.allocate_owned(field.cpp_type());
       fn::evaluate_constant_field(field, value);
+      results_to_add.append({input_index, AddResult::Single{value}});
     }
   }
 
@@ -955,170 +963,173 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       attributes.remove(id);
       const CPPType &type = fields[result.input_index].cpp_type();
       const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
-      if (GArray<> *array = std::get_if<GArray<>>(&result.new_data)) {
-        void *buffer = array->release();
-        if (!attributes.add(id, domain, data_type, AttributeInitMoveArray(buffer))) {
+      if (auto *array = std::get_if<AddResult::Array>(&result.new_data)) {
+        if (!attributes.add(id, domain, data_type, AttributeInitMoveArray(array->data))) {
           /* If the name corresponds to a builtin attribute, removing the attribute might fail if
            * it's required, adding the attribute might fail if the domain or type is incorrect. */
-          type.destruct_n(buffer, domain_size);
-          MEM_freeN(buffer);
+          type.destruct_n(array->data, domain_size);
+          MEM_freeN(array->data);
           success = false;
         }
       }
       else {
-        GPointer value = std::get<GPointer>(result.new_data);
-        if (!attributes.add(id, domain, data_type, AttributeInitSingle(value))) {
+        const auto value = std::get<AddResult::Single>(result.new_data);
+        if (!attributes.add(
+                id,
+                domain,
+                data_type,
+                AttributeInitVArray(GVArray::from_single_ref(type, domain_size, value.value))))
+        {
           success = false;
         }
       }
     }
-
-    return success;
   }
 
-  bool try_capture_fields_on_geometry(GeometryComponent & component,
-                                      const Span<StringRef> attribute_ids,
-                                      const AttrDomain domain,
-                                      const fn::Field<bool> &selection,
-                                      const Span<fn::GField> fields)
+  return success;
+}
+
+bool try_capture_fields_on_geometry(GeometryComponent &component,
+                                    const Span<StringRef> attribute_ids,
+                                    const AttrDomain domain,
+                                    const fn::Field<bool> &selection,
+                                    const Span<fn::GField> fields)
+{
+  const GeometryComponent::Type component_type = component.type();
+  if (component_type == GeometryComponent::Type::GreasePencil &&
+      ELEM(domain, AttrDomain::Point, AttrDomain::Curve))
   {
-    const GeometryComponent::Type component_type = component.type();
-    if (component_type == GeometryComponent::Type::GreasePencil &&
-        ELEM(domain, AttrDomain::Point, AttrDomain::Curve))
-    {
-      /* Capture the field on every layer individually. */
-      auto &grease_pencil_component = static_cast<GreasePencilComponent &>(component);
-      GreasePencil *grease_pencil = grease_pencil_component.get_for_write();
-      if (grease_pencil == nullptr) {
-        return false;
-      }
-      bool any_success = false;
-      threading::parallel_for(
-          grease_pencil->layers().index_range(), 8, [&](const IndexRange range) {
-            for (const int layer_index : range) {
-              if (greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
-                      grease_pencil->layer(layer_index)))
-              {
-                const GeometryFieldContext field_context{*grease_pencil, domain, layer_index};
-                const bool success = try_capture_fields_on_geometry(
-                    drawing->strokes_for_write().attributes_for_write(),
-                    field_context,
-                    attribute_ids,
-                    domain,
-                    selection,
-                    fields);
-                if (success & !any_success) {
-                  any_success = true;
-                }
-              }
-            }
-          });
-      return any_success;
-    }
-    if (component_type == GeometryComponent::Type::GreasePencil && domain != AttrDomain::Layer) {
-      /* The remaining code only handles the layer domain for grease pencil geometries. */
+    /* Capture the field on every layer individually. */
+    auto &grease_pencil_component = static_cast<GreasePencilComponent &>(component);
+    GreasePencil *grease_pencil = grease_pencil_component.get_for_write();
+    if (grease_pencil == nullptr) {
       return false;
     }
-
-    MutableAttributeAccessor attributes = *component.attributes_for_write();
-    const GeometryFieldContext field_context{component, domain};
-    return try_capture_fields_on_geometry(
-        attributes, field_context, attribute_ids, domain, selection, fields);
+    bool any_success = false;
+    threading::parallel_for(grease_pencil->layers().index_range(), 8, [&](const IndexRange range) {
+      for (const int layer_index : range) {
+        if (greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
+                grease_pencil->layer(layer_index)))
+        {
+          const GeometryFieldContext field_context{*grease_pencil, domain, layer_index};
+          const bool success = try_capture_fields_on_geometry(
+              drawing->strokes_for_write().attributes_for_write(),
+              field_context,
+              attribute_ids,
+              domain,
+              selection,
+              fields);
+          if (success & !any_success) {
+            any_success = true;
+          }
+        }
+      }
+    });
+    return any_success;
+  }
+  if (component_type == GeometryComponent::Type::GreasePencil && domain != AttrDomain::Layer) {
+    /* The remaining code only handles the layer domain for grease pencil geometries. */
+    return false;
   }
 
-  bool try_capture_fields_on_geometry(GeometryComponent & component,
-                                      const Span<StringRef> attribute_ids,
-                                      const AttrDomain domain,
-                                      const Span<fn::GField> fields)
-  {
-    const fn::Field<bool> selection = fn::make_constant_field<bool>(true);
-    return try_capture_fields_on_geometry(component, attribute_ids, domain, selection, fields);
-  }
+  MutableAttributeAccessor attributes = *component.attributes_for_write();
+  const GeometryFieldContext field_context{component, domain};
+  return try_capture_fields_on_geometry(
+      attributes, field_context, attribute_ids, domain, selection, fields);
+}
 
-  std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &component,
-                                                    const fn::GField &field)
-  {
-    const GeometryComponent::Type component_type = component.type();
-    if (component_type == GeometryComponent::Type::PointCloud) {
-      return AttrDomain::Point;
+bool try_capture_fields_on_geometry(GeometryComponent &component,
+                                    const Span<StringRef> attribute_ids,
+                                    const AttrDomain domain,
+                                    const Span<fn::GField> fields)
+{
+  const fn::Field<bool> selection = fn::make_constant_field<bool>(true);
+  return try_capture_fields_on_geometry(component, attribute_ids, domain, selection, fields);
+}
+
+std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &component,
+                                                  const fn::GField &field)
+{
+  const GeometryComponent::Type component_type = component.type();
+  if (component_type == GeometryComponent::Type::PointCloud) {
+    return AttrDomain::Point;
+  }
+  if (component_type == GeometryComponent::Type::GreasePencil) {
+    return AttrDomain::Layer;
+  }
+  if (component_type == GeometryComponent::Type::Instance) {
+    return AttrDomain::Instance;
+  }
+  const std::shared_ptr<const fn::FieldInputs> &field_inputs = field.node().field_inputs();
+  if (!field_inputs) {
+    return std::nullopt;
+  }
+  std::optional<AttrDomain> output_domain;
+  auto handle_domain = [&](const std::optional<AttrDomain> domain) {
+    if (!domain.has_value()) {
+      return false;
     }
-    if (component_type == GeometryComponent::Type::GreasePencil) {
-      return AttrDomain::Layer;
-    }
-    if (component_type == GeometryComponent::Type::Instance) {
-      return AttrDomain::Instance;
-    }
-    const std::shared_ptr<const fn::FieldInputs> &field_inputs = field.node().field_inputs();
-    if (!field_inputs) {
-      return std::nullopt;
-    }
-    std::optional<AttrDomain> output_domain;
-    auto handle_domain = [&](const std::optional<AttrDomain> domain) {
-      if (!domain.has_value()) {
+    if (output_domain.has_value()) {
+      if (*output_domain != *domain) {
         return false;
       }
-      if (output_domain.has_value()) {
-        if (*output_domain != *domain) {
-          return false;
-        }
-        return true;
-      }
-      output_domain = domain;
       return true;
-    };
-    if (component_type == GeometryComponent::Type::Mesh) {
-      const MeshComponent &mesh_component = static_cast<const MeshComponent &>(component);
-      const Mesh *mesh = mesh_component.get();
-      if (mesh == nullptr) {
-        return std::nullopt;
-      }
-      for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
-        if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
-                &field_input))
-        {
-          if (!handle_domain(geometry_field_input->preferred_domain(component))) {
-            return std::nullopt;
-          }
-        }
-        else if (const auto *mesh_field_input = dynamic_cast<const MeshFieldInput *>(&field_input))
-        {
-          if (!handle_domain(mesh_field_input->preferred_domain(*mesh))) {
-            return std::nullopt;
-          }
-        }
-        else {
+    }
+    output_domain = domain;
+    return true;
+  };
+  if (component_type == GeometryComponent::Type::Mesh) {
+    const MeshComponent &mesh_component = static_cast<const MeshComponent &>(component);
+    const Mesh *mesh = mesh_component.get();
+    if (mesh == nullptr) {
+      return std::nullopt;
+    }
+    for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
+      if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
+              &field_input))
+      {
+        if (!handle_domain(geometry_field_input->preferred_domain(component))) {
           return std::nullopt;
         }
       }
-    }
-    if (component_type == GeometryComponent::Type::Curve) {
-      const CurveComponent &curve_component = static_cast<const CurveComponent &>(component);
-      const Curves *curves = curve_component.get();
-      if (curves == nullptr) {
-        return std::nullopt;
-      }
-      for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
-        if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
-                &field_input))
-        {
-          if (!handle_domain(geometry_field_input->preferred_domain(component))) {
-            return std::nullopt;
-          }
-        }
-        else if (const auto *curves_field_input = dynamic_cast<const CurvesFieldInput *>(
-                     &field_input))
-        {
-          if (!handle_domain(curves_field_input->preferred_domain(curves->geometry.wrap()))) {
-            return std::nullopt;
-          }
-        }
-        else {
+      else if (const auto *mesh_field_input = dynamic_cast<const MeshFieldInput *>(&field_input)) {
+        if (!handle_domain(mesh_field_input->preferred_domain(*mesh))) {
           return std::nullopt;
         }
       }
+      else {
+        return std::nullopt;
+      }
     }
-    return output_domain;
   }
+  if (component_type == GeometryComponent::Type::Curve) {
+    const CurveComponent &curve_component = static_cast<const CurveComponent &>(component);
+    const Curves *curves = curve_component.get();
+    if (curves == nullptr) {
+      return std::nullopt;
+    }
+    for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
+      if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
+              &field_input))
+      {
+        if (!handle_domain(geometry_field_input->preferred_domain(component))) {
+          return std::nullopt;
+        }
+      }
+      else if (const auto *curves_field_input = dynamic_cast<const CurvesFieldInput *>(
+                   &field_input))
+      {
+        if (!handle_domain(curves_field_input->preferred_domain(curves->geometry.wrap()))) {
+          return std::nullopt;
+        }
+      }
+      else {
+        return std::nullopt;
+      }
+    }
+  }
+  return output_domain;
+}
 
 }  // namespace bke
 
