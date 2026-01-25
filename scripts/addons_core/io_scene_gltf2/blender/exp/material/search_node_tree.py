@@ -833,6 +833,8 @@ def previous_socket(socket: NodeSocket):
         if from_socket.node.type == "GROUP":
             socket_name = from_socket.name
             # Some groups can be undefined (because of linked librairies)
+            if from_socket.node.node_tree is None:
+                return NodeSocket(None, None)
             next_socket = next(iter([n for n in from_socket.node.node_tree.nodes if n.type == "GROUP_OUTPUT"]), None)
             if next_socket is None:
                 return NodeSocket(None, None)
