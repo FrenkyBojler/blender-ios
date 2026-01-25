@@ -98,6 +98,7 @@ struct AtomicLexer : LexerBase {
   {
     str = input;
     process(input, lexit::char_class_table);
+    identify_keywords();
 
     token_types_str = std::string_view((const char *)types_.get(), size_);
     token_types = {types_.get(), size_};
@@ -109,12 +110,6 @@ struct AtomicLexer : LexerBase {
 
   BLI_INLINE_METHOD Atom hash(StringRef tok_str)
   {
-    union {
-      uint64_t u64;
-      uint32_t u32[2];
-    };
-    u64 = 0;
-
     switch (tok_str.size()) {
       case 1:
         /* Reserve [0-127] range for single char token. */
@@ -122,16 +117,6 @@ struct AtomicLexer : LexerBase {
       case 2:
         /* Reserve [128-16511] range for double char token. tok_str[1] cannot be 0. */
         return tok_str[0] + tok_str[1] * uint16_t(128);
-      case 3:
-      case 4:
-        std::memcpy(&u64, tok_str.data(), tok_str.size());
-        return atom_u32_map_.lookup_or_add_cb(u32[0], [this]() { return this->next_hash(); });
-      case 5:
-      case 6:
-      case 7:
-      case 8:
-        std::memcpy(&u64, tok_str.data(), tok_str.size());
-        return atom_u64_map_.lookup_or_add_cb(u64, [this]() { return this->next_hash(); });
       default:
         /* Long identifier slow path. Do full hash */
         return atomization_map_.lookup_or_add_cb(tok_str, [this]() { return this->next_hash(); });
@@ -139,10 +124,48 @@ struct AtomicLexer : LexerBase {
   }
 
  protected:
+  constexpr BLI_INLINE char perfect_hash(std::string_view s)
+  {
+    return s.size() * 3 + (s[0] - s.back());
+  }
+
+  BLI_INLINE TokenType type_lookup(std::string_view s)
+  {
+    switch (perfect_hash(s)) {
+      case perfect_hash("if"):
+        return (s == "if") ? If : Word;
+      case perfect_hash("elif"):
+        return (s == "elif") ? Elif : Word;
+      case perfect_hash("else"):
+        return (s == "else") ? Else : Word;
+      case perfect_hash("line"):
+        return (s == "line") ? Line : Word;
+      case perfect_hash("endif"):
+        return (s == "endif") ? Endif : Word;
+      case perfect_hash("ifdef"):
+        return (s == "ifdef") ? Ifdef : Word;
+      case perfect_hash("undef"):
+        return (s == "undef") ? Undef : Word;
+      case perfect_hash("define"):
+        return (s == "define") ? Define : Word;
+      case perfect_hash("ifndef"):
+        return (s == "ifndef") ? Ifndef : Word;
+      default:
+        return Word;
+    }
+  }
+
+  BLI_NOINLINE void identify_keywords()
+  {
+    for (auto tok : *this) {
+      if (tok.type == Word) {
+        tok.type = type_lookup(tok.str);
+      }
+    }
+  }
+
   /** Map string hashes to atom value. */
   Map<StringRef, Atom> atomization_map_;
-  Map<uint64_t, Atom> atom_u64_map_;
-  Map<uint32_t, Atom> atom_u32_map_;
   /* Reserve [16512-65536] range for longer token. */
   uint16_t atom_hash_counter_ = 16512;
 
@@ -159,16 +182,13 @@ struct AtomicLexer : LexerBase {
 
     token_atoms.resize(tok_count);
     /* From checking our statistics. This heuristic should be enough for 99% of our cases. */
-    atom_u32_map_.reserve(tok_count / 170);
-    atom_u64_map_.reserve(tok_count / 80);
-    atomization_map_.reserve(tok_count / 25);
+    atomization_map_.reserve(tok_count / 20);
 
-    for (int tok_id = 0; tok_id < tok_count; tok_id++) {
-      if (token_types[tok_id] != Word) {
-        continue;
+    for (TokenIt it = begin(); it < end(); ++it) {
+      const Token tok = *it;
+      if (tok.type == Word) {
+        token_atoms[it.index()] = hash(tok.str);
       }
-      IndexRange range = token_offsets[tok_id];
-      token_atoms[tok_id] = hash(StringRef(str.data() + range.start, range.size));
     }
   }
 
@@ -182,27 +202,26 @@ struct AtomicLexer : LexerBase {
     directive_lines.reserve(line_offsets_buf_.size() / 2);
 
     line_offsets_buf_.append(0);
-    int tok_id = 0;
-    for (TokenType type : blender::Span<TokenType>(token_types.data(), token_types.size())) {
-      if (type == NewLine) {
-        line_offsets_buf_.append(tok_id + 1);
+    for (TokenIt it = begin(); it < end(); ++it) {
+      const Token tok = *it;
+      if (tok.type == NewLine) {
+        line_offsets_buf_.append(it.index() + 1);
       }
-      else if (type == '#') {
+      else if (tok.type == '#') {
         int line_start = line_offsets_buf_.last();
         /* Directive can only start with a hash token (+ optional space).
          * If there is more token before the hash token it cannot be a preprocessor directive. */
-        if (tok_id - line_start <= 1) {
+        if (it.index() - line_start <= 1) {
           int line_index = line_offsets_buf_.size() - 1;
           if (directive_lines.is_empty() || directive_lines.last() != line_index) {
             directive_lines.append(line_index);
           }
         }
       }
-      tok_id++;
     }
     /* Finish last line. But only do so if it contains at least one character. */
-    if (line_offsets_buf_.last() != tok_id) {
-      line_offsets_buf_.append(tok_id);
+    if (line_offsets_buf_.last() != size()) {
+      line_offsets_buf_.append(size());
     }
 
     line_offsets = line_offsets_buf_.as_span();
@@ -281,31 +300,17 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   using AtomID = ID<AtomTrait, AtomicLexer::Atom>;
 
   enum DirectiveType : char {
-    Define = 0,
-    Undef,
-    Line,
-    If,
-    Ifdef,
-    Ifndef,
-    Elif,
-    Else,
-    Endif,
+    Define = TokenType::Define,
+    Undef = TokenType::Undef,
+    Line = TokenType::Line,
+    If = TokenType::If,
+    Ifdef = TokenType::Ifdef,
+    Ifndef = TokenType::Ifndef,
+    Elif = TokenType::Elif,
+    Else = TokenType::Else,
+    Endif = TokenType::Endif,
     /* Any other unhandled directives (warnings / errors / pragma etc...). */
-    Other,
-  };
-
-  /* This relies on lexical_analysis being called inside the constructor. */
-  std::array<AtomID, Other> directive_type_table = {
-      /* Not using array designators since its not standard C++ :sad:. */
-      /*[Define] = */ get_atom("define"),
-      /*[Undef] = */ get_atom("undef"),
-      /*[Line] = */ get_atom("line"),
-      /*[If] = */ get_atom("if"),
-      /*[Ifdef] = */ get_atom("ifdef"),
-      /*[Ifndef] = */ get_atom("ifndef"),
-      /*[Elif] = */ get_atom("elif"),
-      /*[Else] = */ get_atom("else"),
-      /*[Endif] = */ get_atom("endif"),
+    Other = TokenType::Word,
   };
 
   /* Cached 'defined' keyword identifier. */
@@ -407,11 +412,6 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   {
     BLI_assert(get_type(tok) == Word);
     return AtomID(lex_.token_atoms[int(tok)]);
-  }
-  /* Return valid value if dir is valid. */
-  AtomID get_atom(DirectiveID dir)
-  {
-    return AtomID(lex_.token_atoms[int(get_identifier(dir))]);
   }
   /* Return valid value if hash is a known string. Is full hash lookup + hashing. */
   AtomID get_atom(StringRef str)
@@ -516,14 +516,9 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   }
   DirectiveType get_type(DirectiveID dir)
   {
-    AtomID id_hash = get_atom(dir);
-    /* Linear search in small array. */
-    for (int i : blender::IndexRange(directive_type_table.size())) {
-      if (directive_type_table[i] == id_hash) {
-        return DirectiveType(i);
-      }
-    }
-    return Other;
+    TokenID tok = get_identifier(dir);
+    TokenType type = get_type(tok);
+    return DirectiveType(type);
   }
 
   /* Return token defining the directive type (e.g. define, undef, if ...). */
@@ -533,7 +528,6 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
     TokenID hash_tok = skip_space(get_start(line));
     BLI_assert(get_type(hash_tok) == Hash);
     TokenID dir_tok = skip_space(next(hash_tok));
-    BLI_assert(get_type(dir_tok) == Word);
     return dir_tok;
   }
 
