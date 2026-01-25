@@ -1292,7 +1292,7 @@ static std::string actkeys_clean_get_description(bContext * /*C*/,
 {
   /* Custom description based on the 'channels' property */
   if (RNA_boolean_get(ptr, "channels")) {
-    return TIP_("Simplify F-Curves and remove empty or redundant channels");
+    return TIP_("Simplify F-Curves and remove empty or redundant channels.");
   }
   
   /* Use the default description in the other case. */
