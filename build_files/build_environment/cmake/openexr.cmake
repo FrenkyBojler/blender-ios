@@ -32,6 +32,10 @@ ExternalProject_Add(external_openexr
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/openexr
 
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/openexr/src/external_openexr <
+    ${PATCH_DIR}/openexr_deflate_cmake.diff
+
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/openexr
     ${DEFAULT_CMAKE_FLAGS}
