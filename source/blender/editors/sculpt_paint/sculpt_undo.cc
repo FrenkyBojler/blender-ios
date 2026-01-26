@@ -375,7 +375,7 @@ static void restore_position_mesh(Object &object,
       Node &unode = *unodes[node_i];
       const Span<int> verts = unode.vert_indices.as_span().take_front(unode.unique_verts_num);
 
-      if (unode.orig_position.is_empty()) {
+      if (unode.orig_position.is_empty() && !shape_key_data) {
         /* When original positions aren't written separately in the undo step, there are no
          * deform modifiers. Therefore the original and evaluated deform positions will be the
          * same, and modifying the positions from the original mesh is enough. */
