@@ -257,16 +257,15 @@ void GLFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
     for (int i : color_attachment_states.index_range()) {
       GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0 + i;
       gpu::Texture *attach_tex = this->attachments_[type].tex;
-      bool attach_write = color_attachment_states[i] == GPU_ATTACHMENT_WRITE ||
-                          (color_attachment_states[i] == GPU_ATTACHMENT_WRITE_OPTIONAL &&
-                           attach_tex);
-      if (attach_write) {
+      if (color_attachment_states[i] == GPU_ATTACHMENT_READ) {
         tmp_detached_[type] = this->attachments_[type]; /* Bypass feedback loop check. */
         GPU_texture_bind_ex(attach_tex, GPUSamplerState::default_sampler(), i);
       }
       else {
         tmp_detached_[type] = GPU_ATTACHMENT_NONE;
       }
+      bool attach_write = color_attachment_states[i] == GPU_ATTACHMENT_WRITE ||
+                          color_attachment_states[i] == GPU_ATTACHMENT_WRITE_OPTIONAL;
       attachments[i] = (attach_tex && attach_write) ? to_gl(type) : GL_NONE;
     }
     /* We have to use `glDrawBuffers` instead of `glColorMaski` because the later is overwritten
