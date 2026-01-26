@@ -330,7 +330,7 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
     const float *object_color = b_ob.color;
     object->set_color(make_float3(object_color[0], object_color[1], object_color[2]));
     object->set_alpha(object_color[3]);
-    object->set_transform_normalized(tfm);
+    object->set_tfm(tfm);
 
     /* dupli texture coordinates and random_id */
     if (is_instance) {
