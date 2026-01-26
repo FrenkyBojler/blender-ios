@@ -157,6 +157,33 @@ class TestAcceptMathFunctionsComplex(unittest.TestCase, TestExprMixIn_Accept):
     expressions = ("-(sin(pi) ** 2) / 2", "floor(22 / 7)", "ceil(pi + 1)")
 
 
+class TestAcceptBooleanShortCircuit(unittest.TestCase, TestExprMixIn_Accept):
+    # Enables fallback values and conditional logic in drivers, e.g. `value and value * 2`.
+    # Uses COPY, TO_BOOL, POP_JUMP_IF_FALSE, and POP_JUMP_IF_TRUE opcodes.
+    expressions = (
+        "pi and e",
+        "pi and e and tau",
+        "pi or e",
+        "pi or e or tau",
+        "pi and e or tau",
+        "pi or e and tau",
+        "not pi or e",       # Combined with `not` operator.
+        "pi > 0 and e",      # Combined with comparison.
+        "pi if pi > e else e",
+    )
+
+
+class TestAcceptNoneCheck(unittest.TestCase, TestExprMixIn_Accept):
+    # Enables None-safe expressions in drivers, e.g. `value if value is not None else 0`.
+    # Uses POP_JUMP_IF_NONE and POP_JUMP_IF_NOT_NONE opcodes.
+    expressions = (
+        "pi if pi is not None else e",
+        "e if pi is None else pi",
+        "pi if pi is not None else (e if e is not None else tau)",
+        "(pi if pi is not None else 0) and e",  # Combined with boolean short-circuit.
+    )
+
+
 # -----------------------------------------------------------------------------
 # Tests (Reject)
 
