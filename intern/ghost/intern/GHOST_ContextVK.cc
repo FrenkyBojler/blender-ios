@@ -1626,7 +1626,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #ifdef _WIN32
     optional_device_extensions.append(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
 #elif defined(__APPLE__)
-#else
+#else /* Linux */
     optional_device_extensions.append(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
 #endif
 
