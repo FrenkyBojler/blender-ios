@@ -152,7 +152,8 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
       "${CMAKE_CXX_COMPILER_VERSION}"
     )
   endif()
-elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang")
+  # Only check regular clang version; Apple/Xcode clang uses a different versioning scheme
   if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "17.0")
     message(FATAL_ERROR
       "The minimum supported version of CLANG is 17.0, found C compiler: "
@@ -1420,7 +1421,7 @@ endif()
 if(WITH_AUDASPACE)
   if(NOT WITH_SYSTEM_AUDASPACE)
     set(AUDASPACE_C_INCLUDE_DIRS
-      "${CMAKE_SOURCE_DIR}/extern/audaspace/bindings/C"
+      "${CMAKE_SOURCE_DIR}/extern/audaspace/include"
       "${CMAKE_BINARY_DIR}/extern/audaspace"
     )
     set(AUDASPACE_PY_INCLUDE_DIRS
