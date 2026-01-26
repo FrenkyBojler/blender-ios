@@ -847,7 +847,8 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
              MAT_PIPE_PREPASS_DEFERRED,
              MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
              MAT_PIPE_PREPASS_FORWARD,
-             MAT_PIPE_PREPASS_FORWARD_VELOCITY))
+             MAT_PIPE_PREPASS_FORWARD_VELOCITY,
+             MAT_PIPE_PREPASS_PLANAR))
     {
       info.additional_info("eevee_object_id_out");
     }

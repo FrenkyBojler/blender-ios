@@ -1590,6 +1590,7 @@ PassMain::Sub *PlanarProbePipeline::material_add(blender::Material *blender_mat,
 
 void PlanarProbePipeline::render(View &view,
                                  gpu::Texture *depth_layer_tx,
+                                 Framebuffer &prepass_fb,
                                  Framebuffer &gbuffer_fb,
                                  Framebuffer &combined_fb,
                                  int2 extent)
@@ -1601,8 +1602,8 @@ void PlanarProbePipeline::render(View &view,
   inst_.pipelines.data.ray_type = RAY_TYPE_GLOSSY;
   inst_.uniform_data.push_update();
 
-  GPU_framebuffer_bind(gbuffer_fb);
-  GPU_framebuffer_clear_depth(gbuffer_fb, inst_.film.depth.clear_value);
+  GPU_framebuffer_bind(prepass_fb);
+  GPU_framebuffer_clear_depth(prepass_fb, inst_.film.depth.clear_value);
   inst_.manager->submit(prepass_ps_, view);
 
   /* TODO(fclem): This is the only place where we use the layer source to HiZ.

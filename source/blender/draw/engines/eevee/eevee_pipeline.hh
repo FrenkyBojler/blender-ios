@@ -661,6 +661,7 @@ class PlanarProbePipeline : DeferredLayerBase {
 
   void render(View &view,
               gpu::Texture *depth_layer_tx,
+              Framebuffer &prepass_fb,
               Framebuffer &gbuffer,
               Framebuffer &combined_fb,
               int2 extent);
