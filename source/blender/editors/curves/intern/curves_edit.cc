@@ -199,7 +199,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
           return;
         }
         bke::attribute_math::gather(
-            attribute.span,
+            attribute.span.slice(0, old_curves_num),
             dst_to_src_curve,
             attribute.span.slice(IndexRange(old_curves_num, num_curves_to_add)));
         break;
@@ -208,7 +208,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
         bke::attribute_math::gather_ranges_to_groups(
             src_ranges.as_span(),
             dst_offsets.as_span(),
-            attribute.span,
+            attribute.span.slice(0, old_points_num),
             attribute.span.slice(IndexRange(old_points_num, num_points_to_add)));
         break;
       }

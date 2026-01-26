@@ -26,6 +26,7 @@ static void propagate_vert_attributes(Mesh &mesh, const Span<int> new_to_old_ver
   CustomData_free_layers(&mesh.vert_data, CD_MVERT_SKIN);
   CustomData_realloc(
       &mesh.vert_data, mesh.verts_num, mesh.verts_num + new_to_old_verts_map.size());
+  const int old_verts_num = mesh.verts_num;
   mesh.verts_num += new_to_old_verts_map.size();
   mesh.attribute_storage.wrap().resize(bke::AttrDomain::Point, mesh.verts_num);
 
@@ -42,7 +43,7 @@ static void propagate_vert_attributes(Mesh &mesh, const Span<int> new_to_old_ver
     if (!attribute) {
       continue;
     }
-    bke::attribute_math::gather(attribute.span.drop_back(new_to_old_verts_map.size()),
+    bke::attribute_math::gather(attribute.span.take_front(old_verts_num),
                                 new_to_old_verts_map,
                                 attribute.span.take_back(new_to_old_verts_map.size()));
     attribute.finish();
@@ -50,7 +51,7 @@ static void propagate_vert_attributes(Mesh &mesh, const Span<int> new_to_old_ver
   if (float3 *orco = static_cast<float3 *>(
           CustomData_get_layer_for_write(&mesh.vert_data, CD_ORCO, mesh.verts_num)))
   {
-    array_utils::gather(Span(orco, mesh.verts_num),
+    array_utils::gather(Span(orco, old_verts_num),
                         new_to_old_verts_map,
                         MutableSpan(orco, mesh.verts_num).take_back(new_to_old_verts_map.size()));
   }
@@ -58,7 +59,7 @@ static void propagate_vert_attributes(Mesh &mesh, const Span<int> new_to_old_ver
           CustomData_get_layer_for_write(&mesh.vert_data, CD_ORIGINDEX, mesh.verts_num)))
   {
     array_utils::gather(
-        Span(orig_indices, mesh.verts_num),
+        Span(orig_indices, old_verts_num),
         new_to_old_verts_map,
         MutableSpan(orig_indices, mesh.verts_num).take_back(new_to_old_verts_map.size()));
   }
