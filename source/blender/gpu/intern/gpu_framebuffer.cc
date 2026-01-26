@@ -151,6 +151,7 @@ void FrameBuffer::subpass_transition(const GPUAttachmentState depth_attachment_s
       set_color_attachment_bit(type, color_attachment_states[i] == GPU_ATTACHMENT_WRITE);
     }
     else {
+      set_color_attachment_bit(type, false);
       BLI_assert(i >= color_attachment_states.size() ||
                  color_attachment_states[i] != GPU_ATTACHMENT_READ);
     }
