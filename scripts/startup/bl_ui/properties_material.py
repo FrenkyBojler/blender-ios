@@ -268,9 +268,9 @@ def draw_material_surface_settings(layout, mat, is_eevee=True):
     col.prop(mat, "surface_render_method", text="Render Method")
     if mat.surface_render_method == 'BLENDED':
         col.prop(mat, "use_transparency_overlap", text="Transparency Overlap")
+        col.prop(mat, "use_refraction_as_transparency")
     elif mat.surface_render_method == 'DITHERED':
         col.prop(mat, "use_raytrace_refraction", text="Raytraced Transmission")
-    col.prop(mat, "use_refraction_as_transparency")
 
     col = layout.column()
     col.prop(mat, "thickness_mode", text="Thickness")
