@@ -822,8 +822,6 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
 {
   bNodeTree &dst_tree = copied_nodes.dst_tree();
 
-  // const InterfaceProxyNodes interface_proxies = create_proxy_nodes_for_interface(
-  //     C, io_mapping, group_node, dst_tree);
   /* Set location for proxy nodes, based on drawing order of interface items. */
   float2 location_input = {-50, 0}, location_output = {50, 0};
   Vector<const bNode *> nodes_vec;
