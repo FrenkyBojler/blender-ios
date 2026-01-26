@@ -60,7 +60,7 @@ void main()
   nodetree_surface(0.0f);
 
 #  ifdef MAT_REFRACTION_AS_TRANSPARENCY
-  float thickness = nodetree_thickness() * thickness_mode;
+  float thickness = nodetree_thickness();
 
   if (thickness > 0.0f) {
     /* Simulate 2 refraction event. */

@@ -66,12 +66,12 @@ void main()
 
   fragment_displacement();
 
-  g_thickness = nodetree_thickness() * thickness_mode;
+  g_thickness = max(0.0, nodetree_thickness()) * thickness_mode;
 
   nodetree_surface(closure_rand);
 
 #ifdef MAT_REFRACTION_AS_TRANSPARENCY
-  if (g_thickness > 0.0f) {
+  if (abs(g_thickness) > 0.0f) {
     /* Simulate 2 refraction event. */
     g_refraction_transmittance *= g_refraction_transmittance;
   }
