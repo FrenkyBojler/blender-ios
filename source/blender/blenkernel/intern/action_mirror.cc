@@ -33,7 +33,7 @@
 
 #include "DEG_depsgraph.hh"
 
-using namespace blender;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Flip the Action (Armature/Pose Objects)
@@ -87,9 +87,9 @@ struct FCurve_KeyCache {
 static void action_flip_pchan_cache_fcurve_assign_value(FCurve_KeyCache *fkc,
                                                         int index,
                                                         const char *path,
-                                                        FCurvePathCache *fcache)
+                                                        Map<RNAPath, FCurve *> &fcurve_cache)
 {
-  FCurve *fcu = BKE_fcurve_pathcache_find(fcache, path, index);
+  FCurve *fcu = fcurve_cache.lookup_default({path, std::nullopt, index}, nullptr);
   if (fcu && fcu->bezt) {
     fkc->fcurve = fcu;
   }
@@ -101,14 +101,15 @@ static void action_flip_pchan_cache_fcurve_assign_value(FCurve_KeyCache *fkc,
 static void action_flip_pchan_cache_fcurve_assign_array(FCurve_KeyCache *fkc,
                                                         int fkc_len,
                                                         const char *path,
-                                                        FCurvePathCache *fcache)
+                                                        Map<RNAPath, FCurve *> &fcurve_cache)
 {
-  FCurve **fcurves = static_cast<FCurve **>(alloca(sizeof(*fcurves) * fkc_len));
-  if (BKE_fcurve_pathcache_find_array(fcache, path, fcurves, fkc_len)) {
-    for (int i = 0; i < fkc_len; i++) {
-      if (fcurves[i] && fcurves[i]->bezt) {
-        fkc[i].fcurve = fcurves[i];
-      }
+  for (int i = 0; i < fkc_len; i++) {
+    FCurve *fcu = fcurve_cache.lookup_default({path, std::nullopt, i}, nullptr);
+    if (!fcu) {
+      continue;
+    }
+    if (fcu && fcu->bezt) {
+      fkc[i].fcurve = fcu;
     }
   }
 }
@@ -165,8 +166,11 @@ static void action_flip_pchan_cache_init(FCurve_KeyCache *fkc,
 }
 
 /**
+ * \param fcurve_cache is used to quickly find the flipped FCurve.
  */
-static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurvePathCache *fcache)
+static void action_flip_pchan(Object *ob_arm,
+                              const bPoseChannel *pchan,
+                              Map<RNAPath, FCurve *> &fcurve_cache)
 {
   /* Begin F-Curve pose channel value extraction. */
   /* Use a fixed buffer size as it's known this can only be at most:
@@ -200,12 +204,12 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
 
 #define FCURVE_ASSIGN_VALUE(id, path_test_suffix, index) \
   BLI_strncpy(path_xform_suffix, path_test_suffix, path_xform_suffix_maxncpy); \
-  action_flip_pchan_cache_fcurve_assign_value(&fkc_pchan.id, index, path_xform, fcache)
+  action_flip_pchan_cache_fcurve_assign_value(&fkc_pchan.id, index, path_xform, fcurve_cache)
 
 #define FCURVE_ASSIGN_ARRAY(id, path_test_suffix) \
   BLI_strncpy(path_xform_suffix, path_test_suffix, path_xform_suffix_maxncpy); \
   action_flip_pchan_cache_fcurve_assign_array( \
-      fkc_pchan.id, ARRAY_SIZE(fkc_pchan.id), path_xform, fcache)
+      fkc_pchan.id, ARRAY_SIZE(fkc_pchan.id), path_xform, fcurve_cache)
 
   FCURVE_ASSIGN_ARRAY(loc, ".location");
   FCURVE_ASSIGN_ARRAY(eul, ".rotation_euler");
@@ -224,7 +228,7 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
   int fcurve_array_len = 0;
 
   for (int chan = 0; chan < FCURVE_CHANNEL_LEN; chan++) {
-    FCurve_KeyCache *fkc = (FCurve_KeyCache *)(&fkc_pchan) + chan;
+    FCurve_KeyCache *fkc = reinterpret_cast<FCurve_KeyCache *>(&fkc_pchan) + chan;
     if (fkc->fcurve != nullptr) {
       fcurve_array[fcurve_array_len++] = fkc->fcurve;
     }
@@ -242,7 +246,7 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
 
   /* Initialize the pose channel curve cache from the F-Curve. */
   for (int chan = 0; chan < FCURVE_CHANNEL_LEN; chan++) {
-    FCurve_KeyCache *fkc = (FCurve_KeyCache *)(&fkc_pchan) + chan;
+    FCurve_KeyCache *fkc = reinterpret_cast<FCurve_KeyCache *>(&fkc_pchan) + chan;
     if (fkc->fcurve == nullptr) {
       continue;
     }
@@ -270,7 +274,7 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
 
     /* Temporary pose channel to write values into,
      * using the `fkc_pchan` values, falling back to the values in the pose channel. */
-    bPoseChannel pchan_temp = blender::dna::shallow_copy(*pchan);
+    bPoseChannel pchan_temp = dna::shallow_copy(*pchan);
 
 /* Load the values into the channel. */
 #define READ_VALUE_FLT(id) \
@@ -371,13 +375,13 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
 
   /* Recalculate handles. */
   for (int i = 0; i < fcurve_array_len; i++) {
-    BKE_fcurve_handles_recalc_ex(fcurve_array[i], eBezTriple_Flag(0));
+    BKE_fcurve_handles_recalc_ex(*fcurve_array[i], eBezTriple_Flag(0));
   }
 
   MEM_freeN(keyed_frames);
 
   for (int chan = 0; chan < FCURVE_CHANNEL_LEN; chan++) {
-    FCurve_KeyCache *fkc = (FCurve_KeyCache *)(&fkc_pchan) + chan;
+    FCurve_KeyCache *fkc = reinterpret_cast<FCurve_KeyCache *>(&fkc_pchan) + chan;
     if (fkc->fcurve_eval) {
       MEM_freeN(fkc->fcurve_eval);
     }
@@ -396,11 +400,11 @@ static void action_flip_pchan_rna_paths(bAction *act)
   const int path_pose_prefix_len = strlen(path_pose_prefix);
 
   /* Tag curves that have renamed f-curves. */
-  for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
+  for (bActionGroup *agrp : animrig::legacy::channel_groups_all(act)) {
     agrp->flag &= ~AGRP_TEMP;
   }
 
-  for (FCurve *fcu : blender::animrig::legacy::fcurves_all(act)) {
+  for (FCurve *fcu : animrig::legacy::fcurves_all(act)) {
     if (!STRPREFIX(fcu->rna_path, path_pose_prefix)) {
       continue;
     }
@@ -440,7 +444,7 @@ static void action_flip_pchan_rna_paths(bAction *act)
   }
 
   /* Rename tagged groups. */
-  for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
+  for (bActionGroup *agrp : animrig::legacy::channel_groups_all(act)) {
     if ((agrp->flag & AGRP_TEMP) == 0) {
       continue;
     }
@@ -453,14 +457,14 @@ static void action_flip_pchan_rna_paths(bAction *act)
   }
 }
 
-void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
+void BKE_action_flip_with_pose(bAction *act, Span<Object *> objects)
 {
   animrig::Action &action = act->wrap();
   if (action.slot_array_num == 0) {
     /* Cannot flip an empty action. */
     return;
   }
-  blender::Set<animrig::Slot *> flipped_slots;
+  Set<animrig::Slot *> flipped_slots;
   for (Object *object : objects) {
     animrig::Slot *slot = animrig::generic_slot_for_autoassign(object->id, action, "");
     if (!slot) {
@@ -470,11 +474,13 @@ void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
       continue;
     }
     Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, slot->handle);
-    FCurvePathCache *fcache = BKE_fcurve_pathcache_create(fcurves);
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
-      action_flip_pchan(object, pchan, fcache);
+    Map<RNAPath, FCurve *> fcu_cache;
+    for (FCurve *fcu : fcurves) {
+      fcu_cache.add({fcu->rna_path, std::nullopt, fcu->array_index}, fcu);
     }
-    BKE_fcurve_pathcache_destroy(fcache);
+    for (bPoseChannel &pchan : object->pose->chanbase) {
+      action_flip_pchan(object, &pchan, fcu_cache);
+    }
   }
 
   action_flip_pchan_rna_paths(act);
@@ -483,3 +489,5 @@ void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
 }
 
 /** \} */
+
+}  // namespace blender

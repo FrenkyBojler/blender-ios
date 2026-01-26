@@ -11,10 +11,10 @@
 #include "BLI_set.hh"
 #include "BLI_vector_set.hh"
 
+#include "DNA_color_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_screen_types.h"
 
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
@@ -71,7 +71,7 @@ void foreach_influence_ID_link(GreasePencilModifierInfluenceData *influence_data
                                IDWalkFunc walk,
                                void *user_data)
 {
-  walk(user_data, ob, (ID **)&influence_data->material, IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&influence_data->material), IDWALK_CB_USER);
 }
 
 void write_influence_data(BlendWriter *writer,
@@ -95,7 +95,7 @@ void read_influence_data(BlendDataReader *reader,
 
 void draw_layer_filter_settings(const bContext * /*C*/, ui::Layout &layout, PointerRNA *ptr)
 {
-  PointerRNA ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Object, ptr->owner_id);
+  PointerRNA ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, RNA_Object, ptr->owner_id);
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
   const bool use_layer_pass = RNA_boolean_get(ptr, "use_layer_pass_filter");
   const bool use_layer_group_filter = RNA_boolean_get(ptr, "use_layer_group_filter");
@@ -137,7 +137,7 @@ void draw_layer_filter_settings(const bContext * /*C*/, ui::Layout &layout, Poin
 
 void draw_material_filter_settings(const bContext * /*C*/, ui::Layout &layout, PointerRNA *ptr)
 {
-  PointerRNA ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Object, ptr->owner_id);
+  PointerRNA ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, RNA_Object, ptr->owner_id);
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
   const bool use_material_pass = RNA_boolean_get(ptr, "use_material_pass_filter");
 
@@ -163,7 +163,7 @@ void draw_material_filter_settings(const bContext * /*C*/, ui::Layout &layout, P
 
 void draw_vertex_group_settings(const bContext * /*C*/, ui::Layout &layout, PointerRNA *ptr)
 {
-  PointerRNA ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Object, ptr->owner_id);
+  PointerRNA ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, RNA_Object, ptr->owner_id);
   bool has_vertex_group = RNA_string_length(ptr, "vertex_group_name") != 0;
 
   layout.use_property_split_set(true);
@@ -187,7 +187,7 @@ void draw_custom_curve_settings(const bContext * /*C*/, ui::Layout &layout, Poin
   row.use_property_decorate_set(false);
   row.prop(ptr, "use_custom_curve", UI_ITEM_NONE, IFACE_("Custom Curve"), ICON_NONE);
   if (use_custom_curve) {
-    uiTemplateCurveMapping(&layout, ptr, "custom_curve", 0, false, false, false, false, false);
+    template_curve_mapping(&layout, ptr, "custom_curve", 0, false, false, false, false, false);
   }
 }
 

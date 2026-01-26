@@ -19,6 +19,8 @@
 
 #include "bpy_app_icons.hh"
 
+namespace blender {
+
 /* We may want to load direct from file. */
 PyDoc_STRVAR(
     /* Wrap. */
@@ -43,7 +45,6 @@ static PyObject *bpy_app_icons_new_triangles(PyObject * /*self*/, PyObject *args
 
   static const char *_keywords[] = {"range", "coords", "colors", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "(BB)" /* `range` */
       "S"    /* `coords` */
       "S"    /* `colors` */
@@ -105,7 +106,6 @@ static PyObject *bpy_app_icons_new_triangles_from_file(PyObject * /*self*/,
 
   static const char *_keywords[] = {"filepath", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `filepath` */
       ":new_triangles_from_file",
       _keywords,
@@ -139,7 +139,6 @@ static PyObject *bpy_app_icons_release(PyObject * /*self*/, PyObject *args, PyOb
   int icon_id;
   static const char *_keywords[] = {"icon_id", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i" /* `icon_id` */
       ":release",
       _keywords,
@@ -168,15 +167,15 @@ static PyObject *bpy_app_icons_release(PyObject * /*self*/, PyObject *args, PyOb
 
 static PyMethodDef M_AppIcons_methods[] = {
     {"new_triangles",
-     (PyCFunction)bpy_app_icons_new_triangles,
+     reinterpret_cast<PyCFunction>(bpy_app_icons_new_triangles),
      METH_VARARGS | METH_KEYWORDS,
      bpy_app_icons_new_triangles_doc},
     {"new_triangles_from_file",
-     (PyCFunction)bpy_app_icons_new_triangles_from_file,
+     reinterpret_cast<PyCFunction>(bpy_app_icons_new_triangles_from_file),
      METH_VARARGS | METH_KEYWORDS,
      bpy_app_icons_new_triangles_from_file_doc},
     {"release",
-     (PyCFunction)bpy_app_icons_release,
+     reinterpret_cast<PyCFunction>(bpy_app_icons_release),
      METH_VARARGS | METH_KEYWORDS,
      bpy_app_icons_release_doc},
     {nullptr, nullptr, 0, nullptr},
@@ -208,7 +207,9 @@ PyObject *BPY_app_icons_module()
 
   PyObject *mod = PyModule_Create(&M_AppIcons_module_def);
 
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(mod), mod);
+  PyC_Module_AddToSysModules(sys_modules, mod);
 
   return mod;
 }
+
+}  // namespace blender

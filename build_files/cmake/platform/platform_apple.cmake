@@ -159,10 +159,10 @@ add_bundled_libraries(openexr/lib)
 add_bundled_libraries(imath/lib)
 
 string(APPEND PLATFORM_CFLAGS " -pipe -funsigned-char -fno-strict-aliasing -ffp-contract=off")
-set(PLATFORM_LINKFLAGS
-  "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa \
-   -framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework Metal \
-   -framework QuartzCore"
+set(PLATFORM_LINKFLAGS "\
+-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa \
+-framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework Metal \
+-framework QuartzCore"
 )
 
 if(WITH_CODEC_FFMPEG)
@@ -241,6 +241,9 @@ find_package(JPEG REQUIRED)
 set(TIFF_ROOT ${LIBDIR}/tiff)
 find_package(TIFF REQUIRED)
 
+set(fmt_ROOT ${LIBDIR}/fmt)
+find_package(fmt REQUIRED)
+
 if(WITH_IMAGE_WEBP)
   set(WEBP_ROOT_DIR ${LIBDIR}/webp)
   find_package(WebP REQUIRED)
@@ -313,8 +316,9 @@ if(WITH_NANOVDB)
   find_package(NanoVDB)
 endif()
 
-if(WITH_CPU_SIMD AND SUPPORT_NEON_BUILD)
-  find_package(sse2neon)
+test_neon_support()
+if(SUPPORTS_NEON_BUILD)
+  find_package(sse2neon REQUIRED)
 endif()
 
 if(WITH_LLVM)
@@ -335,6 +339,8 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
   find_package(OSL 1.13.4 REQUIRED)
 endif()
 add_bundled_libraries(osl/lib)
+# OSL dependency
+add_bundled_libraries(openjph/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
   find_package(Embree 4.0.0 REQUIRED)
@@ -501,7 +507,7 @@ if(PLATFORM_BUNDLED_LIBRARIES)
     list(APPEND CMAKE_INSTALL_RPATH "@loader_path/../Resources/lib")
   endif()
 
-  # For binaries that are built but not installed (like makesdan or tests), we add
+  # For binaries that are built but not installed (like makesdna or tests), we add
   # the original directory of all shared libraries to the rpath. This is needed because
   # these can be in different folders, and because the build and install folder may be
   # different.

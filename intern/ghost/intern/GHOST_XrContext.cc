@@ -15,6 +15,8 @@
 #include <string_view>
 
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 
 #include "GHOST_Types.h"
 #include "GHOST_XrException.hh"
@@ -103,9 +105,15 @@ void GHOST_XrContext::createOpenXRInstance(
 {
   XrInstanceCreateInfo create_info = {XR_TYPE_INSTANCE_CREATE_INFO};
 
-  BLI_strncpy(
-      create_info.applicationInfo.applicationName, "Blender", XR_MAX_APPLICATION_NAME_SIZE);
+  blender::STRNCPY(create_info.applicationInfo.applicationName, "Blender");
+
+  /* Explicitly target OpenXR API version 1.0. Note that the API_VERSION_1_0 macro is only
+   * available in 1.1+ SDKs. For 1.0 SDKs, target the current SDK version. */
+#ifdef XR_API_VERSION_1_0
+  create_info.applicationInfo.apiVersion = XR_API_VERSION_1_0;
+#else
   create_info.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
+#endif
 
   getAPILayersToEnable(enabled_layers_);
   getExtensionsToEnable(
@@ -119,7 +127,7 @@ void GHOST_XrContext::createOpenXRInstance(
   }
 
   CHECK_XR(xrCreateInstance(&create_info, &oxr_->instance),
-           "Failed to create OpenXR instance, check OpenXR runtime.");
+           "Failed to create OpenXR instance, check active OpenXR runtime.");
 }
 
 void GHOST_XrContext::storeInstanceProperties()
@@ -400,29 +408,33 @@ void GHOST_XrContext::getAPILayersToEnable(std::vector<const char *> &r_ext_name
   }
 }
 
-static const char *openxr_ext_name_from_wm_gpu_binding(GHOST_TXrGraphicsBinding binding)
+/**
+ * \brief Return a list of extension names where at least one must be available to use a graphics
+ * binding.
+ */
+static blender::Vector<blender::StringRefNull> openxr_ext_names_from_wm_gpu_binding(
+    GHOST_TXrGraphicsBinding binding)
 {
+  blender::Vector<blender::StringRefNull> extension_names;
+
   switch (binding) {
     case GHOST_kXrGraphicsOpenGL:
 #ifdef WITH_OPENGL_BACKEND
-      return XR_KHR_OPENGL_ENABLE_EXTENSION_NAME;
-#else
-      return nullptr;
+      extension_names.append(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME);
 #endif
+      break;
 
     case GHOST_kXrGraphicsVulkan:
 #ifdef WITH_VULKAN_BACKEND
-      return XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME;
-#else
-      return nullptr;
+      extension_names.append(XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME);
 #endif
+      break;
 
     case GHOST_kXrGraphicsMetal:
 #ifdef WITH_METAL_BACKEND
-      return XR_KHR_METAL_ENABLE_EXTENSION_NAME;
-#else
-      return nullptr;
+      extension_names.append(XR_KHR_METAL_ENABLE_EXTENSION_NAME);
 #endif
+      break;
 
 #ifdef WIN32
 #  ifdef WITH_OPENGL_BACKEND
@@ -431,14 +443,15 @@ static const char *openxr_ext_name_from_wm_gpu_binding(GHOST_TXrGraphicsBinding 
 #  ifdef WITH_VULKAN_BACKEND
     case GHOST_kXrGraphicsVulkanD3D11:
 #  endif
-      return XR_KHR_D3D11_ENABLE_EXTENSION_NAME;
+      extension_names.append(XR_KHR_D3D11_ENABLE_EXTENSION_NAME);
+      break;
 #endif
     case GHOST_kXrGraphicsUnknown:
       assert(!"Could not identify graphics binding to choose.");
-      return nullptr;
+      break;
   }
 
-  return nullptr;
+  return extension_names;
 }
 
 /**
@@ -486,9 +499,16 @@ void GHOST_XrContext::getExtensionsToEnable(
   /* Add graphics binding extensions (may be multiple ones, we'll settle for one to use later, once
    * we have more info about the runtime). */
   for (GHOST_TXrGraphicsBinding type : graphics_binding_types) {
-    const char *gpu_binding = openxr_ext_name_from_wm_gpu_binding(type);
-    assert(openxr_extension_is_available(oxr_->extensions, gpu_binding));
-    r_ext_names.push_back(gpu_binding);
+    blender::Vector<blender::StringRefNull> extension_names = openxr_ext_names_from_wm_gpu_binding(
+        type);
+    if (extension_names.size() == 1) {
+      r_ext_names.push_back(extension_names.first().c_str());
+    }
+    else {
+      for (blender::StringRefNull extension_name : extension_names) {
+        try_ext.push_back(extension_name);
+      }
+    }
   }
 
 #if defined(WITH_GHOST_X11)
@@ -518,10 +538,14 @@ std::vector<GHOST_TXrGraphicsBinding> GHOST_XrContext::determineGraphicsBindingT
 
   for (uint32_t i = 0; i < create_info->gpu_binding_candidates_count; i++) {
     assert(create_info->gpu_binding_candidates[i] != GHOST_kXrGraphicsUnknown);
-    const char *ext_name = openxr_ext_name_from_wm_gpu_binding(
+    blender::Vector<blender::StringRefNull> extension_names = openxr_ext_names_from_wm_gpu_binding(
         create_info->gpu_binding_candidates[i]);
-    if (openxr_extension_is_available(oxr_->extensions, ext_name)) {
-      result.push_back(create_info->gpu_binding_candidates[i]);
+    /* Vulkan has 2 extensions if any of these are available we should select the binding. */
+    for (blender::StringRefNull extension_name : extension_names) {
+      if (openxr_extension_is_available(oxr_->extensions, extension_name)) {
+        result.push_back(create_info->gpu_binding_candidates[i]);
+        break;
+      }
     }
   }
 

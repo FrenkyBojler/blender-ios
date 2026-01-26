@@ -72,8 +72,10 @@ if(WITH_CODEC_FFMPEG)
   add_definitions(-DWITH_FFMPEG)
 endif()
 
-if(WITH_TBB)
+if(WITH_TBB OR WITH_TBB_MALLOC_PROXY)
   list(APPEND INC ${TBB_INCLUDE_DIRS})
+endif()
+if(WITH_TBB)
   if(WIN32)
     # For `pragma` that links `tbbmalloc_proxy.lib`.
     link_directories(${LIBDIR}/tbb/lib)
@@ -95,6 +97,16 @@ if(WITH_USD)
   # files could get outdated too.
   if(DEFINED LIBDIR)
     link_directories(${LIBDIR}/materialx/lib)
+  endif()
+endif()
+
+if(WITH_IMAGE_OPENEXR)
+  # NOTE: This is _only_ needed when linking blender before the install target runs.
+  # Once openjph libraries have been copied into `TARGETDIR_LIB` then Blender will link.
+  # Don't rely on this though as failing on a fresh build is no good and the library
+  # files could get outdated too.
+  if(DEFINED LIBDIR)
+    link_directories(${LIBDIR}/openjph/lib)
   endif()
 endif()
 
@@ -132,6 +144,10 @@ endif()
 if(WITH_GMP)
   list(APPEND INC ${GMP_INCLUDE_DIRS})
   add_definitions(-DWITH_GMP)
+endif()
+
+if(WITH_TBB_MALLOC_PROXY)
+  add_definitions(-DWITH_TBB_MALLOC)
 endif()
 
 # Setup the EXE sources and `buildinfo`.
@@ -587,14 +603,31 @@ if(WIN32)
       DEBUG
     )
   endif()
-  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll) # 4.1
+  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_5.dll) # 5.1
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_5.dll
       RELEASE
     )
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_3.dll
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_5.dll
       DEBUG
+    )
+  endif()
+  if(EXISTS ${LIBDIR}/openjph/bin/openjph.0.25.dll) # 5.1
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/openjph/bin/openjph.0.25.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/openjph/bin/openjph.0.25d.dll
+      DEBUG
+    )
+  endif()
+  if(EXISTS "${LIBDIR}/aom/bin/aom.dll") # 5.1
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/aom/bin/aom.dll
+      ALL
     )
   endif()
   install(
@@ -1119,33 +1152,33 @@ elseif(WIN32)
 
   if(WITH_WINDOWS_RELEASE_PDB)
     if(MSVC_CLANG AND WITH_WINDOWS_RELEASE_STRIPPED_PDB)
-      # clang-cl doesn't support stripped pdbs yet, it takes the /PDBSTRIPPED argument 
-      # without errors, but will just proceed to not do anything with it. So for now 
-      # just call pdbcopy manually to create the stripped pdb. 
+      # clang-cl doesn't support stripped pdbs yet, it takes the /PDBSTRIPPED argument
+      # without errors, but will just proceed to not do anything with it. So for now
+      # just call pdbcopy manually to create the stripped pdb.
       if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
         set(SDK_SEARCH_DIR $ENV{WindowsSdkDir}/Debuggers/arm64)
       else()
         set(SDK_SEARCH_DIR $ENV{WindowsSdkDir}/Debuggers/x64)
       endif()
-      find_program(PDBCOPY_EXECUTABLE 
-        NAMES 
+      find_program(PDBCOPY_EXECUTABLE
+        NAMES
           pdbcopy
         HINTS
           ${SDK_SEARCH_DIR}
-      )  
+      )
       if(PDBCOPY_EXECUTABLE)
         add_custom_command(
           TARGET blender POST_BUILD
           COMMAND ${CMAKE_COMMAND} -E rm -f ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb
           COMMAND ${PDBCOPY_EXECUTABLE} $<TARGET_PDB_FILE:blender> ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb -p
-          COMMENT "Stripping PDB file..."        
+          COMMENT "Stripping PDB file..."
         )
       else()
         message(WARNING "pdbcopy not found in ${SDK_SEARCH_DIR}. PDB stripping will be skipped.")
         set(WITH_WINDOWS_RELEASE_STRIPPED_PDB off)
       endif()
     endif()
-      
+
     if(WITH_WINDOWS_RELEASE_STRIPPED_PDB)
       # Icky hack for older CMAKE from https://stackoverflow.com/a/21198501
       # `$<CONFIG>` will work in newer CMAKE but the version currently (3.12)
@@ -1230,7 +1263,7 @@ elseif(WIN32)
     string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 
     if(NOT WITH_PYTHON_MODULE)
-      if(NOT CMAKE_COMPILER_IS_GNUCC)
+      if(NOT CMAKE_C_COMPILER_ID STREQUAL "GNU")
         install(
           FILES
             ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python${_PYTHON_VERSION_NO_DOTS}.dll
@@ -2018,9 +2051,9 @@ endif()
 if(WIN32)
   if(WITH_CYCLES_DEVICE_HIPRT)
     if(EXISTS ${LIBDIR}/hiprt/bin/hiprt64.dll)
-      install(
+      windows_install_shared_manifest(
         FILES ${LIBDIR}/hiprt/bin/hiprt64.dll
-        DESTINATION "./"
+        ALL
       )
     endif()
   endif()

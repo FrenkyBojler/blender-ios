@@ -136,7 +136,7 @@ class VKResourceStateTracker {
     VKResourceBarrierState barrier_state = {};
 
 #ifndef NDEBUG
-    const char *name = nullptr;
+    std::string name;
 #endif
 
     /**
@@ -190,6 +190,18 @@ class VKResourceStateTracker {
    */
   void add_image(VkImage vk_image, bool use_subresource_tracking, const char *name = nullptr);
   void add_swapchain_image(VkImage vk_image, const char *name = nullptr);
+
+  /**
+   * \brief Update the layout of an image that has been externally modified.
+   *
+   * 'vkTransitionImageLayout' changes the image layout. When used the image layout needs to be
+   * updated to match the current layout, ensuring correct generation of pipeline barriers.
+   *
+   * \name vk_image:        VkImage handle to update the image layout for.
+   * \name vk_image_layout: The layout the resource state tracker should now be using, matching the
+   *                        current layout of the image.
+   */
+  void update_image_layout(VkImage vk_image, VkImageLayout vk_image_layout);
 
   /**
    * Remove an registered image.

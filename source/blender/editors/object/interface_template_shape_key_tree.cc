@@ -71,28 +71,31 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
   {
     int selected_count = [&]() -> int {
       int count = 0;
-      LISTBASE_FOREACH (KeyBlock *, kb, &drag_key_.key->block) {
-        count += (kb->flag & KEYBLOCK_SEL) != 0;
+      for (KeyBlock &kb : drag_key_.key->block) {
+        count += (kb.flag & KEYBLOCK_SEL) != 0;
       }
       return count;
     }();
 
-    KeyBlock **selected_keys_ = MEM_calloc_arrayN<KeyBlock *>(selected_count,
+    /* Allocate one extra element, to use it as null-delimiter. */
+    KeyBlock **selected_keys_ = MEM_calloc_arrayN<KeyBlock *>(selected_count + 1,
                                                               "Selected Key Blocks");
 
     selected_count = 0;
-    int index = 0;
-    LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &drag_key_.key->block, index) {
+
+    for (const auto [index, kb] : drag_key_.key->block.enumerate()) {
       if (index == 0) {
         /* Prevent basis shape key from dragging. */
         continue;
       }
 
-      if (kb->flag & KEYBLOCK_SEL) {
-        selected_keys_[selected_count] = kb;
+      if (kb.flag & KEYBLOCK_SEL) {
+        selected_keys_[selected_count] = &kb;
         selected_count++;
       }
     }
+    BLI_assert_msg(selected_keys_[selected_count] == nullptr,
+                   "Expected last element to be null (null-delimiter)");
     return selected_keys_;
   }
 };
@@ -181,7 +184,7 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
       BKE_keyblock_move(ob, drag_index, drop_index);
     }
 
-    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(ob->data, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
     ED_undo_push(C, "Drop Active Shape Key");
 
@@ -209,14 +212,19 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     ui::Layout &sub = row.row(true);
     sub.use_property_decorate_set(false);
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
-        &shape_key_.key->id, &RNA_ShapeKey, shape_key_.kb);
+        &shape_key_.key->id, RNA_ShapeKey, shape_key_.kb);
 
-    if (shape_key_.index > 0) {
-      sub.prop(&shapekey_ptr, "value", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    if (shape_key_.key->type == KEY_NORMAL) {
+      sub.prop(&shapekey_ptr, "frame", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    }
+    else {
+      if (shape_key_.index > 0) {
+        sub.prop(&shapekey_ptr, "value", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+      }
     }
 
-    sub.prop(&shapekey_ptr, "mute", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
-    sub.prop(&shapekey_ptr, "lock_shape", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub.prop(&shapekey_ptr, "mute", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub.prop(&shapekey_ptr, "lock_shape", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
     if (shape_key_.kb->flag & KEYBLOCK_MUTE) {
       row.active_set(false);
     }
@@ -230,7 +238,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   void on_activate(bContext &C) override
   {
     PointerRNA object_ptr = RNA_pointer_create_discrete(
-        &shape_key_.object->id, &RNA_Object, shape_key_.object);
+        &shape_key_.object->id, RNA_Object, shape_key_.object);
     PropertyRNA *prop = RNA_struct_find_property(&object_ptr, "active_shape_key_index");
     RNA_property_int_set(&object_ptr, prop, shape_key_.index);
     RNA_property_update(&C, &object_ptr, prop);
@@ -257,7 +265,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   bool rename(const bContext &C, StringRefNull new_name) override
   {
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
-        &shape_key_.key->id, &RNA_ShapeKey, shape_key_.kb);
+        &shape_key_.key->id, RNA_ShapeKey, shape_key_.kb);
     RNA_string_set(&shapekey_ptr, "name", new_name.c_str());
     ED_undo_push(const_cast<bContext *>(&C), "Rename shape key");
     return true;
@@ -283,7 +291,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     if (!mt) {
       return;
     }
-    UI_menutype_draw(&C, mt, &layout);
+    ui::menutype_draw(&C, mt, &layout);
   }
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
@@ -305,9 +313,9 @@ void ShapeKeyTreeView::build_tree()
   if (key == nullptr) {
     return;
   }
-  int index = 1;
-  LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, index) {
-    this->add_tree_item<ShapeKeyItem>(&object_, key, kb, index);
+
+  for (const auto [index, kb] : key->block.enumerate()) {
+    this->add_tree_item<ShapeKeyItem>(&object_, key, &kb, index);
   }
 }
 
@@ -318,9 +326,9 @@ void template_tree(ui::Layout *layout, bContext *C)
     return;
   }
 
-  uiBlock *block = layout->block();
+  ui::Block *block = layout->block();
 
-  ui::AbstractTreeView *tree_view = UI_block_add_view(
+  ui::AbstractTreeView *tree_view = block_add_view(
       *block,
       "Shape Key Tree View",
       std::make_unique<ed::object::shapekey::ShapeKeyTreeView>(*ob));

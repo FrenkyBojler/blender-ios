@@ -438,7 +438,7 @@ gpu::FrameBuffer *gpu::MTLTexture::get_blit_framebuffer(int dst_slice, uint dst_
   /* Check if layer has changed. */
   bool update_attachments = false;
   if (!blit_fb_) {
-    std::string fb_name = StringRefNull(this->name_) + "_blit_fb";
+    std::string fb_name = this->name_ + "_blit_fb";
     blit_fb_ = GPU_framebuffer_create(fb_name.c_str());
     update_attachments = true;
   }
@@ -481,8 +481,12 @@ MTLSamplerState gpu::MTLTexture::get_sampler_state()
   return sampler_state;
 }
 
-void gpu::MTLTexture::update_sub(
-    int mip, int offset[3], int extent[3], eGPUDataFormat type, const void *data)
+void gpu::MTLTexture::update_sub(int mip,
+                                 int offset[3],
+                                 int extent[3],
+                                 eGPUDataFormat type,
+                                 const void *data,
+                                 const uint unpack_row_length)
 {
   /* Fetch active context. */
   MTLContext *ctx = MTLContext::get();
@@ -502,20 +506,19 @@ void gpu::MTLTexture::update_sub(
   BLI_assert(mip < texture_.mipmapLevelCount);
   BLI_assert(texture_.mipmapLevelCount >= mip_max_);
 
-  /* If `texture_unpack_row_length` is 0, rows are sequentially stored. Otherwise we unpack data
+  /* If `unpack_row_length` is 0, rows are sequentially stored. Otherwise we unpack data
    * into a staging block, so the half conversion below doesn't happen on the full input. */
-  const uint texture_unpack_row_length = ctx->pipeline_state.unpack_row_length;
-  const bool do_texture_unpack = !ELEM(texture_unpack_row_length, 0, extent[0]);
+  const bool do_texture_unpack = !ELEM(unpack_row_length, 0, extent[0]);
 
-  /* Unpack `data` if `texture_unpack_row_length` is set. */
+  /* Unpack `data` if `unpack_row_length` is set. */
   std::unique_ptr<uint8_t, MEM_freeN_smart_ptr_deleter> unpack_buffer = nullptr;
   if (do_texture_unpack) {
     BLI_assert_msg(!(format_flag_ & GPU_FORMAT_COMPRESSED),
-                   "Compressed data with texture_unpack_row_length != 0 is not supported.");
+                   "Compressed data with unpack_row_length != 0 is not supported.");
     BLI_assert_msg(extent[2] <= 1,
-                   "3D texture data with texture_unpack_row_length != 0 is not supported.");
+                   "3D texture data with unpack_row_length != 0 is not supported.");
 
-    size_t src_row_stride = texture_unpack_row_length * to_bytesize(format_, type);
+    size_t src_row_stride = unpack_row_length * to_bytesize(format_, type);
     size_t dst_row_stride = max_ii(extent[0], 1) * to_bytesize(format_, type);
     size_t dst_total_count = dst_row_stride * max_ii(extent[1], 1) * max_ii(extent[2], 1);
 
@@ -668,7 +671,7 @@ void gpu::MTLTexture::update_sub(
       MTL_LOG_WARNING(
           "SRGB data upload does not work correctly using compute upload. "
           "texname '%s'",
-          name_);
+          name_.c_str());
     }
 
     /* Safety Checks. */
