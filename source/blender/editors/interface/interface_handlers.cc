@@ -739,10 +739,10 @@ static bool ui_rna_is_userdef(PointerRNA *ptr, PropertyRNA *prop)
 
   bool is_userdef = false;
   if (ELEM(base,
-           &RNA_AddonPreferences,
-           &RNA_KeyConfigPreferences,
-           &RNA_KeyMapItem,
-           &RNA_UserAssetLibrary))
+           RNA_AddonPreferences,
+           RNA_KeyConfigPreferences,
+           RNA_KeyMapItem,
+           RNA_UserAssetLibrary))
   {
     is_userdef = true;
   }
@@ -750,7 +750,7 @@ static bool ui_rna_is_userdef(PointerRNA *ptr, PropertyRNA *prop)
     switch (GS(ptr->owner_id->name)) {
       case ID_WM: {
         for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
-          if (RNA_struct_is_a(ancestor.type, &RNA_KeyConfigPreferences)) {
+          if (RNA_struct_is_a(ancestor.type, RNA_KeyConfigPreferences)) {
             is_userdef = true;
             break;
           }
@@ -764,7 +764,7 @@ static bool ui_rna_is_userdef(PointerRNA *ptr, PropertyRNA *prop)
   }
   else if (ptr->owner_id == nullptr) {
     for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
-      if (RNA_struct_is_a(ancestor.type, &RNA_AddonPreferences)) {
+      if (RNA_struct_is_a(ancestor.type, RNA_AddonPreferences)) {
         is_userdef = true;
         break;
       }
@@ -1010,7 +1010,7 @@ static void ui_apply_but_undo(Button *but)
 
   /* Skip undo push for buttons in redo panel, see: #134505. */
   const ARegion *region = CTX_wm_region(static_cast<bContext *>(but->block->evil_C));
-  if (region->regiontype == RGN_TYPE_HUD) {
+  if (region && region->regiontype == RGN_TYPE_HUD) {
     return;
   }
 
@@ -9801,15 +9801,31 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
           button_activate_state(C, but, BUTTON_STATE_EXIT);
         }
         else {
-          /* Re-enable tool-tip on mouse move. */
+          /* While the pointer is moved around we need to reevaluate the
+           * tooltips. If a tooltip is already showing we normally don't
+           * want to reset it as this feels like the tooltip is chasing
+           * the mouse pointer after a short delay. The exception is large
+           * areas like thumbnails as we might want to dismiss them without
+           * leaving the area or move to reposition to reveal obscured parts. */
           bool reenable_tooltip = true;
           bScreen *screen = CTX_wm_screen(C);
           if (screen && screen->tool_tip) {
-            /* Allow some movement once the tooltip timer has started. */
-            const int threshold = WM_event_drag_threshold(event);
             const int movement = len_manhattan_v2v2_int(event->xy, screen->tool_tip->event_xy);
-            reenable_tooltip = (movement > threshold);
+            const int threshold = WM_event_drag_threshold(event);
+            if (screen->tool_tip->region) {
+              /* Tooltip is showing. Only reset with motion on large buttons.
+               * Otherwise the tooltip follows the mouse while it is moved. */
+              const bool large_button = but->type == ButtonType::Label &&
+                                        BLI_rctf_size_y(&but->rect) > UI_UNIT_Y;
+              reenable_tooltip = (large_button && movement > threshold);
+            }
+            else {
+              /* Tooltip not yet showing. Allow some movement before resetting timer,
+               * otherwise it is difficult to get tooltips with pens and touch. #153319. */
+              reenable_tooltip = (movement > threshold);
+            }
           }
+
           if (reenable_tooltip) {
             ui_blocks_set_tooltips(region, true);
             button_tooltip_timer_reset(C, but);
@@ -10561,13 +10577,13 @@ static bool ui_menu_scroll_to_but(ARegion *region, Block *block, Button *but_tar
 {
   float dy = 0.0;
   if (block->flag & BLOCK_CLIPTOP) {
-    if (but_target->rect.ymax > block->rect.ymax - UI_MENU_SCROLL_ARROW) {
-      dy = block->rect.ymax - but_target->rect.ymax - UI_MENU_SCROLL_ARROW;
+    if (but_target->rect.ymax > block->rect.ymax - UI_MENU_SCROLL_MOUSE) {
+      dy = block->rect.ymax - but_target->rect.ymax - UI_MENU_SCROLL_MOUSE;
     }
   }
   if (block->flag & BLOCK_CLIPBOTTOM) {
-    if (but_target->rect.ymin < block->rect.ymin + UI_MENU_SCROLL_ARROW) {
-      dy = block->rect.ymin - but_target->rect.ymin + UI_MENU_SCROLL_ARROW;
+    if (but_target->rect.ymin < block->rect.ymin + UI_MENU_SCROLL_MOUSE) {
+      dy = block->rect.ymin - but_target->rect.ymin + UI_MENU_SCROLL_MOUSE;
     }
   }
   if (dy != 0.0f) {
@@ -10952,18 +10968,16 @@ static int ui_handle_menu_event(bContext *C,
           if (event->modifier) {
             /* pass */
           }
-          else if (!block_is_menu(block)) {
-            if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
-              const float dy = event->xy[1] - event->prev_xy[1];
-              if (dy != 0.0f) {
-                ui_menu_scroll_apply_offset_y(region, block, dy);
+          else if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
+            const float dy = event->xy[1] - event->prev_xy[1];
+            if (dy != 0.0f) {
+              ui_menu_scroll_apply_offset_y(region, block, dy);
 
-                if (but) {
-                  but->active->cancel = true;
-                  button_activate_exit(C, but, but->active, false, false);
-                }
-                WM_event_add_mousemove(CTX_wm_window(C));
+              if (but) {
+                but->active->cancel = true;
+                button_activate_exit(C, but, but->active, false, false);
               }
+              WM_event_add_mousemove(CTX_wm_window(C));
             }
             break;
           }
@@ -10974,7 +10988,7 @@ static int ui_handle_menu_event(bContext *C,
           if (event->modifier) {
             /* pass */
           }
-          else if (!block_is_menu(block)) {
+          else if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
             const int scroll_dir = (event->type == WHEELUPMOUSE) ? 1 : -1;
             if (ui_menu_scroll_step(region, block, scroll_dir)) {
               if (but) {
