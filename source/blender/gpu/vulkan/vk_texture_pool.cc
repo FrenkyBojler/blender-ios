@@ -22,8 +22,9 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-/* Compute the nearest `offset` that is aligned up to `alignment`, but with
- * respect to `allocation_offset` from which `offset` is based. */
+/* A memory offset with alignment requirements must be aligned with respect to
+ * (a) the starting offset of the allocation and (b) the starting offset of the
+ * segment within this allocation. */
 static VkDeviceSize align_offset(VkDeviceSize offset,
                                  VkDeviceSize allocation_offset,
                                  VkDeviceSize alignment)
@@ -42,53 +43,58 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     return {};
   }
 
-  /* Find the smallest segment of sufficient size. */
-  auto it = segments.end();
-  for (auto iter = segments.begin(); iter != segments.end(); ++iter) {
-    /* Align offset to requirements with respect to allocation start. */
+  /* Find the smallest segment of sufficient size. Keep an iterator to the segment, as
+   * we modify the existing or surrounding segments in the list later. */
+  auto found_segment_iter = segments.end();
+  for (auto segment_iter = segments.begin(); segment_iter != segments.end(); ++segment_iter) {
+    /* Align offset to memory requirements with respect to allocation start. */
     VkDeviceSize aligned_offset = align_offset(
-        iter->offset, allocation_info.offset, requirements.alignment);
-    if (aligned_offset > iter->offset + iter->size) {
+        segment_iter->offset, allocation_info.offset, requirements.alignment);
+    if (aligned_offset > segment_iter->offset + segment_iter->size) {
       continue;
     }
 
-    /* Compute remaining size of segment if aligned offset is larger. */
-    VkDeviceSize remaining_size = iter->size - (aligned_offset - iter->offset);
+    /* Compute remaining size of segment, given that the aligned offset may start later. */
+    VkDeviceSize remaining_size = segment_iter->size - (aligned_offset - segment_iter->offset);
     if (remaining_size < requirements.size) {
       continue;
     }
 
-    if (it == segments.end() || it->size > iter->size) {
-      it = iter;
+    if (found_segment_iter == segments.end() || found_segment_iter->size > segment_iter->size) {
+      found_segment_iter = segment_iter;
     }
   }
-  if (it == segments.end()) {
+
+  /* No compatible segment was found. */
+  if (found_segment_iter == segments.end()) {
     return {};
   }
 
-  /* The return segment starts at an alignment-compatible offset. */
+  /* The return segment may be a part of the found segment, starting at an aligned offset. */
   Segment segment;
-  segment.offset = align_offset(it->offset, allocation_info.offset, requirements.alignment);
+  segment.offset = align_offset(
+      found_segment_iter->offset, allocation_info.offset, requirements.alignment);
   segment.size = requirements.size;
 
   /* Depending on the return segment, there are now unused segments before/after it. */
-  Segment segment_prev = {it->offset, segment.offset - it->offset};
+  Segment segment_prev = {found_segment_iter->offset, segment.offset - found_segment_iter->offset};
   Segment segment_next = {segment.offset + segment.size,
-                          it->size - segment.size - segment_prev.size};
+                          found_segment_iter->size - segment.size - segment_prev.size};
 
-  /* Update current stored segments dependent on the above. */
+  /* Depending on the unused segments before/after, we update the current stored segment,
+   * insert another segment before it, or remove the segment entirely. */
   if (segment_prev.size > 0 && segment_next.size > 0) {
-    *it = segment_next;
-    segments.insert(it, segment_prev);
+    *found_segment_iter = segment_next;
+    segments.insert(found_segment_iter, segment_prev);
   }
   else if (segment_prev.size > 0) {
-    *it = segment_prev;
+    *found_segment_iter = segment_prev;
   }
   else if (segment_next.size > 0) {
-    *it = segment_next;
+    *found_segment_iter = segment_next;
   }
   else {
-    segments.erase(it);
+    segments.erase(found_segment_iter);
   }
 
   return segment;
