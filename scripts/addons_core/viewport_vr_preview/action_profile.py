@@ -35,39 +35,14 @@ class VRDefaultActions(Enum):
     HAPTIC_RIGHTTRIGGER = "haptic_righttrigger"
 
 
-# Default action bindings.
-class VRDefaultActionbindings(Enum):
-    GAMEPAD = "gamepad"
-    HUAWEI = "huawei"
-    INDEX = "index"
-    OCULUS = "oculus"
-    REVERB_G2 = "reverb_g2"
-    SIMPLE = "simple"
-    VIVE = "vive"
-    VIVE_COSMOS = "vive_cosmos"
-    VIVE_FOCUS = "vive_focus"
-    WMR = "wmr"
-
-
-class VRDefaultActionprofiles(Enum):
-    GAMEPAD = "/interaction_profiles/microsoft/xbox_controller"
-    HUAWEI = "/interaction_profiles/huawei/controller"
-    INDEX = "/interaction_profiles/valve/index_controller"
-    OCULUS = "/interaction_profiles/oculus/touch_controller"
-    REVERB_G2 = "/interaction_profiles/hp/mixed_reality_controller"
-    SIMPLE = "/interaction_profiles/khr/simple_controller"
-    VIVE = "/interaction_profiles/htc/vive_controller"
-    VIVE_COSMOS = "/interaction_profiles/htc/vive_cosmos_controller"
-    VIVE_FOCUS = "/interaction_profiles/htc/vive_focus3_controller"
-    WMR = "/interaction_profiles/microsoft/motion_controller"
-
 
 class VRActionProfile():
     def __init__(self, name):
         self.name = name
         self.profile = None
+        self.requires_opt_in = False
+        self.ui_label = None
 
-        # TODO: Fill in with proper default values
         self.action_map = {
             VRDefaultActions.CONTROLLER_GRIP.value: {
                 "component_paths": ["/input/grip/pose", "/input/grip/pose"],

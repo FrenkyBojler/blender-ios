@@ -1,4 +1,4 @@
-from ..defaults import VRDefaultActions
+from ..action_profile import VRDefaultActions, VRDefaultActionmaps
 from ..action import VRAction
 
 
@@ -7,6 +7,7 @@ class VRActionHaptic(VRAction):
         super().__init__()
         self.type = 'VIBRATION'
         self.name = VRDefaultActions.HAPTIC.value
+        self.included_maps = {VRDefaultActionmaps.DEFAULT.value}
 
 
 class VRActionHapticLeft(VRActionHaptic):
@@ -14,6 +15,8 @@ class VRActionHapticLeft(VRActionHaptic):
         super().__init__()
         self.type = 'VIBRATION'
         self.name = VRDefaultActions.HAPTIC_LEFT.value
+        self.map_name = VRDefaultActionmaps.GAMEPAD.value
+        self.included_maps = {VRDefaultActionmaps.GAMEPAD.value}
 
 
 class VRActionHapticRight(VRActionHaptic):
@@ -21,6 +24,8 @@ class VRActionHapticRight(VRActionHaptic):
         super().__init__()
         self.type = 'VIBRATION'
         self.name = VRDefaultActions.HAPTIC_RIGHT.value
+        self.map_name = VRDefaultActionmaps.GAMEPAD.value
+        self.included_maps = {VRDefaultActionmaps.GAMEPAD.value}
 
 
 class VRActionHapticLeftTrigger(VRActionHaptic):
@@ -28,6 +33,8 @@ class VRActionHapticLeftTrigger(VRActionHaptic):
         super().__init__()
         self.type = 'VIBRATION'
         self.name = VRDefaultActions.HAPTIC_LEFTTRIGGER.value
+        self.map_name = VRDefaultActionmaps.GAMEPAD.value
+        self.included_maps = {VRDefaultActionmaps.GAMEPAD.value}
 
 
 class VRActionHapticRightTrigger(VRActionHaptic):
@@ -35,4 +42,6 @@ class VRActionHapticRightTrigger(VRActionHaptic):
         super().__init__()
         self.type = 'VIBRATION'
         self.name = VRDefaultActions.HAPTIC_RIGHTTRIGGER.value
+        self.map_name = VRDefaultActionmaps.GAMEPAD.value
+        self.included_maps = {VRDefaultActionmaps.GAMEPAD.value}
 

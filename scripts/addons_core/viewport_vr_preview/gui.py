@@ -4,9 +4,10 @@
 
 if "bpy" in locals():
     import importlib
+    importlib.reload(action_registry)
     importlib.reload(properties)
 else:
-    from . import properties
+    from . import action_registry, properties
 
 import bpy
 from bpy.app.translations import (
@@ -204,10 +205,14 @@ class VIEW3D_PT_vr_actionmaps(Panel):
         col.prop(scene, "vr_actions_use_gamepad", text="Gamepad")
 
         col = layout.column(align=True, heading="Extensions")
-        col.prop(scene, "vr_actions_enable_reverb_g2", text="HP Reverb G2")
-        col.prop(scene, "vr_actions_enable_vive_cosmos", text="HTC Vive Cosmos")
-        col.prop(scene, "vr_actions_enable_vive_focus", text="HTC Vive Focus")
-        col.prop(scene, "vr_actions_enable_huawei", text="Huawei")
+        profiles = [
+            profile for profile in action_registry.registry.profiles.values()
+            if profile.requires_opt_in
+        ]
+        for profile in sorted(profiles, key=lambda item: item.ui_label or item.name):
+            setting = properties.vr_profile_setting_ensure(scene, profile.name)
+            label = profile.ui_label or profile.name
+            col.prop(setting, "enabled", text=label)
 
 
 # Viewport feedback.

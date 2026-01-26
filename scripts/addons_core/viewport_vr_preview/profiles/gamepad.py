@@ -1,11 +1,11 @@
 
 
-from ..action_profile import VRActionProfile, VRDefaultActions, VRDefaultActionprofiles, VRDefaultActionbindings
+from ..action_profile import VRActionProfile, VRDefaultActions
 
 class VRActionProfileGamepad(VRActionProfile):
     def __init__(self):
-        super().__init__(VRDefaultActionbindings.GAMEPAD.value)
-        self.profile = VRDefaultActionprofiles.GAMEPAD.value
+        super().__init__("gamepad")
+        self.profile = "/interaction_profiles/microsoft/xbox_controller"
 
         self.action_map[VRDefaultActions.CONTROLLER_GRIP] = None
         self.action_map[VRDefaultActions.CONTROLLER_AIM] = None
@@ -73,4 +73,5 @@ class VRActionProfileGamepad(VRActionProfile):
         self.action_map[VRDefaultActions.HAPTIC_RIGHTTRIGGER.value] = {
             "component_paths": ["/output/haptic_right_trigger"],
         }
+
 

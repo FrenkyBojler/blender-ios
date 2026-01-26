@@ -1,11 +1,12 @@
-from ..action_profile import VRActionProfile, VRDefaultActions, VRDefaultActionprofiles, VRDefaultActionbindings
+from ..action_profile import VRActionProfile, VRDefaultActions
 
-# Huawei controller action profile
 class VRActionProfileHuawei(VRActionProfile):
     def __init__(self):
-        super().__init__(VRDefaultActionbindings.HUAWEI.value)
-        self.profile = VRDefaultActionprofiles.HUAWEI.value
-        
+        super().__init__("huawei")
+        self.profile = "/interaction_profiles/huawei/controller"
+        self.requires_opt_in = True
+        self.ui_label = "Huawei"
+
         self.action_map[VRDefaultActions.NAV_GRAB.value].update({
                 "component_paths": ["/input/trackpad/click", "/input/trackpad/click"],
             })

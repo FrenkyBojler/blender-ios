@@ -1,5 +1,5 @@
 import enum
-from .action_profile import VRDefaultActions
+from .action_profile import VRDefaultActions, VRDefaultActionmaps
 from enum import Enum
 
 class VRActionPathType(Enum):
@@ -14,6 +14,8 @@ class VRAction():
         self.type = ''
 
         self.path_type = VRActionPathType.DUAL_HANDED
+        self.map_name = None
+        self.included_maps = {VRDefaultActionmaps.DEFAULT.value}
 
     def enable_gamepad(self):
         self.path_type = VRActionPathType.GAMEPAD

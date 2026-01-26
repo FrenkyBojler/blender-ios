@@ -1,5 +1,5 @@
-from ..action import VRActionFloat
-from ..action_profile import VRDefaultActions
+from ..action import VRActionFloat, VRActionPathType
+from ..action_profile import VRDefaultActions, VRDefaultActionmaps
 
 
 class VRActionNavReset(VRActionFloat):
@@ -16,10 +16,14 @@ class VRActionNavReset(VRActionFloat):
         self.haptic_amplitude = 0.5
 
         self.op_properties = [("location", False), ("rotation", False), ("scale", True)]
+        self.included_maps = {VRDefaultActionmaps.DEFAULT.value}
 
 
 class VRActionNavResetGamepad(VRActionNavReset):
     def __init__(self):
         super().__init__()
         self.haptic_name = VRDefaultActions.HAPTIC_RIGHT.value
+        self.map_name = VRDefaultActionmaps.GAMEPAD.value
+        self.path_type = VRActionPathType.GAMEPAD
+        self.included_maps = {VRDefaultActionmaps.GAMEPAD.value}
 

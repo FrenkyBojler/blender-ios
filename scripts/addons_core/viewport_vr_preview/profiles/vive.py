@@ -1,9 +1,9 @@
-from ..action_profile import VRActionProfile, VRDefaultActions, VRDefaultActionprofiles, VRDefaultActionbindings
+from ..action_profile import VRActionProfile, VRDefaultActions
 
 class VRActionProfileVive(VRActionProfile):
     def __init__(self):
-        super().__init__(VRDefaultActionbindings.VIVE.value)
-        self.profile = VRDefaultActionprofiles.VIVE.value
+        super().__init__("vive")
+        self.profile = "/interaction_profiles/htc/vive_controller"
 
         self.action_map[VRDefaultActions.NAV_GRAB.value].update({
             "component_paths": ["/input/squeeze/click", "/input/squeeze/click"],

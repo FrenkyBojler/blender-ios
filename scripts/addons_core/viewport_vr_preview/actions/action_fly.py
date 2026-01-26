@@ -1,5 +1,5 @@
-from ..action import VRActionFloatLeftHanded, VRActionFloatRightHanded
-from ..action_profile import VRDefaultActions
+from ..action import VRActionFloatLeftHanded, VRActionFloatRightHanded, VRActionPathType
+from ..action_profile import VRDefaultActions, VRDefaultActionmaps
 
 
 class VRActionFly(VRActionFloatLeftHanded):
@@ -7,6 +7,9 @@ class VRActionFly(VRActionFloatLeftHanded):
         super().__init__()
         self.name = VRDefaultActions.FLY.value
         self.op = "wm.xr_navigation_fly"
+        self.map_name = VRDefaultActionmaps.GAMEPAD.value
+        self.path_type = VRActionPathType.GAMEPAD
+        self.included_maps = {VRDefaultActionmaps.GAMEPAD.value}
 
 
 class VRActionFlyForward(VRActionFloatLeftHanded):
@@ -15,6 +18,10 @@ class VRActionFlyForward(VRActionFloatLeftHanded):
         self.name = VRDefaultActions.FLY_FORWARD.value
         self.op = "wm.xr_navigation_fly"
         self.op_properties = [("mode", 'VIEWER_FORWARD'), ("lock_location_z", True)]
+        self.included_maps = {
+            VRDefaultActionmaps.DEFAULT.value,
+            VRDefaultActionmaps.GAMEPAD.value,
+        }
 
 
 class VRActionFlyBack(VRActionFloatLeftHanded):
@@ -23,6 +30,10 @@ class VRActionFlyBack(VRActionFloatLeftHanded):
         self.name = VRDefaultActions.FLY_BACK.value
         self.op = "wm.xr_navigation_fly"
         self.op_properties = [("mode", 'VIEWER_BACK'), ("lock_location_z", True)]
+        self.included_maps = {
+            VRDefaultActionmaps.DEFAULT.value,
+            VRDefaultActionmaps.GAMEPAD.value,
+        }
 
 
 class VRActionFlyLeft(VRActionFloatLeftHanded):
@@ -31,6 +42,10 @@ class VRActionFlyLeft(VRActionFloatLeftHanded):
         self.name = VRDefaultActions.FLY_LEFT.value
         self.op = "wm.xr_navigation_fly"
         self.op_properties = [("mode", 'VIEWER_LEFT'), ("lock_location_z", True)]
+        self.included_maps = {
+            VRDefaultActionmaps.DEFAULT.value,
+            VRDefaultActionmaps.GAMEPAD.value,
+        }
 
 
 class VRActionFlyRight(VRActionFloatLeftHanded):
@@ -39,6 +54,10 @@ class VRActionFlyRight(VRActionFloatLeftHanded):
         self.name = VRDefaultActions.FLY_RIGHT.value
         self.op = "wm.xr_navigation_fly"
         self.op_properties = [("mode", 'VIEWER_RIGHT'), ("lock_location_z", True)]
+        self.included_maps = {
+            VRDefaultActionmaps.DEFAULT.value,
+            VRDefaultActionmaps.GAMEPAD.value,
+        }
 
 
 class VRActionFlyUp(VRActionFloatRightHanded):
@@ -47,6 +66,10 @@ class VRActionFlyUp(VRActionFloatRightHanded):
         self.name = VRDefaultActions.FLY_UP.value
         self.op = "wm.xr_navigation_fly"
         self.op_properties = [("mode", 'UP')]
+        self.included_maps = {
+            VRDefaultActionmaps.DEFAULT.value,
+            VRDefaultActionmaps.GAMEPAD.value,
+        }
 
 
 class VRActionFlyDown(VRActionFloatRightHanded):
@@ -55,6 +78,10 @@ class VRActionFlyDown(VRActionFloatRightHanded):
         self.name = VRDefaultActions.FLY_DOWN.value
         self.op = "wm.xr_navigation_fly"
         self.op_properties = [("mode", 'DOWN')]
+        self.included_maps = {
+            VRDefaultActionmaps.DEFAULT.value,
+            VRDefaultActionmaps.GAMEPAD.value,
+        }
 
 
 class VRActionFlyTurnLeft(VRActionFloatRightHanded):
@@ -63,6 +90,10 @@ class VRActionFlyTurnLeft(VRActionFloatRightHanded):
         self.name = VRDefaultActions.FLY_TURNLEFT.value
         self.op = "wm.xr_navigation_fly"
         self.op_properties = [("mode", 'TURNLEFT')]
+        self.included_maps = {
+            VRDefaultActionmaps.DEFAULT.value,
+            VRDefaultActionmaps.GAMEPAD.value,
+        }
 
 
 class VRActionFlyTurnRight(VRActionFloatRightHanded):
@@ -71,4 +102,8 @@ class VRActionFlyTurnRight(VRActionFloatRightHanded):
         self.name = VRDefaultActions.FLY_TURNRIGHT.value
         self.op = "wm.xr_navigation_fly"
         self.op_properties = [("mode", 'TURNRIGHT')]
+        self.included_maps = {
+            VRDefaultActionmaps.DEFAULT.value,
+            VRDefaultActionmaps.GAMEPAD.value,
+        }
 
