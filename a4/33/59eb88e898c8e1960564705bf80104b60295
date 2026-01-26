@@ -7,4 +7,4 @@ Referenced by pull request #145974, Anim: Remove `PBONE_SELECTABLE` macro
 Referenced by commit baafbd8e952fe928a625b1637438ced3aa534872, Anim: Remove `PBONE_SELECTABLE` macro
 Referenced by issue #147617, Rigging: "Hide" driver reset
 Referenced by issue #152121, Blender 5.0 dependency cycle on pose bone visibility
-Referenced by issue #153229, 4.5 TLS: Driver for bone visibility disappears when the bone is renamed
+Referenced by issue #153229, Driver for bone visibility disappears when the bone is renamed
