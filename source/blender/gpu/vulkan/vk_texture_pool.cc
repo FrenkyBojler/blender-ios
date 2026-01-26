@@ -22,19 +22,13 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-/* Compute the nearest `offset` that is aligned up to `alignment`. */
-static VkDeviceSize align_offset(VkDeviceSize offset, VkDeviceSize alignment)
-{
-  return (offset - 1ul + alignment) & -alignment;
-}
-
 /* Compute the nearest `offset` that is aligned up to `alignment`, but with
  * respect to `allocation_offset` from which `offset` is based. */
 static VkDeviceSize align_offset(VkDeviceSize offset,
                                  VkDeviceSize allocation_offset,
                                  VkDeviceSize alignment)
 {
-  return align_offset(allocation_offset + offset, alignment) - allocation_offset;
+  return ceil_to_multiple_ul(allocation_offset + offset, alignment) - allocation_offset;
 }
 
 std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
@@ -233,7 +227,7 @@ VKTexturePool::~VKTexturePool()
   for (const TextureHandle &handle : acquired_) {
     release_texture(wrap(handle.texture));
   }
-  for (AllocationHandle &handle : allocations_) {
+  for (AllocationHandle handle : allocations_) {
     handle.free();
   }
 }
@@ -262,11 +256,11 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
       device.vk_handle(), texture_handle.texture->vk_image_, &memory_requirements);
 
   /* Find a compatible segment of allocated memory. */
-  for (auto handle : allocations_) {
-    auto segment_opt = handle.acquire(memory_requirements);
+  for (AllocationHandle handle : allocations_) {
+    std::optional<Segment> segment_opt = handle.acquire(memory_requirements);
     if (segment_opt) {
       texture_handle.allocation_handle = handle;
-      texture_handle.segment = *segment_opt;
+      texture_handle.segment = segment_opt.value();
       allocations_.add_overwrite(handle);
       break;
     }
@@ -279,16 +273,12 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
     AllocationHandle handle;
     handle.alloc(allocation_requirements);
-    auto segment_opt = handle.acquire(memory_requirements);
+    Segment segment = handle.acquire(memory_requirements).value();
 
     allocations_.add(handle);
     texture_handle.allocation_handle = handle;
-    texture_handle.segment = *segment_opt;
+    texture_handle.segment = segment;
   }
-
-  /* Compute the necessary offset into the allocation to satisfy alignment requirements. */
-  VkDeviceSize aligned_offset = align_offset(
-      0, allocation_handle.allocation_info.offset, memory_requirements.alignment);
 
   /* Bind VkImage to allocation. */
   VkResult bind_result = vmaBindImageMemory2(device.mem_allocator_get(),
@@ -330,7 +320,7 @@ void VKTexturePool::release_texture(Texture *tex)
   }
 
   /* Move allocation back to `pool_`. */
-  auto page_handle = allocations_.lookup_key(texture_handle.allocation_handle);
+  AllocationHandle page_handle = allocations_.lookup_key(texture_handle.allocation_handle);
   page_handle.release(texture_handle.segment);
   page_handle.unused_cycles_count = 0;
   allocations_.add_overwrite(page_handle);
@@ -392,7 +382,7 @@ void VKTexturePool::reset(bool force_free)
 void VKTexturePool::log_usage_data()
 {
   VkDeviceSize total_allocation_size = 0;
-  for (const auto &handle : allocations_) {
+  for (const AllocationHandle &handle : allocations_) {
     total_allocation_size += handle.allocation_info.size;
   }
   float ratio = static_cast<float>(current_usage_data_.acquired_segment_size_max) /
