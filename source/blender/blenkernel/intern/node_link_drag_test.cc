@@ -11,6 +11,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_struct_equality_utils.hh"
 
+#include "BKE_blender.hh"
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
@@ -24,6 +25,7 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "NOD_composite.hh"
@@ -118,6 +120,7 @@ class NodeLinkDragTest : public BlendfileLoadingBaseTest {
     wm_gizmomaptypes_free();
     BKE_spacetypes_free();
     RE_engines_exit();
+    BKE_blender_userdef_data_free(&U, false);
     BlendfileLoadingBaseTest::TearDownTestCase();
   }
 
