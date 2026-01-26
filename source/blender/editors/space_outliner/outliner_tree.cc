@@ -603,13 +603,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
         {
           tp->idcode = 0; /* Don't sort this. */
         }
-        if (ELEM(tselem->type, TSE_ID_BASE, TSE_DEFGROUP)) {
-          tp->idcode = 1; /* Do sort this. */
-        }
-        if (tselem->type == TSE_BONE_COLLECTION_BASE) {
-          tp->idcode = 0; /* Don't sort this. */
-        }
-        else if (ELEM(tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
+        if (ELEM(tselem->type, TSE_ID_BASE, TSE_DEFGROUP, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
           tp->idcode = 1; /* Do sort this. */
         }
 
