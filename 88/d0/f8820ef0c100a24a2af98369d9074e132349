@@ -1,1 +1,2 @@
 Referenced by pull request #149053, Fix: LineArt: Assign vertex weight directly instead of using span writer
+Referenced by issue #153373, White artifacts when using Subsurface scattering in EEVEE (LTS 4.5.6)
