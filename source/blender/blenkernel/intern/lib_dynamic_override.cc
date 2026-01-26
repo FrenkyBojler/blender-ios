@@ -20,7 +20,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
-#include "DNA_override_dynamic_types.h"
+#include "DNA_dynamic_override_types.h"
 
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
@@ -39,15 +39,15 @@ namespace blender {
 
 namespace bke {
 
-struct DynOverrideRuntime {};
+struct DynamicOverrideRuntime {};
 
 }  // namespace bke
 
 static void dynoverride_init_data(ID *id)
 {
-  DynOverride *dynoverride = id_cast<DynOverride *>(id);
+  DynamicOverride *dynoverride = id_cast<DynamicOverride *>(id);
 
-  dynoverride->runtime = MEM_new<bke::DynOverrideRuntime>(__func__);
+  dynoverride->runtime = MEM_new<bke::DynamicOverrideRuntime>(__func__);
 }
 
 static void dynoverride_copy_data(Main * /*bmain*/,
@@ -56,21 +56,21 @@ static void dynoverride_copy_data(Main * /*bmain*/,
                                   const ID * /*id_src*/,
                                   const int /*flag*/)
 {
-  DynOverride *dynoverride_dst = id_cast<DynOverride *>(id_dst);
+  DynamicOverride *dynoverride_dst = id_cast<DynamicOverride *>(id_dst);
 
-  dynoverride_dst->runtime = MEM_new<bke::DynOverrideRuntime>(__func__);
+  dynoverride_dst->runtime = MEM_new<bke::DynamicOverrideRuntime>(__func__);
 }
 
 static void dynoverride_free_data(ID *id)
 {
-  DynOverride *dynoverride = id_cast<DynOverride *>(id);
+  DynamicOverride *dynoverride = id_cast<DynamicOverride *>(id);
 
   MEM_delete(dynoverride->runtime);
 }
 
 static void dynoverride_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  DynOverride *dynoverride = id_cast<DynOverride *>(id);
+  DynamicOverride *dynoverride = id_cast<DynamicOverride *>(id);
 
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
   dynoverride->runtime = nullptr;
@@ -82,17 +82,17 @@ static void dynoverride_blend_write(BlendWriter *writer, ID *id, const void *id_
 
 static void dynoverride_blend_read_data(BlendDataReader * /*reader*/, ID *id)
 {
-  DynOverride *dynoverride = id_cast<DynOverride *>(id);
+  DynamicOverride *dynoverride = id_cast<DynamicOverride *>(id);
 
-  dynoverride->runtime = MEM_new<bke::DynOverrideRuntime>(__func__);
+  dynoverride->runtime = MEM_new<bke::DynamicOverrideRuntime>(__func__);
 }
 
 IDTypeInfo IDType_ID_OV = {
-    /*id_code*/ DynOverride::id_type,
+    /*id_code*/ DynamicOverride::id_type,
     /*id_filter*/ FILTER_ID_OV,
     /*dependencies_id_types*/ FILTER_ID_ALL,
     /*main_listbase_index*/ INDEX_ID_OV,
-    /*struct_size*/ sizeof(DynOverride),
+    /*struct_size*/ sizeof(DynamicOverride),
     /*name*/ "Dynamic Override",
     /*name_plural*/ N_("dynamic overrides"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_DYNAMIC_OVERRIDE,

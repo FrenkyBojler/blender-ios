@@ -42,6 +42,7 @@ struct CurveMapping;
 struct CurveProfile;
 struct CustomData_MeshMasks;
 struct Depsgraph;
+struct DynamicOverride;
 struct Editing;
 struct Image;
 struct MovieClip;
@@ -2824,7 +2825,12 @@ struct Scene {
   struct SceneGpencil grease_pencil_settings;
   struct SceneHydra hydra;
 
+  /** Pointer to the Scene-level active dynamic override ID. */
+  DynamicOverride *dynamic_override = nullptr;
+  void *_pad4 = nullptr;
+
   bke::SceneRuntime *runtime = nullptr;
+
 #ifdef __cplusplus
   /* Return the frame rate of the scene. */
   double frames_per_second() const;

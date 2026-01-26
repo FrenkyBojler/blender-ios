@@ -154,6 +154,7 @@ RNA_MAIN_LISTBASE_FUNCS_DEF(cachefiles)
 RNA_MAIN_LISTBASE_FUNCS_DEF(cameras)
 RNA_MAIN_LISTBASE_FUNCS_DEF(collections)
 RNA_MAIN_LISTBASE_FUNCS_DEF(curves)
+RNA_MAIN_LISTBASE_FUNCS_DEF(dynamic_overrides)
 RNA_MAIN_LISTBASE_FUNCS_DEF(fonts)
 RNA_MAIN_LISTBASE_FUNCS_DEF(gpencils)
 RNA_MAIN_LISTBASE_FUNCS_DEF(grease_pencils)
@@ -507,6 +508,12 @@ void RNA_def_main(BlenderRNA *brna)
        "Volumes",
        "Volume data-blocks",
        RNA_def_main_volumes},
+      {"dynamic_overrides",
+       "DynamicOverride",
+       "rna_Main_dynamic_overrides_begin",
+       "Dynamic Overrides",
+       "Dynamic Overrides data-blocks",
+       RNA_def_main_dynamic_overrides},
       {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
   };
 

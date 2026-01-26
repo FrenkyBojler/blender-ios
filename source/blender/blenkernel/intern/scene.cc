@@ -20,6 +20,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_curveprofile_types.h"
+#include "DNA_dynamic_override_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_linestyle_types.h"
@@ -953,6 +954,8 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
         BKE_rigidbody_world_id_loop(
             scene->rigidbody_world, scene_foreach_rigidbodyworldSceneLooper, data));
   }
+
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->dynamic_override, IDWALK_CB_USER);
 
   if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
     for (Base &base_legacy : scene->base.items_mutable()) {

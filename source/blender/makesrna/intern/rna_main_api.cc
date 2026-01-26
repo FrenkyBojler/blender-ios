@@ -70,6 +70,7 @@
 #  include "DNA_collection_types.h"
 #  include "DNA_curve_types.h"
 #  include "DNA_curves_types.h"
+#  include "DNA_dynamic_override_types.h"
 #  include "DNA_gpencil_legacy_types.h"
 #  include "DNA_lattice_types.h"
 #  include "DNA_light_types.h"
@@ -823,6 +824,19 @@ static Volume *rna_Main_volumes_new(Main *bmain, const char *name)
   return volume;
 }
 
+static DynamicOverride *rna_Main_dynamic_overrides_new(Main *bmain, const char *name)
+{
+  char safe_name[MAX_ID_NAME - 2];
+  rna_idname_validate(name, safe_name);
+
+  DynamicOverride *dynamic_override = BKE_id_new<DynamicOverride>(bmain, safe_name);
+  id_us_min(&dynamic_override->id);
+
+  WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
+
+  return dynamic_override;
+}
+
 /* tag functions, all the same */
 #  define RNA_MAIN_ID_TAG_FUNCS_DEF(_func_name, _listbase_name, _id_type) \
     static void rna_Main_##_func_name##_tag(Main *bmain, bool value) \
@@ -869,6 +883,7 @@ RNA_MAIN_ID_TAG_FUNCS_DEF(lightprobes, lightprobes, ID_LP)
 RNA_MAIN_ID_TAG_FUNCS_DEF(hair_curves, hair_curves, ID_CV)
 RNA_MAIN_ID_TAG_FUNCS_DEF(pointclouds, pointclouds, ID_PT)
 RNA_MAIN_ID_TAG_FUNCS_DEF(volumes, volumes, ID_VO)
+RNA_MAIN_ID_TAG_FUNCS_DEF(dynamic_overrides, dynamic_overrides, ID_OV)
 
 #  undef RNA_MAIN_ID_TAG_FUNCS_DEF
 
@@ -2464,6 +2479,54 @@ void RNA_def_main_volumes(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this volume data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_volumes_tag");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+}
+
+void RNA_def_main_dynamic_overrides(BlenderRNA *brna, PropertyRNA *cprop)
+{
+  StructRNA *srna;
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  RNA_def_property_srna(cprop, "BlendDataDynamicOverrides");
+  srna = RNA_def_struct(brna, "BlendDataDynamicOverrides", nullptr);
+  RNA_def_struct_sdna(srna, "Main");
+  RNA_def_struct_ui_text(srna, "Main Dynamic Overrides", "Collection of dynamic overrides");
+
+  func = RNA_def_function(srna, "new", "rna_Main_dynamic_overrides_new");
+  RNA_def_function_ui_description(func, "Add a new dynamic override to the main database");
+  parm = RNA_def_string(func, "name", "Dynamic Override", 0, "", "New name for the data-block");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  /* return type */
+  parm = RNA_def_pointer(
+      func, "dynamic_override", "DynamicOverride", "", "New dynamic override data-block");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "remove", "rna_Main_ID_remove");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_ui_description(func, "Remove a dynamic override from the current blendfile");
+  parm = RNA_def_pointer(
+      func, "dynamic_override", "DynamicOverride", "", "Dynamic override to remove");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
+  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
+  RNA_def_boolean(func,
+                  "do_unlink",
+                  true,
+                  "",
+                  "Unlink all usages of this dynamic override before deleting it");
+  RNA_def_boolean(func,
+                  "do_id_user",
+                  true,
+                  "",
+                  "Decrement user counter of all data-blocks used by this dynamic override data");
+  RNA_def_boolean(func,
+                  "do_ui_user",
+                  true,
+                  "",
+                  "Make sure interface does not reference this dynamic override data");
+
+  func = RNA_def_function(srna, "tag", "rna_Main_dynamic_overrides_tag");
   parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }

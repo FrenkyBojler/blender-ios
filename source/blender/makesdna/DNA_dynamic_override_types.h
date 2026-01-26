@@ -12,18 +12,20 @@
 namespace blender {
 
 namespace bke {
-struct DynOverrideRuntime;
+struct DynamicOverrideRuntime;
 }  // namespace bke
 
-struct DynOverride {
+struct DynamicOverride {
 #ifdef __cplusplus
   /** See #ID_Type comment for why this is here. */
   static constexpr ID_Type id_type = ID_OV;
 #endif
 
   ID id;
+  /** Animation data (must be immediately after id for utilities to use it). */
+  struct AnimData *adt = nullptr;
 
-  bke::DynOverrideRuntime *runtime = nullptr;
+  bke::DynamicOverrideRuntime *runtime = nullptr;
   void *_pad2 = nullptr;
 };
 

@@ -45,6 +45,7 @@ set(DEFSRC
   rna_curveprofile.cc
   rna_curves.cc
   rna_depsgraph.cc
+  rna_dynamic_override.cc
   rna_dynamicpaint.cc
   rna_fcurve.cc
   rna_fluid.cc

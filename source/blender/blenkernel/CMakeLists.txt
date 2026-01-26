@@ -166,7 +166,7 @@ set(SRC
   intern/lib_id_eval.cc
   intern/lib_id_remapper.cc
   intern/lib_override.cc
-  intern/lib_override_dynamic.cc
+  intern/lib_dynamic_override.cc
   intern/lib_override_proxy_conversion.cc
   intern/lib_query.cc
   intern/lib_remap.cc
@@ -430,7 +430,7 @@ set(SRC
   BKE_layer.hh
   BKE_lib_id.hh
   BKE_lib_override.hh
-  BKE_lib_override_dynamic.hh
+  BKE_lib_dynamic_override.hh
   BKE_lib_query.hh
   BKE_lib_remap.hh
   BKE_library.hh

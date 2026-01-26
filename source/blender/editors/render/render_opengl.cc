@@ -634,7 +634,7 @@ static int gather_frames_to_render_for_id(LibraryIDLinkCallbackData *cb_data)
     case ID_SCE: /* Scene */
     case ID_LI:  /* Library */
     case ID_OB:  /* Object */
-    case ID_OV:  /* DynOverride */
+    case ID_OV:  /* DynamicOverride */
     case ID_WO:  /* World */
     case ID_SCR: /* Screen */
     case ID_GR:  /* Group */

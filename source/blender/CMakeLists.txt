@@ -28,6 +28,7 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_customdata_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_defs.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_documentation.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_dynamic_override_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_dynamicpaint_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_effect_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_fileglobal_types.h
@@ -63,7 +64,6 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_object_force_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_object_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_outliner_types.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_override_dynamic_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_packedFile_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_particle_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_pointcache_types.h

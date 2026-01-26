@@ -1064,7 +1064,7 @@ ListBaseT<ID> *which_libbase(Main *bmain, short type)
     case ID_VO:
       return &(bmain->volumes.cast<ID>());
     case ID_OV:
-      return &(bmain->dynoverrides.cast<ID>());
+      return &(bmain->dynamic_overrides.cast<ID>());
   }
   return nullptr;
 }
@@ -1131,7 +1131,7 @@ MainListsArray BKE_main_lists_get(Main &bmain)
   lb[INDEX_ID_WS] = &(bmain.workspaces.cast<ID>());
   lb[INDEX_ID_WM] = &(bmain.wm.cast<ID>());
   lb[INDEX_ID_MSK] = &(bmain.masks.cast<ID>());
-  lb[INDEX_ID_OV] = &(bmain.dynoverrides.cast<ID>());
+  lb[INDEX_ID_OV] = &(bmain.dynamic_overrides.cast<ID>());
 
   return lb;
 }

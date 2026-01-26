@@ -494,6 +494,9 @@ short RNA_type_to_ID_code(const StructRNA *type)
   if (base_type == RNA_WindowManager) {
     return ID_WM;
   }
+  if (base_type == RNA_DynamicOverride) {
+    return ID_OV;
+  }
 
   return 0;
 }
@@ -550,7 +553,7 @@ StructRNA *ID_code_to_RNA_type(short idcode)
     case ID_OB:
       return RNA_Object;
     case ID_OV:
-      return RNA_ID;
+      return RNA_DynamicOverride;
     case ID_PA:
       return RNA_ParticleSettings;
     case ID_PAL:

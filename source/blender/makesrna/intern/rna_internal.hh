@@ -163,6 +163,7 @@ void RNA_def_constraint(BlenderRNA *brna);
 void RNA_def_context(BlenderRNA *brna);
 void RNA_def_curve(BlenderRNA *brna);
 void RNA_def_depsgraph(BlenderRNA *brna);
+void RNA_def_dynamic_override(BlenderRNA *brna);
 void RNA_def_dynamic_paint(BlenderRNA *brna);
 void RNA_def_fcurve(BlenderRNA *brna);
 void RNA_def_annotations(BlenderRNA *brna);
@@ -547,6 +548,7 @@ void RNA_def_main_lightprobes(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_hair_curves(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_pointclouds(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_volumes(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_def_main_dynamic_overrides(BlenderRNA *brna, PropertyRNA *cprop);
 
 /* ID Properties */
 

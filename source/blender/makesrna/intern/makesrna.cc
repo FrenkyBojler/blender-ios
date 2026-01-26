@@ -4046,6 +4046,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_node_tree_interface.cc", nullptr, RNA_def_node_tree_interface},
     {"rna_object.cc", "rna_object_api.cc", RNA_def_object},
     {"rna_object_force.cc", nullptr, RNA_def_object_force},
+    {"rna_dynamic_override.cc", nullptr, RNA_def_dynamic_override},
     {"rna_depsgraph.cc", nullptr, RNA_def_depsgraph},
     {"rna_packedfile.cc", nullptr, RNA_def_packedfile},
     {"rna_palette.cc", nullptr, RNA_def_palette},

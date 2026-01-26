@@ -1896,6 +1896,12 @@ static void rna_Scene_world_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   DEG_relations_tag_update(bmain);
 }
 
+static void rna_Scene_dynamic_override_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_Scene_render_update(bmain, scene, ptr);
+  DEG_relations_tag_update(bmain);
+}
+
 static void rna_Scene_mesh_quality_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
@@ -8743,6 +8749,15 @@ void RNA_def_scene(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   rna_def_scene_objects(brna, prop);
+
+  prop = RNA_def_property(srna, "dynamic_override", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "DynamicOverride");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Dynamic Override",
+      "Active dynamic override, used for evaluating the scene and all of its data");
+  RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_dynamic_override_update");
 
   /* Frame Range Stuff */
   prop = RNA_def_property(srna, "frame_current", PROP_INT, PROP_TIME);

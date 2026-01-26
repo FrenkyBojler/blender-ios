@@ -122,7 +122,7 @@ struct bNodeTree;
 struct bScreen;
 struct bSound;
 struct wmWindowManager;
-struct DynOverride;
+struct DynamicOverride;
 
 /**
  * Blender thumbnail, as written to the `.blend` file (width, height, and data as char RGBA).
@@ -405,7 +405,7 @@ struct Main : NonCopyable, NonMovable {
   ListBaseT<Curves> hair_curves = {};
   ListBaseT<PointCloud> pointclouds = {};
   ListBaseT<Volume> volumes = {};
-  ListBaseT<DynOverride> dynoverrides = {};
+  ListBaseT<DynamicOverride> dynamic_overrides = {};
 
   /**
    * Must be generated, used and freed by same code - never assume this is valid data unless you
