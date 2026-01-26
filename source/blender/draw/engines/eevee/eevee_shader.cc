@@ -784,7 +784,9 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
   return available_slots;
 }
 
-void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOutput *codegen_)
+/* Note: Runs for each material compilation, but not if material hits the shader cache. */
+void ShaderModule::material_create_info_amend(const GPUMaterial *gpumat,
+                                              GPUCodegenOutput *codegen_)
 {
   using namespace blender::gpu::shader;
 

@@ -291,7 +291,7 @@ const char *GPU_material_get_name(GPUMaterial *material)
   return material->name.c_str();
 }
 
-uint64_t GPU_material_uuid_get(GPUMaterial *mat)
+uint64_t GPU_material_uuid_get(const GPUMaterial *mat)
 {
   return mat->uuid;
 }
@@ -369,27 +369,13 @@ bool GPU_material_flag_get(const GPUMaterial *mat, eGPUMaterialFlag flag)
   return (mat->flag & flag) != 0;
 }
 
-eGPUMaterialFlag GPU_material_flag(const GPUMaterial *mat)
+eGPUMaterialFlag &GPU_material_flag(GPUMaterial *mat)
 {
   return mat->flag;
 }
 
 void GPU_material_flag_set(GPUMaterial *mat, eGPUMaterialFlag flag)
 {
-  if (mat->source_material &&
-      (mat->source_material->refraction_mode == MA_REFRACTION_AS_TRANSPARENCY))
-  {
-    /* Transfer refraction flag to transparent flags. */
-    if (flag & GPU_MATFLAG_REFRACT) {
-      flag &= ~GPU_MATFLAG_REFRACT;
-      flag |= GPU_MATFLAG_TRANSPARENT;
-    }
-    if (flag & GPU_MATFLAG_REFRACTION_MAYBE_COLORED) {
-      flag &= ~GPU_MATFLAG_REFRACTION_MAYBE_COLORED;
-      flag |= GPU_MATFLAG_TRANSPARENT_MAYBE_COLORED;
-    }
-  }
-
   if ((flag & GPU_MATFLAG_GLOSSY) && (mat->flag & GPU_MATFLAG_GLOSSY)) {
     /* Tag material using multiple glossy BSDF as using clear coat. */
     mat->flag |= GPU_MATFLAG_COAT;

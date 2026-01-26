@@ -184,7 +184,7 @@ bool GPU_material_has_displacement_output(GPUMaterial *mat);
 
 bool GPU_material_flag_get(const GPUMaterial *mat, eGPUMaterialFlag flag);
 
-uint64_t GPU_material_uuid_get(GPUMaterial *mat);
+uint64_t GPU_material_uuid_get(const GPUMaterial *mat);
 
 struct GPULayerAttr {
   GPULayerAttr *next, *prev;
@@ -446,7 +446,7 @@ char *GPU_material_split_sub_function(GPUMaterial *material,
                                       GPUNodeLink **link);
 
 void GPU_material_flag_set(GPUMaterial *mat, eGPUMaterialFlag flag);
-eGPUMaterialFlag GPU_material_flag(const GPUMaterial *mat);
+eGPUMaterialFlag &GPU_material_flag(GPUMaterial *mat);
 
 GHash *GPU_uniform_attr_list_hash_new(const char *info);
 void GPU_uniform_attr_list_copy(GPUUniformAttrList *dest, const GPUUniformAttrList *src);

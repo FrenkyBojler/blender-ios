@@ -289,7 +289,7 @@ class ShaderModule {
                                 eMaterialPipeline pipeline_type,
                                 bool deferred_compilation);
 
-  void material_create_info_amend(GPUMaterial *mat, GPUCodegenOutput *codegen);
+  void material_create_info_amend(const GPUMaterial *mat, GPUCodegenOutput *codegen);
 
   /** Only to be used by Instance constructor. */
   static ShaderModule *module_get();
