@@ -50,16 +50,15 @@ namespace greasepencil {
  * For compatibility, legacy thickness values have to be multiplied by this factor. */
 constexpr float LEGACY_RADIUS_CONVERSION_FACTOR = 1.0f / 2000.0f;
 
-struct TriangleCache {
-  /* Triangle offset cache for all the fills in the drawing */
-  Vector<int> triangle_offsets;
-  /* Triangle cache for all the fills in the drawing. */
-  Vector<int3> triangles;
-};
-
 struct FillCache {
   /**
-   * The store which curves are in each fill.
+   * A cache of all the fills in the drawing.
+   *
+   * Uses the "fill_id" attribute to create groups of curves (fills) that are triangulated
+   * together. A fill ID of 0 indicates that the corresponding curve is not filled.
+   * The #fill_map is an index mapping where groups are the consecutive indices of curves in each
+   * fill (ordered by the first occurance of the fill ID). The #fill_offsets are offset indices
+   * into #fill_map where each range represents a fill.
    *
    * Here's a example:
    *
@@ -73,22 +72,29 @@ struct FillCache {
   Vector<int> fill_offsets;
 };
 
+struct TriangleCache {
+  /**
+   * A cache of all the triangles (used to render fills) in this drawing.
+   *
+   * All triangles are stored sequentially in #triangles as triplet of point indices. For each fill
+   * (in #FillCache) there's a group of triangles. The ranges are stored using #triangle_offsets.
+   */
+  Vector<int3> triangles;
+  Vector<int> triangle_offsets;
+};
+
 class DrawingRuntime {
  public:
   /**
-   * Triangle cache for all the strokes in the drawing.
-   */
-  mutable SharedCache<TriangleCache> triangle_cache;
-
-  /**
-   * Fill cache for the drawing. Will be `nullopt` when all curves are their own fill.
+   * Fill cache for the drawing. Will be `nullopt` when there are no fills.
    */
   mutable SharedCache<std::optional<FillCache>> fill_cache;
 
   /**
-   * Fill cache for the drawing.
+   * Triangle cache for all the fills in the drawing (see #fill_cache). Will be `nullopt` when
+   * there are no fills.
    */
-  mutable SharedCache<IndexMask> fills_cache;
+  mutable SharedCache<std::optional<TriangleCache>> triangle_cache;
 
   /**
    * Normal vector cache for every stroke. Computed using Newell's method.
@@ -128,20 +134,32 @@ class Drawing : public blender::GreasePencilDrawing {
   bke::CurvesGeometry &strokes_for_write();
 
   /**
-   * The curves in each fill. Will return nullopt when all fill only have one curve.
+   * Group of curve indices for each fill. Can be nullopt when there are no fills in this drawing.
    */
   std::optional<GroupedSpan<int>> fills() const;
   /**
-   * The triangles for fill geometry. Grouped by each fill. Index to curves within the fill.
+   * The triangles for fill geometry. Grouped by each fill. Can be nullopt when there are no fills
+   * in this drawing. See #fills().
    */
-  GroupedSpan<int3> triangles() const;
+  std::optional<GroupedSpan<int3>> triangles() const;
   /**
    * Normal vectors for a plane that fits the stroke.
    */
   Span<float3> curve_plane_normals() const;
 
+  /**
+   * Tag when the texture coordinates have changed.
+   */
   void tag_texture_matrices_changed();
 
+  void tag_triangles_changed();
+  /**
+   * Tag when the fills have changed, e.g. when curves have been filled/unfilled.
+   */
+  void tag_fills_changed();
+  /**
+   * Tag when the positions of points have changed.
+   */
   void tag_positions_changed();
   /**
    * Tag only the positions of some curves.
@@ -1182,7 +1200,7 @@ Material *BKE_grease_pencil_object_material_new(Main *bmain,
                                                 Object *ob,
                                                 const char *name,
                                                 int *r_index);
-Material *BKE_grease_pencil_object_material_from_brush_get(Object *ob, Brush *brush);
+Material *BKE_grease_pencil_object_material_from_brush_get(Object *ob, const Brush *brush);
 Material *BKE_grease_pencil_object_material_ensure_by_name(Main *bmain,
                                                            Object *ob,
                                                            const char *name,

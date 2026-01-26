@@ -451,7 +451,7 @@ static void ensure_fill_cache(const Drawing &drawing)
     const bke::AttributeAccessor attributes = curves.attributes();
 
     const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
-    r_fill_cache = fill_cache_from_fill_ids(curves.curves_num(), fill_ids);
+    r_fill_cache = fill_cache_from_fill_ids(fill_ids);
   });
 }
 
@@ -633,32 +633,37 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
 static void ensure_triangle_and_offset_cache(const Drawing &drawing)
 {
-  drawing.runtime->triangle_cache.ensure([&](TriangleCache &r_triangle_cache) {
-    const CurvesGeometry &curves = drawing.strokes();
-    const std::optional<GroupedSpan<int>> fills = drawing.fills();
-    const int num_fills = fills.has_value() ? fills->size() : 0;
+  drawing.runtime->triangle_cache.ensure([&](std::optional<TriangleCache> &r_triangle_cache) {
+    if (const std::optional<GroupedSpan<int>> fills = drawing.fills()) {
+      TriangleCache triangle_cache;
+      triangle_cache.triangle_offsets.resize(fills->size() + 1);
 
-    r_triangle_cache.triangles.clear();
-    r_triangle_cache.triangle_offsets.resize(num_fills + 1);
-
-    if (fills) {
+      const CurvesGeometry &curves = drawing.strokes();
       update_triangle_and_offsets_cache(curves.evaluated_positions(),
                                         drawing.curve_plane_normals(),
                                         curves.evaluated_points_by_curve(),
                                         fills->index_range(),
                                         *fills,
-                                        r_triangle_cache.triangles,
-                                        r_triangle_cache.triangle_offsets.as_mutable_span());
+                                        triangle_cache.triangles,
+                                        triangle_cache.triangle_offsets.as_mutable_span());
+
+      r_triangle_cache = std::move(triangle_cache);
+    }
+    else {
+      r_triangle_cache = std::nullopt;
     }
   });
 }
 
-GroupedSpan<int3> Drawing::triangles() const
+std::optional<GroupedSpan<int3>> Drawing::triangles() const
 {
   ensure_triangle_and_offset_cache(*this);
-
-  return GroupedSpan<int3>(this->runtime->triangle_cache.data().triangle_offsets.as_span(),
-                           this->runtime->triangle_cache.data().triangles.as_span());
+  if (this->runtime->triangle_cache.data().has_value()) {
+    const TriangleCache &triangle_cache = *this->runtime->triangle_cache.data();
+    return GroupedSpan<int3>(triangle_cache.triangle_offsets.as_span(),
+                             triangle_cache.triangles.as_span());
+  }
+  return std::nullopt;
 }
 
 static void update_curve_plane_normal_cache(const Span<float3> positions,
@@ -995,11 +1000,22 @@ void Drawing::tag_texture_matrices_changed()
   this->runtime->curve_texture_matrices.tag_dirty();
 }
 
+void Drawing::tag_triangles_changed()
+{
+  this->runtime->triangle_cache.tag_dirty();
+}
+
+void Drawing::tag_fills_changed()
+{
+  this->runtime->fill_cache.tag_dirty();
+  this->tag_triangles_changed();
+}
+
 void Drawing::tag_positions_changed()
 {
   this->strokes_for_write().tag_positions_changed();
   this->runtime->curve_plane_normals_cache.tag_dirty();
-  this->runtime->triangle_cache.tag_dirty();
+  this->tag_triangles_changed();
   this->tag_texture_matrices_changed();
 }
 
@@ -1115,33 +1131,40 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
 
   this->tag_texture_matrices_changed();
 
-  const Array<int> src_triangles_offsets = Array<int>(this->triangles().offsets.data());
-  const Array<int3> src_triangles_data = Array<int3>(this->triangles().data);
-  const GroupedSpan<int3> src_triangles(src_triangles_offsets.as_span(),
-                                        src_triangles_data.as_span());
+  /* Fills cache needs to be up-to-date. */
+  this->runtime->fill_cache.tag_dirty();
 
-  this->runtime->triangle_cache.update([&](TriangleCache &r_triangle_cache) {
-    const std::optional<GroupedSpan<int>> fills = this->fills();
-    const int num_fills = fills.has_value() ? fills->size() : 0;
+  if (const std::optional<GroupedSpan<int3>> triangles = this->triangles()) {
+    /* Copy the triangle data. */
+    const Array<int> src_triangles_offsets = Array<int>(triangles->offsets.data());
+    const Array<int3> src_triangles_data = Array<int3>(triangles->data);
+    const GroupedSpan<int3> src_triangles(src_triangles_offsets.as_span(),
+                                          src_triangles_data.as_span());
 
-    r_triangle_cache.triangles.clear();
-    r_triangle_cache.triangle_offsets.resize(num_fills + 1);
+    this->runtime->triangle_cache.update([&](std::optional<TriangleCache> &r_triangle_cache) {
+      const std::optional<GroupedSpan<int>> fills = this->fills();
+      BLI_assert(fills.has_value());
 
-    update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
-                                        this->curve_plane_normals(),
-                                        this->strokes().evaluated_points_by_curve(),
-                                        changed_curves,
-                                        fills,
-                                        src_triangles,
-                                        r_triangle_cache.triangles,
-                                        r_triangle_cache.triangle_offsets);
-  });
+      TriangleCache triangle_cache;
+      triangle_cache.triangle_offsets.resize(fills->size() + 1);
+
+      update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
+                                          this->curve_plane_normals(),
+                                          this->strokes().evaluated_points_by_curve(),
+                                          changed_curves,
+                                          fills,
+                                          src_triangles,
+                                          triangle_cache.triangles,
+                                          triangle_cache.triangle_offsets);
+      r_triangle_cache = std::move(triangle_cache);
+    });
+  }
 }
 
 void Drawing::tag_topology_changed()
 {
   this->tag_positions_changed();
-  this->runtime->fill_cache.tag_dirty();
+  this->tag_fills_changed();
   this->strokes_for_write().tag_topology_changed();
 }
 
@@ -1174,22 +1197,22 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
         curves.positions(), curves.points_by_curve(), changed_curves, normals);
   });
 
-  const std::optional<GroupedSpan<int>> fills = this->fills();
-  const int num_fills = fills.has_value() ? fills->size() : 0;
+  /* Fills cache needs to be up-to-date. */
+  this->runtime->fill_cache.tag_dirty();
 
-  /* Make sure the number of fills has not changed. */
-  if (num_fills == this->triangles().size()) {
-    const Array<int> src_triangles_offsets = Array<int>(this->triangles().offsets.data());
-    const Array<int3> src_triangles_data = Array<int3>(this->triangles().data);
+  if (const std::optional<GroupedSpan<int3>> triangles = this->triangles()) {
+    /* Copy the triangle data. */
+    const Array<int> src_triangles_offsets = Array<int>(triangles->offsets.data());
+    const Array<int3> src_triangles_data = Array<int3>(triangles->data);
     const GroupedSpan<int3> src_triangles(src_triangles_offsets.as_span(),
                                           src_triangles_data.as_span());
 
-    this->runtime->triangle_cache.update([&](TriangleCache &r_triangle_cache) {
+    this->runtime->triangle_cache.update([&](std::optional<TriangleCache> &r_triangle_cache) {
       const std::optional<GroupedSpan<int>> fills = this->fills();
-      const int num_fills = fills.has_value() ? fills->size() : 0;
+      BLI_assert(fills.has_value());
 
-      r_triangle_cache.triangles.clear();
-      r_triangle_cache.triangle_offsets.resize(num_fills + 1);
+      TriangleCache triangle_cache;
+      triangle_cache.triangle_offsets.resize(fills->size() + 1);
 
       update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                           this->curve_plane_normals(),
@@ -1197,12 +1220,10 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
                                           changed_curves,
                                           fills,
                                           src_triangles,
-                                          r_triangle_cache.triangles,
-                                          r_triangle_cache.triangle_offsets);
+                                          triangle_cache.triangles,
+                                          triangle_cache.triangle_offsets);
+      r_triangle_cache = std::move(triangle_cache);
     });
-  }
-  else {
-    this->runtime->triangle_cache.tag_dirty();
   }
 
   this->tag_texture_matrices_changed();
@@ -2832,7 +2853,7 @@ Material *BKE_grease_pencil_object_material_new(Main *bmain,
   return ma;
 }
 
-Material *BKE_grease_pencil_object_material_from_brush_get(Object *ob, Brush *brush)
+Material *BKE_grease_pencil_object_material_from_brush_get(Object *ob, const Brush *brush)
 {
   if (brush && brush->gpencil_settings &&
       (brush->gpencil_settings->flag & GP_BRUSH_MATERIAL_PINNED))
@@ -4040,9 +4061,9 @@ static void reorder_attribute_domain(bke::AttributeStorage &data,
                                      const bke::AttrDomain domain,
                                      const Span<int> new_by_old_map)
 {
-  data.foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : data) {
     if (attr.domain() != domain) {
-      return;
+      continue;
     }
     const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
@@ -4053,12 +4074,13 @@ static void reorder_attribute_domain(bke::AttributeStorage &data,
                                     new_by_old_map,
                                     GMutableSpan(type, new_data.data, new_data.size));
         attr.assign_data(std::move(new_data));
+        break;
       }
       case bke::AttrStorageType::Single: {
-        return;
+        break;
       }
     }
-  });
+  }
 }
 
 static void reorder_layer_data(GreasePencil &grease_pencil,
@@ -4371,7 +4393,7 @@ static void shrink_attribute_storage(bke::AttributeStorage &storage,
   const IndexRange range_before(index_to_remove);
   const IndexRange range_after(index_to_remove + 1, size - index_to_remove - 1);
 
-  storage.foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : storage) {
     const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
       case bke::AttrStorageType::Array: {
@@ -4384,12 +4406,13 @@ static void shrink_attribute_storage(bke::AttributeStorage &storage,
                               range_after.size());
 
         attr.assign_data(std::move(new_data));
+        break;
       }
       case bke::AttrStorageType::Single: {
-        return;
+        break;
       }
     }
-  });
+  }
 }
 
 static void update_active_node_from_node_to_remove(GreasePencil &grease_pencil,

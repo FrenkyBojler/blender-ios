@@ -310,7 +310,7 @@ bool selection_update(const ViewContext *vc,
   if (changed) {
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
      * generic attribute for now. */
-    DEG_id_tag_update(static_cast<ID *>(object->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(object->data, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(vc->C, NC_GEOM | ND_DATA, object->data);
   }
 
@@ -958,7 +958,7 @@ static wmOperatorStatus select_fill_exec(bContext *C, wmOperator * /*op*/)
 
 static void GREASE_PENCIL_OT_select_fill(wmOperatorType *ot)
 {
-  ot->name = "Select Shape";
+  ot->name = "Select Fill";
   ot->idname = "GREASE_PENCIL_OT_select_fill";
   ot->description = "Select all curves in a fill";
 
@@ -1013,7 +1013,7 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
         }
       }
       else {
-        BLI_assert(meta_data->domain == bke::AttrDomain::Curve);
+        BLI_assert(ELEM(meta_data->domain, bke::AttrDomain::Auto, bke::AttrDomain::Curve));
 
         const IndexMask selected_curves = ed::curves::retrieve_selected_curves(curves, memory);
         const IndexMask selected_mask = bke::greasepencil::selected_mask_to_fills(

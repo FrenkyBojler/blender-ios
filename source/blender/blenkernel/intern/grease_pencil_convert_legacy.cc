@@ -1328,7 +1328,7 @@ static void fcurve_convert_thickness_cb(FCurve &fcurve)
     }
   }
   fcurve.flag &= ~FCURVE_INT_VALUES;
-  BKE_fcurve_handles_recalc(&fcurve);
+  BKE_fcurve_handles_recalc(fcurve);
 }
 
 static void legacy_object_thickness_modifier_thickness_anim(ConversionData &conversion_data,
@@ -3250,8 +3250,7 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
   }
 }
 
-void grease_pencil_material_stroke_fill_toggle_to_attributes(Main &bmain,
-                                                             BlendFileReadReport &reports)
+void material_stroke_fill_toggles_to_attributes(Main &bmain, BlendFileReadReport &reports)
 {
   using namespace blender;
   using namespace bke::greasepencil;

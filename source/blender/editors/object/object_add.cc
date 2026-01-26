@@ -3508,9 +3508,10 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     });
     fill_ids.finish();
 
-    bke::SpanAttributeWriter<bool> hide_stroke =
-        attributes.lookup_or_add_for_write_only_span<bool>("hide_stroke", bke::AttrDomain::Curve);
-    hide_stroke.span.fill(true);
+    bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
+        "hide_stroke",
+        bke::AttrDomain::Curve,
+        bke::AttributeInitVArray(VArray<bool>::from_single(true, fills_num)));
     hide_stroke.finish();
   }
 
@@ -4006,11 +4007,11 @@ static void create_grease_pencil_fills(bke::greasepencil::Drawing &drawing)
       "material_index", bke::AttrDomain::Curve, 0);
   bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_only_span<int>(
       "fill_id", bke::AttrDomain::Curve);
-  bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_only_span<bool>(
-      "hide_stroke", bke::AttrDomain::Curve);
-
   /* Hide all the strokes, only show fills. */
-  hide_stroke.span.fill(true);
+  bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
+      "hide_stroke",
+      bke::AttrDomain::Curve,
+      bke::AttributeInitVArray(VArray<bool>::from_single(true, curves.curves_num())));
 
   /* Mark all the strokes in the same material as the same fill. */
   for (const int curve_i : curves.curves_range()) {
@@ -4336,7 +4337,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
 
       /* flag data that's not been edited (only needed for !keep_original) */
       if (ob->data) {
-        (ob->data)->tag |= ID_TAG_DOIT;
+        ob->data->tag |= ID_TAG_DOIT;
       }
 
       /* possible metaball basis is not in this scene */
@@ -4478,7 +4479,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
        * It is not enough to tag only geometry and rely on the curve parenting relations because
        * this relation is lost when curve is converted to mesh. */
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
-      (ob->data)->tag &= ~ID_TAG_DOIT; /* flag not to convert this datablock again */
+      ob->data->tag &= ~ID_TAG_DOIT; /* flag not to convert this datablock again */
     }
   }
 
