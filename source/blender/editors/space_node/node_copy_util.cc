@@ -796,15 +796,17 @@ static void replace_interface_socket(bContext &C,
       for (const MutableNodeAndSocket &out_link : outgoing_links) {
         const eNodeSocketDatatype out_type = eNodeSocketDatatype(out_link.socket.type);
         const nodes::SocketDeclaration *out_decl = out_link.socket.runtime->declaration;
-        const NodeDefaultInputType out_default_input =
-            out_decl ? out_decl->default_input_type :
-                       NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE;
+        const bool output_has_implicit_input =
+            out_decl ?
+                out_decl->default_input_type != NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE :
+                false;
+        const bool out_hide_value = out_decl ? out_decl->hide_value : false;
 
         const bool has_value_copy_fn = bke::node_interface::find_socket_value_copy_function(
             socket_type, out_type);
-        /* The target socket can only store the value if it does not use an implicit input. */
-        const bool can_copy_value = (out_default_input ==
-                                     NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE) &&
+        /* The target socket can only store the value if it does not use an implicit input and
+         * actually shows the value. */
+        const bool can_copy_value = !output_has_implicit_input && !out_hide_value &&
                                     has_value_copy_fn;
         if (!can_copy_value) {
           needs_proxy = true;
