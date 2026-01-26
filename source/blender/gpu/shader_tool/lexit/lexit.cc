@@ -597,7 +597,7 @@ void TokenBuffer::merge_complex_literals()
   offsets_[size_] = str_.size();
 }
 
-template<enum TokenType removed_type, enum TokenType removed_type2 = removed_type>
+template<TokenType removed_type, TokenType removed_type2 = removed_type>
 static uint32_t merge_token(const TokenType *in_types,
                             const uint32_t *in_offsets,
                             TokenType *out_types,
