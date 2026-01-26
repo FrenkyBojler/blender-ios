@@ -680,6 +680,39 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
   return io_nodes;
 }
 
+static bool socket_types_need_conversion(const StringRef from_type, const StringRef to_type)
+{
+  const bke::bNodeSocketType *from_typeinfo = bke::node_socket_type_find(from_type);
+  const bke::bNodeSocketType *to_typeinfo = bke::node_socket_type_find(to_type);
+  const bool from_static = node_is_static_socket_type(*from_typeinfo);
+  const bool to_static = node_is_static_socket_type(*to_typeinfo);
+  if (from_typeinfo == nullptr || to_typeinfo == nullptr) {
+    return true;
+  }
+  if (from_static != to_static) {
+    return true;
+  }
+  /* Dynamic socket types need conversion if type idnames are different. */
+  if (!from_static && !to_static) {
+    return from_type != to_type;
+  }
+  /* Static socket types need conversion only if the base types are different. */
+  return from_typeinfo->type != to_typeinfo->type;
+}
+
+static bool any_link_need_conversion(const Span<MutableNodeAndSocket> links,
+                                     const bNodeTreeInterfaceSocket &io_socket)
+{
+  /* A proxy is needed if any internal internal or external connection has a different type and
+   * therefore cannot directly be connected without loss of conversion. */
+  for (const MutableNodeAndSocket &in_link : links) {
+    if (socket_types_need_conversion(in_link.socket.idname, io_socket.socket_type)) {
+      return true;
+    }
+  }
+  return true;
+}
+
 static std::pair<std::optional<MutableNodeAndSocket>, std::optional<MutableNodeAndSocket>>
 find_proxy_node_sockets(bNode &proxy_node)
 {
@@ -729,22 +762,9 @@ static void replace_interface_socket(bContext &C,
       bke::node_interface::find_proxy_implicit_input_node_function(
           socket_type, NodeDefaultInputType(io_socket.default_input));
 
-  /* If there are no incoming links and no implicit input then the socket value is used. */
-  const bool use_socket_value = incoming_links.is_empty() && !implicit_input_fn;
-
-  /* Determine if a proxy node is needed. */
-  bool needs_proxy = false;
-  for (const MutableNodeAndSocket &out_link : outgoing_links) {
-    const eNodeSocketDatatype out_type = eNodeSocketDatatype(out_link.socket.type);
-    /* Converter not needed if the value can be losslessly copied. */
-    if (use_socket_value &&
-        bke::node_interface::find_socket_value_copy_function(socket_type, out_type))
-    {
-      continue;
-    }
-    needs_proxy = true;
-    break;
-  }
+  /* True if the socket is connected both internally and externally. This includes the case of
+   * implicit inputs, which counts as an input connection. */
+  const bool is_through_link = !incoming_links.is_empty() || implicit_input_fn;
 
   /* Find the socket input value to use, if available. */
   const bNodeTree &group_tree = *id_cast<bNodeTree *>(group_node->id);
@@ -755,6 +775,35 @@ static void replace_interface_socket(bContext &C,
       value_source_node ?
           bke::node_find_socket(*value_source_node, SOCK_IN, io_socket.identifier)->default_value :
           nullptr;
+
+  /* Determine if the socket input value is used and whether a proxy node is needed. */
+  bool needs_proxy = false;
+  bool use_socket_value = false;
+  if (is_through_link) {
+    /* A proxy is needed if any internal internal or external connection has a different type and
+     * therefore cannot directly be connected without loss of conversion. */
+    if (any_link_need_conversion(incoming_links, io_socket) ||
+        any_link_need_conversion(outgoing_links, io_socket))
+    {
+      needs_proxy = true;
+    }
+  }
+  else {
+    /* The socket has no incoming links. A proxy is needed if any outgoing connection has a
+     * different type and cannot store the input value without loss of information. */
+    if (socket_value) {
+      use_socket_value = true;
+      for (const MutableNodeAndSocket &out_link : outgoing_links) {
+        const eNodeSocketDatatype out_type = eNodeSocketDatatype(out_link.socket.type);
+        /* Converter not needed if the value can be losslessly copied. */
+        if (bke::node_interface::find_socket_value_copy_function(socket_type, out_type)) {
+          continue;
+        }
+        needs_proxy = true;
+        break;
+      }
+    }
+  }
 
   /* Create a proxy node if necessary. */
   bNode *proxy_node = nullptr;
