@@ -883,7 +883,7 @@ void ShaderModule::material_create_info_amend(const GPUMaterial *gpumat,
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SUBSURFACE)) {
     info.define("MAT_SUBSURFACE");
   }
-  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_REFRACT)) {
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_REFRACT) && !refraction_as_transparency) {
     info.define("MAT_REFRACTION");
   }
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSLUCENT)) {
@@ -902,7 +902,12 @@ void ShaderModule::material_create_info_amend(const GPUMaterial *gpumat,
     info.define("MAT_REFRACTION_COLORLESS");
   }
 
-  const eClosureBits closure_bits = shader_closure_bits_from_flag(gpumat);
+  eClosureBits closure_bits = shader_closure_bits_from_flag(gpumat);
+  if (refraction_as_transparency) {
+    /** IMPORTANT: In this case the refraction is not writing to the first bin.
+     * This leads to uninitialized values and light look overhead. */
+    closure_bits &= ~CLOSURE_REFRACTION;
+  }
 
   int32_t closure_bin_count = to_gbuffer_bin_count(closure_bits);
   switch (closure_bin_count) {
