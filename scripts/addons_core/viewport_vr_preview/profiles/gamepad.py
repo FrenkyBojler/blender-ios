@@ -3,9 +3,11 @@
 from ..action_profile import VRActionProfile, VRDefaultActions
 
 class VRActionProfileGamepad(VRActionProfile):
+    name = "gamepad"
+    profile = "/interaction_profiles/microsoft/xbox_controller"
+    
     def __init__(self):
-        super().__init__("gamepad")
-        self.profile = "/interaction_profiles/microsoft/xbox_controller"
+        super().__init__()
 
         self.action_map[VRDefaultActions.CONTROLLER_GRIP] = None
         self.action_map[VRDefaultActions.CONTROLLER_AIM] = None

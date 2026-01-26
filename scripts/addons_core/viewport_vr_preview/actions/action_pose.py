@@ -3,11 +3,9 @@ from ..action import VRAction
 
 
 class VRActionPose(VRAction):
-    def __init__(self):
-        super().__init__()
-        self.type = 'POSE'
-        self.pose_is_controller_grip = False
-        self.pose_is_controller_aim = False
+    type = 'POSE'
+    pose_is_controller_grip = False
+    pose_is_controller_aim = False
     
     def vr_action_map_add(self, action_map):
         action_map_item = super().vr_action_map_add(action_map)
@@ -31,15 +29,11 @@ class VRActionPose(VRAction):
 
 
 class VRActionControllerGrip(VRActionPose):
-    def __init__(self):
-        super().__init__()
-        self.name = VRDefaultActions.CONTROLLER_GRIP.value
-        self.pose_is_controller_grip = True
+    name = VRDefaultActions.CONTROLLER_GRIP.value
+    pose_is_controller_grip = True
 
 
 class VRActionControllerAim(VRActionPose):
-    def __init__(self):
-        super().__init__()
-        self.name = VRDefaultActions.CONTROLLER_AIM.value
-        self.pose_is_controller_aim = True
+    name = VRDefaultActions.CONTROLLER_AIM.value
+    pose_is_controller_aim = True
 

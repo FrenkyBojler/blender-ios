@@ -9,13 +9,11 @@ class VRActionPathType(Enum):
     GAMEPAD = ["/user/gamepad"]    
 
 class VRAction():
-    def __init__(self):
-        self.name = VRDefaultActions.EMPTY.value
-        self.type = ''
-
-        self.path_type = VRActionPathType.DUAL_HANDED
-        self.map_name = None
-        self.included_maps = {VRDefaultActionmaps.DEFAULT.value}
+    name = VRDefaultActions.EMPTY.value
+    type = ''
+    path_type = VRActionPathType.DUAL_HANDED
+    map_name = None
+    included_maps = {VRDefaultActionmaps.DEFAULT.value}
 
     def enable_gamepad(self):
         self.path_type = VRActionPathType.GAMEPAD
@@ -50,19 +48,17 @@ class VRAction():
 
 
 class VRActionFloat(VRAction):
-    def __init__(self):
-        super().__init__()
-        self.type = 'FLOAT'
-        self.op = None
-        self.op_mode = 'MODAL'
-        self.bimanual = False
-        self.haptic_name = ""
-        self.haptic_match_user_paths = False
-        self.haptic_duration = 0.0
-        self.haptic_frequency = 0.0
-        self.haptic_amplitude = 0.0
-        self.haptic_mode = 'PRESS'
-        self.op_properties = None
+    type = 'FLOAT'
+    op = None
+    op_mode = 'MODAL'
+    bimanual = False
+    haptic_name = ""
+    haptic_match_user_paths = False
+    haptic_duration = 0.0
+    haptic_frequency = 0.0
+    haptic_amplitude = 0.0
+    haptic_mode = 'PRESS'
+    op_properties = None
 
     def vr_action_map_add(self, action_map):
         action_map_item = super().vr_action_map_add(action_map)
@@ -104,13 +100,9 @@ class VRActionFloat(VRAction):
 
 
 class VRActionFloatLeftHanded(VRActionFloat):
-    def __init__(self):
-        super().__init__()
-        self.path_type = VRActionPathType.LEFT_HANDED
+    path_type = VRActionPathType.LEFT_HANDED
 
 
 class VRActionFloatRightHanded(VRActionFloat):
-    def __init__(self):
-        super().__init__()
-        self.path_type = VRActionPathType.RIGHT_HANDED
+    path_type = VRActionPathType.RIGHT_HANDED
 

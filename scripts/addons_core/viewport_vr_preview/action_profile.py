@@ -37,11 +37,11 @@ class VRDefaultActions(Enum):
 
 
 class VRActionProfile():
-    def __init__(self, name):
-        self.name = name
-        self.profile = None
-        self.requires_opt_in = False
-        self.ui_label = None
+    requires_opt_in = False
+    ui_label = None
+    name = None
+    profile = None
+    def __init__(self):
 
         self.action_map = {
             VRDefaultActions.CONTROLLER_GRIP.value: {

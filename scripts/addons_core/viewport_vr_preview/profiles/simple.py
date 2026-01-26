@@ -1,9 +1,11 @@
 from ..action_profile import VRActionProfile, VRDefaultActions
 
 class VRActionProfileSimple(VRActionProfile):
+    name = "simple"
+    profile = "/interaction_profiles/khr/simple_controller"
+    
     def __init__(self):
-        super().__init__("simple")
-        self.profile = "/interaction_profiles/khr/simple_controller"
+        super().__init__()
 
         self.action_map[VRDefaultActions.TELEPORT.value].update({
             "component_paths": ["/input/select/click", "/input/select/click"],
