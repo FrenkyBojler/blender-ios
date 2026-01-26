@@ -628,7 +628,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     uint32_t layer_base = max_ii(attachment.layer, 0);
     GPUAttachmentState attachment_state = attachment_states_[color_attachment_index];
     VkFormat vk_format = to_vk_format(color_texture.device_format_get());
-    if (ELEM(attachment_state, GPU_ATTACHMENT_WRITE, GPU_ATTACHMENT_WRITE_OPTIONAL)) {
+    if (attachment_state == GPU_ATTACHMENT_WRITE) {
       VKImageViewInfo image_view_info = {
           eImageViewUsage::Attachment,
           IndexRange(layer_base,
@@ -683,7 +683,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
                                         VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
     GPUAttachmentState attachment_state = attachment_states_[GPU_FB_DEPTH_ATTACHMENT];
     VkImageView depth_image_view = VK_NULL_HANDLE;
-    if (ELEM(attachment_state, GPU_ATTACHMENT_WRITE, GPU_ATTACHMENT_WRITE_OPTIONAL)) {
+    if (attachment_state == GPU_ATTACHMENT_WRITE) {
       VKImageViewInfo image_view_info = {eImageViewUsage::Attachment,
                                          IndexRange(max_ii(attachment.layer, 0), 1),
                                          IndexRange(attachment.mip, 1),

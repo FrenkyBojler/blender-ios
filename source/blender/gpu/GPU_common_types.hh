@@ -68,8 +68,6 @@ enum GPUAttachmentState {
   GPU_ATTACHMENT_IGNORE = 0,
   /** Attachment will be written during render sub-pass. This also works with blending. */
   GPU_ATTACHMENT_WRITE,
-  /** Same as GPU_ATTACHMENT_WRITE, but setting it for null attachments won't cause errors. */
-  GPU_ATTACHMENT_WRITE_OPTIONAL,
   /** Attachment is used as input in the fragment shader. Incompatible with depth on Metal. */
   GPU_ATTACHMENT_READ,
 };
