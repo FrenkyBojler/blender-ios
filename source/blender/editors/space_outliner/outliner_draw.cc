@@ -1866,9 +1866,9 @@ static void outliner_draw_restrictbuts(ui::Block *block,
 
 static void outliner_draw_userbuts(ui::Block *block,
                                    const ARegion *region,
-                                   const SpaceOutliner *space_outliner)
+                                   Span<const TreeElement *> visible_elements)
 {
-  tree_iterator::all_open(*space_outliner, [&](const TreeElement *te) {
+  for (const TreeElement *te : visible_elements) {
     if (!outliner_is_element_in_view(te, &region->v2d)) {
       return;
     }
@@ -1950,7 +1950,7 @@ static void outliner_draw_userbuts(ui::Block *block,
       }
       button_icon_indicator_set(bt, overlay);
     }
-  });
+  }
 }
 
 static void outliner_draw_overrides_rna_buts(ui::Block *block,
@@ -2135,12 +2135,13 @@ static void outliner_draw_separator(ARegion *region, const int x)
 static void outliner_draw_rnabuts(ui::Block *block,
                                   ARegion *region,
                                   SpaceOutliner *space_outliner,
-                                  int sizex)
+                                  int sizex,
+                                  Span<const TreeElement *> visible_elemnts)
 {
   PointerRNA ptr;
   PropertyRNA *prop;
 
-  tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
+  for (const TreeElement *te : visible_elemnts) {
     TreeStoreElem *tselem = TREESTORE(te);
 
     if (!outliner_is_element_in_view(te, &region->v2d)) {
@@ -2208,7 +2209,7 @@ static void outliner_draw_rnabuts(ui::Block *block,
                     OL_RNA_COL_SIZEX,
                     UI_UNIT_Y - 1);
     }
-  });
+  }
 }
 
 static void outliner_buttons(const bContext *C,
@@ -2387,15 +2388,15 @@ static void outliner_draw_mode_column_toggle(ui::Block *block,
 
 static void outliner_draw_mode_column(ui::Block *block,
                                       TreeViewContext &tvc,
-                                      SpaceOutliner *space_outliner)
+                                      Span<TreeElement *> visible_elemnts)
 {
   const bool lock_object_modes = tvc.scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK;
 
-  tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
+  for (TreeElement *te : visible_elemnts) {
     if (tvc.obact && tvc.obact->mode != OB_MODE_OBJECT) {
       outliner_draw_mode_column_toggle(block, tvc, te, lock_object_modes);
     }
-  });
+  }
 }
 
 static StringRefNull outliner_draw_get_warning_tree_element_subtree(const TreeElement *parent_te)
@@ -2465,9 +2466,10 @@ static void outliner_draw_warning_tree_element(ui::Block *block,
 
 static void outliner_draw_warning_column(ui::Block *block,
                                          const SpaceOutliner *space_outliner,
-                                         const bool use_mode_column)
+                                         const bool use_mode_column,
+                                         Span<const TreeElement *> visible_elemnts)
 {
-  tree_iterator::all_open(*space_outliner, [&](const TreeElement *te) {
+  for (const TreeElement *te : visible_elemnts) {
     /* Get warning for this element, or if there is none and the element is collapsed, the first
      * warning in the collapsed sub-tree. */
     StringRefNull warning_msg = outliner_draw_get_warning_tree_element(*space_outliner, te);
@@ -2476,7 +2478,7 @@ static void outliner_draw_warning_column(ui::Block *block,
       outliner_draw_warning_tree_element(
           block, space_outliner, warning_msg, use_mode_column, te->ys);
     }
-  });
+  }
 }
 
 /** \} */
@@ -3752,7 +3754,7 @@ static void outliner_draw_highlights(const ARegion *region,
                                      const float col_active[4],
                                      const float col_highlight[4],
                                      const float col_searchmatch[4],
-                                     Span<TreeElement *> visible_elements)
+                                     Span<const TreeElement *> visible_elements)
 {
   const bool is_searching = (SEARCHING_OUTLINER(space_outliner) ||
                              (space_outliner->outlinevis == SO_DATA_API &&
@@ -3825,9 +3827,9 @@ static void outliner_draw_highlights(const ARegion *region,
   }
 }
 
-static void outliner_draw_highlights(ARegion *region,
-                                     SpaceOutliner *space_outliner,
-                                     Span<TreeElement *> visible_elements)
+static void outliner_draw_highlights(const ARegion *region,
+                                     const SpaceOutliner *space_outliner,
+                                     Span<const TreeElement *> visible_elements)
 {
   const float col_highlight[4] = {1.0f, 1.0f, 1.0f, 0.13f};
   float col_selection[4], col_active[4], col_searchmatch[4];
@@ -4092,11 +4094,11 @@ void draw_outliner(const bContext *C, bool do_rebuild)
     outliner_draw_separator(region, buttons_start_x + OL_RNA_COL_SIZEX);
 
     block_emboss_set(block, ui::EmbossType::Emboss);
-    outliner_draw_rnabuts(block, region, space_outliner, buttons_start_x);
+    outliner_draw_rnabuts(block, region, space_outliner, buttons_start_x, visible_elements);
     block_emboss_set(block, ui::EmbossType::NoneOrStatus);
   }
   else if (ELEM(space_outliner->outlinevis, SO_ID_ORPHANS, SO_LIBRARIES)) {
-    outliner_draw_userbuts(block, region, space_outliner);
+    outliner_draw_userbuts(block, region, visible_elements);
   }
   else if (space_outliner->outlinevis == SO_OVERRIDES_LIBRARY) {
     const int x = region->v2d.cur.xmax - right_column_width;
@@ -4127,12 +4129,12 @@ void draw_outliner(const bContext *C, bool do_rebuild)
 
   /* Draw mode icons */
   if (use_mode_column) {
-    outliner_draw_mode_column(block, tvc, space_outliner);
+    outliner_draw_mode_column(block, tvc, visible_elements);
   }
 
   /* Draw warning icons */
   if (use_warning_column) {
-    outliner_draw_warning_column(block, space_outliner, use_mode_column);
+    outliner_draw_warning_column(block, space_outliner, use_mode_column, visible_elements);
   }
 
   block_emboss_set(block, ui::EmbossType::Emboss);
