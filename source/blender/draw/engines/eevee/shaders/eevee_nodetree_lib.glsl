@@ -353,7 +353,7 @@ void raycast_eval(float3 position,
     hit_position = ws_start + direction * result;
     hit_distance = distance(position, hit_position);
     hit_normal = normalize(texture(prepass_normal_tx, hit_uv).xyz * 2.0f - 1.0f);
-    int2 hit_texel = int2(hit_uv * float2(uniform_buf.film.render_extent));
+    int2 hit_texel = int2(hit_uv * float2(textureSize(object_id_tx, 0)));
     uint hit_id = texelFetch(object_id_tx, hit_texel, 0).x;
     self_hit = self_only || (hit_id == self_id);
   }
