@@ -23,6 +23,7 @@
 #include "BKE_context.hh"
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -54,8 +55,8 @@ namespace blender::ed::sculpt_paint::hide {
 
 void sync_all_from_faces(Object &object)
 {
-  SculptSession &ss = *object.sculpt;
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  SculptSession &ss = *object.runtime->sculpt_session;
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
 
   islands::invalidate(ss);
 
@@ -123,7 +124,7 @@ void mesh_show_all(const Depsgraph &depsgraph, Object &object, const IndexMask &
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
 
@@ -148,7 +149,7 @@ void grids_show_all(Depsgraph &depsgraph, Object &object, const IndexMask &node_
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-  SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+  SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
   const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
 
   if (!grid_hidden.is_empty()) {
@@ -284,7 +285,7 @@ static void vert_hide_update(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter<bool> hide_vert = attributes.lookup_or_add_for_write_span<bool>(
       ".hide_vert", bke::AttrDomain::Point);
@@ -325,7 +326,7 @@ static void grid_hide_update(Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
 
-  SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+  SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
   BitGroupVector<> &grid_hidden = BKE_subdiv_ccg_grid_hidden_ensure(subdiv_ccg);
 
   Array<bool> node_changed(node_mask.min_array_size(), false);
@@ -456,7 +457,7 @@ static void partialvis_all_update_mesh(const Depsgraph &depsgraph,
                                        const VisAction action,
                                        const IndexMask &node_mask)
 {
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (action == VisAction::Show && !attributes.contains(".hide_vert")) {
     /* If everything is already visible, don't do anything. */
@@ -541,7 +542,7 @@ static wmOperatorStatus hide_show_all_exec(bContext *C, wmOperator *op)
   /* End undo. */
   undo::push_end(ob);
 
-  islands::invalidate(*ob.sculpt);
+  islands::invalidate(*ob.runtime->sculpt_session);
   tag_update_visibility(*C);
 
   return OPERATOR_FINISHED;
@@ -552,7 +553,7 @@ static void partialvis_masked_update_mesh(const Depsgraph &depsgraph,
                                           const VisAction action,
                                           const IndexMask &node_mask)
 {
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (action == VisAction::Show && !attributes.contains(".hide_vert")) {
     /* If everything is already visible, don't do anything. */
@@ -581,7 +582,7 @@ static void partialvis_masked_update_grids(Depsgraph &depsgraph,
                                            const VisAction action,
                                            const IndexMask &node_mask)
 {
-  SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+  SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
 
   const bool value = action_to_hide(action);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
@@ -610,7 +611,7 @@ static void partialvis_masked_update_bmesh(const Depsgraph &depsgraph,
                                            const VisAction action,
                                            const IndexMask &node_mask)
 {
-  BMesh *bm = ob.sculpt->bm;
+  BMesh *bm = ob.runtime->sculpt_session->bm;
   const int mask_offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
   const auto mask_test_fn = [&](const BMVert *v) {
     const float vmask = BM_ELEM_CD_GET_FLOAT(v, mask_offset);
@@ -658,7 +659,7 @@ static wmOperatorStatus hide_show_masked_exec(bContext *C, wmOperator *op)
   /* End undo. */
   undo::push_end(ob);
 
-  islands::invalidate(*ob.sculpt);
+  islands::invalidate(*ob.runtime->sculpt_session);
   tag_update_visibility(*C);
 
   return OPERATOR_FINISHED;
@@ -717,7 +718,7 @@ static void invert_visibility_mesh(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_span<bool>(
       ".hide_poly", bke::AttrDomain::Face);
@@ -742,7 +743,7 @@ static void invert_visibility_grids(Depsgraph &depsgraph,
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-  SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+  SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
 
   undo::push_nodes(depsgraph, object, node_mask, undo::Type::HideVert);
 
@@ -806,7 +807,7 @@ static wmOperatorStatus visibility_invert_exec(bContext *C, wmOperator *op)
 
   undo::push_end(object);
 
-  islands::invalidate(*object.sculpt);
+  islands::invalidate(*object.runtime->sculpt_session);
   tag_update_visibility(*C);
 
   return OPERATOR_FINISHED;
@@ -955,7 +956,7 @@ static void grow_shrink_visibility_mesh(const Depsgraph &depsgraph,
                                         const VisAction action,
                                         const int iterations)
 {
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (!attributes.contains(".hide_vert")) {
     /* If the entire mesh is visible, we can neither grow nor shrink the boundary. */
@@ -1011,7 +1012,7 @@ static void grow_shrink_visibility_grid(Depsgraph &depsgraph,
                                         const VisAction action,
                                         const int iterations)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
 
@@ -1080,7 +1081,7 @@ static void grow_shrink_visibility_grid(Depsgraph &depsgraph,
 
 static Array<bool> duplicate_visibility_bmesh(const Object &object)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   BMesh &bm = *ss.bm;
   Array<bool> result(bm.totvert);
   vert_random_access_ensure(const_cast<Object &>(object));
@@ -1148,7 +1149,7 @@ static wmOperatorStatus visibility_filter_exec(bContext *C, wmOperator *op)
   }
   undo::push_end(object);
 
-  islands::invalidate(*object.sculpt);
+  islands::invalidate(*object.runtime->sculpt_session);
   tag_update_visibility(*C);
 
   return OPERATOR_FINISHED;
@@ -1219,7 +1220,7 @@ static void partialvis_gesture_update_mesh(gesture::GestureData &gesture_data)
   const VisAction action = operation->action;
   const IndexMask &node_mask = gesture_data.node_mask;
 
-  Mesh *mesh = static_cast<Mesh *>(object->data);
+  Mesh *mesh = id_cast<Mesh *>(object->data);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   if (action == VisAction::Show && !attributes.contains(".hide_vert")) {
     /* If everything is already visible, don't do anything. */
@@ -1247,7 +1248,7 @@ static void partialvis_gesture_update_grids(Depsgraph &depsgraph,
   const VisAction action = operation->action;
   const IndexMask &node_mask = gesture_data.node_mask;
 
-  SubdivCCG &subdiv_ccg = *object->sculpt->subdiv_ccg;
+  SubdivCCG &subdiv_ccg = *object->runtime->sculpt_session->subdiv_ccg;
 
   const bool value = action_to_hide(action);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
@@ -1307,7 +1308,7 @@ static void hide_show_apply_for_symmetry_pass(bContext &C, gesture::GestureData 
 }
 static void hide_show_end(bContext &C, gesture::GestureData &gesture_data)
 {
-  islands::invalidate(*gesture_data.vc.obact->sculpt);
+  islands::invalidate(*gesture_data.vc.obact->runtime->sculpt_session);
   tag_update_visibility(C);
   undo::push_end(*gesture_data.vc.obact);
 }

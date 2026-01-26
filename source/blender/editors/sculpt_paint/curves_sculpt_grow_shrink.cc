@@ -263,7 +263,7 @@ struct CurvesEffectOperationExecutor {
     self_ = &self;
     object_ = ctx_.object;
 
-    curves_id_ = static_cast<Curves *>(object_->data);
+    curves_id_ = id_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
     if (curves_->is_empty()) {
       return;
@@ -502,7 +502,8 @@ std::unique_ptr<CurvesSculptStrokeOperation> new_grow_shrink_operation(
   const Brush &brush = *BKE_paint_brush_for_read(&scene.toolsettings->curves_sculpt->paint);
   const bool use_scale_uniform = brush.curves_sculpt_settings->flag &
                                  BRUSH_CURVES_SCULPT_FLAG_SCALE_UNIFORM;
-  const bool use_grow = (brush_mode == BRUSH_STROKE_INVERT) == ((brush.flag & BRUSH_DIR_IN) != 0);
+  const bool use_grow = (brush_mode == BrushStrokeMode::Invert) ==
+                        ((brush.flag & BRUSH_DIR_IN) != 0);
 
   if (use_grow) {
     if (use_scale_uniform) {

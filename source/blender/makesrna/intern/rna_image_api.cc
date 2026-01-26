@@ -22,6 +22,7 @@
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_base.h"
 #  include "BLI_string.h"
 
@@ -42,6 +43,8 @@
 #  include "MEM_guardedalloc.h"
 
 #  include "WM_api.hh"
+
+namespace blender {
 
 static void rna_ImagePackedFile_save(ImagePackedFile *imapf, Main *bmain, ReportList *reports)
 {
@@ -127,6 +130,20 @@ static void rna_Image_save(Image *image,
 static void rna_Image_pack(
     Image *image, Main *bmain, bContext *C, ReportList *reports, const char *data, int data_len)
 {
+  const bool is_packed = BKE_image_has_packedfile(image);
+  const bool is_dirty = BKE_image_is_dirty(image);
+
+  if (is_packed && !is_dirty && !data) {
+    /* Image is already packed and considered unmodified, do not attempt to repack it, since:
+     * - Its original file may not be available anymore on the current FS.
+     * - Repacking from the current runtime buffer will force the packedfile format to OpenEXR or
+     *   PNG (see code of #image_memorypack_imbuf).
+     *
+     * See #152638.
+     */
+    return;
+  }
+
   BKE_image_free_packedfiles(image);
 
   if (data) {
@@ -134,7 +151,7 @@ static void rna_Image_pack(
     memcpy(data_dup, data, size_t(data_len));
     BKE_image_packfiles_from_mem(reports, image, data_dup, size_t(data_len));
   }
-  else if (BKE_image_is_dirty(image)) {
+  else if (is_dirty) {
     BKE_image_memorypack(image);
   }
   else {
@@ -223,7 +240,7 @@ static int rna_Image_gl_load(
     BKE_image_multilayer_index(image->rr, &iuser);
   }
 
-  blender::gpu::Texture *tex = BKE_image_get_gpu_texture(image, &iuser);
+  gpu::Texture *tex = BKE_image_get_gpu_texture(image, &iuser);
 
   if (tex == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Failed to load image texture '%s'", image->id.name + 2);
@@ -266,7 +283,11 @@ static void rna_Image_buffers_free(Image *image)
   BKE_image_free_buffers_ex(image, true);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_image_packed_file(StructRNA *srna)
 {
@@ -451,5 +472,7 @@ void RNA_api_image(StructRNA *srna)
 
   /* TODO: pack/unpack, maybe should be generic functions? */
 }
+
+}  // namespace blender
 
 #endif

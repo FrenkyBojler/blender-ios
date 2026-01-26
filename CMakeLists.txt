@@ -100,6 +100,9 @@ if(POLICY CMP0177)
   cmake_policy(SET CMP0177 NEW)
 endif()
 
+# The target_sources() command converts relative paths to absolute.
+cmake_policy(SET CMP0076 NEW)
+
 # -----------------------------------------------------------------------------
 # Load Blender's Local Macros
 
@@ -344,17 +347,7 @@ Use the systems bullet library (currently unsupported due to missing features in
 mark_as_advanced(WITH_SYSTEM_BULLET)
 option(WITH_OPENCOLORIO "Enable OpenColorIO color management" ON)
 
-set(_option_default ON)
-if(APPLE)
-  # There's no OpenXR runtime in sight for macOS, neither is code well
-  # tested there -> disable it by default.
-  set(_option_default OFF)
-endif()
-option(WITH_XR_OPENXR "Enable VR features through the OpenXR specification" ${_option_default})
-if(APPLE)
-  mark_as_advanced(WITH_XR_OPENXR)
-endif()
-unset(_option_default)
+option(WITH_XR_OPENXR "Enable VR features through the OpenXR specification" ON)
 
 option(WITH_GMP "Enable features depending on GMP (Exact Boolean)" ON)
 option(WITH_MANIFOLD "Enable features depending on Manifold (Fast Robust Boolean)" ON)
@@ -658,6 +651,10 @@ option(WITH_CYCLES_PRECOMPUTE "Build Cycles data precomputation tool" OFF)
 
 option(WITH_CYCLES_HYDRA_RENDER_DELEGATE "Build Cycles Hydra render delegate" OFF)
 
+option(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD
+       "Build Cycles kernels of difference devices in parallel (faster, but uses more memory)" OFF)
+mark_as_advanced(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD)
+
 option(WITH_CYCLES_DEBUG_NAN "\
 Build Cycles with additional asserts for detecting NaNs and invalid values"
   OFF
@@ -785,9 +782,6 @@ option(LLVM_STATIC "Link with LLVM static libraries" OFF)
 mark_as_advanced(LLVM_STATIC)
 option(WITH_CLANG "Use Clang" OFF)
 
-option(WITH_MEM_JEMALLOC "Enable malloc replacement (http://www.canonware.com/jemalloc)" ON)
-mark_as_advanced(WITH_MEM_JEMALLOC)
-
 # currently only used for BLI_mempool
 option(WITH_MEM_VALGRIND "Enable extended valgrind support for better reporting" OFF)
 mark_as_advanced(WITH_MEM_VALGRIND)
@@ -813,8 +807,10 @@ Enable multi-threading. TBB is also required for features such as Cycles, OpenVD
   ON
 )
 
-# TBB malloc is only supported on for windows currently
-if(WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+# TBB malloc is only supported:
+# - On MS-Windows.
+# - On Unix/Linux.
+if((WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64") OR (UNIX AND NOT APPLE))
   option(WITH_TBB_MALLOC_PROXY "Enable the TBB malloc replacement" ON)
 endif()
 
@@ -1032,9 +1028,9 @@ Can cause linking issues due to too large binary size."
   OFF
 )
 mark_as_advanced(WITH_COMPILER_ASAN_EXTERN)
-set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_JEMALLOC OFF)
+# Note: Using tbbmalloc allocator seems to be fully compatible with current sanitizers
+# (both clang/llvm and gcc ones).
 set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_VALGRIND OFF)
-set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_JEMALLOC OFF)
 set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_VALGRIND OFF)
 
 option(WITH_COMPILER_CODE_COVERAGE "\
@@ -1465,10 +1461,10 @@ if(WITH_PYTHON)
   # Do this before main 'platform_*' checks,
   # because UNIX will search for the old Python paths which may not exist.
   # giving errors about missing paths before this case is met.
-  if(DEFINED PYTHON_VERSION AND "${PYTHON_VERSION}" VERSION_LESS "3.11")
+  if(DEFINED PYTHON_VERSION AND "${PYTHON_VERSION}" VERSION_LESS "3.13")
     message(
       FATAL_ERROR
-      "At least Python 3.11 is required to build, but found Python ${PYTHON_VERSION}"
+      "At least Python 3.13 is required to build, but found Python ${PYTHON_VERSION}"
     )
   endif()
 endif()
@@ -1632,6 +1628,20 @@ endif()
 
 if(NOT WITH_SYSTEM_EIGEN3)
   set(EIGEN3_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/Eigen3)
+endif()
+if (WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
+  # See also:
+  # - `EIGEN_MALLOC_ALREADY_ALIGNED` definition and usages in
+  #   `./extern/Eigen3/Eigen/src/Core/util/Memory.h`
+  # - Report: https://projects.blender.org/blender/blender/issues/152010
+  #
+  # NOTE: It seems to only affect GCC and its sanitizer library - but best
+  #       be on the safe side here, and do that for all compilers and systems.
+  message(DEBUG
+    "Forcing Eigen to use their own allocator code because `WITH_COMPILER_ASAN` is enabled but "
+    "`WITH_COMPILER_ASAN_EXTERN` is disabled, which can cause mismatch usages of Eigen allocators."
+  )
+  add_definitions(-DEIGEN_MALLOC_ALREADY_ALIGNED=0)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -1816,9 +1826,15 @@ Keep at '0' to automatically compute optimal values for each build."
     # Heuristics: Maximum amount of memory needed per heavy compile task.
     # Note: These values are purposely over-estimated by 10-15% at least, to account
     #       for other types of jobs' memory usage, other system memory usages, etc.
+    # NOTE: Since CMake 4.2, specific files can be put into specific jobs, which
+    #       allows for a more optimal usage of available RAM & CPU resources.
     set(_compile_heavy_mem 2000)
     if(WITH_COMPILER_ASAN)
-      set(_compile_heavy_mem 15000)
+      if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2.0")
+        set(_compile_heavy_mem 6000)
+      else()
+        set(_compile_heavy_mem 15000)
+      endif()
     elseif("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
       set(_compile_heavy_mem 2000)
     endif()
@@ -1876,9 +1892,15 @@ Keep at '0' to automatically compute optimal values for each build."
     # values in ASAN build cases is the best that can be done.
     # Alternative solution would be to put several whole targets (like `bf_blenkernel`)
     # into the heavy pool, but that is likely even worse of a workaround.
+    # NOTE: Since CMake 4.2, specific files can be put into specific jobs, which
+    #       allows for a more optimal usage of available RAM & CPU resources.
     set(_compile_mem 500)
     if(WITH_COMPILER_ASAN)
-      set(_compile_mem 4000)
+     if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2.0")
+        set(_compile_mem 1000)
+      else()
+        set(_compile_mem 4000)
+      endif()
     elseif("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
       set(_compile_mem 500)
     endif()
@@ -2580,9 +2602,6 @@ if(WITH_PYTHON)
   elseif((WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY) OR WITH_PYTHON_NUMPY)
     if(("${PYTHON_NUMPY_PATH}" STREQUAL "") OR (${PYTHON_NUMPY_PATH} MATCHES NOTFOUND))
       set(_numpy_include "_core/include")
-      if(PYTHON_VERSION VERSION_LESS "3.13")
-        set(_numpy_include "core/include")
-      endif()
       find_python_package(numpy "${_numpy_include}")
       unset(_numpy_include)
     endif()
@@ -2788,7 +2807,7 @@ if(FIRST_RUN)
 
     set(_msg "  - ${_setting}")
     string(LENGTH "${_msg}" _len)
-    while("36" GREATER "${_len}")
+    while("40" GREATER "${_len}")
       string(APPEND _msg " ")
       math(EXPR _len "${_len} + 1")
     endwhile()
@@ -2839,7 +2858,7 @@ if(FIRST_RUN)
 
   info_cfg_text("System Options:")
   info_cfg_option(WITH_INSTALL_PORTABLE)
-  info_cfg_option(WITH_MEM_JEMALLOC)
+  info_cfg_option(WITH_TBB_MALLOC_PROXY)
   info_cfg_option(WITH_MEM_VALGRIND)
 
   info_cfg_text("GHOST Options:")
@@ -2910,6 +2929,20 @@ if(FIRST_RUN)
       info_cfg_option(WITH_CYCLES_DEVICE_HIPRT)
     endif()
   endif()
+
+  info_cfg_text("Tests:")
+  info_cfg_option(WITH_GTESTS)
+  info_cfg_option(CYCLES_TEST_DEVICES)
+  info_cfg_option(WITH_CYCLES_TEST_OSL)
+  info_cfg_option(WITH_GPU_RENDER_TESTS)
+  info_cfg_option(WITH_GPU_BACKEND_TESTS)
+  info_cfg_option(WITH_GPU_DRAW_TESTS)
+  info_cfg_option(WITH_GPU_COMPOSITOR_TESTS)
+  info_cfg_option(WITH_GPU_MESH_PAINT_TESTS)
+  info_cfg_option(WITH_UI_TESTS)
+  info_cfg_option(WITH_UI_TESTS_HEADLESS)
+  info_cfg_option(WITH_GPU_RENDER_TESTS_VULKAN)
+  info_cfg_option(WITH_LINUX_OFFICIAL_RELEASE_TESTS)
 
   info_cfg_text("")
 

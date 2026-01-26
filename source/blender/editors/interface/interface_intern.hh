@@ -25,6 +25,8 @@
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
+struct IconTextOverlay;
+namespace blender {
 
 struct AnimationEvalContext;
 struct ARegion;
@@ -32,20 +34,20 @@ struct bContext;
 struct bContextStore;
 struct CurveMapping;
 struct CurveProfile;
-namespace blender::gpu {
+namespace gpu {
 class Batch;
 }
-struct IconTextOverlay;
 struct ID;
 struct ImBuf;
 struct LayoutPanelHeader;
 struct Main;
 struct Scene;
-namespace blender::ui {
+namespace ui {
+struct SafetyRect;
 struct HandleButtonData;
 struct Layout;
 struct UndoStack_Text;
-}  // namespace blender::ui
+}  // namespace ui
 struct uiListType;
 struct uiStyle;
 struct uiWidgetColors;
@@ -55,7 +57,7 @@ struct wmKeyConfig;
 struct wmOperatorType;
 struct wmTimer;
 
-namespace blender::ui {
+namespace ui {
 
 /* ****************** general defines ************** */
 
@@ -77,7 +79,7 @@ namespace blender::ui {
 #define UI_POPOVER_WIDTH_UNITS 10
 
 /** #Button.flag */
-enum {
+enum ButtonFlagInternal {
   /** Use when the button is pressed. */
   UI_SELECT = (1 << 0),
   /** Temporarily hidden (scrolled out of the view). */
@@ -104,6 +106,16 @@ enum {
 
   /* WARNING: rest of #Button.flag in `UI_interface_c.hh`. */
 };
+
+/** These two enums can be combined. */
+inline int operator|(const ButtonFlag a, const ButtonFlagInternal b)
+{
+  return int(a) | int(b);
+}
+inline int operator|(const ButtonFlagInternal b, const ButtonFlag a)
+{
+  return int(a) | int(b);
+}
 
 /** #Button.pie_dir */
 enum RadialDirection : int8_t {
@@ -313,7 +325,7 @@ struct Button {
   wmOperatorType *optype = nullptr;
   PointerRNA *opptr = nullptr;
 
-  ListBase extra_op_icons = {nullptr, nullptr}; /** #ButtonExtraOpIcon */
+  ListBaseT<ButtonExtraOpIcon> extra_op_icons = {nullptr, nullptr}; /** #ButtonExtraOpIcon */
 
   /**
    * Active button data, set when the user is hovering or interacting with a button (#UI_HOVER and
@@ -523,6 +535,12 @@ struct ColorPicker {
   /* Hex Color string */
   char hexcol[128];
 
+  /**
+   * Buffer for the main area (Circle/Square) tooltip.
+   * Used for dynamically formatted tooltips (e.g. "Hue/Saturation").
+   */
+  char tooltip_area[128];
+
   /** Cubic saturation for the color wheel. */
   bool use_color_cubic;
   bool use_color_lock;
@@ -534,7 +552,7 @@ struct ColorPicker {
 };
 
 struct ColorPickerData {
-  ListBase list;
+  ListBaseT<ColorPicker> list;
 };
 
 struct PieMenuData {
@@ -590,6 +608,9 @@ struct BlockDynamicListener {
 
 enum class BlockAlertLevel : int8_t { None, Info, Success, Warning, Error };
 
+struct ButStore;
+struct ViewLink;
+
 struct Block {
   Block *next, *prev;
 
@@ -598,11 +619,11 @@ struct Block {
   Block *oldblock;
 
   /** Used for `UI_butstore_*` runtime function. */
-  ListBase butstore;
+  ListBaseT<ButStore> butstore;
 
   Vector<ButtonGroup> button_groups;
 
-  ListBase layouts;
+  ListBaseT<LayoutRoot> layouts;
   Layout *curlayout;
 
   Vector<std::unique_ptr<bContextStore>> contexts;
@@ -610,9 +631,9 @@ struct Block {
   /** A block can store "views" on data-sets. Currently tree-views (#AbstractTreeView) only.
    * Others are imaginable, e.g. table-views, grid-views, etc. These are stored here to support
    * state that is persistent over redraws (e.g. collapsed tree-view items). */
-  ListBase views;
+  ListBaseT<ViewLink> views;
 
-  ListBase dynamic_listeners; /* #BlockDynamicListener */
+  ListBaseT<BlockDynamicListener> dynamic_listeners;
 
   std::string name;
 
@@ -682,8 +703,7 @@ struct Block {
 
   /** Pull-downs, to detect outside, can differ per case how it is created. */
   rctf safety;
-  /** #SafetyRect list */
-  ListBase saferct;
+  ListBaseT<SafetyRect> saferct;
 
   PopupBlockHandle *handle;
 
@@ -769,15 +789,6 @@ void region_winrct_get_no_margin(const ARegion *region, rcti *r_rect);
 /** Register a listener callback to this block to tag the area/region for redraw. */
 void block_add_dynamic_listener(Block *block,
                                 void (*listener_func)(const wmRegionListenerParams *params));
-
-/**
- * Reallocate the button (new address is returned) for a new button type.
- * This should generally be avoided and instead the correct type be created right away.
- *
- * \note Only the #Button data can be kept. If the old button used a derived type (e.g.
- * #ButtonTab), the data that is not inside #Button will be lost.
- */
-Button *button_change_type(Button *but, ButtonType new_type);
 
 double button_value_get(Button *but);
 void button_value_set(Button *but, double value);
@@ -1428,17 +1439,19 @@ void layout_remove_but(Layout *layout, const Button *but);
  * \return true if the button was successfully replaced.
  */
 bool layout_replace_but_ptr(Layout *layout, const void *old_but_ptr, Button *new_but);
+
 /**
- * \note May reallocate \a but, so the possibly new address is returned. May also override the
- *       #BUT_DISABLED flag depending on if a search pointer-property pair was provided/found.
+ * \note \a but type must be a ButtonType::SearchMenu. If the property is a string property and
+ * does not contains the #PROP_STRING_SEARCH_SUPPORTED flag or if the search pointer-property pair
+ * is not provided/found it will disable the button.
  */
-Button *but_add_search(Button *but,
-                       PointerRNA *ptr,
-                       PropertyRNA *prop,
-                       PointerRNA *searchptr,
-                       PropertyRNA *searchprop,
-                       PropertyRNA *item_searchprop,
-                       bool results_are_suggestions);
+void button_configure_search(Button *but,
+                             PointerRNA *ptr,
+                             PropertyRNA *prop,
+                             PointerRNA *searchptr,
+                             PropertyRNA *searchprop,
+                             PropertyRNA *item_searchprop,
+                             bool results_are_suggestions);
 /**
  * Check all buttons defined in this layout,
  * and set any button flagged as BUT_LIST_ITEM as active/selected.
@@ -1740,4 +1753,5 @@ int paste_property_drivers(Span<FCurve *> src_drivers,
 
 }  // namespace internal
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

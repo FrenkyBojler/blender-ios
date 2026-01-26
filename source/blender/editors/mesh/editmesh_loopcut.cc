@@ -6,6 +6,7 @@
  * \ingroup edmesh
  */
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -43,10 +44,7 @@
 
 #include "mesh_intern.hh" /* own include */
 
-using blender::Array;
-using blender::float3;
-using blender::Span;
-using blender::Vector;
+namespace blender {
 
 #define SUBD_SMOOTH_MAX 4.0f
 #define SUBD_CUTS_MAX 500
@@ -125,7 +123,8 @@ static void edgering_select(RingSelOpData *lcd)
            BMW_MASK_NOP,
            BMW_MASK_NOP,
            BMW_FLAG_TEST_HIDDEN,
-           BMW_NIL_LAY);
+           BMW_NIL_LAY,
+           BMW_DELIMIT_NONE);
 
   for (eed = static_cast<BMEdge *>(BMW_begin(&walker, eed_start)); eed;
        eed = static_cast<BMEdge *>(BMW_step(&walker)))
@@ -207,7 +206,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
       params.calc_looptris = true;
       params.calc_normals = false;
       params.is_destructive = true;
-      EDBM_update(static_cast<Mesh *>(lcd->ob->data), &params);
+      EDBM_update(id_cast<Mesh *>(lcd->ob->data), &params);
 
       if (is_single) {
         /* de-select endpoints */
@@ -798,3 +797,5 @@ void MESH_OT_loopcut(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 #endif
 }
+
+}  // namespace blender

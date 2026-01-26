@@ -22,6 +22,7 @@
 #include "mtl_query.hh"
 #include "mtl_shader.hh"
 #include "mtl_storage_buffer.hh"
+#include "mtl_texture_pool.hh"
 #include "mtl_uniform_buffer.hh"
 #include "mtl_vertex_buffer.hh"
 
@@ -100,6 +101,14 @@ Shader *MTLBackend::shader_alloc(const char *name)
 Texture *MTLBackend::texture_alloc(const char *name)
 {
   return new gpu::MTLTexture(name);
+}
+
+TexturePool *MTLBackend::texturepool_alloc()
+{
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    return new TexturePoolImpl();
+  }
+  return new MTLTexturePool();
 }
 
 UniformBuf *MTLBackend::uniformbuf_alloc(size_t size, const char *name)

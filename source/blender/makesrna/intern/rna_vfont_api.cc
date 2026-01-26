@@ -15,10 +15,28 @@
 
 #ifdef RNA_RUNTIME
 
+namespace blender {
+
 #  include "DNA_vfont_types.h"
+
+#  include "BKE_lib_id.hh"
+#  include "BKE_library.hh"
+#  include "BKE_main.hh"
+#  include "BKE_report.hh"
 
 static void rna_VectorFont_pack(VFont *vfont, Main *bmain, ReportList *reports)
 {
+  const bool is_packed = vfont->packedfile != nullptr;
+
+  if (is_packed) {
+    /* Font is already packed and considered unmodified, do not attempt to repack it, since its
+     * original file may not be available anymore on the current FS.
+     *
+     * See #152638.
+     */
+    return;
+  }
+
   vfont->packedfile = BKE_packedfile_new(
       reports, vfont->filepath, ID_BLEND_PATH(bmain, &vfont->id));
 }
@@ -39,7 +57,11 @@ static void rna_VectorFont_unpack(VFont *vfont, Main *bmain, ReportList *reports
   BKE_packedfile_unpack_vfont(bmain, reports, vfont, ePF_FileStatus(method));
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_vfont(StructRNA *srna)
 {
@@ -55,5 +77,7 @@ void RNA_api_vfont(StructRNA *srna)
   RNA_def_enum(
       func, "method", rna_enum_unpack_method_items, PF_USE_LOCAL, "method", "How to unpack");
 }
+
+}  // namespace blender
 
 #endif
