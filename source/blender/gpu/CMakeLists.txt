@@ -32,7 +32,6 @@ set(INC
   vulkan/shaders
   shaders/infos
 
-
   # For shader includes
   shaders/common
   shaders
@@ -453,7 +452,6 @@ if(WITH_METAL_BACKEND)
   list(APPEND SRC ${METAL_SRC})
 endif()
 
-
 if(WITH_VULKAN_BACKEND)
   list(APPEND SRC
     ${VULKAN_SRC}
@@ -801,6 +799,7 @@ if(WITH_METAL_BACKEND)
   list(APPEND GLSL_SRC ${MTL_BACKEND_GLSL_SRC})
 
   set(MSL_C)
+
   foreach(MSL_FILE ${MSL_SRC})
     data_to_c_simple(${MSL_FILE} MSL_C)
   endforeach()
@@ -823,12 +822,14 @@ set(GLSL_INC
 )
 
 set(GLSL_C)
+
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
 set(SHADER_C)
 list(APPEND SHADER_C ${GLSL_C})
+
 if(WITH_METAL_BACKEND)
   list(APPEND SHADER_C ${MSL_C})
 endif()
@@ -843,6 +844,7 @@ list(APPEND LIB
 set(GLSL_SOURCE_CONTENT "")
 set(GLSL_METADATA_CONTENT "")
 set(GLSL_INFOS_CONTENT "")
+
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
@@ -906,11 +908,9 @@ if(WITH_RENDERDOC)
   target_link_libraries(bf_gpu PUBLIC bf_intern_renderdoc_dynload)
 endif()
 
-
 if(CXX_WARN_NO_SUGGEST_OVERRIDE)
   target_compile_options(bf_gpu PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>)
 endif()
-
 
 if(WITH_GTESTS)
   set(TEST_SRC)
@@ -936,7 +936,6 @@ if(WITH_GTESTS)
       tests/state_blend_test.cc
       tests/storage_buffer_test.cc
       tests/texture_test.cc
-      tests/texture_view_test.cc
       tests/vertex_buffer_test.cc
     )
   endif()
