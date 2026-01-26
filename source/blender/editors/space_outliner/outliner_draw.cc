@@ -108,7 +108,7 @@ Vector<TreeElement *> outliner_tree_resolve(ARegion *region,
   Bounds<float> viewy = {region->v2d.cur.ymin - 2.0f * UI_UNIT_Y,
                          region->v2d.cur.ymax + 2.0f * UI_UNIT_Y};
   Vector<TreeElement *> visible_elements;
-  visible_elements.reserve(viewy.size() / 2);
+  visible_elements.reserve(viewy.size() * 2 / UI_UNIT_Y);
   const int ystart = round_fl_to_int(region->v2d.tot.ymax) - UI_UNIT_Y - OL_Y_OFFSET;
   int yoffset = ystart;
 
@@ -3366,6 +3366,9 @@ static void outliner_draw_tree_element(ui::Block *block,
                                        const float restrict_column_width,
                                        TreeElement **te_edit)
 {
+  if (region->v2d.cur.ymax < te->ys) {
+    return;
+  }
   TreeStoreElem *tselem = TREESTORE(te);
   float ufac = UI_UNIT_X / 20.0f;
   startx += float(te->level) * UI_UNIT_X;
@@ -3613,67 +3616,53 @@ static void outliner_draw_hierarchy_line(
   immEnd();
 }
 
-static void outliner_draw_hierarchy_lines_recursive(uint pos,
-                                                    SpaceOutliner *space_outliner,
-                                                    ListBaseT<TreeElement> *lb,
-                                                    const TreeViewContext &tvc,
-                                                    int startx,
-                                                    const uchar col[4],
-                                                    bool draw_grayed_out,
-                                                    Bounds<float> viewy)
+static void outliner_draw_hierarchy_lines(uint pos,
+                                          SpaceOutliner *space_outliner,
+                                          Span<TreeElement *> visible_lines,
+                                          const TreeViewContext &tvc,
+                                          int startx,
+                                          const uchar col[4],
+                                          bool /*draw_grayed_out*/)
 {
   bTheme *btheme = ui::theme::theme_get();
 
   /* Draw vertical lines between collections */
   bool draw_hierarchy_line;
   bool is_object_line;
-  for (TreeElement &te : *lb) {
-    if (te.ys < viewy.min) {
-      break;
-    }
-    if (te.ymin > viewy.max) {
+  for (TreeElement *te : visible_lines) {
+    if (te->ys == te->ymin) {
       continue;
     }
-    TreeStoreElem *tselem = TREESTORE(&te);
+    TreeStoreElem *tselem = TREESTORE(te);
     draw_hierarchy_line = false;
     is_object_line = false;
     short color_tag = COLLECTION_COLOR_NONE;
 
     /* Only draw hierarchy lines for expanded collections and objects with children. */
-    if (TSELEM_OPEN(tselem, space_outliner) && !BLI_listbase_is_empty(&te.subtree)) {
+    if (TSELEM_OPEN(tselem, space_outliner) && !BLI_listbase_is_empty(&te->subtree)) {
       if (tselem->type == TSE_LAYER_COLLECTION) {
         draw_hierarchy_line = true;
 
-        Collection *collection = outliner_collection_from_tree_element(&te);
+        Collection *collection = outliner_collection_from_tree_element(te);
         color_tag = collection->color_tag;
       }
-      else if ((tselem->type == TSE_SOME_ID) && (te.idcode == ID_OB)) {
-        if (subtree_contains_object(&te.subtree)) {
+      else if ((tselem->type == TSE_SOME_ID) && (te->idcode == ID_OB)) {
+        if (subtree_contains_object(&te->subtree)) {
           draw_hierarchy_line = true;
           is_object_line = true;
         }
       }
       else if (tselem->type == TSE_GREASE_PENCIL_NODE) {
         bke::greasepencil::TreeNode &node =
-            tree_element_cast<TreeElementGreasePencilNode>(&te)->node();
+            tree_element_cast<TreeElementGreasePencilNode>(te)->node();
         if (node.is_group() && node.as_group().num_direct_nodes() > 0) {
           draw_hierarchy_line = true;
         }
       }
-      if (TSELEM_OPEN(tselem, space_outliner)) {
-        outliner_draw_hierarchy_lines_recursive(pos,
-                                                space_outliner,
-                                                &te.subtree,
-                                                tvc,
-                                                startx + UI_UNIT_X,
-                                                col,
-                                                draw_grayed_out,
-                                                viewy);
-      }
     }
 
     if (draw_hierarchy_line) {
-      const short alpha_fac = element_should_draw_faded(tvc, &te, tselem) ? 127 : 255;
+      const short alpha_fac = element_should_draw_faded(tvc, te, tselem) ? 127 : 255;
       uchar line_color[4];
       if (color_tag != COLLECTION_COLOR_NONE) {
         copy_v4_v4_uchar(line_color, btheme->collection_color[color_tag].color);
@@ -3684,16 +3673,16 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
 
       line_color[3] = alpha_fac;
       immUniformColor4ubv(line_color);
-      outliner_draw_hierarchy_line(pos, startx, te.ys, te.ymin, is_object_line);
+      outliner_draw_hierarchy_line(
+          pos, startx + UI_UNIT_X * te->level, te->ys, te->ymin, is_object_line);
     }
   }
 }
 
 static void outliner_draw_hierarchy_lines(SpaceOutliner *space_outliner,
-                                          ListBaseT<TreeElement> *lb,
+                                          Span<TreeElement *> visible_lines,
                                           const TreeViewContext &tvc,
-                                          int startx,
-                                          Bounds<float> viewy)
+                                          int startx)
 {
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
@@ -3711,7 +3700,7 @@ static void outliner_draw_hierarchy_lines(SpaceOutliner *space_outliner,
 
   GPU_line_width(1.0f);
   GPU_blend(GPU_BLEND_ALPHA);
-  outliner_draw_hierarchy_lines_recursive(pos, space_outliner, lb, tvc, startx, col, false, viewy);
+  outliner_draw_hierarchy_lines(pos, space_outliner, visible_lines, tvc, startx, col, false);
   GPU_blend(GPU_BLEND_NONE);
 
   immUnbindProgram();
@@ -3770,6 +3759,9 @@ static void outliner_draw_highlights(const ARegion *region,
                               space_outliner->search_string[0] != 0));
 
   for (const TreeElement *te : visible_elements) {
+    if (te->ymin == te->ys) {
+      continue;
+    }
     const TreeStoreElem *tselem = TREESTORE(te);
 
     const float ufac = UI_UNIT_X / 20.0f;
@@ -3866,7 +3858,7 @@ static void outliner_draw_tree(ui::Block *block,
                                const bool use_mode_column,
                                const bool use_warning_column,
                                TreeElement **te_edit,
-                               Span<TreeElement *> visible_elements)
+                               const Span<TreeElement *> visible_elements)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 
@@ -3910,14 +3902,16 @@ static void outliner_draw_tree(ui::Block *block,
   /* Draw hierarchy lines for collections and object children. */
   {
     int startx = columns_offset + UI_UNIT_X / 2 - (U.pixelsize + 1) / 2;
-    Bounds<float> viewy = {region->v2d.cur.ymin, region->v2d.cur.ymax};
-    outliner_draw_hierarchy_lines(space_outliner, &space_outliner->tree, tvc, startx, viewy);
+    outliner_draw_hierarchy_lines(space_outliner, visible_elements, tvc, startx);
   }
 
   /* Items themselves. */
   {
     int startx = columns_offset;
     for (TreeElement *te : visible_elements) {
+      if (region->v2d.cur.ymax < te->ys) {
+        continue;
+      }
       outliner_draw_tree_element(block,
                                  fstyle,
                                  tvc,
