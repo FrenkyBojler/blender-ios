@@ -8,3 +8,4 @@ Referenced by commit 7b3737f1e989b6fed42056318fe90f5fc125af55, Fix: Mesh: Wrong 
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #152377, FBX (new C++ importer): FBX LODs create duplicate faces and crashes (regression vs python)
 Referenced by pull request #153375, Fix: Attribute type for edge select attribute
+Referenced by commit 131dc37fed78b342727e4747a95155f141747f58, Fix: Attribute type for edge select attribute
