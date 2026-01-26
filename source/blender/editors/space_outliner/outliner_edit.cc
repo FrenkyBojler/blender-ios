@@ -762,7 +762,6 @@ void OUTLINER_OT_id_delete(wmOperatorType *ot)
 static wmOperatorStatus outliner_id_remap_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   const short id_type = short(RNA_enum_get(op->ptr, "id_type"));
 
@@ -770,11 +769,6 @@ static wmOperatorStatus outliner_id_remap_exec(bContext *C, wmOperator *op)
   const uint32_t new_session_uid = RNA_int_get(op->ptr, "new_id");
   ID *old_id = BKE_libblock_find_session_uid(bmain, id_type, old_session_uid);
   ID *new_id = BKE_libblock_find_session_uid(bmain, id_type, new_session_uid);
-
-  /* check for invalid states */
-  if (space_outliner == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
 
   if (!(old_id && new_id && (old_id != new_id) && (GS(old_id->name) == GS(new_id->name)))) {
     BKE_reportf(op->reports,
@@ -800,6 +794,7 @@ static wmOperatorStatus outliner_id_remap_exec(bContext *C, wmOperator *op)
 
   /* recreate dependency graph to include new objects */
   DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(new_id, ID_RECALC_ALL);
 
   /* Free gpu materials, some materials depend on existing objects,
    * such as lights so freeing correctly refreshes. */
@@ -835,14 +830,32 @@ static bool outliner_id_remap_find_tree_element(bContext *C,
 
 static wmOperatorStatus outliner_id_remap_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  ARegion *region = CTX_wm_region(C);
-  float fmval[2];
-
   if (!RNA_property_is_set(op->ptr, RNA_struct_find_property(op->ptr, "id_type"))) {
-    ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+    PropertyRNA *prop;
+    PointerRNA ptr;
+    int index;
+    if (ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
+      /* This should be checked by the poll, also we cannot do a remap if the button does not have
+       * data to begin with. */
+      BLI_assert(ptr.data != nullptr);
+      BLI_assert(RNA_struct_is_ID(ptr.type));
+      ID *id = static_cast<ID *>(ptr.data);
+      RNA_enum_set(op->ptr, "id_type", GS(id->name));
+      RNA_int_set(op->ptr, "new_id", int(id->session_uid));
+      RNA_int_set(op->ptr, "old_id", int(id->session_uid));
+    }
+    else if (ED_operator_region_outliner_active(C)) {
+      ARegion *region = CTX_wm_region(C);
+      float fmval[2];
+      SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+      ui::view2d_region_to_view(
+          &region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
-    outliner_id_remap_find_tree_element(C, op, &space_outliner->tree, fmval[1]);
+      outliner_id_remap_find_tree_element(C, op, &space_outliner->tree, fmval[1]);
+    }
+    else {
+      return OPERATOR_CANCELLED;
+    }
   }
 
   return WM_operator_props_dialog_popup(C, op, 400, IFACE_("Remap Data ID"), IFACE_("Remap"));
@@ -855,6 +868,17 @@ static void outliner_id_remap_ui(bContext *C, wmOperator *op)
   ui::template_ID_session_uid(layout, C, op->ptr, "new_id", RNA_enum_get(op->ptr, "id_type"));
 }
 
+static bool outliner_id_remap_poll(bContext *C)
+{
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  int index;
+  if (ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
+    return ptr.data && RNA_struct_is_ID(ptr.type);
+  }
+  return ED_operator_region_outliner_active(C);
+}
+
 void OUTLINER_OT_id_remap(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -862,12 +886,14 @@ void OUTLINER_OT_id_remap(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Outliner ID Data Remap";
   ot->idname = "OUTLINER_OT_id_remap";
+  ot->description =
+      "Changes all uses of the current datablock to a new datablock of the same type";
 
   /* callbacks */
   ot->invoke = outliner_id_remap_invoke;
   ot->ui = outliner_id_remap_ui;
   ot->exec = outliner_id_remap_exec;
-  ot->poll = ED_operator_region_outliner_active;
+  ot->poll = outliner_id_remap_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
