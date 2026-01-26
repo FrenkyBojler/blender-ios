@@ -110,10 +110,10 @@ struct TokenBuffer {
     return {str_.substr(start, end - start), types_[index]};
   }
 
-  TokenConst operator[](int index) const
+  TokenConst operator[](const int index) const
   {
-    int start = offsets_[index];
-    int end = (whitespaces_collapsed_ ? original_offsets_ : offsets_)[index + 1];
+    const int start = offsets_[index];
+    const int end = (whitespaces_collapsed_ ? original_offsets_ : offsets_)[index + 1];
     assert(start < end);
     return {str_.substr(start, end - start), types_[index]};
   }
@@ -129,7 +129,7 @@ struct TokenBuffer {
     int32_t index_;
 
    public:
-    explicit TokenIt(TokenBuffer *buf, int index) : buf_(buf), index_(index) {}
+    explicit TokenIt(TokenBuffer *buf, const int index) : buf_(buf), index_(index) {}
 
     Token operator*() const
     {

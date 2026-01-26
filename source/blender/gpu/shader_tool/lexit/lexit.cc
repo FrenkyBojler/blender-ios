@@ -27,7 +27,7 @@
 
 namespace lexit {
 
-void TokenBuffer::clear_and_reserve(uint32_t count)
+void TokenBuffer::clear_and_reserve(const uint32_t count)
 {
   size_ = 0;
   if (allocated_size_ >= count + 1) {
@@ -311,10 +311,10 @@ static const uint8_t shuffle_table_8[256][8] = {
 #if defined(USE_NEON)
 /* Perform a 128 bytes table lookup of for 16 element.
  * https://lemire.me/blog/2019/07/23/arbitrary-byte-to-byte-maps-using-arm-neon/ */
-static inline uint8x16_t simd_transform16_ascii(uint8x16x4_t table[2], uint8x16_t input)
+static inline uint8x16_t simd_transform16_ascii(uint8x16x4_t table[2], const uint8x16_t input)
 {
-  uint8x16_t t1 = vqtbl4q_u8(table[0], input);
-  uint8x16_t t2 = vqtbl4q_u8(table[1], veorq_u8(input, vdupq_n_u8(0x40)));
+  const uint8x16_t t1 = vqtbl4q_u8(table[0], input);
+  const uint8x16_t t2 = vqtbl4q_u8(table[1], veorq_u8(input, vdupq_n_u8(0x40)));
   return vorrq_u8(t1, t2);
 }
 #elif defined(USE_SSE4_2)
@@ -448,8 +448,8 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
       uint8x8_t data_lo = vget_low_u8(type);
       uint8x8_t data_hi = vget_high_u8(type);
 
-      int32_t mask_lo = vaddv_u8(vget_low_u8(mask_vec));
-      int32_t mask_hi = vaddv_u8(vget_high_u8(mask_vec));
+      const int32_t mask_lo = vaddv_u8(vget_low_u8(mask_vec));
+      const int32_t mask_hi = vaddv_u8(vget_high_u8(mask_vec));
       /* Lookup the shuffle vector. */
       uint8x8_t shuffle_lo = vld1_u8(shuffle_table_8[mask_lo]);
       uint8x8_t shuffle_hi = vld1_u8(shuffle_table_8[mask_hi]);
@@ -460,14 +460,14 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
       /* Write 8 types. */
       vst1_u8((uint8_t *)types_.get() + cursor, data_lo);
       /* Write 8 offsets. */
-      uint32x4_t offset_vec_lo = vdupq_n_u32(offset);
+      const uint32x4_t offset_vec_lo = vdupq_n_u32(offset);
       /* The offsets are contained inside the 8 bit shuffle vector.
        * We need to promote it to 32 bit before adding the base offset. */
-      uint16x8_t shuffle_lo16 = vmovl_u8(shuffle_lo);
-      uint32x4_t shuffle_lo32_lo = vmovl_u16(vget_low_u16(shuffle_lo16));
-      uint32x4_t shuffle_lo32_hi = vmovl_u16(vget_high_u16(shuffle_lo16));
-      uint32x4_t offset_lo_lo = vaddq_u32(shuffle_lo32_lo, offset_vec_lo);
-      uint32x4_t offset_lo_hi = vaddq_u32(shuffle_lo32_hi, offset_vec_lo);
+      const uint16x8_t shuffle_lo16 = vmovl_u8(shuffle_lo);
+      const uint32x4_t shuffle_lo32_lo = vmovl_u16(vget_low_u16(shuffle_lo16));
+      const uint32x4_t shuffle_lo32_hi = vmovl_u16(vget_high_u16(shuffle_lo16));
+      const uint32x4_t offset_lo_lo = vaddq_u32(shuffle_lo32_lo, offset_vec_lo);
+      const uint32x4_t offset_lo_hi = vaddq_u32(shuffle_lo32_hi, offset_vec_lo);
       vst1q_u32(offsets_.get() + cursor + 0, offset_lo_lo);
       vst1q_u32(offsets_.get() + cursor + 4, offset_lo_hi);
 
@@ -476,14 +476,14 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
       /* Write 8 types. */
       vst1_u8((uint8_t *)types_.get() + cursor, data_hi);
       /* Write 8 offsets. */
-      uint32x4_t offset_vec_hi = vdupq_n_u32(offset + 8);
+      const uint32x4_t offset_vec_hi = vdupq_n_u32(offset + 8);
       /* The offsets are contained inside the 8 bit shuffle vector.
        * We need to promote it to 32 bit before adding the base offset. */
-      uint16x8_t shuffle_hi16 = vmovl_u8(shuffle_hi);
-      uint32x4_t shuffle_hi32_lo = vmovl_u16(vget_low_u16(shuffle_hi16));
-      uint32x4_t shuffle_hi32_hi = vmovl_u16(vget_high_u16(shuffle_hi16));
-      uint32x4_t offset_hi_lo = vaddq_u32(shuffle_hi32_lo, offset_vec_hi);
-      uint32x4_t offset_hi_hi = vaddq_u32(shuffle_hi32_hi, offset_vec_hi);
+      const uint16x8_t shuffle_hi16 = vmovl_u8(shuffle_hi);
+      const uint32x4_t shuffle_hi32_lo = vmovl_u16(vget_low_u16(shuffle_hi16));
+      const uint32x4_t shuffle_hi32_hi = vmovl_u16(vget_high_u16(shuffle_hi16));
+      const uint32x4_t offset_hi_lo = vaddq_u32(shuffle_hi32_lo, offset_vec_hi);
+      const uint32x4_t offset_hi_hi = vaddq_u32(shuffle_hi32_hi, offset_vec_hi);
       vst1q_u32(offsets_.get() + cursor + 0, offset_hi_lo);
       vst1q_u32(offsets_.get() + cursor + 4, offset_hi_hi);
 
@@ -493,7 +493,7 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
     prev = curr;
   }
   /* Finish tail using scalar loop. */
-  CharClass last_type = CharClass(vgetq_lane_u8(prev, 15));
+  const CharClass last_type = CharClass(vgetq_lane_u8(prev, 15));
 #else
 
   /* Scalar only implementation. */
