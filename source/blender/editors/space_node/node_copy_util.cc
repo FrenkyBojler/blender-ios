@@ -260,7 +260,7 @@ class NodeSetInterfaceBuilder {
   Set<const bNode *> src_nodes_set_;
   /* Multiple internal or external sockets may be mapped to the same interface item.
    * This map tracks unique interface items based on identifying sockets. */
-  Map<const bNodeSocket *, InterfaceSocketData *> data_by_socket_;
+  Map<const bNodeSocket *, bNodeTreeInterfaceSocket *> data_by_socket_;
 
  public:
   NodeSetInterfaceBuilder(NodeSetInterfaceParams params,
@@ -301,7 +301,8 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
 
   auto try_add_socket_data = [&](const bNodeSocket &key,
                                  const bNodeSocket &template_socket) -> InterfaceSocketData * {
-    InterfaceSocketData *data = data_by_socket_.lookup_default(&key, nullptr);
+    InterfaceSocketData *data = io_mapping_.socket_data.lookup_ptr(
+        data_by_socket_.lookup_default(&key, nullptr));
     if (data) {
       return data;
     }
@@ -309,7 +310,7 @@ void NodeSetInterfaceBuilder::expose_socket(const bNodeSocket &src_socket,
         src_tree, template_socket, dst_tree_, parent);
     if (io_socket) {
       data = &io_mapping_.socket_data.lookup_or_add(io_socket, {});
-      data_by_socket_.add_new(&key, data);
+      data_by_socket_.add_new(&key, io_socket);
 
       data->hidden = template_socket.flag & SOCK_HIDDEN;
       data->collapsed = template_socket.flag & SOCK_COLLAPSED;
