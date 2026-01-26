@@ -127,34 +127,16 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  enum class ListStructureType {
-    Single,
-    Grid,
-    Field,
-  };
-
-  Array<ListStructureType> list_structure_types(required_items.size());
   Array<const bke::bNodeSocketType *> socket_types(required_items.size());
-  Array<const CPPType *> cpp_types(required_items.size());
   for (const int i : required_items.index_range()) {
     const int item_i = required_items[i];
     const auto type = eNodeSocketDatatype(items[item_i].socket_type);
-    const auto structure_type = StructureType(items[item_i].structure_type);
     socket_types[i] = bke::node_socket_type_find_static(type);
-    if (socket_type_supports_fields(type) && structure_type == StructureType::Single) {
-      cpp_types[i] = bke::socket_type_to_geo_nodes_base_cpp_type(type);
-    }
-    else {
-      cpp_types[i] = &CPPType::get<bke::SocketValueVariant>();
-    }
   }
 
-  Vector<ListPtr> lists(required_items.size());
-  Array<GMutableSpan> list_values(lists.size());
-  for (const int i : required_items.index_range()) {
-    const CPPType &type = *cpp_types[i];
-    lists[i] = List::create(type, List::ArrayData::ForUninitialized(type, count), count);
-    list_values[i] = {cpp_types[i], std::get<List::ArrayData>(lists[i]->data()).data, count};
+  Array<Array<bke::SocketValueVariant>> closure_results(required_items.size());
+  for (const int i : closure_results.index_range()) {
+    closure_results[i] = Array<bke::SocketValueVariant>(count, NoInitialization());
   }
 
   GeoNodesUserData user_data = *params.user_data();
@@ -167,45 +149,69 @@ static void node_geo_exec(GeoNodeExecParams params)
   threading::parallel_for(IndexRange(count), 8, [&](const IndexRange range) {
     ClosureEagerEvalParams closure_params;
     closure_params.user_data = &user_data;
-    closure_params.inputs.append({"Index", int_type, bke::SocketValueVariant::From(0)});
 
-    Array<bke::SocketValueVariant> closure_results(lists.size());
+    /* Create inputs. */
+    closure_params.inputs.resize(1);
+    closure_params.inputs[0].key = "Index";
+    closure_params.inputs[0].type = int_type;
+
+    /* Create outputs. */
+    closure_params.outputs.resize(required_items.size());
     for (const int i : required_items.index_range()) {
       const int item_i = required_items[i];
-      closure_params.outputs.append({items[item_i].name, socket_types[i], &closure_results[i]});
+      closure_params.outputs[i].key = items[item_i].name;
+      closure_params.outputs[i].type = socket_types[i];
     }
 
-    int &params_index_input = *static_cast<int *>(
-        const_cast<void *>(closure_params.inputs[0].value.get_single_ptr_raw()));
     for (const int64_t list_i : range) {
-
-      bke::ClosureToListComputeContext closure_to_list_context(
-          parent_context, node.identifier, int(list_i));
-      user_data.compute_context = &closure_to_list_context;
-
+      /* Create input value. */
       BLI_assert(list_i < std::numeric_limits<int>::max());
-      params_index_input = int(list_i);
-      for (bke::SocketValueVariant &value : closure_results) {
-        value.~SocketValueVariant();
-      }
-      evaluate_closure_eagerly(*closure, closure_params);
+      closure_params.inputs[0].value = bke::SocketValueVariant::From(int(list_i));
 
+      /* Set output locations. */
       for (const int i : required_items.index_range()) {
-        if (closure_results[i].is_single()) {
-          cpp_types[i]->move_construct(const_cast<void *>(closure_results[i].get_single_ptr_raw()),
-                                       list_values[i][list_i]);
-        }
-        else {
-          cpp_types[i]->copy_construct(cpp_types[i]->default_value(), list_values[i][list_i]);
-        }
+        closure_params.outputs[i].value = &closure_results[i][list_i];
       }
+
+      bke::ClosureToListComputeContext context(parent_context, node.identifier, int(list_i));
+      user_data.compute_context = &context;
+
+      evaluate_closure_eagerly(*closure, closure_params);
     }
   });
 
   for (const int i : required_items.index_range()) {
     const int item_i = required_items[i];
     const std::string identifier = ItemsAccessor::output_socket_identifier_for_item(items[item_i]);
-    params.set_output(identifier, std::move(lists[i]));
+    Array<bke::SocketValueVariant> &values = closure_results[i];
+
+    if (std::all_of(values.begin(), values.end(), [](const bke::SocketValueVariant &value) {
+          return value.is_single();
+        }))
+    {
+      const auto socket_type = eNodeSocketDatatype(items[item_i].socket_type);
+      const CPPType &type = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
+
+      List::ArrayData list_data = List::ArrayData::ForUninitialized(type, count);
+      GMutableSpan list_span(type, list_data.data, count);
+      threading::parallel_for(IndexRange(count), 128, [&](const IndexRange range) {
+        for (const int list_i : range) {
+          void *closure_result = const_cast<void *>(values[list_i].get_single_ptr_raw());
+          type.move_construct(closure_result, list_span[i]);
+        }
+      });
+      params.set_output(identifier, List::create(type, std::move(list_data), count));
+    }
+    else {
+      const CPPType &type = CPPType::get<bke::SocketValueVariant>();
+
+      auto *sharing_info = new ImplicitSharedValue<Array<bke::SocketValueVariant>>(
+          std::move(values));
+      List::ArrayData data{};
+      data.data = sharing_info->data.data();
+      data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+      params.set_output(identifier, List::create(type, std::move(data), count));
+    }
   }
 }
 
