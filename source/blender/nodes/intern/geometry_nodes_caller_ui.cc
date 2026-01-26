@@ -520,8 +520,12 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       break;
     }
     case SOCK_COLLECTION: {
-      row.prop_search(
-          ctx.properties_ptr, rna_path, ctx.bmain_ptr, "collections", name, ICON_GROUP);
+      row.prop_search(ctx.properties_ptr,
+                      rna_path,
+                      ctx.bmain_ptr,
+                      "collections",
+                      name,
+                      ICON_OUTLINER_COLLECTION);
       break;
     }
     case SOCK_MATERIAL: {

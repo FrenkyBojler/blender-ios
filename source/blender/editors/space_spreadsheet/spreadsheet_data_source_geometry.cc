@@ -1033,7 +1033,7 @@ int get_instance_reference_icon(const bke::InstanceReference &reference)
       return ED_outliner_icon_from_id(object.id);
     }
     case bke::InstanceReference::Type::Collection: {
-      return ICON_GROUP;
+      return ICON_OUTLINER_COLLECTION;
     }
     case bke::InstanceReference::Type::GeometrySet: {
       return ICON_GEOMETRY_SET;
