@@ -1084,7 +1084,7 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
   // Ramon: this is the place that prevents the audio from getting added multible times. Problem is
   // that when a strip gets grouped into a meta strip this also prevents the handle from getting
   // moved into this new handle
-  void *parent_sound_scene = get_parent_sound_scene(strip, scene);
+  void *parent_sound_scene = BKE_strip_get_parent_sound_scene(strip, scene);
 
   if (strip->runtime->scene_sound != nullptr &&
       parent_sound_scene == strip->runtime->last_parent_sound_scene)

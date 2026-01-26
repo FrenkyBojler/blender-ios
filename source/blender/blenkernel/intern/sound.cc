@@ -826,7 +826,7 @@ void BKE_sound_update_scene_listener(Scene *scene)
 void *BKE_sound_scene_add_scene_sound(
     Scene *scene, Strip *strip, int startframe, int endframe, int frameskip)
 {
-  void *parent_sound_scene = get_parent_sound_scene(strip, scene);
+  void *parent_sound_scene = BKE_strip_get_parent_sound_scene(strip, scene);
   strip->runtime->last_parent_sound_scene = parent_sound_scene;
   sound_verify_evaluated_id(&scene->id);
   if (strip->scene && scene != strip->scene) {
@@ -849,25 +849,20 @@ void *BKE_sound_scene_add_scene_sound_defaults(Scene *scene, Strip *strip)
                                          strip->startofs + strip->anim_startofs);
 }
 
-void *get_parent_sound_scene(Strip *strip, Scene *scene)
+void *BKE_strip_get_parent_sound_scene(Strip *strip, Scene *scene)
 {
   Strip *parent_strip = blender::seq::lookup_meta_by_strip(scene->ed, strip);
-  void *parent_sound_scene = nullptr;
 
   if (parent_strip != nullptr) {
     /* Add a new meta_scene_sound when there is none. */
     if (parent_strip->runtime->meta_scene_sound == nullptr) {
-      printf("AUD_Sequence_create\n");
       parent_strip->runtime->meta_scene_sound = AUD_Sequence_create(scene->frames_per_second(),
                                                                     false);
     }
-    parent_sound_scene = parent_strip->runtime->meta_scene_sound;
-  }
-  else {
-    parent_sound_scene = scene->runtime->audio.sound_scene;
+    return parent_strip->runtime->meta_scene_sound;
   }
 
-  return parent_sound_scene;
+  return scene->runtime->audio.sound_scene;
 }
 
 // Ramon: here the playback_handle of the strip gets added to the sound_scene
@@ -898,7 +893,7 @@ void *BKE_sound_add_scene_sound(
 
   /* This is to add the hande to the right AUD sequence(to sequence of parent_strip or to scene
    * when there is no parent). */
-  void *parent_sound_scene = get_parent_sound_scene(strip, scene);
+  void *parent_sound_scene = BKE_strip_get_parent_sound_scene(strip, scene);
 
   const double fps = scene->frames_per_second();
   double offset_time = 0.0f;
