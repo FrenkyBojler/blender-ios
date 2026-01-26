@@ -69,6 +69,7 @@ class AbstractTreeElement {
    * the message in the tooltip.
    */
   virtual StringRefNull get_warning() const;
+  virtual bool have_warning() const;
 
   /**
    * Define the icon to be displayed for this element. If this returns an icon, this will be

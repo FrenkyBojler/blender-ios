@@ -122,6 +122,8 @@ struct TreeElement {
   short index;               /* Index for data arrays. */
   short idcode;              /* From TreeStore id. */
   short xend;                /* Width of item display, for select. */
+  short level;
+  int ymin;
   const char *name;
   void *directdata; /* Armature Bones, Base, ... */
 };
@@ -307,7 +309,10 @@ TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *cus
  */
 void draw_outliner(const bContext *C, bool do_rebuild);
 
-void outliner_tree_dimensions(SpaceOutliner *space_outliner, int *r_width, int *r_height);
+void outliner_tree_dimensions(ARegion *region,
+                              SpaceOutliner *space_outliner,
+                              int *r_width,
+                              int *r_height);
 
 TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te);
 
