@@ -64,9 +64,12 @@ class ActionRegistry:
             slot = self._select_action_for_map(action_name, VRDefaultActionmaps.DEFAULT.value)
             if slot is None:
                 continue
-            self._build_actionmap_item(
-                am_default, slot, VRDefaultActionmaps.DEFAULT.value, default_profiles
-            )
+            item = slot.vr_action_map_add(am_default, VRDefaultActionmaps.DEFAULT.value)
+            if item is None:
+                continue
+            for profile_name in default_profiles:
+                profile = self.profiles[profile_name]
+                slot.vr_action_map_item_add(item, profile)
 
         if gamepad_profiles:
             am_gamepad = session_state.actionmaps.new(
@@ -77,12 +80,12 @@ class ActionRegistry:
                 slot = self._select_action_for_map(action_name, VRDefaultActionmaps.GAMEPAD.value)
                 if slot is None:
                     continue
-                self._build_actionmap_item(
-                    am_gamepad,
-                    slot,
-                    VRDefaultActionmaps.GAMEPAD.value,
-                    gamepad_profiles,
-                )
+                item = slot.vr_action_map_add(am_gamepad, VRDefaultActionmaps.GAMEPAD.value)
+                if item is None:
+                    continue
+                for profile_name in gamepad_profiles:
+                    profile = self.profiles[profile_name]
+                    slot.vr_action_map_item_add(item, profile)
 
     def _remove_actionmap(self, session_state, name):
         actionmaps = session_state.actionmaps
@@ -96,59 +99,6 @@ class ActionRegistry:
                 actionmaps.remove(actionmaps[idx])
             except Exception:
                 pass
-
-    def _build_actionmap_item(self, actionmap, slot, actionmap_name, profile_names):
-        item = actionmap.actionmap_items.new(slot.name, True)
-        item.type = slot.type
-        path_type = slot.path_type
-        if actionmap_name == VRDefaultActionmaps.GAMEPAD.value:
-            path_type = VRActionPathType.GAMEPAD
-        if hasattr(path_type, "value"):
-            path_type = path_type.value
-        for path in path_type:
-            item.user_paths.new(path)
-        item.pose_is_controller_grip = getattr(slot, "pose_is_controller_grip", False)
-        item.pose_is_controller_aim = getattr(slot, "pose_is_controller_aim", False)
-        op = getattr(slot, "op", None)
-        if op is not None:
-            item.op = op
-            item.op_mode = getattr(slot, "op_mode", "MODAL")
-        item.bimanual = getattr(slot, "bimanual", False)
-        item.haptic_name = getattr(slot, "haptic_name", "")
-        item.haptic_match_user_paths = getattr(slot, "haptic_match_user_paths", False)
-        item.haptic_duration = getattr(slot, "haptic_duration", 0.0)
-        item.haptic_frequency = getattr(slot, "haptic_frequency", 0.0)
-        item.haptic_amplitude = getattr(slot, "haptic_amplitude", 0.0)
-        item.haptic_mode = getattr(slot, "haptic_mode", "PRESS")
-        op_properties = getattr(slot, "op_properties", None)
-        if op_properties:
-            for attr, value in op_properties:
-                try:
-                    setattr(item.op_properties, attr, value)
-                except Exception:
-                    pass
-        for profile_name in profile_names:
-            profile = self.profiles[profile_name]
-            binding = profile.action_map.get(slot.name)
-            if binding is None:
-                continue
-            self._build_binding(item, profile, binding)
-
-    def _build_binding(self, item, profile, binding):
-        action_map_binding = item.bindings.new(profile.name, True)
-        if not action_map_binding:
-            return
-        action_map_binding.profile = profile.profile
-        for path in binding.get("component_paths", []):
-            action_map_binding.component_paths.new(path)
-        if "threshold" in binding:
-            action_map_binding.threshold = binding["threshold"]
-            action_map_binding.axis0_region = binding["axis_region"]
-            action_map_binding.axis1_region = "ANY"
-        if "pose_location" in binding:
-            action_map_binding.pose_location = binding["pose_location"]
-        if "pose_rotation" in binding:
-            action_map_binding.pose_rotation = binding["pose_rotation"]
 
     def _collect_action_names(self, profile_names):
         action_names = []

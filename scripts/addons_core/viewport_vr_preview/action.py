@@ -18,14 +18,17 @@ class VRAction():
     def enable_gamepad(self):
         self.path_type = VRActionPathType.GAMEPAD
 
-    def vr_action_map_add(self, action_map):
+    def vr_action_map_add(self, action_map, actionmap_name=None):
         action_map_item = action_map.actionmap_items.new(self.name, True)
 
         if action_map_item is None:
             return None
         
         action_map_item.type = self.type
-        for path in self.path_type.value:
+        path_type = self.path_type
+        if actionmap_name == VRDefaultActionmaps.GAMEPAD.value:
+            path_type = VRActionPathType.GAMEPAD
+        for path in path_type.value:
             action_map_item.user_paths.new(path)
         
         return action_map_item
@@ -60,8 +63,8 @@ class VRActionFloat(VRAction):
     haptic_mode = 'PRESS'
     op_properties = None
 
-    def vr_action_map_add(self, action_map):
-        action_map_item = super().vr_action_map_add(action_map)
+    def vr_action_map_add(self, action_map, actionmap_name=None):
+        action_map_item = super().vr_action_map_add(action_map, actionmap_name)
         if action_map_item is None:
             return None
         

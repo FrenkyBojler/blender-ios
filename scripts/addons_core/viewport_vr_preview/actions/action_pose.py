@@ -7,8 +7,8 @@ class VRActionPose(VRAction):
     pose_is_controller_grip = False
     pose_is_controller_aim = False
     
-    def vr_action_map_add(self, action_map):
-        action_map_item = super().vr_action_map_add(action_map)
+    def vr_action_map_add(self, action_map, actionmap_name=None):
+        action_map_item = super().vr_action_map_add(action_map, actionmap_name)
         if action_map_item is None:
             return None
 
