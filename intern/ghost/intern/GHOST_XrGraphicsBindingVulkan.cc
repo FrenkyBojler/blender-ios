@@ -355,9 +355,9 @@ bool GHOST_XrGraphicsBindingVulkan::tryReuseVulkanInstance(GHOST_ContextVK &ghos
 
   /* Perform all checks. When stacking the calls with `&&` only the first
    * failing message will be reported. */
-  result &= are_required_instance_extensions_enabled(instance, system_id);
-  result &= are_required_device_extensions_enabled(instance, system_id);
-  result &= is_same_physical_device_selected(instance, system_id, context_handles);
+  result &= areRequiredInstanceExtensionsEnabled(instance, system_id);
+  result &= areRequiredDeviceExtensionsEnabled(instance, system_id);
+  result &= isSamePhysicalDeviceSelected(instance, system_id, context_handles);
 
   if (!result) {
     return result;
@@ -392,7 +392,7 @@ static blender::Vector<std::string> split_extension_names(blender::StringRef ext
   return result;
 }
 
-bool GHOST_XrGraphicsBindingVulkan::are_required_instance_extensions_enabled(
+bool GHOST_XrGraphicsBindingVulkan::areRequiredInstanceExtensionsEnabled(
     XrInstance instance, XrSystemId system_id) const
 {
   uint32_t buffer_count = 0;
@@ -420,8 +420,8 @@ bool GHOST_XrGraphicsBindingVulkan::are_required_instance_extensions_enabled(
   return true;
 }
 
-bool GHOST_XrGraphicsBindingVulkan::are_required_device_extensions_enabled(
-    XrInstance instance, XrSystemId system_id) const
+bool GHOST_XrGraphicsBindingVulkan::areRequiredDeviceExtensionsEnabled(XrInstance instance,
+                                                                       XrSystemId system_id) const
 {
   uint32_t buffer_count = 0;
   functions_.xrGetVulkanDeviceExtensionsKHR(instance, system_id, 0, &buffer_count, nullptr);
@@ -448,7 +448,7 @@ bool GHOST_XrGraphicsBindingVulkan::are_required_device_extensions_enabled(
   return true;
 }
 
-bool GHOST_XrGraphicsBindingVulkan::is_same_physical_device_selected(
+bool GHOST_XrGraphicsBindingVulkan::isSamePhysicalDeviceSelected(
     XrInstance instance, XrSystemId system_id, const GHOST_VulkanHandles &context_handles) const
 {
   VkPhysicalDevice openxr_physical_device = VK_NULL_HANDLE;

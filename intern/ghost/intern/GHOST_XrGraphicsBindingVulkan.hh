@@ -157,9 +157,9 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
    * \returns true when blenders' Vulkan instance will be reused, false when not.
    */
   bool tryReuseVulkanInstance(GHOST_ContextVK &ghost_ctx, XrInstance instance, XrSystemId system);
-  bool are_required_instance_extensions_enabled(XrInstance instance, XrSystemId system_id) const;
-  bool are_required_device_extensions_enabled(XrInstance instance, XrSystemId system_id) const;
-  bool is_same_physical_device_selected(XrInstance instance,
-                                        XrSystemId system_id,
-                                        const GHOST_VulkanHandles &context_handles) const;
+  bool areRequiredInstanceExtensionsEnabled(XrInstance instance, XrSystemId system_id) const;
+  bool areRequiredDeviceExtensionsEnabled(XrInstance instance, XrSystemId system_id) const;
+  bool isSamePhysicalDeviceSelected(XrInstance instance,
+                                    XrSystemId system_id,
+                                    const GHOST_VulkanHandles &context_handles) const;
 };
