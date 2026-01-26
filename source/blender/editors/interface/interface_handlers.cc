@@ -9801,15 +9801,31 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
           button_activate_state(C, but, BUTTON_STATE_EXIT);
         }
         else {
-          /* Re-enable tool-tip on mouse move. */
+          /* While the pointer is moved around we need to reevaluate the
+           * tooltips. If a tooltip is already showing we normally don't
+           * want to reset it as this feels like the tooltip is chasing
+           * the mouse pointer after a short delay. The exception is large
+           * areas like thumbnails as we might want to dismiss them without
+           * leaving the area or move to reposition to reveal obscured parts. */
           bool reenable_tooltip = true;
           bScreen *screen = CTX_wm_screen(C);
           if (screen && screen->tool_tip) {
-            /* Allow some movement once the tooltip timer has started. */
-            const int threshold = WM_event_drag_threshold(event);
             const int movement = len_manhattan_v2v2_int(event->xy, screen->tool_tip->event_xy);
-            reenable_tooltip = (movement > threshold);
+            const int threshold = WM_event_drag_threshold(event);
+            if (screen->tool_tip->region) {
+              /* Tooltip is showing. Only reset with motion on large buttons.
+               * Otherwise the tooltip follows the mouse while it is moved. */
+              const bool large_button = but->type == ButtonType::Label &&
+                                        BLI_rctf_size_y(&but->rect) > UI_UNIT_Y;
+              reenable_tooltip = (large_button && movement > threshold);
+            }
+            else {
+              /* Tooltip not yet showing. Allow some movement before resetting timer,
+               * otherwise it is difficult to get tooltips with pens and touch. #153319. */
+              reenable_tooltip = (movement > threshold);
+            }
           }
+
           if (reenable_tooltip) {
             ui_blocks_set_tooltips(region, true);
             button_tooltip_timer_reset(C, but);
