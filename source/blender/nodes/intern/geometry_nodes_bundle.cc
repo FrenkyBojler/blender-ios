@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 #include "BKE_node_socket_value.hh"
 #include "BLI_cpp_type.hh"
@@ -272,6 +273,15 @@ std::string Bundle::combine_path(const Span<StringRef> path)
 void Bundle::delete_self()
 {
   MEM_delete(this);
+}
+
+void Bundle::count_memory(MemoryCounter &memory) const
+{
+  for (const auto &item : items_.items()) {
+    if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&item.value.value)) {
+      socket_value->value.count_memory(memory);
+    }
+  }
 }
 
 NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(

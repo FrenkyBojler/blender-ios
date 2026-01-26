@@ -115,7 +115,6 @@ set(SRC
   intern/editmesh_tangent.cc
   intern/effect.cc
   intern/fcurve.cc
-  intern/fcurve_cache.cc
   intern/fcurve_driver.cc
   intern/file_handler.cc
   intern/fluid.cc
@@ -501,6 +500,7 @@ set(SRC
   BKE_shrinkwrap.hh
   BKE_softbody.h
   BKE_sound.hh
+  BKE_sound_types.hh
   BKE_speaker.hh
   BKE_studiolight.h
   BKE_subdiv.hh
@@ -586,7 +586,6 @@ set(LIB
   PRIVATE bf::sequencer
   bf_shader_fx
   bf_simulation
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::intern::atomic
   PRIVATE bf::dependencies::zlib
