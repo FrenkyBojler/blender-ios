@@ -3759,7 +3759,7 @@ static void outliner_draw_highlights(const ARegion *region,
                               space_outliner->search_string[0] != 0));
 
   for (const TreeElement *te : visible_elements) {
-    if (te->ymin == te->ys) {
+    if (te->ymin > region->v2d.cur.ymax) {
       continue;
     }
     const TreeStoreElem *tselem = TREESTORE(te);
