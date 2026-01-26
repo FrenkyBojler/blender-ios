@@ -382,9 +382,7 @@ static bool seq_get_strip_pivot_median(const Scene *scene, float r_pivot[2])
   return has_select;
 }
 
-static bool gizmo2d_calc_transform_pivot(const bContext *C,
-                                         bool ignore_handles,
-                                         float r_pivot[2])
+static bool gizmo2d_calc_transform_pivot(const bContext *C, bool ignore_handles, float r_pivot[2])
 {
   ScrArea *area = CTX_wm_area(C);
   Scene *scene = CTX_data_scene(C);
@@ -399,8 +397,7 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C,
             sima, scene, view_layer, r_pivot, sima->around, &has_select);
         break;
       case SI_MODE_MASK:
-        ED_mask_center_from_pivot_ex(
-            C, area, ignore_handles, sima->around, r_pivot, &has_select);
+        ED_mask_center_from_pivot_ex(C, area, ignore_handles, sima->around, r_pivot, &has_select);
         break;
       default:
         break;
