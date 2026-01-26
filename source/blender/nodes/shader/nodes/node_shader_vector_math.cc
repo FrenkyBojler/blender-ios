@@ -164,6 +164,8 @@ static const char *gpu_shader_get_name(int mode)
 
     case NODE_VECTOR_MATH_SNAP:
       return "vector_math_snap";
+    case NODE_VECTOR_MATH_ROUND:
+      return "vector_math_round";
     case NODE_VECTOR_MATH_FLOOR:
       return "vector_math_floor";
     case NODE_VECTOR_MATH_CEIL:
@@ -196,8 +198,6 @@ static const char *gpu_shader_get_name(int mode)
       return "vector_math_power";
     case NODE_VECTOR_MATH_SIGN:
       return "vector_math_sign";
-    case NODE_VECTOR_MATH_ROUND:
-      return "vector_math_round";
   }
 
   return nullptr;
@@ -460,6 +460,9 @@ NODE_SHADER_MATERIALX_BEGIN
     case NODE_VECTOR_MATH_ABSOLUTE:
       res = x.abs();
       break;
+    case NODE_VECTOR_MATH_ROUND:
+      res = (x + val(0.5f)).floor();
+      break;
     case NODE_VECTOR_MATH_FLOOR:
       res = x.floor();
       break;
@@ -468,9 +471,6 @@ NODE_SHADER_MATERIALX_BEGIN
       break;
     case NODE_VECTOR_MATH_FRACTION:
       res = x % val(1.0f);
-      break;
-    case NODE_VECTOR_MATH_ROUND:
-      res = (x + val(0.5f)).floor();
       break;
     case NODE_VECTOR_MATH_LENGTH:
       res = x.length();

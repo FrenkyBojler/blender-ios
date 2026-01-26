@@ -6845,6 +6845,7 @@ NODE_DEFINE(VectorMathNode)
   type_enum.insert("normalize", NODE_VECTOR_MATH_NORMALIZE);
 
   type_enum.insert("snap", NODE_VECTOR_MATH_SNAP);
+  type_enum.insert("round", NODE_VECTOR_MATH_ROUND);
   type_enum.insert("floor", NODE_VECTOR_MATH_FLOOR);
   type_enum.insert("ceil", NODE_VECTOR_MATH_CEIL);
   type_enum.insert("modulo", NODE_VECTOR_MATH_MODULO);
@@ -6853,7 +6854,6 @@ NODE_DEFINE(VectorMathNode)
   type_enum.insert("absolute", NODE_VECTOR_MATH_ABSOLUTE);
   type_enum.insert("power", NODE_VECTOR_MATH_POWER);
   type_enum.insert("sign", NODE_VECTOR_MATH_SIGN);
-  type_enum.insert("round", NODE_VECTOR_MATH_ROUND);
   type_enum.insert("minimum", NODE_VECTOR_MATH_MINIMUM);
   type_enum.insert("maximum", NODE_VECTOR_MATH_MAXIMUM);
 

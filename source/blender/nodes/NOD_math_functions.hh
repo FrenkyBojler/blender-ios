@@ -458,6 +458,8 @@ inline bool try_dispatch_float_math_fl3_to_fl3(const NodeVectorMathOperation ope
     case NODE_VECTOR_MATH_NORMALIZE:
       /* Should be safe. */
       return dispatch(exec_preset_fast, [](float3 in) { return normalize(in); });
+    case NODE_VECTOR_MATH_ROUND:
+      return dispatch(exec_preset_fast, [](float3 in) { return floor(in + 0.5f); });
     case NODE_VECTOR_MATH_FLOOR:
       return dispatch(exec_preset_fast, [](float3 in) { return floor(in); });
     case NODE_VECTOR_MATH_CEIL:
@@ -468,8 +470,6 @@ inline bool try_dispatch_float_math_fl3_to_fl3(const NodeVectorMathOperation ope
       return dispatch(exec_preset_fast, [](float3 in) { return abs(in); });
     case NODE_VECTOR_MATH_SIGN:
       return dispatch(exec_preset_fast, [](float3 in) { return sign(in); });
-    case NODE_VECTOR_MATH_ROUND:
-      return dispatch(exec_preset_fast, [](float3 in) { return floor(in + 0.5f); });
     case NODE_VECTOR_MATH_SINE:
       return dispatch(exec_preset_slow,
                       [](float3 in) { return float3(sinf(in.x), sinf(in.y), sinf(in.z)); });

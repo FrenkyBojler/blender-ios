@@ -247,6 +247,7 @@ const EnumPropertyItem rna_enum_node_vec_math_items[] = {
     {NODE_VECTOR_MATH_SIGN, "SIGN", 0, "Sign", "Entry-wise sign"},
     {NODE_VECTOR_MATH_MINIMUM, "MINIMUM", 0, "Minimum", "Entry-wise minimum"},
     {NODE_VECTOR_MATH_MAXIMUM, "MAXIMUM", 0, "Maximum", "Entry-wise maximum"},
+    {NODE_VECTOR_MATH_ROUND, "ROUND", 0, "Round", "Entry-wise round to the nearest integer. Round upward if the fraction part is 0.5"},
     {NODE_VECTOR_MATH_FLOOR, "FLOOR", 0, "Floor", "Entry-wise floor"},
     {NODE_VECTOR_MATH_CEIL, "CEIL", 0, "Ceil", "Entry-wise ceil"},
     {NODE_VECTOR_MATH_FRACTION, "FRACTION", 0, "Fraction", "The fraction part of A entry-wise"},
@@ -261,7 +262,6 @@ const EnumPropertyItem rna_enum_node_vec_math_items[] = {
     {NODE_VECTOR_MATH_SINE, "SINE", 0, "Sine", "Entry-wise sin(A)"},
     {NODE_VECTOR_MATH_COSINE, "COSINE", 0, "Cosine", "Entry-wise cos(A)"},
     {NODE_VECTOR_MATH_TANGENT, "TANGENT", 0, "Tangent", "Entry-wise tan(A)"},
-    {NODE_VECTOR_MATH_ROUND, "ROUND", 0, "Round", "Entry-wise round"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
