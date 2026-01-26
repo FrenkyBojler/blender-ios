@@ -794,6 +794,7 @@ static void replace_interface_socket(bContext &C,
     if (socket_value) {
       use_socket_value = true;
       for (const MutableNodeAndSocket &out_link : outgoing_links) {
+        bke::node_declaration_ensure(dst_tree, out_link.node);
         const eNodeSocketDatatype out_type = eNodeSocketDatatype(out_link.socket.type);
         const nodes::SocketDeclaration *out_decl = out_link.socket.runtime->declaration;
         const bool output_has_implicit_input =
