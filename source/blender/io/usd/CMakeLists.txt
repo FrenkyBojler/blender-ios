@@ -10,7 +10,7 @@ if(UNIX AND NOT APPLE)
   add_definitions(-D_GLIBCXX_PERMIT_BACKWARD_HASH)
 endif()
 if(WIN32)
-  # We need to keep BOOST_DEBUG_PYTHON for the vendored copy of boost inside USD
+  # We need to keep BOOST_DEBUG_PYTHON for the vendored copy of boost inside USD.
   add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN -DBOOST_DEBUG_PYTHON)
 endif()
 
