@@ -60,7 +60,9 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
-namespace blender::ed::sculpt_paint {
+namespace blender {
+
+namespace ed::sculpt_paint {
 
 /* -------------------------------------------------------------------- */
 /** \name Poll Functions
@@ -128,14 +130,21 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
     const Object &object,
     const StrokeExtension &stroke_start)
 {
-  const BrushStrokeMode mode = BrushStrokeMode(RNA_enum_get(op.ptr, "mode"));
+  const auto mode = BrushStrokeMode(RNA_enum_get(op.ptr, "mode"));
+  const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op.ptr, "brush_toggle"));
 
   const CurvesSculpt &curves_sculpt = *scene.toolsettings->curves_sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&curves_sculpt.paint);
-  const eBrushCurvesSculptType brush_type = (mode == BRUSH_STROKE_SMOOTH) ?
-                                                CURVES_SCULPT_BRUSH_TYPE_SMOOTH :
-                                                eBrushCurvesSculptType(
-                                                    brush.curves_sculpt_brush_type);
+  const eBrushCurvesSculptType brush_type = eBrushCurvesSculptType(brush.curves_sculpt_brush_type);
+  if (brush_switch_mode == BrushSwitchMode::Smooth) {
+    if (brush_type == CURVES_SCULPT_BRUSH_TYPE_SELECTION_PAINT) {
+      /* The selection brush uses the BrushSwitchMode::Smooth mode to indicate that the
+       * current selection should be added to. It should not toggle to the smooth brush itself. */
+    }
+    else {
+      return new_smooth_operation();
+    }
+  }
 
   switch (brush_type) {
     case CURVES_SCULPT_BRUSH_TYPE_COMB:
@@ -149,7 +158,7 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
     case CURVES_SCULPT_BRUSH_TYPE_GROW_SHRINK:
       return new_grow_shrink_operation(mode, scene);
     case CURVES_SCULPT_BRUSH_TYPE_SELECTION_PAINT:
-      return new_selection_paint_operation(mode, scene);
+      return new_selection_paint_operation(mode, brush_switch_mode, scene);
     case CURVES_SCULPT_BRUSH_TYPE_PINCH:
       return new_pinch_operation(mode, scene);
     case CURVES_SCULPT_BRUSH_TYPE_SMOOTH:
@@ -310,7 +319,8 @@ static void curves_sculptmode_enter(bContext *C)
   wmMsgBus *mbus = CTX_wm_message_bus(C);
 
   Object *ob = CTX_data_active_object(C);
-  BKE_paint_ensure(scene->toolsettings, (Paint **)&scene->toolsettings->curves_sculpt);
+  BKE_paint_ensure(scene->toolsettings,
+                   reinterpret_cast<Paint **>(&scene->toolsettings->curves_sculpt));
   CurvesSculpt *curves_sculpt = scene->toolsettings->curves_sculpt;
 
   ob->mode = OB_MODE_SCULPT_CURVES;
@@ -758,7 +768,7 @@ static wmOperatorStatus select_grow_invoke(bContext *C, wmOperator *op, const wm
 
   op_data->initial_mouse_x = event->xy[0];
 
-  Curves &curves_id = *static_cast<Curves *>(active_ob->data);
+  Curves &curves_id = *id_cast<Curves *>(active_ob->data);
   auto curve_op_data = std::make_unique<GrowOperatorDataPerCurve>();
   curve_op_data->curves_id = &curves_id;
   select_grow_invoke_per_curve(curves_id, *active_ob, *region, *v3d, *rv3d, *curve_op_data);
@@ -872,7 +882,7 @@ struct MinDistanceEditData {
   float initial_minimum_distance;
 
   /** The operator uses a new cursor, but the existing cursors should be restored afterwards. */
-  ListBase orig_paintcursors;
+  ListBaseT<wmPaintCursor> orig_paintcursors;
   void *cursor;
 
   /** Store the viewport region in case the operator was called from the header. */
@@ -925,8 +935,8 @@ static int calculate_points_per_side(bContext *C, MinDistanceEditData &op_data)
 }
 
 static void min_distance_edit_draw(bContext *C,
-                                   const blender::int2 & /*xy*/,
-                                   const blender::float2 & /*tilt*/,
+                                   const int2 & /*xy*/,
+                                   const float2 & /*tilt*/,
                                    void *customdata)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -977,12 +987,10 @@ static void min_distance_edit_draw(bContext *C,
 
   GPUVertFormat *format3d = immVertexFormat();
 
-  const uint pos3d = GPU_vertformat_attr_add(
-      format3d, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint pos3d = GPU_vertformat_attr_add(format3d, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
   const uint col3d = GPU_vertformat_attr_add(
-      format3d, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-  const uint siz3d = GPU_vertformat_attr_add(
-      format3d, "size", blender::gpu::VertAttrType::SFLOAT_32);
+      format3d, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
+  const uint siz3d = GPU_vertformat_attr_add(format3d, "size", gpu::VertAttrType::SFLOAT_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
   GPU_program_point_size(true);
@@ -1024,7 +1032,7 @@ static void min_distance_edit_draw(bContext *C,
   GPU_matrix_translate_2f(float(op_data.initial_mouse.x), float(op_data.initial_mouse.y));
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos2d = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos2d = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -1043,7 +1051,7 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
   Scene *scene = CTX_data_scene(C);
 
   Object &curves_ob_orig = *CTX_data_active_object(C);
-  Curves &curves_id_orig = *static_cast<Curves *>(curves_ob_orig.data);
+  Curves &curves_id_orig = *id_cast<Curves *>(curves_ob_orig.data);
   Object &surface_ob_orig = *curves_id_orig.surface;
   Object *surface_ob_eval = DEG_get_evaluated(depsgraph, &surface_ob_orig);
   if (surface_ob_eval == nullptr) {
@@ -1191,7 +1199,7 @@ static void SCULPT_CURVES_OT_min_distance_edit(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 }
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
 
 /* -------------------------------------------------------------------- */
 /** \name Registration
@@ -1208,3 +1216,5 @@ void ED_operatortypes_sculpt_curves()
 }
 
 /** \} */
+
+}  // namespace blender

@@ -53,7 +53,7 @@ namespace detail {
 template<typename T> static bool item_is_type(const bNodeTreeInterfaceItem &item)
 {
   bool match = false;
-  switch (NodeTreeInterfaceItemType(item.item_type)) {
+  switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       match |= std::is_same_v<T, bNodeTreeInterfaceSocket>;
       break;
@@ -118,6 +118,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      SOCK_FLOAT,
      PROP_PERCENTAGE},
     {"NodeSocketFloatFactor", "NodeTreeInterfaceSocketFloatFactor", SOCK_FLOAT, PROP_FACTOR},
+    {"NodeSocketFloatMass", "NodeTreeInterfaceSocketFloatMass", SOCK_FLOAT, PROP_MASS},
     {"NodeSocketFloatAngle", "NodeTreeInterfaceSocketFloatAngle", SOCK_FLOAT, PROP_ANGLE},
     {"NodeSocketFloatTime", "NodeTreeInterfaceSocketFloatTime", SOCK_FLOAT, PROP_TIME},
     {"NodeSocketFloatTimeAbsolute",
@@ -407,7 +408,13 @@ inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree
  */
 struct bNodeTreeInterfaceItemReference {
   bNodeTree *tree;
+  /* The item under the cursor when dragging started. Used to create Group Input node in the node
+   * editor. */
   bNodeTreeInterfaceItem *item;
+  /* All dragged items. If a parent item is selected, its children are excluded because they are
+   * dragged implicitly. */
+  bNodeTreeInterfaceItem **items;
+  int items_count;
 };
 
 }  // namespace node_interface

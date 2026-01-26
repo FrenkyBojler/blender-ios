@@ -18,6 +18,7 @@
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
@@ -86,7 +87,7 @@ struct PinchOperationExecutor {
     self_ = &self;
 
     object_ = ctx_.object;
-    curves_id_ = static_cast<Curves *>(object_->data);
+    curves_id_ = id_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
     if (curves_->is_empty()) {
       return;
@@ -143,7 +144,7 @@ struct PinchOperationExecutor {
     IndexMaskMemory memory;
     const IndexMask changed_curves_mask = IndexMask::from_bools(changed_curves, memory);
     const Mesh *surface = curves_id_->surface && curves_id_->surface->type == OB_MESH ?
-                              static_cast<const Mesh *>(curves_id_->surface->data) :
+                              id_cast<const Mesh *>(curves_id_->surface->data) :
                               nullptr;
     self_->constraint_solver_.solve_step(*curves_, changed_curves_mask, surface, transforms_);
 
@@ -289,7 +290,7 @@ std::unique_ptr<CurvesSculptStrokeOperation> new_pinch_operation(const BrushStro
 {
   const Brush &brush = *BKE_paint_brush_for_read(&scene.toolsettings->curves_sculpt->paint);
 
-  const bool invert_pinch = (brush_mode == BRUSH_STROKE_INVERT) !=
+  const bool invert_pinch = (brush_mode == BrushStrokeMode::Invert) !=
                             ((brush.flag & BRUSH_DIR_IN) != 0);
   return std::make_unique<PinchOperation>(invert_pinch);
 }

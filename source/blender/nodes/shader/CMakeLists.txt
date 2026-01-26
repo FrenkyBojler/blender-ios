@@ -159,8 +159,8 @@ if(WITH_MATERIALX)
 
   if(WITH_USD)
     add_definitions(-DWITH_USD)
-    list(APPEND INC_SYS
-      ${USD_INCLUDE_DIRS}
+    list(APPEND LIB
+      PRIVATE bf::dependencies::optional::usd
     )
   endif()
 endif()

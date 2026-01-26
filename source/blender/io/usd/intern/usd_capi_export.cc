@@ -46,7 +46,8 @@
 #include "BKE_scene.hh"
 
 #include "BLI_fileops.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
@@ -60,9 +61,12 @@
 #include "WM_types.hh"
 
 #include "CLG_log.h"
+
+namespace blender {
+
 static CLG_LogRef LOG = {"io.usd"};
 
-namespace blender::io::usd {
+namespace io::usd {
 
 struct ExportJobData {
   Main *bmain = nullptr;
@@ -176,17 +180,12 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
   }
 
   if (params.convert_orientation) {
-    float mrot[3][3];
-    mat3_from_axis_conversion(IO_AXIS_Y, IO_AXIS_Z, params.forward_axis, params.up_axis, mrot);
-    transpose_m3(mrot);
+    float3x3 mrot;
+    mat3_from_axis_conversion(
+        IO_AXIS_Y, IO_AXIS_Z, params.forward_axis, params.up_axis, mrot.ptr());
 
-    float eul[3];
-    mat3_to_eul(eul, mrot);
-
-    /* Convert radians to degrees. */
-    mul_v3_fl(eul, 180.0f / M_PI);
-
-    xf_api.SetRotate(pxr::GfVec3f(eul[0], eul[1], eul[2]));
+    const math::EulerXYZ eul = math::to_euler(math::transpose(mrot));
+    xf_api.SetRotate(pxr::GfVec3f(eul.x().degree(), eul.y().degree(), eul.z().degree()));
   }
 
   for (const auto &path : pxr::SdfPath(params.root_prim_path).GetPrefixes()) {
@@ -300,7 +299,7 @@ static void process_usdz_textures(const ExportJobData *data, const char *path)
 
       /* Make sure to free the image so it doesn't stick
        * around in the library of the open file. */
-      BKE_id_free(data->bmain, (void *)im);
+      BKE_id_free(data->bmain, static_cast<void *>(im));
     }
   }
 
@@ -767,8 +766,7 @@ static void export_endjob(void *customdata)
  * The temporary files will be created in Blender's temporary session storage.
  * The `.usdz` file will then be moved to `job->usdz_filepath`.
  */
-static void create_temp_path_for_usdz_export(const char *filepath,
-                                             blender::io::usd::ExportJobData *job)
+static void create_temp_path_for_usdz_export(const char *filepath, io::usd::ExportJobData *job)
 {
   char usdc_file[FILE_MAX];
   STRNCPY(usdc_file, BLI_path_basename(filepath));
@@ -784,7 +782,7 @@ static void create_temp_path_for_usdz_export(const char *filepath,
   STRNCPY(job->usdz_filepath, filepath);
 }
 
-static void set_job_filepath(blender::io::usd::ExportJobData *job, const char *filepath)
+static void set_job_filepath(io::usd::ExportJobData *job, const char *filepath)
 {
   if (BLI_path_extension_check_n(filepath, ".usdz", nullptr)) {
     create_temp_path_for_usdz_export(filepath, job);
@@ -801,14 +799,14 @@ bool USD_export(const bContext *C,
                 bool as_background_job,
                 ReportList *reports)
 {
-  if (!blender::io::usd::export_params_valid(*params)) {
+  if (!io::usd::export_params_valid(*params)) {
     return false;
   }
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Scene *scene = CTX_data_scene(C);
 
-  blender::io::usd::ExportJobData *job = MEM_new<blender::io::usd::ExportJobData>("ExportJobData");
+  io::usd::ExportJobData *job = MEM_new<io::usd::ExportJobData>("ExportJobData");
 
   job->bmain = CTX_data_main(C);
   job->wm = CTX_wm_manager(C);
@@ -850,15 +848,10 @@ bool USD_export(const bContext *C,
                                 WM_JOB_TYPE_USD_EXPORT);
 
     /* setup job */
-    WM_jobs_customdata_set(wm_job, job, [](void *j) {
-      MEM_delete(static_cast<blender::io::usd::ExportJobData *>(j));
-    });
+    WM_jobs_customdata_set(
+        wm_job, job, [](void *j) { MEM_delete(static_cast<io::usd::ExportJobData *>(j)); });
     WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, NC_SCENE | ND_FRAME);
-    WM_jobs_callbacks(wm_job,
-                      blender::io::usd::export_startjob,
-                      nullptr,
-                      nullptr,
-                      blender::io::usd::export_endjob);
+    WM_jobs_callbacks(wm_job, io::usd::export_startjob, nullptr, nullptr, io::usd::export_endjob);
 
     WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
@@ -867,8 +860,8 @@ bool USD_export(const bContext *C,
     /* Use the operator's reports in non-background case. */
     worker_status.reports = reports;
 
-    blender::io::usd::export_startjob(job, &worker_status);
-    blender::io::usd::export_endjob(job);
+    io::usd::export_startjob(job, &worker_status);
+    io::usd::export_endjob(job);
     export_ok = job->export_ok;
 
     MEM_delete(job);
@@ -924,4 +917,5 @@ double get_meters_per_unit(const USDExportParams &params)
   return result;
 }
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender

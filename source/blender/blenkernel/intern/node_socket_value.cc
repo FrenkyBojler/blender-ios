@@ -270,10 +270,21 @@ template<typename T> void SocketValueVariant::store_impl(T value)
   }
   else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
     kind_ = Kind::List;
-    const std::optional<eNodeSocketDatatype> new_socket_type =
-        geo_nodes_base_cpp_type_to_socket_type(value->cpp_type());
-    BLI_assert(new_socket_type);
-    socket_type_ = *new_socket_type;
+    const CPPType &list_cpp_type = value->cpp_type();
+    if (list_cpp_type.is<bke::SocketValueVariant>()) {
+      /* For lists of #SocketValueVariant, use the socket type of the first element. */
+      const GVArray gvarray = value->varray();
+      const VArray varray = gvarray.typed<bke::SocketValueVariant>();
+      if (!varray.is_empty()) {
+        socket_type_ = varray[0].socket_type_;
+      }
+    }
+    else {
+      const std::optional<eNodeSocketDatatype> new_socket_type =
+          geo_nodes_base_cpp_type_to_socket_type(list_cpp_type);
+      BLI_assert(new_socket_type);
+      socket_type_ = *new_socket_type;
+    }
     value_.emplace<nodes::ListPtr>(std::move(value));
   }
 #ifdef WITH_OPENVDB
@@ -411,6 +422,11 @@ bool SocketValueVariant::is_context_dependent_field() const
     return false;
   }
   return field.node().depends_on_input();
+}
+
+bool SocketValueVariant::is_field() const
+{
+  return kind_ == Kind::Field;
 }
 
 bool SocketValueVariant::is_volume_grid() const
@@ -685,16 +701,16 @@ bool SocketValueVariant::valid_for_socket(eNodeSocketDatatype socket_type) const
 INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(int)
 INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(bool)
 INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(float)
-INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(blender::float3)
-INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(blender::ColorGeometry4f)
-INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(blender::math::Quaternion)
+INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(float3)
+INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(ColorGeometry4f)
+INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(math::Quaternion)
 
 INSTANTIATE(std::string)
 INSTANTIATE(fn::GField)
-INSTANTIATE(blender::nodes::BundlePtr)
-INSTANTIATE(blender::nodes::ClosurePtr)
-INSTANTIATE(blender::nodes::ListPtr)
-INSTANTIATE(blender::bke::GeometrySet)
+INSTANTIATE(nodes::BundlePtr)
+INSTANTIATE(nodes::ClosurePtr)
+INSTANTIATE(nodes::ListPtr)
+INSTANTIATE(bke::GeometrySet)
 
 INSTANTIATE(Object *)
 INSTANTIATE(Collection *)

@@ -6,6 +6,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_mesh.hh"
+#include "BKE_object_types.hh"
 
 #include "DNA_mesh_types.h"
 
@@ -81,7 +82,7 @@ void FillDataMesh::execute(Object &object,
                            const GroupedSpan<int> vert_to_face_map,
                            FunctionRef<bool(int from_v, int to_v)> func)
 {
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const bke::AttributeAccessor attributes = mesh.attributes();
@@ -164,7 +165,7 @@ void FillDataGrids::execute(
 
 void FillDataBMesh::execute(Object &object, FunctionRef<bool(BMVert *from_v, BMVert *to_v)> func)
 {
-  BMesh *bm = object.sculpt->bm;
+  BMesh *bm = object.runtime->sculpt_session->bm;
   BMeshNeighborVerts neighbors;
   while (!this->queue.empty()) {
     BMVert *from_v = this->queue.front();

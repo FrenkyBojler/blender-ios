@@ -39,7 +39,9 @@
 
 #include "paint_intern.hh"
 
-namespace blender::ed::sculpt_paint::image::ops::paint {
+namespace blender {
+
+namespace ed::sculpt_paint::image::ops::paint {
 
 /**
  * Interface to use the same painting operator for 3D and 2D painting. Interface removes the
@@ -48,8 +50,12 @@ namespace blender::ed::sculpt_paint::image::ops::paint {
 class AbstractPaintMode {
  public:
   virtual ~AbstractPaintMode() = default;
-  virtual void *paint_new_stroke(
-      bContext *C, wmOperator *op, Object *ob, const float mouse[2], int mode) = 0;
+  virtual void *paint_new_stroke(bContext *C,
+                                 wmOperator *op,
+                                 Object *ob,
+                                 const float mouse[2],
+                                 BrushStrokeMode mode,
+                                 BrushSwitchMode brush_switch_mode) = 0;
   virtual void paint_stroke(bContext *C,
                             void *stroke_handle,
                             float prev_mouse[2],
@@ -79,8 +85,12 @@ class AbstractPaintMode {
 
 class ImagePaintMode : public AbstractPaintMode {
  public:
-  void *paint_new_stroke(
-      bContext *C, wmOperator *op, Object * /*ob*/, const float /*mouse*/[2], int mode) override
+  void *paint_new_stroke(bContext *C,
+                         wmOperator *op,
+                         Object * /*ob*/,
+                         const float /*mouse*/[2],
+                         const BrushStrokeMode mode,
+                         const BrushSwitchMode /*brush_switch_mode*/) override
   {
     return paint_2d_new_stroke(C, op, mode);
   }
@@ -139,10 +149,14 @@ class ImagePaintMode : public AbstractPaintMode {
 
 class ProjectionPaintMode : public AbstractPaintMode {
  public:
-  void *paint_new_stroke(
-      bContext *C, wmOperator * /*op*/, Object *ob, const float mouse[2], int mode) override
+  void *paint_new_stroke(bContext *C,
+                         wmOperator * /*op*/,
+                         Object *ob,
+                         const float mouse[2],
+                         BrushStrokeMode mode,
+                         BrushSwitchMode brush_switch_mode) override
   {
-    return paint_proj_new_stroke(C, ob, mouse, mode);
+    return paint_proj_new_stroke(C, ob, mouse, mode, brush_switch_mode);
   }
 
   void paint_stroke(bContext *C,
@@ -238,18 +252,18 @@ struct PaintOperation : public PaintModeData {
 };
 
 static void gradient_draw_line(bContext * /*C*/,
-                               const blender::int2 &xy,
-                               const blender::float2 & /*tilt*/,
+                               const int2 &xy,
+                               const float2 & /*tilt*/,
                                void *customdata)
 {
-  PaintOperation *pop = (PaintOperation *)customdata;
+  PaintOperation *pop = static_cast<PaintOperation *>(customdata);
 
   if (pop) {
     GPU_line_smooth(true);
     GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
 
     ARegion *region = pop->vc.region;
 
@@ -259,7 +273,7 @@ static void gradient_draw_line(bContext * /*C*/,
     immUniformColor4ub(0, 0, 0, 255);
 
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2fv(pos, blender::float2(xy));
+    immVertex2fv(pos, float2(xy));
     immVertex2f(
         pos, pop->startmouse[0] + region->winrct.xmin, pop->startmouse[1] + region->winrct.ymin);
     immEnd();
@@ -268,7 +282,7 @@ static void gradient_draw_line(bContext * /*C*/,
     immUniformColor4ub(255, 255, 255, 255);
 
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2fv(pos, blender::float2(xy));
+    immVertex2fv(pos, float2(xy));
     immVertex2f(
         pos, pop->startmouse[0] + region->winrct.xmin, pop->startmouse[1] + region->winrct.ymin);
     immEnd();
@@ -289,7 +303,8 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
   ToolSettings *settings = scene->toolsettings;
   std::unique_ptr<PaintOperation> pop = std::make_unique<PaintOperation>();
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
-  int mode = RNA_enum_get(op->ptr, "mode");
+  auto mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
+  auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
   pop->vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   copy_v2_v2(pop->prevmouse, mouse);
@@ -313,7 +328,7 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
     pop->mode = MEM_new<ImagePaintMode>("ImagePaintMode");
   }
 
-  pop->stroke_handle = pop->mode->paint_new_stroke(C, op, ob, mouse, mode);
+  pop->stroke_handle = pop->mode->paint_new_stroke(C, op, ob, mouse, mode, brush_switch_mode);
   if (!pop->stroke_handle) {
     return nullptr;
   }
@@ -547,7 +562,7 @@ static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
   bool dummy;
   float dummy_location[3];
 
-  int stroke_mode = RNA_enum_get(op->ptr, "mode");
+  BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
   float zoomx;
   float zoomy;
   get_imapaint_zoom(C, &zoomx, &zoomy);
@@ -585,7 +600,7 @@ static void paint_cancel(bContext *C, wmOperator *op)
 
   stroke->cancel(C, op);
 }
-}  // namespace blender::ed::sculpt_paint::image::ops::paint
+}  // namespace ed::sculpt_paint::image::ops::paint
 
 void PAINT_OT_image_paint(wmOperatorType *ot)
 {
@@ -608,3 +623,5 @@ void PAINT_OT_image_paint(wmOperatorType *ot)
 
   paint_stroke_operator_properties(ot);
 }
+
+}  // namespace blender

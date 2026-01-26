@@ -380,7 +380,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
           }
         }
 
-        luv = (float (*)[2])BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
+        luv = reinterpret_cast<float (*)[2]> BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
         UVsToTransData(t->aspect, *luv, center, prop_distance, selected, l, td++, td2d++);
       }
     }
@@ -467,7 +467,7 @@ static void recalcData_uv(TransInfo *t)
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     if (tc->data_len) {
-      DEG_id_tag_update(static_cast<ID *>(tc->obedit->data), ID_RECALC_GEOMETRY);
+      DEG_id_tag_update(tc->obedit->data, ID_RECALC_GEOMETRY);
     }
   }
 }

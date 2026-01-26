@@ -10,6 +10,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
@@ -65,7 +66,7 @@ static void calc_faces(const Depsgraph &depsgraph,
                        LocalData &tls,
                        const MutableSpan<float> mask)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Span<int> verts = node.verts();
@@ -111,7 +112,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
@@ -159,7 +160,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const BMesh &bm = *ss.bm;
   const StrokeCache &cache = *ss.cache;
 
@@ -207,16 +208,16 @@ void do_mask_brush(const Depsgraph &depsgraph,
                    Object &object,
                    const IndexMask &node_mask)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   const float bstrength = ss.cache->bstrength;
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
-    case blender::bke::pbvh::Type::Mesh: {
+    case bke::pbvh::Type::Mesh: {
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const Span<float3> positions = bke::pbvh::vert_positions_eval(depsgraph, object);
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
 
@@ -243,7 +244,7 @@ void do_mask_brush(const Depsgraph &depsgraph,
       mask.finish();
       break;
     }
-    case blender::bke::pbvh::Type::Grids: {
+    case bke::pbvh::Type::Grids: {
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       MutableSpan<float> masks = subdiv_ccg.masks;
@@ -255,7 +256,7 @@ void do_mask_brush(const Depsgraph &depsgraph,
       });
       break;
     }
-    case blender::bke::pbvh::Type::BMesh: {
+    case bke::pbvh::Type::BMesh: {
       const int mask_offset = CustomData_get_offset_named(
           &ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();

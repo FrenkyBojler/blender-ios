@@ -38,8 +38,8 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
   const BIFIconID icon = icon_override == ICON_NONE ? RNA_struct_ui_icon(rna_ptr.type) :
                                                       icon_override;
 
-  if (&rna_type == &RNA_NodeTree) {
-    ID *id = (ID *)ptr;
+  if (&rna_type == RNA_NodeTree) {
+    ID *id = static_cast<ID *>(ptr);
     path.append({name, icon, ID_REAL_USERS(id), handle_func});
   }
   else {
