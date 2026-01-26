@@ -117,11 +117,8 @@ void BKE_sound_update_fps(Main *bmain, Scene *scene);
 
 void BKE_sound_update_scene_listener(Scene *scene);
 
-AUD_SequenceEntry yBKE_sound_scene_add_scene_sound(
-    Scene *scene, Strip *strip, int startframe, int endframe, int frameskip);
-
-AUD_SequenceEntry BKE_sound_scene_add_scene_sound_defaults(Scene *scene, Strip *strip);
-AUD_SequenceEntry BKE_sound_add_scene_sound_defaults(Scene *scene, Strip *strip);
+AUD_SequenceEntry BKE_sound_scene_add_scene_sound(Scene *scene, Strip *strip);
+AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip);
 
 void BKE_sound_remove_scene_sound(Scene *scene, AUD_SequenceEntry handle);
 

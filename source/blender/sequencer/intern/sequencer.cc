@@ -690,8 +690,7 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
     }
     strip_new->data->stripdata = nullptr;
     if (strip->runtime->scene_sound) {
-      strip_new->runtime->scene_sound = BKE_sound_scene_add_scene_sound_defaults(ctx.scene_dst,
-                                                                                 strip_new);
+      strip_new->runtime->scene_sound = BKE_sound_scene_add_scene_sound(ctx.scene_dst, strip_new);
     }
   }
   else if (strip->type == STRIP_TYPE_MOVIECLIP) {
@@ -1095,12 +1094,12 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
 
   if (strip->sound != nullptr) {
     /* Adds `strip->sound->playback_handle` to `scene->sound_scene` */
-    strip->runtime->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip);
+    strip->runtime->scene_sound = BKE_sound_add_scene_sound(scene, strip);
   }
   else if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
     /* Adds `strip->scene->sound_scene` to `scene->sound_scene`. */
     BKE_sound_ensure_scene(strip->scene);
-    strip->runtime->scene_sound = BKE_sound_scene_add_scene_sound_defaults(scene, strip);
+    strip->runtime->scene_sound = BKE_sound_scene_add_scene_sound(scene, strip);
   }
 }
 

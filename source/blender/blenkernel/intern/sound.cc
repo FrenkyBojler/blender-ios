@@ -872,7 +872,7 @@ void BKE_sound_update_scene_listener(Scene *scene)
   sound->setDistanceModel(aud::DistanceModel(scene->audio.distance_model));
 }
 
-AUD_SequenceEntry BKE_sound_scene_add_scene_sound_defaults(Scene *scene, Strip *strip)
+AUD_SequenceEntry BKE_sound_scene_add_scene_sound(Scene *scene, Strip *strip)
 {
   sound_verify_evaluated_id(&scene->id);
   if (strip->scene && scene != strip->scene) {
@@ -889,7 +889,7 @@ AUD_SequenceEntry BKE_sound_scene_add_scene_sound_defaults(Scene *scene, Strip *
   return nullptr;
 }
 
-AUD_SequenceEntry BKE_sound_add_scene_sound_defaults(Scene *scene, Strip *strip)
+AUD_SequenceEntry BKE_sound_add_scene_sound(Scene *scene, Strip *strip)
 {
   sound_verify_evaluated_id(&scene->id);
   /* Happens when sequence's sound data-block was removed. */
@@ -1842,11 +1842,11 @@ void BKE_sound_unlock() {}
 void BKE_sound_refresh_callback_bmain(Main * /*bmain*/) {}
 void BKE_sound_reset_scene_specs(Scene * /*scene*/) {}
 void BKE_sound_mute_scene(Scene * /*scene*/, bool /*muted*/) {}
-AUD_SequenceEntry BKE_sound_scene_add_scene_sound_defaults(Scene * /*scene*/, Strip * /*strip*/)
+AUD_SequenceEntry BKE_sound_scene_add_scene_sound(Scene * /*scene*/, Strip * /*strip*/)
 {
   return nullptr;
 }
-AUD_SequenceEntry BKE_sound_add_scene_sound_defaults(Scene * /*scene*/, Strip * /*strip*/)
+AUD_SequenceEntry BKE_sound_add_scene_sound(Scene * /*scene*/, Strip * /*strip*/)
 {
   return nullptr;
 }
