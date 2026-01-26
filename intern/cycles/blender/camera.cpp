@@ -1099,8 +1099,8 @@ void BlenderSync::sync_view(blender::View3D *b_v3d,
                             const int width,
                             const int height)
 {
-  const float prev_fov = scene->camera->get_fov();
-  const Transform prev_matrix = scene->camera->get_matrix();
+  const float fov_pre = scene->camera->get_fov();
+  const Transform matrix_pre = scene->camera->get_matrix();
 
   const blender::RenderData &b_render_settings = b_scene->r;
   BlenderCamera bcam(b_render_settings);
@@ -1112,17 +1112,17 @@ void BlenderSync::sync_view(blender::View3D *b_v3d,
   blender_camera_sync(scene->camera, scene, &bcam, width, height, "", &cscene);
 
   /* Apply viewport changes as motion. */
-  bool update_view_motion = prev_matrix != transform_identity() &&
-                            prev_matrix != scene->camera->get_matrix();
-  if (prev_fov != scene->camera->get_fov()) {
-    scene->camera->set_fov_pre(prev_fov);
+  bool update_view_motion = matrix_pre != transform_identity() &&
+                            matrix_pre != scene->camera->get_matrix();
+  if (fov_pre != scene->camera->get_fov()) {
+    scene->camera->set_fov_pre(fov_pre);
     scene->camera->set_use_perspective_motion(true);
     update_view_motion = true;
   }
   if (update_view_motion) {
     array<Transform> motion(2);
-    motion[0] = prev_matrix;
-    motion[1] = bcam.matrix;
+    motion[0] = matrix_pre;
+    motion[1] = scene->camera->get_matrix();
     scene->camera->set_motion(motion);
   }
 
