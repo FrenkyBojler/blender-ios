@@ -8,6 +8,8 @@
  * \ingroup bke
  */
 
+#include <string>
+
 #include "BKE_sound_types.hh"
 
 #include "BLI_vector.hh"
