@@ -613,7 +613,7 @@ bool ED_mask_selected_minmax(const bContext *C,
                              float min[2],
                              float max[2],
                              bool handles_as_control_point,
-                             bool prefer_spline_point)
+                             bool ignore_handles)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Mask *mask = CTX_data_edit_mask(C);
@@ -644,7 +644,7 @@ bool ED_mask_selected_minmax(const bContext *C,
         if (!BKE_mask_point_selected(point)) {
           continue;
         }
-        if (bezt->f2 & SELECT || prefer_spline_point) {
+        if (bezt->f2 & SELECT || ignore_handles) {
           minmax_v2v2_v2(min, max, deform_point->bezt.vec[1]);
           ok = true;
           continue;
@@ -678,13 +678,13 @@ bool ED_mask_selected_minmax(const bContext *C,
 
 void ED_mask_center_from_pivot_ex(const bContext *C,
                                   ScrArea *area,
-                                  bool prefer_spline_point,
-                                  float r_center[2],
+                                  bool ignore_handles,
                                   char mode,
+                                  float r_center[2],
                                   bool *r_has_select)
 {
   float min[2], max[2];
-  const bool mask_selected = ED_mask_selected_minmax(C, min, max, false, prefer_spline_point);
+  const bool mask_selected = ED_mask_selected_minmax(C, min, max, false, ignore_handles);
 
   switch (mode) {
     case V3D_AROUND_CURSOR:
