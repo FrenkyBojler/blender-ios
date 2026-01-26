@@ -559,7 +559,7 @@ void WM_cursor_grab_enable(wmWindow *win,
         }
         else {
           ghost_window->setCursorGrab(mode, mode_axis, nullptr, nullptr);
-        };
+        }
       }
 
       win->grabcursor = mode;
