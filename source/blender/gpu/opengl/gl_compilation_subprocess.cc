@@ -184,7 +184,7 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
   if (ghost_context == nullptr) {
     std::cerr << "Compilation Subprocess: Failed to initialize GHOST context for "
               << subprocess_name << "\n";
-    ghost_system->disposeSystem();
+    GHOST_ISystem::disposeSystem();
     return;
   }
   ghost_context->activateDrawingContext();
@@ -306,7 +306,7 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
   GPU_exit();
   GPU_context_discard(gpu_context);
   ghost_system->disposeContext(ghost_context);
-  ghost_system->disposeSystem();
+  GHOST_ISystem::disposeSystem();
 }
 
 namespace gpu {
