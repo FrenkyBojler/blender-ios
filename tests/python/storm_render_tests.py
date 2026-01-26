@@ -145,6 +145,11 @@ BLOCKLIST_VULKAN_NVIDIA = [
     "hair_instancer_uv.blend"
 ]
 
+BLOCKLIST_VULKAN_AMD = [
+    # Hair; failed non-deterministically on workers when tested
+    "hair_instancer_uv.blend"
+]
+
 
 def setup():
     import bpy
@@ -224,6 +229,8 @@ def main():
         gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
         if gpu_vendor == "NVIDIA":
             blocklist += BLOCKLIST_VULKAN_NVIDIA
+        elif gpu_vendor == "AMD":
+            blocklist += BLOCKLIST_VULKAN_AMD
         elif gpu_vendor == "INTEL" and sys.platform == "linux":
             blocklist += BLOCKLIST_VULKAN_INTEL_LINUX
     else:
