@@ -1,1 +1,2 @@
 Referenced by issue #153162, Regression: Asset thumbnails lost on save + reload
+Referenced by commit b9646d9d11a584b2e6a381923eb654e1215dc964, Fix #153162: asset thumbnails lost on save
