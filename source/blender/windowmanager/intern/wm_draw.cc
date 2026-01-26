@@ -627,39 +627,55 @@ static const char *wm_area_name(const ScrArea *area)
 struct WindowDrawCB {
   WindowDrawCB *next, *prev;
 
-  void (*draw)(const wmWindow *win, void *customdata);
+  void (*draw)(const bContext *C, const wmWindow *win, void *customdata);
   void *customdata;
 };
 
-void *WM_draw_cb_activate(wmWindow *win,
-                          void (*draw)(const wmWindow *win, void *customdata),
+void *WM_draw_cb_activate(const std::variant<wmWindowManager *, wmWindow *> owner,
+                          void (*draw)(const bContext *C, const wmWindow *win, void *customdata),
                           void *customdata)
 {
   WindowDrawCB *wdc = MEM_callocN<WindowDrawCB>("WindowDrawCB");
 
-  BLI_addtail(&win->runtime->drawcalls, wdc);
+  std::visit([&](auto &&wm_or_win) { BLI_addtail(&wm_or_win->runtime->drawcalls, wdc); }, owner);
   wdc->draw = draw;
   wdc->customdata = customdata;
 
   return wdc;
 }
 
-void WM_draw_cb_exit(wmWindow *win, void *handle)
+bool WM_draw_cb_exit(const std::variant<wmWindowManager *, wmWindow *> owner, void *handle)
 {
-  for (WindowDrawCB &wdc : win->runtime->drawcalls) {
-    if (&wdc == static_cast<WindowDrawCB *>(handle)) {
-      BLI_remlink(&win->runtime->drawcalls, &wdc);
-      MEM_freeN(&wdc);
-      return;
-    }
-  }
+  bool any_removed = false;
+
+  std::visit(
+      [&](auto &&wm_or_win) {
+        for (WindowDrawCB &wdc : wm_or_win->runtime->drawcalls) {
+          if (&wdc == static_cast<WindowDrawCB *>(handle)) {
+            BLI_remlink(&wm_or_win->runtime->drawcalls, &wdc);
+            MEM_freeN(&wdc);
+            any_removed = true;
+            return;
+          }
+        }
+      },
+      owner);
+
+  return any_removed;
 }
 
-static void wm_draw_callbacks(wmWindow *win)
+static void wm_draw_callbacks(bContext *C, wmWindowManager *wm, wmWindow *win)
 {
+  if (wm->runtime->winactive == win) {
+    /* Allow callbacks to remove themselves. */
+    for (WindowDrawCB &wdc : wm->runtime->drawcalls.items_mutable()) {
+      wdc.draw(C, win, wdc.customdata);
+    }
+  }
+
   /* Allow callbacks to remove themselves. */
   for (WindowDrawCB &wdc : win->runtime->drawcalls.items_mutable()) {
-    wdc.draw(win, wdc.customdata);
+    wdc.draw(C, win, wdc.customdata);
   }
 }
 
@@ -1173,7 +1189,7 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
   /* Needs zero offset here or it looks blurry. #128112. */
   wmWindowViewport_ex(win, 0.0f);
 
-  wm_draw_callbacks(win);
+  wm_draw_callbacks(C, wm, win);
   wmWindowViewport(win);
 
   /* Blend in floating regions (menus). */

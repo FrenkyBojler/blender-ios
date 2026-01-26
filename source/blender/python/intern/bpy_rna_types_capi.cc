@@ -180,6 +180,33 @@ PyDoc_STRVAR(
     "\n"
     "   :arg handler: The draw cursor handler that should be removed.\n"
     "   :type handler: object\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_wm_draw_handler_add_doc,
+    ".. classmethod:: draw_handler_add(callback, args)\n"
+    "\n"
+    "   Add a new window draw handler.\n"
+    "   It will be called in the active window for every redraw.\n"
+    "   Note: All arguments are positional only for now.\n"
+    "\n"
+    "   :arg callback:\n"
+    "      A function that will be called in the active window.\n"
+    "      It gets the specified arguments as input\n"
+    "   :type callback: Callable[..., Any]\n"
+    "   :arg args: Arguments that will be passed to the callback.\n"
+    "   :type args: tuple[Any, ...]\n"
+    "   :arg space_type: The space type the callback draws in; for example ``VIEW_3D``. "
+    "   :return: Handler that can be removed later on.\n"
+    "   :rtype: object\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_wm_draw_handler_remove_doc,
+    ".. classmethod:: draw_cursor_remove(handler)\n"
+    "\n"
+    "   Remove a window draw handler that was added previously.\n"
+    "\n"
+    "   :arg handler: The window draw handler that should be removed.\n"
+    "   :type handler: object\n");
 
 static PyMethodDef pyrna_windowmanager_methods[] = {
     {"draw_cursor_add",
@@ -190,6 +217,14 @@ static PyMethodDef pyrna_windowmanager_methods[] = {
      static_cast<PyCFunction>(pyrna_callback_classmethod_remove),
      METH_VARARGS | METH_CLASS,
      pyrna_draw_cursor_remove_doc},
+    {"draw_handler_add",
+     static_cast<PyCFunction>(pyrna_callback_classmethod_add),
+     METH_VARARGS | METH_CLASS,
+     pyrna_wm_draw_handler_add_doc},
+    {"draw_cursor_remove",
+     static_cast<PyCFunction>(pyrna_callback_classmethod_remove),
+     METH_VARARGS | METH_CLASS,
+     pyrna_wm_draw_handler_remove_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -221,7 +256,7 @@ static PyMethodDef pyrna_context_methods[] = {
 
 PyDoc_STRVAR(
     /* Wrap. */
-    pyrna_draw_handler_add_doc,
+    pyrna_region_draw_handler_add_doc,
     ".. classmethod:: draw_handler_add(callback, args, region_type, draw_type)\n"
     "\n"
     "   Add a new draw handler to this space type.\n"
@@ -245,7 +280,7 @@ PyDoc_STRVAR(
     "   :rtype: object\n");
 PyDoc_STRVAR(
     /* Wrap. */
-    pyrna_draw_handler_remove_doc,
+    pyrna_region_draw_handler_remove_doc,
     ".. classmethod:: draw_handler_remove(handler, region_type)\n"
     "\n"
     "   Remove a draw handler that was added previously.\n"
@@ -259,11 +294,11 @@ static PyMethodDef pyrna_space_methods[] = {
     {"draw_handler_add",
      static_cast<PyCFunction>(pyrna_callback_classmethod_add),
      METH_VARARGS | METH_CLASS,
-     pyrna_draw_handler_add_doc},
+     pyrna_region_draw_handler_add_doc},
     {"draw_handler_remove",
      static_cast<PyCFunction>(pyrna_callback_classmethod_remove),
      METH_VARARGS | METH_CLASS,
-     pyrna_draw_handler_remove_doc},
+     pyrna_region_draw_handler_remove_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 

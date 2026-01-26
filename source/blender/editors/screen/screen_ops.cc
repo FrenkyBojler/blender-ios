@@ -1871,7 +1871,7 @@ static void area_move_set_limits(wmWindow *win,
   }
 }
 
-static void area_move_draw_cb(const wmWindow *win, void *userdata)
+static void area_move_draw_cb(const bContext * /*C*/, const wmWindow *win, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   const sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
@@ -1884,7 +1884,7 @@ static void area_move_draw_cb(const wmWindow *win, void *userdata)
   screen_draw_move_highlight(win, md->screen, md->dir_axis, factor);
 }
 
-static void area_move_out_draw_cb(const wmWindow *win, void *userdata)
+static void area_move_out_draw_cb(const bContext * /*C*/, const wmWindow *win, void *userdata)
 {
   const sAreaMoveData *md = static_cast<sAreaMoveData *>(userdata);
   const double now = BLI_time_now_seconds();
@@ -2475,7 +2475,7 @@ static bool area_split_allowed(const ScrArea *area, const eScreenAxis dir_axis)
   return true;
 }
 
-static void area_split_draw_cb(const wmWindow * /*win*/, void *userdata)
+static void area_split_draw_cb(const bContext * /*C*/, const wmWindow * /*win*/, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
 
@@ -3023,7 +3023,7 @@ static bool is_split_edge(const int alignment, const AZEdge edge)
          ((alignment == RGN_ALIGN_RIGHT) && (edge == AE_LEFT_TO_TOPRIGHT));
 }
 
-static void region_scale_draw_cb(const wmWindow * /*win*/, void *userdata)
+static void region_scale_draw_cb(const bContext * /*C*/, const wmWindow * /*win*/, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   RegionMoveData *rmd = static_cast<RegionMoveData *>(op->customdata);
@@ -4161,7 +4161,7 @@ struct sAreaJoinData {
   void *draw_dock_callback;   /* call #screen_draw_dock_highlight, overlay on draw_dock_win. */
 };
 
-static void area_join_draw_cb(const wmWindow *win, void *userdata)
+static void area_join_draw_cb(const bContext * /*C*/, const wmWindow *win, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   sAreaJoinData *sd = static_cast<sAreaJoinData *>(op->customdata);
@@ -4184,7 +4184,7 @@ static void area_join_draw_cb(const wmWindow *win, void *userdata)
   }
 }
 
-static void area_join_dock_cb(const wmWindow *win, void *userdata)
+static void area_join_dock_cb(const bContext * /*C*/, const wmWindow *win, void *userdata)
 {
   const wmOperator *op = static_cast<wmOperator *>(userdata);
   sAreaJoinData *jd = static_cast<sAreaJoinData *>(op->customdata);

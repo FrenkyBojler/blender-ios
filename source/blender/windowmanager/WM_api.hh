@@ -16,6 +16,7 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 
 #include "DNA_windowmanager_types.h"
 
@@ -2009,10 +2010,22 @@ void WM_progress_clear(wmWindow *win);
 
 /* Draw (for screenshot). */
 
-void *WM_draw_cb_activate(wmWindow *win,
-                          void (*draw)(const wmWindow *win, void *customdata),
+/**
+ * Register a drawing callback using the given \a draw function.
+ *
+ * \param owner: If the window manager is passed, the callback will be executed for the active
+ *   window, even as the active window changes. If the window is passed instead, the callback will
+ *   only be executed for this window, regardless of the active state. Do not pass nullptr. Make
+ *   sure to pass the same owner to #WM_draw_cb_exit().
+ */
+void *WM_draw_cb_activate(std::variant<wmWindowManager *, wmWindow *> owner,
+                          void (*draw)(const bContext *C, const wmWindow *win, void *customdata),
                           void *customdata);
-void WM_draw_cb_exit(wmWindow *win, void *handle);
+/**
+ * Stop calling the draw callback for the given owner.
+ * \param owner: The same owner passed to #WM_draw_cb_activate().
+ */
+bool WM_draw_cb_exit(std::variant<wmWindowManager *, wmWindow *> owner, void *handle);
 /**
  * High level function to redraw windows.
  *

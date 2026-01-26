@@ -1241,7 +1241,9 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
+static void screenshot_preview_draw(const bContext * /*C*/,
+                                    const wmWindow *window,
+                                    void *operator_data)
 {
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(operator_data);
   int2 p1 = data->p1;

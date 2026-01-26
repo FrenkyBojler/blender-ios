@@ -78,6 +78,9 @@ struct WindowManagerRuntime {
   /** Operator registry. */
   ListBaseT<wmOperator> operators = {nullptr, nullptr};
 
+  /** Custom drawing callbacks, called for the active window. */
+  ListBaseT<WindowDrawCB> drawcalls = {nullptr, nullptr};
+
   /** Extra overlay cursors to draw, like circles. */
   ListBaseT<wmPaintCursor> paintcursors = {nullptr, nullptr};
 

@@ -20,6 +20,8 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
+#include "BKE_global.hh"
+#include "BKE_main.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
@@ -47,6 +49,27 @@ static const EnumPropertyItem region_draw_mode_items[] = {
 };
 
 static void cb_region_draw(const bContext *C, ARegion * /*region*/, void *customdata)
+{
+  PyGILState_STATE gilstate;
+  bpy_context_set(const_cast<bContext *>(C), &gilstate);
+
+  PyObject *cb_func, *cb_args, *result;
+
+  cb_func = PyTuple_GET_ITEM((PyObject *)customdata, 1);
+  cb_args = PyTuple_GET_ITEM((PyObject *)customdata, 2);
+  result = PyObject_CallObject(cb_func, cb_args);
+
+  if (result) {
+    Py_DECREF(result);
+  }
+  else {
+    PyErr_Print();
+  }
+
+  bpy_context_clear(const_cast<bContext *>(C), &gilstate);
+}
+
+static void cb_window_draw(const bContext *C, const wmWindow * /*win*/, void *customdata)
 {
   PyGILState_STATE gilstate;
   bpy_context_set(const_cast<bContext *>(C), &gilstate);
@@ -300,14 +323,25 @@ PyObject *pyrna_callback_classmethod_add(PyObject * /*self*/, PyObject *args)
                           pyrna_enum_value_parse_string,
                           &params.region_type_enum))
     {
+      handle = WM_paint_cursor_activate(params.space_type_enum.value,
+                                        params.region_type_enum.value,
+                                        nullptr,
+                                        cb_wm_cursor_draw,
+                                        static_cast<void *>(args));
+    }
+    else if (PyArg_ParseTuple(args,
+                              "OOO!:WindowManager.draw_handler_add",
+                              &cls,
+                              &cb_func, /* already assigned, no matter */
+                              &PyTuple_Type,
+                              &cb_args))
+    {
+      wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+      handle = WM_draw_cb_activate(wm, cb_window_draw, args);
+    }
+    else {
       return nullptr;
     }
-
-    handle = WM_paint_cursor_activate(params.space_type_enum.value,
-                                      params.region_type_enum.value,
-                                      nullptr,
-                                      cb_wm_cursor_draw,
-                                      static_cast<void *>(args));
   }
   else if (RNA_struct_is_a(srna, RNA_Space)) {
     struct {
@@ -393,12 +427,20 @@ PyObject *pyrna_callback_classmethod_remove(PyObject * /*self*/, PyObject *args)
   }
 
   if (srna == RNA_WindowManager) {
-    if (!PyArg_ParseTuple(
+    if (PyArg_ParseTuple(
             args, "OO!:WindowManager.draw_cursor_remove", &cls, &PyCapsule_Type, &py_handle))
     {
+      handle_removed = WM_paint_cursor_end(static_cast<wmPaintCursor *>(handle));
+    }
+    else if (!PyArg_ParseTuple(
+                 args, "OO!:WindowManager.draw_handler_remove", &cls, &PyCapsule_Type, &py_handle))
+    {
+      wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+      handle_removed = WM_draw_cb_exit(wm, handle);
+    }
+    else {
       return nullptr;
     }
-    handle_removed = WM_paint_cursor_end(static_cast<wmPaintCursor *>(handle));
     capsule_clear = true;
   }
   else if (RNA_struct_is_a(srna, RNA_Space)) {

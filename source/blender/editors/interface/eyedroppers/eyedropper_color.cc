@@ -84,7 +84,7 @@ struct Eyedropper {
   ViewportColorSampleSession *viewport_session = nullptr;
 };
 
-static void eyedropper_draw_cb(const wmWindow * /*window*/, void *arg)
+static void eyedropper_draw_cb(const bContext * /*C*/, const wmWindow * /*window*/, void *arg)
 {
   Eyedropper *eye = static_cast<Eyedropper *>(arg);
   eyedropper_draw_cursor_text_region(eye->cb_win_event_xy, eye->sample_text);

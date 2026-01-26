@@ -677,7 +677,9 @@ struct AreaAnimateHighlightData {
   void *draw_callback;
 };
 
-static void area_animate_highlight_cb(const wmWindow * /*win*/, void *userdata)
+static void area_animate_highlight_cb(const bContext * /*C*/,
+                                      const wmWindow * /*win*/,
+                                      void *userdata)
 {
   const AreaAnimateHighlightData *data = static_cast<const AreaAnimateHighlightData *>(userdata);
 
