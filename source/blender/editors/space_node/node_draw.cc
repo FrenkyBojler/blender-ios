@@ -2886,7 +2886,7 @@ static ColorTheme4f node_header_color_get(const bNodeTree &ntree,
 
 static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node, ui::Button &but)
 {
-  button_func_tooltip_custom_set_cpp(but, [&](bContext & /*C*/, ui::TooltipData &data) {
+  button_func_tooltip_custom_set_cpp(but, [=](bContext & /*C*/, ui::TooltipData &data) {
     const std::string description = node.typeinfo->ui_description_fn ?
                                         TIP_(node.typeinfo->ui_description_fn(node)) :
                                         TIP_(node.typeinfo->ui_description);
