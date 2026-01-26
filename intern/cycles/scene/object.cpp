@@ -441,7 +441,7 @@ bool Object::has_shadow_linking() const
   return false;
 }
 
-void Object::set_transform_normalized(Transform tfm_)
+void Object::set_tfm(Transform tfm)
 {
   if (geometry) {
     if (geometry->is_volume()) {
@@ -450,12 +450,13 @@ void Object::set_transform_normalized(Transform tfm_)
        * robust handling of multiple overlapping faces or use an all-hit intersection similar to
        * shadows. */
       const float3 offset = transform_direction(
-          &tfm_, make_float3(hash_uint_to_float(hash_string(name.c_str())) * 0.001f));
-      transform_translate(tfm_, offset);
+          &tfm, make_float3(hash_uint_to_float(hash_string(name.c_str())) * 0.001f));
+      transform_translate(tfm, offset);
     }
   }
 
-  set_tfm(tfm_);
+  const SocketType *socket = get_tfm_socket();
+  set(*socket, tfm);
 }
 
 /* Object Manager */

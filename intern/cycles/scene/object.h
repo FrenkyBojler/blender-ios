@@ -39,7 +39,8 @@ class Object : public Node {
   NODE_DECLARE
 
   NODE_SOCKET_API(Geometry *, geometry)
-  NODE_SOCKET_API(Transform, tfm)
+  /* Use base API because we need custom setter for tfm. */
+  NODE_SOCKET_API_BASE(Transform, tfm, "tfm")
   BoundBox bounds;
   NODE_SOCKET_API(uint, random_id)
   NODE_SOCKET_API(int, pass_id)
@@ -124,7 +125,7 @@ class Object : public Node {
   bool has_shadow_linking() const;
 
   /* Transform of some object types need to be modified to prevent render issues. */
-  void set_transform_normalized(Transform tfm_);
+  void set_tfm(Transform tfm);
 
  protected:
   /* Reference to the attribute map with object attributes,
