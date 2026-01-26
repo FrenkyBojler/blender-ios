@@ -111,30 +111,6 @@ static bool id_search_allows_id(TemplateID *template_ui, const int flag, ID *id,
     }
   }
 
-  /* Hide "Render Result" and "Viewer Node" images everywhere except the Image Editor and Camera
-   * Background Images. Note: most properties already define a poll function for this so the above
-   * #RNA_property_pointer_poll() would already filter them out, this is just to prevent this for
-   * future usages as well. */
-  if (GS(id->name) == ID_IM) {
-    const Image *image = id_cast<Image *>(id);
-    const bool exclude_type = ELEM(image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE);
-
-    if (!exclude_type) {
-      return true;
-    }
-
-    std::optional<std::string> path = RNA_path_resolve_from_type_to_property(
-        &template_ui->ptr, template_ui->prop, RNA_SpaceImageEditor);
-    if (!path.has_value()) {
-      path = RNA_path_resolve_from_type_to_property(
-          &template_ui->ptr, template_ui->prop, RNA_CameraBackgroundImage);
-    }
-    if (path == "image") {
-      return true;
-    }
-    return false;
-  }
-
   return true;
 }
 
