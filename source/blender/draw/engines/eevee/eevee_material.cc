@@ -428,9 +428,10 @@ Material &MaterialModule::material_sync(Object *ob,
       mat.shadow = MaterialPass();
     }
 
-    mat.is_alpha_blend_transparent = use_forward_pipeline &&
-                                     GPU_material_flag_get(mat.shading.gpumat,
-                                                           GPU_MATFLAG_TRANSPARENT);
+    bool is_transparent = GPU_material_flag_get(mat.shading.gpumat, GPU_MATFLAG_TRANSPARENT);
+    is_transparent |= blender_mat->refraction_mode == MA_REFRACTION_AS_TRANSPARENCY &&
+                      GPU_material_flag_get(mat.shading.gpumat, GPU_MATFLAG_REFRACT);
+    mat.is_alpha_blend_transparent = use_forward_pipeline && is_transparent;
     /* Refraction is rendered as transparency for shadows. */
     mat.has_transparent_shadows = GPU_material_flag_get(
         mat.shading.gpumat, GPU_MATFLAG_TRANSPARENT | GPU_MATFLAG_REFRACT);
