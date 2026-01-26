@@ -415,7 +415,7 @@ void MTLContext::activate()
     this->set_ghost_window(ghost_window_);
   }
   else if (ghost_context_) {
-    this->set_ghost_context(static_cast<GHOST_IContext *>(ghost_context_));
+    this->set_ghost_context(ghost_context_);
   }
 
   /* Reset UBO bind state. */
