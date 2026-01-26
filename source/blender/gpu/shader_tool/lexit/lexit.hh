@@ -129,7 +129,7 @@ struct TokenBuffer {
     int32_t index_;
 
    public:
-    explicit TokenIt(TokenBuffer *buf, const int index) : buf_(buf), index_(index) {}
+    TokenIt(TokenBuffer *buf, const int index) : buf_(buf), index_(index) {}
 
     Token operator*() const
     {
