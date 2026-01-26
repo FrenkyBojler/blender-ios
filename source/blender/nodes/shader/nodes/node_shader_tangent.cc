@@ -113,8 +113,10 @@ void register_node_type_sh_tangent()
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_tangent;
   ntype.gpu_fn = file_ns::node_shader_gpu_tangent;
-  bke::node_type_storage(
-      ntype, "NodeShaderTangent", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeShaderTangent",
+                         node_free_storage<NodeShaderTangent>,
+                         node_copy_storage<NodeShaderTangent>);
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
   bke::node_register_type(ntype);

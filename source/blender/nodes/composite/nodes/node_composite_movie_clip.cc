@@ -266,7 +266,7 @@ static void node_register()
   ntype.initfunc_api = node_init;
   ntype.flag |= NODE_PREVIEW;
   bke::node_type_storage(
-      ntype, "MovieClipUser", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "MovieClipUser", node_free_storage<MovieClipUser>, node_copy_storage<MovieClipUser>);
 
   bke::node_register_type(ntype);
 }

@@ -108,8 +108,8 @@ static void node_register()
   ntype.initfunc = node_init;
   bke::node_type_storage(ntype,
                          "NodeGeometryCurveSplineType",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometryCurveSplineType>,
+                         node_copy_storage<NodeGeometryCurveSplineType>);
   ntype.draw_buttons = node_layout;
 
   bke::node_register_type(ntype);

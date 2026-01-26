@@ -294,7 +294,7 @@ void register_node_type_sh_tex_image()
   ntype.declare = file_ns::sh_node_tex_image_declare;
   ntype.initfunc = file_ns::node_shader_init_tex_image;
   bke::node_type_storage(
-      ntype, "NodeTexImage", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeTexImage", node_free_storage<NodeTexImage>, node_copy_storage<NodeTexImage>);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_image;
   ntype.labelfunc = node_image_label;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);

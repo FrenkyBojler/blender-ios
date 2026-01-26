@@ -66,7 +66,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   bke::node_type_storage(
-      ntype, "NodeInputMenu", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeInputMenu", node_free_storage<NodeInputMenu>, node_copy_storage<NodeInputMenu>);
   ntype.build_multi_function = node_build_multi_function;
   bke::node_register_type(ntype);
 }

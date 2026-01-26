@@ -201,8 +201,10 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.initfunc = node_node_init;
-  bke::node_type_storage(
-      ntype, "NodeGeometryCollectionInfo", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryCollectionInfo",
+                         node_free_storage<NodeGeometryCollectionInfo>,
+                         node_copy_storage<NodeGeometryCollectionInfo>);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   bke::node_register_type(ntype);

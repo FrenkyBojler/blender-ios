@@ -230,8 +230,8 @@ static void node_register()
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
   bke::node_type_storage(ntype,
                          "NodeGeometryStoreNamedAttribute",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometryStoreNamedAttribute>,
+                         node_copy_storage<NodeGeometryStoreNamedAttribute>);
   bke::node_type_size(ntype, 140, 100, 700);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;

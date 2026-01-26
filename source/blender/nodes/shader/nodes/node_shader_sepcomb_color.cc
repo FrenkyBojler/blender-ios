@@ -132,8 +132,10 @@ void register_node_type_sh_sepcolor()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_sepcolor_declare;
   ntype.initfunc = node_combsep_color_init;
-  bke::node_type_storage(
-      ntype, "NodeCombSepColor", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeCombSepColor",
+                         node_free_storage<NodeCombSepColor>,
+                         node_copy_storage<NodeCombSepColor>);
   ntype.gpu_fn = file_ns::gpu_shader_sepcolor;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
@@ -273,8 +275,10 @@ void register_node_type_sh_combcolor()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_combcolor_declare;
   ntype.initfunc = node_combsep_color_init;
-  bke::node_type_storage(
-      ntype, "NodeCombSepColor", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeCombSepColor",
+                         node_free_storage<NodeCombSepColor>,
+                         node_copy_storage<NodeCombSepColor>);
   ntype.gpu_fn = file_ns::gpu_shader_combcolor;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 

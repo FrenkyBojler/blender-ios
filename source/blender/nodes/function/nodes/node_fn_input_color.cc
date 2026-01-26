@@ -48,8 +48,10 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  bke::node_type_storage(
-      ntype, "NodeInputColor", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeInputColor",
+                         node_free_storage<NodeInputColor>,
+                         node_copy_storage<NodeInputColor>);
   ntype.build_multi_function = node_build_multi_function;
   bke::node_register_type(ntype);
 }

@@ -267,8 +267,10 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
-  bke::node_type_storage(
-      ntype, "NodeGeometryMeshToPoints", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryMeshToPoints",
+                         node_free_storage<NodeGeometryMeshToPoints>,
+                         node_copy_storage<NodeGeometryMeshToPoints>);
   bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);

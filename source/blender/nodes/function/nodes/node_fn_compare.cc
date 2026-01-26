@@ -749,8 +749,10 @@ static void node_register()
   ntype.labelfunc = node_label;
   ntype.updatefunc = node_update;
   ntype.initfunc = node_init;
-  bke::node_type_storage(
-      ntype, "NodeFunctionCompare", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeFunctionCompare",
+                         node_free_storage<NodeFunctionCompare>,
+                         node_copy_storage<NodeFunctionCompare>);
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;

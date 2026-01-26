@@ -180,8 +180,10 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_draw_buttons;
   ntype.initfunc_api = node_init;
-  bke::node_type_storage(
-      ntype, "NodeKeyingScreenData", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeKeyingScreenData",
+                         node_free_storage<NodeKeyingScreenData>,
+                         node_copy_storage<NodeKeyingScreenData>);
   ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);

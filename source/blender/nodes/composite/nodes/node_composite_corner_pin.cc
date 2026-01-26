@@ -462,8 +462,10 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.get_compositor_operation = get_compositor_operation;
-  bke::node_type_storage(
-      ntype, "NodeCornerPinData", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeCornerPinData",
+                         node_free_storage<NodeCornerPinData>,
+                         node_copy_storage<NodeCornerPinData>);
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

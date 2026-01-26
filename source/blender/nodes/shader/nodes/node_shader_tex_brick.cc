@@ -317,7 +317,7 @@ void register_node_type_sh_tex_brick()
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_tex_brick;
   bke::node_type_storage(
-      ntype, "NodeTexBrick", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeTexBrick", node_free_storage<NodeTexBrick>, node_copy_storage<NodeTexBrick>);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_brick;
   ntype.build_multi_function = file_ns::sh_node_brick_build_multi_function;
   bke::node_type_size(ntype, 165, 140, NODE_DEFAULT_MAX_WIDTH);

@@ -387,7 +387,7 @@ static void node_register()
   ntype.draw_buttons = node_draw_buttons;
   ntype.initfunc = node_init;
   bke::node_type_storage(
-      ntype, "NodeDenoise", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeDenoise", node_free_storage<NodeDenoise>, node_copy_storage<NodeDenoise>);
   ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);

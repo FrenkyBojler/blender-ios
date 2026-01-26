@@ -57,8 +57,10 @@ static void node_register()
   ntype.ui_description = "Show a dial gizmo in the viewport for a value";
   ntype.enum_name_legacy = "GIZMO_DIAL";
   ntype.nclass = NODE_CLASS_INTERFACE;
-  bke::node_type_storage(
-      ntype, "NodeGeometryDialGizmo", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryDialGizmo",
+                         node_free_storage<NodeGeometryDialGizmo>,
+                         node_copy_storage<NodeGeometryDialGizmo>);
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;

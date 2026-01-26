@@ -381,8 +381,10 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  bke::node_type_storage(
-      ntype, "NodeGeometryCurveToPoints", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryCurveToPoints",
+                         node_free_storage<NodeGeometryCurveToPoints>,
+                         node_copy_storage<NodeGeometryCurveToPoints>);
   ntype.initfunc = node_init;
   bke::node_register_type(ntype);
 

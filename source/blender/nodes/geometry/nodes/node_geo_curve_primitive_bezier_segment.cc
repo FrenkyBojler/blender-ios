@@ -153,8 +153,8 @@ static void node_register()
   ntype.initfunc = node_init;
   bke::node_type_storage(ntype,
                          "NodeGeometryCurvePrimitiveBezierSegment",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometryCurvePrimitiveBezierSegment>,
+                         node_copy_storage<NodeGeometryCurvePrimitiveBezierSegment>);
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;

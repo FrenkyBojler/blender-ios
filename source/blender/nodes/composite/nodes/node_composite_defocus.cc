@@ -526,7 +526,7 @@ static void node_register()
   ntype.draw_buttons = node_draw_buttons;
   ntype.initfunc = node_init;
   bke::node_type_storage(
-      ntype, "NodeDefocus", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeDefocus", node_free_storage<NodeDefocus>, node_copy_storage<NodeDefocus>);
   ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);

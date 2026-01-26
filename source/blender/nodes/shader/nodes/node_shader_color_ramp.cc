@@ -176,7 +176,7 @@ void register_node_type_sh_valtorgb()
   ntype.initfunc = file_ns::node_shader_init_valtorgb;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
   bke::node_type_storage(
-      ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "ColorBand", node_free_storage<ColorBand>, node_copy_storage<ColorBand>);
   ntype.gpu_fn = file_ns::gpu_shader_valtorgb;
   ntype.build_multi_function = file_ns::sh_node_valtorgb_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;

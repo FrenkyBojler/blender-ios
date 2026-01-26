@@ -131,7 +131,7 @@ static void init(bNodeTree * /*ntree*/, bNode *node)
 
 static void copy(bNodeTree *dest_ntree, bNode *dest_node, const bNode *src_node)
 {
-  node_copy_standard_storage(dest_ntree, dest_node, src_node);
+  node_copy_storage<TexNodeOutput>(dest_ntree, dest_node, src_node);
   unique_name(dest_node);
   assign_index(dest_node);
 }
@@ -147,7 +147,7 @@ void register_node_type_tex_output()
   bke::node_type_socket_templates(&ntype, inputs, nullptr);
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.initfunc = init;
-  bke::node_type_storage(ntype, "TexNodeOutput", node_free_standard_storage, copy);
+  bke::node_type_storage(ntype, "TexNodeOutput", node_free_storage<TexNodeOutput>, copy);
   ntype.exec_fn = exec;
 
   ntype.flag |= NODE_PREVIEW;

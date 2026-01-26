@@ -87,7 +87,7 @@ static void node_register()
   ntype.gpu_fn = node_gpu;
   ntype.draw_buttons_ex = node_layout_ex;
   bke::node_type_storage(
-      ntype, "NodeInputIntVector", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeInputIntVector", node_free_storage<NodeInputIntVector>, node_copy_storage<NodeInputIntVector>);
   ntype.build_multi_function = node_build_multi_function;
 
   bke::node_register_type(ntype);

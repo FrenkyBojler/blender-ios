@@ -149,8 +149,10 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
-  bke::node_type_storage(
-      ntype, "NodeStoreBundleItem", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeStoreBundleItem",
+                         node_free_storage<NodeStoreBundleItem>,
+                         node_copy_storage<NodeStoreBundleItem>);
   bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);

@@ -230,8 +230,8 @@ static void node_register()
   ntype.no_muting = true;
   bke::node_type_storage(ntype,
                          "NodeGeometryForeachGeometryElementInput",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometryForeachGeometryElementInput>,
+                         node_copy_storage<NodeGeometryForeachGeometryElementInput>);
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

@@ -54,7 +54,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   bke::node_type_storage(
-      ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "ImageUser", node_free_storage<ImageUser>, node_copy_storage<ImageUser>);
   ntype.get_compositor_operation = get_compositor_operation;
 
   ntype.no_muting = true;

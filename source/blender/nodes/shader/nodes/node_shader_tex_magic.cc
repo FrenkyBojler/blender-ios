@@ -197,7 +197,7 @@ void register_node_type_sh_tex_magic()
   ntype.draw_buttons = file_ns::node_shader_buts_tex_magic;
   ntype.initfunc = file_ns::node_shader_init_tex_magic;
   bke::node_type_storage(
-      ntype, "NodeTexMagic", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeTexMagic", node_free_storage<NodeTexMagic>, node_copy_storage<NodeTexMagic>);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_magic;
   ntype.build_multi_function = file_ns::sh_node_magic_tex_build_multi_function;
 

@@ -2826,7 +2826,7 @@ static void node_register()
   ntype.labelfunc = node_update_glare_label;
   ntype.gather_link_search_ops = gather_link_searches;
   bke::node_type_storage(
-      ntype, "NodeGlare", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGlare", node_free_storage<NodeGlare>, node_copy_storage<NodeGlare>);
   ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);

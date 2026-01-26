@@ -202,8 +202,10 @@ void register_node_type_sh_tex_environment()
   ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::node_declare;
   ntype.initfunc = file_ns::node_shader_init_tex_environment;
-  bke::node_type_storage(
-      ntype, "NodeTexEnvironment", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeTexEnvironment",
+                         node_free_storage<NodeTexEnvironment>,
+                         node_copy_storage<NodeTexEnvironment>);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_environment;
   ntype.labelfunc = node_image_label;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);

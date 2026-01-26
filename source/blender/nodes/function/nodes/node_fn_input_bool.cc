@@ -72,7 +72,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.gpu_fn = gpu_shader_bool;
   bke::node_type_storage(
-      ntype, "NodeInputBool", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeInputBool", node_free_storage<NodeInputBool>, node_copy_storage<NodeInputBool>);
   ntype.build_multi_function = node_build_multi_function;
   ntype.materialx_fn = node_shader_materialx;
 

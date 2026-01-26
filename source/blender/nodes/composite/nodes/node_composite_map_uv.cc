@@ -372,7 +372,7 @@ static void node_register()
   ntype.get_compositor_operation = get_compositor_operation;
   ntype.initfunc = node_init;
   bke::node_type_storage(
-      ntype, "NodeMapUVData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeMapUVData", node_free_storage<NodeMapUVData>, node_copy_storage<NodeMapUVData>);
 
   bke::node_register_type(ntype);
 }

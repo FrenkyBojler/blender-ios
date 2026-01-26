@@ -222,8 +222,10 @@ void register_node_type_sh_radial_tiling()
   ntype.declare = file_ns::sh_node_radial_tiling_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_radial_tiling;
   ntype.initfunc = file_ns::node_shader_init_radial_tiling;
-  bke::node_type_storage(
-      ntype, "NodeRadialTiling", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeRadialTiling",
+                         node_free_storage<NodeRadialTiling>,
+                         node_copy_storage<NodeRadialTiling>);
   ntype.gpu_fn = file_ns::node_shader_gpu_radial_tiling;
   ntype.build_multi_function = file_ns::sh_node_radial_tiling_build_multi_function;
 

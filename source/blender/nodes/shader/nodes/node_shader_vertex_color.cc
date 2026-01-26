@@ -100,8 +100,10 @@ void register_node_type_sh_vertex_color()
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_vertex_color;
   ntype.initfunc = file_ns::node_shader_init_vertex_color;
-  bke::node_type_storage(
-      ntype, "NodeShaderVertexColor", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeShaderVertexColor",
+                         node_free_storage<NodeShaderVertexColor>,
+                         node_copy_storage<NodeShaderVertexColor>);
   ntype.gpu_fn = file_ns::node_shader_gpu_vertex_color;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 

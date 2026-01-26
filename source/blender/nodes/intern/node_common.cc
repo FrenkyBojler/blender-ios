@@ -598,7 +598,7 @@ void register_node_type_frame()
   ntype->enum_name_legacy = "FRAME";
   ntype->initfunc = node_frame_init;
   bke::node_type_storage(
-      *ntype, "NodeFrame", node_free_standard_storage, node_copy_standard_storage);
+      *ntype, "NodeFrame", node_free_storage<NodeFrame>, node_copy_storage<NodeFrame>);
   bke::node_type_size(*ntype, 150, 100, 0);
   ntype->flag |= NODE_BACKGROUND;
 
@@ -670,7 +670,8 @@ void register_node_type_reroute()
   ntype->nclass = NODE_CLASS_LAYOUT;
   ntype->declare = node_reroute_declare;
   ntype->initfunc = node_reroute_init;
-  node_type_storage(*ntype, "NodeReroute", node_free_standard_storage, node_copy_standard_storage);
+  node_type_storage(
+      *ntype, "NodeReroute", node_free_storage<NodeReroute>, node_copy_storage<NodeReroute>);
   ntype->poll_instance = node_reroute_poll_instance;
 
   bke::node_register_type(*ntype);
@@ -961,8 +962,10 @@ void register_node_type_implicit_conversion()
   ntype->labelfunc = node_implicit_conversion_label;
   ntype->draw_buttons = node_implicit_conversion_layout;
   ntype->initfunc = node_implicit_conversion_init;
-  node_type_storage(
-      *ntype, "NodeImplicitConversion", node_free_standard_storage, node_copy_standard_storage);
+  node_type_storage(*ntype,
+                    "NodeImplicitConversion",
+                    node_free_storage<NodeImplicitConversion>,
+                    node_copy_storage<NodeImplicitConversion>);
   ntype->poll_instance = node_implicit_conversion_poll_instance;
   ntype->geometry_node_execute = node_implicit_conversion_geo_exec;
   ntype->get_compositor_operation = node_implicit_conversion_compositor_operation;

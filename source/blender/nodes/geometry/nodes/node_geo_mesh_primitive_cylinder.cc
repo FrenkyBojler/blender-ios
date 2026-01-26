@@ -152,8 +152,10 @@ static void node_register()
   ntype.enum_name_legacy = "MESH_PRIMITIVE_CYLINDER";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
-  bke::node_type_storage(
-      ntype, "NodeGeometryMeshCylinder", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryMeshCylinder",
+                         node_free_storage<NodeGeometryMeshCylinder>,
+                         node_copy_storage<NodeGeometryMeshCylinder>);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;

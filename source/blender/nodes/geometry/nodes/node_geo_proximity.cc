@@ -338,8 +338,10 @@ static void node_register()
   ntype.enum_name_legacy = "PROXIMITY";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = geo_proximity_init;
-  bke::node_type_storage(
-      ntype, "NodeGeometryProximity", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryProximity",
+                         node_free_storage<NodeGeometryProximity>,
+                         node_copy_storage<NodeGeometryProximity>);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;

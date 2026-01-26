@@ -374,7 +374,7 @@ void register_node_type_sh_tex_sky()
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Default);
   ntype.initfunc = file_ns::node_shader_init_tex_sky;
   bke::node_type_storage(
-      ntype, "NodeTexSky", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeTexSky", node_free_storage<NodeTexSky>, node_copy_storage<NodeTexSky>);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_sky;
   ntype.updatefunc = file_ns::node_shader_update_sky;
   ntype.gather_link_search_ops = file_ns::node_gather_link_searches;

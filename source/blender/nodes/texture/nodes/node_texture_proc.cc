@@ -257,7 +257,7 @@ static void init(bNodeTree * /*ntree*/, bNode *node)
     bke::node_type_socket_templates(&ntype, name##_inputs, outputs); \
     bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle); \
     ntype.initfunc = init; \
-    bke::node_type_storage(ntype, "Tex", node_free_standard_storage, node_copy_standard_storage); \
+    bke::node_type_storage(ntype, "Tex", node_free_storage<Tex>, node_copy_storage<Tex>); \
     ntype.exec_fn = name##_exec; \
     ntype.flag |= NODE_PREVIEW; \
 \

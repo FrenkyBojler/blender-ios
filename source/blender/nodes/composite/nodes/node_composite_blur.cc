@@ -461,7 +461,7 @@ static void node_register()
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = node_init;
   bke::node_type_storage(
-      ntype, "NodeBlurData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeBlurData", node_free_storage<NodeBlurData>, node_copy_storage<NodeBlurData>);
   ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);

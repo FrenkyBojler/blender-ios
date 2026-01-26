@@ -59,7 +59,7 @@ void register_node_type_tex_valtorgb()
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
   ntype.initfunc = valtorgb_init;
   bke::node_type_storage(
-      ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "ColorBand", node_free_storage<ColorBand>, node_copy_storage<ColorBand>);
   ntype.exec_fn = valtorgb_exec;
 
   bke::node_register_type(ntype);

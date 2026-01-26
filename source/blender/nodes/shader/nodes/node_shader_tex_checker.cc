@@ -150,8 +150,10 @@ void register_node_type_sh_tex_checker()
   ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::sh_node_tex_checker_declare;
   ntype.initfunc = file_ns::node_shader_init_tex_checker;
-  bke::node_type_storage(
-      ntype, "NodeTexChecker", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeTexChecker",
+                         node_free_storage<NodeTexChecker>,
+                         node_copy_storage<NodeTexChecker>);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_checker;
   ntype.build_multi_function = file_ns::sh_node_tex_checker_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;

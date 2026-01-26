@@ -536,7 +536,7 @@ void register_node_type_sh_map_range()
   ntype.ui_class = file_ns::node_shader_map_range_ui_class;
   ntype.initfunc = file_ns::node_shader_init_map_range;
   bke::node_type_storage(
-      ntype, "NodeMapRange", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeMapRange", node_free_storage<NodeMapRange>, node_copy_storage<NodeMapRange>);
   ntype.updatefunc = file_ns::node_shader_update_map_range;
   ntype.gpu_fn = file_ns::gpu_shader_map_range;
   ntype.build_multi_function = file_ns::sh_node_map_range_build_multi_function;

@@ -388,8 +388,10 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.initfunc = node_init;
-  bke::node_type_storage(
-      ntype, "NodeGeometryRaycast", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryRaycast",
+                         node_free_storage<NodeGeometryRaycast>,
+                         node_copy_storage<NodeGeometryRaycast>);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;

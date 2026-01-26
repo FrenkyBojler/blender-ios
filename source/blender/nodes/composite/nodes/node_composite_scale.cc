@@ -399,7 +399,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   bke::node_type_storage(
-      ntype, "NodeScaleData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeScaleData", node_free_storage<NodeScaleData>, node_copy_storage<NodeScaleData>);
   ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);

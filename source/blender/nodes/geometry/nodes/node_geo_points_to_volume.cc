@@ -195,8 +195,10 @@ static void node_register()
   ntype.ui_description = "Generate a fog volume sphere around every point";
   ntype.enum_name_legacy = "POINTS_TO_VOLUME";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  bke::node_type_storage(
-      ntype, "NodeGeometryPointsToVolume", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryPointsToVolume",
+                         node_free_storage<NodeGeometryPointsToVolume>,
+                         node_copy_storage<NodeGeometryPointsToVolume>);
   bke::node_type_size(ntype, 170, 120, 700);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;

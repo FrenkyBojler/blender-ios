@@ -1297,8 +1297,8 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   bke::node_type_storage(ntype,
                          "NodeGeometryDuplicateElements",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometryDuplicateElements>,
+                         node_copy_storage<NodeGeometryDuplicateElements>);
 
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;

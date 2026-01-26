@@ -341,8 +341,10 @@ static void node_register()
   ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  bke::node_type_storage(
-      ntype, "NodeDisplaceData", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeDisplaceData",
+                         node_free_storage<NodeDisplaceData>,
+                         node_copy_storage<NodeDisplaceData>);
   ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);

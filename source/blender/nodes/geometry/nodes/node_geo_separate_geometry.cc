@@ -116,8 +116,8 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   bke::node_type_storage(ntype,
                          "NodeGeometrySeparateGeometry",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometrySeparateGeometry>,
+                         node_copy_storage<NodeGeometrySeparateGeometry>);
 
   ntype.initfunc = node_init;
 

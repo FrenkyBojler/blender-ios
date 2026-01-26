@@ -108,7 +108,7 @@ void register_node_type_tex_image()
   bke::node_type_socket_templates(&ntype, nullptr, outputs);
   ntype.initfunc = init;
   bke::node_type_storage(
-      ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "ImageUser", node_free_storage<ImageUser>, node_copy_storage<ImageUser>);
   ntype.exec_fn = exec;
   ntype.labelfunc = node_image_label;
   ntype.flag |= NODE_PREVIEW;

@@ -8,6 +8,10 @@
 
 #pragma once
 
+#include <type_traits>
+
+#include "MEM_guardedalloc.h"
+
 #include "DNA_node_types.h"
 
 #include "BKE_node.hh"
@@ -25,14 +29,36 @@ struct bNodeExecData {
   void *data; /* custom data storage */
 };
 
-/**** Storage Data ****/
+/**** Storage Method Templates ****/
 
-void node_free_curves(bNode *node);
-void node_free_standard_storage(bNode *node);
+template<typename T> void node_free_storage(bNode *node)
+{
+  if (node->storage) {
+    MEM_delete(static_cast<T *>(node->storage));
+    node->storage = nullptr;
+  }
+}
 
-void node_copy_curves(bNodeTree *dest_ntree, bNode *dest_node, const bNode *src_node);
-void node_copy_standard_storage(bNodeTree *dest_ntree, bNode *dest_node, const bNode *src_node);
+template<typename T>
+void node_copy_storage(bNodeTree * /*ntree*/, bNode *dest_node, const bNode *src_node)
+{
+  if (src_node->storage) {
+    if constexpr (std::is_constructible_v<T, dna::internal::ShallowDataConstRef<T>>) {
+      /* Can only do shallow copy when using DNA_DEFINE_CXX_METHODS. */
+      dest_node->storage = MEM_new<T>(
+          __func__, dna::shallow_copy(*static_cast<const T *>(src_node->storage)));
+    }
+    else {
+      dest_node->storage = MEM_new<T>(__func__, *static_cast<const T *>(src_node->storage));
+    }
+  }
+}
+
+/*** Curves Storage ***/
+
 void *node_initexec_curves(bNodeExecContext *context, bNode *node, bNodeInstanceKey key);
+void node_copy_curves(bNodeTree *dest_ntree, bNode *dest_node, const bNode *src_node);
+void node_free_curves(bNode *node);
 
 /**** Updates ****/
 void node_sock_label(bNodeSocket *sock, const char *name);

@@ -327,8 +327,8 @@ static void node_register()
   ntype.initfunc = node_init;
   bke::node_type_storage(ntype,
                          "NodeGeometryCurvePrimitiveQuad",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometryCurvePrimitiveQuad>,
+                         node_copy_storage<NodeGeometryCurvePrimitiveQuad>);
   ntype.gather_link_search_ops = node_gather_link_searches;
   bke::node_register_type(ntype);
 

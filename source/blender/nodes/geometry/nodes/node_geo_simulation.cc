@@ -468,8 +468,8 @@ static void node_register()
   ntype.draw_buttons_ex = node_layout_ex;
   bke::node_type_storage(ntype,
                          "NodeGeometrySimulationInput",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometrySimulationInput>,
+                         node_copy_storage<NodeGeometrySimulationInput>);
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

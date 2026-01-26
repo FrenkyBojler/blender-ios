@@ -100,8 +100,10 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.gpu_fn = gpu_shader_vector;
   ntype.draw_buttons_ex = node_layout_ex;
-  bke::node_type_storage(
-      ntype, "NodeInputVector", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeInputVector",
+                         node_free_storage<NodeInputVector>,
+                         node_copy_storage<NodeInputVector>);
   ntype.build_multi_function = node_build_multi_function;
   ntype.materialx_fn = node_shader_materialx;
 

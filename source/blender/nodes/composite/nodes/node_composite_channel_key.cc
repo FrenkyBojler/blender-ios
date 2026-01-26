@@ -441,7 +441,7 @@ static void node_register()
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = node_init;
   bke::node_type_storage(
-      ntype, "NodeChroma", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeChroma", node_free_storage<NodeChroma>, node_copy_storage<NodeChroma>);
   ntype.gpu_fn = node_gpu_material;
   ntype.build_multi_function = node_build_multi_function;
 

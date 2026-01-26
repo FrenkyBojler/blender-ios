@@ -1564,8 +1564,10 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  bke::node_type_storage(
-      ntype, "NodeGeometryExtrudeMesh", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryExtrudeMesh",
+                         node_free_storage<NodeGeometryExtrudeMesh>,
+                         node_copy_storage<NodeGeometryExtrudeMesh>);
   ntype.draw_buttons = node_layout;
   bke::node_register_type(ntype);
 

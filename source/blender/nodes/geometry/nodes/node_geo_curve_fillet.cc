@@ -179,8 +179,10 @@ static void node_register()
   ntype.ui_description = "Round corners by generating circular arcs on each control point";
   ntype.enum_name_legacy = "FILLET_CURVE";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  bke::node_type_storage(
-      ntype, "NodeGeometryCurveFillet", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryCurveFillet",
+                         node_free_storage<NodeGeometryCurveFillet>,
+                         node_copy_storage<NodeGeometryCurveFillet>);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;

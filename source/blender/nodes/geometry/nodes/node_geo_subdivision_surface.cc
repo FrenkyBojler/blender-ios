@@ -264,8 +264,8 @@ static void node_register()
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   bke::node_type_storage(ntype,
                          "NodeGeometrySubdivisionSurface",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometrySubdivisionSurface>,
+                         node_copy_storage<NodeGeometrySubdivisionSurface>);
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

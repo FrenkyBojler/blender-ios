@@ -100,7 +100,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   bke::node_type_storage(
-      ntype, "NodeSetAlpha", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeSetAlpha", node_free_storage<NodeSetAlpha>, node_copy_storage<NodeSetAlpha>);
   ntype.gpu_fn = node_gpu_material;
   ntype.build_multi_function = node_build_multi_function;
 

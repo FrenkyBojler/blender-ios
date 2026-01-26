@@ -371,8 +371,10 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_draw_buttons;
   ntype.initfunc_api = node_init;
-  bke::node_type_storage(
-      ntype, "NodeTrackPosData", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeTrackPosData",
+                         node_free_storage<NodeTrackPosData>,
+                         node_copy_storage<NodeTrackPosData>);
   ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);

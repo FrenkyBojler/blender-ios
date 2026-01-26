@@ -267,8 +267,10 @@ void register_node_type_sh_bsdf_hair_principled()
   ntype.initfunc = file_ns::node_shader_init_hair_principled;
   ntype.updatefunc = file_ns::node_shader_update_hair_principled;
   ntype.gpu_fn = file_ns::node_shader_gpu_hair_principled;
-  bke::node_type_storage(
-      ntype, "NodeShaderHairPrincipled", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeShaderHairPrincipled",
+                         node_free_storage<NodeShaderHairPrincipled>,
+                         node_copy_storage<NodeShaderHairPrincipled>);
 
   bke::node_register_type(ntype);
 }

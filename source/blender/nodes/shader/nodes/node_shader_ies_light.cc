@@ -70,8 +70,10 @@ void register_node_type_sh_tex_ies()
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_ies;
   ntype.initfunc = file_ns::node_shader_init_tex_ies;
-  bke::node_type_storage(
-      ntype, "NodeShaderTexIES", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeShaderTexIES",
+                         node_free_storage<NodeShaderTexIES>,
+                         node_copy_storage<NodeShaderTexIES>);
 
   bke::node_register_type(ntype);
 }

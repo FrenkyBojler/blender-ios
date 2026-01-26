@@ -209,8 +209,10 @@ void register_node_type_sh_normal_map()
   ntype.draw_buttons = file_ns::node_shader_buts_normal_map;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_normal_map;
-  bke::node_type_storage(
-      ntype, "NodeShaderNormalMap", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeShaderNormalMap",
+                         node_free_storage<NodeShaderNormalMap>,
+                         node_copy_storage<NodeShaderNormalMap>);
   ntype.gpu_fn = file_ns::gpu_shader_normal_map;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 

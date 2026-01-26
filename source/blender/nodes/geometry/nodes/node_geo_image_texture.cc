@@ -437,8 +437,10 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  bke::node_type_storage(
-      ntype, "NodeGeometryImageTexture", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryImageTexture",
+                         node_free_storage<NodeGeometryImageTexture>,
+                         node_copy_storage<NodeGeometryImageTexture>);
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
   ntype.geometry_node_execute = node_geo_exec;
 

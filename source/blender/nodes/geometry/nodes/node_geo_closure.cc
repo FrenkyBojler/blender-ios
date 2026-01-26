@@ -143,8 +143,10 @@ static void node_register()
   ntype.no_muting = true;
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
-  bke::node_type_storage(
-      ntype, "NodeClosureInput", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeClosureInput",
+                         node_free_storage<NodeClosureInput>,
+                         node_copy_storage<NodeClosureInput>);
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

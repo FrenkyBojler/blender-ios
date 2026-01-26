@@ -252,8 +252,8 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   bke::node_type_storage(ntype,
                          "NodeGeometryDistributePointsInVolume",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometryDistributePointsInVolume>,
+                         node_copy_storage<NodeGeometryDistributePointsInVolume>);
   ntype.initfunc = node_init;
   bke::node_type_size(ntype, 170, 100, 320);
   ntype.declare = node_declare;

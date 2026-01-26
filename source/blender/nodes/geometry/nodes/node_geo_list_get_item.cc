@@ -276,8 +276,10 @@ static void node_register()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  bke::node_type_storage(
-      ntype, "NodeGeometryListGetItem", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryListGetItem",
+                         node_free_storage<NodeGeometryListGetItem>,
+                         node_copy_storage<NodeGeometryListGetItem>);
   bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }

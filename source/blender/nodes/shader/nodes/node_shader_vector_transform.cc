@@ -218,8 +218,10 @@ void register_node_type_sh_vect_transform()
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_vect_transform;
   ntype.initfunc = file_ns::node_shader_init_vect_transform;
-  bke::node_type_storage(
-      ntype, "NodeShaderVectTransform", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeShaderVectTransform",
+                         node_free_storage<NodeShaderVectTransform>,
+                         node_copy_storage<NodeShaderVectTransform>);
   ntype.gpu_fn = file_ns::gpu_shader_vect_transform;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 

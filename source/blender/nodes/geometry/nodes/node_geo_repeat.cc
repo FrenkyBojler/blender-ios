@@ -159,8 +159,10 @@ static void node_register()
   ntype.no_muting = true;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.gpu_fn = node_shader_fn;
-  bke::node_type_storage(
-      ntype, "NodeGeometryRepeatInput", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryRepeatInput",
+                         node_free_storage<NodeGeometryRepeatInput>,
+                         node_copy_storage<NodeGeometryRepeatInput>);
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

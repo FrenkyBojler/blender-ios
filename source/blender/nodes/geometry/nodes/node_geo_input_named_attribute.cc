@@ -136,8 +136,8 @@ static void node_register()
   ntype.initfunc = node_init;
   bke::node_type_storage(ntype,
                          "NodeGeometryInputNamedAttribute",
-                         node_free_standard_storage,
-                         node_copy_standard_storage);
+                         node_free_storage<NodeGeometryInputNamedAttribute>,
+                         node_copy_storage<NodeGeometryInputNamedAttribute>);
   bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);

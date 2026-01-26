@@ -573,8 +573,10 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  bke::node_type_storage(
-      ntype, "NodeGeometryCurveSample", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryCurveSample",
+                         node_free_storage<NodeGeometryCurveSample>,
+                         node_copy_storage<NodeGeometryCurveSample>);
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
   bke::node_register_type(ntype);
