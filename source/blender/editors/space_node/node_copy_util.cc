@@ -10,6 +10,7 @@
 
 #include "DNA_node_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
@@ -47,7 +48,53 @@
 
 #include "node_intern.hh" /* own include */
 
-namespace blender::ed::space_node {
+namespace blender {
+
+const bNodeSocket &NodeAndSocket::find_socket_in_node(const bNode &other_node) const
+{
+  /* Don't use "by_identifier" functions of bNode because they depend on valid topology cache. */
+  ListBaseT<bNodeSocket> sockets = (this->in_out == SOCK_IN) ? other_node.inputs :
+                                                               other_node.outputs;
+  const bNodeSocket *socket = reinterpret_cast<bNodeSocket *>(BLI_findstring(
+      &sockets, this->socket_identifier.c_str(), offsetof(bNodeSocket, identifier)));
+  BLI_assert(socket != nullptr);
+  return *socket;
+}
+
+bNodeSocket &NodeAndSocket::find_socket_in_node(bNode &other_node) const
+{
+  /* Don't use "by_identifier" functions of bNode because they depend on valid topology cache. */
+  ListBaseT<bNodeSocket> sockets = (this->in_out == SOCK_IN) ? other_node.inputs :
+                                                               other_node.outputs;
+  bNodeSocket *socket = reinterpret_cast<bNodeSocket *>(BLI_findstring(
+      &sockets, this->socket_identifier.c_str(), offsetof(bNodeSocket, identifier)));
+  BLI_assert(socket != nullptr);
+  return *socket;
+}
+
+const bNodeSocket &MutableNodeAndSocket::find_socket_in_node(const bNode &other_node) const
+{
+  /* Don't use "by_identifier" functions of bNode because they depend on valid topology cache. */
+  ListBaseT<bNodeSocket> sockets = (this->in_out == SOCK_IN) ? other_node.inputs :
+                                                               other_node.outputs;
+  const bNodeSocket *socket = reinterpret_cast<bNodeSocket *>(BLI_findstring(
+      &sockets, this->socket_identifier.c_str(), offsetof(bNodeSocket, identifier)));
+  BLI_assert(socket != nullptr);
+  return *socket;
+}
+
+bNodeSocket &MutableNodeAndSocket::find_socket_in_node(bNode &other_node) const
+{
+  /* Don't use "by_identifier" functions of bNode because they depend on valid topology cache. */
+  ListBaseT<bNodeSocket> sockets = (this->in_out == SOCK_IN) ? other_node.inputs :
+                                                               other_node.outputs;
+  bNodeSocket *socket = reinterpret_cast<bNodeSocket *>(BLI_findstring(
+      &sockets, this->socket_identifier.c_str(), offsetof(bNodeSocket, identifier)));
+  BLI_assert(socket != nullptr);
+  return *socket;
+}
+
+namespace ed::space_node {
 
 std::optional<Bounds<float2>> node_bounds(Span<const bNode *> nodes)
 {
@@ -536,11 +583,6 @@ const Map<const bNode *, bNode *> &NodeSetCopy::node_map() const
   return node_map_;
 }
 
-const Map<const bNodeSocket *, bNodeSocket *> &NodeSetCopy::socket_map() const
-{
-  return socket_map_;
-}
-
 const Map<int32_t, int32_t> &NodeSetCopy::node_identifier_map() const
 {
   return node_identifier_map_;
@@ -555,9 +597,12 @@ NodeSetCopy NodeSetCopy::from_nodes(Main &bmain,
 
   NodeSetCopy result(dst_tree);
   Vector<AnimationBasePathChange> anim_basepaths;
+  /* Note: socket map is not stored in NodeSetCopy because socket pointers are easily invalidated
+   * by adding links to the tree. This should only be used locally. */
+  Map<const bNodeSocket *, bNodeSocket *> socket_map;
   for (const bNode *src_node : src_nodes) {
     bNode *dst_node = bke::node_copy_with_mapping(
-        &dst_tree, *src_node, LIB_ID_COPY_DEFAULT, std::nullopt, std::nullopt, result.socket_map_);
+        &dst_tree, *src_node, LIB_ID_COPY_DEFAULT, std::nullopt, std::nullopt, socket_map);
 
     result.node_map_.add(src_node, dst_node);
     result.node_identifier_map_.add(src_node->identifier, dst_node->identifier);
@@ -585,9 +630,9 @@ NodeSetCopy NodeSetCopy::from_nodes(Main &bmain,
   for (const bNodeLink *src_link : internal_links) {
     bke::node_add_link(dst_tree,
                        *result.node_map_.lookup(src_link->fromnode),
-                       *result.socket_map_.lookup(src_link->fromsock),
+                       *socket_map.lookup(src_link->fromsock),
                        *result.node_map_.lookup(src_link->tonode),
-                       *result.socket_map_.lookup(src_link->tosock));
+                       *socket_map.lookup(src_link->tosock));
   }
 
   /* Recreate zone pairing between new nodes. */
@@ -644,21 +689,20 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
 
   for (const auto &item : io_mapping.socket_data.items()) {
     for (const NodeAndSocket &origin : item.value.internal_sockets) {
-      bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
-      bNodeSocket *new_socket = copied_nodes.socket_map().lookup(&origin.find_socket());
-      if (new_socket->is_input()) {
+      bNode &new_node = *copied_nodes.node_map().lookup(&origin.node);
+      bNodeSocket &new_socket = origin.find_socket_in_node(new_node);
+      if (new_socket.is_input()) {
         bNodeSocket *group_input_socket = node_group_input_find_socket(io_nodes.input_node,
                                                                        item.key->identifier);
         BLI_assert(group_input_socket);
-        bke::node_add_link(
-            tree, *io_nodes.input_node, *group_input_socket, *new_node, *new_socket);
+        bke::node_add_link(tree, *io_nodes.input_node, *group_input_socket, new_node, new_socket);
       }
       else {
         bNodeSocket *group_output_socket = node_group_output_find_socket(io_nodes.output_node,
                                                                          item.key->identifier);
         BLI_assert(group_output_socket);
         bke::node_add_link(
-            tree, *new_node, *new_socket, *io_nodes.output_node, *group_output_socket);
+            tree, new_node, new_socket, *io_nodes.output_node, *group_output_socket);
       }
     }
   }
@@ -736,9 +780,9 @@ void connect_copied_nodes_to_external_sockets(const bNodeTree &src_tree,
         continue;
       }
 
-      bNode *new_node = copied_nodes.node_map().lookup(&origin.node);
-      bNodeSocket *new_socket = copied_nodes.socket_map().lookup(&origin.find_socket());
-      MutableNodeAndSocket new_target = {*new_node, *new_socket};
+      bNode &new_node = *copied_nodes.node_map().lookup(&origin.node);
+      bNodeSocket &new_socket = origin.find_socket_in_node(new_node);
+      MutableNodeAndSocket new_target = {new_node, new_socket};
       connect_socket_lists({new_target}, item.value.external_sockets);
     }
   }
@@ -921,4 +965,6 @@ void update_nested_node_refs_after_ungroup(bNodeTree &dst_tree,
 
 /** \} */
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

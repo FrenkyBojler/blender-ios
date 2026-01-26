@@ -78,12 +78,12 @@ struct NodeAndSocket {
     return in_out == SOCK_OUT;
   }
 
+  const bNodeSocket &find_socket_in_node(const bNode &other_node) const;
+  bNodeSocket &find_socket_in_node(bNode &other_node) const;
+
   const bNodeSocket &find_socket() const
   {
-    const bNodeSocket *socket = (in_out == SOCK_IN) ? node.input_by_identifier(socket_identifier) :
-                                                      node.output_by_identifier(socket_identifier);
-    BLI_assert(socket != nullptr);
-    return *socket;
+    return find_socket_in_node(this->node);
   }
 
   friend bool operator==(const NodeAndSocket &a, const NodeAndSocket &b)
@@ -136,12 +136,12 @@ struct MutableNodeAndSocket {
     return in_out == SOCK_OUT;
   }
 
+  const bNodeSocket &find_socket_in_node(const bNode &other_node) const;
+  bNodeSocket &find_socket_in_node(bNode &other_node) const;
+
   bNodeSocket &find_socket() const
   {
-    bNodeSocket *socket = (in_out == SOCK_IN) ? node.input_by_identifier(socket_identifier) :
-                                                node.output_by_identifier(socket_identifier);
-    BLI_assert(socket != nullptr);
-    return *socket;
+    return find_socket_in_node(this->node);
   }
 
   friend bool operator==(const MutableNodeAndSocket &a, const MutableNodeAndSocket &b)
@@ -696,13 +696,11 @@ class NodeSetCopy {
  private:
   bNodeTree &dst_tree_;
   Map<const bNode *, bNode *> node_map_;
-  Map<const bNodeSocket *, bNodeSocket *> socket_map_;
   Map<int32_t, int32_t> node_identifier_map_;
 
  public:
   bNodeTree &dst_tree() const;
   const Map<const bNode *, bNode *> &node_map() const;
-  const Map<const bNodeSocket *, bNodeSocket *> &socket_map() const;
   const Map<int32_t, int32_t> &node_identifier_map() const;
 
   static NodeSetCopy from_nodes(Main &bmain,
