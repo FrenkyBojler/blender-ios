@@ -498,9 +498,9 @@ void mesh_calc_edges(Mesh &mesh,
   }
 
   mesh.attribute_storage.wrap().remove(".edge_verts");
-  mesh.attribute_storage.wrap().foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
     if (attr.domain() != bke::AttrDomain::Edge) {
-      return;
+      continue;
     }
     switch (attr.storage_type()) {
       case AttrStorageType::Single: {
@@ -520,7 +520,7 @@ void mesh_calc_edges(Mesh &mesh,
         break;
       }
     }
-  });
+  }
 
   {
     const int orig_index_layer = CustomData_get_layer_index(&mesh.edge_data, CD_ORIGINDEX);
@@ -550,7 +550,7 @@ void mesh_calc_edges(Mesh &mesh,
     dst_attributes.remove(".select_edge");
     if (ELEM(back_range_of_new_edges.size(), 0, mesh.edges_num)) {
       const bool fill_value = back_range_of_new_edges.size() == mesh.edges_num;
-      dst_attributes.add<int2>(
+      dst_attributes.add<bool>(
           ".select_edge",
           AttrDomain::Edge,
           AttributeInitVArray(VArray<bool>::from_single(fill_value, mesh.edges_num)));

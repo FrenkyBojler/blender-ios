@@ -309,7 +309,6 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::windowmanager
   PRIVATE bf::intern::atomic
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::dependencies::optional::opensubdiv
 )
 
@@ -847,14 +846,6 @@ set(GLSL_SRC
   engines/image/shaders/image_engine_depth_vert.glsl
 )
 
-function(make_include_list
-  include_list
-  )
-  foreach(path ${_inc_list})
-    message(WARNING ${path})
-  endforeach()
-endfunction()
-
 set(GLSL_INC
   ../gpu
   ../gpu/intern
@@ -884,8 +875,6 @@ set(GLSL_INC
   intern
   intern/shaders
 )
-
-make_include_list(GLSL_INC)
 
 set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
