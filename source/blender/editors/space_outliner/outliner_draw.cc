@@ -18,6 +18,7 @@
 #include "DNA_sequence_types.h"
 #include "DNA_text_types.h"
 
+#include "BLI_bounds.hh"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
