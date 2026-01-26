@@ -32,7 +32,7 @@ function(add_node_discovery
       ${sources}
       ${extra_args}
     DEPENDS
-      ${SRC}
+      ${sources}
       ${DISCOVER_NODES_PATH}
   )
   set_source_files_properties(${output_file} PROPERTIES GENERATED TRUE)
@@ -184,7 +184,6 @@ set(LIB
   bf_nodes_geometry
   bf_nodes_shader
   bf_nodes_texture
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
   PRIVATE bf::windowmanager
