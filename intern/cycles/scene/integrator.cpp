@@ -354,20 +354,20 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->has_shadow_catcher = scene->has_shadow_catcher();
 
   if (get_denoiser_type() == DENOISER_DLSS) {
-    const auto halton = [](uint32_t index, uint32_t base) -> float {
+    const auto halton_func = [](uint32_t index, uint32_t base) -> float {
       float f = 1.0f;
       float r = 0.0f;
 
       while (index > 0) {
-        f *= static_cast<float>(base);
-        r += static_cast<float>(index % base) / f;
+        f *= float(base);
+        r += float(index % base) / f;
         index /= base;
       }
 
       return r;
     };
-    kintegrator->jitter.x = halton(frame, 2) - 0.5f;
-    kintegrator->jitter.y = halton(frame, 3) - 0.5f;
+    kintegrator->jitter.x = halton_func(frame, 2) - 0.5f;
+    kintegrator->jitter.y = halton_func(frame, 3) - 0.5f;
   }
   else {
     kintegrator->jitter.x = 0.0f;
