@@ -485,6 +485,26 @@ static void do_version_light_remove_use_nodes(Main *bmain, Light *light)
   new_output.location[1] = emission.location[1];
 }
 
+/* For cycles, the Denoising Albedo render pass is now registered after the Denoising Normal pass
+ * to match the compositor Denoise node. So we swap the order of Denoising Albedo and Denoising
+ * Normal sockets in the Render Layers node that has been saved with the old order. */
+static void do_version_render_layers_node_albedo_normal_swap(bNode &node)
+{
+  bNodeSocket *socket_denoise_normal = nullptr;
+  bNodeSocket *socket_denoise_albedo = nullptr;
+  for (bNodeSocket &socket : node.outputs) {
+    if (STREQ(socket.identifier, "Denoising Normal")) {
+      socket_denoise_normal = &socket;
+    }
+    if (STREQ(socket.identifier, "Denoising Albedo")) {
+      socket_denoise_albedo = &socket;
+    }
+  }
+  if (socket_denoise_albedo && socket_denoise_normal) {
+    BLI_listbase_swaplinks(&node.outputs, socket_denoise_normal, socket_denoise_albedo);
+  }
+}
+
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
@@ -684,6 +704,31 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     for (Mesh &mesh : bmain->meshes) {
       bke::mesh_convert_customdata_to_storage(mesh);
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 20)) {
+    for (Scene &scene : bmain->scenes) {
+      SequencerToolSettings *seq_ts = seq::tool_settings_ensure(&scene);
+      constexpr short SEQ_SNAP_TO_FRAME_RANGE_OLD = (1 << 8);
+      /* Snap to frame range was bit 8, now bit 9, to make room for snap to increment in bit 8. */
+      if (seq_ts->snap_mode & SEQ_SNAP_TO_FRAME_RANGE_OLD) {
+        seq_ts->snap_mode &= ~SEQ_SNAP_TO_FRAME_RANGE_OLD;
+        seq_ts->snap_mode |= SEQ_SNAP_TO_FRAME_RANGE;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 21)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        for (bNode &node : node_tree->nodes) {
+          if (node.type_legacy == CMP_NODE_R_LAYERS) {
+            do_version_render_layers_node_albedo_normal_swap(node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
