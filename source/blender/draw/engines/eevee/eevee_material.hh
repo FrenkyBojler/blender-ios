@@ -116,7 +116,7 @@ static inline uint64_t shader_uuid_from_material_type(
   BLI_assert(int64_t(geometry_type) < (1 << 4));
   BLI_assert(int64_t(pipeline_type) < (1 << 4));
   uint64_t transparent_shadows = (blend_flags & MA_BL_TRANSPARENT_SHADOW) ? 1 : 0;
-  uint64_t refraction_as_transparency = (refraction_mode & MA_REFRACTION_AS_TRANSPARENCY) ? 1 : 0;
+  uint64_t refraction_as_transparency = (refraction_mode == MA_REFRACTION_AS_TRANSPARENCY) ? 1 : 0;
   /* Force refraction_as_transparency for shadow pipeline. */
   refraction_as_transparency |= pipeline_type == MAT_PIPE_SHADOW;
   /* Enable refraction_as_transparency only for supported pipelines. */
