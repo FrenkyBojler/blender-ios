@@ -63,13 +63,8 @@ const bNodeSocket &NodeAndSocket::find_socket_in_node(const bNode &other_node) c
 
 bNodeSocket &NodeAndSocket::find_socket_in_node(bNode &other_node) const
 {
-  /* Don't use "by_identifier" functions of bNode because they depend on valid topology cache. */
-  ListBaseT<bNodeSocket> sockets = (this->in_out == SOCK_IN) ? other_node.inputs :
-                                                               other_node.outputs;
-  bNodeSocket *socket = reinterpret_cast<bNodeSocket *>(BLI_findstring(
-      &sockets, this->socket_identifier.c_str(), offsetof(bNodeSocket, identifier)));
-  BLI_assert(socket != nullptr);
-  return *socket;
+  return const_cast<bNodeSocket &>(
+      this->find_socket_in_node(const_cast<const bNode &>(other_node)));
 }
 
 const bNodeSocket &MutableNodeAndSocket::find_socket_in_node(const bNode &other_node) const
@@ -85,13 +80,8 @@ const bNodeSocket &MutableNodeAndSocket::find_socket_in_node(const bNode &other_
 
 bNodeSocket &MutableNodeAndSocket::find_socket_in_node(bNode &other_node) const
 {
-  /* Don't use "by_identifier" functions of bNode because they depend on valid topology cache. */
-  ListBaseT<bNodeSocket> sockets = (this->in_out == SOCK_IN) ? other_node.inputs :
-                                                               other_node.outputs;
-  bNodeSocket *socket = reinterpret_cast<bNodeSocket *>(BLI_findstring(
-      &sockets, this->socket_identifier.c_str(), offsetof(bNodeSocket, identifier)));
-  BLI_assert(socket != nullptr);
-  return *socket;
+  return const_cast<bNodeSocket &>(
+      this->find_socket_in_node(const_cast<const bNode &>(other_node)));
 }
 
 namespace ed::space_node {
