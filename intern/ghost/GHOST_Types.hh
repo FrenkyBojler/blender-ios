@@ -955,7 +955,7 @@ struct GHOST_VulkanOpenXRData {
 };
 
 /**
- * Return argument passed to #GHOST_IContext:::getVulkanHandles.
+ * Return argument passed to #GHOST_IContext::getVulkanHandles.
  *
  * The members of this struct are assigned values.
  */
