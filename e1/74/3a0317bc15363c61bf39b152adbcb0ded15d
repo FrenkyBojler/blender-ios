@@ -21,3 +21,4 @@ Referenced by issue #120465, Crash when using certain tools in viewport on Wayla
 Referenced by issue #138338, Portable (zip) Blender no longer recognizing Config Folder symbolic links (Junction) directing to selected Parent Config Folder during start up.
 Referenced by issue #145178, No Lights Working in Eevee when Shadow is On
 Referenced by issue #151075, Vertical orientation line from light draws on top of grid even when set to fully transparent
+Referenced by issue #153398, Make the "No threading with bpy" definition even more strict
