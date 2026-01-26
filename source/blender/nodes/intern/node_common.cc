@@ -547,7 +547,7 @@ void node_group_declare(NodeDeclarationBuilder &b)
 
 static void node_frame_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeFrame *data = MEM_new_for_free<NodeFrame>("frame node storage");
+  NodeFrame *data = MEM_new<NodeFrame>("frame node storage");
   node->storage = data;
 
   data->flag |= NODE_FRAME_SHRINK;
@@ -601,7 +601,7 @@ static void node_reroute_declare(nodes::NodeDeclarationBuilder &b)
 
 static void node_reroute_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeReroute *data = MEM_new_for_free<NodeReroute>(__func__);
+  NodeReroute *data = MEM_new<NodeReroute>(__func__);
   STRNCPY(data->type_idname, "NodeSocketColor");
   node->storage = data;
 }
