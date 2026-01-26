@@ -6,7 +6,7 @@
  * LexIt is a lexer tool library focus on simplicity and efficiency.
  *
  * It is aimed at building source code processors without requiring huge dependencies like LLVM.
- * It only supports unextended-ASCII input which are under 4GB (because of 32bit offsets).
+ * It only supports unextended-ASCII inputs that are under 4GB (because of 32bit offsets).
  */
 
 #pragma once
@@ -30,9 +30,9 @@ struct TokenBuffer {
   std::unique_ptr<uint32_t[]> offsets_;
   /* Original character index of each next token before whitespace merging (optional). */
   std::unique_ptr<uint32_t[]> original_offsets_;
-  /* Amount of tokens inside the buffer excluding the terminating EndOfFile token. */
+  /* Number of tokens inside the buffer excluding the terminating EndOfFile token. */
   uint32_t size_ = 0;
-  /* Amount of tokens that can be contained. */
+  /* Number of tokens that can be contained. */
   uint32_t allocated_size_ = 0;
   /* If whitespaces where not collapsed, offsets_ should be used instead of original_offsets_. */
   bool whitespaces_collapsed_ = false;
@@ -52,7 +52,7 @@ struct TokenBuffer {
   }
 
   /**
-   * @brief Discard current data and allocate backing memory for the given amount of tokens.
+   * @brief Discard current data and allocate backing memory for the given number of tokens.
    *
    * Does nothing if allocation is already large enough.
    */
@@ -66,10 +66,10 @@ struct TokenBuffer {
    * starting byte offset into the result arrays.
    *
    * Only characters with the #CanMerge flag are merged together.
-   * Characters with class greater than #ClassToTypeThreshold will just be assigned their class as
-   * #TokenType. Otherwise, the first character of the token will be used as #TokenType.
+   * Characters with a class greater than #ClassToTypeThreshold will just be assigned their class
+   * as #TokenType. Otherwise, the first character of the token will be used as #TokenType.
    *
-   * @param char_class_table  A lookup table mapping ASCII values (0-127) to a 8-bit CharClass.
+   * @param char_class_table  A lookup table mapping ASCII values (0-127) to an 8-bit CharClass.
    */
   void tokenize(const CharClass char_class_table[128]);
 

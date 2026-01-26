@@ -43,8 +43,8 @@ void TokenBuffer::clear_and_reserve(uint32_t count)
 #if defined(USE_NEON) || defined(USE_SSE4_2)
 
 /* Shuffle table used for stream compaction.
- * For a given 8bit pattern (where each 1 bit represent an element to keep)
- * encode the index of the source register for each of the 8 destination register.
+ * For a given 8bit pattern (where each 1 bit represents an element to keep)
+ * encode the index of the source register for each of the 8 destination registers.
  * Every 0 bit (representing a discarded element) will be sourced from the 0th element.
  * This is to be used with table. */
 static const uint8_t shuffle_table_8[256][8] = {
@@ -363,7 +363,7 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
   for (; offset + 16 <= str_.size(); offset += 16) {
     const __m128i c = _mm_loadu_si128((const __m128i *)(str + offset));
     const __m128i curr = simd_transform16_ascii(map_v, c);
-    /* Check if token needs to always split. */
+    /* Check if the token needs to be always split. */
     const __m128i mask_t = _mm_cmpgt_epi8(curr,
                                           _mm_set1_epi8(int8_t(CharClass::ClassToTypeThreshold)));
     const __m128i type = _mm_blendv_epi8(c, curr, mask_t);
@@ -505,8 +505,8 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
     for (; offset < str_.size(); offset += 1) {
       const char c = str_[offset];
       const CharClass curr = char_class_table[c];
-      /* Its faster to overwrite the previous value with the same value
-       * than having a condition. */
+      /* It is faster to overwrite the previous value with the same value
+       * as having a condition. */
       types_[cursor] = (curr > CharClass::ClassToTypeThreshold) ? TokenType(curr) : TokenType(c);
       offsets_[cursor] = offset;
       /* Split if no class in common. */
@@ -553,7 +553,7 @@ static void lex_number(const std::string_view str,
     cursor++;
     type++;
     offset++;
-    /* Check if previous char was an exponent "e" char. */
+    /* Check if the previous char was an exponent "e" char. */
     if ((*type == '+' || *type == '-') && str[*offset - 1] != 'e') {
       break;
     }
