@@ -176,27 +176,20 @@ static void node_rna(StructRNA *srna)
  */
 static bke::SocketValueVariant get_list_value_at_index(const ListPtr &list, const int64_t index)
 {
-  const CPPType &list_type = list->cpp_type();
-  BLI_assert(list_type.is<bke::SocketValueVariant>());
+  BLI_assert(list->cpp_type().is<bke::SocketValueVariant>());
   if (const auto *data = std::get_if<List::ArrayData>(&list->data())) {
-    bke::SocketValueVariant value;
     if (list->is_mutable() && data->sharing_info->is_mutable()) {
-      list_type.move_construct(POINTER_OFFSET(data->data, list_type.size * index), &value);
+      MutableSpan data_span(static_cast<bke::SocketValueVariant *>(data->data), list->size());
+      return std::move(data_span[index]);
     }
-    else {
-      list_type.copy_construct(POINTER_OFFSET(data->data, list_type.size * index), &value);
-    }
-    return value;
+    const Span data_span(static_cast<const bke::SocketValueVariant *>(data->data), list->size());
+    return data_span[index];
   }
   if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
-    bke::SocketValueVariant value;
     if (list->is_mutable() && data->sharing_info->is_mutable()) {
-      list_type.move_construct(data->value, &value);
+      return std::move(*static_cast<bke::SocketValueVariant *>(data->value));
     }
-    else {
-      list_type.copy_construct(data->value, &value);
-    }
-    return value;
+    return *static_cast<const bke::SocketValueVariant *>(data->value);
   }
   BLI_assert_unreachable();
   return {};
