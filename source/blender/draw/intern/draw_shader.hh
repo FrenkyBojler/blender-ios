@@ -28,6 +28,8 @@ blender::gpu::Shader *DRW_shader_draw_command_generate_get();
 blender::gpu::Shader *DRW_shader_armature_skinning_lbs_get();
 blender::gpu::Shader *DRW_shader_armature_skinning_dqs_get();
 blender::gpu::Shader *DRW_shader_armature_skinning_aabb_get();
+blender::gpu::Shader *DRW_shader_armature_skinning_normals_accumulate_get();
+blender::gpu::Shader *DRW_shader_armature_skinning_normals_finalize_get();
 
 /* Subdivision */
 enum class SubdivShaderType {

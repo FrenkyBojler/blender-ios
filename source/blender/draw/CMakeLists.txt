@@ -182,6 +182,7 @@ set(SRC
   intern/draw_subdiv_defines.hh
   intern/draw_subdiv_shader_shared.hh
   intern/draw_subdivision.hh
+  intern/draw_skinning_defines.hh
   intern/draw_skinning.hh
   intern/draw_view.hh
   intern/draw_view_c.hh
@@ -662,8 +663,10 @@ set(GLSL_SRC
   intern/shaders/draw_view_lib.glsl
   intern/shaders/draw_view_reconstruction_lib.glsl
   intern/shaders/draw_visibility_comp.glsl
-  intern/shaders/draw_armature_skinning_lbs.glsl
-  intern/shaders/draw_armatureskin_aabb.glsl
+  intern/shaders/draw_skinning_linear.glsl
+  intern/shaders/draw_skinning_aabb.glsl
+  intern/shaders/draw_skinning_normals_accumulate.glsl
+  intern/shaders/draw_skinning_normals_finalize.glsl
 
   intern/draw_attribute_shader_shared.hh
   intern/draw_command_shared.hh
@@ -672,6 +675,7 @@ set(GLSL_SRC
   intern/draw_pointcloud_private.hh
   intern/draw_shader_shared.hh
   intern/draw_subdiv_defines.hh
+  intern/draw_skinning_defines.hh
   intern/draw_subdiv_shader_shared.hh
 
   engines/gpencil/shaders/gpencil_frag.glsl

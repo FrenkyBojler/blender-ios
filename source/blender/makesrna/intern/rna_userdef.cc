@@ -23,6 +23,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_studiolight.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -6183,17 +6184,19 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "GPU Deformation",
                            "Enable hardware acceleration armature deformation. NOTE: Won't "
                            "produce exactly same results as disabled");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, 0, "rna_UserDef_deformation_update");
 
   prop = RNA_def_property(srna, "gpuskin_influences", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "gpuskin_influences");
-  RNA_def_property_range(prop, 0, 1024);
-  RNA_def_property_ui_range(prop, 0, 256, 1, 3);
+  RNA_def_property_range(prop, 1, 128);
+  RNA_def_property_ui_range(prop, 4, 32, 2, 2);
   RNA_def_property_ui_text(prop,
-                           "Maximum GPU influences",
-                           "Limited around 256 "
-                           "blah blah.");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
+                           "Max influences",
+                           "Max amount of influences per vertex to evaluate for..."
+                           " 4 fastest, 8 gives quality and speed, 32 overkill might help very large rigs");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, 0, "rna_UserDef_deformation_update");
 
   /* GPU backend selection */
   prop = RNA_def_property(srna, "gpu_backend", PROP_ENUM, PROP_NONE);

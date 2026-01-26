@@ -258,8 +258,6 @@ void extract_mesh_loose_edge_data(const Span<T> vert_data,
 }
 
 gpu::VertBufPtr extract_positions(const MeshRenderData &mr);
-gpu::VertBufPtr extract_positions_skinning(const DRWSkinningCache &skinning_cache,
-                                           const MeshRenderData &mr);
 gpu::VertBufPtr extract_positions_subdiv(const DRWSubdivCache &subdiv_cache,
                                          const MeshRenderData &mr,
                                          gpu::VertBufPtr *orco_vbo);
@@ -271,10 +269,6 @@ void extract_face_dots_subdiv(const DRWSubdivCache &subdiv_cache,
                               gpu::IndexBufPtr &fdots);
 
 gpu::VertBufPtr extract_normals(const MeshRenderData &mr, bool use_hq);
-gpu::VertBufPtr extract_normals_skinning(const DRWSkinningCache &skinning_cache,
-                                         const MeshRenderData &mr);
-gpu::VertBufPtr extract_tangents_skinning(const DRWSkinningCache &skinning_cache,
-                                          const MeshRenderData &mr);
 gpu::VertBufPtr extract_normals_subdiv(const MeshRenderData &mr,
                                        const DRWSubdivCache &subdiv_cache,
                                        gpu::VertBuf &pos);

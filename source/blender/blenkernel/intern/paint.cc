@@ -2603,7 +2603,6 @@ static void sculpt_update_object(Depsgraph *depsgraph,
   }
 
   ss.subdiv_ccg = mesh_eval->runtime->subdiv_ccg.get();
-
   pbvh::Tree &pbvh = object::pbvh_ensure(*depsgraph, *ob);
 
   if (ss.deform_modifiers_active) {
@@ -2612,25 +2611,26 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
     if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
       const Mesh *me_eval_deform = BKE_object_get_mesh_deform_eval(ob_eval);
+      /* check for nullptr due to GPU Skinning returning nothing*/
+      if (me_eval_deform != nullptr) {
+        /* If the fully evaluated mesh has the same topology as the deform-only version, use it.
+        * This matters because crazyspace evaluation is very restrictive and excludes even modifiers
+        * that simply recompute vertex weights (which can even include Geometry Nodes). */
+        if (me_eval_deform->faces_num == mesh_eval->faces_num &&
+            me_eval_deform->corners_num == mesh_eval->corners_num &&
+            me_eval_deform->verts_num == mesh_eval->verts_num)
+        {
+          BKE_sculptsession_free_deformMats(&ss);
 
-      /* If the fully evaluated mesh has the same topology as the deform-only version, use it.
-       * This matters because crazyspace evaluation is very restrictive and excludes even modifiers
-       * that simply recompute vertex weights (which can even include Geometry Nodes). */
-      if (me_eval_deform->faces_num == mesh_eval->faces_num &&
-          me_eval_deform->corners_num == mesh_eval->corners_num &&
-          me_eval_deform->verts_num == mesh_eval->verts_num)
-      {
-        BKE_sculptsession_free_deformMats(&ss);
+          BLI_assert(me_eval_deform->verts_num == mesh_orig->verts_num);
 
-        BLI_assert(me_eval_deform->verts_num == mesh_orig->verts_num);
+          ss.deform_cos = mesh_eval->vert_positions();
+          BKE_pbvh_vert_coords_apply(pbvh, ss.deform_cos);
 
-        ss.deform_cos = mesh_eval->vert_positions();
-        BKE_pbvh_vert_coords_apply(pbvh, ss.deform_cos);
-
-        used_me_eval = true;
+          used_me_eval = true;
+        }
       }
     }
-
     /* We depend on the deform coordinates not being updated in the middle of a stroke. This array
      * eventually gets cleared inside BKE_sculpt_update_object_before_eval.
      * See #126713 for more information. */

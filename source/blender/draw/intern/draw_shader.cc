@@ -110,8 +110,10 @@ class ShaderCache {
   gpu::StaticShader draw_view_finalize = {"draw_view_finalize"};
   gpu::StaticShader draw_resource_finalize = {"draw_resource_finalize"};
   gpu::StaticShader draw_command_generate = {"draw_command_generate"};
-  gpu::StaticShader draw_armature_skinning_lbs = {"draw_armature_skinning_lbs"};
-  gpu::StaticShader draw_armature_skinning_aabb = {"draw_armature_skinning_aabb_comp"};
+  gpu::StaticShader draw_skinning_linear = {"draw_skinning_linear"};
+  gpu::StaticShader draw_skinning_aabb = {"draw_skinning_aabb"};
+  gpu::StaticShader draw_skinning_normals_accumulate = {"draw_skinning_normals_accumulate"};
+  gpu::StaticShader draw_skinning_normals_finalize = {"draw_skinning_normals_finalize"};
 
   gpu::StaticShader subdiv_sh[SUBDIVISION_MAX_SHADERS];
   gpu::StaticShader subdiv_custom_data_sh[SHADER_CUSTOM_DATA_INTERP_MAX_DIMENSIONS][GPU_COMP_MAX];
@@ -209,12 +211,22 @@ blender::gpu::Shader *DRW_shader_draw_command_generate_get()
 
 blender::gpu::Shader *DRW_shader_armature_skinning_lbs_get()
 {
-  return ShaderCache::get().draw_armature_skinning_lbs.get();
+  return ShaderCache::get().draw_skinning_linear.get();
 }
 
 blender::gpu::Shader *DRW_shader_armature_skinning_aabb_get()
 {
-  return ShaderCache::get().draw_armature_skinning_aabb.get();
+  return ShaderCache::get().draw_skinning_aabb.get();
+}
+
+blender::gpu::Shader *DRW_shader_armature_skinning_normals_accumulate_get()
+{
+  return ShaderCache::get().draw_skinning_normals_accumulate.get();
+}
+
+blender::gpu::Shader *DRW_shader_armature_skinning_normals_finalize_get()
+{
+  return ShaderCache::get().draw_skinning_normals_finalize.get();
 }
 
 blender::gpu::Shader *DRW_shader_subdiv_get(SubdivShaderType shader_type)

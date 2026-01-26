@@ -40,6 +40,7 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
+#include "BKE_armature_deform_gpu.hh"
 
 #include "BKE_shrinkwrap.hh"
 #include "DEG_depsgraph.hh"
@@ -979,10 +980,20 @@ static void mesh_build_data(Depsgraph &depsgraph,
 
   Mesh *mesh_eval = nullptr, *mesh_deform_eval = nullptr;
   GeometrySet *geometry_set_eval = nullptr;
+  Mesh *mesh = (Mesh *)ob.data;
+
+  bool use_gpudeform;
+  if ((U.gpu_flag & USER_GPU_FLAG_DEFORMATION_EVALUATION) != 0) {
+    mesh->runtime->is_skinned_gpu = BKE_is_skinning_possible(ob, scene, depsgraph);
+    use_gpudeform = mesh->runtime->is_skinned_gpu;
+  }
+  else {
+    use_gpudeform = false;
+  }
   mesh_calc_modifiers(depsgraph,
                       scene,
                       ob,
-                      true,
+                      !use_gpudeform,
                       need_mapping,
                       dataMask,
                       true,
@@ -990,17 +1001,15 @@ static void mesh_build_data(Depsgraph &depsgraph,
                       &mesh_deform_eval,
                       &mesh_eval,
                       &geometry_set_eval);
-
   /* The modifier stack evaluation is storing result in mesh->runtime.mesh_eval, but this result
    * is not guaranteed to be owned by object.
    *
    * Check ownership now, since later on we can not go to a mesh owned by someone else via
    * object's runtime: this could cause access freed data on depsgraph destruction (mesh who owns
    * the final result might be freed prior to object). */
-  Mesh *mesh = (Mesh *)ob.data;
   const bool is_mesh_eval_owned = (mesh_eval != mesh->runtime->mesh_eval);
+  mesh_eval->runtime->is_skinned_gpu = use_gpudeform;
   BKE_object_eval_assign_data(&ob, &mesh_eval->id, is_mesh_eval_owned);
-
   /* Add the final mesh as a non-owning component to the geometry set. */
   MeshComponent &mesh_component = geometry_set_eval->get_component_for_write<MeshComponent>();
   mesh_component.replace(mesh_eval, GeometryOwnershipType::Editable);
@@ -1125,11 +1134,19 @@ void mesh_data_update(Depsgraph &depsgraph,
    * they aren't cleaned up properly on mode switch, causing crashes, e.g #58150. */
   BLI_assert(ob.id.tag & ID_TAG_COPIED_ON_EVAL);
 
+  bool is_cycles_active = BKE_skinning_is_cycles_active(scene, depsgraph);
+  bool is_hardware_capable = BKE_skinning_available_user();
+  if (!is_cycles_active && is_hardware_capable) {
+    Mesh *mesh_build = static_cast<Mesh *>(ob.data);
+    if (mesh_build->runtime->is_skinned_gpu) {
+      return;
+    }
+  }
+
   BKE_object_free_derived_caches(&ob);
   if (DEG_is_active(&depsgraph)) {
     BKE_sculpt_update_object_before_eval(&ob);
   }
-
   /* NOTE: Access the `edit_mesh` after freeing the derived caches, so that `ob.data` is restored
    * to the pre-evaluated state. This is because the evaluated state is not necessarily sharing the
    * `edit_mesh` pointer with the input. For example, if the object is first evaluated in the

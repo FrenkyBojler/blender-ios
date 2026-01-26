@@ -46,6 +46,7 @@ set(SRC
   intern/anonymous_attribute_id.cc
   intern/appdir.cc
   intern/armature.cc
+  intern/armature_deform_gpu.cc
   intern/armature_deform.cc
   intern/armature_selection.cc
   intern/armature_update.cc
@@ -330,6 +331,7 @@ set(SRC
   BKE_anonymous_attribute_make.hh
   BKE_appdir.hh
   BKE_armature.hh
+  BKE_armature_deform_gpu.hh
   BKE_asset.hh
   BKE_asset_edit.hh
   BKE_attribute.h

@@ -237,6 +237,11 @@ struct MeshRuntime {
    */
   bool is_original_bmesh = false;
 
+  /**
+   * Mesh flag whether GPU Skinning is possible on this mesh.
+   */
+  bool is_skinned_gpu = false;
+
   /** #eMeshWrapperType and others. */
   eMeshWrapperType wrapper_type = ME_WRAPPER_TYPE_MDATA;
 

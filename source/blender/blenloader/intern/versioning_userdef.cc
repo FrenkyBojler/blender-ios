@@ -1676,6 +1676,13 @@ void blo_do_versions_userdef(UserDef *userdef)
   if (!USER_VERSION_ATLEAST(500, 11)) {
     userdef->gpu_flag &= ~USER_GPU_FLAG_UNUSED_0;
   }
+  /* Until/if target implementation of gpu skinning is ready to be merged
+   * We can then set a proper versioning value*/
+  if (!USER_VERSION_ATLEAST(500, 11)) {
+    if (userdef->gpuskin_influences < 8) {
+      userdef->gpuskin_influences = 8;
+    }
+  }
 
   if (!USER_VERSION_ATLEAST(500, 59)) {
     userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;

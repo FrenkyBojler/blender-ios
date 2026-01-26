@@ -957,9 +957,12 @@ class USERPREF_PT_viewport_deform(ViewportPanel, CenterAlignMixIn, Panel):
         prefs = context.preferences
         system = prefs.system
 
+        scene = context.scene
+
+        layout.active = (scene.render.engine != 'CYCLES')
         layout.prop(system, "use_gpu_deform")
         layout.prop(system, "gpuskin_influences")
-        # add gpuskin precision toggle
+        # todo: add gpuskin precision toggle
 
 
 # -----------------------------------------------------------------------------

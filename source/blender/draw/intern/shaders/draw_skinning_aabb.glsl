@@ -5,11 +5,6 @@
 #include "draw_skinning_infos.hh"
 #pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
 
-/* Code is not optimized, Clemf mention's an approach:
- * "we could precompute each bone's influence AABB and simply apply the bone transforms to these
- * intermediate AABB. This could be a much faster heuristic than trying to get the tightest bounds
- * possible from all deformed position." */
-
 uint float_to_sortable_uint(float f)
 {
   uint u = floatBitsToUint(f);

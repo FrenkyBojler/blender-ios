@@ -33,6 +33,7 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_modifier.hh"
+#include "BKE_armature_deform_gpu.hh"
 
 #include "GPU_batch.hh"
 #include "GPU_material.hh"
@@ -1242,7 +1243,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
 
   const bool do_subdivision = BKE_subsurf_modifier_has_gpu_subdiv(&mesh);
 
-  const bool do_skinning = draw_skinning_is_available(&ob);
+  const bool do_skinning = mesh.runtime->is_skinned_gpu;
 
   enum class BufferList : int8_t { Final, Cage, UVCage };
 
