@@ -295,6 +295,11 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
 
     int num_socket_types = 0;
     for (const bNodeSocketType *socket_type : node_socket_types_get()) {
+      /* Only test base socket types, the subtype should not affect link operations and testing
+       * every subtype generates excessive test cases. */
+      if (socket_type != bke::node_socket_type_find_static(socket_type->type, PROP_NONE)) {
+        continue;
+      }
       if (tree_type->valid_socket_type &&
           !tree_type->valid_socket_type(const_cast<bNodeTreeType *>(tree_type),
                                         const_cast<bNodeSocketType *>(socket_type)))
