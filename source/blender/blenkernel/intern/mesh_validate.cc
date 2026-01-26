@@ -370,7 +370,7 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
   const OffsetIndices new_faces = offset_indices::gather_selected_offsets(
       old_faces, valid_faces, new_face_offsets);
 
-  mesh.attribute_storage.wrap().foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
     const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
     switch (attr.domain()) {
       case AttrDomain::Face: {
@@ -411,7 +411,7 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
       default:
         break;
     }
-  });
+  }
 
   for (CustomDataLayer &layer : MutableSpan(mesh.face_data.layers, mesh.face_data.totlayer)) {
     if (layer.type == CD_ORIGINDEX) {
@@ -429,7 +429,7 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
   }
 
   for (CustomDataLayer &layer : MutableSpan(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
-    const eCustomDataType cd_type = eCustomDataType();
+    const eCustomDataType cd_type = eCustomDataType(layer.type);
     if (ELEM(layer.type,
              CD_NORMAL,
              CD_ORIGINDEX,
@@ -469,16 +469,16 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
 {
   const int valid_edges_num = valid_edges.size();
 
-  mesh.attribute_storage.wrap().foreach([&](bke::Attribute &attr) {
+  for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
     if (attr.domain() != AttrDomain::Edge) {
-      return;
+      continue;
     }
     const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
       case AttrStorageType::Array: {
         const auto &src_data = std::get<Attribute::ArrayData>(attr.data());
         auto dst_data = Attribute::ArrayData::from_uninitialized(type, valid_edges_num);
-        array_utils::gather(GSpan(type, src_data.data, mesh.faces_num),
+        array_utils::gather(GSpan(type, src_data.data, mesh.edges_num),
                             valid_edges,
                             GMutableSpan(type, dst_data.data, valid_edges_num));
         attr.assign_data(std::move(dst_data));
@@ -487,7 +487,7 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
       case AttrStorageType::Single:
         break;
     }
-  });
+  }
 
   for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
     if (layer.type == CD_ORIGINDEX) {
