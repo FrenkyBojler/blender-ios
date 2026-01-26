@@ -3,3 +3,4 @@ Referenced by commit 548f727d47097d2b69a84bd648ac883b996b9d3e, Fix #151330: Edit
 Referenced by issue #152153, Displacement in VR limited to one controller at a time
 Referenced by pull request #152934, Fix #152153: XR modal operators wrongly re-executing when multiple actions are executed at once
 Referenced by pull request #153083, Fix: XR: Ensure correct Python XR modal operator is called on XR action
+Referenced by commit d3b65fd3f140219dacb7e488b2cde66f756e051c, Fix #152153: XR modal operators wrongly re-executing when multiple actions are executed at once
