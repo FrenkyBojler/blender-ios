@@ -454,6 +454,10 @@ PassMain::Sub *ForwardPipeline::material_transparent_add(const Object *ob,
   }
   has_colored_transparency_ |= GPU_material_flag_get(gpumat,
                                                      GPU_MATFLAG_TRANSPARENT_MAYBE_COLORED) != 0;
+  if (blender_mat->refraction_mode == MA_REFRACTION_AS_TRANSPARENCY) {
+    has_colored_transparency_ |= GPU_material_flag_get(gpumat,
+                                                       GPU_MATFLAG_REFRACTION_MAYBE_COLORED) != 0;
+  }
   has_holdout_ |= GPU_material_flag_get(gpumat, GPU_MATFLAG_HOLDOUT) != 0;
   has_transparent_ = true;
   float sorting_value = math::dot(float3(ob->object_to_world().location()), camera_forward_);
