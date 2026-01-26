@@ -764,7 +764,6 @@ if(WITH_GTESTS)
     intern/lib_remap_test.cc
     intern/main_test.cc
     intern/nla_test.cc
-    intern/node_link_drag_test.cc
     intern/path_templates_test.cc
     intern/scene_test.cc
     intern/subdiv_ccg_test.cc

@@ -49,7 +49,10 @@ DEFINE_string(skip_compositor_ops, "", "Compositor link operations to skip when 
 DEFINE_string(skip_geometry_ops, "", "Geometry link operations to skip when testing.");
 DEFINE_string(skip_shader_ops, "", "Shader link operations to skip when testing.");
 
-namespace blender::bke::tests {
+namespace blender::ed::space_node::tests {
+
+using bke::bNodeSocketType;
+using bke::bNodeTreeType;
 
 struct LinkOpFilter {
   std::string tree_idname;
@@ -297,7 +300,7 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
     BKE_ntree_update_tag_node_property(tree, group_node);
 
     int num_socket_types = 0;
-    for (const bNodeSocketType *socket_type : node_socket_types_get()) {
+    for (const bNodeSocketType *socket_type : bke::node_socket_types_get()) {
       /* Only test base socket types, the subtype should not affect link operations and testing
        * every subtype generates excessive test cases. */
       if (socket_type != bke::node_socket_type_find_static(socket_type->type, PROP_NONE)) {
@@ -418,4 +421,4 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
   CTX_free(C);
 }
 
-}  // namespace blender::bke::tests
+}  // namespace blender::ed::space_node::tests
