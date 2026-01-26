@@ -2,3 +2,4 @@ Referenced by issue #153223, Blender 5.0.1 Freeze crash on shapekey drag & drop 
 Referenced by issue #153257, Blender requires missing DLLs
 Referenced by issue #153269, HIP and HIP-RT causes AMD GPU drivers to crash on Linux
 Referenced by issue #151096, absolute increment snap behave differently
+Referenced by issue #153293, Random "worlds" being added automatically.
