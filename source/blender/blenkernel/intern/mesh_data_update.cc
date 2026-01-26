@@ -378,9 +378,6 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
           mti->required_data_mask(md, &mask);
           if (mask.vmask & CD_MASK_ORCO) {
             add_orco_mesh(ob, nullptr, *mesh, nullptr, CD_ORCO);
-
-            /* Fix for X-Mirror issues: Ensure Original Indices exist if we add ORCOs.
-             * Particle systems rely on this mapping to detect symmetry correctly. */
             if (!CustomData_has_layer(&mesh->vert_data, CD_ORIGINDEX)) {
               CustomData_add_layer(&mesh->vert_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->verts_num);
               range_vn_i(static_cast<int *>(CustomData_get_layer_for_write(
