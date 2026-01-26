@@ -795,12 +795,20 @@ static void replace_interface_socket(bContext &C,
       use_socket_value = true;
       for (const MutableNodeAndSocket &out_link : outgoing_links) {
         const eNodeSocketDatatype out_type = eNodeSocketDatatype(out_link.socket.type);
-        /* Converter not needed if the value can be losslessly copied. */
-        if (bke::node_interface::find_socket_value_copy_function(socket_type, out_type)) {
-          continue;
+        const nodes::SocketDeclaration *out_decl = out_link.socket.runtime->declaration;
+        const NodeDefaultInputType out_default_input =
+            out_decl ? out_decl->default_input_type :
+                       NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE;
+
+        const bool has_value_copy_fn = bke::node_interface::find_socket_value_copy_function(
+            socket_type, out_type);
+        /* The target socket can only store the value if it does not use an implicit input. */
+        const bool can_copy_value = (out_default_input ==
+                                     NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE) &&
+                                    has_value_copy_fn;
+        if (!can_copy_value) {
+          needs_proxy = true;
         }
-        needs_proxy = true;
-        break;
       }
     }
   }
