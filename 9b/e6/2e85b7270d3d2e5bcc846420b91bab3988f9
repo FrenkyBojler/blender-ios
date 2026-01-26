@@ -36,3 +36,4 @@ Referenced by issue #115957, Cycles GPU rendering with AMD card: very dark world
 Referenced by issue #115921, Hello, my blender is crashing randomly (Mostly when i switch to Viewport Shading)
 Referenced by issue #115806, Blank grey window on startup
 Referenced by issue #112617, Intel GPUs: Crash on initializing Eevee rendered view
+Referenced by issue #153398, Make the "No threading with bpy" definition even more strict
