@@ -36,6 +36,7 @@ set(SRC
   node_geometry_layer_search.cc
   node_geometry_volume_grid_search.cc
   node_gizmo.cc
+  node_gizmo_minimap.cc
   node_group.cc
   node_ops.cc
   node_relationships.cc

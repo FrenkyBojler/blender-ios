@@ -1143,6 +1143,59 @@ void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt)
   gzgt->refresh = WIDGETGROUP_node_split_refresh;
 }
 
+
+/* -------------------------------------------------------------------- */
+/** \name Minimap Gizmo
+ * \{ */
+
+struct NodeMinimapWidgetGroup {
+  wmGizmo *gizmo;
+};
+
+static bool WIDGETGROUP_node_minimap_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
+{
+  SpaceNode *snode = CTX_wm_space_node(C);
+
+  if (snode && !(snode->gizmo_flag & SNODE_GIZMO_HIDE) &&
+      snode->gizmo_flag & SNODE_GIZMO_SHOW_MINIMAP && snode->edittree) {
+    return true;
+  }
+
+  return false;
+}
+
+static void WIDGETGROUP_node_minimap_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+{
+  NodeMinimapWidgetGroup *minimap_group = MEM_new<NodeMinimapWidgetGroup>(__func__);
+  minimap_group->gizmo = WM_gizmo_new("NODE_GT_minimap", gzgroup, nullptr);
+  minimap_group->gizmo->flag |= (WM_GIZMO_MOVE_CURSOR | WM_GIZMO_DRAW_MODAL);
+
+  gzgroup->customdata = minimap_group;
+  gzgroup->customdata_free = [](void *customdata) {
+    MEM_delete(static_cast<NodeMinimapWidgetGroup *>(customdata));
+  };
+}
+
+static void WIDGETGROUP_node_minimap_draw_prepare(const bContext * /*C*/, wmGizmoGroup *gzgroup)
+{
+  NodeMinimapWidgetGroup *minimap_group = (NodeMinimapWidgetGroup *)gzgroup->customdata;
+  wmGizmo *gz = minimap_group->gizmo;
+  gz->scale_basis = 2.0f;
+}
+
+void NODE_GGT_minimap(wmGizmoGroupType *gzgt)
+{
+  gzgt->name = "Minimap Widget";
+  gzgt->idname = "NODE_GGT_minimap";
+
+  gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT;
+
+  gzgt->poll = WIDGETGROUP_node_minimap_poll;
+  gzgt->setup = WIDGETGROUP_node_minimap_setup;
+  gzgt->setup_keymap = WM_gizmogroup_setup_keymap_generic_maybe_drag;
+  gzgt->draw_prepare = WIDGETGROUP_node_minimap_draw_prepare;
+}
+
 /** \} */
 
 }  // namespace blender::ed::space_node
