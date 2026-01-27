@@ -700,7 +700,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 21)) {
     for (Scene &scene : bmain->scenes) {
-      scene.eevee.ray_tracing_options.rt_scale = 1.0f;
+      scene.eevee.indirect_intensity = 1.0f;
     }
   }
 
