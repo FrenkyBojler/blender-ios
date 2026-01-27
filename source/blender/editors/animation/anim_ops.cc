@@ -1416,6 +1416,8 @@ static void replace_action_ui(bContext *C, wmOperator *op)
   ui::template_ID_session_uid(layout, C, op->ptr, "new_id", ID_AC);
 }
 
+/* Note that this operator is similar to "OUTLINER_OT_id_remap" but narrowed in scope to only work
+ * with actions of `AnimData.action`. */
 static void ANIM_OT_replace_action(wmOperatorType *ot)
 {
   ot->name = "Swap Animation";
