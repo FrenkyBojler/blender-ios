@@ -13,6 +13,8 @@
 
 #include "BLI_build_config.h"
 #include "BLI_enum_flags.hh"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -22,6 +24,7 @@
 #include "DNA_ID.h"
 #include "DNA_dynamic_override_types.h"
 
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -43,6 +46,10 @@ struct DynamicOverrideRuntime {};
 
 }  // namespace bke
 
+static void dynamic_override_rule_copy(DynamicOverrideRule *dynoverride_rule_dst,
+                                       DynamicOverrideRule *dynoverride_rule_src,
+                                       const int flag);
+
 static void dynoverride_init_data(ID *id)
 {
   DynamicOverride *dynoverride = id_cast<DynamicOverride *>(id);
@@ -53,10 +60,22 @@ static void dynoverride_init_data(ID *id)
 static void dynoverride_copy_data(Main * /*bmain*/,
                                   std::optional<Library *> /*owner_library*/,
                                   ID *id_dst,
-                                  const ID * /*id_src*/,
-                                  const int /*flag*/)
+                                  const ID *id_src,
+                                  const int flag)
 {
   DynamicOverride *dynoverride_dst = id_cast<DynamicOverride *>(id_dst);
+  const DynamicOverride *dynoverride_src = id_cast<const DynamicOverride *>(id_src);
+
+  BLI_duplicatelist(&dynoverride_dst->rules, &dynoverride_src->rules);
+  for (DynamicOverrideRule *
+           dynoverride_rule_dst = static_cast<DynamicOverrideRule *>(dynoverride_dst->rules.first),
+          *dynoverride_rule_src = static_cast<DynamicOverrideRule *>(dynoverride_src->rules.first);
+       dynoverride_rule_dst;
+       dynoverride_rule_dst = dynoverride_rule_dst->next,
+          dynoverride_rule_src = dynoverride_rule_src->next)
+  {
+    dynamic_override_rule_copy(dynoverride_rule_dst, dynoverride_rule_src, flag);
+  }
 
   dynoverride_dst->runtime = MEM_new<bke::DynamicOverrideRuntime>(__func__);
 }
@@ -117,5 +136,63 @@ IDTypeInfo IDType_ID_OV = {
 
     /*lib_override_apply_post*/ nullptr,
 };
+
+static void dynamic_override_rule_property_copy(
+    DynamicOverrideRuleProperty *dynoverride_rule_property_dst,
+    DynamicOverrideRuleProperty *dynoverride_rule_property_src,
+    const int flag)
+{
+  /* NOTE: A flat copy is assumed to have already happened before calling this function (e.g. by
+   * using `BLI_duplicatelist`). */
+
+  dynoverride_rule_property_dst->rna_path = MEM_dupalloc(dynoverride_rule_property_src->rna_path);
+  dynoverride_rule_property_dst->sub_item_name = MEM_dupalloc(
+      dynoverride_rule_property_src->sub_item_name);
+  dynoverride_rule_property_dst->sub_item_index = dynoverride_rule_property_src->sub_item_index;
+
+  dynoverride_rule_property_dst->new_value = IDP_CopyProperty_ex(
+      dynoverride_rule_property_src->new_value, flag);
+  dynoverride_rule_property_dst->orig_value = IDP_CopyProperty_ex(
+      dynoverride_rule_property_src->orig_value, flag);
+}
+
+static void dynamic_override_rule_copy(DynamicOverrideRule *dynoverride_rule_dst,
+                                       DynamicOverrideRule *dynoverride_rule_src,
+                                       const int flag)
+{
+  /* NOTE: A flat copy is assumed to have already happened before calling this function (e.g. by
+   * using `BLI_duplicatelist`). */
+
+  BLI_assert(dynoverride_rule_dst->type == dynoverride_rule_src->type);
+  BLI_assert(dynoverride_rule_dst->type != DynamicOverrideRuleType::UNKNOWN);
+
+  switch (dynoverride_rule_dst->type) {
+    case DynamicOverrideRuleType::IDDATA: {
+      DynamicOverrideRuleIDData *rule_dst = reinterpret_cast<DynamicOverrideRuleIDData *>(
+          dynoverride_rule_dst);
+      DynamicOverrideRuleIDData *rule_src = reinterpret_cast<DynamicOverrideRuleIDData *>(
+          dynoverride_rule_src);
+
+      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) != 0) {
+        id_us_plus(rule_dst->id_owner);
+      }
+
+      BLI_duplicatelist(&rule_dst->properties, &rule_src->properties);
+      for (DynamicOverrideRuleProperty *
+               property_dst =
+                  static_cast<DynamicOverrideRuleProperty *>(rule_dst->properties.first),
+              *property_src =
+                  static_cast<DynamicOverrideRuleProperty *>(rule_src->properties.first);
+           property_dst;
+           property_dst = property_dst->next, property_src = property_src->next)
+      {
+        dynamic_override_rule_property_copy(property_dst, property_src, flag);
+      }
+      break;
+    }
+    default:
+      BLI_assert_unreachable();
+  }
+}
 
 }  // namespace blender
