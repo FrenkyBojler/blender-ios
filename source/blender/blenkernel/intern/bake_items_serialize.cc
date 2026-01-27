@@ -1725,11 +1725,11 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
     if (!io_attribute) {
       return {};
     }
-    std::optional<StringRefNull> name = io_attribute->lookup_str("name");
+    std::optional<StringRefNull> name = io_attribute->lookup_str("attribute_name");
     if (!name) {
       return {};
     }
-    std::optional<StringRefNull> type = io_attribute->lookup_str("type");
+    std::optional<StringRefNull> type = io_attribute->lookup_str("data_type");
     if (!type) {
       return {};
     }
