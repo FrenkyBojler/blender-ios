@@ -924,9 +924,8 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
         ICON_NONE);
     RNA_boolean_set(&op_ptr, "full_path", true);
 
-    layout.op("OUTLINER_OT_id_remap",
-              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remap Users"),
-              ICON_NONE);
+    layout.op(
+        "UI_OT_id_remap", CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remap Users"), ICON_NONE);
 
     if (ptr->owner_id && !is_whole_array &&
         ELEM(type, PROP_BOOLEAN, PROP_INT, PROP_FLOAT, PROP_ENUM))

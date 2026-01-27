@@ -49,9 +49,11 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
@@ -68,6 +70,8 @@
 #include "ED_outliner.hh"
 #include "ED_paint.hh"
 #include "ED_undo.hh"
+
+#include "GPU_material.hh"
 
 /* for Copy As Driver */
 #include "ED_keyframing.hh"
@@ -1850,6 +1854,139 @@ static void UI_OT_copy_driver_to_selected_button(wmOperatorType *ot)
       ot->srna, "all", false, "All", "Copy to selected the drivers of all elements of the array");
 }
 
+/* -------------------------------------------------------------------- */
+/** \name ID Remap Operator
+ * \{ */
+
+static void ui_id_remap_callback(ID *id, eDepsObjectComponentType component)
+{
+  ID *asd = id;
+}
+
+static wmOperatorStatus ui_id_remap_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+
+  const short id_type = short(RNA_enum_get(op->ptr, "id_type"));
+
+  const uint32_t old_session_uid = RNA_int_get(op->ptr, "old_id");
+  const uint32_t new_session_uid = RNA_int_get(op->ptr, "new_id");
+  ID *old_id = BKE_libblock_find_session_uid(bmain, id_type, old_session_uid);
+  ID *new_id = BKE_libblock_find_session_uid(bmain, id_type, new_session_uid);
+
+  if (!(old_id && new_id && (old_id != new_id) && (GS(old_id->name) == GS(new_id->name)))) {
+    BKE_reportf(op->reports,
+                RPT_ERROR_INVALID_INPUT,
+                "Invalid old/new ID pair ('%s' / '%s')",
+                old_id ? old_id->name : "Invalid ID",
+                new_id ? new_id->name : "Invalid ID");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!ID_IS_EDITABLE(old_id)) {
+    BKE_reportf(op->reports,
+                RPT_WARNING,
+                "Old ID '%s' is linked from a library, indirect usages of this data-block will "
+                "not be remapped",
+                old_id->name);
+  }
+
+  BKE_libblock_remap(
+      bmain, old_id, new_id, ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_NEVER_NULL_USAGE);
+
+  Depsgraph *deg = CTX_data_depsgraph_pointer(C);
+  DEG_foreach_dependent_ID_component(deg, old_id, DEG_OB_COMP_ANY, 0, ui_id_remap_callback);
+
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(new_id, ID_RECALC_ALL);
+
+  /* Free gpu materials, some materials depend on existing objects,
+   * such as lights so freeing correctly refreshes. */
+  GPU_materials_free(bmain);
+
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus ui_id_remap_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  PropertyRNA *prop;
+  PointerRNA ptr;
+  int index;
+  if (!ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
+    return OPERATOR_CANCELLED;
+  }
+  /* This should be checked by the poll, also we cannot do a remap if the button does not have
+   * data to begin with. */
+  BLI_assert(ptr.data != nullptr);
+  BLI_assert(RNA_struct_is_ID(ptr.type));
+  ID *id = static_cast<ID *>(ptr.data);
+  RNA_enum_set(op->ptr, "id_type", GS(id->name));
+  RNA_int_set(op->ptr, "new_id", int(id->session_uid));
+  RNA_int_set(op->ptr, "old_id", int(id->session_uid));
+
+  return WM_operator_props_dialog_popup(C, op, 400, IFACE_("Remap Data ID"), IFACE_("Remap"));
+}
+
+static void ui_id_remap_ui(bContext *C, wmOperator *op)
+{
+  ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+  ui::template_ID_session_uid(layout, C, op->ptr, "new_id", RNA_enum_get(op->ptr, "id_type"));
+}
+
+static bool ui_id_remap_poll(bContext *C)
+{
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  int index;
+  if (!ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
+    return false;
+  }
+  return ptr.data && RNA_struct_is_ID(ptr.type);
+}
+
+void UI_OT_id_remap(wmOperatorType *ot)
+{
+  PropertyRNA *prop;
+
+  /* identifiers */
+  ot->name = "UI ID Data Remap";
+  ot->idname = "UI_OT_id_remap";
+  ot->description =
+      "Changes all uses of the current datablock to a new datablock of the same type";
+
+  /* callbacks */
+  ot->invoke = ui_id_remap_invoke;
+  ot->ui = ui_id_remap_ui;
+  ot->exec = ui_id_remap_exec;
+  ot->poll = ui_id_remap_poll;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  prop = RNA_def_enum(ot->srna, "id_type", rna_enum_id_type_items, ID_OB, "ID Type", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
+  /* Changing ID type wont make sense, would return early with "Invalid old/new ID pair" anyways.
+   */
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+
+  prop = RNA_def_int(
+      ot->srna, "old_id", 0, 0, 0, "Old ID", "Old ID's session uid to remap data from", 0, 0);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+
+  ot->prop = RNA_def_int(ot->srna,
+                         "new_id",
+                         0,
+                         0,
+                         0,
+                         "New ID",
+                         "New ID's session uid to remap all selected IDs' users to",
+                         0,
+                         0);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2999,6 +3136,7 @@ void operatortypes_ui()
   WM_operatortype_append(UI_OT_copy_to_selected_button);
   WM_operatortype_append(UI_OT_copy_driver_to_selected_button);
   WM_operatortype_append(UI_OT_jump_to_target_button);
+  WM_operatortype_append(UI_OT_id_remap);
   WM_operatortype_append(UI_OT_drop_color);
   WM_operatortype_append(UI_OT_drop_name);
   WM_operatortype_append(UI_OT_drop_material);
