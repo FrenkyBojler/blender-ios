@@ -22,4 +22,4 @@ Referenced by issue #117399, Adding assets (modifiers, such as Smooth by Angle) 
 Referenced by issue #135838, How to use the "Move the view" (hand style icon) through the Win32 API "sendInput" （simulate mouse）
 Referenced by issue #136787, Default EEVEE renderer crashes-to-desktop when opening Material or Shading tabs
 Referenced by issue #141455, Sidebar tabs wiggle when resizing and enabling/disabling them
-Referenced by issue #153398, Make the "No threading with bpy" definition even more strict
+Referenced by issue #153398, Crash when using threads in python (the supported way)
