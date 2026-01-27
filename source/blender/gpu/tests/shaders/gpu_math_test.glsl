@@ -9,7 +9,7 @@
 
 #include "infos/gpu_shader_test_infos.hh"
 
-FRAGMENT_SHADER_CREATE_INFO(gpu_math_test)
+COMPUTE_SHADER_CREATE_INFO(gpu_math_test)
 
 #include "gpu_shader_test_lib.glsl"
 
