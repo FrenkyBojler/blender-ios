@@ -36,8 +36,6 @@ struct [[host_shared]] RayTraceData {
   /** Maximum roughness for which we will trace a ray. */
   float roughness_mask_scale;
   float roughness_mask_bias;
-  /** Global RT contribution scalar. */
-  float rt_scale;
   /** If set to true will bypass spatial denoising. */
   bool32_t skip_denoise;
   /** If set to false will bypass tracing for refractive closures. */
@@ -46,6 +44,7 @@ struct [[host_shared]] RayTraceData {
   int closure_index;
   int _pad0;
   int _pad1;
+  int _pad2;
 };
 
 struct [[host_shared]] AOData {
