@@ -174,15 +174,42 @@ static void node_rna(StructRNA *srna)
  * Needed because #execute_multi_function_on_value_variant does not support types that can't be
  * processed as fields.
  */
-static bke::SocketValueVariant get_list_value_at_index(const ListPtr &list, const int64_t index)
+static bke::SocketValueVariant get_single_item(const ListPtr &list,
+                                               const eNodeSocketDatatype socket_type,
+                                               const int64_t index)
 {
-  BLI_assert(list->cpp_type().is<bke::SocketValueVariant>());
+  bke::SocketValueVariant value;
+  void *value_ptr = value.allocate_single(socket_type);
+  if (const auto *data = std::get_if<List::ArrayData>(&list->data())) {
+    if (list->is_mutable() && data->sharing_info->is_mutable()) {
+      GMutableSpan data_span(list->cpp_type(), data->data, list->size());
+      list->cpp_type().move_construct(data_span[index], value_ptr);
+      return value;
+    }
+    const GSpan data_span(list->cpp_type(), data->data, list->size());
+    list->cpp_type().copy_construct(data_span[index], value_ptr);
+    return value;
+  }
+  if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
+    if (list->is_mutable() && data->sharing_info->is_mutable()) {
+      list->cpp_type().move_construct(data->value, value_ptr);
+      return value;
+    }
+    list->cpp_type().copy_construct(data->value, value_ptr);
+    return value;
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
+static bke::SocketValueVariant get_socket_value_item(const ListPtr &list, const int64_t index)
+{
   if (const auto *data = std::get_if<List::ArrayData>(&list->data())) {
     if (list->is_mutable() && data->sharing_info->is_mutable()) {
       MutableSpan data_span(static_cast<bke::SocketValueVariant *>(data->data), list->size());
       return std::move(data_span[index]);
     }
-    const Span data_span(static_cast<const bke::SocketValueVariant *>(data->data), list->size());
+    const Span data_span(static_cast<bke::SocketValueVariant *>(data->data), list->size());
     return data_span[index];
   }
   if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
@@ -209,8 +236,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (list_type.is<bke::SocketValueVariant>() || !socket_type_supports_fields(*socket_type)) {
     if (!index.is_single()) {
-      params.error_message_add(NodeWarningType::Error,
-                               "Index must be a single value for socket type");
+      params.error_message_add(NodeWarningType::Error, "Index must be a single value");
       params.set_default_remaining_outputs();
       return;
     }
@@ -221,7 +247,12 @@ static void node_geo_exec(GeoNodeExecParams params)
       params.set_default_remaining_outputs();
       return;
     }
-    params.set_output("Value", get_list_value_at_index(list, index_int));
+    if (list->cpp_type().is<bke::SocketValueVariant>()) {
+      params.set_output("Value", get_socket_value_item(list, index_int));
+    }
+    else {
+      params.set_output("Value", get_single_item(list, *socket_type, index_int));
+    }
     return;
   }
 
