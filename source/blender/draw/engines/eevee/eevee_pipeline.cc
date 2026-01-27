@@ -532,7 +532,7 @@ void ForwardPipeline::render(View &view,
 
   if (!use_colored_transparency()) {
     /* NOTE: When using Vulkan this triggers a (false positive) validation warning about writing to
-     * an attachment that isn't filled. The warning could be removed by adding dummy attaching,
+     * an attachment that isn't filled. The warning could be removed by adding dummy attachments,
      * recompiling the shader, etc. But it is not worth the hassle.
      * 
      * VUID: Undefined-Value-ShaderOutputNotConsumed-DynamicRendering
