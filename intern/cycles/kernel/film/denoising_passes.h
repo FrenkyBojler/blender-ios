@@ -86,7 +86,9 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
   const Transform worldtocamera = kernel_data.cam.worldtocamera;
   normal = transform_direction(&worldtocamera, normal);
 
-  if (kernel_data.film.pass_denoising_specular_albedo != PASS_UNUSED) {
+  if (!(sd->flag & (SD_TRANSPARENT | SD_RAY_PORTAL)) &&
+      kernel_data.film.pass_denoising_specular_albedo != PASS_UNUSED)
+  {
     const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
         state, path, denoising_feature_throughput);
 

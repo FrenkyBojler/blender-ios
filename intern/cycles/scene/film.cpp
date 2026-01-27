@@ -90,7 +90,7 @@ NODE_DEFINE(Film)
   NodeType *type = NodeType::add("film", create);
 
   SOCKET_FLOAT(exposure, "Exposure", 1.0f);
-  SOCKET_FLOAT(pass_alpha_threshold, "Pass Alpha Threshold", 0.0f);
+  SOCKET_FLOAT(pass_alpha_threshold, "Pass Alpha Threshold", 0.5f);
 
   static NodeEnum filter_enum;
   filter_enum.insert("box", FILTER_BOX);
