@@ -313,10 +313,6 @@ static float isect_vert_calc_z(int vert_index,
     const int v0_global = poly.start + v0_local;
     const int v1_global = poly.start + v1_local;
 
-    if (UNLIKELY(v0_global >= total_input_verts || v1_global >= total_input_verts)) {
-      continue;
-    }
-
     const double2 &p0 = input_verts_2d[v0_global];
     const double2 &p1 = input_verts_2d[v1_global];
 
