@@ -42,25 +42,25 @@ class MutableAttributeAccessor;
 /** Some storage types are only relevant for certain attribute types. */
 enum class AttrStorageType : int8_t {
   /** #AttributeDataArray. */
-  Array,
+  Array = 0,
   /** A single value for the whole attribute. */
-  Single,
+  Single = 1,
 };
 
 enum class AttrType : int16_t {
-  Bool,
-  Int8,
-  Int16_2D,
-  Int32,
-  Int32_2D,
-  Float,
-  Float2,
-  Float3,
-  Float4x4,
-  ColorByte,
-  ColorFloat,
-  Quaternion,
-  String,
+  Bool = 0,
+  Int8 = 1,
+  Int16_2D = 2,
+  Int32 = 3,
+  Int32_2D = 4,
+  Float = 5,
+  Float2 = 6,
+  Float3 = 7,
+  Float4x4 = 8,
+  ColorByte = 9,
+  ColorFloat = 10,
+  Quaternion = 11,
+  String = 12,
 };
 
 const CPPType &attribute_type_to_cpp_type(AttrType type);
@@ -111,6 +111,8 @@ struct AttributeInit {
   enum class Type {
     /** #AttributeInitConstruct. */
     Construct,
+    /** #AttributeInitValue. */
+    Value,
     /** #AttributeInitDefaultValue. */
     DefaultValue,
     /** #AttributeInitVArray. */
@@ -130,6 +132,20 @@ struct AttributeInit {
  */
 struct AttributeInitConstruct : public AttributeInit {
   AttributeInitConstruct() : AttributeInit(Type::Construct) {}
+};
+
+/**
+ * Create attribute data with the given value, which must be the same as the specified type.
+ */
+struct AttributeInitValue : public AttributeInit {
+  GPointer value;
+
+  /** \warning The value argument must out-live this attribute initialization operation. */
+  template<typename T>
+  AttributeInitValue(const T &value) : AttributeInit(Type::Value), value(GPointer(&value))
+  {
+  }
+  AttributeInitValue(const GPointer value) : AttributeInit(Type::Value), value(value) {}
 };
 
 /**

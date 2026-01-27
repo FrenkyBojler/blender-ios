@@ -635,7 +635,7 @@ void *WM_draw_cb_activate(const std::variant<wmWindowManager *, wmWindow *> owne
                           void (*draw)(const bContext *C, const wmWindow *win, void *customdata),
                           void *customdata)
 {
-  WindowDrawCB *wdc = MEM_callocN<WindowDrawCB>("WindowDrawCB");
+  WindowDrawCB *wdc = MEM_new_zeroed<WindowDrawCB>("WindowDrawCB");
 
   std::visit([&](auto &&wm_or_win) { BLI_addtail(&wm_or_win->runtime->drawcalls, wdc); }, owner);
   wdc->draw = draw;
@@ -653,7 +653,7 @@ bool WM_draw_cb_exit(const std::variant<wmWindowManager *, wmWindow *> owner, vo
         for (WindowDrawCB &wdc : wm_or_win->runtime->drawcalls) {
           if (&wdc == static_cast<WindowDrawCB *>(handle)) {
             BLI_remlink(&wm_or_win->runtime->drawcalls, &wdc);
-            MEM_freeN(&wdc);
+            MEM_delete(&wdc);
             any_removed = true;
             return;
           }
@@ -700,7 +700,7 @@ static void wm_draw_region_buffer_free(ARegion *region)
       GPU_offscreen_free(region->runtime->draw_buffer->offscreen);
     }
 
-    MEM_freeN(region->runtime->draw_buffer);
+    MEM_delete(region->runtime->draw_buffer);
     region->runtime->draw_buffer = nullptr;
   }
 }
@@ -759,7 +759,7 @@ static void wm_draw_region_buffer_create(Scene *scene,
   if (!region->runtime->draw_buffer) {
     if (use_viewport) {
       /* Allocate viewport which includes an off-screen buffer with depth multi-sample, etc. */
-      region->runtime->draw_buffer = MEM_callocN<wmDrawBuffer>("wmDrawBuffer");
+      region->runtime->draw_buffer = MEM_new_zeroed<wmDrawBuffer>("wmDrawBuffer");
       region->runtime->draw_buffer->viewport = stereo ? GPU_viewport_stereo_create() :
                                                         GPU_viewport_create();
     }
@@ -781,7 +781,7 @@ static void wm_draw_region_buffer_create(Scene *scene,
 
       wm_draw_offscreen_texture_parameters(offscreen);
 
-      region->runtime->draw_buffer = MEM_callocN<wmDrawBuffer>("wmDrawBuffer");
+      region->runtime->draw_buffer = MEM_new_zeroed<wmDrawBuffer>("wmDrawBuffer");
       region->runtime->draw_buffer->offscreen = offscreen;
     }
 
@@ -1365,7 +1365,7 @@ uint8_t *WM_window_pixels_read_from_frontbuffer(const wmWindowManager *wm,
 
   const int2 win_size = WM_window_native_pixel_size(win);
   const uint rect_len = win_size[0] * win_size[1];
-  uint8_t *rect = MEM_malloc_arrayN<uint8_t>(4 * rect_len, __func__);
+  uint8_t *rect = MEM_new_array_uninitialized<uint8_t>(4 * rect_len, __func__);
 
   GPU_frontbuffer_read_color(0, 0, win_size[0], win_size[1], 4, GPU_DATA_UBYTE, rect);
 
@@ -1453,7 +1453,7 @@ uint8_t *WM_window_pixels_read_from_offscreen(bContext *C, wmWindow *win, int r_
   }
 
   const uint rect_len = win_size[0] * win_size[1];
-  uint8_t *rect = MEM_malloc_arrayN<uint8_t>(4 * rect_len, __func__);
+  uint8_t *rect = MEM_new_array_uninitialized<uint8_t>(4 * rect_len, __func__);
   GPU_offscreen_bind(offscreen, false);
   wm_draw_window_onscreen(C, win, -1);
   GPU_offscreen_unbind(offscreen, false);
