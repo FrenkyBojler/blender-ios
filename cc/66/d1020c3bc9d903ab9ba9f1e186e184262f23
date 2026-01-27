@@ -23,4 +23,4 @@ Referenced by issue #97313, Crash on Editing a Vertex Position (and/or when enab
 Referenced by issue #97220, Crash on object offset in the array modifier
 Referenced by issue #97150, Export GP to PDF or SVG crashes blender
 Referenced by issue #36350,  Freestyle renders extra lines
-Referenced by issue #153398, Make the "No threading with bpy" definition even more strict
+Referenced by issue #153398, Crash when using threads in python (the supported way)
