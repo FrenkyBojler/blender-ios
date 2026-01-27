@@ -37,7 +37,10 @@ struct LoopData {
 
 /* Detect whether an edge should be considered a valid boundary
  * edge for circularization. */
-static bool is_valid_boundary_edge(BMEdge *e)
+static bool is_valid_boundary_edge(BMEdge *e,
+                                   const bool check_x,
+                                   const bool check_y,
+                                   const bool check_z)
 {
   if (!BM_elem_flag_test(e, BM_ELEM_SELECT) || BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
     return false;
@@ -61,15 +64,15 @@ static bool is_valid_boundary_edge(BMEdge *e)
    * considered a valid boundary edge. */
 
   /* YZ Plane */
-  if (fabsf(e->v1->co[0]) < limit && fabsf(e->v2->co[0]) < limit) {
+  if (check_x && fabsf(e->v1->co[0]) < limit && fabsf(e->v2->co[0]) < limit) {
     return false;
   }
   /* XZ Plane */
-  if (fabsf(e->v1->co[1]) < limit && fabsf(e->v2->co[1]) < limit) {
+  if (check_y && fabsf(e->v1->co[1]) < limit && fabsf(e->v2->co[1]) < limit) {
     return false;
   }
   /* XY Plane */
-  if (fabsf(e->v1->co[2]) < limit && fabsf(e->v2->co[2]) < limit) {
+  if (check_z && fabsf(e->v1->co[2]) < limit && fabsf(e->v2->co[2]) < limit) {
     return false;
   }
 
@@ -85,7 +88,10 @@ static bool is_valid_boundary_edge(BMEdge *e)
 static bool walk_boundary_loop(BMesh * /*bm*/,
                                BMEdge *start_edge,
                                Set<BMEdge *> &visited,
-                               Vector<BMVert *> &r_loop)
+                               Vector<BMVert *> &r_loop,
+                               const bool check_x,
+                               const bool check_y,
+                               const bool check_z)
 {
   /* Finds the next valid boundary edge that isn't visited. */
   auto get_next_edge = [&](BMVert *v, BMEdge *exclude_e) -> BMEdge * {
@@ -93,7 +99,7 @@ static bool walk_boundary_loop(BMesh * /*bm*/,
     BMEdge *e_next;
     BM_ITER_ELEM (e_next, &eiter, v, BM_EDGES_OF_VERT) {
       if (e_next != exclude_e && !visited.contains(e_next)) {
-        if (is_valid_boundary_edge(e_next)) {
+        if (is_valid_boundary_edge(e_next, check_x, check_y, check_z)) {
           return e_next;
         }
       }
@@ -255,6 +261,30 @@ static void get_single_vertex_loops(BMesh *bm, Vector<LoopData> &r_loops)
  * selection. */
 static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops)
 {
+  /* If the selection has near zero extent along an axis, disable mirror plane filtering
+   * for that axis so planar selections are not mistaken for symmetry boundaries. */
+  float min_co[3], max_co[3];
+  INIT_MINMAX(min_co, max_co);
+  bool has_selection = false;
+
+  BMIter viter;
+  BMVert *v;
+  BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
+    if (BM_elem_flag_test(v, BM_ELEM_SELECT) && !BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
+      minmax_v3v3_v3(min_co, max_co, v->co);
+      has_selection = true;
+    }
+  }
+
+  if (!has_selection) {
+    return;
+  }
+
+  const float limit = 0.001f;
+  const bool check_x = (max_co[0] - min_co[0]) > limit;
+  const bool check_y = (max_co[1] - min_co[1]) > limit;
+  const bool check_z = (max_co[2] - min_co[2]) > limit;
+
   Set<BMEdge *> visited;
 
   BMIter iter;
@@ -264,12 +294,12 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops)
     if (visited.contains(edge)) {
       continue;
     }
-    if (!is_valid_boundary_edge(edge)) {
+    if (!is_valid_boundary_edge(edge, check_x, check_y, check_z)) {
       continue;
     }
 
     LoopData ld;
-    ld.is_closed = walk_boundary_loop(bm, edge, visited, ld.verts);
+    ld.is_closed = walk_boundary_loop(bm, edge, visited, ld.verts, check_x, check_y, check_z);
 
     if (ld.verts.size() >= 3) {
       r_loops.append(ld);
@@ -338,8 +368,21 @@ static void project_loop_to_2d(const Vector<BMVert *> &loop,
 
 static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
                                       float r_center[2],
-                                      float *r_radius)
+                                      float *r_radius,
+                                      const bool is_fixed)
 {
+  /* If the center is locked, we skip the solver. The best fit for the fixed center
+   * is simply the average radius. */
+  if (is_fixed) {
+    zero_v2(r_center);
+    *r_radius = 0.0f;
+    for (const CircleVert &cv : verts) {
+      *r_radius += len_v2(cv.co_2d);
+    }
+    *r_radius /= verts.size();
+    return;
+  }
+
   /* Initial guesses. */
   float initial_x = 0.0f;
   float initial_y = 0.0f;
@@ -394,21 +437,27 @@ static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
 
 static void calculate_circle_inside_fit(const Vector<CircleVert> &verts,
                                         float r_center[2],
-                                        float *r_radius)
+                                        float *r_radius,
+                                        const bool is_fixed)
 {
-  float min_co[2], max_co[2];
-  copy_v2_v2(min_co, verts[0].co_2d);
-  copy_v2_v2(max_co, verts[0].co_2d);
-
-  for (const CircleVert &cv : verts) {
-    min_co[0] = min_ff(min_co[0], cv.co_2d[0]);
-    min_co[1] = min_ff(min_co[1], cv.co_2d[1]);
-    max_co[0] = max_ff(max_co[0], cv.co_2d[0]);
-    max_co[1] = max_ff(max_co[1], cv.co_2d[1]);
+  if (is_fixed) {
+    zero_v2(r_center);
   }
+  else {
+    float min_co[2], max_co[2];
+    copy_v2_v2(min_co, verts[0].co_2d);
+    copy_v2_v2(max_co, verts[0].co_2d);
 
-  r_center[0] = (min_co[0] + max_co[0]) * 0.5f;
-  r_center[1] = (min_co[1] + max_co[1]) * 0.5f;
+    for (const CircleVert &cv : verts) {
+      min_co[0] = min_ff(min_co[0], cv.co_2d[0]);
+      min_co[1] = min_ff(min_co[1], cv.co_2d[1]);
+      max_co[0] = max_ff(max_co[0], cv.co_2d[0]);
+      max_co[1] = max_ff(max_co[1], cv.co_2d[1]);
+    }
+
+    r_center[0] = (min_co[0] + max_co[0]) * 0.5f;
+    r_center[1] = (min_co[1] + max_co[1]) * 0.5f;
+  }
 
   *r_radius = FLT_MAX;
   for (const CircleVert &cv : verts) {
@@ -430,11 +479,12 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
   sub_v2_v2v2(vec, verts[0].co_2d, center);
   float start_angle = atan2f(vec[1], vec[0]);
 
-  float total_angle = is_closed ? (2.0f * math::numbers::pi) : math::numbers::pi;
+  float total_angle = 2.0f * math::numbers::pi;
+  int divisions = verts.size();
 
-  int divisions = is_closed ? verts.size() : (verts.size() - 1);
-  if (divisions < 1) {
-    divisions = 1;
+  if (!is_closed && divisions > 1) {
+    total_angle = math::numbers::pi;
+    divisions = verts.size() - 1;
   }
 
   float step = total_angle / divisions;
@@ -480,9 +530,23 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     float center_3d[3], normal[3], p[3], q[3];
     calculate_plane_basis(loop, center_3d, normal, p, q);
 
-    /* For open loops, force the center to the midpoint of the endpoints to
-     * keep the circle aligned with the mirror plane. */
+    bool is_mirrored = false;
     if (!loop_data.is_closed) {
+      BMVert *v_start = loop.first();
+      BMVert *v_end = loop.last();
+      const float limit = 0.001f;
+
+      for (int axis = 0; axis < 3; axis++) {
+        if (fabsf(v_start->co[axis]) < limit && fabsf(v_end->co[axis]) < limit) {
+          is_mirrored = true;
+          break;
+        }
+      }
+    }
+
+    /* For open loops on a symmetry plane, force the center to the midpoint of the endpoints
+     * to keep the circle aligned with the mirror plane. */
+    if (is_mirrored) {
       BMVert *v_start = loop.first();
       BMVert *v_end = loop.last();
 
@@ -500,24 +564,11 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     float circle_center_2d[2];
     float radius;
 
-    if (!loop_data.is_closed) {
-      /* Calculate the radius as the average distance from the origin
-       * for open loops. */
-      zero_v2(circle_center_2d);
-
-      radius = 0.0f;
-      for (const CircleVert &cv : circle_verts) {
-        radius += len_v2(cv.co_2d);
-      }
-      radius /= circle_verts.size();
+    if (fit_method == 1) {
+      calculate_circle_inside_fit(circle_verts, circle_center_2d, &radius, is_mirrored);
     }
     else {
-      if (fit_method == 1) {
-        calculate_circle_inside_fit(circle_verts, circle_center_2d, &radius);
-      }
-      else {
-        calculate_circle_best_fit(circle_verts, circle_center_2d, &radius);
-      }
+      calculate_circle_best_fit(circle_verts, circle_center_2d, &radius, is_mirrored);
     }
 
     if (custom_radius > 0.0f) {
