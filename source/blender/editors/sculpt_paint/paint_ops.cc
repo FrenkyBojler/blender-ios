@@ -45,9 +45,10 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "paint_intern.hh"
+
 #include "curves/sculpt_intern.hh"
 #include "mesh/paint_hide.hh"
-#include "paint_intern.hh"
 #include "mesh/paint_mask.hh"
 #include "mesh/sculpt_intern.hh"
 

@@ -14,7 +14,6 @@
 #include "BLI_enumerable_thread_specific.hh"
 
 #include "editors/sculpt_paint/mesh/mesh_brush_common.hh"
-#include "editors/sculpt_paint/paint_intern.hh"
 #include "editors/sculpt_paint/mesh/paint_mask.hh"
 #include "editors/sculpt_paint/mesh/sculpt_automask.hh"
 #include "editors/sculpt_paint/mesh/sculpt_boundary.hh"

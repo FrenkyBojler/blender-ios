@@ -64,6 +64,7 @@
 #include "UI_resources.hh"
 
 #include "paint_intern.hh"
+
 #include "mesh/sculpt_boundary.hh"
 #include "mesh/sculpt_cloth.hh"
 #include "mesh/sculpt_expand.hh"

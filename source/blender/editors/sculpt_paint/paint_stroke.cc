@@ -47,6 +47,7 @@
 #include "IMB_imbuf_types.hh"
 
 #include "paint_intern.hh"
+
 #include "mesh/sculpt_cloth.hh"
 #include "mesh/sculpt_intern.hh"
 
