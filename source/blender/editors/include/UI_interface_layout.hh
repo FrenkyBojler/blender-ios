@@ -13,7 +13,6 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_types.hh"
 
 namespace blender {
@@ -566,8 +565,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
   void popover(const bContext *C,
                StringRef panel_type,
                std::optional<StringRef> name_opt,
-               int icon,
-               int direction = blender::ui::POPUP_DIRECTION_VERTICAL);
+               int icon);
   void popover_group(
       bContext *C, int space_id, int region_id, const char *context, const char *category);
 

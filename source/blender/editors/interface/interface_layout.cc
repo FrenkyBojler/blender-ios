@@ -3031,15 +3031,13 @@ void Layout::popover(const bContext *C,
 void Layout::popover(const bContext *C,
                      const StringRef panel_type,
                      std::optional<StringRef> name_opt,
-                     int icon,
-                     int direction)
+                     int icon)
 {
   PanelType *pt = WM_paneltype_find(panel_type, true);
   if (pt == nullptr) {
     RNA_warning("Panel type not found '%s'", std::string(panel_type).c_str());
     return;
   }
-  pt->popup_draw_direction = direction;
   this->popover(C, pt, name_opt, icon);
 }
 

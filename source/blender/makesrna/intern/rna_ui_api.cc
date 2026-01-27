@@ -31,19 +31,6 @@ const EnumPropertyItem rna_enum_icon_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static const EnumPropertyItem popup_draw_direction_items[] = {
-    {int(ui::POPUP_DIRECTION_VERTICAL),
-     "VERTICAL",
-     0,
-     "Vertical",
-     "Draw popup panel below the button"},
-    {int(ui::POPUP_DIRECTION_HORIZONTAL),
-     "HORIZONTAL",
-     0,
-     "Horizontal",
-     "Draw popup panel to the side of the button"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -540,8 +527,7 @@ static void rna_uiItemPopoverPanel(Layout *layout,
                                    const char *text_ctxt,
                                    bool translate,
                                    int icon,
-                                   int icon_value,
-                                   int direction = blender::ui::POPUP_DIRECTION_VERTICAL)
+                                   int icon_value)
 {
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
@@ -551,7 +537,7 @@ static void rna_uiItemPopoverPanel(Layout *layout,
     icon = icon_value;
   }
 
-  layout->popover(C, panel_type, text, icon, direction);
+  layout->popover(C, panel_type, text, icon);
 }
 
 static void rna_uiItemPopoverPanelFromGroup(Layout *layout,
@@ -1620,13 +1606,6 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
-  parm = RNA_def_enum(
-      func,
-      "direction",
-      popup_draw_direction_items,
-      0,
-      "Popup Direction",
-      "The direction in which the popup panel is drawn relative to button position");
 
   func = RNA_def_function(srna, "popover_group", "rna_uiItemPopoverPanelFromGroup");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
