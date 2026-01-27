@@ -128,15 +128,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   Array<const bke::bNodeSocketType *> socket_types(required_items.size());
-  for (const int i : required_items.index_range()) {
-    const int item_i = required_items[i];
+  for (const int required_i : required_items.index_range()) {
+    const int item_i = required_items[required_i];
     const auto type = eNodeSocketDatatype(items[item_i].socket_type);
-    socket_types[i] = bke::node_socket_type_find_static(type);
+    socket_types[required_i] = bke::node_socket_type_find_static(type);
   }
 
-  Array<Array<bke::SocketValueVariant>> closure_results(required_items.size());
+  Array<Array<bke::SocketValueVariant>> closure_results(required_items.size(), NoInitialization());
   for (const int i : closure_results.index_range()) {
-    closure_results[i] = Array<bke::SocketValueVariant>(count, NoInitialization());
+    new (&closure_results[i]) Array<bke::SocketValueVariant>(count, NoInitialization());
   }
 
   GeoNodesUserData user_data = *params.user_data();
@@ -157,10 +157,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     /* Create outputs. */
     closure_params.outputs.resize(required_items.size());
-    for (const int i : required_items.index_range()) {
-      const int item_i = required_items[i];
-      closure_params.outputs[i].key = items[item_i].name;
-      closure_params.outputs[i].type = socket_types[i];
+    for (const int required_i : required_items.index_range()) {
+      const int item_i = required_items[required_i];
+      closure_params.outputs[required_i].key = items[item_i].name;
+      closure_params.outputs[required_i].type = socket_types[required_i];
     }
 
     for (const int64_t list_i : range) {
@@ -169,8 +169,8 @@ static void node_geo_exec(GeoNodeExecParams params)
       closure_params.inputs[0].value = bke::SocketValueVariant::From(int(list_i));
 
       /* Set output locations. */
-      for (const int i : required_items.index_range()) {
-        closure_params.outputs[i].value = &closure_results[i][list_i];
+      for (const int required_i : required_items.index_range()) {
+        closure_params.outputs[required_i].value = &closure_results[required_i][list_i];
       }
 
       bke::ClosureToListComputeContext context(parent_context, node.identifier, int(list_i));
@@ -180,10 +180,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   });
 
-  for (const int i : required_items.index_range()) {
-    const int item_i = required_items[i];
+  for (const int required_i : required_items.index_range()) {
+    const int item_i = required_items[required_i];
     const std::string identifier = ItemsAccessor::output_socket_identifier_for_item(items[item_i]);
-    Array<bke::SocketValueVariant> &values = closure_results[i];
+    Array<bke::SocketValueVariant> &values = closure_results[required_i];
 
     if (std::all_of(values.begin(), values.end(), [](const bke::SocketValueVariant &value) {
           return value.is_single();
@@ -197,7 +197,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       threading::parallel_for(IndexRange(count), 128, [&](const IndexRange range) {
         for (const int list_i : range) {
           void *closure_result = const_cast<void *>(values[list_i].get_single_ptr_raw());
-          type.move_construct(closure_result, list_span[i]);
+          type.move_construct(closure_result, list_span[list_i]);
         }
       });
       params.set_output(identifier, List::create(type, std::move(list_data), count));
