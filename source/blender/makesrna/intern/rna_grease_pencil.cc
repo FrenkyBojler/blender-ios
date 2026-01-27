@@ -693,8 +693,7 @@ static int rna_GreasePencilLayerGroup_children_length(PointerRNA *ptr)
 
   BLI_assert(node->is_group());
 
-      return node->as_group()
-          .num_direct_nodes();
+  return node->as_group().num_direct_nodes();
 }
 
 static bool rna_GreasePencilLayerGroup_children_lookup_int(PointerRNA *ptr,
