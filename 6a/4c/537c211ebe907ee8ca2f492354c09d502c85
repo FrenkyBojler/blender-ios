@@ -1,2 +1,2 @@
 Referenced by issue #120231, Crash on `bpy.ops.uv.pack_islands` for certain geometry with `shape_method='CONVEX'`
-Referenced by issue #153398, Make the "No threading with bpy" definition even more strict
+Referenced by issue #153398, Crash when using threads in python (the supported way)
