@@ -414,6 +414,7 @@ struct PanelType {
   /** Sub panels. */
   PanelType *parent;
   ListBaseT<LinkData> children;
+
   /** RNA integration. */
   ExtensionRNA rna_ext;
 };
