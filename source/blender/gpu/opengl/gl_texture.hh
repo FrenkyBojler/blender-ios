@@ -14,8 +14,7 @@
 
 #include "gpu_texture_private.hh"
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 class GLTexture : public Texture {
   friend class GLStateManager;
@@ -58,8 +57,12 @@ class GLTexture : public Texture {
   GLTexture(const char *name);
   ~GLTexture();
 
-  void update_sub(
-      int mip, int offset[3], int extent[3], eGPUDataFormat type, const void *data) override;
+  void update_sub(int mip,
+                  int offset[3],
+                  int extent[3],
+                  eGPUDataFormat type,
+                  const void *data,
+                  const uint unpack_row_length = 0) override;
   void update_sub(int offset[3],
                   int extent[3],
                   eGPUDataFormat format,
@@ -375,5 +378,4 @@ inline GLenum channel_len_to_gl(int channel_len)
   }
 }
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

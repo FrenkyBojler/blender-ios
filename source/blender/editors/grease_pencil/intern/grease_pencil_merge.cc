@@ -29,11 +29,11 @@ static void copy_layer_groups_without_layers(GreasePencil &dst_grease_pencil,
 {
   using namespace bke::greasepencil;
   /* Note: Don't loop over all children, just the direct children. */
-  LISTBASE_FOREACH (GreasePencilLayerTreeNode *, node, &src_parent.children) {
-    if (!node->wrap().is_group()) {
+  for (GreasePencilLayerTreeNode &node : src_parent.children) {
+    if (!node.wrap().is_group()) {
       continue;
     }
-    const LayerGroup &src_group = node->wrap().as_group();
+    const LayerGroup &src_group = node.wrap().as_group();
     LayerGroup &new_group = dst_grease_pencil.add_layer_group(dst_parent, src_group.name(), false);
     BKE_grease_pencil_copy_layer_group_parameters(src_group, new_group);
     /* Repeat recursively for groups in group. */
@@ -98,7 +98,7 @@ static bke::CurvesGeometry join_curves(const GreasePencil &src_grease_pencil,
     const float4x4 &transform = transforms_to_apply[src_curves_i];
     src_curves.transform(transform);
     Curves *src_curves_id = bke::curves_new_nomain(std::move(src_curves));
-    src_curves_id->mat = static_cast<Material **>(MEM_dupallocN(src_grease_pencil.material_array));
+    src_curves_id->mat = MEM_dupalloc(src_grease_pencil.material_array);
     src_curves_id->totcol = src_grease_pencil.material_array_num;
     src_geometries[src_curves_i].replace_curves(src_curves_id);
   }
@@ -329,7 +329,7 @@ void merge_layers(const GreasePencil &src_grease_pencil,
   /* Gather all the layer attributes. */
   const bke::AttributeAccessor src_attributes = src_grease_pencil.attributes();
   bke::MutableAttributeAccessor dst_attributes = dst_grease_pencil.attributes_for_write();
-  src_attributes.foreach_attribute([&](const blender::bke::AttributeIter &iter) {
+  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.data_type == bke::AttrType::String) {
       return;
     }

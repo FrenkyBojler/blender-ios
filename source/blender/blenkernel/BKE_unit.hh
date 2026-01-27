@@ -6,6 +6,8 @@
 
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 /** \file
  * \ingroup bke
  */
@@ -153,3 +155,5 @@ enum {
   B_UNIT_FREQUENCY = 15,
   B_UNIT_TYPE_TOT = 16,
 };
+
+}  // namespace blender

@@ -167,6 +167,7 @@ class IMAGE_MT_select(Menu):
 
         layout.operator_menu_enum("uv.select_similar", "type", text="Select Similar")
         layout.menu("IMAGE_MT_select_linked")
+        layout.operator("uv.select_tile")
 
         layout.separator()
 
@@ -244,7 +245,6 @@ class IMAGE_MT_image(Menu):
             layout.operator("image.resize", text="Resize")
             layout.menu("IMAGE_MT_image_transform")
 
-        if ima and not show_render:
             if ima.packed_file:
                 if ima.filepath:
                     layout.separator()
@@ -410,9 +410,9 @@ class IMAGE_MT_uvs_unwrap(Menu):
         layout.separator()
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        layout.operator("uv.smart_project")
-        layout.operator("uv.lightmap_pack")
-        layout.operator("uv.follow_active_quads")
+        layout.operator("uv.smart_project", text="Smart UV Project...")
+        layout.operator("uv.lightmap_pack", text="Lightmap Pack...")
+        layout.operator("uv.follow_active_quads", text="Follow Active Quads...")
 
         layout.separator()
 
@@ -1731,8 +1731,14 @@ class IMAGE_PT_overlay_uv_display(Panel):
         overlay = sima.overlay
 
         layout.active = overlay.show_overlays
-        layout.prop(uvedit, "show_uv")
-        layout.prop(uvedit, "uv_face_opacity")
+
+        col = layout.column()
+        row = col.row(align=True)
+        row.prop(uvedit, "show_uv", text="")
+        sub = row.row()
+        sub.active = uvedit.show_uv
+        sub.prop(uvedit, "uv_face_opacity", text="Faces")
+        sub.prop(uvedit, "uv_edge_opacity", text="Edges")
 
 
 class IMAGE_PT_overlay_image(Panel):

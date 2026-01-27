@@ -12,6 +12,10 @@
 
 #include "BKE_duplilist.hh"
 
+#include "DNA_userdef_enums.h"
+
+namespace blender {
+
 struct Base;
 struct Collection;
 struct Depsgraph;
@@ -121,7 +125,11 @@ Scene *BKE_scene_set_name(Main *bmain, const char *name);
 ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, int flag);
 void BKE_toolsettings_free(ToolSettings *toolsettings);
 
-Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type);
+Scene *BKE_scene_duplicate(Main *bmain,
+                           Scene *sce,
+                           eSceneCopyMethod type,
+                           eDupli_ID_Flags duplicate_flags,
+                           /*eLibIDDuplicateFlags*/ uint duplicate_options);
 void BKE_scene_groups_relink(Scene *sce);
 
 /**
@@ -145,7 +153,7 @@ bool BKE_scene_can_be_removed(const Main *bmain, const Scene *scene);
 Scene *BKE_scene_find_replacement(
     const Main &bmain,
     const Scene &scene,
-    blender::FunctionRef<bool(const Scene &scene)> scene_validate_cb = nullptr);
+    FunctionRef<bool(const Scene &scene)> scene_validate_cb = nullptr);
 
 bool BKE_scene_has_view_layer(const Scene *scene, const ViewLayer *layer);
 Scene *BKE_scene_find_from_collection(const Main *bmain, const Collection *collection);
@@ -289,7 +297,7 @@ void BKE_scene_multiview_view_filepath_get(const RenderData *rd,
                                            char *r_filepath);
 const char *BKE_scene_multiview_view_suffix_get(const RenderData *rd, const char *viewname);
 const char *BKE_scene_multiview_view_id_suffix_get(const RenderData *rd, int view_id);
-void BKE_scene_multiview_view_prefix_get(Scene *scene,
+void BKE_scene_multiview_view_prefix_get(const Scene *scene,
                                          const char *filepath,
                                          char *r_prefix,
                                          const char **r_ext);
@@ -331,3 +339,5 @@ TransformOrientation *BKE_scene_transform_orientation_find(const Scene *scene, i
  */
 int BKE_scene_transform_orientation_get_index(const Scene *scene,
                                               const TransformOrientation *orientation);
+
+}  // namespace blender

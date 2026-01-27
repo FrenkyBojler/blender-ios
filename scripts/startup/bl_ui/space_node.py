@@ -69,11 +69,6 @@ class NODE_HT_header(Header):
                     'MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'GPENCIL', 'VOLUME', 'CURVES', 'POINTCLOUD',
                 }
 
-                if snode_id:
-                    row = layout.row()
-                    if ob_type not in types_that_support_material:
-                        row.prop(snode_id, "use_nodes")
-
                 layout.separator_spacer()
 
                 # disable material slot buttons when pinned, cannot find correct slot within id_from (#36589)
@@ -151,8 +146,10 @@ class NODE_HT_header(Header):
 
             if snode.node_tree_sub_type == 'SCENE':
                 row = layout.row()
-                row.enabled = not snode.pin
-                if scene.compositing_node_group:
+                if snode.pin:
+                    row.enabled = False
+                    row.template_ID(snode, "node_tree", new="node.new_compositing_node_group")
+                elif scene.compositing_node_group:
                     row.template_ID(scene, "compositing_node_group", new="node.duplicate_compositing_node_group")
                 else:
                     row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
@@ -164,13 +161,16 @@ class NODE_HT_header(Header):
                 active_modifier = active_strip.modifiers.active if active_strip else None
                 is_compositor_modifier_active = active_modifier and active_modifier.type == 'COMPOSITOR'
                 if is_compositor_modifier_active and not snode.pin:
-                    row.template_ID(
-                        active_modifier,
-                        "node_group",
-                        new="node.new_compositor_sequencer_node_group",
-                    )
-                else:
-                    row.enabled = False
+                    if active_modifier.node_group:
+                        row.template_ID(active_modifier,
+                                        "node_group",
+                                        new="node.duplicate_compositing_modifier_node_group")
+                    else:
+                        row.template_ID(
+                            active_modifier,
+                            "node_group",
+                            new="node.new_compositor_sequencer_node_group")
+                elif active_strip and active_strip.type != 'SOUND':
                     row.template_ID(snode, "node_tree", new="node.new_compositor_sequencer_node_group")
 
         elif snode.tree_type == 'GeometryNodeTree':
@@ -600,15 +600,21 @@ class NODE_PT_geometry_node_tool_options(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Options"
-    bl_ui_units_x = 8
+    bl_ui_units_x = 12
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         snode = context.space_data
         group = snode.node_tree
 
         layout.prop(group, "use_wait_for_click")
+        layout.prop(group, "node_tool_idname", text="Identifier")
+        layout.template_node_operator_registration_errors(idname=group.node_tool_idname)
+        if len(group.node_tool_idname) == 0:
+            layout.label(icon='ERROR', text="Missing operator identifier")
 
 
 class NODE_PT_node_color_presets(PresetPanel, Panel):
@@ -1031,7 +1037,7 @@ class NODE_MT_node_tree_interface_new_item(Menu):
 
         active_item = context.space_data.edit_tree.interface.active
 
-        if active_item.item_type == 'PANEL':
+        if active_item and active_item.item_type == 'PANEL':
             layout.operator("node.interface_item_new_panel_toggle", text="Panel Toggle")
 
 
@@ -1158,7 +1164,8 @@ def node_panel(cls):
 class NODE_AST_compositor(bpy.types.AssetShelf):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
-    bl_options = {'DEFAULT_VISIBLE'}
+    bl_options = {'DEFAULT_VISIBLE', 'STORE_ENABLED_CATALOGS_IN_PREFERENCES'}
+    filter_node_tree = True
 
     @classmethod
     def poll(cls, context):
@@ -1166,8 +1173,34 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
 
     @classmethod
     def asset_poll(cls, asset):
+        import os
+        from pathlib import Path
+
         compositing_type = bpy.types.NodeTree.bl_rna.properties["type"].enum_items["COMPOSITING"]
-        return asset.id_type == 'NODETREE' and asset.metadata.get("type") == compositing_type.value
+        if asset.id_type != 'NODETREE' or asset.metadata.get("type") != compositing_type.value:
+            return False
+
+        # Don't display these node groups from the essentials. They will be displayed in the "Add" menu, but are a bit
+        # too low level for the Asset Shelf. The fact that they are assets is more of an implementation detail.
+        # Could use a nicer solution, like a flag or tag on the asset. Not worth if it's just these few assets though.
+        ignored_essentials = {
+            "Combine Cylindrical",
+            "Combine Spherical",
+            "Separate Cylindrical",
+            "Separate Spherical",
+        }
+
+        compositor_essentials_path = Path(os.path.join(
+            bpy.utils.system_resource('DATAFILES'),
+            "assets",
+            "nodes",
+            "compositing_nodes_essentials.blend"
+        ))
+        if Path(asset.full_library_path) == compositor_essentials_path:
+            if asset.name in ignored_essentials:
+                return False
+
+        return True
 
 
 classes = (

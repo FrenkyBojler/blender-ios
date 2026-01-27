@@ -93,7 +93,7 @@ static void discard_buffers(MeshBatchCache &cache,
   };
 
   for (const int i : IndexRange(MBC_BATCH_LEN)) {
-    gpu::Batch *batch = ((gpu::Batch **)&cache.batch)[i];
+    gpu::Batch *batch = (reinterpret_cast<gpu::Batch **>(&cache.batch))[i];
     if (batch && batch_contains_data(*batch)) {
       GPU_BATCH_DISCARD_SAFE(((gpu::Batch **)&cache.batch)[i]);
       cache.batch_ready &= ~DRWBatchFlag(uint64_t(1u) << i);
@@ -153,10 +153,12 @@ static void mesh_cd_calc_active_mask_uv_layer(const Object &object,
                                               DRW_MeshCDMask &cd_used)
 {
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
-  const CustomData &cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
-  int layer = CustomData_get_stencil_layer_index(&cd_ldata, CD_PROP_FLOAT2);
-  if (layer != -1) {
-    cd_used.uv.add_as(cd_ldata.layers[layer].name);
+  StringRef name = me_final.stencil_uv_map_attribute;
+  if (name.is_empty()) {
+    name = mesh.active_uv_map_name();
+  }
+  if (!name.is_empty()) {
+    cd_used.uv.add_as(name);
   }
 }
 
@@ -193,10 +195,10 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
     if (gpumat == nullptr) {
       continue;
     }
-    ListBase gpu_attrs = GPU_material_attributes(gpumat);
-    LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
+    ListBaseT<GPUMaterialAttribute> gpu_attrs = GPU_material_attributes(gpumat);
+    for (GPUMaterialAttribute &gpu_attr : gpu_attrs) {
 
-      if (gpu_attr->is_default_color) {
+      if (gpu_attr.is_default_color) {
         const StringRef default_color_name = me_final.default_color_attribute;
         if (attribute_exists(me_final, default_color_name)) {
           drw_attributes_add_request(r_attributes, default_color_name);
@@ -204,14 +206,14 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
         continue;
       }
 
-      if (gpu_attr->type == CD_ORCO) {
+      if (gpu_attr.type == CD_ORCO) {
         r_cd_used->orco = true;
         continue;
       }
 
-      StringRef name = gpu_attr->name;
+      StringRef name = gpu_attr.name;
 
-      if (gpu_attr->type == CD_TANGENT) {
+      if (gpu_attr.type == CD_TANGENT) {
         if (name.is_empty()) {
           const StringRef default_name = me_final.default_uv_map_name();
           if (!default_name.is_empty()) {
@@ -261,9 +263,9 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
 /** Reset the selection structure, deallocating heap memory as appropriate. */
 static void drw_mesh_weight_state_clear(DRW_MeshWeightState *wstate)
 {
-  MEM_SAFE_FREE(wstate->defgroup_sel);
-  MEM_SAFE_FREE(wstate->defgroup_locked);
-  MEM_SAFE_FREE(wstate->defgroup_unlocked);
+  MEM_SAFE_DELETE(wstate->defgroup_sel);
+  MEM_SAFE_DELETE(wstate->defgroup_locked);
+  MEM_SAFE_DELETE(wstate->defgroup_unlocked);
 
   memset(wstate, 0, sizeof(*wstate));
 
@@ -274,21 +276,21 @@ static void drw_mesh_weight_state_clear(DRW_MeshWeightState *wstate)
 static void drw_mesh_weight_state_copy(DRW_MeshWeightState *wstate_dst,
                                        const DRW_MeshWeightState *wstate_src)
 {
-  MEM_SAFE_FREE(wstate_dst->defgroup_sel);
-  MEM_SAFE_FREE(wstate_dst->defgroup_locked);
-  MEM_SAFE_FREE(wstate_dst->defgroup_unlocked);
+  MEM_SAFE_DELETE(wstate_dst->defgroup_sel);
+  MEM_SAFE_DELETE(wstate_dst->defgroup_locked);
+  MEM_SAFE_DELETE(wstate_dst->defgroup_unlocked);
 
   memcpy(wstate_dst, wstate_src, sizeof(*wstate_dst));
 
   if (wstate_src->defgroup_sel) {
-    wstate_dst->defgroup_sel = static_cast<bool *>(MEM_dupallocN(wstate_src->defgroup_sel));
+    wstate_dst->defgroup_sel = MEM_dupalloc(wstate_src->defgroup_sel);
   }
   if (wstate_src->defgroup_locked) {
-    wstate_dst->defgroup_locked = static_cast<bool *>(MEM_dupallocN(wstate_src->defgroup_locked));
+    wstate_dst->defgroup_locked = MEM_dupalloc(wstate_src->defgroup_locked);
   }
   if (wstate_src->defgroup_unlocked) {
     wstate_dst->defgroup_unlocked = static_cast<bool *>(
-        MEM_dupallocN(wstate_src->defgroup_unlocked));
+        MEM_dupalloc(wstate_src->defgroup_unlocked));
   }
 }
 
@@ -342,7 +344,7 @@ static void drw_mesh_weight_state_extract(
     /* With only one selected bone Multi-paint reverts to regular mode. */
     else {
       wstate->defgroup_sel_count = 0;
-      MEM_SAFE_FREE(wstate->defgroup_sel);
+      MEM_SAFE_DELETE(wstate->defgroup_sel);
     }
   }
 
@@ -369,8 +371,8 @@ static void drw_mesh_weight_state_extract(
                                                 wstate->defgroup_unlocked);
     }
     else {
-      MEM_SAFE_FREE(wstate->defgroup_unlocked);
-      MEM_SAFE_FREE(wstate->defgroup_locked);
+      MEM_SAFE_DELETE(wstate->defgroup_unlocked);
+      MEM_SAFE_DELETE(wstate->defgroup_locked);
     }
   }
 }
@@ -432,8 +434,8 @@ static void mesh_batch_cache_init(Mesh &mesh)
   cache->tris_per_mat.reinitialize(cache->mat_len);
 
   cache->is_dirty = false;
-  cache->batch_ready = (DRWBatchFlag)0;
-  cache->batch_requested = (DRWBatchFlag)0;
+  cache->batch_ready = DRWBatchFlag(0);
+  cache->batch_requested = DRWBatchFlag(0);
 
   drw_mesh_weight_state_clear(&cache->weight_state);
 }
@@ -591,7 +593,7 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
   cache.tris_per_mat = {};
 
   for (int i = 0; i < sizeof(cache.batch) / sizeof(void *); i++) {
-    gpu::Batch **batch = (gpu::Batch **)&cache.batch;
+    gpu::Batch **batch = reinterpret_cast<gpu::Batch **>(&cache.batch);
     GPU_BATCH_DISCARD_SAFE(batch[i]);
   }
   for (const int i : cache.surface_per_mat.index_range()) {
@@ -603,7 +605,7 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
   cache.surface_per_mat = {};
   cache.mat_len = 0;
 
-  cache.batch_ready = (DRWBatchFlag)0;
+  cache.batch_ready = DRWBatchFlag(0);
   drw_mesh_weight_state_clear(&cache.weight_state);
 
   mesh_batch_cache_free_subdiv_cache(cache);
@@ -1049,7 +1051,7 @@ static void init_empty_dummy_batch(gpu::Batch &batch)
    * creating a vertex buffer shouldn't matter. */
   GPUVertFormat format{};
   GPU_vertformat_attr_add(&format, "dummy", gpu::VertAttrType::SFLOAT_32);
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, 1);
   /* Avoid the batch being rendered at all. */
   GPU_vertbuf_data_len_set(*vbo, 0);
@@ -1082,7 +1084,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   const bool is_editmode = ob.mode == OB_MODE_EDIT;
 
   DRWBatchFlag batch_requested = cache.batch_requested;
-  cache.batch_requested = (DRWBatchFlag)0;
+  cache.batch_requested = DRWBatchFlag(0);
 
   if (batch_requested & MBC_SURFACE_WEIGHTS) {
     /* Check vertex weights. */
@@ -1112,31 +1114,30 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       }
     }
 
-    /* Verify that all surface batches have needed attribute layers.
-     */
+    /* Verify that all surface batches have needed attribute layers, i.e. that none of the shaders
+     * need vertex buffers that aren't currently cached. */
     /* TODO(fclem): We could be a bit smarter here and only do it per
      * material. */
     const bool uvs_overlap = drw_attributes_overlap(&cache.cd_used.uv, &cache.cd_needed.uv);
     const bool tan_overlap = drw_attributes_overlap(&cache.cd_used.tan, &cache.cd_needed.tan);
     const bool attr_overlap = drw_attributes_overlap(&cache.attr_used, &cache.attr_needed);
-    const bool orco_overlap = cache.cd_used.orco == cache.cd_needed.orco;
-    const bool tan_orco_overlap = cache.cd_used.tan_orco == cache.cd_needed.tan_orco;
-    const bool sculpt_overlap = cache.cd_used.sculpt_overlays == cache.cd_needed.sculpt_overlays;
-    if (!uvs_overlap || !tan_overlap || !attr_overlap || !orco_overlap || !tan_orco_overlap ||
-        !sculpt_overlap)
+    if (!uvs_overlap || !tan_overlap || !attr_overlap ||
+        (cache.cd_needed.orco && !cache.cd_used.orco) ||
+        (cache.cd_needed.tan_orco && !cache.cd_used.tan_orco) ||
+        (cache.cd_needed.sculpt_overlays && !cache.cd_used.sculpt_overlays))
     {
       FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
         if (!uvs_overlap) {
           mbc->buff.vbos.remove(VBOType::UVs);
           cd_uv_update = true;
         }
-        if (!tan_overlap || !tan_orco_overlap) {
+        if (!tan_overlap || cache.cd_used.tan_orco != cache.cd_needed.tan_orco) {
           mbc->buff.vbos.remove(VBOType::Tangents);
         }
-        if (!orco_overlap) {
+        if (cache.cd_used.orco != cache.cd_needed.orco) {
           mbc->buff.vbos.remove(VBOType::Orco);
         }
-        if (!sculpt_overlap) {
+        if (cache.cd_used.sculpt_overlays != cache.cd_needed.sculpt_overlays) {
           mbc->buff.vbos.remove(VBOType::SculptData);
         }
         if (!attr_overlap) {

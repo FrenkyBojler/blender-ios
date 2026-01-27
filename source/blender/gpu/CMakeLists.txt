@@ -95,6 +95,7 @@ set(SRC
   intern/gpu_shader_dependency.cc
   intern/gpu_shader_interface.cc
   intern/gpu_shader_log.cc
+  intern/gpu_shader_preprocessor.cc
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
@@ -105,6 +106,23 @@ set(SRC
   intern/gpu_vertex_format_normals.cc
   intern/gpu_viewport.cc
   intern/gpu_worker.cc
+
+  shader_tool/attribute.cc
+  shader_tool/enum.cc
+  shader_tool/flow_control.cc
+  shader_tool/function.cc
+  shader_tool/intermediate.cc
+  shader_tool/metadata.cc
+  shader_tool/namespace.cc
+  shader_tool/processor.cc
+  shader_tool/resource_table.cc
+  shader_tool/shader_tool.cc
+  shader_tool/string.cc
+  shader_tool/struct.cc
+  shader_tool/template.cc
+  shader_tool/union.cc
+
+  shader_tool/lexit/lexit.cc
 
   GPU_attribute_convert.hh
   GPU_batch.hh
@@ -159,13 +177,16 @@ set(SRC
   intern/gpu_query.hh
   intern/gpu_select_private.hh
   intern/gpu_shader_create_info.hh
+  intern/gpu_shader_create_info_pipeline.hh
   intern/gpu_shader_create_info_private.hh
   intern/gpu_shader_dependency_private.hh
   intern/gpu_shader_interface.hh
+  intern/gpu_shader_metadata_private.hh
   intern/gpu_shader_private.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
   intern/gpu_texture_private.hh
+  intern/gpu_texture_pool_private.hh
   intern/gpu_uniform_buffer_private.hh
   intern/gpu_vertex_format_private.hh
 
@@ -214,6 +235,7 @@ set(OPENGL_SRC
   opengl/gl_state.hh
   opengl/gl_storage_buffer.hh
   opengl/gl_texture.hh
+  opengl/gl_texture_pool.hh
   opengl/gl_uniform_buffer.hh
   opengl/gl_vertex_array.hh
   opengl/gl_vertex_buffer.hh
@@ -264,6 +286,7 @@ set(VULKAN_SRC
   vulkan/vk_storage_buffer.cc
   vulkan/vk_streaming_buffer.cc
   vulkan/vk_texture.cc
+  vulkan/vk_texture_pool.cc
   vulkan/vk_to_string.cc
   vulkan/vk_uniform_buffer.cc
   vulkan/vk_vertex_attribute_object.cc
@@ -283,6 +306,7 @@ set(VULKAN_SRC
   vulkan/vk_fence.hh
   vulkan/vk_framebuffer.hh
   vulkan/vk_ghost_api.hh
+  vulkan/vk_graphics_pipeline.hh
   vulkan/vk_image_view.hh
   vulkan/vk_immediate.hh
   vulkan/vk_index_buffer.hh
@@ -339,10 +363,12 @@ set(VULKAN_SRC
   vulkan/vk_storage_buffer.hh
   vulkan/vk_streaming_buffer.hh
   vulkan/vk_texture.hh
+  vulkan/vk_texture_pool.hh
   vulkan/vk_to_string.hh
   vulkan/vk_uniform_buffer.hh
   vulkan/vk_vertex_attribute_object.hh
   vulkan/vk_vertex_buffer.hh
+  vulkan/vk_vertex_input_description.hh
 )
 
 set(METAL_SRC
@@ -371,8 +397,8 @@ set(METAL_SRC
   metal/mtl_backend.hh
   metal/mtl_batch.hh
   metal/mtl_capabilities.hh
-  metal/mtl_common.hh
   metal/mtl_command_buffer.hh
+  metal/mtl_common.hh
   metal/mtl_context.hh
   metal/mtl_debug.hh
   metal/mtl_framebuffer.hh
@@ -392,6 +418,7 @@ set(METAL_SRC
   metal/mtl_state.hh
   metal/mtl_storage_buffer.hh
   metal/mtl_texture.hh
+  metal/mtl_texture_pool.hh
   metal/mtl_uniform_buffer.hh
   metal/mtl_vertex_buffer.hh
 )
@@ -406,21 +433,17 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
   PRIVATE bf::dependencies::optional::opencolorio
 )
 
 # Select Backend source based on availability
 if(WITH_OPENGL_BACKEND)
-  list(APPEND INC_SYS
-    ${Epoxy_INCLUDE_DIRS}
-  )
   list(APPEND SRC
     ${OPENGL_SRC}
   )
   list(APPEND LIB
-    ${Epoxy_LIBRARIES}
+    PRIVATE bf::dependencies::epoxy
   )
   add_definitions(-DWITH_OPENGL_BACKEND)
 endif()
@@ -431,25 +454,14 @@ endif()
 
 
 if(WITH_VULKAN_BACKEND)
-  list(APPEND INC
-    ../../../extern/vulkan_memory_allocator
-  )
-  list(APPEND INC_SYS
-    ${VULKAN_INCLUDE_DIRS}
-  )
-
-  list(APPEND INC_SYS
-    ${SHADERC_INCLUDE_DIRS}
-  )
   list(APPEND SRC
     ${VULKAN_SRC}
   )
-
   list(APPEND LIB
-    ${VULKAN_LIBRARIES}
-    ${SHADERC_LIBRARIES}
-    extern_vulkan_memory_allocator
+    PRIVATE bf::extern::vulkan_memory_allocator
     PRIVATE bf::extern::xxhash
+    PRIVATE bf::dependencies::optional::vulkan
+    PRIVATE bf::dependencies::optional::shaderc
   )
 
   add_definitions(-DWITH_VULKAN_BACKEND)
@@ -457,7 +469,6 @@ endif()
 
 set(GLSL_SRC
   GPU_shader_shared.hh
-  GPU_xr_defines.hh
 
   shaders/infos/gpu_clip_planes_infos.hh
   shaders/infos/gpu_index_load_infos.hh
@@ -472,7 +483,6 @@ set(GLSL_SRC
   shaders/infos/gpu_shader_2D_image_rect_color_infos.hh
   shaders/infos/gpu_shader_2D_image_shuffle_color_infos.hh
   shaders/infos/gpu_shader_2D_node_socket_infos.hh
-  shaders/infos/gpu_shader_2D_nodelink_infos.hh
   shaders/infos/gpu_shader_2D_point_uniform_size_uniform_color_aa_infos.hh
   shaders/infos/gpu_shader_2D_point_uniform_size_uniform_color_outline_aa_infos.hh
   shaders/infos/gpu_shader_2D_point_varying_size_varying_color_infos.hh
@@ -494,7 +504,6 @@ set(GLSL_SRC
   shaders/infos/gpu_shader_sequencer_infos.hh
   shaders/infos/gpu_shader_simple_lighting_infos.hh
   shaders/infos/gpu_shader_text_infos.hh
-  shaders/infos/gpu_shader_xr_raycast_infos.hh
   shaders/infos/gpu_srgb_to_framebuffer_space_infos.hh
 
   shaders/gpu_shader_depth_only_frag.glsl
@@ -506,14 +515,12 @@ set(GLSL_SRC
   shaders/gpu_shader_2D_vert.glsl
   shaders/gpu_shader_2D_area_borders_vert.glsl
   shaders/gpu_shader_2D_area_borders_frag.glsl
-  shaders/gpu_shader_2D_widget_base_vert.glsl
-  shaders/gpu_shader_2D_widget_base_frag.glsl
+  shaders/gpu_shader_2D_widget_base.bsl.hh
   shaders/gpu_shader_2D_widget_shadow_vert.glsl
   shaders/gpu_shader_2D_widget_shadow_frag.glsl
   shaders/gpu_shader_2D_node_socket_frag.glsl
   shaders/gpu_shader_2D_node_socket_vert.glsl
-  shaders/gpu_shader_2D_nodelink_frag.glsl
-  shaders/gpu_shader_2D_nodelink_vert.glsl
+  shaders/gpu_shader_2D_nodelink.bsl.hh
   shaders/gpu_shader_2D_line_dashed_frag.glsl
   shaders/gpu_shader_2D_image_vert.glsl
   shaders/gpu_shader_2D_image_rect_vert.glsl
@@ -549,7 +556,6 @@ set(GLSL_SRC
 
   shaders/gpu_shader_text_vert.glsl
   shaders/gpu_shader_text_frag.glsl
-  shaders/gpu_shader_xr_raycast_vert.glsl
   shaders/gpu_shader_keyframe_shape_vert.glsl
   shaders/gpu_shader_keyframe_shape_frag.glsl
 
@@ -563,6 +569,11 @@ set(GLSL_SRC
 
   shaders/gpu_shader_codegen_lib.glsl
 
+  shaders/gpu_shader_python_comp.glsl
+  shaders/gpu_shader_python_frag.glsl
+  shaders/gpu_shader_python_typedef_lib.glsl
+  shaders/gpu_shader_python_vert.glsl
+
   shaders/common/gpu_shader_attribute_load_lib.glsl
   shaders/common/gpu_shader_bicubic_sampler_lib.glsl
   shaders/common/gpu_shader_common_color_ramp.glsl
@@ -574,6 +585,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_common_mix_rgb.glsl
   shaders/common/gpu_shader_debug_gradients_lib.glsl
   shaders/common/gpu_shader_fullscreen_vert.glsl
+  shaders/common/gpu_shader_fullscreen_lib.glsl
   shaders/common/gpu_shader_index_load_lib.glsl
   shaders/common/gpu_shader_index_range_lib.glsl
   shaders/common/gpu_shader_math_angle_lib.glsl
@@ -757,6 +769,7 @@ set(MTL_BACKEND_GLSL_SRC
   shaders/gpu_shader_msl_matrix_legacy.msl
   shaders/gpu_shader_msl_matrix.msl
   shaders/gpu_shader_msl_sampler.msl
+  shaders/gpu_shader_msl_string.msl
   shaders/gpu_shader_msl_types.msl
   shaders/gpu_shader_msl_types_legacy.msl
   shaders/gpu_shader_msl_defines.msl
@@ -796,9 +809,21 @@ if(WITH_VULKAN_BACKEND)
   list(APPEND GLSL_SRC ${VULKAN_BACKEND_GLSL_SRC})
 endif()
 
+set(GLSL_INC
+  .
+
+  intern
+  shaders
+  shaders/common
+  shaders/material
+  shaders/infos
+
+  vulkan/shaders
+)
+
 set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
-  glsl_to_c(${GLSL_FILE} GLSL_C)
+  glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
 set(SHADER_C)
@@ -925,14 +950,6 @@ if(WITH_GTESTS)
       vulkan/render_graph/tests/vk_render_graph_test_transfer.cc
 
       vulkan/render_graph/tests/vk_render_graph_test_types.hh
-    )
-  endif()
-
-  # Enable shader validation on build-bot for Metal
-  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS AND
-     NOT (WITH_GTESTS AND WITH_GPU_BACKEND_TESTS)) # Avoid duplicate source file
-    list(APPEND TEST_SRC
-      tests/shader_create_info_test.cc
     )
   endif()
 

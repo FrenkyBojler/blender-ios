@@ -21,8 +21,8 @@ namespace blender::seq {
 
 static void init_gaussian_blur_effect(Strip *strip)
 {
-  MEM_SAFE_FREE(strip->effectdata);
-  GaussianBlurVars *data = MEM_callocN<GaussianBlurVars>("gaussianblurvars");
+  MEM_SAFE_DELETE_VOID(strip->effectdata);
+  GaussianBlurVars *data = MEM_new<GaussianBlurVars>("gaussianblurvars");
   strip->effectdata = data;
   data->size_x = 9.0f;
   data->size_y = 9.0f;
@@ -133,8 +133,6 @@ static ImBuf *do_gaussian_blur_effect(const RenderData *context,
                                       ImBuf *ibuf1,
                                       ImBuf * /*ibuf2*/)
 {
-  using namespace blender;
-
   /* Create blur kernel weights. */
   const GaussianBlurVars *data = static_cast<const GaussianBlurVars *>(strip->effectdata);
 

@@ -144,43 +144,6 @@ ${body}
 
 
 # -----------------------------------------------------------------------------
-# Workarounds
-
-def _worlaround_win32_ssl_cert_failure() -> None:
-    # Applies workaround by `pukkandan` on GITHUB at run-time:
-    # See: https://github.com/python/cpython/pull/91740
-    import ssl
-
-    class SSLContext_DUMMY(ssl.SSLContext):
-        def _load_windows_store_certs(self, storename: str, purpose: ssl.Purpose) -> bytearray:
-            # WIN32 only.
-            enum_certificates = getattr(ssl, "enum_certificates", None)
-            assert callable(enum_certificates)
-            certs = bytearray()
-            try:
-                for cert, encoding, trust in enum_certificates(storename):
-                    try:
-                        self.load_verify_locations(cadata=cert)
-                    except ssl.SSLError:
-                        # warnings.warn("Bad certificate in Windows certificate store")
-                        pass
-                    else:
-                        # CA certs are never PKCS#7 encoded
-                        if encoding == "x509_asn":
-                            if trust is True or purpose.oid in trust:
-                                certs.extend(cert)
-            except PermissionError:
-                # warnings.warn("unable to enumerate Windows certificate store")
-                pass
-            # NOTE(@ideasman42): Python never uses this return value internally.
-            # Keep it for consistency.
-            return certs
-
-    # pylint: disable-next=protected-access
-    ssl.SSLContext._load_windows_store_certs = SSLContext_DUMMY._load_windows_store_certs  # type: ignore
-
-
-# -----------------------------------------------------------------------------
 # Argument Overrides
 
 class _ArgsDefaultOverride:
@@ -573,13 +536,7 @@ def rmtree_with_fallback_or_error(
     # so use it's callback that raises a link error and remove the link in that case.
     errors = []
 
-    # *DEPRECATED* 2024/07/01 Remove when 3.11 is dropped.
-    if sys.version_info >= (3, 12):
-        shutil.rmtree(path, onexc=lambda *args: errors.append(args))
-    else:
-        # Ignore as the deprecated logic is only used for older Python versions.
-        # pylint: disable-next=deprecated-argument
-        shutil.rmtree(path, onerror=lambda *args: errors.append((args[0], args[1], args[2][1])))
+    shutil.rmtree(path, onexc=lambda *args: errors.append(args))
 
     # Happy path (for practically all cases).
     if not errors:
@@ -971,9 +928,9 @@ def pkg_server_repo_config_from_toml_and_validate(
         if not isinstance(item, dict):
             return "blocklist contains non dictionary item, found ({:s})".format(str(type(item)))
         if not isinstance(value := item.get("id"), str):
-            return "blocklist items must have have a string typed \"id\" entry, found {:s}".format(str(type(value)))
+            return "blocklist items must have a string typed \"id\" entry, found {:s}".format(str(type(value)))
         if not isinstance(value := item.get("reason"), str):
-            return "blocklist items must have have a string typed \"reason\" entry, found {:s}".format(str(type(value)))
+            return "blocklist items must have a string typed \"reason\" entry, found {:s}".format(str(type(value)))
 
     return PkgServerRepoConfig(
         schema_version=field_schema_version,
@@ -1126,7 +1083,7 @@ class PathPatternMatch:
     #   to delimit on `/` which is necessary for `gitignore` style matching.
     #   So `/` are replaced with newlines, then REGEX multi-line logic is used
     #   to delimit the separators.
-    # - This is used for building packages, so it doesn't have to to especially fast,
+    # - This is used for building packages, so it doesn't have to be especially fast,
     #   although it shouldn't cause noticeable delays at build time.
     # - The test is located in: `../cli/test_path_pattern_match.py`
 
@@ -2919,7 +2876,7 @@ def toml_from_filepath_or_error(filepath: str) -> dict[str, Any] | str:
 
 def repo_local_private_dir(*, local_dir: str) -> str:
     """
-    Ensure the repos hidden directory exists.
+    Ensure the repositories hidden directory exists.
     """
     return os.path.join(local_dir, REPO_LOCAL_PRIVATE_DIR)
 
@@ -2930,7 +2887,7 @@ def repo_local_private_dir_ensure(
         error_fn: Callable[[Exception], None],
 ) -> str | None:
     """
-    Ensure the repos hidden directory exists.
+    Ensure the repositories hidden directory exists.
     """
     local_private_dir = repo_local_private_dir(local_dir=local_dir)
     if not os.path.isdir(local_private_dir):
@@ -5009,7 +4966,7 @@ class subcmd_author:
                     return False
 
             # NOTE: this is arguably *not* manifest validation, the check could be refactored out.
-            # Currently we always want to check both and it's useful to do that while the informatio
+            # Currently we always want to check both and it's useful to do that while the information is loaded.
             expected_files = []
             if manifest.type == "add-on":
                 if archive_subdir:
@@ -5676,9 +5633,6 @@ def main(
     if "--version" in sys.argv:
         sys.stdout.write("{:s}\n".format(VERSION))
         return 0
-
-    if (sys.platform == "win32") and (sys.version_info < (3, 12, 6)):
-        _worlaround_win32_ssl_cert_failure()
 
     parser = argparse_create(
         args_internal=args_internal,

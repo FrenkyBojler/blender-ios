@@ -51,12 +51,12 @@ static void subdiv_mesh_prepare_accumulator(SubdivDeformContext *ctx, int num_ve
   if (!ctx->have_displacement) {
     return;
   }
-  ctx->accumulated_counters = MEM_calloc_arrayN<int>(num_vertices, __func__);
+  ctx->accumulated_counters = MEM_new_array_zeroed<int>(num_vertices, __func__);
 }
 
 static void subdiv_mesh_context_free(SubdivDeformContext *ctx)
 {
-  MEM_SAFE_FREE(ctx->accumulated_counters);
+  MEM_SAFE_DELETE(ctx->accumulated_counters);
 }
 
 /** \} */
@@ -103,7 +103,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
                                       const int /*num_edges*/,
                                       const int /*num_loops*/,
                                       const int /*num_faces*/,
-                                      const int * /*subdiv_face_offset*/)
+                                      const Span<int> /*subdiv_face_offset*/)
 {
   SubdivDeformContext *subdiv_context = static_cast<SubdivDeformContext *>(
       foreach_context->user_data);
@@ -219,7 +219,6 @@ void deform_coarse_vertices(Subdiv *subdiv,
   foreach_subdiv_geometry(subdiv, &foreach_context, &mesh_settings, coarse_mesh);
   stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH_GEOMETRY);
 
-  // BKE_mesh_validate(result, true, true);
   stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
 
   /* Free used memory. */

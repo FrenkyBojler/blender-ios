@@ -92,7 +92,7 @@ static void validate_value(const bke::AttributeAccessor attributes,
 static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 {
   Object *active_object = CTX_data_active_object(C);
-  Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
+  Curves &active_curves_id = *id_cast<Curves *>(active_object->data);
 
   AttributeOwner active_owner = AttributeOwner::from_id(&active_curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(active_owner);
@@ -148,7 +148,7 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object *active_object = CTX_data_active_object(C);
-  Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
+  Curves &active_curves_id = *id_cast<Curves *>(active_object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&active_curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
@@ -186,19 +186,19 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
 
 static void set_attribute_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = &op->layout->column(true);
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  ui::Layout &layout = op->layout->column(true);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   Object *object = CTX_data_active_object(C);
-  Curves &curves_id = *static_cast<Curves *>(object->data);
+  Curves &curves_id = *id_cast<Curves *>(object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
   const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
   const bke::AttributeMetaData meta_data = *curves.attributes().lookup_meta_data(name);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(meta_data.data_type);
-  layout->prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
 }
 
 void CURVES_OT_attribute_set(wmOperatorType *ot)
