@@ -118,6 +118,53 @@ struct TokenBuffer {
     return {str_.substr(start, end - start), types_[index]};
   }
 
+  struct TokenMut {
+    const char *str_data;
+    int str_len;
+    int str_len_with_whitespace;
+    TokenType type;
+
+    TokenMut() = delete;
+
+    TokenMut(std::string_view str, TokenType type)
+        : str_data(str.data()),
+          str_len(str.size()),
+          str_len_with_whitespace(str.size()),
+          type(type)
+    {
+    }
+
+    TokenMut(const char *str_data, int str_len, int str_len_with_whitespace, TokenType type)
+        : str_data(str_data),
+          str_len(str_len),
+          str_len_with_whitespace(str_len_with_whitespace),
+          type(type)
+    {
+    }
+
+    std::string_view str() const
+    {
+      return std::string_view{str_data, size_t(str_len)};
+    }
+    std::string_view str_with_whitespace() const
+    {
+      return std::string_view{str_data, size_t(str_len_with_whitespace)};
+    }
+    bool followed_by_whitespace() const
+    {
+      return str_len != str_len_with_whitespace;
+    }
+  };
+
+  TokenMut mutable_token(const int index) const
+  {
+    const int start = offsets_[index];
+    const int end = (whitespaces_collapsed_ ? original_offsets_ : offsets_)[index + 1];
+    const int end_with_whitespace = offsets_[index + 1];
+    assert(start < end);
+    return {str_.data() + start, end - start, end_with_whitespace - start, types_[index]};
+  }
+
   /**
    * @brief Token iterator.
    */

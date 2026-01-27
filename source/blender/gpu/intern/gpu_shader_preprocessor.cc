@@ -32,32 +32,17 @@ struct TokenRange {
 
 static StringRef str(const Token t)
 {
-  /* Note: Whitespaces where not merged (because of TokenizePreprocessor), so using
-   * str_view_with_whitespace will be faster.  */
-  return t.str_view_with_whitespace();
+  const LexerBase &lex = t.data->lex;
+  return lex.mutable_token(t.index).str();
 }
 
 static StringRef str(const TokenRange &range)
 {
-  int start = range.start.str_index_start();
-  int end = range.end.str_index_last();
-  return StringRef(range.start.data->lex.str.data() + start, end - start + 1);
-}
-
-static Token skip_space(Token tok)
-{
-  while (tok == Space) {
-    tok = tok.next();
-  }
-  return tok;
-}
-
-static Token skip_space_backward(Token tok)
-{
-  while (tok == Space) {
-    tok = tok.prev();
-  }
-  return tok;
+  const LexerBase &lex = range.start.data->lex;
+  StringRef start = lex[range.start.index].str;
+  StringRef end = lex[range.end.index].str;
+  int64_t size = end.end() - start.data();
+  return size > 0 ? StringRef(start.data(), end.end() - start.data()) : "";
 }
 
 }  // namespace shader::parser
@@ -98,6 +83,7 @@ struct AtomicLexer : LexerBase {
   {
     str = input;
     process(input, lexit::char_class_table);
+    merge_spaces();
 
     token_types_str = std::string_view((const char *)types_.get(), size_);
     token_types = {types_.get(), size_};
@@ -220,6 +206,19 @@ struct AtomicLexer : LexerBase {
     }
 
     line_offsets = line_offsets_buf_.as_span();
+  }
+};
+
+struct ExpansionLexer : LexerBase {
+  void lexical_analysis(std::string_view input)
+  {
+    str = input;
+    process(input, lexit::char_class_table);
+    merge_spaces();
+
+    token_types_str = std::string_view((const char *)types_.get(), size_);
+    token_types = {types_.get(), size_};
+    token_offsets = {offsets_.get(), size_ + 1};
   }
 };
 
@@ -447,14 +446,6 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   }
 
   /**
-   * Jump to next token. Undefined behavior if tok is the last token.
-   */
-  TokenID skip_space(TokenID tok)
-  {
-    return (get_type(tok) == Space) ? next(tok) : tok;
-  }
-
-  /**
    * Return the start element.
    */
   TokenID get_start(LineID line)
@@ -520,9 +511,9 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   TokenID get_identifier(DirectiveID dir)
   {
     LineID line = get_start(dir);
-    TokenID hash_tok = skip_space(get_start(line));
+    TokenID hash_tok = get_start(line);
     BLI_assert(get_type(hash_tok) == Hash);
-    TokenID dir_tok = skip_space(next(hash_tok));
+    TokenID dir_tok = next(hash_tok);
     return dir_tok;
   }
 
@@ -577,7 +568,7 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
 /* Fast C (incomplete) preprocessor implementation.  */
 struct Preprocessor : IntermediateFormWithIDs {
  private:
-  using ExpansionParser = IntermediateForm<SimpleLexer, DummyParser>;
+  using ExpansionParser = IntermediateForm<ExpansionLexer, DummyParser>;
   using TokenRange = shader::parser::TokenRange;
 
   /* Cache the expression lexer to avoid memory allocations. */
@@ -636,7 +627,7 @@ struct Preprocessor : IntermediateFormWithIDs {
   Vector<DirectiveID, 8> jump_stack;
   /* Own stack to avoid memory allocation during recursive expansion parsing. */
   ParserStack recursive_parser_stack;
-StringStack expanded_string_stack;
+  StringStack expanded_string_stack;
   /* Set of visited macros during recursion (blue painting stack). Using a vector for speed. */
   Vector<DirectiveID> visited_macros;
   /* Maps containing currently active macros. Map their keyword to their definition. */
@@ -733,7 +724,7 @@ StringStack expanded_string_stack;
 
   void define_macro(DirectiveID dir)
   {
-    TokenID macro_name = skip_space(next(get_identifier(dir)));
+    TokenID macro_name = next(get_identifier(dir));
     BLI_assert(get_type(macro_name) == Word);
     /* Store the name token of the declaration.
      * The actual parsing of the definition happens during expansion. */
@@ -742,7 +733,7 @@ StringStack expanded_string_stack;
 
   void undefine_macro(DirectiveID dir)
   {
-    TokenID macro_name = skip_space(next(get_identifier(dir)));
+    TokenID macro_name = next(get_identifier(dir));
     BLI_assert(get_type(macro_name) == Word);
     defines.remove(get_atom(macro_name));
   }
@@ -785,7 +776,7 @@ StringStack expanded_string_stack;
     const LineID dir_line_end = get_end(dir);
     const TokenID dir_tok = get_identifier(dir);
     /* Evaluate condition. */
-    const TokenID cond_start = skip_space(next(dir_tok));
+    const TokenID cond_start = next(dir_tok);
     const TokenID cond_end = get_end(dir_line_end);
     const bool condition_result = evaluate_condition(dir_type, cond_start, cond_end);
 
@@ -859,7 +850,7 @@ StringStack expanded_string_stack;
     catch (const std::exception &e) {
       std::cout << "\"" << str(start, end) << "\" > \"" << expand << "\" ";
       std::cerr << "Error: " << e.what() << "\n";
-      return 0;
+      return false;
     }
   }
 
@@ -901,7 +892,7 @@ StringStack expanded_string_stack;
     /* Early out number literals.
      * Anything below '0' is not an alphabetical character and thus cannot start a word.
      * Saves one comparison. */
-    if (tok_str[0] <= '9') {
+    if (tok_str[0] <= '9') { /* TODO(fclem): Remove, uneeded anymore. */
       return;
     }
 
@@ -957,7 +948,7 @@ StringStack expanded_string_stack;
     if (is_function) {
       /* This is a functional macro. */
 
-      Token param = shader::parser::skip_space(expanded_tok.next());
+      Token param = expanded_tok.next();
       if (param != '(') {
         /* Macro doesn't have parameters. It should not expand. */
         return {};
@@ -967,7 +958,7 @@ StringStack expanded_string_stack;
       macro_parameters.clear_and_keep_capacity();
       while (get_type(tok) != ')') {
         /* Continue to the next name. */
-        tok = skip_space(next(tok));
+        tok = next(tok);
         if (get_type(tok) == ')') {
           /* Function with no arguments. */
           param = get_end_of_parameter(param);
@@ -998,13 +989,11 @@ StringStack expanded_string_stack;
           macro_parameters.add(argument_name, {param_start.next(), param_start.next()});
         }
         else {
-          macro_parameters.add(argument_name,
-                               {shader::parser::skip_space(param_start.next()),
-                                shader::parser::skip_space_backward(param_end.prev())});
+          macro_parameters.add(argument_name, {param_start.next(), param_end.prev()});
         }
 
         /* Continue to the next separator. */
-        tok = skip_space(next(tok));
+        tok = next(tok);
         param = param_end;
 
         if (get_type(tok) == Invalid) {
@@ -1012,7 +1001,7 @@ StringStack expanded_string_stack;
         }
       }
       /* Skip closing parenthesis. */
-      tok = skip_space(next(tok));
+      tok = next(tok);
       /* Make sure to replace the whole call. */
       end_of_expansion = param;
     }
@@ -1024,19 +1013,18 @@ StringStack expanded_string_stack;
                                 const Map<StringRef, TokenRange> &macro_parameters,
                                 TokenID tok)
   {
-    using Token = lexit::TokenBuffer::Token;
+    using TokenMut = lexit::TokenBuffer::TokenMut;
 
     TokenType invalid_type = Invalid;
     TokenType space_type = Space;
 
     int i = int(tok);
 
-    Vector<Token, 16> stream;
-    stream.append(Token{"", invalid_type});
-    stream.append(Token{"", invalid_type});
-    stream.append(Token{"", invalid_type});
+    Vector<TokenMut, 16> stream;
+    stream.append(TokenMut("", invalid_type));
+    stream.append(TokenMut("", invalid_type));
     while (true) {
-      const Token t = lex_[i];
+      const TokenMut t = lex_.mutable_token(i);
       if (ELEM(t.type, NewLine, lexit::EndOfFile)) {
         break;
       }
@@ -1044,24 +1032,21 @@ StringStack expanded_string_stack;
         /* Preprocessor new line. Skip and continue. */
         i += 2;
         /* Still insert a space to avoid merging tokens. */
-        stream.append(Token{" ", space_type});
+        stream.append(TokenMut(" ", space_type));
         continue;
       }
       stream.append(t);
       i += 1;
     }
-    stream.append(Token{"", invalid_type});
-    stream.append(Token{"", invalid_type});
-    stream.append(Token{"", invalid_type});
+    stream.append(TokenMut("", invalid_type));
+    stream.append(TokenMut("", invalid_type));
 
-    for (int i : stream.index_range().slice(3, stream.size() - 6)) {
-      TokenType prev_type3 = stream[i - 3].type;
+    for (int i : stream.index_range().slice(2, stream.size() - 4)) {
       TokenType prev_type2 = stream[i - 2].type;
       TokenType prev_type = stream[i - 1].type;
       TokenType curr_type = stream[i].type;
       TokenType next_type = stream[i + 1].type;
       TokenType next_type2 = stream[i + 2].type;
-      TokenType next_type3 = stream[i + 3].type;
       /* Skip the token pasting operator. */
       if (curr_type == '#') {
         /* Token concat. */
@@ -1074,33 +1059,30 @@ StringStack expanded_string_stack;
       BLI_assert_msg(curr_type != '#', "Stringify operator '#' is not supported");
 
       /* Support spaces around token pasting operator */
-      bool next_is_token_pasting = (next_type == ' ') ? (next_type2 == '#' && next_type3 == '#') :
-                                                        (next_type == '#' && next_type2 == '#');
-      bool prev_is_token_pasting = (prev_type == ' ') ? (prev_type2 == '#' && prev_type3 == '#') :
-                                                        (prev_type == '#' && prev_type2 == '#');
+      bool next_is_token_pasting = (next_type == '#' && next_type2 == '#');
+      bool prev_is_token_pasting = (prev_type == '#' && prev_type2 == '#');
 
-      if (curr_type == ' ' && (next_is_token_pasting || prev_is_token_pasting)) {
-        /* Do not paste spaces around token pasting operator. */
-      }
-      else if (curr_type == ' ') {
-        /* Replace multiple spaces by only one. Shrinks final codebase. */
-        expanded += ' ';
-      }
-      else if (curr_type == Word) {
+      if (curr_type == Word) {
         bool replaced = false;
 
         if (is_function) {
           /* Lookup macro arguments. */
-          const TokenRange *macro_value_ptr = macro_parameters.lookup_ptr(stream[i].str);
+          const TokenRange *macro_value_ptr = macro_parameters.lookup_ptr(stream[i].str());
           if (macro_value_ptr) {
             const TokenRange &macro_value = *macro_value_ptr;
 
+            StringRef macro_value_str = shader::parser::str(macro_value);
+
             if (!next_is_token_pasting && !prev_is_token_pasting) {
               /* Expand argument. Can expand to the same macro (finite recursion). */
-              expanded += parse_and_expand(shader::parser::str(macro_value));
+              expanded += parse_and_expand(macro_value_str);
+              /* Do not loose the trailing whitespace inside the expanded token. */
+              if (stream[i].followed_by_whitespace()) {
+                expanded += ' ';
+              }
             }
             else {
-              expanded += shader::parser::str(macro_value);
+              expanded += macro_value_str;
             }
             replaced = true;
           }
@@ -1108,13 +1090,18 @@ StringStack expanded_string_stack;
 
         if (!replaced) {
           /* Fallback to no expansion. */
-          expanded += stream[i].str;
+          expanded += stream[i].str_with_whitespace();
         }
       }
       else {
-        expanded += stream[i].str;
+        expanded += stream[i].str_with_whitespace();
       }
     }
+  }
+
+  bool followed_by_space(TokenID tok)
+  {
+    return lex_.offsets_[int(tok) + 1] != lex_.original_offsets_[int(tok) + 1];
   }
 
   /**
@@ -1124,16 +1111,17 @@ StringStack expanded_string_stack;
   ExpandedResult expand_macro(const Token expanded_tok, const DirectiveID macro)
   {
     const TokenID define_tok = get_identifier(macro);
-    BLI_assert(str(define_tok) == "define");
-    const TokenID macro_name = skip_space(next(define_tok));
+    BLI_assert(get_type(define_tok) == TokenType::Define);
+    const TokenID macro_name = next(define_tok);
     BLI_assert(get_type(macro_name) == Word);
     const TokenID macro_parenthesis = next(macro_name);
 
-    const bool is_function = (get_type(macro_parenthesis) == '(');
+    const bool is_function = (get_type(macro_parenthesis) == '(') &&
+                             !followed_by_space(macro_name);
 
     Token end_of_expansion = expanded_tok;
 
-    TokenID tok = skip_space(macro_parenthesis);
+    TokenID tok = macro_parenthesis;
 
     /* Empty definition. */
     if (get_type(tok) == '\n') {
@@ -1159,6 +1147,11 @@ StringStack expanded_string_stack;
     expanded = parse_and_expand(expanded);
 
     visited_macros.pop_last();
+
+    const bool trailing_space = end_of_expansion.str_with_whitespace().back() == ' ';
+    if (trailing_space) {
+      expanded += ' ';
+    }
 
     /* Note that it is fine to release even if still used in the result since it cannot be
      * reallocated until the next call. Also release doesn't free the memory until the end of the
@@ -1192,11 +1185,11 @@ StringStack expanded_string_stack;
       }
       else if (tok_atom == defined_atom) {
         /* Parenthesis or space */
-        tok = skip_space(next(tok));
+        tok = next(tok);
         const bool is_function = (get_type(tok) == '(');
         /* Token to search. */
         if (is_function) {
-          tok = skip_space(next(tok));
+          tok = next(tok);
         }
         else {
           BLI_assert(get_type(tok) == Word);
@@ -1204,7 +1197,7 @@ StringStack expanded_string_stack;
         expand += (defines.contains(get_atom(tok)) ? "1" : "0");
         if (is_function) {
           /* End parenthesis. */
-          tok = skip_space(next(tok));
+          tok = next(tok);
         }
       }
       else {
@@ -1295,6 +1288,7 @@ std::string Shader::run_preprocessor(StringRef source)
   if (G.debug & G_DEBUG_GPU_SHADER_NO_DCE) {
     return processor.result_get(true);
   }
+  return processor.result_get(true);
 
   DeadCodeEliminator dce(processor.result_get(true));
   dce.optimize();

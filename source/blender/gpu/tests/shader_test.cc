@@ -694,9 +694,9 @@ D(C,2)
 
 
 
-  
+
 2
-1 
+1
 12
 5
 5
@@ -790,7 +790,7 @@ CONCAT(, _suffix)
 )";
     std::string expect = R"(
 
-prefix_ 
+prefix_
 _suffix
 )";
     std::string result = blender::gpu::Shader::run_preprocessor(input);
@@ -813,11 +813,11 @@ Success
     std::string expect = R"(
 
 
+  
 
-
-
+  
     Success
-
+  
 
 
 
