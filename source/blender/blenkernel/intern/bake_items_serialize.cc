@@ -1746,7 +1746,7 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
 
 static constexpr int bake_file_version = 3;
 
-void serialize_bake(const BakeState &bake_state,
+void serialize_bake(const BakeValues &bake_values,
                     BlobWriter &blob_writer,
                     BlobWriteSharing &blob_sharing,
                     std::ostream &r_stream)
@@ -1754,18 +1754,18 @@ void serialize_bake(const BakeState &bake_state,
   io::serialize::DictionaryValue io_root;
   io_root.append_int("version", bake_file_version);
   io::serialize::DictionaryValue &io_items = *io_root.append_dict("items");
-  for (auto item : bake_state.items_by_id.items()) {
-    io::serialize::DictionaryValue &io_item = *io_items.append_dict(std::to_string(item.key));
-    serialize_bake_item(*item.value, blob_writer, blob_sharing, io_item);
-  }
+  // for (auto item : bake_state.items_by_id.items()) {
+  //   io::serialize::DictionaryValue &io_item = *io_items.append_dict(std::to_string(item.key));
+  //   serialize_bake_item(*item.value, blob_writer, blob_sharing, io_item);
+  // }
 
   io::serialize::JsonFormatter formatter;
   formatter.serialize(r_stream, io_root);
 }
 
-std::optional<BakeState> deserialize_bake(std::istream &stream,
-                                          const BlobReader &blob_reader,
-                                          const BlobReadSharing &blob_sharing)
+std::optional<BakeValues> deserialize_bake(std::istream &stream,
+                                           const BlobReader &blob_reader,
+                                           const BlobReadSharing &blob_sharing)
 {
   JsonFormatter formatter;
   std::unique_ptr<io::serialize::Value> io_root_value;
@@ -1790,30 +1790,31 @@ std::optional<BakeState> deserialize_bake(std::istream &stream,
   if (!io_items) {
     return std::nullopt;
   }
-  BakeState bake_state;
-  for (const auto &io_item_value : io_items->elements()) {
-    const io::serialize::DictionaryValue *io_item = io_item_value.second->as_dictionary_value();
-    if (!io_item) {
-      return std::nullopt;
-    }
-    int id;
-    try {
-      id = std::stoi(io_item_value.first);
-    }
-    catch (...) {
-      return std::nullopt;
-    }
-    if (bake_state.items_by_id.contains(id)) {
-      return std::nullopt;
-    }
-    std::unique_ptr<BakeItem> bake_item = deserialize_bake_item(
-        *io_item, blob_reader, blob_sharing);
-    if (!bake_item) {
-      return std::nullopt;
-    }
-    bake_state.items_by_id.add_new(id, std::move(bake_item));
-  }
-  return bake_state;
+  BakeValues bake_values;
+  // BakeState bake_state;
+  // for (const auto &io_item_value : io_items->elements()) {
+  //   const io::serialize::DictionaryValue *io_item = io_item_value.second->as_dictionary_value();
+  //   if (!io_item) {
+  //     return std::nullopt;
+  //   }
+  //   int id;
+  //   try {
+  //     id = std::stoi(io_item_value.first);
+  //   }
+  //   catch (...) {
+  //     return std::nullopt;
+  //   }
+  //   if (bake_state.items_by_id.contains(id)) {
+  //     return std::nullopt;
+  //   }
+  //   std::unique_ptr<BakeItem> bake_item = deserialize_bake_item(
+  //       *io_item, blob_reader, blob_sharing);
+  //   if (!bake_item) {
+  //     return std::nullopt;
+  //   }
+  //   bake_state.items_by_id.add_new(id, std::move(bake_item));
+  // }
+  return bake_values;
 }
 
 }  // namespace blender::bke::bake

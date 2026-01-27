@@ -60,6 +60,7 @@ set(SRC
   intern/bake_items_paths.cc
   intern/bake_items_serialize.cc
   intern/bake_items_socket.cc
+  intern/bake_values.cc
   intern/blender.cc
   intern/blender_cli_command.cc
   intern/blender_copybuffer.cc
@@ -342,6 +343,7 @@ set(SRC
   BKE_bake_items_paths.hh
   BKE_bake_items_serialize.hh
   BKE_bake_items_socket.hh
+  BKE_bake_values.hh
   BKE_blender.hh
   BKE_blender_cli_command.hh
   BKE_blender_copybuffer.hh
