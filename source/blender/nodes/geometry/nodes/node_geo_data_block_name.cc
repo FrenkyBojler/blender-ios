@@ -45,6 +45,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node.custom1);
 
   std::string output = "";
+  std::string output2 = "";
+  //  ID *data_block = params.extract_input<ID *>("Data Block");  cant compile
+  // SocketValueVariant value = params.extract_input<SocketValueVariant>("Data Block");
 
   switch (data_type) {
     case SOCK_OBJECT: {
@@ -71,6 +74,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       break;
   }
   params.set_output("Name", std::move(output));
+  params.set_output("Library Name", std::move(output2));
   params.set_default_remaining_outputs();
 }
 
