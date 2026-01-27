@@ -221,7 +221,7 @@ static PyMethodDef pyrna_windowmanager_methods[] = {
      static_cast<PyCFunction>(pyrna_callback_classmethod_add),
      METH_VARARGS | METH_CLASS,
      pyrna_wm_draw_handler_add_doc},
-    {"draw_cursor_remove",
+    {"draw_handler_remove",
      static_cast<PyCFunction>(pyrna_callback_classmethod_remove),
      METH_VARARGS | METH_CLASS,
      pyrna_wm_draw_handler_remove_doc},
