@@ -803,10 +803,6 @@ static void replace_interface_socket(bContext &C,
       bke::node_interface::find_proxy_implicit_input_node_function(
           socket_type, NodeDefaultInputType(io_socket.default_input));
 
-  /* True if the socket is connected both internally and externally. This includes the case of
-   * implicit inputs, which counts as an input connection. */
-  const bool is_through_link = !incoming_links.is_empty() || implicit_input_fn;
-
   /* Find the socket input value to use, if available. */
   const bNodeTree &group_tree = *id_cast<bNodeTree *>(group_node->id);
   const bNode *group_output_node = group_tree.group_output_node();
@@ -819,21 +815,16 @@ static void replace_interface_socket(bContext &C,
 
   /* Determine if the socket input value is used and whether a proxy node is needed. */
   bool needs_proxy = false;
-  bool use_socket_value = false;
-  if (is_through_link) {
-    /* A proxy is needed if any internal internal or external connection has a different type and
-     * therefore cannot directly be connected without loss of conversion. */
-    if (any_link_need_conversion(incoming_links, io_socket) &&
-        any_link_need_conversion(outgoing_links, io_socket))
-    {
-      needs_proxy = true;
-    }
-  }
-  else {
+  bool use_default_value_or_input = false;
+  if (incoming_links.is_empty()) {
     /* The socket has no incoming links. A proxy is needed if any outgoing connection has a
      * different type and cannot store the input value without loss of information. */
-    if (socket_value) {
-      use_socket_value = true;
+    if (implicit_input_fn) {
+      needs_proxy = true;
+      use_default_value_or_input = true;
+    }
+    else if (socket_value) {
+      use_default_value_or_input = true;
       for (const MutableNodeAndSocket &out_link : outgoing_links) {
         bke::node_declaration_ensure(dst_tree, out_link.node);
         const bNodeSocket &out_socket = out_link.find_socket();
@@ -857,11 +848,20 @@ static void replace_interface_socket(bContext &C,
       }
     }
   }
+  else {
+    /* A proxy is needed if any internal internal or external connection has a different type
+     * and therefore cannot directly be connected without loss of conversion. */
+    if (any_link_need_conversion(incoming_links, io_socket) &&
+        any_link_need_conversion(outgoing_links, io_socket))
+    {
+      needs_proxy = true;
+    }
+  }
 
   /* Create a proxy node if necessary. */
   bNode *proxy_node = nullptr;
   if (needs_proxy) {
-    if (use_socket_value) {
+    if (use_default_value_or_input) {
       if (implicit_input_fn) {
         proxy_node = implicit_input_fn(C, dst_tree);
       }
@@ -914,7 +914,7 @@ static void replace_interface_socket(bContext &C,
       }
     }
     /* Copy or transfer the socket value where needed. */
-    if (use_socket_value && socket_value) {
+    if (use_default_value_or_input && socket_value) {
       for (const MutableNodeAndSocket &out_link : outgoing_links) {
         const bNodeSocket &out_socket = out_link.find_socket();
         const eNodeSocketDatatype to_type = eNodeSocketDatatype(out_socket.type);
