@@ -10,6 +10,7 @@
 
 #include <optional>
 
+#include "BKE_brush.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -202,7 +203,7 @@ struct StrokeCache {
    * Whether the modifier key that controls inverting brush behavior is active currently.
    * Generally signals a change in behavior for brushes.
    *
-   * \see BrushStrokeMode::BRUSH_STROKE_INVERT.
+   * \see BrushStrokeMode::Invert.
    */
   bool invert = false;
   float pressure = 0.0f;
@@ -394,9 +395,17 @@ struct StrokeCache {
    * Whether the modifier key that controls smoothing is active currently.
    * Generally signals a change in behavior for different brushes.
    *
-   * \see BrushStrokeMode::BRUSH_STROKE_SMOOTH.
+   * \see BrushSwitchMode::Smooth.
    */
   bool alt_smooth = false;
+
+  /**
+   * Whether the modifier key that controls masking is active currently.
+   * Switches the active brush to the mask brush during the stroke.
+   *
+   * \see BrushSwitchMode::Mask.
+   */
+  bool alt_mask = false;
 
   float plane_trim_squared = 0.0f;
 
@@ -455,11 +464,16 @@ namespace ed::sculpt_paint {
 /**
  * Triggers redraws, updates, and dependency graph tags as necessary after each brush calculation.
  */
-void flush_update_step(const bContext *C, UpdateType update_type);
+void flush_update_step(bContext *C, UpdateType update_type);
+void flush_update_step(ViewContext &vc, Object &object, UpdateType update_type);
 /**
  * Triggers redraws, updates, and dependency graph tags as necessary when a brush stroke finishes.
  */
-void flush_update_done(const bContext *C, Object &ob, UpdateType update_type);
+void flush_update_done(bContext *C, Object &ob, UpdateType update_type);
+void flush_update_done(ViewContext &vc,
+                       const wmWindowManager &wm,
+                       Object &ob,
+                       UpdateType update_type);
 
 }  // namespace ed::sculpt_paint
 
@@ -484,6 +498,13 @@ bool stroke_get_location_bvh(bContext *C, float out[3], const float mval[2], boo
 bool stroke_get_location_bvh(Depsgraph &depsgraph,
                              ViewContext &vc,
                              const Sculpt &sd,
+                             const Brush *brush,
+                             float out[3],
+                             const float mval[2],
+                             bool force_original);
+bool stroke_get_location_bvh(Depsgraph &depsgraph,
+                             ViewContext &vc,
+                             const Paint &paint,
                              const Brush *brush,
                              float out[3],
                              const float mval[2],
@@ -859,7 +880,7 @@ std::optional<Span<float>> orig_mask_data_lookup_grids(const Object &object,
 
 inline bool brush_type_is_paint(const int tool)
 {
-  return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
+  return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR, SCULPT_BRUSH_TYPE_BLUR);
 }
 
 inline bool brush_type_is_mask(const int tool)

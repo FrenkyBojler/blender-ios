@@ -24,6 +24,7 @@
 #include "BLI_sys_types.h"
 
 #include "BKE_asset.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -31,6 +32,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_tracking.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
@@ -74,7 +76,7 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
   separate_node.parent = node.parent;
   separate_node.location[0] = node.location[0] - 10.0f;
   separate_node.location[1] = node.location[1];
-  NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
+  NodeCMPCombSepColor *storage = MEM_new<NodeCMPCombSepColor>(__func__);
   storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
   separate_node.storage = storage;
 
@@ -94,7 +96,7 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
   set_alpha_node.parent = node.parent;
   set_alpha_node.location[0] = node.location[0] - 10.0f;
   set_alpha_node.location[1] = node.location[1];
-  set_alpha_node.storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
+  set_alpha_node.storage = MEM_new<NodeCMPCombSepColor>(__func__);
 
   bNodeSocket &set_alpha_image_input = version_node_add_socket(
       node_tree, set_alpha_node, SOCK_IN, "NodeSocketColor", "Image");
@@ -149,7 +151,7 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
   separate_alpha_node.parent = node.parent;
   separate_alpha_node.location[0] = node.location[0] - 10.0f;
   separate_alpha_node.location[1] = node.location[1];
-  NodeCombSepColor *separate_alpha_storage = MEM_new_for_free<NodeCombSepColor>(__func__);
+  NodeCombSepColor *separate_alpha_storage = MEM_new<NodeCombSepColor>(__func__);
   separate_alpha_storage->mode = NODE_COMBSEP_COLOR_RGB;
   separate_alpha_node.storage = separate_alpha_storage;
 
@@ -172,7 +174,7 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
   separate_color_node.parent = node.parent;
   separate_color_node.location[0] = node.location[0] - 10.0f;
   separate_color_node.location[1] = node.location[1];
-  NodeCombSepColor *separate_color_storage = MEM_new_for_free<NodeCombSepColor>(__func__);
+  NodeCombSepColor *separate_color_storage = MEM_new<NodeCombSepColor>(__func__);
   separate_color_storage->mode = NODE_COMBSEP_COLOR_RGB;
   separate_color_node.storage = separate_color_storage;
 
@@ -191,7 +193,7 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
   combine_color_node.parent = node.parent;
   combine_color_node.location[0] = node.location[0] - 10.0f;
   combine_color_node.location[1] = node.location[1];
-  NodeCombSepColor *combine_color_storage = MEM_new_for_free<NodeCombSepColor>(__func__);
+  NodeCombSepColor *combine_color_storage = MEM_new<NodeCombSepColor>(__func__);
   combine_color_storage->mode = NODE_COMBSEP_COLOR_RGB;
   combine_color_node.storage = combine_color_storage;
 
@@ -323,6 +325,39 @@ static void version_clear_unused_strip_flags(Main &bmain)
   }
 }
 
+static void version_string_to_curves_node_inputs(bNodeTree &tree, bNode &node)
+{
+  if (!node.storage) {
+    return;
+  }
+  auto &storage = *reinterpret_cast<NodeGeometryStringToCurves *>(node.storage);
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Font")) {
+    bNodeSocket &socket = version_node_add_socket(tree, node, SOCK_IN, "NodeSocketFont", "Font");
+    socket.default_value_typed<bNodeSocketValueFont>()->value = reinterpret_cast<VFont *>(node.id);
+    node.id = nullptr;
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Overflow")) {
+    bNodeSocket &socket = version_node_add_socket(
+        tree, node, SOCK_IN, "NodeSocketMenu", "Overflow");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.overflow;
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Align X")) {
+    bNodeSocket &socket = version_node_add_socket(
+        tree, node, SOCK_IN, "NodeSocketMenu", "Align X");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.align_x;
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Align Y")) {
+    bNodeSocket &socket = version_node_add_socket(
+        tree, node, SOCK_IN, "NodeSocketMenu", "Align Y");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.align_y;
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Pivot Point")) {
+    bNodeSocket &socket = version_node_add_socket(
+        tree, node, SOCK_IN, "NodeSocketMenu", "Pivot Point");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.pivot_mode;
+  }
+}
+
 static const char *legacy_pass_name_to_new_name(const char *name)
 {
   if (STREQ(name, "DiffDir")) {
@@ -448,6 +483,26 @@ static void do_version_light_remove_use_nodes(Main *bmain, Light *light)
 
   new_output.location[0] = emission.location[0] + 2.0f * emission.width;
   new_output.location[1] = emission.location[1];
+}
+
+/* For cycles, the Denoising Albedo render pass is now registered after the Denoising Normal pass
+ * to match the compositor Denoise node. So we swap the order of Denoising Albedo and Denoising
+ * Normal sockets in the Render Layers node that has been saved with the old order. */
+static void do_version_render_layers_node_albedo_normal_swap(bNode &node)
+{
+  bNodeSocket *socket_denoise_normal = nullptr;
+  bNodeSocket *socket_denoise_albedo = nullptr;
+  for (bNodeSocket &socket : node.outputs) {
+    if (STREQ(socket.identifier, "Denoising Normal")) {
+      socket_denoise_normal = &socket;
+    }
+    if (STREQ(socket.identifier, "Denoising Albedo")) {
+      socket_denoise_albedo = &socket;
+    }
+  }
+  if (socket_denoise_albedo && socket_denoise_normal) {
+    BLI_listbase_swaplinks(&node.outputs, socket_denoise_normal, socket_denoise_albedo);
+  }
 }
 
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
@@ -600,7 +655,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         if (ELEM(node.type_legacy, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
           for (bNodeSocket &socket : node.outputs) {
             if (socket.storage) {
-              MEM_freeN(socket.storage);
+              MEM_delete_void(socket.storage);
               socket.storage = nullptr;
             }
           }
@@ -615,6 +670,67 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       do_version_light_remove_use_nodes(bmain, &light);
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 17)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        for (bNode &node : node_tree->nodes) {
+          if (node.type_legacy == CMP_NODE_MOVIEDISTORTION) {
+            if (node.storage) {
+              BKE_tracking_distortion_free(static_cast<MovieDistortion *>(node.storage));
+            }
+            node.storage = nullptr;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 18)) {
+    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+      if (tree->type == NTREE_GEOMETRY) {
+        for (bNode &node : tree->nodes) {
+          if (node.type_legacy == GEO_NODE_STRING_TO_CURVES) {
+            version_string_to_curves_node_inputs(*tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 19)) {
+    for (Mesh &mesh : bmain->meshes) {
+      bke::mesh_convert_customdata_to_storage(mesh);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 20)) {
+    for (Scene &scene : bmain->scenes) {
+      SequencerToolSettings *seq_ts = seq::tool_settings_ensure(&scene);
+      constexpr short SEQ_SNAP_TO_FRAME_RANGE_OLD = (1 << 8);
+      /* Snap to frame range was bit 8, now bit 9, to make room for snap to increment in bit 8. */
+      if (seq_ts->snap_mode & SEQ_SNAP_TO_FRAME_RANGE_OLD) {
+        seq_ts->snap_mode &= ~SEQ_SNAP_TO_FRAME_RANGE_OLD;
+        seq_ts->snap_mode |= SEQ_SNAP_TO_FRAME_RANGE;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 21)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        for (bNode &node : node_tree->nodes) {
+          if (node.type_legacy == CMP_NODE_R_LAYERS) {
+            do_version_render_layers_node_albedo_normal_swap(node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

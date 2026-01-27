@@ -287,11 +287,12 @@ class UniformArrayBuffer : public detail::UniformCommon<T, len, false> {
   UniformArrayBuffer(const char *name = nullptr) : detail::UniformCommon<T, len, false>(name)
   {
     /* TODO(@fclem): We should map memory instead. */
-    this->data_ = static_cast<T *>(MEM_mallocN_aligned(len * sizeof(T), 16, this->name_));
+    this->data_ = static_cast<T *>(
+        MEM_new_uninitialized_aligned(len * sizeof(T), 16, this->name_));
   }
   ~UniformArrayBuffer()
   {
-    MEM_freeN(static_cast<void *>(this->data_));
+    MEM_delete_void(static_cast<void *>(this->data_));
   }
 };
 
@@ -334,13 +335,14 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
   StorageArrayBuffer(const char *name = nullptr) : detail::StorageCommon<T, len, device_only>(name)
   {
     /* TODO(@fclem): We should map memory instead. */
-    this->data_ = static_cast<T *>(MEM_mallocN_aligned(len * sizeof(T), 16, this->name_));
+    this->data_ = static_cast<T *>(
+        MEM_new_uninitialized_aligned(len * sizeof(T), 16, this->name_));
   }
   ~StorageArrayBuffer()
   {
     /* NOTE: T is not always trivial (e.g. can be #eevee::VelocityIndex), so cannot use
-     * `MEM_freeN` directly on it, without casting it to `void *`. */
-    MEM_freeN(static_cast<void *>(this->data_));
+     * `MEM_delete` directly on it, without casting it to `void *`. */
+    MEM_delete_void(static_cast<void *>(this->data_));
   }
 
   /* Resize to \a new_size elements. */
@@ -348,12 +350,13 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
   {
     BLI_assert(new_size > 0);
     if (new_size != this->len_) {
-      /* Manual realloc since MEM_reallocN_aligned does not exists. */
-      T *new_data_ = static_cast<T *>(MEM_mallocN_aligned(new_size * sizeof(T), 16, this->name_));
+      /* Manual realloc since MEM_realloc_uninitialized_aligned does not exists. */
+      T *new_data_ = static_cast<T *>(
+          MEM_new_uninitialized_aligned(new_size * sizeof(T), 16, this->name_));
       memcpy(reinterpret_cast<void *>(new_data_),
              this->data_,
              min_uu(this->len_, new_size) * sizeof(T));
-      MEM_freeN(static_cast<void *>(this->data_));
+      MEM_delete_void(static_cast<void *>(this->data_));
       this->data_ = new_data_;
       GPU_storagebuf_free(this->ssbo_);
 
@@ -951,7 +954,7 @@ class Texture : NonCopyable {
 
   /**
    * Returns a buffer containing the texture data for the specified miplvl.
-   * The memory block needs to be manually freed by MEM_freeN().
+   * The memory block needs to be manually freed by MEM_delete().
    */
   template<typename T> T *read(eGPUDataFormat format, int miplvl = 0)
   {
@@ -1066,50 +1069,58 @@ class Texture : NonCopyable {
 };
 
 class TextureFromPool : public Texture, NonMovable {
- public:
-  TextureFromPool(const char *name = "gpu::Texture") : Texture(name) {};
+  /* Object may be released on a different `GPUContext`; track the owning pool. */
+  gpu::TexturePool *pool_ = nullptr;
 
-  /* Always use `release()` after rendering. */
-  void acquire(int2 extent,
+ public:
+  TextureFromPool(const char *name = "draw::TextureFromPool") : Texture(name) {};
+
+  /* On destructor, textures after `::retain()` may need to be released. */
+  ~TextureFromPool()
+  {
+    release();
+  }
+
+  /* Always use `::release()` or `::retain()` after rendering with a texture. */
+  bool acquire(int2 extent,
                gpu::TextureFormat format,
                eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
   {
-    BLI_assert(this->tx_ == nullptr);
-
-    this->tx_ = gpu::TexturePool::get().acquire_texture(UNPACK2(extent), format, usage);
-
-    if (G.debug & G_DEBUG_GPU) {
-      debug_clear();
+    if (tx_ == nullptr) {
+      pool_ = &gpu::TexturePool::get();
+      tx_ = pool_->acquire_texture(extent, format, usage, name_);
+      if (G.debug & G_DEBUG_GPU) {
+        debug_clear();
+      }
+      return true;
     }
+
+    pool_->offset_users_count(tx_, 1);
+    return false;
   }
 
+  /* Invalidate the acquired texture for this frame. Multiple releases can be done safely. */
   void release()
   {
-    /* Allows multiple release. */
-    if (this->tx_ == nullptr) {
+    if (tx_ == nullptr) {
       return;
     }
-    gpu::TexturePool::get().release_texture(this->tx_);
-    this->tx_ = nullptr;
+    pool_->release_texture(tx_);
+    tx_ = nullptr;
+    pool_ = nullptr;
   }
 
-  /**
-   * Swap the content of the two textures.
-   * Also change ownership accordingly if needed.
-   */
-  static void swap(TextureFromPool &a, Texture &b)
+  /* Allow for the texture to survive into the next cycle. */
+  void retain()
   {
-    Texture::swap(a, b);
-    gpu::TexturePool::get().give_texture_ownership(a);
-    gpu::TexturePool::get().take_texture_ownership(b);
+    pool_->offset_users_count(tx_, -1);
   }
-  static void swap(Texture &a, TextureFromPool &b)
-  {
-    swap(b, a);
-  }
+
+  /* Swap the contents of the two textures as well as their owning pool. */
   static void swap(TextureFromPool &a, TextureFromPool &b)
   {
     Texture::swap(a, b);
+    std::swap(a.pool_, b.pool_);
   }
 
   /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
@@ -1119,7 +1130,7 @@ class TextureFromPool : public Texture, NonMovable {
   }
 
   /** Remove methods that are forbidden with this type of textures. */
-  bool ensure_1d(int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
+  bool ensure_1d(int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   bool ensure_1d_array(int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) =
       delete;
   bool ensure_2d(int, int, int, gpu::TextureFormat, eGPUTextureUsage, float *) = delete;
@@ -1127,8 +1138,6 @@ class TextureFromPool : public Texture, NonMovable {
       delete;
   bool ensure_3d(int, int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   bool ensure_cube(int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_cube_array(int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) =
-      delete;
   void filter_mode(bool) = delete;
   void free() = delete;
   gpu::Texture *mip_view(int) = delete;

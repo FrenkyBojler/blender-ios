@@ -17,6 +17,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 
+#include "GPU_capabilities.hh"
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
@@ -366,6 +367,18 @@ eGPUDataFormat Result::get_gpu_data_format() const
   return Result::gpu_data_format(type_);
 }
 
+static Domain sanitize_domain_size(const Domain domain,
+                                   const Context &context,
+                                   const std::optional<ResultStorageType> storage_type)
+{
+  Domain sanitized_domain = domain;
+  const bool use_gpu = storage_type.has_value() ? storage_type.value() == ResultStorageType::GPU :
+                                                  context.use_gpu();
+  const int max_size = use_gpu ? GPU_max_texture_size() : 65536;
+  sanitized_domain.data_size = math::clamp(domain.data_size, int2(1), int2(max_size));
+  return sanitized_domain;
+}
+
 void Result::allocate_texture(const Domain domain,
                               const bool from_pool,
                               const std::optional<ResultStorageType> storage_type)
@@ -375,8 +388,8 @@ void Result::allocate_texture(const Domain domain,
   BLI_assert(!Result::is_single_value_only_type(this->type()));
 
   is_single_value_ = false;
-  this->allocate_data(domain.data_size, from_pool, storage_type);
-  domain_ = domain;
+  domain_ = sanitize_domain_size(domain, *context_, storage_type);
+  this->allocate_data(domain_.data_size, from_pool, storage_type);
 }
 
 void Result::allocate_single_value()
@@ -445,7 +458,7 @@ Result Result::upload_to_gpu(const bool from_pool) const
   BLI_assert(this->is_allocated());
 
   Result result = Result(*context_, this->type(), this->precision());
-  result.allocate_texture(this->domain().data_size, from_pool, ResultStorageType::GPU);
+  result.allocate_texture(this->domain(), from_pool, ResultStorageType::GPU);
 
   GPU_texture_update(result, this->get_gpu_data_format(), this->cpu_data().data());
   return result;
@@ -459,7 +472,7 @@ Result Result::download_to_cpu() const
   Result result = Result(*context_, this->type(), this->precision());
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
   void *data = GPU_texture_read(*this, this->get_gpu_data_format(), 0);
-  result.steal_data(data, this->domain().data_size);
+  result.steal_data(data, this->domain());
 
   return result;
 }
@@ -520,7 +533,6 @@ void Result::share_data(const Result &source)
 void Result::steal_data(Result &source)
 {
   BLI_assert(type_ == source.type_);
-  BLI_assert(precision_ == source.precision_);
   BLI_assert(!this->is_allocated() && source.is_allocated());
 
   /* Overwrite everything except reference counts. */
@@ -531,14 +543,14 @@ void Result::steal_data(Result &source)
   source = Result(*context_, type_, precision_);
 }
 
-void Result::steal_data(void *data, int2 size)
+void Result::steal_data(void *data, const Domain &domain)
 {
   BLI_assert(!this->is_allocated());
 
-  const int64_t array_size = int64_t(size.x) * int64_t(size.y);
+  const int64_t array_size = int64_t(domain.data_size.x) * int64_t(domain.data_size.y);
   cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
   storage_type_ = ResultStorageType::CPU;
-  domain_ = Domain(size);
+  domain_ = domain;
   data_reference_count_ = new int(1);
 }
 
@@ -688,7 +700,7 @@ void Result::free()
       gpu_texture_ = nullptr;
       break;
     case ResultStorageType::CPU:
-      MEM_freeN(this->cpu_data().data());
+      MEM_delete_void(this->cpu_data().data());
       cpu_data_ = GMutableSpan();
       break;
   }
@@ -833,7 +845,7 @@ void Result::allocate_data(const int2 size,
     const gpu::TextureFormat format = this->get_gpu_texture_format();
     const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL;
     if (from_pool) {
-      gpu_texture_ = gpu::TexturePool::get().acquire_texture(size.x, size.y, format, usage);
+      gpu_texture_ = gpu::TexturePool::get().acquire_texture(size, format, usage);
     }
     else {
       gpu_texture_ = GPU_texture_create_2d(__func__, size.x, size.y, 1, format, usage, nullptr);
@@ -848,7 +860,7 @@ void Result::allocate_data(const int2 size,
     const int64_t array_size = int64_t(size.x) * int64_t(size.y);
     const int64_t memory_size = array_size * item_size;
 
-    void *data = MEM_mallocN_aligned(memory_size, alignment, AT);
+    void *data = MEM_new_uninitialized_aligned(memory_size, alignment, AT);
     cpp_type.default_construct_n(data, array_size);
 
     cpu_data_ = GMutableSpan(cpp_type, data, array_size);
