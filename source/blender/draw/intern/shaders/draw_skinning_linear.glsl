@@ -41,7 +41,8 @@ void bbone_deform_clamp_segment_index(float head_tail,
 void accumulate_bbone(
     int bone_idx, float3 co, float weight, int seg_index, inout float3 position_delta)
 {
-  int offset = bone_offsets[bone_idx];
+  BoneData bonedata = Bonedata_buf[bone_idx];
+  int offset = int(bonedata.offsets);
 
   /* vbones store a matrix for every individual segment*/
   float4x4 pose_mat = bonemat_buf[offset + seg_index];
@@ -59,8 +60,10 @@ void accumulate_bbone(
  */
 void b_bone_deform(int bone_idx, float3 co, float weight, inout float3 position_delta)
 {
-  int segments = bone_segments[bone_idx];
-  float bone_length = bone_lengths[bone_idx];
+  BoneData bonedata = Bonedata_buf[bone_idx];
+
+  int segments = int(bonedata.segments);
+  float bone_length = bonedata.lengths;
 
   /* Handle degenerate bones */
   if (bone_length < 0.0001f) {
@@ -69,7 +72,7 @@ void b_bone_deform(int bone_idx, float3 co, float weight, inout float3 position_
   }
 
   /* Transform vertex into the bone's local rest space. */
-  float4x4 inv_arm_mat = bone_invarmmat[bone_idx];
+  float4x4 inv_arm_mat = bonedata.inverse_arm;
 
   /* We only need the Y-coordinate (length axis) in local space to find position along the bone */
   float y = inv_arm_mat[0][1] * co.x + inv_arm_mat[1][1] * co.y + inv_arm_mat[2][1] * co.z +
@@ -88,7 +91,8 @@ void b_bone_deform(int bone_idx, float3 co, float weight, inout float3 position_
 /* regular skinning */
 void accumulate_simple(int bone_idx, float3 co, float weight, inout float3 position_delta)
 {
-  int offset = bone_offsets[bone_idx];
+  BoneData bonedata = Bonedata_buf[bone_idx];
+  int offset = int(bonedata.offsets);
   float4x4 pose_mat = bonemat_buf[offset];
 
   float3 P_transformed = (pose_mat * float4(co, 1.0f)).xyz;
@@ -101,12 +105,12 @@ void main()
   if (gid >= uint(vertex_count)) {
     return;
   }
-
+  ArmatureSpace armspace = armspace_buf;
   /* Rest Position */
   float3 P_rest = pos_buf[gid].xyz;
 
   /* Transform to Armature Space */
-  float3 co_armature = (targspace_buf * float4(P_rest, 1.0f)).xyz;
+  float3 co_armature = (armspace.TargetToSpace * float4(P_rest, 1.0f)).xyz;
 
   float3 position_delta = float3(0.0f);
   float total_weight = 0.0f;
@@ -124,7 +128,8 @@ void main()
     }
 
     int bone_idx = int(bi);
-    int segments = bone_segments[bone_idx];
+    BoneData bonedata = Bonedata_buf[bone_idx];
+    int segments = int(bonedata.segments);
 
     if (segments > 1) {
       b_bone_deform(bone_idx, co_armature, weight, position_delta);
@@ -145,7 +150,7 @@ void main()
     P_arm_final = co_armature + position_delta * (1.0f / total_weight);
   }
 
-  float4 P_skinned = armspace_buf * float4(P_arm_final, 1.0f);
+  float4 P_skinned = armspace.ArmatureToSpace * float4(P_arm_final, 1.0f);
 
   out_skinned_pos[gid] = float4(P_skinned.xyz, 1.0f);
 }

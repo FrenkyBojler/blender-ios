@@ -338,6 +338,31 @@ BLI_STATIC_ASSERT_ALIGN(DispatchCommand, 16)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Armature Space GPUSkinning
+ * \{ */
+struct ArmatureSpace {
+  float4x4 TargetToSpace;
+  float4x4 ArmatureToSpace;
+};
+BLI_STATIC_ASSERT_ALIGN(ArmatureSpace, 16)
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Bone Data GPUSkinning
+ * \{ */
+struct BoneData {
+  float4x4 inverse_arm;
+  float lengths;
+  uint segments;
+  uint offsets;
+  uint _pad0;
+};
+BLI_STATIC_ASSERT_ALIGN(BoneData, 16)
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Debug draw shapes
  * \{ */
 

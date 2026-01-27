@@ -48,56 +48,54 @@ void draw_skinning_cache_free(DRWSkinningCache &cache)
   GPU_VERTBUF_DISCARD_SAFE(cache.in_indices_buf);
   GPU_VERTBUF_DISCARD_SAFE(cache.in_weights_buf);
   GPU_VERTBUF_DISCARD_SAFE(cache.in_vertpos_buf);
-  GPU_VERTBUF_DISCARD_SAFE(cache.in_vertnor_buf);
-  GPU_VERTBUF_DISCARD_SAFE(cache.in_verttan_buf);
   if (cache.bonedata_mat) {
     MEM_freeN(cache.bonedata_mat);
     cache.bonedata_mat = nullptr;
   }
-  if (cache.bonedata_segments) {
-    MEM_freeN(cache.bonedata_segments);
-    cache.bonedata_segments = nullptr;
-  }
-  if (cache.bonedata_offsets) {
-    MEM_freeN(cache.bonedata_offsets);
-    cache.bonedata_offsets = nullptr;
-  }
-  if (cache.bonedata_lengths) {
-    MEM_freeN(cache.bonedata_lengths);
-    cache.bonedata_lengths = nullptr;
-  }
-  if (cache.bonedata_invarmmat) {
-    MEM_freeN(cache.bonedata_invarmmat);
-    cache.bonedata_invarmmat = nullptr;
-  }
-  if (cache.armspace_data) {
-    MEM_freeN(cache.armspace_data);
-    cache.armspace_data = nullptr;
-  }
-  if (cache.targspace_data) {
-    MEM_freeN(cache.targspace_data);
-    cache.targspace_data = nullptr;
-  }
-  if (cache.in_bonemat_buf) {
-    GPU_storagebuf_free(cache.in_bonemat_buf);
-    cache.in_bonemat_buf = nullptr;
-  }
-  if (cache.in_bonesegments_buf) {
-    GPU_storagebuf_free(cache.in_bonesegments_buf);
-    cache.in_bonesegments_buf = nullptr;
-  }
-  if (cache.in_boneoffsets_buf) {
-    GPU_storagebuf_free(cache.in_boneoffsets_buf);
-    cache.in_boneoffsets_buf = nullptr;
-  }
-  if (cache.in_bonelengths_buf) {
-    GPU_storagebuf_free(cache.in_bonelengths_buf);
-    cache.in_bonelengths_buf = nullptr;
-  }
-  if (cache.in_bone_invarmmat_buf) {
-    GPU_storagebuf_free(cache.in_bone_invarmmat_buf);
-    cache.in_bone_invarmmat_buf = nullptr;
-  }
+  // if (cache.bonedata_segments) {
+  //   MEM_freeN(cache.bonedata_segments);
+  //   cache.bonedata_segments = nullptr;
+  // }
+  // if (cache.bonedata_offsets) {
+  //   MEM_freeN(cache.bonedata_offsets);
+  //   cache.bonedata_offsets = nullptr;
+  // }
+  // if (cache.bonedata_lengths) {
+  //   MEM_freeN(cache.bonedata_lengths);
+  //   cache.bonedata_lengths = nullptr;
+  // }
+  // if (cache.bonedata_invarmmat) {
+  //   MEM_freeN(cache.bonedata_invarmmat);
+  //   cache.bonedata_invarmmat = nullptr;
+  // }
+  // if (cache.armspace_data) {
+  //   MEM_freeN(cache.armspace_data);
+  //   cache.armspace_data = nullptr;
+  // }
+  // if (cache.targspace_data) {
+  //   MEM_freeN(cache.targspace_data);
+  //   cache.targspace_data = nullptr;
+  // }
+  // if (cache.in_bonemat_buf) {
+  //   GPU_storagebuf_free(cache.in_bonemat_buf);
+  //   cache.in_bonemat_buf = nullptr;
+  // }
+  // if (cache.in_bonesegments_buf) {
+  //   GPU_storagebuf_free(cache.in_bonesegments_buf);
+  //   cache.in_bonesegments_buf = nullptr;
+  // }
+  // if (cache.in_boneoffsets_buf) {
+  //   GPU_storagebuf_free(cache.in_boneoffsets_buf);
+  //   cache.in_boneoffsets_buf = nullptr;
+  // }
+  // if (cache.in_bonelengths_buf) {
+  //   GPU_storagebuf_free(cache.in_bonelengths_buf);
+  //   cache.in_bonelengths_buf = nullptr;
+  // }
+  // if (cache.in_bone_invarmmat_buf) {
+  //   GPU_storagebuf_free(cache.in_bone_invarmmat_buf);
+  //   cache.in_bone_invarmmat_buf = nullptr;
+  // }
   // if (cache.in_armspace_buf) {
   //   GPU_uniformbuf_free(cache.in_armspace_buf);
   //   cache.in_armspace_buf = nullptr;
@@ -502,7 +500,7 @@ static int draw_get_segment_count(Object *armature_ob)
   return total_matrix_count;
 }
 
-static void fill_bbone_segment_info(Object *armature_ob, int *out_segment_counts, int *out_offsets)
+static void fill_bbone_segment_info(Object *armature_ob, DRWSkinningCache &cache)
 {
   int bi = 0;
   int current_offset = 0;
@@ -512,27 +510,40 @@ static void fill_bbone_segment_info(Object *armature_ob, int *out_segment_counts
       continue;
     }
     const int segments = pchan->bone->segments;
-    out_segment_counts[bi] = segments;
-
-    out_offsets[bi] = current_offset;
+    cache.bonedata_buf[bi].segments = segments;
+    cache.bonedata_buf[bi].offsets = current_offset;
     current_offset += (segments > 1) ? (segments + 1) : 1;
 
     bi++;
   }
 }
 
-static void draw_skinning_pack_bone_matrices(Object *armature_ob,
-                                             Object *target_ob,
-                                             float **bonedata_mat,
-                                             float **armspace_data,
-                                             float **targspace_data,
-                                             float **bonedata_lengths,
-                                             float **bonedata_invarmmat,
-                                             int *segment_counts,
-                                             int bone_count)
+static void draw_skinning_pack_bone_data(DRWSkinningCache &cache, Object *armature_ob)
+{
+  int bone_index = 0;
+  LISTBASE_FOREACH (bPoseChannel *, pchan, &armature_ob->pose->chanbase) {
+    if (pchan->bone->flag & BONE_NO_DEFORM) {
+      continue;
+    }
+
+    cache.bonedata_buf[bone_index].lengths = pchan->bone->length;
+
+    float inv_arm_mat[4][4];
+    /*I think this is expensive especially when there's a lot of characters*/
+    invert_m4_m4(inv_arm_mat, pchan->bone->arm_mat);
+    memcpy(&(cache.bonedata_buf[bone_index].inverse_arm),
+           &inv_arm_mat,
+           sizeof(float) * 16);
+    bone_index++;
+  }
+}
+
+static void draw_skinning_update_bone_matrices(DRWSkinningCache &cache,
+                                             Object *armature_ob,
+                                             Object *target_ob)
 {
   /* early out */
-  if (!armature_ob || armature_ob->type != OB_ARMATURE || !armature_ob->pose) {
+  if (!armature_ob || !armature_ob->pose) {
     return;
   }
 
@@ -540,69 +551,38 @@ static void draw_skinning_pack_bone_matrices(Object *armature_ob,
   float4x4 armature_to_world = armature_ob->object_to_world();
   float4x4 world_to_target = math::invert(target_to_world);
 
-  /* Matrix to transform Armature Space -> Target Mesh Space */
   float4x4 armature_to_target = world_to_target * armature_to_world;
 
-  /* Matrix to transform Target Mesh Space -> Armature Space (Bind Pose) */
   float4x4 target_to_armature = math::invert(armature_to_target);
 
-  memcpy(*armspace_data, armature_to_target.base_ptr(), 16 * sizeof(float));
-  memcpy(*targspace_data, target_to_armature.base_ptr(), 16 * sizeof(float));
+  cache.armature_buf->ArmatureToSpace = armature_to_target;
+  cache.armature_buf->TargetToSpace = target_to_armature;
 
   int bone_index = 0;
   int mat_idx = 0;
 
-  int *seg_counts_arr = segment_counts;
-
   LISTBASE_FOREACH (bPoseChannel *, pchan, &armature_ob->pose->chanbase) {
-    if (bone_index >= bone_count) {
+    if (bone_index >= cache.bone_count) {
       break;
     }
     if (pchan->bone->flag & BONE_NO_DEFORM) {
       continue;
     }
-    const int segments = seg_counts_arr[bone_index];
-    Bone *bone = pchan->bone;
+    const int segments = int(cache.bonedata_buf[bone_index].segments);
 
-    (*bonedata_lengths)[bone_index] = bone->length;
-
-    /* Store inverse arm matrix for transforming to bone local space.
-     * this is used for B-Bone segment index calculation.
-     * for B-Bone, we use bbone_deform_mats which is the inverse arm_mat.
-     * for simple bones, we compute it from bone->arm_mat. */
-    if (segments > 1 && pchan->runtime.bbone_segments == segments &&
-        pchan->runtime.bbone_deform_mats)
-    {
-      /* Use the precomputed inverse arm matrix from bbone_deform_mats[0] */
-      memcpy(&(*bonedata_invarmmat)[bone_index * 16],
-             &pchan->runtime.bbone_deform_mats[0],
-             sizeof(float) * 16);
-    }
-    else {
-      /* Compute inverse arm matrix for simple bones */
-      float inv_arm_mat[4][4];
-      /*this is pretty expensive especially when there's a lot of characters*/
-      invert_m4_m4(inv_arm_mat, bone->arm_mat);
-      memcpy(&(*bonedata_invarmmat)[bone_index * 16], inv_arm_mat, sizeof(float) * 16);
-    }
-
-    if (segments > 1 && pchan->runtime.bbone_segments == segments &&
-        pchan->runtime.bbone_deform_mats)
-    {
+    if (segments > 1) {
       for (int seg = 0; seg <= segments; seg++) {
-        int src_idx = seg + 1; /* Map to bbone_deform_mats index */
-        memcpy(&(*bonedata_mat)[mat_idx * 16],
-               &pchan->runtime.bbone_deform_mats[src_idx],
+
+        int src_idx = seg + 1;
+        const Mat4 &bbone_mat = pchan->runtime.bbone_deform_mats[src_idx];
+
+        memcpy(&(cache.bonedata_mat)[mat_idx++ * 16], &bbone_mat,
                sizeof(float) * 16);
-        mat_idx++;
       }
     }
     else {
-      float4x4 pose_mat = float4x4(pchan->chan_mat);
-      const float *deform_ptr = pose_mat.base_ptr();
-
-      memcpy(&(*bonedata_mat)[mat_idx * 16], deform_ptr, sizeof(float) * 16);
-      mat_idx++;
+      memcpy(&(cache.bonedata_mat)[mat_idx++ * 16], &pchan->chan_mat,
+             sizeof(float) * 16);
     }
     bone_index++;
   }
@@ -632,27 +612,13 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
 
   cache->influence_nums = U.gpuskin_influences;
 
-  cache->in_armspace_buf = GPU_uniformbuf_create(16 * sizeof(float));
-  cache->armspace_data = static_cast<float *>(MEM_mallocN(16 * sizeof(float), "armspace_data"));
+  cache->in_armspace_buf = GPU_uniformbuf_create(sizeof(ArmatureSpace));
+  cache->armature_buf = (ArmatureSpace *)MEM_mallocN_aligned(
+        sizeof(ArmatureSpace), 16, "GPUbendybone data");
 
-  cache->in_targspace_buf = GPU_uniformbuf_create(16 * sizeof(float));
-  cache->targspace_data = static_cast<float *>(MEM_mallocN(16 * sizeof(float), "targspace_data"));
-
-  cache->in_bonesegments_buf = GPU_storagebuf_create(cache->bone_count * sizeof(int));
-  cache->bonedata_segments = static_cast<int *>(
-      MEM_mallocN(cache->bone_count * sizeof(int), "segments"));
-
-  cache->in_boneoffsets_buf = GPU_storagebuf_create(cache->bone_count * sizeof(int));
-  cache->bonedata_offsets = static_cast<int *>(
-      MEM_mallocN(cache->bone_count * sizeof(int), "offsets"));
-
-  cache->in_bonelengths_buf = GPU_storagebuf_create(cache->bone_count * sizeof(float));
-  cache->bonedata_lengths = static_cast<float *>(
-      MEM_mallocN(cache->bone_count * sizeof(float), "lengths"));
-
-  cache->in_bone_invarmmat_buf = GPU_storagebuf_create(cache->bone_count * 16 * sizeof(float));
-  cache->bonedata_invarmmat = static_cast<float *>(
-      MEM_mallocN(cache->bone_count * 16 * sizeof(float), "invarmmat"));
+  cache->in_bonedata_buf = GPU_storagebuf_create(cache->bone_count * sizeof(BoneData));
+  cache->bonedata_buf = (BoneData *)MEM_mallocN_aligned(
+        sizeof(BoneData) * cache->bone_count, 16, "GPUbendybone data");
 
   cache->in_indices_buf = GPU_vertbuf_calloc();
   static GPUVertFormat idx_format = {0};
@@ -941,14 +907,16 @@ void draw_skinning_compute_position(gpu::VertBuf *vbo_pos_output,
   GPU_shader_bind(cache.skin_shader);
 
   /* inputs */
-  GPU_uniformbuf_bind(cache.in_armspace_buf, LBS_BONE_ARMATURE_TOSPACE_BUF_SLOT);
-  GPU_uniformbuf_bind(cache.in_targspace_buf, LBS_BONE_TARGET_TOSPACE_BUF_SLOT);
+  // GPU_uniformbuf_bind(cache.in_targspace_buf, LBS_BONE_TARGET_TOSPACE_BUF_SLOT);
 
-  GPU_vertbuf_bind_as_ssbo(cache.in_indices_buf, LBS_INFLUENCE_INDICES_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(cache.in_weights_buf, LBS_INFLUENCE_WEIGHTS_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.in_indices_buf, 0);
+  GPU_vertbuf_bind_as_ssbo(cache.in_weights_buf, 1);
+  GPU_storagebuf_bind(cache.in_bonemat_buf, 2);
+  GPU_uniformbuf_bind(cache.in_armspace_buf, 3);
+  GPU_storagebuf_bind(cache.in_bonedata_buf, 4);
 
-  GPU_vertbuf_bind_as_ssbo(cache.in_vertpos_buf, LBS_VERT_POS_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(vbo_pos_output, LBS_SKINNED_POS_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.in_vertpos_buf, 5);
+  GPU_vertbuf_bind_as_ssbo(vbo_pos_output, 6);
 /* Unused for now, might be used again: we could have two performance modes for the user to choose
  * between properly recomputed normals or directly skinning normals...*/
 #if 0
@@ -959,11 +927,10 @@ void draw_skinning_compute_position(gpu::VertBuf *vbo_pos_output,
   GPU_vertbuf_bind_as_ssbo(vbo_tan_output, LBS_SKINNED_TAN_BUF_SLOT);
 #endif
 
-  GPU_storagebuf_bind(cache.in_bonemat_buf, LBS_BONE_MATRICES_BUF_SLOT);
-  GPU_storagebuf_bind(cache.in_bonesegments_buf, LBS_BONE_SEGMENTS_BUF_SLOT);
-  GPU_storagebuf_bind(cache.in_boneoffsets_buf, LBS_BONE_OFFSETS_BUF_SLOT);
-  GPU_storagebuf_bind(cache.in_bonelengths_buf, LBS_BONE_LENGTHS_BUF_SLOT);
-  GPU_storagebuf_bind(cache.in_bone_invarmmat_buf, LBS_BONE_INVARMMAT_BUF_SLOT);
+  // GPU_storagebuf_bind(cache.in_bonesegments_buf, LBS_BONE_SEGMENTS_BUF_SLOT);
+  // GPU_storagebuf_bind(cache.in_boneoffsets_buf, LBS_BONE_OFFSETS_BUF_SLOT);
+  // GPU_storagebuf_bind(cache.in_bonelengths_buf, LBS_BONE_LENGTHS_BUF_SLOT);
+  // GPU_storagebuf_bind(cache.in_bone_invarmmat_buf, LBS_BONE_INVARMMAT_BUF_SLOT);
 
   GPU_shader_uniform_1i(cache.skin_shader, "vertex_count", cache.corner_nums);
   GPU_shader_uniform_1i(cache.skin_shader, "influence_count", cache.influence_nums);
@@ -1123,7 +1090,14 @@ static void draw_create_skinning(Object &ob,
         {
           draw_skinning_cache_free(*skincache);
           draw_skinning_setup_buffers(amd->object, skincache, mr, amd);
+
           if (!skincache->vertex_data_packed) {
+
+            fill_bbone_segment_info(amd->object, *skincache);
+
+            draw_skinning_pack_bone_data(*skincache, amd->object);
+            GPU_storagebuf_update(skincache->in_bonedata_buf, skincache->bonedata_buf);
+
             /* This expensive operation only needs to run once per cache lifetime */
             draw_skinning_pack_vertex_data(amd->object,
                                            &skincache->meshdata_pos,
@@ -1147,26 +1121,9 @@ static void draw_create_skinning(Object &ob,
         /* Update bone matrices and re-upload buffers if cache is valid and prepared. */
         if (amd->object && amd->object->pose && skincache->bonedata_mat) {
 
-          fill_bbone_segment_info(
-              amd->object, skincache->bonedata_segments, skincache->bonedata_offsets);
-          GPU_storagebuf_update(skincache->in_bonesegments_buf, skincache->bonedata_segments);
-          GPU_storagebuf_update(skincache->in_boneoffsets_buf, skincache->bonedata_offsets);
-
-          draw_skinning_pack_bone_matrices(amd->object,
-                                           &ob,
-                                           &skincache->bonedata_mat,
-                                           &skincache->armspace_data,
-                                           &skincache->targspace_data,
-                                           &skincache->bonedata_lengths,
-                                           &skincache->bonedata_invarmmat,
-                                           skincache->bonedata_segments,
-                                           skincache->bone_count);
-          GPU_storagebuf_update(skincache->in_bonelengths_buf, skincache->bonedata_lengths);
-          GPU_storagebuf_update(skincache->in_bone_invarmmat_buf, skincache->bonedata_invarmmat);
+          draw_skinning_update_bone_matrices(*skincache, amd->object, &ob);
           GPU_storagebuf_update(skincache->in_bonemat_buf, skincache->bonedata_mat);
-
-          GPU_uniformbuf_update(skincache->in_armspace_buf, skincache->armspace_data);
-          GPU_uniformbuf_update(skincache->in_targspace_buf, skincache->targspace_data);
+          GPU_uniformbuf_update(skincache->in_armspace_buf, skincache->armature_buf);
         }
         /* Only create skinning buffers if skinning is prepared and valid */
         mesh_buffer_cache_create_requested_skinning(
