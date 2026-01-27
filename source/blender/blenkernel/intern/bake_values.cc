@@ -18,7 +18,7 @@ BakeValues BakeValues::from_runtime_values(Vector<InputValue> runtime_values,
   }
   for (InputValue &input_value : runtime_values) {
     bake_values.values_by_id_.add(input_value.id,
-                                  Item{std::move(input_value.name), std::move(input_value.value)});
+                                  Item{std::move(input_value.value), std::move(input_value.name)});
   }
   return bake_values;
 }
