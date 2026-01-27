@@ -136,17 +136,17 @@ def _num_matching_face_set(face_set_id):
 
 def face_set_expand():
     import bpy
-    e, t = _test_vars(window := _test_window())
+    e, t, window = ui.test_window()
     yield from _view3d_startup_area_maximized(e)
 
-    yield from _call_menu(e, "Add -> Mesh -> Monkey")
+    yield from ui.call_menu(e, "Add -> Mesh -> Monkey")
     yield e.numpad_period()                                     # View monkey
 
     yield from _subdivide_mesh(e, 3)
 
     yield e.ctrl.tab().s()                                      # Sculpt via pie menu.
 
-    area = _window_area_get_by_type(window, 'VIEW_3D')
+    area = ui.get_window_area_by_type(window, 'VIEW_3D')
     position = (area.x + area.width // 2, area.y + area.height // 2)
     yield e.cursor_position_set(*position, move=True)           # Move mouse to center
 
