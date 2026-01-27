@@ -12,6 +12,8 @@
 #include "enums.hh"
 #include "utils.hh"
 
+#include <array>
+
 namespace blender::gpu::shader::parser {
 
 struct Token;
