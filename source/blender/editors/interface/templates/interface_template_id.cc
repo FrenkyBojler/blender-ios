@@ -19,6 +19,7 @@
 #include "BKE_packedFile.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_string_search.hh"
 #include "BLI_string_utf8.h"
 
@@ -27,6 +28,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "DNA_collection_types.h"
+#include "DNA_image_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_workspace_types.h"
 
@@ -113,6 +115,38 @@ static bool id_search_allows_id(TemplateID *template_ui, const int flag, ID *id,
   return true;
 }
 
+/**
+ * Check if the given ID is a viewer image (Render Result or Viewer Node).
+ */
+static bool image_is_viewer(const ID *id)
+{
+  if (GS(id->name) != ID_IM) {
+    return false;
+  }
+  const Image *ima = reinterpret_cast<const Image *>(id);
+  return ima->source == IMA_SRC_VIEWER;
+}
+
+/**
+ * Get the appropriate icon for a viewer image.
+ * Returns ICON_RESTRICT_RENDER_OFF for Render Result,
+ * ICON_RESTRICT_VIEW_OFF for Viewer Node, or ICON_NONE otherwise.
+ */
+static int image_viewer_icon(const ID *id)
+{
+  if (GS(id->name) != ID_IM) {
+    return ICON_NONE;
+  }
+  const Image *ima = reinterpret_cast<const Image *>(id);
+  if (ima->type == IMA_TYPE_R_RESULT) {
+    return ICON_RESTRICT_RENDER_OFF;
+  }
+  if (ima->type == IMA_TYPE_COMPOSITE) {
+    return ICON_RESTRICT_VIEW_OFF;
+  }
+  return ICON_NONE;
+}
+
 static bool id_search_add(const bContext *C, TemplateID *template_ui, SearchItems *items, ID *id)
 {
   /* +1 is needed because BKE_id_ui_prefix used 3 letter prefix
@@ -120,6 +154,13 @@ static bool id_search_add(const bContext *C, TemplateID *template_ui, SearchItem
    */
   char name_ui[MAX_ID_FULL_NAME_UI];
   int iconid = id_icon_get(C, id, template_ui->preview);
+
+  /* Use special icon for viewer images (Render Result, Viewer Node) instead of preview. */
+  const int viewer_icon = image_viewer_icon(id);
+  if (viewer_icon != ICON_NONE) {
+    iconid = viewer_icon;
+  }
+
   const bool use_lib_prefix = template_ui->preview || iconid;
   const bool has_sep_char = ID_IS_LINKED(id);
 
@@ -154,13 +195,40 @@ static void id_search_cb(const bContext *C,
   TemplateID *template_ui = static_cast<TemplateID *>(arg_template);
   ListBaseT<ID> *lb = template_ui->idlb;
   const int flag = RNA_property_flag(template_ui->prop);
+  const bool is_image_search = (template_ui->idcode == ID_IM);
+  ID *render_result = nullptr;
+  ID *viewer_node = nullptr;
 
   string_search::StringSearch<ID> search;
 
-  /* ID listbase */
+  /* Single pass: collect viewer images and build search list. */
   for (ID &id : *lb) {
+    /* For images, separate viewer images to pin at top. */
+    if (is_image_search && image_is_viewer(&id)) {
+      const Image *ima = reinterpret_cast<const Image *>(&id);
+      if (ima->type == IMA_TYPE_R_RESULT) {
+        render_result = &id;
+      }
+      else if (ima->type == IMA_TYPE_COMPOSITE) {
+        viewer_node = &id;
+      }
+      continue;
+    }
+
     if (id_search_allows_id(template_ui, flag, &id, str)) {
       search.add(id.name + 2, &id);
+    }
+  }
+
+  /* Add viewer images first (pinned at top) if they match the query. */
+  if (render_result && id_search_allows_id(template_ui, flag, render_result, str)) {
+    if (str[0] == '\0' || BLI_strcasestr(render_result->name + 2, str)) {
+      id_search_add(C, template_ui, items, render_result);
+    }
+  }
+  if (viewer_node && id_search_allows_id(template_ui, flag, viewer_node, str)) {
+    if (str[0] == '\0' || BLI_strcasestr(viewer_node->name + 2, str)) {
+      id_search_add(C, template_ui, items, viewer_node);
     }
   }
 
@@ -1114,6 +1182,11 @@ static void template_ID(const bContext *C,
       width += UI_UNIT_X;
     }
 
+    if (template_ui.idcode == ID_IM) {
+      /* More room needed for image names with icon (e.g., "Render Result"). */
+      width += UI_UNIT_X + (UI_UNIT_X / 2);
+    }
+
     const int height = template_search_textbut_height();
 
     // text_idbutton(id, name);
@@ -1131,6 +1204,13 @@ static void template_ID(const bContext *C,
                     0,
                     0,
                     RNA_struct_ui_description(type));
+
+    /* Add viewer image icon directly to the text button. */
+    const int viewer_icon = image_viewer_icon(id);
+    if (viewer_icon != ICON_NONE) {
+      def_but_icon(but, viewer_icon, UI_HAS_ICON);
+    }
+
     /* Handle undo through the #template_id_cb set below. Default undo handling from the button
      * code (see #ui_apply_but_undo) would not work here, as the new name is not yet applied to the
      * ID. */
