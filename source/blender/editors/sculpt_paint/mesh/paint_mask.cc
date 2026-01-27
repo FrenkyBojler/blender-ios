@@ -40,8 +40,8 @@
 
 #include "bmesh.hh"
 
-#include "mesh_brush_common.hh"
 #include "../paint_intern.hh"
+#include "mesh_brush_common.hh"
 #include "sculpt_gesture.hh"
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"

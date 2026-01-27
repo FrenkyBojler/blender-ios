@@ -67,8 +67,8 @@
 
 #include "bmesh.hh"
 
-#include "mesh_brush_common.hh"
 #include "../paint_intern.hh" /* own include */
+#include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_intern.hh"
 #include "sculpt_pose.hh"

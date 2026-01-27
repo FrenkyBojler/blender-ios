@@ -36,8 +36,8 @@
 #include "ED_sculpt.hh"
 #include "ED_view3d.hh"
 
-#include "mesh_brush_common.hh"
 #include "../paint_intern.hh"
+#include "mesh_brush_common.hh"
 #include "paint_mask.hh"
 #include "sculpt_filter.hh"
 #include "sculpt_intern.hh"

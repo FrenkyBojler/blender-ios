@@ -41,8 +41,8 @@
 #include "ED_sculpt.hh"
 #include "ED_view3d.hh"
 
-#include "mesh_brush_common.hh"
 #include "../paint_intern.hh"
+#include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_boundary.hh"
 #include "sculpt_cloth.hh"

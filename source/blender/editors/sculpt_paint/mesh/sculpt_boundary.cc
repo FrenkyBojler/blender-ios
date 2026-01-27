@@ -25,8 +25,8 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 
-#include "mesh_brush_common.hh"
 #include "../paint_intern.hh"
+#include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_cloth.hh"
 #include "sculpt_flood_fill.hh"

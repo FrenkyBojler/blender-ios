@@ -24,8 +24,8 @@
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
-#include "mesh_brush_common.hh"
 #include "../paint_intern.hh"
+#include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_boundary.hh"
 #include "sculpt_dyntopo.hh"
