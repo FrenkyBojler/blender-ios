@@ -5,7 +5,7 @@
 /** \file
  * \ingroup bmesh
  */
-
+#include "BLI_math_matrix.h"
 #include "BLI_math_numbers.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
@@ -15,6 +15,9 @@
 #include "intern/bmesh_operators_private.hh" /* own include */
 
 namespace blender {
+
+constexpr int NLLS_MAX_ITERATIONS = 500;
+
 /* Holds data for a vertex projected onto the local plane. */
 struct CircleVert {
   BMVert *v;
@@ -337,19 +340,56 @@ static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
                                       float r_center[2],
                                       float *r_radius)
 {
-  zero_v2(r_center);
+  /* Initial guesses. */
+  float initial_x = 0.0f;
+  float initial_y = 0.0f;
+  float initial_radius = 1.0f;
 
-  for (const CircleVert &cv : verts) {
-    add_v2_v2(r_center, cv.co_2d);
+  for (int iter = 0; iter < NLLS_MAX_ITERATIONS; iter++) {
+    float normal_matrix[3][3];
+    float jacobian_transpose_residual[3];
+
+    zero_m3(normal_matrix);
+    zero_v3(jacobian_transpose_residual);
+
+    for (const CircleVert &cv : verts) {
+      const float dx = initial_x - cv.co_2d[0];
+      const float dy = initial_y - cv.co_2d[1];
+      const float distance = sqrtf(dx * dx + dy * dy);
+
+      const float j_row[3] = {dx / distance, dy / distance, -1.0f};
+      const float residual = initial_radius - distance;
+
+      for (int row = 0; row < 3; row++) {
+        for (int col = 0; col < 3; col++) {
+          normal_matrix[row][col] += j_row[row] * j_row[col];
+        }
+        jacobian_transpose_residual[row] += j_row[row] * residual;
+      }
+    }
+
+    float inverse_normal_matrix[3][3];
+    if (!invert_m3_m3(inverse_normal_matrix, normal_matrix)) {
+      break;
+    }
+
+    float delta[3];
+    mul_v3_m3v3(delta, inverse_normal_matrix, jacobian_transpose_residual);
+
+    initial_x += delta[0];
+    initial_y += delta[1];
+    initial_radius += delta[2];
+
+    /* Check for convergence to stop iterating if we're close enough to the optimal
+     * solution. */
+    if (fabsf(delta[0]) < 1e-6f && fabsf(delta[1]) < 1e-6f && fabsf(delta[2]) < 1e-6f) {
+      break;
+    }
   }
-  mul_v2_fl(r_center, 1.0f / verts.size());
 
-  double total_dist = 0.0;
-  for (const CircleVert &cv : verts) {
-    total_dist += len_v2v2(r_center, cv.co_2d);
-  }
-
-  *r_radius = float(total_dist / verts.size());
+  r_center[0] = initial_x;
+  r_center[1] = initial_y;
+  *r_radius = initial_radius;
 }
 
 static void calculate_circle_inside_fit(const Vector<CircleVert> &verts,
