@@ -71,10 +71,11 @@ set(LIB
   cycles_subd
   cycles_util
 
-  bf::dependencies::epoxy
-  bf::dependencies::optional::python
-  bf::dependencies::optional::openimagedenoise
-  bf::dependencies::optional::openvdb
+  PRIVATE bf::dependencies::epoxy
+  PRIVATE bf::dependencies::optional::python
+  PRIVATE bf::dependencies::optional::openimagedenoise
+  PRIVATE bf::dependencies::optional::openvdb
+  PRIVATE bf::dependencies::optional::osl
 )
 
 set(ADDON_FILES
@@ -103,12 +104,6 @@ endif()
 
 if(WITH_TBB)
   add_definitions(-DWITH_TBB)
-endif()
-
-if(WITH_CYCLES_OSL)
-  list(APPEND LIB
-    ${OSL_LIBRARIES}
-  )
 endif()
 
 blender_add_lib(bf_intern_cycles "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

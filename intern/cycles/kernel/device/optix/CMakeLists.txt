@@ -16,8 +16,6 @@ set(SRC_KERNEL_DEVICE_OPTIX
 )
 
 if(WITH_CYCLES_OSL)
-  math(EXPR OSL_LIBRARY_VERSION_CODE "${OSL_LIBRARY_VERSION_MAJOR} * 10000 + ${OSL_LIBRARY_VERSION_MINOR} * 100 + ${OSL_LIBRARY_VERSION_PATCH}")
-
   set(SRC_KERNEL_DEVICE_OPTIX
     ${SRC_KERNEL_DEVICE_OPTIX}
     ../../osl/services_optix.cu
@@ -50,8 +48,8 @@ if(WITH_CYCLES_CUDA_BINARIES AND WITH_CYCLES_DEVICE_OPTIX)
       -o ${output})
 
     if(WITH_CYCLES_OSL)
-      set(cuda_flags ${cuda_flags}
-        -D OSL_LIBRARY_VERSION_CODE=${OSL_LIBRARY_VERSION_CODE})
+      # Add include directories from OSL target.
+      list(APPEND cuda_flags -I "$<JOIN:$<TARGET_PROPERTY:bf_deps_optional_osl,INCLUDE_DIRECTORIES>,\;-I>")
     endif()
 
     set(arch compute_50)
@@ -84,6 +82,8 @@ if(WITH_CYCLES_CUDA_BINARIES AND WITH_CYCLES_DEVICE_OPTIX)
         ${input}
       WORKING_DIRECTORY
         "${CMAKE_CURRENT_SOURCE_DIR}"
+      # Needed for OSL include directories generator expression to split ;.
+      COMMAND_EXPAND_LISTS
     )
 
     unset(cuda_nvcc_executable)

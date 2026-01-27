@@ -152,6 +152,18 @@ if(DEFINED IMATH_INCLUDE_DIRS)
 endif()
 
 # -----------------------------------------------------------------------------
+# Configure OSL
+
+add_library(bf_deps_optional_osl INTERFACE)
+add_library(bf::dependencies::optional::osl ALIAS bf_deps_optional_osl)
+
+if(WITH_CYCLES AND WITH_CYCLES_OSL)
+  target_compile_definitions(bf_deps_optional_osl INTERFACE WITH_OSL)
+  target_include_directories(bf_deps_optional_osl SYSTEM INTERFACE ${OSL_INCLUDE_DIR})
+  target_link_libraries(bf_deps_optional_osl INTERFACE ${OSL_LIBRARIES})
+endif()
+
+# -----------------------------------------------------------------------------
 # Configure USD
 
 add_library(bf_deps_optional_usd INTERFACE)

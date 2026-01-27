@@ -227,14 +227,6 @@ if(WITH_CYCLES_PTEX)
   add_definitions(-DWITH_PTEX)
 endif()
 
-if(WITH_CYCLES_OSL)
-  add_definitions(-DWITH_OSL)
-  include_directories(
-    SYSTEM
-    ${OSL_INCLUDE_DIR}
-  )
-endif()
-
 if(WITH_CYCLES_DEVICE_CUDA OR WITH_CYCLES_DEVICE_OPTIX)
   add_definitions(-DWITH_CUDA)
 

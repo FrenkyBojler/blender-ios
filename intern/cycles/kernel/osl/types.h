@@ -4,9 +4,7 @@
 
 #pragma once
 
-#if !defined(__KERNEL_GPU__)
-#  include <OSL/oslversion.h>
-#endif
+#include <OSL/oslversion.h>
 
 #include "kernel/types.h"
 
