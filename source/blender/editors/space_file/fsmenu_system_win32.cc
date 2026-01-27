@@ -243,7 +243,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
           icon = ICON_DISK_DRIVE;
           break;
         case DRIVE_REMOTE: {
-          char lpLocalName[] = {'A' + i, ':', 0};
+          char lpLocalName[] = {static_cast<char>('A' + i), ':', 0};
           char lpRemoteName[MAX_PATH];
           DWORD lpnLength = sizeof(lpRemoteName);
           const bool is_cloud = (WNetGetConnection(lpLocalName, lpRemoteName, &lpnLength) ==
