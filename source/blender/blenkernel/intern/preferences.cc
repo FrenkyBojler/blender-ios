@@ -27,13 +27,15 @@
 
 #include "DNA_userdef_types.h"
 
+namespace blender {
+
 #define U BLI_STATIC_ASSERT(false, "Global 'U' not allowed, only use arguments passed in!")
 
 /* -------------------------------------------------------------------- */
 /** \name Preferences File
  * \{ */
 
-namespace blender::bke::preferences {
+namespace bke::preferences {
 
 bool exists()
 {
@@ -47,7 +49,7 @@ bool exists()
   return BLI_exists(userpref);
 }
 
-}  // namespace blender::bke::preferences
+}  // namespace bke::preferences
 
 /** \} */
 
@@ -59,7 +61,7 @@ bUserAssetLibrary *BKE_preferences_asset_library_add(UserDef *userdef,
                                                      const char *name,
                                                      const char *dirpath)
 {
-  bUserAssetLibrary *library = MEM_new_for_free<bUserAssetLibrary>(__func__);
+  bUserAssetLibrary *library = MEM_new<bUserAssetLibrary>(__func__);
 
   BLI_addtail(&userdef->asset_libraries, library);
   if (userdef->experimental.no_data_block_packing) {
@@ -183,7 +185,7 @@ bUserExtensionRepo *BKE_preferences_extension_repo_add(UserDef *userdef,
                                                        const char *module,
                                                        const char *custom_dirpath)
 {
-  bUserExtensionRepo *repo = MEM_new_for_free<bUserExtensionRepo>(__func__);
+  bUserExtensionRepo *repo = MEM_new<bUserExtensionRepo>(__func__);
   BLI_addtail(&userdef->extension_repos, repo);
 
   /* Set the unique ID-name. */
@@ -215,7 +217,7 @@ bUserExtensionRepo *BKE_preferences_extension_repo_add(UserDef *userdef,
 void BKE_preferences_extension_repo_remove(UserDef *userdef, bUserExtensionRepo *repo)
 {
   if (repo->access_token) {
-    MEM_freeN(repo->access_token);
+    MEM_delete(repo->access_token);
   }
   BLI_freelinkN(&userdef->extension_repos, repo);
 }
@@ -556,7 +558,7 @@ void BKE_preferences_extension_repo_write_data(BlendWriter *writer, const bUserE
 static bUserAssetShelfSettings *asset_shelf_settings_new(UserDef *userdef,
                                                          const char *shelf_idname)
 {
-  bUserAssetShelfSettings *settings = MEM_new_for_free<bUserAssetShelfSettings>(__func__);
+  bUserAssetShelfSettings *settings = MEM_new<bUserAssetShelfSettings>(__func__);
   BLI_addtail(&userdef->asset_shelves_settings, settings);
   STRNCPY(settings->shelf_idname, shelf_idname);
   BLI_assert(BLI_listbase_is_empty(&settings->enabled_catalog_paths));
@@ -611,3 +613,5 @@ bool BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(UserDef *u
 }
 
 /** \} */
+
+}  // namespace blender

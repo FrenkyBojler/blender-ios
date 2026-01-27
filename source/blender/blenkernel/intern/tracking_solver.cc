@@ -30,6 +30,8 @@
 #include "libmv-capi.h"
 #include "tracking_private.hh"
 
+namespace blender {
+
 struct MovieReconstructContext {
   libmv_Tracks *tracks;
   bool select_keyframes;
@@ -74,7 +76,7 @@ static libmv_Tracks *libmv_tracks_new(MovieClip *clip,
   track = static_cast<MovieTrackingTrack *>(tracksbase->first);
   while (track) {
     const FCurve *weight_fcurve = id_data_find_fcurve(
-        &clip->id, track, &RNA_MovieTrackingTrack, "weight", 0, nullptr);
+        &clip->id, track, RNA_MovieTrackingTrack, "weight", 0, nullptr);
 
     for (int a = 0; a < track->markersnr; a++) {
       MovieTrackingMarker *marker = &track->markers[a];
@@ -159,15 +161,14 @@ static bool reconstruct_retrieve_libmv_tracks(MovieReconstructContext *context,
   }
 
   if (reconstruction->cameras) {
-    MEM_freeN(reconstruction->cameras);
+    MEM_delete(reconstruction->cameras);
   }
 
   reconstruction->camnr = 0;
   reconstruction->cameras = nullptr;
 
-  MovieReconstructedCamera *reconstructed_cameras =
-      MEM_new_array_for_free<MovieReconstructedCamera>((efra - sfra + 1),
-                                                       "temp reconstructed camera");
+  MovieReconstructedCamera *reconstructed_cameras = MEM_new_array<MovieReconstructedCamera>(
+      (efra - sfra + 1), "temp reconstructed camera");
 
   for (int a = sfra; a <= efra; a++) {
     double matd[4][4];
@@ -217,8 +218,8 @@ static bool reconstruct_retrieve_libmv_tracks(MovieReconstructContext *context,
 
   if (reconstruction->camnr) {
     const size_t size = reconstruction->camnr * sizeof(MovieReconstructedCamera);
-    reconstruction->cameras = MEM_new_array_for_free<MovieReconstructedCamera>(
-        reconstruction->camnr, "reconstructed camera");
+    reconstruction->cameras = MEM_new_array<MovieReconstructedCamera>(reconstruction->camnr,
+                                                                      "reconstructed camera");
     memcpy(reconstruction->cameras, reconstructed_cameras, size);
   }
 
@@ -230,7 +231,7 @@ static bool reconstruct_retrieve_libmv_tracks(MovieReconstructContext *context,
     }
   }
 
-  MEM_freeN(reconstructed_cameras);
+  MEM_delete(reconstructed_cameras);
 
   return ok;
 }
@@ -331,7 +332,7 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(
     int height)
 {
   MovieTracking *tracking = &clip->tracking;
-  MovieReconstructContext *context = MEM_callocN<MovieReconstructContext>(
+  MovieReconstructContext *context = MEM_new_zeroed<MovieReconstructContext>(
       "MovieReconstructContext data");
   const float aspy = 1.0f / tracking->camera.pixel_aspect;
   const int num_tracks = BLI_listbase_count(&tracking_object->tracks);
@@ -414,7 +415,7 @@ void BKE_tracking_reconstruction_context_free(MovieReconstructContext *context)
 
   tracks_map_free(context->tracks_map);
 
-  MEM_freeN(context);
+  MEM_delete(context);
 }
 
 /* Callback which is called from libmv side to update progress in the interface. */
@@ -551,3 +552,5 @@ void BKE_tracking_reconstruction_scale(MovieTracking *tracking, float scale[3])
     tracking_scale_reconstruction(&object.tracks, &object.reconstruction, scale);
   }
 }
+
+}  // namespace blender

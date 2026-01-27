@@ -108,7 +108,7 @@
 #include "BLI_threads.h"
 #include "BLI_time.h"
 
-#include "MEM_guardedalloc.h" /* MEM_freeN */
+#include "MEM_guardedalloc.h"
 
 #include "BKE_asset.hh"
 #include "BKE_blender_version.h"
@@ -141,6 +141,8 @@
 #include "writefile.hh"
 
 #include <zstd.h>
+
+namespace blender {
 
 /* Make preferences read-only. */
 #define U (*((const UserDef *)&U))
@@ -271,11 +273,11 @@ struct ZstdWriteWrap::ZstdWriteBlockTask {
 void ZstdWriteWrap::write_task(ZstdWriteBlockTask *task)
 {
   size_t out_buf_len = ZSTD_compressBound(task->size);
-  void *out_buf = MEM_mallocN(out_buf_len, "Zstd out buffer");
+  void *out_buf = MEM_new_uninitialized(out_buf_len, "Zstd out buffer");
   size_t out_size = ZSTD_compress(
       out_buf, out_buf_len, task->data, task->size, ZSTD_COMPRESSION_LEVEL);
 
-  MEM_freeN(task->data);
+  MEM_delete_void(task->data);
 
   BLI_mutex_lock(&mutex);
 
@@ -288,7 +290,7 @@ void ZstdWriteWrap::write_task(ZstdWriteBlockTask *task)
   }
   else {
     if (base_wrap.write(out_buf, out_size)) {
-      ZstdFrame *frameinfo = MEM_mallocN<ZstdFrame>("zstd frameinfo");
+      ZstdFrame *frameinfo = MEM_new_uninitialized<ZstdFrame>("zstd frameinfo");
       frameinfo->uncompressed_size = task->size;
       frameinfo->compressed_size = out_size;
       BLI_addtail(&frames, frameinfo);
@@ -303,7 +305,7 @@ void ZstdWriteWrap::write_task(ZstdWriteBlockTask *task)
   BLI_mutex_unlock(&mutex);
   BLI_condition_notify_all(&condition);
 
-  MEM_freeN(out_buf);
+  MEM_delete_void(out_buf);
 }
 
 bool ZstdWriteWrap::open(const char *filepath)
@@ -382,8 +384,8 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
     return false;
   }
 
-  ZstdWriteBlockTask *task = MEM_mallocN<ZstdWriteBlockTask>(__func__);
-  task->data = MEM_mallocN(buf_len, __func__);
+  ZstdWriteBlockTask *task = MEM_new_uninitialized<ZstdWriteBlockTask>(__func__);
+  task->data = MEM_new_uninitialized(buf_len, __func__);
   memcpy(task->data, buf, buf_len);
   task->size = buf_len;
   task->frame_number = num_frames++;
@@ -405,7 +407,7 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
      * always be a free thread. */
     BLI_assert(first_task != task);
     BLI_remlink(&tasks, first_task);
-    MEM_freeN(first_task);
+    MEM_delete(first_task);
   }
   BLI_threadpool_insert(&threadpool, task);
 
@@ -425,8 +427,7 @@ static WriteData *writedata_new(WriteWrap *ww)
   wd->timestamp_init = BLI_time_now_seconds();
 
   wd->sdna = DNA_sdna_current_get();
-  wd->stable_address_ids.sdna_pointers = std::make_unique<blender::dna::pointers::PointersInDNA>(
-      *wd->sdna);
+  wd->stable_address_ids.sdna_pointers = std::make_unique<dna::pointers::PointersInDNA>(*wd->sdna);
 
   wd->ww = ww;
 
@@ -439,7 +440,7 @@ static WriteData *writedata_new(WriteWrap *ww)
       wd->buffer.max_size = ZSTD_BUFFER_SIZE;
       wd->buffer.chunk_size = ZSTD_CHUNK_SIZE;
     }
-    wd->buffer.buf = MEM_malloc_arrayN<uchar>(wd->buffer.max_size, "wd->buffer.buf");
+    wd->buffer.buf = MEM_new_array_uninitialized<uchar>(wd->buffer.max_size, "wd->buffer.buf");
   }
 
   return wd;
@@ -474,7 +475,7 @@ static void writedata_do_write(WriteData *wd, const void *mem, const size_t meml
 static void writedata_free(WriteData *wd)
 {
   if (wd->buffer.buf) {
-    MEM_freeN(wd->buffer.buf);
+    MEM_delete(wd->buffer.buf);
   }
   MEM_delete(wd);
 }
@@ -532,7 +533,7 @@ static void mywrite(WriteData *wd, const void *adr, size_t len)
       do {
         const size_t writelen = std::min(len, wd->buffer.chunk_size);
         writedata_do_write(wd, adr, writelen);
-        adr = (const char *)adr + writelen;
+        adr = static_cast<const char *>(adr) + writelen;
         len -= writelen;
       } while (len > 0);
 
@@ -860,7 +861,7 @@ static void writestruct_at_address_nr(WriteData *wd,
                                       const void *adr,
                                       const void *data)
 {
-  BLI_assert(struct_nr > 0 && struct_nr <= blender::dna::sdna_struct_id_get_max());
+  BLI_assert(struct_nr > 0 && struct_nr <= dna::sdna_struct_id_get_max());
 
   if (adr == nullptr || data == nullptr || nr == 0) {
     return;
@@ -883,11 +884,11 @@ static void writestruct_at_address_nr(WriteData *wd,
   /* Get the address identifier that will be written to the file.*/
   const void *address_id = get_address_id(*wd, adr);
 
-  const blender::dna::pointers::StructInfo &struct_info =
+  const dna::pointers::StructInfo &struct_info =
       wd->stable_address_ids.sdna_pointers->get_for_struct(struct_nr);
   const bool can_write_raw_runtime_data = struct_info.pointers.is_empty();
 
-  blender::DynamicStackBuffer<16 * 1024> buffer_owner(len_in_bytes, 64);
+  DynamicStackBuffer<16 * 1024> buffer_owner(len_in_bytes, 64);
   const void *data_to_write;
   if (can_write_raw_runtime_data) {
     /* The passed in data contains no pointers, so it can be written without an additional copy. */
@@ -899,8 +900,8 @@ static void writestruct_at_address_nr(WriteData *wd,
     memcpy(buffer, data, len_in_bytes);
 
     /* Overwrite pointers with their corresponding address identifiers. */
-    for (const int i : blender::IndexRange(nr)) {
-      for (const blender::dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
+    for (const int i : IndexRange(nr)) {
+      for (const dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
         const int offset = i * struct_info.size_in_bytes + pointer_info.offset;
         const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(buffer, offset));
         const void *p_ptr_address_id = get_address_id(*wd, *p_ptr);
@@ -921,7 +922,7 @@ static void writestruct_at_address_nr(WriteData *wd,
   }
 
   if (wd->debug_dst) {
-    blender::dna::print_structs_at_address(
+    dna::print_structs_at_address(
         *wd->sdna, struct_nr, data_to_write, address_id, nr, *wd->debug_dst);
   }
 
@@ -1046,11 +1047,10 @@ static void writelist_id(WriteData *wd, const int filecode, const char *structna
 #endif
 
 #define writestruct_at_address(wd, filecode, struct_id, nr, adr, data) \
-  writestruct_at_address_nr( \
-      wd, filecode, blender::dna::sdna_struct_id_get<struct_id>(), nr, adr, data)
+  writestruct_at_address_nr(wd, filecode, dna::sdna_struct_id_get<struct_id>(), nr, adr, data)
 
 #define writestruct(wd, filecode, struct_id, nr, adr) \
-  writestruct_nr(wd, filecode, blender::dna::sdna_struct_id_get<struct_id>(), nr, adr)
+  writestruct_nr(wd, filecode, dna::sdna_struct_id_get<struct_id>(), nr, adr)
 
 /** \} */
 
@@ -1182,18 +1182,18 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
     writer->write_struct(&um);
     for (const bUserMenuItem &umi : um.items) {
       if (umi.type == USER_MENU_TYPE_OPERATOR) {
-        const bUserMenuItem_Op *umi_op = (const bUserMenuItem_Op *)&umi;
+        const bUserMenuItem_Op *umi_op = reinterpret_cast<const bUserMenuItem_Op *>(&umi);
         writer->write_struct(umi_op);
         if (umi_op->prop) {
           IDP_BlendWrite(writer, umi_op->prop);
         }
       }
       else if (umi.type == USER_MENU_TYPE_MENU) {
-        const bUserMenuItem_Menu *umi_mt = (const bUserMenuItem_Menu *)&umi;
+        const bUserMenuItem_Menu *umi_mt = reinterpret_cast<const bUserMenuItem_Menu *>(&umi);
         writer->write_struct(umi_mt);
       }
       else if (umi.type == USER_MENU_TYPE_PROP) {
-        const bUserMenuItem_Prop *umi_pr = (const bUserMenuItem_Prop *)&umi;
+        const bUserMenuItem_Prop *umi_pr = reinterpret_cast<const bUserMenuItem_Prop *>(&umi);
         writer->write_struct(umi_pr);
       }
       else {
@@ -1268,7 +1268,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
   const bool is_undo = wd->use_memfile;
 
   /* Gather IDs coming from each library. */
-  blender::MultiValueMap<Library *, ID *> linked_ids_by_library;
+  MultiValueMap<Library *, ID *> linked_ids_by_library;
   {
     ID *id;
     FOREACH_MAIN_ID_BEGIN (bmain, id) {
@@ -1281,13 +1281,13 @@ static void write_libraries(WriteData *wd, Main *bmain)
     FOREACH_MAIN_ID_END;
   }
 
-  blender::Set<Library *> written_libraries;
+  Set<Library *> written_libraries;
   for (Library &library_ptr : bmain->libraries) {
     Library &library = library_ptr;
-    const blender::Span<ID *> ids = linked_ids_by_library.lookup(&library);
+    const Span<ID *> ids = linked_ids_by_library.lookup(&library);
 
     /* Gather IDs that are somehow directly referenced by data in the current blend file. */
-    blender::Vector<ID *> ids_used_from_library;
+    Vector<ID *> ids_used_from_library;
     if (is_undo) {
       /* Always write placeholders for all linked IDs in undo case. This allows to properly remove
        * linked data that should not exist on undo/redo. See also #read_undo_move_libmain_data,
@@ -1630,9 +1630,9 @@ static void write_blend_file_header(WriteData *wd)
 /**
  * Gathers all local IDs that should be written to the file.
  */
-static blender::Vector<ID *> gather_local_ids_to_write(Main *bmain, const bool is_undo)
+static Vector<ID *> gather_local_ids_to_write(Main *bmain, const bool is_undo)
 {
-  blender::Vector<ID *> local_ids_to_write;
+  Vector<ID *> local_ids_to_write;
   ID *id;
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
     if (GS(id->name) == ID_LI) {
@@ -1811,7 +1811,7 @@ static bool write_file_handle(Main *mainvar,
   mywrite_flush(wd);
 
   const bool is_undo = wd->use_memfile;
-  blender::Vector<ID *> local_ids_to_write = gather_local_ids_to_write(mainvar, is_undo);
+  Vector<ID *> local_ids_to_write = gather_local_ids_to_write(mainvar, is_undo);
 
   if (!is_undo) {
     /* If not writing undo data, properly set directly linked IDs as `ID_TAG_EXTERN`. */
@@ -2069,8 +2069,8 @@ static bool BLO_write_file_impl(Main *mainvar,
   }
 
 #if GENERATE_DEBUG_BLEND_FILE
-  std::string debug_dst_path = blender::StringRef(filepath) + DEBUG_BLEND_FILE_SUFFIX;
-  blender::fstream debug_dst_file(debug_dst_path, std::ios::out);
+  std::string debug_dst_path = StringRef(filepath) + DEBUG_BLEND_FILE_SUFFIX;
+  fstream debug_dst_file(debug_dst_path, std::ios::out);
   std::ostream *debug_dst = &debug_dst_file;
 #else
   std::ostream *debug_dst = nullptr;
@@ -2166,7 +2166,7 @@ void BlendWriter::write_struct_array_by_name(const char *struct_name,
                                              const int64_t array_size,
                                              const void *data)
 {
-  int struct_id = BLO_get_struct_id_by_name(this, struct_name);
+  int struct_id = this->struct_id_by_name(struct_name);
   if (UNLIKELY(struct_id == -1)) {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
@@ -2216,7 +2216,7 @@ void BlendWriter::write_struct_list_by_id(const int struct_id, const ListBase *l
 
 void BlendWriter::write_struct_list_by_name(const char *struct_name, ListBase *list)
 {
-  int struct_id = BLO_get_struct_id_by_name(this, struct_name);
+  int struct_id = this->struct_id_by_name(struct_name);
   if (UNLIKELY(struct_id == -1)) {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
@@ -2224,17 +2224,9 @@ void BlendWriter::write_struct_list_by_name(const char *struct_name, ListBase *l
   this->write_struct_list_by_id(struct_id, list);
 }
 
-void blo_write_id_struct(BlendWriter *writer,
-                         const int struct_id,
-                         const void *id_address,
-                         const ID *id)
+int BlendWriter::struct_id_by_name(const char *struct_name) const
 {
-  writestruct_at_address_nr(writer->wd, GS(id->name), struct_id, 1, id_address, id);
-}
-
-int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name)
-{
-  int struct_id = DNA_struct_find_with_alias(writer->wd->sdna, struct_name);
+  int struct_id = DNA_struct_find_with_alias(this->wd->sdna, struct_name);
   return struct_id;
 }
 
@@ -2282,7 +2274,7 @@ void BLO_write_pointer_array(BlendWriter *writer, const int64_t num, const void 
 {
   /* Create a temporary copy of the pointer array, because all pointers need to be remapped to
    * their stable address ids. */
-  blender::Array<const void *, 32> data = blender::Span<const void *>(
+  Array<const void *, 32> data = Span<const void *>(
       reinterpret_cast<const void *const *>(data_ptr), num);
   for (const int64_t i : data.index_range()) {
     data[i] = get_address_id(*writer->wd, data[i]);
@@ -2334,8 +2326,8 @@ void BLO_write_shared_tag(BlendWriter *writer, const void *data)
 void BLO_write_shared(BlendWriter *writer,
                       const void *data,
                       const size_t approximate_size_in_bytes,
-                      const blender::ImplicitSharingInfo *sharing_info,
-                      const blender::FunctionRef<void()> write_fn)
+                      const ImplicitSharingInfo *sharing_info,
+                      const FunctionRef<void()> write_fn)
 {
   if (data == nullptr) {
     return;
@@ -2375,3 +2367,5 @@ bool BLO_write_is_undo(BlendWriter *writer)
 }
 
 /** \} */
+
+}  // namespace blender

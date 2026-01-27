@@ -47,6 +47,8 @@
 
 #include "BLT_translation.hh"
 
+namespace blender {
+
 using namespace blender::nodes;
 
 /**
@@ -88,7 +90,7 @@ static void add_socket_tag(bNodeTree *ntree, bNodeSocket *socket, const eNodeTre
   socket->runtime->changed_flag |= flag;
 }
 
-namespace blender::bke {
+namespace bke {
 
 /**
  * Common datatype priorities, works for compositor, shader and texture nodes alike
@@ -254,7 +256,7 @@ struct NodeTreeRelations {
         }
         ID *id = node->id;
         if (GS(id->name) == ID_NT) {
-          bNodeTree *group = (bNodeTree *)id;
+          bNodeTree *group = id_cast<bNodeTree *>(id);
           group_node_users_->add(group, {ntree, node});
         }
       }
@@ -274,7 +276,7 @@ struct NodeTreeRelations {
     for (Object &object : bmain_->objects) {
       for (ModifierData &md : object.modifiers) {
         if (md.type == eModifierType_Nodes) {
-          NodesModifierData *nmd = (NodesModifierData *)&md;
+          NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
           if (nmd->node_group != nullptr) {
             modifiers_users_->add(nmd->node_group, {&object, &md});
           }
@@ -392,7 +394,7 @@ class NodeTreeMainUpdater {
             ModifierData *md = pair.second;
 
             if (md->type == eModifierType_Nodes) {
-              MOD_nodes_update_interface(object, (NodesModifierData *)md);
+              MOD_nodes_update_interface(object, reinterpret_cast<NodesModifierData *>(md));
             }
           }
         }
@@ -856,7 +858,7 @@ class NodeTreeMainUpdater {
     if ((ntree.runtime->changed_flag & allowed_flags) == ntree.runtime->changed_flag) {
       return;
     }
-    blender::bke::node_preview_remove_unused(&ntree);
+    bke::node_preview_remove_unused(&ntree);
   }
 
   void make_node_previews_dirty(bNodeTree &ntree)
@@ -937,9 +939,6 @@ class NodeTreeMainUpdater {
   static int get_socket_shape(const bNodeSocket &socket,
                               const bool use_inferred_structure_type = false)
   {
-    if (nodes::socket_type_always_single(socket.typeinfo->type)) {
-      return SOCK_DISPLAY_SHAPE_LINE;
-    }
     const SocketDeclaration *decl = socket.runtime->declaration;
     if (!decl) {
       return SOCK_DISPLAY_SHAPE_CIRCLE;
@@ -1059,6 +1058,19 @@ class NodeTreeMainUpdater {
           }
           for (bNodeSocket *socket : node->output_sockets()) {
             socket->display_shape = get_socket_shape(*socket);
+          }
+
+          if (node->is_type("NodeGetBundleItem")) {
+            bNodeSocket &socket = *node->output_by_identifier("Item");
+            const auto &storage = *static_cast<const NodeGetBundleItem *>(node->storage);
+            socket.display_shape = get_socket_shape(
+                socket, storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
+          }
+          else if (node->is_type("NodeStoreBundleItem")) {
+            bNodeSocket &socket = *node->input_by_identifier("Item");
+            const auto &storage = *static_cast<const NodeStoreBundleItem *>(node->storage);
+            socket.display_shape = get_socket_shape(
+                socket, storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
           }
           break;
         }
@@ -1949,15 +1961,15 @@ class NodeTreeMainUpdater {
       return false;
     }
 
-    MEM_SAFE_FREE(ntree.nested_node_refs);
+    MEM_SAFE_DELETE(ntree.nested_node_refs);
     if (new_path_by_id.is_empty()) {
       ntree.nested_node_refs_num = 0;
       return true;
     }
 
     /* Allocate new array for the nested node references contained in the node tree. */
-    bNestedNodeRef *new_refs = MEM_new_array_for_free<bNestedNodeRef>(
-        size_t(new_path_by_id.size()), __func__);
+    bNestedNodeRef *new_refs = MEM_new_array<bNestedNodeRef>(size_t(new_path_by_id.size()),
+                                                             __func__);
     int index = 0;
     for (const auto item : new_path_by_id.items()) {
       bNestedNodeRef &ref = new_refs[index];
@@ -2017,7 +2029,7 @@ class NodeTreeMainUpdater {
       bNodeTreeInterfacePanel *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
       if (bNodeTreeInterfaceSocket *toggle_socket = panel->header_toggle_socket()) {
         if (!STREQ(panel->name, toggle_socket->name)) {
-          MEM_SAFE_FREE(toggle_socket->name);
+          MEM_SAFE_DELETE(toggle_socket->name);
           toggle_socket->name = BLI_strdup_null(panel->name);
           changed = true;
         }
@@ -2027,7 +2039,7 @@ class NodeTreeMainUpdater {
   }
 };
 
-}  // namespace blender::bke
+}  // namespace bke
 
 void BKE_ntree_update_tag_all(bNodeTree *ntree)
 {
@@ -2145,7 +2157,7 @@ void BKE_ntree_update_tag_image_user_changed(bNodeTree *ntree, ImageUser * /*ius
 
 uint64_t bNestedNodePath::hash() const
 {
-  return blender::get_default_hash(this->node_id, this->id_in_node);
+  return get_default_hash(this->node_id, this->id_in_node);
 }
 
 bool operator==(const bNestedNodePath &a, const bNestedNodePath &b)
@@ -2163,7 +2175,7 @@ bool operator==(const bNestedNodePath &a, const bNestedNodePath &b)
 static bool is_updating = false;
 
 void BKE_ntree_update(Main &bmain,
-                      const std::optional<blender::Span<bNodeTree *>> modified_trees,
+                      const std::optional<Span<bNodeTree *>> modified_trees,
                       const NodeTreeUpdateExtraParams &params)
 {
   if (is_updating) {
@@ -2171,7 +2183,7 @@ void BKE_ntree_update(Main &bmain,
   }
 
   is_updating = true;
-  blender::bke::NodeTreeMainUpdater updater{&bmain, params};
+  bke::NodeTreeMainUpdater updater{&bmain, params};
   if (modified_trees.has_value()) {
     updater.update_rooted(*modified_trees);
   }
@@ -2185,7 +2197,7 @@ void BKE_ntree_update_after_single_tree_change(Main &bmain,
                                                bNodeTree &modified_tree,
                                                const NodeTreeUpdateExtraParams &params)
 {
-  BKE_ntree_update(bmain, blender::Span{&modified_tree}, params);
+  BKE_ntree_update(bmain, Span{&modified_tree}, params);
 }
 
 void BKE_ntree_update_without_main(bNodeTree &tree)
@@ -2196,7 +2208,9 @@ void BKE_ntree_update_without_main(bNodeTree &tree)
   }
   is_updating = true;
   NodeTreeUpdateExtraParams params;
-  blender::bke::NodeTreeMainUpdater updater{nullptr, params};
+  bke::NodeTreeMainUpdater updater{nullptr, params};
   updater.update_rooted({&tree});
   is_updating = false;
 }
+
+}  // namespace blender

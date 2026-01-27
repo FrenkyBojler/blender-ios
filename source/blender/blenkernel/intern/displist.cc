@@ -41,29 +41,27 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-using blender::Array;
-using blender::float3;
-using blender::IndexRange;
+namespace blender {
 
 static void displist_elem_free(DispList *dl)
 {
   if (dl) {
     if (dl->verts) {
-      MEM_freeN(dl->verts);
+      MEM_delete(dl->verts);
     }
     if (dl->nors) {
-      MEM_freeN(dl->nors);
+      MEM_delete(dl->nors);
     }
     if (dl->index) {
-      MEM_freeN(dl->index);
+      MEM_delete(dl->index);
     }
-    MEM_freeN(dl);
+    MEM_delete(dl);
   }
 }
 
 void BKE_displist_free(ListBaseT<DispList> *lb)
 {
-  while (DispList *dl = (DispList *)BLI_pophead(lb)) {
+  while (DispList *dl = static_cast<DispList *>(BLI_pophead(lb))) {
     displist_elem_free(dl);
   }
 }
@@ -165,9 +163,9 @@ static void curve_to_displist(const Curve *cu,
        * and resolution > 1. */
       const bool use_cyclic_sample = is_cyclic && (samples_len != 2);
 
-      DispList *dl = MEM_callocN<DispList>(__func__);
+      DispList *dl = MEM_new_zeroed<DispList>(__func__);
       /* Add one to the length because of #BKE_curve_forward_diff_bezier. */
-      dl->verts = MEM_malloc_arrayN<float>(3 * size_t(samples_len + 1), __func__);
+      dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(samples_len + 1), __func__);
       BLI_addtail(r_dispbase, dl);
       dl->parts = 1;
       dl->nr = samples_len;
@@ -220,8 +218,8 @@ static void curve_to_displist(const Curve *cu,
     }
     else if (nu.type == CU_NURBS) {
       const int len = (resolution * SEGMENTSU(&nu));
-      DispList *dl = MEM_callocN<DispList>(__func__);
-      dl->verts = MEM_malloc_arrayN<float>(3 * size_t(len), __func__);
+      DispList *dl = MEM_new_zeroed<DispList>(__func__);
+      dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(len), __func__);
       BLI_addtail(r_dispbase, dl);
       dl->parts = 1;
       dl->nr = len;
@@ -233,8 +231,8 @@ static void curve_to_displist(const Curve *cu,
     }
     else if (nu.type == CU_POLY) {
       const int len = nu.pntsu;
-      DispList *dl = MEM_callocN<DispList>(__func__);
-      dl->verts = MEM_malloc_arrayN<float>(3 * size_t(len), __func__);
+      DispList *dl = MEM_new_zeroed<DispList>(__func__);
+      dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(len), __func__);
       BLI_addtail(r_dispbase, dl);
       dl->parts = 1;
       dl->nr = len;
@@ -242,7 +240,7 @@ static void curve_to_displist(const Curve *cu,
       dl->charidx = nu.charidx;
       dl->type = (is_cyclic && (dl->nr != 2)) ? DL_POLY : DL_SEGM;
 
-      float (*coords)[3] = (float (*)[3])dl->verts;
+      float (*coords)[3] = reinterpret_cast<float (*)[3]>(dl->verts);
       for (int i = 0; i < len; i++) {
         const BPoint *bp = &nu.bp[i];
         copy_v3_v3(coords[i], bp->vec);
@@ -310,6 +308,9 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
             if (sf_vert != nullptr && sf_vert_new != nullptr) {
               BLI_scanfill_edge_add(&sf_ctx, sf_vert, sf_vert_new);
             }
+
+            dl_flag_accum |= dl.flag;
+            dl_rt_accum |= dl.rt;
           }
           else if (colnr < dl.col) {
             /* got poly with next material at current char */
@@ -317,14 +318,12 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
             nextcol = true;
           }
         }
-        dl_flag_accum |= dl.flag;
-        dl_rt_accum |= dl.rt;
       }
     }
 
     const int triangles_len = BLI_scanfill_calc_ex(&sf_ctx, scanfill_flag, normal_proj);
     if (totvert != 0 && triangles_len != 0) {
-      DispList *dlnew = MEM_callocN<DispList>(__func__);
+      DispList *dlnew = MEM_new_zeroed<DispList>(__func__);
       dlnew->type = DL_INDEX3;
       dlnew->flag = (dl_flag_accum & (DL_BACK_CURVE | DL_FRONT_CURVE));
       dlnew->rt = (dl_rt_accum & CU_SMOOTH);
@@ -332,8 +331,8 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
       dlnew->nr = totvert;
       dlnew->parts = triangles_len;
 
-      dlnew->index = MEM_malloc_arrayN<int>(3 * size_t(triangles_len), __func__);
-      dlnew->verts = MEM_malloc_arrayN<float>(3 * size_t(totvert), __func__);
+      dlnew->index = MEM_new_array_uninitialized<int>(3 * size_t(triangles_len), __func__);
+      dlnew->verts = MEM_new_array_uninitialized<float>(3 * size_t(totvert), __func__);
 
       /* vert data */
 
@@ -344,7 +343,7 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
 
       /* index data */
       int *index = dlnew->index;
-      for (ScanFillFace &sf_tri : sf_ctx.fillfacebase) {
+      for (const ScanFillFace &sf_tri : sf_ctx.fillfacebase) {
         index[0] = sf_tri.v1->tmp.i;
         index[1] = flip_normal ? sf_tri.v3->tmp.i : sf_tri.v2->tmp.i;
         index[2] = flip_normal ? sf_tri.v2->tmp.i : sf_tri.v3->tmp.i;
@@ -379,9 +378,9 @@ static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
     if (dl.type == DL_SURF) {
       if ((dl.flag & DL_CYCL_V) && (dl.flag & DL_CYCL_U) == 0) {
         if ((cu->flag & CU_BACK) && (dl.flag & DL_BACK_CURVE)) {
-          DispList *dlnew = MEM_callocN<DispList>(__func__);
+          DispList *dlnew = MEM_new_zeroed<DispList>(__func__);
           BLI_addtail(&front, dlnew);
-          dlnew->verts = MEM_malloc_arrayN<float>(3 * size_t(dl.parts), __func__);
+          dlnew->verts = MEM_new_array_uninitialized<float>(3 * size_t(dl.parts), __func__);
           dlnew->nr = dl.parts;
           dlnew->parts = 1;
           dlnew->type = DL_POLY;
@@ -398,9 +397,9 @@ static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
           }
         }
         if ((cu->flag & CU_FRONT) && (dl.flag & DL_FRONT_CURVE)) {
-          DispList *dlnew = MEM_callocN<DispList>(__func__);
+          DispList *dlnew = MEM_new_zeroed<DispList>(__func__);
           BLI_addtail(&back, dlnew);
-          dlnew->verts = MEM_malloc_arrayN<float>(3 * size_t(dl.parts), __func__);
+          dlnew->verts = MEM_new_array_uninitialized<float>(3 * size_t(dl.parts), __func__);
           dlnew->nr = dl.parts;
           dlnew->parts = 1;
           dlnew->type = DL_POLY;
@@ -436,7 +435,7 @@ static void curve_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
     return;
   }
 
-  if (dispbase->first && ((DispList *)dispbase->first)->type == DL_SURF) {
+  if (dispbase->first && (static_cast<DispList *>(dispbase->first))->type == DL_SURF) {
     bevels_to_filledpoly(cu, dispbase);
   }
   else {
@@ -460,11 +459,11 @@ static float displist_calc_taper(Depsgraph *depsgraph,
   }
 
   DispList *dl = taperobj->runtime->curve_cache ?
-                     (DispList *)taperobj->runtime->curve_cache->disp.first :
+                     static_cast<DispList *>(taperobj->runtime->curve_cache->disp.first) :
                      nullptr;
   if (dl == nullptr) {
     BKE_displist_make_curveTypes(depsgraph, scene, taperobj, false);
-    dl = (DispList *)taperobj->runtime->curve_cache->disp.first;
+    dl = static_cast<DispList *>(taperobj->runtime->curve_cache->disp.first);
   }
   if (dl) {
     float minx, dx, *fp;
@@ -513,12 +512,12 @@ static ModifierData *curve_get_tessellate_point(const Scene *scene,
 
   ModifierMode required_mode = for_render ? eModifierMode_Render : eModifierMode_Realtime;
   if (editmode) {
-    required_mode = (ModifierMode)(int(required_mode) | eModifierMode_Editmode);
+    required_mode = ModifierMode(int(required_mode) | eModifierMode_Editmode);
   }
 
   ModifierData *pretessellatePoint = nullptr;
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
     if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;
@@ -556,14 +555,14 @@ void BKE_curve_calc_modifiers_pre(Depsgraph *depsgraph,
                                   ListBaseT<Nurb> *target_nurb,
                                   const bool for_render)
 {
-  const Curve *cu = (const Curve *)ob->data;
+  const Curve *cu = id_cast<const Curve *>(ob->data);
 
   BKE_modifiers_clear_errors(ob);
 
   const bool editmode = (!for_render && (cu->editnurb || cu->editfont));
   ModifierMode required_mode = for_render ? eModifierMode_Render : eModifierMode_Realtime;
   if (editmode) {
-    required_mode = (ModifierMode)(int(required_mode) | eModifierMode_Editmode);
+    required_mode = ModifierMode(int(required_mode) | eModifierMode_Editmode);
   }
 
   ModifierApplyFlag apply_flag = ModifierApplyFlag(0);
@@ -599,7 +598,7 @@ void BKE_curve_calc_modifiers_pre(Depsgraph *depsgraph,
     for (ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data); md;
          md = md->next)
     {
-      const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
+      const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
       if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
         continue;
@@ -608,7 +607,7 @@ void BKE_curve_calc_modifiers_pre(Depsgraph *depsgraph,
         continue;
       }
 
-      blender::bke::ScopedModifierTimer modifier_timer{*md};
+      bke::ScopedModifierTimer modifier_timer{*md};
 
       if (deformedVerts.is_empty()) {
         deformedVerts = BKE_curve_nurbs_vert_coords_alloc(source_nurb);
@@ -630,7 +629,7 @@ void BKE_curve_calc_modifiers_pre(Depsgraph *depsgraph,
   }
 
   if (keyVerts) {
-    MEM_freeN(keyVerts);
+    MEM_delete(keyVerts);
   }
 }
 
@@ -679,13 +678,13 @@ static bool do_curve_implicit_mesh_conversion(const Curve *curve,
   return false;
 }
 
-static blender::bke::GeometrySet curve_calc_modifiers_post(Depsgraph *depsgraph,
-                                                           const Scene *scene,
-                                                           Object *ob,
-                                                           const ListBaseT<DispList> *dispbase,
-                                                           const bool for_render)
+static bke::GeometrySet curve_calc_modifiers_post(Depsgraph *depsgraph,
+                                                  const Scene *scene,
+                                                  Object *ob,
+                                                  const ListBaseT<DispList> *dispbase,
+                                                  const bool for_render)
 {
-  const Curve *cu = (const Curve *)ob->data;
+  const Curve *cu = id_cast<const Curve *>(ob->data);
   const bool editmode = (!for_render && (cu->editnurb || cu->editfont));
   const bool use_cache = !for_render;
 
@@ -707,7 +706,7 @@ static blender::bke::GeometrySet curve_calc_modifiers_post(Depsgraph *depsgraph,
                          BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data) :
                          pretessellatePoint->next;
 
-  blender::bke::GeometrySet geometry_set;
+  bke::GeometrySet geometry_set;
   if (ob->type == OB_SURF ||
       do_curve_implicit_mesh_conversion(cu, md, scene, required_mode, editmode))
   {
@@ -716,16 +715,16 @@ static blender::bke::GeometrySet curve_calc_modifiers_post(Depsgraph *depsgraph,
   }
   else {
     geometry_set.replace_curves(
-        blender::bke::curve_legacy_to_curves(*cu, ob->runtime->curve_cache->deformed_nurbs));
+        bke::curve_legacy_to_curves(*cu, ob->runtime->curve_cache->deformed_nurbs));
   }
 
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
     if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;
     }
 
-    blender::bke::ScopedModifierTimer modifier_timer{*md};
+    bke::ScopedModifierTimer modifier_timer{*md};
 
     if (md->type == eModifierType_Nodes) {
       mti->modify_geometry_set(md, &mectx_apply, &geometry_set);
@@ -752,7 +751,7 @@ static blender::bke::GeometrySet curve_calc_modifiers_post(Depsgraph *depsgraph,
   if (geometry_set.has_mesh()) {
     Mesh *final_mesh = geometry_set.get_mesh_for_write();
     STRNCPY(final_mesh->id.name, cu->id.name);
-    *((short *)final_mesh->id.name) = ID_ME;
+    *(reinterpret_cast<short *>(final_mesh->id.name)) = ID_ME;
   }
 
   return geometry_set;
@@ -764,8 +763,8 @@ static void displist_surf_indices(DispList *dl)
 
   dl->totindex = 0;
 
-  int *index = dl->index = MEM_malloc_arrayN<int>(4 * size_t(dl->parts + 1) * size_t(dl->nr + 1),
-                                                  __func__);
+  int *index = dl->index = MEM_new_array_uninitialized<int>(
+      4 * size_t(dl->parts + 1) * size_t(dl->nr + 1), __func__);
 
   for (int a = 0; a < dl->parts; a++) {
 
@@ -789,14 +788,14 @@ static void displist_surf_indices(DispList *dl)
   }
 }
 
-static blender::bke::GeometrySet evaluate_surface_object(Depsgraph *depsgraph,
-                                                         const Scene *scene,
-                                                         Object *ob,
-                                                         const bool for_render,
-                                                         ListBaseT<DispList> *r_dispbase)
+static bke::GeometrySet evaluate_surface_object(Depsgraph *depsgraph,
+                                                const Scene *scene,
+                                                Object *ob,
+                                                const bool for_render,
+                                                ListBaseT<DispList> *r_dispbase)
 {
   BLI_assert(ob->type == OB_SURF);
-  const Curve *cu = (const Curve *)ob->data;
+  const Curve *cu = id_cast<const Curve *>(ob->data);
 
   ListBaseT<Nurb> *deformed_nurbs = &ob->runtime->curve_cache->deformed_nurbs;
 
@@ -820,8 +819,8 @@ static blender::bke::GeometrySet evaluate_surface_object(Depsgraph *depsgraph,
     if (nu.pntsv == 1) {
       const int len = SEGMENTSU(&nu) * resolu;
 
-      DispList *dl = MEM_callocN<DispList>(__func__);
-      dl->verts = MEM_malloc_arrayN<float>(3 * size_t(len), __func__);
+      DispList *dl = MEM_new_zeroed<DispList>(__func__);
+      dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(len), __func__);
 
       BLI_addtail(r_dispbase, dl);
       dl->parts = 1;
@@ -843,8 +842,8 @@ static blender::bke::GeometrySet evaluate_surface_object(Depsgraph *depsgraph,
     else {
       const int len = (nu.pntsu * resolu) * (nu.pntsv * resolv);
 
-      DispList *dl = MEM_callocN<DispList>(__func__);
-      dl->verts = MEM_malloc_arrayN<float>(3 * size_t(len), __func__);
+      DispList *dl = MEM_new_zeroed<DispList>(__func__);
+      dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(len), __func__);
       BLI_addtail(r_dispbase, dl);
 
       dl->col = nu.mat_nr;
@@ -871,7 +870,7 @@ static blender::bke::GeometrySet evaluate_surface_object(Depsgraph *depsgraph,
   }
 
   curve_to_filledpoly(cu, r_dispbase);
-  blender::bke::GeometrySet geometry_set = curve_calc_modifiers_post(
+  bke::GeometrySet geometry_set = curve_calc_modifiers_post(
       depsgraph, scene, ob, r_dispbase, for_render);
   if (!geometry_set.has_mesh()) {
     geometry_set.replace_mesh(BKE_mesh_new_nomain(0, 0, 0, 0));
@@ -945,8 +944,8 @@ static void fillBevelCap(const Nurb *nu,
                          const float *prev_fp,
                          ListBaseT<DispList> *dispbase)
 {
-  DispList *dl = MEM_callocN<DispList>(__func__);
-  dl->verts = MEM_malloc_arrayN<float>(3 * size_t(dlb->nr), __func__);
+  DispList *dl = MEM_new_zeroed<DispList>(__func__);
+  dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(dlb->nr), __func__);
   memcpy(dl->verts, prev_fp, sizeof(float[3]) * dlb->nr);
 
   dl->type = DL_POLY;
@@ -1098,14 +1097,14 @@ static void calc_bevfac_mapping(const Curve *cu,
   }
 }
 
-static blender::bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
-                                                            const Scene *scene,
-                                                            Object *ob,
-                                                            const bool for_render,
-                                                            ListBaseT<DispList> *r_dispbase)
+static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
+                                                   const Scene *scene,
+                                                   Object *ob,
+                                                   const bool for_render,
+                                                   ListBaseT<DispList> *r_dispbase)
 {
   BLI_assert(ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT));
-  const Curve *cu = (const Curve *)ob->data;
+  const Curve *cu = id_cast<const Curve *>(ob->data);
 
   ListBaseT<Nurb> *deformed_nurbs = &ob->runtime->curve_cache->deformed_nurbs;
 
@@ -1136,8 +1135,8 @@ static blender::bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph
   else {
     const float widfac = cu->offset - 1.0f;
 
-    const BevList *bl = (BevList *)ob->runtime->curve_cache->bev.first;
-    const Nurb *nu = (Nurb *)deformed_nurbs->first;
+    const BevList *bl = static_cast<BevList *>(ob->runtime->curve_cache->bev.first);
+    const Nurb *nu = static_cast<Nurb *>(deformed_nurbs->first);
     for (; bl && nu; bl = bl->next, nu = nu->next) {
       float *data;
 
@@ -1147,8 +1146,8 @@ static blender::bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph
 
       /* exception handling; curve without bevel or extrude, with width correction */
       if (BLI_listbase_is_empty(&dlbev)) {
-        DispList *dl = MEM_callocN<DispList>("makeDispListbev");
-        dl->verts = MEM_malloc_arrayN<float>(3 * size_t(bl->nr), "dlverts");
+        DispList *dl = MEM_new_zeroed<DispList>("makeDispListbev");
+        dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(bl->nr), "dlverts");
         BLI_addtail(r_dispbase, dl);
 
         if (bl->poly != -1) {
@@ -1197,9 +1196,9 @@ static blender::bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph
 
         for (DispList &dlb : dlbev) {
           /* For each part of the bevel use a separate display-block. */
-          DispList *dl = MEM_callocN<DispList>(__func__);
-          dl->verts = data = MEM_malloc_arrayN<float>(3 * size_t(dlb.nr) * size_t(steps),
-                                                      __func__);
+          DispList *dl = MEM_new_zeroed<DispList>(__func__);
+          dl->verts = data = MEM_new_array_uninitialized<float>(3 * size_t(dlb.nr) * size_t(steps),
+                                                                __func__);
           BLI_addtail(r_dispbase, dl);
 
           dl->type = DL_SURF;
@@ -1330,18 +1329,18 @@ void BKE_displist_make_curveTypes(Depsgraph *depsgraph,
 
   /* It's important to retrieve this after calling #BKE_object_free_derived_caches,
    * which may reset the object data pointer in some cases. */
-  const Curve &original_curve = *static_cast<const Curve *>(ob->data);
+  const Curve &original_curve = *id_cast<const Curve *>(ob->data);
 
-  ob->runtime->curve_cache = MEM_callocN<CurveCache>(__func__);
+  ob->runtime->curve_cache = MEM_new_zeroed<CurveCache>(__func__);
   ListBaseT<DispList> *dispbase = &ob->runtime->curve_cache->disp;
 
   if (ob->type == OB_SURF) {
-    blender::bke::GeometrySet geometry = evaluate_surface_object(
+    bke::GeometrySet geometry = evaluate_surface_object(
         depsgraph, scene, ob, for_render, dispbase);
-    ob->runtime->geometry_set_eval = new blender::bke::GeometrySet(std::move(geometry));
+    ob->runtime->geometry_set_eval = new bke::GeometrySet(std::move(geometry));
   }
   else {
-    blender::bke::GeometrySet geometry = evaluate_curve_type_object(
+    bke::GeometrySet geometry = evaluate_curve_type_object(
         depsgraph, scene, ob, for_render, dispbase);
 
     if (geometry.has_curves()) {
@@ -1368,7 +1367,7 @@ void BKE_displist_make_curveTypes(Depsgraph *depsgraph,
       BKE_object_eval_assign_data(ob, &cow_curve.id, true);
     }
 
-    ob->runtime->geometry_set_eval = new blender::bke::GeometrySet(std::move(geometry));
+    ob->runtime->geometry_set_eval = new bke::GeometrySet(std::move(geometry));
   }
 }
 
@@ -1391,3 +1390,5 @@ void BKE_displist_minmax(const ListBaseT<DispList> *dispbase, float min[3], floa
     zero_v3(max);
   }
 }
+
+}  // namespace blender

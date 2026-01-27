@@ -72,7 +72,7 @@ static void volume_batch_cache_init(Volume *volume)
   VolumeBatchCache *cache = static_cast<VolumeBatchCache *>(volume->batch_cache);
 
   if (!cache) {
-    volume->batch_cache = cache = MEM_callocN<VolumeBatchCache>(__func__);
+    volume->batch_cache = cache = MEM_new_zeroed<VolumeBatchCache>(__func__);
   }
   else {
     memset(cache, 0, sizeof(*cache));
@@ -118,7 +118,7 @@ static void volume_batch_cache_clear(Volume *volume)
   }
 
   for (DRWVolumeGrid &grid : cache->grids) {
-    MEM_SAFE_FREE(grid.name);
+    MEM_SAFE_DELETE(grid.name);
     GPU_TEXTURE_FREE_SAFE(grid.texture);
   }
   BLI_freelistN(&cache->grids);
@@ -131,7 +131,7 @@ static void volume_batch_cache_clear(Volume *volume)
 void DRW_volume_batch_cache_free(Volume *volume)
 {
   volume_batch_cache_clear(volume);
-  MEM_SAFE_FREE(volume->batch_cache);
+  MEM_SAFE_DELETE_VOID(volume->batch_cache);
 }
 struct VolumeWireframeUserData {
   Volume *volume;
@@ -157,8 +157,7 @@ static void drw_volume_wireframe_cb(
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
     attr_id.pos_id = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
-    attr_id.nor_id = GPU_vertformat_attr_add(
-        &format, "nor", blender::gpu::VertAttrType::SNORM_10_10_10_2);
+    attr_id.nor_id = GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SNORM_10_10_10_2);
     return format;
   }();
 
@@ -167,7 +166,7 @@ static void drw_volume_wireframe_cb(
     attr_id.pos_hq_id = GPU_vertformat_attr_add(
         &format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
     attr_id.nor_hq_id = GPU_vertformat_attr_add(
-        &format, "nor", blender::gpu::VertAttrType::SNORM_16_16_16_16);
+        &format, "nor", gpu::VertAttrType::SNORM_16_16_16_16);
     return format;
   }();
 
@@ -297,7 +296,7 @@ static DRWVolumeGrid *volume_grid_cache_get(const Volume *volume,
   }
 
   /* Allocate new grid. */
-  DRWVolumeGrid *cache_grid = MEM_callocN<DRWVolumeGrid>(__func__);
+  DRWVolumeGrid *cache_grid = MEM_new_zeroed<DRWVolumeGrid>(__func__);
   cache_grid->name = BLI_strdup(name.c_str());
   BLI_addtail(&cache->grids, cache_grid);
 
@@ -317,9 +316,8 @@ static DRWVolumeGrid *volume_grid_cache_get(const Volume *volume,
     cache_grid->object_to_texture = math::invert(cache_grid->texture_to_object);
 
     /* Create GPU texture. */
-    blender::gpu::TextureFormat format = (channels == 3) ?
-                                             blender::gpu::TextureFormat::SFLOAT_16_16_16 :
-                                             blender::gpu::TextureFormat::SFLOAT_16;
+    gpu::TextureFormat format = (channels == 3) ? gpu::TextureFormat::SFLOAT_16_16_16 :
+                                                  gpu::TextureFormat::SFLOAT_16;
     cache_grid->texture = GPU_texture_create_3d("volume_grid",
                                                 UNPACK3(dense_grid.resolution),
                                                 1,
@@ -334,7 +332,7 @@ static DRWVolumeGrid *volume_grid_cache_get(const Volume *volume,
       BKE_volume_dense_float_grid_clear(&dense_grid);
     }
     else {
-      MEM_freeN(dense_grid.voxels);
+      MEM_delete(dense_grid.voxels);
       printf("Error: Could not allocate 3D texture for volume.\n");
     }
   }

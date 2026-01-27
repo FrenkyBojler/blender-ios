@@ -74,9 +74,9 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"anim.action"};
+namespace blender {
 
-using namespace blender;
+static CLG_LogRef LOG = {"anim.action"};
 
 /* *********************** NOTE ON POSE AND ACTION **********************
  *
@@ -94,7 +94,7 @@ using namespace blender;
 /**************************** Action Datablock ******************************/
 
 /*********************** Armature Datablock ***********************/
-namespace blender::bke {
+namespace bke {
 
 static void action_init_data(ID *action_id)
 {
@@ -174,13 +174,14 @@ static void action_copy_data(Main * /*bmain*/,
   action_dst.last_slot_handle = action_src.last_slot_handle;
 
   /* Layers, and (recursively) Strips. */
-  action_dst.layer_array = MEM_calloc_arrayN<ActionLayer *>(action_src.layer_array_num, __func__);
+  action_dst.layer_array = MEM_new_array_zeroed<ActionLayer *>(action_src.layer_array_num,
+                                                               __func__);
   for (int i : action_src.layers().index_range()) {
     action_dst.layer_array[i] = action_src.layer(i)->duplicate_with_shallow_strip_copies(__func__);
   }
 
   /* Strip data. */
-  action_dst.strip_keyframe_data_array = MEM_calloc_arrayN<ActionStripKeyframeData *>(
+  action_dst.strip_keyframe_data_array = MEM_new_array_zeroed<ActionStripKeyframeData *>(
       action_src.strip_keyframe_data_array_num, __func__);
   for (int i : action_src.strip_keyframe_data().index_range()) {
     action_dst.strip_keyframe_data_array[i] = MEM_new<animrig::StripKeyframeData>(
@@ -188,7 +189,7 @@ static void action_copy_data(Main * /*bmain*/,
   }
 
   /* Slots. */
-  action_dst.slot_array = MEM_calloc_arrayN<ActionSlot *>(action_src.slot_array_num, __func__);
+  action_dst.slot_array = MEM_new_array_zeroed<ActionSlot *>(action_src.slot_array_num, __func__);
   for (int i : action_src.slots().index_range()) {
     action_dst.slot_array[i] = MEM_new<animrig::Slot>(__func__, *action_src.slot(i));
   }
@@ -210,21 +211,21 @@ static void action_free_data(ID *id)
   for (animrig::StripKeyframeData *keyframe_data : action.strip_keyframe_data()) {
     MEM_delete(keyframe_data);
   }
-  MEM_SAFE_FREE(action.strip_keyframe_data_array);
+  MEM_SAFE_DELETE(action.strip_keyframe_data_array);
   action.strip_keyframe_data_array_num = 0;
 
   /* Free layers. */
   for (animrig::Layer *layer : action.layers()) {
     MEM_delete(layer);
   }
-  MEM_SAFE_FREE(action.layer_array);
+  MEM_SAFE_DELETE(action.layer_array);
   action.layer_array_num = 0;
 
   /* Free slots. */
   for (animrig::Slot *slot : action.slots()) {
     MEM_delete(slot);
   }
-  MEM_SAFE_FREE(action.slot_array);
+  MEM_SAFE_DELETE(action.slot_array);
   action.slot_array_num = 0;
 
   /* Free legacy F-Curves & groups. */
@@ -376,7 +377,7 @@ static void write_slots(BlendWriter *writer, Span<animrig::Slot *> slots)
     ActionSlot shallow_copy = *slot;
     shallow_copy.runtime = nullptr;
 
-    BLO_write_struct_at_address(writer, ActionSlot, slot, &shallow_copy);
+    writer->write_struct_at_address(slot, &shallow_copy);
   }
 }
 
@@ -490,8 +491,7 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   /* Create legacy data for Layered Actions: the F-Curves from the first Slot,
    * bottom layer, first Keyframe strip. */
-  const bool do_write_forward_compat = !BLO_write_is_undo(writer) && action.slot_array_num > 0 &&
-                                       action.is_action_layered();
+  const bool do_write_forward_compat = !BLO_write_is_undo(writer) && action.slot_array_num > 0;
   if (do_write_forward_compat) {
     animrig::assert_baklava_phase_1_invariants(action);
     BLI_assert_msg(BLI_listbase_is_empty(&action.curves),
@@ -526,7 +526,7 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     }
   }
 
-  BLO_write_id_struct(writer, bAction, id_address, &action.id);
+  writer->write_id_struct(id_address, static_cast<const bAction *>(&action));
   BKE_id_blend_write(writer, &action.id);
 
   /* Write layered Action data. */
@@ -716,14 +716,13 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
 
 static IDProperty *action_asset_type_property(const bAction *action)
 {
-  using namespace blender;
   const bool is_single_frame = action && action->wrap().has_single_frame();
   return bke::idprop::create("is_single_frame", int(is_single_frame)).release();
 }
 
 static void action_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_data)
 {
-  bAction *action = (bAction *)asset_ptr;
+  bAction *action = static_cast<bAction *>(asset_ptr);
   BLI_assert(GS(action->id.name) == ID_AC);
 
   IDProperty *action_type = action_asset_type_property(action);
@@ -736,7 +735,7 @@ static AssetTypeInfo AssetType_AC = {
     /*on_clear_asset_fn*/ nullptr,
 };
 
-}  // namespace blender::bke
+}  // namespace bke
 
 IDTypeInfo IDType_ID_AC = {
     /*id_code*/ bAction::id_type,
@@ -752,20 +751,20 @@ IDTypeInfo IDType_ID_AC = {
     /*name_plural*/ "actions",
     /*translation_context*/ BLT_I18NCONTEXT_ID_ACTION,
     /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
-    /*asset_type_info*/ &blender::bke::AssetType_AC,
+    /*asset_type_info*/ &bke::AssetType_AC,
 
-    /*init_data*/ blender::bke::action_init_data,
-    /*copy_data*/ blender::bke::action_copy_data,
-    /*free_data*/ blender::bke::action_free_data,
+    /*init_data*/ bke::action_init_data,
+    /*copy_data*/ bke::action_copy_data,
+    /*free_data*/ bke::action_free_data,
     /*make_local*/ nullptr,
-    /*foreach_id*/ blender::bke::action_foreach_id,
+    /*foreach_id*/ bke::action_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
-    /*blend_write*/ blender::bke::action_blend_write,
-    /*blend_read_data*/ blender::bke::action_blend_read_data,
+    /*blend_write*/ bke::action_blend_write,
+    /*blend_read_data*/ bke::action_blend_read_data,
     /*blend_read_after_liblink*/ nullptr,
 
     /*blend_read_undo_preserve*/ nullptr,
@@ -788,58 +787,28 @@ bAction *BKE_action_add(Main *bmain, const char name[])
 
 /* *************** Action Groups *************** */
 
-bActionGroup *get_active_actiongroup(bAction *act)
-{
-  /* TODO: move this logic to the animrig::Channelbag struct and unify with code
-   * that uses direct access to the flags. */
-  for (bActionGroup *agrp : animrig::legacy::channel_groups_all(act)) {
-    if (agrp->flag & AGRP_ACTIVE) {
-      return agrp;
-    }
-  }
-  return nullptr;
-}
-
-void set_active_action_group(bAction *act, bActionGroup *agrp, short select)
-{
-  /* TODO: move this logic to the animrig::Channelbag struct and unify with code
-   * that uses direct access to the flags. */
-  for (bActionGroup *grp : animrig::legacy::channel_groups_all(act)) {
-    if ((grp == agrp) && (select)) {
-      grp->flag |= AGRP_ACTIVE;
-    }
-    else {
-      grp->flag &= ~AGRP_ACTIVE;
-    }
-  }
-}
-
-void action_group_colors_sync(bActionGroup *grp, const bActionGroup *ref_grp)
+void action_group_colors_sync(bActionGroup *grp)
 {
   /* Only do color copying if using a custom color (i.e. not default color). */
-  if (grp->customCol) {
-    if (grp->customCol > 0) {
-      /* copy theme colors on-to group's custom color in case user tries to edit color */
-      const bTheme *btheme = static_cast<const bTheme *>(U.themes.first);
-      const ThemeWireColor *col_set = &btheme->tarm[(grp->customCol - 1)];
+  if (!grp->customCol) {
+    return;
+  }
+  if (grp->customCol > 0) {
+    /* Copy theme colors on-to group's custom color in case user tries to edit color. */
+    const bTheme *btheme = static_cast<const bTheme *>(U.themes.first);
+    const ThemeWireColor *col_set = &btheme->tarm[(grp->customCol - 1)];
 
-      memcpy(&grp->cs, col_set, sizeof(ThemeWireColor));
-    }
-    else {
-      /* if a reference group is provided, use the custom color from there... */
-      if (ref_grp) {
-        /* assumption: reference group has a color set */
-        memcpy(&grp->cs, &ref_grp->cs, sizeof(ThemeWireColor));
-      }
-      /* otherwise, init custom color with a generic/placeholder color set if
-       * no previous theme color was used that we can just keep using
-       */
-      else if (grp->cs.solid[0] == 0) {
-        /* define for setting colors in theme below */
-        rgba_uchar_args_set(grp->cs.solid, 0xff, 0x00, 0x00, 255);
-        rgba_uchar_args_set(grp->cs.select, 0x81, 0xe6, 0x14, 255);
-        rgba_uchar_args_set(grp->cs.active, 0x18, 0xb6, 0xe0, 255);
-      }
+    memcpy(&grp->cs, col_set, sizeof(ThemeWireColor));
+  }
+  else {
+    /* Init custom color with a generic/placeholder color set if
+     * no previous theme color was used that we can just keep using.
+     */
+    if (grp->cs.solid[0] == 0) {
+      /* define for setting colors in theme below */
+      rgba_uchar_args_set(grp->cs.solid, 0xff, 0x00, 0x00, 255);
+      rgba_uchar_args_set(grp->cs.select, 0x81, 0xe6, 0x14, 255);
+      rgba_uchar_args_set(grp->cs.active, 0x18, 0xb6, 0xe0, 255);
     }
   }
 }
@@ -852,13 +821,13 @@ void action_group_colors_set_from_posebone(bActionGroup *grp, const bPoseChannel
     return;
   }
 
-  const BoneColor &color = blender::animrig::ANIM_bonecolor_posebone_get(pchan);
+  const BoneColor &color = animrig::ANIM_bonecolor_posebone_get(pchan);
   action_group_colors_set(grp, &color);
 }
 
 void action_group_colors_set(bActionGroup *grp, const BoneColor *color)
 {
-  const blender::animrig::BoneColor &bone_color = color->wrap();
+  const animrig::BoneColor &bone_color = color->wrap();
 
   grp->customCol = int(bone_color.palette_index);
 
@@ -869,215 +838,6 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color)
      * the above action_group_colors_sync() function exists: it needs to update
      * grp->cs in case the theme changes. */
     memcpy(&grp->cs, effective_color, sizeof(grp->cs));
-  }
-}
-
-bActionGroup *action_groups_add_new(bAction *act, const char name[])
-{
-  bActionGroup *agrp;
-
-  /* sanity check: must have action and name */
-  if (ELEM(nullptr, act, name)) {
-    return nullptr;
-  }
-
-  BLI_assert(act->wrap().is_action_legacy());
-
-  /* allocate a new one */
-  agrp = MEM_new_for_free<bActionGroup>("bActionGroup");
-
-  /* make it selected, with default name */
-  agrp->flag = AGRP_SELECTED;
-  STRNCPY_UTF8(agrp->name, name[0] ? name : DATA_("Group"));
-
-  /* add to action, and validate */
-  BLI_addtail(&act->groups, agrp);
-  BLI_uniquename(
-      &act->groups, agrp, DATA_("Group"), '.', offsetof(bActionGroup, name), sizeof(agrp->name));
-
-  /* return the new group */
-  return agrp;
-}
-
-void action_groups_add_channel(bAction *act, bActionGroup *agrp, FCurve *fcurve)
-{
-  /* sanity checks */
-  if (ELEM(nullptr, act, agrp, fcurve)) {
-    return;
-  }
-
-  BLI_assert(act->wrap().is_action_legacy());
-
-  /* if no channels anywhere, just add to two lists at the same time */
-  if (BLI_listbase_is_empty(&act->curves)) {
-    fcurve->next = fcurve->prev = nullptr;
-
-    agrp->channels.first = agrp->channels.last = fcurve;
-    act->curves.first = act->curves.last = fcurve;
-  }
-
-  /* if the group already has channels, the F-Curve can simply be added to the list
-   * (i.e. as the last channel in the group)
-   */
-  else if (agrp->channels.first) {
-    /* if the group's last F-Curve is the action's last F-Curve too,
-     * then set the F-Curve as the last for the action first so that
-     * the lists will be in sync after linking
-     */
-    if (agrp->channels.last == act->curves.last) {
-      act->curves.last = fcurve;
-    }
-
-    /* link in the given F-Curve after the last F-Curve in the group,
-     * which means that it should be able to fit in with the rest of the
-     * list seamlessly
-     */
-    BLI_insertlinkafter(&agrp->channels, agrp->channels.last, fcurve);
-  }
-
-  /* otherwise, need to find the nearest F-Curve in group before/after current to link with */
-  else {
-    bActionGroup *grp;
-
-    /* firstly, link this F-Curve to the group */
-    agrp->channels.first = agrp->channels.last = fcurve;
-
-    /* Step through the groups preceding this one,
-     * finding the F-Curve there to attach this one after. */
-    for (grp = agrp->prev; grp; grp = grp->prev) {
-      /* if this group has F-Curves, we want weave the given one in right after the last channel
-       * there, but via the Action's list not this group's list
-       * - this is so that the F-Curve is in the right place in the Action,
-       *   but won't be included in the previous group.
-       */
-      if (grp->channels.last) {
-        /* once we've added, break here since we don't need to search any further... */
-        BLI_insertlinkafter(&act->curves, grp->channels.last, fcurve);
-        break;
-      }
-    }
-
-    /* If grp is nullptr, that means we fell through, and this F-Curve should be added as the new
-     * first since group is (effectively) the first group. Thus, the existing first F-Curve becomes
-     * the second in the chain, etc. */
-    if (grp == nullptr) {
-      BLI_insertlinkbefore(&act->curves, act->curves.first, fcurve);
-    }
-  }
-
-  /* set the F-Curve's new group */
-  fcurve->grp = agrp;
-}
-
-void BKE_action_groups_reconstruct(bAction *act)
-{
-  /* Sanity check. */
-  if (!act) {
-    return;
-  }
-
-  if (BLI_listbase_is_empty(&act->groups)) {
-    /* NOTE: this also includes layered Actions, as act->groups is the legacy storage for groups.
-     * Layered Actions should never have to deal with 'reconstructing' groups, as arbitrarily
-     * shuffling of the underlying data isn't allowed, and the available methods for modifying
-     * F-Curves/Groups already ensure that the data is valid when they return. */
-    return;
-  }
-
-  BLI_assert(act->wrap().is_action_legacy());
-
-  /* Clear out all group channels. Channels that are actually in use are
-   * reconstructed below; this step is necessary to clear out unused groups. */
-  for (bActionGroup &group : act->groups) {
-    BLI_listbase_clear(&group.channels);
-  }
-
-  /* Sort the channels into the group lists, destroying the act->curves list. */
-  ListBaseT<FCurve> ungrouped = {nullptr, nullptr};
-
-  for (FCurve &fcurve : act->curves.items_mutable()) {
-    if (fcurve.grp) {
-      BLI_assert(BLI_findindex(&act->groups, fcurve.grp) >= 0);
-
-      BLI_addtail(&fcurve.grp->channels, &fcurve);
-    }
-    else {
-      BLI_addtail(&ungrouped, &fcurve);
-    }
-  }
-
-  /* Recombine into the main list. */
-  BLI_listbase_clear(&act->curves);
-
-  for (bActionGroup &group : act->groups) {
-    /* Copy the list header to preserve the pointers in the group. */
-    ListBaseT<FCurve> tmp = group.channels;
-    BLI_movelisttolist(&act->curves, &tmp);
-  }
-
-  BLI_movelisttolist(&act->curves, &ungrouped);
-}
-
-void action_groups_remove_channel(bAction *act, FCurve *fcu)
-{
-  /* sanity checks */
-  if (ELEM(nullptr, act, fcu)) {
-    return;
-  }
-
-  BLI_assert(act->wrap().is_action_legacy());
-
-  /* check if any group used this directly */
-  if (fcu->grp) {
-    bActionGroup *agrp = fcu->grp;
-
-    if (agrp->channels.first == agrp->channels.last) {
-      if (agrp->channels.first == fcu) {
-        BLI_listbase_clear(&agrp->channels);
-      }
-    }
-    else if (agrp->channels.first == fcu) {
-      if ((fcu->next) && (fcu->next->grp == agrp)) {
-        agrp->channels.first = fcu->next;
-      }
-      else {
-        agrp->channels.first = nullptr;
-      }
-    }
-    else if (agrp->channels.last == fcu) {
-      if ((fcu->prev) && (fcu->prev->grp == agrp)) {
-        agrp->channels.last = fcu->prev;
-      }
-      else {
-        agrp->channels.last = nullptr;
-      }
-    }
-
-    fcu->grp = nullptr;
-  }
-
-  /* now just remove from list */
-  BLI_remlink(&act->curves, fcu);
-}
-
-bActionGroup *BKE_action_group_find_name(bAction *act, const char name[])
-{
-  /* sanity checks */
-  if (ELEM(nullptr, act, act->groups.first, name) || (name[0] == 0)) {
-    return nullptr;
-  }
-
-  BLI_assert(act->wrap().is_action_legacy());
-
-  /* do string comparisons */
-  return static_cast<bActionGroup *>(
-      BLI_findstring(&act->groups, name, offsetof(bActionGroup, name)));
-}
-
-void action_groups_clear_tempflags(bAction *act)
-{
-  for (bActionGroup *agrp : animrig::legacy::channel_groups_all(act)) {
-    agrp->flag &= ~AGRP_TEMP;
   }
 }
 
@@ -1095,7 +855,8 @@ bPoseChannel *BKE_pose_channel_find_name(const bPose *pose, const char *name)
   }
 
   if (pose->chanhash) {
-    return static_cast<bPoseChannel *>(BLI_ghash_lookup(pose->chanhash, (const void *)name));
+    return static_cast<bPoseChannel *>(
+        BLI_ghash_lookup(pose->chanhash, static_cast<const void *>(name)));
   }
 
   return static_cast<bPoseChannel *>(
@@ -1117,7 +878,7 @@ bPoseChannel *BKE_pose_channel_ensure(bPose *pose, const char *name)
   }
 
   /* If not, create it and add it */
-  chan = MEM_new_for_free<bPoseChannel>("verifyPoseChannel");
+  chan = MEM_new<bPoseChannel>("verifyPoseChannel");
 
   BKE_pose_channel_session_uid_generate(chan);
 
@@ -1176,7 +937,7 @@ bool BKE_pose_is_bonecoll_visible(const bArmature *arm, const bPoseChannel *pcha
 
 bPoseChannel *BKE_pose_channel_active(Object *ob, const bool check_bonecoll)
 {
-  bArmature *arm = static_cast<bArmature *>((ob) ? ob->data : nullptr);
+  bArmature *arm = id_cast<bArmature *>((ob) ? ob->data : nullptr);
   if (ELEM(nullptr, ob, ob->pose, arm)) {
     return nullptr;
   }
@@ -1200,20 +961,20 @@ bPoseChannel *BKE_pose_channel_active_if_bonecoll_visible(Object *ob)
 
 bPoseChannel *BKE_pose_channel_active_or_first_selected(Object *ob)
 {
-  bArmature *arm = static_cast<bArmature *>((ob) ? ob->data : nullptr);
+  bArmature *arm = id_cast<bArmature *>((ob) ? ob->data : nullptr);
 
   if (ELEM(nullptr, ob, ob->pose, arm)) {
     return nullptr;
   }
 
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
-  if (pchan && blender::animrig::bone_is_selected(arm, pchan)) {
+  if (pchan && animrig::bone_is_selected(arm, pchan)) {
     return pchan;
   }
 
   for (bPoseChannel &pchan : ob->pose->chanbase) {
     if (pchan.bone != nullptr) {
-      if (blender::animrig::bone_is_selected(arm, &pchan)) {
+      if (animrig::bone_is_selected(arm, &pchan)) {
         return &pchan;
       }
     }
@@ -1260,7 +1021,7 @@ void BKE_pose_copy_data_ex(bPose **dst,
     return;
   }
 
-  outPose = MEM_new_for_free<bPose>("pose");
+  outPose = MEM_new<bPose>("pose");
 
   BLI_duplicatelist(&outPose->chanbase, &src->chanbase);
 
@@ -1275,12 +1036,12 @@ void BKE_pose_copy_data_ex(bPose **dst,
 
   outPose->iksolver = src->iksolver;
   outPose->ikdata = nullptr;
-  outPose->ikparam = MEM_dupallocN(src->ikparam);
+  outPose->ikparam = MEM_dupalloc_void(src->ikparam);
   outPose->avs = src->avs;
 
   for (bPoseChannel &pchan : outPose->chanbase) {
     if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-      id_us_plus((ID *)pchan.custom);
+      id_us_plus(id_cast<ID *>(pchan.custom));
     }
 
     if ((flag & LIB_ID_CREATE_NO_MAIN) == 0) {
@@ -1357,7 +1118,7 @@ void BKE_pose_ikparam_init(bPose *pose)
   bItasc *itasc;
   switch (pose->iksolver) {
     case IKSOLVER_ITASC:
-      itasc = MEM_new_for_free<bItasc>("itasc");
+      itasc = MEM_new<bItasc>("itasc");
       BKE_pose_itasc_init(itasc);
       pose->ikparam = itasc;
       break;
@@ -1558,7 +1319,7 @@ void BKE_pose_channel_free_ex(bPoseChannel *pchan, bool do_id_user)
   }
 
   /* Cached data, for new draw manager rendering code. */
-  MEM_SAFE_FREE(pchan->draw_data);
+  MEM_SAFE_DELETE(pchan->draw_data);
 
   /* Cached B-Bone shape and other data. */
   BKE_pose_channel_runtime_free(&pchan->runtime);
@@ -1584,11 +1345,11 @@ void BKE_pose_channel_runtime_free(bPoseChannel_Runtime *runtime)
 void BKE_pose_channel_free_bbone_cache(bPoseChannel_Runtime *runtime)
 {
   runtime->bbone_segments = 0;
-  MEM_SAFE_FREE(runtime->bbone_rest_mats);
-  MEM_SAFE_FREE(runtime->bbone_pose_mats);
-  MEM_SAFE_FREE(runtime->bbone_deform_mats);
-  MEM_SAFE_FREE(runtime->bbone_dual_quats);
-  MEM_SAFE_FREE(runtime->bbone_segment_boundaries);
+  MEM_SAFE_DELETE(runtime->bbone_rest_mats);
+  MEM_SAFE_DELETE(runtime->bbone_pose_mats);
+  MEM_SAFE_DELETE(runtime->bbone_deform_mats);
+  MEM_SAFE_DELETE(runtime->bbone_dual_quats);
+  MEM_SAFE_DELETE(runtime->bbone_segment_boundaries);
 }
 
 void BKE_pose_channel_free(bPoseChannel *pchan)
@@ -1608,7 +1369,7 @@ void BKE_pose_channels_free_ex(bPose *pose, bool do_id_user)
 
   BKE_pose_channels_hash_free(pose);
 
-  MEM_SAFE_FREE(pose->chan_array);
+  MEM_SAFE_DELETE(pose->chan_array);
 }
 
 void BKE_pose_channels_free(bPose *pose)
@@ -1631,7 +1392,7 @@ void BKE_pose_free_data_ex(bPose *pose, bool do_id_user)
 
   /* free IK solver param */
   if (pose->ikparam) {
-    MEM_freeN(static_cast<bItasc *>(pose->ikparam));
+    MEM_delete(static_cast<bItasc *>(pose->ikparam));
   }
 }
 
@@ -1645,7 +1406,7 @@ void BKE_pose_free_ex(bPose *pose, bool do_id_user)
   if (pose) {
     BKE_pose_free_data_ex(pose, do_id_user);
     /* free pose */
-    MEM_freeN(pose);
+    MEM_delete(pose);
   }
 }
 
@@ -1730,7 +1491,7 @@ void BKE_pose_update_constraint_flags(bPose *pose)
 
       switch (con.type) {
         case CONSTRAINT_TYPE_KINEMATIC: {
-          bKinematicConstraint *data = (bKinematicConstraint *)con.data;
+          bKinematicConstraint *data = static_cast<bKinematicConstraint *>(con.data);
 
           pchan.constflag |= PCHAN_HAS_IK;
 
@@ -1769,7 +1530,7 @@ void BKE_pose_update_constraint_flags(bPose *pose)
         }
 
         case CONSTRAINT_TYPE_FOLLOWPATH: {
-          bFollowPathConstraint *data = (bFollowPathConstraint *)con.data;
+          bFollowPathConstraint *data = static_cast<bFollowPathConstraint *>(con.data);
 
           /* if we have a valid target, make sure that this will get updated on frame-change
            * (needed for when there is no anim-data for this pose)
@@ -1808,7 +1569,7 @@ bActionGroup *BKE_pose_add_group(bPose *pose, const char *name)
     name = DATA_("Group");
   }
 
-  grp = MEM_new_for_free<bActionGroup>("PoseGroup");
+  grp = MEM_new<bActionGroup>("PoseGroup");
   STRNCPY_UTF8(grp->name, name);
   BLI_addtail(&pose->agroups, grp);
   BLI_uniquename(&pose->agroups, grp, name, '.', offsetof(bActionGroup, name), sizeof(grp->name));
@@ -1976,17 +1737,12 @@ void what_does_obaction(Object *ob,
   if (groupname && groupname[0]) {
     /* Find the named channel group. */
     Action &action = act->wrap();
-    if (action.is_action_layered()) {
-      Channelbag *cbag = channelbag_for_action_slot(action, action_slot_handle);
-      agrp = cbag ? cbag->channel_group_find(groupname) : nullptr;
-    }
-    else {
-      agrp = BKE_action_group_find_name(act, groupname);
-    }
+    Channelbag *cbag = channelbag_for_action_slot(action, action_slot_handle);
+    agrp = cbag ? cbag->channel_group_find(groupname) : nullptr;
   }
 
   /* clear workob */
-  blender::bke::ObjectRuntime workob_runtime;
+  bke::ObjectRuntime workob_runtime;
   BKE_object_workob_clear(workob);
   workob->runtime = &workob_runtime;
 
@@ -2048,7 +1804,6 @@ void what_does_obaction(Object *ob,
 
     adt.action = act;
     adt.slot_handle = action_slot_handle;
-    BKE_animdata_action_ensure_idroot(&workob->id, act);
 
     /* execute effects of Action on to workob (or its PoseChannels) */
     BKE_animsys_evaluate_animdata(&workob->id, &adt, anim_eval_context, ADT_RECALC_ANIM, false);
@@ -2181,11 +1936,11 @@ void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose
 
 void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose *pose)
 {
-  bArmature *arm = static_cast<bArmature *>(ob->data);
-
-  if (!pose || !arm) {
+  if (!pose || !ob->data) {
     return;
   }
+
+  bArmature *arm = id_cast<bArmature *>(ob->data);
 
   /* Always rebuild to match library changes, except on Undo. */
   bool rebuild = false;
@@ -2220,18 +1975,4 @@ void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose
   }
 }
 
-void BKE_action_fcurves_clear(bAction *act)
-{
-  if (!act) {
-    return;
-  }
-
-  BLI_assert(act->wrap().is_action_legacy());
-
-  while (act->curves.first) {
-    FCurve *fcu = static_cast<FCurve *>(act->curves.first);
-    action_groups_remove_channel(act, fcu);
-    BKE_fcurve_free(fcu);
-  }
-  DEG_id_tag_update(&act->id, ID_RECALC_ANIMATION_NO_FLUSH);
-}
+}  // namespace blender

@@ -44,6 +44,8 @@
 #include "wm_cursors.hh"
 #include "wm_window.hh"
 
+namespace blender {
+
 /**
  * Currently using the WIN32 limit of 255 for RGBA cursors,
  * Wayland has a similar limit.
@@ -68,7 +70,7 @@ struct BCursor {
   /**
    * A factor (0-1) from the top-left corner of the image (not of the document size).
    */
-  blender::float2 hotspot;
+  float2 hotspot;
   /**
    * By default cursors are "light", allow dark themes to invert.
    */
@@ -194,7 +196,7 @@ static void cursor_bitmap_rgba_flip_y(uint8_t *buffer, const size_t size[2])
 
   top = reinterpret_cast<uint *>(buffer);
   bottom = top + ((y_size - 1) * x_size);
-  line = MEM_malloc_arrayN<uint>(x_size, "linebuf");
+  line = MEM_new_array_uninitialized<uint>(x_size, "linebuf");
 
   y_size >>= 1;
   for (; y_size > 0; y_size--) {
@@ -205,7 +207,7 @@ static void cursor_bitmap_rgba_flip_y(uint8_t *buffer, const size_t size[2])
     top += x_size;
   }
 
-  MEM_freeN(line);
+  MEM_delete(line);
 }
 
 /**
@@ -291,7 +293,7 @@ static void cursor_rgba_to_xbm_32(const uint8_t *rgba,
 
 static bool window_set_custom_cursor_generator(wmWindow *win, const BCursor &cursor)
 {
-  GHOST_CursorGenerator *cursor_generator = MEM_callocN<GHOST_CursorGenerator>(__func__);
+  GHOST_CursorGenerator *cursor_generator = MEM_new_zeroed<GHOST_CursorGenerator>(__func__);
   cursor_generator->generate_fn = [](const GHOST_CursorGenerator *cursor_generator,
                                      const int cursor_size,
                                      const int cursor_size_max,
@@ -299,7 +301,7 @@ static bool window_set_custom_cursor_generator(wmWindow *win, const BCursor &cur
                                      int r_bitmap_size[2],
                                      int r_hot_spot[2],
                                      bool *r_can_invert_color) -> uint8_t * {
-    const BCursor &cursor = *(const BCursor *)(cursor_generator->user_data);
+    const BCursor &cursor = *static_cast<const BCursor *>(cursor_generator->user_data);
     /* Currently SVG uses the `cursor_size` as the maximum. */
     UNUSED_VARS(cursor_size_max);
 
@@ -322,9 +324,9 @@ static bool window_set_custom_cursor_generator(wmWindow *win, const BCursor &cur
     return bitmap_rgba;
   };
 
-  cursor_generator->user_data = (void *)&cursor;
+  cursor_generator->user_data = const_cast<void *>(static_cast<const void *>(&cursor));
   cursor_generator->free_fn = [](GHOST_CursorGenerator *cursor_generator) {
-    MEM_freeN(cursor_generator);
+    MEM_delete(cursor_generator);
   };
 
   GHOST_TSuccess success = GHOST_SetCustomCursorGenerator(
@@ -348,7 +350,9 @@ static bool window_set_custom_cursor_pixmap(wmWindow *win, const BCursor &cursor
   uint8_t *bitmap_rgba = cursor_bitmap_from_svg(
       cursor.svg_source,
       size,
-      [](size_t size) -> uint8_t * { return MEM_malloc_arrayN<uint8_t>(size, "wm.cursor"); },
+      [](size_t size) -> uint8_t * {
+        return MEM_new_array_uninitialized<uint8_t>(size, "wm.cursor");
+      },
       bitmap_size);
   if (UNLIKELY(bitmap_rgba == nullptr)) {
     return false;
@@ -382,7 +386,7 @@ static bool window_set_custom_cursor_pixmap(wmWindow *win, const BCursor &cursor
                                          cursor.can_invert);
   }
 
-  MEM_freeN(bitmap_rgba);
+  MEM_delete(bitmap_rgba);
   return (success == GHOST_kSuccess) ? true : false;
 }
 
@@ -728,8 +732,8 @@ static void wm_cursor_time_small(wmWindow *win, uint32_t nr)
   const int size[2] = {16, 16};
   const int hot_spot[2] = {7, 7};
   GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->runtime->ghostwin),
-                             (uint8_t *)bitmap,
-                             (uint8_t *)mask,
+                             reinterpret_cast<uint8_t *>(bitmap),
+                             reinterpret_cast<uint8_t *>(mask),
                              size,
                              hot_spot,
                              false);
@@ -825,7 +829,7 @@ static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_i
     int font_id;
   };
 
-  GHOST_CursorGenerator *cursor_generator = MEM_callocN<GHOST_CursorGenerator>(__func__);
+  GHOST_CursorGenerator *cursor_generator = MEM_new_zeroed<GHOST_CursorGenerator>(__func__);
   cursor_generator->generate_fn = [](const GHOST_CursorGenerator *cursor_generator,
                                      const int cursor_size,
                                      const int cursor_size_max,
@@ -833,7 +837,8 @@ static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_i
                                      int r_bitmap_size[2],
                                      int r_hot_spot[2],
                                      bool *r_can_invert_color) -> uint8_t * {
-    const WMCursorText &cursor_text = *(const WMCursorText *)(cursor_generator->user_data);
+    const WMCursorText &cursor_text = *static_cast<const WMCursorText *>(
+        cursor_generator->user_data);
 
     int bitmap_size[2];
     uint8_t *bitmap_rgba = cursor_bitmap_from_text(cursor_text.text,
@@ -863,11 +868,11 @@ static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_i
   STRNCPY_UTF8(cursor_text->text, text);
   cursor_text->font_id = font_id;
 
-  cursor_generator->user_data = (void *)cursor_text;
+  cursor_generator->user_data = static_cast<void *>(cursor_text);
   cursor_generator->free_fn = [](GHOST_CursorGenerator *cursor_generator) {
-    const WMCursorText *cursor_text = (WMCursorText *)(cursor_generator->user_data);
+    const WMCursorText *cursor_text = static_cast<WMCursorText *>(cursor_generator->user_data);
     MEM_delete(cursor_text);
-    MEM_freeN(cursor_generator);
+    MEM_delete(cursor_generator);
   };
 
   GHOST_TSuccess success = GHOST_SetCustomCursorGenerator(
@@ -891,7 +896,9 @@ static bool wm_cursor_text_pixmap(wmWindow *win, const char *text, int font_id)
       cursor_size,
       cursor_size_max,
       font_id,
-      [](size_t size) -> uint8_t * { return MEM_malloc_arrayN<uint8_t>(size, "wm.cursor"); },
+      [](size_t size) -> uint8_t * {
+        return MEM_new_array_uninitialized<uint8_t>(size, "wm.cursor");
+      },
       bitmap_size);
   if (bitmap_rgba == nullptr) {
     return false;
@@ -909,7 +916,7 @@ static bool wm_cursor_text_pixmap(wmWindow *win, const char *text, int font_id)
       hot_spot,
       /* Always use a black background. */
       false);
-  MEM_freeN(bitmap_rgba);
+  MEM_delete(bitmap_rgba);
 
   return (success == GHOST_kSuccess) ? true : false;
 }
@@ -971,8 +978,8 @@ void WM_cursor_progress(wmWindow *win, float progress_factor)
 #ifndef WITH_HEADLESS
 static void wm_add_cursor(WMCursorType cursor,
                           const char *svg_source,
-                          const blender::float2 &hotspot,
-                          bool can_invert = true)
+                          const float2 &hotspot,
+                          bool can_invert = false)
 {
   g_cursors[cursor].svg_source = svg_source;
   g_cursors[cursor].hotspot = hotspot;
@@ -983,10 +990,10 @@ static void wm_add_cursor(WMCursorType cursor,
 void wm_init_cursor_data()
 {
 #ifndef WITH_HEADLESS
-  wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
+  wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
+  wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
+  wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
+  wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
   wm_add_cursor(WM_CURSOR_TEXT_EDIT, datatoc_cursor_text_edit_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_WAIT, datatoc_cursor_wait_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_STOP, datatoc_cursor_stop_svg, {0.5f, 0.5f});
@@ -1028,3 +1035,5 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_SLIP, datatoc_cursor_slip_svg, {0.5f, 0.5f});
 #endif /* !WITH_HEADLESS */
 }
+
+}  // namespace blender

@@ -38,7 +38,7 @@
 
 #include "ANIM_action.hh"
 
-using namespace blender;
+namespace blender {
 
 /* *************************** Keyframe Drawing *************************** */
 
@@ -463,7 +463,7 @@ struct ChannelListElement {
   MaskLayer *masklay;
 };
 
-static void build_channel_keylist(ChannelListElement *elem, blender::float2 range)
+static void build_channel_keylist(ChannelListElement *elem, float2 range)
 {
   switch (elem->type) {
     case ChannelType::SUMMARY: {
@@ -587,10 +587,10 @@ struct ChannelDrawList {
 
 ChannelDrawList *ED_channel_draw_list_create()
 {
-  return MEM_callocN<ChannelDrawList>(__func__);
+  return MEM_new_zeroed<ChannelDrawList>(__func__);
 }
 
-static void channel_list_build_keylists(ChannelDrawList *channel_list, blender::float2 range)
+static void channel_list_build_keylists(ChannelDrawList *channel_list, float2 range)
 {
   for (ChannelListElement &elem : channel_list->channels) {
     build_channel_keylist(&elem, range);
@@ -645,16 +645,13 @@ static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d)
   GPUVertFormat *format = immVertexFormat();
   KeyframeShaderBindings sh_bindings;
 
-  sh_bindings.pos_id = GPU_vertformat_attr_add(
-      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  sh_bindings.size_id = GPU_vertformat_attr_add(
-      format, "size", blender::gpu::VertAttrType::SFLOAT_32);
+  sh_bindings.pos_id = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+  sh_bindings.size_id = GPU_vertformat_attr_add(format, "size", gpu::VertAttrType::SFLOAT_32);
   sh_bindings.color_id = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
+      format, "color", gpu::VertAttrType::UNORM_8_8_8_8);
   sh_bindings.outline_color_id = GPU_vertformat_attr_add(
-      format, "outlineColor", blender::gpu::VertAttrType::UNORM_8_8_8_8);
-  sh_bindings.flags_id = GPU_vertformat_attr_add(
-      format, "flags", blender::gpu::VertAttrType::UINT_32);
+      format, "outlineColor", gpu::VertAttrType::UNORM_8_8_8_8);
+  sh_bindings.flags_id = GPU_vertformat_attr_add(format, "flags", gpu::VertAttrType::UINT_32);
 
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_KEYFRAME_SHAPE);
@@ -691,7 +688,7 @@ void ED_channel_list_free(ChannelDrawList *channel_list)
     ED_keylist_free(elem.keylist);
   }
   BLI_freelistN(&channel_list->channels);
-  MEM_freeN(channel_list);
+  MEM_delete(channel_list);
 }
 
 static ChannelListElement *channel_list_add_element(ChannelDrawList *channel_list,
@@ -700,7 +697,7 @@ static ChannelListElement *channel_list_add_element(ChannelDrawList *channel_lis
                                                     float yscale_fac,
                                                     eSAction_Flag saction_flag)
 {
-  ChannelListElement *draw_elem = MEM_callocN<ChannelListElement>(__func__);
+  ChannelListElement *draw_elem = MEM_new_zeroed<ChannelListElement>(__func__);
   BLI_addtail(&channel_list->channels, draw_elem);
   draw_elem->type = elem_type;
   draw_elem->keylist = ED_keylist_create();
@@ -925,3 +922,5 @@ void ED_add_mask_layer_channel(ChannelDrawList *channel_list,
   draw_elem->masklay = masklay;
   draw_elem->channel_locked = locked;
 }
+
+}  // namespace blender

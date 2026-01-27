@@ -260,23 +260,23 @@ void template_running_jobs(Layout *layout, bContext *C)
     block = row->block();
 
     {
-      ProgressTooltip_Store *tip_arg = static_cast<ProgressTooltip_Store *>(
-          MEM_mallocN(sizeof(*tip_arg), __func__));
+      ProgressTooltip_Store *tip_arg = MEM_new_uninitialized<ProgressTooltip_Store>(__func__);
       tip_arg->wm = wm;
       tip_arg->owner = owner;
-      ButtonProgress *but_progress = (ButtonProgress *)uiDefIconTextBut(block,
-                                                                        ButtonType::Progress,
-                                                                        ICON_NONE,
-                                                                        text,
-                                                                        UI_UNIT_X,
-                                                                        0,
-                                                                        UI_UNIT_X * 6.0f,
-                                                                        UI_UNIT_Y,
-                                                                        nullptr,
-                                                                        nullptr);
+      ButtonProgress *but_progress = static_cast<ButtonProgress *>(
+          uiDefIconTextBut(block,
+                           ButtonType::Progress,
+                           ICON_NONE,
+                           text,
+                           UI_UNIT_X,
+                           0,
+                           UI_UNIT_X * 6.0f,
+                           UI_UNIT_Y,
+                           nullptr,
+                           nullptr));
 
       but_progress->progress_factor = progress;
-      button_func_tooltip_set(but_progress, progress_tooltip_func, tip_arg, MEM_freeN);
+      button_func_tooltip_set(but_progress, progress_tooltip_func, tip_arg, MEM_delete_void);
     }
 
     if (cancel_fn && !wm->runtime->is_interface_locked) {

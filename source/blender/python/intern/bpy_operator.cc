@@ -45,6 +45,8 @@
 
 #include "CLG_log.h"
 
+namespace blender {
+
 /* so operators called can spawn threads which acquire the GIL */
 #define BPY_RELEASE_GIL
 
@@ -71,7 +73,7 @@ PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   const char *context_str = nullptr;
   PyObject *ret;
 
-  blender::wm::OpCallContext context = blender::wm::OpCallContext::ExecDefault;
+  wm::OpCallContext context = wm::OpCallContext::ExecDefault;
 
   /* XXX TODO: work out a better solution for passing on context,
    * could make a tuple from self and pack the name and Context into it. */
@@ -85,7 +87,6 @@ PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s" /* `opname` */
       "|" /* Optional arguments. */
       "s" /* `context_str` */
@@ -117,11 +118,11 @@ PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
                    "expected a string enum in (%s)",
                    opname,
                    enum_str);
-      MEM_freeN(enum_str);
+      MEM_delete(enum_str);
       return nullptr;
     }
     /* Copy back to the properly typed enum. */
-    context = blender::wm::OpCallContext(context_int);
+    context = wm::OpCallContext(context_int);
   }
 
   /* main purpose of this function */
@@ -140,7 +141,7 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   const char *context_str = nullptr;
   PyObject *kw = nullptr; /* optional args */
 
-  blender::wm::OpCallContext context = blender::wm::OpCallContext::ExecDefault;
+  wm::OpCallContext context = wm::OpCallContext::ExecDefault;
   int is_undo = false;
 
   /* XXX TODO: work out a better solution for passing on context,
@@ -155,7 +156,6 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", "", "", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `opname` */
       "|"  /* Optional arguments. */
       "O!" /* `kw` */
@@ -199,11 +199,11 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
                    "expected a string enum in (%s)",
                    opname,
                    enum_str);
-      MEM_freeN(enum_str);
+      MEM_delete(enum_str);
       return nullptr;
     }
     /* Copy back to the properly typed enum. */
-    context = blender::wm::OpCallContext(context_int);
+    context = wm::OpCallContext(context_int);
   }
 
   if (WM_operator_poll_context(C, ot, context) == false) {
@@ -215,7 +215,7 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
                  msg ? msg : "failed, context is incorrect");
     CTX_wm_operator_poll_msg_clear(C);
     if (msg_free) {
-      MEM_freeN(msg);
+      MEM_delete(msg);
     }
     error_val = -1;
   }
@@ -231,7 +231,7 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
     if (error_val == 0) {
       ReportList *reports;
 
-      reports = MEM_new_for_free<ReportList>("wmOperatorReportList");
+      reports = MEM_new<ReportList>("wmOperatorReportList");
 
       /* Own so these don't move into global reports. */
       BKE_reports_init(reports, RPT_STORE | RPT_OP_HOLD | RPT_PRINT_HANDLED_BY_OWNER);
@@ -267,7 +267,7 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
       BKE_reports_clear(reports);
       if ((reports->flag & RPT_FREE) == 0) {
         BKE_reports_free(reports);
-        MEM_freeN(reports);
+        MEM_delete(reports);
       }
       else {
         /* The WM is now responsible for running the modal operator,
@@ -287,7 +287,7 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
         return nullptr;
       }
 
-      WM_operator_name_call(C, opname, blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
+      WM_operator_name_call(C, opname, wm::OpCallContext::ExecDefault, nullptr, nullptr);
     }
 #endif
   }
@@ -327,7 +327,6 @@ PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", "", "", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `opname` */
       "|"  /* Optional arguments. */
       "O!" /* `kw` */
@@ -386,7 +385,7 @@ PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 
 static PyObject *pyop_dir(PyObject * /*self*/)
 {
-  const blender::Span<wmOperatorType *> types = WM_operatortypes_registered_get();
+  const Span<wmOperatorType *> types = WM_operatortypes_registered_get();
   PyObject *list = PyList_New(types.size());
 
   int i = 0;
@@ -405,9 +404,9 @@ PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
     return nullptr;
   }
 
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, ot->srna);
-  BPy_StructRNA *pyrna = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ptr);
-  return (PyObject *)pyrna;
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_Struct, ot->srna);
+  BPy_StructRNA *pyrna = reinterpret_cast<BPy_StructRNA *>(pyrna_struct_CreatePyObject(&ptr));
+  return reinterpret_cast<PyObject *>(pyrna);
 }
 
 PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
@@ -430,10 +429,10 @@ PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
 #endif
 
 static PyMethodDef bpy_ops_methods[] = {
-    {"dir", (PyCFunction)pyop_dir, METH_NOARGS, nullptr},
-    {"get_rna_type", (PyCFunction)pyop_getrna_type, METH_O, nullptr},
-    {"create_function", (PyCFunction)pyop_create_function, METH_VARARGS, nullptr},
-    {"macro_define", (PyCFunction)PYOP_wrap_macro_define, METH_VARARGS, nullptr},
+    {"dir", reinterpret_cast<PyCFunction>(pyop_dir), METH_NOARGS, nullptr},
+    {"get_rna_type", static_cast<PyCFunction>(pyop_getrna_type), METH_O, nullptr},
+    {"create_function", static_cast<PyCFunction>(pyop_create_function), METH_VARARGS, nullptr},
+    {"macro_define", static_cast<PyCFunction>(PYOP_wrap_macro_define), METH_VARARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -469,3 +468,5 @@ PyObject *BPY_operator_module()
 
   return submodule;
 }
+
+}  // namespace blender

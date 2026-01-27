@@ -24,16 +24,18 @@
 #include "BKE_pointcloud.hh"
 #include "BKE_type_conversions.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 #include "BLT_translation.hh"
 
 namespace blender::geometry {
 
-using blender::bke::AttrDomain;
-using blender::bke::AttributeDomainAndType;
-using blender::bke::GSpanAttributeWriter;
-using blender::bke::InstanceReference;
-using blender::bke::Instances;
-using blender::bke::SpanAttributeWriter;
+using bke::AttrDomain;
+using bke::AttributeDomainAndType;
+using bke::GSpanAttributeWriter;
+using bke::InstanceReference;
+using bke::Instances;
+using bke::SpanAttributeWriter;
 
 /**
  * An ordered set of attribute ids. Attributes are ordered to avoid name lookups in many places.
@@ -278,6 +280,8 @@ struct GatherTasks {
   /* Volumes only have very simple support currently. Only the first found volume is put into the
    * output. */
   ImplicitSharingPtr<const bke::VolumeComponent> first_volume;
+
+  VectorSet<const nodes::Bundle *> bundles;
 };
 
 /** Current offsets while during the gather operation. */
@@ -638,6 +642,9 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
                                            const float4x4 &base_transform,
                                            const InstanceContext &base_instance_context)
 {
+  if (geometry_set.has_bundle()) {
+    gather_info.r_tasks.bundles.add(geometry_set.bundle());
+  }
   for (const bke::GeometryComponent *component : geometry_set.get_components()) {
     const bke::GeometryComponent::Type type = component->type();
     switch (type) {
@@ -967,9 +974,9 @@ static OrderedAttributes gather_generic_instance_attributes_to_propagate(
 
 static void execute_instances_tasks(
     const Span<bke::GeometryComponentPtr> src_components,
-    const Span<blender::float4x4> src_base_transforms,
+    const Span<float4x4> src_base_transforms,
     const OrderedAttributes &all_instances_attributes,
-    const Span<blender::geometry::AttributeFallbacksArray> attribute_fallback,
+    const Span<geometry::AttributeFallbacksArray> attribute_fallback,
     bke::GeometrySet &r_realized_geometry)
 {
   BLI_assert(src_components.size() == src_base_transforms.size() &&
@@ -1006,7 +1013,7 @@ static void execute_instances_tasks(
     const bke::InstancesComponent &src_component = static_cast<const bke::InstancesComponent &>(
         *src_components[component_index]);
     const bke::Instances &src_instances = *src_component.get();
-    const blender::float4x4 &src_base_transform = src_base_transforms[component_index];
+    const float4x4 &src_base_transform = src_base_transforms[component_index];
     const Span<const void *> attribute_fallback_array = attribute_fallback[component_index].array;
     const Span<bke::InstanceReference> src_references = src_instances.references();
     Array<int> handle_map(src_references.size());
@@ -1039,7 +1046,7 @@ static void execute_instances_tasks(
     array_utils::gather(handle_map.as_span(), src_handles, all_handles.slice(dst_range));
     array_utils::copy(src_instances.transforms(), all_transforms.slice(dst_range));
 
-    for (blender::float4x4 &transform : all_transforms.slice(dst_range)) {
+    for (float4x4 &transform : all_transforms.slice(dst_range)) {
       transform = src_base_transform * transform;
     }
   }
@@ -1048,7 +1055,7 @@ static void execute_instances_tasks(
   auto &dst_component = r_realized_geometry.get_component_for_write<bke::InstancesComponent>();
 
   Vector<const bke::GeometryComponent *> for_join_attributes;
-  for (bke::GeometryComponentPtr component : src_components) {
+  for (const bke::GeometryComponentPtr &component : src_components) {
     for_join_attributes.append(component.get());
   }
   /* Join attribute values from the 'unselected' instances, as they aren't included otherwise.
@@ -1205,11 +1212,10 @@ static void add_instance_attributes_to_single_geometry(
     const bke::AttrDomain domain = ordered_attributes.kinds[attribute_index].domain;
     const bke::AttrType data_type = ordered_attributes.kinds[attribute_index].data_type;
     const CPPType &cpp_type = bke::attribute_type_to_cpp_type(data_type);
-    GVArray gvaray(GVArray::from_single(cpp_type, attributes.domain_size(domain), value));
     attributes.add(ordered_attributes.ids[attribute_index],
                    domain,
                    data_type,
-                   bke::AttributeInitVArray(std::move(gvaray)));
+                   bke::AttributeInitValue(GPointer(cpp_type, value)));
   }
 }
 static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &options,
@@ -1249,7 +1255,7 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
 
   const RealizePointCloudTask &first_task = tasks.first();
   const PointCloud &first_pointcloud = *first_task.pointcloud_info->pointcloud;
-  dst_pointcloud->mat = static_cast<Material **>(MEM_dupallocN(first_pointcloud.mat));
+  dst_pointcloud->mat = MEM_dupalloc(first_pointcloud.mat);
   dst_pointcloud->totcol = first_pointcloud.totcol;
 
   SpanAttributeWriter<float3> positions = dst_attributes.lookup_or_add_for_write_only_span<float3>(
@@ -1628,7 +1634,7 @@ static void copy_vertex_group_name(ListBaseT<bDeformGroup> *dst_deform_group,
     /* Skip if the source attribute can't possibly contain vertex weights. */
     return;
   }
-  bDeformGroup *dst = MEM_new_for_free<bDeformGroup>(__func__);
+  bDeformGroup *dst = MEM_new<bDeformGroup>(__func__);
   src_name.copy_utf8_truncated(dst->name);
   BLI_addtail(dst_deform_group, dst);
 }
@@ -2336,9 +2342,9 @@ static void execute_realize_grease_pencil_tasks(
 
   /* Transfer material pointers. The material indices are updated for each task separately. */
   if (!all_grease_pencils_info.materials.is_empty()) {
-    MEM_SAFE_FREE(dst_grease_pencil->material_array);
+    MEM_SAFE_DELETE(dst_grease_pencil->material_array);
     dst_grease_pencil->material_array_num = all_grease_pencils_info.materials.size();
-    dst_grease_pencil->material_array = MEM_calloc_arrayN<Material *>(
+    dst_grease_pencil->material_array = MEM_new_array_zeroed<Material *>(
         dst_grease_pencil->material_array_num, __func__);
     uninitialized_copy_n(all_grease_pencils_info.materials.data(),
                          dst_grease_pencil->material_array_num,
@@ -2561,6 +2567,9 @@ RealizeInstancesResult realize_instances(bke::GeometrySet geometry_set,
   });
   if (gather_info.r_tasks.first_volume) {
     result.geometry.add(*gather_info.r_tasks.first_volume);
+  }
+  for (const nodes::Bundle *bundle : gather_info.r_tasks.bundles) {
+    result.geometry.bundle_for_write().merge(*bundle);
   }
 
   return result;

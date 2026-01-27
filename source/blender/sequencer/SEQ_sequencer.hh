@@ -8,6 +8,7 @@
  * \ingroup sequencer
  */
 
+#include "BKE_sound_types.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
@@ -15,6 +16,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_session_uid_types.h"
+
+namespace blender {
 
 struct BlendDataReader;
 struct BlendWriter;
@@ -28,7 +31,7 @@ struct SeqTimelineChannel;
 struct Strip;
 struct SequencerToolSettings;
 
-namespace blender::seq {
+namespace seq {
 
 constexpr int MAX_CHANNELS = 128;
 
@@ -67,10 +70,17 @@ enum class StripRuntimeFlag {
 ENUM_OPERATORS(StripRuntimeFlag);
 
 struct StripRuntime {
+  ~StripRuntime();
+
   SessionUID session_uid = {};
   StripRuntimeFlag flag = StripRuntimeFlag::None;
-  void *scene_sound = nullptr; /* AUD_SequenceEntry */
+  AUD_SequenceEntry scene_sound;
+  AUD_Sound sound_time_stretch;
+  float sound_time_stretch_fps = 0.0f;
+
   Vector<MovieReader *, 1> movie_readers;
+  /* To detect the removal of a sound modifier. */
+  int sound_modifiers_count = 0;
 
   [[nodiscard]] MovieReader *movie_reader_get(int64_t index = 0) const
   {
@@ -79,6 +89,9 @@ struct StripRuntime {
     }
     return movie_readers[index];
   }
+
+  void clear_sound_time_stretch();
+  void remove_scene_sound(Scene *scene);
 };
 
 SequencerToolSettings *tool_settings_init();
@@ -219,4 +232,5 @@ void strip_lookup_free(Editing *ed);
  */
 void strip_lookup_invalidate(const Editing *ed);
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

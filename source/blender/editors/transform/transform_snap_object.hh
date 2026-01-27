@@ -19,6 +19,8 @@
 
 #include "ED_transform_snap_object_context.hh"
 
+namespace blender {
+
 #define MAX_CLIPPLANE_LEN 6
 
 #define SNAP_TO_EDGE_ELEMENTS \
@@ -35,11 +37,9 @@ struct RegionView3D;
 struct Scene;
 struct View3D;
 
-namespace blender::ed::transform {
+namespace ed::transform {
 
 struct SnapObjectContext {
-  Scene *scene;
-
   struct SnapCache {
     virtual ~SnapCache() = default;
   };
@@ -270,4 +270,5 @@ eSnapMode snap_edge_points_mesh(SnapObjectContext *sctx,
                                 float dist_px_sq_orig,
                                 int edge_index);
 
-}  // namespace blender::ed::transform
+}  // namespace ed::transform
+}  // namespace blender

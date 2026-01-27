@@ -57,8 +57,7 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
                                                                  PropertyRNA * /*prop*/,
                                                                  bool *r_free)
 {
-  const EnumPropertyItem *items = blender::ed::asset::library_reference_to_rna_enum_itemf(false,
-                                                                                          true);
+  const EnumPropertyItem *items = ed::asset::library_reference_to_rna_enum_itemf(false, true);
   *r_free = true;
   BLI_assert(items != nullptr);
   return items;
@@ -66,7 +65,7 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
 
 static Vector<RNAPath> construct_pose_rna_paths(const PointerRNA &bone_pointer)
 {
-  BLI_assert(bone_pointer.type == &RNA_PoseBone);
+  BLI_assert(bone_pointer.type == RNA_PoseBone);
 
   Vector<RNAPath> paths;
   paths.append({"location"});
@@ -121,7 +120,7 @@ static blender::animrig::Action &extract_pose(Main &bmain, const Span<Object *> 
   for (Object *pose_object : pose_objects) {
     BLI_assert(pose_object->pose);
     Slot &slot = action.slot_add_for_id(pose_object->id);
-    const bArmature *armature = static_cast<bArmature *>(pose_object->data);
+    const bArmature *armature = id_cast<bArmature *>(pose_object->data);
 
     Set<RNAPath> existing_paths;
     if (pose_object->adt && pose_object->adt->action &&
@@ -140,7 +139,7 @@ static blender::animrig::Action &extract_pose(Main &bmain, const Span<Object *> 
         continue;
       }
       PointerRNA bone_pointer = RNA_pointer_create_discrete(
-          &pose_object->id, &RNA_PoseBone, &pose_bone);
+          &pose_object->id, RNA_PoseBone, &pose_bone);
       Vector<RNAPath> rna_paths = construct_pose_rna_paths(bone_pointer);
       for (const RNAPath &rna_path : rna_paths) {
         PointerRNA resolved_pointer;
@@ -390,11 +389,16 @@ static wmOperatorStatus pose_asset_create_invoke(bContext *C,
 {
   /* If the library isn't saved from the operator's last execution, use the first library. */
   if (!RNA_struct_property_is_set_ex(op->ptr, "asset_library_reference", false)) {
-    const AssetLibraryReference first_library = asset::user_library_to_library_ref(
-        *static_cast<const bUserAssetLibrary *>(U.asset_libraries.first));
+    std::optional<AssetLibraryReference> dest_library_ref =
+        ed::asset::get_user_library_ref_for_save();
+
+    if (!dest_library_ref) {
+      BKE_report(op->reports, RPT_WARNING, "No editable asset library to save into");
+      return OPERATOR_CANCELLED;
+    }
     RNA_enum_set(op->ptr,
                  "asset_library_reference",
-                 asset::library_reference_to_enum_value(&first_library));
+                 asset::library_reference_to_enum_value(&*dest_library_ref));
   }
 
   return WM_operator_props_dialog_popup(C, op, 400, std::nullopt, IFACE_("Create"));
@@ -489,7 +493,7 @@ static const EnumPropertyItem prop_asset_overwrite_modes[] = {
  */
 static bAction *get_action_of_selected_asset(bContext *C)
 {
-  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  const asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
   if (!asset) {
     return nullptr;
   }
@@ -553,13 +557,13 @@ struct PathValue {
 static Vector<PathValue> generate_path_values(Object &pose_object)
 {
   Vector<PathValue> path_values;
-  const bArmature *armature = static_cast<bArmature *>(pose_object.data);
+  const bArmature *armature = id_cast<bArmature *>(pose_object.data);
   for (bPoseChannel &pose_bone : pose_object.pose->chanbase) {
     if (!blender::animrig::bone_is_selected(armature, &pose_bone)) {
       continue;
     }
     PointerRNA bone_pointer = RNA_pointer_create_discrete(
-        &pose_object.id, &RNA_PoseBone, &pose_bone);
+        &pose_object.id, RNA_PoseBone, &pose_bone);
     Vector<RNAPath> rna_paths = construct_pose_rna_paths(bone_pointer);
 
     for (RNAPath &rna_path : rna_paths) {
@@ -600,7 +604,7 @@ static inline void replace_pose_key(Main &bmain,
 
   /* Clearing all keys beforehand in case the pose was not defined on frame defined in
    * `time_value`. */
-  BKE_fcurve_delete_keys_all(&fcurve);
+  BKE_fcurve_delete_keys_all(fcurve);
   const KeyframeSettings key_settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO, BEZT_IPO_BEZ};
   insert_vert_fcurve(&fcurve, time_value, key_settings, INSERTKEY_NOFLAGS);
 }
@@ -774,7 +778,7 @@ static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  const asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
   if (ID_IS_LINKED(action) && !is_pose_asset_blend_editable(*action, op->reports)) {
     return OPERATOR_CANCELLED;
   }

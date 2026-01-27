@@ -31,6 +31,8 @@
 
 #include "DEG_depsgraph.hh"
 
+namespace blender {
+
 /* ***************************************** */
 /* NOTE ABOUT THIS FILE:
  * This file contains code for editing Grease Pencil data in the Action Editor
@@ -76,7 +78,7 @@ void ED_gpencil_layer_make_cfra_list(bGPDlayer *gpl, ListBaseT<CfraElem> *elems,
   /* loop through gp-frames, adding */
   for (bGPDframe &gpf : gpl->frames) {
     if ((onlysel == 0) || (gpf.flag & GP_FRAME_SELECT)) {
-      ce = MEM_callocN<CfraElem>("CfraElem");
+      ce = MEM_new_zeroed<CfraElem>("CfraElem");
 
       ce->cfra = float(gpf.framenum);
       ce->sel = (gpf.flag & GP_FRAME_SELECT) ? 1 : 0;
@@ -335,7 +337,7 @@ bool ED_gpencil_anim_copybuf_copy(bAnimContext *ac)
     }
 
     ListBaseT<bGPDframe> copied_frames = {nullptr, nullptr};
-    bGPDlayer *gpl = (bGPDlayer *)ale.data;
+    bGPDlayer *gpl = static_cast<bGPDlayer *>(ale.data);
 
     /* loop over frames, and copy only selected frames */
     for (bGPDframe &gpf : gpl->frames) {
@@ -353,7 +355,7 @@ bool ED_gpencil_anim_copybuf_copy(bAnimContext *ac)
 
     /* create a new layer in buffer if there were keyframes here */
     if (BLI_listbase_is_empty(&copied_frames) == false) {
-      bGPDlayer *new_layer = MEM_new_for_free<bGPDlayer>("GPCopyPasteLayer");
+      bGPDlayer *new_layer = MEM_new<bGPDlayer>("GPCopyPasteLayer");
       BLI_addtail(&gpencil_anim_copybuf, new_layer);
 
       /* move over copied frames */
@@ -424,7 +426,7 @@ bool ED_gpencil_anim_copybuf_paste(bAnimContext *ac, const short offset_mode)
       continue;
     }
 
-    bGPDlayer *gpld = (bGPDlayer *)ale.data;
+    bGPDlayer *gpld = static_cast<bGPDlayer *>(ale.data);
     bGPDlayer *gpls = nullptr;
     bGPDframe *gpf;
 
@@ -648,3 +650,5 @@ void ED_gpencil_layer_mirror_frames(bGPDlayer *gpl, Scene *scene, short mode)
 }
 
 /* ***************************************** */
+
+}  // namespace blender

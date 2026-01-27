@@ -111,7 +111,7 @@ static AutoPropButsReturn template_operator_property_buts_draw_single(
 
   if (op->type->ui) {
     op->layout = &layout;
-    op->type->ui((bContext *)C, op);
+    op->type->ui(const_cast<bContext *>(C), op);
     op->layout = nullptr;
 
     /* #UI_LAYOUT_OP_SHOW_EMPTY ignored. retun_info is ignored too.
@@ -328,7 +328,7 @@ static wmOperator *minimal_operator_create(wmOperatorType *ot, PointerRNA *prope
 {
   /* Copied from #wm_operator_create.
    * Create a slimmed down operator suitable only for UI drawing. */
-  wmOperator *op = MEM_new_for_free<wmOperator>(ot->rna_ext.srna ? __func__ : ot->idname);
+  wmOperator *op = MEM_new<wmOperator>(ot->rna_ext.srna ? __func__ : ot->idname);
   STRNCPY_UTF8(op->idname, ot->idname);
   op->type = ot;
 
@@ -412,7 +412,7 @@ void template_collection_exporters(Layout *layout, bContext *C)
 
   /* Register the exporter list type on first use. */
   static const uiListType *exporter_item_list = []() {
-    uiListType *lt = MEM_callocN<uiListType>(__func__);
+    uiListType *lt = MEM_new_zeroed<uiListType>(__func__);
     STRNCPY_UTF8(lt->idname, "COLLECTION_UL_exporter_list");
     lt->draw_item = draw_exporter_item;
     WM_uilisttype_add(lt);
@@ -422,19 +422,19 @@ void template_collection_exporters(Layout *layout, bContext *C)
   /* Draw exporter list and controls. */
   PointerRNA collection_ptr = RNA_id_pointer_create(&collection->id);
   Layout &row = layout->row(false);
-  blender::ui::template_list(&row,
-                             C,
-                             exporter_item_list->idname,
-                             "",
-                             &collection_ptr,
-                             "exporters",
-                             &collection_ptr,
-                             "active_exporter_index",
-                             nullptr,
-                             3,
-                             5,
-                             UILST_LAYOUT_DEFAULT,
-                             TEMPLATE_LIST_FLAG_NONE);
+  ui::template_list(&row,
+                    C,
+                    exporter_item_list->idname,
+                    "",
+                    &collection_ptr,
+                    "exporters",
+                    &collection_ptr,
+                    "active_exporter_index",
+                    nullptr,
+                    3,
+                    5,
+                    UILST_LAYOUT_DEFAULT,
+                    TEMPLATE_LIST_FLAG_NONE);
 
   Layout *col = &row.column(true);
   col->menu("COLLECTION_MT_exporter_add", "", ICON_ADD);
@@ -452,13 +452,13 @@ void template_collection_exporters(Layout *layout, bContext *C)
   col->enabled_set(!BLI_listbase_is_empty(exporters));
 
   /* Draw the active exporter. */
-  CollectionExport *data = (CollectionExport *)BLI_findlink(exporters, index);
+  CollectionExport *data = static_cast<CollectionExport *>(BLI_findlink(exporters, index));
   if (!data) {
     return;
   }
 
   PointerRNA exporter_ptr = RNA_pointer_create_discrete(
-      &collection->id, &RNA_CollectionExport, data);
+      &collection->id, RNA_CollectionExport, data);
   PanelLayout panel = layout->panel_prop(C, &exporter_ptr, "is_open");
 
   bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);

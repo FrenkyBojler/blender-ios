@@ -53,11 +53,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${USD_INCLUDE_DIRS}
-  ${BOOST_INCLUDE_DIR}
-  ${TBB_INCLUDE_DIRS}
-  ${PYTHON_INCLUDE_DIR}
-
 )
 
 set(SRC
@@ -111,6 +106,8 @@ set(SRC
   intern/usd_skel_root_utils.cc
 
   usd.hh
+  usd_api_hook.hh
+  usd_api_modifier.hh
   usd_private.hh
 
   intern/usd_armature_utils.hh
@@ -210,16 +207,11 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
   PRIVATE bf::windowmanager
-)
-
-list(APPEND LIB
-  ${BOOST_PYTHON_LIBRARIES}
-  ${PYTHON_LIBRARIES}
-  ${USD_LIBRARIES}
-  ${TBB_LIBRARIES}
+  PRIVATE bf::dependencies::optional::python
+  PRIVATE bf::dependencies::optional::usd
+  PRIVATE bf::dependencies::optional::tbb
 )
 
 if(WITH_MATERIALX)
