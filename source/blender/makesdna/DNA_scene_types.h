@@ -2527,9 +2527,6 @@ struct RaytraceEEVEE {
   /** #RaytraceEEVEE_DenoiseStages. */
   int denoise_stages = RAYTRACE_EEVEE_DENOISE_SPATIAL | RAYTRACE_EEVEE_DENOISE_TEMPORAL |
                        RAYTRACE_EEVEE_DENOISE_BILATERAL;
-  /** Global ray-traced lighting contribution scalar. */
-  float rt_scale = 1.0f;
-  char _pad0[4] = {};
 };
 
 /** #SceneEEVEE::flag */
@@ -2630,6 +2627,10 @@ struct SceneEEVEE {
   float clamp_surface_indirect = 10.0f;
   float clamp_volume_direct = 0;
   float clamp_volume_indirect = 0;
+
+  /** Global indirect lighting intensity. */
+  float indirect_intensity = 1.0f;
+  char _pad2[4] = {};
 
   int ray_tracing_method = RAYTRACE_EEVEE_METHOD_SCREEN;
 
