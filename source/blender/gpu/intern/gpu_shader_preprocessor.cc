@@ -606,11 +606,37 @@ struct Preprocessor : IntermediateFormWithIDs {
     }
   };
 
+  struct StringStack {
+    int allocated = 0;
+    int used = 0;
+    std::deque<std::string> str_pool;
+
+    std::string &alloc()
+    {
+      if (used == allocated) {
+        str_pool.emplace_back("");
+        str_pool.back().reserve(256);
+        allocated++;
+        used++;
+        return str_pool.back();
+      }
+      std::string &str = str_pool[used++];
+      str.clear();
+      return str;
+    }
+
+    void release(std::string & /*parser*/)
+    {
+      used--;
+    }
+  };
+
   /* When evaluating a condition directive inside this stack, disregard the directive and jump to
    * the matching #endif. */
   Vector<DirectiveID, 8> jump_stack;
   /* Own stack to avoid memory allocation during recursive expansion parsing. */
   ParserStack recursive_parser_stack;
+StringStack expanded_string_stack;
   /* Set of visited macros during recursion (blue painting stack). Using a vector for speed. */
   Vector<DirectiveID> visited_macros;
   /* Maps containing currently active macros. Map their keyword to their definition. */
@@ -922,35 +948,11 @@ struct Preprocessor : IntermediateFormWithIDs {
     Token end_of_expansion;
   };
 
-  /**
-   * IMPORTANT: Because of recursion, expanded_tok can be from another parser.
-   * The macro directive however, will always be from the main parser.
-   */
-  ExpandedResult expand_macro(const Token expanded_tok, const DirectiveID macro)
+  BLI_NOINLINE Map<StringRef, TokenRange> parse_macro_args(const bool is_function,
+                                                           const Token expanded_tok,
+                                                           Token &end_of_expansion,
+                                                           TokenID &tok)
   {
-    const TokenID define_tok = get_identifier(macro);
-    BLI_assert(str(define_tok) == "define");
-    const TokenID macro_name = skip_space(next(define_tok));
-    BLI_assert(get_type(macro_name) == Word);
-    const TokenID macro_parenthesis = next(macro_name);
-
-    const bool is_function = (get_type(macro_parenthesis) == '(');
-
-    Token end_of_expansion = expanded_tok;
-
-    TokenID tok = skip_space(macro_parenthesis);
-
-    /* Empty definition. */
-    if (get_type(tok) == '\n') {
-      return {"", end_of_expansion};
-    }
-
-    if (visited_macros.contains(macro)) {
-      /* Recursion. Do not expand. Still replace by the original token. */
-      return {str(macro_name), end_of_expansion};
-    }
-
-    /* TODO: Avoid StringRef in map. */
     Map<StringRef, TokenRange> macro_parameters;
     if (is_function) {
       /* This is a functional macro. */
@@ -958,7 +960,7 @@ struct Preprocessor : IntermediateFormWithIDs {
       Token param = shader::parser::skip_space(expanded_tok.next());
       if (param != '(') {
         /* Macro doesn't have parameters. It should not expand. */
-        return {str(macro_name), end_of_expansion};
+        return {};
       }
 
       /* Parse parameters & arguments. */
@@ -972,12 +974,12 @@ struct Preprocessor : IntermediateFormWithIDs {
           if (param == Invalid) {
             /* Error: missing closing parenthesis. */
             /* Cancel expansion. */
-            return {str(macro_name), expanded_tok};
+            return {};
           }
           if (param != ')') {
             /* Error: too many arguments provided to function-like macro invocation. */
             /* Cancel expansion. */
-            return {str(macro_name), expanded_tok};
+            return {};
           }
           break;
         }
@@ -1014,24 +1016,55 @@ struct Preprocessor : IntermediateFormWithIDs {
       /* Make sure to replace the whole call. */
       end_of_expansion = param;
     }
+    return macro_parameters;
+  }
 
-    std::string expanded;
-    expanded.reserve(256);
+  BLI_NOINLINE void expand_args(const bool is_function,
+                                std::string &expanded,
+                                const Map<StringRef, TokenRange> &macro_parameters,
+                                TokenID tok)
+  {
+    using Token = lexit::TokenBuffer::Token;
 
-    while (get_type(tok) != NewLine) {
-      TokenType curr_type = get_type(tok);
-      TokenType next_type = look_ahead(tok);
-      /* Skip the token pasting operator. */
-      if (curr_type == '#' && next_type == '#') {
-        /* Token concat. */
-        tok = next(next(tok));
+    TokenType invalid_type = Invalid;
+    TokenType space_type = Space;
+
+    int i = int(tok);
+
+    Vector<Token, 16> stream;
+    stream.append(Token{"", invalid_type});
+    stream.append(Token{"", invalid_type});
+    stream.append(Token{"", invalid_type});
+    while (true) {
+      const Token t = lex_[i];
+      if (ELEM(t.type, NewLine, lexit::EndOfFile)) {
+        break;
+      }
+      if (t.type == '\\' && lex_[i + 1].type == '\n') {
+        /* Preprocessor new line. Skip and continue. */
+        i += 2;
+        /* Still insert a space to avoid merging tokens. */
+        stream.append(Token{" ", space_type});
         continue;
       }
-      if (curr_type == '\\' && next_type == '\n') {
-        /* Preprocessor new line. Skip and continue. */
-        tok = next(next(tok));
-        /* Still insert a space to avoid merging tokens. */
-        expanded += ' ';
+      stream.append(t);
+      i += 1;
+    }
+    stream.append(Token{"", invalid_type});
+    stream.append(Token{"", invalid_type});
+    stream.append(Token{"", invalid_type});
+
+    for (int i : stream.index_range().slice(3, stream.size() - 6)) {
+      TokenType prev_type3 = stream[i - 3].type;
+      TokenType prev_type2 = stream[i - 2].type;
+      TokenType prev_type = stream[i - 1].type;
+      TokenType curr_type = stream[i].type;
+      TokenType next_type = stream[i + 1].type;
+      TokenType next_type2 = stream[i + 2].type;
+      TokenType next_type3 = stream[i + 3].type;
+      /* Skip the token pasting operator. */
+      if (curr_type == '#') {
+        /* Token concat. */
         continue;
       }
 
@@ -1039,12 +1072,6 @@ struct Preprocessor : IntermediateFormWithIDs {
        * That would mean a macro is defined and expanded on the last line. */
       BLI_assert(curr_type != Invalid);
       BLI_assert_msg(curr_type != '#', "Stringify operator '#' is not supported");
-
-      TokenType next_type2 = (next_type != Invalid) ? look_ahead(next(tok)) : Invalid;
-      TokenType next_type3 = (next_type2 != Invalid) ? look_ahead(next(next(tok))) : Invalid;
-      TokenType prev_type = look_behind(tok);
-      TokenType prev_type2 = (prev_type != Invalid) ? look_behind(prev(tok)) : Invalid;
-      TokenType prev_type3 = (prev_type2 != Invalid) ? look_behind(prev(prev(tok))) : Invalid;
 
       /* Support spaces around token pasting operator */
       bool next_is_token_pasting = (next_type == ' ') ? (next_type2 == '#' && next_type3 == '#') :
@@ -1064,9 +1091,9 @@ struct Preprocessor : IntermediateFormWithIDs {
 
         if (is_function) {
           /* Lookup macro arguments. */
-          TokenRange *macro_value_ptr = macro_parameters.lookup_ptr(str(tok));
+          const TokenRange *macro_value_ptr = macro_parameters.lookup_ptr(stream[i].str);
           if (macro_value_ptr) {
-            TokenRange &macro_value = *macro_value_ptr;
+            const TokenRange &macro_value = *macro_value_ptr;
 
             if (!next_is_token_pasting && !prev_is_token_pasting) {
               /* Expand argument. Can expand to the same macro (finite recursion). */
@@ -1081,15 +1108,50 @@ struct Preprocessor : IntermediateFormWithIDs {
 
         if (!replaced) {
           /* Fallback to no expansion. */
-          expanded += str(tok);
+          expanded += stream[i].str;
         }
       }
       else {
-        expanded += str(tok);
+        expanded += stream[i].str;
       }
-
-      tok = next(tok);
     }
+  }
+
+  /**
+   * IMPORTANT: Because of recursion, expanded_tok can be from another parser.
+   * The macro directive however, will always be from the main parser.
+   */
+  ExpandedResult expand_macro(const Token expanded_tok, const DirectiveID macro)
+  {
+    const TokenID define_tok = get_identifier(macro);
+    BLI_assert(str(define_tok) == "define");
+    const TokenID macro_name = skip_space(next(define_tok));
+    BLI_assert(get_type(macro_name) == Word);
+    const TokenID macro_parenthesis = next(macro_name);
+
+    const bool is_function = (get_type(macro_parenthesis) == '(');
+
+    Token end_of_expansion = expanded_tok;
+
+    TokenID tok = skip_space(macro_parenthesis);
+
+    /* Empty definition. */
+    if (get_type(tok) == '\n') {
+      return {"", end_of_expansion};
+    }
+
+    if (visited_macros.contains(macro)) {
+      /* Recursion. Do not expand. Still replace by the original token. */
+      return {str(macro_name), end_of_expansion};
+    }
+
+    /* TODO: Avoid StringRef in map. */
+    Map<StringRef, TokenRange> macro_parameters = parse_macro_args(
+        is_function, expanded_tok, end_of_expansion, tok);
+
+    std::string &expanded = expanded_string_stack.alloc();
+
+    expand_args(is_function, expanded, macro_parameters, tok);
 
     /* Add to the set to avoid infinite recursion. */
     visited_macros.append(macro);
@@ -1097,6 +1159,11 @@ struct Preprocessor : IntermediateFormWithIDs {
     expanded = parse_and_expand(expanded);
 
     visited_macros.pop_last();
+
+    /* Note that it is fine to release even if still used in the result since it cannot be
+     * reallocated until the next call. Also release doesn't free the memory until the end of the
+     * preprocessor. */
+    expanded_string_stack.release(expanded);
 
     return {expanded, end_of_expansion};
   }
