@@ -9,17 +9,17 @@
 #include "BKE_instances.hh"
 #include "BKE_mesh_types.hh"
 #include "BKE_node.hh"
-
 #include "BKE_pointcloud.hh"
-#include "BLI_set.hh"
 
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
+
 #include "FN_field.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_list.hh"
 
 namespace blender::bke::bake {
 
@@ -47,15 +47,15 @@ static std::unique_ptr<BakeMaterialsList> materials_to_weak_references(
   return materials_list;
 }
 
-class BakeValuePreparation {
+class RuntimeToBakeValue {
  private:
   MutableSpan<BakeValues::InputValue> root_values_;
   Map<std::string, std::string> referenced_anonymous_attributes_;
   BakeDataBlockMap *data_block_map_ = nullptr;
 
  public:
-  BakeValuePreparation(MutableSpan<BakeValues::InputValue> root_values,
-                       BakeDataBlockMap *data_block_map)
+  RuntimeToBakeValue(MutableSpan<BakeValues::InputValue> root_values,
+                     BakeDataBlockMap *data_block_map)
       : root_values_(root_values), data_block_map_(data_block_map)
   {
   }
@@ -84,7 +84,7 @@ class BakeValuePreparation {
   void gather__socket_value_variant(const SocketValueVariant &value_variant)
   {
     if (value_variant.is_context_dependent_field()) {
-      const fn::GField &field = value_variant.get<fn::GField>();
+      const fn::GField field = value_variant.get<fn::GField>();
       if (const auto *attribute_field = dynamic_cast<const AttributeFieldInput *>(&field.node())) {
         const StringRef attribute_name = attribute_field->attribute_name();
         if (attribute_name_is_anonymous(attribute_name)) {
@@ -98,7 +98,31 @@ class BakeValuePreparation {
       this->gather__gpointer(value_ptr);
       return;
     }
-    // TODO: handle list
+    if (value_variant.is_list()) {
+      const nodes::ListPtr list_ptr = value_variant.get<nodes::ListPtr>();
+      if (list_ptr) {
+        this->gather__list(*list_ptr);
+      }
+    }
+  }
+
+  void gather__list(const nodes::List &list)
+  {
+    const CPPType &list_cpp_type = list.cpp_type();
+    if (list_cpp_type.is<SocketValueVariant>()) {
+      if (const auto *single_data = std::get_if<nodes::List::SingleData>(&list.data())) {
+        const SocketValueVariant &single_value_variant = *static_cast<const SocketValueVariant *>(
+            single_data->value);
+        this->gather__socket_value_variant(single_value_variant);
+      }
+      else if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&list.data())) {
+        const Span<SocketValueVariant> array_span{
+            static_cast<const SocketValueVariant *>(array_data->data), list.size()};
+        for (const SocketValueVariant &value_variant : array_span) {
+          this->gather__socket_value_variant(value_variant);
+        }
+      }
+    }
   }
 
   void gather__gpointer(const GPointer &value_ptr)
@@ -178,6 +202,18 @@ class BakeValuePreparation {
       this->process__gpointer(value_ptr);
       return;
     }
+    if (value_variant.is_list()) {
+      nodes::ListPtr list_ptr = value_variant.extract<nodes::ListPtr>();
+      if (list_ptr) {
+        nodes::List &list = list_ptr.ensure_mutable_inplace();
+        this->process__list(list);
+      }
+      value_variant.set(std::move(list_ptr));
+    }
+  }
+
+  void process__list(nodes::List &list)
+  {
     // TODO: Handle list
   }
 
@@ -194,6 +230,10 @@ class BakeValuePreparation {
         nodes::Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
         this->process__bundle(bundle);
       }
+    }
+    if (type.is<nodes::ClosurePtr>()) {
+      nodes::ClosurePtr &closure_ptr = *value_ptr.get<nodes::ClosurePtr>();
+      closure_ptr.reset();
     }
   }
 
@@ -284,11 +324,10 @@ class BakeValuePreparation {
 BakeValues BakeValues::from_runtime_values(Vector<InputValue> runtime_values,
                                            BakeDataBlockMap *data_block_map)
 {
-  BakeValuePreparation preparation{runtime_values, data_block_map};
+  RuntimeToBakeValue preparation{runtime_values, data_block_map};
   preparation.prepare();
 
   BakeValues bake_values;
-  // TODO: ensure owns all data, material pointers, clear fields/closures, ...
   for (InputValue &input_value : runtime_values) {
     input_value.value.ensure_owns_direct_data();
   }
