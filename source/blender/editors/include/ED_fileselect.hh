@@ -35,6 +35,7 @@ struct wmWindow;
 struct wmWindowManager;
 struct View2D;
 struct rcti;
+class StringRef;
 namespace asset_system {
 class AssetLibrary;
 }

@@ -14,6 +14,7 @@
 #include "BLI_listbase.h"
 
 #include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "WM_message.hh"
 

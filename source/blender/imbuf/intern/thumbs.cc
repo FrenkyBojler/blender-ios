@@ -8,9 +8,11 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
+#include "BKE_appdir.hh"
 #include "BKE_blendfile.hh"
 
 #include "BLI_fileops.h"
@@ -72,6 +74,20 @@
 
 namespace blender {
 
+static constexpr const char *get_thumb_size_dir_name(const ThumbSize size)
+{
+  switch (size) {
+    case THB_NORMAL:
+      return "normal";
+    case THB_LARGE:
+      return "large";
+    case THB_FAIL:
+      return "fail";
+  }
+  BLI_assert_unreachable();
+  return "unknown";
+}
+
 static bool get_thumb_dir(char *dir, ThumbSize size)
 {
   char *s = dir;
@@ -100,15 +116,31 @@ static bool get_thumb_dir(char *dir, ThumbSize size)
   }
 #  endif
 #endif
+  constexpr const char *size_normal_dir = SEP_STR THUMBNAILS SEP_STR "normal" SEP_STR;
+  constexpr const char *size_large_dir = SEP_STR THUMBNAILS SEP_STR "large" SEP_STR;
+  constexpr const char *size_fail_dir = SEP_STR THUMBNAILS SEP_STR "fail" SEP_STR
+                                                                   "blender" SEP_STR;
+
+  /* Compile time sanity checks to make sure `get_thumb_size_dir()` stays in sync. */
+  static_assert(StringRef(size_normal_dir).find(get_thumb_size_dir_name(THB_NORMAL)) !=
+                    StringRef::not_found,
+                "`get_thumb_dir()` and `get_thumb_size_dir_name()` out of sync for `THB_NORMAL`");
+  static_assert(StringRef(size_large_dir).find(get_thumb_size_dir_name(THB_LARGE)) !=
+                    StringRef::not_found,
+                "`get_thumb_dir()` and `get_thumb_size_dir_name()` out of sync for `THB_LARGE`");
+  static_assert(StringRef(size_fail_dir).find(get_thumb_size_dir_name(THB_FAIL)) !=
+                    StringRef::not_found,
+                "`get_thumb_dir()` and `get_thumb_size_dir_name()` out of sync for `THB_FAIL`");
+
   switch (size) {
     case THB_NORMAL:
-      subdir = SEP_STR THUMBNAILS SEP_STR "normal" SEP_STR;
+      subdir = size_normal_dir;
       break;
     case THB_LARGE:
-      subdir = SEP_STR THUMBNAILS SEP_STR "large" SEP_STR;
+      subdir = size_large_dir;
       break;
     case THB_FAIL:
-      subdir = SEP_STR THUMBNAILS SEP_STR "fail" SEP_STR "blender" SEP_STR;
+      subdir = size_fail_dir;
       break;
     default:
       return false; /* unknown size */
@@ -254,6 +286,19 @@ static bool uri_from_filepath(const char *path, char *uri)
   return true;
 }
 
+static void string_to_md5_hash_file_name(const blender::StringRef string,
+                                         const blender::StringRefNull ext,
+                                         char *r_name,
+                                         int name_maxncpy)
+{
+  char hexdigest[33];
+  uchar digest[16];
+  BLI_hash_md5_buffer(string.data(), string.size(), digest);
+  hexdigest[0] = '\0';
+  BLI_snprintf(
+      r_name, name_maxncpy, "%s.%s", BLI_hash_md5_to_hexdigest(digest, hexdigest), ext.c_str());
+}
+
 static bool thumbpathname_from_uri(const char *uri,
                                    char *r_path,
                                    const int path_maxncpy,
@@ -269,11 +314,7 @@ static bool thumbpathname_from_uri(const char *uri,
   }
 
   if (r_name) {
-    char hexdigest[33];
-    uchar digest[16];
-    BLI_hash_md5_buffer(uri, strlen(uri), digest);
-    hexdigest[0] = '\0';
-    BLI_snprintf(r_name, name_maxncpy, "%s.png", BLI_hash_md5_to_hexdigest(digest, hexdigest));
+    string_to_md5_hash_file_name(uri, "png", r_name, name_maxncpy);
     //      printf("%s: '%s' --> '%s'\n", __func__, uri, r_name);
   }
 
@@ -494,6 +535,12 @@ static ImBuf *thumb_create_or_fail(const char *file_path,
 
 ImBuf *IMB_thumb_create(const char *filepath, ThumbSize size, ThumbSource source, ImBuf *img)
 {
+  if (source == THB_SOURCE_DIRECT) {
+    /* Not yet implemented. */
+    BLI_assert_unreachable();
+    return nullptr;
+  }
+
   char uri[URI_MAX] = "";
   char thumb_name[40];
 
@@ -542,6 +589,17 @@ void IMB_thumb_delete(const char *file_or_lib_path, ThumbSize size)
 
 ImBuf *IMB_thumb_manage(const char *file_or_lib_path, ThumbSize size, ThumbSource source)
 {
+  if (source == THB_SOURCE_DIRECT) {
+    if (ImBuf *thumb = IMB_load_image_from_filepath(file_or_lib_path, IB_byte_data | IB_metadata))
+    {
+      IMB_byte_from_float(thumb);
+      IMB_free_float_pixels(thumb);
+      return thumb;
+    }
+
+    return nullptr;
+  }
+
   char path_buff[FILE_MAX_LIBEXTRA];
   char *blen_group = nullptr, *blen_id = nullptr;
 
@@ -574,7 +632,9 @@ ImBuf *IMB_thumb_manage(const char *file_or_lib_path, ThumbSize size, ThumbSourc
   if (file_attributes & FILE_ATTR_OFFLINE) {
     char thumb_path[FILE_MAX];
     if (thumbpath_from_uri(uri, thumb_path, sizeof(thumb_path), size)) {
-      return IMB_load_image_from_filepath(thumb_path, IB_byte_data | IB_metadata);
+      if (ImBuf *img = IMB_load_image_from_filepath(thumb_path, IB_byte_data | IB_metadata)) {
+        return img;
+      }
     }
     return nullptr;
   }

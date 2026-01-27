@@ -2698,6 +2698,65 @@ class AssetsPanel:
     bl_context = "assets"
 
 
+class USERPREF_PT_assets(AssetsPanel, Panel):
+    bl_label = "Assets"
+    bl_options = {'HIDE_HEADER'}
+
+    def draw(self, context):
+        prefs = context.preferences
+
+        # Check if the extensions "Welcome" panel should be displayed.
+        # Even though it can be dismissed it's quite "in-your-face" so only show when it's needed.
+        if (
+            # The user didn't dismiss.
+            (not prefs.extensions.use_online_access_handled) and
+            # Running offline.
+            (not bpy.app.online_access) and
+            # There is one or more libraries that require remote access.
+            any(library for library in prefs.filepaths.asset_libraries if
+                # repo.enabled and
+                library.use_remote_url)
+        ):
+            layout = self.layout
+            layout_header, layout_panel = layout.panel("advanced", default_closed=False)
+            layout_header.label(text="Internet Access Required", icon='INTERNET_OFFLINE')
+
+            if layout_panel is None:
+                return
+
+            box = layout_panel.box()
+
+            # Text wrapping isn't supported, manually wrap.
+            for line in (
+                    rpt_("Internet access is required to browse and download online assets."),
+                    rpt_("You can adjust this later from \"System\" preferences."),
+            ):
+                box.label(text=line, translate=False)
+
+            # TODO: Link to the manual?
+            # row.operator(
+            #     "wm.url_open",
+            #     text="",
+            #     icon='URL',
+            #     emboss=False,
+            # ).url = (
+            #     "https://docs.blender.org/manual/"
+            #     "{:s}/{:d}.{:d}/editors/preferences/extensions.html#installing-extensions"
+            # ).format(
+            #     bpy.utils.manual_language_code(),
+            #     *bpy.app.version[:2],
+            # )
+
+            row = box.row()
+            props = row.operator("wm.context_set_boolean", text="Continue Offline", icon='X')
+            props.data_path = "preferences.extensions.use_online_access_handled"
+            props.value = True
+
+            # The only reason to prefer this over `screen.userpref_show`
+            # is it will be disabled when `--offline-mode` is forced with a useful error for why.
+            row.operator("extensions.userpref_allow_online", text="Allow Online Access", icon='CHECKMARK')
+
+
 class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
     bl_label = "Asset Libraries"
 
@@ -2718,7 +2777,10 @@ class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
         )
 
         col = row.column(align=True)
-        col.operator("preferences.asset_library_add", text="", icon='ADD')
+        if context.preferences.experimental.use_remote_asset_libraries:
+            col.operator_menu_enum("preferences.asset_library_add", "type", text="", icon='ADD')
+        else:
+            col.operator("preferences.asset_library_add", text="", icon='ADD').type = 'LOCAL'
         props = col.operator("preferences.asset_library_remove", text="", icon='REMOVE')
         props.index = active_library_index
 
@@ -2732,18 +2794,44 @@ class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
 
         layout.separator()
 
-        layout.prop(active_library, "path")
-        layout.prop(active_library, "import_method", text="Import Method")
-        layout.prop(active_library, "use_relative_path")
+        if active_library.use_remote_url:
+            use_remote_libraries = context.preferences.experimental.use_remote_asset_libraries
+            if use_remote_libraries:
+                layout.prop(active_library, "remote_url")
+        else:
+            layout.prop(active_library, "path")
+            layout.prop(active_library, "import_method", text="Import Method")
+            layout.prop(active_library, "use_relative_path")
 
 
 class USERPREF_UL_asset_libraries(UIList):
     def draw_item(self, context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         asset_library = item
 
+        icon = 'INTERNET' if asset_library.use_remote_url else 'DISK_DRIVE'
         row = layout.row(align=True)
         row.prop(asset_library, "enabled", text="")
-        row.prop(asset_library, "name", text="", emboss=False)
+        row.prop(asset_library, "name", text="", icon=icon, emboss=False)
+
+        # Check the 'experimental' flag.
+        if asset_library.use_remote_url:
+            layout.enabled = context.preferences.experimental.use_remote_asset_libraries
+
+    def filter_items(self, context, data, property):
+        asset_libraries = getattr(data, property)
+
+        # Determine the bitflags for remote & non-remote asset libraries.
+        use_remote_libs = context.preferences.experimental.use_remote_asset_libraries
+        flag_remote = self.bitflag_filter_item if use_remote_libs else self.bitflag_item_never_show
+        flag_nonremote = self.bitflag_filter_item
+
+        # Construct arrays of flags & indices.
+        flags = [
+            flag_remote if asset_library.use_remote_url else flag_nonremote
+            for asset_library in asset_libraries]
+        indices = list(range(len(asset_libraries)))
+
+        return flags, indices
 
 
 # -----------------------------------------------------------------------------
@@ -2979,6 +3067,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
                 ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
                 ({"property": "use_geometry_bundle"}, ("blender/blender/issues/150574", "#150574")),
+                ({"property": "use_remote_asset_libraries"}, ("blender/blender/issues/134495", "#134495")),
             ),
         )
 
@@ -3111,6 +3200,7 @@ classes = (
     USERPREF_PT_extensions,
     USERPREF_PT_addons,
 
+    USERPREF_PT_assets,
     USERPREF_PT_assets_asset_libraries,
 
     USERPREF_MT_extensions_active_repo,
