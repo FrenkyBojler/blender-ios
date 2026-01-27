@@ -548,6 +548,7 @@ static void gpu_shader_lib_test(StringRefNull test_src_name, const char *additio
 
   gpu::StorageBuf *output_buf = GPU_storagebuf_create(test_count * sizeof(TestOutput));
 
+  GPU_storagebuf_clear(output_buf, 0xFFFFFFFFu);
   GPU_storagebuf_bind(output_buf, 0);
 
   GPU_compute_dispatch(shader, 1, 1, 1);
