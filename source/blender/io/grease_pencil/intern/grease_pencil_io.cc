@@ -387,6 +387,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
   const Span<float3> positions_left = *curves.handle_positions_left();
   const Span<float3> positions_right = *curves.handle_positions_right();
   const VArray<int8_t> types = curves.curve_types();
+  const std::optional<GroupedSpan<int>> fills = drawing.fills();
   const VArraySpan<float> radii = drawing.radii();
   const VArraySpan<float> opacities = drawing.opacities();
   const VArraySpan<ColorGeometry4f> vertex_colors = drawing.vertex_colors();
@@ -394,9 +395,38 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
   Array<float3> world_positions(positions.size());
   math::transform_points(positions, layer_to_world, world_positions);
 
-  auto add_shape = [&](Span<int> shape) {
-    const int i_curve = shape.first();
-    const int material_index = material_indices[i_curve];
+  int fill_index = 0;
+
+  Array<int> fill_index_by_curves(curves.curves_num(), -1);
+  Array<int> first_curves(curves.curves_num());
+  array_utils::fill_index_range<int>(first_curves);
+
+  for (const int curve_i : curves.curves_range()) {
+    const bool is_filled = fill_ids[curve_i] != 0;
+    const bool active_filled = is_filled && (fill_index_by_curves[curve_i] == -1);
+
+    /* Keep track of already rendered fills. */
+    if (active_filled) {
+      const Span<int> fill = (*fills)[fill_index];
+      const int first_curve = fill.first();
+      for (const int pos : fill.index_range()) {
+        const int curve_i = fill[pos];
+        fill_index_by_curves[curve_i] = fill_index;
+        first_curves[curve_i] = first_curve;
+      }
+
+      fill_index++;
+    }
+  }
+
+  for (const int curve_i : curves.curves_range()) {
+    /* Will be `-1` if not a fill. */
+    const int fill_index = fill_index_by_curves[curve_i];
+
+    const bool is_filled = fill_index != -1;
+    const bool active_filled = is_filled && (first_curves[curve_i] == curve_i);
+
+    const int material_index = material_indices[curve_i];
     const Material *material = [&]() {
       const Material *material = BKE_object_material_get(const_cast<Object *>(&object),
                                                          material_index + 1);
@@ -411,19 +441,20 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
     if (material->gp_style->flag & GP_MATERIAL_HIDE) {
       return;
     }
-    const bool show_stroke = !hide_stroke[i_curve];
-    const bool show_fill = fill_ids[i_curve] != 0;
+    const bool show_stroke = !hide_stroke[curve_i];
 
     /* Fill. */
-    if (show_fill && params_.export_fill_materials) {
+    if (active_filled && params_.export_fill_materials) {
+      const Span<int> fill = (*fills)[fill_index];
+
       const ColorGeometry4f material_fill_color = ColorGeometry4f(material->gp_style->fill_rgba);
       const ColorGeometry4f fill_color = math::interpolate(
-          material_fill_color, fill_colors[i_curve], fill_colors[i_curve].a);
+          material_fill_color, fill_colors[curve_i], fill_colors[curve_i].a);
       shape_fn(positions,
                positions_left,
                positions_right,
                points_by_curve,
-               shape,
+               fill,
                cyclic,
                types,
                fill_color,
@@ -435,9 +466,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
 
     /* Stroke. */
     if (show_stroke && params_.export_stroke_materials) {
-
-      /* TODO. */
-      const IndexRange points = points_by_curve[i_curve];
+      const IndexRange points = points_by_curve[curve_i];
 
       const ColorGeometry4f stroke_color = compute_average_stroke_color(
           *material, vertex_colors.slice(points));
@@ -450,8 +479,8 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
                                                          radii.slice(points)) :
                                                      std::nullopt;
       if (uniform_width) {
-        const GreasePencilStrokeCapType start_cap = GreasePencilStrokeCapType(start_caps[i_curve]);
-        const GreasePencilStrokeCapType end_cap = GreasePencilStrokeCapType(end_caps[i_curve]);
+        const GreasePencilStrokeCapType start_cap = GreasePencilStrokeCapType(start_caps[curve_i]);
+        const GreasePencilStrokeCapType end_cap = GreasePencilStrokeCapType(end_caps[curve_i]);
         const bool round_cap = start_cap == GP_STROKE_CAP_TYPE_ROUND ||
                                end_cap == GP_STROKE_CAP_TYPE_ROUND;
 
@@ -459,7 +488,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
                  positions_left,
                  positions_right,
                  points_by_curve,
-                 shape,
+                 {curve_i},
                  cyclic,
                  types,
                  stroke_color,
@@ -469,8 +498,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
                  false);
       }
       else {
-        /* TODO. */
-        const IndexMask single_curve_mask = IndexRange::from_single(i_curve);
+        const IndexMask single_curve_mask = IndexRange::from_single(curve_i);
 
         constexpr int corner_subdivisions = 3;
         constexpr float outline_radius = 0.0f;
@@ -497,15 +525,13 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
         const Span<float3> outline_positions_left = *outline.handle_positions_left();
         const Span<float3> outline_positions_right = *outline.handle_positions_right();
         const VArray<int8_t> outline_types = outline.curve_types();
-        /* TODO. */
-        const Span<int> outline_shape = {0};
 
         /* Use stroke color to fill the outline. */
         shape_fn(outline_positions,
                  outline_positions_left,
                  outline_positions_right,
                  outline_points_by_curve,
-                 outline_shape,
+                 {0},
                  outline_cyclic,
                  outline_types,
                  stroke_color,
@@ -514,19 +540,6 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
                  false,
                  true);
       }
-    }
-  };
-
-  const std::optional<GroupedSpan<int>> shapes = drawing.fills();
-
-  if (shapes) {
-    for (const int shape_i : shapes->index_range()) {
-      add_shape((*shapes)[shape_i]);
-    }
-  }
-  else {
-    for (const int curve_i : curves.curves_range()) {
-      add_shape({curve_i});
     }
   }
 }
