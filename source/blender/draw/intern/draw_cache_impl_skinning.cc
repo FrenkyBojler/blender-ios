@@ -500,31 +500,19 @@ static int draw_get_segment_count(Object *armature_ob)
   return total_matrix_count;
 }
 
-static void fill_bbone_segment_info(Object *armature_ob, DRWSkinningCache &cache)
-{
-  int bi = 0;
-  int current_offset = 0;
-
-  LISTBASE_FOREACH (bPoseChannel *, pchan, &armature_ob->pose->chanbase) {
-    if (pchan->bone->flag & BONE_NO_DEFORM) {
-      continue;
-    }
-    const int segments = pchan->bone->segments;
-    cache.bonedata_buf[bi].segments = segments;
-    cache.bonedata_buf[bi].offsets = current_offset;
-    current_offset += (segments > 1) ? (segments + 1) : 1;
-
-    bi++;
-  }
-}
-
 static void draw_skinning_pack_bone_data(DRWSkinningCache &cache, Object *armature_ob)
 {
   int bone_index = 0;
+  int current_offset = 0;
   LISTBASE_FOREACH (bPoseChannel *, pchan, &armature_ob->pose->chanbase) {
     if (pchan->bone->flag & BONE_NO_DEFORM) {
       continue;
     }
+
+    const int segments = pchan->bone->segments;
+    cache.bonedata_buf[bone_index].segments = segments;
+    cache.bonedata_buf[bone_index].offsets = current_offset;
+    current_offset += (segments > 1) ? (segments + 1) : 1;
 
     cache.bonedata_buf[bone_index].lengths = pchan->bone->length;
 
@@ -562,13 +550,10 @@ static void draw_skinning_update_bone_matrices(DRWSkinningCache &cache,
   int mat_idx = 0;
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &armature_ob->pose->chanbase) {
-    if (bone_index >= cache.bone_count) {
-      break;
-    }
     if (pchan->bone->flag & BONE_NO_DEFORM) {
       continue;
     }
-    const int segments = int(cache.bonedata_buf[bone_index].segments);
+    const int segments = int(cache.bonedata_buf[bone_index++].segments);
 
     if (segments > 1) {
       for (int seg = 0; seg <= segments; seg++) {
@@ -584,7 +569,6 @@ static void draw_skinning_update_bone_matrices(DRWSkinningCache &cache,
       memcpy(&(cache.bonedata_mat)[mat_idx++ * 16], &pchan->chan_mat,
              sizeof(float) * 16);
     }
-    bone_index++;
   }
 }
 
@@ -1092,8 +1076,6 @@ static void draw_create_skinning(Object &ob,
           draw_skinning_setup_buffers(amd->object, skincache, mr, amd);
 
           if (!skincache->vertex_data_packed) {
-
-            fill_bbone_segment_info(amd->object, *skincache);
 
             draw_skinning_pack_bone_data(*skincache, amd->object);
             GPU_storagebuf_update(skincache->in_bonedata_buf, skincache->bonedata_buf);
