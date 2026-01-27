@@ -123,6 +123,7 @@ void search_link_ops_for_declarations(GatherLinkSearchOpParams &params,
                                       Span<SocketDeclaration *> declarations)
 {
   const bke::bNodeType &node_type = params.node_type();
+  const bool has_node_update_fn = bool(node_type.updatefunc);
 
   const SocketDeclaration *main_socket = nullptr;
   Vector<const SocketDeclaration *> connectable_sockets;
@@ -130,6 +131,10 @@ void search_link_ops_for_declarations(GatherLinkSearchOpParams &params,
   Set<StringRef> socket_names;
   for (const int i : declarations.index_range()) {
     const SocketDeclaration &socket = *declarations[i];
+    /* Ignore sockets that cannot be made available. */
+    if (!socket.is_available && !socket.can_make_available() && !has_node_update_fn) {
+      continue;
+    }
     if (!socket_names.add(socket.name)) {
       /* Don't add sockets with the same name to the search. Needed to support being called from
        * #search_link_ops_for_basic_node, which should have "okay" behavior for nodes with

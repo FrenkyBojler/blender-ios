@@ -1027,6 +1027,11 @@ int SocketDeclaration::compositor_domain_priority() const
   return compositor_domain_priority_;
 }
 
+bool SocketDeclaration::can_make_available() const
+{
+  return bool(make_available_fn_);
+}
+
 void SocketDeclaration::make_available(bNode &node) const
 {
   if (make_available_fn_) {
