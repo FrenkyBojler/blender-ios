@@ -79,7 +79,6 @@ void main()
   float hit_time = 1000.0f;
 
   radiance = colorspace_brightness_clamp_max(radiance, uniform_buf.clamp.surface_indirect);
-  radiance *= uniform_buf.raytrace.rt_scale;
 
   imageStoreFast(ray_time_img, texel, float4(hit_time));
   imageStoreFast(ray_radiance_img, texel, float4(radiance, 0.0f));

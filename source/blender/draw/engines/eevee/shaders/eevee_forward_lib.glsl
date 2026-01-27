@@ -119,7 +119,6 @@ void forward_lighting_eval(float thickness, float3 &radiance, float3 &transmitta
   radiance_indirect = colorspace_brightness_clamp_max(radiance_indirect, clamp_indirect);
 
   radiance = radiance_direct + radiance_indirect + g_emission;
-  radiance *= uniform_buf.raytrace.rt_scale;
 
   transmittance = g_transmittance;
 }
