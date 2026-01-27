@@ -56,6 +56,10 @@ static void serialize_socket_value_variant(const SocketValueVariant &value_varia
                                            BlobWriter &blob_writer,
                                            BlobWriteSharing &blob_sharing,
                                            DictionaryValue &r_io_item);
+static void serialize_bundle_items(const nodes::Bundle &bundle,
+                                   ArrayValue &r_io_items,
+                                   BlobWriter &blob_writer,
+                                   BlobWriteSharing &blob_sharing);
 
 std::shared_ptr<DictionaryValue> BlobSlice::serialize() const
 {
@@ -1248,6 +1252,12 @@ static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet
         instances.attributes(), blob_writer, blob_sharing, {});
     io_instances->append("attributes", io_attributes);
   }
+  if (geometry.has_bundle()) {
+    const nodes::BundlePtr &bundle = geometry.bundle_ptr();
+    auto io_bundle = io_geometry->append_dict("bundle");
+    auto io_bundle_items = io_bundle->append_array("items");
+    serialize_bundle_items(*bundle, *io_bundle_items, blob_writer, blob_sharing);
+  }
   return io_geometry;
 }
 
@@ -1482,6 +1492,23 @@ template<typename T>
   return true;
 }
 
+static void serialize_bundle_items(const nodes::Bundle &bundle,
+                                   ArrayValue &r_io_items,
+                                   BlobWriter &blob_writer,
+                                   BlobWriteSharing &blob_sharing)
+{
+  for (const auto &item : bundle.items()) {
+    if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value)) {
+      DictionaryValue &io_bundle_item = *r_io_items.append_dict();
+      io_bundle_item.append_str("key", item.key);
+      io_bundle_item.append_str("socket_idname", socket_value->type->idname);
+      io::serialize::DictionaryValue &io_bundle_item_value = *io_bundle_item.append_dict("value");
+      serialize_socket_value_variant(
+          socket_value->value, blob_writer, blob_sharing, io_bundle_item_value);
+    }
+  }
+}
+
 static void serialize_single_value(const GPointer value,
                                    BlobWriter &blob_writer,
                                    BlobWriteSharing &blob_sharing,
@@ -1519,19 +1546,7 @@ static void serialize_single_value(const GPointer value,
     r_io_item.append_str("type", "BUNDLE");
     ArrayValue &io_items = *r_io_item.append_array("items");
     if (bundle_ptr) {
-      for (const auto &item : bundle_ptr->items()) {
-        if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(
-                &item.value.value))
-        {
-          DictionaryValue &io_bundle_item = *io_items.append_dict();
-          io_bundle_item.append_str("key", item.key);
-          io_bundle_item.append_str("socket_idname", socket_value->type->idname);
-          io::serialize::DictionaryValue &io_bundle_item_value = *io_bundle_item.append_dict(
-              "value");
-          serialize_socket_value_variant(
-              socket_value->value, blob_writer, blob_sharing, io_bundle_item_value);
-        }
-      }
+      serialize_bundle_items(*bundle_ptr, io_items, blob_writer, blob_sharing);
     }
     return;
   }
