@@ -21,6 +21,15 @@ set(INC_SYS
 
 set(SRC
   brush_asset_ops.cc
+  paint_cursor.cc
+  paint_curve.cc
+  paint_curve_undo.cc
+  paint_ops.cc
+  paint_sample_color.cc
+  paint_stroke.cc
+  paint_utils.cc
+  sculpt_uv.cc
+
   curves/sculpt_add.cc
   curves/sculpt_brush.cc
   curves/sculpt_comb.cc
@@ -35,6 +44,7 @@ set(SRC
   curves/sculpt_slide.cc
   curves/sculpt_smooth.cc
   curves/sculpt_snake_hook.cc
+
   grease_pencil/draw_ops.cc
   grease_pencil/erase.cc
   grease_pencil/fill.cc
@@ -62,10 +72,8 @@ set(SRC
   grease_pencil/weight_blur.cc
   grease_pencil/weight_draw.cc
   grease_pencil/weight_smear.cc
+
   mesh/paint_canvas.cc
-  paint_cursor.cc
-  paint_curve.cc
-  paint_curve_undo.cc
   mesh/paint_hide.cc
   mesh/paint_image.cc
   mesh/paint_image_2d.cc
@@ -73,10 +81,6 @@ set(SRC
   mesh/paint_image_ops_paint.cc
   mesh/paint_image_proj.cc
   mesh/paint_mask.cc
-  paint_ops.cc
-  paint_sample_color.cc
-  paint_stroke.cc
-  paint_utils.cc
   mesh/paint_vertex.cc
   mesh/paint_vertex_color_ops.cc
   mesh/paint_vertex_weight_ops.cc
@@ -108,15 +112,17 @@ set(SRC
   mesh/sculpt_transform.cc
   mesh/sculpt_trim.cc
   mesh/sculpt_undo.cc
-  sculpt_uv.cc
+
+  paint_intern.hh
 
   curves/sculpt_intern.hh
+
   grease_pencil/intern.hh
   grease_pencil/trace_util.hh
   grease_pencil/weight_paint.hh
+
   mesh/mesh_brush_common.hh
   mesh/paint_hide.hh
-  paint_intern.hh
   mesh/paint_mask.hh
   mesh/sculpt_automask.hh
   mesh/sculpt_boundary.hh
