@@ -531,15 +531,15 @@ static DispList *displist_fill_cdt_process_group(const CDTFillGroup &group,
   const int out_verts = int(result.vert.size());
   const int out_tris = int(result.face.size());
 
-  DispList *dlnew = MEM_callocN<DispList>(__func__);
+  DispList *dlnew = MEM_new_zeroed<DispList>(__func__);
   dlnew->type = DL_INDEX3;
   dlnew->flag = (group.dl_flag_accum & (DL_BACK_CURVE | DL_FRONT_CURVE));
   dlnew->rt = (group.dl_rt_accum & CU_SMOOTH);
   dlnew->col = group.colnr;
   dlnew->nr = out_verts;
   dlnew->parts = out_tris;
-  dlnew->verts = MEM_malloc_arrayN<float>(3 * size_t(out_verts), __func__);
-  dlnew->index = MEM_malloc_arrayN<int>(3 * size_t(out_tris), __func__);
+  dlnew->verts = MEM_new_array_uninitialized<float>(3 * size_t(out_verts), __func__);
+  dlnew->index = MEM_new_array_uninitialized<int>(3 * size_t(out_tris), __func__);
 
   /* Build map from intersection vertex to an edge with original edge info.
    * Only needed when Z coordinates vary and interpolation is required. */
