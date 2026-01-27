@@ -96,7 +96,7 @@ enum {
 };
 
 /** #Curve.fill_solver */
-enum {
+enum CurveFillSolverType {
   /**
    * Fast filling without support for self-intersections.
    * Uses `BLI_scanfill`.
@@ -109,7 +109,7 @@ enum {
 };
 
 /** #Curve.fill_rule */
-enum {
+enum CurveFillRuleType {
   CU_FILL_RULE_EVEN_ODD = 0,
   CU_FILL_RULE_NONZERO = 1,
 };

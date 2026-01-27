@@ -274,9 +274,8 @@ struct PolyRange {
 static float isect_vert_calc_z(int vert_index,
                                int edge_index,
                                const meshintersect::CDT_result<double> &result,
-                               const Vector<PolyRange> &poly_ranges,
-                               const Array<double2> &input_verts_2d,
-                               int total_input_verts)
+                               Span<PolyRange> poly_ranges,
+                               Span<double2> input_verts_2d)
 {
   /* -1 if this intersection vertex only appears on Delaunay edges
    * (edges created by triangulation) rather than edges deriving from
@@ -573,12 +572,8 @@ static DispList *displist_fill_cdt_process_group(const CDTFillGroup &group,
       out[0] = float(result.vert[i].x);
       out[1] = float(result.vert[i].y);
       out[2] = uniform_z ? first_z :
-                           isect_vert_calc_z(i,
-                                             isect_vert_to_edge[i],
-                                             result,
-                                             group.poly_ranges,
-                                             input.vert,
-                                             group.total_verts);
+                           isect_vert_calc_z(
+                               i, isect_vert_to_edge[i], result, group.poly_ranges, input.vert);
     }
   }
 
@@ -659,8 +654,8 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
                        ListBaseT<DispList> *to,
                        const float normal_proj[3],
                        const bool flip_normal,
-                       const int fill_solver,
-                       const int fill_rule)
+                       const CurveFillSolverType fill_solver,
+                       const CurveFillRuleType fill_rule)
 {
   if (fill_solver == CU_FILL_SOLVER_CDT) {
     CDT_output_type output_type;
@@ -733,13 +728,28 @@ static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
   }
 
   const float z_up[3] = {0.0f, 0.0f, -1.0f};
-  BKE_displist_fill(&front, dispbase, z_up, true, cu->fill_solver, cu->fill_rule);
-  BKE_displist_fill(&back, dispbase, z_up, false, cu->fill_solver, cu->fill_rule);
+  BKE_displist_fill(&front,
+                    dispbase,
+                    z_up,
+                    true,
+                    CurveFillSolverType(cu->fill_solver),
+                    CurveFillRuleType(cu->fill_rule));
+  BKE_displist_fill(&back,
+                    dispbase,
+                    z_up,
+                    false,
+                    CurveFillSolverType(cu->fill_solver),
+                    CurveFillRuleType(cu->fill_rule));
 
   BKE_displist_free(&front);
   BKE_displist_free(&back);
 
-  BKE_displist_fill(dispbase, dispbase, z_up, false, cu->fill_solver, cu->fill_rule);
+  BKE_displist_fill(dispbase,
+                    dispbase,
+                    z_up,
+                    false,
+                    CurveFillSolverType(cu->fill_solver),
+                    CurveFillRuleType(cu->fill_rule));
 }
 
 static void curve_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
@@ -753,7 +763,12 @@ static void curve_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
   }
   else {
     const float z_up[3] = {0.0f, 0.0f, -1.0f};
-    BKE_displist_fill(dispbase, dispbase, z_up, false, cu->fill_solver, cu->fill_rule);
+    BKE_displist_fill(dispbase,
+                      dispbase,
+                      z_up,
+                      false,
+                      CurveFillSolverType(cu->fill_solver),
+                      CurveFillRuleType(cu->fill_rule));
   }
 }
 
@@ -1614,13 +1629,21 @@ static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
         }
 
         if (bottom_capbase.first) {
-          BKE_displist_fill(
-              &bottom_capbase, r_dispbase, bottom_no, false, cu->fill_solver, cu->fill_rule);
+          BKE_displist_fill(&bottom_capbase,
+                            r_dispbase,
+                            bottom_no,
+                            false,
+                            CurveFillSolverType(cu->fill_solver),
+                            CurveFillRuleType(cu->fill_rule));
           BKE_displist_free(&bottom_capbase);
         }
         if (top_capbase.first) {
-          BKE_displist_fill(
-              &top_capbase, r_dispbase, top_no, false, cu->fill_solver, cu->fill_rule);
+          BKE_displist_fill(&top_capbase,
+                            r_dispbase,
+                            top_no,
+                            false,
+                            CurveFillSolverType(cu->fill_solver),
+                            CurveFillRuleType(cu->fill_rule));
           BKE_displist_free(&top_capbase);
         }
       }

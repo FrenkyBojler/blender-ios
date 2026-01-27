@@ -9,6 +9,7 @@
  * \brief display list (or rather multi purpose list) stuff.
  */
 
+#include "DNA_curve_enums.h"
 #include "DNA_listBase.h"
 
 namespace blender {
@@ -87,8 +88,8 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
                        ListBaseT<DispList> *to,
                        const float normal_proj[3],
                        bool flip_normal,
-                       int fill_solver,
-                       int fill_rule);
+                       CurveFillSolverType fill_solver,
+                       CurveFillRuleType fill_rule);
 
 float BKE_displist_calc_taper(struct Depsgraph *depsgraph,
                               const struct Scene *scene,
