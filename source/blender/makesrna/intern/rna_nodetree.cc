@@ -4972,8 +4972,6 @@ static void def_sh_value(BlenderRNA * /*brna*/, StructRNA *srna)
       {PROP_TIME & 0x7FFF, "TIME", 0, "Time (Scene Relative)", ""},
       {50, "TIME_ABSOLUTE", 0, "Time (Absolute)", ""},
       {PROP_DISTANCE & 0x7FFF, "DISTANCE", 0, "Distance", ""},
-      {PROP_POWER & 0x7FFF, "POWER", 0, "Power", ""},
-      {PROP_TEMPERATURE & 0x7FFF, "TEMPERATURE", 0, "Temperature", ""},
       {PROP_WAVELENGTH & 0x7FFF, "WAVELENGTH", 0, "Wavelength", ""},
       {PROP_COLOR_TEMPERATURE & 0x7FFF, "COLOR_TEMPERATURE", 0, "Color Temperature", ""},
       {PROP_FREQUENCY & 0x7FFF, "FREQUENCY", 0, "Frequency", ""},

@@ -44,10 +44,6 @@ static PropertySubType sh_value_subtype_from_custom1(const bNode *node)
       return PROP_TIME_ABSOLUTE;
     case (PROP_DISTANCE & 0x7FFF):
       return PROP_DISTANCE;
-    case (PROP_POWER & 0x7FFF):
-      return PROP_POWER;
-    case (PROP_TEMPERATURE & 0x7FFF):
-      return PROP_TEMPERATURE;
     case (PROP_WAVELENGTH & 0x7FFF):
       return PROP_WAVELENGTH;
     case (PROP_COLOR_TEMPERATURE & 0x7FFF):
