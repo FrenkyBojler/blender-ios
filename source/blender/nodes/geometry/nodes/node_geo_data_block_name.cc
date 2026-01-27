@@ -49,24 +49,29 @@ static void node_geo_exec(GeoNodeExecParams params)
   switch (data_type) {
     case SOCK_OBJECT: {
       Object *data_block = params.extract_input<Object *>("Data Block");
-      output = std::string(data_block->id.name);
+      output = std::string(data_block->id.name + 2);
+      break;
     }
     case SOCK_MATERIAL: {
       Material *data_block = params.extract_input<Material *>("Data Block");
-      output = std::string(data_block->id.name);
+      output = std::string(data_block->id.name + 2);
+      break;
     }
     case SOCK_COLLECTION: {
       Collection *data_block = params.extract_input<Collection *>("Data Block");
-      output = std::string(data_block->id.name);
+      output = std::string(data_block->id.name + 2);
+      break;
     }
     case SOCK_IMAGE: {
       Image *data_block = params.extract_input<Image *>("Data Block");
-      output = std::string(data_block->id.name);
+      output = std::string(data_block->id.name + 2);
+      break;
     }
     default:
       break;
   }
-  params.set_output("String", std::move(output));
+  params.set_output("Name", std::move(output));
+  params.set_default_remaining_outputs();
 }
 
 static void node_rna(StructRNA *srna)
