@@ -1891,6 +1891,12 @@ static bool ui_selectcontext_begin(bContext *C, Button *but, uiSelectContextStor
   PropertyRNA *prop = but->rnaprop;
   const int index = but->rnaindex;
 
+  if (but->type == ButtonType::SearchMenu) {
+    ButtonSearch *search_button = static_cast<ButtonSearch *>(but);
+    ptr = search_button->rnasearchpoin;
+    prop = search_button->rnasearchprop;
+  }
+
   /* for now don't support whole colors */
   if (index == -1) {
     return false;
@@ -9329,14 +9335,22 @@ Button *region_active_but_prop_get(const ARegion *region,
 {
   Button *activebut = region_active_but_get(region);
 
-  if (activebut && activebut->rnapoin.data) {
+  if (!activebut) {
+    *r_ptr = {};
+    *r_prop = nullptr;
+    *r_index = 0;
+    return nullptr;
+  }
+
+  if (activebut->rnapoin.data) {
     *r_ptr = activebut->rnapoin;
     *r_prop = activebut->rnaprop;
     *r_index = activebut->rnaindex;
   }
-  else {
-    *r_ptr = {};
-    *r_prop = nullptr;
+  else if (activebut->type == ButtonType::SearchMenu) {
+    ButtonSearch *search_button = static_cast<ButtonSearch *>(activebut);
+    *r_ptr = search_button->rnasearchpoin;
+    *r_prop = search_button->rnasearchprop;
     *r_index = 0;
   }
 

@@ -19,6 +19,7 @@
 #include "DNA_object_types.h"   /* for OB_DATA_SUPPORT_ID */
 #include "DNA_screen_types.h"
 
+#include "ANIM_animdata.hh"
 #include "ANIM_keyframing.hh"
 
 #include "BLI_listbase.h"
@@ -1022,6 +1023,26 @@ static void ui_context_fcurve_modifiers_via_fcurve(bContext *C,
   }
 }
 
+static void ui_context_actions_of_selected_objects(bContext *C, Vector<PointerRNA> *r_lb)
+{
+  /* This is a fallback so copy to selected can work for actions without affecting the result
+   * of `selected_editable_actions`. Since that only works with a bAnimContext the list will be
+   * empty most of the time. */
+  Set<bAction *> added_actions;
+  for (PointerRNA &selected : CTX_data_collection_get(C, "selected_editable_objects")) {
+    for (ID *related_id : animrig::find_related_ids(*CTX_data_main(C), *selected.owner_id)) {
+      AnimData *adt = BKE_animdata_from_id(related_id);
+      if (!adt || !adt->action) {
+        continue;
+      }
+      if (!added_actions.add(adt->action)) {
+        continue;
+      }
+      r_lb->append(RNA_id_pointer_create(&adt->action->id));
+    }
+  }
+}
+
 static void ui_context_selected_key_blocks(ID *owner_id_key, Vector<PointerRNA> *r_lb)
 {
   /* This function chooses to return the selected keyblocks of the owning Key ID.
@@ -1191,6 +1212,9 @@ bool context_copy_to_selected_list(bContext *C,
   }
   else if (RNA_struct_is_a(ptr->type, RNA_Action)) {
     *r_lb = CTX_data_collection_get(C, "selected_editable_actions");
+    if (r_lb->is_empty()) {
+      ui_context_actions_of_selected_objects(C, r_lb);
+    }
   }
   else if (RNA_struct_is_a(ptr->type, RNA_NlaStrip)) {
     *r_lb = CTX_data_collection_get(C, "selected_nla_strips");
