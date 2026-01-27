@@ -153,7 +153,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeCubeGridTopology");
   ntype.ui_name = "Cube Grid Topology";
   ntype.ui_description =
-      "Initialize a boolean grid topology with given dimensions, for use with the Field to Grid "
+      "Create a boolean grid topology with the given dimensions, for use with the Field to Grid "
       "node";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
