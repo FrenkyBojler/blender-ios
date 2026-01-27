@@ -22,6 +22,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry");
   b.add_output<decl::String>("Names").structure_type(StructureType::List);
+  b.add_input<decl::Bool>("Filter").default_value(true);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -74,6 +75,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bNode &node = params.node();
 
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
+  const bool filter = params.extract_input<bool>("Filter");
   const eCustomDataType data_type = eCustomDataType(node.custom1);
   const AttrDomain domain = AttrDomain(node.custom2);
 
@@ -87,9 +89,17 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<StringRef> sort_attributes;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (iter.domain == domain && iter.data_type == bke::custom_data_type_to_attr_type(data_type) &&
-        iter.name[0] != '.')
-    {
+    bool valid_name;
+    if (filter) {
+      valid_name = iter.domain == domain &&
+                    iter.data_type == bke::custom_data_type_to_attr_type(data_type) &&
+                    iter.name[0] != '.';
+    }
+    else {
+      valid_name = iter.name[0] != '.';
+    }
+
+    if (valid_name) {
       sort_attributes.append(iter.name);
     }
   });
@@ -106,7 +116,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   auto *names = new ImplicitSharedValue<Vector<std::string>>();
   names->data.resize(sort_attributes.size());
   std::copy(sort_attributes.begin(), sort_attributes.end(), names->data.begin());
-  
+
   List::ArrayData names_array_data = {names->data.data(), ImplicitSharingPtr<>(names)};
 
   params.set_output(
