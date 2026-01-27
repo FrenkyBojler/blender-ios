@@ -432,20 +432,28 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
     curve_runtime->last_pos.x = *last_x_ptr;
     curve_runtime->last_pos.y = *last_y_ptr;
 
-    rctf selection_bounds;
-    BLI_rctf_init_minmax(&selection_bounds);
+    rctf slider_bounds = bounds;
+    if (selected_points.size() > 1) {
+      rctf selection_bounds;
+      BLI_rctf_init_minmax(&selection_bounds);
 
-    for (const CurveProfilePoint *pt : selected_points) {
-      if (pt->flag & PROF_SELECT) {
-        const float loc[2] = {pt->x, pt->y};
-        BLI_rctf_do_minmax_v(&selection_bounds, loc);
+      for (const CurveProfilePoint *pt : selected_points) {
+        if (pt->flag & PROF_SELECT) {
+          const float loc[2] = {pt->x, pt->y};
+          BLI_rctf_do_minmax_v(&selection_bounds, loc);
+        }
+        if (pt->flag & PROF_H1_SELECT) {
+          BLI_rctf_do_minmax_v(&selection_bounds, pt->h1_loc);
+        }
+        if (pt->flag & PROF_H2_SELECT) {
+          BLI_rctf_do_minmax_v(&selection_bounds, pt->h2_loc);
+        }
       }
-      if (pt->flag & PROF_H1_SELECT) {
-        BLI_rctf_do_minmax_v(&selection_bounds, pt->h1_loc);
-      }
-      if (pt->flag & PROF_H2_SELECT) {
-        BLI_rctf_do_minmax_v(&selection_bounds, pt->h2_loc);
-      }
+
+      slider_bounds.xmin += curve_runtime->last_pt->x - selection_bounds.xmin;
+      slider_bounds.xmax += curve_runtime->last_pt->x - selection_bounds.xmax;
+      slider_bounds.ymin += curve_runtime->last_pt->y - selection_bounds.ymin;
+      slider_bounds.ymax += curve_runtime->last_pt->y - selection_bounds.ymax;
     }
 
     /* Requires BKE_curveprofile_translate_selection to handle the handle manipulation, no
@@ -458,8 +466,8 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
                    last_x_ptr,
-                   bounds.xmin + *last_x_ptr - selection_bounds.xmin,
-                   bounds.xmax + *last_x_ptr - selection_bounds.xmax,
+                   slider_bounds.xmin,
+                   slider_bounds.xmax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
@@ -487,8 +495,8 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
                    last_y_ptr,
-                   bounds.ymin + *last_y_ptr - selection_bounds.ymin,
-                   bounds.ymax + *last_y_ptr - selection_bounds.ymax,
+                   slider_bounds.ymin,
+                   slider_bounds.ymax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);

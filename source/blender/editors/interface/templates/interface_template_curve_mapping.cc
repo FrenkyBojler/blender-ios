@@ -709,12 +709,20 @@ static void curvemap_buttons_layout(Layout *layout,
     curve_runtime->last_pos.x = curve_runtime->last_pt->x;
     curve_runtime->last_pos.y = curve_runtime->last_pt->y;
 
-    rctf selection_bounds;
-    BLI_rctf_init_minmax(&selection_bounds);
+    rctf slider_bounds = bounds;
+    if (selected_points.size() > 1) {
+      rctf selection_bounds;
+      BLI_rctf_init_minmax(&selection_bounds);
 
-    for (const CurveMapPoint *cmp : selected_points) {
-      const float loc[2] = {cmp->x, cmp->y};
-      BLI_rctf_do_minmax_v(&selection_bounds, loc);
+      for (const CurveMapPoint *cmp : selected_points) {
+        const float loc[2] = {cmp->x, cmp->y};
+        BLI_rctf_do_minmax_v(&selection_bounds, loc);
+      }
+
+      slider_bounds.xmin += curve_runtime->last_pt->x - selection_bounds.xmin;
+      slider_bounds.xmax += curve_runtime->last_pt->x - selection_bounds.xmax;
+      slider_bounds.ymin += curve_runtime->last_pt->y - selection_bounds.ymin;
+      slider_bounds.ymax += curve_runtime->last_pt->y - selection_bounds.ymax;
     }
 
     bt = uiDefButF(block,
@@ -725,8 +733,8 @@ static void curvemap_buttons_layout(Layout *layout,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
                    &curve_runtime->last_pt->x,
-                   bounds.xmin + curve_runtime->last_pt->x - selection_bounds.xmin,
-                   bounds.xmax + curve_runtime->last_pt->x - selection_bounds.xmax,
+                   slider_bounds.xmin,
+                   slider_bounds.xmax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
@@ -761,8 +769,8 @@ static void curvemap_buttons_layout(Layout *layout,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
                    &curve_runtime->last_pt->y,
-                   bounds.ymin + curve_runtime->last_pt->y - selection_bounds.ymin,
-                   bounds.ymax + curve_runtime->last_pt->y - selection_bounds.ymax,
+                   slider_bounds.ymin,
+                   slider_bounds.ymax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);

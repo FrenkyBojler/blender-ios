@@ -7770,8 +7770,8 @@ static int ui_do_but_CURVE(
       if (sel != -1) {
         /* ok, we move a point */
         /* deselect all if this one is deselect. except if we hold shift */
-        if (event->modifier & KM_SHIFT) {     /* If holding shift. */
-          if (cmp[sel].flag & CUMA_SELECT) {  /* if the current point is selected. */
+        if (event->modifier & KM_SHIFT) {    /* If holding shift. */
+          if (cmp[sel].flag & CUMA_SELECT) { /* if the current point is selected. */
             if (cmp[sel].flag & CUMA_ACTIVE) {
               BKE_curvemap_activate_nearest_point(cuma, sel);
             }
@@ -8102,7 +8102,7 @@ static int ui_do_but_CURVEPROFILE(
       if (i_selected != -1) {
         /* Deselect all if this one is deselectedpts = profile->path, except if we hold shift. */
         if (event->modifier & KM_SHIFT) {
-          if (pts[i_selected].flag & selection_type) {  /* If the current point is selected. */ 
+          if (pts[i_selected].flag & selection_type) { /* If the current point is selected. */
             if (pts[i_selected].flag & active_type) {
               BKE_curveprofile_activate_nearest_point(profile, i_selected);
             }
