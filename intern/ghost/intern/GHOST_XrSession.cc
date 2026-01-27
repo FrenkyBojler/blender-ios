@@ -124,6 +124,69 @@ void GHOST_XrSession::initSystem()
 /** \name State Management
  * \{ */
 
+static void create_main_reference_space(OpenXRSessionData &oxr,
+                                        blender::Span<XrReferenceSpaceType> supported_spaces,
+                                        bool isDebugMode)
+{
+  XrReferenceSpaceCreateInfo create_info = {XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+  create_info.poseInReferenceSpace.orientation.w = 1.0f;
+
+  /* Use the most suitable space as the main reference space. By order of preference:
+   * - Stage Reference Space
+   * - Local Floor Reference Space (extension in OpenXR 1.0, promoted in OpenXR 1.1+)
+   * - Local Space
+   */
+
+  if (supported_spaces.contains(XR_REFERENCE_SPACE_TYPE_STAGE)) {
+    create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
+    CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
+             "Failed to create stage reference space.");
+
+    /* Check if tracking bounds are valid. Tracking bounds may be invalid if the user did not
+     * define a tracking space via the XR runtime. */
+    XrExtent2Df extents;
+    CHECK_XR(xrGetReferenceSpaceBoundsRect(oxr.session, XR_REFERENCE_SPACE_TYPE_STAGE, &extents),
+             "Failed to get stage reference space bounds.");
+    if (extents.width != 0.0f && extents.height != 0.0f) {
+      return;
+    }
+
+    if (oxr.reference_space != XR_NULL_HANDLE) {
+      CHECK_XR(xrDestroySpace(oxr.reference_space), "Failed to destroy stage reference space.");
+    }
+
+    if (isDebugMode) {
+      printf(
+          "Warning: Invalid stage reference space bounds, falling back to local floor reference "
+          "space. To use the stage reference space, please define a tracking space via the XR "
+          "runtime.\n");
+    }
+  }
+
+  if (supported_spaces.contains(XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR)) {
+    if (isDebugMode) {
+      printf(
+          "Warning: Stage reference space unavailable, falling back to local floor reference "
+          "space.\n");
+    }
+    /* Using XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR_EXT for the 1.0 XR_EXT_LOCAL_FLOOR extension.
+     * On 1.1+ this is equivalent to XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR. */
+    create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR_EXT;
+    CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
+             "Failed to create local floor reference space.");
+    return;
+  }
+
+  if (isDebugMode) {
+    printf(
+        "Warning: Stage and local floor reference space unavailable, falling back to local "
+        "reference space.\n");
+  }
+  create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+  CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
+           "Failed to create local reference space.");
+}
+
 static void create_reference_spaces(OpenXRSessionData &oxr, bool isDebugMode)
 {
   XrReferenceSpaceCreateInfo create_info = {XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
@@ -141,66 +204,14 @@ static void create_reference_spaces(OpenXRSessionData &oxr, bool isDebugMode)
 
   const blender::Span supported_spaces(supported_spaces_vec);
 
-  /* Use the most suitable space as the main reference space. By order of preference:
-   * - Stage Reference Space
-   * - Local Floor Reference Space (extension in OpenXR 1.0, promoted in OpenXR 1.1+)
-   * - Local Space
-   */
-
-  bool valid_stage_space = false;
-  if (supported_spaces.contains(XR_REFERENCE_SPACE_TYPE_STAGE)) {
-    create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
-    CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
-             "Failed to create stage reference space.");
-
-    /* Check if tracking bounds are valid. Tracking bounds may be invalid if the user did not
-     * define a tracking space via the XR runtime. */
-    XrExtent2Df extents;
-    CHECK_XR(xrGetReferenceSpaceBoundsRect(oxr.session, XR_REFERENCE_SPACE_TYPE_STAGE, &extents),
-             "Failed to get stage reference space bounds.");
-
-    valid_stage_space = extents.width != 0.0f && extents.height != 0.0f;
-    if (!valid_stage_space) {
-      if (oxr.reference_space != XR_NULL_HANDLE) {
-        CHECK_XR(xrDestroySpace(oxr.reference_space), "Failed to destroy stage reference space.");
-      }
-
-      if (isDebugMode) {
-        printf(
-            "Warning: Invalid stage reference space bounds, falling back to local floor reference "
-            "space. To use the stage reference space, please define a tracking space via the XR "
-            "runtime.\n");
-      }
-    }
-  }
-
-  if (!valid_stage_space && supported_spaces.contains(XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR)) {
-    if (isDebugMode) {
-      printf(
-          "Warning: Stage reference space unavailable, falling back to local floor reference "
-          "space.\n");
-    }
-    /* Using XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR_EXT for the 1.0 XR_EXT_LOCAL_FLOOR extension.
-     * On 1.1+ this is equivalent to XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR. */
-    create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR_EXT;
-    CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
-             "Failed to create local floor reference space.");
-  }
-  else {
-    if (isDebugMode) {
-      printf(
-          "Warning: Stage and local floor reference space unavailable, falling back to local "
-          "reference space.\n");
-    }
-    create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
-    CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
-             "Failed to create local reference space.");
-  }
+  create_main_reference_space(oxr, supported_spaces, isDebugMode);
 
   /* View reference space. */
-  create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
-  CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.view_space),
-           "Failed to create view reference space.");
+  if (supported_spaces.contains(XR_REFERENCE_SPACE_TYPE_VIEW)) {
+    create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+    CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.view_space),
+             "Failed to create view reference space.");
+  }
 
   /* Foveation reference spaces. */
   if (oxr.foveation_supported) {
