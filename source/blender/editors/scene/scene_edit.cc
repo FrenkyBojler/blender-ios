@@ -12,6 +12,7 @@
 #include "BLI_listbase.h"
 #include "BLI_string_utf8.h"
 
+#include "DNA_dynamic_override_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BKE_context.hh"
@@ -33,12 +34,15 @@
 #include "ED_screen.hh"
 #include "ED_util.hh"
 
+#include "UI_interface_c.hh"
+
 #include "SEQ_relations.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -319,6 +323,70 @@ static void SCENE_OT_new(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name New dynamic override Operator
+ * \{ */
+
+static wmOperatorStatus new_dynamic_override_exec(bContext *C, wmOperator * /*op*/)
+{
+  Main *bmain = CTX_data_main(C);
+  PointerRNA ptr;
+  PropertyRNA *prop;
+
+  /* Hook into UI. */
+  ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
+
+  Scene *scene = static_cast<Scene *>((prop && RNA_struct_is_a(ptr.type, RNA_Scene)) ? ptr.data :
+                                                                                       nullptr);
+  DynamicOverride *dynamic_override = scene ? scene->dynamic_override : nullptr;
+
+  /* add or copy material */
+  if (dynamic_override) {
+    DynamicOverride *new_dynamic_override = id_cast<DynamicOverride *>(BKE_id_copy_ex(
+        bmain, &dynamic_override->id, nullptr, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
+    dynamic_override = new_dynamic_override;
+  }
+  else {
+    const StringRefNull name = DATA_("Dynamic Override");
+    dynamic_override = BKE_id_new<DynamicOverride>(bmain, name.c_str());
+  }
+
+  if (prop) {
+    /* when creating new ID blocks, use is already 1, but RNA
+     * pointer use also increases user, so this compensates it */
+    id_us_min(&dynamic_override->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, dynamic_override->id, *ptr.owner_id);
+    }
+
+    PointerRNA idptr = RNA_id_pointer_create(&dynamic_override->id);
+    RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
+    RNA_property_update(C, &ptr, prop);
+  }
+
+  WM_event_add_notifier(C, NC_ID | NA_ADDED, dynamic_override);
+
+  return OPERATOR_FINISHED;
+}
+
+static void DYNAMIC_OVERRIDE_OT_new(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "New Dynamic Override";
+  ot->idname = "DYNAMIC_OVERRIDE_OT_new";
+  ot->description = "Add a new dynamic override";
+
+  /* API callbacks. */
+  ot->exec = new_dynamic_override_exec;
+  ot->poll = WM_operator_winactive;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Scene New Sequencer Operator
  * \{ */
 
@@ -481,7 +549,7 @@ static void SCENE_OT_new_sequencer_scene(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Scene Delete Operator
+/** \name Dynamic override delete Operator.
  * \{ */
 
 static bool scene_delete_poll(bContext *C)
@@ -574,6 +642,8 @@ void ED_operatortypes_scene()
   WM_operatortype_append(SCENE_OT_delete);
   WM_operatortype_append(SCENE_OT_new_sequencer);
   WM_operatortype_append(SCENE_OT_new_sequencer_scene);
+
+  WM_operatortype_append(DYNAMIC_OVERRIDE_OT_new);
 
   WM_operatortype_append(SCENE_OT_drop_scene_asset);
 }
