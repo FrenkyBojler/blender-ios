@@ -647,6 +647,11 @@ bool Scene::update_camera_resolution(Progress &progress, int width, int height, 
     integrator->set_frame(integrator->get_frame() + 1);
 
     integrator->device_update(device, &dscene, this);
+
+    // Reset motion for next frame
+    array<Transform> motion;
+    camera->set_motion(motion);
+    camera->set_fov_pre(camera->get_fov());
   }
 
   progress.set_status("Updating Device", "Writing constant memory");
