@@ -548,7 +548,8 @@ void Film::sync()
    * read write support for array textures. In this case the copy_ps_ is used to
    * copy the right color/value to the framebuffer. */
   use_compute_ = !inst_.is_viewport() ||
-                 GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_MAC, GPU_DRIVER_ANY);
+                 GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_MAC, GPU_DRIVER_ANY) ||
+                 GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY);
 
   eShaderType shader = use_compute_ ? FILM_COMP : FILM_FRAG;
 
