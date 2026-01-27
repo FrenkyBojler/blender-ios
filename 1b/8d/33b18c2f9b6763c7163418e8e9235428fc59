@@ -11,4 +11,4 @@ Referenced by issue #89774, Freestyle parameter_editor.process crashes Blender i
 Referenced by issue #89602, Blender working fine yesterday, today is crashing and freezing. First time user so might need things spelling out to me.
 Referenced by issue #89521, CUDA error with Optix denoising on shared CPU+GPU rendering (The error is appearing on 2.9 LTS, but not on Stable 3.0)
 Referenced by issue #88417, Faces flickering in edit mode
-Referenced by issue #153398, Make the "No threading with bpy" definition even more strict
+Referenced by issue #153398, Crash when using threads in python (the supported way)
