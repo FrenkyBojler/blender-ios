@@ -116,18 +116,6 @@ static bool id_search_allows_id(TemplateID *template_ui, const int flag, ID *id,
 }
 
 /**
- * Check if the given ID is a viewer image (Render Result or Viewer Node).
- */
-static bool image_is_viewer(const ID *id)
-{
-  if (GS(id->name) != ID_IM) {
-    return false;
-  }
-  const Image *ima = reinterpret_cast<const Image *>(id);
-  return ima->source == IMA_SRC_VIEWER;
-}
-
-/**
  * Get the appropriate icon for a viewer image.
  * Returns ICON_RESTRICT_RENDER_OFF for Render Result,
  * ICON_RESTRICT_VIEW_OFF for Viewer Node, or ICON_NONE otherwise.
@@ -204,15 +192,17 @@ static void id_search_cb(const bContext *C,
   /* Single pass: collect viewer images and build search list. */
   for (ID &id : *lb) {
     /* For images, separate viewer images to pin at top. */
-    if (is_image_search && image_is_viewer(&id)) {
+    if (is_image_search) {
       const Image *ima = reinterpret_cast<const Image *>(&id);
-      if (ima->type == IMA_TYPE_R_RESULT) {
-        render_result = &id;
+      if (ima->source == IMA_SRC_VIEWER) {
+        if (ima->type == IMA_TYPE_R_RESULT) {
+          render_result = &id;
+        }
+        else if (ima->type == IMA_TYPE_COMPOSITE) {
+          viewer_node = &id;
+        }
+        continue;
       }
-      else if (ima->type == IMA_TYPE_COMPOSITE) {
-        viewer_node = &id;
-      }
-      continue;
     }
 
     if (id_search_allows_id(template_ui, flag, &id, str)) {
