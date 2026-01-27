@@ -30,6 +30,8 @@
 
 #  include "WM_api.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 
 #  ifdef WITH_XR_OPENXR
@@ -38,7 +40,7 @@ static wmXrData *rna_XrSession_wm_xr_data_get(PointerRNA *ptr)
   /* Callers could also get XrSessionState pointer through ptr->data, but prefer if we just
    * consistently pass wmXrData pointers to the WM_xr_xxx() API. */
 
-  BLI_assert(ELEM(ptr->type, &RNA_XrSessionSettings, &RNA_XrSessionState));
+  BLI_assert(ELEM(ptr->type, RNA_XrSessionSettings, RNA_XrSessionState));
 
   wmWindowManager *wm = (wmWindowManager *)ptr->owner_id;
   BLI_assert(wm && (GS(wm->id.name) == ID_WM));
@@ -54,7 +56,7 @@ static wmXrData *rna_XrSession_wm_xr_data_get(PointerRNA *ptr)
 static XrComponentPath *rna_XrComponentPath_new(XrActionMapBinding *amb, const char *path_str)
 {
 #  ifdef WITH_XR_OPENXR
-  XrComponentPath *component_path = MEM_new_for_free<XrComponentPath>(__func__);
+  XrComponentPath *component_path = MEM_new<XrComponentPath>(__func__);
   STRNCPY(component_path->path, path_str);
   BLI_addtail(&amb->component_paths, component_path);
   return component_path;
@@ -243,7 +245,7 @@ static void rna_XrActionMapBinding_name_update(Main *bmain, Scene * /*scene*/, P
 static XrUserPath *rna_XrUserPath_new(XrActionMapItem *ami, const char *path_str)
 {
 #  ifdef WITH_XR_OPENXR
-  XrUserPath *user_path = MEM_new_for_free<XrUserPath>(__func__);
+  XrUserPath *user_path = MEM_new<XrUserPath>(__func__);
   STRNCPY(user_path->path, path_str);
   BLI_addtail(&ami->user_paths, user_path);
   return user_path;
@@ -1340,7 +1342,11 @@ static bool rna_XrEventData_bimanual_get(PointerRNA *ptr)
 
 /** \} */
 
+}  // namespace blender
+
 #else /* RNA_RUNTIME */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 
@@ -2565,5 +2571,7 @@ void RNA_def_xr(BlenderRNA *brna)
 
   RNA_define_animate_sdna(true);
 }
+
+}  // namespace blender
 
 #endif /* RNA_RUNTIME */

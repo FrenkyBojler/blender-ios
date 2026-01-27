@@ -34,6 +34,8 @@
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
  * \{ */
@@ -41,7 +43,7 @@
 static const char *screen_menu_context_string(const bContext *C, const SpaceLink *sl)
 {
   if (sl->spacetype == SPACE_NODE) {
-    const SpaceNode *snode = (const SpaceNode *)sl;
+    const SpaceNode *snode = reinterpret_cast<const SpaceNode *>(sl);
     return snode->tree_idname;
   }
   return CTX_data_mode_string(C);
@@ -65,7 +67,7 @@ bUserMenu **ED_screen_user_menus_find(const bContext *C, uint *r_len)
   const char *context_mode = CTX_data_mode_string(C);
   const char *context = screen_menu_context_string(C, sl);
   uint array_len = 3;
-  bUserMenu **um_array = MEM_calloc_arrayN<bUserMenu *>(array_len, __func__);
+  bUserMenu **um_array = MEM_new_array_zeroed<bUserMenu *>(array_len, __func__);
   um_array[0] = BKE_blender_user_menu_find(&U.user_menus, sl->spacetype, context);
   um_array[1] = (sl->spacetype != SPACE_TOPBAR) ?
                     BKE_blender_user_menu_find(&U.user_menus, SPACE_TOPBAR, context_mode) :
@@ -95,18 +97,17 @@ bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBaseT<bUserMenuItem
                                                          const wmOperatorType *ot,
                                                          IDProperty *prop,
                                                          const char *op_prop_enum,
-                                                         blender::wm::OpCallContext opcontext)
+                                                         wm::OpCallContext opcontext)
 {
   for (bUserMenuItem &umi : *lb) {
     if (umi.type == USER_MENU_TYPE_OPERATOR) {
-      bUserMenuItem_Op *umi_op = (bUserMenuItem_Op *)&umi;
+      bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(&umi);
       const bool ok_idprop = prop ? IDP_EqualsProperties(prop, umi_op->prop) : true;
       const bool ok_prop_enum = (umi_op->op_prop_enum[0] != '\0') ?
                                     STREQ(umi_op->op_prop_enum, op_prop_enum) :
                                     true;
       if (STREQ(ot->idname, umi_op->op_idname) &&
-          (opcontext == blender::wm::OpCallContext(umi_op->opcontext)) && ok_idprop &&
-          ok_prop_enum)
+          (opcontext == wm::OpCallContext(umi_op->opcontext)) && ok_idprop && ok_prop_enum)
       {
         return umi_op;
       }
@@ -120,7 +121,7 @@ bUserMenuItem_Menu *ED_screen_user_menu_item_find_menu(ListBaseT<bUserMenuItem> 
 {
   for (bUserMenuItem &umi : *lb) {
     if (umi.type == USER_MENU_TYPE_MENU) {
-      bUserMenuItem_Menu *umi_mt = (bUserMenuItem_Menu *)&umi;
+      bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(&umi);
       if (STREQ(mt->idname, umi_mt->mt_idname)) {
         return umi_mt;
       }
@@ -136,7 +137,7 @@ bUserMenuItem_Prop *ED_screen_user_menu_item_find_prop(ListBaseT<bUserMenuItem> 
 {
   for (bUserMenuItem &umi : *lb) {
     if (umi.type == USER_MENU_TYPE_PROP) {
-      bUserMenuItem_Prop *umi_pr = (bUserMenuItem_Prop *)&umi;
+      bUserMenuItem_Prop *umi_pr = reinterpret_cast<bUserMenuItem_Prop *>(&umi);
       if (STREQ(context_data_path, umi_pr->context_data_path) && STREQ(prop_id, umi_pr->prop_id) &&
           (prop_index == umi_pr->prop_index))
       {
@@ -152,10 +153,10 @@ void ED_screen_user_menu_item_add_operator(ListBaseT<bUserMenuItem> *lb,
                                            const wmOperatorType *ot,
                                            const IDProperty *prop,
                                            const char *op_prop_enum,
-                                           blender::wm::OpCallContext opcontext)
+                                           wm::OpCallContext opcontext)
 {
-  bUserMenuItem_Op *umi_op = (bUserMenuItem_Op *)BKE_blender_user_menu_item_add(
-      lb, USER_MENU_TYPE_OPERATOR);
+  bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(
+      BKE_blender_user_menu_item_add(lb, USER_MENU_TYPE_OPERATOR));
   umi_op->opcontext = int8_t(opcontext);
   if (!STREQ(ui_name, ot->name)) {
     STRNCPY_UTF8(umi_op->item.ui_name, ui_name);
@@ -169,8 +170,8 @@ void ED_screen_user_menu_item_add_menu(ListBaseT<bUserMenuItem> *lb,
                                        const char *ui_name,
                                        const MenuType *mt)
 {
-  bUserMenuItem_Menu *umi_mt = (bUserMenuItem_Menu *)BKE_blender_user_menu_item_add(
-      lb, USER_MENU_TYPE_MENU);
+  bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(
+      BKE_blender_user_menu_item_add(lb, USER_MENU_TYPE_MENU));
   if (!STREQ(ui_name, mt->label)) {
     STRNCPY_UTF8(umi_mt->item.ui_name, ui_name);
   }
@@ -183,8 +184,8 @@ void ED_screen_user_menu_item_add_prop(ListBaseT<bUserMenuItem> *lb,
                                        const char *prop_id,
                                        int prop_index)
 {
-  bUserMenuItem_Prop *umi_pr = (bUserMenuItem_Prop *)BKE_blender_user_menu_item_add(
-      lb, USER_MENU_TYPE_PROP);
+  bUserMenuItem_Prop *umi_pr = reinterpret_cast<bUserMenuItem_Prop *>(
+      BKE_blender_user_menu_item_add(lb, USER_MENU_TYPE_PROP));
   STRNCPY_UTF8(umi_pr->item.ui_name, ui_name);
   STRNCPY_UTF8(umi_pr->context_data_path, context_data_path);
   STRNCPY_UTF8(umi_pr->prop_id, prop_id);
@@ -205,7 +206,6 @@ void ED_screen_user_menu_item_remove(ListBaseT<bUserMenuItem> *lb, bUserMenuItem
 
 static void screen_user_menu_draw(const bContext *C, Menu *menu)
 {
-  using namespace blender;
   /* Enable when we have the ability to edit menus. */
   const bool show_missing = false;
   char label[512];
@@ -223,7 +223,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
                                                  std::make_optional<StringRefNull>(umi.ui_name) :
                                                  std::nullopt;
       if (umi.type == USER_MENU_TYPE_OPERATOR) {
-        bUserMenuItem_Op *umi_op = (bUserMenuItem_Op *)&umi;
+        bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(&umi);
         if (wmOperatorType *ot = WM_operatortype_find(umi_op->op_idname, false)) {
           if (ui_name) {
             ui_name = CTX_IFACE_(ot->translation_context, ui_name->c_str());
@@ -250,7 +250,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         }
       }
       else if (umi.type == USER_MENU_TYPE_MENU) {
-        bUserMenuItem_Menu *umi_mt = (bUserMenuItem_Menu *)&umi;
+        bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(&umi);
         MenuType *mt = WM_menutype_find(umi_mt->mt_idname, false);
         if (mt != nullptr) {
           menu->layout->menu(mt, ui_name, ICON_NONE);
@@ -264,7 +264,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         }
       }
       else if (umi.type == USER_MENU_TYPE_PROP) {
-        bUserMenuItem_Prop *umi_pr = (bUserMenuItem_Prop *)&umi;
+        bUserMenuItem_Prop *umi_pr = reinterpret_cast<bUserMenuItem_Prop *>(&umi);
 
         char *data_path = strchr(umi_pr->context_data_path, '.');
         if (data_path) {
@@ -272,7 +272,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         }
         PointerRNA ptr = CTX_data_pointer_get(C, umi_pr->context_data_path);
         if (ptr.type == nullptr) {
-          PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, (void *)C);
+          PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, RNA_Context, (void *)C);
           if (!RNA_path_resolve_full(&ctx_ptr, umi_pr->context_data_path, &ptr, nullptr, nullptr))
           {
             ptr.type = nullptr;
@@ -313,7 +313,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
     }
   }
   if (um_array) {
-    MEM_freeN(um_array);
+    MEM_delete(um_array);
   }
 
   if (is_empty) {
@@ -324,7 +324,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
 
 void ED_screen_user_menu_register()
 {
-  MenuType *mt = MEM_callocN<MenuType>(__func__);
+  MenuType *mt = MEM_new_zeroed<MenuType>(__func__);
   STRNCPY_UTF8(mt->idname, "SCREEN_MT_user_menu");
   STRNCPY_UTF8(mt->label, N_("Quick Favorites"));
   STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
@@ -333,3 +333,5 @@ void ED_screen_user_menu_register()
 }
 
 /** \} */
+
+}  // namespace blender

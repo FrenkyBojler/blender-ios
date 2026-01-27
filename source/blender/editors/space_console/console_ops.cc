@@ -40,6 +40,8 @@
 
 #include "console_intern.hh"
 
+namespace blender {
+
 #define TAB_LENGTH 4
 
 /* -------------------------------------------------------------------- */
@@ -103,7 +105,7 @@ static void console_select_update_primary_clipboard(SpaceConsole *sc)
     return;
   }
   WM_clipboard_text_set(buf, true);
-  MEM_freeN(buf);
+  MEM_delete(buf);
 }
 
 /* Delete selected characters in the edit line. */
@@ -150,7 +152,7 @@ void console_textview_update_rect(SpaceConsole *sc, ARegion *region)
 {
   View2D *v2d = &region->v2d;
 
-  blender::ui::view2d_totRect_set(v2d, region->winx - 1, console_textview_height(sc, region));
+  ui::view2d_totRect_set(v2d, region->winx - 1, console_textview_height(sc, region));
 }
 
 static void console_select_offset(SpaceConsole *sc, const int offset)
@@ -162,14 +164,14 @@ static void console_select_offset(SpaceConsole *sc, const int offset)
 void console_history_free(SpaceConsole *sc, ConsoleLine *cl)
 {
   BLI_remlink(&sc->history, cl);
-  MEM_freeN(cl->line);
-  MEM_freeN(cl);
+  MEM_delete(cl->line);
+  MEM_delete(cl);
 }
 void console_scrollback_free(SpaceConsole *sc, ConsoleLine *cl)
 {
   BLI_remlink(&sc->scrollback, cl);
-  MEM_freeN(cl->line);
-  MEM_freeN(cl);
+  MEM_delete(cl->line);
+  MEM_delete(cl);
 }
 
 static void console_scrollback_limit(SpaceConsole *sc)
@@ -226,7 +228,7 @@ static void console_history_debug(const bContext *C)
 
 static ConsoleLine *console_lb_add__internal(ListBaseT<ConsoleLine> *lb, ConsoleLine *from)
 {
-  ConsoleLine *ci = MEM_new_for_free<ConsoleLine>("ConsoleLine Add");
+  ConsoleLine *ci = MEM_new<ConsoleLine>("ConsoleLine Add");
 
   if (from) {
     BLI_assert(strlen(from->line) == from->len);
@@ -236,7 +238,7 @@ static ConsoleLine *console_lb_add__internal(ListBaseT<ConsoleLine> *lb, Console
     ci->type = from->type;
   }
   else {
-    ci->line = MEM_calloc_arrayN<char>(64, "console-in-line");
+    ci->line = MEM_new_array_zeroed<char>(64, "console-in-line");
     ci->len_alloc = 64;
     ci->len = 0;
   }
@@ -261,7 +263,7 @@ static ConsoleLine *console_scrollback_add(const bContext *C, ConsoleLine *from)
 
 static ConsoleLine *console_lb_add_str__internal(ListBaseT<ConsoleLine> *lb, char *str, bool own)
 {
-  ConsoleLine *ci = MEM_new_for_free<ConsoleLine>("ConsoleLine Add");
+  ConsoleLine *ci = MEM_new<ConsoleLine>("ConsoleLine Add");
   const int str_len = strlen(str);
   if (own) {
     ci->line = str;
@@ -307,7 +309,7 @@ static void console_line_verify_length(ConsoleLine *ci, int len)
 #else
     int new_len = (len + 1) * 2;
 #endif
-    ci->line = static_cast<char *>(MEM_recallocN_id(ci->line, new_len, "console line"));
+    ci->line = static_cast<char *>(MEM_realloc_zeroed_id(ci->line, new_len, "console line"));
     ci->len_alloc = new_len;
   }
 }
@@ -525,7 +527,7 @@ static wmOperatorStatus console_insert_exec(bContext *C, wmOperator *op)
     console_line_insert(ci, str, len);
   }
 
-  MEM_freeN(str);
+  MEM_delete(str);
 
   if (len == 0) {
     return OPERATOR_CANCELLED;
@@ -604,11 +606,11 @@ static wmOperatorStatus console_indent_or_autocomplete_exec(bContext *C, wmOpera
 
   if (text_before_cursor) {
     WM_operator_name_call(
-        C, "CONSOLE_OT_autocomplete", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+        C, "CONSOLE_OT_autocomplete", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
   }
   else {
     WM_operator_name_call(
-        C, "CONSOLE_OT_indent", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
+        C, "CONSOLE_OT_indent", wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -1051,7 +1053,7 @@ static wmOperatorStatus console_history_append_exec(bContext *C, wmOperator *op)
     }
     /* Remove blank command. */
     if (STREQ(str, ci->line)) {
-      MEM_freeN(str);
+      MEM_delete(str);
       return OPERATOR_FINISHED;
     }
   }
@@ -1158,7 +1160,7 @@ static wmOperatorStatus console_copy_exec(bContext *C, wmOperator *op)
     ED_area_tag_redraw(CTX_wm_area(C));
   }
 
-  MEM_freeN(buf);
+  MEM_delete(buf);
   return OPERATOR_FINISHED;
 }
 
@@ -1203,17 +1205,17 @@ static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   if (*buf_str == '\0') {
-    MEM_freeN(buf_str);
+    MEM_delete(buf_str);
     return OPERATOR_CANCELLED;
   }
   const char *buf_step = buf_str;
   do {
     const char *buf = buf_step;
-    buf_step = (char *)BLI_strchr_or_end(buf, '\n');
+    buf_step = const_cast<char *>(BLI_strchr_or_end(buf, '\n'));
     const int buf_len = buf_step - buf;
     if (buf != buf_str) {
       WM_operator_name_call(
-          C, "CONSOLE_OT_execute", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
+          C, "CONSOLE_OT_execute", wm::OpCallContext::ExecDefault, nullptr, nullptr);
       ci = console_history_verify(C);
     }
     console_delete_editable_selection(sc);
@@ -1221,7 +1223,7 @@ static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
     console_select_offset(sc, buf_len);
   } while (*buf_step ? ((void)buf_step++, true) : false);
 
-  MEM_freeN(buf_str);
+  MEM_delete(buf_str);
 
   console_textview_update_rect(sc, region);
   ED_area_tag_redraw(area);
@@ -1324,7 +1326,7 @@ static void console_cursor_set_exit(bContext *C, wmOperator *op)
 
   console_select_update_primary_clipboard(sc);
 
-  MEM_freeN(scu);
+  MEM_delete(scu);
 }
 
 static wmOperatorStatus console_select_set_invoke(bContext *C,
@@ -1346,7 +1348,7 @@ static wmOperatorStatus console_select_set_invoke(bContext *C,
     }
   }
 
-  op->customdata = MEM_callocN<SetConsoleCursor>("SetConsoleCursor");
+  op->customdata = MEM_new_zeroed<SetConsoleCursor>("SetConsoleCursor");
   scu = static_cast<SetConsoleCursor *>(op->customdata);
 
   scu->sel_old[0] = sc->sel_start;
@@ -1505,3 +1507,5 @@ void CONSOLE_OT_select_word(wmOperatorType *ot)
   ot->invoke = console_selectword_invoke;
   ot->poll = ED_operator_console_active;
 }
+
+}  // namespace blender

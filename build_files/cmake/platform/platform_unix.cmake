@@ -28,15 +28,15 @@ else()
       set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
     elseif(EXISTS "${LIBDIR_GLIBC228_ABI}/.git")
       set(LIBDIR ${LIBDIR_GLIBC228_ABI})
-      if(WITH_MEM_JEMALLOC)
-        # jemalloc provides malloc hooks.
+      if(WITH_TBB_MALLOC_PROXY)
+        # TBB MALLOC proxy provides malloc hooks.
         set(WITH_LIBC_MALLOC_HOOK_WORKAROUND FALSE)
       else()
         set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
       endif()
     endif()
 
-    # Avoid namespace pollustion.
+    # Avoid namespace pollution.
     unset(LIBDIR_NATIVE_ABI)
     unset(LIBDIR_GLIBC228_ABI)
   endif()
@@ -100,6 +100,7 @@ if(DEFINED LIBDIR)
   set(OPENEXR_ROOT_DIR ${LIBDIR}/openexr)
   set(CLANG_ROOT_DIR ${LIBDIR}/llvm)
   set(MaterialX_DIR ${LIBDIR}/materialx/lib/cmake/MaterialX)
+  set(fmt_ROOT ${LIBDIR}/fmt)
 endif()
 
 # Wrapper to prefer static libraries
@@ -126,6 +127,12 @@ find_package_wrapper(PNG REQUIRED)
 find_package_wrapper(ZLIB REQUIRED)
 find_package_wrapper(Zstd REQUIRED)
 find_package_wrapper(Epoxy REQUIRED)
+find_package_wrapper(fmt REQUIRED)
+if(DEFINED fmt_DIR)
+  # Hide the fmt_DIR from the standard user settings to be consistent with our
+  # other "here is the library" settings.
+  mark_as_advanced(fmt_DIR)
+endif()
 
 # XXX Linking errors with debian static tiff :/
 # find_package_wrapper(TIFF REQUIRED)
@@ -257,6 +264,7 @@ if(WITH_IMAGE_OPENEXR)
 endif()
 add_bundled_libraries(openexr/lib)
 add_bundled_libraries(imath/lib)
+add_bundled_libraries(openjph/lib)
 
 if(WITH_IMAGE_OPENJPEG)
   find_package_wrapper(OpenJPEG)
@@ -329,11 +337,6 @@ endif()
 if(WITH_FFTW3)
   find_package_wrapper(Fftw3)
   set_and_warn_library_found("fftw3" FFTW3_FOUND WITH_FFTW3)
-endif()
-
-if(WITH_MEM_JEMALLOC)
-  find_package_wrapper(JeMalloc)
-  set_and_warn_library_found("JeMalloc" JEMALLOC_FOUND WITH_MEM_JEMALLOC)
 endif()
 
 if(WITH_INPUT_NDOF)
@@ -544,13 +547,25 @@ if(WITH_OPENSUBDIV)
 endif()
 add_bundled_libraries(opensubdiv/lib)
 
-if(WITH_TBB)
-  find_package_wrapper(TBB 2021.13.0)
+if(WITH_TBB OR WITH_TBB_MALLOC_PROXY)
+  # find_package_wrapper(TBB 2021.13.0)
+  find_package_wrapper(TBB)
   if(TBB_FOUND)
-    get_target_property(TBB_LIBRARIES TBB::tbb LOCATION)
-    get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+    if(WITH_TBB)
+      get_target_property(TBB_LIBRARIES TBB::tbb LOCATION)
+      get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+    endif()
+    if(WITH_TBB_MALLOC_PROXY)
+      get_target_property(TBB_MALLOC_PROXY_LIBRARIES TBB::tbbmalloc_proxy LOCATION)
+      get_target_property(TBB_MALLOC_LIBRARIES TBB::tbbmalloc LOCATION)
+    endif()
   endif()
-  set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
+  if(WITH_TBB)
+    set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
+  endif()
+  if(WITH_TBB_MALLOC_PROXY)
+    set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB_MALLOC_PROXY)
+  endif()
   mark_as_advanced(TBB_DIR)
 endif()
 add_bundled_libraries(tbb/lib)
@@ -878,7 +893,7 @@ endif()
 set(_IS_LINKER_DEFAULT ON)
 
 # GNU Compiler
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   # ffp-contract=off:
   # Automatically turned on when building with "-march=native". This is
   # explicitly turned off here as it will make floating point math give a bit
@@ -1045,6 +1060,13 @@ unset(_IS_LINKER_DEFAULT)
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_unix.map)
 set(PLATFORM_LINKFLAGS
   "${PLATFORM_LINKFLAGS} -Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'"
+)
+
+# We do not ensure transitive dependencies of dynamic libraries are available at
+# link time, this allows that. The better solution would be to switch to cmake
+# configs but more work is needed for that.
+set(PLATFORM_LINKFLAGS
+  "${PLATFORM_LINKFLAGS} -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs"
 )
 
 # Don't use position independent executable for portable install since file

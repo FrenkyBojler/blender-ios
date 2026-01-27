@@ -32,7 +32,8 @@
 #include "runtime_library.hh"
 #include "utils.hh"
 
-using namespace blender;
+namespace blender {
+
 using namespace blender::asset_system;
 
 bool AssetLibrary::save_catalogs_when_file_is_saved = true;
@@ -224,7 +225,7 @@ void AS_asset_library_essential_import_method_update()
   }
 }
 
-namespace blender::asset_system {
+namespace asset_system {
 
 AssetLibrary::AssetLibrary(
     eAssetLibraryType library_type,
@@ -441,6 +442,9 @@ Vector<AssetLibraryReference> all_valid_asset_library_refs()
   }
 
   for (const auto [i, asset_library] : U.asset_libraries.enumerate()) {
+    if (asset_library.flag & ASSET_LIBRARY_DISABLED) {
+      continue;
+    }
     if (!BLI_is_dir(asset_library.dirpath)) {
       continue;
     }
@@ -479,4 +483,6 @@ void all_library_reload_catalogs_if_dirty()
   service->reload_all_library_catalogs_if_dirty();
 }
 
-}  // namespace blender::asset_system
+}  // namespace asset_system
+
+}  // namespace blender

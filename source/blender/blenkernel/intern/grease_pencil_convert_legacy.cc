@@ -449,7 +449,7 @@ class AnimDataConvertor {
                                  bAction *owner_action,
                                  FCurve &fcurve,
                                  const std::string &rna_path_dst) {
-      MEM_freeN(fcurve.rna_path);
+      MEM_delete(fcurve.rna_path);
       fcurve.rna_path = BLI_strdupn(rna_path_dst.c_str(), rna_path_dst.size());
       if (fcurve_convertor && fcurve_convertor->convert_cb) {
         fcurve_convertor->convert_cb(fcurve);
@@ -526,19 +526,6 @@ class AnimDataConvertor {
   {
     if (!this->is_valid()) {
       return;
-    }
-
-    /* Ensure existing actions moved to a different ID type keep a 'valid' `idroot` value. Not
-     * essential, but 'nice to have'. */
-    if (GS(this->id_src.name) != GS(this->id_dst.name)) {
-      if (!this->animdata_dst) {
-        this->animdata_dst = BKE_animdata_ensure_id(&this->id_dst);
-      }
-      auto actions_idroot_ensure = [&](bAction &action) -> bool {
-        BKE_animdata_action_ensure_idroot(&this->id_dst, &action);
-        return true;
-      };
-      this->animdata_action_foreach(*this->animdata_dst, actions_idroot_ensure);
     }
 
     if (&id_src == &id_dst) {
@@ -668,7 +655,7 @@ static void find_used_vertex_groups(const bGPDframe &gpf,
     }
     r_indices[old_group_i] = new_group_i++;
 
-    bDeformGroup *def_group_copy = static_cast<bDeformGroup *>(MEM_dupallocN(&def_group));
+    bDeformGroup *def_group_copy = MEM_dupalloc(&def_group);
     BLI_addtail(&r_vertex_group_names, def_group_copy);
   }
 }
@@ -680,8 +667,6 @@ static float3x2 get_legacy_stroke_to_texture_matrix(const float2 uv_translation,
                                                     const float uv_rotation,
                                                     const float2 uv_scale)
 {
-  using namespace blender;
-
   /* Bounding box data. */
   const float2 minv = float2(-1.0f, -1.0f);
   const float2 maxv = float2(1.0f, 1.0f);
@@ -718,9 +703,8 @@ static float3x2 get_legacy_stroke_to_texture_matrix(const float2 uv_translation,
 /*
  * This gets the legacy layer-space to stroke-space matrix.
  */
-static blender::float4x2 get_legacy_layer_to_stroke_matrix(bGPDstroke *gps)
+static float4x2 get_legacy_layer_to_stroke_matrix(bGPDstroke *gps)
 {
-  using namespace blender;
   using namespace blender::math;
 
   const bGPDspoint *points = gps->points;
@@ -757,7 +741,7 @@ static blender::float4x2 get_legacy_layer_to_stroke_matrix(bGPDstroke *gps)
   return mat;
 }
 
-static blender::float4x2 get_legacy_texture_matrix(bGPDstroke *gps)
+static float4x2 get_legacy_texture_matrix(bGPDstroke *gps)
 {
   const float3x2 texture_matrix = get_legacy_stroke_to_texture_matrix(
       float2(gps->uv_translation), gps->uv_rotation, float2(gps->uv_scale));
@@ -851,7 +835,7 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(
   /* Copy vertex weights and map the vertex group indices. */
   auto copy_dvert = [&](const MDeformVert &src_dvert, MDeformVert &dst_dvert) {
     dst_dvert = src_dvert;
-    dst_dvert.dw = static_cast<MDeformWeight *>(MEM_dupallocN(src_dvert.dw));
+    dst_dvert.dw = MEM_dupalloc(src_dvert.dw);
     const MutableSpan<MDeformWeight> vertex_weights = {dst_dvert.dw, dst_dvert.totweight};
     for (MDeformWeight &weight : vertex_weights) {
       if (weight.def_nr >= num_vertex_groups) {
@@ -1181,14 +1165,13 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
 constexpr const char *OFFSET_RADIUS_NODETREE_NAME = "Offset Radius GPv3 Conversion";
 static bNodeTree *offset_radius_node_tree_add(ConversionData &conversion_data, Library *library)
 {
-  using namespace blender;
   /* NOTE: DO NOT translate this ID name, it is used to find a potentially already existing
    * node-tree. */
   bNodeTree *group = bke::node_tree_add_in_lib(
       &conversion_data.bmain, library, OFFSET_RADIUS_NODETREE_NAME, "GeometryNodeTree");
 
   if (!group->geometry_node_asset_traits) {
-    group->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
+    group->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(__func__);
   }
   group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 
@@ -1343,7 +1326,7 @@ static void fcurve_convert_thickness_cb(FCurve &fcurve)
     }
   }
   fcurve.flag &= ~FCURVE_INT_VALUES;
-  BKE_fcurve_handles_recalc(&fcurve);
+  BKE_fcurve_handles_recalc(fcurve);
 }
 
 static void legacy_object_thickness_modifier_thickness_anim(ConversionData &conversion_data,
@@ -1765,8 +1748,8 @@ static void legacy_object_modifier_dash(ConversionData &conversion_data,
   md_dash.dash_offset = legacy_md_dash.dash_offset;
   md_dash.segment_active_index = legacy_md_dash.segment_active_index;
   md_dash.segments_num = legacy_md_dash.segments_len;
-  MEM_SAFE_FREE(md_dash.segments_array);
-  md_dash.segments_array = MEM_new_array_for_free<GreasePencilDashModifierSegment>(
+  MEM_SAFE_DELETE(md_dash.segments_array);
+  md_dash.segments_array = MEM_new_array<GreasePencilDashModifierSegment>(
       legacy_md_dash.segments_len, __func__);
   for (const int i : IndexRange(md_dash.segments_num)) {
     GreasePencilDashModifierSegment &dst_segment = md_dash.segments_array[i];
@@ -2477,8 +2460,8 @@ static void legacy_object_modifier_time(ConversionData &conversion_data,
   md_time.efra = legacy_md_time.efra;
   md_time.segment_active_index = legacy_md_time.segment_active_index;
   md_time.segments_num = legacy_md_time.segments_len;
-  MEM_SAFE_FREE(md_time.segments_array);
-  md_time.segments_array = MEM_new_array_for_free<GreasePencilTimeModifierSegment>(
+  MEM_SAFE_DELETE(md_time.segments_array);
+  md_time.segments_array = MEM_new_array<GreasePencilTimeModifierSegment>(
       legacy_md_time.segments_len, __func__);
   for (const int i : IndexRange(md_time.segments_num)) {
     GreasePencilTimeModifierSegment &dst_segment = md_time.segments_array[i];
@@ -2553,7 +2536,7 @@ static void legacy_object_modifier_tint(ConversionData &conversion_data,
   copy_v3_v3(md_tint.color, legacy_md_tint.rgb);
   md_tint.object = legacy_md_tint.object;
   legacy_md_tint.object = nullptr;
-  MEM_SAFE_FREE(md_tint.color_ramp);
+  MEM_SAFE_DELETE(md_tint.color_ramp);
   md_tint.color_ramp = legacy_md_tint.colorband;
   legacy_md_tint.colorband = nullptr;
 
@@ -2932,7 +2915,7 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
     if (object.type != OB_GPENCIL_LEGACY) {
       continue;
     }
-    bGPdata *legacy_gpd = static_cast<bGPdata *>(object.data);
+    bGPdata *legacy_gpd = id_cast<bGPdata *>(object.data);
     if (!legacy_gpd) {
       continue;
     }
@@ -3059,9 +3042,9 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
 
 static void legacy_gpencil_object(ConversionData &conversion_data, Object &object)
 {
-  BLI_assert((GS(static_cast<ID *>(object.data)->name) == ID_GD_LEGACY));
+  BLI_assert((GS(object.data->name) == ID_GD_LEGACY));
 
-  bGPdata *gpd = static_cast<bGPdata *>(object.data);
+  bGPdata *gpd = id_cast<bGPdata *>(object.data);
 
   GreasePencil *new_grease_pencil = conversion_data.legacy_to_greasepencil_data.lookup_default(
       gpd, nullptr);
@@ -3073,7 +3056,7 @@ static void legacy_gpencil_object(ConversionData &conversion_data, Object &objec
     id_us_min(&new_grease_pencil->id);
   }
 
-  object.data = new_grease_pencil;
+  object.data = id_cast<ID *>(new_grease_pencil);
   object.type = OB_GREASE_PENCIL;
 
   /* NOTE: Could also use #BKE_id_free_us, to also free the legacy GP if not used anymore? */

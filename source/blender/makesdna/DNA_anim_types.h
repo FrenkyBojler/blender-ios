@@ -15,6 +15,17 @@
 
 #include <type_traits>
 
+namespace blender {
+
+#ifdef __cplusplus
+namespace bke {
+struct NlaStripRuntime;
+}  // namespace bke
+using NlaStripRuntime = bke::NlaStripRuntime;
+#else
+typedef struct NlaStripRuntime NlaStripRuntime;
+#endif
+
 /* ************************************************ */
 /* F-Curve DataTypes */
 
@@ -412,7 +423,7 @@ struct NlaStrip {
    * Action that is referenced by this strip (strip is 'user' of the action).
    *
    * \note Most code should not write to this field directly, but use functions from
-   * `blender::animrig::nla` instead, see ANIM_nla.hh.
+   * `animrig::nla` instead, see ANIM_nla.hh.
    */
   bAction *act = nullptr;
 
@@ -422,7 +433,7 @@ struct NlaStrip {
    * An NLA strip is limited to using a single slot in the Action.
    *
    * \note Most code should not write to this field directly, but use functions from
-   * `blender::animrig::nla` instead, see ANIM_nla.hh.
+   * `animrig::nla` instead, see ANIM_nla.hh.
    */
   int32_t action_slot_handle = 0;
   /**
@@ -432,7 +443,7 @@ struct NlaStrip {
    * \see #ActionSlot::name
    *
    * \note Most code should not write to this field directly, but use functions from
-   * `blender::animrig::nla` instead, see ANIM_nla.hh.
+   * `animrig::nla` instead, see ANIM_nla.hh.
    */
   char last_slot_identifier[/*MAX_ID_NAME*/ 258] = "";
   char _pad0[2] = {};
@@ -472,9 +483,6 @@ struct NlaStrip {
   /** Type of NLA strip. */
   short type = 0;
 
-  /** Handle for speaker objects. */
-  void *speaker_handle = nullptr;
-
   /** Settings. */
   int flag = 0;
   char _pad2[4] = {};
@@ -482,7 +490,11 @@ struct NlaStrip {
   /* Pointer to an original NLA strip. */
   struct NlaStrip *orig_strip = nullptr;
 
-  void *_pad3 = nullptr;
+  NlaStripRuntime *runtime = nullptr;
+
+#ifdef __cplusplus
+  NlaStripRuntime &runtime_get();
+#endif
 };
 
 #ifdef __cplusplus
@@ -645,10 +657,7 @@ struct AnimData {
   /**
    * Active action - acts as the 'tweaking track' for the NLA.
    *
-   * Legacy Actions: Either use BKE_animdata_set_action() to set this, or call
-   * #BKE_animdata_action_ensure_idroot() after setting.
-   *
-   * Layered Actions: never set this directly, use one of the assignment
+   * Never set this directly, use one of the assignment
    * functions in ANIM_action.hh instead.
    */
   bAction *action = nullptr;
@@ -659,7 +668,7 @@ struct AnimData {
    *
    * Do not set this directly, use one of the assignment functions in ANIM_action.hh instead.
    *
-   * This can be set to `blender::animrig::Slot::unassigned` when no slot is assigned. Note that
+   * This can be set to `animrig::Slot::unassigned` when no slot is assigned. Note that
    * this field being set to any other value does NOT guarantee that there is a slot with that
    * handle, as it might have been deleted from the Action.
    */
@@ -740,3 +749,5 @@ struct IdAdtTemplate {
   ID id;
   AnimData *adt = nullptr;
 };
+
+}  // namespace blender

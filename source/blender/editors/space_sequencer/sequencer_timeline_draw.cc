@@ -191,7 +191,7 @@ static void strip_draw_context_set_retiming_overlay_visibility(const TimelineDra
   strip_ctx.can_draw_retiming_overlay = (strip_ctx.top - strip_ctx.bottom) / ctx.pixely >=
                                         threshold.y;
   strip_ctx.can_draw_retiming_overlay &= strip_ctx.strip_length / ctx.pixelx >= threshold.x;
-  strip_ctx.can_draw_retiming_overlay &= retiming_keys_can_be_displayed(ctx.sseq);
+  strip_ctx.can_draw_retiming_overlay &= retiming_overlay_enabled(ctx.sseq);
 }
 
 static float strip_header_size_get(const TimelineDrawContext &ctx)
@@ -280,7 +280,7 @@ static void strip_draw_context_curve_get(const TimelineDrawContext &ctx,
   if (showing_curve_overlay || showing_waveform) {
     const char *prop_name = strip_ctx.strip->type == STRIP_TYPE_SOUND ? "volume" : "blend_alpha";
     strip_ctx.curve = id_data_find_fcurve(
-        &ctx.scene->id, strip_ctx.strip, &RNA_Strip, prop_name, 0, nullptr);
+        &ctx.scene->id, strip_ctx.strip, RNA_Strip, prop_name, 0, nullptr);
     if (strip_ctx.curve && BKE_fcurve_is_empty(strip_ctx.curve)) {
       strip_ctx.curve = nullptr;
     }
@@ -427,7 +427,7 @@ static void color3ubv_from_seq(const Scene *curscene,
       break;
   }
 
-  blender::ui::theme::theme_restore(&theme_state);
+  ui::theme::theme_restore(&theme_state);
 }
 
 static void waveform_job_start_if_needed(const bContext *C, const Strip *strip)
@@ -664,7 +664,7 @@ static void drawmeta_contents(const TimelineDrawContext &ctx,
       float y_chan = (strip.channel - chan_min) / float(chan_range) * draw_range;
 
       if (strip.type == STRIP_TYPE_COLOR) {
-        SolidColorVars *colvars = (SolidColorVars *)strip.effectdata;
+        SolidColorVars *colvars = static_cast<SolidColorVars *>(strip.effectdata);
         rgb_float_to_uchar(col, colvars->col);
       }
       else {
@@ -1279,7 +1279,7 @@ static void draw_strips_background(const TimelineDrawContext &ctx,
     /* Color band state. */
     if (show_overlay && (strip.strip->type == STRIP_TYPE_COLOR)) {
       data.flags |= GPU_SEQ_FLAG_COLOR_BAND;
-      SolidColorVars *colvars = (SolidColorVars *)strip.strip->effectdata;
+      SolidColorVars *colvars = static_cast<SolidColorVars *>(strip.strip->effectdata);
       rgb_float_to_uchar(col, colvars->col);
       data.col_color_band = color_pack(col);
     }
@@ -1295,7 +1295,7 @@ static void draw_strips_background(const TimelineDrawContext &ctx,
 
       /* Left side. */
       if (input1->type == STRIP_TYPE_COLOR) {
-        rgb_float_to_uchar(col, ((const SolidColorVars *)input1->effectdata)->col);
+        rgb_float_to_uchar(col, (static_cast<const SolidColorVars *>(input1->effectdata))->col);
       }
       else {
         color3ubv_from_seq(scene, input1, strip.show_strip_color_tag, strip.is_muted, col);
@@ -1304,7 +1304,7 @@ static void draw_strips_background(const TimelineDrawContext &ctx,
 
       /* Right side. */
       if (input2->type == STRIP_TYPE_COLOR) {
-        rgb_float_to_uchar(col, ((const SolidColorVars *)input2->effectdata)->col);
+        rgb_float_to_uchar(col, (static_cast<const SolidColorVars *>(input2->effectdata))->col);
       }
       else {
         color3ubv_from_seq(scene, input2, strip.show_strip_color_tag, strip.is_muted, col);
@@ -1465,14 +1465,14 @@ static void draw_strips_foreground(const TimelineDrawContext &ctx,
   GPU_matrix_pop_projection();
 }
 
-static void draw_retiming_continuity_ranges(const TimelineDrawContext &ctx,
-                                            const Vector<StripDrawContext> &strips)
+static void draw_retiming_segments(const TimelineDrawContext &ctx,
+                                   const Vector<StripDrawContext> &strips)
 {
   GPU_matrix_push_projection();
   wmOrtho2_region_pixelspace(ctx.region);
 
   for (const StripDrawContext &strip_ctx : strips) {
-    sequencer_retiming_draw_continuity(ctx, strip_ctx);
+    sequencer_retiming_draw_segments(ctx, strip_ctx);
   }
   ctx.quads->draw();
 
@@ -1512,12 +1512,11 @@ static void draw_seq_strips(const TimelineDrawContext &ctx,
     draw_handle_transform_text(ctx, strip_ctx, STRIP_HANDLE_LEFT);
     draw_handle_transform_text(ctx, strip_ctx, STRIP_HANDLE_RIGHT);
     draw_seq_text_overlay(ctx, strip_ctx);
-    sequencer_retiming_speed_draw(ctx, strip_ctx);
+    sequencer_retiming_speed_labels_draw(ctx, strip_ctx);
   }
   ctx.quads->draw();
 
-  /* Draw retiming continuity ranges. */
-  draw_retiming_continuity_ranges(ctx, strips);
+  draw_retiming_segments(ctx, strips);
   sequencer_retiming_keys_draw(ctx, strips);
 
   draw_strips_foreground(ctx, strips_batch, strips);

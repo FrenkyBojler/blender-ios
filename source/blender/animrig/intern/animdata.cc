@@ -88,7 +88,7 @@ Vector<ID *> find_related_ids(Main &bmain, ID &id)
         if (!ob->data) {
           break;
         }
-        ID *data = static_cast<ID *>(ob->data);
+        ID *data = ob->data;
         if (ID_REAL_USERS(data) == 1) {
           related_ids.append_non_duplicates(data);
         }
@@ -344,6 +344,23 @@ const FCurve *fcurve_find_by_rna_path(const AnimData &adt,
   }
 
   return nullptr;
+}
+
+Vector<FCurve *> fcurves_for_assigned_action(AnimData *adt)
+{
+  if (!adt || !adt->action) {
+    return {};
+  }
+  return fcurves_for_action_slot(adt->action->wrap(), adt->slot_handle);
+}
+
+Vector<const FCurve *> fcurves_for_assigned_action(const AnimData *adt)
+{
+  if (!adt || !adt->action) {
+    return {};
+  }
+  return fcurves_for_action_slot(const_cast<const bAction *>(adt->action)->wrap(),
+                                 adt->slot_handle);
 }
 
 }  // namespace blender::animrig

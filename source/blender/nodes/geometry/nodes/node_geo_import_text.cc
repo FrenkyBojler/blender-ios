@@ -57,7 +57,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           cached_value->warnings.append({NodeWarningType::Error, message});
           return cached_value;
         }
-        BLI_SCOPED_DEFER([&]() { MEM_freeN(buffer); });
+        BLI_SCOPED_DEFER([&]() { MEM_delete_void(buffer); });
         if (BLI_str_utf8_invalid_byte(static_cast<const char *>(buffer), buffer_len) != -1) {
           cached_value->warnings.append(
               {NodeWarningType::Error, TIP_("File contains invalid UTF-8 characters")});
@@ -76,7 +76,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeImportText");
   ntype.ui_name = "Import Text";
@@ -85,7 +85,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

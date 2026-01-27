@@ -31,14 +31,17 @@
 #include "vk_state_manager.hh"
 #include "vk_storage_buffer.hh"
 #include "vk_texture.hh"
+#include "vk_texture_pool.hh"
 #include "vk_uniform_buffer.hh"
 #include "vk_vertex_buffer.hh"
 
 #include "vk_backend.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 static const char *vk_extension_get(int index)
 {
@@ -497,6 +500,16 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.vertex_input_dynamic_state = false;
   }
 
+  /* Disable vertex input dynamic state for Qualcomm devices (#153414).
+   *
+   * TODO: We should re-validate vertex input dynamic state as there are multiple vendors with
+   * similar issues. It might be an oversight. Will wait for feedback from the driver developers
+   * and perfrom some out of bounds error checks.
+   */
+  if (GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY)) {
+    extensions.vertex_input_dynamic_state = false;
+  }
+
   /* Only enable by default dynamic rendering local read on Qualcomm devices. NVIDIA, AMD and Intel
    * performance is better when disabled (20%). On Qualcomm devices the improvement can be
    * substantial (16% on shader_balls.blend).
@@ -589,7 +602,7 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
 {
   if (ghost_window) {
     BLI_assert(ghost_context == nullptr);
-    ghost_context = GHOST_GetDrawingContext((GHOST_WindowHandle)ghost_window);
+    ghost_context = GHOST_GetDrawingContext(static_cast<GHOST_WindowHandle>(ghost_window));
   }
 
   BLI_assert(ghost_context != nullptr);
@@ -597,12 +610,12 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
     device.init(ghost_context);
     device.extensions_get().log();
     device.workarounds_get().log();
-    init_device_list((GHOST_ContextHandle)ghost_context);
+    init_device_list(static_cast<GHOST_ContextHandle>(ghost_context));
   }
 
   VKContext *context = new VKContext(ghost_window, ghost_context);
   device.context_register(*context);
-  GHOST_SetVulkanSwapBuffersCallbacks((GHOST_ContextHandle)ghost_context,
+  GHOST_SetVulkanSwapBuffersCallbacks(static_cast<GHOST_ContextHandle>(ghost_context),
                                       VKContext::swap_buffer_draw_callback,
                                       VKContext::swap_buffer_acquired_callback,
                                       VKContext::openxr_acquire_framebuffer_image_callback,
@@ -649,6 +662,16 @@ Shader *VKBackend::shader_alloc(const char *name)
 Texture *VKBackend::texture_alloc(const char *name)
 {
   return new VKTexture(name);
+}
+
+TexturePool *VKBackend::texturepool_alloc()
+{
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    CLOG_INFO(&LOG, "Using texture pool \"TexturePoolImpl\".");
+    return new TexturePoolImpl();
+  }
+  CLOG_INFO(&LOG, "Using texture pool \"VKTexturePool\".");
+  return new VKTexturePool();
 }
 
 UniformBuf *VKBackend::uniformbuf_alloc(size_t size, const char *name)
@@ -757,4 +780,5 @@ void VKBackend::capabilities_init(VKDevice &device)
   detect_workarounds(device);
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

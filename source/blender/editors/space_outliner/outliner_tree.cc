@@ -168,7 +168,7 @@ void outliner_free_tree_element(TreeElement *element, ListBaseT<TreeElement> *pa
   outliner_free_tree(&element->subtree);
 
   if (element->flag & TE_FREE_NAME) {
-    MEM_freeN(element->name);
+    MEM_delete(element->name);
   }
   element->abstract_element = nullptr;
   MEM_delete(element);
@@ -254,7 +254,7 @@ TreeElement *AbstractTreeDisplay::add_element(ListBaseT<TreeElement> *lb,
   ID *persistent_dataptr = owner_id ? owner_id : static_cast<ID *>(create_data);
 
   if ((owner_id == nullptr) && ELEM(type, TSE_RNA_STRUCT, TSE_RNA_PROPERTY, TSE_RNA_ARRAY_ELEM)) {
-    persistent_dataptr = static_cast<ID *>(((PointerRNA *)create_data)->data);
+    persistent_dataptr = static_cast<ID *>((static_cast<PointerRNA *>(create_data))->data);
   }
 
   /* exceptions */
@@ -571,7 +571,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
     int totelem = BLI_listbase_count(lb);
 
     if (totelem > 1) {
-      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
+      tTreeSort *tear = MEM_new_array_uninitialized<tTreeSort>(totelem, "tree sort array");
       tTreeSort *tp = tear;
       int skip = 0;
 
@@ -615,7 +615,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
         BLI_addtail(lb, tp->te);
         tp++;
       }
-      MEM_freeN(tear);
+      MEM_delete(tear);
     }
   }
 
@@ -637,7 +637,7 @@ static void outliner_collections_children_sort(ListBaseT<TreeElement> *lb)
     int totelem = BLI_listbase_count(lb);
 
     if (totelem > 1) {
-      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
+      tTreeSort *tear = MEM_new_array_uninitialized<tTreeSort>(totelem, "tree sort array");
       tTreeSort *tp = tear;
 
       for (TreeElement &te : *lb) {
@@ -657,7 +657,7 @@ static void outliner_collections_children_sort(ListBaseT<TreeElement> *lb)
         BLI_addtail(lb, tp->te);
         tp++;
       }
-      MEM_freeN(tear);
+      MEM_delete(tear);
     }
   }
 
@@ -880,8 +880,8 @@ static bool outliner_element_visible_get(const Scene *scene,
       return false;
     }
 
-    Object *ob = (Object *)tselem->id;
-    Base *base = (Base *)te->directdata;
+    Object *ob = id_cast<Object *>(tselem->id);
+    Base *base = static_cast<Base *>(te->directdata);
     BLI_assert((base == nullptr) || (base->object == ob));
 
     if (exclude_filter & SO_FILTER_OB_TYPE) {

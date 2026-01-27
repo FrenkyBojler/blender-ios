@@ -207,7 +207,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
 
   /** The start index of the smoothing window. */
   int active_smooth_start_index_ = 0;
-  blender::float4x2 texture_space_ = float4x2::identity();
+  float4x2 texture_space_ = float4x2::identity();
 
   /** Helper class to project screen space coordinates to 3d. */
   ed::greasepencil::DrawingPlacement placement_;
@@ -419,20 +419,15 @@ struct PaintOperationExecutor {
       curve_attributes_to_skip.add("softness");
       softness.finish();
     }
-    if (bke::SpanAttributeWriter<float> u_scale = attributes.lookup_or_add_for_write_span<float>(
-            "u_scale",
-            bke::AttrDomain::Curve,
-            bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
+    if (bke::SpanAttributeWriter u_scale = attributes.lookup_or_add_for_write_span<float>(
+            "u_scale", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f)))
     {
       u_scale.span[active_curve] = 1.0f;
       curve_attributes_to_skip.add("u_scale");
       u_scale.finish();
     }
-    if (bke::SpanAttributeWriter<float> aspect_ratio =
-            attributes.lookup_or_add_for_write_span<float>(
-                "aspect_ratio",
-                bke::AttrDomain::Curve,
-                bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
+    if (bke::SpanAttributeWriter aspect_ratio = attributes.lookup_or_add_for_write_span<float>(
+            "aspect_ratio", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f)))
     {
       aspect_ratio.span[active_curve] = aspect_ratio_;
       curve_attributes_to_skip.add("aspect_ratio");
@@ -1157,7 +1152,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   scene_ = CTX_data_scene(&C);
   object_ = CTX_data_active_object(&C);
   Object *eval_object = DEG_get_evaluated(depsgraph, object_);
-  GreasePencil *grease_pencil = static_cast<GreasePencil *>(object_->data);
+  GreasePencil *grease_pencil = id_cast<GreasePencil *>(object_->data);
 
   if (do_fill_guides_) {
     this->toggle_fill_guides_brush_on(C);
@@ -1237,7 +1232,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 
 void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
 {
-  GreasePencil *grease_pencil = static_cast<GreasePencil *>(object_->data);
+  GreasePencil *grease_pencil = id_cast<GreasePencil *>(object_->data);
 
   PaintOperationExecutor executor{*scene_};
   executor.execute(*this, C, extension_sample);
@@ -1523,7 +1518,7 @@ static void process_stroke_weights(const Scene &scene,
 
   const StringRef vertex_group_name = defgroup->name;
 
-  blender::bke::greasepencil::assign_to_vertex_group_from_mask(
+  bke::greasepencil::assign_to_vertex_group_from_mask(
       curves, IndexMask(points), vertex_group_name, scene.toolsettings->vgroup_weight);
 
   if (scene.toolsettings->vgroup_weight == 0.0f) {
@@ -1635,7 +1630,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
   using namespace blender::bke;
   RegionView3D *rv3d = CTX_wm_region_view3d(&C);
   const ARegion *region = CTX_wm_region(&C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object_->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object_->data);
 
   Paint *paint = &scene_->toolsettings->gp_paint->paint;
   Brush *brush = BKE_paint_brush(paint);

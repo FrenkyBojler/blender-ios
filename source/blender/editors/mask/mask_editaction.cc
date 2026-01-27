@@ -25,6 +25,8 @@
 #include "ED_markers.hh"
 #include "ED_mask.hh" /* own include */
 
+namespace blender {
+
 /* ***************************************** */
 /* NOTE ABOUT THIS FILE:
  * This file contains code for editing Mask data in the Action Editor
@@ -69,7 +71,7 @@ void ED_masklayer_make_cfra_list(MaskLayer *mask_layer, ListBaseT<CfraElem> *ele
   /* loop through mask-frames, adding */
   for (MaskLayerShape &mask_layer_shape : mask_layer->splines_shapes) {
     if ((onlysel == false) || (mask_layer_shape.flag & MASK_SHAPE_SELECT)) {
-      CfraElem *ce = MEM_callocN<CfraElem>("CfraElem");
+      CfraElem *ce = MEM_new_zeroed<CfraElem>("CfraElem");
 
       ce->cfra = float(mask_layer_shape.frame);
       ce->sel = (mask_layer_shape.flag & MASK_SHAPE_SELECT) ? 1 : 0;
@@ -314,3 +316,5 @@ void ED_masklayer_snap_frames(MaskLayer *mask_layer, Scene *scene, short mode)
       break;
   }
 }
+
+}  // namespace blender

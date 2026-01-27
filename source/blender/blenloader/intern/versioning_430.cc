@@ -41,6 +41,8 @@
 
 #include "versioning_common.hh"
 
+namespace blender {
+
 void do_versions_after_linking_430(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 6)) {
@@ -99,14 +101,14 @@ static void fix_built_in_curve_attribute_defaults(Main *bmain)
     if (int *resolutions = static_cast<int *>(CustomData_get_layer_named_for_write(
             &curves.geometry.curve_data_legacy, CD_PROP_INT32, "resolution", curves_num)))
     {
-      for (int &resolution : blender::MutableSpan{resolutions, curves_num}) {
+      for (int &resolution : MutableSpan{resolutions, curves_num}) {
         resolution = std::max(resolution, 1);
       }
     }
     if (int8_t *nurb_orders = static_cast<int8_t *>(CustomData_get_layer_named_for_write(
             &curves.geometry.curve_data_legacy, CD_PROP_INT8, "nurbs_order", curves_num)))
     {
-      for (int8_t &nurbs_order : blender::MutableSpan{nurb_orders, curves_num}) {
+      for (int8_t &nurbs_order : MutableSpan{nurb_orders, curves_num}) {
         nurbs_order = std::max<int8_t>(nurbs_order, 1);
       }
     }
@@ -131,7 +133,7 @@ static void node_reroute_add_storage(bNodeTree &tree)
       STRNCPY_UTF8(input.identifier, "Input");
       STRNCPY_UTF8(output.identifier, "Output");
 
-      NodeReroute *data = MEM_new_for_free<NodeReroute>(__func__);
+      NodeReroute *data = MEM_new<NodeReroute>(__func__);
       STRNCPY_UTF8(data->type_idname, input.idname);
       node->storage = data;
     }
@@ -188,7 +190,7 @@ static void hide_simulation_node_skip_socket_value(Main &bmain)
       input_node.locx_legacy = node.locx_legacy - 25;
       input_node.locy_legacy = node.locy_legacy;
 
-      NodeInputBool *input_node_storage = MEM_new_for_free<NodeInputBool>(__func__);
+      NodeInputBool *input_node_storage = MEM_new<NodeInputBool>(__func__);
       input_node.storage = input_node_storage;
       input_node_storage->boolean = true;
 
@@ -228,7 +230,7 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
          * space) and dividing by the legacy radius conversion factor. This should generally give
          * reasonable "pixel" threshold values, at least for previous GPv2 defaults. */
         settings->simplify_px = settings->simplify_f /
-                                blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR * 0.1f;
+                                bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR * 0.1f;
       }
     }
   }
@@ -242,7 +244,7 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 7)) {
     for (Scene &scene : bmain->scenes) {
-      SequencerToolSettings *sequencer_tool_settings = blender::seq::tool_settings_ensure(&scene);
+      SequencerToolSettings *sequencer_tool_settings = seq::tool_settings_ensure(&scene);
       sequencer_tool_settings->snap_mode |= SEQ_SNAP_TO_PREVIEW_BORDERS |
                                             SEQ_SNAP_TO_PREVIEW_CENTER |
                                             SEQ_SNAP_TO_STRIPS_PREVIEW;
@@ -372,8 +374,6 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 15)) {
-    using namespace blender;
-
     for (Collection &collection : bmain->collections) {
       const ListBaseT<CollectionExport> *exporters = &collection.exporters;
       for (CollectionExport &data : *exporters) {
@@ -512,3 +512,5 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 }
+
+}  // namespace blender

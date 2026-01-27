@@ -9,6 +9,7 @@
 #include "DNA_brush_types.h"
 
 #include "BKE_mesh.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
@@ -126,9 +127,9 @@ static void calc_faces(const Depsgraph &depsgraph,
                        MeshLocalData &tls,
                        const MutableSpan<int> face_sets)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
 
@@ -175,14 +176,14 @@ static void do_draw_face_sets_brush_mesh(const Depsgraph &depsgraph,
                                          const Brush &brush,
                                          const IndexMask &node_mask)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
 
   undo::push_nodes(depsgraph, object, node_mask, undo::Type::FaceSet);
 
   bke::SpanAttributeWriter<int> face_sets = face_set::ensure_face_sets_mesh(
-      *static_cast<Mesh *>(object.data));
+      *id_cast<Mesh *>(object.data));
 
   threading::EnumerableThreadSpecific<MeshLocalData> all_tls;
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -235,7 +236,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        GridLocalData &tls,
                        const MutableSpan<int> face_sets)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
@@ -244,7 +245,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.factors.resize(positions.size());
   const MutableSpan<float> factors = tls.factors;
-  blender::ed::sculpt_paint::fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
+  ed::sculpt_paint::fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, subdiv_ccg, grids, factors);
@@ -274,13 +275,13 @@ static void do_draw_face_sets_brush_grids(const Depsgraph &depsgraph,
                                           const Brush &brush,
                                           const IndexMask &node_mask)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   undo::push_nodes(depsgraph, object, node_mask, undo::Type::FaceSet);
 
   bke::SpanAttributeWriter<int> face_sets = face_set::ensure_face_sets_mesh(
-      *static_cast<Mesh *>(object.data));
+      *id_cast<Mesh *>(object.data));
 
   threading::EnumerableThreadSpecific<GridLocalData> all_tls;
   MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
@@ -372,7 +373,7 @@ static void calc_bmesh(Object &object,
                        BMeshLocalData &tls,
                        const int cd_offset)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMFace *, 0> &faces = BKE_pbvh_bmesh_node_faces(&node);
@@ -406,7 +407,7 @@ static void do_draw_face_sets_brush_bmesh(const Depsgraph &depsgraph,
                                           const Brush &brush,
                                           const IndexMask &node_mask)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   undo::push_nodes(depsgraph, object, node_mask, undo::Type::FaceSet);
@@ -432,14 +433,16 @@ void do_draw_face_sets_brush(const Depsgraph &depsgraph,
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
-  if (object.sculpt->cache->paint_face_set == SCULPT_FACE_SET_NONE) {
-    if (object.sculpt->cache->invert) {
+  if (object.runtime->sculpt_session->cache->paint_face_set == SCULPT_FACE_SET_NONE) {
+    if (object.runtime->sculpt_session->cache->invert) {
       /* When inverting the brush, pick the paint face mask ID from the mesh. */
-      object.sculpt->cache->paint_face_set = face_set::active_face_set_get(object);
+      object.runtime->sculpt_session->cache->paint_face_set = face_set::active_face_set_get(
+          object);
     }
     else {
       /* By default, create a new Face Sets. */
-      object.sculpt->cache->paint_face_set = face_set::find_next_available_id(object);
+      object.runtime->sculpt_session->cache->paint_face_set = face_set::find_next_available_id(
+          object);
     }
   }
 

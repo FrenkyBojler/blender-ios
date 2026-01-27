@@ -98,7 +98,7 @@ static bke::CurvesGeometry join_curves(const GreasePencil &src_grease_pencil,
     const float4x4 &transform = transforms_to_apply[src_curves_i];
     src_curves.transform(transform);
     Curves *src_curves_id = bke::curves_new_nomain(std::move(src_curves));
-    src_curves_id->mat = static_cast<Material **>(MEM_dupallocN(src_grease_pencil.material_array));
+    src_curves_id->mat = MEM_dupalloc(src_grease_pencil.material_array);
     src_curves_id->totcol = src_grease_pencil.material_array_num;
     src_geometries[src_curves_i].replace_curves(src_curves_id);
   }
@@ -329,7 +329,7 @@ void merge_layers(const GreasePencil &src_grease_pencil,
   /* Gather all the layer attributes. */
   const bke::AttributeAccessor src_attributes = src_grease_pencil.attributes();
   bke::MutableAttributeAccessor dst_attributes = dst_grease_pencil.attributes_for_write();
-  src_attributes.foreach_attribute([&](const blender::bke::AttributeIter &iter) {
+  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.data_type == bke::AttrType::String) {
       return;
     }

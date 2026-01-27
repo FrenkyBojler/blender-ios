@@ -55,12 +55,7 @@
 
 #include "BLO_read_write.hh"
 
-using blender::Array;
-using blender::float3;
-using blender::float4x4;
-using blender::IndexRange;
-using blender::MutableSpan;
-using blender::Span;
+namespace blender {
 
 /* globals */
 
@@ -77,7 +72,7 @@ enum class NURBSValidationStatus {
 
 static void curve_init_data(ID *id)
 {
-  Curve *curve = (Curve *)id;
+  Curve *curve = id_cast<Curve *>(id);
 
   INIT_DEFAULT_STRUCT_AFTER(curve, id);
 }
@@ -88,17 +83,17 @@ static void curve_copy_data(Main *bmain,
                             const ID *id_src,
                             const int flag)
 {
-  Curve *curve_dst = (Curve *)id_dst;
-  const Curve *curve_src = (const Curve *)id_src;
+  Curve *curve_dst = id_cast<Curve *>(id_dst);
+  const Curve *curve_src = id_cast<const Curve *>(id_src);
 
   BLI_listbase_clear(&curve_dst->nurb);
   BKE_nurbList_duplicate(&(curve_dst->nurb), &(curve_src->nurb));
 
-  curve_dst->mat = (Material **)MEM_dupallocN(curve_src->mat);
+  curve_dst->mat = MEM_dupalloc(curve_src->mat);
 
-  curve_dst->str = (char *)MEM_dupallocN(curve_src->str);
-  curve_dst->strinfo = (CharInfo *)MEM_dupallocN(curve_src->strinfo);
-  curve_dst->tb = (TextBox *)MEM_dupallocN(curve_src->tb);
+  curve_dst->str = MEM_dupalloc(curve_src->str);
+  curve_dst->strinfo = MEM_dupalloc(curve_src->strinfo);
+  curve_dst->tb = MEM_dupalloc(curve_src->tb);
   curve_dst->batch_cache = nullptr;
 
   curve_dst->bevel_profile = BKE_curveprofile_copy(curve_src->bevel_profile);
@@ -118,7 +113,7 @@ static void curve_copy_data(Main *bmain,
 
 static void curve_free_data(ID *id)
 {
-  Curve *curve = (Curve *)id;
+  Curve *curve = id_cast<Curve *>(id);
 
   BKE_curve_batch_cache_free(curve);
 
@@ -132,10 +127,10 @@ static void curve_free_data(ID *id)
 
   BKE_curveprofile_free(curve->bevel_profile);
 
-  MEM_SAFE_FREE(curve->mat);
-  MEM_SAFE_FREE(curve->str);
-  MEM_SAFE_FREE(curve->strinfo);
-  MEM_SAFE_FREE(curve->tb);
+  MEM_SAFE_DELETE(curve->mat);
+  MEM_SAFE_DELETE(curve->str);
+  MEM_SAFE_DELETE(curve->strinfo);
+  MEM_SAFE_DELETE(curve->tb);
 }
 
 static void curve_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -157,7 +152,7 @@ static void curve_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  Curve *cu = (Curve *)id;
+  Curve *cu = id_cast<Curve *>(id);
 
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
   cu->editnurb = nullptr;
@@ -165,7 +160,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   cu->batch_cache = nullptr;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Curve, id_address, &cu->id);
+  writer->write_id_struct(id_address, cu);
   BKE_id_blend_write(writer, &cu->id);
 
   /* direct data */
@@ -173,8 +168,8 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   if (cu->ob_type == OB_FONT) {
     BLO_write_string(writer, cu->str);
-    BLO_write_struct_array(writer, CharInfo, cu->len_char32 + 1, cu->strinfo);
-    BLO_write_struct_array(writer, TextBox, cu->totbox, cu->tb);
+    writer->write_struct_array(cu->len_char32 + 1, cu->strinfo);
+    writer->write_struct_array(cu->totbox, cu->tb);
   }
   else {
     /* is also the order of reading */
@@ -183,10 +178,10 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     }
     for (Nurb &nu : cu->nurb) {
       if (nu.type == CU_BEZIER) {
-        BLO_write_struct_array(writer, BezTriple, nu.pntsu, nu.bezt);
+        writer->write_struct_array(nu.pntsu, nu.bezt);
       }
       else {
-        BLO_write_struct_array(writer, BPoint, nu.pntsu * nu.pntsv, nu.bp);
+        writer->write_struct_array(nu.pntsu * nu.pntsv, nu.bp);
         if (nu.knotsu) {
           BLO_write_float_array(writer, KNOTSU(&nu), nu.knotsu);
         }
@@ -204,7 +199,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
 static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  Curve *cu = (Curve *)id;
+  Curve *cu = id_cast<Curve *>(id);
 
   BLO_read_string(reader, &cu->str);
 
@@ -217,7 +212,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   /* Protect against integer overflow vulnerability. */
   CLAMP(cu->len_char32, 0, INT_MAX - 4);
 
-  BLO_read_pointer_array(reader, cu->totcol, (void **)&cu->mat);
+  BLO_read_pointer_array(reader, cu->totcol, reinterpret_cast<void **>(&cu->mat));
 
   BLO_read_struct_array(reader, CharInfo, cu->len_char32 + 1, &cu->strinfo);
   BLO_read_struct_array(reader, TextBox, cu->totbox, &cu->tb);
@@ -235,16 +230,16 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 
     if (UNLIKELY(cu->str == nullptr)) {
       cu->len_char32 = 0;
-      cu->str = MEM_calloc_arrayN<char>(cu->len_char32 + 1, "str new");
+      cu->str = MEM_new_array_zeroed<char>(cu->len_char32 + 1, "str new");
     }
     if (UNLIKELY(cu->strinfo == nullptr)) {
-      cu->strinfo = MEM_new_array_for_free<CharInfo>(cu->len_char32 + 1, "strinfo new");
+      cu->strinfo = MEM_new_array<CharInfo>(cu->len_char32 + 1, "strinfo new");
     }
 
-    TextBox *tb = MEM_new_array_for_free<TextBox>(MAXTEXTBOX, "TextBoxread");
+    TextBox *tb = MEM_new_array<TextBox>(MAXTEXTBOX, "TextBoxread");
     if (cu->tb) {
       memcpy(tb, cu->tb, cu->totbox * sizeof(TextBox));
-      MEM_freeN(cu->tb);
+      MEM_delete(cu->tb);
       cu->tb = tb;
     }
     else {
@@ -316,24 +311,24 @@ void BKE_curve_editfont_free(Curve *cu)
     EditFont *ef = cu->editfont;
 
     if (ef->textbuf) {
-      MEM_freeN(ef->textbuf);
+      MEM_delete(ef->textbuf);
     }
     if (ef->textbufinfo) {
-      MEM_freeN(ef->textbufinfo);
+      MEM_delete(ef->textbufinfo);
     }
     if (ef->selboxes) {
-      MEM_freeN(ef->selboxes);
+      MEM_delete(ef->selboxes);
     }
 
-    MEM_freeN(ef);
+    MEM_delete(ef);
     cu->editfont = nullptr;
   }
 }
 
 static void curve_editNurb_keyIndex_cv_free_cb(CVKeyIndex *index)
 {
-  MEM_freeN(index->orig_cv);
-  MEM_freeN(index);
+  MEM_delete_void(index->orig_cv);
+  MEM_delete(index);
 }
 
 void BKE_curve_editNurb_keyIndex_delCV(CVKeyIndexMap *keyindex, const void *cv)
@@ -361,7 +356,7 @@ void BKE_curve_editNurb_free(Curve *cu)
   if (cu->editnurb) {
     BKE_nurbList_free(&cu->editnurb->nurbs);
     BKE_curve_editNurb_keyIndex_free(&cu->editnurb->keyindex);
-    MEM_freeN(cu->editnurb);
+    MEM_delete(cu->editnurb);
     cu->editnurb = nullptr;
   }
 }
@@ -381,17 +376,17 @@ void BKE_curve_init(Curve *cu, const short curve_type)
     size_t len_bytes;
     size_t len_char32 = BLI_strlen_utf8_ex(str, &len_bytes);
 
-    cu->str = MEM_malloc_arrayN<char>(len_bytes + 1, "str");
+    cu->str = MEM_new_array_uninitialized<char>(len_bytes + 1, "str");
     memcpy(cu->str, str, len_bytes + 1);
     BLI_assert(cu->str[len_bytes] == '\0');
 
     cu->len = len_bytes;
     cu->len_char32 = cu->pos = len_char32;
 
-    cu->strinfo = MEM_new_array_for_free<CharInfo>(len_char32 + 1, "strinfo new");
+    cu->strinfo = MEM_new_array<CharInfo>(len_char32 + 1, "strinfo new");
 
     cu->totbox = cu->actbox = 1;
-    cu->tb = MEM_new_array_for_free<TextBox>(MAXTEXTBOX, "textbox");
+    cu->tb = MEM_new_array<TextBox>(MAXTEXTBOX, "textbox");
     cu->tb[0].w = cu->tb[0].h = 0.0;
   }
   else if (cu->ob_type == OB_SURF) {
@@ -410,7 +405,7 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
   Curve *cu;
 
   /* We cannot use #BKE_id_new here as we need some custom initialization code. */
-  cu = (Curve *)BKE_libblock_alloc(bmain, ID_CU_LEGACY, name, 0);
+  cu = static_cast<Curve *>(BKE_libblock_alloc(bmain, ID_CU_LEGACY, name, 0));
 
   BKE_curve_init(cu, type);
 
@@ -454,7 +449,7 @@ void BKE_curve_dimension_update(Curve *cu)
 
 void BKE_curve_type_test(Object *ob, const bool dimension_update)
 {
-  Curve *cu = static_cast<Curve *>(ob->data);
+  Curve *cu = id_cast<Curve *>(ob->data);
   ob->type = cu->ob_type;
 
   if (dimension_update) {
@@ -469,9 +464,9 @@ void BKE_curve_type_test(Object *ob, const bool dimension_update)
 void BKE_curve_texspace_calc(Curve *cu)
 {
   if (cu->texspace_flag & CU_TEXSPACE_FLAG_AUTO) {
-    std::optional<blender::Bounds<blender::float3>> bounds = BKE_curve_minmax(cu, true);
+    std::optional<Bounds<float3>> bounds = BKE_curve_minmax(cu, true);
     if (!bounds) {
-      bounds = blender::Bounds<blender::float3>{float3(-FLT_MAX), -float3(FLT_MAX)};
+      bounds = Bounds<float3>{float3(-FLT_MAX), -float3(FLT_MAX)};
     }
 
     float texspace_location[3], texspace_size[3];
@@ -576,23 +571,23 @@ void BKE_nurb_free(Nurb *nu)
   }
 
   if (nu->bezt) {
-    MEM_freeN(nu->bezt);
+    MEM_delete(nu->bezt);
   }
   nu->bezt = nullptr;
   if (nu->bp) {
-    MEM_freeN(nu->bp);
+    MEM_delete(nu->bp);
   }
   nu->bp = nullptr;
   if (nu->knotsu) {
-    MEM_freeN(nu->knotsu);
+    MEM_delete(nu->knotsu);
   }
   nu->knotsu = nullptr;
   if (nu->knotsv) {
-    MEM_freeN(nu->knotsv);
+    MEM_delete(nu->knotsv);
   }
   nu->knotsv = nullptr;
 
-  MEM_freeN(nu);
+  MEM_delete(nu);
 }
 
 void BKE_nurbList_free(ListBaseT<Nurb> *lb)
@@ -612,19 +607,19 @@ Nurb *BKE_nurb_duplicate(const Nurb *nu)
   Nurb *newnu;
   int len;
 
-  newnu = MEM_new_for_free<Nurb>("duplicateNurb");
+  newnu = MEM_new<Nurb>("duplicateNurb");
   if (newnu == nullptr) {
     return nullptr;
   }
-  *newnu = blender::dna::shallow_copy(*nu);
+  *newnu = dna::shallow_copy(*nu);
 
   if (nu->bezt) {
-    newnu->bezt = MEM_malloc_arrayN<BezTriple>(size_t(nu->pntsu), "duplicateNurb2");
+    newnu->bezt = MEM_new_array_uninitialized<BezTriple>(size_t(nu->pntsu), "duplicateNurb2");
     memcpy(newnu->bezt, nu->bezt, nu->pntsu * sizeof(BezTriple));
   }
   else {
     len = nu->pntsu * nu->pntsv;
-    newnu->bp = MEM_malloc_arrayN<BPoint>(size_t(len), "duplicateNurb3");
+    newnu->bp = MEM_new_array_uninitialized<BPoint>(size_t(len), "duplicateNurb3");
     memcpy(newnu->bp, nu->bp, len * sizeof(BPoint));
 
     newnu->knotsu = newnu->knotsv = nullptr;
@@ -632,14 +627,14 @@ Nurb *BKE_nurb_duplicate(const Nurb *nu)
     if (nu->knotsu) {
       len = KNOTSU(nu);
       if (len) {
-        newnu->knotsu = MEM_malloc_arrayN<float>(size_t(len), "duplicateNurb4");
+        newnu->knotsu = MEM_new_array_uninitialized<float>(size_t(len), "duplicateNurb4");
         memcpy(newnu->knotsu, nu->knotsu, sizeof(float) * len);
       }
     }
     if (nu->pntsv > 1 && nu->knotsv) {
       len = KNOTSV(nu);
       if (len) {
-        newnu->knotsv = MEM_malloc_arrayN<float>(size_t(len), "duplicateNurb5");
+        newnu->knotsv = MEM_new_array_uninitialized<float>(size_t(len), "duplicateNurb5");
         memcpy(newnu->knotsv, nu->knotsv, sizeof(float) * len);
       }
     }
@@ -649,8 +644,8 @@ Nurb *BKE_nurb_duplicate(const Nurb *nu)
 
 Nurb *BKE_nurb_copy(Nurb *src, int pntsu, int pntsv)
 {
-  Nurb *newnu = MEM_new_for_free<Nurb>("copyNurb");
-  *newnu = blender::dna::shallow_copy(*src);
+  Nurb *newnu = MEM_new<Nurb>("copyNurb");
+  *newnu = dna::shallow_copy(*src);
 
   if (pntsu == 1) {
     std::swap(pntsu, pntsv);
@@ -663,10 +658,11 @@ Nurb *BKE_nurb_copy(Nurb *src, int pntsu, int pntsv)
   newnu->knotsv = nullptr;
 
   if (src->bezt) {
-    newnu->bezt = MEM_malloc_arrayN<BezTriple>(size_t(pntsu) * size_t(pntsv), "copyNurb2");
+    newnu->bezt = MEM_new_array_uninitialized<BezTriple>(size_t(pntsu) * size_t(pntsv),
+                                                         "copyNurb2");
   }
   else {
-    newnu->bp = MEM_malloc_arrayN<BPoint>(size_t(pntsu) * size_t(pntsv), "copyNurb3");
+    newnu->bp = MEM_new_array_uninitialized<BPoint>(size_t(pntsu) * size_t(pntsv), "copyNurb3");
   }
 
   return newnu;
@@ -789,7 +785,7 @@ float BKE_nurb_calc_length(const Nurb *nu, int resolution)
     }
   }
   else if (nu->type == CU_BEZIER) {
-    points = MEM_malloc_arrayN<float>(3 * (size_t(resolu) + 1), "getLength_bezier");
+    points = MEM_new_array_uninitialized<float>(3 * (size_t(resolu) + 1), "getLength_bezier");
     a = nu->pntsu - 1;
     bezt = nu->bezt;
     if (nu->flagu & CU_NURB_CYCLIC) {
@@ -828,12 +824,12 @@ float BKE_nurb_calc_length(const Nurb *nu, int resolution)
       bezt++;
     }
 
-    MEM_freeN(points);
+    MEM_delete(points);
   }
   else if (nu->type == CU_NURBS) {
     if (nu->pntsv == 1) {
       /* important to zero for BKE_nurb_makeCurve. */
-      points = MEM_calloc_arrayN<float>(3 * size_t(pntsu) * size_t(resolu), "getLength_nurbs");
+      points = MEM_new_array_zeroed<float>(3 * size_t(pntsu) * size_t(resolu), "getLength_nurbs");
 
       BKE_nurb_makeCurve(nu, points, nullptr, nullptr, nullptr, resolu, sizeof(float[3]));
 
@@ -854,7 +850,7 @@ float BKE_nurb_calc_length(const Nurb *nu, int resolution)
         pntsit += 3;
       }
 
-      MEM_freeN(points);
+      MEM_delete(points);
     }
   }
 
@@ -863,7 +859,8 @@ float BKE_nurb_calc_length(const Nurb *nu, int resolution)
 
 void BKE_nurb_points_add(Nurb *nu, int number)
 {
-  nu->bp = (BPoint *)MEM_recallocN(nu->bp, (nu->pntsu + number) * sizeof(BPoint));
+  nu->bp = static_cast<BPoint *>(
+      MEM_realloc_zeroed(nu->bp, (nu->pntsu + number) * sizeof(BPoint)));
 
   BPoint *bp;
   int i;
@@ -879,7 +876,8 @@ void BKE_nurb_bezierPoints_add(Nurb *nu, int number)
   BezTriple *bezt;
   int i;
 
-  nu->bezt = (BezTriple *)MEM_recallocN(nu->bezt, (nu->pntsu + number) * sizeof(BezTriple));
+  nu->bezt = static_cast<BezTriple *>(
+      MEM_realloc_zeroed(nu->bezt, (nu->pntsu + number) * sizeof(BezTriple)));
 
   for (i = 0, bezt = &nu->bezt[nu->pntsu]; i < number; i++, bezt++) {
     bezt->radius = 1.0f;
@@ -1155,10 +1153,10 @@ static void makeknots(Nurb *nu, short uv)
   if (nu->type == CU_NURBS) {
     if (uv == 1) {
       if (nu->knotsu) {
-        MEM_freeN(nu->knotsu);
+        MEM_delete(nu->knotsu);
       }
       if (BKE_nurb_check_valid_u(nu)) {
-        nu->knotsu = MEM_calloc_arrayN<float>(size_t(KNOTSU(nu)) + 1, "makeknots");
+        nu->knotsu = MEM_new_array_zeroed<float>(size_t(KNOTSU(nu)) + 1, "makeknots");
         calcknots(nu->knotsu, nu->pntsu, nu->orderu, nu->flagu);
         nu->flagu &= ~CU_NURB_CUSTOM;
       }
@@ -1168,10 +1166,10 @@ static void makeknots(Nurb *nu, short uv)
     }
     else if (uv == 2) {
       if (nu->knotsv) {
-        MEM_freeN(nu->knotsv);
+        MEM_delete(nu->knotsv);
       }
       if (BKE_nurb_check_valid_v(nu)) {
-        nu->knotsv = MEM_calloc_arrayN<float>(size_t(KNOTSV(nu)) + 1, "makeknots");
+        nu->knotsv = MEM_new_array_zeroed<float>(size_t(KNOTSV(nu)) + 1, "makeknots");
         calcknots(nu->knotsv, nu->pntsv, nu->orderv, nu->flagv);
         nu->flagv &= ~CU_NURB_CUSTOM;
       }
@@ -1184,7 +1182,7 @@ static void makeknots(Nurb *nu, short uv)
 
 void BKE_nurb_knot_alloc_u(Nurb *nu)
 {
-  nu->knotsu = MEM_calloc_arrayN<float>(KNOTSU(nu) + 1, __func__);
+  nu->knotsu = MEM_new_array_zeroed<float>(KNOTSU(nu) + 1, __func__);
 }
 
 void BKE_nurb_knot_calc_u(Nurb *nu)
@@ -1302,7 +1300,7 @@ void BKE_nurb_makeFaces(const Nurb *nu, float *coord_array, int rowstride, int r
     return;
   }
 
-  sum = MEM_calloc_arrayN<float>(len, "makeNurbfaces1");
+  sum = MEM_new_array_zeroed<float>(len, "makeNurbfaces1");
 
   bp = nu->bp;
   i = nu->pntsu * nu->pntsv;
@@ -1325,7 +1323,7 @@ void BKE_nurb_makeFaces(const Nurb *nu, float *coord_array, int rowstride, int r
   }
   ustep = (uend - ustart) / ((nu->flagu & CU_NURB_CYCLIC) ? totu : totu - 1);
 
-  basisu = MEM_malloc_arrayN<float>(size_t(KNOTSU(nu)), "makeNurbfaces3");
+  basisu = MEM_new_array_uninitialized<float>(size_t(KNOTSU(nu)), "makeNurbfaces3");
 
   fp = nu->knotsv;
   vstart = fp[nu->orderv - 1];
@@ -1339,9 +1337,9 @@ void BKE_nurb_makeFaces(const Nurb *nu, float *coord_array, int rowstride, int r
   vstep = (vend - vstart) / ((nu->flagv & CU_NURB_CYCLIC) ? totv : totv - 1);
 
   len = KNOTSV(nu);
-  basisv = MEM_malloc_arrayN<float>(size_t(len) * size_t(totv), "makeNurbfaces3");
-  jstart = MEM_malloc_arrayN<int>(size_t(totv), "makeNurbfaces4");
-  jend = MEM_malloc_arrayN<int>(size_t(totv), "makeNurbfaces5");
+  basisv = MEM_new_array_uninitialized<float>(size_t(len) * size_t(totv), "makeNurbfaces3");
+  jstart = MEM_new_array_uninitialized<int>(size_t(totv), "makeNurbfaces4");
+  jend = MEM_new_array_uninitialized<int>(size_t(totv), "makeNurbfaces5");
 
   /* Pre-calculation of `basisv` and `jstart`, `jend`. */
   if (nu->flagv & CU_NURB_CYCLIC) {
@@ -1453,16 +1451,17 @@ void BKE_nurb_makeFaces(const Nurb *nu, float *coord_array, int rowstride, int r
     }
     u += ustep;
     if (rowstride != 0) {
-      in = (float *)(((uchar *)in) + (rowstride - 3 * totv * sizeof(*in)));
+      in = reinterpret_cast<float *>((reinterpret_cast<uchar *>(in)) +
+                                     (rowstride - 3 * totv * sizeof(*in)));
     }
   }
 
   /* free */
-  MEM_freeN(sum);
-  MEM_freeN(basisu);
-  MEM_freeN(basisv);
-  MEM_freeN(jstart);
-  MEM_freeN(jend);
+  MEM_delete(sum);
+  MEM_delete(basisu);
+  MEM_delete(basisv);
+  MEM_delete(jstart);
+  MEM_delete(jend);
 }
 
 void BKE_nurb_makeCurve(const Nurb *nu,
@@ -1496,12 +1495,12 @@ void BKE_nurb_makeCurve(const Nurb *nu,
   if (len == 0) {
     return;
   }
-  sum = MEM_calloc_arrayN<float>(len, "makeNurbcurve1");
+  sum = MEM_new_array_zeroed<float>(len, "makeNurbcurve1");
 
   resolu = (resolu * SEGMENTSU(nu));
 
   if (resolu == 0) {
-    MEM_freeN(sum);
+    MEM_delete(sum);
     return;
   }
 
@@ -1515,7 +1514,7 @@ void BKE_nurb_makeCurve(const Nurb *nu,
   }
   ustep = (uend - ustart) / (resolu - ((nu->flagu & CU_NURB_CYCLIC) ? 0 : 1));
 
-  basisu = MEM_malloc_arrayN<float>(size_t(KNOTSU(nu)), "makeNurbcurve3");
+  basisu = MEM_new_array_uninitialized<float>(size_t(KNOTSU(nu)), "makeNurbcurve3");
 
   if (nu->flagu & CU_NURB_CYCLIC) {
     cycl = nu->orderu - 1;
@@ -1581,24 +1580,24 @@ void BKE_nurb_makeCurve(const Nurb *nu,
       }
     }
 
-    coord_fp = (float *)POINTER_OFFSET(coord_fp, stride);
+    coord_fp = static_cast<float *> POINTER_OFFSET(coord_fp, stride);
 
     if (tilt_fp) {
-      tilt_fp = (float *)POINTER_OFFSET(tilt_fp, stride);
+      tilt_fp = static_cast<float *> POINTER_OFFSET(tilt_fp, stride);
     }
     if (radius_fp) {
-      radius_fp = (float *)POINTER_OFFSET(radius_fp, stride);
+      radius_fp = static_cast<float *> POINTER_OFFSET(radius_fp, stride);
     }
     if (weight_fp) {
-      weight_fp = (float *)POINTER_OFFSET(weight_fp, stride);
+      weight_fp = static_cast<float *> POINTER_OFFSET(weight_fp, stride);
     }
 
     u += ustep;
   }
 
   /* free */
-  MEM_freeN(sum);
-  MEM_freeN(basisu);
+  MEM_delete(sum);
+  MEM_delete(basisu);
 }
 
 uint BKE_curve_calc_coords_axis_len(const uint bezt_array_len,
@@ -1638,7 +1637,7 @@ void BKE_curve_calc_coords_axis(const BezTriple *bezt_array,
                                   r_points_offset,
                                   int(resolu),
                                   stride);
-    r_points_offset = (float *)POINTER_OFFSET(r_points_offset, resolu_stride);
+    r_points_offset = static_cast<float *> POINTER_OFFSET(r_points_offset, resolu_stride);
   }
 
   if (is_cyclic) {
@@ -1651,16 +1650,17 @@ void BKE_curve_calc_coords_axis(const BezTriple *bezt_array,
                                   r_points_offset,
                                   int(resolu),
                                   stride);
-    r_points_offset = (float *)POINTER_OFFSET(r_points_offset, resolu_stride);
+    r_points_offset = static_cast<float *> POINTER_OFFSET(r_points_offset, resolu_stride);
     if (use_cyclic_duplicate_endpoint) {
       *r_points_offset = *r_points;
-      r_points_offset = (float *)POINTER_OFFSET(r_points_offset, stride);
+      r_points_offset = static_cast<float *> POINTER_OFFSET(r_points_offset, stride);
     }
   }
   else {
-    float *r_points_last = (float *)POINTER_OFFSET(r_points, bezt_array_last * resolu_stride);
+    float *r_points_last = static_cast<float *> POINTER_OFFSET(r_points,
+                                                               bezt_array_last * resolu_stride);
     *r_points_last = bezt_array[bezt_array_last].vec[1][axis];
-    r_points_offset = (float *)POINTER_OFFSET(r_points_offset, stride);
+    r_points_offset = static_cast<float *> POINTER_OFFSET(r_points_offset, stride);
   }
 
   BLI_assert((float *)POINTER_OFFSET(r_points, points_len * stride) == r_points_offset);
@@ -1688,7 +1688,7 @@ void BKE_curve_forward_diff_bezier(
 
   for (a = 0; a <= it; a++) {
     *p = q0;
-    p = (float *)POINTER_OFFSET(p, stride);
+    p = static_cast<float *> POINTER_OFFSET(p, stride);
     q0 += q1;
     q1 += q2;
     q2 += q3;
@@ -1713,7 +1713,7 @@ void BKE_curve_forward_diff_tangent_bezier(
 
   for (a = 0; a <= it; a++) {
     *p = q0;
-    p = (float *)POINTER_OFFSET(p, stride);
+    p = static_cast<float *> POINTER_OFFSET(p, stride);
     q0 += q1;
     q1 += q2;
   }
@@ -1739,7 +1739,7 @@ static void forward_diff_bezier_cotangent(const float p0[3],
              (-18.0f * t + 6.0f) * p2[i] + (6.0f * t) * p3[i];
     }
     normalize_v3(p);
-    p = (float *)POINTER_OFFSET(p, stride);
+    p = static_cast<float *> POINTER_OFFSET(p, stride);
   }
 }
 
@@ -1852,7 +1852,8 @@ struct BevelSort {
 
 static int vergxcobev(const void *a1, const void *a2)
 {
-  const BevelSort *x1 = (BevelSort *)a1, *x2 = (BevelSort *)a2;
+  const BevelSort *x1 = static_cast<BevelSort *>(const_cast<void *>(a1)),
+                  *x2 = static_cast<BevelSort *>(const_cast<void *>(a2));
 
   if (x1->left > x2->left) {
     return 1;
@@ -1974,7 +1975,7 @@ static void tilt_bezpart(const BezTriple *prevbezt,
                       t[3] * next->tilt;
       }
 
-      tilt_array = (float *)POINTER_OFFSET(tilt_array, stride);
+      tilt_array = static_cast<float *> POINTER_OFFSET(tilt_array, stride);
     }
 
     if (radius_array) {
@@ -1995,7 +1996,7 @@ static void tilt_bezpart(const BezTriple *prevbezt,
                         t[3] * next->radius;
       }
 
-      radius_array = (float *)POINTER_OFFSET(radius_array, stride);
+      radius_array = static_cast<float *> POINTER_OFFSET(radius_array, stride);
     }
 
     if (weight_array) {
@@ -2003,7 +2004,7 @@ static void tilt_bezpart(const BezTriple *prevbezt,
       *weight_array = prevbezt->weight + (bezt->weight - prevbezt->weight) *
                                              (3.0f * fac * fac - 2.0f * fac * fac * fac);
 
-      weight_array = (float *)POINTER_OFFSET(weight_array, stride);
+      weight_array = static_cast<float *> POINTER_OFFSET(weight_array, stride);
     }
   }
 }
@@ -2518,15 +2519,15 @@ void BKE_curve_bevelList_free(ListBaseT<BevList> *bev)
 {
   for (BevList &bl : bev->items_mutable()) {
     if (bl.seglen != nullptr) {
-      MEM_freeN(bl.seglen);
+      MEM_delete(bl.seglen);
     }
     if (bl.segbevcount != nullptr) {
-      MEM_freeN(bl.segbevcount);
+      MEM_delete(bl.segbevcount);
     }
     if (bl.bevpoints != nullptr) {
-      MEM_freeN(bl.bevpoints);
+      MEM_delete(bl.bevpoints);
     }
-    MEM_freeN(&bl);
+    MEM_delete(&bl);
   }
 
   BLI_listbase_clear(bev);
@@ -2541,7 +2542,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
    */
 
   /* This function needs an object, because of `tflag` and `upflag`. */
-  Curve *cu = (Curve *)ob->data;
+  Curve *cu = id_cast<Curve *>(ob->data);
   BezTriple *bezt, *prevbezt;
   BPoint *bp;
   BevList *blnew;
@@ -2584,8 +2585,8 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
     /* check we are a single point? also check we are not a surface and that the orderu is sane,
      * enforced in the UI but can go wrong possibly */
     if (!BKE_nurb_check_valid_u(&nu)) {
-      BevList *bl = MEM_new_for_free<BevList>("makeBevelList1");
-      bl->bevpoints = MEM_calloc_arrayN<BevPoint>(1, "makeBevelPoints1");
+      BevList *bl = MEM_new<BevList>("makeBevelList1");
+      bl->bevpoints = MEM_new_array_zeroed<BevPoint>(1, "makeBevelPoints1");
       BLI_addtail(bev, bl);
       bl->nr = 0;
       bl->charidx = nu.charidx;
@@ -2614,11 +2615,11 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
 
     if (nu.type == CU_POLY) {
       len = nu.pntsu;
-      BevList *bl = MEM_new_for_free<BevList>(__func__);
-      bl->bevpoints = MEM_calloc_arrayN<BevPoint>(len, __func__);
+      BevList *bl = MEM_new<BevList>(__func__);
+      bl->bevpoints = MEM_new_array_zeroed<BevPoint>(len, __func__);
       if (need_seglen && (nu.flagu & CU_NURB_CYCLIC) == 0) {
-        bl->seglen = MEM_malloc_arrayN<float>(size_t(segcount), __func__);
-        bl->segbevcount = MEM_malloc_arrayN<int>(size_t(segcount), __func__);
+        bl->seglen = MEM_new_array_uninitialized<float>(size_t(segcount), __func__);
+        bl->segbevcount = MEM_new_array_uninitialized<int>(size_t(segcount), __func__);
       }
       BLI_addtail(bev, bl);
 
@@ -2664,11 +2665,11 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
       /* in case last point is not cyclic */
       len = segcount * resolu + 1;
 
-      BevList *bl = MEM_new_for_free<BevList>(__func__);
-      bl->bevpoints = MEM_calloc_arrayN<BevPoint>(len, __func__);
+      BevList *bl = MEM_new<BevList>(__func__);
+      bl->bevpoints = MEM_new_array_zeroed<BevPoint>(len, __func__);
       if (need_seglen && (nu.flagu & CU_NURB_CYCLIC) == 0) {
-        bl->seglen = MEM_malloc_arrayN<float>(size_t(segcount), __func__);
-        bl->segbevcount = MEM_malloc_arrayN<int>(size_t(segcount), __func__);
+        bl->seglen = MEM_new_array_uninitialized<float>(size_t(segcount), __func__);
+        bl->segbevcount = MEM_new_array_uninitialized<int>(size_t(segcount), __func__);
       }
       BLI_addtail(bev, bl);
 
@@ -2800,11 +2801,11 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
       if (nu.pntsv == 1) {
         len = (resolu * segcount);
 
-        BevList *bl = MEM_new_for_free<BevList>(__func__);
-        bl->bevpoints = MEM_calloc_arrayN<BevPoint>(len, __func__);
+        BevList *bl = MEM_new<BevList>(__func__);
+        bl->bevpoints = MEM_new_array_zeroed<BevPoint>(len, __func__);
         if (need_seglen && (nu.flagu & CU_NURB_CYCLIC) == 0) {
-          bl->seglen = MEM_malloc_arrayN<float>(size_t(segcount), __func__);
-          bl->segbevcount = MEM_malloc_arrayN<int>(size_t(segcount), __func__);
+          bl->seglen = MEM_new_array_uninitialized<float>(size_t(segcount), __func__);
+          bl->segbevcount = MEM_new_array_uninitialized<int>(size_t(segcount), __func__);
         }
         BLI_addtail(bev, bl);
         bl->nr = len;
@@ -2900,10 +2901,10 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
     }
 
     nr = bl.nr - bl.dupe_nr + 1; /* +1 because vector-bezier sets flag too. */
-    blnew = MEM_new_for_free<BevList>("makeBevelList4", bl);
-    blnew->bevpoints = MEM_calloc_arrayN<BevPoint>(nr, "makeBevelPoints4");
+    blnew = MEM_new<BevList>("makeBevelList4", bl);
+    blnew->bevpoints = MEM_new_array_zeroed<BevPoint>(nr, "makeBevelPoints4");
     if (!blnew->bevpoints) {
-      MEM_freeN(blnew);
+      MEM_delete(blnew);
       break;
     }
     blnew->segbevcount = bl.segbevcount;
@@ -2923,9 +2924,9 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
       bevp0++;
     }
     if (bl.bevpoints != nullptr) {
-      MEM_freeN(bl.bevpoints);
+      MEM_delete(bl.bevpoints);
     }
-    MEM_freeN(&bl);
+    MEM_delete(&bl);
     blnew->dupe_nr = 0;
   }
 
@@ -2941,7 +2942,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
 
   /* find extreme left points, also test (turning) direction */
   if (poly > 0) {
-    sd = sortdata = MEM_malloc_arrayN<BevelSort>(size_t(poly), __func__);
+    sd = sortdata = MEM_new_array_uninitialized<BevelSort>(size_t(poly), __func__);
     for (BevList &bl : *bev) {
       if (bl.poly > 0) {
         BevPoint *bevp;
@@ -3021,7 +3022,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
         }
       }
     }
-    MEM_freeN(sortdata);
+    MEM_delete(sortdata);
   }
 
   /* STEP 4: 2D-COSINES or 3D ORIENTATION */
@@ -3362,19 +3363,20 @@ static void *allocate_arrays(int count, float ***floats, char ***chars, const ch
     num_chars++;
   }
 
-  void *buffer = MEM_malloc_arrayN(count, (sizeof(float) * num_floats + num_chars), name);
+  void *buffer = MEM_new_array_uninitialized(
+      count, (sizeof(float) * num_floats + num_chars), name);
 
   if (!buffer) {
     return nullptr;
   }
 
-  float *fptr = (float *)buffer;
+  float *fptr = static_cast<float *>(buffer);
 
   for (int i = 0; i < num_floats; i++, fptr += count) {
     *floats[i] = fptr;
   }
 
-  char *cptr = (char *)fptr;
+  char *cptr = reinterpret_cast<char *>(fptr);
 
   for (int i = 0; i < num_chars; i++, cptr += count) {
     *chars[i] = cptr;
@@ -3385,7 +3387,7 @@ static void *allocate_arrays(int count, float ***floats, char ***chars, const ch
 
 static void free_arrays(void *buffer)
 {
-  MEM_freeN(buffer);
+  MEM_delete_void(buffer);
 }
 
 /* computes in which direction to change h[i] to satisfy conditions better */
@@ -3940,7 +3942,7 @@ void BKE_nurb_handle_smooth_fcurve(BezTriple *bezt, int total, bool cyclic)
 void BKE_nurb_handle_calc(
     BezTriple *bezt, BezTriple *prev, BezTriple *next, const bool is_fcurve, const char smoothing)
 {
-  calchandleNurb_intern(bezt, prev, next, (eBezTriple_Flag)SELECT, is_fcurve, false, smoothing);
+  calchandleNurb_intern(bezt, prev, next, eBezTriple_Flag(SELECT), is_fcurve, false, smoothing);
 }
 
 void BKE_nurb_handle_calc_ex(BezTriple *bezt,
@@ -3951,12 +3953,12 @@ void BKE_nurb_handle_calc_ex(BezTriple *bezt,
                              const char smoothing)
 {
   calchandleNurb_intern(
-      bezt, prev, next, (eBezTriple_Flag)handle_sel_flag, is_fcurve, false, smoothing);
+      bezt, prev, next, eBezTriple_Flag(handle_sel_flag), is_fcurve, false, smoothing);
 }
 
 void BKE_nurb_handles_calc(Nurb *nu) /* first, if needed, set handle flags */
 {
-  calchandlesNurb_intern(nu, (eBezTriple_Flag)SELECT, false);
+  calchandlesNurb_intern(nu, eBezTriple_Flag(SELECT), false);
 }
 
 /**
@@ -4487,7 +4489,7 @@ void BKE_nurb_direction_switch(Nurb *nu)
         /* and make in increasing order again */
         a = KNOTSU(nu);
         fp1 = nu->knotsu;
-        fp2 = tempf = MEM_malloc_arrayN<float>(size_t(a), "switchdirect");
+        fp2 = tempf = MEM_new_array_uninitialized<float>(size_t(a), "switchdirect");
         a--;
         fp2[a] = fp1[a];
         while (a--) {
@@ -4506,7 +4508,7 @@ void BKE_nurb_direction_switch(Nurb *nu)
           fp1++;
           fp2++;
         }
-        MEM_freeN(tempf);
+        MEM_delete(tempf);
       }
     }
   }
@@ -4591,7 +4593,7 @@ void BKE_curve_nurbs_vert_coords_apply_with_mat4(ListBaseT<Nurb> *lb,
       BKE_nurb_project_2d(&nu);
     }
 
-    calchandlesNurb_intern(&nu, (eBezTriple_Flag)SELECT, true);
+    calchandlesNurb_intern(&nu, eBezTriple_Flag(SELECT), true);
   }
 }
 
@@ -4626,7 +4628,7 @@ void BKE_curve_nurbs_vert_coords_apply(ListBaseT<Nurb> *lb,
       BKE_nurb_project_2d(&nu);
     }
 
-    calchandlesNurb_intern(&nu, (eBezTriple_Flag)SELECT, true);
+    calchandlesNurb_intern(&nu, eBezTriple_Flag(SELECT), true);
   }
 }
 
@@ -4823,7 +4825,7 @@ bool BKE_nurb_type_convert(Nurb *nu,
   if (nu->type == CU_POLY) {
     if (type == CU_BEZIER) { /* To Bezier with vector-handles. */
       nr = nu->pntsu;
-      bezt = MEM_calloc_arrayN<BezTriple>(nr, "setsplinetype2");
+      bezt = MEM_new_array_zeroed<BezTriple>(nr, "setsplinetype2");
       nu->bezt = bezt;
       a = nr;
       bp = nu->bp;
@@ -4836,7 +4838,7 @@ bool BKE_nurb_type_convert(Nurb *nu,
         bp++;
         bezt++;
       }
-      MEM_freeN(nu->bp);
+      MEM_delete(nu->bp);
       nu->bp = nullptr;
       nu->pntsu = nr;
       nu->pntsv = 0;
@@ -4859,7 +4861,7 @@ bool BKE_nurb_type_convert(Nurb *nu,
   else if (nu->type == CU_BEZIER) { /* Bezier */
     if (ELEM(type, CU_POLY, CU_NURBS)) {
       nr = use_handles ? (3 * nu->pntsu) : nu->pntsu;
-      nu->bp = MEM_calloc_arrayN<BPoint>(nr, "setsplinetype");
+      nu->bp = MEM_new_array_zeroed<BPoint>(nr, "setsplinetype");
       a = nu->pntsu;
       bezt = nu->bezt;
       bp = nu->bp;
@@ -4891,7 +4893,7 @@ bool BKE_nurb_type_convert(Nurb *nu,
         }
         bezt++;
       }
-      MEM_freeN(nu->bezt);
+      MEM_delete(nu->bezt);
       nu->bezt = nullptr;
       nu->pntsu = nr;
       nu->pntsv = 1;
@@ -4910,10 +4912,10 @@ bool BKE_nurb_type_convert(Nurb *nu,
     if (type == CU_POLY) {
       nu->type = CU_POLY;
       if (nu->knotsu) {
-        MEM_freeN(nu->knotsu); /* python created nurbs have a knotsu of zero */
+        MEM_delete(nu->knotsu); /* python created nurbs have a knotsu of zero */
       }
       nu->knotsu = nullptr;
-      MEM_SAFE_FREE(nu->knotsv);
+      MEM_SAFE_DELETE(nu->knotsv);
     }
     else if (type == CU_BEZIER) { /* to Bezier */
       nr = nu->pntsu / 3;
@@ -4925,7 +4927,7 @@ bool BKE_nurb_type_convert(Nurb *nu,
         return false; /* conversion impossible */
       }
 
-      bezt = MEM_calloc_arrayN<BezTriple>(nr, "setsplinetype2");
+      bezt = MEM_new_array_zeroed<BezTriple>(nr, "setsplinetype2");
       nu->bezt = bezt;
       a = nr;
       bp = nu->bp;
@@ -4943,9 +4945,9 @@ bool BKE_nurb_type_convert(Nurb *nu,
         bp++;
         bezt++;
       }
-      MEM_freeN(nu->bp);
+      MEM_delete(nu->bp);
       nu->bp = nullptr;
-      MEM_freeN(nu->knotsu);
+      MEM_delete(nu->knotsu);
       nu->knotsu = nullptr;
       nu->pntsu = nr;
       nu->type = CU_BEZIER;
@@ -4988,7 +4990,7 @@ void BKE_curve_nurb_active_set(Curve *cu, const Nurb *nu)
 Nurb *BKE_curve_nurb_active_get(Curve *cu)
 {
   ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
-  return (Nurb *)BLI_findlink(nurbs, cu->actnu);
+  return static_cast<Nurb *>(BLI_findlink(nurbs, cu->actnu));
 }
 
 void *BKE_curve_vert_active_get(Curve *cu)
@@ -5004,11 +5006,11 @@ int BKE_curve_nurb_vert_index_get(const Nurb *nu, const void *vert)
 {
   if (nu->type == CU_BEZIER) {
     BLI_assert(ARRAY_HAS_ITEM((BezTriple *)vert, nu->bezt, nu->pntsu));
-    return (BezTriple *)vert - nu->bezt;
+    return static_cast<BezTriple *>(const_cast<void *>(vert)) - nu->bezt;
   }
 
   BLI_assert(ARRAY_HAS_ITEM((BPoint *)vert, nu->bp, nu->pntsu * nu->pntsv));
-  return (BPoint *)vert - nu->bp;
+  return static_cast<BPoint *>(const_cast<void *>(vert)) - nu->bp;
 }
 
 void BKE_curve_nurb_vert_active_set(Curve *cu, const Nurb *nu, const void *vert)
@@ -5035,7 +5037,7 @@ bool BKE_curve_nurb_vert_active_get(Curve *cu, Nurb **r_nu, void **r_vert)
 
   if (cu->actvert != CU_ACT_NONE) {
     ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
-    nu = (Nurb *)BLI_findlink(nurbs, cu->actnu);
+    nu = static_cast<Nurb *>(BLI_findlink(nurbs, cu->actnu));
 
     if (nu) {
       if (nu->type == CU_BEZIER) {
@@ -5062,13 +5064,13 @@ void BKE_curve_nurb_vert_active_validate(Curve *cu)
 
   if (BKE_curve_nurb_vert_active_get(cu, &nu, &vert)) {
     if (nu->type == CU_BEZIER) {
-      BezTriple *bezt = (BezTriple *)vert;
+      BezTriple *bezt = static_cast<BezTriple *>(vert);
       if (BEZT_ISSEL_ANY(bezt) == 0) {
         cu->actvert = CU_ACT_NONE;
       }
     }
     else {
-      BPoint *bp = (BPoint *)vert;
+      BPoint *bp = static_cast<BPoint *>(vert);
       if ((bp->f1 & SELECT) == 0) {
         cu->actvert = CU_ACT_NONE;
       }
@@ -5080,8 +5082,8 @@ void BKE_curve_nurb_vert_active_validate(Curve *cu)
   }
 }
 
-static std::optional<blender::Bounds<blender::float3>> calc_nurblist_bounds(
-    const ListBaseT<Nurb> *nurbs, const bool use_radius)
+static std::optional<Bounds<float3>> calc_nurblist_bounds(const ListBaseT<Nurb> *nurbs,
+                                                          const bool use_radius)
 {
   if (BLI_listbase_is_empty(nurbs)) {
     return std::nullopt;
@@ -5091,10 +5093,10 @@ static std::optional<blender::Bounds<blender::float3>> calc_nurblist_bounds(
   for (const Nurb &nu : *nurbs) {
     calc_nurb_minmax(&nu, use_radius, min, max);
   }
-  return blender::Bounds<float3>{min, max};
+  return Bounds<float3>{min, max};
 }
 
-std::optional<blender::Bounds<blender::float3>> BKE_curve_minmax(const Curve *cu, bool use_radius)
+std::optional<Bounds<float3>> BKE_curve_minmax(const Curve *cu, bool use_radius)
 {
   const ListBaseT<Nurb> *nurb_lb = BKE_curve_nurbs_get_for_read(cu);
   const bool is_font = BLI_listbase_is_empty(nurb_lb) && (cu->len != 0);
@@ -5194,7 +5196,7 @@ void BKE_curve_transform_ex(Curve *cu,
 
   if (do_keys && cu->key) {
     for (KeyBlock &kb : cu->key->block) {
-      float *fp = (float *)kb.data;
+      float *fp = static_cast<float *>(kb.data);
       int n = kb.totelem;
 
       for (Nurb &nu : cu->nurb) {
@@ -5252,7 +5254,7 @@ void BKE_curve_translate(Curve *cu, const float offset[3], const bool do_keys)
 
   if (do_keys && cu->key) {
     for (KeyBlock &kb : cu->key->block) {
-      float *fp = (float *)kb.data;
+      float *fp = static_cast<float *>(kb.data);
       int n = kb.totelem;
 
       for (Nurb &nu : cu->nurb) {
@@ -5511,3 +5513,5 @@ void BKE_curve_batch_cache_free(Curve *cu)
     BKE_curve_batch_cache_free_cb(cu);
   }
 }
+
+}  // namespace blender

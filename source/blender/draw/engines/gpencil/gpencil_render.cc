@@ -91,7 +91,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
 
   if (pix_z) {
     /* Depth need to be remapped to [0..1] range. */
-    pix_z = static_cast<float *>(MEM_dupallocN(pix_z));
+    pix_z = MEM_dupalloc(pix_z);
     remap_depth(view, {pix_z, rpass_z_src->rectx * rpass_z_src->recty});
   }
 
@@ -151,7 +151,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     }
   }
 
-  MEM_SAFE_FREE(pix_z);
+  MEM_SAFE_DELETE(pix_z);
 }
 
 static void render_result_z(const DRWContext *draw_ctx,
@@ -249,7 +249,7 @@ static void render_result_separated_pass(float *data, Instance &instance, const 
                              data);
 }
 
-/* This is taken from blender::eevee::Sampling::cdf_from_curvemapping. */
+/* This is taken from eevee::Sampling::cdf_from_curvemapping. */
 static void cdf_from_curvemapping(const CurveMapping &curve, Array<float> &cdf)
 {
   BLI_assert(cdf.size() > 1);
@@ -267,7 +267,7 @@ static void cdf_from_curvemapping(const CurveMapping &curve, Array<float> &cdf)
   cdf.last() = 1.0f;
 }
 
-/* This is taken from blender::eevee::Sampling::cdf_invert. */
+/* This is taken from eevee::Sampling::cdf_invert. */
 static void cdf_invert(Array<float> &cdf, Array<float> &inverted_cdf)
 {
   BLI_assert(cdf.first() == 0.0f && cdf.last() == 1.0f);
@@ -283,7 +283,7 @@ static void cdf_invert(Array<float> &cdf, Array<float> &inverted_cdf)
   }
 }
 
-/* This is taken from blender::eevee::MotionBlurModule::shutter_time_to_scene_time. */
+/* This is taken from eevee::MotionBlurModule::shutter_time_to_scene_time. */
 static float shutter_time_to_scene_time(const int shutter_position,
                                         const float shutter_time,
                                         const float frame_time,

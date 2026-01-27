@@ -120,6 +120,8 @@
 #include "readfile.hh"
 #include "versioning_common.hh"
 
+namespace blender {
+
 /* Make preferences read-only. */
 #define U (*((const UserDef *)&U))
 
@@ -260,7 +262,7 @@ struct NewAddress {
 };
 
 struct OldNewMap {
-  blender::Map<const void *, NewAddress> map;
+  Map<const void *, NewAddress> map;
 };
 
 static OldNewMap *oldnewmap_new()
@@ -328,7 +330,7 @@ static void oldnewmap_clear(OldNewMap *onm)
   /* Free unused data. */
   for (NewAddress &new_addr : onm->map.values()) {
     if (new_addr.nr == 0) {
-      MEM_freeN(new_addr.newp);
+      MEM_delete_void(new_addr.newp);
     }
   }
   onm->map.clear();
@@ -394,7 +396,7 @@ void blo_join_main(Main *bmain)
 }
 
 static void split_libdata(ListBaseT<ID> *lb_src,
-                          blender::Vector<Main *> &lib_main_array,
+                          Vector<Main *> &lib_main_array,
                           const bool do_split_packed_ids)
 {
   for (ID *id = static_cast<ID *>(lb_src->first), *idnext; id; id = idnext) {
@@ -418,7 +420,7 @@ static void split_libdata(ListBaseT<ID> *lb_src,
 void blo_split_main(Main *bmain, const bool do_split_packed_ids)
 {
   BLI_assert(!bmain->split_mains);
-  bmain->split_mains = std::make_shared<blender::VectorSet<Main *>>();
+  bmain->split_mains = std::make_shared<VectorSet<Main *>>();
   bmain->split_mains->add_new(bmain);
 
   if (BLI_listbase_is_empty(&bmain->libraries)) {
@@ -435,7 +437,7 @@ void blo_split_main(Main *bmain, const bool do_split_packed_ids)
   BKE_main_namemap_clear(*bmain);
 
   /* (Library.temp_index -> Main), lookup table */
-  blender::Vector<Main *> lib_main_array;
+  Vector<Main *> lib_main_array;
 
   int i = 0;
   int lib_index = 0;
@@ -494,9 +496,8 @@ static void read_file_version_and_colorspace(FileData *fd, Main *main)
             main, BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
         main->is_asset_edit_file = (fg->fileflags & G_FILE_ASSET_EDIT_FILE) != 0;
         STRNCPY(main->colorspace.scene_linear_name, fg->colorspace_scene_linear_name);
-        main->colorspace.scene_linear_to_xyz = blender::float3x3(
-            fg->colorspace_scene_linear_to_xyz);
-        MEM_freeN(fg);
+        main->colorspace.scene_linear_to_xyz = float3x3(fg->colorspace_scene_linear_to_xyz);
+        MEM_delete(fg);
       }
       else if (bhead->code == BLO_CODE_ENDB) {
         break;
@@ -606,7 +607,7 @@ static BHeadN *get_bhead(FileData *fd)
 #ifdef USE_BHEAD_READ_ON_DEMAND
       else if (fd->file->seek != nullptr && BHEAD_USE_READ_ON_DEMAND(bhead)) {
         /* Delay reading bhead content. */
-        new_bhead = MEM_mallocN<BHeadN>("new_bhead");
+        new_bhead = MEM_new_uninitialized<BHeadN>("new_bhead");
         if (new_bhead) {
           new_bhead->next = new_bhead->prev = nullptr;
           new_bhead->file_offset = fd->file->offset;
@@ -616,7 +617,7 @@ static BHeadN *get_bhead(FileData *fd)
           const off64_t seek_new = fd->file->seek(fd->file, bhead->len, SEEK_CUR);
           if (UNLIKELY(seek_new == -1)) {
             fd->is_eof = true;
-            MEM_freeN(new_bhead);
+            MEM_delete(new_bhead);
             new_bhead = nullptr;
           }
           else {
@@ -630,7 +631,7 @@ static BHeadN *get_bhead(FileData *fd)
 #endif
       else {
         new_bhead = static_cast<BHeadN *>(
-            MEM_mallocN(sizeof(BHeadN) + size_t(bhead->len), "new_bhead"));
+            MEM_new_uninitialized(sizeof(BHeadN) + size_t(bhead->len), "new_bhead"));
         if (new_bhead) {
           new_bhead->next = new_bhead->prev = nullptr;
 #ifdef USE_BHEAD_READ_ON_DEMAND
@@ -644,12 +645,13 @@ static BHeadN *get_bhead(FileData *fd)
 
           if (UNLIKELY(readsize != bhead->len)) {
             fd->is_eof = true;
-            MEM_freeN(new_bhead);
+            MEM_delete(new_bhead);
             new_bhead = nullptr;
           }
           else {
             if (fd->flags & FD_FLAGS_IS_MEMFILE) {
-              new_bhead->is_memchunk_identical = ((UndoReader *)fd->file)->memchunk_identical;
+              new_bhead->is_memchunk_identical =
+                  (reinterpret_cast<UndoReader *>(fd->file))->memchunk_identical;
             }
           }
         }
@@ -742,7 +744,8 @@ static bool blo_bhead_read_data(FileData *fd, BHead *thisblock, void *buf)
     }
     else {
       if (fd->flags & FD_FLAGS_IS_MEMFILE) {
-        new_bhead->is_memchunk_identical = ((UndoReader *)fd->file)->memchunk_identical;
+        new_bhead->is_memchunk_identical =
+            (reinterpret_cast<UndoReader *>(fd->file))->memchunk_identical;
       }
     }
   }
@@ -756,13 +759,13 @@ static BHead *blo_bhead_read_full(FileData *fd, BHead *thisblock)
 {
   BHeadN *new_bhead = BHEADN_FROM_BHEAD(thisblock);
   BHeadN *new_bhead_data = static_cast<BHeadN *>(
-      MEM_mallocN(sizeof(BHeadN) + new_bhead->bhead.len, "new_bhead"));
+      MEM_new_uninitialized(sizeof(BHeadN) + new_bhead->bhead.len, "new_bhead"));
   new_bhead_data->bhead = new_bhead->bhead;
   new_bhead_data->file_offset = new_bhead->file_offset;
   new_bhead_data->has_data = true;
   new_bhead_data->is_memchunk_identical = false;
   if (!blo_bhead_read_data(fd, thisblock, new_bhead_data + 1)) {
-    MEM_freeN(new_bhead_data);
+    MEM_delete(new_bhead_data);
     return nullptr;
   }
   return &new_bhead_data->bhead;
@@ -797,7 +800,8 @@ AssetMetaData *blo_bhead_id_asset_data_address(const FileData *fd, const BHead *
 {
   BLI_assert(blo_bhead_is_id_valid_type(bhead));
   return (fd->id_asset_data_offset >= 0) ?
-             *(AssetMetaData **)POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_asset_data_offset) :
+             *reinterpret_cast<AssetMetaData **>(const_cast<BHead *>(
+                 POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_asset_data_offset))) :
              nullptr;
 }
 
@@ -911,7 +915,7 @@ static int *read_file_thumbnail(FileData *fd)
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == BLO_CODE_TEST) {
       BLI_assert((fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
-      int *data = (int *)(bhead + 1);
+      int *data = reinterpret_cast<int *>(bhead + 1);
 
       if (bhead->len < sizeof(int[2])) {
         break;
@@ -955,8 +959,8 @@ static void long_id_names_ensure_unique_id_names(Main *bmain)
   /* Using a set is needed, to avoid renaming names when there is no collision, and deal with IDs
    * being moved around in their list when renamed. A simple set is enough, since here only local
    * IDs are processed. */
-  blender::Set<blender::StringRef> used_names;
-  blender::Set<ID *> processed_ids;
+  Set<StringRef> used_names;
+  Set<ID *> processed_ids;
 
   FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb_iter) {
     for (ID &id_iter : lb_iter->items_mutable()) {
@@ -1023,7 +1027,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
          * truncated. */
         for (int i = 0; i < act->slot_array_num; i++) {
           BLI_uniquename_cb(
-              [&](const blender::StringRef name) -> bool {
+              [&](const StringRef name) -> bool {
                 for (int j = 0; j < act->slot_array_num; j++) {
                   if (i == j) {
                     continue;
@@ -1082,7 +1086,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
                        anim_data->tmp_last_slot_identifier);
           }
 
-          blender::bke::nla::foreach_strip_adt(*anim_data, [&](NlaStrip *strip) -> bool {
+          bke::nla::foreach_strip_adt(*anim_data, [&](NlaStrip *strip) -> bool {
             if (BLI_str_utf8_truncate_at_size(strip->last_slot_identifier, MAX_ID_NAME)) {
               CLOG_DEBUG(&LOG,
                          "Truncated too long NlaStrip.last_slot_identifier to '%s'",
@@ -1115,7 +1119,7 @@ static FileData *filedata_new(BlendFileReadReport *reports)
   fd->datamap = oldnewmap_new();
   fd->globmap = oldnewmap_new();
   fd->libmap = oldnewmap_new();
-  fd->id_by_deep_hash = std::make_shared<blender::Map<IDHash, ID *>>();
+  fd->id_by_deep_hash = std::make_shared<Map<IDHash, ID *>>();
 
   fd->reports = reports;
 
@@ -1164,10 +1168,10 @@ static bool is_minversion_older_than_blender(FileData *fd, ReportList *reports)
                 fd->relabase,
                 writer_ver_str,
                 min_reader_ver_str);
-      MEM_freeN(fg);
+      MEM_delete(fg);
       return true;
     }
-    MEM_freeN(fg);
+    MEM_delete(fg);
     return false;
   }
   return false;
@@ -1336,7 +1340,7 @@ void blo_filedata_free(FileData *fd)
       BLI_assert(new_bhead.has_data == 0);
     }
 #  endif
-    MEM_freeN(&new_bhead);
+    MEM_delete(&new_bhead);
   }
 #endif
   fd->file->close(fd->file);
@@ -1345,7 +1349,7 @@ void blo_filedata_free(FileData *fd)
     DNA_sdna_free(fd->filesdna);
   }
   if (fd->compflags) {
-    MEM_freeN(fd->compflags);
+    MEM_delete(fd->compflags);
   }
   if (fd->reconstruct_info) {
     DNA_reconstruct_info_free(fd->reconstruct_info);
@@ -1368,7 +1372,7 @@ void blo_filedata_free(FileData *fd)
   }
   blo_cache_storage_end(fd);
   if (fd->bheadmap) {
-    MEM_freeN(fd->bheadmap);
+    MEM_delete(fd->bheadmap);
   }
 
   MEM_delete(fd);
@@ -1391,7 +1395,7 @@ BlendThumbnail *BLO_thumbnail_from_file(const char *filepath)
       const int height = fd_data[1];
       if (BLEN_THUMB_MEMSIZE_IS_VALID(width, height)) {
         const size_t data_size = BLEN_THUMB_MEMSIZE(width, height);
-        data = static_cast<BlendThumbnail *>(MEM_mallocN(data_size, __func__));
+        data = static_cast<BlendThumbnail *>(MEM_new_uninitialized(data_size, __func__));
         if (data) {
           BLI_assert((data_size - sizeof(*data)) ==
                      (BLEN_THUMB_MEMSIZE_FILE(width, height) - (sizeof(*fd_data) * 2)));
@@ -1619,7 +1623,7 @@ void blo_cache_storage_init(FileData *fd, Main *bmain)
 {
   if (fd->flags & FD_FLAGS_IS_MEMFILE) {
     BLI_assert(fd->cache_storage == nullptr);
-    fd->cache_storage = MEM_mallocN<BLOCacheStorage>(__func__);
+    fd->cache_storage = MEM_new_uninitialized<BLOCacheStorage>(__func__);
     fd->cache_storage->memarena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
     fd->cache_storage->cache_map = BLI_ghash_new(
         BKE_idtype_cache_key_hash, BKE_idtype_cache_key_cmp, __func__);
@@ -1683,7 +1687,7 @@ void blo_cache_storage_end(FileData *fd)
   if (fd->cache_storage != nullptr) {
     BLI_ghash_free(fd->cache_storage->cache_map, nullptr, nullptr);
     BLI_memarena_free(fd->cache_storage->memarena);
-    MEM_freeN(fd->cache_storage);
+    MEM_delete(fd->cache_storage);
     fd->cache_storage = nullptr;
   }
 }
@@ -1719,12 +1723,11 @@ static const char *get_alloc_name(FileData *fd,
   /* NOTE: This is thread_local storage, so as long as the handling of a same FileData is not
    * spread across threads (which is not supported at all currently), this is thread-safe. */
   if (!fd->storage_handle) {
-    fd->storage_handle = &intern::memutil::alloc_string_storage_get<keyT, blender::DefaultHash>(
+    fd->storage_handle = &intern::memutil::alloc_string_storage_get<keyT, DefaultHash>(
         std::string(STORAGE_ID));
   }
-  intern::memutil::AllocStringStorage<keyT, blender::DefaultHash> &storage =
-      *static_cast<intern::memutil::AllocStringStorage<keyT, blender::DefaultHash> *>(
-          fd->storage_handle);
+  intern::memutil::AllocStringStorage<keyT, DefaultHash> &storage =
+      *static_cast<intern::memutil::AllocStringStorage<keyT, DefaultHash> *>(fd->storage_handle);
 
   const bool is_id_data = !blockname && (id_type_index >= 0 && id_type_index < INDEX_ID_MAX);
 
@@ -1822,7 +1825,7 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname, const i
       else {
         /* SDNA_CMP_EQUAL */
         const int alignment = DNA_struct_alignment(fd->filesdna, bh->SDNAnr);
-        temp = MEM_mallocN_aligned(bh->len, alignment, alloc_name);
+        temp = MEM_new_uninitialized_aligned(bh->len, alignment, alloc_name);
 #ifdef USE_BHEAD_READ_ON_DEMAND
         if (BHEADN_FROM_BHEAD(bh)->has_data) {
           memcpy(temp, (bh + 1), bh->len);
@@ -1832,7 +1835,7 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname, const i
            * read the data from the file directly into the memory. */
           if (UNLIKELY(!blo_bhead_read_data(fd, bh, temp))) {
             fd->flags &= ~FD_FLAGS_FILE_OK;
-            MEM_freeN(temp);
+            MEM_delete_void(temp);
             temp = nullptr;
           }
         }
@@ -1844,7 +1847,7 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname, const i
 
 #ifdef USE_BHEAD_READ_ON_DEMAND
     if (bh_orig != bh) {
-      MEM_freeN(BHEADN_FROM_BHEAD(bh));
+      MEM_delete(BHEADN_FROM_BHEAD(bh));
     }
 #endif
   }
@@ -1878,7 +1881,7 @@ static const void *peek_struct_undo(FileData *fd, BHead *bhead)
 {
   BLI_assert(fd->flags & FD_FLAGS_IS_MEMFILE);
   UNUSED_VARS_NDEBUG(fd);
-  return (bhead->len) ? (const void *)(bhead + 1) : nullptr;
+  return (bhead->len) ? static_cast<const void *>(bhead + 1) : nullptr;
 }
 
 static void link_glob_list(FileData *fd, ListBase *lb) /* for glob data */
@@ -1922,7 +1925,7 @@ static void after_liblink_id_embedded_id_process(BlendLibReader *reader, ID *id)
 {
 
   /* Handle 'private IDs'. */
-  bNodeTree *nodetree = blender::bke::node_tree_from_id(id);
+  bNodeTree *nodetree = bke::node_tree_from_id(id);
   if (nodetree != nullptr) {
     after_liblink_id_process(reader, &nodetree->id);
 
@@ -1941,7 +1944,7 @@ static void after_liblink_id_embedded_id_process(BlendLibReader *reader, ID *id)
   }
 
   if (GS(id->name) == ID_SCE) {
-    Scene *scene = (Scene *)id;
+    Scene *scene = id_cast<Scene *>(id);
     if (scene->master_collection != nullptr) {
       after_liblink_id_process(reader, &scene->master_collection->id);
 
@@ -2006,7 +2009,7 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
 {
   /* Handle 'private IDs'. */
   if (GS(id->name) == ID_SCE) {
-    Scene *scene = (Scene *)id;
+    Scene *scene = id_cast<Scene *>(id);
     if (scene->compositing_node_group) {
       /* If `scene->compositing_node_group != nullptr`, then this means the blend file was created
        * by a version that wrote the compositing_node_group as its own ID datablock. Since
@@ -2014,7 +2017,7 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
       scene->nodetree = nullptr;
     }
   }
-  bNodeTree **nodetree = blender::bke::node_tree_ptr_from_id(id);
+  bNodeTree **nodetree = bke::node_tree_ptr_from_id(id);
   if (nodetree != nullptr && *nodetree != nullptr) {
     BLO_read_struct(reader, bNodeTree, nodetree);
     if (!*nodetree || !BKE_idtype_idcode_is_valid(GS((*nodetree)->id.name))) {
@@ -2023,22 +2026,22 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
           RPT_ERROR,
           RPT_("Data-block '%s' had an invalid embedded node group, which has not been read"),
           id->name);
-      MEM_SAFE_FREE(*nodetree);
+      MEM_SAFE_DELETE(*nodetree);
     }
     else {
       direct_link_id_common(reader,
                             current_library,
-                            (ID *)*nodetree,
-                            id_old != nullptr ? (ID *)blender::bke::node_tree_from_id(id_old) :
+                            id_cast<ID *>(*nodetree),
+                            id_old != nullptr ? id_cast<ID *>(bke::node_tree_from_id(id_old)) :
                                                 nullptr,
                             0,
                             ID_Readfile_Data::Tags{});
-      blender::bke::node_tree_blend_read_data(reader, id, *nodetree);
+      bke::node_tree_blend_read_data(reader, id, *nodetree);
     }
   }
 
   if (GS(id->name) == ID_SCE) {
-    Scene *scene = (Scene *)id;
+    Scene *scene = id_cast<Scene *>(id);
     if (scene->master_collection != nullptr) {
       BLO_read_struct(reader, Collection, &scene->master_collection);
       if (!scene->master_collection ||
@@ -2049,16 +2052,16 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
             RPT_ERROR,
             RPT_("Scene '%s' had an invalid root collection, which has not been read"),
             BKE_id_name(*id));
-        MEM_SAFE_FREE(scene->master_collection);
+        MEM_SAFE_DELETE(scene->master_collection);
       }
       else {
-        direct_link_id_common(reader,
-                              current_library,
-                              &scene->master_collection->id,
-                              id_old != nullptr ? &((Scene *)id_old)->master_collection->id :
-                                                  nullptr,
-                              0,
-                              ID_Readfile_Data::Tags{});
+        direct_link_id_common(
+            reader,
+            current_library,
+            &scene->master_collection->id,
+            id_old != nullptr ? &(id_cast<Scene *>(id_old))->master_collection->id : nullptr,
+            0,
+            ID_Readfile_Data::Tags{});
         BKE_collection_blend_read_data(reader, scene->master_collection, &scene->id);
       }
     }
@@ -2069,7 +2072,7 @@ static int direct_link_id_restore_recalc_exceptions(const ID *id_current)
 {
   /* Exception for armature objects, where the pose has direct points to the
    * armature data-block. */
-  if (GS(id_current->name) == ID_OB && ((Object *)id_current)->pose) {
+  if (GS(id_current->name) == ID_OB && (id_cast<Object *>(const_cast<ID *>(id_current)))->pose) {
     return ID_RECALC_GEOMETRY;
   }
 
@@ -2127,7 +2130,7 @@ static void readfile_id_runtime_data_ensure(ID &id)
   if (id.runtime->readfile_data) {
     return;
   }
-  id.runtime->readfile_data = MEM_callocN<ID_Readfile_Data>(__func__);
+  id.runtime->readfile_data = MEM_new_zeroed<ID_Readfile_Data>(__func__);
 }
 
 ID_Readfile_Data::Tags BLO_readfile_id_runtime_tags(ID &id)
@@ -2146,7 +2149,7 @@ ID_Readfile_Data::Tags &BLO_readfile_id_runtime_tags_for_write(ID &id)
 
 void BLO_readfile_id_runtime_data_free(ID &id)
 {
-  MEM_SAFE_FREE(id.runtime->readfile_data);
+  MEM_SAFE_DELETE(id.runtime->readfile_data);
 }
 
 void BLO_readfile_id_runtime_data_free_all(Main &bmain)
@@ -2164,7 +2167,7 @@ void BLO_readfile_id_runtime_data_free_all(Main &bmain)
       }
     }
 
-    bNodeTree *node_tree = blender::bke::node_tree_from_id(id);
+    bNodeTree *node_tree = bke::node_tree_from_id(id);
     if (node_tree) {
       BLO_readfile_id_runtime_data_free(node_tree->id);
     }
@@ -2525,7 +2528,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
       // change_link_placeholder_to_real_ID_pointer_fd(fd, lib, newmain->curlib);
 
       BLI_remlink(&main->libraries, lib);
-      MEM_freeN(lib);
+      MEM_delete(lib);
 
       /* Now, since Blender always expect **last** Main pointer from fd->bmain->split_mains
        * to be the active library Main pointer, where to add all non-library data-blocks found in
@@ -2646,7 +2649,7 @@ static ID *create_placeholder(Main *mainvar,
   ID *ph_id = BKE_libblock_alloc_notest(idcode);
   BKE_libblock_runtime_ensure(*ph_id);
 
-  *((short *)ph_id->name) = idcode;
+  *(reinterpret_cast<short *>(ph_id->name)) = idcode;
   BLI_strncpy(ph_id->name + 2, idname, sizeof(ph_id->name) - 2);
   BKE_libblock_init_empty(ph_id);
   ph_id->lib = mainvar->curlib;
@@ -2681,7 +2684,7 @@ static void placeholders_ensure_valid(Main *bmain)
   /* Placeholder ObData IDs won't have any material, we have to update their objects for that,
    * otherwise the inconsistency between both will lead to crashes (especially in Eevee?). */
   for (Object &ob : bmain->objects) {
-    ID *obdata = static_cast<ID *>(ob.data);
+    ID *obdata = ob.data;
     if (obdata != nullptr && obdata->tag & ID_TAG_MISSING) {
       BKE_object_materials_sync_length(bmain, &ob, obdata);
     }
@@ -2720,10 +2723,10 @@ static bool direct_link_id(FileData *fd,
 
   switch (GS(id->name)) {
     case ID_SCR:
-      success = BKE_screen_blend_read_data(&reader, (bScreen *)id);
+      success = BKE_screen_blend_read_data(&reader, id_cast<bScreen *>(id));
       break;
     case ID_LI:
-      direct_link_library(fd, (Library *)id, main);
+      direct_link_library(fd, id_cast<Library *>(id), main);
       break;
     default:
       /* Do nothing. Handled by IDTypeInfo callback. */
@@ -3012,8 +3015,7 @@ static void read_undo_libraries_preserve_never_undo_libraries(FileData *fd)
   BLI_assert(old_bmain->split_mains);
   /* Cannot iterate directly over `old_main->split_mains`, as this is likely going to remove some
    * of its items. */
-  blender::Vector<Main *> old_bmain_split_mains = {
-      old_bmain->split_mains->as_span().drop_front(1)};
+  Vector<Main *> old_bmain_split_mains = {old_bmain->split_mains->as_span().drop_front(1)};
   for (Main *lib_bmain : old_bmain_split_mains) {
     BLI_assert(lib_bmain->curlib);
     if (BLO_readfile_id_runtime_tags(lib_bmain->curlib->id).used_by_no_undo_id) {
@@ -3176,7 +3178,7 @@ static void read_libblock_undo_restore_identical(
   BKE_main_idmap_insert_id(fd->new_idmap_uid, id_old);
 
   if (GS(id_old->name) == ID_OB) {
-    Object *ob = (Object *)id_old;
+    Object *ob = id_cast<Object *>(id_old);
     /* For undo we stay in object mode during undo presses, so keep editmode disabled for re-used
      * data-blocks too. */
     ob->mode &= ~OB_MODE_EDIT;
@@ -3258,8 +3260,8 @@ static void read_libblock_undo_restore_at_old_address(FileData *fd, Main *main, 
    *     Main in #direct_link_library are part of the same #read_libblock call).
    */
   if (GS(id_old->name) == ID_LI) {
-    Library *lib_old = blender::id_cast<Library *>(id_old);
-    Library *lib = blender::id_cast<Library *>(id);
+    Library *lib_old = id_cast<Library *>(id_old);
+    Library *lib = id_cast<Library *>(id);
     BLI_assert(lib_old->flag & LIBRARY_FLAG_IS_ARCHIVE);
 
     for (Main *bmain_iter : *fd->bmain->split_mains) {
@@ -3433,7 +3435,7 @@ static BHead *read_libblock(FileData *fd,
   if (lb == nullptr) {
     /* Unknown ID type. */
     CLOG_WARN(&LOG, "Unknown id code '%c%c'", (idcode & 0xff), (idcode >> 8));
-    MEM_freeN(id);
+    MEM_delete(id);
     if (r_id) {
       *r_id = nullptr;
     }
@@ -3569,8 +3571,7 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
   bfd->main->is_asset_edit_file = (fg->fileflags & G_FILE_ASSET_EDIT_FILE) != 0;
 
   STRNCPY(bfd->main->colorspace.scene_linear_name, fg->colorspace_scene_linear_name);
-  bfd->main->colorspace.scene_linear_to_xyz = blender::float3x3(
-      fg->colorspace_scene_linear_to_xyz);
+  bfd->main->colorspace.scene_linear_to_xyz = float3x3(fg->colorspace_scene_linear_to_xyz);
 
   bfd->fileflags = fg->fileflags;
   bfd->globalf = fg->globalf;
@@ -3595,7 +3596,7 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
   bfd->curscene = fg->curscene;
   bfd->cur_view_layer = fg->cur_view_layer;
 
-  MEM_freeN(fg);
+  MEM_delete(fg);
 
   fd->globalf = bfd->globalf;
   fd->fileflags = bfd->fileflags;
@@ -4007,7 +4008,7 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
     BLO_read_struct_list(reader, bUserMenuItem, &um.items);
     for (bUserMenuItem &umi : um.items) {
       if (umi.type == USER_MENU_TYPE_OPERATOR) {
-        bUserMenuItem_Op *umi_op = (bUserMenuItem_Op *)&umi;
+        bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(&umi);
         BLO_read_struct(reader, IDProperty, &umi_op->prop);
         IDP_BlendDataRead(reader, &umi_op->prop);
       }
@@ -4160,7 +4161,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
       const int height = data[1];
       if (BLEN_THUMB_MEMSIZE_IS_VALID(width, height)) {
         const size_t data_size = BLEN_THUMB_MEMSIZE(width, height);
-        bfd->main->blen_thumb = static_cast<BlendThumbnail *>(MEM_mallocN(data_size, __func__));
+        bfd->main->blen_thumb = static_cast<BlendThumbnail *>(
+            MEM_new_uninitialized(data_size, __func__));
 
         BLI_assert((data_size - sizeof(*bfd->main->blen_thumb)) ==
                    (BLEN_THUMB_MEMSIZE_FILE(width, height) - (sizeof(*data) * 2)));
@@ -4449,7 +4451,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     /* After all data has been read and versioned, uses ID_TAG_NEW. Theoretically this should
      * not be calculated in the undo case, but it is currently needed even on undo to recalculate
      * a cache. */
-    blender::bke::node_tree_update_all_new(*bfd->main);
+    bke::node_tree_update_all_new(*bfd->main);
 
     placeholders_ensure_valid(bfd->main);
 
@@ -4553,7 +4555,7 @@ static void sort_bhead_old_map(FileData *fd)
     return;
   }
 
-  bhs = fd->bheadmap = MEM_malloc_arrayN<BHeadSort>(tot, "BHeadSort");
+  bhs = fd->bheadmap = MEM_new_array_uninitialized<BHeadSort>(tot, "BHeadSort");
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead), bhs++) {
     bhs->bhead = bhead;
@@ -4616,7 +4618,7 @@ static BHead *find_bhead(FileData *fd, void *old)
 static BHead *find_bhead_from_code_name(FileData *fd, const short idcode, const char *name)
 {
   char idname_full[MAX_ID_NAME];
-  *((short *)idname_full) = idcode;
+  *(reinterpret_cast<short *>(idname_full)) = idcode;
   BLI_strncpy(idname_full + 2, name, sizeof(idname_full) - 2);
 
   return fd->bhead_idname_map->lookup_default(idname_full, nullptr);
@@ -4949,7 +4951,7 @@ static void expand_doit_library(void *fdhandle,
         read_id_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
     Main *libmain = blo_find_main_for_library_and_idname(
         fd, lib->filepath, fd->relabase, nullptr, nullptr, false);
-    MEM_freeN(lib);
+    MEM_delete(lib);
 
     if (libmain->curlib == nullptr) {
       BLO_reportf_wrap(fd->reports,
@@ -4990,7 +4992,7 @@ static void expand_doit_library(void *fdhandle,
         read_id_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
     Main *libmain = blo_find_main_for_library_and_idname(
         fd, lib->filepath, fd->relabase, bhead, id_name, is_packed_id);
-    MEM_freeN(lib);
+    MEM_delete(lib);
 
     if (libmain->curlib == nullptr) {
       BLO_reportf_wrap(fd->reports,
@@ -5156,7 +5158,7 @@ ID *BLO_library_link_named_part(Main *mainl,
                                 const char *name,
                                 const LibraryLink_Params *params)
 {
-  FileData *fd = (FileData *)(*bh);
+  FileData *fd = reinterpret_cast<FileData *>(*bh);
 
   ID *ret_id = nullptr;
   if (!mainl->is_read_invalid) {
@@ -5367,7 +5369,7 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag, ReportL
   BKE_main_id_refcount_recompute(mainvar, false);
 
   /* After all data has been read and versioned, uses ID_TAG_NEW. */
-  blender::bke::node_tree_update_all_new(*mainvar);
+  bke::node_tree_update_all_new(*mainvar);
 
   placeholders_ensure_valid(mainvar);
 
@@ -5513,7 +5515,7 @@ static void read_library_linked_id(
 
 static void read_library_linked_ids(FileData *basefd, FileData *fd, Main *mainvar)
 {
-  blender::Map<std::string, ID *> loaded_ids;
+  Map<std::string, ID *> loaded_ids;
 
   MainListsArray lbarray = BKE_main_lists_get(*mainvar);
   int a = lbarray.size();
@@ -5566,7 +5568,7 @@ static void read_library_linked_ids(FileData *basefd, FileData *fd, Main *mainva
          * #BKE_libblock_free_data on it would not work. */
         BKE_libblock_free_runtime_data(id);
 
-        MEM_freeN(id);
+        MEM_delete(id);
       }
       id = id_next;
     }
@@ -5885,47 +5887,47 @@ void BLO_read_struct_list_with_size(BlendDataReader *reader,
 
 void BLO_read_char_array(BlendDataReader *reader, const int64_t array_size, char **ptr_p)
 {
-  *ptr_p = reinterpret_cast<char *>(
-      BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(char) * array_size));
+  *ptr_p = reinterpret_cast<char *>(BLO_read_struct_array_with_size(
+      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(char) * array_size));
 }
 
 void BLO_read_uint8_array(BlendDataReader *reader, const int64_t array_size, uint8_t **ptr_p)
 {
-  *ptr_p = reinterpret_cast<uint8_t *>(
-      BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(uint8_t) * array_size));
+  *ptr_p = reinterpret_cast<uint8_t *>(BLO_read_struct_array_with_size(
+      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(uint8_t) * array_size));
 }
 
 void BLO_read_int8_array(BlendDataReader *reader, const int64_t array_size, int8_t **ptr_p)
 {
-  *ptr_p = reinterpret_cast<int8_t *>(
-      BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(int8_t) * array_size));
+  *ptr_p = reinterpret_cast<int8_t *>(BLO_read_struct_array_with_size(
+      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(int8_t) * array_size));
 }
 
 void BLO_read_int16_array(BlendDataReader *reader, const int64_t array_size, int16_t **ptr_p)
 {
-  *ptr_p = reinterpret_cast<int16_t *>(
-      BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(int16_t) * array_size));
+  *ptr_p = reinterpret_cast<int16_t *>(BLO_read_struct_array_with_size(
+      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(int16_t) * array_size));
   BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 }
 
 void BLO_read_int32_array(BlendDataReader *reader, const int64_t array_size, int32_t **ptr_p)
 {
-  *ptr_p = reinterpret_cast<int32_t *>(
-      BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(int32_t) * array_size));
+  *ptr_p = reinterpret_cast<int32_t *>(BLO_read_struct_array_with_size(
+      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(int32_t) * array_size));
   BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 }
 
 void BLO_read_uint32_array(BlendDataReader *reader, const int64_t array_size, uint32_t **ptr_p)
 {
-  *ptr_p = reinterpret_cast<uint32_t *>(
-      BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(uint32_t) * array_size));
+  *ptr_p = reinterpret_cast<uint32_t *>(BLO_read_struct_array_with_size(
+      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(uint32_t) * array_size));
   BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 }
 
 void BLO_read_float_array(BlendDataReader *reader, const int64_t array_size, float **ptr_p)
 {
-  *ptr_p = reinterpret_cast<float *>(
-      BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(float) * array_size));
+  *ptr_p = reinterpret_cast<float *>(BLO_read_struct_array_with_size(
+      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(float) * array_size));
   BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 }
 
@@ -5936,8 +5938,8 @@ void BLO_read_float3_array(BlendDataReader *reader, const int64_t array_size, fl
 
 void BLO_read_double_array(BlendDataReader *reader, const int64_t array_size, double **ptr_p)
 {
-  *ptr_p = reinterpret_cast<double *>(
-      BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(double) * array_size));
+  *ptr_p = reinterpret_cast<double *>(BLO_read_struct_array_with_size(
+      reader, *(reinterpret_cast<void **>(ptr_p)), sizeof(double) * array_size));
   BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 }
 
@@ -6014,17 +6016,21 @@ void BLO_read_pointer_array(BlendDataReader *reader, const int64_t array_size, v
   }
   else if (file_pointer_size == 8 && current_pointer_size == 4) {
     /* Convert pointers from 64 to 32 bit. */
-    final_array = MEM_malloc_arrayN(array_size, 4, "new pointer array");
-    convert_pointer_array_64_to_32(
-        reader, array_size, (uint64_t *)orig_array, (uint32_t *)final_array);
-    MEM_freeN(orig_array);
+    final_array = MEM_new_array_uninitialized(array_size, 4, "new pointer array");
+    convert_pointer_array_64_to_32(reader,
+                                   array_size,
+                                   static_cast<uint64_t *>(orig_array),
+                                   static_cast<uint32_t *>(final_array));
+    MEM_delete_void(orig_array);
   }
   else if (file_pointer_size == 4 && current_pointer_size == 8) {
     /* Convert pointers from 32 to 64 bit. */
-    final_array = MEM_malloc_arrayN(array_size, 8, "new pointer array");
-    convert_pointer_array_32_to_64(
-        reader, array_size, (uint32_t *)orig_array, (uint64_t *)final_array);
-    MEM_freeN(orig_array);
+    final_array = MEM_new_array_uninitialized(array_size, 8, "new pointer array");
+    convert_pointer_array_32_to_64(reader,
+                                   array_size,
+                                   static_cast<uint32_t *>(orig_array),
+                                   static_cast<uint64_t *>(final_array));
+    MEM_delete_void(orig_array);
   }
   else {
     BLI_assert_unreachable();
@@ -6033,10 +6039,10 @@ void BLO_read_pointer_array(BlendDataReader *reader, const int64_t array_size, v
   *ptr_p = final_array;
 }
 
-blender::ImplicitSharingInfoAndData blo_read_shared_impl(
+ImplicitSharingInfoAndData blo_read_shared_impl(
     BlendDataReader *reader,
     const void **ptr_p,
-    const blender::FunctionRef<const blender::ImplicitSharingInfo *()> read_fn)
+    const FunctionRef<const ImplicitSharingInfo *()> read_fn)
 {
   const uint64_t old_address_id = uint64_t(*ptr_p);
   if (BLO_read_data_is_undo(reader)) {
@@ -6045,7 +6051,7 @@ blender::ImplicitSharingInfoAndData blo_read_shared_impl(
       const MemFile &memfile = *undo_reader->memfile;
       if (memfile.shared_storage) {
         /* Check if the data was saved with sharing-info. */
-        if (const blender::ImplicitSharingInfoAndData *sharing_info_data =
+        if (const ImplicitSharingInfoAndData *sharing_info_data =
                 memfile.shared_storage->sharing_info_by_address_id.lookup_ptr(old_address_id))
         {
           /* Add a new owner of the data that is passed to the caller. */
@@ -6056,7 +6062,7 @@ blender::ImplicitSharingInfoAndData blo_read_shared_impl(
     }
   }
 
-  if (const blender::ImplicitSharingInfoAndData *shared_data =
+  if (const ImplicitSharingInfoAndData *shared_data =
           reader->shared_data_by_stored_address.lookup_ptr(old_address_id))
   {
     /* The data was loaded before. No need to load it again. Just increase the user count to
@@ -6069,9 +6075,9 @@ blender::ImplicitSharingInfoAndData blo_read_shared_impl(
 
   /* This is the first time this data is loaded. The callback also creates the corresponding
    * sharing info which may be reused later. */
-  const blender::ImplicitSharingInfo *sharing_info = read_fn();
+  const ImplicitSharingInfo *sharing_info = read_fn();
   const void *new_address = *ptr_p;
-  const blender::ImplicitSharingInfoAndData shared_data{sharing_info, new_address};
+  const ImplicitSharingInfoAndData shared_data{sharing_info, new_address};
   reader->shared_data_by_stored_address.add(old_address_id, shared_data);
   return shared_data;
 }
@@ -6112,3 +6118,5 @@ BlendFileReadReport *BLO_read_lib_reports(BlendLibReader *reader)
 }
 
 /** \} */
+
+}  // namespace blender

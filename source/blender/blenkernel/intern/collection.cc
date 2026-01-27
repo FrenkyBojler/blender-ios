@@ -55,6 +55,8 @@
 
 #include "BLO_read_write.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"object.collection"};
 
 /**
@@ -121,9 +123,9 @@ static void collection_exporter_copy(Collection *collection, CollectionExport *d
 
 static void collection_init_data(ID *id)
 {
-  Collection *collection = (Collection *)id;
+  Collection *collection = id_cast<Collection *>(id);
   INIT_DEFAULT_STRUCT_AFTER(collection, id);
-  collection->runtime = MEM_new<blender::bke::CollectionRuntime>(__func__);
+  collection->runtime = MEM_new<bke::CollectionRuntime>(__func__);
 }
 
 /**
@@ -142,10 +144,10 @@ static void collection_copy_data(Main *bmain,
                                  const ID *id_src,
                                  const int flag)
 {
-  Collection *collection_dst = (Collection *)id_dst;
-  const Collection *collection_src = (const Collection *)id_src;
+  Collection *collection_dst = id_cast<Collection *>(id_dst);
+  const Collection *collection_src = id_cast<const Collection *>(id_src);
 
-  collection_dst->runtime = MEM_new<blender::bke::CollectionRuntime>(__func__);
+  collection_dst->runtime = MEM_new<bke::CollectionRuntime>(__func__);
 
   BLI_assert(((collection_src->flag & COLLECTION_IS_MASTER) != 0) ==
              ((collection_src->id.flag & ID_FLAG_EMBEDDED_DATA) != 0));
@@ -178,7 +180,7 @@ static void collection_copy_data(Main *bmain,
 
 static void collection_free_data(ID *id)
 {
-  Collection *collection = (Collection *)id;
+  Collection *collection = id_cast<Collection *>(id);
 
   /* No animation-data here. */
   BKE_previewimg_free(&collection->preview);
@@ -205,7 +207,7 @@ static void collection_free_data(ID *id)
 
 static void collection_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  Collection *collection = (Collection *)id;
+  Collection *collection = id_cast<Collection *>(id);
   const int data_flags = BKE_lib_query_foreachid_process_flags_get(data);
 
   BKE_LIB_FOREACHID_PROCESS_ID(
@@ -256,7 +258,7 @@ static ID **collection_owner_pointer_get(ID *id, const bool debug_relationship_a
     return nullptr;
   }
 
-  Collection *master_collection = (Collection *)id;
+  Collection *master_collection = id_cast<Collection *>(id);
   BLI_assert((master_collection->flag & COLLECTION_IS_MASTER) != 0);
   if (debug_relationship_assert) {
     BLI_assert(master_collection->owner_id != nullptr);
@@ -299,12 +301,12 @@ void BKE_collection_blend_write_nolib(BlendWriter *writer, Collection *collectio
 
 static void collection_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  Collection *collection = (Collection *)id;
+  Collection *collection = id_cast<Collection *>(id);
 
   BKE_collection_blend_write_prepare_nolib(writer, collection);
 
   /* write LibData */
-  BLO_write_id_struct(writer, Collection, id_address, &collection->id);
+  writer->write_id_struct(id_address, collection);
 
   BKE_collection_blend_write_nolib(writer, collection);
 }
@@ -337,7 +339,7 @@ void BKE_collection_blend_read_data(BlendDataReader *reader, Collection *collect
     collection->id.flag |= ID_FLAG_EMBEDDED_DATA;
   }
 
-  collection->runtime = MEM_new<blender::bke::CollectionRuntime>(__func__);
+  collection->runtime = MEM_new<bke::CollectionRuntime>(__func__);
   collection->flag &= ~COLLECTION_FLAG_ALL_RUNTIME;
 
   collection->owner_id = owner_id;
@@ -357,7 +359,7 @@ void BKE_collection_blend_read_data(BlendDataReader *reader, Collection *collect
 
 static void collection_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  Collection *collection = (Collection *)id;
+  Collection *collection = id_cast<Collection *>(id);
   BKE_collection_blend_read_data(reader, collection, nullptr);
 }
 
@@ -632,8 +634,8 @@ static Collection *collection_duplicate_recursive(Main *bmain,
     do_full_process = true;
   }
   else if (collection_old->id.newid == nullptr) {
-    collection_new = (Collection *)BKE_id_copy_for_duplicate(
-        bmain, (ID *)collection_old, duplicate_flags, id_create_flag);
+    collection_new = id_cast<Collection *>(BKE_id_copy_for_duplicate(
+        bmain, id_cast<ID *>(collection_old), duplicate_flags, id_create_flag));
 
     if (collection_new == collection_old) {
       return collection_new;
@@ -642,7 +644,7 @@ static Collection *collection_duplicate_recursive(Main *bmain,
     do_full_process = true;
   }
   else {
-    collection_new = (Collection *)collection_old->id.newid;
+    collection_new = id_cast<Collection *>(collection_old->id.newid);
   }
 
   /* Optionally add to parent (we always want to do that,
@@ -693,7 +695,7 @@ static Collection *collection_duplicate_recursive(Main *bmain,
      * collections collection_old and collection_new are the same data here. */
     for (CollectionObject &cob : collection_old->gobject.items_mutable()) {
       Object *ob_old = cob.ob;
-      Object *ob_new = (Object *)ob_old->id.newid;
+      Object *ob_new = id_cast<Object *>(ob_old->id.newid);
 
       /* New object can be nullptr in master collection case, since new and old objects are in same
        * collection. */
@@ -848,7 +850,7 @@ static void collection_object_cache_fill(ListBaseT<Base> *lb,
     Base *base = static_cast<Base *>(BLI_findptr(lb, cob.ob, offsetof(Base, object)));
 
     if (base == nullptr) {
-      base = MEM_new_for_free<Base>("Object Base");
+      base = MEM_new<Base>("Object Base");
       base->object = cob.ob;
       BLI_addtail(lb, base);
       if (with_instances && cob.ob->instance_collection) {
@@ -876,7 +878,7 @@ static void collection_object_cache_fill(ListBaseT<Base> *lb,
 ListBaseT<Base> BKE_collection_object_cache_get(Collection *collection)
 {
   if (!(collection->flag & COLLECTION_HAS_OBJECT_CACHE)) {
-    static blender::Mutex cache_lock;
+    static Mutex cache_lock;
 
     std::scoped_lock lock(cache_lock);
     if (!(collection->flag & COLLECTION_HAS_OBJECT_CACHE)) {
@@ -891,7 +893,7 @@ ListBaseT<Base> BKE_collection_object_cache_get(Collection *collection)
 ListBaseT<Base> BKE_collection_object_cache_instanced_get(Collection *collection)
 {
   if (!(collection->flag & COLLECTION_HAS_OBJECT_CACHE_INSTANCED)) {
-    static blender::Mutex cache_lock;
+    static Mutex cache_lock;
 
     std::scoped_lock lock(cache_lock);
     if (!(collection->flag & COLLECTION_HAS_OBJECT_CACHE_INSTANCED)) {
@@ -1006,7 +1008,7 @@ Collection *BKE_collection_master_add(Scene *scene)
   master_collection->color_tag = COLLECTION_COLOR_NONE;
 
   BLI_assert(scene->id.lib == master_collection->id.lib);
-  master_collection->runtime = MEM_new<blender::bke::CollectionRuntime>(__func__);
+  master_collection->runtime = MEM_new<bke::CollectionRuntime>(__func__);
 
   return master_collection;
 }
@@ -1418,7 +1420,7 @@ static bool collection_object_add(Main *bmain,
   bool newly_added = false;
   CollectionObject *cob = collection->runtime->gobject_hash->lookup_or_add_cb(ob, [&]() {
     newly_added = true;
-    return MEM_new_for_free<CollectionObject>(__func__);
+    return MEM_new<CollectionObject>(__func__);
   });
   if (!newly_added) {
     return false;
@@ -1480,7 +1482,7 @@ CollectionExport *BKE_collection_exporter_add(Collection *collection, char *idna
 {
   /* Add a new #CollectionExport item to our handler list and fill it with #FileHandlerType
    * information. Also load in the operator's properties now as well. */
-  CollectionExport *data = MEM_new_for_free<CollectionExport>("CollectionExport");
+  CollectionExport *data = MEM_new<CollectionExport>("CollectionExport");
   STRNCPY(data->fh_idname, idname);
 
   BKE_collection_exporter_name_set(&collection->exporters, data, label);
@@ -1501,7 +1503,7 @@ void BKE_collection_exporter_remove(Collection *collection, CollectionExport *da
   BLI_remlink(exporters, data);
   BKE_collection_exporter_free_data(data);
 
-  MEM_freeN(data);
+  MEM_delete(data);
 
   const int count = BLI_listbase_count(exporters);
   const int new_index = count == 0 ? 0 : std::min(collection->active_exporter_index, count - 1);
@@ -1519,7 +1521,7 @@ bool BKE_collection_exporter_move(Collection *collection, const int from, const 
 
 static void collection_exporter_copy(Collection *collection, CollectionExport *data)
 {
-  CollectionExport *new_data = MEM_new_for_free<CollectionExport>("CollectionExport");
+  CollectionExport *new_data = MEM_new<CollectionExport>("CollectionExport");
   STRNCPY(new_data->fh_idname, data->fh_idname);
   new_data->export_properties = IDP_CopyProperty(data->export_properties);
   new_data->flag = data->flag;
@@ -1955,7 +1957,7 @@ static bool collection_child_add(Main *bmain,
     return false;
   }
 
-  child = MEM_new_for_free<CollectionChild>("CollectionChild");
+  child = MEM_new<CollectionChild>("CollectionChild");
   child->collection = collection;
   if (light_linking) {
     child->light_linking = *light_linking;
@@ -1964,7 +1966,7 @@ static bool collection_child_add(Main *bmain,
 
   /* Don't add parent links for depsgraph datablocks, these are not kept in sync. */
   if ((id_create_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
-    CollectionParent *cparent = MEM_callocN<CollectionParent>("CollectionParent");
+    CollectionParent *cparent = MEM_new_zeroed<CollectionParent>("CollectionParent");
     cparent->collection = parent;
     BLI_addtail(&collection->runtime->parents, cparent);
   }
@@ -2047,7 +2049,7 @@ void BKE_collection_parent_relations_rebuild(Collection *collection)
     }
 
     BLI_assert(collection_find_parent(child.collection, collection) == nullptr);
-    CollectionParent *cparent = MEM_callocN<CollectionParent>(__func__);
+    CollectionParent *cparent = MEM_new_zeroed<CollectionParent>(__func__);
     cparent->collection = collection;
     BLI_addtail(&child.collection->runtime->parents, cparent);
   }
@@ -2121,7 +2123,7 @@ bool BKE_collection_validate(Collection *collection)
   bool is_ok = true;
 
   /* Check that children have each collection used/referenced only once. */
-  blender::Set<Collection *> processed_collections;
+  Set<Collection *> processed_collections;
   for (CollectionChild &child : collection->children) {
     if (!processed_collections.add(child.collection)) {
       is_ok = false;
@@ -2291,8 +2293,8 @@ static void scene_collections_array(Scene *scene,
 
   BLI_assert(*r_collections_array_len > 0);
 
-  Collection **array = MEM_malloc_arrayN<Collection *>(size_t(*r_collections_array_len),
-                                                       "CollectionArray");
+  Collection **array = MEM_new_array_uninitialized<Collection *>(size_t(*r_collections_array_len),
+                                                                 "CollectionArray");
   *r_collections_array = array;
   scene_collection_callback(collection, scene_collections_build_array, &array);
 }
@@ -2300,14 +2302,14 @@ static void scene_collections_array(Scene *scene,
 void BKE_scene_collections_iterator_begin(BLI_Iterator *iter, void *data_in)
 {
   Scene *scene = static_cast<Scene *>(data_in);
-  CollectionsIteratorData *data = MEM_callocN<CollectionsIteratorData>(__func__);
+  CollectionsIteratorData *data = MEM_new_zeroed<CollectionsIteratorData>(__func__);
 
   data->scene = scene;
 
   BLI_ITERATOR_INIT(iter);
   iter->data = data;
 
-  scene_collections_array(scene, (Collection ***)&data->array, &data->tot);
+  scene_collections_array(scene, reinterpret_cast<Collection ***>(&data->array), &data->tot);
   BLI_assert(data->tot != 0);
 
   data->cur = 0;
@@ -2332,9 +2334,9 @@ void BKE_scene_collections_iterator_end(BLI_Iterator *iter)
 
   if (data) {
     if (data->array) {
-      MEM_freeN(data->array);
+      MEM_delete(data->array);
     }
-    MEM_freeN(data);
+    MEM_delete(data);
   }
   iter->valid = false;
 }
@@ -2342,16 +2344,16 @@ void BKE_scene_collections_iterator_end(BLI_Iterator *iter)
 /* scene objects iterator */
 
 struct SceneObjectsIteratorData {
-  blender::Set<Object *> *visited;
+  Set<Object *> *visited;
   CollectionObject *cob_next;
   BLI_Iterator scene_collection_iter;
 };
 
 static void scene_objects_iterator_begin(BLI_Iterator *iter,
                                          Scene *scene,
-                                         blender::Set<Object *> *visited_objects)
+                                         Set<Object *> *visited_objects)
 {
-  SceneObjectsIteratorData *data = MEM_callocN<SceneObjectsIteratorData>(__func__);
+  SceneObjectsIteratorData *data = MEM_new_zeroed<SceneObjectsIteratorData>(__func__);
 
   BLI_ITERATOR_INIT(iter);
   iter->data = data;
@@ -2361,7 +2363,7 @@ static void scene_objects_iterator_begin(BLI_Iterator *iter,
     data->visited = visited_objects;
   }
   else {
-    data->visited = MEM_new<blender::Set<Object *>>(__func__);
+    data->visited = MEM_new<Set<Object *>>(__func__);
   }
 
   /* We wrap the scene-collection iterator here to go over the scene collections. */
@@ -2444,7 +2446,7 @@ void BKE_scene_objects_iterator_end_ex(BLI_Iterator *iter)
 /**
  * Ensures we only get each object once, even when included in several collections.
  */
-static CollectionObject *object_base_unique(blender::Set<Object *> &gs, CollectionObject *cob)
+static CollectionObject *object_base_unique(Set<Object *> &gs, CollectionObject *cob)
 {
   for (; cob != nullptr; cob = cob->next) {
     if (gs.add(cob->ob)) {
@@ -2495,11 +2497,11 @@ void BKE_scene_objects_iterator_end(BLI_Iterator *iter)
     if (data->visited != nullptr) {
       MEM_delete(data->visited);
     }
-    MEM_freeN(data);
+    MEM_delete(data);
   }
 }
 
-blender::Set<Object *> *BKE_scene_objects_as_set(Scene *scene, blender::Set<Object *> *objects_set)
+Set<Object *> *BKE_scene_objects_as_set(Scene *scene, Set<Object *> *objects_set)
 {
   BLI_Iterator iter;
   scene_objects_iterator_begin(&iter, scene, objects_set);
@@ -2510,11 +2512,13 @@ blender::Set<Object *> *BKE_scene_objects_as_set(Scene *scene, blender::Set<Obje
   /* `return_set` is either given `objects_set` (if non-nullptr), or the Set allocated by the
    * iterator. Either way, we want to get it back, and prevent `BKE_scene_objects_iterator_end`
    * from freeing it. */
-  blender::Set<Object *> *return_set = ((SceneObjectsIteratorData *)iter.data)->visited;
-  ((SceneObjectsIteratorData *)iter.data)->visited = nullptr;
+  Set<Object *> *return_set = (static_cast<SceneObjectsIteratorData *>(iter.data))->visited;
+  (static_cast<SceneObjectsIteratorData *>(iter.data))->visited = nullptr;
   BKE_scene_objects_iterator_end(&iter);
 
   return return_set;
 }
 
 /** \} */
+
+}  // namespace blender

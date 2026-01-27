@@ -46,6 +46,8 @@
 
 #include "paint_intern.hh"
 
+namespace blender {
+
 /* Brush Painting for 2D image editor */
 
 /* Defines and Structs */
@@ -84,7 +86,7 @@ struct BrushPainter {
 
   /* Store initial starting points for perlin noise on the beginning of each stroke when using
    * color jitter. */
-  std::optional<blender::float3> initial_hsv_jitter;
+  std::optional<float3> initial_hsv_jitter;
 
   bool firsttouch; /* first paint op */
 
@@ -178,10 +180,10 @@ static void brush_painter_2d_require_imbuf(Brush *brush,
       IMB_freeImBuf(cache->ibuf);
     }
     if (cache->tex_mask) {
-      MEM_freeN(cache->tex_mask);
+      MEM_delete(cache->tex_mask);
     }
     if (cache->tex_mask_old) {
-      MEM_freeN(cache->tex_mask_old);
+      MEM_delete(cache->tex_mask_old);
     }
     cache->ibuf = nullptr;
     cache->tex_mask = nullptr;
@@ -210,10 +212,10 @@ static void brush_painter_cache_2d_free(BrushPainterCache *cache)
   }
   paint_curve_mask_cache_free_data(&cache->curve_mask_cache);
   if (cache->tex_mask) {
-    MEM_freeN(cache->tex_mask);
+    MEM_delete(cache->tex_mask);
   }
   if (cache->tex_mask_old) {
-    MEM_freeN(cache->tex_mask_old);
+    MEM_delete(cache->tex_mask_old);
   }
 }
 
@@ -235,7 +237,7 @@ static ushort *brush_painter_mask_ibuf_new(BrushPainter *painter, const int size
   ushort *mask, *m;
   int x, y, thread = 0;
 
-  mask = MEM_malloc_arrayN<ushort>(size * size, __func__);
+  mask = MEM_new_array_uninitialized<ushort>(size * size, __func__);
   m = mask;
 
   for (y = 0; y < size; y++) {
@@ -320,12 +322,12 @@ static void brush_painter_mask_imbuf_partial_update(BrushPainter *painter,
 
   /* create brush image buffer if it didn't exist yet */
   if (!cache->tex_mask) {
-    cache->tex_mask = MEM_malloc_arrayN<ushort>(diameter * diameter, __func__);
+    cache->tex_mask = MEM_new_array_uninitialized<ushort>(diameter * diameter, __func__);
   }
 
   /* create new texture image buffer with coordinates relative to old */
   tex_mask_old = cache->tex_mask_old;
-  cache->tex_mask_old = MEM_malloc_arrayN<ushort>(diameter * diameter, __func__);
+  cache->tex_mask_old = MEM_new_array_uninitialized<ushort>(diameter * diameter, __func__);
 
   if (tex_mask_old) {
     ImBuf maskibuf;
@@ -362,7 +364,7 @@ static void brush_painter_mask_imbuf_partial_update(BrushPainter *painter,
   }
 
   if (tex_mask_old) {
-    MEM_freeN(tex_mask_old);
+    MEM_delete(tex_mask_old);
   }
 
   /* sample texture in new areas */
@@ -679,8 +681,8 @@ static void brush_painter_2d_tex_mapping(ImagePaintState *s,
   if (mapmode == MTEX_MAP_MODE_STENCIL) {
     /* map from view coordinates of brush to region coordinates */
     float xmin, ymin, xmax, ymax;
-    blender::ui::view2d_view_to_region_fl(s->v2d, start[0] * invw, start[1] * invh, &xmin, &ymin);
-    blender::ui::view2d_view_to_region_fl(
+    ui::view2d_view_to_region_fl(s->v2d, start[0] * invw, start[1] * invh, &xmin, &ymin);
+    ui::view2d_view_to_region_fl(
         s->v2d, (start[0] + diameter) * invw, (start[1] + diameter) * invh, &xmax, &ymax);
 
     /* output r_mapping from brush ibuf x/y to region coordinates */
@@ -722,7 +724,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
                                            float distance,
                                            float size)
 {
-  const blender::bke::PaintRuntime *paint_runtime = painter->paint->runtime;
+  const bke::PaintRuntime *paint_runtime = painter->paint->runtime;
   Brush *brush = painter->brush;
   BrushPainterCache *cache = &tile->cache;
   /* Adding 4 pixels of padding for brush anti-aliasing. */
@@ -780,7 +782,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
     if (diameter != cache->lastdiameter || (mask_rotation != cache->last_mask_rotation) ||
         renew_maxmask)
     {
-      MEM_SAFE_FREE(cache->tex_mask);
+      MEM_SAFE_DELETE(cache->tex_mask);
 
       brush_painter_2d_tex_mapping(
           s, tile, diameter, pos, mouse, brush->mask_mtex.brush_map_mode, &painter->mask_mapping);
@@ -1300,7 +1302,7 @@ static void paint_2d_op_foreach_do(void *__restrict data_v,
                                    const int iter,
                                    const TaskParallelTLS *__restrict /*tls*/)
 {
-  Paint2DForeachData *data = (Paint2DForeachData *)data_v;
+  Paint2DForeachData *data = static_cast<Paint2DForeachData *>(data_v);
   paint_2d_do_making_brush(data->s,
                            data->tile,
                            data->region,
@@ -1318,7 +1320,7 @@ static int paint_2d_op(void *state,
                        const float lastpos[2],
                        const float pos[2])
 {
-  ImagePaintState *s = ((ImagePaintState *)state);
+  ImagePaintState *s = (static_cast<ImagePaintState *>(state));
   const ImagePaintSettings &image_paint_settings = s->scene->toolsettings->imapaint;
   ImBuf *clonebuf = nullptr, *frombuf;
   ImBuf *canvas = tile->canvas;
@@ -1487,7 +1489,7 @@ static void paint_2d_canvas_free(ImagePaintState *s)
 
 static void paint_2d_transform_mouse(View2D *v2d, const float in[2], float out[2])
 {
-  blender::ui::view2d_region_to_view(v2d, in[0], in[1], &out[0], &out[1]);
+  ui::view2d_region_to_view(v2d, in[0], in[1], &out[0], &out[1]);
 }
 
 static bool is_inside_tile(const int size[2], const float pos[2], const float brush[2])
@@ -1519,11 +1521,11 @@ void paint_2d_stroke(void *ps,
     s->blend = IMB_BLEND_ERASE_ALPHA;
   }
 
-  blender::ui::view2d_region_to_view(s->v2d, mval[0], mval[1], &new_uv[0], &new_uv[1]);
-  blender::ui::view2d_region_to_view(s->v2d, prev_mval[0], prev_mval[1], &old_uv[0], &old_uv[1]);
+  ui::view2d_region_to_view(s->v2d, mval[0], mval[1], &new_uv[0], &new_uv[1]);
+  ui::view2d_region_to_view(s->v2d, prev_mval[0], prev_mval[1], &old_uv[0], &old_uv[1]);
 
   float last_uv[2], start_uv[2];
-  blender::ui::view2d_region_to_view(s->v2d, 0.0f, 0.0f, &start_uv[0], &start_uv[1]);
+  ui::view2d_region_to_view(s->v2d, 0.0f, 0.0f, &start_uv[0], &start_uv[1]);
   if (painter->firsttouch) {
     /* paint exactly once on first touch */
     copy_v2_v2(last_uv, new_uv);
@@ -1605,7 +1607,7 @@ void paint_2d_stroke(void *ps,
   painter->firsttouch = false;
 }
 
-void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
+void *paint_2d_new_stroke(bContext *C, wmOperator *op, const BrushStrokeMode mode)
 {
   Scene *scene = CTX_data_scene(C);
   SpaceImage *sima = CTX_wm_space_image(C);
@@ -1613,7 +1615,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   const Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
 
-  ImagePaintState *s = MEM_callocN<ImagePaintState>(__func__);
+  ImagePaintState *s = MEM_new_zeroed<ImagePaintState>(__func__);
 
   s->sima = CTX_wm_space_image(C);
   s->v2d = &CTX_wm_region(C)->v2d;
@@ -1628,17 +1630,17 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   s->symmetry = settings->imapaint.paint.symmetry_flags;
 
   if (s->image == nullptr) {
-    MEM_freeN(s);
+    MEM_delete(s);
     return nullptr;
   }
   if (BKE_image_has_packedfile(s->image) && s->image->rr != nullptr) {
     BKE_report(op->reports, RPT_WARNING, "Packed MultiLayer files cannot be painted");
-    MEM_freeN(s);
+    MEM_delete(s);
     return nullptr;
   }
 
   s->num_tiles = BLI_listbase_count(&s->image->tiles);
-  s->tiles = MEM_new_array_for_free<ImagePaintTile>(s->num_tiles, __func__);
+  s->tiles = MEM_new_array<ImagePaintTile>(s->num_tiles, __func__);
   for (int i = 0; i < s->num_tiles; i++) {
     s->tiles[i].iuser = sima->iuser;
   }
@@ -1647,16 +1649,16 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
 
   ImBuf *ibuf = BKE_image_acquire_ibuf(s->image, &s->tiles[0].iuser, nullptr);
   if (ibuf == nullptr) {
-    MEM_freeN(s->tiles);
-    MEM_freeN(s);
+    MEM_delete(s->tiles);
+    MEM_delete(s);
     return nullptr;
   }
 
   if (ibuf->channels != 4) {
     BKE_image_release_ibuf(s->image, ibuf, nullptr);
     BKE_report(op->reports, RPT_WARNING, "Image requires 4 color channels to paint");
-    MEM_freeN(s->tiles);
-    MEM_freeN(s);
+    MEM_delete(s->tiles);
+    MEM_delete(s);
     return nullptr;
   }
 
@@ -1679,9 +1681,9 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   }
 
   if (!paint_2d_canvas_set(s, paint)) {
-    MEM_freeN(s->tiles);
+    MEM_delete(s->tiles);
 
-    MEM_freeN(s);
+    MEM_delete(s);
     return nullptr;
   }
 
@@ -1692,7 +1694,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   paint_brush_init_tex(s->brush);
 
   /* create painter */
-  s->painter = brush_painter_2d_new(scene, paint, s->brush, mode == BRUSH_STROKE_INVERT);
+  s->painter = brush_painter_2d_new(scene, paint, s->brush, mode == BrushStrokeMode::Invert);
 
   return s;
 }
@@ -1756,10 +1758,10 @@ void paint_2d_stroke_done(void *ps)
     brush_painter_cache_2d_free(&s->tiles[i].cache);
   }
   MEM_delete(s->painter);
-  MEM_freeN(s->tiles);
+  MEM_delete(s->tiles);
   paint_brush_exit_tex(s->brush);
 
-  MEM_freeN(s);
+  MEM_delete(s);
 }
 
 static void paint_2d_fill_add_pixel_byte(const int x_px,
@@ -1885,10 +1887,10 @@ void paint_2d_bucket_fill(const bContext *C,
   /* First check if our image is float. If it is we should correct the color to be in linear space.
    */
   if (!do_float) {
-    blender::float3 ibuf_color = color;
+    float3 ibuf_color = color;
     IMB_colormanagement_scene_linear_to_colorspace_v3(ibuf_color, ibuf->byte_buffer.colorspace);
-    rgb_float_to_uchar((uchar *)&color_b, ibuf_color);
-    *(((char *)&color_b) + 3) = strength * 255;
+    rgb_float_to_uchar(reinterpret_cast<uchar *>(&color_b), ibuf_color);
+    *((reinterpret_cast<char *>(&color_b)) + 3) = strength * 255;
   }
   else {
     copy_v3_v3(color_f, color);
@@ -1913,7 +1915,7 @@ void paint_2d_bucket_fill(const bContext *C,
         for (y_px = 0; y_px < ibuf->y; y_px++) {
           blend_color_mix_byte(ibuf->byte_buffer.data + 4 * (size_t(y_px) * ibuf->x + x_px),
                                ibuf->byte_buffer.data + 4 * (size_t(y_px) * ibuf->x + x_px),
-                               (uchar *)&color_b);
+                               reinterpret_cast<uchar *>(&color_b));
         }
       }
     }
@@ -1995,7 +1997,7 @@ void paint_2d_bucket_fill(const bContext *C,
 
         IMB_blend_color_byte(ibuf->byte_buffer.data + 4 * coordinate,
                              ibuf->byte_buffer.data + 4 * coordinate,
-                             (uchar *)&color_b,
+                             reinterpret_cast<uchar *>(&color_b),
                              IMB_BlendMode(br->blend));
 
         /* reconstruct the coordinates here */
@@ -2021,7 +2023,7 @@ void paint_2d_bucket_fill(const bContext *C,
       }
     }
 
-    MEM_freeN(touched);
+    MEM_delete(touched);
     BLI_stack_free(stack);
   }
 
@@ -2137,11 +2139,11 @@ void paint_2d_gradient_fill(
 
         BKE_colorband_evaluate(br->gradient, f, color_f);
         IMB_colormanagement_scene_linear_to_colorspace_v3(color_f, ibuf->byte_buffer.colorspace);
-        rgba_float_to_uchar((uchar *)&color_b, color_f);
-        ((uchar *)&color_b)[3] *= brush_alpha;
+        rgba_float_to_uchar(reinterpret_cast<uchar *>(&color_b), color_f);
+        (reinterpret_cast<uchar *>(&color_b))[3] *= brush_alpha;
         IMB_blend_color_byte(ibuf->byte_buffer.data + 4 * (size_t(y_px) * ibuf->x + x_px),
                              ibuf->byte_buffer.data + 4 * (size_t(y_px) * ibuf->x + x_px),
-                             (uchar *)&color_b,
+                             reinterpret_cast<uchar *>(&color_b),
                              IMB_BlendMode(br->blend));
       }
     }
@@ -2154,3 +2156,5 @@ void paint_2d_gradient_fill(
 
   WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
 }
+
+}  // namespace blender

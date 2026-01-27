@@ -35,6 +35,7 @@
 
 #include "BKE_blender.hh"
 #include "BKE_blendfile.hh"
+#include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_icons.hh"
@@ -108,14 +109,14 @@
 #include "GPU_init_exit.hh"
 #include "GPU_shader.hh"
 
-#include "COM_compositor.hh"
-
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "ANIM_keyingsets.hh"
 
 #include "DRW_engine.hh"
+
+namespace blender {
 
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_OPERATORS, "operator");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_EVENTS, "event");
@@ -304,12 +305,12 @@ void WM_init(bContext *C, int argc, const char **argv)
     }
 
     GPU_context_begin_frame(GPU_context_active_get());
-    blender::ui::init();
+    ui::init();
     GPU_context_end_frame(GPU_context_active_get());
     GPU_render_end();
   }
 
-  blender::bke::subdiv::init();
+  bke::subdiv::init();
 
   ED_spacemacros_init();
 
@@ -334,7 +335,7 @@ void WM_init(bContext *C, int argc, const char **argv)
   wm_history_file_read();
 
   if (!G.background) {
-    blender::ui::string_search::read_recent_searches_file();
+    ui::string_search::read_recent_searches_file();
   }
 
   STRNCPY(G.filepath_last_library, BKE_main_blendfile_path_from_global());
@@ -373,7 +374,7 @@ static bool wm_init_splash_show_on_startup_check()
   else {
     /* A less common case, if there is no user preferences, show the splash screen
      * so the user has the opportunity to restore settings from a previous version. */
-    use_splash = !blender::bke::preferences::exists();
+    use_splash = !bke::preferences::exists();
   }
 
   return use_splash;
@@ -398,8 +399,7 @@ void WM_init_splash(bContext *C)
 
   wmWindow *prevwin = CTX_wm_window(C);
   CTX_wm_window_set(C, static_cast<wmWindow *>(wm->windows.first));
-  WM_operator_name_call(
-      C, "WM_OT_splash", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+  WM_operator_name_call(C, "WM_OT_splash", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
   CTX_wm_window_set(C, prevwin);
 }
 
@@ -418,7 +418,7 @@ static void wm_init_scripts_extensions_once(bContext *C)
 static void free_openrecent()
 {
   for (RecentFile &recent : G.recent_files) {
-    MEM_freeN(recent.filepath);
+    MEM_delete(recent.filepath);
   }
 
   BLI_freelistN(&(G.recent_files));
@@ -450,7 +450,6 @@ void UV_clipboard_free();
 
 void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_actions)
 {
-  using namespace blender;
   wmWindowManager *wm = C ? CTX_wm_manager(C) : nullptr;
 
   /* While nothing technically prevents saving user data in background mode,
@@ -458,6 +457,11 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * if automated scripts happen to write changes to the preferences for example.
    * Saving #BLENDER_QUIT_FILE is also not likely to be desired either. */
   BLI_assert(G.background ? (do_user_exit_actions == false) : true);
+
+  if (C) {
+    /* Run `exit_pre` Python handlers. */
+    BKE_callback_exec_boolean(CTX_data_main(C), do_user_exit_actions, BKE_CB_EVT_EXIT_PRE);
+  }
 
   /* First wrap up running stuff, we assume only the active WM is running. */
   /* Modal handlers are on window level freed, others too? */
@@ -489,7 +493,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
     }
 
     if (!G.background) {
-      blender::ui::string_search::write_recent_searches_file();
+      ui::string_search::write_recent_searches_file();
     }
 
     if (do_user_exit_actions) {
@@ -575,12 +579,9 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
-  ED_node_clipboard_free();
   ed::greasepencil::clipboard_free();
   UV_clipboard_free();
   wm_clipboard_free();
-
-  COM_deinitialize();
 
   bke::subdiv::exit();
 
@@ -599,7 +600,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   /* Free the GPU subdivision data after the database to ensure that subdivision structs used by
    * the modifiers were garbage collected. */
   if (gpu_is_init) {
-    blender::draw::DRW_cache_free_old_subdiv();
+    draw::DRW_cache_free_old_subdiv();
   }
 
   ANIM_fcurves_copybuf_free();
@@ -620,7 +621,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
   BLT_lang_free();
 
-  blender::animrig::keyingset_infos_exit();
+  animrig::keyingset_infos_exit();
 
   //  free_txt_data();
 
@@ -646,14 +647,14 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * is also deleted with the context active. */
   if (gpu_is_init) {
     DRW_gpu_context_enable_ex(false);
-    blender::ui::ui_exit();
+    ui::ui_exit();
     GPU_shader_cache_dir_clear_old();
     GPU_exit();
     DRW_gpu_context_disable_ex(false);
     DRW_gpu_context_destroy();
   }
   else {
-    blender::ui::ui_exit();
+    ui::ui_exit();
   }
 
   BKE_blender_userdef_data_free(&U, false);
@@ -702,7 +703,7 @@ void WM_exit(bContext *C, const int exit_code)
 
 void WM_script_tag_reload()
 {
-  blender::ui::interface_tag_script_reload();
+  ui::interface_tag_script_reload();
 
   /* Any operators referenced by gizmos may now be a dangling pointer.
    *
@@ -711,3 +712,5 @@ void WM_script_tag_reload()
    * for the sake of simplicity, see #126852. */
   WM_gizmoconfig_update_tag_reinit_all();
 }
+
+}  // namespace blender
