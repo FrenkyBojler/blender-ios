@@ -158,7 +158,9 @@ void main()
     output_renderpass_color(uniform_buf.render_pass.position_id, float4(P, 1.0f));
   }
 
-  out_combined = float4(out_direct + out_indirect, 0.0f);
+  float3 combined = out_direct + out_indirect;
+  combined *= uniform_buf.raytrace.rt_scale;
+  out_combined = float4(combined, 0.0f);
   out_combined = any(isnan(out_combined)) ? float4(1.0f, 0.0f, 1.0f, 0.0f) : out_combined;
   out_combined = colorspace_safe_color(out_combined);
 }
