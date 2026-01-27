@@ -94,7 +94,7 @@ IDTypeInfo IDType_ID_OV = {
     /*main_listbase_index*/ INDEX_ID_OV,
     /*struct_size*/ sizeof(DynamicOverride),
     /*name*/ "Dynamic Override",
-    /*name_plural*/ N_("dynamic overrides"),
+    /*name_plural*/ N_("dynamic_overrides"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_DYNAMIC_OVERRIDE,
     /*flags*/ 0,
     /*asset_type_info*/ nullptr,
