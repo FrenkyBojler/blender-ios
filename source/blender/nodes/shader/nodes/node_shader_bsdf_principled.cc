@@ -118,7 +118,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(3.8f)
       .subtype(PROP_FACTOR)
       .short_label("IOR")
-      .description("Index of Refraction (IOR) used for rays that enter the subsurface component");
+      .description("Index of Refraction (IOR) used for rays that enter the subsurface component")
+      .make_available([](bNode &node) { node.custom2 = SHD_SUBSURFACE_RANDOM_WALK_SKIN; });
 #define SOCK_SUBSURFACE_IOR_ID 11
   sss.add_input<decl::Float>("Subsurface Anisotropy")
       .default_value(0.0f)
@@ -130,7 +131,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Directionality of volume scattering within the subsurface medium. "
           "Zero scatters uniformly in all directions, with higher values "
           "scattering more strongly forward. For example, skin has been measured "
-          "to have an anisotropy of 0.8");
+          "to have an anisotropy of 0.8")
+      .make_available([](bNode &node) { node.custom2 = SHD_SUBSURFACE_BURLEY; });
 #define SOCK_SUBSURFACE_ANISOTROPY_ID 12
 
   /* Panel for Specular settings. */
