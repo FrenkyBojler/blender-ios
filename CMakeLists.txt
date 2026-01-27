@@ -152,7 +152,8 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
       "${CMAKE_CXX_COMPILER_VERSION}"
     )
   endif()
-elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang")
+  # Only check regular clang version; Apple/Xcode clang uses a different versioning scheme
   if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "17.0")
     message(FATAL_ERROR
       "The minimum supported version of CLANG is 17.0, found C compiler: "
@@ -1003,14 +1004,10 @@ mark_as_advanced(WITH_STRSIZE_DEBUG)
 
 # Compiler tool-chain.
 if(UNIX AND NOT APPLE)
-  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    option(WITH_LINKER_GOLD "Use ld.gold linker which is usually faster than ld.bfd" ON)
-    mark_as_advanced(WITH_LINKER_GOLD)
-  endif()
   if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
-    option(WITH_LINKER_LLD "Use ld.lld linker which is usually faster than ld.gold" OFF)
+    option(WITH_LINKER_LLD "Use ld.lld linker which is usually faster than ld.bfd" ON)
     mark_as_advanced(WITH_LINKER_LLD)
-    option(WITH_LINKER_MOLD "Use ld.mold linker which is usually faster than ld.gold & ld.lld" OFF)
+    option(WITH_LINKER_MOLD "Use ld.mold linker which is usually faster than ld.bfd & ld.lld" ON)
     mark_as_advanced(WITH_LINKER_MOLD)
   endif()
 endif()
@@ -1420,7 +1417,7 @@ endif()
 if(WITH_AUDASPACE)
   if(NOT WITH_SYSTEM_AUDASPACE)
     set(AUDASPACE_C_INCLUDE_DIRS
-      "${CMAKE_SOURCE_DIR}/extern/audaspace/bindings/C"
+      "${CMAKE_SOURCE_DIR}/extern/audaspace/include"
       "${CMAKE_BINARY_DIR}/extern/audaspace"
     )
     set(AUDASPACE_PY_INCLUDE_DIRS
