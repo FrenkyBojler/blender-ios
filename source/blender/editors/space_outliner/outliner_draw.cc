@@ -126,7 +126,8 @@ Vector<TreeElement *> outliner_tree_resolve(ARegion *region,
         TreeElement *last = stack.last();
         last->ymin = yoffset + UI_UNIT_Y;
         last->level = stack.size() - 1;
-        have_warnings = have_warnings || last->abstract_element->have_warning();
+        have_warnings = have_warnings ||
+                        (last->abstract_element && last->abstract_element->have_warning());
         if (last == parent_inactive.value_or(nullptr)) {
           parent_inactive = std::nullopt;
         }
