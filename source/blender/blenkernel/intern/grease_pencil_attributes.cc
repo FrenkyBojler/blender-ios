@@ -159,6 +159,23 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     }
     return true;
   };
+  fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(owner);
+    AttributeStorage &storage = grease_pencil.attribute_storage.wrap();
+    Attribute *attr = storage.lookup(name);
+    BLI_assert(attr);
+    Attribute::DataVariant data = attribute_init_to_data(attr->data_type(),
+                                                         get_domain_size(owner, attr->domain()),
+                                                         initializer,
+                                                         array_storage_required().contains(name));
+    attr->assign_data(std::move(data));
+    if (initializer.type != AttributeInit::Type::Construct) {
+      if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
+        (*fn)(owner);
+      }
+    }
+    return true;
+  };
 
   return fn;
 }

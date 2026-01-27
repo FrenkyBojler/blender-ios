@@ -25,6 +25,7 @@ enum class ColumnValueDisplayHint {
 class ColumnValues final {
  protected:
   std::string name_;
+  std::string description_;
 
   GVArray data_;
   ColumnValueDisplayHint display_hint_;

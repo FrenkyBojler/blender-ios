@@ -809,10 +809,9 @@ static bool attribute_data_matches_varray(const GAttributeReader &attribute, con
 
 static bool try_assign_single_value(MutableAttributeAccessor &attributes,
                                     const StringRef name,
-                                    const AttrDomain domain,
                                     const GPointer value)
 {
-  return true;
+  return attributes.assign_data(name, AttributeInitValue(value));
 }
 
 static void initialize_new_data(MutableAttributeAccessor &attributes,
@@ -947,8 +946,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     const GVArray &result_data = evaluator.get_evaluated(result.evaluator_index);
     const CommonVArrayInfo info = result_data.common_info();
     if (info.type == CommonVArrayInfo::Type::Single) {
-      if (try_assign_single_value(attributes, id, domain, GPointer(result_data.type(), info.data)))
-      {
+      if (try_assign_single_value(attributes, id, GPointer(result_data.type(), info.data))) {
         continue;
       }
       const GAttributeReader dst = attributes.lookup(id);
