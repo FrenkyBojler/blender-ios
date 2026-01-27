@@ -59,9 +59,7 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     build_graphics_pipeline(extensions, graphics_info, vk_pipeline_base);
 
     build_input_assembly_state(graphics_info.vertex_in);
-    if (!extensions.vertex_input_dynamic_state) {
-      build_vertex_input_state(device, graphics_info.vertex_in);
-    }
+    build_vertex_input_state(device, graphics_info.vertex_in);
 
     build_shader_stages(graphics_info.shaders);
     const bool do_specialization_constants =
@@ -93,9 +91,7 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     build_input_assembly_state(vertex_input_info);
     build_dynamic_state_for_vertex_input(extensions);
 
-    if (!extensions.vertex_input_dynamic_state) {
-      build_vertex_input_state(device, vertex_input_info);
-    }
+    build_vertex_input_state(device, vertex_input_info);
   }
 
   /**
@@ -342,8 +338,6 @@ struct VKGraphicsPipelineCreateInfoBuilder {
   void build_vertex_input_state(VKDevice &device,
                                 const VKGraphicsInfo::VertexIn &vertex_input_info)
   {
-    BLI_assert_msg(!device.extensions_get().vertex_input_dynamic_state,
-                   "No need to set vertex input state as dynamic state is supported.");
     const VKVertexInputDescription &description = device.vertex_input_descriptions.get(
         vertex_input_info.vertex_input_key);
     vk_pipeline_vertex_input_state_create_info = {

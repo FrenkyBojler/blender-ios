@@ -497,7 +497,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
       bool(G.debug & G_DEBUG_GPU))
   {
     extensions.graphics_pipeline_library = false;
-    extensions.vertex_input_dynamic_state = false;
+    //extensions.vertex_input_dynamic_state = false;
   }
 
   /* Disable vertex input dynamic state for Qualcomm devices (#153414).
