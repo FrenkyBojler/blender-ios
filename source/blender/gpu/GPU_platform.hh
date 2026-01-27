@@ -22,7 +22,7 @@ namespace blender {
 /* GPU platform support */
 
 /* GPU Types */
-enum GPUDeviceType {
+enum GPUDeviceType : uint32_t {
   GPU_DEVICE_NVIDIA = (1 << 0),
   GPU_DEVICE_ATI = (1 << 1),
   GPU_DEVICE_INTEL = (1 << 2),
@@ -36,14 +36,14 @@ enum GPUDeviceType {
 
 ENUM_OPERATORS(GPUDeviceType)
 
-enum GPUOSType {
+enum GPUOSType : uint32_t {
   GPU_OS_WIN = (1 << 8),
   GPU_OS_MAC = (1 << 9),
   GPU_OS_UNIX = (1 << 10),
   GPU_OS_ANY = (0xff00),
 };
 
-enum GPUDriverType {
+enum GPUDriverType : uint32_t {
   GPU_DRIVER_OFFICIAL = (1 << 16),
   GPU_DRIVER_OPENSOURCE = (1 << 17),
   GPU_DRIVER_SOFTWARE = (1 << 18),

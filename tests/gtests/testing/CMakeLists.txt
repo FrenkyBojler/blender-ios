@@ -15,6 +15,9 @@ set(INC_SYS
   ${GLOG_INCLUDE_DIRS}
   ${GFLAGS_INCLUDE_DIRS}
   ../../../extern/gtest/include
+  # GPU_platform.hh
+  ../../../source/blender
+  ../../../source/blender/blenlib
 )
 
 set(SRC
