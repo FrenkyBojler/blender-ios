@@ -17,4 +17,4 @@ Referenced by issue #80311, Cloth filter brush only works in one direction in ve
 Referenced by issue #80203, Crash when changing torus properties
 Referenced by issue #77900, Closing secondary full screen window destroys main Blender window too Part 2
 Referenced by issue #56925, Cycles produces banded render artifacts in dense or sharp volume renders.
-Referenced by issue #153398, Make the "No threading with bpy" definition even more strict
+Referenced by issue #153398, Crash when using threads in python (the supported way)
