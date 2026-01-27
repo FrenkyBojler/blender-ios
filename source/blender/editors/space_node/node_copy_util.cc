@@ -749,7 +749,7 @@ static bool any_link_need_conversion(const Span<MutableNodeAndSocket> links,
       return true;
     }
   }
-  return true;
+  return false;
 }
 
 static std::pair<std::optional<MutableNodeAndSocket>, std::optional<MutableNodeAndSocket>>
@@ -823,7 +823,7 @@ static void replace_interface_socket(bContext &C,
   if (is_through_link) {
     /* A proxy is needed if any internal internal or external connection has a different type and
      * therefore cannot directly be connected without loss of conversion. */
-    if (any_link_need_conversion(incoming_links, io_socket) ||
+    if (any_link_need_conversion(incoming_links, io_socket) &&
         any_link_need_conversion(outgoing_links, io_socket))
     {
       needs_proxy = true;
