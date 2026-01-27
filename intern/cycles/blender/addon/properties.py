@@ -510,7 +510,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="DLSS Mode",
         description="Overall quality when using DLSS",
         items=enum_denoising_dlss_quality,
-        default='BALANCED',
+        default='QUALITY',
     )
 
     samples: IntProperty(

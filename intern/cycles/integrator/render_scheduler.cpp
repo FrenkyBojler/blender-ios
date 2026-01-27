@@ -858,11 +858,6 @@ static inline uint round_num_samples_to_power_of_2(const uint num_samples)
 
 int RenderScheduler::get_num_samples_to_path_trace() const
 {
-  /* Render fixed number of samples each frame when DLSS is active. */
-  if (denoiser_params_.use && denoiser_params_.type == DENOISER_DLSS) {
-    return 1;
-  }
-
   if (state_.resolution_divider != pixel_size_) {
     return get_num_samples_during_navigation(state_.resolution_divider);
   }
@@ -871,7 +866,9 @@ int RenderScheduler::get_num_samples_to_path_trace() const
    * artists, and allows to gather information for a subsequent path tracing works. Do it in the
    * headless mode as well, to give some estimate of how long samples are taking. */
   if (state_.num_rendered_samples == 0) {
-    return 1;
+    if (!(denoiser_params_.use && denoiser_params_.type == DENOISER_DLSS)) {
+      return 1;
+    }
   }
 
   const int num_samples_per_update = calculate_num_samples_per_update();

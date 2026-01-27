@@ -836,7 +836,7 @@ void BlenderDisplayDriver::draw(const Params &params)
      * rendering of Cycles with Blender. Use a timeout to prevent user interface in the main thread
      * from becoming unresponsive when rendering is too heavy. */
     thread_scoped_lock lock(has_update_mutex_);
-    has_update_cond_.wait_for(lock, std::chrono::milliseconds(33));
+    has_update_cond_.wait_for(lock, std::chrono::milliseconds(50));
     lock.unlock();
   }
 
