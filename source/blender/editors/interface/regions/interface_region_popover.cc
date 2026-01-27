@@ -134,7 +134,15 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
   }
 
   block_layout_resolve(block);
-  block_direction_set(block, UI_DIR_DOWN | UI_DIR_CENTER_X);
+  bool popup_on_sides = ELEM(
+      handle->popup_create_vars.butregion->alignment, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT);
+
+  if (popup_on_sides) {
+    block_direction_set(block, UI_DIR_LEFT);
+  }
+  else {
+    block_direction_set(block, UI_DIR_DOWN | UI_DIR_CENTER_X);
+  }
 
   const int block_margin = U.widget_unit / 2;
 
@@ -166,7 +174,7 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
     if (!slideout) {
       ARegion *region = CTX_wm_region(C);
 
-      if (region && region->panels.first) {
+      if (region && region->panels.first && !popup_on_sides) {
         /* For regions with panels, prefer to open to top so we can
          * see the values of the buttons below changing. */
         block_direction_set(block, UI_DIR_UP | UI_DIR_CENTER_X);
