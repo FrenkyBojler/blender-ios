@@ -117,8 +117,9 @@ void BKE_curveprofile_reset_view(struct CurveProfile *profile);
 void BKE_curveprofile_reset(struct CurveProfile *profile);
 
 /**
- * Reset the active point to the nearest one. This function will search the nearest selected index
- * from the last index and activate the corresponding point.
+ * When the current point is deselected, activate the closest remaining point
+ * by index. The function searches for the nearest valid index relative to the previously
+ * active index, not the nearest point by distance.
  */
 void BKE_curveprofile_activate_nearest_point(struct CurveProfile *profile, const int i_last);
 

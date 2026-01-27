@@ -203,14 +203,15 @@ void BKE_curveprofile_translate_selection(CurveProfile *profile,
   for (int i = 0; i < profile->path_len; i++) {
     CurveProfilePoint *pt = &profile->path[i];
     float delta[2] = {delta_x, delta_y};
-    // the main point is selected or all handles are aligned and selected
+    
+    /* The main point is selected or all handles are aligned and selected. */
     if ((pt->flag & PROF_SELECT) || ((pt->flag & PROF_H1_SELECT && pt->h1 & HD_ALIGN) &&
                                      (pt->flag & PROF_H2_SELECT && pt->h2 & HD_ALIGN)))
     {
       BKE_curveprofile_move_point(profile, pt, false, delta);
     }
     else {
-      // otherwise move only handles that are selected
+      /* Otherwise, move only handles that are selected. */
       if (pt->flag & PROF_H1_SELECT) {
         BKE_curveprofile_move_handle(pt, true, false, delta);
       }
