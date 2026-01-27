@@ -589,8 +589,6 @@ RayTraceResultTexture RayTraceModule::trace(
   data_.thickness = options.screen_trace_thickness;
   data_.quality = 1.0f - 0.95f * options.screen_trace_quality;
 
-  data_.rt_scale = options.rt_scale;
-
   float roughness_mask_start = options.trace_max_roughness;
   float roughness_mask_fade = 0.2f;
   data_.roughness_mask_scale = 1.0 / roughness_mask_fade;
