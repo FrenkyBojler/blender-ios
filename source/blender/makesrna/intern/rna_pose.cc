@@ -200,7 +200,7 @@ static void rna_Pose_ik_solver_set(PointerRNA *ptr, int value)
     /* the solver has changed, must clean any temporary structures */
     BIK_clear_data(pose);
     if (pose->ikparam) {
-      MEM_freeN(pose->ikparam);
+      MEM_delete_void(pose->ikparam);
       pose->ikparam = nullptr;
     }
     pose->iksolver = value;
@@ -297,7 +297,7 @@ static PointerRNA rna_PoseChannel_bone_get(PointerRNA *ptr)
   PointerRNA tmp_ptr = *ptr;
 
   /* Replace the id_data pointer with the Armature ID. */
-  tmp_ptr.owner_id = static_cast<ID *>(ob->data);
+  tmp_ptr.owner_id = ob->data;
 
   return RNA_pointer_create_with_parent(tmp_ptr, RNA_Bone, pchan->bone);
 }

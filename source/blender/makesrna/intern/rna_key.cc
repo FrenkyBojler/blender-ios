@@ -224,7 +224,7 @@ static void rna_KeyBlock_normals_vert_calc(ID *id,
     return;
   }
 
-  *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
+  *normals = MEM_new_array_uninitialized<float>(size_t(*normals_num), __func__);
 
   BKE_keyblock_mesh_calc_normals(
       data, mesh, reinterpret_cast<float (*)[3]>(*normals), nullptr, nullptr);
@@ -255,7 +255,7 @@ static void rna_KeyBlock_normals_poly_calc(ID *id,
     return;
   }
 
-  *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
+  *normals = MEM_new_array_uninitialized<float>(size_t(*normals_num), __func__);
 
   BKE_keyblock_mesh_calc_normals(
       data, mesh, nullptr, reinterpret_cast<float (*)[3]>(*normals), nullptr);
@@ -286,7 +286,7 @@ static void rna_KeyBlock_normals_loop_calc(ID *id,
     return;
   }
 
-  *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
+  *normals = MEM_new_array_uninitialized<float>(size_t(*normals_num), __func__);
 
   BKE_keyblock_mesh_calc_normals(
       data, mesh, nullptr, nullptr, reinterpret_cast<float (*)[3]>(*normals));
@@ -543,8 +543,8 @@ static void rna_ShapeKey_data_begin_mixed(
 {
   int point_count = rna_ShapeKey_curve_find_index(key, kb->totelem);
 
-  ShapeKeyCurvePoint *points = MEM_malloc_arrayN<ShapeKeyCurvePoint>(size_t(point_count),
-                                                                     __func__);
+  ShapeKeyCurvePoint *points = MEM_new_array_uninitialized<ShapeKeyCurvePoint>(size_t(point_count),
+                                                                               __func__);
 
   char *databuf = static_cast<char *>(kb->data);
   int items_left = point_count;
@@ -981,6 +981,10 @@ static void rna_def_keyblock(BlenderRNA *brna)
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_ShapeKey_name_set");
   RNA_def_property_update(prop, 0, "rna_Key_update_data");
   RNA_def_struct_name_property(srna, prop);
+
+  prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", KEYBLOCK_SEL);
+  RNA_def_property_ui_text(prop, "Select", "Shape key selection state");
 
   /* keys need to be sorted to edit this */
   prop = RNA_def_property(srna, "frame", PROP_FLOAT, PROP_TIME);
