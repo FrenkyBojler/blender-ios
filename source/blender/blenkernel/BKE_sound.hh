@@ -112,8 +112,6 @@ void *BKE_sound_add_scene_sound_defaults(Scene *scene, Strip *strip);
 
 void *BKE_strip_get_parent_sound_scene(Strip *strip, Scene *scene);
 
-void BKE_sound_remove_scene_sound(Scene *scene, void *handle);
-
 void BKE_sound_remove_sound(void *sound_scene, void *handle);
 
 void BKE_sound_mute_scene_sound(void *handle, bool mute);

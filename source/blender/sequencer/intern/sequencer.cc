@@ -210,7 +210,6 @@ static void seq_strip_free_ex(Scene *scene,
     if (strip->runtime->scene_sound &&
         ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE, STRIP_TYPE_META))
     {
-      // BKE_sound_remove_scene_sound(scene, strip->runtime->scene_sound);
       BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
     }
   }
@@ -1063,9 +1062,7 @@ void doversion_250_sound_proxy_update(Main *bmain, Editing *ed)
 
 static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
 {
-  Scene *scene = (Scene *)user_data;
   if (strip->runtime->scene_sound != nullptr) {
-    // BKE_sound_remove_scene_sound(scene, strip->runtime->scene_sound);
     BKE_sound_remove_sound(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
     strip->runtime->scene_sound = nullptr;
   }

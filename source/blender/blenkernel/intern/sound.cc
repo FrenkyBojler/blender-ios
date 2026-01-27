@@ -937,12 +937,6 @@ void *BKE_sound_add_scene_sound_defaults(Scene *scene, Strip *strip)
                                    strip->startofs + strip->anim_startofs);
 }
 
-void BKE_sound_remove_scene_sound(Scene *scene, void *handle)
-{
-  AUD_Sequence_remove(scene->runtime->audio.sound_scene, handle);
-}
-
-// also remove from metas
 void BKE_sound_remove_sound(void *sound_scene, void *handle)
 {
   AUD_Sequence_remove(sound_scene, handle);
@@ -1566,7 +1560,6 @@ void *BKE_sound_add_scene_sound_defaults(Scene * /*scene*/, Strip * /*strip*/)
 {
   return nullptr;
 }
-void BKE_sound_remove_scene_sound(Scene * /*scene*/, void * /*handle*/) {}
 void BKE_sound_mute_scene_sound(void * /*handle*/, bool /*mute*/) {}
 void BKE_sound_move_scene_sound(const Scene * /*scene*/,
                                 void * /*handle*/,
