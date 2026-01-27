@@ -18,13 +18,10 @@ namespace blender::nodes::node_geo_cube_grid_topology_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Bounds Min")
-      .default_value(float3(-1.0f))
-      .description("Minimum boundary of the grid (world space)");
-  b.add_input<decl::Vector>("Bounds Max")
-      .default_value(float3(1.0f))
-      .description("Maximum boundary of the grid (world space)");
-
+  b.use_custom_socket_order();
+  b.add_output<decl::Bool>("Topology")
+      .structure_type(StructureType::Grid)
+      .description("Boolean grid defining the topology/active regions");
   b.add_input<decl::Int>("Min X").default_value(0).description(
       "Minimum coordinate in X axis (grid index space)");
   b.add_input<decl::Int>("Min Y").default_value(0).description(
@@ -45,9 +42,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(1)
       .description("Number of voxels in the Z axis");
 
-  b.add_output<decl::Bool>("Topology")
-      .structure_type(StructureType::Grid)
-      .description("Boolean grid defining the topology/active regions");
+  PanelDeclarationBuilder &bounds_panel = b.add_panel("Bounds").default_closed(true);
+  bounds_panel.add_input<decl::Vector>("Bounds Min")
+      .default_value(float3(-1.0f))
+      .description("Minimum boundary of the grid (world space)");
+  bounds_panel.add_input<decl::Vector>("Bounds Max")
+      .default_value(float3(1.0f))
+      .description("Maximum boundary of the grid (world space)");
 }
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
