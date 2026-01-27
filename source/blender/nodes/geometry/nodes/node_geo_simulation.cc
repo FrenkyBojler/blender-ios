@@ -7,7 +7,6 @@
 
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_attribute_math.hh"
-#include "BKE_bake_items_socket.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_instances.hh"
@@ -50,114 +49,6 @@
 namespace blender {
 
 namespace nodes::node_geo_simulation_cc {
-
-static bke::bake::BakeSocketConfig make_bake_socket_config(
-    const Span<NodeSimulationItem> node_simulation_items)
-{
-  bke::bake::BakeSocketConfig config;
-  const int items_num = node_simulation_items.size();
-  config.domains.resize(items_num);
-  config.names.resize(items_num);
-  config.types.resize(items_num);
-  config.geometries_by_attribute.resize(items_num);
-
-  int last_geometry_index = -1;
-  for (const int item_i : node_simulation_items.index_range()) {
-    const NodeSimulationItem &item = node_simulation_items[item_i];
-    config.types[item_i] = eNodeSocketDatatype(item.socket_type);
-    config.names[item_i] = item.name;
-    config.domains[item_i] = AttrDomain(item.attribute_domain);
-    if (item.socket_type == SOCK_GEOMETRY) {
-      last_geometry_index = item_i;
-    }
-    else if (last_geometry_index != -1) {
-      config.geometries_by_attribute[item_i].append(last_geometry_index);
-    }
-  }
-  return config;
-}
-
-static std::shared_ptr<AttributeFieldInput> make_attribute_field(
-    const Object &self_object,
-    const ComputeContext &compute_context,
-    const bNode &node,
-    const NodeSimulationItem &item,
-    const CPPType &type)
-{
-  std::string attribute_name = bke::hash_to_anonymous_attribute_name(
-      self_object.id.name, compute_context.hash(), node.identifier, item.identifier);
-  std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(
-      node.label_or_name(), item.name);
-  return std::make_shared<AttributeFieldInput>(
-      std::move(attribute_name), type, std::move(socket_inspection_name));
-}
-
-static Vector<SocketValueVariant> move_simulation_state_to_values(
-    const Span<NodeSimulationItem> node_simulation_items,
-    bke::bake::BakeState zone_state,
-    const Object &self_object,
-    const ComputeContext &compute_context,
-    const bNode &node,
-    bke::bake::BakeDataBlockMap *data_block_map)
-{
-  const bke::bake::BakeSocketConfig config = make_bake_socket_config(node_simulation_items);
-  Vector<bke::bake::BakeItem *> bake_items;
-  for (const NodeSimulationItem &item : node_simulation_items) {
-    std::unique_ptr<bke::bake::BakeItem> *bake_item = zone_state.items_by_id.lookup_ptr(
-        item.identifier);
-    bake_items.append(bake_item ? bake_item->get() : nullptr);
-  }
-
-  return bke::bake::move_bake_items_to_socket_values(
-      bake_items, config, data_block_map, [&](const int i, const CPPType &type) {
-        return make_attribute_field(
-            self_object, compute_context, node, node_simulation_items[i], type);
-      });
-}
-
-static Vector<SocketValueVariant> copy_simulation_state_to_values(
-    const Span<NodeSimulationItem> node_simulation_items,
-    const bke::bake::BakeStateRef &zone_state,
-    const Object &self_object,
-    const ComputeContext &compute_context,
-    const bNode &node,
-    bke::bake::BakeDataBlockMap *data_block_map)
-{
-  const bke::bake::BakeSocketConfig config = make_bake_socket_config(node_simulation_items);
-  Vector<const bke::bake::BakeItem *> bake_items;
-  for (const NodeSimulationItem &item : node_simulation_items) {
-    const bke::bake::BakeItem *const *bake_item = zone_state.items_by_id.lookup_ptr(
-        item.identifier);
-    bake_items.append(bake_item ? *bake_item : nullptr);
-  }
-
-  return bke::bake::copy_bake_items_to_socket_values(
-      bake_items, config, data_block_map, [&](const int i, const CPPType &type) {
-        return make_attribute_field(
-            self_object, compute_context, node, node_simulation_items[i], type);
-      });
-}
-
-static bke::bake::BakeState move_values_to_simulation_state(
-    const Span<NodeSimulationItem> node_simulation_items,
-    MutableSpan<SocketValueVariant> input_values,
-    bke::bake::BakeDataBlockMap *data_block_map)
-{
-  const bke::bake::BakeSocketConfig config = make_bake_socket_config(node_simulation_items);
-
-  Array<std::unique_ptr<bke::bake::BakeItem>> bake_items =
-      bke::bake::move_socket_values_to_bake_items(input_values, config, data_block_map);
-
-  bke::bake::BakeState bake_state;
-  for (const int i : node_simulation_items.index_range()) {
-    const NodeSimulationItem &item = node_simulation_items[i];
-    std::unique_ptr<bke::bake::BakeItem> &bake_item = bake_items[i];
-    if (bake_item) {
-      bake_state.items_by_id.add_new(item.identifier, std::move(bake_item));
-    }
-  }
-  return bake_state;
-}
 
 static Vector<SocketValueVariant> get_output_values_from_bake_values(
     const Span<NodeSimulationItem> simulation_items,
@@ -344,26 +235,24 @@ class LazyFunctionForSimulationInputNode final : public LazyFunction {
     }
   }
 
-  void output_simulation_state_move(lf::Params &params,
-                                    const GeoNodesUserData &user_data,
-                                    bke::bake::BakeDataBlockMap *data_block_map,
-                                    bke::bake::BakeState zone_state) const
-  {
-    Vector<SocketValueVariant> output_values = move_simulation_state_to_values(
-        simulation_items_,
-        std::move(zone_state),
-        *user_data.call_data->self_object(),
-        *user_data.compute_context,
-        node_,
-        data_block_map);
-    for (const int i : simulation_items_.index_range()) {
-      params.set_output(i + 1, std::move(output_values[i]));
-    }
-  }
-
   void pass_through(lf::Params &params,
                     const GeoNodesUserData &user_data,
                     bke::bake::BakeDataBlockMap *data_block_map) const
+  {
+    /* Instead of outputting the initial values directly, convert them to a simulation state and
+     * then back. This ensures that some geometry processing happens on the data consistently (e.g.
+     * removing anonymous attributes). */
+    std::optional<bke::bake::BakeValues> bake_values = this->get_bake_values_from_inputs(
+        params, data_block_map);
+    if (!bake_values) {
+      /* Wait for inputs to be computed. */
+      return;
+    }
+    this->output_simulation_state(params, user_data, data_block_map, std::move(*bake_values));
+  }
+
+  std::optional<bke::bake::BakeValues> get_bake_values_from_inputs(
+      lf::Params &params, bke::bake::BakeDataBlockMap *data_block_map) const
   {
     Array<SocketValueVariant *> input_value_pointers(inputs_.size());
     for (const int i : inputs_.index_range()) {
@@ -371,19 +260,17 @@ class LazyFunctionForSimulationInputNode final : public LazyFunction {
     }
     if (input_value_pointers.as_span().contains(nullptr)) {
       /* Wait for inputs to be computed. */
-      return;
+      return std::nullopt;
     }
-    Array<SocketValueVariant> input_values(inputs_.size());
+    Vector<bke::bake::BakeValues::InputValue> input_values(simulation_items_.size());
     for (const int i : inputs_.index_range()) {
-      input_values[i] = std::move(*input_value_pointers[i]);
+      const NodeSimulationItem &item = simulation_items_[i];
+      bke::bake::BakeValues::InputValue &input_value = input_values[i];
+      input_value.id = item.identifier;
+      input_value.name = item.name;
+      input_value.value = std::move(*input_value_pointers[i]);
     }
-
-    /* Instead of outputting the initial values directly, convert them to a simulation state and
-     * then back. This ensures that some geometry processing happens on the data consistently (e.g.
-     * removing anonymous attributes). */
-    bke::bake::BakeState bake_state = move_values_to_simulation_state(
-        simulation_items_, input_values, data_block_map);
-    this->output_simulation_state_move(params, user_data, data_block_map, std::move(bake_state));
+    return bke::bake::BakeValues::from_runtime_values(std::move(input_values), data_block_map);
   }
 };
 

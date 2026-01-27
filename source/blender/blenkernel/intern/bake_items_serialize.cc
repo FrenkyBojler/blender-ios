@@ -4,7 +4,6 @@
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute_legacy_convert.hh"
-#include "BKE_bake_items.hh"
 #include "BKE_bake_items_serialize.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"

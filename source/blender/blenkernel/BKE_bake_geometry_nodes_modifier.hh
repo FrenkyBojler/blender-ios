@@ -8,10 +8,12 @@
 
 #pragma once
 
+#include <variant>
+
 #include "BLI_mutex.hh"
+#include "BLI_set.hh"
 #include "BLI_sub_frame.hh"
 
-#include "BKE_bake_items.hh"
 #include "BKE_bake_items_paths.hh"
 #include "BKE_bake_items_serialize.hh"
 #include "BKE_bake_values.hh"

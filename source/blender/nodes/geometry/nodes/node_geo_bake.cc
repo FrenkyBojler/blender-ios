@@ -19,7 +19,6 @@
 
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_bake_geometry_nodes_modifier.hh"
-#include "BKE_bake_items_socket.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_library.hh"
@@ -148,31 +147,6 @@ static void node_operators()
   socket_items::ops::make_common_operators<BakeItemsAccessor>();
 }
 
-static bake::BakeSocketConfig make_bake_socket_config(const Span<NodeGeometryBakeItem> bake_items)
-{
-  bake::BakeSocketConfig config;
-  const int items_num = bake_items.size();
-  config.domains.resize(items_num);
-  config.names.resize(items_num);
-  config.types.resize(items_num);
-  config.geometries_by_attribute.resize(items_num);
-
-  int last_geometry_index = -1;
-  for (const int item_i : bake_items.index_range()) {
-    const NodeGeometryBakeItem &item = bake_items[item_i];
-    config.types[item_i] = eNodeSocketDatatype(item.socket_type);
-    config.names[item_i] = item.name;
-    config.domains[item_i] = AttrDomain(item.attribute_domain);
-    if (item.socket_type == SOCK_GEOMETRY) {
-      last_geometry_index = item_i;
-    }
-    else if (last_geometry_index != -1) {
-      config.geometries_by_attribute[item_i].append(last_geometry_index);
-    }
-  }
-  return config;
-}
-
 /**
  * This is used when the bake node should just pass-through the data and the caller of geometry
  * nodes should not have to care about this.
@@ -199,7 +173,6 @@ struct DummyDataBlockMap : public bake::BakeDataBlockMap {
 class LazyFunctionForBakeNode final : public LazyFunction {
   const bNode &node_;
   Span<NodeGeometryBakeItem> bake_items_;
-  bake::BakeSocketConfig bake_socket_config_;
 
  public:
   LazyFunctionForBakeNode(const bNode &node, GeometryNodesLazyFunctionGraphInfo &lf_graph_info)
@@ -220,8 +193,6 @@ class LazyFunctionForBakeNode final : public LazyFunction {
       lf_index_by_bsocket[output_bsocket.index_in_tree()] = outputs_.append_and_get_index_as(
           item.name, CPPType::get<SocketValueVariant>());
     }
-
-    bake_socket_config_ = make_bake_socket_config(bake_items_);
   }
 
   void execute_impl(lf::Params &params, const lf::Context &context) const final
