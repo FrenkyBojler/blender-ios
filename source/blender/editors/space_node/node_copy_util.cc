@@ -14,6 +14,7 @@
 #include "BLI_listbase.h"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_map.hh"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
 #include "BLI_vector.hh"
@@ -782,6 +783,8 @@ static void replace_interface_socket(bContext &C,
                                      const Span<MutableNodeAndSocket> outgoing_links,
                                      const bNode *group_node,
                                      InterfaceProxyNodes &interface_proxies,
+                                     float2 &input_location,
+                                     float2 &output_location,
                                      UniqueLinkSet &unique_links)
 {
   const eNodeSocketDatatype socket_type = bke::node_socket_type_find(io_socket.socket_type)->type;
@@ -874,8 +877,20 @@ static void replace_interface_socket(bContext &C,
     if (!proxy_node) {
       proxy_node = bke::node_add_static_node(&C, dst_tree, NODE_REROUTE);
     }
-  }
-  if (proxy_node) {
+
+    const float width = (proxy_node->is_reroute() ? 0.0f : proxy_node->width);
+    const float height = (proxy_node->is_reroute() ? 0.0f : proxy_node->height);
+    if (is_input) {
+      proxy_node->location[0] = input_location.x - width;
+      proxy_node->location[1] = input_location.y;
+      input_location.y -= height + 20.0f;
+    }
+    else {
+      proxy_node->location[0] = output_location.x;
+      proxy_node->location[1] = output_location.y;
+      output_location.y -= height + 20.0f;
+    }
+
     interface_proxies.add_new(io_socket.identifier, proxy_node);
   }
 
@@ -923,7 +938,7 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
   bNodeTree &dst_tree = copied_nodes.dst_tree();
 
   /* Set location for proxy nodes, based on drawing order of interface items. */
-  float2 location_input = {-50, 0}, location_output = {50, 0};
+  float2 input_location = {-50, 0}, output_location = {50, 0};
   Vector<const bNode *> nodes_vec;
   for (const bNode *node : copied_nodes.node_map().values()) {
     nodes_vec.append(node);
@@ -931,8 +946,8 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
   if (const std::optional<Bounds<float2>> bounds = node_bounds(nodes_vec)) {
     const Bounds<float2> loc_bounds = *node_location_bounds(nodes_vec);
     /* Move outputs to the edge of copied nodes, which are centered at zero. */
-    location_input.x += -loc_bounds.size().x * 0.5f;
-    location_output.x += -loc_bounds.size().x * 0.5f + bounds->size().x;
+    input_location.x += -loc_bounds.size().x * 0.5f;
+    output_location.x += -loc_bounds.size().x * 0.5f + bounds->size().x;
   }
 
   /* Deduplicate links in case multiple connections get merged. This can happen because both
@@ -941,18 +956,28 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
   UniqueLinkSet unique_links;
 
   InterfaceProxyNodes interface_proxies;
-  for (const auto &item : io_mapping.socket_data.items()) {
-    const bool is_input = item.key->flag & NODE_INTERFACE_SOCKET_INPUT;
+  /* Loop over mapped items based on the interface socket order. */
+  for (const bNodeTreeInterfaceItem *io_item : src_tree.interface_items()) {
+    if (io_item->item_type != NODE_INTERFACE_SOCKET) {
+      continue;
+    }
+    const auto &io_socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(*io_item);
+    const std::optional<NodeTreeInterfaceMapping::InterfaceSocketData> socket_data =
+        io_mapping.socket_data.lookup_try(&io_socket);
+    if (!socket_data) {
+      continue;
+    }
+    const bool is_input = io_socket.flag & NODE_INTERFACE_SOCKET_INPUT;
 
     /* Gather all new links to and from the interface socket that must be added. */
     Vector<MutableNodeAndSocket> incoming_links, outgoing_links;
     if (is_input) {
-      incoming_links.extend(item.value.external_sockets);
+      incoming_links.extend(socket_data->external_sockets);
     }
     else {
-      outgoing_links.extend(item.value.external_sockets);
+      outgoing_links.extend(socket_data->external_sockets);
     }
-    for (const NodeAndSocket &origin : item.value.internal_sockets) {
+    for (const NodeAndSocket &origin : socket_data->internal_sockets) {
       if (origin.node.is_group_output()) {
         /* Directly connect to external output links. */
         BLI_assert(is_input);
@@ -985,11 +1010,13 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
 
     replace_interface_socket(C,
                              dst_tree,
-                             *item.key,
+                             io_socket,
                              incoming_links,
                              outgoing_links,
                              group_node,
                              interface_proxies,
+                             input_location,
+                             output_location,
                              unique_links);
   }
 
