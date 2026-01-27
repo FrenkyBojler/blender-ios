@@ -30,7 +30,7 @@ namespace blender {
 
 static SpaceLink *project_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
-  SpaceProject *project_space = MEM_new_for_free<SpaceProject>("project space");
+  SpaceProject *project_space = MEM_new<SpaceProject>("project space");
   project_space->spacetype = SPACE_PROJECT;
 
   {
@@ -78,7 +78,7 @@ static void project_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *project_duplicate(SpaceLink *sl)
 {
-  SpaceProject *space_project = static_cast<SpaceProject *>(MEM_dupallocN(sl));
+  SpaceProject *space_project = MEM_dupalloc(reinterpret_cast<SpaceProject *>(sl));
 
   return (SpaceLink *)space_project;
 }
@@ -178,7 +178,7 @@ void ED_spacetype_project()
   st->blend_write = project_space_blend_write;
 
   /* regions: main window */
-  art = MEM_callocN<ARegionType>("spacetype project region");
+  art = MEM_new_zeroed<ARegionType>("spacetype project region");
   art->regionid = RGN_TYPE_WINDOW;
   art->flag = ARegionTypeFlag::UsePanelCategories;
   art->init = project_main_region_init;
@@ -190,7 +190,7 @@ void ED_spacetype_project()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_callocN<ARegionType>("spacetype project region");
+  art = MEM_new_zeroed<ARegionType>("spacetype project region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
@@ -201,7 +201,7 @@ void ED_spacetype_project()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: navigation window */
-  art = MEM_callocN<ARegionType>("spacetype project region");
+  art = MEM_new_zeroed<ARegionType>("spacetype project region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_NAVIGATION_REGION_WIDTH;
   art->init = project_navigation_region_init;
@@ -212,7 +212,7 @@ void ED_spacetype_project()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: execution window */
-  art = MEM_callocN<ARegionType>("spacetype project region");
+  art = MEM_new_zeroed<ARegionType>("spacetype project region");
   art->regionid = RGN_TYPE_EXECUTE;
   art->prefsizey = HEADERY;
   art->poll = project_execute_region_poll;

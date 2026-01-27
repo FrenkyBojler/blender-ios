@@ -382,6 +382,7 @@ static void menu_items_from_all_operators(bContext *C, MenuSearch_Data *data)
       op_data.type = ot;
       op_data.opcontext = wm::OpCallContext::InvokeDefault;
       op_data.context = nullptr;
+      op_data.opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
 
       char idname_as_py[OP_MAX_TYPENAME];
       char uiname[256];
@@ -916,7 +917,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
     CTX_wm_region_set(C, region_init);
 
     if (space_type_ui_items_free) {
-      MEM_freeN(space_type_ui_items);
+      MEM_delete(space_type_ui_items);
     }
   }
 

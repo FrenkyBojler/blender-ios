@@ -419,7 +419,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_linear);
   }
 
-  if (!USER_VERSION_ATLEAST(501, 17)) {
+  if (!USER_VERSION_ATLEAST(501, 22)) {
     FROM_DEFAULT_V4_UCHAR(space_project.back);
     FROM_DEFAULT_V4_UCHAR(space_project.title);
     FROM_DEFAULT_V4_UCHAR(space_project.text);
@@ -430,6 +430,10 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->space_project.vertex_size = U_theme_default.space_project.vertex_size;
     btheme->space_project.outline_width = U_theme_default.space_project.outline_width;
     btheme->space_project.facedot_size = U_theme_default.space_project.facedot_size;
+  }
+
+  if (!USER_VERSION_ATLEAST(501, 100)) {
+    FROM_DEFAULT_V4_UCHAR(space_preferences.match);
   }
 
   /**
@@ -1417,7 +1421,7 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(306, 5)) {
     if (userdef->pythondir_legacy[0]) {
-      bUserScriptDirectory *script_dir = MEM_new_for_free<bUserScriptDirectory>(
+      bUserScriptDirectory *script_dir = MEM_new<bUserScriptDirectory>(
           "Versioning user script path");
 
       STRNCPY(script_dir->dir_path, userdef->pythondir_legacy);
@@ -1745,7 +1749,7 @@ void blo_do_versions_userdef(UserDef *userdef)
         userdef, "NODE_AST_compositor", "Utilities");
   }
 
-  if (!USER_VERSION_ATLEAST(510, 17)) {
+  if (!USER_VERSION_ATLEAST(501, 17)) {
     userdef->flag |= USER_HIDE_DOT_DATABLOCK;
   }
 
