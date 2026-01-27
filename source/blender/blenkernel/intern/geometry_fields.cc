@@ -794,9 +794,9 @@ static bool try_add_shared_field_attribute(MutableAttributeAccessor attributes,
   return attributes.add(id_to_create, domain, data_type, init);
 }
 
-static bool attribute_data_matches_varray(const GAttributeReader &attribute, const GVArray &varray)
+static bool attribute_data_matches_varray(const GAttributeReader &attribute,
+                                          const CommonVArrayInfo &varray_info)
 {
-  const CommonVArrayInfo varray_info = varray.common_info();
   if (varray_info.type != CommonVArrayInfo::Type::Span) {
     return false;
   }
@@ -949,12 +949,12 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       if (try_assign_single_value(attributes, id, GPointer(result_data.type(), info.data))) {
         continue;
       }
-      const GAttributeReader dst = attributes.lookup(id);
-      if (!attribute_data_matches_varray(dst, result_data)) {
-        GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(id);
-        array_utils::copy(result_data, mask, dst_mut.span);
-        dst_mut.finish();
-      }
+    }
+    const GAttributeReader dst = attributes.lookup(id);
+    if (!attribute_data_matches_varray(dst, info)) {
+      GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(id);
+      array_utils::copy(result_data, mask, dst_mut.span);
+      dst_mut.finish();
     }
   }
 
