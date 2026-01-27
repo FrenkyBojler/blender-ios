@@ -132,7 +132,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Zero scatters uniformly in all directions, with higher values "
           "scattering more strongly forward. For example, skin has been measured "
           "to have an anisotropy of 0.8")
-      .make_available([](bNode &node) { node.custom2 = SHD_SUBSURFACE_BURLEY; });
+      .make_available([](bNode &node) { node.custom2 = SHD_SUBSURFACE_RANDOM_WALK; });
 #define SOCK_SUBSURFACE_ANISOTROPY_ID 12
 
   /* Panel for Specular settings. */
