@@ -7,7 +7,6 @@ options.resolution_scale = '2'
 options.trace_max_roughness = 0.5
 options.screen_trace_quality = 0.25
 options.screen_trace_thickness = 0.20000000298023224
-options.rt_scale = 1.0000000149011612
 options.use_denoise = True
 options.denoise_spatial = True
 options.denoise_temporal = True

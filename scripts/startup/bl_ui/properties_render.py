@@ -431,7 +431,6 @@ class RENDER_PT_eevee_screen_trace(RenderButtonsPanel, Panel):
         props = context.scene.eevee.ray_tracing_options
 
         col = layout.column()
-        col.prop(props, "rt_scale", text="Intensity")
         col.prop(props, "screen_trace_quality", text="Precision")
         col.prop(props, "screen_trace_thickness", text="Thickness")
 
@@ -575,6 +574,27 @@ class RENDER_PT_eevee_clamping_volume(RenderButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(props, "clamp_volume_direct", text="Direct Light")
         col.prop(props, "clamp_volume_indirect", text="Indirect Light")
+
+
+class RENDER_PT_eevee_light_paths(RenderButtonsPanel, Panel):
+    bl_label = "Light Path"
+    bl_parent_id = "RENDER_PT_eevee_clamping"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        scene = context.scene
+        props = scene.eevee
+
+        col = layout.column(align=True)
+        layout.prop(props, "indirect_intensity", text="Indirect Intensity")
+
 
 
 class RENDER_PT_eevee_sampling_shadows(RenderButtonsPanel, Panel):
@@ -1135,6 +1155,7 @@ classes = (
     RENDER_PT_eevee_clamping,
     RENDER_PT_eevee_clamping_surface,
     RENDER_PT_eevee_clamping_volume,
+    RENDER_PT_eevee_light_paths,
     RENDER_PT_eevee_raytracing_presets,
     RENDER_PT_eevee_raytracing,
     RENDER_PT_eevee_screen_trace,
