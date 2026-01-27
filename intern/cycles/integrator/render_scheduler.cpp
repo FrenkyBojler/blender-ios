@@ -90,6 +90,11 @@ void RenderScheduler::set_sample_params(const int num_samples,
 
 int RenderScheduler::get_num_samples() const
 {
+  /* Do continuous rendering when DLSS is active. */
+  if (denoiser_params_.use && denoiser_params_.type == DENOISER_DLSS) {
+    return Integrator::MAX_SAMPLES;
+  }
+
   return num_samples_;
 }
 
@@ -344,6 +349,10 @@ RenderWork RenderScheduler::get_render_work()
   render_work.denoised_resolution_divider = state_.resolution_divider;
   if (denoiser_params_.use) {
     render_work.resolution_divider *= denoiser_params_.upscale_factor;
+
+    if (denoiser_params_.type == DENOISER_DLSS) {
+      state_.num_rendered_samples = 0;
+    }
   }
 
   render_work.path_trace.start_sample = get_start_sample_to_path_trace();
@@ -849,6 +858,11 @@ static inline uint round_num_samples_to_power_of_2(const uint num_samples)
 
 int RenderScheduler::get_num_samples_to_path_trace() const
 {
+  /* Render fixed number of samples each frame when DLSS is active. */
+  if (denoiser_params_.use && denoiser_params_.type == DENOISER_DLSS) {
+    return 1;
+  }
+
   if (state_.resolution_divider != pixel_size_) {
     return get_num_samples_during_navigation(state_.resolution_divider);
   }

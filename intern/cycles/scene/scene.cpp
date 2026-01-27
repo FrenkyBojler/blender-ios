@@ -633,13 +633,21 @@ bool Scene::update(Progress &progress)
   return true;
 }
 
-bool Scene::update_camera_resolution(Progress &progress, int width, int height)
+bool Scene::update_camera_resolution(Progress &progress, int width, int height, bool jitter)
 {
-  if (!camera->set_screen_size(width, height)) {
+  if (camera->set_screen_size(width, height)) {
+    camera->device_update(device, &dscene, this);
+  }
+  else if (!jitter) {
     return false;
   }
 
-  camera->device_update(device, &dscene, this);
+  if (jitter) {
+    integrator->set_seed(integrator->get_seed() + rand());
+    integrator->set_frame(integrator->get_frame() + 1);
+
+    integrator->device_update(device, &dscene, this);
+  }
 
   progress.set_status("Updating Device", "Writing constant memory");
   device->const_copy_to("data", &dscene.data, sizeof(dscene.data));

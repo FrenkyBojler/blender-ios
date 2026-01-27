@@ -395,8 +395,10 @@ RenderWork Session::run_update_for_next_iteration()
     const float resolution = render_work.resolution_divider;
     const int width = max(1, int(buffer_params_.full_width / resolution));
     const int height = max(1, int(buffer_params_.full_height / resolution));
+    const bool jitter = render_scheduler_.get_denoiser_params().use &&
+                        render_scheduler_.get_denoiser_params().type == DENOISER_DLSS;
 
-    scene->update_camera_resolution(progress, width, height);
+    scene->update_camera_resolution(progress, width, height, jitter);
 
     /* Unlock scene mutex before loading denoiser kernels, since that may attempt to activate
      * graphics interop, which can deadlock when the scene mutex is still being held. */
@@ -777,15 +779,6 @@ void Session::collect_statistics(RenderStats *render_stats)
 void Session::process_full_buffer_from_disk(string_view filename)
 {
   path_trace_->process_full_buffer_from_disk(filename);
-}
-
-DenoiserType Session::get_effective_denoiser_type() const
-{
-  if (!render_scheduler_.get_denoiser_params().use) {
-    return DENOISER_NONE;
-  }
-
-  return render_scheduler_.get_denoiser_params().type;
 }
 
 CCL_NAMESPACE_END
