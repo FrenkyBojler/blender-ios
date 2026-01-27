@@ -34,12 +34,12 @@ static const EnumPropertyItem fill_rule_items[] = {
      "EVEN_ODD",
      0,
      N_("Even-Odd"),
-     "Alternate inside/outside based on crossing count"},
+     N_("Alternate inside/outside based on crossing count")},
     {GEO_NODE_CURVE_FILL_RULE_NON_ZERO,
      "NON_ZERO",
      0,
      N_("Non-Zero"),
-     "Overlapping curves with the same winding direction are filled as a union"},
+     N_("Overlapping curves with the same winding direction are filled as a union")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -273,7 +273,6 @@ static void curve_fill_calculate(GeometrySet &geometry_set,
   /* Determine CDT output type based on mode and fill rule. */
   CDT_output_type output_type;
   if (mode == GEO_NODE_CURVE_FILL_MODE_NGONS) {
-    /* N-gons mode. */
     switch (fill_rule) {
       case GEO_NODE_CURVE_FILL_RULE_NON_ZERO: {
         output_type = CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO;
@@ -360,8 +359,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
   Field<int> group_index = params.extract_input<Field<int>>("Group ID");
   const GeometryNodeCurveFillMode mode = params.extract_input<GeometryNodeCurveFillMode>("Mode");
-  const GeometryNodeCurveFillRule fill_rule = params.extract_input<GeometryNodeCurveFillRule>(
-      "Fill Rule");
+  const auto fill_rule = params.extract_input<GeometryNodeCurveFillRule>("Fill Rule");
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
     curve_fill_calculate(geometry, mode, fill_rule, group_index);
