@@ -1,2 +1,2 @@
 Referenced by issue #153324, Blender crashes calling an operator with a context override in a presence of a thread
-Referenced by issue #153398, Make the "No threading with bpy" definition even more strict
+Referenced by issue #153398, Crash when using threads in python (the supported way)
