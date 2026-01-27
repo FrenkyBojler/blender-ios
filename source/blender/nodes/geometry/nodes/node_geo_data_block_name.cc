@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2026 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,7 +14,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_data_block_to_string_cc {
+namespace blender::nodes::node_geo_data_block_name_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -23,7 +23,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
     b.add_input(data_type, "Data Block").optional_label();
   }
-  b.add_output<decl::String>("String");
+  b.add_output<decl::String>("Name");
+  b.add_output<decl::String>("Library Name");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -91,9 +92,9 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeDataBlockToString");
-  ntype.ui_name = "Data Block To String";
-  ntype.ui_description = "Convert data block to string";
+  geo_node_type_base(&ntype, "GeometryNodeDataBlockName");
+  ntype.ui_name = "Data Block Name";
+  ntype.ui_description = "Retrieve the name of a data block";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
@@ -105,4 +106,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_data_block_to_string_cc
+}  // namespace blender::nodes::node_geo_data_block_name_cc
