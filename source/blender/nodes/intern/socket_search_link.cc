@@ -123,7 +123,6 @@ void search_link_ops_for_declarations(GatherLinkSearchOpParams &params,
                                       Span<SocketDeclaration *> declarations)
 {
   const bke::bNodeType &node_type = params.node_type();
-  const bool has_node_update_fn = bool(node_type.updatefunc);
 
   const SocketDeclaration *main_socket = nullptr;
   Vector<const SocketDeclaration *> connectable_sockets;
@@ -132,7 +131,7 @@ void search_link_ops_for_declarations(GatherLinkSearchOpParams &params,
   for (const int i : declarations.index_range()) {
     const SocketDeclaration &socket = *declarations[i];
     /* Ignore sockets that cannot be made available. */
-    if (!socket.is_available && !socket.can_make_available() && !has_node_update_fn) {
+    if (!socket.is_available && !socket.can_make_available()) {
       continue;
     }
     if (!socket_names.add(socket.name)) {
