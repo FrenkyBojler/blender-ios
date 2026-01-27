@@ -1394,21 +1394,21 @@ bool BKE_image_render_write(ReportList *reports,
 
         /* Optional preview images for EXR. */
         if (ok && (image_format.flag & R_IMF_FLAG_PREVIEW_JPG)) {
+          /* Switch to JPEG format BEFORE creating ibuf and color management. */
+          image_format.imtype = R_IMF_IMTYPE_JPEG90;
+          image_format.depth = R_IMF_CHAN_DEPTH_8;
+
+          /* Replace .exr extension. */
+          if (BLI_path_extension_check(filepath, ".exr")) {
+            filepath[strlen(filepath) - 4] = 0;
+          }
+          BKE_image_path_ext_from_imformat_ensure(filepath, sizeof(filepath), &image_format);
+
           ImBuf *ibuf = RE_render_result_rect_to_ibuf(rr, &image_format, dither, view_id);
           if (ibuf) {
+            ibuf->planes = 24;
             IMB_colormanagement_imbuf_for_write(ibuf, save_as_render, false, &image_format);
 
-            /* Configure for JPEG preview. */
-            image_format.imtype = R_IMF_IMTYPE_JPEG90;
-            image_format.depth = R_IMF_CHAN_DEPTH_8;
-
-            /* Replace .exr extension. */
-            if (BLI_path_extension_check(filepath, ".exr")) {
-              filepath[strlen(filepath) - 4] = 0;
-            }
-            BKE_image_path_ext_from_imformat_ensure(filepath, sizeof(filepath), &image_format);
-
-            ibuf->planes = 24;
             ok = image_render_write_stamp_test(
                 reports, scene, rr, ibuf, filepath, &image_format, stamp);
 
@@ -1463,7 +1463,7 @@ bool BKE_image_render_write(ReportList *reports,
 
         /* Optional preview images for EXR. */
         if (ok && is_exr_rr && (image_format.flag & R_IMF_FLAG_PREVIEW_JPG)) {
-          /* Configure for JPEG preview. */
+          /* Switch to JPEG format BEFORE creating preview buffers. */
           image_format.imtype = R_IMF_IMTYPE_JPEG90;
           image_format.depth = R_IMF_CHAN_DEPTH_8;
 
@@ -1473,9 +1473,30 @@ bool BKE_image_render_write(ReportList *reports,
           }
           BKE_image_path_ext_from_imformat_ensure(filepath, sizeof(filepath), &image_format);
 
-          ibuf_arr[2]->planes = 24;
-          ok = image_render_write_stamp_test(
-              reports, scene, rr, ibuf_arr[2], filepath, &image_format, stamp);
+          /* Create fresh stereo buffers with JPEG format and color management. */
+          ImBuf *preview_arr[3] = {nullptr};
+          for (int j = 0; j < 2; j++) {
+            int view_id = BLI_findstringindex(&rr->views, names[j], offsetof(RenderView, name));
+            preview_arr[j] = RE_render_result_rect_to_ibuf(rr, &image_format, dither, view_id);
+            if (preview_arr[j]) {
+              preview_arr[j]->planes = 24;
+              IMB_colormanagement_imbuf_for_write(
+                  preview_arr[j], save_as_render, false, &image_format);
+            }
+          }
+
+          preview_arr[2] = IMB_stereo3d_ImBuf(&image_format, preview_arr[0], preview_arr[1]);
+          if (preview_arr[2]) {
+            preview_arr[2]->planes = 24;
+            ok = image_render_write_stamp_test(
+                reports, scene, rr, preview_arr[2], filepath, &image_format, stamp);
+          }
+
+          for (int j = 0; j < 3; j++) {
+            if (preview_arr[j]) {
+              IMB_freeImBuf(preview_arr[j]);
+            }
+          }
         }
       }
       else {

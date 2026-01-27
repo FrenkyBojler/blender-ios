@@ -962,10 +962,14 @@ static void drain_job_update(void *djv)
 
 static void drain_job_endjob(void *djv)
 {
-  DrainJobData *dj = static_cast<DrainJobData *>(djv);
-
   /* Final drain to catch any remaining completions. */
   drain_job_update(djv);
+  /* NOTE: dj is freed by the free callback, not here. */
+}
+
+static void drain_job_free(void *djv)
+{
+  DrainJobData *dj = static_cast<DrainJobData *>(djv);
   MEM_delete(dj);
 }
 
@@ -999,7 +1003,7 @@ static void background_save_start_drain_job(Main *bmain, Scene *scene)
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_BACKGROUND_SAVE_DRAIN);
 
-  WM_jobs_customdata_set(wm_job, dj, nullptr); /* endjob frees */
+  WM_jobs_customdata_set(wm_job, dj, drain_job_free);
   WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_RENDER_RESULT, 0);
   WM_jobs_callbacks(wm_job, drain_job_startjob, nullptr, drain_job_update, drain_job_endjob);
   WM_jobs_start(wm, wm_job);
