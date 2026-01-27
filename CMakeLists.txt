@@ -495,7 +495,7 @@ option(WITH_HYDRA "Enable Hydra render engine" ON)
 
 # Storm tests (via USD or Hydra)
 option(WITH_STORM_TESTS_VULKAN "\
-Enable Storm tests using the Vulkan backend. Requires WITH_USD or WITH_HYDRA."
+Enable Storm tests using the Vulkan backend. Requires WITH_HYDRA."
   OFF
 )
 mark_as_advanced(WITH_STORM_TESTS_VULKAN)
