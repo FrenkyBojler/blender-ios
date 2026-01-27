@@ -2962,6 +2962,11 @@ struct NodeInputVector {
   DNA_DEFINE_CXX_METHODS(NodeInputVector)
 
   float vector[3] = {};
+  /** RNA subtype for the vector value (e.g. translation, direction, euler). */
+  int subtype = 0;
+  /** Dimensions of the output vector socket (2, 3, or 4). 0 means default (3). */
+  char vector_socket_dimensions = 0;
+  char _pad[3] = {};
 };
 
 struct NodeInputColor {

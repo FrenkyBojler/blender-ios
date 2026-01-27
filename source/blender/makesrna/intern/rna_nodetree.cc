@@ -3839,6 +3839,32 @@ static const EnumPropertyItem *rna_Node_ItemArray_structure_type_itemf(bContext 
   return rna_NodeSocket_structure_type_item_filter(ntree, socket_type, r_free);
 }
 
+static const EnumPropertyItem *rna_fn_input_vector_subtype_itemf(
+    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+{
+  EnumPropertyItem *items = nullptr;
+  int items_count = 0;
+  for (const EnumPropertyItem *item = rna_enum_property_subtype_items; item->identifier != nullptr;
+       item++)
+  {
+    const int subtype = item->value;
+    if (subtype == PROP_FACTOR || subtype == PROP_PERCENTAGE || subtype == PROP_TRANSLATION ||
+        subtype == PROP_DIRECTION || subtype == PROP_VELOCITY || subtype == PROP_ACCELERATION ||
+        subtype == PROP_EULER || subtype == PROP_XYZ || subtype == PROP_NONE)
+    {
+      RNA_enum_item_add(&items, &items_count, item);
+    }
+  }
+
+  if (items_count == 0) {
+    return rna_enum_dummy_NULL_items;
+  }
+
+  RNA_enum_item_end(&items, &items_count);
+  *r_free = true;
+  return items;
+}
+
 static IndexSwitchItem *rna_NodeIndexSwitchItems_new(ID *id, bNode *node, Main *bmain)
 {
   IndexSwitchItem *new_item = nodes::socket_items::add_item<IndexSwitchItemsAccessor>(*node);
@@ -4880,6 +4906,21 @@ static void def_fn_input_vector(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_float_sdna(prop, nullptr, "vector");
   RNA_def_property_ui_text(prop, "Vector", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "subtype", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "subtype");
+  RNA_def_property_enum_items(prop, rna_enum_property_subtype_items);
+  RNA_def_property_enum_default(prop, PROP_XYZ);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_fn_input_vector_subtype_itemf");
+  RNA_def_property_ui_text(prop, "Subtype", "Semantic meaning of the vector value");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "vector_socket_dimensions", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "vector_socket_dimensions");
+  RNA_def_property_int_default(prop, 3);
+  RNA_def_property_range(prop, 2, 4);
+  RNA_def_property_ui_text(prop, "Dimensions", "Dimensions of the vector socket");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 static void def_fn_input_string(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -4912,6 +4953,39 @@ static void def_sh_output(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(
       prop, "Target", "Which renderer and viewport shading types to use the shaders for");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_sh_value(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  /* NOTE: This is stored in #bNode.custom1, which is a short. Many values in
+   * #PropertySubType include unit flags in the upper bits and don't fit into a short.
+   * So store a short-safe enum and map it to #PropertySubType in the node declaration.
+   */
+  static const EnumPropertyItem rna_enum_shader_node_value_subtype_items[] = {
+      {0, "NONE", 0, "None", ""},
+      {PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", ""},
+      {PROP_FACTOR, "FACTOR", 0, "Factor", ""},
+      {PROP_MASS & 0x7FFF, "MASS", 0, "Mass", ""},
+      {PROP_ANGLE & 0x7FFF, "ANGLE", 0, "Angle", ""},
+      {PROP_TIME & 0x7FFF, "TIME", 0, "Time (Scene Relative)", ""},
+      {50, "TIME_ABSOLUTE", 0, "Time (Absolute)", ""},
+      {PROP_DISTANCE & 0x7FFF, "DISTANCE", 0, "Distance", ""},
+      {PROP_POWER & 0x7FFF, "POWER", 0, "Power", ""},
+      {PROP_TEMPERATURE & 0x7FFF, "TEMPERATURE", 0, "Temperature", ""},
+      {PROP_WAVELENGTH & 0x7FFF, "WAVELENGTH", 0, "Wavelength", ""},
+      {PROP_COLOR_TEMPERATURE & 0x7FFF, "COLOR_TEMPERATURE", 0, "Color Temperature", ""},
+      {PROP_FREQUENCY & 0x7FFF, "FREQUENCY", 0, "Frequency", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "subtype", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, rna_enum_shader_node_value_subtype_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Subtype", "Semantic meaning of the value");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_ShaderNode_socket_update");
 }
 
 static void def_sh_output_linestyle(BlenderRNA *brna, StructRNA *srna)
@@ -9822,7 +9896,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeUVAlongStroke", def_sh_uvalongstroke);
   define("ShaderNode", "ShaderNodeUVMap", def_sh_uvmap);
   define("ShaderNode", "ShaderNodeValToRGB", def_colorramp);
-  define("ShaderNode", "ShaderNodeValue");
+  define("ShaderNode", "ShaderNodeValue", def_sh_value);
   define("ShaderNode", "ShaderNodeVectorCurve", def_vector_curve);
   define("ShaderNode", "ShaderNodeVectorDisplacement", def_sh_vector_displacement);
   define("ShaderNode", "ShaderNodeVectorMath", def_vector_math);
