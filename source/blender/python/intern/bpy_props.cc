@@ -2055,7 +2055,6 @@ static bool bpy_prop_string_visit_fn_call(
         nullptr,
     };
     static _PyArg_Parser _parser = {
-        PY_ARG_PARSER_HEAD_COMPAT()
         "s" /* `text` */
         "s" /* `info` */
         ":search",
@@ -3607,7 +3606,6 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -3792,7 +3790,6 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -3988,7 +3985,6 @@ static PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw)
       "set",      "get_transform", "set_transform", nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -4178,7 +4174,6 @@ static PyObject *BPy_IntVectorProperty(PyObject *self, PyObject *args, PyObject 
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -4395,7 +4390,6 @@ static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
       "set_transform", nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -4597,7 +4591,6 @@ static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObjec
       "get_transform", "set_transform", nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -4832,7 +4825,6 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "|$" /* Optional, keyword only arguments. */
       "s"  /* `name` */
@@ -5077,7 +5069,6 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "O"  /* `items` */
       "|$" /* Optional, keyword only arguments. */
@@ -5326,7 +5317,6 @@ PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "O"  /* `type` */
       "|$" /* Optional, keyword only arguments. */
@@ -5367,11 +5357,11 @@ PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
   if (!ptype) {
     return nullptr;
   }
-  if (!RNA_struct_is_a(ptype, &RNA_PropertyGroup) && !RNA_struct_is_ID(ptype)) {
+  if (!RNA_struct_is_a(ptype, RNA_PropertyGroup) && !RNA_struct_is_ID(ptype)) {
     PyErr_Format(PyExc_TypeError,
                  "PointerProperty(...) expected an RNA type derived from %.200s or %.200s",
-                 RNA_struct_ui_name(&RNA_ID),
-                 RNA_struct_ui_name(&RNA_PropertyGroup));
+                 RNA_struct_ui_name(RNA_ID),
+                 RNA_struct_ui_name(RNA_PropertyGroup));
     return nullptr;
   }
   if (bpy_prop_callback_check(update_fn, "update", 2) == -1) {
@@ -5401,7 +5391,7 @@ PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
   }
 
   if (RNA_struct_idprops_contains_datablock(ptype)) {
-    if (RNA_struct_is_a(srna, &RNA_PropertyGroup)) {
+    if (RNA_struct_is_a(srna, RNA_PropertyGroup)) {
       RNA_def_struct_flag(srna, STRUCT_CONTAINS_DATABLOCK_IDPROPERTIES);
     }
   }
@@ -5473,7 +5463,6 @@ PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `attr` */
       "O"  /* `type` */
       "|$" /* Optional, keyword only arguments. */
@@ -5511,10 +5500,10 @@ PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
     return nullptr;
   }
 
-  if (!RNA_struct_is_a(ptype, &RNA_PropertyGroup)) {
+  if (!RNA_struct_is_a(ptype, RNA_PropertyGroup)) {
     PyErr_Format(PyExc_TypeError,
                  "CollectionProperty(...) expected an RNA type derived from %.200s",
-                 RNA_struct_ui_name(&RNA_PropertyGroup));
+                 RNA_struct_ui_name(RNA_PropertyGroup));
     return nullptr;
   }
 
@@ -5538,7 +5527,7 @@ PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
   }
 
   if (RNA_struct_idprops_contains_datablock(ptype)) {
-    if (RNA_struct_is_a(srna, &RNA_PropertyGroup)) {
+    if (RNA_struct_is_a(srna, RNA_PropertyGroup)) {
       RNA_def_struct_flag(srna, STRUCT_CONTAINS_DATABLOCK_IDPROPERTIES);
     }
   }
@@ -5596,7 +5585,6 @@ static PyObject *BPy_RemoveProperty(PyObject *self, PyObject *args, PyObject *kw
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s" /* `attr` */
       ":RemoveProperty",
       _keywords,
