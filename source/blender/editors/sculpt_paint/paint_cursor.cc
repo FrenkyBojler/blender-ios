@@ -37,6 +37,7 @@
 #include "BKE_image.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 #include "BKE_screen.hh"
@@ -322,10 +323,10 @@ static int load_tex(Paint *paint, Brush *br, ViewContext *vc, float zoom, bool c
       target->old_col = col;
     }
     if (col) {
-      buffer = MEM_malloc_arrayN<uchar>(size * size * 4, "load_tex");
+      buffer = MEM_new_array_uninitialized<uchar>(size * size * 4, "load_tex");
     }
     else {
-      buffer = MEM_malloc_arrayN<uchar>(size * size, "load_tex");
+      buffer = MEM_new_array_uninitialized<uchar>(size * size, "load_tex");
     }
 
     pool = BKE_image_pool_new();
@@ -376,7 +377,7 @@ static int load_tex(Paint *paint, Brush *br, ViewContext *vc, float zoom, bool c
     }
 
     if (buffer) {
-      MEM_freeN(buffer);
+      MEM_delete(buffer);
     }
   }
   else {
@@ -461,7 +462,7 @@ static int load_tex_cursor(Paint *paint, Brush *br, float zoom)
 
       cursor_snap.size = size;
     }
-    buffer = MEM_malloc_arrayN<uchar>(size * size, "load_tex");
+    buffer = MEM_new_array_uninitialized<uchar>(size * size, "load_tex");
 
     BKE_curvemapping_init(br->curve_distance_falloff);
 
@@ -488,7 +489,7 @@ static int load_tex_cursor(Paint *paint, Brush *br, float zoom)
     }
 
     if (buffer) {
-      MEM_freeN(buffer);
+      MEM_delete(buffer);
     }
   }
   else {
@@ -1184,7 +1185,7 @@ static void sculpt_geometry_preview_lines_draw(const Depsgraph &depsgraph,
     return;
   }
 
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   if (bke::object::pbvh_get(object)->type() != bke::pbvh::Type::Mesh) {
     return;
   }
@@ -1390,7 +1391,7 @@ static bool paint_cursor_context_init(bContext *C,
   pcontext.outline_alpha = pcontext.brush->add_col[3];
 
   Object *active_object = pcontext.vc.obact;
-  pcontext.ss = active_object ? active_object->sculpt : nullptr;
+  pcontext.ss = active_object ? active_object->runtime->sculpt_session : nullptr;
 
   if (pcontext.ss && pcontext.ss->draw_faded_cursor) {
     pcontext.outline_alpha = 0.3f;

@@ -58,6 +58,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 #include "BKE_scene.hh"
@@ -179,6 +180,7 @@ struct NodeGeometry {
    * geometry pushes happened in the undo stack. */
   bool is_initialized;
 
+  bke::AttributeStorage attribute_storage;
   CustomData vert_data;
   CustomData edge_data;
   CustomData corner_data;
@@ -499,7 +501,7 @@ static bool use_multires_undo(const StepData &step_data, const SculptSession &ss
 
 static bool topology_matches(const StepData &step_data, const Object &object)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   if (use_multires_undo(step_data, ss)) {
     const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
     return subdiv_ccg.grids_num == step_data.grids.grids_num &&
@@ -519,7 +521,7 @@ static bool restore_active_shape_key(bContext &C,
                                      const StepData &step_data,
                                      Object &object)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   if (ss.shapekey_active && ss.shapekey_active->name != step_data.active_shape_key_name) {
     /* Shape key has been changed before calling undo operator. */
 
@@ -558,7 +560,7 @@ static void restore_position_mesh(Object &object,
 #ifdef DEBUG_TIME
   SCOPED_TIMER_AVERAGED(__func__);
 #endif
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
   std::optional<ShapeKeyData> shape_key_data = ShapeKeyData::from_object(object);
@@ -586,7 +588,7 @@ static void restore_position_mesh(Object &object,
           undo_data.compressed_positions[i], tls.compress_buffer, tls.positions);
       MutableSpan undo_positions = tls.positions.as_mutable_span();
 
-      if (!ss.deform_modifiers_active) {
+      if (!ss.deform_modifiers_active && !shape_key_data) {
         /* When original positions aren't written separately in the undo step, there are no
          * deform modifiers. Therefore the original and evaluated deform positions will be the
          * same, and modifying the positions from the original mesh is enough. */
@@ -783,7 +785,7 @@ static void restore_mask_mesh(Object &object, Node &unode, const MutableSpan<boo
 
 static void restore_mask_grids(Object &object, Node &unode, const MutableSpan<bool> modified_grids)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   SubdivCCG *subdiv_ccg = ss.subdiv_ccg;
   MutableSpan<float> masks = subdiv_ccg->masks;
 
@@ -827,7 +829,7 @@ static bool restore_face_sets(Object &object,
 
 static void bmesh_restore_generic(StepData &step_data, Object &object)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   if (step_data.needs_undo()) {
     BM_log_undo(ss.bm, ss.bm_log);
     step_data.tag_needs_redo();
@@ -854,7 +856,7 @@ static void bmesh_restore_generic(StepData &step_data, Object &object)
 /* Create empty sculpt BMesh and enable logging. */
 static void bmesh_enable(Object &object, const StepData &step_data)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   Mesh *mesh = id_cast<Mesh *>(object.data);
 
   BKE_sculptsession_free_pbvh(object);
@@ -880,7 +882,7 @@ static void bmesh_handle_dyntopo_begin(bContext *C, StepData &step_data, Object 
     step_data.tag_needs_redo();
   }
   else /* needs_redo */ {
-    SculptSession &ss = *object.sculpt;
+    SculptSession &ss = *object.runtime->sculpt_session;
     bmesh_enable(object, step_data);
 
     /* Restore the mesh from the first log entry. */
@@ -893,7 +895,7 @@ static void bmesh_handle_dyntopo_begin(bContext *C, StepData &step_data, Object 
 static void bmesh_handle_dyntopo_end(bContext *C, StepData &step_data, Object &object)
 {
   if (step_data.needs_undo()) {
-    SculptSession &ss = *object.sculpt;
+    SculptSession &ss = *object.runtime->sculpt_session;
     bmesh_enable(object, step_data);
 
     /* Restore the mesh from the last log entry. */
@@ -915,6 +917,7 @@ static void store_geometry_data(NodeGeometry *geometry, const Object &object)
   BLI_assert(!geometry->is_initialized);
   geometry->is_initialized = true;
 
+  geometry->attribute_storage = mesh->attribute_storage.wrap();
   CustomData_init_from(
       &mesh->vert_data, &geometry->vert_data, CD_MASK_MESH.vmask, mesh->verts_num);
   CustomData_init_from(
@@ -946,6 +949,7 @@ static void restore_geometry_data(const NodeGeometry *geometry, Mesh *mesh)
   mesh->faces_num = geometry->faces_num;
   mesh->totface_legacy = 0;
 
+  mesh->attribute_storage.wrap() = geometry->attribute_storage.wrap();
   CustomData_init_from(
       &geometry->vert_data, &mesh->vert_data, CD_MASK_MESH.vmask, geometry->verts_num);
   CustomData_init_from(
@@ -993,7 +997,7 @@ static void restore_geometry(StepData &step_data, Object &object)
  * returns false to indicate the non-dyntopo code should run. */
 static int bmesh_restore(bContext *C, Depsgraph &depsgraph, StepData &step_data, Object &object)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   switch (step_data.type) {
     case Type::DyntopoBegin:
       BKE_sculpt_update_object_for_edit(&depsgraph, &object, false);
@@ -1045,7 +1049,7 @@ static void refine_subdiv(Depsgraph *depsgraph,
                           bke::subdiv::Subdiv *subdiv)
 {
   Array<float3> deformed_verts = BKE_multires_create_deformed_base_mesh_vert_coords(
-      depsgraph, &object, ss.multires.modifier);
+      depsgraph, &object, ss.multires_modifier);
 
   bke::subdiv::eval_refine_from_mesh(subdiv, id_cast<const Mesh *>(object.data), deformed_verts);
 }
@@ -1060,7 +1064,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
   if (step_data.object_name != object.id.name) {
     return;
   }
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(*depsgraph, object);
 
   /* Restore pivot. */
@@ -1411,7 +1415,7 @@ static void store_vert_visibility_grids(const SubdivCCG &subdiv_ccg,
 
 static void store_positions_mesh(const Depsgraph &depsgraph, const Object &object, Node &unode)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   gather_data_mesh(bke::pbvh::vert_positions_eval(depsgraph, object),
                    unode.vert_indices.as_span(),
                    unode.position.as_mutable_span());
@@ -1556,7 +1560,7 @@ static void fill_node_data_mesh(const Depsgraph &depsgraph,
                                 const Type type,
                                 Node &unode)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   const Mesh &mesh = *id_cast<Mesh *>(object.data);
 
   unode.vert_indices = node.all_verts();
@@ -1623,7 +1627,7 @@ static void fill_node_data_grids(const Object &object,
                                  const Type type,
                                  Node &unode)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   const Mesh &base_mesh = *id_cast<const Mesh *>(object.data);
   const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
@@ -1691,7 +1695,7 @@ BLI_NOINLINE static void bmesh_push(const Object &object,
                                     Type type)
 {
   StepData *step_data = get_step_data();
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
 
   std::scoped_lock lock(step_data->nodes_mutex);
 
@@ -1794,7 +1798,7 @@ void push_node(const Depsgraph &depsgraph,
                const bke::pbvh::Node *node,
                const Type type)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   if (ss.bm || ELEM(type, Type::DyntopoBegin, Type::DyntopoEnd)) {
     bmesh_push(object, static_cast<const bke::pbvh::BMeshNode *>(node), type);
@@ -1833,7 +1837,7 @@ void push_nodes(const Depsgraph &depsgraph,
                 const IndexMask &node_mask,
                 const Type type)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
 
   ss.needs_flush_to_id = true;
 
@@ -1930,7 +1934,7 @@ static void save_common_data(Object &ob, SculptUndoStep *us)
     us->active_color_end.was_set = false;
   }
 
-  const SculptSession &ss = *ob.sculpt;
+  const SculptSession &ss = *ob.runtime->sculpt_session;
 
   us->data.pivot_pos = ss.pivot_pos;
   us->data.pivot_rot = ss.pivot_rot;
@@ -1947,7 +1951,7 @@ void push_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
   /* If possible, we need to tag the object and its geometry data as 'changed in the future' in
    * the previous undo step if it's a memfile one. */
   ED_undosys_stack_memfile_id_changed_tag(ustack, &ob.id);
-  ED_undosys_stack_memfile_id_changed_tag(ustack, static_cast<ID *>(ob.data));
+  ED_undosys_stack_memfile_id_changed_tag(ustack, ob.data);
 
   /* Special case, we never read from this. */
   bContext *C = nullptr;
@@ -1955,7 +1959,7 @@ void push_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
   SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(
       BKE_undosys_step_push_init_with_type(ustack, C, name, BKE_UNDOSYS_TYPE_SCULPT));
 
-  const SculptSession &ss = *ob.sculpt;
+  const SculptSession &ss = *ob.runtime->sculpt_session;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
 
   save_common_data(ob, us);
@@ -1990,7 +1994,7 @@ void push_enter_sculpt_mode(const Scene & /*scene*/, Object &ob, const wmOperato
   /* If possible, we need to tag the object and its geometry data as 'changed in the future' in
    * the previous undo step if it's a memfile one. */
   ED_undosys_stack_memfile_id_changed_tag(ustack, &ob.id);
-  ED_undosys_stack_memfile_id_changed_tag(ustack, static_cast<ID *>(ob.data));
+  ED_undosys_stack_memfile_id_changed_tag(ustack, ob.data);
 
   /* Special case, we never read from this. */
   bContext *C = nullptr;
@@ -2265,8 +2269,8 @@ static void step_decode(
         object_sculpt_mode_enter(*bmain, *depsgraph, *scene, *ob, true, nullptr);
       }
 
-      if (ob->sculpt) {
-        ob->sculpt->needs_flush_to_id = true;
+      if (ob->runtime->sculpt_session) {
+        ob->runtime->sculpt_session->needs_flush_to_id = true;
       }
       bmain->is_memfile_undo_flush_needed = true;
     }
@@ -2303,7 +2307,7 @@ void geometry_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
   /* If possible, we need to tag the object and its geometry data as 'changed in the future' in
    * the previous undo step if it's a memfile one. */
   ED_undosys_stack_memfile_id_changed_tag(ustack, &ob.id);
-  ED_undosys_stack_memfile_id_changed_tag(ustack, static_cast<ID *>(ob.data));
+  ED_undosys_stack_memfile_id_changed_tag(ustack, ob.data);
 
   /* Special case, we never read from this. */
   bContext *C = nullptr;
@@ -2407,9 +2411,9 @@ static bool use_multires_mesh(bContext *C)
   }
 
   const Object *object = CTX_data_active_object(C);
-  const SculptSession *sculpt_session = object->sculpt;
+  const SculptSession *sculpt_session = object->runtime->sculpt_session;
 
-  return sculpt_session->multires.active;
+  return sculpt_session->multires_modifier;
 }
 
 void push_multires_mesh_begin(bContext *C, const char *str)
