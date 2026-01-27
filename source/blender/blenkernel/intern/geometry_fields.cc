@@ -956,31 +956,31 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
         dst_mut.finish();
       }
     }
+  }
 
-    for (AddResult &result : results_to_add) {
-      const StringRef id = attribute_ids[result.input_index];
-      attributes.remove(id);
-      const CPPType &type = fields[result.input_index].cpp_type();
-      const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
-      if (auto *array = std::get_if<AddResult::Array>(&result.new_data)) {
-        if (!attributes.add(id, domain, data_type, AttributeInitMoveArray(array->data))) {
-          /* If the name corresponds to a builtin attribute, removing the attribute might fail if
-           * it's required, adding the attribute might fail if the domain or type is incorrect. */
-          type.destruct_n(array->data, domain_size);
-          MEM_delete_void(array->data);
-          success = false;
-        }
+  for (AddResult &result : results_to_add) {
+    const StringRef id = attribute_ids[result.input_index];
+    attributes.remove(id);
+    const CPPType &type = fields[result.input_index].cpp_type();
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
+    if (auto *array = std::get_if<AddResult::Array>(&result.new_data)) {
+      if (!attributes.add(id, domain, data_type, AttributeInitMoveArray(array->data))) {
+        /* If the name corresponds to a builtin attribute, removing the attribute might fail if
+         * it's required, adding the attribute might fail if the domain or type is incorrect. */
+        type.destruct_n(array->data, domain_size);
+        MEM_delete_void(array->data);
+        success = false;
       }
-      else {
-        const auto value = std::get<AddResult::Single>(result.new_data);
-        if (!attributes.add(
-                id,
-                domain,
-                data_type,
-                AttributeInitVArray(GVArray::from_single_ref(type, domain_size, value.value))))
-        {
-          success = false;
-        }
+    }
+    else {
+      const auto value = std::get<AddResult::Single>(result.new_data);
+      if (!attributes.add(
+              id,
+              domain,
+              data_type,
+              AttributeInitVArray(GVArray::from_single_ref(type, domain_size, value.value))))
+      {
+        success = false;
       }
     }
   }
