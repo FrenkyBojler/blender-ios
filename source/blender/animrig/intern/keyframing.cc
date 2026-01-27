@@ -381,7 +381,7 @@ static void get_keyframe_values_create_reports(ReportList *reports,
               RNA_property_ui_name(prop),
               str_failed_indices);
 
-  MEM_freeN(str_failed_indices);
+  MEM_delete(str_failed_indices);
 }
 
 static Vector<float> get_keyframe_values(PointerRNA *ptr, PropertyRNA *prop, const bool visual_key)
@@ -442,7 +442,7 @@ static float nla_time_remap(float time,
 static SingleKeyingResult insert_keyframe_value(
     FCurve *fcu, float cfra, float curval, eBezTriple_KeyframeType keytype, eInsertKeyFlags flag)
 {
-  if (!BKE_fcurve_is_keyframable(fcu)) {
+  if (!fcu || !BKE_fcurve_is_keyframable(*fcu)) {
     return SingleKeyingResult::FCURVE_NOT_KEYFRAMEABLE;
   }
 
