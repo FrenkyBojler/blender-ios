@@ -8,6 +8,7 @@
 #include "BKE_bake_items_serialize.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
+#include "BKE_geometry_fields.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
@@ -24,9 +25,12 @@
 #include "DNA_object_types.h"
 #include "DNA_volume_types.h"
 
+#include "FN_field.hh"
+
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_list.hh"
 
 #include <fmt/format.h>
@@ -48,6 +52,10 @@ using DictionaryValuePtr = std::shared_ptr<DictionaryValue>;
 static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io_item,
                                                        const BlobReader &blob_reader,
                                                        const BlobReadSharing &blob_sharing);
+static void serialize_socket_value_variant(const SocketValueVariant &value_variant,
+                                           BlobWriter &blob_writer,
+                                           BlobWriteSharing &blob_sharing,
+                                           DictionaryValue &r_io_item);
 
 std::shared_ptr<DictionaryValue> BlobSlice::serialize() const
 {
@@ -1474,7 +1482,171 @@ template<typename T>
   return true;
 }
 
-static void serialize_bake_item(const BakeItem &item,
+static void serialize_single_value(const GPointer value,
+                                   BlobWriter &blob_writer,
+                                   BlobWriteSharing &blob_sharing,
+                                   DictionaryValue &r_io_item)
+{
+  const CPPType &type = *value.type();
+  if (type.is<SocketValueVariant>()) {
+    const SocketValueVariant &socket_value = *value.get<SocketValueVariant>();
+    serialize_socket_value_variant(socket_value, blob_writer, blob_sharing, r_io_item);
+    return;
+  }
+  if (type.is<GeometrySet>()) {
+    const GeometrySet &geometry = *value.get<GeometrySet>();
+    r_io_item.append_str("type", "GEOMETRY");
+    auto io_geometry = serialize_geometry_set(geometry, blob_writer, blob_sharing);
+    r_io_item.append("data", io_geometry);
+    return;
+  }
+  if (type.is<std::string>()) {
+    const StringRefNull str = *value.get<std::string>();
+    r_io_item.append_str("type", "STRING");
+    /* Small strings are inlined, larger strings are stored separately. */
+    const int64_t blob_threshold = 100;
+    if (str.size() < blob_threshold) {
+      r_io_item.append_str("data", str);
+    }
+    else {
+      r_io_item.append("data",
+                       write_blob_raw_bytes(blob_writer, blob_sharing, str.data(), str.size()));
+    }
+    return;
+  }
+  if (type.is<nodes::BundlePtr>()) {
+    const nodes::BundlePtr &bundle_ptr = *value.get<nodes::BundlePtr>();
+    r_io_item.append_str("type", "BUNDLE");
+    ArrayValue &io_items = *r_io_item.append_array("items");
+    if (bundle_ptr) {
+      for (const auto &item : bundle_ptr->items()) {
+        if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(
+                &item.value.value))
+        {
+          DictionaryValue &io_bundle_item = *io_items.append_dict();
+          io_bundle_item.append_str("key", item.key);
+          io_bundle_item.append_str("socket_idname", socket_value->type->idname);
+          io::serialize::DictionaryValue &io_bundle_item_value = *io_bundle_item.append_dict(
+              "value");
+          serialize_socket_value_variant(
+              socket_value->value, blob_writer, blob_sharing, io_bundle_item_value);
+        }
+      }
+    }
+    return;
+  }
+  const eCustomDataType data_type = cpp_type_to_custom_data_type(type);
+  r_io_item.append_str("type", get_data_type_io_name(data_type));
+  auto io_data = serialize_primitive_value(data_type, value.get());
+  r_io_item.append("data", std::move(io_data));
+}
+
+static void serialize_field(const fn::GField &field,
+                            BlobWriter & /*blob_writer*/,
+                            BlobWriteSharing & /*blob_sharing*/,
+                            DictionaryValue &r_io_item)
+{
+  if (const auto *attribute_field_input = dynamic_cast<const AttributeFieldInput *>(&field.node()))
+  {
+    const StringRef attribute_name = attribute_field_input->attribute_name();
+    r_io_item.append_str("type", "ATTRIBUTE");
+    r_io_item.append_str("name", attribute_name);
+  }
+}
+
+#ifdef WITH_OPENVDB
+static void serialize_volume_grid(const volume_grid::GVolumeGrid &volume_grid,
+                                  BlobWriter &blob_writer,
+                                  BlobWriteSharing & /*blob_sharing*/,
+                                  DictionaryValue &r_io_item)
+{
+  r_io_item.append_str("type", "GRID");
+  // TODO: could use blob sharing?
+  auto io_vdb = blob_writer
+                    .write_as_stream(".vdb",
+                                     [&](std::ostream &stream) {
+                                       openvdb::GridCPtrVec vdb_grids;
+                                       bke::VolumeTreeAccessToken tree_token;
+                                       vdb_grids.push_back(volume_grid->grid_ptr(tree_token));
+                                       openvdb::io::Stream vdb_stream(stream);
+                                       vdb_stream.write(vdb_grids);
+                                     })
+                    .serialize();
+  r_io_item.append("vdb", std::move(io_vdb));
+}
+#endif
+
+static void serialize_list(const nodes::ListPtr &list_ptr,
+                           BlobWriter &blob_writer,
+                           BlobWriteSharing &blob_sharing,
+                           DictionaryValue &r_io_item)
+{
+  r_io_item.append_str("type", "LIST");
+  if (!list_ptr) {
+    return;
+  }
+  const nodes::List &list = *list_ptr;
+  const CPPType &type = list.cpp_type();
+  if (type.is<SocketValueVariant>()) {
+    r_io_item.append_str("item_type", "SOCKET_VALUE_VARIANT");
+  }
+  else {
+    const eCustomDataType data_type = cpp_type_to_custom_data_type(type);
+    r_io_item.append_str("item_type", get_data_type_io_name(data_type));
+  }
+  r_io_item.append_int("num_items", list.size());
+  if (const auto *single_data = std::get_if<nodes::List::SingleData>(&list.data())) {
+    DictionaryValue &io_single_value = *r_io_item.append_dict("value");
+    serialize_single_value(
+        GPointer{type, single_data->value}, blob_writer, blob_sharing, io_single_value);
+  }
+  else if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&list.data())) {
+    const GSpan array_span{type, array_data->data, list.size()};
+    if (type.is_trivial) {
+      r_io_item.append("data",
+                       write_blob_shared_simple_gspan(
+                           blob_writer, blob_sharing, array_span, array_data->sharing_info.get()));
+    }
+    else {
+      ArrayValue &io_values = *r_io_item.append_array("data");
+      for (const int64_t i : IndexRange(list.size())) {
+        DictionaryValue &io_value = *io_values.append_dict();
+        serialize_single_value(GPointer{type, array_span[i]}, blob_writer, blob_sharing, io_value);
+      }
+    }
+  }
+}
+
+static void serialize_socket_value_variant(const SocketValueVariant &value_variant,
+                                           BlobWriter &blob_writer,
+                                           BlobWriteSharing &blob_sharing,
+                                           DictionaryValue &r_io_item)
+{
+  if (value_variant.is_single()) {
+    const GPointer single_value = value_variant.get_single_ptr();
+    serialize_single_value(single_value, blob_writer, blob_sharing, r_io_item);
+    return;
+  }
+  if (value_variant.is_context_dependent_field()) {
+    const fn::GField field = value_variant.get<fn::GField>();
+    serialize_field(field, blob_writer, blob_sharing, r_io_item);
+    return;
+  }
+#ifdef WITH_OPENVDB
+  if (value_variant.is_volume_grid()) {
+    const volume_grid::GVolumeGrid volume_grid = value_variant.get<volume_grid::GVolumeGrid>();
+    serialize_volume_grid(volume_grid, blob_writer, blob_sharing, r_io_item);
+    return;
+  }
+#endif
+  if (value_variant.is_list()) {
+    const nodes::ListPtr list = value_variant.get<nodes::ListPtr>();
+    serialize_list(list, blob_writer, blob_sharing, r_io_item);
+    return;
+  }
+}
+
+static void serialize_bake_item(const BakeValues::Item &item,
                                 BlobWriter &blob_writer,
                                 BlobWriteSharing &blob_sharing,
                                 DictionaryValue &r_io_item)
@@ -1482,102 +1654,7 @@ static void serialize_bake_item(const BakeItem &item,
   if (!item.name.empty()) {
     r_io_item.append_str("name", item.name);
   }
-  if (const auto *geometry_state_item = dynamic_cast<const GeometryBakeItem *>(&item)) {
-    r_io_item.append_str("type", "GEOMETRY");
-
-    const GeometrySet &geometry = geometry_state_item->geometry;
-    auto io_geometry = serialize_geometry_set(geometry, blob_writer, blob_sharing);
-    r_io_item.append("data", io_geometry);
-  }
-  else if (const auto *attribute_state_item = dynamic_cast<const AttributeBakeItem *>(&item)) {
-    r_io_item.append_str("type", "ATTRIBUTE");
-    r_io_item.append_str("name", attribute_state_item->name());
-  }
-#ifdef WITH_OPENVDB
-  else if (const auto *grid_state_item = dynamic_cast<const VolumeGridBakeItem *>(&item)) {
-    r_io_item.append_str("type", "GRID");
-    const GVolumeGrid &grid = *grid_state_item->grid;
-    auto io_vdb = blob_writer
-                      .write_as_stream(".vdb",
-                                       [&](std::ostream &stream) {
-                                         openvdb::GridCPtrVec vdb_grids;
-                                         bke::VolumeTreeAccessToken tree_token;
-                                         vdb_grids.push_back(grid->grid_ptr(tree_token));
-                                         openvdb::io::Stream vdb_stream(stream);
-                                         vdb_stream.write(vdb_grids);
-                                       })
-                      .serialize();
-    r_io_item.append("vdb", std::move(io_vdb));
-  }
-#endif
-  else if (const auto *string_state_item = dynamic_cast<const StringBakeItem *>(&item)) {
-    r_io_item.append_str("type", "STRING");
-    const StringRefNull str = string_state_item->value();
-    /* Small strings are inlined, larger strings are stored separately. */
-    const int64_t blob_threshold = 100;
-    if (str.size() < blob_threshold) {
-      r_io_item.append_str("data", string_state_item->value());
-    }
-    else {
-      r_io_item.append("data",
-                       write_blob_raw_bytes(blob_writer, blob_sharing, str.data(), str.size()));
-    }
-  }
-  else if (const auto *primitive_state_item = dynamic_cast<const PrimitiveBakeItem *>(&item)) {
-    const eCustomDataType data_type = cpp_type_to_custom_data_type(primitive_state_item->type());
-    r_io_item.append_str("type", get_data_type_io_name(data_type));
-    auto io_data = serialize_primitive_value(data_type, primitive_state_item->value());
-    r_io_item.append("data", std::move(io_data));
-  }
-  else if (const auto *bundle_state_item = dynamic_cast<const BundleBakeItem *>(&item)) {
-    r_io_item.append_str("type", "BUNDLE");
-    ArrayValue &io_items = *r_io_item.append_array("items");
-    for (const BundleBakeItem::Item &item : bundle_state_item->items) {
-      if (const auto *socket_value = std::get_if<BundleBakeItem::SocketValue>(&item.value)) {
-        DictionaryValue &io_bundle_item = *io_items.append_dict();
-        io_bundle_item.append_str("key", item.key);
-        io_bundle_item.append_str("socket_idname", socket_value->socket_idname);
-        io::serialize::DictionaryValue &io_bundle_item_value = *io_bundle_item.append_dict(
-            "value");
-        serialize_bake_item(*socket_value->value, blob_writer, blob_sharing, io_bundle_item_value);
-      }
-    }
-  }
-  else if (const auto *list_state_item = dynamic_cast<const ListBakeItem *>(&item)) {
-    r_io_item.append_str("type", "LIST");
-    if (const nodes::ListPtr *simple_list = std::get_if<nodes::ListPtr>(&list_state_item->value)) {
-      if (*simple_list) {
-        const nodes::List &list = **simple_list;
-        if (list.cpp_type() == CPPType::get<std::string>()) {
-          /* TODO Not supported yet, can't be constructed by users. */
-          BLI_assert_unreachable();
-        }
-        else {
-          const eCustomDataType data_type = cpp_type_to_custom_data_type(list.cpp_type());
-          r_io_item.append_str("item_type", get_data_type_io_name(data_type));
-          r_io_item.append_int("num_items", list.size());
-          if (const auto *single_data = std::get_if<nodes::List::SingleData>(&list.data())) {
-            r_io_item.append("value", serialize_primitive_value(data_type, single_data->value));
-          }
-          else if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&list.data())) {
-            const GSpan array_span = {list.cpp_type(), array_data->data, list.size()};
-            r_io_item.append(
-                "data",
-                write_blob_shared_simple_gspan(
-                    blob_writer, blob_sharing, array_span, array_data->sharing_info.get()));
-          }
-        }
-      }
-    }
-    if (const auto *bundle_list = std::get_if<ListBakeItem::BundleList>(&list_state_item->value)) {
-      r_io_item.append_str("item_type", "BUNDLE");
-      ArrayValue &io_items = *r_io_item.append_array("items");
-      for (const BundleBakeItem &bundle_bake_item : *bundle_list) {
-        DictionaryValue &io_bundle_item = *io_items.append_dict();
-        serialize_bake_item(bundle_bake_item, blob_writer, blob_sharing, io_bundle_item);
-      }
-    }
-  }
+  serialize_socket_value_variant(item.value, blob_writer, blob_sharing, r_io_item);
 }
 
 static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io_item,
@@ -1754,10 +1831,10 @@ void serialize_bake(const BakeValues &bake_values,
   io::serialize::DictionaryValue io_root;
   io_root.append_int("version", bake_file_version);
   io::serialize::DictionaryValue &io_items = *io_root.append_dict("items");
-  // for (auto item : bake_state.items_by_id.items()) {
-  //   io::serialize::DictionaryValue &io_item = *io_items.append_dict(std::to_string(item.key));
-  //   serialize_bake_item(*item.value, blob_writer, blob_sharing, io_item);
-  // }
+  for (const auto &item : bake_values.values_by_id().items()) {
+    io::serialize::DictionaryValue &io_item = *io_items.append_dict(std::to_string(item.key));
+    serialize_bake_item(item.value, blob_writer, blob_sharing, io_item);
+  }
 
   io::serialize::JsonFormatter formatter;
   formatter.serialize(r_stream, io_root);

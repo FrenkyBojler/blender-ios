@@ -13,12 +13,13 @@
 namespace blender::bke::bake {
 
 class BakeValues {
- private:
+ public:
   struct Item {
     std::string name;
     SocketValueVariant value;
   };
 
+ private:
   Map<int, Item> values_by_id_;
 
  public:
@@ -46,6 +47,11 @@ class BakeValues {
   void clear()
   {
     values_by_id_.clear();
+  }
+
+  const Map<int, Item> &values_by_id() const
+  {
+    return values_by_id_;
   }
 };
 
