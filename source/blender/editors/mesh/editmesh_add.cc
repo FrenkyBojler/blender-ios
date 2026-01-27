@@ -64,12 +64,14 @@ static Object *make_prim_init(bContext *C,
   Object *obedit = CTX_data_edit_object(C);
 
   const enum eContextObjectMode original_creation_mode = CTX_data_mode_enum(C);
+  r_creation_data->dynatopo_enable = false;
   r_creation_data->original_ctx_mode = original_creation_mode;
 
   if (obedit == nullptr || obedit->type != OB_MESH) {
     switch (original_creation_mode) {
       case CTX_MODE_OBJECT:
         obedit = ed::object::add_type(C, OB_MESH, idname, loc, rot, false, local_view_bits);
+        ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
         break;
       case CTX_MODE_SCULPT:
         obedit = CTX_data_active_object(C);
@@ -111,15 +113,27 @@ static void make_prim_finish(bContext *C,
                              int enter_editmode)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
-  const bool exit_editmode = enter_editmode == false && !creation_data->dynatopo_enable;
 
   BLI_assert(ELEM(
       creation_data->original_ctx_mode, CTX_MODE_OBJECT, CTX_MODE_SCULPT, CTX_MODE_EDIT_MESH));
 
-  /* dynatopo never changes to edit mode */
-  if (!creation_data->dynatopo_enable) {
-    /* Primitive has all verts selected, use vert select flush
-     * to push this up to edges & faces. */
+  if (creation_data->dynatopo_enable) {
+    SculptSession *ss = obedit->runtime->sculpt_session;
+    BMesh *bm = ss->bm;
+
+    ed::sculpt_paint::dyntopo::triangulate(bm);
+
+    DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
+
+    BM_mesh_toolflags_set(bm, false);
+
+    BM_log_all_added(ss->bm, ss->bm_log);
+    ed::sculpt_paint::undo::push_end(*obedit);
+  }
+  else {
+    /* TODO: verify exit_edimode logic and expectaction, undo fails for sculpt mode when enter_editmode is set to true */
+    const bool exit_editmode = enter_editmode == false;
+
     EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
     /* TODO(@ideasman42): maintain UV sync for newly created data. */
     EDBM_uvselect_clear(em);
@@ -130,37 +144,22 @@ static void make_prim_finish(bContext *C,
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
-  }
 
-  if (creation_data->original_ctx_mode != CTX_MODE_EDIT_MESH && exit_editmode) {
-    ed::object::editmode_exit_ex(
-        CTX_data_main(C), CTX_data_scene(C), obedit, ed::object::EM_FREEDATA);
-  }
-
-  if (creation_data->original_ctx_mode == CTX_MODE_SCULPT) {
-    if (exit_editmode) {
-      ed::sculpt_paint::object_sculpt_mode_enter(*CTX_data_main(C),
-                                                 *CTX_data_depsgraph_pointer(C),
-                                                 *CTX_data_scene(C),
-                                                 *obedit,
-                                                 true,
-                                                 CTX_wm_reports(C));
+    if (creation_data->original_ctx_mode != CTX_MODE_EDIT_MESH && exit_editmode) {
+      ed::object::editmode_exit_ex(
+          CTX_data_main(C), CTX_data_scene(C), obedit, ed::object::EM_FREEDATA);
     }
 
-    if (creation_data->dynatopo_enable) {
-      SculptSession *ss = obedit->runtime->sculpt_session;
-      BMesh *bm = ss->bm;
+    if (creation_data->original_ctx_mode == CTX_MODE_SCULPT) {
+      if (exit_editmode) {
+        ed::sculpt_paint::object_sculpt_mode_enter(*CTX_data_main(C),
+                                                   *CTX_data_depsgraph_pointer(C),
+                                                   *CTX_data_scene(C),
+                                                   *obedit,
+                                                   true,
+                                                   CTX_wm_reports(C));
+      }
 
-      ed::sculpt_paint::dyntopo::triangulate(bm);
-
-      DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
-
-      BM_mesh_toolflags_set(bm, false);
-
-      BM_log_all_added(ss->bm, ss->bm_log);
-      ed::sculpt_paint::undo::push_end(*obedit);
-    }
-    else {
       ed::sculpt_paint::undo::geometry_end(*obedit);
     }
   }
