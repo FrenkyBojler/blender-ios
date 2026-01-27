@@ -835,9 +835,8 @@ static Vector<NonContiguousGroup> compute_local_mesh_groups(Mesh &mesh)
 
 void mesh_apply_spatial_organization(Mesh &mesh)
 {
-  BLI_assert(mesh.verts_num != 0 && mesh.faces_num != 0);
+  BLI_assert(mesh.faces_num != 0);
   if (mesh.verts_num == 0 || mesh.faces_num == 0) {
-    CLOG_WARN(&LOG, "Unable to spatially reorganize empty mesh");
     return;
   }
 
