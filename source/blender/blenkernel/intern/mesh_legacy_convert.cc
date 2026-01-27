@@ -2170,7 +2170,7 @@ static bNodeTree *add_copy_object_node_tree(Main &bmain, Library *owner_library)
   bNodeTree *group = node_tree_add_in_lib(
       &bmain, owner_library, DATA_("Copy Object"), "GeometryNodeTree");
   if (!group->geometry_node_asset_traits) {
-    group->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
+    group->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(__func__);
   }
   group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 
@@ -2297,6 +2297,11 @@ static bool is_auto_smooth_node_tree(const bNodeTree &group)
   return true;
 }
 
+static bool is_copy_object_node_tree(const bNodeTree &group)
+{
+  return false;
+}
+
 static ModifierData *create_auto_smooth_modifier(
     Object &object,
     const FunctionRef<bNodeTree *(Library *owner_library)> get_node_group,
@@ -2351,7 +2356,7 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
 
   /* Add the node group lazily and share it among all objects in the same library. */
   Map<std::pair<Library *, CreateNodeGroupFunc>, bNodeTree *> group_by_library;
-  const auto add_node_group = [&](const CreateNodeGroupFunc new_node_group) {
+  const auto add_node_group = [&](const CreateNodeGroupFunc new_node_group, auto &is_same) {
     return [=, &group_by_library, &bmain](Library *owner_library) {
       if (bNodeTree **group = group_by_library.lookup_ptr({owner_library, new_node_group})) {
         /* Node tree has already been found/created for this versioning call. */
@@ -2362,7 +2367,7 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
         if (existing_group.id.lib != owner_library) {
           continue;
         }
-        if (is_auto_smooth_node_tree(existing_group)) {
+        if (is_same(existing_group)) {
           group_by_library.add_new({owner_library, new_node_group}, &existing_group);
           return &existing_group;
         }
@@ -2414,7 +2419,7 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
         WeightedNormalModifierData *nmd = reinterpret_cast<WeightedNormalModifierData *>(&md);
         if ((nmd->flag & MOD_WEIGHTEDNORMAL_KEEP_SHARP) != 0) {
           ModifierData *new_md = create_auto_smooth_modifier(
-              object, add_node_group(add_auto_smooth_node_tree), angle);
+              object, add_node_group(add_auto_smooth_node_tree, is_auto_smooth_node_tree), angle);
           BLI_insertlinkbefore(&object.modifiers, object.modifiers.last, new_md);
         }
       }
@@ -2443,7 +2448,7 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
   const auto add_auto_smooth_modifier = [&](Object &object, const float angle) {
     ModifierData *last_md = static_cast<ModifierData *>(object.modifiers.last);
     ModifierData *new_md = create_auto_smooth_modifier(
-        object, add_node_group(add_auto_smooth_node_tree), angle);
+        object, add_node_group(add_auto_smooth_node_tree, is_auto_smooth_node_tree), angle);
     if (last_md && last_md->type == eModifierType_Subsurf &&
         (reinterpret_cast<SubsurfModifierData *>(last_md)->flags &
          eSubsurfModifierFlag_UseCustomNormals) != 0)
@@ -2484,7 +2489,9 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
       }
 
       ModifierData *new_md = create_copy_object_modifier(
-          *other, add_node_group(add_copy_object_node_tree), *no_modifiers_object);
+          *other,
+          add_node_group(add_copy_object_node_tree, is_copy_object_node_tree),
+          *no_modifiers_object);
       BLI_addhead(&other->modifiers, new_md);
     }
   }
