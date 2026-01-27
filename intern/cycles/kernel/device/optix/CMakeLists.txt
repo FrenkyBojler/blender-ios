@@ -16,6 +16,8 @@ set(SRC_KERNEL_DEVICE_OPTIX
 )
 
 if(WITH_CYCLES_OSL)
+  math(EXPR OSL_LIBRARY_VERSION_CODE "${OSL_VERSION_MAJOR} * 10000 + ${OSL_VERSION_MINOR} * 100 + ${OSL_VERSION_PATCH}")
+
   set(SRC_KERNEL_DEVICE_OPTIX
     ${SRC_KERNEL_DEVICE_OPTIX}
     ../../osl/services_optix.cu
@@ -46,6 +48,11 @@ if(WITH_CYCLES_CUDA_BINARIES AND WITH_CYCLES_DEVICE_OPTIX)
       -I "${OPTIX_INCLUDE_DIR}"
       -I "${CMAKE_CURRENT_SOURCE_DIR}/../../.."
       -o ${output})
+
+    if(WITH_CYCLES_OSL)
+      set(cuda_flags ${cuda_flags}
+        -D OSL_LIBRARY_VERSION_CODE=${OSL_LIBRARY_VERSION_CODE})
+    endif()
 
     set(arch compute_50)
     set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
