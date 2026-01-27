@@ -1595,8 +1595,8 @@ static void serialize_field(const fn::GField &field,
     const CPPType &type = field.cpp_type();
     const eCustomDataType data_type = cpp_type_to_custom_data_type(type);
     r_io_item.append_str("type", "ATTRIBUTE");
-    r_io_item.append_str("name", attribute_name);
-    r_io_item.append_str("type", get_data_type_io_name(data_type));
+    r_io_item.append_str("attribute_name", attribute_name);
+    r_io_item.append_str("data_type", get_data_type_io_name(data_type));
   }
 }
 

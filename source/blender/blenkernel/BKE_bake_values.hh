@@ -37,10 +37,10 @@ class BakeValues {
   explicit BakeValues(Map<int, Item> values_by_id) : values_by_id_(std::move(values_by_id)) {}
 
   static BakeValues from_runtime_values(Vector<InputValue> runtime_values,
-                                        const BakeDataBlockMap *data_block_map);
+                                        BakeDataBlockMap *data_block_map);
   Vector<SocketValueVariant> to_runtime_values(const Span<OutputKey> keys,
                                                const ComputeContext &compute_context,
-                                               const BakeDataBlockMap *data_block_map) const;
+                                               BakeDataBlockMap *data_block_map) const;
 
   bool is_empty() const
   {

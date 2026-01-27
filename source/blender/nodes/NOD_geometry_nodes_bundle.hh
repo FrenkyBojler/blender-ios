@@ -102,6 +102,7 @@ class Bundle : public ImplicitSharingMixin {
   bool owns_direct_data() const;
 
   BundleItemMap::ItemIterator items() const;
+  BundleItemMap::MutableItemIterator items();
 
   BundlePtr copy() const;
 
@@ -311,6 +312,11 @@ template<typename T> inline void Bundle::add_path_override(const StringRef path,
 }
 
 inline Bundle::BundleItemMap::ItemIterator Bundle::items() const
+{
+  return items_.items();
+}
+
+inline Bundle::BundleItemMap::MutableItemIterator Bundle::items()
 {
   return items_.items();
 }
