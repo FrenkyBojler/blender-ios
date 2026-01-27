@@ -1420,11 +1420,10 @@ static void replace_action_ui(bContext *C, wmOperator *op)
  * with actions of `AnimData.action`. */
 static void ANIM_OT_replace_action(wmOperatorType *ot)
 {
-  ot->name = "Swap Animation";
+  ot->name = "Replace Animation";
   ot->idname = "ANIM_OT_replace_action";
   ot->description =
-      "Swap out the Action and replace it with a different one. This affects all users of that "
-      "Action while ignoring NLA strips and Action constraints";
+      "Swap all users of one action to another one. The normal action slot assignment rules apply";
 
   ot->invoke = replace_action_invoke;
   ot->exec = replace_action_exec;
