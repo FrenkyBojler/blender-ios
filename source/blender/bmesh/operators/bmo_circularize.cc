@@ -5,6 +5,7 @@
 /** \file
  * \ingroup bmesh
  */
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_numbers.hh"
 #include "BLI_math_vector.h"
@@ -64,15 +65,15 @@ static bool is_valid_boundary_edge(BMEdge *e,
    * considered a valid boundary edge. */
 
   /* YZ Plane */
-  if (check_x && fabsf(e->v1->co[0]) < limit && fabsf(e->v2->co[0]) < limit) {
+  if (check_x && std::abs(e->v1->co[0]) < limit && std::abs(e->v2->co[0]) < limit) {
     return false;
   }
   /* XZ Plane */
-  if (check_y && fabsf(e->v1->co[1]) < limit && fabsf(e->v2->co[1]) < limit) {
+  if (check_y && std::abs(e->v1->co[1]) < limit && std::abs(e->v2->co[1]) < limit) {
     return false;
   }
   /* XY Plane */
-  if (check_z && fabsf(e->v1->co[2]) < limit && fabsf(e->v2->co[2]) < limit) {
+  if (check_z && std::abs(e->v1->co[2]) < limit && std::abs(e->v2->co[2]) < limit) {
     return false;
   }
 
@@ -333,7 +334,7 @@ static void calculate_plane_basis(
 
   float guess[3] = {1.0f, 0.0f, 0.0f};
 
-  if (fabsf(dot_v3v3(r_normal, guess)) > 0.99f) {
+  if (std::abs(dot_v3v3(r_normal, guess)) > 0.99f) {
     guess[0] = 0.0f;
     guess[1] = 1.0f;
     guess[2] = 0.0f;
@@ -425,7 +426,7 @@ static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
 
     /* Check for convergence to stop iterating if we're close enough to the optimal
      * solution. */
-    if (fabsf(delta[0]) < 1e-6f && fabsf(delta[1]) < 1e-6f && fabsf(delta[2]) < 1e-6f) {
+    if (std::abs(delta[0]) < 1e-6f && std::abs(delta[1]) < 1e-6f && std::abs(delta[2]) < 1e-6f) {
       break;
     }
   }
@@ -505,12 +506,116 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
   }
 }
 
+static bool project_on_mesh(
+    BMesh *bm, BMVert *v, const float center_pos[3], const float normal[3], float r_pos[3])
+{
+  if (equals_v3v3(v->co, center_pos)) {
+    copy_v3_v3(r_pos, center_pos);
+    return true;
+  }
+
+  float vec[3];
+  sub_v3_v3v3(vec, center_pos, v->co);
+  const float angle = angle_v3v3(vec, normal);
+  if (std::abs(angle) < 1e-6f || std::abs(math::numbers::pi - angle) < 1e-6f) {
+    copy_v3_v3(r_pos, v->co);
+    return true;
+  }
+
+  const float *rays[2] = {normal, nullptr};
+  float neg_normal[3];
+  negate_v3_v3(neg_normal, normal);
+  rays[1] = neg_normal;
+
+  float best_dist = FLT_MAX;
+  bool found = false;
+
+  auto test_tri = [&](BMVert *v1, BMVert *v2, BMVert *v3) {
+    for (int i = 0; i < 2; i++) {
+      float lambda;
+      float uv[2];
+      if (isect_ray_tri_v3(center_pos, rays[i], v1->co, v2->co, v3->co, &lambda, uv)) {
+        float hit_pos[3];
+        madd_v3_v3v3fl(hit_pos, center_pos, rays[i], lambda);
+        const float dist = len_squared_v3v3(center_pos, hit_pos);
+        if (dist < best_dist) {
+          best_dist = dist;
+          copy_v3_v3(r_pos, hit_pos);
+          found = true;
+        }
+      }
+    }
+  };
+
+  BMIter fiter;
+  BMFace *f;
+  BM_ITER_ELEM (f, &fiter, v, BM_FACES_OF_VERT) {
+    if (f->len < 3 || BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+      continue;
+    }
+    BMLoop *l_start = f->l_first;
+    BMVert *v1 = l_start->v;
+    BMVert *v2 = l_start->next->v;
+    BMVert *v3 = l_start->next->next->v;
+    test_tri(v1, v2, v3);
+    if (f->len == 4) {
+      BMVert *v4 = l_start->prev->v;
+      test_tri(v1, v3, v4);
+    }
+  }
+
+  if (found) {
+    return true;
+  }
+
+  BMIter eiter;
+  BMEdge *e;
+  BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
+    float closest[3];
+    closest_to_line_v3(closest, center_pos, e->v1->co, e->v2->co);
+    const float fac = line_point_factor_v3(closest, e->v1->co, e->v2->co);
+    if (fac > 1e-6f && fac < 1.0f - 1e-6f) {
+      best_dist = len_squared_v3v3(center_pos, closest);
+      copy_v3_v3(r_pos, closest);
+      found = true;
+      break;
+    }
+  }
+
+  if (found) {
+    return true;
+  }
+
+  BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+    if (f->len < 3 || BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+      continue;
+    }
+    BMLoop *l_start = f->l_first;
+    BMVert *v1 = l_start->v;
+    BMVert *v2 = l_start->next->v;
+    BMVert *v3 = l_start->next->next->v;
+    test_tri(v1, v2, v3);
+    if (f->len == 4) {
+      BMVert *v4 = l_start->prev->v;
+      test_tri(v1, v3, v4);
+    }
+  }
+
+  if (found) {
+    return true;
+  }
+
+  copy_v3_v3(r_pos, center_pos);
+  return true;
+}
+
 void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 {
   const float influence = BMO_slot_float_get(op->slots_in, "influence");
   const float custom_radius = BMO_slot_float_get(op->slots_in, "custom_radius");
   const float angle = BMO_slot_float_get(op->slots_in, "angle");
   const int fit_method = BMO_slot_int_get(op->slots_in, "fit_method");
+  const bool flatten = BMO_slot_bool_get(op->slots_in, "flatten");
   const bool regular = BMO_slot_bool_get(op->slots_in, "regular");
 
   const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
@@ -537,7 +642,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       const float limit = 0.001f;
 
       for (int axis = 0; axis < 3; axis++) {
-        if (fabsf(v_start->co[axis]) < limit && fabsf(v_end->co[axis]) < limit) {
+        if (std::abs(v_start->co[axis]) < limit && std::abs(v_end->co[axis]) < limit) {
           is_mirrored = true;
           break;
         }
@@ -587,6 +692,13 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 
       add_v3_v3v3(final_pos, center_3d, offset_u);
       add_v3_v3(final_pos, offset_v);
+
+      if (!flatten) {
+        float projected_pos[3];
+        if (project_on_mesh(bm, cv.v, final_pos, normal, projected_pos)) {
+          copy_v3_v3(final_pos, projected_pos);
+        }
+      }
 
       /* If an axis is locked, restore the original coordinate. */
       if (lock_x || lock_y || lock_z) {
