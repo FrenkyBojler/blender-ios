@@ -1665,14 +1665,11 @@ static size_t unit_as_string(char *str,
 
   /* Adjust precision to expected number of significant digits.
    * Note that here, we shall not have to worry about very big/small numbers, units are expected
-   * to replace 'scientific notation' in those cases. */
-  int prec_adjust = integer_digits_d(value_conv);
-  if (!variable_width && fabs(value_conv) < 1) {
-    /* Adjust precision to account for the leading "0." in numbers with magnitude below 1 while
-     * maintaining consistent decimal count. */
-    prec_adjust = 1;
+   * to replace 'scientific notation' in those cases.
+   * Fixed width mode skips this to preserve the exact decimal place count. */
+  if (variable_width) {
+    prec -= integer_digits_d(value_conv);
   }
-  prec -= prec_adjust;
 
   CLAMP(prec, 0, 6);
 
@@ -1766,9 +1763,12 @@ static size_t unit_as_string_split_pair(char *str,
     /* Always strip zeros for the larger unit, since it is truncated and won't ever "jitter". */
     size_t i = unit_as_string(str, str_maxncpy, value_a, prec, true, usys, unit_a, '\0');
 
-    prec -= integer_digits_d(value_a / unit_b->scalar) -
-            integer_digits_d(value_b / unit_b->scalar);
-    prec = max_ii(prec, 0);
+    /* Fixed width mode skips this to preserve the exact decimal place count. */
+    if (variable_width) {
+      prec -= integer_digits_d(value_a / unit_b->scalar) -
+              integer_digits_d(value_b / unit_b->scalar);
+      prec = max_ii(prec, 0);
+    }
 
     /* Is there enough space for at least 1 char of the next unit? */
     if (i + 2 < str_maxncpy) {

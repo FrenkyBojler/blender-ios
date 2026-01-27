@@ -165,7 +165,7 @@ static void translate_dist_to_str(char *r_str,
                                   const UnitSettings &unit,
                                   const bool high_precision)
 {
-  const int precision = high_precision ? 7 : 5;
+  const int precision = high_precision ? 6 : 4;
   BKE_unit_value_as_string_scaled(
       r_str, r_str_maxncpy, val, precision * -1, B_UNIT_LENGTH, unit, false);
 }

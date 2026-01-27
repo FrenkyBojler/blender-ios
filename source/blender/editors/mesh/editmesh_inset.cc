@@ -85,7 +85,7 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
       outputNumInput(&opdata->num_input, flts_str, sce->unit);
     }
     else {
-      const int precision = opdata->shift ? 7 : 5;
+      const int precision = opdata->shift ? 6 : 4;
       BKE_unit_value_as_string(flts_str,
                                NUM_STR_REP_LEN,
                                RNA_float_get(op->ptr, "thickness"),

@@ -21,8 +21,7 @@ struct UnitSettings;
  *
  * \param prec: Decimal places to show,
  * Use a negative number to enforce fixed-width formatting, which preserves trailing zeros
- * and keeps the same decimal count for numbers with magnitude below 1. (e.g., with 4 both
- * 1.004 and 0.004 use the same decimal count, rather than 0.0043 expanding to an extra digit).
+ * (e.g., -3 gives exactly 3 decimal places: 1.004, 0.500).
  * \param pad: When true & `prec` is positive, stripped zeroes will be replaced with a space
  * instead of being removed.
  *
