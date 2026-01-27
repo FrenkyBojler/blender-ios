@@ -954,7 +954,7 @@ static void override_idtemplate_menu()
 {
   MenuType *mt;
 
-  mt = MEM_callocN<MenuType>(__func__);
+  mt = MEM_new_zeroed<MenuType>(__func__);
   STRNCPY_UTF8(mt->idname, "UI_MT_idtemplate_liboverride");
   STRNCPY_UTF8(mt->label, N_("Library Override"));
   mt->poll = override_idtemplate_menu_poll;
@@ -1965,7 +1965,7 @@ static bool jump_to_target_button(bContext *C, bool poll)
         }
 
         if (str_ptr != str_buf) {
-          MEM_freeN(str_ptr);
+          MEM_delete(str_ptr);
         }
 
         if (found) {
@@ -2787,6 +2787,12 @@ static wmOperatorStatus view_item_click_select(bContext &C,
         /* Select end items from the range. */
         item.set_selected(true);
       }
+
+      if (!item.is_filtered_visible()) {
+        /* Skip selection of elements that are not visible with the search string. */
+        return;
+      }
+
       if (is_inside_range) {
         /* Select items within the range. */
         item.set_selected(true);
