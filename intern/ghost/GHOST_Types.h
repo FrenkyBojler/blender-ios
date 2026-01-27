@@ -13,6 +13,7 @@
 
 #ifdef WITH_VULKAN_BACKEND
 #  include <vulkan/vulkan_core.h>
+VK_DEFINE_HANDLE(VmaAllocator)
 #endif
 
 /* This is used by `GHOST_C-api.h` too, cannot use C++ conventions. */
@@ -182,7 +183,18 @@ typedef enum {
    * Support accurately placing windows on multiple monitors.
    */
   GHOST_kCapabilityMultiMonitorPlacement = (1 << 12),
-
+  /**
+   * A "path" for a window is supported.
+   * This indicates that #GHOST_IWindow::setPath can be used
+   * without the need to include the windows file-path in its title.
+   */
+  GHOST_kCapabilityWindowPath = (1 << 13),
+  /**
+   * Support for window decoration styles on the "server".
+   * In other words the windowing system is capable of showing window decorations.
+   * Otherwise client-side-decorations should be used, see: `WITH_GHOST_CSD`.
+   */
+  GHOST_kCapabilityWindowDecorationServerSide = (1 << 14),
 } GHOST_TCapabilityFlag;
 
 /**
@@ -195,7 +207,8 @@ typedef enum {
    GHOST_kCapabilityClipboardImage | GHOST_kCapabilityDesktopSample | GHOST_kCapabilityInputIME | \
    GHOST_kCapabilityTrackpadPhysicalDirection | GHOST_kCapabilityWindowDecorationStyles | \
    GHOST_kCapabilityKeyboardHyperKey | GHOST_kCapabilityCursorRGBA | \
-   GHOST_kCapabilityCursorGenerator | GHOST_kCapabilityMultiMonitorPlacement)
+   GHOST_kCapabilityCursorGenerator | GHOST_kCapabilityMultiMonitorPlacement | \
+   GHOST_kCapabilityWindowPath | GHOST_kCapabilityWindowDecorationServerSide)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -289,8 +302,9 @@ typedef enum {
 #endif
 } GHOST_TDrawingContextType;
 
+/** Set "None" as -1 so this can be used as an index. */
 typedef enum {
-  GHOST_kButtonMaskNone,
+  GHOST_kButtonMaskNone = -1,
   GHOST_kButtonMaskLeft,
   GHOST_kButtonMaskMiddle,
   GHOST_kButtonMaskRight,
@@ -592,7 +606,7 @@ typedef enum {
 } GHOST_TKey;
 
 #define GHOST_KEY_MODIFIER_NUM ((_GHOST_KEY_MODIFIER_MAX - _GHOST_KEY_MODIFIER_MIN) + 1)
-#define GHOST_KEY_MODIFIER_TO_INDEX(key) ((unsigned int)(key)-_GHOST_KEY_MODIFIER_MIN)
+#define GHOST_KEY_MODIFIER_TO_INDEX(key) ((unsigned int)(key) - _GHOST_KEY_MODIFIER_MIN)
 #define GHOST_KEY_MODIFIER_FROM_INDEX(key) \
   (GHOST_TKey)(((unsigned int)(key) + _GHOST_KEY_MODIFIER_MIN))
 #define GHOST_KEY_MODIFIER_CHECK(key) (GHOST_KEY_MODIFIER_TO_INDEX(key) < GHOST_KEY_MODIFIER_NUM)
@@ -824,22 +838,24 @@ typedef struct {
 
 #define GHOST_CONTEXT_PARAMS_NONE \
   { \
-    /*is_stereo_visual*/ false, /*is_debug*/ false, /*vsync*/ GHOST_kVSyncModeUnset, \
+      /*is_stereo_visual*/ false, \
+      /*is_debug*/ false, \
+      /*vsync*/ GHOST_kVSyncModeUnset, \
   }
 
 #define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpu_settings) \
   { \
-    /*is_stereo_visual*/ false, \
-        /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), \
-        /*vsync*/ GHOST_kVSyncModeUnset, \
+      /*is_stereo_visual*/ false, \
+      /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), \
+      /*vsync*/ GHOST_kVSyncModeUnset, \
   }
 
 #define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpu_settings) \
   { \
-    /*is_stereo_visual*/ (((gpu_settings).flags & GHOST_gpuStereoVisual) != 0), \
-        /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), /*vsync*/ \
-        (((gpu_settings).flags & GHOST_gpuVSyncIsOverridden) ? (gpu_settings).vsync : \
-                                                               GHOST_kVSyncModeUnset), \
+      /*is_stereo_visual*/ (((gpu_settings).flags & GHOST_gpuStereoVisual) != 0), \
+      /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), /*vsync*/ \
+      (((gpu_settings).flags & GHOST_gpuVSyncIsOverridden) ? (gpu_settings).vsync : \
+                                                             GHOST_kVSyncModeUnset), \
   }
 
 typedef struct {
@@ -860,13 +876,17 @@ typedef struct {
 typedef struct {
   /* Is HDR enabled for this Window? */
   bool hdr_enabled;
+  /* Is wide gamut enabled for this Window? */
+  bool wide_gamut_enabled;
   /* Scale factor to display SDR content in HDR. */
   float sdr_white_level;
 } GHOST_WindowHDRInfo;
 
 #define GHOST_WINDOW_HDR_INFO_NONE \
   { \
-    /*hdr_enabled*/ false, /*sdr_white_level*/ 1.0f, \
+      /*hdr_enabled*/ false, \
+      /*wide_gamut_enabled*/ false, \
+      /*sdr_white_level*/ 1.0f, \
   }
 
 #ifdef WITH_VULKAN_BACKEND
@@ -990,6 +1010,8 @@ typedef struct {
   VkQueue queue;
   /** The #std::mutex mutex. */
   void *queue_mutex;
+  /** Vulkan memory allocator of the device. */
+  VmaAllocator vma_allocator;
 } GHOST_VulkanHandles;
 
 #endif
@@ -1027,6 +1049,67 @@ struct GHOST_TimerTaskHandle__;
 typedef void (*GHOST_TimerProcPtr)(struct GHOST_TimerTaskHandle__ *task, uint64_t time);
 #endif
 
+/* Window client-side-decorations (CSD). */
+typedef enum {
+  /**
+   * Use for window contents.
+   * This must be ordered before other items so the contents its prioritized.
+   */
+  GHOST_kCSDTypeBody = 0,
+
+  GHOST_kCSDTypeBorderTopLeft,
+  GHOST_kCSDTypeBorderTopRight,
+  GHOST_kCSDTypeBorderBottomLeft,
+  GHOST_kCSDTypeBorderBottomRight,
+
+  GHOST_kCSDTypeBorderTop,
+  GHOST_kCSDTypeBorderBottom,
+  GHOST_kCSDTypeBorderLeft,
+  GHOST_kCSDTypeBorderRight,
+
+  GHOST_kCSDTypeButtonClose,
+  GHOST_kCSDTypeButtonMaximize,
+  GHOST_kCSDTypeButtonMinimize,
+  GHOST_kCSDTypeButtonMenu,
+
+  GHOST_kCSDTypeTitlebar,
+} GHOST_TCSD_Type;
+#define GHOST_kCSDType_NUM (int(GHOST_kCSDTypeTitlebar) + 1)
+/**
+ * Note that coordinates are flipped Y from WM.
+ * Where the top-left has a Y of zero.
+ *
+ * Coordinates are in physical pixels.
+ */
+struct GHOST_CSD_Elem {
+  /** Bounds as [X,Y][MIN,MAX]. */
+  int32_t bounds[2][2];
+  /** The window element this type represents. */
+  GHOST_TCSD_Type type;
+};
+
+/**
+ * CSD Layout.
+ * Currently only supports configuring button order separated by the title text.
+ */
+typedef struct GHOST_CSD_Layout {
+  int32_t buttons_num;
+  GHOST_TCSD_Type buttons[5];
+} GHOST_CSD_Layout;
+
+#define GHOST_CSD_DPI_FRACTIONAL_BASE 96
+
+typedef struct GHOST_CSD_Params {
+  int32_t (*layout_callback)(const int32_t window_size[2],
+                             const int32_t fractional_scale[2],
+                             GHOST_TWindowState windowstate,
+                             const struct GHOST_CSD_Layout *csd_layout,
+                             GHOST_CSD_Elem *csd_elems);
+  /** Used for window interactions. */
+  int cursor_drag_threshold;
+  int cursor_double_click_ms;
+} GHOST_CSD_Params;
+
 #ifdef WITH_XR_OPENXR
 
 struct GHOST_XrDrawViewInfo;
@@ -1042,6 +1125,7 @@ typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsUnknown = 0,
   GHOST_kXrGraphicsOpenGL,
   GHOST_kXrGraphicsVulkan,
+  GHOST_kXrGraphicsMetal,
 #  ifdef WIN32
   GHOST_kXrGraphicsOpenGLD3D11,
   GHOST_kXrGraphicsVulkanD3D11,

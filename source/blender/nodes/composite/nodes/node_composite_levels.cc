@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #include <cmath>
 
 #include "BLI_math_vector.hh"
@@ -23,22 +19,23 @@
 namespace blender::nodes::node_composite_levels_cc {
 
 static const EnumPropertyItem channel_items[] = {
-    {CMP_NODE_LEVLES_LUMINANCE, "COMBINED_RGB", 0, "Combined", "Combined RGB"},
-    {CMP_NODE_LEVLES_RED, "RED", 0, "Red", "Red Channel"},
-    {CMP_NODE_LEVLES_GREEN, "GREEN", 0, "Green", "Green Channel"},
-    {CMP_NODE_LEVLES_BLUE, "BLUE", 0, "Blue", "Blue Channel"},
-    {CMP_NODE_LEVLES_LUMINANCE_BT709, "LUMINANCE", 0, "Luminance", "Luminance Channel"},
+    {CMP_NODE_LEVLES_LUMINANCE, "COMBINED_RGB", 0, N_("Combined"), N_("Combined RGB")},
+    {CMP_NODE_LEVLES_RED, "RED", 0, N_("Red"), N_("Red Channel")},
+    {CMP_NODE_LEVLES_GREEN, "GREEN", 0, N_("Green"), N_("Green Channel")},
+    {CMP_NODE_LEVLES_BLUE, "BLUE", 0, N_("Blue"), N_("Blue Channel")},
+    {CMP_NODE_LEVLES_LUMINANCE_BT709, "LUMINANCE", 0, N_("Luminance"), N_("Luminance Channel")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void cmp_node_levels_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Menu>("Channel")
       .default_value(CMP_NODE_LEVLES_LUMINANCE)
-      .static_items(channel_items);
+      .static_items(channel_items)
+      .optional_label();
 
   b.add_output<decl::Float>("Mean");
   b.add_output<decl::Float>("Standard Deviation");
@@ -90,7 +87,7 @@ class LevelsOperation : public NodeOperation {
     }
 
     mean_result.allocate_single_value();
-    const float3 input = float3(get_input("Image").get_single_value<float4>());
+    const float3 input = float3(get_input("Image").get_single_value<Color>());
 
     switch (get_channel()) {
       case CMP_NODE_LEVLES_RED:
@@ -117,7 +114,7 @@ class LevelsOperation : public NodeOperation {
   float compute_mean()
   {
     const Result &input = get_input("Image");
-    return compute_sum() / (input.domain().size.x * input.domain().size.y);
+    return compute_sum() / (input.domain().data_size.x * input.domain().data_size.y);
   }
 
   float compute_sum()
@@ -146,7 +143,7 @@ class LevelsOperation : public NodeOperation {
   {
     const Result &input = get_input("Image");
     const float sum = compute_sum_squared_difference(mean);
-    return std::sqrt(sum / (input.domain().size.x * input.domain().size.y));
+    return std::sqrt(sum / (input.domain().data_size.x * input.domain().data_size.y));
   }
 
   float compute_sum_squared_difference(float subtrahend)
@@ -175,35 +172,31 @@ class LevelsOperation : public NodeOperation {
 
   CMPNodeLevelsChannel get_channel()
   {
-    const Result &input = this->get_input("Channel");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_LEVLES_LUMINANCE);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeLevelsChannel>(menu_value.value);
+    return CMPNodeLevelsChannel(
+        this->get_input("Channel").get_single_value_default<MenuValue>().value);
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new LevelsOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_levels_cc
-
-static void register_node_type_cmp_view_levels()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_levels_cc;
-
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeLevels", CMP_NODE_VIEW_LEVELS);
   ntype.ui_name = "Levels";
   ntype.ui_description = "Compute average and standard deviation of pixel values";
   ntype.enum_name_legacy = "LEVELS";
-  ntype.nclass = NODE_CLASS_OUTPUT;
-  ntype.declare = file_ns::cmp_node_levels_declare;
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.declare = node_declare;
   ntype.flag |= NODE_PREVIEW;
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_view_levels)
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_levels_cc

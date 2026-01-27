@@ -158,13 +158,22 @@ find_package(OpenEXR REQUIRED)
 add_bundled_libraries(openexr/lib)
 add_bundled_libraries(imath/lib)
 
+string(APPEND PLATFORM_CFLAGS " -pipe -funsigned-char -fno-strict-aliasing -ffp-contract=off")
+set(PLATFORM_LINKFLAGS "\
+-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa \
+-framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework Metal \
+-framework QuartzCore"
+)
+
 if(WITH_CODEC_FFMPEG)
   set(FFMPEG_ROOT_DIR ${LIBDIR}/ffmpeg)
   set(FFMPEG_FIND_COMPONENTS
-    avcodec avdevice avformat avutil
+    avcodec avdevice avfilter avformat avutil
     mp3lame ogg opus swresample swscale
     theora theoradec theoraenc vorbis vorbisenc
     vorbisfile vpx x264)
+  # Frameworks required by libavfilter, using legacy macOS CGL
+  string(APPEND PLATFORM_LINKFLAGS " -framework CoreImage -framework OpenGL")
   if(EXISTS ${LIBDIR}/ffmpeg/lib/libaom.a)
     list(APPEND FFMPEG_FIND_COMPONENTS aom)
   endif()
@@ -192,11 +201,6 @@ if(SYSTEMSTUBS_LIBRARY)
   list(APPEND PLATFORM_LINKLIBS SystemStubs)
 endif()
 
-string(APPEND PLATFORM_CFLAGS " -pipe -funsigned-char -fno-strict-aliasing -ffp-contract=off")
-set(PLATFORM_LINKFLAGS
-  "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa -framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework Metal -framework QuartzCore"
-)
-
 if(WITH_OPENIMAGEDENOISE)
   if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
     # OpenImageDenoise uses BNNS from the Accelerate framework.
@@ -206,6 +210,11 @@ endif()
 
 if(WITH_JACK)
   string(APPEND PLATFORM_LINKFLAGS " -F/Library/Frameworks -weak_framework jackmp")
+endif()
+
+if(WITH_VULKAN_BACKEND)
+  find_package(ShaderC REQUIRED)
+  find_package(Vulkan REQUIRED)
 endif()
 
 if(WITH_SDL)
@@ -231,6 +240,9 @@ find_package(JPEG REQUIRED)
 
 set(TIFF_ROOT ${LIBDIR}/tiff)
 find_package(TIFF REQUIRED)
+
+set(fmt_ROOT ${LIBDIR}/fmt)
+find_package(fmt REQUIRED)
 
 if(WITH_IMAGE_WEBP)
   set(WEBP_ROOT_DIR ${LIBDIR}/webp)
@@ -304,8 +316,9 @@ if(WITH_NANOVDB)
   find_package(NanoVDB)
 endif()
 
-if(WITH_CPU_SIMD AND SUPPORT_NEON_BUILD)
-  find_package(sse2neon)
+test_neon_support()
+if(SUPPORTS_NEON_BUILD)
+  find_package(sse2neon REQUIRED)
 endif()
 
 if(WITH_LLVM)
@@ -326,6 +339,8 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
   find_package(OSL 1.13.4 REQUIRED)
 endif()
 add_bundled_libraries(osl/lib)
+# OSL dependency
+add_bundled_libraries(openjph/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
   find_package(Embree 4.0.0 REQUIRED)
@@ -365,6 +380,10 @@ endif()
 
 if(WITH_MANIFOLD)
   find_package(manifold REQUIRED)
+endif()
+
+if(WITH_RUBBERBAND)
+  find_package(Rubberband REQUIRED)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
@@ -418,7 +437,12 @@ string(APPEND PLATFORM_LINKFLAGS
   " -Wl,-unexported_symbols_list,'${PLATFORM_SYMBOLS_MAP}'"
 )
 
-if(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
+if(${XCODE_VERSION} VERSION_EQUAL 15.0)
+  # V4.5 specific workaround: Enforce the legacy Xcode linker to avoid incorrect
+  # assembly generation caused by known bugs in the modern linker shipped with
+  # Xcode 15.0. See issue #148792 for details.
+  string(APPEND PLATFORM_LINKFLAGS " -Wl,-ld_classic")
+elseif(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
   if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64" AND WITH_LEGACY_MACOS_X64_LINKER)
     # Silence "no platform load command found in <static library>, assuming: macOS".
     #
@@ -428,11 +452,11 @@ if(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
     # Silence "ld: warning: ignoring duplicate libraries".
     #
     # The warning is introduced with Xcode 15 and is triggered when the same library
-    # is passed to the linker ultiple times. This situation could happen with either
+    # is passed to the linker multiple times. This situation could happen with either
     # cyclic libraries, or some transitive dependencies where CMake might decide to
     # pass library to the linker multiple times to force it re-scan symbols. It is
-    # not neeed for Xcode linker to ensure all symbols from library are used and it
-    # is corrected in CMake 3.29:
+    # not necessary for Xcode linker to ensure all symbols from library are used and
+    # it is corrected in CMake 3.29:
     #    https://gitlab.kitware.com/cmake/cmake/-/issues/25297
     string(APPEND PLATFORM_LINKFLAGS " -Xlinker -no_warn_duplicate_libraries")
   endif()
@@ -483,7 +507,7 @@ if(PLATFORM_BUNDLED_LIBRARIES)
     list(APPEND CMAKE_INSTALL_RPATH "@loader_path/../Resources/lib")
   endif()
 
-  # For binaries that are built but not installed (like makesdan or tests), we add
+  # For binaries that are built but not installed (like makesdna or tests), we add
   # the original directory of all shared libraries to the rpath. This is needed because
   # these can be in different folders, and because the build and install folder may be
   # different.

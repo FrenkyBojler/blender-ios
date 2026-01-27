@@ -14,47 +14,53 @@
 #include "BLI_function_ref.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_generic_virtual_array.hh"
+#include "BLI_implicit_sharing.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
 #include "BLI_struct_equality_utils.hh"
 
-#include "BKE_attribute.h"
 #include "BKE_attribute_filters.hh"
 
+namespace blender {
+
+struct ID;
 struct Mesh;
 struct PointCloud;
-namespace blender::fn {
+namespace fn {
 namespace multi_function {
 class MultiFunction;
 }
 class GField;
-}  // namespace blender::fn
+}  // namespace fn
 
-namespace blender::bke {
+namespace bke {
+
+class AttributeAccessor;
+class MutableAttributeAccessor;
 
 /** Some storage types are only relevant for certain attribute types. */
 enum class AttrStorageType : int8_t {
   /** #AttributeDataArray. */
-  Array,
+  Array = 0,
   /** A single value for the whole attribute. */
-  Single,
+  Single = 1,
 };
 
 enum class AttrType : int16_t {
-  Bool,
-  Int8,
-  Int16_2D,
-  Int32,
-  Int32_2D,
-  Float,
-  Float2,
-  Float3,
-  Float4x4,
-  ColorByte,
-  ColorFloat,
-  Quaternion,
-  String,
+  Bool = 0,
+  Int8 = 1,
+  Int16_2D = 2,
+  Int32 = 3,
+  Int32_2D = 4,
+  Float = 5,
+  Float2 = 6,
+  Float3 = 7,
+  Float4x4 = 8,
+  ColorByte = 9,
+  ColorFloat = 10,
+  Quaternion = 11,
+  String = 12,
 };
 
 const CPPType &attribute_type_to_cpp_type(AttrType type);
@@ -79,9 +85,6 @@ enum class AttrDomain : int8_t {
   Layer = 6,
 };
 #define ATTR_DOMAIN_NUM 7
-
-const CPPType *custom_data_type_to_cpp_type(eCustomDataType type);
-eCustomDataType cpp_type_to_custom_data_type(const CPPType &type);
 
 /**
  * Contains information about an attribute in a geometry component.
@@ -108,6 +111,8 @@ struct AttributeInit {
   enum class Type {
     /** #AttributeInitConstruct. */
     Construct,
+    /** #AttributeInitValue. */
+    Value,
     /** #AttributeInitDefaultValue. */
     DefaultValue,
     /** #AttributeInitVArray. */
@@ -127,6 +132,20 @@ struct AttributeInit {
  */
 struct AttributeInitConstruct : public AttributeInit {
   AttributeInitConstruct() : AttributeInit(Type::Construct) {}
+};
+
+/**
+ * Create attribute data with the given value, which must be the same as the specified type.
+ */
+struct AttributeInitValue : public AttributeInit {
+  GPointer value;
+
+  /** \warning The value argument must out-live this attribute initialization operation. */
+  template<typename T>
+  AttributeInitValue(const T &value) : AttributeInit(Type::Value), value(GPointer(&value))
+  {
+  }
+  AttributeInitValue(const GPointer value) : AttributeInit(Type::Value), value(value) {}
 };
 
 /**
@@ -497,6 +516,7 @@ struct AttributeAccessorFunctions {
   std::optional<AttributeDomainAndType> (*builtin_domain_and_type)(const void *owner,
                                                                    StringRef attribute_id);
   GPointer (*get_builtin_default)(const void *owner, StringRef attribute_id);
+  std::optional<AttributeMetaData> (*lookup_meta_data)(const void *owner, StringRef attribute_id);
   GAttributeReader (*lookup)(const void *owner, StringRef attribute_id);
   GVArray (*adapt_domain)(const void *owner,
                           const GVArray &varray,
@@ -553,12 +573,18 @@ class AttributeAccessor {
   /**
    * \return True, when the attribute is available.
    */
-  bool contains(StringRef attribute_id) const;
+  bool contains(StringRef attribute_id) const
+  {
+    return this->lookup_meta_data(attribute_id).has_value();
+  }
 
   /**
    * \return Information about the attribute if it exists.
    */
-  std::optional<AttributeMetaData> lookup_meta_data(StringRef attribute_id) const;
+  std::optional<AttributeMetaData> lookup_meta_data(StringRef attribute_id) const
+  {
+    return fn_->lookup_meta_data(owner_, attribute_id);
+  }
 
   /**
    * \return True, when attributes can exist on that domain.
@@ -916,7 +942,7 @@ struct AttributeTransferData {
 Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     const AttributeAccessor src_attributes,
     MutableAttributeAccessor dst_attributes,
-    AttrDomainMask domain_mask,
+    Span<AttrDomain> domains,
     const AttributeFilter &attribute_filter = {});
 
 bool allow_procedural_attribute_access(StringRef attribute_name);
@@ -994,4 +1020,5 @@ void fill_attribute_range_default(MutableAttributeAccessor dst_attributes,
 void transform_custom_normal_attribute(const float4x4 &transform,
                                        MutableAttributeAccessor &attributes);
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender

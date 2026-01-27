@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'29d18c45e4ed')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-10 07:24+0000\n"
+"POT-Creation-Date: 2026-01-26 11:28+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -183,6 +183,10 @@ msgid "Gamma"
 msgstr "Γάμμα"
 
 
+msgid "View"
+msgstr "View"
+
+
 msgid "Mix"
 msgstr "Μείξη"
 
@@ -259,10 +263,6 @@ msgid "Plane"
 msgstr "Επίπεδο"
 
 
-msgid "View"
-msgstr "View"
-
-
 msgid "Segments"
 msgstr "Τμήματα"
 
@@ -335,6 +335,18 @@ msgid "Collision"
 msgstr "Σύγκρουση"
 
 
+msgid "Font"
+msgstr "Γραμματοσειρά"
+
+
+msgid "Text"
+msgstr "Κείμενο"
+
+
+msgid "Sound"
+msgstr "Ήχος"
+
+
 msgid "Border"
 msgstr "Πλαίσιο"
 
@@ -377,10 +389,6 @@ msgstr "Προεξοχή"
 
 msgid "Path"
 msgstr "Μονοπάτι"
-
-
-msgid "Font"
-msgstr "Γραμματοσειρά"
 
 
 msgid "Shear"
@@ -471,10 +479,6 @@ msgid "Lattice"
 msgstr "Πλέγμα"
 
 
-msgid "Sound"
-msgstr "Ήχος"
-
-
 msgid "Blend"
 msgstr "Ανάμιξη"
 
@@ -515,24 +519,16 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
-msgid "Snap"
-msgstr "Προσκόλληση"
+msgid "Import"
+msgstr "Εισαγωγή"
 
 
 msgid "Metaball"
 msgstr "Μετα-σφαίρα"
 
 
-msgid "Mirror"
-msgstr "Καθρέφτισμα"
-
-
-msgid "Select Linked"
-msgstr "Επιλογή Συνδεδεμένων"
-
-
-msgid "Light"
-msgstr "Φως"
+msgid "Merge"
+msgstr "Συγχώνευση"
 
 
 msgid "Rigid Body"
@@ -543,20 +539,28 @@ msgid "Apply"
 msgstr "Εφαρμογή"
 
 
-msgid "Track"
-msgstr "Ανίχνευση"
-
-
 msgid "Make Single User"
 msgstr "Ορισμός Ενός Χρήστη"
 
 
-msgid "Merge"
-msgstr "Συγχώνευση"
+msgid "Track"
+msgstr "Ανίχνευση"
 
 
-msgid "Text"
-msgstr "Κείμενο"
+msgid "Light"
+msgstr "Φως"
+
+
+msgid "Select Linked"
+msgstr "Επιλογή Συνδεδεμένων"
+
+
+msgid "Snap"
+msgstr "Προσκόλληση"
+
+
+msgid "Mirror"
+msgstr "Καθρέφτισμα"
 
 
 msgid "Cache"
@@ -570,10 +574,6 @@ msgstr "Κλειδί"
 msgctxt "Operator"
 msgid "Mirror"
 msgstr "Καθρέφτισμα"
-
-
-msgid "Import"
-msgstr "Εισαγωγή"
 
 
 msgid "System"
@@ -634,10 +634,6 @@ msgstr "Γραμμές"
 
 msgid "Sensor"
 msgstr "Ανιχνευτής"
-
-
-msgid "Meta"
-msgstr "Μετα"
 
 
 msgid "Alpha Over"
@@ -762,10 +758,6 @@ msgstr "Replace Image"
 msgctxt "Operator"
 msgid "Fill"
 msgstr "Συμπλήρωμα"
-
-
-msgid "Ring"
-msgstr "Ring"
 
 
 msgid "Merge selected vertices"
@@ -977,12 +969,8 @@ msgid "Lens"
 msgstr "Φακός"
 
 
-msgid "Alpha Under"
-msgstr "Υποκάλυψη βάσει διαφάνειας"
-
-
-msgid "Gamma Cross"
-msgstr "Μετάβαση Γάμμα"
+msgid "Meta"
+msgstr "Μετα"
 
 
 msgid "Stencil"

@@ -26,6 +26,8 @@
 #  include "BLI_winstuff.h"
 #endif
 
+namespace blender {
+
 /* No BKE or DNA includes! */
 
 /* Keep alignment. */
@@ -1631,7 +1633,7 @@ static void unit_dual_convert(double value,
   const bUnitDef *unit = (main_unit) ? main_unit : unit_best_fit(value, usys, nullptr, 1);
 
   const double scaled_value = value / unit->scalar;
-  *r_value_a = (value < 0.0 ? ceil(scaled_value) : floor(scaled_value)) * unit->scalar;
+  *r_value_a = std::trunc(scaled_value) * unit->scalar;
   *r_value_b = value - (*r_value_a);
 
   *r_unit_a = unit;
@@ -1755,7 +1757,8 @@ static size_t unit_as_string_split_pair(char *str,
 
   /* Check the 2 is a smaller unit. */
   if (unit_b > unit_a) {
-    size_t i = unit_as_string(str, str_maxncpy, value_a, prec, do_rstrip_zero, usys, unit_a, '\0');
+    /* Always strip zeros for the larger unit, since it is truncated and won't ever "jitter". */
+    size_t i = unit_as_string(str, str_maxncpy, value_a, prec, true, usys, unit_a, '\0');
 
     prec -= integer_digits_d(value_a / unit_b->scalar) -
             integer_digits_d(value_b / unit_b->scalar);
@@ -1855,7 +1858,7 @@ static size_t unit_as_string_main(char *str,
   if (split && unit_should_be_split(type)) {
     int length = unit_as_string_split_pair(
         str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit);
-    /* Failed when length is negative, fall back to no split. */
+    /* Split failed when length is negative, fall back to no split. */
     if (length >= 0) {
       return length;
     }
@@ -2183,7 +2186,7 @@ static int unit_scale_str(char *str,
   }
 
   /* XXX: investigate, does not respect str_maxncpy properly. */
-  char *str_found = (char *)unit_find_str(str, replace_str, case_sensitive);
+  char *str_found = const_cast<char *>(unit_find_str(str, replace_str, case_sensitive));
 
   if (str_found == nullptr) {
     return 0;
@@ -2530,7 +2533,7 @@ void BKE_unit_system_get(int system, int type, void const **r_usys_pt, int *r_le
 
 int BKE_unit_base_get(const void *usys_pt)
 {
-  return ((bUnitCollection *)usys_pt)->base_unit;
+  return (static_cast<bUnitCollection *>(const_cast<void *>(usys_pt)))->base_unit;
 }
 
 int BKE_unit_base_of_type_get(int system, int type)
@@ -2574,3 +2577,5 @@ bool BKE_unit_is_suppressed(const void *usys_pt, int index)
   BLI_assert(uint(index) < uint(usys->length));
   return (usys->units[index].flag & B_UNIT_DEF_SUPPRESS) != 0;
 }
+
+}  // namespace blender

@@ -32,6 +32,7 @@ import logging
 import multiprocessing
 import multiprocessing.connection
 import multiprocessing.process
+import os
 import sys
 import time
 import zlib  # For streaming gzip decompression.
@@ -121,7 +122,7 @@ class ConditionalDownloader:
         is renamed to the given path, overwriting any pre-existing file.
 
         Raises a HTTPRequestDownloadError for specific HTTP errors. Can also
-        raise other exceptions, for example when filesystem access fails. On any
+        raise other exceptions, for example when file-system access fails. On any
         exception, the `download_error()` function will be called on the
         reporter.
         """
@@ -140,10 +141,20 @@ class ConditionalDownloader:
         http_meta = self._metadata_if_valid(http_req_descr, local_path)
         self._reporter.download_starts(http_req_descr)
 
-        # Download to a temporary file first.
-        temp_path = local_path.with_suffix(local_path.suffix + "~")
-        temp_path.parent.mkdir(exist_ok=True, parents=True)
+        # Create the directory to download to, if it doesn't exist yet.
+        download_dir_path = local_path.parent
+        download_dir_path.mkdir(exist_ok=True, parents=True)
 
+        # Download to a temporary file first, in the same directory as the final
+        # download location. This ensures we can atomically move the file to its
+        # final path.
+        temp_path = _create_temp_file(
+            download_dir_path,
+            prefix=local_path.stem + "-",
+            suffix=local_path.suffix + '.part',
+        )
+
+        # Do the actual download.
         try:
             result = self._request_and_stream(http_req_descr, temp_path, http_meta)
         except Exception:
@@ -154,15 +165,12 @@ class ConditionalDownloader:
         http_meta, http_req_descr_with_headers = result
         if http_meta is None:
             # Local file is already fresh, no need to re-download.
-            assert not temp_path.exists()
+            temp_path.unlink(missing_ok=True)
             self._reporter.already_downloaded(http_req_descr_with_headers, local_path)
             return
 
         # Move the downloaded file to the final filename.
-        # TODO: AFAIK this is necessary on Windows, while on other platforms the
-        # rename is atomic. See if we can get this atomic everywhere.
-        local_path.unlink(missing_ok=True)
-        temp_path.rename(local_path)
+        os.replace(temp_path, local_path)
 
         self.metadata_provider.save(http_req_descr_with_headers, http_meta)
 
@@ -548,7 +556,11 @@ class BackgroundDownloader:
         self._shutdown_event.set()
 
         # Send the CANCEL message to shut down the background process.
-        self._connection.send(PipeMessage(PipeMsgType.CANCEL, None))
+        try:
+            self._connection.send(PipeMessage(PipeMsgType.CANCEL, None))
+        except BrokenPipeError:
+            # The other side is already shut down, which is fine.
+            pass
 
         # Keep receiving incoming messages, to avoid the background process
         # getting stuck on a send() call.
@@ -759,7 +771,13 @@ def _download_queued_items(
             # to prevent the remote end hanging on their send() call.
             # Only once that's done should we check the do_shutdown event.
             while connection.poll():
-                received_msg: PipeMessage = connection.recv()
+                try:
+                    received_msg: PipeMessage = connection.recv()
+                except EOFError:
+                    log.warning("Blender is no longer running, shutting down the downloader process")
+                    do_shutdown.set()
+                    return
+
                 log.info("received message: %s", received_msg)
                 rx_queue.put(received_msg)
 
@@ -778,7 +796,12 @@ def _download_queued_items(
                 payload=queued_call,
             )
             log.info("sending message %s", queued_msg)
-            connection.send(queued_msg)
+            try:
+                connection.send(queued_msg)
+            except BrokenPipeError:
+                log.warning("Blender is no longer running, shutting down the downloader process")
+                do_shutdown.set()
+                return
 
     rx_thread = threading.Thread(target=rx_thread_func)
     tx_thread = threading.Thread(target=tx_thread_func)
@@ -821,41 +844,46 @@ def _download_queued_items(
     downloader.periodic_check = periodic_check
     downloader.timeout = options.timeout
 
-    while periodic_check():
-        # Pop an item off the front of the queue.
-        try:
-            queued_download = download_queue.popleft()
-        except IndexError:
-            time.sleep(0.1)
-            continue
+    try:
+        while periodic_check():
+            # Pop an item off the front of the queue.
+            try:
+                queued_download = download_queue.popleft()
+            except IndexError:
+                time.sleep(0.1)
+                continue
 
-        http_req_descr, local_path = queued_download
+            http_req_descr, local_path = queued_download
 
-        # Try and download it.
-        try:
-            downloader.download_to_file(
-                http_req_descr.url,
-                local_path,
-                http_method=http_req_descr.http_method,
-            )
-        except DownloadCancelled:
-            # Can be logged at a lower level, because the caller did the
-            # cancelling, and can log/report things more loudly if necessary.
-            log.debug("download got cancelled: %s", http_req_descr)
-        except HTTPRequestDownloadError as ex:
-            # HTTP errors that were not an explicit cancellation. These are
-            # communicated to the main process via the messaging system, so they
-            # do not need much logging here.
-            log.debug("could not download: %s: %s", http_req_descr, ex)
-        except OSError as ex:
-            # Things like "disk full", "permission denied", shouldn't need a
-            # full stack trace. These are communicated to the main process via
-            # the messaging system, so they do not need much logging here.
-            log.debug("could not download: %s: %s", http_req_descr, ex)
-        except Exception as ex:
-            # Unexpected errors should really be logged here, as they may
-            # indicate bugs (typos, dependencies not found, etc).
-            log.exception("unexpected error downloading %s: %s", http_req_descr, ex)
+            # Try and download it.
+            try:
+                downloader.download_to_file(
+                    http_req_descr.url,
+                    local_path,
+                    http_method=http_req_descr.http_method,
+                )
+            except DownloadCancelled:
+                # Can be logged at a lower level, because the caller did the
+                # cancelling, and can log/report things more loudly if necessary.
+                log.debug("download got cancelled: %s", http_req_descr)
+            except HTTPRequestDownloadError as ex:
+                # HTTP errors that were not an explicit cancellation. These are
+                # communicated to the main process via the messaging system, so they
+                # do not need much logging here.
+                log.debug("could not download: %s: %s", http_req_descr, ex)
+            except OSError as ex:
+                # Things like "disk full", "permission denied", shouldn't need a
+                # full stack trace. These are communicated to the main process via
+                # the messaging system, so they do not need much logging here.
+                log.debug("could not download: %s: %s", http_req_descr, ex)
+            except Exception as ex:
+                # Unexpected errors should really be logged here, as they may
+                # indicate bugs (typos, dependencies not found, etc).
+                log.exception("unexpected error downloading %s: %s", http_req_descr, ex)
+
+    except KeyboardInterrupt:
+        log.warning("Keyboard interrupt received, shutting down the downloader process")
+        do_shutdown.set()
 
     try:
         rx_thread.join(timeout=1.0)
@@ -1091,10 +1119,33 @@ class MetadataProviderFilesystem(MetadataProvider):
         return self.cache_location / self._cache_key(http_req_descr)
 
     def load(self, http_req_descr: RequestDescription) -> HTTPMetadata | None:
+        """Load the metadata for this request.
+
+        :raises _bpy_internal.filesystem.locking.MutexAcquisitionError: if the
+            filesystem lock cannot be obtained (even after retrying).
+        """
+        from _bpy_internal.filesystem import locking
+
         meta_path = self._metadata_path(http_req_descr)
         if not meta_path.exists():
             return None
-        meta_json = meta_path.read_bytes()
+
+        # Attempt to obtain the mutex 20 times. This will wait for max 2 sec
+        # (20x 0.1 sec), which should be more than long enough for another
+        # process to run the code below and release the mutex, while also not so
+        # long that people think Blender crashed.
+        #
+        # Waiting for 0.1 sec is a considerable amount of time for a machine (so
+        # that this Blender doesn't hog the CPU, so that the other process can
+        # do its work), but a short time for a human (so that an unlock is
+        # noticed relatively quickly and this Blender can move on and do stuff).
+        meta_file, unlocker = locking.mutex_lock_and_open_with_retry(
+            meta_path, 'rb', max_tries=20, wait_time_sec=0.1)
+
+        try:
+            meta_json = meta_file.read()
+        finally:
+            unlocker(meta_file)
 
         converter = self._ensure_converter()
 
@@ -1134,14 +1185,31 @@ class MetadataProviderFilesystem(MetadataProvider):
         meta_path.unlink(missing_ok=True)
 
     def save(self, http_req_descr: RequestDescription, meta: HTTPMetadata) -> None:
+        """Save the metadata for this request.
+
+        :raises _bpy_internal.filesystem.locking.MutexAcquisitionError: if the
+            filesystem lock cannot be obtained (even after retrying).
+        """
+        from _bpy_internal.filesystem import locking
+
         meta.request = http_req_descr
 
         converter = self._ensure_converter()
-        meta_json = converter.dumps(meta)
+        meta_json = converter.dumps(meta).encode()
         meta_path = self._metadata_path(http_req_descr)
 
-        meta_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        meta_path.write_bytes(meta_json.encode())
+        dir = meta_path.parent
+        dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+
+        # See load() for an explanation of the numer of tries & wait time.
+        meta_file, unlocker = locking.mutex_lock_and_open_with_retry(
+            meta_path, 'wb', max_tries=20, wait_time_sec=0.1)
+
+        # Write the JSON to the file & unlock it.
+        try:
+            meta_file.write(meta_json)
+        finally:
+            unlocker(meta_file)
 
     def _ensure_converter(self) -> cattrs.preconf.json.JsonConverter:
         if self._converter is not None:
@@ -1318,10 +1386,10 @@ def _cleanup_main_file_attribute() -> Generator[None]:
     See the `get_preparation_data(name)` function in Python's stdlib:
     https://github.com/python/cpython/blob/180b3eb697bf5bb0088f3f35ef2d3675f9fff04f/Lib/multiprocessing/spawn.py#L197
 
-    This issue can be recognised by a failure to start a background process,
+    This issue can be recognized by a failure to start a background process,
     with an error like:
 
-        FileNotFoundError: [Errno 2] No such file or directory: '/path/to/blender/<blender string>'
+        ``FileNotFoundError: [Errno 2] No such file or directory: '/path/to/blender/<blender string>'``
 
     """
 
@@ -1336,8 +1404,13 @@ def _cleanup_main_file_attribute() -> Generator[None]:
     # that will cause problems. Python dunder variables like this can
     # trigger all kinds of unknown magics, so they should be left alone
     # as much as possible.
-    old_file = getattr(main_module, '__file__', None)
-    if old_file != "<blender string>":
+    old_file: str = getattr(main_module, '__file__', '') or ''
+
+    # Blender uses various `<...>` values for `__main__.__file__`. Usually
+    # concrete file paths aren't delimited by greater/less than symbols, so
+    # this seems a safe heuristic.
+    is_blender_string = old_file.startswith('<') and old_file.endswith('>')
+    if not is_blender_string:
         yield
         return
 
@@ -1346,3 +1419,20 @@ def _cleanup_main_file_attribute() -> Generator[None]:
         yield
     finally:
         main_module.__file__ = old_file
+
+
+def _create_temp_file(dirpath: Path, prefix: str, suffix: str) -> Path:
+    """Create a temporary file on disk, ensuring it is uniquely named.
+
+    This is a wrapper around tempfile.mkstemp() that closes the file before
+    returning. Creating the file on disk is a necessary step to 'claim' the
+    filename for this specific call.
+
+    The caller is responsible for deleting the file after use.
+    """
+    import os
+    import tempfile
+
+    fd, path_as_str = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=dirpath)
+    os.close(fd)
+    return Path(path_as_str)

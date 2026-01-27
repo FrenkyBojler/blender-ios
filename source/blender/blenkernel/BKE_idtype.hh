@@ -17,6 +17,8 @@
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 struct AssetTypeInfo;
 struct BPathForeachPathData;
 struct BlendDataReader;
@@ -49,8 +51,6 @@ enum {
   IDTYPE_FLAGS_NO_ANIMDATA = 1 << 4,
   /**
    * Indicates that the given IDType is not handled through memfile (aka global) undo.
-   *
-   * \note This currently only affect local data-blocks.
    *
    * \note Current readfile undo code expects these data-blocks to not be used by any 'regular'
    * data-blocks.
@@ -118,9 +118,8 @@ using IDTypeForeachPathFunction = void (*)(ID *id, BPathForeachPathData *bpath_d
 /* Foreach scene linear color can do either a single color, or an implicitly shared array
  * for geometry attributes. */
 struct IDTypeForeachColorFunctionCallback {
-  const blender::FunctionRef<void(float rgb[3])> single;
-  const blender::FunctionRef<void(
-      blender::ImplicitSharingPtr<> &sharing_info, blender::ColorGeometry4f *&data, size_t size)>
+  const FunctionRef<void(float rgb[3])> single;
+  const FunctionRef<void(ImplicitSharingPtr<> &sharing_info, ColorGeometry4f *&data, size_t size)>
       implicit_sharing_array;
 };
 using IDTypeForeachColorFunction = void (*)(ID *id, const IDTypeForeachColorFunctionCallback &cb);
@@ -133,7 +132,7 @@ using IDTypeForeachColorFunction = void (*)(ID *id, const IDTypeForeachColorFunc
  * fully valid, and can be asserted on. But in some cases, they are not (fully) valid, e.g when
  * copying an ID and all of its embedded data.
  */
-using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID *id, bool debug_relationship_assert);
+using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID * id, bool debug_relationship_assert);
 
 using IDTypeBlendWriteFunction = void (*)(BlendWriter *writer, ID *id, const void *id_address);
 using IDTypeBlendReadDataFunction = void (*)(BlendDataReader *reader, ID *id);
@@ -449,3 +448,5 @@ short BKE_idtype_idcode_iter_step(int *idtype_index);
 void BKE_idtype_id_foreach_cache(ID *id,
                                  IDTypeForeachCacheFunctionCallback function_callback,
                                  void *user_data);
+
+}  // namespace blender

@@ -135,7 +135,8 @@ class SVGExporter : public GreasePencilExporter {
                                    Span<float3> positions,
                                    Span<float3> positions_left,
                                    Span<float3> positions_right,
-                                   bool cyclic);
+                                   bool cyclic,
+                                   std::optional<float> width);
 
   bool write_to_file(StringRefNull filepath);
 };
@@ -176,7 +177,7 @@ ExportStatus SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
         if (ob_eval.type != OB_GREASE_PENCIL) {
           return ExportStatus::InvalidActiveObjectType;
         }
-        const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
+        const GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob_eval.data);
         frames = IndexMask::from_predicate(
             frames, GrainSize(1024), memory, [&](const int frame_number) {
               return this->is_selected_frame(grease_pencil, frame_number);
@@ -271,7 +272,7 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
     /* Use evaluated version to get strokes with modifiers. */
     const Object *ob_eval = DEG_get_evaluated(context_.depsgraph, ob);
     BLI_assert(ob_eval->type == OB_GREASE_PENCIL);
-    const GreasePencil *grease_pencil_eval = static_cast<const GreasePencil *>(ob_eval->data);
+    const GreasePencil *grease_pencil_eval = id_cast<const GreasePencil *>(ob_eval->data);
 
     for (const bke::greasepencil::Layer *layer : grease_pencil_eval->layers()) {
       if (!layer->is_visible()) {
@@ -340,7 +341,7 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
       pugi::xml_node element_node;
       if (type == CURVE_TYPE_BEZIER) {
         element_node = write_bezier_path(
-            layer_node, layer_to_world, positions, positions_left, positions_right, cyclic);
+            layer_node, layer_to_world, positions, positions_left, positions_right, cyclic, width);
       }
       else {
         /* Fill is always exported as polygon because the stroke of the fill is done
@@ -518,9 +519,14 @@ pugi::xml_node SVGExporter::write_bezier_path(pugi::xml_node node,
                                               const Span<float3> positions,
                                               const Span<float3> positions_left,
                                               const Span<float3> positions_right,
-                                              const bool cyclic)
+                                              const bool cyclic,
+                                              const std::optional<float> width)
 {
   pugi::xml_node element_node = node.append_child("path");
+
+  if (width) {
+    element_node.append_attribute("stroke-width").set_value(*width);
+  }
 
   std::string txt = "M";
   for (const int i : positions.index_range().drop_back(1)) {
