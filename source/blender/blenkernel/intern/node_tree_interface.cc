@@ -311,7 +311,9 @@ static void socket_data_copy(bNodeTreeInterfaceSocket &dst,
 {
   socket_data_to_static_type_tag(dst.socket_type, [&](auto type_tag) {
     using SocketDataType = typename decltype(type_tag)::type;
-    dst.socket_data = socket_data_copy_impl(get_socket_data_as<SocketDataType>(src));
+    if (src.socket_data) {
+      dst.socket_data = socket_data_copy_impl(get_socket_data_as<SocketDataType>(src));
+    }
     if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
       socket_data_id_user_increment(get_socket_data_as<SocketDataType>(dst));
     }
@@ -330,7 +332,10 @@ static void socket_data_copy_ptr(bNodeTreeInterfaceSocket &dst,
       socket_data_free(dst, true);
     }
 
-    dst.socket_data = socket_data_copy_impl(*static_cast<const SocketDataType *>(src_socket_data));
+    if (src_socket_data) {
+      dst.socket_data = socket_data_copy_impl(
+          *static_cast<const SocketDataType *>(src_socket_data));
+    }
     if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
       socket_data_id_user_increment(get_socket_data_as<SocketDataType>(dst));
     }
