@@ -36,7 +36,7 @@ else()
       endif()
     endif()
 
-    # Avoid namespace pollustion.
+    # Avoid namespace pollution.
     unset(LIBDIR_NATIVE_ABI)
     unset(LIBDIR_GLIBC228_ABI)
   endif()
@@ -893,7 +893,7 @@ endif()
 set(_IS_LINKER_DEFAULT ON)
 
 # GNU Compiler
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   # ffp-contract=off:
   # Automatically turned on when building with "-march=native". This is
   # explicitly turned off here as it will make floating point math give a bit
@@ -952,21 +952,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
       unset(LD_VERSION)
     endif()
     unset(MOLD_BIN)
-  endif()
-
-  if(WITH_LINKER_GOLD AND _IS_LINKER_DEFAULT)
-    execute_process(
-      COMMAND ${CMAKE_C_COMPILER} -fuse-ld=gold -Wl,--version
-      ERROR_QUIET OUTPUT_VARIABLE LD_VERSION)
-    if("${LD_VERSION}" MATCHES "GNU gold")
-      string(APPEND CMAKE_EXE_LINKER_FLAGS    " -fuse-ld=gold")
-      string(APPEND CMAKE_SHARED_LINKER_FLAGS " -fuse-ld=gold")
-      string(APPEND CMAKE_MODULE_LINKER_FLAGS " -fuse-ld=gold")
-      set(_IS_LINKER_DEFAULT OFF)
-    else()
-      message(STATUS "GNU gold linker isn't available, using the default system linker.")
-    endif()
-    unset(LD_VERSION)
   endif()
 
   if(WITH_LINKER_LLD AND _IS_LINKER_DEFAULT)
