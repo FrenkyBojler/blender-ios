@@ -135,7 +135,7 @@ void node_tree_interface_panel_register(ARegionType *art)
   BLI_addtail(&art->paneltypes, pt);
 }
 
-static bool group_node_tree_interface_panel_poll(const bContext *C, PanelType *pt)
+static bool group_node_tree_interface_panel_poll(const bContext *C, PanelType * /*pt*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   if (!snode) {
@@ -163,14 +163,14 @@ static void group_node_tree_interface_panel_draw(const bContext *C, Panel *panel
   bNode *active_node = bke::node_get_active(tree);
   bNodeTree *node_tree = reinterpret_cast<bNodeTree *>(active_node->id);
 
-  PointerRNA tree_ptr = RNA_pointer_create_discrete(&node_tree->id, &RNA_NodeTree, node_tree);
+  PointerRNA tree_ptr = RNA_pointer_create_discrete(&node_tree->id, RNA_NodeTree, node_tree);
   ui::panel_context_pointer_set(panel, "node_tree_to_edit", &tree_ptr);
   node_tree_interface_draw(const_cast<bContext &>(*C), layout, *node_tree);
 }
 
 void group_node_tree_interface_panel_register(ARegionType *art)
 {
-  PanelType *pt = MEM_callocN<PanelType>("NODE_PT_group_node_tree_interface");
+  PanelType *pt = MEM_new_zeroed<PanelType>("NODE_PT_group_node_tree_interface");
   STRNCPY_UTF8(pt->idname, "NODE_PT_group_node_tree_interface");
   STRNCPY_UTF8(pt->label, N_("Group Sockets"));
   STRNCPY_UTF8(pt->category, "Node");
