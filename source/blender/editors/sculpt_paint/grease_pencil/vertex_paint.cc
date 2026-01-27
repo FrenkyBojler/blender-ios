@@ -10,7 +10,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_paint.hh"
 
-#include "intern.hh"
+#include "grease_pencil_intern.hh"
 
 namespace blender::ed::sculpt_paint::greasepencil {
 

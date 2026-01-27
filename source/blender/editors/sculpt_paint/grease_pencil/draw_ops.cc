@@ -64,8 +64,8 @@
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
-#include "intern.hh"
 #include "../paint_intern.hh"
+#include "grease_pencil_intern.hh"
 #include "wm_event_types.hh"
 
 #include <algorithm>

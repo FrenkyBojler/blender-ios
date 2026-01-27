@@ -46,7 +46,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "intern.hh"
+#include "grease_pencil_intern.hh"
 
 #include <numeric>
 #include <optional>

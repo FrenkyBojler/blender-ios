@@ -24,7 +24,7 @@
 #include "ED_grease_pencil.hh"
 #include "ED_view3d.hh"
 
-#include "intern.hh"
+#include "grease_pencil_intern.hh"
 
 namespace blender::ed::sculpt_paint::greasepencil {
 

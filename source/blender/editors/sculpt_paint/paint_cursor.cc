@@ -75,7 +75,7 @@
 #include "bmesh.hh"
 
 /* Needed for determining tool material/vertex-color pinning. */
-#include "grease_pencil/intern.hh"
+#include "grease_pencil/grease_pencil_intern.hh"
 
 #include "mesh/brushes/brushes.hh"
 

@@ -14,8 +14,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "intern.hh"
 #include "../paint_intern.hh"
+#include "grease_pencil_intern.hh"
 
 namespace blender::ed::sculpt_paint::greasepencil {
 

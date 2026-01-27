@@ -117,7 +117,7 @@ set(SRC
 
   curves/sculpt_intern.hh
 
-  grease_pencil/intern.hh
+  grease_pencil/grease_pencil_intern.hh
   grease_pencil/trace_util.hh
   grease_pencil/weight_paint.hh
 

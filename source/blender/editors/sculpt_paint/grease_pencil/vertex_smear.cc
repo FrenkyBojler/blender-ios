@@ -12,7 +12,7 @@
 #include "BLI_task.hh"
 #include "BLI_virtual_array.hh"
 
-#include "intern.hh"
+#include "grease_pencil_intern.hh"
 
 namespace blender::ed::sculpt_paint::greasepencil {
 

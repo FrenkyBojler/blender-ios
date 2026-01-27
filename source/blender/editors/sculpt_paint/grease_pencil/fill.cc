@@ -42,7 +42,7 @@
 
 #include "GPU_state.hh"
 
-#include "intern.hh"
+#include "grease_pencil_intern.hh"
 
 #include <list>
 #include <optional>
