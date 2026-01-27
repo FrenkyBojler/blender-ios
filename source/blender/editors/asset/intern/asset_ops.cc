@@ -1547,17 +1547,17 @@ static wmOperatorStatus asset_edit_metadata_exec(bContext *C, wmOperator *op)
   ID *asset_id = bke::asset_edit_id_from_weak_reference(
       *bmain, asset->get_id_type(), asset_reference);
 
-  MEM_SAFE_FREE(asset_id->asset_data->author);
-  asset_id->asset_data->author = (char *)MEM_dupallocN(metadata.author);
+  MEM_delete(asset_id->asset_data->author);
+  asset_id->asset_data->author = (char *)MEM_dupalloc(metadata.author);
 
-  MEM_SAFE_FREE(asset_id->asset_data->description);
-  asset_id->asset_data->description = (char *)MEM_dupallocN(metadata.description);
+  MEM_delete(asset_id->asset_data->description);
+  asset_id->asset_data->description = (char *)MEM_dupalloc(metadata.description);
 
-  MEM_SAFE_FREE(asset_id->asset_data->copyright);
-  asset_id->asset_data->copyright = (char *)MEM_dupallocN(metadata.copyright);
+  MEM_delete(asset_id->asset_data->copyright);
+  asset_id->asset_data->copyright = (char *)MEM_dupalloc(metadata.copyright);
 
-  MEM_SAFE_FREE(asset_id->asset_data->license);
-  asset_id->asset_data->license = (char *)MEM_dupallocN(metadata.license);
+  MEM_delete(asset_id->asset_data->license);
+  asset_id->asset_data->license = (char *)MEM_dupalloc(metadata.license);
 
   if (!bke::asset_edit_id_save(*bmain, *asset_id, *op->reports)) {
     return OPERATOR_CANCELLED;
