@@ -61,6 +61,11 @@ static void serialize_bundle_items(const nodes::Bundle &bundle,
                                    ArrayValue &r_io_items,
                                    BlobWriter &blob_writer,
                                    BlobWriteSharing &blob_sharing);
+[[nodiscard]] static bool deserialize_bundle_items(
+    const io::serialize::ArrayValue &io_bundle_items,
+    const BlobReader &blob_reader,
+    const BlobReadSharing &blob_sharing,
+    nodes::Bundle &r_bundle);
 
 std::shared_ptr<DictionaryValue> BlobSlice::serialize() const
 {
@@ -1008,6 +1013,26 @@ static Volume *try_load_volume(const DictionaryValue &io_geometry, const BlobRea
 }
 #endif
 
+static nodes::BundlePtr try_load_geometry_bundle(const DictionaryValue &io_geometry,
+                                                 const BlobReader &blob_reader,
+                                                 const BlobReadSharing &blob_sharing)
+{
+  const DictionaryValue *io_bundle = io_geometry.lookup_dict("bundle");
+  if (!io_bundle) {
+    return {};
+  }
+  const ArrayValue *io_bundle_items = io_bundle->lookup_array("items");
+  if (!io_bundle_items) {
+    return {};
+  }
+  nodes::BundlePtr bundle_ptr = nodes::Bundle::create();
+  nodes::Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
+  if (!deserialize_bundle_items(*io_bundle_items, blob_reader, blob_sharing, bundle)) {
+    return {};
+  }
+  return bundle_ptr;
+}
+
 static GeometrySet load_geometry(const DictionaryValue &io_geometry,
                                  const BlobReader &blob_reader,
                                  const BlobReadSharing &blob_sharing)
@@ -1021,6 +1046,7 @@ static GeometrySet load_geometry(const DictionaryValue &io_geometry,
 #ifdef WITH_OPENVDB
   geometry.replace_volume(try_load_volume(io_geometry, blob_reader));
 #endif
+  geometry.bundle_ptr() = try_load_geometry_bundle(io_geometry, blob_reader, blob_sharing);
   return geometry;
 }
 
@@ -1459,16 +1485,14 @@ template<typename T>
   return false;
 }
 
-[[nodiscard]] static bool deserialize_bundle(const io::serialize::DictionaryValue &io_bundle,
-                                             const BlobReader &blob_reader,
-                                             const BlobReadSharing &blob_sharing,
-                                             nodes::Bundle &r_bundle)
+[[nodiscard]] static bool deserialize_bundle_items(
+    const io::serialize::ArrayValue &io_bundle_items,
+    const BlobReader &blob_reader,
+    const BlobReadSharing &blob_sharing,
+    nodes::Bundle &r_bundle)
 {
-  const ArrayValue *io_items = io_bundle.lookup_array("items");
-  if (!io_items) {
-    return false;
-  }
-  for (const auto &io_item_ : io_items->elements()) {
+
+  for (const auto &io_item_ : io_bundle_items.elements()) {
     const DictionaryValue *io_item = io_item_->as_dictionary_value();
     if (!io_item) {
       return false;
@@ -1777,7 +1801,11 @@ static std::optional<SocketValueVariant> deserialize_bake_item(const DictionaryV
   if (*state_item_type == StringRef("BUNDLE")) {
     nodes::BundlePtr bundle_ptr = nodes::Bundle::create();
     nodes::Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
-    if (!deserialize_bundle(io_item, blob_reader, blob_sharing, bundle)) {
+    const ArrayValue *io_bundle_items = io_item.lookup_array("items");
+    if (!io_bundle_items) {
+      return {};
+    }
+    if (!deserialize_bundle_items(*io_bundle_items, blob_reader, blob_sharing, bundle)) {
       return {};
     }
     return SocketValueVariant::From(std::move(bundle_ptr));
