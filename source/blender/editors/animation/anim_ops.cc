@@ -23,6 +23,7 @@
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -1324,8 +1325,6 @@ static void ANIM_OT_merge_animation(wmOperatorType *ot)
 
 /** \} */
 
-/** \} */
-
 /* -------------------------------------------------------------------- */
 /** \name Replace Animation
  * \{ */
@@ -1354,6 +1353,9 @@ static wmOperatorStatus replace_action_exec(bContext *C, wmOperator *op)
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
     AnimData *adt = BKE_animdata_from_id(id);
     if (!adt || !adt->action || adt->action != old_action) {
+      continue;
+    }
+    if (!ID_IS_EDITABLE(id) && !ID_IS_OVERRIDE_LIBRARY(id)) {
       continue;
     }
     const bool success = animrig::assign_action(new_action, {*id, *adt});
@@ -1446,6 +1448,8 @@ static void ANIM_OT_replace_action(wmOperatorType *ot)
                          0,
                          0);
 }
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Registration
