@@ -493,6 +493,13 @@ option(WITH_MATERIALX "Enable MaterialX Support" ON)
 # Hydra render engine
 option(WITH_HYDRA "Enable Hydra render engine" ON)
 
+# Storm tests (via USD or Hydra)
+option(WITH_STORM_TESTS_VULKAN "\
+Enable Storm tests using the Vulkan backend. Requires WITH_HYDRA."
+  OFF
+)
+mark_as_advanced(WITH_STORM_TESTS_VULKAN)
+
 # RTL Languages, Complex Shaping, OpenType Features
 option(WITH_FRIBIDI "Enable features relying on fribidi" OFF)
 option(WITH_HARFBUZZ "Enable features relying on harfbuzz" OFF)
@@ -885,6 +892,13 @@ else()
   set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
 
+option(WITH_UI_TESTS_VULKAN "\
+Enable UI tests using the Vulkan backend. \
+Requires WITH_UI_TESTS and WITH_GPU_RENDER_TESTS_VULKAN."
+  OFF
+)
+mark_as_advanced(WITH_UI_TESTS_VULKAN)
+
 option(WITH_TESTS_EXPERIMENTAL "\
 Run tests marked as experimental. \
 These tests are labeled as such due to long runtime, flakey results,
@@ -1004,14 +1018,10 @@ mark_as_advanced(WITH_STRSIZE_DEBUG)
 
 # Compiler tool-chain.
 if(UNIX AND NOT APPLE)
-  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    option(WITH_LINKER_GOLD "Use ld.gold linker which is usually faster than ld.bfd" ON)
-    mark_as_advanced(WITH_LINKER_GOLD)
-  endif()
   if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
-    option(WITH_LINKER_LLD "Use ld.lld linker which is usually faster than ld.gold" OFF)
+    option(WITH_LINKER_LLD "Use ld.lld linker which is usually faster than ld.bfd" ON)
     mark_as_advanced(WITH_LINKER_LLD)
-    option(WITH_LINKER_MOLD "Use ld.mold linker which is usually faster than ld.gold & ld.lld" OFF)
+    option(WITH_LINKER_MOLD "Use ld.mold linker which is usually faster than ld.bfd & ld.lld" ON)
     mark_as_advanced(WITH_LINKER_MOLD)
   endif()
 endif()
@@ -1421,7 +1431,7 @@ endif()
 if(WITH_AUDASPACE)
   if(NOT WITH_SYSTEM_AUDASPACE)
     set(AUDASPACE_C_INCLUDE_DIRS
-      "${CMAKE_SOURCE_DIR}/extern/audaspace/bindings/C"
+      "${CMAKE_SOURCE_DIR}/extern/audaspace/include"
       "${CMAKE_BINARY_DIR}/extern/audaspace"
     )
     set(AUDASPACE_PY_INCLUDE_DIRS
@@ -2940,6 +2950,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_GPU_MESH_PAINT_TESTS)
   info_cfg_option(WITH_UI_TESTS)
   info_cfg_option(WITH_UI_TESTS_HEADLESS)
+  info_cfg_option(WITH_UI_TESTS_VULKAN)
   info_cfg_option(WITH_GPU_RENDER_TESTS_VULKAN)
   info_cfg_option(WITH_LINUX_OFFICIAL_RELEASE_TESTS)
 
