@@ -119,8 +119,8 @@
 
 #include "NOD_composite.hh"
 
-#include "GHOST_C-api.h"
-#include "GHOST_Path-api.hh"
+#include "GHOST_ISystemPaths.hh"
+#include "GHOST_IWindow.hh"
 
 #include "GPU_context.hh"
 
@@ -296,7 +296,8 @@ static void wm_file_read_setup_wm_substitute_old_window(wmWindowManager *oldwm,
   /* File loading in background mode still calls this. */
   if (!G.background) {
     /* Pointer back. */
-    GHOST_SetWindowUserData(static_cast<GHOST_WindowHandle>(win->runtime->ghostwin), win);
+    GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
+    ghost_window->setUserData(win);
   }
 
   oldwin->runtime->ghostwin = nullptr;
@@ -1712,7 +1713,8 @@ static void wm_history_file_update()
     wm_history_file_write();
 
     /* Also update most recent files on system. */
-    GHOST_addToSystemRecentFiles(blendfile_path);
+    const GHOST_ISystemPaths *ghost_system_paths = GHOST_ISystemPaths::get();
+    ghost_system_paths->addToSystemRecentFiles(blendfile_path);
   }
 }
 
@@ -2724,13 +2726,26 @@ static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus wm_userpref_revert_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
+{
+  return WM_operator_confirm_ex(C,
+                                op,
+                                IFACE_("Revert to Saved Preferences"),
+                                IFACE_("Reload preferences from the last saved state"),
+                                IFACE_("Revert"),
+                                blender::ui::AlertIcon::Warning,
+                                false);
+}
+
 void WM_OT_read_userpref(wmOperatorType *ot)
 {
   ot->name = "Load Preferences";
   ot->idname = "WM_OT_read_userpref";
   ot->description = "Load last saved preferences";
 
-  ot->invoke = WM_operator_confirm;
+  ot->invoke = wm_userpref_revert_invoke;
   ot->exec = wm_userpref_read_exec;
 }
 
