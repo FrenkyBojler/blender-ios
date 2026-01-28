@@ -373,6 +373,7 @@ endif
 # Macro for configuring cmake
 
 CMAKE_CONFIG = cmake $(CMAKE_CONFIG_ARGS) \
+                     --warn-uninitialized \
                      -H"$(BLENDER_DIR)" \
                      -B"$(BUILD_DIR)" \
                      -DCMAKE_BUILD_TYPE_INIT:STRING=$(BUILD_TYPE)

@@ -66,6 +66,7 @@ if "%MUST_CONFIGURE%"=="1" (
 
 	cmake ^
 		%BUILD_CMAKE_ARGS% ^
+		--warn-uninitialized ^
 		-H%BLENDER_DIR% ^
 		-B%BUILD_DIR% 
 	

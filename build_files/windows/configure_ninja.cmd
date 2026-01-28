@@ -48,6 +48,7 @@ if "%NOBUILD%"=="1" set MUST_CONFIGURE=1
 if "%MUST_CONFIGURE%"=="1" (
 	"%CMAKE%" ^
 		%BUILD_CMAKE_ARGS% ^
+		--warn-uninitialized ^
 		-H%BLENDER_DIR% ^
 		-B%BUILD_DIR% 
 
