@@ -323,6 +323,10 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
   IDProperty *active_prop = static_cast<IDProperty *>(
       BLI_findlink(&user_properties->data.group, user_properties->data.idprop_active_index));
 
+  if (active_prop->ui_data == nullptr) {
+    return;
+  }
+
   PointerRNA prop_ptr = RNA_pointer_create_discrete(id, RNA_IDProperty, active_prop);
   layout->prop(&prop_ptr, "type", UI_ITEM_NONE, "Type", ICON_NONE);
   Button *but = button_last(layout->block());

@@ -2125,6 +2125,25 @@ class WM_OT_properties_edit_value(Operator):
             col.prop(rna_item, '["{:s}"]'.format(escape_identifier(self.property_name)), text="")
 
 
+class WM_OT_property_uidata_create(Operator):
+    """Create UI data for a active property"""
+    bl_idname = "wm.property_uidata_create"
+    bl_label = "Create Property UI Data"
+    bl_options = {'UNDO', 'INTERNAL'}
+
+    property_name: rna_custom_property_name
+    rna_path: rna_path
+
+    def execute(self, context):
+        data_path = self.rna_path
+        rna_item = eval("context.{:s}".format(data_path))
+
+        name = self.property_name
+        # Accessing the UI data creates it if it doesn't exist yet.
+        ui_data = rna_item.id_properties_ui(name)
+        ui_data.update()
+        return {'FINISHED'}
+
 class WM_OT_properties_add(Operator):
     """Add your own property to the data-block"""
     bl_idname = "wm.properties_add"
@@ -3698,6 +3717,7 @@ classes = (
     WM_OT_operator_cheat_sheet,
     WM_OT_operator_pie_enum,
     WM_OT_path_open,
+    WM_OT_property_uidata_create,
     WM_OT_properties_add,
     WM_OT_properties_context_change,
     WM_OT_properties_edit,

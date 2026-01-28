@@ -1133,10 +1133,6 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
   /* Property was created with no existing counterpart, just insert it in the group container. */
   if (!prop_exist) {
     IDP_ReplaceInGroup_ex(group, new_prop, nullptr, 0);
-    if (IDP_ui_data_supported(new_prop)) {
-      /* Allocate UI data for supported property types. */
-      new_prop->ui_data = IDP_ui_data_ensure(new_prop);
-    }
     return true;
   }
 

@@ -975,6 +975,25 @@ static PyObject *BPy_IDPropertyUIManager_update_from(BPy_IDPropertyUIManager *se
 
 /** \} */
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    BPy_IDPropertyUIManager_ui_data_exists_doc,
+    ".. method:: exists()\n"
+    "\n"
+    "   Check if the property has UI data.\n"
+    "\n"
+    "   :return: True if the property has UI data, False otherwise.\n");
+static PyObject *BPy_IDPropertyUIManager_ui_data_exists(BPy_IDPropertyUIManager *self)
+{
+  IDProperty *property = self->property;
+  BLI_assert(IDP_ui_data_supported(property));
+
+  if (property->ui_data != nullptr) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name UI Data Manager Definition
  * \{ */
@@ -1006,6 +1025,10 @@ static PyMethodDef BPy_IDPropertyUIManager_methods[] = {
      reinterpret_cast<PyCFunction>(BPy_IDPropertyUIManager_update_from),
      METH_VARARGS,
      BPy_IDPropertyUIManager_update_from_doc},
+    {"exists",
+     reinterpret_cast<PyCFunction>(BPy_IDPropertyUIManager_ui_data_exists),
+     METH_NOARGS,
+     BPy_IDPropertyUIManager_ui_data_exists_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 

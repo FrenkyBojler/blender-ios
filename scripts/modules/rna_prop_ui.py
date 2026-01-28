@@ -186,7 +186,12 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     else:
         value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
 
-    layout.draw_id_properties_value(rna_item.id_data, rna_item)
+    if not rna_item.id_properties_ui(key).exists():
+        prop = layout.operator("wm.property_uidata_create", text="Create Property UI Data")
+        prop.rna_path = context_member
+        prop.property_name = key
+    else:
+        layout.draw_id_properties_value(rna_item.id_data, rna_item)
 
 
 class PropertyPanel:
