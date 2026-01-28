@@ -111,9 +111,10 @@ List::SingleData List::SingleData::ForValue(const GPointer &value)
 {
   List::SingleData data{};
   const CPPType &type = *value.type();
-  data.value = MEM_new_uninitialized_aligned(type.size, type.alignment, __func__);
-  type.copy_construct(value.get(), data.value);
-  data.sharing_info = sharing_ptr_for_value(data.value, type);
+  void *new_value = MEM_new_uninitialized_aligned(type.size, type.alignment, __func__);
+  type.copy_construct(value.get(), new_value);
+  data.value = new_value;
+  data.sharing_info = sharing_ptr_for_value(new_value, type);
   return data;
 }
 

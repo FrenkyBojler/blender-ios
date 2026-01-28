@@ -30,7 +30,7 @@ class List : public ImplicitSharingMixin {
 
   class SingleData {
    public:
-    void *value;
+    const void *value;
     ImplicitSharingPtr<> sharing_info;
     static SingleData ForValue(const GPointer &value);
     static SingleData ForDefaultValue(const CPPType &type);
@@ -56,6 +56,7 @@ class List : public ImplicitSharingMixin {
     return ListPtr(MEM_new<List>(__func__, type, std::move(data), size));
   }
 
+  DataVariant &data();
   const DataVariant &data() const;
   const CPPType &cpp_type() const;
   int64_t size() const;
@@ -69,6 +70,11 @@ class List : public ImplicitSharingMixin {
 
   void count_memory(MemoryCounter &memory) const;
 };
+
+inline List::DataVariant &List::data()
+{
+  return data_;
+}
 
 inline const List::DataVariant &List::data() const
 {

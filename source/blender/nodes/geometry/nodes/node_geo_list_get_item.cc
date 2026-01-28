@@ -192,7 +192,7 @@ static bke::SocketValueVariant get_single_item(ListPtr &list,
   }
   if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
     if (list->is_mutable() && data->sharing_info->is_mutable()) {
-      list->cpp_type().move_construct(data->value, value_ptr);
+      list->cpp_type().move_construct(const_cast<void *>(data->value), value_ptr);
       return value;
     }
     list->cpp_type().copy_construct(data->value, value_ptr);
@@ -214,7 +214,7 @@ static bke::SocketValueVariant get_socket_value_item(ListPtr &list, const int64_
   }
   if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
     if (list->is_mutable() && data->sharing_info->is_mutable()) {
-      return std::move(*static_cast<bke::SocketValueVariant *>(data->value));
+      return std::move(*static_cast<bke::SocketValueVariant *>(const_cast<void *>(data->value)));
     }
     return *static_cast<const bke::SocketValueVariant *>(data->value);
   }
