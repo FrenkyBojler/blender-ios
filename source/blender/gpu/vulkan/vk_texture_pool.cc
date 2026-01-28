@@ -126,7 +126,7 @@ void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirem
 
   /* WATCH(not_mark): will remove asserts when pool is a bit more mature. */
   UNUSED_VARS(result);
-  BLI_assert(bind_result == VK_SUCCESS);
+  BLI_assert(result == VK_SUCCESS);
 
   /* Start with a single segment, sized to the full range of the allocation. */
   segments = {{allocation_info.offset, allocation_info.size}};
