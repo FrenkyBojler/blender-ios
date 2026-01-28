@@ -186,6 +186,12 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     else:
         value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
 
+    try:
+        # id_properties_ui throws error for unsupported/python types.
+        ui_data = rna_item.id_properties_ui(key)
+    except Exception:
+        return
+
     if not rna_item.id_properties_ui(key).exists():
         prop = layout.operator("wm.property_uidata_create", text="Create Property UI Data")
         prop.rna_path = context_member
