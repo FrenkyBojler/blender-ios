@@ -593,8 +593,15 @@ void VolumeDataSource::foreach_default_column_ids(
     return;
   }
 
-  for (const char *name :
-       {"Grid Name", "Data Type", "Class", "Voxel Extent", "Min Voxel", "Voxels", "Leaf Voxels", "Tiles", "Size"})
+  for (const char *name : {"Grid Name",
+                           "Data Type",
+                           "Class",
+                           "Voxel Extent",
+                           "Min Voxel",
+                           "Voxels",
+                           "Leaf Voxels",
+                           "Tiles",
+                           "Size"})
   {
     SpreadsheetColumnID column_id{const_cast<char *>(name)};
     fn(column_id, false);
@@ -718,8 +725,14 @@ void VolumeGridDataSource::foreach_default_column_ids(
     return;
   }
 
-  for (const char *name :
-       {"Data Type", "Class", "Voxel Extent", "Min Voxel", "Voxels", "Leaf Voxels", "Tiles", "Size"})
+  for (const char *name : {"Data Type",
+                           "Class",
+                           "Voxel Extent",
+                           "Min Voxel",
+                           "Voxels",
+                           "Leaf Voxels",
+                           "Tiles",
+                           "Size"})
   {
     SpreadsheetColumnID column_id{const_cast<char *>(name)};
     fn(column_id, false);
@@ -764,7 +777,8 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
   }
   if (STREQ(column_id.name, "Voxel Extent")) {
     const int3 extent = int3(grid.active_bounds().dim().asPointer());
-    return std::make_unique<ColumnValues>(IFACE_("Voxel Extent"), VArray<int3>::from_single(extent, 1));
+    return std::make_unique<ColumnValues>(IFACE_("Voxel Extent"),
+                                          VArray<int3>::from_single(extent, 1));
   }
   if (STREQ(column_id.name, "Min Voxel")) {
     const int3 min = int3(grid.active_bounds().min().asPointer());
