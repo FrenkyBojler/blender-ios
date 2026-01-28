@@ -1,1 +1,2 @@
 Referenced by pull request #153521, Fix: cmake_qtcreator_project.py error missing "sys" import
+Referenced by commit 9af4b5ca0e6739de28fac62d3f321811ece3b476, Fix: cmake_qtcreator_project.py error missing "sys" import
