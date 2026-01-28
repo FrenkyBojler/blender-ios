@@ -97,8 +97,6 @@ struct BrushGpencilSettings {
   int sculpt_flag = 0;
   /** eGP_Sculpt_Mode_Flag. */
   int sculpt_mode_flag = 0;
-  /** Preset type (used to reset brushes - internal). */
-  short preset_type = 0;
   /** Brush preselected mode (Active/Material/Vertex-color). */
   short brush_draw_mode = 0;
 
