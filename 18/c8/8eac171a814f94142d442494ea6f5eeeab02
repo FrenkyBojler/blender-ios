@@ -1,3 +1,4 @@
 Referenced by issue #100266, Viewer Node from Compositor is not updated in Camera's Background Image
 Referenced by issue #73188, Viewer node and Render result not showing in camera background image
 Referenced by pull request #153178, UI: Do not allow "Render Result" or "Viewer Node" images in most cases
+Referenced by commit def1f32e5ba79c9428897109fcb88bdde5a0b42b, UI: Do not allow "Render Result" or "Viewer Node" images in most cases
