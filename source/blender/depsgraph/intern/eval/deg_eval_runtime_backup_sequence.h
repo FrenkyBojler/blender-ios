@@ -45,14 +45,12 @@ class StripBackup {
 
   void reset();
 
-  void init_from_strip(Strip *strip, Scene *scene);
-  // void restore_to_strip(Strip *strip, Scene *scene);
+  void init_from_strip(Strip *strip);
   void restore_to_strip(Strip *strip);
 
   bool isEmpty() const;
 
   void *scene_sound;
-  Strip *parent_strip; // Stores to what the strip was added (scene or meta).
   void *last_parent_sound_scene;
   void *meta_scene_sound;
   Vector<MovieReader *, 1> movie_readers;

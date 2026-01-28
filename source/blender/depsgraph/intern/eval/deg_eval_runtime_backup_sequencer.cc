@@ -28,7 +28,7 @@ static bool strip_init_cb(Strip *strip, void *user_data)
 {
   SequencerBackup *sb = (SequencerBackup *)user_data;
   StripBackup strip_backup(sb->depsgraph);
-  strip_backup.init_from_strip(strip, sb->ref_scene);
+  strip_backup.init_from_strip(strip);
   if (!strip_backup.isEmpty()) {
     const SessionUID &session_uid = strip->runtime->session_uid;
     BLI_assert(BLI_session_uid_is_generated(&session_uid));

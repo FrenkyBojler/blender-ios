@@ -954,7 +954,6 @@ void BKE_sound_move_scene_sound(const Scene *scene,
                                 int frameskip,
                                 double audio_offset)
 {
-  // printf("BKE_sound_move_scene_sound\n");
   sound_verify_evaluated_id(&scene->id);
   const double fps = scene->frames_per_second();
   const double offset_time = audio_offset - frameskip / fps;
@@ -968,7 +967,6 @@ void BKE_sound_move_scene_sound(const Scene *scene,
 
 void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *strip)
 {
-  // printf("Move strip %s\n", strip->name);
   Editing *ed = scene->ed;
   Strip *parent_strip = blender::seq::lookup_meta_by_strip(ed, strip);
   int parent_start = parent_strip == nullptr ? 0 : parent_strip->left_handle();
