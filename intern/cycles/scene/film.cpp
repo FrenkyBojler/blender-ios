@@ -90,7 +90,7 @@ NODE_DEFINE(Film)
   NodeType *type = NodeType::add("film", create);
 
   SOCKET_FLOAT(exposure, "Exposure", 1.0f);
-  SOCKET_FLOAT(pass_alpha_threshold, "Pass Alpha Threshold", 0.0f);
+  SOCKET_FLOAT(pass_alpha_threshold, "Pass Alpha Threshold", 0.5f);
 
   static NodeEnum filter_enum;
   filter_enum.insert("box", FILTER_BOX);
@@ -195,9 +195,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   kfilm->pass_lightgroup = PASS_UNUSED;
 
   /* Mark passes as unused so that the kernel knows the pass is inaccessible. */
-  kfilm->pass_denoising_normal = PASS_UNUSED;
   kfilm->pass_denoising_albedo = PASS_UNUSED;
+  kfilm->pass_denoising_normal = PASS_UNUSED;
   kfilm->pass_denoising_depth = PASS_UNUSED;
+  kfilm->pass_denoising_specular_albedo = PASS_UNUSED;
   kfilm->pass_sample_count = PASS_UNUSED;
   kfilm->pass_render_time = PASS_UNUSED;
   kfilm->pass_adaptive_aux_buffer = PASS_UNUSED;
@@ -370,14 +371,17 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
         have_cryptomatte = true;
         break;
 
-      case PASS_DENOISING_NORMAL:
-        kfilm->pass_denoising_normal = kfilm->pass_stride;
-        break;
       case PASS_DENOISING_ALBEDO:
         kfilm->pass_denoising_albedo = kfilm->pass_stride;
         break;
+      case PASS_DENOISING_NORMAL:
+        kfilm->pass_denoising_normal = kfilm->pass_stride;
+        break;
       case PASS_DENOISING_DEPTH:
         kfilm->pass_denoising_depth = kfilm->pass_stride;
+        break;
+      case PASS_DENOISING_SPECULAR_ALBEDO:
+        kfilm->pass_denoising_specular_albedo = kfilm->pass_stride;
         break;
 
       case PASS_SHADOW_CATCHER:
