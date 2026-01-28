@@ -594,7 +594,7 @@ void VolumeDataSource::foreach_default_column_ids(
   }
 
   for (const char *name :
-       {"Grid Name", "Data Type", "Class", "Extent", "Min", "Voxels", "Leaf Voxels", "Tiles", "Size"})
+       {"Grid Name", "Data Type", "Class", "Voxel Extent", "Min Voxel", "Voxels", "Leaf Voxels", "Tiles", "Size"})
   {
     SpreadsheetColumnID column_id{const_cast<char *>(name)};
     fn(column_id, false);
@@ -676,15 +676,15 @@ std::unique_ptr<ColumnValues> VolumeDataSource::get_column_values(
             }),
         ColumnValueDisplayHint::Bytes);
   }
-  if (STREQ(column_id.name, "Extent")) {
+  if (STREQ(column_id.name, "Voxel Extent")) {
     return std::make_unique<ColumnValues>(
-        IFACE_("Extent"), VArray<int3>::from_std_func(size, [volume](const int64_t index) {
+        IFACE_("Voxel Extent"), VArray<int3>::from_std_func(size, [volume](const int64_t index) {
           return int3(BKE_volume_grid_get(volume, index)->active_bounds().dim().asPointer());
         }));
   }
-  if (STREQ(column_id.name, "Min")) {
+  if (STREQ(column_id.name, "Min Voxel")) {
     return std::make_unique<ColumnValues>(
-        IFACE_("Min"), VArray<int3>::from_std_func(size, [volume](const int64_t index) {
+        IFACE_("Min Voxel"), VArray<int3>::from_std_func(size, [volume](const int64_t index) {
           return int3(BKE_volume_grid_get(volume, index)->active_bounds().min().asPointer());
         }));
   }
@@ -719,7 +719,7 @@ void VolumeGridDataSource::foreach_default_column_ids(
   }
 
   for (const char *name :
-       {"Data Type", "Class", "Extent", "Min", "Voxels", "Leaf Voxels", "Tiles", "Size"})
+       {"Data Type", "Class", "Voxel Extent", "Min Voxel", "Voxels", "Leaf Voxels", "Tiles", "Size"})
   {
     SpreadsheetColumnID column_id{const_cast<char *>(name)};
     fn(column_id, false);
@@ -762,13 +762,13 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
     return std::make_unique<ColumnValues>(
         IFACE_("Size"), VArray<int64_t>::from_single(size, 1), ColumnValueDisplayHint::Bytes);
   }
-  if (STREQ(column_id.name, "Extent")) {
+  if (STREQ(column_id.name, "Voxel Extent")) {
     const int3 extent = int3(grid.active_bounds().dim().asPointer());
-    return std::make_unique<ColumnValues>(IFACE_("Extent"), VArray<int3>::from_single(extent, 1));
+    return std::make_unique<ColumnValues>(IFACE_("Voxel Extent"), VArray<int3>::from_single(extent, 1));
   }
-  if (STREQ(column_id.name, "Min")) {
-    const int3 extent = int3(grid.active_bounds().min().asPointer());
-    return std::make_unique<ColumnValues>(IFACE_("Min"), VArray<int3>::from_single(extent, 1));
+  if (STREQ(column_id.name, "Min Voxel")) {
+    const int3 min = int3(grid.active_bounds().min().asPointer());
+    return std::make_unique<ColumnValues>(IFACE_("Min Voxel"), VArray<int3>::from_single(min, 1));
   }
   return {};
 }
