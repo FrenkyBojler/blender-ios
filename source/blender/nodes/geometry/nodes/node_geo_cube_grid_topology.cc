@@ -22,12 +22,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Topology")
       .structure_type(StructureType::Grid)
       .description("Boolean grid defining the topology/active regions");
-  b.add_input<decl::Int>("Min X").default_value(0).description(
-      "Minimum coordinate in X axis (grid index space)");
-  b.add_input<decl::Int>("Min Y").default_value(0).description(
-      "Minimum coordinate in Y axis (grid index space)");
-  b.add_input<decl::Int>("Min Z").default_value(0).description(
-      "Minimum coordinate in Z axis (grid index space)");
+  b.add_input<decl::Vector>("Bounds Min")
+      .default_value(float3(-1.0f))
+      .description("Minimum boundary of the grid (world space)");
+  b.add_input<decl::Vector>("Bounds Max")
+      .default_value(float3(1.0f))
+      .description("Maximum boundary of the grid (world space)");
 
   b.add_input<decl::Int>("Resolution X")
       .default_value(32)
@@ -42,13 +42,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(1)
       .description("Number of voxels in the Z axis");
 
-  PanelDeclarationBuilder &bounds_panel = b.add_panel("Bounds").default_closed(true);
-  bounds_panel.add_input<decl::Vector>("Bounds Min")
-      .default_value(float3(-1.0f))
-      .description("Minimum boundary of the grid (world space)");
-  bounds_panel.add_input<decl::Vector>("Bounds Max")
-      .default_value(float3(1.0f))
-      .description("Maximum boundary of the grid (world space)");
+  PanelDeclarationBuilder &min_panel = b.add_panel("Min").default_closed(true);
+  min_panel.add_input<decl::Int>("Min X").default_value(0).description(
+      "Minimum coordinate in X axis (grid index space)");
+  min_panel.add_input<decl::Int>("Min Y").default_value(0).description(
+      "Minimum coordinate in Y axis (grid index space)");
+  min_panel.add_input<decl::Int>("Min Z").default_value(0).description(
+      "Minimum coordinate in Z axis (grid index space)");
 }
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
