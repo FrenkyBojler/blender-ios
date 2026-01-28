@@ -49,7 +49,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
 
   if (params.in_out() == SOCK_OUT) {
-    if (other_type == SOCK_MATRIX || other_type == SOCK_ROTATION) {
+    if (ELEM(other_type, SOCK_MATRIX, SOCK_ROTATION)) {
       params.add_item(IFACE_("Pose"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeBoneInfo");
         params.update_and_connect_available_socket(node, "Pose");
@@ -73,7 +73,8 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Rest Length");
       });
     }
-  } else {
+  }
+  else {
     if (other_type == SOCK_STRING) {
       params.add_item(IFACE_("Bone Name"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeBoneInfo");
