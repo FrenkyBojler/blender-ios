@@ -79,7 +79,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   auto *objects = new ImplicitSharedValue<Vector<Object *>>();
-  Set<Object *> obj_visited;
 
   Vector<Collection *> obj_collections;
   obj_collections.append(collection);
@@ -87,6 +86,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     obj_collections.extend(collections->data);
   }
 
+  Set<const Object *> obj_visited;
   for (Collection *col : obj_collections) {
     for (CollectionObject &cob : col->gobject) {
       Object *obj_original = (Object *)DEG_get_original(cob.ob);
