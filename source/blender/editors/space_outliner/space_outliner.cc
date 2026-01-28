@@ -153,11 +153,11 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
         case ND_OB_SELECT:
           if (outliner_requires_rebuild_on_select_or_active_change(space_outliner)) {
             ED_region_tag_redraw(region);
-            space_outliner->runtime->draw_cache_dirty = true;
           }
           else {
             ED_region_tag_redraw_no_rebuild(region);
           }
+          space_outliner->runtime->draw_cache_dirty = true;
           break;
         case ND_FRAME:
           /* Rebuilding the outliner tree is expensive and shouldn't be done when scrubbing. */
