@@ -231,6 +231,7 @@ static wmOperatorStatus outliner_item_openclose_modal(bContext *C,
 
       /* Only toggle openclose on the same level as the first clicked element */
       if (te->xs == data->x_location) {
+        space_outliner->runtime->draw_cache_dirty = true;
         outliner_item_openclose(te, data->open, false);
 
         outliner_tag_redraw_avoid_rebuild_on_open_change(space_outliner, region);
@@ -263,6 +264,7 @@ static wmOperatorStatus outliner_item_openclose_invoke(bContext *C,
   const bool toggle_all = RNA_boolean_get(op->ptr, "all");
 
   float view_mval[2];
+  space_outliner->runtime->draw_cache_dirty = true;
 
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);
@@ -276,7 +278,7 @@ static wmOperatorStatus outliner_item_openclose_invoke(bContext *C,
 
     const bool open = (tselem->flag & TSE_CLOSED) ||
                       (toggle_all && outliner_flag_is_any_test(&te->subtree, TSE_CLOSED, 1));
-
+    space_outliner->runtime->draw_cache_dirty = true;
     outliner_item_openclose(te, open, toggle_all);
     outliner_tag_redraw_avoid_rebuild_on_open_change(space_outliner, region);
 
@@ -1372,7 +1374,7 @@ static wmOperatorStatus outliner_toggle_expanded_exec(bContext *C, wmOperator * 
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ARegion *region = CTX_wm_region(C);
-
+  space_outliner->runtime->draw_cache_dirty = true;
   if (outliner_flag_is_any_test(&space_outliner->tree, TSE_CLOSED, 1)) {
     outliner_flag_set(*space_outliner, TSE_CLOSED, 0);
   }
@@ -1586,6 +1588,7 @@ static void outliner_show_active(SpaceOutliner *space_outliner,
   /* open up tree to active object/bone */
   if (TREESTORE(te)->id == id) {
     if (outliner_open_back(te)) {
+      space_outliner->runtime->draw_cache_dirty = true;
       outliner_set_coordinates(region, space_outliner);
     }
     return;
@@ -1724,7 +1727,7 @@ static wmOperatorStatus outliner_one_level_exec(bContext *C, wmOperator *op)
   ARegion *region = CTX_wm_region(C);
   const bool add = RNA_boolean_get(op->ptr, "open");
   int level;
-
+  space_outliner->runtime->draw_cache_dirty = true;
   level = outliner_flag_is_any_test(&space_outliner->tree, TSE_CLOSED, 1);
   if (add == 1) {
     if (level) {
@@ -1792,6 +1795,7 @@ static int subtree_has_objects(ListBaseT<TreeElement> *lb)
 /* Helper function for Show Hierarchy operator */
 static void tree_element_show_hierarchy(Scene *scene, SpaceOutliner *space_outliner)
 {
+  space_outliner->runtime->draw_cache_dirty = true;
   /* open all object elems, close others */
   tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
     TreeStoreElem *tselem = TREESTORE(te);

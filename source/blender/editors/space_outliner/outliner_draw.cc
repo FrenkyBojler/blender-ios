@@ -95,13 +95,122 @@ namespace ed::outliner {
 /* -------------------------------------------------------------------- */
 /** \name Tree Size Functions
  * \{ */
+static void element_resolve_merged_subtree(const TreeViewContext &tvc,
+                                           ListBaseT<TreeElement> *lb,
+                                           int level,
+                                           int *offsx,
+                                           int ys,
+                                           bool in_bone_hierarchy,
+                                           const bool is_grease_pencil_node_hierarchy,
+                                           MergedSubtree *merged);
 
-Vector<TreeElement *> outliner_tree_resolve(ARegion *region,
+void element_resolve_closed(
+    TreeViewContext *tvc, TreeElement *element, int y, int *r_width, bool *r_have_warnings)
+{
+  if (tvc) {
+    element->merged_subtree = std::make_unique<MergedSubtree>();
+    int offset = element->xend;
+    element_resolve_merged_subtree(
+        *tvc, &element->subtree, 0, &offset, y, false, false, element->merged_subtree.get());
+    element->xend = offset;
+  }
+
+  Vector<TreeElement *> stack;
+  if (element->subtree.first) {
+    stack.append(static_cast<TreeElement *>(element->subtree.first));
+  }
+
+  int width = *r_width;
+  bool have_warnings = *r_have_warnings;
+  while (!stack.is_empty()) {
+    if (!stack.last()) {
+      stack.pop_last();
+      if (stack.is_empty()) {
+        continue;
+      }
+      TreeElement *last = stack.last();
+      have_warnings = have_warnings ||
+                      (last->abstract_element && last->abstract_element->have_warning());
+      width = std::max<int>(width, int(last->xend));
+      stack.last() = last->next;
+    }
+    else {
+      TreeElement *last = stack.last();
+      last->ymin = y;
+      last->ys = y;
+      last->xs = element->xend;
+      last->xend = element->xend;
+      stack.append(static_cast<TreeElement *>(last->subtree.first));
+    }
+  }
+  *r_width = width;
+  *r_have_warnings = have_warnings;
+}
+
+static void element_resolve_width(TreeElement *element,
+                                  SpaceOutliner *space_outliner,
+                                  TreeViewContext *tvc,
+                                  int *r_width,
+                                  bool *r_have_warnings)
+{
+  const float ufac = UI_UNIT_X / 20.0f;
+  int offsx = element->xs + UI_UNIT_X;
+  TreeStoreElem *tselem = TREESTORE(element);
+
+  /* Data-type icon. */
+  if (!ELEM(tselem->type, TSE_RNA_PROPERTY, TSE_RNA_ARRAY_ELEM, TSE_ID_BASE) &&
+      tree_element_get_icon(tselem, element).icon != 0)
+  {
+    offsx += UI_UNIT_X + 4 * ufac;
+  }
+  else {
+    offsx += 2 * ufac;
+  }
+  const TreeElementRNAStruct *te_rna_struct = tree_element_cast<TreeElementRNAStruct>(element);
+  if (ELEM(tselem->type, TSE_SOME_ID, TSE_LAYER_COLLECTION, TSE_LINKED_NODE_TREE) ||
+      (te_rna_struct && RNA_struct_is_ID(te_rna_struct->get_pointer_rna().type)))
+  {
+    if (ui::icon_from_library(tselem->id) != ICON_NONE) {
+      offsx += UI_UNIT_X + 4 * ufac;
+    }
+    if (tselem->type == TSE_LAYER_COLLECTION) {
+      if (!BLI_listbase_is_empty(&id_cast<Collection *>(tselem->id)->exporters)) {
+        offsx += UI_UNIT_X + 4 * ufac;
+      }
+    }
+  }
+  const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
+  offsx += int(UI_UNIT_X + ui::fontstyle_string_width(fstyle, element->name));
+  element->xend = offsx;
+  if (!TSELEM_OPEN(TREESTORE(element), space_outliner)) {
+    element_resolve_closed(tvc, element, element->ys, r_width, r_have_warnings);
+  }
+}
+
+Vector<TreeElement *> outliner_tree_resolve(const bContext *C,
+                                            ARegion *region,
                                             SpaceOutliner *space_outliner,
                                             int *r_width,
                                             int *r_height,
                                             bool *r_have_warnings)
 {
+  TreeViewContext tvc;
+  if (C) {
+    outliner_viewcontext_init(C, &tvc);
+  }
+  const bool use_mode_column = outliner_shows_mode_column(*space_outliner);
+  int columns_offset = use_mode_column ? UI_UNIT_X : 0;
+  /* Move the tree a unit left in view layer mode */
+  if ((space_outliner->outlinevis == SO_VIEW_LAYER) &&
+      !(space_outliner->filter & SO_FILTER_NO_COLLECTION) &&
+      (space_outliner->filter & SO_FILTER_NO_VIEW_LAYERS))
+  {
+    columns_offset -= UI_UNIT_X;
+  }
+  if (space_outliner->runtime->have_warnings) {
+    columns_offset += UI_UNIT_X;
+  }
+
   *r_width = 0;
   *r_height = 0;
   bool have_warnings = false;
@@ -118,45 +227,45 @@ Vector<TreeElement *> outliner_tree_resolve(ARegion *region,
   }
 
   int width = 0;
-  std::optional<TreeElement *> parent_inactive = std::nullopt;
   while (!stack.is_empty()) {
     if (!stack.last()) {
       stack.pop_last();
-      if (!stack.is_empty()) {
-        TreeElement *last = stack.last();
-        last->ymin = yoffset + UI_UNIT_Y;
-        last->level = stack.size() - 1;
-        have_warnings = have_warnings ||
-                        (last->abstract_element && last->abstract_element->have_warning());
-        if (last == parent_inactive.value_or(nullptr)) {
-          parent_inactive = std::nullopt;
-        }
-        if (!parent_inactive && !(last->ymin > viewy.max || last->ys < viewy.min)) {
-          visible_elements.append(last);
-        }
-        width = std::max<int>(width, int(last->xend));
-        stack.last() = last->next;
+      if (stack.is_empty()) {
+        continue;
       }
+      TreeElement *last = stack.last();
+      last->ymin = yoffset + UI_UNIT_Y;
+      last->level = stack.size() - 1;
+      have_warnings = have_warnings ||
+                      (last->abstract_element && last->abstract_element->have_warning());
+      if (!(last->ymin > viewy.max || last->ys < viewy.min)) {
+        visible_elements.append(last);
+      }
+      last->xs = columns_offset + last->level * UI_UNIT_X;
+      if (space_outliner->runtime->draw_cache_dirty) {
+        element_resolve_width(last, space_outliner, C ? &tvc : nullptr, r_width, r_have_warnings);
+      }
+      width = std::max<int>(width, int(last->xend));
+      stack.last() = last->next;
     }
     else {
-      stack.last()->ys = yoffset;
-      if (!parent_inactive) {
-        yoffset -= UI_UNIT_Y;
-      }
-      if ((!parent_inactive.has_value()) && !TSELEM_OPEN(TREESTORE(stack.last()), space_outliner))
-      {
-        parent_inactive = stack.last();
-      }
+      TreeElement *last = stack.last();
+      last->ys = yoffset;
+      yoffset -= UI_UNIT_Y;
 
-      stack.append(static_cast<TreeElement *>(stack.last()->subtree.first));
-      if (stack.last()) {
-        width = std::max<int>(width, int(stack.last()->xend));
+      if (TSELEM_OPEN(TREESTORE(last), space_outliner)) {
+        stack.append(static_cast<TreeElement *>(last->subtree.first));
+        last->merged_subtree = nullptr;
+      }
+      else {
+        stack.append(nullptr);
       }
     }
   }
   *r_width = width;
   *r_height = ystart - yoffset;
   *r_have_warnings = have_warnings;
+  space_outliner->runtime->draw_cache_dirty = false;
   return visible_elements;
 }
 
@@ -166,7 +275,12 @@ void outliner_tree_dimensions(ARegion *region,
                               int *r_height)
 {
   bool have_warnings;
-  outliner_tree_resolve(region, space_outliner, r_width, r_height, &have_warnings);
+  outliner_tree_resolve(nullptr, region, space_outliner, r_width, r_height, &have_warnings);
+  if (UNLIKELY((space_outliner->runtime->have_warnings != have_warnings))) {
+    space_outliner->runtime->draw_cache_dirty = true;
+    space_outliner->runtime->have_warnings = have_warnings;
+    outliner_tree_resolve(nullptr, region, space_outliner, r_width, r_height, &have_warnings);
+  }
 }
 
 /**
@@ -3128,7 +3242,7 @@ int tree_element_id_type_to_index(TreeElement *te)
   }
   else if (tselem->type == TSE_GREASE_PENCIL_NODE) {
     /* Use the index of the grease pencil ID for the grease pencil tree nodes (which are not IDs).
-     * All the Grease Pencil layer tree stats are stored in this index in #MergedIconRow. */
+     * All the Grease Pencil layer tree stats are stored in this index in #MergedSubtree. */
     id_index = INDEX_ID_GP;
   }
   else {
@@ -3145,25 +3259,75 @@ int tree_element_id_type_to_index(TreeElement *te)
   return id_index + OB_TYPE_MAX;
 }
 
-struct MergedIconRow {
-  eOLDrawState active[INDEX_ID_MAX + OB_TYPE_MAX];
-  int num_elements[INDEX_ID_MAX + OB_TYPE_MAX];
-  TreeElement *tree_element[INDEX_ID_MAX + OB_TYPE_MAX];
-};
-
 static void outliner_draw_iconrow(ui::Block *block,
-                                  const uiFontStyle *fstyle,
-                                  const TreeViewContext &tvc,
-                                  SpaceOutliner *space_outliner,
                                   ListBaseT<TreeElement> *lb,
                                   int level,
                                   int xmax,
                                   int *offsx,
                                   int ys,
                                   float alpha_fac,
-                                  bool in_bone_hierarchy,
-                                  const bool is_grease_pencil_node_hierarchy,
-                                  MergedIconRow *merged)
+                                  MergedSubtree *merged)
+{
+  eOLDrawState active = OL_DRAWSEL_NONE;
+
+  for (TreeElement &te : *lb) {
+    TreeStoreElem *tselem = TREESTORE(&te);
+
+    if (!ELEM(tselem->type,
+              TSE_ID_BASE,
+              TSE_SOME_ID,
+              TSE_LAYER_COLLECTION,
+              TSE_R_LAYER,
+              TSE_GP_LAYER,
+              TSE_GREASE_PENCIL_NODE,
+              TSE_LIBRARY_OVERRIDE_BASE,
+              TSE_LIBRARY_OVERRIDE,
+              TSE_LIBRARY_OVERRIDE_OPERATION,
+              TSE_BONE,
+              TSE_EBONE,
+              TSE_POSE_CHANNEL,
+              TSE_BONE_COLLECTION,
+              TSE_DEFGROUP,
+              TSE_ACTION_SLOT,
+              TSE_NLA_TRACK))
+    {
+      outliner_draw_iconrow_doit(block, &te, xmax, offsx, ys, alpha_fac, active, 1);
+    }
+  }
+
+  if (level == 0) {
+    for (int i = 0; i < INDEX_ID_MAX; i++) {
+      const int num_subtypes = (i == INDEX_ID_OB) ? OB_TYPE_MAX : 1;
+      /* See tree_element_id_type_to_index for the index logic. */
+      int index_base = i;
+      if (i > INDEX_ID_OB) {
+        index_base += OB_TYPE_MAX;
+      }
+      for (int j = 0; j < num_subtypes; j++) {
+        const int index = index_base + j;
+        if (merged->num_elements[index] != 0) {
+          outliner_draw_iconrow_doit(block,
+                                     merged->tree_element[index],
+                                     xmax,
+                                     offsx,
+                                     ys,
+                                     alpha_fac,
+                                     merged->active[index],
+                                     merged->num_elements[index]);
+        }
+      }
+    }
+  }
+}
+
+static void element_resolve_merged_subtree(const TreeViewContext &tvc,
+                                           ListBaseT<TreeElement> *lb,
+                                           int level,
+                                           int *offsx,
+                                           int ys,
+                                           bool in_bone_hierarchy,
+                                           const bool is_grease_pencil_node_hierarchy,
+                                           MergedSubtree *merged)
 {
   eOLDrawState active = OL_DRAWSEL_NONE;
 
@@ -3219,7 +3383,11 @@ static void outliner_draw_iconrow(ui::Block *block,
                 TSE_ACTION_SLOT,
                 TSE_NLA_TRACK))
       {
-        outliner_draw_iconrow_doit(block, &te, xmax, offsx, ys, alpha_fac, active, 1);
+        te.xs = *offsx;
+        te.ys = ys;
+        te.xend = short(*offsx) + UI_UNIT_X;
+        te.flag |= TE_ICONROW;
+        (*offsx) += UI_UNIT_X;
       }
       else if (tselem->type == TSE_GREASE_PENCIL_NODE &&
                tree_element_cast<TreeElementGreasePencilNode>(&te)->node().is_group())
@@ -3250,19 +3418,14 @@ static void outliner_draw_iconrow(ui::Block *block,
     if (!ELEM(tselem->type, TSE_R_LAYER, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL) ||
         in_bone_hierarchy || in_grease_pencil_node_hierarchy)
     {
-      outliner_draw_iconrow(block,
-                            fstyle,
-                            tvc,
-                            space_outliner,
-                            &te.subtree,
-                            level + 1,
-                            xmax,
-                            offsx,
-                            ys,
-                            alpha_fac,
-                            in_bone_hierarchy,
-                            in_grease_pencil_node_hierarchy,
-                            merged);
+      element_resolve_merged_subtree(tvc,
+                                     &te.subtree,
+                                     level + 1,
+                                     offsx,
+                                     ys,
+                                     in_bone_hierarchy,
+                                     in_grease_pencil_node_hierarchy,
+                                     merged);
     }
   }
 
@@ -3277,14 +3440,17 @@ static void outliner_draw_iconrow(ui::Block *block,
       for (int j = 0; j < num_subtypes; j++) {
         const int index = index_base + j;
         if (merged->num_elements[index] != 0) {
-          outliner_draw_iconrow_doit(block,
-                                     merged->tree_element[index],
-                                     xmax,
-                                     offsx,
-                                     ys,
-                                     alpha_fac,
-                                     merged->active[index],
-                                     merged->num_elements[index]);
+          TreeElement *te = merged->tree_element[index];
+          te->xs = *offsx;
+          te->ys = ys;
+          te->xend = short(*offsx) + UI_UNIT_X;
+          if (merged->num_elements[index] > 1) {
+            te->flag |= TE_ICONROW_MERGED;
+          }
+          else {
+            te->flag |= TE_ICONROW;
+          }
+          (*offsx) += UI_UNIT_X;
         }
       }
     }
@@ -3534,7 +3700,7 @@ static void outliner_draw_tree_element(ui::Block *block,
     offsx += int(UI_UNIT_X + ui::fontstyle_string_width(fstyle, te->name));
 
     /* Closed item, we draw the icons, not when it's a scene, or master-server list though. */
-    if (!TSELEM_OPEN(tselem, space_outliner)) {
+    if (!TSELEM_OPEN(tselem, space_outliner) && te->merged_subtree) {
       if (te->subtree.first) {
         if ((tselem->type == TSE_SOME_ID) && (te->idcode == ID_SCE)) {
           /* Pass. */
@@ -3545,29 +3711,14 @@ static void outliner_draw_tree_element(ui::Block *block,
 
           GPU_blend(GPU_BLEND_ALPHA);
 
-          MergedIconRow merged{};
-          outliner_draw_iconrow(block,
-                                fstyle,
-                                tvc,
-                                space_outliner,
-                                &te->subtree,
-                                0,
-                                xmax,
-                                &tempx,
-                                y,
-                                alpha_fac,
-                                false,
-                                false,
-                                &merged);
+          outliner_draw_iconrow(
+              block, &te->subtree, 0, xmax, &tempx, y, alpha_fac, te->merged_subtree.get());
 
           GPU_blend(GPU_BLEND_NONE);
         }
       }
     }
   }
-  /* Store coord and continue, we need coordinates for elements outside view too. */
-  te->xs = startx;
-  te->xend = startx + offsx;
 
   // if (TSELEM_OPEN(tselem, space_outliner)) {
   //   for (TreeElement &ten : te->subtree) {
@@ -4058,8 +4209,17 @@ void draw_outliner(const bContext *C, bool do_rebuild)
   /* Compute outliner dimensions. */
   int tree_width, tree_height;
   bool have_warnings;
-  const Vector<TreeElement *> visible_elements = outliner_tree_resolve(
-      region, space_outliner, &tree_width, &tree_height, &have_warnings);
+  Vector<TreeElement *> visible_elements = outliner_tree_resolve(
+      C, region, space_outliner, &tree_width, &tree_height, &have_warnings);
+
+  if (UNLIKELY(space_outliner->runtime->have_warnings != have_warnings ||
+               space_outliner->runtime->draw_cache_dirty))
+  {
+    space_outliner->runtime->draw_cache_dirty = true;
+    space_outliner->runtime->have_warnings = have_warnings;
+    visible_elements = outliner_tree_resolve(
+        C, region, space_outliner, &tree_width, &tree_height, &have_warnings);
+  }
 
   /* Force display to pixel coords. */
   v2d->flag |= (V2D_PIXELOFS_X | V2D_PIXELOFS_Y);

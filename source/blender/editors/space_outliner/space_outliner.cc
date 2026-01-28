@@ -134,6 +134,7 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
         case NA_REMOVED:
           if (space_outliner->outlinevis == SO_DATA_API) {
             ED_region_tag_redraw(region);
+            space_outliner->runtime->draw_cache_dirty = true;
           }
           break;
       }
@@ -142,6 +143,7 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
       switch (wmn->data) {
         case ND_LIB_OVERRIDE_CHANGED:
           ED_region_tag_redraw(region);
+          space_outliner->runtime->draw_cache_dirty = true;
           break;
       }
       break;
@@ -151,6 +153,7 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
         case ND_OB_SELECT:
           if (outliner_requires_rebuild_on_select_or_active_change(space_outliner)) {
             ED_region_tag_redraw(region);
+            space_outliner->runtime->draw_cache_dirty = true;
           }
           else {
             ED_region_tag_redraw_no_rebuild(region);
@@ -170,6 +173,7 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
         case ND_WORLD:
         case ND_SCENEBROWSE:
           ED_region_tag_redraw(region);
+          space_outliner->runtime->draw_cache_dirty = true;
           break;
         case ND_LAYER:
           /* Avoid rebuild if only the active collection changes */
@@ -177,7 +181,7 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
             ED_region_tag_redraw_no_rebuild(region);
             break;
           }
-
+          space_outliner->runtime->draw_cache_dirty = true;
           ED_region_tag_redraw(region);
           break;
       }
@@ -197,44 +201,53 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
         case ND_PARENT:
         case ND_OB_SHADING:
           ED_region_tag_redraw(region);
+          space_outliner->runtime->draw_cache_dirty = true;
           break;
         case ND_CONSTRAINT:
           /* all constraint actions now, for reordering */
           ED_region_tag_redraw(region);
+          space_outliner->runtime->draw_cache_dirty = true;
           break;
         case ND_MODIFIER:
           /* all modifier actions now */
           ED_region_tag_redraw(region);
+          space_outliner->runtime->draw_cache_dirty = true;
           break;
         default:
           /* Trigger update for NC_OBJECT itself */
           ED_region_tag_redraw(region);
+          space_outliner->runtime->draw_cache_dirty = true;
           break;
       }
       break;
     case NC_GROUP:
       /* All actions now, TODO: check outliner view mode? */
       ED_region_tag_redraw(region);
+      space_outliner->runtime->draw_cache_dirty = true;
       break;
     case NC_LAMP:
       /* For updating light icons, when changing light type */
       if (wmn->data == ND_LIGHTING_DRAW) {
         ED_region_tag_redraw(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
     case NC_SPACE:
       if (wmn->data == ND_SPACE_OUTLINER) {
         ED_region_tag_redraw(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
     case NC_ID:
       if (ELEM(wmn->action, NA_RENAME, NA_ADDED, NA_REMOVED)) {
         ED_region_tag_redraw(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
     case NC_ASSET:
       if (ELEM(wmn->action, NA_ADDED, NA_REMOVED)) {
         ED_region_tag_redraw_no_rebuild(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
     case NC_MATERIAL:
@@ -248,10 +261,12 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
       switch (wmn->data) {
         case ND_VERTEX_GROUP:
           ED_region_tag_redraw(region);
+          space_outliner->runtime->draw_cache_dirty = true;
           break;
         case ND_DATA:
           if (wmn->action == NA_RENAME) {
             ED_region_tag_redraw(region);
+            space_outliner->runtime->draw_cache_dirty = true;
           }
           break;
       }
@@ -261,45 +276,54 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
         case ND_NLA_ACTCHANGE:
         case ND_KEYFRAME:
           ED_region_tag_redraw(region);
+          space_outliner->runtime->draw_cache_dirty = true;
           break;
         case ND_ANIMCHAN:
           if (ELEM(wmn->action, NA_SELECTED, NA_RENAME)) {
             ED_region_tag_redraw(region);
+            space_outliner->runtime->draw_cache_dirty = true;
           }
           break;
         case ND_NLA:
           if (ELEM(wmn->action, NA_ADDED, NA_REMOVED)) {
             ED_region_tag_redraw(region);
+            space_outliner->runtime->draw_cache_dirty = true;
           }
           break;
         case ND_NLA_ORDER:
           ED_region_tag_redraw(region);
+          space_outliner->runtime->draw_cache_dirty = true;
           break;
       }
       break;
     case NC_GPENCIL:
       if (ELEM(wmn->action, NA_EDITED, NA_SELECTED, NA_RENAME)) {
         ED_region_tag_redraw(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
     case NC_SCREEN:
       if (ELEM(wmn->data, ND_LAYOUTDELETE, ND_LAYER)) {
         ED_region_tag_redraw(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
     case NC_MASK:
       if (ELEM(wmn->action, NA_ADDED)) {
         ED_region_tag_redraw(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
     case NC_PAINTCURVE:
       if (ELEM(wmn->action, NA_ADDED)) {
         ED_region_tag_redraw(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
     case NC_TEXT:
       if (ELEM(wmn->action, NA_ADDED, NA_REMOVED)) {
         ED_region_tag_redraw(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
     case NC_NODE:
@@ -307,6 +331,7 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
           ELEM(space_outliner->outlinevis, SO_LIBRARIES, SO_DATA_API))
       {
         ED_region_tag_redraw(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
     case NC_IMAGE:
@@ -314,6 +339,7 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
           ELEM(space_outliner->outlinevis, SO_LIBRARIES, SO_DATA_API))
       {
         ED_region_tag_redraw(region);
+        space_outliner->runtime->draw_cache_dirty = true;
       }
       break;
   }

@@ -10,7 +10,9 @@
 
 #include <memory>
 
+#include "DNA_ID.h"
 #include "DNA_listBase.h"
+#include "DNA_object_types.h"
 
 #include "BLI_function_ref.hh"
 
@@ -61,6 +63,9 @@ struct SpaceOutliner_Runtime {
 
   /* Hash table for tree-store elements, using `(id, type, index)` as key. */
   std::unique_ptr<treehash::TreeHash> tree_hash;
+
+  bool have_warnings = false;
+  bool draw_cache_dirty = true;
 
   SpaceOutliner_Runtime() = default;
   /** Used for copying runtime data to a duplicated space. */
@@ -125,6 +130,7 @@ struct TreeElement {
   short level;
   int ymin;
   const char *name;
+  std::unique_ptr<struct MergedSubtree> merged_subtree;
   void *directdata; /* Armature Bones, Base, ... */
 };
 
@@ -703,6 +709,12 @@ template<typename TreeElementT> TreeElementT *tree_element_cast(const TreeElemen
                 "Requested tree-element type must be an AbstractTreeElement");
   return dynamic_cast<TreeElementT *>(te->abstract_element.get());
 }
+
+struct MergedSubtree {
+  eOLDrawState active[INDEX_ID_MAX + OB_TYPE_MAX];
+  int num_elements[INDEX_ID_MAX + OB_TYPE_MAX];
+  TreeElement *tree_element[INDEX_ID_MAX + OB_TYPE_MAX];
+};
 
 }  // namespace ed::outliner
 }  // namespace blender

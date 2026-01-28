@@ -1188,6 +1188,7 @@ void outliner_build_tree(Main *mainvar,
       space_outliner->treestore)
   {
     space_outliner->runtime->tree_hash->rebuild_from_treestore(*space_outliner->treestore);
+    space_outliner->runtime->draw_cache_dirty = true;
   }
   space_outliner->storeflag &= ~SO_TREESTORE_REBUILD;
 
@@ -1204,6 +1205,7 @@ void outliner_build_tree(Main *mainvar,
 
   OutlinerTreeElementFocus focus;
   outliner_store_scrolling_position(space_outliner, region, &focus);
+  space_outliner->runtime->draw_cache_dirty = true;
 
   outliner_free_tree(&space_outliner->tree);
   outliner_storage_cleanup(space_outliner);
