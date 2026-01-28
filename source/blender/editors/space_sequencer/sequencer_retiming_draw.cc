@@ -151,7 +151,7 @@ static bool fake_keys_draw(const TimelineDrawContext &ctx,
   const Strip *strip = strip_ctx.strip;
   const Scene *scene = ctx.scene;
 
-  if (!seq::retiming_is_active(strip) && !seq::retiming_data_is_editable(strip)) {
+  if (!seq::retiming_has_keys(strip) && !seq::retiming_data_is_editable(strip)) {
     return false;
   }
 

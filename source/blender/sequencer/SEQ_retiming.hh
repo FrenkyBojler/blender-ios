@@ -26,7 +26,7 @@ int left_fake_key_frame_get(const Scene *scene, const Strip *strip);
 int right_fake_key_frame_get(const Scene *scene, const Strip *strip);
 Map<SeqRetimingKey *, Strip *> retiming_selection_get(const Editing *ed);
 int retiming_keys_count(const Strip *strip);
-bool retiming_is_active(const Strip *strip);
+bool retiming_has_keys(const Strip *strip);
 void retiming_data_ensure(Strip *strip);
 SeqRetimingKey *ensure_left_and_right_keys(const Scene *scene, Strip *strip);
 void realize_fake_keys(const Scene *scene, Strip *strip);

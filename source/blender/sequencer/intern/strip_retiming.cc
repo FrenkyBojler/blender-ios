@@ -142,9 +142,10 @@ bool retiming_is_allowed(const Strip *strip)
               STRIP_TYPE_MASK);
 }
 
-bool retiming_is_active(const Strip *strip)
+bool retiming_has_keys(const Strip *strip)
 {
-  return strip->retiming_keys_num > 1;
+  /* Technically all strips must have at least 2 keys, but we can assume none violate this. */
+  return strip->retiming_keys_num > 0;
 }
 
 static Bounds<float> strip_retiming_clamp_bounds_get(const Scene *scene,
@@ -327,7 +328,7 @@ void retiming_data_ensure(Strip *strip)
     return;
   }
 
-  if (retiming_is_active(strip)) {
+  if (retiming_has_keys(strip)) {
     return;
   }
 

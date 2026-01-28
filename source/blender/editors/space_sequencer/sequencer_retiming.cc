@@ -617,7 +617,7 @@ static float strip_speed_get(const Scene *scene)
   /* Strip mode. */
   if (!sequencer_retiming_mode_is_active(scene)) {
     Strip *strip = seq::editing_get(scene)->act_strip;
-    if (!strip || !seq::retiming_is_active(strip)) {
+    if (!strip || !seq::retiming_has_keys(strip)) {
       return 1.0f;
     }
     int right_frame = seq::right_fake_key_frame_get(scene, strip);
