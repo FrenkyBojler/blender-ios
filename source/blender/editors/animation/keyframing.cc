@@ -129,7 +129,7 @@ void ED_keyframes_add(FCurve *fcu, int num_keys_to_add)
   }
 
   fcu->bezt = static_cast<BezTriple *>(
-      MEM_recallocN(fcu->bezt, sizeof(BezTriple) * (fcu->totvert + num_keys_to_add)));
+      MEM_realloc_zeroed(fcu->bezt, sizeof(BezTriple) * (fcu->totvert + num_keys_to_add)));
   BezTriple *bezt = fcu->bezt + fcu->totvert; /* Pointer to the first new one. */
 
   fcu->totvert += num_keys_to_add;
@@ -566,7 +566,7 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
   }
 
   if (free) {
-    MEM_freeN(item_array);
+    MEM_delete(item_array);
   }
 
   popup_menu_end(C, pup);
@@ -948,7 +948,7 @@ void ANIM_OT_keyframe_clear_vse(wmOperatorType *ot)
 static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
 {
   /* don't touch protected F-Curves */
-  if (BKE_fcurve_is_protected(fcu)) {
+  if (!fcu || BKE_fcurve_is_protected(*fcu)) {
     BKE_reportf(reports,
                 RPT_WARNING,
                 "Not deleting keyframe for locked F-Curve '%s', object '%s'",
@@ -990,7 +990,7 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
 static bool can_delete_scene_key(FCurve *fcu, Scene *scene, wmOperator *op)
 {
   /* Don't touch protected F-Curves. */
-  if (BKE_fcurve_is_protected(fcu)) {
+  if (!fcu || BKE_fcurve_is_protected(*fcu)) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
                 "Not deleting keyframe for locked F-Curve '%s', scene '%s'",
@@ -1456,7 +1456,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
       FCurve *fcu = BKE_fcurve_find(&strip->fcurves, RNA_property_identifier(prop), 0);
 
       if (fcu) {
-        if (BKE_fcurve_is_protected(fcu)) {
+        if (BKE_fcurve_is_protected(*fcu)) {
           BKE_reportf(
               op->reports,
               RPT_WARNING,
@@ -1478,7 +1478,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
           if (found) {
             /* delete the key at the index (will sanity check + do recalc afterwards) */
             BKE_fcurve_delete_key(fcu, i);
-            BKE_fcurve_handles_recalc(fcu);
+            BKE_fcurve_handles_recalc(*fcu);
             changed = true;
           }
         }
