@@ -1322,6 +1322,46 @@ int outliner_flag_is_any_test(ListBaseT<TreeElement> *lb, short flag, const int 
 
 bool outliner_flag_set(SpaceOutliner &space_outliner, const short flag, const short set)
 {
+  if (flag | TSE_HIGHLIGHTED_ANY) {
+    /* Optimization for removing highlights, only try to do this for visible elements. */
+    bool changed = false;
+    tree_iterator::all_open(space_outliner, [&](TreeElement *te) {
+      TreeStoreElem *tselem = TREESTORE(te);
+      bool has_flag = (tselem->flag & flag);
+      if (set == 0) {
+        if (has_flag) {
+          tselem->flag &= ~flag;
+          changed = true;
+        }
+      }
+      else if (!has_flag) {
+        tselem->flag |= flag;
+        changed = true;
+      }
+      if (set != has_flag && te->merged_subtree) {
+        for (TreeElement *child : te->merged_subtree->tree_element) {
+          if (!child) {
+            continue;
+          }
+          TreeStoreElem *child_tselem = TREESTORE(child);
+          bool has_flag = (child_tselem->flag & flag);
+          if (set == 0) {
+            if (has_flag) {
+              child_tselem->flag &= ~flag;
+              changed = true;
+            }
+          }
+          else if (!has_flag) {
+            child_tselem->flag |= flag;
+            changed = true;
+          }
+        }
+      }
+    });
+    if (changed) {
+      return true;
+    }
+  }
   return outliner_flag_set(space_outliner.tree, flag, set);
 }
 
