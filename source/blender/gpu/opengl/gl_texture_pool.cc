@@ -53,10 +53,10 @@ static TextureFormat get_compatible_texture_format(TextureFormat format)
 
 GLTexturePool::~GLTexturePool()
 {
-  for (const auto &handle : acquired_) {
+  for (const TextureHandle &handle : acquired_) {
     release_texture(wrap(handle.view));
   }
-  for (auto &handle : pool_) {
+  for (AllocationHandle &handle : pool_) {
     GPU_texture_free(handle.texture);
   }
 }
@@ -75,7 +75,7 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
   /* Search for the first compatible existing texture. */
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
-    const auto &handle = pool_[i];
+    const AllocationHandle &handle = pool_[i];
     if (handle.texture->format_get() != compatible_format) {
       continue;
     }
@@ -144,7 +144,7 @@ void GLTexturePool::release_texture(Texture *tex)
 {
   BLI_assert_msg(acquired_.contains({unwrap(tex)}),
                  "Unacquired texture passed to TexturePool::release_texture()");
-  auto texture_handle = acquired_.lookup_key({unwrap(tex), {}, 1});
+  TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex), {}, 1});
 
   if (G.debug & G_DEBUG_GPU) {
     current_usage_data_.usage_count--;
@@ -164,7 +164,7 @@ void GLTexturePool::offset_users_count(Texture *tex, int offset)
 {
   BLI_assert_msg(acquired_.contains({unwrap(tex)}),
                  "Unacquired texture passed to TexturePool::offset_users_count()");
-  auto texture_handle = acquired_.lookup_key({unwrap(tex), {}, 1});
+  TextureHandle texture_handle = acquired_.lookup_key({unwrap(tex), {}, 1});
   texture_handle.users_count += offset;
   acquired_.add_overwrite(texture_handle);
 }
