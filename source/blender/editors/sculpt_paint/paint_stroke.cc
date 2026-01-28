@@ -1696,12 +1696,9 @@ void PaintStroke::cancel(bContext *C, wmOperator *op)
   this->stroke_done(C, op, true);
 }
 
-static const bToolRef *brush_tool_get(const ScrArea *area,
-                                      const ARegion *region,
-                                      const Paint *paint)
+static const bToolRef *brush_tool_get(const ScrArea *area, const ARegion *region)
 {
-  if (paint && BKE_paint_brush_for_read(paint) &&
-      (area && ELEM(area->spacetype, SPACE_VIEW3D, SPACE_IMAGE)) &&
+  if ((area && ELEM(area->spacetype, SPACE_VIEW3D, SPACE_IMAGE)) &&
       (region && region->regiontype == RGN_TYPE_WINDOW))
   {
     if (area->runtime.tool && area->runtime.tool->runtime &&
@@ -1727,7 +1724,15 @@ bool paint_brush_tool_poll(const ScrArea *area,
                            const Paint *paint,
                            const Object *ob)
 {
-  const bToolRef *tref = brush_tool_get(area, region, paint);
+  if (!paint) {
+    return false;
+  }
+
+  if (!BKE_paint_brush_for_read(paint)) {
+    return false;
+  }
+
+  const bToolRef *tref = brush_tool_get(area, region);
   if (!tref) {
     return false;
   }
@@ -1743,9 +1748,18 @@ bool paint_brush_tool_poll(const ScrArea *area,
 bool paint_brush_cursor_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
+
+  if (!paint) {
+    return false;
+  }
+
+  if (!BKE_paint_brush_for_read(paint)) {
+    return false;
+  }
+
   const ScrArea *area = CTX_wm_area(C);
   const ARegion *region = CTX_wm_region(C);
-  const bToolRef *tref = brush_tool_get(area, region, paint);
+  const bToolRef *tref = brush_tool_get(area, region);
 
   if (!tref) {
     return false;
