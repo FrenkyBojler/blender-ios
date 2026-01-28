@@ -109,7 +109,7 @@ void VKTexturePool::AllocationHandle::release(Segment segment)
   }
 }
 
-bool VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirements)
+void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirements)
 {
   VKDevice &device = VKBackend::get().device;
 
@@ -124,10 +124,12 @@ bool VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirem
                                       &allocation,
                                       &allocation_info);
 
+  /* WATCH(not_mark): will remove asserts when pool is a bit more mature. */
+  UNUSED_VARS(result);
+  BLI_assert(bind_result == VK_SUCCESS);
+
   /* Start with a single segment, sized to the full range of the allocation. */
   segments = {{allocation_info.offset, allocation_info.size}};
-
-  return result == VK_SUCCESS;
 }
 
 void VKTexturePool::AllocationHandle::free()
@@ -139,7 +141,7 @@ void VKTexturePool::AllocationHandle::free()
   segments = {};
 }
 
-bool VKTexturePool::TextureHandle::alloc(int2 extent,
+void VKTexturePool::TextureHandle::alloc(int2 extent,
                                          TextureFormat format,
                                          eGPUTextureUsage usage,
                                          const char *name)
@@ -184,10 +186,13 @@ bool VKTexturePool::TextureHandle::alloc(int2 extent,
   create_info.extent.width = static_cast<uint32_t>(extent.x);
   create_info.extent.height = static_cast<uint32_t>(extent.y);
   create_info.extent.depth = 1u;
+
   VkResult result = vkCreateImage(
       device.vk_handle(), &create_info, nullptr, &(texture->vk_image_));
 
-  return result == VK_SUCCESS;
+  /* WATCH(not_mark): will remove asserts when pool is a bit more mature. */
+  UNUSED_VARS(result);
+  BLI_assert(result);
 }
 
 void VKTexturePool::TextureHandle::free()
@@ -264,18 +269,17 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   }
 
   /* Bind VkImage to allocation. */
-  VkResult bind_result = vmaBindImageMemory2(device.mem_allocator_get(),
-                                             texture_handle.allocation_handle.allocation,
-                                             texture_handle.allocation_local_offset(),
-                                             texture_handle.texture->vk_image_,
-                                             nullptr);
+  VkResult result = vmaBindImageMemory2(device.mem_allocator_get(),
+                                        texture_handle.allocation_handle.allocation,
+                                        texture_handle.allocation_local_offset(),
+                                        texture_handle.texture->vk_image_,
+                                        nullptr);
 
   /* WATCH(not_mark): if the bind fails with e.g. VK_ERROR_UNKNOWN, VkMemoryRequirements are
    * likely not correctly satisfied. I'll keep the assert in for now, as the problem otherwise
    * incorrectly shows up in the render graph. */
-  UNUSED_VARS(bind_result);
-  BLI_assert_msg(bind_result == VK_SUCCESS,
-                 "VKTexturePool::acquire failed on vmaBindImageMemory2.");
+  UNUSED_VARS(result);
+  BLI_assert_msg(result == VK_SUCCESS, "VKTexturePool::acquire failed on vmaBindImageMemory2.");
 
   debug::object_label(texture_handle.texture->vk_image_, texture_handle.texture->name_);
   device.resources.add_aliased_image(

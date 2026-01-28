@@ -39,7 +39,7 @@ class VKTexturePool : public TexturePool {
     std::list<Segment> segments;
 
     /* Allocate/deallocate the handle internals. */
-    bool alloc(VkMemoryRequirements memory_requirements);
+    void alloc(VkMemoryRequirements memory_requirements);
     void free();
 
     /* Extract a segment of the allocation for binding, if compatible. */
@@ -78,7 +78,7 @@ class VKTexturePool : public TexturePool {
     int users_count = 1;
 
     /* Create or destroy the VKTexture+VkImage and handle internals. */
-    bool alloc(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
+    void alloc(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
     void free();
 
     VkDeviceSize allocation_local_offset() const
