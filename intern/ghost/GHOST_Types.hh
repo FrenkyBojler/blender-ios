@@ -1136,8 +1136,6 @@ struct GHOST_XrContextCreateInfo {
 };
 
 struct GHOST_XrSessionBeginInfo {
-  GHOST_XrPose base_pose;
-
   GHOST_XrSessionCreateFn create_fn;
   GHOST_XrSessionExitFn exit_fn;
   void *exit_customdata;
