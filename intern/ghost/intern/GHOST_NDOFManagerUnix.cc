@@ -9,10 +9,17 @@
 #include "CLG_log.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <spnav.h>
 #include <unistd.h>
 
-static const char *spnav_sock_path = "/var/run/spnav.sock";
+static const char *get_spnav_sock_path()
+{
+  const char *env_path = getenv("SPNAV_SOCKET");
+  return env_path ? env_path : "/var/run/spnav.sock";
+}
+
+static const char *spnav_sock_path = get_spnav_sock_path();
 
 static CLG_LogRef LOG = {"ghost.ndof"};
 
