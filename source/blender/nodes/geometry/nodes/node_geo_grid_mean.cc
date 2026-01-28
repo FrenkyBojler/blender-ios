@@ -2,23 +2,23 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
- #include "NOD_rna_define.hh"
- #include "NOD_socket_search_link.hh"
+#include "NOD_rna_define.hh"
+#include "NOD_socket_search_link.hh"
 
- #include "RNA_enum_types.hh"
+#include "RNA_enum_types.hh"
 
- #include "node_geometry_util.hh"
+#include "node_geometry_util.hh"
 
- #include "UI_interface_layout.hh"
- #include "UI_resources.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
- #include "BKE_volume_grid.hh"
+#include "BKE_volume_grid.hh"
 #include "BKE_volume_grid_process.hh"
- #include "BKE_volume_openvdb.hh"
+#include "BKE_volume_openvdb.hh"
 
- #ifdef WITH_OPENVDB
- #  include "openvdb/tools/Filter.h"
- #endif
+#ifdef WITH_OPENVDB
+#  include "openvdb/tools/Filter.h"
+#endif
 
 namespace blender::nodes::node_geo_grid_mean_cc {
 
