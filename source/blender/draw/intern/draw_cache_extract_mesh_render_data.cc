@@ -358,81 +358,6 @@ const SortedFaceData &mesh_render_data_faces_sorted_ensure(const MeshRenderData 
 /** \name Mesh/BMesh Interface (indirect, partially cached access to complex data).
  * \{ */
 
-const Mesh &editmesh_final_or_this(const Object &object, const Mesh &mesh)
-{
-  if (mesh.runtime->edit_mesh != nullptr) {
-    if (const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(&object)) {
-      return *editmesh_eval_final;
-    }
-  }
-
-  return mesh;
-}
-
-const CustomData &mesh_cd_ldata_get_from_mesh(const Mesh &mesh)
-{
-  switch (mesh.runtime->wrapper_type) {
-    case ME_WRAPPER_TYPE_SUBD:
-    case ME_WRAPPER_TYPE_MDATA:
-      return mesh.corner_data;
-      break;
-    case ME_WRAPPER_TYPE_BMESH:
-      return mesh.runtime->edit_mesh->bm->ldata;
-      break;
-  }
-
-  BLI_assert(0);
-  return mesh.corner_data;
-}
-
-const CustomData &mesh_cd_pdata_get_from_mesh(const Mesh &mesh)
-{
-  switch (mesh.runtime->wrapper_type) {
-    case ME_WRAPPER_TYPE_SUBD:
-    case ME_WRAPPER_TYPE_MDATA:
-      return mesh.face_data;
-      break;
-    case ME_WRAPPER_TYPE_BMESH:
-      return mesh.runtime->edit_mesh->bm->pdata;
-      break;
-  }
-
-  BLI_assert(0);
-  return mesh.face_data;
-}
-
-const CustomData &mesh_cd_edata_get_from_mesh(const Mesh &mesh)
-{
-  switch (mesh.runtime->wrapper_type) {
-    case ME_WRAPPER_TYPE_SUBD:
-    case ME_WRAPPER_TYPE_MDATA:
-      return mesh.edge_data;
-      break;
-    case ME_WRAPPER_TYPE_BMESH:
-      return mesh.runtime->edit_mesh->bm->edata;
-      break;
-  }
-
-  BLI_assert(0);
-  return mesh.edge_data;
-}
-
-const CustomData &mesh_cd_vdata_get_from_mesh(const Mesh &mesh)
-{
-  switch (mesh.runtime->wrapper_type) {
-    case ME_WRAPPER_TYPE_SUBD:
-    case ME_WRAPPER_TYPE_MDATA:
-      return mesh.vert_data;
-      break;
-    case ME_WRAPPER_TYPE_BMESH:
-      return mesh.runtime->edit_mesh->bm->vdata;
-      break;
-  }
-
-  BLI_assert(0);
-  return mesh.vert_data;
-}
-
 static bool bm_edge_is_sharp(const BMEdge *const &edge)
 {
   return !BM_elem_flag_test(edge, BM_ELEM_SMOOTH);
@@ -467,16 +392,18 @@ static bke::MeshNormalDomain bmesh_normals_domain(BMesh *bm)
   }
 
   BM_mesh_elem_table_ensure(bm, BM_FACE);
-  const VArray<bool> sharp_faces = VArray<bool>::ForDerivedSpan<const BMFace *, bm_face_is_sharp>(
-      Span(bm->ftable, bm->totface));
+  const VArray<bool> sharp_faces =
+      VArray<bool>::from_derived_span<const BMFace *, bm_face_is_sharp>(
+          Span(bm->ftable, bm->totface));
   const array_utils::BooleanMix face_mix = array_utils::booleans_mix_calc(sharp_faces);
   if (face_mix == array_utils::BooleanMix::AllTrue) {
     return bke::MeshNormalDomain::Face;
   }
 
   BM_mesh_elem_table_ensure(bm, BM_EDGE);
-  const VArray<bool> sharp_edges = VArray<bool>::ForDerivedSpan<const BMEdge *, bm_edge_is_sharp>(
-      Span(bm->etable, bm->totedge));
+  const VArray<bool> sharp_edges =
+      VArray<bool>::from_derived_span<const BMEdge *, bm_edge_is_sharp>(
+          Span(bm->etable, bm->totedge));
   const array_utils::BooleanMix edge_mix = array_utils::booleans_mix_calc(sharp_edges);
   if (edge_mix == array_utils::BooleanMix::AllTrue) {
     return bke::MeshNormalDomain::Face;
@@ -601,8 +528,10 @@ MeshRenderData mesh_render_data_create(Object &object,
     mr.bweight_ofs = CustomData_get_offset_named(
         &mr.bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
 #ifdef WITH_FREESTYLE
-    mr.freestyle_edge_ofs = CustomData_get_offset(&mr.bm->edata, CD_FREESTYLE_EDGE);
-    mr.freestyle_face_ofs = CustomData_get_offset(&mr.bm->pdata, CD_FREESTYLE_FACE);
+    mr.freestyle_edge_ofs = CustomData_get_offset_named(
+        &mr.bm->edata, CD_PROP_BOOL, "freestyle_edge");
+    mr.freestyle_face_ofs = CustomData_get_offset_named(
+        &mr.bm->pdata, CD_PROP_BOOL, "freestyle_face");
 #endif
 
     /* Use bmesh directly when the object is unchanged by any modifiers. For non-final UVs, always

@@ -9,10 +9,12 @@
 #include "BLI_endian_switch.h"
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 struct FileReader;
 
 struct BHead {
-  /** Identifier for this #BHead. Can be any of BLO_CODE_* or an ID code like ID_OB.  */
+  /** Identifier for this #BHead. Can be any of BLO_CODE_* or an ID code like ID_OB. */
   int code;
   /** Identifier of the struct type that is stored in this block. */
   int SDNAnr;
@@ -122,9 +124,11 @@ std::optional<BHead> BLO_readfile_read_bhead(FileReader *file, BHeadType type);
 inline uint32_t uint32_from_uint64_ptr(uint64_t ptr)
 {
   /* NOTE: this is endianness-sensitive. */
-  /* Switching endianess would be required to reduce the risk of two different 64bits pointers
+  /* Switching endianness would be required to reduce the risk of two different 64bits pointers
    * generating the same 32bits value. */
   /* Behavior has to match #cast_pointer_64_to_32. */
   ptr >>= 3;
   return uint32_t(ptr);
 }
+
+}  // namespace blender

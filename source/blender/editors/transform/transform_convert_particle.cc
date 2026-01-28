@@ -87,11 +87,11 @@ static void createTransParticleVerts(bContext * /*C*/, TransInfo *t)
     }
 
     tc->data_len = count;
-    td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransObData(Particle Mode)");
+    td = tc->data = MEM_new_array_zeroed<TransData>(tc->data_len, "TransObData(Particle Mode)");
 
     if (t->mode == TFM_BAKE_TIME) {
-      tx = tc->data_ext = MEM_calloc_arrayN<TransDataExtension>(tc->data_len,
-                                                                "Particle_TransExtension");
+      tx = tc->data_ext = MEM_new_array_zeroed<TransDataExtension>(tc->data_len,
+                                                                   "Particle_TransExtension");
     }
     else {
       tx = tc->data_ext = nullptr;
@@ -143,7 +143,6 @@ static void createTransParticleVerts(bContext * /*C*/, TransInfo *t)
           td->protectflag |= OB_LOCK_LOC;
         }
 
-        td->ext = tx;
         if (t->mode == TFM_BAKE_TIME) {
           td->val = key->time;
           td->ival = *(key->time);

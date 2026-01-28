@@ -16,7 +16,6 @@ device_memory::device_memory(Device *device, const char *_name, MemoryType type)
       device_size(0),
       data_width(0),
       data_height(0),
-      data_depth(0),
       type(type),
       name_storage(_name),
       device(device),
@@ -70,12 +69,11 @@ void device_memory::host_and_device_free()
   data_size = 0;
   data_width = 0;
   data_height = 0;
-  data_depth = 0;
 }
 
 void device_memory::device_alloc()
 {
-  assert(!device_pointer && type != MEM_TEXTURE && type != MEM_GLOBAL);
+  assert(!device_pointer && type != MEM_IMAGE_TEXTURE && type != MEM_GLOBAL);
   device->mem_alloc(*this);
 }
 
@@ -95,7 +93,7 @@ void device_memory::device_move_to_host()
 
 void device_memory::device_copy_from(const size_t y, const size_t w, size_t h, const size_t elem)
 {
-  assert(type != MEM_TEXTURE && type != MEM_READ_ONLY && type != MEM_GLOBAL);
+  assert(type != MEM_IMAGE_TEXTURE && type != MEM_READ_ONLY);
   device->mem_copy_from(*this, y, w, h, elem);
 }
 
@@ -156,13 +154,13 @@ device_sub_ptr::~device_sub_ptr()
 
 /* Device Texture */
 
-device_texture::device_texture(Device *device,
-                               const char *name,
-                               const uint slot,
-                               ImageDataType image_data_type,
-                               InterpolationType interpolation,
-                               ExtensionType extension)
-    : device_memory(device, name, MEM_TEXTURE), slot(slot)
+device_image::device_image(Device *device,
+                           const char *name,
+                           const uint slot,
+                           ImageDataType image_data_type,
+                           InterpolationType interpolation,
+                           ExtensionType extension)
+    : device_memory(device, name, MEM_IMAGE_TEXTURE), slot(slot)
 {
   switch (image_data_type) {
     case IMAGE_DATA_TYPE_FLOAT4:
@@ -180,8 +178,10 @@ device_texture::device_texture(Device *device,
     case IMAGE_DATA_TYPE_BYTE:
     case IMAGE_DATA_TYPE_NANOVDB_FLOAT:
     case IMAGE_DATA_TYPE_NANOVDB_FLOAT3:
+    case IMAGE_DATA_TYPE_NANOVDB_FLOAT4:
     case IMAGE_DATA_TYPE_NANOVDB_FPN:
     case IMAGE_DATA_TYPE_NANOVDB_FP16:
+    case IMAGE_DATA_TYPE_NANOVDB_EMPTY:
       data_type = TYPE_UCHAR;
       data_elements = 1;
       break;
@@ -211,15 +211,15 @@ device_texture::device_texture(Device *device,
   info.extension = extension;
 }
 
-device_texture::~device_texture()
+device_image::~device_image()
 {
   host_and_device_free();
 }
 
 /* Host memory allocation. */
-void *device_texture::alloc(const size_t width, const size_t height, const size_t depth)
+void *device_image::alloc(const size_t width, const size_t height)
 {
-  const size_t new_size = size(width, height, depth);
+  const size_t new_size = size(width, height);
 
   if (new_size != data_size) {
     host_and_device_free();
@@ -230,16 +230,14 @@ void *device_texture::alloc(const size_t width, const size_t height, const size_
   data_size = new_size;
   data_width = width;
   data_height = height;
-  data_depth = depth;
 
   info.width = width;
   info.height = height;
-  info.depth = depth;
 
   return host_pointer;
 }
 
-void device_texture::copy_to_device()
+void device_image::copy_to_device()
 {
   device_copy_to();
 }

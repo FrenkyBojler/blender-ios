@@ -126,7 +126,7 @@ def ctx_editmode_mesh():
 def ctx_editmode_mesh_extra():
     bpy.ops.wm.read_factory_settings(use_empty=False)
     bpy.ops.object.vertex_group_add()
-    bpy.ops.object.shape_key_add(from_mix=False)
+    bpy.ops.object.shape_key_add(from_mix=False)  # Basis Key
     bpy.ops.object.shape_key_add(from_mix=True)
     bpy.ops.mesh.uv_texture_add()
     bpy.ops.object.material_slot_add()

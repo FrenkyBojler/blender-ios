@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_depth_mesh_conservative)
 
@@ -11,6 +11,8 @@ VERTEX_SHADER_CREATE_INFO(overlay_depth_mesh_conservative)
 #include "draw_view_lib.glsl"
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_index_load_lib.glsl"
+
+#include "gpu_shader_math_matrix_compare_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 #include "select_lib.glsl"
 
@@ -41,7 +43,7 @@ VertOut vertex_main(VertIn v_in)
   return v_out;
 }
 
-void do_vertex(const uint i,
+void do_vertex(uint i,
                uint out_vertex_id,
                uint out_primitive_id,
                VertOut geom_in,
@@ -53,6 +55,18 @@ void do_vertex(const uint i,
   }
 
   view_clipping_distances(geom_in.ws_P);
+
+  /* WORKAROUND: The subpixel hack that does the small triangle expansion needs to have correct
+   * winding w.r.t. the culling mode. Otherwise, the fragment shader will discard valid triangles
+   * and objects will become unselectable (see #85015). */
+  if ((any(is_subpixel) || is_coplanar) && is_negative(drw_modelmat())) {
+    if (i == 1) {
+      i = 2;
+    }
+    else if (i == 2) {
+      i = 1;
+    }
+  }
 
   gl_Position = geom_in.hs_P;
   if (all(is_subpixel)) {

@@ -5,7 +5,7 @@
 
 #include "CLG_log.h"
 
-#include "GHOST_Path-api.hh"
+#include "GHOST_ISystemPaths.hh"
 
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -29,9 +29,9 @@
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 
-#include "IMB_imbuf.hh"
+#include "NOD_defaults.hh"
 
-#include "ED_node.hh"
+#include "IMB_imbuf.hh"
 
 namespace blender::bke::tests {
 
@@ -89,7 +89,7 @@ class LibQueryTest : public ::testing::Test {
     RNA_exit();
     IMB_exit();
     BKE_appdir_exit();
-    GHOST_DisposeSystemPaths();
+    GHOST_ISystemPaths::dispose();
     CLG_exit();
   }
 };
@@ -111,7 +111,7 @@ class WholeIDTestData : public TestData {
     this->target = BKE_object_add_only_object(this->bmain, OB_EMPTY, "IDLibQueryTarget");
 
     this->mesh = BKE_mesh_add(this->bmain, "IDLibQueryMesh");
-    this->object->data = this->mesh;
+    this->object->data = id_cast<ID *>(this->mesh);
 
     BKE_collection_object_add(this->bmain, this->scene->master_collection, this->object);
     BKE_collection_object_add(this->bmain, this->scene->master_collection, this->target);
@@ -127,7 +127,7 @@ class IDSubDataTestData : public WholeIDTestData {
     /* Add a material that contains an embedded nodetree and assign a custom property to one of
      * its nodes. */
     this->material = BKE_material_add(this->bmain, "Material");
-    ED_node_shader_default(this->C, &this->material->id);
+    nodes::node_tree_shader_default(this->C, this->bmain, &this->material->id);
 
     BKE_object_material_assign(
         this->bmain, this->object, this->material, this->object->actcol, BKE_MAT_ASSIGN_OBJECT);
@@ -165,8 +165,7 @@ TEST_F(LibQueryTest, libquery_basic)
   FOREACH_MAIN_ID_END;
 
   /* Set an invalid user-count value to IDs directly used by the scene.
-   * This includes these used by its embedded IDs, like the master collection, and the scene
-   itself
+   * This includes these used by its embedded IDs, like the master collection, and the scene itself
    * (through the loop-back pointers of embedded IDs to their owner). */
   auto set_count = [](LibraryIDLinkCallbackData *cb_data) -> int {
     if (*(cb_data->id_pointer)) {

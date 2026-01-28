@@ -7,6 +7,8 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_scene.hh"
 
+#include "BLI_math_color.h"
+
 #include "DEG_depsgraph_query.hh"
 
 #include "DNA_grease_pencil_types.h"
@@ -39,7 +41,7 @@ class PDFExporter : public GreasePencilExporter {
                                   const bke::greasepencil::Drawing &drawing);
 
   bool create_document();
-  bool add_page();
+  bool add_page(Scene &scene);
 
   void write_stroke_to_polyline(const float4x4 &transform,
                                 const Span<float3> positions,
@@ -64,7 +66,7 @@ bool PDFExporter::export_scene(Scene &scene, StringRefNull filepath)
       const int frame_number = scene.r.cfra;
 
       this->prepare_render_params(scene, frame_number);
-      this->add_page();
+      this->add_page(scene);
       this->export_grease_pencil_objects(frame_number);
       result = this->write_to_file(filepath);
       break;
@@ -72,9 +74,14 @@ bool PDFExporter::export_scene(Scene &scene, StringRefNull filepath)
     case ExportParams::FrameMode::Selected: {
       case ExportParams::FrameMode::Scene:
         const bool only_selected = (params_.frame_mode == ExportParams::FrameMode::Selected);
+        if (only_selected && ob_eval.type != OB_GREASE_PENCIL) {
+          /* For exporting "Selected Frames", the active object is required to be a grease pencil
+           * object, from which we will read selected frames from. */
+          break;
+        }
         const int orig_frame = scene.r.cfra;
         for (int frame_number = scene.r.sfra; frame_number <= scene.r.efra; frame_number++) {
-          GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
+          GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob_eval.data);
           if (only_selected && !this->is_selected_frame(grease_pencil, frame_number)) {
             continue;
           }
@@ -83,7 +90,7 @@ bool PDFExporter::export_scene(Scene &scene, StringRefNull filepath)
           BKE_scene_graph_update_for_newframe(context_.depsgraph);
 
           this->prepare_render_params(scene, frame_number);
-          this->add_page();
+          this->add_page(scene);
           this->export_grease_pencil_objects(frame_number);
         }
 
@@ -114,7 +121,7 @@ void PDFExporter::export_grease_pencil_objects(const int frame_number)
     /* Use evaluated version to get strokes with modifiers. */
     const Object *ob_eval = DEG_get_evaluated(context_.depsgraph, ob);
     BLI_assert(ob_eval->type == OB_GREASE_PENCIL);
-    const GreasePencil *grease_pencil_eval = static_cast<const GreasePencil *>(ob_eval->data);
+    const GreasePencil *grease_pencil_eval = id_cast<const GreasePencil *>(ob_eval->data);
 
     for (const bke::greasepencil::Layer *layer : grease_pencil_eval->layers()) {
       if (!layer->is_visible()) {
@@ -139,7 +146,10 @@ void PDFExporter::export_grease_pencil_layer(const Object &object,
   const float4x4 layer_to_world = layer.to_world_space(object);
 
   auto write_stroke = [&](const Span<float3> positions,
+                          const Span<float3> /*positions_left*/,
+                          const Span<float3> /*positions_right*/,
                           const bool cyclic,
+                          const int8_t /*type*/,
                           const ColorGeometry4f &color,
                           const float opacity,
                           const std::optional<float> width,
@@ -165,7 +175,10 @@ bool PDFExporter::create_document()
   return true;
 }
 
-bool PDFExporter::add_page()
+constexpr double meter_to_inches_factor = 1000.0 / 25.4;
+constexpr double default_pdf_ppi = 72.0;
+
+bool PDFExporter::add_page(Scene &scene)
 {
   page_ = HPDF_AddPage(pdf_);
   if (!pdf_) {
@@ -173,13 +186,23 @@ bool PDFExporter::add_page()
     return false;
   }
 
+  /* Pixels per meter. */
+  double2 ppm;
+  BKE_scene_ppm_get(&scene.r, ppm);
+
+  /* Covert pixels per meter to pixels per inch. */
+  double2 ppi = ppm / meter_to_inches_factor;
+
+  double2 scale_factor = default_pdf_ppi / ppi;
+  HPDF_Page_Concat(page_, scale_factor.x, 0.0f, 0.0f, scale_factor.y, 0.0f, 0.0f);
+
   if (camera_persmat_) {
-    HPDF_Page_SetWidth(page_, camera_rect_.size().x);
-    HPDF_Page_SetHeight(page_, camera_rect_.size().y);
+    HPDF_Page_SetWidth(page_, camera_rect_.size().x * scale_factor.x);
+    HPDF_Page_SetHeight(page_, camera_rect_.size().y * scale_factor.y);
   }
   else {
-    HPDF_Page_SetWidth(page_, screen_rect_.size().x);
-    HPDF_Page_SetHeight(page_, screen_rect_.size().y);
+    HPDF_Page_SetWidth(page_, screen_rect_.size().x * scale_factor.x);
+    HPDF_Page_SetHeight(page_, screen_rect_.size().y * scale_factor.y);
   }
 
   return true;

@@ -72,7 +72,7 @@ void oneapi_kernel_##name(KernelGlobalsGPU *ccl_restrict kg, \
                           size_t kernel_local_size, \
                           sycl::handler &cgh, \
                           __VA_ARGS__) { \
-      (kg); \
+      (void)(kg); \
       cgh.parallel_for( \
           sycl::nd_range<1>(kernel_global_size, kernel_local_size), \
           [=](sycl::nd_item<1> item) {
@@ -90,7 +90,7 @@ void oneapi_kernel_##name(KernelGlobalsGPU *ccl_restrict kg, \
                           size_t kernel_local_size, \
                           sycl::handler &cgh, \
                           __VA_ARGS__) { \
-      (kg); \
+      (void)(kg); \
       (kernel_local_size); \
       cgh.host_task( \
           [=]() {\
@@ -214,6 +214,7 @@ ccl_device_forceinline int __float_as_int(const float x)
 #define atanf(x) sycl::atan((x))
 #define floorf(x) sycl::floor((x))
 #define ceilf(x) sycl::ceil((x))
+#define roundf(x) sycl::round((x))
 #define sinhf(x) sycl::sinh((x))
 #define coshf(x) sycl::cosh((x))
 #define tanhf(x) sycl::tanh((x))
@@ -223,6 +224,7 @@ ccl_device_forceinline int __float_as_int(const float x)
 #define fminf(x, y) sycl::fmin((x), (y))
 #define fmodf(x, y) sycl::fmod((x), (y))
 #define lgammaf(x) sycl::lgamma((x))
+#define ldexpf(x, y) sycl::ldexp((x), (y))
 
 #define cosf(x) sycl::native::cos(((float)(x)))
 #define sinf(x) sycl::native::sin(((float)(x)))
@@ -241,13 +243,13 @@ ccl_device_forceinline int __float_as_int(const float x)
 static_assert(
     sizeof(sycl::ext::oneapi::experimental::sampled_image_handle::raw_image_handle_type) ==
     sizeof(uint64_t));
-typedef uint64_t ccl_gpu_tex_object_2D;
-typedef uint64_t ccl_gpu_tex_object_3D;
+typedef uint64_t ccl_gpu_image_object_2D;
+typedef uint64_t ccl_gpu_image_object_3D;
 
 template<typename T>
-ccl_device_forceinline T ccl_gpu_tex_object_read_2D(const ccl_gpu_tex_object_2D texobj,
-                                                    const float x,
-                                                    const float y)
+ccl_device_forceinline T ccl_gpu_image_object_read_2D(const ccl_gpu_image_object_2D texobj,
+                                                      const float x,
+                                                      const float y)
 {
   /* Generic implementation not possible due to limitation with SYCL bindless sampled images
    * not being able to read in a format, which is different from the supported data type of
@@ -258,9 +260,8 @@ ccl_device_forceinline T ccl_gpu_tex_object_read_2D(const ccl_gpu_tex_object_2D 
 }
 
 template<>
-ccl_device_forceinline float ccl_gpu_tex_object_read_2D<float>(const ccl_gpu_tex_object_2D texobj,
-                                                               const float x,
-                                                               const float y)
+ccl_device_forceinline float ccl_gpu_image_object_read_2D<float>(
+    const ccl_gpu_image_object_2D texobj, const float x, const float y)
 {
   sycl::ext::oneapi::experimental::sampled_image_handle image(
       (sycl::ext::oneapi::experimental::sampled_image_handle::raw_image_handle_type)texobj);
@@ -268,8 +269,8 @@ ccl_device_forceinline float ccl_gpu_tex_object_read_2D<float>(const ccl_gpu_tex
 }
 
 template<>
-ccl_device_forceinline float4 ccl_gpu_tex_object_read_2D<float4>(
-    const ccl_gpu_tex_object_2D texobj, const float x, const float y)
+ccl_device_forceinline float4 ccl_gpu_image_object_read_2D<float4>(
+    const ccl_gpu_image_object_2D texobj, const float x, const float y)
 {
   sycl::ext::oneapi::experimental::sampled_image_handle image(
       (sycl::ext::oneapi::experimental::sampled_image_handle::raw_image_handle_type)texobj);
@@ -278,10 +279,10 @@ ccl_device_forceinline float4 ccl_gpu_tex_object_read_2D<float4>(
 }
 
 template<typename T>
-ccl_device_forceinline T ccl_gpu_tex_object_read_3D(const ccl_gpu_tex_object_3D texobj,
-                                                    const float x,
-                                                    const float y,
-                                                    const float z)
+ccl_device_forceinline T ccl_gpu_image_object_read_3D(const ccl_gpu_image_object_3D texobj,
+                                                      const float x,
+                                                      const float y,
+                                                      const float z)
 {
   /* A generic implementation is not possible due to limitations with SYCL bindless sampled images
    * not being able to read in a format that is different from the supported data type of
@@ -293,10 +294,8 @@ ccl_device_forceinline T ccl_gpu_tex_object_read_3D(const ccl_gpu_tex_object_3D 
 }
 
 template<>
-ccl_device_forceinline float ccl_gpu_tex_object_read_3D<float>(const ccl_gpu_tex_object_3D texobj,
-                                                               const float x,
-                                                               const float y,
-                                                               const float z)
+ccl_device_forceinline float ccl_gpu_image_object_read_3D<float>(
+    const ccl_gpu_image_object_3D texobj, const float x, const float y, const float z)
 {
   sycl::ext::oneapi::experimental::sampled_image_handle image(
       (sycl::ext::oneapi::experimental::sampled_image_handle::raw_image_handle_type)texobj);
@@ -304,8 +303,8 @@ ccl_device_forceinline float ccl_gpu_tex_object_read_3D<float>(const ccl_gpu_tex
 }
 
 template<>
-ccl_device_forceinline float4 ccl_gpu_tex_object_read_3D<float4>(
-    const ccl_gpu_tex_object_3D texobj, const float x, const float y, const float z)
+ccl_device_forceinline float4 ccl_gpu_image_object_read_3D<float4>(
+    const ccl_gpu_image_object_3D texobj, const float x, const float y, const float z)
 {
   sycl::ext::oneapi::experimental::sampled_image_handle image(
       (sycl::ext::oneapi::experimental::sampled_image_handle::raw_image_handle_type)texobj);

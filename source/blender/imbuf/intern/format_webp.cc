@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <webp/decode.h>
 #include <webp/encode.h>
+#include <webp/mux.h>
 
 #include "BLI_fileops.h"
 #include "BLI_mmap.h"
@@ -28,6 +29,12 @@
 #include "IMB_imbuf_types.hh"
 
 #include "MEM_guardedalloc.h"
+
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"image.webp"};
 
 bool imb_is_a_webp(const uchar *mem, size_t size)
 {
@@ -45,7 +52,7 @@ ImBuf *imb_loadwebp(const uchar *mem, size_t size, int flags, ImFileColorSpace &
 
   WebPBitstreamFeatures features;
   if (WebPGetFeatures(mem, size, &features) != VP8_STATUS_OK) {
-    fprintf(stderr, "WebP: Failed to parse features\n");
+    CLOG_ERROR(&LOG, "Failed to parse features");
     return nullptr;
   }
 
@@ -53,7 +60,7 @@ ImBuf *imb_loadwebp(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   ImBuf *ibuf = IMB_allocImBuf(features.width, features.height, planes, 0);
 
   if (ibuf == nullptr) {
-    fprintf(stderr, "WebP: Failed to allocate image memory\n");
+    CLOG_ERROR(&LOG, "Failed to allocate image memory");
     return nullptr;
   }
 
@@ -65,7 +72,7 @@ ImBuf *imb_loadwebp(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     if (WebPDecodeRGBAInto(mem, size, last_row, size_t(ibuf->x) * ibuf->y * 4, -4 * ibuf->x) ==
         nullptr)
     {
-      fprintf(stderr, "WebP: Failed to decode image\n");
+      CLOG_ERROR(&LOG, "Failed to decode image");
     }
   }
 
@@ -84,9 +91,7 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
     return nullptr;
   }
 
-  imb_mmap_lock();
   BLI_mmap_file *mmap_file = BLI_mmap_open(file);
-  imb_mmap_unlock();
   close(file);
   if (mmap_file == nullptr) {
     return nullptr;
@@ -97,12 +102,11 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
 
   WebPDecoderConfig config;
   if (!data || !WebPInitDecoderConfig(&config) ||
-      WebPGetFeatures(data, data_size, &config.input) != VP8_STATUS_OK)
+      WebPGetFeatures(data, data_size, &config.input) != VP8_STATUS_OK ||
+      BLI_mmap_any_io_error(mmap_file))
   {
-    fprintf(stderr, "WebP: Invalid file\n");
-    imb_mmap_lock();
+    CLOG_ERROR(&LOG, "Invalid file");
     BLI_mmap_free(mmap_file);
-    imb_mmap_unlock();
     return nullptr;
   }
 
@@ -116,10 +120,8 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
 
   ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_byte_data);
   if (ibuf == nullptr) {
-    fprintf(stderr, "WebP: Failed to allocate image memory\n");
-    imb_mmap_lock();
+    CLOG_ERROR(&LOG, "Failed to allocate image memory");
     BLI_mmap_free(mmap_file);
-    imb_mmap_unlock();
     return nullptr;
   }
 
@@ -136,20 +138,17 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
   config.output.u.RGBA.stride = 4 * ibuf->x;
   config.output.u.RGBA.size = size_t(config.output.u.RGBA.stride) * size_t(ibuf->y);
 
-  if (WebPDecode(data, data_size, &config) != VP8_STATUS_OK) {
-    fprintf(stderr, "WebP: Failed to decode image\n");
-    imb_mmap_lock();
+  if (WebPDecode(data, data_size, &config) != VP8_STATUS_OK || BLI_mmap_any_io_error(mmap_file)) {
+    CLOG_ERROR(&LOG, "Failed to decode image");
+    IMB_freeImBuf(ibuf);
     BLI_mmap_free(mmap_file);
-    imb_mmap_unlock();
     return nullptr;
   }
 
   /* Free the output buffer. */
   WebPFreeDecBuffer(&config.output);
 
-  imb_mmap_lock();
   BLI_mmap_free(mmap_file);
-  imb_mmap_unlock();
 
   return ibuf;
 }
@@ -158,7 +157,7 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
 {
   const uint limit = 16383;
   if (ibuf->x > limit || ibuf->y > limit) {
-    fprintf(stderr, "WebP: image x/y exceeds %u\n", limit);
+    CLOG_ERROR(&LOG, "image x/y exceeds %u", limit);
     return false;
   }
 
@@ -170,16 +169,16 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
     /* We must convert the ImBuf RGBA buffer to RGB as WebP expects a RGB buffer. */
     const size_t num_pixels = IMB_get_pixel_count(ibuf);
     const uint8_t *rgba_rect = ibuf->byte_buffer.data;
-    uint8_t *rgb_rect = MEM_malloc_arrayN<uint8_t>(num_pixels * 3, "webp rgb_rect");
+    uint8_t *rgb_rect = MEM_new_array_uninitialized<uint8_t>(num_pixels * 3, "webp rgb_rect");
     for (size_t i = 0; i < num_pixels; i++) {
       rgb_rect[i * 3 + 0] = rgba_rect[i * 4 + 0];
       rgb_rect[i * 3 + 1] = rgba_rect[i * 4 + 1];
       rgb_rect[i * 3 + 2] = rgba_rect[i * 4 + 2];
     }
 
-    last_row = (uchar *)(rgb_rect + (size_t(ibuf->y - 1) * size_t(ibuf->x) * 3));
+    last_row = static_cast<uchar *>(rgb_rect + (size_t(ibuf->y - 1) * size_t(ibuf->x) * 3));
 
-    if (ibuf->foptions.quality == 100.0f) {
+    if (ibuf->foptions.quality == 100) {
       encoded_data_size = WebPEncodeLosslessRGB(
           last_row, ibuf->x, ibuf->y, -3 * ibuf->x, &encoded_data);
     }
@@ -187,12 +186,12 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
       encoded_data_size = WebPEncodeRGB(
           last_row, ibuf->x, ibuf->y, -3 * ibuf->x, ibuf->foptions.quality, &encoded_data);
     }
-    MEM_freeN(rgb_rect);
+    MEM_delete(rgb_rect);
   }
   else if (bytesperpixel == 4) {
     last_row = ibuf->byte_buffer.data + 4 * size_t(ibuf->y - 1) * size_t(ibuf->x);
 
-    if (ibuf->foptions.quality == 100.0f) {
+    if (ibuf->foptions.quality == 100) {
       encoded_data_size = WebPEncodeLosslessRGBA(
           last_row, ibuf->x, ibuf->y, -4 * ibuf->x, &encoded_data);
     }
@@ -202,22 +201,59 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
     }
   }
   else {
-    fprintf(
-        stderr, "WebP: Unsupported bytes per pixel: %d for file: '%s'\n", bytesperpixel, filepath);
+    CLOG_ERROR(&LOG, "Unsupported bytes per pixel: %d for file: '%s'", bytesperpixel, filepath);
     return false;
   }
 
-  if (encoded_data != nullptr) {
-    FILE *fp = BLI_fopen(filepath, "wb");
-    if (!fp) {
-      free(encoded_data);
-      fprintf(stderr, "WebP: Cannot open file for writing: '%s'\n", filepath);
-      return false;
-    }
-    fwrite(encoded_data, encoded_data_size, 1, fp);
-    free(encoded_data);
-    fclose(fp);
+  if (encoded_data == nullptr) {
+    return false;
   }
 
-  return true;
+  WebPMux *mux = WebPMuxNew();
+  WebPData image_data = {encoded_data, encoded_data_size};
+  WebPMuxSetImage(mux, &image_data, false /* Don't copy data */);
+
+  /* Write ICC profile if there is one associated with the colorspace. */
+  const ColorSpace *colorspace = ibuf->byte_buffer.colorspace;
+  if (colorspace) {
+    Vector<char> icc_profile = IMB_colormanagement_space_to_icc_profile(colorspace);
+    if (!icc_profile.is_empty()) {
+      WebPData icc_chunk = {reinterpret_cast<const uint8_t *>(icc_profile.data()),
+                            size_t(icc_profile.size())};
+      WebPMuxSetChunk(mux, "ICCP", &icc_chunk, true /* copy data */);
+    }
+  }
+
+  /* Assemble image and metadata. */
+  WebPData output_data;
+  if (WebPMuxAssemble(mux, &output_data) != WEBP_MUX_OK) {
+    CLOG_ERROR(&LOG, "Error in mux assemble writing file: '%s'", filepath);
+    WebPMuxDelete(mux);
+    WebPFree(encoded_data);
+    return false;
+  }
+
+  /* Write to file. */
+  bool ok = true;
+  FILE *fp = BLI_fopen(filepath, "wb");
+  if (fp) {
+    if (fwrite(output_data.bytes, output_data.size, 1, fp) != 1) {
+      CLOG_ERROR(&LOG, "Unknown error writing file: '%s'", filepath);
+      ok = false;
+    }
+
+    fclose(fp);
+  }
+  else {
+    ok = false;
+    CLOG_ERROR(&LOG, "Cannot open file for writing: '%s'", filepath);
+  }
+
+  WebPMuxDelete(mux);
+  WebPFree(encoded_data);
+  WebPDataClear(&output_data);
+
+  return ok;
 }
+
+}  // namespace blender

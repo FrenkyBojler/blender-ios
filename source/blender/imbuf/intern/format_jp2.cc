@@ -15,10 +15,16 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
+#include "CLG_log.h"
+
 #include "openjpeg.h"
 
 #include <algorithm>
 #include <cstring>
+
+namespace blender {
+
+static CLG_LogRef LOG = {"image.openjpeg"};
 
 #define JP2_FILEHEADER_SIZE 12
 
@@ -77,28 +83,25 @@ bool imb_is_a_jp2(const uchar *buf, size_t size)
 /**
  * sample error callback expecting a FILE* client object
  */
-static void error_callback(const char *msg, void *client_data)
+static void error_callback(const char *msg, void * /*client_data*/)
 {
-  FILE *stream = (FILE *)client_data;
-  fprintf(stream, "[ERROR] %s", msg);
+  CLOG_STR_ERROR(&LOG, msg);
 }
 /**
  * sample warning callback expecting a FILE* client object
  */
-static void warning_callback(const char *msg, void *client_data)
+static void warning_callback(const char *msg, void * /*client_data*/)
 {
-  FILE *stream = (FILE *)client_data;
-  fprintf(stream, "[WARNING] %s", msg);
+  CLOG_STR_WARN(&LOG, msg);
 }
 
 #ifndef NDEBUG
 /**
  * sample debug callback expecting no client object
  */
-static void info_callback(const char *msg, void *client_data)
+static void info_callback(const char *msg, void * /*client_data*/)
 {
-  FILE *stream = (FILE *)client_data;
-  fprintf(stream, "[INFO] %s", msg);
+  CLOG_STR_INFO(&LOG, msg);
 }
 #endif
 
@@ -372,10 +375,10 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
   codec = opj_create_decompress(format);
 
   /* configure the event callbacks (not required) */
-  opj_set_error_handler(codec, error_callback, stderr);
-  opj_set_warning_handler(codec, warning_callback, stderr);
+  opj_set_error_handler(codec, error_callback, nullptr);
+  opj_set_warning_handler(codec, warning_callback, nullptr);
 #ifndef NDEBUG /* too noisy */
-  opj_set_info_handler(codec, info_callback, stderr);
+  opj_set_info_handler(codec, info_callback, nullptr);
 #endif
 
   /* setup the decoder decoding parameters using the current image and user parameters */
@@ -384,18 +387,18 @@ static ImBuf *imb_load_jp2_stream(opj_stream_t *stream,
   }
 
   if (opj_read_header(stream, codec, &image) == false) {
-    printf("OpenJPEG error: failed to read the header\n");
+    CLOG_ERROR(&LOG, "Failed to read the header");
     goto finally;
   }
 
   /* decode the stream and fill the image structure */
   if (opj_decode(codec, stream, image) == false) {
-    fprintf(stderr, "ERROR -> j2k_to_image: failed to decode image!\n");
+    CLOG_ERROR(&LOG, "Failed to decode image!");
     goto finally;
   }
 
   if ((image->numcomps * image->x1 * image->y1) == 0) {
-    fprintf(stderr, "\nError: invalid raw image parameters\n");
+    CLOG_ERROR(&LOG, "Invalid raw image parameters");
     goto finally;
   }
 
@@ -692,12 +695,12 @@ static void cinema_setup_encoder(opj_cparameters_t *parameters,
     case OPJ_CINEMA2K_48:
       parameters->numresolution = std::min(parameters->numresolution, 6);
       if (!((image->comps[0].w == 2048) || (image->comps[0].h == 1080))) {
-        fprintf(stdout,
-                "Image coordinates %u x %u is not 2K compliant.\nJPEG Digital Cinema Profile-3 "
-                "(2K profile) compliance requires that at least one of coordinates match 2048 x "
-                "1080\n",
-                image->comps[0].w,
-                image->comps[0].h);
+        CLOG_WARN(&LOG,
+                  "Image coordinates %u x %u is not 2K compliant.\nJPEG Digital Cinema Profile-3 "
+                  "(2K profile) compliance requires that at least one of coordinates match 2048 x "
+                  "1080",
+                  image->comps[0].w,
+                  image->comps[0].h);
         parameters->cp_rsiz = OPJ_STD_RSIZ;
       }
       else {
@@ -713,12 +716,12 @@ static void cinema_setup_encoder(opj_cparameters_t *parameters,
         parameters->numresolution = 7;
       }
       if (!((image->comps[0].w == 4096) || (image->comps[0].h == 2160))) {
-        fprintf(stdout,
-                "Image coordinates %u x %u is not 4K compliant.\nJPEG Digital Cinema Profile-4"
-                "(4K profile) compliance requires that at least one of coordinates match 4096 x "
-                "2160\n",
-                image->comps[0].w,
-                image->comps[0].h);
+        CLOG_WARN(&LOG,
+                  "Image coordinates %u x %u is not 4K compliant.\nJPEG Digital Cinema Profile-4"
+                  "(4K profile) compliance requires that at least one of coordinates match 4096 x "
+                  "2160",
+                  image->comps[0].w,
+                  image->comps[0].h);
         parameters->cp_rsiz = OPJ_STD_RSIZ;
       }
       else {
@@ -839,7 +842,8 @@ static opj_image_t *ibuftoimage(ImBuf *ibuf, opj_cparameters_t *parameters)
       }
     }
     if (parameters->cp_cinema) {
-      img_fol.rates = MEM_malloc_arrayN<float>(size_t(parameters->tcp_numlayers), "jp2_rates");
+      img_fol.rates = MEM_new_array_uninitialized<float>(size_t(parameters->tcp_numlayers),
+                                                         "jp2_rates");
       for (i = 0; i < parameters->tcp_numlayers; i++) {
         img_fol.rates[i] = parameters->tcp_rates[i];
       }
@@ -889,7 +893,7 @@ static opj_image_t *ibuftoimage(ImBuf *ibuf, opj_cparameters_t *parameters)
   /* create the image */
   image = opj_image_create(numcomps, &cmptparm[0], color_space);
   if (!image) {
-    printf("Error: opj_image_create() failed\n");
+    CLOG_ERROR(&LOG, "opj_image_create() failed");
     return nullptr;
   }
 
@@ -1166,7 +1170,7 @@ static opj_image_t *ibuftoimage(ImBuf *ibuf, opj_cparameters_t *parameters)
   }
 
   if (img_fol.rates) {
-    MEM_freeN(img_fol.rates);
+    MEM_delete(img_fol.rates);
   }
 
   return image;
@@ -1223,10 +1227,10 @@ bool imb_save_jp2_stream(ImBuf *ibuf, opj_stream_t *stream, int /*flags*/)
     codec = opj_create_compress(format);
 
     /* configure the event callbacks (not required) */
-    opj_set_error_handler(codec, error_callback, stderr);
-    opj_set_warning_handler(codec, warning_callback, stderr);
+    opj_set_error_handler(codec, error_callback, nullptr);
+    opj_set_warning_handler(codec, warning_callback, nullptr);
 #ifndef NDEBUG /* too noisy */
-    opj_set_info_handler(codec, info_callback, stderr);
+    opj_set_info_handler(codec, info_callback, nullptr);
 #endif
 
     /* setup the encoder parameters using the current image and using user parameters */
@@ -1259,8 +1263,10 @@ finally:
   }
 
   if (ok == false) {
-    fprintf(stderr, "failed to encode image\n");
+    CLOG_ERROR(&LOG, "Failed to encode image");
   }
 
   return ok;
 }
+
+}  // namespace blender

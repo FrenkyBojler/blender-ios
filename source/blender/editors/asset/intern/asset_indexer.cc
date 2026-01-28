@@ -36,9 +36,11 @@
 
 #include <sstream>
 
-static CLG_LogRef LOG = {"ed.asset"};
+namespace blender {
 
-namespace blender::ed::asset::index {
+static CLG_LogRef LOG = {"asset.index"};
+
+namespace ed::asset::index {
 
 using namespace blender::asset_system;
 using namespace blender::io::serialize;
@@ -144,7 +146,7 @@ static void add_id_name(DictionaryValue &result, const short idcode, const Strin
 {
   char idcode_prefix[2];
   /* Similar to `BKE_libblock_alloc`. */
-  *((short *)idcode_prefix) = idcode;
+  *(reinterpret_cast<short *>(idcode_prefix)) = idcode;
   std::string name_with_idcode = std::string(idcode_prefix, sizeof(idcode_prefix)) + name;
 
   result.append_str(ATTRIBUTE_ENTRIES_NAME, name_with_idcode);
@@ -176,8 +178,8 @@ static void init_value_from_file_indexer_entry(DictionaryValue &result,
 
   if (!BLI_listbase_is_empty(&asset_data.tags)) {
     ArrayValue &tags = *result.append_array(ATTRIBUTE_ENTRIES_TAGS);
-    LISTBASE_FOREACH (AssetTag *, tag, &asset_data.tags) {
-      tags.append_str(tag->name);
+    for (AssetTag &tag : asset_data.tags) {
+      tags.append_str(tag.name);
     }
   }
 
@@ -266,7 +268,7 @@ static int init_indexer_entries_from_value(FileIndexerEntries &indexer_entries,
 
   int num_entries_read = 0;
   for (const std::shared_ptr<Value> &element : entries->elements()) {
-    FileIndexerEntry *entry = MEM_callocN<FileIndexerEntry>(__func__);
+    FileIndexerEntry *entry = MEM_new_zeroed<FileIndexerEntry>(__func__);
     init_indexer_entry_from_value(*entry, *element->as_dictionary_value());
 
     BLI_linklist_prepend(&indexer_entries.entries, entry);
@@ -418,7 +420,7 @@ struct AssetLibraryIndex {
       }
 
       const std::string &file_path = preexisting_index.key;
-      CLOG_INFO(&LOG, 2, "Remove unused index file [%s].", file_path.c_str());
+      CLOG_DEBUG(&LOG, "Remove unused index file \"%s\".", file_path.c_str());
       files_to_remove.add(preexisting_index.key);
     }
 
@@ -584,7 +586,7 @@ class AssetIndexFile : public AbstractFile {
   {
     JsonFormatter formatter;
     if (!ensure_parent_path_exists()) {
-      CLOG_ERROR(&LOG, "Index not created: couldn't create folder [%s].", this->get_file_path());
+      CLOG_ERROR(&LOG, "Index not created: couldn't create folder \"%s\".", this->get_file_path());
       return;
     }
 
@@ -629,7 +631,7 @@ int AssetLibraryIndex::remove_broken_index_files()
       continue;
     }
     if (IN_RANGE(stat.st_mtime, timestamp_from, timestamp_to)) {
-      CLOG_INFO(&LOG, 2, "Remove potentially broken index file [%s].", index_path.c_str());
+      CLOG_DEBUG(&LOG, "Remove potentially broken index file \"%s\".", index_path.c_str());
       files_to_remove.add(index_path);
     }
   }
@@ -664,42 +666,39 @@ static eFileIndexerResult read_index(const char *filename,
   asset_index_file.mark_as_used();
 
   if (asset_index_file.is_older_than(asset_file)) {
-    CLOG_INFO(
+    CLOG_DEBUG(
         &LOG,
-        3,
-        "Asset index file [%s] needs to be refreshed as it is older than the asset file [%s].",
+        "Asset index file \"%s\" needs to be refreshed as it is older than the asset file \"%s\".",
         asset_index_file.filename.c_str(),
         filename);
     return FILE_INDEXER_NEEDS_UPDATE;
   }
 
   if (!asset_index_file.constains_entries()) {
-    CLOG_INFO(&LOG,
-              3,
-              "Asset file index is to small to contain any entries. [%s]",
-              asset_index_file.filename.c_str());
+    CLOG_DEBUG(&LOG,
+               "Asset file index is to small to contain any entries. \"%s\"",
+               asset_index_file.filename.c_str());
     *r_read_entries_len = 0;
     return FILE_INDEXER_ENTRIES_LOADED;
   }
 
   std::unique_ptr<AssetIndex> contents = asset_index_file.read_contents();
   if (!contents) {
-    CLOG_INFO(&LOG, 3, "Asset file index is ignored; failed to read contents.");
+    CLOG_DEBUG(&LOG, "Asset file index is ignored; failed to read contents.");
     return FILE_INDEXER_NEEDS_UPDATE;
   }
 
   if (!contents->is_latest_version()) {
-    CLOG_INFO(&LOG,
-              3,
-              "Asset file index is ignored; expected version %d but file is version %d [%s].",
-              AssetIndex::CURRENT_VERSION,
-              contents->get_version(),
-              asset_index_file.filename.c_str());
+    CLOG_DEBUG(&LOG,
+               "Asset file index is ignored; expected version %d but file is version %d \"%s\".",
+               AssetIndex::CURRENT_VERSION,
+               contents->get_version(),
+               asset_index_file.filename.c_str());
     return FILE_INDEXER_NEEDS_UPDATE;
   }
 
   const int read_entries_len = contents->extract_into(*entries);
-  CLOG_INFO(&LOG, 1, "Read %d entries from asset index for [%s].", read_entries_len, filename);
+  CLOG_INFO(&LOG, "Read %d entries for \"%s\".", read_entries_len, filename);
   *r_read_entries_len = read_entries_len;
 
   return FILE_INDEXER_ENTRIES_LOADED;
@@ -711,8 +710,7 @@ static void update_index(const char *filename, FileIndexerEntries *entries, void
   BlendFile asset_file(filename);
   AssetIndexFile asset_index_file(library_index, asset_file);
   CLOG_INFO(&LOG,
-            1,
-            "Update asset index for [%s] store index in [%s].",
+            "Update for \"%s\" store index in \"%s\".",
             asset_file.get_file_path(),
             asset_index_file.get_file_path());
 
@@ -731,7 +729,7 @@ static void *init_user_data(const char *root_directory, size_t root_directory_ma
 
 static void free_user_data(void *user_data)
 {
-  MEM_delete((AssetLibraryIndex *)user_data);
+  MEM_delete(static_cast<AssetLibraryIndex *>(user_data));
 }
 
 static void filelist_finished(void *user_data)
@@ -739,7 +737,7 @@ static void filelist_finished(void *user_data)
   AssetLibraryIndex &library_index = *static_cast<AssetLibraryIndex *>(user_data);
   const int num_indices_removed = library_index.remove_unused_index_files();
   if (num_indices_removed > 0) {
-    CLOG_INFO(&LOG, 1, "Removed %d unused indices.", num_indices_removed);
+    CLOG_INFO(&LOG, "Removed %d unused indices.", num_indices_removed);
   }
 }
 
@@ -756,4 +754,5 @@ constexpr FileIndexerType asset_indexer()
 
 const FileIndexerType file_indexer_asset = asset_indexer();
 
-}  // namespace blender::ed::asset::index
+}  // namespace ed::asset::index
+}  // namespace blender

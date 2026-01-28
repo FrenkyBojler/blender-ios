@@ -13,13 +13,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<float3> position_field{AttributeFieldInput::Create<float3>("position")};
+  Field<float3> position_field{AttributeFieldInput::from<float3>("position")};
   params.set_output("Position", std::move(position_field));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeInputPosition", GEO_NODE_INPUT_POSITION);
   ntype.ui_name = "Position";
@@ -28,7 +28,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

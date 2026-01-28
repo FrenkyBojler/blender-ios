@@ -2,41 +2,50 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "node_geometry_util.hh"
-
-#include "BKE_compute_context_cache.hh"
-
 #include "NOD_geo_bundle.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
+#include "NOD_sync_sockets.hh"
+
+#include "BKE_idprop.hh"
 
 #include "BLO_read_write.hh"
 
-#include "NOD_geometry_nodes_bundle.hh"
+#include "UI_interface_layout.hh"
 
-#include "UI_interface.hh"
+#include "node_geometry_util.hh"
+#include "shader/node_shader_util.hh"
 
-namespace blender::nodes::node_geo_combine_bundle_cc {
+namespace blender {
 
-NODE_STORAGE_FUNCS(NodeGeometryCombineBundle);
+namespace nodes::node_geo_combine_bundle_cc {
+
+NODE_STORAGE_FUNCS(NodeCombineBundle);
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNodeTree *tree = b.tree_or_null();
   const bNode *node = b.node_or_null();
   if (tree && node) {
-    const NodeGeometryCombineBundle &storage = node_storage(*node);
+    const NodeCombineBundle &storage = node_storage(*node);
     for (const int i : IndexRange(storage.items_num)) {
-      const NodeGeometryCombineBundleItem &item = storage.items[i];
+      const NodeCombineBundleItem &item = storage.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const StringRef name = item.name ? item.name : "";
       const std::string identifier = CombineBundleItemsAccessor::socket_identifier_for_item(item);
-      b.add_input(socket_type, name, identifier)
-          .socket_name_ptr(&tree->id, CombineBundleItemsAccessor::item_srna, &item, "name")
-          .supports_field()
-          .structure_type(StructureType::Dynamic);
+      auto &decl = b.add_input(socket_type, name, identifier)
+                       .socket_name_ptr(
+                           &tree->id, *CombineBundleItemsAccessor::item_srna, &item, "name")
+                       .supports_field();
+      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+        decl.structure_type(StructureType(item.structure_type));
+      }
+      else {
+        decl.structure_type(StructureType::Dynamic);
+      }
     }
   }
   b.add_input<decl::Extend>("", "__extend__");
@@ -45,14 +54,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  auto *storage = MEM_callocN<NodeGeometryCombineBundle>(__func__);
+  auto *storage = MEM_new<NodeCombineBundle>(__func__);
   node->storage = storage;
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
-  const NodeGeometryCombineBundle &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeGeometryCombineBundle>(__func__, src_storage);
+  const NodeCombineBundle &src_storage = node_storage(*src_node);
+  auto *dst_storage = MEM_new<NodeCombineBundle>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<CombineBundleItemsAccessor>(*src_node, *dst_node);
@@ -61,26 +70,45 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<CombineBundleItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(static_cast<NodeCombineBundle *>(node->storage));
 }
 
-static bool node_insert_link(bNodeTree *tree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
+  if (params.C && params.link.fromnode == &params.node && params.link.tosock->type == SOCK_BUNDLE)
+  {
+    const NodeCombineBundle &storage = node_storage(params.node);
+    if (storage.items_num == 0) {
+      SpaceNode *snode = CTX_wm_space_node(params.C);
+      if (snode && snode->edittree == &params.ntree) {
+        sync_sockets_combine_bundle(*snode, params.node, nullptr, params.link.tosock);
+      }
+    }
+    return true;
+  }
   return socket_items::try_add_item_via_any_extend_socket<CombineBundleItemsAccessor>(
-      *tree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *node_ptr)
 {
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(node_ptr->owner_id);
   bNode &node = *static_cast<bNode *>(node_ptr->data);
 
-  if (uiLayout *panel = layout->panel(C, "bundle_items", false, TIP_("Bundle Items"))) {
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+
+  layout.op("node.sockets_sync", IFACE_("Sync"), ICON_FILE_REFRESH);
+  layout.prop(node_ptr, "define_signature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (ui::Layout *panel = layout.panel(C, "bundle_items", false, IFACE_("Bundle Items"))) {
     socket_items::ui::draw_items_list_with_operators<CombineBundleItemsAccessor>(
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<CombineBundleItemsAccessor>(
         ntree, node, [&](PointerRNA *item_ptr) {
-          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
+          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
         });
   }
 }
@@ -92,90 +120,59 @@ static void node_operators()
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  if (!U.experimental.use_bundle_and_closure_nodes) {
-    params.set_default_remaining_outputs();
-    return;
-  }
-
   const bNode &node = params.node();
-  const NodeGeometryCombineBundle &storage = node_storage(node);
+  const NodeCombineBundle &storage = node_storage(node);
 
   BundlePtr bundle_ptr = Bundle::create();
-  BLI_assert(bundle_ptr->is_mutable());
-  Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);
+  Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
 
   for (const int i : IndexRange(storage.items_num)) {
-    const NodeGeometryCombineBundleItem &item = storage.items[i];
+    const NodeCombineBundleItem &item = storage.items[i];
     const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type);
-    if (!stype || !stype->geometry_nodes_cpp_type) {
+    if (!stype || !stype->geometry_nodes_default_value) {
       continue;
     }
     const StringRef name = item.name;
-    if (name.is_empty()) {
+    if (!Bundle::is_valid_key(name)) {
       continue;
     }
-    void *input_ptr = params.low_level_lazy_function_params().try_get_input_data_ptr(i);
-    BLI_assert(input_ptr);
-    bundle.add(SocketInterfaceKey(name), *stype, input_ptr);
+    bke::SocketValueVariant value = params.extract_input<bke::SocketValueVariant>(
+        node.input_socket(i).identifier);
+    bundle.add(name, BundleItemSocketValue{stype, std::move(value)});
   }
 
   params.set_output("Bundle", std::move(bundle_ptr));
 }
 
-static void try_initialize_combine_bundle_from_target_socket(SpaceNode &snode,
-                                                             bNode &combine_bundle_node)
-{
-  snode.edittree->ensure_topology_cache();
-  bNodeSocket &bundle_socket = combine_bundle_node.output_socket(0);
-
-  bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, bundle_socket);
-  if (!current_context) {
-    /* The current tree does not have a known context, e.g. it is pinned but the modifier has been
-     * removed. */
-    return;
-  }
-  const Vector<const bNode *> separate_bundle_nodes =
-      ed::space_node::gather_linked_separate_bundle_nodes(
-          current_context, bundle_socket, compute_context_cache);
-  if (separate_bundle_nodes.is_empty()) {
-    return;
-  }
-
-  Set<StringRef> added_names;
-  for (const bNode *separate_bundle_node : separate_bundle_nodes) {
-    const NodeGeometrySeparateBundle &separate_bundle_storage =
-        *static_cast<const NodeGeometrySeparateBundle *>(separate_bundle_node->storage);
-    for (const int i : IndexRange(separate_bundle_storage.items_num)) {
-      const NodeGeometrySeparateBundleItem &item = separate_bundle_storage.items[i];
-      if (!added_names.add(item.name)) {
-        continue;
-      }
-      socket_items::add_item_with_socket_type_and_name<CombineBundleItemsAccessor>(
-          combine_bundle_node, eNodeSocketDatatype(item.socket_type), item.name);
-    }
-  }
-  BKE_ntree_update_tag_node_property(snode.edittree, &combine_bundle_node);
-}
-
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
-  if (other_socket.type != SOCK_BUNDLE) {
-    return;
-  }
   if (other_socket.in_out == SOCK_OUT) {
-    return;
+    if (!CombineBundleItemsAccessor::supports_socket_type(other_socket.typeinfo->type,
+                                                          params.node_tree().type))
+    {
+      return;
+    }
+    params.add_item(IFACE_("Item"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("NodeCombineBundle");
+      const auto *item =
+          socket_items::add_item_with_socket_type_and_name<CombineBundleItemsAccessor>(
+              params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
+      params.update_and_connect_available_socket(node, item->name);
+    });
   }
+  else {
+    if (other_socket.type != SOCK_BUNDLE) {
+      return;
+    }
+    params.add_item(IFACE_("Bundle"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("NodeCombineBundle");
+      params.connect_available_socket(node, "Bundle");
 
-  params.add_item("Bundle", [](LinkSearchOpParams &params) {
-    bNode &node = params.add_node("GeometryNodeCombineBundle");
-    params.connect_available_socket(node, "Bundle");
-
-    SpaceNode &snode = *CTX_wm_space_node(&params.C);
-    try_initialize_combine_bundle_from_target_socket(snode, node);
-  });
+      SpaceNode &snode = *CTX_wm_space_node(&params.C);
+      sync_sockets_combine_bundle(snode, node, nullptr);
+    });
+  }
 }
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
@@ -190,9 +187,9 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeCombineBundle", GEO_NODE_COMBINE_BUNDLE);
+  sh_geo_node_type_base(&ntype, "NodeCombineBundle", NODE_COMBINE_BUNDLE);
   ntype.ui_name = "Combine Bundle";
   ntype.ui_description = "Combine multiple socket values into one.";
   ntype.nclass = NODE_CLASS_CONVERTER;
@@ -205,16 +202,16 @@ static void node_register()
   ntype.register_operators = node_operators;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
-  bke::node_type_storage(ntype, "NodeGeometryCombineBundle", node_free_storage, node_copy_storage);
-  blender::bke::node_register_type(ntype);
+  bke::node_type_storage(ntype, "NodeCombineBundle", node_free_storage, node_copy_storage);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_combine_bundle_cc
+}  // namespace nodes::node_geo_combine_bundle_cc
 
-namespace blender::nodes {
+namespace nodes {
 
-StructRNA *CombineBundleItemsAccessor::item_srna = &RNA_NodeGeometryCombineBundleItem;
+StructRNA **CombineBundleItemsAccessor::item_srna = &RNA_NodeCombineBundleItem;
 
 void CombineBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -226,4 +223,35 @@ void CombineBundleItemsAccessor::blend_read_data_item(BlendDataReader *reader, I
   BLO_read_string(reader, &item.name);
 }
 
-}  // namespace blender::nodes
+std::string CombineBundleItemsAccessor::validate_name(const StringRef name)
+{
+  std::string result;
+  if (name.is_empty()) {
+    return result;
+  }
+  const Span<char> forbidden_chars = Bundle::forbidden_key_chars;
+  for (const char c : name) {
+    if (forbidden_chars.contains(c)) {
+      result += '_';
+    }
+    else {
+      result += c;
+    }
+  }
+  if (!result.empty()) {
+    /* Disallow leading spaces. */
+    if (std::isspace(result[0])) {
+      result[0] = '_';
+    }
+    /* Disallow trailing spaces. */
+    const int last_index = result.size() - 1;
+    if (std::isspace(result[last_index])) {
+      result[last_index] = '_';
+    }
+  }
+  BLI_assert(Bundle::is_valid_key(result));
+  return result;
+}
+
+}  // namespace nodes
+}  // namespace blender

@@ -12,6 +12,9 @@
 #include "BLI_compiler_attrs.h"
 
 /* called by meshtools */
+
+namespace blender {
+
 struct Depsgraph;
 struct ImagePool;
 struct MTex;
@@ -49,30 +52,6 @@ void RE_texture_rng_exit(void);
 /* `texture_image.cc` */
 
 void ibuf_sample(struct ImBuf *ibuf, float fx, float fy, float dx, float dy, float result[4]);
-
-/* `texture_pointdensity.cc` */
-
-struct PointDensity;
-
-void RE_point_density_cache(struct Depsgraph *depsgraph, struct PointDensity *pd);
-
-void RE_point_density_minmax(struct Depsgraph *depsgraph,
-                             struct PointDensity *pd,
-                             float r_min[3],
-                             float r_max[3]);
-
-/**
- * \note Requires #RE_point_density_cache() to be called first.
- * \note Frees point density structure after sampling.
- */
-void RE_point_density_sample(struct Depsgraph *depsgraph,
-                             struct PointDensity *pd,
-                             int resolution,
-                             float *values);
-
-void RE_point_density_free(struct PointDensity *pd);
-
-void RE_point_density_fix_linking(void);
 
 /* `texture_procedural.cc` */
 
@@ -129,3 +108,5 @@ int multitex_nodes(struct Tex *tex,
                    short which_output,
                    const struct MTex *mtex,
                    struct ImagePool *pool);
+
+}  // namespace blender

@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <pxr/imaging/hd/bprim.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hd/volumeFieldSchema.h>
 #include <pxr/usd/usdHydra/tokens.h>
@@ -30,12 +29,12 @@ void VolumeData::init()
 {
   field_descriptors_.clear();
 
-  Volume *volume = (Volume *)((const Object *)this->id)->data;
+  Volume *volume = id_cast<Volume *>((id_cast<const Object *>(this->id))->data);
   if (!BKE_volume_load(volume, scene_delegate_->bmain)) {
     return;
   }
   filepath_ = BKE_volume_grids_frame_filepath(volume);
-  ID_LOGN(1, "%s", filepath_.c_str());
+  ID_LOGN("%s", filepath_.c_str());
 
   if (volume->runtime->grids) {
     const int num_grids = BKE_volume_num_grids(volume);
@@ -61,30 +60,30 @@ void VolumeData::insert()
   scene_delegate_->GetRenderIndex().InsertRprim(
       pxr::HdPrimTypeTokens->volume, scene_delegate_, prim_id);
 
-  ID_LOGN(1, "");
+  ID_LOGN("");
 
   for (auto &desc : field_descriptors_) {
     scene_delegate_->GetRenderIndex().InsertBprim(
         desc.fieldPrimType, scene_delegate_, desc.fieldId);
-    ID_LOGN(2, "Volume field %s", desc.fieldId.GetText());
+    ID_LOGN("Volume field %s", desc.fieldId.GetText());
   }
 }
 
 void VolumeData::remove()
 {
   for (auto &desc : field_descriptors_) {
-    ID_LOG(2, "%s", desc.fieldId.GetText());
+    ID_LOG("%s", desc.fieldId.GetText());
     scene_delegate_->GetRenderIndex().RemoveBprim(desc.fieldPrimType, desc.fieldId);
   }
-  ID_LOG(1, "");
+  ID_LOG("");
   scene_delegate_->GetRenderIndex().RemoveRprim(prim_id);
 }
 
 void VolumeData::update()
 {
-  const Object *object = (const Object *)id;
+  const Object *object = id_cast<const Object *>(id);
   pxr::HdDirtyBits bits = pxr::HdChangeTracker::Clean;
-  if ((id->recalc & ID_RECALC_GEOMETRY) || (((ID *)object->data)->recalc & ID_RECALC_GEOMETRY)) {
+  if ((id->recalc & ID_RECALC_GEOMETRY) || (object->data->recalc & ID_RECALC_GEOMETRY)) {
     init();
     bits = pxr::HdChangeTracker::AllDirty;
   }
@@ -102,7 +101,7 @@ void VolumeData::update()
   }
 
   scene_delegate_->GetRenderIndex().GetChangeTracker().MarkRprimDirty(prim_id, bits);
-  ID_LOGN(1, "");
+  ID_LOGN("");
 }
 
 pxr::VtValue VolumeData::get_data(pxr::TfToken const &key) const
@@ -151,7 +150,7 @@ pxr::HdVolumeFieldDescriptorVector VolumeData::field_descriptors() const
 
 void VolumeData::write_materials()
 {
-  const Object *object = (Object *)id;
+  const Object *object = id_cast<Object *>(const_cast<ID *>(id));
   const Material *mat = nullptr;
   /* TODO: Using only first material. Add support for multi-material. */
   if (BKE_object_material_count_eval(object) > 0) {
