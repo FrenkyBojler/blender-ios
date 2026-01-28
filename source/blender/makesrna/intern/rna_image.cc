@@ -80,6 +80,12 @@ static const EnumPropertyItem image_source_items[] = {
 
 namespace blender {
 
+bool rna_Image_no_renderresult_or_viewer_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  Image *image = id_cast<Image *>(value.owner_id);
+  return image->type != IMA_TYPE_R_RESULT && image->type != IMA_TYPE_COMPOSITE;
+}
+
 static bool rna_Image_is_stereo_3d_get(PointerRNA *ptr)
 {
   return BKE_image_is_stereo(static_cast<Image *>(ptr->data));
@@ -489,7 +495,7 @@ static PointerRNA rna_Image_active_tile_get(PointerRNA *ptr)
   ImageTile *tile = static_cast<ImageTile *>(
       BLI_findlink(&image->tiles, image->active_tile_index));
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_UDIMTile, tile);
+  return RNA_pointer_create_with_parent(*ptr, RNA_UDIMTile, tile);
 }
 
 static void rna_Image_active_tile_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -728,7 +734,7 @@ static PointerRNA rna_Image_packed_file_get(PointerRNA *ptr)
 
   if (BKE_image_has_packedfile(ima)) {
     ImagePackedFile *imapf = static_cast<ImagePackedFile *>(ima->packedfiles.first);
-    return RNA_pointer_create_with_parent(*ptr, &RNA_PackedFile, imapf->packedfile);
+    return RNA_pointer_create_with_parent(*ptr, RNA_PackedFile, imapf->packedfile);
   }
   return PointerRNA_NULL;
 }
@@ -747,7 +753,7 @@ static PointerRNA rna_render_slots_active_get(PointerRNA *ptr)
   Image *image = id_cast<Image *>(ptr->owner_id);
   RenderSlot *render_slot = BKE_image_get_renderslot(image, image->render_slot);
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_RenderSlot, render_slot);
+  return RNA_pointer_create_with_parent(*ptr, RNA_RenderSlot, render_slot);
 }
 
 static void rna_render_slots_active_set(PointerRNA *ptr,

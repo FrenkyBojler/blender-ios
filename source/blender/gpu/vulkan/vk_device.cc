@@ -7,6 +7,7 @@
  */
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <sstream>
 
 #include "CLG_log.h"
@@ -24,8 +25,6 @@
 #include "GPU_capabilities.hh"
 
 #include "BLI_math_matrix_types.hh"
-
-#include "GHOST_C-api.h"
 
 namespace blender {
 
@@ -133,11 +132,11 @@ void VKDevice::deinit()
   is_initialized_ = false;
 }
 
-void VKDevice::init(void *ghost_context)
+void VKDevice::init(GHOST_IContext *ghost_context)
 {
   BLI_assert(!is_initialized());
   GHOST_VulkanHandles handles = {};
-  GHOST_GetVulkanHandles(static_cast<GHOST_ContextHandle>(ghost_context), &handles);
+  ghost_context->getVulkanHandles(handles);
   vk_instance_ = handles.instance;
   vk_physical_device_ = handles.physical_device;
   vk_device_ = handles.device;
