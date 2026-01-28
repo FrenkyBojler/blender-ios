@@ -289,11 +289,11 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
         if (get_skipped_link_ops().contains({tree_idname, link_op.name, ""}) ||
             get_skipped_link_ops().contains({tree_idname, link_op.name, socket_type}))
         {
-          std::cout << tree_idname << ": Skip " << msg << std::endl;
+          // std::cout << tree_idname << ": Skip " << msg << std::endl;
           continue;
         }
         SCOPED_TRACE(tree_idname + ": Execute " + msg);
-        std::cout << tree_idname << ": Execute " << msg << std::endl;
+        // std::cout << tree_idname << ": Execute " << msg << std::endl;
         Vector<bNode *> added_nodes;
         nodes::LinkSearchOpParams params{*C, *tree, *group_node, socket, added_nodes};
         link_op.fn(params);
@@ -327,11 +327,11 @@ TEST_F(NodeLinkDragTest, NodeLinkDrag)
         if (get_skipped_link_ops().contains({tree_idname, link_op.name, ""}) ||
             get_skipped_link_ops().contains({tree_idname, link_op.name, socket_type}))
         {
-          std::cout << tree_idname << ": Skip " << msg << std::endl;
+          // std::cout << tree_idname << ": Skip " << msg << std::endl;
           continue;
         }
         SCOPED_TRACE(tree_idname + ": Execute " + msg);
-        std::cout << tree_idname << ": Execute " << msg << std::endl;
+        // std::cout << tree_idname << ": Execute " << msg << std::endl;
         Vector<bNode *> added_nodes;
         nodes::LinkSearchOpParams params{*C, *tree, *group_node, socket, added_nodes};
         link_op.fn(params);
