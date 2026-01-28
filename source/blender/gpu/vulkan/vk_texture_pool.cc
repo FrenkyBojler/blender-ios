@@ -22,51 +22,36 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-/* Given the starting offset of an segment, and the starting offset of the surrounding
- * allocation, return the next aligned offset in the segment, such that alignment
- * requirements are satisfied in the surrounding allocation. */
-static VkDeviceSize align_segment_offset(VkDeviceSize segment_offset,
-                                         VkDeviceSize allocation_offset,
-                                         VkDeviceSize alignment)
-{
-  return ceil_to_multiple_ul(allocation_offset + segment_offset, alignment) - allocation_offset;
-}
-
 std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
 {
   /* `memoryType` uses 0 as special value to indicate no memory type restrictions.
-   * If there are restrictions, we check the memory type against `memoryTypeBits`.  */
+   * If there are restrictions, we check against `memoryTypeBits`.  */
   if (allocation_info.memoryType != 0 &&
       !bool(requirements.memoryTypeBits & allocation_info.memoryType))
   {
     return {};
   }
 
-  /* Find an iterator to the first compatible segment. If a segment is found,  we use the iterator
+  /* Find the first compatible segment. If a segment is found, we keep the iterator
    * to modify the existing segment in the list, as it may be shrunk or split. */
   auto found_segment = std::find_if(segments.begin(), segments.end(), [&](const Segment &segment) {
-    /* Align offset to memory requirements with respect to the allocation starting offset. */
-    VkDeviceSize aligned_offset = align_segment_offset(
-        segment.offset, allocation_info.offset, requirements.alignment);
-    VkDeviceSize aligned_size = segment.size - (aligned_offset - segment.offset);
+    VkDeviceSize aligned_offset = ceil_to_multiple_ul(segment.offset, requirements.alignment);
+    VkDeviceSize remaining_size = segment.size - (aligned_offset - segment.offset);
     return
         /* Check: the aligned offset does not lie past the segment's end. */
-        !(aligned_offset > segment.offset + segment.size) &&
+        aligned_offset < segment.offset + segment.size &&
         /* Check: the segment's remaining size is large enough. */
-        !(requirements.size >= aligned_size);
+        remaining_size >= requirements.size;
   });
   if (found_segment == segments.end()) {
     return {};
   }
 
-  /* The return segment is a part of the found segment, starting at an aligned offset. */
-  Segment segment;
-  segment.offset = align_segment_offset(
-      found_segment->offset, allocation_info.offset, requirements.alignment);
-  segment.size = requirements.size;
-
-  /* Depending on the return segment, there are now empty segments before/after it. */
+  /* The return segment is split from the found segment, starting at the aligned offset. This
+   * implies there are now segments before/after it. */
+  Segment segment = {ceil_to_multiple_ul(found_segment->offset, requirements.alignment),
+                     requirements.size};
   Segment segment_prev = {found_segment->offset, segment.offset - found_segment->offset};
   Segment segment_next = {segment.offset + segment.size,
                           found_segment->size - segment.size - segment_prev.size};
@@ -91,39 +76,36 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
 
 void VKTexturePool::AllocationHandle::release(Segment segment)
 {
-  /* Find the segment after the released segment. */
-  auto it_next = segments.begin();
-  while (it_next != segments.end() && it_next->offset < segment.offset) {
-    ++it_next;
-  }
-  /* Find the segment before the released segment. */
-  auto it_prev = it_next;
-  if (it_prev != segments.begin()) {
-    --it_prev;
+  /* Find the segments directly before/after the released segment, if they exist. */
+  auto segment_next = std::find_if(segments.begin(), segments.end(), [segment](Segment next) {
+    return segment.offset < next.offset;
+  });
+  auto segment_prev = segment_next;
+  if (segment_prev != segments.begin()) {
+    --segment_prev;
   }
 
-  /* Extend the previous segment, if it connects to the released segment. */
-  bool extended_prev = false;
-  if (it_prev != segments.end() && (it_prev->offset + it_prev->size) == segment.offset) {
-    extended_prev = true;
-    it_prev->size += segment.size;
+  /* Extend the previous/next segment, if they connect to the released segment. */
+  bool extend_prev = segment_prev != segments.end() &&
+                     segment.offset == (segment_prev->offset + segment_prev->size);
+  bool extend_next = segment_next != segments.end() &&
+                     segment_next->offset == (segment.offset + segment.size);
+  if (extend_prev) {
+    segment_prev->size += segment.size;
   }
-  /* Extend the next segment, if it connects to the released segment. */
-  bool extended_next = false;
-  if (it_next != segments.end() && it_next->offset == (segment.offset + segment.size)) {
-    extended_next = true;
-    it_next->offset = segment.offset;
-    it_next->size += segment.size;
+  if (extend_next) {
+    segment_next->offset = segment.offset;
+    segment_next->size += segment.size;
   }
 
-  if (extended_prev && extended_next) {
-    /* If both previous/next segments were extended, we can simply merge them. */
-    it_prev->size += it_next->size - segment.size;
-    segments.erase(it_next);
+  /* If both segments are extended, we join them. If neither was extended, we
+   * insert the released segment in between, as it doesn't connect to either. */
+  if (extend_prev && extend_next) {
+    segment_prev->size += segment_next->size - segment.size;
+    segments.erase(segment_next);
   }
-  else if (!(extended_prev || extended_next)) {
-    /* If neither segment was extended, they do not connect. Insert in the middle. */
-    segments.insert(it_next, segment);
+  else if (!(extend_prev || extend_next)) {
+    segments.insert(segment_next, segment);
   }
 }
 
@@ -135,14 +117,15 @@ bool VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements memory_requirem
   create_info.priority = 1.0f;
   create_info.memoryTypeBits = memory_requirements.memoryTypeBits;
   create_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
   VkResult result = vmaAllocateMemory(device.mem_allocator_get(),
                                       &memory_requirements,
                                       &create_info,
                                       &allocation,
                                       &allocation_info);
 
-  /* Start with a single segment, sized to the extent of the allocation. */
-  segments = {{0ul, allocation_info.size}};
+  /* Start with a single segment, sized to the full range of the allocation. */
+  segments = {{allocation_info.offset, allocation_info.size}};
 
   return result == VK_SUCCESS;
 }
@@ -283,7 +266,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   /* Bind VkImage to allocation. */
   VkResult bind_result = vmaBindImageMemory2(device.mem_allocator_get(),
                                              texture_handle.allocation_handle.allocation,
-                                             texture_handle.segment.offset,
+                                             texture_handle.allocation_local_offset(),
                                              texture_handle.texture->vk_image_,
                                              nullptr);
 
