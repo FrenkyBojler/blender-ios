@@ -713,8 +713,7 @@ class NODE_MT_context_menu(Menu):
             if is_nested:
                 layout.separator()
 
-                tree = active_node.node_tree
-                if tree.library or tree.override_library:
+                if group.library or group.override_library:
                     layout.operator("node.make_local")
 
                 layout.operator("node.tree_path_parent", text="Exit Group", icon='FILE_PARENT')
@@ -759,9 +758,10 @@ class NODE_MT_context_menu(Menu):
 
             if is_nested:
                 layout.separator()
-                tree = active_node.node_tree
-                if tree.library or tree.override_library:
+
+                if group.library or group.override_library:
                     layout.operator("node.make_local")
+
                 layout.operator("node.tree_path_parent", text="Exit Group", icon='FILE_PARENT')
 
             layout.separator()
