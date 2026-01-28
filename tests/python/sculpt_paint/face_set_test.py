@@ -81,7 +81,11 @@ class ChangeVisibilityTest(unittest.TestCase):
     def test_toggle_with_no_face_set_hides_and_unhides_everything(self):
         bpy.ops.sculpt.face_set_change_visibility(mode='TOGGLE', active_face_set=0)
 
-        hidden_faces = get_attribute_data(attribute_name=".hide_poly", attribute_domain='FACE', attribute_size=1, attribute_type=np.bool)
+        hidden_faces = get_attribute_data(
+            attribute_name=".hide_poly",
+            attribute_domain='FACE',
+            attribute_size=1,
+            attribute_type=np.bool)
 
         mesh = bpy.context.object.data
         faces_num = mesh.attributes.domain_size('FACE')
@@ -90,39 +94,69 @@ class ChangeVisibilityTest(unittest.TestCase):
 
         bpy.ops.sculpt.face_set_change_visibility(mode='TOGGLE', active_face_set=0)
 
-        hidden_faces = get_attribute_data(attribute_name=".hide_poly", attribute_domain='FACE', attribute_size=1, attribute_type=np.bool)
+        hidden_faces = get_attribute_data(
+            attribute_name=".hide_poly",
+            attribute_domain='FACE',
+            attribute_size=1,
+            attribute_type=np.bool)
         self.assertEqual(np.count_nonzero(hidden_faces), 0, "No faces should be hidden")
-
 
     def test_toggle_with_specified_face_set_modifies_other_faces(self):
-        face_set_data = get_attribute_data(attribute_name=".sculpt_face_set", attribute_domain='FACE', attribute_size=1, attribute_type=np.int32)
+        face_set_data = get_attribute_data(
+            attribute_name=".sculpt_face_set",
+            attribute_domain='FACE',
+            attribute_size=1,
+            attribute_type=np.int32)
 
         bpy.ops.sculpt.face_set_change_visibility(mode='TOGGLE', active_face_set=2)
 
-        hidden_faces = get_attribute_data(attribute_name=".hide_poly", attribute_domain='FACE', attribute_size=1, attribute_type=np.bool)
+        hidden_faces = get_attribute_data(
+            attribute_name=".hide_poly",
+            attribute_domain='FACE',
+            attribute_size=1,
+            attribute_type=np.bool)
 
-        self.assertEqual(np.count_nonzero(hidden_faces), np.count_nonzero(face_set_data != 2), "All non-specified faces should be hidden")
+        self.assertEqual(np.count_nonzero(hidden_faces), np.count_nonzero(
+            face_set_data != 2), "All non-specified faces should be hidden")
 
         bpy.ops.sculpt.face_set_change_visibility(mode='TOGGLE', active_face_set=2)
 
-        hidden_faces = get_attribute_data(attribute_name=".hide_poly", attribute_domain='FACE', attribute_size=1, attribute_type=np.bool)
+        hidden_faces = get_attribute_data(
+            attribute_name=".hide_poly",
+            attribute_domain='FACE',
+            attribute_size=1,
+            attribute_type=np.bool)
         self.assertEqual(np.count_nonzero(hidden_faces), 0, "No faces should be hidden")
 
-
     def test_hide_show_affects_specified_faces(self):
-        face_set_data = get_attribute_data(attribute_name=".sculpt_face_set", attribute_domain='FACE', attribute_size=1, attribute_type=np.int32)
+        face_set_data = get_attribute_data(
+            attribute_name=".sculpt_face_set",
+            attribute_domain='FACE',
+            attribute_size=1,
+            attribute_type=np.int32)
 
         bpy.ops.sculpt.face_set_change_visibility(mode='HIDE_ACTIVE', active_face_set=2)
 
-        hidden_faces = get_attribute_data(attribute_name=".hide_poly", attribute_domain='FACE', attribute_size=1, attribute_type=np.bool)
+        hidden_faces = get_attribute_data(
+            attribute_name=".hide_poly",
+            attribute_domain='FACE',
+            attribute_size=1,
+            attribute_type=np.bool)
 
-        self.assertEqual(np.count_nonzero(hidden_faces), np.count_nonzero(face_set_data == 2), "All specified faces should be hidden")
+        self.assertEqual(
+            np.count_nonzero(hidden_faces),
+            np.count_nonzero(
+                face_set_data == 2),
+            "All specified faces should be hidden")
 
         bpy.ops.sculpt.face_set_change_visibility(mode='SHOW_ACTIVE', active_face_set=2)
 
-        hidden_faces = get_attribute_data(attribute_name=".hide_poly", attribute_domain='FACE', attribute_size=1, attribute_type=np.bool)
+        hidden_faces = get_attribute_data(
+            attribute_name=".hide_poly",
+            attribute_domain='FACE',
+            attribute_size=1,
+            attribute_type=np.bool)
         self.assertEqual(np.count_nonzero(hidden_faces), 0, "No faces should be hidden")
-
 
 
 def main():
