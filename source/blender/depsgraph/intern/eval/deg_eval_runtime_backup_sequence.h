@@ -12,7 +12,6 @@
 
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
-#include "DNA_scene_types.h"
 
 struct MovieReader;
 struct Strip;

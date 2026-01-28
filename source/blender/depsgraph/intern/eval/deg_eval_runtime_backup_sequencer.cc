@@ -39,7 +39,6 @@ static bool strip_init_cb(Strip *strip, void *user_data)
 
 void SequencerBackup::init_from_scene(Scene *scene)
 {
-  this->ref_scene = scene;
   if (scene->ed != nullptr) {
     seq::foreach_strip(&scene->ed->seqbase, strip_init_cb, this);
   }
