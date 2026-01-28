@@ -362,7 +362,7 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
   }
 
   StringRef description;
-  if (varray.is_empty()) {
+  if (varray.is_single()) {
     description = TIP_("Stored as single value");
   }
 
