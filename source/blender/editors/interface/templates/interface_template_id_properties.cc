@@ -79,7 +79,7 @@ class IDPropertyDragController : public ui::AbstractViewItemDragController {
 
   void *create_drag_data() const override
   {
-    DragDropData *drag_data = MEM_callocN<DragDropData>(__func__);
+    DragDropData *drag_data = MEM_new_zeroed<DragDropData>(__func__);
     *drag_data = drag_data_;
     return drag_data;
   }

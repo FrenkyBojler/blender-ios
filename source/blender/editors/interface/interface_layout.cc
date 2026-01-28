@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <fmt/format.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -44,7 +45,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "fmt/format.h"
 #include "interface_intern.hh"
 
 namespace blender {
@@ -790,7 +790,7 @@ static void ui_item_array(Layout *layout,
       if (type == PROP_BOOLEAN &&
           ELEM(layout->block()->emboss, EmbossType::None, EmbossType::Pulldown))
       {
-        boolarr = MEM_calloc_arrayN<bool>(len, __func__);
+        boolarr = MEM_new_array_zeroed<bool>(len, __func__);
         RNA_property_boolean_get_array(ptr, prop, boolarr);
       }
 
@@ -819,7 +819,7 @@ static void ui_item_array(Layout *layout,
       }
 
       if (boolarr) {
-        MEM_freeN(boolarr);
+        MEM_delete(boolarr);
       }
     }
   }
@@ -990,7 +990,7 @@ static void ui_item_enum_expand_exec(Layout *layout,
   block_layout_set_current(block, layout);
 
   if (free) {
-    MEM_freeN(item_array);
+    MEM_delete(item_array);
   }
 }
 static void ui_item_enum_expand(Layout *layout,
@@ -1012,11 +1012,19 @@ static void ui_item_enum_expand_tabs(Layout *layout,
                                      PropertyRNA *prop_highlight,
                                      const std::optional<StringRef> uiname,
                                      const int h,
-                                     const bool icon_only)
+                                     const bool icon_only,
+                                     EnumTabExpand expand_as)
 {
   const int start_size = block->buttons.size();
 
-  ui_item_enum_expand_exec(layout, block, ptr, prop, uiname, h, ButtonType::Tab, icon_only);
+  ui_item_enum_expand_exec(layout,
+                           block,
+                           ptr,
+                           prop,
+                           uiname,
+                           h,
+                           expand_as == EnumTabExpand::Default ? ButtonType::Tab : ButtonType::Row,
+                           icon_only);
 
   if (block->buttons.is_empty()) {
     return;
@@ -1024,11 +1032,13 @@ static void ui_item_enum_expand_tabs(Layout *layout,
 
   BLI_assert(start_size != block->buttons.size());
 
-  for (int i = start_size; i < block->buttons.size(); i++) {
-    Button *tab = block->buttons[i].get();
-    button_drawflag_enable(tab, button_align_opposite_to_area_align_get(CTX_wm_region(C)));
-    if (icon_only) {
-      button_drawflag_enable(tab, BUT_HAS_QUICK_TOOLTIP);
+  if (expand_as == EnumTabExpand::Default) {
+    for (int i = start_size; i < block->buttons.size(); i++) {
+      Button *tab = block->buttons[i].get();
+      button_drawflag_enable(tab, button_align_opposite_to_area_align_get(CTX_wm_region(C)));
+      if (icon_only) {
+        button_drawflag_enable(tab, BUT_HAS_QUICK_TOOLTIP);
+      }
     }
   }
 
@@ -1706,7 +1716,7 @@ void Layout::op_enum(const StringRefNull opname,
     this->op_enum_items(ot, ptr, prop, properties, context, flag, item_array, totitem, active);
 
     if (free) {
-      MEM_freeN(item_array);
+      MEM_delete(item_array);
     }
   }
   else if (prop && RNA_property_type(prop) != PROP_ENUM) {
@@ -1787,7 +1797,7 @@ static void ui_item_rna_size(Layout *layout,
         }
       }
       if (free) {
-        MEM_freeN(item_array);
+        MEM_delete(item_array);
       }
     }
   }
@@ -2502,7 +2512,7 @@ void Layout::prop_enum(PointerRNA *ptr,
   if (!RNA_enum_value_from_id(item, value, &ivalue)) {
     const StringRefNull propname = RNA_property_identifier(prop);
     if (free) {
-      MEM_freeN(item);
+      MEM_delete(item);
     }
     ui_item_disabled(this, propname.c_str());
     RNA_warning_bare("UILayout.prop_enum(): enum property value not found: %s", value);
@@ -2525,7 +2535,7 @@ void Layout::prop_enum(PointerRNA *ptr,
   }
 
   if (free) {
-    MEM_freeN(item);
+    MEM_delete(item);
   }
 }
 
@@ -2600,7 +2610,7 @@ void Layout::props_enum(PointerRNA *ptr, const StringRefNull propname)
   }
 
   if (free) {
-    MEM_freeN(item);
+    MEM_delete(item);
   }
 }
 
@@ -2848,8 +2858,8 @@ static Button *ui_item_menu(Layout *layout,
                             void *argN,
                             const std::optional<StringRef> tip,
                             bool force_menu,
-                            ButtonArgNFree func_argN_free_fn = MEM_freeN,
-                            ButtonArgNCopy func_argN_copy_fn = MEM_dupallocN)
+                            ButtonArgNFree func_argN_free_fn = MEM_delete_void,
+                            ButtonArgNCopy func_argN_copy_fn = MEM_dupalloc_void)
 {
   Block *block = layout->block();
   Layout *heading_layout = ui_layout_heading_find(layout);
@@ -3416,7 +3426,7 @@ static int menu_item_enum_opname_menu_active(bContext *C, Button *but, MenuItemL
   RNA_property_enum_items_gettexted(C, &ptr, prop, &item_array, &totitem, &free);
   int active = RNA_enum_from_name(item_array, but->str.c_str());
   if (free) {
-    MEM_freeN(item_array);
+    MEM_delete(item_array);
   }
 
   return active;
@@ -3551,7 +3561,8 @@ void Layout::prop_tabs_enum(bContext *C,
                             PropertyRNA *prop,
                             PointerRNA *ptr_highlight,
                             PropertyRNA *prop_highlight,
-                            bool icon_only)
+                            bool icon_only,
+                            EnumTabExpand expand_as)
 {
   Block *block = this->block();
 
@@ -3565,7 +3576,8 @@ void Layout::prop_tabs_enum(bContext *C,
                            prop_highlight,
                            std::nullopt,
                            UI_UNIT_Y,
-                           icon_only);
+                           icon_only,
+                           expand_as);
 }
 
 /** \} */
@@ -5175,7 +5187,7 @@ static bool button_matches_search_filter(Button *but, const char *search_filter)
         }
       }
       if (free) {
-        MEM_freeN(const_cast<EnumPropertyItem *>(items_array));
+        MEM_delete(const_cast<EnumPropertyItem *>(items_array));
       }
       if (found) {
         return true;
@@ -5445,7 +5457,7 @@ Layout &block_layout(Block *block,
                      int padding,
                      const uiStyle *style)
 {
-  LayoutRoot *root = MEM_callocN<LayoutRoot>(__func__);
+  LayoutRoot *root = MEM_new_zeroed<LayoutRoot>(__func__);
   root->type = type;
   root->style = style;
   root->block = block;
@@ -5633,7 +5645,7 @@ void block_layout_free(Block *block)
 {
   for (LayoutRoot &root : block->layouts.items_mutable()) {
     ui_layout_free(root.layout);
-    MEM_freeN(&root);
+    MEM_delete(&root);
   }
 }
 
@@ -5650,7 +5662,7 @@ int2 block_layout_resolve(Block *block)
     /* nullptr in advance so we don't interfere when adding button */
     block_size = ui_layout_end(block, root.layout);
     ui_layout_free(root.layout);
-    MEM_freeN(&root);
+    MEM_delete(&root);
   }
 
   BLI_listbase_clear(&block->layouts);

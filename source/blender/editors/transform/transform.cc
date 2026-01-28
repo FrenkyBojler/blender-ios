@@ -1498,7 +1498,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
 
 bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2])
 {
-  TransInfo *t = MEM_callocN<TransInfo>("TransInfo data");
+  TransInfo *t = MEM_new_zeroed<TransInfo>("TransInfo data");
   bool success;
 
   t->context = C;
@@ -1542,7 +1542,7 @@ bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], floa
 
   postTrans(C, t);
 
-  MEM_freeN(t);
+  MEM_delete(t);
 
   return success;
 }
@@ -1876,7 +1876,6 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
         int orient_axis = constraintModeToIndex(t);
         if (orient_axis != -1) {
           RNA_property_enum_set(op->ptr, prop, orient_axis);
-          t->con.mode &= ~CON_APPLY;
         }
       }
       else {
