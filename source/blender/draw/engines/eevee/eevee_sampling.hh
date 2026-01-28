@@ -153,6 +153,16 @@ class Sampling {
     return clamp_data_.surface_indirect != 0.0f;
   }
 
+  bool use_direct_scale() const
+  {
+    return clamp_data_.direct_scale != 1.0f;
+  }
+
+  float direct_scale() const
+  {
+    return clamp_data_.direct_scale;
+  }
+
   bool use_indirect_scale() const
   {
     return clamp_data_.indirect_scale != 1.0f;

@@ -86,6 +86,7 @@ void Sampling::init(const Scene *scene)
   clamp_data_.volume_direct = clamp_value_load(scene->eevee.clamp_volume_direct);
   clamp_data_.volume_indirect = clamp_value_load(scene->eevee.clamp_volume_indirect);
 
+  clamp_data_.direct_scale = scene->eevee.direct_intensity;
   clamp_data_.indirect_scale = scene->eevee.indirect_intensity;
 }
 
