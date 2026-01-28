@@ -132,8 +132,7 @@ class GHOST_XrContext : public GHOST_IXrContext {
   void initExtensionsEx(std::vector<XrExtensionProperties> &extensions, const char *layer_name);
   void getAPILayersToEnable(std::vector<const char *> &r_ext_names);
   void getExtensionsToEnable(const std::vector<GHOST_TXrGraphicsBinding> &graphics_binding_types,
-                             std::vector<const char *> &r_ext_names,
-                             XrVersion api_version);
+                             std::vector<const char *> &r_ext_names);
   std::vector<GHOST_TXrGraphicsBinding> determineGraphicsBindingTypesToEnable(
       const GHOST_XrContextCreateInfo *create_info);
   GHOST_TXrGraphicsBinding determineGraphicsBindingTypeToUse(

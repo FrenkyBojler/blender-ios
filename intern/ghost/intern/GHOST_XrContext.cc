@@ -483,11 +483,7 @@ void GHOST_XrContext::getExtensionsToEnable(
   {
     try_ext.push_back(XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME);
     try_ext.push_back(XR_EXT_RENDER_MODEL_EXTENSION_NAME);
-    /* By spec XR_EXT_RENDER_MODEL depends either on OpenXR 1.1 or the presence of the XR_EXT_uuid
-     * extension. */
-    if (api_version < XR_MAKE_VERSION(1, 1, 0)) {
-      try_ext.push_back(XR_EXT_UUID_EXTENSION_NAME);
-    }
+    try_ext.push_back(XR_EXT_UUID_EXTENSION_NAME);
   }
   else {
     /* Fallback to the old Microsoft extension if the multi-vendor extension isn't available. */

@@ -227,7 +227,7 @@ static void create_reference_spaces(OpenXRSessionData &oxr, bool isDebugMode)
   }
 }
 
-void GHOST_XrSession::start(const GHOST_XrSessionBeginInfo *begin_info)
+void GHOST_XrSession::start()
 {
   assert(context_->getInstance() != XR_NULL_HANDLE);
   assert(oxr_->session == XR_NULL_HANDLE);
