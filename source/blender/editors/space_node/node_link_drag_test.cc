@@ -45,10 +45,6 @@
 
 #include <fmt/format.h>
 
-DEFINE_string(skip_compositor_ops, "", "Compositor link operations to skip when testing.");
-DEFINE_string(skip_geometry_ops, "", "Geometry link operations to skip when testing.");
-DEFINE_string(skip_shader_ops, "", "Shader link operations to skip when testing.");
-
 namespace blender::ed::space_node::tests {
 
 using bke::bNodeSocketType;
@@ -68,36 +64,11 @@ struct LinkOpFilter {
   }
 };
 
-static Set<LinkOpFilter> create_skipped_link_ops()
-{
-  Set<LinkOpFilter> ops = {};
-
-  auto add_skipped_ops = [&](const StringRef tree_idname, const StringRef arg) {
-    const std::string delimiter = ":";
-    std::string s = arg;
-    size_t pos = 0;
-    std::string token;
-    while ((pos = s.find(delimiter)) != std::string::npos) {
-      token = s.substr(0, pos);
-      ops.add({tree_idname, token});
-      s.erase(0, pos + delimiter.length());
-    }
-    if (!s.empty()) {
-      ops.add({tree_idname, s});
-    }
-  };
-
-  add_skipped_ops("CompositorNodeTree", FLAGS_skip_compositor_ops);
-  add_skipped_ops("GeometryNodeTree", FLAGS_skip_geometry_ops);
-  add_skipped_ops("ShaderNodeTree", FLAGS_skip_shader_ops);
-
-  return ops;
-}
-
-/* Skipped failing tests. */
+/* Skipped failing tests.
+ * This can be used to disable test cases temporarily to help with debugging. */
 static const Set<LinkOpFilter> &get_skipped_link_ops()
 {
-  static Set<LinkOpFilter> skipped_link_ops = create_skipped_link_ops();
+  static Set<LinkOpFilter> skipped_link_ops;
   return skipped_link_ops;
 }
 
