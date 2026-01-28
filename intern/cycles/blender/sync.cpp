@@ -388,7 +388,6 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
   }
 
   integrator->set_seed(seed);
-  integrator->set_frame(b_scene->r.cfra);
 
   integrator->set_sample_clamp_direct(get_float(cscene, "sample_clamp_direct"));
   integrator->set_sample_clamp_indirect(get_float(cscene, "sample_clamp_indirect"));
@@ -517,6 +516,9 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
     LOG_INFO << "Using scrambling distance: " << scrambling_distance;
   }
   integrator->set_scrambling_distance(scrambling_distance);
+
+  integrator->set_use_jitter(denoise_params.use && denoise_params.type == DENOISER_DLSS);
+  integrator->set_frame(b_scene->r.cfra);
 
   if (get_boolean(cscene, "use_fast_gi")) {
     if (preview) {

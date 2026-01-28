@@ -633,16 +633,18 @@ bool Scene::update(Progress &progress)
   return true;
 }
 
-bool Scene::update_camera_resolution(Progress &progress, int width, int height, bool jitter)
+bool Scene::update_camera_resolution(Progress &progress, int width, int height)
 {
+  const bool use_jitter = integrator->get_use_jitter();
+
   if (camera->set_screen_size(width, height)) {
     camera->device_update(device, &dscene, this);
   }
-  else if (!jitter) {
+  else if (!use_jitter) {
     return false;
   }
 
-  if (jitter) {
+  if (use_jitter) {
     integrator->set_seed(integrator->get_seed() + rand());
     integrator->set_frame(integrator->get_frame() + 1);
 

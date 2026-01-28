@@ -71,8 +71,6 @@ class Integrator : public Node {
 
   NODE_SOCKET_API(int, seed)
 
-  NODE_SOCKET_API(int, frame)
-
   NODE_SOCKET_API(float, sample_clamp_direct)
   NODE_SOCKET_API(float, sample_clamp_indirect)
   NODE_SOCKET_API(bool, motion_blur)
@@ -96,6 +94,9 @@ class Integrator : public Node {
 
   NODE_SOCKET_API(SamplingPattern, sampling_pattern)
   NODE_SOCKET_API(float, scrambling_distance)
+
+  NODE_SOCKET_API(bool, use_jitter);
+  NODE_SOCKET_API(int, frame)
 
   NODE_SOCKET_API(bool, use_denoise);
   NODE_SOCKET_API(DenoiserType, denoiser_type);
