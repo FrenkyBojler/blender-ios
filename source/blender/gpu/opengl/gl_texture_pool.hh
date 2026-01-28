@@ -20,32 +20,27 @@ class GLTexturePool : public TexturePool {
 
   struct AllocationHandle {
     GLTexture *texture = nullptr;
+
     /* Counter to track the number of unused cycles before deallocation in `pool_`. */
     int unused_cycles_count = 0;
   };
 
   struct TextureHandle {
-    /* Texture view that possibly aliases backing texture. */
+    GLTexture *view = nullptr;
     GLTexture *texture = nullptr;
-    /* Backing texture behind view. */
-    GLTexture *texture_allocation = nullptr;
+
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;
 
     /* We use the pointer as hash/comparator, as a texture cannot be acquired twice. */
     uint64_t hash() const
     {
-      return get_default_hash(texture);
+      return get_default_hash(view);
     }
 
     bool operator==(const TextureHandle &o) const
     {
-      return texture == o.texture;
-    }
-
-    bool is_view() const
-    {
-      return texture != nullptr && texture != texture_allocation;
+      return view == o.view;
     }
   };
 

@@ -20,11 +20,12 @@ namespace blender::gpu {
 static CLG_LogRef LOG = {"gpu.opengl"};
 
 /* Given a TextureFormat, return an underlying format on which to alias. If the
- * format does not support aliasing to any other format, simply return the input. */
+ * format does not support aliasing to another format, simply return the input. */
 static TextureFormat get_compatible_texture_format(TextureFormat format)
 {
-  /* glTextureView doesn't support aliasing on depth, stencil, or most
-   * compressed formats. */
+  return format;
+
+  /* glTextureView doesn't support aliasing on depth, stencil, or most compressed formats. */
   GPUTextureFormatFlag format_flag = to_format_flag(format);
   if (bool(format_flag & GPU_FORMAT_DEPTH_STENCIL)) {
     return format;
@@ -33,17 +34,7 @@ static TextureFormat get_compatible_texture_format(TextureFormat format)
     return format;
   }
 
-  /* Workaround: glTextureView on Intel HD and newer Intel Arc mobile is flaky, and
-   * output of glGetString does not differentiate a Arc 140V from e.g. a B750. */
-  if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY) ||
-      GPU_type_matches(GPU_DEVICE_INTEL_UHD, GPU_OS_ANY, GPU_DRIVER_ANY))
-  {
-    return format;
-  }
-
-  /* Given expected byte size, we use a default format available as TextureWriteFormat,
-   * TextureTargetFormat. On some platforms (Intel), a non-framebuffer-supporting
-   * underlying format breaks framebuffer attachments. */
+  /* Given expected byte size, we use a default format available as write/target format. */
   switch (to_bytesize(format)) {
     case 16:
       return TextureFormat::SFLOAT_32_32_32_32;
@@ -63,7 +54,7 @@ static TextureFormat get_compatible_texture_format(TextureFormat format)
 GLTexturePool::~GLTexturePool()
 {
   for (const auto &handle : acquired_) {
-    release_texture(wrap(handle.texture));
+    release_texture(wrap(handle.view));
   }
   for (auto &handle : pool_) {
     GPU_texture_free(handle.texture);
@@ -100,7 +91,7 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
 
   /* Acquire the compatible texture, or create a new one as a last resort. */
   if (match_index != -1) {
-    texture_handle.texture_allocation = pool_[match_index].texture;
+    texture_handle.texture = pool_[match_index].texture;
     pool_.remove_and_reorder(match_index);
   }
   else {
@@ -111,7 +102,7 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
     }
 
     eGPUTextureUsage usage_flag = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
-    texture_handle.texture_allocation = unwrap(GPU_texture_create_2d(
+    texture_handle.texture = unwrap(GPU_texture_create_2d(
         texture_name_str.c_str(), extent.x, extent.y, 1, compatible_format, usage_flag, nullptr));
   }
 
@@ -131,14 +122,13 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
   /* Debug label attached to view texture object. */
   std::string view_name_str;
   if (G.debug & G_DEBUG_GPU) {
-    view_name_str = name ? name : texture_handle.texture_allocation->name_;
+    view_name_str = name ? name : texture_handle.texture->name_;
   }
 
   /* Assemble texture view and add to handle. Note, glTextureView with identical formats is
    * allowed, even if the formats are not listed for aliasing in the Internal Formats table. */
-  gpu::Texture *view = GPU_texture_create_view(
-      view_name_str.c_str(), texture_handle.texture_allocation, format, 0, 1, 0, 1, false, false);
-  texture_handle.texture = unwrap(view);
+  texture_handle.view = unwrap(GPU_texture_create_view(
+      view_name_str.c_str(), texture_handle.texture, format, 0, 1, 0, 1, false, false));
 
   if (G.debug & G_DEBUG_GPU) {
     current_usage_data_.usage_count++;
@@ -147,13 +137,13 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
   }
 
   acquired_.add(texture_handle);
-  return wrap(texture_handle.texture);
+  return wrap(texture_handle.view);
 }
 
 void GLTexturePool::release_texture(Texture *tex)
 {
   BLI_assert_msg(acquired_.contains({unwrap(tex)}),
-                 "Unacquired texture passed to TexturePool::offset_users_count()");
+                 "Unacquired texture passed to TexturePool::release_texture()");
   auto texture_handle = acquired_.lookup_key({unwrap(tex), {}, 1});
 
   if (G.debug & G_DEBUG_GPU) {
@@ -162,13 +152,11 @@ void GLTexturePool::release_texture(Texture *tex)
 
   /* Move allocation back to `pool_`. */
   AllocationHandle allocation_handle;
-  allocation_handle.texture = texture_handle.texture_allocation;
+  allocation_handle.texture = texture_handle.texture;
   pool_.append(allocation_handle);
 
   /* Destroy view and handle, if a view was created. */
-  if (texture_handle.is_view()) {
-    GPU_texture_free(texture_handle.texture);
-  }
+  GPU_texture_free(texture_handle.view);
   acquired_.remove(texture_handle);
 }
 
