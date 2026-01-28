@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "MEM_guardedalloc.h"
+
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_bake_values.hh"
 #include "BKE_curves.hh"
@@ -48,7 +50,7 @@ static std::unique_ptr<BakeMaterialsList> materials_to_weak_references(
     }
   }
 
-  MEM_SAFE_FREE(*materials);
+  MEM_delete(*materials);
   *materials_num = 0;
 
   return materials_list;
@@ -64,7 +66,7 @@ static void restore_materials(Material ***materials,
   }
   BLI_assert(*materials == nullptr);
   *materials_num = materials_list->size();
-  *materials = MEM_calloc_arrayN<Material *>(materials_list->size(), __func__);
+  *materials = MEM_new_array_zeroed<Material *>(materials_list->size(), __func__);
   if (!data_block_map) {
     return;
   }
@@ -244,9 +246,9 @@ class RuntimeToBakeValue {
     }
   }
 
-  void process__list(nodes::List &list)
+  void process__list(nodes::List & /*list*/)
   {
-    // TODO: Handle list
+    /* TODO: Handle lists before #use_geometry_nodes_lists is removed. */
   }
 
   void process__gpointer(GMutablePointer value_ptr)
@@ -507,9 +509,9 @@ class BakeToRuntimeValue {
     }
   }
 
-  void process__list(nodes::List &list)
+  void process__list(nodes::List & /*list*/)
   {
-    // TODO
+    /* TODO: Handle lists before #use_geometry_nodes_lists is removed. */
   }
 
   std::string get_anonymous_attribute_name(const StringRef bake_attribute_name)
