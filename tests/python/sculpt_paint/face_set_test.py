@@ -15,7 +15,7 @@ import numpy as np
 import bpy
 
 """
-blender -b --factory-startup --python tests/python/sculpt_paint/mesh_filter_test.py -- --testdir tests/files/
+blender -b --factory-startup --python tests/python/sculpt_paint/face_set_test.py -- --testdir tests/files/sculpting
 """
 
 args = None
