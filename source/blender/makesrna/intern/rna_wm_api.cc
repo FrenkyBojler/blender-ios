@@ -281,7 +281,7 @@ static void rna_WM_try_activate_rna_button(blender::wmWindowManager * /*wm*/,
   if (!xy) {
     return;
   }
-  *r_xy = MEM_malloc_arrayN<int>(2, __func__);
+  *r_xy = MEM_new_array_uninitialized<int>(2, __func__);
   (*r_xy)[0] = (*xy)[0];
   (*r_xy)[1] = (*xy)[1];
   *r_xy_total = 2;
