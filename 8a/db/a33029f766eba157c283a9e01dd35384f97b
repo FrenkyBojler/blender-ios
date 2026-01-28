@@ -9,3 +9,4 @@ Referenced by pull request #153287, Fix #153286: Koro benchmark scene fails with
 Referenced by commit 516ce32070082d57d1e95205dc6536cca50c790d, Fix #153286: Koro benchmark scene fails with particle color from emitter
 Referenced by pull request #153322, Fix: Mesh validation bugs from AttributeStorage switch
 Referenced by commit 4ccc711695e660dc814f7b246036cc2f072e95a9, Fix: Mesh validation bugs from AttributeStorage switch
+Referenced by issue #153519, Crash: Using Node Tool and deleting mesh right after.
