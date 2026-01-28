@@ -191,6 +191,41 @@ float retiming_key_speed_get(const Strip *strip, const SeqRetimingKey *key)
   return speed;
 }
 
+static std::optional<float> retiming_key_new_frame_from_speed_get(const Scene *scene,
+                                                                  Strip *strip,
+                                                                  SeqRetimingKey *key,
+                                                                  const float speed)
+{
+  if (key->strip_frame_index == 0) {
+    return std::nullopt;
+  }
+
+  const SeqRetimingKey *key_prev = key - 1;
+
+  const int frame_index_max = strip->len;
+  const float frame_index_prev = round_fl_to_int(key_prev->retiming_factor * frame_index_max);
+  const float frame_index = round_fl_to_int(key->retiming_factor * frame_index_max);
+
+  const float scene_fps = float(scene->frames_per_second());
+  const float segment_duration = (frame_index - frame_index_prev) /
+                                 strip->media_playback_rate_factor(scene_fps);
+  const float new_duration = segment_duration / speed;
+
+  return std::round(retiming_key_frame_get(scene, strip, key_prev) + new_duration);
+}
+
+void retiming_key_speed_set(
+    const Scene *scene, Strip *strip, SeqRetimingKey *key, const float speed, bool keep_retiming)
+{
+  const std::optional<int> new_frame = retiming_key_new_frame_from_speed_get(
+      scene, strip, key, speed);
+  if (!new_frame) {
+    return;
+  }
+
+  retiming_key_frame_set(scene, strip, key, *new_frame, keep_retiming);
+}
+
 /** \} */
 
 /*-------------------------------------------------------------------- */
@@ -333,7 +368,6 @@ void retiming_data_clear(Strip *strip)
     strip->retiming_keys = nullptr;
     strip->retiming_keys_num = 0;
   }
-  strip->flag &= ~SEQ_SHOW_RETIMING;
 }
 
 static void retiming_key_overlap(Scene *scene, Strip *strip)
@@ -908,30 +942,6 @@ void retiming_key_frame_set(
   Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
-}
-
-void retiming_key_speed_set(
-    const Scene *scene, Strip *strip, SeqRetimingKey *key, const float speed, bool keep_retiming)
-{
-  if (key->strip_frame_index == 0) {
-    return;
-  }
-
-  const SeqRetimingKey *key_prev = key - 1;
-
-  const int frame_index_max = strip->len;
-  const float frame_index_prev = round_fl_to_int(key_prev->retiming_factor * frame_index_max);
-  const float frame_index = round_fl_to_int(key->retiming_factor * frame_index_max);
-
-  const float scene_fps = float(scene->frames_per_second());
-  const float segment_duration = (frame_index - frame_index_prev) /
-                                 strip->media_playback_rate_factor(scene_fps);
-  const float new_duration = segment_duration / speed;
-
-  const float new_frame = std::round(retiming_key_frame_get(scene, strip, key_prev) +
-                                     new_duration);
-
-  retiming_key_frame_set(scene, strip, key, new_frame, keep_retiming);
 }
 
 /** \} */
