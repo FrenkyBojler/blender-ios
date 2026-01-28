@@ -131,7 +131,7 @@ macro(cycles_external_libraries_append libraries)
     ${OPENIMAGEIO_LIBRARIES}
     ${PNG_LIBRARIES}
     ${JPEG_LIBRARIES}
-    ${TIFF_LIBRARY}
+    ${TIFF_LIBRARIES}
     ${OPENJPEG_LIBRARIES}
     ${OPENEXR_LIBRARIES}
     ${OPENEXR_LIBRARIES} # For circular dependencies between libs.
