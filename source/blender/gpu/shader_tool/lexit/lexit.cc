@@ -396,8 +396,9 @@ void TokenBuffer::tokenize(const CharClass char_class_table[128])
         __m128i shuffle32_hi = _mm_cvtepu8_epi32(_mm_srli_si128(shuffle_vec, 4));
 
         __m128i base_off = _mm_set1_epi32(current_offset);
-        _mm_storeu_si128((__m128i *)(offsets_ + cursor), _mm_add_epi32(shuffle32_lo, base_off));
-        _mm_storeu_si128((__m128i *)(offsets_ + cursor + 4),
+        _mm_storeu_si128((__m128i *)(offsets_.get() + cursor),
+                         _mm_add_epi32(shuffle32_lo, base_off));
+        _mm_storeu_si128((__m128i *)(offsets_.get() + cursor + 4),
                          _mm_add_epi32(shuffle32_hi, base_off));
 
         cursor += count_bits_i(m);
@@ -631,7 +632,12 @@ static uint32_t merge_token(const TokenType *in_types,
     out_original_offsets[j + 1] = next_offset;
     /* If false, make the next token overwrite this one.
      * Effectively merging the token with the one before. */
-    j += int(type != removed_type && type != removed_type2);
+    if constexpr (removed_type == removed_type2) {
+      j += int(type != removed_type);
+    }
+    else {
+      j += int(type != removed_type && type != removed_type2);
+    }
   }
 
   out_types[j] = EndOfFile;
