@@ -976,8 +976,6 @@ static PyObject *BPy_IDPropertyUIManager_update_from(BPy_IDPropertyUIManager *se
     property->ui_data = IDP_ui_data_copy(src_prop);
   }
 
-  property->flag |= (src_prop->flag & IDP_FLAG_OVERRIDABLE_LIBRARY);
-
   Py_RETURN_NONE;
 }
 
