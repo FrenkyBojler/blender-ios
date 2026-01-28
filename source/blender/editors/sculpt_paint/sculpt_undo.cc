@@ -588,7 +588,7 @@ static void restore_position_mesh(Object &object,
           undo_data.compressed_positions[i], tls.compress_buffer, tls.positions);
       MutableSpan undo_positions = tls.positions.as_mutable_span();
 
-      if (!ss.deform_modifiers_active) {
+      if (!ss.deform_modifiers_active && !shape_key_data) {
         /* When original positions aren't written separately in the undo step, there are no
          * deform modifiers. Therefore the original and evaluated deform positions will be the
          * same, and modifying the positions from the original mesh is enough. */
@@ -949,7 +949,7 @@ static void restore_geometry_data(const NodeGeometry *geometry, Mesh *mesh)
   mesh->faces_num = geometry->faces_num;
   mesh->totface_legacy = 0;
 
-  mesh->attribute_storage = geometry->attribute_storage.wrap();
+  mesh->attribute_storage.wrap() = geometry->attribute_storage.wrap();
   CustomData_init_from(
       &geometry->vert_data, &mesh->vert_data, CD_MASK_MESH.vmask, geometry->verts_num);
   CustomData_init_from(
@@ -1951,7 +1951,7 @@ void push_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
   /* If possible, we need to tag the object and its geometry data as 'changed in the future' in
    * the previous undo step if it's a memfile one. */
   ED_undosys_stack_memfile_id_changed_tag(ustack, &ob.id);
-  ED_undosys_stack_memfile_id_changed_tag(ustack, static_cast<ID *>(ob.data));
+  ED_undosys_stack_memfile_id_changed_tag(ustack, ob.data);
 
   /* Special case, we never read from this. */
   bContext *C = nullptr;
@@ -1994,7 +1994,7 @@ void push_enter_sculpt_mode(const Scene & /*scene*/, Object &ob, const wmOperato
   /* If possible, we need to tag the object and its geometry data as 'changed in the future' in
    * the previous undo step if it's a memfile one. */
   ED_undosys_stack_memfile_id_changed_tag(ustack, &ob.id);
-  ED_undosys_stack_memfile_id_changed_tag(ustack, static_cast<ID *>(ob.data));
+  ED_undosys_stack_memfile_id_changed_tag(ustack, ob.data);
 
   /* Special case, we never read from this. */
   bContext *C = nullptr;
@@ -2307,7 +2307,7 @@ void geometry_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
   /* If possible, we need to tag the object and its geometry data as 'changed in the future' in
    * the previous undo step if it's a memfile one. */
   ED_undosys_stack_memfile_id_changed_tag(ustack, &ob.id);
-  ED_undosys_stack_memfile_id_changed_tag(ustack, static_cast<ID *>(ob.data));
+  ED_undosys_stack_memfile_id_changed_tag(ustack, ob.data);
 
   /* Special case, we never read from this. */
   bContext *C = nullptr;
