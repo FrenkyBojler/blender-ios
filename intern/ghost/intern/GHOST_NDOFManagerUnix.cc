@@ -26,6 +26,8 @@ GHOST_NDOFManagerUnix::GHOST_NDOFManagerUnix(GHOST_System &sys)
     CLOG_DEBUG(&LOG, "'spacenavd' found at\"%s\"", spnav_sock_path);
     available_ = true;
 
+    spnav_client_name("blender");
+
     /* determine exactly which device (if any) is plugged in */
 
 #define MAX_LINE_LENGTH 100
