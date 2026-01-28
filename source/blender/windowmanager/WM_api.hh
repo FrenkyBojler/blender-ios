@@ -1606,7 +1606,7 @@ void WM_event_fileselect_event(wmWindowManager *wm, void *ophandle, int eventval
 
 /** Return a borrowed reference to the custom-data. */
 void *WM_event_consecutive_data_get(wmWindow *win, const char *id);
-/** Set the custom-data (and own the pointer), free with #MEM_freeN. */
+/** Set the custom-data (and own the pointer), free with #MEM_delete_void. */
 void WM_event_consecutive_data_set(wmWindow *win, const char *id, void *custom_data);
 /** Clear and free the consecutive custom-data. */
 void WM_event_consecutive_data_free(wmWindow *win);
@@ -2064,6 +2064,7 @@ const char *WM_window_cursor_keymap_status_get(const wmWindow *win,
                                                int button_index,
                                                int type_index);
 void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win);
+void WM_window_cursor_keymap_status_free(wmWindow *win);
 
 void WM_window_status_area_tag_redraw(wmWindow *win);
 /**
