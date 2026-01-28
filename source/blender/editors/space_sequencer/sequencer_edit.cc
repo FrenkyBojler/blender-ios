@@ -473,7 +473,7 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
 
 void sync_vse_camera_for_view3d(const WorkSpace *workspace, const Scene *active_scene, View3D *v3d)
 {
-  /* Check if VSE sync mode is enabled. */
+  /* Paramertes must not be nullptr */
   BLI_assert(workspace != nullptr);
   BLI_assert(active_scene != nullptr);
   BLI_assert(v3d != nullptr);
