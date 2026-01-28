@@ -296,6 +296,10 @@ class RENDER_PT_output(RenderOutputButtonsPanel, Panel):
         'BLENDER_WORKBENCH',
     }
 
+    def draw_header(self, context):
+        rd = context.scene.render
+        self.layout.prop(rd, "is_saving_enabled", text="")
+
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = False
@@ -303,6 +307,7 @@ class RENDER_PT_output(RenderOutputButtonsPanel, Panel):
 
         rd = context.scene.render
         image_settings = rd.image_settings
+        layout.active = rd.is_saving_enabled
 
         layout.prop(rd, "filepath", text="")
 
@@ -311,12 +316,12 @@ class RENDER_PT_output(RenderOutputButtonsPanel, Panel):
         col = layout.column(heading="Saving")
         col.prop(rd, "use_file_extension")
         col.prop(rd, "use_render_cache")
-        col.prop(rd, "write_animation")
 
         layout.template_image_settings(image_settings, color_management=False)
 
         if not rd.is_movie_format:
             col = layout.column(heading="Image Sequence")
+
             col.prop(rd, "use_overwrite")
             col.prop(rd, "use_placeholder")
 
@@ -357,10 +362,12 @@ class RENDER_PT_output_color_management(RenderOutputButtonsPanel, Panel):
     def draw(self, context):
         scene = context.scene
         image_settings = scene.render.image_settings
+        rd = scene.render
 
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
+        layout.active = rd.is_saving_enabled
 
         layout.row().prop(image_settings, "color_management", text=" ", expand=True)
 
@@ -438,6 +445,7 @@ class RENDER_PT_output_pixel_density(RenderOutputButtonsPanel, Panel):
         pixeldensity_label_text, show_pixeldensity = RENDER_PT_output_pixel_density._draw_pixeldensity_label(*args)
 
         layout.prop(rd, "ppm_factor", text="Pixels")
+        layout.active = rd.is_saving_enabled
 
         row = layout.split(factor=0.4)
         row.alignment = 'RIGHT'

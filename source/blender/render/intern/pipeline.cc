@@ -2364,7 +2364,7 @@ void RE_RenderAnim(Render *re,
   const bool is_movie = BKE_imtype_is_movie(image_format.imtype);
   const bool is_multiview_name = ((rd.scemode & R_MULTIVIEW) != 0 &&
                                   (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
-  const bool write_anim = (scene->r.mode & R_MODE_WRITE_ANIM);
+  const bool write_anim = (scene->r.mode & R_SAVE_ENABLE);
 
   /* Disable file writing if postprocessing is also disabled or if it's explicitly disabled by the
    * user. */
