@@ -8,6 +8,7 @@
 
 #include "BLI_generic_pointer.hh"
 #include "BLI_generic_virtual_array.hh"
+#include "BLI_memory_counter_fwd.hh"
 
 #include "NOD_geometry_nodes_list_fwd.hh"
 
@@ -17,20 +18,32 @@ class List : public ImplicitSharingMixin {
  public:
   class ArrayData {
    public:
-    void *data;
+    /**
+     * This is const because it uses implicit sharing. In some contexts the const can be cast away
+     * when it's clear that the data is not shared.
+     */
+    const void *data;
     ImplicitSharingPtr<> sharing_info;
     static ArrayData ForValue(const GPointer &value, int64_t size);
     static ArrayData ForDefaultValue(const CPPType &type, int64_t size);
     static ArrayData ForConstructed(const CPPType &type, int64_t size);
     static ArrayData ForUninitialized(const CPPType &type, int64_t size);
+
+    void count_memory(MemoryCounter &memory, const CPPType &type, const int64_t size) const;
   };
 
   class SingleData {
    public:
-    void *value;
+    /**
+     * This is const because it uses implicit sharing. In some contexts the const can be cast away
+     * when it's clear that the data is not shared.
+     */
+    const void *value;
     ImplicitSharingPtr<> sharing_info;
     static SingleData ForValue(const GPointer &value);
     static SingleData ForDefaultValue(const CPPType &type);
+
+    void count_memory(MemoryCounter &memory, const CPPType &type) const;
   };
 
   using DataVariant = std::variant<ArrayData, SingleData>;
@@ -51,16 +64,25 @@ class List : public ImplicitSharingMixin {
     return ListPtr(MEM_new<List>(__func__, type, std::move(data), size));
   }
 
+  DataVariant &data();
   const DataVariant &data() const;
   const CPPType &cpp_type() const;
   int64_t size() const;
 
   void delete_self() override;
+  ListPtr copy() const;
 
   /** Access the list as virtual array. */
   GVArray varray() const;
   template<typename T> VArray<T> varray() const;
+
+  void count_memory(MemoryCounter &memory) const;
 };
+
+inline List::DataVariant &List::data()
+{
+  return data_;
+}
 
 inline const List::DataVariant &List::data() const
 {
