@@ -31,6 +31,8 @@
 #include "WM_keymap.hh"
 #include "WM_types.hh"
 
+class GHOST_IContext;
+
 namespace blender {
 
 struct ARegion;
@@ -385,10 +387,10 @@ void WM_window_ensure_active_view_layer(wmWindow *win) ATTR_NONNULL(1);
 
 bool WM_window_is_temp_screen(const wmWindow *win) ATTR_WARN_UNUSED_RESULT;
 
-void *WM_system_gpu_context_create();
-void WM_system_gpu_context_dispose(void *context);
-void WM_system_gpu_context_activate(void *context);
-void WM_system_gpu_context_release(void *context);
+GHOST_IContext *WM_system_gpu_context_create();
+void WM_system_gpu_context_dispose(GHOST_IContext *context);
+void WM_system_gpu_context_activate(GHOST_IContext *context);
+void WM_system_gpu_context_release(GHOST_IContext *context);
 
 /** #WM_window_open alignment. */
 enum eWindowAlignment {
@@ -1606,7 +1608,7 @@ void WM_event_fileselect_event(wmWindowManager *wm, void *ophandle, int eventval
 
 /** Return a borrowed reference to the custom-data. */
 void *WM_event_consecutive_data_get(wmWindow *win, const char *id);
-/** Set the custom-data (and own the pointer), free with #MEM_freeN. */
+/** Set the custom-data (and own the pointer), free with #MEM_delete_void. */
 void WM_event_consecutive_data_set(wmWindow *win, const char *id, void *custom_data);
 /** Clear and free the consecutive custom-data. */
 void WM_event_consecutive_data_free(wmWindow *win);
@@ -2064,6 +2066,7 @@ const char *WM_window_cursor_keymap_status_get(const wmWindow *win,
                                                int button_index,
                                                int type_index);
 void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win);
+void WM_window_cursor_keymap_status_free(wmWindow *win);
 
 void WM_window_status_area_tag_redraw(wmWindow *win);
 /**
