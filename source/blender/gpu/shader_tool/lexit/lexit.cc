@@ -27,17 +27,33 @@
 
 namespace lexit {
 
-void TokenBuffer::clear_and_reserve(const uint32_t count)
+/* Helper function to realloc aligned array keeping elem_count data. */
+template<typename T>
+void realloc_aligned_array(std::unique_ptr<T[]> &ptr, size_t elem_count, size_t new_size)
+{
+  assert(new_size > elem_count);
+  std::unique_ptr<T[]> new_ptr(new (std::align_val_t{64}) T[new_size]);
+  if (ptr) {
+    std::memcpy(new_ptr.get(), ptr.get(), elem_count * sizeof(T));
+  }
+  ptr = std::move(new_ptr);
+}
+
+void TokenBuffer::clear()
 {
   size_ = 0;
+}
+
+void TokenBuffer::reserve(const uint32_t count)
+{
   if (allocated_size_ >= count + 1) {
     return;
   }
   allocated_size_ = count + 1;
-  types_ = std::unique_ptr<TokenType[]>(new (std::align_val_t{64}) TokenType[allocated_size_]);
-  offsets_ = std::unique_ptr<uint32_t[]>(new (std::align_val_t{64}) uint32_t[allocated_size_]);
-  original_offsets_ = std::unique_ptr<uint32_t[]>(new (std::align_val_t{64})
-                                                      uint32_t[allocated_size_]);
+  realloc_aligned_array(types_, size_, allocated_size_);
+  realloc_aligned_array(offsets_, size_, allocated_size_);
+  realloc_aligned_array(original_offsets_, size_, allocated_size_);
+  realloc_aligned_array(atoms_, size_, allocated_size_);
 }
 
 #if defined(USE_NEON) || defined(USE_SSE4_2)

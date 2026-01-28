@@ -13,13 +13,79 @@
 
 #include <cassert>
 #include <cstdint>
+#include <iostream>
 #include <iterator>
 #include <memory>
 #include <string_view>
 
 #include "types.hh"
 
+#define LEXIT_DEBUG
+
 namespace lexit {
+
+struct TokenBuffer;
+
+/* Unique identifier to a word token. */
+using TokenAtom = uint16_t;
+
+struct Token {
+#ifndef LEXIT_DEBUG
+  std::string_view debug_str_;
+  TokenType debug_type_;
+  TokenAtom debug_atom_;
+#endif
+  const TokenBuffer *buf_;
+  int32_t index_;
+
+  Token(const TokenBuffer *buf, int32_t index);
+
+  static Token invalid(TokenBuffer *buf);
+
+  explicit operator int32_t() const
+  {
+    return index_;
+  }
+
+  bool is_valid() const
+  {
+    return type() != EndOfFile;
+  }
+
+  TokenType type() const;
+  TokenAtom atom() const;
+
+  std::string_view str() const;
+  std::string_view str_with_whitespace() const;
+
+  bool followed_by_whitespace() const;
+
+  Token next(int i = 1) const;
+  Token prev(int i = 1) const;
+
+  friend bool operator==(const Token &a, const Token &b)
+  {
+    assert(a.buf_ == b.buf_);
+    return a.index_ == b.index_;
+  }
+
+  friend bool operator==(const Token &a, TokenType b)
+  {
+    return a.type() == b;
+  }
+  friend bool operator!=(const Token &a, TokenType b)
+  {
+    return a.type() != b;
+  }
+};
+
+/* Same as Token but allow type assignment. */
+struct TokenMut : public Token {
+  TokenMut(TokenBuffer *buf, int32_t index) : Token(buf, index) {}
+
+  TokenType &type();
+  TokenAtom &atom();
+};
 
 struct TokenBuffer {
   /* Input string. */
@@ -30,6 +96,8 @@ struct TokenBuffer {
   std::unique_ptr<uint32_t[]> offsets_;
   /* Original character index of each next token before whitespace merging (optional). */
   std::unique_ptr<uint32_t[]> original_offsets_;
+  /* Unique id for identifiers (Words). Externally set (optional). */
+  std::unique_ptr<TokenAtom[]> atoms_;
   /* Number of tokens inside the buffer excluding the terminating EndOfFile token. */
   uint32_t size_ = 0;
   /* Number of tokens that can be contained. */
@@ -47,16 +115,22 @@ struct TokenBuffer {
   void process(const std::string_view str, const CharClass char_class_table[128])
   {
     str_ = str;
-    clear_and_reserve(str.size());
+    clear();
+    reserve(str.size());
     tokenize(char_class_table);
   }
 
   /**
-   * @brief Discard current data and allocate backing memory for the given number of tokens.
+   * @brief Discard all currently held data. Does not reallocate.
+   */
+  void clear();
+
+  /**
+   * @brief Allocate backing memory for the given number of tokens and move currently held data.
    *
    * Does nothing if allocation is already large enough.
    */
-  void clear_and_reserve(uint32_t count);
+  void reserve(const uint32_t count);
 
   /**
    * @brief Tokenizes the input string by grouping contiguous characters of the same class.
@@ -92,77 +166,13 @@ struct TokenBuffer {
     return size_;
   }
 
-  struct TokenConst {
-    const std::string_view str;
-    const TokenType &type;
-  };
-
-  struct Token {
-    const std::string_view str;
-    TokenType &type;
-  };
-
-  Token operator[](int index)
+  Token operator[](int index) const
   {
-    int start = offsets_[index];
-    int end = (whitespaces_collapsed_ ? original_offsets_ : offsets_)[index + 1];
-    assert(start < end);
-    return {str_.substr(start, end - start), types_[index]};
+    return Token(this, index);
   }
-
-  TokenConst operator[](const int index) const
+  TokenMut operator[](int index)
   {
-    const int start = offsets_[index];
-    const int end = (whitespaces_collapsed_ ? original_offsets_ : offsets_)[index + 1];
-    assert(start < end);
-    return {str_.substr(start, end - start), types_[index]};
-  }
-
-  struct TokenMut {
-    const char *str_data;
-    int str_len;
-    int str_len_with_whitespace;
-    TokenType type;
-
-    TokenMut() = delete;
-
-    TokenMut(std::string_view str, TokenType type)
-        : str_data(str.data()),
-          str_len(str.size()),
-          str_len_with_whitespace(str.size()),
-          type(type)
-    {
-    }
-
-    TokenMut(const char *str_data, int str_len, int str_len_with_whitespace, TokenType type)
-        : str_data(str_data),
-          str_len(str_len),
-          str_len_with_whitespace(str_len_with_whitespace),
-          type(type)
-    {
-    }
-
-    std::string_view str() const
-    {
-      return std::string_view{str_data, size_t(str_len)};
-    }
-    std::string_view str_with_whitespace() const
-    {
-      return std::string_view{str_data, size_t(str_len_with_whitespace)};
-    }
-    bool followed_by_whitespace() const
-    {
-      return str_len != str_len_with_whitespace;
-    }
-  };
-
-  TokenMut mutable_token(const int index) const
-  {
-    const int start = offsets_[index];
-    const int end = (whitespaces_collapsed_ ? original_offsets_ : offsets_)[index + 1];
-    const int end_with_whitespace = offsets_[index + 1];
-    assert(start < end);
-    return {str_.data() + start, end - start, end_with_whitespace - start, types_[index]};
+    return TokenMut(this, index);
   }
 
   /**
@@ -178,13 +188,9 @@ struct TokenBuffer {
    public:
     TokenIt(TokenBuffer *buf, const int index) : buf_(buf), index_(index) {}
 
-    Token operator*() const
+    TokenMut operator*() const
     {
-      int start = buf_->offsets_[index_];
-      int end = (buf_->whitespaces_collapsed_ ? buf_->original_offsets_ :
-                                                buf_->offsets_)[index_ + 1];
-      assert(start < end);
-      return Token{buf_->str_.substr(start, end - start), buf_->types_[index_]};
+      return TokenMut(buf_, index_);
     }
 
     TokenIt &operator++()
@@ -221,5 +227,81 @@ struct TokenBuffer {
     return TokenIt(this, size_);
   }
 };
+
+inline Token::Token(const TokenBuffer *buf, int32_t index) : buf_(buf)
+{
+  assert(buf_ != nullptr);
+  /* Set to Invalid / EndOfFile token if out of range. */
+  index_ = (index < 0 || index > buf_->size_) ? buf_->size_ : index;
+#ifndef LEXIT_DEBUG
+  debug_str_ = str_with_whitespace();
+  debug_type_ = type();
+  debug_atom_ = atom();
+#endif
+}
+
+inline Token Token::invalid(TokenBuffer *buf)
+{
+  return Token(buf, buf->size_);
+}
+
+inline TokenType Token::type() const
+{
+  return buf_->types_[index_];
+}
+inline TokenType &TokenMut::type()
+{
+  return buf_->types_[index_];
+}
+
+inline TokenAtom Token::atom() const
+{
+  return buf_->atoms_[index_];
+}
+inline TokenAtom &TokenMut::atom()
+{
+  return buf_->atoms_[index_];
+}
+
+inline Token Token::next(int i) const
+{
+  return Token(buf_, index_ + i);
+}
+inline Token Token::prev(int i) const
+{
+  return is_valid() ? Token(buf_, index_ - i) : Token(buf_, -1);
+}
+
+inline std::string_view Token::str() const
+{
+  int start = buf_->offsets_[index_];
+  int end = buf_->whitespaces_collapsed_ ? buf_->original_offsets_[index_ + 1] :
+                                           buf_->offsets_[index_ + 1];
+  return {buf_->str_.data() + start, size_t(end - start)};
+}
+
+inline std::string_view Token::str_with_whitespace() const
+{
+  int start = buf_->offsets_[index_];
+  int end = buf_->offsets_[index_ + 1];
+  return {buf_->str_.data() + start, size_t(end - start)};
+}
+
+inline bool Token::followed_by_whitespace() const
+{
+  assert(buf_->whitespaces_collapsed_ && is_valid());
+  return buf_->original_offsets_[index_ + 1] != buf_->offsets_[index_ + 1];
+}
+
+inline std::ostream &operator<<(std::ostream &os, const Token &tok)
+{
+  os << "Token(";
+  os << "type='" << tok.type() << "', ";
+  os << "atom=" << tok.atom() << ", ";
+  os << "str=\"" << tok.str() << "\", ";
+  os << "str_with_whitespace=\"" << tok.str_with_whitespace() << "\"";
+  os << ")";
+  return os;
+}
 
 }  // namespace lexit

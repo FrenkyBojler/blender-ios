@@ -218,14 +218,14 @@ static always_inline TokenType type_lookup(std::string_view s)
 void LexerBase::identify_keywords()
 {
   for (auto tok : *this) {
-    switch (tok.type) {
+    switch (tok.type()) {
       case Word:
-        tok.type = type_lookup(tok.str);
+        tok.type() = type_lookup(tok.str());
         break;
       case Number:
         break;
       default:
-        tok.type = multi_tok_lookup(tok.type, tok.str);
+        tok.type() = multi_tok_lookup(tok.type(), tok.str());
         break;
     }
   }

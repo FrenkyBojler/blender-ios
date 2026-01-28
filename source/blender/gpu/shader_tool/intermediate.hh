@@ -148,6 +148,20 @@ struct MutableString {
       replace(from.str_index_start(), to.str_index_last(), replacement);
     }
   }
+  /* Replace everything from `from` to `to` (inclusive). */
+  void replace(lexit::Token from,
+               lexit::Token to,
+               const std::string &replacement,
+               bool keep_trailing_whitespaces = false)
+  {
+    const char *str = this->str_.data();
+    if (keep_trailing_whitespaces) {
+      replace(from.str().data() - str, to.str_with_whitespace().end() - str - 1, replacement);
+    }
+    else {
+      replace(from.str().data() - str, to.str().end() - str - 1, replacement);
+    }
+  }
   /* Replace token by string. */
   void replace(Token tok, const std::string &replacement, bool keep_trailing_whitespaces = false)
   {

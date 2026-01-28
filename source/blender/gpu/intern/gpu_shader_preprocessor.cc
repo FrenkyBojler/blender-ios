@@ -27,23 +27,8 @@ namespace blender::gpu {
 namespace shader::parser {
 
 struct TokenRange {
-  Token start, end;
+  lexit::Token start, end;
 };
-
-static StringRef str(const Token t)
-{
-  const LexerBase &lex = t.data->lex;
-  return lex.mutable_token(t.index).str();
-}
-
-static StringRef str(const TokenRange &range)
-{
-  const LexerBase &lex = range.start.data->lex;
-  StringRef start = lex[range.start.index].str;
-  StringRef end = lex[range.end.index].str;
-  int64_t size = end.end() - start.data();
-  return size > 0 ? StringRef(start.data(), end.end() - start.data()) : "";
-}
 
 }  // namespace shader::parser
 
@@ -59,21 +44,9 @@ using namespace shader::parser;
  * Lexer variant for very fast tokenization for the preprocessor.
  * Consider numbers as words (to avoid splitting and then merging later on).
  * Does not merge newlines and spaces together.
- * Convert all identifier strings (words) into unique identifiers (Atom) for fast comparison.
+ * Convert all identifier strings (words) into unique identifiers (TokenAtom) for fast comparison.
  */
 struct AtomicLexer : LexerBase {
-  /* Unique identifier to a word token. */
-  using Atom = uint16_t;
-  /* String hash used to lookup atoms. uint64_t is slower. */
-  using Hash = uint32_t;
-
-#ifndef NDEBUG
-  /** We do not support hash collision yet (for speed). */
-  Map<StringRef, Hash> check_map;
-#endif
-  /** Atom per token. NOTE: Values are undefined for non word token. */
-  Vector<Atom> token_atoms;
-
   /* Line index to token range. */
   blender::OffsetIndices<int> line_offsets;
   /* Preprocessor directive to line index. */
@@ -92,7 +65,7 @@ struct AtomicLexer : LexerBase {
     lex_pass();
   }
 
-  BLI_INLINE_METHOD Atom hash(StringRef tok_str)
+  BLI_INLINE_METHOD TokenAtom hash(StringRef tok_str)
   {
     switch (tok_str.size()) {
       case 1:
@@ -140,7 +113,7 @@ struct AtomicLexer : LexerBase {
   }
 
   /** Map string hashes to atom value. */
-  Map<StringRef, Atom> atomization_map_;
+  Map<StringRef, TokenAtom> atomization_map_;
   /* Reserve [16512-65536] range for longer token. */
   uint16_t atom_hash_counter_ = 16512;
 
@@ -162,7 +135,6 @@ struct AtomicLexer : LexerBase {
    */
   BLI_NOINLINE void lex_pass()
   {
-    token_atoms.resize(token_types.size());
     /* From checking our statistics. This heuristic should be enough for 99% of our cases. */
     atomization_map_.reserve(token_types.size() / 17);
     /* From checking our statistics. This heuristic should be enough for 100% of our cases. */
@@ -171,12 +143,12 @@ struct AtomicLexer : LexerBase {
 
     line_offsets_buf_.append(0);
     for (TokenIt it = begin(); it < end(); ++it) {
-      const Token tok = *it;
-      switch (tok.type) {
+      lexit::TokenMut tok = *it;
+      switch (tok.type()) {
         case Word: {
-          tok.type = type_lookup(tok.str);
-          if (tok.type == Word) {
-            token_atoms[it.index()] = hash(tok.str);
+          tok.type() = type_lookup(tok.str());
+          if (tok.type() == Word) {
+            atoms_[it.index()] = hash(tok.str());
           }
           break;
         }
@@ -219,6 +191,131 @@ struct ExpansionLexer : LexerBase {
     token_types_str = std::string_view((const char *)types_.get(), size_);
     token_types = {types_.get(), size_};
     token_offsets = {offsets_.get(), size_ + 1};
+  }
+};
+
+struct Stream : TokenBuffer {
+  AtomicLexer &lex;
+
+  std::string str;
+
+  bool concat_next = false;
+
+  struct Space {};
+  struct ConcatNext {};
+
+  Stream(AtomicLexer &lex) : TokenBuffer(), lex(lex)
+  {
+    this->reserve(256);
+    offsets_[0] = 0;
+    original_offsets_[0] = 0;
+    whitespaces_collapsed_ = true;
+  }
+
+  Stream(Stream &&s) : lex(s.lex)
+  {
+    this->str = std::move(s.str);
+    this->types_ = std::move(s.types_);
+    this->offsets_ = std::move(s.offsets_);
+    this->original_offsets_ = std::move(s.original_offsets_);
+    this->atoms_ = std::move(s.atoms_);
+  }
+
+  void clear()
+  {
+    str.clear();
+    static_cast<TokenBuffer *>(this)->clear();
+  }
+
+  Stream &operator<<(const Stream &stream)
+  {
+    for (int i : stream.index_range()) {
+      *this << stream[i];
+    }
+    return *this;
+  }
+
+  Stream &operator<<(lexit::Token tok)
+  {
+    ensure_space_for_one();
+    str += tok.str();
+    /* When concatenating, keep type of the previous token. */
+    if (!concat_next) {
+      types_[size_] = tok.type();
+    }
+    atoms_[size_] = tok.atom();
+    size_++;
+    original_offsets_[size_] = str.size();
+    if (tok.followed_by_whitespace()) {
+      str += ' ';
+    }
+    str_ = str;
+    offsets_[size_] = str.size();
+
+    if (concat_next) {
+      /* Update Atom of the new pasted token. */
+      atoms_[size_ - 1] = lex.hash((*this)[size_ - 1].str());
+      concat_next = false;
+    }
+    return *this;
+  }
+
+  Stream &operator<<(const TokenRange &stream)
+  {
+    for (lexit::Token tok = stream.start; int(tok) <= int(stream.end); tok = tok.next()) {
+      *this << tok;
+    }
+    /* "Cancel" concatenation in case range is empty. */
+    if (concat_next) {
+      /* Data of the previous token is still there. Just recover it ... */
+      size_ += 1;
+      /* ... except for the trailing space. */
+      offsets_[size_] = original_offsets_[size_];
+      concat_next = false;
+    }
+    return *this;
+  }
+
+  Stream &operator<<(ConcatNext /*concat*/)
+  {
+    BLI_assert_msg(!concat_next, "Token concatenation followed by another concatenation");
+    if (size_ == 0 || concat_next) {
+      /* Nothing to concatenate. */
+      return *this;
+    }
+    /* If last char is a space, remove it to effectively concatenate.
+     * Note that this assumes that there is only at most one space between tokens. */
+    if (str.back() == ' ') {
+      str.pop_back();
+      str_ = str;
+    }
+    /* Pop last token. Next token will override its end offset but not its start. */
+    size_ -= 1;
+    concat_next = true;
+    return *this;
+  }
+
+  Stream &operator<<(Space /*space*/)
+  {
+    ensure_space_for_one();
+    if (str.back() != ' ') {
+      str += ' ';
+      str_ = str;
+      offsets_[size_] = str.size();
+    }
+    return *this;
+  }
+
+  blender::IndexRange index_range() const
+  {
+    return blender::IndexRange(size_);
+  }
+
+  void ensure_space_for_one()
+  {
+    if (UNLIKELY(size_ + 1 >= allocated_size_)) {
+      this->reserve(allocated_size_ + 256);
+    }
   }
 };
 
@@ -291,7 +388,7 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   using LineID = ID<LineTrait>;
   using DirectiveID = ID<DirectiveTrait>;
   /* Typesafe Atom. */
-  using AtomID = ID<AtomTrait, AtomicLexer::Atom>;
+  using AtomID = ID<AtomTrait, TokenAtom>;
 
   enum DirectiveType : char {
     Define = TokenType::Define,
@@ -394,7 +491,7 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   }
   StringRef str(TokenID tok)
   {
-    return parser_[int(tok)].str_view_with_whitespace();
+    return lex_[int(tok)].str();
   }
   StringRef str(TokenID start, TokenID end_inclusive)
   {
@@ -405,7 +502,7 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   AtomID get_atom(TokenID tok)
   {
     BLI_assert(get_type(tok) == Word);
-    return AtomID(lex_.token_atoms[int(tok)]);
+    return AtomID(lex_.atoms_[int(tok)]);
   }
   /* Return valid value if hash is a known string. Is full hash lookup + hashing. */
   AtomID get_atom(StringRef str)
@@ -575,48 +672,36 @@ struct Preprocessor : IntermediateFormWithIDs {
   ExpressionLexer expression_lexer;
   ExpressionParser expression_parser = ExpressionParser(expression_lexer);
 
-  struct ParserStack {
+  struct StreamStack {
+    AtomicLexer &lex_;
     int allocated = 0;
     int used = 0;
-    std::deque<ExpansionParser> parser_pool;
+    std::deque<Stream> pool;
 
-    ExpansionParser &alloc()
+    struct AutoRelease {
+      StreamStack &stack;
+      Stream &stream;
+
+      ~AutoRelease()
+      {
+        stack.used--;
+      }
+    };
+
+    AutoRelease alloc()
     {
       if (used == allocated) {
-        parser_pool.emplace_back("", report_fn_ptr);
+        pool.emplace_back(lex_);
         allocated++;
         used++;
-        return parser_pool.back();
+        return AutoRelease{*this, pool.back()};
       }
-      return parser_pool[used++];
+      auto &stream = pool[used++];
+      stream.clear();
+      return AutoRelease{*this, stream};
     }
 
     void release(ExpansionParser & /*parser*/)
-    {
-      used--;
-    }
-  };
-
-  struct StringStack {
-    int allocated = 0;
-    int used = 0;
-    std::deque<std::string> str_pool;
-
-    std::string &alloc()
-    {
-      if (used == allocated) {
-        str_pool.emplace_back("");
-        str_pool.back().reserve(256);
-        allocated++;
-        used++;
-        return str_pool.back();
-      }
-      std::string &str = str_pool[used++];
-      str.clear();
-      return str;
-    }
-
-    void release(std::string & /*parser*/)
     {
       used--;
     }
@@ -626,8 +711,7 @@ struct Preprocessor : IntermediateFormWithIDs {
    * the matching #endif. */
   Vector<DirectiveID, 8> jump_stack;
   /* Own stack to avoid memory allocation during recursive expansion parsing. */
-  ParserStack recursive_parser_stack;
-  StringStack expanded_string_stack;
+  StreamStack stream_stack = {lex_};
   /* Set of visited macros during recursion (blue painting stack). Using a vector for speed. */
   Vector<DirectiveID> visited_macros;
   /* Maps containing currently active macros. Map their keyword to their definition. */
@@ -871,10 +955,10 @@ struct Preprocessor : IntermediateFormWithIDs {
       if (get_type(tok) == Word) {
         DirectiveID macro_id = defines.lookup_default(get_atom(tok), DirectiveID::invalid());
         if (is_valid(macro_id)) {
-          Token token = parser_[int(tok)];
+          lexit::Token token = parser_.lex[int(tok)];
           auto [replacement, end] = expand_macro(token, macro_id);
-          replace(token, end, replacement);
-          tok = make_token(end.index);
+          replace(token, end, replacement.str);
+          tok = make_token(int(end));
           if (tok == end_tok) {
             break;
           }
@@ -883,83 +967,58 @@ struct Preprocessor : IntermediateFormWithIDs {
     }
   }
 
-  /* Try to match the token pointed at by cursor with a defined macro.
-   * If that happen advance the cursor to the end of the macro (in case of functional macro). */
-  void try_expand(MutableString &mut_str, const ParserBase &data, int &cursor)
-  {
-    Token tok = Token::from_position(&data, cursor);
-    StringRef tok_str = shader::parser::str(tok);
-    /* Early out number literals.
-     * Anything below '0' is not an alphabetical character and thus cannot start a word.
-     * Saves one comparison. */
-    if (tok_str[0] <= '9') { /* TODO(fclem): Remove, uneeded anymore. */
-      return;
-    }
-
-    DirectiveID macro_id = defines.lookup_default(get_atom(tok_str), DirectiveID::invalid());
-    if (is_valid(macro_id)) {
-      auto [replacement, end] = expand_macro(tok, macro_id);
-      mut_str.replace(tok, end, replacement);
-      cursor = end.index;
-    }
-  }
-
   /* Parse and expand with the current set of macro identifier. */
-  std::string parse_and_expand(StringRef input)
+  Stream &parse_and_expand(const Stream &ts)
   {
-    if (input.is_empty()) {
-      return "";
-    }
+    auto alloc = stream_stack.alloc();
+    Stream &result = alloc.stream;
 
-    ExpansionParser &recursive_parser = recursive_parser_stack.alloc();
-
-    recursive_parser.str_ = input;
-    recursive_parser.parse(report_fn_ptr);
-
-    const ParserBase &data = recursive_parser.data_get();
-
-    for (int cursor = 0; cursor < data.lex.token_types.size(); cursor++) {
-      TokenType tok_type = TokenType(data.lex.token_types[cursor]);
-      if (tok_type == Word) {
-        try_expand(recursive_parser, data, cursor);
+    for (int cursor = 0, end = ts.index_range().size(); cursor < end; cursor++) {
+      lexit::Token tok = ts[cursor];
+      if (tok.type() == Word) {
+        /* Try to match the token pointed at by cursor with a defined macro. If that happen advance
+         * the cursor to the end of the macro (in case of functional macro). */
+        DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()), DirectiveID::invalid());
+        if (is_valid(macro_id)) {
+          auto [replacement, end] = expand_macro(tok, macro_id);
+          result << replacement;
+          cursor = int(end);
+          continue;
+        }
       }
+      result << tok;
     }
-
-    std::string result = recursive_parser.result_get(true);
-
-    recursive_parser_stack.release(recursive_parser);
-
     return result;
   }
 
   struct ExpandedResult {
     /* Replacement content. */
-    std::string str;
+    Stream &output;
     /* End of range to replace. */
-    Token end_of_expansion;
+    lexit::Token end_of_expansion;
   };
 
-  BLI_NOINLINE Map<StringRef, TokenRange> parse_macro_args(const bool is_function,
-                                                           const Token expanded_tok,
-                                                           Token &end_of_expansion,
+  BLI_NOINLINE Map<TokenAtom, TokenRange> parse_macro_args(const bool is_function,
+                                                           const lexit::Token expanded_tok,
+                                                           lexit::Token &end_of_expansion,
                                                            TokenID &tok)
   {
-    Map<StringRef, TokenRange> macro_parameters;
+    Map<TokenAtom, TokenRange> macro_parameters;
     if (is_function) {
       /* This is a functional macro. */
 
-      Token param = expanded_tok.next();
-      if (param != '(') {
+      lexit::Token param = expanded_tok.next();
+      if (param != ParOpen) {
         /* Macro doesn't have parameters. It should not expand. */
         return {};
       }
 
       /* Parse parameters & arguments. */
       macro_parameters.clear_and_keep_capacity();
-      while (get_type(tok) != ')') {
+      while (get_type(tok) != ParClose) {
         /* Continue to the next name. */
         tok = next(tok);
-        if (get_type(tok) == ')') {
+        if (get_type(tok) == ParClose) {
           /* Function with no arguments. */
           param = get_end_of_parameter(param);
           if (param == Invalid) {
@@ -967,7 +1026,7 @@ struct Preprocessor : IntermediateFormWithIDs {
             /* Cancel expansion. */
             return {};
           }
-          if (param != ')') {
+          if (param != ParClose) {
             /* Error: too many arguments provided to function-like macro invocation. */
             /* Cancel expansion. */
             return {};
@@ -975,8 +1034,8 @@ struct Preprocessor : IntermediateFormWithIDs {
           break;
         }
 
-        Token param_start = param;
-        Token param_end = get_end_of_parameter(param_start);
+        lexit::Token param_start = param;
+        lexit::Token param_end = get_end_of_parameter(param_start);
 
         StringRef argument_name = str(tok);
         if (argument_name == "...") {
@@ -984,12 +1043,13 @@ struct Preprocessor : IntermediateFormWithIDs {
           argument_name = "__VA_ARGS__";
         }
 
+        TokenAtom atom = lex_.atoms_[int(tok)];
         /* If there is only token for parameters (it could be empty string). */
         if (param_start.next() == param_end.prev()) {
-          macro_parameters.add(argument_name, {param_start.next(), param_start.next()});
+          macro_parameters.add(atom, {param_start.next(), param_start.next()});
         }
         else {
-          macro_parameters.add(argument_name, {param_start.next(), param_end.prev()});
+          macro_parameters.add(atom, {param_start.next(), param_end.prev()});
         }
 
         /* Continue to the next separator. */
@@ -1008,94 +1068,69 @@ struct Preprocessor : IntermediateFormWithIDs {
     return macro_parameters;
   }
 
-  BLI_NOINLINE void expand_args(const bool is_function,
-                                std::string &expanded,
-                                const Map<StringRef, TokenRange> &macro_parameters,
-                                TokenID tok)
+  BLI_NOINLINE void expand_args(Stream &ts,
+                                const bool is_function,
+                                const Map<TokenAtom, TokenRange> &macro_parameters,
+                                TokenID definition_start_tok)
   {
-    using TokenMut = lexit::TokenBuffer::TokenMut;
-
-    TokenType invalid_type = Invalid;
-    TokenType space_type = Space;
-
-    int i = int(tok);
-
-    Vector<TokenMut, 16> stream;
-    stream.append(TokenMut("", invalid_type));
-    stream.append(TokenMut("", invalid_type));
+    /* TODO(fclem): Split to own function executed at macro definition. */
+    int i = int(definition_start_tok);
+    auto alloc = stream_stack.alloc();
+    Stream &definition = alloc.stream;
     while (true) {
-      const TokenMut t = lex_.mutable_token(i);
-      if (ELEM(t.type, NewLine, lexit::EndOfFile)) {
+      const lexit::Token t = lex_[i];
+      if (ELEM(t.type(), NewLine, lexit::EndOfFile)) {
         break;
       }
-      if (t.type == '\\' && lex_[i + 1].type == '\n') {
+      if (t.type() == '\\' && lex_[i + 1].type() == '\n') {
         /* Preprocessor new line. Skip and continue. */
         i += 2;
         /* Still insert a space to avoid merging tokens. */
-        stream.append(TokenMut(" ", space_type));
+        definition << Stream::Space{};
         continue;
       }
-      stream.append(t);
+      if (t.type() == '#' && lex_[i + 1].type() == '#') {
+        /* Token Pasting operator. Emit a single Hash token. */
+        definition << t;
+        i += 2;
+        continue;
+      }
+      BLI_assert_msg(t.type() != '#', "Stringify operator is not supported");
+      definition << t;
       i += 1;
     }
-    stream.append(TokenMut("", invalid_type));
-    stream.append(TokenMut("", invalid_type));
 
-    for (int i : stream.index_range().slice(2, stream.size() - 4)) {
-      TokenType prev_type2 = stream[i - 2].type;
-      TokenType prev_type = stream[i - 1].type;
-      TokenType curr_type = stream[i].type;
-      TokenType next_type = stream[i + 1].type;
-      TokenType next_type2 = stream[i + 2].type;
-      /* Skip the token pasting operator. */
-      if (curr_type == '#') {
-        /* Token concat. */
+    for (int i : definition.index_range()) {
+      lexit::Token def_tok = definition[i];
+      if (def_tok.type() == Hash) {
+        ts << Stream::ConcatNext{};
         continue;
       }
+      if (is_function && def_tok.type() == Word) {
+        /* Lookup macro arguments. */
+        const TokenRange *macro_value_ptr = macro_parameters.lookup_ptr(def_tok.atom());
+        if (macro_value_ptr) {
+          const TokenRange &macro_value = *macro_value_ptr;
 
-      /* Can't theoretically happen.
-       * That would mean a macro is defined and expanded on the last line. */
-      BLI_assert(curr_type != Invalid);
-      BLI_assert_msg(curr_type != '#', "Stringify operator '#' is not supported");
-
-      /* Support spaces around token pasting operator */
-      bool next_is_token_pasting = (next_type == '#' && next_type2 == '#');
-      bool prev_is_token_pasting = (prev_type == '#' && prev_type2 == '#');
-
-      if (curr_type == Word) {
-        bool replaced = false;
-
-        if (is_function) {
-          /* Lookup macro arguments. */
-          const TokenRange *macro_value_ptr = macro_parameters.lookup_ptr(stream[i].str());
-          if (macro_value_ptr) {
-            const TokenRange &macro_value = *macro_value_ptr;
-
-            StringRef macro_value_str = shader::parser::str(macro_value);
-
-            if (!next_is_token_pasting && !prev_is_token_pasting) {
-              /* Expand argument. Can expand to the same macro (finite recursion). */
-              expanded += parse_and_expand(macro_value_str);
-              /* Do not loose the trailing whitespace inside the expanded token. */
-              if (stream[i].followed_by_whitespace()) {
-                expanded += ' ';
-              }
-            }
-            else {
-              expanded += macro_value_str;
-            }
-            replaced = true;
+          if (definition[i - 1].type() == '#' || definition[i + 1].type() == '#') {
+            /* Token pasting. Do not expand now. */
+            ts << macro_value;
           }
-        }
+          else {
+            /* Expand argument. Can expand to the same macro (finite recursion). */
+            auto alloc = stream_stack.alloc();
+            alloc.stream << macro_value;
+            ts << parse_and_expand(alloc.stream);
+          }
 
-        if (!replaced) {
-          /* Fallback to no expansion. */
-          expanded += stream[i].str_with_whitespace();
+          if (def_tok.followed_by_whitespace()) {
+            /* Don't lose whitespace after macro token. */
+            ts << Stream::Space{};
+          }
+          continue;
         }
       }
-      else {
-        expanded += stream[i].str_with_whitespace();
-      }
+      ts << def_tok;
     }
   }
 
@@ -1108,7 +1143,7 @@ struct Preprocessor : IntermediateFormWithIDs {
    * IMPORTANT: Because of recursion, expanded_tok can be from another parser.
    * The macro directive however, will always be from the main parser.
    */
-  ExpandedResult expand_macro(const Token expanded_tok, const DirectiveID macro)
+  ExpandedResult expand_macro(const lexit::Token expanded_tok, const DirectiveID macro)
   {
     const TokenID define_tok = get_identifier(macro);
     BLI_assert(get_type(define_tok) == TokenType::Define);
@@ -1119,46 +1154,41 @@ struct Preprocessor : IntermediateFormWithIDs {
     const bool is_function = (get_type(macro_parenthesis) == '(') &&
                              !followed_by_space(macro_name);
 
-    Token end_of_expansion = expanded_tok;
+    lexit::Token end_of_expansion = expanded_tok;
 
     TokenID tok = macro_parenthesis;
 
+    auto alloc = stream_stack.alloc();
+    Stream &expanded = alloc.stream;
+
     /* Empty definition. */
     if (get_type(tok) == '\n') {
-      return {"", end_of_expansion};
+      return {expanded, end_of_expansion};
     }
 
     if (visited_macros.contains(macro)) {
       /* Recursion. Do not expand. Still replace by the original token. */
-      return {str(macro_name), end_of_expansion};
+      expanded << lex_[int(macro_name)];
+      return {expanded, end_of_expansion};
     }
 
-    /* TODO: Avoid StringRef in map. */
-    Map<StringRef, TokenRange> macro_parameters = parse_macro_args(
+    Map<TokenAtom, TokenRange> macro_parameters = parse_macro_args(
         is_function, expanded_tok, end_of_expansion, tok);
 
-    std::string &expanded = expanded_string_stack.alloc();
-
-    expand_args(is_function, expanded, macro_parameters, tok);
+    expand_args(expanded, is_function, macro_parameters, tok);
 
     /* Add to the set to avoid infinite recursion. */
     visited_macros.append(macro);
 
-    expanded = parse_and_expand(expanded);
+    Stream &result = parse_and_expand(expanded);
 
     visited_macros.pop_last();
 
-    const bool trailing_space = end_of_expansion.str_with_whitespace().back() == ' ';
-    if (trailing_space) {
-      expanded += ' ';
+    if (end_of_expansion.followed_by_whitespace()) {
+      result << Stream::Space{};
     }
 
-    /* Note that it is fine to release even if still used in the result since it cannot be
-     * reallocated until the next call. Also release doesn't free the memory until the end of the
-     * preprocessor. */
-    expanded_string_stack.release(expanded);
-
-    return {expanded, end_of_expansion};
+    return {result, end_of_expansion};
   }
 
   /* Expand token range for condition evaluation (e.g. '#if'). */
@@ -1179,9 +1209,9 @@ struct Preprocessor : IntermediateFormWithIDs {
         expand += str(tok);
       }
       else if (is_valid(macro)) {
-        auto [replacement, macro_end] = expand_macro(parser_[int(tok)], macro);
-        expand += replacement;
-        tok = make_token(macro_end.index);
+        auto [replacement, macro_end] = expand_macro(lex_[int(tok)], macro);
+        expand += replacement.str;
+        tok = make_token(int(macro_end));
       }
       else if (tok_atom == defined_atom) {
         /* Parenthesis or space */
@@ -1243,22 +1273,22 @@ struct Preprocessor : IntermediateFormWithIDs {
    * Return next `,` or `)` skipping occurrences contained in parenthesis.
    * Return invalid token on failure.
    */
-  static Token get_end_of_parameter(Token tok, bool skip_to_end = false)
+  static lexit::Token get_end_of_parameter(lexit::Token tok, bool skip_to_end = false)
   {
     /* Avoid matching comma inside parameter function calls. */
     int stack = 1;
     tok = tok.next();
     while (tok.is_valid()) {
-      if (tok == '(') {
+      if (tok == ParOpen) {
         stack++;
       }
-      else if (tok == ')') {
+      else if (tok == ParClose) {
         stack--;
       }
       if (stack == 0) {
         return tok;
       }
-      if (stack == 1 && tok == ',' && !skip_to_end) {
+      if (stack == 1 && tok == Comma && !skip_to_end) {
         return tok;
       }
       tok = tok.next();
