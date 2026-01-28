@@ -17,8 +17,6 @@ namespace blender {
 
 template<typename T> class Span;
 
-enum GPUDeviceType : uint32_t;
-
 }  // namespace blender
 
 namespace blender::tests {
@@ -29,7 +27,7 @@ const std::string &flags_test_asset_dir();   /* tests/files in the Blender repos
 const std::string &flags_test_release_dir(); /* bin/{blender version} in the build directory. */
 
 /* Returns true if the `BLENDER_TEST_IGNORE_BLOCKLIST` environment variable is set. */
-bool should_ignore_blocklist(GPUDeviceType device);
+bool should_ignore_blocklist(bool is_all_gpu_vendors);
 
 }  // namespace blender::tests
 
