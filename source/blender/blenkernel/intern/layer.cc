@@ -548,7 +548,7 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
   /* Copy layer objects. */
   BLI_listbase_clear(&view_layer_dst->layer_objects);
   for (const LayerObject &layer_object_src : view_layer_src->layer_objects) {
-    LayerObject *layer_object_dst = MEM_new_for_free<LayerObject>("LayerObject copy");
+    LayerObject *layer_object_dst = MEM_new<LayerObject>(__func__);
     layer_object_dst->object = layer_object_src.object;
     layer_object_dst->flag = layer_object_src.flag;
     BLI_addtail(&view_layer_dst->layer_objects, layer_object_dst);
@@ -2111,7 +2111,7 @@ LayerObject *BKE_layer_object_ensure(ViewLayer *view_layer, Object *object)
     return layer_object;
   }
 
-  layer_object = MEM_new_for_free<LayerObject>("LayerObject");
+  layer_object = MEM_new<LayerObject>(__func__);
   layer_object->object = object;
   layer_object->flag = 0;
   BLI_addtail(&view_layer->layer_objects, layer_object);
@@ -2122,7 +2122,7 @@ LayerObject *BKE_layer_object_ensure(ViewLayer *view_layer, Object *object)
 void BKE_layer_object_remove(ViewLayer *view_layer, LayerObject *layer_object)
 {
   BLI_remlink(&view_layer->layer_objects, layer_object);
-  MEM_freeN(layer_object);
+  MEM_delete(layer_object);
 }
 
 bool BKE_layer_object_is_empty(const LayerObject *layer_object)
@@ -2147,7 +2147,7 @@ void BKE_layer_objects_free(ViewLayer *view_layer)
   LayerObject *layer_object = static_cast<LayerObject *>(view_layer->layer_objects.first);
   while (layer_object) {
     LayerObject *layer_object_next = layer_object->next;
-    MEM_freeN(layer_object);
+    MEM_delete(layer_object);
     layer_object = layer_object_next;
   }
   BLI_listbase_clear(&view_layer->layer_objects);
