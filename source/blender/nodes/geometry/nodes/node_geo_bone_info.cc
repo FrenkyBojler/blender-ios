@@ -67,10 +67,23 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Rest Pose");
       });
     }
-    if (other_type == SOCK_FLOAT) {
+    if (params.node_tree().typeinfo->validate_link(other_type, SOCK_FLOAT)) {
       params.add_item(IFACE_("Rest Length"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeBoneInfo");
         params.update_and_connect_available_socket(node, "Rest Length");
+      });
+    }
+  } else {
+    if (other_type == SOCK_STRING) {
+      params.add_item(IFACE_("Bone Name"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Bone Name");
+      });
+    }
+    if (other_type == SOCK_OBJECT) {
+      params.add_item(IFACE_("Armature"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Armature");
       });
     }
   }
