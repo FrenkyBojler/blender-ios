@@ -92,7 +92,8 @@ class Denoiser {
   virtual bool denoise_buffer(const BufferParams &buffer_params,
                               RenderBuffers *render_buffers,
                               const int num_samples,
-                              bool allow_inplace_modification) = 0;
+                              const bool allow_inplace_modification,
+                              const float2 jitter = {}) = 0;
 
   /* Get a device which is used to perform actual denoising.
    *

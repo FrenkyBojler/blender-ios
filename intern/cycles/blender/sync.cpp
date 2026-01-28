@@ -491,6 +491,8 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
   }
   integrator->set_scrambling_distance(scrambling_distance);
 
+  integrator->set_frame(b_scene->r.cfra);
+
   if (get_boolean(cscene, "use_fast_gi")) {
     if (preview) {
       integrator->set_ao_bounces(get_int(cscene, "ao_bounces"));

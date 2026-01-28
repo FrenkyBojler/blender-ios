@@ -32,7 +32,8 @@ DenoiserGPU::~DenoiserGPU()  // NOLINT
 bool DenoiserGPU::denoise_buffer(const BufferParams &buffer_params,
                                  RenderBuffers *render_buffers,
                                  const int num_samples,
-                                 bool allow_inplace_modification)
+                                 const bool allow_inplace_modification,
+                                 const float2 jitter)
 {
   Device *denoiser_device = get_denoiser_device();
   if (!denoiser_device) {
@@ -44,6 +45,7 @@ bool DenoiserGPU::denoise_buffer(const BufferParams &buffer_params,
   task.num_samples = num_samples;
   task.buffer_params = buffer_params;
   task.allow_inplace_modification = allow_inplace_modification;
+  task.jitter = jitter;
 
   RenderBuffers local_render_buffers(denoiser_device);
   bool local_buffer_used = false;
@@ -166,7 +168,8 @@ DenoiserGPU::DenoiseContext::DenoiseContext(Device *device, const DenoiseTask &t
       render_buffers(task.render_buffers),
       buffer_params(task.buffer_params),
       guiding_buffer(device, "denoiser guiding passes buffer", true),
-      num_samples(task.num_samples)
+      num_samples(task.num_samples),
+      jitter(task.jitter)
 {
   num_input_passes = 1;
   if (denoise_params.use_pass_albedo) {

@@ -21,7 +21,8 @@ class DenoiserGPU : public Denoiser {
   bool denoise_buffer(const BufferParams &buffer_params,
                       RenderBuffers *render_buffers,
                       const int num_samples,
-                      bool allow_inplace_modification) override;
+                      const bool allow_inplace_modification,
+                      const float2 jitter) override;
 
  protected:
   class DenoisePass;
@@ -45,6 +46,8 @@ class DenoiserGPU : public Denoiser {
      * lower the memory footprint of the denoiser but will make input passes "invalid" (from path
      * tracer) point of view. */
     bool allow_inplace_modification;
+
+    float2 jitter;
   };
 
   /* Make sure the GPU denoiser is created and configured. */
@@ -163,6 +166,8 @@ class DenoiserGPU : public Denoiser {
      * the (0.5, 0.5, 0.5). This flag indicates that the real albedo pass has been replaced with
      * the fake values and denoising of passes which do need albedo can no longer happen. */
     bool albedo_replaced_with_fake = false;
+
+    float2 jitter;
   };
 };
 

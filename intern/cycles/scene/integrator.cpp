@@ -104,6 +104,7 @@ NODE_DEFINE(Integrator)
   SOCKET_BOOLEAN(use_emission, "Use Emission", true);
 
   SOCKET_INT(seed, "Seed", 0);
+
   SOCKET_FLOAT(sample_clamp_direct, "Sample Clamp Direct", 0.0f);
   SOCKET_FLOAT(sample_clamp_indirect, "Sample Clamp Indirect", 10.0f);
   SOCKET_BOOLEAN(motion_blur, "Motion Blur", false);
@@ -131,6 +132,9 @@ NODE_DEFINE(Integrator)
               sampling_pattern_enum,
               SAMPLING_PATTERN_TABULATED_SOBOL);
   SOCKET_FLOAT(scrambling_distance, "Scrambling Distance", 1.0f);
+
+  SOCKET_BOOLEAN(use_jitter, "Use Jitter", false);
+  SOCKET_INT(frame, "Frame Index", 0);
 
   static NodeEnum denoiser_type_enum;
   denoiser_type_enum.insert("none", DENOISER_NONE);
@@ -347,6 +351,27 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   }
 
   kintegrator->has_shadow_catcher = scene->has_shadow_catcher();
+
+  if (use_jitter) {
+    const auto halton_func = [](uint32_t index, uint32_t base) -> float {
+      float f = 1.0f;
+      float r = 0.0f;
+
+      while (index > 0) {
+        f *= float(base);
+        r += float(index % base) / f;
+        index /= base;
+      }
+
+      return r;
+    };
+    kintegrator->jitter.x = halton_func(frame, 2) - 0.5f;
+    kintegrator->jitter.y = halton_func(frame, 3) - 0.5f;
+  }
+  else {
+    kintegrator->jitter.x = 0.0f;
+    kintegrator->jitter.y = 0.0f;
+  }
 
   dscene->sample_pattern_lut.clear_modified();
   clear_modified();

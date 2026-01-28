@@ -641,7 +641,8 @@ void PathTrace::denoise(const RenderWork &render_work)
   if (denoiser_->denoise_buffer(render_state_.effective_big_tile_params,
                                 buffer_to_denoise,
                                 get_num_samples_in_buffer(),
-                                allow_inplace_modification))
+                                allow_inplace_modification,
+                                device_scene_->data.integrator.jitter))
   {
     render_state_.has_denoised_result = true;
   }
