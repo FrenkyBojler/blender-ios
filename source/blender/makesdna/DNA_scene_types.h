@@ -2628,9 +2628,9 @@ struct SceneEEVEE {
   float clamp_volume_direct = 0;
   float clamp_volume_indirect = 0;
 
-  /** Global indirect lighting intensity. */
+  /** Global lighting intensity. */
+  float direct_intensity = 1.0f;
   float indirect_intensity = 1.0f;
-  char _pad2[4] = {};
 
   int ray_tracing_method = RAYTRACE_EEVEE_METHOD_SCREEN;
 
