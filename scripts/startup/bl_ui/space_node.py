@@ -753,7 +753,6 @@ class NODE_MT_context_menu(Menu):
 
             if active_node and active_node.type == 'GROUP':
                 layout.operator("node.group_edit").exit = False
-
                 layout.operator("node.group_ungroup", text="Ungroup")
 
             if is_nested:
