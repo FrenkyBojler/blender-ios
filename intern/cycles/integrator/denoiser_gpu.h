@@ -61,7 +61,7 @@ class DenoiserGPU : public Denoiser {
    * preprocess them for every pass which is being denoised. */
   bool denoise_filter_guiding_preprocess(const DenoiseContext &context);
 
-  void denoise_pass(DenoiseContext &context, PassType pass_type);
+  bool denoise_pass(DenoiseContext &context, PassType pass_type);
 
   /* Returns true if task is fully handled. */
   virtual bool denoise_run(const DenoiseContext &context, const DenoisePass &pass) = 0;
@@ -132,12 +132,7 @@ class DenoiserGPU : public Denoiser {
       int pass_stride = -1;
     } guiding_params;
 
-    /* Number of input passes. Including the color and extra auxiliary passes. */
-    int num_input_passes = 0;
-    bool use_guiding_passes = false;
-    bool use_pass_albedo = false;
-    bool use_pass_normal = false;
-    bool use_pass_motion = false;
+    const bool use_guiding_passes = false;
 
     int num_samples = 0;
 
