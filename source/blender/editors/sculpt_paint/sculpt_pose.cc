@@ -1979,7 +1979,8 @@ std::unique_ptr<SculptPoseIKChainPreview> preview_ik_chain_init(const Depsgraph 
                                                                 const float3 &initial_location,
                                                                 const float radius)
 {
-  const std::unique_ptr<IKChain> chain = ik_chain_init(depsgraph, ob, ss, brush, initial_location, radius);
+  const std::unique_ptr<IKChain> chain = ik_chain_init(
+      depsgraph, ob, ss, brush, initial_location, radius);
   if (!chain) {
     return nullptr;
   }
