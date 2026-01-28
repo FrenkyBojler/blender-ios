@@ -146,6 +146,7 @@ static void gather_socket_link_operations(const bContext &C,
                                           const bNodeSocket &socket,
                                           Vector<SocketLinkOperation> &search_link_ops)
 {
+  /* Only base node type search items are used, excluding node groups and assets. */
   const SpaceNode &snode = *CTX_wm_space_node(&C);
   for (const bke::bNodeType *node_type : bke::node_types_get()) {
     const char *disabled_hint;
@@ -164,48 +165,6 @@ static void gather_socket_link_operations(const bContext &C,
       node_type->gather_link_search_ops(params);
     }
   }
-
-  /* Only base node type search items are used, excluding node groups and assets. */
-#if 0
-  search_link_ops.append({IFACE_("Reroute"), add_reroute_node_fn});
-
-  const bool is_node_group = !(node_tree.id.flag & ID_FLAG_EMBEDDED_DATA);
-
-  if (is_node_group && socket.in_out == SOCK_IN) {
-    search_link_ops.append({IFACE_("Group Input"), add_group_input_node_fn});
-
-    int weight = -1;
-    node_tree.tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-      if (item.item_type != NODE_INTERFACE_SOCKET) {
-        return true;
-      }
-      const bNodeTreeInterfaceSocket &interface_socket =
-          reinterpret_cast<const bNodeTreeInterfaceSocket &>(item);
-      if (!(interface_socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
-        return true;
-      }
-      {
-        const bke::bNodeSocketType *from_typeinfo = bke::node_socket_type_find(
-            interface_socket.socket_type);
-        const eNodeSocketDatatype from = from_typeinfo ? from_typeinfo->type : SOCK_CUSTOM;
-        const eNodeSocketDatatype to = socket.typeinfo->type;
-        if (node_tree.typeinfo->validate_link && !node_tree.typeinfo->validate_link(from, to)) {
-          return true;
-        }
-      }
-      search_link_ops.append({std::string(IFACE_("Group Input")) + " " + UI_MENU_ARROW_SEP +
-                                  (interface_socket.name ? interface_socket.name : ""),
-                              [interface_socket](nodes::LinkSearchOpParams &params) {
-                                add_existing_group_input_fn(params, interface_socket);
-                              },
-                              weight});
-      weight--;
-      return true;
-    });
-  }
-
-  gather_search_link_ops_for_all_assets(C, node_tree, socket, search_link_ops);
-#endif
 }
 
 TEST_F(NodeLinkDragTest, NodeLinkDrag)
