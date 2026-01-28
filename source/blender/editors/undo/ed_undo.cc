@@ -217,7 +217,9 @@ static void ed_undo_step_post(bContext *C,
     const wmWindow *win = CTX_wm_window(C);
     const Scene *active_scene = WM_window_get_active_scene(win);
 
-    blender::ed::vse::sync_vse_camera_for_view3d(workspace, active_scene, v3d);
+    if (workspace && active_scene) {
+      blender::ed::vse::sync_vse_camera_for_view3d(workspace, active_scene, v3d);
+    }
   }
 
   if (G.debug & G_DEBUG_IO) {

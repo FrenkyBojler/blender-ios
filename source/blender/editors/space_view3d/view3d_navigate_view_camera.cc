@@ -118,7 +118,9 @@ static wmOperatorStatus view_camera_exec(bContext *C, wmOperator *op)
     const wmWindow *win = CTX_wm_window(C);
     const Scene *active_scene = WM_window_get_active_scene(win);
 
-    blender::ed::vse::sync_vse_camera_for_view3d(workspace, active_scene, v3d);
+    if (workspace && active_scene) {
+      blender::ed::vse::sync_vse_camera_for_view3d(workspace, active_scene, v3d);
+    }
   }
 
   return OPERATOR_FINISHED;

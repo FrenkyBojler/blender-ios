@@ -614,7 +614,7 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
           if (wmn->reference) {
             BKE_screen_view3d_sync(v3d, static_cast<Scene *>(wmn->reference));
             WorkSpace *workspace = BKE_workspace_active_get(window->workspace_hook);
-            if (workspace) {
+            if (workspace && scene) {
               blender::ed::vse::sync_vse_camera_for_view3d(workspace, scene, v3d);
             }
           }
