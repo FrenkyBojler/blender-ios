@@ -10980,6 +10980,9 @@ static int ui_handle_menu_event(bContext *C,
             }
             break;
           }
+          else if (!block_is_menu(block)) {
+            break;
+          }
           ATTR_FALLTHROUGH;
         }
         case WHEELUPMOUSE:
@@ -10996,6 +10999,9 @@ static int ui_handle_menu_event(bContext *C,
               }
               WM_event_add_mousemove(CTX_wm_window(C));
             }
+            break;
+          }
+          else if (!block_is_menu(block)) {
             break;
           }
           ATTR_FALLTHROUGH;
