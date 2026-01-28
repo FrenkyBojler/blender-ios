@@ -22,14 +22,14 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-/* A memory offset with alignment requirements must be aligned with respect to
- * (a) the starting offset of the allocation and (b) the starting offset of the
- * segment within this allocation. */
-static VkDeviceSize align_offset(VkDeviceSize offset,
-                                 VkDeviceSize allocation_offset,
-                                 VkDeviceSize alignment)
+/* Given the starting offset of an segment, and the starting offset of the surrounding
+ * allocation, return the next aligned offset in the segment, such that alignment
+ * requirements are satisfied in the surrounding allocation. */
+static VkDeviceSize align_segment_offset(VkDeviceSize segment_offset,
+                                         VkDeviceSize allocation_offset,
+                                         VkDeviceSize alignment)
 {
-  return ceil_to_multiple_ul(allocation_offset + offset, alignment) - allocation_offset;
+  return ceil_to_multiple_ul(allocation_offset + segment_offset, alignment) - allocation_offset;
 }
 
 std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
@@ -43,58 +43,47 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     return {};
   }
 
-  /* Find the smallest segment of sufficient size. Keep an iterator to the segment, as
-   * we modify the existing or surrounding segments in the list later. */
-  auto found_segment_iter = segments.end();
-  for (auto segment_iter = segments.begin(); segment_iter != segments.end(); ++segment_iter) {
-    /* Align offset to memory requirements with respect to allocation start. */
-    VkDeviceSize aligned_offset = align_offset(
-        segment_iter->offset, allocation_info.offset, requirements.alignment);
-    if (aligned_offset > segment_iter->offset + segment_iter->size) {
-      continue;
-    }
-
-    /* Compute remaining size of segment, given that the aligned offset may start later. */
-    VkDeviceSize remaining_size = segment_iter->size - (aligned_offset - segment_iter->offset);
-    if (remaining_size < requirements.size) {
-      continue;
-    }
-
-    if (found_segment_iter == segments.end() || found_segment_iter->size > segment_iter->size) {
-      found_segment_iter = segment_iter;
-    }
-  }
-
-  /* No compatible segment was found. */
-  if (found_segment_iter == segments.end()) {
+  /* Find an iterator to the first compatible segment. If a segment is found,  we use the iterator
+   * to modify the existing segment in the list, as it may be shrunk or split. */
+  auto found_segment = std::find_if(segments.begin(), segments.end(), [&](const Segment &segment) {
+    /* Align offset to memory requirements with respect to the allocation starting offset. */
+    VkDeviceSize aligned_offset = align_segment_offset(
+        segment.offset, allocation_info.offset, requirements.alignment);
+    VkDeviceSize aligned_size = segment.size - (aligned_offset - segment.offset);
+    return
+        /* Check: the aligned offset does not lie past the segment's end. */
+        !(aligned_offset > segment.offset + segment.size) &&
+        /* Check: the segment's remaining size is large enough. */
+        !(requirements.size >= aligned_size);
+  });
+  if (found_segment == segments.end()) {
     return {};
   }
 
-  /* The return segment may be a part of the found segment, starting at an aligned offset. */
+  /* The return segment is a part of the found segment, starting at an aligned offset. */
   Segment segment;
-  segment.offset = align_offset(
-      found_segment_iter->offset, allocation_info.offset, requirements.alignment);
+  segment.offset = align_segment_offset(
+      found_segment->offset, allocation_info.offset, requirements.alignment);
   segment.size = requirements.size;
 
-  /* Depending on the return segment, there are now unused segments before/after it. */
-  Segment segment_prev = {found_segment_iter->offset, segment.offset - found_segment_iter->offset};
+  /* Depending on the return segment, there are now empty segments before/after it. */
+  Segment segment_prev = {found_segment->offset, segment.offset - found_segment->offset};
   Segment segment_next = {segment.offset + segment.size,
-                          found_segment_iter->size - segment.size - segment_prev.size};
+                          found_segment->size - segment.size - segment_prev.size};
 
-  /* Depending on the unused segments before/after, we update the current stored segment,
-   * insert another segment before it, or remove the segment entirely. */
+  /* Depending on the segments before/after, we shrink/split/remove the stored segment. */
   if (segment_prev.size > 0 && segment_next.size > 0) {
-    *found_segment_iter = segment_next;
-    segments.insert(found_segment_iter, segment_prev);
+    *found_segment = segment_next;
+    segments.insert(found_segment, segment_prev);
   }
   else if (segment_prev.size > 0) {
-    *found_segment_iter = segment_prev;
+    *found_segment = segment_prev;
   }
   else if (segment_next.size > 0) {
-    *found_segment_iter = segment_next;
+    *found_segment = segment_next;
   }
   else {
-    segments.erase(found_segment_iter);
+    segments.erase(found_segment);
   }
 
   return segment;
@@ -279,11 +268,16 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
     AllocationHandle handle;
     handle.alloc(allocation_requirements);
-    Segment segment = handle.acquire(memory_requirements).value();
 
-    allocations_.add(handle);
-    texture_handle.allocation_handle = handle;
-    texture_handle.segment = segment;
+    std::optional<Segment> segment_opt = handle.acquire(memory_requirements);
+    if (segment_opt) {
+      allocations_.add(handle);
+      texture_handle.allocation_handle = handle;
+      texture_handle.segment = segment_opt.value();
+    }
+    else {
+      BLI_assert_unreachable();
+    }
   }
 
   /* Bind VkImage to allocation. */
