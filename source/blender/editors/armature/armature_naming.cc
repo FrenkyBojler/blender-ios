@@ -367,7 +367,6 @@ void ED_armature_bone_rename(Main *bmain,
      * but most bone drivers are actually on the object instead. */
     {
       BKE_animdata_fix_paths_rename_all(&arm->id, "bones", oldname, newname);
-      // BKE_animdata_fix_paths_rename_all(&arm->id, "pose.bones", oldname, newname);
     }
 
     /* correct view locking */
