@@ -242,6 +242,9 @@ class NODE_MT_gn_geometry_read_base(node_add_menu.NodeMenu):
         if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeToolSelection")
             self.node_operator(layout, "GeometryNodeToolActiveElement")
+        if context.preferences.experimental.use_geometry_bundle:
+            layout.separator()
+            self.node_operator(layout, "GeometryNodeGetGeometryBundle")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -252,6 +255,8 @@ class NODE_MT_gn_geometry_write_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
+        if context.preferences.experimental.use_geometry_bundle:
+            self.node_operator(layout, "GeometryNodeSetGeometryBundle")
         self.node_operator(layout, "GeometryNodeSetGeometryName")
         self.node_operator(layout, "GeometryNodeSetID")
         self.node_operator(layout, "GeometryNodeSetPosition", search_weight=1.0)
@@ -772,6 +777,7 @@ class NODE_MT_gn_utilities_matrix_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeMatrixDeterminant", label="Determinant")
         self.node_operator(layout, "FunctionNodeInvertMatrix")
         self.node_operator(layout, "FunctionNodeMatrixMultiply")
+        self.node_operator(layout, "FunctionNodeMatrixSVD")
         self.node_operator(layout, "FunctionNodeProjectPoint")
         self.node_operator(layout, "FunctionNodeSeparateMatrix")
         self.node_operator(layout, "FunctionNodeSeparateTransform")
@@ -791,6 +797,8 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
+        self.node_operator(layout, "NodeGetBundleItem")
+        self.node_operator(layout, "NodeStoreBundleItem")
         self.node_operator(layout, "NodeJoinBundle")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
@@ -815,7 +823,7 @@ class NODE_MT_gn_utilities_list_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
-        self.node_operator(layout, "GeometryNodeList")
+        self.node_operator(layout, "GeometryNodeFieldToList")
         self.node_operator(layout, "GeometryNodeListGetItem")
         self.node_operator(layout, "GeometryNodeListLength")
 
@@ -978,6 +986,7 @@ class NODE_MT_gn_volume_primitives_base(node_add_menu.NodeMenu):
     def draw(self, context):
         del context
         layout = self.layout
+        self.node_operator(layout, "GeometryNodeCubeGridTopology")
         self.node_operator(layout, "GeometryNodeVolumeCube")
 
         self.draw_assets_for_catalog(layout, self.menu_path)

@@ -65,7 +65,7 @@ static ScrArea *screen_addarea_ex(ScrAreaMap *area_map,
                                   ScrVert *bottom_right,
                                   const eSpace_Type space_type)
 {
-  ScrArea *area = MEM_new_for_free<ScrArea>("addscrarea");
+  ScrArea *area = MEM_new<ScrArea>("addscrarea");
 
   area->v1 = bottom_left;
   area->v2 = top_left;
@@ -96,7 +96,7 @@ static void screen_delarea(bContext *C, bScreen *screen, ScrArea *area)
   BKE_screen_area_free(area);
 
   BLI_remlink(&screen->areabase, area);
-  MEM_freeN(area);
+  MEM_delete(area);
 }
 
 ScrArea *area_split(const wmWindow *win,
@@ -521,16 +521,28 @@ static bool screen_area_join_ex(bContext *C,
     float inner[4] = {0.0f, 0.0f, 0.0f, 0.7f};
     if (side1) {
       rcti rect = {side1->v1->vec.x, side1->v3->vec.x, side1->v1->vec.y, side1->v3->vec.y};
-      screen_animate_area_highlight(
-          CTX_wm_window(C), CTX_wm_screen(C), &rect, inner, nullptr, AREA_CLOSE_FADEOUT);
+      /* Close side1 but not by joining with the area that we just split. */
+      if (screen_area_close(C, reports, screen, side1, sa1)) {
+        screen_animate_area_highlight(
+            CTX_wm_window(C), CTX_wm_screen(C), &rect, inner, nullptr, AREA_CLOSE_FADEOUT);
+        if (sa1->spacetype == SPACE_OUTLINER) {
+          /* Outliner needs a full rebuild. #153395. */
+          ED_area_tag_redraw(sa1);
+        }
+      }
     }
-    screen_area_close(C, reports, screen, side1);
     if (side2) {
       rcti rect = {side2->v1->vec.x, side2->v3->vec.x, side2->v1->vec.y, side2->v3->vec.y};
-      screen_animate_area_highlight(
-          CTX_wm_window(C), CTX_wm_screen(C), &rect, inner, nullptr, AREA_CLOSE_FADEOUT);
+      /* Close side2 but not by joining with the area that we just split. */
+      if (screen_area_close(C, reports, screen, side2, sa1)) {
+        screen_animate_area_highlight(
+            CTX_wm_window(C), CTX_wm_screen(C), &rect, inner, nullptr, AREA_CLOSE_FADEOUT);
+        if (sa1->spacetype == SPACE_OUTLINER) {
+          /* Outliner needs a full rebuild. #153395. */
+          ED_area_tag_redraw(sa1);
+        }
+      }
     }
-    screen_area_close(C, reports, screen, side2);
   }
   else {
     /* Force full rebuild. #130732 */
@@ -553,7 +565,8 @@ int screen_area_join(bContext *C, ReportList *reports, bScreen *screen, ScrArea 
   return screen_area_join_ex(C, reports, screen, sa1, sa2, false);
 }
 
-bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrArea *area)
+bool screen_area_close(
+    bContext *C, ReportList *reports, bScreen *screen, ScrArea *area, ScrArea *not_area)
 {
   if (area == nullptr) {
     return false;
@@ -563,6 +576,9 @@ bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrAre
   float best_alignment = 0.0f;
 
   for (ScrArea &neighbor : screen->areabase) {
+    if (&neighbor == area || &neighbor == not_area) {
+      continue;
+    }
     const eScreenDir dir = area_getorientation(area, &neighbor);
     /* Must at least partially share an edge and not be a global area. */
     if ((dir != SCREEN_DIR_NONE) && (neighbor.global == nullptr)) {
@@ -582,7 +598,7 @@ bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrAre
   }
 
   /* Join from neighbor into this area to close it. */
-  return screen_area_join_ex(C, reports, screen, sa2, area, true);
+  return sa2 && screen_area_join_ex(C, reports, screen, sa2, area, true);
 }
 
 void screen_area_spacelink_add(const Scene *scene, ScrArea *area, eSpace_Type space_type)
@@ -899,7 +915,7 @@ void ED_region_exit(bContext *C, ARegion *region)
   /* The region is not in a state that it can be visible in anymore. Reinitializing is needed. */
   region->runtime->visible = false;
 
-  MEM_SAFE_FREE(region->runtime->headerstr);
+  MEM_SAFE_DELETE(region->runtime->headerstr);
 
   if (region->runtime->regiontimer) {
     WM_event_timer_remove(wm, win, region->runtime->regiontimer);
@@ -1241,7 +1257,7 @@ static void screen_global_area_refresh(wmWindow *win,
     screen_area_spacelink_add(WM_window_get_active_scene(win), area, space_type);
 
     /* Data specific to global areas. */
-    area->global = MEM_new_for_free<ScrGlobalAreaData>(__func__);
+    area->global = MEM_new<ScrGlobalAreaData>(__func__);
     area->global->size_max = height_max;
     area->global->size_min = height_min;
     area->global->align = align;
@@ -1917,7 +1933,7 @@ void ED_screen_animation_timer(
   }
 
   if (enable) {
-    ScreenAnimData *sad = MEM_callocN<ScreenAnimData>("ScreenAnimData");
+    ScreenAnimData *sad = MEM_new_zeroed<ScreenAnimData>("ScreenAnimData");
 
     screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / scene->frames_per_second()));
 

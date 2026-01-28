@@ -32,7 +32,7 @@
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
-#include "GHOST_C-api.h"
+#include "GHOST_Xr-api.hh"
 
 #include "GPU_batch.hh"
 #include "GPU_viewport.hh"
@@ -75,7 +75,7 @@ static void wm_xr_session_create_cb()
   state->prev_base_scale = settings->base_scale;
 
   /* Initialize vignette. */
-  state->vignette_data = MEM_callocN<wmXrVignetteData>(__func__);
+  state->vignette_data = MEM_new_zeroed<wmXrVignetteData>(__func__);
   WM_xr_session_state_vignette_reset(state);
 }
 
@@ -93,7 +93,7 @@ static void wm_xr_session_controller_data_free(wmXrSessionState *state)
 static void wm_xr_session_vignette_data_free(wmXrSessionState *state)
 {
   if (state->vignette_data) {
-    MEM_freeN(state->vignette_data);
+    MEM_delete(state->vignette_data);
     state->vignette_data = nullptr;
   }
 }
@@ -714,7 +714,7 @@ static void wm_xr_session_controller_pose_calc(const GHOST_XrPose *raw_pose,
 static void wm_xr_session_controller_data_update(const XrSessionSettings *settings,
                                                  const wmXrAction *grip_action,
                                                  const wmXrAction *aim_action,
-                                                 GHOST_XrContextHandle xr_context,
+                                                 GHOST_IXrContext *xr_context,
                                                  wmXrSessionState *state)
 {
   BLI_assert(grip_action->count_subaction_paths == aim_action->count_subaction_paths);
@@ -851,7 +851,7 @@ static void wm_xr_session_modal_action_test_add(ListBaseT<LinkData> *active_moda
 {
   bool found;
   if (wm_xr_session_modal_action_test(active_modal_actions, action, &found) && !found) {
-    LinkData *ld = MEM_callocN<LinkData>(__func__);
+    LinkData *ld = MEM_new_zeroed<LinkData>(__func__);
     ld->data = const_cast<wmXrAction *>(action);
     BLI_addtail(active_modal_actions, ld);
   }
@@ -893,7 +893,7 @@ static void wm_xr_session_haptic_action_add(ListBaseT<wmXrHapticAction> *active_
     ha->time_start = time_now;
   }
   else {
-    ha = MEM_callocN<wmXrHapticAction>(__func__);
+    ha = MEM_new_zeroed<wmXrHapticAction>(__func__);
     ha->action = const_cast<wmXrAction *>(action);
     ha->subaction_path = subaction_path;
     ha->time_start = time_now;
@@ -1141,7 +1141,7 @@ static wmXrActionData *wm_xr_session_event_create(const char *action_set_name,
                                                   uint subaction_idx_other,
                                                   bool bimanual)
 {
-  wmXrActionData *data = MEM_callocN<wmXrActionData>(__func__);
+  wmXrActionData *data = MEM_new_zeroed<wmXrActionData>(__func__);
   STRNCPY(data->action_set, action_set_name);
   STRNCPY(data->action, action->name);
   STRNCPY(data->user_path, action->subaction_paths[subaction_idx]);
@@ -1206,7 +1206,7 @@ static wmXrActionData *wm_xr_session_event_create(const char *action_set_name,
 
 /* Dispatch events to window queues. */
 static void wm_xr_session_events_dispatch(wmXrData *xr,
-                                          GHOST_XrContextHandle xr_context,
+                                          GHOST_IXrContext *xr_context,
                                           wmXrActionSet *action_set,
                                           wmXrSessionState *session_state,
                                           wmWindow *win)
@@ -1223,7 +1223,7 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
   ListBaseT<LinkData> *active_modal_actions = &action_set->active_modal_actions;
   ListBaseT<wmXrHapticAction> *active_haptic_actions = &action_set->active_haptic_actions;
 
-  wmXrAction **actions = MEM_calloc_arrayN<wmXrAction *>(count, __func__);
+  wmXrAction **actions = MEM_new_array_zeroed<wmXrAction *>(count, __func__);
 
   GHOST_XrGetActionCustomdataArray(
       xr_context, action_set_name, reinterpret_cast<void **>(actions));
@@ -1285,7 +1285,7 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
     }
   }
 
-  MEM_freeN(actions);
+  MEM_delete(actions);
 }
 
 void wm_xr_session_actions_update(wmWindowManager *wm)
@@ -1296,7 +1296,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
   }
 
   XrSessionSettings *settings = &xr->session_settings;
-  GHOST_XrContextHandle xr_context = xr->runtime->context;
+  GHOST_IXrContext *xr_context = xr->runtime->context;
   wmXrSessionState *state = &xr->runtime->session_state;
 
   if (state->is_navigation_dirty) {
@@ -1370,7 +1370,7 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
   wm_xr_session_controller_data_free(state);
 
   for (uint i = 0; i < count; ++i) {
-    wmXrController *controller = MEM_callocN<wmXrController>(__func__);
+    wmXrController *controller = MEM_new_zeroed<wmXrController>(__func__);
 
     BLI_assert(STREQ(grip_action->subaction_paths[i], aim_action->subaction_paths[i]));
     STRNCPY(controller->subaction_path, grip_action->subaction_paths[i]);
@@ -1467,7 +1467,7 @@ bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
 {
   wmXrViewportPair *vp = nullptr;
   if (draw_view->view_idx >= BLI_listbase_count(&surface_data->viewports)) {
-    vp = MEM_callocN<wmXrViewportPair>(__func__);
+    vp = MEM_new_zeroed<wmXrViewportPair>(__func__);
     BLI_addtail(&surface_data->viewports, vp);
   }
   else {
@@ -1557,10 +1557,11 @@ static void wm_xr_session_surface_free_data(wmSurface *surface)
 
   if (data->controller_art) {
     BLI_freelistN(&data->controller_art->drawcalls);
-    MEM_freeN(data->controller_art);
+    MEM_delete(data->controller_art);
   }
 
-  MEM_freeN(surface->customdata);
+  wmXrSurfaceData *xr_data = static_cast<wmXrSurfaceData *>(surface->customdata);
+  MEM_delete(xr_data);
 
   g_xr_surface = nullptr;
 }
@@ -1572,9 +1573,9 @@ static wmSurface *wm_xr_session_surface_create()
     return g_xr_surface;
   }
 
-  wmSurface *surface = MEM_callocN<wmSurface>(__func__);
-  wmXrSurfaceData *data = MEM_callocN<wmXrSurfaceData>("XrSurfaceData");
-  data->controller_art = MEM_callocN<ARegionType>("XrControllerRegionType");
+  wmSurface *surface = MEM_new_zeroed<wmSurface>(__func__);
+  wmXrSurfaceData *data = MEM_new_zeroed<wmXrSurfaceData>("XrSurfaceData");
+  data->controller_art = MEM_new_zeroed<ARegionType>("XrControllerRegionType");
 
   surface->draw = wm_xr_session_surface_draw;
   surface->do_depsgraph = wm_xr_session_do_depsgraph;
@@ -1582,7 +1583,7 @@ static wmSurface *wm_xr_session_surface_create()
   surface->activate = DRW_xr_drawing_begin;
   surface->deactivate = DRW_xr_drawing_end;
 
-  surface->system_gpu_context = static_cast<GHOST_ContextHandle>(DRW_system_gpu_context_get());
+  surface->system_gpu_context = DRW_system_gpu_context_get();
   surface->blender_gpu_context = static_cast<GPUContext *>(DRW_xr_blender_gpu_context_get());
 
   data->controller_art->regionid = RGN_TYPE_XR;
@@ -1593,7 +1594,7 @@ static wmSurface *wm_xr_session_surface_create()
   return surface;
 }
 
-void *wm_xr_session_gpu_binding_context_create()
+GHOST_IContext *wm_xr_session_gpu_binding_context_create()
 {
   wmSurface *surface = wm_xr_session_surface_create();
 
@@ -1606,7 +1607,7 @@ void *wm_xr_session_gpu_binding_context_create()
   return surface->system_gpu_context;
 }
 
-void wm_xr_session_gpu_binding_context_destroy(GHOST_ContextHandle /*context*/)
+void wm_xr_session_gpu_binding_context_destroy(GHOST_IContext * /*context*/)
 {
   if (g_xr_surface) { /* Might have been freed already. */
     wm_surface_remove(g_xr_surface);

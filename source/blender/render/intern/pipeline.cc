@@ -39,6 +39,8 @@
 #include "BLI_timecode.h"
 #include "BLI_vector.hh"
 
+#include "BLT_translation.hh"
+
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h" /* <------ should this be here?, needed for sequencer update */
 #include "BKE_callbacks.hh"
@@ -59,8 +61,6 @@
 
 #include "NOD_composite.hh"
 
-#include "COM_compositor.hh"
-#include "COM_context.hh"
 #include "COM_node_group_operation.hh"
 #include "COM_render_context.hh"
 
@@ -76,6 +76,7 @@
 
 #include "MOV_write.hh"
 
+#include "RE_compositor.hh"
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
@@ -155,7 +156,7 @@ static void render_callback_exec_string(Render *re, Main *bmain, eCbEvent evt, c
   if (re->r.scemode & R_BUTS_PREVIEW) {
     return;
   }
-  BKE_callback_exec_string(bmain, evt, str);
+  BKE_callback_exec_string(bmain, str, evt);
 }
 
 static void render_callback_exec_id(Render *re, Main *bmain, ID *id, eCbEvent evt)
@@ -205,7 +206,7 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
-  BKE_callback_exec_string(G_MAIN, BKE_CB_EVT_RENDER_STATS, rs->infostr);
+  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
 
   if (show_info) {
     fflush(stdout);
@@ -864,7 +865,7 @@ void RE_InitState(Render *re,
 
     /* make empty render result, so display callbacks can initialize */
     render_result_free(re->result);
-    re->result = MEM_new_for_free<RenderResult>("new render result");
+    re->result = MEM_new<RenderResult>("new render result");
     re->result->rectx = re->rectx;
     re->result->recty = re->recty;
     BKE_scene_ppm_get(&re->r, re->result->ppm);
@@ -965,7 +966,7 @@ void RE_display_free(Render *re)
   RE_display_init(re);
 }
 
-void *RE_system_gpu_context_get(Render *re)
+GHOST_IContext *RE_system_gpu_context_get(Render *re)
 {
   RenderDisplay *display = re->display.get();
   return display->system_gpu_context;
@@ -1191,24 +1192,15 @@ static void do_render_compositor_scenes(Render *re)
 
     scenes_rendered.add_new(node_scene);
     do_render_compositor_scene(re, node_scene, re->scene->r.cfra);
-    node->typeinfo->updatefunc(re->scene->compositing_node_group, node);
+    if (node->typeinfo->updatefunc) {
+      node->typeinfo->updatefunc(re->scene->compositing_node_group, node);
+    }
   }
 
   /* If another scene was rendered, switch back to the current scene. */
   if (!scenes_rendered.is_empty()) {
     re->display->current_scene_update(re->scene);
   }
-}
-
-/* bad call... need to think over proper method still */
-static void render_compositor_stats(void *arg, const char *str)
-{
-  Render *re = static_cast<Render *>(arg);
-
-  RenderStats i;
-  memcpy(&i, &re->i, sizeof(i));
-  i.infostr = str;
-  re->display->stats_draw(&i);
 }
 
 /* Render compositor nodes, along with any scenes required for them.
@@ -1264,13 +1256,6 @@ static void do_render_compositor(Render *re)
       }
 
       if (!re->display->test_break()) {
-        ntree->runtime->stats_draw = render_compositor_stats;
-        ntree->runtime->test_break = re->display->test_break_cb;
-        ntree->runtime->progress = re->display->progress_cb;
-        ntree->runtime->sdh = re;
-        ntree->runtime->tbh = re->display->tbh;
-        ntree->runtime->prh = re->display->prh;
-
         if (update_newframe) {
           /* If we have consistent depsgraph now would be a time to update them. */
         }
@@ -1284,24 +1269,24 @@ static void do_render_compositor(Render *re)
         }
 
         CLOG_STR_INFO(&LOG, "Executing compositor");
+
+        re->i.infostr = IFACE_("Compositing");
+        re->display->stats_draw(&re->i);
+        re->i.infostr = nullptr;
+
         compositor::RenderContext compositor_render_context;
         compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
         for (RenderView &rv : re->result->views) {
-          COM_execute(re,
-                      &re->r,
-                      re->pipeline_scene_eval,
-                      ntree,
-                      rv.name,
-                      &compositor_render_context,
-                      nullptr,
-                      needed_outputs);
+          RE_compositor_execute(*re,
+                                *re->pipeline_scene_eval,
+                                re->r,
+                                *ntree,
+                                rv.name,
+                                &compositor_render_context,
+                                nullptr,
+                                needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
-
-        ntree->runtime->stats_draw = nullptr;
-        ntree->runtime->test_break = nullptr;
-        ntree->runtime->progress = nullptr;
-        ntree->runtime->tbh = ntree->runtime->sdh = ntree->runtime->prh = nullptr;
       }
     }
   }
@@ -2830,7 +2815,7 @@ RenderPass *RE_create_gp_pass(RenderResult *rr, const char *layername, const cha
   RenderLayer *rl = RE_GetRenderLayer(rr, layername);
   /* only create render layer if not exist */
   if (!rl) {
-    rl = MEM_new_for_free<RenderLayer>(layername);
+    rl = MEM_new<RenderLayer>(layername);
     BLI_addtail(&rr->layers, rl);
     STRNCPY(rl->name, layername);
     rl->layflag = SCE_LAY_SOLID;

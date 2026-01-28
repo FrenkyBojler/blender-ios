@@ -15,12 +15,10 @@ set(INC
 )
 
 set(INC_SYS
-
 )
 
 set(SRC
   COM_compile_state.hh
-  COM_compositor.hh
   COM_context.hh
   COM_conversion_operation.hh
   COM_derived_resources.hh
@@ -49,7 +47,6 @@ set(SRC
   COM_undefined_node_operation.hh
   COM_utilities.hh
 
-  intern/COM_compositor.cc
   intern/compile_state.cc
   intern/context.cc
   intern/conversion_operation.cc
@@ -161,7 +158,6 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blentranslation
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
@@ -172,6 +168,9 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::intern::clog
   PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::optional::tbb
+  PRIVATE bf::dependencies::optional::fftw3
+  PRIVATE bf::dependencies::optional::openimagedenoise
 )
 
 set(GLSL_SRC
@@ -206,6 +205,7 @@ set(GLSL_SRC
   shaders/infos/compositor_kuwahara_infos.hh
   shaders/infos/compositor_lens_distortion_infos.hh
   shaders/infos/compositor_map_uv_infos.hh
+  shaders/infos/compositor_mask_to_sdf_infos.hh
   shaders/infos/compositor_morphological_blur_infos.hh
   shaders/infos/compositor_morphological_distance_feather_infos.hh
   shaders/infos/compositor_morphological_distance_infos.hh
@@ -221,7 +221,6 @@ set(GLSL_SRC
   shaders/infos/compositor_pixelate_infos.hh
   shaders/infos/compositor_plane_deform_infos.hh
   shaders/infos/compositor_premultiply_alpha_infos.hh
-  shaders/infos/compositor_read_input_infos.hh
   shaders/infos/compositor_realize_on_domain_infos.hh
   shaders/infos/compositor_relative_to_pixel_infos.hh
   shaders/infos/compositor_sample_pixel_infos.hh
@@ -304,6 +303,8 @@ set(GLSL_SRC
   shaders/compositor_kuwahara_classic.glsl
   shaders/compositor_map_uv.glsl
   shaders/compositor_map_uv_anisotropic.glsl
+  shaders/compositor_mask_to_sdf_compute_boundary.glsl
+  shaders/compositor_mask_to_sdf_compute_distance.glsl
   shaders/compositor_morphological_blur.glsl
   shaders/compositor_morphological_distance.glsl
   shaders/compositor_morphological_distance_feather.glsl
@@ -323,7 +324,6 @@ set(GLSL_SRC
   shaders/compositor_plane_deform.glsl
   shaders/compositor_premultiply_alpha.glsl
   shaders/compositor_radial_lens_distortion.glsl
-  shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
   shaders/compositor_relative_to_pixel_float.glsl
   shaders/compositor_relative_to_pixel_float_per_dimension.glsl
@@ -445,29 +445,6 @@ if(WITH_TBB)
     # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
-endif()
-
-if(WITH_OPENIMAGEDENOISE)
-  add_definitions(-DWITH_OPENIMAGEDENOISE)
-  add_definitions(-DOIDN_STATIC_LIB)
-  list(APPEND INC_SYS
-    ${OPENIMAGEDENOISE_INCLUDE_DIRS}
-    ${TBB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${OPENIMAGEDENOISE_LIBRARIES}
-    ${TBB_LIBRARIES}
-  )
-endif()
-
-if(WITH_FFTW3)
-  list(APPEND INC_SYS
-    ${FFTW3_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFTW3_LIBRARIES}
-  )
-  add_definitions(-DWITH_FFTW3)
 endif()
 
 blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

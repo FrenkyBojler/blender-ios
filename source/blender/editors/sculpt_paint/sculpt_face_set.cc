@@ -42,6 +42,7 @@
 #include "BKE_mesh_fair.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_types.hh"
@@ -75,7 +76,7 @@ namespace blender::ed::sculpt_paint::face_set {
 
 int find_next_available_id(Object &object)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh:
     case bke::pbvh::Type::Grids: {
@@ -138,7 +139,7 @@ void initialize_none_to_id(Mesh *mesh, const int new_id)
 
 int active_update_and_get(bContext *C, Object &ob, const float mval[2])
 {
-  if (!ob.sculpt) {
+  if (!ob.runtime->sculpt_session) {
     return SCULPT_FACE_SET_NONE;
   }
 
@@ -157,9 +158,7 @@ bool create_face_sets_mesh(Object &object)
   if (attributes.contains(".sculpt_face_set")) {
     return false;
   }
-  attributes.add<int>(".sculpt_face_set",
-                      bke::AttrDomain::Face,
-                      bke::AttributeInitVArray(VArray<int>::from_single(1, mesh.faces_num)));
+  attributes.add<int>(".sculpt_face_set", bke::AttrDomain::Face, bke::AttributeInitValue(1));
   mesh.face_sets_color_default = 1;
   return true;
 }
@@ -168,9 +167,7 @@ bke::SpanAttributeWriter<int> ensure_face_sets_mesh(Mesh &mesh)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (!attributes.contains(".sculpt_face_set")) {
-    attributes.add<int>(".sculpt_face_set",
-                        bke::AttrDomain::Face,
-                        bke::AttributeInitVArray(VArray<int>::from_single(1, mesh.faces_num)));
+    attributes.add<int>(".sculpt_face_set", bke::AttrDomain::Face, bke::AttributeInitValue(1));
     mesh.face_sets_color_default = 1;
   }
   return attributes.lookup_or_add_for_write_span<int>(".sculpt_face_set", bke::AttrDomain::Face);
@@ -179,7 +176,7 @@ bke::SpanAttributeWriter<int> ensure_face_sets_mesh(Mesh &mesh)
 int ensure_face_sets_bmesh(Object &object)
 {
   Mesh &mesh = *id_cast<Mesh *>(object.data);
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   BMesh &bm = *ss.bm;
   if (!CustomData_has_layer_named(&bm.pdata, CD_PROP_INT32, ".sculpt_face_set")) {
     BM_data_layer_add_named(&bm, &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
@@ -287,7 +284,7 @@ static void face_sets_update(const Depsgraph &depsgraph,
                              const IndexMask &node_mask,
                              const FunctionRef<void(Span<int>, MutableSpan<int>)> calc_face_sets)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   bke::SpanAttributeWriter<int> face_sets = ensure_face_sets_mesh(*id_cast<Mesh *>(object.data));
@@ -359,7 +356,7 @@ static void clear_face_sets(const Depsgraph &depsgraph, Object &object, const In
   if (!attributes.contains(".sculpt_face_set")) {
     return;
   }
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   Array<bool> node_changed(pbvh.nodes_num(), false);
@@ -463,7 +460,7 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
       }
       else if (pbvh.type() == bke::pbvh::Type::Grids) {
         const OffsetIndices<int> faces = mesh.faces();
-        const SculptSession &ss = *object.sculpt;
+        const SculptSession &ss = *object.runtime->sculpt_session;
         const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
         const int grid_area = subdiv_ccg.grid_area;
         const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
@@ -611,7 +608,7 @@ using FaceSetsFloodFillFn = FunctionRef<bool(int from_face, int edge, int to_fac
 
 static void init_flood_fill(Object &ob, const FaceSetsFloodFillFn &test_fn)
 {
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
   Mesh *mesh = id_cast<Mesh *>(ob.data);
 
   BitVector<> visited_faces(mesh->faces_num, false);
@@ -900,7 +897,7 @@ static void face_hide_update(const Depsgraph &depsgraph,
                              const IndexMask &node_mask,
                              const FunctionRef<void(Span<int>, MutableSpan<bool>)> calc_hide)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
@@ -985,7 +982,7 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
 
   Mesh *mesh = BKE_object_get_original_mesh(&object);
@@ -1083,7 +1080,7 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
 
   pbvh.update_visibility(object);
 
-  islands::invalidate(*object.sculpt);
+  islands::invalidate(*object.runtime->sculpt_session);
   hide::tag_update_visibility(*C);
 
   return OPERATOR_FINISHED;
@@ -1353,7 +1350,7 @@ static void edit_fairing(const Depsgraph &depsgraph,
                          const eMeshFairingDepth fair_order,
                          const float strength)
 {
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
   Mesh &mesh = *id_cast<Mesh *>(ob.data);
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   boundary::ensure_boundary_info(ob);
@@ -1800,7 +1797,7 @@ static void init_operation(gesture::GestureData &gesture_data, wmOperator & /*op
 {
   Object &object = *gesture_data.vc.obact;
   gesture_data.operation = reinterpret_cast<gesture::Operation *>(
-      MEM_callocN<FaceSetOperation>(__func__));
+      MEM_new_zeroed<FaceSetOperation>(__func__));
 
   FaceSetOperation *face_set_operation = reinterpret_cast<FaceSetOperation *>(
       gesture_data.operation);
