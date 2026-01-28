@@ -18,6 +18,8 @@
 namespace blender {
 
 constexpr int NLLS_MAX_ITERATIONS = 500;
+constexpr float MIRROR_LIMIT = 0.001f;
+constexpr float CIRCULARIZE_EPSILON = 1e-6f;
 
 /* Holds data for a vertex projected onto the local plane. */
 struct CircleVert {
@@ -56,24 +58,20 @@ static bool is_valid_boundary_edge(BMEdge *e,
     }
   }
 
-  /* Mirror axis check.
-   * Not using exacly 0 to allow for a small margin of error. */
-  const float limit = 0.001f;
-
   /* If both vertices of an edge lie close to the same coordinate plane
    * (X = 0, Y = 0, or Z = 0), the edge lies on a mirror plane and is not
    * considered a valid boundary edge. */
 
   /* YZ Plane */
-  if (check_x && std::abs(e->v1->co[0]) < limit && std::abs(e->v2->co[0]) < limit) {
+  if (check_x && std::abs(e->v1->co[0]) < MIRROR_LIMIT && std::abs(e->v2->co[0]) < MIRROR_LIMIT) {
     return false;
   }
   /* XZ Plane */
-  if (check_y && std::abs(e->v1->co[1]) < limit && std::abs(e->v2->co[1]) < limit) {
+  if (check_y && std::abs(e->v1->co[1]) < MIRROR_LIMIT && std::abs(e->v2->co[1]) < MIRROR_LIMIT) {
     return false;
   }
   /* XY Plane */
-  if (check_z && std::abs(e->v1->co[2]) < limit && std::abs(e->v2->co[2]) < limit) {
+  if (check_z && std::abs(e->v1->co[2]) < MIRROR_LIMIT && std::abs(e->v2->co[2]) < MIRROR_LIMIT) {
     return false;
   }
 
@@ -281,10 +279,9 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops)
     return;
   }
 
-  const float limit = 0.001f;
-  const bool check_x = (max_co[0] - min_co[0]) > limit;
-  const bool check_y = (max_co[1] - min_co[1]) > limit;
-  const bool check_z = (max_co[2] - min_co[2]) > limit;
+  const bool check_x = (max_co[0] - min_co[0]) > MIRROR_LIMIT;
+  const bool check_y = (max_co[1] - min_co[1]) > MIRROR_LIMIT;
+  const bool check_z = (max_co[2] - min_co[2]) > MIRROR_LIMIT;
 
   Set<BMEdge *> visited;
 
@@ -426,7 +423,9 @@ static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
 
     /* Check for convergence to stop iterating if we're close enough to the optimal
      * solution. */
-    if (std::abs(delta[0]) < 1e-6f && std::abs(delta[1]) < 1e-6f && std::abs(delta[2]) < 1e-6f) {
+    if (std::abs(delta[0]) < CIRCULARIZE_EPSILON && std::abs(delta[1]) < CIRCULARIZE_EPSILON &&
+        std::abs(delta[2]) < CIRCULARIZE_EPSILON)
+    {
       break;
     }
   }
@@ -517,7 +516,9 @@ static bool project_on_mesh(
   float vec[3];
   sub_v3_v3v3(vec, center_pos, v->co);
   const float angle = angle_v3v3(vec, normal);
-  if (std::abs(angle) < 1e-6f || std::abs(math::numbers::pi - angle) < 1e-6f) {
+  if (std::abs(angle) < CIRCULARIZE_EPSILON ||
+      std::abs(math::numbers::pi - angle) < CIRCULARIZE_EPSILON)
+  {
     copy_v3_v3(r_pos, v->co);
     return true;
   }
@@ -574,7 +575,7 @@ static bool project_on_mesh(
     float closest[3];
     closest_to_line_v3(closest, center_pos, e->v1->co, e->v2->co);
     const float fac = line_point_factor_v3(closest, e->v1->co, e->v2->co);
-    if (fac > 1e-6f && fac < 1.0f - 1e-6f) {
+    if (fac > CIRCULARIZE_EPSILON && fac < 1.0f - CIRCULARIZE_EPSILON) {
       best_dist = len_squared_v3v3(center_pos, closest);
       copy_v3_v3(r_pos, closest);
       found = true;
@@ -639,10 +640,10 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     if (!loop_data.is_closed) {
       BMVert *v_start = loop.first();
       BMVert *v_end = loop.last();
-      const float limit = 0.001f;
 
       for (int axis = 0; axis < 3; axis++) {
-        if (std::abs(v_start->co[axis]) < limit && std::abs(v_end->co[axis]) < limit) {
+        if (std::abs(v_start->co[axis]) < MIRROR_LIMIT && std::abs(v_end->co[axis]) < MIRROR_LIMIT)
+        {
           is_mirrored = true;
           break;
         }
