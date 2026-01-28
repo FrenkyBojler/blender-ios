@@ -918,7 +918,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       }
     }
 
-    if (field.node().depends_on_input()) {
+    if (field.node().depends_on_input() || !selection_is_full) {
       /* Could avoid allocating a new buffer if:
        * - The field does not depend on that attribute (we can't easily check for that yet). */
       void *buffer = MEM_new_uninitialized_aligned(
