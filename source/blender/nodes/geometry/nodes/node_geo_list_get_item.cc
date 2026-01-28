@@ -174,7 +174,7 @@ static void node_rna(StructRNA *srna)
  * Needed because #execute_multi_function_on_value_variant does not support types that can't be
  * processed as fields.
  */
-static bke::SocketValueVariant get_single_item(const ListPtr &list,
+static bke::SocketValueVariant get_single_item(ListPtr &list,
                                                const eNodeSocketDatatype socket_type,
                                                const int64_t index)
 {
@@ -202,7 +202,7 @@ static bke::SocketValueVariant get_single_item(const ListPtr &list,
   return {};
 }
 
-static bke::SocketValueVariant get_socket_value_item(const ListPtr &list, const int64_t index)
+static bke::SocketValueVariant get_socket_value_item(ListPtr &list, const int64_t index)
 {
   if (const auto *data = std::get_if<List::ArrayData>(&list->data())) {
     if (list->is_mutable() && data->sharing_info->is_mutable()) {
