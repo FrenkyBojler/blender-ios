@@ -64,7 +64,19 @@ static float v3_dist_from_plane(const float3 &v, const float3 &center, const flo
 void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape_context)
 {
   Mesh *base_mesh = reshape_context->base_mesh;
-  MutableSpan<float3> base_positions = base_mesh->vert_positions_for_write();
+  MutableSpan<float3> base_positions;
+  KeyBlock *active_kb = reshape_context->active_kb;
+  if (active_kb && active_kb->data) {
+    float3 *active_kb_data = (float3 *)active_kb->data;
+    float3 *mesh_data = base_mesh->vert_positions_for_write().data();
+    for (int i = 0; i < active_kb->totelem; i++) {
+      active_kb_data[i] = mesh_data[i];
+    }
+    base_positions = MutableSpan<float3>(active_kb_data, active_kb->totelem);
+  }
+  else {
+    base_positions = base_mesh->vert_positions_for_write();
+  }
   /* Update the context in case the vertices were duplicated. */
   reshape_context->base_positions = base_positions;
   const GroupedSpan<int> vert_to_face_map = base_mesh->vert_to_face_map();

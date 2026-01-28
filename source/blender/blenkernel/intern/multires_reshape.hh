@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "DNA_key_types.h"
+
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
@@ -35,6 +37,8 @@ struct MultiresReshapeContext {
 
   MultiresModifierData *mmd;
 
+  // KeyBlock sturct introduced to overcome Space Key overwriting
+  struct KeyBlock *active_kb;
   /* Base mesh from original object.
    * NOTE: Does NOT include any leading modifiers in it. */
   Mesh *base_mesh;
