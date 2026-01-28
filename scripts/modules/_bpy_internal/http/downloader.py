@@ -1143,7 +1143,7 @@ class MetadataProviderFilesystem(MetadataProvider):
             meta_path, 'rb', max_tries=20, wait_time_sec=0.1)
 
         try:
-            meta_json = meta_path.read_bytes()
+            meta_json = meta_file.read()
         finally:
             unlocker(meta_file)
 
@@ -1201,7 +1201,7 @@ class MetadataProviderFilesystem(MetadataProvider):
         dir = meta_path.parent
         dir.mkdir(mode=0o700, parents=True, exist_ok=True)
 
-        # See load() for an explanation of the numer of tries & wait time.
+        # See load() for an explanation of the number of tries & wait time.
         meta_file, unlocker = locking.mutex_lock_and_open_with_retry(
             meta_path, 'wb', max_tries=20, wait_time_sec=0.1)
 
