@@ -101,6 +101,9 @@ if(DEFINED LIBDIR)
   set(CLANG_ROOT_DIR ${LIBDIR}/llvm)
   set(MaterialX_DIR ${LIBDIR}/materialx/lib/cmake/MaterialX)
   set(fmt_ROOT ${LIBDIR}/fmt)
+  set(absl_ROOT ${LIBDIR}/abseil)
+  set(Ceres_ROOT ${LIBDIR}/ceres)
+  set(Eigen3_ROOT ${LIBDIR}/eigen)
 endif()
 
 # Wrapper to prefer static libraries
@@ -694,12 +697,12 @@ if(WITH_SYSTEM_FREETYPE)
   set(BROTLI_LIBRARIES "")
 endif()
 
-if(WITH_SYSTEM_EIGEN3)
-  find_package_wrapper(Eigen3)
-  if(NOT EIGEN3_FOUND)
-    message(FATAL_ERROR "Failed finding system Eigen3 version!")
-  endif()
+find_package_wrapper(Eigen3 REQUIRED)
+
+if(WITH_LIBMV)
+  find_package_wrapper(Ceres REQUIRED)
 endif()
+add_bundled_libraries(ceres/lib)
 
 # Jack is intended to use the system library.
 if(WITH_JACK)

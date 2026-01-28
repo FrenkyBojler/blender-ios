@@ -27,13 +27,11 @@ ExternalProject_Add(external_abseil
   INSTALL_DIR ${LIBDIR}/abseil
 )
 
-if(WIN32)
-  ExternalProject_Add_Step(external_abseil after_install
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${LIBDIR}/abseil/
-      ${HARVEST_TARGET}/abseil
-    COMMAND ${CMAKE_COMMAND} -E remove_directory
-      ${HARVEST_TARGET}/abseil/lib/pkgconfig
-    DEPENDEES install
-  )
-endif()
+ExternalProject_Add_Step(external_abseil after_install
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${LIBDIR}/abseil/
+    ${HARVEST_TARGET}/abseil
+  COMMAND ${CMAKE_COMMAND} -E remove_directory
+    ${HARVEST_TARGET}/abseil/lib/pkgconfig
+  DEPENDEES install
+)
