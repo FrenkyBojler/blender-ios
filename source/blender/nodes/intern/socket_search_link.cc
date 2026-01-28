@@ -130,10 +130,6 @@ void search_link_ops_for_declarations(GatherLinkSearchOpParams &params,
   Set<StringRef> socket_names;
   for (const int i : declarations.index_range()) {
     const SocketDeclaration &socket = *declarations[i];
-    /* Ignore sockets that cannot be made available. */
-    if (!socket.is_available && !socket.can_make_available()) {
-      continue;
-    }
     if (!socket_names.add(socket.name)) {
       /* Don't add sockets with the same name to the search. Needed to support being called from
        * #search_link_ops_for_basic_node, which should have "okay" behavior for nodes with
@@ -176,6 +172,25 @@ void search_link_ops_for_basic_node(GatherLinkSearchOpParams &params)
   }
   const NodeDeclaration &declaration = *node_type.static_declaration;
   search_link_ops_for_declarations(params, declaration.sockets(params.in_out()));
+}
+
+void search_filtered_link_ops_for_basic_node(GatherLinkSearchOpParams &params,
+                                             const Set<std::string> &skip_socket_identifiers)
+{
+  const bke::bNodeType &node_type = params.node_type();
+  if (!node_type.static_declaration) {
+    return;
+  }
+  const NodeDeclaration &declaration = *node_type.static_declaration;
+  Vector<SocketDeclaration *> socket_declarations;
+  socket_declarations.reserve(declaration.sockets(params.in_out()).size());
+  for (SocketDeclaration *socket_decl : declaration.sockets(params.in_out())) {
+    if (skip_socket_identifiers.contains(socket_decl->identifier)) {
+      continue;
+    }
+    socket_declarations.append_unchecked(socket_decl);
+  }
+  search_link_ops_for_declarations(params, socket_declarations);
 }
 
 }  // namespace blender::nodes

@@ -196,6 +196,7 @@ void register_node_type_sh_bsdf_metallic()
   ntype.enum_name_legacy = "BSDF_METALLIC";
   ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
+  ntype.gather_link_search_ops = search_link_ops_for_shader_bsdf_node;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts_metallic;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);

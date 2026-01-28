@@ -300,12 +300,6 @@ class SocketDeclaration : public ItemDeclaration {
   virtual bool can_connect(const bNodeSocket &socket) const = 0;
 
   /**
-   * True if the socket has a callback for making a socket available. Otherwise the \a
-   * make_available function has no effect. This is only needed if the socket is unavailable to
-   * begin with. */
-  bool can_make_available() const;
-
-  /**
    * Change the node such that the socket will become visible. The node type's update method
    * should be called afterwards.
    * \note this is not necessarily implemented for all node types.
