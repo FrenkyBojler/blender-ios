@@ -575,6 +575,11 @@ static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType *
   }
 
   bNode *node = bke::node_get_active(*snode->edittree);
+  bNodeTreePath *path = static_cast<bNodeTreePath *>(snode->treepath.last);
+
+  if (snode->edittree->active_viewer_key != path->parent_key) {
+    return false;
+  }
 
   if (node && node->is_type("CompositorNodeBoxMask")) {
     snode->edittree->ensure_topology_cache();
