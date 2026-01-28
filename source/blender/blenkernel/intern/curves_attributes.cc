@@ -453,7 +453,9 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
     AttributeStorage &storage = curves.attribute_storage.wrap();
     Attribute *attr = storage.lookup(name);
-    BLI_assert(attr);
+    if (!attr) {
+      return false;
+    }
     Attribute::DataVariant data = attribute_init_to_data(attr->data_type(),
                                                          get_domain_size(owner, attr->domain()),
                                                          initializer,

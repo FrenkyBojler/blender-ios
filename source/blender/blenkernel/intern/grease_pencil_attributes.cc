@@ -163,7 +163,9 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(owner);
     AttributeStorage &storage = grease_pencil.attribute_storage.wrap();
     Attribute *attr = storage.lookup(name);
-    BLI_assert(attr);
+    if (!attr) {
+      return false;
+    }
     Attribute::DataVariant data = attribute_init_to_data(attr->data_type(),
                                                          get_domain_size(owner, attr->domain()),
                                                          initializer,

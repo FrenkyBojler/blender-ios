@@ -175,6 +175,25 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     }
     return true;
   };
+  fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
+    Instances &instances = *static_cast<Instances *>(owner);
+    AttributeStorage &storage = instances.attribute_storage();
+    Attribute *attr = storage.lookup(name);
+    if (!attr) {
+      return false;
+    }
+    Attribute::DataVariant data = attribute_init_to_data(attr->data_type(),
+                                                         instances.instances_num(),
+                                                         initializer,
+                                                         array_storage_required().contains(name));
+    attr->assign_data(std::move(data));
+    if (initializer.type != AttributeInit::Type::Construct) {
+      if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
+        (*fn)(owner);
+      }
+    }
+    return true;
+  };
 
   return fn;
 }

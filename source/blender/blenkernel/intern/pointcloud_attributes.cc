@@ -183,7 +183,9 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     PointCloud &pointcloud = *static_cast<PointCloud *>(owner);
     AttributeStorage &storage = pointcloud.attribute_storage.wrap();
     Attribute *attr = storage.lookup(name);
-    BLI_assert(attr);
+    if (!attr) {
+      return false;
+    }
     Attribute::DataVariant data = attribute_init_to_data(attr->data_type(),
                                                          pointcloud.totpoint,
                                                          initializer,

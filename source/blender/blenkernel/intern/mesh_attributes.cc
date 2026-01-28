@@ -1053,7 +1053,9 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
     Mesh &mesh = *static_cast<Mesh *>(owner);
     AttributeStorage &storage = mesh.attribute_storage.wrap();
     Attribute *attr = storage.lookup(name);
-    BLI_assert(attr);
+    if (!attr) {
+      return false;
+    }
     Attribute::DataVariant data = attribute_init_to_data(attr->data_type(),
                                                          get_domain_size(owner, attr->domain()),
                                                          initializer,
