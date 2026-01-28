@@ -1344,7 +1344,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
 
 
 class NODE_OT_group_make_local(Operator):
-    """Convert current nodetree from being linked/pack to being local in the current .blend file"""
+    """Convert current nodetree from being linked/packed to being local in the current .blend file"""
     bl_idname = "node.make_local"
     bl_label = "Make Local"
     bl_options = {'REGISTER', 'UNDO'}
