@@ -5989,8 +5989,11 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   OPERATOR_RETVAL_CHECK(retval);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
-    MEM_delete(stroke);
-    stroke->free(C, op);
+    SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
+    if (stroke) {
+      MEM_delete(stroke);
+      stroke->free(C, op);
+    }
     return retval;
   }
   /* Add modal handler. */
@@ -6039,6 +6042,7 @@ static wmOperatorStatus brush_stroke_modal(bContext *C, wmOperator *op, const wm
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
+    op->customdata = nullptr;
   }
 
   return retval;
