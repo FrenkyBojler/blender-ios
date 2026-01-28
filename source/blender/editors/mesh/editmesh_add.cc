@@ -32,8 +32,8 @@
 #include "ED_screen.hh"
 #include "ED_sculpt.hh"
 
-#include "../sculpt_paint/sculpt_dyntopo.hh"
 #include "../../editors/sculpt_paint/sculpt_undo.hh"
+#include "../sculpt_paint/sculpt_dyntopo.hh"
 
 #include "mesh_intern.hh" /* own include */
 
@@ -131,34 +131,35 @@ static void make_prim_finish(bContext *C,
     ed::sculpt_paint::undo::push_end(*obedit);
   }
   else {
-    /* TODO: verify exit_edimode logic and expectaction, undo fails for sculpt mode when enter_editmode is set to true */
-    const bool exit_editmode = enter_editmode == false;
-
+    /* Primitive has all verts selected, use vert select flush
+     * to push this up to edges & faces. */
     EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
     /* TODO(@ideasman42): maintain UV sync for newly created data. */
     EDBM_uvselect_clear(em);
 
     /* Only recalculate edit-mode tessellation if we are staying in edit-mode. */
     EDBMUpdate_Params params{};
-    params.calc_looptris = creation_data->original_ctx_mode == CTX_MODE_EDIT_MESH;
+    params.calc_looptris = creation_data->original_ctx_mode == CTX_MODE_EDIT_MESH ||
+                           (creation_data->original_ctx_mode == CTX_MODE_OBJECT && enter_editmode);
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
 
-    if (creation_data->original_ctx_mode != CTX_MODE_EDIT_MESH && exit_editmode) {
+    // TODO: verify if sculpt mode should also stay in edit mode if user preference
+    if (creation_data->original_ctx_mode == CTX_MODE_OBJECT && enter_editmode == false) {
       ed::object::editmode_exit_ex(
           CTX_data_main(C), CTX_data_scene(C), obedit, ed::object::EM_FREEDATA);
     }
+    else if (creation_data->original_ctx_mode == CTX_MODE_SCULPT) {
+      ed::object::editmode_exit_ex(
+          CTX_data_main(C), CTX_data_scene(C), obedit, ed::object::EM_FREEDATA);
 
-    if (creation_data->original_ctx_mode == CTX_MODE_SCULPT) {
-      if (exit_editmode) {
-        ed::sculpt_paint::object_sculpt_mode_enter(*CTX_data_main(C),
-                                                   *CTX_data_depsgraph_pointer(C),
-                                                   *CTX_data_scene(C),
-                                                   *obedit,
-                                                   true,
-                                                   CTX_wm_reports(C));
-      }
+      ed::sculpt_paint::object_sculpt_mode_enter(*CTX_data_main(C),
+                                                 *CTX_data_depsgraph_pointer(C),
+                                                 *CTX_data_scene(C),
+                                                 *obedit,
+                                                 true,
+                                                 CTX_wm_reports(C));
 
       ed::sculpt_paint::undo::geometry_end(*obedit);
     }

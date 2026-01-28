@@ -3818,6 +3818,7 @@ class VIEW3D_MT_sculpt_trim(Menu):
         props = layout.operator("sculpt.trim_polyline_gesture", text="Polyline Add")
         props.trim_mode = 'JOIN'
 
+
 class VIEW3D_MT_add_object(Menu):
     bl_label = "Add Primitive"
 
@@ -3843,6 +3844,7 @@ class VIEW3D_MT_add_object(Menu):
         props = layout.operator("wm.tool_set_by_id", text="Add Ico Cube")
         props.name = "builtin.primitive_ico_sphere_add"
         props.space_type = 'VIEW_3D'
+
 
 class VIEW3D_MT_sculpt_curves(Menu):
     bl_label = "Curves"
