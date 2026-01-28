@@ -232,8 +232,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
   TextureHandle texture_handle;
   texture_handle.alloc(extent, format, usage, name_str.c_str());
 
-  /* Query the requirements for this specific image. We expand size up to alignment,
-   * so the segment after our acquired segment is also aligned at the start. */
+  /* Query the requirements for this specific image. */
   VkMemoryRequirements memory_requirements;
   vkGetImageMemoryRequirements(
       device.vk_handle(), texture_handle.texture->vk_image_, &memory_requirements);
@@ -286,7 +285,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
       texture_handle.texture->vk_image_, false, texture_handle.texture->name_.c_str());
 
   if (G.debug & G_DEBUG_GPU) {
-    /* Accumulate usage data for debug log. Maximum is stored. */
+    /* Accumulate usage data for debug log. */
     current_usage_data_.acquired_segment_size += texture_handle.segment.size;
     current_usage_data_.acquired_segment_size_max = std::max(
         current_usage_data_.acquired_segment_size_max, current_usage_data_.acquired_segment_size);
