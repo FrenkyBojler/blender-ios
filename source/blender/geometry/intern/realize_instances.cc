@@ -322,7 +322,7 @@ struct GatherTasksInfo {
    * array owns all the temporary arrays so that they can live until all processing is done.
    * Use #std::unique_ptr to avoid depending on whether #GArray has an inline buffer or not.
    */
-  Vector<std::unique_ptr<GArray<>>> &r_temporary_arrays;
+  ResourceScope &r_temporary_arrays;
 
   AllInstancesInfo instances;
 
@@ -480,17 +480,22 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
                                            const float4x4 &base_transform,
                                            const InstanceContext &base_instance_context);
 
+struct AttrFallbackData {
+  int attr_index;
+  std::variant<GSpan, GPointer> data;
+};
+
 /**
  * Checks which of the #ordered_attributes exist on the #instances_component. For each attribute
  * that exists on the instances, a pair is returned that contains the attribute index and the
  * corresponding attribute data.
  */
-static Vector<std::pair<int, GSpan>> prepare_attribute_fallbacks(
+static Vector<AttrFallbackData> prepare_attribute_fallbacks(
     GatherTasksInfo &gather_info,
     const Instances &instances,
     const OrderedAttributes &ordered_attributes)
 {
-  Vector<std::pair<int, GSpan>> attributes_to_override;
+  Vector<AttrFallbackData> attributes_to_override;
   const bke::AttributeAccessor attributes = instances.attributes();
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     const int attribute_index = ordered_attributes.ids.index_of_try(iter.name);
@@ -499,27 +504,47 @@ static Vector<std::pair<int, GSpan>> prepare_attribute_fallbacks(
       return;
     }
     const bke::GAttributeReader attribute = iter.get();
-    if (!attribute || !attribute.varray.is_span()) {
+    if (!attribute) {
       return;
     }
-    GSpan span = attribute.varray.get_internal_span();
     const bke::AttrType expected_type = ordered_attributes.kinds[attribute_index].data_type;
-    if (iter.data_type != expected_type) {
-      const CPPType &from_type = span.type();
-      const CPPType &to_type = bke::attribute_type_to_cpp_type(expected_type);
-      const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
-      if (!conversions.is_convertible(from_type, to_type)) {
-        /* Ignore the attribute because it can not be converted to the desired type. */
-        return;
+    if (attribute.varray.is_single()) {
+      const CPPType &attr_type = attribute.varray.type();
+      const CPPType &expected_cpp_type = bke::attribute_type_to_cpp_type(expected_type);
+      void *ptr = gather_info.r_temporary_arrays.allocate_owned(attr_type);
+      attr_type.default_construct(ptr);
+      attribute.varray.get_internal_single(ptr);
+      if (iter.data_type != expected_type) {
+        const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+        if (!conversions.is_convertible(attr_type, expected_cpp_type)) {
+          /* Ignore the attribute because it can not be converted to the desired type. */
+          return;
+        }
+        /* Convert the attribute on the instances component to the expected attribute type. */
+        void *ptr_converted = gather_info.r_temporary_arrays.allocate_owned(expected_cpp_type);
+        conversions.convert_to_uninitialized(attr_type, expected_cpp_type, ptr, ptr_converted);
+        ptr = ptr_converted;
       }
-      /* Convert the attribute on the instances component to the expected attribute type. */
-      std::unique_ptr<GArray<>> temporary_array = std::make_unique<GArray<>>(
-          to_type, instances.instances_num());
-      conversions.convert_to_initialized_n(span, temporary_array->as_mutable_span());
-      span = temporary_array->as_span();
-      gather_info.r_temporary_arrays.append(std::move(temporary_array));
+      attributes_to_override.append({attribute_index, GPointer(expected_cpp_type, ptr)});
     }
-    attributes_to_override.append({attribute_index, span});
+    else {
+      GSpan span = attribute.varray.get_internal_span();
+      if (iter.data_type != expected_type) {
+        const CPPType &from_type = span.type();
+        const CPPType &to_type = bke::attribute_type_to_cpp_type(expected_type);
+        const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+        if (!conversions.is_convertible(from_type, to_type)) {
+          /* Ignore the attribute because it can not be converted to the desired type. */
+          return;
+        }
+        /* Convert the attribute on the instances component to the expected attribute type. */
+        GMutableSpan temporary_array = gather_info.r_temporary_arrays.construct<GArray<>>(
+            to_type, instances.instances_num());
+        conversions.convert_to_initialized_n(span, temporary_array);
+        span = temporary_array;
+      }
+      attributes_to_override.append({attribute_index, span});
+    }
   });
   return attributes_to_override;
 }
@@ -563,15 +588,15 @@ static void gather_realize_tasks_for_instances(GatherTasksInfo &gather_info,
 
   /* Prepare attribute fallbacks. */
   InstanceContext instance_context = base_instance_context;
-  Vector<std::pair<int, GSpan>> pointcloud_attributes_to_override = prepare_attribute_fallbacks(
+  Vector<AttrFallbackData> pointcloud_attributes_to_override = prepare_attribute_fallbacks(
       gather_info, instances, gather_info.pointclouds.attributes);
-  Vector<std::pair<int, GSpan>> mesh_attributes_to_override = prepare_attribute_fallbacks(
+  Vector<AttrFallbackData> mesh_attributes_to_override = prepare_attribute_fallbacks(
       gather_info, instances, gather_info.meshes.attributes);
-  Vector<std::pair<int, GSpan>> curve_attributes_to_override = prepare_attribute_fallbacks(
+  Vector<AttrFallbackData> curve_attributes_to_override = prepare_attribute_fallbacks(
       gather_info, instances, gather_info.curves.attributes);
-  Vector<std::pair<int, GSpan>> grease_pencil_attributes_to_override = prepare_attribute_fallbacks(
+  Vector<AttrFallbackData> grease_pencil_attributes_to_override = prepare_attribute_fallbacks(
       gather_info, instances, gather_info.grease_pencils.attributes);
-  Vector<std::pair<int, GSpan>> instance_attributes_to_override = prepare_attribute_fallbacks(
+  Vector<AttrFallbackData> instance_attributes_to_override = prepare_attribute_fallbacks(
       gather_info, instances, gather_info.instances_attriubutes);
 
   const bool is_top_level = current_depth == 0;
@@ -587,21 +612,22 @@ static void gather_realize_tasks_for_instances(GatherTasksInfo &gather_info,
     const float4x4 new_base_transform = base_transform * transform;
 
     /* Update attribute fallbacks for the current instance. */
-    for (const std::pair<int, GSpan> &pair : pointcloud_attributes_to_override) {
-      instance_context.pointclouds.array[pair.first] = pair.second[i];
-    }
-    for (const std::pair<int, GSpan> &pair : mesh_attributes_to_override) {
-      instance_context.meshes.array[pair.first] = pair.second[i];
-    }
-    for (const std::pair<int, GSpan> &pair : curve_attributes_to_override) {
-      instance_context.curves.array[pair.first] = pair.second[i];
-    }
-    for (const std::pair<int, GSpan> &pair : grease_pencil_attributes_to_override) {
-      instance_context.grease_pencils.array[pair.first] = pair.second[i];
-    }
-    for (const std::pair<int, GSpan> &pair : instance_attributes_to_override) {
-      instance_context.instances.array[pair.first] = pair.second[i];
-    }
+    const auto set_fallbacks = [&](Span<AttrFallbackData> fallbacks,
+                                   MutableSpan<const void *> ptrs) {
+      for (const AttrFallbackData &attr : fallbacks) {
+        if (const auto *array = std::get_if<GSpan>(&attr.data)) {
+          ptrs[attr.attr_index] = (*array)[i];
+        }
+        else if (const auto *single = std::get_if<GPointer>(&attr.data)) {
+          ptrs[attr.attr_index] = single->get();
+        }
+      }
+    };
+    set_fallbacks(pointcloud_attributes_to_override, instance_context.pointclouds.array);
+    set_fallbacks(mesh_attributes_to_override, instance_context.meshes.array);
+    set_fallbacks(curve_attributes_to_override, instance_context.curves.array);
+    set_fallbacks(grease_pencil_attributes_to_override, instance_context.grease_pencils.array);
+    set_fallbacks(instance_attributes_to_override, instance_context.instances.array);
 
     uint32_t local_instance_id = 0;
     if (gather_info.create_id_attribute_on_any_component) {
@@ -2501,7 +2527,7 @@ RealizeInstancesResult realize_instances(bke::GeometrySet geometry_set,
   const bool create_id_attribute = all_pointclouds_info.create_id_attribute ||
                                    all_meshes_info.create_id_attribute ||
                                    all_curves_info.create_id_attribute;
-  Vector<std::unique_ptr<GArray<>>> temporary_arrays;
+  ResourceScope temporary_arrays;
   GatherTasksInfo gather_info = {all_pointclouds_info,
                                  all_meshes_info,
                                  all_curves_info,
