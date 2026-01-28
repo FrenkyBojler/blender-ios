@@ -51,7 +51,9 @@ struct [[host_shared]] ClampData {
   float surface_indirect;
   float volume_direct;
   float volume_indirect;
+  float direct_scale;
   float indirect_scale;
+  int _pad0;
 };
 
 /* Emulation of the light path node. */
