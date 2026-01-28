@@ -324,7 +324,7 @@ static void test_constraint(
      * free the points array and request a rebind...
      */
     if ((data->points == nullptr) || (data->numpoints != data->chainlen + 1)) {
-      MEM_SAFE_FREE(data->points);
+      MEM_SAFE_DELETE(data->points);
       data->numpoints = 0;
 
       /* clear the bound flag, forcing a rebind next time this is evaluated */
@@ -2395,7 +2395,7 @@ static wmOperatorStatus constraint_add_exec(bContext *C,
       /* Armature constraints don't have a target by default, add one. */
       if (type == CONSTRAINT_TYPE_ARMATURE) {
         bArmatureConstraint *acon = static_cast<bArmatureConstraint *>(con->data);
-        bConstraintTarget *ct = MEM_new_for_free<bConstraintTarget>("Constraint Target");
+        bConstraintTarget *ct = MEM_new<bConstraintTarget>("Constraint Target");
 
         ct->weight = 1.0f;
         BLI_addtail(&acon->targets, ct);
@@ -2580,7 +2580,7 @@ void POSE_OT_constraint_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_constraint_type_items, 0, "Type", "");
+  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_constraint_type_items, 1, "Type", "");
 }
 
 void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
@@ -2601,7 +2601,7 @@ void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_constraint_type_items, 0, "Type", "");
+  ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_constraint_type_items, 1, "Type", "");
 }
 
 /** \} */
