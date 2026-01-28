@@ -45,16 +45,18 @@ List::ArrayData List::ArrayData::ForValue(const GPointer &value, const int64_t s
   const CPPType &type = *value.type();
   const void *value_ptr = type.default_value();
 
+  void *new_data;
   /* Prefer `calloc` to zeroing after allocation since it is faster. */
   if (BLI_memory_is_zero(value_ptr, type.size)) {
-    data.data = MEM_new_array_zeroed_aligned(size, type.size, type.alignment, __func__);
+    new_data = MEM_new_array_zeroed_aligned(size, type.size, type.alignment, __func__);
   }
   else {
-    data.data = MEM_new_array_uninitialized_aligned(size, type.size, type.alignment, __func__);
-    type.fill_construct_n(value_ptr, data.data, size);
+    new_data = MEM_new_array_uninitialized_aligned(size, type.size, type.alignment, __func__);
+    type.fill_construct_n(value_ptr, new_data, size);
   }
 
-  data.sharing_info = sharing_ptr_for_array(data.data, size, type);
+  data.data = new_data;
+  data.sharing_info = sharing_ptr_for_array(new_data, size, type);
   return data;
 }
 
@@ -66,17 +68,19 @@ List::ArrayData List::ArrayData::ForDefaultValue(const CPPType &type, const int6
 List::ArrayData List::ArrayData::ForConstructed(const CPPType &type, const int64_t size)
 {
   List::ArrayData data{};
-  data.data = MEM_new_array_uninitialized_aligned(size, type.size, type.alignment, __func__);
-  type.default_construct_n(data.data, size);
-  data.sharing_info = sharing_ptr_for_array(data.data, size, type);
+  void *new_data = MEM_new_array_uninitialized_aligned(size, type.size, type.alignment, __func__);
+  type.default_construct_n(new_data, size);
+  data.data = new_data;
+  data.sharing_info = sharing_ptr_for_array(new_data, size, type);
   return data;
 }
 
 List::ArrayData List::ArrayData::ForUninitialized(const CPPType &type, const int64_t size)
 {
   List::ArrayData data{};
-  data.data = MEM_new_array_uninitialized_aligned(size, type.size, type.alignment, __func__);
-  data.sharing_info = sharing_ptr_for_array(data.data, size, type);
+  void *new_data = MEM_new_array_uninitialized_aligned(size, type.size, type.alignment, __func__);
+  data.data = new_data;
+  data.sharing_info = sharing_ptr_for_array(new_data, size, type);
   return data;
 }
 
