@@ -17,7 +17,6 @@ set(LIB
   cycles_session
   cycles_graph
   bf::dependencies::epoxy
-  ${BOOST_PYTHON_LIBRARIES}
 )
 cycles_external_libraries_append(LIB)
 
@@ -171,7 +170,7 @@ if(WITH_CYCLES_HYDRA_RENDER_DELEGATE)
   set(PLUG_INFO_ROOT "..")
 
   if(WITH_CYCLES_BLENDER)
-    # Full path not yet know at this point and RELATIVE_PATH requires
+    # Full path not yet known at this point and RELATIVE_PATH requires
     # absolute path as input. So just set manually.
     set(PLUG_INFO_LIBRARY_PATH "../${HdCyclesPluginName}${CMAKE_SHARED_LIBRARY_SUFFIX}")
     set(PLUG_INFO_RESOURCE_PATH "../..")

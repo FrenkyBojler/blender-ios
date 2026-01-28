@@ -96,12 +96,12 @@ else()
   endif()
 
   unset(_cltools_pkg_info)
-  unset(__cltools_pkg_info_result)
+  unset(_cltools_pkg_info_result)
 endif()
 
 # Require a relatively recent Xcode version.
-if(${XCODE_VERSION} VERSION_LESS 10.0)
-  message(FATAL_ERROR "Only Xcode version 10.0 and newer is supported")
+if(${XCODE_VERSION} VERSION_LESS 16.0)
+  message(FATAL_ERROR "Only Xcode version 16.0 and newer is supported")
 endif()
 
 # Collect list of OSX system versions which will be used to detect path to corresponding SDK.
