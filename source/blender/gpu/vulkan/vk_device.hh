@@ -96,12 +96,20 @@ struct VKExtensions {
    */
   bool extended_dynamic_state = false;
 
+  /**
+   * Does the device support VK_EXT_vertex_input_dynamic_state
+   */
+  bool vertex_input_dynamic_state = false;
+
+  /**
+   *Does the device support VK_EXT_host_image_copy
+   */
+  bool host_image_copy = false;
+
   /** Log enabled features and extensions. */
   void log() const;
 };
 
-/* TODO: Split into VKWorkarounds and VKExtensions to remove the negating when an extension isn't
- * supported. */
 struct VKWorkarounds {
   /**
    * Some devices don't support pixel formats that are aligned to 24 and 48 bits.
@@ -110,14 +118,6 @@ struct VKWorkarounds {
    * If set to true we should work around this issue by using a different texture format.
    */
   bool not_aligned_pixel_formats = false;
-
-  struct {
-    /**
-     * Is the workaround enabled for devices that don't support using VK_FORMAT_R8G8B8_* as vertex
-     * buffer.
-     */
-    bool r8g8b8 = false;
-  } vertex_formats;
 
   /** Log enabled workarounds. */
   void log() const;
@@ -257,8 +257,15 @@ class VKDevice : public NonCopyable {
     /* Extension: VK_EXT_extended_dynamic_state */
     PFN_vkCmdSetFrontFace vkCmdSetFrontFace = nullptr;
 
+    /* Extension: VK_EXT_vertex_input_dynamic_state */
+    PFN_vkCmdSetVertexInputEXT vkCmdSetVertexInput = nullptr;
+
     /* Extension: VK_KHR_external_memory_fd */
     PFN_vkGetMemoryFdKHR vkGetMemoryFd = nullptr;
+
+    /* Extension: VK_EXT_host_image_copy */
+    PFN_vkCopyMemoryToImageEXT vkCopyMemoryToImage = nullptr;
+    PFN_vkTransitionImageLayoutEXT vkTransitionImageLayout = nullptr;
 
 #ifdef _WIN32
     /* Extension: VK_KHR_external_memory_win32 */
@@ -356,7 +363,7 @@ class VKDevice : public NonCopyable {
     return samplers_;
   }
 
-  void init(void *ghost_context);
+  void init(GHOST_IContext *ghost_context);
   void reinit();
   void deinit();
   bool is_initialized() const
@@ -401,6 +408,7 @@ class VKDevice : public NonCopyable {
   TimelineValue render_graph_submit(render_graph::VKRenderGraph *render_graph,
                                     VKDiscardPool &context_discard_pool,
                                     bool submit_to_device,
+                                    bool wait_for_submission,
                                     bool wait_for_completion,
                                     VkPipelineStageFlags wait_dst_stage_mask,
                                     VkSemaphore wait_semaphore,

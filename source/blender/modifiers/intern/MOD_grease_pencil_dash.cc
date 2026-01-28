@@ -12,7 +12,6 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 
 #include "BKE_curves.hh"
@@ -47,12 +46,10 @@ static void init_data(ModifierData *md)
 {
   auto *dmd = reinterpret_cast<GreasePencilDashModifierData *>(md);
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(dmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(dmd, DNA_struct_default_get(GreasePencilDashModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(dmd, modifier);
   modifier::greasepencil::init_influence_data(&dmd->influence, false);
 
-  GreasePencilDashModifierSegment *ds = DNA_struct_default_alloc(GreasePencilDashModifierSegment);
+  GreasePencilDashModifierSegment *ds = MEM_new<GreasePencilDashModifierSegment>(__func__);
   STRNCPY_UTF8(ds->name, DATA_("Segment"));
   dmd->segments_array = ds;
   dmd->segments_num = 1;
@@ -69,7 +66,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   modifier::greasepencil::copy_influence_data(&dmd->influence, &tmmd->influence, flag);
 
   tmmd->segments_array = static_cast<GreasePencilDashModifierSegment *>(
-      MEM_dupallocN(dmd->segments_array));
+      MEM_dupalloc(dmd->segments_array));
 }
 
 static void free_data(ModifierData *md)
@@ -77,7 +74,7 @@ static void free_data(ModifierData *md)
   auto *dmd = reinterpret_cast<GreasePencilDashModifierData *>(md);
   modifier::greasepencil::free_influence_data(&dmd->influence);
 
-  MEM_SAFE_FREE(dmd->segments_array);
+  MEM_SAFE_DELETE(dmd->segments_array);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -408,20 +405,19 @@ static void panel_draw(const bContext *C, Panel *panel)
   ui::Layout &row = layout.row(false);
   row.use_property_split_set(false);
 
-  uiTemplateList(&row,
-                 (bContext *)C,
-                 "MOD_UL_grease_pencil_dash_modifier_segments",
-                 "",
-                 ptr,
-                 "segments",
-                 ptr,
-                 "segment_active_index",
-                 nullptr,
-                 3,
-                 10,
-                 0,
-                 1,
-                 UI_TEMPLATE_LIST_FLAG_NONE);
+  template_list(&row,
+                const_cast<bContext *>(C),
+                "MOD_UL_grease_pencil_dash_modifier_segments",
+                "",
+                ptr,
+                "segments",
+                ptr,
+                "segment_active_index",
+                nullptr,
+                3,
+                10,
+                0,
+                ui::TEMPLATE_LIST_FLAG_NONE);
 
   ui::Layout &col = row.column(false);
   ui::Layout *sub = &col.column(true);
@@ -431,13 +427,13 @@ static void panel_draw(const bContext *C, Panel *panel)
   sub = &col.column(true);
   PointerRNA op_ptr = sub->op(
       "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_UP);
-  RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Up */ -1);
+  RNA_enum_set(&op_ptr, "type", /* ed::object::DashSegmentMoveDirection::Up */ -1);
   op_ptr = sub->op("OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_DOWN);
-  RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Down */ 1);
+  RNA_enum_set(&op_ptr, "type", /* ed::object::DashSegmentMoveDirection::Down */ 1);
 
   if (dmd->segment_active_index >= 0 && dmd->segment_active_index < dmd->segments_num) {
     PointerRNA ds_ptr = RNA_pointer_create_discrete(ptr->owner_id,
-                                                    &RNA_GreasePencilDashModifierSegment,
+                                                    RNA_GreasePencilDashModifierSegment,
                                                     &dmd->segments()[dmd->segment_active_index]);
 
     sub = &layout.column(true);
@@ -473,14 +469,14 @@ static void segment_list_item_draw(uiList * /*ui_list*/,
                                    int /*flt_flag*/)
 {
   ui::Layout &row = layout.row(true);
-  row.prop(itemptr, "name", UI_ITEM_R_NO_BG, "", ICON_NONE);
+  row.prop(itemptr, "name", ui::ITEM_R_NO_BG, "", ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_GreasePencilDash, panel_draw);
 
-  uiListType *list_type = MEM_callocN<uiListType>("Grease Pencil Dash modifier segments");
+  uiListType *list_type = MEM_new_zeroed<uiListType>("Grease Pencil Dash modifier segments");
   STRNCPY(list_type->idname, "MOD_UL_grease_pencil_dash_modifier_segments");
   list_type->draw_item = segment_list_item_draw;
   WM_uilisttype_add(list_type);
@@ -490,11 +486,10 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *dmd = reinterpret_cast<const GreasePencilDashModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilDashModifierData, dmd);
+  writer->write_struct(dmd);
   modifier::greasepencil::write_influence_data(writer, &dmd->influence);
 
-  BLO_write_struct_array(
-      writer, GreasePencilDashModifierSegment, dmd->segments_num, dmd->segments_array);
+  writer->write_struct_array(dmd->segments_num, dmd->segments_array);
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
@@ -507,8 +502,6 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
       reader, GreasePencilDashModifierSegment, dmd->segments_num, &dmd->segments_array);
 }
 
-}  // namespace blender
-
 ModifierTypeInfo modifierType_GreasePencilDash = {
     /*idname*/ "GreasePencilDash",
     /*name*/ N_("Dot Dash"),
@@ -520,36 +513,38 @@ ModifierTypeInfo modifierType_GreasePencilDash = {
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,
     /*icon*/ ICON_MOD_DASH,
 
-    /*copy_data*/ blender::copy_data,
+    /*copy_data*/ copy_data,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
     /*deform_verts_EM*/ nullptr,
     /*deform_matrices_EM*/ nullptr,
     /*modify_mesh*/ nullptr,
-    /*modify_geometry_set*/ blender::modify_geometry_set,
+    /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ blender::init_data,
+    /*init_data*/ init_data,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ blender::free_data,
-    /*is_disabled*/ blender::is_disabled,
+    /*free_data*/ free_data,
+    /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
     /*depends_on_normals*/ nullptr,
-    /*foreach_ID_link*/ blender::foreach_ID_link,
+    /*foreach_ID_link*/ foreach_ID_link,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,
-    /*panel_register*/ blender::panel_register,
-    /*blend_write*/ blender::blend_write,
-    /*blend_read*/ blender::blend_read,
+    /*panel_register*/ panel_register,
+    /*blend_write*/ blend_write,
+    /*blend_read*/ blend_read,
 };
 
-blender::Span<GreasePencilDashModifierSegment> GreasePencilDashModifierData::segments() const
+Span<GreasePencilDashModifierSegment> GreasePencilDashModifierData::segments() const
 {
   return {this->segments_array, this->segments_num};
 }
 
-blender::MutableSpan<GreasePencilDashModifierSegment> GreasePencilDashModifierData::segments()
+MutableSpan<GreasePencilDashModifierSegment> GreasePencilDashModifierData::segments()
 {
   return {this->segments_array, this->segments_num};
 }
+
+}  // namespace blender

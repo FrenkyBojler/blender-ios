@@ -8,6 +8,8 @@
  * \ingroup sequencer
  */
 
+#include "BLI_math_filter.hh"
+
 #include "BKE_fcurve.hh"
 
 #include "DNA_scene_types.h"
@@ -17,12 +19,9 @@
 #include "IMB_imbuf.hh"
 #include "IMB_metadata.hh"
 
-#include "RE_pipeline.h"
-
 #include "RNA_prototypes.hh"
 
 #include "SEQ_render.hh"
-#include "SEQ_time.hh"
 
 #include "effects.hh"
 #include "render.hh"
@@ -89,7 +88,7 @@ Array<float> make_gaussian_blur_kernel(float rad, int size)
   float sum = 0.0f;
   float fac = (rad > 0.0f ? 1.0f / rad : 0.0f);
   for (int i = -size; i <= size; i++) {
-    float val = RE_filter_value(R_FILTER_GAUSS, float(i) * fac);
+    float val = math::filter_kernel_value(math::FilterKernel::Gauss, float(i) * fac);
     sum += val;
     gaussian[i + size] = val;
   }
@@ -104,11 +103,6 @@ Array<float> make_gaussian_blur_kernel(float rad, int size)
 
 static void init_noop(Strip * /*strip*/) {}
 
-static void free_default(Strip *strip, const bool /*do_id_user*/)
-{
-  MEM_SAFE_FREE(strip->effectdata);
-}
-
 static int num_inputs_default()
 {
   return 2;
@@ -116,7 +110,7 @@ static int num_inputs_default()
 
 static void copy_effect_default(Strip *dst, const Strip *src, const int /*flag*/)
 {
-  dst->effectdata = MEM_dupallocN(src->effectdata);
+  dst->effectdata = MEM_dupalloc_void(src->effectdata);
 }
 
 static StripEarlyOut early_out_noop(const Strip * /*strip*/, float /*fac*/)
@@ -176,7 +170,7 @@ EffectHandle effect_handle_get(StripType strip_type)
 
   rval.init = init_noop;
   rval.num_inputs = num_inputs_default;
-  rval.free = free_default;
+  rval.free = nullptr;
   rval.early_out = early_out_noop;
   rval.execute = nullptr;
   rval.copy = copy_effect_default;
@@ -243,7 +237,7 @@ static EffectHandle effect_handle_for_blend_mode_get(StripBlendMode blend)
 
   rval.init = init_noop;
   rval.num_inputs = num_inputs_default;
-  rval.free = free_default;
+  rval.free = nullptr;
   rval.early_out = early_out_noop;
   rval.execute = nullptr;
   rval.copy = nullptr;
@@ -317,8 +311,8 @@ EffectHandle strip_blend_mode_handle_get(Strip *strip)
 
 static float transition_fader_calc(const Scene *scene, const Strip *strip, float timeline_frame)
 {
-  float fac = float(timeline_frame - time_left_handle_frame_get(scene, strip));
-  fac /= time_strip_length_get(scene, strip);
+  float fac = float(timeline_frame - strip->left_handle());
+  fac /= strip->length(scene);
   fac = math::clamp(fac, 0.0f, 1.0f);
   return fac;
 }
@@ -333,7 +327,7 @@ float effect_fader_calc(Scene *scene, Strip *strip, float timeline_frame)
   }
 
   const FCurve *fcu = id_data_find_fcurve(
-      &scene->id, strip, &RNA_Strip, "effect_fader", 0, nullptr);
+      &scene->id, strip, RNA_Strip, "effect_fader", 0, nullptr);
   if (fcu) {
     return evaluate_fcurve(fcu, timeline_frame);
   }

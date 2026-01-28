@@ -38,15 +38,15 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
   const BIFIconID icon = icon_override == ICON_NONE ? RNA_struct_ui_icon(rna_ptr.type) :
                                                       icon_override;
 
-  if (&rna_type == &RNA_NodeTree) {
-    ID *id = (ID *)ptr;
+  if (&rna_type == RNA_NodeTree) {
+    ID *id = static_cast<ID *>(ptr);
     path.append({name, icon, ID_REAL_USERS(id), handle_func});
   }
   else {
     path.append({name, icon, 1, handle_func});
   }
   if (name != name_buf) {
-    MEM_freeN(name);
+    MEM_delete(name);
   }
 }
 
@@ -66,7 +66,7 @@ void template_breadcrumbs(Layout &layout, Span<ContextPathItem> context_path)
     if (i > 0) {
       sub_row.label("", ICON_RIGHTARROW_THIN);
     }
-    uiBut *but;
+    Button *but;
     int icon = context_path[i].icon;
     std::string name = context_path[i].name;
     if (context_path[i].handle_func) {
@@ -75,7 +75,7 @@ void template_breadcrumbs(Layout &layout, Span<ContextPathItem> context_path)
     else {
       but = uiItemL_ex(&sub_row, name.c_str(), icon, false, false);
     }
-    UI_but_icon_indicator_number_set(but, context_path[i].icon_indicator_number);
+    button_icon_indicator_number_set(but, context_path[i].icon_indicator_number);
   }
 }
 

@@ -16,6 +16,8 @@
 #include "BLI_span.hh"
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 /** Useful to print Python objects while debugging. */
 void PyC_ObSpit(const char *name, PyObject *var);
 /**
@@ -204,6 +206,17 @@ void PyC_RunQuicky(const char *filepath, int n, ...) ATTR_NONNULL(1);
 [[nodiscard]] PyObject *PyC_MainModule_Backup();
 void PyC_MainModule_Restore(PyObject *main_mod);
 
+/**
+ * Add a module to `sys.modules` using the module's `__name__` as the key.
+ *
+ * Equivalent to: `sys.modules[module.__name__] = module`.
+ *
+ * \param sys_modules: The result of #PyImport_GetModuleDict().
+ * \param module: The module to add.
+ * \return 0 on success, -1 on error.
+ */
+int PyC_Module_AddToSysModules(PyObject *sys_modules, PyObject *module);
+
 [[nodiscard]] bool PyC_IsInterpreterActive();
 
 /**
@@ -357,15 +370,11 @@ struct PyC_StringEnum {
 /* inline so type signatures match as expected */
 [[nodiscard]] Py_LOCAL_INLINE(int32_t) PyC_Long_AsI32(PyObject *value)
 {
-#if PY_VERSION_HEX < 0x030d0000 /* <3.13 */
-  return (int32_t)_PyLong_AsInt(value);
-#else
-  return (int32_t)PyLong_AsInt(value);
-#endif
+  return int32_t(PyLong_AsInt(value));
 }
 [[nodiscard]] Py_LOCAL_INLINE(int64_t) PyC_Long_AsI64(PyObject *value)
 {
-  return (int64_t)PyLong_AsLongLong(value);
+  return int64_t(PyLong_AsLongLong(value));
 }
 
 /* utils for format string in `struct` module style syntax */
@@ -380,23 +389,25 @@ struct PyC_StringEnum {
  */
 [[nodiscard]] PyObject *PyC_UnicodeFromStdStr(const std::string &str);
 
-[[nodiscard]] inline PyObject *PyC_Tuple_Pack_F32(const blender::Span<float> values)
+[[nodiscard]] inline PyObject *PyC_Tuple_Pack_F32(const Span<float> values)
 {
   return PyC_Tuple_PackArray_F32(values.data(), values.size());
 }
-[[nodiscard]] inline PyObject *PyC_Tuple_Pack_F64(const blender::Span<double> values)
+[[nodiscard]] inline PyObject *PyC_Tuple_Pack_F64(const Span<double> values)
 {
   return PyC_Tuple_PackArray_F64(values.data(), values.size());
 }
-[[nodiscard]] inline PyObject *PyC_Tuple_Pack_I32(const blender::Span<int> values)
+[[nodiscard]] inline PyObject *PyC_Tuple_Pack_I32(const Span<int> values)
 {
   return PyC_Tuple_PackArray_I32(values.data(), values.size());
 }
-[[nodiscard]] inline PyObject *PyC_Tuple_Pack_I32FromBool(const blender::Span<int> values)
+[[nodiscard]] inline PyObject *PyC_Tuple_Pack_I32FromBool(const Span<int> values)
 {
   return PyC_Tuple_PackArray_I32FromBool(values.data(), values.size());
 }
-[[nodiscard]] inline PyObject *PyC_Tuple_Pack_Bool(const blender::Span<bool> values)
+[[nodiscard]] inline PyObject *PyC_Tuple_Pack_Bool(const Span<bool> values)
 {
   return PyC_Tuple_PackArray_Bool(values.data(), values.size());
 }
+
+}  // namespace blender
