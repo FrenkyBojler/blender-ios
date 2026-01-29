@@ -165,21 +165,23 @@ endif()
 add_bundled_libraries(vulkan/lib)
 
 function(check_freetype_for_brotli)
-  if((DEFINED HAVE_BROTLI AND HAVE_BROTLI) AND
-     (DEFINED HAVE_BROTLI_INC AND ("${HAVE_BROTLI_INC}" STREQUAL "${FREETYPE_INCLUDE_DIRS}")))
-    # Pass, the includes didn't change, use the cached value.
-  else()
-    unset(HAVE_BROTLI CACHE)
-    include(CheckSymbolExists)
-    set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
-    check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
-    unset(CMAKE_REQUIRED_INCLUDES)
-    if(NOT HAVE_BROTLI)
-      unset(HAVE_BROTLI CACHE)
-      message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+  if((DEFINED HAVE_BROTLI) AND (DEFINED HAVE_BROTLI_INC))
+    if(HAVE_BROTLI AND ("${HAVE_BROTLI_INC}" STREQUAL "${FREETYPE_INCLUDE_DIRS}"))
+      # Pass, the includes didn't change, use the cached value.
+      return()
     endif()
-    set(HAVE_BROTLI_INC "${FREETYPE_INCLUDE_DIRS}" CACHE INTERNAL "")
   endif()
+
+  unset(HAVE_BROTLI CACHE)
+  include(CheckSymbolExists)
+  set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
+  check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
+  unset(CMAKE_REQUIRED_INCLUDES)
+  if(NOT HAVE_BROTLI)
+    unset(HAVE_BROTLI CACHE)
+    message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+  endif()
+  set(HAVE_BROTLI_INC "${FREETYPE_INCLUDE_DIRS}" CACHE INTERNAL "")
 endfunction()
 
 if(NOT WITH_SYSTEM_FREETYPE)
@@ -404,6 +406,9 @@ endif()
 if(WITH_OPENVDB)
   find_package(OpenVDB)
   set_and_warn_library_found("OpenVDB" OPENVDB_FOUND WITH_OPENVDB)
+  if(OPENVDB_FOUND)
+    set(OPENVDB_DEFINITIONS "")
+  endif()
 endif()
 add_bundled_libraries(openvdb/lib)
 
@@ -490,7 +495,7 @@ if(WITH_OPENSUBDIV)
   find_package(OpenSubdiv)
 
   set(OPENSUBDIV_LIBRARIES ${OPENSUBDIV_LIBRARIES})
-  set(OPENSUBDIV_LIBPATH)  # TODO, remove and reference the absolute path everywhere
+  set(OPENSUBDIV_LIBPATH "")  # TODO, remove and reference the absolute path everywhere
 
   set_and_warn_library_found("OpenSubdiv" OPENSUBDIV_FOUND WITH_OPENSUBDIV)
 endif()
