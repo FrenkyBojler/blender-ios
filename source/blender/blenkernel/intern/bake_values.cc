@@ -51,6 +51,7 @@ static std::unique_ptr<BakeMaterialsList> materials_to_weak_references(
   }
 
   MEM_delete(*materials);
+  *materials = nullptr;
   *materials_num = 0;
 
   return materials_list;
