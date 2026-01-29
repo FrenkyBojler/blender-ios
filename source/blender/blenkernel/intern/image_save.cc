@@ -248,16 +248,18 @@ bool BKE_image_render_write_from_rr(const RenderResult *rr,
 
   /* Write optional JPEG preview for EXR files. */
   if (success && preview_filepath) {
-    /* Create a fresh ibuf for the preview (main ibuf may have been modified). */
+    /* Configure JPEG preview format BEFORE creating the ibuf.
+     * This ensures correct color management (must match format used for ibuf creation). */
+    ImageFormatData preview_format;
+    BKE_image_format_copy(&preview_format, im_format);
+    preview_format.imtype = R_IMF_IMTYPE_JPEG90;
+    preview_format.depth = R_IMF_CHAN_DEPTH_8;
+    preview_format.quality = 90;
+
+    /* Create ibuf with the JPEG format so color space conversion is correct. */
     ImBuf *preview_ibuf = RE_render_result_rect_to_ibuf(
-        const_cast<RenderResult *>(rr), im_format, dither, view_id);
+        const_cast<RenderResult *>(rr), &preview_format, dither, view_id);
     if (preview_ibuf) {
-      /* Configure JPEG preview format, inheriting view/display settings from original. */
-      ImageFormatData preview_format;
-      BKE_image_format_copy(&preview_format, im_format);
-      preview_format.imtype = R_IMF_IMTYPE_JPEG90;
-      preview_format.depth = R_IMF_CHAN_DEPTH_8;
-      preview_format.quality = 90;
       preview_ibuf->planes = 24;
 
       IMB_colormanagement_imbuf_for_write(preview_ibuf, true, false, &preview_format);
@@ -266,8 +268,8 @@ bool BKE_image_render_write_from_rr(const RenderResult *rr,
       write_ibuf_to_file(preview_ibuf, rr, preview_filepath, &preview_format, use_stamp);
 
       IMB_freeImBuf(preview_ibuf);
-      BKE_image_format_free(&preview_format);
     }
+    BKE_image_format_free(&preview_format);
   }
 
   return success;

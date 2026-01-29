@@ -82,12 +82,15 @@ void RE_background_save_wait();
  * \param scene: Scene for data extraction (NOT stored in task).
  * \param camera: Camera for stamp data (NOT stored in task).
  * \param filepath: Output file path.
+ * \param skip_completion: If true, don't enqueue completion for drain.
+ *                         Use for viewport saves that don't need RENDER_WRITE callbacks.
  * \return true if successfully queued, false if caller should use sync save.
  */
 bool RE_background_save_render(blender::RenderResult *rr,
                                const blender::Scene *scene,
                                const blender::Object *camera,
-                               const char *filepath);
+                               const char *filepath,
+                               bool skip_completion = false);
 
 /** \} */
 

@@ -2458,6 +2458,10 @@ void RE_RenderAnim(Render *re,
     /* Reduce GPU memory usage so renderer has more space. */
     RE_FreeGPUTextureCaches();
 
+    /* Reset peak memory tracking per frame so memory heuristics for background
+     * saves are based on current frame, not lifetime peak from earlier frames. */
+    MEM_reset_peak_memory();
+
     /* A feedback loop exists here -- render initialization requires updated
      * render layers settings which could be animated, but scene evaluation for
      * the frame happens later because it depends on what layers are visible to

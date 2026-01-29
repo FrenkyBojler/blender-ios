@@ -64,7 +64,8 @@ void background_save_wait_impl();
 bool background_save_render_impl(RenderResult *rr,
                                  const Scene *scene,
                                  const Object *camera,
-                                 const char *filepath);
+                                 const char *filepath,
+                                 bool skip_completion);
 bool background_save_should_use_impl(size_t peak_memory_mb);
 int background_save_get_failed_count_impl();
 void background_save_clear_failed_count_impl();

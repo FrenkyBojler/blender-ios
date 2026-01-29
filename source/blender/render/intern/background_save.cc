@@ -84,6 +84,9 @@ struct BackgroundSaveTask {
   /** Dither intensity from scene. */
   float dither = 0.0f;
 
+  /** Skip completion enqueueing (for viewport saves that don't need callbacks). */
+  bool skip_completion = false;
+
   ~BackgroundSaveTask()
   {
     if (rr) {
@@ -163,9 +166,11 @@ static void background_save_task_execute(BackgroundSaveTask *task)
 
   if (success) {
     CLOG_INFO(&LOG, "Saved frame %d: \"%s\"", task->frame, task->filepath);
-    /* Record completion for deferred callback (only on success). */
-    std::scoped_lock lock(g_state.mutex);
-    g_state.completed_frames.push_back(task->frame);
+    /* Record completion for deferred callback (only on success, and if not skipped). */
+    if (!task->skip_completion) {
+      std::scoped_lock lock(g_state.mutex);
+      g_state.completed_frames.push_back(task->frame);
+    }
   }
   else {
     std::scoped_lock lock(g_state.mutex);
@@ -253,7 +258,8 @@ void background_save_wait_impl()
 bool background_save_render_impl(RenderResult *rr,
                                  const Scene *scene,
                                  const Object *camera,
-                                 const char *filepath)
+                                 const char *filepath,
+                                 bool skip_completion)
 {
   if (!rr || !scene || !filepath) {
     return false;
@@ -310,6 +316,7 @@ bool background_save_render_impl(RenderResult *rr,
   task->frame = scene->r.cfra;
   task->use_stamp = (scene->r.stamp & R_STAMP_ALL) != 0;
   task->dither = scene->r.dither_intensity;
+  task->skip_completion = skip_completion;
 
   /* Compute preview filepath for EXR with preview flag. */
   const bool is_exr = ELEM(
@@ -447,9 +454,10 @@ void RE_background_save_wait()
 bool RE_background_save_render(blender::RenderResult *rr,
                                const blender::Scene *scene,
                                const blender::Object *camera,
-                               const char *filepath)
+                               const char *filepath,
+                               bool skip_completion)
 {
-  return blender::render::background_save_render_impl(rr, scene, camera, filepath);
+  return blender::render::background_save_render_impl(rr, scene, camera, filepath, skip_completion);
 }
 
 bool RE_background_save_should_use(size_t peak_memory_mb)

@@ -1173,9 +1173,10 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
 
     /* Use the unified background save API with memory heuristics.
      * Pass 0 for peak_memory since viewport renders don't track this -
-     * relies on available memory and queue depth checks. */
+     * relies on available memory and queue depth checks.
+     * Skip completion enqueueing since viewport saves don't need RENDER_WRITE callbacks. */
     if (RE_background_save_should_use(0) &&
-        RE_background_save_render(rr, scene, scene->camera, filepath))
+        RE_background_save_render(rr, scene, scene->camera, filepath, true))
     {
       /* Task queued successfully. The API takes ownership of rr via deep copy,
        * so we free our copy here. */
