@@ -82,10 +82,6 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     alpha /= sum_weight;
   }
 
-  /* Transform normal into camera space. */
-  const Transform worldtocamera = kernel_data.cam.worldtocamera;
-  normal = transform_direction(&worldtocamera, normal);
-
   if (!(sd->flag & (SD_TRANSPARENT | SD_RAY_PORTAL)) &&
       kernel_data.film.pass_denoising_specular_albedo != PASS_UNUSED)
   {
@@ -95,7 +91,7 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     /* Approximation of specular BRDF integral, see equation 4 in Ray Tracing Gems chapter 32. */
     const float alpha2 = alpha * alpha;
     const float alpha3 = alpha2 * alpha;
-    const float omega = fabsf(normal.y);
+    const float omega = fabsf(dot(-sd->wi, normal));
     const float omega2 = omega * omega;
     const float omega3 = omega2 * omega;
 
@@ -106,7 +102,7 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
                           (121.563f + 626.13f * omega + 316.627f * omega3) * alpha3));
     float scale = max(0.0f,
                       ((0.0365463f + 3.32707f * omega) + (9.0632f + -9.04756f * omega) * alpha) /
-                          ((1.0f + 3.59685f * omega2 + 9.04401f * omega3) +
+                          ((1.0f + 3.59685f * omega2 + -1.36772f * omega3) +
                            (9.04401f + -16.3174f * omega2 + 9.22949f * omega3) * alpha +
                            (5.56589f + 19.7886f * omega2 + -20.2123f * omega3) * alpha3));
 
@@ -122,6 +118,12 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
   /* Wait for next bounce if 75% or more sample weight belongs to specular-like closures. */
   if ((sum_weight == 0.0f) || (sum_nonspecular_weight * 4.0f > sum_weight)) {
     if (kernel_data.film.pass_denoising_normal != PASS_UNUSED) {
+      /* Transform normal into camera space. It should be transformed using the inverse transpose
+       * of the transformation matrix, but since we ignore scaling for camera transformations, it's
+       * equivalent to applying the transform directly. */
+      const Transform worldtocamera = kernel_data.cam.worldtocamera;
+      normal = transform_direction(&worldtocamera, normal);
+
       const float3 denoising_normal = ensure_finite(normal);
       film_write_pass_float3(buffer + kernel_data.film.pass_denoising_normal, denoising_normal);
     }
