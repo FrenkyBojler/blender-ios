@@ -8,7 +8,7 @@
 # For anyone making their own library build, matching these exactly is not
 # needed but it can be a useful reference.
 
-set(RELEASE_GCC_VERSION 11.2)
+set(RELEASE_GCC_VERSION 14.2)
 set(RELEASE_CUDA_VERSION 12.8)
 set(RELEASE_HIP_VERSION 6.4)
 
@@ -117,7 +117,7 @@ set(PTHREADS_COPYRIGHT [=[
 Copyright 1998 John E. Bossom
 Copyright 1999-2018, Pthreads4w contributors
 
-This product includes software developed through the colaborative
+This product includes software developed through the collaborative
 effort of several individuals, each of whom is listed in the file
 CONTRIBUTORS included with this software.
 
@@ -178,15 +178,15 @@ if(WIN32)
   # we need to tell the build the postfix is _s while
   # telling all other deps the postfix is _s_d
   if(BUILD_MODE STREQUAL Release)
-    set(OPENEXR_VERSION_POSTFIX )
-    set(OPENEXR_VERSION_BUILD_POSTFIX )
+    set(OPENEXR_VERSION_POSTFIX "")
+    set(OPENEXR_VERSION_BUILD_POSTFIX "")
   else()
     set(OPENEXR_VERSION_POSTFIX _d)
-    set(OPENEXR_VERSION_BUILD_POSTFIX )
+    set(OPENEXR_VERSION_BUILD_POSTFIX "")
   endif()
 else()
-  set(OPENEXR_VERSION_BUILD_POSTFIX)
-  set(OPENEXR_VERSION_POSTFIX)
+  set(OPENEXR_VERSION_BUILD_POSTFIX "")
+  set(OPENEXR_VERSION_POSTFIX "")
 endif()
 
 set(FREETYPE_VERSION 2.13.3)
