@@ -790,20 +790,19 @@ static void attr_create_generic(Scene *scene,
         return;
     }
 
-    blender::bke::attribute_math::convert_to_static_type(
-        b_attr.varray.type(), [&]<typename BlenderT>() {
-          using Converter = typename ccl::AttributeConverter<BlenderT>;
-          using CyclesT = typename Converter::CyclesT;
-          if constexpr (!std::is_void_v<CyclesT>) {
-            Attribute *attr = attributes.add(name, Converter::type_desc, element);
-            CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
+    blender::bke::attribute_math::to_static_type(b_attr.varray.type(), [&]<typename BlenderT>() {
+      using Converter = typename ccl::AttributeConverter<BlenderT>;
+      using CyclesT = typename Converter::CyclesT;
+      if constexpr (!std::is_void_v<CyclesT>) {
+        Attribute *attr = attributes.add(name, Converter::type_desc, element);
+        CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
 
-            const blender::VArraySpan src = b_attr.varray.typed<BlenderT>();
-            for (const int i : src.index_range()) {
-              data[i] = Converter::convert(src[i]);
-            }
-          }
-        });
+        const blender::VArraySpan src = b_attr.varray.typed<BlenderT>();
+        for (const int i : src.index_range()) {
+          data[i] = Converter::convert(src[i]);
+        }
+      }
+    });
   });
 }
 

@@ -607,7 +607,7 @@ void copy_with_checked_indices(const GVArray &src,
                                const IndexMask &mask,
                                GMutableSpan dst)
 {
-  bke::attribute_math::convert_to_static_type(src.type(), [&]<typename T>() {
+  bke::attribute_math::to_static_type(src.type(), [&]<typename T>() {
     copy_with_checked_indices(src.typed<T>(), indices, mask, dst.typed<T>());
   });
 }

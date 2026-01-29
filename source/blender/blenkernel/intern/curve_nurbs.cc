@@ -367,7 +367,7 @@ void interpolate_to_evaluated(const BasisCache &basis_cache,
   }
 
   BLI_assert(dst.size() == basis_cache.start_indices.size());
-  attribute_math::convert_to_static_type(src.type(), [&]<typename T>() {
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
     if constexpr (!std::is_void_v<attribute_math::DefaultMixer<T>>) {
       if (control_weights.is_empty()) {
         interpolate_to_evaluated(basis_cache, order, src.typed<T>(), dst.typed<T>());

@@ -44,7 +44,7 @@ static void mix_with_indices(GMutableSpan a,
                              const Span<int> index_map,
                              const float factor)
 {
-  bke::attribute_math::convert_to_static_type(a.type(), [&]<typename T>() {
+  bke::attribute_math::to_static_type(a.type(), [&]<typename T>() {
     mix_with_indices(a.typed<T>(), b.typed<T>(), index_map, factor);
   });
 }
@@ -62,7 +62,7 @@ template<typename T> static void mix(MutableSpan<T> a, const VArray<T> &b, const
 
 static void mix(GMutableSpan a, const GVArray &b, const float factor)
 {
-  bke::attribute_math::convert_to_static_type(
+  bke::attribute_math::to_static_type(
       a.type(), [&]<typename T>() { mix(a.typed<T>(), b.typed<T>(), factor); });
 }
 
