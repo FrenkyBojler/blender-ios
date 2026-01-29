@@ -2178,6 +2178,23 @@ static std::string file_execute_get_description(bContext *C,
   return {};
 }
 
+static wmOperatorStatus file_execute_confirm_overwrite_invoke(bContext *C,
+                                                              wmOperator *op,
+                                                              const wmEvent * /*event*/)
+{
+  SpaceFile *sfile = CTX_wm_space_file(C);
+  if (file_draw_check_exists(sfile)) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Overwrite Existing File"),
+                                  IFACE_("The file already exists. Overwrite it?"),
+                                  IFACE_("Overwrite"),
+                                  ui::AlertIcon::Warning,
+                                  false);
+  }
+  return file_exec(C, op);
+}
+
 void FILE_OT_execute(wmOperatorType *ot)
 {
   /* identifiers */
@@ -2187,6 +2204,7 @@ void FILE_OT_execute(wmOperatorType *ot)
   ot->get_description = file_execute_get_description;
 
   /* API callbacks. */
+  ot->invoke = file_execute_confirm_overwrite_invoke;
   ot->exec = file_exec;
   /* Important since handler is on window level.
    *
@@ -2209,7 +2227,7 @@ static bool file_ensure_hovered_is_active(bContext *C, const wmEvent *event)
 }
 
 static wmOperatorStatus file_execute_mouse_invoke(bContext *C,
-                                                  wmOperator * /*op*/,
+                                                  wmOperator *op,
                                                   const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
@@ -2229,11 +2247,7 @@ static wmOperatorStatus file_execute_mouse_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  if (!file_execute(C, sfile)) {
-    return OPERATOR_CANCELLED;
-  }
-
-  return OPERATOR_FINISHED;
+  return file_execute_confirm_overwrite_invoke(C, op, event);
 }
 
 void FILE_OT_mouse_execute(wmOperatorType *ot)
@@ -2246,6 +2260,7 @@ void FILE_OT_mouse_execute(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->invoke = file_execute_mouse_invoke;
+  ot->exec = file_exec;
   ot->poll = ED_operator_file_browsing_active;
 
   ot->flag = OPTYPE_INTERNAL;

@@ -201,7 +201,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
 
   {
     ui::Layout &sub = row.row(false);
-    sub.operator_context_set(wm::OpCallContext::ExecRegionWin);
+    sub.operator_context_set(wm::OpCallContext::InvokeRegionWin);
 
     if (windows_layout) {
       file_panel_execution_execute_button(sub, params->title, overwrite_alert);
