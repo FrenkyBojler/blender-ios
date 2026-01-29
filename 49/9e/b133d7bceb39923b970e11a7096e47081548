@@ -2,3 +2,4 @@ Referenced by issue #139555, Broken selection drawing for flat objects in ortho 
 Referenced by issue #139594, Color picker triggers unnecessary Cycles viewport update call
 Referenced by issue #139651, Duplicating many Collections in the Outliner is broken
 Referenced by issue #139673, Outliner - `Move to Collection` operator does not respect Collection nesting
+Referenced by issue #153580, "Frame Selected" (Numpad .) collapses the Y-axis in the Graph Editor
