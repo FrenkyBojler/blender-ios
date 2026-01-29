@@ -131,8 +131,8 @@ Each example file should follow this structure:
 
 **Important Notes**:
 
-- The doc-string should be at the very beginning of the file.
-- The doc-string should be enclosed in triple quotes ``"""``.
+- The doc-string must be at the very beginning of the file.
+- The doc-string must be enclosed in triple quotes ``"""...""""``.
 - Use section header underlines with ``+`` characters for the title.
 - Everything after the doc-string is included as a code block in the documentation.
 - To add additional code blocks with text in between add new files.
