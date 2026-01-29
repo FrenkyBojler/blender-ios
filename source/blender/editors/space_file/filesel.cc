@@ -1431,7 +1431,7 @@ void file_params_renamefile_activate(SpaceFile *sfile, FileSelectParams *params)
       idx = file_params_find_renamed(params, sfile->files);
       file = filelist_file(sfile->files, idx);
       filelist_entry_select_set(
-          sfile->files, file, FILE_SEL_ADD, FILE_SEL_SELECTED | FILE_SEL_HIGHLIGHTED, CHECK_ALL);
+          sfile->files, file, FILE_SEL_ADD, FILE_SEL_SELECTED, CHECK_ALL);
       params->active_file = idx;
       file_params_renamefile_clear(params);
       params->rename_flag = FILE_PARAMS_RENAME_POSTSCROLL_ACTIVE;
