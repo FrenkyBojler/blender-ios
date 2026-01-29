@@ -51,20 +51,17 @@ You can then open ``doc/python_api/sphinx-out/index.html`` in your browser.
 Modifying API Documentation
 ===========================
 
-Most of the API documentation is automatically generated from the Blender C/C++ source code
-using `Doxygen <https://developer.blender.org/docs/handbook/tooling/doxygen/>`__.
-This means that class descriptions, method signatures, and property documentation
-come directly from the source code.
+
+API documentation is automatically generated from Blender's source code, meaning that 
+class descriptions, method signatures, etc, are defined either in the Python C/API in 
+C/C++ files or as standard  docstrings within Python files.
 
 **To modify API class or method descriptions:**
 
-1. Locate the relevant C/C++ source file in the Blender repository
-2. Find the Doxygen documentation comments (typically starting with ``/**``)
-3. Edit the documentation in the source code
-4. Rebuild the documentation with ``make doc_py`` to regenerate the API reference
-
-See the `API Docs Guide <https://developer.blender.org/docs/handbook/guidelines/c_cpp/#api-docs>`__
-for detailed information on how to write and format documentation in the source code.
+1. Locate the relevant source file in the Blender repository.
+2. Find the the relevant docstring either inside ``PyDoc_STRVAR(...)`` for the Python C/API or as standard docstring in a Python file.
+3. Edit using **reStructuredText** formatting.
+4. Rebuild the Python API docs with ``make doc_py`` to regenerate the pages.
 
 Adding Example Code Snippets
 ============================
