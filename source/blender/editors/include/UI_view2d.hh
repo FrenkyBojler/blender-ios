@@ -246,7 +246,7 @@ float view2d_grid_resolution_y__values(const View2D *v2d, int base);
 /**
  * Scale indicator text drawing.
  */
-void view2d_draw_scale_y__values(
+void view2d_draw_scale_y(
     const ARegion *region, const View2D *v2d, const rcti *rect, int colorid, int base);
 /**
  * Draw a text scale in either frames or seconds.

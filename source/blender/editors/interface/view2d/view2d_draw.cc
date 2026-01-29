@@ -563,7 +563,7 @@ void view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
 /* Scale indicator text drawing API
  **************************************************/
 
-void view2d_draw_scale_y__values(
+void view2d_draw_scale_y(
     const ARegion *region, const View2D *v2d, const rcti *rect, const int colorid, const int base)
 {
   const float step = calculate_grid_step_subframes(
