@@ -138,7 +138,7 @@ static void node_shader_buts_principled_hair(ui::Layout &layout, bContext * /*C*
 /* Initialize custom properties. */
 static void node_shader_init_hair_principled(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderHairPrincipled *data = MEM_new_for_free<NodeShaderHairPrincipled>(__func__);
+  NodeShaderHairPrincipled *data = MEM_new<NodeShaderHairPrincipled>(__func__);
 
   data->model = SHD_PRINCIPLED_HAIR_CHIANG;
   data->parametrization = SHD_PRINCIPLED_HAIR_REFLECTANCE;
@@ -220,6 +220,7 @@ void register_node_type_sh_bsdf_hair_principled()
   ntype.enum_name_legacy = "BSDF_HAIR_PRINCIPLED";
   ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
+  ntype.gather_link_search_ops = search_link_ops_for_shader_bsdf_node;
   ntype.add_ui_poll = object_cycles_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts_principled_hair;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);

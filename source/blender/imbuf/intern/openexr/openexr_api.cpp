@@ -464,7 +464,7 @@ static void openexr_header_compression(Header *header, int compression, int qual
       break;
 #endif
 #if COMBINED_OPENEXR_VERSION >= 30400
-      /* Always writing 32 scanlines for now, could add an option for 256 scanlines
+      /* Always writing 32 scan-lines for now, could add an option for 256 scan-lines
        * for slightly smaller files if there is demand for it. */
     case R_IMF_EXR_CODEC_HTJ2K:
       header->compression() = HTJ2K32_COMPRESSION;
@@ -821,7 +821,7 @@ struct ExrPass {
   ~ExrPass()
   {
     if (rect) {
-      MEM_freeN(rect);
+      MEM_delete(rect);
     }
   }
 
@@ -1724,7 +1724,7 @@ static bool imb_exr_multilayer_parse_channels_from_file(ExrHandle *handle)
   for (ExrLayer &lay : handle->layers) {
     for (ExrPass &pass : lay.passes) {
       if (pass.totchan) {
-        pass.rect = MEM_calloc_arrayN<float>(
+        pass.rect = MEM_new_array_zeroed<float>(
             size_t(handle->width) * size_t(handle->height) * size_t(pass.totchan), "pass rect");
         if (pass.totchan == 1) {
           ExrChannel &echan = *pass.chan[0];
