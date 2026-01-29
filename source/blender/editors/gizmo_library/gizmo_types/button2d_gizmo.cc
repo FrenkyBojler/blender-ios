@@ -16,10 +16,12 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_rect.h"
 
 #include "DNA_userdef_types.h"
 
@@ -51,6 +53,42 @@
 #include "../gizmo_library_intern.hh"
 
 namespace blender {
+
+void ED_gizmo_button2d_group_background(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  rcti group_bounds = {0};
+
+  for (wmGizmo &gz : gzgroup->gizmos) {
+    if (gz.flag & WM_GIZMO_HIDDEN || !gz.type->screen_bounds_get ||
+        STREQ(gz.type->idname, "VIEW3D_GT_navigate_rotate"))
+    {
+      continue;
+    }
+    rcti gizmo_bounds;
+    gz.type->screen_bounds_get(C, &gz, &gizmo_bounds);
+    if (BLI_rcti_is_empty(&group_bounds)) {
+      group_bounds = gizmo_bounds;
+    }
+    else {
+      BLI_rcti_union(&group_bounds, &gizmo_bounds);
+    }
+  }
+
+  rctf draw_rect;
+  BLI_rctf_rcti_copy(&draw_rect, &group_bounds);
+  const float rad = BLI_rctf_size_x(&draw_rect) / 2.0f;
+
+  ScrArea *area = CTX_wm_area(C);
+  BLI_rctf_translate(&draw_rect, -area->totrct.xmin, -area->totrct.ymin);
+
+  /* A bit of padding above and below. */
+  BLI_rctf_pad(&draw_rect, 0.0f, rad * 0.2f);
+  ui::draw_roundbox_corner_set(ui::CNR_ALL);
+
+  float bg_color[4] = {0.0f, 0.0f, 0.0f, 0.25f};
+  float outline_color[4] = {0.0f, 0.0f, 0.0f, 0.35f};
+  ui::draw_roundbox_4fv_ex(&draw_rect, bg_color, nullptr, 1.0f, outline_color, U.pixelsize, rad);
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Types

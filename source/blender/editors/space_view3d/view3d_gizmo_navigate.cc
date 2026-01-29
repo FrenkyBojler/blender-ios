@@ -394,11 +394,12 @@ void VIEW3D_GGT_navigate(wmGizmoGroupType *gzgt)
   gzgt->idname = "VIEW3D_GGT_navigate";
 
   gzgt->flag |= (WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_SCALE |
-                 WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL | WM_GIZMOGROUPTYPE_TOOLBAR_BG);
+                 WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL);
 
   gzgt->poll = WIDGETGROUP_navigate_poll;
   gzgt->setup = WIDGETGROUP_navigate_setup;
   gzgt->draw_prepare = WIDGETGROUP_navigate_draw_prepare;
+  gzgt->draw_group = ED_gizmo_button2d_group_background;
 }
 
 /** \} */
