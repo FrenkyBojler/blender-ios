@@ -105,17 +105,17 @@ class RuntimeToBakeValue {
     /* Now process all data to be stored in a bake. This involves removing data that can't be
      * baked. */
     for (BakeValues::InputValue &input_value : root_values_) {
-      this->process(input_value);
+      this->prepare_for_bake(input_value);
     }
   }
 
  private:
   void gather(const BakeValues::InputValue &input_value)
   {
-    this->gather__socket_value_variant(input_value.value);
+    this->gather__SocketValueVariant(input_value.value);
   }
 
-  void gather__socket_value_variant(const SocketValueVariant &value_variant)
+  void gather__SocketValueVariant(const SocketValueVariant &value_variant)
   {
     if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
@@ -129,77 +129,77 @@ class RuntimeToBakeValue {
     }
     if (value_variant.is_single()) {
       const GPointer value_ptr = value_variant.get_single_ptr();
-      this->gather__gpointer(value_ptr);
+      this->gather__GPointer(value_ptr);
       return;
     }
     if (value_variant.is_list()) {
       const nodes::ListPtr list_ptr = value_variant.get<nodes::ListPtr>();
       if (list_ptr) {
-        this->gather__list(*list_ptr);
+        this->gather__List(*list_ptr);
       }
     }
   }
 
-  void gather__list(const nodes::List &list)
+  void gather__List(const nodes::List &list)
   {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
       list.foreach<SocketValueVariant>([&](const SocketValueVariant &value_variant) {
-        this->gather__socket_value_variant(value_variant);
+        this->gather__SocketValueVariant(value_variant);
       });
     }
     else if (list_cpp_type.is<GeometrySet>()) {
       list.foreach<GeometrySet>(
-          [&](const GeometrySet &geometry) { this->gather__geometry(geometry); });
+          [&](const GeometrySet &geometry) { this->gather__GeometrySet(geometry); });
     }
     else if (list_cpp_type.is<nodes::BundlePtr>()) {
       list.foreach<nodes::BundlePtr>([&](const nodes::BundlePtr &bundle_ptr) {
         if (bundle_ptr) {
-          this->gather__bundle(*bundle_ptr);
+          this->gather__Bundle(*bundle_ptr);
         }
       });
     }
   }
 
-  void gather__gpointer(const GPointer &value_ptr)
+  void gather__GPointer(const GPointer &value_ptr)
   {
     const CPPType &type = *value_ptr.type();
     if (type.is<GeometrySet>()) {
       const GeometrySet &geometry = *value_ptr.get<GeometrySet>();
-      this->gather__geometry(geometry);
+      this->gather__GeometrySet(geometry);
       return;
     }
     if (type.is<nodes::BundlePtr>()) {
       const nodes::BundlePtr &bundle_ptr = *value_ptr.get<nodes::BundlePtr>();
       if (bundle_ptr) {
-        this->gather__bundle(*bundle_ptr);
+        this->gather__Bundle(*bundle_ptr);
       }
       return;
     }
   }
 
-  void gather__geometry(const GeometrySet &geometry)
+  void gather__GeometrySet(const GeometrySet &geometry)
   {
     if (geometry.has_bundle()) {
       const nodes::Bundle &bundle = *geometry.bundle();
-      this->gather__bundle(bundle);
+      this->gather__Bundle(bundle);
     }
     if (geometry.has_instances()) {
       const Instances &instances = *geometry.get_instances();
       for (const bke::InstanceReference &reference : instances.references()) {
         GeometrySet geometry;
         reference.to_geometry_set(geometry);
-        this->gather__geometry(geometry);
+        this->gather__GeometrySet(geometry);
       }
     }
   }
 
-  void gather__bundle(const nodes::Bundle &bundle)
+  void gather__Bundle(const nodes::Bundle &bundle)
   {
     for (const auto &item : bundle.items()) {
       if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value))
       {
-        this->gather__socket_value_variant(socket_value->value);
+        this->gather__SocketValueVariant(socket_value->value);
       }
     }
   }
@@ -212,12 +212,12 @@ class RuntimeToBakeValue {
     });
   }
 
-  void process(BakeValues::InputValue &input_value)
+  void prepare_for_bake(BakeValues::InputValue &input_value)
   {
-    this->process__socket_value_variant(input_value.value);
+    this->prepare_for_bake__SocketValueVariant(input_value.value);
   }
 
-  void process__socket_value_variant(SocketValueVariant &value_variant)
+  void prepare_for_bake__SocketValueVariant(SocketValueVariant &value_variant)
   {
     if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
@@ -236,34 +236,34 @@ class RuntimeToBakeValue {
     }
     if (value_variant.is_single()) {
       GMutablePointer value_ptr = value_variant.get_single_ptr();
-      this->process__gpointer(value_ptr);
+      this->prepare_for_bake__GMutablePointer(value_ptr);
       return;
     }
     if (value_variant.is_list()) {
       nodes::ListPtr list_ptr = value_variant.extract<nodes::ListPtr>();
       if (list_ptr) {
         nodes::List &list = list_ptr.ensure_mutable_inplace();
-        this->process__list(list);
+        this->prepare_for_bake__List(list);
       }
       value_variant.set(std::move(list_ptr));
     }
   }
 
-  void process__list(nodes::List &list)
+  void prepare_for_bake__List(nodes::List &list)
   {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
       list.foreach_for_write<SocketValueVariant>([&](SocketValueVariant &value_variant) {
-        this->process__socket_value_variant(value_variant);
+        this->prepare_for_bake__SocketValueVariant(value_variant);
       });
     }
     else if (list_cpp_type.is<GeometrySet>()) {
       list.foreach_for_write<GeometrySet>(
-          [&](GeometrySet &geometry) { this->process__geometry(geometry); });
+          [&](GeometrySet &geometry) { this->prepare_for_bake__GeometrySet(geometry); });
     }
     else if (list_cpp_type.is<nodes::BundlePtr>()) {
       list.foreach_for_write<nodes::BundlePtr>([&](nodes::BundlePtr &bundle_ptr) {
-        this->process__bundle(bundle_ptr.ensure_mutable_inplace());
+        this->prepare_for_bake__Bundle(bundle_ptr.ensure_mutable_inplace());
       });
     }
     else if (list_cpp_type.is<nodes::ClosurePtr>()) {
@@ -272,18 +272,18 @@ class RuntimeToBakeValue {
     }
   }
 
-  void process__gpointer(GMutablePointer value_ptr)
+  void prepare_for_bake__GMutablePointer(GMutablePointer value_ptr)
   {
     const CPPType &type = *value_ptr.type();
     if (type.is<GeometrySet>()) {
       GeometrySet &geometry = *value_ptr.get<GeometrySet>();
-      this->process__geometry(geometry);
+      this->prepare_for_bake__GeometrySet(geometry);
     }
     if (type.is<nodes::BundlePtr>()) {
       nodes::BundlePtr &bundle_ptr = *value_ptr.get<nodes::BundlePtr>();
       if (bundle_ptr) {
         nodes::Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
-        this->process__bundle(bundle);
+        this->prepare_for_bake__Bundle(bundle);
       }
     }
     if (type.is<nodes::ClosurePtr>()) {
@@ -292,50 +292,51 @@ class RuntimeToBakeValue {
     }
   }
 
-  void process__geometry(GeometrySet &geometry)
+  void prepare_for_bake__GeometrySet(GeometrySet &geometry)
   {
     geometry.ensure_owns_all_data();
     if (geometry.has_bundle()) {
       nodes::BundlePtr &bundle_ptr = geometry.bundle_ptr();
       nodes::Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
-      this->process__bundle(bundle);
+      this->prepare_for_bake__Bundle(bundle);
     }
     if (geometry.has_instances()) {
       Instances &instances = *geometry.get_instances_for_write();
       instances.ensure_geometry_instances();
-      this->process__attributes(instances.attribute_storage());
+      this->prepare_for_bake__AttributeStorage(instances.attribute_storage());
       for (bke::InstanceReference &reference : instances.references_for_write()) {
         GeometrySet &geometry = reference.geometry_set();
-        this->process__geometry(geometry);
+        this->prepare_for_bake__GeometrySet(geometry);
       }
     }
     if (geometry.has_mesh()) {
       Mesh &mesh = *geometry.get_mesh_for_write();
-      this->process__attributes(mesh.attribute_storage.wrap());
+      this->prepare_for_bake__AttributeStorage(mesh.attribute_storage.wrap());
       mesh.runtime->bake_materials = materials_to_weak_references(
           &mesh.mat, &mesh.totcol, data_block_map_);
     }
     if (geometry.has_curves()) {
       Curves &curves = *geometry.get_curves_for_write();
-      this->process__attributes(curves.geometry.attribute_storage.wrap());
+      this->prepare_for_bake__AttributeStorage(curves.geometry.attribute_storage.wrap());
       curves.geometry.runtime->bake_materials = materials_to_weak_references(
           &curves.mat, &curves.totcol, data_block_map_);
     }
     if (geometry.has_pointcloud()) {
       PointCloud &pointcloud = *geometry.get_pointcloud_for_write();
-      this->process__attributes(pointcloud.attribute_storage.wrap());
+      this->prepare_for_bake__AttributeStorage(pointcloud.attribute_storage.wrap());
       pointcloud.runtime->bake_materials = materials_to_weak_references(
           &pointcloud.mat, &pointcloud.totcol, data_block_map_);
     }
     if (geometry.has_grease_pencil()) {
       GreasePencil &grease_pencil = *geometry.get_grease_pencil_for_write();
-      this->process__attributes(grease_pencil.attribute_storage.wrap());
+      this->prepare_for_bake__AttributeStorage(grease_pencil.attribute_storage.wrap());
       for (GreasePencilDrawingBase *base : grease_pencil.drawings()) {
         if (base->type != GP_DRAWING) {
           continue;
         }
         greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-        this->process__attributes(drawing.strokes_for_write().attribute_storage.wrap());
+        this->prepare_for_bake__AttributeStorage(
+            drawing.strokes_for_write().attribute_storage.wrap());
       }
       grease_pencil.runtime->bake_materials = materials_to_weak_references(
           &grease_pencil.material_array, &grease_pencil.material_array_num, data_block_map_);
@@ -347,7 +348,7 @@ class RuntimeToBakeValue {
     }
   }
 
-  void process__attributes(AttributeStorage &attributes)
+  void prepare_for_bake__AttributeStorage(AttributeStorage &attributes)
   {
     Vector<std::string> attributes_to_remove;
     Vector<std::pair<std::string, std::string>> attributes_to_rename;
@@ -371,11 +372,11 @@ class RuntimeToBakeValue {
     }
   }
 
-  void process__bundle(nodes::Bundle &bundle)
+  void prepare_for_bake__Bundle(nodes::Bundle &bundle)
   {
     for (const auto &item : bundle.items()) {
       if (auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value)) {
-        this->process__socket_value_variant(socket_value->value);
+        this->prepare_for_bake__SocketValueVariant(socket_value->value);
       }
     }
   }
@@ -396,11 +397,11 @@ class BakeToRuntimeValue {
 
   void bake_to_runtime(SocketValueVariant &root_value)
   {
-    this->process__socket_value_variant(root_value);
+    this->bake_to_runtime__SocketValueVariant(root_value);
   }
 
  private:
-  void process__socket_value_variant(SocketValueVariant &value_variant)
+  void bake_to_runtime__SocketValueVariant(SocketValueVariant &value_variant)
   {
     if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
@@ -417,60 +418,60 @@ class BakeToRuntimeValue {
     }
     if (value_variant.is_single()) {
       GMutablePointer value_ptr = value_variant.get_single_ptr();
-      this->process__gpointer(value_ptr);
+      this->bake_to_runtime__GMutablePointer(value_ptr);
       return;
     }
     if (value_variant.is_list()) {
       nodes::ListPtr list_ptr = value_variant.extract<nodes::ListPtr>();
       if (list_ptr) {
         nodes::List &list = list_ptr.ensure_mutable_inplace();
-        this->process__list(list);
+        this->bake_to_runtime__List(list);
       }
       value_variant.set(std::move(list_ptr));
     }
   }
 
-  void process__gpointer(GMutablePointer value_ptr)
+  void bake_to_runtime__GMutablePointer(GMutablePointer value_ptr)
   {
     const CPPType &type = *value_ptr.type();
     if (type.is<GeometrySet>()) {
       GeometrySet &geometry = *value_ptr.get<GeometrySet>();
-      this->process__geometry(geometry);
+      this->bake_to_runtime__GeometrySet(geometry);
     }
     if (type.is<nodes::BundlePtr>()) {
       nodes::BundlePtr &bundle_ptr = *value_ptr.get<nodes::BundlePtr>();
       if (bundle_ptr) {
         nodes::Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
-        this->process__bundle(bundle);
+        this->bake_to_runtime__Bundle(bundle);
       }
     }
   }
 
-  void process__geometry(GeometrySet &geometry)
+  void bake_to_runtime__GeometrySet(GeometrySet &geometry)
   {
     if (geometry.has_bundle()) {
       nodes::BundlePtr &bundle_ptr = geometry.bundle_ptr();
       nodes::Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
-      this->process__bundle(bundle);
+      this->bake_to_runtime__Bundle(bundle);
     }
     if (geometry.has_instances()) {
       Instances &instances = *geometry.get_instances_for_write();
       instances.ensure_geometry_instances();
       for (bke::InstanceReference &reference : instances.references_for_write()) {
         GeometrySet &geometry = reference.geometry_set();
-        this->process__geometry(geometry);
+        this->bake_to_runtime__GeometrySet(geometry);
       }
-      this->process__attributes(instances.attribute_storage());
+      this->bake_to_runtime__AttributeStorage(instances.attribute_storage());
     }
     if (geometry.has_mesh()) {
       Mesh &mesh = *geometry.get_mesh_for_write();
-      this->process__attributes(mesh.attribute_storage.wrap());
+      this->bake_to_runtime__AttributeStorage(mesh.attribute_storage.wrap());
       restore_materials(
           &mesh.mat, &mesh.totcol, std::move(mesh.runtime->bake_materials), data_block_map_);
     }
     if (geometry.has_curves()) {
       Curves &curves = *geometry.get_curves_for_write();
-      this->process__attributes(curves.geometry.attribute_storage.wrap());
+      this->bake_to_runtime__AttributeStorage(curves.geometry.attribute_storage.wrap());
       restore_materials(&curves.mat,
                         &curves.totcol,
                         std::move(curves.geometry.runtime->bake_materials),
@@ -478,7 +479,7 @@ class BakeToRuntimeValue {
     }
     if (geometry.has_pointcloud()) {
       PointCloud &pointcloud = *geometry.get_pointcloud_for_write();
-      this->process__attributes(pointcloud.attribute_storage.wrap());
+      this->bake_to_runtime__AttributeStorage(pointcloud.attribute_storage.wrap());
       restore_materials(&pointcloud.mat,
                         &pointcloud.totcol,
                         std::move(pointcloud.runtime->bake_materials),
@@ -486,7 +487,7 @@ class BakeToRuntimeValue {
     }
     if (geometry.has_grease_pencil()) {
       GreasePencil &grease_pencil = *geometry.get_grease_pencil_for_write();
-      this->process__attributes(grease_pencil.attribute_storage.wrap());
+      this->bake_to_runtime__AttributeStorage(grease_pencil.attribute_storage.wrap());
       restore_materials(&grease_pencil.material_array,
                         &grease_pencil.material_array_num,
                         std::move(grease_pencil.runtime->bake_materials),
@@ -496,7 +497,8 @@ class BakeToRuntimeValue {
           continue;
         }
         greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-        this->process__attributes(drawing.strokes_for_write().attribute_storage.wrap());
+        this->bake_to_runtime__AttributeStorage(
+            drawing.strokes_for_write().attribute_storage.wrap());
       }
     }
     if (geometry.has_volume()) {
@@ -506,7 +508,7 @@ class BakeToRuntimeValue {
     }
   }
 
-  void process__attributes(AttributeStorage &attributes)
+  void bake_to_runtime__AttributeStorage(AttributeStorage &attributes)
   {
     Vector<std::pair<std::string, std::string>> attributes_to_rename;
     for (const Attribute &attribute : attributes) {
@@ -521,30 +523,30 @@ class BakeToRuntimeValue {
     }
   }
 
-  void process__bundle(nodes::Bundle &bundle)
+  void bake_to_runtime__Bundle(nodes::Bundle &bundle)
   {
     for (auto item : bundle.items()) {
       if (auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value)) {
-        this->process__socket_value_variant(socket_value->value);
+        this->bake_to_runtime__SocketValueVariant(socket_value->value);
       }
     }
   }
 
-  void process__list(nodes::List &list)
+  void bake_to_runtime__List(nodes::List &list)
   {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
       list.foreach_for_write<SocketValueVariant>([&](SocketValueVariant &value_variant) {
-        this->process__socket_value_variant(value_variant);
+        this->bake_to_runtime__SocketValueVariant(value_variant);
       });
     }
     else if (list_cpp_type.is<GeometrySet>()) {
       list.foreach_for_write<GeometrySet>(
-          [&](GeometrySet &geometry) { this->process__geometry(geometry); });
+          [&](GeometrySet &geometry) { this->bake_to_runtime__GeometrySet(geometry); });
     }
     else if (list_cpp_type.is<nodes::BundlePtr>()) {
       list.foreach_for_write<nodes::BundlePtr>([&](nodes::BundlePtr &bundle_ptr) {
-        this->process__bundle(bundle_ptr.ensure_mutable_inplace());
+        this->bake_to_runtime__Bundle(bundle_ptr.ensure_mutable_inplace());
       });
     }
   }
