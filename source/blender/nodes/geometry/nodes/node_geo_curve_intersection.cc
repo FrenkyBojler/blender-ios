@@ -1270,9 +1270,9 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeCurveIntersections", GEO_NODE_CURVE_INTERSECTIONS);
+  geo_node_type_base(&ntype, "GeometryNodeCurveIntersections");
   ntype.ui_name = "Curve Intersections";
-  ntype.ui_description = "Calculate and ouput curve intersections as a point cloud";
+  ntype.ui_description = "Calculate and output curve intersections as a point cloud";
   ntype.enum_name_legacy = "CURVE_INTERSECTIONS";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
