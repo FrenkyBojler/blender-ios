@@ -253,37 +253,6 @@ void ShaderComputeContext::print_current_in_line(std::ostream &stream) const
   }
 }
 
-UpdateBundleComputeContext::UpdateBundleComputeContext(const ComputeContext *parent,
-                                                       int32_t node_id,
-                                                       const bool global_closure,
-                                                       const StringRef bundle_path)
-    : ComputeContext(parent),
-      node_id_(node_id),
-      global_closure_(global_closure),
-      bundle_path_(bundle_path)
-{
-}
-
-ComputeContextHash UpdateBundleComputeContext::compute_hash() const
-{
-  fmt::memory_buffer buf;
-  fmt::appender out(buf);
-  const ComputeContextHash parent_hash = parent_ ? parent_->hash() : ComputeContextHash{};
-  fmt::format_to(out,
-                 "UPDATE_BUNDLE:{}{}:{}:{}:{}",
-                 parent_hash.v1,
-                 parent_hash.v2,
-                 node_id_,
-                 int(global_closure_),
-                 bundle_path_);
-  return ComputeContextHash::from_bytes(buf.data(), buf.size());
-}
-
-void UpdateBundleComputeContext::print_current_in_line(std::ostream &stream) const
-{
-  stream << "Update Bundle: " << node_id_ << ", " << bundle_path_;
-}
-
 const DataBlockComputeContext &ComputeContextCache::for_data_block(const ComputeContext *parent,
                                                                    const uint32_t orig_session_uid,
                                                                    const ID *id)

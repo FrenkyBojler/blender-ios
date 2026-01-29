@@ -268,7 +268,6 @@ set(SRC
   nodes/node_geo_transform_geometry.cc
   nodes/node_geo_translate_instances.cc
   nodes/node_geo_triangulate.cc
-  nodes/node_geo_update_bundle.cc
   nodes/node_geo_uv_pack_islands.cc
   nodes/node_geo_uv_tangent.cc
   nodes/node_geo_uv_unwrap.cc
