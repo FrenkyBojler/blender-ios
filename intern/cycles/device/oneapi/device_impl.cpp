@@ -1661,7 +1661,7 @@ void OneapiDevice::architecture_information(const SyclDevice *device,
     FILL_ARCH_INFO(intel_gpu_lnl_m, true)
     FILL_ARCH_INFO(intel_gpu_ptl_h, true)
     FILL_ARCH_INFO(intel_gpu_ptl_u, true)
-    FILL_ARCH_INFO(intel_gpu_wcl, false)
+    FILL_ARCH_INFO(intel_gpu_wcl, true)
 
     default:
       name = "unknown";
