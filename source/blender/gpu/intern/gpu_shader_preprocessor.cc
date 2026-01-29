@@ -202,10 +202,14 @@ struct Stream : TokenBuffer {
   bool concat_next = false;
 
   struct Space {};
+  struct Number {
+    StringRef str;
+  };
   struct ConcatNext {};
 
   Stream(AtomicLexer &lex) : TokenBuffer(), lex(lex)
   {
+    str.reserve(512);
     this->reserve(256);
     offsets_[0] = 0;
     original_offsets_[0] = 0;
@@ -257,6 +261,19 @@ struct Stream : TokenBuffer {
       atoms_[size_ - 1] = lex.hash((*this)[size_ - 1].str());
       concat_next = false;
     }
+    return *this;
+  }
+
+  /* NOTE: Not compatible with concatenation. */
+  Stream &operator<<(Number tok)
+  {
+    ensure_space_for_one();
+    str += tok.str;
+    str_ = str;
+    types_[size_] = TokenType::Number;
+    size_++;
+    original_offsets_[size_] = str.size();
+    offsets_[size_] = str.size();
     return *this;
   }
 
@@ -917,22 +934,23 @@ struct Preprocessor : IntermediateFormWithIDs {
 #endif
 
     /* Expand expression into integer ops string. */
-    std::string expand = expand_expression(start, end);
+    Stream &expand = expand_expression(start, end);
 
     /* Early out simple cases. */
-    if (expand == "0") {
+    if (expand.size() == 1 && expand[0].str() == "0") {
       return false;
     }
-    if (expand == "1") {
+    if (expand.size() == 1 && expand[0].str() == "1") {
       return true;
     }
 
     try {
-      expression_lexer.lexical_analysis(expand);
+      /* TODO(fclem): Do not parse again. Simply use the token stream. */
+      expression_lexer.lexical_analysis(expand.str);
       return expression_parser.eval() != 0;
     }
     catch (const std::exception &e) {
-      std::cout << "\"" << str(start, end) << "\" > \"" << expand << "\" ";
+      std::cout << "\"" << str(start, end) << "\" > \"" << expand.str << "\" ";
       std::cerr << "Error: " << e.what() << "\n";
       return false;
     }
@@ -1192,10 +1210,10 @@ struct Preprocessor : IntermediateFormWithIDs {
   }
 
   /* Expand token range for condition evaluation (e.g. '#if'). */
-  std::string expand_expression(const TokenID start, const TokenID end)
+  Stream &expand_expression(const TokenID start, const TokenID end)
   {
-    std::string expand;
-    expand.reserve(128);
+    auto alloc = stream_stack.alloc();
+    Stream &result = alloc.stream;
 
     TokenID tok = start;
     while (true) {
@@ -1206,11 +1224,11 @@ struct Preprocessor : IntermediateFormWithIDs {
 
       if (tok_atom == AtomID::invalid()) {
         /* Non word. */
-        expand += str(tok);
+        result << lex_[int(tok)];
       }
       else if (is_valid(macro)) {
         auto [replacement, macro_end] = expand_macro(lex_[int(tok)], macro);
-        expand += replacement.str;
+        result << replacement;
         tok = make_token(int(macro_end));
       }
       else if (tok_atom == defined_atom) {
@@ -1224,7 +1242,7 @@ struct Preprocessor : IntermediateFormWithIDs {
         else {
           BLI_assert(get_type(tok) == Word);
         }
-        expand += (defines.contains(get_atom(tok)) ? "1" : "0");
+        result << Stream::Number{defines.contains(get_atom(tok)) ? "1" : "0"};
         if (is_function) {
           /* End parenthesis. */
           tok = next(tok);
@@ -1232,7 +1250,7 @@ struct Preprocessor : IntermediateFormWithIDs {
       }
       else {
         /* Substitution failure. */
-        expand += str(tok);
+        result << lex_[int(tok)];
       }
       if (tok == end) {
         break;
@@ -1240,7 +1258,7 @@ struct Preprocessor : IntermediateFormWithIDs {
       tok = skip_directive_newlines(next(tok));
     }
 
-    return expand;
+    return result;
   }
 
   /**
