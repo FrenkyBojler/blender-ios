@@ -242,12 +242,12 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
   if (region->winy > min_height) {
     if (sipo->mode == SIPO_MODE_DRIVERS) {
-      ui::view2d_draw_lines_x__values(v2d, true, driver_step);
+      ui::view2d_draw_lines_x(v2d, true, driver_step);
     }
     else {
       ui::view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
     }
-    ui::view2d_draw_lines_y__values(v2d, true, 10);
+    ui::view2d_draw_lines_y(v2d, true, 10);
   }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);

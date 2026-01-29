@@ -228,8 +228,8 @@ void view2d_dot_grid_draw(const View2D *v2d,
  * \param base Defines in what distance the lines are drawn. Depending on the zoom level of the
  * `v2d` the distance is always a full fraction or multiple of the given base.
  */
-void view2d_draw_lines_y__values(const View2D *v2d, bool show_fractions, int base);
-void view2d_draw_lines_x__values(const View2D *v2d, bool show_fractions, int base);
+void view2d_draw_lines_y(const View2D *v2d, bool show_fractions, int base);
+void view2d_draw_lines_x(const View2D *v2d, bool show_fractions, int base);
 void view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
                                                      const Scene *scene,
                                                      bool display_seconds,

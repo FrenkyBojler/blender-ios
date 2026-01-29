@@ -512,7 +512,7 @@ float view2d_grid_resolution_y__values(const View2D *v2d, const int base)
 /* Line Drawing API
  **************************************************/
 
-void view2d_draw_lines_x__values(const View2D *v2d, const bool show_fractions, const int base)
+void view2d_draw_lines_x(const View2D *v2d, const bool show_fractions, const int base)
 {
   float major_line_distance;
   if (show_fractions) {
@@ -527,7 +527,7 @@ void view2d_draw_lines_x__values(const View2D *v2d, const bool show_fractions, c
   view2d_draw_lines(v2d, major_line_distance, true, 'v');
 }
 
-void view2d_draw_lines_y__values(const View2D *v2d, const bool show_fractions, const int base)
+void view2d_draw_lines_y(const View2D *v2d, const bool show_fractions, const int base)
 {
   float major_line_distance;
   if (show_fractions) {
@@ -560,7 +560,7 @@ void view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
     view2d_draw_lines_x__discrete(v2d, fps, true);
   }
   else {
-    view2d_draw_lines_x__values(v2d, true, fps);
+    view2d_draw_lines_x(v2d, true, fps);
   }
 }
 
