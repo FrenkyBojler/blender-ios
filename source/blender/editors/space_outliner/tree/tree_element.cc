@@ -217,11 +217,6 @@ StringRefNull AbstractTreeElement::get_warning() const
   return "";
 }
 
-bool AbstractTreeElement::have_warning() const
-{
-  return false;
-}
-
 std::optional<BIFIconID> AbstractTreeElement::get_icon() const
 {
   return {};

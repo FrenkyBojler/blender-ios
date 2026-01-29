@@ -129,8 +129,8 @@ void element_resolve_closed(
         continue;
       }
       TreeElement *last = stack.last();
-      have_warnings = have_warnings ||
-                      (last->abstract_element && last->abstract_element->have_warning());
+      have_warnings = have_warnings || (last->abstract_element &&
+                                        !last->abstract_element->get_warning().is_empty());
       width = std::max<int>(width, int(last->xend));
       stack.last() = last->next;
     }
@@ -236,8 +236,8 @@ Vector<TreeElement *> outliner_tree_resolve(const bContext *C,
       TreeElement *last = stack.last();
       last->ymin = yoffset + UI_UNIT_Y;
       last->level = stack.size() - 1;
-      have_warnings = have_warnings ||
-                      (last->abstract_element && last->abstract_element->have_warning());
+      have_warnings = have_warnings || (last->abstract_element &&
+                                        !last->abstract_element->get_warning().is_empty());
       if (!(last->ymin > viewy.max || last->ys < viewy.min)) {
         visible_elements.append(last);
       }
@@ -4228,8 +4228,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
 
   /* Only show mode column in View Layers and Scenes view. */
   const bool use_mode_column = outliner_shows_mode_column(*space_outliner);
-  const bool use_warning_column =
-      have_warnings;  // outliner_has_element_warnings(*space_outliner);
+  const bool use_warning_column = have_warnings;
 
   /* Draw outliner stuff (background, hierarchy lines and names). */
   const float right_column_width = outliner_right_columns_width(space_outliner);

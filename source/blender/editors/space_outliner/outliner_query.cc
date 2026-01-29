@@ -24,23 +24,4 @@ bool outliner_shows_mode_column(const SpaceOutliner &space_outliner)
   return tree_display.supports_mode_column() && (space_outliner.flag & SO_MODE_COLUMN);
 }
 
-static bool outliner_has_element_warnings_recursive(const ListBaseT<TreeElement> &lb)
-{
-  for (const TreeElement &te : lb) {
-    if (te.abstract_element && te.abstract_element->have_warning()) {
-      return true;
-    }
-
-    if (outliner_has_element_warnings_recursive(te.subtree)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool outliner_has_element_warnings(const SpaceOutliner &space_outliner)
-{
-  return outliner_has_element_warnings_recursive(space_outliner.tree);
-}
-
 }  // namespace blender::ed::outliner

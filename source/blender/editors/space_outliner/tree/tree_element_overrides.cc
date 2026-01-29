@@ -85,11 +85,6 @@ StringRefNull TreeElementOverridesBase::get_warning() const
 
   return {};
 }
-bool TreeElementOverridesBase::have_warning() const
-{
-  return (id.flag & ID_FLAG_LIB_OVERRIDE_RESYNC_LEFTOVER) ||
-         (ID_IS_OVERRIDE_LIBRARY_REAL(&id) && ID_REAL_USERS(&id) == 0);
-}
 
 static void iterate_properties_to_display(ID &id,
                                           const bool show_system_overrides,
@@ -195,11 +190,6 @@ StringRefNull TreeElementOverridesProperty::get_warning() const
   }
 
   return {};
-}
-
-bool TreeElementOverridesProperty::have_warning() const
-{
-  return !is_rna_path_valid;
 }
 
 /** \} */

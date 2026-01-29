@@ -40,11 +40,5 @@ StringRefNull TreeElementIDLibrary::get_warning() const
 
   return {};
 }
-bool TreeElementIDLibrary::have_warning() const
-{
-  Library &library = reinterpret_cast<Library &>(id_);
-
-  return (library.runtime->tag & LIBRARY_TAG_RESYNC_REQUIRED) || (library.id.tag & ID_TAG_MISSING);
-}
 
 }  // namespace blender::ed::outliner
