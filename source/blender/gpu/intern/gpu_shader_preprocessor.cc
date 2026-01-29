@@ -315,7 +315,7 @@ struct Stream : TokenBuffer {
   Stream &operator<<(Space /*space*/)
   {
     ensure_space_for_one();
-    if (str.back() != ' ') {
+    if (!str.empty() && str.back() != ' ') {
       str += ' ';
       str_ = str;
       offsets_[size_] = str.size();

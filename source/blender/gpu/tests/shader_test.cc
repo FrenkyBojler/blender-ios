@@ -708,6 +708,36 @@ C2
   }
   {
     std::string input = R"(
+#define ATOMIC_OP_EX(A, B, C) \
+  template<typename T> T atomic##B(A T &mem, T data) \
+  { \
+    return atomic_##C##_explicit((A _atomic<T> *)&mem, data, memory_order_relaxed); \
+  }
+
+#define ATOMIC_OP(B, C) \
+  ATOMIC_OP_EX(threadgroup, B, C) \
+  ATOMIC_OP_EX(device, B, C)
+
+ATOMIC_OP(Max, fetch_max)
+)";
+    std::string expect = R"(
+
+
+
+
+
+
+
+
+
+
+template<typename T> T atomicMax(threadgroup T &mem, T data) { return atomic_fetch_max_explicit((threadgroup _atomic<T> *)&mem, data, memory_order_relaxed); } template<typename T> T atomicMax(device T &mem, T data) { return atomic_fetch_max_explicit((device _atomic<T> *)&mem, data, memory_order_relaxed); }
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    std::string input = R"(
 #define A
 #if defined(A) && !defined ( B ) && defined A && !defined  B 
 High there!
