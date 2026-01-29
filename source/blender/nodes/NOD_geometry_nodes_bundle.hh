@@ -88,11 +88,22 @@ class Bundle : public ImplicitSharingMixin {
   bool contains_path(Span<StringRef> path) const;
 
   const BundleItemValue *lookup(StringRef key) const;
+  BundleItemValue *lookup(StringRef key);
   const BundleItemValue *lookup_path(Span<StringRef> path) const;
   const BundleItemValue *lookup_path(StringRef path) const;
+  BundleItemValue *lookup_path_for_write(Span<StringRef> path);
+  BundleItemValue *lookup_path_for_write(StringRef path);
   template<typename T> std::optional<T> lookup(StringRef key) const;
   template<typename T> std::optional<T> lookup_path(Span<StringRef> path) const;
   template<typename T> std::optional<T> lookup_path(StringRef path) const;
+  template<typename T> T *lookup_ptr(StringRef key);
+  template<typename T> const T *lookup_ptr(StringRef key) const;
+  template<typename T> const T *lookup_path_ptr(StringRef path) const;
+  template<typename T> const T *lookup_path_ptr(Span<StringRef> path) const;
+  template<typename T> T *lookup_path_for_write_ptr(StringRef path);
+  template<typename T> T *lookup_path_for_write_ptr(Span<StringRef> path);
+
+  Bundle &ensure_nested_bundle(StringRef path);
 
   void merge(const Bundle &other);
   void merge_override(const Bundle &other);
@@ -100,11 +111,14 @@ class Bundle : public ImplicitSharingMixin {
   bool is_empty() const;
   int64_t size() const;
 
+  void clear();
+
   /** Also see #GeometrySet.ensure_owns_direct_data. */
   void ensure_owns_direct_data();
   bool owns_direct_data() const;
 
   BundleItemMap::ItemIterator items() const;
+  BundleItemMap::MutableItemIterator items();
 
   BundlePtr copy() const;
 
@@ -244,6 +258,42 @@ template<typename T> inline std::optional<T> Bundle::lookup(const StringRef key)
   return item->as<T>();
 }
 
+template<typename T> inline T *Bundle::lookup_ptr(const StringRef key)
+{
+  BundleItemValue *item = this->lookup(key);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline const T *Bundle::lookup_path_ptr(const StringRef path) const
+{
+  const BundleItemValue *item = this->lookup_path(path);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline const T *Bundle::lookup_path_ptr(const Span<StringRef> path) const
+{
+  const BundleItemValue *item = this->lookup_path(path);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline const T *Bundle::lookup_ptr(const StringRef key) const
+{
+  const BundleItemValue *item = this->lookup(key);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline T *Bundle::lookup_path_for_write_ptr(const Span<StringRef> path)
+{
+  BundleItemValue *item = this->lookup_path_for_write(path);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline T *Bundle::lookup_path_for_write_ptr(const StringRef path)
+{
+  BundleItemValue *item = this->lookup_path_for_write(path);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
 template<typename T> inline std::optional<T> Bundle::lookup_path(const Span<StringRef> path) const
 {
   const BundleItemValue *item = this->lookup_path(path);
@@ -316,6 +366,11 @@ template<typename T> inline void Bundle::add_path_override(const StringRef path,
 }
 
 inline Bundle::BundleItemMap::ItemIterator Bundle::items() const
+{
+  return items_.items();
+}
+
+inline Bundle::BundleItemMap::MutableItemIterator Bundle::items()
 {
   return items_.items();
 }
