@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -210,8 +210,8 @@ void GLTexturePool::log_usage_data() const
 {
   int64_t total_texture_count = acquired_.size() + pool_.size();
   CLOG_TRACE(&LOG,
-             "GLTexturePool uses %li textures (%li consecutively)",
-             total_texture_count,
-             current_usage_data_.usage_count_max);
+             "GLTexturePool uses %ld textures (%ld consecutively)",
+             static_cast<long>(total_texture_count),
+             static_cast<long>(current_usage_data_.usage_count_max));
 }
 }  // namespace blender::gpu
