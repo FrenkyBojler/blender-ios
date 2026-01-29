@@ -481,11 +481,7 @@ gpu::Texture *GPU_texture_create_view(const char *name,
                   layer_len,
                   cube_as_array,
                   use_stencil);
-  if (GPU_texture_has_integer_format(view)) {
-    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_LINEAR, false);
-    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_MIPMAP, false);
-    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_ANISOTROPIC, false);
-  }
+
   return view;
 }
 
