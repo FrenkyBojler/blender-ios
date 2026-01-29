@@ -38,7 +38,7 @@ find_path(OPENCOLORIO_INCLUDE_DIR
     include
 )
 
-set(_opencolorio_LIBRARIES)
+set(_opencolorio_LIBRARIES "")
 
 find_library(OPENCOLORIO_OPENCOLORIO_LIBRARY
   NAMES
@@ -76,7 +76,6 @@ endif()
 
 mark_as_advanced(
   OPENCOLORIO_INCLUDE_DIR
-  OPENCOLORIO_LIBRARY
   OPENCOLORIO_OPENCOLORIO_LIBRARY
   OPENCOLORIO_VERSION
 )
