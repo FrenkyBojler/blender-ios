@@ -127,8 +127,10 @@ void main()
   vertex_out_flat.alpha = saturate(line.level + 1.0f - fract(grid_buf.level));
   if (!drw_view_is_perspective()) {
     /* Also fade by pixel size for orthographic, as we lack proper line DFDX/DFDY. */
+    constexpr float fade_start_pixel_size = 0.5f * 0.25f;
+    constexpr float fade_end_pixel_size = 0.5f * pow3f(0.25f);
     vertex_out_flat.alpha *= smoothstep(
-        step_size * 0.25f, step_size * pow3f(0.25f), uniform_buf.pixel_fac);
+        fade_start_pixel_size, fade_end_pixel_size, uniform_buf.pixel_fac / step_size);
   }
 
   /* Apply per-level size, camera offset. */
