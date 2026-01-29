@@ -758,9 +758,10 @@ void PathTrace::update_display(const RenderWork &render_work)
     LOG_DEBUG << "Perform copy to GPUDisplay work.";
 
     const PassType pass_type = film_->get_display_pass();
-    const bool show_denoised = (render_work.display.use_denoised_result &&
-                                has_denoised_result()) ||
-                               is_volume_guiding_pass(pass_type);
+    const bool show_denoised =
+        ((render_work.display.use_denoised_result && has_denoised_result() &&
+          big_tile_params_.get_pass_offset(pass_type, PassMode::DENOISED) != PASS_UNUSED) ||
+         is_volume_guiding_pass(pass_type));
 
     const int texture_width = show_denoised ?
                                   render_state_.effective_denoised_big_tile_params.window_width :

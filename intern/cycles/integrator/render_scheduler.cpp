@@ -330,7 +330,7 @@ RenderWork RenderScheduler::get_render_work()
       /* Don't progress the resolution divider as the user is currently navigating in the scene. */
       state_.user_is_navigating = false;
     }
-    else {
+    else if (default_start_resolution_divider_ != 0) {
       /* If the resolution divider is greater than or equal to default_start_resolution_divider_,
        * drop the resolution divider down to 4. This is so users with slow hardware and thus high
        * resolution dividers (E.G. 16), get an update to let them know something is happening
