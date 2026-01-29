@@ -30,7 +30,7 @@ struct TokenBuffer;
 using TokenAtom = uint16_t;
 
 struct Token {
-#ifndef LEXIT_DEBUG
+#ifdef LEXIT_DEBUG
   std::string_view debug_str_;
   TokenType debug_type_;
   TokenAtom debug_atom_;
@@ -233,7 +233,7 @@ inline Token::Token(const TokenBuffer *buf, int32_t index) : buf_(buf)
   assert(buf_ != nullptr);
   /* Set to Invalid / EndOfFile token if out of range. */
   index_ = (index < 0 || index > buf_->size_) ? buf_->size_ : index;
-#ifndef LEXIT_DEBUG
+#ifdef LEXIT_DEBUG
   debug_str_ = str_with_whitespace();
   debug_type_ = type();
   debug_atom_ = atom();

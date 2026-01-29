@@ -50,10 +50,10 @@ void TokenBuffer::reserve(const uint32_t count)
     return;
   }
   allocated_size_ = count + 1;
-  realloc_aligned_array(types_, size_, allocated_size_);
-  realloc_aligned_array(offsets_, size_, allocated_size_);
-  realloc_aligned_array(original_offsets_, size_, allocated_size_);
-  realloc_aligned_array(atoms_, size_, allocated_size_);
+  realloc_aligned_array(types_, size_ + 1, allocated_size_);
+  realloc_aligned_array(offsets_, size_ + 1, allocated_size_);
+  realloc_aligned_array(original_offsets_, size_ + 1, allocated_size_);
+  realloc_aligned_array(atoms_, size_ + 1, allocated_size_);
 }
 
 #if defined(USE_NEON) || defined(USE_SSE4_2)

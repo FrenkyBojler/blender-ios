@@ -1056,12 +1056,16 @@ struct Preprocessor : IntermediateFormWithIDs {
         lexit::Token param_end = get_end_of_parameter(param_start);
 
         StringRef argument_name = str(tok);
+        TokenAtom atom;
         if (argument_name == "...") {
           param_end = get_end_of_parameter(param_start, true);
           argument_name = "__VA_ARGS__";
+          atom = lex_.hash("__VA_ARGS__");
+        }
+        else {
+          atom = lex_.atoms_[int(tok)];
         }
 
-        TokenAtom atom = lex_.atoms_[int(tok)];
         /* If there is only token for parameters (it could be empty string). */
         if (param_start.next() == param_end.prev()) {
           macro_parameters.add(atom, {param_start.next(), param_start.next()});
