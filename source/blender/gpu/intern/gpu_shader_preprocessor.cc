@@ -20,21 +20,13 @@
 
 namespace blender::gpu {
 
-/* -------------------------------------------------------------------- */
-/** \name Utilities.
- * \{ */
-
-namespace shader::parser {
+using LexerBase = shader::parser::LexerBase;
+using NullParser = shader::parser::NullParser;
+using namespace lexit;
 
 struct TokenRange {
-  lexit::Token start, end;
+  Token start, end;
 };
-
-}  // namespace shader::parser
-
-/** \} */
-
-using namespace shader::parser;
 
 /* -------------------------------------------------------------------- */
 /** \name Parser / Lexer classes.
@@ -238,7 +230,7 @@ struct Stream : TokenBuffer {
     return *this;
   }
 
-  Stream &operator<<(lexit::Token tok)
+  Stream &operator<<(Token tok)
   {
     ensure_space_for_one();
     str += tok.str();
@@ -278,7 +270,7 @@ struct Stream : TokenBuffer {
 
   Stream &operator<<(const TokenRange &stream)
   {
-    for (lexit::Token tok = stream.start; int(tok) <= int(stream.end); tok = tok.next()) {
+    for (Token tok = stream.start; int(tok) <= int(stream.end); tok = tok.next()) {
       *this << tok;
     }
     /* "Cancel" concatenation in case range is empty. */
@@ -383,12 +375,12 @@ static void report_fn(int /*error_line*/,
   BLI_assert_unreachable();
 }
 
-report_callback report_fn_ptr = report_fn;
+shader::parser::report_callback report_fn_ptr = report_fn;
 
 /**
  * Boiler plate class exposing lexer structure using typed IDs.
  */
-struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
+struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, NullParser> {
 
   IntermediateFormWithIDs(StringRef str)
       : IntermediateForm<AtomicLexer, NullParser>(str, report_fn_ptr)
@@ -475,19 +467,19 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   {
     LineID start = get_start(dir);
     LineID end = get_end(dir);
-    lexit::Token tok_start = lex_[int(get_start(start))];
-    lexit::Token tok_end = lex_[int(get_end(end))];
+    Token tok_start = lex_[int(get_start(start))];
+    Token tok_end = lex_[int(get_end(end))];
     return substr_range_inclusive_view(tok_start, tok_end);
   }
   StringRef str(LineID line)
   {
-    lexit::Token start = get_start(line);
-    lexit::Token end = get_end(line);
+    Token start = get_start(line);
+    Token end = get_end(line);
     return substr_range_inclusive_view(start, end);
   }
 
   /* Return valid value if tok is valid and a word token. */
-  AtomID get_atom(lexit::Token tok)
+  AtomID get_atom(Token tok)
   {
     BLI_assert(tok.type() == Word);
     return AtomID(lex_.atoms_[int(tok)]);
@@ -525,7 +517,7 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   /**
    * Return the start element.
    */
-  lexit::Token get_start(LineID line)
+  Token get_start(LineID line)
   {
     return lex_[lex_.line_offsets[int(line)].start()];
   }
@@ -538,7 +530,7 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
    * Return the end element.
    * NOTE: Return the token before \n or \n if line is empty.
    */
-  lexit::Token get_end(LineID line)
+  Token get_end(LineID line)
   {
     blender::IndexRange range = lex_.line_offsets[int(line)];
     return lex_[range.size() > 1 ? range.last(1) : range.last()];
@@ -554,7 +546,7 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   }
 
   /* NOTE: Return the end of line character '\n'. */
-  lexit::Token get_true_end(LineID line)
+  Token get_true_end(LineID line)
   {
     return lex_[lex_.line_offsets[int(line)].last()];
   }
@@ -568,12 +560,12 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
   }
 
   /* Return token defining the directive type (e.g. define, undef, if ...). */
-  lexit::Token get_identifier(DirectiveID dir)
+  Token get_identifier(DirectiveID dir)
   {
     LineID line = get_start(dir);
-    lexit::Token hash_tok = get_start(line);
+    Token hash_tok = get_start(line);
     BLI_assert(hash_tok == Hash);
-    lexit::Token dir_tok = hash_tok.next();
+    Token dir_tok = hash_tok.next();
     return dir_tok;
   }
 
@@ -628,8 +620,9 @@ struct IntermediateFormWithIDs : IntermediateForm<AtomicLexer, NullParser> {
 /* Fast C (incomplete) preprocessor implementation.  */
 struct Preprocessor : IntermediateFormWithIDs {
  private:
-  using ExpansionParser = IntermediateForm<ExpansionLexer, DummyParser>;
-  using TokenRange = shader::parser::TokenRange;
+  using ExpressionLexer = shader::parser::ExpressionLexer;
+  using ExpressionParser = shader::parser::ExpressionParser;
+  using ExpansionParser = IntermediateForm<ExpansionLexer, shader::parser::DummyParser>;
 
   /* Cache the expression lexer to avoid memory allocations. */
   ExpressionLexer expression_lexer;
@@ -776,7 +769,7 @@ struct Preprocessor : IntermediateFormWithIDs {
 
   void define_macro(DirectiveID dir)
   {
-    lexit::Token macro_name = get_identifier(dir).next();
+    Token macro_name = get_identifier(dir).next();
     BLI_assert(macro_name == Word);
     /* Store the name token of the declaration.
      * The actual parsing of the definition happens during expansion. */
@@ -785,7 +778,7 @@ struct Preprocessor : IntermediateFormWithIDs {
 
   void undefine_macro(DirectiveID dir)
   {
-    lexit::Token macro_name = get_identifier(dir).next();
+    Token macro_name = get_identifier(dir).next();
     BLI_assert(macro_name == Word);
     defines.remove(get_atom(macro_name));
   }
@@ -826,10 +819,10 @@ struct Preprocessor : IntermediateFormWithIDs {
 
     const LineID dir_line_start = get_start(dir);
     const LineID dir_line_end = get_end(dir);
-    const lexit::Token dir_tok = get_identifier(dir);
+    const Token dir_tok = get_identifier(dir);
     /* Evaluate condition. */
-    const lexit::Token cond_start = dir_tok.next();
-    const lexit::Token cond_end = get_end(dir_line_end);
+    const Token cond_start = dir_tok.next();
+    const Token cond_end = get_end(dir_line_end);
     const bool condition_result = evaluate_condition(dir_type, cond_start, cond_end);
 
     /* Find matching endif or else. */
@@ -857,7 +850,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     }
   }
 
-  bool evaluate_condition(const DirectiveType dir_type, lexit::Token start, lexit::Token end)
+  bool evaluate_condition(const DirectiveType dir_type, Token start, Token end)
   {
     switch (dir_type) {
       case Else:
@@ -875,7 +868,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     }
   }
 
-  bool evaluate_expression(const lexit::Token start, const lexit::Token end)
+  bool evaluate_expression(const Token start, const Token end)
   {
 #ifndef NDEBUG
     /* For debugging. */
@@ -920,11 +913,11 @@ struct Preprocessor : IntermediateFormWithIDs {
       return;
     }
 
-    for (lexit::Token tok = lex_[start], end_tok = lex_[end]; tok != end_tok; tok = tok.next()) {
+    for (Token tok = lex_[start], end_tok = lex_[end]; tok != end_tok; tok = tok.next()) {
       if (tok == Word) {
         DirectiveID macro_id = defines.lookup_default(get_atom(tok), DirectiveID::invalid());
         if (is_valid(macro_id)) {
-          lexit::Token token = parser_.lex[int(tok)];
+          Token token = parser_.lex[int(tok)];
           auto [replacement, end] = expand_macro(token, macro_id);
           replace(token, end, replacement->str);
           tok = end;
@@ -942,7 +935,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     auto result = stream_pool.alloc();
 
     for (int cursor = 0, end = ts.index_range().size(); cursor < end; cursor++) {
-      lexit::Token tok = ts[cursor];
+      Token tok = ts[cursor];
       if (tok.type() == Word) {
         /* Try to match the token pointed at by cursor with a defined macro. If that happen advance
          * the cursor to the end of the macro (in case of functional macro). */
@@ -963,19 +956,19 @@ struct Preprocessor : IntermediateFormWithIDs {
     /* Replacement content. */
     StreamPtr output;
     /* End of range to replace. */
-    lexit::Token end_of_expansion;
+    Token end_of_expansion;
   };
 
   BLI_NOINLINE Map<TokenAtom, TokenRange> parse_macro_args(const bool is_function,
-                                                           const lexit::Token expanded_tok,
-                                                           lexit::Token &end_of_expansion,
-                                                           lexit::Token &tok)
+                                                           const Token expanded_tok,
+                                                           Token &end_of_expansion,
+                                                           Token &tok)
   {
     Map<TokenAtom, TokenRange> macro_parameters;
     if (is_function) {
       /* This is a functional macro. */
 
-      lexit::Token param = expanded_tok.next();
+      Token param = expanded_tok.next();
       if (param != ParOpen) {
         /* Macro doesn't have parameters. It should not expand. */
         return {};
@@ -1002,8 +995,8 @@ struct Preprocessor : IntermediateFormWithIDs {
           break;
         }
 
-        lexit::Token param_start = param;
-        lexit::Token param_end = get_end_of_parameter(param_start);
+        Token param_start = param;
+        Token param_end = get_end_of_parameter(param_start);
 
         StringRef argument_name = tok.str();
         TokenAtom atom;
@@ -1040,13 +1033,13 @@ struct Preprocessor : IntermediateFormWithIDs {
     return macro_parameters;
   }
 
-  BLI_NOINLINE StreamPtr parse_macro_definition(lexit::Token definition_start_tok)
+  BLI_NOINLINE StreamPtr parse_macro_definition(Token definition_start_tok)
   {
     StreamPtr definition = stream_pool.alloc();
 
-    lexit::Token tok = definition_start_tok;
+    Token tok = definition_start_tok;
     while (true) {
-      lexit::Token tok_next = tok.next();
+      Token tok_next = tok.next();
       if (ELEM(tok, NewLine, lexit::EndOfFile)) {
         break;
       }
@@ -1073,11 +1066,11 @@ struct Preprocessor : IntermediateFormWithIDs {
   BLI_NOINLINE void expand_args(Stream &ts,
                                 const bool is_function,
                                 const Map<TokenAtom, TokenRange> &macro_parameters,
-                                lexit::Token definition_start_tok)
+                                Token definition_start_tok)
   {
     StreamPtr definition = parse_macro_definition(definition_start_tok);
 
-    for (lexit::Token def_tok : *definition) {
+    for (Token def_tok : *definition) {
       if (def_tok.type() == Hash) {
         ts << Stream::ConcatNext{};
         continue;
@@ -1114,20 +1107,20 @@ struct Preprocessor : IntermediateFormWithIDs {
    * IMPORTANT: Because of recursion, expanded_tok can be from another parser.
    * The macro directive however, will always be from the main parser.
    */
-  ExpandedResult expand_macro(const lexit::Token expanded_tok, const DirectiveID macro)
+  ExpandedResult expand_macro(const Token expanded_tok, const DirectiveID macro)
   {
-    const lexit::Token define_tok = get_identifier(macro);
-    const lexit::Token macro_name = define_tok.next();
-    const lexit::Token macro_parenthesis = macro_name.next();
+    const Token define_tok = get_identifier(macro);
+    const Token macro_name = define_tok.next();
+    const Token macro_parenthesis = macro_name.next();
     BLI_assert(define_tok == TokenType::Define);
     BLI_assert(macro_name == Word);
 
     const bool is_function = (macro_parenthesis == ParOpen) &&
                              !macro_name.followed_by_whitespace();
 
-    lexit::Token end_of_expansion = expanded_tok;
+    Token end_of_expansion = expanded_tok;
 
-    lexit::Token tok = macro_parenthesis;
+    Token tok = macro_parenthesis;
 
     StreamPtr expanded = stream_pool.alloc();
 
@@ -1162,11 +1155,11 @@ struct Preprocessor : IntermediateFormWithIDs {
   }
 
   /* Expand token range for condition evaluation (e.g. '#if'). */
-  StreamPtr expand_expression(const lexit::Token start, const lexit::Token end)
+  StreamPtr expand_expression(const Token start, const Token end)
   {
     StreamPtr result = stream_pool.alloc();
 
-    lexit::Token tok = start;
+    Token tok = start;
     while (true) {
       BLI_assert(tok.is_valid());
       AtomID tok_atom = tok == Word ? get_atom(tok) : AtomID::invalid();
@@ -1218,8 +1211,8 @@ struct Preprocessor : IntermediateFormWithIDs {
 
   void erase_lines(LineID start, LineID end)
   {
-    Token tok_end = parser_[int(get_end(end))];
-    Token tok_start = parser_[int(get_start(start))];
+    Token tok_end = lex_[int(get_end(end))];
+    Token tok_start = lex_[int(get_start(start))];
     replace(tok_start, tok_end, new_lines(start, end));
   }
 
@@ -1229,7 +1222,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     return std::string(int(line_end) - int(line_start), '\n');
   }
 
-  lexit::Token skip_directive_newlines(lexit::Token tok)
+  Token skip_directive_newlines(Token tok)
   {
     while (tok == Backslash && tok.next() == NewLine) {
       tok = tok.next().next();
@@ -1241,7 +1234,7 @@ struct Preprocessor : IntermediateFormWithIDs {
    * Return next `,` or `)` skipping occurrences contained in parenthesis.
    * Return invalid token on failure.
    */
-  static lexit::Token get_end_of_parameter(lexit::Token tok, bool skip_to_end = false)
+  static Token get_end_of_parameter(Token tok, bool skip_to_end = false)
   {
     /* Avoid matching comma inside parameter function calls. */
     int stack = 1;
