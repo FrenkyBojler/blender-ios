@@ -279,7 +279,7 @@ static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops, const bool che
     return;
   }
 
-  /* These checks should only happen when there's a mirror modifer active on an
+  /* These checks should only happen when there's a mirror modifier active on an
    * object. Otherwise a semi circle ends up being produced on vertices that lie
    * on axes X/Y/Z=0. */
   const bool check_x = check_mirror && (max_co[0] - min_co[0]) > MIRROR_LIMIT;
