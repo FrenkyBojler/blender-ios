@@ -6,6 +6,7 @@
 #include "AS_asset_representation.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_space_types.h"
 
@@ -31,6 +32,11 @@
 
 #include "ED_asset.hh"
 #include "ED_node.hh"
+#include "ED_screen.hh"
+
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
 #include "node_intern.hh"
 
@@ -483,6 +489,94 @@ void invoke_node_link_drag_add_menu(bContext &C,
   LinkDragSearchStorage *storage = new LinkDragSearchStorage{node, socket, cursor};
   /* Use the "_ex" variant with `can_refresh` false to avoid a double free when closing Blender. */
   popup_block_invoke_ex(&C, create_search_popup_block, storage, nullptr, false);
+}
+
+static bool link_drag_operation_test_poll(bContext *C)
+{
+  if (!ED_operator_node_editable(C)) {
+    return false;
+  }
+  PointerRNA socket_ptr = CTX_data_pointer_get_type(C, "socket", RNA_NodeSocket);
+  if (!socket_ptr.data) {
+    return false;
+  }
+  return true;
+}
+
+static wmOperatorStatus link_drag_operation_test_exec(bContext *C, wmOperator *op)
+{
+  // Main &bmain = *CTX_data_main(C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  if (!snode.edittree) {
+    return OPERATOR_CANCELLED;
+  }
+  bNodeTree &ntree = *snode.edittree;
+  PointerRNA socket_ptr = CTX_data_pointer_get_type(C, "socket", RNA_NodeSocket);
+  if (!socket_ptr.data) {
+    return OPERATOR_CANCELLED;
+  }
+  bNodeSocket &socket = *socket_ptr.data_as<bNodeSocket>();
+
+  Vector<SocketLinkOperation> search_link_ops;
+  gather_socket_link_operations(*C, ntree, socket, search_link_ops);
+
+  if (RNA_boolean_get(op->ptr, "count_link_operations")) {
+    IDProperty *idprops = IDP_EnsureProperties(&ntree.id);
+    IDP_ReplaceInGroup(idprops, IDP_NewInt(search_link_ops.size(), "link_operations_count"));
+    return OPERATOR_FINISHED;
+  }
+
+  const int link_op_index = RNA_int_get(op->ptr, "link_operation_index");
+  if (!search_link_ops.index_range().contains(link_op_index)) {
+    BKE_report(op->reports, RPT_ERROR_INVALID_INPUT, "Link operation index out of range");
+    return OPERATOR_CANCELLED;
+  }
+
+  const SocketLinkOperation &link_op = search_link_ops[link_op_index];
+  Vector<bNode *> added_nodes;
+  nodes::LinkSearchOpParams params{*C, ntree, socket.owner_node(), socket, added_nodes};
+  link_op.fn(params);
+  const std::string msg = fmt::format(
+      "Link operation \"{}\" added {} nodes", link_op.name, added_nodes.size());
+  BKE_report(op->reports, RPT_INFO, msg.c_str());
+
+  /* Select only added nodes. */
+  for (bNode &node : ntree.nodes) {
+    bke::node_set_selected(node, false);
+  }
+  for (bNode *node : added_nodes) {
+    bke::node_set_selected(*node, true);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_link_drag_operation_test(wmOperatorType *ot)
+{
+  ot->name = "Link Drag Operation Test";
+  ot->idname = "NODE_OT_link_drag_operation_test";
+  ot->description = "Run a node link-drag operation for testing";
+
+  ot->poll = link_drag_operation_test_poll;
+  ot->exec = link_drag_operation_test_exec;
+
+  ot->flag = OPTYPE_INTERNAL;
+
+  RNA_def_boolean(ot->srna,
+                  "count_link_operations",
+                  false,
+                  "Count Link Operations",
+                  "Count link operations for the context socket and write to "
+                  "\"link_operations_count\" property of the node tree");
+  RNA_def_int(ot->srna,
+              "link_operation_index",
+              -1,
+              -1,
+              INT_MAX,
+              "Link Operation Index",
+              "Link operation to execute on the context socket",
+              0,
+              INT_MAX);
 }
 
 }  // namespace ed::space_node
