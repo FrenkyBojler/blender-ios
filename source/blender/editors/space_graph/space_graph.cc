@@ -239,13 +239,13 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
    * grid size should be independent of the scene's frame rate. */
   constexpr int driver_step = 10;
   /* grid */
-  bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
+  const bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
   if (region->winy > min_height) {
     if (sipo->mode == SIPO_MODE_DRIVERS) {
       ui::view2d_draw_lines_x(v2d, true, driver_step);
     }
     else {
-      ui::view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
+      ui::view2d_draw_lines_x_frames(v2d, scene, display_seconds);
     }
     ui::view2d_draw_lines_y(v2d, true, 10);
   }

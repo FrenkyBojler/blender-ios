@@ -479,20 +479,6 @@ static void frame_to_string(
   }
 }
 
-/**
- * No subframes.
- */
-static void view2d_draw_lines_x__discrete(const View2D *v2d,
-                                          const int base,
-                                          const bool display_minor_lines)
-{
-  const float major_line_distance = calculate_grid_step(
-      base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
-  /* The extra check here is so no minor lines are drawn below a distance of 1. */
-  const bool draw_minor_lines = display_minor_lines && (major_line_distance > 1);
-  view2d_draw_lines(v2d, major_line_distance, draw_minor_lines, 'v');
-}
-
 /* Grid Resolution API
  **************************************************/
 
@@ -511,6 +497,20 @@ float view2d_grid_resolution_y__values(const View2D *v2d, const int base)
 
 /* Line Drawing API
  **************************************************/
+
+/**
+ * No subframes.
+ */
+static void view2d_draw_lines_x__discrete(const View2D *v2d,
+                                          const int base,
+                                          const bool display_minor_lines)
+{
+  const float major_line_distance = calculate_grid_step(
+      base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
+  /* The extra check here is so no minor lines are drawn below a distance of 1. */
+  const bool draw_minor_lines = display_minor_lines && (major_line_distance > 1);
+  view2d_draw_lines(v2d, major_line_distance, draw_minor_lines, 'v');
+}
 
 void view2d_draw_lines_x(const View2D *v2d, const bool show_fractions, const int base)
 {
@@ -551,9 +551,7 @@ void view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
   view2d_draw_lines_x__discrete(v2d, fps, display_minor_lines);
 }
 
-void view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
-                                            const Scene *scene,
-                                            const bool display_seconds)
+void view2d_draw_lines_x_frames(const View2D *v2d, const Scene *scene, const bool display_seconds)
 {
   const int fps = round_db_to_int(scene->frames_per_second());
   if (display_seconds) {
@@ -585,7 +583,7 @@ void view2d_draw_scale_x(const ARegion *region,
                          const int base)
 {
   float step;
-  if (show_fractions) {
+  if (show_fractions && !display_seconds) {
     step = calculate_grid_step_fractions(
         base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
   }

@@ -234,9 +234,7 @@ void view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
                                                      const Scene *scene,
                                                      bool display_seconds,
                                                      bool display_minor_lines);
-void view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
-                                            const Scene *scene,
-                                            bool display_seconds);
+void view2d_draw_lines_x_frames(const View2D *v2d, const Scene *scene, bool display_seconds);
 
 float view2d_grid_resolution_x__frames_or_seconds(const View2D *v2d, const Scene *scene);
 float view2d_grid_resolution_y__values(const View2D *v2d, int base);
@@ -252,7 +250,7 @@ void view2d_draw_scale_y(
  * \param display_seconds If true, the scale is interpreted as seconds and will draw a timecode.
  * \param show_fractions If true, fractional scales will be drawn when zoomed in far enough.
  * Otherwise the minimum step distance is clamped to 1, meaning only whole number indicators will
- * be drawn even when zoomed in.
+ * be drawn even when zoomed in. If `display_seconds` is true, this setting will always be false.
  * \param base Defines in what distance the lines are drawn. Depending on the zoom level of the
  * `v2d` the distance is always a full fraction or multiple of the given base.
  */
