@@ -170,11 +170,6 @@ BundleItemValue *Bundle::lookup(const StringRef key)
   return items_.lookup_ptr_as(key);
 }
 
-BundleItemValue *Bundle::lookup(const StringRef key)
-{
-  return items_.lookup_ptr_as(key);
-}
-
 const BundleItemValue *Bundle::lookup_path(const Span<StringRef> path) const
 {
   BLI_assert(!path.is_empty());
