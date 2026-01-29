@@ -126,6 +126,9 @@ static int image_viewer_icon(const ID *id)
     return ICON_NONE;
   }
   const Image *ima = reinterpret_cast<const Image *>(id);
+  if (ima->source != IMA_SRC_VIEWER) {
+    return ICON_NONE;
+  }
   if (ima->type == IMA_TYPE_R_RESULT) {
     return ICON_RESTRICT_RENDER_OFF;
   }
