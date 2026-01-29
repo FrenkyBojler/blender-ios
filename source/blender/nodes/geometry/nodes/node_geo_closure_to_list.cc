@@ -192,25 +192,17 @@ static void node_geo_exec(GeoNodeExecParams params)
       const auto socket_type = eNodeSocketDatatype(items[item_i].socket_type);
       const CPPType &type = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
 
-      List::ArrayData list_data = List::ArrayData::ForUninitialized(type, count);
-      GMutableSpan list_span(type, list_data.data, count);
+      GArray<> array(type, count, NoInitialization());
       threading::parallel_for(IndexRange(count), 128, [&](const IndexRange range) {
         for (const int list_i : range) {
           void *closure_result = const_cast<void *>(values[list_i].get_single_ptr_raw());
-          type.move_construct(closure_result, list_span[list_i]);
+          type.move_construct(closure_result, array[list_i]);
         }
       });
-      params.set_output(identifier, List::create(type, std::move(list_data), count));
+      params.set_output(identifier, List::from_garray(std::move(array)));
     }
     else {
-      const CPPType &type = CPPType::get<bke::SocketValueVariant>();
-
-      auto *sharing_info = new ImplicitSharedValue<Array<bke::SocketValueVariant>>(
-          std::move(values));
-      List::ArrayData data{};
-      data.data = sharing_info->data.data();
-      data.sharing_info = ImplicitSharingPtr<>(sharing_info);
-      params.set_output(identifier, List::create(type, std::move(data), count));
+      params.set_output(identifier, List::from_container(std::move(values)));
     }
   }
 }
