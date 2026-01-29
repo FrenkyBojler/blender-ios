@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "NOD_rna_define.hh"
+#include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
@@ -116,7 +117,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   bke::VolumeTreeAccessToken tree_token;
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
-  const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
 
   bke::volume_grid::to_typed_grid(grid_base, [&](auto &typed_grid) {
     openvdb::tools::Filter filter(typed_grid);
