@@ -160,6 +160,13 @@ Bundle &Bundle::ensure_nested_bundle(const StringRef path)
 
 const BundleItemValue *Bundle::lookup(const StringRef key) const
 {
+  BLI_assert(is_valid_key(key));
+  return items_.lookup_ptr_as(key);
+}
+
+BundleItemValue *Bundle::lookup(const StringRef key)
+{
+  BLI_assert(is_valid_key(key));
   return items_.lookup_ptr_as(key);
 }
 

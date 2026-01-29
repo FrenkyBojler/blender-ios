@@ -98,8 +98,10 @@ class Bundle : public ImplicitSharingMixin {
   template<typename T> std::optional<T> lookup_path(StringRef path) const;
   template<typename T> T *lookup_ptr(StringRef key);
   template<typename T> const T *lookup_ptr(StringRef key) const;
+  template<typename T> const T *lookup_path_ptr(StringRef path) const;
   template<typename T> const T *lookup_path_ptr(Span<StringRef> path) const;
   template<typename T> T *lookup_path_for_write_ptr(StringRef path);
+  template<typename T> T *lookup_path_for_write_ptr(Span<StringRef> path);
 
   Bundle &ensure_nested_bundle(StringRef path);
 
@@ -258,37 +260,40 @@ template<typename T> inline std::optional<T> Bundle::lookup(const StringRef key)
   return item->as<T>();
 }
 
-template<typename T> inline T *Bundle::lookup_ptr(StringRef key)
+template<typename T> inline T *Bundle::lookup_ptr(const StringRef key)
 {
   BundleItemValue *item = this->lookup(key);
-  if (!item) {
-    return nullptr;
-  }
-  return item->as_pointer<T>();
+  return item ? item->as_pointer<T>() : nullptr;
 }
 
-template<typename T> inline const T *Bundle::lookup_path_ptr(Span<StringRef> path) const
+template<typename T> inline const T *Bundle::lookup_path_ptr(const StringRef path) const
 {
   const BundleItemValue *item = this->lookup_path(path);
   return item ? item->as_pointer<T>() : nullptr;
 }
 
-template<typename T> inline const T *Bundle::lookup_ptr(StringRef key) const
+template<typename T> inline const T *Bundle::lookup_path_ptr(const Span<StringRef> path) const
 {
-  const BundleItemValue *item = this->lookup(key);
-  if (!item) {
-    return nullptr;
-  }
-  return item->as_pointer<T>();
+  const BundleItemValue *item = this->lookup_path(path);
+  return item ? item->as_pointer<T>() : nullptr;
 }
 
-template<typename T> inline T *Bundle::lookup_path_for_write_ptr(StringRef path)
+template<typename T> inline const T *Bundle::lookup_ptr(const StringRef key) const
+{
+  const BundleItemValue *item = this->lookup(key);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline T *Bundle::lookup_path_for_write_ptr(const Span<StringRef> path)
 {
   BundleItemValue *item = this->lookup_path_for_write(path);
-  if (!item) {
-    return nullptr;
-  }
-  return item->as_pointer<T>();
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline T *Bundle::lookup_path_for_write_ptr(const StringRef path)
+{
+  BundleItemValue *item = this->lookup_path_for_write(path);
+  return item ? item->as_pointer<T>() : nullptr;
 }
 
 template<typename T> inline std::optional<T> Bundle::lookup_path(const Span<StringRef> path) const
