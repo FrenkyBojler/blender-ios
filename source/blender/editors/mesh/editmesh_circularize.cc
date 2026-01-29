@@ -9,9 +9,11 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_numbers.hh"
 
 #include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
 #include "RNA_access.hh"
@@ -56,10 +58,18 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    bool check_mirror = false;
+    for (ModifierData &md : obedit->modifiers) {
+      if (md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime)) {
+        check_mirror = true;
+        break;
+      }
+    }
+
     BMO_op_callf(bm,
                  BMO_FLAG_DEFAULTS,
                  "circularize geom=%hvef influence=%f flatten=%b regular=%b fit_method=%i "
-                 "custom_radius=%f angle=%f lock_x=%b lock_y=%b lock_z=%b",
+                 "custom_radius=%f angle=%f lock_x=%b lock_y=%b lock_z=%b check_mirror=%b",
                  BM_ELEM_SELECT,
                  influence,
                  flatten,
@@ -69,7 +79,8 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
                  angle,
                  lock_x,
                  lock_y,
-                 lock_z);
+                 lock_z,
+                 check_mirror);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;

@@ -529,6 +529,8 @@ static BMOpDefine bmo_circularize_def = {
         {"lock_y", BMO_OP_SLOT_BOOL},
         /* Lock Z-axis editing. */
         {"lock_z", BMO_OP_SLOT_BOOL},
+        /* Check for mirror modifier to handle symmetry. */
+        {"check_mirror", BMO_OP_SLOT_BOOL},
         {{'\0'}},
     },
     /*slot_types_out*/
