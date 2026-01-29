@@ -795,7 +795,7 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
             # For a local asset, the operator is not needed because the fields can be edited directly.
             text = "Save Metadata"
             if metadata.has_unsaved_changes:
-                text += "*"
+                text = "*" + text
             layout.operator("asset.asset_save_metadata", text=text)
 
 
