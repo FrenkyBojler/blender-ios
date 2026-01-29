@@ -88,8 +88,15 @@ struct wmJob {
    */
   void (*update)(void *);
   /**
-   * Called for each timer step.
-   * Executed in main thread.
+   * Optional, called for each timer step while the job is running. Can be used to send messages to
+   * the running job. For example, online asset library loading uses this to get status updates
+   * from the downloader to the loading job, like that it's done downloading some files that are
+   * now ready to be processed.
+   *
+   * Should be used for messaging to the job only, must _not_ be used to modify the running job,
+   * like changing the timer, replacing the custom data pointer, etc.
+   *
+   * Executed in the main thread.
    */
   void (*timer_step)(void *);
   /**
