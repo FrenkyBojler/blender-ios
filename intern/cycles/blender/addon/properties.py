@@ -231,6 +231,7 @@ enum_view3d_shading_render_pass = (
     ('MIST', "Mist", "Show the Mist render pass"),
     ('DENOISING_ALBEDO', "Denoising Albedo", "Albedo pass used by denoiser"),
     ('DENOISING_NORMAL', "Denoising Normal", "Normal pass used by denoiser"),
+    ('DENOISING_SPECULAR_ALBEDO', "Denoising Specular Albedo", "Specular albedo pass used by denoiser"),
     ('SAMPLE_COUNT', "Sample Count", "Per-pixel number of samples"),
 )
 
