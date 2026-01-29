@@ -13,7 +13,6 @@
 
 #include "BLI_implicit_sharing.hh"
 #include "BLI_struct_equality_utils.hh"
-#include "BLI_utildefines.h"
 
 namespace blender {
 
@@ -90,11 +89,6 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
   operator bool() const
   {
     return data_ != nullptr;
-  }
-
-  template<typename U> operator ImplicitSharingPtr<U>()
-  {
-    return ImplicitSharingPtr<U>(static_cast<U *>(const_cast<T *>(data_)));
   }
 
   const T *get() const

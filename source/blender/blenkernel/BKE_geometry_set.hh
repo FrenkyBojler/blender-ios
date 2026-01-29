@@ -183,11 +183,9 @@ struct GeometrySet {
     return static_cast<Component &>(this->get_component_for_write(Component::static_type));
   }
 
-  GeometryComponentPtr get_component_ptr(GeometryComponent::Type component_type) const;
-  template<typename Component> ImplicitSharingPtr<Component> get_component_ptr()
+  GeometryComponentPtr get_component_ptr(GeometryComponent::Type component_type) const
   {
-    BLI_STATIC_ASSERT(is_geometry_component_v<Component>, "");
-    return static_cast<ImplicitSharingPtr<Component>>(components_[int(Component::static_type)]);
+    return components_[int(component_type)];
   }
 
   /**
@@ -751,7 +749,7 @@ struct MeshEditHints {
    * \todo This should use a similar system to #CurvesEditHints storing just an array for the
    * deformed positions, but for historical reasons we copy the whole mesh.
    */
-  ImplicitSharingPtr<MeshComponent> mesh_deform;
+  GeometryComponentPtr mesh_deform;
   /**
    * Evaluated mesh cage in edit mode.
    *
@@ -760,7 +758,7 @@ struct MeshEditHints {
    * be used to map the cage geometry back to the original indices, see
    * #eModifierTypeFlag_SupportsMapping.
    */
-  ImplicitSharingPtr<MeshComponent> mesh_cage;
+  GeometryComponentPtr mesh_cage;
 };
 
 /**
