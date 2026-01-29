@@ -187,7 +187,7 @@ enum {
 /** The maximum number of items a radial menu (pie menu) can contain. */
 #define PIE_MAX_ITEMS 8
 
-struct Button {
+struct Button : NonMovable {
 
   /** Pointer back to the layout item holding this button. */
   Layout *layout = nullptr;
@@ -360,9 +360,9 @@ struct Button {
 
   Button() = default;
   /** Performs a mostly shallow copy for now. Only contained C++ types are deep copied. */
-  Button(const Button &other) = default;
+  explicit Button(const Button &other) = default;
   /** Mostly shallow copy, just like copy constructor above. */
-  Button &operator=(const Button &other) = default;
+  Button &operator=(const Button &other) = delete;
 
   virtual ~Button() = default;
 };
@@ -745,8 +745,8 @@ struct Block {
   }
 
   std::ranges::transform_view<std::ranges::ref_view<Vector<std::unique_ptr<Button>>>,
-                              Button &(*)(const std::unique_ptr<Button> &button)>
-  buttons_refs()
+                              Button &(*)(const std::unique_ptr<Button> &)>
+  buttons_as_refs()
   {
     return this->buttons | std::views::transform(ButtonPtrDeref);
   }

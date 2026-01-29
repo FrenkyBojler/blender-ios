@@ -2025,6 +2025,8 @@ struct EditSourceButStore {
 struct EditSourceStore {
   Button but_orig;
   Map<const Button *, std::unique_ptr<EditSourceButStore>> hash;
+
+  EditSourceStore(const Button &but) : but_orig{but} {};
 };
 
 /* should only ever be set while the edit source operator is running */
@@ -2039,8 +2041,7 @@ static void ui_editsource_active_but_set(Button *but)
 {
   BLI_assert(ui_editsource_info == nullptr);
 
-  ui_editsource_info = MEM_new<EditSourceStore>(__func__);
-  ui_editsource_info->but_orig = *but;
+  ui_editsource_info = MEM_new<EditSourceStore>(__func__, *but);
 }
 
 static void ui_editsource_active_but_clear()

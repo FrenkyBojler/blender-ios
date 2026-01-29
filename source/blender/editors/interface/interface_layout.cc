@@ -610,7 +610,7 @@ static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
 
     RNA_property_update(C, ptr, prop);
 
-    for (Button &cbut : but->block->buttons_refs()) {
+    for (Button &cbut : but->block->buttons_as_refs()) {
       button_update(&cbut);
     }
   }
@@ -1293,14 +1293,14 @@ void context_active_but_prop_get_filebrowser(const bContext *C,
   }
 
   for (Block &block : region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block.buttons) {
-      if (but && but->rnapoin.data) {
-        if (RNA_property_type(but->rnaprop) == PROP_STRING) {
-          prevbut = but.get();
+    for (Button &but : block.buttons_as_refs()) {
+      if (but.rnapoin.data) {
+        if (RNA_property_type(but.rnaprop) == PROP_STRING) {
+          prevbut = &but;
         }
       }
       /* find the button before the active one */
-      if ((but->flag & BUT_LAST_ACTIVE) && prevbut) {
+      if ((but.flag & BUT_LAST_ACTIVE) && prevbut) {
         *r_ptr = prevbut->rnapoin;
         *r_prop = prevbut->rnaprop;
         *r_is_undo = (prevbut->flag & BUT_UNDO) != 0;

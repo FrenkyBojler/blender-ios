@@ -9129,7 +9129,7 @@ static void button_activate_exit(
 #ifdef USE_ALLSELECT
     {
       /* only RNA from this button is used */
-      Button but_temp = *but;
+      Button but_temp = Button(*but);
       uiSelectContextStore *selctx_data = &data->select_others;
       for (uiSelectContextElem &other : selctx_data->elems) {
         but_temp.rnapoin = other.ptr;
@@ -10538,7 +10538,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
   if (dy < 0.0f) {
     /* Stop at top item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
     float ymax = -FLT_MAX;
-    for (Button &bt : block->buttons_refs()) {
+    for (Button &bt : block->buttons_as_refs()) {
       ymax = max_ff(ymax, bt.rect.ymax);
     }
     if (ymax + dy - UI_UNIT_Y * 0.5f < block->rect.ymax - scroll_pad) {
@@ -10548,7 +10548,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
   else {
     /* Stop at bottom item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
     float ymin = FLT_MAX;
-    for (Button &bt : block->buttons_refs()) {
+    for (Button &bt : block->buttons_as_refs()) {
       ymin = min_ff(ymin, bt.rect.ymin);
     }
     if (ymin + dy + UI_UNIT_Y * 0.5f > block->rect.ymin + scroll_pad) {
@@ -10562,7 +10562,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
   layout_panel_popup_scroll_apply(block->panel, dy);
 
   /* apply scroll offset */
-  for (Button &bt : block->buttons_refs()) {
+  for (Button &bt : block->buttons_as_refs()) {
     bt.rect.ymin += dy;
     bt.rect.ymax += dy;
   }
