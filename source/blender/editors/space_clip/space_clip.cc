@@ -920,8 +920,7 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
 
   /* time grid */
   if (!minimized) {
-    ui::view2d_draw_lines_x__discrete_frames_or_seconds(
-        v2d, scene, sc->flag & SC_SHOW_SECONDS, true);
+    ui::view2d_draw_lines_x_frames(v2d, scene, sc->flag & SC_SHOW_SECONDS, false, true);
   }
 
   /* data... */
