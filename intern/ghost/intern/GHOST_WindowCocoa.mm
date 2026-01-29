@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "GHOST_WindowCocoa.hh"
+
 #include "GHOST_ContextNone.hh"
 #include "GHOST_Debug.hh"
 #include "GHOST_SystemCocoa.hh"
@@ -23,9 +24,6 @@
 
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
-#import <QuartzCore/QuartzCore.h>
-
-#include <sys/sysctl.h>
 
 /* --------------------------------------------------------------------
  * Blender window delegate object.
@@ -387,6 +385,10 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
       metal_layer_.presentsWithTransaction = NO;
       [metal_layer_ removeAllAnimations];
       metal_layer_.device = metalDevice;
+
+      if (context_params.vsync != GHOST_kVSyncModeUnset) {
+        metal_layer_.displaySyncEnabled = (context_params.vsync == GHOST_kVSyncModeOff) ? NO : YES;
+      }
 
       if (type == GHOST_kDrawingContextTypeMetal) {
         /* Enable EDR support. This is done by:
