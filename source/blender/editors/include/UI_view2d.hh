@@ -225,8 +225,8 @@ void view2d_dot_grid_draw(const View2D *v2d,
 /**
  * Draw horizontal lines.
  *
- * \param base: Defines in what step the lines are drawn.
- * Depending on the zoom level of the `v2d` the step is a full fraction of the given base.
+ * \param base Defines in what distance the lines are drawn. Depending on the zoom level of the
+ * `v2d` the distance is always a full fraction or multiple of the given base.
  */
 void view2d_draw_lines_y__values(const View2D *v2d, int base);
 void view2d_draw_lines_x__values(const View2D *v2d, int base);
@@ -253,6 +253,8 @@ void view2d_draw_scale_y(
  *
  * \param subframes If false, clamps the minimum step distance is 1, meaning no sub-frame
  * indicators will be drawn even when zoomed in.
+ * \param base Defines in what distance the lines are drawn. Depending on the zoom level of the
+ * `v2d` the distance is always a full fraction or multiple of the given base.
  */
 void view2d_draw_scale_x(const ARegion *region,
                          const View2D *v2d,
