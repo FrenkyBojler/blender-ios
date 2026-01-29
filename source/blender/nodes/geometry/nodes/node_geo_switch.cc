@@ -198,16 +198,15 @@ class LazyFunctionForSwitchNode : public LazyFunction {
   const MultiFunction &get_switch_multi_function() const
   {
     const MultiFunction *switch_multi_function = nullptr;
-    base_type_->to_static_type_tag<float,
-                                   int,
-                                   bool,
-                                   float3,
-                                   ColorGeometry4f,
-                                   std::string,
-                                   math::Quaternion,
-                                   float4x4,
-                                   MenuValue>([&](auto type_tag) {
-      using T = typename decltype(type_tag)::type;
+    base_type_->to_static_type<float,
+                               int,
+                               bool,
+                               float3,
+                               ColorGeometry4f,
+                               std::string,
+                               math::Quaternion,
+                               float4x4,
+                               MenuValue>([&]<typename T>() {
       if constexpr (std::is_void_v<T>) {
         BLI_assert_unreachable();
       }

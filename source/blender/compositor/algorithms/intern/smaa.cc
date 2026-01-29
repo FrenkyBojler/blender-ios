@@ -1658,8 +1658,7 @@ static void blend_neighborhood_cpu(const Result &input, const Result &weights, R
 
   const int2 size = input.domain().data_size;
 
-  output.get_cpp_type().to_static_type_tag<float, Color>([&](auto type_tag) {
-    using T = typename decltype(type_tag)::type;
+  output.get_cpp_type().to_static_type<float, Color>([&]<typename T>() {
     if constexpr (std::is_same_v<T, void>) {
       /* Unsupported type. */
       BLI_assert_unreachable();

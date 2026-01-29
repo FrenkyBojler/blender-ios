@@ -392,8 +392,7 @@ TEST(cpp_type, ToStaticType)
 {
   Vector<const CPPType *> types;
   bool found_unsupported_type = false;
-  auto fn = [&](auto type_tag) {
-    using T = typename decltype(type_tag)::type;
+  auto fn = [&]<typename T>() {
     if constexpr (!std::is_same_v<T, void>) {
       types.append(&CPPType::get<T>());
     }
@@ -401,10 +400,10 @@ TEST(cpp_type, ToStaticType)
       found_unsupported_type = true;
     }
   };
-  CPPType::get<std::string>().to_static_type_tag<int, float, std::string>(fn);
-  CPPType::get<float>().to_static_type_tag<int, float, std::string>(fn);
+  CPPType::get<std::string>().to_static_type<int, float, std::string>(fn);
+  CPPType::get<float>().to_static_type<int, float, std::string>(fn);
   EXPECT_FALSE(found_unsupported_type);
-  CPPType::get<int64_t>().to_static_type_tag<int, float, std::string>(fn);
+  CPPType::get<int64_t>().to_static_type<int, float, std::string>(fn);
   EXPECT_TRUE(found_unsupported_type);
 
   EXPECT_EQ(types.size(), 2);

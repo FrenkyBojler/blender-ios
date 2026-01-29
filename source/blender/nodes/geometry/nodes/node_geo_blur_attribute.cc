@@ -254,8 +254,7 @@ static Span<T> blur_on_mesh_exec(const Span<float> neighbor_weights,
 
 template<typename Func> static void to_static_type_for_blur(const CPPType &type, const Func &func)
 {
-  type.to_static_type_tag<int, float, float3, ColorGeometry4f>([&](auto type_tag) {
-    using T = typename decltype(type_tag)::type;
+  type.to_static_type<int, float, float3, ColorGeometry4f>([&]<typename T>() {
     if constexpr (!std::is_same_v<T, void>) {
       func(T());
     }
