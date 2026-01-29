@@ -533,7 +533,7 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
         ASSERT_IS_VALID_MESH_OUTPUT(mesh_orco_new);
         if (mesh_orco_new) {
           if (mesh_orco != mesh_orco_new) {
-            BLI_assert(mesh_orco != mesh_input);
+            BLI_assert(mesh_orco != &mesh_input);
             BKE_id_free(nullptr, mesh_orco);
           }
           mesh_orco = mesh_orco_new;
@@ -557,7 +557,7 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
         ASSERT_IS_VALID_MESH_OUTPUT(mesh_orco_cloth_new);
         if (mesh_orco_cloth_new) {
           if (mesh_orco_cloth != mesh_orco_cloth_new) {
-            BLI_assert(mesh_orco != mesh_input);
+            BLI_assert(mesh_orco != &mesh_input);
             BKE_id_free(nullptr, mesh_orco_cloth);
           }
           mesh_orco_cloth = mesh_orco_cloth_new;
