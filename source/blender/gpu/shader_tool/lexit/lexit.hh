@@ -20,7 +20,7 @@
 
 #include "types.hh"
 
-#define LEXIT_DEBUG
+// #define LEXIT_DEBUG
 
 namespace lexit {
 
@@ -67,6 +67,11 @@ struct Token {
   {
     assert(a.buf_ == b.buf_);
     return a.index_ == b.index_;
+  }
+  friend bool operator!=(const Token &a, const Token &b)
+  {
+    assert(a.buf_ == b.buf_);
+    return a.index_ != b.index_;
   }
 
   friend bool operator==(const Token &a, TokenType b)
