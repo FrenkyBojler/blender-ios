@@ -75,7 +75,7 @@ struct PointCloudRealizeInfo {
   /** Id attribute on the point cloud. If there are no ids, this #Span is empty. */
   Span<float3> positions;
   VArray<float> radii;
-  Span<int> stored_ids;
+  VArray<int> stored_ids;
 };
 
 struct RealizePointCloudTask {
@@ -111,7 +111,7 @@ struct MeshRealizeInfo {
   /** Matches the order in #AllMeshesInfo.attributes. */
   Array<std::optional<GVArraySpan>> attributes;
   /** Vertex ids stored on the mesh. If there are no ids, this #Span is empty. */
-  Span<int> stored_vert_ids;
+  VArray<int> stored_vert_ids;
   VArray<int> material_indices;
   /** Custom normals are rotated based on each instance's transformation. */
   GVArraySpan custom_normal;
@@ -135,7 +135,7 @@ struct RealizeCurveInfo {
   Array<std::optional<GVArraySpan>> attributes;
 
   /** ID attribute on the curves. If there are no ids, this #Span is empty. */
-  Span<int> stored_ids;
+  VArray<int> stored_ids;
 
   /**
    * Handle position attributes must be transformed along with positions. Accessing them in
@@ -149,7 +149,7 @@ struct RealizeCurveInfo {
    * The radius attribute must be filled with a default of 1.0 if it
    * doesn't exist on some (but not all) of the input curves data-blocks.
    */
-  Span<float> radius;
+  VArray<float> radius;
 
   /**
    * The resolution attribute must be filled with the default value if it does not exist on some
@@ -438,7 +438,7 @@ static void copy_generic_attributes_to_result(
 }
 
 static void create_result_ids(const RealizeInstancesOptions &options,
-                              const Span<int> stored_ids,
+                              const VArray<int> &stored_ids,
                               const int task_id,
                               MutableSpan<int> dst_ids)
 {
@@ -447,7 +447,7 @@ static void create_result_ids(const RealizeInstancesOptions &options,
       dst_ids.fill(0);
     }
     else {
-      dst_ids.copy_from(stored_ids);
+      stored_ids.materialize(dst_ids);
     }
   }
   else {
@@ -576,13 +576,11 @@ static void gather_realize_tasks_for_instances(GatherTasksInfo &gather_info,
   const Span<int> handles = instances.reference_handles();
   const Span<float4x4> transforms = instances.transforms();
 
-  Span<int> stored_instance_ids;
+  VArray<int> stored_instance_ids;
   if (gather_info.create_id_attribute_on_any_component) {
     bke::GAttributeReader ids = instances.attributes().lookup("id");
-    if (ids && ids.domain == bke::AttrDomain::Instance && ids.varray.type().is<int>() &&
-        ids.varray.is_span())
-    {
-      stored_instance_ids = ids.varray.get_internal_span().typed<int>();
+    if (ids && ids.domain == bke::AttrDomain::Instance && ids.varray.type().is<int>()) {
+      stored_instance_ids = ids.varray.typed<int>();
     }
   }
 
@@ -1172,9 +1170,9 @@ static AllPointCloudsInfo preprocess_pointclouds(const bke::GeometrySet &geometr
     if (info.create_id_attribute) {
       bke::GAttributeReader ids_attribute = attributes.lookup("id");
       if (ids_attribute && ids_attribute.domain == bke::AttrDomain::Point &&
-          ids_attribute.varray.type().is<int>() && ids_attribute.varray.is_span())
+          ids_attribute.varray.type().is<int>())
       {
-        pointcloud_info.stored_ids = ids_attribute.varray.get_internal_span().typed<int>();
+        pointcloud_info.stored_ids = ids_attribute.varray.typed<int>();
       }
     }
     if (info.create_radius_attribute) {
@@ -1456,9 +1454,9 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
     if (info.create_id_attribute) {
       bke::GAttributeReader ids_attribute = attributes.lookup("id");
       if (ids_attribute && ids_attribute.domain == bke::AttrDomain::Point &&
-          ids_attribute.varray.type().is<int>() && ids_attribute.varray.is_span())
+          ids_attribute.varray.type().is<int>())
       {
-        mesh_info.stored_vert_ids = ids_attribute.varray.get_internal_span().typed<int>();
+        mesh_info.stored_vert_ids = ids_attribute.varray.typed<int>();
       }
     }
     mesh_info.material_indices = *attributes.lookup_or_default<int>(
@@ -1904,15 +1902,14 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
     if (info.create_id_attribute) {
       bke::GAttributeReader id_attribute = attributes.lookup("id");
       if (id_attribute && id_attribute.domain == bke::AttrDomain::Point &&
-          id_attribute.varray.type().is<int>() && id_attribute.varray.is_span())
+          id_attribute.varray.type().is<int>())
       {
-        curve_info.stored_ids = id_attribute.varray.get_internal_span().typed<int>();
+        curve_info.stored_ids = id_attribute.varray.typed<int>();
       }
     }
 
     if (attributes.contains("radius")) {
-      curve_info.radius =
-          attributes.lookup<float>("radius", bke::AttrDomain::Point).varray.get_internal_span();
+      curve_info.radius = *attributes.lookup<float>("radius", bke::AttrDomain::Point);
       info.create_radius_attribute = true;
     }
     if (attributes.contains("handle_right")) {
@@ -1995,7 +1992,7 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
       all_radii.slice(dst_point_range).fill(1.0f);
     }
     else {
-      all_radii.slice(dst_point_range).copy_from(curves_info.radius);
+      curves_info.radius.materialize(all_radii.slice(dst_point_range));
     }
   }
 
