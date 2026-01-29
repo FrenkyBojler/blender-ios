@@ -494,6 +494,14 @@ static ImBuf *thumb_create_or_fail(const char *file_path,
 
 ImBuf *IMB_thumb_create(const char *filepath, ThumbSize size, ThumbSource source, ImBuf *img)
 {
+  if (source == THB_SOURCE_DIRECT) {
+    /* Not yet implemented (not needed currently). Could just directly write the image to the given
+     * `filepath`. */
+    BLI_assert_msg(source != THB_SOURCE_DIRECT,
+                   "Writing thumbnails with direct source isn't implemented");
+    return nullptr;
+  }
+
   char uri[URI_MAX] = "";
   char thumb_name[40];
 
@@ -542,6 +550,17 @@ void IMB_thumb_delete(const char *file_or_lib_path, ThumbSize size)
 
 ImBuf *IMB_thumb_manage(const char *file_or_lib_path, ThumbSize size, ThumbSource source)
 {
+  if (source == THB_SOURCE_DIRECT) {
+    if (ImBuf *thumb = IMB_load_image_from_filepath(file_or_lib_path, IB_byte_data | IB_metadata))
+    {
+      IMB_byte_from_float(thumb);
+      IMB_free_float_pixels(thumb);
+      return thumb;
+    }
+
+    return nullptr;
+  }
+
   char path_buff[FILE_MAX_LIBEXTRA];
   char *blen_group = nullptr, *blen_id = nullptr;
 
