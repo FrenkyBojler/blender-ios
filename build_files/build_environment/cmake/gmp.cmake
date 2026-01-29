@@ -57,7 +57,7 @@ else()
 endif()
 
 if(UNIX)
-  if(NOT (APPLE AND BLENDER_PLATFORN_ARM))
+  if(NOT (APPLE AND BLENDER_PLATFORM_ARM))
     set(GMP_OPTIONS ${GMP_OPTIONS} --with-pic)
   endif()
   if(NOT (APPLE OR BLENDER_PLATFORM_ARM))
@@ -126,7 +126,9 @@ if(WIN32)
     URL_HASH ${GMP_HASH_TYPE}=${GMP_HASH}
     PREFIX ${BUILD_DIR}/gmpxx
 
-    PATCH_COMMAND COMMAND
+    # Intentionally empty, COMMAND is used but it must follow a PATCH_COMMAND.
+    PATCH_COMMAND
+    COMMAND
       ${CMAKE_COMMAND} -E copy
         ${PATCH_DIR}/cmakelists_gmpxx.txt
         ${BUILD_DIR}/gmpxx/src/external_gmpxx/CMakeLists.txt &&
