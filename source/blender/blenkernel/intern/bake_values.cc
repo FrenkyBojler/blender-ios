@@ -143,18 +143,20 @@ class RuntimeToBakeValue {
   {
     const CPPType &list_cpp_type = list.cpp_type();
     if (list_cpp_type.is<SocketValueVariant>()) {
-      if (const auto *single_data = std::get_if<nodes::List::SingleData>(&list.data())) {
-        const SocketValueVariant &single_value_variant = *static_cast<const SocketValueVariant *>(
-            single_data->value);
-        this->gather__socket_value_variant(single_value_variant);
-      }
-      else if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&list.data())) {
-        const Span<SocketValueVariant> array_span{
-            static_cast<const SocketValueVariant *>(array_data->data), list.size()};
-        for (const SocketValueVariant &value_variant : array_span) {
-          this->gather__socket_value_variant(value_variant);
+      list.foreach<SocketValueVariant>([&](const SocketValueVariant &value_variant) {
+        this->gather__socket_value_variant(value_variant);
+      });
+    }
+    else if (list_cpp_type.is<GeometrySet>()) {
+      list.foreach<GeometrySet>(
+          [&](const GeometrySet &geometry) { this->gather__geometry(geometry); });
+    }
+    else if (list_cpp_type.is<nodes::BundlePtr>()) {
+      list.foreach<nodes::BundlePtr>([&](const nodes::BundlePtr &bundle_ptr) {
+        if (bundle_ptr) {
+          this->gather__bundle(*bundle_ptr);
         }
-      }
+      });
     }
   }
 
@@ -246,9 +248,23 @@ class RuntimeToBakeValue {
     }
   }
 
-  void process__list(nodes::List & /*list*/)
+  void process__list(nodes::List &list)
   {
-    /* TODO: Handle lists before #use_geometry_nodes_lists is removed. */
+    const CPPType &list_cpp_type = list.cpp_type();
+    if (list_cpp_type.is<SocketValueVariant>()) {
+      list.foreach_for_write<SocketValueVariant>([&](SocketValueVariant &value_variant) {
+        this->process__socket_value_variant(value_variant);
+      });
+    }
+    else if (list_cpp_type.is<GeometrySet>()) {
+      list.foreach_for_write<GeometrySet>(
+          [&](GeometrySet &geometry) { this->process__geometry(geometry); });
+    }
+    else if (list_cpp_type.is<nodes::BundlePtr>()) {
+      list.foreach_for_write<nodes::BundlePtr>([&](nodes::BundlePtr &bundle_ptr) {
+        this->process__bundle(bundle_ptr.ensure_mutable_inplace());
+      });
+    }
   }
 
   void process__gpointer(GMutablePointer value_ptr)
@@ -509,9 +525,23 @@ class BakeToRuntimeValue {
     }
   }
 
-  void process__list(nodes::List & /*list*/)
+  void process__list(nodes::List &list)
   {
-    /* TODO: Handle lists before #use_geometry_nodes_lists is removed. */
+    const CPPType &list_cpp_type = list.cpp_type();
+    if (list_cpp_type.is<SocketValueVariant>()) {
+      list.foreach_for_write<SocketValueVariant>([&](SocketValueVariant &value_variant) {
+        this->process__socket_value_variant(value_variant);
+      });
+    }
+    else if (list_cpp_type.is<GeometrySet>()) {
+      list.foreach_for_write<GeometrySet>(
+          [&](GeometrySet &geometry) { this->process__geometry(geometry); });
+    }
+    else if (list_cpp_type.is<nodes::BundlePtr>()) {
+      list.foreach_for_write<nodes::BundlePtr>([&](nodes::BundlePtr &bundle_ptr) {
+        this->process__bundle(bundle_ptr.ensure_mutable_inplace());
+      });
+    }
   }
 
   std::string get_anonymous_attribute_name(const StringRef bake_attribute_name)
