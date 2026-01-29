@@ -99,13 +99,12 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
   /* For sound we go over full meta tree to update bounds of the sound strips,
    * since sound is played outside of evaluating the image-buffers (#ImBuf). */
   LISTBASE_FOREACH (Strip *, strip, &strip_meta->seqbase) {
-    // if (strip->type == STRIP_TYPE_META) {
-    //   strip_update_sound_bounds_recursive_impl(scene,
-    //                                            strip,
-    //                                            max_ii(start, metastrip_start_get(strip)),
-    //                                            min_ii(end, metastrip_end_get(strip)));
-    // }
-    // else if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE)) {
+    if (strip->type == STRIP_TYPE_META) {
+      strip_update_sound_bounds_recursive_impl(scene,
+                                               strip,
+                                               max_ii(start, metastrip_start_get(strip)),
+                                               min_ii(end, metastrip_end_get(strip)));
+    }
     if (strip->runtime->scene_sound) {
       int startofs = strip->startofs;
       int endofs = strip->endofs;
@@ -121,23 +120,23 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
       if (strip->sound != nullptr) {
         offset_time = strip->sound->offset_time + strip->sound_offset;
       }
+      if (strip->type == STRIP_TYPE_META) {
+        offset_time += strip->startofs / scene->frames_per_second();
+      }
 
-      Editing *ed = scene->ed;
-      Strip *parent_strip = lookup_meta_by_strip(ed, strip);
       //// Ramon: this seems to be the place
       /* Ramon: Note that the handle that is added to a meta strip does not get moved. This is
        * because the meta handle needs strip start -meta strip start. Currently the offset is
        * handled because we recreate the meta handle each time but for a proper implementation we
        * should do the right calculation of where the strip should be in the sound_move logic. */
-      int parent_start = parent_strip == nullptr ? 0 : parent_strip->left_handle();
       BKE_sound_move_scene_sound(scene,
                                  strip->runtime->scene_sound,
-                                 strip->start + startofs - parent_start,
-                                 strip->start + strip->len - endofs - parent_start,
+                                 strip->start + startofs - metastrip_start_get(strip_meta),
+                                 strip->start + strip->len - endofs -
+                                     metastrip_start_get(strip_meta),
                                  startofs + strip->anim_startofs,
                                  offset_time);
     }
-    // }
   }
 }
 
