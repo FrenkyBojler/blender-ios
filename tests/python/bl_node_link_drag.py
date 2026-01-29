@@ -115,9 +115,11 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
         for socket_idname in _socket_idnames:
             # Add a socket for all supported types.
             try:
-                group_tree.interface.new_socket(name=socket_idname, socket_type=socket_idname)
+                group_tree.interface.new_socket(name=socket_idname, in_out='INPUT', socket_type=socket_idname)
+                group_tree.interface.new_socket(name=socket_idname, in_out='OUTPUT', socket_type=socket_idname)
             except TypeError:
-                print(f"Skipping unsupported socket type {socket_idname} in tree {tree.bl_idname}")
+                # print(f"Skipping unsupported socket type {socket_idname} in tree {tree.bl_idname}")
+                pass
 
         group_node = tree.nodes.new(type=group_node_type)
         group_node.name = "Sockets"
@@ -127,14 +129,16 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
             with node_editor_context_override(bpy.context, tree, data_pointers = {"socket": socket}):
                 bpy.ops.node.link_drag_operation_test(count_link_operations=True)
             link_ops_count = tree["link_operations_count"]
-            print(f"{tree.bl_idname}: {socket.bl_idname} has {link_ops_count} link operations")
+            # print(f"{tree.bl_idname}: {socket.bl_idname} has {link_ops_count} link operations")
             for link_op_index in range(link_ops_count):
                 with node_editor_context_override(bpy.context, tree, data_pointers = {"socket": socket}):
                     bpy.ops.node.link_drag_operation_test(link_operation_index=link_op_index)
+                self.assertTrue(socket.is_linked)
 
                 added_nodes = selected_nodes(tree)
                 for node in added_nodes:
                     tree.nodes.remove(node)
+                self.assertFalse(socket.is_linked)
 
 
     def test_compositor_nodes(self):
@@ -143,7 +147,12 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
     def test_geometry_nodes(self):
         self.run_tree_type_tests(bpy.data.node_groups["Geometry Nodes"], "GeometryNodeGroup")
 
-    def test_shader_nodes(self):
+    def test_eevee_shader_nodes(self):
+        bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+        self.run_tree_type_tests(bpy.data.materials["Material"].node_tree, "ShaderNodeGroup")
+
+    def test_cycles_shader_nodes(self):
+        bpy.context.scene.render.engine = 'CYCLES'
         self.run_tree_type_tests(bpy.data.materials["Material"].node_tree, "ShaderNodeGroup")
 
 
