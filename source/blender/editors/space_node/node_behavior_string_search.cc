@@ -144,7 +144,7 @@ void node_behavior_add_string_search_button(const bContext & /*C*/,
   ui::button_placeholder_set(but, placeholder);
 
   const bNodeSocket &socket = *socket_ptr.data_as<bNodeSocket>();
-  BehaviorSocketSeachData *data = MEM_callocN<BehaviorSocketSeachData>(__func__);
+  BehaviorSocketSeachData *data = MEM_new<BehaviorSocketSeachData>(__func__);
   data->node_id = node.identifier;
   STRNCPY_UTF8(data->socket_identifier, socket.identifier);
 

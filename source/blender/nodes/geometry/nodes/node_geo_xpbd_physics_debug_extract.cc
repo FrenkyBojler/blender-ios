@@ -429,15 +429,13 @@ BundlePtr SubstepBundle::store() const
   bundle.add("init_stage", this->init_stage.store());
   bundle.add("dynamics_stage", this->dynamics_stage.store());
 
-  const CPPType &cpp_type = CPPType::get<BundlePtr>();
   const int count = this->constraint_iterations.size();
-  List::ArrayData array_data = List::ArrayData::ForConstructed(cpp_type, count);
-  MutableSpan<BundlePtr> constraint_iterations_span = {static_cast<BundlePtr *>(array_data.data),
-                                                       count};
+  Array<BundlePtr> constraint_iterations_array(count);
   for (const int i : this->constraint_iterations.index_range()) {
-    constraint_iterations_span[i] = this->constraint_iterations[i].store();
+    constraint_iterations_array[i] = this->constraint_iterations[i].store();
   }
-  ListPtr constraint_iterations_list = List::create(cpp_type, std::move(array_data), count);
+  ListPtr constraint_iterations_list = List::from_container(
+      std::move(constraint_iterations_array));
 
   bundle.add(
       "constraint_iterations",
@@ -471,14 +469,12 @@ std::optional<DebugBundle> DebugBundle::parse(const Bundle &bundle, BundleParseE
 
 BundlePtr DebugBundle::store() const
 {
-  const CPPType &cpp_type = CPPType::get<BundlePtr>();
   const int count = this->substeps.size();
-  List::ArrayData array_data = List::ArrayData::ForConstructed(cpp_type, count);
-  MutableSpan<BundlePtr> substeps_span = {static_cast<BundlePtr *>(array_data.data), count};
+  Array<BundlePtr> substeps_array(count);
   for (const int i : this->substeps.index_range()) {
-    substeps_span[i] = this->substeps[i].store();
+    substeps_array[i] = this->substeps[i].store();
   }
-  ListPtr substeps_list = List::create(cpp_type, std::move(array_data), count);
+  ListPtr substeps_list = List::from_container(std::move(substeps_array));
 
   BundlePtr bundle_ptr = Bundle::create();
   Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);

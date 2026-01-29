@@ -39,13 +39,10 @@ static void gather_bundle_paths_recursive(const BundlePtr &bundle_ptr,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   BundlePtr bundle = params.extract_input<BundlePtr>("Bundle");
-  auto *paths = new ImplicitSharedValue<Vector<std::string>>();
-  gather_bundle_paths_recursive(bundle, "", paths->data);
+  Vector<std::string> paths;
+  gather_bundle_paths_recursive(bundle, "", paths);
 
-  List::ArrayData paths_array_data = {paths->data.data(), ImplicitSharingPtr<>(paths)};
-  params.set_output(
-      "Paths",
-      List::create(CPPType::get<std::string>(), std::move(paths_array_data), paths->data.size()));
+  params.set_output("Paths", List::from_container(std::move(paths)));
 }
 
 static void node_register()
