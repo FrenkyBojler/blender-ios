@@ -520,9 +520,18 @@ static wmOperatorStatus link_drag_operation_test_exec(bContext *C, wmOperator *o
   Vector<SocketLinkOperation> search_link_ops;
   gather_socket_link_operations(*C, ntree, socket, search_link_ops);
 
-  if (RNA_boolean_get(op->ptr, "count_link_operations")) {
+  if (RNA_boolean_get(op->ptr, "find_link_operations")) {
     IDProperty *idprops = IDP_EnsureProperties(&ntree.id);
-    IDP_ReplaceInGroup(idprops, IDP_NewInt(search_link_ops.size(), "link_operations_count"));
+    IDProperty *idp_link_ops_array = IDP_NewIDPArray("link_operation_names");
+    IDP_ResizeIDPArray(idp_link_ops_array, search_link_ops.size());
+    for (const int i : search_link_ops.index_range()) {
+      const SocketLinkOperation &link_op = search_link_ops[i];
+      IDProperty *idp_link_op_name = IDP_NewString(link_op.name.c_str(), "name");
+      IDP_SetIndexArray(idp_link_ops_array, i, idp_link_op_name);
+      /* IDP_SetIndexArray makes a shallow copy. */
+      MEM_delete(idp_link_op_name);
+    }
+    IDP_ReplaceInGroup(idprops, idp_link_ops_array);
     return OPERATOR_FINISHED;
   }
 
@@ -536,9 +545,9 @@ static wmOperatorStatus link_drag_operation_test_exec(bContext *C, wmOperator *o
   Vector<bNode *> added_nodes;
   nodes::LinkSearchOpParams params{*C, ntree, socket.owner_node(), socket, added_nodes};
   link_op.fn(params);
-  const std::string msg = fmt::format(
-      "Link operation \"{}\" added {} nodes", link_op.name, added_nodes.size());
-  BKE_report(op->reports, RPT_INFO, msg.c_str());
+  // const std::string msg = fmt::format(
+  //     "Link operation \"{}\" added {} nodes", link_op.name, added_nodes.size());
+  // BKE_report(op->reports, RPT_INFO, msg.c_str());
 
   /* Select only added nodes. */
   for (bNode &node : ntree.nodes) {
@@ -563,11 +572,11 @@ void NODE_OT_link_drag_operation_test(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 
   RNA_def_boolean(ot->srna,
-                  "count_link_operations",
+                  "find_link_operations",
                   false,
-                  "Count Link Operations",
-                  "Count link operations for the context socket and write to "
-                  "\"link_operations_count\" property of the node tree");
+                  "Find Link Operations",
+                  "Write link operation names for the context socket the \"link_operation_names\" "
+                  "property of the node tree");
   RNA_def_int(ot->srna,
               "link_operation_index",
               -1,

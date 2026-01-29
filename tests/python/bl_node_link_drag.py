@@ -126,19 +126,20 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
         group_node.node_tree = group_tree
 
         for socket in chain(group_node.inputs, group_node.outputs):
-            with node_editor_context_override(bpy.context, tree, data_pointers = {"socket": socket}):
-                bpy.ops.node.link_drag_operation_test(count_link_operations=True)
-            link_ops_count = tree["link_operations_count"]
-            # print(f"{tree.bl_idname}: {socket.bl_idname} has {link_ops_count} link operations")
-            for link_op_index in range(link_ops_count):
+            with self.subTest("Socket Link Search", socket_type=socket.bl_idname, in_out=('OUTPUT' if socket.is_output else 'INPUT')):
                 with node_editor_context_override(bpy.context, tree, data_pointers = {"socket": socket}):
-                    bpy.ops.node.link_drag_operation_test(link_operation_index=link_op_index)
-                self.assertTrue(socket.is_linked)
+                    bpy.ops.node.link_drag_operation_test(find_link_operations=True)
+                link_ops_names = tree["link_operation_names"]
+                for link_op_index, link_op_name in enumerate(link_ops_names):
+                    with self.subTest("Link Operation", name=link_op_name):
+                        with node_editor_context_override(bpy.context, tree, data_pointers = {"socket": socket}):
+                            bpy.ops.node.link_drag_operation_test(link_operation_index=link_op_index)
+                        self.assertTrue(socket.is_linked, f"{link_op_name} failed to connect socket")
 
-                added_nodes = selected_nodes(tree)
-                for node in added_nodes:
-                    tree.nodes.remove(node)
-                self.assertFalse(socket.is_linked)
+                        added_nodes = selected_nodes(tree)
+                        for node in added_nodes:
+                            tree.nodes.remove(node)
+                        self.assertFalse(socket.is_linked)
 
 
     def test_compositor_nodes(self):
