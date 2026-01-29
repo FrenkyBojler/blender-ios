@@ -8795,7 +8795,8 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
         else if ((but->block->flag & BLOCK_LOOP && but->type != ButtonType::Block) ||
                  (but->block->auto_open == true))
         {
-          /* When auto open is disabled, open subpanel on hover but don't rely on sub level threshold value, see: #153110 */
+          /* When auto open is disabled, open subpanel on hover but don't rely on sub level
+           * threshold value, see: #153110 */
           time = (U.uiflag & USER_MENUOPENAUTO) ? 5 * U.menuthreshold2 : 10;
         }
         else if (U.uiflag & USER_MENUOPENAUTO) {
