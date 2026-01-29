@@ -58,6 +58,8 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+namespace blender {
+
 /* NOTE: The implementation for Apple lives in storage_apple.mm. */
 #if !defined(__APPLE__)
 bool BLI_change_working_dir(const char *dir)
@@ -74,11 +76,7 @@ bool BLI_change_working_dir(const char *dir)
   }
   return _wchdir(wdir) == 0;
 #  else
-  int result = chdir(dir);
-  if (result == 0) {
-    BLI_setenv("PWD", dir);
-  }
-  return result == 0;
+  return chdir(dir) == 0;
 #  endif
 }
 
@@ -93,15 +91,6 @@ char *BLI_current_working_dir(char *dir, const size_t maxncpy)
   }
   return nullptr;
 #  else
-  const char *pwd = BLI_getenv("PWD");
-  if (pwd) {
-    size_t srclen = BLI_strnlen(pwd, maxncpy);
-    if (srclen != maxncpy) {
-      memcpy(dir, pwd, srclen + 1);
-      return dir;
-    }
-    return nullptr;
-  }
   return getcwd(dir, maxncpy);
 #  endif
 }
@@ -490,26 +479,26 @@ void *BLI_file_read_data_as_mem_from_handle(FILE *fp,
     return nullptr;
   }
 
-  void *mem = MEM_mallocN(filelen + pad_bytes, __func__);
+  void *mem = MEM_new_uninitialized(filelen + pad_bytes, __func__);
   if (mem == nullptr) {
     return nullptr;
   }
 
   const long int filelen_read = fread(mem, 1, filelen, fp);
   if ((filelen_read < 0) || ferror(fp)) {
-    MEM_freeN(mem);
+    MEM_delete_void(mem);
     return nullptr;
   }
 
   if (read_size_exact) {
     if (filelen_read != filelen) {
-      MEM_freeN(mem);
+      MEM_delete_void(mem);
       return nullptr;
     }
   }
   else {
     if (filelen_read < filelen) {
-      mem = MEM_reallocN(mem, filelen_read + pad_bytes);
+      mem = MEM_realloc_uninitialized(mem, filelen_read + pad_bytes);
       if (mem == nullptr) {
         return nullptr;
       }
@@ -593,7 +582,7 @@ LinkNode *BLI_file_read_as_lines(const char *filepath)
     return nullptr;
   }
 
-  buf = MEM_calloc_arrayN<char>(size, "file_as_lines");
+  buf = MEM_new_array_zeroed<char>(size, "file_as_lines");
   if (buf) {
     size_t i, last = 0;
 
@@ -611,7 +600,7 @@ LinkNode *BLI_file_read_as_lines(const char *filepath)
       }
     }
 
-    MEM_freeN(buf);
+    MEM_delete(buf);
   }
 
   fclose(fp);
@@ -635,3 +624,5 @@ bool BLI_file_older(const char *file1, const char *file2)
   }
   return (st1.st_mtime < st2.st_mtime);
 }
+
+}  // namespace blender

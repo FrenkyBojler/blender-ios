@@ -16,7 +16,7 @@ def addon_keymap_register(keymap_data):
     """
     Register a set of keymaps for addons using a list of keymaps.
 
-    See 'blender_defaults.py' for examples of the format this takes.
+    See 'blender_default.py' for examples of the format this takes.
     """
     import bpy
     wm = bpy.context.window_manager
@@ -119,7 +119,7 @@ def keyconfig_test(kc):
                         item = km.keymap_items[j + i + 1]
                         if src.compare(item):
                             print("===========")
-                            print(km.name, "[self confict]")
+                            print(km.name, "[self conflict]")
                             print(_kmistr(src, is_modal).strip())
                             print(_kmistr(item, is_modal).strip())
                             result = True

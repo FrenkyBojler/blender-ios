@@ -4,6 +4,7 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_color.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix.hh"
@@ -62,7 +63,7 @@ enum ColorFlag {
   Seed = (1 << 3),
   Debug = (1 << 7),
 };
-ENUM_OPERATORS(ColorFlag, ColorFlag::Seed)
+ENUM_OPERATORS(ColorFlag)
 
 /** \} */
 
@@ -266,7 +267,7 @@ FillResult flood_fill(ImageBufferAccessor &buffer, const int leak_filter_width =
   const int width = buffer.width();
   const int height = buffer.height();
 
-  blender::Stack<int> active_pixels;
+  Stack<int> active_pixels;
   /* Initialize the stack with filled pixels (dot at mouse position). */
   for (const int i : pixels.index_range()) {
     if (get_flag(pixels[i], ColorFlag::Seed)) {
@@ -379,7 +380,7 @@ static void dilate(ImageBufferAccessor &buffer, int iterations = 1)
 {
   const MutableSpan<ColorGeometry4b> pixels = buffer.pixels();
 
-  blender::Stack<int> active_pixels;
+  Stack<int> active_pixels;
   for ([[maybe_unused]] const int iter : IndexRange(iterations)) {
     for (const int i : pixels.index_range()) {
       /* Ignore already filled pixels */
@@ -409,7 +410,7 @@ static void erode(ImageBufferAccessor &buffer, int iterations = 1)
 {
   const MutableSpan<ColorGeometry4b> pixels = buffer.pixels();
 
-  blender::Stack<int> active_pixels;
+  Stack<int> active_pixels;
   for ([[maybe_unused]] const int iter : IndexRange(iterations)) {
     for (const int i : pixels.index_range()) {
       /* Ignore empty pixels */
@@ -607,21 +608,13 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
   bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
       "cyclic", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<float> hardnesses = attributes.lookup_or_add_for_write_span<float>(
-      "hardness",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num())));
+      "hardness", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
   bke::SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
-      "fill_opacity",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num())));
+      "fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
-      "radius",
-      bke::AttrDomain::Point,
-      bke::AttributeInitVArray(VArray<float>::ForSingle(0.01f, curves.points_num())));
+      "radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
   bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
-      "opacity",
-      bke::AttrDomain::Point,
-      bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.points_num())));
+      "opacity", bke::AttrDomain::Point, bke::AttributeInitValue(1.0f));
 
   cyclic.span.fill(true);
   materials.span.fill(material_index);
@@ -660,7 +653,7 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
       scene.toolsettings->gp_paint, &brush);
   if (use_vertex_color) {
     ColorGeometry4f vertex_color;
-    srgb_to_linearrgb_v3_v3(vertex_color, brush.rgb);
+    copy_v3_v3(vertex_color, brush.color);
     vertex_color.a = brush.gpencil_settings->vertex_factor;
 
     if (ELEM(brush.gpencil_settings->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH)) {
@@ -828,7 +821,7 @@ static VArray<ColorGeometry4f> get_stroke_colors(const Object &object,
                                                  const std::optional<float> alpha_threshold)
 {
   if (!alpha_threshold) {
-    return VArray<ColorGeometry4f>::ForSingle(tint_color, curves.points_num());
+    return VArray<ColorGeometry4f>::from_single(tint_color, curves.points_num());
   }
 
   Array<ColorGeometry4f> colors(curves.points_num());
@@ -846,7 +839,7 @@ static VArray<ColorGeometry4f> get_stroke_colors(const Object &object,
       }
     }
   });
-  return VArray<ColorGeometry4f>::ForContainer(colors);
+  return VArray<ColorGeometry4f>::from_container(colors);
 }
 
 static Bounds<float2> get_region_bounds(const ARegion &region)
@@ -871,7 +864,7 @@ static std::optional<Bounds<float2>> get_boundary_bounds(const ARegion &region,
   std::optional<Bounds<float2>> boundary_bounds;
 
   BLI_assert(object.type == OB_GREASE_PENCIL);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
 
   BLI_assert(grease_pencil.has_active_layer());
 
@@ -880,7 +873,7 @@ static std::optional<Bounds<float2>> get_boundary_bounds(const ARegion &region,
     const float4x4 layer_to_world = layer.to_world_space(object);
     const bke::crazyspace::GeometryDeformation deformation =
         bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-            &object_eval, object, info.layer_index, info.frame_number);
+            &object_eval, object, info.drawing);
     const bool only_boundary_strokes = boundary_layers[info.layer_index];
     const VArray<float> radii = info.drawing.radii();
     const bke::CurvesGeometry &strokes = info.drawing.strokes();
@@ -1019,7 +1012,7 @@ static Image *render_strokes(const ViewContext &view_context,
   Object &object = *view_context.obact;
 
   BLI_assert(object.type == OB_GREASE_PENCIL);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
 
   /* Scale stroke radius by half to hide gaps between filled areas and boundaries. */
   const float radius_scale = (brush.gpencil_settings->fill_draw_mode == GP_FILL_DMODE_CONTROL) ?
@@ -1092,7 +1085,7 @@ static Image *render_strokes(const ViewContext &view_context,
 
     const IndexRange lines_range = extensions.lines.starts.index_range();
     if (!lines_range.is_empty()) {
-      const VArray<ColorGeometry4f> line_colors = VArray<ColorGeometry4f>::ForSingle(
+      const VArray<ColorGeometry4f> line_colors = VArray<ColorGeometry4f>::from_single(
           draw_boundary_color, lines_range.size());
       const float line_width = 1.0f;
 

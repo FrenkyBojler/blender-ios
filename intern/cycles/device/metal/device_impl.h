@@ -24,12 +24,8 @@ class MetalDevice : public Device {
  public:
   id<MTLDevice> mtlDevice = nil;
   id<MTLLibrary> mtlLibrary[PSO_NUM] = {nil};
-  id<MTLArgumentEncoder> mtlBufferKernelParamsEncoder =
-      nil; /* encoder used for fetching device pointers from MTLBuffers */
   id<MTLCommandQueue> mtlComputeCommandQueue = nil;
   id<MTLCommandQueue> mtlGeneralCommandQueue = nil;
-  id<MTLArgumentEncoder> mtlAncillaryArgEncoder =
-      nil; /* encoder used for fetching device pointers from MTLBuffers */
   id<MTLCounterSampleBuffer> mtlCounterSampleBuffer = nil;
   string source[PSO_NUM];
   string kernels_md5[PSO_NUM];
@@ -37,20 +33,23 @@ class MetalDevice : public Device {
 
   bool capture_enabled = false;
 
-  KernelParamsMetal launch_params = {nullptr};
+  /* Argument buffer for static data. */
+  id<MTLBuffer> launch_params_buffer = nil;
+  KernelParamsMetal *launch_params = nullptr;
 
   /* MetalRT members ----------------------------------*/
   bool use_metalrt = false;
+  bool use_metalrt_extended_limits = false;
   bool motion_blur = false;
   bool use_pcmi = false;
-  id<MTLArgumentEncoder> mtlASArgEncoder =
-      nil; /* encoder used for fetching device pointers from MTLAccelerationStructure */
 
-  id<MTLArgumentEncoder> mtlBlasArgEncoder = nil;
   id<MTLBuffer> blas_buffer = nil;
 
   API_AVAILABLE(macos(11.0))
   vector<id<MTLAccelerationStructure>> unique_blas_array;
+
+  API_AVAILABLE(macos(11.0))
+  vector<id<MTLAccelerationStructure>> blas_array;
 
   API_AVAILABLE(macos(11.0))
   id<MTLAccelerationStructure> accel_struct = nil;
@@ -78,15 +77,10 @@ class MetalDevice : public Device {
   std::recursive_mutex metal_mem_map_mutex;
 
   /* Bindless Textures */
-  bool is_texture(const TextureInfo &tex);
-  device_vector<TextureInfo> texture_info;
-  bool need_texture_info = false;
-  id<MTLArgumentEncoder> mtlTextureArgEncoder = nil;
-  id<MTLArgumentEncoder> mtlBufferArgEncoder = nil;
-  id<MTLBuffer> buffer_bindings_1d = nil;
-  id<MTLBuffer> texture_bindings_2d = nil;
-  id<MTLBuffer> texture_bindings_3d = nil;
-  std::vector<id<MTLTexture>> texture_slot_map;
+  bool is_texture(const KernelImageInfo &info);
+  device_vector<KernelImageInfo> image_info;
+  id<MTLBuffer> image_bindings = nil;
+  std::vector<id<MTLResource>> image_slot_map;
 
   MetalPipelineType kernel_specialization_level = PSO_GENERIC;
 
@@ -130,7 +124,7 @@ class MetalDevice : public Device {
 
   bool load_kernels(const uint kernel_features) override;
 
-  void load_texture_info();
+  void load_image_info();
 
   void erase_allocation(device_memory &mem);
 
@@ -142,6 +136,8 @@ class MetalDevice : public Device {
   unique_ptr<DeviceQueue> gpu_queue_create() override;
 
   void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
+
+  bool set_bvh_limits(size_t instance_count, size_t max_prim_count) override;
 
   void optimize_for_scene(Scene *scene) override;
 
@@ -182,10 +178,10 @@ class MetalDevice : public Device {
   void global_alloc(device_memory &mem);
   void global_free(device_memory &mem);
 
-  void tex_alloc(device_texture &mem);
-  void tex_alloc_as_buffer(device_texture &mem);
-  void tex_copy_to(device_texture &mem);
-  void tex_free(device_texture &mem);
+  void image_alloc(device_image &mem);
+  void image_alloc_as_buffer(device_image &mem);
+  void image_copy_to(device_image &mem);
+  void image_free(device_image &mem);
 
   void flush_delayed_free_list();
 

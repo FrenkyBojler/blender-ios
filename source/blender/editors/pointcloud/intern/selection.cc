@@ -22,79 +22,14 @@
 
 namespace blender::ed::pointcloud {
 
-static bool contains(const VArray<bool> &varray,
-                     const IndexMask &indices_to_check,
-                     const bool value)
-{
-  const CommonVArrayInfo info = varray.common_info();
-  if (info.type == CommonVArrayInfo::Type::Single) {
-    return *static_cast<const bool *>(info.data) == value;
-  }
-  if (info.type == CommonVArrayInfo::Type::Span) {
-    const Span<bool> span(static_cast<const bool *>(info.data), varray.size());
-    return threading::parallel_reduce(
-        indices_to_check.index_range(),
-        4096,
-        false,
-        [&](const IndexRange range, const bool init) {
-          if (init) {
-            return init;
-          }
-          const IndexMask sliced_mask = indices_to_check.slice(range);
-          if (std::optional<IndexRange> range = sliced_mask.to_range()) {
-            return span.slice(*range).contains(value);
-          }
-          for (const int64_t segment_i : IndexRange(sliced_mask.segments_num())) {
-            const IndexMaskSegment segment = sliced_mask.segment(segment_i);
-            for (const int i : segment) {
-              if (span[i] == value) {
-                return true;
-              }
-            }
-          }
-          return false;
-        },
-        std::logical_or());
-  }
-  return threading::parallel_reduce(
-      indices_to_check.index_range(),
-      2048,
-      false,
-      [&](const IndexRange range, const bool init) {
-        if (init) {
-          return init;
-        }
-        constexpr int64_t MaxChunkSize = 512;
-        const int64_t slice_end = range.one_after_last();
-        for (int64_t start = range.start(); start < slice_end; start += MaxChunkSize) {
-          const int64_t end = std::min<int64_t>(start + MaxChunkSize, slice_end);
-          const int64_t size = end - start;
-          const IndexMask sliced_mask = indices_to_check.slice(start, size);
-          std::array<bool, MaxChunkSize> values;
-          auto values_end = values.begin() + size;
-          varray.materialize_compressed(sliced_mask, values);
-          if (std::find(values.begin(), values_end, value) != values_end) {
-            return true;
-          }
-        }
-        return false;
-      },
-      std::logical_or());
-}
-
-static bool contains(const VArray<bool> &varray, const IndexRange range_to_check, const bool value)
-{
-  return contains(varray, IndexMask(range_to_check), value);
-}
-
 bool has_anything_selected(const PointCloud &pointcloud)
 {
   const VArray<bool> selection = *pointcloud.attributes().lookup<bool>(".selection");
-  return !selection || contains(selection, selection.index_range(), true);
+  return !selection || array_utils::contains(selection, selection.index_range(), true);
 }
 
 bke::GSpanAttributeWriter ensure_selection_attribute(PointCloud &pointcloud,
-                                                     eCustomDataType create_type)
+                                                     bke::AttrType create_type)
 {
   const bke::AttrDomain selection_domain = bke::AttrDomain::Point;
   const StringRef attribute_name = ".selection";
@@ -103,19 +38,14 @@ bke::GSpanAttributeWriter ensure_selection_attribute(PointCloud &pointcloud,
   if (attributes.contains(attribute_name)) {
     return attributes.lookup_for_write_span(attribute_name);
   }
-  const int domain_size = pointcloud.totpoint;
   switch (create_type) {
-    case CD_PROP_BOOL:
-      attributes.add(attribute_name,
-                     selection_domain,
-                     CD_PROP_BOOL,
-                     bke::AttributeInitVArray(VArray<bool>::ForSingle(true, domain_size)));
+    case bke::AttrType::Bool:
+      attributes.add(
+          attribute_name, selection_domain, bke::AttrType::Bool, bke::AttributeInitValue(true));
       break;
-    case CD_PROP_FLOAT:
-      attributes.add(attribute_name,
-                     selection_domain,
-                     CD_PROP_FLOAT,
-                     bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, domain_size)));
+    case bke::AttrType::Float:
+      attributes.add(
+          attribute_name, selection_domain, bke::AttrType::Float, bke::AttributeInitValue(1.0f));
       break;
     default:
       BLI_assert_unreachable();
@@ -176,7 +106,8 @@ static void select_all(PointCloud &pointcloud, const IndexMask &mask, int action
     }
   }
 
-  bke::GSpanAttributeWriter selection = ensure_selection_attribute(pointcloud, CD_PROP_BOOL);
+  bke::GSpanAttributeWriter selection = ensure_selection_attribute(pointcloud,
+                                                                   bke::AttrType::Bool);
   if (action == SEL_SELECT) {
     fill_selection_true(selection.span, mask);
   }
@@ -199,7 +130,8 @@ static bool apply_selection_operation(PointCloud &pointcloud,
                                       eSelectOp sel_op)
 {
   bool changed = false;
-  bke::GSpanAttributeWriter selection = ensure_selection_attribute(pointcloud, CD_PROP_BOOL);
+  bke::GSpanAttributeWriter selection = ensure_selection_attribute(pointcloud,
+                                                                   bke::AttrType::Bool);
   if (sel_op == SEL_OP_SET) {
     fill_selection_false(selection.span, IndexRange(selection.span.size()));
     changed = true;

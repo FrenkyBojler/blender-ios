@@ -15,9 +15,11 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_brush.hh"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_undo_system.hh"
 
 #include "ED_paint.hh"
@@ -37,7 +39,9 @@
 
 #include "paint_intern.hh"
 
-namespace blender::ed::sculpt_paint::image::ops::paint {
+namespace blender {
+
+namespace ed::sculpt_paint::image::ops::paint {
 
 /**
  * Interface to use the same painting operator for 3D and 2D painting. Interface removes the
@@ -46,8 +50,12 @@ namespace blender::ed::sculpt_paint::image::ops::paint {
 class AbstractPaintMode {
  public:
   virtual ~AbstractPaintMode() = default;
-  virtual void *paint_new_stroke(
-      bContext *C, wmOperator *op, Object *ob, const float mouse[2], int mode) = 0;
+  virtual void *paint_new_stroke(bContext *C,
+                                 wmOperator *op,
+                                 Object *ob,
+                                 const float mouse[2],
+                                 BrushStrokeMode mode,
+                                 BrushSwitchMode brush_switch_mode) = 0;
   virtual void paint_stroke(bContext *C,
                             void *stroke_handle,
                             float prev_mouse[2],
@@ -60,7 +68,6 @@ class AbstractPaintMode {
   virtual void paint_stroke_redraw(const bContext *C, void *stroke_handle, bool final) = 0;
   virtual void paint_stroke_done(void *stroke_handle) = 0;
   virtual void paint_gradient_fill(const bContext *C,
-                                   const Scene *scene,
                                    const Paint *paint,
                                    Brush *brush,
                                    PaintStroke *stroke,
@@ -68,7 +75,6 @@ class AbstractPaintMode {
                                    float mouse_start[2],
                                    float mouse_end[2]) = 0;
   virtual void paint_bucket_fill(const bContext *C,
-                                 const Scene *scene,
                                  const Paint *paint,
                                  Brush *brush,
                                  PaintStroke *stroke,
@@ -79,8 +85,12 @@ class AbstractPaintMode {
 
 class ImagePaintMode : public AbstractPaintMode {
  public:
-  void *paint_new_stroke(
-      bContext *C, wmOperator *op, Object * /*ob*/, const float /*mouse*/[2], int mode) override
+  void *paint_new_stroke(bContext *C,
+                         wmOperator *op,
+                         Object * /*ob*/,
+                         const float /*mouse*/[2],
+                         const BrushStrokeMode mode,
+                         const BrushSwitchMode /*brush_switch_mode*/) override
   {
     return paint_2d_new_stroke(C, op, mode);
   }
@@ -108,7 +118,6 @@ class ImagePaintMode : public AbstractPaintMode {
   }
 
   void paint_gradient_fill(const bContext *C,
-                           const Scene * /*scene*/,
                            const Paint * /*paint*/,
                            Brush *brush,
                            PaintStroke * /*stroke*/,
@@ -120,7 +129,6 @@ class ImagePaintMode : public AbstractPaintMode {
   }
 
   void paint_bucket_fill(const bContext *C,
-                         const Scene *scene,
                          const Paint *paint,
                          Brush *brush,
                          PaintStroke *stroke,
@@ -129,11 +137,11 @@ class ImagePaintMode : public AbstractPaintMode {
                          float mouse_end[2]) override
   {
     float color[3];
-    if (paint_stroke_inverted(stroke)) {
-      copy_v3_v3(color, BKE_brush_secondary_color_get(scene, paint, brush));
+    if (stroke->stroke_inverted()) {
+      copy_v3_v3(color, BKE_brush_secondary_color_get(paint, brush));
     }
     else {
-      copy_v3_v3(color, BKE_brush_color_get(scene, paint, brush));
+      copy_v3_v3(color, BKE_brush_color_get(paint, brush));
     }
     paint_2d_bucket_fill(C, color, brush, mouse_start, mouse_end, stroke_handle);
   }
@@ -141,10 +149,14 @@ class ImagePaintMode : public AbstractPaintMode {
 
 class ProjectionPaintMode : public AbstractPaintMode {
  public:
-  void *paint_new_stroke(
-      bContext *C, wmOperator * /*op*/, Object *ob, const float mouse[2], int mode) override
+  void *paint_new_stroke(bContext *C,
+                         wmOperator * /*op*/,
+                         Object *ob,
+                         const float mouse[2],
+                         BrushStrokeMode mode,
+                         BrushSwitchMode brush_switch_mode) override
   {
-    return paint_proj_new_stroke(C, ob, mouse, mode);
+    return paint_proj_new_stroke(C, ob, mouse, mode, brush_switch_mode);
   }
 
   void paint_stroke(bContext *C,
@@ -170,7 +182,6 @@ class ProjectionPaintMode : public AbstractPaintMode {
   }
 
   void paint_gradient_fill(const bContext *C,
-                           const Scene *scene,
                            const Paint *paint,
                            Brush *brush,
                            PaintStroke *stroke,
@@ -178,11 +189,10 @@ class ProjectionPaintMode : public AbstractPaintMode {
                            float mouse_start[2],
                            float mouse_end[2]) override
   {
-    paint_fill(C, scene, paint, brush, stroke, stroke_handle, mouse_start, mouse_end);
+    paint_fill(C, paint, brush, stroke, stroke_handle, mouse_start, mouse_end);
   }
 
   void paint_bucket_fill(const bContext *C,
-                         const Scene *scene,
                          const Paint *paint,
                          Brush *brush,
                          PaintStroke *stroke,
@@ -190,13 +200,12 @@ class ProjectionPaintMode : public AbstractPaintMode {
                          float mouse_start[2],
                          float mouse_end[2]) override
   {
-    paint_fill(C, scene, paint, brush, stroke, stroke_handle, mouse_start, mouse_end);
+    paint_fill(C, paint, brush, stroke, stroke_handle, mouse_start, mouse_end);
   }
 
  private:
   void paint_fill(const bContext *C,
-                  const Scene *scene,
-                  const Paint * /*paint*/,
+                  const Paint *paint,
                   Brush *brush,
                   PaintStroke *stroke,
                   void *stroke_handle,
@@ -207,10 +216,10 @@ class ProjectionPaintMode : public AbstractPaintMode {
                       stroke_handle,
                       mouse_start,
                       mouse_end,
-                      paint_stroke_flipped(stroke),
+                      stroke->stroke_flipped(),
                       1.0,
                       0.0,
-                      BKE_brush_size_get(scene, brush));
+                      BKE_brush_radius_get(paint, brush));
     /* two redraws, one for GPU update, one for notification */
     paint_proj_redraw(C, stroke_handle, false);
     paint_proj_redraw(C, stroke_handle, true);
@@ -243,18 +252,18 @@ struct PaintOperation : public PaintModeData {
 };
 
 static void gradient_draw_line(bContext * /*C*/,
-                               const blender::int2 &xy,
-                               const blender::float2 & /*tilt*/,
+                               const int2 &xy,
+                               const float2 & /*tilt*/,
                                void *customdata)
 {
-  PaintOperation *pop = (PaintOperation *)customdata;
+  PaintOperation *pop = static_cast<PaintOperation *>(customdata);
 
   if (pop) {
     GPU_line_smooth(true);
     GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
 
     ARegion *region = pop->vc.region;
 
@@ -264,7 +273,7 @@ static void gradient_draw_line(bContext * /*C*/,
     immUniformColor4ub(0, 0, 0, 255);
 
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2fv(pos, blender::float2(xy));
+    immVertex2fv(pos, float2(xy));
     immVertex2f(
         pos, pop->startmouse[0] + region->winrct.xmin, pop->startmouse[1] + region->winrct.ymin);
     immEnd();
@@ -273,7 +282,7 @@ static void gradient_draw_line(bContext * /*C*/,
     immUniformColor4ub(255, 255, 255, 255);
 
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2fv(pos, blender::float2(xy));
+    immVertex2fv(pos, float2(xy));
     immVertex2f(
         pos, pop->startmouse[0] + region->winrct.xmin, pop->startmouse[1] + region->winrct.ymin);
     immEnd();
@@ -294,7 +303,8 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
   ToolSettings *settings = scene->toolsettings;
   std::unique_ptr<PaintOperation> pop = std::make_unique<PaintOperation>();
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
-  int mode = RNA_enum_get(op->ptr, "mode");
+  auto mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
+  auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
   pop->vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   copy_v2_v2(pop->prevmouse, mouse);
@@ -318,7 +328,7 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
     pop->mode = MEM_new<ImagePaintMode>("ImagePaintMode");
   }
 
-  pop->stroke_handle = pop->mode->paint_new_stroke(C, op, ob, mouse, mode);
+  pop->stroke_handle = pop->mode->paint_new_stroke(C, op, ob, mouse, mode, brush_switch_mode);
   if (!pop->stroke_handle) {
     return nullptr;
   }
@@ -333,29 +343,52 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
   settings->imapaint.flag |= IMAGEPAINT_DRAWING;
   ED_image_undo_push_begin(op->type->name, PaintMode::Texture2D);
 
+  BKE_curvemapping_init(brush->curve_rand_hue);
+  BKE_curvemapping_init(brush->curve_rand_saturation);
+  BKE_curvemapping_init(brush->curve_rand_value);
+
   return pop;
 }
 
-static void paint_stroke_update_step(bContext *C,
-                                     wmOperator *op,
-                                     PaintStroke *stroke,
-                                     PointerRNA *itemptr)
-{
-  PaintOperation *pop = static_cast<PaintOperation *>(paint_stroke_mode_data(stroke));
-  Scene *scene = CTX_data_scene(C);
-  ToolSettings *toolsettings = CTX_data_tool_settings(C);
-  UnifiedPaintSettings *ups = &toolsettings->unified_paint_settings;
-  Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
+struct ImagePaintStroke final : public PaintStroke {
+  ImagePaintStroke(bContext *C, wmOperator *op, const int event_type)
+      : PaintStroke(C, op, event_type)
+  {
+  }
 
-  float alphafac = (brush->flag & BRUSH_ACCUMULATE) ? ups->overlap_factor : 1.0f;
+  bool get_location(float location[3], const float mouse[2], bool force_original) override;
+  bool test_start(wmOperator *op, const float mouse[2]) override;
+  void update_step(wmOperator *op, PointerRNA *itemptr) override;
+  void redraw(bool final) override;
+  bool test_cancel() override;
+  void done(bool is_cancel) override;
+
+  void update_for_exec(bContext *C,
+                       const Brush &brush,
+                       PaintMode mode,
+                       const float mouse_init[2],
+                       float mouse[2],
+                       float pressure,
+                       float r_location[3],
+                       bool *r_location_is_set);
+};
+
+void ImagePaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
+{
+  PaintOperation *pop = static_cast<PaintOperation *>(mode_data_.get());
+  Paint *paint = BKE_paint_get_active_from_context(this->evil_C);
+  bke::PaintRuntime *paint_runtime = paint->runtime;
+  Brush *brush = BKE_paint_brush(paint);
+
+  float alphafac = (brush->flag & BRUSH_ACCUMULATE) ? paint_runtime->overlap_factor : 1.0f;
 
   /* initial brush values. Maybe it should be considered moving these to stroke system */
-  float startalpha = BKE_brush_alpha_get(scene, brush);
+  float startalpha = BKE_brush_alpha_get(paint, brush);
 
   float mouse[2];
   float pressure;
   float size;
-  float distance = paint_stroke_distance_get(stroke);
+  float distance = this->stroke_distance();
   int eraser;
 
   RNA_float_get_array(itemptr, "mouse", mouse);
@@ -370,38 +403,39 @@ static void paint_stroke_update_step(bContext *C,
   }
 
   if (BKE_brush_use_alpha_pressure(brush)) {
-    BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure * alphafac));
+    pressure = BKE_curvemapping_evaluateF(brush->curve_strength, 0, pressure);
+    BKE_brush_alpha_set(paint, brush, max_ff(0.0f, startalpha * pressure * alphafac));
   }
   else {
-    BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * alphafac));
+    BKE_brush_alpha_set(paint, brush, max_ff(0.0f, startalpha * alphafac));
   }
 
   if ((brush->flag & BRUSH_DRAG_DOT) || (brush->flag & BRUSH_ANCHORED)) {
-    UndoStack *ustack = CTX_wm_manager(C)->undo_stack;
+    UndoStack *ustack = CTX_wm_manager(this->evil_C)->runtime->undo_stack;
     ED_image_undo_restore(ustack->step_init);
   }
 
   pop->mode->paint_stroke(
-      C, pop->stroke_handle, pop->prevmouse, mouse, eraser, pressure, distance, size);
+      this->evil_C, pop->stroke_handle, pop->prevmouse, mouse, eraser, pressure, distance, size);
 
   copy_v2_v2(pop->prevmouse, mouse);
 
   /* restore brush values */
-  BKE_brush_alpha_set(scene, brush, startalpha);
+  BKE_brush_alpha_set(paint, brush, startalpha);
 }
 
-static void paint_stroke_redraw(const bContext *C, PaintStroke *stroke, bool final)
+void ImagePaintStroke::redraw(bool final)
 {
-  PaintOperation *pop = static_cast<PaintOperation *>(paint_stroke_mode_data(stroke));
-  pop->mode->paint_stroke_redraw(C, pop->stroke_handle, final);
+  PaintOperation *pop = static_cast<PaintOperation *>(mode_data_.get());
+  pop->mode->paint_stroke_redraw(this->evil_C, pop->stroke_handle, final);
 }
 
-static void paint_stroke_done(const bContext *C, PaintStroke *stroke)
+void ImagePaintStroke::done(const bool is_cancel)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(this->evil_C);
   ToolSettings *toolsettings = scene->toolsettings;
-  PaintOperation *pop = static_cast<PaintOperation *>(paint_stroke_mode_data(stroke));
-  const Paint *paint = BKE_paint_get_active_from_context(C);
+  PaintOperation *pop = static_cast<PaintOperation *>(mode_data_.get());
+  const Paint *paint = BKE_paint_get_active_from_context(this->evil_C);
   Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
 
   toolsettings->imapaint.flag &= ~IMAGEPAINT_DRAWING;
@@ -409,17 +443,19 @@ static void paint_stroke_done(const bContext *C, PaintStroke *stroke)
   if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) {
     if (brush->flag & BRUSH_USE_GRADIENT) {
       pop->mode->paint_gradient_fill(
-          C, scene, paint, brush, stroke, pop->stroke_handle, pop->startmouse, pop->prevmouse);
+          this->evil_C, paint, brush, this, pop->stroke_handle, pop->startmouse, pop->prevmouse);
     }
     else {
       pop->mode->paint_bucket_fill(
-          C, scene, paint, brush, stroke, pop->stroke_handle, pop->startmouse, pop->prevmouse);
+          this->evil_C, paint, brush, this, pop->stroke_handle, pop->startmouse, pop->prevmouse);
     }
   }
   pop->mode->paint_stroke_done(pop->stroke_handle);
   pop->stroke_handle = nullptr;
 
-  ED_image_undo_push_end();
+  if (!is_cancel) {
+    ED_image_undo_push_end();
+  }
 
 /* duplicate warning, see texpaint_init */
 #if 0
@@ -437,39 +473,45 @@ static void paint_stroke_done(const bContext *C, PaintStroke *stroke)
   }
 #endif
 }
+bool ImagePaintStroke::get_location(float /*location*/[3],
+                                    const float /*mouse*/[2],
+                                    bool /*force_original*/)
+{
+  return true;
+}
 
-static bool paint_stroke_test_start(bContext *C, wmOperator *op, const float mouse[2])
+bool ImagePaintStroke::test_cancel()
+{
+  return true;
+}
+
+bool ImagePaintStroke::test_start(wmOperator *op, const float mouse[2])
 {
   std::unique_ptr<PaintOperation> pop;
 
   /* TODO: Should avoid putting this here. Instead, last position should be requested
    * from stroke system. */
 
-  if (!(pop = texture_paint_init(C, op, mouse))) {
+  if (!(pop = texture_paint_init(this->evil_C, op, mouse))) {
     return false;
   }
 
-  paint_stroke_set_mode_data(static_cast<PaintStroke *>(op->customdata), std::move(pop));
+  mode_data_ = std::move(pop);
 
   return true;
 }
 
 static wmOperatorStatus paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  op->customdata = paint_stroke_new(C,
-                                    op,
-                                    nullptr,
-                                    paint_stroke_test_start,
-                                    paint_stroke_update_step,
-                                    paint_stroke_redraw,
-                                    paint_stroke_done,
-                                    event->type);
+  ImagePaintStroke *stroke = MEM_new<ImagePaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
-    paint_stroke_free(C, op, static_cast<PaintStroke *>(op->customdata));
+    stroke->free(C, op);
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
   /* add modal handler */
@@ -478,6 +520,18 @@ static wmOperatorStatus paint_invoke(bContext *C, wmOperator *op, const wmEvent 
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
+}
+
+void ImagePaintStroke::update_for_exec(bContext *C,
+                                       const Brush &brush,
+                                       PaintMode mode,
+                                       const float mouse_init[2],
+                                       float mouse[2],
+                                       float pressure,
+                                       float r_location[3],
+                                       bool *r_location_is_set)
+{
+  this->update(C, brush, mode, mouse_init, mouse, pressure, r_location, r_location_is_set);
 }
 
 static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
@@ -494,19 +548,11 @@ static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
 
   RNA_float_get_array(&firstpoint, "mouse", mouse);
 
-  PaintStroke *stroke = paint_stroke_new(C,
-                                         op,
-                                         nullptr,
-                                         paint_stroke_test_start,
-                                         paint_stroke_update_step,
-                                         paint_stroke_redraw,
-                                         paint_stroke_done,
-                                         0);
+  ImagePaintStroke *stroke = MEM_new<ImagePaintStroke>(__func__, C, op, 0);
   op->customdata = stroke;
 
   /* Make sure we have proper coordinates for sampling (mask) textures -- these get stored in
    * #UnifiedPaintSettings -- as well as support randomness and jitter. */
-  Scene &scene = *CTX_data_scene(C);
   PaintMode mode = BKE_paintmode_get_active_from_context(C);
   Paint &paint = *BKE_paint_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
@@ -516,23 +562,45 @@ static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
   bool dummy;
   float dummy_location[3];
 
-  paint_stroke_jitter_pos(scene, *stroke, mode, brush, pressure, mouse, mouse_out);
-  paint_brush_update(C, brush, mode, stroke, mouse, mouse_out, pressure, dummy_location, &dummy);
+  BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
+  float zoomx;
+  float zoomy;
+  get_imapaint_zoom(C, &zoomx, &zoomy);
+  float zoom_2d = std::max(zoomx, zoomy);
+  paint_stroke_jitter_pos(&paint, mode, brush, pressure, stroke_mode, zoom_2d, mouse, mouse_out);
 
-  /* frees op->customdata */
-  return paint_stroke_exec(C, op, static_cast<PaintStroke *>(op->customdata));
+  stroke->update_for_exec(C, brush, mode, mouse, mouse_out, pressure, dummy_location, &dummy);
+  wmOperatorStatus ret_val = stroke->exec(C, op);
+
+  MEM_delete(stroke);
+
+  return ret_val;
 }
 
 static wmOperatorStatus paint_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
+  ImagePaintStroke *stroke = static_cast<ImagePaintStroke *>(op->customdata);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void paint_cancel(bContext *C, wmOperator *op)
 {
-  paint_stroke_cancel(C, op, static_cast<PaintStroke *>(op->customdata));
+  ImagePaintStroke *stroke = static_cast<ImagePaintStroke *>(op->customdata);
+  UndoStack *ustack = CTX_wm_manager(C)->runtime->undo_stack;
+  if (ustack->step_init) {
+    /* If the user cancels a stroke when none actually started, there is nothing to undo from. */
+    ED_image_undo_restore(ustack->step_init);
+  }
+
+  stroke->cancel(C, op);
 }
-}  // namespace blender::ed::sculpt_paint::image::ops::paint
+}  // namespace ed::sculpt_paint::image::ops::paint
 
 void PAINT_OT_image_paint(wmOperatorType *ot)
 {
@@ -555,3 +623,5 @@ void PAINT_OT_image_paint(wmOperatorType *ot)
 
   paint_stroke_operator_properties(ot);
 }
+
+}  // namespace blender

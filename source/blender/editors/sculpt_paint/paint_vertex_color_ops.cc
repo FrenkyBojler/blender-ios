@@ -8,9 +8,9 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_array.hh"
+#include "BLI_color.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
@@ -35,14 +35,7 @@
 #include "paint_intern.hh" /* own include */
 #include "sculpt_intern.hh"
 
-using blender::Array;
-using blender::ColorGeometry4f;
-using blender::FunctionRef;
-using blender::GMutableSpan;
-using blender::IndexMask;
-using blender::IndexMaskMemory;
-using blender::IndexRange;
-using blender::Vector;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Utility Functions
@@ -59,7 +52,7 @@ static bool vertex_weight_paint_mode_poll(bContext *C)
 static void tag_object_after_update(Object &object)
 {
   BLI_assert(object.type == OB_MESH);
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
+  Mesh &mesh = *id_cast<Mesh *>(object.data);
   DEG_id_tag_update(&mesh.id, ID_RECALC_SYNC_TO_EVAL);
   /* NOTE: Original mesh is used for display, so tag it directly here. */
   BKE_mesh_batch_cache_dirty_tag(&mesh, BKE_MESH_BATCH_DIRTY_ALL);
@@ -73,8 +66,6 @@ static void tag_object_after_update(Object &object)
 
 static bool vertex_paint_from_weight(Object &ob)
 {
-  using namespace blender;
-
   Mesh *mesh;
   if ((mesh = BKE_mesh_from_object(&ob)) == nullptr ||
       ED_mesh_color_ensure(mesh, nullptr) == false)
@@ -109,7 +100,7 @@ static bool vertex_paint_from_weight(Object &ob)
   const GVArray vertex_group = *attributes.lookup(
       deform_group->name,
       bke::AttrDomain::Point,
-      bke::cpp_type_to_custom_data_type(color_attribute.varray.type()));
+      bke::cpp_type_to_attribute_type(color_attribute.varray.type()));
   if (!vertex_group) {
     BLI_assert_unreachable();
     return false;
@@ -159,10 +150,9 @@ void PAINT_OT_vertex_color_from_weight(wmOperatorType *ot)
  * \{ */
 
 static IndexMask get_selected_indices(const Mesh &mesh,
-                                      const blender::bke::AttrDomain domain,
+                                      const bke::AttrDomain domain,
                                       IndexMaskMemory &memory)
 {
-  using namespace blender;
   const bke::AttributeAccessor attributes = mesh.attributes();
 
   if (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) {
@@ -180,7 +170,6 @@ static IndexMask get_selected_indices(const Mesh &mesh,
 
 static void face_corner_color_equalize_verts(Mesh &mesh, const IndexMask selection)
 {
-  using namespace blender;
   const StringRef name = mesh.active_color_attribute;
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
@@ -201,7 +190,6 @@ static void face_corner_color_equalize_verts(Mesh &mesh, const IndexMask selecti
 
 static bool vertex_color_smooth(Object &ob)
 {
-  using namespace blender;
   Mesh *mesh;
   if (((mesh = BKE_mesh_from_object(&ob)) == nullptr) ||
       (ED_mesh_color_ensure(mesh, nullptr) == false))
@@ -253,7 +241,6 @@ void PAINT_OT_vertex_color_smooth(wmOperatorType *ot)
 static void transform_active_color_data(
     Mesh &mesh, const FunctionRef<void(ColorGeometry4f &color)> transform_fn)
 {
-  using namespace blender;
   const StringRef name = mesh.active_color_attribute;
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (!attributes.contains(name)) {
@@ -273,7 +260,6 @@ static void transform_active_color_data(
   selection.foreach_segment(GrainSize(1024), [&](const IndexMaskSegment segment) {
     color_attribute.varray.type().to_static_type_tag<ColorGeometry4f, ColorGeometry4b>(
         [&](auto type_tag) {
-          using namespace blender;
           using T = typename decltype(type_tag)::type;
           for ([[maybe_unused]] const int i : segment) {
             if constexpr (std::is_void_v<T>) {
@@ -285,9 +271,10 @@ static void transform_active_color_data(
               color_attribute.varray.set_by_copy(i, &color);
             }
             else if constexpr (std::is_same_v<T, ColorGeometry4b>) {
-              ColorGeometry4f color = color_attribute.varray.get<ColorGeometry4b>(i).decode();
+              ColorGeometry4f color = color::decode(
+                  color_attribute.varray.get<ColorGeometry4b>(i));
               transform_fn(color);
-              ColorGeometry4b color_encoded = color.encode();
+              ColorGeometry4b color_encoded = color::encode(color);
               color_attribute.varray.set_by_copy(i, &color_encoded);
             }
           }
@@ -296,13 +283,12 @@ static void transform_active_color_data(
 
   color_attribute.finish();
 
-  DEG_id_tag_update(&mesh.id, 0);
+  DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
 }
 
 static void transform_active_color(bContext *C,
                                    const FunctionRef<void(ColorGeometry4f &color)> transform_fn)
 {
-  using namespace blender;
   using namespace blender::ed::sculpt_paint;
   Object &obact = *CTX_data_active_object(C);
 
@@ -314,7 +300,7 @@ static void transform_active_color(bContext *C,
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
-  Mesh &mesh = *static_cast<Mesh *>(obact.data);
+  Mesh &mesh = *id_cast<Mesh *>(obact.data);
   transform_active_color_data(mesh, transform_fn);
 
   pbvh.tag_attribute_changed(node_mask, mesh.active_color_attribute);
@@ -525,3 +511,5 @@ void PAINT_OT_vertex_color_levels(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

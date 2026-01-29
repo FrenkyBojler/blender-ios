@@ -10,6 +10,8 @@
 
 #include "BLI_math_inline.h"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Defines
  * \{ */
@@ -44,7 +46,7 @@ void cpack_to_rgb(unsigned int col, float *r_r, float *r_g, float *r_b);
 /** \name Conversion to RGBA
  * \{ */
 
-void hex_to_rgba(const char *hexcol, float *r_r, float *r_g, float *r_b, float *r_a);
+bool hex_to_rgba(const char *hexcol, float *r_r, float *r_g, float *r_b, float *r_a);
 
 /** \} */
 
@@ -137,10 +139,10 @@ void rgb_float_set_hue_float_offset(float rgb[3], float hue_offset);
  */
 void rgb_byte_set_hue_float_offset(unsigned char rgb[3], float hue_offset);
 
-void rgb_uchar_to_float(float r_col[3], const unsigned char col_ub[3]);
-void rgba_uchar_to_float(float r_col[4], const unsigned char col_ub[4]);
-void rgb_float_to_uchar(unsigned char r_col[3], const float col_f[3]);
-void rgba_float_to_uchar(unsigned char r_col[4], const float col_f[4]);
+MINLINE void rgb_uchar_to_float(float r_col[3], const unsigned char col_ub[3]);
+MINLINE void rgba_uchar_to_float(float r_col[4], const unsigned char col_ub[4]);
+MINLINE void rgb_float_to_uchar(unsigned char r_col[3], const float col_f[3]);
+MINLINE void rgba_float_to_uchar(unsigned char r_col[4], const float col_f[4]);
 
 /**
  * Compute luminance using Rec.709 primaries, for sRGB and linear Rec.709.
@@ -179,6 +181,8 @@ MINLINE void rgba_uchar_args_test_set(
 MINLINE void cpack_cpy_3ub(unsigned char r_col[3], unsigned int pack);
 
 /** \} */
+
+}  // namespace blender
 
 #if BLI_MATH_DO_INLINE
 #  include "intern/math_color_inline.cc"

@@ -16,9 +16,11 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"asset_system.all_asset_library"};
+namespace blender {
 
-namespace blender::asset_system {
+static CLG_LogRef LOG = {"asset.library"};
+
+namespace asset_system {
 
 AllAssetLibrary::AllAssetLibrary() : AssetLibrary(ASSET_LIBRARY_ALL) {}
 
@@ -45,11 +47,10 @@ void AllAssetLibrary::rebuild_catalogs_from_nested(const bool reload_nested_cata
             /*on_duplicate_items=*/[](const AssetCatalog &existing,
                                       const AssetCatalog &to_be_ignored) {
               if (existing.path == to_be_ignored.path) {
-                CLOG_INFO(&LOG,
-                          2,
-                          "multiple definitions of catalog %s (path: %s), ignoring duplicate",
-                          existing.catalog_id.str().c_str(),
-                          existing.path.c_str());
+                CLOG_DEBUG(&LOG,
+                           "multiple definitions of catalog %s (path: %s), ignoring duplicate",
+                           existing.catalog_id.str().c_str(),
+                           existing.path.c_str());
               }
               else {
                 CLOG_ERROR(&LOG,
@@ -83,4 +84,6 @@ void AllAssetLibrary::refresh_catalogs()
   this->rebuild_catalogs_from_nested(/*reload_nested_catalogs=*/true);
 }
 
-}  // namespace blender::asset_system
+}  // namespace asset_system
+
+}  // namespace blender

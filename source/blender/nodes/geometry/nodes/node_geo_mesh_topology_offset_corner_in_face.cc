@@ -12,7 +12,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Corner Index")
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
-      .description("The corner to retrieve data from. Defaults to the corner from the context");
+      .description("The corner to retrieve data from. Defaults to the corner from the context")
+      .structure_type(StructureType::Field);
   b.add_input<decl::Int>("Offset").supports_field().description(
       "The number of corners to move around the face before finding the result, "
       "circling around the start of the face if necessary");
@@ -55,13 +56,17 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
     mask.foreach_index_optimized<int>(GrainSize(2048), [&](const int selection_i) {
       const int corner = corner_indices[selection_i];
       const int offset = offsets[selection_i];
+      if (!corner_to_face.index_range().contains(corner)) {
+        offset_corners[selection_i] = 0;
+        return;
+      }
       const IndexRange face = faces[corner_to_face[corner]];
       const int corner_index_in_face = corner - face.start();
       offset_corners[selection_i] = face.start() + math::mod_periodic<int>(
                                                        corner_index_in_face + offset, face.size());
     });
 
-    return VArray<int>::ForContainer(std::move(offset_corners));
+    return VArray<int>::from_container(std::move(offset_corners));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -101,7 +106,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, "GeometryNodeOffsetCornerInFace", GEO_NODE_MESH_TOPOLOGY_OFFSET_CORNER_IN_FACE);
   ntype.ui_name = "Offset Corner in Face";
@@ -110,7 +115,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

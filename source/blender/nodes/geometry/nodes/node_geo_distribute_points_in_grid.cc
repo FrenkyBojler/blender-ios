@@ -18,7 +18,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_randomize.hh"
@@ -68,9 +68,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -82,19 +82,15 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 /* Implements the interface required by #openvdb::tools::NonUniformPointScatter. */
 class PositionsVDBWrapper {
  private:
-  float3 offset_fix_;
   Vector<float3> &vector_;
 
  public:
-  PositionsVDBWrapper(Vector<float3> &vector, const float3 &offset_fix)
-      : offset_fix_(offset_fix), vector_(vector)
-  {
-  }
+  PositionsVDBWrapper(Vector<float3> &vector) : vector_(vector) {}
   PositionsVDBWrapper(const PositionsVDBWrapper &wrapper) = default;
 
   void add(const openvdb::Vec3R &pos)
   {
-    vector_.append(float3(float(pos[0]), float(pos[1]), float(pos[2])) + offset_fix_);
+    vector_.append(float3(float(pos[0]), float(pos[1]), float(pos[2])));
   }
 };
 
@@ -110,12 +106,8 @@ static void point_scatter_density_random(const openvdb::FloatGrid &grid,
                                          const int seed,
                                          Vector<float3> &r_positions)
 {
-  /* Offset points by half a voxel so that grid points are aligned with world grid points. */
-  const float3 offset_fix = {0.5f * float(grid.voxelSize().x()),
-                             0.5f * float(grid.voxelSize().y()),
-                             0.5f * float(grid.voxelSize().z())};
   /* Setup and call into OpenVDB's point scatter API. */
-  PositionsVDBWrapper vdb_position_wrapper(r_positions, offset_fix);
+  PositionsVDBWrapper vdb_position_wrapper(r_positions);
   RNGType random_generator(seed);
   NonUniformPointScatterVDB point_scatter(vdb_position_wrapper, density, random_generator);
   point_scatter(grid);
@@ -162,7 +154,7 @@ static void point_scatter_density_grid(const openvdb::FloatGrid &grid,
         for (double z = start.z(); z < box_max.z(); z += abs_spacing_z) {
           /* Transform with grid matrix and add point. */
           const openvdb::Vec3d idx_pos(x, y, z);
-          const openvdb::Vec3d local_pos = grid.indexToWorld(idx_pos + half_voxel);
+          const openvdb::Vec3d local_pos = grid.indexToWorld(idx_pos);
           r_positions.append({float(local_pos.x()), float(local_pos.y()), float(local_pos.z())});
         }
       }
@@ -252,7 +244,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, "GeometryNodeDistributePointsInGrid", GEO_NODE_DISTRIBUTE_POINTS_IN_GRID);
   ntype.ui_name = "Distribute Points in Grid";
@@ -260,12 +252,11 @@ static void node_register()
   ntype.enum_name_legacy = "DISTRIBUTE_POINTS_IN_GRID";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
-  blender::bke::node_type_size(ntype, 170, 100, 320);
+  bke::node_type_size(ntype, 170, 100, 320);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

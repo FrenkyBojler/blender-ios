@@ -31,9 +31,18 @@ class VKIndexBuffer : public IndexBuf {
   {
     return buffer_get().vk_handle();
   }
+  inline VkDeviceAddress device_address_get() const
+  {
+    return buffer_get().device_address_get();
+  }
   VkIndexType vk_index_type() const
   {
     return to_vk_index_type(index_type_);
+  }
+  /** \brief Return the allocated size of the buffer in bytes. */
+  inline VkDeviceSize allocated_size_get() const
+  {
+    return buffer_get().allocated_size_in_bytes();
   }
 
   void ensure_updated();

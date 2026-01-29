@@ -8,6 +8,8 @@
  * An instance contains all structures needed to do a complete render.
  */
 
+#include "CLG_log.h"
+
 #include "BKE_global.hh"
 #include "BKE_object.hh"
 
@@ -18,7 +20,6 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "DNA_ID.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_modifier_types.h"
 
@@ -30,17 +31,19 @@
 
 #include "RE_pipeline.h"
 
-#include "eevee_engine.h"
 #include "eevee_instance.hh"
 
 #include "DNA_particle_types.h"
 
-#include "draw_common.hh"
 #include "draw_context_private.hh"
+#include "draw_debug.hh"
 #include "draw_view_data.hh"
 
 namespace blender::eevee {
 
+CLG_LogRef Instance::log = {"eevee"};
+
+void *Instance::debug_scope_render_frame = nullptr;
 void *Instance::debug_scope_render_sample = nullptr;
 void *Instance::debug_scope_irradiance_setup = nullptr;
 void *Instance::debug_scope_irradiance_sample = nullptr;
@@ -151,7 +154,6 @@ void Instance::init(const int2 &output_res,
   if (is_viewport()) {
     is_image_render = draw_ctx->is_image_render();
     is_viewport_image_render = draw_ctx->is_viewport_image_render();
-    is_viewport_compositor_enabled = draw_ctx->is_viewport_compositor_enabled();
     is_playback = draw_ctx->is_playback();
     is_navigating = draw_ctx->is_navigating();
     is_painting = draw_ctx->is_painting();
@@ -162,7 +164,12 @@ void Instance::init(const int2 &output_res,
     if (depsgraph_last_update_ != DEG_get_update_count(depsgraph)) {
       sampling.reset();
     }
-    if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
+    if (assign_if_different(is_viewport_compositor_enabled,
+                            draw_ctx->is_viewport_compositor_enabled()))
+    {
+      sampling.reset();
+    }
+    if (assign_if_different(debug_mode, eDebugMode(G.debug_value))) {
       sampling.reset();
     }
     if (output_res != film.display_extent_get()) {
@@ -212,7 +219,7 @@ void Instance::init(const int2 &output_res,
   ShaderGroups shader_request = DEFERRED_LIGHTING_SHADERS | SHADOW_SHADERS | FILM_SHADERS |
                                 HIZ_SHADERS | SPHERE_PROBE_SHADERS | VOLUME_PROBE_SHADERS |
                                 LIGHT_CULLING_SHADERS;
-  SET_FLAG_FROM_TEST(shader_request, depth_of_field.postfx_enabled(), DEPTH_OF_FIELD_SHADERS);
+  SET_FLAG_FROM_TEST(shader_request, depth_of_field.enabled(), DEPTH_OF_FIELD_SHADERS);
   SET_FLAG_FROM_TEST(shader_request, needs_planar_probe_passes(), DEFERRED_PLANAR_SHADERS);
   SET_FLAG_FROM_TEST(shader_request, needs_lightprobe_sphere_passes(), DEFERRED_CAPTURE_SHADERS);
   SET_FLAG_FROM_TEST(shader_request, motion_blur.postfx_enabled(), MOTION_BLUR_SHADERS);
@@ -224,7 +231,7 @@ void Instance::init(const int2 &output_res,
   loaded_shaders |= materials.default_materials_load_async();
 
   if (is_image_render) {
-    /* Ensure all deferred shaders have been compiled to kickstart async specialization. */
+    /* Ensure all deferred shaders have been compiled to kick-start asynchronous specialization. */
     loaded_shaders |= shaders.static_shaders_wait_ready(DEFERRED_LIGHTING_SHADERS);
   }
 
@@ -263,7 +270,7 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   update_eval_members();
 
   is_light_bake = true;
-  debug_mode = (eDebugMode)G.debug_value;
+  debug_mode = eDebugMode(G.debug_value);
   info_ = "";
 
   sampling.init(scene);
@@ -272,9 +279,12 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   rcti empty_rect{0, 0, 0, 0};
   film.init(int2(1), &empty_rect);
   render_buffers.init();
+  ambient_occlusion.init();
   velocity.init();
+  raytracing.init();
   depth_of_field.init();
   shadows.init();
+  motion_blur.init();
   main_view.init();
   light_probes.init();
   planar_probes.init();
@@ -390,11 +400,11 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
   if (partsys_is_visible && ob != draw_ctx->object_edit) {
     auto sync_hair =
         [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,
-                                                                         ob->object_to_world());
+          ResourceHandleRange _res_handle = manager->resource_handle_for_psys(
+              ob_ref, ob->object_to_world());
           sync.sync_curves(ob, hair_handle, ob_ref, _res_handle, &md, &particle_sys);
         };
-    foreach_hair_particle_handle(ob, ob_handle, sync_hair);
+    foreach_hair_particle_handle(*this, ob_ref, ob_handle, sync_hair);
   }
 
   if (object_is_visible) {
@@ -472,7 +482,7 @@ void Instance::render_sync()
   begin_sync();
 
   DRW_render_object_iter(
-      render, depsgraph, [this](blender::draw::ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
+      render, depsgraph, [this](draw::ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
         this->object_sync(ob_ref, *this->manager);
       });
 
@@ -538,12 +548,13 @@ void Instance::render_sample()
   DebugScope debug_scope(debug_scope_render_sample, "EEVEE.render_sample");
 
   {
-    /* Critical section. Potential GPUShader concurrent usage. */
+    /* Critical section. Potential gpu::Shader concurrent usage. */
     DRW_submission_start();
 
     sampling.step();
 
     capture_view.render_world();
+    lookdev.rotate_world();
     capture_view.render_probes();
 
     main_view.render();
@@ -587,15 +598,15 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
   }
 
   /* AOVs. */
-  LISTBASE_FOREACH (ViewLayerAOV *, aov, &view_layer->aovs) {
-    if ((aov->flag & AOV_CONFLICT) != 0) {
+  for (ViewLayerAOV &aov : view_layer->aovs) {
+    if ((aov.flag & AOV_CONFLICT) != 0) {
       continue;
     }
-    RenderPass *rp = RE_pass_find_by_name(render_layer, aov->name, view_name);
+    RenderPass *rp = RE_pass_find_by_name(render_layer, aov.name, view_name);
     if (!rp) {
       continue;
     }
-    float *result = film.read_aov(aov);
+    float *result = film.read_aov(&aov);
 
     if (result) {
       BLI_mutex_lock(&render->update_render_passes_mutex);
@@ -641,6 +652,9 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
     }
     return;
   }
+
+  DebugScope debug_scope(debug_scope_render_frame, "EEVEE.render_frame");
+
   /* TODO: Break on RE_engine_test_break(engine) */
   while (!sampling.finished()) {
     this->render_sample();
@@ -654,9 +668,11 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
       RE_engine_update_stats(engine, nullptr, re_info.c_str());
     }
 
-    /* Perform render step between samples to allow
-     * flushing of freed GPUBackend resources. */
-    if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+    /* Metal: Perform render step between samples to allow flushing of freed GPUBackend resources.
+     * Vulkan: Perform render step between samples to avoid allocation of a high amount of command
+     * buffer memory that can eventually result in out-of-memory errors or a TDR when submitted as
+     * one large command buffer. */
+    if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
       GPU_flush();
     }
     GPU_render_step();
@@ -699,6 +715,13 @@ void Instance::draw_viewport()
       info_append_i18n("Compiling EEVEE engine shaders");
       DRW_viewport_request_redraw();
     }
+    /* Do not swap if the velocity module didn't go through a full sync cycle. */
+    if (!is_loaded(needed_shaders)) {
+      /* The velocity module can reference some gpu::Batch. Calling this function
+       * make sure we release these references and don't de-reference them later as
+       * they might have been freed. */
+      velocity.step_swap();
+    }
     return;
   }
 
@@ -722,11 +745,14 @@ void Instance::draw_viewport()
     }
     if (materials.queued_shaders_count > 0) {
       info_append_i18n("Compiling shaders ({} remaining)", materials.queued_shaders_count);
-      if (!GPU_use_parallel_compilation() &&
-          GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL))
+      if (GPU_backend_get_type() == GPU_BACKEND_OPENGL && !GPU_use_subprocess_compilation() &&
+          /* Only recommend subprocesses when there is known gain. */
+          (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY) ||
+           GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY) ||
+           GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)))
       {
         info_append_i18n(
-            "Increasing Preferences > System > Max Shader Compilation Subprocesses may improve "
+            "Setting Preferences > System > Shader Compilation Method to Subprocess might improve "
             "compilation time.");
       }
     }
@@ -792,7 +818,7 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   } \
   ((void)0)
 
-  CHECK_PASS_LEGACY(Z, SOCK_FLOAT, 1, "Z");
+  CHECK_PASS_LEGACY(DEPTH, SOCK_FLOAT, 1, "Z");
   CHECK_PASS_LEGACY(MIST, SOCK_FLOAT, 1, "Z");
   CHECK_PASS_LEGACY(NORMAL, SOCK_VECTOR, 3, "XYZ");
   CHECK_PASS_LEGACY(POSITION, SOCK_VECTOR, 3, "XYZ");
@@ -808,16 +834,16 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   CHECK_PASS_LEGACY(AO, SOCK_RGBA, 3, "RGB");
   CHECK_PASS_EEVEE(TRANSPARENT, SOCK_RGBA, 4, "RGBA");
 
-  LISTBASE_FOREACH (ViewLayerAOV *, aov, &view_layer->aovs) {
-    if ((aov->flag & AOV_CONFLICT) != 0) {
+  for (ViewLayerAOV &aov : view_layer->aovs) {
+    if ((aov.flag & AOV_CONFLICT) != 0) {
       continue;
     }
-    switch (aov->type) {
+    switch (aov.type) {
       case AOV_TYPE_COLOR:
-        RE_engine_register_pass(engine, scene, view_layer, aov->name, 4, "RGBA", SOCK_RGBA);
+        RE_engine_register_pass(engine, scene, view_layer, aov.name, 4, "RGBA", SOCK_RGBA);
         break;
       case AOV_TYPE_VALUE:
-        RE_engine_register_pass(engine, scene, view_layer, aov->name, 1, "X", SOCK_FLOAT);
+        RE_engine_register_pass(engine, scene, view_layer, aov.name, 1, "X", SOCK_FLOAT);
         break;
       default:
         break;
@@ -872,6 +898,7 @@ void Instance::light_bake_irradiance(
   volume_probes.bake.init(probe);
 
   custom_pipeline_wrapper([&]() {
+    drw_debug_clear();
     this->render_sync();
     while ((materials.queued_shaders_count > 0) || (materials.queued_textures_count > 0)) {
       GPU_pass_cache_wait_for_all();
@@ -887,7 +914,7 @@ void Instance::light_bake_irradiance(
     sampling.step();
 
     {
-      /* Critical section. Potential GPUShader concurrent usage. */
+      /* Critical section. Potential gpu::Shader concurrent usage. */
       DRW_submission_start();
 
       DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
@@ -908,6 +935,9 @@ void Instance::light_bake_irradiance(
 
       DRW_submission_end();
     }
+
+    /* Avoid big setup job to be queued with the sampling commands. */
+    GPU_flush();
   });
 
   if (volume_probes.bake.should_break()) {
@@ -915,17 +945,29 @@ void Instance::light_bake_irradiance(
   }
 
   sampling.init(probe);
+
+  /* Start with 1 sample and progressively ramp up. */
+  float time_per_sample_ms_smooth = 16.0f;
+  double last_update_timestamp = BLI_time_now_seconds();
   while (!sampling.finished()) {
     context_wrapper([&]() {
       DebugScope debug_scope(debug_scope_irradiance_sample, "EEVEE.irradiance_sample");
 
-      /* Batch ray cast by pack of 16. Avoids too much overhead of the update function & context
-       * switch. */
-      /* TODO(fclem): Could make the number of iteration depend on the computation time. */
-      for (int i = 0; i < 16 && !sampling.finished(); i++) {
+      int remaining_samples = sampling.sample_count() - sampling.sample_index();
+      /* In background mode, assume we don't need as much interactivity. */
+      int time_budget_ms = G.background ? 32 : 16;
+      /* Batch ray cast. Avoids too much overhead of the context switch. */
+      int sample_count_in_batch = ceilf(time_budget_ms / max(0.1f, time_per_sample_ms_smooth));
+      /* Avoid batching too many rays, keep system responsive in case of bad values. */
+      sample_count_in_batch = min_iii(32, sample_count_in_batch, remaining_samples);
+
+      CLOG_INFO(&Instance::log, "IrradianceBake: Casting %d rays.", sample_count_in_batch);
+
+      double time_it_begin_ms = BLI_time_now_seconds() * 1000.0;
+      for (int i = 0; i < sample_count_in_batch && !sampling.finished(); i++) {
         sampling.step();
         {
-          /* Critical section. Potential GPUShader concurrent usage. */
+          /* Critical section. Potential gpu::Shader concurrent usage. */
           DRW_submission_start();
 
           volume_probes.bake.raylists_build();
@@ -934,19 +976,29 @@ void Instance::light_bake_irradiance(
 
           DRW_submission_end();
         }
-      }
+      };
+      /* We use GPU_finish to take into account the GPU processing time. */
+      /* TODO(fclem): Could use timer queries to keep pipelining of GPU commands if that become a
+       * real bottleneck. */
+      GPU_finish();
+      double time_it_end_ms = BLI_time_now_seconds() * 1000.0;
 
-      LightProbeGridCacheFrame *cache_frame;
+      float time_per_sample_ms = float(time_it_end_ms - time_it_begin_ms) / sample_count_in_batch;
+      /* Exponential average. */
+      time_per_sample_ms_smooth = interpolate(time_per_sample_ms_smooth, time_per_sample_ms, 0.7f);
+
       if (sampling.finished()) {
-        cache_frame = volume_probes.bake.read_result_packed();
+        result_update(volume_probes.bake.read_result_packed(), 1.0f);
       }
       else {
-        /* TODO(fclem): Only do this read-back if needed. But it might be tricky to know when. */
-        cache_frame = volume_probes.bake.read_result_unpacked();
+        double time_since_last_update_ms = BLI_time_now_seconds() - last_update_timestamp;
+        /* Only readback every 1 second. This readback is relatively expensive. */
+        if (time_since_last_update_ms > 1.0) {
+          float progress = sampling.sample_index() / float(sampling.sample_count());
+          result_update(volume_probes.bake.read_result_unpacked(), progress);
+          last_update_timestamp = BLI_time_now_seconds();
+        }
       }
-
-      float progress = sampling.sample_index() / float(sampling.sample_count());
-      result_update(cache_frame, progress);
     });
 
     if (stop()) {

@@ -13,6 +13,8 @@
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_set.hh"
 
+namespace blender {
+
 struct BMesh;
 struct BMVert;
 struct CCGKey;
@@ -20,13 +22,14 @@ struct Depsgraph;
 struct Object;
 struct SubdivCCG;
 struct wmOperatorType;
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 class Node;
 }
 
-namespace blender::ed::sculpt_paint::mask {
+namespace ed::sculpt_paint::mask {
 
 Array<float> duplicate_mask(const Object &object);
+void mix_new_masks(Span<float> new_masks, float factor, MutableSpan<float> masks);
 void mix_new_masks(Span<float> new_masks, Span<float> factors, MutableSpan<float> masks);
 void clamp_mask(MutableSpan<float> masks);
 void invert_mask(MutableSpan<float> masks);
@@ -68,4 +71,6 @@ void PAINT_OT_mask_lasso_gesture(wmOperatorType *ot);
 void PAINT_OT_mask_box_gesture(wmOperatorType *ot);
 void PAINT_OT_mask_line_gesture(wmOperatorType *ot);
 void PAINT_OT_mask_polyline_gesture(wmOperatorType *ot);
-}  // namespace blender::ed::sculpt_paint::mask
+}  // namespace ed::sculpt_paint::mask
+
+}  // namespace blender

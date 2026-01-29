@@ -18,6 +18,7 @@
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
@@ -51,7 +52,8 @@ class PinchOperation : public CurvesSculptStrokeOperation {
  public:
   PinchOperation(const bool invert_pinch) : invert_pinch_(invert_pinch) {}
 
-  void on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension) override;
+  void on_stroke_extended(const PaintStroke &stroke,
+                          const StrokeExtension &stroke_extension) override;
 };
 
 struct PinchOperationExecutor {
@@ -68,7 +70,7 @@ struct PinchOperationExecutor {
 
   CurvesSurfaceTransforms transforms_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -78,14 +80,14 @@ struct PinchOperationExecutor {
 
   float2 brush_pos_re_;
 
-  PinchOperationExecutor(const bContext &C) : ctx_(C) {}
+  PinchOperationExecutor(const PaintStroke &stroke) : ctx_(stroke) {}
 
-  void execute(PinchOperation &self, const bContext &C, const StrokeExtension &stroke_extension)
+  void execute(PinchOperation &self, const StrokeExtension &stroke_extension)
   {
     self_ = &self;
 
-    object_ = CTX_data_active_object(&C);
-    curves_id_ = static_cast<Curves *>(object_->data);
+    object_ = ctx_.object;
+    curves_id_ = id_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
     if (curves_->is_empty()) {
       return;
@@ -93,9 +95,9 @@ struct PinchOperationExecutor {
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
+    brush_radius_base_re_ = BKE_brush_radius_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
-    brush_strength_ = BKE_brush_alpha_get(ctx_.scene, brush_);
+    brush_strength_ = BKE_brush_alpha_get(&curves_sculpt_->paint, brush_);
 
     invert_factor_ = self_->invert_pinch_ ? -1.0f : 1.0f;
 
@@ -118,7 +120,7 @@ struct PinchOperationExecutor {
                                                    brush_pos_re_,
                                                    brush_radius_base_re_);
         remember_stroke_position(
-            *ctx_.scene,
+            *curves_sculpt_,
             math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
       }
 
@@ -142,7 +144,7 @@ struct PinchOperationExecutor {
     IndexMaskMemory memory;
     const IndexMask changed_curves_mask = IndexMask::from_bools(changed_curves, memory);
     const Mesh *surface = curves_id_->surface && curves_id_->surface->type == OB_MESH ?
-                              static_cast<const Mesh *>(curves_id_->surface->data) :
+                              id_cast<const Mesh *>(curves_id_->surface->data) :
                               nullptr;
     self_->constraint_solver_.solve_step(*curves_, changed_curves_mask, surface, transforms_);
 
@@ -276,19 +278,19 @@ struct PinchOperationExecutor {
   }
 };
 
-void PinchOperation::on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension)
+void PinchOperation::on_stroke_extended(const PaintStroke &stroke,
+                                        const StrokeExtension &stroke_extension)
 {
-  PinchOperationExecutor executor{C};
-  executor.execute(*this, C, stroke_extension);
+  PinchOperationExecutor executor{stroke};
+  executor.execute(*this, stroke_extension);
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_pinch_operation(const BrushStrokeMode brush_mode,
-                                                                 const bContext &C)
+                                                                 const Scene &scene)
 {
-  const Scene &scene = *CTX_data_scene(&C);
   const Brush &brush = *BKE_paint_brush_for_read(&scene.toolsettings->curves_sculpt->paint);
 
-  const bool invert_pinch = (brush_mode == BRUSH_STROKE_INVERT) !=
+  const bool invert_pinch = (brush_mode == BrushStrokeMode::Invert) !=
                             ((brush.flag & BRUSH_DIR_IN) != 0);
   return std::make_unique<PinchOperation>(invert_pinch);
 }

@@ -18,7 +18,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -39,10 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_input(data_type, "Value").supports_field().hide_value().is_default_link_socket();
-    b.add_output(data_type, "Value")
-        .field_source_reference_all()
-        .dependent_field()
-        .align_with_previous();
+    b.add_output(data_type, "Value").field_source_reference_all().align_with_previous();
   }
   b.add_input<decl::Int>("Iterations")
       .default_value(1)
@@ -57,9 +54,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Relative mix weight of neighboring elements");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -69,7 +66,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const blender::bke::bNodeType &node_type = params.node_type();
+  const bke::bNodeType &node_type = params.node_type();
   const NodeDeclaration &declaration = *node_type.static_declaration;
 
   /* Weight and Iterations inputs don't change based on the data type. */
@@ -392,11 +389,11 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
 
     /* Blurring does not make sense with a less than 2 elements. */
     if (domain_size <= 1) {
-      return GVArray::ForGArray(std::move(buffer_a));
+      return GVArray::from_garray(std::move(buffer_a));
     }
 
     if (iterations_ <= 0) {
-      return GVArray::ForGArray(std::move(buffer_a));
+      return GVArray::from_garray(std::move(buffer_a));
     }
 
     VArraySpan<float> neighbor_weights = evaluator.get_evaluated<float>(1);
@@ -427,9 +424,9 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
 
     BLI_assert(ELEM(result_buffer.data(), buffer_a.data(), buffer_b.data()));
     if (result_buffer.data() == buffer_a.data()) {
-      return GVArray::ForGArray(std::move(buffer_a));
+      return GVArray::from_garray(std::move(buffer_a));
     }
-    return GVArray::ForGArray(std::move(buffer_b));
+    return GVArray::from_garray(std::move(buffer_b));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -495,7 +492,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeBlurAttribute", GEO_NODE_BLUR_ATTRIBUTE);
   ntype.ui_name = "Blur Attribute";
   ntype.ui_description = "Mix attribute values of neighboring elements";
@@ -506,7 +503,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

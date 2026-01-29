@@ -17,6 +17,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_mesh.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -141,7 +142,7 @@ static void sample_node_surface_mesh(const Depsgraph &depsgraph,
                                      ScrapeSampleData &sample,
                                      LocalData &tls)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Span<int> verts = node.verts();
@@ -163,12 +164,15 @@ static void sample_node_surface_mesh(const Depsgraph &depsgraph,
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
   filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, radius, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               radius,
+                               factors);
 
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   const MutableSpan normals = gather_data_mesh(vert_normals, verts, tls.normals);
 
@@ -183,7 +187,7 @@ static void sample_node_surface_grids(const Depsgraph &depsgraph,
                                       ScrapeSampleData &sample,
                                       LocalData &tls)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
@@ -206,12 +210,15 @@ static void sample_node_surface_grids(const Depsgraph &depsgraph,
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
   filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, radius, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               radius,
+                               factors);
 
   tls.local_positions.resize(positions.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   tls.normals.resize(positions.size());
   MutableSpan<float3> normals = tls.normals;
@@ -228,7 +235,7 @@ static void sample_node_surface_bmesh(const Depsgraph &depsgraph,
                                       ScrapeSampleData &sample,
                                       LocalData &tls)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(
@@ -252,12 +259,15 @@ static void sample_node_surface_bmesh(const Depsgraph &depsgraph,
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
   filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, radius, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               radius,
+                               factors);
 
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   tls.normals.resize(verts.size());
   MutableSpan<float3> normals = tls.normals;
@@ -283,7 +293,7 @@ static std::optional<ScrapeSampleData> sample_surface(const Depsgraph &depsgraph
   ScrapeSampleData result = {};
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const MeshAttributeData attribute_data(mesh);
       const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
@@ -362,7 +372,7 @@ static void calc_faces(const Depsgraph &depsgraph,
                        LocalData &tls,
                        const PositionDeformData &position_data)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Span<int> verts = node.verts();
@@ -385,13 +395,16 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   if (angle >= 0.0f) {
     filter_plane_side_factors(positions, local_positions, scrape_planes, factors);
   }
 
   calc_distances(local_positions, distances);
+  /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
+   * deformation, a simple value of 1.0 isn't correct. */
+  filter_distances_with_radius(cache.radius, distances, factors);
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
@@ -420,7 +433,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        Object &object,
                        LocalData &tls)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
@@ -444,13 +457,16 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(positions.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   if (angle >= 0.0f) {
     filter_plane_side_factors(positions, local_positions, scrape_planes, factors);
   }
 
   calc_distances(local_positions, distances);
+  /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
+   * deformation, a simple value of 1.0 isn't correct. */
+  filter_distances_with_radius(cache.radius, distances, factors);
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
@@ -479,7 +495,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        Object &object,
                        LocalData &tls)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
@@ -502,13 +518,16 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   if (angle >= 0.0f) {
     filter_plane_side_factors(positions, local_positions, scrape_planes, factors);
   }
 
   calc_distances(local_positions, distances);
+  /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
+   * deformation, a simple value of 1.0 isn't correct. */
+  filter_distances_with_radius(cache.radius, distances, factors);
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
@@ -531,7 +550,7 @@ void do_multiplane_scrape_brush(const Depsgraph &depsgraph,
                                 Object &object,
                                 const IndexMask &node_mask)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
@@ -660,7 +679,7 @@ void do_multiplane_scrape_brush(const Depsgraph &depsgraph,
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
       const MeshAttributeData attribute_data(mesh);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       const PositionDeformData position_data(depsgraph, object);
@@ -685,7 +704,7 @@ void do_multiplane_scrape_brush(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::Grids: {
-      SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+      SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
       MutableSpan<float3> positions = subdiv_ccg.positions;
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {

@@ -15,9 +15,10 @@
 
 #include "ED_view3d.hh"
 
+namespace blender {
+
 struct wmOperatorType;
 
-namespace blender {
 namespace bke::pbvh {
 class Node;
 }
@@ -33,9 +34,8 @@ namespace undo {
 enum class Type : int8_t;
 }
 }  // namespace ed::sculpt_paint
-}  // namespace blender
 
-namespace blender::ed::sculpt_paint::filter {
+namespace ed::sculpt_paint::filter {
 
 enum class FilterOrientation {
   Local = 0,
@@ -112,7 +112,7 @@ struct Cache {
 
 void cache_init(bContext *C,
                 Object &ob,
-                const Sculpt &sd,
+                Sculpt &sd,
                 undo::Type undo_type,
                 const float mval_fl[2],
                 float area_normal_radius,
@@ -123,4 +123,6 @@ void register_operator_props(wmOperatorType *ot);
 float3x3 to_orientation_space(const filter::Cache &filter_cache);
 float3x3 to_object_space(const filter::Cache &filter_cache);
 void zero_disabled_axis_components(const filter::Cache &filter_cache, MutableSpan<float3> vectors);
-}  // namespace blender::ed::sculpt_paint::filter
+}  // namespace ed::sculpt_paint::filter
+
+}  // namespace blender

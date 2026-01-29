@@ -28,15 +28,15 @@ else()
       set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
     elseif(EXISTS "${LIBDIR_GLIBC228_ABI}/.git")
       set(LIBDIR ${LIBDIR_GLIBC228_ABI})
-      if(WITH_MEM_JEMALLOC)
-        # jemalloc provides malloc hooks.
+      if(WITH_TBB_MALLOC_PROXY)
+        # TBB MALLOC proxy provides malloc hooks.
         set(WITH_LIBC_MALLOC_HOOK_WORKAROUND FALSE)
       else()
         set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
       endif()
     endif()
 
-    # Avoid namespace pollustion.
+    # Avoid namespace pollution.
     unset(LIBDIR_NATIVE_ABI)
     unset(LIBDIR_GLIBC228_ABI)
   endif()
@@ -87,9 +87,7 @@ if(DEFINED LIBDIR)
   # not need to be ever discovered for the Blender linking.
   list(REMOVE_ITEM LIB_SUBDIRS ${LIBDIR}/dpcpp)
 
-  # NOTE: Make sure "proper" compiled zlib comes first before the one
-  # which is a part of OpenCollada. They have different ABI, and we
-  # do need to use the official one.
+  # NOTE: Make sure "proper" compiled zlib comes first
   set(CMAKE_PREFIX_PATH ${LIBDIR}/zlib ${LIB_SUBDIRS})
 
   include(platform_old_libs_update)
@@ -102,6 +100,7 @@ if(DEFINED LIBDIR)
   set(OPENEXR_ROOT_DIR ${LIBDIR}/openexr)
   set(CLANG_ROOT_DIR ${LIBDIR}/llvm)
   set(MaterialX_DIR ${LIBDIR}/materialx/lib/cmake/MaterialX)
+  set(fmt_ROOT ${LIBDIR}/fmt)
 endif()
 
 # Wrapper to prefer static libraries
@@ -128,6 +127,12 @@ find_package_wrapper(PNG REQUIRED)
 find_package_wrapper(ZLIB REQUIRED)
 find_package_wrapper(Zstd REQUIRED)
 find_package_wrapper(Epoxy REQUIRED)
+find_package_wrapper(fmt REQUIRED)
+if(DEFINED fmt_DIR)
+  # Hide the fmt_DIR from the standard user settings to be consistent with our
+  # other "here is the library" settings.
+  mark_as_advanced(fmt_DIR)
+endif()
 
 # XXX Linking errors with debian static tiff :/
 # find_package_wrapper(TIFF REQUIRED)
@@ -259,6 +264,7 @@ if(WITH_IMAGE_OPENEXR)
 endif()
 add_bundled_libraries(openexr/lib)
 add_bundled_libraries(imath/lib)
+add_bundled_libraries(openjph/lib)
 
 if(WITH_IMAGE_OPENJPEG)
   find_package_wrapper(OpenJPEG)
@@ -300,7 +306,7 @@ if(WITH_CODEC_FFMPEG)
     # Override FFMPEG components to also include static library dependencies
     # included with precompiled libraries, and to ensure correct link order.
     set(FFMPEG_FIND_COMPONENTS
-      avformat avcodec avdevice avutil swresample swscale
+      avformat avdevice avfilter avcodec avutil swresample swscale
       sndfile
       FLAC
       mp3lame
@@ -331,20 +337,6 @@ endif()
 if(WITH_FFTW3)
   find_package_wrapper(Fftw3)
   set_and_warn_library_found("fftw3" FFTW3_FOUND WITH_FFTW3)
-endif()
-
-if(WITH_OPENCOLLADA)
-  find_package_wrapper(OpenCOLLADA)
-  if(OPENCOLLADA_FOUND)
-    find_package_wrapper(XML2)
-  else()
-    set_and_warn_library_found("OpenCollada" OPENCOLLADA_FOUND WITH_OPENCOLLADA)
-  endif()
-endif()
-
-if(WITH_MEM_JEMALLOC)
-  find_package_wrapper(JeMalloc)
-  set_and_warn_library_found("JeMalloc" JEMALLOC_FOUND WITH_MEM_JEMALLOC)
 endif()
 
 if(WITH_INPUT_NDOF)
@@ -408,7 +400,7 @@ if(DEFINED LIBDIR)
     ${SYCL_ROOT_DIR}/lib/libur_*.so
     ${SYCL_ROOT_DIR}/lib/libur_*.so.*
   )
-  list(FILTER _sycl_runtime_libraries EXCLUDE REGEX ".*\.py")
+  list(FILTER _sycl_runtime_libraries EXCLUDE REGEX "\\.py$")
   list(APPEND PLATFORM_BUNDLED_LIBRARIES ${_sycl_runtime_libraries})
   unset(_sycl_runtime_libraries)
 endif()
@@ -424,8 +416,9 @@ if(WITH_NANOVDB)
   set_and_warn_library_found("NanoVDB" NANOVDB_FOUND WITH_NANOVDB)
 endif()
 
-if(WITH_CPU_SIMD AND SUPPORT_NEON_BUILD)
-  find_package_wrapper(sse2neon)
+test_neon_support()
+if(SUPPORTS_NEON_BUILD)
+  find_package_wrapper(sse2neon REQUIRED)
 endif()
 
 if(WITH_ALEMBIC)
@@ -541,13 +534,6 @@ if(WITH_LLVM)
       find_package_wrapper(Clang)
       set_and_warn_library_found("Clang" CLANG_FOUND WITH_CLANG)
     endif()
-
-    # Symbol conflicts with same UTF library used by OpenCollada
-    if(DEFINED LIBDIR)
-      if(WITH_OPENCOLLADA AND (${LLVM_VERSION} VERSION_LESS "4.0.0"))
-        list(REMOVE_ITEM OPENCOLLADA_LIBRARIES ${OPENCOLLADA_UTF_LIBRARY})
-      endif()
-    endif()
   endif()
 endif()
 
@@ -561,13 +547,26 @@ if(WITH_OPENSUBDIV)
 endif()
 add_bundled_libraries(opensubdiv/lib)
 
-if(WITH_TBB)
-  find_package_wrapper(TBB 2021.13.0)
+if(WITH_TBB OR WITH_TBB_MALLOC_PROXY)
+  # find_package_wrapper(TBB 2021.13.0)
+  find_package_wrapper(TBB)
   if(TBB_FOUND)
-    get_target_property(TBB_LIBRARIES TBB::tbb LOCATION)
-    get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+    if(WITH_TBB)
+      get_target_property(TBB_LIBRARIES TBB::tbb LOCATION)
+      get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+    endif()
+    if(WITH_TBB_MALLOC_PROXY)
+      get_target_property(TBB_MALLOC_PROXY_LIBRARIES TBB::tbbmalloc_proxy LOCATION)
+      get_target_property(TBB_MALLOC_LIBRARIES TBB::tbbmalloc LOCATION)
+    endif()
   endif()
-  set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
+  if(WITH_TBB)
+    set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
+  endif()
+  if(WITH_TBB_MALLOC_PROXY)
+    set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB_MALLOC_PROXY)
+  endif()
+  mark_as_advanced(TBB_DIR)
 endif()
 add_bundled_libraries(tbb/lib)
 
@@ -597,8 +596,23 @@ if(WITH_MANIFOLD)
   else()
     # This isn't a common system library, so disable if it's not found.
     find_package(manifold)
+    if(TARGET manifold::manifold)
+      set(MANIFOLD_FOUND TRUE)
+    endif()
     set_and_warn_library_found("MANIFOLD" MANIFOLD_FOUND WITH_MANIFOLD)
   endif()
+  mark_as_advanced(manifold_DIR)
+endif()
+
+if(WITH_RUBBERBAND)
+  if(DEFINED LIBDIR)
+    find_package_wrapper(Rubberband)
+  else()
+    # Use system libs
+    find_package(PkgConfig)
+    pkg_check_modules(RUBBERBAND rubberband)
+  endif()
+  set_and_warn_library_found("Rubberband" RUBBERBAND_FOUND WITH_RUBBERBAND)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
@@ -678,13 +692,6 @@ if(WITH_SYSTEM_FREETYPE)
   check_freetype_for_brotli()
   # Quiet warning as this variable will be used after `FREETYPE_LIBRARIES`.
   set(BROTLI_LIBRARIES "")
-endif()
-
-if(WITH_LZO AND WITH_SYSTEM_LZO)
-  find_package_wrapper(LZO)
-  if(NOT LZO_FOUND)
-    message(FATAL_ERROR "Failed finding system LZO version!")
-  endif()
 endif()
 
 if(WITH_SYSTEM_EIGEN3)
@@ -786,20 +793,6 @@ if(WITH_GHOST_WAYLAND)
   set_and_warn_library_found("xkbcommon" xkbcommon_FOUND WITH_GHOST_WAYLAND)
 
   if(WITH_GHOST_WAYLAND)
-    if(WITH_GHOST_WAYLAND_LIBDECOR)
-      if(_use_system_wayland)
-        pkg_check_modules(libdecor libdecor-0>=0.1)
-      else()
-        set(libdecor_INCLUDE_DIRS "${LIBDIR}/wayland_libdecor/include/libdecor-0")
-        set(libdecor_FOUND ON)
-      endif()
-      set_and_warn_library_found("libdecor" libdecor_FOUND WITH_GHOST_WAYLAND_LIBDECOR)
-    endif()
-
-    if(WITH_GHOST_WAYLAND_LIBDECOR)
-      add_definitions(-DWITH_GHOST_WAYLAND_LIBDECOR)
-    endif()
-
     if(DEFINED LIBDIR)
       set(WAYLAND_SCANNER "${LIBDIR}/wayland/bin/wayland-scanner")
       if(NOT (EXISTS "${WAYLAND_SCANNER}"))
@@ -900,7 +893,7 @@ endif()
 set(_IS_LINKER_DEFAULT ON)
 
 # GNU Compiler
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   # ffp-contract=off:
   # Automatically turned on when building with "-march=native". This is
   # explicitly turned off here as it will make floating point math give a bit
@@ -1067,6 +1060,13 @@ unset(_IS_LINKER_DEFAULT)
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_unix.map)
 set(PLATFORM_LINKFLAGS
   "${PLATFORM_LINKFLAGS} -Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'"
+)
+
+# We do not ensure transitive dependencies of dynamic libraries are available at
+# link time, this allows that. The better solution would be to switch to cmake
+# configs but more work is needed for that.
+set(PLATFORM_LINKFLAGS
+  "${PLATFORM_LINKFLAGS} -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs"
 )
 
 # Don't use position independent executable for portable install since file

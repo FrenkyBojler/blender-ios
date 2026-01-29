@@ -15,7 +15,7 @@ cmake_policy(SET CMP0010 NEW)
 # Input directories must have `CMakeLists.txt`.
 cmake_policy(SET CMP0014 NEW)
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 project(GhostMultiTest)
 
@@ -204,7 +204,7 @@ include_directories(${OPENGL_INCLUDE_DIR})
 include_directories(${FREETYPE_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/../../../source/blender/blenfont)
 
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(PLATFORM_CFLAGS "-funsigned-char")
 endif()
 

@@ -11,6 +11,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_mesh.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -75,7 +76,7 @@ static void calc_faces(const Depsgraph &depsgraph,
                        LocalData &tls,
                        const PositionDeformData &position_data)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Span<int> verts = node.verts();
@@ -120,7 +121,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
@@ -157,7 +158,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
 {
-  SculptSession &ss = *object.sculpt;
+  SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
@@ -185,13 +186,12 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 }
 
 static void do_crease_or_blob_brush(const Depsgraph &depsgraph,
-                                    const Scene &scene,
                                     const Sculpt &sd,
                                     const bool invert_strength,
                                     Object &object,
                                     const IndexMask &node_mask)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const StrokeCache &cache = *ss.cache;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -202,7 +202,7 @@ static void do_crease_or_blob_brush(const Depsgraph &depsgraph,
   /* We divide out the squared alpha and multiply by the squared crease
    * to give us the pinch strength. */
   float crease_correction = brush.crease_pinch_factor * brush.crease_pinch_factor;
-  float brush_alpha = BKE_brush_alpha_get(&scene, &brush);
+  float brush_alpha = BKE_brush_alpha_get(&sd.paint, &brush);
   if (brush_alpha > 0.0f) {
     crease_correction /= brush_alpha * brush_alpha;
   }
@@ -214,7 +214,7 @@ static void do_crease_or_blob_brush(const Depsgraph &depsgraph,
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
-      const Mesh &mesh = *static_cast<Mesh *>(object.data);
+      const Mesh &mesh = *id_cast<Mesh *>(object.data);
       const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
@@ -237,7 +237,7 @@ static void do_crease_or_blob_brush(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::Grids: {
-      SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+      SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
       MutableSpan<float3> positions = subdiv_ccg.positions;
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -264,21 +264,19 @@ static void do_crease_or_blob_brush(const Depsgraph &depsgraph,
 }  // namespace crease_cc
 
 void do_crease_brush(const Depsgraph &depsgraph,
-                     const Scene &scene,
                      const Sculpt &sd,
                      Object &object,
                      const IndexMask &node_mask)
 {
-  do_crease_or_blob_brush(depsgraph, scene, sd, false, object, node_mask);
+  do_crease_or_blob_brush(depsgraph, sd, false, object, node_mask);
 }
 
 void do_blob_brush(const Depsgraph &depsgraph,
-                   const Scene &scene,
                    const Sculpt &sd,
                    Object &object,
                    const IndexMask &node_mask)
 {
-  do_crease_or_blob_brush(depsgraph, scene, sd, true, object, node_mask);
+  do_crease_or_blob_brush(depsgraph, sd, true, object, node_mask);
 }
 
 }  // namespace blender::ed::sculpt_paint::brushes

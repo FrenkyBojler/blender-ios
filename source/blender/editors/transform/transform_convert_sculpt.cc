@@ -15,6 +15,7 @@
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
@@ -32,16 +33,17 @@ namespace blender::ed::transform {
 static void createTransSculpt(bContext *C, TransInfo *t)
 {
   TransData *td;
+  TransDataExtension *td_ext;
 
   Scene *scene = t->scene;
   if (!BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
-    BKE_report(t->reports, RPT_ERROR, "Linked data can't text-space transform");
+    BKE_report(t->reports, RPT_ERROR, "Cannot create transform on linked data");
     return;
   }
 
   BKE_view_layer_synced_ensure(t->scene, t->view_layer);
   Object &ob = *BKE_view_layer_active_object_get(t->view_layer);
-  SculptSession &ss = *ob.sculpt;
+  SculptSession &ss = *ob.runtime->sculpt_session;
 
   /* Avoid editing locked shapes. */
   if (t->mode != TFM_DUMMY && sculpt_paint::report_if_shape_key_is_locked(ob, t->reports)) {
@@ -53,8 +55,8 @@ static void createTransSculpt(bContext *C, TransInfo *t)
     TransDataContainer *tc = t->data_container;
     tc->data_len = 1;
     tc->is_active = true;
-    td = tc->data = MEM_callocN<TransData>(__func__);
-    td->ext = tc->data_ext = MEM_callocN<TransDataExtension>(__func__);
+    td = tc->data = MEM_new_zeroed<TransData>(__func__);
+    td_ext = tc->data_ext = MEM_new_zeroed<TransDataExtension>(__func__);
   }
 
   td->flag = TD_SELECTED;
@@ -64,32 +66,28 @@ static void createTransSculpt(bContext *C, TransInfo *t)
   td->loc = ss.pivot_pos;
   copy_v3_v3(td->iloc, ss.pivot_pos);
 
-  if (is_zero_v4(ss.pivot_rot)) {
-    ss.pivot_rot[3] = 1.0f;
-  }
-
   float obmat_inv[3][3];
   copy_m3_m4(obmat_inv, ob.object_to_world().ptr());
   invert_m3(obmat_inv);
 
-  td->ext->rot = nullptr;
-  td->ext->rotAxis = nullptr;
-  td->ext->rotAngle = nullptr;
-  td->ext->quat = ss.pivot_rot;
-  copy_m4_m4(td->ext->obmat, ob.object_to_world().ptr());
-  copy_m3_m3(td->ext->l_smtx, obmat_inv);
-  copy_m3_m4(td->ext->r_mtx, ob.object_to_world().ptr());
-  copy_m3_m3(td->ext->r_smtx, obmat_inv);
+  td_ext->rot = nullptr;
+  td_ext->rotAxis = nullptr;
+  td_ext->rotAngle = nullptr;
+  td_ext->quat = ss.pivot_rot;
+  copy_m4_m4(td_ext->obmat, ob.object_to_world().ptr());
+  copy_m3_m3(td_ext->l_smtx, obmat_inv);
+  copy_m3_m4(td_ext->r_mtx, ob.object_to_world().ptr());
+  copy_m3_m3(td_ext->r_smtx, obmat_inv);
 
-  copy_qt_qt(td->ext->iquat, ss.pivot_rot);
-  td->ext->rotOrder = ROT_MODE_QUAT;
+  copy_qt_qt(td_ext->iquat, ss.pivot_rot);
+  td_ext->rotOrder = ROT_MODE_QUAT;
 
   ss.pivot_scale[0] = 1.0f;
   ss.pivot_scale[1] = 1.0f;
   ss.pivot_scale[2] = 1.0f;
-  td->ext->scale = ss.pivot_scale;
+  td_ext->scale = ss.pivot_scale;
   copy_v3_v3(ss.init_pivot_scale, ss.pivot_scale);
-  copy_v3_v3(td->ext->iscale, ss.init_pivot_scale);
+  copy_v3_v3(td_ext->iscale, ss.init_pivot_scale);
 
   copy_m3_m3(td->smtx, obmat_inv);
   copy_m3_m4(td->mtx, ob.object_to_world().ptr());

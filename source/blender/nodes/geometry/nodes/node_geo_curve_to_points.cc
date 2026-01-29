@@ -11,12 +11,13 @@
 #include "BKE_instances.hh"
 #include "BKE_pointcloud.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_join_geometries.hh"
 #include "GEO_resample_curves.hh"
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -27,8 +28,9 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveToPoints)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve").supported_type(
-      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Geometry>("Curve")
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
+      .description("Curves to convert to points");
   auto &count = b.add_input<decl::Int>("Count")
                     .default_value(10)
                     .min(2)
@@ -41,6 +43,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                      .default_value(0.1f)
                      .min(0.001f)
                      .subtype(PROP_DISTANCE)
+                     .field_on_all()
                      .make_available([](bNode &node) {
                        node_storage(node).mode = GEO_NODE_CURVE_RESAMPLE_LENGTH;
                      });
@@ -59,14 +62,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveToPoints *data = MEM_callocN<NodeGeometryCurveToPoints>(__func__);
+  NodeGeometryCurveToPoints *data = MEM_new<NodeGeometryCurveToPoints>(__func__);
 
   data->mode = GEO_NODE_CURVE_RESAMPLE_COUNT;
   node->storage = data;
@@ -78,8 +81,11 @@ static void fill_rotation_attribute(const Span<float3> tangents,
 {
   threading::parallel_for(IndexRange(rotations.size()), 512, [&](IndexRange range) {
     for (const int i : range) {
-      rotations[i] = math::to_quaternion(
-          math::from_orthonormal_axes<float4x4>(normals[i], tangents[i]));
+      const float3 tangent = tangents[i];
+      BLI_assert(math::is_unit(tangent));
+      const float3 binormal = math::normalize(math::cross(tangent, normals[i]));
+      const float3 normal = math::cross(binormal, tangent);
+      rotations[i] = math::to_quaternion(float3x3{normal, binormal, tangent});
     }
   });
 }
@@ -98,7 +104,7 @@ static void copy_curve_domain_attributes(const AttributeAccessor curve_attribute
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     point_attributes.add(iter.name,
@@ -192,7 +198,7 @@ static void layer_pointclouds_to_instances(const Span<PointCloud *> pointcloud_b
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryCurveToPoints &storage = node_storage(params.node());
-  const GeometryNodeCurveResampleMode mode = (GeometryNodeCurveResampleMode)storage.mode;
+  const GeometryNodeCurveResampleMode mode = GeometryNodeCurveResampleMode(storage.mode);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
 
   GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry_set);
@@ -213,7 +219,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   switch (mode) {
     case GEO_NODE_CURVE_RESAMPLE_COUNT: {
       const Field<int> count = params.extract_input<Field<int>>("Count");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           bke::CurvesGeometry dst_curves = geometry::resample_to_count(
               src_curves_id->geometry.wrap(),
@@ -244,13 +250,15 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
           layer_pointclouds_to_instances(pointcloud_by_layer, attribute_filter, geometry);
         }
-        geometry.keep_only_during_modify({bke::GeometryComponent::Type::PointCloud});
+        geometry.keep_only({bke::GeometryComponent::Type::PointCloud,
+                            bke::GeometryComponent::Type::Instance,
+                            bke::GeometryComponent::Type::Edit});
       });
       break;
     }
     case GEO_NODE_CURVE_RESAMPLE_LENGTH: {
       const Field<float> length = params.extract_input<Field<float>>("Length");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           bke::CurvesGeometry dst_curves = geometry::resample_to_length(
               src_curves_id->geometry.wrap(),
@@ -281,12 +289,14 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
           layer_pointclouds_to_instances(pointcloud_by_layer, attribute_filter, geometry);
         }
-        geometry.keep_only_during_modify({bke::GeometryComponent::Type::PointCloud});
+        geometry.keep_only({bke::GeometryComponent::Type::PointCloud,
+                            bke::GeometryComponent::Type::Instance,
+                            bke::GeometryComponent::Type::Edit});
       });
       break;
     }
     case GEO_NODE_CURVE_RESAMPLE_EVALUATED: {
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           bke::CurvesGeometry dst_curves = geometry::resample_to_evaluated(
               src_curves_id->geometry.wrap(),
@@ -316,7 +326,9 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
           layer_pointclouds_to_instances(pointcloud_by_layer, attribute_filter, geometry);
         }
-        geometry.keep_only_during_modify({bke::GeometryComponent::Type::PointCloud});
+        geometry.keep_only({bke::GeometryComponent::Type::PointCloud,
+                            bke::GeometryComponent::Type::Instance,
+                            bke::GeometryComponent::Type::Edit});
       });
       break;
     }
@@ -358,7 +370,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeCurveToPoints", GEO_NODE_CURVE_TO_POINTS);
   ntype.ui_name = "Curve to Points";
@@ -368,10 +380,10 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryCurveToPoints", node_free_standard_storage, node_copy_standard_storage);
   ntype.initfunc = node_init;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

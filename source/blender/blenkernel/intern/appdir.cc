@@ -51,6 +51,8 @@
 #  include <unistd.h>
 #endif /* !WIN32 */
 
+namespace blender {
+
 static const char _str_null[] = "(null)";
 #define STR_OR_FALLBACK(a) ((a) ? (a) : _str_null)
 
@@ -59,7 +61,7 @@ static const char _str_null[] = "(null)";
  * \{ */
 
 /* local */
-static CLG_LogRef LOG = {"bke.appdir"};
+static CLG_LogRef LOG = {"system.path"};
 
 static struct {
   /** Full path to program executable. */
@@ -70,6 +72,11 @@ static struct {
   char temp_dirname_base[FILE_MAX];
   /** Volatile temporary directory (owned by Blender, removed on exit). */
   char temp_dirname_session[FILE_MAX];
+  /**
+   * True when this is a sub-directory owned & created by Blender,
+   * false when a session directory couldn't be created - in this case don't delete it.
+   */
+  bool temp_dirname_session_can_be_deleted;
 } g_app{};
 
 /** \} */
@@ -168,11 +175,12 @@ bool BKE_appdir_folder_documents(char *dir)
 {
   dir[0] = '\0';
 
-  const char *documents_path = GHOST_getUserSpecialDir(GHOST_kUserSpecialDirDocuments);
+  const std::optional<std::string> documents_path = GHOST_getUserSpecialDir(
+      GHOST_kUserSpecialDirDocuments);
 
   /* Usual case: Ghost gave us the documents path. We're done here. */
-  if (documents_path && BLI_is_dir(documents_path)) {
-    BLI_strncpy(dir, documents_path, FILE_MAXDIR);
+  if (documents_path && BLI_is_dir(documents_path->c_str())) {
+    BLI_strncpy(dir, documents_path->c_str(), FILE_MAXDIR);
     return true;
   }
 
@@ -198,21 +206,27 @@ bool BKE_appdir_folder_caches(char *path, const size_t path_maxncpy)
 {
   path[0] = '\0';
 
-  const char *caches_root_path = GHOST_getUserSpecialDir(GHOST_kUserSpecialDirCaches);
-  if (caches_root_path == nullptr || !BLI_is_dir(caches_root_path)) {
+  std::optional<std::string> caches_root_path = GHOST_getUserSpecialDir(
+      GHOST_kUserSpecialDirCaches);
+  if (!caches_root_path || !BLI_is_dir(caches_root_path->c_str())) {
     caches_root_path = BKE_tempdir_base();
   }
-  if (caches_root_path == nullptr || !BLI_is_dir(caches_root_path)) {
+  if (!caches_root_path || !BLI_is_dir(caches_root_path->c_str())) {
     return false;
   }
 
 #ifdef WIN32
-  BLI_path_join(
-      path, path_maxncpy, caches_root_path, "Blender Foundation", "Blender", "Cache", SEP_STR);
+  BLI_path_join(path,
+                path_maxncpy,
+                caches_root_path->c_str(),
+                "Blender Foundation",
+                "Blender",
+                "Cache",
+                SEP_STR);
 #elif defined(__APPLE__)
-  BLI_path_join(path, path_maxncpy, caches_root_path, "Blender", SEP_STR);
+  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "Blender", SEP_STR);
 #else /* __linux__ */
-  BLI_path_join(path, path_maxncpy, caches_root_path, "blender", SEP_STR);
+  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "blender", SEP_STR);
 #endif
 
   return true;
@@ -279,16 +293,16 @@ static bool test_path(char *targetpath,
   const int path_array_num = (folder_name ? (subfolder_name ? 3 : 2) : 1);
   BLI_path_join_array(targetpath, targetpath_maxncpy, path_array, path_array_num);
   if (check_is_dir == false) {
-    CLOG_INFO(&LOG, 3, "using without test: '%s'", targetpath);
+    CLOG_DEBUG(&LOG, "Using (without test): '%s'", targetpath);
     return true;
   }
 
   if (BLI_is_dir(targetpath)) {
-    CLOG_INFO(&LOG, 3, "found '%s'", targetpath);
+    CLOG_DEBUG(&LOG, "Found '%s'", targetpath);
     return true;
   }
 
-  CLOG_INFO(&LOG, 3, "missing '%s'", targetpath);
+  CLOG_DEBUG(&LOG, "Missing '%s'", targetpath);
 
   /* Path not found, don't accidentally use it,
    * otherwise call this function with `check_is_dir` set to false. */
@@ -316,16 +330,16 @@ static bool test_env_path(char *path, const char *envvar, const bool check_is_di
   BLI_strncpy(path, env_path, FILE_MAX);
 
   if (check_is_dir == false) {
-    CLOG_INFO(&LOG, 3, "using env '%s' without test: '%s'", envvar, env_path);
+    CLOG_DEBUG(&LOG, "Using env '%s' (without test): '%s'", envvar, env_path);
     return true;
   }
 
   if (BLI_is_dir(env_path)) {
-    CLOG_INFO(&LOG, 3, "env '%s' found: %s", envvar, env_path);
+    CLOG_DEBUG(&LOG, "Env '%s' found: %s", envvar, env_path);
     return true;
   }
 
-  CLOG_INFO(&LOG, 3, "env '%s' missing: %s", envvar, env_path);
+  CLOG_DEBUG(&LOG, "Env '%s' missing: %s", envvar, env_path);
 
   /* Path not found, don't accidentally use it,
    * otherwise call this function with `check_is_dir` set to false. */
@@ -354,11 +368,10 @@ static bool get_path_local_ex(char *targetpath,
 {
   char relfolder[FILE_MAX];
 
-  CLOG_INFO(&LOG,
-            3,
-            "folder='%s', subfolder='%s'",
-            STR_OR_FALLBACK(folder_name),
-            STR_OR_FALLBACK(subfolder_name));
+  CLOG_DEBUG(&LOG,
+             "Get path local: folder='%s', subfolder='%s'",
+             STR_OR_FALLBACK(folder_name),
+             STR_OR_FALLBACK(subfolder_name));
 
   if (folder_name) { /* `subfolder_name` may be nullptr. */
     const char *path_array[] = {folder_name, subfolder_name};
@@ -434,11 +447,11 @@ static bool get_path_environment(char *targetpath,
       targetpath, targetpath_maxncpy, subfolder_name, envvar, check_is_dir);
 }
 
-static blender::Vector<std::string> get_path_environment_multiple(const char *subfolder_name,
-                                                                  const char *envvar,
-                                                                  const bool check_is_dir)
+static Vector<std::string> get_path_environment_multiple(const char *subfolder_name,
+                                                         const char *envvar,
+                                                         const bool check_is_dir)
 {
-  blender::Vector<std::string> paths;
+  Vector<std::string> paths;
   const char *env_path = envvar ? BLI_getenv(envvar) : nullptr;
   if (!env_path) {
     return paths;
@@ -511,12 +524,11 @@ static bool get_path_user_ex(char *targetpath,
     return false;
   }
 
-  CLOG_INFO(&LOG,
-            3,
-            "'%s', folder='%s', subfolder='%s'",
-            user_path,
-            STR_OR_FALLBACK(folder_name),
-            STR_OR_FALLBACK(subfolder_name));
+  CLOG_DEBUG(&LOG,
+             "Get path user: '%s', folder='%s', subfolder='%s'",
+             user_path,
+             STR_OR_FALLBACK(folder_name),
+             STR_OR_FALLBACK(subfolder_name));
 
   /* `subfolder_name` may be nullptr. */
   return test_path(
@@ -567,12 +579,11 @@ static bool get_path_system_ex(char *targetpath,
     return false;
   }
 
-  CLOG_INFO(&LOG,
-            3,
-            "'%s', folder='%s', subfolder='%s'",
-            system_path,
-            STR_OR_FALLBACK(folder_name),
-            STR_OR_FALLBACK(subfolder_name));
+  CLOG_DEBUG(&LOG,
+             "Get path system: '%s', folder='%s', subfolder='%s'",
+             system_path,
+             STR_OR_FALLBACK(folder_name),
+             STR_OR_FALLBACK(subfolder_name));
 
   /* Try `$BLENDERPATH/folder_name/subfolder_name`, `subfolder_name` may be nullptr. */
   return test_path(
@@ -856,7 +867,7 @@ static void where_am_i(char *program_filepath,
 #  ifdef WITH_BINRELOC
   /* Linux uses `binreloc` since `argv[0]` is not reliable, call `br_init(nullptr)` first. */
   {
-    const char *path = nullptr;
+    char *path = nullptr;
     path = br_find_exe(nullptr);
     if (path) {
       BLI_strncpy(program_filepath, path, program_filepath_maxncpy);
@@ -868,12 +879,13 @@ static void where_am_i(char *program_filepath,
 
 #  ifdef _WIN32
   {
-    wchar_t *fullname_16 = MEM_malloc_arrayN<wchar_t>(program_filepath_maxncpy, "ProgramPath");
+    wchar_t *fullname_16 = MEM_new_array_uninitialized<wchar_t>(program_filepath_maxncpy,
+                                                                "ProgramPath");
     if (GetModuleFileNameW(0, fullname_16, program_filepath_maxncpy)) {
       conv_utf_16_to_8(fullname_16, program_filepath, program_filepath_maxncpy);
       if (!BLI_exists(program_filepath)) {
         CLOG_ERROR(&LOG,
-                   "path can't be found: \"%.*s\"",
+                   "Program path can't be found: \"%.*s\"",
                    int(program_filepath_maxncpy),
                    program_filepath);
         MessageBox(nullptr,
@@ -881,11 +893,11 @@ static void where_am_i(char *program_filepath,
                    "Error",
                    MB_OK);
       }
-      MEM_freeN(fullname_16);
+      MEM_delete(fullname_16);
       return;
     }
 
-    MEM_freeN(fullname_16);
+    MEM_delete(fullname_16);
   }
 #  endif
 
@@ -914,7 +926,7 @@ static void where_am_i(char *program_filepath,
 
 #  ifndef NDEBUG
     if (!STREQ(program_name, program_filepath)) {
-      CLOG_INFO(&LOG, 2, "guessing '%s' == '%s'", program_name, program_filepath);
+      CLOG_DEBUG(&LOG, "Program path guessing '%s' == '%s'", program_name, program_filepath);
     }
 #  endif
   }
@@ -977,13 +989,13 @@ bool BKE_appdir_program_python_search(char *program_filepath,
   /* Check both possible names. */
   const char *python_names[] = {
 #ifdef PYTHON_EXECUTABLE_NAME
-    python_build_def,
+      python_build_def,
 #endif
 #if defined(WIN32) && !defined(NDEBUG)
-    basename_debug,
+      basename_debug,
 #endif
-    python_version,
-    basename,
+      python_version,
+      basename,
   };
   bool is_found = false;
 
@@ -1035,9 +1047,9 @@ bool BKE_appdir_program_python_search(char *program_filepath,
 /** \name Application Templates
  * \{ */
 
-static blender::Vector<std::string> appdir_app_template_directories()
+static Vector<std::string> appdir_app_template_directories()
 {
-  blender::Vector<std::string> directories;
+  Vector<std::string> directories;
 
   /** Keep in sync with `bpy.utils.app_template_paths()` */
   char temp_dir[FILE_MAX];
@@ -1072,7 +1084,7 @@ bool BKE_appdir_app_template_any()
 
 bool BKE_appdir_app_template_id_search(const char *app_template, char *path, size_t path_maxncpy)
 {
-  const blender::Vector<std::string> directories = appdir_app_template_directories();
+  const Vector<std::string> directories = appdir_app_template_directories();
 
   for (const std::string &directory : directories) {
     BLI_path_join(path, path_maxncpy, directory.c_str(), app_template);
@@ -1104,11 +1116,11 @@ bool BKE_appdir_app_template_has_userpref(const char *app_template)
   return BLI_exists(userpref_path);
 }
 
-void BKE_appdir_app_templates(ListBase *templates)
+void BKE_appdir_app_templates(ListBaseT<LinkData> *templates)
 {
   BLI_listbase_clear(templates);
 
-  const blender::Vector<std::string> directories = appdir_app_template_directories();
+  const Vector<std::string> directories = appdir_app_template_directories();
 
   for (const std::string &subdir : directories) {
     direntry *dirs;
@@ -1132,7 +1144,6 @@ void BKE_appdir_app_templates(ListBase *templates)
 
 /**
  * Gets the temp directory when blender first runs.
- * If the default path is not found, use try $TEMP
  *
  * Also make sure the temp dir has a trailing slash
  *
@@ -1140,16 +1151,19 @@ void BKE_appdir_app_templates(ListBase *templates)
  * \param tempdir_maxncpy: The size of the \a tempdir buffer.
  * \param userdir: Directory specified in user preferences (may be nullptr).
  * note that by default this is an empty string, only use when non-empty.
+ *
+ * \return true if `tempdir` is set.
  */
-static void where_is_temp(char *tempdir, const size_t tempdir_maxncpy, const char *userdir)
+static bool where_is_temp(char *tempdir, const size_t tempdir_maxncpy, const char *userdir)
 {
-  if (userdir && BLI_temp_directory_path_copy_if_valid(tempdir, tempdir_maxncpy, userdir)) {
-    return;
+  if (userdir) {
+    return BLI_temp_directory_path_copy_if_valid(tempdir, tempdir_maxncpy, userdir);
   }
   BLI_temp_directory_path_get(tempdir, tempdir_maxncpy);
+  return true;
 }
 
-static void tempdir_session_create(char *tempdir_session,
+static bool tempdir_session_create(char *tempdir_session,
                                    const size_t tempdir_session_maxncpy,
                                    const char *tempdir)
 {
@@ -1178,15 +1192,12 @@ static void tempdir_session_create(char *tempdir_session,
     if (BLI_is_dir(tempdir_session)) {
       BLI_path_slash_ensure(tempdir_session, tempdir_session_maxncpy);
       /* Success. */
-      return;
+      return true;
     }
   }
 
-  CLOG_WARN(&LOG,
-            "Could not generate a temp file name for '%s', falling back to '%s'",
-            tempdir_session,
-            tempdir);
-  BLI_strncpy(tempdir_session, tempdir, tempdir_session_maxncpy);
+  CLOG_WARN(&LOG, "Could not generate a temp file name for '%s'", tempdir_session);
+  return false;
 }
 
 void BKE_tempdir_init(const char *userdir)
@@ -1196,13 +1207,35 @@ void BKE_tempdir_init(const char *userdir)
    * Sets #g_app.temp_dirname_session to a #mkdtemp
    * generated sub-dir of #g_app.temp_dirname_base. */
 
-  where_is_temp(g_app.temp_dirname_base, sizeof(g_app.temp_dirname_base), userdir);
-
   /* Clear existing temp dir, if needed. */
   BKE_tempdir_session_purge();
-  /* Now that we have a valid temp dir, add system-generated unique sub-dir. */
-  tempdir_session_create(
-      g_app.temp_dirname_session, sizeof(g_app.temp_dirname_session), g_app.temp_dirname_base);
+
+  g_app.temp_dirname_session_can_be_deleted = false;
+
+  /* Only do one pass if `userdir` is null. */
+  int userdir_args_num = userdir ? 2 : 1;
+  const char *userdir_args[2] = {userdir, nullptr};
+
+  for (int i = 0; i < userdir_args_num; i++) {
+    if (where_is_temp(g_app.temp_dirname_base, sizeof(g_app.temp_dirname_base), userdir_args[i])) {
+      if (tempdir_session_create(g_app.temp_dirname_session,
+                                 sizeof(g_app.temp_dirname_session),
+                                 g_app.temp_dirname_base))
+      {
+        g_app.temp_dirname_session_can_be_deleted = true;
+        break;
+      }
+    }
+  }
+
+  if (UNLIKELY(g_app.temp_dirname_session_can_be_deleted == false)) {
+    /* This should practically never happen as either the preferences or the systems
+     * default temporary directory should be usable, if not, use the base directory and warn. */
+    STRNCPY(g_app.temp_dirname_session, g_app.temp_dirname_base);
+    CLOG_WARN(&LOG,
+              "Could not generate a temp session subdirectory, falling back to '%s'",
+              g_app.temp_dirname_base);
+  }
 }
 
 const char *BKE_tempdir_session()
@@ -1217,9 +1250,16 @@ const char *BKE_tempdir_base()
 
 void BKE_tempdir_session_purge()
 {
+  if (g_app.temp_dirname_session_can_be_deleted == false) {
+    /* It's possible this path references an arbitrary location
+     * in that case *never* recursively remove, see: #139585. */
+    return;
+  }
   if (g_app.temp_dirname_session[0] && BLI_is_dir(g_app.temp_dirname_session)) {
     BLI_delete(g_app.temp_dirname_session, true, true);
   }
 }
 
 /** \} */
+
+}  // namespace blender

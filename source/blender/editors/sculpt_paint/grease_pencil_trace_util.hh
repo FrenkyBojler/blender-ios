@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
@@ -17,11 +17,13 @@
 #  include "potracelib.h"
 #endif
 
-namespace blender::bke {
+namespace blender {
+
+namespace bke {
 class CurvesGeometry;
 }
 
-namespace blender::ed::image_trace {
+namespace ed::image_trace {
 
 #ifdef WITH_POTRACE
 using Bitmap = potrace_bitmap_t;
@@ -192,4 +194,6 @@ template<typename ThresholdFn> Bitmap *image_to_bitmap(const ImBuf &ibuf, Thresh
 #endif
 }
 
-}  // namespace blender::ed::image_trace
+}  // namespace ed::image_trace
+
+}  // namespace blender

@@ -19,15 +19,15 @@
 
 #include "RE_texture.h"
 
+namespace blender {
+
 struct bNodeThreadStack;
 
 struct TexCallData {
   TexResult *target;
-  /* all float[3] */
+  /* float[3] */
   const float *co;
-  float *dxt, *dyt;
 
-  int osatex;
   bool do_preview;
   bool do_manage;
   short thread;
@@ -39,10 +39,8 @@ struct TexCallData {
 
 struct TexParams {
   const float *co;
-  float *dxt, *dyt;
   const float *previewco;
   int cfra;
-  int osatex;
 
   /* optional. we don't really want these here, but image
    * textures need to do mapping & color correction */
@@ -59,10 +57,10 @@ struct TexDelegate {
   int type;
 };
 
-bool tex_node_poll_default(const blender::bke::bNodeType *ntype,
+bool tex_node_poll_default(const bke::bNodeType *ntype,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint);
-void tex_node_type_base(blender::bke::bNodeType *ntype,
+void tex_node_type_base(bke::bNodeType *ntype,
                         std::string idname,
                         std::optional<int16_t> legacy_type = std::nullopt);
 
@@ -90,3 +88,5 @@ bNodeTreeExec *ntreeTexBeginExecTree_internal(bNodeExecContext *context,
                                               bNodeTree *ntree,
                                               bNodeInstanceKey parent_key);
 void ntreeTexEndExecTree_internal(bNodeTreeExec *exec);
+
+}  // namespace blender

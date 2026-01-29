@@ -21,9 +21,11 @@
 #include "bpy_utils_units.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "BKE_unit.hh"
+
+namespace blender {
 
 /***** C-defined systems and types *****/
 
@@ -99,7 +101,7 @@ static PyObject *py_structseq_from_strings(PyTypeObject *py_type,
   /* Initialize array. */
   /* We really populate the contexts' fields here! */
   for (str_iter = str_items, desc = py_sseq_desc->fields; *str_iter; str_iter++, desc++) {
-    desc->name = (char *)*str_iter;
+    desc->name = const_cast<char *>(*str_iter);
     desc->doc = nullptr;
   }
   /* end sentinel */
@@ -146,7 +148,7 @@ static bool bpyunits_validate(const char *usys_str, const char *ucat_str, int *r
 PyDoc_STRVAR(
     /* Wrap. */
     bpyunits_to_value_doc,
-    ".. method:: to_value(unit_system, unit_category, str_input, str_ref_unit=None)\n"
+    ".. method:: to_value(unit_system, unit_category, str_input, *, str_ref_unit=None)\n"
     "\n"
     "   Convert a given input string into a float value.\n"
     "\n"
@@ -183,7 +185,6 @@ static PyObject *bpyunits_to_value(PyObject * /*self*/, PyObject *args, PyObject
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `unit_system` */
       "s"  /* `unit_category` */
       "s#" /* `str_input` */
@@ -203,16 +204,15 @@ static PyObject *bpyunits_to_value(PyObject * /*self*/, PyObject *args, PyObject
     return nullptr;
   }
 
-  str_len = str_len * 2 + 64;
-  str = static_cast<char *>(PyMem_MALLOC(sizeof(*str) * size_t(str_len)));
-  BLI_strncpy(str, inpt, size_t(str_len));
+  const size_t str_maxncpy = str_len * 2 + 64;
+  str = static_cast<char *>(PyMem_MALLOC(sizeof(*str) * str_maxncpy));
+  BLI_strncpy(str, inpt, str_maxncpy);
 
-  BKE_unit_replace_string(str, int(str_len), uref, scale, usys, ucat);
+  BKE_unit_replace_string(str, int(str_maxncpy), uref, scale, usys, ucat);
 
   if (!PyC_RunString_AsNumber(nullptr, str, "<bpy_units_api>", &result)) {
     if (PyErr_Occurred()) {
       PyErr_Print();
-      PyErr_Clear();
     }
 
     PyErr_Format(
@@ -230,7 +230,7 @@ static PyObject *bpyunits_to_value(PyObject * /*self*/, PyObject *args, PyObject
 PyDoc_STRVAR(
     /* Wrap. */
     bpyunits_to_string_doc,
-    ".. method:: to_string(unit_system, unit_category, value, precision=3, "
+    ".. method:: to_string(unit_system, unit_category, value, *, precision=3, "
     "split_unit=False, compatible_unit=False)\n"
     "\n"
     "   Convert a given input float value into a string with units.\n"
@@ -273,7 +273,6 @@ static PyObject *bpyunits_to_string(PyObject * /*self*/, PyObject *args, PyObjec
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `unit_system` */
       "s"  /* `unit_category` */
       "d"  /* `value` */
@@ -346,11 +345,11 @@ static PyObject *bpyunits_to_string(PyObject * /*self*/, PyObject *args, PyObjec
 
 static PyMethodDef bpyunits_methods[] = {
     {"to_value",
-     (PyCFunction)bpyunits_to_value,
+     reinterpret_cast<PyCFunction>(bpyunits_to_value),
      METH_VARARGS | METH_KEYWORDS,
      bpyunits_to_value_doc},
     {"to_string",
-     (PyCFunction)bpyunits_to_string,
+     reinterpret_cast<PyCFunction>(bpyunits_to_string),
      METH_VARARGS | METH_KEYWORDS,
      bpyunits_to_string_doc},
     {nullptr, nullptr, 0, nullptr},
@@ -367,8 +366,7 @@ static PyMethodDef bpyunits_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     bpyunits_doc,
-    "This module contains some data/methods regarding units handling.");
-
+    "This module contains some data/methods regarding units handling.\n");
 static PyModuleDef bpyunits_module = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "bpy.utils.units",
@@ -402,3 +400,5 @@ PyObject *BPY_utils_units()
 
   return submodule;
 }
+
+}  // namespace blender

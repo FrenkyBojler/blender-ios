@@ -6,6 +6,8 @@
 
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 /** \file
  * \ingroup bke
  */
@@ -15,19 +17,16 @@ struct UnitSettings;
 /* In all cases the value is assumed to be scaled by the user-preference. */
 
 /**
- * Humanly readable representation of a value in units (used for button drawing).
- */
-size_t BKE_unit_value_as_string_adaptive(char *str,
-                                         int str_maxncpy,
-                                         double value,
-                                         int prec,
-                                         int system,
-                                         int type,
-                                         bool split,
-                                         bool pad);
-/**
- * Representation of a value in units. Negative precision is used to disable stripping of zeroes.
- * This reduces text jumping when changing values.
+ * Representation of a value in units.
+ *
+ * \param prec: Decimal places to show,
+ * Use a negative number to prevent trailing zeros being stripped.
+ * \param pad: When true & `prec` is positive, stripped zeroes will be replaced with a space
+ * instead of being removed.
+ *
+ * \note Disabling stripping or enabling padding reduces text "jittering" when changing values,
+ * especially with mono-spaced fonts. However, the values will take up more space,
+ * so the default is good when there is little movement (e.g. numerical input or mesh overlays).
  */
 size_t BKE_unit_value_as_string(char *str,
                                 int str_maxncpy,
@@ -38,7 +37,23 @@ size_t BKE_unit_value_as_string(char *str,
                                 bool pad);
 
 /**
+ * Humanly readable representation of a value in units (used for button drawing).
+ *
+ * \copydoc #BKE_unit_value_as_string.
+ */
+size_t BKE_unit_value_as_string_adaptive(char *str,
+                                         int str_maxncpy,
+                                         double value,
+                                         int prec,
+                                         int system,
+                                         int type,
+                                         bool split,
+                                         bool pad);
+
+/**
  * A version of #BKE_unit_value_as_string with the `value` scaled by #BKE_unit_value_scale.
+ *
+ * \copydoc #BKE_unit_value_as_string.
  */
 size_t BKE_unit_value_as_string_scaled(char *str,
                                        int str_maxncpy,
@@ -138,3 +153,5 @@ enum {
   B_UNIT_FREQUENCY = 15,
   B_UNIT_TYPE_TOT = 16,
 };
+
+}  // namespace blender

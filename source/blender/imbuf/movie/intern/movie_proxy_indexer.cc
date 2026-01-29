@@ -23,18 +23,27 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
+#include "CLG_log.h"
+
 #include "MOV_read.hh"
 
 #include "ffmpeg_swscale.hh"
 #include "movie_proxy_indexer.hh"
 #include "movie_read.hh"
+#include "movie_util.hh"
 
 #ifdef WITH_FFMPEG
 extern "C" {
 #  include "ffmpeg_compat.h"
 #  include <libavutil/imgutils.h>
 }
+#endif
 
+namespace blender {
+
+static CLG_LogRef LOG = {"video.proxy"};
+
+#ifdef WITH_FFMPEG
 static const char temp_ext[] = "_part";
 #endif
 
@@ -60,7 +69,7 @@ struct MovieIndexBuilder {
 
 static MovieIndexBuilder *index_builder_create(const char *filepath)
 {
-  MovieIndexBuilder *rv = MEM_callocN<MovieIndexBuilder>("index builder");
+  MovieIndexBuilder *rv = MEM_new_zeroed<MovieIndexBuilder>("index builder");
 
   STRNCPY(rv->filepath, filepath);
 
@@ -72,18 +81,20 @@ static MovieIndexBuilder *index_builder_create(const char *filepath)
   rv->fp = BLI_fopen(rv->filepath_temp, "wb");
 
   if (!rv->fp) {
-    fprintf(stderr,
-            "Failed to build index for '%s': could not open '%s' for writing\n",
-            filepath,
-            rv->filepath_temp);
-    MEM_freeN(rv);
+    CLOG_ERROR(&LOG,
+               "Failed to build index for '%s': could not open '%s' for writing",
+               filepath,
+               rv->filepath_temp);
+    MEM_delete(rv);
     return nullptr;
   }
 
   fprintf(rv->fp,
           "%s%c%.3d",
           binary_header_str,
-          (ENDIAN_ORDER == B_ENDIAN) ? 'V' : 'v',
+          /* NOTE: this is endianness-sensitive.
+           * On Big Endian system 'V' must be used instead of 'v'. */
+          'v',
           INDEX_FILE_VERSION);
 
   return rv;
@@ -111,7 +122,7 @@ static void index_builder_finish(MovieIndexBuilder *fp, bool rollback)
     BLI_rename_overwrite(fp->filepath_temp, fp->filepath);
   }
 
-  MEM_freeN(fp);
+  MEM_delete(fp);
 }
 
 #endif
@@ -126,7 +137,7 @@ static MovieIndex *movie_index_open(const char *filepath)
   constexpr int64_t header_size = 12;
   char header[header_size + 1];
   if (fread(header, header_size, 1, fp) != 1) {
-    fprintf(stderr, "Couldn't read indexer file: %s\n", filepath);
+    CLOG_ERROR(&LOG, "Couldn't read indexer file: %s", filepath);
     fclose(fp);
     return nullptr;
   }
@@ -134,13 +145,13 @@ static MovieIndex *movie_index_open(const char *filepath)
   header[header_size] = 0;
 
   if (memcmp(header, binary_header_str, 8) != 0) {
-    fprintf(stderr, "Error reading %s: Binary file type string mismatch\n", filepath);
+    CLOG_ERROR(&LOG, "Error reading %s: Binary file type string mismatch", filepath);
     fclose(fp);
     return nullptr;
   }
 
   if (atoi(header + 9) != INDEX_FILE_VERSION) {
-    fprintf(stderr, "Error reading %s: File version mismatch\n", filepath);
+    CLOG_ERROR(&LOG, "Error reading %s: File version mismatch", filepath);
     fclose(fp);
     return nullptr;
   }
@@ -173,13 +184,16 @@ static MovieIndex *movie_index_open(const char *filepath)
   }
 
   if (items_read != num_entries * 5) {
-    fprintf(stderr, "Error: Element data size mismatch in: %s\n", filepath);
+    CLOG_ERROR(&LOG, "Error: Element data size mismatch in: %s", filepath);
     MEM_delete(idx);
     fclose(fp);
     return nullptr;
   }
 
-  if ((ENDIAN_ORDER == B_ENDIAN) != (header[8] == 'V')) {
+  /* NOTE: this is endianness-sensitive. */
+  BLI_assert(ELEM(header[8], 'v', 'V'));
+  const int16_t file_endianness = (header[8] == 'v') ? L_ENDIAN : B_ENDIAN;
+  if (file_endianness == B_ENDIAN) {
     for (int64_t i = 0; i < num_entries; i++) {
       BLI_endian_switch_int32(&idx->entries[i].frameno);
       BLI_endian_switch_uint64(&idx->entries[i].seek_pos_pts);
@@ -195,13 +209,13 @@ static MovieIndex *movie_index_open(const char *filepath)
 
 uint64_t MovieIndex::get_seek_pos_pts(int frame_index) const
 {
-  frame_index = blender::math::clamp<int>(frame_index, 0, this->entries.size() - 1);
+  frame_index = math::clamp<int>(frame_index, 0, this->entries.size() - 1);
   return this->entries[frame_index].seek_pos_pts;
 }
 
 uint64_t MovieIndex::get_seek_pos_dts(int frame_index) const
 {
-  frame_index = blender::math::clamp<int>(frame_index, 0, this->entries.size() - 1);
+  frame_index = math::clamp<int>(frame_index, 0, this->entries.size() - 1);
   return this->entries[frame_index].seek_pos_dts;
 }
 
@@ -234,7 +248,7 @@ int MovieIndex::get_frame_index(int frameno) const
 
 uint64_t MovieIndex::get_pts(int frame_index) const
 {
-  frame_index = blender::math::clamp<int>(frame_index, 0, this->entries.size() - 1);
+  frame_index = math::clamp<int>(frame_index, 0, this->entries.size() - 1);
   return this->entries[frame_index].pts;
 }
 
@@ -372,7 +386,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
                                                    int height,
                                                    int quality)
 {
-  proxy_output_ctx *rv = MEM_callocN<proxy_output_ctx>("alloc_proxy_output");
+  proxy_output_ctx *rv = MEM_new_zeroed<proxy_output_ctx>("alloc_proxy_output");
 
   char filepath[FILE_MAX];
 
@@ -381,7 +395,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
 
   get_proxy_filepath(rv->anim, rv->proxy_size, filepath, true);
   if (!BLI_file_ensure_parent_dir_exists(filepath)) {
-    MEM_freeN(rv);
+    MEM_delete(rv);
     return nullptr;
   }
 
@@ -401,10 +415,10 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->c = avcodec_alloc_context3(rv->codec);
 
   if (!rv->codec) {
-    fprintf(stderr, "Could not build proxy '%s': failed to create video encoder\n", filepath);
+    CLOG_ERROR(&LOG, "Could not build proxy '%s': failed to create video encoder", filepath);
     avcodec_free_context(&rv->c);
     avformat_free_context(rv->of);
-    MEM_freeN(rv);
+    MEM_delete(rv);
     return nullptr;
   }
 
@@ -413,8 +427,9 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->c->gop_size = 10;
   rv->c->max_b_frames = 0;
 
-  if (rv->codec->pix_fmts) {
-    rv->c->pix_fmt = rv->codec->pix_fmts[0];
+  const enum AVPixelFormat *pix_fmts = ffmpeg_get_pix_fmts(rv->c, rv->codec);
+  if (pix_fmts) {
+    rv->c->pix_fmt = pix_fmts[0];
   }
   else {
     rv->c->pix_fmt = AV_PIX_FMT_YUVJ420P;
@@ -446,7 +461,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     rv->c->thread_count = 0;
   }
   else {
-    rv->c->thread_count = BLI_system_thread_count();
+    rv->c->thread_count = MOV_thread_count();
   }
 
   if (rv->codec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
@@ -465,21 +480,19 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->c->color_trc = codec_ctx->color_trc;
   rv->c->colorspace = codec_ctx->colorspace;
 
-  ffmpeg_copy_display_matrix(st, rv->st);
-
   int ret = avio_open(&rv->of->pb, filepath, AVIO_FLAG_WRITE);
 
   if (ret < 0) {
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
 
-    fprintf(stderr,
-            "Could not build proxy '%s': failed to create output file (%s)\n",
-            filepath,
-            error_str);
+    CLOG_ERROR(&LOG,
+               "Could not build proxy '%s': failed to create output file (%s)",
+               filepath,
+               error_str);
     avcodec_free_context(&rv->c);
     avformat_free_context(rv->of);
-    MEM_freeN(rv);
+    MEM_delete(rv);
     return nullptr;
   }
 
@@ -488,17 +501,16 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
 
-    fprintf(stderr,
-            "Could not build proxy '%s': failed to open video codec (%s)\n",
-            filepath,
-            error_str);
+    CLOG_ERROR(
+        &LOG, "Could not build proxy '%s': failed to open video codec (%s)", filepath, error_str);
     avcodec_free_context(&rv->c);
     avformat_free_context(rv->of);
-    MEM_freeN(rv);
+    MEM_delete(rv);
     return nullptr;
   }
 
   avcodec_parameters_from_context(rv->st->codecpar, rv->c);
+  ffmpeg_copy_display_matrix(st, rv->st);
 
   rv->orig_height = st->codecpar->height;
 
@@ -515,9 +527,13 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     rv->sws_ctx = ffmpeg_sws_get_context(st->codecpar->width,
                                          rv->orig_height,
                                          AVPixelFormat(st->codecpar->format),
+                                         codec_ctx->color_range == AVCOL_RANGE_JPEG,
+                                         -1,
                                          width,
                                          height,
                                          rv->c->pix_fmt,
+                                         codec_ctx->color_range == AVCOL_RANGE_JPEG,
+                                         -1,
                                          SWS_FAST_BILINEAR);
   }
 
@@ -526,8 +542,8 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
 
-    fprintf(
-        stderr, "Could not build proxy '%s': failed to write header (%s)\n", filepath, error_str);
+    CLOG_ERROR(
+        &LOG, "Could not build proxy '%s': failed to write header (%s)", filepath, error_str);
 
     if (rv->frame) {
       av_frame_free(&rv->frame);
@@ -535,7 +551,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
 
     avcodec_free_context(&rv->c);
     avformat_free_context(rv->of);
-    MEM_freeN(rv);
+    MEM_delete(rv);
     return nullptr;
   }
 
@@ -566,8 +582,8 @@ static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx, AVFrame *frame)
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
 
-    fprintf(
-        stderr, "Building proxy '%s': failed to send video frame (%s)\n", ctx->of->url, error_str);
+    CLOG_ERROR(
+        &LOG, "Building proxy '%s': failed to send video frame (%s)", ctx->of->url, error_str);
     return;
   }
   AVPacket *packet = av_packet_alloc();
@@ -583,11 +599,11 @@ static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx, AVFrame *frame)
       char error_str[AV_ERROR_MAX_STRING_SIZE];
       av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
 
-      fprintf(stderr,
-              "Building proxy '%s': error encoding frame #%i (%s)\n",
-              ctx->of->url,
-              ctx->cfra - 1,
-              error_str);
+      CLOG_ERROR(&LOG,
+                 "Building proxy '%s': error encoding frame #%i (%s)",
+                 ctx->of->url,
+                 ctx->cfra - 1,
+                 error_str);
       break;
     }
 
@@ -602,11 +618,11 @@ static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx, AVFrame *frame)
       char error_str[AV_ERROR_MAX_STRING_SIZE];
       av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, write_ret);
 
-      fprintf(stderr,
-              "Building proxy '%s': error writing frame #%i (%s)\n",
-              ctx->of->url,
-              ctx->cfra - 1,
-              error_str);
+      CLOG_ERROR(&LOG,
+                 "Building proxy '%s': error writing frame #%i (%s)",
+                 ctx->of->url,
+                 ctx->cfra - 1,
+                 error_str);
       break;
     }
   }
@@ -656,7 +672,7 @@ static void free_proxy_output_ffmpeg(proxy_output_ctx *ctx, int rollback)
     BLI_rename_overwrite(filepath_tmp, filepath);
   }
 
-  MEM_freeN(ctx);
+  MEM_delete(ctx);
 }
 
 static IMB_Timecode_Type tc_types[IMB_TC_NUM_TYPES] = {IMB_TC_RECORD_RUN,
@@ -703,7 +719,7 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
     return nullptr;
   }
 
-  MovieProxyBuilder *context = MEM_callocN<MovieProxyBuilder>("FFmpeg index builder context");
+  MovieProxyBuilder *context = MEM_new_zeroed<MovieProxyBuilder>("FFmpeg index builder context");
   int num_proxy_sizes = IMB_PROXY_MAX_SLOT;
   int i, streamcount;
 
@@ -716,13 +732,13 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
   memset(context->indexer, 0, sizeof(context->indexer));
 
   if (avformat_open_input(&context->iFormatCtx, anim->filepath, nullptr, nullptr) != 0) {
-    MEM_freeN(context);
+    MEM_delete(context);
     return nullptr;
   }
 
   if (avformat_find_stream_info(context->iFormatCtx, nullptr) < 0) {
     avformat_close_input(&context->iFormatCtx);
-    MEM_freeN(context);
+    MEM_delete(context);
     return nullptr;
   }
 
@@ -743,7 +759,7 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
 
   if (context->videoStream == -1) {
     avformat_close_input(&context->iFormatCtx);
-    MEM_freeN(context);
+    MEM_delete(context);
     return nullptr;
   }
 
@@ -753,7 +769,7 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
 
   if (context->iCodec == nullptr) {
     avformat_close_input(&context->iFormatCtx);
-    MEM_freeN(context);
+    MEM_delete(context);
     return nullptr;
   }
 
@@ -765,7 +781,7 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
     context->iCodecCtx->thread_count = 0;
   }
   else {
-    context->iCodecCtx->thread_count = BLI_system_thread_count();
+    context->iCodecCtx->thread_count = MOV_thread_count();
   }
 
   if (context->iCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
@@ -778,7 +794,7 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
   if (avcodec_open2(context->iCodecCtx, context->iCodec, nullptr) < 0) {
     avformat_close_input(&context->iFormatCtx);
     avcodec_free_context(&context->iCodecCtx);
-    MEM_freeN(context);
+    MEM_delete(context);
     return nullptr;
   }
 
@@ -801,7 +817,7 @@ static MovieProxyBuilder *index_ffmpeg_create_context(MovieReader *anim,
   {
     avformat_close_input(&context->iFormatCtx);
     avcodec_free_context(&context->iCodecCtx);
-    MEM_freeN(context);
+    MEM_delete(context);
     return nullptr; /* Nothing to transcode. */
   }
 
@@ -842,7 +858,7 @@ static void index_rebuild_ffmpeg_finish(MovieProxyBuilder *context, const bool s
   avcodec_free_context(&context->iCodecCtx);
   avformat_close_input(&context->iFormatCtx);
 
-  MEM_freeN(context);
+  MEM_delete(context);
 }
 
 static void index_rebuild_ffmpeg_proc_decoded_frame(MovieProxyBuilder *context, AVFrame *in_frame)
@@ -893,7 +909,7 @@ static void index_rebuild_ffmpeg_proc_decoded_frame(MovieProxyBuilder *context, 
 static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
                                 const bool *stop,
                                 bool *do_update,
-                                float *progress)
+                                const blender::FunctionRef<void(float progress)> set_progress_fn)
 {
   AVFrame *in_frame = av_frame_alloc();
   AVPacket *next_packet = av_packet_alloc();
@@ -905,13 +921,17 @@ static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
       av_guess_frame_rate(context->iFormatCtx, context->iStream, nullptr));
   context->pts_time_base = av_q2d(context->iStream->time_base);
 
+  float progress = 0.0f;
   while (av_read_frame(context->iFormatCtx, next_packet) >= 0) {
     float next_progress =
         float(int(floor(double(next_packet->pos) * 100 / double(stream_size) + 0.5))) / 100;
 
-    if (*progress != next_progress) {
-      *progress = next_progress;
+    if (progress != next_progress) {
+      progress = next_progress;
       *do_update = true;
+      if (set_progress_fn) {
+        set_progress_fn(progress);
+      }
     }
 
     if (*stop) {
@@ -930,7 +950,7 @@ static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
         if (ret < 0) {
           char error_str[AV_ERROR_MAX_STRING_SIZE];
           av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-          fprintf(stderr, "Error decoding proxy frame: %s\n", error_str);
+          CLOG_ERROR(&LOG, "Error decoding proxy frame: %s", error_str);
           break;
         }
 
@@ -966,7 +986,7 @@ static int index_rebuild_ffmpeg(MovieProxyBuilder *context,
       if (ret < 0) {
         char error_str[AV_ERROR_MAX_STRING_SIZE];
         av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-        fprintf(stderr, "Error flushing proxy frame: %s\n", error_str);
+        CLOG_ERROR(&LOG, "Error flushing proxy frame: %s", error_str);
         break;
       }
       index_rebuild_ffmpeg_proc_decoded_frame(context, in_frame);
@@ -1006,7 +1026,7 @@ static int indexer_performance_get_decode_rate(MovieProxyBuilder *context,
       if (ret < 0) {
         char error_str[AV_ERROR_MAX_STRING_SIZE];
         av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-        fprintf(stderr, "Error decoding proxy frame: %s\n", error_str);
+        CLOG_ERROR(&LOG, "Error decoding proxy frame: %s", error_str);
         break;
       }
       frames_decoded++;
@@ -1086,8 +1106,9 @@ static bool indexer_need_to_build_proxy(MovieProxyBuilder *context)
   const int max_gop_size = indexer_performance_get_max_gop_size(context);
 
   if (max_gop_size <= 10 || max_gop_size < decode_rate) {
-    printf("Skipping proxy building for %s: Decoding performance is already good.\n",
-           context->iFormatCtx->url);
+    CLOG_INFO_NOCHECK(&LOG,
+                      "Skipping proxy building for %s: Decoding performance is already good.",
+                      context->iFormatCtx->url);
     context->building_cancelled = true;
     return false;
   }
@@ -1106,7 +1127,7 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
                                            int proxy_sizes_in_use,
                                            int quality,
                                            const bool overwrite,
-                                           blender::Set<std::string> *processed_paths,
+                                           Set<std::string> *processed_paths,
                                            bool build_only_on_bad_performance)
 {
   int proxy_sizes_to_build = proxy_sizes_in_use;
@@ -1139,7 +1160,7 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
           if (!get_proxy_filepath(anim, proxy_size, filepath, false)) {
             return nullptr;
           }
-          printf("Skipping proxy: %s\n", filepath);
+          CLOG_INFO_NOCHECK(&LOG, "Skipping proxy: %s", filepath);
         }
       }
     }
@@ -1167,20 +1188,19 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
 
 void MOV_proxy_builder_process(MovieProxyBuilder *context,
                                /* NOLINTNEXTLINE: readability-non-const-parameter. */
-                               bool *stop,
+                               const bool *stop,
                                /* NOLINTNEXTLINE: readability-non-const-parameter. */
                                bool *do_update,
-                               /* NOLINTNEXTLINE: readability-non-const-parameter. */
-                               float *progress)
+                               const blender::FunctionRef<void(float progress)> set_progress_fn)
 {
 #ifdef WITH_FFMPEG
   if (context != nullptr) {
     if (indexer_need_to_build_proxy(context)) {
-      index_rebuild_ffmpeg(context, stop, do_update, progress);
+      index_rebuild_ffmpeg(context, stop, do_update, set_progress_fn);
     }
   }
 #endif
-  UNUSED_VARS(context, stop, do_update, progress);
+  UNUSED_VARS(context, stop, do_update, set_progress_fn);
 }
 
 void MOV_proxy_builder_finish(MovieProxyBuilder *context, const bool stop)
@@ -1249,8 +1269,11 @@ MovieReader *movie_open_proxy(MovieReader *anim, IMB_Proxy_Size preview_size)
 
   get_proxy_filepath(anim, preview_size, filepath, false);
 
-  /* proxies are generated in the same color space as animation itself */
-  anim->proxy_anim[i] = MOV_open_file(filepath, 0, 0, anim->colorspace);
+  /* Proxies are generated in the same color space as animation itself.
+   *
+   * Also skip any colorspace conversion to the color pipeline design as it helps performance and
+   * the image buffers from the proxy builder are not used anywhere else in Blender. */
+  anim->proxy_anim[i] = MOV_open_file(filepath, 0, 0, true, anim->colorspace);
 
   anim->proxies_tried |= preview_size;
 
@@ -1311,3 +1334,5 @@ int MOV_get_existing_proxies(const MovieReader *anim)
   }
   return existing;
 }
+
+}  // namespace blender

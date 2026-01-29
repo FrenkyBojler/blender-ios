@@ -29,7 +29,9 @@
 /* Include after `BLI_winstuff.h` to avoid APIENTRY redefinition. */
 #  include <epoxy/gl.h>
 
-namespace blender::gpu {
+namespace blender {
+
+namespace gpu {
 
 class SubprocessShader {
   GLuint comp_ = 0;
@@ -143,11 +145,10 @@ std::string GL_shader_cache_dir_get()
   return cache_dir;
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
 
 void GPU_compilation_subprocess_run(const char *subprocess_name)
 {
-  using namespace blender;
   using namespace blender::gpu;
 
 #  ifndef _WIN32
@@ -259,16 +260,23 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
       std::streamsize size = file.tellg();
       if (size <= compilation_subprocess_shared_memory_size) {
         file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(shared_mem.get_data()), size);
+        /* Use temp memory so we don't overwrite the source hash. */
+        static char tmp_mem[compilation_subprocess_shared_memory_size];
+        file.read(tmp_mem, size);
+        /* Close first in case validation hangs the driver. */
+        file.close();
         /* Ensure it's valid. */
-        if (!validate_binary(shared_mem.get_data())) {
+        if (!validate_binary(tmp_mem)) {
           std::cout << "Compilation Subprocess: Failed to load cached shader binary " << hash_str
                     << "\n";
+          /* TODO: No longer true. */
           /* We can't compile the shader anymore since we have written over the source code,
            * but we delete the cache for the next time this shader is requested. */
-          file.close();
           BLI_delete(cache_path.c_str(), false, false);
         }
+        /* Copy the temp memory to the shared memory now that we know loading the shader doesn't
+         * crash the driver. */
+        memcpy(shared_mem.get_data(), tmp_mem, size);
         end_semaphore.increment();
         continue;
       }
@@ -284,13 +292,13 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
     SubprocessShader shader(comp_src, vert_src, geom_src, frag_src);
     ShaderBinaryHeader *binary = shader.get_binary(shared_mem.get_data());
 
-    end_semaphore.increment();
-
     if (binary) {
       fstream file(cache_path, std::ios::binary | std::ios::out);
       file.write(reinterpret_cast<char *>(shared_mem.get_data()),
                  binary->size + offsetof(ShaderBinaryHeader, data));
     }
+
+    end_semaphore.increment();
   }
 
   GPU_exit();
@@ -299,14 +307,14 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
   GHOST_DisposeSystem(ghost_system);
 }
 
-namespace blender::gpu {
+namespace gpu {
 void GL_shader_cache_dir_clear_old()
 {
   std::string cache_dir = GL_shader_cache_dir_get();
 
   direntry *entries = nullptr;
   uint32_t dir_len = BLI_filelist_dir_contents(cache_dir.c_str(), &entries);
-  for (int i : blender::IndexRange(dir_len)) {
+  for (int i : IndexRange(dir_len)) {
     direntry entry = entries[i];
     if (S_ISDIR(entry.s.st_mode)) {
       continue;
@@ -319,6 +327,7 @@ void GL_shader_cache_dir_clear_old()
   }
   BLI_filelist_free(entries, dir_len);
 }
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender
 
 #endif

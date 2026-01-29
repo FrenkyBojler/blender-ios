@@ -11,7 +11,7 @@
  *
  * - Use GPU_matrix API.
  * - Replace old OpenGL calls to `glColor`, etc with `imm` API.
- * - Investigate BLF font flushing (`UI_widgetbase_draw_cache_flush`) which is currently disabled.
+ * - Investigate BLF font flushing (`widgetbase_draw_cache_flush`) which is currently disabled.
  */
 
 #ifdef _MSC_VER
@@ -141,6 +141,7 @@ static void mainwindow_log(MainWindow *mw, char *str)
 static void mainwindow_do_draw(MainWindow *mw)
 {
   GHOST_ActivateWindowDrawingContext(mw->win);
+  GHOST_SwapWindowBufferAcquire(mw->win);
   GPU_context_active_set(mw->gpu_context);
 
   if (mw->lmbut[0]) {
@@ -154,7 +155,7 @@ static void mainwindow_do_draw(MainWindow *mw)
   glColor3f(0.5, 0.6, 0.8);
   glRecti(mw->tmouse[0] - 5, mw->tmouse[1] - 5, mw->tmouse[0] + 5, mw->tmouse[1] + 5);
 
-  GHOST_SwapWindowBuffers(mw->win);
+  GHOST_SwapWindowBufferRelease(mw->win);
 }
 
 static void mainwindow_do_reshape(MainWindow *mw)
@@ -309,7 +310,7 @@ MainWindow *mainwindow_new(MultiTestApp *app)
 {
   GHOST_SystemHandle sys = multitestapp_get_system(app);
   GHOST_WindowHandle win;
-  GHOST_GPUSettings gpuSettings = {0};
+  GHOST_GPUSettings gpu_settings = {0};
 
   win = GHOST_CreateWindow(sys,
                            NULL,
@@ -321,10 +322,10 @@ MainWindow *mainwindow_new(MultiTestApp *app)
                            GHOST_kWindowStateNormal,
                            false,
                            GHOST_kDrawingContextTypeOpenGL,
-                           gpuSettings);
+                           gpu_settings);
 
   if (win) {
-    MainWindow *mw = MEM_callocN(sizeof(*mw), "mainwindow_new");
+    MainWindow *mw = MEM_new_zeroed<MainWindow>("mainwindow_new");
 
     mw->gpu_context = GPU_context_create(win, NULL);
     GPU_init();
@@ -347,7 +348,7 @@ void mainwindow_free(MainWindow *mw)
 
   windowdata_free(GHOST_GetWindowUserData(mw->win));
   GHOST_DisposeWindow(sys, mw->win);
-  MEM_freeN(mw);
+  MEM_delete(mw);
 }
 
 /*
@@ -432,6 +433,7 @@ static void loggerwindow_do_draw(LoggerWindow *lw)
   int sb_rect[2][2], sb_thumb[2][2];
 
   GHOST_ActivateWindowDrawingContext(lw->win);
+  GHOST_SwapWindowBufferAcquire(lw->win);
   GPU_context_active_set(lw->gpu_context);
 
   glClearColor(1, 1, 1, 1);
@@ -468,7 +470,7 @@ static void loggerwindow_do_draw(LoggerWindow *lw)
     BLF_draw(lw->font, line, 256);  // XXX
   }
 
-  GHOST_SwapWindowBuffers(lw->win);
+  GHOST_SwapWindowBufferRelease(lw->win);
 
   immDeactivate();
 }
@@ -561,7 +563,7 @@ static void loggerwindow_handle(void *priv, GHOST_EventHandle evt)
 
 LoggerWindow *loggerwindow_new(MultiTestApp *app)
 {
-  GHOST_GPUSettings gpuSettings = {0};
+  GHOST_GPUSettings gpu_settings = {0};
   GHOST_SystemHandle sys = multitestapp_get_system(app);
   uint32_t screensize[2];
   GHOST_WindowHandle win;
@@ -582,10 +584,10 @@ LoggerWindow *loggerwindow_new(MultiTestApp *app)
                            GHOST_kWindowStateNormal,
                            false,
                            GHOST_kDrawingContextTypeOpenGL,
-                           gpuSettings);
+                           gpu_settings);
 
   if (win) {
-    LoggerWindow *lw = MEM_callocN(sizeof(*lw), "loggerwindow_new");
+    LoggerWindow *lw = MEM_new_zeroed<LoggerWindow>("loggerwindow_new");
 
     lw->gpu_context = GPU_context_create(win, NULL);
     GPU_init();
@@ -599,7 +601,7 @@ LoggerWindow *loggerwindow_new(MultiTestApp *app)
     lw->fontheight = BLF_height(lw->font, "A_", 2);
 
     lw->nloglines = lw->logsize = 0;
-    lw->loglines = MEM_mallocN(sizeof(*lw->loglines) * lw->nloglines, "loglines");
+    lw->loglines = MEM_new_array_uninitialized<char *>(lw->nloglines, "loglines");
 
     lw->scroll = scrollbar_new(2, 40);
 
@@ -632,13 +634,13 @@ void loggerwindow_free(LoggerWindow *lw)
   int i;
 
   for (i = 0; i < lw->nloglines; i++) {
-    MEM_freeN(lw->loglines[i]);
+    MEM_delete(lw->loglines[i]);
   }
-  MEM_freeN(lw->loglines);
+  MEM_delete(lw->loglines);
 
   windowdata_free(GHOST_GetWindowUserData(lw->win));
   GHOST_DisposeWindow(sys, lw->win);
-  MEM_freeN(lw);
+  MEM_delete(lw);
 }
 
 /*
@@ -657,6 +659,7 @@ typedef struct {
 static void extrawindow_do_draw(ExtraWindow *ew)
 {
   GHOST_ActivateWindowDrawingContext(ew->win);
+  GHOST_SwapWindowBufferAcquire(eq->win);
   GPU_context_active_set(ew->gpu_context);
 
   glClearColor(1, 1, 1, 1);
@@ -665,7 +668,7 @@ static void extrawindow_do_draw(ExtraWindow *ew)
   glColor3f(0.8, 0.8, 0.8);
   glRecti(10, 10, ew->size[0] - 10, ew->size[1] - 10);
 
-  GHOST_SwapWindowBuffers(ew->win);
+  GHOST_SwapWindowBufferRelease(ew->win);
 }
 
 static void extrawindow_do_reshape(ExtraWindow *ew)
@@ -730,7 +733,10 @@ static void extrawindow_spin_cursor(ExtraWindow *ew, uint64_t time)
     mask[y][x / 8] |= (1 << (x % 8));
   }
 
-  GHOST_SetCustomCursorShape(ew->win, &bitmap[0][0], &mask[0][0], 16, 16, 0, 0, true);
+  const int size[2] = {16, 16};
+  const int hot_spot[2] = {0, 0};
+
+  GHOST_SetCustomCursorShape(ew->win, &bitmap[0][0], &mask[0][0], size, hot_spot, true);
 }
 
 static void extrawindow_handle(void *priv, GHOST_EventHandle evt)
@@ -771,7 +777,7 @@ static void extrawindow_handle(void *priv, GHOST_EventHandle evt)
 
 ExtraWindow *extrawindow_new(MultiTestApp *app)
 {
-  GHOST_GPUSettings gpuSettings = {0};
+  GHOST_GPUSettings gpu_settings = {0};
   GHOST_SystemHandle sys = multitestapp_get_system(app);
   GHOST_WindowHandle win;
 
@@ -785,10 +791,10 @@ ExtraWindow *extrawindow_new(MultiTestApp *app)
                            GHOST_kWindowStateNormal,
                            false,
                            GHOST_kDrawingContextTypeOpenGL,
-                           gpuSettings);
+                           gpu_settings);
 
   if (win) {
-    ExtraWindow *ew = MEM_callocN(sizeof(*ew), "mainwindow_new");
+    ExtraWindow *ew = MEM_new_zeroed<ExtraWindow>("mainwindow_new");
 
     ew->gpu_context = GPU_context_create(win, NULL);
     GPU_init();
@@ -811,7 +817,7 @@ void extrawindow_free(ExtraWindow *ew)
 
   windowdata_free(GHOST_GetWindowUserData(ew->win));
   GHOST_DisposeWindow(sys, ew->win);
-  MEM_freeN(ew);
+  MEM_delete(ew);
 }
 
 /*
@@ -867,7 +873,7 @@ static bool multitest_event_handler(GHOST_EventHandle evt, GHOST_TUserDataPtr da
 
 MultiTestApp *multitestapp_new(void)
 {
-  MultiTestApp *app = MEM_mallocN(sizeof(*app), "multitestapp_new");
+  MultiTestApp *app = MEM_new_uninitialized<MultiTestApp>("multitestapp_new");
   GHOST_EventConsumerHandle consumer = GHOST_CreateEventConsumer(multitest_event_handler, app);
 
   app->sys = GHOST_CreateSystem();
@@ -943,7 +949,7 @@ void multitestapp_free(MultiTestApp *app)
   mainwindow_free(app->main);
   loggerwindow_free(app->logger);
   GHOST_DisposeSystem(app->sys);
-  MEM_freeN(app);
+  MEM_delete(app);
 }
 
 /***/

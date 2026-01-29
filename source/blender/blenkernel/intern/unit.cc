@@ -26,6 +26,8 @@
 #  include "BLI_winstuff.h"
 #endif
 
+namespace blender {
+
 /* No BKE or DNA includes! */
 
 /* Keep alignment. */
@@ -1631,7 +1633,7 @@ static void unit_dual_convert(double value,
   const bUnitDef *unit = (main_unit) ? main_unit : unit_best_fit(value, usys, nullptr, 1);
 
   const double scaled_value = value / unit->scalar;
-  *r_value_a = (value < 0.0 ? ceil(scaled_value) : floor(scaled_value)) * unit->scalar;
+  *r_value_a = std::trunc(scaled_value) * unit->scalar;
   *r_value_b = value - (*r_value_a);
 
   *r_unit_a = unit;
@@ -1642,11 +1644,13 @@ static size_t unit_as_string(char *str,
                              int str_maxncpy,
                              double value,
                              int prec,
+                             const bool do_rstrip_zero,
                              const bUnitCollection *usys,
                              /* Non exposed options. */
                              const bUnitDef *unit,
                              char pad)
 {
+  BLI_assert(prec >= 0);
   if (unit == nullptr) {
     if (value == 0.0) {
       /* Use the default units since there is no way to convert. */
@@ -1658,14 +1662,6 @@ static size_t unit_as_string(char *str,
   }
 
   double value_conv = (value / unit->scalar) - unit->bias;
-  bool strip_skip = false;
-
-  /* Negative precision is used to disable stripping of zeroes.
-   * This reduces text jumping when changing values. */
-  if (prec < 0) {
-    strip_skip = true;
-    prec *= -1;
-  }
 
   /* Adjust precision to expected number of significant digits.
    * Note that here, we shall not have to worry about very big/small numbers, units are expected
@@ -1685,7 +1681,7 @@ static size_t unit_as_string(char *str,
   size_t i = len - 1;
 
   if (prec > 0) {
-    if (!strip_skip) {
+    if (do_rstrip_zero) {
       while (i > 0 && str[i] == '0') { /* 4.300 -> 4.3 */
         str[i--] = pad;
       }
@@ -1750,16 +1746,19 @@ static size_t unit_as_string_split_pair(char *str,
                                         int str_maxncpy,
                                         double value,
                                         int prec,
+                                        const bool do_rstrip_zero,
                                         const bUnitCollection *usys,
                                         const bUnitDef *main_unit)
 {
+  BLI_assert(prec >= 0);
   const bUnitDef *unit_a, *unit_b;
   double value_a, value_b;
   unit_dual_convert(value, usys, &unit_a, &unit_b, &value_a, &value_b, main_unit);
 
   /* Check the 2 is a smaller unit. */
   if (unit_b > unit_a) {
-    size_t i = unit_as_string(str, str_maxncpy, value_a, prec, usys, unit_a, '\0');
+    /* Always strip zeros for the larger unit, since it is truncated and won't ever "jitter". */
+    size_t i = unit_as_string(str, str_maxncpy, value_a, prec, true, usys, unit_a, '\0');
 
     prec -= integer_digits_d(value_a / unit_b->scalar) -
             integer_digits_d(value_b / unit_b->scalar);
@@ -1770,7 +1769,8 @@ static size_t unit_as_string_split_pair(char *str,
       str[i++] = ' ';
 
       /* Use low precision since this is a smaller unit. */
-      i += unit_as_string(str + i, str_maxncpy - i, value_b, prec, usys, unit_b, '\0');
+      i += unit_as_string(
+          str + i, str_maxncpy - i, value_b, prec, do_rstrip_zero, usys, unit_b, '\0');
     }
     return i;
   }
@@ -1849,15 +1849,23 @@ static size_t unit_as_string_main(char *str,
     main_unit = get_preferred_display_unit_if_used(type, units);
   }
 
+  bool do_rstrip_zero = true;
+  if (prec < 0) {
+    prec = -prec;
+    do_rstrip_zero = false;
+  }
+
   if (split && unit_should_be_split(type)) {
-    int length = unit_as_string_split_pair(str, str_maxncpy, value, prec, usys, main_unit);
-    /* Failed when length is negative, fall back to no split. */
+    int length = unit_as_string_split_pair(
+        str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit);
+    /* Split failed when length is negative, fall back to no split. */
     if (length >= 0) {
       return length;
     }
   }
 
-  return unit_as_string(str, str_maxncpy, value, prec, usys, main_unit, pad ? ' ' : '\0');
+  return unit_as_string(
+      str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit, pad ? ' ' : '\0');
 }
 
 size_t BKE_unit_value_as_string_adaptive(
@@ -1952,7 +1960,7 @@ static const char *unit_find_str(const char *str, const char *substr, bool case_
            * since non ASCII UTF8 values will NEVER return true. */
           isalpha_or_utf8(*BLI_str_find_prev_char_utf8(str_found, str)) == 0)
       {
-        /* Next char cannot be alpha-numeric. */
+        /* Next char cannot be alphanumeric. */
         int len_name = strlen(substr);
 
         if (!isalpha_or_utf8(*(str_found + len_name))) {
@@ -2178,7 +2186,7 @@ static int unit_scale_str(char *str,
   }
 
   /* XXX: investigate, does not respect str_maxncpy properly. */
-  char *str_found = (char *)unit_find_str(str, replace_str, case_sensitive);
+  char *str_found = const_cast<char *>(unit_find_str(str, replace_str, case_sensitive));
 
   if (str_found == nullptr) {
     return 0;
@@ -2525,7 +2533,7 @@ void BKE_unit_system_get(int system, int type, void const **r_usys_pt, int *r_le
 
 int BKE_unit_base_get(const void *usys_pt)
 {
-  return ((bUnitCollection *)usys_pt)->base_unit;
+  return (static_cast<bUnitCollection *>(const_cast<void *>(usys_pt)))->base_unit;
 }
 
 int BKE_unit_base_of_type_get(int system, int type)
@@ -2569,3 +2577,5 @@ bool BKE_unit_is_suppressed(const void *usys_pt, int index)
   BLI_assert(uint(index) < uint(usys->length));
   return (usys->units[index].flag & B_UNIT_DEF_SUPPRESS) != 0;
 }
+
+}  // namespace blender

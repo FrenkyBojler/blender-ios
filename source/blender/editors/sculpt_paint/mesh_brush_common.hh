@@ -20,6 +20,8 @@
 
 #include "sculpt_intern.hh"
 
+namespace blender {
+
 /**
  * This file contains common operations useful for the implementation of various different brush
  * tools. The design goals of the API are to always operate on more than one data element at a
@@ -45,7 +47,6 @@ struct Sculpt;
 struct SculptSession;
 struct SubdivCCG;
 struct SubdivCCGCoord;
-namespace blender {
 namespace bke {
 class AttributeAccessor;
 }
@@ -53,9 +54,8 @@ namespace bke::pbvh {
 class Node;
 class Tree;
 }  // namespace bke::pbvh
-}  // namespace blender
 
-namespace blender::ed::sculpt_paint {
+namespace ed::sculpt_paint {
 struct StrokeCache;
 
 namespace auto_mask {
@@ -81,9 +81,6 @@ void translations_from_new_positions(Span<float3> new_positions,
 void translations_from_new_positions(Span<float3> new_positions,
                                      Span<float3> old_positions,
                                      MutableSpan<float3> translations);
-
-void transform_positions(Span<float3> src, const float4x4 &transform, MutableSpan<float3> dst);
-void transform_positions(const float4x4 &transform, MutableSpan<float3> positions);
 
 /** Gather data from an array aligned with all geometry vertices. */
 template<typename T> void gather_data_mesh(Span<T> src, Span<int> indices, MutableSpan<T> dst);
@@ -454,6 +451,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(OffsetIndices<int> faces,
                                               Span<int> corner_verts,
                                               GroupedSpan<int> vert_to_face,
                                               BitSpan boundary_verts,
+                                              const Set<OrderedEdge> &boundary_edges,
                                               Span<bool> hide_poly,
                                               Span<int> verts,
                                               Vector<int> &r_offset_data,
@@ -462,6 +460,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(OffsetIndices<int> faces,
                                               Span<int> corner_verts,
                                               GroupedSpan<int> vert_to_face,
                                               BitSpan boundary_verts,
+                                              const Set<OrderedEdge> &boundary_edges,
                                               Span<bool> hide_poly,
                                               Span<int> verts,
                                               Span<float> factors,
@@ -470,6 +469,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(OffsetIndices<int> faces,
 void calc_vert_neighbors_interior(OffsetIndices<int> faces,
                                   Span<int> corner_verts,
                                   BitSpan boundary_verts,
+                                  const Set<OrderedEdge> &boundary_edges,
                                   const SubdivCCG &subdiv_ccg,
                                   Span<int> grids,
                                   MutableSpan<Vector<SubdivCCGCoord>> result);
@@ -515,4 +515,6 @@ void filter_above_plane_factors(Span<float3> positions,
                                 const float4 &plane,
                                 MutableSpan<float> factors);
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
+
+}  // namespace blender

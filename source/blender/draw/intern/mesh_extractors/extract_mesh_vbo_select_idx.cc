@@ -15,8 +15,7 @@ namespace blender::draw {
 
 static gpu::VertBufPtr create_vbo(const int size)
 {
-  static GPUVertFormat format = GPU_vertformat_from_attribute(
-      "index", GPU_COMP_I32, 1, GPU_FETCH_INT);
+  static GPUVertFormat format = GPU_vertformat_from_attribute("index", gpu::VertAttrType::SINT_32);
   gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
   GPU_vertbuf_data_alloc(*vbo, size);
   return vbo;
@@ -235,11 +234,12 @@ static void extract_vert_idx_loose_geom_subdiv(const DRWSubdivCache &subdiv_cach
 gpu::VertBufPtr extract_vert_index_subdiv(const DRWSubdivCache &subdiv_cache,
                                           const MeshRenderData &mr)
 {
+  const int loose_len = subdiv_loose_edges_num(mr, subdiv_cache) * 2 + mr.loose_verts.size();
   /* Each element points to an element in the `ibo.points`. */
   gpu::VertBufPtr vbo = draw_subdiv_init_origindex_buffer(
       subdiv_cache.verts_orig_index->data<int32_t>().data(),
       subdiv_cache.num_subdiv_loops,
-      subdiv_full_vbo_size(mr, subdiv_cache));
+      loose_len);
   if (!mr.orig_index_vert) {
     return vbo;
   }

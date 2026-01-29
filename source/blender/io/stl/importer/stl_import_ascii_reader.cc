@@ -27,9 +27,12 @@
 #include "stl_import_mesh.hh"
 
 #include "CLG_log.h"
+
+namespace blender {
+
 static CLG_LogRef LOG = {"io.stl"};
 
-namespace blender::io::stl {
+namespace io::stl {
 
 class StringBuffer {
  private:
@@ -121,7 +124,7 @@ Mesh *read_stl_ascii(const char *filepath, const bool use_custom_normals)
     CLOG_ERROR(&LOG, "STL Importer: cannot read from ASCII STL file: '%s'", filepath);
     return nullptr;
   }
-  BLI_SCOPED_DEFER([&]() { MEM_freeN(buffer); });
+  BLI_SCOPED_DEFER([&]() { MEM_delete_void(buffer); });
 
   constexpr int num_reserved_tris = 1024;
 
@@ -154,4 +157,5 @@ Mesh *read_stl_ascii(const char *filepath, const bool use_custom_normals)
   return stl_mesh.to_mesh();
 }
 
-}  // namespace blender::io::stl
+}  // namespace io::stl
+}  // namespace blender

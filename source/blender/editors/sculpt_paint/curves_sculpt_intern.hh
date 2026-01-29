@@ -13,24 +13,28 @@
 #include "BKE_attribute.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
+#include "DNA_brush_types.h"
+#include "DNA_scene_types.h"
 
 #include "ED_curves.hh"
 
-struct ARegion;
-struct RegionView3D;
-struct Depsgraph;
-struct View3D;
-struct Object;
-struct Brush;
-struct Scene;
+namespace blender {
 
-namespace blender::bke {
+struct ARegion;
+struct Brush;
+struct Depsgraph;
+struct Object;
+struct RegionView3D;
+struct Scene;
+struct View3D;
+
+namespace bke {
 struct BVHTreeFromMesh;
 }
 
 struct ReportList;
 
-namespace blender::ed::sculpt_paint {
+namespace ed::sculpt_paint {
 
 using bke::CurvesGeometry;
 using bke::CurvesSurfaceTransforms;
@@ -43,12 +47,12 @@ struct StrokeExtension {
 };
 
 float brush_radius_factor(const Brush &brush, const StrokeExtension &stroke_extension);
-float brush_radius_get(const Scene &scene,
+float brush_radius_get(const Paint &paint,
                        const Brush &brush,
                        const StrokeExtension &stroke_extension);
 
 float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_extension);
-float brush_strength_get(const Scene &scene,
+float brush_strength_get(const Paint &paint,
                          const Brush &brush,
                          const StrokeExtension &stroke_extension);
 
@@ -58,23 +62,30 @@ float brush_strength_get(const Scene &scene,
 class CurvesSculptStrokeOperation {
  public:
   virtual ~CurvesSculptStrokeOperation() = default;
-  virtual void on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension) = 0;
+  virtual void on_stroke_extended(const PaintStroke &stroke,
+                                  const StrokeExtension &stroke_extension) = 0;
 };
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_add_operation();
 std::unique_ptr<CurvesSculptStrokeOperation> new_comb_operation();
 std::unique_ptr<CurvesSculptStrokeOperation> new_delete_operation();
 std::unique_ptr<CurvesSculptStrokeOperation> new_snake_hook_operation();
-std::unique_ptr<CurvesSculptStrokeOperation> new_grow_shrink_operation(
-    const BrushStrokeMode brush_mode, const bContext &C);
+std::unique_ptr<CurvesSculptStrokeOperation> new_grow_shrink_operation(BrushStrokeMode brush_mode,
+                                                                       const Scene &scene);
 std::unique_ptr<CurvesSculptStrokeOperation> new_selection_paint_operation(
-    const BrushStrokeMode brush_mode, const bContext &C);
-std::unique_ptr<CurvesSculptStrokeOperation> new_pinch_operation(const BrushStrokeMode brush_mode,
-                                                                 const bContext &C);
+    BrushStrokeMode brush_mode, BrushSwitchMode brush_switch_mode, const Scene &scene);
+std::unique_ptr<CurvesSculptStrokeOperation> new_pinch_operation(BrushStrokeMode brush_mode,
+                                                                 const Scene &scene);
 std::unique_ptr<CurvesSculptStrokeOperation> new_smooth_operation();
 std::unique_ptr<CurvesSculptStrokeOperation> new_puff_operation();
 std::unique_ptr<CurvesSculptStrokeOperation> new_density_operation(
-    const BrushStrokeMode brush_mode, const bContext &C, const StrokeExtension &stroke_start);
+    BrushStrokeMode brush_mode,
+    const Scene &scene,
+    const Depsgraph &depsgraph,
+    const ARegion &region,
+    const View3D &v3d,
+    const Object &object,
+    const StrokeExtension &stroke_start);
 std::unique_ptr<CurvesSculptStrokeOperation> new_slide_operation();
 
 struct CurvesBrush3D {
@@ -97,7 +108,7 @@ std::optional<CurvesBrush3D> sample_curves_3d_brush(const Depsgraph &depsgraph,
  * Updates the position of the stroke so that it can be used by the orbit-around-selection
  * navigation method.
  */
-void remember_stroke_position(Scene &scene, const float3 &brush_position_wo);
+void remember_stroke_position(CurvesSculpt &curves_sculpt, const float3 &brush_position_wo);
 
 Vector<float4x4> get_symmetry_brush_transforms(eCurvesSymmetryType symmetry);
 
@@ -123,13 +134,14 @@ void move_last_point_and_resample(MoveAndResampleBuffers &buffer,
 
 class CurvesSculptCommonContext {
  public:
+  Object *object = nullptr;
   const Depsgraph *depsgraph = nullptr;
   Scene *scene = nullptr;
   ARegion *region = nullptr;
   const View3D *v3d = nullptr;
   RegionView3D *rv3d = nullptr;
 
-  CurvesSculptCommonContext(const bContext &C);
+  CurvesSculptCommonContext(const PaintStroke &stroke);
 };
 
 std::optional<CurvesBrush3D> sample_curves_surface_3d_brush(
@@ -183,4 +195,6 @@ struct CurvesConstraintSolver {
 bool curves_sculpt_poll(bContext *C);
 bool curves_sculpt_poll_view3d(bContext *C);
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
+
+}  // namespace blender

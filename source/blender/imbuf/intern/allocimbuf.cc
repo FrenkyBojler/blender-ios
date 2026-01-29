@@ -28,31 +28,13 @@
 
 #include "GPU_texture.hh"
 
+#include "CLG_log.h"
+
 #include "atomic_ops.h"
 
-#ifndef WIN32
-static SpinLock mmap_spin;
+namespace blender {
 
-void imb_mmap_lock_init()
-{
-  BLI_spin_init(&mmap_spin);
-}
-
-void imb_mmap_lock_exit()
-{
-  BLI_spin_end(&mmap_spin);
-}
-
-void imb_mmap_lock()
-{
-  BLI_spin_lock(&mmap_spin);
-}
-
-void imb_mmap_unlock()
-{
-  BLI_spin_unlock(&mmap_spin);
-}
-#endif
+static CLG_LogRef LOG = {"image.buffer"};
 
 /* Free the specified buffer storage, freeing memory when needed and restoring the state of the
  * buffer to its defaults. */
@@ -64,7 +46,7 @@ template<class BufferType> static void imb_free_buffer(BufferType &buffer)
         break;
 
       case IB_TAKE_OWNERSHIP:
-        MEM_freeN(buffer.data);
+        MEM_delete(buffer.data);
         break;
     }
   }
@@ -84,7 +66,8 @@ static void imb_free_dds_buffer(DDSData &dds_data)
         break;
 
       case IB_TAKE_OWNERSHIP:
-        /* dds_data.data is allocated by DirectDrawSurface::readData(), so don't use MEM_freeN! */
+        /* dds_data.data is allocated by DirectDrawSurface::readData(), so don't use
+         * MEM_delete! */
         free(dds_data.data);
         break;
     }
@@ -126,7 +109,7 @@ template<class BufferType> void imb_make_writeable_buffer(BufferType &buffer)
 
   switch (buffer.ownership) {
     case IB_DO_NOT_TAKE_OWNERSHIP:
-      buffer.data = static_cast<decltype(BufferType::data)>(MEM_dupallocN(buffer.data));
+      buffer.data = MEM_dupalloc(buffer.data);
       buffer.ownership = IB_TAKE_OWNERSHIP;
 
     case IB_TAKE_OWNERSHIP:
@@ -161,32 +144,12 @@ auto imb_steal_buffer_data(BufferType &buffer) -> decltype(BufferType::data)
   return nullptr;
 }
 
-void IMB_free_mipmaps(ImBuf *ibuf)
-{
-  int a;
-
-  /* Do not trust ibuf->miptot, in some cases IMB_remakemipmap can leave unfreed unused levels,
-   * leading to memory leaks... */
-  for (a = 0; a < IMB_MIPMAP_LEVELS; a++) {
-    if (ibuf->mipmap[a] != nullptr) {
-      IMB_freeImBuf(ibuf->mipmap[a]);
-      ibuf->mipmap[a] = nullptr;
-    }
-  }
-
-  ibuf->miptot = 0;
-}
-
 void IMB_free_float_pixels(ImBuf *ibuf)
 {
   if (ibuf == nullptr) {
     return;
   }
-
   imb_free_buffer(ibuf->float_buffer);
-
-  IMB_free_mipmaps(ibuf);
-
   ibuf->flags &= ~IB_float_data;
 }
 
@@ -195,11 +158,7 @@ void IMB_free_byte_pixels(ImBuf *ibuf)
   if (ibuf == nullptr) {
     return;
   }
-
   imb_free_buffer(ibuf->byte_buffer);
-
-  IMB_free_mipmaps(ibuf);
-
   ibuf->flags &= ~IB_byte_data;
 }
 
@@ -251,7 +210,7 @@ void IMB_freeImBuf(ImBuf *ibuf)
     IMB_metadata_free(ibuf->metadata);
     colormanage_cache_free(ibuf);
     imb_free_dds_buffer(ibuf->dds_data);
-    MEM_freeN(ibuf);
+    MEM_delete(ibuf);
   }
 }
 
@@ -312,7 +271,7 @@ bool imb_enlargeencodedbufferImBuf(ImBuf *ibuf)
   }
 
   if (ibuf->encoded_buffer_size < ibuf->encoded_size) {
-    printf("%s: error in parameters\n", __func__);
+    CLOG_ERROR(&LOG, "%s: error in parameters\n", __func__);
     return false;
   }
 
@@ -350,7 +309,8 @@ void *imb_alloc_pixels(
   }
 
   size_t size = size_t(x) * size_t(y) * size_t(channels) * typesize;
-  return initialize_pixels ? MEM_callocN(size, alloc_name) : MEM_mallocN(size, alloc_name);
+  return initialize_pixels ? MEM_new_zeroed(size, alloc_name) :
+                             MEM_new_uninitialized(size, alloc_name);
 }
 
 bool IMB_alloc_float_pixels(ImBuf *ibuf, const uint channels, bool initialize_pixels)
@@ -359,11 +319,8 @@ bool IMB_alloc_float_pixels(ImBuf *ibuf, const uint channels, bool initialize_pi
     return false;
   }
 
-  /* NOTE: Follows the historical code.
-   * Is unclear if it is desired or not to free mipmaps. If mipmaps are to be preserved a simple
-   * `imb_free_buffer(ibuf->float_buffer)` can be used instead. */
   if (ibuf->float_buffer.data) {
-    IMB_free_float_pixels(ibuf); /* frees mipmap too, hrm */
+    IMB_free_float_pixels(ibuf);
   }
 
   if (!imb_alloc_buffer(
@@ -386,8 +343,6 @@ bool IMB_alloc_byte_pixels(ImBuf *ibuf, bool initialize_pixels)
     return false;
   }
 
-  /* Don't call IMB_free_byte_pixels, it frees mipmaps,
-   * this call is used only too give float buffers display. */
   imb_free_buffer(ibuf->byte_buffer);
 
   if (!imb_alloc_buffer(
@@ -528,7 +483,7 @@ ImBuf *IMB_allocFromBuffer(
 
   ibuf->channels = channels;
 
-  /* NOTE: Avoid #MEM_dupallocN since the buffers might not be allocated using guarded-allocation.
+  /* NOTE: Avoid #MEM_dupalloc since the buffers might not be allocated using guarded-allocation.
    */
   if (float_buffer) {
     /* TODO(sergey): The 4 channels is the historical code. Should probably be `channels`, but
@@ -549,7 +504,7 @@ ImBuf *IMB_allocFromBuffer(
 
 ImBuf *IMB_allocImBuf(uint x, uint y, uchar planes, uint flags)
 {
-  ImBuf *ibuf = MEM_callocN<ImBuf>("ImBuf_struct");
+  ImBuf *ibuf = MEM_new<ImBuf>("ImBuf_struct");
 
   if (ibuf) {
     if (!IMB_initImBuf(ibuf, x, y, planes, flags)) {
@@ -600,7 +555,7 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
 {
   ImBuf *ibuf2, tbuf;
   int flags = IB_uninitialized_pixels;
-  int a, x, y;
+  int x, y;
 
   if (ibuf1 == nullptr) {
     return nullptr;
@@ -656,9 +611,6 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   tbuf.byte_buffer = ibuf2->byte_buffer;
   tbuf.float_buffer = ibuf2->float_buffer;
   tbuf.encoded_buffer = ibuf2->encoded_buffer;
-  for (a = 0; a < IMB_MIPMAP_LEVELS; a++) {
-    tbuf.mipmap[a] = nullptr;
-  }
   tbuf.dds_data.data = nullptr;
 
   /* Set `malloc` flag. */
@@ -686,7 +638,6 @@ size_t IMB_get_pixel_count(const ImBuf *ibuf)
 
 size_t IMB_get_size_in_memory(const ImBuf *ibuf)
 {
-  int a;
   size_t size = 0, channel_size = 0;
 
   size += sizeof(ImBuf);
@@ -701,13 +652,7 @@ size_t IMB_get_size_in_memory(const ImBuf *ibuf)
 
   size += channel_size * IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);
 
-  if (ibuf->miptot) {
-    for (a = 0; a < ibuf->miptot; a++) {
-      if (ibuf->mipmap[a]) {
-        size += IMB_get_size_in_memory(ibuf->mipmap[a]);
-      }
-    }
-  }
-
   return size;
 }
+
+}  // namespace blender

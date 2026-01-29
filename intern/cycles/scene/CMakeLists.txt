@@ -9,13 +9,10 @@ set(INC
 )
 
 set(SRC
-  alembic.cpp
-  alembic_read.cpp
   attribute.cpp
   background.cpp
   bake.cpp
   camera.cpp
-  colorspace.cpp
   constant_fold.cpp
   devicescene.cpp
   film.cpp
@@ -54,13 +51,10 @@ set(SRC
 )
 
 set(SRC_HEADERS
-  alembic.h
-  alembic_read.h
   attribute.h
   bake.h
   background.h
   camera.h
-  colorspace.h
   constant_fold.h
   devicescene.h
   film.h
@@ -114,41 +108,9 @@ if(WITH_CYCLES_OSL)
   )
 endif()
 
-if(WITH_OPENCOLORIO)
-  add_definitions(-DWITH_OCIO)
-  list(APPEND INC_SYS
-    ${OPENCOLORIO_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${OPENCOLORIO_LIBRARIES}
-  )
-  if(WIN32 AND NOT USD_OVERRIDE_OPENCOLORIO)
-    add_definitions(-DOpenColorIO_SKIP_IMPORTS)
-  endif()
-endif()
-
 if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
   list(APPEND LIB
-    ${OPENVDB_LIBRARIES}
-  )
-
-  # This works around the issue described in #120317 and https://github.com/AcademySoftwareFoundation/openvdb/pull/1786
-  if(MSVC_CLANG)
-    set_source_files_properties(image_vdb.cpp PROPERTIES COMPILE_FLAGS -fno-delayed-template-parsing)
-  endif()
-endif()
-
-if(WITH_ALEMBIC)
-  add_definitions(-DWITH_ALEMBIC)
-  list(APPEND INC_SYS
-    ${ALEMBIC_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${ALEMBIC_LIBRARIES}
+    bf::dependencies::optional::openvdb
   )
 endif()
 

@@ -144,43 +144,6 @@ ${body}
 
 
 # -----------------------------------------------------------------------------
-# Workarounds
-
-def _worlaround_win32_ssl_cert_failure() -> None:
-    # Applies workaround by `pukkandan` on GITHUB at run-time:
-    # See: https://github.com/python/cpython/pull/91740
-    import ssl
-
-    class SSLContext_DUMMY(ssl.SSLContext):
-        def _load_windows_store_certs(self, storename: str, purpose: ssl.Purpose) -> bytearray:
-            # WIN32 only.
-            enum_certificates = getattr(ssl, "enum_certificates", None)
-            assert callable(enum_certificates)
-            certs = bytearray()
-            try:
-                for cert, encoding, trust in enum_certificates(storename):
-                    try:
-                        self.load_verify_locations(cadata=cert)
-                    except ssl.SSLError:
-                        # warnings.warn("Bad certificate in Windows certificate store")
-                        pass
-                    else:
-                        # CA certs are never PKCS#7 encoded
-                        if encoding == "x509_asn":
-                            if trust is True or purpose.oid in trust:
-                                certs.extend(cert)
-            except PermissionError:
-                # warnings.warn("unable to enumerate Windows certificate store")
-                pass
-            # NOTE(@ideasman42): Python never uses this return value internally.
-            # Keep it for consistency.
-            return certs
-
-    # pylint: disable-next=protected-access
-    ssl.SSLContext._load_windows_store_certs = SSLContext_DUMMY._load_windows_store_certs  # type: ignore
-
-
-# -----------------------------------------------------------------------------
 # Argument Overrides
 
 class _ArgsDefaultOverride:
@@ -573,13 +536,7 @@ def rmtree_with_fallback_or_error(
     # so use it's callback that raises a link error and remove the link in that case.
     errors = []
 
-    # *DEPRECATED* 2024/07/01 Remove when 3.11 is dropped.
-    if sys.version_info >= (3, 12):
-        shutil.rmtree(path, onexc=lambda *args: errors.append(args))
-    else:
-        # Ignore as the deprecated logic is only used for older Python versions.
-        # pylint: disable-next=deprecated-argument
-        shutil.rmtree(path, onerror=lambda *args: errors.append((args[0], args[1], args[2][1])))
+    shutil.rmtree(path, onexc=lambda *args: errors.append(args))
 
     # Happy path (for practically all cases).
     if not errors:
@@ -971,9 +928,9 @@ def pkg_server_repo_config_from_toml_and_validate(
         if not isinstance(item, dict):
             return "blocklist contains non dictionary item, found ({:s})".format(str(type(item)))
         if not isinstance(value := item.get("id"), str):
-            return "blocklist items must have have a string typed \"id\" entry, found {:s}".format(str(type(value)))
+            return "blocklist items must have a string typed \"id\" entry, found {:s}".format(str(type(value)))
         if not isinstance(value := item.get("reason"), str):
-            return "blocklist items must have have a string typed \"reason\" entry, found {:s}".format(str(type(value)))
+            return "blocklist items must have a string typed \"reason\" entry, found {:s}".format(str(type(value)))
 
     return PkgServerRepoConfig(
         schema_version=field_schema_version,
@@ -1126,7 +1083,7 @@ class PathPatternMatch:
     #   to delimit on `/` which is necessary for `gitignore` style matching.
     #   So `/` are replaced with newlines, then REGEX multi-line logic is used
     #   to delimit the separators.
-    # - This is used for building packages, so it doesn't have to to especially fast,
+    # - This is used for building packages, so it doesn't have to be especially fast,
     #   although it shouldn't cause noticeable delays at build time.
     # - The test is located in: `../cli/test_path_pattern_match.py`
 
@@ -1332,7 +1289,7 @@ def url_retrieve_to_data_iter(
         retrieve_info: DataRetrieveInfo,
 ) -> Iterator[bytes]:
     """
-    Iterate over byte data downloaded from a from a URL
+    Iterate over byte data downloaded from a URL
     limited to ``chunk_size``.
 
     - The ``retrieve_info.size_hint``
@@ -1382,7 +1339,7 @@ def url_retrieve_to_data_iter(
 
     if size >= 0 and read < size:
         raise ContentTooShortError(
-            "retrieval incomplete: got only %i out of %i bytes" % (read, size),
+            "retrieval incomplete: got only {:d} out of {:d} bytes".format(read, size),
             response_headers,
         )
 
@@ -1531,7 +1488,7 @@ def url_retrieve_exception_as_message(
 
 def pkg_idname_is_valid_or_error(pkg_idname: str) -> str | None:
     if not pkg_idname.isidentifier():
-        return "Not a valid identifier"
+        return "Not a valid Python identifier"
     if "__" in pkg_idname:
         return "Only single separators are supported"
     if pkg_idname.startswith("_"):
@@ -1556,7 +1513,7 @@ def pkg_manifest_validate_terse_description_or_error(value: str) -> str | None:
     elif value[-1] in {")", "]", "}"}:
         pass  # Allow closing brackets (sometimes used to mention formats).
     else:
-        return "alpha-numeric suffix expected, the string must not end with punctuation"
+        return "alphanumeric suffix expected, the string must not end with punctuation"
     return None
 
 
@@ -2919,7 +2876,7 @@ def toml_from_filepath_or_error(filepath: str) -> dict[str, Any] | str:
 
 def repo_local_private_dir(*, local_dir: str) -> str:
     """
-    Ensure the repos hidden directory exists.
+    Ensure the repositories hidden directory exists.
     """
     return os.path.join(local_dir, REPO_LOCAL_PRIVATE_DIR)
 
@@ -2930,7 +2887,7 @@ def repo_local_private_dir_ensure(
         error_fn: Callable[[Exception], None],
 ) -> str | None:
     """
-    Ensure the repos hidden directory exists.
+    Ensure the repositories hidden directory exists.
     """
     local_private_dir = repo_local_private_dir(local_dir=local_dir)
     if not os.path.isdir(local_private_dir):
@@ -3043,7 +3000,7 @@ def repo_sync_from_remote(
             del read_total
             del retrieve_info
         except (Exception, KeyboardInterrupt) as ex:
-            msg = url_retrieve_exception_as_message(ex, prefix="sync", url=remote_url)
+            msg = url_retrieve_exception_as_message(ex, prefix="sync", url=remote_json_url)
             if demote_connection_errors_to_status and url_retrieve_exception_is_connectivity(ex):
                 msglog.status(msg)
             else:
@@ -3953,7 +3910,7 @@ class subcmd_client:
                 result.write(block)
 
         except (Exception, KeyboardInterrupt) as ex:
-            msg = url_retrieve_exception_as_message(ex, prefix="list", url=remote_url)
+            msg = url_retrieve_exception_as_message(ex, prefix="list", url=remote_json_url)
             if demote_connection_errors_to_status and url_retrieve_exception_is_connectivity(ex):
                 msglog.status(msg)
             else:
@@ -3970,7 +3927,7 @@ class subcmd_client:
             return False
 
         if isinstance((repo_gen_dict := pkg_repo_data_from_json_or_error(result_dict)), str):
-            msglog.fatal_error("unexpected contants in JSON {:s}".format(repo_gen_dict))
+            msglog.fatal_error("unexpected contents in JSON {:s}".format(repo_gen_dict))
             return False
         del result_dict
 
@@ -4420,7 +4377,7 @@ class subcmd_client:
                         # Unlike querying information which might reasonably be skipped.
                         msglog.fatal_error(
                             url_retrieve_exception_as_message(
-                                ex, prefix="install", url=remote_url))
+                                ex, prefix="install", url=filepath_remote_archive))
                         return False
 
                     if request_exit:
@@ -4652,12 +4609,25 @@ class subcmd_author:
             # Make default build options if none are provided.
             manifest_build = PkgManifest_Build(
                 paths=None,
+                # Limit exclusions to:
+                # - Python cache since extensions are written in Python.
+                # - Dot-files since this is standard *enough*.
+                # - ZIP archives to exclude packages that have been build.
+                # - BLEND file backups since this is for Blender extensions,
+                #   it makes sense to skip them.
+                #
+                # Further, it's not the purpose of this exclusion list to support all known file-system lint,
+                # as it changes over time and *could* result in false positives.
+                #
+                # Extension authors are expected to declare exclude patterns based on their development environment.
                 paths_exclude_pattern=[
                     "__pycache__/",
                     # Hidden dot-files.
                     ".*",
                     # Any packages built in-source.
                     "/*.zip",
+                    # Backup `.blend` files.
+                    "*.blend[1-9]",
                 ],
             )
 
@@ -4671,7 +4641,13 @@ class subcmd_author:
 
         # Manifest & wheels.
         if build_paths_extra:
-            build_paths.extend(build_paths_expand_iter(pkg_source_dir, build_paths_extra))
+            build_paths.extend(build_paths_expand_iter(
+                pkg_source_dir,
+                # When "paths" is set, paths after `build_paths_extra_skip_index` have been added,
+                # see: `PkgManifest_Build.from_dict_all_errors`.
+                build_paths_extra if manifest_build.paths is None else
+                build_paths_extra[:build_paths_extra_skip_index],
+            ))
 
         if manifest_build.paths is not None:
             build_paths.extend(build_paths_expand_iter(pkg_source_dir, manifest_build.paths))
@@ -4990,7 +4966,7 @@ class subcmd_author:
                     return False
 
             # NOTE: this is arguably *not* manifest validation, the check could be refactored out.
-            # Currently we always want to check both and it's useful to do that while the informatio
+            # Currently we always want to check both and it's useful to do that while the information is loaded.
             expected_files = []
             if manifest.type == "add-on":
                 if archive_subdir:
@@ -5657,9 +5633,6 @@ def main(
     if "--version" in sys.argv:
         sys.stdout.write("{:s}\n".format(VERSION))
         return 0
-
-    if (sys.platform == "win32") and (sys.version_info < (3, 12, 6)):
-        _worlaround_win32_ssl_cert_failure()
 
     parser = argparse_create(
         args_internal=args_internal,

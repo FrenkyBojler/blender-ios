@@ -12,6 +12,8 @@
 
 #include "GPU_vertex_format.hh"
 
+namespace blender {
+
 extern PyTypeObject BPyGPUVertFormat_Type;
 
 #define BPyGPUVertFormat_Check(v) (Py_TYPE(v) == &BPyGPUVertFormat_Type)
@@ -21,4 +23,6 @@ struct BPyGPUVertFormat {
   GPUVertFormat fmt;
 };
 
-PyObject *BPyGPUVertFormat_CreatePyObject(GPUVertFormat *fmt);
+[[nodiscard]] PyObject *BPyGPUVertFormat_CreatePyObject(GPUVertFormat *fmt);
+
+}  // namespace blender

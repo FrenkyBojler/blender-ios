@@ -79,9 +79,6 @@ ccl_device int subsurface_bounce(KernelGlobals kg,
                                  ccl_private ShaderData *sd,
                                  const ccl_private ShaderClosure *sc)
 {
-  /* We should never have two consecutive BSSRDF bounces, the second one should
-   * be converted to a diffuse BSDF to avoid this. */
-  kernel_assert(!(INTEGRATOR_STATE(state, path, flag) & PATH_RAY_DIFFUSE_ANCESTOR));
 
   /* Setup path state for intersect_subsurface kernel. */
   const ccl_private Bssrdf *bssrdf = (const ccl_private Bssrdf *)sc;
@@ -102,6 +99,10 @@ ccl_device int subsurface_bounce(KernelGlobals kg,
 
   uint32_t path_flag = (INTEGRATOR_STATE(state, path, flag) & ~PATH_RAY_CAMERA);
   if (sc->type == CLOSURE_BSSRDF_BURLEY_ID) {
+    /* We should never have two consecutive BSSRDF bounces, the second one should
+     * be converted to a diffuse BSDF to avoid this. */
+    kernel_assert(!(INTEGRATOR_STATE(state, path, flag) & PATH_RAY_DIFFUSE_ANCESTOR));
+
     path_flag |= PATH_RAY_SUBSURFACE_DISK;
     INTEGRATOR_STATE_WRITE(state, subsurface, N) = sd->Ng;
   }
@@ -191,7 +192,7 @@ ccl_device_inline bool subsurface_scatter(KernelGlobals kg, IntegratorState stat
   /* Update volume stack if needed. */
   if (kernel_data.integrator.use_volumes) {
     const int object = ss_isect.hits[0].object;
-    const int object_flag = kernel_data_fetch(object_flag, object);
+    const uint object_flag = kernel_data_fetch(object_flag, object);
 
     if (object_flag & SD_OBJECT_INTERSECTS_VOLUME) {
       const float3 P = INTEGRATOR_STATE(state, ray, P);
@@ -215,7 +216,7 @@ ccl_device_inline bool subsurface_scatter(KernelGlobals kg, IntegratorState stat
 
   const int shader = intersection_get_shader(kg, &ss_isect.hits[0]);
   const int shader_flags = kernel_data_fetch(shaders, shader).flags;
-  const int object_flags = intersection_get_object_flags(kg, &ss_isect.hits[0]);
+  const uint object_flags = intersection_get_object_flags(kg, &ss_isect.hits[0]);
   const bool use_caustics = kernel_data.integrator.use_caustics &&
                             (object_flags & SD_OBJECT_CAUSTICS);
   const bool use_raytrace_kernel = (shader_flags & SD_HAS_RAYTRACE);

@@ -25,13 +25,14 @@ class VKBuffer : public NonCopyable {
   size_t alloc_size_in_bytes_ = 0;
   VkBuffer vk_buffer_ = VK_NULL_HANDLE;
   VmaAllocation allocation_ = VK_NULL_HANDLE;
-  VkMemoryPropertyFlags vk_memory_property_flags_;
   TimelineValue async_timeline_ = 0;
   /** Has a previous allocation failed. Will skip reallocations. */
   bool allocation_failed_ = false;
 
   /* Pointer to the virtually mapped memory. */
   void *mapped_memory_ = nullptr;
+
+  VkDeviceAddress vk_device_address = 0;
 
  public:
   VKBuffer() = default;
@@ -45,9 +46,9 @@ class VKBuffer : public NonCopyable {
    */
   bool create(size_t size,
               VkBufferUsageFlags buffer_usage,
-              VkMemoryPropertyFlags required_flags,
-              VkMemoryPropertyFlags preferred_flags,
+              VmaMemoryUsage vma_memory_usage,
               VmaAllocationCreateFlags vma_allocation_flags,
+              float priority,
               bool export_memory = false);
   void clear(VKContext &context, uint32_t clear_value);
   void update_immediately(const void *data) const;
@@ -96,6 +97,11 @@ class VKBuffer : public NonCopyable {
     return size_in_bytes_;
   }
 
+  inline int64_t allocated_size_in_bytes() const
+  {
+    return alloc_size_in_bytes_;
+  }
+
   VkBuffer vk_handle() const
   {
     return vk_buffer_;
@@ -107,6 +113,11 @@ class VKBuffer : public NonCopyable {
    * Can only be called when the buffer is (still) mapped.
    */
   void *mapped_memory_get() const;
+
+  VkDeviceAddress device_address_get() const
+  {
+    return vk_device_address;
+  }
 
   /**
    * Is this buffer mapped (visible on host)

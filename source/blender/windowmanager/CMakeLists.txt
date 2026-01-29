@@ -8,6 +8,7 @@ set(INC
   gizmo/intern
   ../compositor
   ../editors/include
+  ../gpu
   ../makesrna
   ../../../intern/memutil
 
@@ -25,6 +26,7 @@ set(SRC
   intern/wm_event_query.cc
   intern/wm_event_system.cc
   intern/wm_files.cc
+  intern/wm_files_colorspace.cc
   intern/wm_files_link.cc
   intern/wm_gesture.cc
   intern/wm_gesture_ops.cc
@@ -57,6 +59,7 @@ set(SRC
   gizmo/intern/wm_gizmo_target_props.cc
   gizmo/intern/wm_gizmo_type.cc
   message_bus/intern/wm_message_bus.cc
+  message_bus/intern/wm_message_bus_remote_io.cc
   message_bus/intern/wm_message_bus_rna.cc
   message_bus/intern/wm_message_bus_static.cc
 
@@ -97,7 +100,6 @@ set(LIB
   PRIVATE bf::draw
   bf_editor_screen
   bf_editor_undo
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
@@ -109,23 +111,30 @@ set(LIB
   PRIVATE bf::sequencer
   bf_intern_ghost
   bf_compositor
+  PRIVATE bf::dependencies::optional::ffmpeg
+  PRIVATE bf::dependencies::optional::audaspace
 )
 
 if(WIN32)
   add_definitions(-DNOMINMAX)
 endif()
 
-if(WITH_AUDASPACE)
-  list(APPEND INC_SYS
-    ${AUDASPACE_C_INCLUDE_DIRS}
+if(WITH_HEADLESS)
+  add_definitions(-DWITH_HEADLESS)
+else()
+  # SVG cursors.
+  list(APPEND LIB
+    PRIVATE bf::extern::nanosvg
+    PRIVATE bf::editor::datafiles
   )
-  if(WITH_SYSTEM_AUDASPACE)
-    list(APPEND LIB
-      ${AUDASPACE_C_LIBRARIES}
-      ${AUDASPACE_PY_LIBRARIES}
-    )
-  endif()
-  add_definitions(-DWITH_AUDASPACE)
+endif()
+
+if(WITH_GHOST_CSD)
+  list(APPEND SRC
+    intern/wm_window_csd_draw.cc
+    intern/wm_window_csd_layout.cc
+  )
+  add_definitions(-DWITH_GHOST_CSD)
 endif()
 
 if(WITH_CYCLES)
@@ -138,26 +147,6 @@ endif()
 
 if(WITH_VULKAN_BACKEND)
   add_definitions(-DWITH_VULKAN_BACKEND)
-endif()
-
-if(WITH_OPENCOLLADA)
-  add_definitions(-DWITH_COLLADA)
-endif()
-
-if(WITH_CODEC_FFMPEG)
-  list(APPEND INC_SYS
-    ${FFMPEG_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFMPEG_LIBRARIES}
-  )
-  add_definitions(-DWITH_FFMPEG)
-endif()
-
-if(WITH_HEADLESS)
-  add_definitions(-DWITH_HEADLESS)
-elseif(WITH_GHOST_X11)
-  add_definitions(-DWITH_GHOST_X11)
 endif()
 
 if(WITH_PYTHON)

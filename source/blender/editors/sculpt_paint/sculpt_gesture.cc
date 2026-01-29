@@ -24,6 +24,7 @@
 #include "BLI_rect.h"
 
 #include "BKE_context.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 
 #include "ED_view3d.hh"
@@ -67,8 +68,11 @@ static void init_common(bContext *C, const wmOperator *op, GestureData &gesture_
   gesture_data.front_faces_only = RNA_boolean_get(op->ptr, "use_front_faces_only");
   gesture_data.selection_type = SelectionType::Inside;
 
+  gesture_data.paint = BKE_paint_get_active_from_context(C);
+  gesture_data.brush = BKE_paint_brush_for_read(gesture_data.paint);
+
   /* SculptSession */
-  gesture_data.ss = object.sculpt;
+  gesture_data.ss = object.runtime->sculpt_session;
 
   /* Symmetry. */
   gesture_data.symm = ePaintSymmetryFlags(SCULPT_mesh_symmetry_xyz_get(object));
@@ -278,7 +282,7 @@ std::unique_ptr<GestureData> init_from_line(bContext *C, const wmOperator *op)
 
 GestureData::~GestureData()
 {
-  MEM_SAFE_FREE(this->operation);
+  MEM_SAFE_DELETE(this->operation);
 }
 
 static void flip_plane(float out[4], const float in[4], const char symm)

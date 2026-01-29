@@ -154,9 +154,11 @@ set(LIB
   PRIVATE bf::draw
   PRIVATE bf::functions
   PRIVATE bf::intern::atomic
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::audaspace
 )
 
 if(WITH_PYTHON)
