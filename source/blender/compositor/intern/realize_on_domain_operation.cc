@@ -222,15 +222,7 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_tra
 
   input.get_cpp_type()
       .to_static_type<float, float2, float3, float4, Color, int32_t, int2, bool, nodes::MenuValue>(
-          [&]<typename T>() {
-            if constexpr (std::is_same_v<T, void>) {
-              /* Unsupported type. */
-              BLI_assert_unreachable();
-            }
-            else {
-              realize_on_domain<T>(input, output, inverse_transformation);
-            }
-          });
+          [&]<typename T>() { realize_on_domain<T>(input, output, inverse_transformation); });
 }
 
 Domain RealizeOnDomainOperation::compute_domain()

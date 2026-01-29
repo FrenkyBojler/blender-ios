@@ -261,10 +261,7 @@ static void transform_active_color_data(
     color_attribute.varray.type().to_static_type<ColorGeometry4f, ColorGeometry4b>(
         [&]<typename T>() {
           for ([[maybe_unused]] const int i : segment) {
-            if constexpr (std::is_void_v<T>) {
-              BLI_assert_unreachable();
-            }
-            else if constexpr (std::is_same_v<T, ColorGeometry4f>) {
+            if constexpr (std::is_same_v<T, ColorGeometry4f>) {
               ColorGeometry4f color = color_attribute.varray.get<ColorGeometry4f>(i);
               transform_fn(color);
               color_attribute.varray.set_by_copy(i, &color);

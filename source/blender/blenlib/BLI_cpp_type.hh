@@ -399,8 +399,12 @@ class CPPType : NonCopyable, NonMovable {
    * \param Types: The types that code should be generated for.
    * \param fn: The function object to call. This is expected to have a templated `operator()` and
    * a non-templated `operator()`. The templated version will be called if the current #CPPType
-   *   matches any of the given types. Otherwise, the non-templated function is called.
+   *   matches any of the given types.
+   * \return True if the function was called.
    */
+  template<typename... Types, typename Fn> bool to_static_type_try(Fn &&fn) const;
+
+  /** Same as #to_static_type_try, but asserts if the type is valid. */
   template<typename... Types, typename Fn> void to_static_type(Fn &&fn) const;
 };
 
@@ -706,6 +710,14 @@ template<typename... T> inline bool CPPType::is_any() const
 
 template<typename... Types, typename Fn> inline void CPPType::to_static_type(Fn &&fn) const
 {
+  if (this->to_static_type_try<Types...>(fn)) {
+    return;
+  }
+  BLI_assert_unreachable();
+}
+
+template<typename... Types, typename Fn> inline bool CPPType::to_static_type_try(Fn &&fn) const
+{
   using Callback = void (*)(const Fn &fn);
 
   /* Build a lookup table to avoid having to compare the current #CPPType with every type in
@@ -725,7 +737,9 @@ template<typename... Types, typename Fn> inline void CPPType::to_static_type(Fn 
   const Callback callback = callback_map.lookup_default(this, nullptr);
   if (callback != nullptr) {
     callback(fn);
+    return true;
   }
+  return false;
 }
 
 }  // namespace blender

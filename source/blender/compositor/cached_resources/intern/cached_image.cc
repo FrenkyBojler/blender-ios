@@ -356,15 +356,9 @@ CachedImage::CachedImage(Context &context,
     else {
       result.get_cpp_type().to_static_type<float, float2, float3, float4, Color>(
           [&]<typename T>() {
-            if constexpr (std::is_same_v<T, void>) {
-              /* Unsupported type. */
-              BLI_assert_unreachable();
-            }
-            else {
-              parallel_for(result.domain().data_size, [&](const int2 texel) {
-                result.store_pixel(texel, buffer_result.load_pixel<T>(texel));
-              });
-            }
+            parallel_for(result.domain().data_size, [&](const int2 texel) {
+              result.store_pixel(texel, buffer_result.load_pixel<T>(texel));
+            });
           });
     }
   }

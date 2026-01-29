@@ -207,16 +207,11 @@ class LazyFunctionForSwitchNode : public LazyFunction {
                                math::Quaternion,
                                float4x4,
                                MenuValue>([&]<typename T>() {
-      if constexpr (std::is_void_v<T>) {
-        BLI_assert_unreachable();
-      }
-      else {
-        static auto switch_fn = mf::build::SI3_SO<bool, T, T, T>(
-            "Switch", [](const bool condition, const T &false_value, const T &true_value) {
-              return condition ? true_value : false_value;
-            });
-        switch_multi_function = &switch_fn;
-      }
+      static auto switch_fn = mf::build::SI3_SO<bool, T, T, T>(
+          "Switch", [](const bool condition, const T &false_value, const T &true_value) {
+            return condition ? true_value : false_value;
+          });
+      switch_multi_function = &switch_fn;
     });
     BLI_assert(switch_multi_function != nullptr);
     return *switch_multi_function;

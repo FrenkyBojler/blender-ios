@@ -44,15 +44,7 @@ inline void convert_to_static_type(const CPPType &cpp_type, const Func &func)
                           ColorGeometry4f,
                           ColorGeometry4b,
                           math::Quaternion,
-                          float4x4>([&]<typename T>() {
-    if constexpr (std::is_same_v<T, void>) {
-      /* It's expected that the given cpp type is one of the supported ones. */
-      BLI_assert_unreachable();
-    }
-    else {
-      func(T());
-    }
-  });
+                          float4x4>([&]<typename T>() { func(T()); });
 }
 
 template<typename Func>
