@@ -479,6 +479,16 @@ static void frame_to_string(
   }
 }
 
+static void view2d_draw_lines_x__discrete(const View2D *v2d,
+                                          const int base,
+                                          bool display_minor_lines)
+{
+  const float major_line_distance = calculate_grid_step(
+      base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
+  view2d_draw_lines(
+      v2d, major_line_distance, display_minor_lines && (major_line_distance > 1), 'v');
+}
+
 /* Grid Resolution API
  **************************************************/
 
@@ -498,16 +508,6 @@ float view2d_grid_resolution_y__values(const View2D *v2d, const int base)
 /* Line Drawing API
  **************************************************/
 
-void view2d_draw_lines_x__discrete_values(const View2D *v2d,
-                                          const int base,
-                                          bool display_minor_lines)
-{
-  const float major_line_distance = calculate_grid_step(
-      base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
-  view2d_draw_lines(
-      v2d, major_line_distance, display_minor_lines && (major_line_distance > 1), 'v');
-}
-
 void view2d_draw_lines_x__values(const View2D *v2d, const int base)
 {
   const float major_line_distance = calculate_grid_step_subframes(
@@ -522,16 +522,6 @@ void view2d_draw_lines_y__values(const View2D *v2d, const int base)
   view2d_draw_lines(v2d, major_line_distance, true, 'h');
 }
 
-void view2d_draw_lines_x__discrete_time(const View2D *v2d,
-                                        const int base,
-                                        bool display_minor_lines)
-{
-  const float major_line_distance = calculate_grid_step(
-      base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
-  view2d_draw_lines(
-      v2d, major_line_distance, display_minor_lines && (major_line_distance > 1), 'v');
-}
-
 void view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
                                                      const Scene *scene,
                                                      bool display_seconds,
@@ -539,12 +529,7 @@ void view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
 {
   /* Rounding fractional frame-rates for drawing. */
   const int fps = round_db_to_int(scene->frames_per_second());
-  if (display_seconds) {
-    view2d_draw_lines_x__discrete_time(v2d, fps, display_minor_lines);
-  }
-  else {
-    view2d_draw_lines_x__discrete_values(v2d, fps, display_minor_lines);
-  }
+  view2d_draw_lines_x__discrete(v2d, fps, display_minor_lines);
 }
 
 void view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
@@ -553,7 +538,7 @@ void view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
 {
   const int fps = round_db_to_int(scene->frames_per_second());
   if (display_seconds) {
-    view2d_draw_lines_x__discrete_time(v2d, fps, true);
+    view2d_draw_lines_x__discrete(v2d, fps, true);
   }
   else {
     view2d_draw_lines_x__values(v2d, fps);
