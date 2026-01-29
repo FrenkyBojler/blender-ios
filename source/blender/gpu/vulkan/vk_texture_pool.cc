@@ -192,7 +192,7 @@ void VKTexturePool::TextureHandle::alloc(int2 extent,
 
   /* WATCH(not_mark): will remove asserts when pool is a bit more mature. */
   UNUSED_VARS(result);
-  BLI_assert(result);
+  BLI_assert(result == VK_SUCCESS);
 }
 
 void VKTexturePool::TextureHandle::free()
