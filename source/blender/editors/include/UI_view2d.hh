@@ -250,26 +250,18 @@ void view2d_draw_scale_y__values(
     const ARegion *region, const View2D *v2d, const rcti *rect, int colorid, int base);
 /**
  * Draw a text scale in either frames or seconds.
- * The minimum step distance is 1, meaning no sub-frame indicators will be drawn.
+ *
+ * \param subframes If false, clamps the minimum step distance is 1, meaning no sub-frame
+ * indicators will be drawn even when zoomed in.
  */
-void view2d_draw_scale_x__discrete_frames_or_seconds(const ARegion *region,
-                                                     const View2D *v2d,
-                                                     const rcti *rect,
-                                                     const Scene *scene,
-                                                     bool display_seconds,
-                                                     int colorid,
-                                                     int base);
-/**
- * Draw a text scale in either frames or seconds.
- * This can draw indicators on sub-frames, e.g. "1.5".
- */
-void view2d_draw_scale_x__frames_or_seconds(const ARegion *region,
-                                            const View2D *v2d,
-                                            const rcti *rect,
-                                            const Scene *scene,
-                                            bool display_seconds,
-                                            int colorid,
-                                            int base);
+void view2d_draw_scale_x(const ARegion *region,
+                         const View2D *v2d,
+                         const rcti *rect,
+                         const Scene *scene,
+                         bool display_seconds,
+                         bool subframes,
+                         int colorid,
+                         int base);
 
 /** \} */
 
