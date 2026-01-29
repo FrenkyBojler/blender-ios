@@ -266,6 +266,10 @@ class RuntimeToBakeValue {
         this->process__bundle(bundle_ptr.ensure_mutable_inplace());
       });
     }
+    else if (list_cpp_type.is<nodes::ClosurePtr>()) {
+      list.foreach_for_write<nodes::ClosurePtr>(
+          [&](nodes::ClosurePtr &closure_ptr) { closure_ptr.reset(); });
+    }
   }
 
   void process__gpointer(GMutablePointer value_ptr)
