@@ -28,6 +28,7 @@ class GHOST_ContextWGL : public GHOST_Context {
                    bool alphaBackground,
                    HWND hWnd,
                    HDC hDC,
+                   bool own_window_handle,
                    int contextProfileMask,
                    int contextMajorVersion,
                    int contextMinorVersion,
@@ -90,6 +91,7 @@ class GHOST_ContextWGL : public GHOST_Context {
 
   HWND m_hWnd;
   HDC m_hDC;
+  bool m_ownWindowHandle;
 
   const int m_contextProfileMask;
   const int m_contextMajorVersion;
