@@ -16,10 +16,10 @@ Prerequisites
 
 Before you can build the documentation, you need:
 
-1. **Blender Source Code**: Clone the Blender repository following the
+#. **Blender Source Code**: Clone the Blender repository following the
    `official build instructions <https://developer.blender.org/docs/handbook/building_blender/>`__.
 
-2. **Python Environment**: Set up a Python `virtual environment <https://docs.python.org/3/library/venv.html>`__.
+#. **Python Environment**: Set up a Python `virtual environment <https://docs.python.org/3/library/venv.html>`__.
 
 
 Installing Documentation Requirements
@@ -58,10 +58,11 @@ C/C++ files or as standard  docstrings within Python files.
 
 **To modify API class or method descriptions:**
 
-1. Locate the relevant source file in the Blender repository.
-2. Find the the relevant docstring either inside ``PyDoc_STRVAR(...)`` for the Python C/API or as standard docstring in a Python file.
-3. Edit using **reStructuredText** formatting.
-4. Rebuild the Python API docs with ``make doc_py`` to regenerate the pages.
+#. Locate the relevant source file in the Blender repository.
+#. Find the the relevant docstring either inside ``PyDoc_STRVAR(...)`` for the Python C/API 
+   or as standard docstring in a Python file.
+#. Edit using **reStructuredText** formatting.
+#. Rebuild the Python API docs with ``make doc_py`` to regenerate the pages.
 
 Adding Example Code Snippets
 ============================
@@ -148,9 +149,9 @@ Best Practices for Documentation
 Writing Good Examples
 ---------------------
 
-1. **Keep it simple**: Focus on demonstrating one concept at a time.
-2. **Make it runnable**: Examples should work when pasted into Blender's Python console or text editor.
-3. **Use comments**: Explain what the code does, especially non-obvious parts.
+- **Keep it simple**: Focus on demonstrating one concept at a time.
+- **Make it runnable**: Examples should work when pasted into Blender's Python console or text editor.
+- **Use comments**: Explain what the code does, especially non-obvious parts.
 
 
 For documentation we aim for high quality technical writing. Refer to these pages for the User Manual regarding style and preferred conventions.
@@ -164,10 +165,10 @@ Testing Your Changes
 
 After adding or modifying documentation:
 
-1. **Rebuild the docs**: Run ``make doc_py`` 
-2. **Check for warnings**: The build process will show warnings about broken links,
+#. **Rebuild the docs**: Run ``make doc_py`` 
+#. **Check for warnings**: The build process will show warnings about broken links,
    missing references, or formatting issues
-3. **Preview in browser**: Open the generated HTML files to see how they look
+#. **Preview in browser**: Open the generated HTML files to see how they look
 
 
 Contributing Your Changes
