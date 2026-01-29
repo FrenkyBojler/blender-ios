@@ -635,46 +635,51 @@ struct Preprocessor : IntermediateFormWithIDs {
   ExpressionLexer expression_lexer;
   ExpressionParser expression_parser = ExpressionParser(expression_lexer);
 
-  struct StreamStack {
+  struct StreamPool {
+    /* Reference to lexer only for atom value lookups. */
     AtomicLexer &lex_;
     int allocated = 0;
     int used = 0;
     std::deque<Stream> pool;
+    std::vector<int> free_indices;
 
-    struct AutoRelease {
-      StreamStack &stack;
-      Stream &stream;
+    struct Deleter {
+      StreamPool *stack;
+      int index;
 
-      ~AutoRelease()
+      void operator()(Stream * /*stream*/)
       {
-        stack.used--;
+        stack->free_indices.push_back(index);
       }
     };
 
-    AutoRelease alloc()
-    {
-      if (used == allocated) {
-        pool.emplace_back(lex_);
-        allocated++;
-        used++;
-        return AutoRelease{*this, pool.back()};
-      }
-      auto &stream = pool[used++];
-      stream.clear();
-      return AutoRelease{*this, stream};
-    }
+    using Ptr = std::unique_ptr<Stream, Deleter>;
 
-    void release(ExpansionParser & /*parser*/)
+    Ptr alloc()
     {
-      used--;
+      int target_idx;
+      if (free_indices.empty()) {
+        target_idx = pool.size();
+        pool.emplace_back(lex_);
+      }
+      else {
+        target_idx = free_indices.back();
+        free_indices.pop_back();
+      }
+
+      Stream &s = pool[target_idx];
+      s.clear();
+      return Ptr(&s, Deleter{this, target_idx});
     }
   };
+
+  using StreamPtr = StreamPool::Ptr;
 
   /* When evaluating a condition directive inside this stack, disregard the directive and jump to
    * the matching #endif. */
   Vector<DirectiveID, 8> jump_stack;
   /* Own stack to avoid memory allocation during recursive expansion parsing. */
-  StreamStack stream_stack = {lex_};
+  StreamPool stream_pool = {lex_};
   /* Set of visited macros during recursion (blue painting stack). Using a vector for speed. */
   Vector<DirectiveID> visited_macros;
   /* Maps containing currently active macros. Map their keyword to their definition. */
@@ -880,23 +885,23 @@ struct Preprocessor : IntermediateFormWithIDs {
 #endif
 
     /* Expand expression into integer ops string. */
-    Stream &expand = expand_expression(start, end);
+    StreamPtr expand = expand_expression(start, end);
 
     /* Early out simple cases. */
-    if (expand.size() == 1 && expand[0].str() == "0") {
+    if (expand->size() == 1 && (*expand)[0].str() == "0") {
       return false;
     }
-    if (expand.size() == 1 && expand[0].str() == "1") {
+    if (expand->size() == 1 && (*expand)[0].str() == "1") {
       return true;
     }
 
     try {
       /* TODO(fclem): Do not parse again. Simply use the token stream. */
-      expression_lexer.lexical_analysis(expand.str);
+      expression_lexer.lexical_analysis(expand->str);
       return expression_parser.eval() != 0;
     }
     catch (const std::exception &e) {
-      std::cout << "\"" << substr_range_inclusive_view(start, end) << "\" > \"" << expand.str
+      std::cout << "\"" << substr_range_inclusive_view(start, end) << "\" > \"" << expand->str
                 << "\" ";
       std::cerr << "Error: " << e.what() << "\n";
       return false;
@@ -921,7 +926,7 @@ struct Preprocessor : IntermediateFormWithIDs {
         if (is_valid(macro_id)) {
           lexit::Token token = parser_.lex[int(tok)];
           auto [replacement, end] = expand_macro(token, macro_id);
-          replace(token, end, replacement.str);
+          replace(token, end, replacement->str);
           tok = end;
           if (tok == end_tok) {
             break;
@@ -932,10 +937,9 @@ struct Preprocessor : IntermediateFormWithIDs {
   }
 
   /* Parse and expand with the current set of macro identifier. */
-  Stream &parse_and_expand(const Stream &ts)
+  StreamPtr parse_and_expand(const Stream &ts)
   {
-    auto alloc = stream_stack.alloc();
-    Stream &result = alloc.stream;
+    auto result = stream_pool.alloc();
 
     for (int cursor = 0, end = ts.index_range().size(); cursor < end; cursor++) {
       lexit::Token tok = ts[cursor];
@@ -945,19 +949,19 @@ struct Preprocessor : IntermediateFormWithIDs {
         DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()), DirectiveID::invalid());
         if (is_valid(macro_id)) {
           auto [replacement, end] = expand_macro(tok, macro_id);
-          result << replacement;
+          *result << *replacement;
           cursor = int(end);
           continue;
         }
       }
-      result << tok;
+      *result << tok;
     }
     return result;
   }
 
   struct ExpandedResult {
     /* Replacement content. */
-    Stream &output;
+    StreamPtr output;
     /* End of range to replace. */
     lexit::Token end_of_expansion;
   };
@@ -1036,40 +1040,44 @@ struct Preprocessor : IntermediateFormWithIDs {
     return macro_parameters;
   }
 
+  BLI_NOINLINE StreamPtr parse_macro_definition(lexit::Token definition_start_tok)
+  {
+    StreamPtr definition = stream_pool.alloc();
+
+    lexit::Token tok = definition_start_tok;
+    while (true) {
+      lexit::Token tok_next = tok.next();
+      if (ELEM(tok, NewLine, lexit::EndOfFile)) {
+        break;
+      }
+      if (tok == Backslash && tok_next == NewLine) {
+        /* Preprocessor new line. Skip and continue. */
+        tok = tok.next(2);
+        /* Still insert a space to avoid merging tokens. */
+        *definition << Stream::Space{};
+        continue;
+      }
+      if (tok == Hash && tok_next == Hash) {
+        /* Token Pasting operator. Emit a single Hash token. */
+        *definition << tok;
+        tok = tok.next(2);
+        continue;
+      }
+      BLI_assert_msg(tok != Hash, "Stringify operator is not supported");
+      *definition << tok;
+      tok = tok_next;
+    }
+    return definition;
+  }
+
   BLI_NOINLINE void expand_args(Stream &ts,
                                 const bool is_function,
                                 const Map<TokenAtom, TokenRange> &macro_parameters,
                                 lexit::Token definition_start_tok)
   {
-    /* TODO(fclem): Split to own function executed at macro definition. */
-    int i = int(definition_start_tok);
-    auto alloc = stream_stack.alloc();
-    Stream &definition = alloc.stream;
-    while (true) {
-      const lexit::Token t = lex_[i];
-      if (ELEM(t.type(), NewLine, lexit::EndOfFile)) {
-        break;
-      }
-      if (t.type() == '\\' && lex_[i + 1].type() == '\n') {
-        /* Preprocessor new line. Skip and continue. */
-        i += 2;
-        /* Still insert a space to avoid merging tokens. */
-        definition << Stream::Space{};
-        continue;
-      }
-      if (t.type() == '#' && lex_[i + 1].type() == '#') {
-        /* Token Pasting operator. Emit a single Hash token. */
-        definition << t;
-        i += 2;
-        continue;
-      }
-      BLI_assert_msg(t.type() != '#', "Stringify operator is not supported");
-      definition << t;
-      i += 1;
-    }
+    StreamPtr definition = parse_macro_definition(definition_start_tok);
 
-    for (int i : definition.index_range()) {
-      lexit::Token def_tok = definition[i];
+    for (lexit::Token def_tok : *definition) {
       if (def_tok.type() == Hash) {
         ts << Stream::ConcatNext{};
         continue;
@@ -1080,15 +1088,15 @@ struct Preprocessor : IntermediateFormWithIDs {
         if (macro_value_ptr) {
           const TokenRange &macro_value = *macro_value_ptr;
 
-          if (definition[i - 1].type() == '#' || definition[i + 1].type() == '#') {
+          if (def_tok.prev() == Hash || def_tok.next() == Hash) {
             /* Token pasting. Do not expand now. */
             ts << macro_value;
           }
           else {
             /* Expand argument. Can expand to the same macro (finite recursion). */
-            auto alloc = stream_stack.alloc();
-            alloc.stream << macro_value;
-            ts << parse_and_expand(alloc.stream);
+            StreamPtr stream = stream_pool.alloc();
+            *stream << macro_value;
+            ts << *parse_and_expand(*stream);
           }
 
           if (def_tok.followed_by_whitespace()) {
@@ -1121,44 +1129,42 @@ struct Preprocessor : IntermediateFormWithIDs {
 
     lexit::Token tok = macro_parenthesis;
 
-    auto alloc = stream_stack.alloc();
-    Stream &expanded = alloc.stream;
+    StreamPtr expanded = stream_pool.alloc();
 
     /* Empty definition. */
     if (tok == NewLine) {
-      return {expanded, end_of_expansion};
+      return {std::move(expanded), end_of_expansion};
     }
 
     if (visited_macros.contains(macro)) {
       /* Recursion. Do not expand. Still replace by the original token. */
-      expanded << lex_[int(macro_name)];
-      return {expanded, end_of_expansion};
+      *expanded << lex_[int(macro_name)];
+      return {std::move(expanded), end_of_expansion};
     }
 
     Map<TokenAtom, TokenRange> macro_parameters = parse_macro_args(
         is_function, expanded_tok, end_of_expansion, tok);
 
-    expand_args(expanded, is_function, macro_parameters, tok);
+    expand_args(*expanded, is_function, macro_parameters, tok);
 
     /* Add to the set to avoid infinite recursion. */
     visited_macros.append(macro);
 
-    Stream &result = parse_and_expand(expanded);
+    StreamPtr result = parse_and_expand(*expanded);
 
     visited_macros.pop_last();
 
     if (end_of_expansion.followed_by_whitespace()) {
-      result << Stream::Space{};
+      *result << Stream::Space{};
     }
 
-    return {result, end_of_expansion};
+    return {std::move(result), end_of_expansion};
   }
 
   /* Expand token range for condition evaluation (e.g. '#if'). */
-  Stream &expand_expression(const lexit::Token start, const lexit::Token end)
+  StreamPtr expand_expression(const lexit::Token start, const lexit::Token end)
   {
-    auto alloc = stream_stack.alloc();
-    Stream &result = alloc.stream;
+    StreamPtr result = stream_pool.alloc();
 
     lexit::Token tok = start;
     while (true) {
@@ -1169,11 +1175,11 @@ struct Preprocessor : IntermediateFormWithIDs {
 
       if (tok_atom == AtomID::invalid()) {
         /* Non word. */
-        result << lex_[int(tok)];
+        *result << lex_[int(tok)];
       }
       else if (is_valid(macro)) {
         auto [replacement, macro_end] = expand_macro(lex_[int(tok)], macro);
-        result << replacement;
+        *result << *replacement;
         tok = lex_[int(macro_end)];
       }
       else if (tok_atom == defined_atom) {
@@ -1187,7 +1193,7 @@ struct Preprocessor : IntermediateFormWithIDs {
         else {
           BLI_assert(tok == Word);
         }
-        result << Stream::Number{defines.contains(get_atom(tok)) ? "1" : "0"};
+        *result << Stream::Number{defines.contains(get_atom(tok)) ? "1" : "0"};
         if (is_function) {
           /* End parenthesis. */
           tok = tok.next();
@@ -1195,7 +1201,7 @@ struct Preprocessor : IntermediateFormWithIDs {
       }
       else {
         /* Substitution failure. */
-        result << lex_[int(tok)];
+        *result << lex_[int(tok)];
       }
       if (tok == end) {
         break;
