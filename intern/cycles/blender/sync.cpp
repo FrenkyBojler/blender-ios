@@ -619,9 +619,6 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
   else {
     film->set_use_approximate_shadow_catcher(!get_boolean(crl, "use_pass_shadow_catcher"));
   }
-
-  /* Update passes early already, so that 'scene->need_motion()' reports correctly. */
-  film->update_passes(scene);
 }
 
 /* Render Layer */

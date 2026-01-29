@@ -412,7 +412,9 @@ Scene::MotionType Scene::need_motion() const
   if (integrator->get_motion_blur()) {
     return MOTION_BLUR;
   }
-  if (Pass::contains(passes, PASS_MOTION)) {
+  if (Pass::contains(passes, PASS_MOTION) ||
+      (integrator->get_use_denoise() && integrator->get_denoiser_type() == DENOISER_DLSS))
+  {
     return MOTION_PASS;
   }
   return MOTION_NONE;
