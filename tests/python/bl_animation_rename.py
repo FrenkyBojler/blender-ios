@@ -53,7 +53,6 @@ class PoseBoneRenameTest(unittest.TestCase):
         bpy.ops.object.mode_set(mode='OBJECT')
 
     def test_rename_bone_driver(self):
-        bpy.ops.object.mode_set(mode='OBJECT')
         fcu = self.armature_obj.data.bones[_BONE_NAME_A].driver_add(f"bbone_segments", -1)
         self.assertEqual(fcu.data_path, f"bones[\"{_BONE_NAME_A}\"].bbone_segments")
         driver = fcu.driver
@@ -62,7 +61,7 @@ class PoseBoneRenameTest(unittest.TestCase):
 
         bone_a_rename = "bone_a_2"
         self.armature_obj.pose.bones[_BONE_NAME_A].name = bone_a_rename
-        bpy.context.view_layer.update()
+        # bpy.context.view_layer.update()
 
         # `bbone_segments` is a property of the bone thus armature.
         self.assertEqual(len(self.armature_obj.data.animation_data.drivers), 1, "Shouldn't remove the driver")
@@ -77,7 +76,6 @@ class PoseBoneRenameTest(unittest.TestCase):
         # self.assertEqual(driver_target.data_path, f"pose.bones[\"{bone_b_rename}\"].location[0]")
 
     def test_rename_pose_bone_driver(self):
-        bpy.ops.object.mode_set(mode='OBJECT')
         fcu = self.armature_obj.pose.bones[_BONE_NAME_A].driver_add("hide", -1)
         self.assertEqual(fcu.data_path, f"pose.bones[\"{_BONE_NAME_A}\"].hide")
         driver = fcu.driver
@@ -86,7 +84,7 @@ class PoseBoneRenameTest(unittest.TestCase):
 
         bone_a_rename = "bone_a_2"
         self.armature_obj.pose.bones[_BONE_NAME_A].name = bone_a_rename
-        bpy.context.view_layer.update()
+        # bpy.context.view_layer.update()
 
         # `hide` is a property on the pose bone thus object.
         self.assertEqual(len(self.armature_obj.animation_data.drivers), 1, "Shouldn't remove the driver")
@@ -99,6 +97,36 @@ class PoseBoneRenameTest(unittest.TestCase):
         # TODO: this currently does not work!
         # driver_target = driver.variables[0].targets[0]
         # self.assertEqual(driver_target.data_path, f"pose.bones[\"{bone_b_rename}\"].location[0]")
+
+    def test_rename_bone_animation(self):
+        # Not particularly useful to animate this property, but it can be done, so better test it.
+        self.armature_obj.data.bones[_BONE_NAME_A].keyframe_insert("bbone_segments")
+        self.assertNotEqual(self.armature_obj.data.animation_data.action, None)
+        action = self.armature_obj.data.animation_data.action
+        fcurves = action.layers[0].strips[0].channelbags[0].fcurves
+        for fcurve in fcurves:
+            self.assertEqual(fcurve.data_path, f"bones[\"{_BONE_NAME_A}\"].bbone_segments")
+
+        bone_a_rename = "bone_a_2"
+        # Renaming the pose bone, also renames the bone itself which should rename the fcurve data path too.
+        self.armature_obj.pose.bones[_BONE_NAME_A].name = bone_a_rename
+
+        for fcurve in fcurves:
+            self.assertEqual(fcurve.data_path, f"bones[\"{bone_a_rename}\"].bbone_segments")
+
+    def test_rename_pose_bone_animation(self):
+        self.armature_obj.pose.bones[_BONE_NAME_A].keyframe_insert("location")
+        self.assertNotEqual(self.armature_obj.animation_data.action, None)
+        action = self.armature_obj.animation_data.action
+        fcurves = action.layers[0].strips[0].channelbags[0].fcurves
+        for fcurve in fcurves:
+            self.assertEqual(fcurve.data_path, f"pose.bones[\"{_BONE_NAME_A}\"].location")
+
+        bone_a_rename = "bone_a_2"
+        self.armature_obj.pose.bones[_BONE_NAME_A].name = bone_a_rename
+
+        for fcurve in fcurves:
+            self.assertEqual(fcurve.data_path, f"pose.bones[\"{bone_a_rename}\"].location")
 
 
 def main():
