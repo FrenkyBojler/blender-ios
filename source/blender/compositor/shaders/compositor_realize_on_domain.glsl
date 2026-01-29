@@ -6,7 +6,7 @@
 
 #include "gpu_shader_compositor_sample_rect.glsl"
 
-template <enum Sampler sampler> void realize_on_domain()
+template<enum Sampler sampler> void realize_on_domain()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
   float2 uv = to_float2x2(inverse_matrix) * float2(texel) + inverse_matrix[2].xy;

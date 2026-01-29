@@ -4,27 +4,19 @@
 
 #include "gpu_shader_math_vector_lib.glsl"
 
-enum Sampler : uchar {
-  Nearest,
-  Bilinear,
-  Box,
-  Bspline,
-  Anisotropic
-};
+enum Sampler : uchar { Nearest, Bilinear, Box, Bspline, Anisotropic };
 
-template <enum Sampler sampler>
-inline float weight(float x) {}
+template<enum Sampler sampler> inline float weight(float x) {}
 
 /* Sample orthogonal rectangle of size wh centered on uv.
  * Generic version works for any cubic filter (todo: fix for filters with negative weights)
  */
-template<enum Sampler sampler>
-float4 sample_rect(sampler2D source, float2 uv, float2 wh)
+template<enum Sampler sampler> float4 sample_rect(sampler2D source, float2 uv, float2 wh)
 {
   const float2 w1 = max(wh, 1.0f);
   const float2 r = 2 * w1;
-  const float2 a = (floor(uv - r + 0.5f) + 0.5f); // first non-zero sample
-  const float2 d = ceil(r / 16.0f); // distance between samples
+  const float2 a = (floor(uv - r + 0.5f) + 0.5f);              // first non-zero sample
+  const float2 d = ceil(r / 16.0f);                            // distance between samples
   const float2 scale = 1.0f / float2(textureSize(source, 0));  // convert to texture coordinates
   // precompute the horizontal filter so it can be reused
   float2 xfilter[33];  // pairs of u,weight
@@ -58,19 +50,17 @@ float4 sample_rect(sampler2D source, float2 uv, float2 wh)
 }
 
 /* specialized as wh is ignored and it maps directly to texture() */
-template <>
-float4 sample_rect<Sampler::Bilinear>(sampler2D source, float2 uv, float2 wh)
+template<> float4 sample_rect<Sampler::Bilinear>(sampler2D source, float2 uv, float2 wh)
 {
   return texture(source, uv / float2(textureSize(source, 0)));
 }
 
 /* specialized as r is smaller and weight function needs to know size of a pixel */
-template <>
-float4 sample_rect<Sampler::Box>(sampler2D source, float2 uv, float2 wh)
+template<> float4 sample_rect<Sampler::Box>(sampler2D source, float2 uv, float2 wh)
 {
   const float2 r = max((wh + 1) / 2.0f, 1.0f);
-  const float2 a = floor(uv - r + 0.5f) + 0.5f; // first non-zero sample
-  const float2 d = ceil(r / 8.0f); // distance between samples
+  const float2 a = floor(uv - r + 0.5f) + 0.5f;                // first non-zero sample
+  const float2 d = ceil(r / 8.0f);                             // distance between samples
   const float2 scale = 1.0f / float2(textureSize(source, 0));  // convert to texture coordinates
   // precompute the horizontal filter so it can be reused
   float2 xfilter[33];  // pairs of u,weight
@@ -103,8 +93,7 @@ float4 sample_rect<Sampler::Box>(sampler2D source, float2 uv, float2 wh)
   return sum / (div * divx);
 }
 
-template <>
-static inline float weight<Sampler::Bspline>(float x)
+template<> static inline float weight<Sampler::Bspline>(float x)
 {
   return x < 1 ? (0.5 * x - 1) * x * x + 4.0 / 6 : ((-1 / 6.0 * x + 1) * x - 2) * x + 4.0 / 3;
 }
@@ -164,6 +153,12 @@ float4 sample_rect_clip(sampler2D source, float2 uv, float2 wh, int clip)
   return m * sample_rect<sampler>(source, uv, wh);
 }
 
-template float4 sample_rect_clip<Sampler::Bilinear>(sampler2D source, float2 uv, float2 wh, int clip);
+template float4 sample_rect_clip<Sampler::Bilinear>(sampler2D source,
+                                                    float2 uv,
+                                                    float2 wh,
+                                                    int clip);
 template float4 sample_rect_clip<Sampler::Box>(sampler2D source, float2 uv, float2 wh, int clip);
-template float4 sample_rect_clip<Sampler::Bspline>(sampler2D source, float2 uv, float2 wh, int clip);
+template float4 sample_rect_clip<Sampler::Bspline>(sampler2D source,
+                                                   float2 uv,
+                                                   float2 wh,
+                                                   int clip);

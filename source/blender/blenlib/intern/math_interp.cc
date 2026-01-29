@@ -539,28 +539,40 @@ void interpolate_cubic_mitchell_fl(
 // some macros so code can work with float4 or __m128
 // I got a speed increase of about 17% from this
 #if BLI_HAVE_SSE2
-#define F4 __m128
-#define F4C(c) _mm_set1_ps(c)
-#define F4P(p) _mm_loadu_ps(p)
-#define F4ADD(a,b) _mm_add_ps(a,b)
-#define F4MULC(a,c) _mm_mul_ps(a, _mm_set1_ps(c))
-#define F4V(a) *(float4*)(&a)
+#  define F4 __m128
+#  define F4C(c) _mm_set1_ps(c)
+#  define F4P(p) _mm_loadu_ps(p)
+#  define F4ADD(a, b) _mm_add_ps(a, b)
+#  define F4MULC(a, c) _mm_mul_ps(a, _mm_set1_ps(c))
+#  define F4V(a) *(float4 *)(&a)
 #else
-#define F4 float4
-#define F4C(c) float4(c)
-#define F4P(p) *(float4*)(p)
-#define F4ADD(a,b) (a)+(b)
-#define F4MULC(a,c) (a)*(c)
-#define F4V(a) a
+#  define F4 float4
+#  define F4C(c) float4(c)
+#  define F4P(p) *(float4 *)(p)
+#  define F4ADD(a, b) (a) + (b)
+#  define F4MULC(a, c) (a) * (c)
+#  define F4V(a) a
 #endif
 
 // Some missing math functions
-BLI_INLINE float2 max(const float2& f, float v) { return {max(f.x, v), max(f.y, v)}; }
-BLI_INLINE float2 ceil(const float2& f) { return {ceilf(f.x), ceilf(f.y)}; }
-BLI_INLINE float2 floor(const float2& f) { return {floorf(f.x), floorf(f.y)}; }
+BLI_INLINE float2 max(const float2 &f, float v)
+{
+  return {max(f.x, v), max(f.y, v)};
+}
+BLI_INLINE float2 ceil(const float2 &f)
+{
+  return {ceilf(f.x), ceilf(f.y)};
+}
+BLI_INLINE float2 floor(const float2 &f)
+{
+  return {floorf(f.x), floorf(f.y)};
+}
 
 // Offset from start of row and weight. Names are xy to match BSL code
-struct Fentry {int32_t x; float y;};
+struct Fentry {
+  int32_t x;
+  float y;
+};
 
 /* Same as wrap_coord but Border is treated as Extend */
 BLI_INLINE int32_t wrap_coord_noclip(float u, int32_t size, InterpWrapMode wrap)
@@ -586,8 +598,7 @@ BLI_INLINE int32_t wrap_coord_noclip(float u, int32_t size, InterpWrapMode wrap)
   }
 }
 
-template <enum Sampler sampler>
-BLI_INLINE float weight(float x);
+template<enum Sampler sampler> BLI_INLINE float weight(float x);
 
 /* Sample orthogonal rectangle of size wh centered on uv.
  * Generic version works for any cubic filter (todo: fix for filters with negative weights)
@@ -597,8 +608,8 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
 {
   const float2 w1 = max(wh, 1.0f);
   const float2 r = 2 * w1;
-  const float2 a = (floor(uv - r + 0.5f) + 0.5f); // first non-zero sample
-  const float2 d = ceil(r / 16.0f); // distance between samples
+  const float2 a = (floor(uv - r + 0.5f) + 0.5f);  // first non-zero sample
+  const float2 d = ceil(r / 16.0f);                // distance between samples
   // precompute the horizontal filter so it can be reused
   Fentry xfilter[33];
   float divx = 0.0f;
@@ -664,22 +675,18 @@ float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
   float a_mb = a * (1.0f - b);
   float ma_mb = (1.0f - a) * (1.0f - b);
 
-  F4 sum = F4ADD(F4ADD(F4MULC(F4P(row1), ma_mb),
-                       F4MULC(F4P(row2), ma_b)),
-                 F4ADD(F4MULC(F4P(row3), a_mb),
-                       F4MULC(F4P(row4), a_b)));
+  F4 sum = F4ADD(F4ADD(F4MULC(F4P(row1), ma_mb), F4MULC(F4P(row2), ma_b)),
+                 F4ADD(F4MULC(F4P(row3), a_mb), F4MULC(F4P(row4), a_b)));
   return F4V(sum);
 }
 
 /* specialized as r is smaller and weight function needs to know size of a pixel */
 template<>
-float4 _sample_rect<Sampler::Box>(const SamplerSource &source,
-                                  const float2 &uv,
-                                  const float2 &wh)
+float4 _sample_rect<Sampler::Box>(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
   const float2 r = max((wh + 1.0f) / 2.0f, 1.0f);
-  const float2 a = floor(uv - r + 0.5f) + 0.5f; // first non-zero sample
-  const float2 d = ceil(r / 8.0f); // distance between samples
+  const float2 a = floor(uv - r + 0.5f) + 0.5f;  // first non-zero sample
+  const float2 d = ceil(r / 8.0f);               // distance between samples
   // precompute the horizontal filter so it can be reused
   Fentry xfilter[33];
   float divx = 0.0f;
@@ -705,11 +712,10 @@ float4 _sample_rect<Sampler::Box>(const SamplerSource &source,
   return F4V(sum);
 }
 
-template<>
-float weight<Sampler::Bspline>(float x)
+template<> float weight<Sampler::Bspline>(float x)
 {
   return x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
-    ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
+                    ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
 }
 
 /* Compute "sharp" black border. The source should be set to extend.
@@ -722,13 +728,17 @@ static float4 _sample_rect_clip(const SamplerSource &source, const float2 &uv, c
   float m = 1.0f;
   if (source.wrap_x == InterpWrapMode::Border) {
     float v = math::min(uv.x, float(source.width) - uv.x) / wh.x + 0.5f;
-    if (v <= 0.0f) return float4(0.0f);
-    if (v < 1.0f) m = v;
+    if (v <= 0.0f)
+      return float4(0.0f);
+    if (v < 1.0f)
+      m = v;
   }
   if (source.wrap_y == InterpWrapMode::Border) {
     float v = math::min(uv.y, float(source.height) - uv.y) / wh.y + 0.5f;
-    if (v <= 0.0f) return float4(0.0f);
-    if (v < 1.0f) m *= v;
+    if (v <= 0.0f)
+      return float4(0.0f);
+    if (v < 1.0f)
+      m *= v;
   }
   return _sample_rect<sampler>(source, uv, wh) * m;
 }
