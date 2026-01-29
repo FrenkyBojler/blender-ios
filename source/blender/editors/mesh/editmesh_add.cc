@@ -17,6 +17,9 @@
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_mesh.h"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "DEG_depsgraph.hh"
@@ -32,10 +35,9 @@
 #include "ED_screen.hh"
 #include "ED_sculpt.hh"
 
-#include "../../editors/sculpt_paint/sculpt_undo.hh"
-#include "../sculpt_paint/sculpt_dyntopo.hh"
-
 #include "mesh_intern.hh" /* own include */
+
+#include <iostream>
 
 namespace blender {
 
@@ -46,7 +48,6 @@ namespace blender {
 struct MakePrimitiveData {
   float mat[4][4];
 
-  bool dynatopo_enable;
   int original_ctx_mode;
 };
 
@@ -61,50 +62,72 @@ static Object *make_prim_init(bContext *C,
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit;
 
   const enum eContextObjectMode original_creation_mode = CTX_data_mode_enum(C);
-  r_creation_data->dynatopo_enable = false;
   r_creation_data->original_ctx_mode = original_creation_mode;
 
-  if (obedit == nullptr || obedit->type != OB_MESH) {
-    switch (original_creation_mode) {
-      case CTX_MODE_OBJECT:
-        obedit = ed::object::add_type(C, OB_MESH, idname, loc, rot, false, local_view_bits);
-        ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
-        break;
-      case CTX_MODE_SCULPT:
-        obedit = CTX_data_active_object(C);
-
-        r_creation_data->dynatopo_enable = BKE_object_sculpt_use_dyntopo(obedit);
-
-        if (r_creation_data->dynatopo_enable) {
-          ed::sculpt_paint::undo::push_begin(*CTX_data_scene(C), *obedit, op);
-          ed::sculpt_paint::undo::push_node(*CTX_data_depsgraph_pointer(C),
-                                            *obedit,
-                                            nullptr,
-                                            ed::sculpt_paint::undo::Type::Geometry);
-
-          SculptSession *ss = obedit->runtime->sculpt_session;
-          BMesh *bm = ss->bm;
-          BM_log_before_all_removed(bm, ss->bm_log);
-
-          BM_mesh_toolflags_set(bm, true);
-        }
-        else {
-          ed::sculpt_paint::undo::geometry_begin(*scene, *obedit, op);
-          ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
-        }
-        break;
-      default:
-        BLI_assert_unreachable();
-        break;
-    }
+  switch (original_creation_mode) {
+    case CTX_MODE_OBJECT:
+      obedit = ed::object::add_type(C, OB_MESH, idname, loc, rot, false, local_view_bits);
+      ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
+      break;
+    case CTX_MODE_SCULPT:
+      obedit = CTX_data_active_object(C);
+      ed::sculpt_paint::undo::geometry_begin(*scene, *obedit, op);
+      break;
+    case CTX_MODE_EDIT_MESH:
+      obedit = CTX_data_edit_object(C);
+      break;
+    default:
+      obedit = CTX_data_active_object(C);
+      BLI_assert_unreachable();
+      break;
   }
 
   ed::object::new_primitive_matrix(C, obedit, loc, rot, scale, r_creation_data->mat);
-
   return obedit;
+}
+
+static void make_prim_init_bmesh(bContext *C, Object *ob, Mesh *&r_new_mesh, BMesh *&r_bm)
+{
+  Main &bmain = *CTX_data_main(C);
+  Mesh *mesh = id_cast<Mesh *>(ob->data);
+
+  r_new_mesh = id_cast<Mesh *>(BKE_id_copy(&bmain, &mesh->id));
+
+  const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
+  BMeshCreateParams bm_create_params{};
+  bm_create_params.use_toolflags = true;
+  r_bm = BM_mesh_create(&allocsize, &bm_create_params);
+
+  BMeshFromMeshParams mesh_to_bm_params{};
+  mesh_to_bm_params.calc_face_normal = true;
+  BM_mesh_bm_from_me(r_bm, r_new_mesh, &mesh_to_bm_params);
+}
+
+static void make_prim_finish_bmesh_cancelled(bContext *C, Mesh *&new_mesh, BMesh *bm)
+{
+  Main &bmain = *CTX_data_main(C);
+
+  BKE_id_free(&bmain, new_mesh);
+  BM_mesh_free(bm);
+}
+
+static void make_prim_finish_bmesh(bContext *C, Object *ob, Mesh *new_mesh, BMesh *bm)
+{
+  Main &bmain = *CTX_data_main(C);
+  Mesh *mesh = id_cast<Mesh *>(ob->data);
+
+  BKE_id_free(&bmain, new_mesh);
+  BMeshToMeshParams bm_to_mesh_params{};
+  bm_to_mesh_params.calc_object_remap = false;
+  new_mesh = BKE_mesh_from_bmesh_nomain(bm, &bm_to_mesh_params, mesh);
+  BM_mesh_free(bm);
+
+  BKE_mesh_nomain_to_mesh(new_mesh, mesh, ob);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 }
 
 static void make_prim_finish(bContext *C,
@@ -117,22 +140,10 @@ static void make_prim_finish(bContext *C,
   BLI_assert(ELEM(
       creation_data->original_ctx_mode, CTX_MODE_OBJECT, CTX_MODE_SCULPT, CTX_MODE_EDIT_MESH));
 
-  if (creation_data->dynatopo_enable) {
-    SculptSession *ss = obedit->runtime->sculpt_session;
-    BMesh *bm = ss->bm;
-
-    ed::sculpt_paint::dyntopo::triangulate(bm);
-
-    DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
-
-    BM_mesh_toolflags_set(bm, false);
-
-    BM_log_all_added(ss->bm, ss->bm_log);
-    ed::sculpt_paint::undo::push_end(*obedit);
+  if (creation_data->original_ctx_mode == CTX_MODE_SCULPT) {
+    ed::sculpt_paint::undo::geometry_end(*obedit);
   }
   else {
-    /* Primitive has all verts selected, use vert select flush
-     * to push this up to edges & faces. */
     EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
     /* TODO(@ideasman42): maintain UV sync for newly created data. */
     EDBM_uvselect_clear(em);
@@ -140,28 +151,14 @@ static void make_prim_finish(bContext *C,
     /* Only recalculate edit-mode tessellation if we are staying in edit-mode. */
     EDBMUpdate_Params params{};
     params.calc_looptris = creation_data->original_ctx_mode == CTX_MODE_EDIT_MESH ||
-                           (creation_data->original_ctx_mode == CTX_MODE_OBJECT && enter_editmode);
+                           enter_editmode;
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
 
-    // TODO: verify if sculpt mode should also stay in edit mode if user preference
-    if (creation_data->original_ctx_mode == CTX_MODE_OBJECT && enter_editmode == false) {
+    if (creation_data->original_ctx_mode == CTX_MODE_OBJECT && !enter_editmode) {
       ed::object::editmode_exit_ex(
           CTX_data_main(C), CTX_data_scene(C), obedit, ed::object::EM_FREEDATA);
-    }
-    else if (creation_data->original_ctx_mode == CTX_MODE_SCULPT) {
-      ed::object::editmode_exit_ex(
-          CTX_data_main(C), CTX_data_scene(C), obedit, ed::object::EM_FREEDATA);
-
-      ed::sculpt_paint::object_sculpt_mode_enter(*CTX_data_main(C),
-                                                 *CTX_data_depsgraph_pointer(C),
-                                                 *CTX_data_scene(C),
-                                                 *obedit,
-                                                 true,
-                                                 CTX_wm_reports(C));
-
-      ed::sculpt_paint::undo::geometry_end(*obedit);
     }
   }
 
@@ -256,16 +253,24 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
                           local_view_bits,
                           &creation_data);
 
-  if (creation_data.dynatopo_enable) {
-    if (!BMO_op_callf(obedit->runtime->sculpt_session->bm,
+  if (creation_data.original_ctx_mode == CTX_MODE_SCULPT) {
+    Mesh *new_mesh;
+    BMesh *bm;
+
+    make_prim_init_bmesh(C, obedit, new_mesh, bm);
+
+    if (!BMO_op_callf(bm,
                       BMO_FLAG_DEFAULTS,
                       "create_cube matrix=%m4 size=%f calc_uvs=%b",
                       creation_data.mat,
                       RNA_float_get(op->ptr, "size"),
                       calc_uvs))
     {
+      make_prim_finish_bmesh_cancelled(C, new_mesh, bm);
       return OPERATOR_CANCELLED;
     }
+
+    make_prim_finish_bmesh(C, obedit, new_mesh, bm);
   }
   else {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -419,8 +424,13 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
                           local_view_bits,
                           &creation_data);
 
-  if (creation_data.dynatopo_enable) {
-    if (!BMO_op_callf(obedit->runtime->sculpt_session->bm,
+  if (creation_data.original_ctx_mode == CTX_MODE_SCULPT) {
+    Mesh *new_mesh;
+    BMesh *bm;
+
+    make_prim_init_bmesh(C, obedit, new_mesh, bm);
+
+    if (!BMO_op_callf(bm,
                       BMO_FLAG_DEFAULTS,
                       "create_cone segments=%i radius1=%f radius2=%f cap_ends=%b "
                       "cap_tris=%b depth=%f matrix=%m4 calc_uvs=%b",
@@ -433,8 +443,11 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
                       creation_data.mat,
                       calc_uvs))
     {
+      make_prim_finish_bmesh_cancelled(C, new_mesh, bm);
       return OPERATOR_CANCELLED;
     }
+
+    make_prim_finish_bmesh(C, obedit, new_mesh, bm);
   }
   else {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -516,8 +529,13 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
                           local_view_bits,
                           &creation_data);
 
-  if (creation_data.dynatopo_enable) {
-    if (!BMO_op_callf(obedit->runtime->sculpt_session->bm,
+  if (creation_data.original_ctx_mode == CTX_MODE_SCULPT) {
+    Mesh *new_mesh;
+    BMesh *bm;
+
+    make_prim_init_bmesh(C, obedit, new_mesh, bm);
+
+    if (!BMO_op_callf(bm,
                       BMO_FLAG_DEFAULTS,
                       "create_cone segments=%i radius1=%f radius2=%f cap_ends=%b "
                       "cap_tris=%b depth=%f matrix=%m4 calc_uvs=%b",
@@ -530,8 +548,11 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
                       creation_data.mat,
                       calc_uvs))
     {
+      make_prim_finish_bmesh_cancelled(C, new_mesh, bm);
       return OPERATOR_CANCELLED;
     }
+
+    make_prim_finish_bmesh(C, obedit, new_mesh, bm);
   }
   else {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -755,9 +776,14 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
                           local_view_bits,
                           &creation_data);
 
-  if (creation_data.dynatopo_enable) {
+  if (creation_data.original_ctx_mode == CTX_MODE_SCULPT) {
+    Mesh *new_mesh;
+    BMesh *bm;
+
+    make_prim_init_bmesh(C, obedit, new_mesh, bm);
+
     if (!BMO_op_callf(
-            obedit->runtime->sculpt_session->bm,
+            bm,
             BMO_FLAG_DEFAULTS,
             "create_uvsphere u_segments=%i v_segments=%i radius=%f matrix=%m4 calc_uvs=%b",
             RNA_int_get(op->ptr, "segments"),
@@ -766,8 +792,11 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
             creation_data.mat,
             calc_uvs))
     {
+      make_prim_finish_bmesh_cancelled(C, new_mesh, bm);
       return OPERATOR_CANCELLED;
     }
+
+    make_prim_finish_bmesh(C, obedit, new_mesh, bm);
   }
   else {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -843,8 +872,13 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
                           local_view_bits,
                           &creation_data);
 
-  if (creation_data.dynatopo_enable) {
-    if (!BMO_op_callf(obedit->runtime->sculpt_session->bm,
+  if (creation_data.original_ctx_mode == CTX_MODE_SCULPT) {
+    Mesh *new_mesh;
+    BMesh *bm;
+
+    make_prim_init_bmesh(C, obedit, new_mesh, bm);
+
+    if (!BMO_op_callf(bm,
                       BMO_FLAG_DEFAULTS,
                       "create_icosphere subdivisions=%i radius=%f matrix=%m4 calc_uvs=%b",
                       RNA_int_get(op->ptr, "subdivisions"),
@@ -852,8 +886,11 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
                       creation_data.mat,
                       calc_uvs))
     {
+      make_prim_finish_bmesh_cancelled(C, new_mesh, bm);
       return OPERATOR_CANCELLED;
     }
+
+    make_prim_finish_bmesh(C, obedit, new_mesh, bm);
   }
   else {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
