@@ -521,14 +521,14 @@ static float3 project_v3_plane(const float3 vector, const float3 direction)
   return vector - math::project(vector, direction);
 }
 
-static Span<float> get_evaluated_radii(const bke::CurvesGeometry &src_curves)
+static Array<float> get_evaluated_radii(const bke::CurvesGeometry &src_curves)
 {
   const VArray<float> radius = src_curves.radius();
   Array<float> radii_eval(src_curves.evaluated_points_num());
   if (const std::optional radius_single = radius.get_if_single()) {
     radii_eval.fill(0.05f);
     BLI_assert(radii_eval.size() == src_curves.evaluated_points_num());
-    return radii_eval.as_span();
+    return radii_eval;
   }
   const Span<float> radius_span = radius.get_internal_span();
   if (src_curves.is_single_type(CURVE_TYPE_POLY)) {
@@ -537,7 +537,7 @@ static Span<float> get_evaluated_radii(const bke::CurvesGeometry &src_curves)
   src_curves.ensure_can_interpolate_to_evaluated();
   src_curves.interpolate_to_evaluated(radius_span, radii_eval.as_mutable_span());
   BLI_assert(radii_eval.size() == src_curves.evaluated_points_num());
-  return radii_eval.as_span();
+  return radii_eval;
 }
 
 /* Buuild curve segment bvh. */
@@ -555,7 +555,7 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
   BVHTree *bvhtree = BLI_bvhtree_new(bvh_points_num, curve_isect_eps, 8, 8);
   const VArray<bool> cyclic = src_curves.cyclic();
   const OffsetIndices evaluated_points_by_curve = src_curves.evaluated_points_by_curve();
-  const Span<float> radii = get_evaluated_radii(src_curves);
+  const Array<float> radii = get_evaluated_radii(src_curves);
   const bool use_direction_data = angle > 0.0f || attribute_outputs.direction ||
                                   attribute_outputs.pair_direction;
 
@@ -563,7 +563,7 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
   for (const int64_t curve_i : src_curves.curves_range()) {
     const IndexRange points = evaluated_points_by_curve[curve_i];
     const Span<float3> positions = src_curves.evaluated_positions().slice(points);
-    const Span<float> radii_by_curve = radii.slice(points);
+    const Span<float> radii_by_curve = radii.as_span().slice(points);
     const Span<float> lengths = src_curves.evaluated_lengths_for_curve(curve_i, cyclic[curve_i]);
     const float curve_length = src_curves.evaluated_length_total_for_curve(curve_i,
                                                                            cyclic[curve_i]);
