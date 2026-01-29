@@ -2259,7 +2259,7 @@ def tags_current(wm, tags_attr, *, repo_filter_override=None):
     repo_filter = None
     if wm.extension_use_filter:
         repo_filter = wm.extension_repo_filter
-        
+
     # Allow callers to request tags for a specific repository even when
     # the UI filter is disabled. This is to return tags per repo regardless
     # of global filtering state.
