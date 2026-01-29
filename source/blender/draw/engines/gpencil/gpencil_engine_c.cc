@@ -663,20 +663,16 @@ void Instance::acquire_resources()
    * rendering grease pencil to it. */
   const bool combined_pass_exists = DRW_viewport_pass_texture_exists(RE_PASSNAME_COMBINED);
   if (this->need_combined_pass && combined_pass_exists) {
-    const int2 size = int2(draw_ctx->viewport_size_get());
-    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get(
-        RE_PASSNAME_COMBINED);
-    output_pass_texture.acquire(size, gpu::TextureFormat::SFLOAT_16_16_16_16);
-    this->combined_pass_fb.ensure(GPU_ATTACHMENT_NONE,
-                                  GPU_ATTACHMENT_TEXTURE(output_pass_texture));
+    draw::TextureFromPool &combined_pass = DRW_viewport_pass_texture_get(RE_PASSNAME_COMBINED);
+    this->combined_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(combined_pass));
   }
 
   if (this->need_grease_pencil_pass) {
     const int2 size = int2(draw_ctx->viewport_size_get());
-    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get(
+    draw::TextureFromPool &grease_pencil_pass = DRW_viewport_pass_texture_get(
         RE_PASSNAME_GREASE_PENCIL);
-    output_pass_texture.acquire(size, gpu::TextureFormat::SFLOAT_16_16_16_16);
-    this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(output_pass_texture));
+    grease_pencil_pass.acquire(size, gpu::TextureFormat::SFLOAT_16_16_16_16);
+    this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(grease_pencil_pass));
   }
 }
 
