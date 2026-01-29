@@ -294,11 +294,11 @@ using PositionToString =
 
 static void draw_horizontal_scale_indicators(const ARegion *region,
                                              const View2D *v2d,
-                                             float distance,
+                                             const float distance,
                                              const rcti *rect,
                                              PositionToString to_string,
                                              void *to_string_data,
-                                             int colorid)
+                                             const int colorid)
 {
   if (view2d_scale_get_x(v2d) <= 0.0f) {
     return;
@@ -434,14 +434,20 @@ static void draw_vertical_scale_indicators(const ARegion *region,
   GPU_matrix_pop_projection();
 }
 
-static void view_to_string__frame_number(
-    void * /*user_data*/, float v2d_pos, float /*v2d_step*/, char *r_str, uint str_maxncpy)
+static void view_to_string__frame_number(void * /*user_data*/,
+                                         const float v2d_pos,
+                                         const float /*v2d_step*/,
+                                         char *r_str,
+                                         const uint str_maxncpy)
 {
   BLI_snprintf_utf8(r_str, str_maxncpy, "%d", int(v2d_pos));
 }
 
-static void view_to_string__time(
-    void *user_data, float v2d_pos, float v2d_step, char *r_str, uint str_maxncpy)
+static void view_to_string__time(void *user_data,
+                                 const float v2d_pos,
+                                 const float v2d_step,
+                                 char *r_str,
+                                 const uint str_maxncpy)
 {
   const Scene *scene = static_cast<const Scene *>(user_data);
 
@@ -458,8 +464,11 @@ static void view_to_string__time(
                                 U.timecode_style);
 }
 
-static void view_to_string__value(
-    void * /*user_data*/, float v2d_pos, float v2d_step, char *r_str, uint str_maxncpy)
+static void view_to_string__value(void * /*user_data*/,
+                                  const float v2d_pos,
+                                  const float v2d_step,
+                                  char *r_str,
+                                  const uint str_maxncpy)
 {
   if (v2d_step >= 1.0f * UI_SCALE_FAC) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%d", int(v2d_pos));
@@ -560,7 +569,7 @@ void view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
  **************************************************/
 
 void view2d_draw_scale_y__values(
-    const ARegion *region, const View2D *v2d, const rcti *rect, int colorid, const int base)
+    const ARegion *region, const View2D *v2d, const rcti *rect, const int colorid, const int base)
 {
   const float step = calculate_grid_step_subframes(
       base, BLI_rcti_size_y(&v2d->mask) + 1, BLI_rctf_size_y(&v2d->cur));
@@ -572,8 +581,8 @@ void view2d_draw_scale_x__discrete_frames_or_seconds(const ARegion *region,
                                                      const View2D *v2d,
                                                      const rcti *rect,
                                                      const Scene *scene,
-                                                     bool display_seconds,
-                                                     int colorid,
+                                                     const bool display_seconds,
+                                                     const int colorid,
                                                      const int base)
 {
   const float step = calculate_grid_step(
@@ -592,8 +601,8 @@ void view2d_draw_scale_x__frames_or_seconds(const ARegion *region,
                                             const View2D *v2d,
                                             const rcti *rect,
                                             const Scene *scene,
-                                            bool display_seconds,
-                                            int colorid,
+                                            const bool display_seconds,
+                                            const int colorid,
                                             const int base)
 {
   if (display_seconds) {
