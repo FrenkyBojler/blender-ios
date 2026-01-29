@@ -142,25 +142,24 @@ struct AtomicLexer : LexerBase {
     directive_lines.reserve(line_offsets_buf_.size() / 2);
 
     line_offsets_buf_.append(0);
-    for (TokenIt it = begin(); it < end(); ++it) {
-      lexit::TokenMut tok = *it;
+    for (auto tok : *this) {
       switch (tok.type()) {
         case Word: {
           tok.type() = type_lookup(tok.str());
           if (tok.type() == Word) {
-            atoms_[it.index()] = hash(tok.str());
+            atoms_[int(tok)] = hash(tok.str());
           }
           break;
         }
         case NewLine: {
-          line_offsets_buf_.append(it.index() + 1);
+          line_offsets_buf_.append(int(tok) + 1);
           break;
         }
         case '#': {
           int line_start = line_offsets_buf_.last();
           /* Directive can only start with a hash token (+ optional space).
            * If there is more token before the hash token it cannot be a preprocessor directive. */
-          if (it.index() - line_start <= 1) {
+          if (int(tok) - line_start <= 1) {
             int line_index = line_offsets_buf_.size() - 1;
             if (directive_lines.is_empty() || directive_lines.last() != line_index) {
               directive_lines.append(line_index);
