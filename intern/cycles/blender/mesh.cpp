@@ -199,65 +199,65 @@ static void attr_create_generic(Scene *scene,
         return;
     }
 
-    blender::bke::attribute_math::convert_to_static_type(b_attr.varray.type(), [&](auto dummy) {
-      using BlenderT = decltype(dummy);
-      using Converter = typename ccl::AttributeConverter<BlenderT>;
-      using CyclesT = typename Converter::CyclesT;
-      if constexpr (!std::is_void_v<CyclesT>) {
-        Attribute *attr = attributes.add(name, Converter::type_desc, element);
-        if (is_render_color) {
-          attr->std = ATTR_STD_VERTEX_COLOR;
-        }
+    blender::bke::attribute_math::convert_to_static_type(
+        b_attr.varray.type(), [&]<typename BlenderT>() {
+          using Converter = typename ccl::AttributeConverter<BlenderT>;
+          using CyclesT = typename Converter::CyclesT;
+          if constexpr (!std::is_void_v<CyclesT>) {
+            Attribute *attr = attributes.add(name, Converter::type_desc, element);
+            if (is_render_color) {
+              attr->std = ATTR_STD_VERTEX_COLOR;
+            }
 
-        CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
+            CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
 
-        const blender::VArraySpan src = b_attr.varray.typed<BlenderT>();
-        switch (b_attr.domain) {
-          case blender::bke::AttrDomain::Corner: {
-            if (subdivision) {
-              for (const int i : src.index_range()) {
-                data[i] = Converter::convert(src[i]);
+            const blender::VArraySpan src = b_attr.varray.typed<BlenderT>();
+            switch (b_attr.domain) {
+              case blender::bke::AttrDomain::Corner: {
+                if (subdivision) {
+                  for (const int i : src.index_range()) {
+                    data[i] = Converter::convert(src[i]);
+                  }
+                }
+                else {
+                  for (const int i : corner_tris.index_range()) {
+                    const blender::int3 &tri = corner_tris[i];
+                    data[i * 3 + 0] = Converter::convert(src[tri[0]]);
+                    data[i * 3 + 1] = Converter::convert(src[tri[1]]);
+                    data[i * 3 + 2] = Converter::convert(src[tri[2]]);
+                  }
+                }
+                break;
+              }
+              case blender::bke::AttrDomain::Point: {
+                for (const int i : src.index_range()) {
+                  data[i] = Converter::convert(src[i]);
+                }
+                break;
+              }
+              case blender::bke::AttrDomain::Face: {
+                if (subdivision) {
+                  for (const int i : src.index_range()) {
+                    data[i] = Converter::convert(src[i]);
+                  }
+                }
+                else {
+                  for (const int face : faces.index_range()) {
+                    const CyclesT value = Converter::convert(src[face]);
+                    const blender::IndexRange face_tris = blender::bke::mesh::face_triangles_range(
+                        faces, face);
+                    std::fill_n(data + face_tris.start(), face_tris.size(), value);
+                  }
+                }
+                break;
+              }
+              default: {
+                assert(false);
+                break;
               }
             }
-            else {
-              for (const int i : corner_tris.index_range()) {
-                const blender::int3 &tri = corner_tris[i];
-                data[i * 3 + 0] = Converter::convert(src[tri[0]]);
-                data[i * 3 + 1] = Converter::convert(src[tri[1]]);
-                data[i * 3 + 2] = Converter::convert(src[tri[2]]);
-              }
-            }
-            break;
           }
-          case blender::bke::AttrDomain::Point: {
-            for (const int i : src.index_range()) {
-              data[i] = Converter::convert(src[i]);
-            }
-            break;
-          }
-          case blender::bke::AttrDomain::Face: {
-            if (subdivision) {
-              for (const int i : src.index_range()) {
-                data[i] = Converter::convert(src[i]);
-              }
-            }
-            else {
-              for (const int face : faces.index_range()) {
-                const CyclesT value = Converter::convert(src[face]);
-                const blender::IndexRange face_tris = blender::bke::mesh::face_triangles_range(
-                    faces, face);
-                std::fill_n(data + face_tris.start(), face_tris.size(), value);
-              }
-            }
-            break;
-          }
-          default: {
-            assert(false);
-            break;
-          }
-        }
-      }
-    });
+        });
   });
 }
 

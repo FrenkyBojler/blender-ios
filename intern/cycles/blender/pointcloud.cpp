@@ -77,20 +77,20 @@ static void copy_attributes(PointCloud *pointcloud,
     }
 
     const blender::bke::GAttributeReader b_attr = iter.get();
-    blender::bke::attribute_math::convert_to_static_type(b_attr.varray.type(), [&](auto dummy) {
-      using BlenderT = decltype(dummy);
-      using Converter = typename ccl::AttributeConverter<BlenderT>;
-      using CyclesT = typename Converter::CyclesT;
-      if constexpr (!std::is_void_v<CyclesT>) {
-        Attribute *attr = attributes.add(name, Converter::type_desc, ATTR_ELEMENT_VERTEX);
-        CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
+    blender::bke::attribute_math::convert_to_static_type(
+        b_attr.varray.type(), [&]<typename BlenderT>() {
+          using Converter = typename ccl::AttributeConverter<BlenderT>;
+          using CyclesT = typename Converter::CyclesT;
+          if constexpr (!std::is_void_v<CyclesT>) {
+            Attribute *attr = attributes.add(name, Converter::type_desc, ATTR_ELEMENT_VERTEX);
+            CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
 
-        const blender::VArraySpan src = b_attr.varray.typed<BlenderT>();
-        for (const int i : src.index_range()) {
-          data[i] = Converter::convert(src[i]);
-        }
-      }
-    });
+            const blender::VArraySpan src = b_attr.varray.typed<BlenderT>();
+            for (const int i : src.index_range()) {
+              data[i] = Converter::convert(src[i]);
+            }
+          }
+        });
   });
 }
 
