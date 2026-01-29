@@ -184,10 +184,10 @@ struct GeometrySet {
   }
 
   GeometryComponentPtr get_component_ptr(GeometryComponent::Type component_type) const;
-  template<typename Component> ImplicitSharingPtr<Component> get_component_ptr() const
+  template<typename Component> ImplicitSharingPtr<Component> get_component_ptr()
   {
     BLI_STATIC_ASSERT(is_geometry_component_v<Component>, "");
-    return static_cast<ImplicitSharingPtr<Component>>(components_(Component::static_type));
+    return static_cast<ImplicitSharingPtr<Component>>(components_[int(Component::static_type)]);
   }
 
   /**

@@ -92,10 +92,9 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
     return data_ != nullptr;
   }
 
-  template<typename U, BLI_ENABLE_IF((std::is_convertible_v<T, U>))>
-  operator ImplicitSharingPtr<U>() const
+  template<typename U> operator ImplicitSharingPtr<U>()
   {
-    return ImplicitSharingPtr<U>(static_cast<U *>(data_));
+    return ImplicitSharingPtr<U>(static_cast<U *>(const_cast<T *>(data_)));
   }
 
   const T *get() const
