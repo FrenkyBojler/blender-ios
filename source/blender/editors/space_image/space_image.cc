@@ -542,9 +542,11 @@ static void IMAGE_GGT_navigate(wmGizmoGroupType *gzgt)
 
 static const SpaceNode *find_node_editor(const bContext *C)
 {
+  printf("find_node_editor\n");
   Scene *scene = CTX_data_scene(C);
   wmWindowManager *window_manager = CTX_wm_manager(C);
 
+  SpaceNode *ret = nullptr;
   for (wmWindow &window : window_manager->windows) {
     bScreen *screen = WM_window_get_active_screen(&window);
     for (ScrArea &area : screen->areabase) {
@@ -552,17 +554,31 @@ static const SpaceNode *find_node_editor(const bContext *C)
       if (!space_link || space_link->spacetype != SPACE_NODE) {
         continue;
       }
-
       const SpaceNode *snode = reinterpret_cast<const SpaceNode *>(space_link);
       if (snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
-        return snode;
+        bNodeTreePath *path = static_cast<bNodeTreePath *>(snode->treepath.last);
+        if (snode->nodetree->active_viewer_key == path->parent_key) {
+          printf("found\n");
+          printf("\tsnode: %p\n", snode);
+          printf("\tpath: %s\n", path->display_name);
+          printf("\tactive viewer key: %d\n", snode->nodetree->active_viewer_key);
+          printf("\tpath parent key: %d\n", path->parent_key);
+          ret = const_cast<SpaceNode *>(snode);
+          return snode;
+        }
+        else {
+          printf("not found\n");
+          printf("\tsnode: %p\n", snode);
+          printf("\tpath: %s\n", path->display_name);
+          printf("\tactive viewer key: %d\n", snode->nodetree->active_viewer_key);
+          printf("\tpath parent key: %d\n", path->parent_key);
+        }
       }
-
       // todo(habib): support multiple node editors (e.g. check viewer key)
     }
   }
 
-  return nullptr;
+  return ret;
 }
 
 static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
@@ -570,14 +586,12 @@ static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType *
   // todo(habib): handle visibility
 
   const SpaceNode *snode = find_node_editor(C);
-  if (snode == nullptr) {
+  if (snode == nullptr || snode->edittree == nullptr) {
     return false;
   }
 
   bNode *node = bke::node_get_active(*snode->edittree);
-  bNodeTreePath *path = static_cast<bNodeTreePath *>(snode->treepath.last);
-
-  if (snode->edittree->active_viewer_key != path->parent_key) {
+  if (node == nullptr) {
     return false;
   }
 
