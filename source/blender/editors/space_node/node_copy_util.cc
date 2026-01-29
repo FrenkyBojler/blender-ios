@@ -708,8 +708,11 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(const bContext &C,
   }
   if (const std::optional<Bounds<float2>> bounds = node_bounds(nodes_vec)) {
     io_nodes.input_node->location[0] = bounds->min[0] - 200.0f;
-    io_nodes.input_node->location[1] = bounds->center()[1];
     io_nodes.output_node->location[0] = bounds->max[0] + 50.0f;
+  }
+  /* Ignore node dimensions for vertical placement. */
+  if (const std::optional<Bounds<float2>> bounds = node_location_bounds(nodes_vec)) {
+    io_nodes.input_node->location[1] = bounds->center()[1];
     io_nodes.output_node->location[1] = bounds->center()[1];
   }
 
@@ -876,14 +879,14 @@ struct NestedNodeRefIDGenerator {
 static void append_nested_node_refs(bNodeTree &ntree, const Span<bNestedNodeRef> nested_node_refs)
 {
   const int new_nested_node_refs_num = ntree.nested_node_refs_num + nested_node_refs.size();
-  bNestedNodeRef *new_nested_node_refs = MEM_new_array_for_free<bNestedNodeRef>(
-      new_nested_node_refs_num, __func__);
+  bNestedNodeRef *new_nested_node_refs = MEM_new_array<bNestedNodeRef>(new_nested_node_refs_num,
+                                                                       __func__);
   uninitialized_copy_n(ntree.nested_node_refs, ntree.nested_node_refs_num, new_nested_node_refs);
   uninitialized_copy_n(nested_node_refs.data(),
                        nested_node_refs.size(),
                        new_nested_node_refs + ntree.nested_node_refs_num);
 
-  MEM_SAFE_FREE(ntree.nested_node_refs);
+  MEM_SAFE_DELETE(ntree.nested_node_refs);
   ntree.nested_node_refs = new_nested_node_refs;
   ntree.nested_node_refs_num = new_nested_node_refs_num;
 }

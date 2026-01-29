@@ -1762,7 +1762,7 @@ float *bke::sound_read_file_buffer(const char *filename,
     return nullptr;
   }
 
-  float *result = MEM_malloc_arrayN<float>(position, __func__);
+  float *result = MEM_new_array_uninitialized<float>(position, __func__);
   memcpy(result, buffer.getBuffer(), position * sizeof(float));
   *length = position;
   return result;
@@ -1943,7 +1943,7 @@ void BKE_sound_set_scene_sound_time_stretch_at_frame(AUD_Sound /*handle*/,
                                                      bool /*animated*/)
 {
 }
-void BKE_sound_set_scene_sound_time_stretch_constant_range(void * /*handle*/,
+void BKE_sound_set_scene_sound_time_stretch_constant_range(AUD_Sound /*handle*/,
                                                            int /*frame_start*/,
                                                            int /*frame_end*/,
                                                            float /*time_stretch*/)
