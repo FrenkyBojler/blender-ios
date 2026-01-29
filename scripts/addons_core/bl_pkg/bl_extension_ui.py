@@ -2216,7 +2216,7 @@ def tags_exclude_match(
     return True
 
 
-def tags_current(wm, tags_attr):
+def tags_current(wm, tags_attr, *, repo_filter_override=None):
     from .bl_extension_ops import (
         blender_filter_by_type_map,
         extension_repos_read,
@@ -2259,6 +2259,12 @@ def tags_current(wm, tags_attr):
     repo_filter = None
     if wm.extension_use_filter:
         repo_filter = wm.extension_repo_filter
+        
+    # Allow callers to request tags for a specific repository even when
+    # the UI filter is disabled. This is to return tags per repo regardless
+    # of global filtering state.
+    if repo_filter_override is not None:
+        repo_filter = repo_filter_override
 
     params = ExtensionUI_FilterParams(
         search_casefold=search_casefold,
@@ -2318,13 +2324,13 @@ def tags_clear(wm, tags_attr):
     tags_collection.clear()
 
 
-def tags_refresh(wm, tags_attr, *, default_value):
+def tags_refresh(wm, tags_attr, *, default_value, repo_filter_override=None):
     tags_collection = getattr(wm, tags_attr)
 
     tags_curr = set(tags_collection.keys())
 
-    # Calculate tags.
-    tags_next = tags_current(wm, tags_attr)
+    # Allow overriding the repo filter so the tags can be shown for a specific repository.
+    tags_next = tags_current(wm, tags_attr, repo_filter_override=repo_filter_override)
 
     tags_to_add = tags_next - tags_curr
     tags_to_rem = tags_curr - tags_next
@@ -2372,7 +2378,8 @@ def tags_panel_draw(layout, context, tags_attr):
 
     layout.separator(type='LINE')
 
-    if tags_sorted := tags_refresh(wm, tags_attr, default_value=True):
+    repo_override = wm.extension_repo_filter if (tags_attr == "extension_tags") else None
+    if tags_sorted := tags_refresh(wm, tags_attr, default_value=True, repo_filter_override=repo_override):
         # Use the `length + 1` so the first row is longer in the case of an odd number.
         tags_len_half = (len(tags_sorted) + 1) // 2
         split = layout.split(factor=0.5)
