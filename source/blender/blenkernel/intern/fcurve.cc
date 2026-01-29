@@ -920,6 +920,23 @@ bool BKE_fcurve_has_selected_control_points(const FCurve &fcu)
     }
   }
   return false;
+
+}
+
+bool BKE_fcurve_has_single_selected_control_point(const FCurve &fcu)
+{
+  int i;
+  int count = 0;
+  BezTriple *bezt;
+  for (bezt = fcu.bezt, i = 0; i < fcu.totvert; ++i, ++bezt) {
+    if ((bezt->f2 & SELECT) != 0) {
+      ++count;
+      if (count > 1) {
+        return false;
+      }
+    }
+  }
+  return count == 1;
 }
 
 void BKE_fcurve_deselect_all_keys(FCurve &fcu)

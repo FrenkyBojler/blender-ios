@@ -79,10 +79,12 @@ void get_graph_keyframe_extents(bAnimContext *ac,
     *ymax = -999999999.0f;
   }
 
+  bool singleControlPointSelected = false;
+
   /* Check if any channels to set range with. */
   if (anim_data.first) {
     bool foundBounds = false;
-
+    int numberOfCurvesToFrame = 0;
     /* Go through channels, finding max extents. */
     for (bAnimListElem &ale : anim_data) {
       FCurve *fcu = static_cast<FCurve *>(ale.key_data);
@@ -91,6 +93,10 @@ void get_graph_keyframe_extents(bAnimContext *ac,
 
       /* Get range. */
       if (BKE_fcurve_calc_bounds(fcu, do_sel_only, include_handles, nullptr, &bounds)) {
+
+        ++numberOfCurvesToFrame;
+        singleControlPointSelected = (numberOfCurvesToFrame == 1) && BKE_fcurve_has_single_selected_control_point(*fcu);
+
         short mapping_flag = ANIM_get_normalization_flags(ac->sl);
 
         /* Apply NLA scaling. */
@@ -129,10 +135,16 @@ void get_graph_keyframe_extents(bAnimContext *ac,
         *xmin -= 0.0005f;
         *xmax += 0.0005f;
       }
-      if ((ymin && ymax) && (fabsf(*ymax - *ymin) < 0.001f)) {
+      if (singleControlPointSelected) {
+        /* In the case of a single selected control point, don't zoom in
+           too close to prevent tedious zooming out. */
         *ymin -= 0.05f;
         *ymax += 0.05f;
+      } else if ((ymin && ymax) && (fabsf(*ymax - *ymin) < 0.001f)) {
+        *ymin -= 0.0005f;
+        *ymax += 0.0005f;
       }
+
     }
     else {
       if (xmin) {
