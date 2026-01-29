@@ -86,7 +86,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       });
     }
     if (params.node_tree().typeinfo->validate_link(data_type, SOCK_CLOSURE)) {
-      params.add_item(IFACE_("Count"), [](LinkSearchOpParams &params) {
+      params.add_item(IFACE_("Closure"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeClosureToList");
         params.update_and_connect_available_socket(node, "Closure");
       });
