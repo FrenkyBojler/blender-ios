@@ -228,8 +228,8 @@ void view2d_dot_grid_draw(const View2D *v2d,
  * \param base Defines in what distance the lines are drawn. Depending on the zoom level of the
  * `v2d` the distance is always a full fraction or multiple of the given base.
  */
-void view2d_draw_lines_y__values(const View2D *v2d, int base);
-void view2d_draw_lines_x__values(const View2D *v2d, int base);
+void view2d_draw_lines_y__values(const View2D *v2d, bool show_fractions, int base);
+void view2d_draw_lines_x__values(const View2D *v2d, bool show_fractions, int base);
 void view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
                                                      const Scene *scene,
                                                      bool display_seconds,
@@ -249,8 +249,10 @@ void view2d_draw_scale_y(
 /**
  * Draw a text scale in either frames or seconds.
  *
- * \param subframes If false, clamps the minimum step distance is 1, meaning no sub-frame
- * indicators will be drawn even when zoomed in.
+ * \param display_seconds If true, the scale is interpreted as seconds and will draw a timecode.
+ * \param show_fractions If true, fractional scales will be drawn when zoomed in far enough.
+ * Otherwise the minimum step distance is clamped to 1, meaning only whole number indicators will
+ * be drawn even when zoomed in.
  * \param base Defines in what distance the lines are drawn. Depending on the zoom level of the
  * `v2d` the distance is always a full fraction or multiple of the given base.
  */
@@ -259,7 +261,7 @@ void view2d_draw_scale_x(const ARegion *region,
                          const rcti *rect,
                          const Scene *scene,
                          bool display_seconds,
-                         bool subframes,
+                         bool show_fractions,
                          int colorid,
                          int base);
 
