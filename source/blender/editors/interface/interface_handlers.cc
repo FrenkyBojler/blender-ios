@@ -10538,8 +10538,8 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
   if (dy < 0.0f) {
     /* Stop at top item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
     float ymax = -FLT_MAX;
-    for (const std::unique_ptr<Button> &bt : block->buttons) {
-      ymax = max_ff(ymax, bt->rect.ymax);
+    for (Button &bt : block->buttons_refs()) {
+      ymax = max_ff(ymax, bt.rect.ymax);
     }
     if (ymax + dy - UI_UNIT_Y * 0.5f < block->rect.ymax - scroll_pad) {
       dy = block->rect.ymax - ymax - scroll_pad;
@@ -10548,8 +10548,8 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
   else {
     /* Stop at bottom item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
     float ymin = FLT_MAX;
-    for (const std::unique_ptr<Button> &bt : block->buttons) {
-      ymin = min_ff(ymin, bt->rect.ymin);
+    for (Button &bt : block->buttons_refs()) {
+      ymin = min_ff(ymin, bt.rect.ymin);
     }
     if (ymin + dy + UI_UNIT_Y * 0.5f > block->rect.ymin + scroll_pad) {
       dy = block->rect.ymin - ymin + scroll_pad;
@@ -10562,9 +10562,9 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
   layout_panel_popup_scroll_apply(block->panel, dy);
 
   /* apply scroll offset */
-  for (const std::unique_ptr<Button> &bt : block->buttons) {
-    bt->rect.ymin += dy;
-    bt->rect.ymax += dy;
+  for (Button &bt : block->buttons_refs()) {
+    bt.rect.ymin += dy;
+    bt.rect.ymax += dy;
   }
 
   /* set flags again */

@@ -9,6 +9,7 @@
 #pragma once
 
 #include <functional>
+#include <ranges>
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_enum_flags.hh"
@@ -737,6 +738,18 @@ struct Block {
   int but_index(const Button *but) const;
   [[nodiscard]] Button *next_but(const Button *but) const;
   [[nodiscard]] Button *prev_but(const Button *but) const;
+
+  static constexpr Button &ButtonPtrDeref(const std::unique_ptr<Button> &button)
+  {
+    return *button;
+  }
+
+  std::ranges::transform_view<std::ranges::ref_view<Vector<std::unique_ptr<Button>>>,
+                              Button &(*)(const std::unique_ptr<Button> &button)>
+  buttons_refs()
+  {
+    return this->buttons | std::views::transform(ButtonPtrDeref);
+  }
 };
 
 struct SafetyRect {

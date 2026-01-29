@@ -610,8 +610,8 @@ static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
 
     RNA_property_update(C, ptr, prop);
 
-    for (const std::unique_ptr<Button> &cbut : but->block->buttons) {
-      button_update(cbut.get());
+    for (Button &cbut : but->block->buttons_refs()) {
+      button_update(&cbut);
     }
   }
 }
