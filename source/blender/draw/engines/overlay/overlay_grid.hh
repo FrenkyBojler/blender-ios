@@ -201,7 +201,7 @@ class Grid : Overlay {
     tile_pos_buf_.push_update();
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    grid_ubo_.num_lines = 301u;
+    grid_ubo_.num_lines = 601u;
     num_iters_ = 1u;
 
     return true;
