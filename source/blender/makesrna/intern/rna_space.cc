@@ -75,6 +75,12 @@ const EnumPropertyItem rna_enum_geometry_component_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_geometry_item_type_items[] = {
+    {SPREADSHEET_GEOMETRY_ITEM_TYPE_DOMAIN, "DOMAIN", ICON_NONE, "Domain", "Domain data"},
+    {SPREADSHEET_GEOMETRY_ITEM_TYPE_BUNDLE, "BUNDLE", ICON_NONE, "Bundle", "Bundle data"},
+    {},
+};
+
 const EnumPropertyItem rna_enum_space_type_items[] = {
     /* empty must be here for python, is skipped for UI */
     {SPACE_EMPTY, "EMPTY", ICON_NONE, "Empty", ""},
@@ -2456,8 +2462,8 @@ static void rna_ConsoleLine_body_set(PointerRNA *ptr, const char *value)
 
   if ((len >= size_t(ci->len_alloc)) || (len * 2 < size_t(ci->len_alloc)))
   { /* allocate a new string */
-    MEM_freeN(ci->line);
-    ci->line = MEM_malloc_arrayN<char>(len + 1, "rna_consoleline");
+    MEM_delete(ci->line);
+    ci->line = MEM_new_array_uninitialized<char>(len + 1, "rna_consoleline");
     ci->len_alloc = int(len + 1);
   }
   memcpy(ci->line, value, len + 1);
@@ -3909,7 +3915,7 @@ static IDFilterEnumPropertyItem rna_enum_space_file_id_filter_categories[] = {
     {FILTER_ID_AC, "category_animation", ICON_ANIM_DATA, "Animations", "Show animation data"},
     {FILTER_ID_OB | FILTER_ID_GR,
      "category_object",
-     ICON_OUTLINER_COLLECTION,
+     ICON_GROUP,
      "Objects & Collections",
      "Show objects and collections"},
     {FILTER_ID_AR | FILTER_ID_CU_LEGACY | FILTER_ID_LT | FILTER_ID_MB | FILTER_ID_ME |
@@ -8875,6 +8881,11 @@ static void rna_def_spreadsheet_table_id_geometry(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_attribute_domain_items);
   RNA_def_property_ui_text(prop, "Attribute Domain", "Attribute domain to display");
 
+  prop = RNA_def_property(srna, "geometry_item_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_enum_items(prop, rna_enum_geometry_item_type_items);
+  RNA_def_property_ui_text(prop, "Geometry Item Type", "Item Type");
+
   prop = RNA_def_property(srna, "viewer_path", PROP_POINTER, PROP_NONE);
   RNA_def_property_ui_text(prop, "Viewer Path", "Path to the data that is displayed");
 
@@ -9219,6 +9230,12 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Show Only Selected", "Only include rows that correspond to selected elements");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_SELECT_OFF, 0);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+
+  prop = RNA_def_property(srna, "geometry_item_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "geometry_id.geometry_item_type");
+  RNA_def_property_enum_items(prop, rna_enum_geometry_item_type_items);
+  RNA_def_property_ui_text(prop, "Geometry Item Type", "Item Type");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
   prop = RNA_def_property(srna, "geometry_component_type", PROP_ENUM, PROP_NONE);
