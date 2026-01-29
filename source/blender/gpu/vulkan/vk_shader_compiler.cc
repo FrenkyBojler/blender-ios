@@ -214,17 +214,19 @@ static bool compile_ex(shaderc::Compiler &compiler,
   options.SetOptimizationLevel(do_optimize ? shaderc_optimization_level_performance :
                                              shaderc_optimization_level_zero);
 
-  /* Increase the max id bound. SPIR-V has a max id bound set to 0x3fffff which is the minimum
-   * amount of ids that needs to be supported by any platform. However during optimization the max
-   * id bound can increase very fast and lowered at the end. As glslang uses max id bound in their
-   * internal structures to allocate arrays out of bound errors can occur.
+  /* Increase the max id bound.
    *
-   * We increase the max id bound to a larger number to increase the internal arrays of the
-   * compiler.
+   * SPIR-V has a default max id bound set to 0x3fffff which is the minimum amount of ids that
+   * needs to be supported by any platform. However during optimization the max id bound can
+   * increase very fast and lowered at the end. As glslang uses max id bound in their internal
+   * structures to allocate arrays out of bound errors can occur.
    *
-   * The test-files in #144614 and #143516 would surpass the default limit during compilation.
-   * However the final optimized SPIR-V is far less than the default so be fine to be used on
-   * platforms with minimum spec.
+   * Increasing the max id bound to a larger number to increase the internal arrays of the
+   * compiler to work around the compiler crash.
+   *
+   * NOTE: Test-files in #144614 and #143516 would surpass the default limit during compilation.
+   * The final optimized SPIR-V is far less than the default so be fine to be used on platforms
+   * with minimum spec.
    *
    * https://registry.khronos.org/SPIR-V/specs/1.0/SPIRV.html#_a_id_limits_a_universal_limits
    */
