@@ -411,8 +411,9 @@ struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, N
     Other = TokenType::Word,
   };
 
-  /* Cached 'defined' keyword identifier. */
+  /* Cached keyword identifier. */
   AtomID defined_atom = get_atom("defined");
+  AtomID va_args_atom = get_atom("__VA_ARGS__");
 
   /**
    * Validity check.
@@ -478,12 +479,6 @@ struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, N
     return substr_range_inclusive_view(start, end);
   }
 
-  /* Return valid value if tok is valid and a word token. */
-  AtomID get_atom(Token tok)
-  {
-    BLI_assert(tok.type() == Word);
-    return AtomID(lex_.atoms_[int(tok)]);
-  }
   /* Return valid value if hash is a known string. Is full hash lookup + hashing. */
   AtomID get_atom(StringRef str)
   {
@@ -668,6 +663,20 @@ struct Preprocessor : IntermediateFormWithIDs {
 
   using StreamPtr = StreamPool::Ptr;
 
+  struct Macro {
+    DirectiveID id;
+    StreamPtr definition;
+    Vector<AtomID> params;
+    bool is_function;
+
+    Macro(DirectiveID id) : id(id) {}
+
+    bool is_empty() const
+    {
+      return definition->size_ == 0;
+    }
+  };
+
   /* When evaluating a condition directive inside this stack, disregard the directive and jump to
    * the matching #endif. */
   Vector<DirectiveID, 8> jump_stack;
@@ -675,8 +684,9 @@ struct Preprocessor : IntermediateFormWithIDs {
   StreamPool stream_pool = {lex_};
   /* Set of visited macros during recursion (blue painting stack). Using a vector for speed. */
   Vector<DirectiveID> visited_macros;
+
   /* Maps containing currently active macros. Map their keyword to their definition. */
-  Map<AtomID, DirectiveID> defines;
+  Map<AtomID, std::unique_ptr<Macro>> defines;
 
   /**
    * State Tracking.
@@ -767,20 +777,94 @@ struct Preprocessor : IntermediateFormWithIDs {
    * Macro Management.
    */
 
-  void define_macro(DirectiveID dir)
+  /**
+   * Parse macro parameters and advance the token cursor.
+   */
+  BLI_NOINLINE Vector<AtomID> parse_macro_params(Token &tok)
   {
-    Token macro_name = get_identifier(dir).next();
-    BLI_assert(macro_name == Word);
-    /* Store the name token of the declaration.
-     * The actual parsing of the definition happens during expansion. */
-    defines.add_overwrite(get_atom(macro_name), dir);
+    Vector<AtomID> macro_parameters;
+    while (true) {
+      /* Continue to the next name. */
+      tok = tok.next();
+      if (tok == Backslash && tok.next() == NewLine) {
+        /* Preprocessor new line. Skip and continue. */
+        tok = tok.next(2);
+        continue;
+      }
+      if (tok == ParClose) {
+        break;
+      }
+      macro_parameters.append(tok.str() == "..." ? va_args_atom : AtomID(tok.atom()));
+      /* Continue to the next separator. */
+      tok = tok.next();
+      if (tok == Backslash && tok.next() == NewLine) {
+        /* Preprocessor new line. Skip and continue. */
+        tok = tok.next(2);
+        continue;
+      }
+      if (tok == ParClose) {
+        break;
+      }
+    }
+    /* Skip closing parenthesis. */
+    tok = tok.next();
+
+    return macro_parameters;
+  }
+
+  BLI_NOINLINE StreamPtr parse_macro_definition(Token definition_start_tok)
+  {
+    StreamPtr definition = stream_pool.alloc();
+
+    Token tok = definition_start_tok;
+    while (true) {
+      Token tok_next = tok.next();
+      if (ELEM(tok, NewLine, lexit::EndOfFile)) {
+        break;
+      }
+      if (tok == Backslash && tok_next == NewLine) {
+        /* Preprocessor new line. Skip and continue. */
+        tok = tok.next(2);
+        /* Still insert a space to avoid merging tokens. */
+        *definition << Stream::Space{};
+        continue;
+      }
+      if (tok == Hash && tok_next == Hash) {
+        /* Token Pasting operator. Emit a single Hash token. */
+        *definition << tok;
+        tok = tok.next(2);
+        continue;
+      }
+      BLI_assert_msg(tok != Hash, "Stringify operator is not supported");
+      *definition << tok;
+      tok = tok_next;
+    }
+    return definition;
+  }
+
+  BLI_NOINLINE void define_macro(DirectiveID dir)
+  {
+    const Token name = get_identifier(dir).next();
+    BLI_assert(name == Word);
+
+    const Token after_name = name.next();
+    Token cursor = after_name;
+
+    auto macro = std::make_unique<Macro>(dir);
+    macro->is_function = (after_name == ParOpen) && !name.followed_by_whitespace();
+    if (macro->is_function) {
+      macro->params = parse_macro_params(cursor);
+    }
+    macro->definition = parse_macro_definition(cursor);
+
+    defines.add_overwrite(AtomID(name.atom()), std::move(macro));
   }
 
   void undefine_macro(DirectiveID dir)
   {
-    Token macro_name = get_identifier(dir).next();
-    BLI_assert(macro_name == Word);
-    defines.remove(get_atom(macro_name));
+    const Token name = get_identifier(dir).next();
+    BLI_assert(name == Word);
+    defines.remove(AtomID(name.atom()));
   }
 
   /**
@@ -856,9 +940,9 @@ struct Preprocessor : IntermediateFormWithIDs {
       case Else:
         return true;
       case Ifdef:
-        return defines.contains(get_atom(start));
+        return defines.contains(AtomID(start.atom()));
       case Ifndef:
-        return !defines.contains(get_atom(start));
+        return !defines.contains(AtomID(start.atom()));
       case If:
       case Elif:
         return evaluate_expression(start, end);
@@ -905,7 +989,7 @@ struct Preprocessor : IntermediateFormWithIDs {
    * Macro Expansion.
    */
 
-  void expand_macros_in_range(const LineID start_line, const LineID end_line)
+  BLI_NOINLINE void expand_macros_in_range(const LineID start_line, const LineID end_line)
   {
     int start = int(get_start(start_line));
     int end = int(get_true_end(end_line));
@@ -915,10 +999,10 @@ struct Preprocessor : IntermediateFormWithIDs {
 
     for (Token tok = lex_[start], end_tok = lex_[end]; tok != end_tok; tok = tok.next()) {
       if (tok == Word) {
-        DirectiveID macro_id = defines.lookup_default(get_atom(tok), DirectiveID::invalid());
-        if (is_valid(macro_id)) {
+        auto *macro_ptr = defines.lookup_ptr(AtomID(tok.atom()));
+        if (macro_ptr) {
           Token token = parser_.lex[int(tok)];
-          auto [replacement, end] = expand_macro(token, macro_id);
+          auto [replacement, end] = expand_macro(token, **macro_ptr);
           replace(token, end, replacement->str);
           tok = end;
           if (tok == end_tok) {
@@ -930,18 +1014,18 @@ struct Preprocessor : IntermediateFormWithIDs {
   }
 
   /* Parse and expand with the current set of macro identifier. */
-  StreamPtr parse_and_expand(const Stream &ts)
+  BLI_NOINLINE StreamPtr parse_and_expand(const Stream &ts)
   {
     auto result = stream_pool.alloc();
 
     for (int cursor = 0, end = ts.index_range().size(); cursor < end; cursor++) {
       Token tok = ts[cursor];
-      if (tok.type() == Word) {
+      if (tok == Word) {
         /* Try to match the token pointed at by cursor with a defined macro. If that happen advance
          * the cursor to the end of the macro (in case of functional macro). */
-        DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()), DirectiveID::invalid());
-        if (is_valid(macro_id)) {
-          auto [replacement, end] = expand_macro(tok, macro_id);
+        auto *macro_ptr = defines.lookup_ptr(AtomID(tok.atom()));
+        if (macro_ptr) {
+          auto [replacement, end] = expand_macro(tok, **macro_ptr);
           *result << *replacement;
           cursor = int(end);
           continue;
@@ -959,189 +1043,132 @@ struct Preprocessor : IntermediateFormWithIDs {
     Token end_of_expansion;
   };
 
-  BLI_NOINLINE Map<TokenAtom, TokenRange> parse_macro_args(const bool is_function,
-                                                           const Token expanded_tok,
-                                                           Token &end_of_expansion,
-                                                           Token &tok)
+  /**
+   * \arg tok : Opening parenthesis token of the argument list.
+   */
+  BLI_NOINLINE Vector<TokenRange> parse_macro_args(const Vector<AtomID> &params, Token &tok)
   {
-    Map<TokenAtom, TokenRange> macro_parameters;
-    if (is_function) {
-      /* This is a functional macro. */
+    Vector<TokenRange> args;
+    for (const AtomID param_atom : params) {
+      Token param_start = tok;
+      Token param_end = get_end_of_parameter(param_start);
 
-      Token param = expanded_tok.next();
-      if (param != ParOpen) {
-        /* Macro doesn't have parameters. It should not expand. */
-        return {};
+      if (param_atom == va_args_atom) {
+        /* Seek end of argument list for variadic arguments. */
+        param_end = get_end_of_parameter(param_start, true);
       }
 
-      /* Parse parameters & arguments. */
-      macro_parameters.clear_and_keep_capacity();
-      while (tok != ParClose) {
-        /* Continue to the next name. */
-        tok = tok.next();
-        if (tok == ParClose) {
-          /* Function with no arguments. */
-          param = get_end_of_parameter(param);
-          if (param == Invalid) {
-            /* Error: missing closing parenthesis. */
-            /* Cancel expansion. */
-            return {};
-          }
-          if (param != ParClose) {
-            /* Error: too many arguments provided to function-like macro invocation. */
-            /* Cancel expansion. */
-            return {};
-          }
-          break;
-        }
-
-        Token param_start = param;
-        Token param_end = get_end_of_parameter(param_start);
-
-        StringRef argument_name = tok.str();
-        TokenAtom atom;
-        if (argument_name == "...") {
-          param_end = get_end_of_parameter(param_start, true);
-          argument_name = "__VA_ARGS__";
-          atom = lex_.hash("__VA_ARGS__");
-        }
-        else {
-          atom = lex_.atoms_[int(tok)];
-        }
-
-        /* If there is only token for parameters (it could be empty string). */
-        if (param_start.next() == param_end.prev()) {
-          macro_parameters.add(atom, {param_start.next(), param_start.next()});
-        }
-        else {
-          macro_parameters.add(atom, {param_start.next(), param_end.prev()});
-        }
-
-        /* Continue to the next separator. */
-        tok = tok.next();
-        param = param_end;
-
-        if (tok == Invalid) {
-          break;
-        }
+      if (param_start.next() == param_end.prev()) {
+        /* Empty argument. */
+        args.append({param_start.next(), param_start.next()});
       }
-      /* Skip closing parenthesis. */
-      tok = tok.next();
-      /* Make sure to replace the whole call. */
-      end_of_expansion = param;
-    }
-    return macro_parameters;
-  }
-
-  BLI_NOINLINE StreamPtr parse_macro_definition(Token definition_start_tok)
-  {
-    StreamPtr definition = stream_pool.alloc();
-
-    Token tok = definition_start_tok;
-    while (true) {
-      Token tok_next = tok.next();
-      if (ELEM(tok, NewLine, lexit::EndOfFile)) {
+      else {
+        args.append({param_start.next(), param_end.prev()});
+      }
+      /* Continue to the next separator. */
+      tok = param_end;
+      if (tok == Invalid) {
         break;
       }
-      if (tok == Backslash && tok_next == NewLine) {
-        /* Preprocessor new line. Skip and continue. */
-        tok = tok.next(2);
-        /* Still insert a space to avoid merging tokens. */
-        *definition << Stream::Space{};
-        continue;
-      }
-      if (tok == Hash && tok_next == Hash) {
-        /* Token Pasting operator. Emit a single Hash token. */
-        *definition << tok;
-        tok = tok.next(2);
-        continue;
-      }
-      BLI_assert_msg(tok != Hash, "Stringify operator is not supported");
-      *definition << tok;
-      tok = tok_next;
     }
-    return definition;
+    /* No parameter case. */
+    if (params.is_empty()) {
+      /* Continue to end parenthesis. */
+      tok = tok.next();
+    }
+    if (tok == Invalid) {
+      /* Error: missing closing parenthesis. */
+      /* Cancel expansion. */
+      return {};
+    }
+    if (tok != ParClose) {
+      /* Error: too many arguments provided to function-like macro invocation. */
+      /* Cancel expansion. */
+      return {};
+    }
+    return args;
   }
 
-  BLI_NOINLINE void expand_args(Stream &ts,
-                                const bool is_function,
-                                const Map<TokenAtom, TokenRange> &macro_parameters,
-                                Token definition_start_tok)
+  /* TODO(fclem): Try specialization for no concatenation and no function. */
+  BLI_NOINLINE StreamPtr expand_macro_args(const Macro &macro,
+                                           const Vector<TokenRange> &macro_args)
   {
-    StreamPtr definition = parse_macro_definition(definition_start_tok);
-
-    for (Token def_tok : *definition) {
+    StreamPtr ts = stream_pool.alloc();
+    for (const Token def_tok : *macro.definition) {
       if (def_tok.type() == Hash) {
-        ts << Stream::ConcatNext{};
+        *ts << Stream::ConcatNext{};
         continue;
       }
-      if (is_function && def_tok.type() == Word) {
+      if (def_tok.type() == Word && !macro_args.is_empty()) {
         /* Lookup macro arguments. */
-        const TokenRange *macro_value_ptr = macro_parameters.lookup_ptr(def_tok.atom());
-        if (macro_value_ptr) {
-          const TokenRange &macro_value = *macro_value_ptr;
+        int arg_id = macro.params.first_index_of_try(AtomID(def_tok.atom()));
+        if (arg_id != -1) {
+          const TokenRange &macro_value = macro_args[arg_id];
 
           if (def_tok.prev() == Hash || def_tok.next() == Hash) {
             /* Token pasting. Do not expand now. */
-            ts << macro_value;
+            *ts << macro_value;
           }
           else {
             /* Expand argument. Can expand to the same macro (finite recursion). */
             StreamPtr stream = stream_pool.alloc();
             *stream << macro_value;
-            ts << *parse_and_expand(*stream);
+            *ts << *parse_and_expand(*stream);
           }
 
           if (def_tok.followed_by_whitespace()) {
             /* Don't lose whitespace after macro token. */
-            ts << Stream::Space{};
+            *ts << Stream::Space{};
           }
           continue;
         }
       }
-      ts << def_tok;
+      *ts << def_tok;
     }
+    return ts;
   }
 
-  /**
-   * IMPORTANT: Because of recursion, expanded_tok can be from another parser.
-   * The macro directive however, will always be from the main parser.
-   */
-  ExpandedResult expand_macro(const Token expanded_tok, const DirectiveID macro)
+  BLI_NOINLINE ExpandedResult expand_macro(const Token expanded_tok, const Macro &macro)
   {
-    const Token define_tok = get_identifier(macro);
-    const Token macro_name = define_tok.next();
-    const Token macro_parenthesis = macro_name.next();
-    BLI_assert(define_tok == TokenType::Define);
-    BLI_assert(macro_name == Word);
-
-    const bool is_function = (macro_parenthesis == ParOpen) &&
-                             !macro_name.followed_by_whitespace();
+    if (visited_macros.contains(macro.id)) {
+      /* Recursion. Do not expand. */
+      /* Currently still replace by the original token (noop).
+       * Would be better to not bypass replacement alltogether. */
+      StreamPtr expanded = stream_pool.alloc();
+      *expanded << expanded_tok;
+      return {std::move(expanded), expanded_tok};
+    }
 
     Token end_of_expansion = expanded_tok;
 
-    Token tok = macro_parenthesis;
+    Vector<TokenRange> fn_arguments;
+    if (macro.is_function) {
+      Token tok = expanded_tok;
+      tok = tok.next();
+      if (tok != ParOpen) {
+        /* Macro doesn't have parameters. It should not expand. */
+        /* Currently still replace by the original token (noop).
+         * Would be better to not bypass replacement alltogether. */
+        StreamPtr expanded = stream_pool.alloc();
+        *expanded << expanded_tok;
+        return {std::move(expanded), expanded_tok};
+      }
 
-    StreamPtr expanded = stream_pool.alloc();
+      fn_arguments = parse_macro_args(macro.params, tok);
+      /* Make sure to replace the whole call. */
+      end_of_expansion = tok;
+    }
 
-    /* Empty definition. */
-    if (tok == NewLine) {
+    if (macro.is_empty()) {
+      /* Empty definition. */
+      StreamPtr expanded = stream_pool.alloc();
       return {std::move(expanded), end_of_expansion};
     }
 
-    if (visited_macros.contains(macro)) {
-      /* Recursion. Do not expand. Still replace by the original token. */
-      *expanded << lex_[int(macro_name)];
-      return {std::move(expanded), end_of_expansion};
-    }
-
-    Map<TokenAtom, TokenRange> macro_parameters = parse_macro_args(
-        is_function, expanded_tok, end_of_expansion, tok);
-
-    expand_args(*expanded, is_function, macro_parameters, tok);
+    StreamPtr expanded = expand_macro_args(macro, fn_arguments);
 
     /* Add to the set to avoid infinite recursion. */
-    visited_macros.append(macro);
+    visited_macros.append(macro.id);
 
     StreamPtr result = parse_and_expand(*expanded);
 
@@ -1162,16 +1189,16 @@ struct Preprocessor : IntermediateFormWithIDs {
     Token tok = start;
     while (true) {
       BLI_assert(tok.is_valid());
-      AtomID tok_atom = tok == Word ? get_atom(tok) : AtomID::invalid();
+      AtomID tok_atom = tok == Word ? AtomID(tok.atom()) : AtomID::invalid();
 
-      DirectiveID macro = defines.lookup_default(tok_atom, DirectiveID::invalid());
+      auto *macro_ptr = defines.lookup_ptr(tok_atom);
 
       if (tok_atom == AtomID::invalid()) {
         /* Non word. */
         *result << lex_[int(tok)];
       }
-      else if (is_valid(macro)) {
-        auto [replacement, macro_end] = expand_macro(lex_[int(tok)], macro);
+      else if (macro_ptr) {
+        auto [replacement, macro_end] = expand_macro(lex_[int(tok)], **macro_ptr);
         *result << *replacement;
         tok = lex_[int(macro_end)];
       }
@@ -1186,7 +1213,7 @@ struct Preprocessor : IntermediateFormWithIDs {
         else {
           BLI_assert(tok == Word);
         }
-        *result << Stream::Number{defines.contains(get_atom(tok)) ? "1" : "0"};
+        *result << Stream::Number{defines.contains(AtomID(tok.atom())) ? "1" : "0"};
         if (is_function) {
           /* End parenthesis. */
           tok = tok.next();

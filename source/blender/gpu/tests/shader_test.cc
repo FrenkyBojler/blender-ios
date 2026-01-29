@@ -618,6 +618,30 @@ static void test_shader_preprocessor()
 {
   {
     std::string input = R"(
+#  define MACRO() A
+MACRO()
+)";
+    std::string expect = R"(
+
+A
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    std::string input = R"(
+#  define MACRO(A, B)
+MACRO(a, 1)
+)";
+    std::string expect = R"(
+
+
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    std::string input = R"(
 #define MACRO(A, B, ...) \
   A to_##A(B m) \
   { \
