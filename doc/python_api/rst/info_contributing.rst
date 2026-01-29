@@ -151,8 +151,12 @@ Writing Good Examples
 1. **Keep it simple**: Focus on demonstrating one concept at a time.
 2. **Make it runnable**: Examples should work when pasted into Blender's Python console or text editor.
 3. **Use comments**: Explain what the code does, especially non-obvious parts.
-4. **Follow conventions**: Use standard Blender API patterns and naming conventions.
-5. **Include context**: Explain when and why someone would use this API.
+
+
+For documentation we aim for high quality technical writing. Refer to these pages for the User Manual regarding style and preferred conventions.
+
+- `Markup Guide <https://docs.blender.org/manual/en/latest/contribute/manual/guides/markup_guide.html>`__
+- `Writing Guide <https://docs.blender.org/manual/en/latest/contribute/manual/guides/writing_guide.html>`__
 
 
 Testing Your Changes
