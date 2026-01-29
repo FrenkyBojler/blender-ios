@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <algorithm>
+#include <map>
 
 #include "DNA_pointcloud_types.h"
 
@@ -13,6 +14,7 @@
 #include "BLI_kdopbvh.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
+#include "BLI_noise.hh"
 #include "BLI_task.hh"
 
 #include "GEO_foreach_geometry.hh"
@@ -135,11 +137,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(false)
       .usage_by_menu("Mode", int16_t(IntersectionMode::Curve))
       .description("Use radius for calculating distance between intersections");
-  b.add_input<decl::Float>("Epsilon")
+  b.add_input<decl::Float>("Distance")
       .subtype(PROP_DISTANCE)
       .min(0.0f)
       .usage_by_menu("Mode", int16_t(IntersectionMode::Curve))
-      .description("Epsilon for max distance between intersections");
+      .description("Max distance between intersections");
   b.add_input<decl::Float>("Min Angle")
       .subtype(PROP_ANGLE)
       .min(0.0f)
@@ -199,6 +201,7 @@ struct AttributeOutputs {
   std::optional<std::string> pair_direction;
   std::optional<std::string> pair;
   std::optional<std::string> pair_id;
+  std::optional<std::string> hash;
 };
 
 /* Store information from line intersection calculations. */
@@ -241,6 +244,7 @@ struct IntersectionData {
   Vector<float3> pair_direction;
   Vector<bool> pair;
   Vector<int> pair_id;
+  Vector<int> hash;
 };
 
 using ThreadLocalData = threading::EnumerableThreadSpecific<IntersectionData>;
@@ -267,7 +271,10 @@ static void add_intersection_data(IntersectionData &data,
 
   data.position.append(position);
   data.radius.append(radius);
-
+  if (attribute_outputs.hash) {
+    const int hash = noise::hash(curve_index, noise::hash_float(length));
+    data.hash.append(hash);
+  }
   if (attribute_outputs.curve_index) {
     data.curve_index.append(curve_index);
   }
@@ -307,6 +314,7 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
     BLI_assert(local_data.sortkey.size() == local_size);
     BLI_assert(attribute_outputs.curve_index && local_data.curve_index.size() == local_size);
     BLI_assert(local_data.position.size() == local_data.radius.size());
+    BLI_assert(attribute_outputs.hash && local_data.hash.size() == local_size);
     BLI_assert(attribute_outputs.factor && local_data.factor.size() == local_size);
     BLI_assert(attribute_outputs.length && local_data.length.size() == local_size);
     BLI_assert(attribute_outputs.direction && local_data.direction.size() == local_size);
@@ -323,6 +331,9 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
   r_data.radius.reserve(new_size);
   r_data.sortkey.reserve(new_size);
 
+  if (attribute_outputs.hash) {
+    r_data.hash.reserve(new_size);
+  }
   if (attribute_outputs.curve_index) {
     r_data.curve_index.reserve(new_size);
   }
@@ -356,6 +367,9 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
     r_data.radius.extend(local_data.radius);
     r_data.sortkey.extend(local_data.sortkey);
 
+    if (attribute_outputs.hash) {
+      r_data.hash.extend(local_data.hash);
+    }
     if (attribute_outputs.curve_index) {
       r_data.curve_index.extend(local_data.curve_index);
     }
@@ -982,6 +996,10 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
   IntersectionData r_data;
   r_data.position.reserve(data_size);
   r_data.radius.reserve(data_size);
+
+  if (attribute_outputs.hash) {
+    r_data.hash.reserve(data_size);
+  }
   if (attribute_outputs.curve_index) {
     r_data.curve_index.reserve(data_size);
   }
@@ -1010,8 +1028,27 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
     r_data.pair_id.reserve(data_size);
   }
 
+  /* Dedupe hashed points. */
+  std::map<int64_t, int64_t> dupes;
+  if (attribute_outputs.hash) {
+    for (int64_t i = 0; i < data_size; i++) {
+      dupes[data.hash[i]] = i;
+    }
+  }
+
   for (const std::pair key_val : sort_index) {
     const int64_t key_index = key_val.first;
+
+    if (attribute_outputs.hash) {
+      const int hash_key = data.hash[key_index];
+      if (dupes.at(hash_key) == key_index) {
+        dupes.erase(hash_key);
+      }
+      else {
+        continue;
+      }
+    }
+
     r_data.position.append(data.position[key_index]);
     r_data.radius.append(data.radius[key_index]);
     if (attribute_outputs.curve_index) {
@@ -1071,6 +1108,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (mode == IntersectionMode::Surface) {
     attribute_outputs.normal = params.get_output_anonymous_attribute_id_if_needed("Normal");
+    attribute_outputs.hash = "Hash";
   }
 
   if (curve_mode && use_paired_data) {
@@ -1102,7 +1140,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     switch (mode) {
       case IntersectionMode::Curve: {
         const bool use_radius = params.extract_input<bool>("Use Radius");
-        const float distance = params.extract_input<float>("Epsilon");
+        const float distance = params.extract_input<float>("Distance");
         const bool self = params.extract_input<bool>("Self Intersections");
         const bool all = params.extract_input<bool>("All Intersections");
         const float angle = params.extract_input<float>("Min Angle");
