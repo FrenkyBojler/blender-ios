@@ -615,7 +615,7 @@ static bool project_on_mesh(
 
 void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 {
-  const float influence = BMO_slot_float_get(op->slots_in, "influence");
+  const float factor = BMO_slot_float_get(op->slots_in, "factor");
   const float custom_radius = BMO_slot_float_get(op->slots_in, "custom_radius");
   const float angle = BMO_slot_float_get(op->slots_in, "angle");
   const int fit_method = BMO_slot_int_get(op->slots_in, "fit_method");
@@ -719,7 +719,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
         }
       }
 
-      interp_v3_v3v3(cv.v->co, cv.v->co, final_pos, influence);
+      interp_v3_v3v3(cv.v->co, cv.v->co, final_pos, factor);
     }
   }
 }
