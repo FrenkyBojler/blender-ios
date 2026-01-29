@@ -1528,19 +1528,20 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
 
   ed_marker_select(C, mval, extend, deselect_all, camera, wait_to_deselect_others);
 
-  /* Only return finished if a marker was actually clicked */
+  /* Only return finished if a marker was actually clicked so that 'markers_select_leftright' can
+   * also run with the same default key binding. */
   const View2D *v2d = ui::view2d_fromcontext(C);
   ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
-  TimeMarker *nearest_marker = region_position_is_over_marker(v2d, markers, mval[0]);
+  // TimeMarker *nearest_marker = region_position_is_over_marker(v2d, markers, mval[0]);
 
-  if (nearest_marker) {
-    return OPERATOR_FINISHED;
-  }
-  else {
-    /* Empty space, deselect markers and let other operators run */
+  if (!region_position_is_over_marker(v2d, markers, mval[0])) {
+    /* Empty space, deselect markers and let other operators run. */
     deselect_markers(markers);
     WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
     return OPERATOR_PASS_THROUGH;
+  }
+  else {
+    return OPERATOR_FINISHED;
   }
 }
 
@@ -1736,44 +1737,54 @@ static const EnumPropertyItem prop_markers_select_leftright_modes[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void markers_select_leftright(bAnimContext *ac,
-                                     const eMarkers_LeftRightSelect_Mode mode,
-                                     const bool extend)
-{
-  ListBaseT<TimeMarker> *markers = ac->markers;
-  Scene *scene = ac->scene;
-
-  if (markers == nullptr) {
-    return;
-  }
-
-  if (!extend) {
-    deselect_markers(markers);
-  }
-
-  for (TimeMarker &marker : *markers) {
-    if ((mode == MARKERS_LRSEL_LEFT && marker.frame <= scene->r.cfra) ||
-        (mode == MARKERS_LRSEL_RIGHT && marker.frame >= scene->r.cfra))
-    {
-      marker.flag |= SELECT;
-    }
-  }
-}
-
 static wmOperatorStatus ed_marker_select_leftright_exec(bContext *C, wmOperator *op)
 {
   const eMarkers_LeftRightSelect_Mode mode = eMarkers_LeftRightSelect_Mode(
       RNA_enum_get(op->ptr, "mode"));
   const bool extend = RNA_boolean_get(op->ptr, "extend");
 
-  bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  ListBaseT<TimeMarker> *markers = nullptr;
+  Scene *scene = nullptr;
+
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+
+  if (is_sequencer) {
+    markers = ED_sequencer_context_get_markers(C);
+    scene = CTX_data_sequencer_scene(C);
+  }
+  else {
+    bAnimContext ac;
+    if (ANIM_animdata_get_context(C, &ac)) {
+      markers = ac.markers;
+      scene = ac.scene;
+    }
+  }
+
+  if (!markers || !scene) {
     return OPERATOR_CANCELLED;
   }
 
-  markers_select_leftright(&ac, mode, extend);
+  if (!extend) {
+    deselect_markers(markers);
+  }
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  const float cfra = BKE_scene_frame_get(scene);
+
+  for (TimeMarker &marker : *markers) {
+    if ((mode == MARKERS_LRSEL_LEFT && marker.frame <= cfra) ||
+        (mode == MARKERS_LRSEL_RIGHT && marker.frame >= cfra))
+    {
+      marker.flag |= SELECT;
+    }
+  }
+
+  if (is_sequencer) {
+    WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
+  }
+  else {
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -1782,32 +1793,29 @@ static wmOperatorStatus ed_marker_select_leftright_invoke(bContext *C,
                                                           wmOperator *op,
                                                           const wmEvent *event)
 {
-  bAnimContext ac;
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  const View2D *v2d = ui::view2d_fromcontext(C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (!markers || !v2d || !scene) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  /* Get the 2D view and list of markers */
-  View2D *v2d = &ac.region->v2d;
-  ListBaseT<TimeMarker> *markers = &ac.scene->markers;
-
-  /* Check if the mouse is over any marker */
-  TimeMarker *nearest_marker = region_position_is_over_marker(v2d, markers, event->mval[0]);
-  if (nearest_marker) {
-    /* There is a marker under the mouse */
+  /* Check if the user clicked on a marker or empty space. */
+  if (region_position_is_over_marker(v2d, markers, event->mval[0])) {
+    /* User clicked a marker so let 'select_marker_camera_switch' take care of it. */
     return OPERATOR_PASS_THROUGH;
   }
 
-  /* No marker under mouse */
   const eMarkers_LeftRightSelect_Mode mode = eMarkers_LeftRightSelect_Mode(
       RNA_enum_get(op->ptr, "mode"));
 
-  Scene *scene = ac.scene;
   const float mouse_frame = ui::view2d_region_to_view_x(v2d, event->mval[0]);
 
   if (mode == MARKERS_LRSEL_TEST) {
-    if (mouse_frame < scene->r.cfra) {
+    if (mouse_frame < BKE_scene_frame_get(scene)) {
       RNA_enum_set(op->ptr, "mode", MARKERS_LRSEL_LEFT);
     }
     else {
