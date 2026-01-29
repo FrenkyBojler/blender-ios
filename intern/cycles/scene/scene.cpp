@@ -656,6 +656,10 @@ bool Scene::update_camera_resolution(Progress &progress, int width, int height)
     array<Transform> motion;
     camera->set_motion(motion);
     camera->set_fov_pre(camera->get_fov());
+    camera->set_viewplane_pre_left(camera->get_viewplane_left());
+    camera->set_viewplane_pre_right(camera->get_viewplane_right());
+    camera->set_viewplane_pre_top(camera->get_viewplane_top());
+    camera->set_viewplane_pre_bottom(camera->get_viewplane_bottom());
   }
 
   progress.set_status("Updating Device", "Writing constant memory");

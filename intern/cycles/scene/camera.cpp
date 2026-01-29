@@ -140,6 +140,10 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(viewplane.right, "Viewplane Right", 0);
   SOCKET_FLOAT(viewplane.bottom, "Viewplane Bottom", 0);
   SOCKET_FLOAT(viewplane.top, "Viewplane Top", 0);
+  SOCKET_FLOAT(viewplane_pre.left, "Viewplane Pre Left", 0);
+  SOCKET_FLOAT(viewplane_pre.right, "Viewplane Pre Right", 0);
+  SOCKET_FLOAT(viewplane_pre.bottom, "Viewplane Pre Bottom", 0);
+  SOCKET_FLOAT(viewplane_pre.top, "Viewplane Pre Top", 0);
 
   SOCKET_FLOAT(border.left, "Border Left", 0);
   SOCKET_FLOAT(border.right, "Border Right", 0);
@@ -376,7 +380,10 @@ void Camera::update(Scene *scene)
       }
     }
     else {
-      if (have_motion || fov != fov_pre || fov != fov_post) {
+      if (have_motion || fov != fov_pre || fov != fov_post ||
+          (viewplane_pre.left != viewplane.left || viewplane_pre.right != viewplane.right ||
+           viewplane_pre.top != viewplane.top || viewplane_pre.bottom != viewplane.bottom))
+      {
         /* Note the values for perspective_pre/perspective_post calculated for MOTION_PASS are
          * different to those calculated for MOTION_BLUR below, so the code has not been combined.
          */
@@ -387,7 +394,10 @@ void Camera::update(Scene *scene)
           cameratoscreen_post = projection_perspective(fov_post, nearclip, farclip);
         }
 
-        const ProjectionTransform cameratoraster_pre = screentoraster * cameratoscreen_pre;
+        const Transform screentondc_pre = fulltoborder * transform_from_viewplane(viewplane_pre);
+
+        const ProjectionTransform cameratoraster_pre = ndctoraster * screentondc_pre *
+                                                       cameratoscreen_pre;
         const ProjectionTransform cameratoraster_post = screentoraster * cameratoscreen_post;
         if (have_motion) {
           kcam->perspective_pre = cameratoraster_pre * transform_inverse(motion[0]);

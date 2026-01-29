@@ -503,6 +503,11 @@ static void blender_camera_sync(Camera *cam,
   BoundBox2D viewplane;
   blender_camera_viewplane(bcam, width, height, viewplane, aspectratio, sensor_size);
 
+  cam->set_viewplane_pre_left(viewplane.left);
+  cam->set_viewplane_pre_right(viewplane.right);
+  cam->set_viewplane_pre_top(viewplane.top);
+  cam->set_viewplane_pre_bottom(viewplane.bottom);
+
   cam->set_viewplane_left(viewplane.left);
   cam->set_viewplane_right(viewplane.right);
   cam->set_viewplane_top(viewplane.top);
@@ -1100,6 +1105,10 @@ void BlenderSync::sync_view(blender::View3D *b_v3d,
                             const int height)
 {
   const float fov_pre = scene->camera->get_fov();
+  const float viewplane_left_pre = scene->camera->get_viewplane_left();
+  const float viewplane_right_pre = scene->camera->get_viewplane_right();
+  const float viewplane_top_pre = scene->camera->get_viewplane_top();
+  const float viewplane_bottom_pre = scene->camera->get_viewplane_bottom();
   const Transform matrix_pre = scene->camera->get_matrix();
 
   const blender::RenderData &b_render_settings = b_scene->r;
@@ -1114,6 +1123,16 @@ void BlenderSync::sync_view(blender::View3D *b_v3d,
   /* Apply viewport changes as motion. */
   if (fov_pre != scene->camera->get_fov()) {
     scene->camera->set_fov_pre(fov_pre);
+  }
+  if (viewplane_left_pre != scene->camera->get_viewplane_left() ||
+      viewplane_right_pre != scene->camera->get_viewplane_right() ||
+      viewplane_top_pre != scene->camera->get_viewplane_top() ||
+      viewplane_bottom_pre != scene->camera->get_viewplane_bottom())
+  {
+    scene->camera->set_viewplane_pre_left(viewplane_left_pre);
+    scene->camera->set_viewplane_pre_right(viewplane_right_pre);
+    scene->camera->set_viewplane_pre_top(viewplane_top_pre);
+    scene->camera->set_viewplane_pre_bottom(viewplane_bottom_pre);
   }
   if (matrix_pre != transform_identity() && matrix_pre != scene->camera->get_matrix()) {
     array<Transform> motion(2);
