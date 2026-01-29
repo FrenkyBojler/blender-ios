@@ -291,7 +291,7 @@ float raytrace_screen_2(float3 vs_origin,
   float2 extent = float2(uniform_buf.film.render_extent);
   float2 hiz_uv_scale = uniform_buf.hiz.uv_scale;
 #else
-  float2 extent = textureSize(ob_id_tx, 0).xy;
+  float2 extent = float2(textureSize(ob_id_tx, 0).xy);
   float2 hiz_uv_scale = extent / float2(textureSize(hiz_tx, 0));
 #endif
 
