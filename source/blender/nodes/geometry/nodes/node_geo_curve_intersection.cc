@@ -147,6 +147,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(pi_2_f)
       .description("Minimum shortest angle for intersections");
+  b.add_input<decl::Float>("Max Angle")
+      .subtype(PROP_ANGLE)
+      .default_value(pi_2_f)
+      .min(0.0f)
+      .max(pi_2_f)
+      .description("Maximum shortest angle for intersections");
 
   b.add_output<decl::Geometry>("Points");
   b.add_output<decl::Int>("Curve Index").field_on_all().usage_inference(enable_output);
@@ -400,12 +406,19 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
   }
 }
 
-/* Minimum angle between two vectors in 0-PI/2 (90 degree) range. Option to test if one argument is
- * a face normal. */
-static float calc_min_angle(const float3 an, const float3 bn, const bool is_face_normal)
+/* Minimum angle between two vectors in 0-PI/2 (90 degree) range. */
+static bool discard_angle(const float3 an,
+                          const float3 bn,
+                          const bool is_face_normal,
+                          const float2 min_max_angle)
 {
-  const float angle = math::abs(math::abs(angle_normalized_v3v3(an, bn)) - pi_2_f);
-  return is_face_normal ? angle : pi_2_f - angle;
+
+  if (min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f) {
+    float angle = math::abs(math::abs(angle_normalized_v3v3(an, bn)) - pi_2_f);
+    angle = is_face_normal ? angle : pi_2_f - angle;
+    return min_max_angle.x > angle || min_max_angle.y + 0.0001f < angle;
+  }
+  return false;
 }
 
 /* Library function `isect_line_line_epsilon_v3` is too strict for checking parallel lines. This
@@ -480,11 +493,11 @@ static int isect_line_line_epsilon_v3_loose(const float v1[3],
 static IntersectingLineInfo intersecting_lines(const Segment &ab,
                                                const Segment &cd,
                                                const float distance,
-                                               const float angle)
+                                               const float2 min_max_angle)
 {
   IntersectingLineInfo isectinfo{};
   /* Discard by angle. */
-  if (angle > 0.0f && calc_min_angle(ab.direction, cd.direction, false) < angle) {
+  if (discard_angle(ab.direction, cd.direction, false, min_max_angle)) {
     isectinfo.is_intersection = false;
     return isectinfo;
   }
@@ -557,7 +570,7 @@ static Array<float> get_evaluated_radii(const bke::CurvesGeometry &src_curves)
 /* Buuild curve segment bvh. */
 static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curves,
                                              Vector<Segment> *r_curve_segments,
-                                             const float angle,
+                                             const float2 min_max_angle,
                                              const bool project,
                                              const float3 project_axis,
                                              const AttributeOutputs &attribute_outputs)
@@ -570,8 +583,8 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
   const VArray<bool> cyclic = src_curves.cyclic();
   const OffsetIndices evaluated_points_by_curve = src_curves.evaluated_points_by_curve();
   const Array<float> radii = get_evaluated_radii(src_curves);
-  const bool use_direction_data = angle > 0.0f || attribute_outputs.direction ||
-                                  attribute_outputs.pair_direction;
+  const bool use_direction_data = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f ||
+                                  attribute_outputs.direction || attribute_outputs.pair_direction;
 
   /* Preprocess curve segments for each curve. */
   for (const int64_t curve_i : src_curves.curves_range()) {
@@ -670,14 +683,14 @@ static bool isect_line_plane_v3_crossing(const float3 point_1,
 static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
                                           const float3 plane_center,
                                           const float3 plane_direction,
-                                          const float angle,
+                                          const float2 min_max_angle,
                                           const AttributeOutputs &attribute_outputs,
                                           IntersectionData &r_data)
 {
   const VArray<bool> cyclic = src_curves.cyclic();
   const OffsetIndices evaluated_points_by_curve = src_curves.evaluated_points_by_curve();
   src_curves.ensure_evaluated_lengths();
-  const bool use_angle = angle > 0.0f;
+  const bool use_angle = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f;
   const bool use_direction_data = attribute_outputs.direction || attribute_outputs.pair_direction;
   const Span<float> radii = get_evaluated_radii(src_curves);
 
@@ -712,7 +725,8 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
                                                float3(0.0f);
 
           /* Discard by angle. */
-          if (use_angle && calc_min_angle(segment_direction, plane_direction, true) < angle) {
+          if (use_angle && discard_angle(segment_direction, plane_direction, true, min_max_angle))
+          {
             return;
           }
 
@@ -762,16 +776,16 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
 /* Calculate intersections between curve and mesh surface. */
 static void set_curve_intersections_mesh(GeometrySet &mesh_set,
                                          const bke::CurvesGeometry &src_curves,
-                                         const float angle,
+                                         const float2 min_max_angle,
                                          const AttributeOutputs &attribute_outputs,
                                          IntersectionData &r_data)
 {
   /* Build bvh. */
   Vector<Segment> curve_segments;
   BVHTree *bvhtree = create_curve_segment_bvhtree(
-      src_curves, &curve_segments, angle, false, float3(0.0f), attribute_outputs);
+      src_curves, &curve_segments, min_max_angle, false, float3(0.0f), attribute_outputs);
   BLI_SCOPED_DEFER([&]() { BLI_bvhtree_free(bvhtree); });
-  const bool use_angle = angle > 0.0f;
+  const bool use_angle = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f;
   const bool use_normal = use_angle || attribute_outputs.normal;
 
   /* Loop mesh data. */
@@ -822,7 +836,7 @@ static void set_curve_intersections_mesh(GeometrySet &mesh_set,
                 }
 
                 /* Discard by angle. */
-                if (use_angle && calc_min_angle(seg.direction, normal, true) < angle) {
+                if (use_angle && discard_angle(seg.direction, normal, true, min_max_angle)) {
                   return;
                 }
 
@@ -867,7 +881,7 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                                     const bool all_intersect,
                                     const bool use_radius,
                                     const float distance,
-                                    const float angle,
+                                    const float2 min_max_angle,
                                     const bool project,
                                     const float3 direction,
                                     const PairData &pair_data_mode,
@@ -877,7 +891,7 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
   /* Build bvh. */
   Vector<Segment> curve_segments;
   BVHTree *bvhtree = create_curve_segment_bvhtree(
-      src_curves, &curve_segments, angle, project, direction, attribute_outputs);
+      src_curves, &curve_segments, min_max_angle, project, direction, attribute_outputs);
   BLI_SCOPED_DEFER([&]() { BLI_bvhtree_free(bvhtree); });
 
   const float max_search_distance = math::max(curve_isect_eps, distance);
@@ -916,7 +930,8 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                                                curve_isect_eps :
                                            max_search_distance;
 
-                const IntersectingLineInfo isectinfo = intersecting_lines(ab, cd, distance, angle);
+                const IntersectingLineInfo isectinfo = intersecting_lines(
+                    ab, cd, distance, min_max_angle);
 
                 if (isectinfo.is_intersection) {
                   const float3 closest_ab = math::interpolate(
@@ -1143,13 +1158,14 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float distance = params.extract_input<float>("Distance");
         const bool self = params.extract_input<bool>("Self Intersections");
         const bool all = params.extract_input<bool>("All Intersections");
-        const float angle = params.extract_input<float>("Min Angle");
+        const float min_angle = params.extract_input<float>("Min Angle");
+        const float max_angle = params.extract_input<float>("Max Angle");
         set_curve_intersections(src_curves,
                                 self,
                                 all,
                                 use_radius,
                                 distance,
-                                math::clamp(angle, 0.0f, pi_2_f_eps),
+                                math::clamp(float2(min_angle, max_angle), 0.0f, pi_2_f_eps),
                                 false,
                                 float3(0.0f),
                                 pair_data_mode,
@@ -1161,13 +1177,14 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float3 direction = params.extract_input<float3>("Direction");
         const bool self = params.extract_input<bool>("Self Intersections");
         const bool all = params.extract_input<bool>("All Intersections");
-        const float angle = params.extract_input<float>("Min Angle");
+        const float min_angle = params.extract_input<float>("Min Angle");
+        const float max_angle = params.extract_input<float>("Max Angle");
         set_curve_intersections(src_curves,
                                 self,
                                 all,
                                 false,
                                 0.0f,
-                                math::clamp(angle, 0.0f, pi_2_f_eps),
+                                math::clamp(float2(min_angle, max_angle), 0.0f, pi_2_f_eps),
                                 true,
                                 direction,
                                 pair_data_mode,
@@ -1178,22 +1195,24 @@ static void node_geo_exec(GeoNodeExecParams params)
       case IntersectionMode::Plane: {
         const float3 direction = params.extract_input<float3>("Direction");
         const float3 plane_center = params.extract_input<float3>("Center");
-        const float angle = params.extract_input<float>("Min Angle");
+        const float min_angle = params.extract_input<float>("Min Angle");
+        const float max_angle = params.extract_input<float>("Max Angle");
         set_curve_intersections_plane(src_curves,
                                       plane_center,
                                       math::normalize(direction),
-                                      math::clamp(angle, 0.0f, pi_2_f_eps),
+                                      math::clamp(float2(min_angle, max_angle), 0.0f, pi_2_f_eps),
                                       attribute_outputs,
                                       r_data);
         break;
       }
       case IntersectionMode::Surface: {
         GeometrySet mesh_set = params.extract_input<GeometrySet>("Mesh");
-        const float angle = params.extract_input<float>("Min Angle");
+        const float min_angle = params.extract_input<float>("Min Angle");
+        const float max_angle = params.extract_input<float>("Max Angle");
         if (mesh_set.has_mesh()) {
           set_curve_intersections_mesh(mesh_set,
                                        src_curves,
-                                       math::clamp(angle, 0.0f, pi_2_f_eps),
+                                       math::clamp(float2(min_angle, max_angle), 0.0f, pi_2_f_eps),
                                        attribute_outputs,
                                        r_data);
         }
