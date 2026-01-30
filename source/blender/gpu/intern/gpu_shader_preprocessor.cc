@@ -783,7 +783,9 @@ struct Preprocessor : IntermediateFormWithIDs {
   Vector<DirectiveID> visited_macros;
 
   /* Maps containing currently active macros. Map their keyword to their definition. */
-  Map<AtomID, std::unique_ptr<Macro>> defines;
+  Map<AtomID, DirectiveID> defines;
+  /* Cached parsed data for each Macro. Allow lazy parsing. Indexed by DirectiveID. */
+  Vector<std::unique_ptr<Macro>> parsed_macro;
 
   /**
    * State Tracking.
@@ -800,6 +802,8 @@ struct Preprocessor : IntermediateFormWithIDs {
   {
     /* From our stats. Should be enough for 100% of our cases. */
     defines.reserve(1000);
+    /* Ensure one slot for each directive. */
+    parsed_macro.resize(lex_.directive_lines.size());
   }
 
   void preprocess()
@@ -943,18 +947,26 @@ struct Preprocessor : IntermediateFormWithIDs {
   {
     const Token name = get_identifier(dir).next();
     BLI_assert(name == Word);
+    defines.add_overwrite(AtomID(name.atom()), dir);
+  }
 
-    const Token after_name = name.next();
-    Token cursor = after_name;
+  BLI_NOINLINE Macro &get_macro(DirectiveID dir)
+  {
+    if (parsed_macro[int(dir)] == nullptr) {
+      const Token name = get_identifier(dir).next();
+      const Token after_name = name.next();
+      Token cursor = after_name;
 
-    auto macro = std::make_unique<Macro>(dir);
-    macro->is_function = (after_name == ParOpen) && !name.followed_by_whitespace();
-    if (macro->is_function) {
-      macro->params = parse_macro_params(cursor);
+      auto macro = std::make_unique<Macro>(dir);
+      macro->is_function = (after_name == ParOpen) && !name.followed_by_whitespace();
+      if (macro->is_function) {
+        macro->params = parse_macro_params(cursor);
+      }
+      macro->definition = parse_macro_definition(cursor);
+
+      parsed_macro[int(dir)] = std::move(macro);
     }
-    macro->definition = parse_macro_definition(cursor);
-
-    defines.add_overwrite(AtomID(name.atom()), std::move(macro));
+    return *parsed_macro[int(dir)];
   }
 
   void undefine_macro(DirectiveID dir)
@@ -1097,10 +1109,11 @@ struct Preprocessor : IntermediateFormWithIDs {
 
     for (Token tok = lex_[start], end_tok = lex_[end]; tok != end_tok; tok = tok.next()) {
       if (tok == Word) {
-        auto *macro_ptr = defines.lookup_ptr(AtomID(tok.atom()));
-        if (macro_ptr) {
+        DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()), DirectiveID::invalid());
+        if (is_valid(macro_id)) {
+          Macro &macro = get_macro(macro_id);
           Token token = parser_.lex[int(tok)];
-          auto [replacement, end] = expand_macro(Token(token), **macro_ptr);
+          auto [replacement, end] = expand_macro(Token(token), macro);
           replace(token, end, replacement->str());
           tok = end;
           if (tok == end_tok) {
@@ -1120,9 +1133,10 @@ struct Preprocessor : IntermediateFormWithIDs {
       if (tok == Word) {
         /* Try to match the token pointed at by cursor with a defined macro. If that happen advance
          * the cursor to the end of the macro (in case of functional macro). */
-        auto *macro_ptr = defines.lookup_ptr(AtomID(tok.atom()));
-        if (macro_ptr) {
-          auto [replacement, end] = expand_macro(tok, **macro_ptr);
+        DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()), DirectiveID::invalid());
+        if (is_valid(macro_id)) {
+          Macro &macro = get_macro(macro_id);
+          auto [replacement, end] = expand_macro(tok, macro);
           *result << *replacement;
           tok = end;
           continue;
@@ -1286,14 +1300,15 @@ struct Preprocessor : IntermediateFormWithIDs {
       BLI_assert(tok.is_valid());
       AtomID tok_atom = tok == Word ? AtomID(tok.atom()) : AtomID::invalid();
 
-      auto *macro_ptr = defines.lookup_ptr(tok_atom);
+      DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()), DirectiveID::invalid());
 
       if (tok_atom == AtomID::invalid()) {
         /* Non word. */
         *result << lex_[int(tok)];
       }
-      else if (macro_ptr) {
-        auto [replacement, macro_end] = expand_macro(Token(lex_[int(tok)]), **macro_ptr);
+      else if (is_valid(macro_id)) {
+        Macro &macro = get_macro(macro_id);
+        auto [replacement, macro_end] = expand_macro(Token(lex_[int(tok)]), macro);
         *result << *replacement;
         tok = lex_[int(macro_end)];
       }
