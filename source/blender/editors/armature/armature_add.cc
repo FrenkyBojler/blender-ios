@@ -1769,6 +1769,9 @@ void ARMATURE_OT_extrude(wmOperatorType *ot)
 
 /* Op makes a new bone and returns it with its tip selected. */
 
+enum BoneAlign { UP = 0, AXES = 1, CURSOR_3D = 2 };
+enum BoneSpace { OBJECT = 0, WORLD = 1 };
+
 static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
@@ -1783,17 +1786,16 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   int align = RNA_enum_get(op->ptr, "align");
   int space = RNA_enum_get(op->ptr, "space");
 
-  float base_mat[3][3]; /* initial bone orientation matrix */
+  float base_mat[3][3]; /* Initial bone orientation matrix. */
 
   switch (align) {
-    case 2: /* 3D CURSOR */
-    {
+    case CURSOR_3D: {
       Scene *scene = CTX_data_scene(C);
       const View3DCursor *cursor = &scene->cursor;
 
       float cursor_mat[3][3];
 
-      /* Convert cursor rotation to a 3×3 matrix */
+      /* Convert cursor rotation to a 3×3 matrix. */
       if (cursor->rotation_mode == ROT_MODE_QUAT) {
         quat_to_mat3(cursor_mat, cursor->rotation_quaternion);
       }
@@ -1803,11 +1805,10 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
 
       mul_m3_m3m3(cursor_mat, imat, cursor_mat);
       copy_m3_m3(base_mat, cursor_mat);
-      copy_v3_v3(roll_vector, (base_mat[2]));
+      copy_v3_v3(roll_vector, base_mat[2]);
       break;
     }
-    case 1: /* Axes*/
-    {       /* Object Space - Axes */
+    case AXES: { /* Object Space. */
       base_mat[0][0] = 1.0f;
       base_mat[0][1] = 0.0f;
       base_mat[0][2] = 0.0f;
@@ -1818,7 +1819,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       base_mat[2][1] = 1.0f;
       base_mat[2][2] = 0.0f;
 
-      if (space == 1) { /* World Space - Axes */
+      if (space == WORLD) {
         unit_m3(base_mat);
         mul_m3_m3m3(base_mat, imat, base_mat);
         roll_vector[0] = 0.0f;
@@ -1829,11 +1830,11 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       break;
     }
 
-    case 0: /* Up */
+    case UP:
     default: {
-      unit_m3(base_mat); /* Object Space - Up*/
+      unit_m3(base_mat); /* Object Space. */
 
-      if (space == 1) { /* World Space - Up */
+      if (space == 1) { /* World Space. */
         float y_axis[3] = {0.0f, 0.0f, 1.0f};
         float z_axis[3] = {0.0f, -1.0f, 0.0f};
         float x_axis[3];
@@ -1848,7 +1849,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
 
         mul_m3_m3m3(base_mat, imat, base_mat);
 
-        // Set roll reference for ED_armature_ebone_roll_to_vector
+        /* Set roll reference for ED_armature_ebone_roll_to_vector. */
         copy_v3_v3(roll_vector, z_axis);
         mul_m3_v3(imat, roll_vector);
       }
@@ -1857,19 +1858,16 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     }
   }
 
-  /* Bone length */
   float length = RNA_float_get(op->ptr, "length");
   if (length <= 0.0f) {
-    length = 1.0f; /* fallback */
+    length = 1.0f;
   }
 
   RNA_string_get(op->ptr, "name", name);
 
-  copy_v3_v3(curs,
-             CTX_data_scene(C)
-                 ->cursor.location);  // I can get the location from the computed cursor matrix ??
+  copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
 
-  /* Get inverse point for head and orientation for tail */
+  /* Get inverse point for head and orientation for tail. */
   invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
   mul_m4_v3(obedit->world_to_object().ptr(), curs);
 
@@ -1879,7 +1877,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   bone = ED_armature_ebone_add(id_cast<bArmature *>(obedit->data), name);
   ANIM_armature_bonecoll_assign_active(id_cast<bArmature *>(obedit->data), bone);
 
-  /* Scale B-Bone display width and Bone Envelope based on length */
+  /* Scale B-Bone display width and Bone Envelope based on length. */
   if (length > 0.0f) {
     bone->xwidth = 0.1f * length;
     bone->zwidth = 0.1f * length;
@@ -1906,7 +1904,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
                 bcoll_ref->bcoll->name);
   }
 
-  /* Bone head to cursor position */
+  /* Bone head to cursor position. */
   copy_v3_v3(bone->head, curs);
 
   float tail_vector[3] = {0.0f, 0.0f, 1.0f};
@@ -1914,18 +1912,18 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   mul_v3_fl(tail_vector, length);
   add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
-  if ((align == 2) || (space == 1)) {
-    /* 3D Cursor or World space Bone Roll */
+  if ((align == CURSOR_3D) || (space == WORLD)) {
+    /* These need to deal with Bone Roll. */
     copy_v3_v3(tail_vector, base_mat[1]);
     normalize_v3(tail_vector);
     mul_v3_fl(tail_vector, length);
     add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
-    /* Compute bone roll so its local Z aligns with cursor Z axis */
+    /* Compute bone roll so its local Z aligns with cursor Z axis. */
     bone->roll = ED_armature_ebone_roll_to_vector(bone, roll_vector, false);
   }
 
-  /* Disable Deform if applicable*/
+  /* Disable Deform if applicable. */
   bool deform = RNA_boolean_get(op->ptr, "deform");
   if (!deform) {
     bone->flag |= BONE_NO_DEFORM;
@@ -1961,13 +1959,18 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
                  "Name of the newly created bone");
 
   static const EnumPropertyItem space_items[] = {
-      {0,
+      {OBJECT,
        "OBJECT",
        0,
        "Object",
        "The newly created bone will use Object Space co-ordinate system"},
-      {1, "WORLD", 0, "World", "The newly created bone will use World Space co-ordinate system"},
+      {WORLD,
+       "WORLD",
+       0,
+       "World",
+       "The newly created bone will use World Space co-ordinate system"},
       {0, nullptr, 0, nullptr, nullptr}};
+
   RNA_def_enum(ot->srna,
                "space",
                space_items,
@@ -1976,20 +1979,25 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
                "Co-ordinate system the new bone will be created in");
 
   static const EnumPropertyItem align_items[] = {
-      {0,
+      {UP,
        "UP",
        0,
        "Up",
        "Make the bone visually point upwards so the long axis is aligned with the World/Object "
        "positive Z axis (depending on the choice above)"},
-      {1,
+      {AXES,
        "AXES",
        0,
        "Axes",
        "Align the new bone to match the axes of the World/Object (depending on the choice above)"},
-      {2, "3D_CURSOR", 0, "3D Cursor", "Align new bone to match the axes of the 3D cursor"},
+      {CURSOR_3D,
+       "3D_CURSOR",
+       0,
+       "3D Cursor",
+       "Align new bone to match the axes of the 3D cursor"},
       {0, nullptr, 0, nullptr, nullptr}};
-  RNA_def_enum(ot->srna, "align", align_items, 0, "Align", "Initial orientation of the new bone");
+
+  RNA_def_enum(ot->srna, "align", align_items, UP, "Align", "Initial orientation of the new bone");
 
   RNA_def_float(ot->srna,
                 "length",
