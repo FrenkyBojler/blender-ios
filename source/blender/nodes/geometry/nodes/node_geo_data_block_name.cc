@@ -4,6 +4,9 @@
 
 #include "DNA_collection_types.h"
 #include "DNA_material_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_text_types.h"
+#include "DNA_vfont_types.h"
 
 #include "NOD_rna_define.hh"
 
@@ -55,8 +58,8 @@ static void node_geo_exec(GeoNodeExecParams params)
       output = std::string(data_block->id.name + 2);
       break;
     }
-    case SOCK_MATERIAL: {
-      Material *data_block = params.extract_input<Material *>("Data Block");
+    case SOCK_IMAGE: {
+      Image *data_block = params.extract_input<Image *>("Data Block");
       output = std::string(data_block->id.name + 2);
       break;
     }
@@ -65,14 +68,35 @@ static void node_geo_exec(GeoNodeExecParams params)
       output = std::string(data_block->id.name + 2);
       break;
     }
-    case SOCK_IMAGE: {
-      Image *data_block = params.extract_input<Image *>("Data Block");
+    case SOCK_TEXTURE: {
+      Tex *data_block = params.extract_input<Tex *>("Data Block");
+      output = std::string(data_block->id.name + 2);
+      break;
+    }
+    case SOCK_MATERIAL: {
+      Material *data_block = params.extract_input<Material *>("Data Block");
+      output = std::string(data_block->id.name + 2);
+      break;
+    }
+    case SOCK_FONT: {
+      VFont *data_block = params.extract_input<VFont *>("Data Block");
+      output = std::string(data_block->id.name + 2);
+      break;
+    }
+    case SOCK_TEXT_ID: {
+      Text *data_block = params.extract_input<Text *>("Data Block");
+      output = std::string(data_block->id.name + 2);
+      break;
+    }
+    case SOCK_SOUND: {
+      bSound *data_block = params.extract_input<bSound *>("Data Block");
       output = std::string(data_block->id.name + 2);
       break;
     }
     default:
       break;
   }
+
   params.set_output("Name", std::move(output));
   params.set_output("Library Name", std::move(output2));
   params.set_default_remaining_outputs();
@@ -90,10 +114,18 @@ static void node_rna(StructRNA *srna)
       SOCK_OBJECT,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return ELEM(item.value, SOCK_OBJECT, SOCK_MATERIAL, SOCK_COLLECTION, SOCK_IMAGE);
-            });
+        return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                 [](const EnumPropertyItem &item) -> bool {
+                                   return ELEM(item.value,
+                                               SOCK_OBJECT,
+                                               SOCK_IMAGE,
+                                               SOCK_COLLECTION,
+                                               SOCK_TEXTURE,
+                                               SOCK_MATERIAL,
+                                               SOCK_FONT,
+                                               SOCK_TEXT_ID,
+                                               SOCK_SOUND);
+                                 });
       });
 }
 
