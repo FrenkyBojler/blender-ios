@@ -1803,8 +1803,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
         eul_to_mat3(cursor_mat, cursor->rotation_euler);
       }
 
-      mul_m3_m3m3(cursor_mat, imat, cursor_mat);
-      copy_m3_m3(base_mat, cursor_mat);
+      mul_m3_m3m3(base_mat, imat, cursor_mat);
       copy_v3_v3(roll_vector, base_mat[2]);
       break;
     }
