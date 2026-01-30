@@ -856,7 +856,7 @@ static void rna_Mesh_uv_layer_clone_set(PointerRNA *ptr, PointerRNA value, Repor
 {
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(value);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
@@ -877,7 +877,7 @@ static int rna_Mesh_uv_layer_clone_index_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_clone_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = rna_mesh(ptr);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   const VectorSet<StringRefNull> names = mesh->uv_map_names();
   if (!names.index_range().contains(value)) {
     return;
@@ -898,7 +898,7 @@ static void rna_Mesh_uv_layer_stencil_set(PointerRNA *ptr, PointerRNA value, Rep
 {
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(value);
-  MEM_SAFE_FREE(mesh->stencil_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->stencil_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
@@ -919,7 +919,7 @@ static int rna_Mesh_uv_layer_stencil_index_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_stencil_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = rna_mesh(ptr);
-  MEM_SAFE_FREE(mesh->stencil_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->stencil_uv_map_attribute);
   const VectorSet<StringRefNull> names = mesh->uv_map_names();
   if (!names.index_range().contains(value)) {
     return;
@@ -1053,7 +1053,7 @@ static void rna_MeshUVLoopLayer_clone_set(PointerRNA *ptr, bool value)
   }
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(*ptr);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }

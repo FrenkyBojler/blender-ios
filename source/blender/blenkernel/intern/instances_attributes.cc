@@ -41,6 +41,12 @@ static const auto &builtin_attributes()
   return attributes;
 }
 
+static const auto &array_storage_required()
+{
+  static Set<StringRef> attributes{"instance_transform", ".reference_index"};
+  return attributes;
+}
+
 static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
 {
   AttributeAccessorFunctions fn{};
@@ -96,7 +102,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
                             const AttributeAccessor &accessor) {
     const Instances &instances = *static_cast<const Instances *>(owner);
     const AttributeStorage &storage = instances.attribute_storage();
-    storage.foreach_with_stop([&](const Attribute &attribute) {
+    for (const Attribute &attribute : storage) {
       const auto get_fn = [&]() {
         return attribute_to_reader(attribute, AttrDomain::Instance, instances.instances_num());
       };
@@ -104,8 +110,10 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
       iter.is_builtin = builtin_attributes().contains(attribute.name());
       iter.accessor = &accessor;
       fn(iter);
-      return !iter.is_stopped();
-    });
+      if (iter.is_stopped()) {
+        break;
+      }
+    }
   };
   fn.lookup_validator = [](const void * /*owner*/, const StringRef name) -> AttributeValidator {
     const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
@@ -157,7 +165,28 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     if (storage.lookup(name)) {
       return false;
     }
-    storage.add(name, domain, type, attribute_init_to_data(type, domain_size, initializer));
+    const bool array = array_storage_required().contains(name);
+    Attribute::DataVariant data = attribute_init_to_data(type, domain_size, initializer, array);
+    storage.add(name, domain, type, std::move(data));
+    if (initializer.type != AttributeInit::Type::Construct) {
+      if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
+        (*fn)(owner);
+      }
+    }
+    return true;
+  };
+  fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
+    Instances &instances = *static_cast<Instances *>(owner);
+    AttributeStorage &storage = instances.attribute_storage();
+    Attribute *attr = storage.lookup(name);
+    if (!attr) {
+      return false;
+    }
+    Attribute::DataVariant data = attribute_init_to_data(attr->data_type(),
+                                                         instances.instances_num(),
+                                                         initializer,
+                                                         array_storage_required().contains(name));
+    attr->assign_data(std::move(data));
     if (initializer.type != AttributeInit::Type::Construct) {
       if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
         (*fn)(owner);

@@ -264,8 +264,8 @@ int BKE_blendfile_link_append_context_item_idtypes_from_library_add(
       BKE_blendfile_link_append_context_item_library_index_enable(
           lapp_context, item, library_index);
 
-      MEM_freeN(id_name);
-      MEM_freeN(id_names_list);
+      MEM_delete(id_name);
+      MEM_delete(id_names_list);
     }
 
     id_num += id_names_num;
@@ -547,10 +547,10 @@ static void loose_data_instantiate_obdata_preprocess(
     Object *ob = reinterpret_cast<Object *>(id);
     Object *new_ob = reinterpret_cast<Object *>(id->newid);
     if (ob->data != nullptr) {
-      (ob->data)->tag &= ~ID_TAG_DOIT;
+      ob->data->tag &= ~ID_TAG_DOIT;
     }
     if (new_ob != nullptr && new_ob->data != nullptr) {
-      (new_ob->data)->tag &= ~ID_TAG_DOIT;
+      new_ob->data->tag &= ~ID_TAG_DOIT;
     }
   }
 }
