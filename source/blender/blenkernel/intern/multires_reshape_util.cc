@@ -194,7 +194,6 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
   const bool use_render_params = false;
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Mesh *base_mesh = id_cast<Mesh *>(object->data);
-
   reshape_context->depsgraph = depsgraph;
   reshape_context->object = object;
   reshape_context->mmd = mmd;
@@ -205,10 +204,10 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
     KeyBlock *kb = (KeyBlock *)base_mesh->key->block.first;
     if (kb) {
       // reshape_context->base_positions=Span<float3>((float3*)kb->data,kb->totelem);
-      reshape_context->active_kb = kb;
+      reshape_context->basis_shape_key = kb;
     }
     else {
-      reshape_context->active_kb = nullptr;
+      reshape_context->basis_shape_key = nullptr;
     }
   }
   reshape_context->base_edges = base_mesh->edges();

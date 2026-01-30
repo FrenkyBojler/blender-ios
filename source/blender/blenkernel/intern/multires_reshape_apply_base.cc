@@ -65,14 +65,14 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
 {
   Mesh *base_mesh = reshape_context->base_mesh;
   MutableSpan<float3> base_positions;
-  KeyBlock *active_kb = reshape_context->active_kb;
-  if (active_kb && active_kb->data) {
-    float3 *active_kb_data = (float3 *)active_kb->data;
+  KeyBlock *basis_shape_key = reshape_context->basis_shape_key;
+  if (basis_shape_key) {
+    float3 *basis_shape_key_data = (float3 *)basis_shape_key->data;
     float3 *mesh_data = base_mesh->vert_positions_for_write().data();
-    for (int i = 0; i < active_kb->totelem; i++) {
-      active_kb_data[i] = mesh_data[i];
+    for (int i = 0; i < basis_shape_key->totelem; i++) {
+      basis_shape_key_data[i] = mesh_data[i];
     }
-    base_positions = MutableSpan<float3>(active_kb_data, active_kb->totelem);
+    base_positions = MutableSpan<float3>(basis_shape_key_data, basis_shape_key->totelem);
   }
   else {
     base_positions = base_mesh->vert_positions_for_write();
@@ -139,6 +139,16 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
     const float dist = v3_dist_from_plane(base_positions[i], center, avg_no);
     const float3 push = avg_no * dist;
     base_positions[i] += push;
+  }
+
+  if (basis_shape_key) {
+    Key *key = base_mesh->key;
+    KeyBlock *basis_kb = (KeyBlock *)key->block.first;
+
+    if (basis_shape_key == basis_kb) {
+      /*maintaining the sync between Basis Shape Key positions and Mesh positions*/
+      base_mesh->vert_positions_for_write().copy_from(base_positions);
+    }
   }
 
   /* Vertices were moved around, need to update normals after all the vertices are updated

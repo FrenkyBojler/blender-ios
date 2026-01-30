@@ -36,9 +36,7 @@ struct MultiresReshapeContext {
   Object *object;
 
   MultiresModifierData *mmd;
-
-  // KeyBlock sturct introduced to overcome Space Key overwriting
-  struct KeyBlock *active_kb;
+  struct KeyBlock *basis_shape_key;
   /* Base mesh from original object.
    * NOTE: Does NOT include any leading modifiers in it. */
   Mesh *base_mesh;
