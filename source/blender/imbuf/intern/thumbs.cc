@@ -551,14 +551,20 @@ void IMB_thumb_delete(const char *file_or_lib_path, ThumbSize size)
 ImBuf *IMB_thumb_manage(const char *file_or_lib_path, ThumbSize size, ThumbSource source)
 {
   if (source == THB_SOURCE_DIRECT) {
-    if (ImBuf *thumb = IMB_load_image_from_filepath(file_or_lib_path, IB_byte_data | IB_metadata))
-    {
-      IMB_byte_from_float(thumb);
-      IMB_free_float_pixels(thumb);
-      return thumb;
+    const eFileAttributes file_attributes = BLI_file_attributes(file_or_lib_path);
+    /* Don't attempt to */
+    if (file_attributes & FILE_ATTR_OFFLINE) {
+      return nullptr;
     }
 
-    return nullptr;
+    ImBuf *thumb = IMB_load_image_from_filepath(file_or_lib_path, IB_byte_data | IB_metadata);
+    if (!thumb) {
+      return nullptr;
+    }
+
+    IMB_byte_from_float(thumb);
+    IMB_free_float_pixels(thumb);
+    return thumb;
   }
 
   char path_buff[FILE_MAX_LIBEXTRA];
