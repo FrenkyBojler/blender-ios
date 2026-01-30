@@ -213,7 +213,7 @@ void PathTrace::render_pipeline(RenderWork render_work)
     render_scheduler_.set_limit_samples_per_update(limit);
   }
 
-  path_trace(render_work);
+  path_trace(render_work, has_volume);
   if (render_cancel_.is_requested) {
     return;
   }
@@ -236,11 +236,6 @@ void PathTrace::render_pipeline(RenderWork render_work)
   }
 
   denoise(render_work);
-  if (render_cancel_.is_requested) {
-    return;
-  }
-
-  denoise_volume_guiding_buffers(render_work, has_volume);
   if (render_cancel_.is_requested) {
     return;
   }
@@ -394,11 +389,16 @@ void PathTrace::init_render_buffers(const RenderWork &render_work)
   }
 }
 
-void PathTrace::path_trace(RenderWork &render_work)
+void PathTrace::path_trace(RenderWork &render_work, bool has_volume)
 {
   if (!render_work.path_trace.num_samples) {
     return;
   }
+
+  /* Note that volume guiding does not synchronize, so we do it here right before path
+   * trace which will synchronize. It would be unsafe to cancel without synchronizing
+   * as render buffers might be freed before volume denoising kernels have completed. */
+  denoise_volume_guiding_buffers(render_work, has_volume);
 
   LOG_DEBUG << "Will path trace " << render_work.path_trace.num_samples
             << " samples at the resolution divider " << render_work.resolution_divider;

@@ -28,6 +28,7 @@ class PathTraceWorkGPU : public PathTraceWork {
                    Film *film,
                    DeviceScene *device_scene,
                    const bool *cancel_requested_flag);
+  ~PathTraceWorkGPU() override;
 
   void alloc_work_memory() override;
   void init_execution() override;
@@ -118,9 +119,6 @@ class PathTraceWorkGPU : public PathTraceWork {
   bool kernel_is_shadow_path(DeviceKernel kernel);
   int kernel_max_active_main_path_index(DeviceKernel kernel);
 
-  /* Integrator queue. */
-  unique_ptr<DeviceQueue> queue_;
-
   /* Scheduler which gives work to path tracing threads. */
   WorkTileScheduler work_tile_scheduler_;
 
@@ -173,6 +171,10 @@ class PathTraceWorkGPU : public PathTraceWork {
    * the size of the integrator_state_ buffer so can avoid iterating over the
    * full buffer. */
   int max_active_main_path_index_;
+
+  /* Integrator queue. Declared last so it is destroyed first before any memory that
+   * may be used by the queue. */
+  unique_ptr<DeviceQueue> queue_;
 };
 
 CCL_NAMESPACE_END

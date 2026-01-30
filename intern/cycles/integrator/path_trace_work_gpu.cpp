@@ -80,7 +80,6 @@ PathTraceWorkGPU::PathTraceWorkGPU(Device *device,
                                    DeviceScene *device_scene,
                                    const bool *cancel_requested_flag)
     : PathTraceWork(device, film, device_scene, cancel_requested_flag),
-      queue_(device->gpu_queue_create()),
       integrator_state_soa_kernel_features_(0),
       integrator_queue_counter_(device, "integrator_queue_counter", MEM_READ_WRITE),
       integrator_shader_sort_counter_(device, "integrator_shader_sort_counter", MEM_READ_WRITE),
@@ -101,9 +100,17 @@ PathTraceWorkGPU::PathTraceWorkGPU(Device *device,
       display_rgba_half_(device, "display buffer half", MEM_READ_WRITE),
       max_num_paths_(0),
       min_num_active_main_paths_(0),
-      max_active_main_path_index_(0)
+      max_active_main_path_index_(0),
+      queue_(device->gpu_queue_create())
 {
   memset(&integrator_state_gpu_, 0, sizeof(integrator_state_gpu_));
+}
+
+PathTraceWorkGPU::~PathTraceWorkGPU()
+{
+  /* Synchronize the queue before destroying device memory that may still be used
+   * by executing kernels. */
+  queue_->synchronize();
 }
 
 void PathTraceWorkGPU::alloc_integrator_soa()

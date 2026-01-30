@@ -207,7 +207,7 @@ class PathTrace {
    * Note that some steps might modify the work, forcing some steps to happen within this iteration
    * of rendering. */
   void init_render_buffers(const RenderWork &render_work);
-  void path_trace(RenderWork &render_work);
+  void path_trace(RenderWork &render_work, bool has_volume);
   void adaptive_sample(RenderWork &render_work);
   void denoise(const RenderWork &render_work);
   void denoise_volume_guiding_buffers(const RenderWork &render_work, const bool has_volume);
