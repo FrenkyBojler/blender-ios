@@ -336,6 +336,8 @@ struct Main : NonCopyable, NonMovable {
    */
   bool is_action_slot_to_id_map_dirty = false;
 
+  char save_modified_images_when_file_is_saved = true;
+
   /**
    * The blend-file thumbnail. If set, it will show as image preview of the blend-file in the
    * system's file-browser.

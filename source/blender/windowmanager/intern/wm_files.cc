@@ -3603,8 +3603,6 @@ static void wm_free_operator_properties_callback(void *user_data)
   IDP_FreeProperty(properties);
 }
 
-static Map<std::string, char> save_modified_images_when_file_is_saved;
-
 static void wm_block_save_modified_images_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
 {
   wmWindow *win = CTX_wm_window(C);
@@ -3621,9 +3619,7 @@ static void wm_block_save_modified_images_save(bContext *C, void *arg_block, voi
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
 
-  if (save_modified_images_when_file_is_saved.lookup(bmain->filepath) &&
-      ED_image_should_save_modified(bmain))
-  {
+  if (bmain->save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain)) {
     ReportList *reports = CTX_wm_reports(C);
     bool is_successful = ED_image_save_all_modified(C, reports);
     if (!is_successful) {
@@ -3717,7 +3713,7 @@ static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion 
             0,
             0,
             UI_UNIT_Y,
-            &save_modified_images_when_file_is_saved.lookup(bmain->filepath),
+            &bmain->save_modified_images_when_file_is_saved,
             0,
             0,
             "");
@@ -3776,9 +3772,6 @@ static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion 
 static void wm_save_modified_images_dialog(bContext *C, wmGenericCallback *post_action)
 {
   if (!ui::popup_block_name_exists(CTX_wm_screen(C), save_modified_images_dialog_name)) {
-    const Main *bmain = CTX_data_main(C);
-    save_modified_images_when_file_is_saved.add(bmain->filepath, true);
-
     ui::popup_block_invoke(
         C, block_create_save_modified_images_dialog, post_action, free_post_file_close_action);
   }
