@@ -765,6 +765,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     StreamPtr definition;
     Vector<AtomID> params;
     bool is_function;
+    bool contains_concat;
 
     Macro(DirectiveID id) : id(id) {}
 
@@ -913,7 +914,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     return macro_parameters;
   }
 
-  BLI_NOINLINE StreamPtr parse_macro_definition(Token definition_start_tok)
+  BLI_NOINLINE StreamPtr parse_macro_definition(Token definition_start_tok, bool &contains_concat)
   {
     StreamPtr definition = stream_pool.alloc();
 
@@ -933,6 +934,7 @@ struct Preprocessor : IntermediateFormWithIDs {
       if (tok == Hash && tok_next == Hash) {
         /* Token Pasting operator. Emit a single Hash token. */
         *definition << tok;
+        contains_concat = true;
         tok = tok.next(2);
         continue;
       }
@@ -962,7 +964,7 @@ struct Preprocessor : IntermediateFormWithIDs {
       if (macro->is_function) {
         macro->params = parse_macro_params(cursor);
       }
-      macro->definition = parse_macro_definition(cursor);
+      macro->definition = parse_macro_definition(cursor, macro->contains_concat);
 
       parsed_macro[int(dir)] = std::move(macro);
     }
@@ -1274,14 +1276,21 @@ struct Preprocessor : IntermediateFormWithIDs {
       return {std::move(expanded), end_of_expansion};
     }
 
-    StreamPtr expanded = expand_macro_args(macro, fn_arguments);
+    StreamPtr result;
 
-    /* Add to the set to avoid infinite recursion. */
-    visited_macros.append(macro.id);
-
-    StreamPtr result = parse_and_expand(*expanded);
-
-    visited_macros.pop_last();
+    if (!macro.is_function && !macro.contains_concat) {
+      /* Fast Path. */
+      visited_macros.append(macro.id);
+      result = parse_and_expand(*macro.definition);
+      visited_macros.pop_last();
+    }
+    else {
+      StreamPtr expanded = expand_macro_args(macro, fn_arguments);
+      /* Add to the set to avoid infinite recursion. */
+      visited_macros.append(macro.id);
+      result = parse_and_expand(*expanded);
+      visited_macros.pop_last();
+    }
 
     if (end_of_expansion.followed_by_whitespace()) {
       *result << Stream::Space{};
