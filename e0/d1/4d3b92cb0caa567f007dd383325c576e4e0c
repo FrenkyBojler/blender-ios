@@ -2,3 +2,4 @@ Referenced by issue #144481, Error when using getmessage() function to get “ge
 Referenced by issue #151840, OSL: Material index cannot be retrieved via trace() in Cycles
 Referenced by issue #151909, Regression: OSL getmessage("trace", "geom:uv", trace_uv); not working in Blender 5.0.1
 Referenced by pull request #153654, Fix #151840: Cycles OSL trace() not returning attributes from other surface
+Referenced by commit 52cc73c0eee1d162c2bc057bc0753d8b68492ba2, Fix #151840: Cycles OSL trace() not returning attributes from other surface
