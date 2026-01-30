@@ -21,6 +21,8 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
+#include "CLG_log.h"
+
 #include "DNA_listBase.h"
 
 #include "IMB_imbuf.hh"
@@ -47,6 +49,8 @@ static const char *STUDIOLIGHT_MATCAP_FOLDER = "studiolights" SEP_STR "matcap" S
 
 static const char *STUDIOLIGHT_WORLD_DEFAULT = "forest.exr";
 static const char *STUDIOLIGHT_MATCAP_DEFAULT = "basic_1.exr";
+
+static CLG_LogRef LOG = {"bke.studiolight"};
 
 /* ITER MACRO */
 
@@ -864,10 +868,14 @@ void BKE_studiolight_init()
                                         STUDIOLIGHT_LIGHTS_FOLDER,
                                         STUDIOLIGHT_TYPE_STUDIO |
                                             STUDIOLIGHT_SPECULAR_HIGHLIGHT_PASS);
+#ifdef WITH_IMAGE_OPENEXR
   studiolight_add_files_from_datafolder(
       BLENDER_SYSTEM_DATAFILES, STUDIOLIGHT_WORLD_FOLDER, STUDIOLIGHT_TYPE_WORLD);
   studiolight_add_files_from_datafolder(
       BLENDER_SYSTEM_DATAFILES, STUDIOLIGHT_MATCAP_FOLDER, STUDIOLIGHT_TYPE_MATCAP);
+#else
+  CLOG_WARN(&LOG, "Unable to load matcap or world presets, Built without 'WITH_IMAGE_OPENEXR'");
+#endif
 
   /* sort studio lights on filename. */
   BLI_listbase_sort(&studiolights, studiolight_cmp);
