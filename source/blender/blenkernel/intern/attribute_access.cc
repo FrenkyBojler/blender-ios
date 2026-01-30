@@ -410,31 +410,6 @@ GAttributeReader AttributeAccessor::lookup_or_default(const StringRef attribute_
   return {GVArray::from_single(type, domain_size, default_value), domain, nullptr};
 }
 
-bool AttributeAccessor::contains(const StringRef attribute_id) const
-{
-  bool found = false;
-  this->foreach_attribute([&](const AttributeIter &iter) {
-    if (attribute_id == iter.name) {
-      found = true;
-      iter.stop();
-    }
-  });
-  return found;
-}
-
-std::optional<AttributeMetaData> AttributeAccessor::lookup_meta_data(
-    const StringRef attribute_id) const
-{
-  std::optional<AttributeMetaData> meta_data;
-  this->foreach_attribute([&](const AttributeIter &iter) {
-    if (attribute_id == iter.name) {
-      meta_data = AttributeMetaData{iter.domain, iter.data_type};
-      iter.stop();
-    }
-  });
-  return meta_data;
-}
-
 Set<StringRefNull> AttributeAccessor::all_ids() const
 {
   Set<StringRefNull> ids;
@@ -885,7 +860,8 @@ void transform_custom_normal_attribute(const float4x4 &transform,
   }
   else {
     /* It's a bit faster to combine transforming and copying the attribute if it's shared. */
-    float3 *new_data = MEM_malloc_arrayN<float3>(size_t(normals.varray.size()), __func__);
+    float3 *new_data = MEM_new_array_uninitialized<float3>(size_t(normals.varray.size()),
+                                                           __func__);
     math::transform_normals(VArraySpan(normals.varray.typed<float3>()),
                             float3x3(transform),
                             {new_data, normals.varray.size()});
