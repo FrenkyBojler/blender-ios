@@ -2072,21 +2072,7 @@ static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent
   VertexPaintStroke *stroke = MEM_new<VertexPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
 
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
-  OPERATOR_RETVAL_CHECK(retval);
-
-  if (retval == OPERATOR_FINISHED) {
-    VertexPaintStroke *stroke = static_cast<VertexPaintStroke *>(op->customdata);
-    if (stroke) {
-      stroke->free(C, op);
-      MEM_delete(stroke);
-    }
-    return OPERATOR_FINISHED;
-  }
-
   WM_event_add_modal_handler(C, op);
-
-  BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2109,7 +2095,6 @@ static wmOperatorStatus vpaint_modal(bContext *C, wmOperator *op, const wmEvent 
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
-    op->customdata = nullptr;
   }
 
   return retval;

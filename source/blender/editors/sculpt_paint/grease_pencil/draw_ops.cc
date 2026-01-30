@@ -296,14 +296,6 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
   GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
 
-  retval = op->type->modal(C, op, event);
-  OPERATOR_RETVAL_CHECK(retval);
-
-  if (retval == OPERATOR_FINISHED) {
-    MEM_delete(stroke);
-    return OPERATOR_FINISHED;
-  }
-
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
 }
@@ -405,14 +397,6 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
   GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
 
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
-  OPERATOR_RETVAL_CHECK(retval);
-
-  if (retval == OPERATOR_FINISHED) {
-    MEM_delete(stroke);
-    return OPERATOR_FINISHED;
-  }
-
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
 }
@@ -502,14 +486,6 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext *C,
 
   GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
-
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
-  OPERATOR_RETVAL_CHECK(retval);
-
-  if (retval == OPERATOR_FINISHED) {
-    MEM_delete(stroke);
-    return OPERATOR_FINISHED;
-  }
 
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
@@ -611,14 +587,6 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
 
   GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
-
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
-  OPERATOR_RETVAL_CHECK(retval);
-
-  if (retval == OPERATOR_FINISHED) {
-    MEM_delete(stroke);
-    return OPERATOR_FINISHED;
-  }
 
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;

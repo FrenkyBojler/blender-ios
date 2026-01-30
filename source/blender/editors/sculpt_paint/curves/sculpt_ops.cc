@@ -255,17 +255,6 @@ static wmOperatorStatus sculpt_curves_stroke_invoke(bContext *C,
       __func__, C, op, event->type);
   op->customdata = op_data;
 
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
-  OPERATOR_RETVAL_CHECK(retval);
-
-  if (retval == OPERATOR_FINISHED) {
-    if (op->customdata != nullptr) {
-      op_data->free(C, op);
-      MEM_delete(op_data);
-    }
-    return OPERATOR_FINISHED;
-  }
-
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
 }
