@@ -1,3 +1,4 @@
 Referenced by issue #101062, Curves sculptmode: crash when using curve stroke in any tool
 Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
 Referenced by pull request #153539, Fix #153517: Paint/Sculpt crashes with Stroke Method "Curve"
+Referenced by commit be4280c5a32c28f1e9afb827eb37cd73064d369a, Fix #153517: Paint/Sculpt crashes with Stroke Method "Curve"
