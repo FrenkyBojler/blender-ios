@@ -17,6 +17,7 @@
  * - `matrix[2]` is the arrow direction (for all arrows).
  */
 
+#include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -182,6 +183,38 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
       immUnbindProgram();
       unbind_shader = false;
       wm_gizmo_geometryinfo_draw(&wm_gizmo_geom_data_cube, select, color);
+
+      /* draw a lighter or darker face. */
+
+      float modelview[4][4];
+      GPU_matrix_model_view_get(modelview);
+      const bool under = (modelview[2][2] < 0.0f);
+
+      float accent[4];
+      rgb_to_hsv_v(color, accent);
+      /* Moderate the change by the angle at first to avoid popping. */
+      const float change = 0.3f * std::min(abs(modelview[2][2] * 10.f), 1.0f);
+      if (under) {
+        accent[1] = std::max(accent[1] - change, 0.0f);
+        accent[2] = std::min(accent[2] + change, 1.0f);
+      }
+      else {
+        accent[1] = std::min(accent[1] + change, 1.0f);
+        accent[2] = std::max(accent[2] - change, 0.0f);
+      }
+      hsv_to_rgb_v(accent, accent);
+      accent[3] = color[3];
+
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+      immUniformColor4fv(accent);
+      const float z = under ? -1.0f : 1.0f;
+      immBegin(GPU_PRIM_TRI_FAN, 4);
+      immVertex3f(pos, -1.0f, -1.0f, z);
+      immVertex3f(pos, 1.0f, -1.0f, z);
+      immVertex3f(pos, 1.0f, 1.0f, z);
+      immVertex3f(pos, -1.0f, 1.0f, z);
+      immEnd();
+      immUnbindProgram();
     }
     else {
       BLI_assert(draw_style == ED_GIZMO_ARROW_STYLE_NORMAL);
@@ -195,10 +228,36 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
 
       immUnbindProgram();
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-      immUniformColor4fv(color);
 
-      imm_draw_circle_fill_3d(pos, 0.0, 0.0, width, 8);
-      imm_draw_cylinder_fill_3d(pos, width, 0.0, len, 8, 1);
+      /* 8 segments at default size of 75. */
+      const int segments = std::max(int(float(U.gizmo_size) * UI_SCALE_FAC / 9.375f), 8);
+
+      float modelview[4][4];
+      GPU_matrix_model_view_get(modelview);
+
+      if (modelview[2][2] < 0.0f) {
+        /* Draw lighter circle last so it is not hidden by the cone. */
+        immUniformColor4fv(color);
+        imm_draw_cylinder_fill_3d(pos, width, 0.0, len, segments, 1);
+        float lighter_color[4];
+        rgb_to_hsv_v(color, lighter_color);
+
+        /* Moderate the change by the angle at first to avoid popping. */
+        const float change = 0.3f * std::min(-modelview[2][2], 1.0f);
+        lighter_color[1] = std::max(lighter_color[1] - change, 0.0f);
+        lighter_color[2] = std::min(lighter_color[2] + change, 1.0f);
+        hsv_to_rgb_v(lighter_color, lighter_color);
+        lighter_color[3] = color[3];
+        if (modelview[2][2])
+          immUniformColor4fv(lighter_color);
+        imm_draw_circle_fill_3d(pos, 0.0, 0.0, width, segments);
+      }
+      else {
+        /* Draw both parts with the same color, bottom first. */
+        immUniformColor4fv(color);
+        imm_draw_circle_fill_3d(pos, 0.0, 0.0, width, segments);
+        imm_draw_cylinder_fill_3d(pos, width, 0.0, len, segments, 1);
+      }
     }
 
     GPU_matrix_pop();
