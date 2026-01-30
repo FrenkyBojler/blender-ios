@@ -46,9 +46,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
   const auto data_type = eNodeSocketDatatype(node.custom1);
-
-  std::string name = "";
-  std::string lib_name = "";
   ID *id = nullptr;
 
   switch (data_type) {
@@ -86,8 +83,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  name = std::string(id->name + 2);
-  params.set_output("Name", std::move(name));
+  params.set_output<std::string>("Name", std::move(id->name + 2));
 
   if (!params.output_is_required("Library Name")) {
     params.set_default_remaining_outputs();
@@ -100,8 +96,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  lib_name = std::string(lib->id.name + 2);
-  params.set_output("Library Name", std::move(lib_name));
+  params.set_output<std::string>("Library Name", std::move(lib->id.name + 2));
 }
 
 static void node_rna(StructRNA *srna)
