@@ -88,6 +88,7 @@ static Object *make_prim_init(bContext *C,
   }
 
   ed::object::new_primitive_matrix(C, obedit, loc, rot, scale, r_creation_data->mat);
+
   return obedit;
 }
 
