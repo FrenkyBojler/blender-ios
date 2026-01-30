@@ -86,7 +86,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Name", std::move(id->name + 2));
+  name = std::string(id->name + 2);
+  params.set_output("Name", std::move(name));
 
   if (!params.output_is_required("Library Name")) {
     params.set_default_remaining_outputs();
