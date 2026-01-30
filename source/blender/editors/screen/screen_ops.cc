@@ -5753,21 +5753,18 @@ static void stop_playback(bContext *C)
   Main *bmain = CTX_data_main(C);
   bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
   wmTimer *wt = screen->animtimer;
-  ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
-  Scene *scene = sad->scene;
-
-  ViewLayer *view_layer = sad->view_layer;
-  Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
-  BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
+  ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
   /* Only stop sound playback, when playing forward, since there is no sound for reverse
    * playback. */
   if ((sad->flag & ANIMPLAY_FLAG_REVERSE) == 0) {
     BKE_sound_stop_scene(scene_eval);
   }
 
-  ED_screen_animation_timer(C, scene, view_layer, 0, 0, 0);
+  ED_screen_animation_timer(C, 0, 0, 0);
   ED_scene_fps_average_clear(scene);
   BKE_callback_exec_id_depsgraph(bmain, &scene->id, depsgraph, BKE_CB_EVT_ANIMATION_PLAYBACK_POST);
 
@@ -5782,19 +5779,8 @@ static wmOperatorStatus start_playback(bContext *C, int sync, int mode)
 {
   Main *bmain = CTX_data_main(C);
   bScreen *screen = CTX_wm_screen(C);
-
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
-  if (!scene) {
-    return OPERATOR_CANCELLED;
-  }
-  ViewLayer *view_layer = is_sequencer ? BKE_view_layer_default_render(scene) :
-                                         CTX_data_view_layer(C);
-  Depsgraph *depsgraph = is_sequencer ? BKE_scene_ensure_depsgraph(bmain, scene, view_layer) :
-                                        CTX_data_ensure_evaluated_depsgraph(C);
-  if (is_sequencer) {
-    BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-  }
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
   BKE_callback_exec_id_depsgraph(bmain, &scene->id, depsgraph, BKE_CB_EVT_ANIMATION_PLAYBACK_PRE);
@@ -5804,7 +5790,7 @@ static wmOperatorStatus start_playback(bContext *C, int sync, int mode)
     BKE_sound_play_scene(scene_eval);
   }
 
-  ED_screen_animation_timer(C, scene, view_layer, screen->redraws_flag, sync, mode);
+  ED_screen_animation_timer(C, screen->redraws_flag, sync, mode);
   ED_scene_fps_average_clear(scene);
 
   if (screen->animtimer) {
