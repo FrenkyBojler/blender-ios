@@ -4,8 +4,6 @@
 
 #include <cmath>
 
-#include "BLI_math_numbers.hh"
-
 #include "BKE_attribute.hh"
 #include "BKE_mesh.hh"
 
@@ -257,7 +255,7 @@ int ConeConfig::calculate_total_corners()
 static void calculate_cone_verts(const ConeConfig &config, MutableSpan<float3> positions)
 {
   Array<float2> circle(config.circle_segments);
-  const float angle_delta = 2.0f * (math::numbers::pi / float(config.circle_segments));
+  const float angle_delta = 2.0f * (std::numbers::pi / float(config.circle_segments));
   float angle = 0.0f;
   for (const int i : IndexRange(config.circle_segments)) {
     circle[i].x = std::cos(angle);
@@ -534,7 +532,7 @@ static void calculate_cone_uvs(const ConeConfig &config, Mesh *mesh, const Strin
 
   Array<float2> circle(config.circle_segments);
   float angle = 0.0f;
-  const float angle_delta = 2.0f * math::numbers::pi / float(config.circle_segments);
+  const float angle_delta = 2.0f * std::numbers::pi / float(config.circle_segments);
   for (const int i : IndexRange(config.circle_segments)) {
     circle[i].x = std::cos(angle) * 0.225f;
     circle[i].y = std::sin(angle) * 0.225f;
