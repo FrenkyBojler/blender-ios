@@ -533,8 +533,16 @@ class _defs_view3d_add:
     # Layout tweaks here would be good to avoid,
     # this shows limits in layout engine, as buttons are using a lot of space.
     @staticmethod
-    def draw_settings_interactive_add(layout, tool_settings, tool, extra):
+    def draw_settings_interactive_add(layout, tool_settings, tool, extra, origin_base="EDGE", aspect_base="FREE", origin_depth="EDGE", aspect_depth="FREE"):
         show_extra = False
+        props = tool.operator_properties("view3d.interactive_add")
+
+        props.plane_origin_base = origin_base
+        props.plane_aspect_base = aspect_base
+
+        props.plane_origin_depth = origin_depth
+        props.plane_aspect_depth = aspect_depth
+
         if not extra:
             row = layout.row()
             row.prop(tool_settings, "plane_depth", text="Depth")
@@ -551,7 +559,6 @@ class _defs_view3d_add:
                 extra = True
 
         if extra:
-            props = tool.operator_properties("view3d.interactive_add")
             layout.use_property_split = True
             layout.row().prop(tool_settings, "plane_axis", expand=True)
             layout.row().prop(tool_settings, "plane_axis_auto")
@@ -586,7 +593,7 @@ class _defs_view3d_add:
     @ToolDef.from_fn
     def cone_add():
         def draw_settings(context, layout, tool, *, extra=False):
-            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
+            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra, "CENTER", "FIXED")
             if extra:
                 return
 
@@ -612,7 +619,7 @@ class _defs_view3d_add:
     @ToolDef.from_fn
     def cylinder_add():
         def draw_settings(context, layout, tool, *, extra=False):
-            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
+            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra, "CENTER", "FIXED")
             if extra:
                 return
 
@@ -637,7 +644,7 @@ class _defs_view3d_add:
     @ToolDef.from_fn
     def uv_sphere_add():
         def draw_settings(context, layout, tool, *, extra=False):
-            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
+            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra, "CENTER", "FIXED", "CENTER", "FIXED")
             if extra:
                 return
 
@@ -662,7 +669,7 @@ class _defs_view3d_add:
     @ToolDef.from_fn
     def ico_sphere_add():
         def draw_settings(context, layout, tool, *, extra=False):
-            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
+            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra, "CENTER", "FIXED", "CENTER", "FIXED")
             if extra:
                 return
 
