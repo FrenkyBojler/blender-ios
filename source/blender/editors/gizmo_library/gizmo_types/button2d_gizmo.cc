@@ -59,9 +59,7 @@ void ED_gizmo_button2d_group_background(const bContext *C, wmGizmoGroup *gzgroup
   rcti group_bounds = {0};
 
   for (wmGizmo &gz : gzgroup->gizmos) {
-    if (gz.flag & WM_GIZMO_HIDDEN || !gz.type->screen_bounds_get ||
-        STREQ(gz.type->idname, "VIEW3D_GT_navigate_rotate"))
-    {
+    if (gz.flag & (WM_GIZMO_HIDDEN | WM_GIZMO_NO_GROUPING) || !gz.type->screen_bounds_get) {
       continue;
     }
     rcti gizmo_bounds;
@@ -85,8 +83,8 @@ void ED_gizmo_button2d_group_background(const bContext *C, wmGizmoGroup *gzgroup
   BLI_rctf_pad(&draw_rect, 0.0f, rad * 0.2f);
   ui::draw_roundbox_corner_set(ui::CNR_ALL);
 
-  float bg_color[4] = {0.0f, 0.0f, 0.0f, 0.25f};
-  float outline_color[4] = {0.0f, 0.0f, 0.0f, 0.35f};
+  float bg_color[4] = {0.0f, 0.0f, 0.0f, 0.3f};
+  float outline_color[4] = {0.0f, 0.0f, 0.0f, 0.4f};
   ui::draw_roundbox_4fv_ex(&draw_rect, bg_color, nullptr, 1.0f, outline_color, U.pixelsize, rad);
 }
 

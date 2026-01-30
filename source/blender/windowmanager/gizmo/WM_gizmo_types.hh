@@ -91,6 +91,9 @@ enum eWM_GizmoFlag {
   WM_GIZMO_NO_TOOLTIP = (1 << 12),
   /** Push an undo step after each use of the gizmo. */
   WM_GIZMO_NEEDS_UNDO = (1 << 13),
+
+  /** This gizmo should be visually distinct and not shown grouped with other gizmos. */
+  WM_GIZMO_NO_GROUPING = (1 << 14),
 };
 ENUM_OPERATORS(eWM_GizmoFlag);
 
