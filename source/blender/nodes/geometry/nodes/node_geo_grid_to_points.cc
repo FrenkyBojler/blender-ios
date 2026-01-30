@@ -1,27 +1,28 @@
-/* SPDX-FileCopyrightText: 2026 Blender Authors
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "node_geometry_util.hh"
+
+#include "BLI_array_utils.hh"
+#include "BLI_math_matrix.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
 
-#include "BLI_array_utils.hh"
-#include "BLI_math_matrix.hh"
-#include "BLI_task.hh"
-
 #include "NOD_rna_define.hh"
-#include "NOD_socket_search_link.hh"
+#include "NOD_socket.hh"
 
-#include "FN_multi_function_builder.hh"
-
-#include "UI_interface_layout.hh"
+#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
 
-#include "node_geometry_util.hh"
+#ifdef WITH_OPENVDB
+#  include <openvdb/tree/NodeManager.h>
+#endif
 
 namespace blender::nodes::node_geo_grid_to_points_cc {
 
@@ -54,14 +55,18 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
+  b.add_input<decl::Bool>("Selection").default_value(true).supports_field().hide_value();
   b.add_input<decl::Menu>("Position")
       .static_items(position_mode_items)
       .default_value(PositionMode::Center);
 
-  b.add_output<decl::Geometry>("Points").propagate_all();
+  b.add_output<decl::Geometry>("Points").description("Point geometry representing grid voxels");
   b.add_output<decl::Bool>("Is Tile").field_on_all().description("Whether point represents a tile (true) or voxel (false)");
   b.add_output(data_type, "Value").field_on_all().description("Grid values at point positions");
+  b.add_output(data_type, "Background").description("Background value of the grid");
+  b.add_output<decl::Int>("X").field_on_all().description("X coordinate in index space");
+  b.add_output<decl::Int>("Y").field_on_all().description("Y coordinate in index space");
+  b.add_output<decl::Int>("Z").field_on_all().description("Z coordinate in index space");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -133,6 +138,19 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const PositionMode position_mode = PositionMode(params.extract_input<int>("Position"));
 
+  const auto grid = params.extract_input<bke::GVolumeGrid>("Grid");
+  if (!grid) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  bke::VolumeTreeAccessToken tree_token;
+  const std::shared_ptr<const openvdb::GridBase> vdb_grid_base = grid->grid_ptr(tree_token);
+  if (!vdb_grid_base) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
   bke::attribute_math::to_static_type(
       *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&]<typename ValueT>() {
         using type_traits = typename bke::VolumeGridTraits<ValueT>;
@@ -140,19 +158,6 @@ static void node_geo_exec(GeoNodeExecParams params)
         using GridType = openvdb::Grid<TreeType>;
 
         if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
-          const auto grid = params.extract_input<bke::GVolumeGrid>("Grid");
-          if (!grid) {
-            params.set_default_remaining_outputs();
-            return;
-          }
-
-          bke::VolumeTreeAccessToken tree_token;
-          const std::shared_ptr<const openvdb::GridBase> vdb_grid_base = grid->grid_ptr(tree_token);
-          if (!vdb_grid_base) {
-            params.set_default_remaining_outputs();
-            return;
-          }
-
           const std::shared_ptr<const GridType> vdb_grid = openvdb::GridBase::grid<GridType>(
               vdb_grid_base);
           if (!vdb_grid) {
@@ -162,10 +167,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 
           const openvdb::math::Transform &grid_transform = vdb_grid->transform();
 
+          /* Get anonymous attribute IDs for field outputs */
+          std::optional<std::string> coord_x_id = params.get_output_anonymous_attribute_id_if_needed("X");
+          std::optional<std::string> coord_y_id = params.get_output_anonymous_attribute_id_if_needed("Y");
+          std::optional<std::string> coord_z_id = params.get_output_anonymous_attribute_id_if_needed("Z");
+          std::optional<std::string> is_tile_id = params.get_output_anonymous_attribute_id_if_needed("Is Tile");
+          std::optional<std::string> value_id = params.get_output_anonymous_attribute_id_if_needed("Value");
+
           Vector<openvdb::Coord> active_coords;
           Vector<typename type_traits::BlenderType> active_values;
           Vector<bool> is_tile_flags;
-          Vector<int> tile_sizes;  /* Store the size of each tile for proper centering */
+          Vector<int> tile_sizes;
 
           /* Iterate through all active values including both voxels and tiles */
           for (auto iter = vdb_grid->tree().cbeginValueAll(); iter; ++iter) {
@@ -176,12 +188,10 @@ static void node_geo_exec(GeoNodeExecParams params)
               const bool is_tile = iter.getLevel() > 0;
               is_tile_flags.append(is_tile);
 
-              /* Calculate tile size: tiles at higher levels represent larger cubic regions */
+              /* Calculate tile size */
               int tile_size = 1;
               if (is_tile) {
-                /* Each level up multiplies the size by the branching factor */
-                /* For OpenVDB default trees, leaf nodes are 8^3, internal nodes vary */
-                tile_size = 1 << (3 * iter.getLevel());  /* 2^(3*level) gives cubic tile size */
+                tile_size = 1 << (3 * iter.getLevel());
               }
               tile_sizes.append(tile_size);
             }
@@ -196,11 +206,28 @@ static void node_geo_exec(GeoNodeExecParams params)
           MutableSpan<float3> positions = pointcloud->positions_for_write();
           MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
 
-          SpanAttributeWriter<typename type_traits::BlenderType> values =
-              dst_attributes.lookup_or_add_for_write_only_span<typename type_traits::BlenderType>(
-                  "value", AttrDomain::Point);
-          SpanAttributeWriter<bool> is_tile =
-              dst_attributes.lookup_or_add_for_write_only_span<bool>("is_tile", AttrDomain::Point);
+          /* Create anonymous attributes for field outputs */
+          SpanAttributeWriter<bool> is_tile_writer;
+          SpanAttributeWriter<int> coord_x_writer;
+          SpanAttributeWriter<int> coord_y_writer;
+          SpanAttributeWriter<int> coord_z_writer;
+          SpanAttributeWriter<typename type_traits::BlenderType> value_writer;
+
+          if (coord_x_id) {
+            coord_x_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(*coord_x_id, AttrDomain::Point);
+          }
+          if (coord_y_id) {
+            coord_y_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(*coord_y_id, AttrDomain::Point);
+          }
+          if (coord_z_id) {
+            coord_z_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(*coord_z_id, AttrDomain::Point);
+          }
+          if (is_tile_id) {
+            is_tile_writer = dst_attributes.lookup_or_add_for_write_only_span<bool>(*is_tile_id, AttrDomain::Point);
+          }
+          if (value_id) {
+            value_writer = dst_attributes.lookup_or_add_for_write_only_span<typename type_traits::BlenderType>(*value_id, AttrDomain::Point);
+          }
 
           threading::parallel_for(active_coords.index_range(), 1024, [&](const IndexRange range) {
             for (const int64_t i : range) {
@@ -210,23 +237,38 @@ static void node_geo_exec(GeoNodeExecParams params)
               /* Calculate position based on mode */
               openvdb::Vec3d index_pos;
               if (position_mode == PositionMode::Center) {
-                /* For tiles, center within the tile's cubic region */
                 const double offset = tile_size * 0.5;
                 index_pos = openvdb::Vec3d(coord.x() + offset, coord.y() + offset, coord.z() + offset);
               } else {
-                /* Use corner position (coord represents the min corner of the tile/voxel) */
                 index_pos = openvdb::Vec3d(coord.x(), coord.y(), coord.z());
               }
 
               const openvdb::Vec3d world_pos = grid_transform.indexToWorld(index_pos);
               positions[i] = float3(float(world_pos.x()), float(world_pos.y()), float(world_pos.z()));
-              values.span[i] = active_values[i];
-              is_tile.span[i] = is_tile_flags[i];
+
+              if (coord_x_writer) {
+                coord_x_writer.span[i] = coord.x();
+              }
+              if (coord_y_writer) {
+                coord_y_writer.span[i] = coord.y();
+              }
+              if (coord_z_writer) {
+                coord_z_writer.span[i] = coord.z();
+              }
+              if (is_tile_writer) {
+                is_tile_writer.span[i] = is_tile_flags[i];
+              }
+              if (value_writer) {
+                value_writer.span[i] = active_values[i];
+              }
             }
           });
 
-          values.finish();
-          is_tile.finish();
+          coord_x_writer.finish();
+          coord_y_writer.finish();
+          coord_z_writer.finish();
+          is_tile_writer.finish();
+          value_writer.finish();
 
           GeometrySet geometry_set = GeometrySet::from_pointcloud(pointcloud);
 
@@ -242,28 +284,39 @@ static void node_geo_exec(GeoNodeExecParams params)
             MutableSpan<float3> filtered_positions = filtered_pointcloud->positions_for_write();
             array_utils::gather(positions, selection_mask, filtered_positions);
 
-            MutableAttributeAccessor filtered_dst_attributes = filtered_pointcloud->attributes_for_write();
-            SpanAttributeWriter<typename type_traits::BlenderType> filtered_values =
-                filtered_dst_attributes.lookup_or_add_for_write_only_span<typename type_traits::BlenderType>(
-                    "value", AttrDomain::Point);
-            SpanAttributeWriter<bool> filtered_is_tile =
-                filtered_dst_attributes.lookup_or_add_for_write_only_span<bool>("is_tile", AttrDomain::Point);
-
-            array_utils::gather(values.span, selection_mask, filtered_values.span);
-            array_utils::gather(is_tile.span, selection_mask, filtered_is_tile.span);
-            filtered_values.finish();
-            filtered_is_tile.finish();
+            /* Copy anonymous attributes to filtered pointcloud */
+            MutableAttributeAccessor filtered_attributes = filtered_pointcloud->attributes_for_write();
+            if (coord_x_id) {
+              SpanAttributeWriter<int> filtered_coord_x = filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_x_id, AttrDomain::Point);
+              array_utils::gather(coord_x_writer.span, selection_mask, filtered_coord_x.span);
+              filtered_coord_x.finish();
+            }
+            if (coord_y_id) {
+              SpanAttributeWriter<int> filtered_coord_y = filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_y_id, AttrDomain::Point);
+              array_utils::gather(coord_y_writer.span, selection_mask, filtered_coord_y.span);
+              filtered_coord_y.finish();
+            }
+            if (coord_z_id) {
+              SpanAttributeWriter<int> filtered_coord_z = filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_z_id, AttrDomain::Point);
+              array_utils::gather(coord_z_writer.span, selection_mask, filtered_coord_z.span);
+              filtered_coord_z.finish();
+            }
+            if (is_tile_id) {
+              SpanAttributeWriter<bool> filtered_is_tile = filtered_attributes.lookup_or_add_for_write_only_span<bool>(*is_tile_id, AttrDomain::Point);
+              array_utils::gather(is_tile_writer.span, selection_mask, filtered_is_tile.span);
+              filtered_is_tile.finish();
+            }
+            if (value_id) {
+              SpanAttributeWriter<typename type_traits::BlenderType> filtered_value = filtered_attributes.lookup_or_add_for_write_only_span<typename type_traits::BlenderType>(*value_id, AttrDomain::Point);
+              array_utils::gather(value_writer.span, selection_mask, filtered_value.span);
+              filtered_value.finish();
+            }
 
             geometry_set = GeometrySet::from_pointcloud(filtered_pointcloud);
           }
 
           params.set_output("Points", std::move(geometry_set));
-          
-          Field<bool> is_tile_field = AttributeFieldInput::from<bool>("is_tile");
-          params.set_output("Is Tile", std::move(is_tile_field));
-          
-          Field<typename type_traits::BlenderType> value_field = AttributeFieldInput::from<typename type_traits::BlenderType>("value");
-          params.set_output("Value", std::move(value_field));
+          params.set_output("Background", type_traits::to_blender(vdb_grid->background()));
         }
       });
 #else
