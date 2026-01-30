@@ -24,6 +24,9 @@
 #include "DNA_ID.h"
 #include "DNA_dynamic_override_types.h"
 
+#include "RNA_access.hh"
+#include "RNA_path.hh"
+
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
@@ -169,6 +172,10 @@ IDTypeInfo IDType_ID_OV = {
     /*lib_override_apply_post*/ nullptr,
 };
 
+/* -------------------------------------------------------------------- */
+/** \name Helpers for IDTypeInfo callbacks.
+ * \{ */
+
 static void dynamic_override_rule_property_copy(
     DynamicOverrideRuleProperty &dynoverride_rule_property_dst,
     DynamicOverrideRuleProperty &dynoverride_rule_property_src,
@@ -206,7 +213,7 @@ static void dynamic_override_rule_copy(DynamicOverrideRule &dynoverride_rule_dst
           dynoverride_rule_src);
 
       if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) != 0) {
-        id_us_plus(rule_dst.id_owner);
+        id_us_plus(rule_dst.owner_id);
       }
 
       BLI_duplicatelist(&rule_dst.properties, &rule_src.properties);
@@ -276,7 +283,7 @@ static void dynamic_override_rule_foreach_id(DynamicOverrideRule &dynoverride_ru
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule);
 
-      BKE_LIB_FOREACHID_PROCESS_ID(&data, rule.id_owner, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_ID(&data, rule.owner_id, IDWALK_CB_NOP);
 
       for (DynamicOverrideRuleProperty &property : rule.properties) {
         dynamic_override_rule_property_foreach_id(property, data);
@@ -355,5 +362,129 @@ static void dynamic_override_rule_read_data(BlendDataReader &reader,
       break;
   }
 }
+
+/** \} */
+
+namespace bke {
+
+/* -------------------------------------------------------------------- */
+/** \name Basic Rule Management.
+ * \{ */
+
+static DynamicOverrideRuleIDData *dynamic_override_rule_get_for_id(
+    DynamicOverride &dynamic_override, ID &owner_id)
+{
+  /* TODO: use runtime data for mappings etc. */
+  for (DynamicOverrideRule &rule : dynamic_override.rules) {
+    if (rule.type != DynamicOverrideRuleType::IDDATA) {
+      continue;
+    }
+    DynamicOverrideRuleIDData &rule_id_data = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
+    if (rule_id_data.owner_id == &owner_id) {
+      return &rule_id_data;
+    }
+  }
+
+  return nullptr;
+}
+
+static DynamicOverrideRuleIDData &dynamic_override_rule_add_for_id(
+    DynamicOverride &dynamic_override, ID &owner_id)
+{
+  BLI_assert(!dynamic_override_rule_get_for_id(dynamic_override, owner_id));
+
+  DynamicOverrideRuleIDData *rule_id_data = MEM_new<DynamicOverrideRuleIDData>(__func__);
+  rule_id_data->owner_id = &owner_id;
+  rule_id_data->base.type = DynamicOverrideRuleType::IDDATA;
+  BLI_addtail(&dynamic_override.rules, rule_id_data);
+
+  return *rule_id_data;
+}
+
+DynamicOverrideRuleIDData &dynamic_override_rule_ensure_for_id(DynamicOverride &dynamic_override,
+                                                               ID &owner_id)
+{
+  DynamicOverrideRuleIDData *existing_rule = dynamic_override_rule_get_for_id(dynamic_override,
+                                                                              owner_id);
+
+  if (existing_rule) {
+    return *existing_rule;
+  }
+  return dynamic_override_rule_add_for_id(dynamic_override, owner_id);
+}
+
+void dynamic_override_rule_remove(DynamicOverride &dynamic_override,
+                                  DynamicOverrideRule *existing_rule)
+{
+  BLI_assert(BLI_findindex(&dynamic_override.rules, existing_rule) != -1);
+  BLI_remlink(&dynamic_override.rules, existing_rule);
+  dynamic_override_rule_free(*existing_rule);
+  MEM_delete(existing_rule);
+}
+
+void dynamic_override_rule_remove_for_id(DynamicOverride &dynamic_override, ID &owner_id)
+{
+  DynamicOverrideRuleIDData *existing_rule = dynamic_override_rule_get_for_id(dynamic_override,
+                                                                              owner_id);
+
+  if (existing_rule) {
+    dynamic_override_rule_remove(dynamic_override, &existing_rule->base);
+  }
+}
+
+DynamicOverrideRuleProperty *dynamic_override_rule_rna_property_add(DynamicOverrideRule &rule,
+                                                                    RNAPath &rna_path)
+{
+  if (rule.type != DynamicOverrideRuleType::IDDATA) {
+    return nullptr;
+  }
+
+  DynamicOverrideRuleIDData &rule_iddata = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
+  PointerRNA owner_id_ptr, ptr;
+  PropertyRNA *prop;
+
+  RNA_id_pointer_create(rule_iddata.owner_id);
+  RNA_path_resolve(&owner_id_ptr, rna_path.path.c_str(), &ptr, &prop);
+
+  if (!ptr.data || !prop) {
+    return nullptr;
+  }
+
+  /* TODO: search and deduplicate in case of existing property. */
+  DynamicOverrideRuleProperty *rule_property = MEM_new<DynamicOverrideRuleProperty>(__func__);
+  rule_property->rna_path = BLI_strdup(rna_path.path.c_str());
+  if (rna_path.key) {
+    rule_property->sub_item_name = BLI_strdup(rna_path.key->c_str());
+  }
+  rule_property->sub_item_index = rna_path.index.value_or(-1);
+
+  /* TODO: define matching IDP type, store orig value. Most likely want some smart wrapper - or use
+   * existing rna/idp logic if possible, as we already have the RNA property info?. */
+  /* Dummy idp for now! */
+  rule_property->orig_value =
+      idprop::create(RNA_property_identifier(prop), 1.0f, IDP_FLAG_STATIC_TYPE).release();
+  rule_property->new_value =
+      idprop::create(RNA_property_identifier(prop), 1.0f, IDP_FLAG_STATIC_TYPE).release();
+
+  BLI_addtail(&rule_iddata.properties, rule_property);
+
+  return rule_property;
+}
+
+void dynamic_override_rule_property_remove(DynamicOverrideRule &rule,
+                                           DynamicOverrideRuleProperty *existing_property)
+{
+  BLI_assert(rule.type == DynamicOverrideRuleType::IDDATA);
+
+  DynamicOverrideRuleIDData &rule_iddata = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
+  BLI_assert(BLI_findindex(&rule_iddata.properties, existing_property) != -1);
+  BLI_remlink(&rule_iddata.properties, existing_property);
+  dynamic_override_rule_property_free(*existing_property);
+  MEM_delete(existing_property);
+}
+
+/** \} */
+
+}  // namespace bke
 
 }  // namespace blender

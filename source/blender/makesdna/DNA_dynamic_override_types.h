@@ -51,9 +51,11 @@ struct DynamicOverrideRule {
 struct DynamicOverrideRuleIDData {
   DynamicOverrideRule base = {};
 
-  ID *id_owner = nullptr;
+  /** ID affected by this set of dynamic overrides */
+  ID *owner_id = nullptr;
   void *_pad = nullptr;
 
+  /** List of overridden properties (based on RNA paths). */
   ListBaseT<DynamicOverrideRuleProperty> properties = {nullptr, nullptr};
 };
 
