@@ -16,6 +16,8 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "ED_screen.hh"
+
 #include "UI_interface_icons.hh"
 #include "UI_interface_types.hh"
 
@@ -792,6 +794,26 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
   return WM_event_add_simulate(win, &e);
 }
 
+static wmWindow *rna_Windows_find_playing(wmWindowManager *wm, const bool scrub)
+{
+  for (wmWindow &win : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&win);
+
+    if (screen->animtimer == nullptr) {
+      continue;
+    }
+    if (scrub) {
+      if (screen->scrubbing) {
+        return &win;
+      }
+    }
+    else {
+      return &win;
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace blender
 
 #else
@@ -874,6 +896,18 @@ void RNA_api_window(StructRNA *srna)
   RNA_def_boolean(func, "hyper", false, "Hyper", "");
   parm = RNA_def_pointer(func, "event", "Event", "Item", "Added key map item");
   RNA_def_function_return(func, parm);
+}
+
+void RNA_api_windows(StructRNA *srna)
+{
+  FunctionRNA *func;
+  PropertyRNA *param;
+
+  func = RNA_def_function(srna, "find_playing", "rna_Windows_find_playing");
+  RNA_def_boolean(
+      func, "scrub", false, "Scrubbing", "Check if time in the window is being scrubbed");
+  param = RNA_def_pointer(func, "window", "Window", "Window", "Window that is currently playing");
+  RNA_def_function_return(func, param);
 }
 
 const EnumPropertyItem rna_operator_popup_icon_items[] = {
