@@ -71,10 +71,6 @@ enum {
   PG_HITV_POINTCLOUD,
   PG_HITL_POINTCLOUD,
 
-  /* Callable */
-  PG_CALL_SVM_AO,
-  PG_CALL_SVM_BEVEL,
-
   NUM_PROGRAM_GROUPS
 };
 
@@ -82,8 +78,9 @@ static const int MISS_PROGRAM_GROUP_OFFSET = PG_MISS;
 static const int NUM_MISS_PROGRAM_GROUPS = 1;
 static const int HIT_PROGAM_GROUP_OFFSET = PG_HITD;
 static const int NUM_HIT_PROGRAM_GROUPS = 24;
-static const int CALLABLE_PROGRAM_GROUPS_BASE = PG_CALL_SVM_AO;
-static const int NUM_CALLABLE_PROGRAM_GROUPS = 2;
+/* Not used currently, but keep around for future use. */
+static const int CALLABLE_PROGRAM_GROUPS_BASE = 0 /* PG_CALL_.. */;
+static const int NUM_CALLABLE_PROGRAM_GROUPS = 0;
 
 /* List of OptiX pipelines. */
 enum { PIP_SHADE, PIP_INTERSECT, NUM_PIPELINES };

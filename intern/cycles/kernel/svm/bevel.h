@@ -96,16 +96,11 @@ ccl_device void svm_bevel_cubic_sample(const float radius,
  * http://library.imageworks.com/pdfs/imageworks-library-BSSRDF-sampling.pdf
  */
 
-#  ifdef __KERNEL_OPTIX__
-extern "C" __device__ float3 __direct_callable__svm_node_bevel(
-#  else
-ccl_device float3 svm_bevel(
-#  endif
-    KernelGlobals kg,
-    ConstIntegratorState state,
-    ccl_private ShaderData *sd,
-    const float radius,
-    const int num_samples)
+ccl_device float3 svm_bevel(KernelGlobals kg,
+                            ConstIntegratorState state,
+                            ccl_private ShaderData *sd,
+                            const float radius,
+                            const int num_samples)
 {
   /* Early out if no sampling needed. */
   if (radius <= 0.0f || num_samples < 1 || sd->object == OBJECT_NONE) {
@@ -313,11 +308,7 @@ ccl_device_noinline
   {
     float radius = stack_load_float(stack, radius_offset);
 
-#  ifdef __KERNEL_OPTIX__
-    bevel_N = optixDirectCall<float3>(1, kg, state, sd, radius, num_samples);
-#  else
     bevel_N = svm_bevel(kg, state, sd, radius, num_samples);
-#  endif
 
     if (stack_valid(normal_offset)) {
       /* Preserve input normal. */

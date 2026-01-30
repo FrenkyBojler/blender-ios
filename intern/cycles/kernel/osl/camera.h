@@ -58,7 +58,7 @@ ccl_device_inline packed_float3 osl_eval_camera(KernelGlobals kg,
 
   float output[21] = {0.0f};
 #  ifdef __KERNEL_OPTIX__
-  optixDirectCall<void>(/*NUM_CALLABLE_PROGRAM_GROUPS*/ 2,
+  optixDirectCall<void>(/*NUM_CALLABLE_PROGRAM_GROUPS*/ 0,
                         /*shaderglobals_ptr*/ &globals,
                         /*groupdata_ptr*/ (void *)nullptr,
                         /*userdata_base_ptr*/ (void *)nullptr,

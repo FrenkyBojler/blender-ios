@@ -18,18 +18,13 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __SHADER_RAYTRACE__
 
-#  ifdef __KERNEL_OPTIX__
-extern "C" __device__ float __direct_callable__svm_node_ao(
-#  else
-ccl_device float svm_ao(
-#  endif
-    KernelGlobals kg,
-    ConstIntegratorState state,
-    ccl_private ShaderData *sd,
-    float3 N,
-    float max_dist,
-    const int num_samples,
-    const int flags)
+ccl_device float svm_ao(KernelGlobals kg,
+                        ConstIntegratorState state,
+                        ccl_private ShaderData *sd,
+                        float3 N,
+                        float max_dist,
+                        const int num_samples,
+                        const int flags)
 {
   if (flags & NODE_AO_GLOBAL_RADIUS) {
     max_dist = kernel_data.integrator.ao_bounces_distance;
@@ -126,11 +121,7 @@ ccl_device_noinline
     float3 normal = stack_valid(normal_offset) ? stack_load_float3(stack, normal_offset) : sd->N;
     normal = safe_normalize(normal);
 
-#  ifdef __KERNEL_OPTIX__
-    ao = optixDirectCall<float>(0, kg, state, sd, normal, dist, samples, flags);
-#  else
     ao = svm_ao(kg, state, sd, normal, dist, samples, flags);
-#  endif
   }
 
   if (stack_valid(out_ao_offset)) {

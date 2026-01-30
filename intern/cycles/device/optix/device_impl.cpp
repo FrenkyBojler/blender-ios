@@ -531,18 +531,6 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_RGEN_SHADE_SURFACE_RAYTRACE].raygen.module = optix_module;
     group_descs[PG_RGEN_SHADE_SURFACE_RAYTRACE].raygen.entryFunctionName =
         "__raygen__kernel_optix_integrator_shade_surface_raytrace";
-
-    /* Kernels with OSL shading support are built without SVM, so can skip those direct callables
-     * there. */
-    if (!use_osl_shading) {
-      group_descs[PG_CALL_SVM_AO].kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
-      group_descs[PG_CALL_SVM_AO].callables.moduleDC = optix_module;
-      group_descs[PG_CALL_SVM_AO].callables.entryFunctionNameDC = "__direct_callable__svm_node_ao";
-      group_descs[PG_CALL_SVM_BEVEL].kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
-      group_descs[PG_CALL_SVM_BEVEL].callables.moduleDC = optix_module;
-      group_descs[PG_CALL_SVM_BEVEL].callables.entryFunctionNameDC =
-          "__direct_callable__svm_node_bevel";
-    }
   }
 
   if (kernel_features & KERNEL_FEATURE_MNEE) {
@@ -700,8 +688,6 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     pipeline_groups.reserve(NUM_PROGRAM_GROUPS);
     if (kernel_features & KERNEL_FEATURE_NODE_RAYTRACE) {
       pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE_RAYTRACE]);
-      pipeline_groups.push_back(groups[PG_CALL_SVM_AO]);
-      pipeline_groups.push_back(groups[PG_CALL_SVM_BEVEL]);
     }
     if (kernel_features & KERNEL_FEATURE_MNEE) {
       pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE_MNEE]);
@@ -758,8 +744,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     const unsigned int css = std::max(stack_size[PG_RGEN_SHADE_SURFACE_RAYTRACE].cssRG,
                                       stack_size[PG_RGEN_SHADE_SURFACE_MNEE].cssRG) +
                              link_options.maxTraceDepth * trace_css;
-    const unsigned int dss = std::max(stack_size[PG_CALL_SVM_AO].dssDC,
-                                      stack_size[PG_CALL_SVM_BEVEL].dssDC);
+    const unsigned int dss = 0; /* Not used for now: std::max(stack_size[PG_CALL_..].dssDC); */
 
     /* Set stack size depending on pipeline options. */
     optix_assert(optixPipelineSetStackSize(
@@ -1060,8 +1045,7 @@ bool OptiXDevice::load_osl_kernels()
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_LIGHT_FORWARD]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE_RAYTRACE]);
-    pipeline_groups.push_back(groups[PG_CALL_SVM_AO]);
-    pipeline_groups.push_back(groups[PG_CALL_SVM_BEVEL]);
+    /* Not used for now: pipeline_groups.push_back(groups[PG_CALL_..]); */
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE_MNEE]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_VOLUME]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SHADOW]);
@@ -1103,8 +1087,7 @@ bool OptiXDevice::load_osl_kernels()
 
     const unsigned int css = std::max(stack_size[PG_RGEN_SHADE_SURFACE_RAYTRACE].cssRG,
                                       stack_size[PG_RGEN_SHADE_SURFACE_MNEE].cssRG);
-    unsigned int dss = std::max(stack_size[PG_CALL_SVM_AO].dssDC,
-                                stack_size[PG_CALL_SVM_BEVEL].dssDC);
+    unsigned int dss = 0; /* Not used for now: std::max(stack_size[PG_CALL_..].dssDC); */
     for (unsigned int i = 0; i < osl_stack_size.size(); ++i) {
       dss = std::max(dss, osl_stack_size[i].dssDC);
     }
