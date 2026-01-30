@@ -140,6 +140,8 @@ struct RealizeCurveInfo {
 
   /** `fill_id` attribute on the curves. If there are no fills, this #VArray is empty. */
   VArray<int> stored_fill_ids;
+  /** Set of all the fill ids in `stored_fill_ids` that are not 0. */
+  VectorSet<int> index_by_fill_id;
 
   /**
    * Handle position attributes must be transformed along with positions. Accessing them in
@@ -475,6 +477,37 @@ static void create_result_ids(const RealizeInstancesOptions &options,
   }
 }
 
+static VectorSet<int> gather_all_fill_ids(const VArray<int> &fill_ids)
+{
+  if (fill_ids.is_empty()) {
+    return VectorSet<int>();
+  }
+  if (fill_ids.is_single()) {
+    const int fill_id = fill_ids.get_internal_single();
+    if (fill_id != 0) {
+      return VectorSet<int>({fill_id});
+    }
+  }
+  if (fill_ids.is_span()) {
+    VectorSet<int> index_by_fill_ids;
+    const Span<int> fill_ids_span = fill_ids.get_internal_span();
+    for (const int fill_id : fill_ids_span) {
+      if (fill_id != 0) {
+        index_by_fill_ids.add(fill_id);
+      }
+    }
+    return index_by_fill_ids;
+  }
+  VectorSet<int> index_by_fill_ids;
+  for (const int i : fill_ids.index_range()) {
+    const int fill_id = fill_ids[i];
+    if (fill_id != 0) {
+      index_by_fill_ids.add(fill_id);
+    }
+  }
+  return index_by_fill_ids;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Gather Realize Tasks
  * \{ */
@@ -711,11 +744,7 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
           gather_info.r_offsets.curves_offsets.point += curves->geometry.point_num;
           gather_info.r_offsets.curves_offsets.curve += curves->geometry.curve_num;
           gather_info.r_offsets.curves_offsets.custom_knot += curves->geometry.custom_knot_num;
-
-          const bke::AttributeAccessor attributes = curves->geometry.wrap().attributes();
-          const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
-          gather_info.r_offsets.curves_offsets.fill_id +=
-              bke::greasepencil::get_next_available_fill_id(fill_ids);
+          gather_info.r_offsets.curves_offsets.fill_id += curve_info.index_by_fill_id.size();
         }
         break;
       }
@@ -1910,6 +1939,7 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
           fill_id_attribute.varray.type().is<int>())
       {
         curve_info.stored_fill_ids = fill_id_attribute.varray.typed<int>();
+        curve_info.index_by_fill_id = gather_all_fill_ids(curve_info.stored_fill_ids);
       }
     }
 
@@ -2035,8 +2065,9 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
   if (!all_dst_fill_ids.is_empty()) {
     MutableSpan<int> dst_fill_ids = all_dst_fill_ids.slice(dst_curve_range);
     const VArray<int> &src_fill_ids = curves_info.stored_fill_ids;
+    const VectorSet<int> &index_by_fill_id = curves_info.index_by_fill_id;
 
-    if (src_fill_ids.is_empty()) {
+    if (src_fill_ids.is_empty() || index_by_fill_id.is_empty()) {
       dst_fill_ids.fill(0);
     }
     else {
@@ -2047,7 +2078,8 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
             dst_fill_ids[i] = 0;
           }
           else {
-            dst_fill_ids[i] = task.start_indices.fill_id + src_fill_id;
+            const int fill_id_index = index_by_fill_id.index_of(src_fill_id);
+            dst_fill_ids[i] = task.start_indices.fill_id + fill_id_index + 1;
           }
         }
       });
