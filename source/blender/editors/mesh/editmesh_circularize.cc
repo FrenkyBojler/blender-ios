@@ -66,8 +66,13 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
     bool check_mirror = false;
     for (ModifierData &md : obedit->modifiers) {
       if (md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime)) {
-        check_mirror = true;
-        break;
+        MirrorModifierData *mmd = reinterpret_cast<MirrorModifierData *>(&md);
+        /* We should only enable check_mirror when merge is on.
+         * It doesn't make sense to create a half circle when merge is off. */
+        if (!(mmd->flag & MOD_MIR_NO_MERGE)) {
+          check_mirror = true;
+          break;
+        }
       }
     }
 
@@ -125,7 +130,7 @@ void MESH_OT_circularize(wmOperatorType *ot)
 {
   PropertyRNA *prop;
   /* identifiers */
-  ot->name = "Circularize";
+  ot->name = "To circle";
   ot->description = "Shape selected geometry into a circle";
   ot->idname = "MESH_OT_circularize";
 
