@@ -1258,6 +1258,7 @@ class VIEW3D_MT_transform_base:
         layout.separator()
 
         layout.operator("transform.tosphere", text="To Sphere")
+        layout.operator("mesh.circularize", text="To Circle")
         layout.operator("transform.shear", text="Shear")
         layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
@@ -1287,7 +1288,7 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
         # generic...
         layout = self.layout
         if context.mode == 'EDIT_MESH':
-            layout.operator("mesh.circularize", text="Circularize")
+            layout.operator("mesh.circularize", text="To Circle")
             layout.operator("transform.shrink_fatten", text="Shrink/Fatten")
             layout.operator("transform.skin_resize")
         elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES', 'EDIT_POINTCLOUD'}:
@@ -4539,7 +4540,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
 
-            col.operator("mesh.circularize", text="Circularize")
+            col.operator("mesh.circularize", text="To Circle")
             col.separator()
 
             col.operator("mesh.extrude_vertices_move", text="Extrude Vertices")
@@ -4592,7 +4593,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
-            col.operator("mesh.circularize", text="Circularize")
+            col.operator("mesh.circularize", text="To Circle")
 
             col.separator()
 
@@ -4665,7 +4666,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
-            col.operator("mesh.circularize", text="Circularize")
+            col.operator("mesh.circularize", text="To Circle")
 
             col.separator()
 
