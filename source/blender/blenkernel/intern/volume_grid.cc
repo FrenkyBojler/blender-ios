@@ -13,6 +13,7 @@
 #ifdef WITH_OPENVDB
 #  include <openvdb/Grid.h>
 #  include <openvdb/tools/Prune.h>
+#  include <openvdb/tools/ValueTransformer.h>
 #endif
 
 namespace blender::bke::volume_grid {
@@ -703,15 +704,15 @@ openvdb::GridBase::Ptr create_grid_with_topology(const openvdb::MaskTree &topolo
                                                  const VolumeGridType grid_type)
 {
   openvdb::GridBase::Ptr grid;
-  BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
-    using GridT = typename decltype(type_tag)::type;
-    using TreeT = typename GridT::TreeType;
-    using ValueType = typename TreeT::ValueType;
-    const ValueType background{};
-    auto tree = std::make_shared<TreeT>(topology, background, openvdb::TopologyCopy());
-    grid = openvdb::createGrid(std::move(tree));
-    grid->setTransform(transform.copy());
-  });
+  BKE_volume_grid_type_to_static_type(
+      grid_type, [&]<std::derived_from<openvdb::GridBase> GridT>() {
+        using TreeT = typename GridT::TreeType;
+        using ValueType = typename TreeT::ValueType;
+        const ValueType background{};
+        auto tree = std::make_shared<TreeT>(topology, background, openvdb::TopologyCopy());
+        grid = openvdb::createGrid(std::move(tree));
+        grid->setTransform(transform.copy());
+      });
   return grid;
 }
 
@@ -799,6 +800,22 @@ void set_grid_background(openvdb::GridBase &grid_base, const GPointer value)
 
     BLI_assert(value.type()->size == sizeof(ValueType));
     tree.root().setBackground(*static_cast<const ValueType *>(value.get()), true);
+  });
+}
+
+void set_inactive_values(openvdb::GridBase &grid_base, const GPointer value)
+{
+  to_typed_grid(grid_base, [&](auto &grid) {
+    using GridT = std::decay_t<decltype(grid)>;
+    using ValueType = typename GridT::ValueType;
+    auto &tree = grid.tree();
+
+    BLI_assert(value.type()->size == sizeof(ValueType));
+    const ValueType &new_value = *static_cast<const ValueType *>(value.get());
+
+    openvdb::tools::foreach(tree.beginValueOff(), [&](const typename GridT::ValueOffIter &iter) {
+      iter.setValue(new_value);
+    });
   });
 }
 

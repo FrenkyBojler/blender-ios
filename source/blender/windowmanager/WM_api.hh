@@ -31,6 +31,8 @@
 #include "WM_keymap.hh"
 #include "WM_types.hh"
 
+class GHOST_IContext;
+
 namespace blender {
 
 struct ARegion;
@@ -385,10 +387,10 @@ void WM_window_ensure_active_view_layer(wmWindow *win) ATTR_NONNULL(1);
 
 bool WM_window_is_temp_screen(const wmWindow *win) ATTR_WARN_UNUSED_RESULT;
 
-void *WM_system_gpu_context_create();
-void WM_system_gpu_context_dispose(void *context);
-void WM_system_gpu_context_activate(void *context);
-void WM_system_gpu_context_release(void *context);
+GHOST_IContext *WM_system_gpu_context_create();
+void WM_system_gpu_context_dispose(GHOST_IContext *context);
+void WM_system_gpu_context_activate(GHOST_IContext *context);
+void WM_system_gpu_context_release(GHOST_IContext *context);
 
 /** #WM_window_open alignment. */
 enum eWindowAlignment {
@@ -1893,7 +1895,11 @@ bool WM_jobs_is_running(const wmJob *wm_job);
 bool WM_jobs_is_stopped(const wmWindowManager *wm, const void *owner);
 void *WM_jobs_customdata_get(wmJob *wm_job);
 void WM_jobs_customdata_set(wmJob *wm_job, void *customdata, void (*free)(void *));
-void WM_jobs_timer(wmJob *wm_job, double time_step, unsigned int note, unsigned int endnote);
+void WM_jobs_timer(wmJob *wm_job,
+                   double time_step,
+                   unsigned int note,
+                   unsigned int endnote,
+                   void (*timer_step)(void *) = nullptr);
 void WM_jobs_delay_start(wmJob *wm_job, double delay_time);
 
 using wm_jobs_start_callback = void (*)(void *custom_data, wmJobWorkerStatus *worker_status);
@@ -2064,6 +2070,7 @@ const char *WM_window_cursor_keymap_status_get(const wmWindow *win,
                                                int button_index,
                                                int type_index);
 void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win);
+void WM_window_cursor_keymap_status_free(wmWindow *win);
 
 void WM_window_status_area_tag_redraw(wmWindow *win);
 /**
