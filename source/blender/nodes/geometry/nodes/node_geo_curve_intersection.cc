@@ -98,7 +98,52 @@ static void node_declare(NodeDeclarationBuilder &b)
            params.menu_input_may_be("Mode", int16_t(IntersectionMode::Surface));
   };
 
-  b.add_default_layout();
+  b.use_custom_socket_order();
+
+  /* Outputs. */
+
+  b.add_output<decl::Geometry>("Points");
+  b.add_output<decl::Int>("Curve Index").field_on_all().usage_inference(enable_output);
+  b.add_output<decl::Vector>("Direction")
+      .field_on_all()
+      .usage_inference(enable_output)
+      .description(
+          "The direction of the curve at the intersection point. For project mode, this is the "
+          "projected direction");
+  b.add_output<decl::Float>("Factor")
+      .field_on_all()
+      .usage_inference(enable_output)
+      .description("The portion of the spline's total length at the intersection point");
+  b.add_output<decl::Float>("Length")
+      .field_on_all()
+      .usage_inference(enable_output)
+      .description("The distance along the spline at the intersection point");
+  b.add_output<decl::Vector>("Normal")
+      .field_on_all()
+      .usage_by_menu("Mode", int16_t(IntersectionMode::Surface))
+      .description("The normal of surface or plane intersection");
+  b.add_output<decl::Vector>("Pair Position")
+      .field_on_all()
+      .usage_by_menu("Paired Data Mode",
+                     {int16_t(PairData::FullPair), int16_t(PairData::HalfPair)})
+      .description("Position of the oppposing pair point");
+  b.add_output<decl::Vector>("Pair Direction")
+      .field_on_all()
+      .usage_by_menu("Paired Data Mode",
+                     {int16_t(PairData::FullPair), int16_t(PairData::HalfPair)})
+      .description(
+          "Direction of the oppposing pair point. For project mode, this is the "
+          "projected direction");
+  b.add_output<decl::Bool>("Pair")
+      .field_on_all()
+      .usage_by_menu("Paired Data Mode", {int16_t(PairData::FullPair)})
+      .description("If the intersection is one of a pair of matching intersections");
+  b.add_output<decl::Int>("Pair ID")
+      .field_on_all()
+      .usage_by_menu("Paired Data Mode", {int16_t(PairData::FullPair)})
+      .description("Unique ID value for each pair");
+
+  /* Menus. */
   b.add_input<decl::Menu>("Mode")
       .default_value(IntersectionMode::Curve)
       .static_items(mode_items)
@@ -109,6 +154,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .usage_by_menu("Mode",
                      {int16_t(IntersectionMode::Curve), int16_t(IntersectionMode::Curve_Project)})
       .optional_label();
+
+  /* Inputs. */
   b.add_input<decl::Geometry>("Curve").supported_type(GeometryComponent::Type::Curve);
   b.add_input<decl::Geometry>("Mesh")
       .only_realized_data()
@@ -154,46 +201,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(pi_2_f)
       .description("Maximum shortest angle for intersections");
 
-  b.add_output<decl::Geometry>("Points");
-  b.add_output<decl::Int>("Curve Index").field_on_all().usage_inference(enable_output);
-  b.add_output<decl::Vector>("Direction")
-      .field_on_all()
-      .usage_inference(enable_output)
+  /* Panel for advanced settings. */
+  PanelDeclarationBuilder &advanced = b.add_panel("Advanced").default_closed(true);
+  advanced.add_input<decl::Bool>("Use Unsorted Data")
+      .default_value(false)
       .description(
-          "The direction of the curve at the intersection point. For project mode, this is the "
-          "projected direction");
-  b.add_output<decl::Float>("Factor")
-      .field_on_all()
-      .usage_inference(enable_output)
-      .description("The portion of the spline's total length at the intersection point");
-  b.add_output<decl::Float>("Length")
-      .field_on_all()
-      .usage_inference(enable_output)
-      .description("The distance along the spline at the intersection point");
-  b.add_output<decl::Vector>("Normal")
-      .field_on_all()
-      .usage_by_menu("Mode", int16_t(IntersectionMode::Surface))
-      .description("The normal of surface or plane intersection");
-  b.add_output<decl::Vector>("Pair Position")
-      .field_on_all()
-      .usage_by_menu("Paired Data Mode",
-                     {int16_t(PairData::FullPair), int16_t(PairData::HalfPair)})
-      .description("Position of the oppposing pair point");
-  b.add_output<decl::Vector>("Pair Direction")
-      .field_on_all()
-      .usage_by_menu("Paired Data Mode",
-                     {int16_t(PairData::FullPair), int16_t(PairData::HalfPair)})
-      .description(
-          "Direction of the oppposing pair point. For project mode, this is the "
-          "projected direction");
-  b.add_output<decl::Bool>("Pair")
-      .field_on_all()
-      .usage_by_menu("Paired Data Mode", {int16_t(PairData::FullPair)})
-      .description("If the intersection is one of a pair of matching intersections");
-  b.add_output<decl::Int>("Pair ID")
-      .field_on_all()
-      .usage_by_menu("Paired Data Mode", {int16_t(PairData::FullPair)})
-      .description("Unique ID value for each pair");
+          "Turn off sorting. This will provide faster operation at the expense of unreliable "
+          "IDs.");
 }
 
 /* Attribute outputs. */
@@ -1232,8 +1246,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     /* Gather and sort data for attributes. */
     if (r_data.position.size() > 0) {
+      const bool unsorted = params.extract_input<bool>("Use Unsorted Data");
 
-      IntersectionData sorted_data = sort_intersection_data(r_data, attribute_outputs);
+      IntersectionData sorted_data = unsorted ? r_data :
+                                                sort_intersection_data(r_data, attribute_outputs);
 
       PointCloud *pointcloud = BKE_pointcloud_new_nomain(sorted_data.position.size());
       MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
