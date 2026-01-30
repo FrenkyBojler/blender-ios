@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2026-01-26 11:28+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -5766,6 +5766,22 @@ msgid "Collection"
 msgstr "Kokoelma"
 
 
+msgid "Font"
+msgstr "Fontti"
+
+
+msgid "Text"
+msgstr "Teksti"
+
+
+msgid "Mask"
+msgstr "Maski"
+
+
+msgid "Sound"
+msgstr "Ääni"
+
+
 msgid "Logical OR"
 msgstr "Looginen TAI"
 
@@ -6256,10 +6272,6 @@ msgstr "Polku"
 
 msgid "Follow"
 msgstr "Seuraa"
-
-
-msgid "Font"
-msgstr "Fontti"
 
 
 msgid "X Offset"
@@ -7027,10 +7039,6 @@ msgid "Sequencer Editors"
 msgstr "Sekvenssieditorit"
 
 
-msgid "Sound"
-msgstr "Ääni"
-
-
 msgid "Memory"
 msgstr "Muisti"
 
@@ -7236,44 +7244,32 @@ msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
-msgid "Mask"
-msgstr "Maski"
+msgid "Read"
+msgstr "Lue"
 
 
-msgid "Select More/Less"
-msgstr "Valitse enemmän/vähemmän"
-
-
-msgid "Metaball"
-msgstr "Metapallo"
-
-
-msgid "Light"
-msgstr "Valo"
-
-
-msgid "Light Probe"
-msgstr "Valoluotain"
-
-
-msgid "Add Image"
-msgstr "Lisää kuva"
-
-
-msgid "Track"
-msgstr "Raide"
+msgid "Write"
+msgstr "Kirjoita"
 
 
 msgid "Show/Hide"
 msgstr "Näytä/Piilota"
 
 
-msgid "Hooks"
-msgstr "Koukut"
+msgid "Instances"
+msgstr "Instanssit"
 
 
-msgid "Random Mask"
-msgstr "Satunnainen maski"
+msgid "Names"
+msgstr "Nimet"
+
+
+msgid "Import"
+msgstr "Tuo"
+
+
+msgid "Metaball"
+msgstr "Metapallo"
 
 
 msgid "Utilities"
@@ -7284,40 +7280,40 @@ msgid "Math"
 msgstr "Matematiikka"
 
 
-msgid "Names"
-msgstr "Nimet"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Mesh Select Mode"
 msgstr "Muodon valintatila"
 
 
-msgid "Text"
-msgstr "Teksti"
+msgid "Random Mask"
+msgstr "Satunnainen maski"
 
 
-msgid "Read"
-msgstr "Lue"
+msgid "Hooks"
+msgstr "Koukut"
 
 
-msgid "Write"
-msgstr "Kirjoita"
+msgid "Track"
+msgstr "Raide"
 
 
-msgid "Instances"
-msgstr "Instanssit"
+msgid "Add Image"
+msgstr "Lisää kuva"
 
 
-msgid "Import"
-msgstr "Tuo"
+msgid "Light Probe"
+msgstr "Valoluotain"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Light"
+msgstr "Valo"
 
 
-msgid "UV Mapping"
-msgstr "UV-kartoittaminen"
+msgid "Select More/Less"
+msgstr "Valitse enemmän/vähemmän"
 
 
 msgid "Select Similar"
@@ -7330,6 +7326,10 @@ msgstr "Valitse kaikki piirteen mukaan"
 
 msgid "Select Loops"
 msgstr "Valitse silmukat"
+
+
+msgid "UV Mapping"
+msgstr "UV-kartoittaminen"
 
 
 msgid "Basic"
@@ -8203,16 +8203,16 @@ msgid "Blur Attribute"
 msgstr "Sumennusattribuutti"
 
 
+msgid "Original"
+msgstr "Alkuperäinen"
+
+
 msgid "Capture Attribute"
 msgstr "Sieppaa attribuutti"
 
 
 msgid "Collection Info"
 msgstr "Kokoelmainfo"
-
-
-msgid "Original"
-msgstr "Alkuperäinen"
 
 
 msgid "Corners of Face"
@@ -11858,6 +11858,11 @@ msgstr "Käännä"
 
 
 msgctxt "WindowManager"
+msgid "Snap"
+msgstr "Napsauta"
+
+
+msgctxt "WindowManager"
 msgid "Forward"
 msgstr "Eteen"
 
@@ -12040,11 +12045,6 @@ msgstr "Poista valinta"
 
 
 msgctxt "WindowManager"
-msgid "Snap"
-msgstr "Napsauta"
-
-
-msgctxt "WindowManager"
 msgid "Rotate Normals"
 msgstr "Kierrä Normaalit"
 
@@ -12165,20 +12165,20 @@ msgid "Limit to"
 msgstr "Rajoita"
 
 
-msgid "No folder selected"
-msgstr "Ei valittuja kansioita"
-
-
-msgid "No files selected"
-msgstr "Ei valittuja tiedostoja"
-
-
 msgid "No file chosen"
 msgstr "Tiedostoa ei valittu"
 
 
 msgid "{} does not exist"
 msgstr "{} ei ole olemassa"
+
+
+msgid "No folder selected"
+msgstr "Ei valittuja kansioita"
+
+
+msgid "No files selected"
+msgstr "Ei valittuja tiedostoja"
 
 
 msgid "Deleted {} nodes"
@@ -13364,6 +13364,11 @@ msgstr "Juuret"
 
 
 msgctxt "Operator"
+msgid "Edge Loops"
+msgstr "Reunasilmukat"
+
+
+msgctxt "Operator"
 msgid "First"
 msgstr "Ensimmäinen"
 
@@ -13490,11 +13495,6 @@ msgstr "Heikko"
 msgctxt "Operator"
 msgid "Strong"
 msgstr "Vahva"
-
-
-msgctxt "Operator"
-msgid "Edge Loops"
-msgstr "Reunasilmukat"
 
 
 msgctxt "Operator"
@@ -13642,6 +13642,10 @@ msgstr "Todellinen normaali"
 
 msgid "AOV"
 msgstr "AOV"
+
+
+msgid "Mesh has no UV data"
+msgstr "Muodolla ei ole UV-dataa"
 
 
 msgid "Invalid Input Error"
@@ -14677,10 +14681,6 @@ msgid "OneDrive"
 msgstr "OneDrive"
 
 
-msgid "Movies"
-msgstr "Elokuvat"
-
-
 msgid "Cursor X"
 msgstr "X-kursori"
 
@@ -14755,6 +14755,10 @@ msgstr "Skaalaa kuva uuteen kokoon"
 
 msgid "No packed file"
 msgstr "Ei pakattua tiedostoa"
+
+
+msgid "No data to paste"
+msgstr "Ei dataa liitettäväksi"
 
 
 msgid "No Items"
@@ -14871,10 +14875,6 @@ msgstr "Käyttäjien määrä"
 
 msgid "No active item to rename"
 msgstr "Ei aktiivista esinettä uudelleen nimettäväksi"
-
-
-msgid "No data to paste"
-msgstr "Ei dataa liitettäväksi"
 
 
 msgid "Missing library"
@@ -15182,10 +15182,6 @@ msgstr "Muotoavainta ei löydy"
 
 msgid "Could not remove ShapeKey"
 msgstr "Muotoavainta ei kyetty poistamaan"
-
-
-msgid "Mesh has no UV data"
-msgstr "Muodolla ei ole UV-dataa"
 
 
 msgid "Scripting"
@@ -15505,6 +15501,14 @@ msgid "Key Color"
 msgstr "Avainväri"
 
 
+msgid "Cb"
+msgstr "Cb"
+
+
+msgid "Cr"
+msgstr "Cr"
+
+
 msgid "Upper Left"
 msgstr "Ylävase"
 
@@ -15555,14 +15559,6 @@ msgstr "Tekijä"
 
 msgid "Offset Y"
 msgstr "Y-siirros"
-
-
-msgid "Cb"
-msgstr "Cb"
-
-
-msgid "Cr"
-msgstr "Cr"
 
 
 msgid "Column 1 Row 1"

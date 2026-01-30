@@ -824,9 +824,7 @@ static void add_single_point_and_curve(const PenToolOperation &ptd,
   const int material_index = ptd.vc.obact->actcol - 1;
   if (material_index != -1) {
     bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
-        "material_index",
-        bke::AttrDomain::Curve,
-        bke::AttributeInitVArray(VArray<int>::from_single(0, curves.curves_num())));
+        "material_index", bke::AttrDomain::Curve, bke::AttributeInitValue(0));
     material_indexes.span.last() = material_index;
     material_indexes.finish();
     curve_attributes_to_skip.add("material_index");
@@ -1360,14 +1358,14 @@ class CurvesPenToolOperation : public PenToolOperation {
 
     Object *object = CTX_data_active_object(C);
     if (object && object_has_editable_curves(bmain, *object)) {
-      unique_curves.add_new(static_cast<Curves *>(object->data));
+      unique_curves.add_new(id_cast<Curves *>(object->data));
       this->layer_to_world_per_curves.append(object->object_to_world());
       this->active_drawing_index = 0;
     }
 
     CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
       if (object_has_editable_curves(bmain, *object)) {
-        if (unique_curves.add(static_cast<Curves *>(object->data))) {
+        if (unique_curves.add(id_cast<Curves *>(object->data))) {
           this->layer_to_world_per_curves.append(object->object_to_world());
         }
       }

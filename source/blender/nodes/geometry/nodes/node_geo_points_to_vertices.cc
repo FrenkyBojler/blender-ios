@@ -56,7 +56,7 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
   if (selection.size() == points->totpoint) {
     /* Create a mesh without positions so the attribute can be shared. */
     mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-    CustomData_free_layer_named(&mesh->vert_data, "position");
+    mesh->attribute_storage.wrap().remove("position");
     mesh->verts_num = selection.size();
   }
   else {
@@ -106,7 +106,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodePointsToVertices", GEO_NODE_POINTS_TO_VERTICES);
   ntype.ui_name = "Points to Vertices";
@@ -115,7 +115,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

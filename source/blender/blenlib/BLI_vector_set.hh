@@ -7,9 +7,11 @@
 /** \file
  * \ingroup bli
  *
- * A `blender::VectorSet<Key>` is an ordered container for elements of type `Key`. It has the same
- * interface as `blender::Set` with the following extensions:
+ * A `VectorSet<Key>` is an ordered container for elements of type `Key`. It has the same
+ * interface as `Set` with the following extensions:
  * - The insertion order of keys is maintained as long as no elements are removed.
+ *   - Once elements are removed, the order of keys is only maintained for the elements added
+ *     _before_ any removed element.
  * - The keys are stored in a contiguous array.
  *
  * All core operations (add, remove and contains) can be done in O(1) amortized expected time.
@@ -22,8 +24,8 @@
  *   the keys are stored in a set. With a VectorSet, one can get a Span containing all keys
  *   without additional copies.
  *
- * blender::VectorSet is implemented using open addressing in a slot array with a power-of-two
- * size. Other than in blender::Set, a slot does not contain the key though. Instead it only
+ * VectorSet is implemented using open addressing in a slot array with a power-of-two
+ * size. Other than in Set, a slot does not contain the key though. Instead it only
  * contains an index into an array of keys that is stored separately.
  *
  * Some noteworthy information:
@@ -407,7 +409,9 @@ class VectorSet {
 
   /**
    * Deletes the key from the set. Returns true when the key existed in the set and is now removed.
-   * This might change the order of elements in the vector.
+   *
+   * This might change the order of elements in the vector. However, this will never affect the
+   * order of any element added _before_ the removed one.
    *
    * This is similar to std::unordered_set::erase.
    */

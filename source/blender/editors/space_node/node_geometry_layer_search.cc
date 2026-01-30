@@ -33,16 +33,19 @@
 
 #include "node_intern.hh"
 
-using blender::nodes::geo_eval_log::GeometryInfoLog;
+namespace blender {
 
-namespace blender::ed::space_node {
+using nodes::geo_eval_log::GeometryInfoLog;
+
+namespace ed::space_node {
 
 struct LayerSearchData {
   int32_t node_id;
   char socket_identifier[MAX_NAME];
 };
 
-/* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
+/* This class must not have a destructor, since it is used by buttons and freed with
+ * #MEM_delete_void. */
 BLI_STATIC_ASSERT(std::is_trivially_destructible_v<LayerSearchData>, "");
 
 static Vector<const std::string *> get_layer_names_from_context(const bContext &C,
@@ -198,7 +201,7 @@ void node_geometry_add_layer_search_button(const bContext & /*C*/,
   button_placeholder_set(but, placeholder);
 
   const bNodeSocket &socket = *static_cast<const bNodeSocket *>(socket_ptr.data);
-  LayerSearchData *data = MEM_callocN<LayerSearchData>(__func__);
+  LayerSearchData *data = MEM_new_zeroed<LayerSearchData>(__func__);
   data->node_id = node.identifier;
   STRNCPY_UTF8(data->socket_identifier, socket.identifier);
 
@@ -214,4 +217,6 @@ void node_geometry_add_layer_search_button(const bContext & /*C*/,
                          nullptr);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender
