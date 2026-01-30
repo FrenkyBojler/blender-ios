@@ -34,7 +34,7 @@ struct MultiresReshapeContext {
   Object *object;
 
   MultiresModifierData *mmd;
-
+  struct KeyBlock *basis_shape_key;
   /* Base mesh from original object.
    * NOTE: Does NOT include any leading modifiers in it. */
   Mesh *base_mesh;
