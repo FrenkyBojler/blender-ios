@@ -7,6 +7,8 @@
 
 #include "DNA_pointcloud_types.h"
 
+#include "BKE_attribute.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.hh"
@@ -246,6 +248,7 @@ struct Segment {
   float len_end;
   float curve_length;
   int pos_index;
+  int seg_index;
   int curve_index;
   bool is_cyclic_segment;
 };
@@ -253,6 +256,9 @@ struct Segment {
 /* Store data that will be used for attributes and sorting. */
 struct IntersectionData {
   Vector<float> sortkey;
+  Vector<int> pos_index_a;
+  Vector<int> pos_index_b;
+  Vector<float> lambda;
   Vector<float3> position;
   Vector<float> radius;
   Vector<int> curve_index;
@@ -270,6 +276,8 @@ struct IntersectionData {
 using ThreadLocalData = threading::EnumerableThreadSpecific<IntersectionData>;
 
 static void add_intersection_data(IntersectionData &data,
+                                  const int2 pos_index,
+                                  const float lambda,
                                   const float3 position,
                                   const float radius,
                                   const int curve_index,
@@ -288,9 +296,13 @@ static void add_intersection_data(IntersectionData &data,
   /* Create sortkey for index. Order by curve_index then factor. */
   const float sortkey = float(curve_index * 2) + factor;
   data.sortkey.append(sortkey);
-
   data.position.append(position);
   data.radius.append(radius);
+
+  data.pos_index_a.append(pos_index.x);
+  data.pos_index_b.append(pos_index.y);
+  data.lambda.append(lambda);
+
   if (attribute_outputs.hash) {
     const int hash = noise::hash(curve_index, noise::hash_float(length));
     data.hash.append(hash);
@@ -351,6 +363,10 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
   r_data.radius.reserve(new_size);
   r_data.sortkey.reserve(new_size);
 
+  r_data.pos_index_a.reserve(new_size);
+  r_data.pos_index_b.reserve(new_size);
+  r_data.lambda.reserve(new_size);
+
   if (attribute_outputs.hash) {
     r_data.hash.reserve(new_size);
   }
@@ -386,6 +402,10 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
     r_data.position.extend(local_data.position);
     r_data.radius.extend(local_data.radius);
     r_data.sortkey.extend(local_data.sortkey);
+
+    r_data.pos_index_a.extend(local_data.pos_index_a);
+    r_data.pos_index_b.extend(local_data.pos_index_b);
+    r_data.lambda.extend(local_data.lambda);
 
     if (attribute_outputs.hash) {
       r_data.hash.extend(local_data.hash);
@@ -611,6 +631,7 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
     const int segment_count = positions.size() - 1;
 
     auto add_segment = [&](const bool is_cyclic,
+                           const int pos_index,
                            const int index,
                            const float3 start,
                            const float3 end,
@@ -619,8 +640,9 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
                            const float len_start,
                            const float len_end) {
       Segment segment;
+      segment.pos_index = pos_index;
       segment.is_cyclic_segment = is_cyclic;
-      segment.pos_index = index;
+      segment.seg_index = index;
       segment.orig_start = start;
       segment.orig_end = end;
       segment.len_start = len_start;
@@ -644,7 +666,8 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
       const float radius_end = radii_by_curve[1 + index];
       const float len_start = (index == 0) ? 0.0f : lengths[index - 1];
       const float len_end = lengths[index];
-      add_segment(false, index, start, end, radius_start, radius_end, len_start, len_end);
+      add_segment(
+          false, points.first(), index, start, end, radius_start, radius_end, len_start, len_end);
     }
     if (cyclic[curve_i]) {
       const float3 start = positions.last();
@@ -653,7 +676,15 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
       const float radius_end = radii_by_curve.first();
       const float len_start = lengths[segment_count - 1];
       const float len_end = 1.0f;
-      add_segment(true, segment_count, start, end, radius_start, radius_end, len_start, len_end);
+      add_segment(true,
+                  points.last(),
+                  segment_count,
+                  start,
+                  end,
+                  radius_start,
+                  radius_end,
+                  len_start,
+                  len_end);
     }
   }
 
@@ -724,7 +755,8 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
                                                                            cyclic[curve_i]);
         const float length = src_curves.evaluated_length_total_for_curve(curve_i, cyclic[curve_i]);
 
-        auto add_closest = [&](const float3 a,
+        auto add_closest = [&](const int2 pos_index,
+                               const float3 a,
                                const float3 b,
                                const float len_start,
                                const float len_end,
@@ -745,8 +777,9 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
           }
 
           if (isect_line_plane_v3_crossing(a, b, plane_center, plane_direction, closest, lambda)) {
-
             add_intersection_data(local_data,
+                                  pos_index,
+                                  lambda,
                                   closest,
                                   math::interpolate(radius_start, radius_end, lambda),
                                   curve_i,
@@ -770,7 +803,8 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
           const float len_end = lengths[index];
           const float radius_start = radii_by_curve[index];
           const float radius_end = radii_by_curve[1 + index];
-          add_closest(a, b, len_start, len_end, radius_start, radius_end, length);
+          add_closest(
+              int2(index, 1 + index), a, b, len_start, len_end, radius_start, radius_end, length);
         }
         if (cyclic[curve_i]) {
           const float3 a = positions.last();
@@ -779,7 +813,14 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
           const float len_end = 1.0f;
           const float radius_start = radii_by_curve.last();
           const float radius_end = radii_by_curve.first();
-          add_closest(a, b, len_start, len_end, radius_start, radius_end, length);
+          add_closest(int2(positions.size() - 1, 0),
+                      a,
+                      b,
+                      len_start,
+                      len_end,
+                      radius_start,
+                      radius_end,
+                      length);
         }
       }
     });
@@ -867,19 +908,22 @@ static void set_curve_intersections_mesh(GeometrySet &mesh_set,
                   const float radius_at_isect = math::interpolate(
                       seg.radius_start, seg.radius_end, lambda);
                   const float3 closest_position = math::interpolate(seg.start, seg.end, lambda);
-                  add_intersection_data(local_data,
-                                        closest_position,
-                                        radius_at_isect,
-                                        seg.curve_index,
-                                        seg.direction,
-                                        len_at_isect,
-                                        seg.curve_length,
-                                        normal,
-                                        float3(0.0f),
-                                        float3(0.0f),
-                                        false,
-                                        0,
-                                        attribute_outputs);
+                  add_intersection_data(
+                      local_data,
+                      int2(seg.pos_index, seg.is_cyclic_segment ? 0 : 1 + seg.pos_index),
+                      lambda,
+                      closest_position,
+                      radius_at_isect,
+                      seg.curve_index,
+                      seg.direction,
+                      len_at_isect,
+                      seg.curve_length,
+                      normal,
+                      float3(0.0f),
+                      float3(0.0f),
+                      false,
+                      0,
+                      attribute_outputs);
                 }
               });
         }
@@ -934,9 +978,9 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
               const bool calc_all = (all_intersect && !same_curve);
               /* Skip adjecent segments in same curve. */
               const bool calc_self = (self_intersect && same_curve &&
-                                      ((math::abs(ab.pos_index - cd.pos_index) > 1) &&
-                                       !((ab.pos_index == 0 && cd.is_cyclic_segment) ||
-                                         (cd.pos_index == 0 && ab.is_cyclic_segment))));
+                                      ((math::abs(ab.seg_index - cd.seg_index) > 1) &&
+                                       !((ab.seg_index == 0 && cd.is_cyclic_segment) ||
+                                         (cd.seg_index == 0 && ab.is_cyclic_segment))));
               if (calc_all || calc_self) {
                 const float distance = use_radius ?
                                            math::midpoint(ab.radius_start, ab.radius_end) +
@@ -961,6 +1005,8 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                   }
                   add_intersection_data(
                       local_data,
+                      int2(ab.pos_index, ab.is_cyclic_segment ? 0 : 1 + ab.pos_index),
+                      isectinfo.lambda_ab,
                       closest_ab,
                       math::interpolate(ab.radius_start, ab.radius_end, isectinfo.lambda_ab),
                       ab.curve_index,
@@ -980,6 +1026,8 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                   {
                     add_intersection_data(
                         local_data,
+                        int2(cd.pos_index, cd.is_cyclic_segment ? 0 : 1 + cd.pos_index),
+                        isectinfo.lambda_cd,
                         closest_cd,
                         math::interpolate(cd.radius_start, cd.radius_end, isectinfo.lambda_cd),
                         cd.curve_index,
@@ -1025,6 +1073,10 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
   IntersectionData r_data;
   r_data.position.reserve(data_size);
   r_data.radius.reserve(data_size);
+
+  r_data.pos_index_a.reserve(data_size);
+  r_data.pos_index_b.reserve(data_size);
+  r_data.lambda.reserve(data_size);
 
   if (attribute_outputs.hash) {
     r_data.hash.reserve(data_size);
@@ -1080,6 +1132,11 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
 
     r_data.position.append(data.position[key_index]);
     r_data.radius.append(data.radius[key_index]);
+
+    r_data.pos_index_a.append(data.pos_index_a[key_index]);
+    r_data.pos_index_b.append(data.pos_index_b[key_index]);
+    r_data.lambda.append(data.lambda[key_index]);
+
     if (attribute_outputs.curve_index) {
       r_data.curve_index.append(data.curve_index[key_index]);
     }
@@ -1110,6 +1167,36 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
   }
   BLI_assert(data.position.size() == r_data.position.size());
   return r_data;
+}
+
+static void calc_attributes(const AttributeAccessor src_attributes,
+                            const AttrDomain src_domain,
+                            const AttrDomain dst_domain,
+                            const AttributeFilter &attribute_filter,
+                            const Span<int> indices_a,
+                            const Span<int> indices_b,
+                            const Span<float> factors,
+                            MutableAttributeAccessor dst_attributes)
+{
+  src_attributes.foreach_attribute([&](const AttributeIter &iter) {
+    if (iter.domain != src_domain) {
+      return;
+    }
+    if (iter.data_type == bke::AttrType::String) {
+      return;
+    }
+    if (attribute_filter.allow_skip(iter.name)) {
+      return;
+    }
+    const GAttributeReader src = iter.get(src_domain);
+    GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
+        iter.name, dst_domain, iter.data_type);
+    if (!dst) {
+      return;
+    }
+    bke::attribute_math::gather_mix(src.varray, indices_a, indices_b, factors, dst.span);
+    dst.finish();
+  });
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -1242,8 +1329,6 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
     }
 
-    geometry_set.clear();
-
     /* Gather and sort data for attributes. */
     if (r_data.position.size() > 0) {
       const bool unsorted = params.extract_input<bool>("Use Unsorted Data");
@@ -1253,8 +1338,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
       PointCloud *pointcloud = BKE_pointcloud_new_nomain(sorted_data.position.size());
       MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
-
-      geometry_set.replace_pointcloud(pointcloud);
 
       /* Builtin attributes. */
       SpanAttributeWriter<float3> point_positions =
@@ -1266,6 +1349,16 @@ static void node_geo_exec(GeoNodeExecParams params)
           "radius", AttrDomain::Point);
       point_radii.span.copy_from(sorted_data.radius);
       point_radii.finish();
+
+      /* Gather and copy attributes. */
+      calc_attributes(src_curves.attributes(),
+                      AttrDomain::Point,
+                      AttrDomain::Point,
+                      bke::attribute_filter_from_skip_ref({"position", "radius"}),
+                      sorted_data.pos_index_a.as_span(),
+                      sorted_data.pos_index_b.as_span(),
+                      sorted_data.lambda.as_span(),
+                      attributes);
 
       /* Output attributes. */
       if (attribute_outputs.curve_index) {
@@ -1333,6 +1426,11 @@ static void node_geo_exec(GeoNodeExecParams params)
         pair_id.span.copy_from(sorted_data.pair_id);
         pair_id.finish();
       }
+      geometry_set.clear();
+      geometry_set.replace_pointcloud(pointcloud);
+    }
+    else {
+      geometry_set.clear();
     }
   });
 

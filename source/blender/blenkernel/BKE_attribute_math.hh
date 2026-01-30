@@ -684,8 +684,28 @@ template<typename T> using DefaultMixer = typename DefaultMixerStruct<T>::type;
  * used to avoid templating the same logic for each type in many places.
  * \{ */
 
+template<typename T>
+inline void gather_mix(const VArray<T> &src,
+                       const Span<int> map,
+                       const Span<int> map2,
+                       const Span<float> factors,
+                       MutableSpan<T> dst,
+                       const int64_t grain_size = 4096)
+{
+  BLI_assert(indices_a.size() == dst.size());
+  devirtualize_varray(src, [&](const auto &src) {
+    threading::parallel_for(map.index_range(), grain_size, [&](const IndexRange range) {
+      for (const int64_t i : range) {
+        dst[i] = mix2(factors[i], src[map[i]], src[map2[i]]);
+      }
+    });
+  });
+}
+
 void gather(GSpan src, Span<int> map, GMutableSpan dst);
 void gather(const GVArray &src, Span<int> map, GMutableSpan dst);
+void gather_mix(
+    const GVArray &src, Span<int> map, Span<int> map2, Span<float> factors, GMutableSpan dst);
 void gather_group_to_group(OffsetIndices<int> src_offsets,
                            OffsetIndices<int> dst_offsets,
                            const IndexMask &selection,

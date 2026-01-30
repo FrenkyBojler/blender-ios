@@ -268,6 +268,17 @@ void gather(const GVArray &src, const Span<int> map, GMutableSpan dst)
       src.type(), [&]<typename T>() { array_utils::gather(src.typed<T>(), map, dst.typed<T>()); });
 }
 
+void gather_mix(const GVArray &src,
+                const Span<int> map,
+                const Span<int> map2,
+                const Span<float> factors,
+                GMutableSpan dst)
+{
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
+    gather_mix(src.typed<T>(), map, map2, factors, dst.typed<T>());
+  });
+}
+
 void gather_group_to_group(const OffsetIndices<int> src_offsets,
                            const OffsetIndices<int> dst_offsets,
                            const IndexMask &selection,
