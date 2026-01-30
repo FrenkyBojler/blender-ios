@@ -294,6 +294,7 @@ float raytrace_screen_2(float3 vs_origin,
   float2 extent = float2(textureSize(ob_id_tx, 0).xy);
   float2 hiz_uv_scale = extent / float2(textureSize(hiz_tx, 0));
 #endif
+  float2 hiz_texel_to_uv = (float2(1.0f) / extent) * hiz_uv_scale;
 
   float2 total_pixel_delta = abs(start.xy - end.xy) * extent;
   /* Number of steps required to trace a fully contiguous line. */
@@ -326,8 +327,8 @@ float raytrace_screen_2(float3 vs_origin,
      * - Use the furthest one for intersection check.
      * - Use the closest one for thickness check. */
     float hit_depth_point = texelFetch(hiz_tx, int2(texel), 0).r;
-    float2 uv = step.xy * hiz_uv_scale;
-    float4 depth4 = textureGather(hiz_tx, uv);
+    float2 gather_uv = round(texel) * hiz_texel_to_uv;
+    float4 depth4 = textureGather(hiz_tx, gather_uv);
     float2 bilinear_coords = fract(texel - 0.5f);
     float hit_depth_linear = mix(mix(depth4.w, depth4.z, bilinear_coords.x),
                                  mix(depth4.x, depth4.y, bilinear_coords.x),
