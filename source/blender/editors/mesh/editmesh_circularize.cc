@@ -130,7 +130,7 @@ void MESH_OT_circularize(wmOperatorType *ot)
 {
   PropertyRNA *prop;
   /* identifiers */
-  ot->name = "To circle";
+  ot->name = "To Circle";
   ot->description = "Shape selected geometry into a circle";
   ot->idname = "MESH_OT_circularize";
 
