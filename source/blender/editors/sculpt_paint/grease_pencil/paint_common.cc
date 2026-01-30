@@ -725,7 +725,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
 
   const eGP_Sculpt_SettingsFlag sculpt_settings_flag = eGP_Sculpt_SettingsFlag(
       scene.toolsettings->gp_sculpt.flag);
-  const bool use_auto_masking = (ts.gp_sculpt.flag & GP_SCULPT_SETT_FLAG_AUTOMASK) != 0;
+  const bool use_auto_masking = (sculpt_settings_flag & GP_SCULPT_SETT_FLAG_AUTOMASK) != 0;
   const bool use_auto_mask_stroke = use_auto_masking &&
                                     (sculpt_settings_flag & GP_SCULPT_SETT_FLAG_AUTOMASK_STROKE);
   const bool use_auto_mask_layer = use_auto_masking && (sculpt_settings_flag &
