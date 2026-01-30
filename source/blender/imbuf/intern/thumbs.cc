@@ -552,8 +552,10 @@ ImBuf *IMB_thumb_manage(const char *file_or_lib_path, ThumbSize size, ThumbSourc
 {
   if (source == THB_SOURCE_DIRECT) {
     const eFileAttributes file_attributes = BLI_file_attributes(file_or_lib_path);
-    /* Don't bring drives online just for getting the thumbnail. We do something similar below for
-     * normal thumbnails. The caller could force drives to become online first if needed. */
+    /* Don't trigger download files from online drives. Maybe less of a problem for
+     * #THE_SOURCE_DIRECT, since what we request is the actual image itself. For other sources this
+     * may download a bunch of large files like videos or blends, just to extract a thumbnail. But
+     * for now, keep the API consistent and do not trigger download of such files. */
     if (file_attributes & FILE_ATTR_OFFLINE) {
       return nullptr;
     }
