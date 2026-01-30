@@ -1814,7 +1814,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
         copy_v3_fl3(roll_vector, 0.0f, 0.0f, 1.0f);
         mul_m3_v3(imat, roll_vector);
       }
-      else { /* Object Space.  Assumes Y is Up.*/
+      else { /* Object Space.  Assumes Z is Up.*/
         base_mat[0][0] = 1.0f;
         base_mat[0][1] = 0.0f;
         base_mat[0][2] = 0.0f;
@@ -1831,7 +1831,8 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     case UP: {
       unit_m3(base_mat); /* Object Space. */
 
-      if (space == WORLD) { /* World Space. */
+      if (space == WORLD) {
+        /* Constructs a matrix that points Y up, Z Forward and X left-right. */
         float y_axis[3] = {0.0f, 0.0f, 1.0f};
         float z_axis[3] = {0.0f, -1.0f, 0.0f};
         float x_axis[3];
