@@ -553,6 +553,7 @@ void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
     version_clear_unused_strip_flags(*bmain);
   }
 
+  // todo(habib): move versioning to before linking
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 22)) {
     for (Scene &scene : bmain->scenes) {
       scene.r.mode |= R_SAVE_ENABLE;
@@ -764,19 +765,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
   }
-
-  // if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 22)) {
-  //   for (Scene &scene : bmain->scenes) {
-  //     scene.r.mode |= R_SAVE_ENABLE;
-
-  //     bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, &scene);
-  //     if (node_tree == nullptr) {
-  //       continue;
-  //     }
-
-  //     do_version_file_output_use_file_extension_recursive(*node_tree, scene);
-  //   }
-  // }
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
