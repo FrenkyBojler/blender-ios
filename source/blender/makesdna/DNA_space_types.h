@@ -816,13 +816,6 @@ typedef struct SpaceCaptions {
 
   short flags = 0;
   char _pad1[6];
-  
-  ListBaseT<CaptionsStripRef> current_strips = {nullptr, nullptr};
-  struct Scene *seq_scene = nullptr;
-  struct SeqTimelineChannel *active_channel = nullptr;
-  struct CaptionsStripRef *style_leader_strip = nullptr;
-  char cache_dirty = 0;
-  char _pad2[7];
 
   /** Keep last. */
   SpaceCaptions_Runtime *runtime = nullptr;

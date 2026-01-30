@@ -32,11 +32,12 @@ class CAPTIONS_PT_style(bpy.types.Panel):
     def draw(self, context):
         # TODO: Add style options for captions here
         space = context.space_data
-        strips = space.current_strips
+        scene = context.scene
+        strips = scene.sequence_editor.captions_strips
         if len(strips) <= 0:
             return
         
-        leader_strip = space.style_leader_strip
+        leader_strip = scene.sequence_editor.captions_style_leader
         if(leader_strip is None):
             return
         
@@ -96,9 +97,10 @@ class CAPTIONS_PT_list(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         space = context.space_data
+        strips = context.scene.sequence_editor.captions_strips
         
         # Iterate over the collection property
-        for item in space.current_strips:
+        for item in strips:
             self.draw_caption(layout, item)
         
         layout.operator("captions.caption_add", text="Add", icon='ADD')

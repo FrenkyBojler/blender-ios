@@ -3842,57 +3842,6 @@ static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
   return items;
 }
 
-static void rna_SpaceCaptionsEditor_current_strips_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-  SpaceCaptions *scaptions = (SpaceCaptions *)ptr->data;
-  
-   // TODO: For some reason, handling cache update here makes the fancy UI Animations disapper.
-  if (scaptions->cache_dirty) {
-    blender::update_current_strips(scaptions->seq_scene, scaptions);
-  }
-  
-  rna_iterator_listbase_begin(iter, ptr, &scaptions->current_strips, nullptr);
-}
-
-static PointerRNA rna_SpaceCaptionsEditor_current_strips_get(CollectionPropertyIterator *iter)
-{
-    StructRNA *srna = RNA_struct_find("Strip");
-    CaptionsStripRef *ref = (CaptionsStripRef *)rna_iterator_listbase_get(iter);
-    if (ref == nullptr || ref->strip == nullptr) {
-        return PointerRNA_NULL;
-    }
-
-    if (iter->parent.data == nullptr) {
-        return PointerRNA_NULL;
-    }
-    SpaceCaptions *scaptions = (SpaceCaptions *)iter->parent.data;
-    if (scaptions->seq_scene == nullptr) { // TODO: Remove if works
-        return PointerRNA_NULL;
-    }
-    Scene *scene = scaptions->seq_scene;
-    PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
-
-
-    return RNA_pointer_create_with_parent(scene_ptr, srna, ref->strip);
-}
-
-static void rna_SpaceCaptions_current_strips_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr)
-{
-
-  
-  /* Should use relations_invalidate_cache to make the system redraw the cache, but first we need to figure out how to get the right strip... */
-  ///blender::seq::relations_invalidate_cache(scene, (Strip *)ptr->data);
-}
-
-static PointerRNA rna_SpaceCaptions_style_leader_strip_get(PointerRNA *ptr)
-{
-  StructRNA *srna = RNA_struct_find("Strip");
-  SpaceCaptions *scaptions = (SpaceCaptions *)ptr->data;
-  Strip *strip = style_leader_strip_ensure(scaptions);
-  
-  return RNA_pointer_create_with_parent(*ptr, srna, strip);
-}
-
 }  // namespace blender
 
 #else
@@ -6926,44 +6875,12 @@ static void rna_def_space_text(BlenderRNA *brna)
   static void rna_def_space_captions(BlenderRNA *brna)
   {
     StructRNA *srna;
-    PropertyRNA *prop;
+    //PropertyRNA *prop;
     //FunctionRNA *func;
 
     srna = RNA_def_struct(brna, "SpaceCaptionsEditor", "Space");
     RNA_def_struct_sdna(srna, "SpaceCaptions");
-    RNA_def_struct_ui_text(srna, "Space Captions Editor", "Captions editor space data");
-
-    /* current_captions */ 
-    prop = RNA_def_property(srna, "current_strips", PROP_COLLECTION, PROP_NONE);
-    RNA_def_property_collection_sdna(prop, nullptr, "current_strips", nullptr);
-    RNA_def_property_struct_type(prop, "Strip");
-    RNA_def_property_ui_text(
-        prop, "Current Strips", "Current text strips manipulated by the captions space");
-    RNA_def_property_collection_funcs(prop,
-                                      "rna_SpaceCaptionsEditor_current_strips_begin",
-                                      nullptr,
-                                      nullptr,
-                                      "rna_SpaceCaptionsEditor_current_strips_get",
-                                      nullptr,
-                                      nullptr,
-                                      nullptr,
-                                      nullptr);
-    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER | NA_EDITED, "rna_SpaceCaptions_current_strips_update");
-
-  prop = RNA_def_property(srna, "cache_dirty", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "cache_dirty", 0);
-  RNA_def_property_ui_text(prop, "Is Cache Dirty", "Indicates whether the captions cache is dirty");
-  
-  prop = RNA_def_property(srna, "style_leader_strip", PROP_POINTER, PROP_NONE);
-  RNA_def_property_struct_type(prop, "Strip");
-  RNA_def_property_pointer_funcs(prop, 
-                                  "rna_SpaceCaptions_style_leader_strip_get",
-                                  nullptr, /* Read-only for the RNA */
-                                  nullptr, 
-                                  nullptr);
-  RNA_def_property_ui_text(prop, "Style Leader Strip", "The strip defining the caption style, all other strips will follow its style");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CAPTIONS, NULL);
-  
+    RNA_def_struct_ui_text(srna, "Space Captions Editor", "Captions editor space data");  
 
   rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI));
 }

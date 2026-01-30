@@ -46,12 +46,16 @@
 namespace blender {
 
 // Todo: Those helper methods should go captions_edit.cc or a new captions.cc, It'll stay here until the exact location of the captions in the UI is decided.
-CaptionsStripRef *style_leader_ref_ensure(SpaceCaptions *scaptions) {
+CaptionsStripRef *style_leader_ref_ensure(Editing *ed) {
   /* Currently, each time anything need acsses for the leader, it calls this method, which is quite heavy (loop through all of the refs each time.) */
+  if(ed == nullptr){
+    return nullptr;
+  }
+
   bool leader_valid = false;
-  if (scaptions->style_leader_strip != nullptr) {
-    for (CaptionsStripRef &ref : scaptions->current_strips) {
-      if ((&ref == scaptions->style_leader_strip && ref.strip != nullptr && scaptions->style_leader_strip->use_custom_style == false)) {
+  if (ed->captions_style_leader != nullptr) {
+    for (CaptionsStripRef &ref : ed->captions_strips) {
+      if ((&ref == ed->captions_style_leader && ref.strip != nullptr && ed->captions_style_leader->use_custom_style == false)) {
         leader_valid = true;
         break;
       }
@@ -60,28 +64,28 @@ CaptionsStripRef *style_leader_ref_ensure(SpaceCaptions *scaptions) {
   
   if (!leader_valid) {
     /* Search for new leader */
-    scaptions->style_leader_strip = nullptr;
-    for (CaptionsStripRef &ref : scaptions->current_strips) {
+    ed->captions_style_leader = nullptr;
+    for (CaptionsStripRef &ref : ed->captions_strips) {
       if (ref.strip != nullptr) {
-        scaptions->style_leader_strip = &ref;
+        ed->captions_style_leader = &ref;
         break;
       }
     }
   }
   
-  return scaptions->style_leader_strip;
+  return ed->captions_style_leader;
 }
 
-Strip *style_leader_strip_ensure(SpaceCaptions *scaptions) {
-  CaptionsStripRef *ref = style_leader_ref_ensure(scaptions);
+Strip *style_leader_strip_ensure(Editing *ed) {
+  CaptionsStripRef *ref = style_leader_ref_ensure(ed);
   if(ref == nullptr /*|| ref->strip == nullptr*/) {
     return nullptr;
   }
   return ref->strip;
 }
 
-CaptionsStripRef *get_ref_by_strip(struct SpaceCaptions *scaptions, struct Strip *strip) {
-  for (CaptionsStripRef &ref : scaptions->current_strips) {
+CaptionsStripRef *get_ref_by_strip(Editing *ed, struct Strip *strip) {
+  for (CaptionsStripRef &ref : ed->captions_strips) {
     if (ref.strip == strip) {
       return &ref;
     }
@@ -95,13 +99,18 @@ void mark_ref_style_custom(CaptionsStripRef *ref, bool use_custom) {
   }
 }
 
-static void update_strips_style(SpaceCaptions *scaptions, Scene *scene)
+static void update_strips_style(Scene *scene)
 {
-  if(scene != nullptr) {
-    scaptions->seq_scene = scene;
+  if(scene == nullptr){
+    return;
+  }
+
+  Editing *ed = seq::editing_get(scene);
+  if(ed == nullptr){
+    return;
   }
   
-  Strip *leader_strip = style_leader_strip_ensure(scaptions);
+  Strip *leader_strip = style_leader_strip_ensure(ed);
   if(leader_strip == nullptr) {
     return;
   }
@@ -111,7 +120,7 @@ static void update_strips_style(SpaceCaptions *scaptions, Scene *scene)
     return;
   }
 
-  for (CaptionsStripRef &ref : scaptions->current_strips) {
+  for (CaptionsStripRef &ref : ed->captions_strips) {
     Strip *strip = ref.strip;
     TextVars *vers = (TextVars *)strip->effectdata;
     if(vers == nullptr) {
@@ -149,23 +158,26 @@ static void update_strips_style(SpaceCaptions *scaptions, Scene *scene)
       /* All style flags */
       vers->flag = leader_vers->flag;
 
-      seq::relations_invalidate_cache_raw(scaptions->seq_scene, strip);
+      seq::relations_invalidate_cache_raw(scene, strip);
     }
   }
 }
   
-static void update_active_channel(Scene *scene, SpaceCaptions *scaptions){
-  Editing *ed = blender::seq::editing_get(scene);
+static void update_active_channel(Editing *ed){
   if (ed != nullptr) {
-    scaptions->active_channel = blender::seq::channel_get_by_index(&ed->channels, 1);
+    ed->captions_act_channel = blender::seq::channel_get_by_index(&ed->channels, 1);
   }
 }
 
-static ListBaseT<struct CaptionsStripRef> build_strip_refs(ListBaseT<struct Strip> *strips, SpaceCaptions *scaptions)
+static ListBaseT<struct CaptionsStripRef> build_strip_refs(Editing *ed)
 {
-  ListBaseT<CaptionsStripRef>  result = {nullptr, nullptr};
-  for (Strip &strip : *strips) {
-    if (strip.channel == scaptions->active_channel->index) {
+  ListBaseT<CaptionsStripRef> result = {nullptr, nullptr};
+  if(ed == nullptr){
+    return result;
+  }
+
+  for (Strip &strip : ed->seqbase) {
+    if (strip.channel == ed->captions_act_channel->index) {
       if (strip.type == STRIP_TYPE_TEXT) {
         CaptionsStripRef *ref = (CaptionsStripRef *)MEM_callocN(sizeof(CaptionsStripRef), "strip ref");
         ref->strip = &strip;
@@ -177,22 +189,26 @@ static ListBaseT<struct CaptionsStripRef> build_strip_refs(ListBaseT<struct Stri
   return result;
 }
 
-static void free_strip_refs(SpaceCaptions *scaptions)
+static void free_strip_refs(Editing *ed)
 {
-  ListBase *refs = &scaptions->current_strips;
-  for (CaptionsStripRef &ref : scaptions->current_strips.items_mutable()) {
+  if(ed == nullptr){
+    return;
+  }
+
+  ListBase *refs = &ed->captions_strips;
+  for (CaptionsStripRef &ref : ed->captions_strips.items_mutable()) {
     MEM_freeN(&ref);
   }
   BLI_listbase_clear(refs);
 
-    scaptions->style_leader_strip = nullptr;
+  ed->captions_style_leader = nullptr;
 }
 
-/* Can be used without scene and scaptions, just for redraw without update */
-void tag_redraw(ARegion *region, Scene *scene, SpaceCaptions *scaptions)
+/* Can be used without scene just for redraw without update */
+void tag_redraw(ARegion *region, Scene *scene)
 {
-  if(scene != nullptr && scaptions != nullptr){
-    update_current_strips(scaptions->seq_scene, scaptions);
+  if(scene != nullptr) {
+    update_current_strips(scene);
   }
 
   ED_region_tag_redraw(region);
@@ -211,7 +227,7 @@ static int compare_strips_start(const void *a, const void *b)
            (ref_a->strip->start < ref_b->strip->start);
 }
 
-void update_current_strips(Scene *scene, SpaceCaptions *scaptions) 
+void update_current_strips(Scene *scene) 
 {
   Editing *ed = blender::seq::editing_get(scene);
   
@@ -219,23 +235,22 @@ void update_current_strips(Scene *scene, SpaceCaptions *scaptions)
     return;
   }
   
-  if (scaptions->active_channel == nullptr) {
-    update_active_channel(scene, scaptions);
+  if (ed->captions_act_channel == nullptr) {
+    update_active_channel(ed);
   }
    
-  if (scaptions->active_channel != nullptr) {
+  if (ed->captions_act_channel != nullptr) {
     
     /* Free old references */
-    free_strip_refs(scaptions);
+    free_strip_refs(ed);
 
-    scaptions->current_strips = build_strip_refs(&ed->seqbase, scaptions);
+    ed->captions_strips = build_strip_refs(ed);
     
-    scaptions->seq_scene = scene;
-    scaptions->cache_dirty =  false;
+    ed->captions_cache_dirty =  false;
 
-    BLI_listbase_sort(&scaptions->current_strips, compare_strips_start);
+    BLI_listbase_sort(&ed->captions_strips, compare_strips_start);
 
-    update_strips_style(scaptions, nullptr);
+    update_strips_style(scene);
   }
 }
 
@@ -257,7 +272,7 @@ static SpaceLink *captions_create(const ScrArea * /*area*/, const Scene * scene)
     BLI_addtail(&scaptions->regionbase, region);
     region->regiontype = RGN_TYPE_WINDOW;
 
-    update_current_strips((Scene *) scene, scaptions);
+    update_current_strips((Scene *) scene);
 
     return (SpaceLink *)scaptions;
 }
@@ -265,9 +280,7 @@ static SpaceLink *captions_create(const ScrArea * /*area*/, const Scene * scene)
 /* Doesn't free the space-link itself. */
 static void captions_free(SpaceLink *sl)
 {
-  SpaceCaptions *scaptions = (SpaceCaptions *)sl;
-
-  free_strip_refs(scaptions);
+  //free_strip_refs(scaptions);
 }
 
 /* spacetype; init callback, add handlers */
@@ -358,49 +371,41 @@ static void captions_main_region_listener(const wmRegionListenerParams *params)
             case NA_ADDED:
             case NA_REMOVED:
             case NA_EDITED: {
-                SpaceCaptions *scaptions = (SpaceCaptions *)area->spacedata.first;
-                if(scaptions == nullptr) {
-                  break;
-                }
-
                 Scene *scene =  (Scene *)wmn->reference;
-                if(scene == nullptr) {
-                  if(scaptions->seq_scene != nullptr) {
-                    scene = scaptions->seq_scene;
-                  } else {
-                    break;
-                  }
+                Editing *ed = seq::editing_get(scene);
+                if(ed == nullptr){
+                  break;
                 }
 
                   Strip *active_strip = blender::seq::select_active_get(scene);
                   if(active_strip != nullptr) { 
-                    if(scaptions -> active_channel == nullptr){
-                        update_active_channel(scene, scaptions);
+                    if(ed->captions_act_channel == nullptr){
+                        update_active_channel(ed);
                     }
-                    if(active_strip->channel == scaptions->active_channel->index) {
+                    if(active_strip->channel == ed->captions_act_channel->index) {
                       if(active_strip->type == STRIP_TYPE_TEXT) {
-                        scaptions->cache_dirty = true;
+                        ed->captions_cache_dirty = true;
                       }
                       if(wmn->action == NA_ADDED) {
-                        update_strips_style(scaptions, scene);
+                        update_strips_style(scene);
                       }
                     } else {
                       /* If edited, it means a strip could move out of active_channel and has to update */
                       if(wmn->action == NA_EDITED) {
-                        scaptions->cache_dirty = true;
+                        ed->captions_cache_dirty = true;
                       }
                     }
                   } else {
                     if(wmn->action == NA_REMOVED) {
-                      style_leader_ref_ensure(scaptions);
-                      scaptions->cache_dirty = true;
+                      style_leader_ref_ensure(ed);
+                      ed->captions_cache_dirty = true;
                     }
                   }
-              tag_redraw(region, scene, scaptions);
+              tag_redraw(region, scene);
               break;
             }
             default: {
-              tag_redraw(region, nullptr, nullptr);
+              tag_redraw(region, nullptr);
               break;
             }
           }
@@ -411,12 +416,14 @@ static void captions_main_region_listener(const wmRegionListenerParams *params)
       if (wmn->data == ND_SPACE_CAPTIONS) {
         switch (wmn->action) {
           case NA_EDITED: {
-            SpaceCaptions *scaptions = (SpaceCaptions *)area->spacedata.first;
-            update_strips_style(scaptions, nullptr);
+              Scene *scene =  (Scene *)wmn->reference;
+              if(scene != nullptr) {
+                update_strips_style(scene);
+              }
             break;
           }
           default:
-            tag_redraw(region, nullptr, nullptr);
+            tag_redraw(region, nullptr);
             break;
         }
       }

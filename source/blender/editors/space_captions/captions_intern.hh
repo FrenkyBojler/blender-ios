@@ -29,7 +29,7 @@ namespace blender {
     void captions_operatortypes();
 
     /* `space_captions.cc` */
-    void tag_redraw(ARegion *region, Scene *scene, SpaceCaptions *scaptions);
+    void tag_redraw(ARegion *region, Scene *scene);
 
     struct SpaceCaptions_Runtime {
     };

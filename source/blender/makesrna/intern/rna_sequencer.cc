@@ -252,6 +252,7 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
 
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = static_cast<Strip *>(ptr->data);
+  Editing *ed = seq::editing_get(scene);
 
   if(scene->ed && strip){
     seq::relations_invalidate_cache_raw(scene, strip);
@@ -259,9 +260,7 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
 
   /* Check whether should update caption strips */
   if(area->spacetype == SPACE_CAPTIONS) {
-    SpaceCaptions *scaptions = (SpaceCaptions *)area->spacedata.first;
-
-    Strip *leader_strip = style_leader_strip_ensure(scaptions);
+    Strip *leader_strip = style_leader_strip_ensure(ed);
     if(leader_strip == nullptr) {
       return;
     }
@@ -269,15 +268,14 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
       WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CAPTIONS | NA_EDITED, scene);
     }
   } else {
-    /*CaptionsStripRef *ref = get_ref_by_strip(scaptions ,strip);
+    CaptionsStripRef *ref = get_ref_by_strip(ed ,strip);
     mark_ref_style_custom(ref, true);
-    if(leader_ref == nullptr) { 
-      return;
+
+      style_leader_strip_ensure(ed); /* Should be enough... ? */
     }
 
-    leader_ref->use_custom_style = true;
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CAPTIONS | NA_EDITED, scene);*/
-  }
+    ///leader_ref->use_custom_style = true;
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CAPTIONS | NA_EDITED, scene);
 }
 
 static void UNUSED_FUNCTION(rna_Strip_invalidate_composite_update)(Main * /*bmain*/,
@@ -1458,6 +1456,44 @@ static void rna_SequenceEditor_display_stack(ID *id,
   seq::select_active_set(scene, nullptr);
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
+}
+
+
+static void rna_SequenceEditor_captions_strips_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  Editing *ed = (Editing *)ptr->data;
+  
+   // TODO: For some reason, handling cache update here makes the fancy UI Animations disapper.
+  if (ed->captions_cache_dirty) {
+   // blender::update_current_strips(ed->seq_scene); TODO: FIND THE RIGHT WAY TO GET SCENE
+  }
+  
+  rna_iterator_listbase_begin(iter, ptr, &ed->captions_strips, nullptr);
+}
+
+static PointerRNA rna_SequenceEditor_captions_strips_get(CollectionPropertyIterator *iter)
+{
+    CaptionsStripRef *ref = (CaptionsStripRef *)rna_iterator_listbase_get(iter);
+    if (ref == nullptr || ref->strip == nullptr) {
+        return PointerRNA_NULL;
+    }
+
+    return RNA_pointer_create_discrete(iter->parent.owner_id, RNA_Strip, ref->strip);
+}
+
+static void rna_SequenceEditor_captions_strips_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr)
+{
+  /* Should use relations_invalidate_cache to make the system redraw the cache, but first we need to figure out how to get the right strip... */
+  ///blender::seq::relations_invalidate_cache(scene, (Strip *)ptr->data);
+}
+
+static PointerRNA rna_SequenceEditor_captions_style_leader_get(PointerRNA *ptr)
+{
+  StructRNA *srna = RNA_struct_find("Strip");
+  Editing *ed = (Editing *)ptr->data;
+  Strip *strip = style_leader_strip_ensure(ed);
+  
+  return RNA_pointer_create_with_parent(*ptr, srna, strip);
 }
 
 static bool modifier_strip_cmp_fn(Strip *strip, void *arg_pt)
@@ -2803,6 +2839,38 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_property_int_funcs(prop, "rna_SequenceEditor_get_cache_final_size", nullptr, nullptr);
   RNA_def_property_ui_text(
       prop, "Final Cache Size", "Size of final rendered images cache in megabytes");
+
+  /* Captions props */
+  prop = RNA_def_property(srna, "captions_strips", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "captions_strips", nullptr);
+  RNA_def_property_struct_type(prop, "Strip");
+  RNA_def_property_ui_text(
+      prop, "Captions Strips", "Current text strips manipulated by the captions space");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_SequenceEditor_captions_strips_begin",
+                                    nullptr,
+                                    nullptr,
+                                    "rna_SequenceEditor_captions_strips_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER | NA_EDITED, "rna_SequenceEditor_captions_strips_update");
+
+  prop = RNA_def_property(srna, "captions_cache_dirty", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "captions_cache_dirty", 0);
+  RNA_def_property_ui_text(prop, "Is Captions Cache Dirty", "Indicates whether the captions cache is dirty");
+  
+  prop = RNA_def_property(srna, "captions_style_leader", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Strip");
+  RNA_def_property_pointer_funcs(prop, 
+                                  "rna_SequenceEditor_captions_style_leader_get",
+                                  nullptr, /* Read-only for the RNA */
+                                  nullptr, 
+                                  nullptr);
+  RNA_def_property_ui_text(prop, "Captions Style Leader Strip", "The strip defining the caption style, all other strips will follow its style");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CAPTIONS, NULL);
+
 
   /* functions */
 

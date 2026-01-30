@@ -63,10 +63,10 @@ namespace blender {
         seq::LoadData load_data;
         memset(&load_data, 0, sizeof(load_data));
         Scene *scene = CTX_data_sequencer_scene(C);
-        SpaceCaptions *scaptions = CTX_wm_space_captions(C);
+        Editing *ed = seq::editing_ensure(scene);
 
         int start_frame = scene->r.cfra;
-        int channel = scaptions->active_channel->index;
+        int channel = ed->captions_act_channel->index;
 
         /* Maybe add RNA option for that */
         load_data.start_frame = start_frame;
@@ -77,17 +77,16 @@ namespace blender {
         if (RNA_struct_find_property(op->ptr, "length")) {
             length = RNA_int_get(op->ptr, "length");
         }
-        length = get_extend_right(start_frame, channel, &scaptions->current_strips, length);
+        length = get_extend_right(start_frame, channel, &ed->captions_strips, length);
 
         load_data.effect.length = length;
 
-        Editing *ed = seq::editing_ensure(scene);
         Strip *strip = seq::add_effect_strip(scene, &ed->seqbase, &load_data);
 
         DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
 
-        scaptions->cache_dirty = true;
-        tag_redraw(CTX_wm_region(C), scene, scaptions);
+        ed->captions_cache_dirty = true;
+        tag_redraw(CTX_wm_region(C), scene);
 
         WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
 
@@ -96,19 +95,17 @@ namespace blender {
 
     static bool captions_add_poll(bContext *C)
     {
-        const Scene *scene = CTX_data_sequencer_scene(C);
-        const int frame = scene->r.cfra;
-        SpaceCaptions *scaptions = CTX_wm_space_captions(C);
-        if(scaptions == nullptr) {
-            return false;
-        }
-        if(scaptions -> cache_dirty) {
-            update_current_strips(scaptions->seq_scene, scaptions);
+        Scene *scene = CTX_data_sequencer_scene(C);
+        const int cfra = scene->r.cfra;
+        Editing *ed = seq::editing_ensure(scene);
+
+        if(ed -> captions_cache_dirty) {
+            update_current_strips(scene);
         }
 
-        for (CaptionsStripRef &ref : scaptions->current_strips) {
+        for (CaptionsStripRef &ref : ed->captions_strips) {
             Strip *strip = ref.strip;
-            if (strip->intersects_frame(scene, frame)) {
+            if (strip->intersects_frame(scene, cfra)) {
                 return false;
             }
         }
