@@ -1675,28 +1675,6 @@ static int check_valid_camera(Scene *scene, Object *camera_override, ReportList 
   return true;
 }
 
-static bool node_tree_has_file_output(const bNodeTree *node_tree)
-{
-  node_tree->ensure_topology_cache();
-  for (const bNode *node : node_tree->nodes_by_type("CompositorNodeOutputFile")) {
-    if (!node->is_muted()) {
-      return true;
-    }
-  }
-
-  for (const bNode *node : node_tree->group_nodes()) {
-    if (node->is_muted() || !node->id) {
-      continue;
-    }
-
-    if (node_tree_has_file_output(reinterpret_cast<const bNodeTree *>(node->id))) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 static bool scene_has_compositor_output(Scene *scene)
 {
   if (node_tree_has_group_output(scene->compositing_node_group)) {

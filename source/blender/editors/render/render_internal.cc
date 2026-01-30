@@ -384,8 +384,15 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (is_animation && !(scene->r.mode & R_SAVE_ENABLE)) {
-    BKE_report(op->reports, RPT_ERROR, "Saving is disabled in an animation render");
+  /* When rendering an animation, saving files is required, either through scene saving or through
+   * a compositor File Output. */
+  if (is_animation && !(scene->r.mode & R_SAVE_ENABLE) &&
+      !node_tree_has_file_output(scene->compositing_node_group))
+  {
+    BKE_report(
+        op->reports,
+        RPT_ERROR,
+        "Saving is disabled in an animation render and compositor has no File Output nodes.");
     return OPERATOR_CANCELLED;
   }
 
@@ -1083,8 +1090,15 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     return OPERATOR_CANCELLED;
   }
 
-  if (is_animation && !(scene->r.mode & R_SAVE_ENABLE)) {
-    BKE_report(op->reports, RPT_ERROR, "Saving is disabled in an animation render");
+  /* When rendering an animation, saving files is required, either through scene saving or through
+   * a compositor File Output. */
+  if (is_animation && !(scene->r.mode & R_SAVE_ENABLE) &&
+      !node_tree_has_file_output(scene->compositing_node_group))
+  {
+    BKE_report(
+        op->reports,
+        RPT_ERROR,
+        "Saving is disabled in an animation render and compositor has no File Output nodes.");
     return OPERATOR_CANCELLED;
   }
 

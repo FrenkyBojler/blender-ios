@@ -712,12 +712,6 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static const EnumPropertyItem rna_enum_render_save_mode_items[] = {
-    {0, "DEFAULT", 0, "Default", "Use normal render output behavior"},
-    {1, "DISABLED", 0, "Disabled", "Do not write rendered frames to disk"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 }  // namespace blender
 
 #ifdef RNA_RUNTIME

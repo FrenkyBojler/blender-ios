@@ -321,7 +321,6 @@ class RENDER_PT_output(RenderOutputButtonsPanel, Panel):
 
         if not rd.is_movie_format:
             col = layout.column(heading="Image Sequence")
-
             col.prop(rd, "use_overwrite")
             col.prop(rd, "use_placeholder")
 
