@@ -817,7 +817,7 @@ class NODE_PT_active_node_generic(Panel):
         col.prop(node, "mute")
 
         if tree.type == 'GEOMETRY':
-            layout.prop(node, "warning_propagation")
+            layout.prop(node, "warning_propagation", text="Propagate")
 
 
 class NODE_PT_active_node_properties(Panel):
