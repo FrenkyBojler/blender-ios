@@ -46,16 +46,17 @@ static void node_declare(NodeDeclarationBuilder &b)
         .field_source_reference_all()
         .description("The sum of all values in each group divided by the size of said group");
     b.add_output(data_type, "Median")
+        .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
         .field_source_reference_all()
         .description(
             "The middle value in each group when all values are sorted from lowest to highest");
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -100,7 +101,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         },
         0);
     params.add_item(
-        IFACE_("Median"),
+        CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Median"),
         [type](LinkSearchOpParams &params) {
           bNode &node = params.add_node("GeometryNodeFieldAverage");
           node.custom1 = *type;
@@ -186,15 +187,14 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
 
     GVArray g_outputs;
 
-    bke::attribute_math::convert_to_static_type(g_values.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(g_values.type(), [&]<typename T>() {
       if constexpr (is_same_any_v<T, int, float, float3>) {
         const VArraySpan<T> values = g_values.typed<T>();
 
         if (operation_ == Operation::Mean) {
           if (group_indices.is_single()) {
             const T mean = std::reduce(values.begin(), values.end(), T()) / domain_size;
-            g_outputs = VArray<T>::ForSingle(mean, domain_size);
+            g_outputs = VArray<T>::from_single(mean, domain_size);
           }
           else {
             Map<int, std::pair<T, int>> sum_and_counts;
@@ -209,14 +209,14 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
               const auto &pair = sum_and_counts.lookup(group_indices[i]);
               outputs[i] = pair.first / pair.second;
             }
-            g_outputs = VArray<T>::ForContainer(std::move(outputs));
+            g_outputs = VArray<T>::from_container(std::move(outputs));
           }
         }
         else {
           if (group_indices.is_single()) {
             Array<T> sorted_values(values);
             T median = calculate_median<T>(sorted_values);
-            g_outputs = VArray<T>::ForSingle(median, domain_size);
+            g_outputs = VArray<T>::from_single(median, domain_size);
           }
           else {
             Map<int, Vector<T>> groups;
@@ -233,13 +233,19 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               outputs[i] = medians.lookup(group_indices[i]);
             }
-            g_outputs = VArray<T>::ForContainer(std::move(outputs));
+            g_outputs = VArray<T>::from_container(std::move(outputs));
           }
         }
       }
     });
 
     return attributes.adapt_domain(std::move(g_outputs), source_domain_, context.domain());
+  }
+
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  {
+    input_.node().for_each_field_input_recursive(fn);
+    group_index_.node().for_each_field_input_recursive(fn);
   }
 
   uint64_t hash() const override
@@ -287,8 +293,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem items[] = {
-      {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-      {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating-point values"},
+      {CD_PROP_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+      {CD_PROP_FLOAT3,
+       "FLOAT_VECTOR",
+       ICON_NODE_SOCKET_VECTOR,
+       "Vector",
+       "3D vector with floating-point values"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -313,7 +323,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeFieldAverage");
   ntype.ui_name = "Field Average";
@@ -324,7 +334,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

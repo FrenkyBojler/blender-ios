@@ -22,6 +22,11 @@ from bpy.types import (
     Panel,
 )
 
+from bpy.app.translations import (
+    pgettext_n as n_,
+    contexts as i18n_contexts,
+)
+
 from bl_ui.space_userpref import (
     USERPREF_PT_addons,
     USERPREF_PT_extensions,
@@ -163,10 +168,10 @@ ADDON_TYPE_LEGACY_USER = 2
 ADDON_TYPE_LEGACY_OTHER = 3
 
 addon_type_name = (
-    "Extension",  # `ADDON_TYPE_EXTENSION`.
-    "Core",  # `ADDON_TYPE_LEGACY_CORE`.
-    "Legacy (User)",  # `ADDON_TYPE_LEGACY_USER`.
-    "Legacy (Other)",  # `ADDON_TYPE_LEGACY_OTHER`.
+    n_("Extension", i18n_contexts.editor_preferences),  # `ADDON_TYPE_EXTENSION`.
+    n_("Core", i18n_contexts.editor_preferences),  # `ADDON_TYPE_LEGACY_CORE`.
+    n_("Legacy (User)", i18n_contexts.editor_preferences),  # `ADDON_TYPE_LEGACY_USER`.
+    n_("Legacy (Other)", i18n_contexts.editor_preferences),  # `ADDON_TYPE_LEGACY_OTHER`.
 )
 
 addon_type_icon = (
@@ -225,10 +230,6 @@ def addon_draw_item_expanded(
         item_tracker_url,  # `str`
         show_developer_ui,  # `bool`
 ):
-    from bpy.app.translations import (
-        contexts as i18n_contexts,
-    )
-
     split = layout.split(factor=0.8)
     col_a = split.column()
     col_b = split.column()
@@ -276,7 +277,7 @@ def addon_draw_item_expanded(
 
     if USE_SHOW_ADDON_TYPE_AS_TEXT:
         col_a.label(text="Type")
-        col_b.label(text=addon_type_name[addon_type])
+        col_b.label(text=addon_type_name[addon_type], text_ctxt=i18n_contexts.editor_preferences)
     if item_maintainer:
         col_a.label(text="Maintainer")
         col_b.label(text=item_maintainer, translate=False)
@@ -812,7 +813,7 @@ def addons_panel_draw(panel, context):
     del split, row_a, row_b, rowsub
 
     # Create a set of tags marked False to simplify exclusion & avoid it altogether when all tags are enabled.
-    addon_tags_exclude = {k for (k, v) in wm.get("addon_tags", {}).items() if v is False}
+    addon_tags_exclude = tags_exclude_get(wm, "addon_tags")
 
     addons_panel_draw_impl(
         panel,
@@ -858,6 +859,7 @@ class ExtensionUI_FilterParams:
         "repos_all",
 
         # From the window manager.
+        "repo_filter",
         "show_installed_enabled",
         "show_installed_disabled",
         "show_available",
@@ -877,6 +879,7 @@ class ExtensionUI_FilterParams:
             addons_enabled,
             active_theme_info,
             repos_all,
+            repo_filter,
             show_installed_enabled,
             show_installed_disabled,
             show_available,
@@ -887,6 +890,7 @@ class ExtensionUI_FilterParams:
         self.addons_enabled = addons_enabled
         self.active_theme_info = active_theme_info
         self.repos_all = repos_all
+        self.repo_filter = None if repo_filter == '_ALL_' else repo_filter
         self.show_installed_enabled = show_installed_enabled
         self.show_installed_disabled = show_installed_disabled
         self.show_available = show_available
@@ -921,8 +925,13 @@ class ExtensionUI_FilterParams:
         else:
             active_theme_info = None  # Unused.
 
-        # Create a set of tags marked False to simplify exclusion & avoid it altogether when all tags are enabled.
-        extension_tags_exclude = {k for (k, v) in wm.get("extension_tags", {}).items() if v is False}
+        if wm.extension_use_filter:
+            # Create a set of tags marked False to simplify exclusion & avoid it altogether when all tags are enabled.
+            extension_tags_exclude = tags_exclude_get(wm, "extension_tags")
+            repo_filter = wm.extension_repo_filter
+        else:
+            extension_tags_exclude = set()
+            repo_filter = None
 
         return ExtensionUI_FilterParams(
             search_casefold=wm.extension_search.casefold(),
@@ -931,7 +940,7 @@ class ExtensionUI_FilterParams:
             addons_enabled=addons_enabled,
             active_theme_info=active_theme_info,
             repos_all=repos_all,
-
+            repo_filter=repo_filter,
             # Extensions don't different between these (add-ons do).
             show_installed_enabled=wm.extension_show_panel_installed,
             show_installed_disabled=wm.extension_show_panel_installed,
@@ -948,6 +957,13 @@ class ExtensionUI_FilterParams:
         from .bl_extension_ops import (
             pkg_info_check_exclude_filter,
         )
+
+        # Only check if filtering by tag/repository is enabled.
+        if (repo_filter := self.repo_filter) is not None:
+            # Early return if filtering by repository.
+            if repo_filter != self.repos_all[repo_index].module:
+                return
+        del repo_filter
 
         show_addons = self.filter_by_type in {"", "add-on"}
 
@@ -1166,15 +1182,17 @@ class ExtensionUI_Section:
         # Label & panel property or None not to define a header,
         # in this case the previous panel is used.
         "panel_header",
+        "panel_header_action",
         "ui_ext_sort_fn",
 
         "enabled",
         "extension_ui_list",
     )
 
-    def __init__(self, *, panel_header, ui_ext_sort_fn):
+    def __init__(self, *, panel_header, panel_header_action, ui_ext_sort_fn):
         self.panel_header = panel_header
         self.ui_ext_sort_fn = ui_ext_sort_fn
+        self.panel_header_action = panel_header_action
 
         self.enabled = True
         self.extension_ui_list = []
@@ -1351,6 +1369,7 @@ def extension_draw_item(
             row_right.label(text="Blocked   ")
         elif is_installed:
             if is_outdated:
+                row_right.label(text="{:s} \u2192 {:s}".format(item_local.version, item_remote.version))
                 props = row_right.operator("extensions.package_install", text="Update")
                 props.repo_index = repo_index
                 props.pkg_id = pkg_id
@@ -1573,27 +1592,34 @@ def extensions_panel_draw_impl(
         # Installed (upgrade, enabled).
         ExtensionUI_Section(
             panel_header=(iface_("Installed"), "extension_show_panel_installed"),
+            panel_header_action=(
+                ((iface_("Update All"), "extensions.package_upgrade_all")) if wm.extensions_updates > 0 else None
+            ),
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_blocked_and_name_fn,
         ),
         # Installed (upgrade, disabled). Use the previous panel.
         ExtensionUI_Section(
             panel_header=None,
+            panel_header_action=None,
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_name_fn,
         ),
         # Installed (up-to-date, enabled). Use the previous panel.
         ExtensionUI_Section(
             panel_header=None,
+            panel_header_action=None,
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_name_fn,
         ),
         # Installed (up-to-date, disabled).
         ExtensionUI_Section(
             panel_header=None,
+            panel_header_action=None,
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_name_fn,
         ),
         # Available (remaining).
         # NOTE: don't use A-Z here to prevent name manipulation to bring an extension up on the ranks.
         ExtensionUI_Section(
             panel_header=(iface_("Available"), "extension_show_panel_available"),
+            panel_header_action=None,
             ui_ext_sort_fn=None,
         ),
     )
@@ -1719,6 +1745,15 @@ def extensions_panel_draw_impl(
             label, prop_id = section.panel_header
             layout_header, layout_panel = layout.panel_prop(wm, prop_id)
             layout_header.label(text=label, translate=False)
+
+            if section.panel_header_action is not None:
+                operator_label, operator = section.panel_header_action
+                row = layout_header.row()
+                row.scale_x = 1.13
+                row.active = not operation_in_progress
+                row.alignment = 'RIGHT'
+                row.operator(operator, text=operator_label)
+                del operator, operator_label, row
             del label, prop_id, layout_header
 
         if layout_panel is None:
@@ -1772,15 +1807,19 @@ class USERPREF_PT_addons_tags(Panel):
         tags_panel_draw(self.layout, context, "addon_tags")
 
 
-class USERPREF_PT_extensions_tags(Panel):
-    bl_label = "Extensions Tags"
+class USERPREF_PT_extensions_filter(Panel):
+    bl_label = "Extensions Tags & Repository Filter Settings"
 
     bl_space_type = 'TOPBAR'  # dummy.
     bl_region_type = 'HEADER'
     bl_ui_units_x = 13
 
     def draw(self, context):
-        tags_panel_draw(self.layout, context, "extension_tags")
+        layout = self.layout
+        wm = context.window_manager
+        layout.active = wm.extension_use_filter
+        layout.prop(wm, "extension_repo_filter", text="")
+        tags_panel_draw(layout, context, "extension_tags")
 
 
 class USERPREF_MT_addons_settings(Menu):
@@ -2019,7 +2058,10 @@ def extensions_panel_draw(panel, context):
     row_a.prop(wm, "extension_search", text="", icon='VIEWZOOM', placeholder="Search Extensions")
     row_b = row.row(align=True)
     row_b.prop(wm, "extension_type", text="")
-    row_b.popover("USERPREF_PT_extensions_tags", text="", icon='TAG')
+
+    row_b.separator()
+    row_b.prop(wm, "extension_use_filter", text="", icon='FILTER')
+    row_b.popover("USERPREF_PT_extensions_filter", text="", icon='DOWNARROW_HLT')
 
     row_b.separator()
     row_b.popover("USERPREF_PT_extensions_repos", text="Repositories")
@@ -2214,6 +2256,8 @@ def tags_current(wm, tags_attr):
     if filter_by_type in {"", "theme"}:
         active_theme_info = pkg_repo_and_id_from_theme_path(repos_all, prefs.themes[0].filepath)
 
+    repo_filter = wm.extension_repo_filter
+
     params = ExtensionUI_FilterParams(
         search_casefold=search_casefold,
         tags_exclude=set(),  # Tags are being generated, ignore them.
@@ -2221,7 +2265,7 @@ def tags_current(wm, tags_attr):
         addons_enabled=addons_enabled,
         active_theme_info=active_theme_info,
         repos_all=repos_all,
-
+        repo_filter=repo_filter,
         show_installed_enabled=show_installed_enabled,
         show_installed_disabled=show_installed_disabled,
         show_available=show_available,
@@ -2268,26 +2312,14 @@ def tags_current(wm, tags_attr):
 
 
 def tags_clear(wm, tags_attr):
-    import idprop
-    tags_idprop = wm.get(tags_attr)
-    if tags_idprop is None:
-        pass
-    elif isinstance(tags_idprop, idprop.types.IDPropertyGroup):
-        tags_idprop.clear()
-    else:
-        wm[tags_attr] = {}
+    tags_collection = getattr(wm, tags_attr)
+    tags_collection.clear()
 
 
 def tags_refresh(wm, tags_attr, *, default_value):
-    import idprop
-    tags_idprop = wm.get(tags_attr)
-    if isinstance(tags_idprop, idprop.types.IDPropertyGroup):
-        pass
-    else:
-        wm[tags_attr] = {}
-        tags_idprop = wm[tags_attr]
+    tags_collection = getattr(wm, tags_attr)
 
-    tags_curr = set(tags_idprop.keys())
+    tags_curr = set(tags_collection.keys())
 
     # Calculate tags.
     tags_next = tags_current(wm, tags_attr)
@@ -2295,17 +2327,25 @@ def tags_refresh(wm, tags_attr, *, default_value):
     tags_to_add = tags_next - tags_curr
     tags_to_rem = tags_curr - tags_next
 
-    for tag in tags_to_rem:
-        del tags_idprop[tag]
+    if tags_to_rem:
+        # Remove last indices first.
+        for i in reversed([i for i, item in enumerate(tags_collection) if item.name in tags_to_rem]):
+            tags_collection.remove(i)
+
     for tag in tags_to_add:
-        tags_idprop[tag] = default_value
+        item = tags_collection.add()
+        item.name = tag
+        item.show_tag = default_value
 
     return list(sorted(tags_next))
 
 
+def tags_exclude_get(wm, tags_attr):
+    tags_collection = getattr(wm, tags_attr)
+    return {item.name for item in tags_collection if item.show_tag is False}
+
+
 def tags_panel_draw(layout, context, tags_attr):
-    from bpy.utils import escape_identifier
-    from bpy.app.translations import contexts as i18n_contexts
     wm = context.window_manager
 
     split = layout.split(factor=0.5)
@@ -2335,13 +2375,13 @@ def tags_panel_draw(layout, context, tags_attr):
         tags_len_half = (len(tags_sorted) + 1) // 2
         split = layout.split(factor=0.5)
         col = split.column()
-        tags_prop = getattr(wm, tags_attr)
+        tags_collection_map = dict(getattr(wm, tags_attr).items())
         for i, t in enumerate(sorted(tags_sorted)):
             if i == tags_len_half:
                 col = split.column()
             col.prop(
-                tags_prop,
-                "[\"{:s}\"]".format(escape_identifier(t)),
+                tags_collection_map[t],
+                "show_tag",
                 text=t,
                 text_ctxt=i18n_contexts.editor_preferences,
             )
@@ -2359,8 +2399,7 @@ classes = (
     # Pop-overs.
     USERPREF_PT_addons_tags,
     USERPREF_MT_addons_settings,
-
-    USERPREF_PT_extensions_tags,
+    USERPREF_PT_extensions_filter,
     USERPREF_MT_extensions_settings,
     USERPREF_MT_extensions_item,
     USERPREF_MT_extensions_active_repo_extra,

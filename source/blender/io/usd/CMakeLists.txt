@@ -10,9 +10,9 @@ if(UNIX AND NOT APPLE)
   add_definitions(-D_GLIBCXX_PERMIT_BACKWARD_HASH)
 endif()
 if(WIN32)
+  # We need to keep BOOST_DEBUG_PYTHON for the vendored copy of boost inside USD.
   add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN -DBOOST_DEBUG_PYTHON)
 endif()
-add_definitions(-DBOOST_ALL_NO_LIB)
 
 # Pre-compiled Linux libraries are made with GCC, and USD uses some extensions
 # which lead to an incompatible ABI for Clang. Using those extensions with
@@ -53,11 +53,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${USD_INCLUDE_DIRS}
-  ${BOOST_INCLUDE_DIR}
-  ${TBB_INCLUDE_DIR}
-  ${PYTHON_INCLUDE_DIR}
-
 )
 
 set(SRC
@@ -111,6 +106,8 @@ set(SRC
   intern/usd_skel_root_utils.cc
 
   usd.hh
+  usd_api_hook.hh
+  usd_api_modifier.hh
   usd_private.hh
 
   intern/usd_armature_utils.hh
@@ -165,6 +162,7 @@ set(SRC
 
 if(WITH_HYDRA)
   list(APPEND SRC
+    hydra/camera_delegate.cc
     hydra/curves.cc
     hydra/hydra_scene_delegate.cc
     hydra/id.cc
@@ -179,6 +177,7 @@ if(WITH_HYDRA)
     hydra/volume_modifier.cc
     hydra/world.cc
 
+    hydra/camera_delegate.hh
     hydra/curves.hh
     hydra/hydra_scene_delegate.hh
     hydra/id.hh
@@ -208,30 +207,12 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::python
+  PRIVATE bf::dependencies::optional::usd
+  PRIVATE bf::dependencies::optional::tbb
 )
-
-list(APPEND LIB
-  ${BOOST_PYTHON_LIBRARIES}
-  ${PYTHON_LIBRARIES}
-  ${USD_LIBRARIES}
-  ${TBB_LIBRARIES}
-)
-
-if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${OPENVDB_LIBRARIES}
-  )
-endif()
 
 if(WITH_MATERIALX)
   add_definitions(-DWITH_MATERIALX)
@@ -251,7 +232,6 @@ if(WITH_GTESTS)
   set(TEST_SRC
     tests/usd_export_test.cc
     tests/usd_stage_creation_test.cc
-    tests/usd_usdz_export_test.cc
     intern/usd_writer_material.hh
   )
 

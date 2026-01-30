@@ -17,7 +17,8 @@ namespace blender::nodes::node_geo_grease_pencil_to_curves_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Grease Pencil")
-      .supported_type(bke::GeometryComponent::Type::GreasePencil);
+      .supported_type(bke::GeometryComponent::Type::GreasePencil)
+      .description("Grease Pencil data to convert to curves");
   b.add_input<decl::Bool>("Selection")
       .default_value(true)
       .hide_value()
@@ -70,7 +71,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     const bke::CurvesGeometry &layer_strokes = drawing->strokes();
     Curves *curves_id = bke::curves_new_nomain(layer_strokes);
-    curves_id->mat = static_cast<Material **>(MEM_dupallocN(grease_pencil->material_array));
+    curves_id->mat = MEM_dupalloc(grease_pencil->material_array);
     curves_id->totcol = grease_pencil->material_array_num;
     GeometrySet curves_geometry = GeometrySet::from_curves(curves_id);
     curves_geometry.name = layer.name();
@@ -84,7 +85,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (ELEM(iter.name, "opacity")) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     const GAttributeReader src_attribute = iter.get();
@@ -128,13 +129,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   GeometrySet curves_geometry = GeometrySet::from_instances(instances);
   curves_geometry.name = std::move(grease_pencil_geometry.name);
+  curves_geometry.copy_bundle_from(grease_pencil_geometry);
 
   const bool layers_as_instances = params.extract_input<bool>("Layers as Instances");
   if (!layers_as_instances) {
     geometry::RealizeInstancesOptions options;
     const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
     options.attribute_filter = attribute_filter;
-    curves_geometry = geometry::realize_instances(curves_geometry, options);
+    curves_geometry = geometry::realize_instances(curves_geometry, options).geometry;
   }
 
   params.set_output("Curves", std::move(curves_geometry));

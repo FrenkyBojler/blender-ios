@@ -19,6 +19,8 @@
 #include "IO_orientation.hh"
 #include "IO_path_util_types.hh"
 
+namespace blender {
+
 struct bContext;
 struct ReportList;
 
@@ -27,7 +29,7 @@ struct OBJExportParams {
   char filepath[FILE_MAX] = "";
   /** Pretend that destination file folder is this, if non-empty. Used only for tests. */
   char file_base_for_tests[FILE_MAX] = "";
-  char collection[MAX_IDPROP_NAME] = "";
+  char collection[MAX_ID_NAME - 2] = "";
 
   /** Full path to current blender file (used for comments in output). */
   const char *blen_filepath = nullptr;
@@ -47,6 +49,7 @@ struct OBJExportParams {
   /* File Write Options. */
   bool export_selected_objects = false;
   bool apply_modifiers = true;
+  bool apply_transform = true;
   eEvaluationMode export_eval_mode = DAG_EVAL_VIEWPORT;
   bool export_uv = true;
   bool export_normals = true;
@@ -105,7 +108,7 @@ struct OBJImportParams {
  * Reads and returns just the meshes in the obj file
  */
 void OBJ_import_geometries(const OBJImportParams *import_params,
-                           blender::Vector<blender::bke::GeometrySet> &geometries);
+                           Vector<bke::GeometrySet> &geometries);
 
 /**
  * Perform the full import process.
@@ -118,3 +121,5 @@ void OBJ_import(bContext *C, const OBJImportParams *import_params);
  * Perform the full export process.
  */
 void OBJ_export(bContext *C, const OBJExportParams *export_params);
+
+}  // namespace blender

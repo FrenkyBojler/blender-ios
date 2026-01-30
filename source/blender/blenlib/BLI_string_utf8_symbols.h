@@ -25,6 +25,8 @@
 #define BLI_STR_UTF8_SUPERSCRIPT_3 "\xc2\xb3"
 /** u00D7: `×`. */
 #define BLI_STR_UTF8_MULTIPLICATION_SIGN "\xc3\x97"
+/** u2007: ` ` FIGURE SPACE (numeric width space) */
+#define BLI_STR_UTF8_FIGURE_SPACE "\xe2\x80\x87"
 /** u2014: `—` */
 #define BLI_STR_UTF8_EM_DASH "\xe2\x80\x94"
 /** u2022: `•` */
@@ -79,7 +81,7 @@
 #define BLI_STR_UTF8_UPPER_RIGHT_PENCIL "\xe2\x9c\x90"
 /** u2756: `❖` */
 #define BLI_STR_UTF8_BLACK_DIAMOND_MINUS_WHITE_X "\xe2\x9d\x96"
-/** u29BE: `⦾` Use for 3D Mice  */
+/** u29BE: `⦾` Use for 3D Mice */
 #define BLI_STR_UTF8_CIRCLED_WHITE_BULLET "\xe2\xa6\xbe"
 /** u2B2E: `⬮` Generic Mouse */
 #define BLI_STR_UTF8_BLACK_VERTICAL_ELLIPSE "\xe2\xac\xae"

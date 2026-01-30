@@ -16,6 +16,7 @@
 #include "BLI_fnmatch.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -36,6 +37,8 @@
 #endif /* WIN32 */
 
 #include "MEM_guardedalloc.h"
+
+namespace blender {
 
 /* Declarations. */
 
@@ -483,7 +486,7 @@ bool BLI_path_make_safe_filename_ex(char *filename, bool allow_tokens)
       }
     }
 
-    MEM_freeN(filename_lower);
+    MEM_delete(filename_lower);
   }
 #endif
 
@@ -510,8 +513,8 @@ bool BLI_path_make_safe(char *path)
   }
 #endif
 
-  for (curr_slash = (char *)BLI_path_slash_find(curr_path); curr_slash;
-       curr_slash = (char *)BLI_path_slash_find(curr_path))
+  for (curr_slash = const_cast<char *>(BLI_path_slash_find(curr_path)); curr_slash;
+       curr_slash = const_cast<char *>(BLI_path_slash_find(curr_path)))
   {
     const char backup = *curr_slash;
     *curr_slash = '\0';
@@ -810,7 +813,7 @@ bool BLI_path_suffix(char *path, size_t path_maxncpy, const char *suffix, const 
 
   const size_t suffix_len = strlen(suffix);
   const size_t sep_len = strlen(sep);
-  char *extension = (char *)BLI_path_extension_or_end(path);
+  char *extension = const_cast<char *>(BLI_path_extension_or_end(path));
   const size_t extension_len = strlen(extension);
   const size_t path_end = extension - path;
   const size_t path_len = path_end + extension_len;
@@ -947,7 +950,7 @@ static bool path_frame_chars_find_range(const char *path, int *r_char_start, int
  */
 static void ensure_digits(char *path, int digits)
 {
-  char *file = (char *)BLI_path_basename(path);
+  char *file = const_cast<char *>(BLI_path_basename(path));
   if (strrchr(file, '#') == nullptr) {
     int len = strlen(file);
 
@@ -1035,8 +1038,8 @@ void BLI_path_frame_strip(char *path, char *r_ext, const size_t ext_maxncpy)
     return;
   }
 
-  char *file = (char *)BLI_path_basename(path);
-  char *file_ext = (char *)BLI_path_extension_or_end(file);
+  char *file = const_cast<char *>(BLI_path_basename(path));
+  char *file_ext = const_cast<char *>(BLI_path_extension_or_end(file));
   char *c = file_ext;
 
   /* Find start of number (if there is one). */
@@ -1071,10 +1074,15 @@ void BLI_path_to_display_name(char *display_name, int display_name_maxncpy, cons
     strip_offset++;
   }
 
-  BLI_strncpy(display_name, name + strip_offset, display_name_maxncpy);
+  int display_name_len = BLI_strncpy_rlen(display_name, name + strip_offset, display_name_maxncpy);
 
   /* Replace underscores with spaces. */
   BLI_string_replace_char(display_name, '_', ' ');
+
+  /* In rare cases file paths may not contain valid UTF8 sequences.
+   * In this case show *something*, since it's possible stripping would remove all text.
+   * Use a dummy character as a hint the character could not be shown. */
+  BLI_str_utf8_invalid_substitute(display_name, display_name_len, '_');
 
   BLI_path_extension_strip(display_name);
 
@@ -1427,7 +1435,7 @@ bool BLI_path_extension_check_n(const char *path, ...)
 
   va_start(args, path);
 
-  while ((ext = (const char *)va_arg(args, void *))) {
+  while ((ext = static_cast<const char *>(va_arg(args, void *)))) {
     if (path_extension_check_ex(path, path_len, ext, strlen(ext))) {
       ret = true;
       break;
@@ -1510,7 +1518,7 @@ bool BLI_path_extension_replace(char *path, size_t path_maxncpy, const char *ext
 {
   BLI_string_debug_size_after_nil(path, path_maxncpy);
 
-  char *path_ext = (char *)BLI_path_extension_or_end(path);
+  char *path_ext = const_cast<char *>(BLI_path_extension_or_end(path));
   const size_t ext_len = strlen(ext);
   if ((path_ext - path) + ext_len >= path_maxncpy) {
     return false;
@@ -1522,7 +1530,7 @@ bool BLI_path_extension_replace(char *path, size_t path_maxncpy, const char *ext
 
 bool BLI_path_extension_strip(char *path)
 {
-  char *path_ext = (char *)BLI_path_extension(path);
+  char *path_ext = const_cast<char *>(BLI_path_extension(path));
   if (path_ext == nullptr) {
     return false;
   }
@@ -1566,7 +1574,7 @@ bool BLI_path_extension_ensure(char *path, size_t path_maxncpy, const char *ext)
 bool BLI_path_filename_ensure(char *filepath, size_t filepath_maxncpy, const char *filename)
 {
   BLI_string_debug_size_after_nil(filepath, filepath_maxncpy);
-  char *c = (char *)BLI_path_basename(filepath);
+  char *c = const_cast<char *>(BLI_path_basename(filepath));
   const size_t filename_size = strlen(filename) + 1;
   if (filename_size <= filepath_maxncpy - (c - filepath)) {
     memcpy(c, filename, filename_size);
@@ -1892,7 +1900,7 @@ bool BLI_path_contains(const char *container_path, const char *containee_path)
   }
 
   /* Add a trailing slash to prevent same-prefix directories from matching.
-   * e.g. "/some/path" doesn't contain "/some/path_lib". */
+   * e.g. `/some/path` doesn't contain `/some/path_lib`. */
   BLI_path_slash_ensure(container_native, sizeof(container_native));
 
   return BLI_str_startswith(containee_native, container_native);
@@ -1994,9 +2002,9 @@ int BLI_path_cmp_normalized(const char *p1, const char *p2)
   const size_t p2_size = strlen(p2) + 1;
 
   char *norm_p1 = (p1_size <= sizeof(norm_p1_buf)) ? norm_p1_buf :
-                                                     MEM_calloc_arrayN<char>(p1_size, __func__);
+                                                     MEM_new_array_zeroed<char>(p1_size, __func__);
   char *norm_p2 = (p2_size <= sizeof(norm_p2_buf)) ? norm_p2_buf :
-                                                     MEM_calloc_arrayN<char>(p2_size, __func__);
+                                                     MEM_new_array_zeroed<char>(p2_size, __func__);
 
   memcpy(norm_p1, p1, p1_size);
   memcpy(norm_p2, p2, p2_size);
@@ -2014,10 +2022,10 @@ int BLI_path_cmp_normalized(const char *p1, const char *p2)
   const int result = BLI_path_cmp(norm_p1, norm_p2);
 
   if (norm_p1 != norm_p1_buf) {
-    MEM_freeN(norm_p1);
+    MEM_delete(norm_p1);
   }
   if (norm_p2 != norm_p2_buf) {
-    MEM_freeN(norm_p2);
+    MEM_delete(norm_p2);
   }
   return result;
 }
@@ -2057,3 +2065,5 @@ bool BLI_path_has_hidden_component(const char *path)
   /* Nothing was hidden. */
   return false;
 }
+
+}  // namespace blender

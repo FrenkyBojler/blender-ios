@@ -23,7 +23,11 @@
 #include "IMB_imbuf_types.hh"
 #include "imbuf.hh"
 
-#define UTIL_DEBUG 0
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"image.read"};
 
 const char *imb_ext_image[] = {
     /* #IMB_FTYPE_PNG */
@@ -114,9 +118,7 @@ static int64_t imb_test_image_read_header_from_filepath(const char *filepath,
 
   BLI_assert(!BLI_path_is_rel(filepath));
 
-  if (UTIL_DEBUG) {
-    printf("%s: loading %s\n", __func__, filepath);
-  }
+  CLOG_TRACE(&LOG, "%s: loading %s", __func__, filepath);
 
   if (BLI_stat(filepath, &st) == -1) {
     return -1;
@@ -184,3 +186,5 @@ bool IMB_test_image(const char *filepath)
 {
   return (IMB_test_image_type(filepath) != IMB_FTYPE_NONE);
 }
+
+}  // namespace blender

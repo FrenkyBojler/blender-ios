@@ -14,8 +14,10 @@ namespace blender::nodes::node_fn_input_bool_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Bool>("Boolean").custom_draw([](CustomSocketDrawParams &params) {
-    uiLayout &row = params.layout.row(true);
-    row.prop(&params.node_ptr, "boolean", UI_ITEM_NONE, "Boolean", ICON_NONE);
+    params.layout.alignment_set(ui::LayoutAlign::Expand);
+    ui::Layout &row = params.layout.row(true);
+    row.prop(
+        &params.node_ptr, "boolean", ui::ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Boolean"), ICON_NONE);
     if (gizmos::value_node_has_gizmo(params.tree, params.node)) {
       row.prop(&params.socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
     }
@@ -51,25 +53,27 @@ NODE_SHADER_MATERIALX_END
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeInputBool *data = MEM_callocN<NodeInputBool>(__func__);
+  NodeInputBool *data = MEM_new<NodeInputBool>(__func__);
   node->storage = data;
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   common_node_type_base(&ntype, "FunctionNodeInputBool", FN_NODE_INPUT_BOOL);
   ntype.ui_name = "Boolean";
+  ntype.ui_description =
+      "Provide a True/False value that can be connected to other nodes in the tree";
   ntype.enum_name_legacy = "INPUT_BOOL";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.gpu_fn = gpu_shader_bool;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeInputBool", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   ntype.materialx_fn = node_shader_materialx;
 }
 NOD_REGISTER_NODE(node_register)

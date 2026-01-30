@@ -10,22 +10,31 @@ namespace blender::nodes::node_composite_image_coordinates_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").hide_value().compositor_realization_mode(
-      CompositorInputRealizationMode::None);
+  b.add_input<decl::Color>("Image")
+      .hide_value()
+      .compositor_realization_mode(CompositorInputRealizationMode::None)
+      .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Vector>("Uniform").dimensions(2).description(
-      "Zero centered coordinates normalizes along the larger dimension for uniform scaling");
+  b.add_output<decl::Vector>("Uniform")
+      .dimensions(2)
+      .structure_type(StructureType::Dynamic)
+      .description(
+          "Zero centered coordinates normalizes along the larger dimension for uniform scaling");
   b.add_output<decl::Vector>("Normalized")
       .dimensions(2)
+      .structure_type(StructureType::Dynamic)
       .description("Normalized coordinates with half pixel offsets");
-  b.add_output<decl::Vector>("Pixel").dimensions(2).description("Integer pixel coordinates");
+  b.add_output<decl::Vector>("Pixel")
+      .dimensions(2)
+      .structure_type(StructureType::Dynamic)
+      .description("Integer pixel coordinates");
 }
 
 using namespace blender::compositor;
 
 class ImageCoordinatesOperation : public NodeOperation {
  public:
-  ImageCoordinatesOperation(Context &context, DNode node) : NodeOperation(context, node)
+  ImageCoordinatesOperation(Context &context, const bNode &node) : NodeOperation(context, node)
   {
     InputDescriptor &image_descriptor = this->get_input_descriptor("Image");
     image_descriptor.skip_type_conversion = true;
@@ -54,35 +63,35 @@ class ImageCoordinatesOperation : public NodeOperation {
 
     if (uniform_coordinates_result.should_compute()) {
       const Result &uniform_coordinates = this->context().cache_manager().image_coordinates.get(
-          this->context(), domain.size, CoordinatesType::Uniform);
+          this->context(), domain.data_size, CoordinatesType::Uniform);
       uniform_coordinates_result.wrap_external(uniform_coordinates);
       uniform_coordinates_result.transform(domain.transformation);
     }
 
     if (normalized_coordinates_result.should_compute()) {
       const Result &normalized_coordinates = this->context().cache_manager().image_coordinates.get(
-          this->context(), domain.size, CoordinatesType::Normalized);
+          this->context(), domain.data_size, CoordinatesType::Normalized);
       normalized_coordinates_result.wrap_external(normalized_coordinates);
       normalized_coordinates_result.transform(domain.transformation);
     }
 
     if (pixel_coordinates_result.should_compute()) {
       const Result &pixel_coordinates = this->context().cache_manager().image_coordinates.get(
-          this->context(), domain.size, CoordinatesType::Pixel);
+          this->context(), domain.data_size, CoordinatesType::Pixel);
       pixel_coordinates_result.wrap_external(pixel_coordinates);
       pixel_coordinates_result.transform(domain.transformation);
     }
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new ImageCoordinatesOperation(context, node);
 }
 
-static void register_node()
+static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeImageCoordinates");
   ntype.ui_name = "Image Coordinates";
@@ -91,8 +100,8 @@ static void register_node()
   ntype.declare = node_declare;
   ntype.get_compositor_operation = get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node)
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_composite_image_coordinates_cc

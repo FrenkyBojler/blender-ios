@@ -21,4 +21,8 @@
 #include "gpu_py_vertex_buffer.hh"  // IWYU pragma: export
 #include "gpu_py_vertex_format.hh"  // IWYU pragma: export
 
-PyObject *bpygpu_types_init();
+namespace blender {
+
+[[nodiscard]] PyObject *bpygpu_types_init();
+
+}  // namespace blender

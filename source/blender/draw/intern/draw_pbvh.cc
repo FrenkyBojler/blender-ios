@@ -18,6 +18,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
@@ -50,9 +51,7 @@ template<> struct DefaultHash<draw::pbvh::AttributeRequest> {
   }
 };
 
-}  // namespace blender
-
-namespace blender::draw::pbvh {
+namespace draw::pbvh {
 
 uint64_t ViewportRequest::hash() const
 {
@@ -75,8 +74,8 @@ struct OrigMeshData {
   OrigMeshData(const Mesh &mesh)
       : active_color(mesh.active_color_attribute),
         default_color(mesh.default_color_attribute),
-        active_uv_map(CustomData_get_active_layer_name(&mesh.corner_data, CD_PROP_FLOAT2)),
-        default_uv_map(CustomData_get_render_layer_name(&mesh.corner_data, CD_PROP_FLOAT2)),
+        active_uv_map(mesh.active_uv_map_name()),
+        default_uv_map(mesh.default_uv_map_name()),
         face_set_default(mesh.face_sets_color_default),
         face_set_seed(mesh.face_sets_color_seed),
         attributes(mesh.attributes())
@@ -308,19 +307,19 @@ static const GPUVertFormat &face_set_format()
 
 static GPUVertFormat attribute_format(const OrigMeshData &orig_mesh_data,
                                       const StringRef name,
-                                      const eCustomDataType data_type)
+                                      const bke::AttrType data_type)
 {
   GPUVertFormat format = init_format_for_attribute(data_type, "data");
 
   bool is_render, is_active;
   const char *prefix = "a";
 
-  if (CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) {
+  if (CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(data_type))) {
     prefix = "c";
     is_active = orig_mesh_data.active_color == name;
     is_render = orig_mesh_data.default_color == name;
   }
-  if (data_type == CD_PROP_FLOAT2) {
+  if (data_type == bke::AttrType::Float2) {
     prefix = "u";
     is_active = orig_mesh_data.active_uv_map == name;
     is_render = orig_mesh_data.default_uv_map == name;
@@ -538,7 +537,7 @@ BLI_NOINLINE static void ensure_vbos_allocated_grids(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-  const SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+  const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
   node_mask.foreach_index(GrainSize(64), [&](const int i) {
     if (!vbos[i]) {
       vbos[i] = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
@@ -705,12 +704,11 @@ BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
   if (!attr || attr.domain == bke::AttrDomain::Edge) {
     return;
   }
-  const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(attr.varray.type());
+  const bke::AttrType data_type = bke::cpp_type_to_attribute_type(attr.varray.type());
   ensure_vbos_allocated_mesh(
       object, attribute_format(orig_mesh_data, name, data_type), node_mask, vbos);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    bke::attribute_math::convert_to_static_type(attr.varray.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(attr.varray.type(), [&]<typename T>() {
       if constexpr (!std::is_void_v<typename AttributeConverter<T>::VBOType>) {
         const VArraySpan<T> src = attr.varray.typed<T>();
         switch (attr.domain) {
@@ -738,7 +736,7 @@ BLI_NOINLINE static void fill_positions_grids(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-  const SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+  const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
   const Span<float3> positions = subdiv_ccg.positions;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   ensure_vbos_allocated_grids(object, position_format(), use_flat_layout, node_mask, vbos);
@@ -780,7 +778,7 @@ BLI_NOINLINE static void fill_normals_grids(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-  const SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+  const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
   const Span<float3> positions = subdiv_ccg.positions;
   const Span<float3> normals = subdiv_ccg.normals;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
@@ -842,7 +840,7 @@ BLI_NOINLINE static void fill_masks_grids(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-  const SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+  const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   const Span<float> masks = subdiv_ccg.masks;
   ensure_vbos_allocated_grids(object, mask_format(), use_flat_layout, node_mask, vbos);
@@ -890,7 +888,7 @@ BLI_NOINLINE static void fill_face_sets_grids(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-  const SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+  const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   const int color_default = orig_mesh_data.face_set_default;
   const int color_seed = orig_mesh_data.face_set_seed;
@@ -988,7 +986,7 @@ BLI_NOINLINE static void update_masks_bmesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  const BMesh &bm = *object.sculpt->bm;
+  const BMesh &bm = *object.runtime->sculpt_session->bm;
   const int cd_offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
   ensure_vbos_allocated_bmesh(object, mask_format(), node_mask, vbos);
   if (cd_offset != -1) {
@@ -1023,7 +1021,7 @@ BLI_NOINLINE static void update_face_sets_bmesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  const BMesh &bm = *object.sculpt->bm;
+  const BMesh &bm = *object.runtime->sculpt_session->bm;
   const int color_default = orig_mesh_data.face_set_default;
   const int color_seed = orig_mesh_data.face_set_seed;
   const int offset = CustomData_get_offset_named(&bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
@@ -1053,41 +1051,6 @@ BLI_NOINLINE static void update_face_sets_bmesh(const Object &object,
   }
 }
 
-struct BMeshAttributeLookup {
-  const int offset = -1;
-  bke::AttrDomain domain;
-  eCustomDataType type;
-  operator bool() const
-  {
-    return offset != -1;
-  }
-};
-
-static BMeshAttributeLookup lookup_bmesh_attribute(const BMesh &bm, const StringRef name)
-{
-  for (const CustomDataLayer &layer : Span(bm.vdata.layers, bm.vdata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset, bke::AttrDomain::Point, eCustomDataType(layer.type)};
-    }
-  }
-  for (const CustomDataLayer &layer : Span(bm.edata.layers, bm.edata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset, bke::AttrDomain::Edge, eCustomDataType(layer.type)};
-    }
-  }
-  for (const CustomDataLayer &layer : Span(bm.pdata.layers, bm.pdata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset, bke::AttrDomain::Face, eCustomDataType(layer.type)};
-    }
-  }
-  for (const CustomDataLayer &layer : Span(bm.ldata.layers, bm.ldata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset, bke::AttrDomain::Corner, eCustomDataType(layer.type)};
-    }
-  }
-  return {};
-}
-
 BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
                                                         const OrigMeshData &orig_mesh_data,
                                                         const IndexMask &node_mask,
@@ -1096,16 +1059,24 @@ BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  const BMesh &bm = *object.sculpt->bm;
-  const BMeshAttributeLookup attr = lookup_bmesh_attribute(bm, name);
-  if (!attr || attr.domain == bke::AttrDomain::Edge) {
+  const BMesh &bm = *object.runtime->sculpt_session->bm;
+  const BMDataLayerLookup attr = BM_data_layer_lookup(bm, name);
+  if (attr.domain == bke::AttrDomain::Edge) {
     return;
   }
+
+  if (!attr) {
+    ensure_vbos_allocated_bmesh(
+        object, attribute_format(orig_mesh_data, name, bke::AttrType::Float3), node_mask, vbos);
+    node_mask.foreach_index(GrainSize(1),
+                            [&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); });
+    return;
+  }
+
   ensure_vbos_allocated_bmesh(
       object, attribute_format(orig_mesh_data, name, attr.type), node_mask, vbos);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    bke::attribute_math::convert_to_static_type(attr.type, [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(attr.type, [&]<typename T>() {
       const auto &faces = BKE_pbvh_bmesh_node_faces(&const_cast<bke::pbvh::BMeshNode &>(nodes[i]));
       if constexpr (!std::is_void_v<typename AttributeConverter<T>::VBOType>) {
         switch (attr.domain) {
@@ -1191,12 +1162,12 @@ static gpu::IndexBufPtr create_lines_index_bmesh(const Set<BMFace *, 0> &faces,
   return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, visible_faces_num * 3, false));
 }
 
-static void create_tri_index_grids(const Span<int> grid_indices,
-                                   const BitGroupVector<> &grid_hidden,
-                                   const int gridsize,
-                                   const int skip,
-                                   const int totgrid,
-                                   MutableSpan<uint3> data)
+static int create_tri_index_grids(const Span<int> grid_indices,
+                                  const BitGroupVector<> &grid_hidden,
+                                  const int gridsize,
+                                  const int skip,
+                                  const int totgrid,
+                                  MutableSpan<uint3> data)
 {
   int tri_index = 0;
   int offset = 0;
@@ -1226,14 +1197,16 @@ static void create_tri_index_grids(const Span<int> grid_indices,
       }
     }
   }
+
+  return tri_index;
 }
 
-static void create_tri_index_grids_flat_layout(const Span<int> grid_indices,
-                                               const BitGroupVector<> &grid_hidden,
-                                               const int gridsize,
-                                               const int skip,
-                                               const int totgrid,
-                                               MutableSpan<uint3> data)
+static int create_tri_index_grids_flat_layout(const Span<int> grid_indices,
+                                              const BitGroupVector<> &grid_hidden,
+                                              const int gridsize,
+                                              const int skip,
+                                              const int totgrid,
+                                              MutableSpan<uint3> data)
 {
   int tri_index = 0;
   int offset = 0;
@@ -1277,6 +1250,7 @@ static void create_tri_index_grids_flat_layout(const Span<int> grid_indices,
       }
     }
   }
+  return tri_index;
 }
 
 static void create_lines_index_grids(const Span<int> grid_indices,
@@ -1395,7 +1369,7 @@ static void create_lines_index_grids_flat_layout(const Span<int> grid_indices,
 
 static Array<int> calc_material_indices(const Object &object, const OrigMeshData &orig_mesh_data)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
@@ -1465,7 +1439,7 @@ static BitVector<> calc_use_flat_layout(const Object &object, const OrigMeshData
         return BitVector<>(nodes.size(), false);
       }
 
-      const SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+      const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
       const Span<int> grid_to_face_map = subdiv_ccg.grid_to_face_map;
 
       /* Use boolean array instead of #BitVector for parallelized writing. */
@@ -1561,14 +1535,22 @@ static gpu::IndexBufPtr create_tri_index_grids(const CCGKey &key,
 
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
+  int tri_count;
   if (use_flat_layout) {
-    create_tri_index_grids_flat_layout(grid_indices, grid_hidden, gridsize, skip, totgrid, data);
+    tri_count = create_tri_index_grids_flat_layout(
+        grid_indices, grid_hidden, gridsize, skip, totgrid, data);
   }
   else {
-    create_tri_index_grids(grid_indices, grid_hidden, gridsize, skip, totgrid, data);
+    tri_count = create_tri_index_grids(grid_indices, grid_hidden, gridsize, skip, totgrid, data);
   }
 
-  return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, 6 * visible_quad_len, false));
+  builder.index_len = tri_count * 3;
+  builder.index_min = 0;
+  builder.index_max = 6 * visible_quad_len;
+  builder.uses_restart_indices = false;
+  gpu::IndexBufPtr result = gpu::IndexBufPtr(GPU_indexbuf_calloc());
+  GPU_indexbuf_build_in_place(&builder, result.get());
+  return result;
 }
 
 static gpu::IndexBufPtr create_lines_index_grids(const CCGKey &key,
@@ -1594,6 +1576,10 @@ static gpu::IndexBufPtr create_lines_index_grids(const CCGKey &key,
       &builder, GPU_PRIM_LINES, 2 * totgrid * display_gridsize * (display_gridsize - 1), INT_MAX);
 
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
+  /* The buffer might contain hidden elements which are not initialized but still accounted. We
+   * don't count them to skip from allocation, so must fill that gaps by 0 to hide redundant edges.
+   */
+  data.fill(uint2(0));
 
   if (use_flat_layout) {
     create_lines_index_grids_flat_layout(
@@ -1636,7 +1622,7 @@ Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_lines_indices(const Object &object,
     case bke::pbvh::Type::Grids: {
       const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       nodes_to_calculate.foreach_index(GrainSize(1), [&](const int i) {
-        const SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+        const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
         const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
         ibos[i] = create_lines_index_grids(
             key, subdiv_ccg.grid_hidden, coarse, nodes[i].grids(), use_flat_layout_[i]);
@@ -1739,11 +1725,12 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
         }
       }
       else {
-        ensure_vbos_allocated_grids(object,
-                                    attribute_format(orig_mesh_data, "Dummy", CD_PROP_FLOAT3),
-                                    use_flat_layout_,
-                                    mask,
-                                    vbos);
+        ensure_vbos_allocated_grids(
+            object,
+            attribute_format(orig_mesh_data, "Dummy", bke::AttrType::Float3),
+            use_flat_layout_,
+            mask,
+            vbos);
         mask.foreach_index(GrainSize(1),
                            [&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); });
       }
@@ -1833,7 +1820,7 @@ Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_tri_indices(const Object &object,
       const IndexMask nodes_to_calculate = IndexMask::from_predicate(
           node_mask, GrainSize(8196), memory, [&](const int i) { return !ibos[i]; });
 
-      const SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
+      const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
       nodes_to_calculate.foreach_index(GrainSize(1), [&](const int i) {
@@ -1854,7 +1841,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
                                                       const IndexMask &nodes_to_update)
 {
   const Object &object_orig = *DEG_get_original(&object);
-  const OrigMeshData orig_mesh_data{*static_cast<const Mesh *>(object_orig.data)};
+  const OrigMeshData orig_mesh_data{*id_cast<const Mesh *>(object_orig.data)};
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   this->ensure_use_flat_layout(object, orig_mesh_data);
@@ -1898,7 +1885,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_lines_batches(const Object &object,
                                                        const IndexMask &nodes_to_update)
 {
   const Object &object_orig = *DEG_get_original(&object);
-  const OrigMeshData orig_mesh_data(*static_cast<const Mesh *>(object_orig.data));
+  const OrigMeshData orig_mesh_data(*id_cast<const Mesh *>(object_orig.data));
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   this->ensure_use_flat_layout(object, orig_mesh_data);
@@ -1929,10 +1916,11 @@ Span<int> DrawCacheImpl::ensure_material_indices(const Object &object)
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   if (material_indices_.size() != pbvh.nodes_num()) {
     const Object &object_orig = *DEG_get_original(&object);
-    const OrigMeshData orig_mesh_data(*static_cast<const Mesh *>(object_orig.data));
+    const OrigMeshData orig_mesh_data(*id_cast<const Mesh *>(object_orig.data));
     material_indices_ = calc_material_indices(object, orig_mesh_data);
   }
   return material_indices_;
 }
 
-}  // namespace blender::draw::pbvh
+}  // namespace draw::pbvh
+}  // namespace blender

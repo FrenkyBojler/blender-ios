@@ -14,6 +14,8 @@
 
 #include <Python.h>
 
+#include "../generic/py_capi_utils.hh"
+
 #include "gpu_py_capabilities.hh"
 #include "gpu_py_compute.hh"
 #include "gpu_py_matrix.hh"
@@ -24,6 +26,8 @@
 
 #include "gpu_py_api.hh" /* Own include. */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name GPU Module
  * \{ */
@@ -32,7 +36,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     pygpu_doc,
     "This module provides Python wrappers for the GPU implementation in Blender.\n"
-    "Some higher level functions can be found in the :mod:`gpu_extras` module.");
+    "Some higher level functions can be found in the :mod:`gpu_extras` module.\n");
 static PyModuleDef pygpu_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "gpu",
@@ -54,33 +58,35 @@ PyObject *BPyInit_gpu()
   mod = PyModule_Create(&pygpu_module_def);
 
   PyModule_AddObject(mod, "types", (submodule = bpygpu_types_init()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   PyModule_AddObject(mod, "capabilities", (submodule = bpygpu_capabilities_init()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   PyModule_AddObject(mod, "matrix", (submodule = bpygpu_matrix_init()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   PyModule_AddObject(mod, "platform", (submodule = bpygpu_platform_init()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   PyModule_AddObject(mod, "select", (submodule = bpygpu_select_init()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   PyModule_AddObject(mod, "shader", (submodule = bpygpu_shader_init()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   PyModule_AddObject(mod, "state", (submodule = bpygpu_state_init()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   PyModule_AddObject(mod, "texture", (submodule = bpygpu_texture_init()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   PyModule_AddObject(mod, "compute", (submodule = bpygpu_compute_init()));
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
+  PyC_Module_AddToSysModules(sys_modules, submodule);
 
   return mod;
 }
 
 /** \} */
+
+}  // namespace blender

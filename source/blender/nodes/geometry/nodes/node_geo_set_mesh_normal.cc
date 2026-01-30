@@ -9,6 +9,8 @@
 
 #include "NOD_rna_define.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "RNA_enum_types.hh"
 
 #include "node_geometry_util.hh"
@@ -26,32 +28,34 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh to set the custom normals on");
   b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
   if (const bNode *node = b.node_or_null()) {
     switch (Mode(node->custom1)) {
       case Mode::Sharpness:
         b.add_input<decl::Bool>("Remove Custom").default_value(true);
-        b.add_input<decl::Bool>("Edge Sharpness").supports_field();
-        b.add_input<decl::Bool>("Face Sharpness").supports_field();
+        b.add_input<decl::Bool>("Edge Sharpness").field_on_all();
+        b.add_input<decl::Bool>("Face Sharpness").field_on_all();
         break;
       case Mode::Free:
       case Mode::CornerFanSpace:
         b.add_input<decl::Vector>("Custom Normal")
             .subtype(PROP_XYZ)
-            .implicit_field(NODE_DEFAULT_INPUT_NORMAL_FIELD)
+            .implicit_field_on_all(NODE_DEFAULT_INPUT_NORMAL_FIELD)
             .hide_value();
         break;
     }
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   const bNode &node = *static_cast<const bNode *>(ptr->data);
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
   if (Mode(node.custom1) == Mode::Free) {
-    layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+    layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
   }
 }
 
@@ -74,7 +78,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       const bool remove_custom = params.extract_input<bool>("Remove Custom");
       const fn::Field sharp_edge = params.extract_input<fn::Field<bool>>("Edge Sharpness");
       const fn::Field sharp_face = params.extract_input<fn::Field<bool>>("Face Sharpness");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
         if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
           /* Evaluate both fields before storing the result to avoid one attribute change
            * potentially affecting the other field evaluation. */
@@ -115,7 +119,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                     attributes.lookup_meta_data("custom_normal"))
             {
               if (meta_data->domain == bke::AttrDomain::Corner &&
-                  meta_data->data_type == CD_PROP_INT16_2D)
+                  meta_data->data_type == bke::AttrType::Int16_2D)
               {
                 add_sharpness_and_corner_fan_info = true;
               }
@@ -127,7 +131,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     case Mode::Free: {
       const fn::Field custom_normal = params.extract_input<fn::Field<float3>>("Custom Normal");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
         if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
           const bke::AttrDomain domain = bke::AttrDomain(node.custom2);
           bke::try_capture_field_on_geometry(mesh->attributes_for_write(),
@@ -142,13 +146,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     case Mode::CornerFanSpace: {
       const fn::Field custom_normal = params.extract_input<fn::Field<float3>>("Custom Normal");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
         if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
           const bke::MeshFieldContext context(*mesh, bke::AttrDomain::Corner);
           fn::FieldEvaluator evaluator(context, mesh->corners_num);
           Array<float3> corner_normals(mesh->corners_num);
           evaluator.add_with_destination<float3>(custom_normal, corner_normals);
           evaluator.evaluate();
+          mesh->attributes_for_write().remove("custom_normal");
           bke::mesh_set_custom_normals(*mesh, corner_normals);
         }
       });
@@ -206,7 +211,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSetMeshNormal");
   ntype.ui_name = "Set Mesh Normal";
   ntype.ui_description = "Store a normal vector for each mesh element";
@@ -216,7 +221,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

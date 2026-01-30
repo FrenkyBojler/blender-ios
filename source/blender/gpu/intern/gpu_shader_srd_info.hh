@@ -10,7 +10,7 @@
 
 #define SRD_STRUCT_BEGIN(srd) \
   struct srd { \
-    static void populate(blender::gpu::shader::ShaderCreateInfo &info) \
+    static void populate(gpu::shader::ShaderCreateInfo &info) \
     {
 
 #define SRD_STRUCT_END(srd) \
@@ -45,6 +45,7 @@
 #define SRD_RESOURCE_END(srd) SRD_STRUCT_END(srd)
 #define SRD_RESOURCE_SPECIALIZATION_CONSTANT(srd, type, name, default) \
   info.specialization_constant(Type::type##_t, #name, default);
+#define SRD_RESOURCE_GROUP_SHARED(srd, type, name) info.shared_variable(Type::type##_t, name)
 #define SRD_RESOURCE_PUSH_CONSTANT(srd, type, name) info.push_constant(Type::type##_t, #name);
 #define SRD_RESOURCE_PUSH_CONSTANT_ARRAY(srd, type, name, array) \
   info.push_constant(Type::type##_t, #name, array);

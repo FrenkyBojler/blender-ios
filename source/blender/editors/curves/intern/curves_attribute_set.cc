@@ -8,6 +8,7 @@
 
 #include "BLI_generic_pointer.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_context.hh"
@@ -91,14 +92,14 @@ static void validate_value(const bke::AttributeAccessor attributes,
 static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 {
   Object *active_object = CTX_data_active_object(C);
-  Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
+  Curves &active_curves_id = *id_cast<Curves *>(active_object->data);
 
   AttributeOwner active_owner = AttributeOwner::from_id(&active_curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(active_owner);
   const bke::AttributeMetaData active_meta_data =
       *active_curves_id.geometry.wrap().attributes().lookup_meta_data(name);
-  const eCustomDataType active_type = active_meta_data.data_type;
-  const CPPType &type = *bke::custom_data_type_to_cpp_type(active_type);
+  const bke::AttrType active_type = active_meta_data.data_type;
+  const CPPType &type = bke::attribute_type_to_cpp_type(active_type);
 
   BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
   BLI_SCOPED_DEFER([&]() { type.destruct(buffer); });
@@ -147,7 +148,7 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object *active_object = CTX_data_active_object(C);
-  Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
+  Curves &active_curves_id = *id_cast<Curves *>(active_object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&active_curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
@@ -162,7 +163,7 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
   const CPPType &type = attribute.varray.type();
 
   PropertyRNA *prop = geometry::rna_property_for_type(*op->ptr,
-                                                      bke::cpp_type_to_custom_data_type(type));
+                                                      bke::cpp_type_to_attribute_type(type));
   if (RNA_property_is_set(op->ptr, prop)) {
     return WM_operator_props_popup(C, op, event);
   }
@@ -170,8 +171,7 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
   BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
   BLI_SCOPED_DEFER([&]() { type.destruct(buffer); });
 
-  bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(type, [&]<typename T>() {
     const VArray<T> values_typed = attribute.varray.typed<T>();
     bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(static_cast<T *>(buffer), 1)};
     selection.foreach_index([&](const int i) { mixer.mix_in(0, values_typed[i]); });
@@ -185,20 +185,19 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
 
 static void set_attribute_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = &op->layout->column(true);
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  ui::Layout &layout = op->layout->column(true);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   Object *object = CTX_data_active_object(C);
-  Curves &curves_id = *static_cast<Curves *>(object->data);
+  Curves &curves_id = *id_cast<Curves *>(object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
   const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-  const bke::AttributeAccessor attributes = curves.attributes();
-  const bke::AttributeMetaData meta_data = *attributes.lookup_meta_data(name);
+  const bke::AttributeMetaData meta_data = *curves.attributes().lookup_meta_data(name);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(meta_data.data_type);
-  layout->prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
 }
 
 void CURVES_OT_attribute_set(wmOperatorType *ot)

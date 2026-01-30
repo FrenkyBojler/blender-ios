@@ -29,7 +29,7 @@ static bke::CurvesGeometry join_curves(const GreasePencil &src_grease_pencil,
     const float4x4 &transform = transforms_to_apply[src_curves_i];
     src_curves.transform(transform);
     Curves *src_curves_id = bke::curves_new_nomain(std::move(src_curves));
-    src_curves_id->mat = static_cast<Material **>(MEM_dupallocN(src_grease_pencil.material_array));
+    src_curves_id->mat = MEM_dupalloc(src_grease_pencil.material_array);
     src_curves_id->totcol = src_grease_pencil.material_array_num;
     src_geometries[src_curves_i].replace_curves(src_curves_id);
   }
@@ -112,7 +112,7 @@ GreasePencil *merge_layers(const GreasePencil &src_grease_pencil,
   const bke::AttributeAccessor src_attributes = src_grease_pencil.attributes();
   bke::MutableAttributeAccessor new_attributes = new_grease_pencil->attributes_for_write();
   src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -124,8 +124,7 @@ GreasePencil *merge_layers(const GreasePencil &src_grease_pencil,
 
     const CPPType &type = new_attribute.span.type();
 
-    bke::attribute_math::convert_to_static_type(type, [&](auto type) {
-      using T = decltype(type);
+    bke::attribute_math::to_static_type(type, [&]<typename T>() {
       const VArraySpan<T> src_span = src_attribute.varray.typed<T>();
       MutableSpan<T> new_span = new_attribute.span.typed<T>();
 

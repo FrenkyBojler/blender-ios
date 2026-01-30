@@ -12,7 +12,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Point Index")
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
-      .description("The control point to retrieve data from");
+      .description("The control point to retrieve data from")
+      .structure_type(StructureType::Field);
   b.add_output<decl::Int>("Curve Index")
       .field_source_reference_all()
       .description("The curve the control point is part of");
@@ -35,7 +36,7 @@ class CurveOfPointInput final : public bke::CurvesFieldInput {
     if (domain != AttrDomain::Point) {
       return {};
     }
-    return VArray<int>::ForContainer(curves.point_to_curve_map());
+    return VArray<int>::from_container(curves.point_to_curve_map());
   }
 
   uint64_t hash() const override
@@ -70,7 +71,7 @@ class PointIndexInCurveInput final : public bke::CurvesFieldInput {
     }
     const Span<int> offsets = curves.offsets();
     Array<int> point_to_curve_map = curves.point_to_curve_map();
-    return VArray<int>::ForFunc(
+    return VArray<int>::from_func(
         curves.points_num(),
         [offsets, point_to_curve_map = std::move(point_to_curve_map)](const int point_i) {
           const int curve_i = point_to_curve_map[point_i];
@@ -114,7 +115,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeCurveOfPoint", GEO_NODE_CURVE_TOPOLOGY_CURVE_OF_POINT);
   ntype.ui_name = "Curve of Point";
   ntype.ui_description = "Retrieve the curve a control point is part of";
@@ -122,7 +123,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

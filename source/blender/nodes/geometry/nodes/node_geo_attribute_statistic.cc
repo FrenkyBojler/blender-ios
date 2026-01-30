@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry").description("Geometry to get the statistics from");
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
 
   if (node != nullptr) {
@@ -32,7 +32,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_input(data_type, "Attribute").hide_value().field_on_all();
 
     b.add_output(data_type, N_("Mean"));
-    b.add_output(data_type, N_("Median"));
+    b.add_output(data_type, CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Median"))
+        .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
     b.add_output(data_type, N_("Sum"));
     b.add_output(data_type, N_("Min"));
     b.add_output(data_type, N_("Max"));
@@ -42,10 +43,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -72,7 +73,7 @@ static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSoc
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const blender::bke::bNodeType &node_type = params.node_type();
+  const bke::bNodeType &node_type = params.node_type();
   const NodeDeclaration &declaration = *params.node_type().static_declaration;
   search_link_ops_for_declarations(params, declaration.inputs);
 
@@ -146,25 +147,23 @@ static void node_geo_exec(GeoNodeExecParams params)
       const Field<float> input_field = params.extract_input<Field<float>>("Attribute");
       Vector<float> data;
       for (const GeometryComponent *component : components) {
-        const std::optional<AttributeAccessor> attributes = component->attributes();
-        if (!attributes.has_value()) {
+        const int domain_size = component->attribute_domain_size(domain);
+        if (domain_size == 0) {
           continue;
         }
-        if (attributes->domain_supported(domain)) {
-          const bke::GeometryFieldContext field_context{*component, domain};
-          fn::FieldEvaluator data_evaluator{field_context, attributes->domain_size(domain)};
-          data_evaluator.add(input_field);
-          data_evaluator.set_selection(selection_field);
-          data_evaluator.evaluate();
-          const VArray<float> component_data = data_evaluator.get_evaluated<float>(0);
-          const IndexMask selection = data_evaluator.get_evaluated_selection_as_mask();
+        const bke::GeometryFieldContext field_context{*component, domain};
+        fn::FieldEvaluator data_evaluator{field_context, domain_size};
+        data_evaluator.add(input_field);
+        data_evaluator.set_selection(selection_field);
+        data_evaluator.evaluate();
+        const VArray<float> component_data = data_evaluator.get_evaluated<float>(0);
+        const IndexMask selection = data_evaluator.get_evaluated_selection_as_mask();
 
-          const int next_data_index = data.size();
-          data.resize(next_data_index + selection.size());
-          MutableSpan<float> selected_data = data.as_mutable_span().slice(next_data_index,
-                                                                          selection.size());
-          array_utils::gather(component_data, selection, selected_data);
-        }
+        const int next_data_index = data.size();
+        data.resize(next_data_index + selection.size());
+        MutableSpan<float> selected_data = data.as_mutable_span().slice(next_data_index,
+                                                                        selection.size());
+        array_utils::gather(component_data, selection, selected_data);
       }
 
       float mean = 0.0f;
@@ -194,7 +193,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           range = max - min;
         }
         if (sum_required || variance_required) {
-          sum = blender::array_utils::compute_sum<float>(data);
+          sum = array_utils::compute_sum<float>(data);
           mean = sum / data.size();
 
           if (variance_required) {
@@ -292,7 +291,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           range = max - min;
         }
         if (sum_required || variance_required) {
-          sum = blender::array_utils::compute_sum(data.as_span());
+          sum = array_utils::compute_sum(data.as_span());
           mean = sum / data.size();
 
           if (variance_required) {
@@ -357,7 +356,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeAttributeStatistic", GEO_NODE_ATTRIBUTE_STATISTIC);
   ntype.ui_name = "Attribute Statistic";
   ntype.ui_description =
@@ -369,7 +368,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

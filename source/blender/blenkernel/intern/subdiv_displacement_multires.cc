@@ -15,6 +15,7 @@
 #include "DNA_modifier_types.h"
 
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_offset_indices.hh"
 
@@ -35,7 +36,7 @@ struct MultiresDisplacementData {
   Subdiv *subdiv = nullptr;
   int grid_size = 0;
   /* Mesh is used to read external displacement. */
-  Mesh *mesh = nullptr;
+  const Mesh *mesh = nullptr;
   const MultiresModifierData *mmd = nullptr;
   OffsetIndices<int> faces = {};
   const MDisps *mdisps = nullptr;
@@ -47,7 +48,7 @@ struct MultiresDisplacementData {
   Array<PolyCornerIndex> ptex_face_corner = {};
   /* Indexed by coarse face index, returns first PTEX face index corresponding
    * to that coarse face. */
-  int *face_ptex_offset = nullptr;
+  Span<int> face_ptex_offset = {};
   /* Sanity check, is used in debug builds.
    * Controls that initialize() was called prior to eval_displacement(). */
   bool is_initialized = false;
@@ -107,15 +108,15 @@ BLI_INLINE AverageWith read_displacement_grid(const MDisps &displacement_grid,
                                               const int grid_size,
                                               const float grid_u,
                                               const float grid_v,
-                                              float r_tangent_D[3])
+                                              float3 &r_tangent_D)
 {
   if (displacement_grid.disps == nullptr) {
-    zero_v3(r_tangent_D);
+    r_tangent_D = float3(0.0f);
     return AverageWith::None;
   }
   const int x = roundf(grid_u * (grid_size - 1));
   const int y = roundf(grid_v * (grid_size - 1));
-  copy_v3_v3(r_tangent_D, displacement_grid.disps[y * grid_size + x]);
+  r_tangent_D = displacement_grid.disps[y * grid_size + x];
   if (x == 0 && y == 0) {
     return AverageWith::All;
   }
@@ -164,7 +165,7 @@ static void average_read_displacement_tangent(const MultiresDisplacementData &da
                                               const MDisps &other_displacement_grid,
                                               const float grid_u,
                                               const float grid_v,
-                                              float r_tangent_D[3])
+                                              float3 &r_tangent_D)
 {
   read_displacement_grid(other_displacement_grid, data.grid_size, grid_u, grid_v, r_tangent_D);
 }
@@ -175,7 +176,7 @@ static void average_read_displacement_object(const MultiresDisplacementData &dat
                                              const float grid_v,
                                              const int ptex_face_index,
                                              const int corner_index,
-                                             float r_D[3])
+                                             float3 &r_D)
 {
   const PolyCornerIndex &face_corner = data.ptex_face_corner[ptex_face_index];
   const int num_corners = data.faces[face_corner.face_index].size();
@@ -189,10 +190,10 @@ static void average_read_displacement_object(const MultiresDisplacementData &dat
   average_construct_tangent_matrix(
       *data.subdiv, num_corners, ptex_face_index, corner_index, u, v, tangent_matrix);
   /* Read displacement from other grid in a tangent space. */
-  float tangent_D[3];
+  float3 tangent_D;
   average_read_displacement_tangent(data, displacement_grid, grid_u, grid_v, tangent_D);
   /* Convert displacement to object space. */
-  mul_v3_m3v3(r_D, tangent_matrix.ptr(), tangent_D);
+  r_D = math::transform_direction(tangent_matrix, tangent_D);
 }
 
 static void average_get_other_ptex_and_corner(const MultiresDisplacementData &data,
@@ -219,7 +220,7 @@ static void average_with_other(const Displacement &displacement,
                                const float grid_u,
                                const float grid_v,
                                const int corner_delta,
-                               float r_D[3])
+                               float3 &r_D)
 {
   const MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
       displacement.user_data);
@@ -229,7 +230,7 @@ static void average_with_other(const Displacement &displacement,
   average_get_other_ptex_and_corner(
       data, ptex_face_index, corner, corner_delta, other_ptex_face_index, other_corner_index);
   /* Get displacement in object space. */
-  float other_D[3];
+  float3 other_D;
   average_read_displacement_object(data,
                                    other_displacement_grid,
                                    grid_u,
@@ -238,8 +239,8 @@ static void average_with_other(const Displacement &displacement,
                                    other_corner_index,
                                    other_D);
   /* Average result with the other displacement vector. */
-  add_v3_v3(r_D, other_D);
-  mul_v3_fl(r_D, 0.5f);
+  r_D += other_D;
+  r_D *= 0.5f;
 }
 
 static void average_with_all(const Displacement &displacement,
@@ -247,7 +248,7 @@ static void average_with_all(const Displacement &displacement,
                              const int corner,
                              const float /*grid_u*/,
                              const float /*grid_v*/,
-                             float r_D[3])
+                             float3 &r_D)
 {
   const MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
       displacement.user_data);
@@ -263,7 +264,7 @@ static void average_with_next(const Displacement &displacement,
                               const int corner,
                               const float grid_u,
                               const float /*grid_v*/,
-                              float r_D[3])
+                              float3 &r_D)
 {
   average_with_other(displacement, ptex_face_index, corner, 0.0f, grid_u, 1, r_D);
 }
@@ -273,7 +274,7 @@ static void average_with_prev(const Displacement &displacement,
                               const int corner,
                               const float /*grid_u*/,
                               const float grid_v,
-                              float r_D[3])
+                              float3 &r_D)
 {
   average_with_other(displacement, ptex_face_index, corner, grid_v, 0.0f, -1, r_D);
 }
@@ -284,7 +285,7 @@ static void average_displacement(const Displacement &displacement,
                                  const int corner,
                                  const float grid_u,
                                  const float grid_v,
-                                 float r_D[3])
+                                 float3 &r_D)
 {
   switch (average_with) {
     case AverageWith::All:
@@ -321,7 +322,7 @@ static void initialize(Displacement *displacement)
 {
   MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
       displacement->user_data);
-  multiresModifier_ensure_external_read(data.mesh, data.mmd);
+  multiresModifier_ensure_external_read(const_cast<Mesh *>(data.mesh), data.mmd);
   data.is_initialized = true;
 }
 
@@ -329,9 +330,9 @@ static void eval_displacement(Displacement *displacement,
                               const int ptex_face_index,
                               const float u,
                               const float v,
-                              const float dPdu[3],
-                              const float dPdv[3],
-                              float r_D[3])
+                              const float3 &dPdu,
+                              const float3 &dPdv,
+                              float3 &r_D)
 {
   MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
       displacement->user_data);
@@ -344,13 +345,14 @@ static void eval_displacement(Displacement *displacement,
       *displacement, ptex_face_index, u, v, &displacement_grid, grid_u, grid_v);
   /* Read displacement from the current displacement grid and see if any
    * averaging is needed. */
-  float tangent_D[3];
+  float3 tangent_D;
   const AverageWith average_with = read_displacement_grid(
       *displacement_grid, grid_size, grid_u, grid_v, tangent_D);
   /* Convert it to the object space. */
   float3x3 tangent_matrix;
   BKE_multires_construct_tangent_matrix(tangent_matrix, dPdu, dPdv, corner_of_quad);
-  mul_v3_m3v3(r_D, tangent_matrix.ptr(), tangent_D);
+
+  r_D = math::transform_direction(tangent_matrix, tangent_D);
   /* For the boundary points of grid average two (or all) neighbor grids. */
   const int corner = displacement_get_face_corner(data, ptex_face_index, u, v);
   average_displacement(*displacement, average_with, ptex_face_index, corner, grid_u, grid_v, r_D);
@@ -404,7 +406,7 @@ static void displacement_data_init_mapping(Displacement &displacement, const Mes
 
 static void displacement_init_data(Displacement &displacement,
                                    Subdiv &subdiv,
-                                   Mesh &mesh,
+                                   const Mesh &mesh,
                                    const MultiresModifierData &mmd)
 {
   MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
@@ -427,7 +429,9 @@ static void displacement_init_functions(Displacement *displacement)
   displacement->free = free_displacement;
 }
 
-void displacement_attach_from_multires(Subdiv *subdiv, Mesh *mesh, const MultiresModifierData *mmd)
+void displacement_attach_from_multires(Subdiv *subdiv,
+                                       const Mesh *mesh,
+                                       const MultiresModifierData *mmd)
 {
   /* Make sure we don't have previously assigned displacement. */
   displacement_detach(subdiv);
@@ -437,7 +441,7 @@ void displacement_attach_from_multires(Subdiv *subdiv, Mesh *mesh, const Multire
     return;
   }
   /* Allocate all required memory. */
-  Displacement *displacement = MEM_callocN<Displacement>("multires displacement");
+  Displacement *displacement = MEM_new_zeroed<Displacement>("multires displacement");
   displacement->user_data = MEM_new<MultiresDisplacementData>("multires displacement data");
   displacement_init_data(*displacement, *subdiv, *mesh, *mmd);
   displacement_init_functions(displacement);

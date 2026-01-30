@@ -58,13 +58,13 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::draw
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_compositor
   PRIVATE bf::intern::atomic
+  PRIVATE bf::intern::clog
   PRIVATE bf::nodes
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager

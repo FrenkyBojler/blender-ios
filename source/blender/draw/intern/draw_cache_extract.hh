@@ -9,9 +9,9 @@
 #pragma once
 
 #include "BLI_array.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_utildefines.h"
 
 #include "DNA_view3d_enums.h"
 
@@ -21,17 +21,19 @@
 
 #include "draw_attributes.hh"
 
-namespace blender::gpu {
+namespace blender {
+
+namespace gpu {
 class Batch;
 class IndexBuf;
-}  // namespace blender::gpu
+}  // namespace gpu
 struct Mesh;
 struct Object;
 struct Scene;
 struct TaskGraph;
 struct ToolSettings;
 
-namespace blender::draw {
+namespace draw {
 
 struct MeshRenderData;
 struct DRWSubdivCache;
@@ -127,6 +129,8 @@ enum class IBOType : int8_t {
   FaceDots,
   LinesPaintMask,
   LinesAdjacency,
+  UVTris,
+  AllUVLines,
   UVLines,
   EditUVTris,
   EditUVLines,
@@ -179,6 +183,7 @@ struct MeshBatchList {
   gpu::Batch *wire_edges;
   /* Loops around faces. no edges between selected faces */
   gpu::Batch *paint_overlay_wire_loops;
+  gpu::Batch *wire_loops_all_uvs;
   gpu::Batch *wire_loops_uvs;
   gpu::Batch *wire_loops_edituvs;
   gpu::Batch *sculpt_overlays;
@@ -219,15 +224,16 @@ enum DRWBatchFlag : uint64_t {
   MBC_EDGE_DETECTION = (1u << MBC_BATCH_INDEX(edge_detection)),
   MBC_WIRE_EDGES = (1u << MBC_BATCH_INDEX(wire_edges)),
   MBC_PAINT_OVERLAY_WIRE_LOOPS = (1u << MBC_BATCH_INDEX(paint_overlay_wire_loops)),
+  MBC_WIRE_LOOPS_ALL_UVS = (1u << MBC_BATCH_INDEX(wire_loops_all_uvs)),
   MBC_WIRE_LOOPS_UVS = (1u << MBC_BATCH_INDEX(wire_loops_uvs)),
   MBC_WIRE_LOOPS_EDITUVS = (1u << MBC_BATCH_INDEX(wire_loops_edituvs)),
   MBC_SCULPT_OVERLAYS = (1u << MBC_BATCH_INDEX(sculpt_overlays)),
   MBC_VIEWER_ATTRIBUTE_OVERLAY = (1u << MBC_BATCH_INDEX(surface_viewer_attribute)),
-  MBC_PAINT_OVERLAY_VERTS = (1u << MBC_BATCH_INDEX(paint_overlay_verts)),
+  MBC_PAINT_OVERLAY_VERTS = (uint64_t(1u) << MBC_BATCH_INDEX(paint_overlay_verts)),
   MBC_PAINT_OVERLAY_SURFACE = (uint64_t(1u) << MBC_BATCH_INDEX(paint_overlay_surface)),
   MBC_SURFACE_PER_MAT = (uint64_t(1u) << MBC_BATCH_LEN),
 };
-ENUM_OPERATORS(DRWBatchFlag, MBC_SURFACE_PER_MAT);
+ENUM_OPERATORS(DRWBatchFlag);
 
 BLI_STATIC_ASSERT(MBC_BATCH_LEN < 64, "Number of batches exceeded the limit of bit fields");
 
@@ -318,7 +324,7 @@ struct MeshBatchCache {
 #define MBC_EDITUV \
   (MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | \
    MBC_EDITUV_EDGES | MBC_EDITUV_VERTS | MBC_EDITUV_FACEDOTS | MBC_UV_FACES | \
-   MBC_WIRE_LOOPS_UVS | MBC_WIRE_LOOPS_EDITUVS)
+   MBC_WIRE_LOOPS_ALL_UVS | MBC_WIRE_LOOPS_UVS | MBC_WIRE_LOOPS_EDITUVS)
 
 void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
                                         const Scene &scene,
@@ -341,4 +347,5 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
                                                DRWSubdivCache &subdiv_cache,
                                                MeshRenderData &mr);
 
-}  // namespace blender::draw
+}  // namespace draw
+}  // namespace blender

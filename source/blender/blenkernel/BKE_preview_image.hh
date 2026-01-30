@@ -14,16 +14,20 @@
 
 #include "DNA_ID_enums.h"
 
+namespace blender {
+
 struct BlendDataReader;
 struct BlendWriter;
-struct GPUTexture;
+namespace gpu {
+class Texture;
+}
 struct ID;
 struct ImBuf;
 struct PreviewImage;
 
 enum ThumbSource : int8_t;
 
-namespace blender::bke {
+namespace bke {
 
 struct PreviewDeferredLoadingData;
 
@@ -32,7 +36,7 @@ struct PreviewImageRuntime {
   int icon_id = 0;
   int16_t tag = 0;
 
-  std::array<GPUTexture *, NUM_ICON_SIZES> gputexture = {};
+  std::array<gpu::Texture *, NUM_ICON_SIZES> gputexture = {};
 
   /** Used to store data to defer the loading of the preview. If empty, loading is not deferred. */
   std::unique_ptr<PreviewDeferredLoadingData> deferred_loading_data;
@@ -41,15 +45,10 @@ struct PreviewImageRuntime {
   ~PreviewImageRuntime();
 };
 
-}  // namespace blender::bke
+}  // namespace bke
 
 void BKE_preview_images_init();
 void BKE_preview_images_free();
-
-/**
- * Free the preview image for use in list.
- */
-void BKE_previewimg_freefunc(void *link);
 
 /**
  * Free the preview image.
@@ -151,3 +150,5 @@ void BKE_previewimg_deferred_release(PreviewImage *prv);
 
 void BKE_previewimg_blend_write(BlendWriter *writer, const PreviewImage *prv);
 void BKE_previewimg_blend_read(BlendDataReader *reader, PreviewImage *prv);
+
+}  // namespace blender

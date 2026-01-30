@@ -12,7 +12,12 @@
 
 #include "DNA_listBase.h"
 
+#include "BLI_map.hh"
+
+namespace blender {
+
 struct GHash;
+struct Nurb;
 struct PackedFile;
 struct VFont;
 
@@ -38,14 +43,21 @@ struct VFontData_Metrics {
 };
 
 struct VFontData {
-  GHash *characters;
+  /**
+   * A hash that maps `uint -> VChar` (code-points to character outlines).
+   *
+   * \note values may be null when the character does not exist in the font.
+   * This is done to differentiate characters known not to exist from
+   * characters that have not yet been loaded.
+   */
+  Map<uint, struct VChar *> *characters;
   char name[128];
 
   VFontData_Metrics metrics;
 };
 
 struct VChar {
-  ListBase nurbsbase;
+  ListBaseT<Nurb> nurbsbase;
   float width;
 };
 
@@ -65,3 +77,5 @@ VFontData *BKE_vfontdata_copy(const VFontData *vfont_src, int flag);
 
 VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, unsigned int character);
 VChar *BKE_vfontdata_char_copy(const VChar *vchar_src);
+
+}  // namespace blender
