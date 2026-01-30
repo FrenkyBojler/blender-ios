@@ -49,57 +49,75 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   std::string output = "";
   std::string output2 = "";
+  ID *id = nullptr;
   //  ID *data_block = params.extract_input<ID *>("Data Block");  cant compile
-  // SocketValueVariant value = params.extract_input<SocketValueVariant>("Data Block");
 
   switch (data_type) {
     case SOCK_OBJECT: {
       Object *data_block = params.extract_input<Object *>("Data Block");
-      output = std::string(data_block->id.name + 2);
+      id = &data_block->id;
       break;
     }
     case SOCK_IMAGE: {
       Image *data_block = params.extract_input<Image *>("Data Block");
-      output = std::string(data_block->id.name + 2);
+      id = &data_block->id;
       break;
     }
     case SOCK_COLLECTION: {
       Collection *data_block = params.extract_input<Collection *>("Data Block");
-      output = std::string(data_block->id.name + 2);
+      id = &data_block->id;
       break;
     }
     case SOCK_TEXTURE: {
       Tex *data_block = params.extract_input<Tex *>("Data Block");
-      output = std::string(data_block->id.name + 2);
+      id = &data_block->id;
       break;
     }
     case SOCK_MATERIAL: {
       Material *data_block = params.extract_input<Material *>("Data Block");
-      output = std::string(data_block->id.name + 2);
+      id = &data_block->id;
       break;
     }
     case SOCK_FONT: {
       VFont *data_block = params.extract_input<VFont *>("Data Block");
-      output = std::string(data_block->id.name + 2);
+      id = &data_block->id;
       break;
     }
     case SOCK_TEXT_ID: {
       Text *data_block = params.extract_input<Text *>("Data Block");
-      output = std::string(data_block->id.name + 2);
+      id = &data_block->id;
       break;
     }
     case SOCK_SOUND: {
       bSound *data_block = params.extract_input<bSound *>("Data Block");
-      output = std::string(data_block->id.name + 2);
+      id = &data_block->id;
       break;
     }
     default:
       break;
   }
 
+  if (id == nullptr) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  output = std::string(id->name + 2);
   params.set_output("Name", std::move(output));
+
+  if (!params.output_is_required("Library Name")) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  Library *lib = id->lib;
+  if (lib == nullptr) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  output2 = std::string(lib->id.name + 2);
   params.set_output("Library Name", std::move(output2));
-  params.set_default_remaining_outputs();
 }
 
 static void node_rna(StructRNA *srna)
