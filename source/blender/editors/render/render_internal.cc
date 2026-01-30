@@ -384,6 +384,11 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  if (is_animation && !(scene->r.mode & R_SAVE_ENABLE)) {
+    BKE_report(op->reports, RPT_ERROR, "Saving is disabled in an animation render");
+    return OPERATOR_CANCELLED;
+  }
+
   re = RE_NewSceneRender(scene);
 
   G.is_break = false;
@@ -1075,6 +1080,11 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* only one render job at a time */
   if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (is_animation && !(scene->r.mode & R_SAVE_ENABLE)) {
+    BKE_report(op->reports, RPT_ERROR, "Saving is disabled in an animation render");
     return OPERATOR_CANCELLED;
   }
 

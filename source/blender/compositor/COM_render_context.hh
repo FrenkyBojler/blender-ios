@@ -46,6 +46,7 @@ class FileOutput {
   ImageFormatData format_;
   RenderResult *render_result_;
   bool save_as_render_;
+  bool use_file_extension_;
   Map<std::string, std::string> meta_data_;
 
  public:
@@ -54,7 +55,8 @@ class FileOutput {
   FileOutput(const std::string &path,
              const ImageFormatData &format,
              int2 size,
-             bool save_as_render);
+             bool save_as_render,
+             bool use_file_extension);
 
   /* Free the internal render result. */
   ~FileOutput();
@@ -117,7 +119,8 @@ class RenderContext {
   FileOutput &get_file_output(std::string path,
                               ImageFormatData format,
                               int2 size,
-                              bool save_as_render);
+                              bool save_as_render,
+                              bool use_file_extension);
 
   /* Write the file outputs that were added to the context. The render pipeline code should call
    * this method after all views were evaluated to write the file outputs. See the get_file_output
