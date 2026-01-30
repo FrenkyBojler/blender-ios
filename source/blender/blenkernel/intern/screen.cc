@@ -1064,20 +1064,42 @@ ARegion *BKE_screen_find_region_in_space(const bScreen *screen,
 
 std::optional<std::string> BKE_screen_path_from_screen_to_space(const PointerRNA *ptr)
 {
-  if (GS(ptr->owner_id->name) != ID_SCR) {
+  if (!ELEM(GS(ptr->owner_id->name), ID_SCR, ID_WM)) {
     BLI_assert_unreachable();
     return std::nullopt;
   }
 
-  const bScreen *screen = reinterpret_cast<const bScreen *>(ptr->owner_id);
   const SpaceLink *link = static_cast<const SpaceLink *>(ptr->data);
+  switch (GS(ptr->owner_id->name)) {
+    case ID_SCR: {
+      const bScreen *screen = reinterpret_cast<const bScreen *>(ptr->owner_id);
 
-  for (const auto [area_index, area] : screen->areabase.enumerate()) {
-    const int space_index = BLI_findindex(&area.spacedata, link);
-    if (space_index != -1) {
-      return fmt::format("areas[{}].spaces[{}]", area_index, space_index);
+      for (const auto [area_index, area] : screen->areabase.enumerate()) {
+        const int space_index = BLI_findindex(&area.spacedata, link);
+        if (space_index != -1) {
+          return fmt::format("areas[{}].spaces[{}]", area_index, space_index);
+        }
+      }
+      break;
     }
+    case ID_WM: {
+      const wmWindowManager *wm = reinterpret_cast<const wmWindowManager *>(ptr->owner_id);
+
+      for (const auto [win_index, win] : wm->windows.enumerate()) {
+        for (const auto [area_index, area] : win.global_areas.areabase.enumerate()) {
+          const int space_index = BLI_findindex(&area.spacedata, link);
+          if (space_index != -1) {
+            return fmt::format(
+                "windows[{}].global_areas[{}].spaces[{}]", win_index, area_index, space_index);
+          }
+        }
+      }
+      break;
+    }
+    default:
+      break;
   }
+
   return std::nullopt;
 }
 
