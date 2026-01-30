@@ -354,7 +354,7 @@ def run(
     event_step.run_events = iter(event_iter)
     event_step._ticks = 0
 
-    bpy.app.timers.register(event_step, first_interval=0.0)
+    bpy.app.timers.register(event_step, first_interval=0.0, persistent=True)
 
 
 def setup_default_preferences(preferences):
