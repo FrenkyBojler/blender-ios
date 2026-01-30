@@ -24,18 +24,13 @@ struct RaycastResult {
   bool self_hit;
 };
 
-#  ifdef __KERNEL_OPTIX__
-extern "C" __device__ RaycastResult __direct_callable__svm_node_raycast(
-#  else
-ccl_device RaycastResult svm_raycast(
-#  endif
-    KernelGlobals kg,
-    ConstIntegratorState /*state*/,
-    ccl_private ShaderData *sd,
-    float3 position,
-    float3 direction,
-    float distance,
-    bool only_local)
+ccl_device RaycastResult svm_raycast(KernelGlobals kg,
+                                     ConstIntegratorState /*state*/,
+                                     ccl_private ShaderData *sd,
+                                     float3 position,
+                                     float3 direction,
+                                     float distance,
+                                     bool only_local)
 {
   RaycastResult result;
   result.distance = -1.0f;
@@ -80,7 +75,7 @@ ccl_device RaycastResult svm_raycast(
   else {
     /* Ray-trace, leaving out shadow opaque to avoid early exit. */
     const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
-    if (!scene_intersect_material_raycast(kg, &ray, visibility, &isect)) {
+    if (!scene_intersect(kg, &ray, visibility, &isect)) {
       return result;
     }
   }
@@ -166,12 +161,7 @@ ccl_device_noinline
 
     float3 position = stack_load_float3_default(stack, position_offset, sd->P);
     float3 direction = stack_load_float3_default(stack, direction_offset, sd->N);
-#  ifdef __KERNEL_OPTIX__
-    RaycastResult result = optixDirectCall<RaycastResult>(
-        2, kg, state, sd, position, direction, distance, only_local);
-#  else
     RaycastResult result = svm_raycast(kg, state, sd, position, direction, distance, only_local);
-#  endif
 
     if (result.distance >= 0.0f) {
       is_hit = 1.0f;

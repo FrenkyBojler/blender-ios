@@ -240,7 +240,7 @@ ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
       }
 
       /* Execute bump shader. */
-      unsigned int optix_dc_index = 3 /* NUM_CALLABLE_PROGRAM_GROUPS */ + 1 /* camera program */ +
+      unsigned int optix_dc_index = 2 /* NUM_CALLABLE_PROGRAM_GROUPS */ + 1 /* camera program */ +
                                     (shader + SHADER_TYPE_BUMP * kernel_data.max_shaders);
       optixDirectCall<void>(optix_dc_index,
                             /* shaderglobals_ptr = */ &globals,
@@ -263,7 +263,7 @@ ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
     }
   }
 
-  unsigned int optix_dc_index = 3 /* NUM_CALLABLE_PROGRAM_GROUPS */ + 1 /* camera program */ +
+  unsigned int optix_dc_index = 2 /* NUM_CALLABLE_PROGRAM_GROUPS */ + 1 /* camera program */ +
                                 (shader + type * kernel_data.max_shaders);
   optixDirectCall<void>(optix_dc_index,
                         /* shaderglobals_ptr = */ &globals,
