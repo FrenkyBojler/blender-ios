@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-05 11:52+0000\n"
+"POT-Creation-Date: 2026-01-26 11:28+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -8501,36 +8501,104 @@ msgid "Show/Hide"
 msgstr "Прикажи/сакриј"
 
 
-msgid "Names"
-msgstr "Имена"
-
-
 msgid "Bone Roll"
 msgstr "Ролна костију"
 
 
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "Snap"
-msgstr "Лепљење"
+msgid "Names"
+msgstr "Имена"
 
 
 msgid "Import"
 msgstr "Увоз"
 
 
-msgid "Mirror"
-msgstr "Огледало"
+msgid "Metaball"
+msgstr "Мета лопта"
 
 
-msgid "UV Mapping"
-msgstr "UV Мапирање"
+msgid "Special Characters"
+msgstr "Специјални знаци"
 
 
-msgid "Local View"
-msgstr "Локални поглед"
+msgid "Math"
+msgstr "Математика"
+
+
+msgid "Merge"
+msgstr "Сједини"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Rigid Body"
+msgstr "Круто тело"
+
+
+msgid "Enable Bone Options"
+msgstr "Омогући опције костију"
+
+
+msgid "Mesh Select Mode"
+msgstr "Мод избора мреже"
+
+
+msgid "Disable Bone Options"
+msgstr "Онемогући опције костију"
+
+
+msgid "Toggle Bone Options"
+msgstr "Мање/више информација"
+
+
+msgid "Apply"
+msgstr "Примени"
+
+
+msgid "Clear Transform"
+msgstr "Очисти трансформације"
+
+
+msgid "Propagate"
+msgstr "Пренеси"
+
+
+msgid "In-Betweens"
+msgstr "У међувремену"
+
+
+msgid "Hooks"
+msgstr "Удице"
+
+
+msgid "Quick Effects"
+msgstr "Брзи ефекти"
+
+
+msgid "Track"
+msgstr "Стаза"
+
+
+msgid "Relations"
+msgstr "Односи"
+
+
+msgid "Light"
+msgstr "Светлост"
+
+
+msgid "Keying"
+msgstr "Збирка тастера"
+
+
+msgid "Tracking"
+msgstr "Праћење"
+
+
+msgid "Select Linked"
+msgstr "Изабери повезано"
 
 
 msgid "Navigation"
@@ -8541,88 +8609,20 @@ msgid "Align View"
 msgstr "Поравнај поглед"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Local View"
+msgstr "Локални поглед"
 
 
-msgid "Select Linked"
-msgstr "Изабери повезано"
+msgid "UV Mapping"
+msgstr "UV Мапирање"
 
 
-msgid "Metaball"
-msgstr "Мета лопта"
+msgid "Snap"
+msgstr "Лепљење"
 
 
-msgid "Light"
-msgstr "Светлост"
-
-
-msgid "Relations"
-msgstr "Односи"
-
-
-msgid "Rigid Body"
-msgstr "Круто тело"
-
-
-msgid "Apply"
-msgstr "Примени"
-
-
-msgid "Track"
-msgstr "Стаза"
-
-
-msgid "Quick Effects"
-msgstr "Брзи ефекти"
-
-
-msgid "Hooks"
-msgstr "Удице"
-
-
-msgid "Clear Transform"
-msgstr "Очисти трансформације"
-
-
-msgid "In-Betweens"
-msgstr "У међувремену"
-
-
-msgid "Propagate"
-msgstr "Пренеси"
-
-
-msgid "Toggle Bone Options"
-msgstr "Мање/више информација"
-
-
-msgid "Enable Bone Options"
-msgstr "Омогући опције костију"
-
-
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
-msgid "Disable Bone Options"
-msgstr "Онемогући опције костију"
-
-
-msgid "Tracking"
-msgstr "Праћење"
-
-
-msgid "Mesh Select Mode"
-msgstr "Мод избора мреже"
-
-
-msgid "Merge"
-msgstr "Сједини"
-
-
-msgid "Special Characters"
-msgstr "Специјални знаци"
+msgid "Mirror"
+msgstr "Огледало"
 
 
 msgid "Basic"
@@ -13871,13 +13871,13 @@ msgstr "Скицирање"
 
 
 msgctxt "Operator"
-msgid "Invert"
-msgstr "Обрнуто"
+msgid "Erase"
+msgstr "Обриши"
 
 
 msgctxt "Operator"
-msgid "Erase"
-msgstr "Обриши"
+msgid "Invert"
+msgstr "Обрнуто"
 
 
 msgid "Flat"
@@ -14769,15 +14769,6 @@ msgstr "Јачина издизања геометрије"
 
 msgid "X-Ray"
 msgstr "X-зрак"
-
-
-msgctxt "Operator"
-msgid "Multi Select Loops"
-msgstr "Изабери корење"
-
-
-msgid "Ring"
-msgstr "Прстен"
 
 
 msgctxt "Operator"
@@ -19135,12 +19126,12 @@ msgid "Restrict"
 msgstr "Ограничи"
 
 
-msgid "Motion Tracking"
-msgstr "Праћење покрета"
-
-
 msgid "Transform Orientations"
 msgstr "Трансформација оријентација"
+
+
+msgid "Motion Tracking"
+msgstr "Праћење покрета"
 
 
 msgid "Bone Constraints"
@@ -20080,10 +20071,6 @@ msgstr "Континуално померање"
 
 msgid "Emulate 3 Button Mouse"
 msgstr "Имитирај 3. дугме"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Користи векторе одсјаја као координате текстуре"
 
 
 msgid "Turntable"

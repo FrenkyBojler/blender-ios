@@ -40,7 +40,7 @@ static void test_framebuffer_clear_color_single_attachment()
   for (float4 pixel_color : Span<float4>(read_data, size.x * size.y)) {
     EXPECT_EQ(clear_color, pixel_color);
   }
-  MEM_freeN(read_data);
+  MEM_delete(read_data);
 
   GPU_framebuffer_free(framebuffer);
   GPU_texture_free(texture);
@@ -70,7 +70,7 @@ static void test_framebuffer_clear_color_multiple_attachments()
   for (float4 pixel_color : Span<float4>(read_data1, size.x * size.y)) {
     EXPECT_EQ(clear_color, pixel_color);
   }
-  MEM_freeN(read_data1);
+  MEM_delete(read_data1);
 
 #ifndef __APPLE__ /* FIXME: Behavior is not the same on all backend. \
                    * Current expected value is broken. */
@@ -79,7 +79,7 @@ static void test_framebuffer_clear_color_multiple_attachments()
   for (uint4 pixel_color : Span<uint4>(read_data2, size.x * size.y)) {
     EXPECT_EQ(clear_color_uint, pixel_color);
   }
-  MEM_freeN(read_data2);
+  MEM_delete(read_data2);
 #endif
 
   GPU_framebuffer_free(framebuffer);
@@ -112,13 +112,13 @@ static void test_framebuffer_clear_multiple_color_multiple_attachments()
   for (float4 pixel_color : Span<float4>(read_data1, size.x * size.y)) {
     EXPECT_EQ(clear_color[0], pixel_color);
   }
-  MEM_freeN(read_data1);
+  MEM_delete(read_data1);
 
   float4 *read_data2 = static_cast<float4 *>(GPU_texture_read(texture2, GPU_DATA_FLOAT, 0));
   for (float4 pixel_color : Span<float4>(read_data2, size.x * size.y)) {
     EXPECT_EQ(clear_color[1], pixel_color);
   }
-  MEM_freeN(read_data2);
+  MEM_delete(read_data2);
 
   GPU_framebuffer_free(framebuffer);
   GPU_texture_free(texture1);
@@ -145,7 +145,7 @@ static void test_framebuffer_clear_depth()
   for (float pixel_depth : Span<float>(read_data, size.x * size.y)) {
     EXPECT_EQ(clear_depth, pixel_depth);
   }
-  MEM_freeN(read_data);
+  MEM_delete(read_data);
 
   GPU_framebuffer_free(framebuffer);
   GPU_texture_free(texture);
@@ -185,7 +185,7 @@ static void test_framebuffer_scissor_test()
   EXPECT_EQ(color3, read_data[1]);
   EXPECT_EQ(color2, read_data[2]);
   EXPECT_EQ(color1, read_data[3]);
-  MEM_freeN(read_data);
+  MEM_delete(read_data);
 
   GPU_framebuffer_free(framebuffer);
   GPU_texture_free(texture);
@@ -231,7 +231,7 @@ static void test_framebuffer_cube()
       EXPECT_EQ(clear_colors[side], data[index]);
     }
   }
-  MEM_freeN(data);
+  MEM_delete(data);
 
   GPU_texture_free(tex);
 
@@ -309,7 +309,7 @@ static void test_framebuffer_multi_viewport()
       EXPECT_EQ(pixel_color, expected_color);
     }
   }
-  MEM_freeN(read_data);
+  MEM_delete(read_data);
 
   GPU_shader_unbind();
 
@@ -390,11 +390,11 @@ static void test_framebuffer_subpass_input()
 
   int *read_data_a = static_cast<int *>(GPU_texture_read(texture_a, GPU_DATA_INT, 0));
   EXPECT_EQ(*read_data_a, 0xDEADBEEF);
-  MEM_freeN(read_data_a);
+  MEM_delete(read_data_a);
 
   int *read_data_b = static_cast<int *>(GPU_texture_read(texture_b, GPU_DATA_INT, 0));
   EXPECT_EQ(*read_data_b, 0xDEADC0DE);
-  MEM_freeN(read_data_b);
+  MEM_delete(read_data_b);
 
   GPU_shader_unbind();
 
@@ -407,5 +407,80 @@ static void test_framebuffer_subpass_input()
   GPU_render_end();
 }
 GPU_TEST(framebuffer_subpass_input)
+
+static void test_framebuffer_subpass_input_clearops()
+{
+  using namespace gpu::shader;
+
+  GPU_render_begin();
+
+  const int2 size(1, 1);
+  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
+  gpu::Texture *texture_a = GPU_texture_create_2d(
+      __func__, UNPACK2(size), 1, TextureFormat::SINT_32, usage, nullptr);
+  gpu::Texture *texture_b = GPU_texture_create_2d(
+      __func__, UNPACK2(size), 1, TextureFormat::SINT_32, usage, nullptr);
+
+  const int invalid_data = 0xDEADBEEF;
+  texture_a->clear(GPU_DATA_INT, &invalid_data);
+
+  gpu::FrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
+  GPU_framebuffer_ensure_config(
+      &framebuffer,
+      {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture_a), GPU_ATTACHMENT_TEXTURE(texture_b)});
+  GPU_framebuffer_bind_ex(
+      framebuffer,
+      {
+          {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_DONT_CARE},
+          {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {0.0f, 0.0f, 0.0f, 0.0f}},
+          {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {0.0f, 0.0f, 0.0f, 0.0f}},
+      });
+
+  ShaderCreateInfo create_info_read("gpu_framebuffer_subpass_input_test");
+  create_info_read.define("READ");
+  create_info_read.builtins(BuiltinBits::VERTEX_ID);
+  create_info_read.vertex_source("gpu_framebuffer_subpass_input_test.glsl");
+  create_info_read.fragment_source("gpu_framebuffer_subpass_input_test.glsl");
+  create_info_read.subpass_in(0, Type::int_t, ImageType::Int2D, "in_value", 0);
+  create_info_read.fragment_out(1, Type::int_t, "out_value");
+
+  gpu::Shader *shader_read = GPU_shader_create_from_info(
+      reinterpret_cast<GPUShaderCreateInfo *>(&create_info_read));
+
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, 3);
+
+  /* Metal Raster Order Group does not need that. */
+  GPU_framebuffer_subpass_transition(
+      framebuffer, {GPU_ATTACHMENT_IGNORE, GPU_ATTACHMENT_WRITE, GPU_ATTACHMENT_IGNORE});
+
+  /* Metal Raster Order Group does not need that. */
+  GPU_framebuffer_subpass_transition(
+      framebuffer, {GPU_ATTACHMENT_IGNORE, GPU_ATTACHMENT_READ, GPU_ATTACHMENT_WRITE});
+
+  GPU_batch_set_shader(batch, shader_read);
+  GPU_batch_draw(batch);
+
+  GPU_batch_discard(batch);
+
+  GPU_finish();
+
+  int *read_data_a = static_cast<int *>(GPU_texture_read(texture_a, GPU_DATA_INT, 0));
+  EXPECT_EQ(*read_data_a, 0x0);
+  MEM_delete(read_data_a);
+
+  int *read_data_b = static_cast<int *>(GPU_texture_read(texture_b, GPU_DATA_INT, 0));
+  EXPECT_EQ(*read_data_b, 495);
+  MEM_delete(read_data_b);
+
+  GPU_shader_unbind();
+
+  GPU_framebuffer_free(framebuffer);
+  GPU_texture_free(texture_a);
+  GPU_texture_free(texture_b);
+  GPU_shader_free(shader_read);
+
+  GPU_render_end();
+}
+GPU_TEST(framebuffer_subpass_input_clearops)
 
 }  // namespace blender::gpu::tests

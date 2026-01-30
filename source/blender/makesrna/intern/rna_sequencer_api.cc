@@ -604,7 +604,7 @@ static StripElem *rna_StripElements_append(ID *id, Strip *strip, const char *fil
   StripElem *se;
 
   strip->data->stripdata = se = static_cast<StripElem *>(
-      MEM_reallocN(strip->data->stripdata, sizeof(StripElem) * (strip->len + 1)));
+      MEM_realloc_uninitialized(strip->data->stripdata, sizeof(StripElem) * (strip->len + 1)));
   se += strip->len;
   STRNCPY(se->filename, filename);
   strip->len++;
@@ -636,7 +636,7 @@ static void rna_StripElements_pop(ID *id, Strip *strip, ReportList *reports, int
     return;
   }
 
-  new_se = MEM_new_array_for_free<StripElem>((strip->len - 1), "StripElements_pop");
+  new_se = MEM_new_array<StripElem>((strip->len - 1), "StripElements_pop");
   strip->len--;
 
   if (strip->len == 1) {
@@ -652,7 +652,7 @@ static void rna_StripElements_pop(ID *id, Strip *strip, ReportList *reports, int
     memcpy(&new_se[index], &se[index + 1], sizeof(StripElem) * (strip->len - index));
   }
 
-  MEM_freeN(strip->data->stripdata);
+  MEM_delete(strip->data->stripdata);
   strip->data->stripdata = new_se;
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
@@ -670,11 +670,15 @@ static void rna_Strip_invalidate_cache_rnafunc(ID *id, Strip *self, int type)
   }
 }
 
-static SeqRetimingKey *rna_Strip_retiming_keys_add(ID *id, Strip *strip, int timeline_frame)
+static SeqRetimingKey *rna_Strip_retiming_keys_add(ID *id,
+                                                   Strip *strip,
+                                                   ReportList *reports,
+                                                   int timeline_frame)
 {
   Scene *scene = id_cast<Scene *>(id);
 
-  SeqRetimingKey *key = seq::retiming_add_key(scene, strip, timeline_frame);
+  SeqRetimingKey *key = blender::seq::retiming_key_add_new_for_strip(
+      scene, reports, strip, timeline_frame);
 
   seq::relations_invalidate_cache_raw(scene, strip);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
@@ -809,7 +813,7 @@ void RNA_api_strip_retiming_keys(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "RetimingKeys", "Collection of RetimingKey");
 
   FunctionRNA *func = RNA_def_function(srna, "add", "rna_Strip_retiming_keys_add");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+  RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
   RNA_def_int(
       func, "timeline_frame", 0, -MAXFRAME, MAXFRAME, "Timeline Frame", "", -MAXFRAME, MAXFRAME);
   RNA_def_function_ui_description(func, "Add retiming key");
