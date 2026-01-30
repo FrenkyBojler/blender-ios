@@ -756,7 +756,8 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
         }
         const Span<float> lengths = src_curves.evaluated_lengths_for_curve(curve_i,
                                                                            cyclic[curve_i]);
-        const float curve_length = src_curves.evaluated_length_total_for_curve(curve_i, cyclic[curve_i]);
+        const float curve_length = src_curves.evaluated_length_total_for_curve(curve_i,
+                                                                               cyclic[curve_i]);
 
         auto add_closest = [&](const int2 pos_index,
                                const float3 a,
