@@ -244,8 +244,8 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
   }
 
   /* Now compare the files: */
-  arr_new = MEM_malloc_arrayN<char>(size_t(len_new), "rna_cmp_file_new");
-  arr_org = MEM_malloc_arrayN<char>(size_t(len_org), "rna_cmp_file_org");
+  arr_new = MEM_new_array_uninitialized<char>(size_t(len_new), "rna_cmp_file_new");
+  arr_org = MEM_new_array_uninitialized<char>(size_t(len_org), "rna_cmp_file_org");
 
   if (fread(arr_new, sizeof(char), len_new, fp_new) != len_new) {
     CLOG_ERROR(&LOG, "unable to read file %s for comparison.", tmpfile);
@@ -261,8 +261,8 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
 
   cmp = memcmp(arr_new, arr_org, len_new);
 
-  MEM_freeN(arr_new);
-  MEM_freeN(arr_org);
+  MEM_delete(arr_new);
+  MEM_delete(arr_org);
 
   if (cmp) {
     REN_IF_DIFF;
@@ -364,8 +364,8 @@ static void rna_construct_wrapper_function_name(
 
 void *rna_alloc_from_buffer(const char *buffer, int buffer_size)
 {
-  AllocDefRNA *alloc = MEM_callocN<AllocDefRNA>("AllocDefRNA");
-  alloc->mem = MEM_mallocN(buffer_size, __func__);
+  AllocDefRNA *alloc = MEM_new_zeroed<AllocDefRNA>("AllocDefRNA");
+  alloc->mem = MEM_new_uninitialized(buffer_size, __func__);
   memcpy(alloc->mem, buffer, buffer_size);
   rna_addtail(&DefRNA.allocs, alloc);
   return alloc->mem;
@@ -373,8 +373,8 @@ void *rna_alloc_from_buffer(const char *buffer, int buffer_size)
 
 void *rna_calloc(int buffer_size)
 {
-  AllocDefRNA *alloc = MEM_callocN<AllocDefRNA>("AllocDefRNA");
-  alloc->mem = MEM_callocN(buffer_size, __func__);
+  AllocDefRNA *alloc = MEM_new_zeroed<AllocDefRNA>("AllocDefRNA");
+  alloc->mem = MEM_new_zeroed(buffer_size, __func__);
   rna_addtail(&DefRNA.allocs, alloc);
   return alloc->mem;
 }
@@ -830,7 +830,7 @@ static char *rna_def_property_get_func(
             fprintf(f, "    unsigned int i;\n");
             fprintf(f, "    unsigned int len = %s(ptr, arraylen);\n\n", lenfunc);
             fprintf(f, "    for (i = 0; i < len; i++) {\n");
-            MEM_freeN(lenfunc);
+            MEM_delete(lenfunc);
           }
           else {
             fprintf(f, "    unsigned int i;\n\n");
@@ -1132,13 +1132,13 @@ static char *rna_def_property_set_func(
         if (dp->dnapointerlevel == 1) {
           /* Handle allocated char pointer properties. */
           fprintf(f,
-                  "    if (data->%s != nullptr) { MEM_freeN(data->%s); }\n",
+                  "    if (data->%s != nullptr) { MEM_delete(data->%s); }\n",
                   dp->dnaname,
                   dp->dnaname);
           fprintf(f, "    const size_t length = strlen(value);\n");
           fprintf(f, "    if (length > 0) {\n");
           fprintf(f,
-                  "        data->%s = MEM_malloc_arrayN<char>(length + 1, __func__);\n",
+                  "        data->%s = MEM_new_array_uninitialized<char>(length + 1, __func__);\n",
                   dp->dnaname);
           fprintf(f, "        memcpy(data->%s, value, length + 1);\n", dp->dnaname);
           fprintf(f, "    } else { data->%s = nullptr; }\n", dp->dnaname);
@@ -1264,7 +1264,7 @@ static char *rna_def_property_set_func(
             fprintf(f, "    unsigned int len = %s(ptr, arraylen);\n\n", lenfunc);
             rna_clamp_value_range(f, prop);
             fprintf(f, "    for (i = 0; i < len; i++) {\n");
-            MEM_freeN(lenfunc);
+            MEM_delete(lenfunc);
           }
           else {
             fprintf(f, "    unsigned int i;\n\n");
@@ -1808,20 +1808,20 @@ static char *rna_def_property_lookup_string_func(FILE *f,
   fprintf(f, "                }\n");
   fprintf(f, "            }\n");
   fprintf(f, "            else {\n");
-  fprintf(f, "                name = MEM_malloc_arrayN<char>(size_t(namelen) + 1,\n");
+  fprintf(f, "                name = MEM_new_array_uninitialized<char>(size_t(namelen) + 1,\n");
   fprintf(f, "                                               \"name string\");\n");
   fprintf(f,
           "                %s_%s_get(&iter.ptr, name);\n",
           item_name_base->identifier,
           rna_safe_id(item_name_prop->identifier));
   fprintf(f, "                if (strcmp(name, key) == 0) {\n");
-  fprintf(f, "                    MEM_freeN(name);\n\n");
+  fprintf(f, "                    MEM_delete(name);\n\n");
   fprintf(f, "                    found = true;\n");
   fprintf(f, "                    *r_ptr = iter.ptr;\n");
   fprintf(f, "                    break;\n");
   fprintf(f, "                }\n");
   fprintf(f, "                else {\n");
-  fprintf(f, "                    MEM_freeN(name);\n");
+  fprintf(f, "                    MEM_delete(name);\n");
   fprintf(f, "                }\n");
   fprintf(f, "            }\n");
   fprintf(f, "        }\n");
@@ -2722,12 +2722,10 @@ static void rna_auto_types()
 
           /* Only automatically define `PROP_ID_REFCOUNT` if it was not already explicitly set or
            * cleared by calls to `RNA_def_property_flag` or `RNA_def_property_clear_flag`. */
-          if ((pprop->property.flag_internal & PROP_INTERN_PTR_ID_REFCOUNT_FORCED) == 0 &&
-              pprop->type)
-          {
+          if ((pprop->flag_internal & PROP_INTERN_PTR_ID_REFCOUNT_FORCED) == 0 && pprop->type) {
             type = rna_find_struct(reinterpret_cast<const char *>(pprop->type));
             if (type && (type->flag & STRUCT_ID_REFCOUNT)) {
-              pprop->property.flag |= PROP_ID_REFCOUNT;
+              pprop->flag |= PROP_ID_REFCOUNT;
             }
           }
         }
@@ -2914,14 +2912,18 @@ static void rna_generate_blender(BlenderRNA *brna, FILE *f)
           "BlenderRNA rna_blender_rna_create()\n"
           "{\n"
           "\tBlenderRNA brna{};\n");
+
   /* Allocate the structs before creating their definitions, so they can reference each other out
    * of their definition order.*/
-  for (std::unique_ptr<StructRNA> &srna : brna->structs) {
-    fprintf(f,
-            "\tbrna.structs.append(std::make_unique<StructRNA>());\n"
-            "\tRNA_%s = brna.structs.last().get();\n",
-            srna->identifier);
+  fprintf(f, "\tbrna.structs.resize(%d);\n", int(brna->structs.size()));
+  fprintf(f,
+          "\tfor (const int i : brna.structs.index_range()) {\n"
+          "\t\tbrna.structs[i] = std::make_unique<StructRNA>();\n"
+          "\t}\n");
+  for (const int i : brna->structs.index_range()) {
+    fprintf(f, "\tRNA_%s = brna.structs[%d].get();\n", brna->structs[i]->identifier, i);
   }
+
   for (std::unique_ptr<StructRNA> &srna : brna->structs) {
     fprintf(f, "\tregister_struct_%s(brna);\n", srna->identifier);
   }
@@ -3005,33 +3007,28 @@ static void rna_generate_parameter_prototypes(BlenderRNA * /*brna*/,
 
 static void rna_generate_function_prototypes(BlenderRNA *brna, StructRNA *srna, FILE *f)
 {
-  FunctionRNA *func;
   StructRNA *base;
 
   base = srna->base;
   while (base) {
-    for (func = static_cast<FunctionRNA *>(base->functions.first); func;
-         func = static_cast<FunctionRNA *>(func->cont.next))
-    {
-      fprintf(f, "extern FunctionRNA rna_%s_%s_func;\n", base->identifier, func->identifier);
-      rna_generate_parameter_prototypes(brna, base, func, f);
+    for (const std::unique_ptr<FunctionRNA> &func : base->functions) {
+      fprintf(f, "extern FunctionRNA *rna_%s_%s_func;\n", base->identifier, func->identifier);
+      rna_generate_parameter_prototypes(brna, base, func.get(), f);
     }
 
-    if (base->functions.first) {
+    if (!base->functions.is_empty()) {
       fprintf(f, "\n");
     }
 
     base = base->base;
   }
 
-  for (func = static_cast<FunctionRNA *>(srna->functions.first); func;
-       func = static_cast<FunctionRNA *>(func->cont.next))
-  {
-    fprintf(f, "extern FunctionRNA rna_%s_%s_func;\n", srna->identifier, func->identifier);
-    rna_generate_parameter_prototypes(brna, srna, func, f);
+  for (const std::unique_ptr<FunctionRNA> &func : srna->functions) {
+    fprintf(f, "extern FunctionRNA *rna_%s_%s_func;\n", srna->identifier, func->identifier);
+    rna_generate_parameter_prototypes(brna, srna, func.get(), f);
   }
 
-  if (srna->functions.first) {
+  if (!srna->functions.is_empty()) {
     fprintf(f, "\n");
   }
 }
@@ -3212,14 +3209,11 @@ static void rna_generate_static_function_prototypes(BlenderRNA * /*brna*/,
                                                     StructRNA *srna,
                                                     FILE *f)
 {
-  FunctionRNA *func;
   FunctionDefRNA *dfunc;
   int first = 1;
 
-  for (func = static_cast<FunctionRNA *>(srna->functions.first); func;
-       func = static_cast<FunctionRNA *>(func->cont.next))
-  {
-    dfunc = rna_find_function_def(func);
+  for (const std::unique_ptr<FunctionRNA> &func : srna->functions) {
+    dfunc = rna_find_function_def(func.get());
 
     if (dfunc->call) {
       if (strstr(dfunc->call, "<")) {
@@ -3251,8 +3245,8 @@ static void rna_generate_property_decl(FILE *f,
   if (nest != nullptr) {
     size_t len = strlen(nest);
 
-    strnest = MEM_malloc_arrayN<char>(len + 2, "rna_generate_property -> strnest");
-    errnest = MEM_malloc_arrayN<char>(len + 2, "rna_generate_property -> errnest");
+    strnest = MEM_new_array_uninitialized<char>(len + 2, "rna_generate_property -> strnest");
+    errnest = MEM_new_array_uninitialized<char>(len + 2, "rna_generate_property -> errnest");
 
     strnest[0] = '_';
     memcpy(strnest + 1, nest, len + 1);
@@ -3299,8 +3293,8 @@ static void rna_generate_property_decl(FILE *f,
       prop->identifier);
 
   if (freenest) {
-    MEM_freeN(strnest);
-    MEM_freeN(errnest);
+    MEM_delete(strnest);
+    MEM_delete(errnest);
   }
 }
 
@@ -3312,8 +3306,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
   if (nest != nullptr) {
     size_t len = strlen(nest);
 
-    strnest = MEM_malloc_arrayN<char>(len + 2, "rna_generate_property -> strnest");
-    errnest = MEM_malloc_arrayN<char>(len + 2, "rna_generate_property -> errnest");
+    strnest = MEM_new_array_uninitialized<char>(len + 2, "rna_generate_property -> strnest");
+    errnest = MEM_new_array_uninitialized<char>(len + 2, "rna_generate_property -> errnest");
 
     strnest[0] = '_';
     memcpy(strnest + 1, nest, len + 1);
@@ -3827,16 +3821,14 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
   fprintf(f, "\t};\n");
 
   if (freenest) {
-    MEM_freeN(strnest);
-    MEM_freeN(errnest);
+    MEM_delete(strnest);
+    MEM_delete(errnest);
   }
 }
 
 static void rna_generate_struct_register_func(BlenderRNA * /*brna*/, StructRNA *srna, FILE *f)
 {
-  FunctionRNA *func;
-  FunctionDefRNA *dfunc;
-  PropertyRNA *prop, *parm;
+  PropertyRNA *prop;
   StructRNA *base;
 
   fprintf(f, "/* %s */\n", srna->name);
@@ -3845,13 +3837,11 @@ static void rna_generate_struct_register_func(BlenderRNA * /*brna*/, StructRNA *
   for (PropertyRNA &prop : srna->cont.properties) {
     rna_generate_property_decl(f, srna, nullptr, &prop);
   }
-  for (func = static_cast<FunctionRNA *>(srna->functions.first); func;
-       func = static_cast<FunctionRNA *>(func->cont.next))
-  {
+  for (const std::unique_ptr<FunctionRNA> &func : srna->functions) {
     for (PropertyRNA &parm : func->cont.properties) {
       rna_generate_property_decl(f, srna, func->identifier, &parm);
     }
-    fprintf(f, "FunctionRNA rna_%s_%s_func;\n", srna->identifier, func->identifier);
+    fprintf(f, "FunctionRNA *rna_%s_%s_func;\n", srna->identifier, func->identifier);
   }
 
   /* Struct and property creation runs on startup, on the first call to #RNA_blender_rna_get. */
@@ -3867,78 +3857,6 @@ static void rna_generate_struct_register_func(BlenderRNA * /*brna*/, StructRNA *
       fprintf(f, "\n");
     }
     rna_generate_property(f, srna, nullptr, &prop);
-  }
-
-  for (func = static_cast<FunctionRNA *>(srna->functions.first); func;
-       func = static_cast<FunctionRNA *>(func->cont.next))
-  {
-    for (PropertyRNA &parm : func->cont.properties) {
-      rna_generate_property(f, srna, func->identifier, &parm);
-    }
-
-    fprintf(f, "\trna_%s_%s_func = {\n", srna->identifier, func->identifier);
-
-    if (func->cont.next) {
-      fprintf(f,
-              "\t\t{(FunctionRNA *)&rna_%s_%s_func, ",
-              srna->identifier,
-              (static_cast<FunctionRNA *>(func->cont.next))->identifier);
-    }
-    else {
-      fprintf(f, "\t\t{nullptr, ");
-    }
-    if (func->cont.prev) {
-      fprintf(f,
-              "(FunctionRNA *)&rna_%s_%s_func,\n",
-              srna->identifier,
-              (static_cast<FunctionRNA *>(func->cont.prev))->identifier);
-    }
-    else {
-      fprintf(f, "nullptr,\n");
-    }
-
-    fprintf(f, "\t\tnullptr,\n");
-
-    parm = static_cast<PropertyRNA *>(func->cont.properties.first);
-    if (parm) {
-      fprintf(f, "\t\t{&rna_%s_%s_%s, ", srna->identifier, func->identifier, parm->identifier);
-    }
-    else {
-      fprintf(f, "\t\t{nullptr, ");
-    }
-
-    parm = static_cast<PropertyRNA *>(func->cont.properties.last);
-    if (parm) {
-      fprintf(f, "&rna_%s_%s_%s}},\n", srna->identifier, func->identifier, parm->identifier);
-    }
-    else {
-      fprintf(f, "nullptr}},\n");
-    }
-
-    fprintf(f, "\t\t");
-    rna_print_c_string(f, func->identifier);
-    fprintf(f, ", %d, ", func->flag);
-    rna_print_c_string(f, func->description);
-    fprintf(f, ",\n");
-
-    dfunc = rna_find_function_def(func);
-    if (dfunc->gencall) {
-      fprintf(f, "\t\t%s,\n", dfunc->gencall);
-    }
-    else {
-      fprintf(f, "\t\tnullptr,\n");
-    }
-
-    if (func->c_ret) {
-      fprintf(
-          f, "\t\t&rna_%s_%s_%s\n", srna->identifier, func->identifier, func->c_ret->identifier);
-    }
-    else {
-      fprintf(f, "\t\tnullptr\n");
-    }
-
-    fprintf(f, "\t};\n");
-    fprintf(f, "\n");
   }
 
   fprintf(f,
@@ -4036,14 +3954,46 @@ static void rna_generate_struct_register_func(BlenderRNA * /*brna*/, StructRNA *
     DefRNA.error = true;
   }
 
-  if (!BLI_listbase_is_empty(&srna->functions)) {
-    func = static_cast<FunctionRNA *>(srna->functions.first);
+  for (const std::unique_ptr<FunctionRNA> &func : srna->functions) {
+    fprintf(f, "\t{\n");
+    for (PropertyRNA &parm : func->cont.properties) {
+      rna_generate_property(f, srna, func->identifier, &parm);
+    }
+    fprintf(f, "\t\tauto func = std::make_unique<FunctionRNA>();\n");
+    if (!BLI_listbase_is_empty(&func->cont.properties)) {
+      fprintf(f,
+              "\t\tfunc->cont.properties = {&rna_%s_%s_%s, &rna_%s_%s_%s};\n",
+              srna->identifier,
+              func->identifier,
+              static_cast<PropertyRNA *>(func->cont.properties.first)->identifier,
+              srna->identifier,
+              func->identifier,
+              static_cast<PropertyRNA *>(func->cont.properties.last)->identifier);
+    }
+    fprintf(f, "\t\tfunc->identifier = ");
+    rna_print_c_string(f, func->identifier);
+    fprintf(f, ";\n");
+    if (func->flag != 0) {
+      fprintf(f, "\t\tfunc->flag = %d;\n", func->flag);
+    }
+    fprintf(f, "\t\tfunc->description = ");
+    rna_print_c_string(f, func->description);
+    fprintf(f, ";\n");
+    FunctionDefRNA *dfunc = rna_find_function_def(func.get());
+    if (dfunc->gencall) {
+      fprintf(f, "\t\tfunc->call = %s;\n", dfunc->gencall);
+    }
+    if (func->c_ret) {
+      fprintf(f,
+              "\t\tfunc->c_ret = &rna_%s_%s_%s;\n",
+              srna->identifier,
+              func->identifier,
+              func->c_ret->identifier);
+    }
+    fprintf(f, "\t\trna_%s_%s_func = func.get();\n", srna->identifier, func->identifier);
     fprintf(f,
-            "\tsrna->functions = {(FunctionRNA *)&rna_%s_%s_func, ",
-            srna->identifier,
-            func->identifier);
-    func = static_cast<FunctionRNA *>(srna->functions.last);
-    fprintf(f, "(FunctionRNA *)&rna_%s_%s_func};\n", srna->identifier, func->identifier);
+            "\t\tsrna->functions.append(std::move(func));\n"
+            "\t}\n");
   }
 
   fprintf(f, "};\n\n");

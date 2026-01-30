@@ -1817,7 +1817,7 @@ class USERPREF_PT_extensions_filter(Panel):
     def draw(self, context):
         layout = self.layout
         wm = context.window_manager
-        layout.enabled = wm.extension_use_filter
+        layout.active = wm.extension_use_filter
         layout.prop(wm, "extension_repo_filter", text="")
         tags_panel_draw(layout, context, "extension_tags")
 
@@ -2256,9 +2256,7 @@ def tags_current(wm, tags_attr):
     if filter_by_type in {"", "theme"}:
         active_theme_info = pkg_repo_and_id_from_theme_path(repos_all, prefs.themes[0].filepath)
 
-    repo_filter = None
-    if wm.extension_use_filter:
-        repo_filter = wm.extension_repo_filter
+    repo_filter = wm.extension_repo_filter
 
     params = ExtensionUI_FilterParams(
         search_casefold=search_casefold,
