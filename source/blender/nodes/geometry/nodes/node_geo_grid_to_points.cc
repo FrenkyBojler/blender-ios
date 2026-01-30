@@ -25,6 +25,25 @@
 
 namespace blender::nodes::node_geo_grid_to_points_cc {
 
+enum class PositionMode : int8_t {
+  Center = 0,
+  Corner = 1,
+};
+
+static const EnumPropertyItem position_mode_items[] = {
+    {int(PositionMode::Center),
+     "CENTER",
+     0,
+     N_("Center"),
+     N_("Place points at the center of voxels/tiles")},
+    {int(PositionMode::Corner),
+     "CORNER",
+     0,
+     N_("Corner"),
+     N_("Place points at the corner of voxels/tiles")},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
@@ -36,8 +55,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
+  b.add_input<decl::Menu>("Position")
+      .static_items(position_mode_items)
+      .default_value(PositionMode::Center);
 
   b.add_output<decl::Geometry>("Points").propagate_all();
+  b.add_output<decl::Bool>("Is Tile").field_on_all().description("Whether point represents a tile (true) or voxel (false)");
   b.add_output(data_type, "Value").field_on_all().description("Grid values at point positions");
 }
 
@@ -108,6 +131,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
+  const PositionMode position_mode = PositionMode(params.extract_input<int>("Position"));
 
   bke::attribute_math::to_static_type(
       *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&]<typename ValueT>() {
@@ -137,14 +161,30 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
 
           const openvdb::math::Transform &grid_transform = vdb_grid->transform();
-          const typename GridType::ConstAccessor accessor = vdb_grid->getConstAccessor();
 
           Vector<openvdb::Coord> active_coords;
           Vector<typename type_traits::BlenderType> active_values;
+          Vector<bool> is_tile_flags;
+          Vector<int> tile_sizes;  /* Store the size of each tile for proper centering */
 
-          for (auto iter = vdb_grid->cbeginValueOn(); iter; ++iter) {
-            active_coords.append(iter.getCoord());
-            active_values.append(type_traits::to_blender(iter.getValue()));
+          /* Iterate through all active values including both voxels and tiles */
+          for (auto iter = vdb_grid->tree().cbeginValueAll(); iter; ++iter) {
+            if (iter.isValueOn()) {
+              active_coords.append(iter.getCoord());
+              active_values.append(type_traits::to_blender(iter.getValue()));
+
+              const bool is_tile = iter.getLevel() > 0;
+              is_tile_flags.append(is_tile);
+
+              /* Calculate tile size: tiles at higher levels represent larger cubic regions */
+              int tile_size = 1;
+              if (is_tile) {
+                /* Each level up multiplies the size by the branching factor */
+                /* For OpenVDB default trees, leaf nodes are 8^3, internal nodes vary */
+                tile_size = 1 << (3 * iter.getLevel());  /* 2^(3*level) gives cubic tile size */
+              }
+              tile_sizes.append(tile_size);
+            }
           }
 
           if (active_coords.is_empty()) {
@@ -159,17 +199,34 @@ static void node_geo_exec(GeoNodeExecParams params)
           SpanAttributeWriter<typename type_traits::BlenderType> values =
               dst_attributes.lookup_or_add_for_write_only_span<typename type_traits::BlenderType>(
                   "value", AttrDomain::Point);
+          SpanAttributeWriter<bool> is_tile =
+              dst_attributes.lookup_or_add_for_write_only_span<bool>("is_tile", AttrDomain::Point);
 
           threading::parallel_for(active_coords.index_range(), 1024, [&](const IndexRange range) {
             for (const int64_t i : range) {
               const openvdb::Coord coord = active_coords[i];
-              const openvdb::Vec3d world_pos = grid_transform.indexToWorld(coord);
+              const int tile_size = tile_sizes[i];
+
+              /* Calculate position based on mode */
+              openvdb::Vec3d index_pos;
+              if (position_mode == PositionMode::Center) {
+                /* For tiles, center within the tile's cubic region */
+                const double offset = tile_size * 0.5;
+                index_pos = openvdb::Vec3d(coord.x() + offset, coord.y() + offset, coord.z() + offset);
+              } else {
+                /* Use corner position (coord represents the min corner of the tile/voxel) */
+                index_pos = openvdb::Vec3d(coord.x(), coord.y(), coord.z());
+              }
+
+              const openvdb::Vec3d world_pos = grid_transform.indexToWorld(index_pos);
               positions[i] = float3(float(world_pos.x()), float(world_pos.y()), float(world_pos.z()));
               values.span[i] = active_values[i];
+              is_tile.span[i] = is_tile_flags[i];
             }
           });
 
           values.finish();
+          is_tile.finish();
 
           GeometrySet geometry_set = GeometrySet::from_pointcloud(pointcloud);
 
@@ -189,14 +246,24 @@ static void node_geo_exec(GeoNodeExecParams params)
             SpanAttributeWriter<typename type_traits::BlenderType> filtered_values =
                 filtered_dst_attributes.lookup_or_add_for_write_only_span<typename type_traits::BlenderType>(
                     "value", AttrDomain::Point);
+            SpanAttributeWriter<bool> filtered_is_tile =
+                filtered_dst_attributes.lookup_or_add_for_write_only_span<bool>("is_tile", AttrDomain::Point);
+
             array_utils::gather(values.span, selection_mask, filtered_values.span);
+            array_utils::gather(is_tile.span, selection_mask, filtered_is_tile.span);
             filtered_values.finish();
+            filtered_is_tile.finish();
 
             geometry_set = GeometrySet::from_pointcloud(filtered_pointcloud);
           }
 
           params.set_output("Points", std::move(geometry_set));
-          params.set_output("Value", AttributeFieldInput::from<typename type_traits::BlenderType>("value"));
+          
+          Field<bool> is_tile_field = AttributeFieldInput::from<bool>("is_tile");
+          params.set_output("Is Tile", std::move(is_tile_field));
+          
+          Field<typename type_traits::BlenderType> value_field = AttributeFieldInput::from<typename type_traits::BlenderType>("value");
+          params.set_output("Value", std::move(value_field));
         }
       });
 #else
