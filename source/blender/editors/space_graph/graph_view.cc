@@ -95,7 +95,7 @@ void get_graph_keyframe_extents(bAnimContext *ac,
       if (BKE_fcurve_calc_bounds(fcu, do_sel_only, include_handles, nullptr, &bounds)) {
 
         ++numberOfCurvesToFrame;
-        singleControlPointSelected = (numberOfCurvesToFrame == 1) && BKE_fcurve_has_single_selected_control_point(*fcu);
+        singleControlPointSelected = (numberOfCurvesToFrame == 1) && (bounds.ymax == bounds.ymin) && (bounds.xmax == bounds.xmin);
 
         short mapping_flag = ANIM_get_normalization_flags(ac->sl);
 

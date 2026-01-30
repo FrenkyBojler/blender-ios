@@ -420,11 +420,6 @@ bool BKE_fcurve_is_protected(const FCurve &fcu);
 bool BKE_fcurve_has_selected_control_points(const FCurve &fcu);
 
 /**
- * Is exactly one of the keyframe control point selected on the F-Curve?
- */
-bool BKE_fcurve_has_single_selected_control_point(const FCurve &fcu);
-
-/**
  * Deselect all keyframes within that FCurve.
  */
 void BKE_fcurve_deselect_all_keys(FCurve &fcu);
