@@ -203,13 +203,15 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(pi_2_f)
       .description("Maximum shortest angle for intersections");
 
-  /* Panel for advanced settings. */
+  /* Panel for advanced settings or test options. */
   PanelDeclarationBuilder &advanced = b.add_panel("Advanced").default_closed(true);
   advanced.add_input<decl::Bool>("Use Unsorted Data")
       .default_value(false)
       .description(
           "Turn off sorting. This will provide faster operation at the expense of unreliable "
           "IDs.");
+  advanced.add_output<decl::Float>("Lambda").field_on_all().description(
+      "The intersection point on the segment");
 }
 
 /* Attribute outputs. */
@@ -224,6 +226,7 @@ struct AttributeOutputs {
   std::optional<std::string> pair;
   std::optional<std::string> pair_id;
   std::optional<std::string> hash;
+  std::optional<std::string> lambda;
 };
 
 /* Store information from line intersection calculations. */
@@ -675,7 +678,7 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
       const float radius_start = radii_by_curve.last();
       const float radius_end = radii_by_curve.first();
       const float len_start = lengths[segment_count - 1];
-      const float len_end = 1.0f;
+      const float len_end = curve_length;
       add_segment(true,
                   points.last(),
                   segment_count,
@@ -753,7 +756,7 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
         }
         const Span<float> lengths = src_curves.evaluated_lengths_for_curve(curve_i,
                                                                            cyclic[curve_i]);
-        const float length = src_curves.evaluated_length_total_for_curve(curve_i, cyclic[curve_i]);
+        const float curve_length = src_curves.evaluated_length_total_for_curve(curve_i, cyclic[curve_i]);
 
         auto add_closest = [&](const int2 pos_index,
                                const float3 a,
@@ -803,14 +806,20 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
           const float len_end = lengths[index];
           const float radius_start = radii_by_curve[index];
           const float radius_end = radii_by_curve[1 + index];
-          add_closest(
-              int2(index, 1 + index), a, b, len_start, len_end, radius_start, radius_end, length);
+          add_closest(int2(index, 1 + index),
+                      a,
+                      b,
+                      len_start,
+                      len_end,
+                      radius_start,
+                      radius_end,
+                      curve_length);
         }
         if (cyclic[curve_i]) {
           const float3 a = positions.last();
           const float3 b = positions.first();
           const float len_start = lengths.last();
-          const float len_end = 1.0f;
+          const float len_end = curve_length;
           const float radius_start = radii_by_curve.last();
           const float radius_end = radii_by_curve.first();
           add_closest(int2(positions.size() - 1, 0),
@@ -820,7 +829,7 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
                       len_end,
                       radius_start,
                       radius_end,
-                      length);
+                      curve_length);
         }
       }
     });
@@ -1239,6 +1248,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     attribute_outputs.pair_id = params.get_output_anonymous_attribute_id_if_needed("Pair ID");
   }
 
+  attribute_outputs.lambda = params.get_output_anonymous_attribute_id_if_needed("Lambda");
+
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (!geometry_set.has_curves()) {
       geometry_set.clear();
@@ -1426,6 +1437,14 @@ static void node_geo_exec(GeoNodeExecParams params)
         pair_id.span.copy_from(sorted_data.pair_id);
         pair_id.finish();
       }
+
+      if (attribute_outputs.lambda) {
+        SpanAttributeWriter<float> lambda = attributes.lookup_or_add_for_write_only_span<float>(
+            *attribute_outputs.lambda, AttrDomain::Point);
+        lambda.span.copy_from(sorted_data.lambda);
+        lambda.finish();
+      }
+
       geometry_set.clear();
       geometry_set.replace_pointcloud(pointcloud);
     }
