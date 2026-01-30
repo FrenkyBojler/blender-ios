@@ -79,7 +79,7 @@ static const int NUM_MISS_PROGRAM_GROUPS = 1;
 static const int HIT_PROGAM_GROUP_OFFSET = PG_HITD;
 static const int NUM_HIT_PROGRAM_GROUPS = 24;
 /* Not used currently, but keep around for future use. */
-static const int CALLABLE_PROGRAM_GROUPS_BASE = 0 /* PG_CALL_.. */;
+static const int CALLABLE_PROGRAM_GROUPS_BASE = NUM_PROGRAM_GROUPS /* PG_CALL_.. */;
 static const int NUM_CALLABLE_PROGRAM_GROUPS = 0;
 
 /* List of OptiX pipelines. */

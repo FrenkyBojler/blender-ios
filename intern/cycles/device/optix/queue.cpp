@@ -199,10 +199,7 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
   sbt_params.hitgroupRecordBase = sbt_data_ptr + HIT_PROGAM_GROUP_OFFSET * sizeof(SbtRecord);
   sbt_params.hitgroupRecordStrideInBytes = sizeof(SbtRecord);
   sbt_params.hitgroupRecordCount = NUM_HIT_PROGRAM_GROUPS;
-  sbt_params.callablesRecordBase = (NUM_CALLABLE_PROGRAM_GROUPS) ?
-                                       sbt_data_ptr +
-                                           CALLABLE_PROGRAM_GROUPS_BASE * sizeof(SbtRecord) :
-                                       0;
+  sbt_params.callablesRecordBase = sbt_data_ptr + CALLABLE_PROGRAM_GROUPS_BASE * sizeof(SbtRecord);
   sbt_params.callablesRecordCount = NUM_CALLABLE_PROGRAM_GROUPS;
   sbt_params.callablesRecordStrideInBytes = sizeof(SbtRecord);
 
@@ -211,6 +208,10 @@ bool OptiXDeviceQueue::enqueue(DeviceKernel kernel,
     sbt_params.callablesRecordCount += static_cast<unsigned int>(optix_device->osl_groups.size());
   }
 #  endif
+
+  if (sbt_params.callablesRecordCount == 0) {
+    sbt_params.callablesRecordBase = 0;
+  }
 
   /* Launch the ray generation program. */
   optix_device_assert(optix_device,
