@@ -1807,7 +1807,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       copy_v3_v3(roll_vector, base_mat[2]);
       break;
     }
-    case AXES: { /* Object Space. */
+    case AXES: { /* Object Space.  Assumes Y is Up.*/
       base_mat[0][0] = 1.0f;
       base_mat[0][1] = 0.0f;
       base_mat[0][2] = 0.0f;
@@ -1829,8 +1829,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       break;
     }
 
-    case UP:
-    default: {
+    case UP: {
       unit_m3(base_mat); /* Object Space. */
 
       if (space == 1) { /* World Space. */
