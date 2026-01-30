@@ -157,14 +157,14 @@ bool transform_mode_edge_seq_slide_use_restore_handle_selection(const TransInfo 
 /** \} */
 
 TransModeInfo TransMode_seqslide = {
-    /*flags*/ 0,
-    /*init_fn*/ initSeqSlide,
-    /*transform_fn*/ applySeqSlide,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ snap_sequencer_apply_seqslide,
-    /*draw_fn*/ nullptr,
+    .flags = 0,
+    .init_fn = initSeqSlide,
+    .transform_fn = applySeqSlide,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = snap_sequencer_apply_seqslide,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

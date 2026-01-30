@@ -1469,10 +1469,10 @@ wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
   wmWindow *win_src = CTX_wm_window(C);
   ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_TYPE_ANY, 0);
   const rcti window_rect = {
-      /*xmin*/ 0,
-      /*xmax*/ int(win_src->sizex * 0.95f),
-      /*ymin*/ 0,
-      /*ymax*/ int(win_src->sizey * 0.9f),
+      .xmin = 0,
+      .xmax = int(win_src->sizex * 0.95f),
+      .ymin = 0,
+      .ymax = int(win_src->sizey * 0.9f),
   };
 
   bool ok = (WM_window_open(C,
@@ -2224,10 +2224,10 @@ void WM_window_csd_params_update()
   }
 
   GHOST_CSD_Params csd_params = {
-      /*layout_callback*/ wm_window_csd_layout_callback,
+      .layout_callback = wm_window_csd_layout_callback,
 
-      /*cursor_drag_threshold*/ U.drag_threshold_mouse,
-      /*cursor_double_click_ms*/ U.dbl_click_time,
+      .cursor_drag_threshold = U.drag_threshold_mouse,
+      .cursor_double_click_ms = U.dbl_click_time,
   };
   g_system->setWindowCSD(csd_params);
 }

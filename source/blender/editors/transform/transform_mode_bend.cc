@@ -323,14 +323,14 @@ static void initBend(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_bend = {
-    /*flags*/ T_NO_CONSTRAINT,
-    /*init_fn*/ initBend,
-    /*transform_fn*/ Bend,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ handleEventBend,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = T_NO_CONSTRAINT,
+    .init_fn = initBend,
+    .transform_fn = Bend,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = handleEventBend,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

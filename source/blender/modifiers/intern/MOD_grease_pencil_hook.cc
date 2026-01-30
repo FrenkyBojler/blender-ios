@@ -313,39 +313,38 @@ static void panel_register(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_GreasePencilHook = {
-    /*idname*/ "GreasePencilHookModifier",
-    /*name*/ N_("Hook"),
-    /*struct_name*/ "GreasePencilHookModifierData",
-    /*struct_size*/ sizeof(GreasePencilHookModifierData),
-    /*srna*/ &RNA_GreasePencilHookModifier,
-    /*type*/ ModifierTypeType::OnlyDeform,
-    /*flags*/
-    eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
-        eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,
-    /*icon*/ ICON_HOOK,
+    .idname = "GreasePencilHookModifier",
+    .name = N_("Hook"),
+    .struct_name = "GreasePencilHookModifierData",
+    .struct_size = sizeof(GreasePencilHookModifierData),
+    .srna = &RNA_GreasePencilHookModifier,
+    .type = ModifierTypeType::OnlyDeform,
+    .flags = eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
+             eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,
+    .icon = ICON_HOOK,
 
-    /*copy_data*/ copy_data,
+    .copy_data = copy_data,
 
-    /*deform_verts*/ nullptr,
-    /*deform_matrices*/ nullptr,
-    /*deform_verts_EM*/ nullptr,
-    /*deform_matrices_EM*/ nullptr,
-    /*modify_mesh*/ nullptr,
-    /*modify_geometry_set*/ modify_geometry_set,
+    .deform_verts = nullptr,
+    .deform_matrices = nullptr,
+    .deform_verts_EM = nullptr,
+    .deform_matrices_EM = nullptr,
+    .modify_mesh = nullptr,
+    .modify_geometry_set = modify_geometry_set,
 
-    /*init_data*/ init_data,
-    /*required_data_mask*/ nullptr,
-    /*free_data*/ free_data,
-    /*is_disabled*/ is_disabled,
-    /*update_depsgraph*/ update_depsgraph,
-    /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ nullptr,
-    /*foreach_ID_link*/ foreach_ID_link,
-    /*foreach_tex_link*/ nullptr,
-    /*free_runtime_data*/ nullptr,
-    /*panel_register*/ panel_register,
-    /*blend_write*/ blend_write,
-    /*blend_read*/ blend_read,
+    .init_data = init_data,
+    .required_data_mask = nullptr,
+    .free_data = free_data,
+    .is_disabled = is_disabled,
+    .update_depsgraph = update_depsgraph,
+    .depends_on_time = nullptr,
+    .depends_on_normals = nullptr,
+    .foreach_ID_link = foreach_ID_link,
+    .foreach_tex_link = nullptr,
+    .free_runtime_data = nullptr,
+    .panel_register = panel_register,
+    .blend_write = blend_write,
+    .blend_read = blend_read,
 };
 
 }  // namespace blender

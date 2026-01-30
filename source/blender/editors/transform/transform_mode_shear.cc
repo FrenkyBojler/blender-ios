@@ -359,14 +359,14 @@ static void initShear(TransInfo *t, wmOperator *op)
 /** \} */
 
 TransModeInfo TransMode_shear = {
-    /*flags*/ T_NO_CONSTRAINT,
-    /*init_fn*/ initShear,
-    /*transform_fn*/ apply_shear,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ handleEventShear,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = T_NO_CONSTRAINT,
+    .init_fn = initShear,
+    .transform_fn = apply_shear,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = handleEventShear,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

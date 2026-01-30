@@ -147,14 +147,14 @@ static void initNormalRotation(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_rotatenormal = {
-    /*flags*/ 0,
-    /*init_fn*/ initNormalRotation,
-    /*transform_fn*/ applyNormalRotation,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = 0,
+    .init_fn = initNormalRotation,
+    .transform_fn = applyNormalRotation,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

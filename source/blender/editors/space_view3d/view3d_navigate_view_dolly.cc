@@ -354,11 +354,11 @@ void VIEW3D_OT_dolly(wmOperatorType *ot)
 /** \} */
 
 ViewOpsType ViewOpsType_dolly = {
-    /*flag*/ (VIEWOPS_FLAG_DEPTH_NAVIGATE | VIEWOPS_FLAG_ZOOM_TO_MOUSE),
-    /*idname*/ "VIEW3D_OT_dolly",
-    /*poll_fn*/ nullptr,
-    /*init_fn*/ nullptr,
-    /*apply_fn*/ nullptr,
+    .flag = (VIEWOPS_FLAG_DEPTH_NAVIGATE | VIEWOPS_FLAG_ZOOM_TO_MOUSE),
+    .idname = "VIEW3D_OT_dolly",
+    .poll_fn = nullptr,
+    .init_fn = nullptr,
+    .apply_fn = nullptr,
 };
 
 }  // namespace blender

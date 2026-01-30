@@ -38,11 +38,11 @@ static const ushort indices[] = {
 };
 
 GizmoGeomInfo wm_gizmo_geom_data_cube = {
-    /*nverts*/ 8,
-    /*ntris*/ 12,
-    /*verts*/ verts,
-    /*normals*/ normals,
-    /*indices*/ indices,
+    .nverts = 8,
+    .ntris = 12,
+    .verts = verts,
+    .normals = normals,
+    .indices = indices,
 };
 
 }  // namespace blender

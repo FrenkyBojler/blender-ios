@@ -97,14 +97,14 @@ static void initBoneEnvelope(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_boneenvelope = {
-    /*flags*/ T_NO_CONSTRAINT | T_NO_PROJECT,
-    /*init_fn*/ initBoneEnvelope,
-    /*transform_fn*/ applyBoneEnvelope,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = T_NO_CONSTRAINT | T_NO_PROJECT,
+    .init_fn = initBoneEnvelope,
+    .transform_fn = applyBoneEnvelope,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

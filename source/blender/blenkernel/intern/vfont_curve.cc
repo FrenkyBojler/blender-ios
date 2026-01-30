@@ -744,7 +744,7 @@ static bool vfont_to_curve(Object *ob,
   }
 
   VCharPlaceHolder che_placeholder = {
-      /*metrics*/ metrics,
+      .metrics = metrics,
   };
 
   if (ef) {

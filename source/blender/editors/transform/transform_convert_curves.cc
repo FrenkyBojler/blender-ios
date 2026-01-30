@@ -763,10 +763,10 @@ void curve_populate_trans_data_structs(const TransInfo &t,
 /** \} */
 
 TransConvertTypeInfo TransConvertType_Curves = {
-    /*flags*/ (T_EDIT | T_POINTS),
-    /*create_trans_data*/ createTransCurvesVerts,
-    /*recalc_data*/ recalcData_curves,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = (T_EDIT | T_POINTS),
+    .create_trans_data = createTransCurvesVerts,
+    .recalc_data = recalcData_curves,
+    .special_aftertrans_update = nullptr,
 };
 
 }  // namespace blender::ed::transform::curves

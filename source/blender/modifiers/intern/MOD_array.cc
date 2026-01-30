@@ -1063,41 +1063,41 @@ static void panel_register(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_Array = {
-    /*idname*/ "Array",
-    /*name*/ N_("Array"),
-    /*struct_name*/ "ArrayModifierData",
-    /*struct_size*/ sizeof(ArrayModifierData),
-    /*srna*/ &RNA_ArrayModifier,
-    /*type*/ ModifierTypeType::Constructive,
-    /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
-        eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
-        eModifierTypeFlag_AcceptsCVs,
-    /*icon*/ ICON_MOD_ARRAY,
+    .idname = "Array",
+    .name = N_("Array"),
+    .struct_name = "ArrayModifierData",
+    .struct_size = sizeof(ArrayModifierData),
+    .srna = &RNA_ArrayModifier,
+    .type = ModifierTypeType::Constructive,
+    .flags = eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
+             eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
+             eModifierTypeFlag_AcceptsCVs,
+    .icon = ICON_MOD_ARRAY,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    .copy_data = BKE_modifier_copydata_generic,
 
-    /*deform_verts*/ nullptr,
-    /*deform_matrices*/ nullptr,
-    /*deform_verts_EM*/ nullptr,
-    /*deform_matrices_EM*/ nullptr,
-    /*modify_mesh*/ modify_mesh,
-    /*modify_geometry_set*/ nullptr,
+    .deform_verts = nullptr,
+    .deform_matrices = nullptr,
+    .deform_verts_EM = nullptr,
+    .deform_matrices_EM = nullptr,
+    .modify_mesh = modify_mesh,
+    .modify_geometry_set = nullptr,
 
-    /*init_data*/ init_data,
-    /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
-    /*is_disabled*/ is_disabled,
-    /*update_depsgraph*/ update_depsgraph,
-    /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ nullptr,
-    /*foreach_ID_link*/ foreach_ID_link,
-    /*foreach_tex_link*/ nullptr,
-    /*free_runtime_data*/ nullptr,
-    /*panel_register*/ panel_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
+    .init_data = init_data,
+    .required_data_mask = nullptr,
+    .free_data = nullptr,
+    .is_disabled = is_disabled,
+    .update_depsgraph = update_depsgraph,
+    .depends_on_time = nullptr,
+    .depends_on_normals = nullptr,
+    .foreach_ID_link = foreach_ID_link,
+    .foreach_tex_link = nullptr,
+    .free_runtime_data = nullptr,
+    .panel_register = panel_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_working_space_color = nullptr,
 };
 
 }  // namespace blender

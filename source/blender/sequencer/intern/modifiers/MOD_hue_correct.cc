@@ -147,17 +147,17 @@ static void hue_correct_read(BlendDataReader *reader, StripModifierData *smd)
 }
 
 StripModifierTypeInfo seqModifierType_HueCorrect = {
-    /*idname*/ "HueCorrect",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Hue Correct"),
-    /*struct_name*/ "HueCorrectModifierData",
-    /*struct_size*/ sizeof(HueCorrectModifierData),
-    /*init_data*/ hue_correct_init_data,
-    /*free_data*/ hue_correct_free_data,
-    /*copy_data*/ hue_correct_copy_data,
-    /*apply*/ hue_correct_apply,
-    /*panel_register*/ hue_correct_register,
-    /*blend_write*/ hue_correct_write,
-    /*blend_read*/ hue_correct_read,
+    .idname = "HueCorrect",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Hue Correct"),
+    .struct_name = "HueCorrectModifierData",
+    .struct_size = sizeof(HueCorrectModifierData),
+    .init_data = hue_correct_init_data,
+    .free_data = hue_correct_free_data,
+    .copy_data = hue_correct_copy_data,
+    .apply = hue_correct_apply,
+    .panel_register = hue_correct_register,
+    .blend_write = hue_correct_write,
+    .blend_read = hue_correct_read,
 };
 
 };  // namespace blender::seq

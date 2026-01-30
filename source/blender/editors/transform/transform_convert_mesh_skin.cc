@@ -291,10 +291,10 @@ static void recalcData_mesh_skin(TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_MeshSkin = {
-    /*flags*/ (T_EDIT | T_POINTS),
-    /*create_trans_data*/ createTransMeshSkin,
-    /*recalc_data*/ recalcData_mesh_skin,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = (T_EDIT | T_POINTS),
+    .create_trans_data = createTransMeshSkin,
+    .recalc_data = recalcData_mesh_skin,
+    .special_aftertrans_update = nullptr,
 };
 
 }  // namespace blender::ed::transform

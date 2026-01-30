@@ -155,10 +155,10 @@ static void recalcData_pointcloud(TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_PointCloud = {
-    /*flags*/ (T_EDIT | T_POINTS),
-    /*create_trans_data*/ pointcloud::createTransPointCloudVerts,
-    /*recalc_data*/ pointcloud::recalcData_pointcloud,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = (T_EDIT | T_POINTS),
+    .create_trans_data = pointcloud::createTransPointCloudVerts,
+    .recalc_data = pointcloud::recalcData_pointcloud,
+    .special_aftertrans_update = nullptr,
 };
 
 }  // namespace blender::ed::transform::pointcloud

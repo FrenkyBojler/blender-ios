@@ -797,28 +797,28 @@ static void workbench_render(RenderEngine *engine, Depsgraph *depsgraph)
 }
 
 RenderEngineType DRW_engine_viewport_workbench_type = {
-    /*next*/ nullptr,
-    /*prev*/ nullptr,
-    /*idname*/ "BLENDER_WORKBENCH",
-    /*name*/ N_("Workbench"),
-    /*flag*/ RE_INTERNAL | RE_USE_STEREO_VIEWPORT | RE_USE_GPU_CONTEXT,
-    /*update*/ nullptr,
-    /*render*/ &workbench_render,
-    /*render_frame_finish*/ nullptr,
-    /*draw*/ nullptr,
-    /*bake*/ nullptr,
-    /*view_update*/ nullptr,
-    /*view_draw*/ nullptr,
-    /*update_script_node*/ nullptr,
-    /*update_render_passes*/ &workbench_render_update_passes,
-    /*update_custom_camera*/ nullptr,
-    /*draw_engine*/ nullptr,
-    /*rna_ext*/
-    {
-        /*data*/ nullptr,
-        /*srna*/ nullptr,
-        /*call*/ nullptr,
-    },
+    .next = nullptr,
+    .prev = nullptr,
+    .idname = "BLENDER_WORKBENCH",
+    .name = N_("Workbench"),
+    .flag = RE_INTERNAL | RE_USE_STEREO_VIEWPORT | RE_USE_GPU_CONTEXT,
+    .update = nullptr,
+    .render = &workbench_render,
+    .render_frame_finish = nullptr,
+    .draw = nullptr,
+    .bake = nullptr,
+    .view_update = nullptr,
+    .view_draw = nullptr,
+    .update_script_node = nullptr,
+    .update_render_passes = &workbench_render_update_passes,
+    .update_custom_camera = nullptr,
+    .draw_engine = nullptr,
+    .rna_ext =
+        {
+            .data = nullptr,
+            .srna = nullptr,
+            .call = nullptr,
+        },
 };
 
 /** \} */

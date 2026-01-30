@@ -225,10 +225,10 @@ static void recalcData_mesh_cdata(TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_MeshVertCData = {
-    /*flags*/ (T_EDIT | T_POINTS),
-    /*create_trans_data*/ createTransMeshVertCData,
-    /*recalc_data*/ recalcData_mesh_cdata,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = (T_EDIT | T_POINTS),
+    .create_trans_data = createTransMeshVertCData,
+    .recalc_data = recalcData_mesh_cdata,
+    .special_aftertrans_update = nullptr,
 };
 
 }  // namespace blender::ed::transform

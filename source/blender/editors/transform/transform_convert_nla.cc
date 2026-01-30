@@ -995,10 +995,10 @@ static void special_aftertrans_update__nla(bContext *C, TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_NLA = {
-    /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*create_trans_data*/ createTransNlaData,
-    /*recalc_data*/ recalcData_nla,
-    /*special_aftertrans_update*/ special_aftertrans_update__nla,
+    .flags = (T_POINTS | T_2D_EDIT),
+    .create_trans_data = createTransNlaData,
+    .recalc_data = recalcData_nla,
+    .special_aftertrans_update = special_aftertrans_update__nla,
 };
 
 }  // namespace blender::ed::transform

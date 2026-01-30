@@ -77,10 +77,10 @@ void WM_window_csd_draw_titlebar_ex(const int win_size[2],
       const int border_outline_width = std::max<int>(
           1, WM_window_csd_fracitonal_scale_apply(2, fractional_scale));
       const rcti window_rect = {
-          /*xmin*/ 0,
-          /*xmax*/ win_size[0],
-          /*ymin*/ 0,
-          /*ymax*/ win_size[1],
+          .xmin = 0,
+          .xmax = win_size[0],
+          .ymin = 0,
+          .ymax = win_size[1],
       };
 
       wmWindowViewportTitle_ex(window_rect, 0);

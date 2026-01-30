@@ -262,9 +262,9 @@ static void recalcData_sequencer_retiming(TransInfo *t)
 }
 
 TransConvertTypeInfo TransConvertType_SequencerRetiming = {
-    /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*create_trans_data*/ createTransSeqRetimingData,
-    /*recalc_data*/ recalcData_sequencer_retiming,
+    .flags = (T_POINTS | T_2D_EDIT),
+    .create_trans_data = createTransSeqRetimingData,
+    .recalc_data = recalcData_sequencer_retiming,
 };
 
 }  // namespace blender::ed::transform

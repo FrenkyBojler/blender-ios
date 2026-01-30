@@ -76,16 +76,16 @@ namespace blender {
 /* Global used during defining */
 
 BlenderDefRNA DefRNA = {
-    /*sdna*/ nullptr,
-    /*structs*/ {nullptr, nullptr},
-    /*allocs*/ {nullptr, nullptr},
-    /*laststruct*/ nullptr,
-    /*error*/ false,
-    /*silent*/ false,
-    /*preprocess*/ false,
-    /*verify*/ true,
-    /*animate*/ true,
-    /*make_overridable*/ false,
+    .sdna = nullptr,
+    .structs = {nullptr, nullptr},
+    .allocs = {nullptr, nullptr},
+    .laststruct = nullptr,
+    .error = false,
+    .silent = false,
+    .preprocess = false,
+    .verify = true,
+    .animate = true,
+    .make_overridable = false,
 };
 
 #ifndef RNA_RUNTIME

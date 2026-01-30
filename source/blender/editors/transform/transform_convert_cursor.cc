@@ -188,24 +188,24 @@ static void recalcData_cursor_view3d(TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_CursorImage = {
-    /*flags*/ T_2D_EDIT,
-    /*create_trans_data*/ createTransCursor_image,
-    /*recalc_data*/ recalcData_cursor_image,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = T_2D_EDIT,
+    .create_trans_data = createTransCursor_image,
+    .recalc_data = recalcData_cursor_image,
+    .special_aftertrans_update = nullptr,
 };
 
 TransConvertTypeInfo TransConvertType_CursorSequencer = {
-    /*flags*/ T_2D_EDIT,
-    /*create_trans_data*/ createTransCursor_sequencer,
-    /*recalc_data*/ recalcData_cursor_sequencer,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = T_2D_EDIT,
+    .create_trans_data = createTransCursor_sequencer,
+    .recalc_data = recalcData_cursor_sequencer,
+    .special_aftertrans_update = nullptr,
 };
 
 TransConvertTypeInfo TransConvertType_Cursor3D = {
-    /*flags*/ 0,
-    /*create_trans_data*/ createTransCursor_view3d,
-    /*recalc_data*/ recalcData_cursor_view3d,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = 0,
+    .create_trans_data = createTransCursor_view3d,
+    .recalc_data = recalcData_cursor_view3d,
+    .special_aftertrans_update = nullptr,
 };
 
 }  // namespace blender::ed::transform

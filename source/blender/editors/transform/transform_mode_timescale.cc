@@ -157,14 +157,14 @@ static void initTimeScale(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_timescale = {
-    /*flags*/ T_NULL_ONE,
-    /*init_fn*/ initTimeScale,
-    /*transform_fn*/ applyTimeScale,
-    /*transform_matrix_fn*/ timescale_transform_matrix_fn,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ timescale_snap_apply_fn,
-    /*draw_fn*/ nullptr,
+    .flags = T_NULL_ONE,
+    .init_fn = initTimeScale,
+    .transform_fn = applyTimeScale,
+    .transform_matrix_fn = timescale_transform_matrix_fn,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = timescale_snap_apply_fn,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

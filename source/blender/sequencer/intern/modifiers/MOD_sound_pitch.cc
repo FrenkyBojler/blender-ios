@@ -63,17 +63,17 @@ static void pitchmodifier_register(ARegionType *region_type)
 }
 
 StripModifierTypeInfo seqModifierType_Pitch = {
-    /*idname*/ "Pitch",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Pitch"),
-    /*struct_name*/ "PitchModifierData",
-    /*struct_size*/ sizeof(PitchModifierData),
-    /*init_data*/ pitchmodifier_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*apply*/ nullptr,
-    /*panel_register*/ pitchmodifier_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
+    .idname = "Pitch",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Pitch"),
+    .struct_name = "PitchModifierData",
+    .struct_size = sizeof(PitchModifierData),
+    .init_data = pitchmodifier_init_data,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .apply = nullptr,
+    .panel_register = pitchmodifier_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
 };
 
 };  // namespace blender::seq

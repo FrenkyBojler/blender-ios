@@ -86,22 +86,22 @@ static void panel_register(ARegionType *region_type)
 }
 
 ShaderFxTypeInfo shaderfx_Type_Swirl = {
-    /*name*/ N_("Swirl"),
-    /*struct_name*/ "SwirlShaderFxData",
-    /*struct_size*/ sizeof(SwirlShaderFxData),
-    /*type*/ eShaderFxType_GpencilType,
-    /*flags*/ ShaderFxTypeFlag(0),
+    .name = N_("Swirl"),
+    .struct_name = "SwirlShaderFxData",
+    .struct_size = sizeof(SwirlShaderFxData),
+    .type = eShaderFxType_GpencilType,
+    .flags = ShaderFxTypeFlag(0),
 
-    /*copy_data*/ copy_data,
+    .copy_data = copy_data,
 
-    /*init_data*/ init_data,
-    /*free_data*/ nullptr,
-    /*is_disabled*/ is_disabled,
-    /*update_depsgraph*/ update_depsgraph,
-    /*depends_on_time*/ nullptr,
-    /*foreach_ID_link*/ foreach_ID_link,
-    /*foreach_working_space_color*/ nullptr,
-    /*panel_register*/ panel_register,
+    .init_data = init_data,
+    .free_data = nullptr,
+    .is_disabled = is_disabled,
+    .update_depsgraph = update_depsgraph,
+    .depends_on_time = nullptr,
+    .foreach_ID_link = foreach_ID_link,
+    .foreach_working_space_color = nullptr,
+    .panel_register = panel_register,
 };
 
 }  // namespace blender

@@ -1821,162 +1821,160 @@ static void *bmw_NonManifoldedgeWalker_step(BMWalker *walker)
 /** \} */
 
 static const BMWalker bmw_VertShellWalker_Type = {
-    /*begin_htype*/ BM_VERT | BM_EDGE,
-    /*step*/ bmw_VertShellWalker_begin,
-    /*step*/ bmw_VertShellWalker_step,
-    /*yield*/ bmw_VertShellWalker_yield,
-    /*structsize*/ sizeof(BMwShellWalker),
-    /*order*/ BMW_BREADTH_FIRST,
-    /*valid_mask*/ BM_EDGE, /* Valid restrict masks. */
-    /*delimit_supported=*/BMW_DELIMIT_NONE,
+    .begin_htype = BM_VERT | BM_EDGE,
+    .begin = bmw_VertShellWalker_begin,
+    .step = bmw_VertShellWalker_step,
+    .yield = bmw_VertShellWalker_yield,
+    .structsize = sizeof(BMwShellWalker),
+    .order = BMW_BREADTH_FIRST,
+    .valid_mask = BM_EDGE, /* Valid restrict masks. */
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 static const BMWalker bmw_LoopShellWalker_Type = {
-    /*begin_htype*/ BM_FACE | BM_LOOP | BM_EDGE | BM_VERT,
-    /*begin*/ bmw_LoopShellWalker_begin,
-    /*step*/ bmw_LoopShellWalker_step,
-    /*yield*/ bmw_LoopShellWalker_yield,
-    /*structsize*/ sizeof(BMwLoopShellWalker),
-    /*order*/ BMW_BREADTH_FIRST,
-    /*valid_mask*/ BM_EDGE,
-    /*delimit_supported*/ BMW_DELIMIT_NONE,
+    .begin_htype = BM_FACE | BM_LOOP | BM_EDGE | BM_VERT,
+    .begin = bmw_LoopShellWalker_begin,
+    .step = bmw_LoopShellWalker_step,
+    .yield = bmw_LoopShellWalker_yield,
+    .structsize = sizeof(BMwLoopShellWalker),
+    .order = BMW_BREADTH_FIRST,
+    .valid_mask = BM_EDGE,
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 static const BMWalker bmw_LoopShellWireWalker_Type = {
-    /*begin_htype*/ BM_FACE | BM_LOOP | BM_EDGE | BM_VERT,
-    /*begin*/ bmw_LoopShellWireWalker_begin,
-    /*step*/ bmw_LoopShellWireWalker_step,
-    /*yield*/ bmw_LoopShellWireWalker_yield,
-    /*structsize*/ sizeof(BMwLoopShellWireWalker),
-    /*order*/ BMW_BREADTH_FIRST,
-    /*valid_mask*/ BM_EDGE,
-    /*delimit_supported*/ BMW_DELIMIT_NONE,
+    .begin_htype = BM_FACE | BM_LOOP | BM_EDGE | BM_VERT,
+    .begin = bmw_LoopShellWireWalker_begin,
+    .step = bmw_LoopShellWireWalker_step,
+    .yield = bmw_LoopShellWireWalker_yield,
+    .structsize = sizeof(BMwLoopShellWireWalker),
+    .order = BMW_BREADTH_FIRST,
+    .valid_mask = BM_EDGE,
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 static const BMWalker bmw_FaceShellWalker_Type = {
-    /*begin_htype*/ BM_EDGE,
-    /*begin*/ bmw_FaceShellWalker_begin,
-    /*step*/ bmw_FaceShellWalker_step,
-    /*yield*/ bmw_FaceShellWalker_yield,
-    /*structsize*/ sizeof(BMwShellWalker),
-    /*order*/ BMW_BREADTH_FIRST,
-    /*valid_mask*/ BM_EDGE,
-    /*delimit_supported*/ BMW_DELIMIT_NONE,
+    .begin_htype = BM_EDGE,
+    .begin = bmw_FaceShellWalker_begin,
+    .step = bmw_FaceShellWalker_step,
+    .yield = bmw_FaceShellWalker_yield,
+    .structsize = sizeof(BMwShellWalker),
+    .order = BMW_BREADTH_FIRST,
+    .valid_mask = BM_EDGE,
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 static const BMWalker bmw_IslandboundWalker_Type = {
-    /*begin_htype*/ BM_LOOP,
-    /*begin*/ bmw_IslandboundWalker_begin,
-    /*step*/ bmw_IslandboundWalker_step,
-    /*yield*/ bmw_IslandboundWalker_yield,
-    /*structsize*/ sizeof(BMwIslandboundWalker),
-    /*order*/ BMW_DEPTH_FIRST,
-    /*valid_mask*/ BM_FACE,
-    /*delimit_supported*/ BMW_DELIMIT_NONE,
+    .begin_htype = BM_LOOP,
+    .begin = bmw_IslandboundWalker_begin,
+    .step = bmw_IslandboundWalker_step,
+    .yield = bmw_IslandboundWalker_yield,
+    .structsize = sizeof(BMwIslandboundWalker),
+    .order = BMW_DEPTH_FIRST,
+    .valid_mask = BM_FACE,
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 static const BMWalker bmw_IslandWalker_Type = {
-    /*begin_htype*/ BM_FACE,
-    /*begin*/ bmw_IslandWalker_begin,
-    /*step*/ bmw_IslandWalker_step,
-    /*yield*/ bmw_IslandWalker_yield,
-    /*structsize*/ sizeof(BMwIslandWalker),
-    /*order*/ BMW_BREADTH_FIRST,
-    /*valid_mask*/ BM_EDGE | BM_FACE,
-    /*delimit_supported*/ BMW_DELIMIT_NONE,
+    .begin_htype = BM_FACE,
+    .begin = bmw_IslandWalker_begin,
+    .step = bmw_IslandWalker_step,
+    .yield = bmw_IslandWalker_yield,
+    .structsize = sizeof(BMwIslandWalker),
+    .order = BMW_BREADTH_FIRST,
+    .valid_mask = BM_EDGE | BM_FACE,
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 static const BMWalker bmw_IslandManifoldWalker_Type = {
-    /*begin_htype*/ BM_FACE,
-    /*begin*/ bmw_IslandWalker_begin,
-    /*step*/ bmw_IslandManifoldWalker_step, /* Only difference with #BMW_ISLAND. */
-    /*yield*/ bmw_IslandWalker_yield,
-    /*structsize*/ sizeof(BMwIslandWalker),
-    /*order*/ BMW_BREADTH_FIRST,
-    /*valid_mask*/ BM_EDGE | BM_FACE,
-    /*delimit_supported*/ BMW_DELIMIT_NONE,
+    .begin_htype = BM_FACE,
+    .begin = bmw_IslandWalker_begin,
+    .step = bmw_IslandManifoldWalker_step, /* Only difference with #BMW_ISLAND. */
+    .yield = bmw_IslandWalker_yield,
+    .structsize = sizeof(BMwIslandWalker),
+    .order = BMW_BREADTH_FIRST,
+    .valid_mask = BM_EDGE | BM_FACE,
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 static const BMWalker bmw_EdgeLoopWalker_Type = {
-    /*begin_htype*/ BM_EDGE,
-    /*begin*/ bmw_EdgeLoopWalker_begin,
-    /*step*/ bmw_EdgeLoopWalker_step,
-    /*yield*/ bmw_EdgeLoopWalker_yield,
-    /*structsize*/ sizeof(BMwEdgeLoopWalker),
-    /*order*/ BMW_DEPTH_FIRST,
-    /*valid_mask*/ 0, /* Could add flags here but so far none are used. */
-                      /*delimit_supported*/
-    (BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS | BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS |
-     BMW_DELIMIT_EDGE_LOOP_NGONS),
+    .begin_htype = BM_EDGE,
+    .begin = bmw_EdgeLoopWalker_begin,
+    .step = bmw_EdgeLoopWalker_step,
+    .yield = bmw_EdgeLoopWalker_yield,
+    .structsize = sizeof(BMwEdgeLoopWalker),
+    .order = BMW_DEPTH_FIRST,
+    .valid_mask = 0, /* Could add flags here but so far none are used. */
+    .delimit_supported = (BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS |
+                          BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS | BMW_DELIMIT_EDGE_LOOP_NGONS),
 };
 
 static const BMWalker bmw_FaceLoopWalker_Type = {
-    /*begin_htype*/ BM_EDGE,
-    /*begin*/ bmw_FaceLoopWalker_begin,
-    /*step*/ bmw_FaceLoopWalker_step,
-    /*yield*/ bmw_FaceLoopWalker_yield,
-    /*structsize*/ sizeof(BMwFaceLoopWalker),
-    /*order*/ BMW_DEPTH_FIRST,
-    /*valid_mask*/ 0, /* Could add flags here but so far none are used. */
-                      /*delimit_supported*/
+    .begin_htype = BM_EDGE,
+    .begin = bmw_FaceLoopWalker_begin,
+    .step = bmw_FaceLoopWalker_step,
+    .yield = bmw_FaceLoopWalker_yield,
+    .structsize = sizeof(BMwFaceLoopWalker),
+    .order = BMW_DEPTH_FIRST,
+    .valid_mask = 0,     /* Could add flags here but so far none are used. */
+    .delimit_supported = /**/
     (BMW_DELIMIT_EDGE_MARK_SEAM | BMW_DELIMIT_EDGE_MARK_SHARP | BMW_DELIMIT_FACE_MARK_MATERIAL),
 };
 
 static const BMWalker bmw_EdgeringWalker_Type = {
-    /*begin_htype*/ BM_EDGE,
-    /*begin*/ bmw_EdgeringWalker_begin,
-    /*step*/ bmw_EdgeringWalker_step,
-    /*yield*/ bmw_EdgeringWalker_yield,
-    /*structsize*/ sizeof(BMwEdgeringWalker),
-    /*order*/ BMW_DEPTH_FIRST,
-    /*valid_mask*/ BM_EDGE,
-    /*delimit_supported*/
-    (BMW_DELIMIT_EDGE_RING_NGONS | BMW_DELIMIT_EDGE_MARK_SEAM | BMW_DELIMIT_EDGE_MARK_SHARP |
-     BMW_DELIMIT_FACE_MARK_MATERIAL),
+    .begin_htype = BM_EDGE,
+    .begin = bmw_EdgeringWalker_begin,
+    .step = bmw_EdgeringWalker_step,
+    .yield = bmw_EdgeringWalker_yield,
+    .structsize = sizeof(BMwEdgeringWalker),
+    .order = BMW_DEPTH_FIRST,
+    .valid_mask = BM_EDGE,
+    .delimit_supported = (BMW_DELIMIT_EDGE_RING_NGONS | BMW_DELIMIT_EDGE_MARK_SEAM |
+                          BMW_DELIMIT_EDGE_MARK_SHARP | BMW_DELIMIT_FACE_MARK_MATERIAL),
 };
 
 static const BMWalker bmw_EdgeboundaryWalker_Type = {
-    /*begin_htype*/ BM_EDGE,
-    /*begin*/ bmw_EdgeboundaryWalker_begin,
-    /*step*/ bmw_EdgeboundaryWalker_step,
-    /*yield*/ bmw_EdgeboundaryWalker_yield,
-    /*structsize*/ sizeof(BMwEdgeboundaryWalker),
-    /*order*/ BMW_DEPTH_FIRST,
-    /*valid_mask*/ 0,
-    /*delimit_supported*/ BMW_DELIMIT_NONE,
+    .begin_htype = BM_EDGE,
+    .begin = bmw_EdgeboundaryWalker_begin,
+    .step = bmw_EdgeboundaryWalker_step,
+    .yield = bmw_EdgeboundaryWalker_yield,
+    .structsize = sizeof(BMwEdgeboundaryWalker),
+    .order = BMW_DEPTH_FIRST,
+    .valid_mask = 0,
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 static const BMWalker bmw_NonManifoldedgeWalker_type = {
-    /*begin_htype*/ BM_EDGE,
-    /*begin*/ bmw_NonManifoldedgeWalker_begin,
-    /*step*/ bmw_NonManifoldedgeWalker_step,
-    /*yield*/ bmw_NonManifoldedgeWalker_yield,
-    /*structsize*/ sizeof(BMwNonManifoldEdgeLoopWalker),
-    /*order*/ BMW_DEPTH_FIRST,
-    /*valid_mask*/ 0,
-    /*delimit_supported*/ BMW_DELIMIT_NONE,
+    .begin_htype = BM_EDGE,
+    .begin = bmw_NonManifoldedgeWalker_begin,
+    .step = bmw_NonManifoldedgeWalker_step,
+    .yield = bmw_NonManifoldedgeWalker_yield,
+    .structsize = sizeof(BMwNonManifoldEdgeLoopWalker),
+    .order = BMW_DEPTH_FIRST,
+    .valid_mask = 0,
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 static const BMWalker bmw_UVEdgeWalker_Type = {
-    /*begin_htype*/ BM_LOOP,
-    /*begin*/ bmw_UVEdgeWalker_begin,
-    /*step*/ bmw_UVEdgeWalker_step,
-    /*yield*/ bmw_UVEdgeWalker_yield,
-    /*structsize*/ sizeof(BMwUVEdgeWalker),
-    /*order*/ BMW_DEPTH_FIRST,
-    /*valid_mask*/ BM_EDGE,
-    /*delimit_supported*/ BMW_DELIMIT_NONE,
+    .begin_htype = BM_LOOP,
+    .begin = bmw_UVEdgeWalker_begin,
+    .step = bmw_UVEdgeWalker_step,
+    .yield = bmw_UVEdgeWalker_yield,
+    .structsize = sizeof(BMwUVEdgeWalker),
+    .order = BMW_DEPTH_FIRST,
+    .valid_mask = BM_EDGE,
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 static const BMWalker bmw_ConnectedVertexWalker_Type = {
-    /*begin_htype*/ BM_VERT,
-    /*begin*/ bmw_ConnectedVertexWalker_begin,
-    /*step*/ bmw_ConnectedVertexWalker_step,
-    /*yield*/ bmw_ConnectedVertexWalker_yield,
-    /*structsize*/ sizeof(BMwConnectedVertexWalker),
-    /*order*/ BMW_BREADTH_FIRST,
-    /*valid_mask*/ BM_VERT,
-    /*delimit_supported*/ BMW_DELIMIT_NONE,
+    .begin_htype = BM_VERT,
+    .begin = bmw_ConnectedVertexWalker_begin,
+    .step = bmw_ConnectedVertexWalker_step,
+    .yield = bmw_ConnectedVertexWalker_yield,
+    .structsize = sizeof(BMwConnectedVertexWalker),
+    .order = BMW_BREADTH_FIRST,
+    .valid_mask = BM_VERT,
+    .delimit_supported = BMW_DELIMIT_NONE,
 };
 
 /** \} */

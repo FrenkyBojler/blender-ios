@@ -565,8 +565,9 @@ static void make_duplis_collection(const DupliContext *ctx)
 }
 
 static const DupliGenerator gen_dupli_collection = {
-    /*type*/ OB_DUPLICOLLECTION,
-    /*make_duplis*/ make_duplis_collection};
+    .type = OB_DUPLICOLLECTION,
+    .make_duplis = make_duplis_collection,
+};
 
 /** \} */
 
@@ -779,8 +780,9 @@ static void make_duplis_verts(const DupliContext *ctx)
 }
 
 static const DupliGenerator gen_dupli_verts = {
-    /*type*/ OB_DUPLIVERTS,
-    /*make_duplis*/ make_duplis_verts};
+    .type = OB_DUPLIVERTS,
+    .make_duplis = make_duplis_verts,
+};
 
 /** \} */
 
@@ -905,8 +907,9 @@ static void make_duplis_font(const DupliContext *ctx)
 }
 
 static const DupliGenerator gen_dupli_verts_font = {
-    /*type*/ OB_DUPLIVERTS,
-    /*make_duplis*/ make_duplis_font};
+    .type = OB_DUPLIVERTS,
+    .make_duplis = make_duplis_font,
+};
 
 /** \} */
 
@@ -1074,8 +1077,8 @@ static void make_duplis_geometry_set(const DupliContext *ctx)
 }
 
 static const DupliGenerator gen_dupli_geometry_set = {
-    /*type*/ GEOMETRY_SET_DUPLI_GENERATOR_TYPE,
-    /*make_duplis*/ make_duplis_geometry_set,
+    .type = GEOMETRY_SET_DUPLI_GENERATOR_TYPE,
+    .make_duplis = make_duplis_geometry_set,
 };
 
 /** \} */
@@ -1370,8 +1373,8 @@ static void make_duplis_faces(const DupliContext *ctx)
 }
 
 static const DupliGenerator gen_dupli_faces = {
-    /*type*/ OB_DUPLIFACES,
-    /*make_duplis*/ make_duplis_faces,
+    .type = OB_DUPLIFACES,
+    .make_duplis = make_duplis_faces,
 };
 
 /** \} */
@@ -1723,8 +1726,8 @@ static void make_duplis_particles(const DupliContext *ctx)
 }
 
 static const DupliGenerator gen_dupli_particles = {
-    /*type*/ OB_DUPLIPARTS,
-    /*make_duplis*/ make_duplis_particles,
+    .type = OB_DUPLIPARTS,
+    .make_duplis = make_duplis_particles,
 };
 
 /** \} */

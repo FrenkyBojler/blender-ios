@@ -2306,42 +2306,41 @@ static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks *r_cd
 }
 
 ModifierTypeInfo modifierType_Nodes = {
-    /*idname*/ "GeometryNodes",
-    /*name*/ N_("GeometryNodes"),
-    /*struct_name*/ "NodesModifierData",
-    /*struct_size*/ sizeof(NodesModifierData),
-    /*srna*/ &RNA_NodesModifier,
-    /*type*/ ModifierTypeType::Constructive,
-    /*flags*/
-    (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
-     eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
-     eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_AcceptsGreasePencil),
-    /*icon*/ ICON_GEOMETRY_NODES,
+    .idname = "GeometryNodes",
+    .name = N_("GeometryNodes"),
+    .struct_name = "NodesModifierData",
+    .struct_size = sizeof(NodesModifierData),
+    .srna = &RNA_NodesModifier,
+    .type = ModifierTypeType::Constructive,
+    .flags = (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
+              eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
+              eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_AcceptsGreasePencil),
+    .icon = ICON_GEOMETRY_NODES,
 
-    /*copy_data*/ copy_data,
+    .copy_data = copy_data,
 
-    /*deform_verts*/ nullptr,
-    /*deform_matrices*/ nullptr,
-    /*deform_verts_EM*/ nullptr,
-    /*deform_matrices_EM*/ nullptr,
-    /*modify_mesh*/ modify_mesh,
-    /*modify_geometry_set*/ modify_geometry_set,
+    .deform_verts = nullptr,
+    .deform_matrices = nullptr,
+    .deform_verts_EM = nullptr,
+    .deform_matrices_EM = nullptr,
+    .modify_mesh = modify_mesh,
+    .modify_geometry_set = modify_geometry_set,
 
-    /*init_data*/ init_data,
-    /*required_data_mask*/ required_data_mask,
-    /*free_data*/ free_data,
-    /*is_disabled*/ is_disabled,
-    /*update_depsgraph*/ update_depsgraph,
-    /*depends_on_time*/ depends_on_time,
-    /*depends_on_normals*/ nullptr,
-    /*foreach_ID_link*/ foreach_ID_link,
-    /*foreach_tex_link*/ foreach_tex_link,
-    /*free_runtime_data*/ nullptr,
-    /*panel_register*/ panel_register,
-    /*blend_write*/ blend_write,
-    /*blend_read*/ blend_read,
-    /*foreach_cache*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
+    .init_data = init_data,
+    .required_data_mask = required_data_mask,
+    .free_data = free_data,
+    .is_disabled = is_disabled,
+    .update_depsgraph = update_depsgraph,
+    .depends_on_time = depends_on_time,
+    .depends_on_normals = nullptr,
+    .foreach_ID_link = foreach_ID_link,
+    .foreach_tex_link = foreach_tex_link,
+    .free_runtime_data = nullptr,
+    .panel_register = panel_register,
+    .blend_write = blend_write,
+    .blend_read = blend_read,
+    .foreach_cache = nullptr,
+    .foreach_working_space_color = nullptr,
 };
 
 }  // namespace blender

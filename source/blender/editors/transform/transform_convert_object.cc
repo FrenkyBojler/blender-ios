@@ -991,10 +991,10 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_Object = {
-    /*flags*/ 0,
-    /*create_trans_data*/ createTransObject,
-    /*recalc_data*/ recalcData_objects,
-    /*special_aftertrans_update*/ special_aftertrans_update__object,
+    .flags = 0,
+    .create_trans_data = createTransObject,
+    .recalc_data = recalcData_objects,
+    .special_aftertrans_update = special_aftertrans_update__object,
 };
 
 }  // namespace blender::ed::transform

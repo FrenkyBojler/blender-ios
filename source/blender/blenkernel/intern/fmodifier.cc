@@ -63,19 +63,19 @@ static CLG_LogRef LOG = {"anim.fmodifier"};
  */
 #if 0
 static FModifierTypeInfo FMI_MODNAME = {
-    /*type*/ FMODIFIER_TYPE_MODNAME,
-    /*size*/ sizeof(FMod_ModName),
-    /*acttype*/ FMI_TYPE_SOME_ACTION,
-    /*requires_flag*/ FMI_REQUIRES_SOME_REQUIREMENT,
-    /*name*/ "Modifier Name",
-    /*struct_name*/ "FMod_ModName",
-    /*storage_size*/ 0,
-    /*free_data*/ fcm_modname_free,
-    /*copy_data*/ fcm_modname_copy,
-    /*new_data*/ fcm_modname_new_data,
-    /*verify_data*/ fcm_modname_verify,
-    /*evaluate_modifier_time*/ fcm_modname_time,
-    /*evaluate_modifier*/ fcm_modname_evaluate,
+    .type = FMODIFIER_TYPE_MODNAME,
+    .size = sizeof(FMod_ModName),
+    .acttype = FMI_TYPE_SOME_ACTION,
+    .requires_flag = FMI_REQUIRES_SOME_REQUIREMENT,
+    .name = "Modifier Name",
+    .struct_name = "FMod_ModName",
+    .storage_size = 0,
+    .free_data = fcm_modname_free,
+    .copy_data = fcm_modname_copy,
+    .new_data = fcm_modname_new_data,
+    .verify_data = fcm_modname_verify,
+    .evaluate_modifier_time = fcm_modname_time,
+    .evaluate_modifier = fcm_modname_evaluate,
 };
 #endif
 
@@ -232,19 +232,19 @@ static void fcm_generator_evaluate(const FCurve * /*fcu*/,
 }
 
 static FModifierTypeInfo FMI_GENERATOR = {
-    /*type*/ FMODIFIER_TYPE_GENERATOR,
-    /*size*/ sizeof(FMod_Generator),
-    /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires_flag*/ FMI_REQUIRES_NOTHING,
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Generator"),
-    /*struct_name*/ "FMod_Generator",
-    /*storage_size*/ 0,
-    /*free_data*/ fcm_generator_free,
-    /*copy_data*/ fcm_generator_copy,
-    /*new_data*/ fcm_generator_new_data,
-    /*verify_data*/ fcm_generator_verify,
-    /*evaluate_modifier_time*/ nullptr,
-    /*evaluate_modifier*/ fcm_generator_evaluate,
+    .type = FMODIFIER_TYPE_GENERATOR,
+    .size = sizeof(FMod_Generator),
+    .acttype = FMI_TYPE_GENERATE_CURVE,
+    .requires_flag = FMI_REQUIRES_NOTHING,
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Generator"),
+    .struct_name = "FMod_Generator",
+    .storage_size = 0,
+    .free_data = fcm_generator_free,
+    .copy_data = fcm_generator_copy,
+    .new_data = fcm_generator_new_data,
+    .verify_data = fcm_generator_verify,
+    .evaluate_modifier_time = nullptr,
+    .evaluate_modifier = fcm_generator_evaluate,
 };
 
 /* Built-In Function Generator F-Curve Modifier --------------------------- */
@@ -365,19 +365,19 @@ static void fcm_fn_generator_evaluate(const FCurve * /*fcu*/,
 }
 
 static FModifierTypeInfo FMI_FN_GENERATOR = {
-    /*type*/ FMODIFIER_TYPE_FN_GENERATOR,
-    /*size*/ sizeof(FMod_FunctionGenerator),
-    /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires_flag*/ FMI_REQUIRES_NOTHING,
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Built-In Function"),
-    /*struct_name*/ "FMod_FunctionGenerator",
-    /*storage_size*/ 0,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*new_data*/ fcm_fn_generator_new_data,
-    /*verify_data*/ nullptr,
-    /*evaluate_modifier_time*/ nullptr,
-    /*evaluate_modifier*/ fcm_fn_generator_evaluate,
+    .type = FMODIFIER_TYPE_FN_GENERATOR,
+    .size = sizeof(FMod_FunctionGenerator),
+    .acttype = FMI_TYPE_GENERATE_CURVE,
+    .requires_flag = FMI_REQUIRES_NOTHING,
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Built-In Function"),
+    .struct_name = "FMod_FunctionGenerator",
+    .storage_size = 0,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .new_data = fcm_fn_generator_new_data,
+    .verify_data = nullptr,
+    .evaluate_modifier_time = nullptr,
+    .evaluate_modifier = fcm_fn_generator_evaluate,
 };
 
 /* Envelope F-Curve Modifier --------------------------- */
@@ -481,19 +481,19 @@ static void fcm_envelope_evaluate(const FCurve * /*fcu*/,
 }
 
 static FModifierTypeInfo FMI_ENVELOPE = {
-    /*type*/ FMODIFIER_TYPE_ENVELOPE,
-    /*size*/ sizeof(FMod_Envelope),
-    /*acttype*/ FMI_TYPE_REPLACE_VALUES,
-    /*requires_flag*/ 0,
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Envelope"),
-    /*struct_name*/ "FMod_Envelope",
-    /*storage_size*/ 0,
-    /*free_data*/ fcm_envelope_free,
-    /*copy_data*/ fcm_envelope_copy,
-    /*new_data*/ fcm_envelope_new_data,
-    /*verify_data*/ fcm_envelope_verify,
-    /*evaluate_modifier_time*/ nullptr,
-    /*evaluate_modifier*/ fcm_envelope_evaluate,
+    .type = FMODIFIER_TYPE_ENVELOPE,
+    .size = sizeof(FMod_Envelope),
+    .acttype = FMI_TYPE_REPLACE_VALUES,
+    .requires_flag = 0,
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Envelope"),
+    .struct_name = "FMod_Envelope",
+    .storage_size = 0,
+    .free_data = fcm_envelope_free,
+    .copy_data = fcm_envelope_copy,
+    .new_data = fcm_envelope_new_data,
+    .verify_data = fcm_envelope_verify,
+    .evaluate_modifier_time = nullptr,
+    .evaluate_modifier = fcm_envelope_evaluate,
 };
 
 /* exported function for finding points */
@@ -778,19 +778,19 @@ static void fcm_cycles_evaluate(const FCurve * /*fcu*/,
 }
 
 static FModifierTypeInfo FMI_CYCLES = {
-    /*type*/ FMODIFIER_TYPE_CYCLES,
-    /*size*/ sizeof(FMod_Cycles),
-    /*acttype*/ FMI_TYPE_EXTRAPOLATION,
-    /*requires_flag*/ FMI_REQUIRES_ORIGINAL_DATA,
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Cycles"),
-    /*struct_name*/ "FMod_Cycles",
-    /*storage_size*/ sizeof(tFCMED_Cycles),
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*new_data*/ fcm_cycles_new_data,
-    /*verify_data*/ nullptr /*fcm_cycles_verify*/,
-    /*evaluate_modifier_time*/ fcm_cycles_time,
-    /*evaluate_modifier*/ fcm_cycles_evaluate,
+    .type = FMODIFIER_TYPE_CYCLES,
+    .size = sizeof(FMod_Cycles),
+    .acttype = FMI_TYPE_EXTRAPOLATION,
+    .requires_flag = FMI_REQUIRES_ORIGINAL_DATA,
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Cycles"),
+    .struct_name = "FMod_Cycles",
+    .storage_size = sizeof(tFCMED_Cycles),
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .new_data = fcm_cycles_new_data,
+    .verify_data = nullptr /*fcm_cycles_verify*/,
+    .evaluate_modifier_time = fcm_cycles_time,
+    .evaluate_modifier = fcm_cycles_evaluate,
 };
 
 /* Noise F-Curve Modifier  --------------------------- */
@@ -867,19 +867,19 @@ static void fcm_noise_evaluate(const FCurve * /*fcu*/,
 }
 
 static FModifierTypeInfo FMI_NOISE = {
-    /*type*/ FMODIFIER_TYPE_NOISE,
-    /*size*/ sizeof(FMod_Noise),
-    /*acttype*/ FMI_TYPE_REPLACE_VALUES,
-    /*requires_flag*/ 0,
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Noise"),
-    /*struct_name*/ "FMod_Noise",
-    /*storage_size*/ 0,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*new_data*/ fcm_noise_new_data,
-    /*verify_data*/ nullptr /*fcm_noise_verify*/,
-    /*evaluate_modifier_time*/ nullptr,
-    /*evaluate_modifier*/ fcm_noise_evaluate,
+    .type = FMODIFIER_TYPE_NOISE,
+    .size = sizeof(FMod_Noise),
+    .acttype = FMI_TYPE_REPLACE_VALUES,
+    .requires_flag = 0,
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Noise"),
+    .struct_name = "FMod_Noise",
+    .storage_size = 0,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .new_data = fcm_noise_new_data,
+    .verify_data = nullptr /*fcm_noise_verify*/,
+    .evaluate_modifier_time = nullptr,
+    .evaluate_modifier = fcm_noise_evaluate,
 };
 
 /* Limits F-Curve Modifier --------------------------- */
@@ -922,19 +922,19 @@ static void fcm_limits_evaluate(const FCurve * /*fcu*/,
 }
 
 static FModifierTypeInfo FMI_LIMITS = {
-    /*type*/ FMODIFIER_TYPE_LIMITS,
-    /*size*/ sizeof(FMod_Limits),
-    /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires_flag*/ FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Limits"),
-    /*struct_name*/ "FMod_Limits",
-    /*storage_size*/ 0,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*new_data*/ nullptr,
-    /*verify_data*/ nullptr,
-    /*evaluate_modifier_time*/ fcm_limits_time,
-    /*evaluate_modifier*/ fcm_limits_evaluate,
+    .type = FMODIFIER_TYPE_LIMITS,
+    .size = sizeof(FMod_Limits),
+    .acttype = FMI_TYPE_GENERATE_CURVE,
+    .requires_flag = FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Limits"),
+    .struct_name = "FMod_Limits",
+    .storage_size = 0,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .new_data = nullptr,
+    .verify_data = nullptr,
+    .evaluate_modifier_time = fcm_limits_time,
+    .evaluate_modifier = fcm_limits_evaluate,
 };
 
 /* Stepped F-Curve Modifier --------------------------- */
@@ -982,19 +982,19 @@ static float fcm_stepped_time(const FCurve * /*fcu*/,
 }
 
 static FModifierTypeInfo FMI_STEPPED = {
-    /*type*/ FMODIFIER_TYPE_STEPPED,
-    /*size*/ sizeof(FMod_Limits),
-    /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires_flag*/ FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Stepped"),
-    /*struct_name*/ "FMod_Stepped",
-    /*storage_size*/ 0,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*new_data*/ fcm_stepped_new_data,
-    /*verify_data*/ nullptr,
-    /*evaluate_modifier_time*/ fcm_stepped_time,
-    /*evaluate_modifier*/ nullptr,
+    .type = FMODIFIER_TYPE_STEPPED,
+    .size = sizeof(FMod_Limits),
+    .acttype = FMI_TYPE_GENERATE_CURVE,
+    .requires_flag = FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Stepped"),
+    .struct_name = "FMod_Stepped",
+    .storage_size = 0,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .new_data = fcm_stepped_new_data,
+    .verify_data = nullptr,
+    .evaluate_modifier_time = fcm_stepped_time,
+    .evaluate_modifier = nullptr,
 };
 
 /* Smooth F-Curve Modifier  --------------------------- */
@@ -1088,19 +1088,19 @@ static void fcm_smooth_evaluate(
 }
 
 static FModifierTypeInfo FMI_SMOOTH = {
-    /*type*/ FMODIFIER_TYPE_SMOOTH,
-    /*size*/ sizeof(FMod_Smooth),
-    /*acttype*/ FMI_TYPE_REPLACE_VALUES,
-    /*requires_flag*/ FMI_REQUIRES_ORIGINAL_DATA,
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Smooth"),
-    /*struct_name*/ "FMod_Smooth",
-    /*storage_size*/ 0,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*new_data*/ fcm_smooth_new_data,
-    /*verify_data*/ nullptr /*fcm_noise_verify*/,
-    /*evaluate_modifier_time*/ nullptr,
-    /*evaluate_modifier*/ fcm_smooth_evaluate,
+    .type = FMODIFIER_TYPE_SMOOTH,
+    .size = sizeof(FMod_Smooth),
+    .acttype = FMI_TYPE_REPLACE_VALUES,
+    .requires_flag = FMI_REQUIRES_ORIGINAL_DATA,
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Smooth"),
+    .struct_name = "FMod_Smooth",
+    .storage_size = 0,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .new_data = fcm_smooth_new_data,
+    .verify_data = nullptr /*fcm_noise_verify*/,
+    .evaluate_modifier_time = nullptr,
+    .evaluate_modifier = fcm_smooth_evaluate,
 };
 
 /** \} */

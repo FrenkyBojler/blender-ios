@@ -76,14 +76,14 @@ static void initAlign(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_align = {
-    /*flags*/ T_NO_CONSTRAINT,
-    /*init_fn*/ initAlign,
-    /*transform_fn*/ applyAlign,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = T_NO_CONSTRAINT,
+    .init_fn = initAlign,
+    .transform_fn = applyAlign,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

@@ -2565,8 +2565,8 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
 
     const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
     const BMUVSelectPickParams uv_pick_params = {
-        /*cd_loop_uv_offset*/ cd_loop_uv_offset,
-        /*shared*/ vc.scene->toolsettings->uv_sticky == UV_STICKY_LOCATION,
+        .cd_loop_uv_offset = cd_loop_uv_offset,
+        .shared = vc.scene->toolsettings->uv_sticky == UV_STICKY_LOCATION,
     };
 
     if (efa) {

@@ -373,10 +373,9 @@ static int32_t wm_window_csd_layout_callback(const int32_t window_size[2],
 static void playanim_window_csd_params_update(GhostData &ghost_data)
 {
   GHOST_CSD_Params csd_params = {
-      /*layout_callback*/ wm_window_csd_layout_callback,
-
-      /*cursor_drag_threshold*/ 6 /* NOTE: `U.drag_threshold_mouse` isn't initialized. */,
-      /*cursor_double_click_ms*/ 350 /* NOTE: `U.dbl_click_time` isn't initialized. */,
+      .layout_callback = wm_window_csd_layout_callback,
+      .cursor_drag_threshold = 6 /* NOTE: `U.drag_threshold_mouse` isn't initialized. */,
+      .cursor_double_click_ms = 350 /* NOTE: `U.dbl_click_time` isn't initialized. */,
   };
   ghost_data.system->setWindowCSD(csd_params);
 }
@@ -458,11 +457,11 @@ static struct {
   double fps_movie;
 #endif
 } g_playanim = {
-    /*from_disk*/ false,
-    /*swap_time*/ 0.04,
-    /*total_time*/ 0.0,
+    .from_disk = false,
+    .swap_time = 0.04,
+    .total_time = 0.0,
 #ifdef WITH_AUDASPACE
-    /*fps_movie*/ 0.0,
+    .fps_movie = 0.0,
 #endif
 };
 
@@ -477,10 +476,10 @@ static struct {
   /** Optionally limit the amount of memory used for cache (in bytes), ignored when zero. */
   size_t memory_limit;
 } g_frame_cache = {
-    /*pics*/ {nullptr, nullptr},
-    /*pics_len*/ 0,
-    /*pics_size_in_memory*/ 0,
-    /*memory_limit*/ 0,
+    .pics = {nullptr, nullptr},
+    .pics_len = 0,
+    .pics_size_in_memory = 0,
+    .memory_limit = 0,
 };
 
 static void frame_cache_add(PlayAnimPict *pic)

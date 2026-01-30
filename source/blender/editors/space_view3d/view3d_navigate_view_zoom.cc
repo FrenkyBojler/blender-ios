@@ -547,11 +547,11 @@ void VIEW3D_OT_zoom(wmOperatorType *ot)
 /** \} */
 
 const ViewOpsType ViewOpsType_zoom = {
-    /*flag*/ (VIEWOPS_FLAG_DEPTH_NAVIGATE | VIEWOPS_FLAG_ZOOM_TO_MOUSE),
-    /*idname*/ "VIEW3D_OT_zoom",
-    /*poll_fn*/ view3d_zoom_or_dolly_poll,
-    /*init_fn*/ viewzoom_invoke_impl,
-    /*apply_fn*/ viewzoom_modal_impl,
+    .flag = (VIEWOPS_FLAG_DEPTH_NAVIGATE | VIEWOPS_FLAG_ZOOM_TO_MOUSE),
+    .idname = "VIEW3D_OT_zoom",
+    .poll_fn = view3d_zoom_or_dolly_poll,
+    .init_fn = viewzoom_invoke_impl,
+    .apply_fn = viewzoom_modal_impl,
 };
 
 }  // namespace blender

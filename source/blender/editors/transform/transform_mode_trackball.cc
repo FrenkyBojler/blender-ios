@@ -177,14 +177,14 @@ static void initTrackball(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_trackball = {
-    /*flags*/ T_NO_CONSTRAINT,
-    /*init_fn*/ initTrackball,
-    /*transform_fn*/ applyTrackball,
-    /*transform_matrix_fn*/ applyTrackballMatrix,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = T_NO_CONSTRAINT,
+    .init_fn = initTrackball,
+    .transform_fn = applyTrackball,
+    .transform_matrix_fn = applyTrackballMatrix,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

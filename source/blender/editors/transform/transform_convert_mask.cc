@@ -466,10 +466,10 @@ static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_Mask = {
-    /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*create_trans_data*/ createTransMaskingData,
-    /*recalc_data*/ recalcData_mask_common,
-    /*special_aftertrans_update*/ special_aftertrans_update__mask,
+    .flags = (T_POINTS | T_2D_EDIT),
+    .create_trans_data = createTransMaskingData,
+    .recalc_data = recalcData_mask_common,
+    .special_aftertrans_update = special_aftertrans_update__mask,
 };
 
 }  // namespace blender::ed::transform

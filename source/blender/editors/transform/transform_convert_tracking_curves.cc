@@ -301,10 +301,10 @@ static void special_aftertrans_update__movieclip_for_curves(bContext *C, TransIn
 /** \} */
 
 TransConvertTypeInfo TransConvertType_TrackingCurves = {
-    /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*create_trans_data*/ createTransTrackingCurves,
-    /*recalc_data*/ recalcData_tracking_curves,
-    /*special_aftertrans_update*/ special_aftertrans_update__movieclip_for_curves,
+    .flags = (T_POINTS | T_2D_EDIT),
+    .create_trans_data = createTransTrackingCurves,
+    .recalc_data = recalcData_tracking_curves,
+    .special_aftertrans_update = special_aftertrans_update__movieclip_for_curves,
 };
 
 }  // namespace blender::ed::transform

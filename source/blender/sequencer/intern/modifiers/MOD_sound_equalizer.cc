@@ -80,17 +80,17 @@ static void sound_equalizermodifier_read(BlendDataReader *reader, StripModifierD
 }
 
 StripModifierTypeInfo seqModifierType_SoundEqualizer = {
-    /*idname*/ "SoundEqualizer",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Equalizer"),
-    /*struct_name*/ "SoundEqualizerModifierData",
-    /*struct_size*/ sizeof(SoundEqualizerModifierData),
-    /*init_data*/ sound_equalizermodifier_init_data,
-    /*free_data*/ sound_equalizermodifier_free,
-    /*copy_data*/ sound_equalizermodifier_copy_data,
-    /*apply*/ nullptr,
-    /*panel_register*/ sound_equalizermodifier_register,
-    /*blend_write*/ sound_equalizermodifier_write,
-    /*blend_read*/ sound_equalizermodifier_read,
+    .idname = "SoundEqualizer",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Equalizer"),
+    .struct_name = "SoundEqualizerModifierData",
+    .struct_size = sizeof(SoundEqualizerModifierData),
+    .init_data = sound_equalizermodifier_init_data,
+    .free_data = sound_equalizermodifier_free,
+    .copy_data = sound_equalizermodifier_copy_data,
+    .apply = nullptr,
+    .panel_register = sound_equalizermodifier_register,
+    .blend_write = sound_equalizermodifier_write,
+    .blend_read = sound_equalizermodifier_read,
 };
 
 };  // namespace blender::seq

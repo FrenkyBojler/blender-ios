@@ -120,17 +120,17 @@ static void curves_read(BlendDataReader *reader, StripModifierData *smd)
 }
 
 StripModifierTypeInfo seqModifierType_Curves = {
-    /*idname*/ "Curves",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Curves"),
-    /*struct_name*/ "CurvesModifierData",
-    /*struct_size*/ sizeof(CurvesModifierData),
-    /*init_data*/ curves_init_data,
-    /*free_data*/ curves_free_data,
-    /*copy_data*/ curves_copy_data,
-    /*apply*/ curves_apply,
-    /*panel_register*/ curves_register,
-    /*blend_write*/ curves_write,
-    /*blend_read*/ curves_read,
+    .idname = "Curves",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Curves"),
+    .struct_name = "CurvesModifierData",
+    .struct_size = sizeof(CurvesModifierData),
+    .init_data = curves_init_data,
+    .free_data = curves_free_data,
+    .copy_data = curves_copy_data,
+    .apply = curves_apply,
+    .panel_register = curves_register,
+    .blend_write = curves_write,
+    .blend_read = curves_read,
 };
 
 };  // namespace blender::seq

@@ -1718,17 +1718,17 @@ static void special_aftertrans_update__pose(bContext *C, TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_EditArmature = {
-    /*flags*/ (T_EDIT | T_POINTS),
-    /*create_trans_data*/ createTransArmatureVerts,
-    /*recalc_data*/ recalcData_edit_armature,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = (T_EDIT | T_POINTS),
+    .create_trans_data = createTransArmatureVerts,
+    .recalc_data = recalcData_edit_armature,
+    .special_aftertrans_update = nullptr,
 };
 
 TransConvertTypeInfo TransConvertType_Pose = {
-    /*flags*/ 0,
-    /*create_trans_data*/ createTransPose,
-    /*recalc_data*/ recalcData_pose,
-    /*special_aftertrans_update*/ special_aftertrans_update__pose,
+    .flags = 0,
+    .create_trans_data = createTransPose,
+    .recalc_data = recalcData_pose,
+    .special_aftertrans_update = special_aftertrans_update__pose,
 };
 
 }  // namespace blender::ed::transform

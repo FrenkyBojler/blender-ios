@@ -56,22 +56,22 @@ static void panel_register(ARegionType *region_type)
 }
 
 ShaderFxTypeInfo shaderfx_Type_Flip = {
-    /*name*/ N_("Flip"),
-    /*struct_name*/ "FlipShaderFxData",
-    /*struct_size*/ sizeof(FlipShaderFxData),
-    /*type*/ eShaderFxType_GpencilType,
-    /*flags*/ ShaderFxTypeFlag(0),
+    .name = N_("Flip"),
+    .struct_name = "FlipShaderFxData",
+    .struct_size = sizeof(FlipShaderFxData),
+    .type = eShaderFxType_GpencilType,
+    .flags = ShaderFxTypeFlag(0),
 
-    /*copy_data*/ copy_data,
+    .copy_data = copy_data,
 
-    /*init_data*/ init_data,
-    /*free_data*/ nullptr,
-    /*is_disabled*/ nullptr,
-    /*update_depsgraph*/ nullptr,
-    /*depends_on_time*/ nullptr,
-    /*foreach_ID_link*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*panel_register*/ panel_register,
+    .init_data = init_data,
+    .free_data = nullptr,
+    .is_disabled = nullptr,
+    .update_depsgraph = nullptr,
+    .depends_on_time = nullptr,
+    .foreach_ID_link = nullptr,
+    .foreach_working_space_color = nullptr,
+    .panel_register = panel_register,
 };
 
 }  // namespace blender

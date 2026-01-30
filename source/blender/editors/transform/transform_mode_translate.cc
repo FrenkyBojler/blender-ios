@@ -638,14 +638,14 @@ static void initTranslation(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_translate = {
-    /*flags*/ 0,
-    /*init_fn*/ initTranslation,
-    /*transform_fn*/ applyTranslation,
-    /*transform_matrix_fn*/ applyTranslationMatrix,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ transform_snap_distance_len_squared_fn,
-    /*snap_apply_fn*/ ApplySnapTranslation,
-    /*draw_fn*/ nullptr,
+    .flags = 0,
+    .init_fn = initTranslation,
+    .transform_fn = applyTranslation,
+    .transform_matrix_fn = applyTranslationMatrix,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = transform_snap_distance_len_squared_fn,
+    .snap_apply_fn = ApplySnapTranslation,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

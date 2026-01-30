@@ -73,11 +73,12 @@ static void load_post_callback(Main * /*main*/,
 }
 
 static bCallbackFuncStore load_post_callback_funcstore = {
-    /*next*/ nullptr,
-    /*prev*/ nullptr,
-    /*func*/ load_post_callback,
-    /*arg*/ nullptr,
-    /*alloc*/ 0};
+    .next = nullptr,
+    .prev = nullptr,
+    .func = load_post_callback,
+    .arg = nullptr,
+    .alloc = 0,
+};
 
 //=======================================================
 //   Initialization

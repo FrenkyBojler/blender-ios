@@ -50,17 +50,17 @@ static void echomodifier_register(ARegionType *region_type)
 }
 
 StripModifierTypeInfo seqModifierType_Echo = {
-    /*idname*/ "Echo",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Echo"),
-    /*struct_name*/ "EchoModifierData",
-    /*struct_size*/ sizeof(EchoModifierData),
-    /*init_data*/ echomodifier_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*apply*/ nullptr,
-    /*panel_register*/ echomodifier_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
+    .idname = "Echo",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Echo"),
+    .struct_name = "EchoModifierData",
+    .struct_size = sizeof(EchoModifierData),
+    .init_data = echomodifier_init_data,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .apply = nullptr,
+    .panel_register = echomodifier_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
 };
 
 };  // namespace blender::seq

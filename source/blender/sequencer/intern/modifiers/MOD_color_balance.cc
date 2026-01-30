@@ -369,17 +369,17 @@ static void colorBalance_register(ARegionType *region_type)
 }
 
 StripModifierTypeInfo seqModifierType_ColorBalance = {
-    /*idname*/ "ColorBalance",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Color Balance"),
-    /*struct_name*/ "ColorBalanceModifierData",
-    /*struct_size*/ sizeof(ColorBalanceModifierData),
-    /*init_data*/ colorBalance_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*apply*/ colorBalance_apply,
-    /*panel_register*/ colorBalance_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
+    .idname = "ColorBalance",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Color Balance"),
+    .struct_name = "ColorBalanceModifierData",
+    .struct_size = sizeof(ColorBalanceModifierData),
+    .init_data = colorBalance_init_data,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .apply = colorBalance_apply,
+    .panel_register = colorBalance_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
 };
 
 };  // namespace blender::seq

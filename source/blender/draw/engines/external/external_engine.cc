@@ -432,28 +432,28 @@ DrawEngine *Engine::create_instance()
  * we should not register unless we want to see this when debugging the view. */
 
 RenderEngineType DRW_engine_viewport_external_type = {
-    /*next*/ nullptr,
-    /*prev*/ nullptr,
-    /*idname*/ "BLENDER_EXTERNAL",
-    /*name*/ N_("External"),
-    /*flag*/ RE_INTERNAL | RE_USE_STEREO_VIEWPORT,
-    /*update*/ nullptr,
-    /*render*/ nullptr,
-    /*render_frame_finish*/ nullptr,
-    /*draw*/ nullptr,
-    /*bake*/ nullptr,
-    /*view_update*/ nullptr,
-    /*view_draw*/ nullptr,
-    /*update_script_node*/ nullptr,
-    /*update_render_passes*/ nullptr,
-    /*update_custom_camera*/ nullptr,
-    /*draw_engine*/ nullptr,
-    /*rna_ext*/
-    {
-        /*data*/ nullptr,
-        /*srna*/ nullptr,
-        /*call*/ nullptr,
-    },
+    .next = nullptr,
+    .prev = nullptr,
+    .idname = "BLENDER_EXTERNAL",
+    .name = N_("External"),
+    .flag = RE_INTERNAL | RE_USE_STEREO_VIEWPORT,
+    .update = nullptr,
+    .render = nullptr,
+    .render_frame_finish = nullptr,
+    .draw = nullptr,
+    .bake = nullptr,
+    .view_update = nullptr,
+    .view_draw = nullptr,
+    .update_script_node = nullptr,
+    .update_render_passes = nullptr,
+    .update_custom_camera = nullptr,
+    .draw_engine = nullptr,
+    .rna_ext =
+        {
+            .data = nullptr,
+            .srna = nullptr,
+            .call = nullptr,
+        },
 };
 
 bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx)

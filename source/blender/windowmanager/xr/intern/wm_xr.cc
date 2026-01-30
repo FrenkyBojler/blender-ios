@@ -100,8 +100,8 @@ bool wm_xr_init(wmWindowManager *wm)
     }
 
     GHOST_XrContextCreateInfo create_info{
-        /*gpu_binding_candidates*/ gpu_bindings_candidates.data(),
-        /*gpu_binding_candidates_count*/ uint32_t(gpu_bindings_candidates.size()),
+        .gpu_binding_candidates = gpu_bindings_candidates.data(),
+        .gpu_binding_candidates_count = uint32_t(gpu_bindings_candidates.size()),
     };
     if (G.debug & G_DEBUG_XR) {
       create_info.context_flag |= GHOST_kXrContextDebug;

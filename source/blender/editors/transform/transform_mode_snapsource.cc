@@ -264,14 +264,14 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_snapsource = {
-    /*flags*/ 0,
-    /*init_fn*/ transform_mode_snap_source_init,
-    /*transform_fn*/ snapsource_transform_fn,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ snapsource_handle_event_fn,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = 0,
+    .init_fn = transform_mode_snap_source_init,
+    .transform_fn = snapsource_transform_fn,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = snapsource_handle_event_fn,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

@@ -730,14 +730,14 @@ void transform_mode_vert_slide_reproject_input(TransInfo *t)
 /** \} */
 
 TransModeInfo TransMode_vertslide = {
-    /*flags*/ T_NO_CONSTRAINT,
-    /*init_fn*/ initVertSlide,
-    /*transform_fn*/ applyVertSlide,
-    /*transform_matrix_fn*/ vert_slide_transform_matrix_fn,
-    /*handle_event_fn*/ handleEventVertSlide,
-    /*snap_distance_fn*/ transform_snap_distance_len_squared_fn,
-    /*snap_apply_fn*/ vert_slide_snap_apply,
-    /*draw_fn*/ drawVertSlide,
+    .flags = T_NO_CONSTRAINT,
+    .init_fn = initVertSlide,
+    .transform_fn = applyVertSlide,
+    .transform_matrix_fn = vert_slide_transform_matrix_fn,
+    .handle_event_fn = handleEventVertSlide,
+    .snap_distance_fn = transform_snap_distance_len_squared_fn,
+    .snap_apply_fn = vert_slide_snap_apply,
+    .draw_fn = drawVertSlide,
 };
 
 }  // namespace blender::ed::transform

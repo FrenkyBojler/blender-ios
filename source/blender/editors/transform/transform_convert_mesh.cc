@@ -2732,10 +2732,10 @@ Array<TransDataEdgeSlideVert> transform_mesh_edge_slide_data_create(const TransD
 /** \} */
 
 TransConvertTypeInfo TransConvertType_Mesh = {
-    /*flags*/ (T_EDIT | T_POINTS),
-    /*create_trans_data*/ createTransEditVerts,
-    /*recalc_data*/ recalcData_mesh,
-    /*special_aftertrans_update*/ special_aftertrans_update__mesh,
+    .flags = (T_EDIT | T_POINTS),
+    .create_trans_data = createTransEditVerts,
+    .recalc_data = recalcData_mesh,
+    .special_aftertrans_update = special_aftertrans_update__mesh,
 };
 
 }  // namespace blender::ed::transform

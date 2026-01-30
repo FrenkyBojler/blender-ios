@@ -1143,35 +1143,35 @@ void VIEW3D_OT_ndof_all(wmOperatorType *ot)
 }
 
 const ViewOpsType ViewOpsType_ndof_orbit = {
-    /*flag*/ VIEWOPS_FLAG_ORBIT_SELECT,
-    /*idname*/ "VIEW3D_OT_ndof_orbit",
-    /*poll_fn*/ nullptr,
-    /*init_fn*/ ndof_orbit_invoke_impl,
-    /*apply_fn*/ nullptr,
+    .flag = VIEWOPS_FLAG_ORBIT_SELECT,
+    .idname = "VIEW3D_OT_ndof_orbit",
+    .poll_fn = nullptr,
+    .init_fn = ndof_orbit_invoke_impl,
+    .apply_fn = nullptr,
 };
 
 const ViewOpsType ViewOpsType_ndof_orbit_zoom = {
-    /*flag*/ VIEWOPS_FLAG_ORBIT_SELECT,
-    /*idname*/ "VIEW3D_OT_ndof_orbit_zoom",
-    /*poll_fn*/ nullptr,
-    /*init_fn*/ ndof_orbit_zoom_invoke_impl,
-    /*apply_fn*/ nullptr,
+    .flag = VIEWOPS_FLAG_ORBIT_SELECT,
+    .idname = "VIEW3D_OT_ndof_orbit_zoom",
+    .poll_fn = nullptr,
+    .init_fn = ndof_orbit_zoom_invoke_impl,
+    .apply_fn = nullptr,
 };
 
 const ViewOpsType ViewOpsType_ndof_pan = {
-    /*flag*/ VIEWOPS_FLAG_NONE,
-    /*idname*/ "VIEW3D_OT_ndof_pan",
-    /*poll_fn*/ nullptr,
-    /*init_fn*/ ndof_pan_invoke_impl,
-    /*apply_fn*/ nullptr,
+    .flag = VIEWOPS_FLAG_NONE,
+    .idname = "VIEW3D_OT_ndof_pan",
+    .poll_fn = nullptr,
+    .init_fn = ndof_pan_invoke_impl,
+    .apply_fn = nullptr,
 };
 
 const ViewOpsType ViewOpsType_ndof_all = {
-    /*flag*/ VIEWOPS_FLAG_ORBIT_SELECT,
-    /*idname*/ "VIEW3D_OT_ndof_all",
-    /*poll_fn*/ nullptr,
-    /*init_fn*/ ndof_all_invoke_impl,
-    /*apply_fn*/ nullptr,
+    .flag = VIEWOPS_FLAG_ORBIT_SELECT,
+    .idname = "VIEW3D_OT_ndof_all",
+    .poll_fn = nullptr,
+    .init_fn = ndof_all_invoke_impl,
+    .apply_fn = nullptr,
 };
 
 #endif /* WITH_INPUT_NDOF */

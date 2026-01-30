@@ -1899,8 +1899,8 @@ void UVSyncSelectFromMesh::apply()
 
   const bool shared = uv_sticky_ == UV_STICKY_LOCATION;
   const BMUVSelectPickParams uv_pick_params = {
-      /*cd_loop_uv_offset*/ cd_loop_uv_offset,
-      /*shared*/ shared,
+      .cd_loop_uv_offset = cd_loop_uv_offset,
+      .shared = shared,
   };
 
   BM_mesh_uvselect_set_elem_from_mesh(
@@ -6985,10 +6985,10 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
   int2 tile;
   RNA_int_get_array(op->ptr, "tile", tile);
   const rctf tile_rect = {
-      /*xmin*/ float(tile.x),
-      /*xmax*/ float(tile.x + 1),
-      /*ymin*/ float(tile.y),
-      /*ymax*/ float(tile.y + 1),
+      .xmin = float(tile.x),
+      .xmax = float(tile.x + 1),
+      .ymin = float(tile.y),
+      .ymax = float(tile.y + 1),
   };
   const bool extend = RNA_boolean_get(op->ptr, "extend");
 

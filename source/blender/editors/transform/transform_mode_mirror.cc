@@ -243,14 +243,14 @@ static void initMirror(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_mirror = {
-    /*flags*/ T_NULL_ONE,
-    /*init_fn*/ initMirror,
-    /*transform_fn*/ applyMirror,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = T_NULL_ONE,
+    .init_fn = initMirror,
+    .transform_fn = applyMirror,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

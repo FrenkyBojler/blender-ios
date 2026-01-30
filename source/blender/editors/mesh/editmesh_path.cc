@@ -759,7 +759,7 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
      * The ideal is to refactor EDBM_select_pick so it doesn't
      * have to pick the nearest vert/edge/face again. */
     const SelectPick_Params params = {
-        /*sel_op*/ SEL_OP_ADD,
+        .sel_op = SEL_OP_ADD,
     };
     EDBM_select_pick(C, event->mval, params);
     return OPERATOR_FINISHED;

@@ -82,17 +82,17 @@ static void maskmodifier_register(ARegionType *region_type)
 }
 
 StripModifierTypeInfo seqModifierType_Mask = {
-    /*idname*/ "Mask",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Mask"),
-    /*struct_name*/ "SequencerMaskModifierData",
-    /*struct_size*/ sizeof(SequencerMaskModifierData),
-    /*init_data*/ nullptr,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*apply*/ maskmodifier_apply,
-    /*panel_register*/ maskmodifier_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
+    .idname = "Mask",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Mask"),
+    .struct_name = "SequencerMaskModifierData",
+    .struct_size = sizeof(SequencerMaskModifierData),
+    .init_data = nullptr,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .apply = maskmodifier_apply,
+    .panel_register = maskmodifier_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
 };
 
 };  // namespace blender::seq

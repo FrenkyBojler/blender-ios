@@ -1033,10 +1033,10 @@ static void special_aftertrans_update__graph(bContext *C, TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_Graph = {
-    /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*create_trans_data*/ createTransGraphEditData,
-    /*recalc_data*/ recalcData_graphedit,
-    /*special_aftertrans_update*/ special_aftertrans_update__graph,
+    .flags = (T_POINTS | T_2D_EDIT),
+    .create_trans_data = createTransGraphEditData,
+    .recalc_data = recalcData_graphedit,
+    .special_aftertrans_update = special_aftertrans_update__graph,
 };
 
 }  // namespace blender::ed::transform

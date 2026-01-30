@@ -95,17 +95,17 @@ static void whiteBalance_register(ARegionType *region_type)
 }
 
 StripModifierTypeInfo seqModifierType_WhiteBalance = {
-    /*idname*/ "WhiteBalance",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "White Balance"),
-    /*struct_name*/ "WhiteBalanceModifierData",
-    /*struct_size*/ sizeof(WhiteBalanceModifierData),
-    /*init_data*/ whiteBalance_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*apply*/ whiteBalance_apply,
-    /*panel_register*/ whiteBalance_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
+    .idname = "WhiteBalance",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "White Balance"),
+    .struct_name = "WhiteBalanceModifierData",
+    .struct_size = sizeof(WhiteBalanceModifierData),
+    .init_data = whiteBalance_init_data,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .apply = whiteBalance_apply,
+    .panel_register = whiteBalance_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
 };
 
 };  // namespace blender::seq

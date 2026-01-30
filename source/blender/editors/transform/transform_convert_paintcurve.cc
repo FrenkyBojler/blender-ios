@@ -213,10 +213,10 @@ static void flushTransPaintCurve(TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_PaintCurve = {
-    /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*create_trans_data*/ createTransPaintCurveVerts,
-    /*recalc_data*/ flushTransPaintCurve,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = (T_POINTS | T_2D_EDIT),
+    .create_trans_data = createTransPaintCurveVerts,
+    .recalc_data = flushTransPaintCurve,
+    .special_aftertrans_update = nullptr,
 };
 
 }  // namespace blender::ed::transform

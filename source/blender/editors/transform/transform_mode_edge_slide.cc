@@ -984,14 +984,14 @@ void transform_mode_edge_slide_reproject_input(TransInfo *t)
 /** \} */
 
 TransModeInfo TransMode_edgeslide = {
-    /*flags*/ T_NO_CONSTRAINT,
-    /*init_fn*/ initEdgeSlide,
-    /*transform_fn*/ applyEdgeSlide,
-    /*transform_matrix_fn*/ edge_slide_transform_matrix_fn,
-    /*handle_event_fn*/ handleEventEdgeSlide,
-    /*snap_distance_fn*/ transform_snap_distance_len_squared_fn,
-    /*snap_apply_fn*/ edge_slide_snap_apply,
-    /*draw_fn*/ drawEdgeSlide,
+    .flags = T_NO_CONSTRAINT,
+    .init_fn = initEdgeSlide,
+    .transform_fn = applyEdgeSlide,
+    .transform_matrix_fn = edge_slide_transform_matrix_fn,
+    .handle_event_fn = handleEventEdgeSlide,
+    .snap_distance_fn = transform_snap_distance_len_squared_fn,
+    .snap_apply_fn = edge_slide_snap_apply,
+    .draw_fn = drawEdgeSlide,
 };
 
 }  // namespace blender::ed::transform

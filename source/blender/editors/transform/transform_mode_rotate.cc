@@ -384,14 +384,14 @@ static void initRotation(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_rotate = {
-    /*flags*/ 0,
-    /*init_fn*/ initRotation,
-    /*transform_fn*/ applyRotation,
-    /*transform_matrix_fn*/ applyRotationMatrix,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ RotationBetween,
-    /*snap_apply_fn*/ ApplySnapRotation,
-    /*draw_fn*/ nullptr,
+    .flags = 0,
+    .init_fn = initRotation,
+    .transform_fn = applyRotation,
+    .transform_matrix_fn = applyRotationMatrix,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = RotationBetween,
+    .snap_apply_fn = ApplySnapRotation,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

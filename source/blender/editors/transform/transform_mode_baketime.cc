@@ -130,14 +130,14 @@ static void initBakeTime(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_baketime = {
-    /*flags*/ 0,
-    /*init_fn*/ initBakeTime,
-    /*transform_fn*/ applyBakeTime,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = 0,
+    .init_fn = initBakeTime,
+    .transform_fn = applyBakeTime,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

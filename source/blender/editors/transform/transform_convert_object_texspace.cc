@@ -114,10 +114,10 @@ static void recalcData_texspace(TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_ObjectTexSpace = {
-    /*flags*/ 0,
-    /*create_trans_data*/ createTransTexspace,
-    /*recalc_data*/ recalcData_texspace,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = 0,
+    .create_trans_data = createTransTexspace,
+    .recalc_data = recalcData_texspace,
+    .special_aftertrans_update = nullptr,
 };
 
 }  // namespace blender::ed::transform

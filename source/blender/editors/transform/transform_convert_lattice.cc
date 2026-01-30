@@ -126,10 +126,10 @@ static void recalcData_lattice(TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_Lattice = {
-    /*flags*/ (T_EDIT | T_POINTS),
-    /*create_trans_data*/ createTransLatticeVerts,
-    /*recalc_data*/ recalcData_lattice,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = (T_EDIT | T_POINTS),
+    .create_trans_data = createTransLatticeVerts,
+    .recalc_data = recalcData_lattice,
+    .special_aftertrans_update = nullptr,
 };
 
 }  // namespace blender::ed::transform

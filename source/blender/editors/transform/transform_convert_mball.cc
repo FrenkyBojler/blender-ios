@@ -138,10 +138,10 @@ static void recalcData_mball(TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_MBall = {
-    /*flags*/ (T_EDIT | T_POINTS),
-    /*create_trans_data*/ createTransMBallVerts,
-    /*recalc_data*/ recalcData_mball,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = (T_EDIT | T_POINTS),
+    .create_trans_data = createTransMBallVerts,
+    .recalc_data = recalcData_mball,
+    .special_aftertrans_update = nullptr,
 };
 
 }  // namespace blender::ed::transform

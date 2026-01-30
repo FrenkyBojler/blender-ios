@@ -342,14 +342,14 @@ static void initResize(TransInfo *t, wmOperator *op)
 /** \} */
 
 TransModeInfo TransMode_resize = {
-    /*flags*/ T_NULL_ONE,
-    /*init_fn*/ initResize,
-    /*transform_fn*/ applyResize,
-    /*transform_matrix_fn*/ resize_transform_matrix_fn,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ ResizeBetween,
-    /*snap_apply_fn*/ ApplySnapResize,
-    /*draw_fn*/ nullptr,
+    .flags = T_NULL_ONE,
+    .init_fn = initResize,
+    .transform_fn = applyResize,
+    .transform_matrix_fn = resize_transform_matrix_fn,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = ResizeBetween,
+    .snap_apply_fn = ApplySnapResize,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

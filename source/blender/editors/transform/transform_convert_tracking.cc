@@ -620,10 +620,10 @@ static void special_aftertrans_update__movieclip(bContext *C, TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_Tracking = {
-    /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*create_trans_data*/ createTransTrackingData,
-    /*recalc_data*/ recalcData_tracking,
-    /*special_aftertrans_update*/ special_aftertrans_update__movieclip,
+    .flags = (T_POINTS | T_2D_EDIT),
+    .create_trans_data = createTransTrackingData,
+    .recalc_data = recalcData_tracking,
+    .special_aftertrans_update = special_aftertrans_update__movieclip,
 };
 
 }  // namespace blender::ed::transform

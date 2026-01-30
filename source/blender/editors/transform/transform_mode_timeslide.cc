@@ -228,14 +228,14 @@ static void initTimeSlide(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_timeslide = {
-    /*flags*/ T_NULL_ONE,
-    /*init_fn*/ initTimeSlide,
-    /*transform_fn*/ applyTimeSlide,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = T_NULL_ONE,
+    .init_fn = initTimeSlide,
+    .transform_fn = applyTimeSlide,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

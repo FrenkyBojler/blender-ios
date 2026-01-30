@@ -395,15 +395,15 @@ static void compositor_modifier_register(ARegionType *region_type)
 }
 
 StripModifierTypeInfo seqModifierType_Compositor = {
-    /*idname*/ "Compositor",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Compositor"),
-    /*struct_name*/ "SequencerCompositorModifierData",
-    /*struct_size*/ sizeof(SequencerCompositorModifierData),
-    /*init_data*/ compositor_modifier_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*apply*/ compositor_modifier_apply,
-    /*panel_register*/ compositor_modifier_register,
+    .idname = "Compositor",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Compositor"),
+    .struct_name = "SequencerCompositorModifierData",
+    .struct_size = sizeof(SequencerCompositorModifierData),
+    .init_data = compositor_modifier_init_data,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .apply = compositor_modifier_apply,
+    .panel_register = compositor_modifier_register,
 };
 
 };  // namespace blender::seq

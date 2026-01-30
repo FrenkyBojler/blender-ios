@@ -163,10 +163,10 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
     }
 
     const rcti window_rect = {
-        /*xmin*/ mx,
-        /*xmax*/ mx + sizex,
-        /*ymin*/ my,
-        /*ymax*/ my + sizey,
+        .xmin = mx,
+        .xmax = mx + sizex,
+        .ymin = my,
+        .ymax = my + sizey,
     };
 
     /* changes context! */

@@ -54,11 +54,11 @@ static ushort indices[] = {
 };
 
 GizmoGeomInfo wm_gizmo_geom_data_arrow = {
-    /*nverts*/ 25,
-    /*ntris*/ 46,
-    /*verts*/ verts,
-    /*normals*/ normals,
-    /*indices*/ indices,
+    .nverts = 25,
+    .ntris = 46,
+    .verts = verts,
+    .normals = normals,
+    .indices = indices,
 };
 
 }  // namespace blender

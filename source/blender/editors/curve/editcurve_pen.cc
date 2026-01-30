@@ -1568,8 +1568,8 @@ static wmOperatorStatus curve_pen_modal(bContext *C, wmOperator *op, const wmEve
   Nurb *nu = nullptr;
 
   const SelectPick_Params params = {
-      /*sel_op*/ SEL_OP_SET,
-      /*deselect_all*/ false,
+      .sel_op = SEL_OP_SET,
+      .deselect_all = false,
   };
 
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;

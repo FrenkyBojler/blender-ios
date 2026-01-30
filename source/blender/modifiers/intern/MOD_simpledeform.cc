@@ -506,42 +506,41 @@ static void panel_register(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_SimpleDeform = {
-    /*idname*/ "SimpleDeform",
-    /*name*/ N_("SimpleDeform"),
-    /*struct_name*/ "SimpleDeformModifierData",
-    /*struct_size*/ sizeof(SimpleDeformModifierData),
-    /*srna*/ &RNA_SimpleDeformModifier,
-    /*type*/ ModifierTypeType::OnlyDeform,
+    .idname = "SimpleDeform",
+    .name = N_("SimpleDeform"),
+    .struct_name = "SimpleDeformModifierData",
+    .struct_size = sizeof(SimpleDeformModifierData),
+    .srna = &RNA_SimpleDeformModifier,
+    .type = ModifierTypeType::OnlyDeform,
+    .flags = eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
+             eModifierTypeFlag_AcceptsVertexCosOnly | eModifierTypeFlag_SupportsEditmode |
+             eModifierTypeFlag_EnableInEditmode,
+    .icon = ICON_MOD_SIMPLEDEFORM,
 
-    /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
-        eModifierTypeFlag_AcceptsVertexCosOnly | eModifierTypeFlag_SupportsEditmode |
-        eModifierTypeFlag_EnableInEditmode,
-    /*icon*/ ICON_MOD_SIMPLEDEFORM,
+    .copy_data = BKE_modifier_copydata_generic,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    .deform_verts = deform_verts,
+    .deform_matrices = nullptr,
+    .deform_verts_EM = nullptr,
+    .deform_matrices_EM = nullptr,
+    .modify_mesh = nullptr,
+    .modify_geometry_set = nullptr,
 
-    /*deform_verts*/ deform_verts,
-    /*deform_matrices*/ nullptr,
-    /*deform_verts_EM*/ nullptr,
-    /*deform_matrices_EM*/ nullptr,
-    /*modify_mesh*/ nullptr,
-    /*modify_geometry_set*/ nullptr,
-
-    /*init_data*/ init_data,
-    /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
-    /*is_disabled*/ nullptr,
-    /*update_depsgraph*/ update_depsgraph,
-    /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ nullptr,
-    /*foreach_ID_link*/ foreach_ID_link,
-    /*foreach_tex_link*/ nullptr,
-    /*free_runtime_data*/ nullptr,
-    /*panel_register*/ panel_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
+    .init_data = init_data,
+    .required_data_mask = required_data_mask,
+    .free_data = nullptr,
+    .is_disabled = nullptr,
+    .update_depsgraph = update_depsgraph,
+    .depends_on_time = nullptr,
+    .depends_on_normals = nullptr,
+    .foreach_ID_link = foreach_ID_link,
+    .foreach_tex_link = nullptr,
+    .free_runtime_data = nullptr,
+    .panel_register = panel_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_working_space_color = nullptr,
 };
 
 }  // namespace blender

@@ -311,10 +311,10 @@ static void special_aftertrans_update__grease_pencil(bContext *C, TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_GreasePencil = {
-    /*flags*/ (T_EDIT | T_POINTS),
-    /*create_trans_data*/ createTransGreasePencilVerts,
-    /*recalc_data*/ recalcData_grease_pencil,
-    /*special_aftertrans_update*/ special_aftertrans_update__grease_pencil,
+    .flags = (T_EDIT | T_POINTS),
+    .create_trans_data = createTransGreasePencilVerts,
+    .recalc_data = recalcData_grease_pencil,
+    .special_aftertrans_update = special_aftertrans_update__grease_pencil,
 };
 
 }  // namespace blender::ed::transform::greasepencil

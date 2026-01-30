@@ -124,10 +124,10 @@ static void recalcData_mesh_edge(TransInfo *t)
 /** \} */
 
 TransConvertTypeInfo TransConvertType_MeshEdge = {
-    /*flags*/ T_EDIT,
-    /*create_trans_data*/ createTransEdge,
-    /*recalc_data*/ recalcData_mesh_edge,
-    /*special_aftertrans_update*/ nullptr,
+    .flags = T_EDIT,
+    .create_trans_data = createTransEdge,
+    .recalc_data = recalcData_mesh_edge,
+    .special_aftertrans_update = nullptr,
 };
 
 }  // namespace blender::ed::transform

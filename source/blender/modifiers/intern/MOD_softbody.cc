@@ -81,41 +81,41 @@ static void panel_register(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_Softbody = {
-    /*idname*/ "Softbody",
-    /*name*/ N_("Softbody"),
-    /*struct_name*/ "SoftbodyModifierData",
-    /*struct_size*/ sizeof(SoftbodyModifierData),
-    /*srna*/ &RNA_SoftBodyModifier,
-    /*type*/ ModifierTypeType::OnlyDeform,
-    /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
-        eModifierTypeFlag_RequiresOriginalData | eModifierTypeFlag_Single |
-        eModifierTypeFlag_UsesPointCache,
-    /*icon*/ ICON_MOD_SOFT,
+    .idname = "Softbody",
+    .name = N_("Softbody"),
+    .struct_name = "SoftbodyModifierData",
+    .struct_size = sizeof(SoftbodyModifierData),
+    .srna = &RNA_SoftBodyModifier,
+    .type = ModifierTypeType::OnlyDeform,
+    .flags = eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
+             eModifierTypeFlag_RequiresOriginalData | eModifierTypeFlag_Single |
+             eModifierTypeFlag_UsesPointCache,
+    .icon = ICON_MOD_SOFT,
 
-    /*copy_data*/ nullptr,
+    .copy_data = nullptr,
 
-    /*deform_verts*/ deform_verts,
-    /*deform_matrices*/ nullptr,
-    /*deform_verts_EM*/ nullptr,
-    /*deform_matrices_EM*/ nullptr,
-    /*modify_mesh*/ nullptr,
-    /*modify_geometry_set*/ nullptr,
+    .deform_verts = deform_verts,
+    .deform_matrices = nullptr,
+    .deform_verts_EM = nullptr,
+    .deform_matrices_EM = nullptr,
+    .modify_mesh = nullptr,
+    .modify_geometry_set = nullptr,
 
-    /*init_data*/ nullptr,
-    /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
-    /*is_disabled*/ nullptr,
-    /*update_depsgraph*/ update_depsgraph,
-    /*depends_on_time*/ depends_on_time,
-    /*depends_on_normals*/ nullptr,
-    /*foreach_ID_link*/ nullptr,
-    /*foreach_tex_link*/ nullptr,
-    /*free_runtime_data*/ nullptr,
-    /*panel_register*/ panel_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
+    .init_data = nullptr,
+    .required_data_mask = nullptr,
+    .free_data = nullptr,
+    .is_disabled = nullptr,
+    .update_depsgraph = update_depsgraph,
+    .depends_on_time = depends_on_time,
+    .depends_on_normals = nullptr,
+    .foreach_ID_link = nullptr,
+    .foreach_tex_link = nullptr,
+    .free_runtime_data = nullptr,
+    .panel_register = panel_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_working_space_color = nullptr,
 };
 
 }  // namespace blender

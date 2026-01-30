@@ -118,41 +118,41 @@ static void panel_register(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_Triangulate = {
-    /*idname*/ "Triangulate",
-    /*name*/ N_("Triangulate"),
-    /*struct_name*/ "TriangulateModifierData",
-    /*struct_size*/ sizeof(TriangulateModifierData),
-    /*srna*/ &RNA_TriangulateModifier,
-    /*type*/ ModifierTypeType::Constructive,
-    /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
-        eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_EnableInEditmode |
-        eModifierTypeFlag_AcceptsCVs,
-    /*icon*/ ICON_MOD_TRIANGULATE,
+    .idname = "Triangulate",
+    .name = N_("Triangulate"),
+    .struct_name = "TriangulateModifierData",
+    .struct_size = sizeof(TriangulateModifierData),
+    .srna = &RNA_TriangulateModifier,
+    .type = ModifierTypeType::Constructive,
+    .flags = eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
+             eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_EnableInEditmode |
+             eModifierTypeFlag_AcceptsCVs,
+    .icon = ICON_MOD_TRIANGULATE,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    .copy_data = BKE_modifier_copydata_generic,
 
-    /*deform_verts*/ nullptr,
-    /*deform_matrices*/ nullptr,
-    /*deform_verts_EM*/ nullptr,
-    /*deform_matrices_EM*/ nullptr,
-    /*modify_mesh*/ modify_mesh,
-    /*modify_geometry_set*/ nullptr,
+    .deform_verts = nullptr,
+    .deform_matrices = nullptr,
+    .deform_verts_EM = nullptr,
+    .deform_matrices_EM = nullptr,
+    .modify_mesh = modify_mesh,
+    .modify_geometry_set = nullptr,
 
-    /*init_data*/ init_data,
-    /*required_data_mask*/ nullptr,  // required_data_mask,
-    /*free_data*/ nullptr,
-    /*is_disabled*/ nullptr,
-    /*update_depsgraph*/ nullptr,
-    /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ nullptr,
-    /*foreach_ID_link*/ nullptr,
-    /*foreach_tex_link*/ nullptr,
-    /*free_runtime_data*/ nullptr,
-    /*panel_register*/ panel_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
+    .init_data = init_data,
+    .required_data_mask = nullptr,  // required_data_mask,
+    .free_data = nullptr,
+    .is_disabled = nullptr,
+    .update_depsgraph = nullptr,
+    .depends_on_time = nullptr,
+    .depends_on_normals = nullptr,
+    .foreach_ID_link = nullptr,
+    .foreach_tex_link = nullptr,
+    .free_runtime_data = nullptr,
+    .panel_register = panel_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_working_space_color = nullptr,
 };
 
 }  // namespace blender

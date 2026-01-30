@@ -425,10 +425,10 @@ static void special_aftertrans_update__sequencer_image(bContext *C, TransInfo *t
 }
 
 TransConvertTypeInfo TransConvertType_SequencerImage = {
-    /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*create_trans_data*/ createTransSeqImageData,
-    /*recalc_data*/ recalcData_sequencer_image,
-    /*special_aftertrans_update*/ special_aftertrans_update__sequencer_image,
+    .flags = (T_POINTS | T_2D_EDIT),
+    .create_trans_data = createTransSeqImageData,
+    .recalc_data = recalcData_sequencer_image,
+    .special_aftertrans_update = special_aftertrans_update__sequencer_image,
 };
 
 }  // namespace blender::ed::transform

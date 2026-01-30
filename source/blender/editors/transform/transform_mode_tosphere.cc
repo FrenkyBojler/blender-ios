@@ -222,14 +222,14 @@ static void initToSphere(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_tosphere = {
-    /*flags*/ T_NO_CONSTRAINT,
-    /*init_fn*/ initToSphere,
-    /*transform_fn*/ applyToSphere,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = T_NO_CONSTRAINT,
+    .init_fn = initToSphere,
+    .transform_fn = applyToSphere,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform

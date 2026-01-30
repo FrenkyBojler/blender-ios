@@ -103,17 +103,17 @@ static void brightcontrast_register(ARegionType *region_type)
 }
 
 StripModifierTypeInfo seqModifierType_BrightContrast = {
-    /*idname*/ "BrightContrast",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Brightness/Contrast"),
-    /*struct_name*/ "BrightContrastModifierData",
-    /*struct_size*/ sizeof(BrightContrastModifierData),
-    /*init_data*/ nullptr,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*apply*/ brightcontrast_apply,
-    /*panel_register*/ brightcontrast_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
+    .idname = "BrightContrast",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Brightness/Contrast"),
+    .struct_name = "BrightContrastModifierData",
+    .struct_size = sizeof(BrightContrastModifierData),
+    .init_data = nullptr,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .apply = brightcontrast_apply,
+    .panel_register = brightcontrast_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
 };
 
 };  // namespace blender::seq

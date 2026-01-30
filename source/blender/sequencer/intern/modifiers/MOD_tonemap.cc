@@ -350,17 +350,17 @@ static void tonemapmodifier_register(ARegionType *region_type)
 }
 
 StripModifierTypeInfo seqModifierType_Tonemap = {
-    /*idname*/ "Tonemap",
-    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Tonemap"),
-    /*struct_name*/ "SequencerTonemapModifierData",
-    /*struct_size*/ sizeof(SequencerTonemapModifierData),
-    /*init_data*/ tonemapmodifier_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*apply*/ tonemapmodifier_apply,
-    /*panel_register*/ tonemapmodifier_register,
-    /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
+    .idname = "Tonemap",
+    .name = CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Tonemap"),
+    .struct_name = "SequencerTonemapModifierData",
+    .struct_size = sizeof(SequencerTonemapModifierData),
+    .init_data = tonemapmodifier_init_data,
+    .free_data = nullptr,
+    .copy_data = nullptr,
+    .apply = tonemapmodifier_apply,
+    .panel_register = tonemapmodifier_register,
+    .blend_write = nullptr,
+    .blend_read = nullptr,
 };
 
 };  // namespace blender::seq

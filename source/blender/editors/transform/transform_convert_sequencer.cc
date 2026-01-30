@@ -892,10 +892,10 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
 /** \} */
 
 TransConvertTypeInfo TransConvertType_Sequencer = {
-    /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*create_trans_data*/ createTransSeqData,
-    /*recalc_data*/ recalcData_sequencer,
-    /*special_aftertrans_update*/ special_aftertrans_update__sequencer,
+    .flags = (T_POINTS | T_2D_EDIT),
+    .create_trans_data = createTransSeqData,
+    .recalc_data = recalcData_sequencer,
+    .special_aftertrans_update = special_aftertrans_update__sequencer,
 };
 
 }  // namespace blender::ed::transform

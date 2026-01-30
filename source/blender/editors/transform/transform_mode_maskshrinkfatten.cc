@@ -128,14 +128,14 @@ static void initMaskShrinkFatten(TransInfo *t, wmOperator * /*op*/)
 /** \} */
 
 TransModeInfo TransMode_maskshrinkfatten = {
-    /*flags*/ T_NO_CONSTRAINT,
-    /*init_fn*/ initMaskShrinkFatten,
-    /*transform_fn*/ applyMaskShrinkFatten,
-    /*transform_matrix_fn*/ nullptr,
-    /*handle_event_fn*/ nullptr,
-    /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ nullptr,
-    /*draw_fn*/ nullptr,
+    .flags = T_NO_CONSTRAINT,
+    .init_fn = initMaskShrinkFatten,
+    .transform_fn = applyMaskShrinkFatten,
+    .transform_matrix_fn = nullptr,
+    .handle_event_fn = nullptr,
+    .snap_distance_fn = nullptr,
+    .snap_apply_fn = nullptr,
+    .draw_fn = nullptr,
 };
 
 }  // namespace blender::ed::transform
