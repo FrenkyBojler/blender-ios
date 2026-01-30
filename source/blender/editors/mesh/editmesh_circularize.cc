@@ -164,11 +164,11 @@ void MESH_OT_circularize(wmOperatorType *ot)
       ot->srna, "use_custom_radius", false, "Use Custom Radius", "Enable custom radius");
   RNA_def_float(ot->srna,
                 "custom_radius",
+                1.0f,
                 0.0f,
-                0.0f,
-                10000.0f,
+                FLT_MAX,
                 "Radius",
-                "Custom radius for circle",
+                "Radius of the circle",
                 0.0f,
                 1000.0f);
   RNA_def_boolean(ot->srna,
