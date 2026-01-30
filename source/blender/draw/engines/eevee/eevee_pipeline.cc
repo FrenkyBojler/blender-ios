@@ -708,11 +708,8 @@ void DeferredLayer::end_sync(bool is_first_pass,
   use_clamp_direct_ = inst_.sampling.use_clamp_direct();
   use_clamp_indirect_ = inst_.sampling.use_clamp_indirect();
   /* Is the radiance split for the combined pass. */
-  use_split_radiance_ = use_raytracing_ ||
-                        use_clamp_direct_ ||
-                        use_clamp_indirect_ ||
-                        use_indirect_scale ||
-                        use_direct_scale;
+  use_split_radiance_ = use_raytracing_ || use_clamp_direct_ || use_clamp_indirect_ ||
+                        use_indirect_scale || use_direct_scale;
 
   /* The first pass will never have any surfaces behind it. Nothing is refracted except the
    * environment. So in this case, disable tracing and fallback to probe. */

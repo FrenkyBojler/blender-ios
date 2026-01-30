@@ -597,7 +597,6 @@ class RENDER_PT_eevee_light_paths(RenderButtonsPanel, Panel):
         layout.prop(props, "indirect_intensity", text="Indirect Intensity")
 
 
-
 class RENDER_PT_eevee_sampling_shadows(RenderButtonsPanel, Panel):
     bl_label = "Shadows"
     bl_parent_id = "RENDER_PT_eevee_sampling"

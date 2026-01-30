@@ -121,7 +121,7 @@ void main()
     out_radiance += out_direct + out_indirect;
     imageStore(radiance_feedback_img, texel, float4(out_radiance, 0.0f));
   }
- 
+
   out_direct *= uniform_buf.clamp.direct_scale;
   out_indirect *= uniform_buf.clamp.indirect_scale;
 

@@ -115,7 +115,7 @@ void forward_lighting_eval(float thickness, float3 &radiance, float3 &transmitta
   /* Light clamping. */
   float clamp_direct = uniform_buf.clamp.surface_direct;
   float clamp_indirect = uniform_buf.clamp.surface_indirect;
-  
+
   radiance_direct *= uniform_buf.clamp.direct_scale;
   radiance_direct = colorspace_brightness_clamp_max(radiance_direct, clamp_direct);
 
