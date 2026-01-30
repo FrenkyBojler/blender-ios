@@ -1832,7 +1832,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     case UP: {
       unit_m3(base_mat); /* Object Space. */
 
-      if (space == 1) { /* World Space. */
+      if (space == WORLD) { /* World Space. */
         float y_axis[3] = {0.0f, 0.0f, 1.0f};
         float z_axis[3] = {0.0f, -1.0f, 0.0f};
         float x_axis[3];
@@ -1856,11 +1856,6 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     }
   }
 
-  float length = RNA_float_get(op->ptr, "length");
-  if (length <= 0.0f) {
-    length = 1.0f;
-  }
-
   RNA_string_get(op->ptr, "name", name);
 
   copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
@@ -1876,13 +1871,14 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   ANIM_armature_bonecoll_assign_active(id_cast<bArmature *>(obedit->data), bone);
 
   /* Scale B-Bone display width and Bone Envelope based on length. */
-  if (length > 0.0f) {
-    bone->xwidth = 0.1f * length;
-    bone->zwidth = 0.1f * length;
-    bone->rad_head = 0.1f * length;
-    bone->rad_tail = 0.05f * length;
-    bone->dist = 0.25f * length;
-  }
+  float length = RNA_float_get(op->ptr, "length");
+  BLI_assert(length > 0.0f);
+
+  bone->xwidth = 0.1f * length;
+  bone->zwidth = 0.1f * length;
+  bone->rad_head = 0.1f * length;
+  bone->rad_tail = 0.05f * length;
+  bone->dist = 0.25f * length;
 
   bArmature *arm = id_cast<bArmature *>(obedit->data);
   if (BLI_listbase_is_empty(&bone->bone_collections) && (arm->flag & ARM_BCOLL_SOLO_ACTIVE)) {
@@ -2004,7 +2000,7 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
                 FLT_MAX,
                 "Length",
                 "Length of the new bone",
-                0.01f,
+                0.001f,
                 100.0f);
   RNA_def_boolean(ot->srna, "deform", true, "Enable Deform", "Enable bone to deform geometry");
 }
