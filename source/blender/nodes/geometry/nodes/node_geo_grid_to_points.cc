@@ -58,7 +58,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection").default_value(true).supports_field().hide_value();
   b.add_input<decl::Menu>("Position")
       .static_items(position_mode_items)
-      .default_value(PositionMode::Center);
+      .default_value(PositionMode::Center)
+      .expanded()
+      .optional_label();
 
   b.add_output<decl::Geometry>("Points").description("Point geometry representing grid voxels");
   b.add_output<decl::Bool>("Is Tile").field_on_all().description(
