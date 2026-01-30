@@ -100,12 +100,10 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
   const StructureType structure_type = other_socket.runtime->inferred_structure_type;
-  const bool is_grid = structure_type == StructureType::Grid;
-  const bool is_dynamic = structure_type == StructureType::Dynamic;
   const eNodeSocketDatatype other_type = eNodeSocketDatatype(other_socket.type);
 
   if (params.in_out() == SOCK_IN) {
-    if (is_grid || is_dynamic) {
+    if (ELEM(structure_type, StructureType::Grid, StructureType::Dynamic)) {
       const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(other_socket);
       if (data_type) {
         params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
@@ -370,7 +368,6 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeGridToPoints");
   ntype.ui_name = "Grid to Points";
   ntype.ui_description = "Generate a point cloud from a volume grid's active voxels";
-  ntype.enum_name_legacy = "GRID_TO_POINTS";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
