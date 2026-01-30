@@ -83,7 +83,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output<std::string>("Name", std::move(id->name + 2));
+  params.set_output<std::string>("Name", id->name + 2);
 
   if (!params.output_is_required("Library Name")) {
     params.set_default_remaining_outputs();
@@ -96,7 +96,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output<std::string>("Library Name", std::move(lib->id.name + 2));
+  params.set_output<std::string>("Library Name", lib->id.name + 2);
 }
 
 static void node_rna(StructRNA *srna)
