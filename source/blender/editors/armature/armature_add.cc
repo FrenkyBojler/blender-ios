@@ -1807,24 +1807,23 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       copy_v3_v3(roll_vector, base_mat[2]);
       break;
     }
-    case AXES: { /* Object Space.  Assumes Y is Up.*/
-      base_mat[0][0] = 1.0f;
-      base_mat[0][1] = 0.0f;
-      base_mat[0][2] = 0.0f;
-      base_mat[1][0] = 0.0f;
-      base_mat[1][1] = 0.0f;
-      base_mat[1][2] = -1.0f;
-      base_mat[2][0] = 0.0f;
-      base_mat[2][1] = 1.0f;
-      base_mat[2][2] = 0.0f;
-
+    case AXES: {
       if (space == WORLD) {
         unit_m3(base_mat);
         mul_m3_m3m3(base_mat, imat, base_mat);
-        roll_vector[0] = 0.0f;
-        roll_vector[1] = 0.0f;
-        roll_vector[2] = 1.0f;
+        copy_v3_fl3(roll_vector, 0.0f, 0.0f, 1.0f);
         mul_m3_v3(imat, roll_vector);
+      }
+      else { /* Object Space.  Assumes Y is Up.*/
+        base_mat[0][0] = 1.0f;
+        base_mat[0][1] = 0.0f;
+        base_mat[0][2] = 0.0f;
+        base_mat[1][0] = 0.0f;
+        base_mat[1][1] = 0.0f;
+        base_mat[1][2] = -1.0f;
+        base_mat[2][0] = 0.0f;
+        base_mat[2][1] = 1.0f;
+        base_mat[2][2] = 0.0f;
       }
       break;
     }
