@@ -24,8 +24,8 @@ using LexerBase = shader::parser::LexerBase;
 using NullParser = shader::parser::NullParser;
 using namespace lexit;
 
-struct TokenRange {
-  Token start, end;
+template<typename IToken> struct TokenRange {
+  IToken begin, end;
 };
 
 /* -------------------------------------------------------------------- */
@@ -70,6 +70,18 @@ struct AtomicLexer : LexerBase {
         /* Long identifier slow path. Do full hash */
         return atomization_map_.lookup_or_add_cb(tok_str, [this]() { return this->next_hash(); });
     }
+  }
+
+  Vector<std::string, 0> pasted_token;
+
+  struct PasteResult {
+    TokenAtom atom;
+    int paste_tok_index;
+  };
+
+  BLI_INLINE_METHOD PasteResult paste_token(const std::string &tok_str)
+  {
+    return {hash(tok_str), int(pasted_token.append_and_get_index(tok_str))};
   }
 
  protected:
@@ -185,145 +197,230 @@ struct ExpansionLexer : LexerBase {
   }
 };
 
-struct Stream : TokenBuffer {
-  AtomicLexer &lex;
+struct Stream {
+  struct Space {};
+  struct True {};
+  struct False {};
+  struct ConcatNext {};
 
-  std::string str;
+  struct SToken {
+    /* -1 if boolean value. */
+    int32_t index = -1;
+    /* Non zero if token is pasted and should be sourced from the pasted token buffer. */
+    TokenAtom pasted_atom = 0;
+    /* True if token is followed by whitespace or a space was injected after it. */
+    bool followed_by_space = false;
+    /* Value of the token if True/False from expression expansion. */
+    bool bool_value;
+
+    SToken(Token tok) : index(int(tok)), followed_by_space(tok.followed_by_whitespace()) {}
+    SToken(True /*tok*/) : bool_value(true) {}
+    SToken(False /*tok*/) : bool_value(false) {}
+
+    /* For pasted tokens. */
+    SToken(int index, TokenAtom atom, bool followed_by_space)
+        : index(index), pasted_atom(atom), followed_by_space(followed_by_space)
+    {
+      BLI_assert(index != -1);
+    }
+  };
+
+  AtomicLexer &lex;
 
   bool concat_next = false;
 
-  struct Space {};
-  struct Number {
-    StringRef str;
-  };
-  struct ConcatNext {};
+  Vector<SToken> tokens;
 
-  Stream(AtomicLexer &lex) : TokenBuffer(), lex(lex)
-  {
-    str.reserve(512);
-    this->reserve(256);
-    offsets_[0] = 0;
-    original_offsets_[0] = 0;
-    whitespaces_collapsed_ = true;
-  }
-
-  Stream(Stream &&s) : lex(s.lex)
-  {
-    this->str = std::move(s.str);
-    this->types_ = std::move(s.types_);
-    this->offsets_ = std::move(s.offsets_);
-    this->original_offsets_ = std::move(s.original_offsets_);
-    this->atoms_ = std::move(s.atoms_);
-  }
+  Stream(AtomicLexer &lex) : lex(lex) {};
 
   void clear()
   {
-    str.clear();
-    static_cast<TokenBuffer *>(this)->clear();
+    tokens.clear();
   }
 
   Stream &operator<<(const Stream &stream)
   {
-    for (int i : stream.index_range()) {
-      *this << stream[i];
-    }
+    tokens.extend(stream.tokens);
     return *this;
   }
 
-  Stream &operator<<(Token tok)
+  Stream &operator<<(const Token tok)
   {
-    ensure_space_for_one();
-    str += tok.str();
-    /* When concatenating, keep type of the previous token. */
-    if (!concat_next) {
-      types_[size_] = tok.type();
-    }
-    atoms_[size_] = tok.atom();
-    size_++;
-    original_offsets_[size_] = str.size();
-    if (tok.followed_by_whitespace()) {
-      str += ' ';
-    }
-    str_ = str;
-    offsets_[size_] = str.size();
-
-    if (concat_next) {
-      /* Update Atom of the new pasted token. */
-      atoms_[size_ - 1] = lex.hash((*this)[size_ - 1].str());
+    if (UNLIKELY(concat_next)) {
+      tokens.last() = paste_token(tok.str(), tok.followed_by_whitespace());
       concat_next = false;
     }
+    else {
+      tokens.append(tok);
+    }
     return *this;
   }
-
   /* NOTE: Not compatible with concatenation. */
-  Stream &operator<<(Number tok)
+  Stream &operator<<(True tok)
   {
-    ensure_space_for_one();
-    str += tok.str;
-    str_ = str;
-    types_[size_] = TokenType::Number;
-    size_++;
-    original_offsets_[size_] = str.size();
-    offsets_[size_] = str.size();
+    tokens.append(tok);
+    return *this;
+  }
+  /* NOTE: Not compatible with concatenation. */
+  Stream &operator<<(False tok)
+  {
+    tokens.append(tok);
     return *this;
   }
 
-  Stream &operator<<(const TokenRange &stream)
+  template<typename IToken> Stream &operator<<(const TokenRange<IToken> &stream)
   {
-    for (Token tok = stream.start; int(tok) <= int(stream.end); tok = tok.next()) {
+    for (IToken tok = stream.begin; tok != stream.end; tok = tok.next()) {
       *this << tok;
     }
     /* "Cancel" concatenation in case range is empty. */
-    if (concat_next) {
-      /* Data of the previous token is still there. Just recover it ... */
-      size_ += 1;
-      /* ... except for the trailing space. */
-      offsets_[size_] = original_offsets_[size_];
-      concat_next = false;
-    }
+    concat_next = false;
     return *this;
   }
 
-  Stream &operator<<(ConcatNext /*concat*/)
+  Stream &operator<<(const ConcatNext /*concat*/)
   {
-    BLI_assert_msg(!concat_next, "Token concatenation followed by another concatenation");
-    if (size_ == 0 || concat_next) {
-      /* Nothing to concatenate. */
-      return *this;
-    }
-    /* If last char is a space, remove it to effectively concatenate.
-     * Note that this assumes that there is only at most one space between tokens. */
-    if (str.back() == ' ') {
-      str.pop_back();
-      str_ = str;
-    }
-    /* Pop last token. Next token will override its end offset but not its start. */
-    size_ -= 1;
-    concat_next = true;
+    /* Don't concat if there is nothing to concatenate. */
+    concat_next = !tokens.is_empty();
     return *this;
   }
 
   Stream &operator<<(Space /*space*/)
   {
-    ensure_space_for_one();
-    if (!str.empty() && str.back() != ' ') {
-      str += ' ';
-      str_ = str;
-      offsets_[size_] = str.size();
+    if (!tokens.is_empty()) {
+      tokens.last().followed_by_space = true;
     }
     return *this;
   }
 
-  blender::IndexRange index_range() const
+  std::string result_buf;
+
+  std::string str()
   {
-    return blender::IndexRange(size_);
+    result_buf.clear();
+    result_buf.reserve(tokens.size() * 7);
+    for (const SToken stream_tok : tokens) {
+      if (UNLIKELY(stream_tok.index == -1)) {
+        result_buf += char('0' + stream_tok.bool_value);
+      }
+      else if (UNLIKELY(stream_tok.pasted_atom)) {
+        result_buf += lex.pasted_token[stream_tok.index];
+      }
+      else {
+        result_buf += lex[stream_tok.index].str();
+      }
+      if (stream_tok.followed_by_space) {
+        result_buf += ' ';
+      }
+    }
+    return result_buf;
   }
 
-  void ensure_space_for_one()
-  {
-    if (UNLIKELY(size_ + 1 >= allocated_size_)) {
-      this->reserve(allocated_size_ + 256);
+  struct IToken {
+    const AtomicLexer *lex;
+    const SToken *stream_tok;
+
+    IToken(const AtomicLexer &lex, const SToken *stream_tok) : lex(&lex), stream_tok(stream_tok)
+    {
+      BLI_assert_msg(stream_tok->index != -1, "Cannot iterate a stream with boolean tokens");
     }
+    IToken(const IToken &other) = default;
+
+    bool is_valid() const
+    {
+      return true; /* TODO */
+    }
+
+    TokenType type() const
+    {
+      return stream_tok->pasted_atom ? Word : (*lex)[stream_tok->index].type();
+    }
+    TokenAtom atom() const
+    {
+      return stream_tok->pasted_atom ? stream_tok->pasted_atom : (*lex)[stream_tok->index].atom();
+    }
+
+    std::string_view str() const
+    {
+      return stream_tok->pasted_atom ? std::string_view{lex->pasted_token[stream_tok->index]} :
+                                       (*lex)[stream_tok->index].str();
+    }
+
+    bool followed_by_whitespace() const
+    {
+      return stream_tok->pasted_atom ? stream_tok->followed_by_space :
+                                       (*lex)[stream_tok->index].followed_by_whitespace();
+    }
+
+    IToken next() const
+    {
+      /*TODO Safety*/
+      return IToken(*lex, stream_tok + 1);
+    }
+    IToken prev() const
+    {
+      /*TODO Safety*/
+      return IToken(*lex, stream_tok - 1);
+    }
+
+    friend bool operator==(const IToken &a, const IToken &b)
+    {
+      return a.stream_tok == b.stream_tok;
+    }
+    friend bool operator!=(const IToken &a, const IToken &b)
+    {
+      return a.stream_tok != b.stream_tok;
+    }
+
+    friend bool operator==(const IToken &a, TokenType b)
+    {
+      return a.type() == b;
+    }
+    friend bool operator!=(const IToken &a, TokenType b)
+    {
+      return a.type() != b;
+    }
+
+    /* For iterator compatibility. */
+    IToken &operator++()
+    {
+      stream_tok++;
+      return *this;
+    }
+    const IToken &operator*()
+    {
+      return *this;
+    }
+  };
+
+  Stream &operator<<(const IToken &tok)
+  {
+    if (UNLIKELY(concat_next)) {
+      tokens.last() = paste_token(tok.str(), tok.followed_by_whitespace());
+      concat_next = false;
+    }
+    else {
+      tokens.append(*tok.stream_tok);
+    }
+    return *this;
+  }
+
+  IToken begin() const
+  {
+    return IToken{lex, tokens.begin()};
+  }
+
+  IToken end() const
+  {
+    return IToken{lex, tokens.end()};
+  }
+
+ private:
+  SToken paste_token(const StringRef &b, bool followed_by_space)
+  {
+    std::string pasted = IToken{lex, &tokens.last()}.str() + b;
+    auto [atom, id] = lex.paste_token(pasted);
+    return SToken(id, atom, followed_by_space);
   }
 };
 
@@ -673,7 +770,7 @@ struct Preprocessor : IntermediateFormWithIDs {
 
     bool is_empty() const
     {
-      return definition->size_ == 0;
+      return definition->tokens.is_empty();
     }
   };
 
@@ -871,7 +968,7 @@ struct Preprocessor : IntermediateFormWithIDs {
    * Condition directives.
    */
 
-  void process_conditional(const DirectiveID dir, const DirectiveType dir_type)
+  BLI_NOINLINE void process_conditional(const DirectiveID dir, const DirectiveType dir_type)
   {
     /* If this is part of an already evaluated statement. */
     if (!jump_stack.is_empty() && jump_stack.last() == dir) {
@@ -965,20 +1062,21 @@ struct Preprocessor : IntermediateFormWithIDs {
     StreamPtr expand = expand_expression(start, end);
 
     /* Early out simple cases. */
-    if (expand->size() == 1 && (*expand)[0].str() == "0") {
-      return false;
-    }
-    if (expand->size() == 1 && (*expand)[0].str() == "1") {
-      return true;
+    if (expand->tokens.size() == 1) {
+      const auto &token = expand->tokens.first();
+      if (token.index == -1) {
+        return token.bool_value;
+      }
     }
 
     try {
       /* TODO(fclem): Do not parse again. Simply use the token stream. */
-      expression_lexer.lexical_analysis(expand->str);
+      std::string str = expand->str();
+      expression_lexer.lexical_analysis(str);
       return expression_parser.eval() != 0;
     }
     catch (const std::exception &e) {
-      std::cout << "\"" << substr_range_inclusive_view(start, end) << "\" > \"" << expand->str
+      std::cout << "\"" << substr_range_inclusive_view(start, end) << "\" > \"" << expand->str()
                 << "\" ";
       std::cerr << "Error: " << e.what() << "\n";
       return false;
@@ -1002,8 +1100,8 @@ struct Preprocessor : IntermediateFormWithIDs {
         auto *macro_ptr = defines.lookup_ptr(AtomID(tok.atom()));
         if (macro_ptr) {
           Token token = parser_.lex[int(tok)];
-          auto [replacement, end] = expand_macro(token, **macro_ptr);
-          replace(token, end, replacement->str);
+          auto [replacement, end] = expand_macro(Token(token), **macro_ptr);
+          replace(token, end, replacement->str());
           tok = end;
           if (tok == end_tok) {
             break;
@@ -1014,12 +1112,11 @@ struct Preprocessor : IntermediateFormWithIDs {
   }
 
   /* Parse and expand with the current set of macro identifier. */
-  BLI_NOINLINE StreamPtr parse_and_expand(const Stream &ts)
+  BLI_NOINLINE StreamPtr parse_and_expand(const Stream &tok_stream)
   {
     auto result = stream_pool.alloc();
 
-    for (int cursor = 0, end = ts.index_range().size(); cursor < end; cursor++) {
-      Token tok = ts[cursor];
+    for (auto tok = tok_stream.begin(), end = tok_stream.end(); tok != end; tok = tok.next()) {
       if (tok == Word) {
         /* Try to match the token pointed at by cursor with a defined macro. If that happen advance
          * the cursor to the end of the macro (in case of functional macro). */
@@ -1027,7 +1124,7 @@ struct Preprocessor : IntermediateFormWithIDs {
         if (macro_ptr) {
           auto [replacement, end] = expand_macro(tok, **macro_ptr);
           *result << *replacement;
-          cursor = int(end);
+          tok = end;
           continue;
         }
       }
@@ -1036,35 +1133,31 @@ struct Preprocessor : IntermediateFormWithIDs {
     return result;
   }
 
-  struct ExpandedResult {
+  template<typename IToken> struct ExpandedResult {
     /* Replacement content. */
     StreamPtr output;
     /* End of range to replace. */
-    Token end_of_expansion;
+    IToken end_of_expansion;
   };
 
   /**
    * \arg tok : Opening parenthesis token of the argument list.
    */
-  BLI_NOINLINE Vector<TokenRange> parse_macro_args(const Vector<AtomID> &params, Token &tok)
+  template<typename IToken>
+  BLI_NOINLINE Vector<TokenRange<IToken>> parse_macro_args(const Vector<AtomID> &params,
+                                                           IToken &tok)
   {
-    Vector<TokenRange> args;
+    Vector<TokenRange<IToken>> args;
     for (const AtomID param_atom : params) {
-      Token param_start = tok;
-      Token param_end = get_end_of_parameter(param_start);
+      IToken param_start = tok;
+      IToken param_end = get_end_of_parameter(param_start);
 
       if (param_atom == va_args_atom) {
         /* Seek end of argument list for variadic arguments. */
         param_end = get_end_of_parameter(param_start, true);
       }
 
-      if (param_start.next() == param_end.prev()) {
-        /* Empty argument. */
-        args.append({param_start.next(), param_start.next()});
-      }
-      else {
-        args.append({param_start.next(), param_end.prev()});
-      }
+      args.append({param_start.next(), param_end});
       /* Continue to the next separator. */
       tok = param_end;
       if (tok == Invalid) {
@@ -1090,11 +1183,12 @@ struct Preprocessor : IntermediateFormWithIDs {
   }
 
   /* TODO(fclem): Try specialization for no concatenation and no function. */
+  template<typename IToken>
   BLI_NOINLINE StreamPtr expand_macro_args(const Macro &macro,
-                                           const Vector<TokenRange> &macro_args)
+                                           const Vector<TokenRange<IToken>> &macro_args)
   {
     StreamPtr ts = stream_pool.alloc();
-    for (const Token def_tok : *macro.definition) {
+    for (const auto &def_tok : *macro.definition) {
       if (def_tok.type() == Hash) {
         *ts << Stream::ConcatNext{};
         continue;
@@ -1103,7 +1197,7 @@ struct Preprocessor : IntermediateFormWithIDs {
         /* Lookup macro arguments. */
         int arg_id = macro.params.first_index_of_try(AtomID(def_tok.atom()));
         if (arg_id != -1) {
-          const TokenRange &macro_value = macro_args[arg_id];
+          const TokenRange<IToken> &macro_value = macro_args[arg_id];
 
           if (def_tok.prev() == Hash || def_tok.next() == Hash) {
             /* Token pasting. Do not expand now. */
@@ -1128,7 +1222,8 @@ struct Preprocessor : IntermediateFormWithIDs {
     return ts;
   }
 
-  BLI_NOINLINE ExpandedResult expand_macro(const Token expanded_tok, const Macro &macro)
+  template<typename IToken>
+  BLI_NOINLINE ExpandedResult<IToken> expand_macro(const IToken expanded_tok, const Macro &macro)
   {
     if (visited_macros.contains(macro.id)) {
       /* Recursion. Do not expand. */
@@ -1139,11 +1234,11 @@ struct Preprocessor : IntermediateFormWithIDs {
       return {std::move(expanded), expanded_tok};
     }
 
-    Token end_of_expansion = expanded_tok;
+    IToken end_of_expansion = expanded_tok;
 
-    Vector<TokenRange> fn_arguments;
+    Vector<TokenRange<IToken>> fn_arguments;
     if (macro.is_function) {
-      Token tok = expanded_tok;
+      IToken tok = expanded_tok;
       tok = tok.next();
       if (tok != ParOpen) {
         /* Macro doesn't have parameters. It should not expand. */
@@ -1198,7 +1293,7 @@ struct Preprocessor : IntermediateFormWithIDs {
         *result << lex_[int(tok)];
       }
       else if (macro_ptr) {
-        auto [replacement, macro_end] = expand_macro(lex_[int(tok)], **macro_ptr);
+        auto [replacement, macro_end] = expand_macro(Token(lex_[int(tok)]), **macro_ptr);
         *result << *replacement;
         tok = lex_[int(macro_end)];
       }
@@ -1213,7 +1308,12 @@ struct Preprocessor : IntermediateFormWithIDs {
         else {
           BLI_assert(tok == Word);
         }
-        *result << Stream::Number{defines.contains(AtomID(tok.atom())) ? "1" : "0"};
+        if (defines.contains(AtomID(tok.atom()))) {
+          *result << Stream::True{};
+        }
+        else {
+          *result << Stream::False{};
+        }
         if (is_function) {
           /* End parenthesis. */
           tok = tok.next();
@@ -1261,7 +1361,8 @@ struct Preprocessor : IntermediateFormWithIDs {
    * Return next `,` or `)` skipping occurrences contained in parenthesis.
    * Return invalid token on failure.
    */
-  static Token get_end_of_parameter(Token tok, bool skip_to_end = false)
+  template<typename IToken>
+  static IToken get_end_of_parameter(IToken tok, bool skip_to_end = false)
   {
     /* Avoid matching comma inside parameter function calls. */
     int stack = 1;
