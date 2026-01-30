@@ -47,10 +47,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bNode &node = params.node();
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node.custom1);
 
-  std::string output = "";
-  std::string output2 = "";
+  std::string name = "";
+  std::string lib_name = "";
   ID *id = nullptr;
-  //  ID *data_block = params.extract_input<ID *>("Data Block");  cant compile
 
   switch (data_type) {
     case SOCK_OBJECT: {
@@ -68,11 +67,6 @@ static void node_geo_exec(GeoNodeExecParams params)
       id = &data_block->id;
       break;
     }
-    case SOCK_TEXTURE: {
-      Tex *data_block = params.extract_input<Tex *>("Data Block");
-      id = &data_block->id;
-      break;
-    }
     case SOCK_MATERIAL: {
       Material *data_block = params.extract_input<Material *>("Data Block");
       id = &data_block->id;
@@ -80,16 +74,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     case SOCK_FONT: {
       VFont *data_block = params.extract_input<VFont *>("Data Block");
-      id = &data_block->id;
-      break;
-    }
-    case SOCK_TEXT_ID: {
-      Text *data_block = params.extract_input<Text *>("Data Block");
-      id = &data_block->id;
-      break;
-    }
-    case SOCK_SOUND: {
-      bSound *data_block = params.extract_input<bSound *>("Data Block");
       id = &data_block->id;
       break;
     }
@@ -102,8 +86,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  output = std::string(id->name + 2);
-  params.set_output("Name", std::move(output));
+  name = std::string(id->name + 2);
+  params.set_output("Name", std::move(name));
 
   if (!params.output_is_required("Library Name")) {
     params.set_default_remaining_outputs();
@@ -116,8 +100,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  output2 = std::string(lib->id.name + 2);
-  params.set_output("Library Name", std::move(output2));
+  lib_name = std::string(lib->id.name + 2);
+  params.set_output("Library Name", std::move(lib_name));
 }
 
 static void node_rna(StructRNA *srna)
@@ -132,18 +116,11 @@ static void node_rna(StructRNA *srna)
       SOCK_OBJECT,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(rna_enum_node_socket_data_type_items,
-                                 [](const EnumPropertyItem &item) -> bool {
-                                   return ELEM(item.value,
-                                               SOCK_OBJECT,
-                                               SOCK_IMAGE,
-                                               SOCK_COLLECTION,
-                                               SOCK_TEXTURE,
-                                               SOCK_MATERIAL,
-                                               SOCK_FONT,
-                                               SOCK_TEXT_ID,
-                                               SOCK_SOUND);
-                                 });
+        return enum_items_filter(
+            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
+              return ELEM(
+                  item.value, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL, SOCK_FONT);
+            });
       });
 }
 
