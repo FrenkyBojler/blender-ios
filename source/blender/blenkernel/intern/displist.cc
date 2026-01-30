@@ -19,7 +19,6 @@
 #include "BLI_delaunay_2d.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
-#include "BLI_listbase_wrapper.hh"
 #include "BLI_map.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -657,24 +656,29 @@ void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
                        const CurveFillSolverType fill_solver,
                        const CurveFillRuleType fill_rule)
 {
-  if (fill_solver == CU_FILL_SOLVER_CDT) {
-    CDT_output_type output_type;
-    switch (fill_rule) {
-      case CU_FILL_RULE_NONZERO: {
-        output_type = CDT_INSIDE_WITH_HOLES_NONZERO;
-        break;
+  switch (fill_solver) {
+    case CU_FILL_SOLVER_CDT: {
+      CDT_output_type output_type = CDT_INSIDE_WITH_HOLES;
+      switch (fill_rule) {
+        case CU_FILL_RULE_NONZERO: {
+          output_type = CDT_INSIDE_WITH_HOLES_NONZERO;
+          break;
+        }
+        case CU_FILL_RULE_EVEN_ODD: {
+          /* Default, already set. */
+          break;
+        }
       }
-      case CU_FILL_RULE_EVEN_ODD:
-      default: {
-        output_type = CDT_INSIDE_WITH_HOLES;
-        break;
-      }
+      displist_fill_cdt(dispbase, to, flip_normal, output_type);
+      return;
     }
-    displist_fill_cdt(dispbase, to, flip_normal, output_type);
+    case CU_FILL_SOLVER_SWEEP_LINE: {
+      /* Use the fallback, below. */
+      break;
+    }
   }
-  else {
-    displist_fill_scanfill(dispbase, to, normal_proj, flip_normal);
-  }
+  /* Fallback for SWEEP_LINE and any unknown values. */
+  displist_fill_scanfill(dispbase, to, normal_proj, flip_normal);
 }
 
 static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)

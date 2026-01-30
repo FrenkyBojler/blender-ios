@@ -273,28 +273,28 @@ static void curve_fill_calculate(GeometrySet &geometry_set,
   /* Determine CDT output type based on mode and fill rule. */
   CDT_output_type output_type;
   if (mode == GEO_NODE_CURVE_FILL_MODE_NGONS) {
+    output_type = CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES;
     switch (fill_rule) {
       case GEO_NODE_CURVE_FILL_RULE_NON_ZERO: {
         output_type = CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO;
         break;
       }
-      case GEO_NODE_CURVE_FILL_RULE_EVEN_ODD:
-      default: {
-        output_type = CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES;
+      case GEO_NODE_CURVE_FILL_RULE_EVEN_ODD: {
+        /* Default, already set. */
         break;
       }
     }
   }
   else {
     /* Triangulated mode. */
+    output_type = CDT_INSIDE_WITH_HOLES;
     switch (fill_rule) {
       case GEO_NODE_CURVE_FILL_RULE_NON_ZERO: {
         output_type = CDT_INSIDE_WITH_HOLES_NONZERO;
         break;
       }
-      case GEO_NODE_CURVE_FILL_RULE_EVEN_ODD:
-      default: {
-        output_type = CDT_INSIDE_WITH_HOLES;
+      case GEO_NODE_CURVE_FILL_RULE_EVEN_ODD: {
+        /* Default, already set. */
         break;
       }
     }
