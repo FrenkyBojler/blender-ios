@@ -159,7 +159,7 @@ add_library(bf::dependencies::optional::usd ALIAS bf_deps_optional_usd)
 
 if(WITH_USD)
   target_compile_definitions(bf_deps_optional_usd INTERFACE WITH_USD)
-  target_include_directories(bf_deps_optional_usd SYSTEM INTERFACE ${BOOST_INCLUDE_DIR} ${USD_INCLUDE_DIRS})
+  target_include_directories(bf_deps_optional_usd SYSTEM INTERFACE ${USD_INCLUDE_DIRS})
   target_link_libraries(bf_deps_optional_usd INTERFACE ${USD_LIBRARIES})
 endif()
 
@@ -435,3 +435,9 @@ endif()
 if(DEFINED PTHREADS_LIBRARIES)
   target_link_libraries(bf_deps_pthreads INTERFACE ${PTHREADS_LIBRARIES})
 endif()
+
+# -----------------------------------------------------------------------------
+# Configure libfmt
+#
+
+add_library(bf::dependencies::fmt ALIAS fmt::fmt)
