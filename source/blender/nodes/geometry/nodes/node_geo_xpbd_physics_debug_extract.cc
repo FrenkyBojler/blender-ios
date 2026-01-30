@@ -432,8 +432,8 @@ BundlePtr SubstepBundle::store() const
   const CPPType &cpp_type = CPPType::get<BundlePtr>();
   const int count = this->constraint_iterations.size();
   List::ArrayData array_data = List::ArrayData::ForConstructed(cpp_type, count);
-  MutableSpan<BundlePtr> constraint_iterations_span = {static_cast<BundlePtr *>(array_data.data),
-                                                       count};
+  MutableSpan<BundlePtr> constraint_iterations_span = {
+      static_cast<BundlePtr *>(const_cast<void *>(array_data.data)), count};
   for (const int i : this->constraint_iterations.index_range()) {
     constraint_iterations_span[i] = this->constraint_iterations[i].store();
   }
@@ -474,7 +474,8 @@ BundlePtr DebugBundle::store() const
   const CPPType &cpp_type = CPPType::get<BundlePtr>();
   const int count = this->substeps.size();
   List::ArrayData array_data = List::ArrayData::ForConstructed(cpp_type, count);
-  MutableSpan<BundlePtr> substeps_span = {static_cast<BundlePtr *>(array_data.data), count};
+  MutableSpan<BundlePtr> substeps_span = {
+      static_cast<BundlePtr *>(const_cast<void *>(array_data.data)), count};
   for (const int i : this->substeps.index_range()) {
     substeps_span[i] = this->substeps[i].store();
   }

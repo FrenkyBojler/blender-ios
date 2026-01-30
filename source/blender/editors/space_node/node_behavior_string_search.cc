@@ -24,7 +24,7 @@
 
 namespace blender::ed::space_node {
 
-struct BehaviorSocketSeachData {
+struct BehaviorSocketSearchData {
   int32_t node_id;
   char socket_identifier[MAX_NAME];
 
@@ -43,10 +43,10 @@ struct BehaviorSocketSeachData {
   }
 };
 /* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
-static_assert(std::is_trivially_destructible_v<BehaviorSocketSeachData>);
+static_assert(std::is_trivially_destructible_v<BehaviorSocketSearchData>);
 
 static Vector<std::string> get_type_names_from_context(const bContext &C,
-                                                       const BehaviorSocketSeachData &data)
+                                                       const BehaviorSocketSearchData &data)
 {
   const bNode *node = data.find_node(C);
   if (!node) {
@@ -65,7 +65,7 @@ static void behavior_type_string_search(
 
   StringRef str = str_ptr;
 
-  const auto *data = static_cast<BehaviorSocketSeachData *>(arg);
+  const auto *data = static_cast<BehaviorSocketSearchData *>(arg);
   const Vector<std::string> names = get_type_names_from_context(*C, *data);
 
   /* Any string is valid, so add the current search string along with the hints. */
@@ -99,7 +99,7 @@ static void behavior_type_string_search_exec(bContext *C, void *data_v, void * /
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     return;
   }
-  const auto &data = *static_cast<BehaviorSocketSeachData *>(data_v);
+  const auto &data = *static_cast<BehaviorSocketSearchData *>(data_v);
   bNode *node = data.find_node(*C);
   if (!node) {
     return;
@@ -144,7 +144,7 @@ void node_behavior_add_string_search_button(const bContext & /*C*/,
   ui::button_placeholder_set(but, placeholder);
 
   const bNodeSocket &socket = *socket_ptr.data_as<bNodeSocket>();
-  BehaviorSocketSeachData *data = MEM_callocN<BehaviorSocketSeachData>(__func__);
+  BehaviorSocketSearchData *data = MEM_new_zeroed<BehaviorSocketSearchData>(__func__);
   data->node_id = node.identifier;
   STRNCPY_UTF8(data->socket_identifier, socket.identifier);
 
