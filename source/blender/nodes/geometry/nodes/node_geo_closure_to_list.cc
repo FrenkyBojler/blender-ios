@@ -41,14 +41,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   const Span<GeometryNodeClosureToListItem> items(storage.items, storage.items_num);
 
   auto signature = std::make_unique<ClosureSignature>();
-  signature->inputs.add({"Index", bke::node_socket_type_find("NodeSocketInt")});
+  signature->inputs.add({.key = "Index", .type = bke::node_socket_type_find("NodeSocketInt")});
   for (const int i : items.index_range()) {
     const GeometryNodeClosureToListItem &item = items[i];
     const std::string output_identifier = ItemsAccessor::output_socket_identifier_for_item(item);
     const auto type = eNodeSocketDatatype(item.socket_type);
-    signature->outputs.add({item.name,
-                            bke::node_socket_type_find_static(type),
-                            NodeSocketInterfaceStructureType(item.structure_type)});
+    signature->outputs.add(
+        {.key = item.name,
+         .type = bke::node_socket_type_find_static(type),
+         .structure_type = NodeSocketInterfaceStructureType(item.structure_type)});
     b.add_output(type, item.name, output_identifier).structure_type(StructureType::List);
   }
 
