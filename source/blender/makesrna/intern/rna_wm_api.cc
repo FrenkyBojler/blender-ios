@@ -806,7 +806,7 @@ static Scene *rna_Window_find_playing_scene(wmWindow *win, const bool scrub)
     if (screen->scrubbing) {
       return sad->scene;
     }
-    return nullptr
+    return nullptr;
   }
   return sad->scene;
 }
