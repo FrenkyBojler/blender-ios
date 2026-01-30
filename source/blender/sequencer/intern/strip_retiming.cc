@@ -826,31 +826,6 @@ static void strip_retiming_transition_offset(const Scene *scene,
   }
 }
 
-static int strip_retiming_clamp_frame(const Scene *scene,
-                                      Strip *strip,
-                                      SeqRetimingKey *key,
-                                      const int frame)
-{
-  if ((key->flag & SEQ_SPEED_TRANSITION_IN) != 0) {
-    return frame;
-  }
-
-  int prev_key_frame = -MAXFRAME;
-  int next_key_frame = MAXFRAME;
-
-  if (key->strip_frame_index > 0) {
-    SeqRetimingKey *prev_key = key - 1;
-    prev_key_frame = retiming_key_frame_get(scene, strip, prev_key);
-  }
-
-  if (!retiming_is_last_key(strip, key)) {
-    SeqRetimingKey *next_key = key + 1;
-    next_key_frame = retiming_key_frame_get(scene, strip, next_key);
-  }
-
-  return std::clamp(frame, prev_key_frame + 1, next_key_frame - 1);
-}
-
 /* Remove and re-create transition. This way transition won't change length.
  * Alternative solution is to find where in arc segment the `y` value is closest to key
  * retiming factor, then trim transition to that point. This would change transition length. */
@@ -907,6 +882,36 @@ static void strip_retiming_key_offset(const Scene *scene,
 /** \name Retiming Set
  * \{ */
 
+static int strip_retiming_clamp_offset(const Scene *scene,
+                                       Strip *strip,
+                                       SeqRetimingKey *key,
+                                       const int offset)
+{
+  /* TODO(john): Note that there is more robust clamping logic in `create_trans_seq_clamp_data()`.
+   * We should eventually move that logic in here and let it be called by that function. */
+  if ((key->flag & SEQ_SPEED_TRANSITION_IN) != 0) {
+    return offset;
+  }
+
+  int key_frame = retiming_key_frame_get(scene, strip, key);
+  int prev_key_frame = -MAXFRAME;
+  int next_key_frame = MAXFRAME;
+
+  /* Ensure key cannot pass its next key. */
+  if (!retiming_is_last_key(strip, key)) {
+    SeqRetimingKey *next_key = key + 1;
+    next_key_frame = retiming_key_frame_get(scene, strip, next_key);
+  }
+
+  /* Ensure key cannot pass its previous key. */
+  if (key->strip_frame_index > 0) {
+    SeqRetimingKey *prev_key = key - 1;
+    prev_key_frame = retiming_key_frame_get(scene, strip, prev_key);
+  }
+
+  return std::clamp(offset, (prev_key_frame + 1) - key_frame, (next_key_frame - 1) - key_frame);
+}
+
 void retiming_key_frame_set(
     const Scene *scene, Strip *strip, SeqRetimingKey *key, int frame, bool keep_retiming)
 {
@@ -915,9 +920,9 @@ void retiming_key_frame_set(
   }
 
   const int orig_frame = retiming_key_frame_get(scene, strip, key);
-  const int clamped_frame = strip_retiming_clamp_frame(scene, strip, key, frame);
   const float scene_fps = float(scene->frames_per_second());
-  const float offset = (clamped_frame - orig_frame) * strip->media_playback_rate_factor(scene_fps);
+
+  const float offset = (frame - orig_frame) * strip->media_playback_rate_factor(scene_fps);
 
   const int key_count = retiming_keys_get(strip).size();
   const int key_index = retiming_key_index_get(strip, key);
@@ -929,14 +934,15 @@ void retiming_key_frame_set(
     }
   }
   else if (orig_frame == strip->left_handle() || key->strip_frame_index == 0) {
-    strip->start += clamped_frame - orig_frame;
+    strip->start += offset;
     for (int i = key_index + 1; i < key_count; i++) {
       SeqRetimingKey *key_iter = &retiming_keys_get(strip)[i];
       strip_retiming_key_offset(scene, strip, key_iter, -offset);
     }
   }
   else {
-    strip_retiming_key_offset(scene, strip, key, offset);
+    strip_retiming_key_offset(
+        scene, strip, key, strip_retiming_clamp_offset(scene, strip, key, offset));
   }
 
   Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);

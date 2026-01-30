@@ -617,8 +617,12 @@ static float strip_speed_get(const Scene *scene)
   /* Strip mode. */
   if (!sequencer_retiming_mode_is_active(scene)) {
     Strip *strip = seq::editing_get(scene)->act_strip;
-    SeqRetimingKey *key = seq::ensure_left_and_right_keys(scene, strip);
-    return seq::retiming_key_speed_get(strip, key);
+    if (!strip || !seq::retiming_is_active(strip)) {
+      return 1.0f;
+    }
+    int right_frame = seq::right_fake_key_frame_get(scene, strip);
+    SeqRetimingKey *key = seq::retiming_key_get_by_frame(scene, strip, right_frame);
+    return (key != nullptr) ? seq::retiming_key_speed_get(strip, key) : 1.0f;
   }
 
   Map selection = seq::retiming_selection_get(seq::editing_get(scene));
@@ -634,24 +638,24 @@ static float strip_speed_get(const Scene *scene)
 
 static void strip_speed_set(Scene *scene, Strip *strip, const float speed)
 {
+  seq::relations_invalidate_cache_raw(scene, strip);
+
   /* Overwrite existing keys, since these hidden/visible keys just add noise when the user wants to
    * retime the whole strip. Only keep them if explicitly retiming segments with keys selected. */
   seq::retiming_reset(scene, strip);
 
-  SeqRetimingKey *key = seq::ensure_left_and_right_keys(scene, strip);
-  if (key == nullptr) {
+  SeqRetimingKey *right_key = seq::ensure_left_and_right_keys(scene, strip);
+  if (right_key == nullptr) {
     return;
   }
 
   /* TODO: it would be nice to multiply speed with complex retiming by a factor. */
-  seq::retiming_key_speed_set(scene, strip, key, speed / 100.0f, true);
+  seq::retiming_key_speed_set(scene, strip, right_key, speed / 100.0f, true);
 
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
   if (seq::transform_test_overlap(scene, seqbase, strip)) {
     seq::transform_seqbase_shuffle(seqbase, strip, scene);
   }
-
-  seq::relations_invalidate_cache_raw(scene, strip);
 }
 
 static void segment_speed_set(Scene *scene,
@@ -662,13 +666,13 @@ static void segment_speed_set(Scene *scene,
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
 
   for (auto item : selection.items()) {
+    seq::relations_invalidate_cache_raw(scene, item.value);
+
     seq::retiming_key_speed_set(scene, item.value, item.key, speed / 100.0f, keep_retiming);
 
     if (seq::transform_test_overlap(scene, seqbase, item.value)) {
       seq::transform_seqbase_shuffle(seqbase, item.value, scene);
     }
-
-    seq::relations_invalidate_cache_raw(scene, item.value);
   }
 }
 
