@@ -552,7 +552,8 @@ ImBuf *IMB_thumb_manage(const char *file_or_lib_path, ThumbSize size, ThumbSourc
 {
   if (source == THB_SOURCE_DIRECT) {
     const eFileAttributes file_attributes = BLI_file_attributes(file_or_lib_path);
-    /* Don't attempt to */
+    /* Don't bring drives online just for getting the thumbnail. We do something similar below for
+     * normal thumbnails. The caller could force drives to become online first if needed. */
     if (file_attributes & FILE_ATTR_OFFLINE) {
       return nullptr;
     }
