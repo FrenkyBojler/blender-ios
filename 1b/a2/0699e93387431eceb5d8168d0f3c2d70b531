@@ -1,2 +1,3 @@
 Referenced by pull request #153576, Fix #152619: Crash when loading corrupt exr file
 Referenced by pull request #153577, Fix #152619: Crash when loading corrupt exr file (backport)
+Referenced by commit e2ebbca0df593cacaf1b7f32d9992620a45bc7ca, Fix #152619: Crash when loading corrupt exr file
