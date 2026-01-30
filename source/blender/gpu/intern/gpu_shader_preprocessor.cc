@@ -1112,11 +1112,9 @@ struct Preprocessor : IntermediateFormWithIDs {
     for (Token tok = lex_[start], end_tok = lex_[end]; tok != end_tok; tok = tok.next()) {
       if (tok == Word) {
         DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()), DirectiveID::invalid());
-        if (is_valid(macro_id)) {
-          Macro &macro = get_macro(macro_id);
-          Token token = parser_.lex[int(tok)];
-          auto [replacement, end] = expand_macro(Token(token), macro);
-          replace(token, end, replacement->str());
+        if (macro_id != DirectiveID::invalid()) {
+          auto [replacement, end] = expand_macro(tok, get_macro(macro_id));
+          replace(tok, end, replacement->str());
           tok = end;
           if (tok == end_tok) {
             break;
@@ -1136,9 +1134,8 @@ struct Preprocessor : IntermediateFormWithIDs {
         /* Try to match the token pointed at by cursor with a defined macro. If that happen advance
          * the cursor to the end of the macro (in case of functional macro). */
         DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()), DirectiveID::invalid());
-        if (is_valid(macro_id)) {
-          Macro &macro = get_macro(macro_id);
-          auto [replacement, end] = expand_macro(tok, macro);
+        if (macro_id != DirectiveID::invalid()) {
+          auto [replacement, end] = expand_macro(tok, get_macro(macro_id));
           *result << *replacement;
           tok = end;
           continue;
@@ -1315,7 +1312,7 @@ struct Preprocessor : IntermediateFormWithIDs {
         /* Non word. */
         *result << lex_[int(tok)];
       }
-      else if (is_valid(macro_id)) {
+      else if (macro_id != DirectiveID::invalid()) {
         Macro &macro = get_macro(macro_id);
         auto [replacement, macro_end] = expand_macro(Token(lex_[int(tok)]), macro);
         *result << *replacement;
