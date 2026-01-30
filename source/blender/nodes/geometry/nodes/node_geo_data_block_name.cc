@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -45,7 +45,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(node.custom1);
+  const auto data_type = eNodeSocketDatatype(node.custom1);
 
   std::string name = "";
   std::string lib_name = "";
@@ -86,8 +86,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  name = std::string(id->name + 2);
-  params.set_output("Name", std::move(name));
+  params.set_output("Name", std::move(id->name + 2));
 
   if (!params.output_is_required("Library Name")) {
     params.set_default_remaining_outputs();
