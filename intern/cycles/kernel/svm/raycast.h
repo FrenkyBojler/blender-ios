@@ -159,8 +159,8 @@ ccl_device_noinline
   {
     uint only_local = node.w;
 
-    float3 position = stack_load_float3_default(stack, position_offset, sd->P);
-    float3 direction = stack_load_float3_default(stack, direction_offset, sd->N);
+    float3 position = stack_load_float3(stack, position_offset);
+    float3 direction = stack_load_float3(stack, direction_offset);
     RaycastResult result = svm_raycast(kg, state, sd, position, direction, distance, only_local);
 
     if (result.distance >= 0.0f) {
