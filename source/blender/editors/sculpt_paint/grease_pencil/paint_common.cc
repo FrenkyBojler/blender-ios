@@ -50,7 +50,9 @@ Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_with_masking_for_strok
   Object &ob_orig = *CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob_orig.data);
 
-  const bool active_layer_masking = (ts.gp_sculpt.flag &
+  const bool use_auto_masking = (ts.gp_sculpt.flag & GP_SCULPT_SETT_FLAG_AUTOMASK) != 0;
+  const bool active_layer_masking = use_auto_masking &&
+                                    (ts.gp_sculpt.flag &
                                      GP_SCULPT_SETT_FLAG_AUTOMASK_LAYER_ACTIVE) != 0;
 
   if (active_layer_masking) {
@@ -723,12 +725,16 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
 
   const eGP_Sculpt_SettingsFlag sculpt_settings_flag = eGP_Sculpt_SettingsFlag(
       scene.toolsettings->gp_sculpt.flag);
-  const bool use_auto_mask_stroke = (sculpt_settings_flag & GP_SCULPT_SETT_FLAG_AUTOMASK_STROKE);
-  const bool use_auto_mask_layer = (sculpt_settings_flag &
-                                    GP_SCULPT_SETT_FLAG_AUTOMASK_LAYER_STROKE);
-  const bool use_auto_mask_material = (sculpt_settings_flag &
+  const bool use_auto_masking = (ts.gp_sculpt.flag & GP_SCULPT_SETT_FLAG_AUTOMASK) != 0;
+  const bool use_auto_mask_stroke = use_auto_masking &&
+                                    (sculpt_settings_flag & GP_SCULPT_SETT_FLAG_AUTOMASK_STROKE);
+  const bool use_auto_mask_layer = use_auto_masking && (sculpt_settings_flag &
+                                                        GP_SCULPT_SETT_FLAG_AUTOMASK_LAYER_STROKE);
+  const bool use_auto_mask_material = use_auto_masking &&
+                                      (sculpt_settings_flag &
                                        GP_SCULPT_SETT_FLAG_AUTOMASK_MATERIAL_STROKE);
-  const bool use_auto_mask_active_material = (sculpt_settings_flag &
+  const bool use_auto_mask_active_material = use_auto_masking &&
+                                             (sculpt_settings_flag &
                                               GP_SCULPT_SETT_FLAG_AUTOMASK_MATERIAL_ACTIVE);
 
   const float stroke_distance_threshold = 20.0f;

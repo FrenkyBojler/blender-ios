@@ -932,11 +932,18 @@ class VIEW3D_HT_header(Header):
                         text="Guides",
                     )
             if object_mode == 'SCULPT_GREASE_PENCIL':
-                layout.popover(
+                settings = tool_settings.gpencil_sculpt
+                row = layout.row(align=True)
+                row.prop(
+                    settings,
+                    "use_automasking",
+                    icon=VIEW3D_HT_header._grease_pencil_sculpt_automasking_icon(settings),
+                    text="")
+                sub = row.row(align=True)
+                sub.active = settings.use_automasking
+                sub.popover(
                     panel="VIEW3D_PT_grease_pencil_sculpt_automasking",
-                    text="",
-                    icon=VIEW3D_HT_header._grease_pencil_sculpt_automasking_icon(tool_settings.gpencil_sculpt),
-                )
+                    text="")
 
         elif object_mode == 'SCULPT':
             # If the active tool supports it, show the canvas selector popover.
@@ -1113,15 +1120,7 @@ class VIEW3D_HT_header(Header):
 
     @staticmethod
     def _grease_pencil_sculpt_automasking_icon(gpencil_sculpt):
-        automask_enabled = (
-            gpencil_sculpt.use_automasking_stroke or
-            gpencil_sculpt.use_automasking_layer_stroke or
-            gpencil_sculpt.use_automasking_material_stroke or
-            gpencil_sculpt.use_automasking_material_active or
-            gpencil_sculpt.use_automasking_layer_active
-        )
-
-        return 'CLIPUV_DEHLT' if automask_enabled else 'CLIPUV_HLT'
+        return 'CLIPUV_DEHLT' if gpencil_sculpt.use_automasking else 'CLIPUV_HLT'
 
     @staticmethod
     def _texture_mask_icon(ipaint):
@@ -6206,6 +6205,8 @@ class VIEW3D_MT_grease_pencil_sculpt_automasking_pie(Menu):
         tool_settings = context.tool_settings
         sculpt = tool_settings.gpencil_sculpt
 
+        pie.active = sculpt.use_automasking
+
         pie.prop(sculpt, "use_automasking_stroke", text="Stroke")
         pie.prop(sculpt, "use_automasking_layer_stroke", text="Layer")
         pie.prop(sculpt, "use_automasking_material_stroke", text="Material")
@@ -8658,6 +8659,10 @@ class VIEW3D_PT_grease_pencil_sculpt_automasking(Panel):
     def draw(self, context):
         layout = self.layout
         tool_settings = context.scene.tool_settings
+
+        settings = tool_settings.gpencil_sculpt
+
+        layout.active = settings.use_automasking
 
         layout.label(text="Auto-Masking")
 
