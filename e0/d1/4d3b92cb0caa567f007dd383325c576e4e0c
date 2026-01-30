@@ -1,2 +1,3 @@
 Referenced by issue #144481, Error when using getmessage() function to get “geom:name” attribute in Cycles OSL (CPU)
 Referenced by issue #151840, OSL: Material index cannot be retrieved via trace() in Cycles
+Referenced by issue #151909, Regression: OSL getmessage("trace", "geom:uv", trace_uv); not working in Blender 5.0.1
