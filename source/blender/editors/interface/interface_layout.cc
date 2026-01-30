@@ -3032,7 +3032,7 @@ void Layout::popover(const bContext *C,
                      const StringRef panel_type,
                      std::optional<StringRef> name_opt,
                      int icon,
-                     int direction)
+                     PopupDirection direction)
 {
   PanelType *pt = WM_paneltype_find(panel_type, true);
   if (pt == nullptr) {

@@ -41,17 +41,6 @@ struct SearchItems;
 }  // namespace ui
 
 namespace ui {
-/**
- * Panel popup draw direction.
- */
-enum {
-  POPUP_DIRECTION_VERTICAL = 0,
-  POPUP_DIRECTION_HORIZONTAL = 1,
-};
-
-}  // namespace ui
-
-namespace ui {
 
 void button_func_set(Button *but, std::function<void(bContext &)> func);
 void button_func_pushed_state_set(Button *but, std::function<bool(const Button &)> func);

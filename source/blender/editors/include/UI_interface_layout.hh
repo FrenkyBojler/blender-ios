@@ -13,7 +13,6 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_types.hh"
 
 namespace blender {
@@ -100,6 +99,14 @@ enum class LayoutSeparatorType : int8_t {
 enum class NodeAssetMenuOperatorType : int8_t {
   Add,
   Swap,
+};
+
+/**
+ * Panel popup draw direction.
+ */
+enum class PopupDirection : int8_t {
+  POPUP_DIRECTION_VERTICAL = 0,
+  POPUP_DIRECTION_HORIZONTAL = 1,
 };
 
 struct Layout : public Item, NonCopyable, NonMovable {
@@ -567,7 +574,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
                StringRef panel_type,
                std::optional<StringRef> name_opt,
                int icon,
-               int direction = blender::ui::POPUP_DIRECTION_VERTICAL);
+               PopupDirection direction = PopupDirection::POPUP_DIRECTION_VERTICAL);
   void popover_group(
       bContext *C, int space_id, int region_id, const char *context, const char *category);
 
