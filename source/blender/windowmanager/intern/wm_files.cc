@@ -3666,8 +3666,6 @@ static void wm_block_save_modified_images_save_button(ui::Block *block,
   button_flag_enable(but, ui::BUT_ACTIVE_DEFAULT);
 }
 
-static const char *save_modified_images_dialog_name = "save_modified_images_popup";
-
 static void wm_block_image_save_errors(ui::Layout &layout, ReportList &reports)
 {
   for (Report &report : reports.list) {
@@ -3690,9 +3688,11 @@ static void wm_block_image_save_errors(ui::Layout &layout, ReportList &reports)
     if (path_info) {
       uiItemL_ex(&row, path_info, ICON_NONE, false, true);
     }
-    MEM_freeN(message);
+    MEM_delete(message);
   }
 }
+
+static const char *save_modified_images_dialog_name = "save_modified_images_popup";
 
 static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion *region, void *arg)
 {
@@ -3800,7 +3800,7 @@ static void wm_operator_save_modified_images_dialog(bContext *C,
                                                     wmOperator *op,
                                                     wmGenericCallbackFn post_action_fn)
 {
-  wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
+  wmGenericCallback *callback = MEM_new<wmGenericCallback>(__func__);
   callback->exec = post_action_fn;
   callback->user_data = IDP_CopyProperty(op->properties);
   callback->free_user_data = wm_free_operator_properties_callback;
