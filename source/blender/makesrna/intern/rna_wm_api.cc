@@ -70,6 +70,8 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 
 #  include "DNA_userdef_types.h"
 
+#  include "ED_screen_types.hh"
+
 #  include "BLI_listbase.h"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
