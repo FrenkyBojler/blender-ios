@@ -180,7 +180,7 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
       if (drag_index == -1) {
         continue;
       }
-      if (i > 0){
+      if (i > 0) {
         /* Place subsequent items directly after the previously moved item. */
         drop_index += int(drag_index > drop_index);
       }
