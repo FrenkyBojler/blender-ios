@@ -61,7 +61,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(PositionMode::Center);
 
   b.add_output<decl::Geometry>("Points").description("Point geometry representing grid voxels");
-  b.add_output<decl::Bool>("Is Tile").field_on_all().description("Whether point represents a tile (true) or voxel (false)");
+  b.add_output<decl::Bool>("Is Tile").field_on_all().description(
+      "Whether point represents a tile (true) or voxel (false)");
   b.add_output(data_type, "Value").field_on_all().description("Grid values at point positions");
   b.add_output(data_type, "Background").description("Background value of the grid");
   b.add_output<decl::Int>("X").field_on_all().description("X coordinate in index space");
@@ -167,19 +168,22 @@ static void node_geo_exec(GeoNodeExecParams params)
 
           const openvdb::math::Transform &grid_transform = vdb_grid->transform();
 
-          /* Get anonymous attribute IDs for field outputs */
-          std::optional<std::string> coord_x_id = params.get_output_anonymous_attribute_id_if_needed("X");
-          std::optional<std::string> coord_y_id = params.get_output_anonymous_attribute_id_if_needed("Y");
-          std::optional<std::string> coord_z_id = params.get_output_anonymous_attribute_id_if_needed("Z");
-          std::optional<std::string> is_tile_id = params.get_output_anonymous_attribute_id_if_needed("Is Tile");
-          std::optional<std::string> value_id = params.get_output_anonymous_attribute_id_if_needed("Value");
+          std::optional<std::string> coord_x_id =
+              params.get_output_anonymous_attribute_id_if_needed("X");
+          std::optional<std::string> coord_y_id =
+              params.get_output_anonymous_attribute_id_if_needed("Y");
+          std::optional<std::string> coord_z_id =
+              params.get_output_anonymous_attribute_id_if_needed("Z");
+          std::optional<std::string> is_tile_id =
+              params.get_output_anonymous_attribute_id_if_needed("Is Tile");
+          std::optional<std::string> value_id = params.get_output_anonymous_attribute_id_if_needed(
+              "Value");
 
           Vector<openvdb::Coord> active_coords;
           Vector<typename type_traits::BlenderType> active_values;
           Vector<bool> is_tile_flags;
           Vector<int> tile_sizes;
 
-          /* Iterate through all active values including both voxels and tiles */
           for (auto iter = vdb_grid->tree().cbeginValueAll(); iter; ++iter) {
             if (iter.isValueOn()) {
               active_coords.append(iter.getCoord());
@@ -188,7 +192,6 @@ static void node_geo_exec(GeoNodeExecParams params)
               const bool is_tile = iter.getLevel() > 0;
               is_tile_flags.append(is_tile);
 
-              /* Calculate tile size */
               int tile_size = 1;
               if (is_tile) {
                 tile_size = 1 << (3 * iter.getLevel());
@@ -206,7 +209,6 @@ static void node_geo_exec(GeoNodeExecParams params)
           MutableSpan<float3> positions = pointcloud->positions_for_write();
           MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
 
-          /* Create anonymous attributes for field outputs */
           SpanAttributeWriter<bool> is_tile_writer;
           SpanAttributeWriter<int> coord_x_writer;
           SpanAttributeWriter<int> coord_y_writer;
@@ -214,19 +216,24 @@ static void node_geo_exec(GeoNodeExecParams params)
           SpanAttributeWriter<typename type_traits::BlenderType> value_writer;
 
           if (coord_x_id) {
-            coord_x_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(*coord_x_id, AttrDomain::Point);
+            coord_x_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(
+                *coord_x_id, AttrDomain::Point);
           }
           if (coord_y_id) {
-            coord_y_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(*coord_y_id, AttrDomain::Point);
+            coord_y_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(
+                *coord_y_id, AttrDomain::Point);
           }
           if (coord_z_id) {
-            coord_z_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(*coord_z_id, AttrDomain::Point);
+            coord_z_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(
+                *coord_z_id, AttrDomain::Point);
           }
           if (is_tile_id) {
-            is_tile_writer = dst_attributes.lookup_or_add_for_write_only_span<bool>(*is_tile_id, AttrDomain::Point);
+            is_tile_writer = dst_attributes.lookup_or_add_for_write_only_span<bool>(
+                *is_tile_id, AttrDomain::Point);
           }
           if (value_id) {
-            value_writer = dst_attributes.lookup_or_add_for_write_only_span<typename type_traits::BlenderType>(*value_id, AttrDomain::Point);
+            value_writer = dst_attributes.lookup_or_add_for_write_only_span<
+                typename type_traits::BlenderType>(*value_id, AttrDomain::Point);
           }
 
           threading::parallel_for(active_coords.index_range(), 1024, [&](const IndexRange range) {
@@ -234,17 +241,19 @@ static void node_geo_exec(GeoNodeExecParams params)
               const openvdb::Coord coord = active_coords[i];
               const int tile_size = tile_sizes[i];
 
-              /* Calculate position based on mode */
               openvdb::Vec3d index_pos;
               if (position_mode == PositionMode::Center) {
                 const double offset = tile_size * 0.5;
-                index_pos = openvdb::Vec3d(coord.x() + offset, coord.y() + offset, coord.z() + offset);
-              } else {
+                index_pos = openvdb::Vec3d(
+                    coord.x() + offset, coord.y() + offset, coord.z() + offset);
+              }
+              else {
                 index_pos = openvdb::Vec3d(coord.x(), coord.y(), coord.z());
               }
 
               const openvdb::Vec3d world_pos = grid_transform.indexToWorld(index_pos);
-              positions[i] = float3(float(world_pos.x()), float(world_pos.y()), float(world_pos.z()));
+              positions[i] = float3(
+                  float(world_pos.x()), float(world_pos.y()), float(world_pos.z()));
 
               if (coord_x_writer) {
                 coord_x_writer.span[i] = coord.x();
@@ -284,30 +293,41 @@ static void node_geo_exec(GeoNodeExecParams params)
             MutableSpan<float3> filtered_positions = filtered_pointcloud->positions_for_write();
             array_utils::gather(positions, selection_mask, filtered_positions);
 
-            /* Copy anonymous attributes to filtered pointcloud */
-            MutableAttributeAccessor filtered_attributes = filtered_pointcloud->attributes_for_write();
+            MutableAttributeAccessor filtered_attributes =
+                filtered_pointcloud->attributes_for_write();
             if (coord_x_id) {
-              SpanAttributeWriter<int> filtered_coord_x = filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_x_id, AttrDomain::Point);
+              SpanAttributeWriter<int> filtered_coord_x =
+                  filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_x_id,
+                                                                             AttrDomain::Point);
               array_utils::gather(coord_x_writer.span, selection_mask, filtered_coord_x.span);
               filtered_coord_x.finish();
             }
             if (coord_y_id) {
-              SpanAttributeWriter<int> filtered_coord_y = filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_y_id, AttrDomain::Point);
+              SpanAttributeWriter<int> filtered_coord_y =
+                  filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_y_id,
+                                                                             AttrDomain::Point);
               array_utils::gather(coord_y_writer.span, selection_mask, filtered_coord_y.span);
               filtered_coord_y.finish();
             }
             if (coord_z_id) {
-              SpanAttributeWriter<int> filtered_coord_z = filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_z_id, AttrDomain::Point);
+              SpanAttributeWriter<int> filtered_coord_z =
+                  filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_z_id,
+                                                                             AttrDomain::Point);
               array_utils::gather(coord_z_writer.span, selection_mask, filtered_coord_z.span);
               filtered_coord_z.finish();
             }
             if (is_tile_id) {
-              SpanAttributeWriter<bool> filtered_is_tile = filtered_attributes.lookup_or_add_for_write_only_span<bool>(*is_tile_id, AttrDomain::Point);
+              SpanAttributeWriter<bool> filtered_is_tile =
+                  filtered_attributes.lookup_or_add_for_write_only_span<bool>(*is_tile_id,
+                                                                              AttrDomain::Point);
               array_utils::gather(is_tile_writer.span, selection_mask, filtered_is_tile.span);
               filtered_is_tile.finish();
             }
             if (value_id) {
-              SpanAttributeWriter<typename type_traits::BlenderType> filtered_value = filtered_attributes.lookup_or_add_for_write_only_span<typename type_traits::BlenderType>(*value_id, AttrDomain::Point);
+              SpanAttributeWriter<typename type_traits::BlenderType> filtered_value =
+                  filtered_attributes
+                      .lookup_or_add_for_write_only_span<typename type_traits::BlenderType>(
+                          *value_id, AttrDomain::Point);
               array_utils::gather(value_writer.span, selection_mask, filtered_value.span);
               filtered_value.finish();
             }
