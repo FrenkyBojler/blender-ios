@@ -6353,6 +6353,19 @@ void ED_reset_audio_device(bContext *C)
   }
 }
 
+wmWindow *ED_window_animation_playing_no_scrub(const wmWindowManager *wm)
+{
+  for (wmWindow &win : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&win);
+
+    if (screen->animtimer) {
+      return &win;
+    }
+  }
+
+  return nullptr;
+}
+
 bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
 {
   for (wmWindow &win : wm->windows) {

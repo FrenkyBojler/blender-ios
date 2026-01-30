@@ -794,24 +794,37 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
   return WM_event_add_simulate(win, &e);
 }
 
+static Scene *rna_Window_find_playing_scene(wmWindow *win, const bool scrub)
+{
+  bScreen *screen = WM_window_get_active_screen(win);
+  if (!screen->animtimer) {
+    return nullptr;
+  }
+  wmTimer *wt = screen->animtimer;
+  ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
+  if (scrub) {
+    if (screen->scrubbing) {
+      return sad->scene;
+    }
+    return nullptr
+  }
+  return sad->scene;
+}
+
 static wmWindow *rna_Windows_find_playing(wmWindowManager *wm, const bool scrub)
 {
-  for (wmWindow &win : wm->windows) {
-    bScreen *screen = WM_window_get_active_screen(&win);
-
-    if (screen->animtimer == nullptr) {
-      continue;
-    }
-    if (scrub) {
-      if (screen->scrubbing) {
-        return &win;
-      }
-    }
-    else {
-      return &win;
-    }
+  wmWindow *win = ED_window_animation_playing_no_scrub(wm);
+  if (!win) {
+    return nullptr;
   }
-  return nullptr;
+  if (scrub) {
+    bScreen *screen = WM_window_get_active_screen(win);
+    if (screen->scrubbing) {
+      return win;
+    }
+    return nullptr;
+  }
+  return win;
 }
 
 }  // namespace blender
@@ -895,6 +908,12 @@ void RNA_api_window(StructRNA *srna)
   RNA_def_boolean(func, "oskey", false, "OS Key", "");
   RNA_def_boolean(func, "hyper", false, "Hyper", "");
   parm = RNA_def_pointer(func, "event", "Event", "Item", "Added key map item");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "find_playing_scene", "rna_Window_find_playing_scene");
+  RNA_def_boolean(
+      func, "scrub", false, "Scrubbing", "Check if time in the scene is being scrubbed");
+  parm = RNA_def_pointer(func, "scene", "Scene", "Scene", "Scene that is currently playing");
   RNA_def_function_return(func, parm);
 }
 

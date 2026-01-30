@@ -537,6 +537,7 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
 /**
  * Find window that owns the animation timer.
  */
+wmWindow *ED_window_animation_playing_no_scrub(const wmWindowManager *wm);
 bScreen *ED_screen_animation_playing(const wmWindowManager *wm);
 bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm);
 
