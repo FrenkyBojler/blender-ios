@@ -30,6 +30,7 @@ struct ViewLayer;
 struct World;
 struct wmWindow;
 struct wmWindowManager;
+class StringRef;
 
 /* `render_ops.cc` */
 
@@ -118,6 +119,18 @@ void ED_preview_restart_queue_work(const bContext *C);
 
 void ED_preview_kill_jobs(wmWindowManager *wm, Main *bmain);
 void ED_preview_kill_jobs_for_id(wmWindowManager *wm, const ID *id);
+
+/**
+ * Inform the preview system that a preview was requested for download. Should be called right
+ * before a download request is done (regardless if the preview was already or will be requested
+ * to be loaded from disk or not!), so the downloading status is made known to the preview system.
+ */
+void ED_preview_online_download_requested(StringRef preview_full_filepath);
+/**
+ * Inform the preview system that a preview has finished downloading (successfully or not) meaning
+ * the preview may be available on disk.
+ */
+void ED_preview_online_download_finished(wmWindowManager *wm, StringRef preview_full_filepath);
 
 void ED_preview_draw(
     const bContext *C, void *idp, void *parentp, void *slotp, uiPreview *ui_preview, rcti *rect);
