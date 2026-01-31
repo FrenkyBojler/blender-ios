@@ -650,7 +650,7 @@ static void strip_speed_set(Scene *scene, Strip *strip, const float speed)
   }
 
   /* TODO: it would be nice to multiply speed with complex retiming by a factor. */
-  seq::retiming_key_speed_set(scene, strip, right_key, speed / 100.0f, true);
+  seq::retiming_key_speed_set(scene, strip, right_key, speed / 100.0f);
 
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
   if (seq::transform_test_overlap(scene, seqbase, strip)) {
@@ -660,15 +660,14 @@ static void strip_speed_set(Scene *scene, Strip *strip, const float speed)
 
 static void segment_speed_set(Scene *scene,
                               Map<SeqRetimingKey *, Strip *> selection,
-                              const float speed,
-                              const bool keep_retiming)
+                              const float speed)
 {
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
 
   for (auto item : selection.items()) {
     seq::relations_invalidate_cache_raw(scene, item.value);
 
-    seq::retiming_key_speed_set(scene, item.value, item.key, speed / 100.0f, keep_retiming);
+    seq::retiming_key_speed_set(scene, item.value, item.key, speed / 100.0f);
 
     if (seq::transform_test_overlap(scene, seqbase, item.value)) {
       seq::transform_seqbase_shuffle(seqbase, item.value, scene);
@@ -680,7 +679,6 @@ static wmOperatorStatus sequencer_retiming_segment_speed_set_exec(bContext *C, w
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   const float speed = RNA_float_get(op->ptr, "speed");
-  const bool keep_retiming = RNA_boolean_get(op->ptr, "keep_retiming");
 
   /* Strip mode. */
   if (!sequencer_retiming_mode_is_active(scene)) {
@@ -697,7 +695,7 @@ static wmOperatorStatus sequencer_retiming_segment_speed_set_exec(bContext *C, w
 
   /* Retiming mode. */
   if (selection.size() > 0) {
-    segment_speed_set(scene, selection, speed, keep_retiming);
+    segment_speed_set(scene, selection, speed);
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     return OPERATOR_FINISHED;
   }
@@ -745,12 +743,6 @@ void SEQUENCER_OT_retiming_segment_speed_set(wmOperatorType *ot)
                 "New speed of retimed segment",
                 0.1f,
                 FLT_MAX);
-
-  RNA_def_boolean(ot->srna,
-                  "keep_retiming",
-                  true,
-                  "Preserve Current Retiming",
-                  "Keep speed of other segments unchanged, change strip length instead");
 }
 
 /** \} */

@@ -214,8 +214,10 @@ static std::optional<float> retiming_key_new_frame_from_speed_get(const Scene *s
   return std::round(retiming_key_frame_get(scene, strip, key_prev) + new_duration);
 }
 
-void retiming_key_speed_set(
-    const Scene *scene, Strip *strip, SeqRetimingKey *key, const float speed, bool keep_retiming)
+void retiming_key_speed_set(const Scene *scene,
+                            Strip *strip,
+                            SeqRetimingKey *key,
+                            const float speed)
 {
   const std::optional<int> new_frame = retiming_key_new_frame_from_speed_get(
       scene, strip, key, speed);
@@ -223,7 +225,7 @@ void retiming_key_speed_set(
     return;
   }
 
-  retiming_key_frame_set(scene, strip, key, *new_frame, keep_retiming);
+  retiming_key_frame_set(scene, strip, key, *new_frame);
 }
 
 /** \} */
@@ -912,8 +914,7 @@ static int strip_retiming_clamp_offset(const Scene *scene,
   return std::clamp(offset, (prev_key_frame + 1) - key_frame, (next_key_frame - 1) - key_frame);
 }
 
-void retiming_key_frame_set(
-    const Scene *scene, Strip *strip, SeqRetimingKey *key, int frame, bool keep_retiming)
+void retiming_key_frame_set(const Scene *scene, Strip *strip, SeqRetimingKey *key, int frame)
 {
   if ((key->flag & SEQ_SPEED_TRANSITION_OUT) != 0) {
     return;
@@ -927,7 +928,7 @@ void retiming_key_frame_set(
   const int key_count = retiming_keys_get(strip).size();
   const int key_index = retiming_key_index_get(strip, key);
 
-  if (orig_frame == strip->right_handle(scene) && keep_retiming) {
+  if (orig_frame == strip->right_handle(scene)) {
     for (int i = key_index; i < key_count; i++) {
       SeqRetimingKey *key_iter = &retiming_keys_get(strip)[i];
       strip_retiming_key_offset(scene, strip, key_iter, offset);
