@@ -17,6 +17,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_animsys.h"
+#include "BKE_scene.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -264,6 +265,15 @@ static void rna_Strip_scene_sync_update(bContext *C, PointerRNA *ptr)
   rna_Strip_invalidate_raw_update(bmain, scene, ptr);
   DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO | ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
+}
+
+static bool rna_Strip_scene_camera_poll(PointerRNA *ptr, PointerRNA value)
+{
+  Strip *strip = static_cast<Strip *>(ptr->data);
+  Scene *strip_scene = strip->scene;
+  Object *obj = id_cast<Object *>(value.owner_id);
+
+  return (obj->type == OB_CAMERA) && BKE_scene_object_find(strip_scene, obj);
 }
 
 static void rna_Strip_use_strip(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
@@ -3278,7 +3288,7 @@ static void rna_def_scene(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "scene_camera", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_Camera_object_poll");
+  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_Strip_scene_camera_poll");
   RNA_def_property_ui_text(prop, "Camera Override", "Override the scene's active camera");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_scene_sync_update");
 
