@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-16 11:27+0000\n"
+"POT-Creation-Date: 2026-01-26 11:28+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -13838,128 +13838,12 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
-msgid "Mirror"
-msgstr "Zrcadlit"
-
-
-msgid "Snap"
-msgstr "Přichytit"
-
-
-msgid "UV Mapping"
-msgstr "UV mapování"
-
-
-msgid "Local View"
-msgstr "Lokální pohled"
-
-
-msgid "Navigation"
-msgstr "Navigace"
-
-
-msgid "Align View"
-msgstr "Zarovnat pohled"
-
-
-msgid "Select Linked"
-msgstr "Vybrat Propojené"
-
-
-msgid "Assign Material"
-msgstr "Přiřadit Materiál"
-
-
-msgid "Metaball"
-msgstr "Meta objekt"
-
-
-msgid "Layout"
-msgstr "Rozložení"
-
-
-msgid "Light"
-msgstr "Světlo"
-
-
-msgid "Relations"
-msgstr "Vztahy"
-
-
-msgid "Rigid Body"
-msgstr "Tuhé Těleso"
-
-
-msgid "Keying"
-msgstr "Klíčovací sestava"
-
-
-msgid "Apply"
-msgstr "Použít"
-
-
-msgid "Tracking"
-msgstr "Sledování"
-
-
-msgid "Track"
-msgstr "Sledování"
-
-
-msgid "Utilities"
-msgstr "Nástroje"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Quick Effects"
-msgstr "Rychlé Efekty"
-
-
 msgid "Show/Hide"
 msgstr "Zobrazit/skrýt"
 
 
 msgid "Clean Up"
 msgstr "Vyčistit"
-
-
-msgid "Make Single User"
-msgstr "Přivlastnit"
-
-
-msgid "Hooks"
-msgstr "Háky"
-
-
-msgid "Clear Transform"
-msgstr "Vyčistit transformaci"
-
-
-msgid "Propagate"
-msgstr "Vložit"
-
-
-msgid "Names"
-msgstr "Názvy"
-
-
-msgid "Mesh Select Mode"
-msgstr "Síťový mód výběru"
-
-
-msgid "Face Data"
-msgstr "Data Ploch"
-
-
-msgid "Merge"
-msgstr "Sloučit"
-
-
-msgid "Special Characters"
-msgstr "Speciální Znaky"
 
 
 msgid "Instances"
@@ -13970,8 +13854,124 @@ msgid "Bone Roll"
 msgstr "Kost"
 
 
+msgid "Names"
+msgstr "Názvy"
+
+
 msgid "Import"
 msgstr "Importovat"
+
+
+msgid "Metaball"
+msgstr "Meta objekt"
+
+
+msgid "Special Characters"
+msgstr "Speciální Znaky"
+
+
+msgid "Utilities"
+msgstr "Nástroje"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Merge"
+msgstr "Sloučit"
+
+
+msgid "Face Data"
+msgstr "Data Ploch"
+
+
+msgid "Rigid Body"
+msgstr "Tuhé Těleso"
+
+
+msgid "Mesh Select Mode"
+msgstr "Síťový mód výběru"
+
+
+msgid "Apply"
+msgstr "Použít"
+
+
+msgid "Clear Transform"
+msgstr "Vyčistit transformaci"
+
+
+msgid "Propagate"
+msgstr "Vložit"
+
+
+msgid "Hooks"
+msgstr "Háky"
+
+
+msgid "Make Single User"
+msgstr "Přivlastnit"
+
+
+msgid "Quick Effects"
+msgstr "Rychlé Efekty"
+
+
+msgid "Track"
+msgstr "Sledování"
+
+
+msgid "Relations"
+msgstr "Vztahy"
+
+
+msgid "Layout"
+msgstr "Rozložení"
+
+
+msgid "Assign Material"
+msgstr "Přiřadit Materiál"
+
+
+msgid "Light"
+msgstr "Světlo"
+
+
+msgid "Keying"
+msgstr "Klíčovací sestava"
+
+
+msgid "Tracking"
+msgstr "Sledování"
+
+
+msgid "Select Linked"
+msgstr "Vybrat Propojené"
+
+
+msgid "Navigation"
+msgstr "Navigace"
+
+
+msgid "Align View"
+msgstr "Zarovnat pohled"
+
+
+msgid "Local View"
+msgstr "Lokální pohled"
+
+
+msgid "UV Mapping"
+msgstr "UV mapování"
+
+
+msgid "Snap"
+msgstr "Přichytit"
+
+
+msgid "Mirror"
+msgstr "Zrcadlit"
 
 
 msgid "Pivot Point"
@@ -17143,6 +17143,10 @@ msgid "Join Geometry"
 msgstr "Spojit Geometrii"
 
 
+msgid "Single"
+msgstr "Úhel"
+
+
 msgid "Fill Type"
 msgstr "Fill Type"
 
@@ -17678,10 +17682,6 @@ msgstr "Výstup uzlu"
 
 msgid "Value to Normal"
 msgstr "Hodnota k Normále"
-
-
-msgid "Single"
-msgstr "Úhel"
 
 
 msgid "Node Inputs"
@@ -21974,13 +21974,18 @@ msgstr "Kresba skicovací tužkou"
 
 
 msgctxt "Operator"
-msgid "Invert"
-msgstr "Převrátit"
+msgid "Erase"
+msgstr "Smazat"
 
 
 msgctxt "Operator"
-msgid "Erase"
-msgstr "Smazat"
+msgid "Mask"
+msgstr "Maska"
+
+
+msgctxt "Operator"
+msgid "Invert"
+msgstr "Převrátit"
 
 
 msgid "Flat"
@@ -23032,14 +23037,6 @@ msgid "Remove from the selection"
 msgstr "Odstranit ze všech"
 
 
-msgid "Select Ring"
-msgstr "Vybrat řádek"
-
-
-msgid "Select ring"
-msgstr "Vybrat řádek"
-
-
 msgid "Toggle Select"
 msgstr "Přepnout označené"
 
@@ -23277,19 +23274,6 @@ msgstr "Uzavřít Geometrii"
 
 msgid "X-Ray"
 msgstr "X-Ray"
-
-
-msgctxt "Operator"
-msgid "Multi Select Loops"
-msgstr "Vybrat řádek"
-
-
-msgid "Select a loop of connected edges by connection type"
-msgstr "Vybrat náhodně: vertexy"
-
-
-msgid "Ring"
-msgstr "Prsten"
 
 
 msgctxt "Operator"
@@ -30481,52 +30465,44 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
-msgid "Overlays"
-msgstr "Překrytí"
-
-
-msgid "Guides"
-msgstr "Vodítka"
-
-
-msgid "Motion Tracking"
-msgstr "Sledování Pohybu"
-
-
-msgid "Mesh Edit Mode"
-msgstr "Editační Režim Sítě"
-
-
-msgid "Measurement"
-msgstr "Měření"
-
-
-msgid "Curve Edit Mode"
-msgstr "Editační Režim Křivky"
-
-
-msgid "Transform Orientations"
-msgstr "Orientace transformací"
+msgid "Auto-Masking"
+msgstr "Auto-Maska"
 
 
 msgid "Stereoscopy"
 msgstr "Stereoskopie"
 
 
-msgid "Auto-Masking"
-msgstr "Auto-Maska"
+msgid "Guides"
+msgstr "Vodítka"
+
+
+msgid "Transform Orientations"
+msgstr "Orientace transformací"
+
+
+msgid "Curve Edit Mode"
+msgstr "Editační Režim Křivky"
+
+
+msgid "Measurement"
+msgstr "Měření"
+
+
+msgid "Mesh Edit Mode"
+msgstr "Editační Režim Sítě"
+
+
+msgid "Motion Tracking"
+msgstr "Sledování Pohybu"
+
+
+msgid "Overlays"
+msgstr "Překrytí"
 
 
 msgid "Active Tool"
 msgstr "Aktivní nástroj"
-
-
-msgid "View Lock"
-msgstr "Zámek zobrazení"
-
-
-msgid "Shadow Settings"
-msgstr "Nastavení Stínů"
 
 
 msgid "SSAO Settings"
@@ -30535,6 +30511,14 @@ msgstr "Nastavení SSAO"
 
 msgid "Cavity"
 msgstr "Dutina"
+
+
+msgid "Shadow Settings"
+msgstr "Nastavení Stínů"
+
+
+msgid "View Lock"
+msgstr "Zámek zobrazení"
 
 
 msgid "Chain Scaling"
@@ -30854,11 +30838,6 @@ msgstr "Roztrhnout oblast"
 msgctxt "Operator"
 msgid "Grab"
 msgstr "Chytit"
-
-
-msgctxt "Operator"
-msgid "Mask"
-msgstr "Maska"
 
 
 msgid "Tiling"
@@ -32428,10 +32407,6 @@ msgstr "Automatická hloubka"
 
 msgid "Orbit Around Selection"
 msgstr "Orbitovat Okolo Výběru"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Použít výběr jako pivot"
 
 
 msgid "Zoom to Mouse Position"
@@ -39542,6 +39517,11 @@ msgstr "Předchozí aktivní"
 
 
 msgctxt "Operator"
+msgid "Edge Loops"
+msgstr "Smyčka hran"
+
+
+msgctxt "Operator"
 msgid "Sharp Edges"
 msgstr "Ostré Hrany"
 
@@ -39952,11 +39932,6 @@ msgstr "Vyhladit Plochy"
 msgctxt "Operator"
 msgid "Flat Faces"
 msgstr "Ploché plochy"
-
-
-msgctxt "Operator"
-msgid "Edge Loops"
-msgstr "Smyčka hran"
 
 
 msgctxt "Operator"
@@ -41351,6 +41326,10 @@ msgstr "Není platná selekce pro vytažení"
 
 msgid "You have to select a string of connected vertices too"
 msgstr "Vybrat náhodně: vertexy"
+
+
+msgid "Select Ring"
+msgstr "Vybrat řádek"
 
 
 msgid "Vertex select - Shift-Click for multiple modes, Ctrl-Click contracts selection"

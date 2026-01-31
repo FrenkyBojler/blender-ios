@@ -227,12 +227,12 @@ static void subdiv_mesh_prepare_accumulator(SubdivMeshContext *ctx, int num_vert
   /* #subdiv_accumulate_vert_displacement requires zero initialization of positions so the
    * displacements can be accumulated into the array from a per-vertex-per-corner/edge callback. */
   ctx->subdiv_positions.fill(float3(0));
-  ctx->accumulated_counters = MEM_calloc_arrayN<int>(num_vertices, __func__);
+  ctx->accumulated_counters = MEM_new_array_zeroed<int>(num_vertices, __func__);
 }
 
 static void subdiv_mesh_context_free(SubdivMeshContext *ctx)
 {
-  MEM_SAFE_FREE(ctx->accumulated_counters);
+  MEM_SAFE_DELETE(ctx->accumulated_counters);
 }
 
 /** \} */
@@ -343,8 +343,7 @@ static void mix_attrs(const Span<GSpan> src,
                       const Span<GMutableSpan> dst)
 {
   for (const int attr : src.index_range()) {
-    attribute_math::convert_to_static_type(src[attr].type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    attribute_math::to_static_type(src[attr].type(), [&]<typename T>() {
       const Span<T> src_attr = src[attr].typed<T>();
       MutableSpan<T> dst_attr = dst[attr].typed<T>();
       if constexpr (std::is_same_v<T, bool>) {
@@ -365,8 +364,7 @@ static void mix_attrs(const Span<GSpan> src,
                       const Span<GMutableSpan> dst)
 {
   for (const int attr : src.index_range()) {
-    attribute_math::convert_to_static_type(src[attr].type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    attribute_math::to_static_type(src[attr].type(), [&]<typename T>() {
       const Span<T> src_attr = src[attr].typed<T>();
       MutableSpan<T> dst_attr = dst[attr].typed<T>();
       if constexpr (std::is_same_v<T, bool>) {
@@ -402,8 +400,7 @@ static void mix_attrs(const Span<GSpan> src,
                       const Span<GMutableSpan> dst)
 {
   for (const int attr : src.index_range()) {
-    attribute_math::convert_to_static_type(src[attr].type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    attribute_math::to_static_type(src[attr].type(), [&]<typename T>() {
       const Span<T> src_attr = src[attr].typed<T>();
       MutableSpan<T> dst_attr = dst[attr].typed<T>();
       dst_attr[dst_index] = mix_attr(src_attr, src_indices, weights);
@@ -885,6 +882,12 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
     }
     else if (iter.domain == AttrDomain::Corner) {
       if (ELEM(iter.name, ".corner_vert", ".corner_edge")) {
+        return;
+      }
+      /* Rely on #CD_NORMAL to propagate normals to subdivision surfaces.
+       * These are converted into "custom_normals" afterwards, otherwise these normals
+       * would interpolated without being normalized, see: #152277. */
+      if (ELEM(iter.name, "custom_normal")) {
         return;
       }
       if (iter.data_type == AttrType::Float2) {

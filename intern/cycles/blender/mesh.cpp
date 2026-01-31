@@ -33,7 +33,44 @@
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 
+#include "GEO_mesh_split_edges.hh"
+
+using blender::Attribute;
+
 CCL_NAMESPACE_BEGIN
+
+void mesh_split_edges_for_corner_normals(blender::Mesh &mesh)
+{
+  using namespace blender;
+  const OffsetIndices polys = mesh.faces();
+  const Span<int> corner_edges = mesh.corner_edges();
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  const VArray<bool> mesh_sharp_edges = *attributes.lookup_or_default<bool>(
+      "sharp_edge", bke::AttrDomain::Edge, false);
+  const VArraySpan<bool> sharp_faces = *attributes.lookup<bool>("sharp_face",
+                                                                bke::AttrDomain::Face);
+
+  Array<bool> sharp_edges(mesh.edges_num);
+  mesh_sharp_edges.materialize(sharp_edges);
+
+  threading::parallel_for(polys.index_range(), 1024, [&](const blender::IndexRange range) {
+    for (const int face_i : range) {
+      if (!sharp_faces.is_empty() && sharp_faces[face_i]) {
+        for (const int edge : corner_edges.slice(polys[face_i])) {
+          sharp_edges[edge] = true;
+        }
+      }
+    }
+  });
+
+  IndexMaskMemory memory;
+  const IndexMask split_mask = IndexMask::from_bools(sharp_edges, memory);
+  if (split_mask.is_empty()) {
+    return;
+  }
+
+  geometry::split_edges(mesh, split_mask, {});
+}
 
 static void attr_create_motion_from_velocity(Mesh *mesh,
                                              const blender::Span<blender::float3> b_attr,
@@ -70,16 +107,16 @@ static void attr_create_motion_from_velocity(Mesh *mesh,
 
 static void attr_create_generic(Scene *scene,
                                 Mesh *mesh,
-                                const ::Mesh &b_mesh,
+                                const blender::Mesh &b_mesh,
                                 const bool subdivision,
                                 const bool need_motion,
                                 const float motion_scale)
 {
   blender::Span<blender::int3> corner_tris;
-  blender::Span<int> tri_faces;
+  blender::OffsetIndices<int> faces;
   if (!subdivision) {
     corner_tris = b_mesh.corner_tris();
-    tri_faces = b_mesh.corner_tri_faces();
+    faces = b_mesh.faces();
   }
   const blender::bke::AttributeAccessor b_attributes = b_mesh.attributes();
   AttributeSet &attributes = (subdivision) ? mesh->subd_attributes : mesh->attributes;
@@ -162,8 +199,7 @@ static void attr_create_generic(Scene *scene,
         return;
     }
 
-    blender::bke::attribute_math::convert_to_static_type(b_attr.varray.type(), [&](auto dummy) {
-      using BlenderT = decltype(dummy);
+    blender::bke::attribute_math::to_static_type(b_attr.varray.type(), [&]<typename BlenderT>() {
       using Converter = typename ccl::AttributeConverter<BlenderT>;
       using CyclesT = typename Converter::CyclesT;
       if constexpr (!std::is_void_v<CyclesT>) {
@@ -205,8 +241,11 @@ static void attr_create_generic(Scene *scene,
               }
             }
             else {
-              for (const int i : corner_tris.index_range()) {
-                data[i] = Converter::convert(src[tri_faces[i]]);
+              for (const int face : faces.index_range()) {
+                const CyclesT value = Converter::convert(src[face]);
+                const blender::IndexRange face_tris = blender::bke::mesh::face_triangles_range(
+                    faces, face);
+                std::fill_n(data + face_tris.start(), face_tris.size(), value);
               }
             }
             break;
@@ -221,7 +260,7 @@ static void attr_create_generic(Scene *scene,
   });
 }
 
-static set<ustring> get_blender_uv_names(const ::Mesh &b_mesh)
+static set<ustring> get_blender_uv_names(const blender::Mesh &b_mesh)
 {
   set<ustring> uv_names;
   b_mesh.attributes().foreach_attribute([&](const blender::bke::AttributeIter &iter) {
@@ -239,7 +278,7 @@ static set<ustring> get_blender_uv_names(const ::Mesh &b_mesh)
 /* Create uv map attributes. */
 static void attr_create_uv_map(Scene *scene,
                                Mesh *mesh,
-                               const ::Mesh &b_mesh,
+                               const blender::Mesh &b_mesh,
                                const set<ustring> &blender_uv_names)
 {
   const blender::Span<blender::int3> corner_tris = b_mesh.corner_tris();
@@ -282,7 +321,7 @@ static void attr_create_uv_map(Scene *scene,
 
 static void attr_create_subd_uv_map(Scene *scene,
                                     Mesh *mesh,
-                                    const ::Mesh &b_mesh,
+                                    const blender::Mesh &b_mesh,
                                     const set<ustring> &blender_uv_names)
 {
   const blender::OffsetIndices faces = b_mesh.faces();
@@ -512,7 +551,7 @@ static void attr_create_pointiness(Mesh *mesh,
  * making the output unsafe to hash. */
 static void attr_create_random_per_island(Scene *scene,
                                           Mesh *mesh,
-                                          const ::Mesh &b_mesh,
+                                          const blender::Mesh &b_mesh,
                                           bool subdivision)
 {
   if (!mesh->need_attribute(scene, ATTR_STD_RANDOM_PER_ISLAND)) {
@@ -560,7 +599,7 @@ static void attr_create_random_per_island(Scene *scene,
 
 static void create_mesh(Scene *scene,
                         Mesh *mesh,
-                        const ::Mesh &b_mesh,
+                        const blender::Mesh &b_mesh,
                         const array<Node *> &used_shaders,
                         const bool need_motion,
                         const float motion_scale,
@@ -624,7 +663,7 @@ static void create_mesh(Scene *scene,
                                     (mesh->need_attribute(scene, ATTR_STD_UV_TANGENT));
   if (mesh->need_attribute(scene, ATTR_STD_GENERATED) || need_default_tangent) {
     const float (*orco)[3] = static_cast<const float (*)[3]>(
-        CustomData_get_layer(&b_mesh.vert_data, CD_ORCO));
+        CustomData_get_layer(&b_mesh.vert_data, blender::CD_ORCO));
     Attribute *attr = attributes.add(ATTR_STD_GENERATED);
 
     float3 loc;
@@ -633,9 +672,10 @@ static void create_mesh(Scene *scene,
 
     float texspace_location[3];
     float texspace_size[3];
-    BKE_mesh_texspace_get(const_cast<::Mesh *>(b_mesh.texcomesh ? b_mesh.texcomesh : &b_mesh),
-                          texspace_location,
-                          texspace_size);
+    BKE_mesh_texspace_get(
+        const_cast<blender::Mesh *>(b_mesh.texcomesh ? b_mesh.texcomesh : &b_mesh),
+        texspace_location,
+        texspace_size);
 
     float3 *generated = attr->data_float3();
 
@@ -670,9 +710,11 @@ static void create_mesh(Scene *scene,
     }
 
     if (!material_indices.is_empty()) {
-      const blender::Span<int> tri_faces = b_mesh.corner_tri_faces();
-      for (const int i : corner_tris.index_range()) {
-        shader[i] = clamp_material_index(material_indices[tri_faces[i]]);
+      for (const int face : faces.index_range()) {
+        const int material_index = clamp_material_index(material_indices[face]);
+        const blender::IndexRange face_tris = blender::bke::mesh::face_triangles_range(faces,
+                                                                                       face);
+        std::fill_n(shader + face_tris.start(), face_tris.size(), material_index);
       }
     }
     else {
@@ -680,9 +722,11 @@ static void create_mesh(Scene *scene,
     }
 
     if (!sharp_faces.is_empty() && !(use_corner_normals && !corner_normals.is_empty())) {
-      const blender::Span<int> tri_faces = b_mesh.corner_tri_faces();
-      for (const int i : corner_tris.index_range()) {
-        smooth[i] = !sharp_faces[tri_faces[i]];
+      for (const int face : faces.index_range()) {
+        const bool face_smooth = !sharp_faces[face];
+        const blender::IndexRange face_tris = blender::bke::mesh::face_triangles_range(faces,
+                                                                                       face);
+        std::fill_n(smooth + face_tris.start(), face_tris.size(), face_smooth);
       }
     }
     else {
@@ -788,18 +832,19 @@ static void create_mesh(Scene *scene,
 static void create_subd_mesh(Scene *scene,
                              Mesh *mesh,
                              BObjectInfo &b_ob_info,
-                             const ::Mesh &b_mesh,
+                             const blender::Mesh &b_mesh,
                              const array<Node *> &used_shaders,
                              const bool need_motion,
                              const float motion_scale,
                              const float dicing_rate,
                              const int max_subdivisions)
 {
-  const ::Object *b_ob = b_ob_info.real_object.ptr.data_as<::Object>();
+  const blender::Object *b_ob = b_ob_info.real_object;
 
-  const auto &subsurf_mod = *reinterpret_cast<const ::SubsurfModifierData *>(b_ob->modifiers.last);
+  const auto &subsurf_mod = *reinterpret_cast<const blender::SubsurfModifierData *>(
+      b_ob->modifiers.last);
 
-  const bool use_creases = (subsurf_mod.flags & eSubsurfModifierFlag_UseCrease) != 0;
+  const bool use_creases = (subsurf_mod.flags & blender::eSubsurfModifierFlag_UseCrease) != 0;
 
   create_mesh(scene, mesh, b_mesh, used_shaders, need_motion, motion_scale, true);
 
@@ -840,10 +885,10 @@ static void create_subd_mesh(Scene *scene,
   /* Set subd parameters. */
   Mesh::SubdivisionAdaptiveSpace space = Mesh::SUBDIVISION_ADAPTIVE_SPACE_PIXEL;
   switch (subsurf_mod.adaptive_space) {
-    case SUBSURF_ADAPTIVE_SPACE_OBJECT:
+    case blender::SUBSURF_ADAPTIVE_SPACE_OBJECT:
       space = Mesh::SUBDIVISION_ADAPTIVE_SPACE_OBJECT;
       break;
-    case SUBSURF_ADAPTIVE_SPACE_PIXEL:
+    case blender::SUBSURF_ADAPTIVE_SPACE_PIXEL:
       space = Mesh::SUBDIVISION_ADAPTIVE_SPACE_PIXEL;
       break;
   }
@@ -869,15 +914,16 @@ void BlenderSync::sync_mesh(BObjectInfo &b_ob_info, Mesh *mesh)
   new_mesh.set_used_shaders(used_shaders);
 
   if (view_layer.use_surfaces) {
-    object_subdivision_to_mesh(b_ob_info.real_object, new_mesh, preview, use_adaptive_subdivision);
-    const ::Mesh *b_mesh = object_to_mesh(b_ob_info).ptr.data_as<::Mesh>();
+    object_subdivision_to_mesh(
+        *b_ob_info.real_object, new_mesh, preview, use_adaptive_subdivision);
+    const blender::Mesh *b_mesh = object_to_mesh(b_ob_info);
 
     if (b_mesh) {
       /* Motion blur attribute is relative to seconds, we need it relative to frames. */
       const bool need_motion = object_need_motion_attribute(b_ob_info, scene);
       const float motion_scale = (need_motion) ?
                                      scene->motion_shutter_time() /
-                                         (b_scene.render().fps() / b_scene.render().fps_base()) :
+                                         (b_scene->r.frs_sec / b_scene->r.frs_sec_base) :
                                      0.0f;
 
       /* Sync mesh itself. */
@@ -902,7 +948,7 @@ void BlenderSync::sync_mesh(BObjectInfo &b_ob_info, Mesh *mesh)
                     false);
       }
 
-      free_object_to_mesh(b_ob_info, const_cast<::Mesh &>(*b_mesh));
+      free_object_to_mesh(b_ob_info, const_cast<blender::Mesh &>(*b_mesh));
     }
   }
 
@@ -943,20 +989,20 @@ void BlenderSync::sync_mesh_motion(BObjectInfo &b_ob_info, Mesh *mesh, const int
 
   /* Skip objects without deforming modifiers. this is not totally reliable,
    * would need a more extensive check to see which objects are animated. */
-  const ::Mesh *b_mesh = nullptr;
-  if (ccl::BKE_object_is_deform_modified(b_ob_info, b_scene, preview)) {
+  const blender::Mesh *b_mesh = nullptr;
+  if (ccl::BKE_object_is_deform_modified(b_ob_info, *b_scene, preview)) {
     /* get derived mesh */
-    b_mesh = object_to_mesh(b_ob_info).ptr.data_as<::Mesh>();
+    b_mesh = object_to_mesh(b_ob_info);
   }
 
-  const std::string ob_name = b_ob_info.real_object.name();
+  const std::string ob_name = BKE_id_name(b_ob_info.real_object->id);
 
   /* TODO(sergey): Perform preliminary check for number of vertices. */
   if (b_mesh) {
     const int b_verts_num = b_mesh->verts_num;
     const blender::Span<blender::float3> positions = b_mesh->vert_positions();
     if (positions.is_empty()) {
-      free_object_to_mesh(b_ob_info, *const_cast<::Mesh *>(b_mesh));
+      free_object_to_mesh(b_ob_info, *const_cast<blender::Mesh *>(b_mesh));
       return;
     }
 
@@ -1039,7 +1085,7 @@ void BlenderSync::sync_mesh_motion(BObjectInfo &b_ob_info, Mesh *mesh, const int
       }
     }
 
-    free_object_to_mesh(b_ob_info, *const_cast<::Mesh *>(b_mesh));
+    free_object_to_mesh(b_ob_info, *const_cast<blender::Mesh *>(b_mesh));
     return;
   }
 

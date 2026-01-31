@@ -146,8 +146,10 @@ class NODE_HT_header(Header):
 
             if snode.node_tree_sub_type == 'SCENE':
                 row = layout.row()
-                row.enabled = not snode.pin
-                if scene.compositing_node_group:
+                if snode.pin:
+                    row.enabled = False
+                    row.template_ID(snode, "node_tree", new="node.new_compositing_node_group")
+                elif scene.compositing_node_group:
                     row.template_ID(scene, "compositing_node_group", new="node.duplicate_compositing_node_group")
                 else:
                     row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
@@ -804,7 +806,7 @@ class NODE_PT_active_node_generic(Panel):
         layout.prop(node, "label", icon='NODE')
 
         if tree.type == 'GEOMETRY':
-            layout.prop(node, "warning_propagation")
+            layout.prop(node, "warning_propagation", text="Propagate")
 
 
 class NODE_PT_active_node_color(Panel):

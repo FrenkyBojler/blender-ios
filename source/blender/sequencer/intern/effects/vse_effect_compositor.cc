@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,8 @@
 
 #include "COM_context.hh"
 #include "COM_domain.hh"
-#include "COM_evaluator.hh"
+#include "COM_node_group_operation.hh"
+#include "COM_realize_on_domain_operation.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -34,6 +35,8 @@ class CompositorEffectContext : public compositor::Context {
   float factor_;
   float2 result_translation_ = float2(0, 0);
   const Strip *strip_;
+  /* Identifies if the output of the viewer was written. */
+  bool viewer_was_written_ = false;
 
  public:
   CompositorEffectContext(compositor::StaticCacheManager &cache_manager,
@@ -65,21 +68,7 @@ class CompositorEffectContext : public compositor::Context {
     return *render_data_.scene;
   }
 
-  const bNodeTree &get_node_tree() const override
-  {
-    return *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph, this->node_group_);
-  }
-
-  compositor::OutputTypes needed_outputs() const override
-  {
-    compositor::OutputTypes needed_outputs = compositor::OutputTypes::Composite;
-    if (!render_data_.render) {
-      needed_outputs |= compositor::OutputTypes::Viewer;
-    }
-    return needed_outputs;
-  }
-
-  bool treat_viewer_as_compositor_output() const override
+  bool treat_viewer_as_group_output() const override
   {
     return true;
   }
@@ -89,8 +78,13 @@ class CompositorEffectContext : public compositor::Context {
     return compositor::Domain(int2(this->output_->x, this->output_->y));
   }
 
-  void write_output(const compositor::Result &result) override
+  void write_output(const compositor::Result &result)
   {
+    /* Do not write the output if the viewer output was already written. */
+    if (viewer_was_written_) {
+      return;
+    }
+
     if (result.is_single_value()) {
       IMB_rectfill(this->output_, result.get_single_value<compositor::Color>());
       return;
@@ -102,29 +96,11 @@ class CompositorEffectContext : public compositor::Context {
                 IMB_get_pixel_count(this->output_) * sizeof(float) * 4);
   }
 
-  void write_viewer(const compositor::Result &result) override
+  void write_viewer(compositor::Result &result) override
   {
-    /* Within compositor modifier, output and viewer output function the same. */
+    /* Within compositor effect, output and viewer output function the same. */
     this->write_output(result);
-  }
-
-  compositor::Result get_input(StringRef name) override
-  {
-    compositor::Result result = this->create_result(compositor::ResultType::Color);
-    if (name == "Image" && this->input_1_) {
-      result.wrap_external(this->input_1_->float_buffer.data,
-                           int2(this->input_1_->x, this->input_1_->y));
-    }
-    else if (name == "Image2" && this->input_2_) {
-      result.wrap_external(this->input_2_->float_buffer.data,
-                           int2(this->input_2_->x, this->input_2_->y));
-    }
-    else if (name == "Factor") {
-      result = this->create_result(compositor::ResultType::Float);
-      result.allocate_single_value();
-      result.set_single_value(this->factor_);
-    }
-    return result;
+    viewer_was_written_ = true;
   }
 
   const Strip *get_strip() const override
@@ -135,6 +111,105 @@ class CompositorEffectContext : public compositor::Context {
   bool use_gpu() const override
   {
     return false;
+  }
+
+  compositor::NodeGroupOutputTypes needed_outputs() const
+  {
+    compositor::NodeGroupOutputTypes needed_outputs =
+        compositor::NodeGroupOutputTypes::GroupOutputNode;
+    if (!render_data_.render) {
+      needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
+    }
+    return needed_outputs;
+  }
+
+  void evaluate()
+  {
+    using namespace compositor;
+    const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph,
+                                                                node_group_);
+    NodeGroupOperation node_group_operation(*this,
+                                            node_group,
+                                            this->needed_outputs(),
+                                            nullptr,
+                                            node_group.active_viewer_key,
+                                            bke::NODE_INSTANCE_KEY_BASE);
+
+    /* Set the reference count for the outputs, only the first color output is actually needed,
+     * while the rest are ignored. */
+    node_group.ensure_interface_cache();
+    for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
+      const bool is_first_output = output_socket == node_group.interface_outputs().first();
+      Result &output_result = node_group_operation.get_result(output_socket->identifier);
+      const bool is_color = output_result.type() == ResultType::Color;
+      output_result.set_reference_count(is_first_output && is_color ? 1 : 0);
+    }
+
+    /* Map the inputs to the operation. */
+    Vector<std::unique_ptr<Result>> inputs;
+    int float_counter = 0;
+    int color_counter = 0;
+    for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
+      const bke::bNodeSocketType *typeinfo = input_socket->socket_typeinfo();
+      Result *input_result = nullptr;
+      if (typeinfo && typeinfo->type == SOCK_FLOAT && float_counter == 0) {
+        /* First float input is factor. */
+        input_result = new Result(this->create_result(ResultType::Float, ResultPrecision::Full));
+        input_result->allocate_single_value();
+        input_result->set_single_value(this->factor_);
+        float_counter++;
+      }
+      else if (color_counter == 0 && this->input_1_) {
+        /* First input image. */
+        input_result = new Result(this->create_result(ResultType::Color, ResultPrecision::Full));
+        input_result->wrap_external(this->input_1_->float_buffer.data,
+                                    int2(this->input_1_->x, this->input_1_->y));
+        color_counter++;
+      }
+      else if (color_counter == 1 && this->input_2_) {
+        /* Second input image. */
+        input_result = new Result(this->create_result(ResultType::Color, ResultPrecision::Full));
+        input_result->wrap_external(this->input_2_->float_buffer.data,
+                                    int2(this->input_2_->x, this->input_2_->y));
+        color_counter++;
+      }
+      else {
+        /* Unsupported sockets. */
+        input_result = new Result(this->create_result(ResultType::Color, ResultPrecision::Full));
+        input_result->allocate_invalid();
+      }
+
+      node_group_operation.map_input_to_result(input_socket->identifier, input_result);
+      inputs.append(std::unique_ptr<Result>(input_result));
+    }
+
+    node_group_operation.evaluate();
+
+    /* Write the outputs of the operation. */
+    for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
+      Result &output_result = node_group_operation.get_result(output_socket->identifier);
+      if (!output_result.should_compute()) {
+        continue;
+      }
+
+      /* Realize the output transforms if needed. */
+      const InputDescriptor input_descriptor = {ResultType::Color,
+                                                InputRealizationMode::OperationDomain};
+      SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
+          *this, output_result, input_descriptor, output_result.domain());
+      if (realization_operation) {
+        realization_operation->map_input_to_result(&output_result);
+        realization_operation->evaluate();
+        Result &realized_output_result = realization_operation->get_result();
+        this->write_output(realized_output_result);
+        realized_output_result.release();
+        delete realization_operation;
+        continue;
+      }
+
+      this->write_output(output_result);
+      output_result.release();
+    }
   }
 };
 
@@ -213,8 +288,8 @@ static ImBuf *do_compositor_effect(const RenderData *context,
     compositor::StaticCacheManager cache_manager;
     CompositorEffectContext com_context(
         cache_manager, *context, data->node_group, linear_src1, linear_src2, out, fac, *strip);
-    compositor::Evaluator evaluator(com_context);
-    evaluator.evaluate();
+    com_context.evaluate();
+    com_context.cache_manager().reset();
     // context.result_translation += com_context.get_result_translation(); //@TODO?
 
     if (linear_src1 != src1) {
@@ -230,9 +305,17 @@ static ImBuf *do_compositor_effect(const RenderData *context,
 
 static void init_compositor_effect(Strip *strip)
 {
-  MEM_SAFE_FREE(strip->effectdata);
-  CompositorEffectVars *data = MEM_callocN<CompositorEffectVars>(__func__);
+  CompositorEffectVars *data = MEM_new<CompositorEffectVars>(__func__);
   strip->effectdata = data;
+}
+
+static void free_compositor_effect(Strip *strip, const bool /*do_id_user*/)
+{
+  if (strip->effectdata) {
+    CompositorEffectVars *data = static_cast<CompositorEffectVars *>(strip->effectdata);
+    MEM_delete(data);
+    strip->effectdata = nullptr;
+  }
 }
 
 static StripEarlyOut early_out_compositor(const Strip *strip, float fac)
@@ -254,6 +337,7 @@ static StripEarlyOut early_out_compositor(const Strip *strip, float fac)
 void compositor_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_compositor_effect;
+  rval.free = free_compositor_effect;
   rval.execute = do_compositor_effect;
   rval.early_out = early_out_compositor;
 }

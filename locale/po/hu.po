@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-16 11:27+0000\n"
+"POT-Creation-Date: 2026-01-26 11:28+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -6577,12 +6577,56 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
-msgid "Mirror"
-msgstr "Tükrözés"
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
 
 
-msgid "Local View"
-msgstr "Helyi nézet"
+msgid "Clean Up"
+msgstr "Tisztítás"
+
+
+msgid "Import"
+msgstr "Importálás"
+
+
+msgid "Metaball"
+msgstr "Meta test"
+
+
+msgid "Merge"
+msgstr "Összefésülés"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Rigid Body"
+msgstr "Szilárd test"
+
+
+msgid "Apply"
+msgstr "Elfogadás"
+
+
+msgid "Track"
+msgstr "Nyom"
+
+
+msgid "Relations"
+msgstr "Kapcsolatok"
+
+
+msgid "Light"
+msgstr "Fényforrás"
+
+
+msgid "Keying"
+msgstr "Kulcsozás"
+
+
+msgid "Tracking"
+msgstr "Követés"
 
 
 msgid "Navigation"
@@ -6593,56 +6637,12 @@ msgid "Align View"
 msgstr "Nézet igazítása"
 
 
-msgid "Metaball"
-msgstr "Meta test"
+msgid "Local View"
+msgstr "Helyi nézet"
 
 
-msgid "Light"
-msgstr "Fényforrás"
-
-
-msgid "Relations"
-msgstr "Kapcsolatok"
-
-
-msgid "Rigid Body"
-msgstr "Szilárd test"
-
-
-msgid "Keying"
-msgstr "Kulcsozás"
-
-
-msgid "Apply"
-msgstr "Elfogadás"
-
-
-msgid "Tracking"
-msgstr "Követés"
-
-
-msgid "Track"
-msgstr "Nyom"
-
-
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
-msgid "Clean Up"
-msgstr "Tisztítás"
-
-
-msgid "Merge"
-msgstr "Összefésülés"
-
-
-msgid "Import"
-msgstr "Importálás"
-
-
-msgid "UV"
-msgstr "UV"
+msgid "Mirror"
+msgstr "Tükrözés"
 
 
 msgctxt "MovieClip"
@@ -10431,13 +10431,13 @@ msgstr "Zsírkréta rajz"
 
 
 msgctxt "Operator"
-msgid "Invert"
-msgstr "Invertálás"
+msgid "Erase"
+msgstr "Törlés"
 
 
 msgctxt "Operator"
-msgid "Erase"
-msgstr "Törlés"
+msgid "Invert"
+msgstr "Invertálás"
 
 
 msgid "Flat"
@@ -13338,10 +13338,6 @@ msgstr "Az egér alatti mélység használata a pásztázás/forgatás/zoomolás
 
 msgid "Emulate 3 Button Mouse"
 msgstr "3 gombos egér emulálása"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Kijelölés használata a nézetforgatás középpontjaként"
 
 
 msgid "Zoom in towards the mouse pointer's position in the 3D view, rather than the 2D window center"
