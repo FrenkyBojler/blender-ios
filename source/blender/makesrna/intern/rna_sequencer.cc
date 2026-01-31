@@ -1148,7 +1148,7 @@ static void rna_Strip_pan_range(
 static int rna_Strip_input_count_get(PointerRNA *ptr)
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
-  return strip->effect_needed_inputs_get();
+  return strip->effect_num_inputs_get();
 }
 
 static void rna_Strip_input_set(PointerRNA *ptr,

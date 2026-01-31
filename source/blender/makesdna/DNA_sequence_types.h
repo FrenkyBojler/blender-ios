@@ -460,10 +460,10 @@ struct Strip {
 
 #ifdef __cplusplus
   bool is_effect() const;
-  int effect_needed_inputs_get() const;
+  int effect_num_inputs_get() const;
   bool is_effect_with_inputs() const
   {
-    return this->effect_needed_inputs_get() != 0;
+    return this->effect_num_inputs_get() != 0;
   }
 
   /**

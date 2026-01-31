@@ -311,7 +311,7 @@ static bool sequencer_swap_inputs_poll(bContext *C)
   }
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *active_strip = seq::select_active_get(scene);
-  if (active_strip && active_strip->effect_needed_inputs_get() == 2) {
+  if (active_strip && active_strip->effect_num_inputs_get() == 2) {
     return true;
   }
 
@@ -1569,7 +1569,7 @@ static wmOperatorStatus sequencer_reassign_inputs_exec(bContext *C, wmOperator *
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *active_strip = seq::select_active_get(scene);
-  const int num_inputs = active_strip->effect_needed_inputs_get();
+  const int num_inputs = active_strip->effect_num_inputs_get();
 
   if (num_inputs == 0) {
     BKE_report(op->reports, RPT_ERROR, "Cannot reassign inputs: strip has no inputs");
@@ -1651,7 +1651,7 @@ static wmOperatorStatus sequencer_swap_inputs_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (active_strip->effect_needed_inputs_get() != 2 || active_strip->input1 == nullptr ||
+  if (active_strip->effect_num_inputs_get() != 2 || active_strip->input1 == nullptr ||
       active_strip->input2 == nullptr)
   {
     BKE_report(op->reports, RPT_ERROR, "Strip needs two inputs to swap");
@@ -3320,7 +3320,7 @@ static wmOperatorStatus sequencer_change_effect_type_exec(bContext *C, wmOperato
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
   const StripType old_type = StripType(strip->type);
-  const int have_inputs = strip->effect_needed_inputs_get();
+  const int have_inputs = strip->effect_num_inputs_get();
   const StripType new_type = StripType(RNA_enum_get(op->ptr, "type"));
 
   if (!strip->is_effect()) {

@@ -2023,14 +2023,13 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
-static bool is_op_for_effect_with_inputs(const bContext *C, StripType type)
+static bool is_op_for_effect_with_inputs(const Scene *scene, StripType type)
 {
   if (seq::effect_type_get_min_num_inputs(type) != 0) {
     return true;
   }
   /* Adding compositor effect with any selected strip; assuming it will be for that strip. */
   if (type == STRIP_TYPE_COMPOSITOR) {
-    const Scene *scene = CTX_data_sequencer_scene(C);
     if (seq::select_has_any(scene)) {
       return true;
     }
@@ -2051,7 +2050,7 @@ static wmOperatorStatus sequencer_add_effect_strip_invoke(bContext *C,
   int prop_flag = SEQPROP_LENGTH;
   /* When invoking an effect strip which uses inputs, skip guessing of the channel. */
   StripType type = StripType(RNA_enum_get(op->ptr, "type"));
-  if (is_op_for_effect_with_inputs(C, type)) {
+  if (is_op_for_effect_with_inputs(CTX_data_sequencer_scene(C), type)) {
     prop_flag |= SEQPROP_NOCHAN;
   }
 
@@ -2068,7 +2067,7 @@ static bool sequencer_add_effect_strip_poll_property(const bContext *C,
   StripType type = StripType(RNA_enum_get(op->ptr, "type"));
 
   /* Hide start frame and length for effect strips that are locked to their parents' location. */
-  if (is_op_for_effect_with_inputs(C, type)) {
+  if (is_op_for_effect_with_inputs(CTX_data_sequencer_scene(C), type)) {
     if (STR_ELEM(prop_id, "frame_start", "length")) {
       return false;
     }
@@ -2126,7 +2125,7 @@ static std::string sequencer_add_effect_strip_get_description(bContext * /*C*/,
     case STRIP_TYPE_COLORMIX:
       return TIP_("Add a color mix effect strip to the sequencer");
     case STRIP_TYPE_COMPOSITOR:
-      return TIP_("Add a compositor based strip");
+      return TIP_("Add a compositor based effect strip for zero, one, or two selected inputs");
     default:
       break;
   }

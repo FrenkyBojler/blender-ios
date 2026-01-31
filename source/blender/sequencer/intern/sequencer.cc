@@ -1299,7 +1299,7 @@ bool Strip::is_effect() const
   return blender::seq::strip_type_is_effect(StripType(this->type));
 }
 
-int Strip::effect_needed_inputs_get() const
+int Strip::effect_num_inputs_get() const
 {
   /* Compositor can have varying amount of inputs; return based on assigned inputs. */
   if (this->type == STRIP_TYPE_COMPOSITOR) {

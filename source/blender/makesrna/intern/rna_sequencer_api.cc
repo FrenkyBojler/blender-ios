@@ -42,7 +42,6 @@
 #  include "DEG_depsgraph_build.hh"
 
 #  include "WM_api.hh"
-#  include "intern/stroke/Predicates1D.h"
 
 namespace blender {
 

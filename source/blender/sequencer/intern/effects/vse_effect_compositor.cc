@@ -318,20 +318,15 @@ static void free_compositor_effect(Strip *strip, const bool /*do_id_user*/)
   }
 }
 
-static StripEarlyOut early_out_compositor(const Strip *strip, float fac)
+static StripEarlyOut early_out_compositor(const Strip *strip, float /*fac*/)
 {
   /* No inputs: compositor generates the result. */
   if (strip->input1 == nullptr) {
     return StripEarlyOut::NoInput;
   }
 
-  /* One input: do the effect. */
-  if (strip->input1 != nullptr && strip->input2 == nullptr) {
-    return StripEarlyOut::DoEffect;
-  }
-
-  /* Two inputs: regular fade logic. */
-  return early_out_fade(strip, fac);
+  /* One or two inputs: do the effect. */
+  return StripEarlyOut::DoEffect;
 }
 
 void compositor_effect_get_handle(EffectHandle &rval)
