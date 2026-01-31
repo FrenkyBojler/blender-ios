@@ -33,12 +33,12 @@ const EnumPropertyItem rna_enum_icon_items[] = {
 };
 
 static const EnumPropertyItem popup_draw_direction_items[] = {
-    {int(ui::PopupDirection::POPUP_DIRECTION_VERTICAL),
+    {int(ui::PopupAttachDirection::Vertical),
      "VERTICAL",
      0,
      "Vertical",
      "Draw popup panel below the button"},
-    {int(ui::PopupDirection::POPUP_DIRECTION_HORIZONTAL),
+    {int(ui::PopupAttachDirection::Horizontal),
      "HORIZONTAL",
      0,
      "Horizontal",
@@ -578,7 +578,7 @@ static void rna_uiItemPopoverPanel(Layout *layout,
     icon = icon_value;
   }
 
-  layout->popover(C, panel_type, text, icon, blender::ui::PopupDirection(direction));
+  layout->popover(C, panel_type, text, icon, blender::ui::PopupAttachDirection(direction));
 }
 
 static void rna_uiItemPopoverPanelFromGroup(Layout *layout,

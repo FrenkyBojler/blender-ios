@@ -104,9 +104,9 @@ enum class NodeAssetMenuOperatorType : int8_t {
 /**
  * Panel popup draw direction.
  */
-enum class PopupDirection : int8_t {
-  POPUP_DIRECTION_VERTICAL = 0,
-  POPUP_DIRECTION_HORIZONTAL = 1,
+enum class PopupAttachDirection : int8_t {
+  Vertical = 0,
+  Horizontal = 1,
 };
 
 enum class EnumTabExpand {
@@ -579,7 +579,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
                StringRef panel_type,
                std::optional<StringRef> name_opt,
                int icon,
-               PopupDirection direction = PopupDirection::POPUP_DIRECTION_VERTICAL);
+               PopupAttachDirection direction = PopupAttachDirection::Vertical);
   void popover_group(
       bContext *C, int space_id, int region_id, const char *context, const char *category);
 
