@@ -166,14 +166,15 @@ static void navigate_menu_draw_fn(bContext *C, ui::Layout *layout, void *arg)
       SpaceNode *snode = CTX_wm_space_node(&C);
       ARegion *region = CTX_wm_region(&C);
 
-      int index;
       if (snode->edittree != clicked_tree) {
         bool is_parent = false;
-        LISTBASE_FOREACH_INDEX (bNodeTreePath *, path_item, &snode->treepath, index) {
-          if (path_item->nodetree == clicked_tree) {
+        int index = 0;
+        for (bNodeTreePath &path_item : snode->treepath) {
+          if (path_item.nodetree == clicked_tree) {
             is_parent = true;
             break;
           }
+          index++;
         }
 
         if (is_parent) {
@@ -241,11 +242,11 @@ static void context_path_add_node_tree_and_node_groups(const SpaceNode &snode,
     }
 
     /* We don't need to add handle function to last node-tree. */
-    const bool is_last_item = (path_item == snode.treepath.last);
-    const bool has_group = node_tree_has_group_node(path_item->nodetree);
+    const bool is_last_item = (&path_item == snode.treepath.last);
+    const bool has_group = node_tree_has_group_node(path_item.nodetree);
     ui::context_path_add_generic(path,
-                                 RNA_NodeTree,
-                                 path_item->nodetree,
+                                 *RNA_NodeTree,
+                                 path_item.nodetree,
                                  icon,
                                  is_last_item ? nullptr : tree_path_handle_func(i),
                                  has_group ? navigate_menu_draw_fn : nullptr);
@@ -394,9 +395,9 @@ static void context_path_add_history_trees(SpaceNode &snode, Vector<ui::ContextP
     return;
   }
   Vector<bNodeTree *> active_path_trees;
-  LISTBASE_FOREACH (const bNodeTreePath *, path_item, &snode.treepath) {
-    if (path_item->nodetree) {
-      active_path_trees.append(path_item->nodetree);
+  for (const bNodeTreePath &path_item : snode.treepath) {
+    if (path_item.nodetree) {
+      active_path_trees.append(path_item.nodetree);
     }
   }
   Vector<bNodeTree *> &history_path_trees = snode.runtime->navigate_history_path;
@@ -431,7 +432,7 @@ static void context_path_add_history_trees(SpaceNode &snode, Vector<ui::ContextP
 
       const bool has_group = node_tree_has_group_node(history_tree);
       ui::context_path_add_generic(path,
-                                   RNA_NodeTree,
+                                   *RNA_NodeTree,
                                    history_tree,
                                    ICON_NODETREE,
                                    tree_path_navigate_history(history_tail_path.take_front(i + 1)),
