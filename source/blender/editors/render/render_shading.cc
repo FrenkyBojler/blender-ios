@@ -12,6 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_ID.h"
+#include "DNA_brush_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
@@ -35,6 +36,8 @@
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_appdir.hh"
+#include "BKE_asset.hh"
+#include "BKE_asset_edit.hh"
 #include "BKE_blender_copybuffer.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_brush.hh"
@@ -45,6 +48,7 @@
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_lib_override.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
@@ -57,6 +61,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_object.hh"
+#include "BKE_paint.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_texture.h"
@@ -80,6 +85,7 @@
 #include "RNA_access.hh"
 
 #include "WM_api.hh"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "ED_curve.hh"
@@ -904,6 +910,25 @@ void MATERIAL_OT_new(wmOperatorType *ot)
 /** \name New Texture Operator
  * \{ */
 
+static wmOperatorStatus new_texture_exec(bContext *C, wmOperator *op);
+
+static wmOperatorStatus new_texture_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  /* Check if we have proper UI context for direct execution */
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
+
+  if (prop != nullptr) {
+    /* Have UI context - can execute directly */
+    return new_texture_exec(C, op);
+  }
+
+  /* No UI context - this happens when called from Quick Favorites.
+   * For now, execute anyway and let exec handle it with a report. */
+  return new_texture_exec(C, op);
+}
+
 static wmOperatorStatus new_texture_exec(bContext *C, wmOperator *op)
 {
   Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", RNA_Texture).data);
@@ -937,12 +962,74 @@ static wmOperatorStatus new_texture_exec(bContext *C, wmOperator *op)
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
     RNA_property_update(C, &ptr, prop);
   }
+  else {
+    /* No UI context - texture created but not assigned.
+     * This can happen when called from Quick Favorites.
+     * Assign to active brush so it appears in texture users. */
+    Paint *paint = BKE_paint_get_active_from_context(C);
+    Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
+
+    if (brush) {
+      if (ID_IS_LINKED(&brush->id)) {
+        /* External asset brush - make local, rename, and assign texture */
+        BKE_lib_id_make_local_generic(bmain, &brush->id, 0);
+
+        /* Rename to avoid conflict with original linked brush */
+        char new_name[MAX_ID_NAME];
+        SNPRINTF(new_name, "%s (Local)", brush->id.name + 2);
+        BKE_libblock_rename(*bmain, brush->id, new_name);
+
+        /* Restore asset status (lost after make local) */
+        if (!brush->id.asset_data) {
+          brush->id.asset_data = BKE_asset_metadata_create();
+          id_us_plus(&brush->id);
+        }
+
+        /* Assign texture to local brush */
+        brush->mtex.tex = tex;
+        id_us_plus(&tex->id);
+        BKE_brush_tag_unsaved_changes(brush);
+
+        /* Use WM_toolsystem_activate_brush_and_tool to update tool_brush_bindings.
+         * This ensures brush persists when switching modes (Object <-> Sculpt). */
+        WM_toolsystem_activate_brush_and_tool(C, paint, brush);
+
+        WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
+        BKE_paint_invalidate_overlay_all();
+      }
+      else {
+        /* Local brush - direct assignment */
+        brush->mtex.tex = tex;
+        id_us_plus(&tex->id);
+        BKE_brush_tag_unsaved_changes(brush);
+      }
+
+      /* Find Properties editor and switch to Texture tab */
+      bScreen *screen = CTX_wm_screen(C);
+      if (screen) {
+        for (ScrArea &area : screen->areabase) {
+          if (area.spacetype == SPACE_PROPERTIES) {
+            SpaceProperties *sbuts = static_cast<SpaceProperties *>(area.spacedata.first);
+            /* Switch to Texture tab (without pinning) */
+            sbuts->mainb = BCONTEXT_TEXTURE;
+            sbuts->mainbuser = sbuts->mainb;
+            sbuts->preview = 1;
+            ED_area_tag_redraw(&area);
+            break;
+          }
+        }
+      }
+    }
+
+    BKE_reportf(op->reports, RPT_INFO, "Texture \"%s\" created", tex->id.name + 2);
+  }
 
   if (!linked_id_created) {
     ED_undo_push_op(C, op);
   }
 
-  WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, tex);
+  /* Use NC_ID instead of NC_TEXTURE to ensure texture appears in "Browse Texture to be linked" template. */
+  WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -955,10 +1042,11 @@ void TEXTURE_OT_new(wmOperatorType *ot)
   ot->description = "Add a new texture";
 
   /* API callbacks. */
+  ot->invoke = new_texture_invoke;
   ot->exec = new_texture_exec;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 }
 
 /** \} */
