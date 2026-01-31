@@ -55,7 +55,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Bool>("Selection").default_value(true).supports_field().hide_value();
   b.add_input<decl::Menu>("Position")
       .static_items(position_mode_items)
       .default_value(PositionMode::Center)
@@ -135,7 +134,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
-  const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const PositionMode position_mode = PositionMode(params.extract_input<int>("Position"));
 
   const auto grid = params.extract_input<bke::GVolumeGrid>("Grid");
@@ -278,63 +276,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           is_tile_writer.finish();
           value_writer.finish();
 
-          GeometrySet geometry_set = GeometrySet::from_pointcloud(pointcloud);
-
-          const bke::PointCloudFieldContext field_context{*pointcloud};
-          fn::FieldEvaluator evaluator{field_context, pointcloud->totpoint};
-          evaluator.set_selection(selection);
-          evaluator.evaluate();
-          const IndexMask selection_mask = evaluator.get_evaluated_selection_as_mask();
-
-          if (selection_mask.size() != pointcloud->totpoint) {
-            PointCloud *filtered_pointcloud = BKE_pointcloud_new_nomain(selection_mask.size());
-
-            MutableSpan<float3> filtered_positions = filtered_pointcloud->positions_for_write();
-            array_utils::gather(positions, selection_mask, filtered_positions);
-
-            MutableAttributeAccessor filtered_attributes =
-                filtered_pointcloud->attributes_for_write();
-            if (coord_x_id) {
-              SpanAttributeWriter<int> filtered_coord_x =
-                  filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_x_id,
-                                                                             AttrDomain::Point);
-              array_utils::gather(coord_x_writer.span, selection_mask, filtered_coord_x.span);
-              filtered_coord_x.finish();
-            }
-            if (coord_y_id) {
-              SpanAttributeWriter<int> filtered_coord_y =
-                  filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_y_id,
-                                                                             AttrDomain::Point);
-              array_utils::gather(coord_y_writer.span, selection_mask, filtered_coord_y.span);
-              filtered_coord_y.finish();
-            }
-            if (coord_z_id) {
-              SpanAttributeWriter<int> filtered_coord_z =
-                  filtered_attributes.lookup_or_add_for_write_only_span<int>(*coord_z_id,
-                                                                             AttrDomain::Point);
-              array_utils::gather(coord_z_writer.span, selection_mask, filtered_coord_z.span);
-              filtered_coord_z.finish();
-            }
-            if (is_tile_id) {
-              SpanAttributeWriter<bool> filtered_is_tile =
-                  filtered_attributes.lookup_or_add_for_write_only_span<bool>(*is_tile_id,
-                                                                              AttrDomain::Point);
-              array_utils::gather(is_tile_writer.span, selection_mask, filtered_is_tile.span);
-              filtered_is_tile.finish();
-            }
-            if (value_id) {
-              SpanAttributeWriter<typename type_traits::BlenderType> filtered_value =
-                  filtered_attributes
-                      .lookup_or_add_for_write_only_span<typename type_traits::BlenderType>(
-                          *value_id, AttrDomain::Point);
-              array_utils::gather(value_writer.span, selection_mask, filtered_value.span);
-              filtered_value.finish();
-            }
-
-            geometry_set = GeometrySet::from_pointcloud(filtered_pointcloud);
-          }
-
-          params.set_output("Points", std::move(geometry_set));
+          params.set_output("Points", GeometrySet::from_pointcloud(pointcloud));
         }
       });
 #else
