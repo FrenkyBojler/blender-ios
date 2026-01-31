@@ -66,7 +66,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Is Tile").field_on_all().description(
       "Whether point represents a tile (true) or voxel (false)");
   b.add_output(data_type, "Value").field_on_all().description("Grid values at point positions");
-  b.add_output(data_type, "Background").description("Background value of the grid");
   b.add_output<decl::Int>("X").field_on_all().description("X coordinate in index space");
   b.add_output<decl::Int>("Y").field_on_all().description("Y coordinate in index space");
   b.add_output<decl::Int>("Z").field_on_all().description("Z coordinate in index space");
@@ -336,7 +335,6 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
 
           params.set_output("Points", std::move(geometry_set));
-          params.set_output("Background", type_traits::to_blender(vdb_grid->background()));
         }
       });
 #else
