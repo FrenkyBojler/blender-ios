@@ -30,6 +30,18 @@ TEST(generic_span, BufferAndSizeConstructor)
   EXPECT_EQ(span[3], &values[3]);
 }
 
+TEST(generic_span, Overlaps)
+{
+  int values[4] = {4, 7, 3, 5};
+  void *buffer = static_cast<void *>(values);
+  GSpan span(CPPType::get<int>(), buffer, 4);
+  EXPECT_TRUE(span.overlaps(span));
+  EXPECT_TRUE(span.drop_front(1).overlaps(span));
+  EXPECT_TRUE(span.drop_front(2).overlaps(span));
+  EXPECT_TRUE(span.drop_front(3).overlaps(span));
+  EXPECT_FALSE(span.drop_front(4).overlaps(span));
+}
+
 TEST(generic_mutable_span, TypeConstructor)
 {
   GMutableSpan span(CPPType::get<int32_t>());
@@ -50,18 +62,6 @@ TEST(generic_mutable_span, BufferAndSizeConstructor)
   EXPECT_EQ(values[2], 10);
   span.typed<int>()[2] = 20;
   EXPECT_EQ(values[2], 20);
-}
-
-TEST(generic_mutable_span, Overlaps)
-{
-  int values[4] = {4, 7, 3, 5};
-  void *buffer = static_cast<void *>(values);
-  GSpan span(CPPType::get<int>(), buffer, 4);
-  EXPECT_TRUE(span.overlaps(span));
-  EXPECT_TRUE(span.drop_front(1).overlaps(span));
-  EXPECT_TRUE(span.drop_front(2).overlaps(span));
-  EXPECT_TRUE(span.drop_front(3).overlaps(span));
-  EXPECT_FALSE(span.drop_front(4).overlaps(span));
 }
 
 }  // namespace blender::tests
