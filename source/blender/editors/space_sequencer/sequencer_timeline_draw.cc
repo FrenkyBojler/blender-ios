@@ -242,6 +242,7 @@ static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, S
   strip_ctx.missing_data_block = !strip_has_valid_data(strip);
   strip_ctx.missing_media = media_presence_is_missing(scene, strip);
   strip_ctx.is_connected = is_strip_connected(strip);
+  strip_ctx.has_retiming = retiming_has_keys(strip) && !retiming_show_keys(strip);
   if (strip->type == STRIP_TYPE_META) {
     const ListBaseT<Strip> *seqbase = &strip->seqbase;
     for (const Strip &sub : *seqbase) {
@@ -922,7 +923,8 @@ static void draw_strip_icons(const TimelineDrawContext &ctx,
     const bool missing_data = strip.missing_data_block;
     const bool missing_media = strip.missing_media;
     const bool is_connected = strip.is_connected;
-    if (!missing_data && !missing_media && !is_connected) {
+    const bool has_retiming = strip.has_retiming;
+    if (!missing_data && !missing_media && !is_connected && !has_retiming) {
       continue;
     }
 
@@ -949,6 +951,11 @@ static void draw_strip_icons(const TimelineDrawContext &ctx,
       if (is_connected) {
         rect.xmax = min_ff(strip.right_handle - strip.handle_width, rect.xmin + icon_size_x);
         draw_icon_centered(ctx, rect, ICON_LINKED, col);
+        rect.xmin = rect.xmax;
+      }
+      if (has_retiming) {
+        rect.xmax = min_ff(strip.right_handle - strip.handle_width, rect.xmin + icon_size_x);
+        draw_icon_centered(ctx, rect, ICON_TIME, col);
       }
     }
 
@@ -1011,6 +1018,9 @@ static void draw_seq_text_overlay(const TimelineDrawContext &ctx,
     num_icons++;
   }
   if (strip_ctx.is_connected) {
+    num_icons++;
+  }
+  if (strip_ctx.has_retiming) {
     num_icons++;
   }
   rect.xmin += num_icons * ICON_SIZE * ctx.pixelx * UI_SCALE_FAC;

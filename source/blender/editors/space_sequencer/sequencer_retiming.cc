@@ -69,57 +69,42 @@ static bool retiming_poll(bContext *C)
 /** \name Retiming Data Show
  * \{ */
 
-static void sequencer_retiming_data_show_selection(ListBaseT<Strip> *seqbase)
-{
-  for (Strip &strip : *seqbase) {
-    if ((strip.flag & SEQ_SELECT) == 0) {
-      continue;
-    }
-    if (!seq::retiming_is_allowed(&strip)) {
-      continue;
-    }
-    strip.flag |= SEQ_SHOW_RETIMING;
-  }
-}
-
-static void sequencer_retiming_data_hide_selection(ListBaseT<Strip> *seqbase)
-{
-  for (Strip &strip : *seqbase) {
-    if ((strip.flag & SEQ_SELECT) == 0) {
-      continue;
-    }
-    if (!seq::retiming_is_allowed(&strip)) {
-      continue;
-    }
-    strip.flag &= ~SEQ_SHOW_RETIMING;
-  }
-}
-
-static void sequencer_retiming_data_hide_all(ListBaseT<Strip> *seqbase)
-{
-  for (Strip &strip : *seqbase) {
-    strip.flag &= ~SEQ_SHOW_RETIMING;
-  }
-}
-
 static wmOperatorStatus sequencer_retiming_data_show_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
-  Strip *strip_act = seq::select_active_get(scene);
 
-  if (strip_act == nullptr) {
+  VectorSet<Strip *> selected = seq::query_selected_strips(seq::active_seqbase_get(ed));
+  selected.remove_if([](Strip *strip) { return !seq::retiming_is_allowed(strip); });
+
+  Map<SeqRetimingKey *, Strip *> retiming_sel = seq::retiming_selection_get(ed);
+  for (Strip *retiming_strip : retiming_sel.values()) {
+    if (seq::retiming_show_keys(retiming_strip)) {
+      selected.add(retiming_strip);
+    }
+  }
+
+  if (selected.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  if (seq::retiming_keys_are_selected(scene)) {
-    sequencer_retiming_data_hide_all(ed->current_strips());
-  }
-  else if (seq::retiming_show_keys(strip_act)) {
-    sequencer_retiming_data_hide_selection(ed->current_strips());
-  }
-  else {
-    sequencer_retiming_data_show_selection(ed->current_strips());
+  /* If all strips show retiming keys, hide keys for all strips, otherwise, show for all. */
+  const bool all_show = std::all_of(selected.begin(), selected.end(), [](Strip *strip) {
+    return seq::retiming_show_keys(strip);
+  });
+
+  for (Strip *strip : selected) {
+    if (all_show) {
+      strip->flag &= ~SEQ_SHOW_RETIMING;
+      /* Select the strip since we may have only had retiming keys selected before.
+       * This lets the user switch back to retiming mode right away if desired. */
+      strip->flag |= SEQ_SELECT;
+    }
+    else {
+      strip->flag |= SEQ_SHOW_RETIMING;
+      /* Deselect the strip so only retiming keys are selected. */
+      strip->flag &= ~SEQ_SELECT;
+    }
   }
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
