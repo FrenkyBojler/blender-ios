@@ -11,3 +11,4 @@ Referenced by pull request #153322, Fix: Mesh validation bugs from AttributeStor
 Referenced by commit 4ccc711695e660dc814f7b246036cc2f072e95a9, Fix: Mesh validation bugs from AttributeStorage switch
 Referenced by issue #153519, Crash: Using Node Tool and deleting mesh right after.
 Referenced by pull request #153700, Tests: glTF: Add new test for attribtes / vertex color
+Referenced by commit 176482edcc495fb7d4b309349836cd32cce702f9, Tests: glTF: Add new test for attribtes / vertex color
