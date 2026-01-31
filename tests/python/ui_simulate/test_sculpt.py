@@ -54,7 +54,7 @@ def _subdivide_mesh(e, times):
     yield e.tab()                       # Leave Edit mode.
 
 
-def _cursor_motion_data_x(e, start_position, pixels):
+def _move_horizontal(e, start_position, pixels):
     for x in range(pixels // 10):
         position = (start_position[0] + x * 10, start_position[1])
         yield e.cursor_position_set(*position, move=True)
@@ -96,7 +96,7 @@ def mask_expand_and_invert():
 
     yield e.shift.a()                                           # Expand operator
 
-    yield from _cursor_motion_data_x(e, position, 200)
+    yield from _move_horizontal(e, position, 200)
     e.leftmouse.tap()
     yield
 
@@ -152,7 +152,7 @@ def face_set_expand():
 
     yield e.shift.w()                                           # Expand operator
 
-    yield from _cursor_motion_data_x(e, position, 200)
+    yield from _move_horizontal(e, position, 200)
     e.leftmouse.tap()
     yield
 
