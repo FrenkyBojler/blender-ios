@@ -517,7 +517,7 @@ template<typename T> struct StatusValue {
   {
     return {
         a.value_sum + b.value_sum,
-        std::max(a.value_max, b.value_max),
+        math::max(a.value_max, b.value_max),
     };
   }
 };
@@ -638,12 +638,12 @@ static StatusValue<T> init_status_from_attribute(const blender::VArray<T> &attri
       512,
       StatusValue<T>(),
       [&](const IndexRange range, const StatusValue<T> &acc) {
-        StatusValue value = acc;
+        StatusValue<T> value = acc;
 
         selection.slice(range).foreach_index([&](const int curve) {
           const T attribute_value = attribute[curve];
           value.value_sum += attribute_value;
-          value.value_max = std::max(value.value_max, attribute_value);
+          value.value_max = math::max(value.value_max, attribute_value);
         });
         return value;
       },
