@@ -23,6 +23,8 @@
 
 #include <optional>
 
+namespace blender {
+
 enum class PaintMode : int8_t;
 
 struct ARegion;
@@ -53,7 +55,6 @@ struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperator;
 struct wmOperatorType;
-namespace blender {
 
 namespace bke::pbvh {
 class Node;
@@ -69,19 +70,24 @@ struct StrokeCache;
 namespace ocio {
 class Display;
 }
-}  // namespace blender
-using ColorManagedDisplay = blender::ocio::Display;
+using ColorManagedDisplay = ocio::Display;
 
 /* paint_stroke.cc */
 
-enum BrushStrokeMode {
-  BRUSH_STROKE_NORMAL,
-  BRUSH_STROKE_INVERT,
-  BRUSH_STROKE_SMOOTH,
-  BRUSH_STROKE_ERASE,
+enum class BrushStrokeMode : int8_t {
+  Normal = 0,
+  Invert = 1,
 };
 
-namespace blender::ed::sculpt_paint {
+/* Indicates a brush that the stroke will switch to for the duration of the stroke */
+enum class BrushSwitchMode : int8_t {
+  None = 0,
+  Smooth = 1,
+  Erase = 2,
+  Mask = 3,
+};
+
+namespace ed::sculpt_paint {
 
 using StrokeDone = void (*)(PaintStroke *stroke, bool is_cancel);
 
@@ -108,7 +114,9 @@ struct PaintStroke : NonCopyable, NonMovable {
 
   /* Cached values */
   ViewContext vc = {};
+  Depsgraph *depsgraph = nullptr;
   Object *object = nullptr;
+  Scene *scene = nullptr;
   Paint *paint = nullptr;
   Brush *brush = nullptr;
   UnifiedPaintSettings *ups = nullptr;
@@ -157,7 +165,8 @@ struct PaintStroke : NonCopyable, NonMovable {
   float cached_size_pressure_ = 0.0f;
   /* last pressure will store last pressure value for use in interpolation for space strokes */
   float last_pressure_ = 0.0f;
-  int stroke_mode_ = 0;
+  BrushStrokeMode stroke_mode_ = BrushStrokeMode::Normal;
+  BrushSwitchMode brush_switch_mode_ = BrushSwitchMode::None;
 
   float last_tablet_event_pressure_ = 0.0f;
 
@@ -204,7 +213,7 @@ struct PaintStroke : NonCopyable, NonMovable {
 
   bool stroke_inverted() const
   {
-    return stroke_mode_ == BRUSH_STROKE_INVERT;
+    return stroke_mode_ == BrushStrokeMode::Invert;
   }
 
   float stroke_distance() const
@@ -287,7 +296,7 @@ void paint_stroke_jitter_pos(Paint *paint,
                              PaintMode mode,
                              const Brush &brush,
                              float pressure,
-                             int stroke_mode,
+                             BrushStrokeMode stroke_mode,
                              float zoom_2d,
                              const float mval[2],
                              float r_mouse_out[2]);
@@ -304,7 +313,9 @@ bool paint_supports_dynamic_size(const Brush &br, PaintMode mode);
  * Return true if the brush size can change during paint (normally used for pressure).
  */
 bool paint_supports_dynamic_tex_coords(const Brush &br, PaintMode mode);
-bool paint_supports_smooth_stroke(const Brush &brush, PaintMode mode, int stroke_mode);
+bool paint_supports_smooth_stroke(const Brush &brush,
+                                  PaintMode mode,
+                                  BrushSwitchMode brush_switch_mode);
 bool paint_supports_texture(PaintMode mode);
 
 /**
@@ -334,7 +345,7 @@ void BRUSH_OT_asset_delete(wmOperatorType *ot);
 void BRUSH_OT_asset_save(wmOperatorType *ot);
 void BRUSH_OT_asset_revert(wmOperatorType *ot);
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
 
 /**
  * Delete overlay cursor textures to preserve memory and invalidate all overlay flags.
@@ -402,6 +413,12 @@ bool ED_wpaint_ensure_data(bContext *C,
                            ReportList *reports,
                            eWPaintFlag flag,
                            WPaintVGroupIndex *vgroup_index);
+bool ED_wpaint_ensure_data(bContext *C,
+                           Main *bmain,
+                           Object *object,
+                           ReportList *reports,
+                           eWPaintFlag flag,
+                           WPaintVGroupIndex *vgroup_index);
 /** Return -1 when invalid. */
 int ED_wpaint_mirror_vgroup_ensure(Object *ob, int vgroup_active);
 
@@ -421,20 +438,6 @@ void PAINT_OT_weight_from_bones(wmOperatorType *ot);
 void PAINT_OT_weight_sample(wmOperatorType *ot);
 void PAINT_OT_weight_sample_group(wmOperatorType *ot);
 
-/* `paint_vertex_proj.cc` */
-
-VertProjHandle *ED_vpaint_proj_handle_create(Depsgraph &depsgraph,
-                                             Scene &scene,
-                                             Object &ob,
-                                             blender::Span<blender::float3> &r_vert_positions,
-                                             blender::Span<blender::float3> &r_vert_normals);
-void ED_vpaint_proj_handle_update(Depsgraph *depsgraph,
-                                  VertProjHandle *vp_handle,
-                                  /* runtime vars */
-                                  ARegion *region,
-                                  const float mval_fl[2]);
-void ED_vpaint_proj_handle_free(VertProjHandle *vp_handle);
-
 /* `paint_image.cc` */
 
 struct ImagePaintPartialRedraw {
@@ -450,7 +453,7 @@ void set_imapaintpartial(ImagePaintPartialRedraw *ippr);
 void imapaint_region_tiles(
     ImBuf *ibuf, int x, int y, int w, int h, int *tx, int *ty, int *tw, int *th);
 bool get_imapaint_zoom(bContext *C, float *zoomx, float *zoomy);
-void *paint_2d_new_stroke(bContext *, wmOperator *, int mode);
+void *paint_2d_new_stroke(bContext *, wmOperator *, BrushStrokeMode mode);
 void paint_2d_redraw(const bContext *C, void *ps, bool final);
 void paint_2d_stroke_done(void *ps);
 void paint_2d_stroke(void *ps,
@@ -471,7 +474,11 @@ void paint_2d_bucket_fill(const bContext *C,
                           void *ps);
 void paint_2d_gradient_fill(
     const bContext *C, Brush *br, const float mouse_init[2], const float mouse_final[2], void *ps);
-void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int mode);
+void *paint_proj_new_stroke(bContext *C,
+                            Object *ob,
+                            const float mouse[2],
+                            BrushStrokeMode mode,
+                            BrushSwitchMode brush_switch_mode);
 void paint_proj_stroke(const bContext *C,
                        void *ps_handle_p,
                        const float prev_pos[2],
@@ -485,7 +492,7 @@ void paint_proj_stroke_done(void *ps_handle_p);
 
 void paint_brush_color_get(const Paint *paint,
                            Brush *br,
-                           std::optional<blender::float3> &initial_hsv_jitter,
+                           std::optional<float3> &initial_hsv_jitter,
                            bool invert,
                            float distance,
                            float pressure,
@@ -495,7 +502,9 @@ void paint_brush_init_tex(Brush *brush);
 void paint_brush_exit_tex(Brush *brush);
 
 void PAINT_OT_grab_clone(wmOperatorType *ot);
+namespace ed::sculpt_paint {
 void PAINT_OT_sample_color(wmOperatorType *ot);
+}
 void PAINT_OT_brush_colors_flip(wmOperatorType *ot);
 void PAINT_OT_texture_paint_toggle(wmOperatorType *ot);
 void PAINT_OT_project_image(wmOperatorType *ot);
@@ -565,7 +574,7 @@ bool paint_convert_bb_to_rect(rcti *rect,
                               const Object &ob);
 
 float paint_calc_object_space_radius(const ViewContext &vc,
-                                     const blender::float3 &center,
+                                     const float3 &center,
                                      float pixel_radius);
 
 /**
@@ -601,6 +610,7 @@ void PAINT_OT_vert_select_linked(wmOperatorType *ot);
 void PAINT_OT_vert_select_linked_pick(wmOperatorType *ot);
 void PAINT_OT_vert_select_more(wmOperatorType *ot);
 void PAINT_OT_vert_select_less(wmOperatorType *ot);
+void PAINT_OT_vert_select_loop(wmOperatorType *ot);
 
 bool vert_paint_poll(bContext *C);
 bool mask_paint_poll(bContext *C);
@@ -608,7 +618,7 @@ bool paint_curve_poll(bContext *C);
 
 bool facemask_paint_poll(bContext *C);
 
-namespace blender::ed::sculpt_paint {
+namespace ed::sculpt_paint {
 
 /**
  * Determines whether a given symmetry pass is valid.
@@ -647,7 +657,7 @@ inline float3 symmetry_flip(const float3 &src, const ePaintSymmetryFlags symm)
   return dst;
 }
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace ed::sculpt_paint
 
 /* `paint_curve.cc` */
 
@@ -680,7 +690,7 @@ void paint_init_pivot(Object *ob, Scene *scene, Paint *paint);
 /* paint curve defines */
 #define PAINT_CURVE_NUM_SEGMENTS 40
 
-namespace blender::ed::sculpt_paint::vwpaint {
+namespace ed::sculpt_paint::vwpaint {
 struct NormalAnglePrecalc {
   bool do_mask_normal;
   /* what angle to mask at */
@@ -712,14 +722,6 @@ void get_brush_alpha_data(const SculptSession &ss,
                           float *r_brush_alpha_pressure);
 
 void init_stroke(Depsgraph &depsgraph, Object &ob);
-void init_session_data(const ToolSettings &ts, Object &ob);
-/** Toggle operator for turning vertex paint mode on or off (copied from `sculpt.cc`) */
-void init_session(Main &bmain,
-                  Depsgraph &depsgraph,
-                  Scene &scene,
-                  Paint &paint,
-                  Object &ob,
-                  eObjectMode object_mode);
 
 IndexMask pbvh_gather_generic(const Depsgraph &depsgraph,
                               const Object &ob,
@@ -733,12 +735,14 @@ void mode_exit_generic(Object &ob, eObjectMode mode_flag);
 bool mode_toggle_poll_test(bContext *C);
 
 void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache);
-void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache);
+void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache);
 
 /** Initialize the stroke cache variants from operator properties. */
-void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr);
+void update_cache_variants(const Depsgraph &depsgraph, VPaint &vp, Object &ob, PointerRNA *ptr);
 /** Initialize the stroke cache invariants from operator properties. */
 void update_cache_invariants(
-    bContext *C, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2]);
+    Main *bmain, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2]);
 void last_stroke_update(const float location[3], Paint &paint);
-}  // namespace blender::ed::sculpt_paint::vwpaint
+}  // namespace ed::sculpt_paint::vwpaint
+
+}  // namespace blender

@@ -19,7 +19,9 @@
 
 #include "UI_interface_c.hh"  // IWYU pragma: export
 
-namespace blender::nodes::geo_eval_log {
+namespace blender {
+
+namespace nodes::geo_eval_log {
 struct GeometryAttributeInfo;
 }
 
@@ -31,14 +33,14 @@ struct uiList;
 struct wmDrag;
 struct wmEvent;
 
-namespace blender::ui {
+namespace ui {
 class AbstractView;
 class AbstractViewItem;
 struct Layout;
 struct SearchItems;
-}  // namespace blender::ui
+}  // namespace ui
 
-namespace blender::ui {
+namespace ui {
 
 void button_func_set(Button *but, std::function<void(bContext &)> func);
 void button_func_pushed_state_set(Button *but, std::function<bool(const Button &)> func);
@@ -207,10 +209,10 @@ bool drop_target_apply_drop(bContext &C,
                             const ARegion &region,
                             const wmEvent &event,
                             const DropTargetInterface &drop_target,
-                            const ListBase &drags);
+                            const ListBaseT<wmDrag> &drags);
 /**
  * Call #DropTargetInterface::drop_tooltip() and return the result as newly allocated C string
- * (unless the result is empty, returns null then). Needs freeing with MEM_freeN().
+ * (unless the result is empty, returns null then). Needs freeing with MEM_delete().
  */
 std::string drop_target_tooltip(const ARegion &region,
                                 const DropTargetInterface &drop_target,
@@ -294,4 +296,5 @@ AbstractTreeView *block_add_view(Block &block,
 
 void alert(bContext *C, StringRef title, StringRef message, AlertIcon icon, bool compact);
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

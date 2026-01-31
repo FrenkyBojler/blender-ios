@@ -114,33 +114,10 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
    * it here. This reduces a significant amount of overhead. */
   AccessorT accessor = grid.getConstUnsafeAccessor();
 
-  mask.foreach_index([&](const int64_t i) {
+  mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
     GridValueT value = accessor.getValue(openvdb::Coord(x[i], y[i], z[i]));
     dst[i] = TraitsT::to_blender(value);
   });
-}
-
-template<typename Fn> void convert_to_static_type(const VolumeGridType type, const Fn &fn)
-{
-  switch (type) {
-    case VOLUME_GRID_BOOLEAN:
-      fn(bool());
-      break;
-    case VOLUME_GRID_FLOAT:
-      fn(float());
-      break;
-    case VOLUME_GRID_INT:
-      fn(int());
-      break;
-    case VOLUME_GRID_MASK:
-      fn(bool());
-      break;
-    case VOLUME_GRID_VECTOR_FLOAT:
-      fn(float3());
-      break;
-    default:
-      break;
-  }
 }
 
 class SampleGridIndexFunction : public mf::MultiFunction {
@@ -177,14 +154,15 @@ class SampleGridIndexFunction : public mf::MultiFunction {
     const VArraySpan<int> z = params.readonly_single_input<int>(2, "Z");
     GMutableSpan dst = params.uninitialized_single_output(3, "Value");
 
-    convert_to_static_type(grid_type_, [&](auto dummy) {
-      using T = decltype(dummy);
-      sample_grid<T>(static_cast<const bke::OpenvdbGridType<T> &>(*grid_base_),
-                     x,
-                     y,
-                     z,
-                     mask,
-                     dst.typed<T>());
+    BKE_volume_grid_type_to_blender_value_type(grid_type_, [&]<typename T>() {
+      if constexpr (is_same_any_v<T, bool, float, int, float3>) {
+        sample_grid<T>(static_cast<const bke::OpenvdbGridType<T> &>(*grid_base_),
+                       x,
+                       y,
+                       z,
+                       mask,
+                       dst.typed<T>());
+      }
     });
   }
 };
@@ -243,7 +221,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSampleGridIndex", GEO_NODE_SAMPLE_GRID_INDEX);
   ntype.ui_name = "Sample Grid Index";
@@ -256,7 +234,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

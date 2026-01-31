@@ -25,6 +25,8 @@
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
+struct IconTextOverlay;
+namespace blender {
 
 struct AnimationEvalContext;
 struct ARegion;
@@ -32,20 +34,20 @@ struct bContext;
 struct bContextStore;
 struct CurveMapping;
 struct CurveProfile;
-namespace blender::gpu {
+namespace gpu {
 class Batch;
 }
-struct IconTextOverlay;
 struct ID;
 struct ImBuf;
 struct LayoutPanelHeader;
 struct Main;
 struct Scene;
-namespace blender::ui {
+namespace ui {
+struct SafetyRect;
 struct HandleButtonData;
 struct Layout;
 struct UndoStack_Text;
-}  // namespace blender::ui
+}  // namespace ui
 struct uiListType;
 struct uiStyle;
 struct uiWidgetColors;
@@ -55,7 +57,7 @@ struct wmKeyConfig;
 struct wmOperatorType;
 struct wmTimer;
 
-namespace blender::ui {
+namespace ui {
 
 /* ****************** general defines ************** */
 
@@ -77,7 +79,7 @@ namespace blender::ui {
 #define UI_POPOVER_WIDTH_UNITS 10
 
 /** #Button.flag */
-enum {
+enum ButtonFlagInternal {
   /** Use when the button is pressed. */
   UI_SELECT = (1 << 0),
   /** Temporarily hidden (scrolled out of the view). */
@@ -104,6 +106,16 @@ enum {
 
   /* WARNING: rest of #Button.flag in `UI_interface_c.hh`. */
 };
+
+/** These two enums can be combined. */
+inline int operator|(const ButtonFlag a, const ButtonFlagInternal b)
+{
+  return int(a) | int(b);
+}
+inline int operator|(const ButtonFlagInternal b, const ButtonFlag a)
+{
+  return int(a) | int(b);
+}
 
 /** #Button.pie_dir */
 enum RadialDirection : int8_t {
@@ -236,7 +248,7 @@ struct Button {
 
   ButtonHandleRenameFunc rename_func = nullptr;
   void *rename_arg1 = nullptr;
-  void *rename_orig = nullptr;
+  char *rename_orig = nullptr;
 
   /**
    * When defined, and the button edits a string RNA property,
@@ -313,7 +325,7 @@ struct Button {
   wmOperatorType *optype = nullptr;
   PointerRNA *opptr = nullptr;
 
-  ListBase extra_op_icons = {nullptr, nullptr}; /** #ButtonExtraOpIcon */
+  ListBaseT<ButtonExtraOpIcon> extra_op_icons = {nullptr, nullptr}; /** #ButtonExtraOpIcon */
 
   /**
    * Active button data, set when the user is hovering or interacting with a button (#UI_HOVER and
@@ -523,6 +535,12 @@ struct ColorPicker {
   /* Hex Color string */
   char hexcol[128];
 
+  /**
+   * Buffer for the main area (Circle/Square) tooltip.
+   * Used for dynamically formatted tooltips (e.g. "Hue/Saturation").
+   */
+  char tooltip_area[128];
+
   /** Cubic saturation for the color wheel. */
   bool use_color_cubic;
   bool use_color_lock;
@@ -534,25 +552,25 @@ struct ColorPicker {
 };
 
 struct ColorPickerData {
-  ListBase list;
+  ListBaseT<ColorPicker> list = {nullptr, nullptr};
 };
 
 struct PieMenuData {
   /** store title and icon to allow access when pie levels are created */
-  const char *title;
-  int icon;
+  const char *title = nullptr;
+  int icon = 0;
 
   /** A mask combining the directions of all buttons in the pie menu (excluding separators). */
-  int pie_dir_mask;
-  float pie_dir[2];
-  float pie_center_init[2];
-  float pie_center_spawned[2];
-  float last_pos[2];
-  double duration_gesture;
-  int flags;
+  int pie_dir_mask = 0;
+  float pie_dir[2] = {};
+  float pie_center_init[2] = {};
+  float pie_center_spawned[2] = {};
+  float last_pos[2] = {};
+  double duration_gesture = 0.0;
+  int flags = 0;
   /** Initial event used to fire the pie menu, store here so we can query for release */
-  short event_type;
-  float alphafac;
+  short event_type = 0;
+  float alphafac = 0.0f;
 };
 
 /** #Block.content_hints */
@@ -590,125 +608,126 @@ struct BlockDynamicListener {
 
 enum class BlockAlertLevel : int8_t { None, Info, Success, Warning, Error };
 
+struct ButStore;
+struct ViewLink;
+
 struct Block {
-  Block *next, *prev;
+  Block *next = nullptr, *prev = nullptr;
 
   Vector<std::unique_ptr<Button>> buttons;
-  Panel *panel;
-  Block *oldblock;
+  Panel *panel = nullptr;
+  Block *oldblock = nullptr;
 
   /** Used for `UI_butstore_*` runtime function. */
-  ListBase butstore;
+  ListBaseT<ButStore> butstore = {nullptr, nullptr};
 
   Vector<ButtonGroup> button_groups;
 
-  ListBase layouts;
-  Layout *curlayout;
+  ListBaseT<LayoutRoot> layouts = {nullptr, nullptr};
+  Layout *curlayout = nullptr;
 
   Vector<std::unique_ptr<bContextStore>> contexts;
 
   /** A block can store "views" on data-sets. Currently tree-views (#AbstractTreeView) only.
    * Others are imaginable, e.g. table-views, grid-views, etc. These are stored here to support
    * state that is persistent over redraws (e.g. collapsed tree-view items). */
-  ListBase views;
+  ListBaseT<ViewLink> views = {nullptr, nullptr};
 
-  ListBase dynamic_listeners; /* #BlockDynamicListener */
+  ListBaseT<BlockDynamicListener> dynamic_listeners = {nullptr, nullptr};
 
   std::string name;
 
-  float winmat[4][4];
+  float winmat[4][4] = {};
 
-  rctf rect;
-  float aspect;
+  rctf rect = {};
+  float aspect = 0.0f;
 
   BlockAlertLevel alert_level = BlockAlertLevel::None;
 
   /** Unique hash used to implement popup menu memory. */
-  uint puphash;
+  uint puphash = 0;
 
-  ButtonHandleFunc func;
-  void *func_arg1;
-  void *func_arg2;
+  ButtonHandleFunc func = nullptr;
+  void *func_arg1 = nullptr;
+  void *func_arg2 = nullptr;
 
-  ButtonHandleNFunc funcN;
-  void *func_argN;
-  ButtonArgNFree func_argN_free_fn;
-  ButtonArgNCopy func_argN_copy_fn;
+  ButtonHandleNFunc funcN = nullptr;
+  void *func_argN = nullptr;
+  ButtonArgNFree func_argN_free_fn = nullptr;
+  ButtonArgNCopy func_argN_copy_fn = nullptr;
 
-  BlockHandleFunc handle_func;
-  void *handle_func_arg;
+  BlockHandleFunc handle_func = nullptr;
+  void *handle_func_arg = nullptr;
 
   /** Custom interaction data. */
-  BlockInteraction_CallbackData custom_interaction_callbacks;
+  BlockInteraction_CallbackData custom_interaction_callbacks = {};
 
   /** Custom extra event handling. */
-  int (*block_event_func)(const bContext *C, Block *, const wmEvent *);
+  int (*block_event_func)(const bContext *C, Block *, const wmEvent *) = nullptr;
 
   /** Custom extra draw function for custom blocks. */
   std::function<void(const bContext *, rcti *)> drawextra;
 
-  int flag;
-  short alignnr;
+  int flag = 0;
+  short alignnr = 0;
   /** Hints about the buttons of this block. Used to avoid iterating over
    * buttons to find out if some criteria is met by any. Instead, check this
    * criteria when adding the button and set a flag here if it's met. */
-  short content_hints; /* #eBlockContentHints */
+  short content_hints = 0; /* #eBlockContentHints */
 
-  char direction;
+  char direction = 0;
   /** BLOCK_THEME_STYLE_* */
-  char theme_style;
+  char theme_style = 0;
   /** Copied to #Button.emboss */
-  EmbossType emboss;
-  bool auto_open;
-  char _pad[5];
-  double auto_open_last;
+  EmbossType emboss = EmbossType::Emboss;
+  bool auto_open = false;
+  double auto_open_last = 0.0;
 
-  const char *lockstr;
+  const char *lockstr = nullptr;
 
-  bool lock;
+  bool lock = false;
   /** To keep blocks while drawing and free them afterwards. */
-  bool active;
+  bool active = false;
   /** To avoid tool-tip after click. */
-  bool tooltipdisabled;
+  bool tooltipdisabled = false;
   /** True when #block_end has been called. */
-  bool endblock;
+  bool endblock = false;
 
   /** for doing delayed */
-  BlockBoundsCalc bounds_type;
+  BlockBoundsCalc bounds_type = BLOCK_BOUNDS_NONE;
   /** Offset to use when calculating bounds (in pixels). */
-  int bounds_offset[2];
+  int bounds_offset[2] = {};
   /** for doing delayed */
-  int bounds, minbounds;
+  int bounds = 0, minbounds = 0;
 
   /** Pull-downs, to detect outside, can differ per case how it is created. */
-  rctf safety;
-  /** #SafetyRect list */
-  ListBase saferct;
+  rctf safety = {};
+  ListBaseT<SafetyRect> saferct = {nullptr, nullptr};
 
-  PopupBlockHandle *handle;
+  PopupBlockHandle *handle = nullptr;
 
   /** use so presets can find the operator,
    * across menus and from nested popups which fail for operator context. */
-  wmOperator *ui_operator;
-  bool ui_operator_free;
+  wmOperator *ui_operator = nullptr;
+  bool ui_operator_free = false;
 
   /** XXX hack for dynamic operator enums */
-  void *evil_C;
+  void *evil_C = nullptr;
 
   /** unit system, used a lot for numeric buttons so include here
    * rather than fetching through the scene every time. */
-  const UnitSettings *unit;
+  const UnitSettings *unit = nullptr;
   /** \note only accessed by color picker templates. */
   ColorPickerData color_pickers;
 
   /** Block for color picker with gamma baked in. */
-  bool is_color_gamma_picker;
+  bool is_color_gamma_picker = false;
 
   /**
    * Display device name used to display this block,
    * used by color widgets to transform colors from/to scene linear.
    */
-  char display_device[64];
+  char display_device[64] = "";
 
   PieMenuData pie_data;
 
@@ -769,15 +788,6 @@ void region_winrct_get_no_margin(const ARegion *region, rcti *r_rect);
 /** Register a listener callback to this block to tag the area/region for redraw. */
 void block_add_dynamic_listener(Block *block,
                                 void (*listener_func)(const wmRegionListenerParams *params));
-
-/**
- * Reallocate the button (new address is returned) for a new button type.
- * This should generally be avoided and instead the correct type be created right away.
- *
- * \note Only the #Button data can be kept. If the old button used a derived type (e.g.
- * #ButtonTab), the data that is not inside #Button will be lost.
- */
-Button *button_change_type(Button *but, ButtonType new_type);
 
 double button_value_get(Button *but);
 void button_value_set(Button *but, double value);
@@ -1428,17 +1438,19 @@ void layout_remove_but(Layout *layout, const Button *but);
  * \return true if the button was successfully replaced.
  */
 bool layout_replace_but_ptr(Layout *layout, const void *old_but_ptr, Button *new_but);
+
 /**
- * \note May reallocate \a but, so the possibly new address is returned. May also override the
- *       #BUT_DISABLED flag depending on if a search pointer-property pair was provided/found.
+ * \note \a but type must be a ButtonType::SearchMenu. If the property is a string property and
+ * does not contains the #PROP_STRING_SEARCH_SUPPORTED flag or if the search pointer-property pair
+ * is not provided/found it will disable the button.
  */
-Button *but_add_search(Button *but,
-                       PointerRNA *ptr,
-                       PropertyRNA *prop,
-                       PointerRNA *searchptr,
-                       PropertyRNA *searchprop,
-                       PropertyRNA *item_searchprop,
-                       bool results_are_suggestions);
+void button_configure_search(Button *but,
+                             PointerRNA *ptr,
+                             PropertyRNA *prop,
+                             PointerRNA *searchptr,
+                             PropertyRNA *searchprop,
+                             PropertyRNA *item_searchprop,
+                             bool results_are_suggestions);
 /**
  * Check all buttons defined in this layout,
  * and set any button flagged as BUT_LIST_ITEM as active/selected.
@@ -1740,4 +1752,5 @@ int paste_property_drivers(Span<FCurve *> src_drivers,
 
 }  // namespace internal
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender
