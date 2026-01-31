@@ -141,10 +141,9 @@ def __gather_cache_primitives(
     """
     primitives = []
 
-
     if type(blender_data).__name__ == "PointCloud":
         # Point clouds
-        blender_primitives = pointcloud.gather_point_cloud(blender_mesh, export_settings)
+        blender_primitives = pointcloud.gather_point_cloud(blender_data, export_settings)
         additional_materials_udim = [None] * len(blender_primitives)
         shared_attributes = None
 
@@ -152,7 +151,7 @@ def __gather_cache_primitives(
         # Mesh
 
         blender_primitives, additional_materials_udim, shared_attributes = gltf2_blender_gather_primitives_extract.extract_primitives(
-            materials, blender_mesh, uuid_for_skined_data, vertex_groups, modifiers, export_settings)
+            materials, blender_data, uuid_for_skined_data, vertex_groups, modifiers, export_settings)
 
     if shared_attributes is not None:
 
@@ -250,7 +249,7 @@ def __gather_targets(blender_primitive, blender_data, modifiers, export_settings
     if export_settings['gltf_morph']:
 
         # Not for Point Clouds
-        if type(blender_mesh).__name__ == "PointCloud":
+        if type(blender_data).__name__ == "PointCloud":
             return None
 
         targets = []
