@@ -61,13 +61,20 @@ static void node_declare(NodeDeclarationBuilder &b)
       .expanded()
       .optional_label();
 
-  b.add_output<decl::Geometry>("Points").description("Point geometry representing grid voxels");
+  b.add_output<decl::Geometry>("Points").description(
+      "A point for each active voxel or tile in the grid");
+  b.add_output(data_type, "Value").field_on_all().description("The grid's value at each voxel");
   b.add_output<decl::Bool>("Is Tile").field_on_all().description(
-      "Whether point represents a tile (true) or voxel (false)");
-  b.add_output(data_type, "Value").field_on_all().description("Grid values at point positions");
-  b.add_output<decl::Int>("X").field_on_all().description("X coordinate in index space");
-  b.add_output<decl::Int>("Y").field_on_all().description("Y coordinate in index space");
-  b.add_output<decl::Int>("Z").field_on_all().description("Z coordinate in index space");
+      "If a created point represents a tile (multiple voxels) rather than a single voxel");
+  b.add_output<decl::Int>("X").field_on_all().description(
+      "X coordinate of the voxel in index space, or the minimum X coordinate of a tile");
+  b.add_output<decl::Int>("Y").field_on_all().description(
+      "Y coordinate of the voxel in index space, or the minimum Y coordinate of a tile");
+  b.add_output<decl::Int>("Z").field_on_all().description(
+      "Z coordinate of the voxel in index space, or the minimum Z coordinate of a tile");
+  b.add_output<decl::Int>("Extent").field_on_all().description(
+      "The size of the tile or voxel. For individual voxels this is 1, for tiles this represents "
+      "the cubic size of the tile");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -173,6 +180,8 @@ static void node_geo_exec(GeoNodeExecParams params)
               params.get_output_anonymous_attribute_id_if_needed("Z");
           std::optional<std::string> is_tile_id =
               params.get_output_anonymous_attribute_id_if_needed("Is Tile");
+          std::optional<std::string> extent_id =
+              params.get_output_anonymous_attribute_id_if_needed("Extent");
           std::optional<std::string> value_id = params.get_output_anonymous_attribute_id_if_needed(
               "Value");
 
@@ -208,6 +217,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           SpanAttributeWriter<int> coord_x_writer;
           SpanAttributeWriter<int> coord_y_writer;
           SpanAttributeWriter<int> coord_z_writer;
+          SpanAttributeWriter<int> extent_writer;
           SpanAttributeWriter<typename type_traits::BlenderType> value_writer;
 
           if (coord_x_id) {
@@ -225,6 +235,10 @@ static void node_geo_exec(GeoNodeExecParams params)
           if (is_tile_id) {
             is_tile_writer = dst_attributes.lookup_or_add_for_write_only_span<bool>(
                 *is_tile_id, AttrDomain::Point);
+          }
+          if (extent_id) {
+            extent_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(
+                *extent_id, AttrDomain::Point);
           }
           if (value_id) {
             value_writer = dst_attributes.lookup_or_add_for_write_only_span<
@@ -262,6 +276,9 @@ static void node_geo_exec(GeoNodeExecParams params)
               if (is_tile_writer) {
                 is_tile_writer.span[i] = is_tile_flags[i];
               }
+              if (extent_writer) {
+                extent_writer.span[i] = tile_size;
+              }
               if (value_writer) {
                 value_writer.span[i] = active_values[i];
               }
@@ -272,6 +289,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           coord_y_writer.finish();
           coord_z_writer.finish();
           is_tile_writer.finish();
+          extent_writer.finish();
           value_writer.finish();
 
           params.set_output("Points", GeometrySet::from_pointcloud(pointcloud));
