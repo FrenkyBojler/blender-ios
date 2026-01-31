@@ -1127,15 +1127,13 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
     }
   }
 
+  const bool dedupe = attribute_outputs.hash && dupes.size() && dupes.size() < data_size;
   for (const std::pair key_val : sort_index) {
     const int64_t key_index = key_val.first;
 
-    if (attribute_outputs.hash) {
+    if (dedupe) {
       const int hash_key = data.hash[key_index];
-      if (dupes.at(hash_key) == key_index) {
-        dupes.erase(hash_key);
-      }
-      else {
+      if (!(dupes.at(hash_key) == key_index)) {
         continue;
       }
     }
@@ -1176,6 +1174,7 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
     }
   }
   BLI_assert(data.position.size() == r_data.position.size());
+  dupes.clear();
   return r_data;
 }
 
