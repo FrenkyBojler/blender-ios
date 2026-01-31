@@ -125,6 +125,31 @@ bool retiming_show_keys(const Strip *strip)
   return strip->flag & SEQ_SHOW_RETIMING;
 }
 
+bool retiming_keys_are_selected(const Scene *scene)
+{
+  if (!scene) {
+    return false;
+  }
+
+  Editing *ed = seq::editing_get(scene);
+  if (!ed) {
+    return false;
+  }
+
+  const Map retiming_sel = seq::retiming_selection_get(ed);
+  if (retiming_sel.is_empty()) {
+    return false;
+  }
+
+  for (const Strip *strip : retiming_sel.values()) {
+    if (seq::retiming_show_keys(strip)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool retiming_is_allowed(const Strip *strip)
 {
   /* Note that this disallows non-sequence image strips. */

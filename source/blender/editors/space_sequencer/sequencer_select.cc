@@ -425,7 +425,7 @@ static wmOperatorStatus sequencer_de_select_all_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
-  if (sequencer_retiming_mode_is_active(scene) && retiming_overlay_enabled(CTX_wm_space_seq(C))) {
+  if (seq::retiming_keys_are_selected(scene) && retiming_overlay_enabled(CTX_wm_space_seq(C))) {
     return sequencer_retiming_select_all_exec(C, op);
   }
 
@@ -1181,7 +1181,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     }
   }
 
-  const bool was_retiming = sequencer_retiming_mode_is_active(scene);
+  const bool was_retiming = seq::retiming_keys_are_selected(scene);
 
   MouseCoords mouse_co(v2d, RNA_int_get(op->ptr, "mouse_x"), RNA_int_get(op->ptr, "mouse_y"));
 
@@ -2123,7 +2123,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (sequencer_retiming_mode_is_active(scene) && retiming_overlay_enabled(CTX_wm_space_seq(C))) {
+  if (seq::retiming_keys_are_selected(scene) && retiming_overlay_enabled(CTX_wm_space_seq(C))) {
     return sequencer_retiming_box_select_exec(C, op);
   }
 
