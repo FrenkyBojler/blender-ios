@@ -6,6 +6,11 @@ import bpy
 from bpy.types import (
     Menu,
     UIList,
+    GreasePencil,
+    GreasePencilLayerGroup,
+    GreasePencilLayer,
+    GreasePencilTreeNode,
+    UILayout
 )
 from bpy.app.translations import (
     contexts as i18n_contexts,
@@ -192,6 +197,37 @@ class GreasePencilBrushFalloff:
                 )
 
 
+def draw_node(node: GreasePencilTreeNode, layout: UILayout, grease_pencil: GreasePencil):
+    if isinstance(node, GreasePencilLayerGroup):
+        layout.context_pointer_set("active_gpencil_layer_group", node)
+        layout.menu("GREASE_PENCIL_MT_layer_group", text=node.name)
+    elif isinstance(node, GreasePencilLayer):
+        if node == grease_pencil.layers.active:
+            icon = "GREASEPENCIL"
+        else:
+            icon = "NONE"
+
+        layout.operator("grease_pencil.move_to_layer", text=node.name, icon=icon).target_layer_name = node.name
+
+
+def draw_node_for_search(node: GreasePencilTreeNode, layout: UILayout, grease_pencil: GreasePencil):
+    if isinstance(node, GreasePencilLayerGroup):
+        op = layout.operator("grease_pencil.move_to_layer", text=f"Add New Layer to {node.name}", icon='ADD')
+        op.add_new_layer = True
+        op.target_group_name = node.name
+
+        for child in reversed(node.children):
+            draw_node_for_search(child, layout, grease_pencil)
+
+    elif isinstance(node, GreasePencilLayer):
+        if node == grease_pencil.layers.active:
+            icon = "GREASEPENCIL"
+        else:
+            icon = "NONE"
+
+        layout.operator("grease_pencil.move_to_layer", text=node.name, icon=icon).target_layer_name = node.name
+
+
 class GREASE_PENCIL_MT_move_to_layer(Menu):
     bl_label = "Move to Layer"
 
@@ -214,105 +250,9 @@ class GREASE_PENCIL_MT_move_to_layer(Menu):
 
         layout.separator()
 
-        root_nodes = build_layer_tree(grease_pencil)
-        for node in root_nodes:
-            draw_node(layout, node, grease_pencil)
-
-
-class GPNode:
-    def __init__(self, data, is_group=False):
-        self.data = data
-        self.name = data.name
-        self.is_group = is_group
-        self.children = []
-        self.parent = None
-
-    def add_child(self, node):
-        self.children.append(node)
-        node.parent = self
-
-    def __repr__(self):
-        return f"<Node: {self.name} ({'Group' if self.is_group else 'Layer'})>"
-    
-
-def get_node_sort_weight(node: GPNode, gpencil_obj: bpy.types.GreasePencil):
-    if not node.is_group:
-        return gpencil_obj.layers.find(node.data.name)
-    else:
-        max_weight = -1
+        for node in reversed(grease_pencil.root_nodes):
+            draw_node(node, layout, grease_pencil)
         
-        if not node.children:
-            return -1
-            
-        for child in node.children:
-            weight = get_node_sort_weight(child, gpencil_obj)
-            if weight > max_weight:
-                max_weight = weight
-        
-        return max_weight
-
-def sort_tree_recursive(nodes: list[GPNode], gpencil_obj: bpy.types.GreasePencil):
-    nodes.sort(key=lambda n: get_node_sort_weight(n, gpencil_obj), reverse=True)
-    
-    for node in nodes:
-        if node.is_group and node.children:
-            sort_tree_recursive(node.children, gpencil_obj)
-    
-
-def build_layer_tree(gpencil_obj: bpy.types.GreasePencil):
-    root_nodes = []    
-    group_map: dict[bpy.types.GreasePencilLayerGroup, GPNode] = {} 
-
-    for group in gpencil_obj.layer_groups:
-        group_node = GPNode(group, is_group=True)
-        group_map[group] = group_node
-
-    for group_obj, group_node in group_map.items():
-        parent_group = group_obj.parent_group
-        
-        if parent_group and parent_group in group_map:
-            parent_node = group_map[parent_group]
-            parent_node.add_child(group_node)
-        else:
-            if parent_group is None:
-                pass
-    
-    for layer in gpencil_obj.layers:
-        layer_node = GPNode(layer, is_group=False)
-        
-        parent = layer.parent_group
-        
-        if parent and parent in group_map:
-            group_node = group_map[parent]
-            group_node.add_child(layer_node)
-        else:
-            root_nodes.append(layer_node)
-
-    for group_obj, group_node in group_map.items():
-        parent_group = group_obj.parent_group
-        if parent_group is None:
-            root_nodes.append(group_node)
-
-    sort_tree_recursive(root_nodes, gpencil_obj)
-    
-    return root_nodes
-
-
-def draw_node(layout: bpy.types.UILayout, node: GPNode, gpencil_obj: bpy.types.GreasePencil, mode="VISUAL"):
-    if node.is_group:
-        if mode == "VISUAL":
-            layout.context_pointer_set("active_gpencil_layer_group", node.data)
-            layout.menu("GREASE_PENCIL_MT_layer_group", text=node.data.name)
-        else:
-            layout.label(text=node.data.name, icon='FILE_FOLDER')
-            for child in node.children:
-                 draw_node(layout, child, gpencil_obj, mode='SEARCH')
-    else:
-        if node.data == gpencil_obj.layers.active:
-            icon = 'GREASEPENCIL'
-        else:
-            icon = 'NONE'
-        layout.operator("grease_pencil.move_to_layer", text=node.data.name, icon=icon).target_layer_name = node.data.name
 
 
 class GREASE_PENCIL_MT_layer_group(Menu):
@@ -320,12 +260,6 @@ class GREASE_PENCIL_MT_layer_group(Menu):
 
     def draw(self, context):
         layout = self.layout
-
-        if layout.operator_context == 'EXEC_REGION_WIN':
-            layout.operator_context = 'INVOKE_REGION_WIN'
-            layout.operator("WM_OT_search_single_menu", text="Search...",
-                            icon='VIEWZOOM').menu_idname = "GREASE_PENCIL_MT_move_to_layer"
-            layout.separator()
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -335,44 +269,29 @@ class GREASE_PENCIL_MT_layer_group(Menu):
         layout.separator()
 
         target_group = getattr(context, "active_gpencil_layer_group", None)
-        if not target_group:
+        if not target_group or not isinstance(target_group, GreasePencilLayerGroup):
             return
         op.target_group_name = target_group.name
 
         grease_pencil = context.active_object.data
-        
-        root_nodes = build_layer_tree(grease_pencil)
-        
-        active_node = self.find_node(root_nodes, target_group)
 
-        if active_node:
-            for node in active_node.children:
-                draw_node(layout, node, grease_pencil)
+        for child in reversed(target_group.children):
+            draw_node(child, layout, grease_pencil)
 
-    def find_node(self, nodes, target_data):
-        for node in nodes:
-            if node.data == target_data:
-                return node
-            
-            if node.children:
-                found = self.find_node(node.children, target_data)
-                if found:
-                    return found
-        return None
-    
 
 class GREASE_PENCIL_MT_move_to_layer_SEARCH(Menu):
-    bl_label = "Search Layer"
-    bl_idname = "GREASE_PENCIL_MT_move_to_layer_SEARCH"
+    bl_label = "Move to Layer"
 
     def draw(self, context):
-        grease_pencil = context.active_object.data
-        
-        root_nodes = build_layer_tree(grease_pencil)
-        
-        for node in root_nodes:
-            draw_node(self.layout, node, grease_pencil, mode='SEARCH')
+        layout = self.layout
 
+        layout.operator_context = 'INVOKE_REGION_WIN'
+
+        grease_pencil = context.active_object.data
+
+        for node in reversed(grease_pencil.root_nodes):
+            draw_node_for_search(node, layout, grease_pencil)
+        
 
 class GREASE_PENCIL_MT_layer_active(Menu):
     bl_label = "Change Active Layer"
