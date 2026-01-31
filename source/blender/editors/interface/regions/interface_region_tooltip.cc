@@ -1783,8 +1783,11 @@ static void ui_tooltip_from_image(Image &ima, TooltipData &data)
     MovieReader *anim = static_cast<ImageAnim *>(ima.anims.first)->anim;
     if (anim) {
       int duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
-      tooltip_text_field_add(
-          data, fmt::format(TIP_("Frames: {}"), duration), {}, TIP_STYLE_NORMAL, TIP_LC_NORMAL);
+      tooltip_text_field_add(data,
+                             fmt::format(fmt::runtime(TIP_("Frames: {}")), duration),
+                             {},
+                             TIP_STYLE_NORMAL,
+                             TIP_LC_NORMAL);
     }
   }
 
@@ -1840,12 +1843,12 @@ static void ui_tooltip_from_clip(MovieClip &clip, TooltipData &data)
         TIP_STYLE_NORMAL,
         TIP_LC_NORMAL);
 
-    tooltip_text_field_add(
-        data,
-        fmt::format(TIP_("Frames: {}"), MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN)),
-        {},
-        TIP_STYLE_NORMAL,
-        TIP_LC_NORMAL);
+    tooltip_text_field_add(data,
+                           fmt::format(fmt::runtime(TIP_("Frames: {}")),
+                                       MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN)),
+                           {},
+                           TIP_STYLE_NORMAL,
+                           TIP_LC_NORMAL);
 
     ImBuf *ibuf = MOV_decode_preview_frame(anim);
 

@@ -170,11 +170,12 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
     }
 
     if (file->redirection_path) {
-      tooltip_text_field_add(tip,
-                             fmt::format("{}: {}", TIP_("Link target"), file->redirection_path),
-                             {},
-                             ui::TIP_STYLE_NORMAL,
-                             ui::TIP_LC_NORMAL);
+      tooltip_text_field_add(
+          tip,
+          fmt::format(fmt::runtime(TIP_("Link target: {}")), file->redirection_path),
+          {},
+          ui::TIP_STYLE_NORMAL,
+          ui::TIP_LC_NORMAL);
     }
     if (file->attributes & FILE_ATTR_OFFLINE) {
       tooltip_text_field_add(
@@ -271,12 +272,12 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
         {
           tooltip_text_field_add(
               tip,
-              fmt::format("{} {} @ {} {}", value1, TIP_("Frames"), value2, TIP_("FPS")),
+              fmt::format(fmt::runtime(TIP_("{} Frames @ {} FPS")), value1, value2),
               {},
               ui::TIP_STYLE_NORMAL,
               ui::TIP_LC_NORMAL);
           tooltip_text_field_add(tip,
-                                 fmt::format("{} {}", value3, TIP_("seconds")),
+                                 fmt::format(fmt::runtime(TIP_("{} seconds")), value3),
                                  {},
                                  ui::TIP_STYLE_NORMAL,
                                  ui::TIP_LC_NORMAL);
@@ -304,8 +305,7 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
       day_string = (is_today ? TIP_("Today") : TIP_("Yesterday")) + std::string(" ");
     }
     tooltip_text_field_add(tip,
-                           fmt::format("{}: {}{}{}",
-                                       TIP_("Modified"),
+                           fmt::format(fmt::runtime(TIP_("Modified: {}{}{}")),
                                        day_string,
                                        (is_today || is_yesterday) ? "" : date_str,
                                        (is_today || is_yesterday) ? time_str : ""),
@@ -321,14 +321,14 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
         BLI_str_format_uint64_grouped(size_full, file->size);
         tooltip_text_field_add(
             tip,
-            fmt::format("{}: {} ({} {})", TIP_("Size"), size, size_full, TIP_("bytes")),
+            fmt::format(fmt::runtime(TIP_("Size: {} ({} bytes)")), size, size_full),
             {},
             ui::TIP_STYLE_NORMAL,
             ui::TIP_LC_NORMAL);
       }
       else {
         tooltip_text_field_add(tip,
-                               fmt::format("{}: {}", TIP_("Size"), size),
+                               fmt::format(fmt::runtime(TIP_("Size: {}")), size),
                                {},
                                ui::TIP_STYLE_NORMAL,
                                ui::TIP_LC_NORMAL);
