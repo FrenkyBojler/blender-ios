@@ -181,20 +181,18 @@ static void node_geo_exec(GeoNodeExecParams params)
           Vector<bool> is_tile_flags;
           Vector<int> tile_sizes;
 
-          for (auto iter = vdb_grid->tree().cbeginValueAll(); iter; ++iter) {
-            if (iter.isValueOn()) {
-              active_coords.append(iter.getCoord());
-              active_values.append(type_traits::to_blender(iter.getValue()));
+          for (auto iter = vdb_grid->tree().cbeginValueOn(); iter; ++iter) {
+            active_coords.append(iter.getCoord());
+            active_values.append(type_traits::to_blender(iter.getValue()));
 
-              const bool is_tile = iter.getLevel() > 0;
-              is_tile_flags.append(is_tile);
+            const bool is_tile = iter.getLevel() > 0;
+            is_tile_flags.append(is_tile);
 
-              int tile_size = 1;
-              if (is_tile) {
-                tile_size = 1 << (3 * iter.getLevel());
-              }
-              tile_sizes.append(tile_size);
+            int tile_size = 1;
+            if (is_tile) {
+              tile_size = 1 << (3 * iter.getLevel());
             }
+            tile_sizes.append(tile_size);
           }
 
           if (active_coords.is_empty()) {
