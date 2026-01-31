@@ -26,18 +26,18 @@
 
 namespace blender::nodes::node_geo_grid_to_points_cc {
 
-enum class PositionMode : int8_t {
+enum class OriginMode : int8_t {
   Center = 0,
   Corner = 1,
 };
 
-static const EnumPropertyItem position_mode_items[] = {
-    {int(PositionMode::Center),
+static const EnumPropertyItem origin_mode_items[] = {
+    {int(OriginMode::Center),
      "CENTER",
      0,
      N_("Center"),
      N_("Place points at the center of voxels/tiles")},
-    {int(PositionMode::Corner),
+    {int(OriginMode::Corner),
      "CORNER",
      0,
      N_("Corner"),
@@ -55,9 +55,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Menu>("Position")
-      .static_items(position_mode_items)
-      .default_value(PositionMode::Center)
+  b.add_input<decl::Menu>("Origin")
+      .static_items(origin_mode_items)
+      .default_value(OriginMode::Center)
       .expanded()
       .optional_label();
 
@@ -134,7 +134,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
-  const PositionMode position_mode = PositionMode(params.extract_input<int>("Position"));
+  const OriginMode origin_mode = OriginMode(params.extract_input<int>("Origin"));
 
   const auto grid = params.extract_input<bke::GVolumeGrid>("Grid");
   if (!grid) {
@@ -237,7 +237,7 @@ static void node_geo_exec(GeoNodeExecParams params)
               const int tile_size = tile_sizes[i];
 
               openvdb::Vec3d index_pos;
-              if (position_mode == PositionMode::Center) {
+              if (origin_mode == OriginMode::Center) {
                 const double offset = tile_size * 0.5;
                 index_pos = openvdb::Vec3d(
                     coord.x() + offset, coord.y() + offset, coord.z() + offset);
