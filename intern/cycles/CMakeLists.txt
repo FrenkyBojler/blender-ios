@@ -199,17 +199,12 @@ endif()
 # Definitions and Includes
 
 add_definitions(
-  ${BOOST_DEFINITIONS}
-)
-
-add_definitions(
   -DCCL_NAMESPACE_BEGIN=namespace\ ccl\ {
   -DCCL_NAMESPACE_END=}
 )
 
 include_directories(
   SYSTEM
-  ${BOOST_INCLUDE_DIR}
   ${OPENIMAGEIO_INCLUDE_DIRS}
   ${IMATH_INCLUDE_DIRS}
   ${OPENEXR_INCLUDE_DIRS}
@@ -330,7 +325,7 @@ if(WITH_OPENIMAGEDENOISE)
   )
 endif()
 
-# Includes that might be overrides by USD last, to avoid compiling
+# Includes that might be overridden by USD last, to avoid compiling
 # against the wrong versions of other libraries.
 include_directories(
   SYSTEM
@@ -376,7 +371,7 @@ if(WITH_CYCLES_PATH_GUIDING)
   # Different levels can be selected to measure the overhead of different stages.
   # 1 = recording the path segments
   # 2 = 1 + generating (not storing) sample data from the segments
-  # 3 = 2 + storing the generates sample data
+  # 3 = 2 + storing the generated sample data
   # 4 = 3 + training the guiding fields
   # 5 = 4 + querying the trained guiding for sampling (full path guiding)
   add_definitions(-DPATH_GUIDING_LEVEL=5)
@@ -423,22 +418,6 @@ if(WITH_CYCLES_HYDRA_RENDER_DELEGATE AND (NOT WITH_USD))
 endif()
 if(WITH_CYCLES_HYDRA_RENDER_DELEGATE AND (NOT WITH_BLENDER) AND (NOT WITH_CYCLES_STANDALONE))
   set(CYCLES_INSTALL_PATH ${CYCLES_INSTALL_PATH}/hdCycles/resources)
-endif()
-
-if(WITH_CYCLES_CUDA_BINARIES)
-  if(MSVC)
-    set(MAX_MSVC 1800)
-    if(${CUDA_VERSION} EQUAL "8.0")
-      set(MAX_MSVC 1900)
-    elseif(${CUDA_VERSION} EQUAL "9.0")
-      set(MAX_MSVC 1910)
-    elseif(${CUDA_VERSION} EQUAL "9.1")
-      set(MAX_MSVC 1911)
-    elseif(${CUDA_VERSION} VERSION_GREATER_EQUAL 10.0)
-      set(MAX_MSVC 1999)
-    endif()
-    unset(MAX_MSVC)
-  endif()
 endif()
 
 # Subdirectories
