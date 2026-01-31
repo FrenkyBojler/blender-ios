@@ -505,7 +505,6 @@ static bool link_drag_operation_test_poll(bContext *C)
 
 static wmOperatorStatus link_drag_operation_test_exec(bContext *C, wmOperator *op)
 {
-  // Main &bmain = *CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
   if (!snode.edittree) {
     return OPERATOR_CANCELLED;
