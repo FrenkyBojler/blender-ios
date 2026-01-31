@@ -285,6 +285,8 @@ void gather_ranges_to_groups(const Span<IndexRange> src_ranges,
                              const GSpan src,
                              GMutableSpan dst)
 {
+  BLI_assert(!src.overlaps(dst.as_span()));
+
   attribute_math::to_static_type(src.type(), [&]<typename T>() {
     Span<T> src_span = src.typed<T>();
     MutableSpan<T> dst_span = dst.typed<T>();

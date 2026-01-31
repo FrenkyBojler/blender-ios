@@ -51,6 +51,7 @@ void gather(const GVArray &src,
 
 void gather(const GSpan src, const IndexMask &indices, GMutableSpan dst, const int64_t grain_size)
 {
+  BLI_assert(!src.overlaps(dst.as_span()));
   gather(GVArray::from_span(src), indices, dst, grain_size);
 }
 
@@ -60,6 +61,7 @@ void copy_group_to_group(const OffsetIndices<int> src_offsets,
                          const GSpan src,
                          GMutableSpan dst)
 {
+  BLI_assert(!src.overlaps(dst.as_span()));
   /* Each group might be large, so a threaded copy might make sense here too. */
   selection.foreach_index(GrainSize(512), [&](const int i) {
     dst.slice(dst_offsets[i]).copy_from(src.slice(src_offsets[i]));

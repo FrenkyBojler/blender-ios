@@ -83,6 +83,16 @@ class GSpan {
     return data_;
   }
 
+  const void *begin() const
+  {
+    return data_;
+  }
+
+  const void *end() const
+  {
+    return POINTER_OFFSET(data_, type_->size * size_);
+  }
+
   const void *operator[](int64_t index) const
   {
     BLI_assert(index < size_);
@@ -135,6 +145,23 @@ class GSpan {
     BLI_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return GSpan(*type_, POINTER_OFFSET(data_, type_->size * (size_ - new_size)), new_size);
+  }
+
+  constexpr bool overlaps(const GSpan other) const
+  {
+    if (this->is_empty()) {
+      return false;
+    }
+    if (other.is_empty()) {
+      return false;
+    }
+    if (this->end() <= other.begin()) {
+      return false;
+    }
+    if (other.end() <= this->begin()) {
+      return false;
+    }
+    return true;
   }
 };
 
