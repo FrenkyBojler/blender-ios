@@ -524,9 +524,6 @@ bool IMB_initImBuf(ImBuf *ibuf, uint x, uint y, uchar planes, uint flags)
   ibuf->y = y;
   ibuf->planes = planes;
   ibuf->ftype = IMB_FTYPE_PNG;
-  /* The '15' means, set compression to low ratio but not time consuming. */
-  ibuf->foptions.compress = 15;
-  ibuf->foptions.quality = 90;
   /* float option, is set to other values when buffers get assigned. */
   ibuf->channels = 4;
   /* IMB_DPI_DEFAULT -> pixels-per-meter. */
