@@ -2,7 +2,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "shader_tool/shader_tool.hh"
+#include "shader_tool/expression.hh"
+#include "shader_tool/processor.hh"
 
 #include "gpu_testing.hh"
 
@@ -11,23 +12,20 @@ namespace blender::gpu::tests {
 static std::string process_test_string(std::string str,
                                        std::string &first_error,
                                        shader::metadata::Source *r_metadata = nullptr,
-                                       shader::Preprocessor::SourceLanguage language =
-                                           shader::Preprocessor::SourceLanguage::BLENDER_GLSL)
+                                       shader::Language language = shader::Language::BLENDER_GLSL)
 {
   using namespace shader;
-  Preprocessor preprocessor;
-  shader::metadata::Source metadata;
-  std::string result = preprocessor.process(
-      language,
+  SourceProcessor processor(
       str,
-      "test.glsl",
-      false,
+      "test.bsl",
+      language,
       [&](int /*err_line*/, int /*err_char*/, const std::string & /*line*/, const char *err_msg) {
         if (first_error.empty()) {
           first_error = err_msg;
         }
-      },
-      metadata);
+      });
+
+  auto [result, metadata] = processor.convert();
 
   if (r_metadata != nullptr) {
     *r_metadata = metadata;
@@ -695,6 +693,20 @@ void funcTfloatT1(float a) {
   a;
 }
 #line 7
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+template<enum E e, char i> E func() { return E(e + i); }
+template E func<v, 2>();
+)";
+    string expect = R"(
+E funcTvT2() { return E(v + 2); }
+#line 4
 )";
     string error;
     string output = process_test_string(input, error);
@@ -1761,7 +1773,7 @@ static void test_preprocess_matrix_constructors()
     string input = R"(mat3(a); mat3 a; my_mat4x4(a); mat2x2(a); mat3x2(a);)";
     string expect = R"(__mat3x3(a); mat3 a; my_mat4x4(a); __mat2x2(a); mat3x2(a);)";
     string error;
-    string output = process_test_string(input, error, nullptr, Preprocessor::SourceLanguage::GLSL);
+    string output = process_test_string(input, error, nullptr, Language::GLSL);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
@@ -2489,7 +2501,7 @@ PipelineCompute compute_pipe(compute_func, Type{.a = true, .b = 8, .c = 7u});
 
 
 GPU_SHADER_CREATE_INFO(ns_graphic_pipe)
-GRAPHIC_SOURCE("test.glsl")
+GRAPHIC_SOURCE("test.bsl")
 VERTEX_FUNCTION("vertex_func")
 FRAGMENT_FUNCTION("fragment_func")
 ADDITIONAL_INFO(vertex_func_infos_)
@@ -2501,7 +2513,7 @@ DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(ns_compute_pipe)
-COMPUTE_SOURCE("test.glsl")
+COMPUTE_SOURCE("test.bsl")
 COMPUTE_FUNCTION("compute_func")
 ADDITIONAL_INFO(compute_func_infos_)
 COMPILATION_CONSTANT(bool, a, true)
@@ -2634,6 +2646,8 @@ static void test_preprocess_parser()
   using namespace std;
   using namespace shader::parser;
 
+  using IntermediateForm = IntermediateForm<FullLexer, FullParser>;
+
   report_callback no_err_report = [](int, int, string, const char *) {};
 
   {
@@ -2651,18 +2665,18 @@ static void test_preprocess_parser()
 0+8;
 )";
     string expect = R"(
-0;0;0;0;0;0;0;0;0;0;0+0;)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
+1;1;1;1;1;1;1;1;1;1;1+1;)";
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
   }
   {
     string input = R"(
 [[a(0,1,b), c, d(t)]]
 )";
     string expect = R"(
-[[w(0,0,w),w,w(w)]])";
+[[A(1,1,A),A,A(A)]])";
     string scopes = R"(GABbcmmmbbcm)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types, scopes);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types_str, scopes);
   }
   {
     string input = R"(
@@ -2674,8 +2688,8 @@ class B {
 };
 )";
     string expect = R"(
-sw{ww=0;};Sw{ww;};)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
+sA{AA=1;};SA{AA;};)";
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
   }
   {
     string input = R"(
@@ -2683,10 +2697,10 @@ namespace T {}
 namespace T::U::V {}
 )";
     string expect = R"(
-nw{}nw::w::w{})";
+nA{}nA::A::A{})";
     string expect_scopes = R"(GNN)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types, expect_scopes);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types_str, expect_scopes);
   }
   {
     string input = R"(
@@ -2701,8 +2715,8 @@ void f(int t = 0) {
 }
 )";
     string expect = R"(
-ww(ww=0){ww=0,w=0,w={0};{w=w=w,wP;i(wEw){r;}}})";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
+AA(AA=1){AA=1,A=1,A={1};{A=A=A,AP;i(AEA){r;}}})";
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
   }
   {
     IntermediateForm parser("float i;", no_err_report);
@@ -2718,9 +2732,9 @@ B
 )";
     IntermediateForm parser(input, no_err_report);
     string expect = R"(
-w#w0
-w)";
-    EXPECT_EQ(parser.data_get().token_types, expect);
+A#A1
+A)";
+    EXPECT_EQ(parser.data_get().lex.token_types_str, expect);
 
     Token A = Token::from_position(&parser.data_get(), 1);
     Token B = Token::from_position(&parser.data_get(), 6);
@@ -2765,5 +2779,110 @@ match([a], , int, , bar, [0], ;)
   }
 }
 GPU_TEST(preprocess_parser);
+
+static int test_expression(std::string str)
+{
+  using namespace shader::parser;
+  report_callback no_err_report = [](int, int, std::string, const char *) {};
+  ExpressionLexer lexer;
+  lexer.lexical_analysis(str);
+  try {
+    return ExpressionParser(lexer).eval();
+  }
+  catch (const std::exception &e) {
+    std::cerr << "Error: " << e.what() << "\n";
+    return 9999999;
+  }
+}
+
+static void test_preprocess_expression_parser()
+{
+  using namespace std;
+  using namespace shader::parser;
+
+  /* --- Basic arithmetic --- */
+  EXPECT_EQ(test_expression("1+2+3"), 6);
+  EXPECT_EQ(test_expression("1*2+3"), 5);
+  EXPECT_EQ(test_expression("1+2*3"), 7);
+  EXPECT_EQ(test_expression("10-3-2"), 5);
+  EXPECT_EQ(test_expression("10-(3-2)"), 9);
+  EXPECT_EQ(test_expression("20/5/2"), 2);
+
+  /* --- Parenthesis --- */
+  EXPECT_EQ(test_expression("(1+2)*3"), 9);
+  EXPECT_EQ(test_expression("((2+3)*4)"), 20);
+
+  /* --- Unary operators --- */
+  EXPECT_EQ(test_expression("-1+2"), 1);
+  EXPECT_EQ(test_expression("~0"), ~0);
+  EXPECT_EQ(test_expression("!0"), 1);
+  EXPECT_EQ(test_expression("!5"), 0);
+
+  /* --- Bitwise operators --- */
+  EXPECT_EQ(test_expression("1|2"), 3);
+  EXPECT_EQ(test_expression("3&1"), 1);
+  EXPECT_EQ(test_expression("1^3"), 2);
+  /* Not supported yet. */
+  // EXPECT_EQ(test_expression("1 << 3"), 8);
+  // EXPECT_EQ(test_expression("8 >> 2"), 2);
+
+  /* --- Bitwise vs arithmetic precedence --- */
+  /* Not supported yet. */
+  // EXPECT_EQ(test_expression("1 + 2 << 2"), 12); /* (1+2)<<2 */
+  // EXPECT_EQ(test_expression("1 << 2 + 1"), 8);  /* 1<<(2+1) */
+
+  /* --- Comparison operators --- */
+  EXPECT_EQ(test_expression("1 < 2"), 1);
+  EXPECT_EQ(test_expression("2 <= 2"), 1);
+  EXPECT_EQ(test_expression("3 > 5"), 0);
+  EXPECT_EQ(test_expression("3 != 4"), 1);
+  EXPECT_EQ(test_expression("3 == 3"), 1);
+
+  /* --- Logical operators --- */
+  EXPECT_EQ(test_expression("1 && 1"), 1);
+  EXPECT_EQ(test_expression("1 && 0"), 0);
+  EXPECT_EQ(test_expression("0 || 1"), 1);
+  EXPECT_EQ(test_expression("0 || 0"), 0);
+  EXPECT_EQ(test_expression("0 || 0 || 1"), 1);
+
+  /* --- Logical precedence --- */
+  EXPECT_EQ(test_expression("0 || 1 && 0"), 0); /* && before || */
+  EXPECT_EQ(test_expression("(0 || 1) && 0"), 0);
+
+  /* --- Ternary operator --- */
+  EXPECT_EQ(test_expression("1 ? 2 : 3"), 2);
+  EXPECT_EQ(test_expression("0 ? 2 : 3"), 3);
+  EXPECT_EQ(test_expression("1 ? 0 ? 2 : 3 : 4"), 3);
+  EXPECT_EQ(test_expression("0 ? 1 : 2 ? 3 : 4"), 3);
+
+  /* --- Mixed complex expressions --- */
+  EXPECT_EQ(test_expression("(1+2*3) == 7 && (4|1) == 5"), 1);
+  EXPECT_EQ(test_expression("!((3<1) == 0)"), 0);
+  EXPECT_EQ(test_expression("!0 && !0"), 1);
+  EXPECT_EQ(test_expression("!1 && !0"), 0);
+  EXPECT_EQ(test_expression("!!1 && !0"), 1);
+
+  /* --- Deep Ternary Nesting --- */
+  EXPECT_EQ(test_expression("1 ? 10 + 5 : 20"), 15);
+  EXPECT_EQ(test_expression("0 ? 1 : 0 ? 2 : 3"), 3);
+  EXPECT_EQ(test_expression("1 ? (0 ? 1 : 2) : 3"), 2);
+  EXPECT_EQ(test_expression("10 + (1 ? 5 : 0) * 2"), 20);
+
+  /* --- Unary Chains --- */
+  EXPECT_EQ(test_expression("! ~ -1"), 1);
+  EXPECT_EQ(test_expression("-5 * -2"), 10);
+
+  /* --- Precedence Boundary Tests --- */
+  EXPECT_EQ(test_expression("1 == 1 | 2"), 3);
+  EXPECT_EQ(test_expression("1 + 2 < 4"), 1);
+  EXPECT_EQ(test_expression("1 | 2 && 0"), 0);
+
+  /* --- Complex Boolean Logic --- */
+  EXPECT_EQ(test_expression("!((1 + 2 == 3) && (4 * 5 <= 20) || (0 ? 1 : 0))"), 0);
+
+  /* --- The Kitchen Sink --- */
+  EXPECT_EQ(test_expression("(10 - 2 * 3 == 4) ? 50 : 100 + !0"), 50);
+}
+GPU_TEST(preprocess_expression_parser);
 
 }  // namespace blender::gpu::tests
