@@ -956,7 +956,7 @@ static void override_idtemplate_menu()
 {
   MenuType *mt;
 
-  mt = MEM_callocN<MenuType>(__func__);
+  mt = MEM_new_zeroed<MenuType>(__func__);
   STRNCPY_UTF8(mt->idname, "UI_MT_idtemplate_liboverride");
   STRNCPY_UTF8(mt->label, N_("Library Override"));
   mt->poll = override_idtemplate_menu_poll;
@@ -985,7 +985,7 @@ static PointerRNA rnapointer_pchan_to_bone(const PointerRNA &pchan_ptr)
   BLI_assert(GS(pchan_ptr.owner_id->name) == ID_OB);
   Object *object = reinterpret_cast<Object *>(pchan_ptr.owner_id);
 
-  BLI_assert(GS(static_cast<ID *>(object->data)->name) == ID_AR);
+  BLI_assert(GS(object->data->name) == ID_AR);
   bArmature *armature = id_cast<bArmature *>(object->data);
 
   return RNA_pointer_create_discrete(&armature->id, RNA_Bone, pchan->bone);
@@ -1332,7 +1332,7 @@ bool context_copy_to_selected_list(bContext *C,
       if (!lb.is_empty()) {
         for (const PointerRNA &ob_ptr : lb) {
           Object *ob = id_cast<Object *>(ob_ptr.owner_id);
-          if (ID *id_data = static_cast<ID *>(ob->data)) {
+          if (ID *id_data = ob->data) {
             id_data->tag |= ID_TAG_DOIT;
           }
         }
@@ -1340,7 +1340,7 @@ bool context_copy_to_selected_list(bContext *C,
         Vector<PointerRNA> new_lb;
         for (const PointerRNA &link : lb) {
           Object *ob = id_cast<Object *>(link.owner_id);
-          ID *id_data = static_cast<ID *>(ob->data);
+          ID *id_data = ob->data;
           if ((id_data == nullptr) || (id_data->tag & ID_TAG_DOIT) == 0 ||
               !ID_IS_EDITABLE(id_data) || (GS(id_data->name) != id_code))
           {
@@ -2014,7 +2014,7 @@ static bool jump_to_target_button(bContext *C, bool poll)
         }
 
         if (str_ptr != str_buf) {
-          MEM_freeN(str_ptr);
+          MEM_delete(str_ptr);
         }
 
         if (found) {
@@ -2836,6 +2836,12 @@ static wmOperatorStatus view_item_click_select(bContext &C,
         /* Select end items from the range. */
         item.set_selected(true);
       }
+
+      if (!item.is_filtered_visible()) {
+        /* Skip selection of elements that are not visible with the search string. */
+        return;
+      }
+
       if (is_inside_range) {
         /* Select items within the range. */
         item.set_selected(true);
