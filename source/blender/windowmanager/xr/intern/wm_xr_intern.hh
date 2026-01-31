@@ -10,12 +10,16 @@
 
 #include "CLG_log.h"
 
-#include "GHOST_Types.h"
+#include "GHOST_IContext.hh"
+#include "GHOST_IXrContext.hh"
+#include "GHOST_Types.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_xr_types.h"
 
 #include "wm_xr.hh"
+
+namespace blender {
 
 struct bContext;
 struct ARegion;
@@ -23,6 +27,7 @@ struct Object;
 struct wmWindow;
 struct wmWindowManager;
 struct wmXrActionSet;
+struct wmXrController;
 struct wmXrData;
 
 struct wmXrSessionState {
@@ -65,7 +70,7 @@ struct wmXrSessionState {
   bool is_navigation_dirty;
 
   /** Last known controller data. */
-  ListBase controllers; /* #wmXrController. */
+  ListBaseT<wmXrController> controllers;
 
   /** The currently active action set that will be updated on calls to
    * #wm_xr_session_actions_update(). If NULL, all action sets will be treated as active and
@@ -79,7 +84,7 @@ struct wmXrSessionState {
 };
 
 struct wmXrRuntimeData {
-  GHOST_XrContextHandle context;
+  GHOST_IXrContext *context;
 
   /** The window the session was started in. Stored to be able to follow its view-layer. This may
    * be an invalid reference, i.e. the window may have been closed. */
@@ -92,7 +97,7 @@ struct wmXrRuntimeData {
   wmXrSessionState session_state;
   wmXrSessionExitFn exit_fn;
 
-  ListBase actionmaps; /* #XrActionMap. */
+  ListBaseT<XrActionMap> actionmaps;
   short actactionmap;
   short selactionmap;
 };
@@ -105,7 +110,7 @@ struct wmXrViewportPair {
 
 struct wmXrSurfaceData {
   /** Off-screen buffers/viewports for each view. */
-  ListBase viewports; /* #wmXrViewportPair. */
+  ListBaseT<wmXrViewportPair> viewports;
 
   /** Dummy region type for controller draw callback. */
   struct ARegionType *controller_art;
@@ -148,7 +153,7 @@ struct wmXrController {
   float aim_mat_base[4][4];
 
   /** Controller model. */
-  blender::gpu::Batch *model;
+  gpu::Batch *model;
 };
 
 struct wmXrAction {
@@ -199,9 +204,9 @@ struct wmXrActionSet {
   wmXrAction *controller_aim_action;
 
   /** Currently active modal actions. */
-  ListBase active_modal_actions;
+  ListBaseT<LinkData> active_modal_actions;
   /** Currently active haptic actions. */
-  ListBase active_haptic_actions;
+  ListBaseT<wmXrHapticAction> active_haptic_actions;
 };
 
 struct wmXrVignetteData {
@@ -245,8 +250,8 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
                                 wmXrSessionState *state);
 bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
                                             const GHOST_XrDrawViewInfo *draw_view);
-void *wm_xr_session_gpu_binding_context_create();
-void wm_xr_session_gpu_binding_context_destroy(GHOST_ContextHandle context);
+GHOST_IContext *wm_xr_session_gpu_binding_context_create();
+void wm_xr_session_gpu_binding_context_destroy(GHOST_IContext *context);
 
 void wm_xr_session_actions_init(wmXrData *xr);
 void wm_xr_session_actions_update(wmWindowManager *wm);
@@ -284,3 +289,5 @@ bool wm_xr_passthrough_enabled(void *customdata);
  * It's assigned to Ghost-XR as a callback (see GHOST_XrDisablePassthroughFunc()).
  */
 void wm_xr_disable_passthrough(void *customdata);
+
+}  // namespace blender

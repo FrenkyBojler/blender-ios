@@ -12,8 +12,11 @@
 #include "DNA_curve_types.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 struct AnimData;
 struct MDeformVert;
+struct tGPspoint;
 
 /** #bGPDspoint.flag */
 enum eGPDspoint_Flag {
@@ -362,7 +365,7 @@ struct bGPDpalette {
   struct bGPDpalette *next = nullptr, *prev = nullptr;
 
   /** Pointer to individual colors. */
-  ListBaseT<struct PaletteColor> colors = {nullptr, nullptr};
+  ListBaseT<bGPDpalettecolor> colors = {nullptr, nullptr};
   /** Palette name. Must be unique. */
   char info[64] = "";
 
@@ -664,7 +667,7 @@ struct bGPdata_Runtime {
   DNA_DEFINE_CXX_METHODS(bGPdata_Runtime)
 
   /** Stroke buffer. */
-  void *sbuffer = nullptr;
+  tGPspoint *sbuffer = nullptr;
 
   /** Animation playing flag. */
   short playing = 0;
@@ -800,3 +803,5 @@ struct bGPdata {
 
   bGPdata_Runtime runtime;
 };
+
+}  // namespace blender

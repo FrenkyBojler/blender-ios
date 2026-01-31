@@ -1453,8 +1453,7 @@ static void mix_src_indices(const GSpan src_attr,
                             const GroupedSpan<int> dst_to_src,
                             GMutableSpan dst_attr)
 {
-  bke::attribute_math::convert_to_static_type(src_attr.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(src_attr.type(), [&]<typename T>() {
     const Span<T> src = src_attr.typed<T>();
     MutableSpan<T> dst = dst_attr.typed<T>();
     threading::parallel_for(dst.index_range(), 2048, [&](const IndexRange range) {
@@ -1515,8 +1514,8 @@ static void mix_vertex_groups(const Mesh &mesh_src,
 static Set<StringRef> get_vertex_group_names(const Mesh &mesh)
 {
   Set<StringRef> names;
-  LISTBASE_FOREACH (bDeformGroup *, group, &mesh.vertex_group_names) {
-    names.add(group->name);
+  for (bDeformGroup &group : mesh.vertex_group_names) {
+    names.add(group.name);
   }
   return names;
 }

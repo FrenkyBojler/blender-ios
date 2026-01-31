@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-26 11:28+0000\n"
 "PO-Revision-Date: 2025-07-23 14:52+0000\n"
 "Last-Translator: Lisa <blendergirl@tutanota.com>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -2686,28 +2686,36 @@ msgid "Dots"
 msgstr "Stippen"
 
 
-msgid "Local View"
-msgstr "Lokale Scherm"
+msgid "Show/Hide"
+msgstr "Toon/Verberg"
 
 
-msgid "Navigation"
-msgstr "Navigatie"
+msgid "Names"
+msgstr "Namen"
 
 
-msgid "Select Similar"
-msgstr "Selecteer Vergelijkbaar"
+msgid "Import"
+msgstr "Importeren"
 
 
-msgid "Select Linked"
-msgstr "Selecteer Aaneengesloten"
+msgid "Rigid Body"
+msgstr "Star Lichaam"
 
 
-msgid "Light"
-msgstr "Licht"
+msgid "Clear Transform"
+msgstr "Maak Transformatie Leeg"
 
 
-msgid "Layout"
-msgstr "Indeling"
+msgid "Hooks"
+msgstr "Haken"
+
+
+msgid "Convert"
+msgstr "Converteer"
+
+
+msgid "Quick Effects"
+msgstr "Snelle Effecten"
 
 
 msgid "Add Image"
@@ -2718,36 +2726,28 @@ msgid "Relations"
 msgstr "Relaties"
 
 
-msgid "Rigid Body"
-msgstr "Star Lichaam"
+msgid "Layout"
+msgstr "Indeling"
 
 
-msgid "Quick Effects"
-msgstr "Snelle Effecten"
+msgid "Light"
+msgstr "Licht"
 
 
-msgid "Show/Hide"
-msgstr "Toon/Verberg"
+msgid "Select Similar"
+msgstr "Selecteer Vergelijkbaar"
 
 
-msgid "Convert"
-msgstr "Converteer"
+msgid "Select Linked"
+msgstr "Selecteer Aaneengesloten"
 
 
-msgid "Hooks"
-msgstr "Haken"
+msgid "Navigation"
+msgstr "Navigatie"
 
 
-msgid "Clear Transform"
-msgstr "Maak Transformatie Leeg"
-
-
-msgid "Names"
-msgstr "Namen"
-
-
-msgid "Import"
-msgstr "Importeren"
+msgid "Local View"
+msgstr "Lokale Scherm"
 
 
 msgid "Mirror"
@@ -4218,13 +4218,13 @@ msgstr "Vetkrijt Tekenen"
 
 
 msgctxt "Operator"
-msgid "Invert"
-msgstr "Keer Om"
+msgid "Erase"
+msgstr "Gummen"
 
 
 msgctxt "Operator"
-msgid "Erase"
-msgstr "Gummen"
+msgid "Invert"
+msgstr "Keer Om"
 
 
 msgid "Flat"

@@ -61,30 +61,16 @@ bool operator!=(const Domain &a, const Domain &b)
   return !(a == b);
 }
 
-math::InterpWrapMode map_extension_mode_to_wrap_mode(const Extension &mode)
-{
-  switch (mode) {
-    case Extension::Clip:
-      return math::InterpWrapMode::Border;
-    case Extension::Repeat:
-      return math::InterpWrapMode::Repeat;
-    case Extension::Extend:
-      return math::InterpWrapMode::Extend;
-  }
-  BLI_assert_unreachable();
-  return math::InterpWrapMode::Border;
-}
-
 GPUSamplerExtendMode map_extension_mode_to_extend_mode(const Extension &mode)
 {
   switch (mode) {
-    case blender::compositor::Extension::Clip:
+    case compositor::Extension::Clip:
       return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
 
-    case blender::compositor::Extension::Extend:
+    case compositor::Extension::Extend:
       return GPU_SAMPLER_EXTEND_MODE_EXTEND;
 
-    case blender::compositor::Extension::Repeat:
+    case compositor::Extension::Repeat:
       return GPU_SAMPLER_EXTEND_MODE_REPEAT;
   }
 

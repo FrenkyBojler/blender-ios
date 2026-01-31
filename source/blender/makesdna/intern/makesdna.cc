@@ -48,12 +48,15 @@
 #include "DNA_sdna_types.h"
 #include "dna_utils.h"
 
+namespace blender {
+
 #define SDNA_MAX_FILENAME_LENGTH 255
 
 /* The include files that are needed to generate full Blender DNA.
  *
  * The include file below is automatically generated from the `SRC_DNA_INC`
  * variable in `source/blender/CMakeLists.txt`. */
+
 static const char *blender_includefiles[] = {
 #include "dna_includes_as_strings.h"
 
@@ -578,7 +581,7 @@ static int preprocess_include(char *maindata, const int maindata_len)
 {
   /* NOTE: len + 1, last character is a dummy to prevent
    * comparisons using uninitialized memory */
-  char *temp = MEM_malloc_arrayN<char>(size_t(maindata_len) + 1, "preprocess_include");
+  char *temp = MEM_new_array_uninitialized<char>(size_t(maindata_len) + 1, "preprocess_include");
   temp[maindata_len] = ' ';
 
   memcpy(temp, maindata, maindata_len);
@@ -722,7 +725,7 @@ static int preprocess_include(char *maindata, const int maindata_len)
 
   BLI_assert(square_bracket_level == 0);
 
-  MEM_freeN(temp);
+  MEM_delete(temp);
   return newlen;
 }
 
@@ -749,7 +752,7 @@ static void *read_file_data(const char *filepath, int *r_len)
     return nullptr;
   }
 
-  data = MEM_mallocN(*r_len, "read_file_data");
+  data = MEM_new_uninitialized(*r_len, "read_file_data");
   if (!data) {
     *r_len = -1;
     fclose(fp);
@@ -758,7 +761,7 @@ static void *read_file_data(const char *filepath, int *r_len)
 
   if (fread(data, *r_len, 1, fp) != 1) {
     *r_len = -1;
-    MEM_freeN(data);
+    MEM_delete_void(data);
     fclose(fp);
     return nullptr;
   }
@@ -989,7 +992,7 @@ static int convert_include(const char *filepath)
     md++;
   }
 
-  MEM_freeN(maindata);
+  MEM_delete(maindata);
 
   return 0;
 }
@@ -1048,6 +1051,8 @@ static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char
     fprintf(file_verify, "#include \"%s%s\"\n", base_directory, includefiles[i]);
   }
   fprintf(file_verify, "#undef assert_line_\n");
+  fprintf(file_verify, "\n");
+  fprintf(file_verify, "using namespace blender;\n");
   fprintf(file_verify, "\n");
 
   /* Multiple iterations to handle nested structs. */
@@ -1325,7 +1330,7 @@ static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char
 static void dna_write(FILE *file, const void *pntr, const int size)
 {
   static int linelength = 0;
-  const char *data = (const char *)pntr;
+  const char *data = static_cast<const char *>(pntr);
 
   for (int i = 0; i < size; i++) {
     fprintf(file, "%d, ", data[i]);
@@ -1371,18 +1376,18 @@ static int make_structDNA(const char *base_directory,
   mem_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
 
   /* the longest known struct is 50k, so we assume 100k is sufficient! */
-  structdata = MEM_calloc_arrayN<short>(max_data_size, "structdata");
+  structdata = MEM_new_array_zeroed<short>(max_data_size, "structdata");
 
   /* a maximum of 5000 variables, must be sufficient? */
-  members = MEM_calloc_arrayN<char *>(max_array_len, "names");
-  types = MEM_calloc_arrayN<char *>(max_array_len, "types");
-  types_size_native = MEM_calloc_arrayN<short>(max_array_len, "types_size_native");
-  types_size_32 = MEM_calloc_arrayN<short>(max_array_len, "types_size_32");
-  types_size_64 = MEM_calloc_arrayN<short>(max_array_len, "types_size_64");
-  types_align_32 = MEM_calloc_arrayN<short>(max_array_len, "types_size_32");
-  types_align_64 = MEM_calloc_arrayN<short>(max_array_len, "types_size_64");
+  members = MEM_new_array_zeroed<char *>(max_array_len, "names");
+  types = MEM_new_array_zeroed<char *>(max_array_len, "types");
+  types_size_native = MEM_new_array_zeroed<short>(max_array_len, "types_size_native");
+  types_size_32 = MEM_new_array_zeroed<short>(max_array_len, "types_size_32");
+  types_size_64 = MEM_new_array_zeroed<short>(max_array_len, "types_size_64");
+  types_align_32 = MEM_new_array_zeroed<short>(max_array_len, "types_size_32");
+  types_align_64 = MEM_new_array_zeroed<short>(max_array_len, "types_size_64");
 
-  structs = MEM_calloc_arrayN<short *>(max_array_len, "structs");
+  structs = MEM_new_array_zeroed<short *>(max_array_len, "structs");
 
   /* Build versioning data */
   DNA_alias_maps(DNA_RENAME_ALIAS_FROM_STATIC,
@@ -1555,7 +1560,8 @@ static int make_structDNA(const char *base_directory,
     /* calc datablock size */
     const short *sp = structs[structs_num - 1];
     sp += 2 + 2 * (sp[1]);
-    len = intptr_t((char *)sp - (char *)structs[0]);
+    len = intptr_t(reinterpret_cast<char *>(const_cast<short *>(sp)) -
+                   reinterpret_cast<char *>(structs[0]));
     len = (len + 3) & ~3;
 
     dna_write(file, structs[0], len);
@@ -1580,7 +1586,8 @@ static int make_structDNA(const char *base_directory,
   }
 
   {
-    fprintf(file_ids, "\n\nnamespace blender::dna {\n\n");
+    fprintf(file_ids, "namespace blender {\n");
+    fprintf(file_ids, "namespace dna {\n\n");
     fprintf(file_ids, "template<typename T> int sdna_struct_id_get();\n\n");
     fprintf(file_ids, "int sdna_struct_id_get_max();\n");
     fprintf(file_ids, "int sdna_struct_id_get_max() { return %d; }\n", structs_num - 1);
@@ -1592,11 +1599,10 @@ static int make_structDNA(const char *base_directory,
       const int struct_type_index = structpoin[0];
       const char *name = version_struct_alias_from_static(types[struct_type_index]);
       fprintf(file_ids, "struct %s;\n", name);
-      fprintf(file_ids,
-              "template<> int blender::dna::sdna_struct_id_get<%s>() { return %d; }\n",
-              name,
-              i);
+      fprintf(file_ids, "template<> int dna::sdna_struct_id_get<%s>() { return %d; }\n", name, i);
     }
+
+    fprintf(file_ids, "\n}\n");
   }
 
   {
@@ -1607,6 +1613,7 @@ static int make_structDNA(const char *base_directory,
     for (int i = 0; *(includefiles[i]) != '\0'; i++) {
       fprintf(file_defaults, "#include \"%s%s\"\n", base_directory, includefiles[i]);
     }
+    fprintf(file_defaults, "using namespace blender;\n");
     /* Starting at 1, because 0 is "raw data". */
     for (int i = 1; i < structs_num; i++) {
       const short *structpoin = structs[i];
@@ -1645,7 +1652,7 @@ static int make_structDNA(const char *base_directory,
       const char *type = types[sp[0]];
       const int len = sp[1];
       sp += 2;
-      blender::Set<blender::StringRef> members_unique;
+      Set<StringRef> members_unique;
       members_unique.reserve(len);
       for (int a = 0; a < len; a++, sp += 2) {
         char *member = members[sp[1]];
@@ -1662,22 +1669,22 @@ static int make_structDNA(const char *base_directory,
     }
   }
 
-  MEM_freeN(structdata);
-  MEM_freeN(members);
-  MEM_freeN(types);
-  MEM_freeN(types_size_native);
-  MEM_freeN(types_size_32);
-  MEM_freeN(types_size_64);
-  MEM_freeN(types_align_32);
-  MEM_freeN(types_align_64);
-  MEM_freeN(structs);
+  MEM_delete(structdata);
+  MEM_delete(members);
+  MEM_delete(types);
+  MEM_delete(types_size_native);
+  MEM_delete(types_size_32);
+  MEM_delete(types_size_64);
+  MEM_delete(types_align_32);
+  MEM_delete(types_align_64);
+  MEM_delete(structs);
 
   BLI_memarena_free(mem_arena);
 
   BLI_ghash_free(g_version_data.type_map_alias_from_static, nullptr, nullptr);
   BLI_ghash_free(g_version_data.type_map_static_from_alias, nullptr, nullptr);
-  BLI_ghash_free(g_version_data.member_map_static_from_alias, MEM_freeN, nullptr);
-  BLI_ghash_free(g_version_data.member_map_alias_from_static, MEM_freeN, nullptr);
+  BLI_ghash_free(g_version_data.member_map_static_from_alias, MEM_delete_void, nullptr);
+  BLI_ghash_free(g_version_data.member_map_alias_from_static, MEM_delete_void, nullptr);
 
   DEBUG_PRINTF(0, "done.\n");
 
@@ -1715,9 +1722,12 @@ static void print_usage(const char *argv0)
       argv0);
 }
 
+}  // namespace blender
+
 int main(int argc, char **argv)
 {
-  blender::Vector<const char *> cli_include_files;
+  using namespace blender;
+  Vector<const char *> cli_include_files;
 
   /* There is a number of non-optional arguments that must be provided to the executable. */
   if (argc < 6) {
@@ -1875,6 +1885,7 @@ int main(int argc, char **argv)
 
 static void UNUSED_FUNCTION(dna_rename_defs_ensure)()
 {
+  using namespace blender;
 #define DNA_STRUCT_RENAME(old, new) (void)sizeof(new);
 #define DNA_STRUCT_RENAME_MEMBER(struct_name, old, new) (void)offsetof(struct_name, new);
 #include "dna_rename_defs.h"
