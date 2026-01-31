@@ -28,6 +28,57 @@ template<typename IToken> struct TokenRange {
   IToken begin, end;
 };
 
+struct DelayedStringStream {
+  Vector<StringRef> stream;
+  size_t total_length = 0;
+
+  /**
+   * Checks if str is a contiguous continuation of the last inserted string ref.
+   * If yes, merge it; else append str to the stream.
+   */
+  DelayedStringStream &operator<<(StringRef str)
+  {
+    if (str.is_empty()) {
+      return *this;
+    }
+
+    if (!stream.is_empty()) {
+      StringRef &last = stream.last();
+      /* Check if the memory addresses are contiguous */
+      if (last.data() + last.size() == str.data()) {
+        last = StringRef(last.data(), last.size() + str.size());
+      }
+      else {
+        stream.append(str);
+      }
+    }
+    else {
+      stream.append(str);
+    }
+
+    total_length += str.size();
+    return *this;
+  }
+
+  /**
+   * Concatenate all strings together.
+   * Memory is allocated once to fit the total length.
+   */
+  std::string str() const
+  {
+    std::string result;
+    if (total_length == 0) {
+      return result;
+    }
+
+    result.reserve(total_length);
+    for (const auto &segment : stream) {
+      result.append(segment);
+    }
+    return result;
+  }
+};
+
 /* -------------------------------------------------------------------- */
 /** \name Parser / Lexer classes.
  * \{ */
@@ -75,7 +126,7 @@ struct AtomicLexer : LexerBase {
     }
   }
 
-  Vector<std::string, 0> pasted_token;
+  std::deque<std::string> pasted_token;
 
   struct PasteResult {
     TokenAtom atom;
@@ -84,7 +135,12 @@ struct AtomicLexer : LexerBase {
 
   BLI_INLINE_METHOD PasteResult paste_token(const std::string &tok_str)
   {
-    return {hash(tok_str), int(pasted_token.append_and_get_index(tok_str))};
+    int index = pasted_token.size();
+    pasted_token.emplace_back(tok_str);
+    /** IMPORTANT: The hash function need to store a StringRef of the string. We have to make sure
+     * to feed it the final stored string to avoid referencing freed memory. */
+    TokenAtom atom = hash(pasted_token.back());
+    return {atom, index};
   }
 
  protected:
@@ -300,6 +356,7 @@ struct Stream {
 
   std::string result_buf;
 
+  /* TODO(fclem): Remove this. Only there for expansion parser. */
   std::string str()
   {
     result_buf.clear();
@@ -428,6 +485,26 @@ struct Stream {
     return SToken(id, atom, followed_by_space);
   }
 };
+
+DelayedStringStream &operator<<(DelayedStringStream &dst, const Stream &src)
+{
+  for (const auto stream_tok : src.tokens) {
+    if (UNLIKELY(stream_tok.index == -1)) {
+      dst << (stream_tok.bool_value ? "1" : "0");
+    }
+    else if (UNLIKELY(stream_tok.pasted_atom)) {
+      dst << src.lex.pasted_token[stream_tok.index];
+    }
+    else {
+      dst << src.lex[stream_tok.index].str();
+    }
+
+    if (stream_tok.followed_by_space) {
+      dst << " ";
+    }
+  }
+  return dst;
+}
 
 /** \} */
 
@@ -581,6 +658,15 @@ struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, N
     return substr_range_inclusive_view(start, end);
   }
 
+  StringRef str_with_whitespace(DirectiveID dir)
+  {
+    LineID start = get_start(dir);
+    LineID end = get_end(dir);
+    Token tok_start = lex_[int(get_start(start))];
+    Token tok_end = lex_[int(get_true_end(end))];
+    return substr_range_inclusive_view(tok_start, tok_end);
+  }
+
   /* Return valid value if hash is a known string. Is full hash lookup + hashing. */
   AtomID get_atom(StringRef str)
   {
@@ -721,6 +807,8 @@ struct Preprocessor : IntermediateFormWithIDs {
   using ExpressionParser = shader::parser::ExpressionParser;
   using ExpansionParser = IntermediateForm<ExpansionLexer, shader::parser::DummyParser>;
 
+  DelayedStringStream out_stream;
+
   /* Cache the expression lexer to avoid memory allocations. */
   ExpressionLexer expression_lexer;
   ExpressionParser expression_parser = ExpressionParser(expression_lexer);
@@ -769,8 +857,8 @@ struct Preprocessor : IntermediateFormWithIDs {
     DirectiveID id;
     StreamPtr definition;
     Vector<AtomID> params;
-    bool is_function;
-    bool contains_concat;
+    bool is_function = false;
+    bool contains_concat = false;
 
     Macro(DirectiveID id) : id(id) {}
 
@@ -909,6 +997,11 @@ struct Preprocessor : IntermediateFormWithIDs {
     }
   }
 
+  std::string result_get()
+  {
+    return out_stream.str();
+  }
+
  private:
   void evaluate_directive(DirectiveID dir)
   {
@@ -917,7 +1010,6 @@ struct Preprocessor : IntermediateFormWithIDs {
     /* Note: gets overwritten by conditional processing. */
     last_directive_end = get_end(dir);
 
-    bool erase_directive = true;
     switch (dir_type) {
       case Define:
         define_macro(dir);
@@ -931,19 +1023,16 @@ struct Preprocessor : IntermediateFormWithIDs {
       case Elif:
       case Else:
         process_conditional(dir, dir_type);
-        erase_directive = false; /* Erases itself. */
         break;
       case Line:
+        erase_lines(get_start(dir), get_end(dir));
         break;
       case Endif:
+        erase_lines(get_start(dir), get_end(dir));
         break;
       case Other:
-        erase_directive = false;
+        out_stream << str_with_whitespace(dir);
         break;
-    }
-
-    if (erase_directive == true) {
-      erase_lines(get_start(dir), get_end(dir));
     }
   }
 
@@ -1023,6 +1112,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     BLI_assert(name == Word);
     defines.add_overwrite(AtomID(name.atom()), dir);
     macro_buckets.set_occupied(AtomID(name.atom()));
+    erase_lines(get_start(dir), get_end(dir));
   }
 
   BLI_NOINLINE Macro &get_macro(DirectiveID dir)
@@ -1049,6 +1139,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     const Token name = get_identifier(dir).next();
     BLI_assert(name == Word);
     defines.remove(AtomID(name.atom()));
+    erase_lines(get_start(dir), get_end(dir));
   }
 
   /**
@@ -1178,25 +1269,44 @@ struct Preprocessor : IntermediateFormWithIDs {
   {
     int start = int(get_start(start_line));
     int end = int(get_true_end(end_line));
-    if (start >= end) {
+    if (start > end) {
+      return;
+    }
+    if (start == end) {
+      out_stream << lex_[start].str_with_whitespace();
       return;
     }
 
     const Vector<int> &candidates = gather_candidate_in_range(start, end);
 
+    Token after_last_emitted = lex_[start];
+
     for (const auto *it = candidates.begin(); it != candidates.end();) {
-      const DirectiveID macro_id = defines.lookup_default(AtomID(lex_.atoms_[*it]),
+      const Token tok = lex_[*it];
+      const DirectiveID macro_id = defines.lookup_default(AtomID(tok.atom()),
                                                           DirectiveID::invalid());
+      /* Emit tokens between the last emitted token and this one. */
+      if (int(after_last_emitted) < *it) {
+        out_stream << substr_range_inclusive_view_with_whitespace(after_last_emitted, tok.prev());
+      }
+
       if (macro_id == DirectiveID::invalid()) {
+        out_stream << tok.str_with_whitespace();
+        after_last_emitted = tok.next();
         ++it;
         continue;
       }
-      const Token end_tok = expand_and_replace(lex_[*it], macro_id);
+
+      const Token end_tok = expand_and_replace(tok, macro_id);
+      after_last_emitted = end_tok.next();
       /* Skip candidates already expanded. */
       while (it != candidates.end() && *it <= int(end_tok)) {
         ++it;
       }
     }
+
+    const Token last_tok = lex_[end];
+    out_stream << substr_range_inclusive_view_with_whitespace(after_last_emitted, last_tok);
   }
 
   /* Cached vector to avoid reallocation. */
@@ -1224,7 +1334,7 @@ struct Preprocessor : IntermediateFormWithIDs {
   BLI_NOINLINE Token expand_and_replace(const Token tok, const DirectiveID macro_id)
   {
     auto [replacement, end] = expand_macro(tok, get_macro(macro_id));
-    replace(tok, end, replacement->str());
+    out_stream << *replacement;
     return end;
   }
 
@@ -1360,7 +1470,7 @@ struct Preprocessor : IntermediateFormWithIDs {
       if (tok != ParOpen) {
         /* Macro doesn't have parameters. It should not expand. */
         /* Currently still replace by the original token (noop).
-         * Would be better to not bypass replacement alltogether. */
+         * Would be better to bypass replacement alltogether. */
         StreamPtr expanded = stream_pool.alloc();
         *expanded << expanded_tok;
         return {std::move(expanded), expanded_tok};
@@ -1463,15 +1573,17 @@ struct Preprocessor : IntermediateFormWithIDs {
 
   void erase_lines(LineID start, LineID end)
   {
-    Token tok_end = lex_[int(get_end(end))];
-    Token tok_start = lex_[int(get_start(start))];
-    replace(tok_start, tok_end, new_lines(start, end));
+    if (int(end) > int(start)) {
+      out_stream << new_lines(start, end);
+    }
+    out_stream << get_true_end(end).str_with_whitespace();
   }
 
   /* Return a string with the amount of newline character between line_start and line_end. */
-  std::string new_lines(LineID line_start, LineID line_end)
+  StringRef new_lines(LineID line_start, LineID line_end)
   {
-    return std::string(int(line_end) - int(line_start), '\n');
+    lex_.pasted_token.emplace_back(int(line_end) - int(line_start), '\n');
+    return lex_.pasted_token.back();
   }
 
   Token skip_directive_newlines(Token tok)
@@ -1530,11 +1642,11 @@ std::string Shader::run_preprocessor(StringRef source)
   processor.preprocess();
 
   if (G.debug & G_DEBUG_GPU_SHADER_NO_DCE) {
-    return processor.result_get(true);
+    return processor.result_get();
   }
-  return processor.result_get(true);
+  return processor.result_get();
 
-  DeadCodeEliminator dce(processor.result_get(true));
+  DeadCodeEliminator dce(processor.result_get());
   dce.optimize();
   return dce.result_get(true);
 }
