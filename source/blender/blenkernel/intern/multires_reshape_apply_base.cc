@@ -142,13 +142,8 @@ void multires_reshape_apply_base_refit_base_mesh(MultiresReshapeContext *reshape
   }
 
   if (basis_shape_key) {
-    Key *key = base_mesh->key;
-    KeyBlock *basis_kb = (KeyBlock *)key->block.first;
-
-    if (basis_shape_key == basis_kb) {
-      /*maintaining the sync between Basis Shape Key positions and Mesh positions*/
-      base_mesh->vert_positions_for_write().copy_from(base_positions);
-    }
+    /*maintaining the sync between Basis Shape Key positions and Mesh positions*/
+    base_mesh->vert_positions_for_write().copy_from(base_positions);
   }
 
   /* Vertices were moved around, need to update normals after all the vertices are updated

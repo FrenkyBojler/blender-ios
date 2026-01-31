@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -193,14 +194,17 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
   const bool use_render_params = false;
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Mesh *base_mesh = id_cast<Mesh *>(object->data);
+
   reshape_context->depsgraph = depsgraph;
   reshape_context->object = object;
   reshape_context->mmd = mmd;
 
   reshape_context->base_mesh = base_mesh;
   reshape_context->base_positions = base_mesh->vert_positions();
+  // TODO: The following check can be replaced by ShapeKeyData struct member `basis_key_active`
+  // found in `sculpt_intern.hh`.
   if (base_mesh->key && object->shapenr > 0) {
-    KeyBlock *kb = (KeyBlock *)base_mesh->key->block.first;
+    KeyBlock *kb = base_mesh->key->refkey;
     if (kb) {
       reshape_context->basis_shape_key = kb;
     }
