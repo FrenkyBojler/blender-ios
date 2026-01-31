@@ -120,7 +120,7 @@ int retiming_keys_count(const Strip *strip)
   return strip->retiming_keys_num;
 }
 
-bool retiming_data_is_editable(const Strip *strip)
+bool retiming_show_keys(const Strip *strip)
 {
   return strip->flag & SEQ_SHOW_RETIMING;
 }

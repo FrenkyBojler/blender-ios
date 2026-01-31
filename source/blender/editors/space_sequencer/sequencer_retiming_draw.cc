@@ -128,12 +128,12 @@ static void retiming_key_draw(const TimelineDrawContext &ctx,
   const float left_min = ui::view2d_view_to_region_x(v2d, strip_ctx.left_handle) + (size / 2);
   float key_position = ui::view2d_view_to_region_x(v2d, key_frame);
   CLAMP(key_position, left_min, right_max);
-  const float alpha = seq::retiming_data_is_editable(strip) ? 1.0f : 0.3f;
+  const float alpha = seq::retiming_show_keys(strip) ? 1.0f : 0.3f;
 
   draw_keyframe_shape(key_position,
                       bottom,
                       size,
-                      is_selected && seq::retiming_data_is_editable(strip),
+                      is_selected && seq::retiming_show_keys(strip),
                       key_type,
                       KEYFRAME_SHAPE_BOTH,
                       alpha,
@@ -151,7 +151,7 @@ static bool fake_keys_draw(const TimelineDrawContext &ctx,
   const Strip *strip = strip_ctx.strip;
   const Scene *scene = ctx.scene;
 
-  if (!seq::retiming_has_keys(strip) && !seq::retiming_data_is_editable(strip)) {
+  if (!seq::retiming_has_keys(strip) && !seq::retiming_show_keys(strip)) {
     return false;
   }
 
@@ -274,7 +274,7 @@ void sequencer_retiming_draw_segments(const TimelineDrawContext &ctx,
     const float top = y_center + size * width_fac;
 
     uchar color[4];
-    if (seq::retiming_data_is_editable(strip) &&
+    if (seq::retiming_show_keys(strip) &&
         (ctx.retiming_selection.contains(const_cast<SeqRetimingKey *>(&key)) ||
          ctx.retiming_selection.contains(const_cast<SeqRetimingKey *>(&key - 1))))
     {

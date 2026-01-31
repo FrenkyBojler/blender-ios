@@ -58,7 +58,7 @@ bool sequencer_retiming_mode_is_active(const Scene *scene)
   }
 
   for (const Strip *strip : retiming_sel.values()) {
-    if (seq::retiming_data_is_editable(strip)) {
+    if (seq::retiming_show_keys(strip)) {
       return true;
     }
   }
@@ -139,7 +139,7 @@ static wmOperatorStatus sequencer_retiming_data_show_exec(bContext *C, wmOperato
   if (sequencer_retiming_mode_is_active(scene)) {
     sequencer_retiming_data_hide_all(ed->current_strips());
   }
-  else if (seq::retiming_data_is_editable(strip_act)) {
+  else if (seq::retiming_show_keys(strip_act)) {
     sequencer_retiming_data_hide_selection(ed->current_strips());
   }
   else {
@@ -792,7 +792,7 @@ SeqRetimingKey *retiming_mouseover_key_get(const Scene *scene,
                                            Strip **r_strip)
 {
   for (Strip *strip : sequencer_visible_strips_get(scene, v2d)) {
-    if (!seq::retiming_data_is_editable(strip)) {
+    if (!seq::retiming_show_keys(strip)) {
       continue;
     }
 
@@ -844,7 +844,7 @@ bool is_mouse_over_retiming_keys_box(const Scene *scene,
                                      const SpaceSeq *sseq,
                                      int mouse_co_region[2])
 {
-  if (!seq::retiming_data_is_editable(strip) || !retiming_overlay_enabled(sseq)) {
+  if (!seq::retiming_show_keys(strip) || !retiming_overlay_enabled(sseq)) {
     return false;
   }
 
@@ -1014,7 +1014,7 @@ wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op)
     if (strip->channel < rectf.ymin || strip->channel > rectf.ymax) {
       continue;
     }
-    if (!seq::retiming_data_is_editable(strip)) {
+    if (!seq::retiming_show_keys(strip)) {
       continue;
     }
     realize_fake_keys_in_rect(scene, strip, rectf);
@@ -1080,7 +1080,7 @@ wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op)
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;
     for (Strip *strip : strips) {
-      if (!seq::retiming_data_is_editable(strip)) {
+      if (!seq::retiming_show_keys(strip)) {
         continue;
       }
       for (SeqRetimingKey &key : seq::retiming_keys_get(strip)) {
@@ -1097,7 +1097,7 @@ wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op)
   }
 
   for (Strip *strip : strips) {
-    if (!seq::retiming_data_is_editable(strip)) {
+    if (!seq::retiming_show_keys(strip)) {
       continue;
     }
     for (SeqRetimingKey &key : seq::retiming_keys_get(strip)) {

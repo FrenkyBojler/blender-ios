@@ -83,7 +83,7 @@ void retiming_selection_copy(SeqRetimingKey *dst, const SeqRetimingKey *src);
 void retiming_remove_multiple_keys(Strip *strip, Vector<SeqRetimingKey *> &keys_to_remove);
 bool retiming_selection_contains(const Editing *ed, const SeqRetimingKey *key);
 bool retiming_selection_has_whole_transition(const Editing *ed, SeqRetimingKey *key);
-bool retiming_data_is_editable(const Strip *strip);
+bool retiming_show_keys(const Strip *strip);
 
 }  // namespace seq
 }  // namespace blender
