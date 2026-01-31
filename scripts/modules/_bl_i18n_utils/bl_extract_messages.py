@@ -1133,12 +1133,11 @@ def dump_asset_messages(msgs, reports, settings):
                         msgs, settings.DEFAULT_CONTEXT, item_name, msgsrc,
                         reports, None, settings,
                     )
-                    msgsrc = f"Menu item name from node group {name}, file {asset_file}"
+                    msgsrc = f"Menu item description from node group {name}, file {asset_file}"
                     process_msg(
                         msgs, settings.DEFAULT_CONTEXT, item_description, msgsrc,
                         reports, None, settings,
                     )
-
 
 
 def dump_addon_bl_info(msgs, reports, module, settings):
