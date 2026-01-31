@@ -315,17 +315,20 @@ void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst)
   dst.totcol = src.totcol;
   MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
 }
-void pointcloud_add_points(PointCloud &pointcloud, const int count)
+
+void pointcloud_resize(PointCloud &pointcloud, const int newcount)
 {
-  BLI_assert(count > 0);
-  if (count == 0) {
+  BLI_assert(newcount > 0);
+
+  const int old_totpoint = pointcloud.totpoint;
+
+  if (newcount == old_totpoint) {
     return;
   }
 
-  const int old_totpoint = pointcloud.totpoint;
-  pointcloud.totpoint += count;
-  bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
+  pointcloud.totpoint = newcount;
 
+  bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
   if (old_totpoint == 0) {
     /* If there were no points before, ensure the position attribute exists. */
     attributes.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
@@ -333,8 +336,11 @@ void pointcloud_add_points(PointCloud &pointcloud, const int count)
 
   pointcloud.attribute_storage.wrap().resize(bke::AttrDomain::Point, pointcloud.totpoint);
 
+  if (newcount > old_totpoint) {
+    /* Initialize new points. */
   fill_attribute_range_default(
-      attributes, bke::AttrDomain::Point, {}, IndexRange(old_totpoint, count));
+      attributes, bke::AttrDomain::Point, {}, IndexRange(old_totpoint, newcount));
+  }
 }
 
 /* Dependency Graph */
