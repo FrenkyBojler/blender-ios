@@ -2602,16 +2602,15 @@ constexpr std::array<EnumPropertyItem, 2> enum_grease_pencil_cap_items{{
     {GP_STROKE_CAP_TYPE_FLAT, "FLAT", ICON_GP_CAPS_FLAT, "Flat", ""},
 }};
 
-static void grease_pencil_cap_menu(bContext * /*C*/, uiLayout *layout, void *cap_type_p)
+static void grease_pencil_cap_menu(bContext * /*C*/, ui::Layout *layout, void *cap_type_p)
 {
-  uiBlock *block = layout->block();
+  ui::Block *block = layout->block();
   blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   for (const EnumPropertyItem &item : enum_grease_pencil_cap_items) {
     uiDefButI(block,
-              ButType::ButMenu,
-              0,
+              ui::ButtonType::ButMenu,
               IFACE_(item.name),
               0,
               0,
@@ -2785,21 +2784,20 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
                       is_equal(status.fill_opacity.value_max * status.curve_count,
                                status.fill_opacity.value_sum),
                       [&]() {
-                        uiBut *but = uiDefButF(block,
-                                               ButType::Num,
-                                               0,
-                                               "",
-                                               0,
-                                               0,
-                                               butw,
-                                               buth,
-                                               &modified.fill_opacity,
-                                               0.0f,
-                                               1.0f,
-                                               "");
-                        UI_but_number_step_size_set(but, 1);
-                        UI_but_number_precision_set(but, 3);
-                        UI_but_func_set(but, handle_curves_fill_opacity, nullptr, nullptr);
+                        ui::Button *but = uiDefButF(block,
+                                                    ui::ButtonType::Num,
+                                                    "",
+                                                    0,
+                                                    0,
+                                                    butw,
+                                                    buth,
+                                                    &modified.fill_opacity,
+                                                    0.0f,
+                                                    1.0f,
+                                                    "");
+                        button_number_step_size_set(but, 1);
+                        button_number_precision_set(but, 3);
+                        button_func_set(but, handle_curves_fill_opacity, nullptr, nullptr);
                         return but;
                       });
 
@@ -2807,24 +2805,24 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
         "Start Cap",
         status.start_cap.value_max * status.curve_count == status.start_cap.value_sum,
         [&]() {
-          uiBut *but = uiDefMenuBut(block,
-                                    grease_pencil_cap_menu,
-                                    &modified.start_cap,
-                                    enum_grease_pencil_cap_items[modified.start_cap].name,
-                                    0,
-                                    0,
-                                    butw,
-                                    buth,
-                                    "");
-          UI_but_type_set_menu_from_pulldown(but);
-          UI_but_func_set(but, handle_curves_start_cap, nullptr, nullptr);
+          ui::Button *but = uiDefMenuBut(block,
+                                         grease_pencil_cap_menu,
+                                         &modified.start_cap,
+                                         enum_grease_pencil_cap_items[modified.start_cap].name,
+                                         0,
+                                         0,
+                                         butw,
+                                         buth,
+                                         "");
+          button_type_set_menu_from_pulldown(but);
+          button_func_set(but, handle_curves_start_cap, nullptr, nullptr);
           return but;
         });
 
     add_labeled_field("End Cap",
                       status.end_cap.value_max * status.curve_count == status.end_cap.value_sum,
                       [&]() {
-                        uiBut *but = uiDefMenuBut(
+                        ui::Button *but = uiDefMenuBut(
                             block,
                             grease_pencil_cap_menu,
                             &modified.end_cap,
@@ -2834,8 +2832,8 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
                             butw,
                             buth,
                             "");
-                        UI_but_type_set_menu_from_pulldown(but);
-                        UI_but_func_set(but, handle_curves_end_cap, nullptr, nullptr);
+                        button_type_set_menu_from_pulldown(but);
+                        button_func_set(but, handle_curves_end_cap, nullptr, nullptr);
                         return but;
                       });
 
@@ -2843,11 +2841,20 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
         "Softness",
         is_equal(status.softness.value_max * status.curve_count, status.softness.value_sum),
         [&]() {
-          uiBut *but = uiDefButF(
-              block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.softness, 0.0f, 1.0f, "");
-          UI_but_number_step_size_set(but, 1);
-          UI_but_number_precision_set(but, 3);
-          UI_but_func_set(but, handle_curves_softness, nullptr, nullptr);
+          ui::Button *but = uiDefButF(block,
+                                      ui::ButtonType::Num,
+                                      "",
+                                      0,
+                                      0,
+                                      butw,
+                                      buth,
+                                      &modified.softness,
+                                      0.0f,
+                                      1.0f,
+                                      "");
+          button_number_step_size_set(but, 1);
+          button_number_precision_set(but, 3);
+          button_func_set(but, handle_curves_softness, nullptr, nullptr);
           return but;
         });
 
@@ -2855,11 +2862,20 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
         "U Scale",
         is_equal(status.u_scale.value_max * status.curve_count, status.u_scale.value_sum),
         [&]() {
-          uiBut *but = uiDefButF(
-              block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.u_scale, 0.0f, 1000.0f, "");
-          UI_but_number_step_size_set(but, 1);
-          UI_but_number_precision_set(but, 3);
-          UI_but_func_set(but, handle_curves_u_scale, nullptr, nullptr);
+          ui::Button *but = uiDefButF(block,
+                                      ui::ButtonType::Num,
+                                      "",
+                                      0,
+                                      0,
+                                      butw,
+                                      buth,
+                                      &modified.u_scale,
+                                      0.0f,
+                                      1000.0f,
+                                      "");
+          button_number_step_size_set(but, 1);
+          button_number_precision_set(but, 3);
+          button_func_set(but, handle_curves_u_scale, nullptr, nullptr);
           return but;
         });
 
@@ -2867,21 +2883,20 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
                       is_equal(status.aspect_ratio.value_max * status.curve_count,
                                status.aspect_ratio.value_sum),
                       [&]() {
-                        uiBut *but = uiDefButF(block,
-                                               ButType::Num,
-                                               0,
-                                               "",
-                                               0,
-                                               0,
-                                               butw,
-                                               buth,
-                                               &modified.aspect_ratio,
-                                               0.0f,
-                                               1000.0f,
-                                               "");
-                        UI_but_number_step_size_set(but, 1);
-                        UI_but_number_precision_set(but, 3);
-                        UI_but_func_set(but, handle_curves_aspect_ratio, nullptr, nullptr);
+                        ui::Button *but = uiDefButF(block,
+                                                    ui::ButtonType::Num,
+                                                    "",
+                                                    0,
+                                                    0,
+                                                    butw,
+                                                    buth,
+                                                    &modified.aspect_ratio,
+                                                    0.0f,
+                                                    1000.0f,
+                                                    "");
+                        button_number_step_size_set(but, 1);
+                        button_number_precision_set(but, 3);
+                        button_func_set(but, handle_curves_aspect_ratio, nullptr, nullptr);
                         return but;
                       });
   }
