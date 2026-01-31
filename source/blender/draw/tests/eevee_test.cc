@@ -854,7 +854,7 @@ static void test_eevee_shadow_finalize()
   }
 
   Texture tilemap_tx = {"tilemap_tx"};
-  tilemap_tx.ensure_2d(blender::gpu::TextureFormat::UINT_32,
+  tilemap_tx.ensure_2d(gpu::TextureFormat::UINT_32,
                        int2(SHADOW_TILEMAP_RES),
                        GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
                            GPU_TEXTURE_USAGE_SHADER_WRITE);
@@ -933,7 +933,7 @@ static void test_eevee_shadow_finalize()
       }
     }
 
-    MEM_SAFE_FREE(pixels);
+    MEM_SAFE_DELETE(pixels);
 
     /** The layout of these expected strings is Y down. */
     StringRefNull expected_pages =
@@ -1251,7 +1251,7 @@ static void test_eevee_shadow_tilemap_amend()
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
                            GPU_TEXTURE_USAGE_SHADER_WRITE;
   int2 tilemap_res(SHADOW_TILEMAP_RES * SHADOW_TILEMAP_PER_ROW, SHADOW_TILEMAP_RES);
-  tilemap_tx.ensure_2d(blender::gpu::TextureFormat::UINT_32, tilemap_res, usage);
+  tilemap_tx.ensure_2d(gpu::TextureFormat::UINT_32, tilemap_res, usage);
   GPU_texture_update_sub(
       tilemap_tx, GPU_DATA_UINT, tilemap_data.data(), 0, 0, 0, tilemap_res.x, tilemap_res.y, 0);
 
@@ -1552,7 +1552,7 @@ static void test_eevee_shadow_tilemap_amend()
         "0000000000000000 0000000000000000\n";
 
     EXPECT_EQ(expected_offset_lod0, stringify_offset(0));
-    MEM_SAFE_FREE(pixels);
+    MEM_SAFE_DELETE(pixels);
   }
 
   GPU_shader_unbind();

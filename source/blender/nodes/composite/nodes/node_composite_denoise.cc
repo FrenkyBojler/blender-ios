@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #ifndef __APPLE__
 #  include "BLI_system.h"
 #endif
@@ -71,7 +67,7 @@ static const EnumPropertyItem quality_items[] = {
     {CMP_NODE_DENOISE_QUALITY_FAST, "FAST", 0, "Fast", "High performance"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
@@ -102,10 +98,10 @@ static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
       .optional_label();
 }
 
-static void node_composit_init_denonise(bNodeTree * /*ntree*/, bNode *node)
+static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, kept for forward compatibility. */
-  NodeDenoise *ndg = MEM_new_for_free<NodeDenoise>(__func__);
+  NodeDenoise *ndg = MEM_new<NodeDenoise>(__func__);
   node->storage = ndg;
 }
 
@@ -126,7 +122,7 @@ static bool is_oidn_supported()
 #endif
 }
 
-static void node_composit_buts_denoise(ui::Layout &layout, bContext * /*C*/, PointerRNA * /*ptr*/)
+static void node_draw_buttons(ui::Layout &layout, bContext * /*C*/, PointerRNA * /*ptr*/)
 {
 #ifndef WITH_OPENIMAGEDENOISE
   layout.label(RPT_("Disabled. Built without OpenImageDenoise"), ICON_ERROR);
@@ -300,7 +296,7 @@ class DenoiseOperation : public NodeOperation {
     }
 
     for (float *buffer : temporary_buffers_to_free) {
-      MEM_freeN(buffer);
+      MEM_delete(buffer);
     }
 #endif
   }
@@ -388,31 +384,29 @@ class DenoiseOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new DenoiseOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_denoise_cc
-
-static void register_node_type_cmp_denoise()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_denoise_cc;
-
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeDenoise", CMP_NODE_DENOISE);
   ntype.ui_name = "Denoise";
   ntype.ui_description = "Denoise renders from Cycles and other ray tracing renderers";
   ntype.enum_name_legacy = "DENOISE";
   ntype.nclass = NODE_CLASS_OP_FILTER;
-  ntype.declare = file_ns::cmp_node_denoise_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_denoise;
-  ntype.initfunc = file_ns::node_composit_init_denonise;
-  blender::bke::node_type_storage(
+  ntype.declare = node_declare;
+  ntype.draw_buttons = node_draw_buttons;
+  ntype.initfunc = node_init;
+  bke::node_type_storage(
       ntype, "NodeDenoise", node_free_standard_storage, node_copy_standard_storage);
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_denoise)
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_denoise_cc

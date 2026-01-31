@@ -8,6 +8,14 @@
 
 #pragma once
 
+#include "BKE_report.hh"
+
+#include "DNA_windowmanager_types.h"
+
+#include "BLI_set.hh"
+
+namespace blender {
+
 struct UndoStack;
 struct wmMsgBus;
 struct wmKeyConfig;
@@ -18,14 +26,9 @@ struct wmGesture;
 struct wmJob;
 struct wmDrag;
 struct wmPaintCursor;
+struct WindowDrawCB;
 
-#include "BKE_report.hh"
-
-#include "DNA_windowmanager_types.h"
-
-#include "BLI_set.hh"
-
-namespace blender::bke {
+namespace bke {
 
 struct wmNotifierHashForQueue {
   uint64_t operator()(const wmNotifier *note) const;
@@ -135,7 +138,7 @@ struct WindowRuntime {
   ListBaseT<wmEventHandler> modalhandlers = {nullptr, nullptr};
 
   /** Custom drawing callbacks. */
-  ListBaseT<struct WindowDrawCB> drawcalls = {nullptr, nullptr};
+  ListBaseT<WindowDrawCB> drawcalls = {nullptr, nullptr};
 
   /** Gesture stuff. */
   ListBaseT<wmGesture> gesture = {nullptr, nullptr};
@@ -167,7 +170,7 @@ struct WindowRuntime {
   wmEvent *eventstate = nullptr;
 
   /**
-   * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
+   * The time when the key is pressed in milliseconds (see #GHOST_IEvent::getTime).
    * Used to detect double-click events.
    */
   uint64_t eventstate_prev_press_time_ms = 0;
@@ -179,4 +182,5 @@ struct WindowRuntime {
   ~WindowRuntime();
 };
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender
