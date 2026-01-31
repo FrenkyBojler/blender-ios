@@ -3320,7 +3320,7 @@ void ED_region_panels_layout_ex(const bContext *C,
     }
   }
   if (use_category_tabs) {
-    margin_x = round_fl_to_int(category_tabs_width);
+    margin_x = category_tabs_width;
   }
 
   const int max_panel_width = round_fl_to_int(BLI_rctf_size_x(&v2d->cur)) - margin_x;
