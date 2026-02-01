@@ -474,30 +474,32 @@ shader node_gabor_texture(int use_mapping = 0,
   vector2 phasor = vector2(0.0, 0.0);
   vector3 derivative = vector3(0.0, 0.0, 0.0);
   float standard_deviation = 1.0;
+  
+  vector2 noise_2d;
+  vector2 noise_derivative_2d;
+  vector2 noise_3d;
+  vector3 noise_derivative_3d;
+  
   if (type == "2D") {
-    vector2 noise;
-    vector2 noise_derivative;
     compute_2d_gabor_noise_with_derivative(
         vector2(scaled_coordinates.x, scaled_coordinates.y),
         frequency,
         isotropy,
         Orientation2D,
-        noise,
-        noise_derivative);
-    phasor = noise;
+        noise_2d,
+        noise_derivative_2d);
+    phasor = noise_2d;
     /* Extend 2D derivative to 3D and scale */
-    derivative = vector3(noise_derivative.x * Scale, noise_derivative.y * Scale, 0.0);
+    derivative = vector3(noise_derivative_2d.x * Scale, noise_derivative_2d.y * Scale, 0.0);
     standard_deviation = compute_2d_gabor_standard_deviation();
   }
   else if (type == "3D") {
     vector3 orientation = normalize(vector(Orientation3D));
-    vector2 noise;
-    vector3 noise_derivative;
     compute_3d_gabor_noise_with_derivative(
-        scaled_coordinates, frequency, isotropy, orientation, noise, noise_derivative);
-    phasor = noise;
+        scaled_coordinates, frequency, isotropy, orientation, noise_3d, noise_derivative_3d);
+    phasor = noise_3d;
     /* Scale the derivative by the scale factor */
-    derivative = noise_derivative * Scale;
+    derivative = noise_derivative_3d * Scale;
     standard_deviation = compute_3d_gabor_standard_deviation();
   }
   else {
