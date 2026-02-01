@@ -632,7 +632,8 @@ struct Layout : public Item, NonCopyable, NonMovable {
                    PropertyRNA *item_searchpropname,
                    std::optional<StringRefNull> name,
                    int icon,
-                   bool results_are_suggestions);
+                   bool results_are_suggestions,
+                   std::optional<StringRef> placeholder = std::nullopt);
   /**
    * Adds a RNA enum/pointer/string/ property item, and exposes it into the layout. Button input
    * would suggest values from the search property collection, input must match a suggested value.
@@ -643,7 +644,8 @@ struct Layout : public Item, NonCopyable, NonMovable {
                    PointerRNA *searchptr,
                    StringRefNull searchpropname,
                    std::optional<StringRefNull> name,
-                   int icon);
+                   int icon,
+                   std::optional<StringRef> placeholder = std::nullopt);
 
   /**
    * Adds a RNA property item, and sets a custom popover to expose its value.
