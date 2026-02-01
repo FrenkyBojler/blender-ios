@@ -1257,6 +1257,7 @@ NODE_DEFINE(GaborTextureNode)
   SOCKET_OUT_FLOAT(value, "Value");
   SOCKET_OUT_FLOAT(phase, "Phase");
   SOCKET_OUT_FLOAT(intensity, "Intensity");
+  SOCKET_OUT_VECTOR(derivatives, "Derivatives");
 
   return type;
 }
@@ -1275,6 +1276,7 @@ void GaborTextureNode::compile(SVMCompiler &compiler)
   ShaderOutput *value_out = output("Value");
   ShaderOutput *phase_out = output("Phase");
   ShaderOutput *intensity_out = output("Intensity");
+  ShaderOutput *derivatives_out = output("Derivatives");
 
   const int vector_stack_offset = tex_mapping.compile_begin(compiler, vector_in);
   const int scale_stack_offset = compiler.stack_assign_if_linked(scale_in);
@@ -1286,6 +1288,7 @@ void GaborTextureNode::compile(SVMCompiler &compiler)
   const int value_stack_offset = compiler.stack_assign_if_linked(value_out);
   const int phase_stack_offset = compiler.stack_assign_if_linked(phase_out);
   const int intensity_stack_offset = compiler.stack_assign_if_linked(intensity_out);
+  const int derivatives_stack_offset = compiler.stack_assign_if_linked(derivatives_out);
 
   compiler.add_node(
       NODE_TEX_GABOR,
@@ -1297,7 +1300,7 @@ void GaborTextureNode::compile(SVMCompiler &compiler)
       compiler.encode_uchar4(orientation_2d_stack_offset, orientation_3d_stack_offset));
 
   compiler.add_node(
-      compiler.encode_uchar4(value_stack_offset, phase_stack_offset, intensity_stack_offset),
+      compiler.encode_uchar4(value_stack_offset, phase_stack_offset, intensity_stack_offset, derivatives_stack_offset),
       __float_as_int(scale),
       __float_as_int(frequency),
       __float_as_int(anisotropy));

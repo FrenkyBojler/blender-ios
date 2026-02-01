@@ -60,6 +60,8 @@ static void sh_node_tex_gabor_declare(NodeDeclarationBuilder &b)
       "The phase of the Gabor noise, which has no random intensity");
   b.add_output<decl::Float>("Intensity")
       .description("The intensity of the Gabor noise, which has no random phase");
+  b.add_output<decl::Vector>("Derivatives")
+      .description("The analytic derivatives of the Gabor noise with respect to the input coordinates");
 }
 
 static void node_shader_buts_tex_gabor(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -138,6 +140,7 @@ class GaborNoiseFunction : public mf::MultiFunction {
     builder.single_output<float>("Value", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float>("Phase", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output<float>("Intensity", mf::ParamFlag::SupportsUnusedOutput);
+    builder.single_output<float3>("Derivatives", mf::ParamFlag::SupportsUnusedOutput);
 
     return signature;
   }
@@ -153,6 +156,8 @@ class GaborNoiseFunction : public mf::MultiFunction {
     MutableSpan<float> r_phase = params.uninitialized_single_output_if_required<float>(6, "Phase");
     MutableSpan<float> r_intensity = params.uninitialized_single_output_if_required<float>(
         7, "Intensity");
+    MutableSpan<float3> r_derivatives = params.uninitialized_single_output_if_required<float3>(
+        8, "Derivatives");
 
     switch (type_) {
       case SHD_GABOR_TYPE_2D: {
@@ -165,7 +170,8 @@ class GaborNoiseFunction : public mf::MultiFunction {
                        orientation[i],
                        r_value.is_empty() ? nullptr : &r_value[i],
                        r_phase.is_empty() ? nullptr : &r_phase[i],
-                       r_intensity.is_empty() ? nullptr : &r_intensity[i]);
+                       r_intensity.is_empty() ? nullptr : &r_intensity[i],
+                       r_derivatives.is_empty() ? nullptr : &r_derivatives[i]);
         });
         break;
       }
@@ -179,7 +185,8 @@ class GaborNoiseFunction : public mf::MultiFunction {
                        orientation[i],
                        r_value.is_empty() ? nullptr : &r_value[i],
                        r_phase.is_empty() ? nullptr : &r_phase[i],
-                       r_intensity.is_empty() ? nullptr : &r_intensity[i]);
+                       r_intensity.is_empty() ? nullptr : &r_intensity[i],
+                       r_derivatives.is_empty() ? nullptr : &r_derivatives[i]);
         });
         break;
       }

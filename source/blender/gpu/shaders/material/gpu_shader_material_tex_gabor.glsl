@@ -72,6 +72,38 @@ float2 compute_2d_gabor_kernel(float2 position, float frequency, float orientati
   return windowed_gaussian_envelope * phasor;
 }
 
+/* Computes the 2D Gabor kernel and its derivative with respect to position.
+ * Returns the kernel value (phasor) and the derivative of the imaginary part. */
+float4 compute_2d_gabor_kernel_with_derivative(float2 position, float frequency, float orientation)
+{
+  float distance_squared = length_squared(position);
+  float hann_window = 0.5f + 0.5f * cos(M_PI * distance_squared);
+  float gaussian_envelop = exp(-M_PI * distance_squared);
+  float windowed_gaussian_envelope = gaussian_envelop * hann_window;
+
+  float2 frequency_vector = frequency * float2(cos(orientation), sin(orientation));
+  float angle = 2.0f * M_PI * dot(position, frequency_vector);
+  float cos_angle = cos(angle);
+  float sin_angle = sin(angle);
+  float2 phasor = float2(cos_angle, sin_angle);
+
+  float2 kernel_value = windowed_gaussian_envelope * phasor;
+
+  /* Compute derivative of envelope: envelope = gaussian * hann */
+  /* ∇envelope = -π * p * exp(-πr²) * (sin(πr²) + 2 * hann) */
+  float2 envelope_derivative = -M_PI * position * gaussian_envelop *
+                               (sin(M_PI * distance_squared) + 2.0f * hann_window);
+
+  /* Compute derivative of sin(θ) where θ = 2π * dot(p, f) */
+  /* ∇sin(θ) = cos(θ) * ∇θ = cos(θ) * 2π * frequency_vector */
+  float2 sin_derivative = cos_angle * 2.0f * M_PI * frequency_vector;
+
+  /* Apply product rule: ∇(envelope * sin(θ)) = ∇envelope * sin(θ) + envelope * ∇sin(θ) */
+  float2 kernel_derivative = envelope_derivative * sin_angle + windowed_gaussian_envelope * sin_derivative;
+
+  return float4(kernel_value, kernel_derivative);
+}
+
 /* Computes the approximate standard deviation of the zero mean normal distribution representing
  * the amplitude distribution of the noise based on Equation (9) in the original Gabor noise paper.
  * For simplicity, the Hann window is ignored and the orientation is fixed since the variance is
@@ -173,6 +205,57 @@ float2 compute_2d_gabor_noise(float2 coordinates,
   return sum;
 }
 
+/* Computes the Gabor noise value and its derivative by dividing the space into a grid.
+ * Returns the phasor in xy and the derivative in zw. */
+float4 compute_2d_gabor_noise_with_derivative(float2 coordinates,
+                                               float frequency,
+                                               float isotropy,
+                                               float base_orientation)
+{
+  float2 cell_position = floor(coordinates);
+  float2 local_position = coordinates - cell_position;
+
+  float2 sum = float2(0.0f);
+  float2 derivative_sum = float2(0.0f);
+  for (int j = -1; j <= 1; j++) {
+    for (int i = -1; i <= 1; i++) {
+      float2 cell_offset = float2(i, j);
+
+      float2 current_cell_position = cell_position + cell_offset;
+      float2 position_in_cell_space = local_position - cell_offset;
+
+      float2 cell_noise = float2(0.0f);
+      float2 cell_derivative = float2(0.0f);
+      for (int k = 0; k < IMPULSES_COUNT; ++k) {
+        float3 seed_for_orientation = float3(current_cell_position, float(k * 3));
+        float3 seed_for_kernel_center = float3(current_cell_position, float(k * 3 + 1));
+        float3 seed_for_weight = float3(current_cell_position, float(k * 3 + 2));
+
+        float random_orientation = (hash_vec3_to_float(seed_for_orientation) - 0.5f) * M_PI;
+        float orientation = base_orientation + random_orientation * isotropy;
+
+        float2 kernel_center = hash_vec3_to_vec2(seed_for_kernel_center);
+        float2 position_in_kernel_space = position_in_cell_space - kernel_center;
+
+        if (length_squared(position_in_kernel_space) >= 1.0f) {
+          continue;
+        }
+
+        float weight = hash_vec3_to_float(seed_for_weight) < 0.5f ? -1.0f : 1.0f;
+
+        float4 kernel_and_deriv = compute_2d_gabor_kernel_with_derivative(
+            position_in_kernel_space, frequency, orientation);
+        cell_noise += weight * kernel_and_deriv.xy;
+        cell_derivative += weight * kernel_and_deriv.zw;
+      }
+      sum += cell_noise;
+      derivative_sum += cell_derivative;
+    }
+  }
+
+  return float4(sum, derivative_sum);
+}
+
 /* Identical to compute_2d_gabor_kernel, except it is evaluated in 3D space. Notice that Equation
  * (6) in the original Gabor noise paper computes the frequency vector using (cos(w_0), sin(w_0)),
  * which we also do in the 2D variant, however, for 3D, the orientation is already a unit frequency
@@ -189,6 +272,39 @@ float2 compute_3d_gabor_kernel(float3 position, float frequency, float3 orientat
   float2 phasor = float2(cos(angle), sin(angle));
 
   return windowed_gaussian_envelope * phasor;
+}
+
+/* Computes the 3D Gabor kernel and its derivative with respect to position.
+ * Note: This function returns the phasor in the first two components, but we need a way to return
+ * a 3D derivative. We'll use a separate function that returns the derivative separately. */
+void compute_3d_gabor_kernel_with_derivative(float3 position,
+                                             float frequency,
+                                             float3 orientation,
+                                             out float2 kernel_value,
+                                             out float3 kernel_derivative)
+{
+  float distance_squared = length_squared(position);
+  float hann_window = 0.5f + 0.5f * cos(M_PI * distance_squared);
+  float gaussian_envelop = exp(-M_PI * distance_squared);
+  float windowed_gaussian_envelope = gaussian_envelop * hann_window;
+
+  float3 frequency_vector = frequency * orientation;
+  float angle = 2.0f * M_PI * dot(position, frequency_vector);
+  float cos_angle = cos(angle);
+  float sin_angle = sin(angle);
+  float2 phasor = float2(cos_angle, sin_angle);
+
+  kernel_value = windowed_gaussian_envelope * phasor;
+
+  /* Compute derivative of envelope */
+  float3 envelope_derivative = -M_PI * position * gaussian_envelop *
+                               (sin(M_PI * distance_squared) + 2.0f * hann_window);
+
+  /* Compute derivative of sin(θ) where θ = 2π * dot(p, f) */
+  float3 sin_derivative = cos_angle * 2.0f * M_PI * frequency_vector;
+
+  /* Apply product rule: ∇(envelope * sin(θ)) = ∇envelope * sin(θ) + envelope * ∇sin(θ) */
+  kernel_derivative = envelope_derivative * sin_angle + windowed_gaussian_envelope * sin_derivative;
 }
 
 /* Identical to compute_2d_gabor_standard_deviation except we do triple integration in 3D. The only
@@ -284,6 +400,58 @@ float2 compute_3d_gabor_noise(float3 coordinates,
   return sum;
 }
 
+/* Computes the 3D Gabor noise value and its derivative. */
+void compute_3d_gabor_noise_with_derivative(float3 coordinates,
+                                            float frequency,
+                                            float isotropy,
+                                            float3 base_orientation,
+                                            out float2 noise,
+                                            out float3 derivative)
+{
+  float3 cell_position = floor(coordinates);
+  float3 local_position = coordinates - cell_position;
+
+  noise = float2(0.0f);
+  derivative = float3(0.0f);
+  for (int k = -1; k <= 1; k++) {
+    for (int j = -1; j <= 1; j++) {
+      for (int i = -1; i <= 1; i++) {
+        float3 cell_offset = float3(i, j, k);
+        float3 current_cell_position = cell_position + cell_offset;
+        float3 position_in_cell_space = local_position - cell_offset;
+
+        float2 cell_noise = float2(0.0f);
+        float3 cell_derivative = float3(0.0f);
+        for (int l = 0; l < IMPULSES_COUNT; ++l) {
+          float4 seed_for_orientation = float4(current_cell_position, float(l * 3));
+          float4 seed_for_kernel_center = float4(current_cell_position, float(l * 3 + 1));
+          float4 seed_for_weight = float4(current_cell_position, float(l * 3 + 2));
+
+          float3 orientation = compute_3d_orientation(base_orientation, isotropy, seed_for_orientation);
+
+          float3 kernel_center = hash_vec4_to_vec3(seed_for_kernel_center);
+          float3 position_in_kernel_space = position_in_cell_space - kernel_center;
+
+          if (length_squared(position_in_kernel_space) >= 1.0f) {
+            continue;
+          }
+
+          float weight = hash_vec4_to_float(seed_for_weight) < 0.5f ? -1.0f : 1.0f;
+
+          float2 kernel_value;
+          float3 kernel_deriv;
+          compute_3d_gabor_kernel_with_derivative(
+              position_in_kernel_space, frequency, orientation, kernel_value, kernel_deriv);
+          cell_noise += weight * kernel_value;
+          cell_derivative += weight * kernel_deriv;
+        }
+        noise += cell_noise;
+        derivative += cell_derivative;
+      }
+    }
+  }
+}
+
 [[node]]
 void node_tex_gabor(float3 coordinates,
                     float scale,
@@ -294,21 +462,33 @@ void node_tex_gabor(float3 coordinates,
                     float type,
                     float &output_value,
                     float &output_phase,
-                    float &output_intensity)
+                    float &output_intensity,
+                    float3 &output_derivatives)
 {
   float3 scaled_coordinates = coordinates * scale;
   float isotropy = 1.0f - clamp(anisotropy, 0.0f, 1.0f);
   frequency = max(0.001f, frequency);
 
   float2 phasor = float2(0.0f);
+  float3 derivative = float3(0.0f);
   float standard_deviation = 1.0f;
   if (type == SHD_GABOR_TYPE_2D) {
-    phasor = compute_2d_gabor_noise(scaled_coordinates.xy, frequency, isotropy, orientation_2d);
+    float4 noise_and_deriv = compute_2d_gabor_noise_with_derivative(
+        scaled_coordinates.xy, frequency, isotropy, orientation_2d);
+    phasor = noise_and_deriv.xy;
+    /* Derivative is in zw, but we need to scale it by the scale factor and extend to 3D */
+    derivative = float3(noise_and_deriv.zw * scale, 0.0f);
     standard_deviation = compute_2d_gabor_standard_deviation();
   }
   else if (type == SHD_GABOR_TYPE_3D) {
     float3 orientation = normalize(orientation_3d);
-    phasor = compute_3d_gabor_noise(scaled_coordinates, frequency, isotropy, orientation);
+    float2 noise;
+    float3 noise_derivative;
+    compute_3d_gabor_noise_with_derivative(
+        scaled_coordinates, frequency, isotropy, orientation, noise, noise_derivative);
+    phasor = noise;
+    /* Scale the derivative by the scale factor */
+    derivative = noise_derivative * scale;
     standard_deviation = compute_3d_gabor_standard_deviation();
   }
 
@@ -326,4 +506,8 @@ void node_tex_gabor(float3 coordinates,
 
   /* Compute the intensity based on equation (8) in Tricard's paper. */
   output_intensity = length(phasor) / normalization_factor;
+
+  /* Normalize the derivative by the same normalization factor.
+   * The derivative is of phasor.y, so we divide by normalization_factor. */
+  output_derivatives = derivative / normalization_factor;
 }

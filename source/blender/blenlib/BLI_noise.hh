@@ -236,7 +236,8 @@ void gabor(const float2 coordinates,
            const float orientation,
            float *r_value,
            float *r_phase,
-           float *r_intensity);
+           float *r_intensity,
+           float3 *r_derivatives = nullptr);
 
 void gabor(const float3 coordinates,
            const float scale,
@@ -245,7 +246,8 @@ void gabor(const float3 coordinates,
            const float3 orientation,
            float *r_value,
            float *r_phase,
-           float *r_intensity);
+           float *r_intensity,
+           float3 *r_derivatives = nullptr);
 
 /** \} */
 
