@@ -28,57 +28,6 @@ template<typename IToken> struct TokenRange {
   IToken begin, end;
 };
 
-struct DelayedStringStream {
-  Vector<StringRef> stream;
-  size_t total_length = 0;
-
-  /**
-   * Checks if str is a contiguous continuation of the last inserted string ref.
-   * If yes, merge it; else append str to the stream.
-   */
-  DelayedStringStream &operator<<(StringRef str)
-  {
-    if (str.is_empty()) {
-      return *this;
-    }
-
-    if (!stream.is_empty()) {
-      StringRef &last = stream.last();
-      /* Check if the memory addresses are contiguous */
-      if (last.data() + last.size() == str.data()) {
-        last = StringRef(last.data(), last.size() + str.size());
-      }
-      else {
-        stream.append(str);
-      }
-    }
-    else {
-      stream.append(str);
-    }
-
-    total_length += str.size();
-    return *this;
-  }
-
-  /**
-   * Concatenate all strings together.
-   * Memory is allocated once to fit the total length.
-   */
-  std::string str() const
-  {
-    std::string result;
-    if (total_length == 0) {
-      return result;
-    }
-
-    result.reserve(total_length);
-    for (const auto &segment : stream) {
-      result.append(segment);
-    }
-    return result;
-  }
-};
-
 /* -------------------------------------------------------------------- */
 /** \name Parser / Lexer classes.
  * \{ */
@@ -170,6 +119,8 @@ struct AtomicLexer : LexerBase {
         return (s == "define") ? Define : Word;
       case perfect_hash("ifndef"):
         return (s == "ifndef") ? Ifndef : Word;
+      case perfect_hash("pragma"):
+        return (s == "pragma") ? Pragma : Word;
       default:
         return Word;
     }
@@ -382,10 +333,7 @@ struct Stream {
     const AtomicLexer *lex;
     const SToken *stream_tok;
 
-    IToken(const AtomicLexer &lex, const SToken *stream_tok) : lex(&lex), stream_tok(stream_tok)
-    {
-      BLI_assert_msg(stream_tok->index != -1, "Cannot iterate a stream with boolean tokens");
-    }
+    IToken(const AtomicLexer &lex, const SToken *stream_tok) : lex(&lex), stream_tok(stream_tok) {}
     IToken(const IToken &other) = default;
 
     bool is_valid() const
@@ -395,21 +343,25 @@ struct Stream {
 
     TokenType type() const
     {
+      BLI_assert_msg(stream_tok->index != -1, "Cannot iterate a stream with boolean tokens");
       return stream_tok->pasted_atom ? Word : (*lex)[stream_tok->index].type();
     }
     TokenAtom atom() const
     {
+      BLI_assert_msg(stream_tok->index != -1, "Cannot iterate a stream with boolean tokens");
       return stream_tok->pasted_atom ? stream_tok->pasted_atom : (*lex)[stream_tok->index].atom();
     }
 
     std::string_view str() const
     {
+      BLI_assert_msg(stream_tok->index != -1, "Cannot iterate a stream with boolean tokens");
       return stream_tok->pasted_atom ? std::string_view{lex->pasted_token[stream_tok->index]} :
                                        (*lex)[stream_tok->index].str();
     }
 
     bool followed_by_whitespace() const
     {
+      BLI_assert_msg(stream_tok->index != -1, "Cannot iterate a stream with boolean tokens");
       return stream_tok->pasted_atom ? stream_tok->followed_by_space :
                                        (*lex)[stream_tok->index].followed_by_whitespace();
     }
@@ -486,23 +438,42 @@ struct Stream {
   }
 };
 
-DelayedStringStream &operator<<(DelayedStringStream &dst, const Stream &src)
+DCEStream &operator<<(DCEStream &dst, const Stream &src)
 {
   for (const auto stream_tok : src.tokens) {
-    if (UNLIKELY(stream_tok.index == -1)) {
-      dst << (stream_tok.bool_value ? "1" : "0");
-    }
-    else if (UNLIKELY(stream_tok.pasted_atom)) {
+    /* This should only be used for expressions. */
+    BLI_assert(stream_tok.index != -1);
+
+    if (UNLIKELY(stream_tok.pasted_atom)) {
+      /* TODO: Pasting could eventually form a keyword. But that's not supported yet. */
+      dst.parse_token(stream_tok.pasted_atom, Word);
       dst << src.lex.pasted_token[stream_tok.index];
     }
     else {
-      dst << src.lex[stream_tok.index].str();
+      Token tok = src.lex[stream_tok.index];
+      dst.parse_token(tok.atom(), tok.type());
+      dst << tok.str();
     }
 
     if (stream_tok.followed_by_space) {
       dst << " ";
     }
   }
+  return dst;
+}
+
+DCEStream &operator<<(DCEStream &dst, const TokenRange<Token> &range)
+{
+  dst.parse_token(range.begin, range.end);
+  StringRef str = range.begin.str_with_whitespace();
+  dst << StringRef(str.data(), range.end.str_with_whitespace().end());
+  return dst;
+}
+
+DCEStream &operator<<(DCEStream &dst, const Token &tok)
+{
+  dst.parse_token(tok.atom(), tok.type());
+  dst << tok.str_with_whitespace();
   return dst;
 }
 
@@ -586,6 +557,7 @@ struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, N
     Elif = TokenType::Elif,
     Else = TokenType::Else,
     Endif = TokenType::Endif,
+    Pragma = TokenType::Pragma,
     /* Any other unhandled directives (warnings / errors / pragma etc...). */
     Other = TokenType::Word,
   };
@@ -807,7 +779,7 @@ struct Preprocessor : IntermediateFormWithIDs {
   using ExpressionParser = shader::parser::ExpressionParser;
   using ExpansionParser = IntermediateForm<ExpansionLexer, shader::parser::DummyParser>;
 
-  DelayedStringStream out_stream;
+  DCEStream out_stream;
 
   /* Cache the expression lexer to avoid memory allocations. */
   ExpressionLexer expression_lexer;
@@ -959,7 +931,8 @@ struct Preprocessor : IntermediateFormWithIDs {
   LineID last_directive_end = LineID::invalid();
 
  public:
-  Preprocessor(const std::string_view str) : IntermediateFormWithIDs(str)
+  Preprocessor(const std::string_view str)
+      : IntermediateFormWithIDs(str), out_stream(lex_.hash("return"))
   {
     /* From our stats. Should be enough for 100% of our cases. */
     defines.reserve(1000);
@@ -997,6 +970,21 @@ struct Preprocessor : IntermediateFormWithIDs {
     }
   }
 
+  void optimize()
+  {
+    Vector<TokenAtom> entry_points;
+    entry_points.append(lex_.hash("main"));
+    /* TODO(fclem): Properly support forward declaration. */
+    entry_points.append(lex_.hash("nodetree_displacement"));
+    entry_points.append(lex_.hash("nodetree_surface"));
+    entry_points.append(lex_.hash("nodetree_volume"));
+    entry_points.append(lex_.hash("nodetree_thickness"));
+    entry_points.append(lex_.hash("derivative_scale_get"));
+    entry_points.append(lex_.hash("closure_to_rgba"));
+
+    out_stream.optimize(entry_points.as_span());
+  }
+
   std::string result_get()
   {
     return out_stream.str();
@@ -1030,9 +1018,40 @@ struct Preprocessor : IntermediateFormWithIDs {
       case Endif:
         erase_lines(get_start(dir), get_end(dir));
         break;
+      case Pragma:
+        process_pragma(dir);
+        break;
       case Other:
         out_stream << str_with_whitespace(dir);
         break;
+    }
+  }
+
+  /**
+   * Pragmas.
+   */
+
+  BLI_NOINLINE void process_pragma(DirectiveID dir)
+  {
+    Token tok = get_identifier(dir).next();
+    if (tok.str() == "blender") {
+      tok = tok.next();
+      if (tok.str() == "dead_code_elimination") {
+        tok = tok.next();
+        if (tok.str() == "off") {
+          out_stream.set_enabled_parsing(false);
+        }
+        else if (tok.str() == "on") {
+          out_stream.set_enabled_parsing(true);
+        }
+        else {
+          BLI_assert_msg(false, "Invalid dead_code_elimination pragma. Expecting on or off.");
+        }
+      }
+      erase_lines(get_start(dir), get_end(dir));
+    }
+    else {
+      out_stream << str_with_whitespace(dir);
     }
   }
 
@@ -1273,7 +1292,7 @@ struct Preprocessor : IntermediateFormWithIDs {
       return;
     }
     if (start == end) {
-      out_stream << lex_[start].str_with_whitespace();
+      out_stream << lex_[start];
       return;
     }
 
@@ -1287,11 +1306,11 @@ struct Preprocessor : IntermediateFormWithIDs {
                                                           DirectiveID::invalid());
       /* Emit tokens between the last emitted token and this one. */
       if (int(after_last_emitted) < *it) {
-        out_stream << substr_range_inclusive_view_with_whitespace(after_last_emitted, tok.prev());
+        out_stream << TokenRange<Token>{after_last_emitted, tok.prev()};
       }
 
       if (macro_id == DirectiveID::invalid()) {
-        out_stream << tok.str_with_whitespace();
+        out_stream << tok;
         after_last_emitted = tok.next();
         ++it;
         continue;
@@ -1306,7 +1325,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     }
 
     const Token last_tok = lex_[end];
-    out_stream << substr_range_inclusive_view_with_whitespace(after_last_emitted, last_tok);
+    out_stream << TokenRange<Token>{after_last_emitted, last_tok};
   }
 
   /* Cached vector to avoid reallocation. */
@@ -1640,6 +1659,7 @@ std::string Shader::run_preprocessor(StringRef source)
 
   Preprocessor processor(source);
   processor.preprocess();
+  processor.optimize();
 
   if (G.debug & G_DEBUG_GPU_SHADER_NO_DCE) {
     return processor.result_get();

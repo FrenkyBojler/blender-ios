@@ -110,7 +110,7 @@ enum TokenType : uint8_t {
   Continue = 'O',
   Line = 'p',
   Increment = 'P',
-  // Unused = 'q',
+  Pragma = 'q',
   DoubleHash = 'Q',
   Return = 'r',
   // Unused = 'R',

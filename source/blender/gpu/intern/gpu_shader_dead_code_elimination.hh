@@ -10,6 +10,7 @@
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
 
+#include "lazy_string_builder.hh"
 #include "shader_tool/intermediate.hh"
 
 namespace blender::gpu {
@@ -348,6 +349,283 @@ struct DeadCodeEliminator
       tok = tok.next().next();
     }
     return tok;
+  }
+};
+
+/* -------------------------------------------------------------------- */
+/** \name Streaming Dead Code Eliminator.
+ * \{ */
+
+/* Token stream that parses (some) symbols definitions, build a graph of usage and then prune
+ * unused definitions for a given set of entry point functions. */
+struct DCEStream : private LazyStringBuilder {
+  using Token = lexit::Token;
+  using TokenType = lexit::TokenType;
+  using TokenAtom = lexit::TokenAtom;
+
+ private:
+  struct TokenFingerPrint {
+    /* Start of this token inside the LazyStringBuilder result. */
+    uint32_t str_start = 0;
+    TokenAtom atom = 0;
+    TokenType type = TokenType::Invalid;
+    uint8_t size = 0;
+
+    TokenFingerPrint() = default;
+  };
+
+  /* Simple circular buffer to access last few token data. */
+  class TokenHistoryBuffer {
+   private:
+    std::array<TokenFingerPrint, 3> buffer = {TokenFingerPrint{}};
+    int head = 0;
+
+   public:
+    void push(TokenFingerPrint item)
+    {
+      buffer[head] = item;
+      head = (head + 1) % buffer.size();
+    }
+
+    /* Access elements from newest (0) to oldest (count-1). */
+    const TokenFingerPrint &operator[](int index) const
+    {
+      BLI_assert(index < buffer.size());
+      int actual_index = (head + buffer.size() - index - 1) % buffer.size();
+      return buffer[actual_index];
+    }
+  } token_history;
+
+  /* Function ID that is unique for each function and all its overloads. */
+  using FnId = int;
+
+  struct FunctionDeclaration {
+    TokenFingerPrint type, name, end;
+    FnId id;
+  };
+
+  struct FunctionGraph {
+    /* Counter to assign unique IDs to functions. */
+    int counter = 0;
+    /* Map declarations (name token) to a function id. */
+    Vector<FunctionDeclaration> declarations;
+    /* Map identifier to id. */
+    Map<TokenAtom, FnId> names;
+    /* Function call (from, to). */
+    Vector<std::pair<FnId, FnId>> edges;
+  } graph;
+
+  FnId current_fn_id = -1;
+
+  /* State of the parser. Some section have DCE turned off because of unsupported syntax. */
+  bool enabled_ = true;
+
+  int stack_depth = 0;
+
+  const TokenAtom return_atom;
+
+ public:
+  DCEStream(TokenAtom return_atom) : return_atom(return_atom) {}
+
+  void set_enabled_parsing(bool value)
+  {
+    enabled_ = value;
+  }
+
+  DCEStream &operator<<(StringRef str)
+  {
+    *static_cast<LazyStringBuilder *>(this) << str;
+    return *this;
+  }
+
+  BLI_NOINLINE void parse_token(TokenAtom atom, TokenType type)
+  {
+    if (!enabled_) {
+      return;
+    }
+    parse_token_impl(atom, type);
+  }
+
+  BLI_NOINLINE void parse_token(const Token start, const Token end)
+  {
+    if (!enabled_) {
+      return;
+    }
+    int offset = 0;
+    for (Token tok = start; tok != end; tok = tok.next()) {
+      parse_token_impl(tok.atom(), tok.type(), offset);
+      offset += tok.str_with_whitespace().size();
+    }
+  }
+
+  std::string str() const
+  {
+    return static_cast<const LazyStringBuilder *>(this)->str();
+  }
+
+  void optimize(const Span<TokenAtom> entry_points)
+  {
+    prune_unused_functions(entry_points);
+  }
+
+ private:
+  BLI_INLINE_METHOD void parse_token_impl(TokenAtom atom, TokenType type, int offset = 0)
+  {
+    TokenFingerPrint tok{static_cast<uint32_t>(this->total_length + offset), atom, type, 0};
+    switch (type) {
+      case TokenType::ParOpen:
+        process_function();
+        break;
+      case TokenType::BracketOpen:
+        stack_depth += (current_fn_id != -1);
+        break;
+      case TokenType::BracketClose:
+        stack_depth -= (current_fn_id != -1);
+        if (stack_depth == 0 && current_fn_id != -1) {
+          graph.declarations.last().end = tok;
+          current_fn_id = -1;
+        }
+        break;
+      case TokenType::SemiColon:
+        /* Finding a semicolon in global scope after a function signature means that this is
+         * a forward declaration. Step out of function in this case. */
+        if (stack_depth == 0 && current_fn_id != -1) {
+          graph.declarations.last().end = tok;
+          current_fn_id = -1;
+        }
+        break;
+      default:
+        break;
+    }
+    token_history.push(tok);
+  }
+
+  void process_function()
+  {
+    TokenFingerPrint name_tok = token_history[0];
+    if (name_tok.type != TokenType::Word) {
+      return;
+    }
+
+    TokenFingerPrint type_tok = token_history[1];
+    if (type_tok.type == TokenType::Word && type_tok.atom != return_atom) {
+      register_function_declaration(type_tok, name_tok);
+    }
+    else if (current_fn_id == -1) {
+      register_function_call(name_tok);
+    }
+  }
+
+  /* Register function declaration at this token position.
+   * Associate ID with the token string if first encountering the symbol.
+   * Does not differentiate overloads. */
+  void register_function_declaration(TokenFingerPrint type_tok, TokenFingerPrint name_tok)
+  {
+    FnId id = graph.names.lookup_or_add_cb(name_tok.atom, [this]() { return graph.counter++; });
+    graph.declarations.append(FunctionDeclaration{type_tok, name_tok, name_tok, id});
+    current_fn_id = id;
+  }
+
+  /* Register a function call made inside the body of a function by creating an edge inside the
+   * graph. Does nothing if the function is not defined. */
+  void register_function_call(TokenFingerPrint name_tok)
+  {
+    int fn_id = graph.names.lookup_default(name_tok.atom, -1);
+    /* TODO(fclem): On Metal, the function prototypes are removed, which means they can be defined
+     * later on.  */
+    if (fn_id == -1) {
+      /* Functions is not defined. Can be builtin function. */
+      return;
+    }
+    graph.edges.append_as(current_fn_id, fn_id);
+  }
+
+  void end_function_declaration(TokenFingerPrint tok)
+  {
+    if (stack_depth == 0 && current_fn_id != -1) {
+      graph.declarations.last().end = tok;
+      current_fn_id = -1;
+    }
+  }
+
+  Map<FnId, Vector<FnId>> build_adjacency()
+  {
+    Map<FnId, Vector<FnId>> adj;
+    adj.reserve(graph.counter);
+    for (const auto &[from, to] : graph.edges) {
+      adj.lookup_or_add_default(from).append(to);
+    }
+    return adj;
+  }
+
+  Set<FnId> compute_used_functions(const Vector<FnId> &roots)
+  {
+    Set<FnId> used;
+    used.reserve(graph.counter);
+
+    auto adj = build_adjacency();
+
+    std::vector<FnId> stack;
+    stack.reserve(64);
+
+    for (FnId root : roots) {
+      if (used.add(root)) {
+        stack.push_back(root);
+      }
+
+      while (!stack.empty()) {
+        FnId f = stack.back();
+        stack.pop_back();
+
+        const auto *calls = adj.lookup_ptr(f);
+        if (calls == nullptr) {
+          continue;
+        }
+
+        for (FnId callee : *calls) {
+          if (used.add(callee)) {
+            stack.push_back(callee);
+          }
+        }
+      }
+    }
+
+    return used;
+  }
+
+  void prune_unused_functions(const Span<TokenAtom> entry_points)
+  {
+    Vector<FnId> entry_point_ids;
+    for (auto entry_point : entry_points) {
+      FnId id = graph.names.lookup_default(entry_point, 0);
+      if (id != 0) {
+        entry_point_ids.append(id);
+      }
+    }
+
+    if (entry_point_ids.is_empty()) {
+      /* Can be true inside tests. */
+      return;
+    }
+
+    Set<FnId> used = compute_used_functions(entry_points);
+
+    for (auto [type_tok, name_tok, end_tok, id] : graph.declarations) {
+      if (used.contains(id)) {
+        continue;
+      }
+
+      // std::cout << name_tok.str_start << std::endl;
+
+      // if (type_tok.atom == thread_atom || type_tok.atom == device_atom ||
+      //     name_tok.atom == layout_atom)
+      // {
+      //   /* Filter MSL & GLSL specific identifiers that could have confused the parser. */
+      //   continue;
+      // }
+
+      // erase(type_tok, end_tok);
+    }
   }
 };
 
