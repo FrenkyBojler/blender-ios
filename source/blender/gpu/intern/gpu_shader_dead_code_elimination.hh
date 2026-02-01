@@ -369,7 +369,6 @@ struct DCEStream : private LazyStringBuilder {
     uint32_t str_start = 0;
     TokenAtom atom = 0;
     TokenType type = TokenType::Invalid;
-    uint8_t size = 0;
 
     TokenFingerPrint() = default;
   };
@@ -446,16 +445,60 @@ struct DCEStream : private LazyStringBuilder {
     parse_token_impl(atom, type);
   }
 
+  TokenFingerPrint make_fingerprint(const Token &tok, const char *start_offset)
+  {
+    int offset = tok.str_with_whitespace().begin() - start_offset;
+    return TokenFingerPrint{uint32_t(this->total_length + offset), tok.atom(), tok.type()};
+  }
+
   BLI_NOINLINE void parse_token(const Token start, const Token end)
   {
     if (!enabled_) {
       return;
     }
-    int offset = 0;
-    for (Token tok = start; tok != end; tok = tok.next()) {
-      parse_token_impl(tok.atom(), tok.type(), offset);
-      offset += tok.str_with_whitespace().size();
+    const char *start_char = start.str_with_whitespace().begin();
+
+    Token tok = start;
+
+    /* Process first 2 token to avoid branching in the loop. */
+    parse_token_impl(tok.atom(), tok.type());
+    if (tok == end) {
+      return;
     }
+    tok.next();
+    parse_token_impl(tok.atom(), tok.type(), tok.str_with_whitespace().begin() - start_char);
+    if (tok == end) {
+      return;
+    }
+
+    blender::IndexRange range(int(end) - int(tok));
+    const TokenType *types = &tok.type();
+    for (int i : range) {
+      switch (types[i]) {
+        case TokenType::ParOpen: {
+          token_history.push(make_fingerprint(tok.next(i).prev(2), start_char));
+          token_history.push(make_fingerprint(tok.next(i).prev(1), start_char));
+          process_function();
+        }
+        case TokenType::BracketOpen:
+          stack_depth += (current_fn_id != -1);
+          break;
+        case TokenType::BracketClose:
+          stack_depth -= (current_fn_id != -1);
+          ATTR_FALLTHROUGH;
+        case TokenType::SemiColon:
+          /* Finding a semicolon in global scope after a function signature means that this is
+           * a forward declaration. Step out of function in this case. */
+          register_function_end(make_fingerprint(tok.next(i), start_char).str_start);
+          break;
+        default:
+          break;
+      }
+    }
+
+    /* Register last two tokens. */
+    token_history.push(make_fingerprint(end.prev(), start_char));
+    token_history.push(make_fingerprint(end, start_char));
   }
 
   std::string str() const
@@ -471,7 +514,7 @@ struct DCEStream : private LazyStringBuilder {
  private:
   BLI_INLINE_METHOD void parse_token_impl(TokenAtom atom, TokenType type, int offset = 0)
   {
-    TokenFingerPrint tok{static_cast<uint32_t>(this->total_length + offset), atom, type, 0};
+    TokenFingerPrint tok{uint32_t(this->total_length + offset), atom, type};
     switch (type) {
       case TokenType::ParOpen:
         process_function();
@@ -481,18 +524,11 @@ struct DCEStream : private LazyStringBuilder {
         break;
       case TokenType::BracketClose:
         stack_depth -= (current_fn_id != -1);
-        if (stack_depth == 0 && current_fn_id != -1) {
-          graph.declarations.last().end = tok;
-          current_fn_id = -1;
-        }
-        break;
+        ATTR_FALLTHROUGH;
       case TokenType::SemiColon:
         /* Finding a semicolon in global scope after a function signature means that this is
          * a forward declaration. Step out of function in this case. */
-        if (stack_depth == 0 && current_fn_id != -1) {
-          graph.declarations.last().end = tok;
-          current_fn_id = -1;
-        }
+        register_function_end(tok.str_start);
         break;
       default:
         break;
@@ -513,6 +549,14 @@ struct DCEStream : private LazyStringBuilder {
     }
     else if (current_fn_id == -1) {
       register_function_call(name_tok);
+    }
+  }
+
+  BLI_INLINE_METHOD void register_function_end(uint str_start)
+  {
+    if (stack_depth == 0 && current_fn_id != -1) {
+      graph.declarations.last().end.str_start = str_start;
+      current_fn_id = -1;
     }
   }
 

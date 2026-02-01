@@ -52,7 +52,7 @@ struct Token {
     return type() != EndOfFile;
   }
 
-  TokenType type() const;
+  const TokenType &type() const;
   TokenAtom atom() const;
 
   std::string_view str() const;
@@ -250,7 +250,7 @@ inline Token Token::invalid(TokenBuffer *buf)
   return Token(buf, buf->size_);
 }
 
-inline TokenType Token::type() const
+inline const TokenType &Token::type() const
 {
   return buf_->types_[index_];
 }
