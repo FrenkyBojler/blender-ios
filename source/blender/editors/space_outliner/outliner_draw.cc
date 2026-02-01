@@ -3558,11 +3558,11 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
 
   /* Draw vertical lines between collections */
   bool draw_hierarchy_line;
-  bool is_object_line;
+  bool use_dashed_line;
   LISTBASE_FOREACH (TreeElement *, te, lb) {
     TreeStoreElem *tselem = TREESTORE(te);
     draw_hierarchy_line = false;
-    is_object_line = false;
+    use_dashed_line = false;
     *starty -= UI_UNIT_Y;
     short color_tag = COLLECTION_COLOR_NONE;
 
@@ -3579,7 +3579,7 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
       else if ((tselem->type == TSE_SOME_ID) && (te->idcode == ID_OB)) {
         if (subtree_contains_object(&te->subtree)) {
           draw_hierarchy_line = true;
-          is_object_line = true;
+          use_dashed_line = true;
           y = *starty;
         }
       }
@@ -3593,7 +3593,7 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
       }
       else if (ELEM(tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
         draw_hierarchy_line = true;
-        is_object_line = true;
+        use_dashed_line = true;
         y = *starty;
       }
 
@@ -3619,7 +3619,7 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
 
       line_color[3] = alpha_fac;
       immUniformColor4ubv(line_color);
-      outliner_draw_hierarchy_line(pos, startx, y, *starty, is_object_line);
+      outliner_draw_hierarchy_line(pos, startx, y, *starty, use_dashed_line);
     }
   }
 }
