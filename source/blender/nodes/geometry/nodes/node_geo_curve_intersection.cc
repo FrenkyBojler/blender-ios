@@ -190,7 +190,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_DISTANCE)
       .min(0.0f)
       .usage_by_menu("Mode", int16_t(IntersectionMode::Curve))
-      .description("Max distance between intersections");
+      .description("Max search distance between intersections");
   b.add_input<decl::Float>("Min Angle")
       .subtype(PROP_ANGLE)
       .min(0.0f)
@@ -744,7 +744,7 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
   src_curves.ensure_evaluated_lengths();
   const bool use_angle = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f;
   const bool use_direction_data = attribute_outputs.direction || attribute_outputs.pair_direction;
-  const Span<float> radii = get_evaluated_radii(src_curves);
+  const Array<float> radii = get_evaluated_radii(src_curves);
 
   /* Loop each curve for intersections. */
   ThreadLocalData thread_storage;
@@ -754,7 +754,7 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
       for (const int64_t curve_i : curve_range) {
         const IndexRange points = evaluated_points_by_curve[curve_i];
         const Span<float3> positions = src_curves.evaluated_positions().slice(points);
-        const Span<float> radii_by_curve = radii.slice(points);
+        const Span<float> radii_by_curve = radii.as_span().slice(points);
         if (positions.size() <= 1) {
           continue;
         }
@@ -968,9 +968,15 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
       src_curves, ids, &curve_segments, min_max_angle, project, direction, attribute_outputs);
   BLI_SCOPED_DEFER([&]() { BLI_bvhtree_free(bvhtree); });
 
-  const float max_search_distance = math::max(curve_isect_eps, distance);
   const int segment_count = curve_segments.size();
   const int curve_count = src_curves.curves_range().size();
+  float max_search_distance = math::max(curve_isect_eps, distance);
+  if (use_radius) {
+    const Array<float> radii = get_evaluated_radii(src_curves);
+    for (const int i : radii.index_range()) {
+      max_search_distance = math::max(max_search_distance, radii[i]);
+    }
+  }
 
   /* Loop through segments. */
   ThreadLocalData thread_storage;
@@ -1385,7 +1391,16 @@ static void node_geo_exec(GeoNodeExecParams params)
       calc_attributes(src_curves.attributes(),
                       AttrDomain::Point,
                       AttrDomain::Point,
-                      bke::attribute_filter_from_skip_ref({"position", "radius"}),
+                      bke::attribute_filter_from_skip_ref({"position",
+                                                           "radius",
+                                                           "handle_left",
+                                                           "handle_right",
+                                                           "handle_type_left",
+                                                           "handle_type_right",
+                                                           "nurbs_weight",
+                                                           ".selection",
+                                                           ".selection_handle_left",
+                                                           ".selection_handle_right"}),
                       sorted_data.pos_index_a.as_span(),
                       sorted_data.pos_index_b.as_span(),
                       sorted_data.lambda.as_span(),
