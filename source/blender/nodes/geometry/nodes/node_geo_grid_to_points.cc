@@ -53,6 +53,25 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
+  b.add_output<decl::Geometry>("Points").description(
+      "A point for each active voxel or tile in the grid");
+  b.add_output(data_type, "Value").field_on_all().description("The grid's value at each voxel");
+
+  auto &panel = b.add_panel("Voxel Index").default_closed(true);
+  panel.add_output<decl::Int>("X").field_on_all().description(
+      "X coordinate of the voxel in index space, or the minimum X coordinate of a tile");
+  panel.add_output<decl::Int>("Y").field_on_all().description(
+      "Y coordinate of the voxel in index space, or the minimum Y coordinate of a tile");
+  panel.add_output<decl::Int>("Z").field_on_all().description(
+      "Z coordinate of the voxel in index space, or the minimum Z coordinate of a tile");
+  panel.add_output<decl::Bool>("Is Tile").field_on_all().description(
+      "If a created point represents a tile (multiple voxels) rather than a single voxel");
+  panel.add_output<decl::Int>("Extent").field_on_all().description(
+      "The size of the tile or voxel. For individual voxels this is 1, for tiles this represents "
+      "the cubic size of the tile");
 
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_input<decl::Menu>("Origin")
@@ -60,21 +79,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(OriginMode::Center)
       .expanded()
       .optional_label();
-
-  b.add_output<decl::Geometry>("Points").description(
-      "A point for each active voxel or tile in the grid");
-  b.add_output(data_type, "Value").field_on_all().description("The grid's value at each voxel");
-  b.add_output<decl::Bool>("Is Tile").field_on_all().description(
-      "If a created point represents a tile (multiple voxels) rather than a single voxel");
-  b.add_output<decl::Int>("X").field_on_all().description(
-      "X coordinate of the voxel in index space, or the minimum X coordinate of a tile");
-  b.add_output<decl::Int>("Y").field_on_all().description(
-      "Y coordinate of the voxel in index space, or the minimum Y coordinate of a tile");
-  b.add_output<decl::Int>("Z").field_on_all().description(
-      "Z coordinate of the voxel in index space, or the minimum Z coordinate of a tile");
-  b.add_output<decl::Int>("Extent").field_on_all().description(
-      "The size of the tile or voxel. For individual voxels this is 1, for tiles this represents "
-      "the cubic size of the tile");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
