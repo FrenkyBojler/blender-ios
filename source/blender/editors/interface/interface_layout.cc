@@ -2396,7 +2396,8 @@ void Layout::prop(PointerRNA *ptr,
                   const StringRefNull propname,
                   const eUI_Item_Flag flag,
                   const std::optional<StringRef> name,
-                  int icon)
+                  int icon,
+                  const std::optional<StringRef> placeholder)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
@@ -2408,7 +2409,7 @@ void Layout::prop(PointerRNA *ptr,
     return;
   }
 
-  this->prop(ptr, prop, RNA_NO_INDEX, 0, flag, name, icon);
+  this->prop(ptr, prop, RNA_NO_INDEX, 0, flag, name, icon, placeholder);
 }
 
 void Layout::prop_with_popover(PointerRNA *ptr,
