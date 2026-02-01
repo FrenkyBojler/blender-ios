@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-05 11:52+0000\n"
+"POT-Creation-Date: 2026-01-26 11:28+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -8501,36 +8501,104 @@ msgid "Show/Hide"
 msgstr "Prikaži/sakrij"
 
 
-msgid "Names"
-msgstr "Imena"
-
-
 msgid "Bone Roll"
 msgstr "Rolna kostiju"
 
 
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Snap"
-msgstr "Lepljenje"
+msgid "Names"
+msgstr "Imena"
 
 
 msgid "Import"
 msgstr "Uvoz"
 
 
-msgid "Mirror"
-msgstr "Ogledalo"
+msgid "Metaball"
+msgstr "Meta lopta"
 
 
-msgid "UV Mapping"
-msgstr "UV Mapiranje"
+msgid "Special Characters"
+msgstr "Specijalni znaci"
 
 
-msgid "Local View"
-msgstr "Lokalni pogled"
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Merge"
+msgstr "Sjedini"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Rigid Body"
+msgstr "Kruto telo"
+
+
+msgid "Enable Bone Options"
+msgstr "Omogući opcije kostiju"
+
+
+msgid "Mesh Select Mode"
+msgstr "Mod izbora mreže"
+
+
+msgid "Disable Bone Options"
+msgstr "Onemogući opcije kostiju"
+
+
+msgid "Toggle Bone Options"
+msgstr "Manje/više informacija"
+
+
+msgid "Apply"
+msgstr "Primeni"
+
+
+msgid "Clear Transform"
+msgstr "Očisti transformacije"
+
+
+msgid "Propagate"
+msgstr "Prenesi"
+
+
+msgid "In-Betweens"
+msgstr "U međuvremenu"
+
+
+msgid "Hooks"
+msgstr "Udice"
+
+
+msgid "Quick Effects"
+msgstr "Brzi efekti"
+
+
+msgid "Track"
+msgstr "Staza"
+
+
+msgid "Relations"
+msgstr "Odnosi"
+
+
+msgid "Light"
+msgstr "Svetlost"
+
+
+msgid "Keying"
+msgstr "Zbirka tastera"
+
+
+msgid "Tracking"
+msgstr "Praćenje"
+
+
+msgid "Select Linked"
+msgstr "Izaberi povezano"
 
 
 msgid "Navigation"
@@ -8541,88 +8609,20 @@ msgid "Align View"
 msgstr "Poravnaj pogled"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Local View"
+msgstr "Lokalni pogled"
 
 
-msgid "Select Linked"
-msgstr "Izaberi povezano"
+msgid "UV Mapping"
+msgstr "UV Mapiranje"
 
 
-msgid "Metaball"
-msgstr "Meta lopta"
+msgid "Snap"
+msgstr "Lepljenje"
 
 
-msgid "Light"
-msgstr "Svetlost"
-
-
-msgid "Relations"
-msgstr "Odnosi"
-
-
-msgid "Rigid Body"
-msgstr "Kruto telo"
-
-
-msgid "Apply"
-msgstr "Primeni"
-
-
-msgid "Track"
-msgstr "Staza"
-
-
-msgid "Quick Effects"
-msgstr "Brzi efekti"
-
-
-msgid "Hooks"
-msgstr "Udice"
-
-
-msgid "Clear Transform"
-msgstr "Očisti transformacije"
-
-
-msgid "In-Betweens"
-msgstr "U međuvremenu"
-
-
-msgid "Propagate"
-msgstr "Prenesi"
-
-
-msgid "Toggle Bone Options"
-msgstr "Manje/više informacija"
-
-
-msgid "Enable Bone Options"
-msgstr "Omogući opcije kostiju"
-
-
-msgid "Keying"
-msgstr "Zbirka tastera"
-
-
-msgid "Disable Bone Options"
-msgstr "Onemogući opcije kostiju"
-
-
-msgid "Tracking"
-msgstr "Praćenje"
-
-
-msgid "Mesh Select Mode"
-msgstr "Mod izbora mreže"
-
-
-msgid "Merge"
-msgstr "Sjedini"
-
-
-msgid "Special Characters"
-msgstr "Specijalni znaci"
+msgid "Mirror"
+msgstr "Ogledalo"
 
 
 msgid "Basic"
@@ -13871,13 +13871,13 @@ msgstr "Skiciranje"
 
 
 msgctxt "Operator"
-msgid "Invert"
-msgstr "Obrnuto"
+msgid "Erase"
+msgstr "Obriši"
 
 
 msgctxt "Operator"
-msgid "Erase"
-msgstr "Obriši"
+msgid "Invert"
+msgstr "Obrnuto"
 
 
 msgid "Flat"
@@ -14769,15 +14769,6 @@ msgstr "Jačina izdizanja geometrije"
 
 msgid "X-Ray"
 msgstr "X-zrak"
-
-
-msgctxt "Operator"
-msgid "Multi Select Loops"
-msgstr "Izaberi korenje"
-
-
-msgid "Ring"
-msgstr "Prsten"
 
 
 msgctxt "Operator"
@@ -19135,12 +19126,12 @@ msgid "Restrict"
 msgstr "Ograniči"
 
 
-msgid "Motion Tracking"
-msgstr "Praćenje pokreta"
-
-
 msgid "Transform Orientations"
 msgstr "Transformacija orijentacija"
+
+
+msgid "Motion Tracking"
+msgstr "Praćenje pokreta"
 
 
 msgid "Bone Constraints"
@@ -20080,10 +20071,6 @@ msgstr "Kontinualno pomeranje"
 
 msgid "Emulate 3 Button Mouse"
 msgstr "Imitiraj 3. dugme"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Koristi vektore odsjaja kao koordinate teksture"
 
 
 msgid "Turntable"

@@ -24,6 +24,7 @@
 
 #include "transform.hh"
 #include "transform_convert.hh"
+#include "transform_snap.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Curve/Surfaces Transform Creation
@@ -76,7 +77,7 @@ static void createTransPointCloudVerts(bContext * /*C*/, TransInfo *t)
       continue;
     }
 
-    tc.data = MEM_calloc_arrayN<TransData>(tc.data_len, __func__);
+    tc.data = MEM_new_array_zeroed<TransData>(tc.data_len, __func__);
     MutableSpan<TransData> tc_data = MutableSpan(tc.data, tc.data_len);
 
     transform_data.positions.reinitialize(tc.data_len);
@@ -127,6 +128,10 @@ static void createTransPointCloudVerts(bContext * /*C*/, TransInfo *t)
 
 static void recalcData_pointcloud(TransInfo *t)
 {
+  if (t->state != TRANS_CANCEL) {
+    transform_snap_project_individual_apply(t);
+  }
+
   const Span<TransDataContainer> trans_data_contrainers(t->data_container, t->data_container_len);
   for (const TransDataContainer &tc : trans_data_contrainers) {
     const PointCloudTransformData &transform_data = *static_cast<PointCloudTransformData *>(
