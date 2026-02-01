@@ -7,7 +7,6 @@
  * \ingroup bke
  */
 
-#include <AUD_Device.h>
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>

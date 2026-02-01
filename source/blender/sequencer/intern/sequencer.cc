@@ -8,7 +8,6 @@
  * \ingroup sequencer
  */
 
-#include <AUD_Sequence.h>
 #define DNA_DEPRECATED_ALLOW
 
 #include <cstddef>
@@ -1072,12 +1071,6 @@ static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
 /* Adds sound of strip to the `scene->sound_scene` - "sound timeline". */
 static void strip_update_mix_sounds(Scene *scene, Strip *strip)
 {
-  // // Ramon: could it be that this is the place that prevents the strip from getting added to the
-  // // meta after it is first added to the scene?
-  // // printf("---------\n");
-  // // printf("strip %s\n", strip->name);
-  // // printf("strip->runtime->scene_sound  %p\n", strip->runtime->scene_sound);
-
   // Ramon: this is the place that prevents the audio from getting added multible times. Problem is
   // that when a strip gets grouped into a meta strip this also prevents the handle from getting
   // moved into this new handle
@@ -1086,15 +1079,11 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
   if (strip->runtime->scene_sound != nullptr &&
       parent_sound_scene == strip->runtime->last_parent_sound_scene)
   {
-    // Ramon: you can return here since when the strip is inside a meta it gets removed via the
-    // meta recursion.
-    printf("skip strip %s\n", strip->name);
     return;
   }
 
   if (strip->sound != nullptr || strip->type == STRIP_TYPE_META) {
-    /* Adds `strip->sound->playback_handle` to `scene->sound_scene` */
-    printf("dont skip strip %s\n", strip->name);
+    /* Adds `strip->sound->playback_handle` to `scene->sound_scene` */  // to parent sound scene
 
     strip->runtime->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip);
   }
@@ -1148,7 +1137,6 @@ static void seq_update_sound_strips(Scene *scene, Strip *strip)
   {
     return;
   }
-  // printf("EnsureEnsureEnsureEnsureEnsureEnsure\n");
 
   /* Ensure strip is playing correct sound. */
   if (BLI_listbase_is_empty(&strip->modifiers) && strip->type != STRIP_TYPE_META) {
@@ -1208,7 +1196,6 @@ static bool strip_sound_update_cb(Strip *strip, void *user_data)
   strip_update_mix_sounds(scene, strip);
 
   if (strip->runtime->scene_sound == nullptr) {
-    printf("return strip %s\n", strip->name);
     return true;
   }
 

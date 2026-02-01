@@ -39,7 +39,6 @@ struct EffectInfo {
   int inputs;
 };
 
-// Ramon: definition what modifiers are supported
 /* These wrap strangely, disable formatting for fixed indentation and wrapping. */
 /* clang-format off */
 #define RNA_ENUM_SEQUENCER_VIDEO_MODIFIER_TYPE_ITEMS \
