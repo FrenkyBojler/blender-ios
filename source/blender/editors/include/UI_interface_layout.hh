@@ -564,7 +564,8 @@ struct Layout : public Item, NonCopyable, NonMovable {
             StringRefNull propname,
             eUI_Item_Flag flag,
             std::optional<StringRef> name,
-            int icon);
+            int icon,
+            std::optional<StringRef> placeholder = std::nullopt);
 
   void popover(const bContext *C, PanelType *pt, std::optional<StringRef> name_opt, int icon);
   void popover(const bContext *C,
