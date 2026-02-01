@@ -36,12 +36,12 @@ static const EnumPropertyItem origin_mode_items[] = {
      "CENTER",
      0,
      N_("Center"),
-     N_("Place points at the center of voxels/tiles")},
+     N_("Points are placed at the center of voxels/tiles")},
     {int(OriginMode::Corner),
      "CORNER",
      0,
      N_("Corner"),
-     N_("Place points at the corner of voxels/tiles")},
+     N_("Points are placed at the corner of voxels/tiles")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
