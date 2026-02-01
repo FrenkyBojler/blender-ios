@@ -174,13 +174,14 @@ static void action_copy_data(Main * /*bmain*/,
   action_dst.last_slot_handle = action_src.last_slot_handle;
 
   /* Layers, and (recursively) Strips. */
-  action_dst.layer_array = MEM_calloc_arrayN<ActionLayer *>(action_src.layer_array_num, __func__);
+  action_dst.layer_array = MEM_new_array_zeroed<ActionLayer *>(action_src.layer_array_num,
+                                                               __func__);
   for (int i : action_src.layers().index_range()) {
     action_dst.layer_array[i] = action_src.layer(i)->duplicate_with_shallow_strip_copies(__func__);
   }
 
   /* Strip data. */
-  action_dst.strip_keyframe_data_array = MEM_calloc_arrayN<ActionStripKeyframeData *>(
+  action_dst.strip_keyframe_data_array = MEM_new_array_zeroed<ActionStripKeyframeData *>(
       action_src.strip_keyframe_data_array_num, __func__);
   for (int i : action_src.strip_keyframe_data().index_range()) {
     action_dst.strip_keyframe_data_array[i] = MEM_new<animrig::StripKeyframeData>(
@@ -188,7 +189,7 @@ static void action_copy_data(Main * /*bmain*/,
   }
 
   /* Slots. */
-  action_dst.slot_array = MEM_calloc_arrayN<ActionSlot *>(action_src.slot_array_num, __func__);
+  action_dst.slot_array = MEM_new_array_zeroed<ActionSlot *>(action_src.slot_array_num, __func__);
   for (int i : action_src.slots().index_range()) {
     action_dst.slot_array[i] = MEM_new<animrig::Slot>(__func__, *action_src.slot(i));
   }
@@ -210,21 +211,21 @@ static void action_free_data(ID *id)
   for (animrig::StripKeyframeData *keyframe_data : action.strip_keyframe_data()) {
     MEM_delete(keyframe_data);
   }
-  MEM_SAFE_FREE(action.strip_keyframe_data_array);
+  MEM_SAFE_DELETE(action.strip_keyframe_data_array);
   action.strip_keyframe_data_array_num = 0;
 
   /* Free layers. */
   for (animrig::Layer *layer : action.layers()) {
     MEM_delete(layer);
   }
-  MEM_SAFE_FREE(action.layer_array);
+  MEM_SAFE_DELETE(action.layer_array);
   action.layer_array_num = 0;
 
   /* Free slots. */
   for (animrig::Slot *slot : action.slots()) {
     MEM_delete(slot);
   }
-  MEM_SAFE_FREE(action.slot_array);
+  MEM_SAFE_DELETE(action.slot_array);
   action.slot_array_num = 0;
 
   /* Free legacy F-Curves & groups. */
@@ -786,58 +787,28 @@ bAction *BKE_action_add(Main *bmain, const char name[])
 
 /* *************** Action Groups *************** */
 
-bActionGroup *get_active_actiongroup(bAction *act)
-{
-  /* TODO: move this logic to the animrig::Channelbag struct and unify with code
-   * that uses direct access to the flags. */
-  for (bActionGroup *agrp : animrig::legacy::channel_groups_all(act)) {
-    if (agrp->flag & AGRP_ACTIVE) {
-      return agrp;
-    }
-  }
-  return nullptr;
-}
-
-void set_active_action_group(bAction *act, bActionGroup *agrp, short select)
-{
-  /* TODO: move this logic to the animrig::Channelbag struct and unify with code
-   * that uses direct access to the flags. */
-  for (bActionGroup *grp : animrig::legacy::channel_groups_all(act)) {
-    if ((grp == agrp) && (select)) {
-      grp->flag |= AGRP_ACTIVE;
-    }
-    else {
-      grp->flag &= ~AGRP_ACTIVE;
-    }
-  }
-}
-
-void action_group_colors_sync(bActionGroup *grp, const bActionGroup *ref_grp)
+void action_group_colors_sync(bActionGroup *grp)
 {
   /* Only do color copying if using a custom color (i.e. not default color). */
-  if (grp->customCol) {
-    if (grp->customCol > 0) {
-      /* copy theme colors on-to group's custom color in case user tries to edit color */
-      const bTheme *btheme = static_cast<const bTheme *>(U.themes.first);
-      const ThemeWireColor *col_set = &btheme->tarm[(grp->customCol - 1)];
+  if (!grp->customCol) {
+    return;
+  }
+  if (grp->customCol > 0) {
+    /* Copy theme colors on-to group's custom color in case user tries to edit color. */
+    const bTheme *btheme = static_cast<const bTheme *>(U.themes.first);
+    const ThemeWireColor *col_set = &btheme->tarm[(grp->customCol - 1)];
 
-      memcpy(&grp->cs, col_set, sizeof(ThemeWireColor));
-    }
-    else {
-      /* if a reference group is provided, use the custom color from there... */
-      if (ref_grp) {
-        /* assumption: reference group has a color set */
-        memcpy(&grp->cs, &ref_grp->cs, sizeof(ThemeWireColor));
-      }
-      /* otherwise, init custom color with a generic/placeholder color set if
-       * no previous theme color was used that we can just keep using
-       */
-      else if (grp->cs.solid[0] == 0) {
-        /* define for setting colors in theme below */
-        rgba_uchar_args_set(grp->cs.solid, 0xff, 0x00, 0x00, 255);
-        rgba_uchar_args_set(grp->cs.select, 0x81, 0xe6, 0x14, 255);
-        rgba_uchar_args_set(grp->cs.active, 0x18, 0xb6, 0xe0, 255);
-      }
+    memcpy(&grp->cs, col_set, sizeof(ThemeWireColor));
+  }
+  else {
+    /* Init custom color with a generic/placeholder color set if
+     * no previous theme color was used that we can just keep using.
+     */
+    if (grp->cs.solid[0] == 0) {
+      /* define for setting colors in theme below */
+      rgba_uchar_args_set(grp->cs.solid, 0xff, 0x00, 0x00, 255);
+      rgba_uchar_args_set(grp->cs.select, 0x81, 0xe6, 0x14, 255);
+      rgba_uchar_args_set(grp->cs.active, 0x18, 0xb6, 0xe0, 255);
     }
   }
 }
@@ -867,13 +838,6 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color)
      * the above action_group_colors_sync() function exists: it needs to update
      * grp->cs in case the theme changes. */
     memcpy(&grp->cs, effective_color, sizeof(grp->cs));
-  }
-}
-
-void action_groups_clear_tempflags(bAction *act)
-{
-  for (bActionGroup *agrp : animrig::legacy::channel_groups_all(act)) {
-    agrp->flag &= ~AGRP_TEMP;
   }
 }
 
@@ -914,7 +878,7 @@ bPoseChannel *BKE_pose_channel_ensure(bPose *pose, const char *name)
   }
 
   /* If not, create it and add it */
-  chan = MEM_new_for_free<bPoseChannel>("verifyPoseChannel");
+  chan = MEM_new<bPoseChannel>("verifyPoseChannel");
 
   BKE_pose_channel_session_uid_generate(chan);
 
@@ -1057,7 +1021,7 @@ void BKE_pose_copy_data_ex(bPose **dst,
     return;
   }
 
-  outPose = MEM_new_for_free<bPose>("pose");
+  outPose = MEM_new<bPose>("pose");
 
   BLI_duplicatelist(&outPose->chanbase, &src->chanbase);
 
@@ -1072,7 +1036,9 @@ void BKE_pose_copy_data_ex(bPose **dst,
 
   outPose->iksolver = src->iksolver;
   outPose->ikdata = nullptr;
-  outPose->ikparam = MEM_dupallocN(src->ikparam);
+  if (src->ikparam) {
+    outPose->ikparam = MEM_new<bItasc>(__func__, *src->ikparam);
+  }
   outPose->avs = src->avs;
 
   for (bPoseChannel &pchan : outPose->chanbase) {
@@ -1151,17 +1117,9 @@ void BKE_pose_itasc_init(bItasc *itasc)
 }
 void BKE_pose_ikparam_init(bPose *pose)
 {
-  bItasc *itasc;
-  switch (pose->iksolver) {
-    case IKSOLVER_ITASC:
-      itasc = MEM_new_for_free<bItasc>("itasc");
-      BKE_pose_itasc_init(itasc);
-      pose->ikparam = itasc;
-      break;
-    case IKSOLVER_STANDARD:
-    default:
-      pose->ikparam = nullptr;
-      break;
+  if (pose->iksolver == IKSOLVER_ITASC) {
+    pose->ikparam = MEM_new<bItasc>("itasc");
+    BKE_pose_itasc_init(pose->ikparam);
   }
 }
 
@@ -1355,7 +1313,7 @@ void BKE_pose_channel_free_ex(bPoseChannel *pchan, bool do_id_user)
   }
 
   /* Cached data, for new draw manager rendering code. */
-  MEM_SAFE_FREE(pchan->draw_data);
+  MEM_SAFE_DELETE(pchan->draw_data);
 
   /* Cached B-Bone shape and other data. */
   BKE_pose_channel_runtime_free(&pchan->runtime);
@@ -1381,11 +1339,11 @@ void BKE_pose_channel_runtime_free(bPoseChannel_Runtime *runtime)
 void BKE_pose_channel_free_bbone_cache(bPoseChannel_Runtime *runtime)
 {
   runtime->bbone_segments = 0;
-  MEM_SAFE_FREE(runtime->bbone_rest_mats);
-  MEM_SAFE_FREE(runtime->bbone_pose_mats);
-  MEM_SAFE_FREE(runtime->bbone_deform_mats);
-  MEM_SAFE_FREE(runtime->bbone_dual_quats);
-  MEM_SAFE_FREE(runtime->bbone_segment_boundaries);
+  MEM_SAFE_DELETE(runtime->bbone_rest_mats);
+  MEM_SAFE_DELETE(runtime->bbone_pose_mats);
+  MEM_SAFE_DELETE(runtime->bbone_deform_mats);
+  MEM_SAFE_DELETE(runtime->bbone_dual_quats);
+  MEM_SAFE_DELETE(runtime->bbone_segment_boundaries);
 }
 
 void BKE_pose_channel_free(bPoseChannel *pchan)
@@ -1405,7 +1363,7 @@ void BKE_pose_channels_free_ex(bPose *pose, bool do_id_user)
 
   BKE_pose_channels_hash_free(pose);
 
-  MEM_SAFE_FREE(pose->chan_array);
+  MEM_SAFE_DELETE(pose->chan_array);
 }
 
 void BKE_pose_channels_free(bPose *pose)
@@ -1428,7 +1386,7 @@ void BKE_pose_free_data_ex(bPose *pose, bool do_id_user)
 
   /* free IK solver param */
   if (pose->ikparam) {
-    MEM_freeN(static_cast<bItasc *>(pose->ikparam));
+    MEM_delete(pose->ikparam);
   }
 }
 
@@ -1442,7 +1400,7 @@ void BKE_pose_free_ex(bPose *pose, bool do_id_user)
   if (pose) {
     BKE_pose_free_data_ex(pose, do_id_user);
     /* free pose */
-    MEM_freeN(pose);
+    MEM_delete(pose);
   }
 }
 
@@ -1605,7 +1563,7 @@ bActionGroup *BKE_pose_add_group(bPose *pose, const char *name)
     name = DATA_("Group");
   }
 
-  grp = MEM_new_for_free<bActionGroup>("PoseGroup");
+  grp = MEM_new<bActionGroup>("PoseGroup");
   STRNCPY_UTF8(grp->name, name);
   BLI_addtail(&pose->agroups, grp);
   BLI_uniquename(&pose->agroups, grp, name, '.', offsetof(bActionGroup, name), sizeof(grp->name));
@@ -1962,7 +1920,8 @@ void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose
   if (pose->ikparam != nullptr) {
     const char *structname = BKE_pose_ikparam_get_name(pose);
     if (structname) {
-      pose->ikparam = BLO_read_struct_by_name_array(reader, structname, 1, pose->ikparam);
+      pose->ikparam = static_cast<bItasc *>(
+          BLO_read_struct_by_name_array(reader, structname, 1, pose->ikparam));
     }
     else {
       pose->ikparam = nullptr;
