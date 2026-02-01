@@ -161,6 +161,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const Vector<int> tile_sizes = {1, 1 << 3, 1 << (3 + 4), 1 << (3 + 4 + 5)};
   const Vector<float> tile_offsets = {0.5f, 1 << (3 - 1), 1 << (3 + 4 - 1), 1 << (3 + 4 + 5 - 1)};
+  std::optional<std::string> coord_x_id = params.get_output_anonymous_attribute_id_if_needed("X");
+  std::optional<std::string> coord_y_id = params.get_output_anonymous_attribute_id_if_needed("Y");
+  std::optional<std::string> coord_z_id = params.get_output_anonymous_attribute_id_if_needed("Z");
+  std::optional<std::string> is_tile_id = params.get_output_anonymous_attribute_id_if_needed(
+      "Is Tile");
+  std::optional<std::string> extent_id = params.get_output_anonymous_attribute_id_if_needed(
+      "Extent");
+  std::optional<std::string> value_id = params.get_output_anonymous_attribute_id_if_needed(
+      "Value");
 
   bke::attribute_math::to_static_type(
       *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&]<typename ValueT>() {
@@ -177,23 +186,10 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
 
           const openvdb::math::Transform &grid_transform = vdb_grid->transform();
-
-          std::optional<std::string> coord_x_id =
-              params.get_output_anonymous_attribute_id_if_needed("X");
-          std::optional<std::string> coord_y_id =
-              params.get_output_anonymous_attribute_id_if_needed("Y");
-          std::optional<std::string> coord_z_id =
-              params.get_output_anonymous_attribute_id_if_needed("Z");
-          std::optional<std::string> is_tile_id =
-              params.get_output_anonymous_attribute_id_if_needed("Is Tile");
-          std::optional<std::string> extent_id =
-              params.get_output_anonymous_attribute_id_if_needed("Extent");
-          std::optional<std::string> value_id = params.get_output_anonymous_attribute_id_if_needed(
-              "Value");
+          const auto accessor = vdb_grid->getConstAccessor();
 
           Vector<openvdb::Coord> active_coords;
           Vector<int> levels;
-
           for (auto iter = vdb_grid->tree().cbeginValueOn(); iter; ++iter) {
             active_coords.append(iter.getCoord());
             levels.append(iter.getLevel());
@@ -203,8 +199,6 @@ static void node_geo_exec(GeoNodeExecParams params)
             params.set_default_remaining_outputs();
             return;
           }
-
-          auto accessor = vdb_grid->getConstAccessor();
 
           PointCloud *pointcloud = BKE_pointcloud_new_nomain(active_coords.size());
           MutableSpan<float3> positions = pointcloud->positions_for_write();
