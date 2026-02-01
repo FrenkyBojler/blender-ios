@@ -159,6 +159,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+  const Vector<int> tile_sizes = {1, 1 << 3, 1 << (3 + 4), 1 << (3 + 4 + 5)};
+  const Vector<float> tile_offsets = {0.5f, 1 << (3 - 1), 1 << (3 + 4 - 1), 1 << (3 + 4 + 5 - 1)};
+
   bke::attribute_math::to_static_type(
       *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&]<typename ValueT>() {
         using type_traits = typename bke::VolumeGridTraits<ValueT>;
@@ -189,24 +192,19 @@ static void node_geo_exec(GeoNodeExecParams params)
               "Value");
 
           Vector<openvdb::Coord> active_coords;
-          Vector<typename type_traits::BlenderType> active_values;
-          Vector<bool> is_tile_flags;
-          Vector<int> tile_sizes;
-          Vector<int> tile_dimensions = {1, 1 << 3, 1 << (3 + 4), 1 << (3 + 4 + 5)};
+          Vector<int> levels;
 
           for (auto iter = vdb_grid->tree().cbeginValueOn(); iter; ++iter) {
             active_coords.append(iter.getCoord());
-            active_values.append(type_traits::to_blender(iter.getValue()));
-            const int level = iter.getLevel();
-            const bool is_tile = level > 0;
-            is_tile_flags.append(is_tile);
-            tile_sizes.append(tile_dimensions[level]);
+            levels.append(iter.getLevel());
           }
 
           if (active_coords.is_empty()) {
             params.set_default_remaining_outputs();
             return;
           }
+
+          auto accessor = vdb_grid->getConstAccessor();
 
           PointCloud *pointcloud = BKE_pointcloud_new_nomain(active_coords.size());
           MutableSpan<float3> positions = pointcloud->positions_for_write();
@@ -247,11 +245,12 @@ static void node_geo_exec(GeoNodeExecParams params)
           threading::parallel_for(active_coords.index_range(), 1024, [&](const IndexRange range) {
             for (const int64_t i : range) {
               const openvdb::Coord coord = active_coords[i];
-              const int tile_size = tile_sizes[i];
+              const int level = levels[i];
+              const bool is_tile = level > 0;
 
               openvdb::Vec3d index_pos;
               if (origin_mode == OriginMode::Center) {
-                const double offset = tile_size * 0.5;
+                const double offset = tile_offsets[level];
                 index_pos = openvdb::Vec3d(
                     coord.x() + offset, coord.y() + offset, coord.z() + offset);
               }
@@ -273,13 +272,13 @@ static void node_geo_exec(GeoNodeExecParams params)
                 coord_z_writer.span[i] = coord.z();
               }
               if (is_tile_writer) {
-                is_tile_writer.span[i] = is_tile_flags[i];
+                is_tile_writer.span[i] = is_tile;
               }
               if (extent_writer) {
-                extent_writer.span[i] = tile_size;
+                extent_writer.span[i] = tile_sizes[level];
               }
               if (value_writer) {
-                value_writer.span[i] = active_values[i];
+                value_writer.span[i] = type_traits::to_blender(accessor.getValue(coord));
               }
             }
           });
