@@ -43,6 +43,7 @@ set(SRC
   nodes/node_geo_combine_bundle.cc
   nodes/node_geo_common.cc
   nodes/node_geo_convex_hull.cc
+  nodes/node_geo_cube_grid_topology.cc
   nodes/node_geo_curve_endpoint_selection.cc
   nodes/node_geo_curve_fill.cc
   nodes/node_geo_curve_fillet.cc
@@ -88,10 +89,13 @@ set(SRC
   nodes/node_geo_field_average.cc
   nodes/node_geo_field_min_and_max.cc
   nodes/node_geo_field_to_grid.cc
+  nodes/node_geo_field_to_list.cc
   nodes/node_geo_field_variance.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
+  nodes/node_geo_get_geometry_bundle.cc
+  nodes/node_geo_get_bundle_item.cc
   nodes/node_geo_get_named_grid.cc
   nodes/node_geo_gizmo_dial.cc
   nodes/node_geo_gizmo_linear.cc
@@ -99,10 +103,13 @@ set(SRC
   nodes/node_geo_grease_pencil_to_curves.cc
   nodes/node_geo_grid_advect.cc
   nodes/node_geo_grid_curl.cc
+  nodes/node_geo_grid_dilate_erode.cc
   nodes/node_geo_grid_divergence.cc
   nodes/node_geo_grid_gradient.cc
   nodes/node_geo_grid_info.cc
   nodes/node_geo_grid_laplacian.cc
+  nodes/node_geo_grid_mean.cc
+  nodes/node_geo_grid_median.cc
   nodes/node_geo_grid_prune.cc
   nodes/node_geo_grid_to_mesh.cc
   nodes/node_geo_grid_voxelize.cc
@@ -158,7 +165,6 @@ set(SRC
   nodes/node_geo_is_viewport.cc
   nodes/node_geo_join_bundle.cc
   nodes/node_geo_join_geometry.cc
-  nodes/node_geo_list.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
   nodes/node_geo_material_replace.cc
@@ -226,6 +232,7 @@ set(SRC
   nodes/node_geo_set_curve_normal.cc
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
+  nodes/node_geo_set_geometry_bundle.cc
   nodes/node_geo_set_geometry_name.cc
   nodes/node_geo_set_grease_pencil_color.cc
   nodes/node_geo_set_grease_pencil_depth_mode.cc
@@ -245,6 +252,7 @@ set(SRC
   nodes/node_geo_simulation.cc
   nodes/node_geo_sort_elements.cc
   nodes/node_geo_split_to_instances.cc
+  nodes/node_geo_store_bundle_item.cc
   nodes/node_geo_store_named_attribute.cc
   nodes/node_geo_store_named_grid.cc
   nodes/node_geo_string_join.cc
@@ -274,6 +282,7 @@ set(SRC
   include/NOD_geo_capture_attribute.hh
   include/NOD_geo_closure.hh
   include/NOD_geo_field_to_grid.hh
+  include/NOD_geo_field_to_list.hh
   include/NOD_geo_foreach_geometry_element.hh
   include/NOD_geo_index_switch.hh
   include/NOD_geo_menu_switch.hh
@@ -306,7 +315,6 @@ set(LIB
   bf_io_common
   bf_io_csv
   PRIVATE bf::intern::atomic
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
   PRIVATE bf::windowmanager
