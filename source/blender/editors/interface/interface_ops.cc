@@ -1254,42 +1254,68 @@ bool context_copy_to_selected_list(bContext *C,
     if (!active_item) {
       return false;
     }
+    bNodeTreeInterfaceSocket *active_sock = nullptr;
+    if (active_item->item_type == NODE_INTERFACE_SOCKET) {
+      active_sock = reinterpret_cast<bNodeTreeInterfaceSocket *>(active_item);
+    }
 
     const char *prop_id = RNA_property_identifier(prop);
     const bool is_generic_prop = STR_ELEM(
         prop_id, "socket_type", "description", "optional_label", "hide_value", "hide_in_modifier");
-    bNodeTreeInterfaceSocket *active_sock = nullptr;
-    if (!is_generic_prop && active_item->item_type == NODE_INTERFACE_SOCKET) {
-      active_sock = reinterpret_cast<bNodeTreeInterfaceSocket *>(active_item);
-    }
+    const bool is_structure_type = STREQ(prop_id, "structure_type");
+    const int new_structure_type = is_structure_type ? RNA_property_enum_get(ptr, prop) : 0;
     ntree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
       if (active_item->item_type != item.item_type) {
         return true;
       }
-      bool is_valid = false;
+      bool can_edit = false;
       switch (eNodeTreeInterfaceItemType(item.item_type)) {
         case NODE_INTERFACE_SOCKET: {
-          bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-          if (!socket.flag & NODE_INTERFACE_SOCKET_SELECT) {
+          bNodeTreeInterfaceSocket &sock = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+          if ((sock.flag & NODE_INTERFACE_SOCKET_SELECT) == 0) {
             break;
           }
-          if (active_sock->flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) {
-            is_valid = socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE;
+          if (is_generic_prop) {
+            can_edit = true;
+            if (sock.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) {
+              can_edit = !STR_ELEM(prop_id, "socket_type");
+            }
+          }
+          else if (is_structure_type) {
+            const eNodeSocketDatatype type = sock.socket_typeinfo()->type;
+            const bool support_field = nodes::socket_type_supports_fields(type);
+            const bool support_grid = nodes::socket_type_supports_grids(type);
+            const bool support_dynamic = support_field || support_grid;
+            if (new_structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID) {
+              can_edit = support_grid;
+            }
+            else if (new_structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD) {
+              can_edit = support_field;
+            }
+            else if (new_structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC) {
+              can_edit = support_dynamic;
+            }
+            else {
+              can_edit = true;
+            }
+          }
+          else if (STREQ(prop_id, "attribute_domain") && sock.flag & NODE_INTERFACE_SOCKET_OUTPUT)
+          {
+            const eNodeSocketDatatype type = sock.socket_typeinfo()->type;
+            can_edit = nodes::socket_type_supports_fields(type) && type != SOCK_MENU;
           }
           else {
-            is_valid = is_generic_prop ? true :
-                                         STREQ(socket.socket_type, active_sock->socket_type);
+            can_edit = STREQ(sock.socket_type, active_sock->socket_type);
           }
           break;
         }
         case NODE_INTERFACE_PANEL: {
           bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
-          is_valid = panel.flag & NODE_INTERFACE_PANEL_SELECT;
+          can_edit = panel.flag & NODE_INTERFACE_PANEL_SELECT;
           break;
         }
       }
-
-      if (is_valid) {
+      if (can_edit) {
         r_lb->append(RNA_pointer_create_discrete(&ntree->id, RNA_NodeTreeInterfaceItem, &item));
       }
       return true;
