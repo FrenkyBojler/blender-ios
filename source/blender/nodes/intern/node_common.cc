@@ -924,50 +924,43 @@ static void node_group_input_extra_info(nodes::NodeExtraInfoParams &parameters)
     return;
   }
 
-  blender::Span<const bNodeSocket *> group_inputs = parameters.node.output_sockets().drop_back(1);
-  bool added_warning_for_unsupported_inputs = false;
+  Span<const bNodeSocket *> group_inputs = parameters.node.output_sockets().drop_back(1);
+  int color_count = 0;
+  int float_count = 0;
+  int other_count = 0;
   for (const bNodeSocket *input : group_inputs) {
-    if (StringRef(input->name) == "Image" || StringRef(input->name) == "Image2") {
-      if (input->type != SOCK_RGBA) {
-        blender::nodes::NodeExtraInfoRow row;
-        row.text = IFACE_("Wrong Image Input Type");
-        row.icon = ICON_ERROR;
-        row.tooltip = TIP_("Node group's main Image input should be of type Color");
-        parameters.rows.append(std::move(row));
-      }
+    if (input->type == SOCK_RGBA) {
+      color_count++;
     }
-    else if (StringRef(input->name) == "Mask") {
-      if (input->type != SOCK_RGBA) {
-        blender::nodes::NodeExtraInfoRow row;
-        row.text = IFACE_("Wrong Mask Input Type");
-        row.icon = ICON_ERROR;
-        row.tooltip = TIP_("Node group's Mask input should be of type Color");
-        parameters.rows.append(std::move(row));
-      }
-    }
-    else if (StringRef(input->name) == "Factor") {
-      if (input->type != SOCK_FLOAT) {
-        blender::nodes::NodeExtraInfoRow row;
-        row.text = IFACE_("Wrong Factor Input Type");
-        row.icon = ICON_ERROR;
-        row.tooltip = TIP_("Node group's Factor input should be of type Float");
-        parameters.rows.append(std::move(row));
-      }
+    else if (input->type == SOCK_FLOAT) {
+      float_count++;
     }
     else {
-      if (added_warning_for_unsupported_inputs) {
-        continue;
-      }
-      blender::nodes::NodeExtraInfoRow row;
-      row.text = IFACE_("Unsupported Inputs");
-      row.icon = ICON_WARNING_LARGE;
-      row.tooltip = TIP_(
-          "Only a main Image, Image2, Mask and Factor inputs are supported, the rest are "
-          "unsupported and will "
-          "return zero");
-      parameters.rows.append(std::move(row));
-      added_warning_for_unsupported_inputs = true;
+      other_count++;
     }
+  }
+
+  if (color_count > 2) {
+    nodes::NodeExtraInfoRow row;
+    row.text = IFACE_("Unsupported Inputs");
+    row.icon = ICON_WARNING_LARGE;
+    row.tooltip = TIP_("Sequencer supports up to two Image inputs, the rest will return zero");
+    parameters.rows.append(std::move(row));
+  }
+  if (float_count > 1) {
+    nodes::NodeExtraInfoRow row;
+    row.text = IFACE_("Unsupported Inputs");
+    row.icon = ICON_WARNING_LARGE;
+    row.tooltip = TIP_("Sequencer supports one Float input, the rest will return zero");
+    parameters.rows.append(std::move(row));
+  }
+  if (other_count > 0) {
+    nodes::NodeExtraInfoRow row;
+    row.text = IFACE_("Unsupported Inputs");
+    row.icon = ICON_WARNING_LARGE;
+    row.tooltip = TIP_(
+        "Sequencer supports only Color and Float inputs, the rest will return zero");
+    parameters.rows.append(std::move(row));
   }
 }
 

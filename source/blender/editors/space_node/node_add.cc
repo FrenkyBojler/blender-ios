@@ -1859,17 +1859,19 @@ static void initialize_compositor_sequencer_node_group(const bContext *C,
   BLI_assert(BLI_listbase_count(&ntree.nodes) == 0);
 
   if (for_effect) {
-    /* Effect: Image, Image2, Factor depending on input count. */
-    if (effect_input_count > 0) {
+    /* Effect: Image 1, Image 2, Fader depending on input count. */
+    if (effect_input_count == 2) {
+      ntree.tree_interface.add_socket(
+          "Image 1", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+      ntree.tree_interface.add_socket(
+          "Image 2", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+    }
+    else if (effect_input_count == 1) {
       ntree.tree_interface.add_socket(
           "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
     }
-    if (effect_input_count > 1) {
-      ntree.tree_interface.add_socket(
-          "Image2", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
-    }
     ntree.tree_interface.add_socket(
-        "Factor", "", "NodeSocketFloat", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+        "Fader", "", "NodeSocketFloat", NODE_INTERFACE_SOCKET_INPUT, nullptr);
   }
   else {
     /* Modifier: Image, Mask. */
