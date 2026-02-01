@@ -145,8 +145,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
-  const OriginMode origin_mode = OriginMode(params.extract_input<int>("Origin"));
-
+  const auto origin_mode = params.extract_input<OriginMode>("Origin");
   const auto grid = params.extract_input<bke::GVolumeGrid>("Grid");
   if (!grid) {
     params.set_default_remaining_outputs();
