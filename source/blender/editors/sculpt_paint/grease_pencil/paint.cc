@@ -1699,7 +1699,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
     if ((settings->flag & GP_BRUSH_BEZIER_STROKE) != 0) {
       const IndexMask selection = IndexRange::from_single(active_curve);
 
-      const CurvesGeometry &curves = drawing.strokes();
+      const bke::CurvesGeometry &curves = drawing.strokes();
 
       const float threshold = settings->bezier_threshold;
       const VArray<float> thresholds = VArray<float>::from_single(threshold, curves.curves_num());

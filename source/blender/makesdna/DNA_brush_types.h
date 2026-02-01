@@ -132,7 +132,7 @@ struct BrushGpencilSettings {
   float simplify_px = 0;
   /** Threshold distance for Bezier points. */
   float bezier_threshold = 0;
-  char _pad3[4] = {};
+  char _pad4[4] = {};
 
   /* optional link of material to replace default in context */
   /** Material. */
