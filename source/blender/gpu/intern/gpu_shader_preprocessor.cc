@@ -982,7 +982,8 @@ struct Preprocessor : IntermediateFormWithIDs {
     entry_points.append(lex_.hash("derivative_scale_get"));
     entry_points.append(lex_.hash("closure_to_rgba"));
 
-    out_stream.optimize(entry_points.as_span());
+    out_stream.optimize(
+        entry_points.as_span(), lex_.hash("thread"), lex_.hash("device"), lex_.hash("layout"));
   }
 
   std::string result_get()

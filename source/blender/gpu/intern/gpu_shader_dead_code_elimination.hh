@@ -376,7 +376,7 @@ struct DCEStream : private LazyStringBuilder {
   /* Simple circular buffer to access last few token data. */
   class TokenHistoryBuffer {
    private:
-    std::array<TokenFingerPrint, 3> buffer = {TokenFingerPrint{}};
+    std::array<TokenFingerPrint, 2> buffer = {TokenFingerPrint{}};
     int head = 0;
 
    public:
@@ -465,21 +465,23 @@ struct DCEStream : private LazyStringBuilder {
     if (tok == end) {
       return;
     }
-    tok.next();
+    tok = tok.next();
     parse_token_impl(tok.atom(), tok.type(), tok.str_with_whitespace().begin() - start_char);
     if (tok == end) {
       return;
     }
+    tok = tok.next();
 
-    blender::IndexRange range(int(end) - int(tok));
-    const TokenType *types = &tok.type();
+    blender::IndexRange range(int(end) - int(tok) + 1);
+    Span<TokenType> types(&tok.type(), range.size());
+
     for (int i : range) {
       switch (types[i]) {
-        case TokenType::ParOpen: {
+        case TokenType::ParOpen:
           token_history.push(make_fingerprint(tok.next(i).prev(2), start_char));
           token_history.push(make_fingerprint(tok.next(i).prev(1), start_char));
           process_function();
-        }
+          break;
         case TokenType::BracketOpen:
           stack_depth += (current_fn_id != -1);
           break;
@@ -506,9 +508,12 @@ struct DCEStream : private LazyStringBuilder {
     return static_cast<const LazyStringBuilder *>(this)->str();
   }
 
-  void optimize(const Span<TokenAtom> entry_points)
+  void optimize(const Span<TokenAtom> entry_points,
+                const TokenAtom thread_atom,
+                const TokenAtom device_atom,
+                const TokenAtom layout_atom)
   {
-    prune_unused_functions(entry_points);
+    prune_unused_functions(entry_points, thread_atom, device_atom, layout_atom);
   }
 
  private:
@@ -547,7 +552,7 @@ struct DCEStream : private LazyStringBuilder {
     if (type_tok.type == TokenType::Word && type_tok.atom != return_atom) {
       register_function_declaration(type_tok, name_tok);
     }
-    else if (current_fn_id == -1) {
+    else if (current_fn_id != -1) {
       register_function_call(name_tok);
     }
   }
@@ -637,7 +642,10 @@ struct DCEStream : private LazyStringBuilder {
     return used;
   }
 
-  void prune_unused_functions(const Span<TokenAtom> entry_points)
+  void prune_unused_functions(const Span<TokenAtom> entry_points,
+                              const TokenAtom thread_atom,
+                              const TokenAtom device_atom,
+                              const TokenAtom layout_atom)
   {
     Vector<FnId> entry_point_ids;
     for (auto entry_point : entry_points) {
@@ -652,23 +660,21 @@ struct DCEStream : private LazyStringBuilder {
       return;
     }
 
-    Set<FnId> used = compute_used_functions(entry_points);
+    Set<FnId> used = compute_used_functions(entry_point_ids);
 
     for (auto [type_tok, name_tok, end_tok, id] : graph.declarations) {
       if (used.contains(id)) {
         continue;
       }
 
-      // std::cout << name_tok.str_start << std::endl;
+      if (type_tok.atom == thread_atom || type_tok.atom == device_atom ||
+          name_tok.atom == layout_atom)
+      {
+        /* Filter MSL & GLSL specific identifiers that could have confused the parser. */
+        continue;
+      }
 
-      // if (type_tok.atom == thread_atom || type_tok.atom == device_atom ||
-      //     name_tok.atom == layout_atom)
-      // {
-      //   /* Filter MSL & GLSL specific identifiers that could have confused the parser. */
-      //   continue;
-      // }
-
-      // erase(type_tok, end_tok);
+      remove_range(type_tok.str_start, end_tok.str_start + 1);
     }
   }
 };

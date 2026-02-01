@@ -171,6 +171,22 @@ struct TokenBuffer {
     return size_;
   }
 
+  /**
+   * @brief Return the substring between the start and end tokens (included).
+   *
+   * @param with_trailing_whitespaces If true, include the trailing whitespaces.
+   */
+  std::string_view substr(const Token &start,
+                          const Token &end,
+                          const bool with_trailing_whitespaces = false) const
+  {
+    int start_char = offsets_[int(start)];
+    int end_char = (whitespaces_collapsed_ && !with_trailing_whitespaces) ?
+                       original_offsets_[int(end) + 1] :
+                       offsets_[int(end) + 1];
+    return str_.substr(start_char, end_char - start_char);
+  }
+
   Token operator[](int index) const
   {
     return Token(this, index);
