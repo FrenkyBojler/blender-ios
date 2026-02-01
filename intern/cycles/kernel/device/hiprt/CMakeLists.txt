@@ -16,7 +16,6 @@ set(SRC_KERNEL_DEVICE_HIPRT
 
 set(SRC_KERNEL_DEVICE_HIPRT_HEADERS
   bvh.h
-  common.h
   globals.h
 )
 
@@ -35,7 +34,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
       ${HIP_HIPCC_EXECUTABLE})
   else()
     set(hiprt_compile_command ${HIP_HIPCC_EXECUTABLE})
-    set(hiprt_compile_flags)
+    set(hiprt_compile_flags "")
   endif()
 
   if(WITH_NANOVDB)
@@ -65,7 +64,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     -D CCL_NAMESPACE_BEGIN=
     -D CCL_NAMESPACE_END=
     -D HIPCC
-    -D __HIPRT__
+    -D __KERNEL_HIPRT__
     -std=c++17
     -mllvm
     -amdgpu-early-inline-all=false
@@ -80,7 +79,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
     -ffast-math
   )
 
-  set(hiprt_hipfb)
+  set(hiprt_hipfb "")
   foreach(arch ${CYCLES_HIP_BINARIES_ARCH})
     set(hiprt_file ${CMAKE_CURRENT_BINARY_DIR}/kernel_rt_${arch}.hipfb)
     set(hiprt_file_compressed ${hiprt_file}.zst)
