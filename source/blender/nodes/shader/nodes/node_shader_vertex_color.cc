@@ -35,12 +35,23 @@ static void node_shader_buts_vertex_color(ui::Layout &layout, bContext *C, Point
     if (depsgraph) {
       Object *object_eval = DEG_get_evaluated(depsgraph, object);
       PointerRNA dataptr = RNA_id_pointer_create(object_eval->data);
-      layout.prop_search(ptr, "layer_name", &dataptr, "color_attributes", "", ICON_GROUP_VCOL, "Color Attribute");
+      layout.prop_search(ptr,
+                         "layer_name",
+                         &dataptr,
+                         "color_attributes",
+                         "",
+                         ICON_GROUP_VCOL,
+                         IFACE_("Color Attribute"));
       return;
     }
   }
 
-  layout.prop(ptr, "layer_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_GROUP_VCOL, "Color Attribute");
+  layout.prop(ptr,
+              "layer_name",
+              ui::ITEM_R_SPLIT_EMPTY_NAME,
+              "",
+              ICON_GROUP_VCOL,
+              IFACE_("Color Attribute"));
   layout.label(RPT_("No mesh in active object"), ICON_ERROR);
 }
 
