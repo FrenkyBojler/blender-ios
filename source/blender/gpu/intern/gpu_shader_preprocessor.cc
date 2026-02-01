@@ -1020,7 +1020,7 @@ struct Preprocessor : IntermediateFormWithIDs {
         break;
       case Pragma:
         process_pragma(dir);
-        break;
+        ATTR_FALLTHROUGH;
       case Other:
         out_stream << str_with_whitespace(dir);
         break;
@@ -1031,27 +1031,28 @@ struct Preprocessor : IntermediateFormWithIDs {
    * Pragmas.
    */
 
+  TokenAtom blender_atom = lex_.hash("blender");
+  TokenAtom dce_atom = lex_.hash("dead_code_elimination");
+  TokenAtom off_atom = lex_.hash("off");
+  TokenAtom on_atom = lex_.hash("on");
+
   BLI_NOINLINE void process_pragma(DirectiveID dir)
   {
     Token tok = get_identifier(dir).next();
-    if (tok.str() == "blender") {
+    if (tok.atom() == blender_atom) {
       tok = tok.next();
-      if (tok.str() == "dead_code_elimination") {
+      if (tok.atom() == dce_atom) {
         tok = tok.next();
-        if (tok.str() == "off") {
+        if (tok.atom() == off_atom) {
           out_stream.set_enabled_parsing(false);
         }
-        else if (tok.str() == "on") {
+        else if (tok.atom() == on_atom) {
           out_stream.set_enabled_parsing(true);
         }
         else {
           BLI_assert_msg(false, "Invalid dead_code_elimination pragma. Expecting on or off.");
         }
       }
-      erase_lines(get_start(dir), get_end(dir));
-    }
-    else {
-      out_stream << str_with_whitespace(dir);
     }
   }
 
