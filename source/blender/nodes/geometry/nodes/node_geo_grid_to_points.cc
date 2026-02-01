@@ -192,19 +192,15 @@ static void node_geo_exec(GeoNodeExecParams params)
           Vector<typename type_traits::BlenderType> active_values;
           Vector<bool> is_tile_flags;
           Vector<int> tile_sizes;
+          Vector<int> tile_dimensions = {1, 1 << 3, 1 << (3 + 4), 1 << (3 + 4 + 5)};
 
           for (auto iter = vdb_grid->tree().cbeginValueOn(); iter; ++iter) {
             active_coords.append(iter.getCoord());
             active_values.append(type_traits::to_blender(iter.getValue()));
-
-            const bool is_tile = iter.getLevel() > 0;
+            const int level = iter.getLevel();
+            const bool is_tile = level > 0;
             is_tile_flags.append(is_tile);
-
-            int tile_size = 1;
-            if (is_tile) {
-              tile_size = 1 << (3 * iter.getLevel());
-            }
-            tile_sizes.append(tile_size);
+            tile_sizes.append(tile_dimensions[level]);
           }
 
           if (active_coords.is_empty()) {
