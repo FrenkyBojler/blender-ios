@@ -55,6 +55,8 @@
 #include "WM_toolsystem.hh" /* Own include. */
 #include "WM_types.hh"
 
+namespace blender {
+
 static void toolsystem_reinit_with_toolref(bContext *C, WorkSpace * /*workspace*/, bToolRef *tref);
 static bToolRef *toolsystem_reinit_ensure_toolref(bContext *C,
                                                   WorkSpace *workspace,
@@ -126,7 +128,7 @@ bool WM_toolsystem_ref_ensure(WorkSpace *workspace, const bToolKey *tkey, bToolR
     *r_tref = tref;
     return false;
   }
-  tref = MEM_new_for_free<bToolRef>(__func__);
+  tref = MEM_new<bToolRef>(__func__);
   BLI_addhead(&workspace->tools, tref);
   tref->space_type = tkey->space_type;
   tref->mode = tkey->mode;
@@ -256,7 +258,7 @@ static void toolsystem_main_brush_binding_update_from_active(Paint *paint)
 
   if (paint->brush != nullptr) {
     if (std::optional<AssetWeakReference> brush_asset_reference =
-            blender::bke::asset_edit_weak_reference_from_id(paint->brush->id))
+            bke::asset_edit_weak_reference_from_id(paint->brush->id))
     {
       paint->tool_brush_bindings.main_brush_asset_reference = MEM_new<AssetWeakReference>(
           __func__, *brush_asset_reference);
@@ -286,7 +288,7 @@ static void toolsystem_brush_type_binding_update(Paint *paint,
   }
   /* Add new reference. */
   else {
-    NamedBrushAssetReference *new_brush_ref = MEM_new_for_free<NamedBrushAssetReference>(__func__);
+    NamedBrushAssetReference *new_brush_ref = MEM_new<NamedBrushAssetReference>(__func__);
 
     new_brush_ref->name = BLI_strdup(brush_type_name);
     new_brush_ref->brush_asset_reference = MEM_new<AssetWeakReference>(
@@ -624,7 +626,7 @@ void WM_toolsystem_ref_set_from_runtime(bContext *C,
   tref->idname_pending[0] = '\0';
 
   if (tref->runtime == nullptr) {
-    tref->runtime = MEM_new_for_free<bToolRef_Runtime>(__func__);
+    tref->runtime = MEM_new<bToolRef_Runtime>(__func__);
   }
 
   if (tref_rt != tref->runtime) {
@@ -714,7 +716,7 @@ void WM_toolsystem_init(const bContext *C)
 
   for (WorkSpace &workspace : bmain->workspaces) {
     for (bToolRef &tref : workspace.tools) {
-      MEM_SAFE_FREE(tref.runtime);
+      MEM_SAFE_DELETE(tref.runtime);
     }
   }
 
@@ -976,7 +978,7 @@ bToolRef *WM_toolsystem_ref_set_by_id_ex(
   RNA_enum_set(&op_props, "space_type", tkey->space_type);
   RNA_boolean_set(&op_props, "cycle", cycle);
 
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
 
   bToolRef *tref = WM_toolsystem_ref_find(workspace, tkey);
@@ -1033,7 +1035,7 @@ static void toolsystem_ref_set_by_brush_type(bContext *C, const char *brush_type
 
   RNA_enum_set(&op_props, "space_type", tkey.space_type);
 
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
 
   bToolRef *tref = WM_toolsystem_ref_find(workspace, &tkey);
@@ -1228,13 +1230,13 @@ void WM_toolsystem_update_from_context(
 
 bool WM_toolsystem_active_tool_is_brush(const bContext *C)
 {
-  const bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context((bContext *)C);
+  const bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context(const_cast<bContext *>(C));
   return tref_rt && (tref_rt->flag & TOOLREF_FLAG_USE_BRUSHES);
 }
 
 bool WM_toolsystem_active_tool_has_custom_cursor(const bContext *C)
 {
-  const bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context((bContext *)C);
+  const bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context(const_cast<bContext *>(C));
   return tref_rt && (tref_rt->cursor != WM_CURSOR_DEFAULT);
 }
 
@@ -1244,7 +1246,8 @@ void WM_toolsystem_do_msg_notify_tag_refresh(bContext *C,
 {
   ScrArea *area = static_cast<ScrArea *>(msg_val->user_data);
   Main *bmain = CTX_data_main(C);
-  wmWindow *win = static_cast<wmWindow *>(((wmWindowManager *)bmain->wm.first)->windows.first);
+  wmWindow *win = static_cast<wmWindow *>(
+      (static_cast<wmWindowManager *>(bmain->wm.first))->windows.first);
   if (win->next != nullptr) {
     do {
       bScreen *screen = WM_window_get_active_screen(win);
@@ -1269,7 +1272,7 @@ static IDProperty *idprops_ensure_named_group(IDProperty *group, const char *idn
 {
   IDProperty *prop = IDP_GetPropertyFromGroup(group, idname);
   if ((prop == nullptr) || (prop->type != IDP_GROUP)) {
-    prop = blender::bke::idprop::create_group(__func__).release();
+    prop = bke::idprop::create_group(__func__).release();
     STRNCPY_UTF8(prop->name, idname);
     IDP_ReplaceInGroup_ex(group, prop, nullptr, 0);
   }
@@ -1288,7 +1291,7 @@ IDProperty *WM_toolsystem_ref_properties_get_idprops(bToolRef *tref)
 IDProperty *WM_toolsystem_ref_properties_ensure_idprops(bToolRef *tref)
 {
   if (tref->properties == nullptr) {
-    tref->properties = blender::bke::idprop::create_group(__func__).release();
+    tref->properties = bke::idprop::create_group(__func__).release();
   }
   return idprops_ensure_named_group(tref->properties, tref->idname);
 }
@@ -1324,7 +1327,7 @@ void WM_toolsystem_ref_properties_init_for_keymap(bToolRef *tref,
     dst_ptr->data = IDP_CopyProperty(static_cast<const IDProperty *>(dst_ptr->data));
   }
   else {
-    dst_ptr->data = blender::bke::idprop::create_group("wmOpItemProp").release();
+    dst_ptr->data = bke::idprop::create_group("wmOpItemProp").release();
   }
   IDProperty *group = WM_toolsystem_ref_properties_get_idprops(tref);
   if (group != nullptr) {
@@ -1341,3 +1344,5 @@ void WM_toolsystem_ref_properties_init_for_keymap(bToolRef *tref,
     }
   }
 }
+
+}  // namespace blender

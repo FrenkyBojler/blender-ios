@@ -11,6 +11,8 @@
 #include "DNA_listBase.h"
 #include "DNA_space_enums.h"
 
+namespace blender {
+
 struct Depsgraph;
 struct GPUOffScreen;
 struct GPUViewport;
@@ -22,12 +24,7 @@ struct SeqTimelineChannel;
 struct Strip;
 struct StripElem;
 
-namespace blender::seq {
-
-enum eTaskId {
-  SEQ_TASK_MAIN_RENDER,
-  SEQ_TASK_PREFETCH_RENDER,
-};
+namespace seq {
 
 struct RenderData {
   Main *bmain = nullptr;
@@ -41,13 +38,10 @@ struct RenderData {
   int motion_blur_samples = 0;
   float motion_blur_shutter = 0.0f;
   bool skip_cache = false;
-  bool is_proxy_render = false;
   bool is_prefetch_render = false;
   bool is_playing = false;
   bool is_scrubbing = false;
   int view_id = 0;
-  /* ID of task for assigning temp cache entries to particular task(thread, etc.) */
-  eTaskId task_id = SEQ_TASK_MAIN_RENDER;
 
   /* Set when executing as part of a frame or animation render. */
   Render *render = nullptr;
@@ -91,4 +85,5 @@ bool render_is_muted(const ListBaseT<SeqTimelineChannel> *channels, const Strip 
 float get_render_scale_factor(eSpaceSeq_Proxy_RenderSize render_size, short scene_render_scale);
 float get_render_scale_factor(const RenderData &context);
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

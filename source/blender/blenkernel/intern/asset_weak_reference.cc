@@ -22,7 +22,7 @@
 
 #include "MEM_guardedalloc.h"
 
-using namespace blender;
+namespace blender {
 
 /* #AssetWeakReference -------------------------------------------- */
 
@@ -138,7 +138,7 @@ ListBaseT<AssetCatalogPathLink> BKE_asset_catalog_path_list_duplicate(
   ListBaseT<AssetCatalogPathLink> duplicated_list = {nullptr};
 
   for (AssetCatalogPathLink &catalog_path : catalog_path_list) {
-    AssetCatalogPathLink *copied_path = MEM_new_for_free<AssetCatalogPathLink>(__func__);
+    AssetCatalogPathLink *copied_path = MEM_new<AssetCatalogPathLink>(__func__);
     copied_path->path = BLI_strdup(catalog_path.path);
 
     BLI_addtail(&duplicated_list, copied_path);
@@ -175,7 +175,9 @@ bool BKE_asset_catalog_path_list_has_path(const ListBaseT<AssetCatalogPathLink> 
 void BKE_asset_catalog_path_list_add_path(ListBaseT<AssetCatalogPathLink> &catalog_path_list,
                                           const char *catalog_path)
 {
-  AssetCatalogPathLink *new_path = MEM_new_for_free<AssetCatalogPathLink>(__func__);
+  AssetCatalogPathLink *new_path = MEM_new<AssetCatalogPathLink>(__func__);
   new_path->path = BLI_strdup(catalog_path);
   BLI_addtail(&catalog_path_list, new_path);
 }
+
+}  // namespace blender

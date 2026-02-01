@@ -14,6 +14,8 @@
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 
+namespace blender {
+
 struct ARegionType;
 struct BlendDataReader;
 struct BlendWriter;
@@ -28,15 +30,15 @@ struct ShaderFxData;
    (((_fx)->mode & eShaderFxMode_Render) && (_is_render == true)))
 #define SHADER_FX_EDIT(_fx, _is_edit) ((((_fx)->mode & eShaderFxMode_Editmode) == 0) && (_is_edit))
 
-typedef enum {
+enum ShaderFxTypeType {
   /* Should not be used, only for None type */
   eShaderFxType_NoneType,
 
   /* grease pencil effects */
   eShaderFxType_GpencilType,
-} ShaderFxTypeType;
+};
 
-typedef enum {
+enum ShaderFxTypeFlag {
   eShaderFxTypeFlag_SupportsEditmode = (1 << 0),
 
   /* For effects that support editmode this determines if the
@@ -49,7 +51,7 @@ typedef enum {
 
   /* can't be added manually by user */
   eShaderFxTypeFlag_NoUserAdd = (1 << 5),
-} ShaderFxTypeFlag;
+};
 
 typedef void (*ShaderFxIDWalkFunc)(void *user_data,
                                    Object *ob,
@@ -182,3 +184,5 @@ void BKE_shaderfx_blend_write(BlendWriter *writer, ListBaseT<ShaderFxData> *fxba
 void BKE_shaderfx_blend_read_data(BlendDataReader *reader,
                                   ListBaseT<ShaderFxData> *lb,
                                   Object *ob);
+
+}  // namespace blender

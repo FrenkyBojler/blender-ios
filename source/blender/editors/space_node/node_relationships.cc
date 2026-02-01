@@ -51,6 +51,8 @@
 
 #include "node_intern.hh" /* own include */
 
+namespace blender {
+
 struct NodeInsertOfsData {
   bNodeTree *ntree;
   bNode *insert;      /* Inserted node. */
@@ -61,7 +63,7 @@ struct NodeInsertOfsData {
   float offset_x; /* Offset to apply to node chain. */
 };
 
-namespace blender::ed::space_node {
+namespace ed::space_node {
 
 static void clear_picking_highlight(ListBaseT<bNodeLink> *links)
 {
@@ -254,7 +256,7 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
   /* Always allow linking to an reroute node. The socket type of the reroute sockets might change
    * after the link has been created. */
   if (node->is_reroute()) {
-    return (bNodeSocket *)node->outputs.first;
+    return static_cast<bNodeSocket *>(node->outputs.first);
   }
 
   return nullptr;
@@ -507,12 +509,12 @@ static int ensure_geometry_nodes_viewer_has_non_geometry_socket(
   if (existing_geometry_index) {
     dna::array::move_index(storage.items, storage.items_num, *existing_geometry_index, 0);
     storage.items[1].socket_type = socket_type;
-    MEM_SAFE_FREE(storage.items[1].name);
+    MEM_SAFE_DELETE(storage.items[1].name);
     storage.items[1].name = BLI_strdup(IFACE_("Value"));
     return 1;
   }
   storage.items[0].socket_type = socket_type;
-  MEM_SAFE_FREE(storage.items[0].name);
+  MEM_SAFE_DELETE(storage.items[0].name);
   storage.items[0].name = BLI_strdup(IFACE_("Value"));
   return 0;
 }
@@ -538,7 +540,7 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
 {
   if (viewer_node.type_legacy != GEO_NODE_VIEWER) {
     /* In viewer nodes in the compositor, only the first input should be linked to. */
-    return (bNodeSocket *)viewer_node.inputs.first;
+    return static_cast<bNodeSocket *>(viewer_node.inputs.first);
   }
   if (!nodes::GeoViewerItemsAccessor::supports_socket_type(src_socket.typeinfo->type, ntree.type))
   {
@@ -1336,18 +1338,18 @@ static void add_dragged_links_to_tree(bContext &C, bNodeLinkDrag &nldrag)
 
     /* Before actually adding the link let nodes perform special link insertion handling. */
 
-    bNodeLink *new_link = MEM_new_for_free<bNodeLink>(__func__, link);
+    bNodeLink *new_link = MEM_new<bNodeLink>(__func__, link);
     if (link.fromnode->typeinfo->insert_link) {
       bke::NodeInsertLinkParams params{ntree, *link.fromnode, *new_link, &C};
       if (!link.fromnode->typeinfo->insert_link(params)) {
-        MEM_freeN(new_link);
+        MEM_delete(new_link);
         continue;
       }
     }
     if (link.tonode->typeinfo->insert_link) {
       bke::NodeInsertLinkParams params{ntree, *link.tonode, *new_link, &C};
       if (!link.tonode->typeinfo->insert_link(params)) {
-        MEM_freeN(new_link);
+        MEM_delete(new_link);
         continue;
       }
     }
@@ -1371,7 +1373,7 @@ static void add_dragged_links_to_tree(bContext &C, bNodeLinkDrag &nldrag)
 static void node_link_cancel(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
-  bNodeLinkDrag *nldrag = (bNodeLinkDrag *)op->customdata;
+  bNodeLinkDrag *nldrag = static_cast<bNodeLinkDrag *>(op->customdata);
   draw_draglink_tooltip_deactivate(*CTX_wm_region(C), *nldrag);
   view2d_edge_pan_cancel(C, &nldrag->pan_data);
   snode->runtime->linkdrag.reset();
@@ -1859,7 +1861,7 @@ void NODE_OT_links_cut(wmOperatorType *ot)
 
   /* properties */
   PropertyRNA *prop;
-  prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
+  prop = RNA_def_collection_runtime(ot->srna, "path", RNA_OperatorMousePath, "Path", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   /* internal */
@@ -1985,7 +1987,7 @@ void NODE_OT_links_mute(wmOperatorType *ot)
 
   /* properties */
   PropertyRNA *prop;
-  prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
+  prop = RNA_def_collection_runtime(ot->srna, "path", RNA_OperatorMousePath, "Path", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   /* internal */
@@ -2765,7 +2767,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   /* Set up insert offset data, it needs stuff from here. */
   if (U.uiflag & USER_NODE_AUTO_OFFSET) {
     BLI_assert(snode.runtime->iofsd == nullptr);
-    NodeInsertOfsData *iofsd = MEM_callocN<NodeInsertOfsData>(__func__);
+    NodeInsertOfsData *iofsd = MEM_new_zeroed<NodeInsertOfsData>(__func__);
 
     iofsd->insert = node_to_insert;
     iofsd->prev = from_node;
@@ -2892,7 +2894,7 @@ static bool node_link_insert_offset_chain_cb(bNode *fromnode,
                                              void *userdata,
                                              const bool reversed)
 {
-  NodeInsertOfsData *data = (NodeInsertOfsData *)userdata;
+  NodeInsertOfsData *data = static_cast<NodeInsertOfsData *>(userdata);
   bNode *ofs_node = reversed ? fromnode : tonode;
 
   node_offset_apply(*ofs_node, data->offset_x);
@@ -3064,7 +3066,7 @@ static wmOperatorStatus node_insert_offset_modal(bContext *C, wmOperator *op, co
       node->runtime->anim_ofsx = 0.0f;
     }
 
-    MEM_freeN(iofsd);
+    MEM_delete(iofsd);
 
     return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
   }
@@ -3094,7 +3096,7 @@ static wmOperatorStatus node_insert_offset_invoke(bContext *C,
   const bool offset_applied = node_link_insert_offset_ntree(
       iofsd, CTX_wm_region(C), event->mval, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
   if (!offset_applied) {
-    MEM_freeN(iofsd);
+    MEM_delete(iofsd);
     op->customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
@@ -3125,4 +3127,6 @@ void NODE_OT_insert_offset(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

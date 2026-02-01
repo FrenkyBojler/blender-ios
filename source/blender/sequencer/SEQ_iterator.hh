@@ -12,11 +12,13 @@
 #include "BLI_vector_set.hh"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 struct Scene;
 struct SeqTimelineChannel;
 struct Strip;
 
-namespace blender::seq {
+namespace seq {
 
 /**
  * Callback format for the for_each function below.
@@ -136,7 +138,7 @@ void query_strip_connected_and_effect_chain(const Scene *scene,
 
 /**
  * Query strips that will be rendered at \a timeline_frame on all channels less than
- * or equal to \a displayed_channel. This does not recurse into metastrips or sequencer-type scene
+ * or equal to \a displayed_channel. This does not recurse into meta-strips or sequencer-type scene
  * strips.
  *
  * \note This only returns strips that are directly rendered in the strip stack. Other strips'
@@ -169,4 +171,5 @@ Vector<Strip *> query_rendered_strips_sorted(const Scene *scene,
  * \note: Take care when changing the logic of this function since order matters.
  * */
 bool must_render_strip(const VectorSet<Strip *> &strip_stack, Strip *target_strip);
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

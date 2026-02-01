@@ -27,11 +27,13 @@
 #include "gpu_material_library.hh"
 #include "gpu_node_graph.hh"
 
+namespace blender {
+
 /* Node Link Functions */
 
 static GPUNodeLink *gpu_node_link_create()
 {
-  GPUNodeLink *link = MEM_callocN<GPUNodeLink>("GPUNodeLink");
+  GPUNodeLink *link = MEM_new_zeroed<GPUNodeLink>("GPUNodeLink");
   link->users++;
 
   return link;
@@ -49,7 +51,7 @@ static void gpu_node_link_free(GPUNodeLink *link)
     if (link->output) {
       link->output->link = nullptr;
     }
-    MEM_freeN(link);
+    MEM_delete(link);
   }
 }
 
@@ -57,7 +59,7 @@ static void gpu_node_link_free(GPUNodeLink *link)
 
 static GPUNode *gpu_node_create(const char *name)
 {
-  GPUNode *node = MEM_callocN<GPUNode>("GPUNode");
+  GPUNode *node = MEM_new_zeroed<GPUNode>("GPUNode");
 
   node->name = name;
   node->zone_index = -1;
@@ -78,7 +80,7 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
     input = static_cast<GPUInput *>(outnode->inputs.first);
 
     if (STR_ELEM(name, "set_value", "set_rgb", "set_rgba") && (input->type == type)) {
-      input = static_cast<GPUInput *>(MEM_dupallocN(outnode->inputs.first));
+      input = MEM_dupalloc(static_cast<GPUInput *>(outnode->inputs.first));
 
       switch (input->source) {
         case GPU_SOURCE_ATTR:
@@ -108,7 +110,7 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
     }
   }
 
-  input = MEM_callocN<GPUInput>("GPUInput");
+  input = MEM_new_zeroed<GPUInput>("GPUInput");
   input->node = node;
   input->type = type;
 
@@ -168,7 +170,7 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
   }
 
   if (link->link_type != GPU_NODE_LINK_OUTPUT) {
-    MEM_freeN(link);
+    MEM_delete(link);
   }
   BLI_addtail(&node->inputs, input);
 }
@@ -251,7 +253,7 @@ static void gpu_node_input_socket(
 
 static void gpu_node_output(GPUNode *node, const GPUType type, GPUNodeLink **link)
 {
-  GPUOutput *output = MEM_callocN<GPUOutput>("GPUOutput");
+  GPUOutput *output = MEM_new_zeroed<GPUOutput>("GPUOutput");
 
   output->type = type;
   output->node = node;
@@ -412,7 +414,7 @@ static GPUMaterialAttribute *gpu_node_graph_add_attribute(GPUNodeGraph *graph,
 
   /* Add new requested attribute if it's within GPU limits. */
   if (attr == nullptr) {
-    attr = MEM_callocN<GPUMaterialAttribute>(__func__);
+    attr = MEM_new_zeroed<GPUMaterialAttribute>(__func__);
     attr->is_default_color = is_default_color;
     attr->is_hair_length = is_hair_length;
     attr->is_hair_intercept = is_hair_intercept;
@@ -447,7 +449,7 @@ static GPUUniformAttr *gpu_node_graph_add_uniform_attribute(GPUNodeGraph *graph,
 
   /* Add new requested attribute if it's within GPU limits. */
   if (attr == nullptr && attrs->count < GPU_MAX_UNIFORM_ATTR) {
-    attr = MEM_callocN<GPUUniformAttr>(__func__);
+    attr = MEM_new_zeroed<GPUUniformAttr>(__func__);
     STRNCPY(attr->name, name);
     attr->use_dupli = use_dupli;
     attr->hash_code = BLI_ghashutil_strhash_p(attr->name) << 1 | (attr->use_dupli ? 0 : 1);
@@ -478,7 +480,7 @@ static GPULayerAttr *gpu_node_graph_add_layer_attribute(GPUNodeGraph *graph, con
 
   /* Add new requested attribute to the list. */
   if (attr == nullptr) {
-    attr = MEM_callocN<GPULayerAttr>(__func__);
+    attr = MEM_new_zeroed<GPULayerAttr>(__func__);
     STRNCPY(attr->name, name);
     attr->hash_code = BLI_ghashutil_strhash_p(attr->name);
     BLI_addtail(attrs, attr);
@@ -494,8 +496,8 @@ static GPULayerAttr *gpu_node_graph_add_layer_attribute(GPUNodeGraph *graph, con
 static GPUMaterialTexture *gpu_node_graph_add_texture(GPUNodeGraph *graph,
                                                       Image *ima,
                                                       ImageUser *iuser,
-                                                      blender::gpu::Texture **colorband,
-                                                      blender::gpu::Texture **sky,
+                                                      gpu::Texture **colorband,
+                                                      gpu::Texture **sky,
                                                       bool is_tiled,
                                                       GPUSamplerState sampler_state)
 {
@@ -513,7 +515,7 @@ static GPUMaterialTexture *gpu_node_graph_add_texture(GPUNodeGraph *graph,
 
   /* Add new requested texture. */
   if (tex == nullptr) {
-    tex = MEM_new_for_free<GPUMaterialTexture>(__func__);
+    tex = MEM_new<GPUMaterialTexture>(__func__);
     tex->ima = ima;
     if (iuser != nullptr) {
       tex->iuser = *iuser;
@@ -695,8 +697,7 @@ GPUNodeLink *GPU_image_sky(GPUMaterial *mat,
                            float *layer,
                            GPUSamplerState sampler_state)
 {
-  blender::gpu::Texture **sky = gpu_material_sky_texture_layer_set(
-      mat, width, height, pixels, layer);
+  gpu::Texture **sky = gpu_material_sky_texture_layer_set(mat, width, height, pixels, layer);
 
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
   GPUNodeLink *link = gpu_node_link_create();
@@ -728,8 +729,8 @@ void GPU_image_tiled(GPUMaterial *mat,
 
 GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *r_row)
 {
-  blender::gpu::Texture **colorband = gpu_material_ramp_texture_row_set(mat, size, pixels, r_row);
-  MEM_freeN(pixels);
+  gpu::Texture **colorband = gpu_material_ramp_texture_row_set(mat, size, pixels, r_row);
+  MEM_delete(pixels);
 
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
   GPUNodeLink *link = gpu_node_link_create();
@@ -954,7 +955,7 @@ static void gpu_node_free(GPUNode *node)
   }
 
   BLI_freelistN(&node->outputs);
-  MEM_freeN(node);
+  MEM_delete(node);
 }
 
 void gpu_node_graph_free_nodes(GPUNodeGraph *graph)
@@ -990,8 +991,8 @@ void gpu_nodes_tag(GPUNodeGraph *graph, GPUNodeLink *link_start, GPUNodeTag tag)
     return;
   }
 
-  blender::Stack<GPUNode *> stack;
-  blender::Stack<GPUNode *> zone_stack;
+  Stack<GPUNode *> stack;
+  Stack<GPUNode *> zone_stack;
   stack.push(link_start->output->node);
 
   while (!stack.is_empty() || !zone_stack.is_empty()) {
@@ -1113,3 +1114,5 @@ void gpu_node_graph_optimize(GPUNodeGraph *graph)
 
   /* TODO: Consider performing other node graph optimizations here. */
 }
+
+}  // namespace blender

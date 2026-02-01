@@ -6,16 +6,28 @@
 # -----------------------------------------------------------------------------
 # Build `shader_tool` executable.
 set(SRC
+  attribute.cc
+  enum.cc
+  flow_control.cc
+  function.cc
   intermediate.cc
   metadata.cc
+  namespace.cc
   processor.cc
+  resource_table.cc
   shader_tool.cc
+  string.cc
+  struct.cc
+  template.cc
+  union.cc
 
   intermediate.hh
   processor.hh
   scope.hh
   token_stream.hh
   token.hh
+
+  lexit/lexit.cc
 )
 
 if(WITH_GPU_SHADER_ASSERT)

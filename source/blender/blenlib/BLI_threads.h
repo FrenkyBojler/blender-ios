@@ -13,6 +13,8 @@
 #include "BLI_listbase.h"
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 /** For tables, button in UI, etc. */
 #define BLENDER_MAX_THREADS 1024
 
@@ -136,7 +138,7 @@ void BLI_rw_mutex_unlock(ThreadRWMutex *mutex);
  * This is a 'fair' mutex in that it will grant the lock to the first thread
  * that requests it. */
 
-typedef struct TicketMutex TicketMutex;
+struct TicketMutex;
 
 TicketMutex *BLI_ticket_mutex_alloc(void);
 void BLI_ticket_mutex_free(TicketMutex *ticket);
@@ -159,13 +161,13 @@ void BLI_condition_end(ThreadCondition *cond);
  *
  * Thread-safe work queue to push work/pointers between threads. */
 
-typedef struct ThreadQueue ThreadQueue;
+struct ThreadQueue;
 
-typedef enum {
+enum ThreadQueueWorkPriority {
   BLI_THREAD_QUEUE_WORK_PRIORITY_LOW,
   BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL,
   BLI_THREAD_QUEUE_WORK_PRIORITY_HIGH,
-} ThreadQueueWorkPriority;
+};
 
 /**
  * Allocate a new ThreadQueue.
@@ -253,3 +255,5 @@ void BLI_thread_queue_nowait(ThreadQueue *queue);
 #  define BLI_thread_local_get(name) name
 #  define BLI_thread_local_set(name, value) name = value
 #endif /* defined(__APPLE__) */
+
+}  // namespace blender

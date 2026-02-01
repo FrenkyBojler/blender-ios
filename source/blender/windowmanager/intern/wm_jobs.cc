@@ -35,6 +35,8 @@
 #include "wm.hh"
 #include "wm_event_types.hh"
 
+namespace blender {
+
 /*
  * Add new job
  * - register in WM
@@ -85,6 +87,18 @@ struct wmJob {
    * Executed in main thread.
    */
   void (*update)(void *);
+  /**
+   * Optional, called for each timer step while the job is running. Can be used to send messages to
+   * the running job. For example, online asset library loading uses this to get status updates
+   * from the downloader to the loading job, like that it's done downloading some files that are
+   * now ready to be processed.
+   *
+   * Should be used for messaging to the job only, must _not_ be used to modify the running job,
+   * like changing the timer, replacing the custom data pointer, etc.
+   *
+   * Executed in the main thread.
+   */
+  void (*timer_step)(void *);
   /**
    * Free callback (typically for customdata).
    * Executed in main thread.
@@ -220,7 +234,7 @@ wmJob *WM_jobs_get(wmWindowManager *wm,
   wmJob *wm_job = wm_job_find(wm, owner, job_type);
 
   if (wm_job == nullptr) {
-    wm_job = MEM_callocN<wmJob>("new job");
+    wm_job = MEM_new_zeroed<wmJob>("new job");
 
     BLI_addtail(&wm->runtime->jobs, wm_job);
     wm_job->win = win;
@@ -232,7 +246,7 @@ wmJob *WM_jobs_get(wmWindowManager *wm,
     wm_job->main_thread_mutex = BLI_ticket_mutex_alloc();
     WM_job_main_thread_lock_acquire(wm_job);
 
-    wm_job->worker_status.reports = MEM_new_for_free<ReportList>(__func__);
+    wm_job->worker_status.reports = MEM_new<ReportList>(__func__);
     BKE_reports_init(wm_job->worker_status.reports, RPT_STORE | RPT_PRINT);
     BKE_report_print_level_set(wm_job->worker_status.reports, RPT_WARNING);
 
@@ -375,11 +389,13 @@ void WM_jobs_customdata_set(wmJob *wm_job, void *customdata, void (*free)(void *
   }
 }
 
-void WM_jobs_timer(wmJob *wm_job, double time_step, uint note, uint endnote)
+void WM_jobs_timer(
+    wmJob *wm_job, double time_step, uint note, uint endnote, void (*timer_step)(void *))
 {
   wm_job->time_step = time_step;
   wm_job->note = note;
   wm_job->endnote = endnote;
+  wm_job->timer_step = timer_step;
 }
 
 void WM_jobs_delay_start(wmJob *wm_job, double delay_time)
@@ -562,7 +578,7 @@ static void wm_job_free(wmWindowManager *wm, wmJob *wm_job)
   BLI_assert(BLI_listbase_is_empty(&wm_job->worker_status.reports->list));
   BKE_reports_free(wm_job->worker_status.reports);
   MEM_delete(wm_job->worker_status.reports);
-  MEM_freeN(wm_job);
+  MEM_delete(wm_job);
 
   wm_jobs_update_qos(wm);
 }
@@ -610,7 +626,7 @@ void WM_jobs_kill_all(wmWindowManager *wm)
   }
 
   /* This job will be automatically restarted. */
-  blender::seq::prefetch_stop_all();
+  seq::prefetch_stop_all();
 }
 
 void WM_jobs_kill_all_except(wmWindowManager *wm, const void *owner)
@@ -690,6 +706,10 @@ void wm_jobs_timer(wmWindowManager *wm, wmTimer *wt)
     if (wm_job->threads.first) {
       /* Let threads get temporary lock over main thread if needed. */
       wm_job_main_thread_yield(wm_job);
+
+      if (wm_job->timer_step) {
+        wm_job->timer_step(wm_job->run_customdata);
+      }
 
       /* Always call note and update when ready. */
       if (wm_job->worker_status.do_update || wm_job->ready) {
@@ -790,3 +810,5 @@ bool WM_jobs_has_running_type(const wmWindowManager *wm, int job_type)
   }
   return false;
 }
+
+}  // namespace blender

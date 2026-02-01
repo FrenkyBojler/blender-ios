@@ -44,6 +44,9 @@
 #include <string>
 
 #include "CLG_log.h"
+
+namespace blender {
+
 static CLG_LogRef LOG = {"io.usd"};
 
 namespace usdtokens {
@@ -54,11 +57,10 @@ static const pxr::TfToken pole_axis_z("Z", pxr::TfToken::Immortal);
 namespace {
 
 struct WorldNtreeSearchPayload {
-  const blender::io::usd::USDExportParams &params;
+  const io::usd::USDExportParams &params;
   pxr::UsdStageRefPtr stage;
 
-  WorldNtreeSearchPayload(const blender::io::usd::USDExportParams &in_params,
-                          pxr::UsdStageRefPtr in_stage)
+  WorldNtreeSearchPayload(const io::usd::USDExportParams &in_params, pxr::UsdStageRefPtr in_stage)
       : params(in_params), stage(in_stage)
   {
   }
@@ -66,7 +68,7 @@ struct WorldNtreeSearchPayload {
 
 }  // End anonymous namespace.
 
-namespace blender::io::usd {
+namespace io::usd {
 
 /**
  * Load the image at the given path.  Handle packing and copying based in the import options.
@@ -75,7 +77,7 @@ namespace blender::io::usd {
 static Image *load_image(std::string tex_path, Main *bmain, const USDImportParams &params)
 {
   /* Optionally copy the asset if it's inside a USDZ package. */
-  const bool import_textures = params.import_textures_mode != USD_TEX_IMPORT_NONE &&
+  const bool import_textures = params.import_textures_mode != TexImportMode::None &&
                                should_import_asset(tex_path);
 
   std::string imported_file_source_path = tex_path;
@@ -83,14 +85,14 @@ static Image *load_image(std::string tex_path, Main *bmain, const USDImportParam
   if (import_textures) {
     /* If we are packing the imported textures, we first write them
      * to a temporary directory. */
-    const char *textures_dir = params.import_textures_mode == USD_TEX_IMPORT_PACK ?
+    const char *textures_dir = params.import_textures_mode == TexImportMode::Pack ?
                                    temp_textures_dir() :
                                    params.import_textures_dir;
 
-    const eUSDTexNameCollisionMode name_collision_mode = params.import_textures_mode ==
-                                                                 USD_TEX_IMPORT_PACK ?
-                                                             USD_TEX_NAME_COLLISION_OVERWRITE :
-                                                             params.tex_name_collision_mode;
+    const TexNameCollisionMode name_collision_mode = params.import_textures_mode ==
+                                                             TexImportMode::Pack ?
+                                                         TexNameCollisionMode::Overwrite :
+                                                         params.tex_name_collision_mode;
 
     tex_path = import_asset(tex_path, textures_dir, name_collision_mode, nullptr);
   }
@@ -104,7 +106,7 @@ static Image *load_image(std::string tex_path, Main *bmain, const USDImportParam
     ensure_usd_source_path_prop(imported_file_source_path, &image->id);
   }
 
-  if (import_textures && params.import_textures_mode == USD_TEX_IMPORT_PACK &&
+  if (import_textures && params.import_textures_mode == TexImportMode::Pack &&
       !BKE_image_has_packedfile(image))
   {
     BKE_image_packfiles(nullptr, image, ID_BLEND_PATH(bmain, &image->id));
@@ -229,12 +231,8 @@ void dome_light_to_world_material(const USDImportParams &params,
     return;
   }
 
-  if (!scene->world->nodetree) {
-    scene->world->nodetree = bke::node_tree_add_tree_embedded(
-        nullptr, &scene->world->id, "Shader Nodetree", "ShaderNodeTree");
-  }
-
   bNodeTree *ntree = scene->world->nodetree;
+  BLI_assert(ntree != nullptr);
   bNode *output = nullptr;
   bNode *bgshader = nullptr;
 
@@ -484,4 +482,5 @@ void world_material_to_dome_light(const Scene *scene, WorldToDomeLight &res)
   }
 }
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender
