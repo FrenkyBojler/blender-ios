@@ -2414,6 +2414,61 @@ static float2 compute_2d_gabor_noise(const float2 coordinates,
   return sum;
 }
 
+/* Computes the 2D Gabor noise value and its derivative. */
+static void compute_2d_gabor_noise_with_derivative(const float2 coordinates,
+                                                    const float frequency,
+                                                    const float isotropy,
+                                                    const float base_orientation,
+                                                    float2 *r_noise,
+                                                    float2 *r_derivative)
+{
+  const float2 cell_position = math::floor(coordinates);
+  const float2 local_position = coordinates - cell_position;
+
+  float2 sum(0.0f);
+  float2 derivative_sum(0.0f);
+  for (int j = -1; j <= 1; j++) {
+    for (int i = -1; i <= 1; i++) {
+      const float2 cell_offset = float2(i, j);
+      const float2 current_cell_position = cell_position + cell_offset;
+      const float2 position_in_cell_space = local_position - cell_offset;
+
+      float2 cell_noise(0.0f);
+      float2 cell_derivative(0.0f);
+      for (const int k : IndexRange(gabor_impulses_count)) {
+        const float3 seed_for_orientation(current_cell_position.x, current_cell_position.y, k * 3);
+        const float3 seed_for_kernel_center(current_cell_position.x, current_cell_position.y, k * 3 + 1);
+        const float3 seed_for_weight(current_cell_position.x, current_cell_position.y, k * 3 + 2);
+
+        const float random_orientation = (noise::hash_float_to_float(seed_for_orientation) - 0.5f) *
+                                        math::numbers::pi;
+        const float orientation = base_orientation + random_orientation * isotropy;
+
+        const float2 kernel_center = noise::hash_float_to_float2(seed_for_kernel_center);
+        const float2 position_in_kernel_space = position_in_cell_space - kernel_center;
+
+        if (math::length_squared(position_in_kernel_space) >= 1.0f) {
+          continue;
+        }
+
+        const float weight = noise::hash_float_to_float(seed_for_weight) < 0.5f ? -1.0f : 1.0f;
+
+        float2 kernel_value;
+        float2 kernel_deriv;
+        compute_2d_gabor_kernel_with_derivative(
+            position_in_kernel_space, frequency, orientation, &kernel_value, &kernel_deriv);
+        cell_noise += weight * kernel_value;
+        cell_derivative += weight * kernel_deriv;
+      }
+      sum += cell_noise;
+      derivative_sum += cell_derivative;
+    }
+  }
+
+  *r_noise = sum;
+  *r_derivative = derivative_sum;
+}
+
 /* Identical to compute_2d_gabor_kernel, except it is evaluated in 3D space. Notice that Equation
  * (6) in the original Gabor noise paper computes the frequency vector using (cos(w_0), sin(w_0)),
  * which we also do in the 2D variant, however, for 3D, the orientation is already a unit frequency
