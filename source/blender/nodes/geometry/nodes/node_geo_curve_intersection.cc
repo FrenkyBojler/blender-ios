@@ -227,6 +227,7 @@ struct AttributeOutputs {
   std::optional<std::string> pair_id;
   std::optional<std::string> hash;
   std::optional<std::string> lambda;
+  bool id;
 };
 
 /* Store information from line intersection calculations. */
@@ -252,6 +253,7 @@ struct Segment {
   float curve_length;
   int pos_index;
   int seg_index;
+  int curve_id;
   int curve_index;
   bool is_cyclic_segment;
 };
@@ -606,6 +608,7 @@ static Array<float> get_evaluated_radii(const bke::CurvesGeometry &src_curves)
 
 /* Buuild curve segment bvh. */
 static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curves,
+                                             const VArray<int> &ids,
                                              Vector<Segment> *r_curve_segments,
                                              const float2 min_max_angle,
                                              const bool project,
@@ -650,6 +653,7 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
       segment.orig_end = end;
       segment.len_start = len_start;
       segment.len_end = len_end;
+      segment.curve_id = attribute_outputs.id ? ids[curve_i] : curve_i;
       segment.curve_index = curve_i;
       segment.curve_length = curve_length;
       segment.radius_start = radius_start;
@@ -841,6 +845,7 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
 /* Calculate intersections between curve and mesh surface. */
 static void set_curve_intersections_mesh(GeometrySet &mesh_set,
                                          const bke::CurvesGeometry &src_curves,
+                                         const VArray<int> &ids,
                                          const float2 min_max_angle,
                                          const AttributeOutputs &attribute_outputs,
                                          IntersectionData &r_data)
@@ -848,7 +853,7 @@ static void set_curve_intersections_mesh(GeometrySet &mesh_set,
   /* Build bvh. */
   Vector<Segment> curve_segments;
   BVHTree *bvhtree = create_curve_segment_bvhtree(
-      src_curves, &curve_segments, min_max_angle, false, float3(0.0f), attribute_outputs);
+      src_curves, ids, &curve_segments, min_max_angle, false, float3(0.0f), attribute_outputs);
   BLI_SCOPED_DEFER([&]() { BLI_bvhtree_free(bvhtree); });
   const bool use_angle = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f;
   const bool use_normal = use_angle || attribute_outputs.normal;
@@ -945,6 +950,7 @@ static void set_curve_intersections_mesh(GeometrySet &mesh_set,
 
 /* Calculate intersections between 3d curves, optionally projected onto 2d plane. */
 static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
+                                    const VArray<int> &ids,
                                     const bool self_intersect,
                                     const bool all_intersect,
                                     const bool use_radius,
@@ -959,7 +965,7 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
   /* Build bvh. */
   Vector<Segment> curve_segments;
   BVHTree *bvhtree = create_curve_segment_bvhtree(
-      src_curves, &curve_segments, min_max_angle, project, direction, attribute_outputs);
+      src_curves, ids, &curve_segments, min_max_angle, project, direction, attribute_outputs);
   BLI_SCOPED_DEFER([&]() { BLI_bvhtree_free(bvhtree); });
 
   const float max_search_distance = math::max(curve_isect_eps, distance);
@@ -984,13 +990,16 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                 return;
               }
               const Segment cd = curve_segments[index];
+              const bool same_id = ab.curve_id == cd.curve_id;
               const bool same_curve = ab.curve_index == cd.curve_index;
-              const bool calc_all = (all_intersect && !same_curve);
+              const bool calc_all = (all_intersect && !same_curve && !same_id);
               /* Skip adjecent segments in same curve. */
-              const bool calc_self = (self_intersect && same_curve &&
-                                      ((math::abs(ab.seg_index - cd.seg_index) > 1) &&
-                                       !((ab.seg_index == 0 && cd.is_cyclic_segment) ||
-                                         (cd.seg_index == 0 && ab.is_cyclic_segment))));
+              const bool not_adjacent = same_curve &&
+                                        ((math::abs(ab.seg_index - cd.seg_index) > 1) &&
+                                         !((ab.seg_index == 0 && cd.is_cyclic_segment) ||
+                                           (cd.seg_index == 0 && ab.is_cyclic_segment)));
+              const bool calc_self = (self_intersect &&
+                                      (not_adjacent || (same_id && !same_curve)));
               if (calc_all || calc_self) {
                 const float distance = use_radius ?
                                            math::midpoint(ab.radius_start, ab.radius_end) +
@@ -1264,6 +1273,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     IntersectionData r_data;
 
+    VArray<int> ids = *src_curves.attributes().lookup<int>("id", bke::AttrDomain::Curve);
+    if (ids.size() == src_curves.curves_range().size()) {
+      attribute_outputs.id = true;
+    }
+    else {
+      attribute_outputs.id = false;
+    }
+
     switch (mode) {
       case IntersectionMode::Curve: {
         const bool use_radius = params.extract_input<bool>("Use Radius");
@@ -1273,6 +1290,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
         set_curve_intersections(src_curves,
+                                ids,
                                 self,
                                 all,
                                 use_radius,
@@ -1292,6 +1310,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
         set_curve_intersections(src_curves,
+                                ids,
                                 self,
                                 all,
                                 false,
@@ -1324,6 +1343,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (mesh_set.has_mesh()) {
           set_curve_intersections_mesh(mesh_set,
                                        src_curves,
+                                       ids,
                                        math::clamp(float2(min_angle, max_angle), 0.0f, pi_2_f_eps),
                                        attribute_outputs,
                                        r_data);
