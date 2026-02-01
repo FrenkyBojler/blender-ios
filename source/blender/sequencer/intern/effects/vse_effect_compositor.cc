@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include "BKE_node_runtime.hh"
+
 #include "COM_context.hh"
 #include "COM_domain.hh"
 #include "COM_node_group_operation.hh"
