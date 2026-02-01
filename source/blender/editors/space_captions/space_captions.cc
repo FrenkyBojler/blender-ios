@@ -46,42 +46,44 @@
 namespace blender {
 
 // Todo: Those helper methods should go captions_edit.cc or a new captions.cc, It'll stay here until the exact location of the captions in the UI is decided.
-CaptionsStripRef *style_leader_ref_ensure(Editing *ed) {
-  /* Currently, each time anything need acsses for the leader, it calls this method, which is quite heavy (loop through all of the refs each time.) */
-  if(ed == nullptr){
-    return nullptr;
-  }
+static void init_default_style(Editing *ed){
+  TextVars *data = MEM_new_for_free<TextVars>("textvars");
+  ed->captions_style = data;
 
-  bool leader_valid = false;
-  if (ed->captions_style_leader != nullptr) {
-    for (CaptionsStripRef &ref : ed->captions_strips) {
-      if ((&ref == ed->captions_style_leader && ref.strip != nullptr && ed->captions_style_leader->use_custom_style == false)) {
-        leader_valid = true;
-        break;
-      }
-    }
-  }
-  
-  if (!leader_valid) {
-    /* Search for new leader */
-    ed->captions_style_leader = nullptr;
-    for (CaptionsStripRef &ref : ed->captions_strips) {
-      if (ref.strip != nullptr) {
-        ed->captions_style_leader = &ref;
-        break;
-      }
-    }
-  }
-  
-  return ed->captions_style_leader;
+  data->flag |= SEQ_TEXT_OUTLINE;
+  data->flag |= SEQ_TEXT_SHADOW;
+
+  data->text_font = nullptr;
+  data->text_blf_id = -1;
+  data->text_size = 60.0f;
+
+  copy_v4_fl(data->color, 1.0f);
+  data->shadow_color[3] = 0.7f;
+  data->shadow_angle = DEG2RADF(65.0f);
+  data->shadow_offset = 0.04f;
+  data->shadow_blur = 0.0f;
+  data->box_color[0] = 0.2f;
+  data->box_color[1] = 0.2f;
+  data->box_color[2] = 0.2f;
+  data->box_color[3] = 0.7f;
+  data->box_margin = 0.01f;
+  data->box_roundness = 0.0f;
+  data->outline_color[3] = 0.7f;
+  data->outline_width = 0.05f;
+
+  data->loc[0] = 0.5f;
+  data->loc[1] = 0.15f;
+  data->anchor_x = SEQ_TEXT_ALIGN_X_CENTER;
+  data->anchor_y = SEQ_TEXT_ALIGN_Y_CENTER;
+  data->align = SEQ_TEXT_ALIGN_X_CENTER;
+  data->wrap_width = 1.0f;
 }
 
-Strip *style_leader_strip_ensure(Editing *ed) {
-  CaptionsStripRef *ref = style_leader_ref_ensure(ed);
-  if(ref == nullptr /*|| ref->strip == nullptr*/) {
-    return nullptr;
+TextVars *style_ensure(Editing *ed) {
+  if(ed->captions_style == nullptr) {
+    init_default_style(ed);
   }
-  return ref->strip;
+  return ed->captions_style;
 }
 
 CaptionsStripRef *get_ref_by_strip(Editing *ed, struct Strip *strip) {
@@ -109,18 +111,17 @@ static void update_strips_style(Scene *scene)
   if(ed == nullptr){
     return;
   }
-  
-  Strip *leader_strip = style_leader_strip_ensure(ed);
-  if(leader_strip == nullptr) {
-    return;
-  }
 
-  TextVars *leader_vers = (TextVars *)leader_strip->effectdata;
+  TextVars *leader_vers = ed->captions_style;
   if(leader_vers == nullptr) {
     return;
   }
 
   for (CaptionsStripRef &ref : ed->captions_strips) {
+    if(ref.use_custom_style) {
+      continue;
+    }
+
     Strip *strip = ref.strip;
     TextVars *vers = (TextVars *)strip->effectdata;
     if(vers == nullptr) {
@@ -200,8 +201,6 @@ static void free_strip_refs(Editing *ed)
     MEM_freeN(&ref);
   }
   BLI_listbase_clear(refs);
-
-  ed->captions_style_leader = nullptr;
 }
 
 /* Can be used without scene just for redraw without update */
@@ -271,17 +270,14 @@ static SpaceLink *captions_create(const ScrArea * /*area*/, const Scene * scene)
     region = BKE_area_region_new();
     BLI_addtail(&scaptions->regionbase, region);
     region->regiontype = RGN_TYPE_WINDOW;
-
+    style_ensure(seq::editing_get((Scene *) scene));
     update_current_strips((Scene *) scene);
 
     return (SpaceLink *)scaptions;
 }
 
 /* Doesn't free the space-link itself. */
-static void captions_free(SpaceLink *sl)
-{
-  //free_strip_refs(scaptions);
-}
+static void captions_free(SpaceLink *sl) { }
 
 /* spacetype; init callback, add handlers */
 static void captions_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
@@ -295,11 +291,7 @@ static SpaceLink *captions_duplicate(SpaceLink *sl)
   return (SpaceLink *)scaptionsn;
 }
 
-static void captions_keymap(wmKeyConfig * /*keyconf*/)
-{
- // WM_keymap_ensure(keyconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
-  //WM_keymap_ensure(keyconf, "Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
-}
+static void captions_keymap(wmKeyConfig * /*keyconf*/) {}
 
 static void captions_refresh(const bContext * /*C*/, ScrArea * /*area*/)
 {
@@ -342,10 +334,6 @@ region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
 
 static void captions_main_region_layout(const bContext *C, ARegion *region)
 {
-  //update_current_strips(C);
-  //View2D *v2d = &region->v2d;
-
-  //UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_PANELS_UI, region->winx, region->winy);
   ED_region_panels_layout(C, region);
 }
 
@@ -397,7 +385,6 @@ static void captions_main_region_listener(const wmRegionListenerParams *params)
                     }
                   } else {
                     if(wmn->action == NA_REMOVED) {
-                      style_leader_ref_ensure(ed);
                       ed->captions_cache_dirty = true;
                     }
                   }
@@ -443,26 +430,17 @@ static void captions_header_region_init(wmWindowManager * /*wm*/, ARegion *regio
 
 static void captions_header_region_draw(const bContext *C, ARegion *region)
 {
-  //ScrArea *area = CTX_wm_area(C);
-  //SpaceCaptions *sima = static_cast<SpaceCaptions *>(area->spacedata.first);
-
   ED_region_header(C, region);
 }
 
-static void captions_header_region_listener(const wmRegionListenerParams * /*params*/)
-{
-  //ARegion *region = params->region;
-  //const wmNotifier *wmn = params->notifier;
-}
+static void captions_header_region_listener(const wmRegionListenerParams * /*params*/) {}
 
 static void captions_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
 {
     UNUSED_VARS(space_link, data);
 }
 
-static void captions_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink * /*sl*/)
-{
-}
+static void captions_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink * /*sl*/) {}
 
 static void captions_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {

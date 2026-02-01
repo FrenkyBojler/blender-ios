@@ -33,16 +33,16 @@ class CAPTIONS_PT_style(bpy.types.Panel):
         # TODO: Add style options for captions here
         space = context.space_data
         scene = context.scene
-        strips = scene.sequence_editor.captions_strips
-        if len(strips) <= 0:
-            return
+        editor = scene.sequence_editor
+        strips = editor.captions_strips
         
-        leader_strip = scene.sequence_editor.captions_style_leader
-        if(leader_strip is None):
+        style = editor.captions_style
+        if(style is None):
             return
         
         layout = self.layout
          
+        # Draw the style as a strip properties, works becuase they're both using TextVars data, but it's hacky.
         from bpy.types import (
             STRIP_PT_effect_text_style,
             STRIP_PT_effect_text_outline,
@@ -51,30 +51,30 @@ class CAPTIONS_PT_style(bpy.types.Panel):
             STRIP_PT_effect_text_layout
         )
         
-        STRIP_PT_effect_text_style.draw_effect_text_style(leader_strip, layout)
+        STRIP_PT_effect_text_style.draw_effect_text_style(style, layout)
         
         header, body = layout.panel("outline", default_closed=True)
         header.label(text="Outline")
-        header.prop(leader_strip, "use_outline", text="")
+        header.prop(style, "use_outline", text="")
         if body:
-            STRIP_PT_effect_text_outline.draw_effect_text_outline(leader_strip, body)
+            STRIP_PT_effect_text_outline.draw_effect_text_outline(style, body)
         
         header, body = layout.panel("shadow", default_closed=True)
         header.label(text="Shadow")
-        header.prop(leader_strip, "use_shadow", text="")
+        header.prop(style, "use_shadow", text="")
         if body:
-            STRIP_PT_effect_text_shadow.draw_effect_text_shadow(leader_strip, body)
+            STRIP_PT_effect_text_shadow.draw_effect_text_shadow(style, body)
         
         header, body = layout.panel("box", default_closed=True)
         header.label(text="Box")
-        header.prop(leader_strip, "use_box", text="")
+        header.prop(style, "use_box", text="")
         if body:
-            STRIP_PT_effect_text_box.draw_effect_text_box(leader_strip, body)  
+            STRIP_PT_effect_text_box.draw_effect_text_box(style, body)  
            
         header, body = layout.panel("layout", default_closed=True)
         header.label(text="Layout")
         if body:
-            STRIP_PT_effect_text_layout.draw_effect_text_layout(leader_strip, body)
+            STRIP_PT_effect_text_layout.draw_effect_text_layout(style, body)
         
 class CAPTIONS_PT_list(bpy.types.Panel):
     bl_idname = "CAPTIONS_PT_list"
@@ -100,8 +100,8 @@ class CAPTIONS_PT_list(bpy.types.Panel):
         strips = context.scene.sequence_editor.captions_strips
         
         # Iterate over the collection property
-        for item in strips:
-            self.draw_caption(layout, item)
+        for strip in strips:
+            self.draw_caption(layout, strip)
         
         layout.operator("captions.caption_add", text="Add", icon='ADD')
         

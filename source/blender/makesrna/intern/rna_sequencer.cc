@@ -260,22 +260,11 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
 
   /* Check whether should update caption strips */
   if(area->spacetype == SPACE_CAPTIONS) {
-    Strip *leader_strip = style_leader_strip_ensure(ed);
-    if(leader_strip == nullptr) {
-      return;
-    }
-    if(leader_strip == strip) {
       WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CAPTIONS | NA_EDITED, scene);
-    }
   } else {
     CaptionsStripRef *ref = get_ref_by_strip(ed ,strip);
     mark_ref_style_custom(ref, true);
-
-      style_leader_strip_ensure(ed); /* Should be enough... ? */
-    }
-
-    ///leader_ref->use_custom_style = true;
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CAPTIONS | NA_EDITED, scene);
+  }
 }
 
 static void UNUSED_FUNCTION(rna_Strip_invalidate_composite_update)(Main * /*bmain*/,
@@ -1487,15 +1476,6 @@ static void rna_SequenceEditor_captions_strips_update(Main * /*bmain*/, Scene * 
   ///blender::seq::relations_invalidate_cache(scene, (Strip *)ptr->data);
 }
 
-static PointerRNA rna_SequenceEditor_captions_style_leader_get(PointerRNA *ptr)
-{
-  StructRNA *srna = RNA_struct_find("Strip");
-  Editing *ed = (Editing *)ptr->data;
-  Strip *strip = style_leader_strip_ensure(ed);
-  
-  return RNA_pointer_create_with_parent(*ptr, srna, strip);
-}
-
 static bool modifier_strip_cmp_fn(Strip *strip, void *arg_pt)
 {
   StripSearchData *data = static_cast<StripSearchData *>(arg_pt);
@@ -2689,6 +2669,13 @@ static void rna_def_strips_top_level(BlenderRNA *brna)
   RNA_api_strips(srna, false);
 }
 
+static void rna_def_text(StructRNA *srna); /* forward declaration */
+static void rna_def_captions_style(BlenderRNA *brna){
+  StructRNA *style_srna = RNA_def_struct(brna, "CaptionsStyle", nullptr);
+  RNA_def_struct_ui_text(style_srna, "Captions Style", "Text styling properties for captions");
+  RNA_def_struct_sdna(style_srna, "TextVars");
+  rna_def_text(style_srna);
+}
 static void rna_def_editor(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2861,15 +2848,11 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "captions_cache_dirty", 0);
   RNA_def_property_ui_text(prop, "Is Captions Cache Dirty", "Indicates whether the captions cache is dirty");
   
-  prop = RNA_def_property(srna, "captions_style_leader", PROP_POINTER, PROP_NONE);
-  RNA_def_property_struct_type(prop, "Strip");
-  RNA_def_property_pointer_funcs(prop, 
-                                  "rna_SequenceEditor_captions_style_leader_get",
-                                  nullptr, /* Read-only for the RNA */
-                                  nullptr, 
-                                  nullptr);
-  RNA_def_property_ui_text(prop, "Captions Style Leader Strip", "The strip defining the caption style, all other strips will follow its style");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CAPTIONS, NULL);
+  prop = RNA_def_property(srna, "captions_style", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "CaptionsStyle");
+  RNA_def_property_pointer_sdna(prop, nullptr, "captions_style");
+  RNA_def_property_ui_text(prop, "Captions Style", "Default text styling properties for captions");
+  
 
 
   /* functions */
@@ -3639,7 +3622,7 @@ static void rna_def_gaussian_blur(StructRNA *srna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 }
 
-static void rna_def_text(StructRNA *srna)
+void rna_def_text(StructRNA *srna)
 {
   static const EnumPropertyItem text_alignment_x_items[] = {
       {SEQ_TEXT_ALIGN_X_LEFT, "LEFT", ICON_ALIGN_LEFT, "Left", ""},
@@ -4458,6 +4441,7 @@ void RNA_def_sequencer(BlenderRNA *brna)
   rna_def_strip_transform(brna);
 
   rna_def_strip(brna);
+  rna_def_captions_style(brna);
   rna_def_editor(brna);
   rna_def_channel(brna);
 

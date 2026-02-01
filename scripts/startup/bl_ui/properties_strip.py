@@ -288,10 +288,7 @@ class STRIP_PT_effect_text_layout(StripButtonsPanel, Panel):
         self.draw_effect_text_layout(context.active_strip, self.layout)
     
     @classmethod
-    def draw_effect_text_layout(cls, strip, layout):
-        if(not strip or strip.type != 'TEXT' or not layout):
-            return
-        
+    def draw_effect_text_layout(cls, strip, layout):     
         layout.use_property_split = True
         col = layout.column()
         col.prop(strip, "location", text="Location")
@@ -313,10 +310,7 @@ class STRIP_PT_effect_text_style(StripButtonsPanel, Panel):
         self.draw_effect_text_style(context.active_strip, self.layout)
                 
     @classmethod
-    def draw_effect_text_style(cls, strip, layout):
-        if(not strip or strip.type != 'TEXT' or not layout):
-            return
-        
+    def draw_effect_text_style(cls, strip, layout):     
         layout.use_property_split = True
         col = layout.column()
 
@@ -350,16 +344,13 @@ class STRIP_PT_effect_text_outline(StripButtonsPanel, Panel):
         self.draw_effect_text_outline(context.active_strip, self.layout)
         
     @classmethod
-    def draw_effect_text_outline(cls, strip, layout):
-        if(not strip or strip.type != 'TEXT' or not layout):
-            return
-        
+    def draw_effect_text_outline(cls, strip, layout):  
         layout.use_property_split = True
 
         col = layout.column()
         col.prop(strip, "outline_color", text="Color")
         col.prop(strip, "outline_width", text="Width")
-        col.active = strip.use_outline and (not strip.mute)
+        col.active = strip.use_outline and (not getattr(strip, "mute", False))
 
 class STRIP_PT_effect_text_shadow(StripButtonsPanel, Panel):
     bl_label = "Shadow"
@@ -389,7 +380,7 @@ class STRIP_PT_effect_text_shadow(StripButtonsPanel, Panel):
         col.prop(strip, "shadow_angle", text="Angle")
         col.prop(strip, "shadow_offset", text="Offset")
         col.prop(strip, "shadow_blur", text="Blur")
-        col.active = strip.use_shadow and (not strip.mute)
+        col.active = strip.use_shadow and (not getattr(strip, "mute", False))
 
 class STRIP_PT_effect_text_box(StripButtonsPanel, Panel):
     bl_label = "Box"
@@ -413,16 +404,13 @@ class STRIP_PT_effect_text_box(StripButtonsPanel, Panel):
 
     @classmethod
     def draw_effect_text_box(cls, strip, layout):
-        if(not strip or strip.type != 'TEXT' or not layout):
-            return
-        
         layout.use_property_split = True
 
         col = layout.column()
         col.prop(strip, "box_color", text="Color")
         col.prop(strip, "box_margin", text="Margin")
         col.prop(strip, "box_roundness", text="Roundness")
-        col.active = strip.use_box and (not strip.mute)
+        col.active = strip.use_box and (not getattr(strip, "mute", False))
 
 
 class STRIP_PT_source(StripButtonsPanel, Panel):

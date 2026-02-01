@@ -643,7 +643,7 @@ struct Editing {
   /* Captions Data*/
   ListBaseT<CaptionsStripRef> captions_strips = {nullptr, nullptr};
   SeqTimelineChannel *captions_act_channel = nullptr;
-  struct CaptionsStripRef *captions_style_leader = nullptr;
+  struct TextVars *captions_style = nullptr;
   char captions_cache_dirty = 0;
   char _pad[7];
 
