@@ -2741,7 +2741,8 @@ void Layout::prop_search(PointerRNA *ptr,
                          PropertyRNA *item_searchprop,
                          const std::optional<StringRefNull> name_opt,
                          int icon,
-                         bool results_are_suggestions)
+                         bool results_are_suggestions,
+                         const std::optional<StringRef> placeholder)
 {
   const bool use_prop_sep = this->use_property_split();
   Block *block = this->block();
@@ -2808,6 +2809,11 @@ void Layout::prop_search(PointerRNA *ptr,
                                    ButtonType::SearchMenu,
                                    "UILayout.prop_search()");
   BLI_assert(but->type == ButtonType::SearchMenu);
+
+  if (placeholder) {
+    button_placeholder_set(but, *placeholder);
+  }
+
   button_configure_search(
       but, ptr, prop, searchptr, searchprop, item_searchprop, results_are_suggestions);
 }
@@ -2817,7 +2823,8 @@ void Layout::prop_search(PointerRNA *ptr,
                          PointerRNA *searchptr,
                          const StringRefNull searchpropname,
                          const std::optional<StringRefNull> name,
-                         int icon)
+                         int icon,
+                         const std::optional<StringRef> placeholder)
 {
   /* validate arguments */
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
@@ -2835,7 +2842,7 @@ void Layout::prop_search(PointerRNA *ptr,
     return;
   }
 
-  this->prop_search(ptr, prop, searchptr, searchprop, nullptr, name, icon, false);
+  this->prop_search(ptr, prop, searchptr, searchprop, nullptr, name, icon, false, placeholder);
 }
 
 void item_menutype_func(bContext *C, Layout *layout, void *arg_mt)
