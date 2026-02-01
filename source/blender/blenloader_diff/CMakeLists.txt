@@ -18,7 +18,6 @@ set(LIB
   PRIVATE bf::blenloader_core
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
 )
 
