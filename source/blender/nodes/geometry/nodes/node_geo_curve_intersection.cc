@@ -103,7 +103,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
 
   /* Outputs. */
-
   b.add_output<decl::Geometry>("Points");
   b.add_output<decl::Int>("Curve Index").field_on_all().usage_inference(enable_output);
   b.add_output<decl::Vector>("Direction")
@@ -203,6 +202,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .usage_by_menu("Mode", int16_t(IntersectionMode::Plane))
       .description("Center of plane");
 
+  /* Common sockets. */
   b.add_input<decl::Float>("Min Angle")
       .subtype(PROP_ANGLE)
       .min(0.0f)
