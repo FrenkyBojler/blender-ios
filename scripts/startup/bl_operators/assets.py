@@ -101,7 +101,7 @@ class AssetBrowserMetadataOperator:
 
 
 class ASSET_OT_tag_add(AssetBrowserMetadataOperator, Operator):
-    """Add a new keyword tag to the active asset."""
+    """Add a new keyword tag to the active asset"""
 
     bl_idname = "asset.tag_add"
     bl_label = "Add Asset Tag"
@@ -115,7 +115,7 @@ class ASSET_OT_tag_add(AssetBrowserMetadataOperator, Operator):
 
 
 class ASSET_OT_tag_remove(AssetBrowserMetadataOperator, Operator):
-    """Remove an existing keyword tag from the active asset."""
+    """Remove an existing keyword tag from the active asset"""
 
     bl_idname = "asset.tag_remove"
     bl_label = "Remove Asset Tag"
@@ -142,7 +142,7 @@ class ASSET_OT_tag_remove(AssetBrowserMetadataOperator, Operator):
 
 
 class ASSET_OT_open_containing_blend_file(BlendFileOpenerMixin, Operator):
-    """Open the blend file that contains the active asset."""
+    """Open the blend file that contains the active asset"""
 
     bl_idname = "asset.open_containing_blend_file"
     bl_label = "Open Blend File"
@@ -187,7 +187,7 @@ class ASSET_OT_open_containing_blend_file(BlendFileOpenerMixin, Operator):
 
 
 class OUTLINER_OT_open_library_blend(BlendFileOpenerMixin, Operator):
-    """Open the blend file of the selected library in a new Blender instance."""
+    """Open the blend file of the selected library in a new Blender instance"""
 
     bl_idname = "outliner.open_library_blend"
     bl_label = "Open Blend File"
