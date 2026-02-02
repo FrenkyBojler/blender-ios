@@ -34,7 +34,6 @@ template<typename IToken> struct TokenRange {
 
 /**
  * Lexer variant for very fast tokenization for the preprocessor.
- * Consider numbers as words (to avoid splitting and then merging later on).
  * Does not merge newlines and spaces together.
  * Convert all identifier strings (words) into unique identifiers (TokenAtom) for fast comparison.
  */
