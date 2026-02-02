@@ -1532,8 +1532,6 @@ static wmOperatorStatus edit_op_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  ed::sculpt_paint::face_set_overlay_check(*C, *op);
-
   const Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object &ob = *CTX_data_active_object(C);
@@ -1541,6 +1539,10 @@ static wmOperatorStatus edit_op_exec(bContext *C, wmOperator *op)
   const int active_face_set = RNA_int_get(op->ptr, "active_face_set");
   const EditMode mode = EditMode(RNA_enum_get(op->ptr, "mode"));
   const bool modify_hidden = RNA_boolean_get(op->ptr, "modify_hidden");
+
+  if (ELEM(mode, EditMode::Grow, EditMode::Shrink)) {
+    ed::sculpt_paint::face_set_overlay_check(*C, *op);
+  }
 
   switch (mode) {
     case EditMode::DeleteGeometry:
