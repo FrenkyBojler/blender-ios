@@ -135,17 +135,15 @@ static void process_leaf_node(const LeafNodeT &leaf_node,
                               MutableSpan<int> r_coord_z,
                               MutableSpan<typename LeafNodeT::ValueType> r_value)
 {
-  using NodeT = LeafNodeT;
-  using MaskT = NodeT::NodeMaskType;
-
-  const MaskT &mask = leaf_node.getValueMask();
+  using MaskT = LeafNodeT::NodeMaskType;
 
   r_is_tile.fill(false);
   r_extent.fill(1);
 
-  int64_t iter_i = 0;
+  const MaskT &mask = leaf_node.getValueMask();
+  int iter_i = 0;
   for (auto iter = mask.beginOn(); iter; ++iter, ++iter_i) {
-    const int64_t i_in_node = iter.pos();
+    const int i_in_node = iter.pos();
     const openvdb::Coord ijk = leaf_node.offsetToGlobalCoord(i_in_node);
     const float3 object_pos = math::transform_point(grid_transform,
                                                     float3(ijk.x(), ijk.y(), ijk.z()));
@@ -178,15 +176,15 @@ static void process_internal_node(const InternalNodeT &internal_node,
 {
   using MaskT = InternalNodeT::NodeMaskType;
   using UnionT = InternalNodeT::UnionType;
-  const UnionT *table = internal_node.getTable();
-  const MaskT &mask = internal_node.getValueMask();
-  int64_t iter_i = 0;
 
   r_is_tile.fill(true);
   r_extent.fill(InternalNodeT::ChildNodeType::DIM);
 
+  int iter_i = 0;
+  const UnionT *table = internal_node.getTable();
+  const MaskT &mask = internal_node.getValueMask();
   for (auto iter = mask.beginOn(); iter; ++iter, ++iter_i) {
-    const int64_t i_in_node = iter.pos();
+    const int i_in_node = iter.pos();
     const openvdb::Coord ijk = internal_node.offsetToGlobalCoord(i_in_node);
     const float3 object_pos = math::transform_point(grid_transform,
                                                     float3(ijk.x(), ijk.y(), ijk.z()));
@@ -222,23 +220,26 @@ static void process_tree(const TreeT &tree,
   using LeafNodeT = TreeT::LeafNodeType;
 
   openvdb::tree::NodeManager<const TreeT> node_manager(tree);
-  Map<const void *, IndexRange> slice_by_node;
-  int current_offset = 0;
 
+  /* Iterate over all nodes sequentially to figure out how many points need to be created. Also
+   * compute an #IndexRange for each node indicating where the points for that node will be put in
+   * the output. */
+  int current_offset = 0;
+  Map<const void *, IndexRange> slice_by_node;
   node_manager.foreachTopDown(
       [&]<typename NodeT>(const NodeT &node) {
         if constexpr (!std::is_same_v<NodeT, RootNodeT>) {
           using MaskT = NodeT::NodeMaskType;
           const MaskT &value_mask = node.getValueMask();
-          const int64_t values_num = value_mask.countOn();
+          const int values_num = value_mask.countOn();
           slice_by_node.add_new(&node, IndexRange(current_offset, values_num));
           current_offset += values_num;
         }
       },
       false);
+  const int active_value_count = current_offset;
 
-  const int64_t active_value_count = current_offset;
-
+  /* Initialize all the required output arrays.  */
   r_position.reinitialize(active_value_count);
   if (r_is_tile.has_value()) {
     r_is_tile->reinitialize(active_value_count);
@@ -259,6 +260,7 @@ static void process_tree(const TreeT &tree,
     r_value->reinitialize(active_value_count);
   }
 
+  /* Iterate over all grid nodes in parallel to compute all the required point attributes. */
   node_manager.foreachTopDown([&]<typename NodeT>(const NodeT &node) {
     if constexpr (std::is_same_v<NodeT, RootNodeT>) {
       /* Ignore. */
