@@ -24,6 +24,8 @@
 
 #include "text_intern.hh"
 
+namespace blender {
+
 /* ************************ header area region *********************** */
 
 /************************** properties ******************************/
@@ -37,10 +39,10 @@ static ARegion *text_has_properties_region(ScrArea *area)
     return region;
   }
 
-  /* add subdiv level; after header */
+  /* Add subdiv level; after header. */
   region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
-  /* is error! */
+  /* Is error! */
   if (region == nullptr) {
     return nullptr;
   }
@@ -87,9 +89,9 @@ static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
       draw = true;
     }
 
-    const char *active_category = UI_panel_category_active_get(region, false);
+    const char *active_category = ui::panel_category_active_get(region, false);
     if (active_category && !STREQ(active_category, "Text")) {
-      UI_panel_category_active_set(region, "Text");
+      ui::panel_category_active_set(region, "Text");
       draw = true;
     }
 
@@ -99,7 +101,7 @@ static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
       ED_region_do_draw(C, region);
     }
 
-    UI_textbutton_activate_rna(C, region, st, "find_text");
+    ui::textbutton_activate_rna(C, region, st, "find_text");
 
     ED_region_tag_redraw(region);
   }
@@ -108,7 +110,7 @@ static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
 
 void TEXT_OT_start_find(wmOperatorType *ot)
 {
-  /* identifiers */
+  /* Identifiers. */
   ot->name = "Find";
   ot->description = "Start searching text";
   ot->idname = "TEXT_OT_start_find";
@@ -117,3 +119,5 @@ void TEXT_OT_start_find(wmOperatorType *ot)
   ot->exec = text_text_search_exec;
   ot->poll = text_properties_poll;
 }
+
+}  // namespace blender

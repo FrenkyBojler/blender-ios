@@ -14,6 +14,8 @@
 #include "vk_image_view.hh"
 #include "vk_memory.hh"
 
+#include "BLI_enum_flags.hh"
+
 namespace blender::gpu {
 
 class VKSampler;
@@ -26,10 +28,13 @@ enum class VKImageViewFlags {
   DEFAULT = 0,
   NO_SWIZZLING = 1 << 0,
 };
-ENUM_OPERATORS(VKImageViewFlags, VKImageViewFlags::NO_SWIZZLING)
+ENUM_OPERATORS(VKImageViewFlags)
 
 class VKTexture : public Texture {
+  friend class VKDescriptorSetTracker;
   friend class VKDescriptorSetUpdator;
+  friend class VKContext;
+  friend class VKTexturePool;
 
   /**
    * Texture format how the texture is stored on the device.
@@ -72,6 +77,15 @@ class VKTexture : public Texture {
                                       false,
                                       VKImageViewArrayed::DONT_CARE};
 
+  /**
+   * \brief Has this texture data.
+   *
+   * Is used to decide if host image copy can be performed to overwrite the data outside the
+   * render-graph.
+   */
+  bool has_data_ = false;
+  bool allow_host_image_copy_ = false;
+
  public:
   VKTexture(const char *name) : Texture(name) {}
 
@@ -81,9 +95,10 @@ class VKTexture : public Texture {
   void copy_to(Texture *tex) override;
   void copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspect);
   void clear(eGPUDataFormat format, const void *data) override;
-  void clear_depth_stencil(const eGPUFrameBufferBits buffer,
+  void clear_depth_stencil(const GPUFrameBufferBits buffer,
                            float clear_depth,
-                           uint clear_stencil);
+                           uint clear_stencil,
+                           std::optional<int> layer);
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
   void *read(int mip, eGPUDataFormat format) override;
@@ -94,17 +109,20 @@ class VKTexture : public Texture {
                   int extent[3],
                   eGPUDataFormat format,
                   const void *data,
-                  VKPixelBuffer *pixel_buffer);
+                  VKPixelBuffer *pixel_buffer,
+                  const uint unpack_row_length = 0);
 
-  void update_sub(
-      int mip, int offset[3], int extent[3], eGPUDataFormat format, const void *data) override;
+  void update_sub(int mip,
+                  int offset[3],
+                  int extent[3],
+                  eGPUDataFormat format,
+                  const void *data,
+                  const uint unpack_row_length) override;
   void update_sub(int offset[3],
                   int extent[3],
                   eGPUDataFormat format,
                   GPUPixelBuffer *pixbuf) override;
 
-  /* TODO(fclem): Legacy. Should be removed at some point. */
-  uint gl_bindcode_get() const override;
   /**
    * Export the memory associated with this texture to be imported by a different
    * API/Process/Instance.
@@ -148,6 +166,8 @@ class VKTexture : public Texture {
                      int mip_offset,
                      int layer_offset,
                      bool use_stencil) override;
+  /* Initialize VKTexture with a swapchain image. */
+  void init_swapchain(VkImage vk_image, TextureFormat gpu_format);
 
  private:
   /** Is this texture a view of another texture. */

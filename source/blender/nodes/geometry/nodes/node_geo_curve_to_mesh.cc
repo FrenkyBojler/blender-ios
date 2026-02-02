@@ -8,6 +8,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_join_geometries.hh"
 #include "GEO_randomize.hh"
 
@@ -126,7 +127,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::GeometryComponentEditData::remember_deformed_positions_if_necessary(curve_set);
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
 
-  curve_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(curve_set, [&](GeometrySet &geometry_set) {
     if (geometry_set.has_curves()) {
       const Curves &curves = *geometry_set.get_curves();
 
@@ -134,7 +135,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       Mesh *mesh = curve_to_mesh(
           curves.geometry.wrap(), profile_set, context, scale_field, fill_caps, attribute_filter);
       if (mesh != nullptr) {
-        mesh->mat = static_cast<Material **>(MEM_dupallocN(curves.mat));
+        mesh->mat = MEM_dupalloc(curves.mat);
         mesh->totcol = curves.totcol;
       }
       geometry_set.replace_mesh(mesh);
@@ -142,7 +143,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (geometry_set.has_grease_pencil()) {
       grease_pencil_to_mesh(geometry_set, profile_set, scale_field, fill_caps, attribute_filter);
     }
-    geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
+    geometry_set.keep_only({GeometryComponent::Type::Mesh,
+                            GeometryComponent::Type::Instance,
+                            GeometryComponent::Type::Edit});
   });
 
   params.set_output("Mesh", std::move(curve_set));
@@ -150,7 +153,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeCurveToMesh", GEO_NODE_CURVE_TO_MESH);
   ntype.ui_name = "Curve to Mesh";
@@ -160,7 +163,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

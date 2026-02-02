@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_outline_info.hh"
+#include "infos/overlay_outline_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_outline_prepass_gpencil)
 
@@ -44,8 +44,8 @@ void main()
                                unused_color,
                                unused_strength,
                                unused_uv,
-                               gp_interp_flat.sspos1,
-                               gp_interp_flat.sspos2,
+                               gp_interp_flat.sspos,
+                               gp_interp_flat.sspos_adj,
                                gp_interp_flat.point_length,
                                gp_interp_flat.aspect,
                                gp_interp_noperspective.thickness,

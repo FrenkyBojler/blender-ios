@@ -62,9 +62,8 @@ bool device_hip_init()
       LOG_WARNING << "HIPEW initialization failed: Error setting up atexit() handler";
     }
     else if (hipew_result == HIPEW_ERROR_OLD_DRIVER) {
-      LOG_WARNING
-          << "HIPEW initialization failed: Driver version too old, requires AMD Radeon Pro "
-             "24.Q2 driver or newer";
+      LOG_WARNING << "HIPEW initialization failed: Driver version too old, requires AMD Adrenalin "
+                     "driver 24.9.1 or newer, or AMD Radeon Pro driver 24.Q4 or newer";
     }
     else {
       LOG_WARNING << "HIPEW initialization failed: Error opening HIP dynamic library";
@@ -168,10 +167,7 @@ void device_hip_info(vector<DeviceInfo> &devices)
     info.description = string(name);
     info.num = num;
 
-    /* Disable MNEE as it causes stalls or has rendering artifacts on most AMD GPU configurations
-     * due to compiler bugs. And as further adjustments have been made to other areas of Cycles,
-     * more and more AMD GPUs are affected by these issues. */
-    info.has_mnee = false;
+    info.has_mnee = true;
     info.has_nanovdb = true;
 
     info.has_gpu_queue = true;

@@ -100,8 +100,7 @@ static void subdivide_attribute_linear(const OffsetIndices<int> src_points_by_cu
                                        const GSpan src,
                                        GMutableSpan dst)
 {
-  bke::attribute_math::convert_to_static_type(dst.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(dst.type(), [&]<typename T>() {
     subdivide_attribute_linear(src_points_by_curve,
                                dst_points_by_curve,
                                selection,
@@ -327,7 +326,7 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
 
   Vector<bke::AttributeTransferData> attributes_to_transfer =
       bke::retrieve_attributes_for_transfer(
-          src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, attribute_filter);
+          src_attributes, dst_attributes, {bke::AttrDomain::Point}, attribute_filter);
 
   auto subdivide_catmull_rom = [&](const IndexMask &selection) {
     for (auto &attribute : attributes_to_transfer) {
@@ -356,8 +355,8 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
     const Span<float3> src_positions = src_curves.positions();
     const VArraySpan<int8_t> src_types_l{src_curves.handle_types_left()};
     const VArraySpan<int8_t> src_types_r{src_curves.handle_types_right()};
-    const Span<float3> src_handles_l = src_curves.handle_positions_left();
-    const Span<float3> src_handles_r = src_curves.handle_positions_right();
+    const Span<float3> src_handles_l = *src_curves.handle_positions_left();
+    const Span<float3> src_handles_r = *src_curves.handle_positions_right();
 
     MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
     MutableSpan<int8_t> dst_types_l = dst_curves.handle_types_left_for_write();

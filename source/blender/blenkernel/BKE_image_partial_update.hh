@@ -9,7 +9,7 @@
  * image that are changed. These areas are organized in chunks. Changes that happen over time are
  * organized in changesets.
  *
- * A common use case is to update #blender::gpu::Texture for drawing where only that part is
+ * A common use case is to update #gpu::Texture for drawing where only that part is
  * uploaded that only changed.
  */
 
@@ -21,12 +21,13 @@
 #include "BKE_image_wrappers.hh"
 
 #include "DNA_image_types.h"
+struct PartialUpdateUser;
+namespace blender {
 
 extern "C" {
-struct PartialUpdateUser;
 }
 
-namespace blender::bke::image::partial_update {
+namespace bke::image::partial_update {
 
 /* --- image_partial_update.cc --- */
 /** Image partial updates. */
@@ -78,14 +79,17 @@ enum class ePartialUpdateIterResult {
  *
  * Invoke #BKE_image_partial_update_get_next_change to iterate over the collected tiles.
  *
- * \returns ePartialUpdateCollectResult::FullUpdateNeeded: called should not use partial updates
- * but recalculate the full image. This result can be expected when called for the first time for a
- * user and when it isn't possible to reconstruct the changes as the internal state doesn't have
- * enough data stored. ePartialUpdateCollectResult::NoChangesDetected: The have been no changes
- * detected since last invoke for the same user.
- * ePartialUpdateCollectResult::PartialChangesDetected: Parts of the image has been updated since
- * last invoke for the same user. The changes can be read by using
- * #BKE_image_partial_update_get_next_change.
+ * \returns
+ * - #ePartialUpdateCollectResult::FullUpdateNeeded:
+ *   called should not use partial updates but recalculate the full image.
+ *   This result can be expected when called for the first time for a
+ *   user and when it isn't possible to reconstruct the changes as the internal state doesn't have
+ *   enough data stored.
+ * - #ePartialUpdateCollectResult::NoChangesDetected:
+ *   There have been no changes detected since last invoke for the same user.
+ * - #ePartialUpdateCollectResult::PartialChangesDetected:
+ *   Parts of the image has been updated since last invoke for the same user.
+ *   The changes can be read by using #BKE_image_partial_update_get_next_change.
  */
 ePartialUpdateCollectResult BKE_image_partial_update_collect_changes(Image *image,
                                                                      PartialUpdateUser *user);
@@ -277,4 +281,6 @@ template<typename TileData = NoTileData> struct PartialUpdateChecker {
   }
 };
 
-}  // namespace blender::bke::image::partial_update
+}  // namespace bke::image::partial_update
+
+}  // namespace blender

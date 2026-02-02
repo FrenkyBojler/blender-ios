@@ -27,6 +27,8 @@
 
 #include "gl_debug.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.debug"};
 
 /* Avoid too much NVidia buffer info in the output log. */
@@ -34,7 +36,7 @@ static CLG_LogRef LOG = {"gpu.debug"};
 /* Avoid unneeded shader statistics. */
 #define TRIM_SHADER_STATS_INFO 1
 
-namespace blender::gpu::debug {
+namespace gpu::debug {
 
 /* -------------------------------------------------------------------- */
 /** \name Debug Callbacks
@@ -135,40 +137,16 @@ static void APIENTRY debug_callback(GLenum /*source*/,
 
 void init_gl_callbacks()
 {
-  CLOG_ENSURE(&LOG);
-
-  char msg[256] = "";
-  const char format[] = "Successfully hooked OpenGL debug callback using %s";
-
-  if (epoxy_gl_version() >= 43 || epoxy_has_gl_extension("GL_KHR_debug")) {
-    SNPRINTF(msg, format, epoxy_gl_version() >= 43 ? "OpenGL 4.3" : "KHR_debug extension");
-    glEnable(GL_DEBUG_OUTPUT);
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    glDebugMessageCallback((GLDEBUGPROC)debug_callback, nullptr);
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-    glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION,
-                         GL_DEBUG_TYPE_MARKER,
-                         0,
-                         GL_DEBUG_SEVERITY_NOTIFICATION,
-                         -1,
-                         msg);
-  }
-  else if (epoxy_has_gl_extension("GL_ARB_debug_output")) {
-    SNPRINTF(msg, format, "ARB_debug_output");
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    glDebugMessageCallbackARB((GLDEBUGPROCARB)debug_callback, nullptr);
-    glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-    glDebugMessageInsertARB(GL_DEBUG_SOURCE_APPLICATION_ARB,
-                            GL_DEBUG_TYPE_OTHER_ARB,
-                            0,
-                            GL_DEBUG_SEVERITY_LOW_ARB,
-                            -1,
-                            msg);
-  }
-  else {
-    CLOG_STR_WARN(&LOG, "Failed to hook OpenGL debug callback. Use fallback debug layer.");
-    init_debug_layer();
-  }
+  glEnable(GL_DEBUG_OUTPUT);
+  glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+  glDebugMessageCallback(static_cast<GLDEBUGPROC>(debug_callback), nullptr);
+  glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+  glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION,
+                       GL_DEBUG_TYPE_MARKER,
+                       0,
+                       GL_DEBUG_SEVERITY_NOTIFICATION,
+                       -1,
+                       "Successfully hooked OpenGL debug callback");
 }
 
 /** \} */
@@ -380,9 +358,9 @@ void object_label(GLenum type, GLuint object, const char *name)
 
 /** \} */
 
-}  // namespace blender::gpu::debug
+}  // namespace gpu::debug
 
-namespace blender::gpu {
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Debug Groups
@@ -576,4 +554,5 @@ void GLContext::debug_unbind_all_ssbo()
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

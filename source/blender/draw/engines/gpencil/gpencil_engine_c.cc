@@ -16,7 +16,7 @@
 #include "BKE_material.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
 #include "BKE_camera.h"
 
@@ -172,13 +172,14 @@ void Instance::begin_sync()
   this->use_layer_fb = false;
   this->use_object_fb = false;
   this->use_mask_fb = false;
-  this->use_separate_pass =
-      draw_ctx->is_viewport_compositor_enabled() ?
-          bke::compositor::get_used_passes(*scene, view_layer).contains("GreasePencil") :
-          false;
-  /* Always use high precision for render and viewport compositor (viewport compositor only takes
-   * RGBA16F/32F formats). */
-  this->use_signed_fb = this->use_separate_pass || !this->is_viewport;
+
+  const bool use_viewport_compositor = draw_ctx->is_viewport_compositor_enabled();
+  const Set<std::string> needed_passes = bke::compositor::get_used_passes(*scene, view_layer);
+  this->need_combined_pass = use_viewport_compositor &&
+                             needed_passes.contains(RE_PASSNAME_COMBINED);
+  this->need_grease_pencil_pass = use_viewport_compositor &&
+                                  needed_passes.contains(RE_PASSNAME_GREASE_PENCIL);
+  this->use_signed_fb = !this->is_viewport;
 
   if (draw_ctx->v3d) {
     const bool hide_overlay = ((draw_ctx->v3d->flag2 & V3D_HIDE_OVERLAYS) != 0);
@@ -253,7 +254,7 @@ void Instance::begin_sync()
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 
-  Camera *cam = static_cast<Camera *>(
+  Camera *cam = id_cast<Camera *>(
       (this->camera != nullptr && this->camera->type == OB_CAMERA) ? this->camera->data : nullptr);
 
   /* Pseudo DOF setup. */
@@ -302,8 +303,8 @@ bool Instance::is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pen
       continue;
     }
 
-    LISTBASE_FOREACH (GreasePencilLayerMask *, mask, &layer->masks) {
-      if (STREQ(mask->layer_name, mask_layer.name().c_str())) {
+    for (GreasePencilLayerMask &mask : layer->masks) {
+      if (STREQ(mask.layer_name, mask_layer.name().c_str())) {
         return true;
       }
     }
@@ -448,10 +449,10 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
                             ((layer.base.flag & GP_LAYER_TREE_NODE_USE_LIGHTS) != 0) &&
                             (ob->dtx & OB_USE_GPENCIL_LIGHTS);
 
-    GPUUniformBuf *lights_ubo = (use_lights) ? this->global_light_pool->ubo :
-                                               this->shadeless_light_pool->ubo;
+    gpu::UniformBuf *lights_ubo = (use_lights) ? this->global_light_pool->ubo :
+                                                 this->shadeless_light_pool->ubo;
 
-    GPUUniformBuf *ubo_mat;
+    gpu::UniformBuf *ubo_mat;
     gpencil_material_resources_get(matpool, 0, nullptr, nullptr, &ubo_mat);
 
     pass.bind_ubo("gp_lights", lights_ubo);
@@ -503,7 +504,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
         return;
       }
 
-      GPUUniformBuf *new_ubo_mat;
+      gpu::UniformBuf *new_ubo_mat;
       gpu::Texture *new_tex_fill = nullptr;
       gpu::Texture *new_tex_stroke = nullptr;
       gpencil_material_resources_get(
@@ -592,13 +593,13 @@ void Instance::end_sync()
   BLI_memblock_iter iter;
   BLI_memblock_iternew(this->gp_material_pool, &iter);
   MaterialPool *pool;
-  while ((pool = (MaterialPool *)BLI_memblock_iterstep(&iter))) {
+  while ((pool = static_cast<MaterialPool *>(BLI_memblock_iterstep(&iter)))) {
     GPU_uniformbuf_update(pool->ubo, pool->mat_data);
   }
 
   BLI_memblock_iternew(this->gp_light_pool, &iter);
   LightPool *lpool;
-  while ((lpool = (LightPool *)BLI_memblock_iterstep(&iter))) {
+  while ((lpool = static_cast<LightPool *>(BLI_memblock_iterstep(&iter)))) {
     GPU_uniformbuf_update(lpool->ubo, lpool->light_data);
   }
 }
@@ -612,9 +613,7 @@ void Instance::acquire_resources()
 
   const int2 size = int2(draw_ctx->viewport_size_get());
 
-  const gpu::TextureFormat format_color = this->use_signed_fb ?
-                                              gpu::TextureFormat::SFLOAT_16_16_16_16 :
-                                              gpu::TextureFormat::UFLOAT_11_11_10;
+  const gpu::TextureFormat format_color = gpu::TextureFormat::SFLOAT_16_16_16_16;
   const gpu::TextureFormat format_reveal = this->use_signed_fb ?
                                                gpu::TextureFormat::SFLOAT_16_16_16_16 :
                                                gpu::TextureFormat::UNORM_10_10_10_2;
@@ -660,11 +659,20 @@ void Instance::acquire_resources()
                          GPU_ATTACHMENT_TEXTURE(this->mask_tx));
   }
 
-  if (this->use_separate_pass) {
+  /* The engine might not support passes, so check if the combined pass actually exists before
+   * rendering grease pencil to it. */
+  const bool combined_pass_exists = DRW_viewport_pass_texture_exists(RE_PASSNAME_COMBINED);
+  if (this->need_combined_pass && combined_pass_exists) {
+    draw::TextureFromPool &combined_pass = DRW_viewport_pass_texture_get(RE_PASSNAME_COMBINED);
+    this->combined_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(combined_pass));
+  }
+
+  if (this->need_grease_pencil_pass) {
     const int2 size = int2(draw_ctx->viewport_size_get());
-    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get("GreasePencil");
-    output_pass_texture.acquire(size, gpu::TextureFormat::SFLOAT_16_16_16_16);
-    this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(output_pass_texture));
+    draw::TextureFromPool &grease_pencil_pass = DRW_viewport_pass_texture_get(
+        RE_PASSNAME_GREASE_PENCIL);
+    grease_pencil_pass.acquire(size, gpu::TextureFormat::SFLOAT_16_16_16_16);
+    this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(grease_pencil_pass));
   }
 }
 
@@ -741,7 +749,7 @@ void Instance::draw_object(View &view, tObject *ob)
 
   GPU_debug_group_begin("GPencil Object");
 
-  GPUFrameBuffer *fb_object = (ob->vfx.first) ? this->object_fb : this->gpencil_fb;
+  gpu::FrameBuffer *fb_object = (ob->vfx.first) ? this->object_fb : this->gpencil_fb;
 
   GPU_framebuffer_bind(fb_object);
   GPU_framebuffer_clear_depth_stencil(fb_object, ob->is_drawmode3d ? 1.0f : 0.0f, 0x00);
@@ -750,7 +758,7 @@ void Instance::draw_object(View &view, tObject *ob)
     GPU_framebuffer_multi_clear(fb_object, clear_cols);
   }
 
-  LISTBASE_FOREACH (tLayer *, layer, &ob->layers) {
+  for (tLayer *layer = ob->layers.first; layer; layer = layer->next) {
     if (layer->mask_bits) {
       draw_mask(view, ob, layer);
     }
@@ -771,7 +779,7 @@ void Instance::draw_object(View &view, tObject *ob)
     }
   }
 
-  LISTBASE_FOREACH (tVfx *, vfx, &ob->vfx) {
+  for (tVfx *vfx = ob->vfx.first; vfx; vfx = vfx->next) {
     GPU_framebuffer_bind(*(vfx->target_fb));
     manager->submit(*vfx->vfx_ps);
   }
@@ -836,7 +844,7 @@ void Instance::draw(Manager &manager)
 
   View &view = View::default_get();
 
-  LISTBASE_FOREACH (tObject *, ob, &this->tobjects) {
+  for (tObject *ob = this->tobjects.first; ob; ob = ob->next) {
     draw_object(view, ob);
   }
 

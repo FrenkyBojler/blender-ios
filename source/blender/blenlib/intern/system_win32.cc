@@ -23,6 +23,8 @@
 
 #include "BLI_system.h" /* Own include. */
 
+namespace blender {
+
 static const char *bli_windows_get_exception_description(const DWORD exceptioncode)
 {
   switch (exceptioncode) {
@@ -66,6 +68,11 @@ static const char *bli_windows_get_exception_description(const DWORD exceptionco
       return "EXCEPTION_SINGLE_STEP";
     case EXCEPTION_STACK_OVERFLOW:
       return "EXCEPTION_STACK_OVERFLOW";
+      /* This one does not have a known define, but the MSVC runtime raises this for uncaught C++
+       * exceptions. See https://devblogs.microsoft.com/oldnewthing/20100730-00/?p=13273 for
+       * details. */
+    case 0xe06d7363:
+      return "Microsoft C++ Exception";
     default:
       return "UNKNOWN EXCEPTION";
   }
@@ -92,7 +99,7 @@ static void bli_windows_get_module_version(const char *file, char *buffer, size_
   LPBYTE lpBuffer = nullptr;
   DWORD verSize = GetFileVersionInfoSize(file, &verHandle);
   if (verSize != 0) {
-    LPSTR verData = (LPSTR)MEM_callocN(verSize, "crash module version");
+    LPSTR verData = (LPSTR)MEM_new_zeroed(verSize, "crash module version");
 
     if (GetFileVersionInfo(file, verHandle, verSize, verData)) {
       if (VerQueryValue(verData, "\\", (VOID FAR * FAR *)&lpBuffer, &size)) {
@@ -113,7 +120,7 @@ static void bli_windows_get_module_version(const char *file, char *buffer, size_
         }
       }
     }
-    MEM_freeN(verData);
+    MEM_delete(verData);
   }
 }
 
@@ -122,8 +129,9 @@ static void bli_windows_system_backtrace_exception_record(FILE *fp, PEXCEPTION_R
   char module[MAX_PATH];
   fprintf(fp, "Exception Record:\n\n");
   fprintf(fp,
-          "ExceptionCode         : %s\n",
-          bli_windows_get_exception_description(record->ExceptionCode));
+          "ExceptionCode         : %s (0x%.8x)\n",
+          bli_windows_get_exception_description(record->ExceptionCode),
+          record->ExceptionCode);
   fprintf(fp, "Exception Address     : 0x%p\n", record->ExceptionAddress);
   bli_windows_get_module_name(record->ExceptionAddress, module, sizeof(module));
   fprintf(fp, "Exception Module      : %s\n", module);
@@ -171,8 +179,8 @@ static bool BLI_windows_system_backtrace_run_trace(FILE *fp, HANDLE hThread, PCO
 
   bool result = true;
 
-  PSYMBOL_INFO symbolinfo = static_cast<PSYMBOL_INFO>(
-      MEM_callocN(sizeof(SYMBOL_INFO) + max_symbol_length * sizeof(char), "crash Symbol table"));
+  PSYMBOL_INFO symbolinfo = static_cast<PSYMBOL_INFO>(MEM_new_zeroed(
+      sizeof(SYMBOL_INFO) + max_symbol_length * sizeof(char), "crash Symbol table"));
   symbolinfo->MaxNameLen = max_symbol_length - 1;
   symbolinfo->SizeOfStruct = sizeof(SYMBOL_INFO);
 
@@ -242,7 +250,7 @@ static bool BLI_windows_system_backtrace_run_trace(FILE *fp, HANDLE hThread, PCO
       break;
     }
   }
-  MEM_freeN(symbolinfo);
+  MEM_delete(symbolinfo);
   fprintf(fp, "\n\n");
   return result;
 }
@@ -596,17 +604,15 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
       std::wstring(filepath_crashlog_utf16);
 
   TASKDIALOGCONFIG config = {0};
-  const TASKDIALOG_BUTTON buttons[] = {
-    {IDRETRY, L"Restart"},
+  const TASKDIALOG_BUTTON buttons[] = {{IDRETRY, L"Restart"},
 #if 0
     /* This lead to a large influx of low quality reports on the tracker,
      * and has been disabled for that reason, we can re-enable this when
      * a better workflow has been established. */
     {IDOK, L"Report a Bug"},
 #endif
-    {IDHELP, L"View Crash Log"},
-    {IDCLOSE, L"Close"}
-  };
+                                       {IDHELP, L"View Crash Log"},
+                                       {IDCLOSE, L"Close"}};
 
   config.cbSize = sizeof(config);
   config.hwndParent = GetActiveWindow();
@@ -685,8 +691,10 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
   };
 
   TaskDialogIndirect(&config, nullptr, nullptr, nullptr);
-  free((void *)filepath_crashlog_utf16);
-  free((void *)filepath_relaunch_utf16);
+  free(static_cast<void *>(filepath_crashlog_utf16));
+  free(static_cast<void *>(filepath_relaunch_utf16));
 }
 
 /** \} */
+
+}  // namespace blender

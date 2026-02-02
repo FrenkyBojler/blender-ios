@@ -7,14 +7,13 @@
  */
 
 #include "BLI_bounds.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_rect.h"
 
 #include "DRW_render.hh"
 
 #include "DNA_camera_types.h"
 #include "DNA_view3d_types.h"
-
-#include "BKE_camera.h"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -36,7 +35,7 @@ void Camera::init()
   CameraData &data = data_;
 
   if (camera_eval && camera_eval->type == OB_CAMERA) {
-    const ::Camera *cam = reinterpret_cast<const ::Camera *>(camera_eval->data);
+    const blender::Camera *cam = reinterpret_cast<const blender::Camera *>(camera_eval->data);
     switch (cam->type) {
       default:
       case CAM_PERSP:
@@ -77,6 +76,10 @@ void Camera::init()
   float overscan = 0.0f;
   if ((inst_.scene->eevee.flag & SCE_EEVEE_OVERSCAN) && (inst_.drw_view || inst_.render)) {
     overscan = inst_.scene->eevee.overscan / 100.0f;
+    if (inst_.drw_view && (inst_.rv3d->dist == 0.0f || v3d_camera_params_get().lens == 0.0f)) {
+      /* In these cases we need to use the v3d winmat as-is. */
+      overscan = 0.0f;
+    }
   }
   overscan_changed_ = assign_if_different(overscan_, overscan);
   camera_changed_ = assign_if_different(last_camera_object_, inst_.camera_orig_object);
@@ -134,38 +137,37 @@ void Camera::sync()
     data.viewmat = inst_.drw_view->viewmat();
     data.viewinv = inst_.drw_view->viewinv();
 
-    CameraParams params;
-    BKE_camera_params_init(&params);
+    CameraParams params = v3d_camera_params_get();
 
-    if (inst_.rv3d->persp == RV3D_CAMOB && inst_.is_viewport_image_render) {
-      /* We are rendering camera view, no need for pan/zoom params from viewport. */
-      BKE_camera_params_from_object(&params, camera_eval);
+    if (inst_.rv3d->dist > 0.0f && params.lens > 0.0f) {
+      BKE_camera_params_compute_viewplane(&params, UNPACK2(display_extent), 1.0f, 1.0f);
+
+      BLI_assert(BLI_rctf_size_x(&params.viewplane) > 0.0f);
+      BLI_assert(BLI_rctf_size_y(&params.viewplane) > 0.0f);
+
+      BKE_camera_params_crop_viewplane(&params.viewplane, UNPACK2(display_extent), &film_rect);
+
+      RE_GetWindowMatrixWithOverscan(params.is_ortho,
+                                     params.clip_start,
+                                     params.clip_end,
+                                     params.viewplane,
+                                     overscan_,
+                                     data.winmat.ptr());
     }
     else {
-      BKE_camera_params_from_view3d(&params, inst_.depsgraph, inst_.v3d, inst_.rv3d);
-    }
-
-    BKE_camera_params_compute_viewplane(&params, UNPACK2(display_extent), 1.0f, 1.0f);
-
-    BKE_camera_params_crop_viewplane(&params.viewplane, UNPACK2(display_extent), &film_rect);
-
-    RE_GetWindowMatrixWithOverscan(params.is_ortho,
-                                   params.clip_start,
-                                   params.clip_end,
-                                   params.viewplane,
-                                   overscan_,
-                                   data.winmat.ptr());
-
-    if (params.lens == 0.0f) {
-      /* Can happen for the case of XR.
+      /* Can happen for the case of XR or if `rv3d->dist == 0`.
        * In this case the produced winmat is degenerate. So just revert to the input matrix. */
       data.winmat = inst_.drw_view->winmat();
-    }
-
-    if (isnan(data.winmat.w.x)) {
-      /* Can happen in weird corner case (see #134320).
-       * Simply fall back to something that we can render with. */
-      data.winmat = math::projection::orthographic(0.01f, 0.01f, 0.01f, 0.01f, -1000.0f, +1000.0f);
+      if (!camera_eval) {
+        /* Apply the render region, but only for non-camera views. See #153033. */
+        /* FIXME(@pragma37): This is still broken with Camera View + Render Region + Fly/Walk
+         * Navigation. Untangle this whole walk/fly navigation projection matrix mess. */
+        float2 film_center = float2(film_offset) + float2(film_extent) / 2.0f;
+        float2 uv_offset = float2(0.5f) - (film_center / float2(display_extent));
+        data.winmat = math::projection::translate(data.winmat, uv_offset * 2.0f);
+        data.winmat = math::from_scale<float4x4>(float4(1.0f / data.uv_scale, 1.0f, 1.0f)) *
+                      data.winmat;
+      }
     }
   }
   else if (inst_.render) {
@@ -192,13 +194,21 @@ void Camera::sync()
     data.winmat = math::projection::perspective(-0.1f, 0.1f, -0.1f, 0.1f, 0.1f, 1.0f);
   }
 
+  /* Compute a part of the frustum planes. In some cases (#134320, #148258)
+   * the window matrix becomes degenerate during render or draw_view.
+   * Simply fall back to something we can render with. */
+  float bottom = (-data.winmat[3][1] - 1.0f) / data.winmat[1][1];
+  if (std::isnan(bottom) || std::isinf(std::abs(bottom))) {
+    data.winmat = math::projection::orthographic(0.01f, 0.01f, 0.01f, 0.01f, -1000.0f, +1000.0f);
+  }
+
   data.wininv = math::invert(data.winmat);
   data.persmat = data.winmat * data.viewmat;
   data.persinv = math::invert(data.persmat);
 
   is_camera_object_ = false;
   if (camera_eval && camera_eval->type == OB_CAMERA) {
-    const ::Camera *cam = reinterpret_cast<const ::Camera *>(camera_eval->data);
+    const blender::Camera *cam = reinterpret_cast<const blender::Camera *>(camera_eval->data);
     data.clip_near = cam->clip_start;
     data.clip_far = cam->clip_end;
 #if 0 /* TODO(fclem): Make fisheye properties inside blender. */
@@ -281,6 +291,24 @@ void Camera::update_bounds()
   float2 p0 = float2(bbox.vec[0]) / (this->is_perspective() ? bbox.vec[0][2] : 1.0f);
   float2 p1 = float2(bbox.vec[7]) / (this->is_perspective() ? bbox.vec[7][2] : 1.0f);
   data_.screen_diagonal_length = math::distance(p0, p1);
+}
+
+CameraParams Camera::v3d_camera_params_get() const
+{
+  BLI_assert(inst_.drw_view);
+
+  CameraParams params;
+  BKE_camera_params_init(&params);
+
+  if (inst_.rv3d->persp == RV3D_CAMOB && inst_.is_viewport_image_render) {
+    /* We are rendering camera view, no need for pan/zoom params from viewport. */
+    BKE_camera_params_from_object(&params, inst_.camera_eval_object);
+  }
+  else {
+    BKE_camera_params_from_view3d(&params, inst_.depsgraph, inst_.v3d, inst_.rv3d);
+  }
+
+  return params;
 }
 
 /** \} */

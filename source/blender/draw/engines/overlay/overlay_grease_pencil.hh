@@ -35,11 +35,13 @@ namespace blender::draw::overlay {
 class GreasePencil : Overlay {
  private:
   PassSimple edit_grease_pencil_ps_ = {"GPencil Edit"};
+  PassSimple::Sub *edit_handles_ = nullptr;
   PassSimple::Sub *edit_points_ = nullptr;
   PassSimple::Sub *edit_lines_ = nullptr;
 
   PassSimple grid_ps_ = {"GPencil Grid"};
 
+  bool show_handles_ = false;
   bool show_points_ = false;
   bool show_lines_ = false;
   bool show_grid_ = false;
@@ -72,7 +74,7 @@ class GreasePencil : Overlay {
     const bool show_lines = (v3d->gp_flag & V3D_GP_SHOW_EDIT_LINES);
     const bool show_direction = (v3d->gp_flag & V3D_GP_SHOW_STROKE_DIRECTION);
 
-    show_points_ = show_lines_ = show_weight_ = false;
+    show_handles_ = show_points_ = show_lines_ = show_weight_ = false;
 
     switch (state.object_mode) {
       case OB_MODE_PAINT_GREASE_PENCIL:
@@ -89,6 +91,7 @@ class GreasePencil : Overlay {
         show_points_ = ELEM(
             ts->gpencil_selectmode_edit, GP_SELECTMODE_POINT, GP_SELECTMODE_SEGMENT);
         show_lines_ = show_lines;
+        show_handles_ = show_points_;
         break;
       case OB_MODE_WEIGHT_GREASE_PENCIL:
         /* Weight paint mode. */
@@ -107,6 +110,7 @@ class GreasePencil : Overlay {
         break;
     }
 
+    edit_handles_ = nullptr;
     edit_points_ = nullptr;
     edit_lines_ = nullptr;
 
@@ -119,15 +123,8 @@ class GreasePencil : Overlay {
                          DRW_STATE_BLEND_ALPHA,
                      state.clipping_plane_count);
 
-      if (show_points_) {
-        auto &sub = pass.sub("Points");
-        sub.shader_set(res.shaders->curve_edit_points.get());
-        sub.bind_texture("weight_tx", &res.weight_ramp_tx);
-        sub.push_constant("use_weight", show_weight_);
-        sub.push_constant("use_grease_pencil", true);
-        sub.push_constant("do_stroke_endpoints", show_direction);
-        edit_points_ = &sub;
-      }
+      const int handle_display = show_handles_ ? int(state.overlay.handle_display) :
+                                                 int(CURVE_HANDLE_NONE);
 
       if (show_lines_) {
         auto &sub = pass.sub("Lines");
@@ -136,6 +133,26 @@ class GreasePencil : Overlay {
         sub.push_constant("use_weight", show_weight_);
         sub.push_constant("use_grease_pencil", true);
         edit_lines_ = &sub;
+      }
+
+      if (show_handles_) {
+        auto &sub = pass.sub("Handles");
+        sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
+        sub.shader_set(res.shaders->curve_edit_handles.get());
+        sub.push_constant("show_curve_handles", handle_display != int(CURVE_HANDLE_NONE));
+        sub.push_constant("curve_handle_display", handle_display);
+        edit_handles_ = &sub;
+      }
+
+      if (show_points_) {
+        auto &sub = pass.sub("Points");
+        sub.shader_set(res.shaders->curve_edit_points.get());
+        sub.bind_texture("weight_tx", &res.weight_ramp_tx);
+        sub.push_constant("use_weight", show_weight_);
+        sub.push_constant("use_grease_pencil", true);
+        sub.push_constant("do_stroke_endpoints", show_direction);
+        sub.push_constant("curve_handle_display", handle_display);
+        edit_points_ = &sub;
       }
     }
 
@@ -173,19 +190,25 @@ class GreasePencil : Overlay {
 
     Object *ob = ob_ref.object;
 
+    if (show_lines_) {
+      gpu::Batch *geom = show_weight_ ? DRW_cache_grease_pencil_weight_lines_get(state.scene, ob) :
+                                        DRW_cache_grease_pencil_edit_lines_get(state.scene, ob);
+      if (geom) {
+        edit_lines_->draw(geom, manager.unique_handle(ob_ref));
+      }
+    }
+    if (show_handles_) {
+      gpu::Batch *geom = DRW_cache_grease_pencil_edit_handles_get(state.scene, ob);
+      if (geom) {
+        edit_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, manager.unique_handle(ob_ref));
+      }
+    }
     if (show_points_) {
       gpu::Batch *geom = show_weight_ ?
                              DRW_cache_grease_pencil_weight_points_get(state.scene, ob) :
                              DRW_cache_grease_pencil_edit_points_get(state.scene, ob);
       if (geom) {
         edit_points_->draw(geom, manager.unique_handle(ob_ref));
-      }
-    }
-    if (show_lines_) {
-      gpu::Batch *geom = show_weight_ ? DRW_cache_grease_pencil_weight_lines_get(state.scene, ob) :
-                                        DRW_cache_grease_pencil_edit_lines_get(state.scene, ob);
-      if (geom) {
-        edit_lines_->draw(geom, manager.unique_handle(ob_ref));
       }
     }
 
@@ -286,9 +309,9 @@ class GreasePencil : Overlay {
                                  ResourceHandleRange res_handle,
                                  select::ID select_id = select::SelectMap::select_invalid_id())
   {
-    using namespace blender;
     using namespace blender::ed::greasepencil;
-    ::GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<::GreasePencil>(*ob);
+    blender::GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<blender::GreasePencil>(
+        *ob);
 
     const bool is_stroke_order_3d = (grease_pencil.flag & GREASE_PENCIL_STROKE_ORDER_3D) != 0;
 
@@ -347,7 +370,7 @@ class GreasePencil : Overlay {
           return;
         }
 
-        blender::gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(scene, ob);
+        gpu::Batch *geom = draw::DRW_cache_grease_pencil_get(scene, ob);
 
         const bool show_stroke = (gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0;
         const bool show_fill = (points.size() >= 3) &&
@@ -412,8 +435,9 @@ class GreasePencil : Overlay {
   {
     const ToolSettings *ts = scene->toolsettings;
 
-    const ::GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<::GreasePencil>(object);
-    const blender::bke::greasepencil::Layer *active_layer = grease_pencil.get_active_layer();
+    const blender::GreasePencil &grease_pencil =
+        DRW_object_get_data_for_drawing<blender::GreasePencil>(object);
+    const bke::greasepencil::Layer *active_layer = grease_pencil.get_active_layer();
 
     float4x4 mat = object.object_to_world();
     if (active_layer && ts->gp_sculpt.lock_axis != GP_LOCKAXIS_CURSOR) {
@@ -439,7 +463,7 @@ class GreasePencil : Overlay {
       case GP_LOCKAXIS_VIEW:
         /* view aligned */
         /* TODO(fclem): Global access. */
-        mat = blender::draw::View::default_get().viewinv();
+        mat = draw::View::default_get().viewinv();
         break;
     }
 
@@ -462,9 +486,10 @@ class GreasePencil : Overlay {
     Object &object = *ob_ref.object;
 
     uchar4 color;
-    UI_GetThemeColor4ubv(res.object_wire_theme_id(ob_ref, state), color);
+    ui::theme::get_color_4ubv(res.object_wire_theme_id(ob_ref, state), color);
 
-    ::GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<::GreasePencil>(object);
+    blender::GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<blender::GreasePencil>(
+        object);
 
     Vector<ed::greasepencil::DrawingInfo> drawings = ed::greasepencil::retrieve_visible_drawings(
         *state.scene, grease_pencil, false);

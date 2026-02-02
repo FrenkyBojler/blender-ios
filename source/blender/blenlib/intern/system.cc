@@ -27,6 +27,8 @@
 #  include <unistd.h>
 #endif
 
+namespace blender {
+
 int BLI_cpu_support_sse2()
 {
 #if defined(__x86_64__) || defined(_M_X64)
@@ -102,7 +104,7 @@ void BLI_system_backtrace_with_os_info(FILE *fp, const void * /*os_info*/)
 
 void BLI_system_backtrace(FILE *fp)
 {
-  static blender::Mutex mutex;
+  static Mutex mutex;
   std::scoped_lock lock(mutex);
   BLI_system_backtrace_with_os_info(fp, nullptr);
 }
@@ -140,9 +142,9 @@ char *BLI_cpu_brand_string()
   int result[4] = {0};
   __cpuid(result, 0x80000000);
   if (result[0] >= int(0x80000004)) {
-    __cpuid((int *)(buf + 0), 0x80000002);
-    __cpuid((int *)(buf + 16), 0x80000003);
-    __cpuid((int *)(buf + 32), 0x80000004);
+    __cpuid(reinterpret_cast<int *>(buf + 0), 0x80000002);
+    __cpuid(reinterpret_cast<int *>(buf + 16), 0x80000003);
+    __cpuid(reinterpret_cast<int *>(buf + 32), 0x80000004);
     char *brand = BLI_strdup(buf);
     /* TODO(sergey): Make it a bit more presentable by removing trademark. */
     return brand;
@@ -180,18 +182,18 @@ int BLI_cpu_support_sse42()
   return 0;
 }
 
-void BLI_hostname_get(char *buffer, size_t bufsize)
+void BLI_hostname_get(char *buffer, size_t buffer_maxncpy)
 {
 #ifndef WIN32
-  if (gethostname(buffer, bufsize - 1) < 0) {
-    BLI_strncpy(buffer, "-unknown-", bufsize);
+  if (gethostname(buffer, buffer_maxncpy - 1) < 0) {
+    BLI_strncpy(buffer, "-unknown-", buffer_maxncpy);
   }
   /* When `gethostname()` truncates, it doesn't guarantee the trailing `\0`. */
-  buffer[bufsize - 1] = '\0';
+  buffer[buffer_maxncpy - 1] = '\0';
 #else
-  DWORD bufsize_inout = bufsize;
-  if (!GetComputerName(buffer, &bufsize_inout)) {
-    BLI_strncpy(buffer, "-unknown-", bufsize);
+  DWORD buffer_size_in_out = buffer_maxncpy;
+  if (!GetComputerName(buffer, &buffer_size_in_out)) {
+    BLI_strncpy(buffer, "-unknown-", buffer_maxncpy);
   }
 #endif
 }
@@ -212,3 +214,5 @@ int BLI_system_memory_max_in_megabytes_int()
   /* NOTE: The result will fit into integer. */
   return int(min_zz(limit_megabytes, size_t(INT_MAX)));
 }
+
+}  // namespace blender

@@ -19,6 +19,8 @@
 
 #include "gpu_py.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name GPU Enums
  * \{ */
@@ -58,7 +60,6 @@ bool bpygpu_is_init_or_error()
   if (!GPU_is_init()) {
     PyErr_SetString(PyExc_SystemError,
                     "GPU functions for drawing are not available in background mode");
-
     return false;
   }
 
@@ -66,3 +67,5 @@ bool bpygpu_is_init_or_error()
 }
 
 /** \} */
+
+}  // namespace blender

@@ -9,11 +9,24 @@ from rna_prop_ui import PropertyPanel
 
 
 class VIEWLAYER_UL_aov(UIList):
+    @staticmethod
+    def aov_icon(item):
+        if not item.is_valid:
+            return 'ERROR'
+
+        aov_type = item.type
+
+        if aov_type == 'VALUE':
+            return 'NODE_SOCKET_FLOAT'
+        elif aov_type == 'COLOR':
+            return 'NODE_SOCKET_RGBA'
+        else:
+            raise ValueError("Unrecognized AOV type: " + aov_type)
+
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname):
         row = layout.row()
         split = row.split(factor=0.65)
-        icon = 'NONE' if item.is_valid else 'ERROR'
-        split.row().prop(item, "name", text="", icon=icon, emboss=False)
+        split.row().prop(item, "name", text="", icon=self.aov_icon(item), emboss=False)
         split.row().prop(item, "type", text="", emboss=False)
 
 
@@ -26,6 +39,33 @@ class ViewLayerButtonsPanel:
     @classmethod
     def poll(cls, context):
         return (context.engine in cls.COMPAT_ENGINES)
+
+
+class VIEWLAYER_PT_context_layer(ViewLayerButtonsPanel, Panel):
+    bl_label = ""
+    bl_options = {'HIDE_HEADER'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
+
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+
+        window = context.window
+        scene = context.scene
+
+        layout.template_search(
+            window, "view_layer",
+            scene, "view_layers",
+            new="scene.view_layer_add",
+            unlink="scene.view_layer_remove",
+        )
 
 
 class VIEWLAYER_PT_layer(ViewLayerButtonsPanel, Panel):
@@ -300,6 +340,7 @@ class VIEWLAYER_PT_layer_custom_props(PropertyPanel, Panel):
 
 classes = (
     VIEWLAYER_MT_lightgroup_sync,
+    VIEWLAYER_PT_context_layer,
     VIEWLAYER_PT_layer,
     VIEWLAYER_PT_layer_passes,
     VIEWLAYER_PT_workbench_layer_passes_data,

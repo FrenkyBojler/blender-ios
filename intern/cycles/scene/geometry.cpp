@@ -347,6 +347,7 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
   bool volume_images_updated = false;
 
   for (Geometry *geom : scene->geometry) {
+    const bool prev_has_volume = geom->has_volume;
     geom->has_volume = false;
 
     update_attribute_realloc_flags(device_update_flags, geom->attributes);
@@ -402,6 +403,18 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
           device_update_flags |= ATTRS_NEED_REALLOC;
         }
       }
+
+      if (geom->is_hair()) {
+        if (shader->shadow_transparency_needs_realloc) {
+          device_update_flags |= ATTR_FLOAT_NEEDS_REALLOC;
+        }
+        if (shader->need_update_shadow_transparency) {
+          Attribute *attr = geom->attributes.find(ATTR_STD_SHADOW_TRANSPARENCY);
+          if (attr) {
+            attr->modified = true;
+          }
+        }
+      }
     }
 
     /* only check for modified attributes if we do not need to reallocate them already */
@@ -414,7 +427,7 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
     /* Re-create volume mesh if we will rebuild or refit the BVH. Note we
      * should only do it in that case, otherwise the BVH and mesh can go
      * out of sync. */
-    if (geom->is_modified() && geom->is_volume()) {
+    if (geom->is_volume() && (geom->is_modified() || (update_flags & VOLUME_MODIFIED))) {
       /* Create volume meshes if there is voxel data. */
       if (!volume_images_updated) {
         progress.set_status("Updating Meshes Volume Bounds");
@@ -429,10 +442,20 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
       device_update_flags |= DEVICE_MESH_DATA_NEEDS_REALLOC;
     }
 
+    if (geom->has_volume) {
+      if (geom->is_modified()) {
+        scene->volume_manager->tag_update(geom);
+      }
+      if (!prev_has_volume) {
+        scene->volume_manager->tag_update();
+      }
+    }
+    else if (prev_has_volume) {
+      scene->volume_manager->tag_update(geom);
+    }
+
     if (geom->is_hair()) {
-      /* Set curve shape, still a global scene setting for now. */
       Hair *hair = static_cast<Hair *>(geom);
-      hair->curve_shape = scene->params.hair_shape;
 
       if (hair->need_update_rebuild) {
         device_update_flags |= DEVICE_CURVE_DATA_NEEDS_REALLOC;
@@ -691,7 +714,7 @@ void GeometryManager::device_update(Device *device,
   LOG_INFO << "Total " << scene->geometry.size() << " meshes.";
 
   bool true_displacement_used = false;
-  bool curve_shadow_transparency_used = false;
+  bool curve_need_update_shadow_transparency = false;
   size_t num_tessellation = 0;
 
   {
@@ -727,16 +750,26 @@ void GeometryManager::device_update(Device *device,
             true_displacement_used = true;
           }
         }
-        else if (geom->is_hair()) {
-          Hair *hair = static_cast<Hair *>(geom);
-          if (hair->need_shadow_transparency()) {
-            curve_shadow_transparency_used = true;
-          }
-        }
+      }
 
-        if (progress.get_cancel()) {
-          return;
+      if (progress.get_cancel()) {
+        return;
+      }
+    }
+
+    for (Geometry *geom : scene->geometry) {
+      if (geom->is_hair()) {
+        Hair *hair = static_cast<Hair *>(geom);
+        if ((geom->is_modified() && hair->need_shadow_transparency()) ||
+            hair->need_update_shadow_transparency())
+        {
+          curve_need_update_shadow_transparency = true;
+          break;
         }
+      }
+
+      if (progress.get_cancel()) {
+        return;
       }
     }
   }
@@ -763,52 +796,60 @@ void GeometryManager::device_update(Device *device,
   }
 
   size_t i = 0;
-  for (Geometry *geom : scene->geometry) {
+  thread_mutex status_mutex;
+  parallel_for_each(scene->geometry.begin(), scene->geometry.end(), [&](Geometry *geom) {
+    if (progress.get_cancel()) {
+      return;
+    }
+
     if (!(geom->is_modified() && geom->is_mesh())) {
-      continue;
+      return;
     }
 
     Mesh *mesh = static_cast<Mesh *>(geom);
 
     if (num_tessellation && mesh->need_tesselation()) {
-      string msg = "Tessellating ";
-      if (mesh->name.empty()) {
-        msg += string_printf("%u/%u", (uint)(i + 1), (uint)num_tessellation);
-      }
-      else {
-        msg += string_printf(
-            "%s %u/%u", mesh->name.c_str(), (uint)(i + 1), (uint)num_tessellation);
-      }
+      {
+        const thread_scoped_lock status_lock(status_mutex);
+        string msg = "Tessellating ";
+        if (mesh->name.empty()) {
+          msg += string_printf("%u/%u", (uint)(i + 1), (uint)num_tessellation);
+        }
+        else {
+          msg += string_printf(
+              "%s %u/%u", mesh->name.c_str(), (uint)(i + 1), (uint)num_tessellation);
+        }
 
-      progress.set_status("Updating Mesh", msg);
+        progress.set_status("Updating Mesh", msg);
+        i++;
+      }
 
       SubdParams subd_params(mesh);
       subd_params.dicing_rate = mesh->get_subd_dicing_rate();
       subd_params.max_level = mesh->get_subd_max_level();
-      subd_params.objecttoworld = mesh->get_subd_objecttoworld();
-      subd_params.camera = dicing_camera;
+      if (mesh->get_subd_adaptive_space() == Mesh::SUBDIVISION_ADAPTIVE_SPACE_PIXEL) {
+        subd_params.objecttoworld = mesh->get_subd_objecttoworld();
+        subd_params.camera = dicing_camera;
+      }
 
       mesh->tessellate(subd_params);
-
-      i++;
     }
 
     /* Apply generated attribute if needed or remove if not needed */
     mesh->update_generated(scene);
     /* Apply tangents for generated and UVs (if any need them) or remove if not needed */
-    mesh->update_tangents(scene);
-
-    if (progress.get_cancel()) {
-      return;
+    mesh->update_tangents(scene, true);
+    if (!mesh->has_true_displacement()) {
+      mesh->update_tangents(scene, false);
     }
-  }
+  });
 
   if (progress.get_cancel()) {
     return;
   }
 
   /* Update images needed for true displacement. */
-  if (true_displacement_used || curve_shadow_transparency_used) {
+  if (true_displacement_used || curve_need_update_shadow_transparency) {
     const scoped_callback_timer timer([scene](double time) {
       if (scene->update_stats) {
         scene->update_stats->geometry.times.add_entry(
@@ -825,7 +866,7 @@ void GeometryManager::device_update(Device *device,
   const BVHLayout bvh_layout = BVHParams::best_bvh_layout(
       scene->params.bvh_layout, device->get_bvh_layout_mask(dscene->data.kernel_features));
   geom_calc_offset(scene, bvh_layout);
-  if (true_displacement_used || curve_shadow_transparency_used) {
+  if (true_displacement_used || curve_need_update_shadow_transparency) {
     const scoped_callback_timer timer([scene](double time) {
       if (scene->update_stats) {
         scene->update_stats->geometry.times.add_entry(
@@ -868,10 +909,8 @@ void GeometryManager::device_update(Device *device,
     }
   }
 
-  /* Update displacement and hair shadow transparency. */
+  /* Update displacement. */
   bool displacement_done = false;
-  bool curve_shadow_transparency_done = false;
-
   {
     /* Copy constant data needed by shader evaluation. */
     device->const_copy_to("data", &dscene->data, sizeof(dscene->data));
@@ -890,11 +929,33 @@ void GeometryManager::device_update(Device *device,
             displacement_done = true;
           }
         }
-        else if (geom->is_hair()) {
-          Hair *hair = static_cast<Hair *>(geom);
-          if (hair->update_shadow_transparency(device, scene, progress)) {
-            curve_shadow_transparency_done = true;
-          }
+      }
+
+      if (progress.get_cancel()) {
+        return;
+      }
+    }
+  }
+
+  if (progress.get_cancel()) {
+    return;
+  }
+
+  /* Update hair shadow transparency. */
+  bool curve_shadow_transparency_done = false;
+  {
+    const scoped_callback_timer timer([scene](double time) {
+      if (scene->update_stats) {
+        scene->update_stats->geometry.times.add_entry(
+            {"device_update (curve shadow transparency)", time});
+      }
+    });
+
+    for (Geometry *geom : scene->geometry) {
+      if (geom->is_hair()) {
+        Hair *hair = static_cast<Hair *>(geom);
+        if (hair->update_shadow_transparency(device, scene, progress)) {
+          curve_shadow_transparency_done = true;
         }
       }
 
@@ -937,12 +998,6 @@ void GeometryManager::device_update(Device *device,
         scene->update_stats->geometry.times.add_entry({"device_update (build object BVHs)", time});
       }
     });
-    TaskPool pool;
-
-    /* Work around Embree/oneAPI bug #129596 with BVH updates. */
-    const bool use_multithreaded_build = first_bvh_build ||
-                                         !device->info.contains_device_type(DEVICE_ONEAPI);
-    first_bvh_build = false;
 
     size_t i = 0;
     size_t num_bvh = 0;
@@ -955,26 +1010,24 @@ void GeometryManager::device_update(Device *device,
           num_bvh++;
         }
 
-        if (use_multithreaded_build) {
-          pool.push([geom, device, dscene, scene, &progress, i, &num_bvh] {
-            geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
-          });
-        }
-        else {
+        /* Note the use of #bvh_task_pool_, see its definition for details. */
+        bvh_task_pool_.push([geom, device, dscene, scene, &progress, i, &num_bvh] {
           geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
-        }
+        });
       }
     }
 
     TaskPool::Summary summary;
-    pool.wait_work(&summary);
-    LOG_WORK << "Objects BVH build pool statistics:\n" << summary.full_report();
+    bvh_task_pool_.wait_work(&summary);
+    LOG_DEBUG << "Objects BVH build pool statistics:\n" << summary.full_report();
   }
 
   for (Shader *shader : scene->shaders) {
     shader->need_update_uvs = false;
     shader->need_update_attribute = false;
     shader->need_update_displacement = false;
+    shader->need_update_shadow_transparency = false;
+    shader->shadow_transparency_needs_realloc = false;
   }
 
   const Scene::MotionType need_motion = scene->need_motion();

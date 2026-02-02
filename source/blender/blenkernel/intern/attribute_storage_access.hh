@@ -4,6 +4,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_storage.hh"
+#include <optional>
 
 namespace blender::bke {
 
@@ -29,7 +30,8 @@ GAttributeWriter attribute_to_writer(void *owner,
 
 Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
                                               const int64_t domain_size,
-                                              const AttributeInit &initializer);
+                                              const AttributeInit &initializer,
+                                              bool require_array_data);
 
 GVArray get_varray_attribute(const AttributeStorage &storage,
                              AttrDomain domain,
@@ -50,20 +52,24 @@ inline VArray<T> get_varray_attribute(const AttributeStorage &storage,
   return varray.typed<T>();
 }
 
-GSpan get_span_attribute(const AttributeStorage &storage,
-                         AttrDomain domain,
-                         const CPPType &cpp_type,
-                         StringRef name,
-                         const int64_t domain_size);
+std::optional<GSpan> get_span_attribute(const AttributeStorage &storage,
+                                        AttrDomain domain,
+                                        const CPPType &cpp_type,
+                                        StringRef name,
+                                        const int64_t domain_size);
 
 template<typename T>
-inline Span<T> get_span_attribute(const AttributeStorage &storage,
-                                  const AttrDomain domain,
-                                  const StringRef name,
-                                  const int64_t domain_size)
+inline std::optional<Span<T>> get_span_attribute(const AttributeStorage &storage,
+                                                 const AttrDomain domain,
+                                                 const StringRef name,
+                                                 const int64_t domain_size)
 {
-  const GSpan span = get_span_attribute(storage, domain, CPPType::get<T>(), name, domain_size);
-  return span.typed<T>();
+  const std::optional<GSpan> span = get_span_attribute(
+      storage, domain, CPPType::get<T>(), name, domain_size);
+  if (!span) {
+    return std::nullopt;
+  }
+  return span->typed<T>();
 }
 
 GMutableSpan get_mutable_attribute(AttributeStorage &storage,

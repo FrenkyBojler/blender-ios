@@ -8,6 +8,7 @@
 
 #include "BLI_generic_pointer.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_context.hh"
@@ -79,7 +80,7 @@ static void validate_value(const bke::AttributeAccessor attributes,
 static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 {
   Object *active_object = CTX_data_active_object(C);
-  PointCloud &active_pointcloud = *static_cast<PointCloud *>(active_object->data);
+  PointCloud &active_pointcloud = *id_cast<PointCloud *>(active_object->data);
 
   AttributeOwner active_owner = AttributeOwner::from_id(&active_pointcloud.id);
   const StringRef name = *BKE_attributes_active_name_get(active_owner);
@@ -133,7 +134,7 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object *active_object = CTX_data_active_object(C);
-  PointCloud &active_pointcloud = *static_cast<PointCloud *>(active_object->data);
+  PointCloud &active_pointcloud = *id_cast<PointCloud *>(active_object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&active_pointcloud.id);
   const bke::AttributeAccessor attributes = active_pointcloud.attributes();
@@ -154,8 +155,7 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
   BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
   BLI_SCOPED_DEFER([&]() { type.destruct(buffer); });
 
-  bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(type, [&]<typename T>() {
     const VArray<T> values_typed = attribute.varray.typed<T>();
     bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(static_cast<T *>(buffer), 1)};
     selection.foreach_index([&](const int i) { mixer.mix_in(0, values_typed[i]); });
@@ -169,18 +169,18 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
 
 static void set_attribute_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = &op->layout->column(true);
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  ui::Layout &layout = op->layout->column(true);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   Object *object = CTX_data_active_object(C);
-  PointCloud &pointcloud = *static_cast<PointCloud *>(object->data);
+  PointCloud &pointcloud = *id_cast<PointCloud *>(object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&pointcloud.id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
   const bke::AttributeMetaData meta_data = *pointcloud.attributes().lookup_meta_data(name);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(meta_data.data_type);
-  layout->prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
 }
 
 void POINTCLOUD_OT_attribute_set(wmOperatorType *ot)

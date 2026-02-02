@@ -30,6 +30,8 @@
 #include "runtime_library.hh"
 #include "utils.hh"
 
+namespace blender {
+
 /* When enabled, use a pre file load handler (#BKE_CB_EVT_LOAD_PRE) callback to destroy the asset
  * library service. Without this an explicit call from the file loading code is needed to do this,
  * which is not as nice.
@@ -43,7 +45,7 @@
 
 static CLG_LogRef LOG = {"asset.library"};
 
-namespace blender::asset_system {
+namespace asset_system {
 
 std::unique_ptr<AssetLibraryService> AssetLibraryService::instance_;
 bool AssetLibraryService::atexit_handler_registered_ = false;
@@ -80,7 +82,7 @@ AssetLibrary *AssetLibraryService::get_asset_library(
       return this->get_asset_library_on_disk_builtin(type, root_path);
     }
     case ASSET_LIBRARY_LOCAL: {
-      /* For the "Current File" library  we get the asset library root path based on main. */
+      /* For the "Current File" library we get the asset library root path based on main. */
       std::string root_path = bmain ? AS_asset_library_find_suitable_root_path_from_main(bmain) :
                                       "";
 
@@ -610,8 +612,12 @@ void AssetLibraryService::foreach_loaded_asset_library(FunctionRef<void(AssetLib
   }
 
   for (const auto &asset_lib_uptr : on_disk_libraries_.values()) {
-    fn(*asset_lib_uptr);
+    if (asset_lib_uptr->is_enabled()) {
+      fn(*asset_lib_uptr);
+    }
   }
 }
 
-}  // namespace blender::asset_system
+}  // namespace asset_system
+
+}  // namespace blender

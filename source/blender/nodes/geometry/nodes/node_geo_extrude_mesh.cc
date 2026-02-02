@@ -17,6 +17,7 @@
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_selection.hh"
 #include "GEO_randomize.hh"
 
@@ -60,16 +61,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryExtrudeMesh *data = MEM_callocN<NodeGeometryExtrudeMesh>(__func__);
+  NodeGeometryExtrudeMesh *data = MEM_new<NodeGeometryExtrudeMesh>(__func__);
   data->mode = GEO_NODE_EXTRUDE_MESH_FACES;
   node->storage = data;
 }
@@ -132,6 +133,7 @@ static void expand_mesh(Mesh &mesh,
     const int old_verts_num = mesh.verts_num;
     mesh.verts_num += vert_expand;
     CustomData_realloc(&mesh.vert_data, old_verts_num, mesh.verts_num);
+    mesh.attribute_storage.wrap().resize(AttrDomain::Point, mesh.verts_num);
   }
   if (edge_expand != 0) {
     if (mesh.edges_num == 0) {
@@ -141,11 +143,13 @@ static void expand_mesh(Mesh &mesh,
     const int old_edges_num = mesh.edges_num;
     mesh.edges_num += edge_expand;
     CustomData_realloc(&mesh.edge_data, old_edges_num, mesh.edges_num);
+    mesh.attribute_storage.wrap().resize(AttrDomain::Edge, mesh.edges_num);
   }
   if (face_expand != 0) {
     const int old_faces_num = mesh.faces_num;
     mesh.faces_num += face_expand;
     CustomData_realloc(&mesh.face_data, old_faces_num, mesh.faces_num);
+    mesh.attribute_storage.wrap().resize(AttrDomain::Face, mesh.faces_num);
     implicit_sharing::resize_trivial_array(&mesh.face_offset_indices,
                                            &mesh.runtime->face_offsets_sharing_info,
                                            old_faces_num == 0 ? 0 : (old_faces_num + 1),
@@ -164,6 +168,7 @@ static void expand_mesh(Mesh &mesh,
     const int old_loops_num = mesh.corners_num;
     mesh.corners_num += loop_expand;
     CustomData_realloc(&mesh.corner_data, old_loops_num, mesh.corners_num);
+    mesh.attribute_storage.wrap().resize(AttrDomain::Corner, mesh.corners_num);
   }
 }
 
@@ -221,8 +226,7 @@ static void copy_with_mixing(const GSpan src,
                              GMutableSpan dst)
 {
   BLI_assert(selection.size() == dst.size());
-  bke::attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(src.type(), [&]<typename T>() {
     copy_with_mixing(src.typed<T>(), src_groups, selection, dst.typed<T>());
   });
 }
@@ -250,8 +254,7 @@ static void copy_with_mixing(const GSpan src,
                              const Span<int> selection,
                              GMutableSpan dst)
 {
-  bke::attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(src.type(), [&]<typename T>() {
     copy_with_mixing(src.typed<T>(), src_groups, selection, dst.typed<T>());
   });
 }
@@ -325,8 +328,8 @@ static void gather_vert_attributes(Mesh &mesh,
                                    const IndexRange new_range)
 {
   Set<StringRef> vertex_group_names;
-  LISTBASE_FOREACH (bDeformGroup *, group, &mesh.vertex_group_names) {
-    vertex_group_names.add(group->name);
+  for (bDeformGroup &group : mesh.vertex_group_names) {
+    vertex_group_names.add(group.name);
   }
 
   if (!vertex_group_names.is_empty() && !mesh.deform_verts().is_empty()) {
@@ -350,8 +353,8 @@ static void gather_vert_attributes(Mesh &mesh,
                                    const IndexRange new_range)
 {
   Set<StringRef> vertex_group_names;
-  LISTBASE_FOREACH (bDeformGroup *, group, &mesh.vertex_group_names) {
-    vertex_group_names.add(group->name);
+  for (bDeformGroup &group : mesh.vertex_group_names) {
+    vertex_group_names.add(group.name);
   }
 
   if (!vertex_group_names.is_empty() && !mesh.deform_verts().is_empty()) {
@@ -718,8 +721,7 @@ static void extrude_mesh_edges(Mesh &mesh,
    * to the original edge of their face. */
   for (const StringRef id : ids_by_domain[int(AttrDomain::Corner)]) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-    bke::attribute_math::convert_to_static_type(attribute.span.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(attribute.span.type(), [&]<typename T>() {
       MutableSpan<T> data = attribute.span.typed<T>();
       MutableSpan<T> new_data = data.slice(new_loop_range);
       edge_selection.foreach_index(
@@ -1358,8 +1360,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
 
     for (const StringRef id : ids_by_domain[int(AttrDomain::Edge)]) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-      bke::attribute_math::convert_to_static_type(attribute.span.type(), [&](auto dummy) {
-        using T = decltype(dummy);
+      bke::attribute_math::to_static_type(attribute.span.type(), [&]<typename T>() {
         MutableSpan<T> data = attribute.span.typed<T>();
         MutableSpan<T> dst = data.slice(connect_edge_range);
         threading::parallel_for(dst.index_range(), 1024, [&](const IndexRange range) {
@@ -1476,7 +1477,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
 
       switch (mode) {
@@ -1527,7 +1528,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeExtrudeMesh", GEO_NODE_EXTRUDE_MESH);
   ntype.ui_name = "Extrude Mesh";
   ntype.ui_description =
@@ -1538,10 +1539,10 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryExtrudeMesh", node_free_standard_storage, node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -7,12 +7,12 @@
  */
 
 #ifdef _WIN32
-#  include "BLI_winstuff.h"
-#  include <exception>
 #  include <io.h>
 #  include <stddef.h>
 #  include <sys/types.h>
 #endif
+
+#include <cstdlib>
 
 #include "BLI_fileops.h"
 #include "BLI_mmap.h"
@@ -20,7 +20,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
-#include <cstdlib>
+#include "CLG_log.h"
 
 #include "IMB_allocimbuf.hh"
 #include "IMB_filetype.hh"
@@ -32,6 +32,10 @@
 
 #include "IMB_colormanagement.hh"
 #include "IMB_colormanagement_intern.hh"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"image.read"};
 
 static void imb_handle_colorspace_and_alpha(ImBuf *ibuf,
                                             const int flags,
@@ -113,7 +117,7 @@ static void imb_handle_colorspace_and_alpha(ImBuf *ibuf,
     }
   }
 
-  colormanage_imbuf_make_linear(ibuf, new_colorspace);
+  colormanage_imbuf_make_linear(ibuf, new_colorspace, ColorManagedFileOutput::Image);
 }
 
 ImBuf *IMB_load_image_from_memory(const uchar *mem,
@@ -127,7 +131,7 @@ ImBuf *IMB_load_image_from_memory(const uchar *mem,
   const ImFileType *type;
 
   if (mem == nullptr) {
-    fprintf(stderr, "%s: nullptr pointer\n", __func__);
+    CLOG_ERROR(&LOG, "%s: nullptr pointer", __func__);
     return nullptr;
   }
 
@@ -144,7 +148,7 @@ ImBuf *IMB_load_image_from_memory(const uchar *mem,
   }
 
   if ((flags & IB_test) == 0) {
-    fprintf(stderr, "%s: unknown file-format (%s)\n", __func__, descr);
+    CLOG_ERROR(&LOG, "%s: unknown file-format (%s)", __func__, descr);
   }
 
   return nullptr;
@@ -155,51 +159,31 @@ ImBuf *IMB_load_image_from_file_descriptor(const int file,
                                            const char *filepath,
                                            char r_colorspace[IM_MAX_SPACE])
 {
-  ImBuf *ibuf;
+  ImBuf *ibuf = nullptr;
 
   if (file == -1) {
     return nullptr;
   }
 
-  imb_mmap_lock();
   BLI_mmap_file *mmap_file = BLI_mmap_open(file);
-  imb_mmap_unlock();
   if (mmap_file == nullptr) {
-    fprintf(stderr, "%s: couldn't get mapping %s\n", __func__, filepath);
+    CLOG_ERROR(&LOG, "%s: couldn't get mapping for \"%s\"", __func__, filepath);
     return nullptr;
   }
 
   const uchar *mem = static_cast<const uchar *>(BLI_mmap_get_pointer(mmap_file));
   const size_t size = BLI_mmap_get_length(mmap_file);
 
-  /* There could be broken mmap due to network drives and other issues, handles exception the
-   * same way as in #BLI_mmap_read. Note that if the mmap becomes invalid mid-way through reading,
-   * external calls in #IMB_load_image_from_memory could leave unfreed memory, but this is the
-   * limitation of current exception handling method. Ref #139472. */
-#ifdef WIN32
-  __try
-  {
-#endif
+  ibuf = IMB_load_image_from_memory(mem, size, flags, filepath, filepath, r_colorspace);
 
-    ibuf = IMB_load_image_from_memory(mem, size, flags, filepath, filepath, r_colorspace);
-
-#ifdef WIN32
-  }
-  __except (GetExceptionCode() == EXCEPTION_IN_PAGE_ERROR ? EXCEPTION_EXECUTE_HANDLER :
-                                                            EXCEPTION_CONTINUE_SEARCH)
-  {
+  /* If we got an image but mmap encountered an error,
+   * free the image and return nullptr as it could be corrupted. */
+  if (ibuf != nullptr && BLI_mmap_any_io_error(mmap_file)) {
+    IMB_freeImBuf(ibuf);
     ibuf = nullptr;
   }
-#else
-  /* For unix, if mmap encounters an exception, BLI_mmap_file::io_error would be set. */
-  if (BLI_mmap_any_io_error(mmap_file)) {
-    ibuf = nullptr;
-  }
-#endif
 
-  imb_mmap_lock();
   BLI_mmap_free(mmap_file);
-  imb_mmap_unlock();
 
   return ibuf;
 }
@@ -255,7 +239,7 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
   }
   else {
     /* Skip images of other types if over 100MB. */
-    if ((load_flags & IMBThumbLoadFlags::LoadLargeFiles) == IMBThumbLoadFlags::Zero) {
+    if (!flag_is_set(load_flags, IMBThumbLoadFlags::LoadLargeFiles)) {
       const size_t file_size = BLI_file_size(filepath);
       if (file_size != size_t(-1) && file_size > THUMB_SIZE_MAX) {
         return nullptr;
@@ -283,3 +267,5 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
 
   return ibuf;
 }
+
+}  // namespace blender

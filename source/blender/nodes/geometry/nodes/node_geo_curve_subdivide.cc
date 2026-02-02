@@ -5,6 +5,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_subdivide_curves.hh"
 
 #include "node_geometry_util.hh"
@@ -88,7 +89,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry_set);
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Curve");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (geometry_set.has_curves()) {
       const Curves &src_curves_id = *geometry_set.get_curves();
       Curves *dst_curves_id = subdivide_curves(src_curves_id, cuts_field, attribute_filter);
@@ -106,7 +107,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSubdivideCurve", GEO_NODE_SUBDIVIDE_CURVE);
   ntype.ui_name = "Subdivide Curve";
   ntype.ui_description = "Dividing each curve segment into a specified number of pieces";
@@ -114,7 +115,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

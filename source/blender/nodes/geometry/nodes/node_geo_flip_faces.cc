@@ -4,6 +4,8 @@
 
 #include "BKE_mesh.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_flip_faces_cc {
@@ -25,7 +27,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
       const bke::MeshFieldContext field_context(*mesh, AttrDomain::Face);
       fn::FieldEvaluator evaluator(field_context, mesh->faces_num);
@@ -45,7 +47,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeFlipFaces", GEO_NODE_FLIP_FACES);
   ntype.ui_name = "Flip Faces";
@@ -56,7 +58,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

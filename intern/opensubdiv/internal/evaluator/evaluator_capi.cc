@@ -6,7 +6,11 @@
 
 #include "opensubdiv_evaluator_capi.hh"
 
-#include <opensubdiv/osd/glslPatchShaderSource.h>
+#ifdef __APPLE__
+#  include <opensubdiv/osd/mtlPatchShaderSource.h>
+#else
+#  include <opensubdiv/osd/glslPatchShaderSource.h>
+#endif
 
 #include "MEM_guardedalloc.h"
 
@@ -34,7 +38,15 @@ const char *openSubdiv_getGLSLPatchBasisSource()
   /* Using a global string to avoid dealing with memory allocation/ownership. */
   static std::string patch_basis_source;
   if (patch_basis_source.empty()) {
-    patch_basis_source = OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
+    patch_basis_source =
+        "#define OsdPatchParam_host_shared_ OsdPatchParam\n"
+        "#define OsdPatchArray_host_shared_ OsdPatchArray\n"
+        "#define OsdPatchCoord_host_shared_ OsdPatchCoord\n";
+#ifdef __APPLE__
+    patch_basis_source += OpenSubdiv::Osd::MTLPatchShaderSource::GetPatchBasisShaderSource();
+#else
+    patch_basis_source += OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
+#endif
   }
   return patch_basis_source.c_str();
 }

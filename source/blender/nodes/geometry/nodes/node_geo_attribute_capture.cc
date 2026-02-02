@@ -18,9 +18,13 @@
 #include "BKE_library.hh"
 #include "BKE_screen.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_attribute_capture_cc {
+namespace blender {
+
+namespace nodes::node_geo_attribute_capture_cc {
 
 NODE_STORAGE_FUNCS(NodeGeometryAttributeCapture)
 
@@ -50,7 +54,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           CaptureAttributeItemsAccessor::output_socket_identifier_for_item(item);
       b.add_input(data_type, item.name, input_identifier)
           .field_on_all()
-          .socket_name_ptr(&tree->id, CaptureAttributeItemsAccessor::item_srna, &item, "name");
+          .socket_name_ptr(&tree->id, *CaptureAttributeItemsAccessor::item_srna, &item, "name");
       b.add_output(data_type, item.name, output_identifier).field_on_all().align_with_previous();
     }
   }
@@ -60,28 +64,28 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous();
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryAttributeCapture *data = MEM_callocN<NodeGeometryAttributeCapture>(__func__);
+  NodeGeometryAttributeCapture *data = MEM_new<NodeGeometryAttributeCapture>(__func__);
   data->domain = int8_t(AttrDomain::Point);
   node->storage = data;
 }
 
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
 
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 
-  if (uiLayout *panel = layout->panel(
+  if (ui::Layout *panel = layout.panel(
           C, "capture_attribute_items", false, IFACE_("Capture Items")))
   {
     socket_items::ui::draw_items_list_with_operators<CaptureAttributeItemsAccessor>(
@@ -196,7 +200,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                                          GeometryComponent::Type::Curve,
                                                          GeometryComponent::Type::GreasePencil};
 
-    geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+    geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
       for (const GeometryComponent::Type type : types) {
         if (geometry_set.has(type)) {
           capture_on(geometry_set.get_component_for_write(type));
@@ -208,23 +212,23 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Geometry", geometry_set);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<CaptureAttributeItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<CaptureAttributeItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(reinterpret_cast<NodeGeometryAttributeCapture *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryAttributeCapture &src_storage = node_storage(*src_node);
-  NodeGeometryAttributeCapture *dst_storage = MEM_dupallocN<NodeGeometryAttributeCapture>(
-      __func__, src_storage);
+  NodeGeometryAttributeCapture *dst_storage = MEM_new<NodeGeometryAttributeCapture>(
+      __func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<CaptureAttributeItemsAccessor>(*src_node, *dst_node);
@@ -239,14 +243,14 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       params.connect_available_socket(node, "Geometry");
     });
   }
-  if (!CaptureAttributeItemsAccessor::supports_socket_type(type)) {
+  if (!CaptureAttributeItemsAccessor::supports_socket_type(type, params.node_tree().type)) {
     return;
   }
 
   params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {
     bNode &node = params.add_node("GeometryNodeCaptureAttribute");
     socket_items::add_item_with_socket_type_and_name<CaptureAttributeItemsAccessor>(
-        node, type, params.socket.name);
+        params.node_tree, node, type, params.socket.name);
     params.update_and_connect_available_socket(node, params.socket.name);
   });
 }
@@ -270,7 +274,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeCaptureAttribute", GEO_NODE_CAPTURE_ATTRIBUTE);
   ntype.ui_name = "Capture Attribute";
   ntype.ui_description =
@@ -279,7 +283,7 @@ static void node_register()
       "deformation";
   ntype.enum_name_legacy = "CAPTURE_ATTRIBUTE";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryAttributeCapture", node_free_storage, node_copy_storage);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
@@ -292,15 +296,15 @@ static void node_register()
   ntype.internally_linked_input = node_internally_linked_input;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_attribute_capture_cc
+}  // namespace nodes::node_geo_attribute_capture_cc
 
-namespace blender::nodes {
+namespace nodes {
 
-StructRNA *CaptureAttributeItemsAccessor::item_srna = &RNA_NodeGeometryCaptureAttributeItem;
+StructRNA **CaptureAttributeItemsAccessor::item_srna = &RNA_NodeGeometryCaptureAttributeItem;
 
 void CaptureAttributeItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -312,4 +316,5 @@ void CaptureAttributeItemsAccessor::blend_read_data_item(BlendDataReader *reader
   BLO_read_string(reader, &item.name);
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

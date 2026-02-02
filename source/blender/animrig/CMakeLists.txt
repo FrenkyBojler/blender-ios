@@ -13,7 +13,6 @@ set(INC
 )
 
 set(INC_SYS
-  ../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -24,6 +23,7 @@ set(SRC
   intern/action_selection.cc
   intern/anim_rna.cc
   intern/animdata.cc
+  intern/armature.cc
   intern/bone_collections.cc
   intern/bonecolor.cc
   intern/driver.cc

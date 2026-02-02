@@ -99,9 +99,7 @@ TEST_F(ActionFilterTest, slots_expanded_or_not)
   ASSERT_NE(nullptr, fcu_cube_loc_y);
 
   /* Mock an bAnimContext for the Animation editor, with the above Animation showing. */
-  SpaceAction saction = {nullptr};
-  saction.action = action;
-  saction.action_slot_handle = slot_cube.handle;
+  SpaceAction saction = {};
   saction.ads.filterflag = eDopeSheet_FilterFlag(0);
 
   bAnimContext ac = {nullptr};
@@ -111,6 +109,8 @@ TEST_F(ActionFilterTest, slots_expanded_or_not)
   ac.spacetype = SPACE_ACTION;
   ac.sl = reinterpret_cast<SpaceLink *>(&saction);
   ac.obact = cube;
+  ac.active_action = action;
+  ac.active_action_user = &cube->id;
   ac.ads = &saction.ads;
 
   { /* Test with collapsed slots. */
@@ -118,7 +118,7 @@ TEST_F(ActionFilterTest, slots_expanded_or_not)
     slot_suzanne.set_expanded(false);
 
     /* This should produce 2 slots and no FCurves. */
-    ListBase anim_data = {nullptr, nullptr};
+    ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
     eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                 ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
                                 ANIMFILTER_LIST_CHANNELS);
@@ -155,7 +155,7 @@ TEST_F(ActionFilterTest, slots_expanded_or_not)
     slot_suzanne.set_expanded(false);
 
     /* This should produce 2 slots and 2 FCurves. */
-    ListBase anim_data = {nullptr, nullptr};
+    ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
     eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                 ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
                                 ANIMFILTER_LIST_CHANNELS);
@@ -202,7 +202,7 @@ TEST_F(ActionFilterTest, slots_expanded_or_not)
     fcu_cube_loc_y->flag |= FCURVE_SELECTED;
 
     /* This should produce 1 slot and 1 FCurve. */
-    ListBase anim_data = {nullptr, nullptr};
+    ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
     eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                 ANIMFILTER_SEL | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
                                 ANIMFILTER_LIST_CHANNELS);
@@ -256,9 +256,7 @@ TEST_F(ActionFilterTest, layered_action_active_fcurves)
   fcurve_other->flag &= ~FCURVE_ACTIVE;
 
   /* Mock an bAnimContext for the Action editor. */
-  SpaceAction saction = {nullptr};
-  saction.action = action;
-  saction.action_slot_handle = slot_cube.handle;
+  SpaceAction saction = {};
   saction.ads.filterflag = eDopeSheet_FilterFlag(0);
 
   bAnimContext ac = {nullptr};
@@ -268,11 +266,13 @@ TEST_F(ActionFilterTest, layered_action_active_fcurves)
   ac.spacetype = SPACE_ACTION;
   ac.sl = reinterpret_cast<SpaceLink *>(&saction);
   ac.obact = cube;
+  ac.active_action = action;
+  ac.active_action_user = &cube->id;
   ac.ads = &saction.ads;
 
   {
     /* This should produce just the active F-Curve. */
-    ListBase anim_data = {nullptr, nullptr};
+    ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
     eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                 ANIMFILTER_FCURVESONLY | ANIMFILTER_ACTIVE);
     const int num_entries = ANIM_animdata_filter(

@@ -15,16 +15,7 @@
 
 #include "bl_math_py_api.hh"
 
-/* -------------------------------------------------------------------- */
-/** \name Module Doc String
- * \{ */
-
-PyDoc_STRVAR(
-    /* Wrap. */
-    M_bl_math_doc,
-    "Miscellaneous math utilities module");
-
-/** \} */
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Python Functions
@@ -104,8 +95,8 @@ PyDoc_STRVAR(
     "   :type from_value: float\n"
     "   :arg to_value: The edge value where the result is 1.\n"
     "   :type to_value: float\n"
-    "   :arg factor: The interpolation value.\n"
-    "   :type factor: float\n"
+    "   :arg value: The interpolation value.\n"
+    "   :type value: float\n"
     "   :return: The interpolated value in [0.0, 1.0].\n"
     "   :rtype: float\n");
 static PyObject *py_bl_math_smoothstep(PyObject * /*self*/, PyObject *args)
@@ -129,12 +120,19 @@ static PyObject *py_bl_math_smoothstep(PyObject * /*self*/, PyObject *args)
  * \{ */
 
 static PyMethodDef M_bl_math_methods[] = {
-    {"clamp", (PyCFunction)py_bl_math_clamp, METH_VARARGS, py_bl_math_clamp_doc},
-    {"lerp", (PyCFunction)py_bl_math_lerp, METH_VARARGS, py_bl_math_lerp_doc},
-    {"smoothstep", (PyCFunction)py_bl_math_smoothstep, METH_VARARGS, py_bl_math_smoothstep_doc},
+    {"clamp", static_cast<PyCFunction>(py_bl_math_clamp), METH_VARARGS, py_bl_math_clamp_doc},
+    {"lerp", static_cast<PyCFunction>(py_bl_math_lerp), METH_VARARGS, py_bl_math_lerp_doc},
+    {"smoothstep",
+     static_cast<PyCFunction>(py_bl_math_smoothstep),
+     METH_VARARGS,
+     py_bl_math_smoothstep_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    M_bl_math_doc,
+    "Miscellaneous math utilities module.");
 static PyModuleDef M_bl_math_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "bl_math",
@@ -154,3 +152,5 @@ PyMODINIT_FUNC BPyInit_bl_math()
 }
 
 /** \} */
+
+}  // namespace blender

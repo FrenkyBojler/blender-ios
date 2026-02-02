@@ -39,6 +39,7 @@ set(SRC
   util_math_fast_test.cpp
   util_math_float3_test.cpp
   util_math_float4_test.cpp
+  util_rgbe_test.cpp
   util_md5_test.cpp
   util_path_test.cpp
   util_string_test.cpp
@@ -59,6 +60,6 @@ if(NOT APPLE)
 endif()
 
 if(WITH_GTESTS)
-  set(INC_SYS )
+  set(INC_SYS "")
   blender_add_test_suite_executable(cycles "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 endif()

@@ -12,6 +12,7 @@ if(UNIX AND NOT APPLE)
   # This causes linking to static pthread libraries which gives link errors.
   # Since we manually specify library paths it should static link other libs.
   set(OPENIMAGEIO_LINKSTATIC -DLINKSTATIC=OFF)
+  set(OIIO_SIMD_FLAGS -DUSE_SIMD=sse4.2)
 else()
   set(OPENIMAGEIO_LINKSTATIC -DLINKSTATIC=ON)
 endif()
@@ -20,21 +21,21 @@ if(WIN32)
   if(BLENDER_PLATFORM_ARM)
     set(OIIO_SIMD_FLAGS -DUSE_SIMD=0)
   else()
-    set(OIIO_SIMD_FLAGS -DUSE_SIMD=sse2)
+    set(OIIO_SIMD_FLAGS -DUSE_SIMD=sse4.2)
   endif()
   set(OPENJPEG_POSTFIX _msvc)
   if(BUILD_MODE STREQUAL Debug)
     set(TIFF_POSTFIX d)
     set(PNG_POSTFIX d)
   else()
-    set(TIFF_POSTFIX)
-    set(PNG_POSTFIX)
+    set(TIFF_POSTFIX "")
+    set(PNG_POSTFIX "")
   endif()
   set(PNG_LIBNAME libpng16_static${PNG_POSTFIX}${LIBEXT})
 else()
   set(PNG_LIBNAME libpng${LIBEXT})
-  set(OIIO_SIMD_FLAGS)
-  set(TIFF_POSTFIX)
+  set(OIIO_SIMD_FLAGS "")
+  set(TIFF_POSTFIX "")
 endif()
 
 if(MSVC)
@@ -50,12 +51,11 @@ endif()
 set(OPENIMAGEIO_EXTRA_ARGS
   -DBUILD_SHARED_LIBS=ON
   ${OPENIMAGEIO_LINKSTATIC}
-  -DOpenImageIO_REQUIRED_DEPS=WebP$<SEMICOLON>JPEGTurbo$<SEMICOLON>TIFF$<SEMICOLON>OpenEXR$<SEMICOLON>PNG$<SEMICOLON>OpenJPEG$<SEMICOLON>fmt$<SEMICOLON>Robinmap$<SEMICOLON>ZLIB$<SEMICOLON>pugixml$<SEMICOLON>Python
+  -DOpenImageIO_REQUIRED_DEPS=WebP$<SEMICOLON>libjpeg-turbo$<SEMICOLON>TIFF$<SEMICOLON>OpenEXR$<SEMICOLON>PNG$<SEMICOLON>OpenJPEG$<SEMICOLON>fmt$<SEMICOLON>Robinmap$<SEMICOLON>ZLIB$<SEMICOLON>pugixml$<SEMICOLON>Python$<SEMICOLON>openjph$<SEMICOLON>TBB$<SEMICOLON>Libheif
   -DUSE_NUKE=OFF
   -DUSE_OPENVDB=OFF
   -DUSE_FREETYPE=OFF
   -DUSE_DCMTK=OFF
-  -DUSE_LIBHEIF=OFF
   -DUSE_TBB=ON
   -DUSE_QT=OFF
   -DUSE_PYTHON=ON
@@ -64,7 +64,7 @@ set(OPENIMAGEIO_EXTRA_ARGS
   -DUSE_OPENJPEG=ON
   -DUSE_FFMPEG=OFF
   -DUSE_PTEX=OFF
-  -DUSE_FREETYPE=OFF
+  -DUSE_LIBHEIF=ON
   -DUSE_LIBRAW=OFF
   -DUSE_JXL=OFF
   -DUSE_OPENCOLORIO=ON
@@ -103,13 +103,15 @@ set(OPENIMAGEIO_EXTRA_ARGS
   -DTBB_ROOT=${LIBDIR}/tbb
   -Dlibdeflate_ROOT=${LIBDIR}/deflate
   -Dfmt_ROOT=${LIBDIR}/fmt
+  -Dopenjph_DIR=${LIBDIR}/openjph/lib/cmake/openjph
+  -DLibheif_DIR=${LIBDIR}/libheif/lib/cmake/libheif
 )
 
 if(WIN32)
   # We don't want the SOABI tags in the final filename since it gets the debug
   # tags wrong and the final .pyd won't be found by python, pybind11 will try to
   # get the tags and dump them into PYTHON_MODULE_EXTENSION every time the current
-  # python interperter doesn't match the old one, overwriting our preference.
+  # python interpreter doesn't match the old one, overwriting our preference.
   # To side step this behavior we set PYBIND11_PYTHON_EXECUTABLE_LAST so it'll
   # leave the PYTHON_MODULE_EXTENSION value we set alone.
   list(APPEND OPENIMAGEIO_EXTRA_ARGS -DPYBIND11_PYTHON_EXECUTABLE_LAST=${PYTHON_BINARY})
@@ -130,10 +132,7 @@ ExternalProject_Add(external_openimageio
   PATCH_COMMAND
     ${PATCH_CMD} -p 1 -N -d
       ${BUILD_DIR}/openimageio/src/external_openimageio/ <
-      ${PATCH_DIR}/openimageio.diff &&
-    ${PATCH_CMD} -p 1 -N -d
-      ${BUILD_DIR}/openimageio/src/external_openimageio/ <
-      ${PATCH_DIR}/oiio_windows_arm64.diff
+      ${PATCH_DIR}/openimageio.diff
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/openimageio
     ${DEFAULT_CMAKE_FLAGS}
@@ -159,6 +158,7 @@ add_dependencies(
   external_python
   external_pybind11
   external_tbb
+  external_libheif
 )
 
 if(WIN32)

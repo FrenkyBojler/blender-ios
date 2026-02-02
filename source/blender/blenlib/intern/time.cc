@@ -19,6 +19,8 @@
 /* timeapi.h needs to be included after windows.h. */
 #  include <timeapi.h>
 
+namespace blender {
+
 double BLI_time_now_seconds()
 {
   static int hasperfcounter = -1; /* (-1 == unknown) */
@@ -27,7 +29,7 @@ double BLI_time_now_seconds()
   if (hasperfcounter == -1) {
     __int64 ifreq;
     hasperfcounter = QueryPerformanceFrequency((LARGE_INTEGER *)&ifreq);
-    perffreq = (double)ifreq;
+    perffreq = double(ifreq);
   }
 
   if (hasperfcounter) {
@@ -102,6 +104,8 @@ void BLI_time_sleep_precise_us(int us)
   CloseHandle(timerHandle);
 }
 
+}  // namespace blender
+
 #else
 
 #  include <chrono>
@@ -109,6 +113,8 @@ void BLI_time_sleep_precise_us(int us)
 
 #  include <sys/time.h>
 #  include <unistd.h>
+
+namespace blender {
 
 double BLI_time_now_seconds()
 {
@@ -144,5 +150,7 @@ void BLI_time_sleep_precise_us(int us)
 {
   std::this_thread::sleep_for(std::chrono::microseconds(us));
 }
+
+}  // namespace blender
 
 #endif

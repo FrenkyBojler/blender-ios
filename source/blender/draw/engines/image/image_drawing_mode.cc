@@ -16,7 +16,7 @@ namespace blender::image_engine {
 void ScreenSpaceDrawingMode::add_shgroups() const
 {
   PassSimple &pass = instance_.state.image_ps;
-  GPUShader *shader = ShaderModule::module_get().color.get();
+  gpu::Shader *shader = ShaderModule::module_get().color.get();
   const ShaderParameters &sh_params = instance_.state.sh_params;
   DefaultTextureList *dtxl = DRW_context_get()->viewport_texture_list_get();
 
@@ -37,10 +37,10 @@ void ScreenSpaceDrawingMode::add_shgroups() const
   }
 }
 
-void ScreenSpaceDrawingMode::add_depth_shgroups(::Image *image, ImageUser *image_user) const
+void ScreenSpaceDrawingMode::add_depth_shgroups(blender::Image *image, ImageUser *image_user) const
 {
   PassSimple &pass = instance_.state.depth_ps;
-  GPUShader *shader = ShaderModule::module_get().depth.get();
+  gpu::Shader *shader = ShaderModule::module_get().depth.get();
   pass.shader_set(shader);
 
   float4x4 image_mat = float4x4::identity();
@@ -52,8 +52,8 @@ void ScreenSpaceDrawingMode::add_depth_shgroups(::Image *image, ImageUser *image
   }
 
   for (const TextureInfo &info : instance_.state.texture_infos) {
-    LISTBASE_FOREACH (ImageTile *, image_tile_ptr, &image->tiles) {
-      const ImageTileWrapper image_tile(image_tile_ptr);
+    for (ImageTile &image_tile_ptr : image->tiles) {
+      const ImageTileWrapper image_tile(&image_tile_ptr);
       const int tile_x = image_tile.get_tile_x_offset();
       const int tile_y = image_tile.get_tile_y_offset();
       tile_user.tile = image_tile.get_tile_number();
@@ -74,7 +74,7 @@ void ScreenSpaceDrawingMode::add_depth_shgroups(::Image *image, ImageUser *image
   }
 }
 
-void ScreenSpaceDrawingMode::update_textures(::Image *image, ImageUser *image_user) const
+void ScreenSpaceDrawingMode::update_textures(blender::Image *image, ImageUser *image_user) const
 {
   State &state = instance_.state;
   PartialUpdateChecker<ImageTileData> checker(image, image_user, state.partial_update.user);
@@ -188,6 +188,10 @@ void ScreenSpaceDrawingMode::do_partial_update(
                texture_height / BLI_rctf_size_y(&info.clipping_uv_bounds)),
           ceil((changed_overlapping_region_in_uv_space.ymax - info.clipping_uv_bounds.ymin) *
                texture_height / BLI_rctf_size_y(&info.clipping_uv_bounds)));
+      gpu_texture_region_to_update.xmax = min_ii(gpu_texture_region_to_update.xmax,
+                                                 info.clipping_bounds.xmax);
+      gpu_texture_region_to_update.ymax = min_ii(gpu_texture_region_to_update.ymax,
+                                                 info.clipping_bounds.ymax);
 
       rcti tile_region_to_extract;
       BLI_rcti_init(
@@ -263,9 +267,9 @@ void ScreenSpaceDrawingMode::do_full_update_gpu_texture(TextureInfo &info,
 
   void *lock;
 
-  ::Image *image = instance_.state.image;
-  LISTBASE_FOREACH (ImageTile *, image_tile_ptr, &image->tiles) {
-    const ImageTileWrapper image_tile(image_tile_ptr);
+  blender::Image *image = instance_.state.image;
+  for (ImageTile &image_tile_ptr : image->tiles) {
+    const ImageTileWrapper image_tile(&image_tile_ptr);
     tile_user.tile = image_tile.get_tile_number();
 
     ImBuf *tile_buffer = BKE_image_acquire_ibuf(image, &tile_user, &lock);
@@ -344,7 +348,7 @@ void ScreenSpaceDrawingMode::begin_sync() const
   }
 }
 
-void ScreenSpaceDrawingMode::image_sync(::Image *image, ImageUser *iuser) const
+void ScreenSpaceDrawingMode::image_sync(blender::Image *image, ImageUser *iuser) const
 {
   State &state = instance_.state;
 

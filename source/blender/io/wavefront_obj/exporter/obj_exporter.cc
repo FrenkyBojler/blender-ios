@@ -10,6 +10,12 @@
 #include <memory>
 #include <system_error>
 
+#include "DNA_collection_types.h"
+#include "DNA_curve_enums.h"
+#include "DNA_curve_types.h"
+#include "DNA_layer_types.h"
+#include "DNA_scene_types.h"
+
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_report.hh"
@@ -22,9 +28,6 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "DNA_collection_types.h"
-#include "DNA_scene_types.h"
-
 #include "ED_object.hh"
 
 #include "obj_export_mesh.hh"
@@ -34,9 +37,12 @@
 #include "obj_export_file_writer.hh"
 
 #include "CLG_log.h"
+
+namespace blender {
+
 static CLG_LogRef LOG = {"io.obj"};
 
-namespace blender::io::obj {
+namespace io::obj {
 
 OBJDepsgraph::OBJDepsgraph(const bContext *C,
                            const eEvaluationMode eval_mode,
@@ -103,11 +109,11 @@ static bool is_curve_nurbs_compatible(const Nurb *nurb)
  *
  * \note Curves are also stored with Meshes if export settings specify so.
  */
-std::pair<Vector<std::unique_ptr<OBJMesh>>, Vector<std::unique_ptr<OBJCurve>>>
+std::pair<Vector<std::unique_ptr<OBJMesh>>, Vector<std::unique_ptr<IOBJCurve>>>
 filter_supported_objects(Depsgraph *depsgraph, const OBJExportParams &export_params)
 {
   Vector<std::unique_ptr<OBJMesh>> r_exportable_meshes;
-  Vector<std::unique_ptr<OBJCurve>> r_exportable_nurbs;
+  Vector<std::unique_ptr<IOBJCurve>> r_exportable_nurbs;
   DEGObjectIterSettings deg_iter_settings{};
   deg_iter_settings.depsgraph = depsgraph;
   deg_iter_settings.flags = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
@@ -125,19 +131,20 @@ filter_supported_objects(Depsgraph *depsgraph, const OBJExportParams &export_par
         r_exportable_meshes.append(std::make_unique<OBJMesh>(depsgraph, export_params, object));
         break;
       case OB_CURVES_LEGACY: {
-        Curve *curve = static_cast<Curve *>(object->data);
+        Curve *curve = id_cast<Curve *>(object->data);
         Nurb *nurb{static_cast<Nurb *>(curve->nurb.first)};
         if (!nurb) {
           /* An empty curve. Not yet supported to export these as meshes. */
           if (export_params.export_curves_as_nurbs) {
-            r_exportable_nurbs.append(
-                std::make_unique<OBJCurve>(depsgraph, export_params, object));
+            IOBJCurve *obj_curve = new OBJLegacyCurve(depsgraph, object);
+            r_exportable_nurbs.append(std::unique_ptr<IOBJCurve>(obj_curve));
           }
           break;
         }
         if (export_params.export_curves_as_nurbs && is_curve_nurbs_compatible(nurb)) {
           /* Export in parameter form: control points. */
-          r_exportable_nurbs.append(std::make_unique<OBJCurve>(depsgraph, export_params, object));
+          IOBJCurve *obj_curve = new OBJLegacyCurve(depsgraph, object);
+          r_exportable_nurbs.append(std::unique_ptr<IOBJCurve>(obj_curve));
         }
         else {
           /* Export in mesh form: edges and vertices. */
@@ -257,13 +264,13 @@ static void write_mesh_objects(const Span<std::unique_ptr<OBJMesh>> exportable_a
 /**
  * Export NURBS Curves in parameter form, not as vertices and edges.
  */
-static void write_nurbs_curve_objects(const Span<std::unique_ptr<OBJCurve>> exportable_as_nurbs,
+static void write_nurbs_curve_objects(const Span<std::unique_ptr<IOBJCurve>> exportable_as_nurbs,
                                       const OBJWriter &obj_writer)
 {
   FormatHandler fh;
   /* #OBJCurve doesn't have any dynamically allocated memory, so it's fine
-   * to wait for #blender::Vector to clean the objects up. */
-  for (const std::unique_ptr<OBJCurve> &obj_curve : exportable_as_nurbs) {
+   * to wait for #Vector to clean the objects up. */
+  for (const std::unique_ptr<IOBJCurve> &obj_curve : exportable_as_nurbs) {
     obj_writer.write_nurbs_curve(fh, *obj_curve);
   }
   fh.write_to_file(obj_writer.get_outfile());
@@ -320,10 +327,10 @@ static void write_materials(MTLWriter *mtl_writer, const OBJExportParams &export
                               export_params.export_pbr_extensions);
 }
 
-static void export_objects(const OBJExportParams &export_params,
-                           const Span<std::unique_ptr<OBJMesh>> meshes,
-                           const Span<std::unique_ptr<OBJCurve>> curves,
-                           const char *filepath)
+void export_objects(const OBJExportParams &export_params,
+                    const Span<std::unique_ptr<OBJMesh>> meshes,
+                    const Span<std::unique_ptr<IOBJCurve>> curves,
+                    const char *filepath)
 {
   /* Open */
   std::unique_ptr<OBJWriter> obj_writer;
@@ -411,4 +418,5 @@ void exporter_main(bContext *C, const OBJExportParams &export_params)
   }
   scene->r.cfra = original_frame;
 }
-}  // namespace blender::io::obj
+}  // namespace io::obj
+}  // namespace blender

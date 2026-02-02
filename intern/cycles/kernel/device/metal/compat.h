@@ -20,7 +20,7 @@
 
 using namespace metal;
 
-#ifdef __METALRT__
+#ifdef __KERNEL_METALRT__
 using namespace metal::raytracing;
 #endif
 
@@ -52,7 +52,7 @@ using namespace metal::raytracing;
 #define ccl_constant constant
 #define ccl_gpu_shared threadgroup
 #define ccl_private thread
-#ifdef __METALRT__
+#ifdef __KERNEL_METALRT__
 #  define ccl_ray_data ray_data
 #else
 #  define ccl_ray_data ccl_private
@@ -195,31 +195,6 @@ void kernel_gpu_##name::run(thread MetalKernelContext& context, \
 
 // clang-format on
 
-/* volumetric lambda functions - use function objects for lambda-like functionality */
-#define VOLUME_READ_LAMBDA(function_call) \
-  struct FnObjectRead { \
-    KernelGlobals kg; \
-    ccl_private MetalKernelContext *context; \
-    int state; \
-\
-    VolumeStack operator()(const int i) const \
-    { \
-      return context->function_call; \
-    } \
-  } volume_read_lambda_pass{kg, this, state};
-
-#define VOLUME_WRITE_LAMBDA(function_call) \
-  struct FnObjectWrite { \
-    KernelGlobals kg; \
-    ccl_private MetalKernelContext *context; \
-    int state; \
-\
-    void operator()(const int i, VolumeStack entry) const \
-    { \
-      context->function_call; \
-    } \
-  } volume_write_lambda_pass{kg, this, state};
-
 /* make_type definitions with Metal style element initializers */
 ccl_device_forceinline float2 make_float2(const float x, const float y)
 {
@@ -292,6 +267,7 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #define atanf(x) atan(float(x))
 #define floorf(x) floor(float(x))
 #define ceilf(x) ceil(float(x))
+#define roundf(x) round(float(x))
 #define hypotf(x, y) hypot(float(x), float(y))
 #define atan2f(x, y) atan2(float(x), float(y))
 #define fmaxf(x, y) fmax(float(x), float(y))
@@ -301,6 +277,7 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #define coshf(x) cosh(float(x))
 #define tanhf(x) tanh(float(x))
 #define saturatef(x) saturate(float(x))
+#define ldexpf(x, y) ldexp(float(x), int(y))
 
 /* Use native functions with possibly lower precision for performance,
  * no issues found so far. */
@@ -314,7 +291,7 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 
 #define __device__
 
-#ifdef __METALRT__
+#ifdef __KERNEL_METALRT__
 
 #  if defined(__METALRT_MOTION__)
 #    define METALRT_TAGS instancing, instance_motion, primitive_motion
@@ -349,7 +326,7 @@ typedef metal::raytracing::intersector<triangle_data, curve_data METALRT_LIMITS>
     metalrt_blas_intersector_type;
 #  endif
 
-#endif /* __METALRT__ */
+#endif /* __KERNEL_METALRT__ */
 
 /* texture bindings and sampler setup */
 
@@ -361,7 +338,7 @@ struct Texture2DParamsMetal {
   texture2d<float, access::sample> tex;
 };
 
-#ifdef __METALRT__
+#ifdef __KERNEL_METALRT__
 struct MetalRTBlasWrapper {
   metalrt_blas_as_type blas;
 };
@@ -373,7 +350,7 @@ struct MetalRTBlasWrapper {
 struct MetalAncillaries {
   device TextureParamsMetal *textures;
 
-#ifdef __METALRT__
+#ifdef __KERNEL_METALRT__
   metalrt_as_type accel_struct;
   constant MetalRTBlasWrapper *blas_accel_structs;
   metalrt_ift_type ift_default;

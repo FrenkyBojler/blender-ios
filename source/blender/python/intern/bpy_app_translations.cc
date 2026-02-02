@@ -30,15 +30,12 @@
 #include "RNA_types.hh"
 
 #ifdef WITH_INTERNATIONAL
-
 #  include "BLI_map.hh"
 #  include "BLI_string_ref.hh"
 #  include "BLI_string_utf8.h"
-
-using blender::StringRef;
-using blender::StringRefNull;
-
 #endif
+
+namespace blender {
 
 /* ------------------------------------------------------------------- */
 /** \name Local Struct to Store Translation
@@ -78,7 +75,7 @@ struct MessageKeyRef {
   {
     BLI_assert(this->context == BLT_I18NCONTEXT_DEFAULT_BPYRNA ||
                !BLT_is_default_context(this->context));
-    return blender::get_default_hash(this->context, this->str);
+    return get_default_hash(this->context, this->str);
   }
 };
 
@@ -88,7 +85,7 @@ struct MessageKey {
 
   uint64_t hash() const
   {
-    return blender::get_default_hash(this->context, this->str);
+    return get_default_hash(this->context, this->str);
   }
 
   static uint64_t hash_as(const MessageKeyRef &key)
@@ -120,9 +117,9 @@ inline bool operator==(const MessageKeyRef &a, const MessageKey &b)
  * so let's try to optimize the latter as much as we can!
  * Note changing of locale, as well as (un)registering a message dict, invalidate that cache.
  */
-static std::unique_ptr<blender::Map<MessageKey, std::string>> &get_translations_cache()
+static std::unique_ptr<Map<MessageKey, std::string>> &get_translations_cache()
 {
-  static std::unique_ptr<blender::Map<MessageKey, std::string>> translations;
+  static std::unique_ptr<Map<MessageKey, std::string>> translations;
   return translations;
 }
 
@@ -142,9 +139,9 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
   BLT_lang_locale_explode(
       locale, &language, nullptr, nullptr, &language_country, &language_variant);
 
-  /* Clear the cached #blender::Map if needed, and create a new one. */
+  /* Clear the cached #Map if needed, and create a new one. */
   _clear_translations_cache();
-  get_translations_cache() = std::make_unique<blender::Map<MessageKey, std::string>>();
+  get_translations_cache() = std::make_unique<Map<MessageKey, std::string>>();
 
   /* Iterate over all Python dictionaries. */
   while (PyDict_Next(py_messages, &pos, &uuid, &uuid_dict)) {
@@ -252,9 +249,9 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
   }
 
   /* Clean up! */
-  MEM_SAFE_FREE(language);
-  MEM_SAFE_FREE(language_country);
-  MEM_SAFE_FREE(language_variant);
+  MEM_SAFE_DELETE(language);
+  MEM_SAFE_DELETE(language_country);
+  MEM_SAFE_DELETE(language_variant);
 }
 
 std::optional<StringRefNull> BPY_app_translations_py_pgettext(const StringRef msgctxt,
@@ -474,11 +471,10 @@ PyDoc_STRVAR(
     "   Never use a (new) context starting with \"" BLT_I18NCONTEXT_DEFAULT_BPYRNA
     "\", it would be internally\n"
     "   assimilated as the default one!\n");
-
 PyDoc_STRVAR(
     /* Wrap. */
     app_translations_contexts_C_to_py_doc,
-    "A readonly dict mapping contexts' C-identifiers to their py-identifiers.");
+    "A readonly dict mapping contexts' C-identifiers to their py-identifiers.\n");
 
 static PyMemberDef app_translations_members[] = {
     {"contexts",
@@ -530,7 +526,7 @@ static PyObject *app_translations_locales_get(PyObject * /*self*/, void * /*user
   if (items) {
     for (it = items; it->identifier; it++) {
       if (it->value) {
-        PyTuple_SET_ITEM(ret, pos++, PyUnicode_FromString(it->description));
+        PyTuple_SET_ITEM(ret, pos++, PyUnicode_FromString(it->identifier));
       }
     }
   }
@@ -540,9 +536,13 @@ static PyObject *app_translations_locales_get(PyObject * /*self*/, void * /*user
 
 static PyGetSetDef app_translations_getseters[] = {
     /* {name, getter, setter, doc, userdata} */
-    {"locale", (getter)app_translations_locale_get, nullptr, app_translations_locale_doc, nullptr},
+    {"locale",
+     static_cast<getter>(app_translations_locale_get),
+     nullptr,
+     app_translations_locale_doc,
+     nullptr},
     {"locales",
-     (getter)app_translations_locales_get,
+     static_cast<getter>(app_translations_locales_get),
      nullptr,
      app_translations_locales_doc,
      nullptr},
@@ -570,8 +570,12 @@ static PyObject *_py_pgettext(PyObject *args,
   PyObject *msgid, *msgctxt;
   (void)_pgettext;
 
-  if (!PyArg_ParseTupleAndKeywords(
-          args, kw, "O|O:bpy.app.translations.pgettext", (char **)kwlist, &msgid, &msgctxt))
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kw,
+                                   "O|O:bpy.app.translations.pgettext",
+                                   const_cast<char **>(kwlist),
+                                   &msgid,
+                                   &msgctxt))
   {
     return nullptr;
   }
@@ -616,21 +620,23 @@ static PyObject *app_translations_pgettext(BlenderAppTranslations * /*self*/,
   return _py_pgettext(args, kw, BLT_pgettext);
 }
 
-PyDoc_STRVAR(app_translations_pgettext_n_doc,
-             ".. method:: pgettext_n(msgid, msgctxt=None)\n"
-             "\n"
-             "   Extract the given msgid to translation files. This is a no-op function that will "
-             "only mark the string to extract, but not perform the actual translation.\n"
-             "\n"
-             "   .. note::\n"
-             "      See :func:`pgettext` notes.\n"
-             "\n"
-             "   :arg msgid: The string to extract.\n"
-             "   :type msgid: str\n"
-             "   :arg msgctxt: The translation context (defaults to BLT_I18NCONTEXT_DEFAULT).\n"
-             "   :type msgctxt: str | None\n"
-             "   :return: The original string.\n"
-             "\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    app_translations_pgettext_n_doc,
+    ".. method:: pgettext_n(msgid, msgctxt=None)\n"
+    "\n"
+    "   Extract the given msgid to translation files. This is a no-op function that will "
+    "only mark the string to extract, but not perform the actual translation.\n"
+    "\n"
+    "   .. note::\n"
+    "      See :func:`pgettext` notes.\n"
+    "\n"
+    "   :arg msgid: The string to extract.\n"
+    "   :type msgid: str\n"
+    "   :arg msgctxt: The translation context (defaults to BLT_I18NCONTEXT_DEFAULT).\n"
+    "   :type msgctxt: str | None\n"
+    "   :return: The original string.\n"
+    "\n");
 static PyObject *app_translations_pgettext_n(BlenderAppTranslations * /*self*/,
                                              PyObject *args,
                                              PyObject *kw)
@@ -639,8 +645,12 @@ static PyObject *app_translations_pgettext_n(BlenderAppTranslations * /*self*/,
   PyObject *msgid, *msgctxt;
   // (void)_pgettext;
 
-  if (!PyArg_ParseTupleAndKeywords(
-          args, kw, "O|O:bpy.app.translations.pgettext", (char **)kwlist, &msgid, &msgctxt))
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kw,
+                                   "O|O:bpy.app.translations.pgettext",
+                                   const_cast<char **>(kwlist),
+                                   &msgid,
+                                   &msgctxt))
   {
     return nullptr;
   }
@@ -770,7 +780,7 @@ static PyObject *app_translations_locale_explode(BlenderAppTranslations * /*self
   char *language, *country, *variant, *language_country, *language_variant;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kw, "s:bpy.app.translations.locale_explode", (char **)kwlist, &locale))
+          args, kw, "s:bpy.app.translations.locale_explode", const_cast<char **>(kwlist), &locale))
   {
     return nullptr;
   }
@@ -781,11 +791,11 @@ static PyObject *app_translations_locale_explode(BlenderAppTranslations * /*self
   ret_tuple = Py_BuildValue(
       "sssss", language, country, variant, language_country, language_variant);
 
-  MEM_SAFE_FREE(language);
-  MEM_SAFE_FREE(country);
-  MEM_SAFE_FREE(variant);
-  MEM_SAFE_FREE(language_country);
-  MEM_SAFE_FREE(language_variant);
+  MEM_SAFE_DELETE(language);
+  MEM_SAFE_DELETE(country);
+  MEM_SAFE_DELETE(variant);
+  MEM_SAFE_DELETE(language_country);
+  MEM_SAFE_DELETE(language_variant);
 
   return ret_tuple;
 }
@@ -803,39 +813,39 @@ static PyObject *app_translations_locale_explode(BlenderAppTranslations * /*self
 static PyMethodDef app_translations_methods[] = {
     /* Can't use METH_KEYWORDS alone, see http://bugs.python.org/issue11587 */
     {"register",
-     (PyCFunction)app_translations_py_messages_register,
+     reinterpret_cast<PyCFunction>(app_translations_py_messages_register),
      METH_VARARGS | METH_KEYWORDS,
      app_translations_py_messages_register_doc},
     {"unregister",
-     (PyCFunction)app_translations_py_messages_unregister,
+     reinterpret_cast<PyCFunction>(app_translations_py_messages_unregister),
      METH_VARARGS | METH_KEYWORDS,
      app_translations_py_messages_unregister_doc},
     {"pgettext",
-     (PyCFunction)app_translations_pgettext,
+     reinterpret_cast<PyCFunction>(app_translations_pgettext),
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      app_translations_pgettext_doc},
     {"pgettext_n",
-     (PyCFunction)app_translations_pgettext_n,
+     reinterpret_cast<PyCFunction>(app_translations_pgettext_n),
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      app_translations_pgettext_n_doc},
     {"pgettext_iface",
-     (PyCFunction)app_translations_pgettext_iface,
+     reinterpret_cast<PyCFunction>(app_translations_pgettext_iface),
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      app_translations_pgettext_iface_doc},
     {"pgettext_tip",
-     (PyCFunction)app_translations_pgettext_tip,
+     reinterpret_cast<PyCFunction>(app_translations_pgettext_tip),
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      app_translations_pgettext_tip_doc},
     {"pgettext_rpt",
-     (PyCFunction)app_translations_pgettext_rpt,
+     reinterpret_cast<PyCFunction>(app_translations_pgettext_rpt),
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      app_translations_pgettext_rpt_doc},
     {"pgettext_data",
-     (PyCFunction)app_translations_pgettext_data,
+     reinterpret_cast<PyCFunction>(app_translations_pgettext_data),
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      app_translations_pgettext_data_doc},
     {"locale_explode",
-     (PyCFunction)app_translations_locale_explode,
+     reinterpret_cast<PyCFunction>(app_translations_locale_explode),
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      app_translations_locale_explode_doc},
     {nullptr},
@@ -858,7 +868,7 @@ static PyObject *app_translations_new(PyTypeObject *type, PyObject *args, PyObje
   UNUSED_VARS_NDEBUG(args, kw);
 
   if (!_translations) {
-    _translations = (BlenderAppTranslations *)type->tp_alloc(type, 0);
+    _translations = reinterpret_cast<BlenderAppTranslations *>(type->tp_alloc(type, 0));
     if (_translations) {
       PyObject *py_ctxts;
       BLT_i18n_contexts_descriptor *ctxt;
@@ -878,7 +888,7 @@ static PyObject *app_translations_new(PyTypeObject *type, PyObject *args, PyObje
     }
   }
 
-  return (PyObject *)_translations;
+  return reinterpret_cast<PyObject *>(_translations);
 }
 
 static void app_translations_free(void *self_v)
@@ -980,12 +990,12 @@ PyObject *BPY_app_translations_struct()
     return nullptr;
   }
 
-  ret = PyObject_CallObject((PyObject *)&BlenderAppTranslationsType, nullptr);
+  ret = PyObject_CallObject(reinterpret_cast<PyObject *>(&BlenderAppTranslationsType), nullptr);
 
   /* prevent user from creating new instances */
   BlenderAppTranslationsType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppTranslationsType.tp_hash = (hashfunc)Py_HashPointer;
+  BlenderAppTranslationsType.tp_hash = reinterpret_cast<hashfunc>(Py_HashPointer);
 
   return ret;
 }
@@ -999,3 +1009,5 @@ void BPY_app_translations_end()
 }
 
 /** \} */
+
+}  // namespace blender
