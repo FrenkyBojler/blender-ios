@@ -112,29 +112,37 @@ class OUTLINER_MT_context_menu(Menu):
     bl_label = "Outliner"
 
     @staticmethod
-    def draw_common_operators(layout, context):
+    def draw_open_library_blend_file(context, layout):
+        # Show "Open Library Blend File" operator for linked datablocks
+        id_data = getattr(context, "id", None)
+        if id_data is None:
+            return
+
+        library = None
+        if isinstance(id_data, bpy.types.Library):
+            library = id_data
+        else:
+            library = getattr(id_data, "library", None)
+            if hasattr(id_data, "data") and id_data.data is not None:
+                data_library = getattr(id_data.data, "library", None)
+                if library is None:
+                    library = data_library
+
+        if library is None:
+            return
+
+        op = layout.operator("outliner.open_library_blend", text="Open Blend File", icon='FILE_BLEND')
+        op.filepath = library.filepath
+
+    @staticmethod
+    def draw_common_operators(context, layout):
         layout.menu_contents("OUTLINER_MT_asset")
 
         layout.separator()
 
         layout.menu("OUTLINER_MT_liboverride", icon='LIBRARY_DATA_OVERRIDE')
 
-        # Show "Open Library Blend File" operator for linked datablocks
-        id_data = getattr(context, "id", None)
-        if id_data is not None:
-            library = None
-            if isinstance(id_data, bpy.types.Library):
-                library = id_data
-            else:
-                library = getattr(id_data, "library", None)
-                if hasattr(id_data, "data") and id_data.data is not None:
-                    data_library = getattr(id_data.data, "library", None)
-                    if library is None:
-                        library = data_library
-
-            if library is not None:
-                op = layout.operator("outliner.open_library_blend", text="Open Blend File", icon='FILE_BLEND')
-                op.filepath = library.filepath
+        OUTLINER_MT_context_menu.draw_open_library_blend_file(context, layout)
 
         layout.separator()
 
@@ -153,7 +161,7 @@ class OUTLINER_MT_context_menu(Menu):
             OUTLINER_MT_collection_new.draw_without_context_menu(context, layout)
             layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout, context)
+        OUTLINER_MT_context_menu.draw_common_operators(context, layout)
 
 
 class OUTLINER_MT_context_menu_view(Menu):
@@ -309,7 +317,7 @@ class OUTLINER_MT_collection(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout, context)
+        OUTLINER_MT_context_menu.draw_common_operators(context, layout)
 
 
 class OUTLINER_MT_collection_new(Menu):
@@ -327,7 +335,7 @@ class OUTLINER_MT_collection_new(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout, context)
+        OUTLINER_MT_context_menu.draw_common_operators(context, layout)
 
 
 class OUTLINER_MT_object(Menu):
@@ -366,7 +374,7 @@ class OUTLINER_MT_object(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout, context)
+        OUTLINER_MT_context_menu.draw_common_operators(context, layout)
 
 
 class OUTLINER_MT_asset(Menu):
