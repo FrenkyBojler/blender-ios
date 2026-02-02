@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-24 08:35+0000\n"
-"PO-Revision-Date: 2025-07-23 15:34+0000\n"
-"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"PO-Revision-Date: 2025-12-04 22:18+0000\n"
+"Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
 "Language: hi\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 5.12.1"
+"X-Generator: Weblate 5.14.3"
 
 
 msgid "Valid"
@@ -173,6 +173,11 @@ msgstr "कार्य समूह का चयन किया है"
 
 msgid "Expanded"
 msgstr "विस्तृत"
+
+
+msgctxt "ID"
+msgid "Grease Pencil v3"
+msgstr "तैलीय पेंसिल v3"
 
 
 msgid "Off"
@@ -1519,6 +1524,22 @@ msgid "Add fire"
 msgstr "अग्नि में जोड़ें"
 
 
+msgid "Font"
+msgstr "मुद्र"
+
+
+msgid "Text"
+msgstr "पाठ"
+
+
+msgid "Mask"
+msgstr "आवरण"
+
+
+msgid "Sound"
+msgstr "ध्वनि"
+
+
 msgid "Border"
 msgstr "सीमांत"
 
@@ -1801,10 +1822,6 @@ msgstr "स्वरूप संपादन"
 
 msgid "Text on Curve"
 msgstr "वक्र पर पाठ"
-
-
-msgid "Font"
-msgstr "मुद्र"
 
 
 msgid "Font Bold"
@@ -2284,10 +2301,6 @@ msgid "Mute the speaker"
 msgstr "स्पीकर म्यूट करें"
 
 
-msgid "Sound"
-msgstr "ध्वनि"
-
-
 msgid "Current Line"
 msgstr "वर्तमान रेखा"
 
@@ -2568,56 +2581,72 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "Mask"
-msgstr "आवरण"
-
-
-msgid "Apply"
-msgstr "लागू करें"
-
-
-msgid "Track"
-msgstr "ट्रैक"
-
-
-msgid "Quick Effects"
-msgstr "त्वरित प्रभाव"
-
-
 msgid "Show/Hide"
 msgstr "छुपाएँ / दिखाएँ"
 
 
-msgid "Make Single User"
-msgstr "एकल प्रयोक्ता बनाएँ"
-
-
-msgid "Hooks"
-msgstr "खूँटी"
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
 
 
 msgid "Names"
 msgstr "नाम"
 
 
-msgid "Toggle Bone Options"
-msgstr "हड्डी विकल्प बंद/बुझ"
+msgid "Import"
+msgstr "आयात करें"
 
 
-msgid "Enable Bone Options"
-msgstr "हड्डी विकल्प को सक्षम करें"
+msgid "Math"
+msgstr "गणित"
 
 
 msgid "Merge"
 msgstr "विलय करें"
 
 
+msgid "UV"
+msgstr "यूवी"
+
+
+msgid "Rigid Body"
+msgstr "कठोर-पदार्थ"
+
+
+msgid "Enable Bone Options"
+msgstr "हड्डी विकल्प को सक्षम करें"
+
+
+msgid "Toggle Bone Options"
+msgstr "हड्डी विकल्प बंद/बुझ"
+
+
+msgid "Apply"
+msgstr "लागू करें"
+
+
+msgid "Hooks"
+msgstr "खूँटी"
+
+
+msgid "Make Single User"
+msgstr "एकल प्रयोक्ता बनाएँ"
+
+
+msgid "Quick Effects"
+msgstr "त्वरित प्रभाव"
+
+
+msgid "Track"
+msgstr "ट्रैक"
+
+
+msgid "Light"
+msgstr "प्रकाश"
+
+
 msgid "Keying"
 msgstr "कुंजीयन"
-
-
-msgid "Math"
-msgstr "गणित"
 
 
 msgid "Snap"
@@ -2626,30 +2655,6 @@ msgstr "स्नैप"
 
 msgid "Mirror"
 msgstr "दर्पण"
-
-
-msgid "Text"
-msgstr "पाठ"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
-
-
-msgid "Import"
-msgstr "आयात करें"
-
-
-msgid "UV"
-msgstr "यूवी"
-
-
-msgid "Light"
-msgstr "प्रकाश"
-
-
-msgid "Rigid Body"
-msgstr "कठोर-पदार्थ"
 
 
 msgid "Basic"
@@ -3688,14 +3693,6 @@ msgid "Delete Unused"
 msgstr "मिटाएँ अप्रयुक्त"
 
 
-msgid "Select Ring"
-msgstr "वलय का चयन करें"
-
-
-msgid "Select ring"
-msgstr "वलय का चयन करें"
-
-
 msgctxt "Operator"
 msgid "Select Sharp Edges"
 msgstr "तेज किनारों का चयन करें"
@@ -3746,10 +3743,6 @@ msgstr "केवल चयनित"
 
 msgid "X-Ray"
 msgstr "एक्स-रे"
-
-
-msgid "Ring"
-msgstr "वलय"
 
 
 msgctxt "Operator"
@@ -3838,10 +3831,6 @@ msgstr "प्रशंसक"
 
 msgid "Remove original faces"
 msgstr "मूल चेहरों को हटाएँ"
-
-
-msgid "Clear Constraints"
-msgstr "प्रतिबंधी को साफ़ करें"
 
 
 msgid "Add a reroute node"
@@ -4440,12 +4429,12 @@ msgid "Lock Y"
 msgstr "तालाबंदी y"
 
 
-msgid "Motion Tracking"
-msgstr "गति मार्गन"
-
-
 msgid "Transform Orientations"
 msgstr "दिक् विन्यास संरचनांतरण"
+
+
+msgid "Motion Tracking"
+msgstr "गति मार्गन"
 
 
 msgid "Predefined tracking camera intrinsics"
@@ -5432,11 +5421,6 @@ msgstr "निर्माण"
 
 
 msgctxt "Operator"
-msgid "Movie"
-msgstr "चलचित्र"
-
-
-msgctxt "Operator"
 msgid "Delete Keyframes..."
 msgstr "अनुबोधक चिन्हों मिटाएँ..."
 
@@ -5840,11 +5824,6 @@ msgstr "सतह"
 
 
 msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "परिवर्तन शॉर्टकट"
-
-
-msgctxt "Operator"
 msgid "Delete Single Keyframe"
 msgstr "एक अनुबोधक चिन्ह मिटाएँ"
 
@@ -6093,6 +6072,10 @@ msgstr "बाहरी"
 
 msgid "Seams"
 msgstr "तेजी"
+
+
+msgid "Select Ring"
+msgstr "वलय का चयन करें"
 
 
 msgid "No additional selected meshes with equal vertex count to join"

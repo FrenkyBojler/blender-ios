@@ -16,7 +16,9 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-namespace blender::nodes::node_shader_normal_map_cc {
+namespace blender {
+
+namespace nodes::node_shader_normal_map_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -32,10 +34,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Normal");
 }
 
-static void node_shader_buts_normal_map(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_shader_buts_normal_map(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  layout->prop(ptr, "space", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout->prop(ptr, "convention", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "space", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "convention", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
   if (RNA_enum_get(ptr, "space") == SHD_SPACE_TANGENT) {
     PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
@@ -46,19 +48,19 @@ static void node_shader_buts_normal_map(uiLayout *layout, bContext *C, PointerRN
 
       if (depsgraph) {
         Object *object_eval = DEG_get_evaluated(depsgraph, object);
-        PointerRNA dataptr = RNA_id_pointer_create(static_cast<ID *>(object_eval->data));
-        layout->prop_search(ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
+        PointerRNA dataptr = RNA_id_pointer_create(object_eval->data);
+        layout.prop_search(ptr, "uv_map", &dataptr, "uv_layers", "", ICON_GROUP_UVS);
         return;
       }
     }
 
-    layout->prop(ptr, "uv_map", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout.prop(ptr, "uv_map", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   }
 }
 
 static void node_shader_init_normal_map(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderNormalMap *attr = MEM_callocN<NodeShaderNormalMap>("NodeShaderNormalMap");
+  NodeShaderNormalMap *attr = MEM_new<NodeShaderNormalMap>("NodeShaderNormalMap");
   node->storage = attr;
 }
 
@@ -182,14 +184,14 @@ NODE_SHADER_MATERIALX_BEGIN
 #endif
 NODE_SHADER_MATERIALX_END
 
-}  // namespace blender::nodes::node_shader_normal_map_cc
+}  // namespace nodes::node_shader_normal_map_cc
 
 /* node type definition */
 void register_node_type_sh_normal_map()
 {
-  namespace file_ns = blender::nodes::node_shader_normal_map_cc;
+  namespace file_ns = nodes::node_shader_normal_map_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, "ShaderNodeNormalMap", SH_NODE_NORMAL_MAP);
   ntype.ui_name = "Normal Map";
@@ -200,12 +202,14 @@ void register_node_type_sh_normal_map()
   ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_normal_map;
-  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
+  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_normal_map;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeShaderNormalMap", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::gpu_shader_normal_map;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

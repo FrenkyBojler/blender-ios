@@ -6,7 +6,7 @@
  * \ingroup bli
  */
 
-/* The #blender::meshintersect API needs GMP. */
+/* The #meshintersect API needs GMP. */
 #ifdef WITH_GMP
 
 #  include <algorithm>
@@ -580,7 +580,7 @@ void IMesh::populate_vert(int max_verts)
    * TODO: when all debugged, set fix_order = false. */
   const bool fix_order = true;
   if (fix_order) {
-    blender::parallel_sort(vert_.begin(), vert_.end(), [](const Vert *a, const Vert *b) {
+    parallel_sort(vert_.begin(), vert_.end(), [](const Vert *a, const Vert *b) {
       if (a->orig != NO_INDEX && b->orig != NO_INDEX) {
         return a->orig < b->orig;
       }
@@ -1715,7 +1715,7 @@ static void do_cdt(CDT_data &cd)
     }
   }
   cdt_in.epsilon = 0; /* TODO: needs attention for non-exact T. */
-  cd.cdt_out = blender::meshintersect::delaunay_2d_calc(cdt_in, CDT_INSIDE);
+  cd.cdt_out = delaunay_2d_calc(cdt_in, CDT_INSIDE);
   constexpr int make_edge_map_threshold = 15;
   if (cd.cdt_out.edge.size() >= make_edge_map_threshold) {
     populate_cdt_edge_map(cd.verts_to_edge, cd.cdt_out);
@@ -1942,8 +1942,8 @@ static Array<Face *> polyfill_triangulate_poly(Face *f, IMeshArena *arena)
   uint(*tris)[3];
   const int totfilltri = flen - 2;
   /* Prepare projected vertices and array to receive triangles in tessellation. */
-  tris = MEM_malloc_arrayN<uint[3]>(size_t(totfilltri), __func__);
-  projverts = MEM_malloc_arrayN<float[2]>(size_t(flen), __func__);
+  tris = MEM_new_array_uninitialized<uint[3]>(size_t(totfilltri), __func__);
+  projverts = MEM_new_array_uninitialized<float[2]>(size_t(flen), __func__);
   axis_dominant_v3_to_m3_negate(axis_mat, no);
   for (int j = 0; j < flen; ++j) {
     const double3 &dco = (*f)[j]->co;
@@ -1973,8 +1973,8 @@ static Array<Face *> polyfill_triangulate_poly(Face *f, IMeshArena *arena)
     }
   }
 
-  MEM_freeN(tris);
-  MEM_freeN(projverts);
+  MEM_delete(tris);
+  MEM_delete(projverts);
 
   return ans;
 }
@@ -2313,7 +2313,7 @@ class TriOverlaps {
      * in the repeated part, sorting will then bring things with indexB together. */
     if (two_trees_no_self) {
       overlap_ = static_cast<BVHTreeOverlap *>(
-          MEM_reallocN(overlap_, 2 * overlap_num_ * sizeof(overlap_[0])));
+          MEM_realloc_uninitialized(overlap_, 2 * overlap_num_ * sizeof(overlap_[0])));
       for (uint i = 0; i < overlap_num_; ++i) {
         overlap_[overlap_num_ + i].indexA = overlap_[i].indexB;
         overlap_[overlap_num_ + i].indexB = overlap_[i].indexA;
@@ -2346,7 +2346,7 @@ class TriOverlaps {
       BLI_bvhtree_free(tree_b_);
     }
     if (overlap_) {
-      MEM_freeN(overlap_);
+      MEM_delete(overlap_);
     }
   }
 
@@ -2639,7 +2639,7 @@ static CDT_data calc_cluster_subdivided(const CoplanarClusterInfo &clinfo,
   return cd_data;
 }
 
-static IMesh union_tri_subdivides(const blender::Array<IMesh> &tri_subdivided)
+static IMesh union_tri_subdivides(const Array<IMesh> &tri_subdivided)
 {
   int tot_tri = 0;
   for (const IMesh &m : tri_subdivided) {
