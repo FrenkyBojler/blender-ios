@@ -191,14 +191,6 @@ struct AttributeInitShared : public AttributeInit {
       : AttributeInit(Type::Shared), data(data), sharing_info(&sharing_info)
   {
   }
-
-  template<typename ContainerT> static AttributeInitShared from_container(ContainerT &&container)
-  {
-    auto shared_container = new ImplicitSharedValue<std::decay_t<ContainerT>>(
-        std::forward<ContainerT>(container));
-    const void *data = shared_container->data.data();
-    return AttributeInitShared(data, *shared_container);
-  }
 };
 
 /* Returns false when the iteration should be stopped. */

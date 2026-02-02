@@ -408,39 +408,53 @@ static void node_geo_exec(GeoNodeExecParams params)
   PointCloud *pointcloud = bke::pointcloud_new_no_attributes(points_num);
   MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
 
+  auto *position_attr = new ImplicitSharedValue<Array<float3>>(std::move(position_array));
   attributes.add<float3>("position",
                          AttrDomain::Point,
-                         bke::AttributeInitShared::from_container(std::move(position_array)));
+                         bke::AttributeInitShared(position_attr->data.data(), *position_attr));
+  position_attr->remove_user_and_delete_if_last();
   if (coord_x_id.has_value()) {
+    auto *coord_x_attr = new ImplicitSharedValue<Array<int>>(std::move(*coord_x_array));
     attributes.add<int>(*coord_x_id,
                         AttrDomain::Point,
-                        bke::AttributeInitShared::from_container(std::move(*coord_x_array)));
+                        bke::AttributeInitShared(coord_x_attr->data.data(), *coord_x_attr));
+    coord_x_attr->remove_user_and_delete_if_last();
   }
   if (coord_y_id.has_value()) {
+    auto *coord_y_attr = new ImplicitSharedValue<Array<int>>(std::move(*coord_y_array));
     attributes.add<int>(*coord_y_id,
                         AttrDomain::Point,
-                        bke::AttributeInitShared::from_container(std::move(*coord_y_array)));
+                        bke::AttributeInitShared(coord_y_attr->data.data(), *coord_y_attr));
+    coord_y_attr->remove_user_and_delete_if_last();
   }
   if (coord_z_id.has_value()) {
+    auto *coord_z_attr = new ImplicitSharedValue<Array<int>>(std::move(*coord_z_array));
     attributes.add<int>(*coord_z_id,
                         AttrDomain::Point,
-                        bke::AttributeInitShared::from_container(std::move(*coord_z_array)));
+                        bke::AttributeInitShared(coord_z_attr->data.data(), *coord_z_attr));
+    coord_z_attr->remove_user_and_delete_if_last();
   }
   if (is_tile_id.has_value()) {
+    auto *is_tile_attr = new ImplicitSharedValue<Array<bool>>(std::move(*is_tile_array));
     attributes.add<bool>(*is_tile_id,
                          AttrDomain::Point,
-                         bke::AttributeInitShared::from_container(std::move(*is_tile_array)));
+                         bke::AttributeInitShared(is_tile_attr->data.data(), *is_tile_attr));
+    is_tile_attr->remove_user_and_delete_if_last();
   }
   if (extent_id.has_value()) {
+    auto *extent_attr = new ImplicitSharedValue<Array<int>>(std::move(*extent_array));
     attributes.add<int>(*extent_id,
                         AttrDomain::Point,
-                        bke::AttributeInitShared::from_container(std::move(*extent_array)));
+                        bke::AttributeInitShared(extent_attr->data.data(), *extent_attr));
+    extent_attr->remove_user_and_delete_if_last();
   }
   if (value_id.has_value()) {
+    auto *value_attr = new ImplicitSharedValue<GArray<>>(std::move(*value_array));
     attributes.add(*value_id,
                    AttrDomain::Point,
                    bke::cpp_type_to_attribute_type(*cpp_type),
-                   bke::AttributeInitShared::from_container(std::move(*value_array)));
+                   bke::AttributeInitShared(value_attr->data.data(), *value_attr));
+    value_attr->remove_user_and_delete_if_last();
   }
 
   geometry::debug_randomize_point_order(pointcloud);
