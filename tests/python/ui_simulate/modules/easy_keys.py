@@ -293,7 +293,7 @@ def run(
 ):
     import bpy
 
-    TICKS = 40000  # 3 works, 4  to be on the safe side.
+    TICKS = 4  # 3 works, 4  to be on the safe side.
 
     def event_step():
         # Run once 'TICKS' is reached.
