@@ -214,6 +214,8 @@ void BKE_blender_globals_init()
   G.log.level = CLG_LEVEL_WARN;
 
   G.profile_gpu = false;
+
+  G.debug = G_DEBUG_GPU_NO_TEXTURE_POOL;
 }
 
 void BKE_blender_globals_clear()

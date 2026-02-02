@@ -77,17 +77,19 @@ void RenderBuffers::acquire(int2 extent)
                                                  GPU_TEXTURE_USAGE_SHADER_READ |
                                                  GPU_TEXTURE_USAGE_SHADER_WRITE;
 
+  BLI_assert(G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL);
+
   /* TODO(fclem): Make vector pass allocation optional if no TAA or motion blur is needed. */
   vector_tx.acquire(extent, vector_tx_format(), usage_attachment_read_write);
   if (inst_.pipelines.has_raycast) {
     object_id_tx.acquire(extent, gpu::TextureFormat::UINT_16, usage_attachment_read);
-    prepass_normal_tx.acquire(extent, gpu::TextureFormat::UNORM_10_10_10_2, usage_attachment_read);
+    prepass_normal_tx.acquire(extent, gpu::TextureFormat::UFLOAT_11_11_10, usage_attachment_read);
   }
   else {
     /* Still acquire them, since the passes can't conditionally attach textures. */
     object_id_tx.acquire(int2(1), gpu::TextureFormat::UINT_16, GPU_TEXTURE_USAGE_SHADER_READ);
     prepass_normal_tx.acquire(
-        int2(1), gpu::TextureFormat::UNORM_10_10_10_2, GPU_TEXTURE_USAGE_SHADER_READ);
+        int2(1), gpu::TextureFormat::UFLOAT_11_11_10, GPU_TEXTURE_USAGE_SHADER_READ);
   }
 
   const bool do_motion_vectors_swizzle = vector_tx_format() == gpu::TextureFormat::SFLOAT_16_16;
