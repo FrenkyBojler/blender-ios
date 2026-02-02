@@ -109,7 +109,6 @@ class MapUVOperation : public NodeOperation {
     if (interpolation == Interpolation::Anisotropic) {
       GPU_texture_anisotropic_filter(input_image, true);
       GPU_texture_mipmap_mode(input_image, true, true);
-      GPU_texture_update_mipmap_chain(input_image);
     }
     else {
       const bool use_bilinear = ELEM(

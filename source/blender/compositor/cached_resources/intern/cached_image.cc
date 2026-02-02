@@ -332,6 +332,7 @@ CachedImage::CachedImage(Context &context,
    * CPU, we allocate the result and copy to it from the image buffer. */
   if (context.use_gpu()) {
     texture_ = IMB_create_gpu_texture("Image Texture", linear_image_buffer, true, true);
+    GPU_texture_update_mipmap_chain(texture_);
     this->result.wrap_external(texture_);
   }
   else {

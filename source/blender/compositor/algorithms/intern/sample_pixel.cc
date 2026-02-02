@@ -48,7 +48,6 @@ static Color sample_pixel_gpu(Context &context,
   if (interpolation == Interpolation::Anisotropic) {
     GPU_texture_anisotropic_filter(input, true);
     GPU_texture_mipmap_mode(input, true, true);
-    GPU_texture_update_mipmap_chain(input);
   }
   else {
     const bool use_bilinear = ELEM(interpolation, Interpolation::Bilinear, Interpolation::Bicubic);

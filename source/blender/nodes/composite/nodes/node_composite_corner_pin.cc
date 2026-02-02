@@ -157,6 +157,7 @@ class CornerPinOperation : public NodeOperation {
     GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
 
     Result &input_image = get_input("Image");
+    GPU_texture_mipmap_mode(input_image, true, true);
     /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
      * cases, as the logic used by the bicubic realization shader expects textures to use
      * bilinear interpolation. */
@@ -166,14 +167,8 @@ class CornerPinOperation : public NodeOperation {
 
     const bool use_bilinear = ELEM(interpolation, Interpolation::Bicubic, Interpolation::Bilinear);
     const bool use_anisotropic = interpolation == Interpolation::Anisotropic;
-    if (use_anisotropic) {
-      GPU_texture_anisotropic_filter(input_image, true);
-      GPU_texture_mipmap_mode(input_image, true, true);
-      GPU_texture_update_mipmap_chain(input_image);
-    }
-    else {
-      GPU_texture_filter_mode(input_image, use_bilinear);
-    }
+    GPU_texture_filter_mode(input_image, use_bilinear);
+    GPU_texture_anisotropic_filter(input_image, use_anisotropic);
     GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
     GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     input_image.bind_as_texture(shader, "input_tx");
