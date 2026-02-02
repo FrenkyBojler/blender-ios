@@ -968,7 +968,7 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
   Scene *scene = oglrender->scene;
 
   if (!(scene->r.mode & R_SAVE_OUTPUT)) {
-    BKE_report(op->reports, RPT_ERROR, "Render output disabled in output properties");
+    BKE_report(op->reports, RPT_ERROR, "Render output disabled in Output properties");
     return false;
   }
 

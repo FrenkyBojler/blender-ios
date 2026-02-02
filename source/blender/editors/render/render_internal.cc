@@ -392,7 +392,7 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   {
     BKE_report(op->reports,
                RPT_ERROR,
-               "Render output disabled in output properties and no compositing file output nodes");
+               "Render output disabled in Output properties and no compositing File Output nodes");
     return OPERATOR_CANCELLED;
   }
 
@@ -1098,7 +1098,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   {
     BKE_report(op->reports,
                RPT_ERROR,
-               "Render output disabled in output properties and no compositing file output nodes");
+               "Render output disabled in Output properties and no compositing File Output nodes");
     return OPERATOR_CANCELLED;
   }
 
