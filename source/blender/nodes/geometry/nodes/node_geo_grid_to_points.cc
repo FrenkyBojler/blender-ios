@@ -240,11 +240,9 @@ static void process_tree(const TreeT &tree,
 
   r_position.reinitialize(active_value_count);
   if (r_is_tile.has_value()) {
-    // TODO: This could be a single value in some cases.
     r_is_tile->reinitialize(active_value_count);
   }
   if (r_extent.has_value()) {
-    // TODO: This could be a single value in some cases.
     r_extent->reinitialize(active_value_count);
   }
   if (r_coord_x.has_value()) {
@@ -321,7 +319,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   SCOPED_TIMER_AVERAGED(__func__);
 #ifdef WITH_OPENVDB
-  const auto grid = params.extract_input<bke::GVolumeGrid>("Grid");
+  const bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid");
   if (!grid) {
     params.set_default_remaining_outputs();
     return;
