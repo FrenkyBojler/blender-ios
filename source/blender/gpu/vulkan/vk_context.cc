@@ -485,7 +485,6 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
   synchronization.vk_image_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
   render_graph.add_node(synchronization);
   GPU_debug_group_end();
-  discard_pool.discard_swapchain_image(swap_chain_data.image);
 
   wait_for_submission |= swap_chain_data.submission_fence != VK_NULL_HANDLE;
   flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
@@ -495,7 +494,16 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
                      swap_chain_data.acquire_semaphore,
                      swap_chain_data.present_semaphore,
                      swap_chain_data.submission_fence);
-
+  /* Discard/remove not owning swapchain handlers.
+   * During a regular swapchain update, NVIDIA can use the same image sequential and ignore the
+   * first update. Placing these images in the discard pool results in incorrect state, best to
+   * remove them directly. */
+  if (wait_for_submission) {
+    device.resources.remove_image(swap_chain_data.image);
+  }
+  else {
+    discard_pool.discard_swapchain_image(swap_chain_data.image);
+  }
 #if 0
   device.debug_print();
 #endif
