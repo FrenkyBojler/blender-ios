@@ -160,11 +160,11 @@ static float3 compute_world_position(const openvdb::Coord &coord,
                                      int level,
                                      const openvdb::math::Transform &grid_transform,
                                      OriginMode origin_mode,
-                                     const Vector<float> &tile_offsets)
+                                     const Vector<float> &tile_center_offsets)
 {
   openvdb::Vec3d index_pos;
   if (origin_mode == OriginMode::Center) {
-    const double offset = tile_offsets[level];
+    const float offset = tile_center_offsets[level];
     index_pos = openvdb::Vec3d(coord.x() + offset, coord.y() + offset, coord.z() + offset);
   }
   else {
@@ -193,8 +193,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const Vector<int> tile_sizes = {1, 1 << 3, 1 << (3 + 4), 1 << (3 + 4 + 5)};
-  const Vector<float> tile_offsets = {0.5f, 1 << (3 - 1), 1 << (3 + 4 - 1), 1 << (3 + 4 + 5 - 1)};
   std::optional<std::string> coord_x_id = params.get_output_anonymous_attribute_id_if_needed("X");
   std::optional<std::string> coord_y_id = params.get_output_anonymous_attribute_id_if_needed("Y");
   std::optional<std::string> coord_z_id = params.get_output_anonymous_attribute_id_if_needed("Z");
@@ -212,6 +210,16 @@ static void node_geo_exec(GeoNodeExecParams params)
         using GridType = openvdb::Grid<TreeType>;
 
         if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
+          using NodeLevel2 = TreeType::RootNodeType::ChildNodeType;
+          using NodeLevel1 = NodeLevel2::ChildNodeType;
+          using NodeLevel0 = NodeLevel1::ChildNodeType;
+          static_assert(NodeLevel0::LEVEL == 0);
+          const Vector<int> tile_sizes = {1, NodeLevel0::DIM, NodeLevel1::DIM, NodeLevel2::DIM};
+          Vector<float> tile_center_offsets;
+          for (const int tile_size : tile_sizes) {
+            tile_center_offsets.append(tile_size / 2.0f);
+          }
+
           const std::shared_ptr<const GridType> vdb_grid = openvdb::GridBase::grid<GridType>(
               vdb_grid_base);
           if (!vdb_grid) {
@@ -274,7 +282,7 @@ static void node_geo_exec(GeoNodeExecParams params)
               const bool is_tile = level > 0;
 
               positions[i] = compute_world_position(
-                  coord, level, grid_transform, origin_mode, tile_offsets);
+                  coord, level, grid_transform, origin_mode, tile_center_offsets);
 
               if (coord_x_writer) {
                 coord_x_writer.span[i] = coord.x();
