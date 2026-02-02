@@ -261,9 +261,6 @@ def main():
     elif test_dir_name.startswith('principled_bsdf'):
         # principled bsdf transmission test
         report.set_fail_threshold(0.02)
-    elif test_dir_name.startswith('raycast') and args.gpu_backend == "metal":
-        # raycast_normal returns different values on Metal (R11G11B10 differences?)
-        report.set_fail_threshold(0.0275)
 
     # Noise pattern changes depending on platform. Mostly caused by transparency.
     # TODO(fclem): See if we can just increase number of samples per file.
