@@ -2101,7 +2101,9 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
             dst_fill_ids[i] = 0;
           }
           else {
+            /* Use the index of the source fill ID to create new IDs. */
             const int fill_id_index = index_by_fill_id.index_of(src_fill_id);
+            /* Valid fill IDs must not be 0, so start at 1. */
             dst_fill_ids[i] = task.start_indices.fill_id + fill_id_index + 1;
           }
         }

@@ -79,6 +79,8 @@ int get_next_available_fill_id(const VArray<int> &fill_ids)
 {
   if (std::optional<int64_t> max_i = array_utils::max_element_index(fill_ids)) {
     const int max_fill_id = fill_ids[*max_i];
+    /* Make sure the fill ID is greater than zero. This avoids the issue of hitting an invalid fill
+     * ID of zero when creating multiple IDs at once. */
     return max_fill_id <= 0 ? 1 : max_fill_id + 1;
   }
   return 1;
