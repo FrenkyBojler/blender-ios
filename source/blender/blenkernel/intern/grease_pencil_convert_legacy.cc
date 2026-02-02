@@ -3190,7 +3190,7 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
   if (array_utils::booleans_mix_calc(VArray<bool>::from_span(material_hides_stroke)) !=
       array_utils::BooleanMix::AllFalse)
   {
-    constexpr StringRef hide_stroke_name = "hide_stroke";
+    constexpr StringRefNull hide_stroke_name = "hide_stroke";
     /* Ensure that the name is not already taken. If so, rename the existing attribute and report a
      * warning. */
     if (attributes.contains(hide_stroke_name)) {
@@ -3204,10 +3204,10 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
           &reports,
           RPT_WARNING,
           RPT_("Renamed attribute '%s' to '%s' in object '%s' on layer '%s' on frame %d!"),
-          hide_stroke_name,
+          hide_stroke_name.c_str(),
           unique_name.c_str(),
           object->id.name + 2,
-          layer_name,
+          std::string(layer_name).c_str(),
           frame_number);
     }
     SpanAttributeWriter hide_stroke = attributes.lookup_or_add_for_write_only_span<bool>(
@@ -3220,7 +3220,7 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
   if (array_utils::booleans_mix_calc(VArray<bool>::from_span(material_uses_fill)) !=
       array_utils::BooleanMix::AllFalse)
   {
-    constexpr StringRef fill_id_name = "fill_id";
+    constexpr StringRefNull fill_id_name = "fill_id";
     /* Ensure that the name is not already taken. If so, rename the existing attribute. */
     if (attributes.contains(fill_id_name)) {
       Set<StringRefNull> names = attributes.all_ids();
@@ -3231,10 +3231,10 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
           &reports,
           RPT_WARNING,
           RPT_("Renamed attribute '%s' to '%s' in object '%s' on layer '%s' on frame %d!"),
-          fill_id_name,
+          fill_id_name.c_str(),
           unique_name.c_str(),
           object->id.name + 2,
-          layer_name,
+          std::string(layer_name).c_str(),
           frame_number);
     }
     SpanAttributeWriter fill_ids = attributes.lookup_or_add_for_write_only_span<int>(
