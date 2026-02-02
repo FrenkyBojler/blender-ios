@@ -262,7 +262,6 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
       texture_handle.segment = segment_opt.value();
     }
     else {
-
       BLI_assert_unreachable();
     }
   }
