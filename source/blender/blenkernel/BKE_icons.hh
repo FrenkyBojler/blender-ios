@@ -115,11 +115,11 @@ struct IconBufferRef {
   int width;
   /** Height in pixels. */
   int height;
-  /** The amount of channels per pixel. */
-  int8_t channels;
+  /** The number of channels per pixel. */
+  int channels;
 
   /** Reference to the pixels to be drawn (size of #width * #height * #channels). */
-  blender::Span<uint8_t> buffer;
+  Span<uint8_t> buffer;
 };
 
 /**

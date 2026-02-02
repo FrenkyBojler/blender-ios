@@ -419,13 +419,12 @@ static IconBufferRef construct_icon_buffer(const int width,
   BLI_assert(height >= 0);
   BLI_assert(channels >= 0);
 
-  IconBufferRef icon_buffer{};
-  icon_buffer.width = width;
-  icon_buffer.height = height;
-  icon_buffer.channels = channels;
-  icon_buffer.buffer = blender::Span(buffer, width * height * channels);
-
-  return icon_buffer;
+  return IconBufferRef{
+      .width = width,
+      .height = height,
+      .channels = channels,
+      .buffer = Span(buffer, width * height * channels),
+  };
 }
 
 static std::optional<IconBufferRef> icon_buffer_from_preview(const PreviewImage *preview,
@@ -434,14 +433,16 @@ static std::optional<IconBufferRef> icon_buffer_from_preview(const PreviewImage 
   if (!preview->rect[size]) {
     return std::nullopt;
   }
-  return construct_icon_buffer(
-      preview->w[size], preview->h[size], 4, reinterpret_cast<uint8_t *>(preview->rect[size]));
+
+  const int num_channels = 4; /* #PreviewImage always has 4 color channels. */
+  return construct_icon_buffer(preview->w[size],
+                               preview->h[size],
+                               num_channels,
+                               reinterpret_cast<uint8_t *>(preview->rect[size]));
 }
 
 std::optional<IconBufferRef> BKE_icon_get_buffer(const int icon_id, const eIconSizes size)
 {
-  using blender::Span;
-
   const Icon *icon = icon_ghash_lookup(icon_id);
   if (!icon) {
     CLOG_ERROR(&LOG, "no icon for icon ID: %d", icon_id);
