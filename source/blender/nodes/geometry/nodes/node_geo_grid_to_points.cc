@@ -4,8 +4,8 @@
 
 #include "node_geometry_util.hh"
 
-#include "BLI_array_utils.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_timeit.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_pointcloud.hh"
@@ -29,25 +29,6 @@
 #endif
 
 namespace blender::nodes::node_geo_grid_to_points_cc {
-
-enum class OriginMode : int8_t {
-  Center = 0,
-  Corner = 1,
-};
-
-static const EnumPropertyItem origin_mode_items[] = {
-    {int(OriginMode::Center),
-     "CENTER",
-     0,
-     N_("Center"),
-     N_("Points are placed at the center of voxels/tiles")},
-    {int(OriginMode::Corner),
-     "CORNER",
-     0,
-     N_("Corner"),
-     N_("Points are placed at the corner of voxels/tiles")},
-    {0, nullptr, 0, nullptr, nullptr},
-};
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -78,11 +59,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       "the cubic size of the tile");
 
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Menu>("Origin")
-      .static_items(origin_mode_items)
-      .default_value(OriginMode::Center)
-      .expanded()
-      .optional_label();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -145,53 +121,221 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
 }
 
-template<typename GridType>
-static void collect_active_coordinates(const GridType &vdb_grid,
-                                       Vector<openvdb::Coord> &active_coords,
-                                       Vector<int> &levels)
+template<typename LeafNodeT>
+static void process_leaf_node(const LeafNodeT &leaf_node,
+                              const float4x4 &grid_transform,
+                              MutableSpan<float3> r_position,
+                              MutableSpan<bool> r_is_tile,
+                              MutableSpan<int> r_extent,
+                              MutableSpan<int> r_coord_x,
+                              MutableSpan<int> r_coord_y,
+                              MutableSpan<int> r_coord_z,
+                              MutableSpan<typename LeafNodeT::ValueType> r_value)
 {
-  for (auto iter = vdb_grid->tree().cbeginValueOn(); iter; ++iter) {
-    active_coords.append(iter.getCoord());
-    levels.append(iter.getLevel());
+  using NodeT = LeafNodeT;
+  using MaskT = NodeT::NodeMaskType;
+
+  const MaskT &mask = leaf_node.getValueMask();
+
+  r_is_tile.fill(false);
+  r_extent.fill(1);
+
+  int64_t iter_i = 0;
+  for (auto iter = mask.beginOn(); iter; ++iter, ++iter_i) {
+    const int64_t i_in_node = iter.pos();
+    const openvdb::Coord ijk = leaf_node.offsetToGlobalCoord(i_in_node);
+    const float3 object_pos = math::transform_point(grid_transform,
+                                                    float3(ijk.x(), ijk.y(), ijk.z()));
+    r_position[iter_i] = object_pos;
+    if (!r_coord_x.is_empty()) {
+      r_coord_x[iter_i] = ijk.x();
+    }
+    if (!r_coord_y.is_empty()) {
+      r_coord_y[iter_i] = ijk.y();
+    }
+    if (!r_coord_z.is_empty()) {
+      r_coord_z[iter_i] = ijk.z();
+    }
+    if (!r_value.is_empty()) {
+      r_value[iter_i] = leaf_node.getValue(i_in_node);
+    }
   }
 }
 
-static float3 compute_world_position(const openvdb::Coord &coord,
-                                     int level,
-                                     const openvdb::math::Transform &grid_transform,
-                                     OriginMode origin_mode,
-                                     const Vector<float> &tile_center_offsets)
+template<typename InternalNodeT>
+static void process_internal_node(const InternalNodeT &internal_node,
+                                  const float4x4 &grid_transform,
+                                  MutableSpan<float3> r_position,
+                                  MutableSpan<bool> r_is_tile,
+                                  MutableSpan<int> r_extent,
+                                  MutableSpan<int> r_coord_x,
+                                  MutableSpan<int> r_coord_y,
+                                  MutableSpan<int> r_coord_z,
+                                  MutableSpan<typename InternalNodeT::ValueType> r_value)
 {
-  openvdb::Vec3d index_pos;
-  if (origin_mode == OriginMode::Center) {
-    const float offset = tile_center_offsets[level];
-    index_pos = openvdb::Vec3d(coord.x() + offset, coord.y() + offset, coord.z() + offset);
+  using MaskT = InternalNodeT::NodeMaskType;
+  using UnionT = InternalNodeT::UnionType;
+  const UnionT *table = internal_node.getTable();
+  const MaskT &mask = internal_node.getValueMask();
+  int64_t iter_i = 0;
+
+  r_is_tile.fill(true);
+  r_extent.fill(InternalNodeT::ChildNodeType::DIM);
+
+  for (auto iter = mask.beginOn(); iter; ++iter, ++iter_i) {
+    const int64_t i_in_node = iter.pos();
+    const openvdb::Coord ijk = internal_node.offsetToGlobalCoord(i_in_node);
+    const float3 object_pos = math::transform_point(grid_transform,
+                                                    float3(ijk.x(), ijk.y(), ijk.z()));
+    r_position[iter_i] = object_pos;
+    if (!r_coord_x.is_empty()) {
+      r_coord_x[iter_i] = ijk.x();
+    }
+    if (!r_coord_y.is_empty()) {
+      r_coord_y[iter_i] = ijk.y();
+    }
+    if (!r_coord_z.is_empty()) {
+      r_coord_z[iter_i] = ijk.z();
+    }
+    if (!r_value.is_empty()) {
+      r_value[iter_i] = table[i_in_node].getValue();
+    }
   }
-  else {
-    index_pos = openvdb::Vec3d(coord.x(), coord.y(), coord.z());
+}
+
+template<typename TreeT>
+static void process_tree(const TreeT &tree,
+                         const float4x4 &grid_transform,
+                         Array<float3> &r_position,
+                         std::optional<Array<bool>> &r_is_tile,
+                         std::optional<Array<int>> &r_extent,
+                         std::optional<Array<int>> &r_coord_x,
+                         std::optional<Array<int>> &r_coord_y,
+                         std::optional<Array<int>> &r_coord_z,
+                         std::optional<GArray<>> &r_value)
+{
+  using ValueT = TreeT::ValueType;
+  using RootNodeT = TreeT::RootNodeType;
+  using LeafNodeT = TreeT::LeafNodeType;
+
+  openvdb::tree::NodeManager<const TreeT> node_manager(tree);
+  Map<const void *, IndexRange> slice_by_node;
+  int current_offset = 0;
+
+  node_manager.foreachTopDown(
+      [&]<typename NodeT>(const NodeT &node) {
+        if constexpr (!std::is_same_v<NodeT, RootNodeT>) {
+          using MaskT = NodeT::NodeMaskType;
+          const MaskT &value_mask = node.getValueMask();
+          const int64_t values_num = value_mask.countOn();
+          slice_by_node.add_new(&node, IndexRange(current_offset, values_num));
+          current_offset += values_num;
+        }
+      },
+      false);
+
+  const int64_t active_value_count = current_offset;
+
+  r_position.reinitialize(active_value_count);
+  if (r_is_tile.has_value()) {
+    // TODO: This could be a single value in some cases.
+    r_is_tile->reinitialize(active_value_count);
+  }
+  if (r_extent.has_value()) {
+    // TODO: This could be a single value in some cases.
+    r_extent->reinitialize(active_value_count);
+  }
+  if (r_coord_x.has_value()) {
+    r_coord_x->reinitialize(active_value_count);
+  }
+  if (r_coord_y.has_value()) {
+    r_coord_y->reinitialize(active_value_count);
+  }
+  if (r_coord_z.has_value()) {
+    r_coord_z->reinitialize(active_value_count);
+  }
+  if (r_value.has_value()) {
+    r_value->reinitialize(active_value_count);
   }
 
-  const openvdb::Vec3d world_pos = grid_transform.indexToWorld(index_pos);
-  return float3(float(world_pos.x()), float(world_pos.y()), float(world_pos.z()));
+  node_manager.foreachTopDown([&]<typename NodeT>(const NodeT &node) {
+    if constexpr (std::is_same_v<NodeT, RootNodeT>) {
+      /* Ignore. */
+    }
+    else {
+      const IndexRange slice = slice_by_node.lookup(&node);
+      if (slice.is_empty()) {
+        return;
+      }
+      const MutableSpan<float3> r_position_slice = r_position.as_mutable_span().slice(slice);
+      const MutableSpan<bool> r_is_tile_slice = r_is_tile.has_value() ?
+                                                    r_is_tile->as_mutable_span().slice(slice) :
+                                                    MutableSpan<bool>();
+      const MutableSpan<int> r_extent_slice = r_extent.has_value() ?
+                                                  r_extent->as_mutable_span().slice(slice) :
+                                                  MutableSpan<int>();
+      const MutableSpan<int> r_coord_x_slice = r_coord_x.has_value() ?
+                                                   r_coord_x->as_mutable_span().slice(slice) :
+                                                   MutableSpan<int>();
+      const MutableSpan<int> r_coord_y_slice = r_coord_y.has_value() ?
+                                                   r_coord_y->as_mutable_span().slice(slice) :
+                                                   MutableSpan<int>();
+      const MutableSpan<int> r_coord_z_slice = r_coord_z.has_value() ?
+                                                   r_coord_z->as_mutable_span().slice(slice) :
+                                                   MutableSpan<int>();
+      const MutableSpan<ValueT> r_value_slice =
+          r_value.has_value() ?
+              MutableSpan<ValueT>(
+                  static_cast<ValueT *>(r_value->as_mutable_span().slice(slice).data()),
+                  slice.size()) :
+              MutableSpan<ValueT>();
+      if constexpr (std::is_same_v<NodeT, LeafNodeT>) {
+        process_leaf_node<LeafNodeT>(node,
+                                     grid_transform,
+                                     r_position_slice,
+                                     r_is_tile_slice,
+                                     r_extent_slice,
+                                     r_coord_x_slice,
+                                     r_coord_y_slice,
+                                     r_coord_z_slice,
+                                     r_value_slice);
+      }
+      else {
+        process_internal_node<NodeT>(node,
+                                     grid_transform,
+                                     r_position_slice,
+                                     r_is_tile_slice,
+                                     r_extent_slice,
+                                     r_coord_x_slice,
+                                     r_coord_y_slice,
+                                     r_coord_z_slice,
+                                     r_value_slice);
+      }
+    }
+  });
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  SCOPED_TIMER_AVERAGED(__func__);
 #ifdef WITH_OPENVDB
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
-  const auto origin_mode = params.extract_input<OriginMode>("Origin");
   const auto grid = params.extract_input<bke::GVolumeGrid>("Grid");
   if (!grid) {
     params.set_default_remaining_outputs();
     return;
   }
-
-  bke::VolumeTreeAccessToken tree_token;
-  const std::shared_ptr<const openvdb::GridBase> vdb_grid_base = grid->grid_ptr(tree_token);
-  if (!vdb_grid_base) {
+  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.node().custom1);
+  const CPPType *cpp_type = bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
+  if (!cpp_type) {
     params.set_default_remaining_outputs();
     return;
   }
+
+  bke::VolumeTreeAccessToken tree_token;
+  const openvdb::GridBase &grid_base = grid->grid(tree_token);
+  const openvdb::TreeBase &tree_base = grid_base.baseTree();
+
+  const float4x4 grid_transform = BKE_volume_transform_to_blender(grid_base.transform());
 
   std::optional<std::string> coord_x_id = params.get_output_anonymous_attribute_id_if_needed("X");
   std::optional<std::string> coord_y_id = params.get_output_anonymous_attribute_id_if_needed("Y");
@@ -203,119 +347,97 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::optional<std::string> value_id = params.get_output_anonymous_attribute_id_if_needed(
       "Value");
 
-  bke::attribute_math::to_static_type(
-      *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&]<typename ValueT>() {
-        using type_traits = typename bke::VolumeGridTraits<ValueT>;
-        using TreeType = typename type_traits::TreeType;
-        using GridType = openvdb::Grid<TreeType>;
+  Array<float3> position_array;
+  std::optional<Array<bool>> is_tile_array;
+  std::optional<Array<int>> extent_array;
+  std::optional<Array<int>> coord_x_array;
+  std::optional<Array<int>> coord_y_array;
+  std::optional<Array<int>> coord_z_array;
+  std::optional<GArray<>> value_array;
 
-        if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
-          using NodeLevel2 = TreeType::RootNodeType::ChildNodeType;
-          using NodeLevel1 = NodeLevel2::ChildNodeType;
-          using NodeLevel0 = NodeLevel1::ChildNodeType;
-          static_assert(NodeLevel0::LEVEL == 0);
-          const Vector<int> tile_sizes = {1, NodeLevel0::DIM, NodeLevel1::DIM, NodeLevel2::DIM};
-          Vector<float> tile_center_offsets;
-          for (const int tile_size : tile_sizes) {
-            tile_center_offsets.append(tile_size / 2.0f);
-          }
+  if (is_tile_id.has_value()) {
+    is_tile_array.emplace();
+  }
+  if (extent_id.has_value()) {
+    extent_array.emplace();
+  }
+  if (coord_x_id.has_value()) {
+    coord_x_array.emplace();
+  }
+  if (coord_y_id.has_value()) {
+    coord_y_array.emplace();
+  }
+  if (coord_z_id.has_value()) {
+    coord_z_array.emplace();
+  }
+  if (value_id.has_value()) {
+    value_array.emplace(*cpp_type);
+  }
 
-          const std::shared_ptr<const GridType> vdb_grid = openvdb::GridBase::grid<GridType>(
-              vdb_grid_base);
-          if (!vdb_grid) {
-            params.set_default_remaining_outputs();
-            return;
-          }
+  bool valid_grid_type = false;
+  bke::attribute_math::to_static_type(*cpp_type, [&]<typename ValueT>() {
+    using type_traits = typename bke::VolumeGridTraits<ValueT>;
+    using TreeT = typename type_traits::TreeType;
 
-          const openvdb::math::Transform &grid_transform = vdb_grid->transform();
-          const auto accessor = vdb_grid->getConstAccessor();
+    if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
+      valid_grid_type = true;
+      const TreeT &tree = static_cast<const TreeT &>(tree_base);
+      process_tree<TreeT>(tree,
+                          grid_transform,
+                          position_array,
+                          is_tile_array,
+                          extent_array,
+                          coord_x_array,
+                          coord_y_array,
+                          coord_z_array,
+                          value_array);
 
-          Vector<openvdb::Coord> active_coords;
-          Vector<int> levels;
-          collect_active_coordinates(vdb_grid, active_coords, levels);
+      BLI_assert(position_array.size() ==
+                 tree_base.activeLeafVoxelCount() + tree_base.activeTileCount());
+    }
+  });
 
-          if (active_coords.is_empty()) {
-            params.set_default_remaining_outputs();
-            return;
-          }
+  if (!valid_grid_type) {
+    params.set_default_remaining_outputs();
+    return;
+  }
 
-          PointCloud *pointcloud = BKE_pointcloud_new_nomain(active_coords.size());
-          MutableSpan<float3> positions = pointcloud->positions_for_write();
-          MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
+  const int points_num = position_array.size();
+  PointCloud *pointcloud = bke::pointcloud_new_no_attributes(points_num);
+  MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
 
-          SpanAttributeWriter<bool> is_tile_writer;
-          SpanAttributeWriter<int> coord_x_writer;
-          SpanAttributeWriter<int> coord_y_writer;
-          SpanAttributeWriter<int> coord_z_writer;
-          SpanAttributeWriter<int> extent_writer;
-          SpanAttributeWriter<typename type_traits::BlenderType> value_writer;
+  attributes.add<float3>("position",
+                         AttrDomain::Point,
+                         bke::AttributeInitShared::from_container(std::move(position_array)));
+  if (coord_x_id.has_value()) {
+    attributes.add<int>(*coord_x_id,
+                        AttrDomain::Point,
+                        bke::AttributeInitShared::from_container(std::move(*coord_x_array)));
+  }
+  if (coord_y_id.has_value()) {
+    attributes.add<int>(*coord_y_id,
+                        AttrDomain::Point,
+                        bke::AttributeInitShared::from_container(std::move(*coord_y_array)));
+  }
+  if (coord_z_id.has_value()) {
+    attributes.add<int>(*coord_z_id,
+                        AttrDomain::Point,
+                        bke::AttributeInitShared::from_container(std::move(*coord_z_array)));
+  }
+  if (is_tile_id.has_value()) {
+    attributes.add<bool>(*is_tile_id,
+                         AttrDomain::Point,
+                         bke::AttributeInitShared::from_container(std::move(*is_tile_array)));
+  }
+  if (extent_id.has_value()) {
+    attributes.add<int>(*extent_id,
+                        AttrDomain::Point,
+                        bke::AttributeInitShared::from_container(std::move(*extent_array)));
+  }
 
-          if (coord_x_id) {
-            coord_x_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(
-                *coord_x_id, AttrDomain::Point);
-          }
-          if (coord_y_id) {
-            coord_y_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(
-                *coord_y_id, AttrDomain::Point);
-          }
-          if (coord_z_id) {
-            coord_z_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(
-                *coord_z_id, AttrDomain::Point);
-          }
-          if (is_tile_id) {
-            is_tile_writer = dst_attributes.lookup_or_add_for_write_only_span<bool>(
-                *is_tile_id, AttrDomain::Point);
-          }
-          if (extent_id) {
-            extent_writer = dst_attributes.lookup_or_add_for_write_only_span<int>(
-                *extent_id, AttrDomain::Point);
-          }
-          if (value_id) {
-            value_writer = dst_attributes.lookup_or_add_for_write_only_span<
-                typename type_traits::BlenderType>(*value_id, AttrDomain::Point);
-          }
+  geometry::debug_randomize_point_order(pointcloud);
+  params.set_output("Points", GeometrySet::from_pointcloud(pointcloud));
 
-          threading::parallel_for(active_coords.index_range(), 1024, [&](const IndexRange range) {
-            for (const int64_t i : range) {
-              const openvdb::Coord coord = active_coords[i];
-              const int level = levels[i];
-              const bool is_tile = level > 0;
-
-              positions[i] = compute_world_position(
-                  coord, level, grid_transform, origin_mode, tile_center_offsets);
-
-              if (coord_x_writer) {
-                coord_x_writer.span[i] = coord.x();
-              }
-              if (coord_y_writer) {
-                coord_y_writer.span[i] = coord.y();
-              }
-              if (coord_z_writer) {
-                coord_z_writer.span[i] = coord.z();
-              }
-              if (is_tile_writer) {
-                is_tile_writer.span[i] = is_tile;
-              }
-              if (extent_writer) {
-                extent_writer.span[i] = tile_sizes[level];
-              }
-              if (value_writer) {
-                value_writer.span[i] = type_traits::to_blender(accessor.getValue(coord));
-              }
-            }
-          });
-
-          coord_x_writer.finish();
-          coord_y_writer.finish();
-          coord_z_writer.finish();
-          is_tile_writer.finish();
-          extent_writer.finish();
-          value_writer.finish();
-
-          geometry::debug_randomize_point_order(pointcloud);
-          params.set_output("Points", GeometrySet::from_pointcloud(pointcloud));
-        }
-      });
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
