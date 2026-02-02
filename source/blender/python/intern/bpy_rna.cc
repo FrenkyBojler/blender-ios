@@ -418,7 +418,7 @@ void BPY_id_release(ID *id)
 }
 
 #ifdef USE_PEDANTIC_WRITE
-static bool rna_disallow_writes = false;
+static thread_local bool rna_disallow_writes = false;
 
 static bool rna_id_write_error(PointerRNA *ptr, PyObject *key)
 {
