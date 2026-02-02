@@ -163,6 +163,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .only_realized_data()
       .supported_type(GeometryComponent::Type::Mesh)
       .usage_by_menu("Mode", int16_t(IntersectionMode::Surface));
+
   b.add_input<decl::Bool>("Self Intersections")
       .default_value(false)
       .usage_by_menu("Mode",
@@ -173,6 +174,20 @@ static void node_declare(NodeDeclarationBuilder &b)
       .usage_by_menu("Mode",
                      {int16_t(IntersectionMode::Curve), int16_t(IntersectionMode::Curve_Project)})
       .description("Include all intersections except self intersections");
+  b.add_input<decl::Bool>("Use Radius")
+      .default_value(false)
+      .usage_by_menu("Mode",
+                     {int16_t(IntersectionMode::Curve), int16_t(IntersectionMode::Curve_Project)})
+      .description(
+          "Use curve radius for calculating distance between intersections based on the curve "
+          "center line.");
+  b.add_input<decl::Float>("Distance")
+      .subtype(PROP_DISTANCE)
+      .min(0.0f)
+      .usage_by_menu("Mode",
+                     {int16_t(IntersectionMode::Curve), int16_t(IntersectionMode::Curve_Project)})
+      .description("Maximum distance between intersections");
+
   b.add_input<decl::Vector>("Direction")
       .default_value({0.0f, 0.0f, 1.0f})
       .usage_by_menu("Mode",
@@ -182,15 +197,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_DISTANCE)
       .usage_by_menu("Mode", int16_t(IntersectionMode::Plane))
       .description("Center of plane");
-  b.add_input<decl::Bool>("Use Radius")
-      .default_value(false)
-      .usage_by_menu("Mode", int16_t(IntersectionMode::Curve))
-      .description("Use radius for calculating distance between intersections");
-  b.add_input<decl::Float>("Distance")
-      .subtype(PROP_DISTANCE)
-      .min(0.0f)
-      .usage_by_menu("Mode", int16_t(IntersectionMode::Curve))
-      .description("Max search distance between intersections");
+
   b.add_input<decl::Float>("Min Angle")
       .subtype(PROP_ANGLE)
       .min(0.0f)
@@ -208,10 +215,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   advanced.add_input<decl::Bool>("Use Unsorted Data")
       .default_value(false)
       .description(
-          "Turn off sorting. This will provide faster operation at the expense of unreliable "
-          "IDs.");
+          "Turn off sorting for large data sets. This will provide faster operation at the "
+          "expense of unreliable IDs.");
   advanced.add_output<decl::Float>("Lambda").field_on_all().description(
-      "The intersection point on the segment");
+      "The intersection factor on the segment");
 }
 
 /* Attribute outputs. */
@@ -236,6 +243,9 @@ struct IntersectingLineInfo {
   float3 closest_cd;
   float lambda_ab;
   float lambda_cd;
+  float radius_ab;
+  float radius_cd;
+  float distance;
   bool is_intersection;
 };
 
@@ -532,6 +542,7 @@ static int isect_line_line_epsilon_v3_loose(const float v1[3],
 static IntersectingLineInfo intersecting_lines(const Segment &ab,
                                                const Segment &cd,
                                                const float distance,
+                                               const bool use_radius,
                                                const float2 min_max_angle)
 {
   IntersectingLineInfo isectinfo{};
@@ -569,11 +580,17 @@ static IntersectingLineInfo intersecting_lines(const Segment &ab,
       isectinfo.is_intersection = false;
       return isectinfo;
     }
-    const float actual_isect_distance = math::distance(isectinfo.closest_ab, isectinfo.closest_cd);
-    if (actual_isect_distance <= distance) {
-      /* Remove epsilon and clamp to 0,1 range. */
-      isectinfo.lambda_ab = math::clamp(isectinfo.lambda_ab, 0.0f, 1.0f);
-      isectinfo.lambda_cd = math::clamp(isectinfo.lambda_cd, 0.0f, 1.0f);
+
+    isectinfo.lambda_ab = math::clamp(isectinfo.lambda_ab, 0.0f, 1.0f);
+    isectinfo.lambda_cd = math::clamp(isectinfo.lambda_cd, 0.0f, 1.0f);
+    isectinfo.radius_ab = math::interpolate(ab.radius_start, ab.radius_end, isectinfo.lambda_ab);
+    isectinfo.radius_cd = math::interpolate(cd.radius_start, cd.radius_end, isectinfo.lambda_cd);
+    isectinfo.closest_ab = math::interpolate(ab.orig_start, ab.orig_end, isectinfo.lambda_ab);
+    isectinfo.closest_cd = math::interpolate(cd.orig_start, cd.orig_end, isectinfo.lambda_cd);
+    isectinfo.distance = math::distance(isectinfo.closest_ab, isectinfo.closest_cd);
+    const float radius_distance = use_radius ? isectinfo.radius_ab + isectinfo.radius_cd :
+                                               distance;
+    if (isectinfo.distance <= radius_distance) {
       isectinfo.is_intersection = true;
       return isectinfo;
     }
@@ -972,9 +989,10 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
   const int curve_count = src_curves.curves_range().size();
   float max_search_distance = math::max(curve_isect_eps, distance);
   if (use_radius) {
+    max_search_distance = curve_isect_eps;
     const Array<float> radii = get_evaluated_radii(src_curves);
     for (const int i : radii.index_range()) {
-      max_search_distance = math::max(max_search_distance, radii[i]);
+      max_search_distance = math::max(max_search_distance, radii[i] * 2.0f);
     }
   }
 
@@ -1007,22 +1025,12 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
               const bool calc_self = (self_intersect &&
                                       (not_adjacent || (same_id && !same_curve)));
               if (calc_all || calc_self) {
-                const float distance = use_radius ?
-                                           math::midpoint(ab.radius_start, ab.radius_end) +
-                                               math::midpoint(cd.radius_start, cd.radius_end) +
-                                               curve_isect_eps :
-                                           max_search_distance;
-
                 const IntersectingLineInfo isectinfo = intersecting_lines(
-                    ab, cd, distance, min_max_angle);
+                    ab, cd, max_search_distance, use_radius, min_max_angle);
 
                 if (isectinfo.is_intersection) {
-                  const float3 closest_ab = math::interpolate(
-                      ab.orig_start, ab.orig_end, isectinfo.lambda_ab);
-                  const float3 closest_cd = math::interpolate(
-                      cd.orig_start, cd.orig_end, isectinfo.lambda_cd);
-                  const bool pair_weight = ab.curve_index > cd.curve_index;
 
+                  const bool pair_weight = ab.curve_index > cd.curve_index;
                   int pair_id = 0;
                   if (pair_data_mode == PairData::FullPair && attribute_outputs.pair_id) {
                     pair_id = (curve_count * segment_count * segment_index) +
@@ -1032,14 +1040,14 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                       local_data,
                       int2(ab.pos_index, ab.is_cyclic_segment ? 0 : 1 + ab.pos_index),
                       isectinfo.lambda_ab,
-                      closest_ab,
-                      math::interpolate(ab.radius_start, ab.radius_end, isectinfo.lambda_ab),
+                      isectinfo.closest_ab,
+                      isectinfo.radius_ab,
                       ab.curve_index,
                       ab.direction,
                       math::interpolate(ab.len_start, ab.len_end, isectinfo.lambda_ab),
                       ab.curve_length,
                       float3(0.0f),
-                      closest_cd,
+                      isectinfo.closest_cd,
                       cd.direction,
                       !pair_weight,
                       pair_id,
@@ -1047,20 +1055,20 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                   /* Only return both intersection points if required. */
                   if (pair_data_mode == PairData::FullPair ||
                       (pair_data_mode == PairData::PointsOnly &&
-                       math::distance(closest_ab, closest_cd) > curve_isect_eps))
+                       isectinfo.distance > curve_isect_eps))
                   {
                     add_intersection_data(
                         local_data,
                         int2(cd.pos_index, cd.is_cyclic_segment ? 0 : 1 + cd.pos_index),
                         isectinfo.lambda_cd,
-                        closest_cd,
-                        math::interpolate(cd.radius_start, cd.radius_end, isectinfo.lambda_cd),
+                        isectinfo.closest_cd,
+                        isectinfo.radius_cd,
                         cd.curve_index,
                         cd.direction,
                         math::interpolate(cd.len_start, cd.len_end, isectinfo.lambda_cd),
                         cd.curve_length,
                         float3(0.0f),
-                        closest_ab,
+                        isectinfo.closest_ab,
                         ab.direction,
                         pair_weight,
                         pair_id,
@@ -1289,10 +1297,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     switch (mode) {
       case IntersectionMode::Curve: {
-        const bool use_radius = params.extract_input<bool>("Use Radius");
-        const float distance = params.extract_input<float>("Distance");
         const bool self = params.extract_input<bool>("Self Intersections");
         const bool all = params.extract_input<bool>("All Intersections");
+        if (!self && !all) {
+          geometry_set.clear();
+          return;
+        }
+        const bool use_radius = params.extract_input<bool>("Use Radius");
+        const float distance = params.extract_input<float>("Distance");
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
         set_curve_intersections(src_curves,
@@ -1310,17 +1322,23 @@ static void node_geo_exec(GeoNodeExecParams params)
         break;
       }
       case IntersectionMode::Curve_Project: {
-        const float3 direction = params.extract_input<float3>("Direction");
         const bool self = params.extract_input<bool>("Self Intersections");
         const bool all = params.extract_input<bool>("All Intersections");
+        if (!self && !all) {
+          geometry_set.clear();
+          return;
+        }
+        const bool use_radius = params.extract_input<bool>("Use Radius");
+        const float distance = params.extract_input<float>("Distance");
+        const float3 direction = params.extract_input<float3>("Direction");
         const float min_angle = params.extract_input<float>("Min Angle");
         const float max_angle = params.extract_input<float>("Max Angle");
         set_curve_intersections(src_curves,
                                 ids,
                                 self,
                                 all,
-                                false,
-                                0.0f,
+                                use_radius,
+                                distance,
                                 math::clamp(float2(min_angle, max_angle), 0.0f, pi_2_f_eps),
                                 true,
                                 direction,
