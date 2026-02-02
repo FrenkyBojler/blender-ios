@@ -1361,6 +1361,7 @@ static wmOperatorStatus replace_action_exec(bContext *C, wmOperator *op)
       continue;
     }
     const bool success = animrig::assign_action(new_action, {*id, *adt});
+    DEG_id_tag_update(id, ID_RECALC_ALL);
     if (!success) {
       failures.append(id);
     }
@@ -1417,7 +1418,7 @@ static void replace_action_ui(bContext *C, wmOperator *op)
 {
   ui::Layout &layout = *op->layout;
   layout.use_property_split_set(true);
-  ui::template_ID_session_uid(layout, C, op->ptr, "new_id", ID_AC);
+  ui::template_ID_session_uid(layout, C, op->ptr, "new_session_uid", ID_AC);
 }
 
 /* Note that this operator is similar to "OUTLINER_OT_id_remap" but narrowed in scope to only work
