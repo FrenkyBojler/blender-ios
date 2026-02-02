@@ -739,7 +739,7 @@ struct Block {
   [[nodiscard]] Button *next_but(const Button *but) const;
   [[nodiscard]] Button *prev_but(const Button *but) const;
 
-  static constexpr Button &ButtonPtrDeref(const std::unique_ptr<Button> &button)
+  static constexpr Button &button_ptr_dereference(const std::unique_ptr<Button> &button)
   {
     return *button;
   }
@@ -749,7 +749,7 @@ struct Block {
                               Button &(*)(const std::unique_ptr<Button> &)>
   buttons_as_refs() const
   {
-    return this->buttons | std::views::transform(ButtonPtrDeref);
+    return this->buttons | std::views::transform(button_ptr_dereference);
   }
 };
 
