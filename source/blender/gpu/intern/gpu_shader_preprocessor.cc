@@ -55,6 +55,13 @@ struct AtomicLexer : LexerBase {
     token_offsets = {offsets_.get(), size_ + 1};
 
     lex_pass();
+
+    pasted_tokens_str.append(std::make_unique<std::string>());
+    pasted_tokens_str.last()->resize(1024 * 2);
+    pasted_tokens_buf.reserve(512);
+    pasted_tokens_buf.whitespaces_collapsed_ = true;
+    pasted_tokens_buf.offsets_[0] = 0;
+    pasted_tokens_buf.original_offsets_[0] = 0;
   }
 
   /* Chosen to be easily masked. */
@@ -75,21 +82,46 @@ struct AtomicLexer : LexerBase {
     }
   }
 
-  std::deque<std::string> pasted_token;
+  /** WORKAROUND: We need the string to be immutable since the atomization_map_ contains StringRef.
+   * But we also need the pasted token to be in a continuous string buffer for the TokenBuffer.
+   * So we keep the old string around when we need to grow the buffer. */
+  Vector<std::unique_ptr<std::string>> pasted_tokens_str;
+  lexit::TokenBuffer pasted_tokens_buf;
 
-  struct PasteResult {
-    TokenAtom atom;
-    int paste_tok_index;
-  };
-
-  BLI_INLINE_METHOD PasteResult paste_token(const std::string &tok_str)
+  /**
+   * tok_str is the final token string with the optional added space at the end.
+   */
+  BLI_INLINE_METHOD Token paste_token(const std::string &tok_str,
+                                      const TokenType type,
+                                      const bool followed_by_space)
   {
-    int index = pasted_token.size();
-    pasted_token.emplace_back(tok_str);
+    std::string *str_ptr = pasted_tokens_str.last().get();
+    int occupied = pasted_tokens_buf.str_.length();
+
+    int token_size = tok_str.size();
+
+    while (occupied + token_size > str_ptr->size()) {
+      /* Create new larger buffer and copy current content.
+       * Do not free old string to not invalidate the StringRefs inside the atomization map.
+       * Cost is relatively small. */
+      pasted_tokens_str.append(std::make_unique<std::string>());
+      std::string *new_str_ptr = pasted_tokens_str.last().get();
+      new_str_ptr->resize(str_ptr->size() * 2);
+      std::memcpy(new_str_ptr->data(), str_ptr->data(), str_ptr->size());
+      /* Continue logic with new string buffer. */
+      str_ptr = new_str_ptr;
+    }
+    /* Copy token string. */
+    std::memcpy(str_ptr->data() + occupied, tok_str.data(), token_size);
+    /* Update buffer string_ref. */
+    pasted_tokens_buf.str_ = {str_ptr->data(), size_t(occupied + token_size)};
     /** IMPORTANT: The hash function need to store a StringRef of the string. We have to make sure
      * to feed it the final stored string to avoid referencing freed memory. */
-    TokenAtom atom = hash(pasted_token.back());
-    return {atom, index};
+    TokenAtom atom = hash({str_ptr->data() + occupied, token_size - followed_by_space});
+    /* Add token to buffer. */
+    pasted_tokens_buf.append(type, atom, token_size - followed_by_space, token_size);
+
+    return pasted_tokens_buf.back();
   }
 
  protected:
@@ -196,54 +228,19 @@ struct AtomicLexer : LexerBase {
   }
 };
 
-struct ExpansionLexer : LexerBase {
-  void lexical_analysis(std::string_view input)
-  {
-    str = input;
-    process(input, lexit::char_class_table);
-    merge_spaces();
-
-    token_types_str = std::string_view((const char *)types_.get(), size_);
-    token_types = {types_.get(), size_};
-    token_offsets = {offsets_.get(), size_ + 1};
-  }
-};
-
 struct Stream {
   struct Space {};
   struct True {};
   struct False {};
   struct ConcatNext {};
 
-  struct SToken {
-    /* -1 if boolean value. */
-    int32_t index = -1;
-    /* Non zero if token is pasted and should be sourced from the pasted token buffer. */
-    TokenAtom pasted_atom = 0;
-    /* True if token is followed by whitespace or a space was injected after it. */
-    bool followed_by_space = false;
-    /* Value of the token if True/False from expression expansion. */
-    bool bool_value;
-
-    SToken(Token tok) : index(int(tok)), followed_by_space(tok.followed_by_whitespace()) {}
-    SToken(True /*tok*/) : bool_value(true) {}
-    SToken(False /*tok*/) : bool_value(false) {}
-
-    /* For pasted tokens. */
-    SToken(int index, TokenAtom atom, bool followed_by_space)
-        : index(index), pasted_atom(atom), followed_by_space(followed_by_space)
-    {
-      BLI_assert(index != -1);
-    }
-  };
-
   AtomicLexer &lex;
 
   bool concat_next = false;
 
-  Vector<SToken> tokens;
+  Vector<Token> tokens;
 
-  Stream(AtomicLexer &lex) : lex(lex) {};
+  explicit Stream(AtomicLexer &lex) : lex(lex) {};
 
   void clear()
   {
@@ -256,27 +253,31 @@ struct Stream {
     return *this;
   }
 
-  Stream &operator<<(const Token tok)
+  Stream &operator<<(Token tok)
   {
+    bool followed_by_space = tok.followed_by_whitespace();
     if (UNLIKELY(concat_next)) {
-      tokens.last() = paste_token(tok.str(), tok.followed_by_whitespace());
+      tok = paste_token(tokens.last().str(), tok.str(), followed_by_space);
+      tok.flag0 = followed_by_space;
+      tokens.last() = tok;
       concat_next = false;
     }
     else {
+      tok.flag0 = followed_by_space;
       tokens.append(tok);
     }
     return *this;
   }
   /* NOTE: Not compatible with concatenation. */
-  Stream &operator<<(True tok)
+  Stream &operator<<(True /*tok*/)
   {
-    tokens.append(tok);
+    tokens.append(paste_token("1", "", false));
     return *this;
   }
   /* NOTE: Not compatible with concatenation. */
-  Stream &operator<<(False tok)
+  Stream &operator<<(False /*tok*/)
   {
-    tokens.append(tok);
+    tokens.append(paste_token("0", "", false));
     return *this;
   }
 
@@ -300,7 +301,7 @@ struct Stream {
   Stream &operator<<(Space /*space*/)
   {
     if (!tokens.is_empty()) {
-      tokens.last().followed_by_space = true;
+      tokens.last().flag0 = true;
     }
     return *this;
   }
@@ -312,150 +313,136 @@ struct Stream {
   {
     result_buf.clear();
     result_buf.reserve(tokens.size() * 7);
-    for (const SToken stream_tok : tokens) {
-      if (UNLIKELY(stream_tok.index == -1)) {
-        result_buf += char('0' + stream_tok.bool_value);
-      }
-      else if (UNLIKELY(stream_tok.pasted_atom)) {
-        result_buf += lex.pasted_token[stream_tok.index];
-      }
-      else {
-        result_buf += lex[stream_tok.index].str();
-      }
-      if (stream_tok.followed_by_space) {
+    for (const auto stream_tok : tokens) {
+      result_buf += stream_tok.str();
+      if (stream_tok.flag0) {
         result_buf += ' ';
       }
     }
     return result_buf;
   }
 
-  struct IToken {
-    const AtomicLexer *lex;
-    const SToken *stream_tok;
+  struct Iterator {
+    const Stream *stream;
+    const Token *tok;
 
-    IToken(const AtomicLexer &lex, const SToken *stream_tok) : lex(&lex), stream_tok(stream_tok) {}
-    IToken(const IToken &other) = default;
+    Iterator(const Stream &stream, const Token *tok) : stream(&stream), tok(tok) {}
+    Iterator(const Iterator &other) = default;
 
     bool is_valid() const
     {
-      return true; /* TODO */
+      return tok != nullptr;
     }
 
     TokenType type() const
     {
-      BLI_assert_msg(stream_tok->index != -1, "Cannot iterate a stream with boolean tokens");
-      return stream_tok->pasted_atom ? Word : (*lex)[stream_tok->index].type();
+      return tok ? tok->type() : Invalid;
     }
     TokenAtom atom() const
     {
-      BLI_assert_msg(stream_tok->index != -1, "Cannot iterate a stream with boolean tokens");
-      return stream_tok->pasted_atom ? stream_tok->pasted_atom : (*lex)[stream_tok->index].atom();
+      return tok ? tok->atom() : 0;
     }
 
     std::string_view str() const
     {
-      BLI_assert_msg(stream_tok->index != -1, "Cannot iterate a stream with boolean tokens");
-      return stream_tok->pasted_atom ? std::string_view{lex->pasted_token[stream_tok->index]} :
-                                       (*lex)[stream_tok->index].str();
+      return tok ? tok->str() : "";
     }
 
     bool followed_by_whitespace() const
     {
-      BLI_assert_msg(stream_tok->index != -1, "Cannot iterate a stream with boolean tokens");
-      return stream_tok->pasted_atom ? stream_tok->followed_by_space :
-                                       (*lex)[stream_tok->index].followed_by_whitespace();
+      return tok ? tok->flag0 : false;
     }
 
-    IToken next() const
+    Iterator next() const
     {
-      /*TODO Safety*/
-      return IToken(*lex, stream_tok + 1);
+      if (tok == nullptr || tok + 1 >= stream->tokens.end()) {
+        return Iterator(*stream, nullptr);
+      }
+      return Iterator(*stream, tok + 1);
     }
-    IToken prev() const
+    Iterator prev() const
     {
-      /*TODO Safety*/
-      return IToken(*lex, stream_tok - 1);
-    }
-
-    friend bool operator==(const IToken &a, const IToken &b)
-    {
-      return a.stream_tok == b.stream_tok;
-    }
-    friend bool operator!=(const IToken &a, const IToken &b)
-    {
-      return a.stream_tok != b.stream_tok;
+      if (tok == nullptr || tok - 1 < stream->tokens.begin()) {
+        return Iterator(*stream, nullptr);
+      }
+      return Iterator(*stream, tok - 1);
     }
 
-    friend bool operator==(const IToken &a, TokenType b)
+    friend bool operator==(const Iterator &a, const Iterator &b)
+    {
+      return a.tok == b.tok;
+    }
+    friend bool operator!=(const Iterator &a, const Iterator &b)
+    {
+      return a.tok != b.tok;
+    }
+
+    friend bool operator==(const Iterator &a, TokenType b)
     {
       return a.type() == b;
     }
-    friend bool operator!=(const IToken &a, TokenType b)
+    friend bool operator!=(const Iterator &a, TokenType b)
     {
       return a.type() != b;
     }
 
     /* For iterator compatibility. */
-    IToken &operator++()
+    Iterator &operator++()
     {
-      stream_tok++;
+      if (tok == nullptr || tok + 1 >= stream->tokens.end()) {
+        tok = nullptr;
+      }
+      else {
+        ++tok;
+      }
       return *this;
     }
-    const IToken &operator*()
+    const Iterator &operator*()
     {
       return *this;
     }
   };
 
-  Stream &operator<<(const IToken &tok)
+  Stream &operator<<(const Iterator &it)
   {
-    if (UNLIKELY(concat_next)) {
-      tokens.last() = paste_token(tok.str(), tok.followed_by_whitespace());
-      concat_next = false;
-    }
-    else {
-      tokens.append(*tok.stream_tok);
-    }
+    *this << *it.tok;
+    tokens.last().flag0 = it.followed_by_whitespace();
     return *this;
   }
 
-  IToken begin() const
+  Iterator begin() const
   {
-    return IToken{lex, tokens.begin()};
+    if (tokens.is_empty()) {
+      return end();
+    }
+    return Iterator(*this, tokens.begin());
   }
 
-  IToken end() const
+  Iterator end() const
   {
-    return IToken{lex, tokens.end()};
+    return Iterator(*this, nullptr);
   }
 
  private:
-  SToken paste_token(const StringRef &b, bool followed_by_space)
+  Token paste_token(const StringRef &a, const StringRef &b, bool followed_by_space)
   {
-    std::string pasted = IToken{lex, &tokens.last()}.str() + b;
-    auto [atom, id] = lex.paste_token(pasted);
-    return SToken(id, atom, followed_by_space);
+    std::string pasted;
+    pasted.reserve(a.size() + b.size() + followed_by_space);
+    pasted.append(a);
+    pasted.append(b);
+    if (followed_by_space) {
+      pasted += ' ';
+    }
+    return lex.paste_token(pasted, Word, followed_by_space);
   }
 };
 
 DCEStream &operator<<(DCEStream &dst, const Stream &src)
 {
-  for (const auto stream_tok : src.tokens) {
-    /* This should only be used for expressions. */
-    BLI_assert(stream_tok.index != -1);
-
-    if (UNLIKELY(stream_tok.pasted_atom)) {
-      /* TODO: Pasting could eventually form a keyword. But that's not supported yet. */
-      dst.parse_token(stream_tok.pasted_atom, Word);
-      dst << src.lex.pasted_token[stream_tok.index];
-    }
-    else {
-      Token tok = src.lex[stream_tok.index];
-      dst.parse_token(tok.atom(), tok.type());
-      dst << tok.str();
-    }
-
-    if (stream_tok.followed_by_space) {
+  for (const auto tok : src.tokens) {
+    dst.parse_token(tok.atom(), tok.type());
+    dst << tok.str();
+    if (tok.flag0) {
       dst << " ";
     }
   }
@@ -465,8 +452,7 @@ DCEStream &operator<<(DCEStream &dst, const Stream &src)
 DCEStream &operator<<(DCEStream &dst, const TokenRange<Token> &range)
 {
   dst.parse_token(range.begin, range.end);
-  StringRef str = range.begin.str_with_whitespace();
-  dst << StringRef(str.data(), range.end.str_with_whitespace().end());
+  dst << range.begin.buf_->substr(range.begin, range.end, true);
   return dst;
 }
 
@@ -777,7 +763,6 @@ struct Preprocessor : IntermediateFormWithIDs {
  private:
   using ExpressionLexer = shader::parser::ExpressionLexer;
   using ExpressionParser = shader::parser::ExpressionParser;
-  using ExpansionParser = IntermediateForm<ExpansionLexer, shader::parser::DummyParser>;
 
   DCEStream out_stream;
 
@@ -1264,8 +1249,12 @@ struct Preprocessor : IntermediateFormWithIDs {
     /* Early out simple cases. */
     if (expand->tokens.size() == 1) {
       const auto &token = expand->tokens.first();
-      if (token.index == -1) {
-        return token.bool_value;
+      StringRef str = token.str();
+      if (str == "0") {
+        return false;
+      }
+      if (str == "1") {
+        return true;
       }
     }
 
@@ -1365,7 +1354,7 @@ struct Preprocessor : IntermediateFormWithIDs {
   {
     auto result = stream_pool.alloc();
 
-    for (auto tok = tok_stream.begin(), end = tok_stream.end(); tok != end; tok = tok.next()) {
+    for (auto tok = tok_stream.begin(), end = tok_stream.end(); tok != end; ++tok) {
       if (tok == Word) {
         /* Try to match the token pointed at by cursor with a defined macro. If that happen advance
          * the cursor to the end of the macro (in case of functional macro). */
@@ -1431,7 +1420,6 @@ struct Preprocessor : IntermediateFormWithIDs {
     return args;
   }
 
-  /* TODO(fclem): Try specialization for no concatenation and no function. */
   template<typename IToken>
   BLI_NOINLINE StreamPtr expand_macro_args(const Macro &macro,
                                            const Vector<TokenRange<IToken>> &macro_args)
@@ -1601,11 +1589,15 @@ struct Preprocessor : IntermediateFormWithIDs {
     out_stream << get_true_end(end).str_with_whitespace();
   }
 
+  /* Buffer of newlines since the StringRef must stay valid until result string is built.
+   * Since this is only to replace content, we cannot have more lines than there is.
+   * Avoid reallocation and persistent storage logic for a few KB of memory. */
+  std::string new_lines_buf = std::string(lex_.line_offsets.size(), '\n');
+
   /* Return a string with the amount of newline character between line_start and line_end. */
   StringRef new_lines(LineID line_start, LineID line_end)
   {
-    lex_.pasted_token.emplace_back(int(line_end) - int(line_start), '\n');
-    return lex_.pasted_token.back();
+    return StringRef(new_lines_buf).substr(0, int(line_end) - int(line_start));
   }
 
   Token skip_directive_newlines(Token tok)

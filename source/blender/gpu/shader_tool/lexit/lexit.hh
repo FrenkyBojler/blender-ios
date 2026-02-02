@@ -37,6 +37,11 @@ struct Token {
 #endif
   const TokenBuffer *buf_;
   int32_t index_;
+  /* General purpose flags. */
+  int8_t flag0;
+  int8_t flag1;
+  int8_t flag2;
+  int8_t flag3;
 
   Token(const TokenBuffer *buf, int32_t index);
 
@@ -187,6 +192,19 @@ struct TokenBuffer {
     return str_.substr(start_char, end_char - start_char);
   }
 
+  /**
+   * @brief Append a Token at the end of the buffer.
+   */
+  void append(TokenType type, TokenAtom atom, int32_t str_size, int32_t str_size_with_witespaces)
+  {
+    reserve(size_ + 1);
+    types_[size_] = type;
+    atoms_[size_] = atom;
+    offsets_[size_ + 1] = offsets_[size_] + str_size_with_witespaces;
+    original_offsets_[size_ + 1] = offsets_[size_] + str_size;
+    size_++;
+  }
+
   Token operator[](int index) const
   {
     return Token(this, index);
@@ -246,6 +264,15 @@ struct TokenBuffer {
   TokenIt end()
   {
     return TokenIt(this, size_);
+  }
+
+  Token front()
+  {
+    return (*this)[0];
+  }
+  Token back()
+  {
+    return (*this)[size_ - 1];
   }
 };
 
