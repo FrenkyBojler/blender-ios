@@ -87,7 +87,7 @@ def generate_stroke(context, start_over_mesh=False):
         "y_tilt": 0
     }
 
-    num_steps = 100
+    num_steps = 50
     if start_over_mesh:
         start = Vector((context['area'].width // 2, context['area'].height // 2))
     else:
@@ -201,6 +201,7 @@ class MeshBrushTests(unittest.TestCase):
         set_view3d_context_override(context_override)
         with bpy.context.temp_override(**context_override):
             bpy.ops.view3d.view_axis(type='FRONT')
+            bpy.ops.view3d.view_selected()
 
         if backend == BackendType.MESH:
             bpy.ops.object.subdivision_set(level=2, relative=False, ensure_modifier=True)
