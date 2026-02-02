@@ -17,8 +17,6 @@ _MENU_CONFIRM_HACK = True
 # Utilities
 
 
-
-
 def _view3d_object_calc_screen_space_location(window, name: str):
     from bpy_extras.view3d_utils import location_3d_to_region_2d
 

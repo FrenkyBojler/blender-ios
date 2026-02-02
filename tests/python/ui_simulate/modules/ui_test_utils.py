@@ -131,6 +131,7 @@ def keep_open():
     import bpy
     bpy.app.use_event_simulate = False
 
+
 def cursor_motion_data_x(window, margin=0.2):
     """
     Generate a range of (x,y) positions in screen space, centered vertically in the window
