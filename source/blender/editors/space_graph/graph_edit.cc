@@ -912,7 +912,7 @@ static std::string graphkeys_clean_get_description(bContext * /*C*/,
   if (RNA_boolean_get(ptr, "channels")) {
     return TIP_("Simplify F-Curves and remove empty or redundant channels.");
   }
-  
+
   /* Use the default description in the other case. */
   return "";
 }
