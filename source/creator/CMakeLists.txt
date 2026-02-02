@@ -102,7 +102,7 @@ endif()
 
 if(WITH_IMAGE_OPENEXR)
   # NOTE: This is _only_ needed when linking blender before the install target runs.
-  # Once openjph libraries have been copied into `TARGETDIR_LIB` then Blender will link.
+  # Once `openjph` libraries have been copied into `TARGETDIR_LIB` then Blender will link.
   # Don't rely on this though as failing on a fresh build is no good and the library
   # files could get outdated too.
   if(DEFINED LIBDIR)
@@ -125,6 +125,10 @@ endif()
 
 if(WITH_SDL)
   add_definitions(-DWITH_SDL)
+endif()
+
+if(WITH_INPUT_NDOF)
+  add_definitions(-DWITH_INPUT_NDOF)
 endif()
 
 if(WITH_BINRELOC)
@@ -1880,7 +1884,7 @@ unset(TARGETDIR_TEXT)
 
 # Geometry icons.
 get_property(_icon_names GLOBAL PROPERTY ICON_GEOM_NAMES)
-set(_icon_files)
+set(_icon_files "")
 foreach(_f ${_icon_names})
   list(APPEND _icon_files
     "${CMAKE_SOURCE_DIR}/release/datafiles/icons/${_f}.dat"
