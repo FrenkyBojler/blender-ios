@@ -561,7 +561,6 @@ void BLI_ewa_imp2radangle(
 /**
  * TODO(sergey): Consider making this function inlined, so the pixel read callback
  * could also be inlined in order to avoid per-pixel function calls.
- * TODO(spitzak): replace with function matching sample_rect
  */
 void BLI_ewa_filter(int width,
                     int height,
@@ -572,7 +571,6 @@ void BLI_ewa_filter(int width,
                     const float dv[2],
                     ewa_filter_read_pixel_cb read_pixel_cb,
                     void *userdata,
-                    float result[4],
-                    bool clip = true);
+                    float result[4]);
 
 }  // namespace blender

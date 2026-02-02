@@ -851,29 +851,7 @@ static float4 sample_anisotropic(const SamplerSource &source,
                  dPdy * scale,
                  read_callback,
                  (void *)&source,
-                 pixel_value,
-                 false);
-  return pixel_value;
-}
-
-static float4 sample_anisotropic_clip(const SamplerSource &source,
-                                      const float2 &uv,
-                                      const float2 &dPdx,
-                                      const float2 &dPdy)
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  float2 scale = 1.0f / float2(float(source.width), float(source.height));
-  BLI_ewa_filter(source.width,
-                 source.height,
-                 false,
-                 true,
-                 uv * scale,
-                 dPdx * scale,
-                 dPdy * scale,
-                 read_callback,
-                 (void *)&source,
-                 pixel_value,
-                 true);
+                 pixel_value);
   return pixel_value;
 }
 
@@ -890,9 +868,7 @@ SampleArea sample_area(const SamplerSource &source)
     case Sampler::Bspline:
       return _sample_area<Sampler::Bspline>;
     case Sampler::Anisotropic:
-      return source.wrap_x == InterpWrapMode::Border && source.wrap_y == InterpWrapMode::Border ?
-                 sample_anisotropic_clip :
-                 sample_anisotropic;
+      return sample_anisotropic;
   }
 }
 
@@ -999,8 +975,7 @@ void BLI_ewa_filter(const int width,
                     const float dv[2],
                     ewa_filter_read_pixel_cb read_pixel_cb,
                     void *userdata,
-                    float result[4],
-                    bool clip)
+                    float result[4])
 {
   /* Scaling `dxt` / `dyt` by full resolution can cause overflow because of huge A/B/C and esp.
    * F values, scaling by aspect ratio alone does the opposite, so try something in between
@@ -1037,10 +1012,8 @@ void BLI_ewa_filter(const int width,
     }
   }
 
-  /* clamping to avoid unnecessarily huge loops. (2*MAXR+1)^2 pixels are sampled at most. */
-  static constexpr float MAXR = 8.0f;
-  ue = blender::math::min(ff * sqrtf(C), MAXR);
-  ve = blender::math::min(ff * sqrtf(A), MAXR);
+  ue = ff * sqrtf(C);
+  ve = ff * sqrtf(A);
 
   d = float(EWA_MAXIDX + 1) / (F * ff2);
   A *= d;
@@ -1054,8 +1027,25 @@ void BLI_ewa_filter(const int width,
   v1 = int(floorf(V0 - ve));
   v2 = int(ceilf(V0 + ve));
 
+  /* sane clamping to avoid unnecessarily huge loops */
+  /* NOTE: if eccentricity gets clamped (see above),
+   * the ue/ve limits can also be lowered accordingly
+   */
+  if (U0 - float(u1) > EWA_MAXIDX) {
+    u1 = int(U0) - EWA_MAXIDX;
+  }
+  if (float(u2) - U0 > EWA_MAXIDX) {
+    u2 = int(U0) + EWA_MAXIDX;
+  }
+  if (V0 - float(v1) > EWA_MAXIDX) {
+    v1 = int(V0) - EWA_MAXIDX;
+  }
+  if (float(v2) - V0 > EWA_MAXIDX) {
+    v2 = int(V0) + EWA_MAXIDX;
+  }
+
   /* Early output check for cases the whole region is outside of the buffer. */
-  if (clip && ((u2 < 0 || u1 >= width) || (v2 < 0 || v1 >= height))) {
+  if ((u2 < 0 || u1 >= width) || (v2 < 0 || v1 >= height)) {
     zero_v4(result);
     return;
   }
