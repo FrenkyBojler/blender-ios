@@ -459,8 +459,10 @@ class ShaderModule {
   StaticShader background_fill = {"overlay_background"};
   StaticShader background_clip_bound = {"overlay_clipbound"};
   StaticShader curve_edit_points = shader_clippable("overlay_edit_curves_point");
+  StaticShader curve_edit_points_gp = shader_clippable("overlay_edit_curves_point_gp");
   StaticShader curve_edit_line = shader_clippable("overlay_edit_particle_strand");
   StaticShader curve_edit_handles = shader_clippable("overlay_edit_curves_handle");
+  StaticShader curve_edit_handles_gp = shader_clippable("overlay_edit_curves_handle_gp");
   StaticShader facing = shader_clippable("overlay_facing");
   StaticShader grid = {"overlay_grid_next"};
   StaticShader grid_background = {"overlay_grid_background"};

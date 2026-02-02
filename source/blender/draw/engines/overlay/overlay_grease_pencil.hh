@@ -138,7 +138,7 @@ class GreasePencil : Overlay {
       if (show_handles_) {
         auto &sub = pass.sub("Handles");
         sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
-        sub.shader_set(res.shaders->curve_edit_handles.get());
+        sub.shader_set(res.shaders->curve_edit_handles_gp.get());
         sub.push_constant("show_curve_handles", handle_display != int(CURVE_HANDLE_NONE));
         sub.push_constant("curve_handle_display", handle_display);
         edit_handles_ = &sub;
@@ -146,10 +146,9 @@ class GreasePencil : Overlay {
 
       if (show_points_) {
         auto &sub = pass.sub("Points");
-        sub.shader_set(res.shaders->curve_edit_points.get());
+        sub.shader_set(res.shaders->curve_edit_points_gp.get());
         sub.bind_texture("weight_tx", &res.weight_ramp_tx);
         sub.push_constant("use_weight", show_weight_);
-        sub.push_constant("use_grease_pencil", true);
         sub.push_constant("do_stroke_endpoints", show_direction);
         sub.push_constant("curve_handle_display", handle_display);
         edit_points_ = &sub;

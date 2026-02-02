@@ -21,7 +21,9 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_curves_handle)
 struct VertIn {
   /* Local Position. */
   float3 ls_P;
+#ifdef WITH_RADIUS
   float radius;
+#endif
   /* Edit Flags and Data. */
   uint e_data;
   float sel;
@@ -32,10 +34,16 @@ VertIn input_assembly(uint in_vertex_id)
   uint v_i = gpu_index_load(in_vertex_id);
 
   VertIn vert_in;
+#ifdef WITH_RADIUS
   vert_in.ls_P = gpu_attr_load_float3(pos, gpu_attr_0, v_i);
   vert_in.radius = rad[gpu_attr_load_index(v_i, gpu_attr_1)];
   vert_in.e_data = data[gpu_attr_load_index(v_i, gpu_attr_2)];
   vert_in.sel = selection[gpu_attr_load_index(v_i, gpu_attr_3)];
+#else
+  vert_in.ls_P = gpu_attr_load_float3(pos, gpu_attr_0, v_i);
+  vert_in.e_data = data[gpu_attr_load_index(v_i, gpu_attr_1)];
+  vert_in.sel = selection[gpu_attr_load_index(v_i, gpu_attr_2)];
+#endif
   return vert_in;
 }
 
@@ -51,19 +59,19 @@ VertOut vertex_main(VertIn vert_in)
   VertOut vert;
   vert.flag = vert_in.e_data;
   vert.ws_P = drw_point_object_to_world(vert_in.ls_P);
-  {
-    /* Offset the curve radius in the incoming direction,
-     * so the curve geometry doesn't occlude the handle.
-     * But ensure we don't offset past the near plane. */
-    float3 I = drw_world_incident_vector(vert.ws_P);
-    float vs_depth = dot(drw_view_position() - vert.ws_P, I);
-    float near_plane_distance = abs(drw_view_near()) / dot(I, drw_view_forward());
-    float max_offset = vs_depth - (near_plane_distance * 1.01f);
-    max_offset = max(0.0f, max_offset);
-    /* Compensate for view angle. */
-    float radius = vert_in.radius * 1.5f;
-    vert.ws_P += I * min(radius, max_offset);
-  }
+#ifdef WITH_RADIUS
+  /* Offset the curve radius in the incoming direction,
+   * so the curve geometry doesn't occlude the handle.
+   * But ensure we don't offset past the near plane. */
+  float3 I = drw_world_incident_vector(vert.ws_P);
+  float vs_depth = dot(drw_view_position() - vert.ws_P, I);
+  float near_plane_distance = abs(drw_view_near()) / dot(I, drw_view_forward());
+  float max_offset = vs_depth - (near_plane_distance * 1.01f);
+  max_offset = max(0.0f, max_offset);
+  /* Compensate for view angle. */
+  float radius = vert_in.radius * 1.5f;
+  vert.ws_P += I * min(radius, max_offset);
+#endif
   vert.gpu_position = drw_point_world_to_homogenous(vert.ws_P);
   vert.sel = vert_in.sel;
   return vert;

@@ -45,7 +45,7 @@ void main()
 #endif
 
   float3 world_pos = drw_point_object_to_world(pos);
-#ifdef CURVES_POINT
+#ifdef WITH_RADIUS
   {
     /* Offset the curve radius in the incoming direction,
      * so the curve geometry doesn't occlude the handle.
@@ -63,6 +63,12 @@ void main()
   gl_Position = drw_point_world_to_homogenous(world_pos);
   float end_point_size_factor = 1.0f;
 
+#ifdef GREASE_PENCIL
+  const bool use_grease_pencil = true;
+#else
+  const bool use_grease_pencil = false;
+#endif
+
   if (use_weight) {
     final_color = float4(weight_to_rgb(selection), 1.0f);
   }
@@ -73,7 +79,7 @@ void main()
                                                     theme.colors.vert;
     final_color = mix(color_not_selected, color_selected, selection);
 
-#if 1 /* Should be checking CURVES_POINT */
+#ifdef GREASE_PENCIL /* Should be checking CURVES_POINT */
     if (do_stroke_endpoints) {
       bool is_stroke_start = (vflag & GP_EDIT_STROKE_START) != 0u;
       bool is_stroke_end = (vflag & GP_EDIT_STROKE_END) != 0u;
