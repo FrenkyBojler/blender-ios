@@ -35,6 +35,7 @@ if(WIN32)
   )
 else()
   harvest(external_openjph openjph/include openjph/include "*.h")
-  harvest_rpath_lib(external_openjph openjph/lib openjph/lib "*${SHAREDLIBEXT}*")
+  # Cmake files first because harvest_rpath_lib edits them.
   harvest(external_openjph openjph/lib/cmake/openjph openjph/lib/cmake/openjph "*.cmake")
+  harvest_rpath_lib(external_openjph openjph/lib openjph/lib "*${SHAREDLIBEXT}*")
 endif()

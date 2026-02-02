@@ -164,8 +164,9 @@ if(WIN32)
 else()
   harvest_rpath_bin(external_osl osl/bin osl/bin "*")
   harvest(external_osl osl/include osl/include "*.h")
-  harvest_rpath_lib(external_osl osl/lib osl/lib "*${SHAREDLIBEXT}*")
+  # Cmake files first because harvest_rpath_lib edits them.
   harvest(external_osl osl/lib/cmake/OSL osl/lib/cmake/OSL "*.cmake")
+  harvest_rpath_lib(external_osl osl/lib osl/lib "*${SHAREDLIBEXT}*")
   harvest(external_osl osl/share/OSL/shaders osl/share/OSL/shaders "*.h")
   harvest_rpath_python(external_osl
     osl/lib/python${PYTHON_SHORT_VERSION}
