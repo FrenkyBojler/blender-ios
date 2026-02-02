@@ -1553,7 +1553,7 @@ void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui
     const bNodeSocket *socket;
   };
 
-  SocketTooltipData *data = MEM_callocN<SocketTooltipData>(__func__);
+  SocketTooltipData *data = MEM_new_zeroed<SocketTooltipData>(__func__);
   data->ntree = &ntree;
   data->socket = &sock;
 
@@ -1564,8 +1564,8 @@ void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui
         build_socket_tooltip(tip, C, but, *data->ntree, *data->socket);
       },
       data,
-      MEM_dupallocN,
-      MEM_freeN);
+      MEM_dupalloc_void,
+      MEM_delete_void);
 }
 
 #define NODE_SOCKET_OUTLINE U.pixelsize
@@ -2065,7 +2065,6 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, ui::Block &blo
                                                0,
                                                0,
                                                "");
-      button_retval_set(panel_toggle_but, -1);
       button_func_tooltip_custom_set(
           panel_toggle_but,
           [](bContext &C, ui::TooltipData &tip, ui::Button *but, void *argN) {
@@ -4770,24 +4769,10 @@ static void draw_nodetree(const bContext &C,
   node_draw_nodetree(C, tree_draw_ctx, region, *snode, ntree, nodes, blocks, parent_key);
 }
 
-/**
- * Make the background slightly brighter to indicate that users are inside a node-group.
- */
-static void draw_background_color(const SpaceNode &snode)
+static void draw_background_color()
 {
-  const int max_tree_length = 3;
-  const float bright_factor = 0.25f;
-
-  /* We ignore the first element of the path since it is the top-most tree and it doesn't need to
-   * be brighter. We also set a cap to how many levels we want to set apart, to avoid the
-   * background from getting too bright. */
-  const int clamped_tree_path_length = BLI_listbase_count_at_most(&snode.treepath,
-                                                                  max_tree_length);
-  const int depth = max_ii(0, clamped_tree_path_length - 1);
-
   float color[3];
   ui::theme::get_color_3fv(TH_BACK, color);
-  mul_v3_fl(color, 1.0f + bright_factor * depth);
   GPU_clear_color(color[0], color[1], color[2], 1.0);
 }
 
@@ -4804,7 +4789,7 @@ void node_draw_space(const bContext &C, ARegion &region)
   GPU_framebuffer_bind_no_srgb(framebuffer_overlay);
 
   ui::view2d_view_ortho(&v2d);
-  draw_background_color(snode);
+  draw_background_color();
   GPU_depth_test(GPU_DEPTH_NONE);
   GPU_scissor_test(true);
 
