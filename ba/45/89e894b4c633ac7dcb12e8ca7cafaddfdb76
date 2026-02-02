@@ -4,3 +4,4 @@ Referenced by issue #148312, Blender 5.0 3D Viewport Hair Preview Bug
 Referenced by issue #149288, Regression: Hair in linked collections are placed in the wrong location
 Referenced by issue #149671, Curves resolution attribute causes trimming when changed via Python API
 Referenced by issue #151270, Deleting hair in sculpting mode causes Blender to crash
+Referenced by issue #153732, Curves Info > Intercept broken under EEVEE in specific circumstances
