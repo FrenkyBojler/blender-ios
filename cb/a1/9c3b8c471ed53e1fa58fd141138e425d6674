@@ -1,2 +1,3 @@
 Referenced by pull request #153737, Backport: Fix #141496: discard relative path prefix while writing to collection properties
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
+Referenced by issue #153726, Regression: Drag and drop FBX import fails due to relative path (FileNotFoundError) in 4.5.6
