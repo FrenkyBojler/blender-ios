@@ -1,2 +1,3 @@
 Referenced by pull request #146314, Fix #146252: Grease Pencil: Tag ID update after convert from text
 Referenced by commit d980cea379677fc495346087b93df2806e75c6eb, Fix #146252: Grease Pencil: Tag ID update after convert from text
+Referenced by pull request #153750, Fix #153418: Outliner: Tag geometry update for `id_local_fn`
