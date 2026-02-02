@@ -2019,18 +2019,18 @@ static wmOperatorStatus mask_move_to_layer_exec(bContext *C, wmOperator *op)
     target_mask_layer = BKE_mask_layer_by_name(mask, target_layer_name.c_str());
   }
 
-  LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
-    if (mask_layer == target_mask_layer) {
+  for (MaskLayer &mask_layer : mask->masklayers) {
+    if (&mask_layer == target_mask_layer) {
       continue;
     }
 
-    if (mask_layer->visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {
+    if (mask_layer.visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {
       continue;
     }
 
-    LISTBASE_FOREACH_MUTABLE (MaskSpline *, spline, &mask_layer->splines) {
-      if (ED_mask_spline_select_check(spline)) {
-        BKE_mask_spline_move_to_layer(spline, mask_layer, target_mask_layer);
+    for (MaskSpline &spline : mask_layer.splines.items_mutable()) {
+      if (ED_mask_spline_select_check(&spline)) {
+        BKE_mask_spline_move_to_layer(&spline, &mask_layer, target_mask_layer);
       }
     }
   }
@@ -2041,19 +2041,17 @@ static wmOperatorStatus mask_move_to_layer_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static blender::VectorSet<blender::StringRef> get_layer_names(struct Mask *mask)
+static VectorSet<StringRef> get_layer_names(Mask *mask)
 {
-  using namespace blender;
   VectorSet<StringRef> names;
-  LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
-    names.add(mask_layer->name);
+  for (const MaskLayer &mask_layer : mask->masklayers) {
+    names.add(mask_layer.name);
   }
   return names;
 }
 
-static std::string unique_layer_name(struct Mask *mask, const blender::StringRef name)
+static std::string unique_layer_name(Mask *mask, const StringRef name)
 {
-  using namespace blender;
   BLI_assert(!name.is_empty());
   const VectorSet<StringRef> names = get_layer_names(mask);
   return BLI_uniquename_cb(
@@ -2079,7 +2077,7 @@ static wmOperatorStatus mask_move_to_layer_invoke(bContext *C,
    * pre-set. */
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target_layer_name");
   if (!RNA_property_is_set(op->ptr, prop)) {
-    WM_menu_name_call(C, "MASK_MT_move_to_layer", blender::wm::OpCallContext::InvokeDefault);
+    WM_menu_name_call(C, "MASK_MT_move_to_layer", wm::OpCallContext::InvokeDefault);
     return OPERATOR_FINISHED;
   }
 

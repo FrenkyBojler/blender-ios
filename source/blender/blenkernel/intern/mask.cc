@@ -319,11 +319,11 @@ MaskLayer *BKE_mask_layer_active(Mask *mask)
   return static_cast<MaskLayer *>(BLI_findlink(&mask->masklayers, mask->masklay_act));
 }
 
-MaskLayer *BKE_mask_layer_by_name(struct Mask *mask, const char *layer_name)
+MaskLayer *BKE_mask_layer_by_name(Mask *mask, const char *layer_name)
 {
-  LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
-    if (STREQ(mask_layer->name, layer_name)) {
-      return mask_layer;
+  for (MaskLayer &mask_layer : mask->masklayers) {
+    if (STREQ(mask_layer.name, layer_name)) {
+      return &mask_layer;
     }
   }
   return nullptr;
@@ -452,8 +452,8 @@ MaskSpline *BKE_mask_spline_add(MaskLayer *masklay)
 }
 
 void BKE_mask_spline_move_to_layer(MaskSpline *spline,
-                                   struct MaskLayer *src_mask_layer,
-                                   struct MaskLayer *dst_mask_layer)
+                                   MaskLayer *src_mask_layer,
+                                   MaskLayer *dst_mask_layer)
 {
   if (src_mask_layer != dst_mask_layer) {
     BLI_remlink(&src_mask_layer->splines, spline);
