@@ -870,14 +870,6 @@ void *BKE_sound_add_scene_sound(
 {
   sound_verify_evaluated_id(&scene->id);
 
-  if (strip->type == STRIP_TYPE_META) {
-    LISTBASE_FOREACH (Strip *, strip_child, &strip->seqbase) {
-      if (strip_child->sound != nullptr || strip_child->type == STRIP_TYPE_META) {
-        strip_child->runtime->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip_child);
-      }
-    }
-  }
-
   /* Happens when sequence's sound data-block was removed. */
   if (strip->sound == nullptr && strip->type != STRIP_TYPE_META) {
     return nullptr;
@@ -910,8 +902,14 @@ void *BKE_sound_add_scene_sound(
     AUD_Sequence_remove(strip->runtime->last_parent_sound_scene, strip->runtime->scene_sound);
   }
 
-  // store last handle here so it can be properly removed in the next run.
+  // store last handle so it can be properly removed in the next run.
   strip->runtime->last_parent_sound_scene = parent_sound_scene;
+
+  // If this strip is inside a meta, update the meta's scene_sound entry.
+  if (parent_strip != nullptr && parent_strip->runtime->scene_sound != nullptr) {
+    AUD_SequenceEntry_setSound(parent_strip->runtime->scene_sound,
+                               parent_strip->runtime->meta_scene_sound);
+  }
 
   if (offset_time >= 0.0f) {
     return AUD_Sequence_add(parent_sound_scene,
