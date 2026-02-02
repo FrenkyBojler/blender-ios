@@ -37,14 +37,12 @@ struct Token {
 #endif
   const TokenBuffer *buf_;
   int32_t index_;
-  /* General purpose flags. */
-  int8_t flag0;
-  int8_t flag1;
-  int8_t flag2;
-  int8_t flag3;
+  /* General purpose flag. */
+  int32_t flag;
 
   Token(const TokenBuffer *buf, int32_t index);
 
+  /* Invalid token that can still be compared with other tokens. */
   static Token invalid(TokenBuffer *buf);
 
   explicit operator int32_t() const

@@ -366,30 +366,23 @@ struct DCEStream : private LazyStringBuilder {
  private:
   Vector<std::pair<int32_t, int32_t>> removals;
 
-  struct TokenFingerPrint {
-    /* Start of this token inside the LazyStringBuilder result. */
-    uint32_t str_start = 0;
-    TokenAtom atom = 0;
-    TokenType type = TokenType::Invalid;
-
-    TokenFingerPrint() = default;
-  };
-
   /* Simple circular buffer to access last few token data. */
   class TokenHistoryBuffer {
    private:
-    std::array<TokenFingerPrint, 2> buffer = {TokenFingerPrint{}};
+    std::array<Token, 2> buffer;
     int head = 0;
 
    public:
-    void push(TokenFingerPrint item)
+    TokenHistoryBuffer(Token invalid) : buffer({invalid, invalid}) {}
+
+    void push(Token tok)
     {
-      buffer[head] = item;
+      buffer[head] = tok;
       head = (head + 1) % buffer.size();
     }
 
     /* Access elements from newest (0) to oldest (count-1). */
-    const TokenFingerPrint &operator[](int index) const
+    const Token &operator[](int index) const
     {
       BLI_assert(index < buffer.size());
       int actual_index = (head + buffer.size() - index - 1) % buffer.size();
@@ -401,7 +394,7 @@ struct DCEStream : private LazyStringBuilder {
   using FnId = int;
 
   struct FunctionDeclaration {
-    TokenFingerPrint type, name, end;
+    Token type, name, end;
     FnId id;
   };
 
@@ -429,11 +422,13 @@ struct DCEStream : private LazyStringBuilder {
   const TokenAtom layout_atom;
 
  public:
-  DCEStream(TokenAtom return_atom,
+  DCEStream(Token invalid_tok,
+            TokenAtom return_atom,
             TokenAtom thread_atom,
             TokenAtom device_atom,
             TokenAtom layout_atom)
-      : return_atom(return_atom),
+      : token_history(invalid_tok),
+        return_atom(return_atom),
         thread_atom(thread_atom),
         device_atom(device_atom),
         layout_atom(layout_atom)
@@ -451,21 +446,15 @@ struct DCEStream : private LazyStringBuilder {
     return *this;
   }
 
-  BLI_NOINLINE void parse_token(TokenAtom atom, TokenType type)
+  BLI_NOINLINE void parse_token(const Token tok)
   {
     if (!enabled_) {
       return;
     }
-    parse_token_impl(atom, type);
+    parse_token_impl(set_start_char(tok));
   }
 
-  TokenFingerPrint make_fingerprint(const Token &tok, const char *start_offset)
-  {
-    int offset = tok.str_with_whitespace().begin() - start_offset;
-    return TokenFingerPrint{uint32_t(this->total_length + offset), tok.atom(), tok.type()};
-  }
-
-  BLI_NOINLINE void parse_token(const Token start, const Token end)
+  BLI_NOINLINE void parse_token_range(const Token start, const Token end)
   {
     if (!enabled_) {
       return;
@@ -475,12 +464,12 @@ struct DCEStream : private LazyStringBuilder {
     Token tok = start;
 
     /* Process first 2 token to avoid branching in the loop. */
-    parse_token_impl(tok.atom(), tok.type());
+    parse_token_impl(set_start_char(tok));
     if (tok == end) {
       return;
     }
     tok = tok.next();
-    parse_token_impl(tok.atom(), tok.type(), tok.str_with_whitespace().begin() - start_char);
+    parse_token_impl(set_start_char(tok, start_char));
     if (tok == end) {
       return;
     }
@@ -492,8 +481,9 @@ struct DCEStream : private LazyStringBuilder {
     for (int i : range) {
       switch (types[i]) {
         case TokenType::ParOpen:
-          token_history.push(make_fingerprint(tok.next(i).prev(2), start_char));
-          token_history.push(make_fingerprint(tok.next(i).prev(1), start_char));
+          /* Fill the needed history JIT. */
+          token_history.push(set_start_char(tok.next(i).prev(2), start_char));
+          token_history.push(set_start_char(tok.next(i).prev(1), start_char));
           process_function();
           break;
         case TokenType::BracketOpen:
@@ -505,7 +495,7 @@ struct DCEStream : private LazyStringBuilder {
         case TokenType::SemiColon:
           /* Finding a semicolon in global scope after a function signature means that this is
            * a forward declaration. Step out of function in this case. */
-          register_function_end(make_fingerprint(tok.next(i), start_char).str_start);
+          register_function_end(set_start_char(tok.next(i), start_char));
           break;
         default:
           break;
@@ -513,8 +503,8 @@ struct DCEStream : private LazyStringBuilder {
     }
 
     /* Register last two tokens. */
-    token_history.push(make_fingerprint(end.prev(), start_char));
-    token_history.push(make_fingerprint(end, start_char));
+    token_history.push(set_start_char(end.prev(), start_char));
+    token_history.push(set_start_char(end, start_char));
   }
 
   std::string str() const
@@ -548,10 +538,16 @@ struct DCEStream : private LazyStringBuilder {
   }
 
  private:
-  BLI_INLINE_METHOD void parse_token_impl(TokenAtom atom, TokenType type, int offset = 0)
+  Token set_start_char(Token tok, const char *start_offset = nullptr)
   {
-    TokenFingerPrint tok{uint32_t(this->total_length + offset), atom, type};
-    switch (type) {
+    int offset = start_offset ? tok.str_with_whitespace().begin() - start_offset : 0;
+    tok.flag = int32_t(this->total_length + offset);
+    return tok;
+  }
+
+  BLI_INLINE_METHOD void parse_token_impl(const Token tok)
+  {
+    switch (tok.type()) {
       case TokenType::ParOpen:
         process_function();
         break;
@@ -564,7 +560,7 @@ struct DCEStream : private LazyStringBuilder {
       case TokenType::SemiColon:
         /* Finding a semicolon in global scope after a function signature means that this is
          * a forward declaration. Step out of function in this case. */
-        register_function_end(tok.str_start);
+        register_function_end(tok);
         break;
       default:
         break;
@@ -574,21 +570,21 @@ struct DCEStream : private LazyStringBuilder {
 
   void process_function()
   {
-    TokenFingerPrint name_tok = token_history[0];
-    if (name_tok.type != TokenType::Word) {
+    Token name_tok = token_history[0];
+    if (name_tok.type() != TokenType::Word) {
       return;
     }
 
-    TokenFingerPrint type_tok = token_history[1];
+    Token type_tok = token_history[1];
 
     /* Filter MSL & GLSL specific identifiers that could have confused the parser. */
-    if (type_tok.atom == thread_atom || type_tok.atom == device_atom ||
-        name_tok.atom == layout_atom)
+    if (type_tok.atom() == thread_atom || type_tok.atom() == device_atom ||
+        name_tok.atom() == layout_atom)
     {
       return;
     }
 
-    if (type_tok.type == TokenType::Word && type_tok.atom != return_atom) {
+    if (type_tok.type() == TokenType::Word && type_tok.atom() != return_atom) {
       register_function_declaration(type_tok, name_tok);
     }
     else if (current_fn_id != -1) {
@@ -596,10 +592,10 @@ struct DCEStream : private LazyStringBuilder {
     }
   }
 
-  BLI_INLINE_METHOD void register_function_end(uint str_start)
+  BLI_INLINE_METHOD void register_function_end(Token tok)
   {
     if (stack_depth == 0 && current_fn_id != -1) {
-      graph.declarations.last().end.str_start = str_start;
+      graph.declarations.last().end = tok;
       current_fn_id = -1;
     }
   }
@@ -607,22 +603,22 @@ struct DCEStream : private LazyStringBuilder {
   /* Register function declaration at this token position.
    * Associate ID with the token string if first encountering the symbol.
    * Does not differentiate overloads. */
-  void register_function_declaration(TokenFingerPrint type_tok, TokenFingerPrint name_tok)
+  void register_function_declaration(Token type_tok, Token name_tok)
   {
-    BLI_assert_msg(graph.declarations.is_empty() || graph.declarations.last().name.str_start !=
-                                                        graph.declarations.last().end.str_start,
+    BLI_assert_msg(graph.declarations.is_empty() ||
+                       graph.declarations.last().name.flag != graph.declarations.last().end.flag,
                    "Missing call to register_function_end");
 
-    FnId id = graph.names.lookup_or_add_cb(name_tok.atom, [this]() { return graph.counter++; });
+    FnId id = graph.names.lookup_or_add_cb(name_tok.atom(), [this]() { return graph.counter++; });
     graph.declarations.append(FunctionDeclaration{type_tok, name_tok, name_tok, id});
     current_fn_id = id;
   }
 
   /* Register a function call made inside the body of a function by creating an edge inside the
    * graph. Does nothing if the function is not defined. */
-  void register_function_call(TokenFingerPrint name_tok)
+  void register_function_call(Token name_tok)
   {
-    int fn_id = graph.names.lookup_default(name_tok.atom, -1);
+    int fn_id = graph.names.lookup_default(name_tok.atom(), -1);
     /* TODO(fclem): On Metal, the function prototypes are removed, which means they can be defined
      * later on.  */
     if (fn_id == -1) {
@@ -630,14 +626,6 @@ struct DCEStream : private LazyStringBuilder {
       return;
     }
     graph.edges.append_as(current_fn_id, fn_id);
-  }
-
-  void end_function_declaration(TokenFingerPrint tok)
-  {
-    if (stack_depth == 0 && current_fn_id != -1) {
-      graph.declarations.last().end = tok;
-      current_fn_id = -1;
-    }
   }
 
   Map<FnId, Vector<FnId>> build_adjacency()
@@ -707,14 +695,13 @@ struct DCEStream : private LazyStringBuilder {
         continue;
       }
 
-      if (name_tok.str_start == end_tok.str_start) {
-        /* TODO(fclem): Bug in parser. */
+      if (name_tok.flag == end_tok.flag) {
         removals.clear();
-        std::cout << "fuck" << std::endl;
+        BLI_assert("Bug in parser, function name not detected");
         break;
       }
 
-      remove_range(type_tok.str_start, end_tok.str_start + 1);
+      remove_range(type_tok.flag, end_tok.flag + 1);
     }
   }
 

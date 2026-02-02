@@ -258,12 +258,12 @@ struct Stream {
     bool followed_by_space = tok.followed_by_whitespace();
     if (UNLIKELY(concat_next)) {
       tok = paste_token(tokens.last().str(), tok.str(), followed_by_space);
-      tok.flag0 = followed_by_space;
+      tok.flag = followed_by_space;
       tokens.last() = tok;
       concat_next = false;
     }
     else {
-      tok.flag0 = followed_by_space;
+      tok.flag = followed_by_space;
       tokens.append(tok);
     }
     return *this;
@@ -301,7 +301,7 @@ struct Stream {
   Stream &operator<<(Space /*space*/)
   {
     if (!tokens.is_empty()) {
-      tokens.last().flag0 = true;
+      tokens.last().flag = true;
     }
     return *this;
   }
@@ -315,7 +315,7 @@ struct Stream {
     result_buf.reserve(tokens.size() * 7);
     for (const auto stream_tok : tokens) {
       result_buf += stream_tok.str();
-      if (stream_tok.flag0) {
+      if (stream_tok.flag) {
         result_buf += ' ';
       }
     }
@@ -350,7 +350,7 @@ struct Stream {
 
     bool followed_by_whitespace() const
     {
-      return tok ? tok->flag0 : false;
+      return tok ? tok->flag : false;
     }
 
     Iterator next() const
@@ -406,7 +406,7 @@ struct Stream {
   Stream &operator<<(const Iterator &it)
   {
     *this << *it.tok;
-    tokens.last().flag0 = it.followed_by_whitespace();
+    tokens.last().flag = it.followed_by_whitespace();
     return *this;
   }
 
@@ -440,9 +440,9 @@ struct Stream {
 DCEStream &operator<<(DCEStream &dst, const Stream &src)
 {
   for (const auto tok : src.tokens) {
-    dst.parse_token(tok.atom(), tok.type());
+    dst.parse_token(tok);
     dst << tok.str();
-    if (tok.flag0) {
+    if (tok.flag) {
       dst << " ";
     }
   }
@@ -451,14 +451,14 @@ DCEStream &operator<<(DCEStream &dst, const Stream &src)
 
 DCEStream &operator<<(DCEStream &dst, const TokenRange<Token> &range)
 {
-  dst.parse_token(range.begin, range.end);
+  dst.parse_token_range(range.begin, range.end);
   dst << range.begin.buf_->substr(range.begin, range.end, true);
   return dst;
 }
 
 DCEStream &operator<<(DCEStream &dst, const Token &tok)
 {
-  dst.parse_token(tok.atom(), tok.type());
+  dst.parse_token(tok);
   dst << tok.str_with_whitespace();
   return dst;
 }
@@ -918,8 +918,11 @@ struct Preprocessor : IntermediateFormWithIDs {
  public:
   Preprocessor(const std::string_view str)
       : IntermediateFormWithIDs(str),
-        out_stream(
-            lex_.hash("return"), lex_.hash("thread"), lex_.hash("device"), lex_.hash("layout"))
+        out_stream(Token::invalid(&lex_),
+                   lex_.hash("return"),
+                   lex_.hash("thread"),
+                   lex_.hash("device"),
+                   lex_.hash("layout"))
   {
     /* From our stats. Should be enough for 100% of our cases. */
     defines.reserve(1000);
