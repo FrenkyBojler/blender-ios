@@ -40,7 +40,7 @@ class AttributeType(Enum):
 COLOR_BACKEND_TYPES = [BackendType.MESH]
 
 # Applying a multires mesh does not transfer mask values.
-# See #<TBA> for a tracking issue to enable these tests
+# See #153743 for a tracking issue to enable these tests
 MASK_BACKEND_TYPES = [BackendType.MESH]
 
 
