@@ -158,7 +158,7 @@ struct State {
   /** True if the render engine outputs satisfactory depth information to the depth buffer. */
   bool is_render_depth_available = false;
   /** Whether we should render a vignette over the scene. */
-  bool xr_vignette_enabled = false;
+  bool vignette_enabled = false;
   /** Should text draw in this mode? */
   bool show_text = false;
   bool hide_overlays = false;

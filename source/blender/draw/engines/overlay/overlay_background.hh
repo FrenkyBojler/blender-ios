@@ -97,11 +97,11 @@ class Background : Overlay {
     bg_ps_.bind_texture("depth_buffer", &res.depth_tx);
     bg_ps_.push_constant("color_override", color_override);
     bg_ps_.push_constant("bg_type", background_type);
-    bg_ps_.push_constant("is_xr_vignette_pass", false);
+    bg_ps_.push_constant("vignette_enabled", false);
     bg_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
-    if (state.xr_vignette_enabled) {
-      const float xr_vignette_aperture = state.v3d ? state.v3d->xr_vignette_aperture : 1.0f;
+    if (state.vignette_enabled) {
+      const float vignette_aperture = state.v3d ? state.v3d->xr_vignette_aperture : 1.0f;
 
       bg_vignette_ps_.init();
       bg_vignette_ps_.framebuffer_set(&framebuffer_ref_);
@@ -114,8 +114,8 @@ class Background : Overlay {
       bg_vignette_ps_.bind_texture("depth_buffer", &res.depth_tx);
       bg_vignette_ps_.push_constant("color_override", color_override);
       bg_vignette_ps_.push_constant("bg_type", background_type);
-      bg_vignette_ps_.push_constant("is_xr_vignette_pass", true);
-      bg_vignette_ps_.push_constant("xr_vignette_aperture", xr_vignette_aperture);
+      bg_vignette_ps_.push_constant("vignette_enabled", true);
+      bg_vignette_ps_.push_constant("vignette_aperture", vignette_aperture);
       bg_vignette_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
     }
   }
