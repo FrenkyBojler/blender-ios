@@ -10,9 +10,9 @@
 
 #include "DNA_ID.h"
 
-#ifdef __cplusplus
-#  include "BLI_set.hh"
-#endif
+#include "BLI_set.hh"
+
+namespace blender {
 
 /* CacheFile::type */
 enum eCacheFileType {
@@ -60,13 +60,8 @@ struct CacheFileLayer {
   int _pad = {};
 };
 
-#ifdef __cplusplus
-
 struct CacheReader;
-using CacheFileHandleReaderSet = blender::Set<CacheReader **>;
-#else
-struct CacheFileHandleReaderSet;
-#endif
+using CacheFileHandleReaderSet = Set<CacheReader **>;
 
 struct CacheFile {
 #ifdef __cplusplus
@@ -78,9 +73,9 @@ struct CacheFile {
   struct AnimData *adt = nullptr;
 
   /** Paths of the objects inside of the archive referenced by this CacheFile. */
-  ListBase object_paths = {nullptr, nullptr};
+  ListBaseT<CacheObjectPath> object_paths = {nullptr, nullptr};
 
-  ListBase layers = {nullptr, nullptr};
+  ListBaseT<CacheFileLayer> layers = {nullptr, nullptr};
 
   char filepath[/*FILE_MAX*/ 1024] = "";
 
@@ -119,3 +114,5 @@ struct CacheFile {
   char handle_filepath[/*FILE_MAX*/ 1024] = "";
   CacheFileHandleReaderSet *handle_readers = nullptr;
 };
+
+}  // namespace blender

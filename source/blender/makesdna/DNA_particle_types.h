@@ -12,16 +12,17 @@
 #include "DNA_boid_types.h"
 #include "DNA_defs.h"
 
-#ifdef __cplusplus
 namespace blender {
-template<int DimsNum> struct KDTree;
-}  // namespace blender
-using KDTree3d = blender::KDTree<3>;
-#else
-struct KDTree3d;
-#endif
+
+template<typename CoordT> struct KDTree;
+template<typename T, int Size> struct VecBase;
+using KDTree3d = KDTree<VecBase<float, 3>>;
 
 struct AnimData;
+
+namespace draw {
+struct ParticleBatchCache;
+};
 
 /** #SPHFluidSettings::flag */
 enum {
@@ -634,7 +635,7 @@ struct ParticleSettings {
   struct MTex *mtex[/*MAX_MTEX*/ 18] = {};
 
   struct Collection *instance_collection = nullptr;
-  ListBase instance_weights = {nullptr, nullptr};
+  ListBaseT<ParticleDupliWeight> instance_weights = {nullptr, nullptr};
   DNA_DEPRECATED struct Collection *force_group = nullptr; /* deprecated */
   struct Object *instance_object = nullptr;
   struct Object *bb_ob = nullptr;
@@ -688,7 +689,7 @@ struct ParticleSystem {
   /** Child cache (runtime). */
   struct ParticleCacheKey **childcache = nullptr;
   /** Buffers for the above. */
-  ListBase pathcachebufs, childcachebufs;
+  ListBaseT<LinkData> pathcachebufs, childcachebufs;
 
   /** Cloth simulation for hair. */
   struct ClothModifierData *clmd = nullptr;
@@ -704,7 +705,7 @@ struct ParticleSystem {
   struct Object *parent = nullptr;
 
   /** Used for keyed and boid physics. */
-  ListBase targets = {nullptr, nullptr};
+  ListBaseT<ParticleTarget> targets = {nullptr, nullptr};
 
   /** Particle system name. */
   char name[/*MAX_NAME*/ 64] = "";
@@ -732,9 +733,9 @@ struct ParticleSystem {
 
   /* point cache */
   struct PointCache *pointcache = nullptr;
-  ListBase ptcaches = {nullptr, nullptr};
+  ListBaseT<PointCache> ptcaches = {nullptr, nullptr};
 
-  struct ListBase *effectors = nullptr;
+  struct ListBaseT<struct EffectorCache> *effectors = nullptr;
 
   ParticleSpring *fluid_springs = nullptr;
   int tot_fluidsprings = 0, alloc_fluidsprings = 0;
@@ -751,7 +752,7 @@ struct ParticleSystem {
   /** Influence of the lattice modifier. */
   float lattice_strength = 0;
 
-  void *batch_cache = nullptr;
+  draw::ParticleBatchCache *batch_cache = nullptr;
 
   /**
    * Set by dependency graph's copy-on-evaluation, allows to quickly go
@@ -763,3 +764,5 @@ struct ParticleSystem {
    */
   struct ParticleSystem *orig_psys = nullptr;
 };
+
+}  // namespace blender

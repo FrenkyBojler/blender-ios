@@ -14,11 +14,11 @@
 #include "DNA_listBase.h"
 #include "DNA_object_types.h"
 
-#ifdef __cplusplus
-#  include "BLI_map.hh"
+#include "BLI_map.hh"
 
-#  include <optional>
-#endif
+#include <optional>
+
+namespace blender {
 
 struct AnimData;
 struct Curves;
@@ -29,6 +29,10 @@ struct Key;
 struct Material;
 struct Object;
 struct VFont;
+
+namespace draw {
+struct CurveBatchCache;
+}
 
 /* These two Lines with # tell `makesdna` this struct can be excluded. */
 #
@@ -179,11 +183,7 @@ struct TextBox {
   float x = 0, y = 0, w = 0, h = 0;
 };
 
-#ifdef __cplusplus
-using CVKeyIndexMap = blender::Map<const void *, struct CVKeyIndex *>;
-#else
-struct CVKeyIndexMap;
-#endif
+using CVKeyIndexMap = Map<const void *, struct CVKeyIndex *>;
 
 /* These two Lines with # tell `makesdna` this struct can be excluded. */
 #
@@ -192,7 +192,7 @@ struct EditNurb {
   DNA_DEFINE_CXX_METHODS(EditNurb)
 
   /* base of nurbs' list (old Curve->editnurb) */
-  ListBase nurbs = {nullptr, nullptr};
+  ListBaseT<Nurb> nurbs = {nullptr, nullptr};
 
   /* index data for shape keys */
   CVKeyIndexMap *keyindex = nullptr;
@@ -219,7 +219,7 @@ struct Curve {
   struct AnimData *adt = nullptr;
 
   /** Actual data, called splines in rna. */
-  ListBase nurb = {nullptr, nullptr};
+  ListBaseT<Nurb> nurb = {nullptr, nullptr};
 
   /** Edited data, not in file, use pointer so we can check for it. */
   EditNurb *editnurb = nullptr;
@@ -269,7 +269,11 @@ struct Curve {
    * specified. The effective radius is a function of the bevel point radius and the taper radius.
    */
   char taper_radius_mode = CU_TAPER_RADIUS_OVERRIDE;
-  char _pad[3] = {};
+  /** Triangulation solver for filling 2D curves. */
+  char fill_solver = CU_FILL_SOLVER_SWEEP_LINE;
+  /** Fill rule for CDT fill solver. */
+  char fill_rule = CU_FILL_RULE_EVEN_ODD;
+  char _pad[1] = {};
 
   /* font part */
   float spacing = 1.0f, linedist = 1.0, shear = 0, fsize = 1.0, wordspace = 1.0, ulpos = 0,
@@ -329,7 +333,7 @@ struct Curve {
    */
   const struct Curves *curve_eval = nullptr;
 
-  void *batch_cache = nullptr;
+  draw::CurveBatchCache *batch_cache = nullptr;
 
 #ifdef __cplusplus
   /** Get the largest material index used by the curves or `nullopt` if there are none. */
@@ -417,3 +421,5 @@ struct Curve {
 
 #define BEZT_IS_AUTOH(bezt) \
   (ELEM((bezt)->h1, HD_AUTO, HD_AUTO_ANIM) && ELEM((bezt)->h2, HD_AUTO, HD_AUTO_ANIM))
+
+}  // namespace blender

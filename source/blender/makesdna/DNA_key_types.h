@@ -14,6 +14,8 @@
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 struct AnimData;
 
 /* Key::type: KeyBlocks are interpreted as... */
@@ -127,7 +129,7 @@ struct Key {
   char _pad[4] = {};
 
   /** A list of KeyBlock's. */
-  ListBase block = {nullptr, nullptr};
+  ListBaseT<KeyBlock> block = {nullptr, nullptr};
 
   ID *from = nullptr;
 
@@ -149,3 +151,5 @@ struct Key {
    */
   int uidgen = 0;
 };
+
+}  // namespace blender

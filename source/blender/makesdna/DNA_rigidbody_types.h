@@ -12,6 +12,8 @@
 #include "DNA_listBase.h"
 #include "DNA_object_force_types.h"
 
+namespace blender {
+
 struct Collection;
 
 struct EffectorWeights;
@@ -160,7 +162,7 @@ enum eRigidBodyCon_Flag {
 struct RigidBodyWorld_Shared {
   /* cache */
   struct PointCache *pointcache = nullptr;
-  ListBase ptcaches = {nullptr, nullptr};
+  ListBaseT<PointCache> ptcaches = {nullptr, nullptr};
 
   /* Runtime data. */
   struct RigidBodyWorld_Runtime *runtime = nullptr;
@@ -194,7 +196,7 @@ struct RigidBodyWorld {
   /** Moved to `shared->pointcache`. */
   DNA_DEPRECATED struct PointCache *pointcache = nullptr;
   /** Moved to `shared->ptcaches`. */
-  ListBase ptcaches = {nullptr, nullptr};
+  ListBaseT<PointCache> ptcaches = {nullptr, nullptr};
   /** Number of objects in rigid body group. */
   int numbodies = 0;
 
@@ -355,3 +357,5 @@ struct RigidBodyCon {
 };
 
 /* ******************************** */
+
+}  // namespace blender

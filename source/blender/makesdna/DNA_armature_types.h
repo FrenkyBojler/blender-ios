@@ -11,19 +11,22 @@
 #include "DNA_ID.h"
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
-#include "DNA_userdef_types.h"
+#include "DNA_theme_types.h"
 
 #include "BLI_enum_flags.hh"
+#include "BLI_span.hh"
 
-#ifdef __cplusplus
-#  include "BLI_span.hh"
-namespace blender::animrig {
+namespace blender {
+
+namespace animrig {
 class BoneColor;
 }
-#endif
 
 struct AnimData;
 struct BoneCollection;
+struct BoneCollectionMember;
+struct BoneCollectionReference;
+struct EditBone;
 
 /* armature->flag */
 /* don't use bit 7, was saved in files to disable stuff */
@@ -100,8 +103,8 @@ enum eBone_Flag {
    *
    * However the bone may not be visible to the user since the bones collection
    * may be hidden.
-   * In most cases `blender::animrig::bone_is_visible` or
-   * `blender::animrig::bone_is_visible` should be used to check if the bone is visible to
+   * In most cases `animrig::bone_is_visible` or
+   * `animrig::bone_is_visible` should be used to check if the bone is visible to
    * the user before operating on them.
    */
   BONE_SELECTED = (1 << 0),
@@ -280,14 +283,13 @@ struct BoneColor {
   uint8_t _pad0[7] = {};
   ThemeWireColor custom = {};
 #ifdef __cplusplus
-  blender::animrig::BoneColor &wrap();
-  const blender::animrig::BoneColor &wrap() const;
+  animrig::BoneColor &wrap();
+  const animrig::BoneColor &wrap() const;
 #endif
 };
 
 struct Bone_Runtime {
-  /* #BoneCollectionReference */
-  ListBase collections = {nullptr, nullptr};
+  ListBaseT<BoneCollectionReference> collections = {nullptr, nullptr};
 };
 
 struct Bone {
@@ -303,7 +305,7 @@ struct Bone {
   /** Parent (IK parent if appropriate flag is set). */
   struct Bone *parent = nullptr;
   /** Children. */
-  ListBase childbase = {nullptr, nullptr};
+  ListBaseT<Bone> childbase = {nullptr, nullptr};
   /** Name of the bone - must be unique within the armature. */
   char name[/*MAXBONENAME*/ 64] = "";
 
@@ -413,14 +415,14 @@ struct bArmature {
   ID id;
   struct AnimData *adt = nullptr;
 
-  ListBase bonebase = {nullptr, nullptr};
+  ListBaseT<Bone> bonebase = {nullptr, nullptr};
 
   /** Use a hash-table for quicker lookups of bones by name. */
   struct GHash *bonehash = nullptr;
   void *_pad1 = nullptr;
 
   /** #EditBone list (use an allocated pointer so the state can be checked). */
-  ListBase *edbo = nullptr;
+  ListBaseT<EditBone> *edbo = nullptr;
 
   /* active bones should work like active object where possible
    * - active and selection are unrelated
@@ -449,7 +451,7 @@ struct bArmature {
    * everything other than file reading/writing.
    * TODO: remove this in Blender 5.0, and instead write the contents of
    * collection_array to blend files directly. */
-  ListBase collections_legacy = {nullptr, nullptr}; /* BoneCollection. */
+  ListBaseT<BoneCollection> collections_legacy = {nullptr, nullptr};
 
   struct BoneCollection **collection_array =
       nullptr; /* Array of `collection_array_num` BoneCollections. */
@@ -481,16 +483,16 @@ struct bArmature {
 
 #ifdef __cplusplus
   /* Collection array access for convenient for-loop iteration. */
-  blender::Span<const BoneCollection *> collections_span() const;
-  blender::Span<BoneCollection *> collections_span();
+  Span<const BoneCollection *> collections_span() const;
+  Span<BoneCollection *> collections_span();
 
   /* Span of all root collections. */
-  blender::Span<const BoneCollection *> collections_roots() const;
-  blender::Span<BoneCollection *> collections_roots();
+  Span<const BoneCollection *> collections_roots() const;
+  Span<BoneCollection *> collections_roots();
 
   /* Return the span of children of the given bone collection. */
-  blender::Span<const BoneCollection *> collection_children(const BoneCollection *parent) const;
-  blender::Span<BoneCollection *> collection_children(BoneCollection *parent);
+  Span<const BoneCollection *> collection_children(const BoneCollection *parent) const;
+  Span<BoneCollection *> collection_children(BoneCollection *parent);
 #endif
 };
 
@@ -510,8 +512,7 @@ struct BoneCollection {
 
   char name[/*MAX_NAME*/ 64] = "";
 
-  /** BoneCollectionMember. */
-  ListBase bones = {nullptr, nullptr};
+  ListBaseT<BoneCollectionMember> bones = {nullptr, nullptr};
 
   /** eBoneCollection_Flag. */
   uint8_t flags = 0;
@@ -592,12 +593,14 @@ struct BoneCollectionReference {
 
 #ifdef __cplusplus
 
-inline blender::animrig::BoneColor &BoneColor::wrap()
+inline animrig::BoneColor &BoneColor::wrap()
 {
-  return *reinterpret_cast<blender::animrig::BoneColor *>(this);
+  return *reinterpret_cast<animrig::BoneColor *>(this);
 }
-inline const blender::animrig::BoneColor &BoneColor::wrap() const
+inline const animrig::BoneColor &BoneColor::wrap() const
 {
-  return *reinterpret_cast<const blender::animrig::BoneColor *>(this);
+  return *reinterpret_cast<const animrig::BoneColor *>(this);
 }
 #endif
+
+}  // namespace blender

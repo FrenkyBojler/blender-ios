@@ -11,6 +11,7 @@
 
 #include "BLI_enum_flags.hh"
 #include "BLI_math_constants.h"
+#include "BLI_math_matrix_types.hh"
 
 #include "DNA_object_enums.h"
 
@@ -20,34 +21,33 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_defaults.h"
 
-#ifdef __cplusplus
-#  include "BLI_math_matrix_types.hh"
-#endif
+namespace blender {
 
-#ifdef __cplusplus
-namespace blender::bke {
+namespace bke {
 struct ObjectRuntime;
 }
-using ObjectRuntimeHandle = blender::bke::ObjectRuntime;
-#else
-struct ObjectRuntimeHandle;
-#endif
 
 struct AnimData;
 struct BoundBox;
 struct Collection;
 struct Curve;
+struct Effect;
 struct FluidsimSettings;
+struct GpencilModifierData;
 struct ImageUser;
 struct LightgroupMembership;
 struct Material;
+struct ModifierData;
+struct ObHook;
 struct Object;
 struct PartDeflect;
+struct ParticleSystem;
 struct Path;
 struct RigidBodyOb;
-struct SculptSession;
+struct ShaderFxData;
 struct SoftBody;
 struct bGPdata;
+struct bFaceMap;
 
 #define MAX_VGROUP_NAME 64
 
@@ -457,8 +457,6 @@ struct Object {
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt = nullptr;
 
-  struct SculptSession *sculpt = nullptr;
-
   short type = OB_EMPTY; /* #ObjectType */
   short partype = 0;
   /** Can be vertex indices. */
@@ -476,7 +474,7 @@ struct Object {
   /** Pose data, armature objects only. */
   struct bPose *pose = nullptr;
   /** Pointer to objects data - an 'ID' or NULL. */
-  void *data = nullptr;
+  ID *data = nullptr;
 
   /** Grease Pencil data. */
   struct bGPdata *gpd DNA_DEPRECATED =
@@ -487,15 +485,17 @@ struct Object {
   /** Motion path cache for this object. */
   bMotionPath *mpath = nullptr;
 
-  ListBase effect = {nullptr, nullptr};  /* XXX deprecated... keep for readfile */
-  ListBase defbase = {nullptr, nullptr}; /* Only for versioning, moved to object data. */
-  ListBase fmaps = {nullptr, nullptr};   /* For versioning, moved to generic attributes. */
+  ListBaseT<Effect> effect = {nullptr, nullptr}; /* XXX deprecated... keep for readfile */
+  ListBaseT<bDeformGroup> defbase = {nullptr,
+                                     nullptr}; /* Only for versioning, moved to object data. */
+  ListBaseT<bFaceMap> fmaps = {nullptr,
+                               nullptr}; /* For versioning, moved to generic attributes. */
   /** List of ModifierData structures. */
-  ListBase modifiers = {nullptr, nullptr};
+  ListBaseT<ModifierData> modifiers = {nullptr, nullptr};
   /** List of GpencilModifierData structures. */
-  ListBase greasepencil_modifiers = {nullptr, nullptr};
+  ListBaseT<GpencilModifierData> greasepencil_modifiers = {nullptr, nullptr};
   /** List of viewport effects. Actually only used by grease pencil. */
-  ListBase shader_fx = {nullptr, nullptr};
+  ListBaseT<ShaderFxData> shader_fx = {nullptr, nullptr};
 
   /** Local object mode. */
   int mode = 0;
@@ -600,10 +600,10 @@ struct Object {
   char _pad3[1] = {};
 
   /** Object constraints. */
-  ListBase constraints = {nullptr, nullptr};
-  ListBase hooks = {nullptr, nullptr};
+  ListBaseT<bConstraint> constraints = {nullptr, nullptr};
+  ListBaseT<struct ObHook> hooks = {nullptr, nullptr};
   /** Particle systems. */
-  ListBase particlesystem = {nullptr, nullptr};
+  ListBaseT<struct ParticleSystem> particlesystem = {nullptr, nullptr};
 
   /** Particle deflector/attractor/collision data. */
   struct PartDeflect *pd = nullptr;
@@ -616,7 +616,7 @@ struct Object {
   struct FluidsimSettings *fluidsimSettings DNA_DEPRECATED =
       nullptr; /* XXX deprecated... replaced by mantaflow, keep for readfile */
 
-  ListBase pc_ids = {nullptr, nullptr};
+  ListBaseT<LinkData> pc_ids = {nullptr, nullptr};
 
   /** Settings for Bullet rigid body. */
   struct RigidBodyOb *rigidbody_object = nullptr;
@@ -651,11 +651,11 @@ struct Object {
   /** Irradiance caches baked for this object (light-probes only). */
   struct LightProbeObjectCache *lightprobe_cache = nullptr;
 
-  ObjectRuntimeHandle *runtime = nullptr;
+  bke::ObjectRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
-  const blender::float4x4 &object_to_world() const;
-  const blender::float4x4 &world_to_object() const;
+  const float4x4 &object_to_world() const;
+  const float4x4 &world_to_object() const;
 #endif
 };
 
@@ -768,3 +768,5 @@ struct ObHook {
   case ID_PT: \
   case ID_VO: \
   case ID_GP
+
+}  // namespace blender

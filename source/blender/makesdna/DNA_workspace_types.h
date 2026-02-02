@@ -14,14 +14,11 @@
 #include "DNA_asset_types.h"
 #include "DNA_viewer_path_types.h"
 
-#ifdef __cplusplus
-namespace blender::bke {
+namespace blender {
+
+namespace bke {
 struct WorkSpaceRuntime;
 }
-using WorkSpaceRuntimeHandle = blender::bke::WorkSpaceRuntime;
-#else
-struct WorkSpaceRuntimeHandle;
-#endif
 
 /** #bToolRef_Runtime.flag */
 enum {
@@ -155,19 +152,15 @@ struct WorkSpace {
 
   ID id;
 
-  /** WorkSpaceLayout. */
-  ListBase layouts = {nullptr, nullptr};
+  ListBaseT<WorkSpaceLayout> layouts = {nullptr, nullptr};
   /* Store for each hook (so for each window) which layout has
    * been activated the last time this workspace was visible. */
-  /** WorkSpaceDataRelation. */
-  ListBase hook_layout_relations = {nullptr, nullptr};
+  ListBaseT<struct WorkSpaceDataRelation> hook_layout_relations = {nullptr, nullptr};
 
   /* Feature tagging (use for addons) */
-  /** #wmOwnerID. */
-  ListBase owner_ids = {nullptr, nullptr};
+  ListBaseT<wmOwnerID> owner_ids = {nullptr, nullptr};
 
-  /** List of #bToolRef */
-  ListBase tools = {nullptr, nullptr};
+  ListBaseT<bToolRef> tools = {nullptr, nullptr};
 
   /** Optional, scene to switch to when enabling this workspace (NULL to disable). Cleared on
    * link/append. */
@@ -187,7 +180,7 @@ struct WorkSpace {
   int order = 0;
 
   /** Info text from modal operators (runtime). */
-  WorkSpaceRuntimeHandle *runtime = nullptr;
+  bke::WorkSpaceRuntime *runtime = nullptr;
 
   /** Workspace-wide active asset library, for asset UIs to use (e.g. asset view UI template). The
    * Asset Browser has its own and doesn't use this. */
@@ -254,3 +247,5 @@ struct WorkSpaceInstanceHook {
   WorkSpace *temp_workspace_store = nullptr;
   struct WorkSpaceLayout *temp_layout_store = nullptr;
 };
+
+}  // namespace blender

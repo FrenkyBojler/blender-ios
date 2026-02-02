@@ -23,27 +23,21 @@
 
 #include "BLI_enum_flags.hh"
 
-#ifdef __cplusplus
-#  include <type_traits>
-#endif
+#include <type_traits>
 
+namespace blender {
+
+struct bItasc;
 struct AnimData;
 struct Collection;
 struct FCurve;
 struct GHash;
 struct Object;
 struct SpaceLink;
-#ifdef __cplusplus
-namespace blender::gpu {
+namespace gpu {
 class VertBuf;
 class Batch;
-}  // namespace blender::gpu
-using GPUBatchHandle = blender::gpu::Batch;
-using GPUVertBufHandle = blender::gpu::VertBuf;
-#else
-struct GPUBatchHandle;
-struct GPUVertBufHandle;
-#endif
+}  // namespace gpu
 
 /* Forward declarations so the actual declarations can happen top-down. */
 struct ActionLayer;
@@ -52,8 +46,7 @@ struct ActionStrip;
 struct ActionChannelbag;
 
 /* Declarations of the C++ wrappers. */
-#ifdef __cplusplus
-namespace blender::animrig {
+namespace animrig {
 class Action;
 class Slot;
 class SlotRuntime;
@@ -62,11 +55,7 @@ class ChannelGroup;
 class Layer;
 class Strip;
 class StripKeyframeData;
-}  // namespace blender::animrig
-using ActionSlotRuntimeHandle = blender::animrig::SlotRuntime;
-#else
-struct ActionSlotRuntimeHandle;
-#endif
+}  // namespace animrig
 
 /* The last_slot_handle is set to a high value to disambiguate slot handles from
  * array indices.
@@ -194,7 +183,7 @@ enum ePchan_Flag {
   POSE_TRANSFORM_AROUND_CUSTOM_TX = (1 << 5),
   /**
    * Marks the pose bone as selected. Do not set directly, use
-   * blender::animrig::bone_select and blender::animrig::bone_deselect instead.
+   * animrig::bone_select and animrig::bone_deselect instead.
    */
   POSE_SELECTED = (1 << 6),
   /**
@@ -205,7 +194,7 @@ enum ePchan_Flag {
   POSE_SELECTED_TIP = (1 << 8),
   /**
    * selection state should only be against `POSE_SELECTED`. Do not set directly, use
-   * blender::animrig::bone_select and blender::animrig::bone_deselect instead.
+   * animrig::bone_select and animrig::bone_deselect instead.
    */
   POSE_SELECTED_ALL = (POSE_SELECTED | POSE_SELECTED_ROOT | POSE_SELECTED_TIP),
 
@@ -612,9 +601,9 @@ struct bMotionPath {
 
   char _pad2[4] = {};
   /* Used for drawing. */
-  GPUVertBufHandle *points_vbo = nullptr;
-  GPUBatchHandle *batch_line = nullptr;
-  GPUBatchHandle *batch_points = nullptr;
+  gpu::VertBuf *points_vbo = nullptr;
+  gpu::Batch *batch_line = nullptr;
+  gpu::Batch *batch_points = nullptr;
   void *_pad = nullptr;
 };
 
@@ -738,7 +727,7 @@ struct bPoseChannel {
   IDProperty *system_properties = nullptr;
 
   /** Constraints that act on this PoseChannel. */
-  ListBase constraints = {nullptr, nullptr};
+  ListBaseT<struct bConstraint> constraints = {nullptr, nullptr};
   char name[/*MAXBONENAME*/ 64] = "";
 
   /** Dynamic, for detecting transform changes (ePchan_Flag). */
@@ -768,9 +757,9 @@ struct bPoseChannel {
   struct bPoseChannel *child = nullptr;
 
   /** "IK trees" - only while evaluating pose. */
-  ListBase iktree = {nullptr, nullptr};
+  ListBaseT<struct PoseTree> iktree = {nullptr, nullptr};
   /** Spline-IK "trees" - only while evaluating pose. */
-  ListBase siktree = {nullptr, nullptr};
+  ListBaseT<struct tSplineIK_Tree> siktree = {nullptr, nullptr};
 
   /** Motion path cache for this bone. */
   bMotionPath *mpath = nullptr;
@@ -892,7 +881,7 @@ struct bPoseChannel {
  */
 struct bPose {
   /** List of pose channels, PoseBones in RNA. */
-  ListBase chanbase = {nullptr, nullptr};
+  ListBaseT<bPoseChannel> chanbase = {nullptr, nullptr};
   /** Use a hash-table for quicker string lookups. */
   struct GHash *chanhash = nullptr;
 
@@ -912,7 +901,7 @@ struct bPose {
   float cyclic_offset[3] = {};
 
   /** List of bActionGroups. */
-  ListBase agroups = {nullptr, nullptr};
+  ListBaseT<struct bActionGroup> agroups = {nullptr, nullptr};
 
   /** Index of active group (starts from 1). */
   int active_group = 0;
@@ -920,8 +909,8 @@ struct bPose {
   int iksolver = 0;
   /** Temporary IK data, depends on the IK solver. Not saved in file. */
   void *ikdata = nullptr;
-  /** IK solver parameters, structure depends on iksolver. */
-  void *ikparam = nullptr;
+  /** IK solver parameter for ItaSC .*/
+  bItasc *ikparam = nullptr;
 
   /** Settings for visualization of bone animation. */
   bAnimVizSettings avs;
@@ -983,7 +972,7 @@ struct bActionGroup {
    * NOTE: this must not be touched by standard listbase functions
    * which would clear links to other channels.
    */
-  ListBase channels = {nullptr, nullptr};
+  ListBaseT<FCurve> channels = {nullptr, nullptr};
 
   /**
    * Span of channels in this group for layered actions.
@@ -1022,8 +1011,8 @@ struct bActionGroup {
   ThemeWireColor cs = {};
 
 #ifdef __cplusplus
-  blender::animrig::ChannelGroup &wrap();
-  const blender::animrig::ChannelGroup &wrap() const;
+  animrig::ChannelGroup &wrap();
+  const animrig::ChannelGroup &wrap() const;
 #endif
 };
 
@@ -1032,7 +1021,7 @@ struct bActionGroup {
 /**
  * Container of animation data.
  *
- * \see blender::animrig::Action for more detailed documentation.
+ * \see animrig::Action for more detailed documentation.
  */
 struct bAction {
 #ifdef __cplusplus
@@ -1076,12 +1065,12 @@ struct bAction {
    */
 
   /** Legacy F-Curves (FCurve), introduced in Blender 2.5. */
-  ListBase curves = {nullptr, nullptr};
+  ListBaseT<FCurve> curves = {nullptr, nullptr};
   /** Legacy Groups of function-curves (bActionGroup), introduced in Blender 2.5. */
-  ListBase groups = {nullptr, nullptr};
+  ListBaseT<bActionGroup> groups = {nullptr, nullptr};
 
   /** Markers local to the Action (used to provide Pose-Libraries). */
-  ListBase markers = {nullptr, nullptr};
+  ListBaseT<struct TimeMarker> markers = {nullptr, nullptr};
 
   /** Settings for this action. \see eAction_Flags */
   int flag = 0;
@@ -1104,8 +1093,8 @@ struct bAction {
   PreviewImage *preview = nullptr;
 
 #ifdef __cplusplus
-  blender::animrig::Action &wrap();
-  const blender::animrig::Action &wrap() const;
+  animrig::Action &wrap();
+  const animrig::Action &wrap() const;
 #endif
 };
 
@@ -1152,7 +1141,7 @@ struct SpaceAction {
 
   struct SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<struct ARegion> regionbase = {nullptr, nullptr};
   char spacetype = 0;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -1190,7 +1179,7 @@ struct SpaceAction {
 /* Layered Animation data-types. */
 
 /**
- * \see #blender::animrig::Layer
+ * \see #animrig::Layer
  */
 struct ActionLayer {
   /** User-Visible identifier, unique within the Animation. */
@@ -1198,17 +1187,17 @@ struct ActionLayer {
 
   float influence = 1.0f; /* [0-1] */
 
-  /** \see #blender::animrig::Layer::flags() */
+  /** \see #animrig::Layer::flags() */
   uint8_t layer_flags = 0;
 
-  /** \see #blender::animrig::Layer::mixmode() */
+  /** \see #animrig::Layer::mixmode() */
   int8_t layer_mix_mode = 0;
 
   uint8_t _pad0[2] = {};
 
   /**
    * The layer's array of strips. See the documentation of
-   * #blender::animrig::Layer for the invariants of this array.
+   * #animrig::Layer for the invariants of this array.
    */
   struct ActionStrip **strip_array = nullptr; /* Array of 'strip_array_num' strips. */
   int strip_array_num = 0;
@@ -1216,13 +1205,13 @@ struct ActionLayer {
   uint8_t _pad1[4] = {};
 
 #ifdef __cplusplus
-  blender::animrig::Layer &wrap();
-  const blender::animrig::Layer &wrap() const;
+  animrig::Layer &wrap();
+  const animrig::Layer &wrap() const;
 #endif
 };
 
 /**
- * \see #blender::animrig::Slot
+ * \see #animrig::Slot
  */
 struct ActionSlot {
   /**
@@ -1262,29 +1251,29 @@ struct ActionSlot {
    *
    * NOTE: keep this type in sync with `slot_handle_t` in BKE_action.hh.
    *
-   * \see #blender::animrig::Action::slot_for_handle()
+   * \see #animrig::Action::slot_for_handle()
    */
   int32_t handle = 0;
 
-  /** \see #blender::animrig::Slot::flags() */
+  /** \see #animrig::Slot::flags() */
   int8_t slot_flags = 0;
   uint8_t _pad1[7] = {};
 
   /** Runtime data. Set to nullptr when writing to disk. */
-  ActionSlotRuntimeHandle *runtime = nullptr;
+  animrig::SlotRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
-  blender::animrig::Slot &wrap();
-  const blender::animrig::Slot &wrap() const;
+  animrig::Slot &wrap();
+  const animrig::Slot &wrap() const;
 #endif
 };
 
 /**
- * \see #blender::animrig::Strip
+ * \see #animrig::Strip
  */
 struct ActionStrip {
   /**
-   * \see #blender::animrig::Strip::type()
+   * \see #animrig::Strip::type()
    */
   int8_t strip_type = 0;
   uint8_t _pad0[3] = {};
@@ -1315,15 +1304,15 @@ struct ActionStrip {
   uint8_t _pad1[4] = {};
 
 #ifdef __cplusplus
-  blender::animrig::Strip &wrap();
-  const blender::animrig::Strip &wrap() const;
+  animrig::Strip &wrap();
+  const animrig::Strip &wrap() const;
 #endif
 };
 
 /**
  * #ActionStrip::type = #Strip::Type::Keyframe.
  *
- * \see #blender::animrig::StripKeyframeData
+ * \see #animrig::StripKeyframeData
  */
 struct ActionStripKeyframeData {
   struct ActionChannelbag **channelbag_array = nullptr;
@@ -1332,13 +1321,13 @@ struct ActionStripKeyframeData {
   uint8_t _pad[4] = {};
 
 #ifdef __cplusplus
-  blender::animrig::StripKeyframeData &wrap();
-  const blender::animrig::StripKeyframeData &wrap() const;
+  animrig::StripKeyframeData &wrap();
+  const animrig::StripKeyframeData &wrap() const;
 #endif
 };
 
 /**
- * \see #blender::animrig::Channelbag
+ * \see #animrig::Channelbag
  */
 struct ActionChannelbag {
   int32_t slot_handle = 0;
@@ -1368,8 +1357,8 @@ struct ActionChannelbag {
   /* TODO: Design & implement a way to integrate other channel types as well,
    * and still have them map to a certain slot */
 #ifdef __cplusplus
-  blender::animrig::Channelbag &wrap();
-  const blender::animrig::Channelbag &wrap() const;
+  animrig::Channelbag &wrap();
+  const animrig::Channelbag &wrap() const;
 #endif
 };
 
@@ -1379,3 +1368,5 @@ static_assert(std::is_same_v<decltype(ActionSlot::handle), decltype(bAction::las
 static_assert(
     std::is_same_v<decltype(ActionSlot::handle), decltype(ActionChannelbag::slot_handle)>);
 #endif
+
+}  // namespace blender

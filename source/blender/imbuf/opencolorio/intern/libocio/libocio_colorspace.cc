@@ -18,9 +18,11 @@
 #  include "libocio_cpu_processor.hh"
 #  include "libocio_processor.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"color_management"};
 
-namespace blender::ocio {
+namespace ocio {
 
 static bool compare_floats(float a, float b, float abs_diff, int ulp_diff)
 {
@@ -279,6 +281,7 @@ void LibOCIOColorSpace::clear_caches()
   is_icc_profile_path_cached_ = false;
 }
 
-}  // namespace blender::ocio
+}  // namespace ocio
+}  // namespace blender
 
 #endif

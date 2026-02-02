@@ -18,7 +18,9 @@
 
 #include "node_intern.hh" /* own include */
 
-namespace blender::ed::space_node {
+namespace blender {
+
+namespace ed::space_node {
 
 void node_operatortypes()
 {
@@ -138,7 +140,7 @@ void node_keymap(wmKeyConfig *keyconf)
   node_resize_modal_keymap(keyconf);
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
 
 void ED_operatormacros_node()
 {
@@ -233,4 +235,13 @@ void ED_operatormacros_node()
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "NODE_OT_links_detach");
   WM_operatortype_macro_define(ot, "NODE_OT_translate_attach");
+
+  ot = WM_operatortype_append_macro("NODE_OT_delete_copy_reconnect",
+                                    "Delete with Copy and Reconnect",
+                                    "Copy nodes to clipboard, remove and reconnect them.",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  WM_operatortype_macro_define(ot, "NODE_OT_clipboard_copy");
+  WM_operatortype_macro_define(ot, "NODE_OT_delete_reconnect");
 }
+
+}  // namespace blender

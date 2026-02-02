@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-16 11:27+0000\n"
+"POT-Creation-Date: 2026-01-26 11:28+0000\n"
 "PO-Revision-Date: 2025-07-23 14:52+0000\n"
 "Last-Translator: Lisa <blendergirl@tutanota.com>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -2686,32 +2686,36 @@ msgid "Dots"
 msgstr "Stippen"
 
 
-msgid "Mirror"
-msgstr "Spiegel"
+msgid "Show/Hide"
+msgstr "Toon/Verberg"
 
 
-msgid "Local View"
-msgstr "Lokale Scherm"
+msgid "Names"
+msgstr "Namen"
 
 
-msgid "Navigation"
-msgstr "Navigatie"
+msgid "Import"
+msgstr "Importeren"
 
 
-msgid "Select Similar"
-msgstr "Selecteer Vergelijkbaar"
+msgid "Rigid Body"
+msgstr "Star Lichaam"
 
 
-msgid "Select Linked"
-msgstr "Selecteer Aaneengesloten"
+msgid "Clear Transform"
+msgstr "Maak Transformatie Leeg"
 
 
-msgid "Layout"
-msgstr "Indeling"
+msgid "Hooks"
+msgstr "Haken"
 
 
-msgid "Light"
-msgstr "Licht"
+msgid "Convert"
+msgstr "Converteer"
+
+
+msgid "Quick Effects"
+msgstr "Snelle Effecten"
 
 
 msgid "Add Image"
@@ -2722,36 +2726,32 @@ msgid "Relations"
 msgstr "Relaties"
 
 
-msgid "Rigid Body"
-msgstr "Star Lichaam"
+msgid "Layout"
+msgstr "Indeling"
 
 
-msgid "Quick Effects"
-msgstr "Snelle Effecten"
+msgid "Light"
+msgstr "Licht"
 
 
-msgid "Show/Hide"
-msgstr "Toon/Verberg"
+msgid "Select Similar"
+msgstr "Selecteer Vergelijkbaar"
 
 
-msgid "Convert"
-msgstr "Converteer"
+msgid "Select Linked"
+msgstr "Selecteer Aaneengesloten"
 
 
-msgid "Hooks"
-msgstr "Haken"
+msgid "Navigation"
+msgstr "Navigatie"
 
 
-msgid "Clear Transform"
-msgstr "Maak Transformatie Leeg"
+msgid "Local View"
+msgstr "Lokale Scherm"
 
 
-msgid "Names"
-msgstr "Namen"
-
-
-msgid "Import"
-msgstr "Importeren"
+msgid "Mirror"
+msgstr "Spiegel"
 
 
 msgctxt "MovieClip"
@@ -4218,13 +4218,13 @@ msgstr "Vetkrijt Tekenen"
 
 
 msgctxt "Operator"
-msgid "Invert"
-msgstr "Keer Om"
+msgid "Erase"
+msgstr "Gummen"
 
 
 msgctxt "Operator"
-msgid "Erase"
-msgstr "Gummen"
+msgid "Invert"
+msgstr "Keer Om"
 
 
 msgid "Flat"
@@ -8791,10 +8791,6 @@ msgstr "Afbeeldingen"
 
 msgid "Videos"
 msgstr "Video's"
-
-
-msgid "Movies"
-msgstr "Films"
 
 
 msgid "It cannot be left blank"

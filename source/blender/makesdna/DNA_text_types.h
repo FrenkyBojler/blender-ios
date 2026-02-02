@@ -13,6 +13,8 @@
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 /** #Text.flags */
 enum {
   /** Set if the file in run-time differs from the file on disk, or if there is no file on disk. */
@@ -67,7 +69,7 @@ struct Text {
   int flags = 0;
   char _pad0[4] = {};
 
-  ListBase lines = {nullptr, nullptr};
+  ListBaseT<TextLine> lines = {nullptr, nullptr};
   TextLine *curl = nullptr, *sell = nullptr;
   int curc = 0, selc = 0;
 
@@ -75,3 +77,5 @@ struct Text {
 };
 
 #define TXT_TABSIZE 4
+
+}  // namespace blender

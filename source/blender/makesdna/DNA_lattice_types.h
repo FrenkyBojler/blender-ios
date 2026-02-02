@@ -12,10 +12,16 @@
 #include "DNA_defs.h"
 #include "DNA_key_types.h"
 
+namespace blender {
+
 struct AnimData;
 struct BPoint;
 struct Key;
 struct MDeformVert;
+
+namespace draw {
+struct LatticeBatchCache;
+}
 
 /** #Lattice::flag */
 enum {
@@ -71,11 +77,13 @@ struct Lattice {
   /** Multiply the influence. */
   char vgroup[/*MAX_VGROUP_NAME*/ 64] = "";
   /** List of bDeformGroup names and flag only. */
-  ListBase vertex_group_names = {nullptr, nullptr};
+  ListBaseT<struct bDeformGroup> vertex_group_names = {nullptr, nullptr};
   int vertex_group_active_index = 0;
 
   char _pad0[4] = {};
 
   struct EditLatt *editlatt = nullptr;
-  void *batch_cache = nullptr;
+  draw::LatticeBatchCache *batch_cache = nullptr;
 };
+
+}  // namespace blender

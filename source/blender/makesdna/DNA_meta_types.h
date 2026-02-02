@@ -11,6 +11,8 @@
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 struct AnimData;
 struct BoundBox;
 struct Material;
@@ -92,9 +94,9 @@ struct MetaBall {
   ID id;
   struct AnimData *adt = nullptr;
 
-  ListBase elems = {nullptr, nullptr};
+  ListBaseT<MetaElem> elems = {nullptr, nullptr};
   /** Not saved in files, note we use pointer for editmode check. */
-  ListBase *editelems = nullptr;
+  ListBaseT<MetaElem> *editelems = nullptr;
 
   /* material of the mother ball will define the material used of all others */
   struct Material **mat = nullptr;
@@ -128,3 +130,5 @@ struct MetaBall {
   /** The active meta-element (used in edit-mode). */
   MetaElem *lastelem = nullptr;
 };
+
+}  // namespace blender

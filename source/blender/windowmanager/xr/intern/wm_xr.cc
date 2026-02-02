@@ -20,7 +20,9 @@
 
 #include "ED_screen.hh"
 
-#include "GHOST_C-api.h"
+#include "GHOST_IXrContext.hh"
+#include "GHOST_Types.hh"
+#include "GHOST_Xr-api.hh"
 
 #include "GPU_context.hh"
 
@@ -29,6 +31,8 @@
 #include "WM_api.hh"
 
 #include "wm_xr_intern.hh"
+
+namespace blender {
 
 struct wmXrErrorHandlerData {
   wmWindowManager *wm;
@@ -65,7 +69,7 @@ bool wm_xr_init(wmWindowManager *wm)
   GHOST_XrErrorHandler(wm_xr_error_handler, &error_customdata);
 
   {
-    blender::Vector<GHOST_TXrGraphicsBinding> gpu_bindings_candidates;
+    Vector<GHOST_TXrGraphicsBinding> gpu_bindings_candidates;
     switch (GPU_backend_get_type()) {
 #ifdef WITH_OPENGL_BACKEND
       case GPU_BACKEND_OPENGL:
@@ -99,8 +103,6 @@ bool wm_xr_init(wmWindowManager *wm)
         /*gpu_binding_candidates*/ gpu_bindings_candidates.data(),
         /*gpu_binding_candidates_count*/ uint32_t(gpu_bindings_candidates.size()),
     };
-    GHOST_XrContextHandle context;
-
     if (G.debug & G_DEBUG_XR) {
       create_info.context_flag |= GHOST_kXrContextDebug;
     }
@@ -113,6 +115,7 @@ bool wm_xr_init(wmWindowManager *wm)
     }
 #endif
 
+    GHOST_IXrContext *context;
     if (!(context = GHOST_XrContextCreate(&create_info))) {
       return false;
     }
@@ -169,7 +172,7 @@ bool wm_xr_events_handle(wmWindowManager *wm)
 
 wmXrRuntimeData *wm_xr_runtime_data_create()
 {
-  wmXrRuntimeData *runtime = MEM_callocN<wmXrRuntimeData>(__func__);
+  wmXrRuntimeData *runtime = MEM_new_zeroed<wmXrRuntimeData>(__func__);
   return runtime;
 }
 
@@ -182,7 +185,7 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
 
   /* We free all runtime XR data here, so if the context is still alive, destroy it. */
   if ((*runtime)->context != nullptr) {
-    GHOST_XrContextHandle context = (*runtime)->context;
+    GHOST_IXrContext *context = (*runtime)->context;
     /* Prevent recursive #GHOST_XrContextDestroy() call by nulling the context pointer before
      * the first call, see comment above. */
     (*runtime)->context = nullptr;
@@ -200,7 +203,9 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
 
     GHOST_XrContextDestroy(context);
   }
-  MEM_SAFE_FREE(*runtime);
+  MEM_SAFE_DELETE(*runtime);
 }
 
 /** \} */ /* XR Runtime Data. */
+
+}  // namespace blender

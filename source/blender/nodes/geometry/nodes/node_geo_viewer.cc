@@ -31,7 +31,9 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_viewer_cc {
+namespace blender {
+
+namespace nodes::node_geo_viewer_cc {
 
 NODE_STORAGE_FUNCS(NodeGeometryViewer)
 
@@ -223,7 +225,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = GeoViewerItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
-                               &tree->id, GeoViewerItemsAccessor::item_srna, &item, "name");
+                               &tree->id, *GeoViewerItemsAccessor::item_srna, &item, "name");
     if (socket_type_supports_fields(socket_type)) {
       input_decl.field_on_all();
     }
@@ -236,7 +238,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryViewer *data = MEM_new_for_free<NodeGeometryViewer>(__func__);
+  NodeGeometryViewer *data = MEM_new<NodeGeometryViewer>(__func__);
   data->data_type_legacy = CD_PROP_FLOAT;
   data->domain = int8_t(AttrDomain::Auto);
   node->storage = data;
@@ -441,14 +443,13 @@ static void node_operators()
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<GeoViewerItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(static_cast<NodeGeometryViewer *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryViewer &src_storage = node_storage(*src_node);
-  dst_node->storage = MEM_new_for_free<NodeGeometryViewer>(__func__,
-                                                           dna::shallow_copy(src_storage));
+  dst_node->storage = MEM_new<NodeGeometryViewer>(__func__, dna::shallow_copy(src_storage));
 
   socket_items::copy_array<GeoViewerItemsAccessor>(*src_node, *dst_node);
 }
@@ -476,15 +477,14 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeViewer", GEO_NODE_VIEWER);
   ntype.ui_name = "Viewer";
   ntype.ui_description = "Display the input data in the Spreadsheet Editor";
   ntype.enum_name_legacy = "VIEWER";
   ntype.nclass = NODE_CLASS_OUTPUT;
-  blender::bke::node_type_storage(
-      ntype, "NodeGeometryViewer", node_free_storage, node_copy_storage);
+  bke::node_type_storage(ntype, "NodeGeometryViewer", node_free_storage, node_copy_storage);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
@@ -496,15 +496,15 @@ static void node_register()
   ntype.get_extra_info = node_extra_info;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_viewer_cc
+}  // namespace nodes::node_geo_viewer_cc
 
-namespace blender::nodes {
+namespace nodes {
 
-StructRNA *GeoViewerItemsAccessor::item_srna = &RNA_NodeGeometryViewerItem;
+StructRNA **GeoViewerItemsAccessor::item_srna = &RNA_NodeGeometryViewerItem;
 
 void GeoViewerItemsAccessor::blend_write_item(BlendWriter *writer,
                                               const NodeGeometryViewerItem &item)
@@ -525,4 +525,5 @@ void geo_viewer_node_log(const bNode &node,
   node_geo_viewer_cc::geo_viewer_node_log_impl(node, input_values, r_log);
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

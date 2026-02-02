@@ -11,6 +11,8 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
+namespace blender {
+
 struct BodySpring;
 
 /** #EffectorWeights::flag */
@@ -285,7 +287,7 @@ struct SBVertex {
  * without having to update all evaluated copies. */
 struct SoftBody_Shared {
   struct PointCache *pointcache = nullptr;
-  ListBase ptcaches = {nullptr, nullptr};
+  ListBaseT<PointCache> ptcaches = {nullptr, nullptr};
 };
 
 struct SoftBody {
@@ -390,7 +392,7 @@ struct SoftBody {
   /** Moved to SoftBody_Shared. */
   DNA_DEPRECATED struct PointCache *pointcache = nullptr;
   /** Moved to SoftBody_Shared. */
-  ListBase ptcaches = {nullptr, nullptr};
+  ListBaseT<PointCache> ptcaches = {nullptr, nullptr};
 
   struct Collection *collision_group = nullptr;
 
@@ -402,3 +404,5 @@ struct SoftBody {
 
   int last_frame = 0;
 };
+
+}  // namespace blender

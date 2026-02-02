@@ -12,17 +12,14 @@
 #include "DNA_listBase.h"
 #include "DNA_uuid_types.h"
 
-#ifdef __cplusplus
-#  include <memory>
+#include <memory>
 
 namespace blender {
-class StringRef;
-}
-namespace blender::asset_system {
-class AssetLibrary;
-}  // namespace blender::asset_system
 
-#endif
+class StringRef;
+namespace asset_system {
+class AssetLibrary;
+}  // namespace asset_system
 
 enum eAssetLibraryType {
   /** Display assets from the current session (current "Main"). */
@@ -54,6 +51,7 @@ enum eAssetImportMethod {
 
 enum eAssetLibrary_Flag {
   ASSET_LIBRARY_RELATIVE_PATH = (1 << 0),
+  ASSET_LIBRARY_DISABLED = (1 << 1),
 };
 
 /**
@@ -109,7 +107,7 @@ struct AssetMetaData {
   /** User defined tags for this asset. The asset manager uses these for filtering, but how they
    * function exactly (e.g. how they are registered to provide a list of searchable available tags)
    * is up to the asset-engine. */
-  ListBase tags = {nullptr, nullptr}; /* AssetTag */
+  ListBaseT<AssetTag> tags = {nullptr, nullptr};
   short active_tag = 0;
   /** Store the number of tags to avoid continuous counting. Could be turned into runtime data, we
    * can always reliably reconstruct it from the list. */
@@ -194,8 +192,8 @@ struct AssetWeakReference {
   /**
    * See AssetRepresentation::make_weak_reference().
    */
-  static AssetWeakReference make_reference(const blender::asset_system::AssetLibrary &library,
-                                           blender::StringRef library_relative_identifier);
+  static AssetWeakReference make_reference(const asset_system::AssetLibrary &library,
+                                           StringRef library_relative_identifier);
 #endif
 };
 
@@ -203,3 +201,5 @@ struct AssetCatalogPathLink {
   struct AssetCatalogPathLink *next = nullptr, *prev = nullptr;
   char *path = nullptr;
 };
+
+}  // namespace blender
