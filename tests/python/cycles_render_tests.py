@@ -88,7 +88,7 @@ BLOCKLIST_OPTIX_OSL_ALL = BLOCKLIST_OPTIX_OSL_LIMITED + [
     'ambient_occlusion.*.blend',
     'bake_bevel.blend',
     'bevel.blend',
-    'raycast.*.blend'
+    'raycast.*.blend',
     'principled_bsdf_bevel_emission_137420.blend',
     # Dicing tests use wireframe node which doesn't appear to be supported with OptiX OSL
     'dicing_camera.blend',
