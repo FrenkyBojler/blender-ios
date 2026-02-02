@@ -1532,7 +1532,6 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
    * also run with the same default key binding. */
   const View2D *v2d = ui::view2d_fromcontext(C);
   ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
-  // TimeMarker *nearest_marker = region_position_is_over_marker(v2d, markers, mval[0]);
 
   if (!region_position_is_over_marker(v2d, markers, mval[0])) {
     /* Empty space, deselect markers and let other operators run. */
@@ -1753,11 +1752,8 @@ static wmOperatorStatus ed_marker_select_leftright_exec(bContext *C, wmOperator 
     scene = CTX_data_sequencer_scene(C);
   }
   else {
-    bAnimContext ac;
-    if (ANIM_animdata_get_context(C, &ac)) {
-      markers = ac.markers;
-      scene = ac.scene;
-    }
+    markers = ED_context_get_markers(C);
+    scene = CTX_data_scene(C);
   }
 
   if (!markers || !scene) {
