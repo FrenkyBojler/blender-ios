@@ -10,14 +10,18 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 
+#include "DNA_layer_types.h"
+#include "DNA_node_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_space_types.h"
+
 #include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_scene.hh"
-
-#include "DNA_scene_types.h"
-#include "DNA_space_types.h"
 
 #include "RE_engine.h"
 
@@ -27,10 +31,9 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "GPU_shader.hh"
-
 #include "NOD_node_extra_info.hh"
 
+#include "COM_algorithm_extract_alpha.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
@@ -42,6 +45,7 @@ static void node_init(const bContext *context, PointerRNA *node_pointer)
 {
   Scene *scene = CTX_data_scene(context);
   bNode *node = node_pointer->data_as<bNode>();
+  node->flag |= NODE_PREVIEW;
 
   node->id = &scene->id;
   id_us_plus(node->id);
@@ -76,8 +80,8 @@ static BaseSocketDeclarationBuilder &declare_existing_output(NodeDeclarationBuil
 static void declare_existing(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
-  LISTBASE_FOREACH (const bNodeSocket *, output, &node->outputs) {
-    declare_existing_output(b, output);
+  for (const bNodeSocket &output : node->outputs) {
+    declare_existing_output(b, &output);
   }
 }
 
@@ -195,7 +199,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   declare_extra_passes(b, scene, view_layer);
 }
 
-static void node_draw(ui::Layout &layout, bContext *context, PointerRNA *node_pointer)
+static void node_draw_buttons(ui::Layout &layout, bContext *context, PointerRNA *node_pointer)
 {
   template_id(&layout, context, node_pointer, "scene", nullptr, nullptr, nullptr);
 
@@ -253,7 +257,7 @@ static void node_extra_info(NodeExtraInfoParams &parameters)
   bool is_any_pass_used = false;
   for (const bNodeSocket *output : parameters.node.output_sockets()) {
     /* Combined pass is always available. */
-    if (StringRef(output->name) == "Image" || StringRef(output->name) == "Alpha") {
+    if (STR_ELEM(output->name, "Image", "Alpha", "Grease Pencil")) {
       continue;
     }
     if (output->is_logically_linked()) {
@@ -281,29 +285,11 @@ class RenderLayerOperation : public NodeOperation {
 
   void execute() override
   {
-    const Scene *scene = reinterpret_cast<const Scene *>(this->bnode().id);
-    const int view_layer = this->bnode().custom1;
+    const Scene *scene = this->get_scene();
+    const int view_layer = this->get_viewer_layer_index();
 
-    Result &image_result = this->get_result("Image");
-    Result &alpha_result = this->get_result("Alpha");
-
-    if (image_result.should_compute() || alpha_result.should_compute()) {
-      const Result combined_pass = this->context().get_pass(
-          scene, view_layer, RE_PASSNAME_COMBINED);
-      if (image_result.should_compute()) {
-        this->execute_pass(combined_pass, image_result);
-      }
-      if (alpha_result.should_compute()) {
-        this->execute_pass(combined_pass, alpha_result);
-      }
-    }
-
-    for (const bNodeSocket *output : this->node()->output_sockets()) {
+    for (const bNodeSocket *output : this->node().output_sockets()) {
       if (!is_socket_available(output)) {
-        continue;
-      }
-
-      if (STR_ELEM(output->identifier, "Image", "Alpha")) {
         continue;
       }
 
@@ -312,134 +298,40 @@ class RenderLayerOperation : public NodeOperation {
         continue;
       }
 
-      const bool is_generated_alpha = StringRef(output->identifier) == "Alpha";
-      const char *pass_name = is_generated_alpha ? RE_PASSNAME_COMBINED : output->identifier;
-      this->context().populate_meta_data_for_pass(scene, view_layer, pass_name, result.meta_data);
+      if (StringRef(output->identifier) == "Alpha") {
+        Result combined_pass = this->context().get_pass(scene, view_layer, RE_PASSNAME_COMBINED);
+        extract_alpha(this->context(), combined_pass, result);
+        combined_pass.release();
+        continue;
+      }
 
-      const Result pass = this->context().get_pass(scene, view_layer, pass_name);
-      this->execute_pass(pass, result);
+      Result pass = this->context().get_pass(scene, view_layer, output->identifier);
+      result.set_type(pass.type());
+      result.set_precision(pass.precision());
+      result.steal_data(pass);
+      pass.release();
     }
   }
 
-  void execute_pass(const Result &pass, Result &result)
+  int get_viewer_layer_index()
   {
-    if (!pass.is_allocated()) {
-      /* Pass not rendered yet, or not supported by viewport. */
-      result.allocate_invalid();
-      return;
-    }
-
-    result.set_precision(pass.precision());
-
-    if (this->context().use_gpu()) {
-      this->execute_pass_gpu(pass, result);
-    }
-    else {
-      this->execute_pass_cpu(pass, result);
-    }
+    return this->node().custom1;
   }
 
-  void execute_pass_gpu(const Result &pass, Result &result)
+  const Scene *get_scene()
   {
-    gpu::Shader *shader = this->context().get_shader(this->get_shader_name(pass, result),
-                                                     result.precision());
-    GPU_shader_bind(shader);
-
-    /* The compositing space might be limited to a subset of the pass texture, so only read that
-     * compositing region into an appropriately sized result. */
-    const int2 lower_bound = this->context().get_input_region().min;
-    GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
-
-    pass.bind_as_texture(shader, "input_tx");
-
-    result.allocate_texture(this->context().get_compositing_domain());
-    result.bind_as_image(shader, "output_img");
-
-    compute_dispatch_threads_at_least(shader, result.domain().data_size);
-
-    GPU_shader_unbind();
-    pass.unbind_as_texture();
-    result.unbind_as_image();
-  }
-
-  const char *get_shader_name(const Result &pass, const Result &result)
-  {
-    /* Special case for alpha output. */
-    if (pass.type() == ResultType::Color && result.type() == ResultType::Float) {
-      return "compositor_read_input_alpha";
-    }
-
-    switch (pass.type()) {
-      case ResultType::Float:
-        return "compositor_read_input_float";
-      case ResultType::Float3:
-      case ResultType::Color:
-      case ResultType::Float4:
-        return "compositor_read_input_float4";
-      case ResultType::Int:
-      case ResultType::Int2:
-      case ResultType::Float2:
-      case ResultType::Bool:
-      case ResultType::Menu:
-        /* Not supported. */
-        break;
-      case ResultType::String:
-        /* Single only types do not support GPU code path. */
-        BLI_assert(Result::is_single_value_only_type(pass.type()));
-        BLI_assert_unreachable();
-        break;
-    }
-
-    BLI_assert_unreachable();
-    return nullptr;
-  }
-
-  void execute_pass_cpu(const Result &pass, Result &result)
-  {
-    /* The compositing space might be limited to a subset of the pass texture, so only read that
-     * compositing region into an appropriately sized result. */
-    const int2 lower_bound = this->context().get_input_region().min;
-
-    result.allocate_texture(this->context().get_compositing_domain());
-
-    if (pass.type() == ResultType::Color && result.type() == ResultType::Float) {
-      /* Special case for alpha output. */
-      parallel_for(result.domain().data_size, [&](const int2 texel) {
-        result.store_pixel(texel, pass.load_pixel<Color>(texel + lower_bound).a);
-      });
-    }
-    else if (pass.type() == ResultType::Float3 && result.type() == ResultType::Color) {
-      /* Color passes with no alpha could be stored in a Float3 type. */
-      parallel_for(result.domain().data_size, [&](const int2 texel) {
-        result.store_pixel(texel,
-                           Color(float4(pass.load_pixel<float3>(texel + lower_bound), 1.0f)));
-      });
-    }
-    else {
-      pass.get_cpp_type().to_static_type_tag<float, float3, float4, Color>([&](auto type_tag) {
-        using T = typename decltype(type_tag)::type;
-        if constexpr (std::is_same_v<T, void>) {
-          /* Unsupported type. */
-          BLI_assert_unreachable();
-        }
-        else {
-          parallel_for(result.domain().data_size, [&](const int2 texel) {
-            result.store_pixel(texel, pass.load_pixel<T>(texel + lower_bound));
-          });
-        }
-      });
-    }
+    return reinterpret_cast<const Scene *>(this->node().id);
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new RenderLayerOperation(context, node);
 }
 
-static void register_node()
+static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeRLayers", CMP_NODE_R_LAYERS);
   ntype.ui_name = "Render Layers";
@@ -449,13 +341,13 @@ static void register_node()
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc_api = node_init;
   ntype.declare = node_declare;
-  ntype.draw_buttons = node_draw;
+  ntype.draw_buttons = node_draw_buttons;
   ntype.get_compositor_operation = get_compositor_operation;
   ntype.get_extra_info = node_extra_info;
-  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
+  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node)
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_composite_render_layer_cc

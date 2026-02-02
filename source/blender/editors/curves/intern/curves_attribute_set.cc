@@ -92,7 +92,7 @@ static void validate_value(const bke::AttributeAccessor attributes,
 static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 {
   Object *active_object = CTX_data_active_object(C);
-  Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
+  Curves &active_curves_id = *id_cast<Curves *>(active_object->data);
 
   AttributeOwner active_owner = AttributeOwner::from_id(&active_curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(active_owner);
@@ -148,7 +148,7 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object *active_object = CTX_data_active_object(C);
-  Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
+  Curves &active_curves_id = *id_cast<Curves *>(active_object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&active_curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
@@ -171,8 +171,7 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
   BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
   BLI_SCOPED_DEFER([&]() { type.destruct(buffer); });
 
-  bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(type, [&]<typename T>() {
     const VArray<T> values_typed = attribute.varray.typed<T>();
     bke::attribute_math::DefaultMixer<T> mixer{MutableSpan(static_cast<T *>(buffer), 1)};
     selection.foreach_index([&](const int i) { mixer.mix_in(0, values_typed[i]); });
@@ -191,7 +190,7 @@ static void set_attribute_ui(bContext *C, wmOperator *op)
   layout.use_property_decorate_set(false);
 
   Object *object = CTX_data_active_object(C);
-  Curves &curves_id = *static_cast<Curves *>(object->data);
+  Curves &curves_id = *id_cast<Curves *>(object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(owner);

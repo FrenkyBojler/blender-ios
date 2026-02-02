@@ -40,9 +40,6 @@
 #include "mtl_texture.hh"
 #include "mtl_vertex_buffer.hh"
 
-#include "GHOST_C-api.h"
-
-using namespace blender;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
 
@@ -254,6 +251,11 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
   std::string concat_source = fmt::to_string(fmt::join(sources, "")) + wrapper.second;
 
   dump_source_to_disk(this->name_get(), this->entry_point_name_get(stage), ".msl", concat_source);
+
+  concat_source = run_preprocessor(concat_source);
+
+  dump_source_to_disk(
+      this->name_get(), this->entry_point_name_get(stage) + ".expanded", ".msl", concat_source);
 
   {
     ::MTLCompileOptions *options = get_compile_options(
