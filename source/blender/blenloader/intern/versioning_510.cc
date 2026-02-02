@@ -9,6 +9,8 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
+#include "DNA_brush_enums.h"
+#include "DNA_brush_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -505,6 +507,98 @@ static void do_version_render_layers_node_albedo_normal_swap(bNode &node)
   }
 }
 
+/* Some nodes no longer have storage but their storage is still allocated at write time for forward
+ * compatibility. This only happens during writes from 4.5, so we need to free this storage again
+ * when loading any file from 4.5. But before this versioning was done, it was possible to save a
+ * file from 4.5 in 5.0 or 5.1 and it would still have the storage, so we also need to include
+ * versions up to the current 5.1 subversion. */
+static void free_compositor_forward_compatibility_storage(bNode &node)
+{
+  if (!node.storage) {
+    return;
+  }
+
+  switch (node.type_legacy) {
+    case CMP_NODE_BOKEHIMAGE:
+      MEM_delete(static_cast<NodeBokehImage *>(node.storage));
+      break;
+    case CMP_NODE_MASK:
+      MEM_delete(static_cast<NodeMask *>(node.storage));
+      break;
+    case CMP_NODE_ANTIALIASING:
+      MEM_delete(static_cast<NodeAntiAliasingData *>(node.storage));
+      break;
+    case CMP_NODE_VECBLUR:
+      MEM_delete(static_cast<NodeBlurData *>(node.storage));
+      break;
+    case CMP_NODE_CHROMA_MATTE:
+    case CMP_NODE_COLOR_MATTE:
+    case CMP_NODE_DIFF_MATTE:
+    case CMP_NODE_LUMA_MATTE:
+      MEM_delete(static_cast<NodeChroma *>(node.storage));
+      break;
+    case CMP_NODE_COLORCORRECTION:
+      MEM_delete(static_cast<NodeColorCorrection *>(node.storage));
+      break;
+    case CMP_NODE_MASK_BOX:
+      MEM_delete(static_cast<NodeBoxMask *>(node.storage));
+      break;
+    case CMP_NODE_MASK_ELLIPSE:
+      MEM_delete(static_cast<NodeEllipseMask *>(node.storage));
+      break;
+    case CMP_NODE_SUNBEAMS_DEPRECATED:
+      MEM_delete(static_cast<NodeSunBeams *>(node.storage));
+      break;
+    case CMP_NODE_DBLUR:
+      MEM_delete(static_cast<NodeDBlurData *>(node.storage));
+      break;
+    case CMP_NODE_BILATERALBLUR:
+      MEM_delete(static_cast<NodeBilateralBlurData *>(node.storage));
+      break;
+    case CMP_NODE_CROP:
+      MEM_delete(static_cast<NodeTwoXYs *>(node.storage));
+      break;
+    case CMP_NODE_COLORBALANCE:
+      MEM_delete(static_cast<NodeColorBalance *>(node.storage));
+      break;
+    default:
+      return;
+  }
+
+  node.storage = nullptr;
+}
+
+static void convert_brush_flags_to_type(Brush &brush)
+{
+  if (brush.flag & BRUSH_UNUSED_1) {
+    brush.flag &= ~BRUSH_UNUSED_1;
+    brush.stroke_method = BRUSH_STROKE_AIRBRUSH;
+  }
+  else if (brush.flag & BRUSH_UNUSED_2) {
+    brush.flag &= ~BRUSH_UNUSED_2;
+    brush.stroke_method = BRUSH_STROKE_ANCHORED;
+  }
+  else if (brush.flag & BRUSH_UNUSED_3) {
+    brush.flag &= ~BRUSH_UNUSED_3;
+    brush.stroke_method = BRUSH_STROKE_SPACE;
+  }
+  else if (brush.flag & BRUSH_UNUSED_4) {
+    brush.flag &= ~BRUSH_UNUSED_4;
+    brush.stroke_method = BRUSH_STROKE_DRAG_DOT;
+  }
+  else if (brush.flag & BRUSH_UNUSED_5) {
+    brush.flag &= ~BRUSH_UNUSED_5;
+    brush.stroke_method = BRUSH_STROKE_LINE;
+  }
+  else if (brush.flag & BRUSH_UNUSED_6) {
+    brush.flag &= ~BRUSH_UNUSED_6;
+    brush.stroke_method = BRUSH_STROKE_CURVE;
+  }
+  else {
+    brush.stroke_method = BRUSH_STROKE_DOTS;
+  }
+}
+
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
@@ -729,6 +823,23 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 22)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        for (bNode &node : node_tree->nodes) {
+          free_compositor_forward_compatibility_storage(node);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 23)) {
+    for (Brush &brush : bmain->brushes) {
+      convert_brush_flags_to_type(brush);
+    }
   }
 
   /**
