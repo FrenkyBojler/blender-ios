@@ -26,10 +26,9 @@ std::optional<VKTexturePool::Segment> VKTexturePool::AllocationHandle::acquire(
     VkMemoryRequirements requirements)
 {
   /* `memoryType` uses 0 as special value to indicate no memory type restrictions.
-   * If there are restrictions, we check against `memoryTypeBits`.  */
-  if (allocation_info.memoryType != 0 &&
-      !bool(requirements.memoryTypeBits & allocation_info.memoryType))
-  {
+   * If there are restrictions, we check as a mask against `memoryTypeBits`. */
+  uint32_t memory_type_bit = 1u << allocation_info.memoryType;
+  if (allocation_info.memoryType != 0 && !bool(requirements.memoryTypeBits & memory_type_bit)) {
     return {};
   }
 
@@ -263,6 +262,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
       texture_handle.segment = segment_opt.value();
     }
     else {
+
       BLI_assert_unreachable();
     }
   }
