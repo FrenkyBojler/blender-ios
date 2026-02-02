@@ -1,1 +1,2 @@
 Referenced by issue #149784, 5.0: Candidates for corrective releases
+Referenced by issue #114455, Very intermittent 'Writing to ID classes in this context is not allowed' when updating any property after rendering.
