@@ -215,8 +215,8 @@ DrawingPlacement::DrawingPlacement(const DrawingPlacement &other)
   plane_ = other.plane_;
 
   if (other.depth_cache_ != nullptr) {
-    depth_cache_ = static_cast<ViewDepths *>(MEM_dupallocN(other.depth_cache_));
-    depth_cache_->depths = static_cast<float *>(MEM_dupallocN(other.depth_cache_->depths));
+    depth_cache_ = MEM_dupalloc(other.depth_cache_);
+    depth_cache_->depths = MEM_dupalloc(other.depth_cache_->depths);
   }
   use_project_only_selected_ = other.use_project_only_selected_;
 
@@ -1567,8 +1567,7 @@ Array<PointTransferData> compute_topology_change(
   for (bke::AttributeTransferData &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes, dst_attributes, {bke::AttrDomain::Point}))
   {
-    bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(attribute.dst.span.type(), [&]<typename T>() {
       auto src_attr = attribute.src.typed<T>();
       auto dst_attr = attribute.dst.span.typed<T>();
 
@@ -1745,7 +1744,7 @@ float4x2 calculate_texture_space(const Scene *scene,
 GreasePencil *from_context(bContext &C)
 {
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(
-      CTX_data_pointer_get_type(&C, "grease_pencil", &RNA_GreasePencil).data);
+      CTX_data_pointer_get_type(&C, "grease_pencil", RNA_GreasePencil).data);
 
   if (grease_pencil == nullptr) {
     Object *object = CTX_data_active_object(&C);
@@ -1791,8 +1790,7 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
     bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
     GMutableSpan attribute_data = dst.span;
 
-    bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(attribute_data.type(), [&]<typename T>() {
       MutableSpan<T> span_data = attribute_data.typed<T>();
 
       /* Loop through backwards to not overwrite the data. */
@@ -1842,8 +1840,7 @@ void resize_single_curve(bke::CurvesGeometry &curves, const bool at_end, const i
       bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
       GMutableSpan attribute_data = dst.span;
 
-      bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-        using T = decltype(dummy);
+      bke::attribute_math::to_static_type(attribute_data.type(), [&]<typename T>() {
         MutableSpan<T> span_data = attribute_data.typed<T>();
 
         /* Loop through backwards to not overwrite the data. */
@@ -1866,8 +1863,7 @@ void resize_single_curve(bke::CurvesGeometry &curves, const bool at_end, const i
       bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
       GMutableSpan attribute_data = dst.span;
 
-      bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
-        using T = decltype(dummy);
+      bke::attribute_math::to_static_type(attribute_data.type(), [&]<typename T>() {
         MutableSpan<T> span_data = attribute_data.typed<T>();
 
         for (const int i :
@@ -2010,7 +2006,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   /* Add new vertex groups to GreasePencil object. */
   for (StringRef new_vgroup_name : new_vgroup_names) {
-    bDeformGroup *dst = MEM_new_for_free<bDeformGroup>(__func__);
+    bDeformGroup *dst = MEM_new<bDeformGroup>(__func__);
     new_vgroup_name.copy_utf8_truncated(dst->name);
     BLI_addtail(&orig_grease_pencil.vertex_group_names, dst);
   }
@@ -2097,8 +2093,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
     if (!dst) {
       return;
     }
-    attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    attribute_math::to_static_type(src.type(), [&]<typename T>() {
       Span<T> src_span = src.typed<T>();
       MutableSpan<T> dst_span = dst.span.typed<T>();
       for (const auto [src_i, dst_i] : eval_to_orig_layer_indices_map.items()) {

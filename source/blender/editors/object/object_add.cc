@@ -2765,7 +2765,7 @@ static void make_object_duplilist_real(bContext *C,
   }
 
   DupliList duplilist;
-  object_duplilist(depsgraph, scene, object_eval, nullptr, duplilist);
+  object_duplilist(depsgraph, object_eval, nullptr, duplilist);
 
   if (duplilist.is_empty()) {
     return;
@@ -4287,7 +4287,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
 
       /* flag data that's not been edited (only needed for !keep_original) */
       if (ob->data) {
-        (ob->data)->tag |= ID_TAG_DOIT;
+        ob->data->tag |= ID_TAG_DOIT;
       }
 
       /* possible metaball basis is not in this scene */
@@ -4429,7 +4429,7 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
        * It is not enough to tag only geometry and rely on the curve parenting relations because
        * this relation is lost when curve is converted to mesh. */
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
-      (ob->data)->tag &= ~ID_TAG_DOIT; /* flag not to convert this datablock again */
+      ob->data->tag &= ~ID_TAG_DOIT; /* flag not to convert this datablock again */
     }
   }
 
