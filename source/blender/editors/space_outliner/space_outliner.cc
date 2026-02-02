@@ -188,6 +188,7 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
     case NC_OBJECT:
       switch (wmn->data) {
         case ND_TRANSFORM:
+        case ND_POSE:
           ED_region_tag_redraw_no_rebuild(region);
           break;
         case ND_BONE_ACTIVE:

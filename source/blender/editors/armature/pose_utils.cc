@@ -331,7 +331,7 @@ void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks)
 void poseAnim_mapping_refresh(bContext *C, Scene * /*scene*/, Object *ob)
 {
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);  //?
 
   AnimData *adt = BKE_animdata_from_id(&ob->id);
   if (adt && adt->action) {
