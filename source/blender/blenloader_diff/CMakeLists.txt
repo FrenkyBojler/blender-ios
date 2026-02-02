@@ -28,21 +28,20 @@ blender_target_include_dirs(blend_diff ${INC})
 target_link_libraries(blend_diff ${LIB})
 
 if(APPLE)
-  install(
-    TARGETS blend_diff
-    DESTINATION "$<TARGET_BUNDLE_CONTENT_DIR:blender>/MacOS"
-  )
+  set(INSTALL_DEST "$<TARGET_BUNDLE_CONTENT_DIR:blender>/MacOS")
 else()
-  install(
-    TARGETS blend_diff
-    DESTINATION "."
-  )
+  set(INSTALL_DEST ".")
 endif()
+
+install(
+  TARGETS blend_diff
+  RUNTIME DESTINATION "${INSTALL_DEST}"
+)
 install(
   PROGRAMS intern/blend_diff_git_driver.py
-  DESTINATION "."
+  DESTINATION "${INSTALL_DEST}"
 )
 install(
   FILES intern/blend_diff_config.toml
-  DESTINATION "."
+  DESTINATION "${INSTALL_DEST}"
 )
