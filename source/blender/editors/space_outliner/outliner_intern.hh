@@ -681,8 +681,9 @@ void outliner_tag_redraw_avoid_rebuild_on_open_change(const SpaceOutliner *space
 
 /**
  * If outliner is dirty sync selection from view layer and sequencer.
+ * \return true if active is changed.
  */
-void outliner_sync_selection(const bContext *C,
+bool outliner_sync_selection(const bContext *C,
                              const TreeViewContext &tvc,
                              SpaceOutliner *space_outliner);
 

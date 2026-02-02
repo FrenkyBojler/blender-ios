@@ -357,7 +357,7 @@ void ED_outliner_select_sync_from_outliner(bContext *C, SpaceOutliner *space_out
 
 namespace ed::outliner {
 
-static void outliner_select_sync_from_object(const Scene *scene,
+static bool outliner_select_sync_from_object(const Scene *scene,
                                              ViewLayer *view_layer,
                                              Object *obact,
                                              TreeElement *te,
@@ -369,33 +369,29 @@ static void outliner_select_sync_from_object(const Scene *scene,
                                   BKE_view_layer_base_find(view_layer, ob);
   const bool is_selected = (base != nullptr) && ((base->flag & BASE_SELECTED) != 0);
 
-  if (base && (ob == obact)) {
-    tselem->flag |= (TSE_ACTIVE | TSE_FOCUS);
-  }
-  else {
-    tselem->flag &= ~TSE_ACTIVE;
-  }
-
   if (is_selected) {
     tselem->flag |= TSE_SELECTED;
   }
   else {
     tselem->flag &= ~TSE_SELECTED;
   }
-}
 
-static void outliner_select_sync_from_edit_bone(EditBone *ebone_active,
-                                                TreeElement *te,
-                                                TreeStoreElem *tselem)
-{
-  EditBone *ebone = static_cast<EditBone *>(te->directdata);
-
-  if (ebone == ebone_active) {
+  if (base && (ob == obact)) {
     tselem->flag |= TSE_ACTIVE;
+    return true;
   }
   else {
     tselem->flag &= ~TSE_ACTIVE;
   }
+
+  return false;
+}
+
+static bool outliner_select_sync_from_edit_bone(EditBone *ebone_active,
+                                                TreeElement *te,
+                                                TreeStoreElem *tselem)
+{
+  EditBone *ebone = static_cast<EditBone *>(te->directdata);
 
   if (ebone->flag & BONE_SELECTED) {
     tselem->flag |= TSE_SELECTED;
@@ -403,20 +399,22 @@ static void outliner_select_sync_from_edit_bone(EditBone *ebone_active,
   else {
     tselem->flag &= ~TSE_SELECTED;
   }
-}
 
-static void outliner_select_sync_from_pose_bone(bPoseChannel *pchan_active,
-                                                TreeElement *te,
-                                                TreeStoreElem *tselem)
-{
-  bPoseChannel *pchan = static_cast<bPoseChannel *>(te->directdata);
-
-  if (pchan == pchan_active) {
+  if (ebone == ebone_active) {
     tselem->flag |= TSE_ACTIVE;
+    return true;
   }
   else {
     tselem->flag &= ~TSE_ACTIVE;
   }
+  return false;
+}
+
+static bool outliner_select_sync_from_pose_bone(bPoseChannel *pchan_active,
+                                                TreeElement *te,
+                                                TreeStoreElem *tselem)
+{
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(te->directdata);
 
   if (pchan->flag & POSE_SELECTED) {
     tselem->flag |= TSE_SELECTED;
@@ -424,21 +422,23 @@ static void outliner_select_sync_from_pose_bone(bPoseChannel *pchan_active,
   else {
     tselem->flag &= ~TSE_SELECTED;
   }
+
+  if (pchan == pchan_active) {
+    tselem->flag |= TSE_ACTIVE;
+    return true;
+  }
+  else {
+    tselem->flag &= ~TSE_ACTIVE;
+  }
+  return false;
 }
 
-static void outliner_select_sync_from_strip(Strip *strip_active, const TreeElement *te)
+static bool outliner_select_sync_from_strip(Strip *strip_active, const TreeElement *te)
 {
   TreeStoreElem *tselem = TREESTORE(te);
 
   const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
   const Strip *strip = &te_strip->get_strip();
-
-  if (strip == strip_active) {
-    tselem->flag |= TSE_ACTIVE;
-  }
-  else {
-    tselem->flag &= ~TSE_ACTIVE;
-  }
 
   if (strip->flag & SEQ_SELECT) {
     tselem->flag |= TSE_SELECTED;
@@ -446,6 +446,15 @@ static void outliner_select_sync_from_strip(Strip *strip_active, const TreeEleme
   else {
     tselem->flag &= ~TSE_SELECTED;
   }
+
+  if (strip == strip_active) {
+    tselem->flag |= TSE_ACTIVE;
+    return true;
+  }
+  else {
+    tselem->flag &= ~TSE_ACTIVE;
+  }
+  return false;
 }
 
 /**
@@ -460,34 +469,38 @@ struct SyncSelectActiveData {
 };
 
 /** Sync select and active flags from active view layer, bones, and sequences to the outliner. */
-static void outliner_sync_selection_to_outliner(const Scene *scene,
+static bool outliner_sync_selection_to_outliner(const Scene *scene,
                                                 ViewLayer *view_layer,
                                                 SpaceOutliner *space_outliner,
                                                 ListBaseT<TreeElement> *tree,
                                                 SyncSelectActiveData *active_data,
                                                 const SyncSelectTypes *sync_types)
 {
+  bool is_active_changed = false;
   for (TreeElement &te : *tree) {
     TreeStoreElem *tselem = TREESTORE(&te);
 
     if ((tselem->type == TSE_SOME_ID) && te.idcode == ID_OB) {
       if (sync_types->object) {
-        outliner_select_sync_from_object(scene, view_layer, active_data->object, &te, tselem);
+        is_active_changed |= outliner_select_sync_from_object(
+            scene, view_layer, active_data->object, &te, tselem);
       }
     }
     else if (tselem->type == TSE_EBONE) {
       if (sync_types->edit_bone) {
-        outliner_select_sync_from_edit_bone(active_data->edit_bone, &te, tselem);
+        is_active_changed |= outliner_select_sync_from_edit_bone(
+            active_data->edit_bone, &te, tselem);
       }
     }
     else if (tselem->type == TSE_POSE_CHANNEL) {
       if (sync_types->pose_bone) {
-        outliner_select_sync_from_pose_bone(active_data->pose_channel, &te, tselem);
+        is_active_changed |= outliner_select_sync_from_pose_bone(
+            active_data->pose_channel, &te, tselem);
       }
     }
     else if (tselem->type == TSE_STRIP) {
       if (sync_types->seq_strip) {
-        outliner_select_sync_from_strip(active_data->strip, &te);
+        is_active_changed |= outliner_select_sync_from_strip(active_data->strip, &te);
       }
     }
     else {
@@ -495,9 +508,10 @@ static void outliner_sync_selection_to_outliner(const Scene *scene,
     }
 
     /* Sync subtree elements */
-    outliner_sync_selection_to_outliner(
+    is_active_changed |= outliner_sync_selection_to_outliner(
         scene, view_layer, space_outliner, &te.subtree, active_data, sync_types);
   }
+  return is_active_changed;
 }
 
 /* Get active data from context */
@@ -513,7 +527,7 @@ static void get_sync_select_active_data(const bContext *C, SyncSelectActiveData 
   active_data->strip = sequencer_scene ? seq::select_active_get(sequencer_scene) : nullptr;
 }
 
-void outliner_sync_selection(const bContext *C,
+bool outliner_sync_selection(const bContext *C,
                              const TreeViewContext &tvc,
                              SpaceOutliner *space_outliner)
 {
@@ -521,18 +535,19 @@ void outliner_sync_selection(const bContext *C,
   SyncSelectTypes sync_types;
   const bool sync_required = outliner_sync_select_to_outliner_set_types(
       tvc, space_outliner, &sync_types);
+  bool is_active_changed = false;
 
   if (sync_required) {
     /* Store active object, bones, and strip */
     SyncSelectActiveData active_data;
     get_sync_select_active_data(C, &active_data);
 
-    outliner_sync_selection_to_outliner(tvc.scene,
-                                        tvc.view_layer,
-                                        space_outliner,
-                                        &space_outliner->tree,
-                                        &active_data,
-                                        &sync_types);
+    is_active_changed = outliner_sync_selection_to_outliner(tvc.scene,
+                                                            tvc.view_layer,
+                                                            space_outliner,
+                                                            &space_outliner->tree,
+                                                            &active_data,
+                                                            &sync_types);
 
     /* Keep any un-synced data in the dirty flag. */
     if (sync_types.object) {
@@ -548,6 +563,8 @@ void outliner_sync_selection(const bContext *C,
       space_outliner->sync_select_dirty &= ~WM_OUTLINER_SYNC_SELECT_FROM_SEQUENCE;
     }
   }
+
+  return is_active_changed;
 }
 
 }  // namespace ed::outliner
