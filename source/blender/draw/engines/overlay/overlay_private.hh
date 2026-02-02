@@ -15,7 +15,6 @@
 #include "BLI_function_ref.hh"
 
 #include "DNA_space_types.h"
-#include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
 #include "GPU_matrix.hh"
@@ -133,7 +132,6 @@ struct State {
   const SpaceLink *space_data = nullptr;
   const ARegion *region = nullptr;
   const RegionView3D *rv3d = nullptr;
-  const wmXrData *xr = nullptr;
   DRWTextStore *dt = nullptr;
   View3DOverlay overlay = {};
   eSpace_Type space_type = SPACE_EMPTY;

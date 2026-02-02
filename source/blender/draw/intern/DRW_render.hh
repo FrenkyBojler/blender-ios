@@ -56,7 +56,6 @@ struct DRWViewData;
 struct GPUViewport;
 struct DRWTextStore;
 struct GPUViewport;
-struct wmXrData;
 namespace draw {
 class TextureFromPool;
 class ObjectRef;
@@ -318,8 +317,6 @@ struct DRWContext {
   RegionView3D *rv3d = nullptr;
   /** Can be nullptr depending on context. */
   View3D *v3d = nullptr;
-  /** Can be nullptr depending on context. */
-  wmXrData *xr = nullptr;
   /** Use 'object_edit' for edit-mode */
   Object *obact = nullptr;
   Object *object_pose = nullptr;

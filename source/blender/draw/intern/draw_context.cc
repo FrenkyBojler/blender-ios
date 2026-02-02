@@ -57,7 +57,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
 #include "ED_gpencil_legacy.hh"
@@ -136,7 +135,6 @@ DRWContext::DRWContext(Mode mode_,
   this->evil_C = C;
 
   this->region = (region) ? region : ((C) ? CTX_wm_region(C) : nullptr);
-  this->xr = (C) ? &CTX_wm_manager(C)->xr : nullptr;
   this->space_data = (C) ? CTX_wm_space_data(C) : nullptr;
   this->v3d = (v3d) ? v3d : ((C) ? CTX_wm_view3d(C) : nullptr);
   if (this->v3d != nullptr && this->region != nullptr) {
