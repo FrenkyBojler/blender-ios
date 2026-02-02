@@ -40,6 +40,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
+  b.add_default_layout();
+
   b.add_output<decl::Geometry>("Points").description(
       "A point for each active voxel or tile in the grid");
   b.add_output(data_type, "Value").field_on_all().description("The grid's value at each voxel");
@@ -56,8 +58,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   panel.add_output<decl::Int>("Extent").field_on_all().description(
       "The size of the tile or voxel. For individual voxels this is 1, for tiles this represents "
       "the cubic size of the tile");
-
-  b.add_default_layout();
 
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
 }
