@@ -1829,27 +1829,25 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     }
 
     case UP: {
-      unit_m3(base_mat); /* Object Space. */
-
       if (space == WORLD) {
-        /* Constructs a matrix that points Y up, Z Forward and X left-right. */
-        float y_axis[3] = {0.0f, 0.0f, 1.0f};
-        float z_axis[3] = {0.0f, -1.0f, 0.0f};
-        float x_axis[3];
-
-        cross_v3_v3v3(x_axis, y_axis, z_axis);
-        normalize_v3(x_axis);
-        cross_v3_v3v3(z_axis, x_axis, y_axis);
-
-        copy_v3_v3(base_mat[0], x_axis);
-        copy_v3_v3(base_mat[1], y_axis);
-        copy_v3_v3(base_mat[2], z_axis);
+        /* Construct a matrix that points Y up, Z Forward and X left-right. */
+        base_mat[0][0] = 1.0f;
+        base_mat[0][1] = 0.0f;
+        base_mat[0][2] = 0.0f;
+        base_mat[1][0] = 0.0f;
+        base_mat[1][1] = 0.0f;
+        base_mat[1][2] = 1.0f;
+        base_mat[2][0] = 0.0f;
+        base_mat[2][1] = -1.0f;
+        base_mat[2][2] = 0.0f;
 
         mul_m3_m3m3(base_mat, imat, base_mat);
 
         /* Set roll reference for ED_armature_ebone_roll_to_vector. */
-        copy_v3_v3(roll_vector, z_axis);
-        mul_m3_v3(imat, roll_vector);
+        copy_v3_v3(roll_vector, base_mat[2]);
+      }
+      else { /* Object Space. */
+        unit_m3(base_mat);
       }
 
       break;
