@@ -27,10 +27,17 @@ setup_platform_linker_libs(blend_diff)
 blender_target_include_dirs(blend_diff ${INC})
 target_link_libraries(blend_diff ${LIB})
 
-install(
-  TARGETS blend_diff
-  DESTINATION "."
-)
+if(APPLE)
+  install(
+    TARGETS blend_diff
+    DESTINATION "$<TARGET_BUNDLE_CONTENT_DIR:blender>/MacOS"
+  )
+else()
+  install(
+    TARGETS blend_diff
+    DESTINATION "."
+  )
+endif()
 install(
   PROGRAMS intern/blend_diff_git_driver.py
   DESTINATION "."
