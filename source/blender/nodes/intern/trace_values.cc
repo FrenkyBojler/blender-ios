@@ -627,8 +627,7 @@ LinkedBundleSignatures gather_linked_origin_bundle_signatures(
           if (node->is_type("NodeStoreBundleItem")) {
             const auto &storage = *static_cast<const NodeStoreBundleItem *>(node->storage);
             const bNodeSocket &path_socket = node->input_socket(1);
-            StringRef path = "";
-            path = (( bNodeSocketValueString *)path_socket.default_value)->value;
+            const StringRef path = ((bNodeSocketValueString *)path_socket.default_value)->value;
             const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(
                 storage.socket_type);
             BundleSignature signature;
@@ -639,8 +638,18 @@ LinkedBundleSignatures gather_linked_origin_bundle_signatures(
           }
           if (node->is_type("NodeGetBundleItem")) {
             const bNodeSocket &input_bundle_socket = node->input_socket(0);
+            const bNodeSocket &path_socket = node->input_socket(1);
+            const bNodeSocket &remove_socket = node->input_socket(2);
             result = gather_linked_origin_bundle_signatures(
                 node.context, input_bundle_socket, compute_context_cache);
+            const bool remove = ((bNodeSocketValueBoolean *)remove_socket.default_value)->value;
+            if (remove) {
+              StringRef path = ((bNodeSocketValueString *)path_socket.default_value)->value;
+              for (LinkedBundleSignatures::Item &items : result.items) {
+                items.signature.items.remove_if(
+                    [&](const BundleSignature::Item &item) { return item.key == path; });
+              }
+            }
             return true;
           }
         }
