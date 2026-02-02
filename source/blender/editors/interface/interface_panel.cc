@@ -859,9 +859,9 @@ static void ui_offset_panel_block(Block *block)
 
   const int ofsy = block->panel->sizey - style->panelspace;
 
-  for (const std::unique_ptr<Button> &but : block->buttons) {
-    but->rect.ymin += ofsy;
-    but->rect.ymax += ofsy;
+  for (Button &but : block->buttons_as_refs()) {
+    but.rect.ymin += ofsy;
+    but.rect.ymax += ofsy;
   }
 
   block->rect.xmax = block->panel->sizex;
@@ -940,8 +940,8 @@ static void panel_remove_invisible_layouts_recursive(Panel *panel, const Panel *
   if (parent_panel != nullptr && panel_is_closed(parent_panel)) {
     /* The parent panel is closed, so this panel can be completely removed. */
     block_set_search_only(block, true);
-    for (const std::unique_ptr<Button> &but : block->buttons) {
-      but->flag |= UI_HIDDEN;
+    for (Button &but : block->buttons_as_refs()) {
+      but.flag |= UI_HIDDEN;
     }
   }
   else if (panel_is_closed(panel)) {

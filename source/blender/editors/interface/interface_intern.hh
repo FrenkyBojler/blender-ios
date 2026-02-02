@@ -744,9 +744,9 @@ struct Block {
     return *button;
   }
 
-  std::ranges::transform_view<std::ranges::ref_view<Vector<std::unique_ptr<Button>>>,
+  std::ranges::transform_view<std::ranges::ref_view<const Vector<std::unique_ptr<Button>>>,
                               Button &(*)(const std::unique_ptr<Button> &)>
-  buttons_as_refs()
+  buttons_as_refs() const
   {
     return this->buttons | std::views::transform(ButtonPtrDeref);
   }

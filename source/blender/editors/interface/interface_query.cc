@@ -565,9 +565,9 @@ Button *button_next(Button *but)
 
 Button *button_first(Block *block)
 {
-  for (const std::unique_ptr<Button> &but : block->buttons) {
-    if (button_is_editable(but.get())) {
-      return but.get();
+  for (Button &but : block->buttons_as_refs()) {
+    if (button_is_editable(&but)) {
+      return &but;
     }
   }
   return nullptr;
@@ -651,9 +651,9 @@ size_t button_tip_len_only_first_line(const Button *but)
 
 Button *block_active_but_get(const Block *block)
 {
-  for (const std::unique_ptr<Button> &but : block->buttons) {
-    if (but->active) {
-      return but.get();
+  for (Button &but : block->buttons_as_refs()) {
+    if (but.active) {
+      return &but;
     }
   }
 
@@ -726,8 +726,8 @@ bool block_can_add_separator(const Block *block)
 
 bool block_has_active_default_button(const Block *block)
 {
-  for (const std::unique_ptr<Button> &but : block->buttons) {
-    if ((but->flag & BUT_ACTIVE_DEFAULT) && ((but->flag & UI_HIDDEN) == 0)) {
+  for (const Button &but : block->buttons_as_refs()) {
+    if ((but.flag & BUT_ACTIVE_DEFAULT) && ((but.flag & UI_HIDDEN) == 0)) {
       return true;
     }
   }
@@ -786,9 +786,9 @@ Button *region_find_active_but(ARegion *region)
 Button *region_find_first_but_test_flag(ARegion *region, int flag_include, int flag_exclude)
 {
   for (Block &block : region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block.buttons) {
-      if (((but->flag & flag_include) == flag_include) && ((but->flag & flag_exclude) == 0)) {
-        return but.get();
+    for (Button &but : block.buttons_as_refs()) {
+      if (((but.flag & flag_include) == flag_include) && ((but.flag & flag_exclude) == 0)) {
+        return &but;
       }
     }
   }
