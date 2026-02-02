@@ -58,6 +58,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       "The size of the tile or voxel. For individual voxels this is 1, for tiles this represents "
       "the cubic size of the tile");
 
+  b.add_default_layout();
+
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
 }
 
