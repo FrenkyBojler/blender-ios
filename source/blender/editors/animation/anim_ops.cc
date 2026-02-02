@@ -1332,8 +1332,8 @@ static void ANIM_OT_merge_animation(wmOperatorType *ot)
 static wmOperatorStatus replace_action_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  const uint32_t old_session_uid = RNA_int_get(op->ptr, "old_id");
-  const uint32_t new_session_uid = RNA_int_get(op->ptr, "new_id");
+  const uint32_t old_session_uid = RNA_int_get(op->ptr, "old_session_uid");
+  const uint32_t new_session_uid = RNA_int_get(op->ptr, "new_session_uid");
   bAction *old_action = reinterpret_cast<bAction *>(
       BKE_libblock_find_session_uid(bmain, ID_AC, old_session_uid));
   bAction *new_action = reinterpret_cast<bAction *>(
@@ -1350,6 +1350,8 @@ static wmOperatorStatus replace_action_exec(bContext *C, wmOperator *op)
 
   Vector<ID *> failures;
   ID *id;
+  /* Cannot use the Action Slot user map because some action assignments may be missing a slot
+   * assignment and those should also be remapped. */
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
     AnimData *adt = BKE_animdata_from_id(id);
     if (!adt || !adt->action || adt->action != old_action) {
@@ -1390,10 +1392,10 @@ static wmOperatorStatus replace_action_invoke(bContext *C,
   AnimData *adt = BKE_animdata_from_id(&active_object->id);
   bAction *dna_action = adt->action;
   BLI_assert(dna_action != nullptr);
-  RNA_int_set(op->ptr, "old_id", int(dna_action->id.session_uid));
+  RNA_int_set(op->ptr, "old_session_uid", int(dna_action->id.session_uid));
   /* Setting the new_id here means the UI will open up with that ID selected. That makes it
    * conceptually clear from which action the user is switching away. */
-  RNA_int_set(op->ptr, "new_id", int(dna_action->id.session_uid));
+  RNA_int_set(op->ptr, "new_session_uid", int(dna_action->id.session_uid));
 
   return WM_operator_props_dialog_popup(C, op, 400, IFACE_("Replace Action"), IFACE_("Replace"));
 }
@@ -1422,10 +1424,11 @@ static void replace_action_ui(bContext *C, wmOperator *op)
  * with actions of `AnimData.action`. */
 static void ANIM_OT_replace_action(wmOperatorType *ot)
 {
-  ot->name = "Replace Animation";
+  ot->name = "Replace Action";
   ot->idname = "ANIM_OT_replace_action";
   ot->description =
-      "Swap all users of one action to another one. The normal action slot assignment rules apply";
+      "Swap all users of one action to another one. The normal action slot assignment rules "
+      "apply. This ignores the NLA and Action Constraints";
 
   ot->invoke = replace_action_invoke;
   ot->exec = replace_action_exec;
@@ -1434,19 +1437,27 @@ static void ANIM_OT_replace_action(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  PropertyRNA *prop = RNA_def_int(
-      ot->srna, "old_id", 0, 0, 0, "Old ID", "Old Action's session uid to replace", 0, 0);
+  PropertyRNA *prop = RNA_def_int(ot->srna,
+                                  "old_session_uid",
+                                  0,
+                                  0,
+                                  0,
+                                  "Old Action",
+                                  "Old Action's session uid to replace",
+                                  0,
+                                  0);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
-  ot->prop = RNA_def_int(ot->srna,
-                         "new_id",
-                         0,
-                         0,
-                         0,
-                         "New ID",
-                         "New Action's session uid to remap all selected Action's users to",
-                         0,
-                         0);
+  ot->prop = RNA_def_int(
+      ot->srna,
+      "new_session_uid",
+      0,
+      0,
+      0,
+      "Replacement Action",
+      "The replacement Action's session uid to remap all selected Action's users to",
+      0,
+      0);
 }
 
 /** \} */
