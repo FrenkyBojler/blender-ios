@@ -124,26 +124,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .field_on_all()
       .usage_by_menu("Mode", int16_t(IntersectionMode::Surface))
       .description("The normal of surface or plane intersection");
-  b.add_output<decl::Vector>("Pair Position")
-      .field_on_all()
-      .usage_by_menu("Paired Data Mode",
-                     {int16_t(PairData::FullPair), int16_t(PairData::HalfPair)})
-      .description("Position of the oppposing pair point");
-  b.add_output<decl::Vector>("Pair Direction")
-      .field_on_all()
-      .usage_by_menu("Paired Data Mode",
-                     {int16_t(PairData::FullPair), int16_t(PairData::HalfPair)})
-      .description(
-          "Direction of the oppposing pair point. For project mode, this is the "
-          "projected direction");
-  b.add_output<decl::Bool>("Pair")
-      .field_on_all()
-      .usage_by_menu("Paired Data Mode", {int16_t(PairData::FullPair)})
-      .description("If the intersection is one of a pair of matching intersections");
-  b.add_output<decl::Int>("Pair ID")
-      .field_on_all()
-      .usage_by_menu("Paired Data Mode", {int16_t(PairData::FullPair)})
-      .description("Unique ID value for each pair");
 
   /* Menus. */
   b.add_input<decl::Menu>("Mode")
@@ -156,6 +136,31 @@ static void node_declare(NodeDeclarationBuilder &b)
       .usage_by_menu("Mode",
                      {int16_t(IntersectionMode::Curve), int16_t(IntersectionMode::Curve_Project)})
       .optional_label();
+
+  /* Pair data outputs. */
+  PanelDeclarationBuilder &pair_data = b.add_panel("Pair Data")
+                                           .default_closed(true)
+                                           .description("Panel contains outputs for pair data");
+  pair_data.add_output<decl::Vector>("Pair Position")
+      .field_on_all()
+      .usage_by_menu("Paired Data Mode",
+                     {int16_t(PairData::FullPair), int16_t(PairData::HalfPair)})
+      .description("Position of the oppposing pair point");
+  pair_data.add_output<decl::Vector>("Pair Direction")
+      .field_on_all()
+      .usage_by_menu("Paired Data Mode",
+                     {int16_t(PairData::FullPair), int16_t(PairData::HalfPair)})
+      .description(
+          "Direction of the oppposing pair point. For project mode, this is the "
+          "projected direction");
+  pair_data.add_output<decl::Bool>("Pair")
+      .field_on_all()
+      .usage_by_menu("Paired Data Mode", {int16_t(PairData::FullPair)})
+      .description("If the intersection is one of a pair of matching intersections");
+  pair_data.add_output<decl::Int>("Pair ID")
+      .field_on_all()
+      .usage_by_menu("Paired Data Mode", {int16_t(PairData::FullPair)})
+      .description("Unique ID value for each pair");
 
   /* Inputs. */
   b.add_input<decl::Geometry>("Curve").supported_type(GeometryComponent::Type::Curve);
