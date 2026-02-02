@@ -252,7 +252,6 @@ class GREASE_PENCIL_MT_move_to_layer(Menu):
 
         for node in reversed(grease_pencil.root_nodes):
             draw_node(node, layout, grease_pencil)
-        
 
 
 class GREASE_PENCIL_MT_layer_group(Menu):
@@ -291,7 +290,7 @@ class GREASE_PENCIL_MT_move_to_layer_SEARCH(Menu):
 
         for node in reversed(grease_pencil.root_nodes):
             draw_node_for_search(node, layout, grease_pencil)
-        
+
 
 class GREASE_PENCIL_MT_layer_active(Menu):
     bl_label = "Change Active Layer"
