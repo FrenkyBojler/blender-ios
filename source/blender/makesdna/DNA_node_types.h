@@ -764,6 +764,7 @@ enum NodeVectorMathOperation {
   NODE_VECTOR_MATH_MULTIPLY_ADD = 26,
   NODE_VECTOR_MATH_POWER = 27,
   NODE_VECTOR_MATH_SIGN = 28,
+  NODE_VECTOR_MATH_ROUND = 29,
 };
 
 enum NodeBooleanMathOperation {
@@ -1266,6 +1267,14 @@ enum GeometryNodeRaycastMapMode {
 enum GeometryNodeCurveFillMode {
   GEO_NODE_CURVE_FILL_MODE_TRIANGULATED = 0,
   GEO_NODE_CURVE_FILL_MODE_NGONS = 1,
+};
+
+/** See #CDT_output_type in BLI_delaunay_2d.hh for winding rule details. */
+enum GeometryNodeCurveFillRule {
+  /** Even-odd winding rule for hole detection. */
+  GEO_NODE_CURVE_FILL_RULE_EVEN_ODD = 0,
+  /** Non-zero winding rule. */
+  GEO_NODE_CURVE_FILL_RULE_NON_ZERO = 1,
 };
 
 enum GeometryNodeMeshToPointsMode {
@@ -3259,7 +3268,10 @@ struct NodeGeometryRaycast {
 struct NodeGeometryCurveFill {
   DNA_DEFINE_CXX_METHODS(NodeGeometryCurveFill)
 
+  /** #GeometryNodeCurveFillMode. */
   uint8_t mode = 0;
+  /** #GeometryNodeCurveFillRule. */
+  uint8_t fill_rule = 0;
 };
 
 struct NodeGeometryMeshToPoints {
@@ -3702,6 +3714,22 @@ struct GeometryNodeFieldToGrid {
   int active_index = 0;
 };
 
+struct GeometryNodeFieldToListItem {
+  /** #eNodeSocketDatatype. */
+  int8_t socket_type = SOCK_FLOAT;
+  char _pad[3] = {};
+  int identifier = 0;
+  char *name = nullptr;
+};
+
+struct GeometryNodeFieldToList {
+  char _pad[4] = {};
+  int next_identifier = 0;
+  GeometryNodeFieldToListItem *items = nullptr;
+  int items_num = 0;
+  int active_index = 0;
+};
+
 struct NodeGeometryDistributePointsInVolume {
   DNA_DEFINE_CXX_METHODS(NodeGeometryDistributePointsInVolume)
 
@@ -3840,6 +3868,30 @@ struct NodeFunctionFormatString {
   int next_identifier = 0;
   int active_index = 0;
   char _pad[4] = {};
+};
+
+struct NodeGeometryListGetItem {
+  /** #eNodeSocketDatatype. */
+  int16_t socket_type = SOCK_FLOAT;
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+  char _pad = {};
+};
+
+struct NodeGetBundleItem {
+  /** #eNodeSocketDatatype. */
+  int16_t socket_type = 0;
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type = 0;
+  char _pad = {};
+};
+
+struct NodeStoreBundleItem {
+  /** #eNodeSocketDatatype. */
+  int16_t socket_type = 0;
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type = 0;
+  char _pad = {};
 };
 
 }  // namespace blender
