@@ -61,7 +61,8 @@ static float4 get_texture_color(gpu::Texture *texture)
   float4 dst(0.0f, 0.0f, 0.0f, 0.0f);
   std::memcpy(dst, src, is_half_float(format) ? 2 * to_bytesize(format) : to_bytesize(format));
 
-  MEM_freeN(src);
+  MEM_delete_void(src);
+
   return dst;
 }
 
@@ -137,88 +138,5 @@ static void test_texture_view_UINT_32_32_to_SFLOAT_16_16_16_16()
   texture_view_create_test<TextureFormat::UINT_32_32, TextureFormat::SFLOAT_16_16_16_16>();
 }
 GPU_TEST(texture_view_UINT_32_32_to_SFLOAT_16_16_16_16);
-
-// /* Arrays overlapping (A) the internal formats table of glTextureView, and (B)
-//  * the supported types in gpu::TextureTargetFormat::. This excludes compressed
-//  * formats, depth textures, as these remain unsupported. */
-// constexpr auto formats_class_128 = {
-//     gpu::TextureFormat::SFLOAT_32_32_32_32,
-//     gpu::TextureFormat::UINT_32_32_32_32,
-//     gpu::TextureFormat::SINT_32_32_32_32,
-// };
-// constexpr auto formats_class_64 = {
-//     gpu::TextureFormat::SFLOAT_16_16_16_16,
-//     gpu::TextureFormat::SFLOAT_32_32,
-//     gpu::TextureFormat::UINT_16_16_16_16,
-//     gpu::TextureFormat::UINT_32_32,
-//     gpu::TextureFormat::SINT_16_16_16_16,
-//     gpu::TextureFormat::SINT_32_32,
-//     gpu::TextureFormat::UNORM_16_16_16_16,
-//     /* ::SNORM_16_16_16_16, */ /* Not of TextureTargetFormat. */
-// };
-// constexpr auto formats_class_32 = {
-//     gpu::TextureFormat::SFLOAT_16_16,
-//     gpu::TextureFormat::UFLOAT_11_11_10,
-//     gpu::TextureFormat::SFLOAT_32,
-//     // gpu::TextureFormat::UINT_10_10_10_2, /* Unused. Breaks on Intel. */
-//     gpu::TextureFormat::UINT_8_8_8_8,
-//     gpu::TextureFormat::UINT_16_16,
-//     gpu::TextureFormat::UINT_32,
-//     gpu::TextureFormat::SINT_8_8_8_8,
-//     gpu::TextureFormat::SINT_16_16,
-//     gpu::TextureFormat::SINT_32,
-//     gpu::TextureFormat::UNORM_10_10_10_2,
-//     gpu::TextureFormat::UNORM_8_8_8_8,
-//     gpu::TextureFormat::UNORM_16_16,
-//     /* ::SNORM_8_8_8_8, */ /* Not of TextureTargetFormat. */
-//     /* ::SNORM_16_16, */   /* Not of TextureTargetFormat. */
-//     gpu::TextureFormat::SRGBA_8_8_8_8
-//     // ::UFLOAT_9_9_9_EXP_5 /* Not of TextureTargetFormat. */
-// };
-// constexpr auto formats_class_16 = {
-//     gpu::TextureFormat::SFLOAT_16,
-//     gpu::TextureFormat::UINT_8_8,
-//     gpu::TextureFormat::UINT_16,
-//     gpu::TextureFormat::SINT_8_8,
-//     gpu::TextureFormat::SINT_16,
-//     gpu::TextureFormat::UNORM_8_8,
-//     gpu::TextureFormat::UNORM_16,
-//     /* ::SNORM_8_8, */ /* Not of TextureTargetFormat. */
-//     /* ::SNORM_16 */   /* Not of TextureTargetFormat. */
-// };
-// constexpr auto formats_class_8 = {
-//     gpu::TextureFormat::UINT_8,
-//     gpu::TextureFormat::SINT_8,
-//     gpu::TextureFormat::UNORM_8,
-//     /* ::SNORM_8 */ /* Not of TextureTargetFormat. */
-// };
-
-// static void test_texture_view_format_aliasing()
-// {
-//   if (GPU_backend_get_type() != GPU_BACKEND_OPENGL) {
-//     GTEST_SKIP() << "Texture view format aliasing is only tested on OpenGL.";
-//   }
-//   GPU_render_begin();
-
-//   /* Test all specified format lists; note that we ignore 96-bit, 48-bit,
-//   24-bit
-//    * formats. These are specified as supported by glTextureView(), but most
-//    * don't support framebuffer attachment or have no equivalent in Metal, and
-//    * are unused by Blender. */
-//   // for (auto formats :
-//   //      {formats_class_128, formats_class_64, formats_class_32,
-//   //      formats_class_16, formats_class_8})
-//   // {
-//   //   /* Iterate cartesian product of format lists. */
-//   //   for (TextureFormat a : formats) {
-//   //     for (TextureFormat b : formats) {
-//   //       EXPECT_TRUE(test_texture_view_clear({a, b}));
-//   //     }
-//   //   }
-//   // }
-
-//   GPU_render_end();
-// }
-// GPU_TEST(texture_view_format_aliasing)
 
 }  // namespace blender::gpu::tests
