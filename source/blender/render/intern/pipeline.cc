@@ -1677,10 +1677,15 @@ static int check_valid_camera(Scene *scene, Object *camera_override, ReportList 
 
 static bool scene_has_compositor_output(Scene *scene)
 {
+  if (scene->compositing_node_group == nullptr) {
+    return false;
+  }
+
   if (node_tree_has_group_output(scene->compositing_node_group)) {
     return true;
   }
-  return compositor::node_tree_has_file_output(scene->compositing_node_group);
+
+  return compositor::node_tree_has_file_output(*scene->compositing_node_group);
 }
 
 /* Identify if the compositor can run on the GPU. Currently, this only checks if the compositor is
@@ -2342,7 +2347,7 @@ void RE_RenderAnim(Render *re,
   const bool is_movie = BKE_imtype_is_movie(image_format.imtype);
   const bool is_multiview_name = ((rd.scemode & R_MULTIVIEW) != 0 &&
                                   (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
-  const bool write_anim = (scene->r.mode & R_SAVE_ENABLE);
+  const bool write_anim = (scene->r.mode & R_SAVE_OUTPUT);
 
   /* Disable file writing if postprocessing is also disabled or if it's explicitly disabled by the
    * user. */

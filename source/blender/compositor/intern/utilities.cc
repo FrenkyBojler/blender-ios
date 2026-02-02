@@ -230,21 +230,21 @@ const bNodeSocket *find_preview_output_socket(const bNode &node)
   return nullptr;
 }
 
-bool node_tree_has_file_output(const bNodeTree *node_tree)
+bool node_tree_has_file_output(const bNodeTree &node_tree)
 {
-  node_tree->ensure_topology_cache();
-  for (const bNode *node : node_tree->nodes_by_type("CompositorNodeOutputFile")) {
+  node_tree.ensure_topology_cache();
+  for (const bNode *node : node_tree.nodes_by_type("CompositorNodeOutputFile")) {
     if (!node->is_muted()) {
       return true;
     }
   }
 
-  for (const bNode *node : node_tree->group_nodes()) {
+  for (const bNode *node : node_tree.group_nodes()) {
     if (node->is_muted() || !node->id) {
       continue;
     }
 
-    if (node_tree_has_file_output(reinterpret_cast<const bNodeTree *>(node->id))) {
+    if (node_tree_has_file_output(*reinterpret_cast<const bNodeTree *>(node->id))) {
       return true;
     }
   }

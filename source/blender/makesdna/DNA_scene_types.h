@@ -734,7 +734,7 @@ enum {
   R_EDGE_FRS = 1 << 25,        /* R_EDGE reserved for Freestyle */
   R_PERSISTENT_DATA = 1 << 26, /* Keep data around for re-render. */
   R_MODE_UNUSED_27 = 1 << 27,  /* cleared */
-  R_SAVE_ENABLE = 1 << 28,
+  R_SAVE_OUTPUT = 1 << 28,
 };
 
 /** #RenderData::seq_flag */
@@ -881,7 +881,7 @@ struct RenderData {
   /**
    * Flags for render settings. Use bit-masking to access the settings.
    */
-  int mode = R_SAVE_ENABLE;
+  int mode = R_SAVE_OUTPUT;
 
   short frs_sec = 24;
 

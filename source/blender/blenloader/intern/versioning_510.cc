@@ -555,7 +555,7 @@ void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 22)) {
     for (Scene &scene : bmain->scenes) {
-      scene.r.mode |= R_SAVE_ENABLE;
+      scene.r.mode |= R_SAVE_OUTPUT;
 
       bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, &scene);
       if (node_tree == nullptr) {

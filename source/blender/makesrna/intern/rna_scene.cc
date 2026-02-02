@@ -7277,10 +7277,9 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Overwrite", "Overwrite existing files while rendering");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "is_saving_enabled", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "mode", R_SAVE_ENABLE);
-  RNA_def_property_ui_text(
-      prop, "Save output", "Control whether rendered frames are written to disk");
+  prop = RNA_def_property(srna, "save_output", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "mode", R_SAVE_OUTPUT);
+  RNA_def_property_ui_text(prop, "Save Output", "Write frames to disk for animation renders");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "use_compositing", PROP_BOOLEAN, PROP_NONE);

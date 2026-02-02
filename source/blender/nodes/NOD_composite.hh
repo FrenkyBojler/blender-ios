@@ -43,7 +43,7 @@ CryptomatteSession *ntreeCompositCryptomatteSession(bNode *node);
 
 namespace compositor {
 
-bool node_tree_has_file_output(const bNodeTree *node_tree);
+bool node_tree_has_file_output(const bNodeTree &node_tree);
 
 }  // namespace compositor
 
