@@ -469,10 +469,13 @@ DCEStream &operator<<(DCEStream &dst, const Token &tok)
 /** \name Type-safe identifier management.
  * \{ */
 
+/* Has quite a performance hit in debug. Enable if needed. */
+// #define DEBUG_ID_STRING
+
 /* Simple integer identifier with a debug string view.
  * Allow type safety and function overload. */
 template<typename Trait, typename T = int> class ID {
-#ifndef NDEBUG
+#ifdef DEBUG_ID_STRING
  public:
   std::string_view str;
 #endif
@@ -582,7 +585,7 @@ struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, N
   LineID make_line(int index)
   {
     LineID line(index);
-#ifndef NDEBUG
+#ifdef DEBUG_ID_STRING
     line.str = str(line);
 #endif
     BLI_assert(is_valid(line));
@@ -591,7 +594,7 @@ struct IntermediateFormWithIDs : shader::parser::IntermediateForm<AtomicLexer, N
   DirectiveID make_directive(int index)
   {
     DirectiveID dir(index);
-#ifndef NDEBUG
+#ifdef DEBUG_ID_STRING
     dir.str = str(dir);
 #endif
     BLI_assert(is_valid(dir));
