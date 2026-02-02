@@ -300,6 +300,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           extent_writer.finish();
           value_writer.finish();
 
+          geometry::debug_randomize_point_order(pointcloud);
           params.set_output("Points", GeometrySet::from_pointcloud(pointcloud));
         }
       });
