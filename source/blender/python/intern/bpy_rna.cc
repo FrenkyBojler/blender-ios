@@ -418,6 +418,8 @@ void BPY_id_release(ID *id)
 }
 
 #ifdef USE_PEDANTIC_WRITE
+/* Thread local as e.g. Python handlers in the render thread should not be
+ * affected by Python UI drawing method in the main thread. */
 static thread_local bool rna_disallow_writes = false;
 
 static bool rna_id_write_error(PointerRNA *ptr, PyObject *key)
