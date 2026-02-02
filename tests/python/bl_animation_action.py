@@ -867,7 +867,6 @@ class ReplaceAction(unittest.TestCase):
         self.assertEqual(self.obj_nla.animation_data.nla_tracks[0].strips[0].action, self.initial_action)
 
 
-
 def main():
     global args
     import argparse
