@@ -5962,12 +5962,12 @@ static void def_sh_normal_map(BlenderRNA * /*brna*/, StructRNA *srna)
        "OPENGL",
        0,
        "OpenGL",
-       "Normal map uses OpenGL convention"},
+       "Normal map uses OpenGL convention, with Y axis in the green channel pointing up"},
       {SHD_NORMAL_MAP_CONVENTION_DIRECTX,
        "DIRECTX",
        0,
        "DirectX",
-       "Normal map uses DirectX convention"},
+       "Normal map uses DirectX convention, with Y axis in the green channel pointing down"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
