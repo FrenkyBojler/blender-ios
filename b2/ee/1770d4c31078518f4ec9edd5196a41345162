@@ -1,1 +1,2 @@
 Referenced by commit 905c0269f30, Cleanup: Rename ScrArea variables from sa to area
+Referenced by commit fc43e8c5e87d33eb70c334cdba007ef8e8aaeceb, Cleanup: Rename `ar` ARegion variable to `region` in view3d_draw
