@@ -478,19 +478,32 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
                                        const bool is_closed,
                                        const float rotation_angle)
 {
-  float vec[2];
-  sub_v2_v2v2(vec, verts[0].co_2d, center);
-  float start_angle = atan2f(vec[1], vec[0]);
-
   float total_angle = 2.0f * math::numbers::pi;
   int divisions = verts.size();
+  float vec[2];
 
   if (!is_closed && divisions > 1) {
     total_angle = math::numbers::pi;
     divisions = verts.size() - 1;
   }
 
-  float step = total_angle / divisions;
+  const float step = total_angle / divisions;
+  float start_angle = 0.0f;
+  float sum_sin = 0.0f;
+  float sum_cos = 0.0f;
+
+  /* Using only one vertex as the basis for the start angle can skew the resulting
+   * rotation of the circle in an undesirable way.
+   * So instead, we calculate the circular mean of the rotation by measuring the angular
+   * deviation for every vertex and averaging them to find the best fit alignment. */
+  for (const int i : verts.index_range()) {
+    float vec[2];
+    sub_v2_v2v2(vec, verts[i].co_2d, center);
+    const float angle_diff = atan2f(vec[1], vec[0]) - (step * i);
+    sum_sin += sinf(angle_diff);
+    sum_cos += cosf(angle_diff);
+  }
+  start_angle = atan2f(sum_sin, sum_cos);
 
   for (const int i : verts.index_range()) {
     float angle;
