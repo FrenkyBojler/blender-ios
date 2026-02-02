@@ -1370,38 +1370,38 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       MutableSpan<GreasePencilColorVert> cols_slice = cols.slice(verts_range);
 
       const Span<float> lengths = curves.evaluated_lengths_for_curve(curve_i, cyclic[curve_i]);
-                                                                     const float u_translation = u_translations[curve_i];
-                const float u_scale = u_scales[curve_i];
-                const int mat_id = materials[curve_i];
+      const float u_translation = u_translations[curve_i];
+      const float u_scale = u_scales[curve_i];
+      const int mat_id = materials[curve_i];
 
-                MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(&object, mat_id + 1);
+      MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(&object, mat_id + 1);
 
-                Array<float> radii_lengths(lengths.size());
-                const bool is_line = false;
+      Array<float> radii_lengths(lengths.size());
+      const bool is_line = false;
 
-                if (gp_style->placement_mode == GP_MATERIAL_PLACEMENT_RADIUS && (!is_line)) {
-                  get_radii_lengths(lengths, radii, points, radii_lengths);
-                }
+      if (gp_style->placement_mode == GP_MATERIAL_PLACEMENT_RADIUS && (!is_line)) {
+        get_radii_lengths(lengths, radii, points, radii_lengths);
+      }
 
-                auto get_u_stroke = [&](const int i) {
-                  if (is_line) {
-                    const float u = i > 0 ? lengths[i - 1] : 0.0f;
-                    const float u_stroke = u_scale * u + u_translation;
-                    return u_stroke;
-                  }
-                  switch (gp_style->placement_mode) {
-                    case GP_MATERIAL_PLACEMENT_SINGLE:
-                    case GP_MATERIAL_PLACEMENT_NUMBER:
-                      return float(i);
-                    case GP_MATERIAL_PLACEMENT_RADIUS:
-                      return i > 0 ? radii_lengths[i - 1] : 0.0f;
-                    case GP_MATERIAL_PLACEMENT_LENGTH:
-                    default:
-                      const float u = i > 0 ? lengths[i - 1] : 0.0f;
-                      const float u_stroke = u_scale * u + u_translation;
-                      return u_stroke;
-                  }
-                };
+      auto get_u_stroke = [&](const int i) {
+        if (is_line) {
+          const float u = i > 0 ? lengths[i - 1] : 0.0f;
+          const float u_stroke = u_scale * u + u_translation;
+          return u_stroke;
+        }
+        switch (gp_style->placement_mode) {
+          case GP_MATERIAL_PLACEMENT_SINGLE:
+          case GP_MATERIAL_PLACEMENT_NUMBER:
+            return float(i);
+          case GP_MATERIAL_PLACEMENT_RADIUS:
+            return i > 0 ? radii_lengths[i - 1] : 0.0f;
+          case GP_MATERIAL_PLACEMENT_LENGTH:
+          default:
+            const float u = i > 0 ? lengths[i - 1] : 0.0f;
+            const float u_stroke = u_scale * u + u_translation;
+            return u_stroke;
+        }
+      };
 
       /* First vertex is not drawn. */
       verts_slice.first().mat = -1;
@@ -1409,11 +1409,9 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       verts_slice.first().stroke_id = verts_range.last();
 
       /* Write all the point attributes to the vertex buffers. Create a quad for each point. */
-      const float u_scale = u_scales[curve_i];
-      const float u_translation = u_translations[curve_i];
       for (const int i : IndexRange(points.size())) {
         const int idx = i + 1;
-        const float u_stroke = u_scale * (i > 0 ? lengths[i - 1] : 0.0f) + u_translation;
+        const float u_stroke = get_u_stroke(i);
         populate_point(verts_range,
                        curve_i,
                        start_caps[curve_i],
@@ -1431,8 +1429,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
       if (is_cyclic) {
         const int idx = points.size() + 1;
-        const float u = points.size() > 1 ? lengths[points.size() - 1] : 0.0f;
-        const float u_stroke = u_scale * u + u_translation;
+        const float u_stroke = get_u_stroke(points.size());
         populate_point(verts_range,
                        curve_i,
                        start_caps[curve_i],

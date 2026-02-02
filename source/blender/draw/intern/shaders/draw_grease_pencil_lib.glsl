@@ -547,16 +547,19 @@ float4 gpencil_vertex(float4 viewport_res,
     out_P = (use_curr) ? wpos1 : wpos2;
     out_strength = abs((use_curr) ? strength1 : strength2);
 
+    float radius1 = gpencil_stroke_thickness_modulate(thickness1, ndc1, viewport_res) / 2.0;
+    float radius2 = gpencil_stroke_thickness_modulate(thickness2, ndc2, viewport_res) / 2.0;
+
     float2 ss0 = gpencil_project_to_screenspace(ndc0, viewport_res);
-    float2 ss1 = gpencil_project_to_screenspace(ndc1, viewport_res);
-    float2 ss2 = gpencil_project_to_screenspace(ndc2, viewport_res);
+    float4 ss1 = ndc_and_radius_to_screen_space(ndc1, radius1, viewport_res.xy);
+    float4 ss2 = ndc_and_radius_to_screen_space(ndc2, radius2, viewport_res.xy);
     float2 ss3 = gpencil_project_to_screenspace(ndc3, viewport_res);
 
     /* Screen-space Lines tangents. */
     float line_len;
-    float2 line = safe_normalize_and_get_length(ss2 - ss1, line_len);
-    float2 line1 = safe_normalize(ss1 - ss0);
-    float2 line2 = safe_normalize(ss3 - ss2);
+    float2 line = safe_normalize_and_get_length(ss2.xy - ss1.xy, line_len);
+    float2 line1 = safe_normalize(ss1.xy - ss0);
+    float2 line2 = safe_normalize(ss3 - ss2.xy);
     float2 line_adj = (use_curr) ? line1 : line2;
 
     float thickness = abs((use_curr) ? thickness1 : thickness2);
@@ -569,9 +572,9 @@ float4 gpencil_vertex(float4 viewport_res,
     out_hardness = gpencil_decode_hardness(use_curr ? point_data1.packed_data :
                                                       point_data2.packed_data);
 
-    out_sspos.xy = ss1;
+    out_sspos.xy = ss1.xy;
     if (ma2.x != -1) {
-      out_sspos.zw = ss2;
+      out_sspos.zw = ss2.xy;
     }
     else {
       out_sspos.zw = out_sspos.xy;
@@ -589,20 +592,6 @@ float4 gpencil_vertex(float4 viewport_res,
       out_sspos_adj.zw = out_sspos.zw;
     }
 
-    float radius1 = gpencil_stroke_thickness_modulate(thickness1, ndc1, viewport_res) / 2.0;
-    float radius2 = gpencil_stroke_thickness_modulate(thickness2, ndc2, viewport_res) / 2.0;
-
-    out_sspos1 = ndc_and_radius_to_screen_space(ndc1, radius1, viewport_res.xy);
-    out_sspos2 = ndc_and_radius_to_screen_space(ndc2, radius2, viewport_res.xy);
-
-    /* z is calculated later. */
-    out_point_length = float3(uv1.z, uv2.z, 1.0);
-
-      /* For one point strokes use object alignment. */
-      if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE && is_single) {
-        alignment_mode = GP_STROKE_ALIGNMENT_OBJECT;
-      }
-
     /* z is calculated later. */
     out_point_length = float3(uv1.z, uv2.z, 1.0);
 
@@ -611,7 +600,7 @@ float4 gpencil_vertex(float4 viewport_res,
       out_thickness.y = thickness / out_ndc.w;
 
       /* Rotation: Encoded as Cos + Sin sign. */
-      float uv_rot = gpencil_decode_uvrot(uvrot1);
+      float uv_rot = gpencil_decode_uvrot(point_data1.packed_data);
       float2 x_axis = get_rot(viewport_res,
                               material_flags,
                               alignment_rot,
@@ -621,19 +610,19 @@ float4 gpencil_vertex(float4 viewport_res,
                               line_adj,
                               wpos1,
                               uv_rot,
-                              ss1);
-      out_aspect.xy = gpencil_decode_aspect(aspect1);
+                              ss1.xy);
+      out_aspect.xy = gpencil_decode_aspect(point_data1.packed_data);
       /* Invert for vertex shader. */
       out_aspect.xy = 1.0f / out_aspect.xy;
       out_aspect.zw = x_axis;
 
-      out_ndc = dot_segment(float2(x, y), out_sspos1, out_sspos2, is_squares, viewport_res);
+      out_ndc = dot_segment(float2(x, y), ss1, ss2, is_squares, viewport_res);
 
       out_uv.x = (use_curr) ? uv1.z : uv2.z;
     }
     else if (is_dot && !is_multi_dot) {
       /* Rotation: Encoded as Cos + Sin sign. */
-      float uv_rot = gpencil_decode_uvrot(uvrot1);
+      float uv_rot = gpencil_decode_uvrot(point_data1.packed_data);
       float2 x_axis = get_rot(viewport_res,
                               material_flags,
                               alignment_rot,
@@ -643,7 +632,7 @@ float4 gpencil_vertex(float4 viewport_res,
                               line_adj,
                               wpos1,
                               uv_rot,
-                              ss1);
+                              ss1.xy);
       /* Rotate 90 degrees counter-clockwise. */
       float2 y_axis = float2(-x_axis.y, x_axis.x);
 
@@ -657,7 +646,7 @@ float4 gpencil_vertex(float4 viewport_res,
       out_aspect.xy = 1.0f / out_aspect.xy;
 
       out_ndc.xy += (x * x_axis + y * y_axis) * viewport_res.zw * clamped_thickness;
-      out_sspos2.xy = ss1 + x_axis * 0.5;
+      out_sspos_adj.xy = ss1.xy + x_axis * 0.5;
 
       out_thickness.x = (is_squares) ? 1e18f : (clamped_thickness / out_ndc.w);
       out_thickness.y = (is_squares) ? 1e18f : (thickness / out_ndc.w);
@@ -735,7 +724,7 @@ float4 gpencil_vertex(float4 viewport_res,
     out_thickness.z = MITER_LIMIT_TYPE_ROUND;
     out_thickness.w = MITER_LIMIT_TYPE_ROUND;
     out_hardness = 1.0f;
-    out_aspect = float2(1.0f);
+    out_aspect = float4(1.0f, 1.0f, 1.0f, 0.0f);
     out_sspos = float4(0.0f);
     out_sspos_adj = float4(0.0f);
     out_point_length = float3(0.0);
@@ -771,7 +760,7 @@ float4 gpencil_vertex(float4 viewport_res,
                       float4 &out_sspos,
                       float4 &out_sspos_adj,
                       float3 &out_point_length,
-                      float2 &out_aspect,
+                      float4 &out_aspect,
                       float4 &out_thickness,
                       float &out_hardness)
 {

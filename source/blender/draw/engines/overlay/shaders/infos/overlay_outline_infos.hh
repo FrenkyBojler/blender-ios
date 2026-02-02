@@ -96,7 +96,7 @@ CREATE_INFO_VARIANT(overlay_outline_prepass_wire_clipped,
                     drw_clipped)
 
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_outline_prepass_gpencil_flat_iface, gp_interp_flat)
-FLAT(float2, aspect)
+FLAT(float4, aspect)
 FLAT(float4, sspos)
 FLAT(float4, sspos_adj)
 FLAT(float3, point_length)

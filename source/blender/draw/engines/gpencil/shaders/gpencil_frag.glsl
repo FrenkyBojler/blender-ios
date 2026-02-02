@@ -85,11 +85,11 @@ float4 get_color(float2 uv)
   {
     uv = uv * 2.0 - 1.0;
     if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_DOTS)) {
-      col *= gpencil_stroke_round_mask(length(uv), gp_interp_noperspective.hardness);
+      col *= gpencil_stroke_hardess_mask(length(uv), gp_interp_noperspective.hardness);
     }
     else {
       uv = abs(uv);
-      col *= gpencil_stroke_round_mask(max(uv.x, uv.y), gp_interp_noperspective.hardness);
+      col *= gpencil_stroke_hardess_mask(max(uv.x, uv.y), gp_interp_noperspective.hardness);
     }
   }
 
@@ -347,15 +347,16 @@ void main()
         float radius1;
         float radius2;
 
-        float4 ndc1 = screen_space_to_ndc_and_radius(gp_interp_flat.sspos1, radius1, viewport_size);
-        float4 ndc2 = screen_space_to_ndc_and_radius(gp_interp_flat.sspos2, radius2, viewport_size);
+        float4 ndc1 = screen_space_to_ndc_and_radius(gp_interp_flat.sspos, radius1, viewport_size);
+        float4 ndc2 = screen_space_to_ndc_and_radius(
+            gp_interp_flat.sspos_adj, radius2, viewport_size);
 
         float3 v1 = ndc_to_view(ndc1);
         float3 v2 = ndc_to_view(ndc2);
 
-        float3 view_dir = ndc_to_view(float4(gl_FragCoord.xy / viewport_size.xy, 0.0, 1.0) * 2.0 - 1.0);
+        float3 view_dir = ndc_to_view(float4(gl_FragCoord.xy / viewport_size.xy, 0.0, 1.0) * 2.0 -
+                                      1.0);
         float2 view_coord = view_dir.xy / view_dir.z;
-
 
         /* TODO. Calculate without finite deference. */
         float dx = 15.0;
@@ -394,7 +395,7 @@ void main()
         }
       }
       else {
-        float2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos1.xy) / gp_interp_flat.sspos1.w;
+        float2 uv = (gl_FragCoord.xy - gp_interp_flat.sspos.xy) / gp_interp_flat.sspos.w;
 
         int i = int(gp_interp_flat.point_length.x);
 
@@ -413,11 +414,15 @@ void main()
     }
     else {  // line
       frag_color = get_color(gp_interp.uv);
-      frag_color *= gpencil_stroke_round_cap_mask(gp_interp_flat.sspos1.xy,
-                                                 gp_interp_flat.sspos2.xy,
-                                                 gp_interp_flat.aspect.xy,
-                                                 gp_interp_noperspective.thickness.x,
-                                                 gp_interp_noperspective.hardness);
+      frag_color *= gpencil_stroke_mask(gp_interp_flat.sspos.xy,
+                                        gp_interp_flat.sspos.zw,
+                                        gp_interp_flat.sspos_adj.xy,
+                                        gp_interp_flat.sspos_adj.zw,
+                                        gp_interp.uv,
+                                        gp_interp_flat.mat_flag,
+                                        gp_interp_noperspective.thickness.x,
+                                        gp_interp_noperspective.hardness,
+                                        gp_interp_noperspective.thickness.zw);
     }
   }
 
