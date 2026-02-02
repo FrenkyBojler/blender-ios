@@ -2,3 +2,4 @@ Referenced by issue #147155, 5.0: Crash opening a file created with recent build
 Referenced by commit 60f8d625a4fa4a564dfa603351cd15d06fecdd5b, Fix #147155: Crash opening a blend file
 Referenced by issue #151927, VR Vingette can not be disabled
 Referenced by pull request #152630, XR: Movement Vignette logic refactor and improvements
+Referenced by commit a9781d038a0189b17fd18d60d83b991e1a216a9a, XR: Movement Vignette logic refactor and improvements
