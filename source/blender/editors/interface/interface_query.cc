@@ -539,10 +539,11 @@ Button *view_item_find_search_highlight(const ARegion *region)
 
 Button *button_prev(Button *but)
 {
-  for (int idx = but->block->but_index(but) - 1; idx >= 0; idx--) {
-    but = but->block->buttons[idx].get();
-    if (button_is_editable(but)) {
-      return but;
+  for (Button &button : but->block->buttons_as_refs() |
+                            std::views::take(but->block->but_index(but)) | std::views::reverse)
+  {
+    if (button_is_editable(&button)) {
+      return &button;
     }
   }
   return nullptr;
@@ -550,10 +551,11 @@ Button *button_prev(Button *but)
 
 Button *button_next(Button *but)
 {
-  for (int i = but->block->but_index(but) + 1; i < but->block->buttons.size(); i++) {
-    but = but->block->buttons[i].get();
-    if (button_is_editable(but)) {
-      return but;
+  for (Button &button :
+       but->block->buttons_as_refs() | std::views::drop(but->block->but_index(but) + 1))
+  {
+    if (button_is_editable(&button)) {
+      return &button;
     }
   }
   return nullptr;
@@ -682,10 +684,11 @@ static const Button *ui_but_next_non_separator(const Button *but)
   if (!but) {
     return nullptr;
   }
-  for (int i = but->block->but_index(but); i < but->block->buttons.size(); i++) {
-    but = but->block->buttons[i].get();
-    if (!ELEM(but->type, ButtonType::Sepr, ButtonType::SeprLine)) {
-      return but;
+  for (Button &button :
+       but->block->buttons_as_refs() | std::views::drop(but->block->but_index(but) + 1))
+  {
+    if (!ELEM(button.type, ButtonType::Sepr, ButtonType::SeprLine)) {
+      return &button;
     }
   }
   return nullptr;

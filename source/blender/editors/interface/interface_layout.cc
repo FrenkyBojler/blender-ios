@@ -1033,11 +1033,10 @@ static void ui_item_enum_expand_tabs(Layout *layout,
   BLI_assert(start_size != block->buttons.size());
 
   if (expand_as == EnumTabExpand::Default) {
-    for (int i = start_size; i < block->buttons.size(); i++) {
-      Button *tab = block->buttons[i].get();
-      button_drawflag_enable(tab, button_align_opposite_to_area_align_get(CTX_wm_region(C)));
+    for (Button &tab : block->buttons_as_refs() | std::views::drop(start_size)) {
+      button_drawflag_enable(&tab, button_align_opposite_to_area_align_get(CTX_wm_region(C)));
       if (icon_only) {
-        button_drawflag_enable(tab, BUT_HAS_QUICK_TOOLTIP);
+        button_drawflag_enable(&tab, BUT_HAS_QUICK_TOOLTIP);
       }
     }
   }

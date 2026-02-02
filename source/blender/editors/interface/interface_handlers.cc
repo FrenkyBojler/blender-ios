@@ -3717,11 +3717,10 @@ static void ui_textedit_next_but(Block *block, Button *actbut, HandleButtonData 
     return;
   }
 
-  for (int64_t i = block->but_index(actbut) + 1; i < block->buttons.size(); i++) {
-    Button *but = block->buttons[i].get();
-    if (button_is_editable_as_text(but)) {
-      if (!(but->flag & (BUT_DISABLED | UI_HIDDEN))) {
-        data->postbut = but;
+  for (Button &but : block->buttons_as_refs() | std::views::drop(block->but_index(actbut) + 1)) {
+    if (button_is_editable_as_text(&but)) {
+      if (!(but.flag & (BUT_DISABLED | UI_HIDDEN))) {
+        data->postbut = &but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
       }
@@ -3754,11 +3753,12 @@ static void ui_textedit_prev_but(Block *block, Button *actbut, HandleButtonData 
     return;
   }
 
-  for (int i = block->but_index(actbut) - 1; i >= 0; i--) {
-    Button *but = block->buttons[i].get();
-    if (button_is_editable_as_text(but)) {
-      if (!(but->flag & (BUT_DISABLED | UI_HIDDEN))) {
-        data->postbut = but;
+  for (Button &but :
+       block->buttons_as_refs() | std::views::take(block->but_index(actbut)) | std::views::reverse)
+  {
+    if (button_is_editable_as_text(&but)) {
+      if (!(but.flag & (BUT_DISABLED | UI_HIDDEN))) {
+        data->postbut = &but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
       }
