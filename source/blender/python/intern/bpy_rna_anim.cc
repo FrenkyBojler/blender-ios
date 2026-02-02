@@ -430,7 +430,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
     result = success_count != 0;
   }
 
-  MEM_freeN(path_full);
+  MEM_delete(path_full);
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, false) == -1) {
     BKE_reports_free(&reports);
@@ -521,7 +521,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
       /* NOTE: This should be true, or else we wouldn't be able to get here. */
       BLI_assert(fcu != nullptr);
 
-      if (BKE_fcurve_is_protected(fcu)) {
+      if (BKE_fcurve_is_protected(*fcu)) {
         BKE_reportf(
             &reports,
             RPT_WARNING,
@@ -543,7 +543,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
         if (found) {
           /* delete the key at the index (will sanity check + do recalc afterwards) */
           BKE_fcurve_delete_key(fcu, i);
-          BKE_fcurve_handles_recalc(fcu);
+          BKE_fcurve_handles_recalc(*fcu);
           result = true;
         }
       }
@@ -561,7 +561,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
               0);
   }
 
-  MEM_freeN(path_full);
+  MEM_delete(path_full);
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {
     return nullptr;
@@ -642,7 +642,7 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
     DEG_relations_tag_update(CTX_data_main(context));
   }
 
-  MEM_freeN(path_full);
+  MEM_delete(path_full);
 
   return ret;
 }
@@ -684,7 +684,7 @@ PyObject *pyrna_struct_driver_remove(BPy_StructRNA *self, PyObject *args)
   result = ANIM_remove_driver(self->ptr->owner_id, path_full, index);
 
   if (path != path_full) {
-    MEM_freeN(path_full);
+    MEM_delete(path_full);
   }
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {
