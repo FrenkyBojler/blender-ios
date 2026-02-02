@@ -6,13 +6,11 @@
  * \ingroup gpu
  */
 
+#pragma once
+
 #include "render_graph/vk_render_graph.hh"
 #include "vk_buffer.hh"
-#include "vk_common.hh"
-
-#include "BLI_vector.hh"
-
-#pragma once
+#include "vk_vertex_input_description.hh"
 
 namespace blender::gpu {
 
@@ -24,18 +22,14 @@ class VKImmediate;
 
 using AttributeMask = uint16_t;
 
-// TODO: VKVertexAttributeObject should not contain any reference to VBO's. This should make the
-// API be compatible with both VKBatch and VKImmediate.
-// TODO: In steam of storing the bindings/attributes we should add a data structure that can store
-// them. Building the bindings/attributes should be done inside VKPipelinePool.
+/* TODO: VKVertexAttributeObject should not contain any reference to VBO's. This should make the
+ * API be compatible with both #VKBatch and #VKImmediate. */
+/* TODO: In steam of storing the bindings/attributes we should add a data structure that can store
+ * them. Building the bindings/attributes should be done inside #VKPipelinePool. */
 class VKVertexAttributeObject {
  public:
-  bool is_valid = false;
-  VkPipelineVertexInputStateCreateInfo info = {
-      VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, NULL};
+  VKVertexInputDescription vertex_input;
 
-  Vector<VkVertexInputBindingDescription> bindings;
-  Vector<VkVertexInputAttributeDescription> attributes;
   /* Used for batches. */
   Vector<VKVertexBuffer *> vbos;
   /* Used for immediate mode. */
@@ -52,14 +46,6 @@ class VKVertexAttributeObject {
   void update_bindings(const VKContext &context, VKBatch &batch);
   void update_bindings(VKImmediate &immediate);
 
-  /**
-   * Ensure that all Vertex Buffers are uploaded to the GPU.
-   *
-   * This is a separate step as uploading could flush the graphics pipeline making the state
-   * inconsistent.
-   */
-  void ensure_vbos_uploaded() const;
-
   void debug_print() const;
 
  private:
@@ -71,8 +57,7 @@ class VKVertexAttributeObject {
                        VKBufferWithOffset *immediate_vertex_buffer,
                        const int64_t vertex_len,
                        const VKShaderInterface &interface,
-                       AttributeMask &r_occupied_attributes,
-                       const bool use_instancing);
+                       AttributeMask &r_occupied_attributes);
 };
 
 }  // namespace blender::gpu

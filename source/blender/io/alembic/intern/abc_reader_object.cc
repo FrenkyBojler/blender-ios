@@ -24,14 +24,15 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
 #include "BLI_string.h"
+
+namespace blender {
 
 using Alembic::AbcGeom::IObject;
 using Alembic::AbcGeom::IXform;
 using Alembic::AbcGeom::IXformSchema;
 
-namespace blender::io::alembic {
+namespace io::alembic {
 
 AbcObjectReader::AbcObjectReader(const IObject &object, ImportSettings &settings)
     : m_object(nullptr),
@@ -145,7 +146,7 @@ void AbcObjectReader::read_geometry(bke::GeometrySet & /*geometry_set*/,
                                     int /*read_flag*/,
                                     const char * /*velocity_name*/,
                                     const float /*velocity_scale*/,
-                                    const char ** /*err_str*/)
+                                    const char ** /*r_err_str*/)
 {
 }
 
@@ -304,4 +305,5 @@ void AbcObjectReader::decref()
   BLI_assert(m_refcount >= 0);
 }
 
-}  // namespace blender::io::alembic
+}  // namespace io::alembic
+}  // namespace blender

@@ -2,13 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_array_utils.hh"
 #include "BLI_task.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -17,13 +16,17 @@ namespace blender::nodes::node_geo_dual_mesh_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh to compute the dual of");
+  b.add_output<decl::Geometry>("Dual Mesh").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Keep Boundaries")
       .default_value(false)
       .description(
           "Keep non-manifold boundaries of the input mesh in place by avoiding the dual "
           "transformation there");
-  b.add_output<decl::Geometry>("Dual Mesh").propagate_all();
 }
 
 enum class EdgeType : int8_t {
@@ -133,23 +136,21 @@ static void transfer_attributes(
     const Span<int> new_to_old_edges_map,
     const Span<int> new_to_old_face_corners_map,
     const Span<std::pair<int, int>> boundary_vertex_to_relevant_face_map,
-    const AnonymousAttributePropagationInfo &propagation_info,
+    const AttributeFilter &attribute_filter,
     const AttributeAccessor src_attributes,
     MutableAttributeAccessor dst_attributes)
 {
   /* Retrieve all attributes except for position which is handled manually.
    * Remove anonymous attributes that don't need to be propagated. */
-  Set<AttributeIDRef> attribute_ids = src_attributes.all_ids();
+  Set<StringRefNull> attribute_ids = src_attributes.all_ids();
   attribute_ids.remove("position");
   attribute_ids.remove(".edge_verts");
   attribute_ids.remove(".corner_vert");
   attribute_ids.remove(".corner_edge");
   attribute_ids.remove("sharp_face");
-  attribute_ids.remove_if([&](const AttributeIDRef &id) {
-    return id.is_anonymous() && !propagation_info.propagate(id.anonymous_id());
-  });
+  attribute_ids.remove_if([&](const StringRef id) { return attribute_filter.allow_skip(id); });
 
-  for (const AttributeIDRef &id : attribute_ids) {
+  for (const StringRef id : attribute_ids) {
     GAttributeReader src = src_attributes.lookup(id);
 
     AttrDomain out_domain;
@@ -163,7 +164,7 @@ static void transfer_attributes(
       /* Edges and Face Corners. */
       out_domain = src.domain;
     }
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(src.varray.type());
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(src.varray.type());
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         id, out_domain, data_type);
     if (!dst) {
@@ -173,8 +174,7 @@ static void transfer_attributes(
     switch (src.domain) {
       case AttrDomain::Point: {
         const GVArraySpan src_span(*src);
-        bke::attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
-          using T = decltype(dummy);
+        bke::attribute_math::to_static_type(data_type, [&]<typename T>() {
           copy_data_based_on_vertex_types(
               src_span.typed<T>(), dst.span.typed<T>(), vertex_types, keep_boundaries);
         });
@@ -186,8 +186,7 @@ static void transfer_attributes(
       case AttrDomain::Face: {
         const GVArraySpan src_span(*src);
         dst.span.take_front(src_span.size()).copy_from(src_span);
-        bke::attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
-          using T = decltype(dummy);
+        bke::attribute_math::to_static_type(data_type, [&]<typename T>() {
           if (keep_boundaries) {
             copy_data_based_on_pairs(
                 src_span.typed<T>(), dst.span.typed<T>(), boundary_vertex_to_relevant_face_map);
@@ -334,7 +333,7 @@ static bool sort_vertex_faces(const Span<int2> edges,
   }
 
   /* For each face store the two corners whose edge contains the vertex. */
-  Array<std::pair<int, int>> face_vertex_corners(connected_faces.size());
+  Array<std::pair<int, int>, 16> face_vertex_corners(connected_faces.size());
   for (const int i : connected_faces.index_range()) {
     bool first_edge_done = false;
     for (const int corner : faces[connected_faces[i]]) {
@@ -615,7 +614,7 @@ static void dissolve_redundant_verts(const Span<int2> edges,
  */
 static Mesh *calc_dual_mesh(const Mesh &src_mesh,
                             const bool keep_boundaries,
-                            const AnonymousAttributePropagationInfo &propagation_info)
+                            const AttributeFilter &attribute_filter)
 {
   const Span<float3> src_positions = src_mesh.vert_positions();
   const Span<int2> src_edges = src_mesh.edges();
@@ -898,7 +897,7 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
                       new_to_old_edges_map,
                       new_to_old_face_corners_map,
                       boundary_vertex_to_relevant_face_map,
-                      propagation_info,
+                      attribute_filter,
                       src_mesh.attributes(),
                       mesh_out->attributes_for_write());
 
@@ -920,10 +919,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
   const bool keep_boundaries = params.extract_input<bool>("Keep Boundaries");
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const Mesh *mesh = geometry_set.get_mesh()) {
       Mesh *new_mesh = calc_dual_mesh(
-          *mesh, keep_boundaries, params.get_output_propagation_info("Dual Mesh"));
+          *mesh, keep_boundaries, params.get_attribute_filter("Dual Mesh"));
       geometry::debug_randomize_mesh_order(new_mesh);
       geometry_set.replace_mesh(new_mesh);
     }
@@ -933,11 +932,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_DUAL_MESH, "Dual Mesh", NODE_CLASS_GEOMETRY);
+  static bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeDualMesh", GEO_NODE_DUAL_MESH);
+  ntype.ui_name = "Dual Mesh";
+  ntype.ui_description = "Convert Faces into vertices and vertices into faces";
+  ntype.enum_name_legacy = "DUAL_MESH";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

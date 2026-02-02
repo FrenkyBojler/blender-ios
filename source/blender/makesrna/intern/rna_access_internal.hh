@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
-
 #include "rna_internal_types.hh"
+
+namespace blender {
 
 struct IDProperty;
 struct PropertyRNAOrID;
@@ -29,7 +29,11 @@ void rna_property_rna_or_id_get(PropertyRNA *prop,
 void rna_idproperty_touch(IDProperty *idprop);
 IDProperty *rna_idproperty_find(PointerRNA *ptr, const char *name);
 
+IDProperty *rna_system_idproperty_find(PointerRNA *ptr, const char *name);
+
 /**
  * Find the property which uses the given nested struct.
  */
 PropertyRNA *rna_struct_find_nested(PointerRNA *ptr, StructRNA *srna);
+
+}  // namespace blender

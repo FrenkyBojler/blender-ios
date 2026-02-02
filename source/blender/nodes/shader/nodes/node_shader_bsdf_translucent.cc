@@ -4,13 +4,15 @@
 
 #include "node_shader_util.hh"
 
-namespace blender::nodes::node_shader_bsdf_translucent_cc {
+namespace blender {
+
+namespace nodes::node_shader_bsdf_translucent_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Color").default_value({0.8f, 0.8f, 0.8f, 1.0f});
   b.add_input<decl::Vector>("Normal").hide_value();
-  b.add_input<decl::Float>("Weight").unavailable();
+  b.add_input<decl::Float>("Weight").available(false);
   b.add_output<decl::Shader>("BSDF");
 }
 
@@ -45,20 +47,27 @@ NODE_SHADER_MATERIALX_BEGIN
 #endif
 NODE_SHADER_MATERIALX_END
 
-}  // namespace blender::nodes::node_shader_bsdf_translucent_cc
+}  // namespace nodes::node_shader_bsdf_translucent_cc
 
 /* node type definition */
 void register_node_type_sh_bsdf_translucent()
 {
-  namespace file_ns = blender::nodes::node_shader_bsdf_translucent_cc;
+  namespace file_ns = nodes::node_shader_bsdf_translucent_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_BSDF_TRANSLUCENT, "Translucent BSDF", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, "ShaderNodeBsdfTranslucent", SH_NODE_BSDF_TRANSLUCENT);
+  ntype.ui_name = "Translucent BSDF";
+  ntype.ui_description = "Lambertian diffuse transmission";
+  ntype.enum_name_legacy = "BSDF_TRANSLUCENT";
+  ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
+  ntype.gather_link_search_ops = search_link_ops_for_shader_bsdf_node;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_translucent;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

@@ -89,12 +89,12 @@ def object_data_add(context, obdata, operator=None, name=None):
 
     :arg context: The context to use.
     :type context: :class:`bpy.types.Context`
-    :arg obdata: the data used for the new object.
-    :type obdata: valid object data type or None.
+    :arg obdata: Valid object data to used for the new object or None.
+    :type obdata: :class:`bpy.types.ID` | None
     :arg operator: The operator, checked for location and rotation properties.
     :type operator: :class:`bpy.types.Operator`
     :arg name: Optional name
-    :type name: string
+    :type name: str
     :return: the newly created object in the scene.
     :rtype: :class:`bpy.types.Object`
     """
@@ -138,6 +138,10 @@ def object_data_add(context, obdata, operator=None, name=None):
             uv_act = obj_act.data.uv_layers.active
             if uv_act is not None:
                 uv_new.name = uv_act.name
+
+        # Copy the active object's active material into the primitive with no materials.
+        if len(obj_act.data.materials) > 0 and len(obdata.materials) == 0:
+            obdata.materials.append(obj_act.active_material)
 
         bpy.ops.object.join()  # join into the active.
         if obdata:
@@ -208,7 +212,7 @@ def object_add_grid_scale_apply_operator(operator, context):
     """
     Scale an operators distance values by the grid size.
     """
-    # This is a Python version of the C function `WM_operator_view3d_unit_defaults`.
+    # This is a Python version of the C++ function `WM_operator_view3d_unit_defaults`.
     grid_scale = object_add_grid_scale(context)
 
     properties = operator.properties

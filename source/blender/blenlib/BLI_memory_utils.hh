@@ -10,10 +10,10 @@
 
 #include <algorithm>
 #include <memory>
-#include <new>
 #include <type_traits>
 
 #include "BLI_utildefines.h"
+
 #include "MEM_guardedalloc.h"
 
 namespace blender {
@@ -243,13 +243,13 @@ class alignas(ReservedAlignment) DynamicStackBuffer {
       buffer_ = reserved_buffer_;
     }
     else {
-      buffer_ = MEM_mallocN_aligned(size, alignment, __func__);
+      buffer_ = MEM_new_uninitialized_aligned(size, alignment, __func__);
     }
   }
   ~DynamicStackBuffer()
   {
     if (buffer_ != reserved_buffer_) {
-      MEM_freeN(buffer_);
+      MEM_delete_void(buffer_);
     }
   }
 
@@ -301,7 +301,7 @@ inline constexpr bool is_span_convertible_pointer_v =
     (/* No casting is necessary when both types are the same. */
      std::is_same_v<From, To> ||
      /* Allow adding const to the underlying type. */
-     std::is_same_v<const std::remove_pointer_t<From>, std::remove_pointer_t<To>> ||
+     std::is_same_v<std::remove_pointer_t<From>, std::remove_const_t<std::remove_pointer_t<To>>> ||
      /* Allow casting non-const pointers to void pointers. */
      (!std::is_const_v<std::remove_pointer_t<From>> && std::is_same_v<To, void *>) ||
      /* Allow casting any pointer to const void pointers. */
@@ -314,10 +314,10 @@ template<typename T, typename... Args>
 inline constexpr bool is_same_any_v = (std::is_same_v<T, Args> || ...);
 
 /**
- * Inline buffers for small-object-optimization should be disable by default. Otherwise we might
- * get large unexpected allocations on the stack.
+ * Inline buffers for small-object-optimization should be disabled by default for large objects.
+ * Otherwise we might get large unexpected allocations on the stack.
  */
-inline constexpr int64_t default_inline_buffer_capacity(size_t element_size)
+constexpr int64_t default_inline_buffer_capacity(size_t element_size)
 {
   return (int64_t(element_size) < 100) ? 4 : 0;
 }
@@ -379,9 +379,7 @@ template<typename T> inline bool assign_if_different(T &old_value, T new_value)
   return false;
 }
 
-}  // namespace blender
-
-namespace blender::detail {
+namespace blenlib_detail {
 
 template<typename Func> struct ScopedDeferHelper {
   Func func;
@@ -392,7 +390,7 @@ template<typename Func> struct ScopedDeferHelper {
   }
 };
 
-}  // namespace blender::detail
+}  // namespace blenlib_detail
 
 #define BLI_SCOPED_DEFER_NAME1(a, b) a##b
 #define BLI_SCOPED_DEFER_NAME2(a, b) BLI_SCOPED_DEFER_NAME1(a, b)
@@ -406,5 +404,7 @@ template<typename Func> struct ScopedDeferHelper {
  */
 #define BLI_SCOPED_DEFER(function_to_defer) \
   auto BLI_SCOPED_DEFER_NAME(func) = (function_to_defer); \
-  blender::detail::ScopedDeferHelper<decltype(BLI_SCOPED_DEFER_NAME(func))> \
-      BLI_SCOPED_DEFER_NAME(helper){std::move(BLI_SCOPED_DEFER_NAME(func))};
+  blenlib_detail::ScopedDeferHelper<decltype(BLI_SCOPED_DEFER_NAME(func))> BLI_SCOPED_DEFER_NAME( \
+      helper){std::move(BLI_SCOPED_DEFER_NAME(func))};
+
+}  // namespace blender

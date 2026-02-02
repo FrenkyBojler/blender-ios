@@ -12,11 +12,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
+#include "BLI_array.hh"
 #include "BLI_heap.h"
 #include "BLI_linklist.h"
 #include "BLI_memarena.h"
-#include "BLI_utildefines.h"
 
 /* only for defines */
 #include "BLI_polyfill_2d.h"
@@ -25,6 +24,8 @@
 #include "bmesh.hh"
 
 #include "bmesh_triangulate.hh" /* own include */
+
+namespace blender {
 
 /**
  * a version of #BM_face_triangulate that maps to #BMOpSlot
@@ -43,13 +44,13 @@ static void bm_face_triangulate_mapping(BMesh *bm,
                                         Heap *pf_heap)
 {
   int faces_array_tot = face->len - 3;
-  BMFace **faces_array = BLI_array_alloca(faces_array, faces_array_tot);
+  Array<BMFace *, BM_DEFAULT_NGON_STACK_SIZE> faces_array(faces_array_tot);
   LinkNode *faces_double = nullptr;
   BLI_assert(face->len > 3);
 
   BM_face_triangulate(bm,
                       face,
-                      faces_array,
+                      faces_array.data(),
                       &faces_array_tot,
                       nullptr,
                       nullptr,
@@ -70,7 +71,7 @@ static void bm_face_triangulate_mapping(BMesh *bm,
     while (faces_double) {
       LinkNode *next = faces_double->next;
       BMO_slot_map_elem_insert(op, slot_facemap_double_out, faces_double->link, face);
-      MEM_freeN(faces_double);
+      MEM_delete(faces_double);
       faces_double = next;
     }
   }
@@ -89,8 +90,6 @@ void BM_mesh_triangulate(BMesh *bm,
   BMFace *face;
   MemArena *pf_arena;
   Heap *pf_heap;
-
-  BM_custom_loop_normals_to_vector_layer(bm);
 
   pf_arena = BLI_memarena_new(BLI_POLYFILL_ARENA_SIZE, __func__);
 
@@ -145,16 +144,16 @@ void BM_mesh_triangulate(BMesh *bm,
     while (faces_double) {
       LinkNode *next = faces_double->next;
       BM_face_kill(bm, static_cast<BMFace *>(faces_double->link));
-      MEM_freeN(faces_double);
+      MEM_delete(faces_double);
       faces_double = next;
     }
   }
 
   BLI_memarena_free(pf_arena);
 
-  BM_custom_loop_normals_from_vector_layer(bm, false);
-
   if (ngon_method == MOD_TRIANGULATE_NGON_BEAUTY) {
     BLI_heap_free(pf_heap, nullptr);
   }
 }
+
+}  // namespace blender

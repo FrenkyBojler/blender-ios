@@ -20,9 +20,10 @@
 
 #include "BLI_fileops.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "MEM_guardedalloc.h"
+
+namespace blender {
 
 /*
  * For debug purpose
@@ -41,7 +42,7 @@ static void fillCineonMainHeader(LogImageFile *cineon,
                                  const char *creator)
 {
   time_t fileClock;
-  tm *fileTime;
+  const tm *fileTime;
   int i;
 
   memset(header, 0, sizeof(CineonMainHeader));
@@ -125,8 +126,8 @@ static void fillCineonMainHeader(LogImageFile *cineon,
 LogImageFile *cineonOpen(const uchar *byteStuff, int fromMemory, size_t bufferSize)
 {
   CineonMainHeader header;
-  LogImageFile *cineon = (LogImageFile *)MEM_mallocN(sizeof(LogImageFile), __func__);
-  const char *filepath = (const char *)byteStuff;
+  LogImageFile *cineon = MEM_new_uninitialized<LogImageFile>(__func__);
+  const char *filepath = reinterpret_cast<const char *>(byteStuff);
   int i;
   uint dataOffset;
 
@@ -159,8 +160,8 @@ LogImageFile *cineonOpen(const uchar *byteStuff, int fromMemory, size_t bufferSi
     cineon->memBufferSize = 0;
   }
   else {
-    cineon->memBuffer = (uchar *)byteStuff;
-    cineon->memCursor = (uchar *)byteStuff;
+    cineon->memBuffer = const_cast<uchar *>(byteStuff);
+    cineon->memCursor = const_cast<uchar *>(byteStuff);
     cineon->memBufferSize = bufferSize;
   }
 
@@ -358,7 +359,7 @@ LogImageFile *cineonCreate(
   const char *shortFilename = nullptr;
   // uchar pad[6044];
 
-  LogImageFile *cineon = (LogImageFile *)MEM_mallocN(sizeof(LogImageFile), __func__);
+  LogImageFile *cineon = MEM_new_uninitialized<LogImageFile>(__func__);
   if (cineon == nullptr) {
     if (verbose) {
       printf("cineon: Failed to malloc cineon file structure.\n");
@@ -424,3 +425,5 @@ LogImageFile *cineonCreate(
 
   return cineon;
 }
+
+}  // namespace blender

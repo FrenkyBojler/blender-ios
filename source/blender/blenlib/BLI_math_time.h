@@ -8,9 +8,7 @@
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Time Constants Definitions
@@ -56,6 +54,4 @@ void BLI_math_time_seconds_decompose(double seconds,
 
 /** \} */
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

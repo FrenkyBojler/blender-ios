@@ -9,11 +9,14 @@
 
 #include "BKE_main.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"
 
 #include <string>
+
+namespace blender {
 
 struct bContext;
 struct BlendFileData;
@@ -156,7 +159,7 @@ WorkspaceConfigFileData *BKE_blendfile_workspace_config_read(const char *filepat
                                                              ReportList *reports);
 void BKE_blendfile_workspace_config_data_free(WorkspaceConfigFileData *workspace_config);
 
-namespace blender::bke::blendfile {
+namespace bke::blendfile {
 
 /**
  * Partial blendfile writing.
@@ -203,13 +206,13 @@ class PartialWriteContext : NonCopyable, NonMovable {
   IDNameLib_Map *matching_uid_map_;
 
   /** A mapping from the absolute library paths to the #Library IDs in the context. */
-  blender::Map<std::string, Library *> libraries_map_;
+  Map<std::string, Library *> libraries_map_;
 
  public:
   /* Passing a reference root filepath is mandatory, for remapping of relative paths to work as
    * expected. */
   PartialWriteContext() = delete;
-  PartialWriteContext(StringRefNull reference_root_filepath);
+  PartialWriteContext(Main &reference_main);
   ~PartialWriteContext();
 
   /**
@@ -236,6 +239,11 @@ class PartialWriteContext : NonCopyable, NonMovable {
      *
      * \warning By default, when #ADD_DEPENDENCIES is defined, this will also apply to all
      * dependencies as well.
+     *
+     * \note Often required when only a small subset of the ID dependencies are also added to the
+     * context (i.e. many of the added data's ID pointers are set to `nullptr`). Otherwise, some
+     * areas not expecting nullptr (like LibOverride data) may assert or error on load of the
+     * partial written blendfile.
      */
     MAKE_LOCAL = 1 << 0,
     /**
@@ -255,6 +263,9 @@ class PartialWriteContext : NonCopyable, NonMovable {
      *
      * WARNING: This also means that dependencies like obdata, shape-keys or actions are not
      * duplicated either.
+     *
+     * NOTE: Either #CLEAR_DEPENDENCIES or #ADD_DEPENDENCIES must be specified in the final
+     * operation flags for all ID dependencies. This can be achieved by
      */
     CLEAR_DEPENDENCIES = 1 << 8,
     /**
@@ -301,18 +312,20 @@ class PartialWriteContext : NonCopyable, NonMovable {
    * already exists in the context, it is returned instead of duplicating it again.
    *
    * \param options: Control how the added ID (and its dependencies) are handled. See
-   *                 #IDAddOptions and #IDAddOperations above for details.
-   * \param dependencies_filter_cb: Optional, a callback called for each ID usages. Currently, only
-   *                                accepted return values are the ones included in
-   *                                #MASK_PER_ID_USAGE.
+   *        #IDAddOptions and #IDAddOperations above for details.
+   *        If no #dependencies_filter_cb callback is specified, #options.operations must contain
+   *        either #CLEAR_DEPENDENCIES or #ADD_DEPENDENCIES.
+   * \param dependencies_filter_cb: Optional, a callback called for each ID usages, which returns
+   *        specific operations flags for each ID usage.
+   *        Currently, only accepted return values are the ones included in #MASK_PER_ID_USAGE.
+   *        Returned flags must always contain either #CLEAR_DEPENDENCIES or #ADD_DEPENDENCIES.
    *
    * \return The pointer to the duplicated ID in the partial write context.
    */
   ID *id_add(const ID *id,
              IDAddOptions options,
-             blender::FunctionRef<IDAddOperations(LibraryIDLinkCallbackData *cb_data,
-                                                  IDAddOptions options)> dependencies_filter_cb =
-                 nullptr);
+             FunctionRef<IDAddOperations(LibraryIDLinkCallbackData *cb_data, IDAddOptions options)>
+                 dependencies_filter_cb = nullptr);
 
   /**
    * Add and return a new ID into the partial write context.
@@ -322,10 +335,9 @@ class PartialWriteContext : NonCopyable, NonMovable {
    * #matching_uid_map_, and its `session_uid` is not guaranteed to be constant (as it may be
    * preempted later by another ID added from the current G_MAIN).
    *
-   * \param options: Control how the added ID (and its dependencies) are handled. See
-   *                 #IDAddOptions and #IDAddOperations above for details, note that only
-   *                 relevant operations currently are the #SET_FAKE_USER and #SET_CLIPBOARD_MARK
-   *                 ones.
+   * \param options: Control how the created ID is handled. See #IDAddOptions and #IDAddOperations
+   *        above for details, note that the only relevant operation flags currently are the
+   *        #SET_FAKE_USER and #SET_CLIPBOARD_MARK ones.
    */
   ID *id_create(short id_type, StringRefNull id_name, Library *library, IDAddOptions options);
 
@@ -345,10 +357,9 @@ class PartialWriteContext : NonCopyable, NonMovable {
    * Remove all unused IDs from the current context.
    *
    * \param clear_extra_user: If `true`, the runtime tag ensuring that IDs are written on disk will
-   *                          be cleared. In other words, only IDs flagged with 'fake user' and
-   *                          their dependencies will be kept.
-   *                          Allows to also remove IDs that were added to this context during the
-   *                          same editing session, and were not flagged as 'fake user'.
+   *        be cleared. In other words, only IDs flagged with 'fake user' and their dependencies
+   *        will be kept. Allows to also remove IDs that were added to this context during the same
+   *        editing session, and were not flagged as 'fake user'.
    */
   void remove_unused(bool clear_extra_user = false);
 
@@ -371,8 +382,8 @@ class PartialWriteContext : NonCopyable, NonMovable {
    *
    * \return `true` on success.
    */
-  bool write(const char *filepath, int write_flags, int remap_mode, ReportList &reports);
-  bool write(const char *filepath, ReportList &reports);
+  bool write(const char *write_filepath, int write_flags, int remap_mode, ReportList &reports);
+  bool write(const char *write_filepath, ReportList &reports);
 
   /* TODO: To allow editing an existing external blendfile:
    *   - API to load a context from a blendfile.
@@ -398,7 +409,7 @@ class PartialWriteContext : NonCopyable, NonMovable {
    * 'fake user' flag, or the (runtime-only, cleared on next file load) 'extra user' tag, depending
    * on whether #SET_FAKE_USER is set or not.
    *
-   * Also handles the setting of the #LIB_CLIPBOARD_MARK flag if #SET_CLIPBOARD_MARK is set.
+   * Also handles the setting of the #ID_FLAG_CLIPBOARD_MARK flag if #SET_CLIPBOARD_MARK is set.
    */
   void process_added_id(ID *ctx_id, const IDAddOperations operations);
   /**
@@ -420,14 +431,7 @@ class PartialWriteContext : NonCopyable, NonMovable {
   Library *ensure_library(StringRefNull library_absolute_path);
 };
 
-}  // namespace blender::bke::blendfile
+ENUM_OPERATORS(PartialWriteContext::IDAddOperations);
 
-void BKE_blendfile_write_partial_tag_ID(ID *id, bool set);
-void BKE_blendfile_write_partial_begin(Main *bmain_src);
-/**
- * \param remap_mode: Choose the kind of path remapping or none #eBLO_WritePathRemap.
- * \return Success.
- */
-bool BKE_blendfile_write_partial(
-    Main *bmain_src, const char *filepath, int write_flags, int remap_mode, ReportList *reports);
-void BKE_blendfile_write_partial_end(Main *bmain_src);
+}  // namespace bke::blendfile
+}  // namespace blender

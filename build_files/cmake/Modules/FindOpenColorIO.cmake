@@ -24,14 +24,6 @@ else()
   set(OPENCOLORIO_ROOT_DIR "")
 endif()
 
-set(_opencolorio_FIND_COMPONENTS
-  OpenColorIO
-  yaml-cpp
-  expat
-  pystring
-  minizip
-)
-
 set(_opencolorio_SEARCH_DIRS
   ${OPENCOLORIO_ROOT_DIR}
   /opt/lib/ocio
@@ -46,22 +38,17 @@ find_path(OPENCOLORIO_INCLUDE_DIR
     include
 )
 
-set(_opencolorio_LIBRARIES)
-foreach(COMPONENT ${_opencolorio_FIND_COMPONENTS})
-  string(TOUPPER ${COMPONENT} UPPERCOMPONENT)
+set(_opencolorio_LIBRARIES "")
 
-  find_library(OPENCOLORIO_${UPPERCOMPONENT}_LIBRARY
-    NAMES
-      ${COMPONENT}
-    HINTS
-      ${_opencolorio_SEARCH_DIRS}
-    PATH_SUFFIXES
-      lib64 lib lib64/static lib/static
-    )
-  if(OPENCOLORIO_${UPPERCOMPONENT}_LIBRARY)
-    list(APPEND _opencolorio_LIBRARIES "${OPENCOLORIO_${UPPERCOMPONENT}_LIBRARY}")
-  endif()
-endforeach()
+find_library(OPENCOLORIO_OPENCOLORIO_LIBRARY
+  NAMES
+    OpenColorIO
+  HINTS
+    ${_opencolorio_SEARCH_DIRS}
+  PATH_SUFFIXES
+    lib64 lib lib64/static lib/static
+)
+list(APPEND _opencolorio_LIBRARIES "${OPENCOLORIO_OPENCOLORIO_LIBRARY}")
 
 if(EXISTS "${OPENCOLORIO_INCLUDE_DIR}/OpenColorIO/OpenColorABI.h")
   # Search twice, because this symbol changed between OCIO 1.x and 2.x
@@ -79,8 +66,8 @@ endif()
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(OpenColorIO
-    REQUIRED_VARS _opencolorio_LIBRARIES OPENCOLORIO_INCLUDE_DIR
-    VERSION_VAR OPENCOLORIO_VERSION)
+  REQUIRED_VARS _opencolorio_LIBRARIES OPENCOLORIO_INCLUDE_DIR
+  VERSION_VAR OPENCOLORIO_VERSION)
 
 if(OPENCOLORIO_FOUND)
   set(OPENCOLORIO_LIBRARIES ${_opencolorio_LIBRARIES})
@@ -89,17 +76,9 @@ endif()
 
 mark_as_advanced(
   OPENCOLORIO_INCLUDE_DIR
-  OPENCOLORIO_LIBRARY
+  OPENCOLORIO_OPENCOLORIO_LIBRARY
   OPENCOLORIO_VERSION
 )
 
-foreach(COMPONENT ${_opencolorio_FIND_COMPONENTS})
-  string(TOUPPER ${COMPONENT} UPPERCOMPONENT)
-  mark_as_advanced(OPENCOLORIO_${UPPERCOMPONENT}_LIBRARY)
-endforeach()
-
-unset(COMPONENT)
-unset(UPPERCOMPONENT)
-unset(_opencolorio_FIND_COMPONENTS)
 unset(_opencolorio_LIBRARIES)
 unset(_opencolorio_SEARCH_DIRS)

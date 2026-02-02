@@ -5,9 +5,6 @@
 #include "material.hh"
 #include "usd_private.hh"
 
-#include <Python.h>
-#include <unicodeobject.h>
-
 #include <pxr/base/tf/stringUtils.h>
 #include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/renderDelegate.h>
@@ -19,18 +16,7 @@
 #  include <pxr/usd/usdMtlx/utils.h>
 #endif
 
-#include "MEM_guardedalloc.h"
-
-#include "BKE_lib_id.hh"
-#include "BKE_material.h"
-
-#include "RNA_access.hh"
-#include "RNA_prototypes.hh"
-#include "RNA_types.hh"
-
 #include "DEG_depsgraph_query.hh"
-
-#include "bpy_rna.h"
 
 #include "hydra_scene_delegate.hh"
 #include "image.hh"
@@ -39,14 +25,14 @@
 #include "intern/usd_writer_material.hh"
 
 #ifdef WITH_MATERIALX
-#  include "shader/materialx/node_parser.h"
-
 #  include "shader/materialx/material.h"
 #endif
 
+namespace blender {
+
 using namespace blender::io::usd;
 
-namespace blender::io::hydra {
+namespace io::hydra {
 
 MaterialData::MaterialData(HydraSceneDelegate *scene_delegate,
                            const Material *material,
@@ -57,8 +43,9 @@ MaterialData::MaterialData(HydraSceneDelegate *scene_delegate,
 
 void MaterialData::init()
 {
-  ID_LOGN(1, "");
-  double_sided = (((Material *)id)->blend_flag & MA_BL_CULL_BACKFACE) == 0;
+  ID_LOGN("");
+  double_sided = ((id_cast<Material *>(const_cast<ID *>(id)))->blend_flag & MA_BL_CULL_BACKFACE) ==
+                 0;
   material_network_map_ = pxr::VtValue();
 
   /* Create temporary in memory stage. */
@@ -81,17 +68,17 @@ void MaterialData::init()
                                          material_library_path,
                                          get_time_code,
                                          export_params,
-                                         blender::io::usd::image_cache_file_path(),
+                                         io::usd::image_cache_file_path(),
                                          cache_or_get_image_file};
   /* Create USD material. */
   pxr::UsdShadeMaterial usd_material;
 #ifdef WITH_MATERIALX
   if (scene_delegate_->use_materialx) {
-    blender::nodes::materialx::ExportParams materialx_export_params{
-        cache_or_get_image_file, "st", "UVMap"};
     std::string material_name = pxr::TfMakeValidIdentifier(id->name);
-    MaterialX::DocumentPtr doc = blender::nodes::materialx::export_to_materialx(
-        scene_delegate_->depsgraph, (Material *)id, material_name, materialx_export_params);
+    nodes::materialx::ExportParams materialx_export_params{
+        material_name, cache_or_get_image_file, "st", "UVMap"};
+    MaterialX::DocumentPtr doc = nodes::materialx::export_to_materialx(
+        scene_delegate_->depsgraph, (Material *)id, materialx_export_params);
     pxr::UsdMtlxRead(doc, stage);
 
     /* Logging stage: creating lambda stage_str() to not call stage->ExportToString()
@@ -101,7 +88,7 @@ void MaterialData::init()
       stage->ExportToString(&str);
       return str;
     };
-    ID_LOGN(2, "Stage:\n%s", stage_str().c_str());
+    ID_LOGN("Stage:\n%s", stage_str().c_str());
 
     if (pxr::UsdPrim materials = stage->GetPrimAtPath(pxr::SdfPath("/MaterialX/Materials"))) {
       pxr::UsdPrimSiblingRange children = materials.GetChildren();
@@ -139,20 +126,20 @@ void MaterialData::init()
 
 void MaterialData::insert()
 {
-  ID_LOGN(1, "");
+  ID_LOGN("");
   scene_delegate_->GetRenderIndex().InsertSprim(
       pxr::HdPrimTypeTokens->material, scene_delegate_, prim_id);
 }
 
 void MaterialData::remove()
 {
-  ID_LOG(1, "");
+  ID_LOG("");
   scene_delegate_->GetRenderIndex().RemoveSprim(pxr::HdPrimTypeTokens->material, prim_id);
 }
 
 void MaterialData::update()
 {
-  ID_LOGN(1, "");
+  ID_LOGN("");
   bool prev_double_sided = double_sided;
   init();
   scene_delegate_->GetRenderIndex().GetChangeTracker().MarkSprimDirty(prim_id,
@@ -183,4 +170,5 @@ pxr::HdCullStyle MaterialData::cull_style() const
   return double_sided ? pxr::HdCullStyle::HdCullStyleNothing : pxr::HdCullStyle::HdCullStyleBack;
 }
 
-}  // namespace blender::io::hydra
+}  // namespace io::hydra
+}  // namespace blender

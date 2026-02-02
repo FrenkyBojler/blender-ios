@@ -10,14 +10,17 @@
  * since its the main purpose of the API.
  */
 
-#include <stddef.h>
+#include <cstddef>
 
 #include <optional>
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_string_ref.hh"
 
-struct ListBase;
+#include "DNA_listBase.h"
+
+namespace blender {
 
 /**
  * Sanity check to ensure correct API use in debug mode.
@@ -43,12 +46,6 @@ const char *BKE_appdir_folder_default() ATTR_WARN_UNUSED_RESULT;
 const char *BKE_appdir_folder_root() ATTR_WARN_UNUSED_RESULT ATTR_RETURNS_NONNULL;
 const char *BKE_appdir_folder_default_or_root() ATTR_WARN_UNUSED_RESULT ATTR_RETURNS_NONNULL;
 /**
- * Get the user's home directory, i.e.
- * - Unix: `$HOME`
- * - Windows: `%userprofile%`
- */
-const char *BKE_appdir_folder_home();
-/**
  * Get the user's document directory, i.e.
  * - Linux: `$HOME/Documents`
  * - Windows: `%userprofile%/Documents`
@@ -61,13 +58,14 @@ bool BKE_appdir_folder_documents(char *dir) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RES
 /**
  * Get the user's cache directory, i.e.
  * - Linux: `$HOME/.cache/blender/`
- * - Windows: `%USERPROFILE%\AppData\Local\Blender Foundation\Blender\`
- * - MacOS: `/Library/Caches/Blender`
+ * - Windows: `%USERPROFILE%\AppData\Local\Blender Foundation\Blender\Cache\`
+ * - MacOS: `$HOME/Library/Caches/Blender/`
  *
  * \returns True if the path is valid. It doesn't create or checks format
  * if the `blender` folder exists. It does check if the parent of the path exists.
  */
-bool BKE_appdir_folder_caches(char *r_path, size_t r_path_maxncpy) ATTR_NONNULL(1);
+bool BKE_appdir_folder_caches(char *path, size_t path_maxncpy) ATTR_NONNULL(1);
+
 /**
  * Get a folder out of the \a folder_id presets for paths.
  *
@@ -107,7 +105,7 @@ bool BKE_appdir_app_template_any();
 bool BKE_appdir_app_template_id_search(const char *app_template, char *path, size_t path_maxncpy)
     ATTR_NONNULL(1);
 bool BKE_appdir_app_template_has_userpref(const char *app_template) ATTR_NONNULL(1);
-void BKE_appdir_app_templates(ListBase *templates) ATTR_NONNULL(1);
+void BKE_appdir_app_templates(ListBaseT<LinkData> *templates) ATTR_NONNULL(1);
 
 /**
  * Initialize path to program executable.
@@ -131,8 +129,8 @@ bool BKE_appdir_font_folder_default(char *dir, size_t dir_maxncpy);
 /**
  * Find Python executable.
  */
-bool BKE_appdir_program_python_search(char *fullpath,
-                                      size_t fullpath_len,
+bool BKE_appdir_program_python_search(char *program_filepath,
+                                      size_t program_filepath_maxncpy,
                                       int version_major,
                                       int version_minor) ATTR_NONNULL(1);
 
@@ -190,3 +188,5 @@ enum {
 #define BLENDER_HISTORY_FILE "recent-files.txt"
 #define BLENDER_RECENT_SEARCHES_FILE "recent-searches.txt"
 #define BLENDER_PLATFORM_SUPPORT_FILE "platform_support.txt"
+
+}  // namespace blender

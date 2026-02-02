@@ -8,6 +8,10 @@
 
 #pragma once
 
+#include "ED_keyframes_edit.hh"
+
+namespace blender {
+
 struct ARegion;
 struct ARegionType;
 struct SpaceGraph;
@@ -26,7 +30,7 @@ struct bContext;
 void graph_draw_channel_names(bContext *C,
                               bAnimContext *ac,
                               ARegion *region,
-                              const ListBase /* bAnimListElem */ &anim_data);
+                              const ListBaseT<bAnimListElem> &anim_data);
 
 /**
  * This is called twice from `space_graph.cc`, #graph_main_region_draw()
@@ -53,7 +57,7 @@ void graph_draw_ghost_curves(bAnimContext *ac, SpaceGraph *sipo, ARegion *region
  *   2 = invert
  * - do_channels: whether to affect selection status of channels
  */
-void deselect_graph_keys(bAnimContext *ac, bool test, short sel, bool do_channels);
+void deselect_graph_keys(bAnimContext *ac, bool test, eEditKeyframes_Select sel, bool do_channels);
 
 void GRAPH_OT_select_all(wmOperatorType *ot);
 void GRAPH_OT_select_box(wmOperatorType *ot);
@@ -247,3 +251,5 @@ bool graphop_selected_fcurve_poll(bContext *C);
 
 void graphedit_keymap(wmKeyConfig *keyconf);
 void graphedit_operatortypes();
+
+}  // namespace blender

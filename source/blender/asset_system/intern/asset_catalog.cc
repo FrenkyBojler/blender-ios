@@ -16,7 +16,7 @@
 #include "asset_catalog_definition_file.hh"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 /* For S_ISREG() and S_ISDIR() on Windows. */
 #ifdef WIN32
@@ -27,19 +27,23 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"asset_system.asset_catalog_service"};
+namespace blender {
 
-namespace blender::asset_system {
+static CLG_LogRef LOG = {"asset.catalog"};
+
+namespace asset_system {
 
 const CatalogFilePath AssetCatalogService::DEFAULT_CATALOG_FILENAME = "blender_assets.cats.txt";
 
-AssetCatalogService::AssetCatalogService(const CatalogFilePath &asset_library_root)
+AssetCatalogService::AssetCatalogService(const CatalogFilePath &asset_library_root,
+                                         std::optional<read_only_tag> read_only_tag)
     : catalog_collection_(std::make_unique<AssetCatalogCollection>()),
-      asset_library_root_(asset_library_root)
+      asset_library_root_(asset_library_root),
+      is_read_only_(read_only_tag ? true : false)
 {
 }
 
-AssetCatalogService::AssetCatalogService(read_only_tag) : AssetCatalogService()
+AssetCatalogService::AssetCatalogService(read_only_tag /*unused*/) : AssetCatalogService()
 {
   const_cast<bool &>(is_read_only_) = true;
 }
@@ -345,7 +349,7 @@ void AssetCatalogService::load_directory_recursive(const CatalogFilePath &direct
 
   if (!BLI_exists(file_path.data())) {
     /* No file to be loaded is perfectly fine. */
-    CLOG_INFO(&LOG, 2, "path not found: %s", file_path.data());
+    CLOG_DEBUG(&LOG, "path not found: %s", file_path.data());
     return;
   }
 
@@ -467,7 +471,12 @@ bool AssetCatalogService::is_catalog_known_with_unsaved_changes(const CatalogID 
 
 bool AssetCatalogService::write_to_disk(const CatalogFilePath &blend_file_path)
 {
+  /* The caller should probably check this somewhat earlier and properly disable whatever operation
+   * triggers the writing. */
   BLI_assert(!is_read_only_);
+  if (is_read_only_) {
+    return false;
+  }
 
   if (!this->write_to_disk_ex(blend_file_path)) {
     return false;
@@ -482,22 +491,29 @@ bool AssetCatalogService::write_to_disk_ex(const CatalogFilePath &blend_file_pat
 {
   /* TODO(Sybren): expand to support multiple CDFs. */
 
-  /* - Already loaded a CDF from disk? -> Always write to that file. */
+  /* - Already loaded a CDF from disk? -> Only write to that file when there were actual changes.
+   * This prevents touching the file, which can cause issues when multiple Blender instances are
+   * accessing the same file (like on shared storage, Sync-thing, etc.). See #111576.
+   */
   if (catalog_collection_->catalog_definition_file_) {
+    /* Always sync with what's on disk. */
     this->reload_catalogs();
+
+    if (!this->has_unsaved_changes() &&
+        catalog_collection_->catalog_definition_file_->exists_on_disk())
+    {
+      return true;
+    }
     return catalog_collection_->catalog_definition_file_->write_to_disk();
   }
 
-  if (catalog_collection_->catalogs_.is_empty() &&
-      catalog_collection_->deleted_catalogs_.is_empty())
-  {
+  if (catalog_collection_->is_empty()) {
     /* Avoid saving anything, when there is nothing to save. */
     return true; /* Writing nothing when there is nothing to write is still a success. */
   }
 
-  const CatalogFilePath cdf_path_to_write = this->find_suitable_cdf_path_for_writing(
-      blend_file_path);
-  catalog_collection_->catalog_definition_file_ = this->construct_cdf_in_memory(cdf_path_to_write);
+  const CatalogFilePath cdf_path_to_write = find_suitable_cdf_path_for_writing(blend_file_path);
+  catalog_collection_->catalog_definition_file_ = construct_cdf_in_memory(cdf_path_to_write);
   this->reload_catalogs();
   return catalog_collection_->catalog_definition_file_->write_to_disk();
 }
@@ -729,4 +745,6 @@ bool AssetCatalogFilter::is_known(const CatalogID asset_catalog_id) const
   return known_catalog_ids_.contains(asset_catalog_id);
 }
 
-}  // namespace blender::asset_system
+}  // namespace asset_system
+
+}  // namespace blender

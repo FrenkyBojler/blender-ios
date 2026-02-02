@@ -24,59 +24,71 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_defaults.h"
-
 #include "DNA_gpencil_legacy_types.h"
+
 #include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view3d_types.h"
 
-#include "BLI_utildefines.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
+#include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_threads.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_idtype.hh"
-#include "BKE_image.h" /* openanim */
+#include "BKE_image.hh" /* openanim */
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_node_tree_update.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
+#include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_moviecache.hh"
 #include "IMB_openexr.hh"
 
+#include "MOV_read.hh"
+
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
-
-#include "DRW_engine.hh"
 
 #include "GPU_texture.hh"
 
 #include "BLO_read_write.hh"
 
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"gpu.texture"};
+
 static void free_buffers(MovieClip *clip);
+
+/** Reset runtime mask fields when data-block is being initialized. */
+static void movie_clip_runtime_reset(MovieClip *clip)
+{
+  /* TODO: we could store those in undo cache storage as well, and preserve them instead of
+   * re-creating them... */
+  BLI_listbase_clear(&clip->runtime.gputextures);
+
+  clip->runtime.last_update = 0;
+}
 
 static void movie_clip_init_data(ID *id)
 {
-  MovieClip *movie_clip = (MovieClip *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(movie_clip, id));
-
-  MEMCPY_STRUCT_AFTER(movie_clip, DNA_struct_default_get(MovieClip), id);
+  MovieClip *movie_clip = id_cast<MovieClip *>(id);
+  INIT_DEFAULT_STRUCT_AFTER(movie_clip, id);
 
   BKE_tracking_settings_init(&movie_clip->tracking);
   BKE_color_managed_colorspace_settings_init(&movie_clip->colorspace_settings);
@@ -88,8 +100,8 @@ static void movie_clip_copy_data(Main * /*bmain*/,
                                  const ID *id_src,
                                  const int flag)
 {
-  MovieClip *movie_clip_dst = (MovieClip *)id_dst;
-  const MovieClip *movie_clip_src = (const MovieClip *)id_src;
+  MovieClip *movie_clip_dst = id_cast<MovieClip *>(id_dst);
+  const MovieClip *movie_clip_src = id_cast<const MovieClip *>(id_src);
 
   /* We never handle user-count here for owned data. */
   const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
@@ -100,36 +112,33 @@ static void movie_clip_copy_data(Main * /*bmain*/,
   BKE_tracking_copy(&movie_clip_dst->tracking, &movie_clip_src->tracking, flag_subdata);
   movie_clip_dst->tracking_context = nullptr;
 
-  BLI_listbase_clear((ListBase *)&movie_clip_dst->drawdata);
-
   BKE_color_managed_colorspace_settings_copy(&movie_clip_dst->colorspace_settings,
                                              &movie_clip_src->colorspace_settings);
 }
 
 static void movie_clip_free_data(ID *id)
 {
-  MovieClip *movie_clip = (MovieClip *)id;
+  MovieClip *movie_clip = id_cast<MovieClip *>(id);
 
-  /* Also frees animdata. */
+  /* Also frees animation-data. */
   free_buffers(movie_clip);
 
   BKE_tracking_free(&movie_clip->tracking);
-  DRW_drawdata_free(id);
 }
 
 static void movie_clip_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  MovieClip *movie_clip = (MovieClip *)id;
+  MovieClip *movie_clip = id_cast<MovieClip *>(id);
   MovieTracking *tracking = &movie_clip->tracking;
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, movie_clip->gpd, IDWALK_CB_USER);
 
-  LISTBASE_FOREACH (MovieTrackingObject *, object, &tracking->objects) {
-    LISTBASE_FOREACH (MovieTrackingTrack *, track, &object->tracks) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, track->gpd, IDWALK_CB_USER);
+  for (MovieTrackingObject &object : tracking->objects) {
+    for (MovieTrackingTrack &track : object.tracks) {
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, track.gpd, IDWALK_CB_USER);
     }
-    LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, &object->plane_tracks) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, plane_track->image, IDWALK_CB_USER);
+    for (MovieTrackingPlaneTrack &plane_track : object.plane_tracks) {
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, plane_track.image, IDWALK_CB_USER);
     }
   }
 }
@@ -138,47 +147,47 @@ static void movie_clip_foreach_cache(ID *id,
                                      IDTypeForeachCacheFunctionCallback function_callback,
                                      void *user_data)
 {
-  MovieClip *movie_clip = (MovieClip *)id;
+  MovieClip *movie_clip = id_cast<MovieClip *>(id);
   IDCacheKey key{};
   key.id_session_uid = id->session_uid;
   key.identifier = offsetof(MovieClip, cache);
-  function_callback(id, &key, (void **)&movie_clip->cache, 0, user_data);
+  function_callback(id, &key, reinterpret_cast<void **>(&movie_clip->cache), 0, user_data);
 
   key.identifier = offsetof(MovieClip, tracking.camera.intrinsics);
-  function_callback(id, &key, (void **)&movie_clip->tracking.camera.intrinsics, 0, user_data);
+  function_callback(id, &key, (&movie_clip->tracking.camera.intrinsics), 0, user_data);
 }
 
 static void movie_clip_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
-  MovieClip *movie_clip = (MovieClip *)id;
+  MovieClip *movie_clip = id_cast<MovieClip *>(id);
   BKE_bpath_foreach_path_fixed_process(
       bpath_data, movie_clip->filepath, sizeof(movie_clip->filepath));
 }
 
-static void write_movieTracks(BlendWriter *writer, ListBase *tracks)
+static void write_movieTracks(BlendWriter *writer, ListBaseT<MovieTrackingTrack> *tracks)
 {
   MovieTrackingTrack *track;
 
   track = static_cast<MovieTrackingTrack *>(tracks->first);
   while (track) {
-    BLO_write_struct(writer, MovieTrackingTrack, track);
+    writer->write_struct(track);
 
     if (track->markers) {
-      BLO_write_struct_array(writer, MovieTrackingMarker, track->markersnr, track->markers);
+      writer->write_struct_array(track->markersnr, track->markers);
     }
 
     track = track->next;
   }
 }
 
-static void write_moviePlaneTracks(BlendWriter *writer, ListBase *plane_tracks_base)
+static void write_moviePlaneTracks(BlendWriter *writer,
+                                   ListBaseT<MovieTrackingPlaneTrack> *plane_tracks_base)
 {
-  LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, plane_tracks_base) {
-    BLO_write_struct(writer, MovieTrackingPlaneTrack, plane_track);
+  for (MovieTrackingPlaneTrack &plane_track : *plane_tracks_base) {
+    writer->write_struct(&plane_track);
 
-    BLO_write_pointer_array(writer, plane_track->point_tracksnr, plane_track->point_tracks);
-    BLO_write_struct_array(
-        writer, MovieTrackingPlaneMarker, plane_track->markersnr, plane_track->markers);
+    BLO_write_pointer_array(writer, plane_track.point_tracksnr, plane_track.point_tracks);
+    writer->write_struct_array(plane_track.markersnr, plane_track.markers);
   }
 }
 
@@ -186,14 +195,13 @@ static void write_movieReconstruction(BlendWriter *writer,
                                       MovieTrackingReconstruction *reconstruction)
 {
   if (reconstruction->camnr) {
-    BLO_write_struct_array(
-        writer, MovieReconstructedCamera, reconstruction->camnr, reconstruction->cameras);
+    writer->write_struct_array(reconstruction->camnr, reconstruction->cameras);
   }
 }
 
 static void movieclip_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  MovieClip *clip = (MovieClip *)id;
+  MovieClip *clip = id_cast<MovieClip *>(id);
 
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
   clip->anim = nullptr;
@@ -202,14 +210,14 @@ static void movieclip_blend_write(BlendWriter *writer, ID *id, const void *id_ad
 
   MovieTracking *tracking = &clip->tracking;
 
-  BLO_write_id_struct(writer, MovieClip, id_address, &clip->id);
+  writer->write_id_struct(id_address, clip);
   BKE_id_blend_write(writer, &clip->id);
 
-  LISTBASE_FOREACH (MovieTrackingObject *, object, &tracking->objects) {
-    BLO_write_struct(writer, MovieTrackingObject, object);
-    write_movieTracks(writer, &object->tracks);
-    write_moviePlaneTracks(writer, &object->plane_tracks);
-    write_movieReconstruction(writer, &object->reconstruction);
+  for (MovieTrackingObject &object : tracking->objects) {
+    writer->write_struct(&object);
+    write_movieTracks(writer, &object.tracks);
+    write_moviePlaneTracks(writer, &object.plane_tracks);
+    write_movieReconstruction(writer, &object.reconstruction);
   }
 }
 
@@ -220,33 +228,36 @@ static void direct_link_movieReconstruction(BlendDataReader *reader,
       reader, MovieReconstructedCamera, reconstruction->camnr, &reconstruction->cameras);
 }
 
-static void direct_link_movieTracks(BlendDataReader *reader, ListBase *tracksbase)
+static void direct_link_movieTracks(BlendDataReader *reader,
+                                    ListBaseT<MovieTrackingTrack> *tracksbase)
 {
   BLO_read_struct_list(reader, MovieTrackingTrack, tracksbase);
 
-  LISTBASE_FOREACH (MovieTrackingTrack *, track, tracksbase) {
-    BLO_read_struct_array(reader, MovieTrackingMarker, track->markersnr, &track->markers);
+  for (MovieTrackingTrack &track : *tracksbase) {
+    BLO_read_struct_array(reader, MovieTrackingMarker, track.markersnr, &track.markers);
   }
 }
 
-static void direct_link_moviePlaneTracks(BlendDataReader *reader, ListBase *plane_tracks_base)
+static void direct_link_moviePlaneTracks(BlendDataReader *reader,
+                                         ListBaseT<MovieTrackingPlaneTrack> *plane_tracks_base)
 {
   BLO_read_struct_list(reader, MovieTrackingPlaneTrack, plane_tracks_base);
 
-  LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, plane_tracks_base) {
-    BLO_read_pointer_array(reader, (void **)&plane_track->point_tracks);
-    for (int i = 0; i < plane_track->point_tracksnr; i++) {
-      BLO_read_struct(reader, MovieTrackingTrack, &plane_track->point_tracks[i]);
+  for (MovieTrackingPlaneTrack &plane_track : *plane_tracks_base) {
+    BLO_read_pointer_array(
+        reader, plane_track.point_tracksnr, reinterpret_cast<void **>(&plane_track.point_tracks));
+    for (int i = 0; i < plane_track.point_tracksnr; i++) {
+      BLO_read_struct(reader, MovieTrackingTrack, &plane_track.point_tracks[i]);
     }
 
     BLO_read_struct_array(
-        reader, MovieTrackingPlaneMarker, plane_track->markersnr, &plane_track->markers);
+        reader, MovieTrackingPlaneMarker, plane_track.markersnr, &plane_track.markers);
   }
 }
 
 static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  MovieClip *clip = (MovieClip *)id;
+  MovieClip *clip = id_cast<MovieClip *>(id);
   MovieTracking *tracking = &clip->tracking;
 
   direct_link_movieTracks(reader, &tracking->tracks_legacy);
@@ -260,10 +271,6 @@ static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
   clip->tracking_context = nullptr;
   clip->tracking.stats = nullptr;
 
-  /* TODO: we could store those in undo cache storage as well, and preserve them instead of
-   * re-creating them... */
-  BLI_listbase_clear(&clip->runtime.gputextures);
-
   /* Needed for proper versioning, will be nullptr for all newer files anyway. */
   BLO_read_struct(reader, MovieTrackingTrack, &clip->tracking.stabilization.rot_track_legacy);
 
@@ -273,18 +280,20 @@ static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_struct_list(reader, MovieTrackingObject, &tracking->objects);
 
-  LISTBASE_FOREACH (MovieTrackingObject *, object, &tracking->objects) {
-    direct_link_movieTracks(reader, &object->tracks);
-    direct_link_moviePlaneTracks(reader, &object->plane_tracks);
-    direct_link_movieReconstruction(reader, &object->reconstruction);
+  for (MovieTrackingObject &object : tracking->objects) {
+    direct_link_movieTracks(reader, &object.tracks);
+    direct_link_moviePlaneTracks(reader, &object.plane_tracks);
+    direct_link_movieReconstruction(reader, &object.reconstruction);
 
-    BLO_read_struct(reader, MovieTrackingTrack, &object->active_track);
-    BLO_read_struct(reader, MovieTrackingPlaneTrack, &object->active_plane_track);
+    BLO_read_struct(reader, MovieTrackingTrack, &object.active_track);
+    BLO_read_struct(reader, MovieTrackingPlaneTrack, &object.active_plane_track);
   }
+
+  movie_clip_runtime_reset(clip);
 }
 
 IDTypeInfo IDType_ID_MC = {
-    /*id_code*/ ID_MC,
+    /*id_code*/ MovieClip::id_type,
     /*id_filter*/ FILTER_ID_MC,
     /*dependencies_id_types*/ FILTER_ID_GD_LEGACY | FILTER_ID_IM,
     /*main_listbase_index*/ INDEX_ID_MC,
@@ -302,6 +311,7 @@ IDTypeInfo IDType_ID_MC = {
     /*foreach_id*/ movie_clip_foreach_id,
     /*foreach_cache*/ movie_clip_foreach_cache,
     /*foreach_path*/ movie_clip_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ movieclip_blend_write,
@@ -455,12 +465,16 @@ static void get_proxy_filepath(const MovieClip *clip,
   BLI_strncat(filepath, ".jpg", FILE_MAX);
 }
 
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
+
+namespace {
 
 struct MultilayerConvertContext {
   float *combined_pass;
   int num_combined_channels;
 };
+
+}  // namespace
 
 static void *movieclip_convert_multilayer_add_view(void * /*ctx_v*/, const char * /*view_name*/)
 {
@@ -487,7 +501,7 @@ static void movieclip_convert_multilayer_add_pass(void * /*layer*/,
   MultilayerConvertContext *ctx = static_cast<MultilayerConvertContext *>(ctx_v);
   /* If we've found a first combined pass, skip all the rest ones. */
   if (ctx->combined_pass != nullptr) {
-    MEM_freeN(rect);
+    MEM_delete(rect);
     return;
   }
   if (STREQ(pass_name, RE_PASSNAME_COMBINED) || STR_ELEM(chan_id, "RGBA", "RGB")) {
@@ -495,25 +509,25 @@ static void movieclip_convert_multilayer_add_pass(void * /*layer*/,
     ctx->num_combined_channels = num_channels;
   }
   else {
-    MEM_freeN(rect);
+    MEM_delete(rect);
   }
 }
 
-#endif /* WITH_OPENEXR */
+#endif /* WITH_IMAGE_OPENEXR */
 
 void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
 {
   if (ibuf == nullptr) {
     return;
   }
-#ifdef WITH_OPENEXR
-  if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->userdata == nullptr) {
+#ifdef WITH_IMAGE_OPENEXR
+  if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->exrhandle == nullptr) {
     return;
   }
   MultilayerConvertContext ctx;
   ctx.combined_pass = nullptr;
   ctx.num_combined_channels = 0;
-  IMB_exr_multilayer_convert(ibuf->userdata,
+  IMB_exr_multilayer_convert(ibuf->exrhandle,
                              &ctx,
                              movieclip_convert_multilayer_add_view,
                              movieclip_convert_multilayer_add_layer,
@@ -523,8 +537,8 @@ void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
     IMB_assign_float_buffer(ibuf, ctx.combined_pass, IB_TAKE_OWNERSHIP);
     ibuf->channels = ctx.num_combined_channels;
   }
-  IMB_exr_close(ibuf->userdata);
-  ibuf->userdata = nullptr;
+  IMB_exr_close(ibuf->exrhandle);
+  ibuf->exrhandle = nullptr;
 #endif
 }
 
@@ -561,10 +575,10 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
     colorspace = clip->colorspace_settings.name;
   }
 
-  loadflag = IB_rect | IB_multilayer | IB_alphamode_detect | IB_metadata;
+  loadflag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
 
   /* read ibuf */
-  ibuf = IMB_loadiffname(filepath, loadflag, colorspace);
+  ibuf = IMB_load_image_from_filepath(filepath, loadflag, colorspace);
   BKE_movieclip_convert_multilayer_ibuf(ibuf);
 
   return ibuf;
@@ -579,14 +593,14 @@ static void movieclip_open_anim_file(MovieClip *clip)
     BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
 
     /* FIXME: make several stream accessible in image editor, too */
-    clip->anim = openanim(filepath_abs, IB_rect, 0, clip->colorspace_settings.name);
+    clip->anim = openanim(filepath_abs, IB_byte_data, 0, false, clip->colorspace_settings.name);
 
     if (clip->anim) {
       if (clip->flag & MCLIP_USE_PROXY_CUSTOM_DIR) {
         char dir[FILE_MAX];
         STRNCPY(dir, clip->proxy.dir);
         BLI_path_abs(dir, BKE_main_blendfile_path_from_global());
-        IMB_anim_set_index_dir(clip->anim, dir);
+        MOV_set_custom_proxy_dir(clip->anim, dir);
       }
     }
   }
@@ -606,7 +620,7 @@ static ImBuf *movieclip_load_movie_file(MovieClip *clip,
   if (clip->anim) {
     int fra = framenr - clip->start_frame + clip->frame_offset;
 
-    ibuf = IMB_anim_absolute(clip->anim, fra, IMB_Timecode_Type(tc), IMB_Proxy_Size(proxy));
+    ibuf = MOV_decode_frame(clip->anim, fra, IMB_Timecode_Type(tc), IMB_Proxy_Size(proxy));
   }
 
   return ibuf;
@@ -618,7 +632,7 @@ static void movieclip_calc_length(MovieClip *clip)
     movieclip_open_anim_file(clip);
 
     if (clip->anim) {
-      clip->len = IMB_anim_get_duration(clip->anim, IMB_Timecode_Type(clip->proxy.tc));
+      clip->len = MOV_get_duration_frames(clip->anim, IMB_Timecode_Type(clip->proxy.tc));
     }
   }
   else if (clip->source == MCLIP_SRC_SEQUENCE) {
@@ -657,7 +671,7 @@ struct MovieClipCache {
   struct {
     ImBuf *ibuf;
     int framenr;
-    int flag;
+    MovieClipPostprocFlag flag;
 
     /* cache for undistorted shot */
     float focal_length;
@@ -665,6 +679,7 @@ struct MovieClipCache {
     float polynomial_k[3];
     float division_k[2];
     float nuke_k[2];
+    float nuke_p[2];
     float brown_k[4];
     float brown_p[2];
     short distortion_model;
@@ -680,7 +695,7 @@ struct MovieClipCache {
 
     ImBuf *ibuf;
     int framenr;
-    int postprocess_flag;
+    MovieClipPostprocFlag postprocess_flag;
 
     float loc[2], scale, angle, aspect;
     int proxy, filter;
@@ -757,11 +772,10 @@ static bool moviecache_hashcmp(const void *av, const void *bv)
 
 static void *moviecache_getprioritydata(void *key_v)
 {
-  MovieClipImBufCacheKey *key = (MovieClipImBufCacheKey *)key_v;
+  MovieClipImBufCacheKey *key = static_cast<MovieClipImBufCacheKey *>(key_v);
   MovieClipCachePriorityData *priority_data;
 
-  priority_data = static_cast<MovieClipCachePriorityData *>(
-      MEM_callocN(sizeof(*priority_data), "movie cache clip priority data"));
+  priority_data = MEM_new_zeroed<MovieClipCachePriorityData>("movie cache clip priority data");
   priority_data->framenr = key->framenr;
 
   return priority_data;
@@ -769,17 +783,19 @@ static void *moviecache_getprioritydata(void *key_v)
 
 static int moviecache_getitempriority(void *last_userkey_v, void *priority_data_v)
 {
-  MovieClipImBufCacheKey *last_userkey = (MovieClipImBufCacheKey *)last_userkey_v;
-  MovieClipCachePriorityData *priority_data = (MovieClipCachePriorityData *)priority_data_v;
+  MovieClipImBufCacheKey *last_userkey = static_cast<MovieClipImBufCacheKey *>(last_userkey_v);
+  MovieClipCachePriorityData *priority_data = static_cast<MovieClipCachePriorityData *>(
+      priority_data_v);
 
   return -abs(last_userkey->framenr - priority_data->framenr);
 }
 
 static void moviecache_prioritydeleter(void *priority_data_v)
 {
-  MovieClipCachePriorityData *priority_data = (MovieClipCachePriorityData *)priority_data_v;
+  MovieClipCachePriorityData *priority_data = static_cast<MovieClipCachePriorityData *>(
+      priority_data_v);
 
-  MEM_freeN(priority_data);
+  MEM_delete(priority_data);
 }
 
 static ImBuf *get_imbuf_cache(MovieClip *clip, const MovieClipUser *user, int flag)
@@ -842,8 +858,7 @@ static bool put_imbuf_cache(
     // char cache_name[64];
     // SNPRINTF(cache_name, "movie %s", clip->id.name);
 
-    clip->cache = static_cast<MovieClipCache *>(
-        MEM_callocN(sizeof(MovieClipCache), "movieClipCache"));
+    clip->cache = MEM_new_zeroed<MovieClipCache>("movieClipCache");
 
     moviecache = IMB_moviecache_create(
         "movieclip", sizeof(MovieClipImBufCacheKey), moviecache_hashhash, moviecache_hashcmp);
@@ -889,7 +904,7 @@ static bool put_imbuf_cache(
 
 static bool moviecache_check_free_proxy(ImBuf * /*ibuf*/, void *userkey, void * /*userdata*/)
 {
-  MovieClipImBufCacheKey *key = (MovieClipImBufCacheKey *)userkey;
+  MovieClipImBufCacheKey *key = static_cast<MovieClipImBufCacheKey *>(userkey);
 
   return !(key->proxy == IMB_PROXY_NONE && key->render_flag == 0);
 }
@@ -901,7 +916,7 @@ static MovieClip *movieclip_alloc(Main *bmain, const char *name)
 {
   MovieClip *clip;
 
-  clip = static_cast<MovieClip *>(BKE_id_new(bmain, ID_MC, name));
+  clip = BKE_id_new<MovieClip>(bmain, name);
 
   return clip;
 }
@@ -909,7 +924,7 @@ static MovieClip *movieclip_alloc(Main *bmain, const char *name)
 static void movieclip_load_get_size(MovieClip *clip)
 {
   int width, height;
-  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+  MovieClipUser user = {};
 
   user.framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, 1);
   BKE_movieclip_get_size(clip, &user, &width, &height);
@@ -925,9 +940,9 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   char filepath[FILE_MAX];
 
   STRNCPY(filepath, clip->filepath);
-  BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
+  BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &clip->id));
 
-  ibuf = IMB_testiffname(filepath, IB_rect | IB_multilayer);
+  ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_multilayer | IB_test);
   if (ibuf) {
     clip->source = MCLIP_SRC_SEQUENCE;
     IMB_freeImBuf(ibuf);
@@ -1046,7 +1061,7 @@ static ImBuf *get_undistorted_ibuf(MovieClip *clip, MovieDistortion *distortion,
     undistibuf = BKE_tracking_undistort_frame(&clip->tracking, ibuf, ibuf->x, ibuf->y, 0.0f);
   }
 
-  IMB_scaleImBuf(undistibuf, ibuf->x, ibuf->y);
+  IMB_scale(undistibuf, ibuf->x, ibuf->y, IMBScaleFilter::Box, false);
 
   return undistibuf;
 }
@@ -1063,9 +1078,9 @@ static bool need_undistortion_postprocess(const MovieClipUser *user, int clip_fl
 
 static bool need_postprocessed_frame(const MovieClipUser *user,
                                      int clip_flag,
-                                     int postprocess_flag)
+                                     MovieClipPostprocFlag postprocess_flag)
 {
-  bool result = (postprocess_flag != 0);
+  bool result = (postprocess_flag != MovieClipPostprocFlag::None);
   result |= need_undistortion_postprocess(user, clip_flag);
   return result;
 }
@@ -1099,6 +1114,9 @@ static bool check_undistortion_cache_flags(const MovieClip *clip)
   if (!equals_v2v2(&camera->nuke_k1, cache->postprocessed.nuke_k)) {
     return false;
   }
+  if (!equals_v2v2(&camera->nuke_p1, cache->postprocessed.nuke_p)) {
+    return false;
+  }
 
   if (!equals_v4v4(&camera->brown_k1, cache->postprocessed.brown_k)) {
     return false;
@@ -1113,7 +1131,7 @@ static bool check_undistortion_cache_flags(const MovieClip *clip)
 static ImBuf *get_postprocessed_cached_frame(const MovieClip *clip,
                                              const MovieClipUser *user,
                                              int flag,
-                                             int postprocess_flag)
+                                             MovieClipPostprocFlag postprocess_flag)
 {
   const MovieClipCache *cache = clip->cache;
   int framenr = user->framenr;
@@ -1158,8 +1176,11 @@ static ImBuf *get_postprocessed_cached_frame(const MovieClip *clip,
   return cache->postprocessed.ibuf;
 }
 
-static ImBuf *postprocess_frame(
-    MovieClip *clip, const MovieClipUser *user, ImBuf *ibuf, int flag, int postprocess_flag)
+static ImBuf *postprocess_frame(MovieClip *clip,
+                                const MovieClipUser *user,
+                                ImBuf *ibuf,
+                                int flag,
+                                MovieClipPostprocFlag postprocess_flag)
 {
   ImBuf *postproc_ibuf = nullptr;
 
@@ -1170,11 +1191,11 @@ static ImBuf *postprocess_frame(
     postproc_ibuf = IMB_dupImBuf(ibuf);
   }
 
-  if (postprocess_flag) {
-    bool disable_red = (postprocess_flag & MOVIECLIP_DISABLE_RED) != 0;
-    bool disable_green = (postprocess_flag & MOVIECLIP_DISABLE_GREEN) != 0;
-    bool disable_blue = (postprocess_flag & MOVIECLIP_DISABLE_BLUE) != 0;
-    bool grayscale = (postprocess_flag & MOVIECLIP_PREVIEW_GRAYSCALE) != 0;
+  if (postprocess_flag != MovieClipPostprocFlag::None) {
+    bool disable_red = flag_is_set(postprocess_flag, MovieClipPostprocFlag::DisableRed);
+    bool disable_green = flag_is_set(postprocess_flag, MovieClipPostprocFlag::DisableGreen);
+    bool disable_blue = flag_is_set(postprocess_flag, MovieClipPostprocFlag::DisableBlue);
+    bool grayscale = flag_is_set(postprocess_flag, MovieClipPostprocFlag::PreviewGray);
 
     if (disable_red || disable_green || disable_blue || grayscale) {
       BKE_tracking_disable_channels(postproc_ibuf, disable_red, disable_green, disable_blue, true);
@@ -1184,8 +1205,11 @@ static ImBuf *postprocess_frame(
   return postproc_ibuf;
 }
 
-static void put_postprocessed_frame_to_cache(
-    MovieClip *clip, const MovieClipUser *user, ImBuf *ibuf, int flag, int postprocess_flag)
+static void put_postprocessed_frame_to_cache(MovieClip *clip,
+                                             const MovieClipUser *user,
+                                             ImBuf *ibuf,
+                                             int flag,
+                                             MovieClipPostprocFlag postprocess_flag)
 {
   MovieClipCache *cache = clip->cache;
   MovieTrackingCamera *camera = &clip->tracking.camera;
@@ -1209,6 +1233,7 @@ static void put_postprocessed_frame_to_cache(
     copy_v3_v3(cache->postprocessed.polynomial_k, &camera->k1);
     copy_v2_v2(cache->postprocessed.division_k, &camera->division_k1);
     copy_v2_v2(cache->postprocessed.nuke_k, &camera->nuke_k1);
+    copy_v2_v2(cache->postprocessed.nuke_p, &camera->nuke_p1);
     copy_v4_v4(cache->postprocessed.brown_k, &camera->brown_k1);
     copy_v2_v2(cache->postprocessed.brown_p, &camera->brown_p1);
     cache->postprocessed.undistortion_used = true;
@@ -1226,8 +1251,11 @@ static void put_postprocessed_frame_to_cache(
   cache->postprocessed.ibuf = ibuf;
 }
 
-static ImBuf *movieclip_get_postprocessed_ibuf(
-    MovieClip *clip, const MovieClipUser *user, int flag, int postprocess_flag, int cache_flag)
+static ImBuf *movieclip_get_postprocessed_ibuf(MovieClip *clip,
+                                               const MovieClipUser *user,
+                                               int flag,
+                                               MovieClipPostprocFlag postprocess_flag,
+                                               MovieClipCacheFlag cache_flag)
 {
   ImBuf *ibuf = nullptr;
   int framenr = user->framenr;
@@ -1264,7 +1292,7 @@ static ImBuf *movieclip_get_postprocessed_ibuf(
       ibuf = movieclip_load_movie_file(clip, user, framenr, flag);
     }
 
-    if (ibuf && (cache_flag & MOVIECLIP_CACHE_SKIP) == 0) {
+    if (ibuf && !flag_is_set(cache_flag, MovieClipCacheFlag::SkipCache)) {
       put_imbuf_cache(clip, user, ibuf, flag, true);
     }
   }
@@ -1277,7 +1305,7 @@ static ImBuf *movieclip_get_postprocessed_ibuf(
       ImBuf *tmpibuf = ibuf;
       ibuf = postprocess_frame(clip, user, tmpibuf, flag, postprocess_flag);
       IMB_freeImBuf(tmpibuf);
-      if (ibuf && (cache_flag & MOVIECLIP_CACHE_SKIP) == 0) {
+      if (ibuf && !flag_is_set(cache_flag, MovieClipCacheFlag::SkipCache)) {
         put_postprocessed_frame_to_cache(clip, user, ibuf, flag, postprocess_flag);
       }
     }
@@ -1301,29 +1329,32 @@ static ImBuf *movieclip_get_postprocessed_ibuf(
 
 ImBuf *BKE_movieclip_get_ibuf(MovieClip *clip, const MovieClipUser *user)
 {
-  return BKE_movieclip_get_ibuf_flag(clip, user, clip->flag, 0);
+  return BKE_movieclip_get_ibuf_flag(
+      clip, user, MovieClipFlag(clip->flag), MovieClipCacheFlag::None);
 }
 
 ImBuf *BKE_movieclip_get_ibuf_flag(MovieClip *clip,
                                    const MovieClipUser *user,
-                                   const int flag,
-                                   const int cache_flag)
+                                   const MovieClipFlag flag,
+                                   const MovieClipCacheFlag cache_flag)
 {
-  return movieclip_get_postprocessed_ibuf(clip, user, flag, 0, cache_flag);
+  return movieclip_get_postprocessed_ibuf(
+      clip, user, flag, MovieClipPostprocFlag::None, cache_flag);
 }
 
 ImBuf *BKE_movieclip_get_postprocessed_ibuf(MovieClip *clip,
                                             const MovieClipUser *user,
-                                            const int postprocess_flag)
+                                            const MovieClipPostprocFlag postprocess_flag)
 {
-  return movieclip_get_postprocessed_ibuf(clip, user, clip->flag, postprocess_flag, 0);
+  return movieclip_get_postprocessed_ibuf(
+      clip, user, clip->flag, postprocess_flag, MovieClipCacheFlag::None);
 }
 
 static ImBuf *get_stable_cached_frame(MovieClip *clip,
                                       const MovieClipUser *user,
                                       ImBuf *reference_ibuf,
                                       const int framenr,
-                                      const int postprocess_flag)
+                                      const MovieClipPostprocFlag postprocess_flag)
 {
   MovieClipCache *cache = clip->cache;
   MovieTracking *tracking = &clip->tracking;
@@ -1386,7 +1417,7 @@ static ImBuf *put_stabilized_frame_to_cache(MovieClip *clip,
                                             const MovieClipUser *user,
                                             ImBuf *ibuf,
                                             const int framenr,
-                                            const int postprocess_flag)
+                                            const MovieClipPostprocFlag postprocess_flag)
 {
   MovieClipCache *cache = clip->cache;
   MovieTracking *tracking = &clip->tracking;
@@ -1429,7 +1460,7 @@ static ImBuf *put_stabilized_frame_to_cache(MovieClip *clip,
 
 ImBuf *BKE_movieclip_get_stable_ibuf(MovieClip *clip,
                                      const MovieClipUser *user,
-                                     const int postprocess_flag,
+                                     const MovieClipPostprocFlag postprocess_flag,
                                      float r_loc[2],
                                      float *r_scale,
                                      float *r_angle)
@@ -1553,12 +1584,7 @@ float BKE_movieclip_get_fps(MovieClip *clip)
   if (clip->anim == nullptr) {
     return 0.0f;
   }
-  short frs_sec;
-  float frs_sec_base;
-  if (IMB_anim_get_fps(clip->anim, true, &frs_sec, &frs_sec_base)) {
-    return float(frs_sec) / frs_sec_base;
-  }
-  return 0.0f;
+  return MOV_get_fps(clip->anim);
 }
 
 void BKE_movieclip_get_aspect(MovieClip *clip, float *aspx, float *aspy)
@@ -1587,11 +1613,11 @@ void BKE_movieclip_get_cache_segments(MovieClip *clip,
   }
 }
 
-void BKE_movieclip_user_set_frame(MovieClipUser *iuser, int framenr)
+void BKE_movieclip_user_set_frame(MovieClipUser *user, int framenr)
 {
   /* TODO: clamp framenr here? */
 
-  iuser->framenr = framenr;
+  user->framenr = framenr;
 }
 
 static void free_buffers(MovieClip *clip)
@@ -1607,12 +1633,12 @@ static void free_buffers(MovieClip *clip)
       IMB_freeImBuf(clip->cache->stabilized.ibuf);
     }
 
-    MEM_freeN(clip->cache);
+    MEM_delete(clip->cache);
     clip->cache = nullptr;
   }
 
   if (clip->anim) {
-    IMB_free_anim(clip->anim);
+    MOV_close(clip->anim);
     clip->anim = nullptr;
   }
 
@@ -1756,27 +1782,23 @@ void BKE_movieclip_update_scopes(MovieClip *clip,
   }
 }
 
-static void movieclip_build_proxy_ibuf(
-    MovieClip *clip, ImBuf *ibuf, int cfra, int proxy_render_size, bool undistorted, bool threaded)
+static void movieclip_build_proxy_ibuf(const MovieClip *clip,
+                                       const ImBuf *ibuf,
+                                       int cfra,
+                                       int proxy_render_size,
+                                       bool undistorted,
+                                       bool threaded)
 {
   char filepath[FILE_MAX];
   int quality, rectx, recty;
   int size = rendersize_to_number(proxy_render_size);
-  ImBuf *scaleibuf;
 
   get_proxy_filepath(clip, proxy_render_size, undistorted, cfra, filepath);
 
   rectx = ibuf->x * size / 100.0f;
   recty = ibuf->y * size / 100.0f;
 
-  scaleibuf = IMB_dupImBuf(ibuf);
-
-  if (threaded) {
-    IMB_scaleImBuf_threaded(scaleibuf, short(rectx), short(recty));
-  }
-  else {
-    IMB_scaleImBuf(scaleibuf, short(rectx), short(recty));
-  }
+  ImBuf *scaleibuf = IMB_scale_into_new(ibuf, rectx, recty, IMBScaleFilter::Bilinear, threaded);
 
   quality = clip->proxy.quality;
   scaleibuf->ftype = IMB_FTYPE_JPG;
@@ -1793,7 +1815,7 @@ static void movieclip_build_proxy_ibuf(
   BLI_thread_lock(LOCK_MOVIECLIP);
 
   BLI_file_ensure_parent_dir_exists(filepath);
-  if (IMB_saveiff(scaleibuf, filepath, IB_rect) == 0) {
+  if (IMB_save_image(scaleibuf, filepath, IB_byte_data) == 0) {
     perror(filepath);
   }
 
@@ -1803,7 +1825,7 @@ static void movieclip_build_proxy_ibuf(
 }
 
 void BKE_movieclip_build_proxy_frame(MovieClip *clip,
-                                     int clip_flag,
+                                     MovieClipFlag clip_flag,
                                      MovieDistortion *distortion,
                                      int cfra,
                                      const int *build_sizes,
@@ -1821,7 +1843,7 @@ void BKE_movieclip_build_proxy_frame(MovieClip *clip,
   user.render_flag = 0;
   user.render_size = MCLIP_PROXY_RENDER_SIZE_FULL;
 
-  ibuf = BKE_movieclip_get_ibuf_flag(clip, &user, clip_flag, MOVIECLIP_CACHE_SKIP);
+  ibuf = BKE_movieclip_get_ibuf_flag(clip, &user, clip_flag, MovieClipCacheFlag::SkipCache);
 
   if (ibuf) {
     ImBuf *tmpibuf = ibuf;
@@ -1947,7 +1969,7 @@ static void movieclip_eval_update_reload(Depsgraph *depsgraph, Main *bmain, Movi
 {
   BKE_movieclip_reload(bmain, clip);
   if (DEG_is_active(depsgraph)) {
-    MovieClip *clip_orig = (MovieClip *)DEG_get_original_id(&clip->id);
+    MovieClip *clip_orig = DEG_get_original(clip);
     BKE_movieclip_reload(bmain, clip_orig);
   }
 }
@@ -1956,7 +1978,7 @@ static void movieclip_eval_update_generic(Depsgraph *depsgraph, MovieClip *clip)
 {
   BKE_tracking_dopesheet_tag_update(&clip->tracking);
   if (DEG_is_active(depsgraph)) {
-    MovieClip *clip_orig = (MovieClip *)DEG_get_original_id(&clip->id);
+    MovieClip *clip_orig = DEG_get_original(clip);
     BKE_tracking_dopesheet_tag_update(&clip_orig->tracking);
   }
 }
@@ -1970,15 +1992,16 @@ void BKE_movieclip_eval_update(Depsgraph *depsgraph, Main *bmain, MovieClip *cli
   else {
     movieclip_eval_update_generic(depsgraph, clip);
   }
+  clip->runtime.last_update = DEG_get_update_count(depsgraph);
 }
 
 /* -------------------------------------------------------------------- */
 /** \name GPU textures
  * \{ */
 
-static GPUTexture **movieclip_get_gputexture_ptr(MovieClip *clip,
-                                                 MovieClipUser *cuser,
-                                                 eGPUTextureTarget textarget)
+static gpu::Texture **movieclip_get_gputexture_ptr(MovieClip *clip,
+                                                   MovieClipUser *cuser,
+                                                   eGPUTextureTarget textarget)
 {
   /* Check if we have an existing entry for that clip user. */
   MovieClip_RuntimeGPUTexture *tex;
@@ -1992,8 +2015,7 @@ static GPUTexture **movieclip_get_gputexture_ptr(MovieClip *clip,
 
   /* If not, allocate a new one. */
   if (tex == nullptr) {
-    tex = (MovieClip_RuntimeGPUTexture *)MEM_mallocN(sizeof(MovieClip_RuntimeGPUTexture),
-                                                     __func__);
+    tex = MEM_new<MovieClip_RuntimeGPUTexture>(__func__);
 
     for (int i = 0; i < TEXTARGET_COUNT; i++) {
       tex->gputexture[i] = nullptr;
@@ -2006,13 +2028,13 @@ static GPUTexture **movieclip_get_gputexture_ptr(MovieClip *clip,
   return &tex->gputexture[textarget];
 }
 
-GPUTexture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuser)
+gpu::Texture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuser)
 {
   if (clip == nullptr) {
     return nullptr;
   }
 
-  GPUTexture **tex = movieclip_get_gputexture_ptr(clip, cuser, TEXTARGET_2D);
+  gpu::Texture **tex = movieclip_get_gputexture_ptr(clip, cuser, TEXTARGET_2D);
   if (*tex) {
     return *tex;
   }
@@ -2020,7 +2042,7 @@ GPUTexture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuser)
   /* check if we have a valid image buffer */
   ImBuf *ibuf = BKE_movieclip_get_ibuf(clip, cuser);
   if (ibuf == nullptr) {
-    fprintf(stderr, "GPUTexture: Blender Texture Not Loaded!\n");
+    CLOG_ERROR(&LOG, "Failed to create GPU texture from Blender movie clip");
     *tex = GPU_texture_create_error(2, false);
     return *tex;
   }
@@ -2046,8 +2068,8 @@ void BKE_movieclip_free_gputexture(MovieClip *clip)
   const int MOVIECLIP_NUM_GPUTEXTURES = 1;
 
   while (BLI_listbase_count(&clip->runtime.gputextures) > MOVIECLIP_NUM_GPUTEXTURES) {
-    MovieClip_RuntimeGPUTexture *tex = (MovieClip_RuntimeGPUTexture *)BLI_pophead(
-        &clip->runtime.gputextures);
+    MovieClip_RuntimeGPUTexture *tex = static_cast<MovieClip_RuntimeGPUTexture *>(
+        BLI_pophead(&clip->runtime.gputextures));
     for (int i = 0; i < TEXTARGET_COUNT; i++) {
       /* Free GLSL image binding. */
       if (tex->gputexture[i]) {
@@ -2055,8 +2077,10 @@ void BKE_movieclip_free_gputexture(MovieClip *clip)
         tex->gputexture[i] = nullptr;
       }
     }
-    MEM_freeN(tex);
+    MEM_delete(tex);
   }
 }
 
 /** \} */
+
+}  // namespace blender

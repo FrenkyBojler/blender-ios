@@ -4,6 +4,7 @@
 
 #include <fmt/format.h>
 
+#include "BLI_listbase.h"
 #include "BLI_set.hh"
 
 #include "BKE_context.hh"
@@ -23,12 +24,17 @@ void GatherLinkSearchOpParams::add_item(std::string socket_name,
                                         SocketLinkOperation::LinkSocketFn fn,
                                         const int weight)
 {
-
   std::string name = fmt::format("{}{} " UI_MENU_ARROW_SEP " {}",
                                  IFACE_(node_type_.ui_name),
                                  node_type_.deprecation_notice ? IFACE_(" (Deprecated)") : "",
                                  socket_name);
+  this->add_item_full_name(std::move(name), std::move(fn), weight);
+}
 
+void GatherLinkSearchOpParams::add_item_full_name(std::string name,
+                                                  SocketLinkOperation::LinkSocketFn fn,
+                                                  int weight)
+{
   items_.append({std::move(name), std::move(fn), weight});
 }
 
@@ -67,18 +73,32 @@ void LinkSearchOpParams::connect_available_socket(bNode &new_node, StringRef soc
     BLI_assert_unreachable();
     return;
   }
-  bke::nodeAddLink(&node_tree, &new_node, new_node_socket, &node, &socket);
-  if (in_out == SOCK_OUT) {
+  this->connect_socket(new_node, *new_node_socket);
+}
+
+void LinkSearchOpParams::connect_available_socket_by_identifier(bNode &new_node,
+                                                                const StringRef socket_identifier)
+{
+  const eNodeSocketInOut in_out = this->socket.in_out == SOCK_IN ? SOCK_OUT : SOCK_IN;
+  bNodeSocket *new_node_socket = bke::node_find_socket(new_node, in_out, socket_identifier);
+  BLI_assert(new_node_socket);
+  this->connect_socket(new_node, *new_node_socket);
+}
+
+void LinkSearchOpParams::connect_socket(bNode &new_node, bNodeSocket &new_socket)
+{
+  bke::node_add_link(this->node_tree, new_node, new_socket, this->node, this->socket);
+  if (new_socket.in_out == SOCK_OUT) {
     /* If the old socket already contained a value, then transfer it to a new one, from
      * which this value will get there. */
-    bke::node_socket_move_default_value(*CTX_data_main(&C), node_tree, socket, *new_node_socket);
+    bke::node_socket_move_default_value(
+        *CTX_data_main(&C), this->node_tree, this->socket, new_socket);
   }
 }
 
 bNode &LinkSearchOpParams::add_node(StringRef idname)
 {
-  std::string idname_str = idname;
-  bNode *node = bke::nodeAddNode(&C, &node_tree, idname_str.c_str());
+  bNode *node = bke::node_add_node(&C, node_tree, idname);
   BLI_assert(node != nullptr);
   added_nodes_.append(node);
   return *node;
@@ -134,7 +154,7 @@ void search_link_ops_for_declarations(GatherLinkSearchOpParams &params,
      * sockets. */
     const int weight = (&socket == main_socket) ? 0 : -1 - i;
     params.add_item(
-        IFACE_(socket.name.c_str()),
+        IFACE_(socket.name),
         [&node_type, &socket](LinkSearchOpParams &params) {
           bNode &node = params.add_node(node_type);
           socket.make_available(node);
@@ -152,6 +172,25 @@ void search_link_ops_for_basic_node(GatherLinkSearchOpParams &params)
   }
   const NodeDeclaration &declaration = *node_type.static_declaration;
   search_link_ops_for_declarations(params, declaration.sockets(params.in_out()));
+}
+
+void search_filtered_link_ops_for_basic_node(GatherLinkSearchOpParams &params,
+                                             const Set<std::string> &skip_socket_identifiers)
+{
+  const bke::bNodeType &node_type = params.node_type();
+  if (!node_type.static_declaration) {
+    return;
+  }
+  const NodeDeclaration &declaration = *node_type.static_declaration;
+  Vector<SocketDeclaration *> socket_declarations;
+  socket_declarations.reserve(declaration.sockets(params.in_out()).size());
+  for (SocketDeclaration *socket_decl : declaration.sockets(params.in_out())) {
+    if (skip_socket_identifiers.contains(socket_decl->identifier)) {
+      continue;
+    }
+    socket_declarations.append_unchecked(socket_decl);
+  }
+  search_link_ops_for_declarations(params, socket_declarations);
 }
 
 }  // namespace blender::nodes

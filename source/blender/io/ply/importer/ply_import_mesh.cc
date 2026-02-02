@@ -6,10 +6,10 @@
  * \ingroup ply
  */
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
 
 #include "GEO_mesh_merge_by_distance.hh"
 
@@ -19,7 +19,13 @@
 
 #include "ply_import_mesh.hh"
 
-namespace blender::io::ply {
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.ply"};
+
+namespace io::ply {
 Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
 {
   Mesh *mesh = BKE_mesh_new_nomain(
@@ -35,11 +41,11 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
       int32_t v1 = data.edges[i].first;
       int32_t v2 = data.edges[i].second;
       if (v1 >= mesh->verts_num) {
-        fprintf(stderr, "Invalid PLY vertex index in edge %i/1: %d\n", i, v1);
+        CLOG_WARN(&LOG, "Invalid PLY vertex index in edge %i/1: %d", i, v1);
         v1 = 0;
       }
       if (v2 >= mesh->verts_num) {
-        fprintf(stderr, "Invalid PLY vertex index in edge %i/2: %d\n", i, v2);
+        CLOG_WARN(&LOG, "Invalid PLY vertex index in edge %i/2: %d", i, v2);
         v2 = 0;
       }
       edges[i] = {v1, v2};
@@ -59,7 +65,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
       for (int j = 0; j < size; j++) {
         uint32_t v = data.face_vertices[offset + j];
         if (v >= mesh->verts_num) {
-          fprintf(stderr, "Invalid PLY vertex index in face %i loop %i: %u\n", i, j, v);
+          CLOG_WARN(&LOG, "Invalid PLY vertex index in face %i loop %i: %u", i, j, v);
           v = 0;
         }
         corner_verts[offset + j] = data.face_vertices[offset + j];
@@ -69,12 +75,12 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
   }
 
   /* Vertex colors */
-  if (!data.vertex_colors.is_empty() && params.vertex_colors != PLY_VERTEX_COLOR_NONE) {
+  if (!data.vertex_colors.is_empty() && params.vertex_colors != ePLYVertexColorMode::None) {
     /* Create a data layer for vertex colors and set them. */
     bke::SpanAttributeWriter colors = attributes.lookup_or_add_for_write_span<ColorGeometry4f>(
         "Col", bke::AttrDomain::Point);
 
-    if (params.vertex_colors == PLY_VERTEX_COLOR_SRGB) {
+    if (params.vertex_colors == ePLYVertexColorMode::sRGB) {
       for (const int i : data.vertex_colors.index_range()) {
         srgb_to_linearrgb_v4(colors.span[i], data.vertex_colors[i]);
       }
@@ -97,10 +103,12 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
       uv_map.span[i] = data.uv_coordinates[data.face_vertices[i]];
     }
     uv_map.finish();
+    mesh->uv_maps_active_set("UVMap");
+    mesh->uv_maps_default_set("UVMap");
   }
 
-  /* If we have custom vertex normals, set them (note: important to do this
-   * after initializing the loops). */
+  /* If we have custom vertex normals, set them
+   * (NOTE: important to do this after initializing the loops). */
   bool set_custom_normals_for_verts = false;
   if (!data.vertex_normals.is_empty()) {
     if (!data.face_sizes.is_empty()) {
@@ -113,7 +121,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
       attributes.add<float3>(
           "normal",
           bke::AttrDomain::Point,
-          bke::AttributeInitVArray(VArray<float3>::ForSpan(data.vertex_normals)));
+          bke::AttributeInitVArray(VArray<float3>::from_span(data.vertex_normals)));
     }
   }
   else {
@@ -126,7 +134,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
     for (const PlyCustomAttribute &attr : data.vertex_custom_attr) {
       attributes.add<float>(attr.name,
                             bke::AttrDomain::Point,
-                            bke::AttributeInitVArray(VArray<float>::ForSpan(attr.data)));
+                            bke::AttributeInitVArray(VArray<float>::from_span(attr.data)));
     }
   }
 
@@ -139,17 +147,16 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
 #ifndef NDEBUG
     verbose_validate = true;
 #endif
-    BKE_mesh_validate(mesh, verbose_validate, false);
+    bke::mesh_validate(*mesh, verbose_validate);
   }
 
   if (set_custom_normals_for_verts) {
-    BKE_mesh_set_custom_normals_from_verts(
-        mesh, reinterpret_cast<float(*)[3]>(data.vertex_normals.data()));
+    bke::mesh_set_custom_normals_from_verts(*mesh, data.vertex_normals);
   }
 
   /* Merge all vertices on the same location. */
   if (params.merge_verts) {
-    std::optional<Mesh *> merged_mesh = blender::geometry::mesh_merge_by_distance_all(
+    std::optional<Mesh *> merged_mesh = geometry::mesh_merge_by_distance_all(
         *mesh, IndexMask(mesh->verts_num), 0.0001f);
     if (merged_mesh) {
       BKE_id_free(nullptr, &mesh->id);
@@ -159,4 +166,5 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
 
   return mesh;
 }
-}  // namespace blender::io::ply
+}  // namespace io::ply
+}  // namespace blender

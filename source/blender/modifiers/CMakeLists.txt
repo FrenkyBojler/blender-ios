@@ -5,30 +5,16 @@
 set(INC
   .
   intern
-  ../blenkernel
-  ../blenloader
-  ../blentranslation
-  ../bmesh
+  intern/lineart
   ../editors/include
-  ../functions
-  ../geometry
   ../makesrna
-  ../nodes
-  ../render
-  ../windowmanager
   ../../../intern/eigen
-
-  # Needed for shared line art functions from legacy implementations.
-  ../gpencil_modifiers_legacy
-  ../gpencil_modifiers_legacy/intern
-  ../gpencil_modifiers_legacy/intern/lineart
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
-  ${ZLIB_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -126,6 +112,10 @@ set(SRC
   intern/MOD_weightvgproximity.cc
   intern/MOD_weld.cc
   intern/MOD_wireframe.cc
+  intern/lineart/lineart_chain.cc
+  intern/lineart/lineart_cpu.cc
+  intern/lineart/lineart_shadow.cc
+  intern/lineart/lineart_util.cc
 
   MOD_modifiertypes.hh
   MOD_nodes.hh
@@ -135,16 +125,30 @@ set(SRC
   intern/MOD_ui_common.hh
   intern/MOD_util.hh
   intern/MOD_weightvg_util.hh
+  intern/lineart/MOD_lineart.hh
+  intern/lineart/lineart_intern.hh
 )
 
 set(LIB
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PUBLIC bf::dna
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::extern::xxhash
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::zlib
+  PRIVATE bf::dependencies::optional::gmp
+  PRIVATE bf::dependencies::optional::bullet
+  PRIVATE bf::dependencies::optional::opensubdiv
 )
 
 if(WITH_ALEMBIC)
@@ -185,54 +189,17 @@ if(WITH_MOD_OCEANSIM)
   add_definitions(-DWITH_OCEANSIM)
 endif()
 
-if(WITH_OPENSUBDIV)
-  add_definitions(-DWITH_OPENSUBDIV)
-endif()
-
-if(WITH_BULLET)
-  list(APPEND LIB
-    ${BULLET_LIBRARIES}
-  )
-  add_definitions(-DWITH_BULLET)
-endif()
-
-# To disable adaptive subdivision test in subsurf UI without cycles
+# To disable adaptive subdivision test in subdivision-surface UI without cycles.
 if(WITH_CYCLES)
   add_definitions(-DWITH_CYCLES)
-endif()
-
-if(WITH_GMP)
-  add_definitions(-DWITH_GMP)
-
-  list(APPEND INC_SYS
-    ${GMP_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${GMP_LIBRARIES}
-  )
 endif()
 
 if(WITH_TBB)
   if(WIN32)
     # TBB includes Windows.h which will define min/max macros
-    # that will collide with the stl versions.
+    # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
-endif()
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    bf_intern_openvdb
-    ${OPENVDB_LIBRARIES}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 if(WITH_EXPERIMENTAL_FEATURES)

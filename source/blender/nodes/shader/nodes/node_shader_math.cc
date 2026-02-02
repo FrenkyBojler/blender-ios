@@ -11,22 +11,77 @@
 
 #include "NOD_inverse_eval_params.hh"
 #include "NOD_math_functions.hh"
-#include "NOD_multi_function.hh"
 #include "NOD_socket_search_link.hh"
 #include "NOD_value_elem_eval.hh"
 
 #include "RNA_enum_types.hh"
 
+namespace blender {
+
 /* **************** SCALAR MATH ******************** */
 
-namespace blender::nodes::node_shader_math_cc {
+namespace nodes::node_shader_math_cc {
 
 static void sh_node_math_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("Value").default_value(0.5f).min(-10000.0f).max(10000.0f);
-  b.add_input<decl::Float>("Value", "Value_001").default_value(0.5f).min(-10000.0f).max(10000.0f);
-  b.add_input<decl::Float>("Value", "Value_002").default_value(0.5f).min(-10000.0f).max(10000.0f);
+  b.add_input<decl::Float>("Value").default_value(0.5f).min(-10000.0f).max(10000.0f).label_fn(
+      [](bNode node) {
+        switch (node.custom1) {
+          case NODE_MATH_POWER:
+            return IFACE_("Base");
+          case NODE_MATH_DEGREES:
+            return IFACE_("Radians");
+          case NODE_MATH_RADIANS:
+            return IFACE_("Degrees");
+          default:
+            return IFACE_("Value");
+        }
+      });
+  b.add_input<decl::Float>("Value", "Value_001")
+      .default_value(0.5f)
+      .min(-10000.0f)
+      .max(10000.0f)
+      .label_fn([](bNode node) {
+        switch (node.custom1) {
+          case NODE_MATH_WRAP:
+            return IFACE_("Max");
+          case NODE_MATH_MULTIPLY_ADD:
+            return IFACE_("Multiplier");
+          case NODE_MATH_LESS_THAN:
+          case NODE_MATH_GREATER_THAN:
+            return IFACE_("Threshold");
+          case NODE_MATH_PINGPONG:
+            return IFACE_("Scale");
+          case NODE_MATH_SNAP:
+            return IFACE_("Increment");
+          case NODE_MATH_POWER:
+            return IFACE_("Exponent");
+          case NODE_MATH_LOGARITHM:
+            return IFACE_("Base");
+          default:
+            return IFACE_("Value");
+        }
+      });
+  b.add_input<decl::Float>("Value", "Value_002")
+      .default_value(0.5f)
+      .min(-10000.0f)
+      .max(10000.0f)
+      .label_fn([](bNode node) {
+        switch (node.custom1) {
+          case NODE_MATH_WRAP:
+            return IFACE_("Min");
+          case NODE_MATH_MULTIPLY_ADD:
+            return IFACE_("Addend");
+          case NODE_MATH_COMPARE:
+            return IFACE_("Epsilon");
+          case NODE_MATH_SMOOTH_MAX:
+          case NODE_MATH_SMOOTH_MIN:
+            return IFACE_("Distance");
+          default:
+            return IFACE_("Value");
+        }
+      });
   b.add_output<decl::Float>("Value");
 }
 
@@ -44,14 +99,14 @@ class SocketSearchOp {
 
 static void sh_node_math_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!params.node_tree().typeinfo->validate_link(
-          static_cast<eNodeSocketDatatype>(params.other_socket().type), SOCK_FLOAT))
+  if (!params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
+                                                  SOCK_FLOAT))
   {
     return;
   }
 
   const bool is_geometry_node_tree = params.node_tree().type == NTREE_GEOMETRY;
-  const int weight = ELEM(params.other_socket().type, SOCK_FLOAT, SOCK_BOOLEAN, SOCK_INT) ? 0 : -1;
+  const int weight = ELEM(params.other_socket().type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN) ? 0 : -1;
 
   for (const EnumPropertyItem *item = rna_enum_node_math_items; item->identifier != nullptr;
        item++)
@@ -63,7 +118,7 @@ static void sh_node_math_gather_link_searches(GatherLinkSearchOpParams &params)
               -1 :
               weight;
       params.add_item(CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
-                      SocketSearchOp{"Value", (NodeMathOperation)item->value},
+                      SocketSearchOp{"Value", NodeMathOperation(item->value)},
                       gn_weight);
     }
   }
@@ -101,83 +156,6 @@ static int gpu_shader_math(GPUMaterial *mat,
   }
 
   return 0;
-}
-
-static const mf::MultiFunction *get_base_multi_function(const bNode &node)
-{
-  const int mode = node.custom1;
-  const mf::MultiFunction *base_fn = nullptr;
-
-  try_dispatch_float_math_fl_to_fl(
-      mode, [&](auto devi_fn, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI1_SO<float, float>(
-            info.title_case_name.c_str(), function, devi_fn);
-        base_fn = &fn;
-      });
-  if (base_fn != nullptr) {
-    return base_fn;
-  }
-
-  try_dispatch_float_math_fl_fl_to_fl(
-      mode, [&](auto devi_fn, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI2_SO<float, float, float>(
-            info.title_case_name.c_str(), function, devi_fn);
-        base_fn = &fn;
-      });
-  if (base_fn != nullptr) {
-    return base_fn;
-  }
-
-  try_dispatch_float_math_fl_fl_fl_to_fl(
-      mode, [&](auto devi_fn, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI3_SO<float, float, float, float>(
-            info.title_case_name.c_str(), function, devi_fn);
-        base_fn = &fn;
-      });
-  if (base_fn != nullptr) {
-    return base_fn;
-  }
-
-  return nullptr;
-}
-
-class ClampWrapperFunction : public mf::MultiFunction {
- private:
-  const mf::MultiFunction &fn_;
-
- public:
-  ClampWrapperFunction(const mf::MultiFunction &fn) : fn_(fn)
-  {
-    this->set_signature(&fn.signature());
-  }
-
-  void call(const IndexMask &mask, mf::Params params, mf::Context context) const override
-  {
-    fn_.call(mask, params, context);
-
-    /* Assumes the output parameter is the last one. */
-    const int output_param_index = this->param_amount() - 1;
-    /* This has actually been initialized in the call above. */
-    MutableSpan<float> results = params.uninitialized_single_output<float>(output_param_index);
-
-    mask.foreach_index_optimized<int>([&](const int i) {
-      float &value = results[i];
-      CLAMP(value, 0.0f, 1.0f);
-    });
-  }
-};
-
-static void sh_node_math_build_multi_function(NodeMultiFunctionBuilder &builder)
-{
-  const mf::MultiFunction *base_function = get_base_multi_function(builder.node());
-
-  const bool clamp_output = builder.node().custom2 != 0;
-  if (clamp_output) {
-    builder.construct_and_set_matching_fn<ClampWrapperFunction>(*base_function);
-  }
-  else {
-    builder.set_matching_fn(base_function);
-  }
 }
 
 static void node_eval_elem(value_elem::ElemEvalParams &params)
@@ -431,25 +409,31 @@ NODE_SHADER_MATERIALX_BEGIN
 #endif
 NODE_SHADER_MATERIALX_END
 
-}  // namespace blender::nodes::node_shader_math_cc
+}  // namespace nodes::node_shader_math_cc
 
 void register_node_type_sh_math()
 {
-  namespace file_ns = blender::nodes::node_shader_math_cc;
+  namespace file_ns = nodes::node_shader_math_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_MATH, "Math", NODE_CLASS_CONVERTER);
+  common_node_type_base(&ntype, "ShaderNodeMath", SH_NODE_MATH);
+  ntype.ui_name = "Math";
+  ntype.ui_description = "Perform math operations";
+  ntype.enum_name_legacy = "MATH";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_math_declare;
   ntype.labelfunc = node_math_label;
   ntype.gpu_fn = file_ns::gpu_shader_math;
   ntype.updatefunc = node_math_update;
-  ntype.build_multi_function = file_ns::sh_node_math_build_multi_function;
+  ntype.build_multi_function = nodes::node_math_build_multi_function;
   ntype.gather_link_search_ops = file_ns::sh_node_math_gather_link_searches;
   ntype.materialx_fn = file_ns::node_shader_materialx;
   ntype.eval_elem = file_ns::node_eval_elem;
   ntype.eval_inverse_elem = file_ns::node_eval_inverse_elem;
   ntype.eval_inverse = file_ns::node_eval_inverse;
 
-  blender::bke::nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

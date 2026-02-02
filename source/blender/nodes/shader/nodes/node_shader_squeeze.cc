@@ -8,7 +8,9 @@
 
 #include "node_shader_util.hh"
 
-namespace blender::nodes::node_shader_squeeze_cc {
+namespace blender {
+
+namespace nodes::node_shader_squeeze_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -27,18 +29,24 @@ static int gpu_shader_squeeze(GPUMaterial *mat,
   return GPU_stack_link(mat, node, "squeeze", in, out);
 }
 
-}  // namespace blender::nodes::node_shader_squeeze_cc
+}  // namespace nodes::node_shader_squeeze_cc
 
 void register_node_type_sh_squeeze()
 {
-  namespace file_ns = blender::nodes::node_shader_squeeze_cc;
+  namespace file_ns = nodes::node_shader_squeeze_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_SQUEEZE, "Squeeze Value (Legacy)", NODE_CLASS_CONVERTER);
+  sh_node_type_base(&ntype, "ShaderNodeSqueeze", SH_NODE_SQUEEZE);
+  ntype.ui_name = "Squeeze Value (Legacy)";
+  ntype.ui_description = "Deprecated";
+  ntype.enum_name_legacy = "SQUEEZE";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.gather_link_search_ops = nullptr;
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::gpu_shader_squeeze;
 
-  blender::bke::nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

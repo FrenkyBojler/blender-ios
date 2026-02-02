@@ -40,6 +40,10 @@ struct ShaderBinaryHeader {
 static_assert(sizeof(ShaderBinaryHeader) == compilation_subprocess_shared_memory_size,
               "Size must match the shared memory size");
 
+void GL_shader_cache_dir_clear_old();
+
+std::string GL_shader_cache_dir_get();
+
 }  // namespace blender::gpu
 
 #endif

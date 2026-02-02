@@ -9,7 +9,11 @@ else:
     from . import properties
 
 import bpy
-from bpy.app.translations import pgettext_iface as iface_
+from bpy.app.translations import (
+    pgettext_n as n_,
+    pgettext_iface as iface_,
+    contexts as i18n_contexts,
+)
 from bpy.types import (
     Menu,
     Panel,
@@ -93,7 +97,13 @@ class VIEW3D_PT_vr_session_view(Panel):
 
         col = layout.column(align=True)
         col.prop(session_settings, "clip_start", text="Clip Start")
-        col.prop(session_settings, "clip_end", text="End")
+        col.prop(session_settings, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "view_scale", text="View Scale")
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "fly_speed", text="Fly Speed")
 
 
 class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_visibility):
@@ -213,7 +223,6 @@ class VIEW3D_PT_vr_viewport_feedback(Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
         view3d = context.space_data
         session_settings = context.window_manager.xr_session_settings
 
@@ -242,8 +251,10 @@ class VIEW3D_PT_vr_info(bpy.types.Panel):
         return not bpy.app.build_options.xr_openxr
 
     def draw(self, context):
+        import platform
         layout = self.layout
-        layout.label(icon='ERROR', text="Built without VR/OpenXR features")
+        missing_support_string = n_("Built without VR/OpenXR features")
+        layout.label(icon='ERROR', text=missing_support_string)
 
 
 classes = (

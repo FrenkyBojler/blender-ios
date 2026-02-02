@@ -4,9 +4,8 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_compiler_compat.h"
+#include "BLI_sys_types.h"
 
 /* only include from header */
 #ifndef __BLI_ENDIAN_SWITCH_H__
@@ -17,6 +16,8 @@ extern "C" {
  * \ingroup bli
  */
 
+namespace blender {
+
 /* NOTE: using a temp char to switch endian is a lot slower,
  * use bit shifting instead. */
 
@@ -24,7 +25,7 @@ extern "C" {
 
 BLI_INLINE void BLI_endian_switch_int16(short *val)
 {
-  BLI_endian_switch_uint16((unsigned short *)val);
+  BLI_endian_switch_uint16(reinterpret_cast<unsigned short *>(val));
 }
 BLI_INLINE void BLI_endian_switch_uint16(unsigned short *val)
 {
@@ -40,7 +41,7 @@ BLI_INLINE void BLI_endian_switch_uint16(unsigned short *val)
 
 BLI_INLINE void BLI_endian_switch_int32(int *val)
 {
-  BLI_endian_switch_uint32((unsigned int *)val);
+  BLI_endian_switch_uint32(reinterpret_cast<unsigned int *>(val));
 }
 BLI_INLINE void BLI_endian_switch_uint32(unsigned int *val)
 {
@@ -53,14 +54,14 @@ BLI_INLINE void BLI_endian_switch_uint32(unsigned int *val)
 }
 BLI_INLINE void BLI_endian_switch_float(float *val)
 {
-  BLI_endian_switch_uint32((unsigned int *)val);
+  BLI_endian_switch_uint32(reinterpret_cast<unsigned int *>(val));
 }
 
 /* *** 64 *** */
 
 BLI_INLINE void BLI_endian_switch_int64(int64_t *val)
 {
-  BLI_endian_switch_uint64((uint64_t *)val);
+  BLI_endian_switch_uint64(reinterpret_cast<uint64_t *>(val));
 }
 BLI_INLINE void BLI_endian_switch_uint64(uint64_t *val)
 {
@@ -76,9 +77,7 @@ BLI_INLINE void BLI_endian_switch_uint64(uint64_t *val)
 }
 BLI_INLINE void BLI_endian_switch_double(double *val)
 {
-  BLI_endian_switch_uint64((uint64_t *)val);
+  BLI_endian_switch_uint64(reinterpret_cast<uint64_t *>(val));
 }
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

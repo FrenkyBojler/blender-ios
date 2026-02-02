@@ -11,17 +11,16 @@
 
 #include "BLI_utildefines.h"
 
-#include "bpy_capi_utils.h"
-
-#include "MEM_guardedalloc.h"
+#include "bpy_capi_utils.hh"
 
 #include "BKE_blender_cli_command.hh"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
-#include "bpy_cli_command.h" /* Own include. */
+#include "bpy_cli_command.hh" /* Own include. */
+
+namespace blender {
 
 static const char *bpy_cli_command_capsule_name = "bpy_cli_command";
 static const char *bpy_cli_command_capsule_name_invalid = "bpy_cli_command<invalid>";
@@ -38,7 +37,7 @@ static PyObject *py_argv_from_bytes(const int argc, const char **argv)
   /* Copy functionality from Python's internal `sys.argv` initialization. */
   PyConfig config;
   PyConfig_InitPythonConfig(&config);
-  PyStatus status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
+  PyStatus status = PyConfig_SetBytesArgv(&config, argc, const_cast<char *const *>(argv));
   PyObject *py_argv = nullptr;
   if (UNLIKELY(PyStatus_Exception(status))) {
     PyErr_Format(PyExc_ValueError, "%s", status.err_msg);
@@ -65,9 +64,10 @@ static int bpy_cli_command_exec(bContext *C,
                                 const int argc,
                                 const char **argv)
 {
-  int exit_code = EXIT_FAILURE;
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
+
+  int exit_code = EXIT_FAILURE;
 
   /* For the most part `sys.argv[-argc:]` is sufficient & less trouble than re-creating this
    * list. Don't do this because:
@@ -96,10 +96,10 @@ static int bpy_cli_command_exec(bContext *C,
       PyObject *error_type, *error_value, *error_traceback;
       PyErr_Fetch(&error_type, &error_value, &error_traceback);
       if (PyObject_TypeCheck(error_value, (PyTypeObject *)PyExc_SystemExit) &&
-          (((PySystemExitObject *)error_value)->code != nullptr))
+          ((reinterpret_cast<PySystemExitObject *>(error_value))->code != nullptr))
       {
         /* When `SystemExit(..)` is raised. */
-        result = ((PySystemExitObject *)error_value)->code;
+        result = (reinterpret_cast<PySystemExitObject *>(error_value))->code;
       }
       else {
         /* When `sys.exit()` is called. */
@@ -136,7 +136,6 @@ static int bpy_cli_command_exec(bContext *C,
 
   if (has_error) {
     PyErr_Print();
-    PyErr_Clear();
   }
 
   bpy_context_clear(C, &gilstate);
@@ -203,6 +202,9 @@ PyDoc_STRVAR(
     "(specific error codes from the ``os`` module can also be used).\n"
     "   :type execute: callable\n"
     "   :return: The command handle which can be passed to :func:`unregister_cli_command`.\n"
+    "\n"
+    "      This uses Python's capsule type "
+    "however the result should be considered an opaque handle only used for unregistering.\n"
     "   :rtype: capsule\n");
 static PyObject *bpy_cli_command_register(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
@@ -215,8 +217,7 @@ static PyObject *bpy_cli_command_register(PyObject * /*self*/, PyObject *args, P
       nullptr,
   };
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
-      "O!"  /* `id` */
+      "O!" /* `id` */
       "O"  /* `execute` */
       ":register_cli_command",
       _keywords,
@@ -238,7 +239,7 @@ static PyObject *bpy_cli_command_register(PyObject * /*self*/, PyObject *args, P
   const char *id = PyUnicode_AsUTF8(py_id);
 
   std::unique_ptr<CommandHandler> cmd_ptr = std::make_unique<BPyCommandHandler>(
-      std::string(id), Py_INCREF_RET(py_exec_fn));
+      std::string(id), Py_NewRef(py_exec_fn));
   void *cmd_p = cmd_ptr.get();
 
   BKE_blender_cli_command_register(std::move(cmd_ptr));
@@ -285,31 +286,42 @@ static PyObject *bpy_cli_command_unregister(PyObject * /*self*/, PyObject *value
   /* Don't allow removing again. */
   PyCapsule_SetName(value, bpy_cli_command_capsule_name_invalid);
 
-  BKE_blender_cli_command_unregister((CommandHandler *)cmd);
+  BKE_blender_cli_command_unregister(static_cast<CommandHandler *>(cmd));
 
   Py_RETURN_NONE;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 PyMethodDef BPY_cli_command_register_def = {
     "register_cli_command",
-    (PyCFunction)bpy_cli_command_register,
+    reinterpret_cast<PyCFunction>(bpy_cli_command_register),
     METH_STATIC | METH_VARARGS | METH_KEYWORDS,
     bpy_cli_command_register_doc,
 };
 PyMethodDef BPY_cli_command_unregister_def = {
     "unregister_cli_command",
-    (PyCFunction)bpy_cli_command_unregister,
+    static_cast<PyCFunction>(bpy_cli_command_unregister),
     METH_STATIC | METH_O,
     bpy_cli_command_unregister_doc,
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /** \} */
+
+}  // namespace blender

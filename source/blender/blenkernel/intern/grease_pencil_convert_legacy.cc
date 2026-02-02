@@ -10,10 +10,10 @@
 
 #include <fmt/format.h>
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_attribute.hh"
-#include "BKE_colorband.hh"
+#include "BKE_blendfile_link_append.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_deform.hh"
@@ -25,7 +25,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_node_tree_update.hh"
@@ -39,6 +39,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -47,6 +48,7 @@
 #include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
+#include "DNA_brush_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_grease_pencil_types.h"
@@ -58,6 +60,9 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
+#include "ANIM_action.hh"
+#include "ANIM_action_iterators.hh"
+
 namespace blender::bke::greasepencil::convert {
 
 /**
@@ -65,12 +70,16 @@ namespace blender::bke::greasepencil::convert {
  */
 struct ConversionData {
   Main &bmain;
+  BlendfileLinkAppendContext *lapp_context;
   /** A mapping between a library and a generated 'offset radius' node group. */
   Map<Library *, bNodeTree *> offset_radius_ntree_by_library = {};
   /** A mapping between a legacy GPv2 ID and its converted GPv3 ID. */
   Map<bGPdata *, GreasePencil *> legacy_to_greasepencil_data = {};
 
-  ConversionData(Main &bmain) : bmain(bmain) {}
+  ConversionData(Main &bmain, BlendfileLinkAppendContext *lapp_context)
+      : bmain(bmain), lapp_context(lapp_context)
+  {
+  }
 };
 
 /* -------------------------------------------------------------------- */
@@ -89,17 +98,19 @@ using FCurveConvertCB = void(FCurve &fcurve);
  * converted.
  */
 struct AnimDataFCurveConvertor {
-  /** Source and destination RNA paths (relative to the relevant root paths stored in the owner
-   * #AnimDataConvertor data). */
+  /**
+   * Source and destination RNA paths
+   * (relative to the relevant root paths stored in the owner #AnimDataConvertor data).
+   */
   const char *relative_rna_path_src;
   const char *relative_rna_path_dst;
 
   /** Optional callback to perform additional conversion work on a specific FCurve. */
-  blender::FunctionRef<FCurveConvertCB> convert_cb;
+  FunctionRef<FCurveConvertCB> convert_cb;
 
   AnimDataFCurveConvertor(const char *relative_rna_path_src,
                           const char *relative_rna_path_dst,
-                          blender::FunctionRef<FCurveConvertCB> convert_cb = {nullptr})
+                          FunctionRef<FCurveConvertCB> convert_cb = {nullptr})
       : relative_rna_path_src(relative_rna_path_src),
         relative_rna_path_dst(relative_rna_path_dst),
         convert_cb(convert_cb)
@@ -115,7 +126,7 @@ struct AnimDataFCurveConvertor {
  *  - Convert FCurves and move them from the source to the destination IDs animation data.
  * The constructor used defines which of these two 'modes' will be the used by a given convertor.
  *
- * RNA paths to convert can be specified  in two ways:
+ * RNA paths to convert can be specified in two ways:
  *  - Complete paths, with a list of source to destination pairs of paths (relative to the relevant
  * root paths).
  *  - Only by the source and destination root paths (in which case all FCurves starting by these
@@ -146,8 +157,8 @@ class AnimDataConvertor {
    * Source (old) RNA property path in source ID to destination (new) matching property RNA path in
    * destination ID.
    *
-   * \note All paths here are relative the their respective (source or destination) root path.
-   * \note If this array is empty, all FCurves starting with `root_path_source` will be 'rebased'
+   * \note All paths here are relative to their respective (source or destination) root path.
+   * \note If this array is empty, all FCurves starting with `root_path_source` will be "rebased"
    * on `root_path_dst`.
    */
   const Array<AnimDataFCurveConvertor> fcurve_convertors;
@@ -157,8 +168,8 @@ class AnimDataConvertor {
    * Source and destination RNA root path. These can be modified by user code at any time (e.g.
    * when processing animation data for different modifiers...).
    */
-  std::string root_path_src = "";
-  std::string root_path_dst = "";
+  std::string root_path_src;
+  std::string root_path_dst;
 
  private:
   /**
@@ -167,11 +178,13 @@ class AnimDataConvertor {
    *
    * Currently only used when moving animation from one source ID to a different destination ID.
    */
-  blender::Vector<FCurve *> fcurves_from_src_main_action = {};
-  blender::Vector<FCurve *> fcurves_from_src_tmp_action = {};
-  blender::Vector<FCurve *> fcurves_from_src_drivers = {};
-  /** Generic 'has done something' flag, used to decide whether depsgraph tagging for updates is
-   * needed. */
+  Vector<FCurve *> fcurves_from_src_main_action = {};
+  Vector<FCurve *> fcurves_from_src_tmp_action = {};
+  Vector<FCurve *> fcurves_from_src_drivers = {};
+  /**
+   * Generic 'has done something' flag, used to decide whether depsgraph tagging for updates is
+   * needed.
+   */
   bool has_changes = false;
 
  public:
@@ -208,6 +221,7 @@ class AnimDataConvertor {
 
  private:
   using FCurveCallback = bool(bAction *owner_action, FCurve &fcurve);
+  using ActionCallback = bool(bAction &action);
 
   /** \return True if this AnimDataConvertor is valid, i.e. can be used to process animation data
    * from source ID. */
@@ -253,65 +267,123 @@ class AnimDataConvertor {
 
   /* Iterator over all FCurves in a given animation data. */
 
-  bool fcurve_foreach(bAction *owner_action,
-                      ListBase &fcurves,
-                      blender::FunctionRef<FCurveCallback> callback) const
+  bool fcurve_foreach_in_action(bAction *owner_action, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
-    LISTBASE_FOREACH (FCurve *, fcurve, &fcurves) {
-      const bool local_is_changed = callback(owner_action, *fcurve);
+    animrig::foreach_fcurve_in_action(owner_action->wrap(), [&](FCurve &fcurve) {
+      const bool local_is_changed = callback(owner_action, fcurve);
+      is_changed = is_changed || local_is_changed;
+    });
+
+    return is_changed;
+  }
+
+  bool fcurve_foreach_in_listbase(ListBaseT<FCurve> &fcurves,
+                                  FunctionRef<FCurveCallback> callback) const
+  {
+    bool is_changed = false;
+    for (FCurve &fcurve : fcurves) {
+      const bool local_is_changed = callback(nullptr, fcurve);
       is_changed = is_changed || local_is_changed;
     }
     return is_changed;
   }
 
-  bool nla_strip_fcurve_foreach(NlaStrip &nla_strip,
-                                blender::FunctionRef<FCurveCallback> callback) const
+  bool nla_strip_fcurve_foreach(NlaStrip &nla_strip, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
     if (nla_strip.act) {
-      if (this->fcurve_foreach(nla_strip.act, nla_strip.act->curves, callback)) {
+      if (this->fcurve_foreach_in_action(nla_strip.act, callback)) {
         DEG_id_tag_update(&nla_strip.act->id, ID_RECALC_ANIMATION);
         is_changed = true;
       }
     }
-    LISTBASE_FOREACH (NlaStrip *, nla_strip_children, &nla_strip.strips) {
-      const bool local_is_changed = this->nla_strip_fcurve_foreach(*nla_strip_children, callback);
+    for (NlaStrip &nla_strip_children : nla_strip.strips) {
+      const bool local_is_changed = this->nla_strip_fcurve_foreach(nla_strip_children, callback);
       is_changed = is_changed || local_is_changed;
     }
     return is_changed;
   }
 
-  bool animdata_fcurve_foreach(AnimData &anim_data,
-                               blender::FunctionRef<FCurveCallback> callback) const
+  bool animdata_fcurve_foreach(AnimData &anim_data, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
     if (anim_data.action) {
-      if (this->fcurve_foreach(anim_data.action, anim_data.action->curves, callback)) {
+      if (this->fcurve_foreach_in_action(anim_data.action, callback)) {
         DEG_id_tag_update(&anim_data.action->id, ID_RECALC_ANIMATION);
         is_changed = true;
       }
     }
     if (anim_data.tmpact) {
-      if (this->fcurve_foreach(anim_data.tmpact, anim_data.tmpact->curves, callback)) {
+      if (this->fcurve_foreach_in_action(anim_data.tmpact, callback)) {
         DEG_id_tag_update(&anim_data.tmpact->id, ID_RECALC_ANIMATION);
         is_changed = true;
       }
     }
 
     {
-      const bool local_is_changed = this->fcurve_foreach(nullptr, anim_data.drivers, callback);
+      const bool local_is_changed = this->fcurve_foreach_in_listbase(anim_data.drivers, callback);
       is_changed = is_changed || local_is_changed;
     }
+
+    /* NOTE: New layered actions system can be ignored here, it did not exist together with GPv2.
+     */
 
     if (this->skip_nla) {
       return is_changed;
     }
 
-    LISTBASE_FOREACH (NlaTrack *, nla_track, &anim_data.nla_tracks) {
-      LISTBASE_FOREACH (NlaStrip *, nla_strip, &nla_track->strips) {
-        const bool local_is_changed = this->nla_strip_fcurve_foreach(*nla_strip, callback);
+    for (NlaTrack &nla_track : anim_data.nla_tracks) {
+      for (NlaStrip &nla_strip : nla_track.strips) {
+        const bool local_is_changed = this->nla_strip_fcurve_foreach(nla_strip, callback);
         is_changed = is_changed || local_is_changed;
+      }
+    }
+    return is_changed;
+  }
+
+  bool action_process(bAction &action, FunctionRef<ActionCallback> callback) const
+  {
+    if (callback(action)) {
+      DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
+      return true;
+    }
+    return false;
+  }
+
+  bool nla_strip_action_foreach(NlaStrip &nla_strip, FunctionRef<ActionCallback> callback) const
+  {
+    bool is_changed = false;
+    if (nla_strip.act) {
+      is_changed = action_process(*nla_strip.act, callback);
+    }
+    for (NlaStrip &nla_strip_children : nla_strip.strips) {
+      is_changed = is_changed || this->nla_strip_action_foreach(nla_strip_children, callback);
+    }
+    return is_changed;
+  }
+
+  bool animdata_action_foreach(AnimData &anim_data, FunctionRef<ActionCallback> callback) const
+  {
+    bool is_changed = false;
+
+    if (anim_data.action) {
+      is_changed = is_changed || action_process(*anim_data.action, callback);
+    }
+    if (anim_data.tmpact) {
+      is_changed = is_changed || action_process(*anim_data.tmpact, callback);
+    }
+
+    /* NOTE: New layered actions system can be ignored here, it did not exist together with GPv2.
+     */
+
+    if (this->skip_nla) {
+      return is_changed;
+    }
+
+    for (NlaTrack &nla_track : anim_data.nla_tracks) {
+      for (NlaStrip &nla_strip : nla_track.strips) {
+        is_changed = is_changed || this->nla_strip_action_foreach(nla_strip, callback);
       }
     }
     return is_changed;
@@ -326,6 +398,10 @@ class AnimDataConvertor {
   {
     if (!this->is_valid()) {
       return false;
+    }
+
+    if (GS(id_src.name) != GS(id_dst.name)) {
+      return true;
     }
 
     bool has_animation = false;
@@ -373,7 +449,7 @@ class AnimDataConvertor {
                                  bAction *owner_action,
                                  FCurve &fcurve,
                                  const std::string &rna_path_dst) {
-      MEM_freeN(fcurve.rna_path);
+      MEM_delete(fcurve.rna_path);
       fcurve.rna_path = BLI_strdupn(rna_path_dst.c_str(), rna_path_dst.size());
       if (fcurve_convertor && fcurve_convertor->convert_cb) {
         fcurve_convertor->convert_cb(fcurve);
@@ -459,6 +535,7 @@ class AnimDataConvertor {
       }
       return;
     }
+
     if (this->fcurves_from_src_main_action.is_empty() &&
         this->fcurves_from_src_tmp_action.is_empty() && this->fcurves_from_src_drivers.is_empty())
     {
@@ -468,41 +545,66 @@ class AnimDataConvertor {
       this->animdata_dst = BKE_animdata_ensure_id(&this->id_dst);
     }
 
-    auto fcurves_move =
-        [&](ListBase &fcurves_dst, ListBase &fcurves_src, const Span<FCurve *> fcurves) {
-          for (FCurve *fcurve : fcurves) {
-            BLI_assert(BLI_findindex(&fcurves_src, fcurve) >= 0);
-            BLI_remlink(&fcurves_src, fcurve);
-            BLI_addtail(&fcurves_dst, fcurve);
-          }
-        };
+    auto fcurves_move = [&](bAction *action_dst,
+                            const animrig::slot_handle_t slot_handle_dst,
+                            bAction *action_src,
+                            const Span<FCurve *> fcurves) {
+      for (FCurve *fcurve : fcurves) {
+        animrig::action_fcurve_move(
+            action_dst->wrap(), slot_handle_dst, action_src->wrap(), *fcurve);
+      }
+    };
+
+    auto fcurves_move_between_listbases = [&](ListBaseT<FCurve> &fcurves_dst,
+                                              ListBaseT<FCurve> &fcurves_src,
+                                              const Span<FCurve *> fcurves) {
+      for (FCurve *fcurve : fcurves) {
+        BLI_assert(BLI_findindex(&fcurves_src, fcurve) >= 0);
+        BLI_remlink(&fcurves_src, fcurve);
+        BLI_addtail(&fcurves_dst, fcurve);
+      }
+    };
 
     if (!this->fcurves_from_src_main_action.is_empty()) {
       if (!this->animdata_dst->action) {
-        this->animdata_dst->action = BKE_action_add(
-            &this->conversion_data.bmain,
+        /* Create a new action. */
+        animrig::Action &action = animrig::action_add(
+            this->conversion_data.bmain,
             this->animdata_src->action ? this->animdata_src->action->id.name + 2 : nullptr);
+        action.slot_add_for_id(this->id_dst);
+
+        const bool ok = animrig::assign_action(&action, {this->id_dst, *this->animdata_dst});
+        BLI_assert_msg(ok, "Expecting action assignment to work when converting Grease Pencil");
+        UNUSED_VARS_NDEBUG(ok);
       }
-      fcurves_move(this->animdata_dst->action->curves,
-                   this->animdata_src->action->curves,
+      fcurves_move(this->animdata_dst->action,
+                   this->animdata_dst->slot_handle,
+                   this->animdata_src->action,
                    this->fcurves_from_src_main_action);
       this->fcurves_from_src_main_action.clear();
     }
     if (!this->fcurves_from_src_tmp_action.is_empty()) {
       if (!this->animdata_dst->tmpact) {
-        this->animdata_dst->tmpact = BKE_action_add(
-            &this->conversion_data.bmain,
+        /* Create a new tmpact. */
+        animrig::Action &tmpact = animrig::action_add(
+            this->conversion_data.bmain,
             this->animdata_src->tmpact ? this->animdata_src->tmpact->id.name + 2 : nullptr);
+        tmpact.slot_add_for_id(this->id_dst);
+
+        const bool ok = animrig::assign_tmpaction(&tmpact, {this->id_dst, *this->animdata_dst});
+        BLI_assert_msg(ok, "Expecting tmpact assignment to work when converting Grease Pencil");
+        UNUSED_VARS_NDEBUG(ok);
       }
-      fcurves_move(this->animdata_dst->tmpact->curves,
-                   this->animdata_src->tmpact->curves,
+      fcurves_move(this->animdata_dst->tmpact,
+                   this->animdata_dst->tmp_slot_handle,
+                   this->animdata_src->tmpact,
                    this->fcurves_from_src_tmp_action);
       this->fcurves_from_src_tmp_action.clear();
     }
     if (!this->fcurves_from_src_drivers.is_empty()) {
-      fcurves_move(this->animdata_dst->drivers,
-                   this->animdata_src->drivers,
-                   this->fcurves_from_src_drivers);
+      fcurves_move_between_listbases(this->animdata_dst->drivers,
+                                     this->animdata_src->drivers,
+                                     this->fcurves_from_src_drivers);
       this->fcurves_from_src_drivers.clear();
     }
 
@@ -512,29 +614,29 @@ class AnimDataConvertor {
   }
 };
 
-/* \} */
+/** \} */
 
 /**
  * Find vertex groups that have assigned vertices in this drawing.
  * Returns:
- * - ListBase with used vertex group names (bDeformGroup)
+ * - ListBaseT<bDeformGroup> with used vertex group names
  * - Array of indices in the new vertex group list for remapping
  */
 static void find_used_vertex_groups(const bGPDframe &gpf,
-                                    const ListBase &all_names,
-                                    ListBase &r_vertex_group_names,
+                                    const ListBaseT<bDeformGroup> &vertex_group_names,
+                                    const int num_vertex_groups,
+                                    ListBaseT<bDeformGroup> &r_vertex_group_names,
                                     Array<int> &r_indices)
 {
-  const int num_vertex_groups = BLI_listbase_count(&all_names);
   Array<int> is_group_used(num_vertex_groups, false);
-  LISTBASE_FOREACH (bGPDstroke *, gps, &gpf.strokes) {
-    if (!gps->dvert) {
+  for (bGPDstroke &gps : gpf.strokes) {
+    if (!gps.dvert) {
       continue;
     }
-    Span<MDeformVert> dverts = {gps->dvert, gps->totpoints};
+    Span<MDeformVert> dverts = {gps.dvert, gps.totpoints};
     for (const MDeformVert &dvert : dverts) {
       for (const MDeformWeight &weight : Span<MDeformWeight>{dvert.dw, dvert.totweight}) {
-        if (weight.def_nr >= dvert.totweight) {
+        if (weight.def_nr >= num_vertex_groups) {
           /* Ignore invalid deform weight group indices. */
           continue;
         }
@@ -545,15 +647,15 @@ static void find_used_vertex_groups(const bGPDframe &gpf,
   BLI_listbase_clear(&r_vertex_group_names);
   r_indices.reinitialize(num_vertex_groups);
   int new_group_i = 0;
-  int old_group_i;
-  LISTBASE_FOREACH_INDEX (const bDeformGroup *, def_group, &all_names, old_group_i) {
+
+  for (const auto [old_group_i, def_group] : vertex_group_names.enumerate()) {
     if (!is_group_used[old_group_i]) {
       r_indices[old_group_i] = -1;
       continue;
     }
     r_indices[old_group_i] = new_group_i++;
 
-    bDeformGroup *def_group_copy = static_cast<bDeformGroup *>(MEM_dupallocN(def_group));
+    bDeformGroup *def_group_copy = MEM_dupalloc(&def_group);
     BLI_addtail(&r_vertex_group_names, def_group_copy);
   }
 }
@@ -565,8 +667,6 @@ static float3x2 get_legacy_stroke_to_texture_matrix(const float2 uv_translation,
                                                     const float uv_rotation,
                                                     const float2 uv_scale)
 {
-  using namespace blender;
-
   /* Bounding box data. */
   const float2 minv = float2(-1.0f, -1.0f);
   const float2 maxv = float2(1.0f, 1.0f);
@@ -582,7 +682,7 @@ static float3x2 get_legacy_stroke_to_texture_matrix(const float2 uv_translation,
 
   float3x2 texture_matrix = float3x2::identity();
 
-  /* Apply bounding box rescaling. */
+  /* Apply bounding box re-scaling. */
   texture_matrix[2] -= minv;
   texture_matrix = math::from_scale<float2x2>(1.0f / diagonal) * texture_matrix;
 
@@ -603,9 +703,8 @@ static float3x2 get_legacy_stroke_to_texture_matrix(const float2 uv_translation,
 /*
  * This gets the legacy layer-space to stroke-space matrix.
  */
-static blender::float4x2 get_legacy_layer_to_stroke_matrix(bGPDstroke *gps)
+static float4x2 get_legacy_layer_to_stroke_matrix(bGPDstroke *gps)
 {
-  using namespace blender;
   using namespace blender::math;
 
   const bGPDspoint *points = gps->points;
@@ -642,7 +741,7 @@ static blender::float4x2 get_legacy_layer_to_stroke_matrix(bGPDstroke *gps)
   return mat;
 }
 
-static blender::float4x2 get_legacy_texture_matrix(bGPDstroke *gps)
+static float4x2 get_legacy_texture_matrix(bGPDstroke *gps)
 {
   const float3x2 texture_matrix = get_legacy_stroke_to_texture_matrix(
       float2(gps->uv_translation), gps->uv_rotation, float2(gps->uv_scale));
@@ -665,8 +764,8 @@ static blender::float4x2 get_legacy_texture_matrix(bGPDstroke *gps)
   return texture_matrix * strokemat4x3;
 }
 
-static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gpf,
-                                                             const ListBase &vertex_group_names)
+static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(
+    const bGPDframe &gpf, const ListBaseT<bDeformGroup> &vertex_group_names)
 {
   /* Create a new empty drawing. */
   Drawing drawing;
@@ -678,23 +777,23 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
   int num_strokes = 0;
   int num_points = 0;
   bool has_bezier_stroke = false;
-  LISTBASE_FOREACH (bGPDstroke *, gps, &gpf.strokes) {
+  for (bGPDstroke &gps : gpf.strokes) {
     /* Check for a valid edit curve. This is only the case when the `editcurve` exists and wasn't
      * tagged for a stroke update. This tag indicates that the stroke points have changed,
      * invalidating the edit curve. */
-    if (gps->editcurve != nullptr && (gps->editcurve->flag & GP_CURVE_NEEDS_STROKE_UPDATE) == 0) {
-      if (gps->editcurve->tot_curve_points == 0) {
+    if (gps.editcurve != nullptr && (gps.editcurve->flag & GP_CURVE_NEEDS_STROKE_UPDATE) == 0) {
+      if (gps.editcurve->tot_curve_points == 0) {
         continue;
       }
       has_bezier_stroke = true;
-      num_points += gps->editcurve->tot_curve_points;
+      num_points += gps.editcurve->tot_curve_points;
       curve_types.append(CURVE_TYPE_BEZIER);
     }
     else {
-      if (gps->totpoints == 0) {
+      if (gps.totpoints == 0) {
         continue;
       }
-      num_points += gps->totpoints;
+      num_points += gps.totpoints;
       curve_types.append(CURVE_TYPE_POLY);
     }
     num_strokes++;
@@ -724,9 +823,11 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
   }
 
   /* Find used vertex groups in this drawing. */
-  ListBase stroke_vertex_group_names;
+  ListBaseT<bDeformGroup> stroke_vertex_group_names;
   Array<int> stroke_def_nr_map;
-  find_used_vertex_groups(gpf, vertex_group_names, stroke_vertex_group_names, stroke_def_nr_map);
+  const int num_vertex_groups = BLI_listbase_count(&vertex_group_names);
+  find_used_vertex_groups(
+      gpf, vertex_group_names, num_vertex_groups, stroke_vertex_group_names, stroke_def_nr_map);
   BLI_assert(BLI_listbase_is_empty(&curves.vertex_group_names));
   curves.vertex_group_names = stroke_vertex_group_names;
   const bool use_dverts = !BLI_listbase_is_empty(&curves.vertex_group_names);
@@ -734,10 +835,10 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
   /* Copy vertex weights and map the vertex group indices. */
   auto copy_dvert = [&](const MDeformVert &src_dvert, MDeformVert &dst_dvert) {
     dst_dvert = src_dvert;
-    dst_dvert.dw = static_cast<MDeformWeight *>(MEM_dupallocN(src_dvert.dw));
+    dst_dvert.dw = MEM_dupalloc(src_dvert.dw);
     const MutableSpan<MDeformWeight> vertex_weights = {dst_dvert.dw, dst_dvert.totweight};
     for (MDeformWeight &weight : vertex_weights) {
-      if (weight.def_nr >= dst_dvert.totweight) {
+      if (weight.def_nr >= num_vertex_groups) {
         /* Ignore invalid deform weight group indices. */
         continue;
       }
@@ -756,6 +857,8 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
                                                    MutableSpan<float3>();
   MutableSpan<float> radii = drawing.radii_for_write();
   MutableSpan<float> opacities = drawing.opacities_for_write();
+  /* Note: Since we *know* the drawing are created from scratch, we assume that the following
+   * `lookup_or_add_for_write_span` calls always return valid writers. */
   SpanAttributeWriter<float> delta_times = attributes.lookup_or_add_for_write_span<float>(
       "delta_time", AttrDomain::Point);
   SpanAttributeWriter<float> rotations = attributes.lookup_or_add_for_write_span<float>(
@@ -786,30 +889,30 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
   Array<float4x2> legacy_texture_matrices(num_strokes);
 
   int stroke_i = 0;
-  LISTBASE_FOREACH (bGPDstroke *, gps, &gpf.strokes) {
+  for (bGPDstroke &gps : gpf.strokes) {
     /* In GPv2 strokes with 0 points could technically be represented. In `CurvesGeometry` this is
      * not the case and would be a bug. So we explicitly make sure to skip over strokes with no
      * points. */
-    if (gps->totpoints == 0 ||
-        (gps->editcurve != nullptr && gps->editcurve->tot_curve_points == 0))
-    {
+    if (gps.totpoints == 0 || (gps.editcurve != nullptr && gps.editcurve->tot_curve_points == 0)) {
       continue;
     }
 
-    stroke_cyclic.span[stroke_i] = (gps->flag & GP_STROKE_CYCLIC) != 0;
+    stroke_cyclic.span[stroke_i] = (gps.flag & GP_STROKE_CYCLIC) != 0;
     /* Truncating time in ms to uint32 then we don't lose precision in lower bits. */
-    stroke_init_times.span[stroke_i] = float(uint32_t(gps->inittime * double(1e3))) / float(1e3);
-    stroke_start_caps.span[stroke_i] = int8_t(gps->caps[0]);
-    stroke_end_caps.span[stroke_i] = int8_t(gps->caps[1]);
-    stroke_softness.span[stroke_i] = 1.0f - gps->hardness;
-    stroke_point_aspect_ratios.span[stroke_i] = gps->aspect_ratio[0] /
-                                                max_ff(gps->aspect_ratio[1], 1e-8);
-    stroke_fill_colors[stroke_i] = ColorGeometry4f(gps->vert_color_fill);
-    stroke_materials.span[stroke_i] = gps->mat_nr;
+    const uint32_t clamped_init_time = uint32_t(
+        std::clamp(gps.inittime * 1e3, 0.0, double(std::numeric_limits<uint32_t>::max())));
+    stroke_init_times.span[stroke_i] = float(clamped_init_time) / float(1e3);
+    stroke_start_caps.span[stroke_i] = int8_t(gps.caps[0]);
+    stroke_end_caps.span[stroke_i] = int8_t(gps.caps[1]);
+    stroke_softness.span[stroke_i] = 1.0f - gps.hardness;
+    stroke_point_aspect_ratios.span[stroke_i] = gps.aspect_ratio[0] /
+                                                max_ff(gps.aspect_ratio[1], 1e-8);
+    stroke_fill_colors[stroke_i] = ColorGeometry4f(gps.vert_color_fill);
+    stroke_materials.span[stroke_i] = gps.mat_nr;
 
     const IndexRange points = points_by_curve[stroke_i];
 
-    const float stroke_thickness = float(gps->thickness) * LEGACY_RADIUS_CONVERSION_FACTOR;
+    const float stroke_thickness = float(gps.thickness) * LEGACY_RADIUS_CONVERSION_FACTOR;
     MutableSpan<float3> dst_positions = positions.slice(points);
     MutableSpan<float3> dst_handle_positions_left = has_bezier_stroke ?
                                                         handle_positions_left.slice(points) :
@@ -827,8 +930,8 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
                                                        MutableSpan<MDeformVert>();
 
     if (curve_types[stroke_i] == CURVE_TYPE_POLY) {
-      BLI_assert(points.size() == gps->totpoints);
-      const Span<bGPDspoint> src_points{gps->points, gps->totpoints};
+      BLI_assert(points.size() == gps.totpoints);
+      const Span<bGPDspoint> src_points{gps.points, gps.totpoints};
       threading::parallel_for(src_points.index_range(), 4096, [&](const IndexRange range) {
         for (const int point_i : range) {
           const bGPDspoint &pt = src_points[point_i];
@@ -839,17 +942,17 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
           dst_rotations[point_i] = pt.uv_rot;
           dst_vertex_colors[point_i] = ColorGeometry4f(pt.vert_color);
           dst_selection[point_i] = (pt.flag & GP_SPOINT_SELECT) != 0;
-          if (use_dverts && gps->dvert) {
-            copy_dvert(gps->dvert[point_i], dst_dverts[point_i]);
+          if (use_dverts && gps.dvert) {
+            copy_dvert(gps.dvert[point_i], dst_dverts[point_i]);
           }
         }
       });
     }
     else if (curve_types[stroke_i] == CURVE_TYPE_BEZIER) {
-      BLI_assert(gps->editcurve != nullptr);
-      BLI_assert(points.size() == gps->editcurve->tot_curve_points);
-      Span<bGPDcurve_point> src_curve_points{gps->editcurve->curve_points,
-                                             gps->editcurve->tot_curve_points};
+      BLI_assert(gps.editcurve != nullptr);
+      BLI_assert(points.size() == gps.editcurve->tot_curve_points);
+      Span<bGPDcurve_point> src_curve_points{gps.editcurve->curve_points,
+                                             gps.editcurve->tot_curve_points};
 
       threading::parallel_for(src_curve_points.index_range(), 4096, [&](const IndexRange range) {
         for (const int point_i : range) {
@@ -862,8 +965,8 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
           dst_rotations[point_i] = cpt.uv_rot;
           dst_vertex_colors[point_i] = ColorGeometry4f(cpt.vert_color);
           dst_selection[point_i] = (cpt.flag & GP_CURVE_POINT_SELECT) != 0;
-          if (use_dverts && gps->dvert) {
-            copy_dvert(gps->dvert[point_i], dst_dverts[point_i]);
+          if (use_dverts && gps.dvert) {
+            copy_dvert(gps.dvert[point_i], dst_dverts[point_i]);
           }
         }
       });
@@ -873,7 +976,7 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
       BLI_assert_unreachable();
     }
 
-    const float4x2 legacy_texture_matrix = get_legacy_texture_matrix(gps);
+    const float4x2 legacy_texture_matrix = get_legacy_texture_matrix(&gps);
     legacy_texture_matrices[stroke_i] = legacy_texture_matrix;
 
     stroke_i++;
@@ -904,13 +1007,14 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
 {
   using namespace blender::bke::greasepencil;
 
-  if (gpd.flag & LIB_FAKEUSER) {
+  if (gpd.flag & ID_FLAG_FAKEUSER) {
     id_fake_user_set(&grease_pencil.id);
   }
 
   BLI_assert(!grease_pencil.id.properties);
   if (gpd.id.properties) {
     grease_pencil.id.properties = IDP_CopyProperty(gpd.id.properties);
+    grease_pencil.id.system_properties = IDP_CopyProperty(gpd.id.properties);
   }
 
   /** Convert Grease Pencil data flag. */
@@ -922,53 +1026,55 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
   SET_FLAG_FROM_TEST(
       grease_pencil.flag, (gpd.draw_mode == GP_DRAWMODE_3D), GREASE_PENCIL_STROKE_ORDER_3D);
 
-  int layer_idx = 0;
-  LISTBASE_FOREACH_INDEX (bGPDlayer *, gpl, &gpd.layers, layer_idx) {
+  for (const auto [layer_idx, gpl] : gpd.layers.enumerate()) {
     /* Create a new layer. */
-    Layer &new_layer = grease_pencil.add_layer(
-        StringRefNull(gpl->info, BLI_strnlen(gpl->info, 128)));
+    Layer &new_layer = grease_pencil.add_layer(StringRefNull(gpl.info, STRNLEN(gpl.info)));
 
     /* Flags. */
-    new_layer.set_visible((gpl->flag & GP_LAYER_HIDE) == 0);
-    new_layer.set_locked((gpl->flag & GP_LAYER_LOCKED) != 0);
-    new_layer.set_selected((gpl->flag & GP_LAYER_SELECT) != 0);
+    new_layer.set_visible((gpl.flag & GP_LAYER_HIDE) == 0);
+    new_layer.set_locked((gpl.flag & GP_LAYER_LOCKED) != 0);
+    new_layer.set_selected((gpl.flag & GP_LAYER_SELECT) != 0);
     SET_FLAG_FROM_TEST(
-        new_layer.base.flag, (gpl->flag & GP_LAYER_FRAMELOCK) != 0, GP_LAYER_TREE_NODE_MUTE);
+        new_layer.base.flag, (gpl.flag & GP_LAYER_FRAMELOCK) != 0, GP_LAYER_TREE_NODE_MUTE);
+    SET_FLAG_FROM_TEST(
+        new_layer.base.flag, (gpl.flag & GP_LAYER_USE_LIGHTS) != 0, GP_LAYER_TREE_NODE_USE_LIGHTS);
     SET_FLAG_FROM_TEST(new_layer.base.flag,
-                       (gpl->flag & GP_LAYER_USE_LIGHTS) != 0,
-                       GP_LAYER_TREE_NODE_USE_LIGHTS);
-    SET_FLAG_FROM_TEST(new_layer.base.flag,
-                       (gpl->onion_flag & GP_LAYER_ONIONSKIN) == 0,
+                       (gpl.onion_flag & GP_LAYER_ONIONSKIN) == 0,
                        GP_LAYER_TREE_NODE_HIDE_ONION_SKINNING);
     SET_FLAG_FROM_TEST(
-        new_layer.base.flag, (gpl->flag & GP_LAYER_USE_MASK) == 0, GP_LAYER_TREE_NODE_HIDE_MASKS);
+        new_layer.base.flag, (gpl.flag & GP_LAYER_USE_MASK) == 0, GP_LAYER_TREE_NODE_HIDE_MASKS);
 
-    new_layer.blend_mode = int8_t(gpl->blend_mode);
+    /* Copy Dope-sheet channel color. */
+    copy_v3_v3(new_layer.base.color, gpl.color);
+    new_layer.blend_mode = int8_t(gpl.blend_mode);
 
-    new_layer.parent = gpl->parent;
-    new_layer.set_parent_bone_name(gpl->parsubstr);
-    copy_m4_m4(new_layer.parentinv, gpl->inverse);
+    new_layer.parent = gpl.parent;
+    new_layer.set_parent_bone_name(gpl.parsubstr);
+    /* GPv2 parent inverse matrix is only valid when parent is set. */
+    if (gpl.parent) {
+      copy_m4_m4(new_layer.parentinv, gpl.inverse);
+    }
 
-    copy_v3_v3(new_layer.translation, gpl->location);
-    copy_v3_v3(new_layer.rotation, gpl->rotation);
-    copy_v3_v3(new_layer.scale, gpl->scale);
+    copy_v3_v3(new_layer.translation, gpl.location);
+    copy_v3_v3(new_layer.rotation, gpl.rotation);
+    copy_v3_v3(new_layer.scale, gpl.scale);
 
-    new_layer.set_view_layer_name(gpl->viewlayername);
+    new_layer.set_view_layer_name(gpl.viewlayername);
     SET_FLAG_FROM_TEST(new_layer.base.flag,
-                       (gpl->flag & GP_LAYER_DISABLE_MASKS_IN_VIEWLAYER) != 0,
+                       (gpl.flag & GP_LAYER_DISABLE_MASKS_IN_VIEWLAYER) != 0,
                        GP_LAYER_TREE_NODE_DISABLE_MASKS_IN_VIEWLAYER);
 
     /* Convert the layer masks. */
-    LISTBASE_FOREACH (bGPDlayer_Mask *, mask, &gpl->mask_layers) {
-      LayerMask *new_mask = MEM_new<LayerMask>(__func__, mask->name);
-      new_mask->flag = mask->flag;
+    for (bGPDlayer_Mask &mask : gpl.mask_layers) {
+      LayerMask *new_mask = MEM_new<LayerMask>(__func__, mask.name);
+      new_mask->flag = mask.flag;
       BLI_addtail(&new_layer.masks, new_mask);
     }
-    new_layer.opacity = gpl->opacity;
+    new_layer.opacity = gpl.opacity;
 
-    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
+    for (bGPDframe &gpf : gpl.frames) {
       Drawing *dst_drawing = grease_pencil.insert_frame(
-          new_layer, gpf->framenum, 0, eBezTriple_KeyframeType(gpf->key_type));
+          new_layer, gpf.framenum, 0, eBezTriple_KeyframeType(gpf.key_type));
       if (dst_drawing == nullptr) {
         /* Might fail because GPv2 technically allowed overlapping keyframes on the same frame
          * (very unlikely to occur in real world files). In GPv3, keyframes always have to be on
@@ -976,26 +1082,28 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
         continue;
       }
       /* Convert the frame to a drawing. */
-      *dst_drawing = legacy_gpencil_frame_to_grease_pencil_drawing(*gpf, gpd.vertex_group_names);
+      *dst_drawing = legacy_gpencil_frame_to_grease_pencil_drawing(gpf, gpd.vertex_group_names);
 
       /* This frame was just inserted above, so it should always exist. */
-      GreasePencilFrame &new_frame = *new_layer.frame_at(gpf->framenum);
-      SET_FLAG_FROM_TEST(new_frame.flag, (gpf->flag & GP_FRAME_SELECT), GP_FRAME_SELECTED);
+      GreasePencilFrame &new_frame = *new_layer.frame_at(gpf.framenum);
+      SET_FLAG_FROM_TEST(new_frame.flag, (gpf.flag & GP_FRAME_SELECT), GP_FRAME_SELECTED);
     }
 
-    if ((gpl->flag & GP_LAYER_ACTIVE) != 0) {
+    if ((gpl.flag & GP_LAYER_ACTIVE) != 0) {
       grease_pencil.set_active_layer(&new_layer);
     }
   }
 
   /* Second loop, to write to layer attributes after all layers were created. */
   MutableAttributeAccessor layer_attributes = grease_pencil.attributes_for_write();
+  /* NOTE: Layer Adjustments like the tint and the radius offsets are deliberately ignored here!
+   * These are converted to modifiers at the bottom of the stack to keep visual compatibility with
+   * GPv2. */
   SpanAttributeWriter<int> layer_passes = layer_attributes.lookup_or_add_for_write_span<int>(
       "pass_index", bke::AttrDomain::Layer);
 
-  layer_idx = 0;
-  LISTBASE_FOREACH_INDEX (bGPDlayer *, gpl, &gpd.layers, layer_idx) {
-    layer_passes.span[layer_idx] = int(gpl->pass_index);
+  for (const auto [layer_idx, gpl] : gpd.layers.enumerate()) {
+    layer_passes.span[layer_idx] = int(gpl.pass_index);
   }
 
   layer_passes.finish();
@@ -1037,20 +1145,33 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
   if (AnimData *gpd_animdata = BKE_animdata_from_id(&gpd.id)) {
     grease_pencil.adt = BKE_animdata_copy_in_lib(
         &conversion_data.bmain, gpd.id.lib, gpd_animdata, LIB_ID_COPY_DEFAULT);
+
+    /* Some property was renamed between legacy GP layers and new GreasePencil ones. */
+    AnimDataConvertor animdata_gpdata_transfer(
+        conversion_data, grease_pencil.id, gpd.id, {{".location", ".translation"}});
+    for (const Layer *layer_iter : grease_pencil.layers()) {
+      /* Data comes from versioned GPv2 layers, which have a fixed max length. */
+      char layer_name_esc[sizeof((bGPDlayer{}).info) * 2];
+      BLI_str_escape(layer_name_esc, layer_iter->name().c_str(), sizeof(layer_name_esc));
+      std::string layer_root_path = fmt::format("layers[\"{}\"]", layer_name_esc);
+      animdata_gpdata_transfer.root_path_dst = layer_root_path;
+      animdata_gpdata_transfer.root_path_src = layer_root_path;
+      animdata_gpdata_transfer.fcurves_convert();
+    }
+    animdata_gpdata_transfer.fcurves_convert_finalize();
   }
 }
 
 constexpr const char *OFFSET_RADIUS_NODETREE_NAME = "Offset Radius GPv3 Conversion";
 static bNodeTree *offset_radius_node_tree_add(ConversionData &conversion_data, Library *library)
 {
-  using namespace blender;
   /* NOTE: DO NOT translate this ID name, it is used to find a potentially already existing
    * node-tree. */
-  bNodeTree *group = bke::BKE_node_tree_add_in_lib(
+  bNodeTree *group = bke::node_tree_add_in_lib(
       &conversion_data.bmain, library, OFFSET_RADIUS_NODETREE_NAME, "GeometryNodeTree");
 
   if (!group->geometry_node_asset_traits) {
-    group->geometry_node_asset_traits = MEM_cnew<GeometryNodeAssetTraits>(__func__);
+    group->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(__func__);
   }
   group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 
@@ -1069,80 +1190,80 @@ static bNodeTree *offset_radius_node_tree_add(ConversionData &conversion_data, L
   group->tree_interface.add_socket(
       DATA_("Layer"), "", "NodeSocketString", NODE_INTERFACE_SOCKET_INPUT, nullptr);
 
-  bNode *group_output = bke::nodeAddNode(nullptr, group, "NodeGroupOutput");
-  group_output->locx = 800;
-  group_output->locy = 160;
-  bNode *group_input = bke::nodeAddNode(nullptr, group, "NodeGroupInput");
-  group_input->locx = 0;
-  group_input->locy = 160;
+  bNode *group_output = bke::node_add_node(nullptr, *group, "NodeGroupOutput");
+  group_output->location[0] = 800;
+  group_output->location[1] = 160;
+  bNode *group_input = bke::node_add_node(nullptr, *group, "NodeGroupInput");
+  group_input->location[0] = 0;
+  group_input->location[1] = 160;
 
-  bNode *set_curve_radius = bke::nodeAddNode(nullptr, group, "GeometryNodeSetCurveRadius");
-  set_curve_radius->locx = 600;
-  set_curve_radius->locy = 160;
-  bNode *named_layer_selection = bke::nodeAddNode(
-      nullptr, group, "GeometryNodeInputNamedLayerSelection");
-  named_layer_selection->locx = 200;
-  named_layer_selection->locy = 100;
-  bNode *input_radius = bke::nodeAddNode(nullptr, group, "GeometryNodeInputRadius");
-  input_radius->locx = 0;
-  input_radius->locy = 0;
+  bNode *set_curve_radius = bke::node_add_node(nullptr, *group, "GeometryNodeSetCurveRadius");
+  set_curve_radius->location[0] = 600;
+  set_curve_radius->location[1] = 160;
+  bNode *named_layer_selection = bke::node_add_node(
+      nullptr, *group, "GeometryNodeInputNamedLayerSelection");
+  named_layer_selection->location[0] = 200;
+  named_layer_selection->location[1] = 100;
+  bNode *input_radius = bke::node_add_node(nullptr, *group, "GeometryNodeInputRadius");
+  input_radius->location[0] = 0;
+  input_radius->location[1] = 0;
 
-  bNode *add = bke::nodeAddNode(nullptr, group, "ShaderNodeMath");
+  bNode *add = bke::node_add_node(nullptr, *group, "ShaderNodeMath");
   add->custom1 = NODE_MATH_ADD;
-  add->locx = 200;
-  add->locy = 0;
+  add->location[0] = 200;
+  add->location[1] = 0;
 
-  bNode *clamp_radius = bke::nodeAddNode(nullptr, group, "ShaderNodeClamp");
-  clamp_radius->locx = 400;
-  clamp_radius->locy = 0;
-  bNodeSocket *sock_max = bke::nodeFindSocket(clamp_radius, SOCK_IN, "Max");
+  bNode *clamp_radius = bke::node_add_node(nullptr, *group, "ShaderNodeClamp");
+  clamp_radius->location[0] = 400;
+  clamp_radius->location[1] = 0;
+  bNodeSocket *sock_max = bke::node_find_socket(*clamp_radius, SOCK_IN, "Max");
   static_cast<bNodeSocketValueFloat *>(sock_max->default_value)->value = FLT_MAX;
 
-  bke::nodeAddLink(group,
-                   group_input,
-                   bke::nodeFindSocket(group_input, SOCK_OUT, "Socket_0"),
-                   set_curve_radius,
-                   bke::nodeFindSocket(set_curve_radius, SOCK_IN, "Curve"));
-  bke::nodeAddLink(group,
-                   set_curve_radius,
-                   bke::nodeFindSocket(set_curve_radius, SOCK_OUT, "Curve"),
-                   group_output,
-                   bke::nodeFindSocket(group_output, SOCK_IN, "Socket_1"));
+  bke::node_add_link(*group,
+                     *group_input,
+                     *bke::node_find_socket(*group_input, SOCK_OUT, "Socket_0"),
+                     *set_curve_radius,
+                     *bke::node_find_socket(*set_curve_radius, SOCK_IN, "Curve"));
+  bke::node_add_link(*group,
+                     *set_curve_radius,
+                     *bke::node_find_socket(*set_curve_radius, SOCK_OUT, "Curve"),
+                     *group_output,
+                     *bke::node_find_socket(*group_output, SOCK_IN, "Socket_1"));
 
-  bke::nodeAddLink(group,
-                   group_input,
-                   bke::nodeFindSocket(group_input, SOCK_OUT, "Socket_3"),
-                   named_layer_selection,
-                   bke::nodeFindSocket(named_layer_selection, SOCK_IN, "Name"));
-  bke::nodeAddLink(group,
-                   named_layer_selection,
-                   bke::nodeFindSocket(named_layer_selection, SOCK_OUT, "Selection"),
-                   set_curve_radius,
-                   bke::nodeFindSocket(set_curve_radius, SOCK_IN, "Selection"));
+  bke::node_add_link(*group,
+                     *group_input,
+                     *bke::node_find_socket(*group_input, SOCK_OUT, "Socket_3"),
+                     *named_layer_selection,
+                     *bke::node_find_socket(*named_layer_selection, SOCK_IN, "Name"));
+  bke::node_add_link(*group,
+                     *named_layer_selection,
+                     *bke::node_find_socket(*named_layer_selection, SOCK_OUT, "Selection"),
+                     *set_curve_radius,
+                     *bke::node_find_socket(*set_curve_radius, SOCK_IN, "Selection"));
 
-  bke::nodeAddLink(group,
-                   group_input,
-                   bke::nodeFindSocket(group_input, SOCK_OUT, "Socket_2"),
-                   add,
-                   bke::nodeFindSocket(add, SOCK_IN, "Value"));
-  bke::nodeAddLink(group,
-                   input_radius,
-                   bke::nodeFindSocket(input_radius, SOCK_OUT, "Radius"),
-                   add,
-                   bke::nodeFindSocket(add, SOCK_IN, "Value_001"));
-  bke::nodeAddLink(group,
-                   add,
-                   bke::nodeFindSocket(add, SOCK_OUT, "Value"),
-                   clamp_radius,
-                   bke::nodeFindSocket(clamp_radius, SOCK_IN, "Value"));
-  bke::nodeAddLink(group,
-                   clamp_radius,
-                   bke::nodeFindSocket(clamp_radius, SOCK_OUT, "Result"),
-                   set_curve_radius,
-                   bke::nodeFindSocket(set_curve_radius, SOCK_IN, "Radius"));
+  bke::node_add_link(*group,
+                     *group_input,
+                     *bke::node_find_socket(*group_input, SOCK_OUT, "Socket_2"),
+                     *add,
+                     *bke::node_find_socket(*add, SOCK_IN, "Value"));
+  bke::node_add_link(*group,
+                     *input_radius,
+                     *bke::node_find_socket(*input_radius, SOCK_OUT, "Radius"),
+                     *add,
+                     *bke::node_find_socket(*add, SOCK_IN, "Value_001"));
+  bke::node_add_link(*group,
+                     *add,
+                     *bke::node_find_socket(*add, SOCK_OUT, "Value"),
+                     *clamp_radius,
+                     *bke::node_find_socket(*clamp_radius, SOCK_IN, "Value"));
+  bke::node_add_link(*group,
+                     *clamp_radius,
+                     *bke::node_find_socket(*clamp_radius, SOCK_OUT, "Result"),
+                     *set_curve_radius,
+                     *bke::node_find_socket(*set_curve_radius, SOCK_IN, "Radius"));
 
-  LISTBASE_FOREACH (bNode *, node, &group->nodes) {
-    bke::nodeSetSelected(node, false);
+  for (bNode &node : group->nodes) {
+    bke::node_set_selected(node, false);
   }
 
   return group;
@@ -1170,7 +1291,7 @@ static void thickness_factor_to_modifier(ConversionData &conversion_data,
 
   tmd->thickness_fac = thickness_factor;
 
-  STRNCPY(md->name, DATA_("Thickness"));
+  STRNCPY_UTF8(md->name, DATA_("Thickness"));
   BKE_modifier_unique_name(&dst_object.modifiers, md);
 
   BLI_addtail(&dst_object.modifiers, md);
@@ -1205,7 +1326,7 @@ static void fcurve_convert_thickness_cb(FCurve &fcurve)
     }
   }
   fcurve.flag &= ~FCURVE_INT_VALUES;
-  BKE_fcurve_handles_recalc(&fcurve);
+  BKE_fcurve_handles_recalc(fcurve);
 }
 
 static void legacy_object_thickness_modifier_thickness_anim(ConversionData &conversion_data,
@@ -1223,13 +1344,13 @@ static void legacy_object_thickness_modifier_thickness_anim(ConversionData &conv
       object.id,
       {{".thickness", ".thickness", fcurve_convert_thickness_cb}});
 
-  LISTBASE_FOREACH (ModifierData *, tmd, &object.modifiers) {
-    if (ModifierType(tmd->type) != eModifierType_GreasePencilThickness) {
+  for (ModifierData &tmd : object.modifiers) {
+    if (ModifierType(tmd.type) != eModifierType_GreasePencilThickness) {
       continue;
     }
 
     char modifier_name[MAX_NAME * 2];
-    BLI_str_escape(modifier_name, tmd->name, sizeof(modifier_name));
+    BLI_str_escape(modifier_name, tmd.name, sizeof(modifier_name));
     animdata_convert_thickness.root_path_src = fmt::format("modifiers[\"{}\"]", modifier_name);
     animdata_convert_thickness.root_path_dst = fmt::format("modifiers[\"{}\"]", modifier_name);
 
@@ -1262,13 +1383,13 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
       {{".line_change", "[\"Socket_2\"]", fcurve_convert_thickness_cb}});
 
   /* Replace layer adjustments with modifiers. */
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &src_object_data.layers) {
-    const float3 tint_color = float3(gpl->tintcolor);
-    const float tint_factor = gpl->tintcolor[3];
-    const int thickness_px = gpl->line_change;
+  for (bGPDlayer &gpl : src_object_data.layers) {
+    const float3 tint_color = float3(gpl.tintcolor);
+    const float tint_factor = gpl.tintcolor[3];
+    const int thickness_px = gpl.line_change;
 
-    char layer_name_esc[sizeof(gpl->info) * 2];
-    BLI_str_escape(layer_name_esc, gpl->info, sizeof(layer_name_esc));
+    char layer_name_esc[sizeof(gpl.info) * 2];
+    BLI_str_escape(layer_name_esc, gpl.info, sizeof(layer_name_esc));
     animdata_tint_transfer.root_path_src = fmt::format("layers[\"{}\"]", layer_name_esc);
     animdata_thickness_transfer.root_path_src = fmt::format("layers[\"{}\"]", layer_name_esc);
 
@@ -1288,11 +1409,11 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
 
       copy_v3_v3(tmd->color, tint_color);
       tmd->factor = tint_factor;
-      STRNCPY(tmd->influence.layer_name, gpl->info);
+      STRNCPY_UTF8(tmd->influence.layer_name, gpl.info);
 
       char modifier_name[MAX_NAME];
-      SNPRINTF(modifier_name, "Tint %s", gpl->info);
-      STRNCPY(md->name, modifier_name);
+      SNPRINTF_UTF8(modifier_name, "Tint %s", gpl.info);
+      STRNCPY_UTF8(md->name, modifier_name);
       BKE_modifier_unique_name(&dst_object.modifiers, md);
 
       BLI_addtail(&dst_object.modifiers, md);
@@ -1324,20 +1445,20 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
         }
         /* Try to find an existing group added by previous versioning to avoid adding duplicates.
          */
-        LISTBASE_FOREACH (bNodeTree *, ntree_iter, &conversion_data.bmain.nodetrees) {
-          if (ntree_iter->id.lib != owner_library) {
+        for (bNodeTree &ntree_iter : conversion_data.bmain.nodetrees) {
+          if (ntree_iter.id.lib != owner_library) {
             continue;
           }
-          if (STREQ(ntree_iter->id.name + 2, OFFSET_RADIUS_NODETREE_NAME)) {
-            conversion_data.offset_radius_ntree_by_library.add_new(owner_library, ntree_iter);
-            return ntree_iter;
+          if (STREQ(ntree_iter.id.name + 2, OFFSET_RADIUS_NODETREE_NAME)) {
+            conversion_data.offset_radius_ntree_by_library.add_new(owner_library, &ntree_iter);
+            return &ntree_iter;
           }
         }
         bNodeTree *new_ntree = offset_radius_node_tree_add(conversion_data, owner_library);
         /* Remove the default user. The count is tracked manually when assigning to modifiers. */
         id_us_min(&new_ntree->id);
         conversion_data.offset_radius_ntree_by_library.add_new(owner_library, new_ntree);
-        BKE_ntree_update_main_tree(&conversion_data.bmain, new_ntree, nullptr);
+        BKE_ntree_update_after_single_tree_change(conversion_data.bmain, *new_ntree);
         return new_ntree;
       };
       bNodeTree *offset_radius_node_tree = offset_radius_ntree_ensure(dst_object.id.lib);
@@ -1345,8 +1466,8 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
       auto *md = reinterpret_cast<NodesModifierData *>(BKE_modifier_new(eModifierType_Nodes));
 
       char modifier_name[MAX_NAME];
-      SNPRINTF(modifier_name, "Thickness %s", gpl->info);
-      STRNCPY(md->modifier.name, modifier_name);
+      SNPRINTF_UTF8(modifier_name, "Thickness %s", gpl.info);
+      STRNCPY_UTF8(md->modifier.name, modifier_name);
       BKE_modifier_unique_name(&dst_object.modifiers, &md->modifier);
       md->node_group = offset_radius_node_tree;
 
@@ -1362,7 +1483,7 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
       ui_data->base.rna_subtype = PROP_TRANSLATION;
       IDP_AddToGroup(md->settings.properties, radius_offset_prop);
       IDP_AddToGroup(md->settings.properties,
-                     bke::idprop::create(DATA_("Socket_3"), gpl->info).release());
+                     bke::idprop::create(DATA_("Socket_3"), gpl.info).release());
 
       if (has_thickness_adjustment_animation) {
         char modifier_name_esc[MAX_NAME * 2];
@@ -1397,7 +1518,9 @@ static ModifierData &legacy_object_modifier_common(ConversionData &conversion_da
     for (md = static_cast<ModifierData *>(object.modifiers.first);
          md && BKE_modifier_get_info(ModifierType(md->type))->type == ModifierTypeType::OnlyDeform;
          md = md->next)
+    {
       ;
+    }
     BLI_insertlinkbefore(&object.modifiers, md, &new_md);
   }
   else {
@@ -1453,7 +1576,7 @@ static void legacy_object_modifier_influence(GreasePencilModifierInfluenceData &
 {
   influence.flag = 0;
 
-  STRNCPY(influence.layer_name, layername.data());
+  layername.copy_utf8_truncated(influence.layer_name);
   if (invert_layer) {
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_LAYER_FILTER;
   }
@@ -1480,7 +1603,7 @@ static void legacy_object_modifier_influence(GreasePencilModifierInfluenceData &
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_MATERIAL_PASS_FILTER;
   }
 
-  STRNCPY(influence.vertex_group_name, vertex_group_name.data());
+  vertex_group_name.copy_utf8_truncated(influence.vertex_group_name);
   if (invert_vertex_group) {
     influence.flag |= GREASE_PENCIL_INFLUENCE_INVERT_VERTEX_GROUP;
   }
@@ -1625,8 +1748,8 @@ static void legacy_object_modifier_dash(ConversionData &conversion_data,
   md_dash.dash_offset = legacy_md_dash.dash_offset;
   md_dash.segment_active_index = legacy_md_dash.segment_active_index;
   md_dash.segments_num = legacy_md_dash.segments_len;
-  MEM_SAFE_FREE(md_dash.segments_array);
-  md_dash.segments_array = MEM_cnew_array<GreasePencilDashModifierSegment>(
+  MEM_SAFE_DELETE(md_dash.segments_array);
+  md_dash.segments_array = MEM_new_array<GreasePencilDashModifierSegment>(
       legacy_md_dash.segments_len, __func__);
   for (const int i : IndexRange(md_dash.segments_num)) {
     GreasePencilDashModifierSegment &dst_segment = md_dash.segments_array[i];
@@ -2024,6 +2147,23 @@ static void legacy_object_modifier_opacity(ConversionData &conversion_data,
   md_opacity.color_factor = legacy_md_opacity.factor;
   md_opacity.hardness_factor = legacy_md_opacity.hardness;
 
+  /* Account for animation on renamed properties. */
+  char modifier_name[MAX_NAME * 2];
+  BLI_str_escape(modifier_name, md.name, sizeof(modifier_name));
+  AnimDataConvertor anim_convertor_factor(
+      conversion_data, object.id, object.id, {{".factor", ".color_factor"}});
+  anim_convertor_factor.root_path_src = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_factor.root_path_dst = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_factor.fcurves_convert();
+  anim_convertor_factor.fcurves_convert_finalize();
+  AnimDataConvertor anim_convertor_hardness(
+      conversion_data, object.id, object.id, {{".hardness", ".hardness_factor"}});
+  anim_convertor_hardness.root_path_src = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_hardness.root_path_dst = fmt::format("modifiers[\"{}\"]", modifier_name);
+  anim_convertor_hardness.fcurves_convert();
+  anim_convertor_hardness.fcurves_convert_finalize();
+  DEG_relations_tag_update(&conversion_data.bmain);
+
   legacy_object_modifier_influence(md_opacity.influence,
                                    legacy_md_opacity.layername,
                                    legacy_md_opacity.layer_pass,
@@ -2320,8 +2460,8 @@ static void legacy_object_modifier_time(ConversionData &conversion_data,
   md_time.efra = legacy_md_time.efra;
   md_time.segment_active_index = legacy_md_time.segment_active_index;
   md_time.segments_num = legacy_md_time.segments_len;
-  MEM_SAFE_FREE(md_time.segments_array);
-  md_time.segments_array = MEM_cnew_array<GreasePencilTimeModifierSegment>(
+  MEM_SAFE_DELETE(md_time.segments_array);
+  md_time.segments_array = MEM_new_array<GreasePencilTimeModifierSegment>(
       legacy_md_time.segments_len, __func__);
   for (const int i : IndexRange(md_time.segments_num)) {
     GreasePencilTimeModifierSegment &dst_segment = md_time.segments_array[i];
@@ -2396,7 +2536,7 @@ static void legacy_object_modifier_tint(ConversionData &conversion_data,
   copy_v3_v3(md_tint.color, legacy_md_tint.rgb);
   md_tint.object = legacy_md_tint.object;
   legacy_md_tint.object = nullptr;
-  MEM_SAFE_FREE(md_tint.color_ramp);
+  MEM_SAFE_DELETE(md_tint.color_ramp);
   md_tint.color_ramp = legacy_md_tint.colorband;
   legacy_md_tint.colorband = nullptr;
 
@@ -2497,9 +2637,9 @@ static void legacy_object_modifier_weight_proximity(ConversionData &conversion_d
                                    false);
 }
 
-static void legacy_object_modifier_weight_lineart(ConversionData &conversion_data,
-                                                  Object &object,
-                                                  GpencilModifierData &legacy_md)
+static void legacy_object_modifier_lineart(ConversionData &conversion_data,
+                                           Object &object,
+                                           GpencilModifierData &legacy_md)
 {
   ModifierData &md = legacy_object_modifier_common(
       conversion_data, object, eModifierType_GreasePencilLineart, legacy_md);
@@ -2585,6 +2725,7 @@ static void legacy_object_modifier_build(ConversionData &conversion_data,
   md_build.percentage_fac = legacy_md_build.percentage_fac;
   md_build.speed_fac = legacy_md_build.speed_fac;
   md_build.speed_maxgap = legacy_md_build.speed_maxgap;
+  md_build.object = legacy_md_build.object;
   STRNCPY(md_build.target_vgname, legacy_md_build.target_vgname);
 
   legacy_object_modifier_influence(md_build.influence,
@@ -2728,7 +2869,7 @@ static void legacy_object_modifiers(ConversionData &conversion_data, Object &obj
         legacy_object_modifier_weight_proximity(conversion_data, object, *gpd_md);
         break;
       case eGpencilModifierType_Lineart:
-        legacy_object_modifier_weight_lineart(conversion_data, object, *gpd_md);
+        legacy_object_modifier_lineart(conversion_data, object, *gpd_md);
         break;
       case eGpencilModifierType_Build:
         legacy_object_modifier_build(conversion_data, object, *gpd_md);
@@ -2770,11 +2911,11 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
   Set<bGPdata *> object_gpv2;
 
   /* Check all GP objects. */
-  LISTBASE_FOREACH (Object *, object, &bmain.objects) {
-    if (object->type != OB_GPENCIL_LEGACY) {
+  for (Object &object : bmain.objects) {
+    if (object.type != OB_GPENCIL_LEGACY) {
       continue;
     }
-    bGPdata *legacy_gpd = static_cast<bGPdata *>(object->data);
+    bGPdata *legacy_gpd = id_cast<bGPdata *>(object.data);
     if (!legacy_gpd) {
       continue;
     }
@@ -2807,8 +2948,12 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
     /* Legacy GP data also used by objects. Create the duplicate of legacy GPv2 data for
      * annotations, if not yet done. */
     if (!new_annotation_gpd) {
-      new_annotation_gpd = reinterpret_cast<bGPdata *>(BKE_id_copy_in_lib(
-          &bmain, legacy_gpd->id.lib, &legacy_gpd->id, nullptr, nullptr, LIB_ID_COPY_DEFAULT));
+      new_annotation_gpd = reinterpret_cast<bGPdata *>(BKE_id_copy_in_lib(&bmain,
+                                                                          legacy_gpd->id.lib,
+                                                                          &legacy_gpd->id,
+                                                                          std::nullopt,
+                                                                          nullptr,
+                                                                          LIB_ID_COPY_DEFAULT));
       new_annotation_gpd->flag |= GP_DATA_ANNOTATIONS;
       id_us_min(&new_annotation_gpd->id);
       annotations_gpv2.add_overwrite(legacy_gpd, new_annotation_gpd);
@@ -2821,54 +2966,52 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
     id_us_plus_no_lib(&new_annotation_gpd->id);
   };
 
-  LISTBASE_FOREACH (Scene *, scene, &bmain.scenes) {
-    sanitize_gpv2_annotation(&scene->gpd);
+  for (Scene &scene : bmain.scenes) {
+    sanitize_gpv2_annotation(&scene.gpd);
   }
 
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (&bmain, id_iter) {
-    if (bNodeTree *node_tree = bke::ntreeFromID(id_iter)) {
+    if (bNodeTree *node_tree = bke::node_tree_from_id(id_iter)) {
       sanitize_gpv2_annotation(&node_tree->gpd);
     }
   }
   FOREACH_MAIN_ID_END;
-  LISTBASE_FOREACH (bNodeTree *, node_tree, &bmain.nodetrees) {
-    sanitize_gpv2_annotation(&node_tree->gpd);
+  for (bNodeTree &node_tree : bmain.nodetrees) {
+    sanitize_gpv2_annotation(&node_tree.gpd);
   }
 
-  LISTBASE_FOREACH (MovieClip *, movie_clip, &bmain.movieclips) {
-    sanitize_gpv2_annotation(&movie_clip->gpd);
+  for (MovieClip &movie_clip : bmain.movieclips) {
+    sanitize_gpv2_annotation(&movie_clip.gpd);
 
-    LISTBASE_FOREACH (MovieTrackingObject *, mvc_tracking_object, &movie_clip->tracking.objects) {
-      LISTBASE_FOREACH (MovieTrackingTrack *, mvc_track, &mvc_tracking_object->tracks) {
-        sanitize_gpv2_annotation(&mvc_track->gpd);
+    for (MovieTrackingObject &mvc_tracking_object : movie_clip.tracking.objects) {
+      for (MovieTrackingTrack &mvc_track : mvc_tracking_object.tracks) {
+        sanitize_gpv2_annotation(&mvc_track.gpd);
       }
-      LISTBASE_FOREACH (
-          MovieTrackingPlaneTrack *, mvc_plane_track, &mvc_tracking_object->plane_tracks)
-      {
-        for (int i = 0; i < mvc_plane_track->point_tracksnr; i++) {
-          sanitize_gpv2_annotation(&mvc_plane_track->point_tracks[i]->gpd);
+      for (MovieTrackingPlaneTrack &mvc_plane_track : mvc_tracking_object.plane_tracks) {
+        for (int i = 0; i < mvc_plane_track.point_tracksnr; i++) {
+          sanitize_gpv2_annotation(&mvc_plane_track.point_tracks[i]->gpd);
         }
       }
     }
   }
 
-  LISTBASE_FOREACH (bScreen *, screen, &bmain.screens) {
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      LISTBASE_FOREACH (SpaceLink *, space_link, &area->spacedata) {
-        switch (eSpace_Type(space_link->spacetype)) {
+  for (bScreen &screen : bmain.screens) {
+    for (ScrArea &area : screen.areabase) {
+      for (SpaceLink &space_link : area.spacedata) {
+        switch (eSpace_Type(space_link.spacetype)) {
           case SPACE_SEQ: {
-            SpaceSeq *space_sequencer = reinterpret_cast<SpaceSeq *>(space_link);
+            SpaceSeq *space_sequencer = reinterpret_cast<SpaceSeq *>(&space_link);
             sanitize_gpv2_annotation(&space_sequencer->gpd);
             break;
           }
           case SPACE_IMAGE: {
-            SpaceImage *space_image = reinterpret_cast<SpaceImage *>(space_link);
+            SpaceImage *space_image = reinterpret_cast<SpaceImage *>(&space_link);
             sanitize_gpv2_annotation(&space_image->gpd);
             break;
           }
           case SPACE_NODE: {
-            SpaceNode *space_node = reinterpret_cast<SpaceNode *>(space_link);
+            SpaceNode *space_node = reinterpret_cast<SpaceNode *>(&space_link);
             sanitize_gpv2_annotation(&space_node->gpd);
             break;
           }
@@ -2897,23 +3040,23 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
   }
 }
 
-static void legacy_gpencil_object_ex(ConversionData &conversion_data, Object &object)
+static void legacy_gpencil_object(ConversionData &conversion_data, Object &object)
 {
-  BLI_assert((GS(static_cast<ID *>(object.data)->name) == ID_GD_LEGACY));
+  BLI_assert((GS(object.data->name) == ID_GD_LEGACY));
 
-  bGPdata *gpd = static_cast<bGPdata *>(object.data);
+  bGPdata *gpd = id_cast<bGPdata *>(object.data);
 
   GreasePencil *new_grease_pencil = conversion_data.legacy_to_greasepencil_data.lookup_default(
       gpd, nullptr);
   const bool do_gpencil_data_conversion = (new_grease_pencil == nullptr);
 
   if (!new_grease_pencil) {
-    new_grease_pencil = static_cast<GreasePencil *>(
-        BKE_id_new_in_lib(&conversion_data.bmain, gpd->id.lib, ID_GP, gpd->id.name + 2));
+    new_grease_pencil = BKE_id_new_in_lib<GreasePencil>(
+        &conversion_data.bmain, gpd->id.lib, gpd->id.name + 2);
     id_us_min(&new_grease_pencil->id);
   }
 
-  object.data = new_grease_pencil;
+  object.data = id_cast<ID *>(new_grease_pencil);
   object.type = OB_GREASE_PENCIL;
 
   /* NOTE: Could also use #BKE_id_free_us, to also free the legacy GP if not used anymore? */
@@ -2937,25 +3080,20 @@ static void legacy_gpencil_object_ex(ConversionData &conversion_data, Object &ob
   BKE_object_free_derived_caches(&object);
 }
 
-void legacy_gpencil_object(Main &bmain, Object &object)
+void legacy_main(Main &bmain,
+                 BlendfileLinkAppendContext *lapp_context,
+                 BlendFileReadReport & /*reports*/)
 {
-  ConversionData conversion_data(bmain);
-
-  legacy_gpencil_object_ex(conversion_data, object);
-}
-
-void legacy_main(Main &bmain, BlendFileReadReport & /*reports*/)
-{
-  ConversionData conversion_data(bmain);
+  ConversionData conversion_data(bmain, lapp_context);
 
   /* Ensure that annotations are fully separated from object usages of legacy GPv2 data. */
   legacy_gpencil_sanitize_annotations(bmain);
 
-  LISTBASE_FOREACH (Object *, object, &bmain.objects) {
-    if (object->type != OB_GPENCIL_LEGACY) {
+  for (Object &object : bmain.objects) {
+    if (object.type != OB_GPENCIL_LEGACY) {
       continue;
     }
-    legacy_gpencil_object_ex(conversion_data, *object);
+    legacy_gpencil_object(conversion_data, object);
   }
 
   /* Potential other usages of legacy bGPdata IDs also need to be remapped to their matching new
@@ -2964,26 +3102,49 @@ void legacy_main(Main &bmain, BlendFileReadReport & /*reports*/)
   /* Allow remapping from legacy bGPdata IDs to new GreasePencil ones. */
   gpd_remapper.allow_idtype_mismatch = true;
 
-  LISTBASE_FOREACH (bGPdata *, legacy_gpd, &bmain.gpencils) {
+  for (bGPdata &legacy_gpd : bmain.gpencils) {
     /* Annotations still use legacy `bGPdata`, these should not be converted. Call to
      * #legacy_gpencil_sanitize_annotations above ensured to fully separate annotations from object
      * legacy grease pencil. */
-    if ((legacy_gpd->flag & GP_DATA_ANNOTATIONS) != 0) {
+    if ((legacy_gpd.flag & GP_DATA_ANNOTATIONS) != 0) {
       continue;
     }
     GreasePencil *new_grease_pencil = conversion_data.legacy_to_greasepencil_data.lookup_default(
-        legacy_gpd, nullptr);
+        &legacy_gpd, nullptr);
     if (!new_grease_pencil) {
-      new_grease_pencil = static_cast<GreasePencil *>(
-          BKE_id_new_in_lib(&bmain, legacy_gpd->id.lib, ID_GP, legacy_gpd->id.name + 2));
+      new_grease_pencil = BKE_id_new_in_lib<GreasePencil>(
+          &bmain, legacy_gpd.id.lib, legacy_gpd.id.name + 2);
       id_us_min(&new_grease_pencil->id);
-      legacy_gpencil_to_grease_pencil(conversion_data, *new_grease_pencil, *legacy_gpd);
-      conversion_data.legacy_to_greasepencil_data.add(legacy_gpd, new_grease_pencil);
+      legacy_gpencil_to_grease_pencil(conversion_data, *new_grease_pencil, legacy_gpd);
+      conversion_data.legacy_to_greasepencil_data.add(&legacy_gpd, new_grease_pencil);
     }
-    gpd_remapper.add(&legacy_gpd->id, &new_grease_pencil->id);
+    gpd_remapper.add(&legacy_gpd.id, &new_grease_pencil->id);
   }
 
   BKE_libblock_remap_multiple(&bmain, gpd_remapper, ID_REMAP_ALLOW_IDTYPE_MISMATCH);
+
+  if (conversion_data.lapp_context) {
+    BKE_blendfile_link_append_context_item_foreach(
+        conversion_data.lapp_context,
+        [&conversion_data](BlendfileLinkAppendContext *lapp_context,
+                           BlendfileLinkAppendContextItem *item) -> bool {
+          ID *item_new_id = BKE_blendfile_link_append_context_item_newid_get(lapp_context, item);
+          if (!item_new_id || GS(item_new_id->name) != ID_GD_LEGACY) {
+            return true;
+          }
+          GreasePencil **item_grease_pencil =
+              conversion_data.legacy_to_greasepencil_data.lookup_ptr(
+                  reinterpret_cast<bGPdata *>(item_new_id));
+          if (item_grease_pencil && *item_grease_pencil) {
+            BKE_blendfile_link_append_context_item_newid_set(
+                lapp_context, item, &(*item_grease_pencil)->id);
+          }
+          return true;
+        },
+        eBlendfileLinkAppendForeachItemFlag(
+            BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_DIRECT |
+            BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_INDIRECT));
+  }
 }
 
 void lineart_wrap_v3(const LineartGpencilModifierData *lmd_legacy,
@@ -2999,6 +3160,7 @@ void lineart_wrap_v3(const LineartGpencilModifierData *lmd_legacy,
   lmd->source_object = lmd_legacy->source_object;
   lmd->source_collection = lmd_legacy->source_collection;
   lmd->target_material = lmd_legacy->target_material;
+  STRNCPY(lmd->target_layer, lmd_legacy->target_layer);
   STRNCPY(lmd->source_vertex_group, lmd_legacy->source_vertex_group);
   STRNCPY(lmd->vgname, lmd_legacy->vgname);
   lmd->overscan = lmd_legacy->overscan;
@@ -3007,7 +3169,7 @@ void lineart_wrap_v3(const LineartGpencilModifierData *lmd_legacy,
   lmd->shadow_camera_near = lmd_legacy->shadow_camera_near;
   lmd->shadow_camera_far = lmd_legacy->shadow_camera_far;
   lmd->opacity = lmd_legacy->opacity;
-  lmd->thickness = lmd_legacy->thickness / 2;
+  lmd->radius = float(lmd_legacy->thickness) * LEGACY_RADIUS_CONVERSION_FACTOR;
   lmd->mask_switches = lmd_legacy->mask_switches;
   lmd->material_mask_bits = lmd_legacy->material_mask_bits;
   lmd->intersection_mask = lmd_legacy->intersection_mask;
@@ -3050,7 +3212,7 @@ void lineart_unwrap_v3(LineartGpencilModifierData *lmd_legacy,
   lmd_legacy->shadow_camera_near = lmd->shadow_camera_near;
   lmd_legacy->shadow_camera_far = lmd->shadow_camera_far;
   lmd_legacy->opacity = lmd->opacity;
-  lmd_legacy->thickness = lmd->thickness * 2;
+  lmd_legacy->thickness = lmd->radius / LEGACY_RADIUS_CONVERSION_FACTOR;
   lmd_legacy->mask_switches = lmd->mask_switches;
   lmd_legacy->material_mask_bits = lmd->material_mask_bits;
   lmd_legacy->intersection_mask = lmd->intersection_mask;

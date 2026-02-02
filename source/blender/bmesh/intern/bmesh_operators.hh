@@ -8,11 +8,16 @@
  * \ingroup bmesh
  */
 
+#include "intern/bmesh_operator_api.hh"
+
+namespace blender {
+
 /* See comments in `intern/bmesh_opdefines.cc` for documentation of specific operators. */
 
 /*--------defines/enumerations for specific operators-------*/
 
 /* Quad `innervert` values. */
+
 enum {
   SUBD_CORNER_INNERVERT,
   SUBD_CORNER_PATH,
@@ -143,6 +148,7 @@ extern const BMOpDefine *bmo_opdefines[];
 extern const int bmo_opdefines_total;
 
 /*------specific operator helper functions-------*/
+
 void BM_mesh_esubdivide(BMesh *bm,
                         char edge_hflag,
                         float smooth,
@@ -215,4 +221,6 @@ void BM_mesh_calc_uvs_cone(BMesh *bm,
  */
 void BM_mesh_calc_uvs_cube(BMesh *bm, short oflag);
 
-#include "intern/bmesh_operator_api_inline.hh"
+}  // namespace blender
+
+#include "intern/bmesh_operator_api_inline.hh" /* IWYU pragma: export */

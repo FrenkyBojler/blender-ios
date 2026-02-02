@@ -8,9 +8,13 @@
 
 #include <Python.h>
 
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
+
 #include "BLI_utildefines.h"
 
-#include "bpy_app_build_options.h"
+#include "bpy_app_build_options.hh"
+
+namespace blender {
 
 static PyTypeObject BlenderAppBuildOptionsType;
 
@@ -30,13 +34,13 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"image_openexr", nullptr},
     {"image_openjpeg", nullptr},
     {"image_tiff", nullptr},
+    {"image_webp", nullptr},
     {"input_ndof", nullptr},
     {"audaspace", nullptr},
     {"international", nullptr},
     {"openal", nullptr},
     {"opensubdiv", nullptr},
     {"sdl", nullptr},
-    {"sdl_dynload", nullptr},
     {"coreaudio", nullptr},
     {"jack", nullptr},
     {"pulseaudio", nullptr},
@@ -44,10 +48,10 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"libmv", nullptr},
     {"mod_oceansim", nullptr},
     {"mod_remesh", nullptr},
-    {"collada", nullptr},
     {"io_wavefront_obj", nullptr},
     {"io_ply", nullptr},
     {"io_stl", nullptr},
+    {"io_fbx", nullptr},
     {"io_gpencil", nullptr},
     {"opencolorio", nullptr},
     {"openmp", nullptr},
@@ -59,15 +63,16 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"potrace", nullptr},
     {"pugixml", nullptr},
     {"haru", nullptr},
+    {"experimental_features", nullptr},
     /* Sentinel (this line prevents `clang-format` wrapping into columns). */
     {nullptr},
 };
 
 static PyStructSequence_Desc app_builtopts_info_desc = {
-    "bpy.app.build_options",                                                /* name */
-    "This module contains information about options blender is built with", /* doc */
-    app_builtopts_info_fields,                                              /* fields */
-    ARRAY_SIZE(app_builtopts_info_fields) - 1,
+    /*name*/ "bpy.app.build_options",
+    /*doc*/ "This module contains information about options blender is built with",
+    /*fields*/ app_builtopts_info_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(app_builtopts_info_fields) - 1,
 };
 
 static PyObject *make_builtopts_info()
@@ -104,11 +109,8 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_COMPOSITOR_CPU
+  /* Compositor. */
   SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
 
 #ifdef WITH_CYCLES
   SetObjIncref(Py_True);
@@ -128,7 +130,7 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_CINEON
+#ifdef WITH_IMAGE_CINEON
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -140,13 +142,13 @@ static PyObject *make_builtopts_info()
   /* HDR */
   SetObjIncref(Py_True);
 
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_OPENJPEG
+#ifdef WITH_IMAGE_OPENJPEG
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -154,6 +156,12 @@ static PyObject *make_builtopts_info()
 
   /* TIFF */
   SetObjIncref(Py_True);
+
+#ifdef WITH_IMAGE_WEBP
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
 
 #ifdef WITH_INPUT_NDOF
   SetObjIncref(Py_True);
@@ -186,12 +194,6 @@ static PyObject *make_builtopts_info()
 #endif
 
 #ifdef WITH_SDL
-  SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
-
-#ifdef WITH_SDL_DYNLOAD
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -239,12 +241,6 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_COLLADA
-  SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
-
 #ifdef WITH_IO_WAVEFRONT_OBJ
   SetObjIncref(Py_True);
 #else
@@ -263,13 +259,19 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_IO_GPENCIL
+#ifdef WITH_IO_FBX
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_OCIO
+#ifdef WITH_IO_GREASE_PENCIL
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
+#ifdef WITH_OPENCOLORIO
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -329,6 +331,12 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
+#ifdef WITH_EXPERIMENTAL_FEATURES
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
 #undef SetObjIncref
 
   return builtopts_info;
@@ -346,7 +354,9 @@ PyObject *BPY_app_build_options_struct()
   BlenderAppBuildOptionsType.tp_init = nullptr;
   BlenderAppBuildOptionsType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppBuildOptionsType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppBuildOptionsType.tp_hash = reinterpret_cast<hashfunc>(Py_HashPointer);
 
   return ret;
 }
+
+}  // namespace blender

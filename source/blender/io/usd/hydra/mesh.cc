@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <pxr/base/gf/vec2f.h>
-#include <pxr/base/tf/staticTokens.h>
+#include <pxr/base/tf/token.h>
 #include <pxr/imaging/hd/tokens.h>
 
 #include "BLI_array_utils.hh"
@@ -11,10 +11,8 @@
 #include "BLI_vector_set.hh"
 
 #include "BKE_attribute.hh"
-#include "BKE_customdata.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
 
 #include "hydra_scene_delegate.hh"
 #include "mesh.hh"
@@ -34,9 +32,9 @@ MeshData::MeshData(HydraSceneDelegate *scene_delegate,
 
 void MeshData::init()
 {
-  ID_LOGN(1, "");
+  ID_LOGN("");
 
-  Object *object = (Object *)id;
+  Object *object = id_cast<Object *>(const_cast<ID *>(id));
   Mesh *mesh = BKE_object_to_mesh(nullptr, object, false);
   if (mesh) {
     write_submeshes(mesh);
@@ -49,21 +47,21 @@ void MeshData::init()
 
 void MeshData::insert()
 {
-  ID_LOGN(1, "");
+  ID_LOGN("");
   update_prims();
 }
 
 void MeshData::remove()
 {
-  ID_LOG(1, "");
+  ID_LOG("");
   submeshes_.clear();
   update_prims();
 }
 
 void MeshData::update()
 {
-  Object *object = (Object *)id;
-  if ((id->recalc & ID_RECALC_GEOMETRY) || (((ID *)object->data)->recalc & ID_RECALC_GEOMETRY)) {
+  Object *object = id_cast<Object *>(const_cast<ID *>(id));
+  if ((id->recalc & ID_RECALC_GEOMETRY) || (object->data->recalc & ID_RECALC_GEOMETRY)) {
     init();
     update_prims();
     return;
@@ -85,7 +83,7 @@ void MeshData::update()
 
   for (int i = 0; i < submeshes_.size(); ++i) {
     scene_delegate_->GetRenderIndex().GetChangeTracker().MarkRprimDirty(submesh_prim_id(i), bits);
-    ID_LOGN(1, "%d", i);
+    ID_LOGN("%d", i);
   }
 }
 
@@ -120,7 +118,7 @@ pxr::SdfPath MeshData::material_id(pxr::SdfPath const &id) const
 
 void MeshData::available_materials(Set<pxr::SdfPath> &paths) const
 {
-  for (auto &sm : submeshes_) {
+  for (const auto &sm : submeshes_) {
     if (sm.mat_data && !sm.mat_data->prim_id.IsEmpty()) {
       paths.add(sm.mat_data->prim_id);
     }
@@ -181,7 +179,7 @@ void MeshData::update_double_sided(MaterialData *mat_data)
       scene_delegate_->GetRenderIndex().GetChangeTracker().MarkRprimDirty(
           submesh_prim_id(i),
           pxr::HdChangeTracker::DirtyDoubleSided | pxr::HdChangeTracker::DirtyCullStyle);
-      ID_LOGN(1, "%d", i);
+      ID_LOGN("%d", i);
     }
   }
 }
@@ -197,7 +195,7 @@ pxr::SdfPathVector MeshData::submesh_paths() const
 
 void MeshData::write_materials()
 {
-  const Object *object = (const Object *)id;
+  const Object *object = id_cast<const Object *>(id);
   for (int i = 0; i < submeshes_.size(); ++i) {
     SubMesh &m = submeshes_[i];
     const Material *mat = BKE_object_material_get_eval(const_cast<Object *>(object),
@@ -376,7 +374,7 @@ void MeshData::write_submeshes(const Mesh *mesh)
   const Span<int> tri_faces = mesh->corner_tri_faces();
   const std::pair<bke::MeshNormalDomain, Span<float3>> normals = get_mesh_normals(*mesh);
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const StringRef active_uv = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2);
+  const StringRef active_uv = mesh->active_uv_map_name();
   const VArraySpan uv_map = *attributes.lookup<float2>(active_uv, bke::AttrDomain::Corner);
   const VArraySpan material_indices = *attributes.lookup<int>("material_index",
                                                               bke::AttrDomain::Face);
@@ -429,16 +427,16 @@ void MeshData::update_prims()
     pxr::SdfPath p = submesh_prim_id(i);
     if (i < submeshes_count_) {
       render_index.GetChangeTracker().MarkRprimDirty(p, pxr::HdChangeTracker::AllDirty);
-      ID_LOGN(1, "Update %d", i);
+      ID_LOGN("Update %d", i);
     }
     else {
       render_index.InsertRprim(pxr::HdPrimTypeTokens->mesh, scene_delegate_, p);
-      ID_LOGN(1, "Insert %d", i);
+      ID_LOGN("Insert %d", i);
     }
   }
   for (; i < submeshes_count_; ++i) {
     render_index.RemoveRprim(submesh_prim_id(i));
-    ID_LOG(1, "Remove %d", i);
+    ID_LOG("Remove %d", i);
   }
   submeshes_count_ = submeshes_.size();
 }

@@ -9,12 +9,12 @@
  * \brief A min-heap / priority queue ADT
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_compiler_attrs.h"
+#include "BLI_sys_types.h"
+
+namespace blender {
 
 struct HeapSimple;
-typedef struct HeapSimple HeapSimple;
 
 typedef void (*HeapSimpleFreeFP)(void *ptr);
 
@@ -43,6 +43,4 @@ float BLI_heapsimple_top_value(const HeapSimple *heap) ATTR_WARN_UNUSED_RESULT A
  */
 void *BLI_heapsimple_pop_min(HeapSimple *heap) ATTR_NONNULL(1);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

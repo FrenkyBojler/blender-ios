@@ -4,7 +4,9 @@
 
 #include "node_shader_util.hh"
 
-namespace blender::nodes::node_shader_output_material_cc {
+namespace blender {
+
+namespace nodes::node_shader_output_material_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -55,21 +57,34 @@ NODE_SHADER_MATERIALX_BEGIN
                             {{"bsdf", bsdf}, {"edf", edf}, {"opacity", opacity}});
     }
   }
+
+  /* Displacement cannot be enabled just yet.
+   * - Verify coordinate system for Tangent Space displacement maps
+   * - Wait on fix for scalar displacement (present in USD 2408+)
+   */
+  // NodeItem displacement = get_input_link("Displacement", NodeItem::Type::DisplacementShader);
+  // return create_node("surfacematerial",
+  //                    NodeItem::Type::Material,
+  //                    {{"surfaceshader", surface}, {"displacementshader", displacement}});
   return create_node("surfacematerial", NodeItem::Type::Material, {{"surfaceshader", surface}});
 }
 #endif
 NODE_SHADER_MATERIALX_END
 
-}  // namespace blender::nodes::node_shader_output_material_cc
+}  // namespace nodes::node_shader_output_material_cc
 
 /* node type definition */
 void register_node_type_sh_output_material()
 {
-  namespace file_ns = blender::nodes::node_shader_output_material_cc;
+  namespace file_ns = nodes::node_shader_output_material_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_OUTPUT_MATERIAL, "Material Output", NODE_CLASS_OUTPUT);
+  sh_node_type_base(&ntype, "ShaderNodeOutputMaterial", SH_NODE_OUTPUT_MATERIAL);
+  ntype.ui_name = "Material Output";
+  ntype.ui_description = "Output surface material information for use in rendering";
+  ntype.enum_name_legacy = "OUTPUT_MATERIAL";
+  ntype.nclass = NODE_CLASS_OUTPUT;
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.gpu_fn = file_ns::node_shader_gpu_output_material;
@@ -77,5 +92,7 @@ void register_node_type_sh_output_material()
 
   ntype.no_muting = true;
 
-  blender::bke::nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

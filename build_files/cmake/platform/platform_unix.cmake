@@ -16,7 +16,11 @@ else()
     set(LIBDIR_NATIVE_ABI ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_NAME})
 
     # Path to precompiled libraries with known glibc 2.28 ABI.
-    set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_x64)
+    if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+      set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_arm64)
+    else()
+      set(LIBDIR_GLIBC228_ABI ${CMAKE_SOURCE_DIR}/lib/linux_x64)
+    endif()
 
     # Choose the best suitable libraries.
     if(EXISTS ${LIBDIR_NATIVE_ABI})
@@ -24,15 +28,15 @@ else()
       set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
     elseif(EXISTS "${LIBDIR_GLIBC228_ABI}/.git")
       set(LIBDIR ${LIBDIR_GLIBC228_ABI})
-      if(WITH_MEM_JEMALLOC)
-        # jemalloc provides malloc hooks.
+      if(WITH_TBB_MALLOC_PROXY)
+        # TBB MALLOC proxy provides malloc hooks.
         set(WITH_LIBC_MALLOC_HOOK_WORKAROUND FALSE)
       else()
         set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
       endif()
     endif()
 
-    # Avoid namespace pollustion.
+    # Avoid namespace pollution.
     unset(LIBDIR_NATIVE_ABI)
     unset(LIBDIR_GLIBC228_ABI)
   endif()
@@ -83,26 +87,16 @@ if(DEFINED LIBDIR)
   # not need to be ever discovered for the Blender linking.
   list(REMOVE_ITEM LIB_SUBDIRS ${LIBDIR}/dpcpp)
 
-  # NOTE: Make sure "proper" compiled zlib comes first before the one
-  # which is a part of OpenCollada. They have different ABI, and we
-  # do need to use the official one.
+  # NOTE: Make sure "proper" compiled zlib comes first
   set(CMAKE_PREFIX_PATH ${LIBDIR}/zlib ${LIB_SUBDIRS})
 
   include(platform_old_libs_update)
 
   set(WITH_STATIC_LIBS ON)
-  # OpenMP usually can't be statically linked into shared libraries,
-  # due to not being compiled with position independent code.
-  if(NOT WITH_PYTHON_MODULE)
-    set(WITH_OPENMP_STATIC ON)
-  endif()
-  set(Boost_NO_BOOST_CMAKE ON)
-  set(Boost_ROOT ${LIBDIR}/boost)
-  set(BOOST_LIBRARYDIR ${LIBDIR}/boost/lib)
-  set(Boost_NO_SYSTEM_PATHS ON)
   set(OPENEXR_ROOT_DIR ${LIBDIR}/openexr)
   set(CLANG_ROOT_DIR ${LIBDIR}/llvm)
   set(MaterialX_DIR ${LIBDIR}/materialx/lib/cmake/MaterialX)
+  set(fmt_ROOT ${LIBDIR}/fmt)
 endif()
 
 # Wrapper to prefer static libraries
@@ -129,13 +123,21 @@ find_package_wrapper(PNG REQUIRED)
 find_package_wrapper(ZLIB REQUIRED)
 find_package_wrapper(Zstd REQUIRED)
 find_package_wrapper(Epoxy REQUIRED)
+find_package_wrapper(fmt REQUIRED)
+if(DEFINED fmt_DIR)
+  # Hide the fmt_DIR from the standard user settings to be consistent with our
+  # other "here is the library" settings.
+  mark_as_advanced(fmt_DIR)
+endif()
 
 # XXX Linking errors with debian static tiff :/
 # find_package_wrapper(TIFF REQUIRED)
 find_package(TIFF)
 # CMake 3.28.1 defines this, it doesn't seem to be used, hide by default in the UI.
-if(DEFINED tiff_DIR)
-  mark_as_advanced(tiff_DIR)
+# NOTE(@ideasman42): this doesn't seem to be important,
+# on my system it's not-found even when the TIFF library is.
+if(DEFINED Tiff_DIR)
+  mark_as_advanced(Tiff_DIR)
 endif()
 
 if(WITH_VULKAN_BACKEND)
@@ -163,21 +165,23 @@ endif()
 add_bundled_libraries(vulkan/lib)
 
 function(check_freetype_for_brotli)
-  if((DEFINED HAVE_BROTLI AND HAVE_BROTLI) AND
-     (DEFINED HAVE_BROTLI_INC AND ("${HAVE_BROTLI_INC}" STREQUAL "${FREETYPE_INCLUDE_DIRS}")))
-    # Pass, the includes didn't change, use the cached value.
-  else()
-    unset(HAVE_BROTLI CACHE)
-    include(CheckSymbolExists)
-    set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
-    check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
-    unset(CMAKE_REQUIRED_INCLUDES)
-    if(NOT HAVE_BROTLI)
-      unset(HAVE_BROTLI CACHE)
-      message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+  if((DEFINED HAVE_BROTLI) AND (DEFINED HAVE_BROTLI_INC))
+    if(HAVE_BROTLI AND ("${HAVE_BROTLI_INC}" STREQUAL "${FREETYPE_INCLUDE_DIRS}"))
+      # Pass, the includes didn't change, use the cached value.
+      return()
     endif()
-    set(HAVE_BROTLI_INC "${FREETYPE_INCLUDE_DIRS}" CACHE INTERNAL "")
   endif()
+
+  unset(HAVE_BROTLI CACHE)
+  include(CheckSymbolExists)
+  set(CMAKE_REQUIRED_INCLUDES ${FREETYPE_INCLUDE_DIRS})
+  check_symbol_exists(FT_CONFIG_OPTION_USE_BROTLI "freetype/config/ftconfig.h" HAVE_BROTLI)
+  unset(CMAKE_REQUIRED_INCLUDES)
+  if(NOT HAVE_BROTLI)
+    unset(HAVE_BROTLI CACHE)
+    message(FATAL_ERROR "Freetype needs to be compiled with brotli support!")
+  endif()
+  set(HAVE_BROTLI_INC "${FREETYPE_INCLUDE_DIRS}" CACHE INTERNAL "")
 endfunction()
 
 if(NOT WITH_SYSTEM_FREETYPE)
@@ -258,6 +262,7 @@ if(WITH_IMAGE_OPENEXR)
 endif()
 add_bundled_libraries(openexr/lib)
 add_bundled_libraries(imath/lib)
+add_bundled_libraries(openjph/lib)
 
 if(WITH_IMAGE_OPENJPEG)
   find_package_wrapper(OpenJPEG)
@@ -270,26 +275,21 @@ if(WITH_OPENAL)
 endif()
 
 if(WITH_SDL)
-  if(WITH_SDL_DYNLOAD)
-    set(SDL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/sdlew/include/SDL2")
-    set(SDL_LIBRARY)
+  find_package_wrapper(SDL2)
+  if(SDL2_FOUND)
+    # Use same names for both versions of SDL until we move to 2.x.
+    set(SDL_INCLUDE_DIR "${SDL2_INCLUDE_DIR}")
+    set(SDL_LIBRARY "${SDL2_LIBRARY}")
+    set(SDL_FOUND "${SDL2_FOUND}")
   else()
-    find_package_wrapper(SDL2)
-    if(SDL2_FOUND)
-      # Use same names for both versions of SDL until we move to 2.x.
-      set(SDL_INCLUDE_DIR "${SDL2_INCLUDE_DIR}")
-      set(SDL_LIBRARY "${SDL2_LIBRARY}")
-      set(SDL_FOUND "${SDL2_FOUND}")
-    else()
-      find_package_wrapper(SDL)
-    endif()
-    mark_as_advanced(
-      SDL_INCLUDE_DIR
-      SDL_LIBRARY
-    )
-    # unset(SDLMAIN_LIBRARY CACHE)
-    set_and_warn_library_found("SDL" SDL_FOUND WITH_SDL)
+    find_package_wrapper(SDL)
   endif()
+  mark_as_advanced(
+    SDL_INCLUDE_DIR
+    SDL_LIBRARY
+  )
+  # unset(SDLMAIN_LIBRARY CACHE)
+  set_and_warn_library_found("SDL" SDL_FOUND WITH_SDL)
 endif()
 
 # Codecs
@@ -304,7 +304,7 @@ if(WITH_CODEC_FFMPEG)
     # Override FFMPEG components to also include static library dependencies
     # included with precompiled libraries, and to ensure correct link order.
     set(FFMPEG_FIND_COMPONENTS
-      avformat avcodec avdevice avutil swresample swscale
+      avformat avdevice avfilter avcodec avutil swresample swscale
       sndfile
       FLAC
       mp3lame
@@ -337,33 +337,6 @@ if(WITH_FFTW3)
   set_and_warn_library_found("fftw3" FFTW3_FOUND WITH_FFTW3)
 endif()
 
-if(WITH_OPENCOLLADA)
-  find_package_wrapper(OpenCOLLADA)
-  if(OPENCOLLADA_FOUND)
-    if(WITH_STATIC_LIBS)
-      # PCRE is bundled with OpenCollada without headers, so can't use
-      # find_package reliably to detect it.
-      # NOTE: newer fork no longer depends on PCRE: see !122270.
-      if(EXISTS ${LIBDIR}/opencollada/lib/libpcre.a)
-        set(PCRE_LIBRARIES ${LIBDIR}/opencollada/lib/libpcre.a)
-      else()
-        # Quiet warnings.
-        set(PCRE_LIBRARIES)
-      endif()
-    else()
-      find_package_wrapper(PCRE)
-    endif()
-    find_package_wrapper(XML2)
-  else()
-    set_and_warn_library_found("OpenCollada" OPENCOLLADA_FOUND WITH_OPENCOLLADA)
-  endif()
-endif()
-
-if(WITH_MEM_JEMALLOC)
-  find_package_wrapper(JeMalloc)
-  set_and_warn_library_found("JeMalloc" JEMALLOC_FOUND WITH_MEM_JEMALLOC)
-endif()
-
 if(WITH_INPUT_NDOF)
   find_package_wrapper(Spacenav)
   set_and_warn_library_found("SpaceNav" SPACENAV_FOUND WITH_INPUT_NDOF)
@@ -382,7 +355,7 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
       set(OSL_ROOT ${CYCLES_OSL})
     endif()
   endif()
-  find_package_wrapper(OSL)
+  find_package_wrapper(OSL 1.13.4)
   set_and_warn_library_found("OSL" OSL_FOUND WITH_CYCLES_OSL)
 
   if(OSL_FOUND)
@@ -423,9 +396,9 @@ if(DEFINED LIBDIR)
     ${SYCL_ROOT_DIR}/lib/libsycl.so.*
     ${SYCL_ROOT_DIR}/lib/libpi_*.so
     ${SYCL_ROOT_DIR}/lib/libur_*.so
+    ${SYCL_ROOT_DIR}/lib/libur_*.so.*
   )
-  list(FILTER _sycl_runtime_libraries EXCLUDE REGEX ".*\.py")
-  list(REMOVE_ITEM _sycl_runtime_libraries "${SYCL_ROOT_DIR}/lib/libpi_opencl.so")
+  list(FILTER _sycl_runtime_libraries EXCLUDE REGEX "\\.py$")
   list(APPEND PLATFORM_BUNDLED_LIBRARIES ${_sycl_runtime_libraries})
   unset(_sycl_runtime_libraries)
 endif()
@@ -433,6 +406,9 @@ endif()
 if(WITH_OPENVDB)
   find_package(OpenVDB)
   set_and_warn_library_found("OpenVDB" OPENVDB_FOUND WITH_OPENVDB)
+  if(OPENVDB_FOUND)
+    set(OPENVDB_DEFINITIONS "")
+  endif()
 endif()
 add_bundled_libraries(openvdb/lib)
 
@@ -441,8 +417,9 @@ if(WITH_NANOVDB)
   set_and_warn_library_found("NanoVDB" NANOVDB_FOUND WITH_NANOVDB)
 endif()
 
-if(WITH_CPU_SIMD AND SUPPORT_NEON_BUILD)
-  find_package_wrapper(sse2neon)
+test_neon_support()
+if(SUPPORTS_NEON_BUILD)
+  find_package_wrapper(sse2neon REQUIRED)
 endif()
 
 if(WITH_ALEMBIC)
@@ -462,64 +439,6 @@ if(WITH_MATERIALX)
   set_and_warn_library_found("MaterialX" MaterialX_FOUND WITH_MATERIALX)
 endif()
 add_bundled_libraries(materialx/lib)
-
-if(WITH_BOOST)
-  # uses in build instructions to override include and library variables
-  if(NOT BOOST_CUSTOM)
-    if(WITH_STATIC_LIBS)
-      set(Boost_USE_STATIC_LIBS OFF)
-    endif()
-    set(Boost_USE_MULTITHREADED ON)
-    set(__boost_packages filesystem regex thread date_time)
-    if(WITH_CYCLES AND WITH_CYCLES_OSL)
-      if(NOT (${OSL_LIBRARY_VERSION_MAJOR} EQUAL "1" AND ${OSL_LIBRARY_VERSION_MINOR} LESS "6"))
-        list(APPEND __boost_packages wave)
-      else()
-      endif()
-    endif()
-    if(WITH_INTERNATIONAL)
-      list(APPEND __boost_packages locale)
-    endif()
-    if(WITH_OPENVDB)
-      list(APPEND __boost_packages iostreams)
-    endif()
-    if(WITH_USD AND USD_PYTHON_SUPPORT)
-      list(APPEND __boost_packages python${PYTHON_VERSION_NO_DOTS})
-    endif()
-    list(APPEND __boost_packages system)
-    set(Boost_NO_WARN_NEW_VERSIONS ON)
-    find_package(Boost 1.48 COMPONENTS ${__boost_packages})
-    if(NOT Boost_FOUND)
-      # try to find non-multithreaded if -mt not found, this flag
-      # doesn't matter for us, it has nothing to do with thread
-      # safety, but keep it to not disturb build setups
-      set(Boost_USE_MULTITHREADED OFF)
-      find_package(Boost 1.48 COMPONENTS ${__boost_packages})
-    endif()
-    unset(__boost_packages)
-    if(Boost_USE_STATIC_LIBS AND WITH_BOOST_ICU)
-      find_package(IcuLinux)
-    endif()
-    mark_as_advanced(Boost_DIR)  # why doesn't boost do this?
-    mark_as_advanced(Boost_INCLUDE_DIR)  # why doesn't boost do this?
-  endif()
-
-  # Boost Python is separate to avoid linking Python into tests that don't need it.
-  set(BOOST_LIBRARIES ${Boost_LIBRARIES})
-  if(WITH_USD AND USD_PYTHON_SUPPORT)
-    set(BOOST_PYTHON_LIBRARIES ${Boost_PYTHON${PYTHON_VERSION_NO_DOTS}_LIBRARY})
-    list(REMOVE_ITEM BOOST_LIBRARIES ${BOOST_PYTHON_LIBRARIES})
-  endif()
-  set(BOOST_INCLUDE_DIR ${Boost_INCLUDE_DIRS})
-  set(BOOST_LIBPATH ${Boost_LIBRARY_DIRS})
-  set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB")
-
-  if(Boost_USE_STATIC_LIBS AND WITH_BOOST_ICU)
-    find_package(IcuLinux)
-    list(APPEND BOOST_LIBRARIES ${ICU_LIBRARIES})
-  endif()
-endif()
-add_bundled_libraries(boost/lib)
 
 if(WITH_PUGIXML)
   find_package_wrapper(PugiXML)
@@ -546,7 +465,7 @@ endif()
 add_bundled_libraries(opencolorio/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
-  find_package(Embree 3.8.0 REQUIRED)
+  find_package(Embree 4.0.0 REQUIRED)
 endif()
 add_bundled_libraries(embree/lib)
 
@@ -569,13 +488,6 @@ if(WITH_LLVM)
       find_package_wrapper(Clang)
       set_and_warn_library_found("Clang" CLANG_FOUND WITH_CLANG)
     endif()
-
-    # Symbol conflicts with same UTF library used by OpenCollada
-    if(DEFINED LIBDIR)
-      if(WITH_OPENCOLLADA AND (${LLVM_VERSION} VERSION_LESS "4.0.0"))
-        list(REMOVE_ITEM OPENCOLLADA_LIBRARIES ${OPENCOLLADA_UTF_LIBRARY})
-      endif()
-    endif()
   endif()
 endif()
 
@@ -583,15 +495,32 @@ if(WITH_OPENSUBDIV)
   find_package(OpenSubdiv)
 
   set(OPENSUBDIV_LIBRARIES ${OPENSUBDIV_LIBRARIES})
-  set(OPENSUBDIV_LIBPATH)  # TODO, remove and reference the absolute path everywhere
+  set(OPENSUBDIV_LIBPATH "")  # TODO, remove and reference the absolute path everywhere
 
   set_and_warn_library_found("OpenSubdiv" OPENSUBDIV_FOUND WITH_OPENSUBDIV)
 endif()
 add_bundled_libraries(opensubdiv/lib)
 
-if(WITH_TBB)
+if(WITH_TBB OR WITH_TBB_MALLOC_PROXY)
+  # find_package_wrapper(TBB 2021.13.0)
   find_package_wrapper(TBB)
-  set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
+  if(TBB_FOUND)
+    if(WITH_TBB)
+      get_target_property(TBB_LIBRARIES TBB::tbb LOCATION)
+      get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+    endif()
+    if(WITH_TBB_MALLOC_PROXY)
+      get_target_property(TBB_MALLOC_PROXY_LIBRARIES TBB::tbbmalloc_proxy LOCATION)
+      get_target_property(TBB_MALLOC_LIBRARIES TBB::tbbmalloc LOCATION)
+    endif()
+  endif()
+  if(WITH_TBB)
+    set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
+  endif()
+  if(WITH_TBB_MALLOC_PROXY)
+    set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB_MALLOC_PROXY)
+  endif()
+  mark_as_advanced(TBB_DIR)
 endif()
 add_bundled_libraries(tbb/lib)
 
@@ -615,6 +544,31 @@ if(WITH_HARU)
   set_and_warn_library_found("Haru" HARU_FOUND WITH_HARU)
 endif()
 
+if(WITH_MANIFOLD)
+  if(WITH_LIBS_PRECOMPILED OR WITH_STRICT_BUILD_OPTIONS)
+    find_package(manifold REQUIRED)
+  else()
+    # This isn't a common system library, so disable if it's not found.
+    find_package(manifold)
+    if(TARGET manifold::manifold)
+      set(MANIFOLD_FOUND TRUE)
+    endif()
+    set_and_warn_library_found("MANIFOLD" MANIFOLD_FOUND WITH_MANIFOLD)
+  endif()
+  mark_as_advanced(manifold_DIR)
+endif()
+
+if(WITH_RUBBERBAND)
+  if(DEFINED LIBDIR)
+    find_package_wrapper(Rubberband)
+  else()
+    # Use system libs
+    find_package(PkgConfig)
+    pkg_check_modules(RUBBERBAND rubberband)
+  endif()
+  set_and_warn_library_found("Rubberband" RUBBERBAND_FOUND WITH_RUBBERBAND)
+endif()
+
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
   find_package_wrapper(openpgl)
   mark_as_advanced(openpgl_DIR)
@@ -633,6 +587,8 @@ endif()
 if(DEFINED LIBDIR)
   without_system_libs_end()
 endif()
+
+add_bundled_libraries(hiprt/lib)
 
 # ----------------------------------------------------------------------------
 # Build and Link Flags
@@ -692,13 +648,6 @@ if(WITH_SYSTEM_FREETYPE)
   set(BROTLI_LIBRARIES "")
 endif()
 
-if(WITH_LZO AND WITH_SYSTEM_LZO)
-  find_package_wrapper(LZO)
-  if(NOT LZO_FOUND)
-    message(FATAL_ERROR "Failed finding system LZO version!")
-  endif()
-endif()
-
 if(WITH_SYSTEM_EIGEN3)
   find_package_wrapper(Eigen3)
   if(NOT EIGEN3_FOUND)
@@ -716,6 +665,13 @@ endif()
 if(WITH_PULSEAUDIO)
   find_package_wrapper(Pulse)
   set_and_warn_library_found("PulseAudio" PULSE_FOUND WITH_PULSEAUDIO)
+endif()
+
+# PipeWire is intended to use the system library.
+if(WITH_PIPEWIRE)
+  find_package(PkgConfig)
+  pkg_check_modules(PIPEWIRE libpipewire-0.3>=1.1.0)
+  set_and_warn_library_found("PipeWire" PIPEWIRE_FOUND WITH_PIPEWIRE)
 endif()
 
 # Audio IO
@@ -791,20 +747,6 @@ if(WITH_GHOST_WAYLAND)
   set_and_warn_library_found("xkbcommon" xkbcommon_FOUND WITH_GHOST_WAYLAND)
 
   if(WITH_GHOST_WAYLAND)
-    if(WITH_GHOST_WAYLAND_LIBDECOR)
-      if(_use_system_wayland)
-        pkg_check_modules(libdecor libdecor-0>=0.1)
-      else()
-        set(libdecor_INCLUDE_DIRS "${LIBDIR}/wayland_libdecor/include/libdecor-0")
-        set(libdecor_FOUND ON)
-      endif()
-      set_and_warn_library_found("libdecor" libdecor_FOUND WITH_GHOST_WAYLAND_LIBDECOR)
-    endif()
-
-    if(WITH_GHOST_WAYLAND_LIBDECOR)
-      add_definitions(-DWITH_GHOST_WAYLAND_LIBDECOR)
-    endif()
-
     if(DEFINED LIBDIR)
       set(WAYLAND_SCANNER "${LIBDIR}/wayland/bin/wayland-scanner")
       if(NOT (EXISTS "${WAYLAND_SCANNER}"))
@@ -812,6 +754,10 @@ if(WITH_GHOST_WAYLAND)
       endif()
     else()
       pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
+      # Check the variable is set, otherwise an empty command will attempt to be executed.
+      if(NOT WAYLAND_SCANNER)
+        message(FATAL_ERROR "\"wayland-scanner\" could not be found!")
+      endif()
     endif()
     mark_as_advanced(WAYLAND_SCANNER)
 
@@ -870,19 +816,6 @@ if(WITH_GHOST_X11)
     endif()
   endif()
 
-  if(WITH_X11_XF86VMODE)
-    # XXX, why doesn't cmake make this available?
-    find_library(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
-    mark_as_advanced(X11_Xxf86vmode_LIB)
-    if(NOT X11_Xxf86vmode_LIB)
-      message(
-        FATAL_ERROR
-        "libXxf86vm not found. "
-        "Disable WITH_X11_XF86VMODE if you want to build without"
-      )
-    endif()
-  endif()
-
   if(WITH_X11_XFIXES)
     if(NOT X11_Xfixes_LIB)
       message(
@@ -914,7 +847,7 @@ endif()
 set(_IS_LINKER_DEFAULT ON)
 
 # GNU Compiler
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   # ffp-contract=off:
   # Automatically turned on when building with "-march=native". This is
   # explicitly turned off here as it will make floating point math give a bit
@@ -975,21 +908,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
     unset(MOLD_BIN)
   endif()
 
-  if(WITH_LINKER_GOLD AND _IS_LINKER_DEFAULT)
-    execute_process(
-      COMMAND ${CMAKE_C_COMPILER} -fuse-ld=gold -Wl,--version
-      ERROR_QUIET OUTPUT_VARIABLE LD_VERSION)
-    if("${LD_VERSION}" MATCHES "GNU gold")
-      string(APPEND CMAKE_EXE_LINKER_FLAGS    " -fuse-ld=gold")
-      string(APPEND CMAKE_SHARED_LINKER_FLAGS " -fuse-ld=gold")
-      string(APPEND CMAKE_MODULE_LINKER_FLAGS " -fuse-ld=gold")
-      set(_IS_LINKER_DEFAULT OFF)
-    else()
-      message(STATUS "GNU gold linker isn't available, using the default system linker.")
-    endif()
-    unset(LD_VERSION)
-  endif()
-
   if(WITH_LINKER_LLD AND _IS_LINKER_DEFAULT)
     execute_process(
       COMMAND ${CMAKE_C_COMPILER} -fuse-ld=lld -Wl,--version
@@ -1005,7 +923,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
     unset(LD_VERSION)
   endif()
 
-# CLang is the same as GCC for now.
+  # CLang is the same as GCC for now.
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing -ffp-contract=off")
 
@@ -1051,7 +969,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     unset(LLD_BIN)
   endif()
 
-# Intel C++ Compiler
+  # Intel C++ Compiler
 elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
   # think these next two are broken
   find_program(XIAR xiar)
@@ -1081,6 +999,13 @@ unset(_IS_LINKER_DEFAULT)
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_unix.map)
 set(PLATFORM_LINKFLAGS
   "${PLATFORM_LINKFLAGS} -Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'"
+)
+
+# We do not ensure transitive dependencies of dynamic libraries are available at
+# link time, this allows that. The better solution would be to switch to cmake
+# configs but more work is needed for that.
+set(PLATFORM_LINKFLAGS
+  "${PLATFORM_LINKFLAGS} -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs"
 )
 
 # Don't use position independent executable for portable install since file
@@ -1145,11 +1070,12 @@ if(PLATFORM_BUNDLED_LIBRARIES)
 
   # Environment variables to run precompiled executables that needed libraries.
   list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ":" _library_paths)
+  # Intentionally double "$$" which expands into "$" when instantiated.
   set(PLATFORM_ENV_BUILD
-    "LD_LIBRARY_PATH=\"${_library_paths}:$LD_LIBRARY_PATH\""
+    "LD_LIBRARY_PATH=\"${_library_paths}:$$LD_LIBRARY_PATH\""
   )
   set(PLATFORM_ENV_INSTALL
-    "LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/lib/;$LD_LIBRARY_PATH"
+    "LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/lib/;$$LD_LIBRARY_PATH"
   )
   unset(_library_paths)
 else()

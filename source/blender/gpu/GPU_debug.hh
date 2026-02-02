@@ -8,45 +8,67 @@
  * Helpers for GPU / drawing debugging.
  *
  *
- ** GPU debug capture usage example:
+ * GPU debug capture usage example:
  *
- ** Instant frame capture. **
+ * ### Instant frame capture. ###
+ *
+ * Will trigger a capture and load it inside RenderDoc or Xcode.
  *
  * \code
  * #include "GPU_debug.hh"
- * static void do_render_engine(Render *re)
+ *
+ * void render_function()
  * {
  *   GPU_debug_capture_begin(__func__);
- *   RE_engine_render(re, false);
+ *   // Draw-call submission goes here.
  *   GPU_debug_capture_end();
  * }
  * \endcode
  *
- ** Capture scopes. **
+ * ### Capture scopes. ###
+ *
+ * Capture scope can be sprinkled around the codebase for easier selective capture.
+ *
+ * They are listed from inside Xcode (on Mac) when doing a Metal capture.
+ *
+ * OpenGL and Vulkan backend need to use the `--debug-gpu-scope-capture` launch argument to specify
+ * which scope to capture. Building with RenderDoc API support is required for this launch option
+ * to be available.
+ *
+ * They can be nested but only one can be captured at a time.
  *
  * \code
  * #include "GPU_debug.hh"
- * void *capture_scope = nullptr;
- * static void do_render_engine(Render *re)
- * {
- *   if (!capture_scope) {
- *     // Create capture scope which will display in external tool.
- *     capture_scope = GPU_debug_capture_scope_create("Render Frame");
- *   }
  *
- *   // Commands within scope boundary captured when requested in tool.
- *   GPU_debug_capture_scope_begin(capture_scope);
- *   RE_engine_render(re, false);
- *   GPU_debug_capture_scope_end(capture_scope);
+ * void render_function()
+ * {
+ *   static gpu::DebugScope capture_scope = {"UniqueName"};
+ *
+ *   // Manually triggered version, better for conditional capture.
+ *   capture_scope.begin();
+ *   // Draw-call submission goes here.
+ *   capture_scope.end();
+ *
+ *   {
+ *     // Scoped version, better for complex control flow.
+ *     static gpu::DebugScope capture_scope = {"AnotherUniqueName"};
+ *     capture_scope.scoped_capture();
+ *     // Draw-call submission goes here.
+ *   }
  * }
  * \endcode
  */
 
 #pragma once
 
-#include "BLI_sys_types.h"
+#include "BLI_index_range.hh"
+
+#include <string>
+
+namespace blender {
 
 #define GPU_DEBUG_SHADER_COMPILATION_GROUP "Shader Compilation"
+#define GPU_DEBUG_SHADER_SPECIALIZATION_GROUP "Shader Specialization"
 
 void GPU_debug_group_begin(const char *name);
 void GPU_debug_group_end();
@@ -55,6 +77,7 @@ void GPU_debug_group_end();
  * "Group1 > Group 2 > Group3 > ... > GroupN : "
  */
 void GPU_debug_get_groups_names(int name_buf_len, char *r_name_buf);
+std::string GPU_debug_get_groups_names(IndexRange levels = IndexRange(0, 9999));
 /**
  * Return true if inside a debug group with the same name.
  */
@@ -92,3 +115,49 @@ void *GPU_debug_capture_scope_create(const char *name);
  */
 bool GPU_debug_capture_scope_begin(void *scope);
 void GPU_debug_capture_scope_end(void *scope);
+
+namespace gpu {
+
+/**
+ * Need to be declared as static with a unique identifier string.
+ */
+struct DebugScope {
+  void *scope;
+
+  DebugScope(const char *identifier)
+  {
+    scope = GPU_debug_capture_scope_create(identifier);
+  }
+
+  void begin_capture()
+  {
+    GPU_debug_capture_scope_begin(scope);
+  }
+
+  void end_capture()
+  {
+    GPU_debug_capture_scope_end(scope);
+  }
+
+  struct ScopedCapture {
+    void *scope;
+
+    ScopedCapture(void *scope) : scope(scope)
+    {
+      GPU_debug_capture_scope_begin(scope);
+    }
+    ~ScopedCapture()
+    {
+      GPU_debug_capture_scope_end(scope);
+    }
+  };
+
+  /* Capture everything until the end of the scope. */
+  ScopedCapture scoped_capture()
+  {
+    return ScopedCapture(scope);
+  }
+};
+
+}  // namespace gpu
+}  // namespace blender

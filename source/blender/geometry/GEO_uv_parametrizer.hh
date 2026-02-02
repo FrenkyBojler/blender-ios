@@ -4,18 +4,28 @@
 
 #pragma once
 
-#include "BLI_sys_types.h" /* for intptr_t support */
-
 /** \file
  * \ingroup geo
  */
+
+#include <cstdint>
+
+namespace slim {
+struct MatrixTransfer;
+}
+
+namespace blender {
+
+namespace geometry {
+class UVPackIsland_Params;
+}
 
 struct GHash;
 struct Heap;
 struct MemArena;
 struct RNG;
 
-namespace blender::geometry {
+namespace geometry {
 
 struct PChart;
 struct PHash;
@@ -55,6 +65,9 @@ class ParamHandle {
 
   RNG *rng = nullptr;
   float blend = 0.0f;
+
+  /* SLIM uv unwrapping */
+  slim::MatrixTransfer *slim_mt = nullptr;
 };
 
 /* -------------------------------------------------------------------- */
@@ -84,15 +97,44 @@ void uv_parametrizer_face_add(ParamHandle *handle,
                               const ParamKey *vkeys,
                               const float **co,
                               float **uv, /* Output will eventually be written to `uv`. */
+                              const float *weight,
                               const bool *pin,
                               const bool *select);
 
-void uv_parametrizer_edge_set_seam(ParamHandle *handle, ParamKey *vkeys);
+void uv_parametrizer_edge_set_seam(ParamHandle *phandle, const ParamKey *vkeys);
 
-void uv_parametrizer_construct_end(ParamHandle *handle,
+void uv_parametrizer_construct_end(ParamHandle *phandle,
                                    bool fill_holes,
                                    bool topology_from_uvs,
                                    int *r_count_failed = nullptr);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name SLIM:
+ *
+ * - begin: data is gathered into matrices and transferred to SLIM.
+ * - solve: compute cheap initialization (if necessary) and refine iteratively.
+ * - end: clean up.
+ * \{ */
+
+struct ParamSlimOptions {
+  float weight_influence = 0.0f;
+  int iterations = 0;
+  bool no_flip = false;
+  bool skip_init = false;
+};
+
+void uv_parametrizer_slim_solve(ParamHandle *phandle,
+                                const ParamSlimOptions *slim_options,
+                                int *count_changed,
+                                int *count_failed);
+
+void uv_parametrizer_slim_live_begin(ParamHandle *phandle, const ParamSlimOptions *slim_options);
+void uv_parametrizer_slim_live_solve_iteration(ParamHandle *phandle);
+void uv_parametrizer_slim_live_end(ParamHandle *phandle);
+void uv_parametrizer_slim_stretch_iteration(ParamHandle *phandle, float blend);
+bool uv_parametrizer_is_slim(const ParamHandle *phandle);
 
 /** \} */
 
@@ -130,7 +172,7 @@ void uv_parametrizer_stretch_end(ParamHandle *handle);
 /** \name Packing
  * \{ */
 
-void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, bool ignore_pinned);
+void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params);
 
 /** \} */
 
@@ -151,4 +193,5 @@ void uv_parametrizer_flush_restore(ParamHandle *handle);
 
 /** \} */
 
-}  // namespace blender::geometry
+}  // namespace geometry
+}  // namespace blender

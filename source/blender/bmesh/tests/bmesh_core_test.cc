@@ -5,8 +5,9 @@
 #include "testing/testing.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 #include "bmesh.hh"
+
+namespace blender {
 
 TEST(bmesh_core, BMVertCreate)
 {
@@ -42,3 +43,5 @@ TEST(bmesh_core, BMVertCreate)
   EXPECT_EQ(BM_mesh_elem_count(bm, BM_VERT), 3);
   BM_mesh_free(bm);
 }
+
+}  // namespace blender

@@ -140,6 +140,15 @@ class PlayRenderedAnim(Operator):
             frame_start = scene.frame_start
             frame_end = scene.frame_end
         if preset == 'INTERNAL':
+            # Use the current GPU backend for the player.
+            import gpu
+            gpu_backend = gpu.platform.backend_type_get()
+            if gpu_backend not in {'NONE', 'UNKNOWN'}:
+                cmd.extend([
+                    "--gpu-backend", gpu_backend.lower(),
+                ])
+            del gpu, gpu_backend
+
             opts = [
                 "-a",
                 "-f", str(rd.fps), str(rd.fps_base),
@@ -194,7 +203,7 @@ class PlayRenderedAnim(Operator):
 
         try:
             subprocess.Popen(cmd)
-        except BaseException as ex:
+        except Exception as ex:
             err_msg = rpt_("Couldn't run external animation player with command {!r}\n{:s}").format(cmd, str(ex))
             self.report(
                 {'ERROR'},

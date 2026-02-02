@@ -7,10 +7,6 @@
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/imaging/hd/sceneDelegate.h>
 
-#include "BLI_map.hh"
-
-#include "DEG_depsgraph.hh"
-
 #include "CLG_log.h"
 
 #include "curves.hh"
@@ -19,19 +15,25 @@
 #include "mesh.hh"
 #include "object.hh"
 #include "volume.hh"
-#include "volume_modifier.hh"
 #include "world.hh"
 
+namespace blender {
+
 struct Depsgraph;
+struct ID;
 struct Main;
+struct Material;
+struct Object;
+struct ParticleSystem;
 struct Scene;
 struct View3D;
 
-namespace blender::io::hydra {
+namespace io::hydra {
 
-extern struct CLG_LogRef *LOG_HYDRA_SCENE;
+extern CLG_LogRef *LOG_HYDRA_SCENE;
 
 class Engine;
+class CameraDelegate;
 
 class HydraSceneDelegate : public pxr::HdSceneDelegate {
   friend ObjectData;   /* has access to materials */
@@ -45,7 +47,7 @@ class HydraSceneDelegate : public pxr::HdSceneDelegate {
     float studiolight_rotation;
     float studiolight_intensity;
 
-    bool operator==(const ShadingSettings &other);
+    bool operator==(const ShadingSettings &other) const;
   };
 
   Depsgraph *depsgraph = nullptr;
@@ -62,9 +64,12 @@ class HydraSceneDelegate : public pxr::HdSceneDelegate {
   std::unique_ptr<InstancerData> instancer_data_;
   std::unique_ptr<WorldData> world_data_;
 
+  CameraDelegate *camera_delegate_ = nullptr;
+
  public:
   HydraSceneDelegate(pxr::HdRenderIndex *parent_index,
                      pxr::SdfPath const &delegate_id,
+                     CameraDelegate *camera_delegate,
                      bool use_materialx);
   ~HydraSceneDelegate() override = default;
 
@@ -96,7 +101,7 @@ class HydraSceneDelegate : public pxr::HdSceneDelegate {
   pxr::SdfPath prim_id(const ID *id, const char *prefix) const;
   pxr::SdfPath object_prim_id(const Object *object) const;
   pxr::SdfPath material_prim_id(const Material *mat) const;
-  pxr::SdfPath hair_prim_id(Object *parent_obj, const ParticleSystem *mat) const;
+  pxr::SdfPath hair_prim_id(Object *parent_obj, const ParticleSystem *psys) const;
   pxr::SdfPath instancer_prim_id() const;
   pxr::SdfPath world_prim_id() const;
 
@@ -115,4 +120,5 @@ class HydraSceneDelegate : public pxr::HdSceneDelegate {
   bool set_world_shading_settings();
 };
 
-}  // namespace blender::io::hydra
+}  // namespace io::hydra
+}  // namespace blender

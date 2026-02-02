@@ -15,9 +15,11 @@
 
 #include "BKE_object.hh"
 
+namespace blender {
+
 using Alembic::Abc::ISampleSelector;
 
-namespace blender::io::alembic {
+namespace io::alembic {
 
 AbcEmptyReader::AbcEmptyReader(const Alembic::Abc::IObject &object, ImportSettings &settings)
     : AbcObjectReader(object, settings)
@@ -40,17 +42,17 @@ bool AbcEmptyReader::valid() const
 bool AbcEmptyReader::accepts_object_type(
     const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
     const Object *const ob,
-    const char **err_str) const
+    const char **r_err_str) const
 {
   if (!Alembic::AbcGeom::IXform::matches(alembic_header)) {
-    *err_str = RPT_(
+    *r_err_str = RPT_(
         "Object type mismatch, Alembic object path pointed to XForm when importing, but not any "
         "more");
     return false;
   }
 
   if (ob->type != OB_EMPTY) {
-    *err_str = RPT_("Object type mismatch, Alembic object path points to XForm");
+    *r_err_str = RPT_("Object type mismatch, Alembic object path points to XForm");
     return false;
   }
 
@@ -63,4 +65,5 @@ void AbcEmptyReader::readObjectData(Main *bmain, const ISampleSelector & /*sampl
   m_object->data = nullptr;
 }
 
-}  // namespace blender::io::alembic
+}  // namespace io::alembic
+}  // namespace blender

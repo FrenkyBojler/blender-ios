@@ -40,12 +40,12 @@ int CUDADeviceQueue::num_concurrent_states(const size_t state_size) const
       num_states = max((int)(num_states * factor), 1024);
     }
     else {
-      VLOG_DEVICE_STATS << "CYCLES_CONCURRENT_STATES_FACTOR evaluated to 0";
+      LOG_TRACE << "CYCLES_CONCURRENT_STATES_FACTOR evaluated to 0";
     }
   }
 
-  VLOG_DEVICE_STATS << "GPU queue concurrent states: " << num_states << ", using up to "
-                    << string_human_readable_size(num_states * state_size);
+  LOG_TRACE << "GPU queue concurrent states: " << num_states << ", using up to "
+            << string_human_readable_size(num_states * state_size);
 
   return num_states;
 }
@@ -66,7 +66,7 @@ void CUDADeviceQueue::init_execution()
 {
   /* Synchronize all textures and memory copies before executing task. */
   CUDAContextScope scope(cuda_device_);
-  cuda_device_->load_texture_info();
+  cuda_device_->load_image_info();
   cuda_device_assert(cuda_device_, cuCtxSynchronize());
 
   debug_init_execution();
@@ -74,7 +74,7 @@ void CUDADeviceQueue::init_execution()
 
 bool CUDADeviceQueue::enqueue(DeviceKernel kernel,
                               const int work_size,
-                              DeviceKernelArguments const &args)
+                              const DeviceKernelArguments &args)
 {
   if (cuda_device_->have_error()) {
     return false;
@@ -83,9 +83,17 @@ bool CUDADeviceQueue::enqueue(DeviceKernel kernel,
   debug_enqueue_begin(kernel, work_size);
 
   const CUDAContextScope scope(cuda_device_);
-  const CUDADeviceKernel &cuda_kernel = cuda_device_->kernels.get(kernel);
+
+  /* Update image info in case integrator memory alloc caused texture to move to host. */
+  if (cuda_device_->load_image_info()) {
+    cuda_device_assert(cuda_device_, cuCtxSynchronize());
+    if (cuda_device_->have_error()) {
+      return false;
+    }
+  }
 
   /* Compute kernel launch parameters. */
+  const CUDADeviceKernel &cuda_kernel = cuda_device_->kernels.get(kernel);
   const int num_threads_per_block = cuda_kernel.num_threads_per_block;
   const int num_blocks = divide_up(work_size, num_threads_per_block);
 
@@ -119,7 +127,7 @@ bool CUDADeviceQueue::enqueue(DeviceKernel kernel,
                                 shared_mem_bytes,
                                 cuda_stream_,
                                 const_cast<void **>(args.values),
-                                0),
+                                nullptr),
                  "enqueue");
 
   debug_enqueue_end();
@@ -143,7 +151,7 @@ bool CUDADeviceQueue::synchronize()
 
 void CUDADeviceQueue::zero_to_device(device_memory &mem)
 {
-  assert(mem.type != MEM_GLOBAL && mem.type != MEM_TEXTURE);
+  assert(mem.type != MEM_GLOBAL && mem.type != MEM_IMAGE_TEXTURE);
 
   if (mem.memory_size() == 0) {
     return;
@@ -165,7 +173,7 @@ void CUDADeviceQueue::zero_to_device(device_memory &mem)
 
 void CUDADeviceQueue::copy_to_device(device_memory &mem)
 {
-  assert(mem.type != MEM_GLOBAL && mem.type != MEM_TEXTURE);
+  assert(mem.type != MEM_GLOBAL && mem.type != MEM_IMAGE_TEXTURE);
 
   if (mem.memory_size() == 0) {
     return;
@@ -189,7 +197,7 @@ void CUDADeviceQueue::copy_to_device(device_memory &mem)
 
 void CUDADeviceQueue::copy_from_device(device_memory &mem)
 {
-  assert(mem.type != MEM_GLOBAL && mem.type != MEM_TEXTURE);
+  assert(mem.type != MEM_GLOBAL && mem.type != MEM_IMAGE_TEXTURE);
 
   if (mem.memory_size() == 0) {
     return;

@@ -7,18 +7,22 @@
  */
 
 #include <cerrno>
-#include <cstdio>
 #include <cstdlib>
 
-#include "BLI_path_util.h" /* For assertions. */
-#include "BLI_utildefines.h"
+#include "BLI_path_utils.hh" /* For assertions. */
 
 #include "IMB_colormanagement.hh"
 #include "IMB_filetype.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-bool IMB_saveiff(ImBuf *ibuf, const char *filepath, int flags)
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"image.write"};
+
+bool IMB_save_image(ImBuf *ibuf, const char *filepath, const int flags)
 {
   errno = 0;
 
@@ -31,7 +35,7 @@ bool IMB_saveiff(ImBuf *ibuf, const char *filepath, int flags)
 
   const ImFileType *type = IMB_file_type_from_ibuf(ibuf);
   if (type == nullptr || type->save == nullptr) {
-    fprintf(stderr, "Couldn't save picture.\n");
+    CLOG_ERROR(&LOG, "Couldn't save image to \"%s\"", filepath);
     return false;
   }
 
@@ -43,9 +47,11 @@ bool IMB_saveiff(ImBuf *ibuf, const char *filepath, int flags)
   if (!(type->flag & IM_FTYPE_FLOAT)) {
     if (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data) {
       ibuf->byte_buffer.colorspace = colormanage_colorspace_get_roled(COLOR_ROLE_DEFAULT_BYTE);
-      IMB_rect_from_float(ibuf);
+      IMB_byte_from_float(ibuf);
     }
   }
 
   return type->save(ibuf, filepath, flags);
 }
+
+}  // namespace blender

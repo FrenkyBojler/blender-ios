@@ -10,11 +10,8 @@
 
 #include "BLI_math_inline.h"
 #include "BLI_sys_types.h"
-#include "BLI_utildefines.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 /******************** Blending Modes **********************
  * - byte function assume straight alpha
@@ -94,7 +91,7 @@ MINLINE void blend_color_luminosity_byte(unsigned char dst[4],
 MINLINE void blend_color_interpolate_byte(unsigned char dst[4],
                                           const unsigned char src1[4],
                                           const unsigned char src2[4],
-                                          float t);
+                                          float ft);
 
 MINLINE void blend_color_mix_float(float dst[4], const float src1[4], const float src2[4]);
 MINLINE void blend_color_add_float(float dst[4], const float src1[4], const float src2[4]);
@@ -127,10 +124,8 @@ MINLINE void blend_color_interpolate_float(float dst[4],
                                            const float src2[4],
                                            float t);
 
-#if BLI_MATH_DO_INLINE
-#  include "intern/math_color_blend_inline.c"
-#endif
+}  // namespace blender
 
-#ifdef __cplusplus
-}
+#if BLI_MATH_DO_INLINE
+#  include "intern/math_color_blend_inline.cc"  // IWYU pragma: export
 #endif

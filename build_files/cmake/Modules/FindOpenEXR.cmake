@@ -14,7 +14,7 @@
 #
 # For individual library access these advanced settings are available
 #  OPENEXR_HALF_LIBRARY, Path to Half library
-#  OPENEXR_IEX_LIBRARY, Path to Half library
+#  OPENEXR_IEX_LIBRARY, Path to Iex library
 #  OPENEXR_ILMIMF_LIBRARY, Path to Ilmimf library
 #  OPENEXR_ILMTHREAD_LIBRARY, Path to IlmThread library
 #  OPENEXR_IMATH_LIBRARY, Path to Imath library
@@ -105,7 +105,7 @@ else()
   )
 endif()
 
-set(_openexr_LIBRARIES)
+set(_openexr_LIBRARIES "")
 foreach(COMPONENT ${_openexr_FIND_COMPONENTS})
   string(TOUPPER ${COMPONENT} UPPERCOMPONENT)
 
@@ -117,7 +117,7 @@ foreach(COMPONENT ${_openexr_FIND_COMPONENTS})
       ${_openexr_SEARCH_DIRS}
     PATH_SUFFIXES
       lib64 lib
-    )
+  )
   list(APPEND _openexr_LIBRARIES "${OPENEXR_${UPPERCOMPONENT}_LIBRARY}")
 endforeach()
 
@@ -163,7 +163,7 @@ if(OPENEXR_VERSION VERSION_GREATER_EQUAL "3.0.0")
       ${_openexr_SEARCH_DIRS}
     PATH_SUFFIXES
       lib64 lib
-    )
+  )
   list(APPEND _openexr_LIBRARIES "${IMATH_LIBRARY}")
 
   # In cmake version 3.21 and up, we can instead use the NO_CACHE option for

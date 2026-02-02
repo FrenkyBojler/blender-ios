@@ -11,13 +11,13 @@
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
-
 #include "GPU_context.hh"
 #include "GPU_platform.hh"
 
 #include "gpu_py.hh"
 #include "gpu_py_platform.hh" /* Own include. */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Functions
@@ -154,37 +154,46 @@ static PyObject *pygpu_platform_backend_type_get(PyObject * /*self*/)
 /** \name Module
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_platform__tp_methods[] = {
     {"vendor_get",
-     (PyCFunction)pygpu_platform_vendor_get,
+     reinterpret_cast<PyCFunction>(pygpu_platform_vendor_get),
      METH_NOARGS,
      pygpu_platform_vendor_get_doc},
     {"renderer_get",
-     (PyCFunction)pygpu_platform_renderer_get,
+     reinterpret_cast<PyCFunction>(pygpu_platform_renderer_get),
      METH_NOARGS,
      pygpu_platform_renderer_get_doc},
     {"version_get",
-     (PyCFunction)pygpu_platform_version_get,
+     reinterpret_cast<PyCFunction>(pygpu_platform_version_get),
      METH_NOARGS,
      pygpu_platform_version_get_doc},
     {"device_type_get",
-     (PyCFunction)pygpu_platform_device_type_get,
+     reinterpret_cast<PyCFunction>(pygpu_platform_device_type_get),
      METH_NOARGS,
      pygpu_platform_device_type_get_doc},
     {"backend_type_get",
-     (PyCFunction)pygpu_platform_backend_type_get,
+     reinterpret_cast<PyCFunction>(pygpu_platform_backend_type_get),
      METH_NOARGS,
      pygpu_platform_backend_type_get_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(
@@ -213,3 +222,5 @@ PyObject *bpygpu_platform_init()
 }
 
 /** \} */
+
+}  // namespace blender

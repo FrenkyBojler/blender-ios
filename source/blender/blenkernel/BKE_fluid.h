@@ -8,9 +8,7 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 struct Depsgraph;
 struct FluidDomainSettings;
@@ -87,6 +85,4 @@ void BKE_fluid_flow_behavior_set(struct Object *object,
                                  struct FluidFlowSettings *settings,
                                  int behavior);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

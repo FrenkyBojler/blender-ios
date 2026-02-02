@@ -6,32 +6,34 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
 
-#include "DNA_packedFile_types.h"
-
-#include "BLI_path_util.h"
-#include "BLI_utildefines.h"
+#include "BLI_path_utils.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 
 #include "rna_internal.hh" /* own include */
 
 #ifdef RNA_RUNTIME
 
-#  include "BKE_image.h"
-#  include "BKE_image_format.h"
-#  include "BKE_image_save.h"
+#  include "BLI_listbase.h"
+#  include "BLI_math_base.h"
+#  include "BLI_string.h"
+
+#  include "BKE_context.hh"
+#  include "BKE_image.hh"
+#  include "BKE_image_format.hh"
+#  include "BKE_image_save.hh"
+#  include "BKE_library.hh"
 #  include "BKE_main.hh"
+#  include "BKE_report.hh"
 #  include "BKE_scene.hh"
-#  include <errno.h>
 
 #  include "IMB_imbuf.hh"
 
@@ -39,6 +41,10 @@
 #  include "DNA_scene_types.h"
 
 #  include "MEM_guardedalloc.h"
+
+#  include "WM_api.hh"
+
+namespace blender {
 
 static void rna_ImagePackedFile_save(ImagePackedFile *imapf, Main *bmain, ReportList *reports)
 {
@@ -90,7 +96,8 @@ static void rna_Image_save(Image *image,
                            bContext *C,
                            ReportList *reports,
                            const char *path,
-                           const int quality)
+                           const int quality,
+                           const bool save_copy)
 {
   Scene *scene = CTX_data_scene(C);
   ImageSaveOptions opts;
@@ -102,6 +109,7 @@ static void rna_Image_save(Image *image,
     if (quality != 0) {
       opts.im_format.quality = clamp_i(quality, 0, 100);
     }
+    opts.save_copy = save_copy;
     if (!BKE_image_save(reports, bmain, image, nullptr, &opts)) {
       BKE_reportf(reports,
                   RPT_ERROR,
@@ -122,21 +130,7 @@ static void rna_Image_save(Image *image,
 static void rna_Image_pack(
     Image *image, Main *bmain, bContext *C, ReportList *reports, const char *data, int data_len)
 {
-  BKE_image_free_packedfiles(image);
-
-  if (data) {
-    char *data_dup = static_cast<char *>(
-        MEM_mallocN(sizeof(*data_dup) * (size_t)data_len, __func__));
-    memcpy(data_dup, data, size_t(data_len));
-    BKE_image_packfiles_from_mem(reports, image, data_dup, size_t(data_len));
-  }
-  else if (BKE_image_is_dirty(image)) {
-    BKE_image_memorypack(image);
-  }
-  else {
-    BKE_image_packfiles(reports, image, ID_BLEND_PATH(bmain, &image->id));
-  }
-
+  BKE_image_packfile_ensure(bmain, image, reports, data, data_len);
   WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
 }
 
@@ -177,7 +171,7 @@ static void rna_Image_update(Image *image, ReportList *reports)
   }
 
   if (ibuf->byte_buffer.data) {
-    IMB_rect_from_float(ibuf);
+    IMB_byte_from_float(ibuf);
   }
 
   ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
@@ -219,7 +213,7 @@ static int rna_Image_gl_load(
     BKE_image_multilayer_index(image->rr, &iuser);
   }
 
-  GPUTexture *tex = BKE_image_get_gpu_texture(image, &iuser);
+  gpu::Texture *tex = BKE_image_get_gpu_texture(image, &iuser);
 
   if (tex == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Failed to load image texture '%s'", image->id.name + 2);
@@ -237,7 +231,7 @@ static int rna_Image_gl_touch(
 
   BKE_image_tag_time(image);
 
-  if (image->gputexture[TEXTARGET_2D][0] == nullptr) {
+  if (image->runtime->gputexture[TEXTARGET_2D][0] == nullptr) {
     error = rna_Image_gl_load(image, reports, frame, layer_index, pass_index);
   }
 
@@ -262,7 +256,11 @@ static void rna_Image_buffers_free(Image *image)
   BKE_image_free_buffers_ex(image, true);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_image_packed_file(StructRNA *srna)
 {
@@ -315,6 +313,11 @@ void RNA_api_image(StructRNA *srna)
               "not specified",
               0,
               100);
+  RNA_def_boolean(func,
+                  "save_copy",
+                  false,
+                  "Save Copy",
+                  "Save the image as a copy, without updating current image's filepath");
 
   func = RNA_def_function(srna, "pack", "rna_Image_pack");
   RNA_def_function_ui_description(func, "Pack an image as embedded data into the .blend file");
@@ -390,7 +393,7 @@ void RNA_api_image(StructRNA *srna)
       func,
       "Load the image into an OpenGL texture. On success, image.bindcode will contain the "
       "OpenGL texture bindcode. Colors read from the texture will be in scene linear color space "
-      "and have premultiplied or straight alpha matching the image alpha mode");
+      "and have premultiplied or straight alpha matching the image alpha mode.");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   RNA_def_int(
       func, "frame", 0, 0, INT_MAX, "Frame", "Frame of image sequence or movie", 0, INT_MAX);
@@ -442,5 +445,7 @@ void RNA_api_image(StructRNA *srna)
 
   /* TODO: pack/unpack, maybe should be generic functions? */
 }
+
+}  // namespace blender
 
 #endif

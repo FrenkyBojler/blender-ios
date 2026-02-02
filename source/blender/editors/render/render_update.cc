@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "DNA_anim_types.h"
+#include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
@@ -25,19 +27,25 @@
 
 #include "BLI_listbase.h"
 #include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
+#include "BKE_brush.hh"
 #include "BKE_context.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_main_invariants.hh"
+#include "BKE_material.hh"
+#include "BKE_node_runtime.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 
-#include "NOD_composite.hh"
-
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+
+#include "SEQ_animation.hh"
+#include "SEQ_prefetch.hh"
+#include "SEQ_relations.hh"
+#include "SEQ_sequencer.hh"
 
 #include "ED_node.hh"
 #include "ED_node_preview.hh"
@@ -50,7 +58,7 @@
 
 #include "WM_api.hh"
 
-#include <cstdio>
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Render Engines
@@ -63,15 +71,13 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
 {
   Main *bmain = DEG_get_bmain(depsgraph);
   Scene *scene = DEG_get_input_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
 
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->regiontype != RGN_TYPE_WINDOW) {
+  for (ARegion &region : area->regionbase) {
+    if (region.regiontype != RGN_TYPE_WINDOW) {
       continue;
     }
 
-    View3D *v3d = static_cast<View3D *>(area->spacedata.first);
-    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+    RegionView3D *rv3d = static_cast<RegionView3D *>(region.regiondata);
     RenderEngine *engine = rv3d->view_render ? RE_view_engine_get(rv3d->view_render) : nullptr;
 
     /* call update if the scene changed, or if the render engine
@@ -86,7 +92,7 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
       CTX_wm_window_set(C, window);
       CTX_wm_screen_set(C, WM_window_get_active_screen(window));
       CTX_wm_area_set(C, area);
-      CTX_wm_region_set(C, region);
+      CTX_wm_region_set(C, &region);
 
       engine->flag &= ~RE_ENGINE_DO_UPDATE;
       /* NOTE: Important to pass non-updated depsgraph, This is because this function is called
@@ -96,20 +102,6 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
 
       CTX_free(C);
     }
-
-    if (!updated) {
-      continue;
-    }
-
-    DRWUpdateContext drw_context = {nullptr};
-    drw_context.bmain = bmain;
-    drw_context.depsgraph = depsgraph;
-    drw_context.scene = scene;
-    drw_context.view_layer = view_layer;
-    drw_context.region = region;
-    drw_context.v3d = v3d;
-    drw_context.engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
-    DRW_notify_view_update(&drw_context);
   }
 }
 
@@ -137,12 +129,12 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool
   recursive_check = true;
 
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  LISTBASE_FOREACH (wmWindow *, window, &wm->windows) {
-    bScreen *screen = WM_window_get_active_screen(window);
+  for (wmWindow &window : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&window);
 
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      if (area->spacetype == SPACE_VIEW3D) {
-        ED_render_view3d_update(update_ctx->depsgraph, window, area, updated);
+    for (ScrArea &area : screen->areabase) {
+      if (area.spacetype == SPACE_VIEW3D) {
+        ED_render_view3d_update(update_ctx->depsgraph, &window, &area, updated);
       }
     }
   }
@@ -159,11 +151,11 @@ void ED_render_engine_area_exit(Main *bmain, ScrArea *area)
     return;
   }
 
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->regiontype != RGN_TYPE_WINDOW || !(region->regiondata)) {
+  for (ARegion &region : area->regionbase) {
+    if (region.regiontype != RGN_TYPE_WINDOW || !(region.regiondata)) {
       continue;
     }
-    ED_view3d_stop_render_preview(wm, region);
+    ED_view3d_stop_render_preview(wm, &region);
   }
 }
 
@@ -173,14 +165,14 @@ void ED_render_engine_changed(Main *bmain, const bool update_scene_data)
   for (bScreen *screen = static_cast<bScreen *>(bmain->screens.first); screen;
        screen = static_cast<bScreen *>(screen->id.next))
   {
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      ED_render_engine_area_exit(bmain, area);
+    for (ScrArea &area : screen->areabase) {
+      ED_render_engine_area_exit(bmain, &area);
     }
   }
   /* Stop and invalidate all shader previews. */
   ED_preview_kill_jobs(static_cast<wmWindowManager *>(bmain->wm.first), bmain);
-  LISTBASE_FOREACH (Material *, ma, &bmain->materials) {
-    BKE_material_make_node_previews_dirty(ma);
+  for (Material &ma : bmain->materials) {
+    BKE_material_make_node_previews_dirty(&ma);
   }
   RE_FreePersistentData(nullptr);
   /* Inform all render engines and draw managers. */
@@ -190,35 +182,24 @@ void ED_render_engine_changed(Main *bmain, const bool update_scene_data)
        scene = static_cast<Scene *>(scene->id.next))
   {
     update_ctx.scene = scene;
-    LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+    for (ViewLayer &view_layer : scene->view_layers) {
       /* TDODO(sergey): Iterate over depsgraphs instead? */
-      update_ctx.depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
-      update_ctx.view_layer = view_layer;
+      update_ctx.depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, &view_layer);
+      update_ctx.view_layer = &view_layer;
       ED_render_id_flush_update(&update_ctx, &scene->id);
     }
-    if (scene->nodetree && update_scene_data) {
-      ntreeCompositUpdateRLayers(scene->nodetree);
+    if (update_scene_data) {
+      BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+      BKE_ntree_update(*bmain);
     }
   }
-
-  /* Update #CacheFiles to ensure that procedurals are properly taken into account. */
-  LISTBASE_FOREACH (CacheFile *, cachefile, &bmain->cachefiles) {
-    /* Only update cache-files which are set to use a render procedural.
-     * We do not use #BKE_cachefile_uses_render_procedural here as we need to update regardless of
-     * the current engine or its settings. */
-    if (cachefile->use_render_procedural) {
-      DEG_id_tag_update(&cachefile->id, ID_RECALC_SYNC_TO_EVAL);
-      /* Rebuild relations so that modifiers are reconnected to or disconnected from the
-       * cache-file. */
-      DEG_relations_tag_update(bmain);
-    }
-  }
+  BKE_main_ensure_invariants(*bmain);
 }
 
 void ED_render_view_layer_changed(Main *bmain, bScreen *screen)
 {
-  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-    ED_render_engine_area_exit(bmain, area);
+  for (ScrArea &area : screen->areabase) {
+    ED_render_engine_area_exit(bmain, &area);
   }
 }
 
@@ -233,16 +214,18 @@ void ED_render_view_layer_changed(Main *bmain, bScreen *screen)
  * we can get rid of the manual dependency checks.
  * \{ */
 
-static void material_changed(Main * /*bmain*/, Material *ma)
+static void material_changed(Main *bmain, Material *ma)
 {
   /* icons */
   BKE_icon_changed(BKE_icon_id_ensure(&ma->id));
+  ED_previews_tag_dirty_by_id(*bmain, ma->id);
 }
 
-static void lamp_changed(Main * /*bmain*/, Light *la)
+static void lamp_changed(Main *bmain, Light *la)
 {
   /* icons */
   BKE_icon_changed(BKE_icon_id_ensure(&la->id));
+  ED_previews_tag_dirty_by_id(*bmain, la->id);
 }
 
 static void texture_changed(Main *bmain, Tex *tex)
@@ -251,29 +234,29 @@ static void texture_changed(Main *bmain, Tex *tex)
 
   /* icons */
   BKE_icon_changed(BKE_icon_id_ensure(&tex->id));
+  ED_previews_tag_dirty_by_id(*bmain, tex->id);
 
   for (scene = static_cast<Scene *>(bmain->scenes.first); scene;
        scene = static_cast<Scene *>(scene->id.next))
   {
     /* paint overlays */
-    LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-      BKE_paint_invalidate_overlay_tex(scene, view_layer, tex);
+    for (ViewLayer &view_layer : scene->view_layers) {
+      BKE_paint_invalidate_overlay_tex(scene, &view_layer, tex);
     }
-    /* find compositing nodes */
-    if (scene->use_nodes && scene->nodetree) {
-      LISTBASE_FOREACH (bNode *, node, &scene->nodetree->nodes) {
-        if (node->id == &tex->id) {
-          ED_node_tag_update_id(&scene->id);
-        }
-      }
+  }
+
+  for (Brush &brush : bmain->brushes) {
+    if (ELEM(tex, brush.mtex.tex, brush.mask_mtex.tex)) {
+      BKE_brush_tag_unsaved_changes(&brush);
     }
   }
 }
 
-static void world_changed(Main * /*bmain*/, World *wo)
+static void world_changed(Main *bmain, World *wo)
 {
   /* icons */
   BKE_icon_changed(BKE_icon_id_ensure(&wo->id));
+  ED_previews_tag_dirty_by_id(*bmain, wo->id);
 }
 
 static void image_changed(Main *bmain, Image *ima)
@@ -282,6 +265,7 @@ static void image_changed(Main *bmain, Image *ima)
 
   /* icons */
   BKE_icon_changed(BKE_icon_id_ensure(&ima->id));
+  ED_previews_tag_dirty_by_id(*bmain, ima->id);
 
   /* textures */
   for (tex = static_cast<Tex *>(bmain->textures.first); tex;
@@ -291,6 +275,9 @@ static void image_changed(Main *bmain, Image *ima)
       texture_changed(bmain, tex);
     }
   }
+
+  /* Ensure downstream editors are made aware of changes to the Image data. */
+  WM_main_add_notifier(NC_IMAGE | NA_EDITED, ima);
 }
 
 static void scene_changed(Main *bmain, Scene *scene)
@@ -308,6 +295,47 @@ static void scene_changed(Main *bmain, Scene *scene)
   }
 }
 
+static void update_sequencer(const DEGEditorUpdateContext *update_ctx, Main *bmain, ID *id)
+{
+  if (ELEM(id->recalc,
+           0,
+           ID_RECALC_SELECT,
+           ID_RECALC_FRAME_CHANGE,
+           ID_RECALC_AUDIO_FPS,
+           ID_RECALC_AUDIO_VOLUME,
+           ID_RECALC_AUDIO_MUTE,
+           ID_RECALC_AUDIO_LISTENER,
+           ID_RECALC_AUDIO))
+  {
+    return;
+  }
+  Scene *changed_scene = update_ctx->scene;
+
+  if (GS(id->name) != ID_SCE) {
+    seq::relations_invalidate_scene_strips(bmain, changed_scene);
+  }
+
+  /* Invalidate rendered VSE caches in `changed_scene`, because strip animation may have been
+   * updated. */
+  if (GS(id->name) == ID_AC) {
+    Editing *ed = seq::editing_get(changed_scene);
+    if (ed != nullptr && seq::animation_keyframes_exist(changed_scene) &&
+        &changed_scene->adt->action->id == id)
+    {
+      seq::prefetch_stop(changed_scene);
+      seq::cache_cleanup(changed_scene, seq::CacheCleanup::FinalAndIntra);
+    }
+  }
+
+  /* Invalidate cache for strips that use this compositing tree as a modifier. */
+  if (GS(id->name) == ID_NT) {
+    const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(id);
+    if (node_tree->type == NTREE_COMPOSIT) {
+      seq::relations_invalidate_compositor_modifiers(bmain, node_tree);
+    }
+  }
+}
+
 void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
 {
   /* this can be called from render or baking thread when a python script makes
@@ -320,26 +348,33 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
   /* Internal ID update handlers. */
   switch (GS(id->name)) {
     case ID_MA:
-      material_changed(bmain, (Material *)id);
+      material_changed(bmain, id_cast<Material *>(id));
       break;
     case ID_TE:
-      texture_changed(bmain, (Tex *)id);
+      texture_changed(bmain, id_cast<Tex *>(id));
       break;
     case ID_WO:
-      world_changed(bmain, (World *)id);
+      world_changed(bmain, id_cast<World *>(id));
       break;
     case ID_LA:
-      lamp_changed(bmain, (Light *)id);
+      lamp_changed(bmain, id_cast<Light *>(id));
       break;
     case ID_IM:
-      image_changed(bmain, (Image *)id);
+      image_changed(bmain, id_cast<Image *>(id));
       break;
     case ID_SCE:
-      scene_changed(bmain, (Scene *)id);
+      scene_changed(bmain, id_cast<Scene *>(id));
+      break;
+    case ID_BR:
+      BKE_brush_tag_unsaved_changes(reinterpret_cast<Brush *>(id));
       break;
     default:
       break;
   }
+
+  update_sequencer(update_ctx, bmain, id);
 }
 
 /** \} */
+
+}  // namespace blender

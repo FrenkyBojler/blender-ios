@@ -12,20 +12,24 @@
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 
-#include "BKE_layer.hh"
 #include "BKE_object.hh"
 
 #include "id.hh"
 #include "material.hh"
 
-namespace blender::io::hydra {
+namespace blender {
+
+struct Material;
+
+namespace io::hydra {
+
+class HydraSceneDelegate;
 
 class ObjectData : public IdData {
  public:
   pxr::GfMatrix4d transform;
   bool visible = true;
 
- public:
   ObjectData(HydraSceneDelegate *scene_delegate,
              const Object *object,
              pxr::SdfPath const &prim_id);
@@ -55,4 +59,5 @@ using ObjectDataMap = Map<pxr::SdfPath, std::unique_ptr<ObjectData>>;
 
 pxr::GfMatrix4d gf_matrix_from_transform(const float m[4][4]);
 
-}  // namespace blender::io::hydra
+}  // namespace io::hydra
+}  // namespace blender

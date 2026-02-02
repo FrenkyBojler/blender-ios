@@ -39,7 +39,6 @@ class AssetCatalogDefinitionFile {
 
   const CatalogFilePath file_path;
 
- public:
   AssetCatalogDefinitionFile(const CatalogFilePath &file_path);
 
   /**
@@ -56,6 +55,11 @@ class AssetCatalogDefinitionFile {
    */
   bool write_to_disk(const CatalogFilePath &dest_file_path) const;
 
+  /**
+   * Returns whether this file exists on disk.
+   */
+  bool exists_on_disk() const;
+
   bool contains(CatalogID catalog_id) const;
   /** Add a catalog, overwriting the one with the same catalog ID. */
   void add_overwrite(AssetCatalog *catalog);
@@ -67,7 +71,7 @@ class AssetCatalogDefinitionFile {
 
   using AssetCatalogParsedFn = FunctionRef<bool(std::unique_ptr<AssetCatalog>)>;
   void parse_catalog_file(const CatalogFilePath &catalog_definition_file_path,
-                          AssetCatalogParsedFn callback);
+                          AssetCatalogParsedFn catalog_loaded_callback);
 
   std::unique_ptr<AssetCatalogDefinitionFile> copy_and_remap(
       const OwningAssetCatalogMap &catalogs, const OwningAssetCatalogMap &deleted_catalogs) const;

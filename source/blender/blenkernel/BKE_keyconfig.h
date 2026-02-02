@@ -7,9 +7,9 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_sys_types.h"
+
+namespace blender {
 
 /** Based on #BKE_addon_pref_type_init and friends */
 
@@ -20,15 +20,15 @@ struct wmKeyMapItem;
 
 /** Actual data is stored in #wmKeyConfigPref. */
 #if defined(__RNA_TYPES_H__)
-typedef struct wmKeyConfigPrefType_Runtime {
+struct wmKeyConfigPrefType_Runtime {
   char idname[64];
 
   /* RNA integration */
   ExtensionRNA rna_ext;
-} wmKeyConfigPrefType_Runtime;
+};
 
 #else
-typedef struct wmKeyConfigPrefType_Runtime wmKeyConfigPrefType_Runtime;
+struct wmKeyConfigPrefType_Runtime;
 #endif
 
 /* KeyConfig preferences (#UserDef). */
@@ -56,6 +56,8 @@ struct wmKeyConfigFilterItemParams {
   uint check_diff_item_add : 1;
   uint check_diff_item_remove : 1;
 };
+/** Use when all items should be manipulated. */
+#define WM_KEY_CONFIG_FILTER_ITEM_ALL {true, true, true}
 
 void BKE_keyconfig_keymap_filter_item(struct wmKeyMap *keymap,
                                       const struct wmKeyConfigFilterItemParams *params,
@@ -70,6 +72,4 @@ void BKE_keyconfig_pref_filter_items(struct UserDef *userdef,
                                      bool (*filter_fn)(struct wmKeyMapItem *kmi, void *user_data),
                                      void *user_data);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

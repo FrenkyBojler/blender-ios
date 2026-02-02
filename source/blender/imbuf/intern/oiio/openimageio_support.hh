@@ -4,11 +4,9 @@
 
 #pragma once
 
-#include <memory>
-
 /* Include our own math header first to avoid warnings about M_PI
  * redefinition between OpenImageIO and Windows headers. */
-#include "BLI_math_base.h"
+#include "BLI_math_base.h"  // IWYU pragma: keep
 #include "BLI_sys_types.h"
 
 #include <OpenImageIO/filesystem.h>
@@ -17,7 +15,11 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-namespace blender::imbuf {
+namespace blender {
+
+struct ImFileColorSpace;
+
+namespace imbuf {
 
 /**
  * Parameters and settings used while reading image formats.
@@ -29,14 +31,11 @@ struct ReadContext {
   const eImbFileType file_type;
   const int flags;
 
-  /** Override the automatic color-role choice with the value specified here. */
-  int use_colorspace_role = -1;
-
   /** Allocate and use all #ImBuf image planes even if the image has fewer. */
   bool use_all_planes = false;
 
   /** Use the `colorspace` provided in the image metadata when available. */
-  bool use_embedded_colorspace = false;
+  bool use_metadata_colorspace = false;
 };
 
 /**
@@ -69,7 +68,7 @@ bool imb_oiio_check(const uchar *mem, size_t mem_size, const char *file_format);
  */
 ImBuf *imb_oiio_read(const ReadContext &ctx,
                      const OIIO::ImageSpec &config,
-                     char colorspace[IM_MAX_SPACE],
+                     ImFileColorSpace &r_colorspace,
                      OIIO::ImageSpec &r_newspec);
 
 /**
@@ -105,4 +104,5 @@ OIIO::ImageSpec imb_create_write_spec(const WriteContext &ctx,
                                       int file_channels,
                                       OIIO::TypeDesc data_format);
 
-}  // namespace blender::imbuf
+}  // namespace imbuf
+}  // namespace blender

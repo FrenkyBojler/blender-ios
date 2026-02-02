@@ -21,11 +21,13 @@ namespace blender {
  * types that derive from #ImplicitSharingMixin. It is fairly similar to #std::shared_ptr but
  * requires the reference count to be embedded in the data.
  */
-template<typename T> class ImplicitSharingPtr {
+template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitSharingPtr {
  private:
   const T *data_ = nullptr;
 
  public:
+  using element_type = T;
+
   ImplicitSharingPtr() = default;
 
   explicit ImplicitSharingPtr(const T *data) : data_(data) {}
@@ -117,27 +119,71 @@ template<typename T> class ImplicitSharingPtr {
     return get_default_hash(data_);
   }
 
+  /**
+   * If there is only a single user of the data, return a mutable reference to it directly.
+   * Otherwise call #copy which is expected to return a new implicitly shared pointer that always
+   * has a single user.
+   */
+  T &ensure_mutable_inplace()
+  {
+    BLI_assert(data_);
+    if (!data_->is_mutable()) {
+      /* The data is shared and therefore immutable. Make a mutable copy.*/
+      *this = data_->copy();
+    }
+    BLI_assert(data_->is_mutable());
+    data_->tag_ensured_mutable();
+    return const_cast<T &>(*data_);
+  }
+
+  static uint64_t hash_as(const T *data)
+  {
+    return get_default_hash(data);
+  }
+
   BLI_STRUCT_EQUALITY_OPERATORS_1(ImplicitSharingPtr, data_)
+
+  friend bool operator==(const T *a, const ImplicitSharingPtr &b)
+  {
+    return a == b.data_;
+  }
+
+  friend bool operator==(const ImplicitSharingPtr &a, const T *b)
+  {
+    return a.data_ == b;
+  }
 
  private:
   static void add_user(const T *data)
   {
     if (data != nullptr) {
-      data->add_user();
+      if constexpr (IsStrong) {
+        data->add_user();
+      }
+      else {
+        data->add_weak_user();
+      }
     }
   }
 
   static void remove_user_and_delete_if_last(const T *data)
   {
     if (data != nullptr) {
-      data->remove_user_and_delete_if_last();
+      if constexpr (IsStrong) {
+        data->remove_user_and_delete_if_last();
+      }
+      else {
+        data->remove_weak_user_and_delete_if_last();
+      }
     }
   }
 };
 
+using WeakImplicitSharingPtr = ImplicitSharingPtr<ImplicitSharingInfo, false>;
+
 /**
  * Utility struct to allow used #ImplicitSharingPtr when it's necessary to type-erase the backing
- * storage for user-exposed data. For example, #blender::Vector, or #std::vector might be used to
+ * storage for user-exposed data. For example, #Vector, or #std::vector might be used to
  * store an implicitly shared array that is only accessed with #Span or #MutableSpan.
  *
  * This class handles RAII for the sharing info and the exposed data pointer.
@@ -145,19 +191,16 @@ template<typename T> class ImplicitSharingPtr {
  */
 class ImplicitSharingPtrAndData {
  public:
-  ImplicitSharingPtr<ImplicitSharingInfo> sharing_info;
+  ImplicitSharingPtr<> sharing_info;
   const void *data = nullptr;
 
   ImplicitSharingPtrAndData() = default;
-  ImplicitSharingPtrAndData(ImplicitSharingPtr<ImplicitSharingInfo> sharing_info, const void *data)
+  ImplicitSharingPtrAndData(ImplicitSharingPtr<> sharing_info, const void *data)
       : sharing_info(std::move(sharing_info)), data(data)
   {
   }
 
-  ImplicitSharingPtrAndData(const ImplicitSharingPtrAndData &other)
-      : sharing_info(other.sharing_info), data(other.data)
-  {
-  }
+  ImplicitSharingPtrAndData(const ImplicitSharingPtrAndData &other) = default;
 
   ImplicitSharingPtrAndData(ImplicitSharingPtrAndData &&other)
       : sharing_info(std::move(other.sharing_info)), data(std::exchange(other.data, nullptr))
@@ -194,5 +237,9 @@ class ImplicitSharingPtrAndData {
     return this->sharing_info.has_value();
   }
 };
+
+template<typename T> static constexpr bool is_ImplicitSharingPtr_strong_v = false;
+template<typename T>
+static constexpr bool is_ImplicitSharingPtr_strong_v<ImplicitSharingPtr<T, true>> = true;
 
 }  // namespace blender

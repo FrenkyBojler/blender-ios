@@ -9,6 +9,7 @@
  * OpenMP hints by Christian Schnellhammer
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 
@@ -20,13 +21,13 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rand.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_image.h"
-#include "BKE_image_format.h"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_ocean.h"
 #include "ocean_intern.h"
 
@@ -36,6 +37,8 @@
 #include "RE_texture.h"
 
 #include "BLI_hash.h"
+
+namespace blender {
 
 #ifdef WITH_OCEANSIM
 
@@ -56,8 +59,8 @@ static float gaussRand(RNG *rng)
   float length2;
 
   do {
-    x = float(nextfr(rng, -1, 1));
-    y = float(nextfr(rng, -1, 1));
+    x = nextfr(rng, -1, 1);
+    y = nextfr(rng, -1, 1);
     length2 = x * x + y * y;
   } while (length2 >= 1 || length2 == 0);
 
@@ -715,9 +718,7 @@ static void set_height_normalize_factor(Ocean *oc)
 
   for (i = 0; i < oc->_M; i++) {
     for (j = 0; j < oc->_N; j++) {
-      if (max_h < fabs(oc->_disp_y[i * oc->_N + j])) {
-        max_h = fabs(oc->_disp_y[i * oc->_N + j]);
-      }
+      max_h = std::max<double>(max_h, fabs(oc->_disp_y[i * oc->_N + j]));
     }
   }
 
@@ -734,7 +735,7 @@ static void set_height_normalize_factor(Ocean *oc)
 
 Ocean *BKE_ocean_add()
 {
-  Ocean *oc = static_cast<Ocean *>(MEM_callocN(sizeof(Ocean), "ocean sim data"));
+  Ocean *oc = MEM_new_zeroed<Ocean>("ocean sim data");
 
   BLI_rw_mutex_init(&oc->oceanmutex);
 
@@ -846,21 +847,21 @@ bool BKE_ocean_init(Ocean *o,
   /* NOTE: most modifiers don't account for failure to allocate.
    * In this case however a large resolution can easily perform large allocations that fail,
    * support early exiting in this case. */
-  if ((o->_k = (float *)MEM_mallocN(sizeof(float) * size_t(M) * (1 + N / 2), "ocean_k")) &&
-      (o->_h0 = (fftw_complex *)MEM_mallocN(sizeof(fftw_complex) * size_t(M) * N, "ocean_h0")) &&
-      (o->_h0_minus = (fftw_complex *)MEM_mallocN(sizeof(fftw_complex) * size_t(M) * N,
-                                                  "ocean_h0_minus")) &&
-      (o->_kx = (float *)MEM_mallocN(sizeof(float) * o->_M, "ocean_kx")) &&
-      (o->_kz = (float *)MEM_mallocN(sizeof(float) * o->_N, "ocean_kz")))
+  if ((o->_k = MEM_new_array_uninitialized<float>(size_t(M) * (1 + size_t(N) / 2), "ocean_k")) &&
+      (o->_h0 = MEM_new_array_uninitialized<fftw_complex>(size_t(M) * size_t(N), "ocean_h0")) &&
+      (o->_h0_minus = MEM_new_array_uninitialized<fftw_complex>(size_t(M) * size_t(N),
+                                                                "ocean_h0_minus")) &&
+      (o->_kx = MEM_new_array_uninitialized<float>(size_t(o->_M), "ocean_kx")) &&
+      (o->_kz = MEM_new_array_uninitialized<float>(size_t(o->_N), "ocean_kz")))
   {
     /* Success. */
   }
   else {
-    MEM_SAFE_FREE(o->_k);
-    MEM_SAFE_FREE(o->_h0);
-    MEM_SAFE_FREE(o->_h0_minus);
-    MEM_SAFE_FREE(o->_kx);
-    MEM_SAFE_FREE(o->_kz);
+    MEM_SAFE_DELETE(o->_k);
+    MEM_SAFE_DELETE(o->_h0);
+    MEM_SAFE_DELETE(o->_h0_minus);
+    MEM_SAFE_DELETE(o->_kx);
+    MEM_SAFE_DELETE(o->_kz);
 
     BLI_rw_mutex_unlock(&o->oceanmutex);
     return false;
@@ -930,91 +931,91 @@ bool BKE_ocean_init(Ocean *o,
         case MOD_OCEAN_SPECTRUM_JONSWAP:
           mul_complex_f(o->_h0[i * o->_N + j],
                         r1r2,
-                        float(sqrt(BLI_ocean_spectrum_jonswap(o, o->_kx[i], o->_kz[j]) / 2.0f)));
+                        sqrt(BLI_ocean_spectrum_jonswap(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(o->_h0_minus[i * o->_N + j],
                         r1r2,
-                        float(sqrt(BLI_ocean_spectrum_jonswap(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+                        sqrt(BLI_ocean_spectrum_jonswap(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
         case MOD_OCEAN_SPECTRUM_TEXEL_MARSEN_ARSLOE:
           mul_complex_f(
               o->_h0[i * o->_N + j],
               r1r2,
-              float(sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, o->_kx[i], o->_kz[j]) / 2.0f)));
+              sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(
               o->_h0_minus[i * o->_N + j],
               r1r2,
-              float(sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+              sqrt(BLI_ocean_spectrum_texelmarsenarsloe(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
         case MOD_OCEAN_SPECTRUM_PIERSON_MOSKOWITZ:
-          mul_complex_f(
-              o->_h0[i * o->_N + j],
-              r1r2,
-              float(sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, o->_kx[i], o->_kz[j]) / 2.0f)));
+          mul_complex_f(o->_h0[i * o->_N + j],
+                        r1r2,
+                        sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(
               o->_h0_minus[i * o->_N + j],
               r1r2,
-              float(sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+              sqrt(BLI_ocean_spectrum_piersonmoskowitz(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
         default:
+          mul_complex_f(o->_h0[i * o->_N + j], r1r2, sqrt(Ph(o, o->_kx[i], o->_kz[j]) / 2.0f));
           mul_complex_f(
-              o->_h0[i * o->_N + j], r1r2, float(sqrt(Ph(o, o->_kx[i], o->_kz[j]) / 2.0f)));
-          mul_complex_f(o->_h0_minus[i * o->_N + j],
-                        r1r2,
-                        float(sqrt(Ph(o, -o->_kx[i], -o->_kz[j]) / 2.0f)));
+              o->_h0_minus[i * o->_N + j], r1r2, sqrt(Ph(o, -o->_kx[i], -o->_kz[j]) / 2.0f));
           break;
       }
     }
   }
 
-  o->_fft_in = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex),
-                                           "ocean_fft_in");
-  o->_htilda = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex),
-                                           "ocean_htilda");
+  o->_fft_in = MEM_new_array_uninitialized<fftw_complex>(size_t(o->_M) * (1 + size_t(o->_N) / 2),
+                                                         "ocean_fft_in");
+  o->_htilda = MEM_new_array_uninitialized<fftw_complex>(size_t(o->_M) * (1 + size_t(o->_N) / 2),
+                                                         "ocean_htilda");
 
   BLI_thread_lock(LOCK_FFTW);
 
   if (o->_do_disp_y) {
-    o->_disp_y = (double *)MEM_mallocN(o->_M * o->_N * sizeof(double), "ocean_disp_y");
+    o->_disp_y = MEM_new_array_uninitialized<double>(size_t(o->_M) * size_t(o->_N),
+                                                     "ocean_disp_y");
     o->_disp_y_plan = fftw_plan_dft_c2r_2d(o->_M, o->_N, o->_fft_in, o->_disp_y, FFTW_ESTIMATE);
   }
 
   if (o->_do_normals) {
-    o->_fft_in_nx = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex),
-                                                "ocean_fft_in_nx");
-    o->_fft_in_nz = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex),
-                                                "ocean_fft_in_nz");
+    o->_fft_in_nx = MEM_new_array_uninitialized<fftw_complex>(
+        size_t(o->_M) * (1 + size_t(o->_N) / 2), "ocean_fft_in_nx");
+    o->_fft_in_nz = MEM_new_array_uninitialized<fftw_complex>(
+        size_t(o->_M) * (1 + size_t(o->_N) / 2), "ocean_fft_in_nz");
 
-    o->_N_x = (double *)MEM_mallocN(o->_M * o->_N * sizeof(double), "ocean_N_x");
+    o->_N_x = MEM_new_array_uninitialized<double>(size_t(o->_M) * size_t(o->_N), "ocean_N_x");
     // o->_N_y = (float *) fftwf_malloc(o->_M * o->_N * sizeof(float)); /* (MEM01) */
-    o->_N_z = (double *)MEM_mallocN(o->_M * o->_N * sizeof(double), "ocean_N_z");
+    o->_N_z = MEM_new_array_uninitialized<double>(size_t(o->_M) * size_t(o->_N), "ocean_N_z");
 
     o->_N_x_plan = fftw_plan_dft_c2r_2d(o->_M, o->_N, o->_fft_in_nx, o->_N_x, FFTW_ESTIMATE);
     o->_N_z_plan = fftw_plan_dft_c2r_2d(o->_M, o->_N, o->_fft_in_nz, o->_N_z, FFTW_ESTIMATE);
   }
 
   if (o->_do_chop) {
-    o->_fft_in_x = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex),
-                                               "ocean_fft_in_x");
-    o->_fft_in_z = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex),
-                                               "ocean_fft_in_z");
+    o->_fft_in_x = MEM_new_array_uninitialized<fftw_complex>(
+        size_t(o->_M) * (1 + size_t(o->_N) / 2), "ocean_fft_in_x");
+    o->_fft_in_z = MEM_new_array_uninitialized<fftw_complex>(
+        size_t(o->_M) * (1 + size_t(o->_N) / 2), "ocean_fft_in_z");
 
-    o->_disp_x = (double *)MEM_mallocN(o->_M * o->_N * sizeof(double), "ocean_disp_x");
-    o->_disp_z = (double *)MEM_mallocN(o->_M * o->_N * sizeof(double), "ocean_disp_z");
+    o->_disp_x = MEM_new_array_uninitialized<double>(size_t(o->_M) * size_t(o->_N),
+                                                     "ocean_disp_x");
+    o->_disp_z = MEM_new_array_uninitialized<double>(size_t(o->_M) * size_t(o->_N),
+                                                     "ocean_disp_z");
 
     o->_disp_x_plan = fftw_plan_dft_c2r_2d(o->_M, o->_N, o->_fft_in_x, o->_disp_x, FFTW_ESTIMATE);
     o->_disp_z_plan = fftw_plan_dft_c2r_2d(o->_M, o->_N, o->_fft_in_z, o->_disp_z, FFTW_ESTIMATE);
   }
   if (o->_do_jacobian) {
-    o->_fft_in_jxx = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex),
-                                                 "ocean_fft_in_jxx");
-    o->_fft_in_jzz = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex),
-                                                 "ocean_fft_in_jzz");
-    o->_fft_in_jxz = (fftw_complex *)MEM_mallocN(o->_M * (1 + o->_N / 2) * sizeof(fftw_complex),
-                                                 "ocean_fft_in_jxz");
+    o->_fft_in_jxx = MEM_new_array_uninitialized<fftw_complex>(
+        size_t(o->_M) * (1 + size_t(o->_N) / 2), "ocean_fft_in_jxx");
+    o->_fft_in_jzz = MEM_new_array_uninitialized<fftw_complex>(
+        size_t(o->_M) * (1 + size_t(o->_N) / 2), "ocean_fft_in_jzz");
+    o->_fft_in_jxz = MEM_new_array_uninitialized<fftw_complex>(
+        size_t(o->_M) * (1 + size_t(o->_N) / 2), "ocean_fft_in_jxz");
 
-    o->_Jxx = (double *)MEM_mallocN(o->_M * o->_N * sizeof(double), "ocean_Jxx");
-    o->_Jzz = (double *)MEM_mallocN(o->_M * o->_N * sizeof(double), "ocean_Jzz");
-    o->_Jxz = (double *)MEM_mallocN(o->_M * o->_N * sizeof(double), "ocean_Jxz");
+    o->_Jxx = MEM_new_array_uninitialized<double>(size_t(o->_M) * size_t(o->_N), "ocean_Jxx");
+    o->_Jzz = MEM_new_array_uninitialized<double>(size_t(o->_M) * size_t(o->_N), "ocean_Jzz");
+    o->_Jxz = MEM_new_array_uninitialized<double>(size_t(o->_M) * size_t(o->_N), "ocean_Jxz");
 
     o->_Jxx_plan = fftw_plan_dft_c2r_2d(o->_M, o->_N, o->_fft_in_jxx, o->_Jxx, FFTW_ESTIMATE);
     o->_Jzz_plan = fftw_plan_dft_c2r_2d(o->_M, o->_N, o->_fft_in_jzz, o->_Jzz, FFTW_ESTIMATE);
@@ -1044,54 +1045,54 @@ void BKE_ocean_free_data(Ocean *oc)
 
   if (oc->_do_disp_y) {
     fftw_destroy_plan(oc->_disp_y_plan);
-    MEM_freeN(oc->_disp_y);
+    MEM_delete(oc->_disp_y);
   }
 
   if (oc->_do_normals) {
-    MEM_freeN(oc->_fft_in_nx);
-    MEM_freeN(oc->_fft_in_nz);
+    MEM_delete(oc->_fft_in_nx);
+    MEM_delete(oc->_fft_in_nz);
     fftw_destroy_plan(oc->_N_x_plan);
     fftw_destroy_plan(oc->_N_z_plan);
-    MEM_freeN(oc->_N_x);
+    MEM_delete(oc->_N_x);
     // fftwf_free(oc->_N_y); /* (MEM01) */
-    MEM_freeN(oc->_N_z);
+    MEM_delete(oc->_N_z);
   }
 
   if (oc->_do_chop) {
-    MEM_freeN(oc->_fft_in_x);
-    MEM_freeN(oc->_fft_in_z);
+    MEM_delete(oc->_fft_in_x);
+    MEM_delete(oc->_fft_in_z);
     fftw_destroy_plan(oc->_disp_x_plan);
     fftw_destroy_plan(oc->_disp_z_plan);
-    MEM_freeN(oc->_disp_x);
-    MEM_freeN(oc->_disp_z);
+    MEM_delete(oc->_disp_x);
+    MEM_delete(oc->_disp_z);
   }
 
   if (oc->_do_jacobian) {
-    MEM_freeN(oc->_fft_in_jxx);
-    MEM_freeN(oc->_fft_in_jzz);
-    MEM_freeN(oc->_fft_in_jxz);
+    MEM_delete(oc->_fft_in_jxx);
+    MEM_delete(oc->_fft_in_jzz);
+    MEM_delete(oc->_fft_in_jxz);
     fftw_destroy_plan(oc->_Jxx_plan);
     fftw_destroy_plan(oc->_Jzz_plan);
     fftw_destroy_plan(oc->_Jxz_plan);
-    MEM_freeN(oc->_Jxx);
-    MEM_freeN(oc->_Jzz);
-    MEM_freeN(oc->_Jxz);
+    MEM_delete(oc->_Jxx);
+    MEM_delete(oc->_Jzz);
+    MEM_delete(oc->_Jxz);
   }
 
   BLI_thread_unlock(LOCK_FFTW);
 
   if (oc->_fft_in) {
-    MEM_freeN(oc->_fft_in);
+    MEM_delete(oc->_fft_in);
   }
 
   /* check that ocean data has been initialized */
   if (oc->_htilda) {
-    MEM_freeN(oc->_htilda);
-    MEM_freeN(oc->_k);
-    MEM_freeN(oc->_h0);
-    MEM_freeN(oc->_h0_minus);
-    MEM_freeN(oc->_kx);
-    MEM_freeN(oc->_kz);
+    MEM_delete(oc->_htilda);
+    MEM_delete(oc->_k);
+    MEM_delete(oc->_h0);
+    MEM_delete(oc->_h0_minus);
+    MEM_delete(oc->_kx);
+    MEM_delete(oc->_kz);
   }
 
   BLI_rw_mutex_unlock(&oc->oceanmutex);
@@ -1106,7 +1107,7 @@ void BKE_ocean_free(Ocean *oc)
   BKE_ocean_free_data(oc);
   BLI_rw_mutex_end(&oc->oceanmutex);
 
-  MEM_freeN(oc);
+  MEM_delete(oc);
 }
 
 #  undef GRAVITY
@@ -1146,8 +1147,11 @@ static void cache_filepath(
 
   BLI_path_join(cachepath, sizeof(cachepath), dirname, filename);
 
-  BKE_image_path_from_imtype(
-      filepath, cachepath, relbase, frame, R_IMF_IMTYPE_OPENEXR, true, true, "");
+  const Vector<bke::path_templates::Error> errors = BKE_image_path_from_imtype(
+      filepath, cachepath, relbase, nullptr, frame, R_IMF_IMTYPE_OPENEXR, true, true, "");
+  BLI_assert_msg(errors.is_empty(),
+                 "Path parsing errors should only occur when a variable map is provided.");
+  UNUSED_VARS_NDEBUG(errors);
 }
 
 /* silly functions but useful to inline when the args do a lot of indirections */
@@ -1180,7 +1184,7 @@ void BKE_ocean_free_cache(OceanCache *och)
         IMB_freeImBuf(och->ibufs_disp[f]);
       }
     }
-    MEM_freeN(och->ibufs_disp);
+    MEM_delete(och->ibufs_disp);
   }
 
   if (och->ibufs_foam) {
@@ -1189,7 +1193,7 @@ void BKE_ocean_free_cache(OceanCache *och)
         IMB_freeImBuf(och->ibufs_foam[f]);
       }
     }
-    MEM_freeN(och->ibufs_foam);
+    MEM_delete(och->ibufs_foam);
   }
 
   if (och->ibufs_spray) {
@@ -1198,7 +1202,7 @@ void BKE_ocean_free_cache(OceanCache *och)
         IMB_freeImBuf(och->ibufs_spray[f]);
       }
     }
-    MEM_freeN(och->ibufs_spray);
+    MEM_delete(och->ibufs_spray);
   }
 
   if (och->ibufs_spray_inverse) {
@@ -1207,7 +1211,7 @@ void BKE_ocean_free_cache(OceanCache *och)
         IMB_freeImBuf(och->ibufs_spray_inverse[f]);
       }
     }
-    MEM_freeN(och->ibufs_spray_inverse);
+    MEM_delete(och->ibufs_spray_inverse);
   }
 
   if (och->ibufs_norm) {
@@ -1216,13 +1220,13 @@ void BKE_ocean_free_cache(OceanCache *och)
         IMB_freeImBuf(och->ibufs_norm[f]);
       }
     }
-    MEM_freeN(och->ibufs_norm);
+    MEM_delete(och->ibufs_norm);
   }
 
   if (och->time) {
-    MEM_freeN(och->time);
+    MEM_delete(och->time);
   }
-  MEM_freeN(och);
+  MEM_delete(och);
 }
 
 void BKE_ocean_cache_eval_uv(OceanCache *och, OceanResult *ocr, int f, float u, float v)
@@ -1314,7 +1318,7 @@ OceanCache *BKE_ocean_init_cache(const char *bakepath,
                                  float foam_fade,
                                  int resolution)
 {
-  OceanCache *och = static_cast<OceanCache *>(MEM_callocN(sizeof(OceanCache), "ocean cache data"));
+  OceanCache *och = MEM_new_zeroed<OceanCache>("ocean cache data");
 
   och->bakepath = bakepath;
   och->relbase = relbase;
@@ -1329,16 +1333,13 @@ OceanCache *BKE_ocean_init_cache(const char *bakepath,
   och->resolution_x = resolution * resolution;
   och->resolution_y = resolution * resolution;
 
-  och->ibufs_disp = static_cast<ImBuf **>(
-      MEM_callocN(sizeof(ImBuf *) * och->duration, "displacement imbuf pointer array"));
-  och->ibufs_foam = static_cast<ImBuf **>(
-      MEM_callocN(sizeof(ImBuf *) * och->duration, "foam imbuf pointer array"));
-  och->ibufs_spray = static_cast<ImBuf **>(
-      MEM_callocN(sizeof(ImBuf *) * och->duration, "spray imbuf pointer array"));
-  och->ibufs_spray_inverse = static_cast<ImBuf **>(
-      MEM_callocN(sizeof(ImBuf *) * och->duration, "spray_inverse imbuf pointer array"));
-  och->ibufs_norm = static_cast<ImBuf **>(
-      MEM_callocN(sizeof(ImBuf *) * och->duration, "normal imbuf pointer array"));
+  och->ibufs_disp = MEM_new_array_zeroed<ImBuf *>(och->duration,
+                                                  "displacement imbuf pointer array");
+  och->ibufs_foam = MEM_new_array_zeroed<ImBuf *>(och->duration, "foam imbuf pointer array");
+  och->ibufs_spray = MEM_new_array_zeroed<ImBuf *>(och->duration, "spray imbuf pointer array");
+  och->ibufs_spray_inverse = MEM_new_array_zeroed<ImBuf *>(och->duration,
+                                                           "spray_inverse imbuf pointer array");
+  och->ibufs_norm = MEM_new_array_zeroed<ImBuf *>(och->duration, "normal imbuf pointer array");
 
   och->time = nullptr;
 
@@ -1363,19 +1364,19 @@ void BKE_ocean_simulate_cache(OceanCache *och, int frame)
    * files were saved with default settings too. */
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_DISPLACE);
-  och->ibufs_disp[f] = IMB_loadiffname(filepath, 0, nullptr);
+  och->ibufs_disp[f] = IMB_load_image_from_filepath(filepath, 0);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_FOAM);
-  och->ibufs_foam[f] = IMB_loadiffname(filepath, 0, nullptr);
+  och->ibufs_foam[f] = IMB_load_image_from_filepath(filepath, 0);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_SPRAY);
-  och->ibufs_spray[f] = IMB_loadiffname(filepath, 0, nullptr);
+  och->ibufs_spray[f] = IMB_load_image_from_filepath(filepath, 0);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_SPRAY_INVERSE);
-  och->ibufs_spray_inverse[f] = IMB_loadiffname(filepath, 0, nullptr);
+  och->ibufs_spray_inverse[f] = IMB_load_image_from_filepath(filepath, 0);
 
   cache_filepath(filepath, och->bakepath, och->relbase, frame, CACHE_TYPE_NORMAL);
-  och->ibufs_norm[f] = IMB_loadiffname(filepath, 0, nullptr);
+  och->ibufs_norm[f] = IMB_load_image_from_filepath(filepath, 0);
 }
 
 void BKE_ocean_bake(Ocean *o,
@@ -1404,8 +1405,8 @@ void BKE_ocean_bake(Ocean *o,
   }
 
   if (o->_do_jacobian) {
-    prev_foam = static_cast<float *>(
-        MEM_callocN(res_x * res_y * sizeof(float), "previous frame foam bake data"));
+    prev_foam = MEM_new_array_zeroed<float>(size_t(res_x) * size_t(res_y),
+                                            "previous frame foam bake data");
   }
   else {
     prev_foam = nullptr;
@@ -1421,11 +1422,11 @@ void BKE_ocean_bake(Ocean *o,
   for (f = och->start, i = 0; f <= och->end; f++, i++) {
 
     /* create a new imbuf to store image for this frame */
-    ibuf_foam = IMB_allocImBuf(res_x, res_y, 32, IB_rectfloat);
-    ibuf_disp = IMB_allocImBuf(res_x, res_y, 32, IB_rectfloat);
-    ibuf_normal = IMB_allocImBuf(res_x, res_y, 32, IB_rectfloat);
-    ibuf_spray = IMB_allocImBuf(res_x, res_y, 32, IB_rectfloat);
-    ibuf_spray_inverse = IMB_allocImBuf(res_x, res_y, 32, IB_rectfloat);
+    ibuf_foam = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
+    ibuf_disp = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
+    ibuf_normal = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
+    ibuf_spray = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
+    ibuf_spray_inverse = IMB_allocImBuf(res_x, res_y, 32, IB_float_data);
 
     BKE_ocean_simulate(o, och->time[i], och->wave_scale, och->chop_amount);
 
@@ -1498,24 +1499,24 @@ void BKE_ocean_bake(Ocean *o,
 
     /* write the images */
     cache_filepath(filepath, och->bakepath, och->relbase, f, CACHE_TYPE_DISPLACE);
-    if (0 == BKE_imbuf_write(ibuf_disp, filepath, &imf)) {
+    if (false == BKE_imbuf_write(ibuf_disp, filepath, &imf)) {
       printf("Cannot save Displacement File Output to %s\n", filepath);
     }
 
     if (o->_do_jacobian) {
       cache_filepath(filepath, och->bakepath, och->relbase, f, CACHE_TYPE_FOAM);
-      if (0 == BKE_imbuf_write(ibuf_foam, filepath, &imf)) {
+      if (false == BKE_imbuf_write(ibuf_foam, filepath, &imf)) {
         printf("Cannot save Foam File Output to %s\n", filepath);
       }
 
       if (o->_do_spray) {
         cache_filepath(filepath, och->bakepath, och->relbase, f, CACHE_TYPE_SPRAY);
-        if (0 == BKE_imbuf_write(ibuf_spray, filepath, &imf)) {
+        if (false == BKE_imbuf_write(ibuf_spray, filepath, &imf)) {
           printf("Cannot save Spray File Output to %s\n", filepath);
         }
 
         cache_filepath(filepath, och->bakepath, och->relbase, f, CACHE_TYPE_SPRAY_INVERSE);
-        if (0 == BKE_imbuf_write(ibuf_spray_inverse, filepath, &imf)) {
+        if (false == BKE_imbuf_write(ibuf_spray_inverse, filepath, &imf)) {
           printf("Cannot save Spray Inverse File Output to %s\n", filepath);
         }
       }
@@ -1523,7 +1524,7 @@ void BKE_ocean_bake(Ocean *o,
 
     if (o->_do_normals) {
       cache_filepath(filepath, och->bakepath, och->relbase, f, CACHE_TYPE_NORMAL);
-      if (0 == BKE_imbuf_write(ibuf_normal, filepath, &imf)) {
+      if (false == BKE_imbuf_write(ibuf_normal, filepath, &imf)) {
         printf("Cannot save Normal File Output to %s\n", filepath);
       }
     }
@@ -1540,7 +1541,7 @@ void BKE_ocean_bake(Ocean *o,
 
     if (cancel) {
       if (prev_foam) {
-        MEM_freeN(prev_foam);
+        MEM_delete(prev_foam);
       }
       // BLI_rng_free(rng);
       return;
@@ -1549,7 +1550,7 @@ void BKE_ocean_bake(Ocean *o,
 
   // BLI_rng_free(rng);
   if (prev_foam) {
-    MEM_freeN(prev_foam);
+    MEM_delete(prev_foam);
   }
   och->baked = 1;
 }
@@ -1576,7 +1577,7 @@ void BKE_ocean_simulate(Ocean * /*o*/, float /*t*/, float /*scale*/, float /*cho
 
 Ocean *BKE_ocean_add()
 {
-  Ocean *oc = static_cast<Ocean *>(MEM_callocN(sizeof(Ocean), "ocean sim data"));
+  Ocean *oc = MEM_new_zeroed<Ocean>("ocean sim data");
 
   return oc;
 }
@@ -1614,7 +1615,7 @@ void BKE_ocean_free(Ocean *oc)
   if (!oc) {
     return;
   }
-  MEM_freeN(oc);
+  MEM_delete(oc);
 }
 
 /* ********* Baking/Caching ********* */
@@ -1625,7 +1626,7 @@ void BKE_ocean_free_cache(OceanCache *och)
     return;
   }
 
-  MEM_freeN(och);
+  MEM_delete(och);
 }
 
 void BKE_ocean_cache_eval_uv(
@@ -1648,7 +1649,7 @@ OceanCache *BKE_ocean_init_cache(const char * /*bakepath*/,
                                  float /*foam_fade*/,
                                  int /*resolution*/)
 {
-  OceanCache *och = static_cast<OceanCache *>(MEM_callocN(sizeof(OceanCache), "ocean cache data"));
+  OceanCache *och = MEM_new_zeroed<OceanCache>("ocean cache data");
 
   return och;
 }
@@ -1679,3 +1680,5 @@ void BKE_ocean_free_modifier_cache(OceanModifierData *omd)
   omd->oceancache = nullptr;
   omd->cached = false;
 }
+
+}  // namespace blender

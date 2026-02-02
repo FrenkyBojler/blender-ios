@@ -41,7 +41,7 @@ find_path(OPENSUBDIV_INCLUDE_DIR
     include
 )
 
-set(_opensubdiv_LIBRARIES)
+set(_opensubdiv_LIBRARIES "")
 foreach(COMPONENT ${_opensubdiv_FIND_COMPONENTS})
   string(TOUPPER ${COMPONENT} UPPERCOMPONENT)
 
@@ -52,7 +52,7 @@ foreach(COMPONENT ${_opensubdiv_FIND_COMPONENTS})
       ${_opensubdiv_SEARCH_DIRS}
     PATH_SUFFIXES
       lib64 lib
-    )
+  )
   list(APPEND _opensubdiv_LIBRARIES "${OPENSUBDIV_${UPPERCOMPONENT}_LIBRARY}")
 endforeach()
 
@@ -71,7 +71,7 @@ endmacro()
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(OpenSubdiv DEFAULT_MSG
-    _opensubdiv_LIBRARIES OPENSUBDIV_INCLUDE_DIR)
+  _opensubdiv_LIBRARIES OPENSUBDIV_INCLUDE_DIR)
 
 if(OPENSUBDIV_FOUND)
   set(OPENSUBDIV_LIBRARIES ${_opensubdiv_LIBRARIES})

@@ -6,8 +6,10 @@
  * \ingroup spview3d
  */
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_camera.h"
@@ -33,6 +35,8 @@
 #include "DEG_depsgraph.hh"
 
 #include "view3d_intern.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Camera Gizmos
@@ -63,7 +67,7 @@ static bool WIDGETGROUP_camera_poll(const bContext *C, wmGizmoGroupType * /*gzgt
   if (base && BASE_SELECTABLE(v3d, base)) {
     Object *ob = base->object;
     if (ob->type == OB_CAMERA) {
-      const Camera *camera = static_cast<Camera *>(ob->data);
+      const Camera *camera = id_cast<Camera *>(ob->data);
       /* TODO: support overrides. */
       if (BKE_id_is_editable(CTX_data_main(C), &camera->id)) {
         return true;
@@ -83,8 +87,7 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
 
   const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
 
-  CameraWidgetGroup *cagzgroup = static_cast<CameraWidgetGroup *>(
-      MEM_callocN(sizeof(CameraWidgetGroup), __func__));
+  CameraWidgetGroup *cagzgroup = MEM_new_zeroed<CameraWidgetGroup>(__func__);
   gzgroup->customdata = cagzgroup;
 
   negate_v3_v3(dir, ob->object_to_world().ptr()[2]);
@@ -96,8 +99,8 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CROSS);
     WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_HOVER | WM_GIZMO_DRAW_NO_SCALE, true);
 
-    UI_GetThemeColor3fv(TH_GIZMO_A, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    ui::theme::get_color_3fv(TH_GIZMO_A, gz->color);
+    ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
   }
 
   /* focal length
@@ -109,16 +112,21 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CONE);
     RNA_enum_set(gz->ptr, "transform", ED_GIZMO_ARROW_XFORM_FLAG_CONSTRAINED);
 
-    UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+    ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
     gz = cagzgroup->ortho_scale = WM_gizmo_new_ptr(gzt_arrow, gzgroup, nullptr);
     gz->flag |= WM_GIZMO_DRAW_NO_SCALE;
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CONE);
     RNA_enum_set(gz->ptr, "transform", ED_GIZMO_ARROW_XFORM_FLAG_CONSTRAINED);
 
-    UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+    ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
+  }
+
+  /* All gizmos must perform undo. */
+  for (wmGizmo &gz : gzgroup->gizmos) {
+    WM_gizmo_set_flag(&gz, WM_GIZMO_NEEDS_UNDO, true);
   }
 }
 
@@ -134,10 +142,12 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Camera *ca = static_cast<Camera *>(ob->data);
+  Camera *ca = id_cast<Camera *>(ob->data);
   float dir[3];
 
-  PointerRNA camera_ptr = RNA_pointer_create(&ca->id, &RNA_Camera, ca);
+  PointerRNA camera_ptr = RNA_pointer_create_discrete(&ca->id, RNA_Camera, ca);
+
+  const bool is_modal = WM_gizmo_group_is_modal(gzgroup);
 
   negate_v3_v3(dir, ob->object_to_world().ptr()[2]);
 
@@ -149,7 +159,8 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     WM_gizmo_set_flag(cagzgroup->dop_dist, WM_GIZMO_HIDDEN, false);
 
     /* Need to set property here for undo. TODO: would prefer to do this in _init. */
-    PointerRNA camera_dof_ptr = RNA_pointer_create(&ca->id, &RNA_CameraDOFSettings, &ca->dof);
+    PointerRNA camera_dof_ptr = RNA_pointer_create_discrete(
+        &ca->id, RNA_CameraDOFSettings, &ca->dof);
     WM_gizmo_target_property_def_rna(
         cagzgroup->dop_dist, "offset", &camera_dof_ptr, "focus_distance", -1);
   }
@@ -208,8 +219,11 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     WM_gizmo_set_matrix_offset_location(widget, offset);
   }
 
-  /* define & update properties */
-  {
+  /* Define & update properties.
+   *
+   * Check modal to prevent feedback loop for orthographic cameras,
+   * where the range is based on the scale, see: #141667. */
+  if (!is_modal) {
     const char *propname = is_ortho ? "ortho_scale" : "lens";
     PropertyRNA *prop = RNA_struct_find_property(&camera_ptr, propname);
     const wmGizmoPropertyType *gz_prop_type = WM_gizmotype_target_property_find(widget->type,
@@ -251,7 +265,7 @@ static void WIDGETGROUP_camera_message_subscribe(const bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Camera *ca = static_cast<Camera *>(ob->data);
+  Camera *ca = id_cast<Camera *>(ob->data);
 
   wmMsgSubscribeValue msg_sub_value_gz_tag_refresh{};
   msg_sub_value_gz_tag_refresh.owner = region;
@@ -329,7 +343,7 @@ static void gizmo_render_border_prop_matrix_get(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 void *value_p)
 {
-  float(*matrix)[4] = static_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(
       gz_prop->custom_func.user_data);
@@ -346,7 +360,7 @@ static void gizmo_render_border_prop_matrix_set(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 const void *value_p)
 {
-  const float(*matrix)[4] = static_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(
       gz_prop->custom_func.user_data);
   rctf *border = viewgroup->state.edit_border;
@@ -404,8 +418,7 @@ static bool WIDGETGROUP_camera_view_poll(const bContext *C, wmGizmoGroupType * /
 
 static void WIDGETGROUP_camera_view_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
-  CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(
-      MEM_mallocN(sizeof(CameraViewWidgetGroup), __func__));
+  CameraViewWidgetGroup *viewgroup = MEM_new<CameraViewWidgetGroup>(__func__);
 
   viewgroup->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
 
@@ -418,6 +431,8 @@ static void WIDGETGROUP_camera_view_setup(const bContext * /*C*/, wmGizmoGroup *
   WM_gizmo_set_scale(viewgroup->border, 10.0f / 0.15f);
 
   gzgroup->customdata = viewgroup;
+
+  /* NOTE: #WM_GIZMO_NEEDS_UNDO is set on refresh and depends on modifying a camera object. */
 }
 
 static void WIDGETGROUP_camera_view_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
@@ -432,7 +447,7 @@ static void WIDGETGROUP_camera_view_draw_prepare(const bContext *C, wmGizmoGroup
     Scene *scene = CTX_data_scene(C);
     View3D *v3d = CTX_wm_view3d(C);
     ED_view3d_calc_camera_border(
-        scene, depsgraph, region, v3d, rv3d, &viewgroup->state.view_border, false);
+        scene, depsgraph, region, v3d, rv3d, false, &viewgroup->state.view_border);
   }
   else {
     rctf rect{};
@@ -485,6 +500,8 @@ static void WIDGETGROUP_camera_view_refresh(const bContext *C, wmGizmoGroup *gzg
     params.range_get_fn = nullptr;
     params.user_data = viewgroup;
     WM_gizmo_target_property_def_func(gz, "matrix", &params);
+
+    WM_gizmo_set_flag(gz, WM_GIZMO_NEEDS_UNDO, viewgroup->is_camera);
   }
 }
 
@@ -502,3 +519,5 @@ void VIEW3D_GGT_camera_view(wmGizmoGroupType *gzgt)
 }
 
 /** \} */
+
+}  // namespace blender

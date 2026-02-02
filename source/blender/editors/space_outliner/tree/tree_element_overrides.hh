@@ -14,11 +14,13 @@
 
 #include "tree_element.hh"
 
+namespace blender {
+
 struct ID;
 struct IDOverrideLibraryProperty;
 struct IDOverrideLibraryPropertyOperation;
 
-namespace blender::ed::outliner {
+namespace ed::outliner {
 
 struct TreeElementOverridesData {
   ID &id;
@@ -38,10 +40,9 @@ class TreeElementOverridesBase final : public AbstractTreeElement {
  public:
   ID &id;
 
- public:
   TreeElementOverridesBase(TreeElement &legacy_te, ID &id);
 
-  void expand(SpaceOutliner &) const override;
+  void expand(SpaceOutliner & /*soops*/) const override;
 
   StringRefNull get_warning() const override;
 };
@@ -59,7 +60,6 @@ class TreeElementOverridesProperty : public AbstractTreeElement {
   StringRefNull rna_path;
   bool is_rna_path_valid;
 
- public:
   TreeElementOverridesProperty(TreeElement &legacy_te, TreeElementOverridesData &override_data);
 
   StringRefNull get_warning() const override;
@@ -90,4 +90,5 @@ class TreeElementOverridesPropertyOperation final : public TreeElementOverridesP
   std::optional<PointerRNA> get_collection_ptr() const;
 };
 
-}  // namespace blender::ed::outliner
+}  // namespace ed::outliner
+}  // namespace blender

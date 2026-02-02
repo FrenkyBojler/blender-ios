@@ -4,90 +4,54 @@
 
 #pragma once
 
+#include "DNA_sequence_types.h"
+#include "DNA_vec_types.h"
+
+#include "BLI_math_vector_types.hh"
+#include "BLI_vector.hh"
+
+namespace blender {
+
 /** \file
  * \ingroup sequencer
  */
 
-struct ImBuf;
-struct SeqRenderData;
-struct Sequence;
-struct TextVars;
+struct Strip;
+struct VFont;
 
-enum class StripEarlyOut {
-  NoInput = -1,  /* No input needed. */
-  DoEffect = 0,  /* No early out (do the effect). */
-  UseInput1 = 1, /* Output = input1. */
-  UseInput2 = 2, /* Output = input2. */
+namespace seq {
+
+void effect_ensure_initialized(Strip *strip);
+void effect_free(Strip *strip);
+int effect_get_num_inputs(int strip_type);
+bool effect_is_transition(StripType type);
+void effect_text_font_set(Strip *strip, VFont *font);
+bool effects_can_render_text(const Strip *strip);
+
+struct CharInfo {
+  int index = 0;
+  int offset = 0; /* Offset in bytes within text buffer. */
+  int byte_length = 0;
+  float2 position{0.0f, 0.0f};
+  int advance_x = 0;
+  bool do_wrap = false;
 };
 
-/* Wipe effect */
-enum {
-  DO_SINGLE_WIPE,
-  DO_DOUBLE_WIPE,
-  /* DO_BOX_WIPE, */   /* UNUSED */
-  /* DO_CROSS_WIPE, */ /* UNUSED */
-  DO_IRIS_WIPE,
-  DO_CLOCK_WIPE,
+struct LineInfo {
+  Vector<CharInfo> characters;
+  int width;
 };
 
-struct SeqEffectHandle {
-  bool multithreaded;
-  bool supports_mask;
+struct TextVarsRuntime {
+  Vector<LineInfo> lines;
 
-  /* constructors & destructor */
-  /* init is _only_ called on first creation */
-  void (*init)(Sequence *seq);
-
-  /* number of input strips needed
-   * (called directly after construction) */
-  int (*num_inputs)();
-
-  /* load is called first time after readblenfile in
-   * get_sequence_effect automatically */
-  void (*load)(Sequence *seqconst);
-
-  /* duplicate */
-  void (*copy)(Sequence *dst, const Sequence *src, int flag);
-
-  /* destruct */
-  void (*free)(Sequence *seq, bool do_id_user);
-
-  StripEarlyOut (*early_out)(const Sequence *seq, float fac);
-
-  /* sets the default `fac` value */
-  void (*get_default_fac)(const Scene *scene,
-                          const Sequence *seq,
-                          float timeline_frame,
-                          float *fac);
-
-  /* execute the effect
-   * sequence effects are only required to either support
-   * float-rects or byte-rects
-   * (mixed cases are handled one layer up...) */
-
-  ImBuf *(*execute)(const SeqRenderData *context,
-                    Sequence *seq,
-                    float timeline_frame,
-                    float fac,
-                    ImBuf *ibuf1,
-                    ImBuf *ibuf2,
-                    ImBuf *ibuf3);
-
-  ImBuf *(*init_execution)(const SeqRenderData *context, ImBuf *ibuf1, ImBuf *ibuf2, ImBuf *ibuf3);
-
-  void (*execute_slice)(const SeqRenderData *context,
-                        Sequence *seq,
-                        float timeline_frame,
-                        float fac,
-                        const ImBuf *ibuf1,
-                        const ImBuf *ibuf2,
-                        const ImBuf *ibuf3,
-                        int start_line,
-                        int total_lines,
-                        ImBuf *out);
+  rcti text_boundbox; /* Bound-box used for box drawing and selection. */
+  int line_height;
+  int font_descender;
+  int character_count;
+  int font;
+  bool editing_is_active; /* UI uses this to differentiate behavior. */
 };
 
-SeqEffectHandle SEQ_effect_handle_get(Sequence *seq);
-int SEQ_effect_get_num_inputs(int seq_type);
-void SEQ_effect_text_font_unload(TextVars *data, bool do_id_user);
-void SEQ_effect_text_font_load(TextVars *data, bool do_id_user);
+}  // namespace seq
+}  // namespace blender

@@ -87,7 +87,7 @@ ColorGeometry4fMixer::ColorGeometry4fMixer(MutableSpan<ColorGeometry4f> buffer,
     : buffer_(buffer), default_color_(default_color), total_weights_(buffer.size(), 0.0f)
 {
   const ColorGeometry4f zero{0.0f, 0.0f, 0.0f, 0.0f};
-  mask.foreach_index([&](const int64_t i) { buffer_[i] = zero; });
+  index_mask::masked_fill(buffer_, zero, mask);
 }
 
 void ColorGeometry4fMixer::set(const int64_t index,
@@ -151,7 +151,7 @@ ColorGeometry4bMixer::ColorGeometry4bMixer(MutableSpan<ColorGeometry4b> buffer,
       accumulation_buffer_(buffer.size(), float4(0, 0, 0, 0))
 {
   const ColorGeometry4b zero{0, 0, 0, 0};
-  mask.foreach_index([&](const int64_t i) { buffer_[i] = zero; });
+  index_mask::masked_fill(buffer_, zero, mask);
 }
 
 void ColorGeometry4bMixer::ColorGeometry4bMixer::set(int64_t index,
@@ -223,9 +223,14 @@ void float4x4Mixer::float4x4Mixer::set(int64_t index, const float4x4 &value, con
 
 void float4x4Mixer::mix_in(int64_t index, const float4x4 &value, float weight)
 {
-  location_buffer_[index] += value.location() * weight;
-  expmap_buffer_[index] += math::to_quaternion(value).expmap() * weight;
-  scale_buffer_[index] += math::to_scale(value) * weight;
+  float3 location;
+  math::Quaternion rotation;
+  float3 scale;
+  math::to_loc_rot_scale_safe<true>(value, location, rotation, scale);
+
+  location_buffer_[index] += location * weight;
+  expmap_buffer_[index] += rotation.expmap() * weight;
+  scale_buffer_[index] += scale * weight;
   total_weights_[index] += weight;
 }
 
@@ -253,18 +258,14 @@ void float4x4Mixer::finalize(const IndexMask &mask)
 
 void gather(const GSpan src, const Span<int> map, GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
-    array_utils::gather(src.typed<T>(), map, dst.typed<T>());
-  });
+  attribute_math::to_static_type(
+      src.type(), [&]<typename T>() { array_utils::gather(src.typed<T>(), map, dst.typed<T>()); });
 }
 
 void gather(const GVArray &src, const Span<int> map, GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
-    array_utils::gather(src.typed<T>(), map, dst.typed<T>());
-  });
+  attribute_math::to_static_type(
+      src.type(), [&]<typename T>() { array_utils::gather(src.typed<T>(), map, dst.typed<T>()); });
 }
 
 void gather_group_to_group(const OffsetIndices<int> src_offsets,
@@ -273,10 +274,26 @@ void gather_group_to_group(const OffsetIndices<int> src_offsets,
                            const GSpan src,
                            GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
     array_utils::gather_group_to_group(
         src_offsets, dst_offsets, selection, src.typed<T>(), dst.typed<T>());
+  });
+}
+
+void gather_ranges_to_groups(const Span<IndexRange> src_ranges,
+                             const OffsetIndices<int> dst_offsets,
+                             const GSpan src,
+                             GMutableSpan dst)
+{
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
+    Span<T> src_span = src.typed<T>();
+    MutableSpan<T> dst_span = dst.typed<T>();
+
+    threading::parallel_for(src_ranges.index_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        dst_span.slice(dst_offsets[i]).copy_from(src_span.slice(src_ranges[i]));
+      }
+    });
   });
 }
 
@@ -285,8 +302,7 @@ void gather_to_groups(const OffsetIndices<int> dst_offsets,
                       const GSpan src,
                       GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
     array_utils::gather_to_groups(dst_offsets, src_selection, src.typed<T>(), dst.typed<T>());
   });
 }

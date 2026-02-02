@@ -37,14 +37,16 @@
 #include "FN_multi_function_context.hh"
 #include "FN_multi_function_params.hh"
 
-namespace blender::fn::multi_function {
+namespace blender {
+
+namespace fn::multi_function {
 
 class MultiFunction : NonCopyable, NonMovable {
  private:
   const Signature *signature_ref_ = nullptr;
 
  public:
-  virtual ~MultiFunction() {}
+  virtual ~MultiFunction() = default;
 
   /**
    * The result is the same as using #call directly but this method has some additional features.
@@ -143,8 +145,8 @@ inline ParamsBuilder::ParamsBuilder(const MultiFunction &fn, const IndexMask *ma
 {
 }
 
-}  // namespace blender::fn::multi_function
+}  // namespace fn::multi_function
 
-namespace blender {
 namespace mf = fn::multi_function;
-}
+
+}  // namespace blender

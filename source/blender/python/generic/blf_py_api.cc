@@ -5,15 +5,15 @@
 /** \file
  * \ingroup pygen
  *
- * This file defines the 'bgl' module, used for drawing text in OpenGL.
+ * This file defines the `blf` module, used for drawing text to the GPU or image buffers.
  */
 
 /* Future-proof, See https://docs.python.org/3/c-api/arg.html#strings-and-buffers */
 #define PY_SSIZE_T_CLEAN
 
-#include "blf_py_api.h"
+#include "blf_py_api.hh"
 
-#include "../generic/py_capi_utils.h"
+#include "py_capi_utils.hh"
 
 #include <Python.h>
 
@@ -21,7 +21,25 @@
 
 #include "BLI_utildefines.h"
 
-#include "python_utildefines.h"
+#include "../../imbuf/IMB_colormanagement.hh"
+#include "../../imbuf/IMB_imbuf.hh"
+#include "../../imbuf/IMB_imbuf_types.hh"
+
+#include "python_compat.hh" /* IWYU pragma: keep. */
+
+#include "python_utildefines.hh"
+
+#include "imbuf_py_api.hh"
+
+namespace blender {
+
+struct BPyBLFImBufContext {
+  PyObject_HEAD /* Required Python macro. */
+  PyObject *py_imbuf;
+
+  int fontid;
+  BLFBufferState *buffer_state;
+};
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -39,7 +57,6 @@ PyDoc_STRVAR(
     "   :type y: float\n"
     "   :arg z: Z axis position to draw the text.\n"
     "   :type z: float\n");
-
 static PyObject *py_blf_position(PyObject * /*self*/, PyObject *args)
 {
   int fontid;
@@ -136,6 +153,10 @@ static PyObject *py_blf_color(PyObject * /*self*/, PyObject *args)
 
   BLF_color4fv(fontid, rgba);
 
+  /* NOTE(@ideasman42): that storing these colors separately looks like something that could
+   * be refactored away if the font's internal color format was changed from `uint8` to `float`. */
+  BLF_buffer_col(fontid, rgba);
+
   Py_RETURN_NONE;
 }
 
@@ -150,7 +171,7 @@ PyDoc_STRVAR(
     "font use 0.\n"
     "   :type fontid: int\n"
     "   :arg text: the text to draw.\n"
-    "   :type text: string\n");
+    "   :type text: str\n");
 static PyObject *py_blf_draw(PyObject * /*self*/, PyObject *args)
 {
   const char *text;
@@ -168,6 +189,33 @@ static PyObject *py_blf_draw(PyObject * /*self*/, PyObject *args)
 
 PyDoc_STRVAR(
     /* Wrap. */
+    py_blf_draw_buffer_doc,
+    ".. function:: draw_buffer(fontid, text)\n"
+    "\n"
+    "   Draw text into the buffer bound to the fontid.\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :arg text: the text to draw.\n"
+    "   :type text: str\n");
+static PyObject *py_blf_draw_buffer(PyObject * /*self*/, PyObject *args)
+{
+  const char *text;
+  Py_ssize_t text_length;
+  int fontid;
+
+  if (!PyArg_ParseTuple(args, "is#:blf.draw_buffer", &fontid, &text, &text_length)) {
+    return nullptr;
+  }
+
+  BLF_draw_buffer(fontid, text, uint(text_length));
+
+  Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     py_blf_dimensions_doc,
     ".. function:: dimensions(fontid, text)\n"
     "\n"
@@ -177,13 +225,13 @@ PyDoc_STRVAR(
     "font use 0.\n"
     "   :type fontid: int\n"
     "   :arg text: the text to draw.\n"
-    "   :type text: string\n"
+    "   :type text: str\n"
     "   :return: the width and height of the text.\n"
-    "   :rtype: tuple of 2 floats\n");
+    "   :rtype: tuple[float, float]\n");
 static PyObject *py_blf_dimensions(PyObject * /*self*/, PyObject *args)
 {
   const char *text;
-  float r_width, r_height;
+  float width, height;
   PyObject *ret;
   int fontid;
 
@@ -191,10 +239,10 @@ static PyObject *py_blf_dimensions(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  BLF_width_and_height(fontid, text, INT_MAX, &r_width, &r_height);
+  BLF_width_and_height(fontid, text, INT_MAX, &width, &height);
 
   ret = PyTuple_New(2);
-  PyTuple_SET_ITEMS(ret, PyFloat_FromDouble(r_width), PyFloat_FromDouble(r_height));
+  PyTuple_SET_ITEMS(ret, PyFloat_FromDouble(width), PyFloat_FromDouble(height));
   return ret;
 }
 
@@ -276,7 +324,7 @@ static PyObject *py_blf_disable(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  BLF_disable(fontid, option);
+  BLF_disable(fontid, FontFlags(option));
 
   Py_RETURN_NONE;
 }
@@ -301,7 +349,7 @@ static PyObject *py_blf_enable(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  BLF_enable(fontid, option);
+  BLF_enable(fontid, FontFlags(option));
 
   Py_RETURN_NONE;
 }
@@ -383,10 +431,10 @@ PyDoc_STRVAR(
     "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
     "font use 0.\n"
     "   :type fontid: int\n"
-    "   :arg x: Vertical shadow offset value in pixels.\n"
-    "   :type x: float\n"
-    "   :arg y: Horizontal shadow offset value in pixels.\n"
-    "   :type y: float\n");
+    "   :arg x: Horizontal shadow offset value in pixels.\n"
+    "   :type x: int\n"
+    "   :arg y: Vertical shadow offset value in pixels.\n"
+    "   :type y: int\n");
 static PyObject *py_blf_shadow_offset(PyObject * /*self*/, PyObject *args)
 {
   int x, y, fontid;
@@ -408,9 +456,9 @@ PyDoc_STRVAR(
     "   Load a new font.\n"
     "\n"
     "   :arg filepath: the filepath of the font.\n"
-    "   :type filepath: string or bytes\n"
+    "   :type filepath: str | bytes\n"
     "   :return: the new font's fontid or -1 if there was an error.\n"
-    "   :rtype: integer\n");
+    "   :rtype: int\n");
 static PyObject *py_blf_load(PyObject * /*self*/, PyObject *args)
 {
   PyC_UnicodeAsBytesAndSize_Data filepath_data = {nullptr};
@@ -436,7 +484,7 @@ PyDoc_STRVAR(
     "   Unload an existing font.\n"
     "\n"
     "   :arg filepath: the filepath of the font.\n"
-    "   :type filepath: string or bytes\n");
+    "   :type filepath: str | bytes\n");
 static PyObject *py_blf_unload(PyObject * /*self*/, PyObject *args)
 {
   PyC_UnicodeAsBytesAndSize_Data filepath_data = {nullptr};
@@ -455,25 +503,267 @@ static PyObject *py_blf_unload(PyObject * /*self*/, PyObject *args)
   Py_RETURN_NONE;
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Image Buffer Access
+ *
+ * Context manager for #ImBuf.
+ * \{ */
+
+static PyObject *py_blf_bind_imbuf_enter(BPyBLFImBufContext *self)
+{
+  if (UNLIKELY(self->buffer_state)) {
+    PyErr_SetString(PyExc_ValueError,
+                    "BLFImBufContext.__enter__: unable to enter the same context more than once");
+    return nullptr;
+  }
+
+  ImBuf *ibuf = BPy_ImBuf_FromPyObject(self->py_imbuf);
+  if (ibuf == nullptr) {
+    /* The error will have been set. */
+    return nullptr;
+  }
+  BLFBufferState *buffer_state = BLF_buffer_state_push(self->fontid);
+  if (buffer_state == nullptr) {
+    PyErr_Format(PyExc_ValueError, "bind_imbuf: unknown fontid %d", self->fontid);
+    return nullptr;
+  }
+  BLF_buffer(self->fontid,
+             ibuf->float_buffer.data,
+             ibuf->byte_buffer.data,
+             ibuf->x,
+             ibuf->y,
+             ibuf->byte_buffer.colorspace);
+  self->buffer_state = buffer_state;
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *py_blf_bind_imbuf_exit(BPyBLFImBufContext *self, PyObject * /*args*/)
+{
+  BLF_buffer_state_pop(self->buffer_state);
+  self->buffer_state = nullptr;
+
+  Py_RETURN_NONE;
+}
+
+static void py_blf_bind_imbuf_dealloc(BPyBLFImBufContext *self)
+{
+  if (self->buffer_state) {
+    /* This should practically never happen since it implies
+     * `__enter__` is called without a matching `__exit__`.
+     * Do this mainly for correctness:
+     * if the process somehow exits before exiting the context manager. */
+    BLF_buffer_state_free(self->buffer_state);
+  }
+
+  PyObject_GC_UnTrack(self);
+  Py_CLEAR(self->py_imbuf);
+  PyObject_GC_Del(self);
+}
+
+static int py_blf_bind_imbuf_traverse(BPyBLFImBufContext *self, visitproc visit, void *arg)
+{
+  Py_VISIT(self->py_imbuf);
+  return 0;
+}
+
+static int py_blf_bind_imbuf_clear(BPyBLFImBufContext *self)
+{
+  Py_CLEAR(self->py_imbuf);
+  return 0;
+}
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
+
+static PyMethodDef py_blf_bind_imbuf_methods[] = {
+    {"__enter__", reinterpret_cast<PyCFunction>(py_blf_bind_imbuf_enter), METH_NOARGS},
+    {"__exit__", reinterpret_cast<PyCFunction>(py_blf_bind_imbuf_exit), METH_VARARGS},
+    {nullptr},
+};
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
+
+static PyTypeObject BPyBLFImBufContext_Type = {
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "BLFImBufContext",
+    /*tp_basicsize*/ sizeof(BPyBLFImBufContext),
+    /*tp_itemsize*/ 0,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(py_blf_bind_imbuf_dealloc),
+    /*tp_vectorcall_offset*/ 0,
+    /*tp_getattr*/ nullptr,
+    /*tp_setattr*/ nullptr,
+    /*tp_as_async*/ nullptr,
+    /*tp_repr*/ nullptr,
+    /*tp_as_number*/ nullptr,
+    /*tp_as_sequence*/ nullptr,
+    /*tp_as_mapping*/ nullptr,
+    /*tp_hash*/ nullptr,
+    /*tp_call*/ nullptr,
+    /*tp_str*/ nullptr,
+    /*tp_getattro*/ nullptr,
+    /*tp_setattro*/ nullptr,
+    /*tp_as_buffer*/ nullptr,
+    /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    /*tp_doc*/ nullptr,
+    /*tp_traverse*/ reinterpret_cast<traverseproc>(py_blf_bind_imbuf_traverse),
+    /*tp_clear*/ reinterpret_cast<inquiry>(py_blf_bind_imbuf_clear),
+    /*tp_richcompare*/ nullptr,
+    /*tp_weaklistoffset*/ 0,
+    /*tp_iter*/ nullptr,
+    /*tp_iternext*/ nullptr,
+    /*tp_methods*/ py_blf_bind_imbuf_methods,
+    /*tp_members*/ nullptr,
+    /*tp_getset*/ nullptr,
+    /*tp_base*/ nullptr,
+    /*tp_dict*/ nullptr,
+    /*tp_descr_get*/ nullptr,
+    /*tp_descr_set*/ nullptr,
+    /*tp_dictoffset*/ 0,
+    /*tp_init*/ nullptr,
+    /*tp_alloc*/ nullptr,
+    /*tp_new*/ nullptr,
+    /*tp_free*/ nullptr,
+    /*tp_is_gc*/ nullptr,
+    /*tp_bases*/ nullptr,
+    /*tp_mro*/ nullptr,
+    /*tp_cache*/ nullptr,
+    /*tp_subclasses*/ nullptr,
+    /*tp_weaklist*/ nullptr,
+    /*tp_del*/ nullptr,
+    /*tp_version_tag*/ 0,
+    /*tp_finalize*/ nullptr,
+    /*tp_vectorcall*/ nullptr,
+};
+
+/* NOTE(@ideasman42): `BLFImBufContext` isn't accessible from (without creating an instance),
+ * it should be exposed although it doesn't seem especially important either. */
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_bind_imbuf_doc,
+    ".. method:: bind_imbuf(fontid, imbuf)\n"
+    "\n"
+    "   Context manager to draw text into an image buffer instead of the GPU's context.\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :arg imbuf: The image to draw into.\n"
+    "   :type imbuf: :class:`imbuf.types.ImBuf`\n"
+
+    "   :return: The BLF ImBuf context manager.\n"
+    "   :rtype: BLFImBufContext\n");
+static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject *kwds)
+{
+  int fontid;
+  PyObject *py_imbuf = nullptr;
+  const char *display_name = nullptr;
+
+  static const char *_keywords[] = {
+      "",
+      "",
+      "display_name",
+      nullptr,
+  };
+
+  static _PyArg_Parser _parser = {
+      "i"  /* `fontid` */
+      "O!" /* `image` */
+      "|"  /* Optional arguments. */
+      "z"  /* `display_name` */
+      ":bind_imbuf",
+      _keywords,
+      nullptr,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kwds, &_parser, &fontid, &Py_ImBuf_Type, &py_imbuf, &display_name))
+  {
+    return nullptr;
+  }
+
+  /* Display name is ignored, it is only kept for backwards compatibility. This should
+   * always have been the image buffer byte colorspace rather than a display. */
+
+  BPyBLFImBufContext *ret = PyObject_GC_New(BPyBLFImBufContext, &BPyBLFImBufContext_Type);
+
+  ret->py_imbuf = Py_NewRef(py_imbuf);
+
+  ret->fontid = fontid;
+  ret->buffer_state = nullptr;
+
+  PyObject_GC_Track(ret);
+
+  return reinterpret_cast<PyObject *>(ret);
+}
+
+/** \} */
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
+
 /*----------------------------MODULE INIT-------------------------*/
 static PyMethodDef BLF_methods[] = {
-    {"aspect", (PyCFunction)py_blf_aspect, METH_VARARGS, py_blf_aspect_doc},
-    {"clipping", (PyCFunction)py_blf_clipping, METH_VARARGS, py_blf_clipping_doc},
-    {"word_wrap", (PyCFunction)py_blf_word_wrap, METH_VARARGS, py_blf_word_wrap_doc},
-    {"disable", (PyCFunction)py_blf_disable, METH_VARARGS, py_blf_disable_doc},
-    {"dimensions", (PyCFunction)py_blf_dimensions, METH_VARARGS, py_blf_dimensions_doc},
-    {"draw", (PyCFunction)py_blf_draw, METH_VARARGS, py_blf_draw_doc},
-    {"enable", (PyCFunction)py_blf_enable, METH_VARARGS, py_blf_enable_doc},
-    {"position", (PyCFunction)py_blf_position, METH_VARARGS, py_blf_position_doc},
-    {"rotation", (PyCFunction)py_blf_rotation, METH_VARARGS, py_blf_rotation_doc},
-    {"shadow", (PyCFunction)py_blf_shadow, METH_VARARGS, py_blf_shadow_doc},
-    {"shadow_offset", (PyCFunction)py_blf_shadow_offset, METH_VARARGS, py_blf_shadow_offset_doc},
-    {"size", (PyCFunction)py_blf_size, METH_VARARGS, py_blf_size_doc},
-    {"color", (PyCFunction)py_blf_color, METH_VARARGS, py_blf_color_doc},
-    {"load", (PyCFunction)py_blf_load, METH_VARARGS, py_blf_load_doc},
-    {"unload", (PyCFunction)py_blf_unload, METH_VARARGS, py_blf_unload_doc},
+    {"aspect", static_cast<PyCFunction>(py_blf_aspect), METH_VARARGS, py_blf_aspect_doc},
+    {"clipping", static_cast<PyCFunction>(py_blf_clipping), METH_VARARGS, py_blf_clipping_doc},
+    {"word_wrap", static_cast<PyCFunction>(py_blf_word_wrap), METH_VARARGS, py_blf_word_wrap_doc},
+    {"disable", static_cast<PyCFunction>(py_blf_disable), METH_VARARGS, py_blf_disable_doc},
+    {"dimensions",
+     static_cast<PyCFunction>(py_blf_dimensions),
+     METH_VARARGS,
+     py_blf_dimensions_doc},
+    {"draw", static_cast<PyCFunction>(py_blf_draw), METH_VARARGS, py_blf_draw_doc},
+    {"draw_buffer",
+     static_cast<PyCFunction>(py_blf_draw_buffer),
+     METH_VARARGS,
+     py_blf_draw_buffer_doc},
+    {"enable", static_cast<PyCFunction>(py_blf_enable), METH_VARARGS, py_blf_enable_doc},
+    {"position", static_cast<PyCFunction>(py_blf_position), METH_VARARGS, py_blf_position_doc},
+    {"rotation", static_cast<PyCFunction>(py_blf_rotation), METH_VARARGS, py_blf_rotation_doc},
+    {"shadow", static_cast<PyCFunction>(py_blf_shadow), METH_VARARGS, py_blf_shadow_doc},
+    {"shadow_offset",
+     static_cast<PyCFunction>(py_blf_shadow_offset),
+     METH_VARARGS,
+     py_blf_shadow_offset_doc},
+    {"size", static_cast<PyCFunction>(py_blf_size), METH_VARARGS, py_blf_size_doc},
+    {"color", static_cast<PyCFunction>(py_blf_color), METH_VARARGS, py_blf_color_doc},
+    {"load", static_cast<PyCFunction>(py_blf_load), METH_VARARGS, py_blf_load_doc},
+    {"unload", static_cast<PyCFunction>(py_blf_unload), METH_VARARGS, py_blf_unload_doc},
+
+    {"bind_imbuf",
+     reinterpret_cast<PyCFunction>(py_blf_bind_imbuf),
+     METH_VARARGS | METH_KEYWORDS,
+     py_blf_bind_imbuf_doc},
+
     {nullptr, nullptr, 0, nullptr},
 };
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -505,3 +795,5 @@ PyObject *BPyInit_blf()
 
   return submodule;
 }
+
+}  // namespace blender

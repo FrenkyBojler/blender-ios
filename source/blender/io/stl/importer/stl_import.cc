@@ -34,13 +34,19 @@
 #include "stl_import_ascii_reader.hh"
 #include "stl_import_binary_reader.hh"
 
-namespace blender::io::stl {
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.stl"};
+
+namespace io::stl {
 
 void stl_import_report_error(FILE *file)
 {
-  fprintf(stderr, "STL Importer: failed to read file");
+  CLOG_ERROR(&LOG, "STL Importer: failed to read file");
   if (feof(file)) {
-    fprintf(stderr, ", end of file reached.\n");
+    CLOG_ERROR(&LOG, "End of file reached");
   }
   else if (ferror(file)) {
     perror("Error");
@@ -51,7 +57,7 @@ Mesh *read_stl_file(const STLImportParams &import_params)
 {
   FILE *file = BLI_fopen(import_params.filepath, "rb");
   if (!file) {
-    fprintf(stderr, "Failed to open STL file:'%s'.\n", import_params.filepath);
+    CLOG_ERROR(&LOG, "Failed to open STL file:'%s'.", import_params.filepath);
     BKE_reportf(import_params.reports,
                 RPT_ERROR,
                 "STL Import: Cannot open file '%s'",
@@ -82,7 +88,7 @@ Mesh *read_stl_file(const STLImportParams &import_params)
                    read_stl_binary(file, import_params.use_facet_normal);
 
   if (mesh == nullptr) {
-    fprintf(stderr, "STL Importer: Failed to import mesh '%s'\n", import_params.filepath);
+    CLOG_ERROR(&LOG, "STL Importer: Failed to import mesh '%s'", import_params.filepath);
     BKE_reportf(import_params.reports,
                 RPT_ERROR,
                 "STL Import: Failed to import mesh from file '%s'",
@@ -95,7 +101,7 @@ Mesh *read_stl_file(const STLImportParams &import_params)
 #ifndef NDEBUG
     verbose_validate = true;
 #endif
-    BKE_mesh_validate(mesh, verbose_validate, false);
+    bke::mesh_validate(*mesh, verbose_validate);
   }
 
   return mesh;
@@ -120,13 +126,16 @@ void importer_main(Main *bmain,
   BLI_path_extension_strip(ob_name);
 
   Mesh *mesh = read_stl_file(import_params);
+  if (!mesh) {
+    return;
+  }
 
   Mesh *mesh_in_main = BKE_mesh_add(bmain, ob_name);
   BKE_mesh_nomain_to_mesh(mesh, mesh_in_main, nullptr);
   BKE_view_layer_base_deselect_all(scene, view_layer);
   LayerCollection *lc = BKE_layer_collection_get_active(view_layer);
   Object *obj = BKE_object_add_only_object(bmain, OB_MESH, ob_name);
-  obj->data = mesh_in_main;
+  obj->data = id_cast<ID *>(mesh_in_main);
   BKE_collection_object_add(bmain, lc->collection, obj);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, obj);
@@ -134,7 +143,7 @@ void importer_main(Main *bmain,
 
   float global_scale = import_params.global_scale;
   if ((scene->unit.system != USER_UNIT_NONE) && import_params.use_scene_unit) {
-    global_scale *= scene->unit.scale_length;
+    global_scale /= scene->unit.scale_length;
   }
   float scale_vec[3] = {global_scale, global_scale, global_scale};
   float obmat3x3[3][3];
@@ -155,4 +164,5 @@ void importer_main(Main *bmain,
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   DEG_relations_tag_update(bmain);
 }
-}  // namespace blender::io::stl
+}  // namespace io::stl
+}  // namespace blender

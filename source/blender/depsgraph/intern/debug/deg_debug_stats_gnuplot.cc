@@ -19,11 +19,11 @@
 
 #include "DNA_ID.h"
 
+namespace blender {
+
 #define NL "\r\n"
 
-namespace deg = blender::deg;
-
-namespace blender::deg {
+namespace deg {
 namespace {
 
 struct DebugContext {
@@ -60,14 +60,14 @@ bool stat_entry_comparator(const StatsEntry &a, const StatsEntry &b)
   return a.time > b.time;
 }
 
-string gnuplotify_id_code(const string &name)
+std::string gnuplotify_id_code(const std::string &name)
 {
-  return string("") + name[0] + name[1];
+  return std::string("") + name[0] + name[1];
 }
 
-string gnuplotify_name(const string &name)
+std::string gnuplotify_name(const std::string &name)
 {
-  string result;
+  std::string result;
   const int length = name.length();
   for (int i = 0; i < length; i++) {
     const char ch = name[i];
@@ -133,7 +133,7 @@ void deg_debug_stats_gnuplot(const DebugContext &ctx)
 }
 
 }  // namespace
-}  // namespace blender::deg
+}  // namespace deg
 
 void DEG_debug_stats_gnuplot(const Depsgraph *depsgraph,
                              FILE *fp,
@@ -145,8 +145,10 @@ void DEG_debug_stats_gnuplot(const Depsgraph *depsgraph,
   }
   deg::DebugContext ctx;
   ctx.file = fp;
-  ctx.graph = (deg::Depsgraph *)depsgraph;
+  ctx.graph = reinterpret_cast<deg::Depsgraph *>(const_cast<Depsgraph *>(depsgraph));
   ctx.label = label;
   ctx.output_filename = output_filename;
   deg::deg_debug_stats_gnuplot(ctx);
 }
+
+}  // namespace blender

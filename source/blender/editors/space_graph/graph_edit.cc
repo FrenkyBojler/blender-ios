@@ -14,12 +14,13 @@
 #include <cstring>
 
 #ifdef WITH_AUDASPACE
-#  include <AUD_Special.h>
+#  include "BKE_sound.hh"
 #endif
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_utildefines.h"
 
@@ -37,10 +38,11 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
 #include "UI_interface_icons.hh"
@@ -60,6 +62,8 @@
 #include "WM_types.hh"
 
 #include "graph_intern.hh"
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Insert Keyframes Operator
@@ -107,12 +111,12 @@ static const EnumPropertyItem prop_graphkeys_insertkey_types[] = {
 static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
 {
   using namespace blender::animrig;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
   size_t num_items;
 
   ReportList *reports = ac->reports;
-  SpaceGraph *sipo = (SpaceGraph *)ac->sl;
+  SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac->sl);
   Scene *scene = ac->scene;
   ToolSettings *ts = scene->toolsettings;
 
@@ -145,20 +149,19 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
   }
 
   /* Init key-framing flag. */
-  eInsertKeyFlags flag = blender::animrig::get_keyframing_flags(scene);
+  eInsertKeyFlags flag = animrig::get_keyframing_flags(scene);
   KeyframeSettings settings = get_keyframe_settings(true);
   settings.keyframe_type = eBezTriple_KeyframeType(ts->keyframe_type);
 
   /* Insert keyframes. */
   if (mode & GRAPHKEYS_INSERTKEY_CURSOR) {
-    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-      AnimData *adt = ANIM_nla_mapping_get(ac, ale);
-      FCurve *fcu = (FCurve *)ale->key_data;
+    for (bAnimListElem &ale : anim_data) {
+      FCurve *fcu = static_cast<FCurve *>(ale.key_data);
 
       short mapping_flag = ANIM_get_normalization_flags(ac->sl);
       float offset;
       float unit_scale = ANIM_unit_mapping_get_factor(
-          ac->scene, ale->id, static_cast<FCurve *>(ale->key_data), mapping_flag, &offset);
+          ac->scene, ale.id, static_cast<FCurve *>(ale.key_data), mapping_flag, &offset);
 
       float x, y;
 
@@ -166,11 +169,8 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
       if ((sipo) && (sipo->mode == SIPO_MODE_DRIVERS)) {
         x = sipo->cursorTime;
       }
-      else if (adt) {
-        x = BKE_nla_tweakedit_remap(adt, float(scene->r.cfra), NLATIME_CONVERT_UNMAP);
-      }
       else {
-        x = float(scene->r.cfra);
+        x = ANIM_nla_tweakedit_remap(&ale, float(scene->r.cfra), NLATIME_CONVERT_UNMAP);
       }
 
       /* Normalize units of cursor's value. */
@@ -184,14 +184,14 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
       /* Insert keyframe directly into the F-Curve. */
       insert_vert_fcurve(fcu, {x, y}, settings, eInsertKeyFlags(0));
 
-      ale->update |= ANIM_UPDATE_DEFAULT;
+      ale.update |= ANIM_UPDATE_DEFAULT;
     }
   }
   else {
     const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
         ac->depsgraph, float(scene->r.cfra));
-    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-      FCurve *fcu = (FCurve *)ale->key_data;
+    for (bAnimListElem &ale : anim_data) {
+      FCurve *fcu = static_cast<FCurve *>(ale.key_data);
 
       /* Read value from property the F-Curve represents, or from the curve only?
        *
@@ -205,11 +205,10 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
        *   If this is set, then it's a driver. If we don't check for this, we'd end
        *   up adding the keyframes on a new F-Curve in the action data instead.
        */
-      const std::optional<blender::StringRefNull> channel_group = fcu->grp ? std::optional(
-                                                                                 fcu->grp->name) :
-                                                                             std::nullopt;
-      if (ale->id && !ale->owner && !fcu->driver) {
-        PointerRNA id_rna_pointer = RNA_id_pointer_create(ale->id);
+      const std::optional<StringRefNull> channel_group = fcu->grp ? std::optional(fcu->grp->name) :
+                                                                    std::nullopt;
+      if (ale.id && !ale.owner && !fcu->driver) {
+        PointerRNA id_rna_pointer = RNA_id_pointer_create(ale.id);
         CombinedKeyingResult result = insert_keyframes(ac->bmain,
                                                        &id_rna_pointer,
                                                        channel_group,
@@ -223,22 +222,20 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
         }
       }
       else {
-        AnimData *adt = ANIM_nla_mapping_get(ac, ale);
-
         /* Adjust current frame for NLA-mapping. */
-        float cfra = float(scene->r.cfra);
+        float cfra;
         if ((sipo) && (sipo->mode == SIPO_MODE_DRIVERS)) {
           cfra = sipo->cursorTime;
         }
-        else if (adt) {
-          cfra = BKE_nla_tweakedit_remap(adt, float(scene->r.cfra), NLATIME_CONVERT_UNMAP);
+        else {
+          cfra = ANIM_nla_tweakedit_remap(&ale, float(scene->r.cfra), NLATIME_CONVERT_UNMAP);
         }
 
         const float curval = evaluate_fcurve_only_curve(fcu, cfra);
         insert_vert_fcurve(fcu, {cfra, curval}, settings, eInsertKeyFlags(0));
       }
 
-      ale->update |= ANIM_UPDATE_DEFAULT;
+      ale.update |= ANIM_UPDATE_DEFAULT;
     }
   }
 
@@ -248,7 +245,7 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
 
 /* ------------------- */
 
-static int graphkeys_insertkey_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_insertkey_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   eGraphKeys_InsertKey_Types mode;
@@ -297,14 +294,12 @@ void GRAPH_OT_keyframe_insert(wmOperatorType *ot)
 /** \name Click-Insert Keyframes Operator
  * \{ */
 
-static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_click_insert_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
   bAnimContext ac;
   bAnimListElem *ale;
-  AnimData *adt;
   FCurve *fcu;
-  float frame, val;
 
   /* Get animation context. */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -315,7 +310,7 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
   ale = get_active_fcurve_channel(&ac);
   if (ELEM(nullptr, ale, ale->data)) {
     if (ale) {
-      MEM_freeN(ale);
+      MEM_delete(ale);
     }
     return OPERATOR_CANCELLED;
   }
@@ -324,12 +319,9 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
   /* When there are F-Modifiers on the curve, only allow adding
    * keyframes if these will be visible after doing so...
    */
-  if (BKE_fcurve_is_keyframable(fcu)) {
-    ListBase anim_data;
+  if (fcu && BKE_fcurve_is_keyframable(*fcu)) {
+    ListBaseT<bAnimListElem> anim_data;
     ToolSettings *ts = ac.scene->toolsettings;
-
-    short mapping_flag = ANIM_get_normalization_flags(ac.sl);
-    float scale, offset;
 
     /* Preserve selection? */
     if (RNA_boolean_get(op->ptr, "extend") == false) {
@@ -339,19 +331,23 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
       deselect_graph_keys(&ac, false, SELECT_SUBTRACT, false);
     }
 
-    /* Get frame and value from props. */
-    frame = RNA_float_get(op->ptr, "frame");
-    val = RNA_float_get(op->ptr, "value");
-
-    /* Apply inverse NLA-mapping to frame to get correct time in un-scaled action. */
-    adt = ANIM_nla_mapping_get(&ac, ale);
-    frame = BKE_nla_tweakedit_remap(adt, frame, NLATIME_CONVERT_UNMAP);
+    /* Get frame and value from props.
+     *
+     * We apply inverse NLA-mapping to `frame` to get correct time in un-scaled
+     * action. */
+    const float frame = ANIM_nla_tweakedit_remap(
+        ale, RNA_float_get(op->ptr, "frame"), NLATIME_CONVERT_UNMAP);
+    float val = RNA_float_get(op->ptr, "value");
 
     /* Apply inverse unit-mapping to value to get correct value for F-Curves. */
-    scale = ANIM_unit_mapping_get_factor(
-        ac.scene, ale->id, fcu, mapping_flag | ANIM_UNITCONV_RESTORE, &offset);
+    {
+      const short mapping_flag = ANIM_get_normalization_flags(ac.sl);
+      float offset;
+      const float scale = ANIM_unit_mapping_get_factor(
+          ac.scene, ale->id, fcu, mapping_flag | ANIM_UNITCONV_RESTORE, &offset);
 
-    val = val * scale - offset;
+      val = val * scale - offset;
+    }
 
     KeyframeSettings settings = get_keyframe_settings(true);
     settings.keyframe_type = eBezTriple_KeyframeType(ts->keyframe_type);
@@ -380,7 +376,7 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
   }
 
   /* Free temp data. */
-  MEM_freeN(ale);
+  MEM_delete(ale);
 
   /* Set notifier that keyframes have changed. */
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
@@ -389,7 +385,9 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int graphkeys_click_insert_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graphkeys_click_insert_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent *event)
 {
   bAnimContext ac;
   ARegion *region;
@@ -409,7 +407,7 @@ static int graphkeys_click_insert_invoke(bContext *C, wmOperator *op, const wmEv
   mval[0] = (event->xy[0] - region->winrct.xmin);
   mval[1] = (event->xy[1] - region->winrct.ymin);
 
-  UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, &y);
+  ui::view2d_region_to_view(v2d, mval[0], mval[1], &x, &y);
 
   RNA_float_set(op->ptr, "frame", x);
   RNA_float_set(op->ptr, "value", y);
@@ -464,13 +462,10 @@ void GRAPH_OT_click_insert(wmOperatorType *ot)
  * \note the back-end code for this is shared with the dope-sheet editor.
  * \{ */
 
-static short copy_graph_keys(bAnimContext *ac)
+static bool copy_graph_keys(bAnimContext *ac)
 {
-  ListBase anim_data = {nullptr, nullptr};
-  int filter, ok = 0;
-
-  /* Clear buffer first. */
-  ANIM_fcurves_copybuf_free();
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
+  int filter;
 
   /* Filter data
    * - First time we try to filter more strictly, allowing only selected channels
@@ -490,7 +485,7 @@ static short copy_graph_keys(bAnimContext *ac)
   }
 
   /* Copy keyframes. */
-  ok = copy_animedit_keys(ac, &anim_data);
+  const bool ok = copy_animedit_keys(ac, &anim_data);
 
   /* Clean up. */
   ANIM_animdata_freelist(&anim_data);
@@ -502,33 +497,37 @@ static eKeyPasteError paste_graph_keys(bAnimContext *ac,
                                        const eKeyPasteOffset offset_mode,
                                        const eKeyPasteValueOffset value_offset_mode,
                                        const eKeyMergeMode merge_mode,
-                                       bool flip)
+                                       const bool flip)
 {
-  ListBase anim_data = {nullptr, nullptr};
-  int filter;
+  /* TODO: deduplicate this function and `paste_action_keys()` in `action_edit.cc`, */
 
-  /* Filter data
+  /* Determine paste context. */
+  KeyframePasteContext paste_context{};
+  paste_context.offset_mode = offset_mode;
+  paste_context.value_offset_mode = value_offset_mode;
+  paste_context.merge_mode = merge_mode;
+  paste_context.flip = flip;
+  paste_context.num_slots_selected = 0; /* Graph editor doesn't show slots. */
+
+  /* Find F-Curves to paste into, in two stages.
    * - First time we try to filter more strictly, allowing only selected channels
    *   to allow copying animation between channels
    * - Second time, we loosen things up if nothing was found the first time, allowing
    *   users to just paste keyframes back into the original curve again #31670.
    */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FCURVESONLY |
-            ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
-
-  if (ANIM_animdata_filter(ac,
-                           &anim_data,
-                           eAnimFilter_Flags(filter | ANIMFILTER_SEL),
-                           ac->data,
-                           eAnimCont_Types(ac->datatype)) == 0)
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   {
-    ANIM_animdata_filter(
-        ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
+    const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT |
+                                     ANIMFILTER_FCURVESONLY | ANIMFILTER_NODUPLIS;
+    paste_context.num_fcurves_selected = ANIM_animdata_filter(
+        ac, &anim_data, filter | ANIMFILTER_SEL, ac->data, ac->datatype);
+    if (paste_context.num_fcurves_selected == 0) {
+      ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+    }
   }
 
   /* Paste keyframes. */
-  const eKeyPasteError ok = paste_animedit_keys(
-      ac, &anim_data, offset_mode, value_offset_mode, merge_mode, flip);
+  const eKeyPasteError ok = paste_animedit_keys(ac, &anim_data, paste_context);
 
   /* Clean up. */
   ANIM_animdata_freelist(&anim_data);
@@ -538,7 +537,7 @@ static eKeyPasteError paste_graph_keys(bAnimContext *ac,
 
 /* ------------------- */
 
-static int graphkeys_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_copy_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -548,7 +547,7 @@ static int graphkeys_copy_exec(bContext *C, wmOperator *op)
   }
 
   /* Copy keyframes. */
-  if (copy_graph_keys(&ac)) {
+  if (!copy_graph_keys(&ac)) {
     BKE_report(op->reports, RPT_ERROR, "No keyframes copied to the internal clipboard");
     return OPERATOR_CANCELLED;
   }
@@ -572,7 +571,7 @@ void GRAPH_OT_copy(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int graphkeys_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_paste_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -678,7 +677,7 @@ void GRAPH_OT_paste(wmOperatorType *ot)
 
 static bool duplicate_graph_keys(bAnimContext *ac)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
   bool changed = false;
 
@@ -689,10 +688,10 @@ static bool duplicate_graph_keys(bAnimContext *ac)
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   /* Loop through filtered data and delete selected keys. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    changed |= duplicate_fcurve_keys((FCurve *)ale->key_data);
+  for (bAnimListElem &ale : anim_data) {
+    changed |= duplicate_fcurve_keys(static_cast<FCurve *>(ale.key_data));
 
-    ale->update |= ANIM_UPDATE_DEFAULT;
+    ale.update |= ANIM_UPDATE_DEFAULT;
   }
 
   ANIM_animdata_update(ac, &anim_data);
@@ -703,7 +702,7 @@ static bool duplicate_graph_keys(bAnimContext *ac)
 
 /* ------------------- */
 
-static int graphkeys_duplicate_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_duplicate_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -738,7 +737,12 @@ void GRAPH_OT_duplicate(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* To give to transform. */
-  RNA_def_enum(ot->srna, "mode", rna_enum_transform_mode_type_items, TFM_TRANSLATION, "Mode", "");
+  RNA_def_enum(ot->srna,
+               "mode",
+               rna_enum_transform_mode_type_items,
+               ed::transform::TFM_TRANSLATION,
+               "Mode",
+               "");
 }
 
 /** \} */
@@ -749,7 +753,7 @@ void GRAPH_OT_duplicate(wmOperatorType *ot)
 
 static bool delete_graph_keys(bAnimContext *ac)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
   bool changed_final = false;
 
@@ -760,23 +764,25 @@ static bool delete_graph_keys(bAnimContext *ac)
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   /* Loop through filtered data and delete selected keys. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
-    AnimData *adt = ale->adt;
-    bool changed;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
+    AnimData *adt = ale.adt;
+    bool changed = false;
 
     /* Delete selected keyframes only. */
-    changed = BKE_fcurve_delete_keys_selected(fcu);
+    if (fcu) {
+      changed = BKE_fcurve_delete_keys_selected(*fcu);
+    }
 
     if (changed) {
-      ale->update |= ANIM_UPDATE_DEFAULT;
+      ale.update |= ANIM_UPDATE_DEFAULT;
       changed_final = true;
     }
 
     /* Only delete curve too if it won't be doing anything anymore. */
     if (BKE_fcurve_is_empty(fcu)) {
-      blender::animrig::animdata_fcurve_delete(ac, adt, fcu);
-      ale->key_data = nullptr;
+      animrig::animdata_fcurve_delete(adt, fcu);
+      ale.key_data = nullptr;
     }
   }
 
@@ -788,7 +794,7 @@ static bool delete_graph_keys(bAnimContext *ac)
 
 /* ------------------- */
 
-static int graphkeys_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -808,7 +814,9 @@ static int graphkeys_delete_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static int graphkeys_delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus graphkeys_delete_invoke(bContext *C,
+                                                wmOperator *op,
+                                                const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op->ptr, "confirm")) {
     return WM_operator_confirm_ex(C,
@@ -816,7 +824,7 @@ static int graphkeys_delete_invoke(bContext *C, wmOperator *op, const wmEvent * 
                                   IFACE_("Delete selected keyframes?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  ui::AlertIcon::None,
                                   false);
   }
   return graphkeys_delete_exec(C, op);
@@ -847,7 +855,7 @@ void GRAPH_OT_delete(wmOperatorType *ot)
 
 static void clean_graph_keys(bAnimContext *ac, float thresh, bool clean_chan)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
   /* Filter data. */
@@ -861,11 +869,10 @@ static void clean_graph_keys(bAnimContext *ac, float thresh, bool clean_chan)
 
   const bool only_selected_keys = !clean_chan;
   /* Loop through filtered data and clean curves. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+  for (bAnimListElem &ale : anim_data) {
+    clean_fcurve(&ale, thresh, clean_chan, only_selected_keys);
 
-    clean_fcurve(ac, ale, thresh, clean_chan, only_selected_keys);
-
-    ale->update |= ANIM_UPDATE_DEFAULT;
+    ale.update |= ANIM_UPDATE_DEFAULT;
   }
 
   ANIM_animdata_update(ac, &anim_data);
@@ -874,7 +881,7 @@ static void clean_graph_keys(bAnimContext *ac, float thresh, bool clean_chan)
 
 /* ------------------- */
 
-static int graphkeys_clean_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_clean_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   float thresh;
@@ -929,7 +936,7 @@ void GRAPH_OT_clean(wmOperatorType *ot)
 /* Bake each F-Curve into a set of samples. */
 static void convert_keys_to_samples(bAnimContext *ac, int start, int end)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
   /* Filter data. */
@@ -939,8 +946,8 @@ static void convert_keys_to_samples(bAnimContext *ac, int start, int end)
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   /* Loop through filtered data and add keys between selected keyframes on every frame. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     ChannelDriver *driver = fcu->driver;
 
     /* Disable driver so that it don't muck up the sampling process. */
@@ -952,7 +959,7 @@ static void convert_keys_to_samples(bAnimContext *ac, int start, int end)
     /* Restore driver. */
     fcu->driver = driver;
 
-    ale->update |= ANIM_UPDATE_DEPS;
+    ale.update |= ANIM_UPDATE_DEPS;
   }
 
   ANIM_animdata_update(ac, &anim_data);
@@ -961,7 +968,7 @@ static void convert_keys_to_samples(bAnimContext *ac, int start, int end)
 
 /* ------------------- */
 
-static int graphkeys_keys_to_samples_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_keys_to_samples_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
   Scene *scene = nullptr;
@@ -1017,7 +1024,7 @@ void GRAPH_OT_keys_to_samples(wmOperatorType *ot)
 /* Convert F-Points into F-Curves. */
 static void convert_samples_to_keys(bAnimContext *ac, int start, int end)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* Filter data. */
   const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FCURVESONLY |
@@ -1026,12 +1033,12 @@ static void convert_samples_to_keys(bAnimContext *ac, int start, int end)
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   /* Loop through filtered data and add keys between selected keyframes on every frame. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
 
     fcurve_samples_to_keyframes(fcu, start, end);
 
-    ale->update |= ANIM_UPDATE_DEPS;
+    ale.update |= ANIM_UPDATE_DEPS;
   }
 
   ANIM_animdata_update(ac, &anim_data);
@@ -1040,7 +1047,7 @@ static void convert_samples_to_keys(bAnimContext *ac, int start, int end)
 
 /* ------------------- */
 
-static int graphkeys_samples_to_keys_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_samples_to_keys_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
   Scene *scene = nullptr;
@@ -1107,7 +1114,7 @@ struct tSoundBakeInfo {
  */
 static float fcurve_samplingcb_sound(FCurve * /*fcu*/, void *data, float evaltime)
 {
-  tSoundBakeInfo *sbi = (tSoundBakeInfo *)data;
+  tSoundBakeInfo *sbi = static_cast<tSoundBakeInfo *>(data);
 
   int position = evaltime - sbi->cfra;
   if ((position < 0) || (position >= sbi->length)) {
@@ -1119,10 +1126,10 @@ static float fcurve_samplingcb_sound(FCurve * /*fcu*/, void *data, float evaltim
 
 /* ------------------- */
 
-static int graphkeys_sound_to_samples_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_sound_to_samples_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
   tSoundBakeInfo sbi;
@@ -1146,19 +1153,19 @@ static int graphkeys_sound_to_samples_exec(bContext *C, wmOperator *op)
   scene = ac.scene; /* Current scene. */
 
   /* Store necessary data for the baking steps. */
-  sbi.samples = AUD_readSoundBuffer(filepath,
-                                    RNA_float_get(op->ptr, "low"),
-                                    RNA_float_get(op->ptr, "high"),
-                                    RNA_float_get(op->ptr, "attack"),
-                                    RNA_float_get(op->ptr, "release"),
-                                    RNA_float_get(op->ptr, "threshold"),
-                                    RNA_boolean_get(op->ptr, "use_accumulate"),
-                                    RNA_boolean_get(op->ptr, "use_additive"),
-                                    RNA_boolean_get(op->ptr, "use_square"),
-                                    RNA_float_get(op->ptr, "sthreshold"),
-                                    FPS,
-                                    &sbi.length,
-                                    0);
+  sbi.samples = bke::sound_read_file_buffer(filepath,
+                                            RNA_float_get(op->ptr, "low"),
+                                            RNA_float_get(op->ptr, "high"),
+                                            RNA_float_get(op->ptr, "attack"),
+                                            RNA_float_get(op->ptr, "release"),
+                                            RNA_float_get(op->ptr, "threshold"),
+                                            RNA_boolean_get(op->ptr, "use_accumulate"),
+                                            RNA_boolean_get(op->ptr, "use_additive"),
+                                            RNA_boolean_get(op->ptr, "use_square"),
+                                            RNA_float_get(op->ptr, "sthreshold"),
+                                            scene->frames_per_second(),
+                                            0,
+                                            &sbi.length);
 
   if (sbi.samples == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "Unsupported audio format");
@@ -1176,17 +1183,17 @@ static int graphkeys_sound_to_samples_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   /* Loop through all selected F-Curves, replacing its data with the sound samples. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
 
     /* Sample the sound. */
     fcurve_store_samples(fcu, &sbi, start, end, fcurve_samplingcb_sound);
 
-    ale->update |= ANIM_UPDATE_DEFAULT;
+    ale.update |= ANIM_UPDATE_DEFAULT;
   }
 
   /* Free sample data. */
-  free(sbi.samples);
+  MEM_delete(sbi.samples);
 
   /* Validate keyframes after editing. */
   ANIM_animdata_update(&ac, &anim_data);
@@ -1200,7 +1207,7 @@ static int graphkeys_sound_to_samples_exec(bContext *C, wmOperator *op)
 
 #else /* WITH_AUDASPACE */
 
-static int graphkeys_sound_to_samples_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus graphkeys_sound_to_samples_exec(bContext * /*C*/, wmOperator *op)
 {
   BKE_report(op->reports, RPT_ERROR, "Compiled without sound support");
 
@@ -1209,7 +1216,9 @@ static int graphkeys_sound_to_samples_exec(bContext * /*C*/, wmOperator *op)
 
 #endif /* WITH_AUDASPACE */
 
-static int graphkeys_sound_to_samples_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graphkeys_sound_to_samples_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
 {
   bAnimContext ac;
 
@@ -1332,7 +1341,7 @@ void GRAPH_OT_sound_to_samples(wmOperatorType *ot)
 /* Evaluates the curves between each selected keyframe on each frame, and keys the value. */
 static void bake_graph_keys(bAnimContext *ac)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
   /* filter data */
@@ -1342,10 +1351,10 @@ static void bake_graph_keys(bAnimContext *ac)
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   /* Loop through filtered data and add keys between selected keyframes on every frame. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    blender::animrig::bake_fcurve_segments((FCurve *)ale->key_data);
+  for (bAnimListElem &ale : anim_data) {
+    animrig::bake_fcurve_segments(static_cast<FCurve *>(ale.key_data));
 
-    ale->update |= ANIM_UPDATE_DEPS;
+    ale.update |= ANIM_UPDATE_DEPS;
   }
 
   ANIM_animdata_update(ac, &anim_data);
@@ -1354,7 +1363,7 @@ static void bake_graph_keys(bAnimContext *ac)
 
 /* ------------------- */
 
-static int graphkeys_bake_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_bake_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1417,7 +1426,7 @@ static const EnumPropertyItem prop_graphkeys_expo_types[] = {
      "MAKE_CYCLIC",
      0,
      "Make Cyclic (F-Modifier)",
-     "Add Cycles F-Modifier if one doesn't exist already"},
+     "Add Cycles F-Modifier if one does not exist already"},
     {CLEAR_CYCLIC_EXPO,
      "CLEAR_CYCLIC",
      0,
@@ -1429,7 +1438,7 @@ static const EnumPropertyItem prop_graphkeys_expo_types[] = {
 /* This function is responsible for setting extrapolation mode for keyframes. */
 static void setexpo_graph_keys(bAnimContext *ac, short mode)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
   /* Filter data. */
@@ -1439,14 +1448,14 @@ static void setexpo_graph_keys(bAnimContext *ac, short mode)
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   /* Loop through setting mode per F-Curve. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->data;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.data);
 
     if (mode >= 0) {
       /* Just set mode setting. */
       fcu->extend = mode;
 
-      ale->update |= ANIM_UPDATE_HANDLES;
+      ale.update |= ANIM_UPDATE_HANDLES;
     }
     else {
       /* Shortcuts for managing Cycles F-Modifiers to make it easier to toggle cyclic animation
@@ -1474,7 +1483,7 @@ static void setexpo_graph_keys(bAnimContext *ac, short mode)
       }
     }
 
-    ale->update |= ANIM_UPDATE_DEPS;
+    ale.update |= ANIM_UPDATE_DEPS;
   }
 
   ANIM_animdata_update(ac, &anim_data);
@@ -1483,7 +1492,7 @@ static void setexpo_graph_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static int graphkeys_expo_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_expo_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   short mode;
@@ -1533,7 +1542,7 @@ void GRAPH_OT_extrapolation_type(wmOperatorType *ot)
 /* This function is responsible for setting interpolation mode for keyframes. */
 static void setipo_graph_keys(bAnimContext *ac, short mode)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
   KeyframeEditFunc set_cb = ANIM_editkeyframes_ipo(mode);
 
@@ -1547,11 +1556,11 @@ static void setipo_graph_keys(bAnimContext *ac, short mode)
    * NOTE: we do not supply KeyframeEditData to the looper yet.
    * Currently that's not necessary here.
    */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+  for (bAnimListElem &ale : anim_data) {
     ANIM_fcurve_keyframes_loop(
-        nullptr, static_cast<FCurve *>(ale->key_data), nullptr, set_cb, BKE_fcurve_handles_recalc);
+        nullptr, static_cast<FCurve *>(ale.key_data), nullptr, set_cb, BKE_fcurve_handles_recalc);
 
-    ale->update |= ANIM_UPDATE_DEFAULT_NOHANDLES;
+    ale.update |= ANIM_UPDATE_DEFAULT_NOHANDLES;
   }
 
   ANIM_animdata_update(ac, &anim_data);
@@ -1560,7 +1569,7 @@ static void setipo_graph_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static int graphkeys_ipo_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_ipo_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   short mode;
@@ -1612,7 +1621,7 @@ void GRAPH_OT_interpolation_type(wmOperatorType *ot)
 
 static void seteasing_graph_keys(bAnimContext *ac, short mode)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
   KeyframeEditFunc set_cb = ANIM_editkeyframes_easing(mode);
 
@@ -1626,18 +1635,18 @@ static void seteasing_graph_keys(bAnimContext *ac, short mode)
    * NOTE: we do not supply KeyframeEditData to the looper yet.
    * Currently that's not necessary here.
    */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+  for (bAnimListElem &ale : anim_data) {
     ANIM_fcurve_keyframes_loop(
-        nullptr, static_cast<FCurve *>(ale->key_data), nullptr, set_cb, BKE_fcurve_handles_recalc);
+        nullptr, static_cast<FCurve *>(ale.key_data), nullptr, set_cb, BKE_fcurve_handles_recalc);
 
-    ale->update |= ANIM_UPDATE_DEFAULT_NOHANDLES;
+    ale.update |= ANIM_UPDATE_DEFAULT_NOHANDLES;
   }
 
   ANIM_animdata_update(ac, &anim_data);
   ANIM_animdata_freelist(&anim_data);
 }
 
-static int graphkeys_easing_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_easing_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   short mode;
@@ -1689,7 +1698,7 @@ void GRAPH_OT_easing_type(wmOperatorType *ot)
 /* This function is responsible for setting handle-type of selected keyframes. */
 static void sethandles_graph_keys(bAnimContext *ac, short mode)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
   KeyframeEditFunc edit_cb = ANIM_editkeyframes_handles(mode);
@@ -1705,15 +1714,15 @@ static void sethandles_graph_keys(bAnimContext *ac, short mode)
    * NOTE: we do not supply KeyframeEditData to the looper yet.
    * Currently that's not necessary here.
    */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
 
     /* Any selected keyframes for editing? */
     if (ANIM_fcurve_keyframes_loop(nullptr, fcu, nullptr, sel_cb, nullptr)) {
       /* Change type of selected handles. */
       ANIM_fcurve_keyframes_loop(nullptr, fcu, nullptr, edit_cb, BKE_fcurve_handles_recalc);
 
-      ale->update |= ANIM_UPDATE_DEFAULT;
+      ale.update |= ANIM_UPDATE_DEFAULT;
     }
   }
 
@@ -1722,7 +1731,7 @@ static void sethandles_graph_keys(bAnimContext *ac, short mode)
 }
 /* ------------------- */
 
-static int graphkeys_handletype_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_handletype_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   short mode;
@@ -1798,19 +1807,19 @@ static bool keyframe_time_differs(BezTriple *keyframes[3])
 }
 
 /* Find groups of `rotation_euler` channels. */
-static ListBase /*tEulerFilter*/ euler_filter_group_channels(
-    const ListBase /*bAnimListElem*/ *anim_data, ReportList *reports, int *r_num_groups)
+static ListBaseT<tEulerFilter> euler_filter_group_channels(
+    const ListBaseT<bAnimListElem> *anim_data, ReportList *reports, int *r_num_groups)
 {
-  ListBase euler_groups = {nullptr, nullptr};
+  ListBaseT<tEulerFilter> euler_groups = {nullptr, nullptr};
   tEulerFilter *euf = nullptr;
   *r_num_groups = 0;
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, anim_data) {
-    FCurve *const fcu = (FCurve *)ale->data;
+  for (bAnimListElem &ale : *anim_data) {
+    FCurve *const fcu = static_cast<FCurve *>(ale.data);
 
     /* Check if this is an appropriate F-Curve:
      * - Only rotation curves.
-     * - For pchan curves, make sure we're only using the euler curves.
+     * - For pose-channel curves, make sure we're only using the euler curves.
      */
     if (strstr(fcu->rna_path, "rotation_euler") == nullptr) {
       continue;
@@ -1819,7 +1828,7 @@ static ListBase /*tEulerFilter*/ euler_filter_group_channels(
       BKE_reportf(reports,
                   RPT_WARNING,
                   "Euler Rotation F-Curve has invalid index (ID='%s', Path='%s', Index=%d)",
-                  (ale->id) ? ale->id->name : RPT_("<No ID>"),
+                  (ale.id) ? ale.id->name : RPT_("<No ID>"),
                   fcu->rna_path,
                   fcu->array_index);
       continue;
@@ -1827,24 +1836,24 @@ static ListBase /*tEulerFilter*/ euler_filter_group_channels(
 
     /* Assume that this animation channel will be touched by the Euler filter. Doing this here
      * saves another loop over the animation data. */
-    ale->update |= ANIM_UPDATE_DEFAULT;
+    ale.update |= ANIM_UPDATE_DEFAULT;
 
     /* Optimization: assume that XYZ curves will always be stored consecutively,
      * so if the paths or the ID's don't match up, then a curve needs to be added
      * to a new group.
      */
-    if ((euf) && (euf->id == ale->id) && STREQ(euf->rna_path, fcu->rna_path)) {
+    if ((euf) && (euf->id == ale.id) && STREQ(euf->rna_path, fcu->rna_path)) {
       /* This should be fine to add to the existing group then. */
       euf->fcurves[fcu->array_index] = fcu;
       continue;
     }
 
     /* Just add to a new block. */
-    euf = static_cast<tEulerFilter *>(MEM_callocN(sizeof(tEulerFilter), "tEulerFilter"));
+    euf = MEM_new_zeroed<tEulerFilter>("tEulerFilter");
     BLI_addtail(&euler_groups, euf);
     ++*r_num_groups;
 
-    euf->id = ale->id;
+    euf->id = ale.id;
     /* This should be safe, since we're only using it for a short time. */
     euf->rna_path = fcu->rna_path;
     euf->fcurves[fcu->array_index] = fcu;
@@ -1974,7 +1983,7 @@ static bool euler_filter_single_channel(FCurve *fcu)
   return is_modified;
 }
 
-static void euler_filter_perform_filter(ListBase /*tEulerFilter*/ *eulers,
+static void euler_filter_perform_filter(ListBaseT<tEulerFilter> *eulers,
                                         ReportList *reports,
                                         int *r_curves_filtered,
                                         int *r_curves_seen)
@@ -1982,15 +1991,15 @@ static void euler_filter_perform_filter(ListBase /*tEulerFilter*/ *eulers,
   *r_curves_filtered = 0;
   *r_curves_seen = 0;
 
-  LISTBASE_FOREACH (tEulerFilter *, euf, eulers) {
+  for (tEulerFilter &euf : *eulers) {
     int curves_filtered_this_group = 0;
 
-    if (euler_filter_multi_channel(euf, reports)) {
+    if (euler_filter_multi_channel(&euf, reports)) {
       curves_filtered_this_group = 3;
     }
 
     for (int channel_index = 0; channel_index < 3; channel_index++) {
-      FCurve *fcu = euf->fcurves[channel_index];
+      FCurve *fcu = euf.fcurves[channel_index];
       if (fcu == nullptr) {
         continue;
       }
@@ -2005,7 +2014,7 @@ static void euler_filter_perform_filter(ListBase /*tEulerFilter*/ *eulers,
   }
 }
 
-static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
 {
   /* Get editor data. */
   bAnimContext ac;
@@ -2023,12 +2032,12 @@ static int graphkeys_euler_filter_exec(bContext *C, wmOperator *op)
   /* Step 1: extract only the rotation f-curves. */
   const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_SEL | ANIMFILTER_CURVE_VISIBLE |
                       ANIMFILTER_FCURVESONLY | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   ANIM_animdata_filter(
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   int groups = 0;
-  ListBase eulers = euler_filter_group_channels(&anim_data, op->reports, &groups);
+  ListBaseT<tEulerFilter> eulers = euler_filter_group_channels(&anim_data, op->reports, &groups);
   BLI_assert(BLI_listbase_count(&eulers) == groups);
 
   if (groups == 0) {
@@ -2125,7 +2134,7 @@ static bool graphkeys_framejump_poll(bContext *C)
 
 static KeyframeEditData sum_selected_keyframes(bAnimContext *ac)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
   KeyframeEditData ked;
 
@@ -2138,33 +2147,31 @@ static KeyframeEditData sum_selected_keyframes(bAnimContext *ac)
   ANIM_animdata_filter(
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    AnimData *adt = ANIM_nla_mapping_get(ac, ale);
+  for (bAnimListElem &ale : anim_data) {
     short mapping_flag = ANIM_get_normalization_flags(ac->sl);
     KeyframeEditData current_ked;
     float offset;
     float unit_scale = ANIM_unit_mapping_get_factor(ac->scene,
-                                                    ale->id,
-                                                    static_cast<FCurve *>(ale->key_data),
+                                                    ale.id,
+                                                    static_cast<FCurve *>(ale.key_data),
                                                     mapping_flag | ANIM_UNITCONV_ONLYKEYS,
                                                     &offset);
 
     memset(&current_ked, 0, sizeof(current_ked));
 
-    if (adt) {
-      ANIM_nla_mapping_apply_fcurve(adt, static_cast<FCurve *>(ale->key_data), false, true);
-      ANIM_fcurve_keyframes_loop(
-          &current_ked, static_cast<FCurve *>(ale->key_data), nullptr, bezt_calc_average, nullptr);
-      ANIM_nla_mapping_apply_fcurve(adt, static_cast<FCurve *>(ale->key_data), true, true);
-    }
-    else {
-      ANIM_fcurve_keyframes_loop(
-          &current_ked, static_cast<FCurve *>(ale->key_data), nullptr, bezt_calc_average, nullptr);
+    ANIM_nla_mapping_apply_if_needed_fcurve(
+        &ale, static_cast<FCurve *>(ale.key_data), false, true);
+    ANIM_fcurve_keyframes_loop(
+        &current_ked, static_cast<FCurve *>(ale.key_data), nullptr, bezt_calc_average, nullptr);
+    ANIM_nla_mapping_apply_if_needed_fcurve(&ale, static_cast<FCurve *>(ale.key_data), true, true);
+
+    if (current_ked.i1 == 0) {
+      continue;
     }
 
     ked.f1 += current_ked.f1;
     ked.i1 += current_ked.i1;
-    ked.f2 += (current_ked.f2 + offset) * unit_scale;
+    ked.f2 += (current_ked.f2 + offset * current_ked.i1) * unit_scale;
     ked.i2 += current_ked.i2;
   }
 
@@ -2174,7 +2181,7 @@ static KeyframeEditData sum_selected_keyframes(bAnimContext *ac)
 }
 
 /* Snap current-frame indicator to 'average time' of selected keyframe. */
-static int graphkeys_framejump_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_framejump_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -2193,7 +2200,7 @@ static int graphkeys_framejump_exec(bContext *C, wmOperator * /*op*/)
   }
 
   /* Set the new current frame and cursor values, based on the average time and value. */
-  SpaceGraph *sipo = (SpaceGraph *)ac.sl;
+  SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac.sl);
   Scene *scene = ac.scene;
 
   /* Take the average values, rounding to the nearest int as necessary for int results. */
@@ -2229,97 +2236,12 @@ void GRAPH_OT_frame_jump(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static bool find_closest_frame(const FCurve *fcu,
-                               const float frame,
-                               const bool next,
-                               float *r_closest_frame)
+static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 {
-  bool replace;
-  int bezt_index = BKE_fcurve_bezt_binarysearch_index(fcu->bezt, frame, fcu->totvert, &replace);
-
-  BezTriple *bezt;
-  if (next) {
-    if (replace) {
-      bezt_index++;
-    }
-    if (bezt_index > fcu->totvert - 1) {
-      return false;
-    }
-    bezt = &fcu->bezt[bezt_index];
-  }
-  else {
-    if (bezt_index - 1 < 0) {
-      return false;
-    }
-    bezt = &fcu->bezt[bezt_index - 1];
-  }
-
-  *r_closest_frame = bezt->vec[1][0];
-  return true;
-}
-
-static int keyframe_jump_exec(bContext *C, wmOperator *op)
-{
-  bAnimContext ac;
-  Scene *scene = CTX_data_scene(C);
-
-  bool next = RNA_boolean_get(op->ptr, "next");
-
-  /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
-    return OPERATOR_CANCELLED;
-  }
-
-  ListBase anim_data = {nullptr, nullptr};
-  int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FCURVESONLY |
-                ANIMFILTER_NODUPLIS);
-  if (U.animation_flag & USER_ANIM_ONLY_SHOW_SELECTED_CURVE_KEYS) {
-    filter |= ANIMFILTER_SEL;
-  }
-
-  ANIM_animdata_filter(
-      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
-
-  float closest_frame = next ? FLT_MAX : -FLT_MAX;
-  bool found = false;
-
-  const float current_frame = BKE_scene_frame_get(scene);
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = static_cast<FCurve *>(ale->key_data);
-    if (!fcu->bezt) {
-      continue;
-    }
-    AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
-
-    float closest_fcu_frame;
-    ANIM_nla_mapping_apply_fcurve(adt, fcu, false, true);
-    const bool success = find_closest_frame(fcu, current_frame, next, &closest_fcu_frame);
-    ANIM_nla_mapping_apply_fcurve(adt, fcu, true, true);
-
-    if (!success) {
-      continue;
-    }
-
-    if ((next && closest_fcu_frame < closest_frame) ||
-        (!next && closest_fcu_frame > closest_frame))
-    {
-      closest_frame = closest_fcu_frame;
-      found = true;
-    }
-  }
-
-  ANIM_animdata_freelist(&anim_data);
-
-  if (!found) {
-    BKE_report(op->reports, RPT_INFO, "No more keyframes to jump to in this direction");
-    return OPERATOR_CANCELLED;
-  }
-
-  BKE_scene_frame_set(scene, closest_frame);
-
-  /* Set notifier that things have changed. */
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
-  return OPERATOR_FINISHED;
+  BKE_report(op->reports, RPT_WARNING, "Deprecated operator, use screen.keyframe_jump instead");
+  /* The op->ptr can be passed to the operator because it has an identically named property. */
+  return WM_operator_name_call(
+      C, "SCREEN_OT_keyframe_jump", wm::OpCallContext::InvokeDefault, op->ptr, nullptr);
 }
 
 void GRAPH_OT_keyframe_jump(wmOperatorType *ot)
@@ -2339,7 +2261,7 @@ void GRAPH_OT_keyframe_jump(wmOperatorType *ot)
 }
 
 /* snap 2D cursor value to the average value of selected keyframe */
-static int graphkeys_snap_cursor_value_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_snap_cursor_value_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -2355,7 +2277,7 @@ static int graphkeys_snap_cursor_value_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_FINISHED;
   }
 
-  SpaceGraph *sipo = (SpaceGraph *)ac.sl;
+  SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac.sl);
   sipo->cursorVal = sum_value / float(num_keyframes);
   // WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
   ED_region_tag_redraw(CTX_wm_region(C));
@@ -2423,10 +2345,10 @@ static const EnumPropertyItem prop_graphkeys_snap_types[] = {
 /* This function is responsible for snapping keyframes to frame-times. */
 static void snap_graph_keys(bAnimContext *ac, short mode)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
-  SpaceGraph *sipo = (SpaceGraph *)ac->sl;
+  SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac->sl);
   KeyframeEditData ked;
   KeyframeEditFunc edit_cb;
   float cursor_value = 0.0f;
@@ -2441,8 +2363,8 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
   memset(&ked, 0, sizeof(KeyframeEditData));
   ked.scene = ac->scene;
   if (mode == GRAPHKEYS_SNAP_NEAREST_MARKER) {
-    ked.list.first = (ac->markers) ? ac->markers->first : nullptr;
-    ked.list.last = (ac->markers) ? ac->markers->last : nullptr;
+    ked.time_marker_list.first = (ac->markers) ? ac->markers->first : nullptr;
+    ked.time_marker_list.last = (ac->markers) ? ac->markers->last : nullptr;
   }
   else if (mode == GRAPHKEYS_SNAP_VALUE) {
     cursor_value = (sipo) ? sipo->cursorVal : 0.0f;
@@ -2462,36 +2384,28 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 
   /* Snap keyframes. */
   const bool use_handle = (sipo->flag & SIPO_NOHANDLES) == 0;
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    AnimData *adt = ANIM_nla_mapping_get(ac, ale);
-
+  for (bAnimListElem &ale : anim_data) {
     /* Normalize cursor value (for normalized F-Curves display). */
     if (mode == GRAPHKEYS_SNAP_VALUE) {
       short mapping_flag = ANIM_get_normalization_flags(ac->sl);
       float offset;
       float unit_scale = ANIM_unit_mapping_get_factor(
-          ac->scene, ale->id, static_cast<FCurve *>(ale->key_data), mapping_flag, &offset);
+          ac->scene, ale.id, static_cast<FCurve *>(ale.key_data), mapping_flag, &offset);
 
       ked.f1 = (cursor_value / unit_scale) - offset;
     }
 
     /* Perform snapping. */
-    if (adt) {
-      ANIM_nla_mapping_apply_fcurve(adt, static_cast<FCurve *>(ale->key_data), false, false);
-      ANIM_fcurve_keyframes_loop(
-          &ked, static_cast<FCurve *>(ale->key_data), nullptr, edit_cb, BKE_fcurve_handles_recalc);
-      BKE_fcurve_merge_duplicate_keys(
-          static_cast<FCurve *>(ale->key_data), BEZT_FLAG_TEMP_TAG, use_handle);
-      ANIM_nla_mapping_apply_fcurve(adt, static_cast<FCurve *>(ale->key_data), true, false);
-    }
-    else {
-      ANIM_fcurve_keyframes_loop(
-          &ked, static_cast<FCurve *>(ale->key_data), nullptr, edit_cb, BKE_fcurve_handles_recalc);
-      BKE_fcurve_merge_duplicate_keys(
-          static_cast<FCurve *>(ale->key_data), BEZT_FLAG_TEMP_TAG, use_handle);
-    }
+    ANIM_nla_mapping_apply_if_needed_fcurve(
+        &ale, static_cast<FCurve *>(ale.key_data), false, false);
+    ANIM_fcurve_keyframes_loop(
+        &ked, static_cast<FCurve *>(ale.key_data), nullptr, edit_cb, BKE_fcurve_handles_recalc);
+    BKE_fcurve_merge_duplicate_keys(
+        static_cast<FCurve *>(ale.key_data), BEZT_FLAG_TEMP_TAG, use_handle);
+    ANIM_nla_mapping_apply_if_needed_fcurve(
+        &ale, static_cast<FCurve *>(ale.key_data), true, false);
 
-    ale->update |= ANIM_UPDATE_DEFAULT;
+    ale.update |= ANIM_UPDATE_DEFAULT;
   }
 
   ANIM_animdata_update(ac, &anim_data);
@@ -2500,7 +2414,7 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static int graphkeys_snap_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_snap_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   short mode;
@@ -2525,7 +2439,7 @@ static int graphkeys_snap_exec(bContext *C, wmOperator *op)
 static bool graph_has_selected_control_points(bContext *C)
 {
   bAnimContext ac;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* Get editor data. */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -2540,9 +2454,9 @@ static bool graph_has_selected_control_points(bContext *C)
 
   /* Check if any of the visible and editable f-curves have at least one selected control point. */
   bool has_selected_control_points = false;
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    const FCurve *fcu = static_cast<const FCurve *>(ale->key_data);
-    if (BKE_fcurve_has_selected_control_points(fcu)) {
+  for (bAnimListElem &ale : anim_data) {
+    const FCurve *fcu = static_cast<const FCurve *>(ale.key_data);
+    if (fcu && BKE_fcurve_has_selected_control_points(*fcu)) {
       has_selected_control_points = true;
       break;
     }
@@ -2553,9 +2467,9 @@ static bool graph_has_selected_control_points(bContext *C)
   return has_selected_control_points;
 }
 
-static int graphkeys_selected_control_points_invoke(bContext *C,
-                                                    wmOperator *op,
-                                                    const wmEvent *event)
+static wmOperatorStatus graphkeys_selected_control_points_invoke(bContext *C,
+                                                                 wmOperator *op,
+                                                                 const wmEvent *event)
 {
   if (!graph_has_selected_control_points(C)) {
     BKE_report(op->reports, RPT_ERROR, "No control points are selected");
@@ -2606,24 +2520,24 @@ static void equalize_graph_keys(bAnimContext *ac, int mode, float handle_length,
   /* Filter data. */
   const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FCURVESONLY |
                       ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   ANIM_animdata_filter(
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   /* Equalize keyframes. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    ANIM_fcurve_equalize_keyframes_loop(static_cast<FCurve *>(ale->key_data),
+  for (bAnimListElem &ale : anim_data) {
+    ANIM_fcurve_equalize_keyframes_loop(static_cast<FCurve *>(ale.key_data),
                                         eEditKeyframes_Equalize(mode),
                                         handle_length,
                                         flatten);
-    ale->update |= ANIM_UPDATE_DEFAULT;
+    ale.update |= ANIM_UPDATE_DEFAULT;
   }
 
   ANIM_animdata_update(ac, &anim_data);
   ANIM_animdata_freelist(&anim_data);
 }
 
-static int graphkeys_equalize_handles_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_equalize_handles_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -2725,10 +2639,10 @@ static const EnumPropertyItem prop_graphkeys_mirror_types[] = {
 /* This function is responsible for mirroring keyframes. */
 static void mirror_graph_keys(bAnimContext *ac, short mode)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
-  SpaceGraph *sipo = (SpaceGraph *)ac->sl;
+  SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac->sl);
   KeyframeEditData ked;
   KeyframeEditFunc edit_cb;
   float cursor_value = 0.0f;
@@ -2775,16 +2689,14 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
   /* Mirror keyframes. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    AnimData *adt = ANIM_nla_mapping_get(ac, ale);
-
+  for (bAnimListElem &ale : anim_data) {
     /* Apply unit corrections. */
     if (mode == GRAPHKEYS_MIRROR_VALUE) {
       short mapping_flag = ANIM_get_normalization_flags(ac->sl);
       float offset;
       float unit_scale = ANIM_unit_mapping_get_factor(ac->scene,
-                                                      ale->id,
-                                                      static_cast<FCurve *>(ale->key_data),
+                                                      ale.id,
+                                                      static_cast<FCurve *>(ale.key_data),
                                                       mapping_flag | ANIM_UNITCONV_ONLYKEYS,
                                                       &offset);
 
@@ -2792,18 +2704,14 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
     }
 
     /* Perform actual mirroring. */
-    if (adt) {
-      ANIM_nla_mapping_apply_fcurve(adt, static_cast<FCurve *>(ale->key_data), false, false);
-      ANIM_fcurve_keyframes_loop(
-          &ked, static_cast<FCurve *>(ale->key_data), nullptr, edit_cb, BKE_fcurve_handles_recalc);
-      ANIM_nla_mapping_apply_fcurve(adt, static_cast<FCurve *>(ale->key_data), true, false);
-    }
-    else {
-      ANIM_fcurve_keyframes_loop(
-          &ked, static_cast<FCurve *>(ale->key_data), nullptr, edit_cb, BKE_fcurve_handles_recalc);
-    }
+    ANIM_nla_mapping_apply_if_needed_fcurve(
+        &ale, static_cast<FCurve *>(ale.key_data), false, false);
+    ANIM_fcurve_keyframes_loop(
+        &ked, static_cast<FCurve *>(ale.key_data), nullptr, edit_cb, BKE_fcurve_handles_recalc);
+    ANIM_nla_mapping_apply_if_needed_fcurve(
+        &ale, static_cast<FCurve *>(ale.key_data), true, false);
 
-    ale->update |= ANIM_UPDATE_DEFAULT;
+    ale.update |= ANIM_UPDATE_DEFAULT;
   }
 
   ANIM_animdata_update(ac, &anim_data);
@@ -2812,7 +2720,7 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static int graphkeys_mirror_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_mirror_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   short mode;
@@ -2859,10 +2767,10 @@ void GRAPH_OT_mirror(wmOperatorType *ot)
 /** \name Smooth Keyframes Operator
  * \{ */
 
-static int graphkeys_smooth_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_smooth_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
   /* Get editor data. */
@@ -2877,14 +2785,14 @@ static int graphkeys_smooth_exec(bContext *C, wmOperator * /*op*/)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   /* Smooth keyframes. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+  for (bAnimListElem &ale : anim_data) {
     /* For now, we can only smooth by flattening handles AND smoothing curve values.
      * Perhaps the mode argument could be removed, as that functionality is offered through
      * Snap->Flatten Handles anyway.
      */
-    smooth_fcurve(static_cast<FCurve *>(ale->key_data));
+    smooth_fcurve(static_cast<FCurve *>(ale.key_data));
 
-    ale->update |= ANIM_UPDATE_DEFAULT;
+    ale.update |= ANIM_UPDATE_DEFAULT;
   }
 
   ANIM_animdata_update(&ac, &anim_data);
@@ -2955,10 +2863,10 @@ static const EnumPropertyItem *graph_fmodifier_itemf(bContext *C,
   return item;
 }
 
-static int graph_fmodifier_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_fmodifier_add_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
   short type;
 
@@ -2984,8 +2892,8 @@ static int graph_fmodifier_add_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   /* Add f-modifier to each curve. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->data;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.data);
     FModifier *fcm;
 
     /* Add F-Modifier of specified type to active F-Curve, and make it the active one. */
@@ -2998,7 +2906,7 @@ static int graph_fmodifier_add_exec(bContext *C, wmOperator *op)
       break;
     }
 
-    ale->update |= ANIM_UPDATE_DEPS;
+    ale.update |= ANIM_UPDATE_DEPS;
   }
 
   ANIM_animdata_update(&ac, &anim_data);
@@ -3043,7 +2951,7 @@ void GRAPH_OT_fmodifier_add(wmOperatorType *ot)
 /** \name Copy F-Modifiers Operator
  * \{ */
 
-static int graph_fmodifier_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_fmodifier_copy_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   bAnimListElem *ale;
@@ -3062,13 +2970,13 @@ static int graph_fmodifier_copy_exec(bContext *C, wmOperator *op)
 
   /* If this exists, call the copy F-Modifiers API function. */
   if (ale && ale->data) {
-    FCurve *fcu = (FCurve *)ale->data;
+    FCurve *fcu = static_cast<FCurve *>(ale->data);
 
     /* TODO: When 'active' vs 'all' boolean is added, change last param! (Joshua Leung 2010) */
     ok = ANIM_fmodifiers_copy_to_buf(&fcu->modifiers, false);
 
     /* Free temp data now. */
-    MEM_freeN(ale);
+    MEM_delete(ale);
   }
 
   /* Successful or not? */
@@ -3109,11 +3017,11 @@ void GRAPH_OT_fmodifier_copy(wmOperatorType *ot)
 /** \name Paste F-Modifiers Operator
  * \{ */
 
-static int graph_fmodifier_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_fmodifier_paste_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
   const bool replace = RNA_boolean_get(op->ptr, "replace");
@@ -3141,14 +3049,14 @@ static int graph_fmodifier_paste_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   /* Paste modifiers. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->data;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.data);
     int tot;
 
     tot = ANIM_fmodifiers_paste_from_buf(&fcu->modifiers, replace, fcu);
 
     if (tot) {
-      ale->update |= ANIM_UPDATE_DEPS;
+      ale.update |= ANIM_UPDATE_DEPS;
       ok = true;
     }
   }
@@ -3204,11 +3112,11 @@ void GRAPH_OT_fmodifier_paste(wmOperatorType *ot)
 /** \name Copy Driver Variables Operator
  * \{ */
 
-static int graph_driver_vars_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_driver_vars_copy_exec(bContext *C, wmOperator *op)
 {
   bool ok = false;
 
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "active_editable_fcurve", &RNA_FCurve);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "active_editable_fcurve", RNA_FCurve);
 
   /* If this exists, call the copy driver vars API function. */
   FCurve *fcu = static_cast<FCurve *>(ptr.data);
@@ -3245,12 +3153,12 @@ void GRAPH_OT_driver_variables_copy(wmOperatorType *ot)
 /** \name Paste Driver Variables Operator
  * \{ */
 
-static int graph_driver_vars_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_driver_vars_paste_exec(bContext *C, wmOperator *op)
 {
   const bool replace = RNA_boolean_get(op->ptr, "replace");
   bool ok = false;
 
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "active_editable_fcurve", &RNA_FCurve);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "active_editable_fcurve", RNA_FCurve);
 
   /* If this exists, call the paste driver vars API function. */
   FCurve *fcu = static_cast<FCurve *>(ptr.data);
@@ -3301,10 +3209,10 @@ void GRAPH_OT_driver_variables_paste(wmOperatorType *ot)
 /** \name Delete Invalid Drivers Operator
  * \{ */
 
-static int graph_driver_delete_invalid_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graph_driver_delete_invalid_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
   bool ok = false;
   uint deleted = 0;
@@ -3323,8 +3231,8 @@ static int graph_driver_delete_invalid_exec(bContext *C, wmOperator * /*op*/)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   /* Find invalid drivers. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->data;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.data);
     if (ELEM(nullptr, fcu, fcu->driver)) {
       continue;
     }
@@ -3332,11 +3240,12 @@ static int graph_driver_delete_invalid_exec(bContext *C, wmOperator * /*op*/)
       continue;
     }
 
-    ok |= ANIM_remove_driver(ale->id, fcu->rna_path, fcu->array_index);
+    ok |= ANIM_remove_driver(ale.id, fcu->rna_path, fcu->array_index);
     if (!ok) {
       break;
     }
     deleted += 1;
+    DEG_id_tag_update(ale.id, ID_RECALC_ANIMATION);
   }
 
   /* Cleanup. */
@@ -3346,10 +3255,10 @@ static int graph_driver_delete_invalid_exec(bContext *C, wmOperator * /*op*/)
     /* Notify the world of any changes. */
     DEG_relations_tag_update(CTX_data_main(C));
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
-    WM_reportf(RPT_INFO, "Deleted %u drivers", deleted);
+    BKE_reportf(op->reports, RPT_INFO, "Deleted %u drivers", deleted);
   }
   else {
-    WM_report(RPT_INFO, "No drivers deleted");
+    BKE_report(op->reports, RPT_INFO, "No drivers deleted");
   }
 
   /* Successful or not? */
@@ -3390,3 +3299,5 @@ void GRAPH_OT_driver_delete_invalid(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

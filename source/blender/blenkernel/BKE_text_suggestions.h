@@ -7,39 +7,35 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* ****************************************************************************
- * Suggestions should be added in sorted order although a linear sorting method is
- * implemented. The list is then divided up based on the prefix provided by
- * update_suggestions:
- *
- * Example:
- *   Prefix: ab
- *   aaa <-- first
- *   aab
- *   aba <-- firstmatch
- *   abb <-- lastmatch
- *   baa
- *   bab <-- last
- **************************************************************************** */
+namespace blender {
 
 struct Text;
 
-typedef struct SuggItem {
+struct SuggItem {
   struct SuggItem *prev, *next;
   char type;
   char name[0];
-} SuggItem;
+};
 
-typedef struct SuggList {
+/**
+ * Suggestions should be added in sorted order although a linear sorting method is implemented.
+ * The list is then divided up based on the prefix provided by update_suggestions:
+ *
+ * Example:
+ *   Prefix: `ab`
+ *   `aaa` <- #SuggList::first
+ *   `aab`
+ *   `aba` <- #SuggList::firstmatch
+ *   `abb` <- #SuggList::lastmatch
+ *   `baa`
+ *   `bab` <- #SuggList::last
+ */
+struct SuggList {
   SuggItem *first, *last;
   SuggItem *firstmatch, *lastmatch;
   SuggItem *selected;
   int top;
-} SuggList;
+};
 
 /* Free all text tool memory */
 void free_texttools(void);
@@ -59,6 +55,4 @@ void texttool_suggest_select(SuggItem *sel);
 SuggItem *texttool_suggest_selected(void);
 int *texttool_suggest_top(void);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

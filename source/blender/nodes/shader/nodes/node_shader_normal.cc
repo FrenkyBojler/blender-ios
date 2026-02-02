@@ -8,7 +8,9 @@
 
 #include "node_shader_util.hh"
 
-namespace blender::nodes::node_shader_normal_cc {
+namespace blender {
+
+namespace nodes::node_shader_normal_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -44,7 +46,7 @@ NODE_SHADER_MATERIALX_BEGIN
 {
   NodeItem res = get_output_default("Normal", NodeItem::Type::Vector3);
 
-  if (STREQ(socket_out_->name, "Dot")) {
+  if (STREQ(socket_out_->identifier, "Dot")) {
     return res.dotproduct(get_input_value("Normal", NodeItem::Type::Vector3));
   }
 
@@ -53,18 +55,24 @@ NODE_SHADER_MATERIALX_BEGIN
 #endif
 NODE_SHADER_MATERIALX_END
 
-}  // namespace blender::nodes::node_shader_normal_cc
+}  // namespace nodes::node_shader_normal_cc
 
 void register_node_type_sh_normal()
 {
-  namespace file_ns = blender::nodes::node_shader_normal_cc;
+  namespace file_ns = nodes::node_shader_normal_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_NORMAL, "Normal", NODE_CLASS_OP_VECTOR);
+  sh_node_type_base(&ntype, "ShaderNodeNormal", SH_NODE_NORMAL);
+  ntype.ui_name = "Normal";
+  ntype.ui_description = "Generate a normal vector and a dot product";
+  ntype.enum_name_legacy = "NORMAL";
+  ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::gpu_shader_normal;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

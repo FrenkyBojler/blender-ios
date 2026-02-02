@@ -18,19 +18,21 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_anim_path.h"
 #include "BKE_armature.hh"
 #include "BKE_curve.hh"
-#include "BKE_fcurve.hh"
 #include "BKE_object_types.hh"
 #include "BKE_scene.hh"
 
 #include "BIK_api.h"
 
 #include "DEG_depsgraph.hh"
+
+namespace blender {
 
 /* ********************** SPLINE IK SOLVER ******************* */
 
@@ -114,11 +116,11 @@ static void splineik_init_tree_from_pchan(Scene * /*scene*/,
 
     /* Setup new empty array for the points list. */
     if (ik_data->points) {
-      MEM_freeN(ik_data->points);
+      MEM_delete(ik_data->points);
     }
     ik_data->numpoints = ik_data->chainlen + 1;
-    ik_data->points = static_cast<float *>(
-        MEM_mallocN(sizeof(float) * ik_data->numpoints, "Spline IK Binding"));
+    ik_data->points = MEM_new_array_uninitialized<float>(size_t(ik_data->numpoints),
+                                                         "Spline IK Binding");
 
     /* Bind 'tip' of chain (i.e. first joint = tip of bone with the Spline IK Constraint). */
     ik_data->points[0] = 1.0f;
@@ -154,16 +156,14 @@ static void splineik_init_tree_from_pchan(Scene * /*scene*/,
    * since that would take precedence... */
   {
     /* Make a new tree. */
-    tSplineIK_Tree *tree = static_cast<tSplineIK_Tree *>(
-        MEM_callocN(sizeof(tSplineIK_Tree), "SplineIK Tree"));
+    tSplineIK_Tree *tree = MEM_new_zeroed<tSplineIK_Tree>("SplineIK Tree");
     tree->type = CONSTRAINT_TYPE_SPLINEIK;
 
     tree->chainlen = segcount;
     tree->totlength = totlength;
 
     /* Copy over the array of links to bones in the chain (from tip to root). */
-    tree->chain = static_cast<bPoseChannel **>(
-        MEM_mallocN(sizeof(bPoseChannel *) * segcount, "SplineIK Chain"));
+    tree->chain = MEM_new_array_uninitialized<bPoseChannel *>(size_t(segcount), "SplineIK Chain");
     memcpy(tree->chain, pchan_chain, sizeof(bPoseChannel *) * segcount);
 
     /* Store reference to joint position array. */
@@ -187,9 +187,9 @@ static void splineik_init_tree(Scene *scene, Object *ob, float /*ctime*/)
 {
   /* Find the tips of Spline IK chains,
    * which are simply the bones which have been tagged as such. */
-  LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-    if (pchan->constflag & PCHAN_HAS_SPLINEIK) {
-      splineik_init_tree_from_pchan(scene, ob, pchan);
+  for (bPoseChannel &pchan : ob->pose->chanbase) {
+    if (pchan.constflag & PCHAN_HAS_SPLINEIK) {
+      splineik_init_tree_from_pchan(scene, ob, &pchan);
     }
   }
 }
@@ -675,7 +675,7 @@ static void splineik_evaluate_bone(
             }
           }
 
-          /* Compute scale factor for xz axes from this value. */
+          /* Compute scale factor for XZ axes from this value. */
           final_scale = sqrtf(bulge);
         }
         else {
@@ -770,7 +770,7 @@ static void splineik_execute_tree(
 
     /* free the tree info specific to SplineIK trees now */
     if (tree->chain) {
-      MEM_freeN(tree->chain);
+      MEM_delete(tree->chain);
     }
 
     /* free this tree */
@@ -793,10 +793,10 @@ void BKE_splineik_execute_tree(
 
 void BKE_pose_pchan_index_rebuild(bPose *pose)
 {
-  MEM_SAFE_FREE(pose->chan_array);
+  MEM_SAFE_DELETE(pose->chan_array);
   const int num_channels = BLI_listbase_count(&pose->chanbase);
-  pose->chan_array = static_cast<bPoseChannel **>(
-      MEM_malloc_arrayN(num_channels, sizeof(bPoseChannel *), "pose->chan_array"));
+  pose->chan_array = MEM_new_array_uninitialized<bPoseChannel *>(size_t(num_channels),
+                                                                 "pose->chan_array");
   int pchan_index = 0;
   for (bPoseChannel *pchan = static_cast<bPoseChannel *>(pose->chanbase.first); pchan != nullptr;
        pchan = pchan->next)
@@ -851,7 +851,7 @@ void BKE_pose_eval_init_ik(Depsgraph *depsgraph, Scene *scene, Object *object)
   DEG_debug_print_eval(depsgraph, __func__, object->id.name, object);
   BLI_assert(object->type == OB_ARMATURE);
   const float ctime = BKE_scene_ctime_get(scene); /* not accurate... */
-  bArmature *armature = (bArmature *)object->data;
+  bArmature *armature = id_cast<bArmature *>(object->data);
   if (armature->flag & ARM_RESTPOS) {
     return;
   }
@@ -865,7 +865,7 @@ void BKE_pose_eval_init_ik(Depsgraph *depsgraph, Scene *scene, Object *object)
 
 void BKE_pose_eval_bone(Depsgraph *depsgraph, Scene *scene, Object *object, int pchan_index)
 {
-  const bArmature *armature = (bArmature *)object->data;
+  const bArmature *armature = id_cast<bArmature *>(object->data);
   if (armature->edbo != nullptr) {
     return;
   }
@@ -904,7 +904,7 @@ void BKE_pose_constraints_evaluate(Depsgraph *depsgraph,
                                    Object *object,
                                    int pchan_index)
 {
-  const bArmature *armature = (bArmature *)object->data;
+  const bArmature *armature = id_cast<bArmature *>(object->data);
   if (armature->edbo != nullptr) {
     return;
   }
@@ -932,7 +932,7 @@ static void pose_channel_flush_to_orig_if_needed(Depsgraph *depsgraph,
   if (!DEG_is_active(depsgraph)) {
     return;
   }
-  const bArmature *armature = (bArmature *)object->data;
+  const bArmature *armature = id_cast<bArmature *>(object->data);
   if (armature->edbo != nullptr) {
     return;
   }
@@ -948,7 +948,10 @@ static void pose_channel_flush_to_orig_if_needed(Depsgraph *depsgraph,
 
 void BKE_pose_bone_done(Depsgraph *depsgraph, Object *object, int pchan_index)
 {
-  const bArmature *armature = (bArmature *)object->data;
+  /* Note: tests in `armature_deform_test.cc` update pose matrices locally to avoid creating a full
+   * depsgraph. Keep these in sync if this function is changed! */
+
+  const bArmature *armature = id_cast<bArmature *>(object->data);
   if (armature->edbo != nullptr) {
     return;
   }
@@ -974,7 +977,7 @@ void BKE_pose_bone_done(Depsgraph *depsgraph, Object *object, int pchan_index)
 
 void BKE_pose_eval_bbone_segments(Depsgraph *depsgraph, Object *object, int pchan_index)
 {
-  const bArmature *armature = (bArmature *)object->data;
+  const bArmature *armature = id_cast<bArmature *>(object->data);
   if (armature->edbo != nullptr) {
     return;
   }
@@ -994,7 +997,7 @@ void BKE_pose_iktree_evaluate(Depsgraph *depsgraph,
                               Object *object,
                               int rootchan_index)
 {
-  const bArmature *armature = (bArmature *)object->data;
+  const bArmature *armature = id_cast<bArmature *>(object->data);
   if (armature->edbo != nullptr) {
     return;
   }
@@ -1015,7 +1018,7 @@ void BKE_pose_splineik_evaluate(Depsgraph *depsgraph,
                                 int rootchan_index)
 
 {
-  const bArmature *armature = (bArmature *)object->data;
+  const bArmature *armature = id_cast<bArmature *>(object->data);
   if (armature->edbo != nullptr) {
     return;
   }
@@ -1059,3 +1062,5 @@ void BKE_pose_eval_cleanup(Depsgraph *depsgraph, Scene *scene, Object *object)
   BIK_release_tree(scene, object, ctime);
   pose_eval_cleanup_common(object);
 }
+
+}  // namespace blender

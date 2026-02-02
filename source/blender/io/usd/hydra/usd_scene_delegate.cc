@@ -5,7 +5,7 @@
 #include "usd_scene_delegate.hh"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BKE_appdir.hh"
@@ -19,9 +19,11 @@
 #include "usd.hh"
 #include "usd_private.hh"
 
+namespace blender {
+
 using namespace blender::io::usd;
 
-namespace blender::io::hydra {
+namespace io::hydra {
 
 USDSceneDelegate::USDSceneDelegate(pxr::HdRenderIndex *render_index,
                                    pxr::SdfPath const &delegate_id,
@@ -55,6 +57,7 @@ void USDSceneDelegate::populate(Depsgraph *depsgraph)
   params.use_instancing = true;
   params.relative_paths = false;  /* Unnecessary. */
   params.export_textures = false; /* Don't copy all textures, is slow. */
+  params.export_subdiv = SubdivExportMode::Tessellate;
   params.evaluation_mode = DEG_get_mode(depsgraph);
   params.generate_preview_surface = !use_materialx;
   params.generate_materialx_network = use_materialx;
@@ -85,4 +88,5 @@ void USDSceneDelegate::populate(Depsgraph *depsgraph)
   BKE_reports_free(&worker_reports);
 }
 
-}  // namespace blender::io::hydra
+}  // namespace io::hydra
+}  // namespace blender

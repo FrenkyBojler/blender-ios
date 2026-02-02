@@ -7,7 +7,7 @@
  * \ingroup bli
  *
  * An `Allocator` can allocate and deallocate memory. It is used by containers such as
- * blender::Vector. The allocators defined in this file do not work with standard library
+ * Vector. The allocators defined in this file do not work with standard library
  * containers such as std::vector.
  *
  * Every allocator has to implement two methods:
@@ -25,6 +25,7 @@
  * need. More complexity can be added when it seems necessary.
  */
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "MEM_guardedalloc.h"
@@ -41,13 +42,34 @@ class GuardedAllocator {
  public:
   void *allocate(size_t size, size_t alignment, const char *name)
   {
-    /* Should we use MEM_mallocN, when alignment is small? If yes, how small must alignment be? */
-    return MEM_mallocN_aligned(size, alignment, name);
+    /* Should we use MEM_new_uninitialized, when alignment is small? If yes, how small must
+     * alignment be? */
+    return MEM_new_uninitialized_aligned(size, alignment, name);
   }
 
   void deallocate(void *ptr)
   {
-    MEM_freeN(ptr);
+    MEM_delete_void(ptr);
+  }
+};
+
+/**
+ * Like #GuardedAllocator, but makes sure each allocation has a minimum alignment. One use case is
+ * reusing an allocation between multiple types that have different alignment requirements. The
+ * default alignment template parameter should be large enough for any type in practice.
+ */
+template<size_t Alignment = 64ul> class GuardedAlignedAllocator {
+ public:
+  static constexpr size_t min_alignment = Alignment;
+
+  void *allocate(size_t size, size_t alignment, const char *name)
+  {
+    return MEM_new_uninitialized_aligned(size, std::max(alignment, min_alignment), name);
+  }
+
+  void deallocate(void *ptr)
+  {
+    MEM_delete_void(ptr);
   }
 };
 

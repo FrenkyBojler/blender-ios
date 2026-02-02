@@ -11,9 +11,7 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 /**
  * Sets `tempdir` from `dirpath` when it's a valid directory.
@@ -34,6 +32,4 @@ bool BLI_temp_directory_path_copy_if_valid(char *tempdir,
  */
 void BLI_temp_directory_path_get(char *tempdir, const size_t tempdir_maxncpy) ATTR_NONNULL(1);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

@@ -8,16 +8,14 @@
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
-typedef struct LockfreeLinkNode {
+struct LockfreeLinkNode {
   struct LockfreeLinkNode *next;
   /* NOTE: "Subclass" this structure to add custom-defined data. */
-} LockfreeLinkNode;
+};
 
-typedef struct LockfreeLinkList {
+struct LockfreeLinkList {
   /* We keep a dummy node at the beginning of the list all the time.
    * This allows us to make sure head and tail pointers are always
    * valid, and saves from annoying exception cases in insert().
@@ -25,7 +23,7 @@ typedef struct LockfreeLinkList {
   LockfreeLinkNode dummy_node;
   /* NOTE: This fields might point to a dummy node. */
   LockfreeLinkNode *head, *tail;
-} LockfreeLinkList;
+};
 
 typedef void (*LockfreeeLinkNodeFreeFP)(void *link);
 
@@ -55,6 +53,4 @@ LockfreeLinkNode *BLI_linklist_lockfree_begin(LockfreeLinkList *list);
 
 void BLI_linklist_lockfree_insert(LockfreeLinkList *list, LockfreeLinkNode *node);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

@@ -4,11 +4,9 @@
 
 #include "testing/testing.h"
 
-#include "BLI_string.h"
-
 #include "BKE_cryptomatte.h"
 #include "BKE_cryptomatte.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 
 #include "RE_pipeline.h"
 
@@ -38,7 +36,7 @@ TEST(cryptomatte, extract_layer_name)
 
 TEST(cryptomatte, layer)
 {
-  blender::bke::cryptomatte::CryptomatteLayer layer;
+  bke::cryptomatte::CryptomatteLayer layer;
   ASSERT_EQ("{}", layer.manifest());
 
   layer.add_hash("Object", 123);
@@ -50,7 +48,7 @@ TEST(cryptomatte, layer)
 
 TEST(cryptomatte, layer_quoted)
 {
-  blender::bke::cryptomatte::CryptomatteLayer layer;
+  bke::cryptomatte::CryptomatteLayer layer;
   layer.add_hash("\"Object\"", 123);
   ASSERT_EQ("{\"\\\"Object\\\"\":\"0000007b\"}", layer.manifest());
 }
@@ -58,7 +56,7 @@ TEST(cryptomatte, layer_quoted)
 static void test_cryptomatte_manifest(std::string expected, std::string manifest)
 {
   EXPECT_EQ(expected,
-            blender::bke::cryptomatte::CryptomatteLayer::read_from_manifest(manifest)->manifest());
+            bke::cryptomatte::CryptomatteLayer::read_from_manifest(manifest)->manifest());
 }
 
 TEST(cryptomatte, layer_from_manifest)
@@ -78,18 +76,17 @@ TEST(cryptomatte, layer_from_manifest)
 TEST(cryptomatte, extract_layer_hash_from_metadata_key)
 {
   EXPECT_EQ("eb4c67b",
-            blender::bke::cryptomatte::CryptomatteStampDataCallbackData::extract_layer_hash(
+            bke::cryptomatte::CryptomatteStampDataCallbackData::extract_layer_hash(
                 "cryptomatte/eb4c67b/conversion"));
   EXPECT_EQ("qwerty",
-            blender::bke::cryptomatte::CryptomatteStampDataCallbackData::extract_layer_hash(
+            bke::cryptomatte::CryptomatteStampDataCallbackData::extract_layer_hash(
                 "cryptomatte/qwerty/name"));
   /* Check if undefined behaviors are handled. */
-  EXPECT_EQ("",
-            blender::bke::cryptomatte::CryptomatteStampDataCallbackData::extract_layer_hash(
-                "cryptomatte/name"));
-  EXPECT_EQ("",
-            blender::bke::cryptomatte::CryptomatteStampDataCallbackData::extract_layer_hash(
-                "cryptomatte/"));
+  EXPECT_EQ(
+      "",
+      bke::cryptomatte::CryptomatteStampDataCallbackData::extract_layer_hash("cryptomatte/name"));
+  EXPECT_EQ(
+      "", bke::cryptomatte::CryptomatteStampDataCallbackData::extract_layer_hash("cryptomatte/"));
 }
 
 static void validate_cryptomatte_session_from_stamp_data(void * /*data*/,
@@ -97,34 +94,34 @@ static void validate_cryptomatte_session_from_stamp_data(void * /*data*/,
                                                          char *propvalue,
                                                          int /*propvalue_maxncpy*/)
 {
-  blender::StringRefNull prop_name(propname);
+  StringRefNull prop_name(propname);
   if (!prop_name.startswith("cryptomatte/")) {
     return;
   }
 
-  if (prop_name == "cryptomatte/87f095e/name") {
-    EXPECT_STREQ("viewlayername.layer1", propvalue);
+  if (prop_name == "cryptomatte/67da54b/name") {
+    EXPECT_STREQ("layer1", propvalue);
   }
-  else if (prop_name == "cryptomatte/87f095e/hash") {
+  else if (prop_name == "cryptomatte/67da54b/hash") {
     EXPECT_STREQ("MurmurHash3_32", propvalue);
   }
-  else if (prop_name == "cryptomatte/87f095e/conversion") {
+  else if (prop_name == "cryptomatte/67da54b/conversion") {
     EXPECT_STREQ("uint32_to_float32", propvalue);
   }
-  else if (prop_name == "cryptomatte/87f095e/manifest") {
+  else if (prop_name == "cryptomatte/67da54b/manifest") {
     EXPECT_STREQ(R"({"Object":"12345678"})", propvalue);
   }
 
-  else if (prop_name == "cryptomatte/c42daa7/name") {
-    EXPECT_STREQ("viewlayername.layer2", propvalue);
+  else if (prop_name == "cryptomatte/79b2306/name") {
+    EXPECT_STREQ("layer2", propvalue);
   }
-  else if (prop_name == "cryptomatte/c42daa7/hash") {
+  else if (prop_name == "cryptomatte/79b2306/hash") {
     EXPECT_STREQ("MurmurHash3_32", propvalue);
   }
-  else if (prop_name == "cryptomatte/c42daa7/conversion") {
+  else if (prop_name == "cryptomatte/79b2306/conversion") {
     EXPECT_STREQ("uint32_to_float32", propvalue);
   }
-  else if (prop_name == "cryptomatte/c42daa7/manifest") {
+  else if (prop_name == "cryptomatte/79b2306/manifest") {
     EXPECT_STREQ(R"({"Object2":"87654321"})", propvalue);
   }
 
@@ -136,8 +133,7 @@ static void validate_cryptomatte_session_from_stamp_data(void * /*data*/,
 TEST(cryptomatte, session_from_stamp_data)
 {
   /* Create CryptomatteSession from stamp data. */
-  RenderResult *render_result = static_cast<RenderResult *>(
-      MEM_callocN(sizeof(RenderResult), __func__));
+  RenderResult *render_result = MEM_new<RenderResult>(__func__);
   BKE_render_result_stamp_data(render_result, "cryptomatte/qwerty/name", "layer1");
   BKE_render_result_stamp_data(
       render_result, "cryptomatte/qwerty/manifest", R"({"Object":"12345678"})");
@@ -149,11 +145,8 @@ TEST(cryptomatte, session_from_stamp_data)
   RE_FreeRenderResult(render_result);
 
   /* Create StampData from CryptomatteSession. */
-  ViewLayer view_layer;
-  STRNCPY(view_layer.name, "viewlayername");
-  RenderResult *render_result2 = static_cast<RenderResult *>(
-      MEM_callocN(sizeof(RenderResult), __func__));
-  BKE_cryptomatte_store_metadata(session.get(), render_result2, &view_layer);
+  RenderResult *render_result2 = MEM_new<RenderResult>(__func__);
+  BKE_cryptomatte_store_metadata(session.get(), render_result2);
 
   /* Validate StampData. */
   BKE_stamp_info_callback(

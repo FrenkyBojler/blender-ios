@@ -6,12 +6,10 @@ set(INC
   .
   ..
   ../..
-  ../../../blenkernel
   ../../../../../intern/utfconv
 )
 
 set(INC_SYS
-
 )
 
 set(SRC
@@ -20,19 +18,18 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::clog
 )
 
 if(WITH_IMAGE_OPENEXR)
-  list(APPEND INC_SYS
-    ${OPENEXR_INCLUDE_DIRS}
-  )
   list(APPEND LIB
-    ${OPENEXR_LIBRARIES}
+    PRIVATE bf::dependencies::optional::openexr
   )
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
   if(WIN32)
     if(EXISTS ${LIBDIR}/imath/bin/imath.dll)
       add_definitions(-DIMATH_DLL)

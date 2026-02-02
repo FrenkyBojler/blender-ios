@@ -8,6 +8,13 @@ else()
   set(LLVM_TARGETS X86)
 endif()
 
+if(UNIX AND NOT APPLE)
+  # Make llvm's pkgconfig pick up our static xml2 lib
+  set(LLVM_XML2_ARGS
+    -DCMAKE_PREFIX_PATH=${LIBDIR}/xml2
+  )
+endif()
+
 if(APPLE)
   set(LLVM_XML2_ARGS
     -DLIBXML2_LIBRARY=${LIBDIR}/xml2/lib/libxml2.a
@@ -39,17 +46,24 @@ set(LLVM_EXTRA_ARGS
   ${LLVM_XML2_ARGS}
 )
 
+set(LLVM_PATCH
+  ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/ll/src/ll <
+    ${PATCH_DIR}/llvm.diff
+)
+
 if(WIN32)
   set(LLVM_GENERATOR "Ninja")
   list(APPEND LLVM_EXTRA_ARGS -DPython3_FIND_REGISTRY=NEVER)
+  set(LLVM_PATCH
+    ${LLVM_PATCH} &&
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/ll/src/ll <
+      ${PATCH_DIR}/llvm_clang_cuda_msvc_header_fix.diff
+    )
 else()
   set(LLVM_GENERATOR "Unix Makefiles")
 endif()
-
-# LLVM does not switch over to cpp17 until llvm 16 and building ealier versions with
-# MSVC is leading to some crashes in ISPC. Switch back to their default on all platforms
-# for now.
-string(REPLACE "-DCMAKE_CXX_STANDARD=17" " " LLVM_CMAKE_FLAGS "${DEFAULT_CMAKE_FLAGS}")
 
 # short project name due to long filename issues on windows
 ExternalProject_Add(ll
@@ -61,13 +75,11 @@ ExternalProject_Add(ll
   PREFIX ${BUILD_DIR}/ll
   SOURCE_SUBDIR llvm
 
-  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
-    ${BUILD_DIR}/ll/src/ll <
-    ${PATCH_DIR}/llvm.diff
+  PATCH_COMMAND ${LLVM_PATCH}
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/llvm
-    ${LLVM_CMAKE_FLAGS}
+    ${DEFAULT_CMAKE_FLAGS}
     ${LLVM_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/llvm
@@ -114,7 +126,7 @@ else()
 endif()
 
 # We currently do not build libxml2 on Windows.
-if(APPLE)
+if(UNIX)
   add_dependencies(
     ll
     external_xml2

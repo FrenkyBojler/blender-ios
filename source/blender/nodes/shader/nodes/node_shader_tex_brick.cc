@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <algorithm>
+
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
@@ -12,16 +14,18 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-namespace blender::nodes::node_shader_tex_brick_cc {
+namespace blender {
+
+namespace nodes::node_shader_tex_brick_cc {
 
 static void sh_node_tex_brick_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Vector>("Vector").min(-10000.0f).max(10000.0f).implicit_field(
-      implicit_field_inputs::position);
+      NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Color>("Color1")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
       .description("Color of the first reference brick");
@@ -44,7 +48,7 @@ static void sh_node_tex_brick_declare(NodeDeclarationBuilder &b)
       .default_value(0.02f)
       .no_muted_links()
       .description(
-          "Size of the filling between the bricks (known as “mortar”). "
+          "Size of the filling between the bricks (known as \"mortar\"). "
           "0 means no mortar");
   b.add_input<decl::Float>("Mortar Smooth")
       .min(0.0f)
@@ -63,40 +67,38 @@ static void sh_node_tex_brick_declare(NodeDeclarationBuilder &b)
       .max(100.0f)
       .default_value(0.5f)
       .no_muted_links()
-      .description("Ratio of brick’s width relative to the texture scale");
+      .description("Ratio of brick's width relative to the texture scale");
   b.add_input<decl::Float>("Row Height")
       .min(0.01f)
       .max(100.0f)
       .default_value(0.25f)
       .no_muted_links()
-      .description("Ratio of brick’s row height relative to the texture scale");
+      .description("Ratio of brick's row height relative to the texture scale");
   b.add_output<decl::Color>("Color");
-  b.add_output<decl::Float>("Fac");
+  b.add_output<decl::Float>("Factor", "Fac");
 }
 
-static void node_shader_buts_tex_brick(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_tex_brick(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayout *col;
-
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col,
-          ptr,
-          "offset",
-          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
-          IFACE_("Offset"),
-          ICON_NONE);
-  uiItemR(
-      col, ptr, "offset_frequency", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
-
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "squash", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Squash"), ICON_NONE);
-  uiItemR(
-      col, ptr, "squash_frequency", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
+  {
+    ui::Layout &col = layout.column(true);
+    col.prop(ptr,
+             "offset",
+             ui::ITEM_R_SPLIT_EMPTY_NAME | ui::ITEM_R_SLIDER,
+             IFACE_("Offset"),
+             ICON_NONE);
+    col.prop(ptr, "offset_frequency", ui::ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
+  }
+  {
+    ui::Layout &col = layout.column(true);
+    col.prop(ptr, "squash", ui::ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Squash"), ICON_NONE);
+    col.prop(ptr, "squash_frequency", ui::ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
+  }
 }
 
 static void node_shader_init_tex_brick(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexBrick *tex = MEM_cnew<NodeTexBrick>(__func__);
+  NodeTexBrick *tex = MEM_new<NodeTexBrick>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
 
@@ -116,7 +118,7 @@ static int node_shader_gpu_tex_brick(GPUMaterial *mat,
 {
   node_shader_gpu_default_tex_coord(mat, node, &in[0].link);
   node_shader_gpu_tex_mapping(mat, node, in, out);
-  NodeTexBrick *tex = (NodeTexBrick *)node->storage;
+  NodeTexBrick *tex = static_cast<NodeTexBrick *>(node->storage);
   float offset_freq = tex->offset_freq;
   float squash_freq = tex->squash_freq;
   return GPU_stack_link(mat,
@@ -206,7 +208,7 @@ class BrickFunction : public mf::MultiFunction {
 
     const float tint = clamp_f(
         brick_noise((rownum << 16) + (bricknum & 0xFFFF)) + bias, 0.0f, 1.0f);
-    float min_dist = std::min(std::min(x, y), std::min(brick_width - x, row_height - y));
+    float min_dist = std::min({x, y, brick_width - x, row_height - y});
 
     float mortar;
     if (min_dist >= mortar_size) {
@@ -285,29 +287,36 @@ class BrickFunction : public mf::MultiFunction {
 static void sh_node_brick_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const bNode &node = builder.node();
-  NodeTexBrick *tex = (NodeTexBrick *)node.storage;
+  NodeTexBrick *tex = static_cast<NodeTexBrick *>(node.storage);
 
   builder.construct_and_set_matching_fn<BrickFunction>(
       tex->offset, tex->offset_freq, tex->squash, tex->squash_freq);
 }
 
-}  // namespace blender::nodes::node_shader_tex_brick_cc
+}  // namespace nodes::node_shader_tex_brick_cc
 
 void register_node_type_sh_tex_brick()
 {
-  namespace file_ns = blender::nodes::node_shader_tex_brick_cc;
+  namespace file_ns = nodes::node_shader_tex_brick_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_TEX_BRICK, "Brick Texture", NODE_CLASS_TEXTURE);
+  common_node_type_base(&ntype, "ShaderNodeTexBrick", SH_NODE_TEX_BRICK);
+  ntype.ui_name = "Brick Texture";
+  ntype.ui_description = "Generate a procedural texture producing bricks";
+  ntype.enum_name_legacy = "TEX_BRICK";
+  ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::sh_node_tex_brick_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_brick;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
+  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_tex_brick;
-  blender::bke::node_type_storage(
-      &ntype, "NodeTexBrick", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_storage(
+      ntype, "NodeTexBrick", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_brick;
   ntype.build_multi_function = file_ns::sh_node_brick_build_multi_function;
+  bke::node_type_size(ntype, 165, 140, NODE_DEFAULT_MAX_WIDTH);
 
-  blender::bke::nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

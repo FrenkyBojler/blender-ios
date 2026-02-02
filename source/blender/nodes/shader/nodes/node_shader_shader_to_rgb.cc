@@ -4,7 +4,9 @@
 
 #include "node_shader_util.hh"
 
-namespace blender::nodes::node_shader_shader_to_rgb_cc {
+namespace blender {
+
+namespace nodes::node_shader_shader_to_rgb_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -24,19 +26,28 @@ static int node_shader_gpu_shadertorgb(GPUMaterial *mat,
   return GPU_stack_link(mat, node, "node_shader_to_rgba", in, out);
 }
 
-}  // namespace blender::nodes::node_shader_shader_to_rgb_cc
+}  // namespace nodes::node_shader_shader_to_rgb_cc
 
 /* node type definition */
 void register_node_type_sh_shadertorgb()
 {
-  namespace file_ns = blender::nodes::node_shader_shader_to_rgb_cc;
+  namespace file_ns = nodes::node_shader_shader_to_rgb_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_SHADERTORGB, "Shader to RGB", NODE_CLASS_CONVERTER);
+  sh_node_type_base(&ntype, "ShaderNodeShaderToRGB", SH_NODE_SHADERTORGB);
+  ntype.ui_name = "Shader to RGB";
+  ntype.ui_description =
+      "Convert rendering effect (such as light and shadow) to color. Typically used for "
+      "non-photorealistic rendering, to apply additional effects on the output of BSDFs.\nNote: "
+      "only supported in EEVEE";
+  ntype.enum_name_legacy = "SHADERTORGB";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_eevee_shader_nodes_poll;
   ntype.gpu_fn = file_ns::node_shader_gpu_shadertorgb;
 
-  blender::bke::nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

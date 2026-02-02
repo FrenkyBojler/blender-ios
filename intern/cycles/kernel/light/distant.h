@@ -4,16 +4,17 @@
 
 #pragma once
 
-#include "kernel/geom/geom.h"
+#include "kernel/geom/object.h"
 
 #include "kernel/light/common.h"
 
+#include "util/math_fast.h"
+
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline void distant_light_uv(const ccl_global KernelLight *klight,
-                                        const float3 D,
-                                        ccl_private float *u,
-                                        ccl_private float *v)
+ccl_device_inline float2 distant_light_uv(KernelGlobals kg,
+                                          const ccl_global KernelLight *klight,
+                                          const float3 D)
 {
   /* Map direction (x, y, z) to disk [-0.5, 0.5]^2:
    * r^2 = (1 - z) / (1 - cos(klight->distant.angle))
@@ -22,13 +23,12 @@ ccl_device_inline void distant_light_uv(const ccl_global KernelLight *klight,
   const float fac = klight->distant.half_inv_sin_half_angle / len(D - klight->co);
 
   /* Get u axis and v axis. */
-  const Transform itfm = klight->itfm;
-  const float u_ = dot(D, float4_to_float3(itfm.x)) * fac;
-  const float v_ = dot(D, float4_to_float3(itfm.y)) * fac;
+  const Transform itfm = lamp_get_inverse_transform(kg, klight);
+  const float u_ = dot(D, make_float3(itfm.x)) * fac;
+  const float v_ = dot(D, make_float3(itfm.y)) * fac;
 
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
-  *u = v_ + 0.5f;
-  *v = -u_ - v_;
+  return make_float2(v_ + 0.5f, -u_ - v_);
 }
 
 ccl_device_inline bool distant_light_sample(const ccl_global KernelLight *klight,
@@ -45,22 +45,18 @@ ccl_device_inline bool distant_light_sample(const ccl_global KernelLight *klight
 
   ls->eval_fac = klight->distant.eval_fac;
 
-  distant_light_uv(klight, ls->D, &ls->u, &ls->v);
-
   return true;
 }
 
 /* Special intersection check.
- * Returns true if the distant_light_sample_from_intersection() for this light would return true.
+ * Returns true if the distant_light_eval_from_intersection() for this light would return true.
  *
  * The intersection parameters t, u, v are optimized for the shadow ray towards a dedicated light:
  * u = v = 0, t = FLT_MAX.
  */
 ccl_device bool distant_light_intersect(const ccl_global KernelLight *klight,
                                         const ccl_private Ray *ccl_restrict ray,
-                                        ccl_private float *t,
-                                        ccl_private float *u,
-                                        ccl_private float *v)
+                                        ccl_private float *t)
 {
   kernel_assert(klight->type == LIGHT_DISTANT);
 
@@ -73,60 +69,22 @@ ccl_device bool distant_light_intersect(const ccl_global KernelLight *klight,
   }
 
   *t = FLT_MAX;
-  *u = 0.0f;
-  *v = 0.0f;
 
   return true;
 }
 
-ccl_device bool distant_light_sample_from_intersection(KernelGlobals kg,
-                                                       const float3 ray_D,
-                                                       const int lamp,
-                                                       ccl_private LightSample *ccl_restrict ls)
+ccl_device LightEval distant_light_eval_from_intersection(const ccl_global KernelLight *klight,
+                                                          const float3 ray_D)
 {
-  ccl_global const KernelLight *klight = &kernel_data_fetch(lights, lamp);
-  const int shader = klight->shader_id;
-  const LightType type = (LightType)klight->type;
-
-  if (type != LIGHT_DISTANT) {
-    return false;
-  }
-  if (!(shader & SHADER_USE_MIS)) {
-    return false;
-  }
   if (klight->distant.angle == 0.0f) {
-    return false;
+    return LightEval{};
   }
-
-  /* Workaround to prevent a hang in the classroom scene with AMD HIP drivers 22.10,
-   * Remove when a compiler fix is available. */
-#ifdef __HIP__
-  ls->shader = klight->shader_id;
-#endif
 
   if (vector_angle(-klight->co, ray_D) > klight->distant.angle) {
-    return false;
+    return LightEval{};
   }
 
-  ls->type = type;
-#ifndef __HIP__
-  ls->shader = klight->shader_id;
-#endif
-  ls->object = PRIM_NONE;
-  ls->prim = PRIM_NONE;
-  ls->lamp = lamp;
-  ls->t = FLT_MAX;
-  ls->P = -ray_D;
-  ls->Ng = -ray_D;
-  ls->D = ray_D;
-  ls->group = lamp_lightgroup(kg, lamp);
-
-  ls->pdf = klight->distant.pdf;
-  ls->eval_fac = klight->distant.eval_fac;
-
-  distant_light_uv(klight, ray_D, &ls->u, &ls->v);
-
-  return true;
+  return LightEval{klight->distant.eval_fac, klight->distant.pdf};
 }
 
 template<bool in_volume_segment>
@@ -140,10 +98,15 @@ ccl_device_forceinline bool distant_light_tree_parameters(const float3 centroid,
 {
   if (in_volume_segment) {
     if (t == FLT_MAX) {
-      /* In world volume, distant light has no contribution. */
-      return false;
+      /* In world volumes, distant lights can contribute to the lighting of the volume with
+       * specific configurations of procedurally generated volumes. Use a ray length of 1.0 in this
+       * case to give the distant light some weight, but one that isn't too high for a typical
+       * world volume use case. */
+      theta_d = 1.0f;
     }
-    theta_d = t;
+    else {
+      theta_d = t;
+    }
   }
 
   /* Treating it as a disk light 1 unit away */

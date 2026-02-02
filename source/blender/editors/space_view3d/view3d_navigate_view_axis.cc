@@ -6,9 +6,10 @@
  * \ingroup spview3d
  */
 
-#include "MEM_guardedalloc.h"
-
+#include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
+
+#include "DNA_userdef_types.h"
 
 #include "BLT_translation.hh"
 
@@ -27,6 +28,8 @@
 
 #include "view3d_navigate.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name View Axis Operator
  * \{ */
@@ -41,7 +44,7 @@ static const EnumPropertyItem prop_view_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int view_axis_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_axis_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d;
   ARegion *region;
@@ -71,7 +74,7 @@ static int view_axis_exec(bContext *C, wmOperator *op)
       ViewLayer *view_layer = CTX_data_view_layer(C);
       Object *obedit = CTX_data_edit_object(C);
       /* same as transform gizmo when normal is set */
-      ED_getTransformOrientationMatrix(
+      ed::transform::ED_getTransformOrientationMatrix(
           scene, view_layer, v3d, obact, obedit, V3D_AROUND_ACTIVE, twmat);
       align_quat = align_quat_buf;
       mat3_to_quat(align_quat, twmat);
@@ -163,7 +166,7 @@ void VIEW3D_OT_view_axis(wmOperatorType *ot)
   ot->description = "Use a preset viewpoint";
   ot->idname = "VIEW3D_OT_view_axis";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_axis_exec;
   ot->poll = ED_operator_rv3d_user_region_poll;
 
@@ -183,3 +186,5 @@ void VIEW3D_OT_view_axis(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

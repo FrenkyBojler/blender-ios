@@ -9,6 +9,10 @@
  * \brief external `writefile.cc` function prototypes.
  */
 
+#include "BLI_sys_types.h"
+
+namespace blender {
+
 struct BlendThumbnail;
 struct Main;
 struct MemFile;
@@ -60,3 +64,5 @@ extern bool BLO_write_file(Main *mainvar,
 extern bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, int write_flags);
 
 /** \} */
+
+}  // namespace blender

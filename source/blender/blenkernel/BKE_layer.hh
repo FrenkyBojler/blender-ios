@@ -16,6 +16,8 @@
 #include "DNA_listBase.h"
 #include "DNA_object_enums.h"
 
+namespace blender {
+
 struct Base;
 struct BlendDataReader;
 struct BlendLibReader;
@@ -110,7 +112,7 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
                               const ViewLayer *view_layer_src,
                               int flag);
 
-void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, const char *name);
+void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, const char *newname);
 
 /**
  * Get the active collection
@@ -150,21 +152,56 @@ void BKE_layer_collection_resync_allow();
  */
 void BKE_layer_collection_doversion_2_80(const Scene *scene, ViewLayer *view_layer);
 
-void BKE_main_collection_sync(const Main *bmain);
-void BKE_scene_collection_sync(const Scene *scene);
+/**
+ * Tag all viewlayers of all the scenes of the given `main` as being #VIEW_LAYER_OUT_OF_SYNC.
+ *
+ * Also directly update all local viewlayers (used in 3DView in local mode).
+ *
+ * \return `true` if all viewlayers were successfully tagged (or resynced for the local ones),
+ * `false` otherwise. See also #BKE_layer_collection_sync.
+ */
+bool BKE_main_collection_sync(const Main *bmain);
+/** Same as for #BKE_main_collection_sync, but for a single scene only. */
+bool BKE_scene_collection_sync(const Scene *scene);
+/**
+ * Similar to #BKE_main_collection_sync, but does additional cache cleanups and depsgraph tagging,
+ * required after remapping objects/collections ID pointers.
+ *
+ * \return `true` if all viewlayers were successfully tagged (or resynced for the local ones),
+ * `false` otherwise. See also #BKE_layer_collection_sync.
+ */
+bool BKE_main_collection_sync_remap(const Main *bmain);
 /**
  * Update view layer collection tree from collections used in the scene.
  * This is used when collections are removed or added, both while editing
  * and on file loaded in case linked data changed or went missing.
+ *
+ * \warning Calling this function directly should almost never be necessary, and should be avoided
+ * at all costs. It is utterly unsafe in multi-threaded context, among other risks. The typical
+ * process is to tag view layers for updates with #BKE_view_layer_need_resync_tag (or the more
+ * general #BKE_scene_collection_sync/#BKE_main_collection_sync), and only ensure the layers are
+ * up-to-date when actually needed, using #BKE_view_layer_synced_ensure and related API.
+ *
+ * \return `true` if the viewlayer was successfully resynced (or already in sync), `false` if a
+ * resync was needed but could not be performed (e.g. because resync is locked by one or more calls
+ * to #BKE_layer_collection_resync_forbid).
  */
-void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer);
-void BKE_layer_collection_local_sync(const Scene *scene, ViewLayer *view_layer, const View3D *v3d);
+bool BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer);
 /**
- * Sync the local collection for all the 3D Viewports.
+ * Sync the local visibility of collections & objects, for the given 3D Viewport in 'local' view
+ * mode.
+ *
+ * \return `true` if the local viewport info were successfully resynced, `false` otherwise. See
+ * also #BKE_layer_collection_sync.
  */
-void BKE_layer_collection_local_sync_all(const Main *bmain);
-
-void BKE_main_collection_sync_remap(const Main *bmain);
+bool BKE_layer_collection_local_sync(const Scene *scene, ViewLayer *view_layer, const View3D *v3d);
+/**
+ * Sync the local visibility of collections & objects, for all 3D Viewports in 'local' view mode.
+ *
+ * \return `true` if all local info were successfully resynced, `false` otherwise. See also
+ * #BKE_layer_collection_sync.
+ */
+bool BKE_layer_collection_local_sync_all(const Main *bmain);
 
 /**
  * Return the first matching #LayerCollection in the #ViewLayer for the Collection.
@@ -257,7 +294,9 @@ void BKE_view_layer_blend_read_after_liblink(BlendLibReader *reader,
 /* iterators */
 
 struct ObjectsVisibleIteratorData {
+  /** Can be null, in this case all scene objects are iterated over. */
   ViewLayer *view_layer;
+  /** Can be null, in this case local-view & view settings are ignored. */
   const View3D *v3d;
 };
 
@@ -432,7 +471,7 @@ void BKE_view_layer_visible_bases_iterator_end(BLI_Iterator *iter);
   } \
   ((void)0)
 
-#define FOREACH_OBJECT_FLAG_BEGIN(scene, _view_layer, _v3d, flag, _instance) \
+#define FOREACH_OBJECT_FLAG_BEGIN(_scene, _view_layer, _v3d, _flag, _instance) \
   { \
     IteratorBeginCb func_begin; \
     IteratorCb func_next, func_end; \
@@ -443,26 +482,32 @@ void BKE_view_layer_visible_bases_iterator_end(BLI_Iterator *iter);
     data_select_.v3d = _v3d; \
 \
     SceneObjectsIteratorExData data_flag_ = {NULL}; \
-    data_flag_.scene = scene; \
-    data_flag_.flag = flag; \
-\
-    if (flag == SELECT) { \
-      func_begin = &BKE_view_layer_selected_objects_iterator_begin; \
-      func_next = &BKE_view_layer_selected_objects_iterator_next; \
-      func_end = &BKE_view_layer_selected_objects_iterator_end; \
-      data_in = &data_select_; \
+    data_flag_.scene = _scene; \
+    switch ((data_flag_.flag = _flag)) { \
+      case SELECT: { \
+        func_begin = &BKE_view_layer_selected_objects_iterator_begin; \
+        func_next = &BKE_view_layer_selected_objects_iterator_next; \
+        func_end = &BKE_view_layer_selected_objects_iterator_end; \
+        data_in = &data_select_; \
+        break; \
+      } \
+      case 0: { \
+        func_begin = BKE_scene_objects_iterator_begin; \
+        func_next = BKE_scene_objects_iterator_next; \
+        func_end = BKE_scene_objects_iterator_end; \
+        data_in = data_flag_.scene; \
+        break; \
+      } \
+      default: { \
+        func_begin = BKE_scene_objects_iterator_begin_ex; \
+        func_next = BKE_scene_objects_iterator_next_ex; \
+        func_end = BKE_scene_objects_iterator_end_ex; \
+        data_in = &data_flag_; \
+        break; \
+      } \
     } \
-    else if (flag != 0) { \
-      func_begin = BKE_scene_objects_iterator_begin_ex; \
-      func_next = BKE_scene_objects_iterator_next_ex; \
-      func_end = BKE_scene_objects_iterator_end_ex; \
-      data_in = &data_flag_; \
-    } \
-    else { \
-      func_begin = BKE_scene_objects_iterator_begin; \
-      func_next = BKE_scene_objects_iterator_next; \
-      func_end = BKE_scene_objects_iterator_end; \
-      data_in = (scene); \
+    if (data_select_.view_layer) { \
+      BKE_view_layer_synced_ensure(data_flag_.scene, data_select_.view_layer); \
     } \
     ITER_BEGIN (func_begin, func_next, func_end, data_in, Object *, _instance)
 
@@ -480,7 +525,7 @@ struct ObjectsInViewLayerParams {
   void *filter_userdata;
 };
 
-blender::Vector<Object *> BKE_view_layer_array_selected_objects_params(
+Vector<Object *> BKE_view_layer_array_selected_objects_params(
     ViewLayer *view_layer, const View3D *v3d, const ObjectsInViewLayerParams *params);
 
 /**
@@ -502,13 +547,12 @@ struct ObjectsInModeParams {
   void *filter_userdata;
 };
 
-blender::Vector<Base *> BKE_view_layer_array_from_bases_in_mode_params(
-    const Scene *scene,
-    ViewLayer *view_layer,
-    const View3D *v3d,
-    const ObjectsInModeParams *params);
+Vector<Base *> BKE_view_layer_array_from_bases_in_mode_params(const Scene *scene,
+                                                              ViewLayer *view_layer,
+                                                              const View3D *v3d,
+                                                              const ObjectsInModeParams *params);
 
-blender::Vector<Object *> BKE_view_layer_array_from_objects_in_mode_params(
+Vector<Object *> BKE_view_layer_array_from_objects_in_mode_params(
     const Scene *scene,
     ViewLayer *view_layer,
     const View3D *v3d,
@@ -519,34 +563,66 @@ bool BKE_view_layer_filter_edit_mesh_has_edges(const Object *ob, void *user_data
 
 /* Utility functions that wrap common arguments (add more as needed). */
 
-blender::Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode(const Scene *scene,
-                                                                         ViewLayer *view_layer,
-                                                                         const View3D *v3d);
-blender::Vector<Base *> BKE_view_layer_array_from_bases_in_edit_mode(const Scene *scene,
-                                                                     ViewLayer *view_layer,
-                                                                     const View3D *v3d);
-blender::Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-    const Scene *scene, ViewLayer *view_layer, const View3D *v3d);
+Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode(const Scene *scene,
+                                                                ViewLayer *view_layer,
+                                                                const View3D *v3d);
+Vector<Base *> BKE_view_layer_array_from_bases_in_edit_mode(const Scene *scene,
+                                                            ViewLayer *view_layer,
+                                                            const View3D *v3d);
+Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode_unique_data(const Scene *scene,
+                                                                            ViewLayer *view_layer,
+                                                                            const View3D *v3d);
 
-blender::Vector<Base *> BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
+Vector<Base *> BKE_view_layer_array_from_bases_in_edit_mode_unique_data(const Scene *scene,
+                                                                        ViewLayer *view_layer,
+                                                                        const View3D *v3d);
+Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
     const Scene *scene, ViewLayer *view_layer, const View3D *v3d);
-blender::Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-    const Scene *scene, ViewLayer *view_layer, const View3D *v3d);
-blender::Vector<Object *> BKE_view_layer_array_from_objects_in_mode_unique_data(
-    const Scene *scene, ViewLayer *view_layer, const View3D *v3d, eObjectMode mode);
+Vector<Object *> BKE_view_layer_array_from_objects_in_mode_unique_data(const Scene *scene,
+                                                                       ViewLayer *view_layer,
+                                                                       const View3D *v3d,
+                                                                       eObjectMode mode);
 Object *BKE_view_layer_active_object_get(const ViewLayer *view_layer);
 Object *BKE_view_layer_edit_object_get(const ViewLayer *view_layer);
 
-ListBase *BKE_view_layer_object_bases_get(ViewLayer *view_layer);
+ListBaseT<Base> *BKE_view_layer_object_bases_get(ViewLayer *view_layer);
+/**
+ * Same as the above, but does not assert that the viewlayer is synced.
+ *
+ * \warning Use with _extreme_ care, as it means the data returned by this call may not be valid.
+ */
+ListBaseT<Base> *BKE_view_layer_object_bases_unsynced_get(ViewLayer *view_layer);
+
 Base *BKE_view_layer_active_base_get(ViewLayer *view_layer);
 
 LayerCollection *BKE_view_layer_active_collection_get(ViewLayer *view_layer);
 
+/**
+ * Tag the given view-layer as being #VIEW_LAYER_OUT_OF_SYNC with the hierarchy of collections and
+ * objects it represents.
+ *
+ * This allows to defer the actual resync process to when up-to-date data is required (see
+ * #BKE_view_layer_synced_ensure and related API).
+ */
 void BKE_view_layer_need_resync_tag(ViewLayer *view_layer);
-void BKE_view_layer_synced_ensure(const Scene *scene, ViewLayer *view_layer);
-
-void BKE_scene_view_layers_synced_ensure(const Scene *scene);
-void BKE_main_view_layers_synced_ensure(const Main *bmain);
+/**
+ * Ensure that the given `scene`'s `view_layer`  is fully in sync with the hierarchy of collections
+ * and objects it represents.
+ *
+ * \return `true` if the viewlayer was successfully resynced, `false` otherwise. See also
+ * #BKE_layer_collection_sync.
+ */
+bool BKE_view_layer_synced_ensure(const Scene *scene, ViewLayer *view_layer);
+/**
+ * \return `true` if all viewlayers were successfully resynced, `false` otherwise. See also
+ * #BKE_layer_collection_sync.
+ */
+bool BKE_scene_view_layers_synced_ensure(const Scene *scene);
+/**
+ * \return `true` if all viewlayers were successfully resynced, `false` otherwise. See also
+ * #BKE_layer_collection_sync.
+ */
+bool BKE_main_view_layers_synced_ensure(const Main *bmain);
 
 ViewLayerAOV *BKE_view_layer_add_aov(ViewLayer *view_layer);
 void BKE_view_layer_remove_aov(ViewLayer *view_layer, ViewLayerAOV *aov);
@@ -564,13 +640,12 @@ void BKE_view_layer_verify_aov(RenderEngine *engine, Scene *scene, ViewLayer *vi
  * Check if the given view layer has at least one valid AOV.
  */
 bool BKE_view_layer_has_valid_aov(ViewLayer *view_layer);
-ViewLayer *BKE_view_layer_find_with_aov(Scene *scene, ViewLayerAOV *view_layer_aov);
+ViewLayer *BKE_view_layer_find_with_aov(Scene *scene, ViewLayerAOV *aov);
 
 ViewLayerLightgroup *BKE_view_layer_add_lightgroup(ViewLayer *view_layer, const char *name);
 void BKE_view_layer_remove_lightgroup(ViewLayer *view_layer, ViewLayerLightgroup *lightgroup);
 void BKE_view_layer_set_active_lightgroup(ViewLayer *view_layer, ViewLayerLightgroup *lightgroup);
-ViewLayer *BKE_view_layer_find_with_lightgroup(Scene *scene,
-                                               ViewLayerLightgroup *view_layer_lightgroup);
+ViewLayer *BKE_view_layer_find_with_lightgroup(Scene *scene, ViewLayerLightgroup *lightgroup);
 void BKE_view_layer_rename_lightgroup(Scene *scene,
                                       ViewLayer *view_layer,
                                       ViewLayerLightgroup *lightgroup,
@@ -579,3 +654,5 @@ void BKE_view_layer_rename_lightgroup(Scene *scene,
 int BKE_lightgroup_membership_get(const LightgroupMembership *lgm, char *name);
 int BKE_lightgroup_membership_length(const LightgroupMembership *lgm);
 void BKE_lightgroup_membership_set(LightgroupMembership **lgm, const char *name);
+
+}  // namespace blender

@@ -9,12 +9,8 @@
 #include <array>
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
-
-#include "CLG_log.h"
 
 #include "BLT_translation.hh"
 
@@ -23,12 +19,13 @@
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_main.hh"
 #include "BKE_node.hh"
 
 #include "BKE_idtype.hh"
 
-// static CLG_LogRef LOG = {"bke.idtype"};
+namespace blender {
+
+// static CLG_LogRef LOG = {"lib.idtype"};
 
 uint BKE_idtype_cache_key_hash(const void *key_v)
 {
@@ -72,7 +69,6 @@ static void id_type_init()
   INIT_TYPE(ID_LT);
   INIT_TYPE(ID_LA);
   INIT_TYPE(ID_CA);
-  INIT_TYPE(ID_IP);
   INIT_TYPE(ID_KE);
   INIT_TYPE(ID_WO);
   INIT_TYPE(ID_SCR);
@@ -110,7 +106,7 @@ static void id_type_init()
   UNUSED_VARS_NDEBUG(init_types_num);
 
   { /* Inspect which ID types can be animated, so that IDType_ID_AC.dependencies_id_types can be
-     * set to include those. The runtime ID* cache of animrig::Binding will point to any
+     * set to include those. The runtime ID* cache of #animrig::Slot will point to any
      * ID that is animated by it, and thus can point to any animatable ID type. */
     IDType_ID_AC.dependencies_id_types = 0;
     for (const IDTypeInfo *id_type : id_types) {
@@ -135,6 +131,8 @@ const IDTypeInfo *BKE_idtype_get_info_from_idtype_index(const int idtype_index)
   if (idtype_index >= 0 && idtype_index < int(id_types.size())) {
     const IDTypeInfo *id_type = id_types[size_t(idtype_index)];
     if (id_type && id_type->name[0] != '\0') {
+      BLI_assert_msg(BKE_idtype_idcode_to_index(id_type->id_code) == idtype_index,
+                     "Critical inconsistency in ID type information");
       return id_type;
     }
   }
@@ -156,6 +154,17 @@ static const IDTypeInfo *idtype_get_info_from_name(const char *idtype_name)
 {
   for (const IDTypeInfo *id_type : id_types) {
     if (id_type && STREQ(idtype_name, id_type->name)) {
+      return id_type;
+    }
+  }
+
+  return nullptr;
+}
+
+static const IDTypeInfo *idtype_get_info_from_name_case_insensitive(const char *idtype_name)
+{
+  for (const IDTypeInfo *id_type : id_types) {
+    if (id_type && STRCASEEQ(idtype_name, id_type->name)) {
       return id_type;
     }
   }
@@ -189,6 +198,13 @@ const char *BKE_idtype_idcode_to_translation_context(const short idcode)
 short BKE_idtype_idcode_from_name(const char *idtype_name)
 {
   const IDTypeInfo *id_type = idtype_get_info_from_name(idtype_name);
+  BLI_assert(id_type);
+  return id_type != nullptr ? id_type->id_code : 0;
+}
+
+short BKE_idtype_idcode_from_name_case_insensitive(const char *idtype_name)
+{
+  const IDTypeInfo *id_type = idtype_get_info_from_name_case_insensitive(idtype_name);
   BLI_assert(id_type);
   return id_type != nullptr ? id_type->id_code : 0;
 }
@@ -235,7 +251,7 @@ int BKE_idtype_idcode_to_index(const short idcode)
   case ID_##_id: \
     return INDEX_ID_##_id
 
-  switch ((ID_Type)idcode) {
+  switch (ID_Type(idcode)) {
     CASE_IDINDEX(AC);
     CASE_IDINDEX(AR);
     CASE_IDINDEX(BR);
@@ -247,7 +263,6 @@ int BKE_idtype_idcode_to_index(const short idcode)
     CASE_IDINDEX(GR);
     CASE_IDINDEX(CV);
     CASE_IDINDEX(IM);
-    CASE_IDINDEX(IP);
     CASE_IDINDEX(KE);
     CASE_IDINDEX(LA);
     CASE_IDINDEX(LI);
@@ -306,7 +321,6 @@ int BKE_idtype_idfilter_to_index(const uint64_t id_filter)
     CASE_IDINDEX(GR);
     CASE_IDINDEX(CV);
     CASE_IDINDEX(IM);
-    CASE_IDINDEX(IP);
     CASE_IDINDEX(KE);
     CASE_IDINDEX(LA);
     CASE_IDINDEX(LI);
@@ -392,7 +406,7 @@ void BKE_idtype_id_foreach_cache(ID *id,
   }
 
   /* Handle 'private IDs'. */
-  bNodeTree *nodetree = blender::bke::ntreeFromID(id);
+  bNodeTree *nodetree = bke::node_tree_from_id(id);
   if (nodetree != nullptr) {
     type_info = BKE_idtype_get_info_from_id(&nodetree->id);
     if (type_info == nullptr) {
@@ -406,7 +420,7 @@ void BKE_idtype_id_foreach_cache(ID *id,
   }
 
   if (GS(id->name) == ID_SCE) {
-    Scene *scene = (Scene *)id;
+    Scene *scene = id_cast<Scene *>(id);
     if (scene->master_collection != nullptr) {
       type_info = BKE_idtype_get_info_from_id(&scene->master_collection->id);
       if (type_info->foreach_cache != nullptr) {
@@ -415,3 +429,5 @@ void BKE_idtype_id_foreach_cache(ID *id,
     }
   }
 }
+
+}  // namespace blender

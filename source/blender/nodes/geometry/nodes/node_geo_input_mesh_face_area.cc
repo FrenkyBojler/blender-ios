@@ -27,7 +27,7 @@ static VArray<float> construct_face_area_varray(const Mesh &mesh, const AttrDoma
   };
 
   return mesh.attributes().adapt_domain<float>(
-      VArray<float>::ForFunc(faces.size(), area_fn), AttrDomain::Face, domain);
+      VArray<float>::from_func(faces.size(), area_fn), AttrDomain::Face, domain);
 }
 
 class FaceAreaFieldInput final : public bke::MeshFieldInput {
@@ -68,11 +68,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_MESH_FACE_AREA, "Face Area", NODE_CLASS_INPUT);
+  static bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeInputMeshFaceArea", GEO_NODE_INPUT_MESH_FACE_AREA);
+  ntype.ui_name = "Face Area";
+  ntype.ui_description = "Calculate the surface area of a mesh's faces";
+  ntype.enum_name_legacy = "MESH_FACE_AREA";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

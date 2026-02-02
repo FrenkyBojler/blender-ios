@@ -13,7 +13,11 @@
 
 #include "FN_multi_function_builder.hh"
 
+#include "NOD_multi_function.hh"
+
 namespace blender::nodes {
+
+void node_math_build_multi_function(NodeMultiFunctionBuilder &builder);
 
 struct FloatMathOperationInfo {
   StringRefNull title_case_name;
@@ -72,9 +76,9 @@ inline bool try_dispatch_float_math_fl_to_fl(const int operation, Callback &&cal
     case NODE_MATH_ABSOLUTE:
       return dispatch(exec_preset_fast, [](float a) { return fabs(a); });
     case NODE_MATH_RADIANS:
-      return dispatch(exec_preset_fast, [](float a) { return (float)DEG2RAD(a); });
+      return dispatch(exec_preset_fast, [](float a) { return float(DEG2RAD(a)); });
     case NODE_MATH_DEGREES:
-      return dispatch(exec_preset_fast, [](float a) { return (float)RAD2DEG(a); });
+      return dispatch(exec_preset_fast, [](float a) { return float(RAD2DEG(a)); });
     case NODE_MATH_SIGN:
       return dispatch(exec_preset_fast, [](float a) { return compatible_signf(a); });
     case NODE_MATH_ROUND:
@@ -147,9 +151,9 @@ inline bool try_dispatch_float_math_fl_fl_to_fl(const int operation, Callback &&
     case NODE_MATH_MAXIMUM:
       return dispatch(exec_preset_fast, [](float a, float b) { return std::max(a, b); });
     case NODE_MATH_LESS_THAN:
-      return dispatch(exec_preset_fast, [](float a, float b) { return (float)(a < b); });
+      return dispatch(exec_preset_fast, [](float a, float b) { return float(a < b); });
     case NODE_MATH_GREATER_THAN:
-      return dispatch(exec_preset_fast, [](float a, float b) { return (float)(a > b); });
+      return dispatch(exec_preset_fast, [](float a, float b) { return float(a > b); });
     case NODE_MATH_MODULO:
       return dispatch(exec_preset_fast, [](float a, float b) { return safe_modf(a, b); });
     case NODE_MATH_FLOORED_MODULO:
@@ -253,6 +257,10 @@ inline bool try_dispatch_float_math_fl3_fl3_to_fl3(const NodeVectorMathOperation
       return dispatch(exec_preset_fast, [](float3 a, float3 b) { return min(a, b); });
     case NODE_VECTOR_MATH_MAXIMUM:
       return dispatch(exec_preset_fast, [](float3 a, float3 b) { return max(a, b); });
+    case NODE_VECTOR_MATH_POWER:
+      return dispatch(exec_preset_slow, [](float3 a, float3 b) {
+        return float3(safe_powf(a.x, b.x), safe_powf(a.y, b.y), safe_powf(a.z, b.z));
+      });
     default:
       return false;
   }
@@ -450,6 +458,8 @@ inline bool try_dispatch_float_math_fl3_to_fl3(const NodeVectorMathOperation ope
     case NODE_VECTOR_MATH_NORMALIZE:
       /* Should be safe. */
       return dispatch(exec_preset_fast, [](float3 in) { return normalize(in); });
+    case NODE_VECTOR_MATH_ROUND:
+      return dispatch(exec_preset_fast, [](float3 in) { return floor(in + 0.5f); });
     case NODE_VECTOR_MATH_FLOOR:
       return dispatch(exec_preset_fast, [](float3 in) { return floor(in); });
     case NODE_VECTOR_MATH_CEIL:
@@ -458,6 +468,8 @@ inline bool try_dispatch_float_math_fl3_to_fl3(const NodeVectorMathOperation ope
       return dispatch(exec_preset_fast, [](float3 in) { return fract(in); });
     case NODE_VECTOR_MATH_ABSOLUTE:
       return dispatch(exec_preset_fast, [](float3 in) { return abs(in); });
+    case NODE_VECTOR_MATH_SIGN:
+      return dispatch(exec_preset_fast, [](float3 in) { return sign(in); });
     case NODE_VECTOR_MATH_SINE:
       return dispatch(exec_preset_slow,
                       [](float3 in) { return float3(sinf(in.x), sinf(in.y), sinf(in.z)); });

@@ -10,16 +10,22 @@
 
 #include "vk_common.hh"
 
-namespace blender::gpu::render_graph {
+namespace blender {
+
+namespace gpu {
+struct VKExtensions;
+}
+
+namespace gpu::render_graph {
 class VKCommandBufferInterface {
  public:
+  bool use_dynamic_rendering_local_read = true;
+
   VKCommandBufferInterface() {}
   virtual ~VKCommandBufferInterface() = default;
 
   virtual void begin_recording() = 0;
   virtual void end_recording() = 0;
-  virtual void submit_with_cpu_synchronization() = 0;
-  virtual void wait_for_cpu_synchronization() = 0;
 
   virtual void bind_pipeline(VkPipelineBindPoint pipeline_bind_point, VkPipeline pipeline) = 0;
   virtual void bind_descriptor_sets(VkPipelineBindPoint pipeline_bind_point,
@@ -55,6 +61,10 @@ class VKCommandBufferInterface {
                         uint32_t group_count_y,
                         uint32_t group_count_z) = 0;
   virtual void dispatch_indirect(VkBuffer buffer, VkDeviceSize offset) = 0;
+  virtual void update_buffer(VkBuffer dst_buffer,
+                             VkDeviceSize dst_offset,
+                             VkDeviceSize data_size,
+                             const void *p_data) = 0;
   virtual void copy_buffer(VkBuffer src_buffer,
                            VkBuffer dst_buffer,
                            uint32_t region_count,
@@ -114,6 +124,26 @@ class VKCommandBufferInterface {
                               uint32_t offset,
                               uint32_t size,
                               const void *p_values) = 0;
+  virtual void begin_query(VkQueryPool vk_query_pool,
+                           uint32_t query_index,
+                           VkQueryControlFlags vk_query_control_flags) = 0;
+  virtual void end_query(VkQueryPool vk_query_pool, uint32_t query_index) = 0;
+  virtual void reset_query_pool(VkQueryPool vk_query_pool,
+                                uint32_t first_query,
+                                uint32_t query_count) = 0;
+  /* Dynamic states*/
+  virtual void set_viewport(const Vector<VkViewport> viewports) = 0;
+  virtual void set_scissor(const Vector<VkRect2D> scissors) = 0;
+  virtual void set_line_width(const float line_width) = 0;
+  virtual void set_stencil_compare_mask(const uint32_t compare_mask) = 0;
+  virtual void set_stencil_write_mask(const uint32_t write_mask) = 0;
+  virtual void set_stencil_reference(const uint32_t reference) = 0;
+  /* VK_EXT_extended_dynamic_state */
+  virtual void set_front_face(const VkFrontFace front_face) = 0;
+  /* VK_EXT_vertex_input_dynamic_state */
+  virtual void set_vertex_input(
+      Span<VkVertexInputBindingDescription2EXT> vertex_binding_descriptions,
+      Span<VkVertexInputAttributeDescription2EXT> vertex_attribute_descriptions) = 0;
   /* VK_KHR_dynamic_rendering */
   virtual void begin_rendering(const VkRenderingInfo *p_rendering_info) = 0;
   virtual void end_rendering() = 0;
@@ -124,24 +154,13 @@ class VKCommandBufferInterface {
 
 class VKCommandBufferWrapper : public VKCommandBufferInterface {
  private:
-  VkCommandPoolCreateInfo vk_command_pool_create_info_;
-  VkCommandBufferAllocateInfo vk_command_buffer_allocate_info_;
-  VkCommandBufferBeginInfo vk_command_buffer_begin_info_;
-  VkFenceCreateInfo vk_fence_create_info_;
-  VkSubmitInfo vk_submit_info_;
-
-  VkCommandPool vk_command_pool_ = VK_NULL_HANDLE;
   VkCommandBuffer vk_command_buffer_ = VK_NULL_HANDLE;
-  VkFence vk_fence_ = VK_NULL_HANDLE;
 
  public:
-  VKCommandBufferWrapper();
-  virtual ~VKCommandBufferWrapper();
+  VKCommandBufferWrapper(VkCommandBuffer vk_command_buffer, const VKExtensions &extensions);
 
   void begin_recording() override;
   void end_recording() override;
-  void submit_with_cpu_synchronization() override;
-  void wait_for_cpu_synchronization() override;
 
   void bind_pipeline(VkPipelineBindPoint pipeline_bind_point, VkPipeline pipeline) override;
   void bind_descriptor_sets(VkPipelineBindPoint pipeline_bind_point,
@@ -175,6 +194,10 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
                              uint32_t stride) override;
   void dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) override;
   void dispatch_indirect(VkBuffer buffer, VkDeviceSize offset) override;
+  void update_buffer(VkBuffer dst_buffer,
+                     VkDeviceSize dst_offset,
+                     VkDeviceSize data_size,
+                     const void *p_data) override;
   void copy_buffer(VkBuffer src_buffer,
                    VkBuffer dst_buffer,
                    uint32_t region_count,
@@ -234,10 +257,27 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
                       uint32_t offset,
                       uint32_t size,
                       const void *p_values) override;
+  void set_viewport(const Vector<VkViewport> viewports) override;
+  void set_scissor(const Vector<VkRect2D> scissors) override;
+  void set_line_width(const float line_width) override;
+  void set_front_face(const VkFrontFace front_face) override;
+  void set_vertex_input(
+      Span<VkVertexInputBindingDescription2EXT> vertex_binding_descriptions,
+      Span<VkVertexInputAttributeDescription2EXT> vertex_attribute_descriptions) override;
+
+  void set_stencil_compare_mask(const uint32_t compare_mask) override;
+  void set_stencil_write_mask(const uint32_t write_mask) override;
+  void set_stencil_reference(const uint32_t reference) override;
+  void begin_query(VkQueryPool vk_query_pool,
+                   uint32_t query_index,
+                   VkQueryControlFlags vk_query_control_flags) override;
+  void end_query(VkQueryPool vk_query_pool, uint32_t query_index) override;
+  void reset_query_pool(VkQueryPool, uint32_t first_query, uint32_t query_count) override;
   void begin_rendering(const VkRenderingInfo *p_rendering_info) override;
   void end_rendering() override;
   void begin_debug_utils_label(const VkDebugUtilsLabelEXT *vk_debug_utils_label) override;
   void end_debug_utils_label() override;
 };
+}  // namespace gpu::render_graph
 
-}  // namespace blender::gpu::render_graph
+}  // namespace blender

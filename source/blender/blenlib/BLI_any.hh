@@ -7,7 +7,7 @@
 /** \file
  * \ingroup bli
  *
- * A #blender::Any is a type-safe container for single values of any copy constructible type.
+ * A #Any is a type-safe container for single values of any copy constructible type.
  * It is similar to #std::any but provides the following two additional features:
  * - Adjustable inline buffer capacity and alignment. #std::any has a small inline buffer in most
  *   implementations as well, but its size is not guaranteed.
@@ -21,7 +21,7 @@
 
 namespace blender {
 
-namespace detail {
+namespace blenlib_detail {
 
 /**
  * Contains function pointers that manage the memory in an #Any.
@@ -60,10 +60,12 @@ inline constexpr AnyTypeInfo<ExtraInfo> info_for_inline = {
 template<typename T> using Ptr = std::unique_ptr<T>;
 template<typename ExtraInfo, typename T>
 inline constexpr AnyTypeInfo<ExtraInfo> info_for_unique_ptr = {
-    [](void *dst, const void *src) { new (dst) Ptr<T>(new T(**(const Ptr<T> *)src)); },
-    [](void *dst, void *src) { new (dst) Ptr<T>(new T(std::move(**(Ptr<T> *)src))); },
-    [](void *src) { std::destroy_at((Ptr<T> *)src); },
-    [](const void *src) -> const void * { return &**(const Ptr<T> *)src; },
+    [](void *dst, const void *src) {
+      new (dst) Ptr<T>(new T(**static_cast<const Ptr<T> *>(src)));
+    },
+    [](void *dst, void *src) { new (dst) Ptr<T>(new T(std::move(**static_cast<Ptr<T> *>(src)))); },
+    [](void *src) { std::destroy_at(static_cast<Ptr<T> *>(src)); },
+    [](const void *src) -> const void * { return &**static_cast<const Ptr<T> *>(src); },
     ExtraInfo::template get<T>()};
 
 /**
@@ -76,7 +78,7 @@ struct NoExtraInfo {
   }
 };
 
-}  // namespace detail
+}  // namespace blenlib_detail
 
 template<
     /**
@@ -99,8 +101,8 @@ class Any {
  private:
   /* Makes it possible to use void in the template parameters. */
   using RealExtraInfo =
-      std::conditional_t<std::is_void_v<ExtraInfo>, blender::detail::NoExtraInfo, ExtraInfo>;
-  using Info = blender::detail::AnyTypeInfo<RealExtraInfo>;
+      std::conditional_t<std::is_void_v<ExtraInfo>, blenlib_detail::NoExtraInfo, ExtraInfo>;
+  using Info = blenlib_detail::AnyTypeInfo<RealExtraInfo>;
   static constexpr size_t RealInlineBufferCapacity = std::max(InlineBufferCapacity,
                                                               sizeof(std::unique_ptr<int>));
 
@@ -118,23 +120,21 @@ class Any {
 
  public:
   /** Only copy constructible types can be stored in #Any. */
-  template<typename T> static constexpr inline bool is_allowed_v = std::is_copy_constructible_v<T>;
+  template<typename T> static constexpr bool is_allowed_v = std::is_copy_constructible_v<T>;
 
   /**
    * Checks if the type will be stored in the inline buffer or if it requires a separate
    * allocation.
    */
   template<typename T>
-  static constexpr inline bool is_inline_v = std::is_nothrow_move_constructible_v<T> &&
-                                             sizeof(T) <= InlineBufferCapacity &&
-                                             alignof(T) <= Alignment;
+  static constexpr bool is_inline_v = std::is_nothrow_move_constructible_v<T> &&
+                                      sizeof(T) <= InlineBufferCapacity && alignof(T) <= Alignment;
 
   /**
    * Checks if #T is the same type as this #Any, because in this case the behavior of e.g. the
    * assignment operator is different.
    */
-  template<typename T>
-  static constexpr inline bool is_same_any_v = std::is_same_v<std::decay_t<T>, Any>;
+  template<typename T> static constexpr bool is_same_any_v = std::is_same_v<std::decay_t<T>, Any>;
 
  private:
   template<typename T> const Info &get_info() const
@@ -142,10 +142,10 @@ class Any {
     using DecayT = std::decay_t<T>;
     static_assert(is_allowed_v<DecayT>);
     if constexpr (is_inline_v<DecayT>) {
-      return detail::template info_for_inline<RealExtraInfo, DecayT>;
+      return blenlib_detail::template info_for_inline<RealExtraInfo, DecayT>;
     }
     else {
-      return detail::template info_for_unique_ptr<RealExtraInfo, DecayT>;
+      return blenlib_detail::template info_for_unique_ptr<RealExtraInfo, DecayT>;
     }
   }
 

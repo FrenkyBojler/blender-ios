@@ -4,10 +4,16 @@
 #include "IO_path_util.hh"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-namespace blender::io {
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.common"};
+
+namespace io {
 
 std::string path_reference(StringRefNull filepath,
                            StringRefNull base_src,
@@ -64,21 +70,22 @@ void path_reference_copy(const Set<std::pair<std::string, std::string>> &copy_se
     const char *src = copy.first.c_str();
     const char *dst = copy.second.c_str();
     if (!BLI_exists(src)) {
-      fprintf(stderr, "Missing source file '%s', not copying\n", src);
+      CLOG_WARN(&LOG, "Missing source file '%s', not copying", src);
       continue;
     }
     if (0 == BLI_path_cmp_normalized(src, dst)) {
       continue; /* Source and destination are the same. */
     }
     if (!BLI_file_ensure_parent_dir_exists(dst)) {
-      fprintf(stderr, "Can't make directory for '%s', not copying\n", dst);
+      CLOG_WARN(&LOG, "Can't make directory for '%s', not copying", dst);
       continue;
     }
     if (BLI_copy(src, dst) != 0) {
-      fprintf(stderr, "Can't copy '%s' to '%s'\n", src, dst);
+      CLOG_WARN(&LOG, "Can't copy '%s' to '%s'", src, dst);
       continue;
     }
   }
 }
 
-}  // namespace blender::io
+}  // namespace io
+}  // namespace blender

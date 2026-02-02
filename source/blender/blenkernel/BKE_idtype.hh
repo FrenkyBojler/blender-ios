@@ -12,7 +12,12 @@
 
 #include <optional>
 
+#include "BLI_color_types.hh"
+#include "BLI_function_ref.hh"
+#include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_sys_types.h"
+
+namespace blender {
 
 struct AssetTypeInfo;
 struct BPathForeachPathData;
@@ -30,19 +35,22 @@ enum {
   IDTYPE_FLAGS_NO_COPY = 1 << 0,
   /** Indicates that the given IDType does not support linking/appending from a library file. */
   IDTYPE_FLAGS_NO_LIBLINKING = 1 << 1,
-  /** Indicates that the given IDType should not be directly linked from a library file, but may be
-   * appended.
-   * NOTE: Mutually exclusive with `IDTYPE_FLAGS_NO_LIBLINKING`. */
+  /**
+   * Indicates that the given IDType should not be directly linked from a library file,
+   * but may be appended.
+   * NOTE: Mutually exclusive with `IDTYPE_FLAGS_NO_LIBLINKING`.
+   */
   IDTYPE_FLAGS_ONLY_APPEND = 1 << 2,
-  /** Allow to re-use an existing local ID with matching weak library reference instead of creating
-   * a new copy of it, when appending. See also #LibraryWeakReference in `DNA_ID.h`. */
+  /**
+   * Allow to re-use an existing local ID with matching weak library reference
+   * instead of creating a new copy of it, when appending.
+   * See also #LibraryWeakReference in `DNA_ID.h`.
+   */
   IDTYPE_FLAGS_APPEND_IS_REUSABLE = 1 << 3,
   /** Indicates that the given IDType does not have animation data. */
   IDTYPE_FLAGS_NO_ANIMDATA = 1 << 4,
   /**
    * Indicates that the given IDType is not handled through memfile (aka global) undo.
-   *
-   * \note This currently only affect local data-blocks.
    *
    * \note Current readfile undo code expects these data-blocks to not be used by any 'regular'
    * data-blocks.
@@ -59,16 +67,18 @@ enum {
    *
    * \note The implementation of the expected behaviors related to this characteristic is somewhat
    * fragile and inconsistent currently. In most case though, code is expected to ensure that such
-   * IDs have at least an 'extra user' (#LIB_TAG_EXTRAUSER).
+   * IDs have at least an 'extra user' (#ID_TAG_EXTRAUSER).
    */
   IDTYPE_FLAGS_NEVER_UNUSED = 1 << 6,
 };
 
 struct IDCacheKey {
-  /* The session UID of the ID owning the cached data. */
+  /** The session UID of the ID owning the cached data. */
   unsigned int id_session_uid;
-  /* Value uniquely identifying the cache within its ID.
-   * Typically the offset of its member in the data-block struct, but can be anything. */
+  /**
+   * Value uniquely identifying the cache within its ID.
+   * Typically the offset of its member in the data-block struct, but can be anything.
+   */
   size_t identifier;
 };
 
@@ -91,8 +101,10 @@ using IDTypeMakeLocalFunction = void (*)(Main *bmain, ID *id, int flags);
 using IDTypeForeachIDFunction = void (*)(ID *id, LibraryForeachIDData *data);
 
 enum eIDTypeInfoCacheCallbackFlags {
-  /** Indicates to the callback that cache may be stored in the .blend file,
-   * so its pointer should not be cleared at read-time. */
+  /**
+   * Indicates to the callback that cache may be stored in the .blend file,
+   * so its pointer should not be cleared at read-time.
+   */
   IDTYPE_CACHE_CB_FLAGS_PERSISTENT = 1 << 0,
 };
 using IDTypeForeachCacheFunctionCallback =
@@ -103,6 +115,15 @@ using IDTypeForeachCacheFunction = void (*)(ID *id,
 
 using IDTypeForeachPathFunction = void (*)(ID *id, BPathForeachPathData *bpath_data);
 
+/* Foreach scene linear color can do either a single color, or an implicitly shared array
+ * for geometry attributes. */
+struct IDTypeForeachColorFunctionCallback {
+  const FunctionRef<void(float rgb[3])> single;
+  const FunctionRef<void(ImplicitSharingPtr<> &sharing_info, ColorGeometry4f *&data, size_t size)>
+      implicit_sharing_array;
+};
+using IDTypeForeachColorFunction = void (*)(ID *id, const IDTypeForeachColorFunctionCallback &cb);
+
 /**
  * Callback returning the address of the pointer to the owner ID,
  * for embedded (and Shape-key) ones.
@@ -111,7 +132,7 @@ using IDTypeForeachPathFunction = void (*)(ID *id, BPathForeachPathData *bpath_d
  * fully valid, and can be asserted on. But in some cases, they are not (fully) valid, e.g when
  * copying an ID and all of its embedded data.
  */
-using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID *id, bool debug_relationship_assert);
+using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID * id, bool debug_relationship_assert);
 
 using IDTypeBlendWriteFunction = void (*)(BlendWriter *writer, ID *id, const void *id_address);
 using IDTypeBlendReadDataFunction = void (*)(BlendDataReader *reader, ID *id);
@@ -145,7 +166,7 @@ struct IDTypeInfo {
 
   /**
    * Define the position of this data-block type in the virtual list of all data in a Main that is
-   * returned by `set_listbasepointers()`.
+   * returned by `BKE_main_lists_get()`.
    * Very important, this has to be unique and below INDEX_ID_MAX, see DNA_ID.h.
    */
   int main_listbase_index;
@@ -153,7 +174,13 @@ struct IDTypeInfo {
   /** Memory size of a data-block of that type. */
   size_t struct_size;
 
-  /** The user visible name for this data-block, also used as default name for a new data-block. */
+  /**
+   * The user visible name for this data-block, also used as default name for a new data-block.
+   *
+   * \note: Also used for the 'filepath' ID type part when listing IDs in library blend-files
+   * (`my_blendfile.blend/<IDType.name>/my_id_name`, e.g. `boat-v001.blend/Collection/PR-boat` for
+   * the `GRPR-boat` Collection ID in `boat-v001.blend`).
+   */
   const char *name;
   /** Plural version of the user-visible name. */
   const char *name_plural;
@@ -207,6 +234,12 @@ struct IDTypeInfo {
    * Iterator over all file paths of given ID.
    */
   IDTypeForeachPathFunction foreach_path;
+
+  /**
+   * Iterator to edit all scene linear RGB colors of given ID.
+   * Alpha should not be premultiplied in the RGB values.
+   */
+  IDTypeForeachColorFunction foreach_working_space_color;
 
   /**
    * For embedded IDs, return the address of the pointer to their owner ID.
@@ -267,7 +300,6 @@ extern IDTypeInfo IDType_ID_IM;
 extern IDTypeInfo IDType_ID_LT;
 extern IDTypeInfo IDType_ID_LA;
 extern IDTypeInfo IDType_ID_CA;
-extern IDTypeInfo IDType_ID_IP;
 extern IDTypeInfo IDType_ID_KE;
 extern IDTypeInfo IDType_ID_WO;
 extern IDTypeInfo IDType_ID_SCR;
@@ -364,21 +396,31 @@ bool BKE_idtype_idcode_append_is_reusable(short idcode);
 #define BKE_idtype_idcode_is_localizable BKE_idtype_idcode_is_linkable
 
 /**
- * Convert an ID-type name into an \a idcode (ie. #ID_SCE)
+ * Convert an ID-type name into an \a idcode (ie. #ID_SCE).
+ *
+ * See #BKE_idtype_idcode_from_name_case_insensitive() for a variation.
  *
  * \param idtype_name: The ID-type's "user visible name" to convert.
  * \return The \a idcode for the name, or 0 if invalid.
  */
 short BKE_idtype_idcode_from_name(const char *idtype_name);
+/**
+ * Version of #BKE_idtype_idcode_from_name() that ignores string case differences between
+ * #IDTypeInfo.name and \a idtype_name.
+ *
+ * Particularly useful when the ID type name is written as ID type identifier for I/O or cache
+ * files.
+ */
+short BKE_idtype_idcode_from_name_case_insensitive(const char *idtype_name);
 
 /**
  * Convert an \a idcode into an \a idtype_index (e.g. #ID_OB -> #INDEX_ID_OB).
  */
 int BKE_idtype_idcode_to_index(short idcode);
 /**
- * Convert an \a idfilter into an \a idtype_index (e.g. #FILTER_ID_OB -> #INDEX_ID_OB).
+ * Convert an \a id_filter into an \a idtype_index (e.g. #FILTER_ID_OB -> #INDEX_ID_OB).
  */
-int BKE_idtype_idfilter_to_index(uint64_t idfilter);
+int BKE_idtype_idfilter_to_index(uint64_t id_filter);
 
 /**
  * Convert an \a idtype_index into an \a idcode (e.g. #INDEX_ID_OB -> #ID_OB).
@@ -416,3 +458,5 @@ short BKE_idtype_idcode_iter_step(int *idtype_index);
 void BKE_idtype_id_foreach_cache(ID *id,
                                  IDTypeForeachCacheFunctionCallback function_callback,
                                  void *user_data);
+
+}  // namespace blender

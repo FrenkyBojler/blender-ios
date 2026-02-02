@@ -6,7 +6,6 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -23,6 +22,8 @@
 #  include "BKE_camera.h"
 #  include "BKE_context.hh"
 #  include "BKE_object.hh"
+
+namespace blender {
 
 static void rna_camera_view_frame(Camera *camera,
                                   Scene *scene,
@@ -41,7 +42,11 @@ static void rna_camera_view_frame(Camera *camera,
   copy_v3_v3(r_vec4, vec[3]);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_camera(StructRNA *srna)
 {
@@ -79,5 +84,7 @@ void RNA_api_camera(StructRNA *srna)
   RNA_def_property_flag(parm, PROP_THICK_WRAP);
   RNA_def_function_output(func, parm);
 }
+
+}  // namespace blender
 
 #endif

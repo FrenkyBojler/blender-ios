@@ -3,14 +3,15 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "BKE_appdir.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_main.hh"
 
 #include "MEM_guardedalloc.h"
@@ -18,6 +19,7 @@
 #include "testing/testing.h"
 #include "gmock/gmock.h"
 
+#include "IMB_imbuf.hh"
 #include "IMB_moviecache.hh"
 
 #include "DNA_image_types.h"
@@ -116,12 +118,12 @@ TEST(udim, image_get_tile_strformat)
   udim_pattern = BKE_image_get_tile_strformat("test.<UDIM>.png", &tile_format);
   EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UDIM);
   EXPECT_STREQ(udim_pattern, "test.%d.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
   EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UVTILE);
   EXPECT_STREQ(udim_pattern, "test.u%d_v%d.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 }
 
 TEST(udim, image_get_tile_number_from_filepath)
@@ -156,7 +158,7 @@ TEST(udim, image_get_tile_number_from_filepath)
   EXPECT_FALSE(BKE_image_get_tile_number_from_filepath(
       "wrong.1004.png", udim_pattern, tile_format, &tile_number));
 
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 
   /* UVTILE tile format tests. */
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
@@ -176,7 +178,7 @@ TEST(udim, image_get_tile_number_from_filepath)
   EXPECT_FALSE(BKE_image_get_tile_number_from_filepath(
       "wrong.u2_v2.png", udim_pattern, tile_format, &tile_number));
 
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 }
 
 TEST(udim, image_set_filepath_from_tile_number)
@@ -202,7 +204,7 @@ TEST(udim, image_set_filepath_from_tile_number)
   /* UDIM tile format tests. */
   BKE_image_set_filepath_from_tile_number(filepath, udim_pattern, tile_format, 1028);
   EXPECT_STREQ(filepath, "test.1028.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 
   /* UVTILE tile format tests. */
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
@@ -211,7 +213,7 @@ TEST(udim, image_set_filepath_from_tile_number)
 
   BKE_image_set_filepath_from_tile_number(filepath, udim_pattern, tile_format, 1028);
   EXPECT_STREQ(filepath, "test.u8_v3.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 }
 
 class ImageTest : public ::testing::Test {
@@ -242,6 +244,8 @@ class ImageTest : public ::testing::Test {
 
   void SetUp() override
   {
+    BKE_appdir_init();
+    IMB_init();
     IMB_moviecache_init();
 
     bmain_ = BKE_main_new();
@@ -254,11 +258,13 @@ class ImageTest : public ::testing::Test {
     G_MAIN = nullptr;
 
     IMB_moviecache_destruct();
+    IMB_exit();
+    BKE_appdir_exit();
   }
 
   Image *load_image(const char *path)
   {
-    const std::string asset_dir = blender::tests::flags_test_asset_dir().c_str();
+    const std::string asset_dir = blender::tests::flags_test_asset_dir();
     return BKE_image_load(bmain_, (asset_dir + SEP_STR + "imbuf_io" + SEP_STR + path).c_str());
   }
 
@@ -271,8 +277,8 @@ class ImageTest : public ::testing::Test {
     }
 
     Vector<std::string> layer_names;
-    LISTBASE_FOREACH (const RenderLayer *, layer, &render_result->layers) {
-      layer_names.append(layer->name);
+    for (const RenderLayer &layer : render_result->layers) {
+      layer_names.append(layer.name);
     }
 
     return layer_names;
@@ -286,11 +292,11 @@ class ImageTest : public ::testing::Test {
       return {};
     }
 
-    LISTBASE_FOREACH (const RenderLayer *, layer, &render_result->layers) {
-      if (layer->name == layer_name) {
+    for (const RenderLayer &layer : render_result->layers) {
+      if (layer.name == layer_name) {
         Vector<std::string> pass_names;
-        LISTBASE_FOREACH (const RenderPass *, pass, &layer->passes) {
-          pass_names.append(pass->name);
+        for (const RenderPass &pass : layer.passes) {
+          pass_names.append(pass.name);
         }
         return pass_names;
       }
