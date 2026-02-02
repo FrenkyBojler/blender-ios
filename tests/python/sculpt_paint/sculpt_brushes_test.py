@@ -194,13 +194,22 @@ class MeshBrushTests(unittest.TestCase):
         Reset the file to the initial working state, unfortunately `setUp` does not work with subTest if using the
         latter as parameterized tests.
         """
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        bpy.ops.mesh.primitive_monkey_add()
 
-        bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "30k_monkey.blend"), load_ui=False)
+        context_override = bpy.context.copy()
+        set_view3d_context_override(context_override)
+        with bpy.context.temp_override(**context_override):
+            bpy.ops.view3d.view_axis(type='FRONT')
+
+        if backend == BackendType.MESH:
+            bpy.ops.object.subdivision_set(level=2, relative=False, ensure_modifier=True)
+
         bpy.ops.ed.undo_push()
         bpy.ops.sculpt.sculptmode_toggle()
 
         if backend == BackendType.MULTIRES:
-            bpy.ops.object.subdivision_set(level=1, relative=False, ensure_modifier=True)
+            bpy.ops.object.subdivision_set(level=2, relative=False, ensure_modifier=True)
 
     def _activate_brush(self, brush):
         """
