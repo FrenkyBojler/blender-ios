@@ -569,54 +569,100 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
 
   Editing *ed = seq::editing_get(scene);
   const ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
-  int snap_frame;
+  const bool keep_offset = RNA_boolean_get(op->ptr, "keep_offset");
+  const int cur_frame = RNA_int_get(op->ptr, "frame");
 
-  snap_frame = RNA_int_get(op->ptr, "frame");
+  VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
+  selected.remove_if([&](Strip *strip) { return seq::transform_is_locked(channels, strip); });
 
-  /* Check meta-strips. */
-  for (Strip &strip : *ed->current_strips()) {
-    if (strip.flag & SEQ_SELECT && !seq::transform_is_locked(channels, &strip) &&
-        seq::transform_strip_can_be_translated(&strip))
-    {
-      if ((strip.flag & (SEQ_LEFTSEL + SEQ_RIGHTSEL)) == 0) {
-        seq::transform_translate_strip(scene, &strip, (snap_frame - strip.startofs) - strip.start);
+  if (selected.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  std::optional<int> group_delta;
+  if (keep_offset) {
+    /* If handles are selected, choose closest handle as the anchor to calculate the offset for the
+     * entire strip group. Otherwise, choose leftmost left handle of the group. */
+    int min_dist = std::numeric_limits<int>::max();
+    for (Strip *strip : selected) {
+      const bool left_sel = strip->flag & SEQ_LEFTSEL;
+      const bool right_sel = strip->flag & SEQ_RIGHTSEL;
+
+      if (!left_sel && !right_sel) {
+        continue;
       }
-      else {
-        if (strip.flag & SEQ_LEFTSEL) {
-          strip.left_handle_set(scene, snap_frame);
-        }
-        else { /* SEQ_RIGHTSEL */
-          strip.right_handle_set(scene, snap_frame);
-        }
-      }
 
-      seq::relations_invalidate_cache(scene, &strip);
+      auto update_min_dist = [&](int delta) {
+        if (math::abs(delta) < min_dist) {
+          min_dist = math::abs(delta);
+          group_delta = delta;
+        }
+      };
+
+      if (left_sel) {
+        update_min_dist(cur_frame - strip->left_handle());
+      }
+      if (right_sel) {
+        update_min_dist(cur_frame - strip->right_handle(scene));
+      }
+    }
+
+    /* No handles selected: anchor to leftmost left handle. */
+    if (!group_delta.has_value()) {
+      int leftmost = std::numeric_limits<int>::max();
+      for (Strip *strip : selected) {
+        leftmost = std::min(leftmost, strip->left_handle());
+      }
+      group_delta = cur_frame - leftmost;
     }
   }
 
-  /* Test for effects and overlap. */
-  for (Strip &strip : *ed->current_strips()) {
-    if (strip.flag & SEQ_SELECT && !seq::transform_is_locked(channels, &strip)) {
-      strip.runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
-      if (seq::transform_test_overlap(scene, ed->current_strips(), &strip)) {
-        seq::transform_seqbase_shuffle(ed->current_strips(), &strip, scene);
-      }
+  for (Strip *strip : selected) {
+    if (!seq::transform_strip_can_be_translated(strip)) {
+      continue;
+    }
+    const bool left_sel = strip->flag & SEQ_LEFTSEL;
+    const bool right_sel = strip->flag & SEQ_RIGHTSEL;
+
+    if (left_sel) {
+      strip->left_handle_set(scene,
+                             group_delta ? (strip->left_handle() + *group_delta) : cur_frame);
+    }
+    if (right_sel) {
+      strip->right_handle_set(
+          scene, group_delta ? (strip->right_handle(scene) + *group_delta) : cur_frame);
+    }
+
+    if (!left_sel && !right_sel) {
+      seq::transform_translate_strip(
+          scene, strip, group_delta ? *group_delta : (cur_frame - strip->left_handle()));
+    }
+    seq::relations_invalidate_cache(scene, strip);
+  }
+
+  /* Test for overlap and shuffle. */
+  for (Strip *strip : selected) {
+    strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
+    if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
+      seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
     }
   }
 
-  /* Recalculate bounds of effect strips, offsetting the keyframes if not snapping any handle. */
-  for (Strip &strip : *ed->current_strips()) {
-    if (strip.is_effect()) {
-      const bool either_handle_selected = (strip.flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0;
+  /* Recalculate bounds of effect strips, offsetting the keyframes if not snapping any handles. */
+  for (Strip *strip : selected) {
+    if (strip->is_effect()) {
+      const bool either_handle_selected = (strip->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0;
 
-      if (strip.input1 && (strip.input1->flag & SEQ_SELECT)) {
+      if (strip->input1 && (strip->input1->flag & SEQ_SELECT)) {
         if (!either_handle_selected) {
-          seq::offset_animdata(scene, &strip, (snap_frame - strip.left_handle()));
+          seq::offset_animdata(
+              scene, strip, group_delta ? *group_delta : (cur_frame - strip->left_handle()));
         }
       }
-      else if (strip.input2 && (strip.input2->flag & SEQ_SELECT)) {
+      else if (strip->input2 && (strip->input2->flag & SEQ_SELECT)) {
         if (!either_handle_selected) {
-          seq::offset_animdata(scene, &strip, (snap_frame - strip.left_handle()));
+          seq::offset_animdata(
+              scene, strip, group_delta ? *group_delta : (cur_frame - strip->left_handle()));
         }
       }
     }
@@ -633,12 +679,7 @@ static wmOperatorStatus sequencer_snap_invoke(bContext *C,
                                               const wmEvent * /*event*/)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-
-  int snap_frame;
-
-  snap_frame = scene->r.cfra;
-
-  RNA_int_set(op->ptr, "frame", snap_frame);
+  RNA_int_set(op->ptr, "frame", scene->r.cfra);
   return sequencer_snap_exec(C, op);
 }
 
@@ -666,6 +707,13 @@ void SEQUENCER_OT_snap(wmOperatorType *ot)
               "Frame where selected strips will be snapped",
               INT_MIN,
               INT_MAX);
+
+  RNA_def_boolean(
+      ot->srna,
+      "keep_offset",
+      true,
+      "Keep Offset",
+      "Whether the selection should be snapped as a whole or by each individual strip");
 }
 
 /** \} */
