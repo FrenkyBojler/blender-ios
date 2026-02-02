@@ -111,11 +111,11 @@ static void edbm_circularize_ui(bContext * /*C*/, wmOperator *op)
   layout.prop(op->ptr, "fit_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  ui::Layout &row = layout.row(true);
+  ui::Layout &row = layout.row(true, IFACE_("Radius"));
   row.prop(op->ptr, "use_custom_radius", UI_ITEM_NONE, "", ICON_NONE);
   ui::Layout &sub = row.row(true);
   sub.active_set(RNA_boolean_get(op->ptr, "use_custom_radius"));
-  sub.prop(op->ptr, "custom_radius", UI_ITEM_NONE, "Radius", ICON_NONE);
+  sub.prop(op->ptr, "custom_radius", UI_ITEM_NONE, "", ICON_NONE);
 
   layout.prop(op->ptr, "regular", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(op->ptr, "flatten", UI_ITEM_NONE, std::nullopt, ICON_NONE);
