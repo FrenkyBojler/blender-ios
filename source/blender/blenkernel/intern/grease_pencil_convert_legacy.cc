@@ -3185,6 +3185,8 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
     }
   });
 
+  std::string layer_name_string(layer_name);
+
   MutableAttributeAccessor attributes = curves.attributes_for_write();
   /* Optimization: If all of the strokes are shown, don't create the attribute. */
   if (array_utils::booleans_mix_calc(VArray<bool>::from_span(material_hides_stroke)) !=
@@ -3207,7 +3209,7 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
           hide_stroke_name.c_str(),
           unique_name.c_str(),
           object->id.name + 2,
-          std::string(layer_name).c_str(),
+          layer_name_string.c_str(),
           frame_number);
     }
     SpanAttributeWriter hide_stroke = attributes.lookup_or_add_for_write_only_span<bool>(
@@ -3234,7 +3236,7 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
           fill_id_name.c_str(),
           unique_name.c_str(),
           object->id.name + 2,
-          std::string(layer_name).c_str(),
+          layer_name_string.c_str(),
           frame_number);
     }
     SpanAttributeWriter fill_ids = attributes.lookup_or_add_for_write_only_span<int>(
