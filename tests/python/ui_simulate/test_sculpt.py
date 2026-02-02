@@ -130,7 +130,7 @@ def face_set_gestures():
     t.assertEqual(_num_fully_masked_vertices(), 0)
     yield from ui.call_operator(e, "Lasso Face Set")
     center = ui.get_area_center_from_spacetype(window, 'VIEW_3D')
-    yield from e.leftmouse.cursor_motion(ui.cursor_motion_circle(center, 100))
+    yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_circle(center, 100))
     t.assertEqual(_num_matching_face_set(2), 8749)
     yield from _reset_objects(e)
 
@@ -177,7 +177,7 @@ def hide_gestures():
     t.assertEqual(_num_hidden_vertices(), 0)
     yield from ui.call_operator(e, "Lasso Hide")
     center = ui.get_area_center_from_spacetype(window, 'VIEW_3D')
-    yield from e.leftmouse.cursor_motion(ui.cursor_motion_circle(center, 100))
+    yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_circle(center, 100))
     t.assertEqual(_num_hidden_vertices(), 8548)
     yield from _reset_objects(e)
 
@@ -262,7 +262,7 @@ def mask_gestures():
     t.assertEqual(_num_fully_masked_vertices(), 0)
     yield from ui.call_operator(e, "Lasso Mask")
     center = ui.get_area_center_from_spacetype(window, 'VIEW_3D')
-    yield from e.leftmouse.cursor_motion(ui.cursor_motion_circle(center, 100))
+    yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_circle(center, 100))
     t.assertEqual(_num_fully_masked_vertices(), 8548)
     yield from _reset_objects(e)
 
@@ -301,7 +301,7 @@ def trim_gestures():
     t.assertEqual(mesh.attributes.domain_size('POINT'), 8)
     yield from ui.call_operator(e, "Lasso Trim")
     center = ui.get_area_center_from_spacetype(window, 'VIEW_3D')
-    yield from e.leftmouse.cursor_motion(ui.cursor_motion_circle(center, 100))
+    yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_circle(center, 100))
     t.assertEqual(mesh.attributes.domain_size('POINT'), 88)
     yield from _reset_objects(e)
 

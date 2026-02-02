@@ -8,6 +8,7 @@ __all__ = (
     "cursor_motion_data_x",
     "cursor_motion_data_y",
     "cursor_motion_data_xy",
+    "cursor_motion_data_circle",
     "get_area_center",
     "get_area_center_from_spacetype",
     "get_window_area_by_type",
@@ -173,7 +174,12 @@ def cursor_motion_data_xy(window, margin=0.2):
     ]
 
 
-def cursor_motion_circle(center, radius):
+def cursor_motion_data_circle(center, radius):
+    """
+    Generate a range of (x,y) positions in screen space as a circle.
+    :param center: The center of the circle
+    :param radius: The radius of the circle
+    """
     import sys
     from math import sin, cos, pi
     if sys.platform == "darwin":
