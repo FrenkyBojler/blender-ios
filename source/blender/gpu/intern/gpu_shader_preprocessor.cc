@@ -932,7 +932,9 @@ struct Preprocessor : IntermediateFormWithIDs {
 
  public:
   Preprocessor(const std::string_view str)
-      : IntermediateFormWithIDs(str), out_stream(lex_.hash("return"))
+      : IntermediateFormWithIDs(str),
+        out_stream(
+            lex_.hash("return"), lex_.hash("thread"), lex_.hash("device"), lex_.hash("layout"))
   {
     /* From our stats. Should be enough for 100% of our cases. */
     defines.reserve(1000);
@@ -982,8 +984,7 @@ struct Preprocessor : IntermediateFormWithIDs {
     entry_points.append(lex_.hash("derivative_scale_get"));
     entry_points.append(lex_.hash("closure_to_rgba"));
 
-    out_stream.optimize(
-        entry_points.as_span(), lex_.hash("thread"), lex_.hash("device"), lex_.hash("layout"));
+    out_stream.optimize(entry_points.as_span());
   }
 
   std::string result_get()
@@ -1661,16 +1662,12 @@ std::string Shader::run_preprocessor(StringRef source)
 
   Preprocessor processor(source);
   processor.preprocess();
-  processor.optimize();
 
   if (G.debug & G_DEBUG_GPU_SHADER_NO_DCE) {
     return processor.result_get();
   }
+  processor.optimize();
   return processor.result_get();
-
-  DeadCodeEliminator dce(processor.result_get());
-  dce.optimize();
-  return dce.result_get(true);
 }
 
 /** \} */

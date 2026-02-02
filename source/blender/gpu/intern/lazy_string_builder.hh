@@ -14,7 +14,6 @@ namespace blender {
 
 struct LazyStringBuilder {
   Vector<StringRef> stream;
-  Vector<std::pair<int32_t, int32_t>> removals;
   size_t total_length = 0;
 
   /**
@@ -62,12 +61,6 @@ struct LazyStringBuilder {
     }
     BLI_assert(result.size() == total_length);
     return result;
-  }
-
-  /* Remove a range of character from the final string but keeping spaces. */
-  void remove_range(int start_char, int end_char)
-  {
-    removals.append_as(start_char, end_char);
   }
 };
 

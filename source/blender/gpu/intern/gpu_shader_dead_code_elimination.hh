@@ -364,6 +364,8 @@ struct DCEStream : private LazyStringBuilder {
   using TokenAtom = lexit::TokenAtom;
 
  private:
+  Vector<std::pair<int32_t, int32_t>> removals;
+
   struct TokenFingerPrint {
     /* Start of this token inside the LazyStringBuilder result. */
     uint32_t str_start = 0;
@@ -422,9 +424,21 @@ struct DCEStream : private LazyStringBuilder {
   int stack_depth = 0;
 
   const TokenAtom return_atom;
+  const TokenAtom thread_atom;
+  const TokenAtom device_atom;
+  const TokenAtom layout_atom;
 
  public:
-  DCEStream(TokenAtom return_atom) : return_atom(return_atom) {}
+  DCEStream(TokenAtom return_atom,
+            TokenAtom thread_atom,
+            TokenAtom device_atom,
+            TokenAtom layout_atom)
+      : return_atom(return_atom),
+        thread_atom(thread_atom),
+        device_atom(device_atom),
+        layout_atom(layout_atom)
+  {
+  }
 
   void set_enabled_parsing(bool value)
   {
@@ -505,15 +519,32 @@ struct DCEStream : private LazyStringBuilder {
 
   std::string str() const
   {
-    return static_cast<const LazyStringBuilder *>(this)->str();
+    std::string concat = static_cast<const LazyStringBuilder *>(this)->str();
+
+    std::string result;
+    result.reserve(concat.size());
+
+    int64_t offset = 0;
+    for (auto [start, end] : removals) {
+      /* Copy unchanged text. */
+      result.append(concat.data() + offset, start - offset);
+      /* Fetch range to remove. */
+      auto to_remove = std::string_view(concat).substr(start, end - start);
+      /* Count newlines. */
+      int newlines = std::count(to_remove.begin(), to_remove.end(), '\n');
+      /* Append replacement. */
+      result.append(std::string(newlines, '\n'));
+      offset = end;
+    }
+    /* Append remainder. */
+    result.append(concat.data() + offset, concat.size() - offset);
+
+    return result;
   }
 
-  void optimize(const Span<TokenAtom> entry_points,
-                const TokenAtom thread_atom,
-                const TokenAtom device_atom,
-                const TokenAtom layout_atom)
+  void optimize(const Span<TokenAtom> entry_points)
   {
-    prune_unused_functions(entry_points, thread_atom, device_atom, layout_atom);
+    prune_unused_functions(entry_points);
   }
 
  private:
@@ -549,6 +580,14 @@ struct DCEStream : private LazyStringBuilder {
     }
 
     TokenFingerPrint type_tok = token_history[1];
+
+    /* Filter MSL & GLSL specific identifiers that could have confused the parser. */
+    if (type_tok.atom == thread_atom || type_tok.atom == device_atom ||
+        name_tok.atom == layout_atom)
+    {
+      return;
+    }
+
     if (type_tok.type == TokenType::Word && type_tok.atom != return_atom) {
       register_function_declaration(type_tok, name_tok);
     }
@@ -570,6 +609,10 @@ struct DCEStream : private LazyStringBuilder {
    * Does not differentiate overloads. */
   void register_function_declaration(TokenFingerPrint type_tok, TokenFingerPrint name_tok)
   {
+    BLI_assert_msg(graph.declarations.is_empty() || graph.declarations.last().name.str_start !=
+                                                        graph.declarations.last().end.str_start,
+                   "Missing call to register_function_end");
+
     FnId id = graph.names.lookup_or_add_cb(name_tok.atom, [this]() { return graph.counter++; });
     graph.declarations.append(FunctionDeclaration{type_tok, name_tok, name_tok, id});
     current_fn_id = id;
@@ -642,10 +685,7 @@ struct DCEStream : private LazyStringBuilder {
     return used;
   }
 
-  void prune_unused_functions(const Span<TokenAtom> entry_points,
-                              const TokenAtom thread_atom,
-                              const TokenAtom device_atom,
-                              const TokenAtom layout_atom)
+  void prune_unused_functions(const Span<TokenAtom> entry_points)
   {
     Vector<FnId> entry_point_ids;
     for (auto entry_point : entry_points) {
@@ -667,15 +707,21 @@ struct DCEStream : private LazyStringBuilder {
         continue;
       }
 
-      if (type_tok.atom == thread_atom || type_tok.atom == device_atom ||
-          name_tok.atom == layout_atom)
-      {
-        /* Filter MSL & GLSL specific identifiers that could have confused the parser. */
-        continue;
+      if (name_tok.str_start == end_tok.str_start) {
+        /* TODO(fclem): Bug in parser. */
+        removals.clear();
+        std::cout << "fuck" << std::endl;
+        break;
       }
 
       remove_range(type_tok.str_start, end_tok.str_start + 1);
     }
+  }
+
+  /* Remove a range of character from the final string but keeping spaces. */
+  void remove_range(int start_char, int end_char)
+  {
+    removals.append_as(start_char, end_char);
   }
 };
 
