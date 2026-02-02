@@ -179,14 +179,14 @@ display_colorspaces:
 
   - !<ColorSpace>
     name: Rec.2020
-    aliases: [g24_rec2020_display, BT.2020, BT.2020 2.4, BT.2020 I-D65, Rec.1886 / Rec.2020 Video - Display, rec1886_rec2020_display, rec1886_rec2020_video_display, Rec.1886 Rec.2020 - Display, "Rec1886: 2.4 Gamma - Rec.2020"]
+    aliases: [g24_rec2020_display, blender:g24_rec2020_display, BT.2020, BT.2020 2.4, BT.2020 I-D65, Rec.1886 / Rec.2020 Video - Display, rec1886_rec2020_display, rec1886_rec2020_video_display, Rec.1886 Rec.2020 - Display, "Rec1886: 2.4 Gamma - Rec.2020"]
     family: Display
     equalitygroup:
     bitdepth: 32f
     description: |
       BT.2020 2.4 Exponent EOTF Display
     isdata: false
-    interop_id: g24_rec2020_display
+    interop_id: blender:g24_rec2020_display
     interchange:
       icc_profile_name: g24_rec2020_display.icc
     from_display_reference: !<GroupTransform>
@@ -229,6 +229,7 @@ display_colorspaces:
     family: Legacy
     description: |
       sRGB display space with Filmic view transform
+    interop_id: srgb_rec709_display
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Filmic Log}
@@ -239,6 +240,7 @@ display_colorspaces:
     family: Legacy
     description: |
       AgX Base Image Encoding for sRGB Display
+    interop_id: srgb_rec709_display
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear FilmLight E-Gamut}
@@ -255,6 +257,7 @@ display_colorspaces:
        ACES 1.0 Output Transform for SDR D65 video, limited to Rec.709 gamut
     encoding: sdr-video
     isdata: false
+    interop_id: srgb_rec709_display
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: ACES2065-1}
@@ -270,6 +273,7 @@ display_colorspaces:
        ACES 2 Output Transform for 100 nit SDR Rec709
     encoding: sdr-video
     isdata: false
+    interop_id: srgb_rec709_display
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: ACES2065-1}
@@ -285,6 +289,7 @@ display_colorspaces:
       Khronos PBR Neutral Image Encoding for sRGB Display
     encoding: sdr-video
     isdata: false
+    interop_id: srgb_rec709_display
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear Rec.709}

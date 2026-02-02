@@ -4,6 +4,7 @@
 
 #include "libocio_colorspace.hh"
 #include "OCIO_cpu_processor.hh"
+#include "error_handling.hh"
 #include "intern/cpu_processor_cache.hh"
 
 #if defined(WITH_OPENCOLORIO)
@@ -139,10 +140,9 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
 
   is_invertible_ = color_space_is_invertible(ocio_color_space);
 
-#if OCIO_VERSION_HEX >= 0x02050000
-  interop_id_ = ocio_color_space->getInteropId();
-#endif
-
+#  if OCIO_VERSION_HEX >= 0x02050000
+  interop_id_ = ocio_color_space->getInteropID();
+#  endif
 
   if (interop_id_.is_empty()) {
     /* For older configs and older OpenColorIO versions, check the aliases as fallback.
@@ -165,6 +165,9 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
       else if (alias == "rec1886_rec709_display") {
         interop_id_ = "g24_rec709_display";
       }
+      else if (alias == "g24_rec2020_display") {
+        interop_id_ = "blender:g24_rec2020_display";
+      }
       else if (alias == "rec2100_pq_display") {
         interop_id_ = "pq_rec2020_display";
       }
@@ -184,9 +187,8 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
         interop_id_ = "lin_p3d65_scene";
       }
       else if ((alias.startswith("lin_") || alias.startswith("srgb_") ||
-                alias.startswith("g18_") || alias.startswith("g22_") ||
-                alias.startswith("g24_") || alias.startswith("g26_") ||
-                alias.startswith("pq_") || alias.startswith("hlg_")) &&
+                alias.startswith("g18_") || alias.startswith("g22_") || alias.startswith("g24_") ||
+                alias.startswith("g26_") || alias.startswith("pq_") || alias.startswith("hlg_")) &&
                (alias.endswith("_scene") || alias.endswith("_display")))
       {
         interop_id_ = alias;
@@ -226,6 +228,24 @@ bool LibOCIOColorSpace::is_primary_interop_id() const
   return is_primary_interop_id_;
 }
 
+std::string LibOCIOColorSpace::icc_profile_path() const
+{
+#  if OCIO_VERSION_HEX >= 0x02050000
+  try {
+    /* Both these methods can throw exceptions. */
+    const char *profile_name = ocio_color_space_->getInterchangeAttribute("icc_profile_name");
+    if (profile_name && profile_name[0]) {
+      return ocio_config_->getCurrentContext()->resolveFileLocation(profile_name);
+    }
+    return profile_name;
+  }
+  catch (OCIO_NAMESPACE::Exception &exception) {
+    report_exception(exception);
+  }
+#  endif
+
+  return "";
+}
 
 bool LibOCIOColorSpace::is_scene_linear() const
 {
@@ -277,8 +297,6 @@ void LibOCIOColorSpace::clear_caches()
   from_scene_linear_cpu_processor_ = CPUProcessorCache();
   to_scene_linear_cpu_processor_ = CPUProcessorCache();
   is_info_cached_ = false;
-  icc_profile_path_cache_.clear();
-  is_icc_profile_path_cached_ = false;
 }
 
 }  // namespace ocio
