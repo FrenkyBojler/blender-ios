@@ -80,6 +80,8 @@
 
 #include <cerrno>
 
+namespace blender {
+
 /* Make preferences read-only, use `versioning_userdef.cc`. */
 #define U (*((const UserDef *)&U))
 
@@ -93,8 +95,8 @@ static void vcol_to_fcol(Mesh *mesh)
     return;
   }
 
-  mcoln = mcolmain = MEM_malloc_arrayN<uint>(4 * mesh->totface_legacy, "mcoln");
-  mcol = (uint *)mesh->mcol;
+  mcoln = mcolmain = MEM_new_array_uninitialized<uint>(4 * mesh->totface_legacy, "mcoln");
+  mcol = reinterpret_cast<uint *>(mesh->mcol);
   mface = mesh->mface;
   for (a = mesh->totface_legacy; a > 0; a--, mface++) {
     mcoln[0] = mcol[mface->v1];
@@ -104,8 +106,8 @@ static void vcol_to_fcol(Mesh *mesh)
     mcoln += 4;
   }
 
-  MEM_freeN(mesh->mcol);
-  mesh->mcol = (MCol *)mcolmain;
+  MEM_delete(mesh->mcol);
+  mesh->mcol = reinterpret_cast<MCol *>(mcolmain);
 }
 
 static void do_version_bone_head_tail_237(Bone *bone)
@@ -155,7 +157,7 @@ static void ntree_version_241(bNodeTree *ntree)
     for (bNode &node : ntree->nodes) {
       if (node.type_legacy == CMP_NODE_BLUR) {
         if (node.storage == nullptr) {
-          NodeBlurData *nbd = MEM_new_for_free<NodeBlurData>("node blur patch");
+          NodeBlurData *nbd = MEM_new<NodeBlurData>("node blur patch");
           nbd->sizex = node.custom1;
           nbd->sizey = node.custom2;
           nbd->filtertype = CMP_NODE_BLUR_TYPE_QUAD;
@@ -164,7 +166,7 @@ static void ntree_version_241(bNodeTree *ntree)
       }
       else if (node.type_legacy == CMP_NODE_VECBLUR) {
         if (node.storage == nullptr) {
-          NodeBlurData *nbd = MEM_new_for_free<NodeBlurData>("node blur patch");
+          NodeBlurData *nbd = MEM_new<NodeBlurData>("node blur patch");
           nbd->samples = node.custom1;
           nbd->maxspeed = node.custom2;
           nbd->fac = 1.0f;
@@ -202,7 +204,7 @@ static void ntree_version_245(FileData *fd, Library * /*lib*/, bNodeTree *ntree)
     for (bNode &node : ntree->nodes) {
       if (node.type_legacy == CMP_NODE_ALPHAOVER) {
         if (!node.storage) {
-          ntf = MEM_new_for_free<NodeTwoFloats>("NodeTwoFloats");
+          ntf = MEM_new<NodeTwoFloats>("NodeTwoFloats");
           node.storage = ntf;
           if (node.custom1) {
             ntf->x = 1.0f;
@@ -214,7 +216,7 @@ static void ntree_version_245(FileData *fd, Library * /*lib*/, bNodeTree *ntree)
       nodeid = static_cast<ID *>(
           blo_do_versions_newlibadr(fd, &ntree->id, ID_IS_LINKED(ntree), node.id));
       if (node.storage && nodeid && GS(nodeid->name) == ID_IM) {
-        image = (Image *)nodeid;
+        image = id_cast<Image *>(nodeid);
         iuser = static_cast<ImageUser *>(node.storage);
         if (iuser->flag & IMA_OLD_PREMUL) {
           iuser->flag &= ~IMA_OLD_PREMUL;
@@ -285,7 +287,7 @@ static void customdata_version_242(Mesh *mesh)
 
     if (mesh->tface) {
       if (mesh->mcol) {
-        MEM_freeN(mesh->mcol);
+        MEM_delete(mesh->mcol);
       }
 
       mesh->mcol = static_cast<MCol *>(CustomData_add_layer(
@@ -302,7 +304,7 @@ static void customdata_version_242(Mesh *mesh)
         memcpy(mtf->uv, tf->uv, sizeof(tf->uv));
       }
 
-      MEM_freeN(mesh->tface);
+      MEM_delete(mesh->tface);
       mesh->tface = nullptr;
     }
     else if (mesh->mcol) {
@@ -312,7 +314,7 @@ static void customdata_version_242(Mesh *mesh)
   }
 
   if (mesh->tface) {
-    MEM_freeN(mesh->tface);
+    MEM_delete(mesh->tface);
     mesh->tface = nullptr;
   }
 
@@ -365,7 +367,7 @@ static void do_version_ntree_242_2(bNodeTree *ntree)
         /* only image had storage */
         if (node.storage) {
           NodeImageAnim *nia = static_cast<NodeImageAnim *>(node.storage);
-          ImageUser *iuser = MEM_new_for_free<ImageUser>("ima user node");
+          ImageUser *iuser = MEM_new<ImageUser>("ima user node");
 
           iuser->frames = nia->frames;
           iuser->sfra = nia->sfra;
@@ -373,10 +375,10 @@ static void do_version_ntree_242_2(bNodeTree *ntree)
           iuser->cycl = nia->cyclic;
 
           node.storage = iuser;
-          MEM_freeN(nia);
+          MEM_delete(nia);
         }
         else {
-          ImageUser *iuser = MEM_new_for_free<ImageUser>("node image user");
+          ImageUser *iuser = MEM_new<ImageUser>("node image user");
           iuser->sfra = 1;
           node.storage = iuser;
         }
@@ -390,12 +392,12 @@ static void do_version_free_effect_245(Effect *eff)
   PartEff *paf;
 
   if (eff->type == EFF_PARTICLE) {
-    paf = (PartEff *)eff;
+    paf = reinterpret_cast<PartEff *>(eff);
     if (paf->keys) {
-      MEM_freeN(paf->keys);
+      MEM_delete(paf->keys);
     }
   }
-  MEM_freeN(eff);
+  MEM_delete(eff);
 }
 
 static void do_version_free_effects_245(ListBaseT<Effect> *lb)
@@ -409,7 +411,7 @@ static void do_version_constraints_245(ListBaseT<bConstraint> *lb)
 {
   for (bConstraint &con : *lb) {
     if (con.type == CONSTRAINT_TYPE_LOCLIKE) {
-      bLocateLikeConstraint *data = (bLocateLikeConstraint *)con.data;
+      bLocateLikeConstraint *data = static_cast<bLocateLikeConstraint *>(con.data);
 
       /* new headtail functionality makes Bone-Tip function obsolete */
       if (data->flag & LOCLIKE_TIP) {
@@ -546,7 +548,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
         while (sl) {
           if (sl->spacetype == SPACE_VIEW3D) {
-            View3D *v3d = (View3D *)sl;
+            View3D *v3d = reinterpret_cast<View3D *>(sl);
 
             if (v3d->gridlines == 0) {
               v3d->gridlines = 20;
@@ -629,7 +631,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
           int j;
           for (j = 0; j < 4; j++) {
             int k;
-            cp = ((char *)&tface->col[j]) + 1;
+            cp = (reinterpret_cast<char *>(&tface->col[j])) + 1;
             for (k = 0; k < 3; k++) {
               cp[k] = (cp[k] > 126) ? 255 : cp[k] * 2;
             }
@@ -660,7 +662,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
         while (sl) {
           if (sl->spacetype == SPACE_GRAPH) {
-            SpaceGraph *sipo = (SpaceGraph *)sl;
+            SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(sl);
             sipo->v2d.max[0] = 15000.0;
           }
           sl = sl->next;
@@ -693,7 +695,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
         while (sl) {
           if (sl->spacetype == SPACE_TEXT) {
-            SpaceText *st = (SpaceText *)sl;
+            SpaceText *st = reinterpret_cast<SpaceText *>(sl);
             st->lheight = 12;
           }
           sl = sl->next;
@@ -803,10 +805,10 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         int i, j;
 
         for (i = 0; i < mesh->totface_legacy; i++) {
-          TFace *tf = &((TFace *)mesh->tface)[i];
+          TFace *tf = &(static_cast<TFace *>(mesh->tface))[i];
 
           for (j = 0; j < 4; j++) {
-            char *col = (char *)&tf->col[j];
+            char *col = reinterpret_cast<char *>(&tf->col[j]);
 
             col[0] = 255;
           }
@@ -857,7 +859,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       for (ScrArea &area : screen->areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_GRAPH) {
-            SpaceSeq *sseq = (SpaceSeq *)&sl;
+            SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
             sseq->v2d.keeptot = 0;
           }
         }
@@ -923,11 +925,11 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       for (ScrArea &area : screen->areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_ACTION) {
-            SpaceAction *sac = (SpaceAction *)&sl;
+            SpaceAction *sac = reinterpret_cast<SpaceAction *>(&sl);
             sac->v2d.max[0] = 32000;
           }
           else if (sl.spacetype == SPACE_NLA) {
-            SpaceNla *sla = (SpaceNla *)&sl;
+            SpaceNla *sla = reinterpret_cast<SpaceNla *>(&sl);
             sla->v2d.max[0] = 32000;
           }
         }
@@ -982,7 +984,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       for (ScrArea &area : screen->areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_PROPERTIES) {
-            SpaceProperties *sbuts = (SpaceProperties *)&sl;
+            SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(&sl);
 
             sbuts->v2d.maxzoom = 1.2f;
 
@@ -1050,7 +1052,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           /* added: 5x better zoom in for action */
           if (sl.spacetype == SPACE_ACTION) {
-            SpaceAction *sac = (SpaceAction *)&sl;
+            SpaceAction *sac = reinterpret_cast<SpaceAction *>(&sl);
             sac->v2d.maxzoom = 50;
           }
         }
@@ -1069,7 +1071,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
         while (sl) {
           if (sl->spacetype == SPACE_VIEW3D) {
-            View3D *v3d = (View3D *)sl;
+            View3D *v3d = reinterpret_cast<View3D *>(sl);
 
             if (v3d->gridflag == 0) {
               v3d->gridflag |= V3D_SHOW_X;
@@ -1132,7 +1134,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           /* added: 5x better zoom in for nla */
           if (sl.spacetype == SPACE_NLA) {
-            SpaceNla *snla = (SpaceNla *)&sl;
+            SpaceNla *snla = reinterpret_cast<SpaceNla *>(&sl);
             snla->v2d.maxzoom = 50;
           }
         }
@@ -1149,7 +1151,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       for (ScrArea &area : screen->areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_VIEW3D) {
-            View3D *v3d = (View3D *)&sl;
+            View3D *v3d = reinterpret_cast<View3D *>(&sl);
             v3d->flag |= V3D_SELECT_OUTLINE;
           }
         }
@@ -1166,7 +1168,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       for (ScrArea &area : screen->areabase) {
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_TEXT) {
-            SpaceText *st = (SpaceText *)&sl;
+            SpaceText *st = reinterpret_cast<SpaceText *>(&sl);
             if (st->tabnumber == 0) {
               st->tabnumber = 2;
             }
@@ -1190,7 +1192,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     while (sce) {
       ed = sce->ed;
       if (ed) {
-        blender::seq::foreach_strip(&sce->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
+        seq::foreach_strip(&sce->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
       }
 
       sce = static_cast<Scene *>(sce->id.next);
@@ -1287,8 +1289,8 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         };
 
         if (mesh->flag & ME_SUBSURF) {
-          SubsurfModifierData *smd = (SubsurfModifierData *)BKE_modifier_new(
-              eModifierType_Subsurf);
+          SubsurfModifierData *smd = reinterpret_cast<SubsurfModifierData *>(
+              BKE_modifier_new(eModifierType_Subsurf));
 
           smd->levels = std::max<short>(1, mesh->subdiv);
           smd->renderLevels = std::max<short>(1, mesh->subdivr);
@@ -1308,7 +1310,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
           BLI_addtail(&ob->modifiers, smd);
 
-          BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)smd);
+          BKE_modifier_unique_name(&ob->modifiers, reinterpret_cast<ModifierData *>(smd));
         }
       }
 
@@ -1341,7 +1343,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
     while (sce) {
       if (sce->toolsettings == nullptr) {
-        sce->toolsettings = MEM_new_for_free<ToolSettings>("Tool Settings Struct");
+        sce->toolsettings = MEM_new<ToolSettings>("Tool Settings Struct");
         sce->toolsettings->doublimit = 0.001f;
       }
       sce = static_cast<Scene *>(sce->id.next);
@@ -1364,7 +1366,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
       for (ModifierData &md : ob->modifiers) {
         if (md.type == eModifierType_Subsurf) {
-          SubsurfModifierData *smd = (SubsurfModifierData *)&md;
+          SubsurfModifierData *smd = reinterpret_cast<SubsurfModifierData *>(&md);
 
           smd->flags &= ~(eSubsurfModifierFlag_Incremental | eSubsurfModifierFlag_DebugIncr);
         }
@@ -1399,7 +1401,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
             for (bConstraint &con : pchan.constraints) {
               if (con.type == CONSTRAINT_TYPE_KINEMATIC) {
-                bKinematicConstraint *data = (bKinematicConstraint *)con.data;
+                bKinematicConstraint *data = static_cast<bKinematicConstraint *>(con.data);
                 data->weight = 1.0f;
                 data->orientweight = 1.0f;
                 data->flag &= ~CONSTRAINT_IK_ROT;
@@ -1481,7 +1483,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     {
       for (ModifierData &md : ob->modifiers) {
         if (md.type == eModifierType_Armature) {
-          ArmatureModifierData *amd = (ArmatureModifierData *)&md;
+          ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(&md);
           if (amd->object && amd->deformflag == 0) {
             Object *oba = static_cast<Object *>(
                 blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), amd->object));
@@ -1623,7 +1625,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       while (area) {
         for (SpaceLink &sl : area->spacedata) {
           if (sl.spacetype == SPACE_VIEW3D) {
-            View3D *v3d = (View3D *)&sl;
+            View3D *v3d = reinterpret_cast<View3D *>(&sl);
             if (v3d->gridsubdiv == 0) {
               v3d->gridsubdiv = 10;
             }
@@ -1737,7 +1739,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       /* copy old object level track settings to curve modifiers */
       for (ModifierData &md : ob->modifiers) {
         if (md.type == eModifierType_Curve) {
-          CurveModifierData *cmd = (CurveModifierData *)&md;
+          CurveModifierData *cmd = reinterpret_cast<CurveModifierData *>(&md);
 
           if (cmd->defaxis == 0) {
             cmd->defaxis = ob->trackflag + 1;
@@ -1850,7 +1852,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         /* translate old mirror modifier axis values to new flags */
         for (ModifierData &md : ob->modifiers) {
           if (md.type == eModifierType_Mirror) {
-            MirrorModifierData *mmd = (MirrorModifierData *)&md;
+            MirrorModifierData *mmd = reinterpret_cast<MirrorModifierData *>(&md);
 
             switch (mmd->axis) {
               case 0:
@@ -1894,7 +1896,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         while (area) {
           for (SpaceLink &sl : area->spacedata) {
             if (sl.spacetype == SPACE_ACTION) {
-              SpaceAction *saction = (SpaceAction *)&sl;
+              SpaceAction *saction = reinterpret_cast<SpaceAction *>(&sl);
 
               saction->v2d.tot.ymin = -1000.0;
               saction->v2d.tot.ymax = 0.0;
@@ -1937,7 +1939,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
           switch (curcon.type) {
             case CONSTRAINT_TYPE_LOCLIMIT: {
-              bLocLimitConstraint *data = (bLocLimitConstraint *)curcon.data;
+              bLocLimitConstraint *data = static_cast<bLocLimitConstraint *>(curcon.data);
 
               /* old limit without parent option for objects */
               if (data->flag2) {
@@ -1964,7 +1966,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
                 switch (curcon.type) {
                   case CONSTRAINT_TYPE_ACTION: {
-                    bActionConstraint *data = (bActionConstraint *)curcon.data;
+                    bActionConstraint *data = static_cast<bActionConstraint *>(curcon.data);
 
                     /* 'data->local' used to mean that target was in local-space */
                     if (data->local) {
@@ -2018,7 +2020,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
       for (ModifierData &md : ob->modifiers) {
         if (md.type == eModifierType_Cloth) {
-          ClothModifierData *clmd = (ClothModifierData *)&md;
+          ClothModifierData *clmd = reinterpret_cast<ClothModifierData *>(&md);
           if (!clmd->point_cache) {
             clmd->point_cache = BKE_ptcache_add(&clmd->ptcaches);
             clmd->point_cache->step = 1;
@@ -2114,7 +2116,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     {
       for (ModifierData &md : ob->modifiers) {
         if (md.type == eModifierType_Armature) {
-          ((ArmatureModifierData *)&md)->deformflag |= ARM_DEF_B_BONE_REST;
+          (reinterpret_cast<ArmatureModifierData *>(&md))->deformflag |= ARM_DEF_B_BONE_REST;
         }
       }
     }
@@ -2163,11 +2165,11 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
         for (k = 0; k < sb->totkey; k++) {
           if (sb->keys[k]) {
-            MEM_freeN(sb->keys[k]);
+            MEM_delete(sb->keys[k]);
           }
         }
 
-        MEM_freeN(sb->keys);
+        MEM_delete(sb->keys);
 
         sb->keys = nullptr;
         sb->totkey = 0;
@@ -2188,11 +2190,11 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
         for (k = 0; k < sb->totkey; k++) {
           if (sb->keys[k]) {
-            MEM_freeN(sb->keys[k]);
+            MEM_delete(sb->keys[k]);
           }
         }
 
-        MEM_freeN(sb->keys);
+        MEM_delete(sb->keys);
 
         sb->keys = nullptr;
         sb->totkey = 0;
@@ -2207,7 +2209,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         ParticleSettings *part;
 
         /* create new particle system */
-        psys = MEM_new_for_free<ParticleSystem>("particle_system");
+        psys = MEM_new<ParticleSystem>("particle_system");
         psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
 
         /* Bad, but better not try to change this prehistorical code nowadays. */
@@ -2230,7 +2232,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
         md = BKE_modifier_new(eModifierType_ParticleSystem);
         SNPRINTF_UTF8(md->name, "ParticleSystem %i", BLI_listbase_count(&ob->particlesystem));
-        psmd = (ParticleSystemModifierData *)md;
+        psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
         psmd->psys = psys;
         BLI_addtail(&ob->modifiers, md);
 
@@ -2311,8 +2313,8 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         }
 
         {
-          FluidsimModifierData *fluidmd = (FluidsimModifierData *)BKE_modifiers_findby_type(
-              ob, eModifierType_Fluidsim);
+          FluidsimModifierData *fluidmd = reinterpret_cast<FluidsimModifierData *>(
+              BKE_modifiers_findby_type(ob, eModifierType_Fluidsim));
           if (fluidmd && fluidmd->fss && fluidmd->fss->type == OB_FLUIDSIM_PARTICLE) {
             part->type = PART_FLUID;
           }
@@ -2365,7 +2367,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
          sce = static_cast<Scene *>(sce->id.next))
     {
       if (sce->ed) {
-        blender::seq::foreach_strip(&sce->ed->seqbase, strip_set_blend_mode_cb, nullptr);
+        seq::foreach_strip(&sce->ed->seqbase, strip_set_blend_mode_cb, nullptr);
       }
     }
   }
@@ -2406,13 +2408,13 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
          ob = static_cast<Object *>(ob->id.next))
     {
       if (ob->fluidsimSettings) {
-        FluidsimModifierData *fluidmd = (FluidsimModifierData *)BKE_modifier_new(
-            eModifierType_Fluidsim);
-        BLI_addhead(&ob->modifiers, (ModifierData *)fluidmd);
+        FluidsimModifierData *fluidmd = reinterpret_cast<FluidsimModifierData *>(
+            BKE_modifier_new(eModifierType_Fluidsim));
+        BLI_addhead(&ob->modifiers, reinterpret_cast<ModifierData *>(fluidmd));
 
-        MEM_freeN(fluidmd->fss);
-        fluidmd->fss = static_cast<FluidsimSettings *>(MEM_dupallocN(ob->fluidsimSettings));
-        MEM_freeN(ob->fluidsimSettings);
+        MEM_delete(fluidmd->fss);
+        fluidmd->fss = MEM_dupalloc(ob->fluidsimSettings);
+        MEM_delete(ob->fluidsimSettings);
 
         fluidmd->fss->lastgoodframe = INT_MAX;
         fluidmd->fss->flag = 0;
@@ -2477,19 +2479,19 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           switch (sl.spacetype) {
             case SPACE_ACTION: {
-              SpaceAction *sact = (SpaceAction *)&sl;
+              SpaceAction *sact = reinterpret_cast<SpaceAction *>(&sl);
 
               sact->mode = SACTCONT_DOPESHEET;
               sact->autosnap = SACTSNAP_FRAME;
               break;
             }
             case SPACE_GRAPH: {
-              SpaceGraph *sipo = (SpaceGraph *)&sl;
+              SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(&sl);
               sipo->autosnap = SACTSNAP_FRAME;
               break;
             }
             case SPACE_NLA: {
-              SpaceNla *snla = (SpaceNla *)&sl;
+              SpaceNla *snla = reinterpret_cast<SpaceNla *>(&sl);
               snla->autosnap = SACTSNAP_FRAME;
               break;
             }
@@ -2518,7 +2520,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     while (sce) {
       ed = sce->ed;
       if (ed) {
-        for (Strip &strip : *blender::seq::active_seqbase_get(ed)) {
+        for (Strip &strip : *seq::active_seqbase_get(ed)) {
           if (strip.data && strip.data->proxy) {
             strip.data->proxy->quality = 90;
           }
@@ -2529,3 +2531,5 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 }
+
+}  // namespace blender

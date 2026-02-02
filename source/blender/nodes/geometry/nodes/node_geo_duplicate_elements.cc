@@ -53,7 +53,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryDuplicateElements *data = MEM_new_for_free<NodeGeometryDuplicateElements>(__func__);
+  NodeGeometryDuplicateElements *data = MEM_new<NodeGeometryDuplicateElements>(__func__);
   data->domain = int8_t(AttrDomain::Point);
   node->storage = data;
 }
@@ -191,8 +191,7 @@ static void copy_curve_attributes_without_id(const bke::CurvesGeometry &src_curv
             curve_offsets, selection, attribute.src, attribute.dst.span);
         break;
       case AttrDomain::Point:
-        bke::attribute_math::convert_to_static_type(attribute.src.type(), [&](auto dummy) {
-          using T = decltype(dummy);
+        bke::attribute_math::to_static_type(attribute.src.type(), [&]<typename T>() {
           const Span<T> src = attribute.src.typed<T>();
           MutableSpan<T> dst = attribute.dst.span.typed<T>();
           selection.foreach_index(
@@ -803,8 +802,7 @@ static bke::CurvesGeometry duplicate_points_CurvesGeometry(
            {bke::AttrDomain::Curve},
            bke::attribute_filter_with_skip_ref(attribute_filter, {"id"})))
   {
-    bke::attribute_math::convert_to_static_type(attribute.src.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    bke::attribute_math::to_static_type(attribute.src.type(), [&]<typename T>() {
       const Span<T> src = attribute.src.typed<T>();
       MutableSpan<T> dst = attribute.dst.span.typed<T>();
       selection.foreach_index(GrainSize(512), [&](const int64_t index, const int64_t i_selection) {
@@ -1279,22 +1277,22 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeDuplicateElements", GEO_NODE_DUPLICATE_ELEMENTS);
   ntype.ui_name = "Duplicate Elements";
   ntype.ui_description = "Generate an arbitrary number copies of each selected input element";
   ntype.enum_name_legacy = "DUPLICATE_ELEMENTS";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryDuplicateElements",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryDuplicateElements",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
 
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -10,6 +10,7 @@
 
 #include <cstring>
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -50,6 +51,8 @@
 
 #include "ED_screen.hh"
 
+namespace blender {
+
 struct wmKeyMapItemFind_Params {
   bool (*filter_fn)(const wmKeyMap *km, const wmKeyMapItem *kmi, void *user_data);
   void *user_data;
@@ -63,7 +66,7 @@ struct wmKeyMapItemFind_Params {
 
 static wmKeyMapItem *wm_keymap_item_copy(const wmKeyMapItem *kmi)
 {
-  wmKeyMapItem *kmin = static_cast<wmKeyMapItem *>(MEM_dupallocN(kmi));
+  wmKeyMapItem *kmin = MEM_dupalloc(kmi);
 
   kmin->prev = kmin->next = nullptr;
   kmin->flag &= ~KMI_UPDATE;
@@ -253,7 +256,7 @@ int WM_keymap_item_map_type_get(const wmKeyMapItem *kmi)
 
 static wmKeyMapDiffItem *wm_keymap_diff_item_copy(wmKeyMapDiffItem *kmdi)
 {
-  wmKeyMapDiffItem *kmdin = static_cast<wmKeyMapDiffItem *>(MEM_dupallocN(kmdi));
+  wmKeyMapDiffItem *kmdin = MEM_dupalloc(kmdi);
 
   kmdin->next = kmdin->prev = nullptr;
   if (kmdi->add_item) {
@@ -270,11 +273,11 @@ static void wm_keymap_diff_item_free(wmKeyMapDiffItem *kmdi)
 {
   if (kmdi->remove_item) {
     wm_keymap_item_free_data(kmdi->remove_item);
-    MEM_freeN(kmdi->remove_item);
+    MEM_delete(kmdi->remove_item);
   }
   if (kmdi->add_item) {
     wm_keymap_item_free_data(kmdi->add_item);
-    MEM_freeN(kmdi->add_item);
+    MEM_delete(kmdi->add_item);
   }
 }
 
@@ -292,7 +295,7 @@ wmKeyConfig *WM_keyconfig_new(wmWindowManager *wm, const char *idname, bool user
 {
   BLI_assert(!BLI_findstring(&wm->runtime->keyconfigs, idname, offsetof(wmKeyConfig, idname)));
   /* Create new configuration. */
-  wmKeyConfig *keyconf = MEM_new_for_free<wmKeyConfig>("wmKeyConfig");
+  wmKeyConfig *keyconf = MEM_new<wmKeyConfig>("wmKeyConfig");
   STRNCPY_UTF8(keyconf->idname, idname);
   BLI_addtail(&wm->runtime->keyconfigs, keyconf);
 
@@ -352,7 +355,7 @@ void WM_keyconfig_clear(wmKeyConfig *keyconf)
 {
   for (wmKeyMap &km : keyconf->keymaps.items_mutable()) {
     WM_keymap_clear(&km);
-    MEM_freeN(&km);
+    MEM_delete(&km);
   }
 
   BLI_listbase_clear(&keyconf->keymaps);
@@ -361,7 +364,7 @@ void WM_keyconfig_clear(wmKeyConfig *keyconf)
 void WM_keyconfig_free(wmKeyConfig *keyconf)
 {
   WM_keyconfig_clear(keyconf);
-  MEM_freeN(keyconf);
+  MEM_delete(keyconf);
 }
 
 static wmKeyConfig *WM_keyconfig_active(wmWindowManager *wm)
@@ -405,7 +408,7 @@ void WM_keyconfig_set_active(wmWindowManager *wm, const char *idname)
 
 static wmKeyMap *wm_keymap_new(const char *idname, int spaceid, int regionid)
 {
-  wmKeyMap *km = MEM_new_for_free<wmKeyMap>("keymap list");
+  wmKeyMap *km = MEM_new<wmKeyMap>("keymap list");
 
   STRNCPY_UTF8(km->idname, idname);
   km->spaceid = spaceid;
@@ -422,7 +425,7 @@ static wmKeyMap *wm_keymap_new(const char *idname, int spaceid, int regionid)
 
 static wmKeyMap *wm_keymap_copy(wmKeyMap *keymap)
 {
-  wmKeyMap *keymapn = static_cast<wmKeyMap *>(MEM_dupallocN(keymap));
+  wmKeyMap *keymapn = MEM_dupalloc(keymap);
 
   keymapn->modal_items = keymap->modal_items;
   keymapn->poll = keymap->poll;
@@ -447,12 +450,12 @@ void WM_keymap_clear(wmKeyMap *keymap)
 {
   for (wmKeyMapDiffItem &kmdi : keymap->diff_items.items_mutable()) {
     wm_keymap_diff_item_free(&kmdi);
-    MEM_freeN(&kmdi);
+    MEM_delete(&kmdi);
   }
 
   for (wmKeyMapItem &kmi : keymap->items.items_mutable()) {
     wm_keymap_item_free_data(&kmi);
-    MEM_freeN(&kmi);
+    MEM_delete(&kmi);
   }
 
   BLI_listbase_clear(&keymap->diff_items);
@@ -464,7 +467,7 @@ void WM_keymap_remove(wmKeyConfig *keyconf, wmKeyMap *keymap)
   BLI_assert(BLI_findindex(&keyconf->keymaps, keymap) != -1);
   WM_keymap_clear(keymap);
   BLI_remlink(&keyconf->keymaps, keymap);
-  MEM_freeN(keymap);
+  MEM_delete(keymap);
 }
 
 bool WM_keymap_poll(bContext *C, wmKeyMap *keymap)
@@ -549,7 +552,7 @@ wmKeyMapItem *WM_keymap_add_item(wmKeyMap *keymap,
                                  const char *idname,
                                  const KeyMapItem_Params *params)
 {
-  wmKeyMapItem *kmi = MEM_new_for_free<wmKeyMapItem>("keymap entry");
+  wmKeyMapItem *kmi = MEM_new<wmKeyMapItem>("keymap entry");
 
   BLI_addtail(&keymap->items, kmi);
   STRNCPY(kmi->idname, idname);
@@ -642,13 +645,13 @@ static void wm_keymap_diff(
 
     if (!to_kmi) {
       /* Remove item. */
-      wmKeyMapDiffItem *kmdi = MEM_new_for_free<wmKeyMapDiffItem>("wmKeyMapDiffItem");
+      wmKeyMapDiffItem *kmdi = MEM_new<wmKeyMapDiffItem>("wmKeyMapDiffItem");
       kmdi->remove_item = wm_keymap_item_copy(&kmi);
       BLI_addtail(&diff_km->diff_items, kmdi);
     }
     else if (to_kmi && !wm_keymap_item_equals(&kmi, to_kmi)) {
       /* Replace item. */
-      wmKeyMapDiffItem *kmdi = MEM_new_for_free<wmKeyMapDiffItem>("wmKeyMapDiffItem");
+      wmKeyMapDiffItem *kmdi = MEM_new<wmKeyMapDiffItem>("wmKeyMapDiffItem");
       kmdi->remove_item = wm_keymap_item_copy(&kmi);
       kmdi->add_item = wm_keymap_item_copy(to_kmi);
       BLI_addtail(&diff_km->diff_items, kmdi);
@@ -672,7 +675,7 @@ static void wm_keymap_diff(
   for (wmKeyMapItem &kmi : to_km->items) {
     if (kmi.id < 0) {
       /* Add item. */
-      wmKeyMapDiffItem *kmdi = MEM_new_for_free<wmKeyMapDiffItem>("wmKeyMapDiffItem");
+      wmKeyMapDiffItem *kmdi = MEM_new<wmKeyMapDiffItem>("wmKeyMapDiffItem");
       kmdi->add_item = wm_keymap_item_copy(&kmi);
       BLI_addtail(&diff_km->diff_items, kmdi);
     }
@@ -842,13 +845,13 @@ static void wm_keymap_diff_update(ListBaseT<wmKeyMap> *lb,
   }
   else {
     WM_keymap_clear(diffmap);
-    MEM_freeN(diffmap);
+    MEM_delete(diffmap);
   }
 
   /* Free temporary default map. */
   if (addonmap) {
     WM_keymap_clear(defaultmap);
-    MEM_freeN(defaultmap);
+    MEM_delete(defaultmap);
   }
 }
 
@@ -974,7 +977,7 @@ wmKeyMap *WM_modalkeymap_find(wmKeyConfig *keyconf, const char *idname)
 
 wmKeyMapItem *WM_modalkeymap_add_item(wmKeyMap *km, const KeyMapItem_Params *params, int value)
 {
-  wmKeyMapItem *kmi = MEM_new_for_free<wmKeyMapItem>("keymap entry");
+  wmKeyMapItem *kmi = MEM_new<wmKeyMapItem>("keymap entry");
 
   BLI_addtail(&km->items, kmi);
   kmi->propvalue = value;
@@ -992,7 +995,7 @@ wmKeyMapItem *WM_modalkeymap_add_item_str(wmKeyMap *km,
                                           const KeyMapItem_Params *params,
                                           const char *value)
 {
-  wmKeyMapItem *kmi = MEM_new_for_free<wmKeyMapItem>("keymap entry");
+  wmKeyMapItem *kmi = MEM_new<wmKeyMapItem>("keymap entry");
 
   BLI_addtail(&km->items, kmi);
   STRNCPY(kmi->propvalue_str, value);
@@ -1206,7 +1209,7 @@ std::optional<std::string> WM_keymap_item_raw_to_string(const int8_t shift,
                                                         const bool compact)
 {
   /* TODO: also support (some) value, like e.g. double-click? */
-  blender::Vector<std::string_view, 12> result_array;
+  Vector<std::string_view, 12> result_array;
 
   const char *space = " ";
 
@@ -1393,7 +1396,7 @@ static wmKeyMapItem *wm_keymap_item_find_handlers(const bContext *C,
                                                   wmWindow *win,
                                                   ListBaseT<wmEventHandler> *handlers,
                                                   const char *opname,
-                                                  blender::wm::OpCallContext /*opcontext*/,
+                                                  wm::OpCallContext /*opcontext*/,
                                                   const IDProperty *properties,
                                                   const bool is_strict,
                                                   const wmKeyMapItemFind_Params *params,
@@ -1402,12 +1405,12 @@ static wmKeyMapItem *wm_keymap_item_find_handlers(const bContext *C,
   /* Find keymap item in handlers. */
   for (wmEventHandler &handler_base : *handlers) {
     if (handler_base.type == WM_HANDLER_TYPE_KEYMAP) {
-      wmEventHandler_Keymap *handler = (wmEventHandler_Keymap *)&handler_base;
+      wmEventHandler_Keymap *handler = reinterpret_cast<wmEventHandler_Keymap *>(&handler_base);
       wmEventHandler_KeymapResult km_result;
       WM_event_get_keymaps_from_handler(wm, win, handler, &km_result);
       for (int km_index = 0; km_index < km_result.keymaps_len; km_index++) {
         wmKeyMap *keymap = km_result.keymaps[km_index];
-        if (WM_keymap_poll((bContext *)C, keymap)) {
+        if (WM_keymap_poll(const_cast<bContext *>(C), keymap)) {
           wmKeyMapItem *kmi = wm_keymap_item_find_in_keymap(
               keymap, opname, properties, is_strict, params);
           if (kmi != nullptr) {
@@ -1429,7 +1432,7 @@ static wmKeyMapItem *wm_keymap_item_find_handlers(const bContext *C,
 
 static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
                                                const char *opname,
-                                               blender::wm::OpCallContext opcontext,
+                                               wm::OpCallContext opcontext,
                                                const IDProperty *properties,
                                                const bool is_strict,
                                                const wmKeyMapItemFind_Params *params,
@@ -1473,10 +1476,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
   }
 
   if (found == nullptr) {
-    if (ELEM(opcontext,
-             blender::wm::OpCallContext::ExecRegionWin,
-             blender::wm::OpCallContext::InvokeRegionWin))
-    {
+    if (ELEM(opcontext, wm::OpCallContext::ExecRegionWin, wm::OpCallContext::InvokeRegionWin)) {
       if (area) {
         if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
           region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
@@ -1497,8 +1497,8 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
       }
     }
     else if (ELEM(opcontext,
-                  blender::wm::OpCallContext::ExecRegionChannels,
-                  blender::wm::OpCallContext::InvokeRegionChannels))
+                  wm::OpCallContext::ExecRegionChannels,
+                  wm::OpCallContext::InvokeRegionChannels))
     {
       if (!(region && region->regiontype == RGN_TYPE_CHANNELS)) {
         region = BKE_area_find_region_type(area, RGN_TYPE_CHANNELS);
@@ -1518,8 +1518,8 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
       }
     }
     else if (ELEM(opcontext,
-                  blender::wm::OpCallContext::ExecRegionPreview,
-                  blender::wm::OpCallContext::InvokeRegionPreview))
+                  wm::OpCallContext::ExecRegionPreview,
+                  wm::OpCallContext::InvokeRegionPreview))
     {
       if (!(region && region->regiontype == RGN_TYPE_PREVIEW)) {
         region = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
@@ -1559,7 +1559,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
 
 static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
                                          const char *opname,
-                                         blender::wm::OpCallContext opcontext,
+                                         wm::OpCallContext opcontext,
                                          IDProperty *properties,
                                          bool is_strict,
                                          const wmKeyMapItemFind_Params *params,
@@ -1655,7 +1655,7 @@ static bool kmi_filter_is_visible(const wmKeyMap * /*km*/,
 
 std::optional<std::string> WM_key_event_operator_string(const bContext *C,
                                                         const char *opname,
-                                                        blender::wm::OpCallContext opcontext,
+                                                        wm::OpCallContext opcontext,
                                                         IDProperty *properties,
                                                         const bool is_strict)
 {
@@ -1683,7 +1683,7 @@ static bool kmi_filter_is_visible_type_mask(const wmKeyMap *km,
 
 wmKeyMapItem *WM_key_event_operator(const bContext *C,
                                     const char *opname,
-                                    blender::wm::OpCallContext opcontext,
+                                    wm::OpCallContext opcontext,
                                     IDProperty *properties,
                                     const short include_mask,
                                     const short exclude_mask,
@@ -2121,7 +2121,7 @@ void WM_keymap_item_restore_to_default(wmWindowManager *wm, wmKeyMap *keymap, wm
   /* Free temporary keymap. */
   if (addonmap) {
     WM_keymap_clear(defaultmap);
-    MEM_freeN(defaultmap);
+    MEM_delete(defaultmap);
   }
 }
 
@@ -2276,3 +2276,5 @@ wmKeyMapItem *WM_keymap_item_find_match(wmKeyMap *km_base,
 }
 
 /** \} */
+
+}  // namespace blender

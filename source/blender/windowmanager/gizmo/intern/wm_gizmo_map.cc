@@ -46,6 +46,8 @@
 #include "wm_gizmo_intern.hh"
 #include "wm_gizmo_wmapi.hh"
 
+namespace blender {
+
 /**
  * Store all gizmo-maps here. Anyone who wants to register a gizmo for a certain
  * area type can query the gizmo-map to do so.
@@ -102,14 +104,15 @@ static void wm_gizmomap_select_array_ensure_len_alloc(wmGizmoMap *gzmap, int len
   if (len <= msel->len_alloc) {
     return;
   }
-  msel->items = static_cast<wmGizmo **>(MEM_reallocN(msel->items, sizeof(*msel->items) * len));
+  msel->items = static_cast<wmGizmo **>(
+      MEM_realloc_uninitialized(msel->items, sizeof(*msel->items) * len));
   msel->len_alloc = len;
 }
 
 void wm_gizmomap_select_array_clear(wmGizmoMap *gzmap)
 {
   wmGizmoMapSelectState *msel = &gzmap->gzmap_context.select;
-  MEM_SAFE_FREE(msel->items);
+  MEM_SAFE_DELETE(msel->items);
   msel->len = 0;
   msel->len_alloc = 0;
 }
@@ -124,7 +127,7 @@ void wm_gizmomap_select_array_shrink(wmGizmoMap *gzmap, int len_subtract)
   else {
     if (msel->len < msel->len_alloc / 2) {
       msel->items = static_cast<wmGizmo **>(
-          MEM_reallocN(msel->items, sizeof(*msel->items) * msel->len));
+          MEM_realloc_uninitialized(msel->items, sizeof(*msel->items) * msel->len));
       msel->len_alloc = msel->len;
     }
   }
@@ -137,7 +140,7 @@ void wm_gizmomap_select_array_push_back(wmGizmoMap *gzmap, wmGizmo *gz)
   if (msel->len == msel->len_alloc) {
     msel->len_alloc = (msel->len + 1) * 2;
     msel->items = static_cast<wmGizmo **>(
-        MEM_reallocN(msel->items, sizeof(*msel->items) * msel->len_alloc));
+        MEM_realloc_uninitialized(msel->items, sizeof(*msel->items) * msel->len_alloc));
   }
   msel->items[msel->len++] = gz;
 }
@@ -181,7 +184,7 @@ static wmGizmoMap *wm_gizmomap_new_from_type_ex(wmGizmoMapType *gzmap_type, wmGi
 wmGizmoMap *WM_gizmomap_new_from_type(const wmGizmoMapType_Params *gzmap_params)
 {
   wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(gzmap_params);
-  wmGizmoMap *gzmap = MEM_callocN<wmGizmoMap>("GizmoMap");
+  wmGizmoMap *gzmap = MEM_new_zeroed<wmGizmoMap>("GizmoMap");
   wm_gizmomap_new_from_type_ex(gzmap_type, gzmap);
   return gzmap;
 }
@@ -205,7 +208,7 @@ static void wm_gizmomap_free_data(wmGizmoMap *gzmap)
 void wm_gizmomap_remove(wmGizmoMap *gzmap)
 {
   wm_gizmomap_free_data(gzmap);
-  MEM_freeN(gzmap);
+  MEM_delete(gzmap);
 }
 
 void WM_gizmomap_reinit(wmGizmoMap *gzmap)
@@ -275,13 +278,13 @@ bool WM_gizmomap_minmax(
  * TODO(@ideasman42): this uses unreliable order,
  * best we use an iterator function instead of a hash.
  */
-static blender::Set<wmGizmo *> WM_gizmomap_gizmo_hash_new(const bContext *C,
-                                                          wmGizmoMap *gzmap,
-                                                          bool (*poll)(const wmGizmo *, void *),
-                                                          void *data,
-                                                          const eWM_GizmoFlag flag_exclude)
+static Set<wmGizmo *> WM_gizmomap_gizmo_hash_new(const bContext *C,
+                                                 wmGizmoMap *gzmap,
+                                                 bool (*poll)(const wmGizmo *, void *),
+                                                 void *data,
+                                                 const eWM_GizmoFlag flag_exclude)
 {
-  blender::Set<wmGizmo *> hash;
+  Set<wmGizmo *> hash;
 
   /* Collect gizmos. */
   for (wmGizmoGroup &gzgroup : gzmap->groups) {
@@ -623,11 +626,11 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
   ED_view3d_draw_setup_view(
       wm, CTX_wm_window(C), depsgraph, CTX_data_scene(C), region, v3d, nullptr, nullptr, nullptr);
 
-  const blender::Span<GPUSelectResult> hit_results = buffer.storage.as_span().take_front(hits);
+  const Span<GPUSelectResult> hit_results = buffer.storage.as_span().take_front(hits);
   if (use_select_bias && (hits > 1)) {
     float co_direction[3];
     float co_screen[3] = {float(co[0]), float(co[1]), 0.0f};
-    ED_view3d_win_to_vector(region, blender::float2{float(co[0]), float(co[1])}, co_direction);
+    ED_view3d_win_to_vector(region, float2{float(co[0]), float(co[1])}, co_direction);
 
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
     const int viewport[4] = {0, 0, region->winx, region->winy};
@@ -717,8 +720,8 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
     if (viewport == nullptr) {
       return nullptr;
     }
-    blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
-    blender::gpu::FrameBuffer *depth_read_fb = nullptr;
+    gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
+    gpu::FrameBuffer *depth_read_fb = nullptr;
     GPU_framebuffer_ensure_config(&depth_read_fb,
                                   {
                                       GPU_ATTACHMENT_TEXTURE(depth_tx),
@@ -782,7 +785,7 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmGizmo *gz = nullptr;
-  blender::Vector<wmGizmo *, 128> visible_3d_gizmos;
+  Vector<wmGizmo *, 128> visible_3d_gizmos;
   bool do_step[WM_GIZMOMAP_DRAWSTEP_MAX];
 
   int mval[2];
@@ -846,14 +849,14 @@ void WM_gizmomap_add_handlers(ARegion *region, wmGizmoMap *gzmap)
 {
   for (wmEventHandler &handler_base : region->runtime->handlers) {
     if (handler_base.type == WM_HANDLER_TYPE_GIZMO) {
-      wmEventHandler_Gizmo *handler = (wmEventHandler_Gizmo *)&handler_base;
+      wmEventHandler_Gizmo *handler = reinterpret_cast<wmEventHandler_Gizmo *>(&handler_base);
       if (handler->gizmo_map == gzmap) {
         return;
       }
     }
   }
 
-  wmEventHandler_Gizmo *handler = MEM_callocN<wmEventHandler_Gizmo>(__func__);
+  wmEventHandler_Gizmo *handler = MEM_new_zeroed<wmEventHandler_Gizmo>(__func__);
   handler->head.type = WM_HANDLER_TYPE_GIZMO;
   BLI_assert(gzmap == region->runtime->gizmo_map);
   handler->gizmo_map = gzmap;
@@ -943,7 +946,7 @@ static bool wm_gizmomap_select_all_intern(bContext *C, wmGizmoMap *gzmap)
    * get tot_sel for allocating, once for actually selecting). Instead we collect
    * selectable gizmos in hash table and use this to get tot_sel and do selection. */
 
-  blender::Set<wmGizmo *> hash = WM_gizmomap_gizmo_hash_new(
+  Set<wmGizmo *> hash = WM_gizmomap_gizmo_hash_new(
       C, gzmap, gizmo_selectable_poll, nullptr, WM_GIZMO_HIDDEN | WM_GIZMO_HIDDEN_SELECT);
   bool changed = false;
 
@@ -1136,7 +1139,7 @@ void wm_gizmomap_modal_set(
       /* We failed to hook the gizmo to the operator handler or operator was canceled, return. */
       if (!gzmap->gzmap_context.modal) {
         gz->state &= ~WM_GIZMO_STATE_MODAL;
-        MEM_SAFE_FREE(gz->interaction_data);
+        MEM_SAFE_DELETE_VOID(gz->interaction_data);
       }
     }
   }
@@ -1146,7 +1149,7 @@ void wm_gizmomap_modal_set(
     /* Deactivate, gizmo but first take care of some stuff. */
     if (gz) {
       gz->state &= ~WM_GIZMO_STATE_MODAL;
-      MEM_SAFE_FREE(gz->interaction_data);
+      MEM_SAFE_DELETE_VOID(gz->interaction_data);
     }
 
     if (gzmap->gzmap_context.modal != nullptr) {
@@ -1182,7 +1185,7 @@ void wm_gizmomap_modal_set(
 
     /* Ensure the update flag is set for gizmos that were hidden while modal, see #104817. */
     for (int i = 0; i < WM_GIZMOMAP_DRAWSTEP_MAX; i++) {
-      const eWM_GizmoFlagMapDrawStep step_iter = (eWM_GizmoFlagMapDrawStep)i;
+      const eWM_GizmoFlagMapDrawStep step_iter = eWM_GizmoFlagMapDrawStep(i);
       if (step_iter == step) {
         continue;
       }
@@ -1259,7 +1262,7 @@ ARegion *WM_gizmomap_tooltip_init(
         /* On screen area of 3D gizmos may be large, exit on cursor motion. */
         *r_exit_on_event = true;
       }
-      return blender::ui::tooltip_create_from_gizmo(C, gz);
+      return ui::tooltip_create_from_gizmo(C, gz);
     }
   }
   return nullptr;
@@ -1292,7 +1295,7 @@ wmGizmoMapType *WM_gizmomaptype_ensure(const wmGizmoMapType_Params *gzmap_params
     return gzmap_type;
   }
 
-  gzmap_type = MEM_callocN<wmGizmoMapType>("gizmotype list");
+  gzmap_type = MEM_new_zeroed<wmGizmoMapType>("gizmotype list");
   gzmap_type->spaceid = gzmap_params->spaceid;
   gzmap_type->regionid = gzmap_params->regionid;
   BLI_addhead(&gizmomaptypes, gzmap_type);
@@ -1317,7 +1320,7 @@ void wm_gizmomaptypes_free()
       gzgt_next = gzgt_ref->next;
       WM_gizmomaptype_group_free(gzgt_ref);
     }
-    MEM_freeN(gzmap_type);
+    MEM_delete(gzmap_type);
   }
 }
 
@@ -1381,7 +1384,7 @@ void WM_gizmoconfig_update(Main *bmain)
 
   if (wm_gzmap_type_update_flag & WM_GIZMOMAPTYPE_GLOBAL_UPDATE_REMOVE) {
     for (wmGizmoMapType &gzmap_type : gizmomaptypes) {
-      if (gzmap_type.type_update_flag & WM_GIZMOMAPTYPE_GLOBAL_UPDATE_REMOVE) {
+      if (gzmap_type.type_update_flag & WM_GIZMOMAPTYPE_UPDATE_REMOVE) {
         gzmap_type.type_update_flag &= ~WM_GIZMOMAPTYPE_UPDATE_REMOVE;
         for (wmGizmoGroupTypeRef *
                  gzgt_ref = static_cast<wmGizmoGroupTypeRef *>(gzmap_type.grouptype_refs.first),
@@ -1495,3 +1498,5 @@ void WM_reinit_gizmomap_all(Main *bmain)
 }
 
 /** \} */
+
+}  // namespace blender

@@ -10,12 +10,16 @@
 
 #include "CLG_log.h"
 
-#include "GHOST_Types.h"
+#include "GHOST_IContext.hh"
+#include "GHOST_IXrContext.hh"
+#include "GHOST_Types.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_xr_types.h"
 
 #include "wm_xr.hh"
+
+namespace blender {
 
 struct bContext;
 struct ARegion;
@@ -80,7 +84,7 @@ struct wmXrSessionState {
 };
 
 struct wmXrRuntimeData {
-  GHOST_XrContextHandle context;
+  GHOST_IXrContext *context;
 
   /** The window the session was started in. Stored to be able to follow its view-layer. This may
    * be an invalid reference, i.e. the window may have been closed. */
@@ -149,7 +153,7 @@ struct wmXrController {
   float aim_mat_base[4][4];
 
   /** Controller model. */
-  blender::gpu::Batch *model;
+  gpu::Batch *model;
 };
 
 struct wmXrAction {
@@ -246,8 +250,8 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
                                 wmXrSessionState *state);
 bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
                                             const GHOST_XrDrawViewInfo *draw_view);
-void *wm_xr_session_gpu_binding_context_create();
-void wm_xr_session_gpu_binding_context_destroy(GHOST_ContextHandle context);
+GHOST_IContext *wm_xr_session_gpu_binding_context_create();
+void wm_xr_session_gpu_binding_context_destroy(GHOST_IContext *context);
 
 void wm_xr_session_actions_init(wmXrData *xr);
 void wm_xr_session_actions_update(wmWindowManager *wm);
@@ -285,3 +289,5 @@ bool wm_xr_passthrough_enabled(void *customdata);
  * It's assigned to Ghost-XR as a callback (see GHOST_XrDisablePassthroughFunc()).
  */
 void wm_xr_disable_passthrough(void *customdata);
+
+}  // namespace blender

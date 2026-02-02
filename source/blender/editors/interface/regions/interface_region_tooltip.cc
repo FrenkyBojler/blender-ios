@@ -539,7 +539,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
     }
     else if (BPY_run_string_as_string(C, expr_imports, expr, nullptr, &expr_result)) {
       if (STREQ(expr_result, "")) {
-        MEM_freeN(expr_result);
+        MEM_delete(expr_result);
         expr_result = nullptr;
       }
     }
@@ -559,7 +559,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
       }
 
       if (label_str != expr_result) {
-        MEM_freeN(expr_result);
+        MEM_delete(expr_result);
         expr_result = BLI_strdup(label_str);
       }
 
@@ -569,7 +569,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
                              TIP_STYLE_NORMAL,
                              (is_error) ? TIP_LC_ALERT : TIP_LC_MAIN,
                              false);
-      MEM_freeN(expr_result);
+      MEM_delete(expr_result);
     }
   }
 
@@ -592,7 +592,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
     }
     else if (BPY_run_string_as_string(C, expr_imports, expr, nullptr, &expr_result)) {
       if (STREQ(expr_result, "")) {
-        MEM_freeN(expr_result);
+        MEM_delete(expr_result);
         expr_result = nullptr;
       }
     }
@@ -607,7 +607,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
       const std::string but_tip = ui_tooltip_with_period(expr_result);
       tooltip_text_field_add(
           *data, but_tip, {}, TIP_STYLE_NORMAL, (is_error) ? TIP_LC_ALERT : TIP_LC_MAIN, false);
-      MEM_freeN(expr_result);
+      MEM_delete(expr_result);
     }
   }
 
@@ -649,7 +649,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
         }
         else if (BPY_run_string_as_intptr(C, expr_imports, expr, nullptr, &expr_result)) {
           if (expr_result != 0) {
-            wmKeyMap *keymap = (wmKeyMap *)expr_result;
+            wmKeyMap *keymap = reinterpret_cast<wmKeyMap *>(expr_result);
             for (wmKeyMapItem &kmi : keymap->items) {
               if (STREQ(kmi.idname, but->optype->idname)) {
                 char tool_id_test[MAX_NAME];
@@ -738,7 +738,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
       }
 
       WM_operator_properties_free(&op_props);
-      MEM_freeN(expr_result);
+      MEM_delete(expr_result);
 
       if (shortcut) {
         tooltip_text_field_add(*data,
@@ -786,7 +786,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
       if (expr_result != 0) {
         tooltip_text_field_add(
             *data, TIP_("Tool Keymap:"), {}, TIP_STYLE_NORMAL, TIP_LC_NORMAL, true);
-        wmKeyMap *keymap = (wmKeyMap *)expr_result;
+        wmKeyMap *keymap = reinterpret_cast<wmKeyMap *>(expr_result);
         ui_tooltip_data_append_from_keymap(C, *data, keymap);
       }
     }
@@ -1254,7 +1254,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_button_or_extra_icon(
                              TIP_LC_ALERT);
     }
     if (disabled_msg_free) {
-      MEM_freeN(disabled_msg_orig);
+      MEM_delete(disabled_msg_orig);
     }
   }
 

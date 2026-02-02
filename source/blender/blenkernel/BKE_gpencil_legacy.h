@@ -10,6 +10,8 @@
 
 #include "DNA_listBase.h"
 
+namespace blender {
+
 struct BlendDataReader;
 struct Brush;
 struct CurveMapping;
@@ -160,7 +162,7 @@ bool BKE_gpencil_layer_is_editable(const struct bGPDlayer *gpl);
 /* How gpencil_layer_getframe() should behave when there
  * is no existing GP-Frame on the frame requested.
  */
-typedef enum eGP_GetFrame_Mode {
+enum eGP_GetFrame_Mode {
   /* Use the preceding gp-frame (i.e. don't add anything) */
   GP_GETFRAME_USE_PREV = 0,
 
@@ -168,7 +170,7 @@ typedef enum eGP_GetFrame_Mode {
   GP_GETFRAME_ADD_NEW = 1,
   /* Make a copy of the active frame */
   GP_GETFRAME_ADD_COPY = 2,
-} eGP_GetFrame_Mode;
+};
 
 /**
  * Get the appropriate gp-frame from a given layer
@@ -254,3 +256,5 @@ void BKE_gpencil_stroke_weights_duplicate(struct bGPDstroke *gps_src, struct bGP
 void BKE_gpencil_palette_ensure(struct Main *bmain, struct Scene *scene);
 
 void BKE_gpencil_blend_read_data(struct BlendDataReader *reader, struct bGPdata *gpd);
+
+}  // namespace blender

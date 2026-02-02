@@ -47,6 +47,8 @@
 
 #include "ANIM_action.hh"
 
+namespace blender {
+
 /* **************************** depsgraph tagging ******************************** */
 
 void ANIM_list_elem_update(Main *bmain, Scene *scene, bAnimListElem *ale)
@@ -142,7 +144,7 @@ static void animchan_sync_group(bAnimContext *ac, bAnimListElem *ale, bActionGro
      */
     if (ob->pose) {
       bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, agrp->name);
-      bArmature *arm = static_cast<bArmature *>(ob->data);
+      bArmature *arm = id_cast<bArmature *>(ob->data);
 
       if (pchan) {
         /* if one matches, sync the selection status */
@@ -192,13 +194,13 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
   }
 
   /* Check if this strip is selected. */
-  Editing *ed = blender::seq::editing_get(scene);
+  Editing *ed = seq::editing_get(scene);
   if (ed == nullptr) {
     /* The existence of the F-Curve doesn't imply the existence of the sequencer
      * strip, or even the sequencer itself. */
     return;
   }
-  strip = blender::seq::get_strip_by_name(ed->current_strips(), strip_name, false);
+  strip = seq::get_strip_by_name(ed->current_strips(), strip_name, false);
   if (strip == nullptr) {
     return;
   }
@@ -402,14 +404,14 @@ void ANIM_animdata_update(bAnimContext *ac, ListBaseT<bAnimListElem> *anim_data)
       if (ale.update & ANIM_UPDATE_ORDER) {
         ale.update &= ~ANIM_UPDATE_ORDER;
         if (fcu) {
-          sort_time_fcurve(fcu);
+          sort_time_fcurve(*fcu);
         }
       }
 
       if (ale.update & ANIM_UPDATE_HANDLES) {
         ale.update &= ~ANIM_UPDATE_HANDLES;
         if (fcu) {
-          BKE_fcurve_handles_recalc(fcu);
+          BKE_fcurve_handles_recalc(*fcu);
         }
       }
 
@@ -467,7 +469,7 @@ void ANIM_animdata_freelist(ListBaseT<bAnimListElem> *anim_data)
   for (ale = static_cast<bAnimListElem *>(anim_data->first); ale; ale = ale_next) {
     ale_next = ale->next;
     BLI_assert(ale->update == 0);
-    MEM_freeN(ale);
+    MEM_delete(ale);
   }
   BLI_listbase_clear(anim_data);
 #else
@@ -477,8 +479,6 @@ void ANIM_animdata_freelist(ListBaseT<bAnimListElem> *anim_data)
 
 void ANIM_deselect_keys_in_animation_editors(bContext *C)
 {
-  using namespace blender;
-
   wmWindow *ctx_window = CTX_wm_window(C);
   ScrArea *ctx_area = CTX_wm_area(C);
   ARegion *ctx_region = CTX_wm_region(C);
@@ -525,3 +525,5 @@ void ANIM_deselect_keys_in_animation_editors(bContext *C)
     animrig::action_deselect_keys(dna_action->wrap());
   }
 }
+
+}  // namespace blender

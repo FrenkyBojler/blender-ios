@@ -8,12 +8,13 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
 
 #include "BKE_image.hh"
+#include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "DNA_image_types.h"
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
 #include "COM_algorithm_extract_alpha.hh"
@@ -24,7 +25,7 @@
 
 namespace blender::nodes::node_composite_image_cc {
 
-/* Default declaration for contextless static declarations and when the image is not assigned. */
+/** Default declaration for contextless static declarations and when the image is not assigned. */
 static void declare_default(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
@@ -191,18 +192,18 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
-  /* Avoid unnecessary updates, only changes to the Image/Image User data are of interest. */
-  if (!(node->runtime->update & NODE_UPDATE_ID)) {
-    declare_existing(b);
-    return;
-  }
-
   BLI_SCOPED_DEFER([&]() { declare_old_linked_outputs(b); });
 
   Image *image = reinterpret_cast<Image *>(node->id);
   const ImageUser *image_user = static_cast<ImageUser *>(node->storage);
   if (!image || !image_user) {
     declare_default(b);
+    return;
+  }
+
+  /* Avoid unnecessary updates, only changes to the Image/Image User data are of interest. */
+  if (!(node->runtime->update & NODE_UPDATE_ID)) {
+    declare_existing(b);
     return;
   }
 
@@ -218,7 +219,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*node_tree*/, bNode *node)
 {
-  ImageUser *iuser = MEM_new_for_free<ImageUser>(__func__);
+  node->flag |= NODE_PREVIEW;
+
+  ImageUser *iuser = MEM_new<ImageUser>(__func__);
   node->storage = iuser;
   iuser->frames = 1;
   iuser->sfra = 1;
@@ -319,14 +322,14 @@ class ImageOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new ImageOperation(context, node);
 }
 
-static void register_node()
+static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeImage", CMP_NODE_IMAGE);
   ntype.ui_name = "Image";
@@ -335,14 +338,14 @@ static void register_node()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = get_compositor_operation;
   ntype.labelfunc = node_image_label;
   ntype.flag |= NODE_PREVIEW;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node)
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_composite_image_cc
