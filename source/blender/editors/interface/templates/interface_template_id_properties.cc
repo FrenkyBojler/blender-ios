@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,14 +12,9 @@
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
-#include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BLT_translation.hh"
 
-#include "DEG_depsgraph.hh"
-
-#include "UI_interface.hh"
-#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "RNA_access.hh"
@@ -100,7 +95,12 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
 
   bool can_drop(const wmDrag &drag, const char ** /*r_disabled_hint*/) const override
   {
-    return drag.type == WM_DRAG_IDPROPERTY;
+    if (drag.type != WM_DRAG_IDPROPERTY) {
+      return false;
+    }
+
+    DragDropData *drag_data = static_cast<DragDropData *>(drag.poin);
+    return drag_data->user_properties_ == drop_data_.user_properties_;
   }
 
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override

@@ -1684,7 +1684,7 @@ static void rna_Library_reload(Library *lib, bContext *C, ReportList *reports)
 #  endif
 }
 
-static int idproperty_type_get(IDProperty *prop)
+static int idproperty_type_get(const IDProperty *prop)
 {
   switch (prop->type) {
     case IDP_INT:
@@ -1718,7 +1718,7 @@ static int idproperty_type_get(IDProperty *prop)
 
 static int rna_IDProperty_type_get(PointerRNA *ptr)
 {
-  IDProperty *prop = static_cast<IDProperty *>(ptr->data);
+  const IDProperty *prop = static_cast<IDProperty *>(ptr->data);
   if (prop) {
     return idproperty_type_get(prop);
   }
@@ -1830,14 +1830,14 @@ static const EnumPropertyItem *rna_idproperty_ui_float_subtype_itemf(bContext * 
 static int rna_idproperty_ui_default_array_length(const PointerRNA *ptr,
                                                   int length[RNA_MAX_ARRAY_DIMENSION])
 {
-  IDPropertyUIDataFloat *ui_data = static_cast<IDPropertyUIDataFloat *>(ptr->data);
+  const IDPropertyUIDataFloat *ui_data = static_cast<IDPropertyUIDataFloat *>(ptr->data);
   length[0] = ui_data->default_array_len;
   return length[0];
 }
 
 static void rna_idproperty_ui_default_array_float_get(PointerRNA *ptr, float *values)
 {
-  IDPropertyUIDataFloat *ui_data = static_cast<IDPropertyUIDataFloat *>(ptr->data);
+  const IDPropertyUIDataFloat *ui_data = static_cast<IDPropertyUIDataFloat *>(ptr->data);
   for (int i = 0; i < ui_data->default_array_len; i++) {
     values[i] = (float)ui_data->default_array[i];
   }
@@ -1853,7 +1853,7 @@ static void rna_idproperty_ui_default_array_float_set(PointerRNA *ptr, const flo
 
 static void rna_idproperty_ui_default_array_int_get(PointerRNA *ptr, int *values)
 {
-  IDPropertyUIDataInt *ui_data = static_cast<IDPropertyUIDataInt *>(ptr->data);
+  const IDPropertyUIDataInt *ui_data = static_cast<IDPropertyUIDataInt *>(ptr->data);
   for (int i = 0; i < ui_data->default_array_len; i++) {
     values[i] = ui_data->default_array[i];
   }
@@ -1869,7 +1869,7 @@ static void rna_idproperty_ui_default_array_int_set(PointerRNA *ptr, const int *
 
 static void rna_idproperty_ui_default_array_bool_get(PointerRNA *ptr, bool *values)
 {
-  IDPropertyUIDataBool *ui_data = static_cast<IDPropertyUIDataBool *>(ptr->data);
+  const IDPropertyUIDataBool *ui_data = static_cast<IDPropertyUIDataBool *>(ptr->data);
   for (int i = 0; i < ui_data->default_array_len; i++) {
     values[i] = ui_data->default_array[i] != 0;
   }
