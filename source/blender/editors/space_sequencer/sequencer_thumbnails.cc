@@ -176,12 +176,16 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
                                           bool is_muted,
                                           Vector<SeqThumbInfo> &r_thumbs)
 {
-  const float strip_width = (strip.right_handle - strip.left_handle);
+  const float left_frame = max_ff(strip.content_start, strip.left_handle);
+  const float right_frame = strip.is_single_image ? left_frame :
+                                                    min_ff(strip.content_end, strip.right_handle);
+  const float strip_width = strip.is_single_image ? (strip.right_handle - strip.left_handle) :
+                                                    (right_frame - left_frame);
   const float overlap = max_ff(0.0f, 2.0f * thumb_width - strip_width);
   const bool only_right_handle_selected = ((strip.strip->flag & SEQ_RIGHTSEL) &&
                                            !(strip.strip->flag & SEQ_LEFTSEL));
   /* Offset the start of last thumbnail. */
-  const float display_offset = -thumb_width;
+  const float display_offset = (strip.is_single_image ? strip_width : 0.0f) - thumb_width;
   const float gap = 1.5f * pixelx * UI_SCALE_FAC;
 
   float crop_left = 0.0;
@@ -196,9 +200,9 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
     crop_left = overlap + gap;
   }
 
-  if (is_thumbnail_in_view(strip.left_handle, thumb_width, v2d)) {
+  if (is_thumbnail_in_view(left_frame, thumb_width, v2d)) {
     /* Draw left thumbnail. */
-    add_thumbnail_at_frame(strip.left_handle,
+    add_thumbnail_at_frame(left_frame,
                            C,
                            v2d,
                            strip,
@@ -212,9 +216,10 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
                            is_muted,
                            r_thumbs);
   }
-  if (is_thumbnail_in_view(strip.right_handle + display_offset, thumb_width, v2d)) {
+
+  if (is_thumbnail_in_view(right_frame + display_offset, thumb_width, v2d)) {
     /* Draw right thumbnail. */
-    add_thumbnail_at_frame(strip.right_handle,
+    add_thumbnail_at_frame(right_frame,
                            C,
                            v2d,
                            strip,
@@ -257,7 +262,7 @@ static void get_seq_strip_thumbnails(const View2D *v2d,
   const float crop_x_multiplier = 1.0f / pixelx / (thumb_height / image_height / pixely);
 
   float upper_thumb_bound = min_ff(strip.right_handle, strip.content_end);
-  if (strip.strip->type == STRIP_TYPE_IMAGE) {
+  if (strip.is_single_image) {
     upper_thumb_bound = strip.right_handle;
   }
 
