@@ -94,47 +94,61 @@ static Object *make_prim_init(bContext *C,
   return obedit;
 }
 
-static std::pair<Mesh*, BMesh*> make_prim_init_sculpt()
+static BMesh *make_prim_init_sculpt()
 {
-  Mesh *primitive_mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+  const BMAllocTemplate allocsize{.totvert = 0, .totedge = 0, .totface = 0, .totloop = 0};
 
-  const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(primitive_mesh);
   BMeshCreateParams bm_create_params{};
   bm_create_params.use_toolflags = true;
   BMesh *bm = BM_mesh_create(&allocsize, &bm_create_params);
 
-  BMeshFromMeshParams mesh_to_bm_params{};
-  mesh_to_bm_params.calc_face_normal = true;
-  BM_mesh_bm_from_me(bm, primitive_mesh, &mesh_to_bm_params);
-
-  return std::make_pair(primitive_mesh, bm);
+  return bm;
 }
 
-static void make_prim_finish_sculpt_cancelled(bContext *C, Mesh *primitive_mesh, BMesh *bm)
+static void make_prim_finish_sculpt_cancelled(BMesh *bm)
 {
   BM_mesh_free(bm);
-  BKE_id_free(CTX_data_main(C), primitive_mesh);
 }
 
-static void make_prim_finish_sculpt(bContext *C, Object *ob, Mesh *primitive_mesh, BMesh *bm)
+static void init_facesets(Mesh *object_mesh, Mesh *primitive_mesh)
 {
-  Main &bmain = *CTX_data_main(C);
+  bke::AttributeAccessor object_attributes = object_mesh->attributes();
+  bke::AttributeReader<int> object_face_sets = object_attributes.lookup<int>(".sculpt_face_set");
+  if (!object_face_sets) {
+    return;
+  }
+
+  bke::MutableAttributeAccessor primitive_attributes = primitive_mesh->attributes_for_write();
+  bke::SpanAttributeWriter<int> primitive_face_sets =
+      primitive_attributes.lookup_or_add_for_write_span<int>(".sculpt_face_set",
+                                                             bke::AttrDomain::Face);
+
+  for (const int i : primitive_face_sets.span.index_range()) {
+    primitive_face_sets.span[i] = 1;
+  }
+
+  primitive_face_sets.finish();
+}
+
+static void make_prim_finish_sculpt(bContext *C, Object *ob, BMesh *bm)
+{
   Mesh *object_mesh = id_cast<Mesh *>(ob->data);
 
-  BKE_id_free(&bmain, primitive_mesh);
   BMeshToMeshParams bm_to_mesh_params{};
   bm_to_mesh_params.calc_object_remap = false;
-  primitive_mesh = BKE_mesh_from_bmesh_nomain(bm, &bm_to_mesh_params, object_mesh);
+  Mesh *primitive_mesh = BKE_mesh_from_bmesh_nomain(bm, &bm_to_mesh_params, object_mesh);
   BM_mesh_free(bm);
 
+  init_facesets(object_mesh, primitive_mesh);
+
   bke::GeometrySet joined = geometry::join_geometries(
-   {bke::GeometrySet::from_mesh(object_mesh, bke::GeometryOwnershipType::ReadOnly),
-    bke::GeometrySet::from_mesh(primitive_mesh, bke::GeometryOwnershipType::ReadOnly)},
-   {});
+      {bke::GeometrySet::from_mesh(object_mesh, bke::GeometryOwnershipType::ReadOnly),
+       bke::GeometrySet::from_mesh(primitive_mesh, bke::GeometryOwnershipType::ReadOnly)},
+      {});
 
   Mesh *result = joined.get_component_for_write<bke::MeshComponent>().release();
 
-  BKE_id_free(&bmain, primitive_mesh);
+  BKE_id_free(CTX_data_main(C), primitive_mesh);
   BKE_mesh_nomain_to_mesh(result, object_mesh, ob);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -264,8 +278,7 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
                           &creation_data);
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
-    const std::pair<Mesh*, BMesh*> pair = make_prim_init_sculpt();
-    auto [primitive_mesh, bm] = pair;
+    BMesh *bm = make_prim_init_sculpt();
 
     if (!BMO_op_callf(bm,
                       BMO_FLAG_DEFAULTS,
@@ -274,11 +287,11 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
                       RNA_float_get(op->ptr, "size"),
                       calc_uvs))
     {
-      make_prim_finish_sculpt_cancelled(C, primitive_mesh, bm);
+      make_prim_finish_sculpt_cancelled(bm);
       return OPERATOR_CANCELLED;
     }
 
-    make_prim_finish_sculpt(C, obedit, primitive_mesh, bm);
+    make_prim_finish_sculpt(C, obedit, bm);
   }
   else {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -433,8 +446,7 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
                           &creation_data);
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
-    const std::pair<Mesh*, BMesh*> pair = make_prim_init_sculpt();
-    auto [primitive_mesh, bm] = pair;
+    BMesh *bm = make_prim_init_sculpt();
 
     if (!BMO_op_callf(bm,
                       BMO_FLAG_DEFAULTS,
@@ -449,11 +461,11 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
                       creation_data.mat,
                       calc_uvs))
     {
-      make_prim_finish_sculpt_cancelled(C, primitive_mesh, bm);
+      make_prim_finish_sculpt_cancelled(bm);
       return OPERATOR_CANCELLED;
     }
 
-    make_prim_finish_sculpt(C, obedit, primitive_mesh, bm);
+    make_prim_finish_sculpt(C, obedit, bm);
   }
   else {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -536,8 +548,7 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
                           &creation_data);
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
-    const std::pair<Mesh*, BMesh*> pair = make_prim_init_sculpt();
-    auto [primitive_mesh, bm] = pair;
+    BMesh *bm = make_prim_init_sculpt();
 
     if (!BMO_op_callf(bm,
                       BMO_FLAG_DEFAULTS,
@@ -552,11 +563,11 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
                       creation_data.mat,
                       calc_uvs))
     {
-      make_prim_finish_sculpt_cancelled(C, primitive_mesh, bm);
+      make_prim_finish_sculpt_cancelled(bm);
       return OPERATOR_CANCELLED;
     }
 
-    make_prim_finish_sculpt(C, obedit, primitive_mesh, bm);
+    make_prim_finish_sculpt(C, obedit, bm);
   }
   else {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -781,8 +792,7 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
                           &creation_data);
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
-    const std::pair<Mesh*, BMesh*> pair = make_prim_init_sculpt();
-    auto [primitive_mesh, bm] = pair;
+    BMesh *bm = make_prim_init_sculpt();
 
     if (!BMO_op_callf(
             bm,
@@ -794,11 +804,11 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
             creation_data.mat,
             calc_uvs))
     {
-      make_prim_finish_sculpt_cancelled(C, primitive_mesh, bm);
+      make_prim_finish_sculpt_cancelled(bm);
       return OPERATOR_CANCELLED;
     }
 
-    make_prim_finish_sculpt(C, obedit, primitive_mesh, bm);
+    make_prim_finish_sculpt(C, obedit, bm);
   }
   else {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -875,8 +885,7 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
                           &creation_data);
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
-    const std::pair<Mesh*, BMesh*> pair = make_prim_init_sculpt();
-    auto [primitive_mesh, bm] = pair;
+    BMesh *bm = make_prim_init_sculpt();
 
     if (!BMO_op_callf(bm,
                       BMO_FLAG_DEFAULTS,
@@ -886,11 +895,11 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
                       creation_data.mat,
                       calc_uvs))
     {
-      make_prim_finish_sculpt_cancelled(C, primitive_mesh, bm);
+      make_prim_finish_sculpt_cancelled(bm);
       return OPERATOR_CANCELLED;
     }
 
-    make_prim_finish_sculpt(C, obedit, primitive_mesh, bm);
+    make_prim_finish_sculpt(C, obedit, bm);
   }
   else {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
