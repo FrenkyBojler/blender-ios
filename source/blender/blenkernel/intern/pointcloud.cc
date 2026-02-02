@@ -338,8 +338,8 @@ void pointcloud_resize(PointCloud &pointcloud, const int newcount)
 
   if (newcount > old_totpoint) {
     /* Initialize new points. */
-  fill_attribute_range_default(
-      attributes, bke::AttrDomain::Point, {}, IndexRange(old_totpoint, newcount));
+    fill_attribute_range_default(
+        attributes, bke::AttrDomain::Point, {}, IndexRange(old_totpoint, newcount));
   }
 }
 

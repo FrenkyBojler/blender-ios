@@ -188,7 +188,8 @@ static void rna_def_pointcloud(BlenderRNA *brna)
                                     nullptr);
   RNA_def_property_ui_text(prop, "Points", "");
   func = RNA_def_function(srna, "resize", "rna_PointCloud_resize");
-  parm = RNA_def_int(func, "newcount", 0, 0, INT_MAX, "New Count", "New number of points", 0, INT_MAX);
+  parm = RNA_def_int(
+      func, "newcount", 0, 0, INT_MAX, "New Count", "New number of points", 0, INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* materials */
