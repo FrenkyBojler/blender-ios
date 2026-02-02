@@ -461,13 +461,9 @@ static bool discard_angle(const float3 an,
                           const bool is_face_normal,
                           const float2 min_max_angle)
 {
-
-  if (min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f) {
-    float angle = math::abs(math::abs(angle_normalized_v3v3(an, bn)) - pi_2_f);
-    angle = is_face_normal ? angle : pi_2_f - angle;
-    return min_max_angle.x > angle || min_max_angle.y + 0.0001f < angle;
-  }
-  return false;
+  float angle = math::abs(math::abs(angle_normalized_v3v3(an, bn)) - pi_2_f);
+  angle = is_face_normal ? angle : pi_2_f - angle;
+  return min_max_angle.x > angle || min_max_angle.y + 0.0001f < angle;
 }
 
 /* Library function `isect_line_line_epsilon_v3` is too strict for checking parallel lines. This
@@ -542,16 +538,10 @@ static int isect_line_line_epsilon_v3_loose(const float v1[3],
 static IntersectingLineInfo intersecting_lines(const Segment &ab,
                                                const Segment &cd,
                                                const float distance,
-                                               const bool use_radius,
-                                               const float2 min_max_angle)
+                                               const bool use_radius)
 {
   IntersectingLineInfo isectinfo{};
-  /* Discard by angle. */
-  if (discard_angle(ab.direction, cd.direction, false, min_max_angle)) {
-    isectinfo.is_intersection = false;
-    return isectinfo;
-  }
-  /* Begin intersection checks. */
+  isectinfo.is_intersection = false;
   if (isect_line_line_epsilon_v3_loose(ab.start,
                                        ab.end,
                                        cd.start,
@@ -564,20 +554,17 @@ static IntersectingLineInfo intersecting_lines(const Segment &ab,
     /* Discard intersections too far away. */
     const float isect_distance = math::distance(isectinfo.closest_ab, isectinfo.closest_cd);
     if (isect_distance > distance) {
-      isectinfo.is_intersection = false;
       return isectinfo;
     }
     /* Check intersection is on both line segments ab and cd. */
     isectinfo.lambda_ab = closest_to_line_v3(
         isectinfo.closest_ab, isectinfo.closest_ab, ab.start, ab.end);
     if (isectinfo.lambda_ab <= -curve_isect_eps || isectinfo.lambda_ab >= 1.0f + curve_isect_eps) {
-      isectinfo.is_intersection = false;
       return isectinfo;
     }
     isectinfo.lambda_cd = closest_to_line_v3(
         isectinfo.closest_cd, isectinfo.closest_cd, cd.start, cd.end);
     if (isectinfo.lambda_cd <= -curve_isect_eps || isectinfo.lambda_cd >= 1.0f + curve_isect_eps) {
-      isectinfo.is_intersection = false;
       return isectinfo;
     }
 
@@ -595,7 +582,6 @@ static IntersectingLineInfo intersecting_lines(const Segment &ab,
       return isectinfo;
     }
   }
-  isectinfo.is_intersection = false;
   return isectinfo;
 }
 
@@ -623,7 +609,7 @@ static Array<float> get_evaluated_radii(const bke::CurvesGeometry &src_curves)
   return radii_eval;
 }
 
-/* Buuild curve segment bvh. */
+/* Build curve segment bvh. */
 static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curves,
                                              const VArray<int> &ids,
                                              Vector<Segment> *r_curve_segments,
@@ -788,19 +774,17 @@ static void set_curve_intersections_plane(const bke::CurvesGeometry &src_curves,
                                const float radius_start,
                                const float radius_end,
                                const float curve_length) {
-          float3 closest = float3(0.0f);
-          float lambda = 0.0f;
-
           const float3 segment_direction = use_direction_data || use_angle ?
                                                math::normalize(b - a) :
                                                float3(0.0f);
-
           /* Discard by angle. */
           if (use_angle && discard_angle(segment_direction, plane_direction, true, min_max_angle))
           {
             return;
           }
 
+          float3 closest = float3(0.0f);
+          float lambda = 0.0f;
           if (isect_line_plane_v3_crossing(a, b, plane_center, plane_direction, closest, lambda)) {
             add_intersection_data(local_data,
                                   pos_index,
@@ -996,6 +980,8 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
     }
   }
 
+  const bool use_angle = min_max_angle.x > 0.0f || min_max_angle.y < pi_2_f;
+
   /* Loop through segments. */
   ThreadLocalData thread_storage;
   threading::parallel_for(curve_segments.index_range(), 128, [&](IndexRange range) {
@@ -1003,7 +989,7 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
     threading::isolate_task([&]() {
       int local_count = 0;
       for (const int64_t segment_index : range) {
-        const Segment ab = curve_segments[segment_index];
+        const Segment &ab = curve_segments[segment_index];
         BLI_bvhtree_range_query_cpp(
             *bvhtree,
             math::midpoint(ab.start, ab.end),
@@ -1013,7 +999,11 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                 /* Skip matching segments or previously matched segments. */
                 return;
               }
-              const Segment cd = curve_segments[index];
+              const Segment &cd = curve_segments[index];
+              /* Discard by angle. */
+              if (use_angle && discard_angle(ab.direction, cd.direction, false, min_max_angle)) {
+                return;
+              }
               const bool same_id = ab.curve_id == cd.curve_id;
               const bool same_curve = ab.curve_index == cd.curve_index;
               const bool calc_all = (all_intersect && !same_curve && !same_id);
@@ -1024,12 +1014,12 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                                            (cd.seg_index == 0 && ab.is_cyclic_segment)));
               const bool calc_self = (self_intersect &&
                                       (not_adjacent || (same_id && !same_curve)));
+
               if (calc_all || calc_self) {
                 const IntersectingLineInfo isectinfo = intersecting_lines(
-                    ab, cd, max_search_distance, use_radius, min_max_angle);
+                    ab, cd, max_search_distance, use_radius);
 
                 if (isectinfo.is_intersection) {
-
                   const bool pair_weight = ab.curve_index > cd.curve_index;
                   int pair_id = 0;
                   if (pair_data_mode == PairData::FullPair && attribute_outputs.pair_id) {
@@ -1052,6 +1042,7 @@ static void set_curve_intersections(const bke::CurvesGeometry &src_curves,
                       !pair_weight,
                       pair_id,
                       attribute_outputs);
+
                   /* Only return both intersection points if required. */
                   if (pair_data_mode == PairData::FullPair ||
                       (pair_data_mode == PairData::PointsOnly &&
@@ -1150,7 +1141,7 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
     }
   }
 
-  const bool dedupe = attribute_outputs.hash && dupes.size() && dupes.size() < data_size;
+  const bool dedupe = attribute_outputs.hash && dupes.size() > 0 && dupes.size() < data_size;
   for (const std::pair key_val : sort_index) {
     const int64_t key_index = key_val.first;
 
