@@ -313,12 +313,11 @@ static Button *ui_but_find(const ARegion *region,
                            const void *find_custom_data)
 {
   for (Block &block : region->runtime->uiblocks) {
-    for (int i = block.buttons.size() - 1; i >= 0; i--) {
-      Button *but = block.buttons[i].get();
-      if (find_poll && find_poll(but, find_custom_data) == false) {
+    for (Button &but : block.buttons_as_refs() | std::views::reverse) {
+      if (find_poll && find_poll(&but, find_custom_data) == false) {
         continue;
       }
-      return but;
+      return &but;
     }
   }
 
@@ -341,20 +340,19 @@ Button *button_find_mouse_over_ex(const ARegion *region,
     float mx = xy[0], my = xy[1];
     window_to_block_fl(region, &block, &mx, &my);
 
-    for (int i = block.buttons.size() - 1; i >= 0; i--) {
-      Button *but = block.buttons[i].get();
-      if (find_poll && find_poll(but, find_custom_data) == false) {
+    for (Button &but : block.buttons_as_refs() | std::views::reverse) {
+      if (find_poll && find_poll(&but, find_custom_data) == false) {
         continue;
       }
-      if (button_is_interactive_ex(but, labeledit, for_tooltip)) {
-        if (but->pie_dir != UI_RADIAL_NONE) {
-          if (ui_but_isect_pie_seg(&block, but)) {
-            butover = but;
+      if (button_is_interactive_ex(&but, labeledit, for_tooltip)) {
+        if (but.pie_dir != UI_RADIAL_NONE) {
+          if (ui_but_isect_pie_seg(&block, &but)) {
+            butover = &but;
             break;
           }
         }
-        else if (button_contains_pt(but, mx, my)) {
-          butover = but;
+        else if (button_contains_pt(&but, mx, my)) {
+          butover = &but;
           break;
         }
       }
@@ -394,13 +392,12 @@ Button *button_find_rect_over(const ARegion *region, const rcti *rect_px)
     rctf rect_block;
     window_to_block_rctf(region, &block, &rect_block, &rect_px_fl);
 
-    for (int i = block.buttons.size() - 1; i >= 0; i--) {
-      Button *but = block.buttons[i].get();
-      if (button_is_interactive(but, labeledit)) {
+    for (Button &but : block.buttons_as_refs() | std::views::reverse) {
+      if (button_is_interactive(&but, labeledit)) {
         /* No pie menu support. */
-        BLI_assert(but->pie_dir == UI_RADIAL_NONE);
-        if (button_contains_rect(but, &rect_block)) {
-          butover = but;
+        BLI_assert(but.pie_dir == UI_RADIAL_NONE);
+        if (button_contains_rect(&but, &rect_block)) {
+          butover = &but;
           break;
         }
       }
@@ -425,10 +422,9 @@ Button *list_find_mouse_over_ex(const ARegion *region, const int xy[2])
   for (Block &block : region->runtime->uiblocks) {
     float mx = xy[0], my = xy[1];
     window_to_block_fl(region, &block, &mx, &my);
-    for (int i = block.buttons.size() - 1; i >= 0; i--) {
-      Button *but = block.buttons[i].get();
-      if (but->type == ButtonType::ListBox && button_contains_pt(but, mx, my)) {
-        return but;
+    for (Button &but : block.buttons_as_refs() | std::views::reverse) {
+      if (but.type == ButtonType::ListBox && button_contains_pt(&but, mx, my)) {
+        return &but;
       }
     }
   }
@@ -575,10 +571,9 @@ Button *button_first(Block *block)
 
 Button *button_last(Block *block)
 {
-  for (int i = block->buttons.size() - 1; i >= 0; i--) {
-    Button *but = block->buttons[i].get();
-    if (button_is_editable(but)) {
-      return but;
+  for (Button &but : block->buttons_as_refs() | std::views::reverse) {
+    if (button_is_editable(&but)) {
+      return &but;
     }
   }
   return nullptr;

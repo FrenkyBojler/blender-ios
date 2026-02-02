@@ -3764,14 +3764,13 @@ static void ui_textedit_prev_but(Block *block, Button *actbut, HandleButtonData 
       }
     }
   }
-  for (int i = block->buttons.size() - 1; i >= 0; i--) {
-    Button *but = block->buttons[i].get();
-    if (but == actbut) {
+  for (Button &but : block->buttons_as_refs() | std::views::reverse) {
+    if (&but == actbut) {
       break;
     }
-    if (button_is_editable_as_text(but)) {
-      if (!(but->flag & (BUT_DISABLED | UI_HIDDEN))) {
-        data->postbut = but;
+    if (button_is_editable_as_text(&but)) {
+      if (!(but.flag & (BUT_DISABLED | UI_HIDDEN))) {
+        data->postbut = &but;
         data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
         return;
       }
