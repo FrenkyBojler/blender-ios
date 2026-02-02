@@ -70,7 +70,7 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 
 #  include "DNA_userdef_types.h"
 
-#  include "ED_screen_types.hh"
+#  include "ED_screen.hh"
 
 #  include "BLI_listbase.h"
 #  include "BLI_string.h"
@@ -798,19 +798,7 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
 
 static Scene *rna_Window_find_playing_scene(wmWindow *win, const bool scrub)
 {
-  bScreen *screen = WM_window_get_active_screen(win);
-  if (!screen->animtimer) {
-    return nullptr;
-  }
-  wmTimer *wt = screen->animtimer;
-  ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
-  if (scrub) {
-    if (screen->scrubbing) {
-      return sad->scene;
-    }
-    return nullptr;
-  }
-  return sad->scene;
+  return ED_screen_find_playing_scene(WM_window_get_active_screen(win), scrub);
 }
 
 static wmWindow *rna_Windows_find_playing(wmWindowManager *wm, const bool scrub)

@@ -6379,6 +6379,22 @@ bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
   return nullptr;
 }
 
+Scene *ED_screen_find_playing_scene(const bScreen *screen, const bool scrub)
+{
+  if (!screen->animtimer) {
+    return nullptr;
+  }
+  wmTimer *wt = screen->animtimer;
+  ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
+  if (scrub) {
+    if (screen->scrubbing) {
+      return sad->scene;
+    }
+    return nullptr;
+  }
+  return sad->scene;
+}
+
 bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm)
 {
   for (wmWindow &win : wm->windows) {
