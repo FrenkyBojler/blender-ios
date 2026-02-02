@@ -127,6 +127,10 @@ if(WITH_SDL)
   add_definitions(-DWITH_SDL)
 endif()
 
+if(WITH_INPUT_NDOF)
+  add_definitions(-DWITH_INPUT_NDOF)
+endif()
+
 if(WITH_BINRELOC)
   list(APPEND INC ${BINRELOC_INCLUDE_DIRS})
   add_definitions(-DWITH_BINRELOC)
@@ -1880,7 +1884,7 @@ unset(TARGETDIR_TEXT)
 
 # Geometry icons.
 get_property(_icon_names GLOBAL PROPERTY ICON_GEOM_NAMES)
-set(_icon_files)
+set(_icon_files "")
 foreach(_f ${_icon_names})
   list(APPEND _icon_files
     "${CMAKE_SOURCE_DIR}/release/datafiles/icons/${_f}.dat"
