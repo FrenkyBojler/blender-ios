@@ -8,11 +8,34 @@
 
 #pragma once
 
+#include <cstdint>
 #include <optional>
 
 #include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 
 namespace blender::bke {
+
+enum class ProjectVarType {
+  INTEGER,
+  FLOAT,
+  STRING,
+  FILEPATH,
+};
+
+struct ProjectVariable {
+  std::string name;
+  ProjectVarType type;
+
+  /* For INTEGER type. */
+  int32_t value_int;
+
+  /* For FLOAT type. */
+  float value_float;
+
+  /* For STRING and FILEPATH types. */
+  std::string value_string;
+};
 
 /**
  * The actual data of a project.
@@ -25,6 +48,8 @@ class BlenderProjectData {
   /* The name and root path should never be empty. */
   std::string name_;
   std::string root_path_;
+
+  Vector<ProjectVariable> variables;
 
  public:
   /**

@@ -19,6 +19,18 @@
 
 #include "WM_api.hh"
 
+namespace blender {
+
+const EnumPropertyItem rna_enum_project_variable_type_items[] = {
+    {int(bke::ProjectVarType::INTEGER), "INTEGER", 0, "Integer", "An integer variable"},
+    {int(bke::ProjectVarType::FLOAT), "FLOAT", 0, "Float", "A floating point variable"},
+    {int(bke::ProjectVarType::STRING), "STRING", 0, "String", "An string variable"},
+    {int(bke::ProjectVarType::FILEPATH), "FILEPATH", 0, "Filepath", "A filepath variable"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+}
+
 #ifdef RNA_RUNTIME
 
 namespace blender {
@@ -43,6 +55,84 @@ static void rna_BlenderProject_update(Main * /*bmain*/, Scene * /*scene*/, Point
   /* Force full redraw of all windows. */
   WM_main_add_notifier(NC_WINDOW, nullptr);
 }
+
+/* --------------------------------------------------------- */
+
+static int rna_ProjectVariable_type_get(PointerRNA *ptr)
+{
+  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  return int(var->type);
+}
+
+static void rna_ProjectVariable_name_get(PointerRNA *ptr, char *value)
+{
+  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+
+  strcpy(value, var->name.c_str());
+}
+
+static int rna_ProjectVariable_name_length(PointerRNA *ptr)
+{
+  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+
+  return var->name.size();
+}
+
+static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
+{
+  bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+
+  var->name.clear();
+  var->name.append(value);
+}
+
+static int rna_ProjectVariable_value_int_get(PointerRNA *ptr)
+{
+  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  return var->value_int;
+}
+
+static void rna_ProjectVariable_value_int_set(PointerRNA *ptr, int value)
+{
+  bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  var->value_int = value;
+}
+
+static float rna_ProjectVariable_value_float_get(PointerRNA *ptr)
+{
+  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  return var->value_float;
+}
+
+static void rna_ProjectVariable_value_float_set(PointerRNA *ptr, float value)
+{
+  bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+  var->value_float = value;
+}
+
+static void rna_ProjectVariable_value_string_get(PointerRNA *ptr, char *value)
+{
+  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+
+  strcpy(value, var->value_string.c_str());
+}
+
+static int rna_ProjectVariable_value_string_length(PointerRNA *ptr)
+{
+  const bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+
+  return var->value_string.size();
+}
+
+static void rna_ProjectVariable_value_string_set(PointerRNA *ptr, const char *value)
+{
+  bke::ProjectVariable *var = static_cast<bke::ProjectVariable *>(ptr->data);
+
+  var->value_string.clear();
+  var->value_string.append(value);
+}
+
+/* --------------------------------------------------------- */
 
 static void rna_BlenderProjectData_name_get(PointerRNA *ptr, char *value)
 {
@@ -78,6 +168,8 @@ static int rna_BlenderProjectData_root_path_length(PointerRNA *ptr)
 
   return project_data->get_root_path().size();
 }
+
+/* --------------------------------------------------------- */
 
 static bool rna_BlenderProject_is_dirty_get(PointerRNA *ptr)
 {
@@ -134,6 +226,50 @@ static void rna_BlenderProject_clear(PointerRNA ptr)
 #else
 
 namespace blender {
+
+void rna_def_project_variable(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "ProjectVariable", nullptr);
+  RNA_def_struct_ui_text(srna, "Blender Project Variable", "");
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_struct_name_property(srna, prop);
+  RNA_def_property_ui_text(prop, "Name", "The variable's name");
+  RNA_def_property_string_funcs(prop,
+                                "rna_ProjectVariable_name_get",
+                                "rna_ProjectVariable_name_length",
+                                "rna_ProjectVariable_name_set");
+  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+
+  prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Type", "The variable's data type");
+  RNA_def_property_enum_items(prop, rna_enum_project_variable_type_items);
+  RNA_def_property_enum_funcs(prop, "rna_ProjectVariable_type_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+
+  prop = RNA_def_property(srna, "value_int", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Value", "The variable's integer value");
+  RNA_def_property_int_funcs(
+      prop, "rna_ProjectVariable_value_int_get", "rna_ProjectVariable_value_int_set", nullptr);
+  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+
+  prop = RNA_def_property(srna, "value_float", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Value", "The variable's floating point value");
+  RNA_def_property_float_funcs(
+      prop, "rna_ProjectVariable_value_float_get", "rna_ProjectVariable_value_float_set", nullptr);
+  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+
+  prop = RNA_def_property(srna, "value_string", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Value", "The variable's string/path value");
+  RNA_def_property_string_funcs(prop,
+                                "rna_ProjectVariable_value_string_get",
+                                "rna_ProjectVariable_value_string_length",
+                                "rna_ProjectVariable_value_string_set");
+  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+}
 
 void rna_def_blender_project_data(BlenderRNA *brna)
 {
@@ -196,6 +332,7 @@ void rna_def_blender_project(BlenderRNA *brna)
 
 void RNA_def_blender_project(BlenderRNA *brna)
 {
+  rna_def_project_variable(brna);
   rna_def_blender_project(brna);
   rna_def_blender_project_data(brna);
 }
