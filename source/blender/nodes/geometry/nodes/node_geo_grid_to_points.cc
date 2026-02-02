@@ -141,6 +141,36 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
 }
 
+template<typename GridType>
+static void collect_active_coordinates(const GridType &vdb_grid,
+                                       Vector<openvdb::Coord> &active_coords,
+                                       Vector<int> &levels)
+{
+  for (auto iter = vdb_grid->tree().cbeginValueOn(); iter; ++iter) {
+    active_coords.append(iter.getCoord());
+    levels.append(iter.getLevel());
+  }
+}
+
+static float3 compute_world_position(const openvdb::Coord &coord,
+                                     int level,
+                                     const openvdb::math::Transform &grid_transform,
+                                     OriginMode origin_mode,
+                                     const Vector<float> &tile_offsets)
+{
+  openvdb::Vec3d index_pos;
+  if (origin_mode == OriginMode::Center) {
+    const double offset = tile_offsets[level];
+    index_pos = openvdb::Vec3d(coord.x() + offset, coord.y() + offset, coord.z() + offset);
+  }
+  else {
+    index_pos = openvdb::Vec3d(coord.x(), coord.y(), coord.z());
+  }
+
+  const openvdb::Vec3d world_pos = grid_transform.indexToWorld(index_pos);
+  return float3(float(world_pos.x()), float(world_pos.y()), float(world_pos.z()));
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
@@ -190,10 +220,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
           Vector<openvdb::Coord> active_coords;
           Vector<int> levels;
-          for (auto iter = vdb_grid->tree().cbeginValueOn(); iter; ++iter) {
-            active_coords.append(iter.getCoord());
-            levels.append(iter.getLevel());
-          }
+          collect_active_coordinates(vdb_grid, active_coords, levels);
 
           if (active_coords.is_empty()) {
             params.set_default_remaining_outputs();
@@ -242,19 +269,8 @@ static void node_geo_exec(GeoNodeExecParams params)
               const int level = levels[i];
               const bool is_tile = level > 0;
 
-              openvdb::Vec3d index_pos;
-              if (origin_mode == OriginMode::Center) {
-                const double offset = tile_offsets[level];
-                index_pos = openvdb::Vec3d(
-                    coord.x() + offset, coord.y() + offset, coord.z() + offset);
-              }
-              else {
-                index_pos = openvdb::Vec3d(coord.x(), coord.y(), coord.z());
-              }
-
-              const openvdb::Vec3d world_pos = grid_transform.indexToWorld(index_pos);
-              positions[i] = float3(
-                  float(world_pos.x()), float(world_pos.y()), float(world_pos.z()));
+              positions[i] = compute_world_position(
+                  coord, level, grid_transform, origin_mode, tile_offsets);
 
               if (coord_x_writer) {
                 coord_x_writer.span[i] = coord.x();
