@@ -436,6 +436,12 @@ static void node_geo_exec(GeoNodeExecParams params)
                         AttrDomain::Point,
                         bke::AttributeInitShared::from_container(std::move(*extent_array)));
   }
+  if (value_id.has_value()) {
+    attributes.add(*value_id,
+                   AttrDomain::Point,
+                   bke::cpp_type_to_attribute_type(*cpp_type),
+                   bke::AttributeInitShared::from_container(std::move(*value_array)));
+  }
 
   geometry::debug_randomize_point_order(pointcloud);
   params.set_output("Points", GeometrySet::from_pointcloud(pointcloud));
