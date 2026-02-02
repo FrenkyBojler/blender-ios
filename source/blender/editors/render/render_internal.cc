@@ -387,7 +387,7 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   /* When rendering an animation, saving files is required, either through scene saving or through
    * a compositor File Output. */
   if (is_animation && !(scene->r.mode & R_SAVE_ENABLE) &&
-      !node_tree_has_file_output(scene->compositing_node_group))
+      !compositor::node_tree_has_file_output(scene->compositing_node_group))
   {
     BKE_report(
         op->reports,
@@ -1093,7 +1093,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   /* When rendering an animation, saving files is required, either through scene saving or through
    * a compositor File Output. */
   if (is_animation && !(scene->r.mode & R_SAVE_ENABLE) &&
-      !node_tree_has_file_output(scene->compositing_node_group))
+      !compositor::node_tree_has_file_output(scene->compositing_node_group))
   {
     BKE_report(
         op->reports,

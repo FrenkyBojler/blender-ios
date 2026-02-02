@@ -41,27 +41,10 @@ void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size
 void ntreeCompositCryptomatteUpdateLayerNames(bNode *node);
 CryptomatteSession *ntreeCompositCryptomatteSession(bNode *node);
 
-// todo(habib): move to a common node utilities header
-inline bool node_tree_has_file_output(const bNodeTree *node_tree)
-{
-  node_tree->ensure_topology_cache();
-  for (const bNode *node : node_tree->nodes_by_type("CompositorNodeOutputFile")) {
-    if (!node->is_muted()) {
-      return true;
-    }
-  }
+namespace compositor {
 
-  for (const bNode *node : node_tree->group_nodes()) {
-    if (node->is_muted() || !node->id) {
-      continue;
-    }
+bool node_tree_has_file_output(const bNodeTree *node_tree);
 
-    if (node_tree_has_file_output(reinterpret_cast<const bNodeTree *>(node->id))) {
-      return true;
-    }
-  }
-
-  return false;
-}
+}  // namespace compositor
 
 }  // namespace blender

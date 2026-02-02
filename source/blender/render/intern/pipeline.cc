@@ -1680,7 +1680,7 @@ static bool scene_has_compositor_output(Scene *scene)
   if (node_tree_has_group_output(scene->compositing_node_group)) {
     return true;
   }
-  return node_tree_has_file_output(scene->compositing_node_group);
+  return compositor::node_tree_has_file_output(scene->compositing_node_group);
 }
 
 /* Identify if the compositor can run on the GPU. Currently, this only checks if the compositor is
