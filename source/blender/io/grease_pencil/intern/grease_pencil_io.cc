@@ -111,6 +111,7 @@ int GreasePencilImporter::create_material(const StringRefNull name)
     Material *mat_gp = BKE_grease_pencil_object_material_new(
         bmain, object_, name.c_str(), &new_idx);
     MaterialGPencilStyle *gp_style = mat_gp->gp_style;
+
     copy_v4_v4(gp_style->stroke_rgba, default_stroke_color);
     copy_v4_v4(gp_style->fill_rgba, default_fill_color);
     mat_index = object_->totcol - 1;
@@ -441,7 +442,6 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
     if (material->gp_style->flag & GP_MATERIAL_HIDE) {
       continue;
     }
-    const bool show_stroke = !hide_stroke[curve_i];
 
     /* Fill. */
     if (active_filled && params_.export_fill_materials) {
@@ -465,7 +465,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
     }
 
     /* Stroke. */
-    if (show_stroke && params_.export_stroke_materials) {
+    if (!hide_stroke[curve_i] && params_.export_stroke_materials) {
       const IndexRange points = points_by_curve[curve_i];
 
       const ColorGeometry4f stroke_color = compute_average_stroke_color(
