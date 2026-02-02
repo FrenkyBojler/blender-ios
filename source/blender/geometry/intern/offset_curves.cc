@@ -22,8 +22,8 @@ bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
   const OffsetIndices src_points_by_curve = src_curves.offsets();
   const VArray<bool> src_cyclic = src_curves.cyclic();
   const Span<float3> src_positions = src_curves.positions();
-  const Span<float3> src_handles_left = src_curves.handle_positions_left();
-  const Span<float3> src_handles_right = src_curves.handle_positions_right();
+  const Span<float3> src_handles_left = *src_curves.handle_positions_left();
+  const Span<float3> src_handles_right = *src_curves.handle_positions_right();
   const VArray<int8_t> src_curve_types = src_curves.curve_types();
 
   const float miter_limit = cos(miter_angle);

@@ -4934,7 +4934,7 @@ static wmOperatorStatus grease_pencil_offset_exec(bContext *C, wmOperator *op)
 
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const float offset_distance = RNA_float_get(op->ptr, "offset_distance");
   const float miter_angle = RNA_float_get(op->ptr, "miter_angle");
