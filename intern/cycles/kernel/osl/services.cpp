@@ -6,6 +6,7 @@
  * here, so for now we just put here. In the future it might be better
  * to have dedicated file for such tweaks.
  */
+#include "util/types_image.h"
 #if (defined(__GNUC__) && !defined(__clang__)) && defined(NDEBUG)
 #  pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #  pragma GCC diagnostic ignored "-Wuninitialized"
@@ -13,9 +14,9 @@
 
 #include <cstring>
 
-#include "scene/colorspace.h"
 #include "scene/object.h"
 
+#include "util/colorspace.h"
 #include "util/log.h"
 #include "util/string.h"
 
@@ -27,6 +28,7 @@
 #include "kernel/osl/types.h"
 
 #include "kernel/integrator/state.h"
+#include "kernel/integrator/state_util.h"
 
 #include "kernel/geom/primitive.h"
 #include "kernel/geom/shader_data.h"
@@ -39,7 +41,7 @@
 #include "kernel/svm/bevel.h"
 
 #include "kernel/util/ies.h"
-#include "kernel/util/texture_3d.h"
+#include "kernel/util/image_3d.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -627,10 +629,13 @@ static bool get_object_attribute(const ThreadKernelGlobalsCPU *kg,
   return false;
 }
 
-bool OSLRenderServices::get_object_standard_attribute(
-    ShaderGlobals *globals, OSLUStringHash name, const TypeDesc type, bool derivatives, void *val)
+bool OSLRenderServices::get_object_standard_attribute(ShaderGlobals *globals,
+                                                      ShaderData *sd,
+                                                      OSLUStringHash name,
+                                                      const TypeDesc type,
+                                                      bool derivatives,
+                                                      void *val)
 {
-  ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   /* todo: turn this into hash table? */
 
@@ -810,13 +815,16 @@ bool OSLRenderServices::get_object_standard_attribute(
     }
     return set_attribute(f, type, derivatives, val);
   }
-  return get_background_attribute(globals, name, type, derivatives, val);
+  return get_background_attribute(globals, sd, name, type, derivatives, val);
 }
 
-bool OSLRenderServices::get_background_attribute(
-    ShaderGlobals *globals, OSLUStringHash name, const TypeDesc type, bool derivatives, void *val)
+bool OSLRenderServices::get_background_attribute(ShaderGlobals *globals,
+                                                 ShaderData *sd,
+                                                 OSLUStringHash name,
+                                                 const TypeDesc type,
+                                                 bool derivatives,
+                                                 void *val)
 {
-  ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   const IntegratorStateCPU *state = globals->path_state;
   const IntegratorShadowStateCPU *shadow_state = globals->shadow_path_state;
@@ -938,7 +946,22 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
     return false;
   }
 
-  ShaderData *sd = globals->sd;
+  return get_attribute(globals, globals->sd, derivatives, object_name, type, name, val);
+}
+
+bool OSLRenderServices::get_attribute(ShaderGlobals *globals,
+                                      ShaderData *sd,
+                                      bool derivatives,
+                                      OSLUStringHash object_name,
+                                      const TypeDesc type,
+                                      OSLUStringHash name,
+                                      void *val)
+{
+
+  if (globals == nullptr) {
+    return false;
+  }
+
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   if (sd == nullptr) {
     /* Camera shader. */
@@ -968,7 +991,7 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
   }
 
   /* not found in attribute, check standard object info */
-  return get_object_standard_attribute(globals, name, type, derivatives, val);
+  return get_object_standard_attribute(globals, sd, name, type, derivatives, val);
 }
 
 bool OSLRenderServices::get_userdata(bool /*derivatives*/,
@@ -1167,11 +1190,10 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
 
       float4 rgba;
       if (id == -1) {
-        rgba = make_float4(
-            TEX_IMAGE_MISSING_R, TEX_IMAGE_MISSING_G, TEX_IMAGE_MISSING_B, TEX_IMAGE_MISSING_A);
+        rgba = IMAGE_MISSING_RGBA;
       }
       else {
-        rgba = kernel_tex_image_interp(kernel_globals, id, s, 1.0f - t);
+        rgba = kernel_image_interp(kernel_globals, id, s, 1.0f - t);
       }
 
       result[0] = rgba[0];
@@ -1285,7 +1307,7 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
       /* Packed texture. */
       const int slot = handle->svm_slots[0].y;
       const float3 P_float3 = make_float3(P.x, P.y, P.z);
-      float4 rgba = kernel_tex_image_interp_3d(
+      float4 rgba = kernel_image_interp_3d(
           kernel_globals, globals->sd, slot, P_float3, INTERPOLATION_NONE, false);
 
       result[0] = rgba[0];
@@ -1627,7 +1649,7 @@ bool OSLRenderServices::getmessage(OSL::ShaderGlobals *sg,
         return set_attribute(dual1(sd->v, sd->dv.dx, sd->dv.dy), type, derivatives, val);
       }
 
-      return get_attribute(sg, derivatives, u_empty, type, name, val);
+      return get_attribute(globals, sd, derivatives, u_empty, type, name, val);
     }
   }
 

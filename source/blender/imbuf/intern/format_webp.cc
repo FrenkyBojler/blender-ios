@@ -32,6 +32,8 @@
 
 #include "CLG_log.h"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"image.webp"};
 
 bool imb_is_a_webp(const uchar *mem, size_t size)
@@ -167,16 +169,16 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
     /* We must convert the ImBuf RGBA buffer to RGB as WebP expects a RGB buffer. */
     const size_t num_pixels = IMB_get_pixel_count(ibuf);
     const uint8_t *rgba_rect = ibuf->byte_buffer.data;
-    uint8_t *rgb_rect = MEM_malloc_arrayN<uint8_t>(num_pixels * 3, "webp rgb_rect");
+    uint8_t *rgb_rect = MEM_new_array_uninitialized<uint8_t>(num_pixels * 3, "webp rgb_rect");
     for (size_t i = 0; i < num_pixels; i++) {
       rgb_rect[i * 3 + 0] = rgba_rect[i * 4 + 0];
       rgb_rect[i * 3 + 1] = rgba_rect[i * 4 + 1];
       rgb_rect[i * 3 + 2] = rgba_rect[i * 4 + 2];
     }
 
-    last_row = (uchar *)(rgb_rect + (size_t(ibuf->y - 1) * size_t(ibuf->x) * 3));
+    last_row = static_cast<uchar *>(rgb_rect + (size_t(ibuf->y - 1) * size_t(ibuf->x) * 3));
 
-    if (ibuf->foptions.quality == 100.0f) {
+    if (ibuf->foptions.quality == 100) {
       encoded_data_size = WebPEncodeLosslessRGB(
           last_row, ibuf->x, ibuf->y, -3 * ibuf->x, &encoded_data);
     }
@@ -184,12 +186,12 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
       encoded_data_size = WebPEncodeRGB(
           last_row, ibuf->x, ibuf->y, -3 * ibuf->x, ibuf->foptions.quality, &encoded_data);
     }
-    MEM_freeN(rgb_rect);
+    MEM_delete(rgb_rect);
   }
   else if (bytesperpixel == 4) {
     last_row = ibuf->byte_buffer.data + 4 * size_t(ibuf->y - 1) * size_t(ibuf->x);
 
-    if (ibuf->foptions.quality == 100.0f) {
+    if (ibuf->foptions.quality == 100) {
       encoded_data_size = WebPEncodeLosslessRGBA(
           last_row, ibuf->x, ibuf->y, -4 * ibuf->x, &encoded_data);
     }
@@ -214,7 +216,7 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
   /* Write ICC profile if there is one associated with the colorspace. */
   const ColorSpace *colorspace = ibuf->byte_buffer.colorspace;
   if (colorspace) {
-    blender::Vector<char> icc_profile = IMB_colormanagement_space_to_icc_profile(colorspace);
+    Vector<char> icc_profile = IMB_colormanagement_space_to_icc_profile(colorspace);
     if (!icc_profile.is_empty()) {
       WebPData icc_chunk = {reinterpret_cast<const uint8_t *>(icc_profile.data()),
                             size_t(icc_profile.size())};
@@ -253,3 +255,5 @@ bool imb_savewebp(ImBuf *ibuf, const char *filepath, int /*flags*/)
 
   return ok;
 }
+
+}  // namespace blender

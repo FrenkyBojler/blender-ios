@@ -35,6 +35,7 @@
 #include "RNA_types.hh"
 
 #include "bpy.hh"
+#include "bpy_audaspace.hh"
 #include "bpy_capi_utils.hh"
 #include "bpy_intern_string.hh"
 #include "bpy_path.hh"
@@ -69,6 +70,8 @@
 #include "../generic/imbuf_py_api.hh"
 #include "../gpu/gpu_py_api.hh"
 #include "../mathutils/mathutils.hh"
+
+namespace blender {
 
 /* Logging types to use anywhere in the Python modules. */
 
@@ -125,6 +128,13 @@ void bpy_context_set(bContext *C, PyGILState_STATE *gilstate)
   if (py_call_level == 1) {
     BPY_context_update(C);
 
+    /* In rare situations, a nullptr context may be set. Such as when executing a XR surface region
+     * draw callback, which doesn't provide a valid context. Prevent calling #pyrna_context_init
+     * which would dereference the context to initialize flags. */
+    if (C != nullptr) {
+      pyrna_context_init(C);
+    }
+
 #ifdef TIME_PY_RUN
     if (bpy_timer_count == 0) {
       /* Record time from the beginning. */
@@ -138,7 +148,7 @@ void bpy_context_set(bContext *C, PyGILState_STATE *gilstate)
   }
 }
 
-void bpy_context_clear(bContext * /*C*/, const PyGILState_STATE *gilstate)
+void bpy_context_clear(bContext *C, const PyGILState_STATE *gilstate)
 {
   py_call_level--;
 
@@ -155,6 +165,11 @@ void bpy_context_clear(bContext * /*C*/, const PyGILState_STATE *gilstate)
 #if 0
     BPY_context_set(nullptr);
 #endif
+
+    /* See previous comment regarding nullptr check in #bpy_context_set. */
+    if (C != nullptr) {
+      pyrna_context_clear(C);
+    }
 
 #ifdef TIME_PY_RUN
     bpy_timer_run_tot += BLI_time_now_seconds() - bpy_timer_run;
@@ -196,7 +211,6 @@ void BPY_context_dict_clear_members_array(void **dict_p,
     PyObject *key = PyUnicode_FromString(context_members[i]);
     PyObject *item;
 
-#if PY_VERSION_HEX >= 0x030d0000
     switch (PyDict_Pop(dict, key, &item)) {
       case 1: {
         Py_DECREF(item);
@@ -209,10 +223,6 @@ void BPY_context_dict_clear_members_array(void **dict_p,
         break;
       }
     }
-#else /* Remove when Python 3.12 support is dropped. */
-    item = _PyDict_Pop(dict, key, Py_None);
-    Py_DECREF(item);
-#endif
 
     Py_DECREF(key);
   }
@@ -262,17 +272,12 @@ bContext *BPY_context_get()
 
 void BPY_context_set(bContext *C)
 {
-  bpy_context_module->ptr->data = (void *)C;
+  bpy_context_module->ptr->data = static_cast<void *>(C);
 }
 
 #ifdef WITH_FLUID
 /* Defined in `manta` module. */
 extern "C" PyObject *Manta_initPython();
-#endif
-
-#ifdef WITH_AUDASPACE_PY
-/* Defined in `AUD_C-API.cpp`. */
-extern "C" PyObject *AUD_initPython();
 #endif
 
 #ifdef WITH_CYCLES
@@ -309,7 +314,7 @@ static _inittab bpy_internal_modules[] = {
     {"manta", Manta_initPython},
 #endif
 #ifdef WITH_AUDASPACE_PY
-    {"aud", AUD_initPython},
+    {"aud", BPyInit_audaspace},
 #endif
 #ifdef WITH_CYCLES
     {"_cycles", CCL_initPython},
@@ -454,7 +459,7 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
 
     /* While `sys.argv` is set, we don't want Python to interpret it. */
     config.parse_argv = 0;
-    status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
+    status = PyConfig_SetBytesArgv(&config, argc, const_cast<char *const *>(argv));
     pystatus_exit_on_error(status);
 
     /* Needed for Python's initialization for portable Python installations.
@@ -702,13 +707,20 @@ void BPY_python_backtrace(FILE *fp)
   if (frame == nullptr) {
     return;
   }
+  /* The reference is borrowed, increase since #PyFrame_GetBack is *not* borrowed,
+   * and this simplifies handling reference counts in the loop. */
+  Py_INCREF(frame);
   do {
     PyCodeObject *code = PyFrame_GetCode(frame);
     const int line = PyFrame_GetLineNumber(frame);
     const char *filepath = PyUnicode_AsUTF8(code->co_filename);
     const char *funcname = PyUnicode_AsUTF8(code->co_name);
     fprintf(fp, "  File \"%s\", line %d in %s\n", filepath, line, funcname);
-  } while ((frame = PyFrame_GetBack(frame)));
+    Py_DECREF(code);
+    PyFrameObject *frame_next = PyFrame_GetBack(frame);
+    Py_DECREF(frame);
+    frame = frame_next;
+  } while (frame);
 }
 
 void BPY_DECREF(void *pyob_ptr)
@@ -810,7 +822,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   PointerRNA *ptr = nullptr;
   bool done = false;
 
-  pyctx = (PyObject *)CTX_py_dict_get(C);
+  pyctx = static_cast<PyObject *>(CTX_py_dict_get(C));
   item = PyDict_GetItemString(pyctx, member);
 
   if (item == nullptr) {
@@ -905,6 +917,53 @@ std::optional<std::string> BPY_python_current_file_and_line()
 }
 
 #ifdef WITH_PYTHON_MODULE
+
+/* -------------------------------------------------------------------- */
+/** \name Detect Exit Singleton
+ *
+ * Python does not reliably free all modules on exit.
+ * This means we can't rely on #PyModuleDef::m_free running to clean-up
+ * Blender data when Python exits.
+ *
+ * However Python *does* reliably clear the modules name-space.
+ * Store a singleton in modules which may reference Blender owned memory,
+ * calling #main_python_exit once the singleton has been cleared from the
+ * name-space of all modules.
+ * \{ */
+
+static void main_python_exit_ensure();
+
+static void bpy_detect_exit_singleton_cleanup(PyObject * /*capsule*/)
+{
+  main_python_exit_ensure();
+}
+
+static void bpy_detect_exit_singleton_add_to_module(PyObject *mod)
+{
+  static PyObject *singleton = nullptr;
+
+  /* Note that Python's API docs state that:
+   * - If this capsule will be stored as an attribute of a module,
+   *   the name should be specified as `modulename.attributename`.
+   * This is ignored here because the capsule is not intended for script author access.
+   * It also wouldn't make sense as it is stored in multiple modules. */
+  const char *bpy_detect_exit_singleton_id = "_bpy_detect_exit_singleton";
+  if (singleton == nullptr) {
+    /* This is ignored, but must be non-null,
+     * set an address that is non-null and easily identifiable. */
+    void *pointer = reinterpret_cast<void *>(uintptr_t(-1));
+    singleton = PyCapsule_New(
+        pointer, bpy_detect_exit_singleton_id, bpy_detect_exit_singleton_cleanup);
+    BLI_assert(singleton);
+  }
+  else {
+    Py_INCREF(singleton);
+  }
+  PyModule_AddObject(mod, bpy_detect_exit_singleton_id, singleton);
+}
+
+/** \} */
+
 /* TODO: reloading the module isn't functional at the moment. */
 
 static void bpy_module_free(void *mod);
@@ -912,6 +971,16 @@ static void bpy_module_free(void *mod);
 /* Defined in 'creator.c' when building as a Python module. */
 extern int main_python_enter(int argc, const char **argv);
 extern void main_python_exit();
+
+static void main_python_exit_ensure()
+{
+  static bool exit = false;
+  if (exit) {
+    return;
+  }
+  exit = true;
+  main_python_exit();
+}
 
 static struct PyModuleDef bpy_proxy_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
@@ -955,6 +1024,28 @@ static void bpy_module_delay_init(PyObject *bpy_proxy)
 
   /* Initialized in #BPy_init_modules(). */
   PyDict_Update(PyModule_GetDict(bpy_proxy), PyModule_GetDict(bpy_package_py));
+
+  {
+    /* Modules which themselves require access to Blender
+     * allocated resources to be freed should be included in this list.
+     * Once the last module has been cleared, the singleton will be de-allocated
+     * which calls #main_python_exit.
+     *
+     * Note that, other modules can be here as needed. */
+    const char *bpy_modules_array[] = {
+        "bpy.types",
+        /* Not technically required however as this is created early on
+         * in Blender's module initialization, it's likely to be cleared later,
+         * since module cleanup runs in the reverse of the order added to `sys.modules`. */
+        "_bpy",
+    };
+    PyObject *sys_modules = PyImport_GetModuleDict();
+    for (int i = 0; i < ARRAY_SIZE(bpy_modules_array); i++) {
+      PyObject *mod = PyDict_GetItemString(sys_modules, bpy_modules_array[i]);
+      BLI_assert(mod);
+      bpy_detect_exit_singleton_add_to_module(mod);
+    }
+  }
 }
 
 /**
@@ -1048,7 +1139,7 @@ PyMODINIT_FUNC PyInit_bpy()
 
 static void bpy_module_free(void * /*mod*/)
 {
-  main_python_exit();
+  main_python_exit_ensure();
 }
 
 #endif
@@ -1090,3 +1181,5 @@ int text_check_identifier_nodigit_unicode(const uint ch)
 }
 
 /** \} */
+
+}  // namespace blender

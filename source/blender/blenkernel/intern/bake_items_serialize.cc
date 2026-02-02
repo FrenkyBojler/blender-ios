@@ -477,9 +477,10 @@ static std::shared_ptr<DictionaryValue> write_blob_shared_simple_gspan(
   const char *func = __func__;
   const std::optional<ImplicitSharingInfoAndData> sharing_info_and_data = blob_sharing.read_shared(
       io_data, [&]() -> std::optional<ImplicitSharingInfoAndData> {
-        void *data_mem = MEM_mallocN_aligned(size * cpp_type.size, cpp_type.alignment, func);
+        void *data_mem = MEM_new_uninitialized_aligned(
+            size * cpp_type.size, cpp_type.alignment, func);
         if (!read_blob_simple_gspan(blob_reader, io_data, {cpp_type, data_mem, size})) {
-          MEM_freeN(data_mem);
+          MEM_delete_void(data_mem);
           return std::nullopt;
         }
         return ImplicitSharingInfoAndData{implicit_sharing::info_for_mem_free(data_mem), data_mem};
@@ -822,11 +823,7 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
     return nullptr;
   }
 
-  Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-  CustomData_free_layer_named(&mesh->vert_data, "position");
-  CustomData_free_layer_named(&mesh->edge_data, ".edge_verts");
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_vert");
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_edge");
+  Mesh *mesh = bke::mesh_new_no_attributes(0, 0, 0, 0);
   mesh->verts_num = io_mesh->lookup_int("num_vertices").value_or(0);
   mesh->edges_num = io_mesh->lookup_int("num_edges").value_or(0);
   mesh->faces_num = io_mesh->lookup_int("num_polygons").value_or(0);
@@ -860,7 +857,7 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
       if (value->type() != io::serialize::eValueType::String) {
         return cancel();
       }
-      bDeformGroup *defgroup = MEM_callocN<bDeformGroup>(__func__);
+      bDeformGroup *defgroup = MEM_new<bDeformGroup>(__func__);
       STRNCPY_UTF8(defgroup->name, value->as_string_value()->value().c_str());
       BLI_addtail(&mesh->vertex_group_names, defgroup);
     }
@@ -1120,8 +1117,8 @@ static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet
 
     if (!BLI_listbase_is_empty(&mesh.vertex_group_names)) {
       auto io_vertex_group_names = io_mesh->append_array("vertex_group_names");
-      LISTBASE_FOREACH (bDeformGroup *, defgroup, &mesh.vertex_group_names) {
-        io_vertex_group_names->append_str(defgroup->name);
+      for (bDeformGroup &defgroup : mesh.vertex_group_names) {
+        io_vertex_group_names->append_str(defgroup.name);
       }
     }
 
